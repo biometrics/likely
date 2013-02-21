@@ -1,0 +1,5 @@
+# Qt Creator
+CMakeLists.txt.user*
+
+# Repository specific
+build*
