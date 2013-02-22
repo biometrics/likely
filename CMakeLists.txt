@@ -10,6 +10,13 @@ set(CPACK_PACKAGE_VERSION_MINOR 1)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
 
 # Find LLVM
+include(ExternalProject)
+ExternalProject_Add(
+   LLVM-3-2
+   PREFIX LLVM
+   URL http://llvm.org/releases/3.2/llvm-3.2.src.tar.gz
+)
+
 find_path(LLVM_DIR share/llvm/cmake/LLVMConfig.cmake)
 mark_as_advanced(LLVM_DIR)
 set(CMAKE_MODULE_PATH "${LLVM_DIR}/share/llvm/cmake")
