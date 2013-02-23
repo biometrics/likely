@@ -32,8 +32,18 @@ if(UNIX)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -fvisibility=hidden")
 endif()
 
+# Compile in index.html as a string
+set(LIKELY_INDEX_HTML ${CMAKE_BINARY_DIR}/likely_index_html.cpp)
+file(WRITE ${LIKELY_INDEX_HTML} "// Probably a bad idea to modify this automatically generated source file!\n\n")
+file(APPEND ${LIKELY_INDEX_HTML} "#include \"likely.h\"\n\nconst char *likely_index_html()\n{\n\treturn \"")
+file(READ index.html INDEX_HTML)
+string(REPLACE "\"" "\\\"" INDEX_HTML ${INDEX_HTML})
+string(REPLACE "\n" "\"\n\t\"" INDEX_HTML ${INDEX_HTML})
+file(APPEND ${LIKELY_INDEX_HTML} ${INDEX_HTML})
+file(APPEND ${LIKELY_INDEX_HTML} "\";\n}\n")
+
 # Build
-add_library(likely likely.cpp)
+add_library(likely likely.cpp ${LIKELY_INDEX_HTML})
 set_target_properties(likely PROPERTIES
                              DEFINE_SYMBOL LIKELY_LIBRARY
                              VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}

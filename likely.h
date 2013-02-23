@@ -34,9 +34,12 @@
 #  endif
 #endif
 
+/* C API Starts Here */
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+LIKELY_EXPORT const char *likely_index_html();
 
 struct likely_matrix
 {
@@ -101,9 +104,13 @@ LIKELY_EXPORT likely_binary_function likely_make_binary_function(const char *des
 }
 #endif
 
+/* C++ Wrapper Starts Here */
 #ifdef __cplusplus
+#include <string>
 
 namespace likely {
+
+std::string indexHtml() { return likely_index_html(); }
 
 struct Matrix : public likely_matrix
 {
