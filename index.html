@@ -20,6 +20,10 @@
     <!--[if lt IE 9]>
       <script src="../assets/js/html5shiv.js"></script>
     <![endif]-->
+
+    <script type="text/javascript"
+      src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+    </script>
   </head>
 
   <body>
@@ -46,12 +50,33 @@
       <div class="row">
         <div class="span12">
           <h1>Literate Kernel Library</h1>
-          <p class="lead">Optimized image processing functions for heterogenous architectures.</p>
+          <p class="lead">Beautiful image processing functions for heterogenous architectures.</p>
           <h2>Introduction</h2>
-          <p>Welcome to the documentation <em>and source code</em> for the literate kernel library.</p>
+          <p>Welcome to the documentation <em>and source code</em> for <em>Likely</em> the literate kernel library!
+             Simply stated, the goals of Likely are to provide image processing and machine learning functions, or <em>kernels</em>, that are:
+            <ul>
+              <li>executable everywhere.</li>
+              <li>perfectly optimized.</li>
+              <li>uncompromisingly elegant.</li>
+            </ul>
+          </p>
+          <h3>Executable Everywhere</h3>
+          <p>Likely is written in plain old ISO C++ '98 and only depends on <a href="http://llvm.org/">LLVM</a> which means it runs <a href="http://llvm.org/docs/GettingStarted.html#hardware">everywhere LLVM does</a>.
+            In addition to executing natively on a single host CPU thread via the LLVM Just-In-Time (JIT) compiler, kernels can also target multi-core CPUs using <a href="http://openmp.org/wp/">OpenMP</a> and GPUs and other <a href="http://www.khronos.org/opencl/">OpenCL</a> compatible coprocessors.
+          </p>
+          <h3>Perfectly Optimized</h3>
+          <p>Likely relies on the powerful and well established collection of LLVM optimization passes to make kernel execution as fast as possible.
+            Since compilation is held off until runtime, kernels can be optimized to take advantage of all instruction set extensions available on a processor.
+            Indeed compilation is delayed until a function is called for the first time, which means that Likely can make optimizations that would be impossible in a conventional image processing library.
+            No branching is needed to handle different data types, entire loops and code blocks can be eliminated as an input's dimensions and type is known, and many values that would be runtime parameters become compile time constants.
+           </p>
+           <p>These optimizations are made possible by a simple but powerful observation for image processing applications:
+             <blockquote>
+               <p>While kernels must be defined generically to handle any matrix type, at runtime they tend to be executed repeatedly on the same type.</p>
+             </blockquote>
+           </p>
         </div>
       </div>
-    </div>
 
     <div class="navbar navbar-inverse navbar-fixed-bottom">
       <div class="navbar-inner">
