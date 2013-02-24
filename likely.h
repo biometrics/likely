@@ -110,7 +110,7 @@ LIKELY_EXPORT likely_binary_function likely_make_binary_function(const char *des
 
 namespace likely {
 
-std::string indexHtml() { return likely_index_html(); }
+inline std::string indexHtml() { return likely_index_html(); }
 
 struct Matrix : public likely_matrix
 {

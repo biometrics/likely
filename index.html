@@ -45,15 +45,20 @@
   </div>
 
   <div class="container"> <div class="row-fluid"> <div class="span12">
-    <h1>Literate Kernel Library</h1>
+    <h1 id="literate_kernel_library">Literate Kernel Library</h1>
     <p class="lead">Beautiful image processing functions for heterogenous architectures.</p>
-    <h2>Introduction</h2>
+    <h2>Table of Contents</h2>
+    <ul class="nav nav-pills nav-stacked">
+      <li><a href="#introduction">Introduction</a></li>
+      <li><a href="#installation">Installation</a></li>
+    </ul>
+    <h2 id="introduction">Introduction</h2>
     <p>Welcome to the documentation <i>and source code</i> for <i>Likely</i> the literate kernel library!
        Simply stated, the goals of Likely are to provide image processing and machine learning functions, or <i>kernels</i>, that are:
       <ul>
-        <li><a href="#exectable_everywhere" style="text-decoration:none"><font color="#333333">executable everywhere.</font></a></li>
-        <li><a href="#perfectly_optimized" style="text-decoration:none"><font color="#333333">perfectly optimized.</font></a></li>
-        <li><a href="#uncompromisingly_elegant" style="text-decoration:none"><font color="#333333">uncompromisingly elegant.</font></a></li>
+        <li>executable everywhere.</li>
+        <li>perfectly optimized.</li>
+        <li>uncompromisingly elegant.</li>
       </ul>
     </p>
     <h3 id="executable_everywhere">Executable Everywhere</h3>
@@ -88,6 +93,21 @@
       You can access this content for yourself with <code class="prettyprint lang-c">const char *this_webpage = likely_index_html();</code>.
     </p>
     <p>Kernels are written in <i>MathML</i> allowing them to be rendered cleanly here and parsed easily by the backend.</p>
+    <h2 id="installation">Installation</h2>
+    <p>The following sections discuss how to build and incorporate Likely into your own project.</p>
+    <h3 id="build_instructions">Build Instructions</h3>
+    <p>Likely uses the <i>CMake</i> (>= 2.8.9) build system and will automatically download and compile its LLVM dependency.</p>
+    <pre>$ git clone https://github.com/biometrics/likely.git<br>$ cd likely<br>$ mkdir build<br>$ cd build<br>$ cmake ..<br>$ make -j4</pre>
+    <p>Unit tests are an optional build flag whereby kernels are compared against equivalent <i>OpenCV</i> functions for correctness and speed.
+      The build system will automatically download and compile OpenCV.
+    </p>
+    <pre>$ cmake -D BUILD_TESTING=ON ..<br>$ make -j4</pre>
+    <p>Installation and packaging work as expected.</p>
+    <pre>$ make install<br>$ cpack -G TGZ</pre>
+    <h3 id="usage">Usage</h3>
+    <p>C/C++ projects should <code class="prettyprint lang-c">#include &lt;likely.h&gt;</code> and link against the shared library <code>likely</code>.
+      <tt>FindLikely.cmake</tt> is provided as a convenience to CMake developers.
+    </p>
   </div> </div> </div>
 </body>
 

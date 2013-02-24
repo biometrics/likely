@@ -12,10 +12,10 @@ set(CPACK_PACKAGE_VERSION_PATCH 0)
 # Find LLVM
 include(ExternalProject)
 ExternalProject_Add(
-   LLVM-3-2
-   PREFIX LLVM
-   URL http://llvm.org/releases/3.2/llvm-3.2.src.tar.gz
-)
+  LLVM-3-2
+  PREFIX LLVM
+  URL http://llvm.org/releases/3.2/llvm-3.2.src.tar.gz
+  URL_MD5 71610289bbc819e3e15fdd562809a2d7)
 
 find_path(LLVM_DIR share/llvm/cmake/LLVMConfig.cmake)
 mark_as_advanced(LLVM_DIR)
@@ -43,12 +43,15 @@ file(APPEND ${LIKELY_INDEX_HTML} ${INDEX_HTML})
 file(APPEND ${LIKELY_INDEX_HTML} "\";\n}\n")
 
 # Build
-add_library(likely likely.cpp ${LIKELY_INDEX_HTML})
+add_library(likely SHARED likely.cpp ${LIKELY_INDEX_HTML})
 set_target_properties(likely PROPERTIES
                              DEFINE_SYMBOL LIKELY_LIBRARY
                              VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
                              SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR})
 target_link_libraries(likely ${REQ_LLVM_LIBRARIES})
+
+# Test
+add_subdirectory(tests)
 
 # Install
 install(TARGETS likely
@@ -56,6 +59,7 @@ install(TARGETS likely
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
 install(FILES likely.h DESTINATION include)
+install(FILES LICENSE.txt LikelyConfig.cmake README.md DESTINATION .)
 
 # Package
 include(CPack)
