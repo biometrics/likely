@@ -129,10 +129,31 @@
     <p>Convenience functions <code class="prettyprint lang-c">double likely_element(...)</code> and <code class="prettyprint lang-c">void likely_set_element(...)</code> are provided for individual element access.</p>
     <h4 id="the_matrix_hash">The Matrix Hash</h4>
     <p>As suggested in the <a href="#hash_introduction">introduction</a>, the matrix hash plays a critical role in determining how to process the matrix.
-      It informs the function what data type the matrix is and where to process it.
-      It also encodes which, if any, of channels, columns, rows, and frames of the matrix are length 1.
+      The hash is a 2-byte <i>bit field</i> that encodes the what data type the matrix is are where it should be processed.
+      It also specifies which, if any, of channels, columns, rows, and frames of the matrix are length 1.
       This knowledge is used at kernel compile time to simplify element access algebra and remove unneccesary loops.
     </p>
+    <p>The layout of the bits in the hash is as follows:</p>
+    <table class="table table-bordered table-condensed table-hover table-striped">
+      <caption>Matrix Hash Bit Field Layout</caption>
+      <thead>
+        <tr><th>Field</th><th>Bits</th><th>Enum</th><th>Mask</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Depth</td><td>8</td><td>likely_matrix::Depth</td><td>0x00FF</td></tr>
+        <tr><td>Floating</td><td>1</td><td>likely_matrix::Floating</td><td>0x0100</td></tr>
+        <tr><td>Signed</td><td>1</td><td>likely_matrix::Signed</td><td>0x0200</td></tr>
+        <tr><td>Type (= Depth | Floating | Signed)</td><td>10</td><td>likely_matrix::Type</td><td>0x03FF</td></tr>
+        <tr><td>OpenMP</td><td>1</td><td>likely_matrix::OpenMP</td><td>0x0400</td></tr>
+        <tr><td>OpenCL</td><td>1</td><td>likely_matrix::OpenCL</td><td>0x0800</td></tr>
+        <tr><td>Single Channel</td><td>1</td><td>likely_matrix::SingleChannel</td><td>0x1000</td></tr>
+        <tr><td>Single Column</td><td>1</td><td>likely_matrix::SingleColumn</td><td>0x2000</td></tr>
+        <tr><td>Single Row</td><td>1</td><td>likely_matrix::SingleRow</td><td>0x4000</td></tr>
+        <tr><td>Single Frame</td><td>1</td><td>likely_matrix::SingleFrame</td><td>0x8000</td></tr>
+      </tbody>
+    </table>
+    <p>Logic for querying and setting the hash is simplified with the following convenience functions:</p>
+    <pre class="prettyprint lang-c">int  likely_depth(const likely_matrix *m);<br>void likely_set_depth(likely_matrix *m, int bits);<br>bool likely_is_floating(const likely_matrix *m);<br>void likely_set_floating(likely_matrix *m, bool is_floating);<br>bool likely_is_signed(const likely_matrix *m);<br>void likely_set_signed(likely_matrix *m, bool is_signed);<br>int  likely_type(const likely_matrix *m);<br>void likely_set_type(likely_matrix *m, int type);<br>bool likely_openmp(const likely_matrix *m);<br>void likely_set_openmp(likely_matrix *m, bool openmp);<br>bool likely_opencl(const likely_matrix *m);<br>void likely_use_opencl(likely_matrix *m, bool opencl);<br>bool likely_is_single_channel(const likely_matrix *m);<br>void likely_set_single_channel(likely_matrix *m, bool is_single_channel);<br>bool likely_is_single_column(const likely_matrix *m);<br>void likely_set_single_column(likely_matrix *m, bool is_single_column);<br>bool likely_is_single_row(const likely_matrix *m);<br>void likely_set_single_row(likely_matrix *m, bool is_single_row);<br>bool likely_is_single_frame(const likely_matrix *m);<br>void likely_set_single_frame(likely_matrix *m, bool is_single_frame);</pre>
   </div> </div> </div>
 </body>
 

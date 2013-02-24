@@ -47,18 +47,22 @@ struct likely_matrix
 {
     uint8_t *data;
     uint32_t channels, columns, rows, frames;
-    uint16_t hash; /* Bits : 8
+    uint16_t hash; /* Depth : 8
                       Floating : 1
                       Signed : 1
-                      (Reserved) : 2
+                      OpenMP : 1
+                      OpenCL : 1
                       Single-channel : 1
                       Single-column : 1
                       Single-row : 1
                       Single-frame : 1 */
 
-    enum Hash { Bits = 0x00FF,
+    enum Hash { Depth = 0x00FF,
                 Floating = 0x0100,
                 Signed = 0x0200,
+                Type = Depth | Floating | Signed,
+                OpenMP = 0x0400,
+                OpenCL = 0x0800,
                 SingleChannel = 0x1000,
                 SingleColumn = 0x2000,
                 SingleRow = 0x4000,
@@ -68,13 +72,13 @@ struct likely_matrix
                 u16 = 16,
                 u32 = 32,
                 u64 = 64,
-                s8  = 8  + Signed,
-                s16 = 16 + Signed,
-                s32 = 32 + Signed,
-                s64 = 64 + Signed,
-                f16 = 16 + Floating + Signed,
-                f32 = 32 + Floating + Signed,
-                f64 = 64 + Floating + Signed };
+                s8  = 8  | Signed,
+                s16 = 16 | Signed,
+                s32 = 32 | Signed,
+                s64 = 64 | Signed,
+                f16 = 16 | Floating | Signed,
+                f32 = 32 | Floating | Signed,
+                f64 = 64 | Floating | Signed };
 };
 
 // Convenience functions for default initializing a matrix
@@ -82,14 +86,18 @@ LIKELY_EXPORT void likely_matrix_initialize_null(likely_matrix *m);
 LIKELY_EXPORT void likely_matrix_initialize(likely_matrix *m, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash);
 
 // Convenience functions for querying and editing the hash
-LIKELY_EXPORT int  likely_bits(const likely_matrix *m);
-LIKELY_EXPORT void likely_set_bits(likely_matrix *m, int bits);
+LIKELY_EXPORT int  likely_depth(const likely_matrix *m);
+LIKELY_EXPORT void likely_set_depth(likely_matrix *m, int bits);
 LIKELY_EXPORT bool likely_is_floating(const likely_matrix *m);
 LIKELY_EXPORT void likely_set_floating(likely_matrix *m, bool is_floating);
 LIKELY_EXPORT bool likely_is_signed(const likely_matrix *m);
 LIKELY_EXPORT void likely_set_signed(likely_matrix *m, bool is_signed);
 LIKELY_EXPORT int  likely_type(const likely_matrix *m);
 LIKELY_EXPORT void likely_set_type(likely_matrix *m, int type);
+LIKELY_EXPORT bool likely_openmp(const likely_matrix *m);
+LIKELY_EXPORT void likely_set_openmp(likely_matrix *m, bool openmp);
+LIKELY_EXPORT bool likely_opencl(const likely_matrix *m);
+LIKELY_EXPORT void likely_use_opencl(likely_matrix *m, bool opencl);
 LIKELY_EXPORT bool likely_is_single_channel(const likely_matrix *m);
 LIKELY_EXPORT void likely_set_single_channel(likely_matrix *m, bool is_single_channel);
 LIKELY_EXPORT bool likely_is_single_column(const likely_matrix *m);
@@ -125,7 +133,7 @@ LIKELY_EXPORT likely_binary_function likely_make_binary_function(const char *des
 
 namespace likely {
 
-inline const char *indexHtml() { return likely_index_html(); }
+inline const char *indexHTML() { return likely_index_html(); }
 
 struct Matrix : public likely_matrix
 {
@@ -133,14 +141,18 @@ struct Matrix : public likely_matrix
     Matrix(uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash)
         { likely_matrix_initialize(this, channels, columns, rows, frames, hash); }
 
-    inline int  bits() const { return likely_bits(this); }
-    inline void setBits(int bits) { likely_set_bits(this, bits); }
+    inline int  depth() const { return likely_depth(this); }
+    inline void setDepth(int bits) { likely_set_depth(this, bits); }
     inline bool isFloating() const { return likely_is_floating(this); }
     inline void setFloating(bool isFloating) { likely_set_floating(this, isFloating); }
     inline bool isSigned() const { return likely_is_signed(this); }
     inline void setSigned(bool isSigned) { likely_set_signed(this, isSigned); }
     inline int  type() const { return likely_type(this); }
     inline void setType(int type) { likely_set_type(this, type); }
+    inline bool openMP() const { return likely_openmp(this); }
+    inline void setOpenMP(bool OpenMP) { likely_set_openmp(this, OpenMP); }
+    inline bool openCL() const { return likely_opencl(this); }
+    inline void setOpenCL(bool OpenCL) { likely_use_opencl(this, OpenCL); }
     inline bool isSingleChannel() const { return likely_is_single_channel(this); }
     inline void setSingleChannel(bool isSingleChannel) { likely_set_single_channel(this, isSingleChannel); }
     inline bool isSingleColumn() const { return likely_is_single_column(this); }
@@ -151,7 +163,7 @@ struct Matrix : public likely_matrix
     inline void setSingleFrame(bool isSingleFrame) { likely_set_single_frame(this, isSingleFrame); }
     inline uint32_t elements() const { return likely_elements(this); }
     inline uint32_t bytes() const { return likely_bytes(this); }
-    inline double element(uint32_t c, uint32_t x, uint32_t y, uint32_t t) { return likely_element(this, c, x, y, t); }
+    inline double element(uint32_t c, uint32_t x, uint32_t y, uint32_t t) const { return likely_element(this, c, x, y, t); }
     inline void setElement(uint32_t c, uint32_t x, uint32_t y, uint32_t t, double value) { likely_set_element(this, c, x, y, t, value); }
 };
 

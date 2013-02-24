@@ -64,16 +64,16 @@ void likely_matrix_initialize(likely_matrix *m, uint32_t channels, uint32_t colu
     likely_set_single_frame(m, frames == 1);
 }
 
-int likely_bits(const likely_matrix *m)
+int likely_depth(const likely_matrix *m)
 {
     assert((m != NULL) && "Null matrix!");
-    return m->hash & likely_matrix::Bits;
+    return m->hash & likely_matrix::Depth;
 }
 
-void likely_set_bits(likely_matrix *m, int bits)
+void likely_set_depth(likely_matrix *m, int bits)
 {
     assert((m != NULL) && "Null matrix!");
-    m->hash &= ~likely_matrix::Bits; m->hash |= bits & likely_matrix::Bits;
+    m->hash &= ~likely_matrix::Depth; m->hash |= bits & likely_matrix::Depth;
 }
 
 bool likely_is_floating(const likely_matrix *m)
@@ -103,14 +103,38 @@ void likely_set_signed(likely_matrix *m, bool is_signed)
 int likely_type(const likely_matrix *m)
 {
     assert((m != NULL) && "Null matrix!");
-    return m->hash & (likely_matrix::Bits + likely_matrix::Floating + likely_matrix::Signed);
+    return m->hash & likely_matrix::Type;
 }
 
 void likely_set_type(likely_matrix *m, int type)
 {
     assert((m != NULL) && "Null matrix!");
-    m->hash &= ~(likely_matrix::Bits + likely_matrix::Floating + likely_matrix::Signed);
-    m->hash |= type & (likely_matrix::Bits + likely_matrix::Floating + likely_matrix::Signed);
+    m->hash &= ~(likely_matrix::Type);
+    m->hash |= type & likely_matrix::Type;
+}
+
+bool likely_openmp(const likely_matrix *m)
+{
+    assert((m != NULL) && "Null matrix!");
+    return m->hash & likely_matrix::OpenMP;
+}
+
+void likely_set_openmp(likely_matrix *m, bool openmp)
+{
+    assert((m != NULL) && "Null matrix!");
+    openmp ? m->hash |= likely_matrix::OpenMP : m->hash &= ~likely_matrix::OpenMP;
+}
+
+bool likely_opencl(const likely_matrix *m)
+{
+    assert((m != NULL) && "Null matrix!");
+    return m->hash & likely_matrix::OpenCL;
+}
+
+void likely_use_opencl(likely_matrix *m, bool opencl)
+{
+    assert((m != NULL) && "Null matrix!");
+    opencl ? m->hash |= likely_matrix::OpenCL : m->hash &= ~likely_matrix::OpenCL;
 }
 
 bool likely_is_single_channel(const likely_matrix *m)
@@ -170,7 +194,7 @@ uint32_t likely_elements(const likely_matrix *m)
 uint32_t likely_bytes(const likely_matrix *m)
 {
     assert((m != NULL) && "Null matrix!");
-    return likely_bits(m) / 8 * likely_elements(m);
+    return likely_depth(m) / 8 * likely_elements(m);
 }
 
 double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
@@ -355,7 +379,7 @@ struct MatrixBuilder
     static Constant *constant(double value) { return ConstantFP::get(Type::getDoubleTy(getGlobalContext()), value == 0 ? -0.0 : value); }
     static Constant *zero() { return constant(0); }
     static Constant *one() { return constant(1); }
-    Constant *autoConstant(double value) const { return ::likely_is_floating(m) ? ((::likely_bits(m) == 64) ? constant(value) : constant(float(value))) : constant(int(value), ::likely_bits(m)); }
+    Constant *autoConstant(double value) const { return ::likely_is_floating(m) ? ((::likely_depth(m) == 64) ? constant(value) : constant(float(value))) : constant(int(value), ::likely_depth(m)); }
     AllocaInst *autoAlloca(double value, const Twine &name = "") const { AllocaInst *alloca = b->CreateAlloca(ty(), 0, name); b->CreateStore(autoConstant(value), alloca); return alloca; }
 
     Value *data(Value *matrix, const Twine &name = "") const { return b->CreateLoad(b->CreateStructGEP(matrix, 0), name+"_data"); }
@@ -416,14 +440,14 @@ struct MatrixBuilder
     void set(int value, int mask) const { setHash(b->CreateOr(b->CreateAnd(hash(), constant(~mask, 16)), b->CreateAnd(constant(value, 16), constant(mask, 16)))); }
     void setBit(bool on, int mask) const { on ? setHash(b->CreateOr(hash(), constant(mask, 16))) : setHash(b->CreateAnd(hash(), constant(~mask, 16))); }
 
-    Value *bits() const { return get(likely_matrix::Bits); }
-    void setBits(int bits) const { set(bits, likely_matrix::Bits); }
+    Value *bits() const { return get(likely_matrix::Depth); }
+    void setBits(int bits) const { set(bits, likely_matrix::Depth); }
     Value *isFloating() const { return get(likely_matrix::Floating); }
     void setFloating(bool isFloating) const { if (isFloating) setSigned(true); setBit(isFloating, likely_matrix::Floating); }
     Value *isSigned() const { return get(likely_matrix::Signed); }
     void setSigned(bool isSigned) const { setBit(isSigned, likely_matrix::Signed); }
-    Value *type() const { return get(likely_matrix::Bits + likely_matrix::Floating + likely_matrix::Signed); }
-    void setType(int type) const { set(type, likely_matrix::Bits + likely_matrix::Floating + likely_matrix::Signed); }
+    Value *type() const { return get(likely_matrix::Depth + likely_matrix::Floating + likely_matrix::Signed); }
+    void setType(int type) const { set(type, likely_matrix::Depth + likely_matrix::Floating + likely_matrix::Signed); }
     Value *singleChannel() const { return get(likely_matrix::SingleChannel); }
     void setSingleChannel(bool singleChannel) const { setBit(singleChannel, likely_matrix::SingleChannel); }
     Value *singleColumn() const { return get(likely_matrix::SingleColumn); }
@@ -534,7 +558,7 @@ struct MatrixBuilder
 
     static Type *ty(const likely_matrix &m)
     {
-        const int bits = ::likely_bits(&m);
+        const int bits = ::likely_depth(&m);
         if (::likely_is_floating(&m)) {
             if      (bits == 16) return Type::getHalfTy(getGlobalContext());
             else if (bits == 32) return Type::getFloatTy(getGlobalContext());
@@ -554,7 +578,7 @@ struct MatrixBuilder
 
     static Type *ptrTy(const likely_matrix &m)
     {
-        const int bits = ::likely_bits(&m);
+        const int bits = ::likely_depth(&m);
         if (::likely_is_floating(&m)) {
             if      (bits == 16) return Type::getHalfPtrTy(getGlobalContext());
             else if (bits == 32) return Type::getFloatPtrTy(getGlobalContext());
