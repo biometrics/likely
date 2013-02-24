@@ -20,6 +20,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// Don't worry about this
 #if defined LIKELY_LIBRARY
 #  if defined _WIN32 || defined __CYGWIN__
 #    define LIKELY_EXPORT __declspec(dllexport)
@@ -34,11 +35,12 @@
 #  endif
 #endif
 
-/* C API Starts Here */
+// C API starts here
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+// The documentation and source code for Likely
 LIKELY_EXPORT const char *likely_index_html();
 
 struct likely_matrix
@@ -75,6 +77,11 @@ struct likely_matrix
                 f64 = 64 + Floating + Signed };
 };
 
+// Convenience functions for default initializing a matrix
+LIKELY_EXPORT void likely_matrix_initialize_null(likely_matrix *m);
+LIKELY_EXPORT void likely_matrix_initialize(likely_matrix *m, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash);
+
+// Convenience functions for querying and editing the hash
 LIKELY_EXPORT int  likely_bits(const likely_matrix *m);
 LIKELY_EXPORT void likely_set_bits(likely_matrix *m, int bits);
 LIKELY_EXPORT bool likely_is_floating(const likely_matrix *m);
@@ -91,9 +98,17 @@ LIKELY_EXPORT bool likely_is_single_row(const likely_matrix *m);
 LIKELY_EXPORT void likely_set_single_row(likely_matrix *m, bool is_single_row);
 LIKELY_EXPORT bool likely_is_single_frame(const likely_matrix *m);
 LIKELY_EXPORT void likely_set_single_frame(likely_matrix *m, bool is_single_frame);
+
+// Convenience functions for determining matrix size
 LIKELY_EXPORT uint32_t likely_elements(const likely_matrix *m);
 LIKELY_EXPORT uint32_t likely_bytes(const likely_matrix *m);
 
+// Convenience functions for element access
+// By convention c = channel, x = column, y = row, t = frame
+LIKELY_EXPORT double   likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t);
+LIKELY_EXPORT void likely_set_element(likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t, double value);
+
+// Core functions for requesting kernels
 typedef void (*likely_unary_function)(const likely_matrix *src, likely_matrix *dst);
 LIKELY_EXPORT likely_unary_function likely_make_unary_function(const char *description);
 
@@ -104,35 +119,19 @@ LIKELY_EXPORT likely_binary_function likely_make_binary_function(const char *des
 }
 #endif
 
-/* C++ Wrapper Starts Here */
+// C++ wrapper starts here
 #ifdef __cplusplus
 #include <string>
 
 namespace likely {
 
-inline std::string indexHtml() { return likely_index_html(); }
+inline const char *indexHtml() { return likely_index_html(); }
 
 struct Matrix : public likely_matrix
 {
-    Matrix()
-    {
-        data = NULL;
-        channels = columns = rows = frames = hash = 0;
-    }
-
-    Matrix(uint32_t _channels, uint32_t _columns, uint32_t _rows, uint32_t _frames, uint16_t _hash)
-    {
-        data = NULL;
-        channels = _channels;
-        columns = _columns;
-        rows = _rows;
-        frames = _frames;
-        hash = _hash;
-        setSingleChannel(channels == 1);
-        setSingleColumn(columns == 1);
-        setSingleRow(rows == 1);
-        setSingleFrame(frames == 1);
-    }
+    Matrix() { likely_matrix_initialize_null(this); }
+    Matrix(uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash)
+        { likely_matrix_initialize(this, channels, columns, rows, frames, hash); }
 
     inline int  bits() const { return likely_bits(this); }
     inline void setBits(int bits) { likely_set_bits(this, bits); }
@@ -152,6 +151,8 @@ struct Matrix : public likely_matrix
     inline void setSingleFrame(bool isSingleFrame) { likely_set_single_frame(this, isSingleFrame); }
     inline uint32_t elements() const { return likely_elements(this); }
     inline uint32_t bytes() const { return likely_bytes(this); }
+    inline double element(uint32_t c, uint32_t x, uint32_t y, uint32_t t) { return likely_element(this, c, x, y, t); }
+    inline void setElement(uint32_t c, uint32_t x, uint32_t y, uint32_t t, double value) { likely_set_element(this, c, x, y, t, value); }
 };
 
 typedef likely_unary_function UnaryFunction;

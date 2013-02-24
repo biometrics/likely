@@ -38,95 +38,208 @@
 
 using namespace llvm;
 
+void likely_matrix_initialize_null(likely_matrix *m)
+{
+    assert((m != NULL) && "Null matrix!");
+    m->data = NULL;
+    m->channels = 0;
+    m->columns = 0;
+    m->rows = 0;
+    m->frames = 0;
+    m->hash = 0;
+}
+
+void likely_matrix_initialize(likely_matrix *m, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash)
+{
+    assert((m != NULL) && "Null matrix!");
+    m->data = NULL;
+    m->channels = channels;
+    m->columns = columns;
+    m->rows = rows;
+    m->frames = frames;
+    m->hash = hash;
+    likely_set_single_channel(m, channels == 1);
+    likely_set_single_column(m, columns == 1);
+    likely_set_single_row(m, rows == 1);
+    likely_set_single_frame(m, frames == 1);
+}
+
 int likely_bits(const likely_matrix *m)
 {
+    assert((m != NULL) && "Null matrix!");
     return m->hash & likely_matrix::Bits;
 }
 
 void likely_set_bits(likely_matrix *m, int bits)
 {
+    assert((m != NULL) && "Null matrix!");
     m->hash &= ~likely_matrix::Bits; m->hash |= bits & likely_matrix::Bits;
 }
 
 bool likely_is_floating(const likely_matrix *m)
 {
+    assert((m != NULL) && "Null matrix!");
     return m->hash & likely_matrix::Floating;
 }
 
 void likely_set_floating(likely_matrix *m, bool is_floating)
 {
+    assert((m != NULL) && "Null matrix!");
     is_floating ? likely_set_signed(m, true), m->hash |= likely_matrix::Floating : m->hash &= ~likely_matrix::Floating;
 }
 
 bool likely_is_signed(const likely_matrix *m)
 {
+    assert((m != NULL) && "Null matrix!");
     return m->hash & likely_matrix::Signed;
 }
 
 void likely_set_signed(likely_matrix *m, bool is_signed)
 {
+    assert((m != NULL) && "Null matrix!");
     is_signed ? m->hash |= likely_matrix::Signed : m->hash &= ~likely_matrix::Signed;
 }
 
 int likely_type(const likely_matrix *m)
 {
+    assert((m != NULL) && "Null matrix!");
     return m->hash & (likely_matrix::Bits + likely_matrix::Floating + likely_matrix::Signed);
 }
 
 void likely_set_type(likely_matrix *m, int type)
 {
+    assert((m != NULL) && "Null matrix!");
     m->hash &= ~(likely_matrix::Bits + likely_matrix::Floating + likely_matrix::Signed);
     m->hash |= type & (likely_matrix::Bits + likely_matrix::Floating + likely_matrix::Signed);
 }
 
 bool likely_is_single_channel(const likely_matrix *m)
 {
+    assert((m != NULL) && "Null matrix!");
     return m->hash & likely_matrix::SingleChannel;
 }
 
 void likely_set_single_channel(likely_matrix *m, bool is_single_channel)
 {
+    assert((m != NULL) && "Null matrix!");
     is_single_channel ? m->hash |= likely_matrix::SingleChannel : m->hash &= ~likely_matrix::SingleChannel;
 }
 
 bool likely_is_single_column(const likely_matrix *m)
 {
+    assert((m != NULL) && "Null matrix!");
     return m->hash & likely_matrix::SingleColumn;
 }
 
 void likely_set_single_column(likely_matrix *m, bool is_single_column)
 {
+    assert((m != NULL) && "Null matrix!");
     is_single_column ? m->hash |= likely_matrix::SingleColumn : m->hash &= ~likely_matrix::SingleColumn;
 }
 
 bool likely_is_single_row(const likely_matrix *m)
 {
+    assert((m != NULL) && "Null matrix!");
     return m->hash & likely_matrix::SingleRow;
 }
 
 void likely_set_single_row(likely_matrix *m, bool is_single_row)
 {
+    assert((m != NULL) && "Null matrix!");
     is_single_row ? m->hash |= likely_matrix::SingleRow : m->hash &= ~likely_matrix::SingleRow;
 }
 
 bool likely_is_single_frame(const likely_matrix *m)
 {
+    assert((m != NULL) && "Null matrix!");
     return m->hash & likely_matrix::SingleFrame;
 }
 
 void likely_set_single_frame(likely_matrix *m, bool is_single_frame)
 {
+    assert((m != NULL) && "Null matrix!");
     is_single_frame ? m->hash |= likely_matrix::SingleFrame : m->hash &= ~likely_matrix::SingleFrame;
 }
 
 uint32_t likely_elements(const likely_matrix *m)
 {
+    assert((m != NULL) && "Null matrix!");
     return m->channels * m->columns * m->rows * m->frames;
 }
 
 uint32_t likely_bytes(const likely_matrix *m)
 {
+    assert((m != NULL) && "Null matrix!");
     return likely_bits(m) / 8 * likely_elements(m);
+}
+
+double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
+{
+    assert((m != NULL) && "Null matrix!");
+    const int columnStep = m->channels;
+    const int rowStep = m->channels * columnStep;
+    const int frameStep = m->rows * rowStep;
+    const int index = t*frameStep + y*rowStep + x*columnStep + c;
+
+    switch (likely_type(m)) {
+      case likely_matrix::u8:
+        return ((uint8_t*)m->data)[index];
+      case likely_matrix::u16:
+        return ((uint16_t*)m->data)[index];
+      case likely_matrix::u32:
+        return ((uint32_t*)m->data)[index];
+      case likely_matrix::u64:
+        return ((uint64_t*)m->data)[index];
+      case likely_matrix::s8:
+        return ((int8_t*)m->data)[index];
+      case likely_matrix::s16:
+        return ((int16_t*)m->data)[index];
+      case likely_matrix::s32:
+        return ((int32_t*)m->data)[index];
+      case likely_matrix::s64:
+        return ((int64_t*)m->data)[index];
+      case likely_matrix::f32:
+        return ((float*)m->data)[index];
+      case likely_matrix::f64:
+        return ((double*)m->data)[index];
+      default:
+        assert(!"Unsupported element type!");
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+}
+
+void likely_set_element(likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t, double value)
+{
+    assert((m != NULL) && "Null matrix!");
+    const int columnStep = m->channels;
+    const int rowStep = m->channels * columnStep;
+    const int frameStep = m->rows * rowStep;
+    const int index = t*frameStep + y*rowStep + x*columnStep + c;
+
+    switch (likely_type(m)) {
+      case likely_matrix::u8:
+        ((uint8_t*)m->data)[index] = value; break;
+      case likely_matrix::u16:
+        ((uint16_t*)m->data)[index] = value; break;
+      case likely_matrix::u32:
+        ((uint32_t*)m->data)[index] = value; break;
+      case likely_matrix::u64:
+        ((uint64_t*)m->data)[index] = value; break;
+      case likely_matrix::s8:
+        ((int8_t*)m->data)[index] = value; break;
+      case likely_matrix::s16:
+        ((int16_t*)m->data)[index] = value; break;
+      case likely_matrix::s32:
+        ((int32_t*)m->data)[index] = value; break;
+      case likely_matrix::s64:
+        ((int64_t*)m->data)[index] = value; break;
+      case likely_matrix::f32:
+        ((float*)m->data)[index] = value; break;
+      case likely_matrix::f64:
+        ((double*)m->data)[index] = value; break;
+      default:
+        assert(!"Unsupported element type!");
+    }
 }
 
 typedef uint32_t (*likely_unary_allocation)(const likely_matrix *src, likely_matrix *dst);

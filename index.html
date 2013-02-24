@@ -31,7 +31,7 @@
 <body onload="prettyPrint()">
   <div class="navbar navbar-inverse navbar-fixed-top">
     <div class="navbar-inner">
-      <div class="container"> <div class="row-fluid"> <div class="span12">
+      <div class="container"> <div class="row"> <div class="span12">
         <a class="brand" href="#">Likely</a>
         <ul class="nav">
           <li><a href="https://github.com/biometrics/likely">Source</a></li>
@@ -44,13 +44,14 @@
     </div>
   </div>
 
-  <div class="container"> <div class="row-fluid"> <div class="span12">
+  <div class="container"> <div class="row"> <div class="span12">
     <h1 id="literate_kernel_library">Literate Kernel Library</h1>
     <p class="lead">Beautiful image processing functions for heterogenous architectures.</p>
     <h2>Table of Contents</h2>
     <ul class="nav nav-pills nav-stacked">
       <li><a href="#introduction">Introduction</a></li>
       <li><a href="#installation">Installation</a></li>
+      <li><a href="#api_overview">API Overview</a></li>
     </ul>
     <h2 id="introduction">Introduction</h2>
     <p>Welcome to the documentation <i>and source code</i> for <i>Likely</i> the literate kernel library!
@@ -76,7 +77,7 @@
       The repeated execution of a kernel with the same matrix type means that branching to handle different data types is unnecessary, entire loops and code blocks can be eliminated, and many values that would be runtime parameters instead become compile time constants.
       For this reason, it's not uncommon for Likely kernels to be <i>faster</i> than equally generic <tt>C</tt> code.
     </p>
-    <p>In Likely, a matrix's type is referred to as its <i>hash</i>, encompassing its data type (<tt>integer</tt> or <tt>floating point</tt>), depth (<tt>8</tt>, <tt>16</tt>, <tt>32</tt>, or <tt>64</tt> bits), computation location (<tt>single-threaded CPU</tt>, <tt>OpenMP CPU</tt>, or <tt>OpenCL coprocessor</tt>), and its <tt>single-dimension</tt> axes.
+    <p id="hash_introduction">In Likely, a matrix's type is referred to as its <i><a href="#the_matrix_hash">hash</a></i>, encompassing its data type (<tt>integer</tt> or <tt>floating point</tt>), depth (<tt>8</tt>, <tt>16</tt>, <tt>32</tt>, or <tt>64</tt> bits), computation location (<tt>single-threaded CPU</tt>, <tt>OpenMP CPU</tt>, or <tt>OpenCL coprocessor</tt>), and its <tt>single-dimension</tt> axes.
       Likely functions check the input's hash against the currently compiled kernel's hash and recompile on a mismatch.
       In this way,
       <blockquote>
@@ -105,8 +106,32 @@
     <p>Installation and packaging work as expected.</p>
     <pre>$ make install<br>$ cpack -G TGZ</pre>
     <h3 id="usage">Usage</h3>
-    <p>C/C++ projects should <code class="prettyprint lang-c">#include &lt;likely.h&gt;</code> and link against the shared library <code>likely</code>.
+    <p>C/C++ projects should <code class="prettyprint lang-c">#include &lt;likely.h&gt;</code> and link against the <code>likely</code> shared library.
       <tt>FindLikely.cmake</tt> is provided as a convenience to CMake developers.
+    </p>
+    <h2 id="api_overview">API Overview</h2>
+    <p>Likely is a C API that provides an optional C++ wrapper.
+      Definitions in the C API are prefixed with <tt>likely_</tt> and use a <tt>lowercase_underscore</tt> naming convention.
+      Definitions in the C++ wrapper live in <tt>namespace likely</tt> and use a <tt>camelCase</tt> naming convention.
+      Consider taking a moment to skim the <a href="likely.h">header file</a>.
+    </p>
+    <h3 id="the_matrix_struct">The Matrix Struct</h3>
+    <p>The <tt>likely_matrix</tt> is only struct in the API and serves as the input and output for all kernel invocations.
+      The <tt>likely_matrix</tt>, hereafter referred to as the <i>matrix</i>, has the following fields:
+    </p>
+    <pre class="prettyprint lang-c">uint8_t *data; // Pointer to the buffer of elements<br>uint32_t channels, columns, rows, frames; // Dimensions<br>uint16_t hash; // Data type</pre>
+    <p>In contrast to conventional image processing libraries which tend to feature 3-dimensional matrices (<i>channels</i>, <i>columns</i>, <i>rows</i>), Likely includes a fourth dimension, <i>frames</i>, in order to facilitate processing videos or collections of images.
+    <h4 id="element_access">Element Access</h4>
+    <p>Element layout in the <i>data</i> buffer in terms of decreasing spatial locality is <i>channel</i>, <i>column</i>, <i>row</i>, <i>frame</i>.
+      Thus an element at channel <i>c</i>, column <i>x</i>, row <i>y</i>, and frame <i>t</i>, or (c, x, y, t), can be accessed like:
+    </p>
+    <pre class="prettyprint lang-c">likely_matrix *m = foo();<br>int columnStep = m->channels;<br>int rowStep = m->channels * columnStep;<br>int frameStep = m->rows * rowStep;<br>assert(likely_type(m) == likely_matrix::f64);<br>double element = ((double*)m->data)[t*frameStep + y*rowStep + x*columnStep + c];</pre>
+    <p>Convenience functions <code class="prettyprint lang-c">double likely_element(...)</code> and <code class="prettyprint lang-c">void likely_set_element(...)</code> are provided for individual element access.</p>
+    <h4 id="the_matrix_hash">The Matrix Hash</h4>
+    <p>As suggested in the <a href="#hash_introduction">introduction</a>, the matrix hash plays a critical role in determining how to process the matrix.
+      It informs the function what data type the matrix is and where to process it.
+      It also encodes which, if any, of channels, columns, rows, and frames of the matrix are length 1.
+      This knowledge is used at kernel compile time to simplify element access algebra and remove unneccesary loops.
     </p>
   </div> </div> </div>
 </body>
