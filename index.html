@@ -154,6 +154,19 @@
     </table>
     <p>Logic for querying and setting the hash is simplified with the following convenience functions:</p>
     <pre class="prettyprint lang-c">int  likely_depth(const likely_matrix *m);<br>void likely_set_depth(likely_matrix *m, int bits);<br>bool likely_is_floating(const likely_matrix *m);<br>void likely_set_floating(likely_matrix *m, bool is_floating);<br>bool likely_is_signed(const likely_matrix *m);<br>void likely_set_signed(likely_matrix *m, bool is_signed);<br>int  likely_type(const likely_matrix *m);<br>void likely_set_type(likely_matrix *m, int type);<br>bool likely_openmp(const likely_matrix *m);<br>void likely_set_openmp(likely_matrix *m, bool openmp);<br>bool likely_opencl(const likely_matrix *m);<br>void likely_use_opencl(likely_matrix *m, bool opencl);<br>bool likely_is_single_channel(const likely_matrix *m);<br>void likely_set_single_channel(likely_matrix *m, bool is_single_channel);<br>bool likely_is_single_column(const likely_matrix *m);<br>void likely_set_single_column(likely_matrix *m, bool is_single_column);<br>bool likely_is_single_row(const likely_matrix *m);<br>void likely_set_single_row(likely_matrix *m, bool is_single_row);<br>bool likely_is_single_frame(const likely_matrix *m);<br>void likely_set_single_frame(likely_matrix *m, bool is_single_frame);</pre>
+    <h3 id="functions_and_kernels">Functions and Kernels</h3>
+    <p>Functions and kernels both apply mathematical transforms on matrices but have distinct definitions in Likely.
+      <i>Functions</i> are exposed in the Likely API and accept matrices with arbitrary hashes.
+      <i>Kernels</i> are JIT compiled to perform the requested operation for a particular matrix hash.
+      Kernels are managed automatically by functions and are hidden from the end user.
+      All functions peform the following general steps:
+      <dl class="dl-horizontal">
+        <dt>Hash Check</dt><dd>Compare the hash of the input against the hash of the currently loaded kernel, compile and load the matching kernel if they differ.
+                           </dd>
+        <dt>Preallocation</dt><dd>Compute the header of the output from the header of the input.</dd>
+        <dt>Allocation</dt><dd>Heap-allocate the output data buffer based on its elements and type.</dd>
+        <dt>Kernel Invocation</dt><dd>Call the kernel with the input and output matricies.</dd>
+      </dl>
   </div> </div> </div>
 </body>
 
