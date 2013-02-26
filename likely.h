@@ -116,12 +116,18 @@ LIKELY_EXPORT uint32_t likely_bytes(const likely_matrix *m);
 LIKELY_EXPORT double   likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t);
 LIKELY_EXPORT void likely_set_element(likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t, double value);
 
-// Core functions for requesting kernels
+// Core library functions
+typedef void (*likely_nullary_function)(likely_matrix *dst);
+LIKELY_EXPORT likely_nullary_function likely_make_nullary_function(const char *description);
+
 typedef void (*likely_unary_function)(const likely_matrix *src, likely_matrix *dst);
 LIKELY_EXPORT likely_unary_function likely_make_unary_function(const char *description);
 
 typedef void (*likely_binary_function)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);
 LIKELY_EXPORT likely_binary_function likely_make_binary_function(const char *description);
+
+typedef void (*likely_ternary_function)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);
+LIKELY_EXPORT likely_ternary_function likely_make_ternary_function(const char *description);
 
 #ifdef __cplusplus
 }

@@ -1383,6 +1383,12 @@ class LLVMInitializer : public Initializer
 BR_REGISTER(Initializer, LLVMInitializer)
 */
 
+likely_nullary_function likely_make_nullary_function(const char *description)
+{
+    (void) description;
+    return NULL;
+}
+
 likely_unary_function likely_make_unary_function(const char *description)
 {
     (void) description;
@@ -1393,6 +1399,12 @@ likely_unary_function likely_make_unary_function(const char *description)
 }
 
 likely_binary_function likely_make_binary_function(const char *description)
+{
+    (void) description;
+    return NULL;
+}
+
+likely_ternary_function likely_make_ternary_function(const char *description)
 {
     (void) description;
     return NULL;

@@ -160,13 +160,30 @@
       <i>Kernels</i> are JIT compiled to perform the requested operation for a particular matrix hash.
       Kernels are managed automatically by functions and are hidden from the end user.
       All functions peform the following general steps:
-      <dl class="dl-horizontal">
-        <dt>Hash Check</dt><dd>Compare the hash of the input against the hash of the currently loaded kernel, compile and load the matching kernel if they differ.
-                           </dd>
-        <dt>Preallocation</dt><dd>Compute the header of the output from the header of the input.</dd>
-        <dt>Allocation</dt><dd>Heap-allocate the output data buffer based on its elements and type.</dd>
-        <dt>Kernel Invocation</dt><dd>Call the kernel with the input and output matricies.</dd>
-      </dl>
+    </p>
+    <dl class="dl-horizontal">
+      <dt>Hash Check</dt><dd>Compare the hash of the input against the hash of the currently loaded kernel, compile and load the matching kernel if they differ.</dd>
+      <dt>Preallocation</dt><dd>Compute the header of the output from the header of the input.</dd>
+      <dt>Allocation</dt><dd>Heap-allocate the output data buffer based on its elements and type.</dd>
+      <dt>Kernel Invocation</dt><dd>Call the kernel with the input and output matricies.</dd>
+    </dl>
+    <p>There are four function classes in Likely corresponding to the four supported arities, nullary through ternary.
+      Each supported arity has its own <i>maker</i> function to request a particular function of that class.
+    </p>
+    <table class="table table-bordered table-condensed table-hover table-striped">
+      <caption>Maker Functions - The Core API</caption>
+      <thead>
+        <tr><th>Arity</th><th>Signature</th><th>Return Type</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>0</td><td>likely_make_nullary_function(const char *description)</td><td>likely_nullary_function</td></tr>
+        <tr><td>1</td><td>likely_make_unary_function(const char *description)</td><td>likely_unary_function</td></tr>
+        <tr><td>2</td><td>likely_make_binary_function(const char *description)</td><td>likely_binary_function</td></tr>
+        <tr><td>3</td><td>likely_make_ternary_function(const char *description)</td><td>likely_ternary_function</td></tr>
+      </tbody>
+    </table>
+    <p>Note that the return type of each maker is a function pointer of a particular type.</p>
+    <pre class="prettyprint lang-c">typedef void (*likely_nullary_function)(likely_matrix *dst);<br>typedef void (*likely_unary_function)(const likely_matrix *src, likely_matrix *dst);<br>typedef void (*likely_binary_function)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);<br>typedef void (*likely_ternary_function)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);</pre>
   </div> </div> </div>
 </body>
 
