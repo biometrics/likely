@@ -120,18 +120,20 @@
       The <tt>likely_matrix</tt>, hereafter referred to as the <i>matrix</i>, has the following fields:
     </p>
     <pre class="prettyprint lang-c">uint8_t *data; // Pointer to the buffer of elements<br>uint32_t channels, columns, rows, frames; // Dimensions<br>uint16_t hash; // Data type</pre>
-    <p>In contrast to conventional image processing libraries which tend to feature 3-dimensional matrices (<i>channels</i>, <i>columns</i>, <i>rows</i>), Likely includes a fourth dimension, <i>frames</i>, in order to facilitate processing videos or collections of images.
+    <p>The five fields excepting the <i>data</i> pointer (<i>channels</i>, <i>columns</i>, <i>rows</i>, <i>frames</i>, and <i>hash</i>) are collectively referred to as the matrix <i>header</i>.
+    In contrast to most image processing libraries which tend to feature 3-dimensional matrices (channels, columns, rows), Likely includes a fourth dimension, frames, in order to facilitate processing videos or collections of images.
     <h4 id="element_access">Element Access</h4>
-    <p>Element layout in the <i>data</i> buffer in terms of decreasing spatial locality is <i>channel</i>, <i>column</i>, <i>row</i>, <i>frame</i>.
-      Thus an element at channel <i>c</i>, column <i>x</i>, row <i>y</i>, and frame <i>t</i>, or (c, x, y, t), can be accessed like:
+    <p>By convention, element layout in the data buffer with resepect to decreasing spatial locality is <i>channel</i>, <i>column</i>, <i>row</i>, <i>frame</i>.
+      Thus an element at channel <i>c</i>, column <i>x</i>, row <i>y</i>, and frame <i>t</i>, or (c, x, y, t), can be indexed into like:
     </p>
-    <pre class="prettyprint lang-c">likely_matrix *m = foo();<br>int columnStep = m->channels;<br>int rowStep = m->channels * columnStep;<br>int frameStep = m->rows * rowStep;<br>assert(likely_type(m) == likely_matrix::f64);<br>double element = ((double*)m->data)[t*frameStep + y*rowStep + x*columnStep + c];</pre>
-    <p>Convenience functions <code class="prettyprint lang-c">double likely_element(...)</code> and <code class="prettyprint lang-c">void likely_set_element(...)</code> are provided for individual element access.</p>
+    <pre class="prettyprint lang-c">likely_matrix *m = foo();<br>int columnStep = m->channels;<br>int rowStep = m->channels * columnStep;<br>int frameStep = m->rows * rowStep;<br>int index = t*frameStep + y*rowStep + x*columnStep + c;<br>assert(likely_type(m) == likely_matrix::f64);<br>double element = ((double*)m->data)[index];</pre>
+    <p>Convenience functions <code class="prettyprint lang-c">double likely_element(...)</code> and <code class="prettyprint lang-c">void likely_set_element(...)</code> are provided for individual element access.
+      Using the convenience functions is inefficient when iterating over a large numbers of elements due to the repeated index calculation, and their use is generally suggested only for debugging purposes or when the matrix is known to be small.</p>
     <h4 id="the_matrix_hash">The Matrix Hash</h4>
     <p>As suggested in the <a href="#hash_introduction">introduction</a>, the matrix hash plays a critical role in determining how to process the matrix.
-      The hash is a 2-byte <i>bit field</i> that encodes the what data type the matrix is are where it should be processed.
-      It also specifies which, if any, of channels, columns, rows, and frames of the matrix are length 1.
-      This knowledge is used at kernel compile time to simplify element access algebra and remove unneccesary loops.
+      The hash is a 2-byte <i>bit field</i> that encodes what data type the matrix is are where it should be processed.
+      It also specifies which, if any, of the channels, columns, rows, and frames of the matrix are length 1.
+      This knowledge is used during kernel compilation to simplify element access algebra and remove unneccesary loops and branches.
     </p>
     <p>The layout of the bits in the hash is as follows:</p>
     <table class="table table-bordered table-condensed table-hover table-striped">
@@ -155,18 +157,19 @@
     <p>Logic for querying and setting the hash is simplified with the following convenience functions:</p>
     <pre class="prettyprint lang-c">int  likely_depth(const likely_matrix *m);<br>void likely_set_depth(likely_matrix *m, int bits);<br>bool likely_is_floating(const likely_matrix *m);<br>void likely_set_floating(likely_matrix *m, bool is_floating);<br>bool likely_is_signed(const likely_matrix *m);<br>void likely_set_signed(likely_matrix *m, bool is_signed);<br>int  likely_type(const likely_matrix *m);<br>void likely_set_type(likely_matrix *m, int type);<br>bool likely_openmp(const likely_matrix *m);<br>void likely_set_openmp(likely_matrix *m, bool openmp);<br>bool likely_opencl(const likely_matrix *m);<br>void likely_use_opencl(likely_matrix *m, bool opencl);<br>bool likely_is_single_channel(const likely_matrix *m);<br>void likely_set_single_channel(likely_matrix *m, bool is_single_channel);<br>bool likely_is_single_column(const likely_matrix *m);<br>void likely_set_single_column(likely_matrix *m, bool is_single_column);<br>bool likely_is_single_row(const likely_matrix *m);<br>void likely_set_single_row(likely_matrix *m, bool is_single_row);<br>bool likely_is_single_frame(const likely_matrix *m);<br>void likely_set_single_frame(likely_matrix *m, bool is_single_frame);</pre>
     <h3 id="functions_and_kernels">Functions and Kernels</h3>
-    <p>Functions and kernels both apply mathematical transforms on matrices but have distinct definitions in Likely.
-      <i>Functions</i> are exposed in the Likely API and accept matrices with arbitrary hashes.
-      <i>Kernels</i> are JIT compiled to perform the requested operation for a particular matrix hash.
+    <p>While both functions and kernels are thought of as mathematical transforms on matrices, the two words have distinct definitions in Likely.
+      <i>Functions</i> are exposed through the API and accept input matrices with arbitrary hashes.
+      <i>Kernels</i> are JIT compiled to calculate the requested operation for a particular matrix hash.
       Kernels are managed automatically by functions and are hidden from the end user.
-      All functions peform the following general steps:
     </p>
+    <p>All functions peform the following general steps:</p>
     <dl class="dl-horizontal">
-      <dt>Hash Check</dt><dd>Compare the hash of the input against the hash of the currently loaded kernel, compile and load the matching kernel if they differ.</dd>
+      <dt>Hash Check</dt><dd>Compare the hash of the input against the hash of the currently loaded kernel, compile and load the correct kernel if they differ.</dd>
       <dt>Preallocation</dt><dd>Compute the header of the output from the header of the input.</dd>
       <dt>Allocation</dt><dd>Heap-allocate the output data buffer based on its elements and type.</dd>
       <dt>Kernel Invocation</dt><dd>Call the kernel with the input and output matricies.</dd>
     </dl>
+    <h4 id="function_arity">Function Arity</h4>
     <p>There are four function classes in Likely corresponding to the four supported arities, nullary through ternary.
       Each supported arity has its own <i>maker</i> function to request a particular function of that class.
     </p>
