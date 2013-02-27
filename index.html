@@ -56,10 +56,22 @@
         <li><a href="#the_matrix_struct">The Matrix Struct</a></li>
         <li><a href="#functions_and_kernels">Functions and Kernels</a></li>
       </ul>
+      <li><a href="#algorithm_syntax">Algorithm Syntax</a></li>
+      <ul>
+        <li><a href="#function_definition">Function Definition</a></li>
+        <li><a href="#function_request">Function Request</a></li>
+      </ul>
+      <li><a href="#standard_library">Standard Library</a></li>
+      <ul>
+        <li><a href="#nullary_functions">Nullary Functions</a></li>
+        <li><a href="#unary_functions">Unary Functions</a></li>
+        <li><a href="#binary_functions">Binary Functions</a></li>
+        <li><a hreg="#ternary_functions">Ternary Functions</a></li>
+      </ul>
     </ul>
     <h2 id="introduction">Introduction</h2>
     <p>Welcome to the documentation <i>and source code</i> for <i>Likely</i> the literate kernel library!
-       Simply stated, the goals of Likely are to provide image processing and machine learning functions, or <i>kernels</i>, that are:
+       Simply stated, the goals of Likely are to provide image processing and machine learning functions that are:
       <ul>
         <li>executable everywhere.</li>
         <li>perfectly optimized.</li>
@@ -195,6 +207,24 @@
     <pre class="prettyprint lang-c">typedef void (*likely_nullary_function)(likely_matrix *dst);<br>typedef void (*likely_unary_function)(const likely_matrix *src, likely_matrix *dst);<br>typedef void (*likely_binary_function)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);<br>typedef void (*likely_ternary_function)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);</pre>
     <p>As is true in the example below, most functions are either unary or binary.</p>
     <pre class="prettyprint lang-c">likely_matrix src = foo(); // Pre-initialized input matrix<br>likely_matrix dst; // Uninitialized output matrix<br>likely_unary_function multiply_add = likely_make_unary_function("madd(3,2)"); // Create a function that...<br>multiply_add(&src, &dst); // ...multiplies elements by three then adds two.</pre>
+    <h2 id="algorithm_syntax">Algorithm Syntax</h2>
+    By this point all the entire API has been covered though you are probably still wondering how, exactly, to request functions and define new ones.
+    Lets begin with how functions are defined, as once that is understood, it will become evident how they can be requested.
+    <h3 id="function_definition">Function Definition</h3>
+    <h3 id="function_request">Function Request</h3>
+    <h2 id="standard_library">Standard Library</h2>
+    All of the implemented functions.
+    <h3 id="nullary_functions">Nullary Functions</h3>
+    <h3 id="unary_functions">Unary Functions</h3>
+    <ul class="thumbnails">
+      <li class="thumbnail">
+        <math><mrow><mi>a</mi><mo>*</mo><mi>src</mi><mo>+</mo><mi>b</mi></mrow></math>
+        <h4>madd<small>(a,b)</small></h4>
+        <p>Multiply-add.</p>
+      </li>
+    </ul>
+    <h3 id="binary_functions">Binary Functions</h3>
+    <h3 id="ternary_functions">Ternary Functions</h3>
   </div> </div> </div>
 </body>
 
