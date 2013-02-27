@@ -48,10 +48,14 @@
     <h1 id="literate_kernel_library">Literate Kernel Library</h1>
     <p class="lead">Beautiful image processing functions for heterogenous architectures.</p>
     <h2>Table of Contents</h2>
-    <ul class="nav nav-pills nav-stacked">
+    <ul>
       <li><a href="#introduction">Introduction</a></li>
       <li><a href="#installation">Installation</a></li>
       <li><a href="#api_overview">API Overview</a></li>
+      <ul>
+        <li><a href="#the_matrix_struct">The Matrix Struct</a></li>
+        <li><a href="#functions_and_kernels">Functions and Kernels</a></li>
+      </ul>
     </ul>
     <h2 id="introduction">Introduction</h2>
     <p>Welcome to the documentation <i>and source code</i> for <i>Likely</i> the literate kernel library!
@@ -170,8 +174,10 @@
       <dt>Kernel Invocation</dt><dd>Call the kernel with the input and output matricies.</dd>
     </dl>
     <h4 id="function_arity">Function Arity</h4>
-    <p>There are four function classes in Likely corresponding to the four supported arities, nullary through ternary.
-      Each supported arity has its own <i>maker</i> function to request a particular function of that class.
+    <p>There are four function types in Likely taking between zero and three input matrices.
+      The number of input matrices a function accepts is referred to as its <i>arity</i>.
+      All functions compute one output matrix that is passed by reference as the last argument.
+      Each function arity has a <i>maker</i> function in the API for requesting paricular mathematical transforms of its type.
     </p>
     <table class="table table-bordered table-condensed table-hover table-striped">
       <caption>Maker Functions - The Core API</caption>
@@ -185,8 +191,10 @@
         <tr><td>3</td><td>likely_make_ternary_function(const char *description)</td><td>likely_ternary_function</td></tr>
       </tbody>
     </table>
-    <p>Note that the return type of each maker is a function pointer of a particular type.</p>
+    <p>Note that the return type of each maker is a function pointer that can be then called to perform the requested operation.</p>
     <pre class="prettyprint lang-c">typedef void (*likely_nullary_function)(likely_matrix *dst);<br>typedef void (*likely_unary_function)(const likely_matrix *src, likely_matrix *dst);<br>typedef void (*likely_binary_function)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);<br>typedef void (*likely_ternary_function)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);</pre>
+    <p>As is true in the example below, most functions are either unary or binary.</p>
+    <pre class="prettyprint lang-c">likely_matrix src = foo(); // Pre-initialized input matrix<br>likely_matrix dst; // Uninitialized output matrix<br>likely_unary_function multiply_add = likely_make_unary_function("madd(3,2)"); // Create a function that...<br>multiply_add(&src, &dst); // ...multiplies elements by three then adds two.</pre>
   </div> </div> </div>
 </body>
 
