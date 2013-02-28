@@ -33,10 +33,12 @@
 #include <llvm/Support/ManagedStatic.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Transforms/Scalar.h>
+#include <iostream>
 
 #include "likely.h"
 
 using namespace llvm;
+using namespace std;
 
 void likely_matrix_initialize_null(likely_matrix *m)
 {
@@ -271,44 +273,15 @@ typedef uint32_t (*likely_binary_allocation)(const likely_matrix *srcA, const li
 typedef void (*likely_unary_kernel)(const likely_matrix *src, likely_matrix *dst, uint32_t size);
 typedef void (*likely_binary_kernel)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst, uint32_t size);
 
+namespace likely
+{
+
 static Module *TheModule = NULL;
 static ExecutionEngine *TheExecutionEngine = NULL;
 static FunctionPassManager *TheFunctionPassManager = NULL;
 static FunctionPassManager *TheExtraFunctionPassManager = NULL;
 static StructType *TheMatrixStruct = NULL;
-
-static void likely_initialize()
-{
-    InitializeNativeTarget();
-
-    TheModule = new Module("likely", getGlobalContext());
-
-    std::string error;
-    TheExecutionEngine = EngineBuilder(TheModule).setEngineKind(EngineKind::JIT).setErrorStr(&error).create();
-//    if (TheExecutionEngine == NULL)
-//        qFatal("Failed to create LLVM ExecutionEngine with error: %s", error.c_str());
-
-    TheFunctionPassManager = new FunctionPassManager(TheModule);
-    TheFunctionPassManager->add(createVerifierPass(PrintMessageAction));
-    TheFunctionPassManager->add(createEarlyCSEPass());
-    TheFunctionPassManager->add(createInstructionCombiningPass());
-    TheFunctionPassManager->add(createDeadCodeEliminationPass());
-    TheFunctionPassManager->add(createGVNPass());
-    TheFunctionPassManager->add(createDeadInstEliminationPass());
-
-    TheExtraFunctionPassManager = new FunctionPassManager(TheModule);
-    TheExtraFunctionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
-//        TheExtraFunctionPassManager->add(createLoopUnrollPass(INT_MAX,8));
-
-    TheMatrixStruct = StructType::create("Matrix",
-                                         Type::getInt8PtrTy(getGlobalContext()), // data
-                                         Type::getInt32Ty(getGlobalContext()),   // channels
-                                         Type::getInt32Ty(getGlobalContext()),   // columns
-                                         Type::getInt32Ty(getGlobalContext()),   // rows
-                                         Type::getInt32Ty(getGlobalContext()),   // frames
-                                         Type::getInt16Ty(getGlobalContext()),   // hash
-                                         NULL);
-}
+static map<string,string> Definitions;
 
 //static QString MatrixToString(const likely_matrix *m)
 //{
@@ -596,20 +569,20 @@ struct MatrixBuilder
     inline Type *ptrTy() const { return ptrTy(*m); }
 };
 
-//namespace br
-//{
-
-/*!
- * \brief LLVM Unary Transform
- * \author Josh Klontz \cite jklontz
- */
-//class UnaryTransform : public UntrainableMetaTransform
-//{
-//    Q_OBJECT
+class FunctionBuilder
+{
 //    uint32_t fileIndex;
 
-//public:
+public:
 //    static QHash<uint32_t, File> fileTable;
+
+    static void *makeFunction(const string &description)
+    {
+        (void) description;
+        if (TheModule == NULL) initialize();
+
+        return NULL;
+    }
 
 //    UnaryTransform() : fileIndex(0) {}
 
@@ -809,7 +782,44 @@ struct MatrixBuilder
 //        return (likely_unary_kernel)TheExecutionEngine->getPointerToFunction(function);
 //    }
 
-//private:
+private:
+    static void initialize()
+    {
+        InitializeNativeTarget();
+        TheModule = new Module("likely", getGlobalContext());
+
+        std::string error;
+        TheExecutionEngine = EngineBuilder(TheModule).setEngineKind(EngineKind::JIT).setErrorStr(&error).create();
+        if (TheExecutionEngine == NULL) {
+            printf("Failed to create LLVM ExecutionEngine with error: %s", error.c_str());
+            abort();
+        }
+
+        TheFunctionPassManager = new FunctionPassManager(TheModule);
+        TheFunctionPassManager->add(createVerifierPass(PrintMessageAction));
+        TheFunctionPassManager->add(createEarlyCSEPass());
+        TheFunctionPassManager->add(createInstructionCombiningPass());
+        TheFunctionPassManager->add(createDeadCodeEliminationPass());
+        TheFunctionPassManager->add(createGVNPass());
+        TheFunctionPassManager->add(createDeadInstEliminationPass());
+
+        TheExtraFunctionPassManager = new FunctionPassManager(TheModule);
+        TheExtraFunctionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
+    //        TheExtraFunctionPassManager->add(createLoopUnrollPass(INT_MAX,8));
+
+        TheMatrixStruct = StructType::create("Matrix",
+                                             Type::getInt8PtrTy(getGlobalContext()), // data
+                                             Type::getInt32Ty(getGlobalContext()),   // channels
+                                             Type::getInt32Ty(getGlobalContext()),   // columns
+                                             Type::getInt32Ty(getGlobalContext()),   // rows
+                                             Type::getInt32Ty(getGlobalContext()),   // frames
+                                             Type::getInt16Ty(getGlobalContext()),   // hash
+                                             NULL);
+
+        // Parse likely_index_html for definitions
+
+    }
+
 //    QString mangledName() const
 //    {
 //        static QHash<QString, int> argsLUT;
@@ -832,7 +842,7 @@ struct MatrixBuilder
 //        function(&m, &n);
 //        dst.m() = MatFromMatrix(n);
 //    }
-//};
+};
 
 //QHash<uint32_t, File> UnaryTransform::fileTable;
 
@@ -955,7 +965,7 @@ struct MatrixBuilder
 //    }
 //};
 
-//} // namespace br
+} // namespace likely
 
 /*!
  * \ingroup transforms
@@ -1385,29 +1395,22 @@ BR_REGISTER(Initializer, LLVMInitializer)
 
 likely_nullary_function likely_make_nullary_function(const char *description)
 {
-    (void) description;
-    return NULL;
+    return (likely_nullary_function)likely::FunctionBuilder::makeFunction(description);
 }
 
 likely_unary_function likely_make_unary_function(const char *description)
 {
-    (void) description;
-//    QScopedPointer<UnaryTransform> unaryTransform(dynamic_cast<UnaryTransform*>(Transform::make(description, NULL)));
-//    if (unaryTransform == NULL) qFatal("makeUnaryFunction NULL transform!");
-//    return unaryTransform->getFunction();
-    return NULL;
+    return (likely_unary_function)likely::FunctionBuilder::makeFunction(description);
 }
 
 likely_binary_function likely_make_binary_function(const char *description)
 {
-    (void) description;
-    return NULL;
+    return (likely_binary_function)likely::FunctionBuilder::makeFunction(description);
 }
 
 likely_ternary_function likely_make_ternary_function(const char *description)
 {
-    (void) description;
-    return NULL;
+    return (likely_ternary_function)likely::FunctionBuilder::makeFunction(description);
 }
 
 extern "C" {

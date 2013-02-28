@@ -1,7 +1,4 @@
 option(BUILD_TESTING "Benchmark Likely against OpenCV" OFF)
-include(CTest)
-enable_testing()
-
 if(${BUILD_TESTING})
   # Find OpenCV
   ExternalProject_Add(
@@ -11,4 +8,12 @@ if(${BUILD_TESTING})
     URL_MD5 c0a5af4ff9d0d540684c0bf00ef35dbe)
 
   find_package(OpenCV REQUIRED)
+
+  file(GLOB TESTS *.cpp)
+  foreach(TEST ${TESTS})
+    get_filename_component(TEST_BASENAME ${TEST} NAME_WE)
+    add_executable(${TEST_BASENAME} ${TEST})
+    target_link_libraries(${TEST_BASENAME} likely ${OpenCV_LIBS})
+    add_test("${TEST_BASENAME}_test" ${TEST_BASENAME})
+  endforeach()
 endif()

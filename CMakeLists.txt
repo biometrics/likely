@@ -51,6 +51,7 @@ set_target_properties(likely PROPERTIES
 target_link_libraries(likely ${REQ_LLVM_LIBRARIES})
 
 # Test
+enable_testing()
 add_subdirectory(tests)
 
 # Install
