@@ -388,7 +388,8 @@ struct MatrixBuilder
             else if (bits == 32) return Type::getInt32Ty(getGlobalContext());
             else if (bits == 64) return Type::getInt64Ty(getGlobalContext());
         }
-//        qFatal("Invalid matrix type.");
+        fprintf(stderr, "Invalid matrix type.");
+        abort();
         return NULL;
     }
     inline Type *ty() const { return ty(*m); }
@@ -408,7 +409,8 @@ struct MatrixBuilder
             else if (bits == 32) return Type::getInt32PtrTy(getGlobalContext());
             else if (bits == 64) return Type::getInt64PtrTy(getGlobalContext());
         }
-//        qFatal("Invalid matrix type.");
+        fprintf(stderr, "Invalid matrix type.");
+        abort();
         return NULL;
     }
     inline Type *ptrTy() const { return ptrTy(*m); }
@@ -636,7 +638,7 @@ private:
         std::string error;
         TheExecutionEngine = EngineBuilder(TheModule).setEngineKind(EngineKind::JIT).setErrorStr(&error).create();
         if (TheExecutionEngine == NULL) {
-            printf("Failed to create LLVM ExecutionEngine with error: %s", error.c_str());
+            fprintf(stderr, "Failed to create LLVM ExecutionEngine with error: %s", error.c_str());
             abort();
         }
 
