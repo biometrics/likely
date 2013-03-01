@@ -172,7 +172,9 @@ struct Matrix : public likely_matrix
 {
     Matrix() { likely_matrix_initialize_null(this); }
     Matrix(uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash)
-        { likely_matrix_initialize(this, channels, columns, rows, frames, hash); }
+    {
+        likely_matrix_initialize(this, channels, columns, rows, frames, hash);
+    }
 
     inline int  depth() const { return likely_depth(this); }
     inline void setDepth(int bits) { likely_set_depth(this, bits); }
@@ -197,13 +199,20 @@ struct Matrix : public likely_matrix
     inline uint32_t elements() const { return likely_elements(this); }
     inline uint32_t bytes() const { return likely_bytes(this); }
     inline double element(uint32_t c, uint32_t x, uint32_t y, uint32_t t) const { return likely_element(this, c, x, y, t); }
-    inline void setElement(uint32_t c, uint32_t x, uint32_t y, uint32_t t, double value) { likely_set_element(this, c, x, y, t, value); }
+    inline void setElement(double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t) { likely_set_element(this, value, c, x, y, t); }
 };
 
+typedef likely_nullary_function NullaryFunction;
+inline NullaryFunction makeNullaryFunction(const char *description) { return likely_make_nullary_function(description); }
+
 typedef likely_unary_function UnaryFunction;
-typedef likely_binary_function BinaryFunction;
 inline UnaryFunction makeUnaryFunction(const char *description) { return likely_make_unary_function(description); }
+
+typedef likely_binary_function BinaryFunction;
 inline BinaryFunction makeBinaryFunction(const char *description) { return likely_make_binary_function(description); }
+
+typedef likely_ternary_function TernaryFunction;
+inline TernaryFunction makeTernaryFunction(const char *description) { return likely_make_ternary_function(description); }
 
 } // namespace likely
 
