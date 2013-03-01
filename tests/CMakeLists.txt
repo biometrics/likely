@@ -8,6 +8,7 @@ if(${BUILD_TESTING})
     URL_MD5 c0a5af4ff9d0d540684c0bf00ef35dbe)
 
   find_package(OpenCV REQUIRED)
+  include_directories(..)
 
   file(GLOB TESTS *.cpp)
   foreach(TEST ${TESTS})

@@ -40,165 +40,6 @@
 using namespace llvm;
 using namespace std;
 
-void likely_matrix_initialize_null(likely_matrix *m)
-{
-    assert((m != NULL) && "Null matrix!");
-    m->data = NULL;
-    m->channels = 0;
-    m->columns = 0;
-    m->rows = 0;
-    m->frames = 0;
-    m->hash = 0;
-}
-
-void likely_matrix_initialize(likely_matrix *m, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash)
-{
-    assert((m != NULL) && "Null matrix!");
-    m->data = NULL;
-    m->channels = channels;
-    m->columns = columns;
-    m->rows = rows;
-    m->frames = frames;
-    m->hash = hash;
-    likely_set_single_channel(m, channels == 1);
-    likely_set_single_column(m, columns == 1);
-    likely_set_single_row(m, rows == 1);
-    likely_set_single_frame(m, frames == 1);
-}
-
-int likely_depth(const likely_matrix *m)
-{
-    assert((m != NULL) && "Null matrix!");
-    return m->hash & likely_matrix::Depth;
-}
-
-void likely_set_depth(likely_matrix *m, int bits)
-{
-    assert((m != NULL) && "Null matrix!");
-    m->hash &= ~likely_matrix::Depth; m->hash |= bits & likely_matrix::Depth;
-}
-
-bool likely_is_floating(const likely_matrix *m)
-{
-    assert((m != NULL) && "Null matrix!");
-    return m->hash & likely_matrix::Floating;
-}
-
-void likely_set_floating(likely_matrix *m, bool is_floating)
-{
-    assert((m != NULL) && "Null matrix!");
-    is_floating ? likely_set_signed(m, true), m->hash |= likely_matrix::Floating : m->hash &= ~likely_matrix::Floating;
-}
-
-bool likely_is_signed(const likely_matrix *m)
-{
-    assert((m != NULL) && "Null matrix!");
-    return m->hash & likely_matrix::Signed;
-}
-
-void likely_set_signed(likely_matrix *m, bool is_signed)
-{
-    assert((m != NULL) && "Null matrix!");
-    is_signed ? m->hash |= likely_matrix::Signed : m->hash &= ~likely_matrix::Signed;
-}
-
-int likely_type(const likely_matrix *m)
-{
-    assert((m != NULL) && "Null matrix!");
-    return m->hash & likely_matrix::Type;
-}
-
-void likely_set_type(likely_matrix *m, int type)
-{
-    assert((m != NULL) && "Null matrix!");
-    m->hash &= ~(likely_matrix::Type);
-    m->hash |= type & likely_matrix::Type;
-}
-
-bool likely_openmp(const likely_matrix *m)
-{
-    assert((m != NULL) && "Null matrix!");
-    return m->hash & likely_matrix::OpenMP;
-}
-
-void likely_set_openmp(likely_matrix *m, bool openmp)
-{
-    assert((m != NULL) && "Null matrix!");
-    openmp ? m->hash |= likely_matrix::OpenMP : m->hash &= ~likely_matrix::OpenMP;
-}
-
-bool likely_opencl(const likely_matrix *m)
-{
-    assert((m != NULL) && "Null matrix!");
-    return m->hash & likely_matrix::OpenCL;
-}
-
-void likely_use_opencl(likely_matrix *m, bool opencl)
-{
-    assert((m != NULL) && "Null matrix!");
-    opencl ? m->hash |= likely_matrix::OpenCL : m->hash &= ~likely_matrix::OpenCL;
-}
-
-bool likely_is_single_channel(const likely_matrix *m)
-{
-    assert((m != NULL) && "Null matrix!");
-    return m->hash & likely_matrix::SingleChannel;
-}
-
-void likely_set_single_channel(likely_matrix *m, bool is_single_channel)
-{
-    assert((m != NULL) && "Null matrix!");
-    is_single_channel ? m->hash |= likely_matrix::SingleChannel : m->hash &= ~likely_matrix::SingleChannel;
-}
-
-bool likely_is_single_column(const likely_matrix *m)
-{
-    assert((m != NULL) && "Null matrix!");
-    return m->hash & likely_matrix::SingleColumn;
-}
-
-void likely_set_single_column(likely_matrix *m, bool is_single_column)
-{
-    assert((m != NULL) && "Null matrix!");
-    is_single_column ? m->hash |= likely_matrix::SingleColumn : m->hash &= ~likely_matrix::SingleColumn;
-}
-
-bool likely_is_single_row(const likely_matrix *m)
-{
-    assert((m != NULL) && "Null matrix!");
-    return m->hash & likely_matrix::SingleRow;
-}
-
-void likely_set_single_row(likely_matrix *m, bool is_single_row)
-{
-    assert((m != NULL) && "Null matrix!");
-    is_single_row ? m->hash |= likely_matrix::SingleRow : m->hash &= ~likely_matrix::SingleRow;
-}
-
-bool likely_is_single_frame(const likely_matrix *m)
-{
-    assert((m != NULL) && "Null matrix!");
-    return m->hash & likely_matrix::SingleFrame;
-}
-
-void likely_set_single_frame(likely_matrix *m, bool is_single_frame)
-{
-    assert((m != NULL) && "Null matrix!");
-    is_single_frame ? m->hash |= likely_matrix::SingleFrame : m->hash &= ~likely_matrix::SingleFrame;
-}
-
-uint32_t likely_elements(const likely_matrix *m)
-{
-    assert((m != NULL) && "Null matrix!");
-    return m->channels * m->columns * m->rows * m->frames;
-}
-
-uint32_t likely_bytes(const likely_matrix *m)
-{
-    assert((m != NULL) && "Null matrix!");
-    return likely_depth(m) / 8 * likely_elements(m);
-}
-
 double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
 {
     assert((m != NULL) && "Null matrix!");
@@ -234,7 +75,7 @@ double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y
     }
 }
 
-void likely_set_element(likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t, double value)
+void likely_set_element(likely_matrix *m, double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
 {
     assert((m != NULL) && "Null matrix!");
     const int columnStep = m->channels;
@@ -415,12 +256,16 @@ struct MatrixBuilder
 
     Value *bits() const { return get(likely_matrix::Depth); }
     void setBits(int bits) const { set(bits, likely_matrix::Depth); }
-    Value *isFloating() const { return get(likely_matrix::Floating); }
-    void setFloating(bool isFloating) const { if (isFloating) setSigned(true); setBit(isFloating, likely_matrix::Floating); }
     Value *isSigned() const { return get(likely_matrix::Signed); }
     void setSigned(bool isSigned) const { setBit(isSigned, likely_matrix::Signed); }
+    Value *isFloating() const { return get(likely_matrix::Floating); }
+    void setFloating(bool isFloating) const { if (isFloating) setSigned(true); setBit(isFloating, likely_matrix::Floating); }
     Value *type() const { return get(likely_matrix::Depth + likely_matrix::Floating + likely_matrix::Signed); }
     void setType(int type) const { set(type, likely_matrix::Depth + likely_matrix::Floating + likely_matrix::Signed); }
+    Value *isOpenMP() const { return get(likely_matrix::OpenMP); }
+    void setOpenMP(bool isOpenMP) const { setBit(isOpenMP, likely_matrix::OpenMP); }
+    Value *isOpenCL() const { return get(likely_matrix::OpenCL); }
+    void setOpenCL(bool isOpenCL) const { setBit(isOpenCL, likely_matrix::OpenCL); }
     Value *singleChannel() const { return get(likely_matrix::SingleChannel); }
     void setSingleChannel(bool singleChannel) const { setBit(singleChannel, likely_matrix::SingleChannel); }
     Value *singleColumn() const { return get(likely_matrix::SingleColumn); }
@@ -576,9 +421,9 @@ class FunctionBuilder
 public:
 //    static QHash<uint32_t, File> fileTable;
 
-    static void *makeFunction(const string &description)
+    static void *makeFunction(const string &description, int arity)
     {
-        (void) description;
+        (void) description; (void) arity;
         if (TheModule == NULL) initialize();
 
         return NULL;
@@ -1393,24 +1238,9 @@ class LLVMInitializer : public Initializer
 BR_REGISTER(Initializer, LLVMInitializer)
 */
 
-likely_nullary_function likely_make_nullary_function(const char *description)
+void *likely_make_function(const char *description, int arity)
 {
-    return (likely_nullary_function)likely::FunctionBuilder::makeFunction(description);
-}
-
-likely_unary_function likely_make_unary_function(const char *description)
-{
-    return (likely_unary_function)likely::FunctionBuilder::makeFunction(description);
-}
-
-likely_binary_function likely_make_binary_function(const char *description)
-{
-    return (likely_binary_function)likely::FunctionBuilder::makeFunction(description);
-}
-
-likely_ternary_function likely_make_ternary_function(const char *description)
-{
-    return (likely_ternary_function)likely::FunctionBuilder::makeFunction(description);
+    return likely::FunctionBuilder::makeFunction(description, arity);
 }
 
 extern "C" {

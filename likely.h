@@ -17,6 +17,7 @@
 #ifndef __LIKELY_H
 #define __LIKELY_H
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -48,8 +49,8 @@ struct likely_matrix
     uint8_t *data;
     uint32_t channels, columns, rows, frames;
     uint16_t hash; /* Depth : 8
-                      Floating : 1
                       Signed : 1
+                      Floating : 1
                       OpenMP : 1
                       OpenCL : 1
                       Single-channel : 1
@@ -58,9 +59,9 @@ struct likely_matrix
                       Single-frame : 1 */
 
     enum Hash { Depth = 0x00FF,
-                Floating = 0x0100,
-                Signed = 0x0200,
-                Type = Depth | Floating | Signed,
+                Signed = 0x0100,
+                Floating = 0x0200,
+                Type = Depth | Signed | Floating,
                 OpenMP = 0x0400,
                 OpenCL = 0x0800,
                 SingleChannel = 0x1000,
@@ -81,53 +82,79 @@ struct likely_matrix
                 f64 = 64 | Floating | Signed };
 };
 
-// Convenience functions for default initializing a matrix
-LIKELY_EXPORT void likely_matrix_initialize_null(likely_matrix *m);
-LIKELY_EXPORT void likely_matrix_initialize(likely_matrix *m, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash);
-
 // Convenience functions for querying and editing the hash
-LIKELY_EXPORT int  likely_depth(const likely_matrix *m);
-LIKELY_EXPORT void likely_set_depth(likely_matrix *m, int bits);
-LIKELY_EXPORT bool likely_is_floating(const likely_matrix *m);
-LIKELY_EXPORT void likely_set_floating(likely_matrix *m, bool is_floating);
-LIKELY_EXPORT bool likely_is_signed(const likely_matrix *m);
-LIKELY_EXPORT void likely_set_signed(likely_matrix *m, bool is_signed);
-LIKELY_EXPORT int  likely_type(const likely_matrix *m);
-LIKELY_EXPORT void likely_set_type(likely_matrix *m, int type);
-LIKELY_EXPORT bool likely_openmp(const likely_matrix *m);
-LIKELY_EXPORT void likely_set_openmp(likely_matrix *m, bool openmp);
-LIKELY_EXPORT bool likely_opencl(const likely_matrix *m);
-LIKELY_EXPORT void likely_use_opencl(likely_matrix *m, bool opencl);
-LIKELY_EXPORT bool likely_is_single_channel(const likely_matrix *m);
-LIKELY_EXPORT void likely_set_single_channel(likely_matrix *m, bool is_single_channel);
-LIKELY_EXPORT bool likely_is_single_column(const likely_matrix *m);
-LIKELY_EXPORT void likely_set_single_column(likely_matrix *m, bool is_single_column);
-LIKELY_EXPORT bool likely_is_single_row(const likely_matrix *m);
-LIKELY_EXPORT void likely_set_single_row(likely_matrix *m, bool is_single_row);
-LIKELY_EXPORT bool likely_is_single_frame(const likely_matrix *m);
-LIKELY_EXPORT void likely_set_single_frame(likely_matrix *m, bool is_single_frame);
+inline int  likely_depth(const likely_matrix *m) { return m->hash & likely_matrix::Depth; }
+inline void likely_set_depth(likely_matrix *m, int bits) { m->hash &= ~likely_matrix::Depth; m->hash |= bits & likely_matrix::Depth; }
+inline bool likely_is_signed(const likely_matrix *m) { return m->hash & likely_matrix::Signed; }
+inline void likely_set_signed(likely_matrix *m, bool is_signed) { is_signed ? m->hash |= likely_matrix::Signed : m->hash &= ~likely_matrix::Signed; }
+inline bool likely_is_floating(const likely_matrix *m) {return m->hash & likely_matrix::Floating; }
+inline void likely_set_floating(likely_matrix *m, bool is_floating) { is_floating ? likely_set_signed(m, true), m->hash |= likely_matrix::Floating : m->hash &= ~likely_matrix::Floating; }
+inline int  likely_type(const likely_matrix *m) { return m->hash & likely_matrix::Type; }
+inline void likely_set_type(likely_matrix *m, int type) { m->hash &= ~(likely_matrix::Type); m->hash |= type & likely_matrix::Type; }
+inline bool likely_openmp(const likely_matrix *m) { return m->hash & likely_matrix::OpenMP; }
+inline void likely_set_openmp(likely_matrix *m, bool openmp) { openmp ? m->hash |= likely_matrix::OpenMP : m->hash &= ~likely_matrix::OpenMP; }
+inline bool likely_opencl(const likely_matrix *m) { return m->hash & likely_matrix::OpenCL; }
+inline void likely_use_opencl(likely_matrix *m, bool opencl) { opencl ? m->hash |= likely_matrix::OpenCL : m->hash &= ~likely_matrix::OpenCL; }
+inline bool likely_is_single_channel(const likely_matrix *m) { return m->hash & likely_matrix::SingleChannel; }
+inline void likely_set_single_channel(likely_matrix *m, bool is_single_channel) { is_single_channel ? m->hash |= likely_matrix::SingleChannel : m->hash &= ~likely_matrix::SingleChannel; }
+inline bool likely_is_single_column(const likely_matrix *m) { return m->hash & likely_matrix::SingleColumn; }
+inline void likely_set_single_column(likely_matrix *m, bool is_single_column) { is_single_column ? m->hash |= likely_matrix::SingleColumn : m->hash &= ~likely_matrix::SingleColumn; }
+inline bool likely_is_single_row(const likely_matrix *m) { return m->hash & likely_matrix::SingleRow; }
+inline void likely_set_single_row(likely_matrix *m, bool is_single_row) { is_single_row ? m->hash |= likely_matrix::SingleRow : m->hash &= ~likely_matrix::SingleRow; }
+inline bool likely_is_single_frame(const likely_matrix *m) { return m->hash & likely_matrix::SingleFrame; }
+inline void likely_set_single_frame(likely_matrix *m, bool is_single_frame) { is_single_frame ? m->hash |= likely_matrix::SingleFrame : m->hash &= ~likely_matrix::SingleFrame;}
 
 // Convenience functions for determining matrix size
-LIKELY_EXPORT uint32_t likely_elements(const likely_matrix *m);
-LIKELY_EXPORT uint32_t likely_bytes(const likely_matrix *m);
+inline uint32_t likely_elements(const likely_matrix *m) { return m->channels * m->columns * m->rows * m->frames; }
+inline uint32_t likely_bytes(const likely_matrix *m) { return likely_depth(m) / 8 * likely_elements(m); }
+
+// Convenience functions for default initializing a matrix
+inline void likely_matrix_initialize(likely_matrix *m, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash)
+{
+    m->data = NULL;
+    m->channels = channels;
+    m->columns = columns;
+    m->rows = rows;
+    m->frames = frames;
+    m->hash = hash;
+    likely_set_single_channel(m, channels == 1);
+    likely_set_single_column(m, columns == 1);
+    likely_set_single_row(m, rows == 1);
+    likely_set_single_frame(m, frames == 1);
+}
+inline void likely_matrix_initialize_null(likely_matrix *m) { likely_matrix_initialize(m, 0, 0, 0, 0, 0); }
 
 // Convenience functions for element access
 // By convention c = channel, x = column, y = row, t = frame
-LIKELY_EXPORT double   likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t);
-LIKELY_EXPORT void likely_set_element(likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t, double value);
+LIKELY_EXPORT double likely_element(const likely_matrix *m, uint32_t c = 0, uint32_t x = 0, uint32_t y = 0, uint32_t t = 0);
+LIKELY_EXPORT void likely_set_element(likely_matrix *m, double value, uint32_t c = 0, uint32_t x = 0, uint32_t y = 0, uint32_t t = 0);
 
 // Core library functions
+LIKELY_EXPORT void *likely_make_function(const char *description, int arity); // You shouldn't call this directly
+
 typedef void (*likely_nullary_function)(likely_matrix *dst);
-LIKELY_EXPORT likely_nullary_function likely_make_nullary_function(const char *description);
+inline likely_nullary_function likely_make_nullary_function(const char *description)
+{
+    return (likely_nullary_function)likely_make_function(description, 0);
+}
 
 typedef void (*likely_unary_function)(const likely_matrix *src, likely_matrix *dst);
-LIKELY_EXPORT likely_unary_function likely_make_unary_function(const char *description);
+inline likely_unary_function likely_make_unary_function(const char *description)
+{
+    return (likely_unary_function)likely_make_function(description, 1);
+}
 
 typedef void (*likely_binary_function)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);
-LIKELY_EXPORT likely_binary_function likely_make_binary_function(const char *description);
+inline likely_binary_function likely_make_binary_function(const char *description)
+{
+    return (likely_binary_function)likely_make_function(description, 2);
+}
 
 typedef void (*likely_ternary_function)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);
-LIKELY_EXPORT likely_ternary_function likely_make_ternary_function(const char *description);
+inline likely_ternary_function likely_make_ternary_function(const char *description)
+{
+    return (likely_ternary_function)likely_make_function(description, 3);
+}
 
 #ifdef __cplusplus
 }

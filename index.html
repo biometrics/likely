@@ -159,9 +159,9 @@
       </thead>
       <tbody>
         <tr><td>Depth</td><td>8</td><td>likely_matrix::Depth</td><td>0x00FF</td></tr>
-        <tr><td>Floating</td><td>1</td><td>likely_matrix::Floating</td><td>0x0100</td></tr>
-        <tr><td>Signed</td><td>1</td><td>likely_matrix::Signed</td><td>0x0200</td></tr>
-        <tr><td>Type (= Depth | Floating | Signed)</td><td>10</td><td>likely_matrix::Type</td><td>0x03FF</td></tr>
+        <tr><td>Signed</td><td>1</td><td>likely_matrix::Signed</td><td>0x0100</td></tr>
+        <tr><td>Floating</td><td>1</td><td>likely_matrix::Floating</td><td>0x0200</td></tr>
+        <tr><td>Type (= Depth | Signed | Floating)</td><td>10</td><td>likely_matrix::Type</td><td>0x03FF</td></tr>
         <tr><td>OpenMP</td><td>1</td><td>likely_matrix::OpenMP</td><td>0x0400</td></tr>
         <tr><td>OpenCL</td><td>1</td><td>likely_matrix::OpenCL</td><td>0x0800</td></tr>
         <tr><td>Single Channel</td><td>1</td><td>likely_matrix::SingleChannel</td><td>0x1000</td></tr>
@@ -170,7 +170,7 @@
         <tr><td>Single Frame</td><td>1</td><td>likely_matrix::SingleFrame</td><td>0x8000</td></tr>
       </tbody>
     </table>
-    <p>Logic for querying and setting the hash is simplified with the following convenience functions:</p>
+    <p>Logic for querying and setting the hash is simplified with the following inlined convenience functions:</p>
     <pre class="prettyprint lang-c">int  likely_depth(const likely_matrix *m);<br>void likely_set_depth(likely_matrix *m, int bits);<br>bool likely_is_floating(const likely_matrix *m);<br>void likely_set_floating(likely_matrix *m, bool is_floating);<br>bool likely_is_signed(const likely_matrix *m);<br>void likely_set_signed(likely_matrix *m, bool is_signed);<br>int  likely_type(const likely_matrix *m);<br>void likely_set_type(likely_matrix *m, int type);<br>bool likely_openmp(const likely_matrix *m);<br>void likely_set_openmp(likely_matrix *m, bool openmp);<br>bool likely_opencl(const likely_matrix *m);<br>void likely_use_opencl(likely_matrix *m, bool opencl);<br>bool likely_is_single_channel(const likely_matrix *m);<br>void likely_set_single_channel(likely_matrix *m, bool is_single_channel);<br>bool likely_is_single_column(const likely_matrix *m);<br>void likely_set_single_column(likely_matrix *m, bool is_single_column);<br>bool likely_is_single_row(const likely_matrix *m);<br>void likely_set_single_row(likely_matrix *m, bool is_single_row);<br>bool likely_is_single_frame(const likely_matrix *m);<br>void likely_set_single_frame(likely_matrix *m, bool is_single_frame);</pre>
     <h3 id="functions_and_kernels">Functions and Kernels</h3>
     <p>While both functions and kernels are thought of as mathematical transforms on matrices, the two words have distinct definitions in Likely.
