@@ -39,14 +39,19 @@ if(${BUILD_TESTING})
 endif()
 
 find_path(LLVM_DIR share/llvm/cmake/LLVMConfig.cmake)
-mark_as_advanced(LLVM_DIR)
-set(CMAKE_MODULE_PATH "${LLVM_DIR}/share/llvm/cmake")
-include(LLVMConfig)
+if (NOT ${LLVM_DIR} MATCHES LLVM_DIR-NOTFOUND)
+  mark_as_advanced(LLVM_DIR)
+  set(CMAKE_MODULE_PATH "${LLVM_DIR}/share/llvm/cmake")
+  include(LLVMConfig)
 
-include_directories(${LLVM_INCLUDE_DIRS})
-link_directories(${LLVM_LIBRARY_DIRS})
-add_definitions(${LLVM_DEFINITIONS})
-llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES jit native)
+  include_directories(${LLVM_INCLUDE_DIRS})
+  link_directories(${LLVM_LIBRARY_DIRS})
+  add_definitions(${LLVM_DEFINITIONS})
+  llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES jit native)
+  set(BUILD_LIKELY ON)
+else()
+  set(BUILD_LIKELY OFF)
+endif()
 
 # Compile in index.html as a string
 set(LIKELY_INDEX_HTML ${CMAKE_BINARY_DIR}/likely_index_html.cpp)
@@ -59,26 +64,35 @@ file(APPEND ${LIKELY_INDEX_HTML} ${INDEX_HTML})
 file(APPEND ${LIKELY_INDEX_HTML} "\";\n}\n")
 
 # Build
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -fvisibility=hidden")
-add_library(likely SHARED likely.cpp ${LIKELY_INDEX_HTML})
-add_dependencies(likely LLVM-3-2)
-set_target_properties(likely PROPERTIES
+if(${BUILD_LIKELY})
+  if(CMAKE_COMPILER_IS_GNUCC)
+    set(CXX11 "-std=c++0x")
+  else()
+    set(CXX11 "-std=c++11")
+  endif()
+
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter -fvisibility=hidden")
+  add_library(likely SHARED likely.cpp ${LIKELY_INDEX_HTML})
+  add_dependencies(likely LLVM-3-2)
+  set_target_properties(likely PROPERTIES
                              DEFINE_SYMBOL LIKELY_LIBRARY
                              VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
                              SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR})
-target_link_libraries(likely ${REQ_LLVM_LIBRARIES})
+  target_link_libraries(likely ${REQ_LLVM_LIBRARIES})
+  install(TARGETS likely
+          RUNTIME DESTINATION bin
+          LIBRARY DESTINATION lib
+          ARCHIVE DESTINATION lib)
+endif()
 
 # Test
-if(${BUILD_TESTING})
+if(${BUILD_TESTING} AND ${BUILD_LIKELY})
   enable_testing()
   add_subdirectory(tests)
 endif()
 
 # Install
-install(TARGETS likely
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+
 install(FILES likely.h DESTINATION include)
 install(FILES LICENSE.txt LikelyConfig.cmake README.md DESTINATION .)
 
