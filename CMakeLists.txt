@@ -9,13 +9,34 @@ set(CPACK_PACKAGE_VERSION_MAJOR 0)
 set(CPACK_PACKAGE_VERSION_MINOR 1)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
 
-# Find LLVM
+# C++11 Compiler flags
+if(APPLE)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -stdlib=libc++")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -stdlib=libc++")
+endif()
+
+# Find LLVM and optionally OpenCV
+set(CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/3rdparty")
+set(EXTERNAL_PROJECT_ARGS -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -DCMAKE_SHARED_LINKER_FLAGS=${CMAKE_SHARED_LINKER_FLAGS} -DCMAKE_EXE_LINKER_FLAGS=${CMAKE_EXE_LINKER_FLAGS} -DCMAKE_INSTALL_PREFIX=${CMAKE_PREFIX_PATH})
 include(ExternalProject)
 ExternalProject_Add(
   LLVM-3-2
   PREFIX LLVM
   URL http://llvm.org/releases/3.2/llvm-3.2.src.tar.gz
-  URL_MD5 71610289bbc819e3e15fdd562809a2d7)
+  URL_MD5 71610289bbc819e3e15fdd562809a2d7
+  CMAKE_ARGS ${EXTERNAL_PROJECT_ARGS})
+
+option(BUILD_TESTING "Benchmark Likely against OpenCV" OFF)
+if(${BUILD_TESTING})
+  # Find OpenCV
+  ExternalProject_Add(
+    OpenCV-2-4-4
+    PREFIX OpenCV
+    URL http://downloads.sourceforge.net/project/opencvlibrary/opencv-unix/2.4.4/OpenCV-2.4.4.tar.bz2
+    URL_MD5 bb7272c102a801a9f9ee01db6e7ad8e9
+    CMAKE_ARGS -DBUILD_opencv_java=OFF ${EXTERNAL_PROJECT_ARGS})
+endif()
 
 find_path(LLVM_DIR share/llvm/cmake/LLVMConfig.cmake)
 mark_as_advanced(LLVM_DIR)
@@ -26,11 +47,6 @@ include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES jit native)
-
-# Compiler flags
-if(UNIX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -fvisibility=hidden")
-endif()
 
 # Compile in index.html as a string
 set(LIKELY_INDEX_HTML ${CMAKE_BINARY_DIR}/likely_index_html.cpp)
@@ -43,7 +59,9 @@ file(APPEND ${LIKELY_INDEX_HTML} ${INDEX_HTML})
 file(APPEND ${LIKELY_INDEX_HTML} "\";\n}\n")
 
 # Build
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -fvisibility=hidden")
 add_library(likely SHARED likely.cpp ${LIKELY_INDEX_HTML})
+add_dependencies(likely LLVM-3-2)
 set_target_properties(likely PROPERTIES
                              DEFINE_SYMBOL LIKELY_LIBRARY
                              VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
@@ -51,8 +69,10 @@ set_target_properties(likely PROPERTIES
 target_link_libraries(likely ${REQ_LLVM_LIBRARIES})
 
 # Test
-enable_testing()
-add_subdirectory(tests)
+if(${BUILD_TESTING})
+  enable_testing()
+  add_subdirectory(tests)
+endif()
 
 # Install
 install(TARGETS likely

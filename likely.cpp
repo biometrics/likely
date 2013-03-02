@@ -34,6 +34,7 @@
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Transforms/Scalar.h>
 #include <iostream>
+#include <thread>
 
 #include "likely.h"
 
@@ -388,7 +389,7 @@ struct MatrixBuilder
             else if (bits == 32) return Type::getInt32Ty(getGlobalContext());
             else if (bits == 64) return Type::getInt64Ty(getGlobalContext());
         }
-        fprintf(stderr, "Invalid matrix type.");
+        fprintf(stderr, "ERROR: Invalid matrix type!");
         abort();
         return NULL;
     }
@@ -409,7 +410,7 @@ struct MatrixBuilder
             else if (bits == 32) return Type::getInt32PtrTy(getGlobalContext());
             else if (bits == 64) return Type::getInt64PtrTy(getGlobalContext());
         }
-        fprintf(stderr, "Invalid matrix type.");
+        fprintf(stderr, "ERROR: Invalid matrix type!");
         abort();
         return NULL;
     }
@@ -638,7 +639,7 @@ private:
         std::string error;
         TheExecutionEngine = EngineBuilder(TheModule).setEngineKind(EngineKind::JIT).setErrorStr(&error).create();
         if (TheExecutionEngine == NULL) {
-            fprintf(stderr, "Failed to create LLVM ExecutionEngine with error: %s", error.c_str());
+            fprintf(stderr, "ERROR: Failed to create LLVM ExecutionEngine with error: %s", error.c_str());
             abort();
         }
 
@@ -652,7 +653,7 @@ private:
 
         TheExtraFunctionPassManager = new FunctionPassManager(TheModule);
         TheExtraFunctionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
-    //        TheExtraFunctionPassManager->add(createLoopUnrollPass(INT_MAX,8));
+//        TheExtraFunctionPassManager->add(createLoopUnrollPass(INT_MAX,8));
 
         TheMatrixStruct = StructType::create("Matrix",
                                              Type::getInt8PtrTy(getGlobalContext()), // data
@@ -664,7 +665,70 @@ private:
                                              NULL);
 
         // Parse likely_index_html for definitions
+        const string html = indexHTML();
+        const string openDefinition = "<div class=\"likely\">";
+        const string closeDefinition = "</div>";
+        const string openEquation = "<math>";
+        const string closeEquation = "</math>";
+        const string openName = "<h4>";
+        const string closeName = "</h4>";
+        const string openParameters = "<small>";
+        const string closeParameters = "</small>";
+        const string openDocumentation = "<p>";
+        const string closeDocumentation = "</p>";
+        size_t startDefinition = html.find(openDefinition.c_str());
+        while (startDefinition != string::npos) {
+            size_t endDefinition = html.find(closeDefinition.c_str(), startDefinition+openDefinition.length());
+            if (endDefinition == string::npos) {
+                fprintf(stderr, "ERROR: Unclosed definition, missing %s!", closeDefinition.c_str());
+                abort();
+            }
 
+            const string definition = html.substr(startDefinition+openDefinition.length(), endDefinition-startDefinition-openDefinition.length());
+
+            size_t startEquation = definition.find(openEquation.c_str());
+            if (startEquation == string::npos) {
+                fprintf(stderr, "ERROR: No equation, missing %s", openEquation.c_str());
+                abort();
+            }
+
+            size_t endEquation = definition.find(closeEquation.c_str(), startEquation+openEquation.length());
+            if (endEquation == string::npos) {
+                fprintf(stderr, "ERROR: Unclosed equation, missing %s", closeEquation.c_str());
+                abort();
+            }
+
+            size_t startName = definition.find(openName.c_str());
+            if (startName == string::npos) {
+                fprintf(stderr, "ERROR: No name, missing %s", openName.c_str());
+                abort();
+            }
+
+            size_t endName = definition.find(closeName.c_str(), startName+openName.length());
+            if (startName == string::npos) {
+                fprintf(stderr, "ERROR: Unclosed name, missing %s", closeName.c_str());
+                abort();
+            }
+
+            size_t startParameters = definition.find(openParameters.c_str());
+            if (startParameters == string::npos) {
+                fprintf(stderr, "ERROR: No parameters, missing %s", openParameters.c_str());
+                abort();
+            }
+
+            size_t endParameters = definition.find(closeParameters.c_str(), startParameters+openParameters.length());
+            if (endParameters == string::npos) {
+                fprintf(stderr, "ERROR: Unclosed parameters, missing %s", closeParameters.c_str());
+                abort();
+            }
+
+            string equation = definition.substr(startEquation+openEquation.length(), endEquation-startEquation-openEquation.length());
+            string name = definition.substr(startName+openName.length(), endName-startName-openName.length());
+            string parameters = definition.substr(startParameters+openParameters.length(), endParameters-startParameters-openParameters.length());
+
+            cout << parameters << endl;
+            startDefinition = html.find(openDefinition.c_str(), endDefinition+1, openDefinition.length());
+        }
     }
 
 //    QString mangledName() const
