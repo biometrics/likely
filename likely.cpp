@@ -35,6 +35,7 @@
 #include <llvm/Transforms/Scalar.h>
 #include <iostream>
 #include <regex>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -90,14 +91,10 @@ void likely_set_element(likely_matrix *m, double value, uint32_t c, uint32_t x, 
     }
 }
 
-typedef uint32_t (*likely_unary_allocation)(const likely_matrix *src, likely_matrix *dst);
-typedef uint32_t (*likely_binary_allocation)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);
-typedef void (*likely_unary_kernel)(const likely_matrix *src, likely_matrix *dst, uint32_t size);
-typedef void (*likely_binary_kernel)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst, uint32_t size);
-
 namespace likely
 {
 
+static const int numArities = 4; // 0-3
 static Module *TheModule = NULL;
 static ExecutionEngine *TheExecutionEngine = NULL;
 static FunctionPassManager *TheFunctionPassManager = NULL;
@@ -462,6 +459,103 @@ public:
         (void) description; (void) arity;
         if (TheModule == NULL) initialize();
 
+        Function *function = TheModule->getFunction(description);
+        if (function != NULL)
+            return TheExecutionEngine->getPointerToFunction(function);
+
+        static Function *makeAllocationFunction = NULL;
+        static vector<PointerType*> allocationTypes(numArities, NULL);
+        PointerType *allocationType = allocationTypes[arity];
+
+        if (allocationType == NULL) {
+            vector<Type*> allocationParams;
+            for (int i = 0; i < arity+1; i++)
+                allocationParams.push_back(PointerType::getUnqual(TheMatrixStruct));
+            Type *allocationReturn = Type::getInt32Ty(getGlobalContext());
+            allocationType = PointerType::getUnqual(FunctionType::get(allocationReturn, allocationParams, false));
+            allocationTypes[arity] = allocationType;
+
+            if (makeAllocationFunction == NULL) {
+                vector<Type*> makeAllocationParams;
+                makeAllocationParams.push_back(Type::getInt8PtrTy(getGlobalContext()));
+                makeAllocationParams.push_back(PointerType::getUnqual(TheMatrixStruct));
+                FunctionType* makeAllocationType = FunctionType::get(allocationType, makeAllocationParams, false);
+                makeAllocationFunction = Function::Create(makeAllocationType, GlobalValue::ExternalLinkage, "likely_make_allocation", TheModule);
+                makeAllocationFunction->setCallingConv(CallingConv::C);
+            }
+        }
+
+//        static Function *makeKernelFunction = NULL;
+//        static PointerType *kernelType = NULL;
+//        if (makeKernelFunction == NULL) {
+//            std::vector<Type*> kernelParams;
+//            kernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
+//            kernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
+//            kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
+//            Type *kernelReturn = Type::getVoidTy(getGlobalContext());
+//            kernelType = PointerType::getUnqual(FunctionType::get(kernelReturn, kernelParams, false));
+//            std::vector<Type*> makeKernelParams;
+//            makeKernelParams.push_back(Type::getInt8PtrTy(getGlobalContext()));
+//            makeKernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
+//            FunctionType* makeUnaryKernelType = FunctionType::get(kernelType, makeKernelParams, false);
+//            makeKernelFunction = Function::Create(makeUnaryKernelType, GlobalValue::ExternalLinkage, "likely_make_unary_kernel", TheModule);
+//            makeKernelFunction->setCallingConv(CallingConv::C);
+//        }
+
+//        function = cast<Function>(TheModule->getOrInsertFunction(qPrintable(name),
+//                                                                 Type::getVoidTy(getGlobalContext()),
+//                                                                 PointerType::getUnqual(TheMatrixStruct),
+//                                                                 PointerType::getUnqual(TheMatrixStruct),
+//                                                                 NULL));
+//        function->setCallingConv(CallingConv::C);
+
+//        Function::arg_iterator args = function->arg_begin();
+//        Value *src = args++;
+//        src->setName("src");
+//        Value *dst = args++;
+//        dst->setName("dst");
+
+//        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
+//        IRBuilder<> builder(entry);
+
+//        GlobalVariable *kernelHash; {
+//            kernelHash = cast<GlobalVariable>(TheModule->getOrInsertGlobal(qPrintable(name+"_hash"), Type::getInt16Ty(getGlobalContext())));
+//            kernelHash->setInitializer(MatrixBuilder::constant(0, 16));
+//        }
+
+//        GlobalVariable *allocationFunction; {
+//            allocationFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(qPrintable(name+"_allocation"), allocationType));
+//            allocationFunction->setInitializer(ConstantPointerNull::get(allocationType));
+//        }
+
+//        GlobalVariable *kernelFunction; {
+//            kernelFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(qPrintable(name+"_kernel"), kernelType));
+//            kernelFunction->setInitializer(ConstantPointerNull::get(kernelType));
+//        }
+
+//        BasicBlock *hashFail = BasicBlock::Create(getGlobalContext(), "hash_fail", function);
+//        BasicBlock *execute = BasicBlock::Create(getGlobalContext(), "execute", function);
+//        Value *srcHash = builder.CreateLoad(builder.CreateStructGEP(src, 5), "src_hash");
+//        Value *hashTest = builder.CreateICmpEQ(srcHash, builder.CreateLoad(kernelHash), "hash_fail_test");
+//        builder.CreateCondBr(hashTest, execute, hashFail);
+
+//        builder.SetInsertPoint(hashFail);
+//        builder.CreateStore(builder.CreateCall2(makeAllocationFunction,
+//                                                builder.CreateIntToPtr(MatrixBuilder::constant(fileIndex, 32), Type::getInt8PtrTy(getGlobalContext())),
+//                                                src), allocationFunction);
+//        builder.CreateStore(builder.CreateCall2(makeKernelFunction,
+//                                                builder.CreateIntToPtr(MatrixBuilder::constant(fileIndex, 32), Type::getInt8PtrTy(getGlobalContext())),
+//                                                src), kernelFunction);
+//        builder.CreateStore(srcHash, kernelHash);
+//        builder.CreateBr(execute);
+
+//        builder.SetInsertPoint(execute);
+//        Value *kernelSize = builder.CreateCall2(builder.CreateLoad(allocationFunction), src, dst);
+//        builder.CreateCall3(builder.CreateLoad(kernelFunction), src, dst, kernelSize);
+//        builder.CreateRetVoid();
+
+//        optimize(function);
+
         return NULL;
     }
 
@@ -480,105 +574,6 @@ public:
 //    {
 //        while (TheFunctionPassManager->run(*f));
 //        TheExtraFunctionPassManager->run(*f);
-//    }
-
-//    likely_unary_function getFunction() const
-//    {
-//        if (TheModule == NULL) likely_initialize();
-
-//        const QString name = mangledName();
-//        Function *function = TheModule->getFunction(qPrintable(name));
-
-//        if (function == NULL) {
-//            static Function *makeAllocationFunction = NULL;
-//            static PointerType *allocationType = NULL;
-//            if (makeAllocationFunction == NULL) {
-//                std::vector<Type*> allocationParams;
-//                allocationParams.push_back(PointerType::getUnqual(TheMatrixStruct));
-//                allocationParams.push_back(PointerType::getUnqual(TheMatrixStruct));
-//                Type *allocationReturn = Type::getInt32Ty(getGlobalContext());
-//                allocationType = PointerType::getUnqual(FunctionType::get(allocationReturn, allocationParams, false));
-//                std::vector<Type*> makeAllocationParams;
-//                makeAllocationParams.push_back(Type::getInt8PtrTy(getGlobalContext()));
-//                makeAllocationParams.push_back(PointerType::getUnqual(TheMatrixStruct));
-//                FunctionType* makeAllocationType = FunctionType::get(allocationType, makeAllocationParams, false);
-//                makeAllocationFunction = Function::Create(makeAllocationType, GlobalValue::ExternalLinkage, "likely_make_unary_allocation", TheModule);
-//                makeAllocationFunction->setCallingConv(CallingConv::C);
-//            }
-
-//            static Function *makeKernelFunction = NULL;
-//            static PointerType *kernelType = NULL;
-//            if (makeKernelFunction == NULL) {
-//                std::vector<Type*> kernelParams;
-//                kernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
-//                kernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
-//                kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
-//                Type *kernelReturn = Type::getVoidTy(getGlobalContext());
-//                kernelType = PointerType::getUnqual(FunctionType::get(kernelReturn, kernelParams, false));
-//                std::vector<Type*> makeKernelParams;
-//                makeKernelParams.push_back(Type::getInt8PtrTy(getGlobalContext()));
-//                makeKernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
-//                FunctionType* makeUnaryKernelType = FunctionType::get(kernelType, makeKernelParams, false);
-//                makeKernelFunction = Function::Create(makeUnaryKernelType, GlobalValue::ExternalLinkage, "likely_make_unary_kernel", TheModule);
-//                makeKernelFunction->setCallingConv(CallingConv::C);
-//            }
-
-//            function = cast<Function>(TheModule->getOrInsertFunction(qPrintable(name),
-//                                                                     Type::getVoidTy(getGlobalContext()),
-//                                                                     PointerType::getUnqual(TheMatrixStruct),
-//                                                                     PointerType::getUnqual(TheMatrixStruct),
-//                                                                     NULL));
-//            function->setCallingConv(CallingConv::C);
-
-//            Function::arg_iterator args = function->arg_begin();
-//            Value *src = args++;
-//            src->setName("src");
-//            Value *dst = args++;
-//            dst->setName("dst");
-
-//            BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
-//            IRBuilder<> builder(entry);
-
-//            GlobalVariable *kernelHash; {
-//                kernelHash = cast<GlobalVariable>(TheModule->getOrInsertGlobal(qPrintable(name+"_hash"), Type::getInt16Ty(getGlobalContext())));
-//                kernelHash->setInitializer(MatrixBuilder::constant(0, 16));
-//            }
-
-//            GlobalVariable *allocationFunction; {
-//                allocationFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(qPrintable(name+"_allocation"), allocationType));
-//                allocationFunction->setInitializer(ConstantPointerNull::get(allocationType));
-//            }
-
-//            GlobalVariable *kernelFunction; {
-//                kernelFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(qPrintable(name+"_kernel"), kernelType));
-//                kernelFunction->setInitializer(ConstantPointerNull::get(kernelType));
-//            }
-
-//            BasicBlock *hashFail = BasicBlock::Create(getGlobalContext(), "hash_fail", function);
-//            BasicBlock *execute = BasicBlock::Create(getGlobalContext(), "execute", function);
-//            Value *srcHash = builder.CreateLoad(builder.CreateStructGEP(src, 5), "src_hash");
-//            Value *hashTest = builder.CreateICmpEQ(srcHash, builder.CreateLoad(kernelHash), "hash_fail_test");
-//            builder.CreateCondBr(hashTest, execute, hashFail);
-
-//            builder.SetInsertPoint(hashFail);
-//            builder.CreateStore(builder.CreateCall2(makeAllocationFunction,
-//                                                    builder.CreateIntToPtr(MatrixBuilder::constant(fileIndex, 32), Type::getInt8PtrTy(getGlobalContext())),
-//                                                    src), allocationFunction);
-//            builder.CreateStore(builder.CreateCall2(makeKernelFunction,
-//                                                    builder.CreateIntToPtr(MatrixBuilder::constant(fileIndex, 32), Type::getInt8PtrTy(getGlobalContext())),
-//                                                    src), kernelFunction);
-//            builder.CreateStore(srcHash, kernelHash);
-//            builder.CreateBr(execute);
-
-//            builder.SetInsertPoint(execute);
-//            Value *kernelSize = builder.CreateCall2(builder.CreateLoad(allocationFunction), src, dst);
-//            builder.CreateCall3(builder.CreateLoad(kernelFunction), src, dst, kernelSize);
-//            builder.CreateRetVoid();
-
-//            optimize(function);
-//        }
-
-//        return (likely_unary_function)TheExecutionEngine->getPointerToFunction(function);
 //    }
 
 //    likely_unary_allocation getAllocation(const likely_matrix *m) const
@@ -701,15 +696,6 @@ private:
         for (const Definition &definition : Definition::definitionsFromString(indexHTML()))
             definitions[definition.name] = definition;
     }
-
-//    QString mangledName() const
-//    {
-//        static QHash<QString, int> argsLUT;
-//        const QString args = arguments().join(",");
-//        if (!argsLUT.contains(args)) argsLUT.insert(args, argsLUT.size());
-//        int uid = argsLUT.value(args);
-//        return "likely_" + objectName() + (args.isEmpty() ? QString() : QString::number(uid));
-//    }
 
 //    QString mangledName(const likely_matrix &src) const
 //    {
@@ -1284,7 +1270,7 @@ void *likely_make_function(const char *description, int arity)
 
 extern "C" {
 
-LIKELY_EXPORT likely_unary_allocation likely_make_unary_allocation(const char *description, const likely_matrix *src)
+LIKELY_EXPORT void *likely_make_allocation(const char *description, const likely_matrix *src)
 {
     (void) description;
     (void) src;
@@ -1296,15 +1282,7 @@ LIKELY_EXPORT likely_unary_allocation likely_make_unary_allocation(const char *d
     return NULL;
 }
 
-LIKELY_EXPORT likely_binary_allocation likely_make_binary_allocation(const char *description, const likely_matrix *src_a, const likely_matrix *src_b)
-{
-    (void) description;
-    (void) src_a;
-    (void) src_b;
-    return NULL;
-}
-
-LIKELY_EXPORT likely_unary_kernel likely_make_unary_kernel(const char *description, const likely_matrix *src)
+LIKELY_EXPORT void *likely_make_kernel(const char *description, const likely_matrix *src)
 {
     (void) description;
     (void) src;
@@ -1313,14 +1291,6 @@ LIKELY_EXPORT likely_unary_kernel likely_make_unary_kernel(const char *descripti
 //    QScopedPointer<UnaryTransform> unaryTransform(dynamic_cast<UnaryTransform*>(Transform::make(f, NULL)));
 //    if (unaryTransform == NULL) qFatal("makeUnaryKernel NULL transform!");
 //    return unaryTransform->getKernel(src);
-    return NULL;
-}
-
-LIKELY_EXPORT likely_binary_kernel likely_make_binary_kernel(const char *description, const likely_matrix *src_a, const likely_matrix *src_b)
-{
-    (void) description;
-    (void) src_a;
-    (void) src_b;
     return NULL;
 }
 
