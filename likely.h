@@ -51,8 +51,8 @@ struct likely_matrix
     uint16_t hash; /* Depth : 8
                       Signed : 1
                       Floating : 1
-                      OpenMP : 1
-                      OpenCL : 1
+                      Parallel : 1
+                      Heterogeneous : 1
                       Single-channel : 1
                       Single-column : 1
                       Single-row : 1
@@ -62,8 +62,8 @@ struct likely_matrix
                 Signed = 0x0100,
                 Floating = 0x0200,
                 Type = Depth | Signed | Floating,
-                OpenMP = 0x0400,
-                OpenCL = 0x0800,
+                Parallel = 0x0400,
+                Heterogeneous = 0x0800,
                 SingleChannel = 0x1000,
                 SingleColumn = 0x2000,
                 SingleRow = 0x4000,
@@ -91,10 +91,10 @@ inline bool likely_is_floating(const likely_matrix *m) {return m->hash & likely_
 inline void likely_set_floating(likely_matrix *m, bool is_floating) { is_floating ? likely_set_signed(m, true), m->hash |= likely_matrix::Floating : m->hash &= ~likely_matrix::Floating; }
 inline int  likely_type(const likely_matrix *m) { return m->hash & likely_matrix::Type; }
 inline void likely_set_type(likely_matrix *m, int type) { m->hash &= ~(likely_matrix::Type); m->hash |= type & likely_matrix::Type; }
-inline bool likely_openmp(const likely_matrix *m) { return m->hash & likely_matrix::OpenMP; }
-inline void likely_set_openmp(likely_matrix *m, bool openmp) { openmp ? m->hash |= likely_matrix::OpenMP : m->hash &= ~likely_matrix::OpenMP; }
-inline bool likely_opencl(const likely_matrix *m) { return m->hash & likely_matrix::OpenCL; }
-inline void likely_use_opencl(likely_matrix *m, bool opencl) { opencl ? m->hash |= likely_matrix::OpenCL : m->hash &= ~likely_matrix::OpenCL; }
+inline bool likely_is_parallel(const likely_matrix *m) { return m->hash & likely_matrix::Parallel; }
+inline void likely_set_parallel(likely_matrix *m, bool is_parallel) { is_parallel ? m->hash |= likely_matrix::Parallel : m->hash &= ~likely_matrix::Parallel; }
+inline bool likely_is_heterogeneous(const likely_matrix *m) { return m->hash & likely_matrix::Heterogeneous; }
+inline void likely_set_heterogeneous(likely_matrix *m, bool is_heterogeneous) { is_heterogeneous ? m->hash |= likely_matrix::Heterogeneous : m->hash &= ~likely_matrix::Heterogeneous; }
 inline bool likely_is_single_channel(const likely_matrix *m) { return m->hash & likely_matrix::SingleChannel; }
 inline void likely_set_single_channel(likely_matrix *m, bool is_single_channel) { is_single_channel ? m->hash |= likely_matrix::SingleChannel : m->hash &= ~likely_matrix::SingleChannel; }
 inline bool likely_is_single_column(const likely_matrix *m) { return m->hash & likely_matrix::SingleColumn; }
@@ -134,27 +134,19 @@ LIKELY_EXPORT void *likely_make_function(const char *description, int arity); //
 
 typedef void (*likely_nullary_function)(likely_matrix *dst);
 inline likely_nullary_function likely_make_nullary_function(const char *description)
-{
-    return (likely_nullary_function)likely_make_function(description, 0);
-}
+{ return (likely_nullary_function)likely_make_function(description, 0); }
 
 typedef void (*likely_unary_function)(const likely_matrix *src, likely_matrix *dst);
 inline likely_unary_function likely_make_unary_function(const char *description)
-{
-    return (likely_unary_function)likely_make_function(description, 1);
-}
+{ return (likely_unary_function)likely_make_function(description, 1); }
 
 typedef void (*likely_binary_function)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);
 inline likely_binary_function likely_make_binary_function(const char *description)
-{
-    return (likely_binary_function)likely_make_function(description, 2);
-}
+{ return (likely_binary_function)likely_make_function(description, 2); }
 
 typedef void (*likely_ternary_function)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);
 inline likely_ternary_function likely_make_ternary_function(const char *description)
-{
-    return (likely_ternary_function)likely_make_function(description, 3);
-}
+{ return (likely_ternary_function)likely_make_function(description, 3); }
 
 #ifdef __cplusplus
 }
@@ -172,9 +164,7 @@ struct Matrix : public likely_matrix
 {
     Matrix() { likely_matrix_initialize_null(this); }
     Matrix(uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash)
-    {
-        likely_matrix_initialize(this, channels, columns, rows, frames, hash);
-    }
+    { likely_matrix_initialize(this, channels, columns, rows, frames, hash); }
 
     inline int  depth() const { return likely_depth(this); }
     inline void setDepth(int bits) { likely_set_depth(this, bits); }
@@ -184,10 +174,10 @@ struct Matrix : public likely_matrix
     inline void setSigned(bool isSigned) { likely_set_signed(this, isSigned); }
     inline int  type() const { return likely_type(this); }
     inline void setType(int type) { likely_set_type(this, type); }
-    inline bool openMP() const { return likely_openmp(this); }
-    inline void setOpenMP(bool OpenMP) { likely_set_openmp(this, OpenMP); }
-    inline bool openCL() const { return likely_opencl(this); }
-    inline void setOpenCL(bool OpenCL) { likely_use_opencl(this, OpenCL); }
+    inline bool parallel() const { return likely_is_parallel(this); }
+    inline void setParallel(bool parallel) { likely_set_parallel(this, parallel); }
+    inline bool heterogeneous() const { return likely_is_heterogeneous(this); }
+    inline void setHeterogeneous(bool heterogeneous) { likely_set_heterogeneous(this, heterogeneous); }
     inline bool isSingleChannel() const { return likely_is_single_channel(this); }
     inline void setSingleChannel(bool isSingleChannel) { likely_set_single_channel(this, isSingleChannel); }
     inline bool isSingleColumn() const { return likely_is_single_column(this); }

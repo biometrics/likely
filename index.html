@@ -79,8 +79,8 @@
       </ul>
     </p>
     <h3 id="executable_everywhere">Executable Everywhere</h3>
-    <p>Likely is written in plain old <i>ISO C++ '98</i> and depends only on <i>LLVM</i> which means it runs <a href="http://llvm.org/docs/GettingStarted.html#hardware">everywhere LLVM does</a>.
-      Kernels execute natively on single CPU threads via the LLVM <i>Just-In-Time</i> (JIT) compiler, multi-core CPUs with <i>OpenMP</i>, and <i>OpenCL</i> compatible GPUs and coprocessors.
+    <p>Likely is written in a portable subset of <i>ISO C++11</i> and depends only on <i>LLVM</i> which means it runs <a href="http://llvm.org/docs/GettingStarted.html#hardware">everywhere LLVM does</a>.
+      Kernels execute natively on single CPU threads via the LLVM <i>Just-In-Time</i> (JIT) compiler, multi-core CPUs with <i>std::thread</i>, and <i>OpenCL</i> compatible GPUs and coprocessors.
     </p>
     <h3 id="perfectly_optimized">Perfectly Optimized</h3>
     <p>Likely relies on the powerful and well established LLVM optimization passes to make kernel execution as fast as possible.
@@ -93,7 +93,7 @@
       The repeated execution of a kernel with the same matrix type means that branching to handle different data types is unnecessary, entire loops and code blocks can be eliminated, and many values that would be runtime parameters instead become compile time constants.
       For this reason, it's not uncommon for Likely kernels to be <i>faster</i> than equally generic <tt>C</tt> code.
     </p>
-    <p id="hash_introduction">In Likely, a matrix's type is referred to as its <i><a href="#the_matrix_hash">hash</a></i>, encompassing its data type (<tt>integer</tt> or <tt>floating point</tt>), depth (<tt>8</tt>, <tt>16</tt>, <tt>32</tt>, or <tt>64</tt> bits), computation location (<tt>single-threaded CPU</tt>, <tt>OpenMP CPU</tt>, or <tt>OpenCL coprocessor</tt>), and its <tt>single-dimension</tt> axes.
+    <p id="hash_introduction">In Likely, a matrix's type is referred to as its <i><a href="#the_matrix_hash">hash</a></i>, encompassing its data type (<tt>integer</tt> or <tt>floating point</tt>), depth (<tt>8</tt>, <tt>16</tt>, <tt>32</tt>, or <tt>64</tt> bits), computation location (<tt>serial CPU</tt>, <tt>parallel CPU</tt>, or <tt>heterogeneous coprocessor</tt>), and its <tt>single-dimension</tt> axes.
       Likely functions check the input's hash against the currently compiled kernel's hash and recompile on a mismatch.
       In this way,
       <blockquote>
@@ -151,7 +151,7 @@
       It also specifies which, if any, of the channels, columns, rows, and frames of the matrix are length 1.
       This knowledge is used during kernel compilation to simplify element access algebra and remove unneccesary loops and branches.
     </p>
-    <p>The layout of the bits in the hash is as follows:</p>
+    <p>The layout of the bits in the hash is documented below.</p>
     <table class="table table-bordered table-condensed table-hover table-striped">
       <caption>Matrix Hash Bit Field Layout</caption>
       <thead>
@@ -162,16 +162,33 @@
         <tr><td>Signed</td><td>1</td><td>likely_matrix::Signed</td><td>0x0100</td></tr>
         <tr><td>Floating</td><td>1</td><td>likely_matrix::Floating</td><td>0x0200</td></tr>
         <tr><td>Type (= Depth | Signed | Floating)</td><td>10</td><td>likely_matrix::Type</td><td>0x03FF</td></tr>
-        <tr><td>OpenMP</td><td>1</td><td>likely_matrix::OpenMP</td><td>0x0400</td></tr>
-        <tr><td>OpenCL</td><td>1</td><td>likely_matrix::OpenCL</td><td>0x0800</td></tr>
+        <tr><td>Parallel</td><td>1</td><td>likely_matrix::Parallel</td><td>0x0400</td></tr>
+        <tr><td>Heterogeneous</td><td>1</td><td>likely_matrix::Heterogeneous</td><td>0x0800</td></tr>
         <tr><td>Single Channel</td><td>1</td><td>likely_matrix::SingleChannel</td><td>0x1000</td></tr>
         <tr><td>Single Column</td><td>1</td><td>likely_matrix::SingleColumn</td><td>0x2000</td></tr>
         <tr><td>Single Row</td><td>1</td><td>likely_matrix::SingleRow</td><td>0x4000</td></tr>
         <tr><td>Single Frame</td><td>1</td><td>likely_matrix::SingleFrame</td><td>0x8000</td></tr>
       </tbody>
     </table>
-    <p>Logic for querying and setting the hash is simplified with the following inlined convenience functions:</p>
-    <pre class="prettyprint lang-c">int  likely_depth(const likely_matrix *m);<br>void likely_set_depth(likely_matrix *m, int bits);<br>bool likely_is_floating(const likely_matrix *m);<br>void likely_set_floating(likely_matrix *m, bool is_floating);<br>bool likely_is_signed(const likely_matrix *m);<br>void likely_set_signed(likely_matrix *m, bool is_signed);<br>int  likely_type(const likely_matrix *m);<br>void likely_set_type(likely_matrix *m, int type);<br>bool likely_openmp(const likely_matrix *m);<br>void likely_set_openmp(likely_matrix *m, bool openmp);<br>bool likely_opencl(const likely_matrix *m);<br>void likely_use_opencl(likely_matrix *m, bool opencl);<br>bool likely_is_single_channel(const likely_matrix *m);<br>void likely_set_single_channel(likely_matrix *m, bool is_single_channel);<br>bool likely_is_single_column(const likely_matrix *m);<br>void likely_set_single_column(likely_matrix *m, bool is_single_column);<br>bool likely_is_single_row(const likely_matrix *m);<br>void likely_set_single_row(likely_matrix *m, bool is_single_row);<br>bool likely_is_single_frame(const likely_matrix *m);<br>void likely_set_single_frame(likely_matrix *m, bool is_single_frame);</pre>
+    <p>Logic for querying and editing the hash is simplified with the following <i>inline</i> convenience functions.</p>
+    <table class="table table-bordered table-condensed table-hover table-striped">
+      <caption>Matrix Hash Convenience Functions</caption>
+      <thead>
+        <tr><th>Field</th><th>Type</th><th>Getter</th><th>Setter</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Depth</td><td>int</td><td>likely_depth</td><td>likely_set_depth</td></tr>
+        <tr><td>Signed</td><td>bool</td><td>likely_is_signed</td><td>likely_set_signed</td></tr>
+        <tr><td>Floating</td><td>bool</td><td>likely_is_floating</td><td>likely_set_floating</td></tr>
+        <tr><td>Type</td><td>int</td><td>likely_type</td><td>likely_set_type</td></tr>
+        <tr><td>Parallel</td><td>bool</td><td>likely_is_parallel</td><td>likely_set_parallel</td></tr>
+        <tr><td>Heterogeneous</td><td>bool</td><td>likely_is_heterogeneous</td><td>likely_set_heterogeneous</td></tr>
+        <tr><td>Single Channel</td><td>bool</td><td>likely_is_single_channel</td><td>likely_set_single_channel</td></tr>
+        <tr><td>Single Column</td><td>bool</td><td>likely_is_single_column</td><td>likely_set_single_column</td></tr>
+        <tr><td>Single Row</td><td>bool</td><td>likely_is_single_row</td><td>likely_set_single_row</td></tr>
+        <tr><td>Single Frame</td><td>bool</td><td>likely_is_single_frame</td><td>likely_set_single_frame</td></tr>
+      </tbody>
+    </table>
     <h3 id="functions_and_kernels">Functions and Kernels</h3>
     <p>While both functions and kernels are thought of as mathematical transforms on matrices, the two words have distinct definitions in Likely.
       <i>Functions</i> are exposed through the API and accept input matrices with arbitrary hashes.
