@@ -137,7 +137,7 @@ LIKELY_EXPORT double likely_element(const likely_matrix *m, uint32_t c = 0, uint
 LIKELY_EXPORT void likely_set_element(likely_matrix *m, double value, uint32_t c = 0, uint32_t x = 0, uint32_t y = 0, uint32_t t = 0);
 
 // Core library functions
-LIKELY_EXPORT void *likely_make_function(const char *description, int arity); // You shouldn't call this directly
+LIKELY_EXPORT void *likely_make_function(const char *description, uint8_t arity); // You shouldn't call this directly
 
 typedef void (*likely_nullary_function)(likely_matrix *dst);
 inline likely_nullary_function likely_make_nullary_function(const char *description)
