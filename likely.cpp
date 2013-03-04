@@ -58,13 +58,13 @@ double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y
         return ((uint32_t*)m->data)[index];
       case likely_matrix::u64:
         return ((uint64_t*)m->data)[index];
-      case likely_matrix::s8:
+      case likely_matrix::i8:
         return ((int8_t*)m->data)[index];
-      case likely_matrix::s16:
+      case likely_matrix::i16:
         return ((int16_t*)m->data)[index];
-      case likely_matrix::s32:
+      case likely_matrix::i32:
         return ((int32_t*)m->data)[index];
-      case likely_matrix::s64:
+      case likely_matrix::i64:
         return ((int64_t*)m->data)[index];
       case likely_matrix::f32:
         return ((float*)m->data)[index];
@@ -93,13 +93,13 @@ void likely_set_element(likely_matrix *m, double value, uint32_t c, uint32_t x, 
         ((uint32_t*)m->data)[index] = value; break;
       case likely_matrix::u64:
         ((uint64_t*)m->data)[index] = value; break;
-      case likely_matrix::s8:
+      case likely_matrix::i8:
         ((int8_t*)m->data)[index] = value; break;
-      case likely_matrix::s16:
+      case likely_matrix::i16:
         ((int16_t*)m->data)[index] = value; break;
-      case likely_matrix::s32:
+      case likely_matrix::i32:
         ((int32_t*)m->data)[index] = value; break;
-      case likely_matrix::s64:
+      case likely_matrix::i64:
         ((int64_t*)m->data)[index] = value; break;
       case likely_matrix::f32:
         ((float*)m->data)[index] = value; break;

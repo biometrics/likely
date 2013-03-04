@@ -44,6 +44,7 @@ extern "C" {
 // The documentation and source code for Likely
 LIKELY_EXPORT const char *likely_index_html();
 
+// The only struct in the API
 struct likely_matrix
 {
     uint8_t *data;
@@ -73,36 +74,42 @@ struct likely_matrix
                 u16 = 16,
                 u32 = 32,
                 u64 = 64,
-                s8  = 8  | Signed,
-                s16 = 16 | Signed,
-                s32 = 32 | Signed,
-                s64 = 64 | Signed,
+                i8  = 8  | Signed,
+                i16 = 16 | Signed,
+                i32 = 32 | Signed,
+                i64 = 64 | Signed,
                 f16 = 16 | Floating | Signed,
                 f32 = 32 | Floating | Signed,
                 f64 = 64 | Floating | Signed };
 };
 
+// You shouldn't need to call these directly
+inline int likely_get(const likely_matrix *m, likely_matrix::Hash h) { return m->hash & h; }
+inline void likely_set(likely_matrix *m, int i, likely_matrix::Hash h) { m->hash &= ~h; m->hash |= i & h; }
+inline bool likely_get_bool(const likely_matrix *m, likely_matrix::Hash h) { return m->hash & h; }
+inline void likely_set_bool(likely_matrix *m, bool b, likely_matrix::Hash h) { b ? m->hash |= h : m->hash &= ~h; }
+
 // Convenience functions for querying and editing the hash
-inline int  likely_depth(const likely_matrix *m) { return m->hash & likely_matrix::Depth; }
-inline void likely_set_depth(likely_matrix *m, int bits) { m->hash &= ~likely_matrix::Depth; m->hash |= bits & likely_matrix::Depth; }
-inline bool likely_is_signed(const likely_matrix *m) { return m->hash & likely_matrix::Signed; }
-inline void likely_set_signed(likely_matrix *m, bool is_signed) { is_signed ? m->hash |= likely_matrix::Signed : m->hash &= ~likely_matrix::Signed; }
-inline bool likely_is_floating(const likely_matrix *m) {return m->hash & likely_matrix::Floating; }
-inline void likely_set_floating(likely_matrix *m, bool is_floating) { is_floating ? likely_set_signed(m, true), m->hash |= likely_matrix::Floating : m->hash &= ~likely_matrix::Floating; }
-inline int  likely_type(const likely_matrix *m) { return m->hash & likely_matrix::Type; }
-inline void likely_set_type(likely_matrix *m, int type) { m->hash &= ~(likely_matrix::Type); m->hash |= type & likely_matrix::Type; }
-inline bool likely_is_parallel(const likely_matrix *m) { return m->hash & likely_matrix::Parallel; }
-inline void likely_set_parallel(likely_matrix *m, bool is_parallel) { is_parallel ? m->hash |= likely_matrix::Parallel : m->hash &= ~likely_matrix::Parallel; }
-inline bool likely_is_heterogeneous(const likely_matrix *m) { return m->hash & likely_matrix::Heterogeneous; }
-inline void likely_set_heterogeneous(likely_matrix *m, bool is_heterogeneous) { is_heterogeneous ? m->hash |= likely_matrix::Heterogeneous : m->hash &= ~likely_matrix::Heterogeneous; }
-inline bool likely_is_single_channel(const likely_matrix *m) { return m->hash & likely_matrix::SingleChannel; }
-inline void likely_set_single_channel(likely_matrix *m, bool is_single_channel) { is_single_channel ? m->hash |= likely_matrix::SingleChannel : m->hash &= ~likely_matrix::SingleChannel; }
-inline bool likely_is_single_column(const likely_matrix *m) { return m->hash & likely_matrix::SingleColumn; }
-inline void likely_set_single_column(likely_matrix *m, bool is_single_column) { is_single_column ? m->hash |= likely_matrix::SingleColumn : m->hash &= ~likely_matrix::SingleColumn; }
-inline bool likely_is_single_row(const likely_matrix *m) { return m->hash & likely_matrix::SingleRow; }
-inline void likely_set_single_row(likely_matrix *m, bool is_single_row) { is_single_row ? m->hash |= likely_matrix::SingleRow : m->hash &= ~likely_matrix::SingleRow; }
-inline bool likely_is_single_frame(const likely_matrix *m) { return m->hash & likely_matrix::SingleFrame; }
-inline void likely_set_single_frame(likely_matrix *m, bool is_single_frame) { is_single_frame ? m->hash |= likely_matrix::SingleFrame : m->hash &= ~likely_matrix::SingleFrame;}
+inline int  likely_depth(const likely_matrix *m) { return likely_get(m, likely_matrix::Depth); }
+inline void likely_set_depth(likely_matrix *m, int bits) { likely_set(m, bits, likely_matrix::Depth); }
+inline bool likely_is_signed(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::Signed); }
+inline void likely_set_signed(likely_matrix *m, bool is_signed) { likely_set_bool(m, is_signed, likely_matrix::Signed); }
+inline bool likely_is_floating(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::Floating); }
+inline void likely_set_floating(likely_matrix *m, bool is_floating) { likely_set_bool(m, is_floating, likely_matrix::Floating); }
+inline int  likely_type(const likely_matrix *m) { return likely_get(m, likely_matrix::Type); }
+inline void likely_set_type(likely_matrix *m, int type) { likely_set(m, type, likely_matrix::Type); }
+inline bool likely_is_parallel(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::Parallel); }
+inline void likely_set_parallel(likely_matrix *m, bool is_parallel) { likely_set_bool(m, is_parallel, likely_matrix::Parallel); }
+inline bool likely_is_heterogeneous(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::Heterogeneous); }
+inline void likely_set_heterogeneous(likely_matrix *m, bool is_heterogeneous) { likely_set_bool(m, is_heterogeneous, likely_matrix::Heterogeneous); }
+inline bool likely_is_single_channel(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::SingleChannel); }
+inline void likely_set_single_channel(likely_matrix *m, bool is_single_channel) { likely_set_bool(m, is_single_channel, likely_matrix::SingleChannel); }
+inline bool likely_is_single_column(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::SingleColumn); }
+inline void likely_set_single_column(likely_matrix *m, bool is_single_column) { likely_set_bool(m, is_single_column, likely_matrix::SingleColumn); }
+inline bool likely_is_single_row(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::SingleRow); }
+inline void likely_set_single_row(likely_matrix *m, bool is_single_row) { likely_set_bool(m, is_single_row, likely_matrix::SingleRow); }
+inline bool likely_is_single_frame(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::SingleFrame); }
+inline void likely_set_single_frame(likely_matrix *m, bool is_single_frame) { likely_set_bool(m, is_single_frame, likely_matrix::SingleFrame); }
 
 // Convenience functions for determining matrix size
 inline uint32_t likely_elements(const likely_matrix *m) { return m->channels * m->columns * m->rows * m->frames; }
