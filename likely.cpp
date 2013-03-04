@@ -50,30 +50,19 @@ double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y
     const int index = t*frameStep + y*rowStep + x*columnStep + c;
 
     switch (likely_type(m)) {
-      case likely_matrix::u8:
-        return ((uint8_t*)m->data)[index];
-      case likely_matrix::u16:
-        return ((uint16_t*)m->data)[index];
-      case likely_matrix::u32:
-        return ((uint32_t*)m->data)[index];
-      case likely_matrix::u64:
-        return ((uint64_t*)m->data)[index];
-      case likely_matrix::i8:
-        return ((int8_t*)m->data)[index];
-      case likely_matrix::i16:
-        return ((int16_t*)m->data)[index];
-      case likely_matrix::i32:
-        return ((int32_t*)m->data)[index];
-      case likely_matrix::i64:
-        return ((int64_t*)m->data)[index];
-      case likely_matrix::f32:
-        return ((float*)m->data)[index];
-      case likely_matrix::f64:
-        return ((double*)m->data)[index];
-      default:
-        assert(!"Unsupported element type!");
-        return std::numeric_limits<double>::quiet_NaN();
+      case likely_matrix::u8:  return ((uint8_t*) m->data)[index];
+      case likely_matrix::u16: return ((uint16_t*)m->data)[index];
+      case likely_matrix::u32: return ((uint32_t*)m->data)[index];
+      case likely_matrix::u64: return ((uint64_t*)m->data)[index];
+      case likely_matrix::i8:  return   ((int8_t*)m->data)[index];
+      case likely_matrix::i16: return  ((int16_t*)m->data)[index];
+      case likely_matrix::i32: return  ((int32_t*)m->data)[index];
+      case likely_matrix::i64: return  ((int64_t*)m->data)[index];
+      case likely_matrix::f32: return    ((float*)m->data)[index];
+      case likely_matrix::f64: return   ((double*)m->data)[index];
+      default:                 assert(!"Unsupported element type!");
     }
+    return std::numeric_limits<double>::quiet_NaN();
 }
 
 void likely_set_element(likely_matrix *m, double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
@@ -85,28 +74,17 @@ void likely_set_element(likely_matrix *m, double value, uint32_t c, uint32_t x, 
     const int index = t*frameStep + y*rowStep + x*columnStep + c;
 
     switch (likely_type(m)) {
-      case likely_matrix::u8:
-        ((uint8_t*)m->data)[index] = value; break;
-      case likely_matrix::u16:
-        ((uint16_t*)m->data)[index] = value; break;
-      case likely_matrix::u32:
-        ((uint32_t*)m->data)[index] = value; break;
-      case likely_matrix::u64:
-        ((uint64_t*)m->data)[index] = value; break;
-      case likely_matrix::i8:
-        ((int8_t*)m->data)[index] = value; break;
-      case likely_matrix::i16:
-        ((int16_t*)m->data)[index] = value; break;
-      case likely_matrix::i32:
-        ((int32_t*)m->data)[index] = value; break;
-      case likely_matrix::i64:
-        ((int64_t*)m->data)[index] = value; break;
-      case likely_matrix::f32:
-        ((float*)m->data)[index] = value; break;
-      case likely_matrix::f64:
-        ((double*)m->data)[index] = value; break;
-      default:
-        assert(!"Unsupported element type!");
+      case likely_matrix::u8:   ((uint8_t*)m->data)[index] = value; break;
+      case likely_matrix::u16: ((uint16_t*)m->data)[index] = value; break;
+      case likely_matrix::u32: ((uint32_t*)m->data)[index] = value; break;
+      case likely_matrix::u64: ((uint64_t*)m->data)[index] = value; break;
+      case likely_matrix::i8:    ((int8_t*)m->data)[index] = value; break;
+      case likely_matrix::i16:  ((int16_t*)m->data)[index] = value; break;
+      case likely_matrix::i32:  ((int32_t*)m->data)[index] = value; break;
+      case likely_matrix::i64:  ((int64_t*)m->data)[index] = value; break;
+      case likely_matrix::f32:    ((float*)m->data)[index] = value; break;
+      case likely_matrix::f64:   ((double*)m->data)[index] = value; break;
+      default:                 assert(!"Unsupported element type!");
     }
 }
 
