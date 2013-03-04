@@ -34,7 +34,9 @@
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Transforms/Scalar.h>
 #include <iostream>
+#include <regex>
 #include <thread>
+#include <vector>
 
 #include "likely.h"
 
@@ -101,7 +103,58 @@ static ExecutionEngine *TheExecutionEngine = NULL;
 static FunctionPassManager *TheFunctionPassManager = NULL;
 static FunctionPassManager *TheExtraFunctionPassManager = NULL;
 static StructType *TheMatrixStruct = NULL;
-static map<string,string> Definitions;
+
+struct Definition
+{
+    string name, parameters, equation, documentation;
+
+    Definition() = default;
+    Definition(const smatch &sm)
+    {
+        if (sm.size() != 5) {
+            printf("ERROR: Definition expected 5 fields.\n");
+            abort();
+        }
+
+        name          = sm[1];
+        parameters    = sm[2];
+        equation      = sm[3];
+        documentation = sm[4];
+    }
+
+    static const string begin;
+    static const string end;
+    static const regex syntax;
+
+    static vector<Definition> definitionsFromString(const string &str)
+    {
+        vector<Definition> definitions;
+
+        size_t startDefinition = str.find(Definition::begin.c_str());
+        while (startDefinition != string::npos) {
+            size_t endDefinition = str.find(Definition::end.c_str(), startDefinition+Definition::begin.length());
+            if (endDefinition == string::npos) {
+                fprintf(stderr, "ERROR: Unclosed definition, missing %s!", Definition::end.c_str());
+                abort();
+            }
+            const string definition = str.substr(startDefinition+Definition::begin.length(), endDefinition-startDefinition-Definition::begin.length());
+            std::smatch sm;
+            if (!std::regex_match(definition, sm, Definition::syntax)) {
+                fprintf(stderr, "ERROR: Invalid definition: %s", definition.c_str());
+                abort();
+            }
+
+            definitions.push_back(Definition(sm));
+            startDefinition = str.find(Definition::begin.c_str(), endDefinition+1, Definition::begin.length());
+        }
+
+        return definitions;
+    }
+};
+
+const string Definition::begin = "<div class=\"likely\">";
+const string Definition::end = "</div>";
+const regex Definition::syntax("\\s*<math>(.*)</math>\\s*<h4>(.*)<small>(.*)</small></h4>\\s*<p>(.*)</p>\\s*");
 
 //static QString MatrixToString(const likely_matrix *m)
 //{
@@ -397,6 +450,8 @@ struct MatrixBuilder
 
 class FunctionBuilder
 {
+    static map<string,Definition> definitions;
+
 //    uint32_t fileIndex;
 
 public:
@@ -643,70 +698,8 @@ private:
                                              NULL);
 
         // Parse likely_index_html for definitions
-        const string html = indexHTML();
-        const string openDefinition = "<div class=\"likely\">";
-        const string closeDefinition = "</div>";
-        const string openEquation = "<math>";
-        const string closeEquation = "</math>";
-        const string openName = "<h4>";
-        const string closeName = "</h4>";
-        const string openParameters = "<small>";
-        const string closeParameters = "</small>";
-        const string openDocumentation = "<p>";
-        const string closeDocumentation = "</p>";
-        size_t startDefinition = html.find(openDefinition.c_str());
-        while (startDefinition != string::npos) {
-            size_t endDefinition = html.find(closeDefinition.c_str(), startDefinition+openDefinition.length());
-            if (endDefinition == string::npos) {
-                fprintf(stderr, "ERROR: Unclosed definition, missing %s!", closeDefinition.c_str());
-                abort();
-            }
-
-            const string definition = html.substr(startDefinition+openDefinition.length(), endDefinition-startDefinition-openDefinition.length());
-
-            size_t startEquation = definition.find(openEquation.c_str());
-            if (startEquation == string::npos) {
-                fprintf(stderr, "ERROR: No equation, missing %s", openEquation.c_str());
-                abort();
-            }
-
-            size_t endEquation = definition.find(closeEquation.c_str(), startEquation+openEquation.length());
-            if (endEquation == string::npos) {
-                fprintf(stderr, "ERROR: Unclosed equation, missing %s", closeEquation.c_str());
-                abort();
-            }
-
-            size_t startName = definition.find(openName.c_str());
-            if (startName == string::npos) {
-                fprintf(stderr, "ERROR: No name, missing %s", openName.c_str());
-                abort();
-            }
-
-            size_t endName = definition.find(closeName.c_str(), startName+openName.length());
-            if (startName == string::npos) {
-                fprintf(stderr, "ERROR: Unclosed name, missing %s", closeName.c_str());
-                abort();
-            }
-
-            size_t startParameters = definition.find(openParameters.c_str());
-            if (startParameters == string::npos) {
-                fprintf(stderr, "ERROR: No parameters, missing %s", openParameters.c_str());
-                abort();
-            }
-
-            size_t endParameters = definition.find(closeParameters.c_str(), startParameters+openParameters.length());
-            if (endParameters == string::npos) {
-                fprintf(stderr, "ERROR: Unclosed parameters, missing %s", closeParameters.c_str());
-                abort();
-            }
-
-            string equation = definition.substr(startEquation+openEquation.length(), endEquation-startEquation-openEquation.length());
-            string name = definition.substr(startName+openName.length(), endName-startName-openName.length());
-            string parameters = definition.substr(startParameters+openParameters.length(), endParameters-startParameters-openParameters.length());
-
-            cout << parameters << endl;
-            startDefinition = html.find(openDefinition.c_str(), endDefinition+1, openDefinition.length());
-        }
+        for (const Definition &definition : Definition::definitionsFromString(indexHTML()))
+            definitions[definition.name] = definition;
     }
 
 //    QString mangledName() const
@@ -732,6 +725,8 @@ private:
 //        dst.m() = MatFromMatrix(n);
 //    }
 };
+
+map<string, Definition> FunctionBuilder::definitions;
 
 //QHash<uint32_t, File> UnaryTransform::fileTable;
 

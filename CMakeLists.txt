@@ -71,7 +71,7 @@ if(${BUILD_LIKELY})
     set(CXX11 "-std=c++11")
   endif()
 
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter -fvisibility=hidden")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter -fvisibility=hidden -fvisibility-inlines-hidden")
   add_library(likely SHARED likely.cpp ${LIKELY_INDEX_HTML})
   add_dependencies(likely LLVM-3-2)
   set_target_properties(likely PROPERTIES
