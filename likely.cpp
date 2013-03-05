@@ -558,7 +558,7 @@ public:
             builder.CreateStore(builder.CreateCall(malloc, kernelSize), builder.CreateStructGEP(dst, 0));
 
             args.push_back(kernelSize);
-//            builder.CreateCall(builder.CreateLoad(kernelFunction), args);
+            builder.CreateCall(builder.CreateLoad(kernelFunction), args);
             builder.CreateRetVoid();
         }
 
@@ -592,44 +592,33 @@ public:
         return executionEngine->getPointerToFunction(function);
     }
 
-//    likely_unary_kernel getKernel(const likely_matrix *m) const
-//    {
-//        const QString name = mangledName(*m)+"_kernel";
-//        Function *function = TheModule->getFunction(qPrintable(name));
+    static void *makeKernel(int descriptionIndex, const vector<likely_matrix*> &matricies)
+    {
+        const string description = descriptions[descriptionIndex];
+        const string name = mangledName(description, matricies)+"_kernel";
 
-//        if (function == NULL) {
-//            function = cast<Function>(TheModule->getOrInsertFunction(qPrintable(name),
-//                                                                     Type::getVoidTy(getGlobalContext()),
-//                                                                     PointerType::getUnqual(TheMatrixStruct),
-//                                                                     PointerType::getUnqual(TheMatrixStruct),
-//                                                                     Type::getInt32Ty(getGlobalContext()),
-//                                                                     NULL));
-//            function->setCallingConv(CallingConv::C);
+        Function *function = TheModule->getFunction(name);
+        if (function != NULL)
+            return executionEngine->getPointerToFunction(function);
 
-//            Function::arg_iterator args = function->arg_begin();
-//            Value *src = args++;
-//            src->setName("src");
-//            Value *dst = args++;
-//            dst->setName("dst");
-//            Value *len = args++;
-//            len->setName("len");
+        function = getFunction(name, matricies.size(), Type::getVoidTy(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
 
-//            BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
-//            IRBuilder<> builder(entry);
+        vector<Value*> srcs;
+        Value *dst, *len;
+        getValues(function, srcs, dst, len);
 
-//            BasicBlock *loop, *exit;
-//            PHINode *i = MatrixBuilder::beginLoop(builder, function, entry, loop, exit, len, "i");
+        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
+        IRBuilder<> builder(entry);
 
-//            kernel(MatrixBuilder(m, src, &builder, function, "src"), dst, i);
+        BasicBlock *loop, *exit;
+        PHINode *i = MatrixBuilder::beginLoop(builder, function, entry, loop, exit, len, "i");
+        (void) i;
+        MatrixBuilder::endLoop(builder, loop, exit);
+        builder.CreateRetVoid();
 
-//            MatrixBuilder::endLoop(builder, loop, exit);
-//            builder.CreateRetVoid();
-
-//            optimize(function);
-//        }
-
-//        return (likely_unary_kernel)TheExecutionEngine->getPointerToFunction(function);
-//    }
+        optimize(function);
+        return executionEngine->getPointerToFunction(function);
+    }
 
 private:
     static void initialize()
@@ -690,15 +679,15 @@ private:
         return stream.str();
     }
 
-    static Function *getFunction(const string &description, int arity, Type *returnType)
+    static Function *getFunction(const string &description, int arity, Type *returnType, Type *indexType = NULL)
     {
         PointerType *matrixPointer = PointerType::getUnqual(TheMatrixStruct);
         Function *function;
         switch (arity) {
-          case 0: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, NULL)); break;
-          case 1: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, matrixPointer, NULL)); break;
-          case 2: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, matrixPointer, matrixPointer, NULL)); break;
-          case 3: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, matrixPointer, matrixPointer, matrixPointer, NULL)); break;
+          case 0: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, indexType, NULL)); break;
+          case 1: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, matrixPointer, indexType, NULL)); break;
+          case 2: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, matrixPointer, matrixPointer, indexType, NULL)); break;
+          case 3: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, matrixPointer, matrixPointer, matrixPointer, indexType, NULL)); break;
           default: fprintf(stderr, "ERROR: Invalid function arity: %d", arity); abort();
         }
         function->setCallingConv(CallingConv::C);
@@ -716,6 +705,16 @@ private:
             srcs.push_back(src);
             i++;
         }
+        dst = srcs.back();
+        srcs.pop_back();
+        dst->setName("dst");
+    }
+
+    static void getValues(Function *function, vector<Value*> &srcs, Value *&dst, Value *&len)
+    {
+        getValues(function, srcs, dst);
+        len = dst;
+        len->setName("len");
         dst = srcs.back();
         srcs.pop_back();
         dst->setName("dst");
@@ -1186,7 +1185,7 @@ LIKELY_EXPORT void *likely_make_kernel(int descriptionIndex, uint8_t arity, like
     }
     va_end(ap);
     assert(arity == srcs.size());
-    return NULL; //likely::FunctionBuilder::makeKernel(descriptionIndex, srcs);
+    return likely::FunctionBuilder::makeKernel(descriptionIndex, srcs);
 }
 
 } // extern "C"
