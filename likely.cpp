@@ -33,6 +33,7 @@
 #include <llvm/Support/ManagedStatic.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Transforms/Scalar.h>
+#include <stdarg.h>
 #include <iostream>
 #include <regex>
 #include <string>
@@ -585,6 +586,7 @@ public:
             args.push_back(builder.CreateIntToPtr(MatrixBuilder::constant(id, 32), Type::getInt8PtrTy(getGlobalContext())));
             args.push_back(MatrixBuilder::constant(arity, 8));
             args.insert(args.end(), srcs.begin(), srcs.end());
+            args.push_back(ConstantPointerNull::getNullValue(TheMatrixStruct));
             builder.CreateStore(builder.CreateCall(makeAllocationFunction, args), allocationFunction);
             builder.CreateStore(builder.CreateCall(makeKernelFunction, args), kernelFunction);
             for (int i = 0; i < arity; i++)
@@ -594,10 +596,10 @@ public:
 
         builder.SetInsertPoint(execute);
         {
-            vector<Value*> args(srcs); args.push_back(dst);
-            Value *kernelSize = builder.CreateCall(builder.CreateLoad(allocationFunction), args);
-            args.push_back(kernelSize);
-            builder.CreateCall(builder.CreateLoad(kernelFunction), args);
+//            vector<Value*> args(srcs); args.push_back(dst);
+//            Value *kernelSize = builder.CreateCall(builder.CreateLoad(allocationFunction), args);
+//            args.push_back(kernelSize);
+//            builder.CreateCall(builder.CreateLoad(kernelFunction), args);
             builder.CreateRetVoid();
         }
 
@@ -605,35 +607,13 @@ public:
         return TheExecutionEngine->getPointerToFunction(function);
     }
 
-//    virtual Value *preallocation(const MatrixBuilder &src, Value *dst) const = 0; /*!< Allocate the destintation matrix given the source matrix. */
-//    virtual void kernel(const MatrixBuilder &src, Value *dst, PHINode *i) const = 0; /*!< Run the computation given the source matrix. */
-
-    static void optimize(Function *f)
+    static void *makeAllocation(const char *description, const vector<likely_matrix*> &srcs)
     {
-        static FunctionPassManager *functionPassManager = NULL;
-        static FunctionPassManager *extraFunctionPassManager = NULL;
-
-        if (functionPassManager == NULL) {
-            functionPassManager = new FunctionPassManager(TheModule);
-            functionPassManager->add(createVerifierPass(PrintMessageAction));
-            functionPassManager->add(createEarlyCSEPass());
-            functionPassManager->add(createInstructionCombiningPass());
-            functionPassManager->add(createDeadCodeEliminationPass());
-            functionPassManager->add(createGVNPass());
-            functionPassManager->add(createDeadInstEliminationPass());
-
-            extraFunctionPassManager = new FunctionPassManager(TheModule);
-            extraFunctionPassManager->add(createPrintFunctionPass("----------------------------------------"
-                                                                  "----------------------------------------", &errs()));
-    //        TheExtraFunctionPassManager->add(createLoopUnrollPass(INT_MAX,8));
+        if (description == NULL) {
+            fprintf(stderr, "ERROR: Null allocation description.");
+            abort();
         }
-
-        while (functionPassManager->run(*f));
-        extraFunctionPassManager->run(*f);
-    }
-
-//    likely_unary_allocation getAllocation(const likely_matrix *m) const
-//    {
+        return NULL;
 //        const QString name = mangledName(*m)+"_allocation";
 //        Function *function = TheModule->getFunction(qPrintable(name));
 
@@ -673,7 +653,7 @@ public:
 //        }
 
 //        return (likely_unary_allocation)TheExecutionEngine->getPointerToFunction(function);
-//    }
+    }
 
 //    likely_unary_kernel getKernel(const likely_matrix *m) const
 //    {
@@ -739,6 +719,30 @@ private:
         // Parse likely_index_html for definitions
         for (const Definition &definition : Definition::definitionsFromString(indexHTML()))
             definitions[definition.name] = definition;
+    }
+
+    static void optimize(Function *f)
+    {
+        static FunctionPassManager *functionPassManager = NULL;
+        static FunctionPassManager *extraFunctionPassManager = NULL;
+
+        if (functionPassManager == NULL) {
+            functionPassManager = new FunctionPassManager(TheModule);
+            functionPassManager->add(createVerifierPass(PrintMessageAction));
+            functionPassManager->add(createEarlyCSEPass());
+            functionPassManager->add(createInstructionCombiningPass());
+            functionPassManager->add(createDeadCodeEliminationPass());
+            functionPassManager->add(createGVNPass());
+            functionPassManager->add(createDeadInstEliminationPass());
+
+            extraFunctionPassManager = new FunctionPassManager(TheModule);
+            extraFunctionPassManager->add(createPrintFunctionPass("----------------------------------------"
+                                                                  "----------------------------------------", &errs()));
+    //        TheExtraFunctionPassManager->add(createLoopUnrollPass(INT_MAX,8));
+        }
+
+        while (functionPassManager->run(*f));
+        extraFunctionPassManager->run(*f);
     }
 
 //    QString mangledName(const likely_matrix &src) const
@@ -1218,20 +1222,21 @@ void *likely_make_function(const char *description, uint8_t arity)
 
 extern "C" {
 
-LIKELY_EXPORT void *likely_make_allocation(const char *description, uint8_t arity, const likely_matrix *src)
+LIKELY_EXPORT void *likely_make_allocation(const char *description, uint8_t arity, likely_matrix *src, ...)
 {
-    (void) description;
-    (void) arity;
-    (void) src;
-//    if (description == NULL) qFatal("makeUnaryAllocation NULL description!");
-//    const File f = long(description) < 1000 ? UnaryTransform::fileTable[long(description)] : File(description);
-//    QScopedPointer<UnaryTransform> unaryTransform(dynamic_cast<UnaryTransform*>(Transform::make(f, NULL)));
-//    if (unaryTransform == NULL) qFatal("makeUnaryKernel NULL transform!");
-//    return unaryTransform->getAllocation(src);
-    return NULL;
+    vector<likely_matrix*> srcs;
+    va_list ap;
+    va_start(ap, src);
+    while (src != NULL) {
+        srcs.push_back(src);
+        src = va_arg(ap, likely_matrix*);
+    }
+    va_end(ap);
+    assert(arity == srcs.size());
+    return likely::FunctionBuilder::makeAllocation(description, srcs);
 }
 
-LIKELY_EXPORT void *likely_make_kernel(const char *description, uint8_t arity, const likely_matrix *src)
+LIKELY_EXPORT void *likely_make_kernel(const char *description, uint8_t arity, likely_matrix *src)
 {
     (void) description;
     (void) arity;

@@ -170,6 +170,7 @@ inline const char *indexHTML() { return likely_index_html(); }
 struct Matrix : public likely_matrix
 {
     Matrix() { likely_matrix_initialize_null(this); }
+    Matrix(uint16_t hash) { likely_matrix_initialize(this, 0, 0, 0, 0, hash); }
     Matrix(uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash)
     { likely_matrix_initialize(this, channels, columns, rows, frames, hash); }
 
