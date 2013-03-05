@@ -109,7 +109,7 @@ struct Definition
     Definition(const smatch &sm)
     {
         if (sm.size() != 5) {
-            printf("ERROR: Definition expected 5 fields.\n");
+            printf("ERROR - Definition expected 5 fields.\n");
             abort();
         }
 
@@ -131,13 +131,13 @@ struct Definition
         while (startDefinition != string::npos) {
             size_t endDefinition = str.find(Definition::end.c_str(), startDefinition+Definition::begin.length());
             if (endDefinition == string::npos) {
-                fprintf(stderr, "ERROR: Unclosed definition, missing %s!", Definition::end.c_str());
+                fprintf(stderr, "ERROR - Unclosed definition, missing %s!", Definition::end.c_str());
                 abort();
             }
             const string definition = str.substr(startDefinition+Definition::begin.length(), endDefinition-startDefinition-Definition::begin.length());
             std::smatch sm;
             if (!std::regex_match(definition, sm, Definition::syntax)) {
-                fprintf(stderr, "ERROR: Invalid definition: %s", definition.c_str());
+                fprintf(stderr, "ERROR - Invalid definition: %s", definition.c_str());
                 abort();
             }
 
@@ -406,7 +406,7 @@ struct MatrixBuilder
             else if (bits == 32) return Type::getInt32Ty(getGlobalContext());
             else if (bits == 64) return Type::getInt64Ty(getGlobalContext());
         }
-        fprintf(stderr, "ERROR: Invalid matrix type!");
+        fprintf(stderr, "ERROR - Invalid matrix type!");
         abort();
         return NULL;
     }
@@ -427,7 +427,7 @@ struct MatrixBuilder
             else if (bits == 32) return Type::getInt32PtrTy(getGlobalContext());
             else if (bits == 64) return Type::getInt64PtrTy(getGlobalContext());
         }
-        fprintf(stderr, "ERROR: Invalid matrix type!");
+        fprintf(stderr, "ERROR - Invalid matrix type!");
         abort();
         return NULL;
     }
@@ -629,7 +629,7 @@ private:
         std::string error;
         executionEngine = EngineBuilder(TheModule).setEngineKind(EngineKind::JIT).setErrorStr(&error).create();
         if (executionEngine == NULL) {
-            fprintf(stderr, "ERROR: Failed to create LLVM ExecutionEngine with error: %s", error.c_str());
+            fprintf(stderr, "ERROR - Failed to create LLVM ExecutionEngine with ERROR - %s", error.c_str());
             abort();
         }
 
@@ -675,7 +675,7 @@ private:
     {
         stringstream stream; stream << description;
         for (likely_matrix *matrix : matrices)
-            stream << "_" << hex << matrix->hash;
+            stream << "_" << hex << setfill('0') << setw(4) << matrix->hash;
         return stream.str();
     }
 
@@ -688,7 +688,7 @@ private:
           case 1: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, matrixPointer, indexType, NULL)); break;
           case 2: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, matrixPointer, matrixPointer, indexType, NULL)); break;
           case 3: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, matrixPointer, matrixPointer, matrixPointer, indexType, NULL)); break;
-          default: fprintf(stderr, "ERROR: Invalid function arity: %d", arity); abort();
+          default: fprintf(stderr, "ERROR - Invalid function arity: %d", arity); abort();
         }
         function->setCallingConv(CallingConv::C);
         return function;
@@ -700,10 +700,9 @@ private:
         int i = 0;
         while (args != function->arg_end()) {
             Value *src = args++;
-            stringstream name; name << "src" << char(int('A')+i);
+            stringstream name; name << "src" << char(int('A')+(i++));
             src->setName(name.str());
             srcs.push_back(src);
-            i++;
         }
         dst = srcs.back();
         srcs.pop_back();
