@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<?xml-stylesheet type="text/xsl" href="http://www.w3.org/Math/XSL/mathml.xsl"?>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -109,7 +110,7 @@
       In fact, this webpage is compiled into the Likely library and parsed at runtime to extract kernel definitions.
       You can access this content for yourself with <code class="prettyprint lang-c">const char *this_webpage = likely_index_html();</code>.
     </p>
-    <p>Kernels are written in <i>MathML</i> allowing them to be rendered cleanly here and parsed easily by the backend.</p>
+    <p>Kernels are written in \(\LaTeX\) allowing for the same high-quality rendering available in academic publications.</p>
     <h2 id="installation">Installation</h2>
     <p>The following sections discuss how to build and incorporate Likely into your own project.</p>
     <h3 id="build_instructions">Build Instructions</h3>
@@ -236,7 +237,7 @@
     <ul class="thumbnails">
       <li class="thumbnail">
         <div class="likely">
-          <math><mrow></mo><mi>a</mi><mo>*</mo><mi>src</mi><mo>+</mo><mi>b</mi></mrow></math>
+          $$a*src+b$$
           <h4>madd<small>(a,b)</small></h4>
           <p>Multiply-add.</p>
         </div>

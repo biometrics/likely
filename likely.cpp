@@ -151,7 +151,7 @@ struct Definition
 
 const string Definition::begin = "<div class=\"likely\">";
 const string Definition::end = "</div>";
-const regex Definition::syntax("\\s*<math>(.*)</math>\\s*<h4>(.*)<small>(.*)</small></h4>\\s*<p>(.*)</p>\\s*");
+const regex Definition::syntax("\\s*\\$\\$(.*)\\$\\$\\s*<h4>(.*)<small>(.*)</small></h4>\\s*<p>(.*)</p>\\s*");
 
 //static likely_matrix MatrixFromMat(const cv::Mat &mat)
 //{
@@ -583,9 +583,13 @@ public:
 
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
-        MatrixBuilder mb(matricies.front(), srcs.front(), &builder, function, "src");
-        mb.copyHeaderTo(dst);
-        Value *kernelSize = mb.elements();
+
+        vector<MatrixBuilder> matrixBuilders;
+        for (size_t i = 0; i < matricies.size(); i++)
+            matrixBuilders.push_back(MatrixBuilder(matricies[i], srcs[i], &builder, function, "src"+to_string(i)));
+
+        matrixBuilders.front().copyHeaderTo(dst);
+        Value *kernelSize = matrixBuilders.front().elements();
         builder.CreateRet(kernelSize);
 
         optimize(function);
