@@ -101,6 +101,23 @@ static const uint8_t numArities = 4; // 0 through 3
 static Module *TheModule = NULL;
 static StructType *TheMatrixStruct = NULL;
 
+static vector<string> split(const string &s, char delim)
+{
+    vector<string> elems;
+    stringstream ss(s);
+    string item;
+    while (getline(ss, item, delim))
+        elems.push_back(item);
+    return elems;
+}
+
+static int indexOf(const vector<string> &v, const string &s)
+{
+    auto index = find(v.begin(), v.end(), s);
+    if (index == v.end()) return -1;
+    return distance(v.begin(), index);
+}
+
 struct Node
 {
     string name;
@@ -109,8 +126,8 @@ struct Node
 
 struct Definition
 {
-    string name, parameters, equation, documentation;
-    vector<string> tokens;
+    string name, documentation;
+    vector<string> parameters, equation;
 
     Definition() = default;
     Definition(const smatch &sm)
@@ -120,26 +137,41 @@ struct Definition
             abort();
         }
 
-        name          = sm[2];
-        parameters    = sm[3];
-        equation      = sm[1];
+        name = sm[2];
+        parameters = split(string(sm[3]).substr(1, string(sm[3]).size()-2), ',');
         documentation = sm[4];
 
+        // Equation
         static const regex syntax("^\\s*([+\\-*/]|\\w+).*$");
-        { // Tokenizer
-            string unparsed = equation;
-            while (!unparsed.empty()) {
-                smatch sm;
-                regex_match(unparsed, sm, syntax);
-                if (sm.size() < 2) {
-                    fprintf(stderr, "ERROR - Failed to parse %s", unparsed.c_str());
-                    abort();
-                }
-                const string &token = sm[1];
-                tokens.push_back(token);
-                unparsed = unparsed.substr(unparsed.find(token.c_str())+token.size());
+        string unparsed = sm[1];
+        while (!unparsed.empty()) {
+            smatch sm;
+            regex_match(unparsed, sm, syntax);
+            if (sm.size() < 2) {
+                fprintf(stderr, "ERROR - Failed to parse %s", unparsed.c_str());
+                abort();
             }
+            const string &token = sm[1];
+            equation.push_back(token);
+            unparsed = unparsed.substr(unparsed.find(token.c_str())+token.size());
         }
+    }
+
+    static Definition get(const string &description)
+    {
+        // Parse likely_index_html for definitions
+        if (definitions.size() == 0)
+            for (const Definition &definition : Definition::definitionsFromString(indexHTML()))
+                definitions[definition.name] = definition;
+
+        const string name = description.substr(0, description.find('('));
+        Definition definition = definitions[name];
+        if (name != definition.name) {
+            fprintf(stderr, "ERROR - Missing definition for: %s\n", name.c_str());
+            abort();
+        }
+
+        return definition;
     }
 
     static vector<Definition> definitionsFromString(const string &str)
@@ -162,14 +194,18 @@ struct Definition
                 fprintf(stderr, "ERROR - Invalid definition: %s\n", definition.c_str());
                 abort();
             }
-
             definitions.push_back(Definition(sm));
             startDefinition = str.find(begin.c_str(), endDefinition+1, begin.length());
         }
 
         return definitions;
     }
+
+private:
+    static map<string,Definition> definitions;
 };
+
+map<string, Definition> Definition::definitions;
 
 struct MatrixBuilder
 {
@@ -413,30 +449,26 @@ struct MatrixBuilder
 
 class KernelBuilder
 {
-    static map<string,Definition> definitions;
+    vector<string> equation;
 
 public:
     KernelBuilder(const string &description)
     {
-        // Parse likely_index_html for definitions
-        if (definitions.size() == 0)
-            for (const Definition &definition : Definition::definitionsFromString(indexHTML()))
-                definitions[definition.name] = definition;
-
         const size_t lParen = description.find('(');
         const string name = description.substr(0, lParen);
         const vector<string> arguments = split(description.substr(lParen+1, description.size()-lParen-2), ',');
 
-        Definition &definition = definitions[name];
-        if (name != definition.name) {
-            fprintf(stderr, "ERROR - Missing definition for: %s\n", name.c_str());
-            abort();
-        }
-
-        const vector<string> parameters = split(definition.parameters.substr(1, definition.parameters.size()-2), ',');
+        Definition definition = Definition::get(description);
+        const vector<string> parameters = definition.parameters;
         if (arguments.size() != parameters.size()) {
             fprintf(stderr, "ERROR - Function %s has %ld parameters but was only given %ld arguments\n", name.c_str(), parameters.size(), arguments.size());
             abort();
+        }
+
+        for (const string &token : definition.equation) {
+            const int index = indexOf(parameters, token);
+            if (index == -1) equation.push_back(token);
+            else             equation.push_back(arguments[index]);
         }
     }
 
@@ -501,20 +533,7 @@ public:
         srcs.pop_back();
         dst->setName("dst");
     }
-
-private:
-    static vector<string> split(const string &s, char delim)
-    {
-        vector<string> elems;
-        stringstream ss(s);
-        string item;
-        while (getline(ss, item, delim))
-            elems.push_back(item);
-        return elems;
-    }
 };
-
-map<string, Definition> KernelBuilder::definitions;
 
 class FunctionBuilder
 {
