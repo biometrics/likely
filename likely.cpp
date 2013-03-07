@@ -110,7 +110,7 @@ struct Node
 struct Definition
 {
     string name, parameters, equation, documentation;
-    Node node;
+    vector<string> tokens;
 
     Definition() = default;
     Definition(const smatch &sm)
@@ -124,14 +124,8 @@ struct Definition
         parameters    = sm[3];
         equation      = sm[1];
         documentation = sm[4];
-    }
 
-    Node parsed()
-    {
         static const regex syntax("^\\s*([+\\-*/]|\\w+).*$");
-        if (!node.name.empty()) return node;
-
-        vector<string> tokens;
         { // Tokenizer
             string unparsed = equation;
             while (!unparsed.empty()) {
@@ -146,9 +140,6 @@ struct Definition
                 unparsed = unparsed.substr(unparsed.find(token.c_str())+token.size());
             }
         }
-
-        node.name = equation;
-        return node;
     }
 
     static vector<Definition> definitionsFromString(const string &str)
@@ -468,11 +459,10 @@ class KernelBuilder
 public:
     KernelBuilder(const string &description)
     {
-        if (definitions.size() == 0) {
-            // Parse likely_index_html for definitions
+        // Parse likely_index_html for definitions
+        if (definitions.size() == 0)
             for (const Definition &definition : Definition::definitionsFromString(indexHTML()))
                 definitions[definition.name] = definition;
-        }
 
         const size_t lParen = description.find('(');
         const string name = description.substr(0, lParen);
@@ -483,7 +473,6 @@ public:
             fprintf(stderr, "ERROR - Missing definition for: %s\n", name.c_str());
             abort();
         }
-        definition.parsed();
 
         const vector<string> parameters = split(definition.parameters.substr(1, definition.parameters.size()-2), ',');
         if (arguments.size() != parameters.size()) {
