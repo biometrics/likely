@@ -128,12 +128,26 @@ struct Definition
 
     Node parsed()
     {
-        static const regex syntax("[+\\-*/]|\\w+");
+        static const regex syntax("^\\s*([+\\-*/]|\\w+).*$");
         if (!node.name.empty()) return node;
 
-        smatch sm;
-        regex_match(equation, sm, syntax);
+        vector<string> tokens;
+        { // Tokenizer
+            string unparsed = equation;
+            while (!unparsed.empty()) {
+                smatch sm;
+                regex_match(unparsed, sm, syntax);
+                if (sm.size() < 2) {
+                    fprintf(stderr, "ERROR - Failed to parse %s", unparsed.c_str());
+                    abort();
+                }
+                const string &token = sm[1];
+                tokens.push_back(token);
+                unparsed = unparsed.substr(unparsed.find(token.c_str())+token.size());
+            }
+        }
 
+        node.name = equation;
         return node;
     }
 
@@ -464,11 +478,12 @@ public:
         const string name = description.substr(0, lParen);
         const vector<string> arguments = split(description.substr(lParen+1, description.size()-lParen-2), ',');
 
-        const Definition definition = definitions[name];
+        Definition &definition = definitions[name];
         if (name != definition.name) {
             fprintf(stderr, "ERROR - Missing definition for: %s\n", name.c_str());
             abort();
         }
+        definition.parsed();
 
         const vector<string> parameters = split(definition.parameters.substr(1, definition.parameters.size()-2), ',');
         if (arguments.size() != parameters.size()) {
