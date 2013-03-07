@@ -68,7 +68,7 @@ double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y
       case likely_matrix::f64: return   ((double*)m->data)[index];
       default:                 assert(!"Unsupported element type!");
     }
-    return std::numeric_limits<double>::quiet_NaN();
+    return numeric_limits<double>::quiet_NaN();
 }
 
 void likely_set_element(likely_matrix *m, double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
@@ -101,9 +101,16 @@ static const uint8_t numArities = 4; // 0 through 3
 static Module *TheModule = NULL;
 static StructType *TheMatrixStruct = NULL;
 
+struct Node
+{
+    string name;
+    vector<Node> children;
+};
+
 struct Definition
 {
     string name, parameters, equation, documentation;
+    Node node;
 
     Definition() = default;
     Definition(const smatch &sm)
@@ -119,39 +126,45 @@ struct Definition
         documentation = sm[4];
     }
 
-    static const string begin;
-    static const string end;
-    static const regex syntax;
+    Node parsed()
+    {
+        static const regex syntax("[+\\-*/]|\\w+");
+        if (!node.name.empty()) return node;
+
+        smatch sm;
+        regex_match(equation, sm, syntax);
+
+        return node;
+    }
 
     static vector<Definition> definitionsFromString(const string &str)
     {
-        vector<Definition> definitions;
+        static const string begin = "<div class=\"likely\">";
+        static const string end = "</div>";
+        static const regex  syntax("\\s*\\$\\$(.*)\\$\\$\\s*<h4>(.*)<small>(.*)</small></h4>\\s*<p>(.*)</p>\\s*");
 
-        size_t startDefinition = str.find(Definition::begin.c_str());
+        vector<Definition> definitions;
+        size_t startDefinition = str.find(begin.c_str());
         while (startDefinition != string::npos) {
-            size_t endDefinition = str.find(Definition::end.c_str(), startDefinition+Definition::begin.length());
+            size_t endDefinition = str.find(end.c_str(), startDefinition+begin.length());
             if (endDefinition == string::npos) {
-                fprintf(stderr, "ERROR - Unclosed definition, missing %s\n", Definition::end.c_str());
+                fprintf(stderr, "ERROR - Unclosed definition, missing %s\n", end.c_str());
                 abort();
             }
-            const string definition = str.substr(startDefinition+Definition::begin.length(), endDefinition-startDefinition-Definition::begin.length());
-            std::smatch sm;
-            if (!std::regex_match(definition, sm, Definition::syntax)) {
+            const string definition = str.substr(startDefinition+begin.length(), endDefinition-startDefinition-begin.length());
+            smatch sm;
+            if (!regex_match(definition, sm, syntax)) {
                 fprintf(stderr, "ERROR - Invalid definition: %s\n", definition.c_str());
                 abort();
             }
 
             definitions.push_back(Definition(sm));
-            startDefinition = str.find(Definition::begin.c_str(), endDefinition+1, Definition::begin.length());
+            startDefinition = str.find(begin.c_str(), endDefinition+1, begin.length());
         }
 
         return definitions;
     }
 };
-
-const string Definition::begin = "<div class=\"likely\">";
-const string Definition::end = "</div>";
-const regex Definition::syntax("\\s*\\$\\$(.*)\\$\\$\\s*<h4>(.*)<small>(.*)</small></h4>\\s*<p>(.*)</p>\\s*");
 
 //static likely_matrix MatrixFromMat(const cv::Mat &mat)
 //{
@@ -255,14 +268,14 @@ struct MatrixBuilder
         static Function *free = TheModule->getFunction("free");
         if (!free) {
             Type *freeReturn = Type::getVoidTy(getGlobalContext());
-            std::vector<Type*> freeParams;
+            vector<Type*> freeParams;
             freeParams.push_back(Type::getInt8PtrTy(getGlobalContext()));
             FunctionType* freeType = FunctionType::get(freeReturn, freeParams, false);
             free = Function::Create(freeType, GlobalValue::ExternalLinkage, "free", TheModule);
             free->setCallingConv(CallingConv::C);
         }
 
-        std::vector<Value*> freeArgs;
+        vector<Value*> freeArgs;
         freeArgs.push_back(b->CreateStructGEP(v, 0));
         b->CreateCall(free, freeArgs);
         setData(ConstantPointerNull::get(Type::getInt8PtrTy(getGlobalContext())));
@@ -390,7 +403,7 @@ struct MatrixBuilder
     void endLoop(BasicBlock *loop, BasicBlock *exit) const { endLoop(*b, loop, exit); }
 
     template <typename T>
-    inline static std::vector<T> toVector(T value) { std::vector<T> vector; vector.push_back(value); return vector; }
+    inline static vector<T> toVector(T value) { vector<T> vector; vector.push_back(value); return vector; }
 
     static Type *ty(const likely_matrix &m)
     {
@@ -411,7 +424,7 @@ struct MatrixBuilder
         return NULL;
     }
     inline Type *ty() const { return ty(*m); }
-    inline std::vector<Type*> tys() const { return toVector<Type*>(ty()); }
+    inline vector<Type*> tys() const { return toVector<Type*>(ty()); }
 
     static Type *ptrTy(const likely_matrix &m)
     {
@@ -584,7 +597,7 @@ public:
         static vector<PointerType*> kernelFunctionTypes(numArities, NULL);
         PointerType *kernelFunctionType = kernelFunctionTypes[arity];
         if (makeKernelFunction == NULL) {
-            std::vector<Type*> kernelParams;
+            vector<Type*> kernelParams;
             for (int i=0; i < arity+1; i++)
                 kernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
             kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
@@ -593,7 +606,7 @@ public:
 
             if (makeKernelFunction == NULL) {
                 kernelFunctionType = PointerType::getUnqual(FunctionType::get(kernelReturn, kernelParams, false));
-                std::vector<Type*> makeKernelParams;
+                vector<Type*> makeKernelParams;
                 makeKernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
                 makeKernelParams.push_back(Type::getInt8Ty(getGlobalContext()));
                 makeKernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
@@ -654,7 +667,7 @@ public:
             static Function *malloc = TheModule->getFunction("malloc");
             if (malloc == NULL) {
                 Type *mallocReturn = Type::getInt8PtrTy(getGlobalContext());
-                std::vector<Type*> mallocParams;
+                vector<Type*> mallocParams;
                 mallocParams.push_back(Type::getInt32Ty(getGlobalContext()));
                 FunctionType* mallocType = FunctionType::get(mallocReturn, mallocParams, false);
                 malloc = Function::Create(mallocType, GlobalValue::ExternalLinkage, "malloc", TheModule);
@@ -711,7 +724,7 @@ private:
         InitializeNativeTarget();
         TheModule = new Module("likely", getGlobalContext());
 
-        std::string error;
+        string error;
         executionEngine = EngineBuilder(TheModule).setEngineKind(EngineKind::JIT).setErrorStr(&error).create();
         if (executionEngine == NULL) {
             fprintf(stderr, "ERROR - Failed to create LLVM ExecutionEngine with error: %s", error.c_str());
@@ -903,7 +916,7 @@ ExecutionEngine *FunctionBuilder::executionEngine;
 //    int preallocate(const Matrix &src, Matrix &dst) const
 //    {
 //        dst = Matrix(channels ? 1 : src.channels, columns ? 1 : src.columns, rows ? 1 : src.rows, frames ? 1 : src.frames, src.hash);
-//        dst.setBits(std::min(2*dst.bits(), dst.isFloating() ? 64 : 32));
+//        dst.setBits(min(2*dst.bits(), dst.isFloating() ? 64 : 32));
 //        return dst.elements();
 //    }
 
@@ -1088,18 +1101,18 @@ ExecutionEngine *FunctionBuilder::executionEngine;
 //    Q_OBJECT
 //    Q_PROPERTY(double min READ get_min WRITE set_min RESET reset_min STORED false)
 //    Q_PROPERTY(double max READ get_max WRITE set_max RESET reset_max STORED false)
-//    BR_PROPERTY(double, min, -std::numeric_limits<double>::max())
-//    BR_PROPERTY(double, max, std::numeric_limits<double>::max())
+//    BR_PROPERTY(double, min, -numeric_limits<double>::max())
+//    BR_PROPERTY(double, max, numeric_limits<double>::max())
 
 //    Value *stitch(const MatrixBuilder &src, const MatrixBuilder &dst, Value *val) const
 //    {
 //        (void) src;
 //        Value *clampedVal = val;
-//        if (min > -std::numeric_limits<double>::max()) {
+//        if (min > -numeric_limits<double>::max()) {
 //            Value *low = dst.autoConstant(min);
 //            clampedVal = dst.b->CreateSelect(dst.compareLT(clampedVal, low), low, clampedVal);
 //        }
-//        if (max < std::numeric_limits<double>::max()) {
+//        if (max < numeric_limits<double>::max()) {
 //            Value *high = dst.autoConstant(max);
 //            clampedVal = dst.b->CreateSelect(dst.compareGT(clampedVal, high), high, clampedVal);
 //        }
