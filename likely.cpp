@@ -56,7 +56,7 @@ double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y
     const int index = t*frameStep + y*rowStep + x*columnStep + c;
 
     switch (likely_type(m)) {
-      case likely_matrix::u8:  return ((uint8_t*) m->data)[index];
+      case likely_matrix::u8:  return  ((uint8_t*)m->data)[index];
       case likely_matrix::u16: return ((uint16_t*)m->data)[index];
       case likely_matrix::u32: return ((uint32_t*)m->data)[index];
       case likely_matrix::u64: return ((uint64_t*)m->data)[index];
@@ -113,9 +113,9 @@ struct Definition
             abort();
         }
 
-        name          = sm[1];
-        parameters    = sm[2];
-        equation      = sm[3];
+        name          = sm[2];
+        parameters    = sm[3];
+        equation      = sm[1];
         documentation = sm[4];
     }
 
@@ -131,13 +131,13 @@ struct Definition
         while (startDefinition != string::npos) {
             size_t endDefinition = str.find(Definition::end.c_str(), startDefinition+Definition::begin.length());
             if (endDefinition == string::npos) {
-                fprintf(stderr, "ERROR - Unclosed definition, missing %s!", Definition::end.c_str());
+                fprintf(stderr, "ERROR - Unclosed definition, missing %s\n", Definition::end.c_str());
                 abort();
             }
             const string definition = str.substr(startDefinition+Definition::begin.length(), endDefinition-startDefinition-Definition::begin.length());
             std::smatch sm;
             if (!std::regex_match(definition, sm, Definition::syntax)) {
-                fprintf(stderr, "ERROR - Invalid definition: %s", definition.c_str());
+                fprintf(stderr, "ERROR - Invalid definition: %s\n", definition.c_str());
                 abort();
             }
 
@@ -406,7 +406,7 @@ struct MatrixBuilder
             else if (bits == 32) return Type::getInt32Ty(getGlobalContext());
             else if (bits == 64) return Type::getInt64Ty(getGlobalContext());
         }
-        fprintf(stderr, "ERROR - Invalid matrix type!");
+        fprintf(stderr, "ERROR - Invalid matrix type\n");
         abort();
         return NULL;
     }
@@ -427,16 +427,121 @@ struct MatrixBuilder
             else if (bits == 32) return Type::getInt32PtrTy(getGlobalContext());
             else if (bits == 64) return Type::getInt64PtrTy(getGlobalContext());
         }
-        fprintf(stderr, "ERROR - Invalid matrix type!");
+        fprintf(stderr, "ERROR - Invalid matrix type\n");
         abort();
         return NULL;
     }
     inline Type *ptrTy() const { return ptrTy(*m); }
 };
 
-class FunctionBuilder
+class KernelBuilder
 {
     static map<string,Definition> definitions;
+
+public:
+    KernelBuilder(const string &description)
+    {
+        if (definitions.size() == 0) {
+            // Parse likely_index_html for definitions
+            for (const Definition &definition : Definition::definitionsFromString(indexHTML()))
+                definitions[definition.name] = definition;
+        }
+
+        const size_t lParen = description.find('(');
+        const string name = description.substr(0, lParen);
+        const vector<string> arguments = split(description.substr(lParen+1, description.size()-lParen-2), ',');
+
+        const Definition definition = definitions[name];
+        if (name != definition.name) {
+            fprintf(stderr, "ERROR - Missing definition for: %s\n", name.c_str());
+            abort();
+        }
+
+        const vector<string> parameters = split(definition.parameters.substr(1, definition.parameters.size()-2), ',');
+        if (arguments.size() != parameters.size()) {
+            fprintf(stderr, "ERROR - Function %s has %ld parameters but was only given %ld arguments\n", name.c_str(), parameters.size(), arguments.size());
+            abort();
+        }
+    }
+
+    void makeAllocation(Function *function, const vector<likely_matrix*> &matricies) const
+    {
+        vector<Value*> srcs;
+        Value *dst;
+        getValues(function, srcs, dst);
+
+        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
+        IRBuilder<> builder(entry);
+
+        vector<MatrixBuilder> matrixBuilders;
+        for (size_t i = 0; i < matricies.size(); i++)
+            matrixBuilders.push_back(MatrixBuilder(matricies[i], srcs[i], &builder, function, "src"+to_string(i)));
+
+        matrixBuilders.front().copyHeaderTo(dst);
+        builder.CreateRet(matrixBuilders.front().elements());
+    }
+
+    void makeKernel(Function *function, const vector<likely_matrix*> &matricies) const
+    {
+        vector<Value*> srcs;
+        Value *dst, *len;
+        getValues(function, srcs, dst, len);
+
+        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
+        IRBuilder<> builder(entry);
+
+        vector<MatrixBuilder> matrixBuilders;
+        for (size_t i = 0; i < matricies.size(); i++)
+            matrixBuilders.push_back(MatrixBuilder(matricies[i], srcs[i], &builder, function, "src"+to_string(i)));
+
+        BasicBlock *loop, *exit;
+        PHINode *i = MatrixBuilder::beginLoop(builder, function, entry, loop, exit, len, "i");
+        (void) i;
+        MatrixBuilder::endLoop(builder, loop, exit);
+        builder.CreateRetVoid();
+    }
+
+    static void getValues(Function *function, vector<Value*> &srcs, Value *&dst)
+    {
+        Function::arg_iterator args = function->arg_begin();
+        int i = 0;
+        while (args != function->arg_end()) {
+            Value *src = args++;
+            stringstream name; name << "src" << char(int('A')+(i++));
+            src->setName(name.str());
+            srcs.push_back(src);
+        }
+        dst = srcs.back();
+        srcs.pop_back();
+        dst->setName("dst");
+    }
+
+    static void getValues(Function *function, vector<Value*> &srcs, Value *&dst, Value *&len)
+    {
+        getValues(function, srcs, dst);
+        len = dst;
+        len->setName("len");
+        dst = srcs.back();
+        srcs.pop_back();
+        dst->setName("dst");
+    }
+
+private:
+    static vector<string> split(const string &s, char delim)
+    {
+        vector<string> elems;
+        stringstream ss(s);
+        string item;
+        while (getline(ss, item, delim))
+            elems.push_back(item);
+        return elems;
+    }
+};
+
+map<string, Definition> KernelBuilder::definitions;
+
+class FunctionBuilder
+{
     static vector<string> descriptions;
     static ExecutionEngine *executionEngine;
 
@@ -502,7 +607,7 @@ public:
 
         vector<Value*> srcs;
         Value *dst;
-        getValues(function, srcs, dst);
+        KernelBuilder::getValues(function, srcs, dst);
 
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
@@ -574,23 +679,10 @@ public:
         Function *function = TheModule->getFunction(name);
         if (function != NULL)
             return executionEngine->getPointerToFunction(function);
-
         function = getFunction(name, matricies.size(), Type::getInt32Ty(getGlobalContext()));
 
-        vector<Value*> srcs;
-        Value *dst;
-        getValues(function, srcs, dst);
-
-        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
-        IRBuilder<> builder(entry);
-
-        vector<MatrixBuilder> matrixBuilders;
-        for (size_t i = 0; i < matricies.size(); i++)
-            matrixBuilders.push_back(MatrixBuilder(matricies[i], srcs[i], &builder, function, "src"+to_string(i)));
-
-        matrixBuilders.front().copyHeaderTo(dst);
-        Value *kernelSize = matrixBuilders.front().elements();
-        builder.CreateRet(kernelSize);
+        KernelBuilder kb(description);
+        kb.makeAllocation(function, matricies);
 
         optimize(function);
         return executionEngine->getPointerToFunction(function);
@@ -604,21 +696,10 @@ public:
         Function *function = TheModule->getFunction(name);
         if (function != NULL)
             return executionEngine->getPointerToFunction(function);
-
         function = getFunction(name, matricies.size(), Type::getVoidTy(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
 
-        vector<Value*> srcs;
-        Value *dst, *len;
-        getValues(function, srcs, dst, len);
-
-        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
-        IRBuilder<> builder(entry);
-
-        BasicBlock *loop, *exit;
-        PHINode *i = MatrixBuilder::beginLoop(builder, function, entry, loop, exit, len, "i");
-        (void) i;
-        MatrixBuilder::endLoop(builder, loop, exit);
-        builder.CreateRetVoid();
+        KernelBuilder kb(description);
+        kb.makeKernel(function, matricies);
 
         optimize(function);
         return executionEngine->getPointerToFunction(function);
@@ -633,7 +714,7 @@ private:
         std::string error;
         executionEngine = EngineBuilder(TheModule).setEngineKind(EngineKind::JIT).setErrorStr(&error).create();
         if (executionEngine == NULL) {
-            fprintf(stderr, "ERROR - Failed to create LLVM ExecutionEngine with ERROR - %s", error.c_str());
+            fprintf(stderr, "ERROR - Failed to create LLVM ExecutionEngine with error: %s", error.c_str());
             abort();
         }
 
@@ -645,10 +726,6 @@ private:
                                              Type::getInt32Ty(getGlobalContext()),   // frames
                                              Type::getInt16Ty(getGlobalContext()),   // hash
                                              NULL);
-
-        // Parse likely_index_html for definitions
-        for (const Definition &definition : Definition::definitionsFromString(indexHTML()))
-            definitions[definition.name] = definition;
     }
 
     static void optimize(Function *f)
@@ -666,8 +743,8 @@ private:
             functionPassManager->add(createDeadInstEliminationPass());
 
             extraFunctionPassManager = new FunctionPassManager(TheModule);
-            extraFunctionPassManager->add(createPrintFunctionPass("----------------------------------------"
-                                                                  "----------------------------------------", &errs()));
+//            extraFunctionPassManager->add(createPrintFunctionPass("----------------------------------------"
+//                                                                  "----------------------------------------", &errs()));
 //            TheExtraFunctionPassManager->add(createLoopUnrollPass(INT_MAX,8));
         }
 
@@ -692,39 +769,13 @@ private:
           case 1: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, matrixPointer, indexType, NULL)); break;
           case 2: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, matrixPointer, matrixPointer, indexType, NULL)); break;
           case 3: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, matrixPointer, matrixPointer, matrixPointer, indexType, NULL)); break;
-          default: fprintf(stderr, "ERROR - Invalid function arity: %d", arity); abort();
+          default: fprintf(stderr, "ERROR - Invalid function arity: %d\n", arity); abort();
         }
         function->setCallingConv(CallingConv::C);
         return function;
     }
-
-    static void getValues(Function *function, vector<Value*> &srcs, Value *&dst)
-    {
-        Function::arg_iterator args = function->arg_begin();
-        int i = 0;
-        while (args != function->arg_end()) {
-            Value *src = args++;
-            stringstream name; name << "src" << char(int('A')+(i++));
-            src->setName(name.str());
-            srcs.push_back(src);
-        }
-        dst = srcs.back();
-        srcs.pop_back();
-        dst->setName("dst");
-    }
-
-    static void getValues(Function *function, vector<Value*> &srcs, Value *&dst, Value *&len)
-    {
-        getValues(function, srcs, dst);
-        len = dst;
-        len->setName("len");
-        dst = srcs.back();
-        srcs.pop_back();
-        dst->setName("dst");
-    }
 };
 
-map<string, Definition> FunctionBuilder::definitions;
 vector<string> FunctionBuilder::descriptions;
 ExecutionEngine *FunctionBuilder::executionEngine;
 
