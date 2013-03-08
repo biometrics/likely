@@ -52,14 +52,14 @@
     <ul>
       <li><a href="#introduction">Introduction</a></li>
       <li><a href="#installation">Installation</a></li>
-      <li><a href="#api_overview">API Overview</a></li>
+      <li><a href="#interface">Interface</a></li>
       <ul>
         <li><a href="#the_matrix_struct">The Matrix Struct</a></li>
         <li><a href="#functions_and_kernels">Functions and Kernels</a></li>
       </ul>
-      <li><a href="#algorithm_syntax">Algorithm Syntax</a></li>
+      <li><a href="#language">Language</a></li>
       <ul>
-        <li><a href="#function_definition">Function Definition</a></li>
+        <li><a href="#grammar">Grammar</a></li>
         <li><a href="#function_request">Function Request</a></li>
       </ul>
       <li><a href="#standard_library">Standard Library</a></li>
@@ -110,7 +110,7 @@
       In fact, this webpage is compiled into the Likely library and parsed at runtime to extract kernel definitions.
       You can access this content for yourself with <code class="prettyprint lang-c">const char *this_webpage = likely_index_html();</code>.
     </p>
-    <p>Kernels are written in \(\LaTeX\) allowing for the same high-quality rendering available in academic publications.</p>
+    <p>Kernels are written in \(\LaTeX\) allowing source code the same high-quality rendering used in professional publications.</p>
     <h2 id="installation">Installation</h2>
     <p>The following sections discuss how to build and incorporate Likely into your own project.</p>
     <h3 id="build_instructions">Build Instructions</h3>
@@ -126,7 +126,7 @@
     <p>C/C++ projects should <code class="prettyprint lang-c">#include &lt;likely.h&gt;</code> and link against the <code>likely</code> shared library.
       <tt>FindLikely.cmake</tt> is provided as a convenience to CMake developers.
     </p>
-    <h2 id="api_overview">API Overview</h2>
+    <h2 id="interface">Interface</h2>
     <p>Likely is a C API that provides an optional C++ wrapper.
       Definitions in the C API are prefixed with <tt>likely_</tt> and use a <tt>lowercase_underscore</tt> naming convention.
       Definitions in the C++ wrapper live in <tt>namespace likely</tt> and use a <tt>camelCase</tt> naming convention.
@@ -225,18 +225,18 @@
     <pre class="prettyprint lang-c">typedef void (*likely_nullary_function)(likely_matrix *dst);<br>typedef void (*likely_unary_function)(const likely_matrix *src, likely_matrix *dst);<br>typedef void (*likely_binary_function)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);<br>typedef void (*likely_ternary_function)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);</pre>
     <p>As is true in the example below, most functions are either unary or binary.</p>
     <pre class="prettyprint lang-c">likely_matrix src = foo(); // Pre-initialized input matrix<br>likely_matrix dst; // Uninitialized output matrix<br>likely_unary_function multiply_add = likely_make_unary_function("madd(3,2)"); // Create a function that...<br>multiply_add(&src, &dst); // ...multiplies elements by three then adds two.</pre>
-    <h2 id="algorithm_syntax">Expressing Algorithms</h2>
+    <h2 id="language">Language</h2>
     <p>By this point all the entire API has been covered though you are probably still wondering how, exactly, to request functions and define new ones.
       Lets begin with how functions are defined, as once that is understood, it will become evident how they can be requested.
     </p>
-    <h3 id="function_definition">Function Grammar</h3>
+    <h3 id="grammar">Grammar</h3>
     <p>Like most programming language compilers, the Likely runtime follows three primary steps to compile code.</p>
     <ol>
       <li>Lexical Analysis</li>
       <li>Recursive Descent Parsing</li>
       <li>Code Generation</li>
     </ol>
-    <h4>Lexical Analysis</h4>
+    <h4 id="lexical_analysis">Lexical Analysis</h4>
     <p>Lexical analysis is the process whereby the source code is scanned for function definitions and broken up into the indivisible <i>tokens</i> that constitute keywords, variables, and operators.
       The contents of this file, <tt>index.html</tt>, is scanned at runtime for code that matches the following pattern.
     </p>
