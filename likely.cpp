@@ -504,6 +504,7 @@ public:
 
         BasicBlock *loop, *exit;
         PHINode *i = MatrixBuilder::beginLoop(builder, function, entry, loop, exit, len, "i");
+
         (void) i;
         MatrixBuilder::endLoop(builder, loop, exit);
         builder.CreateRetVoid();

@@ -225,10 +225,25 @@
     <pre class="prettyprint lang-c">typedef void (*likely_nullary_function)(likely_matrix *dst);<br>typedef void (*likely_unary_function)(const likely_matrix *src, likely_matrix *dst);<br>typedef void (*likely_binary_function)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);<br>typedef void (*likely_ternary_function)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);</pre>
     <p>As is true in the example below, most functions are either unary or binary.</p>
     <pre class="prettyprint lang-c">likely_matrix src = foo(); // Pre-initialized input matrix<br>likely_matrix dst; // Uninitialized output matrix<br>likely_unary_function multiply_add = likely_make_unary_function("madd(3,2)"); // Create a function that...<br>multiply_add(&src, &dst); // ...multiplies elements by three then adds two.</pre>
-    <h2 id="algorithm_syntax">Algorithm Syntax</h2>
-    By this point all the entire API has been covered though you are probably still wondering how, exactly, to request functions and define new ones.
-    Lets begin with how functions are defined, as once that is understood, it will become evident how they can be requested.
-    <h3 id="function_definition">Function Definition</h3>
+    <h2 id="algorithm_syntax">Expressing Algorithms</h2>
+    <p>By this point all the entire API has been covered though you are probably still wondering how, exactly, to request functions and define new ones.
+      Lets begin with how functions are defined, as once that is understood, it will become evident how they can be requested.
+    </p>
+    <h3 id="function_definition">Function Grammar</h3>
+    <p>Like most programming language compilers, the Likely runtime follows three primary steps to compile code.</p>
+    <ol>
+      <li>Lexical Analysis</li>
+      <li>Recursive Descent Parsing</li>
+      <li>Code Generation</li>
+    </ol>
+    <h4>Lexical Analysis</h4>
+    <p>Lexical analysis is the process whereby the source code is scanned for function definitions and broken up into the indivisible <i>tokens</i> that constitute keywords, variables, and operators.
+      The contents of this file, <tt>index.html</tt>, is scanned at runtime for code that matches the following pattern.
+    </p>
+    <pre class="prettyprint lang-html">&lt;div class="likely"&gt;<br>  $$<i>Equation</i>$$<br>  &lt;h4&gt;<i>Name</i>&lt;small&gt;<i>Parameters</i>&lt;/small&gt;&lt;/h4&gt;<br>  &lt;p&gt;<i>Documentation</i>&lt;/p&gt;<br>&lt;/div&gt;</pre>
+    <p>Together the <i>equation</i>, <i>name</i>, <i>parameters</i>, and <i>documentation</i> constitute a function <i>definition</i>. For example:</p>
+    <pre class="prettyprint lang-html">&lt;div class="likely"&gt;<br>  $$a*src+b$$<br>  &lt;h4>madd&lt;small&gt;(a,b)&lt;/small&gt;&lt;/h4&gt;<br>  &lt;p&gt;Multiply-add.&lt;/p&gt;<br>&lt;/div&gt;</pre>
+    The equation is tokenized with a greedy parsing strategy and the <a href="http://www.cplusplus.com/reference/regex/ECMAScript/">ECMAScript</a> regular expression <code>^\\s*([+\\-*/]|\\w+).*$</code>.
     <h3 id="function_request">Function Request</h3>
     <h2 id="standard_library">Standard Library</h2>
     All of the implemented functions.
