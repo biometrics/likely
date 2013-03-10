@@ -156,24 +156,26 @@ struct Definition
             smatch sm;
             regex_match(unparsed, sm, syntax);
             if (sm.size() < 2) {
-                fprintf(stderr, "ERROR - Failed to parse %s", unparsed.c_str());
+                fprintf(stderr, "ERROR - Unable to tokenize: %s", unparsed.c_str());
                 abort();
             }
             const string &token = sm[1];
             tokens.push_back(token);
             unparsed = unparsed.substr(unparsed.find(token.c_str())+token.size());
         }
-        getEquation(tokens, equation);
+        if (!getEquation(tokens, equation)) {
+            fprintf(stderr, "ERROR - Unable to parse: %s", string(sm[1]).c_str());
+            abort();
+        }
     }
 
-    static Definition get(const string &description)
+    static Definition get(const string &name)
     {
         // Parse likely_index_html for definitions
         if (definitions.size() == 0)
             for (const Definition &definition : Definition::definitionsFromString(indexHTML()))
                 definitions[definition.name] = definition;
 
-        const string name = description.substr(0, description.find('('));
         Definition definition = definitions[name];
         if (name != definition.name) {
             fprintf(stderr, "ERROR - Missing definition for: %s\n", name.c_str());
@@ -215,7 +217,6 @@ private:
 
     static bool getEquation(const vector<string> &tokens, Node &equation)
     {
-        if (getTerm(tokens, equation)) return true;
         for (size_t i=1; i<tokens.size()-1; i++)
             if ((tokens[i] == "+") || (tokens[i] == "-")) {
                 Node lhs, rhs;
@@ -224,12 +225,11 @@ private:
                 equation = Node(tokens[i], lhs, rhs);
                 return true;
             }
-        return false;
+        return getTerm(tokens, equation);
     }
 
     static bool getTerm(const vector<string> &tokens, Node &term)
     {
-        if (getFactor(tokens, term)) return true;
         for (size_t i=1; i<tokens.size()-1; i++)
             if ((tokens[i] == "*") || (tokens[i] == "/")) {
                 Node lhs, rhs;
@@ -238,15 +238,14 @@ private:
                 term = Node(tokens[i], lhs, rhs);
                 return true;
             }
-        return false;
+        return getFactor(tokens, term);
     }
 
     static bool getFactor(const vector<string> &tokens, Node &factor)
     {
         if (getMatrix(tokens, factor)) return true;
         if (getParameter(tokens, factor)) return true;
-        if (getNumber(tokens, factor)) return true;
-        return false;
+        return getNumber(tokens, factor);
     }
 
     static bool getMatrix(const vector<string> &tokens, Node &matrix)
@@ -287,6 +286,7 @@ struct MatrixBuilder
     Function *f;
     Twine name;
 
+    MatrixBuilder() : m(NULL), v(NULL), b(NULL), f(NULL) {}
     MatrixBuilder(const likely_matrix *matrix, Value *value, IRBuilder<> *builder, Function *function, const Twine &name_)
         : m(matrix), v(value), b(builder), f(function), name(name_) {}
 
@@ -521,30 +521,24 @@ struct MatrixBuilder
 
 class KernelBuilder
 {
-    vector<string> equation;
+    Definition definition;
+    vector<string> arguments;
+    MatrixBuilder kernel;
 
 public:
     KernelBuilder(const string &description)
     {
         const size_t lParen = description.find('(');
         const string name = description.substr(0, lParen);
-        const vector<string> arguments = split(description.substr(lParen+1, description.size()-lParen-2), ',');
-
-        Definition definition = Definition::get(description);
-        const vector<string> parameters = definition.parameters;
-        if (arguments.size() != parameters.size()) {
-            fprintf(stderr, "ERROR - Function %s has %ld parameters but was only given %ld arguments\n", name.c_str(), parameters.size(), arguments.size());
+        arguments = split(description.substr(lParen+1, description.size()-lParen-2), ',');
+        definition = Definition::get(name);
+        if (arguments.size() != definition.parameters.size()) {
+            fprintf(stderr, "ERROR - Function %s has %ld parameters but was only given %ld arguments\n", name.c_str(), definition.parameters.size(), arguments.size());
             abort();
         }
-
-//        for (const string &token : definition.equation) {
-//            const int index = indexOf(parameters, token);
-//            if (index == -1) equation.push_back(token);
-//            else             equation.push_back(arguments[index]);
-//        }
     }
 
-    void makeAllocation(Function *function, const vector<likely_matrix*> &matricies) const
+    void makeAllocation(Function *function, const vector<likely_matrix*> &matricies)
     {
         vector<Value*> srcs;
         Value *dst;
@@ -552,13 +546,9 @@ public:
 
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
-
-        vector<MatrixBuilder> matrixBuilders;
-        for (size_t i = 0; i < matricies.size(); i++)
-            matrixBuilders.push_back(MatrixBuilder(matricies[i], srcs[i], &builder, function, "src"+to_string(i)));
-
-        matrixBuilders.front().copyHeaderTo(dst);
-        builder.CreateRet(matrixBuilders.front().elements());
+        kernel = MatrixBuilder(matricies[0], srcs[0], &builder, function, "kernel");
+        kernel.copyHeaderTo(dst);
+        builder.CreateRet(kernel.elements());
     }
 
     void makeKernel(Function *function, const vector<likely_matrix*> &matricies) const
