@@ -243,10 +243,22 @@
     <pre class="prettyprint lang-html">&lt;div class="likely"&gt;<br>  $$<i>Equation</i>$$<br>  &lt;h4&gt;<i>Name</i>&lt;small&gt;<i>Parameters</i>&lt;/small&gt;&lt;/h4&gt;<br>  &lt;p&gt;<i>Documentation</i>&lt;/p&gt;<br>&lt;/div&gt;</pre>
     <p>Together the <i>equation</i>, <i>name</i>, <i>parameters</i>, and <i>documentation</i> constitute a function <i>definition</i>. For example:</p>
     <pre class="prettyprint lang-html">&lt;div class="likely"&gt;<br>  $$a*src+b$$<br>  &lt;h4>madd&lt;small&gt;(a,b)&lt;/small&gt;&lt;/h4&gt;<br>  &lt;p&gt;Multiply-add.&lt;/p&gt;<br>&lt;/div&gt;</pre>
-    The equation is tokenized with a greedy parsing strategy and the <a href="http://www.cplusplus.com/reference/regex/ECMAScript/">ECMAScript</a> regular expression <code>^\\s*([+\\-*/]|\\w+).*$</code>.
+    <p>The equation is tokenized with a greedy parsing strategy and the <a href="http://www.cplusplus.com/reference/regex/ECMAScript/">ECMAScript</a> regular expression <code>^\\s*([+\\-*/]|\\w+).*$</code>.</p>
+    <h4 id="recursive_descent_parsing">Recursive Descent Parsing</h4>
+    <p>The tokenized equation is converted to a parse tree using recursive descent parsing on the following <a href="http://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form">BNF</a> grammar.</p>
+<pre class="prettyprint">
+equation = term | term '+' term | term '-' term
+term = factor | factor '*' factor | factor '/' factor
+factor = matrix | parameter | number
+matrix = 'src' | 'src_'digit
+parameter = character | parameter character
+number = digit | number digit
+character = 'a' | 'b' | ... | 'z'
+digit = '0' | '1' | ... | '9' | '.'
+</pre>
     <h3 id="function_request">Function Request</h3>
     <h2 id="standard_library">Standard Library</h2>
-    All of the implemented functions.
+    <p>All of the implemented functions.</p>
     <h3 id="nullary_functions">Nullary Functions</h3>
     <h3 id="unary_functions">Unary Functions</h3>
     <ul class="thumbnails">

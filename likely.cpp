@@ -111,23 +111,30 @@ static vector<string> split(const string &s, char delim)
     return elems;
 }
 
-static int indexOf(const vector<string> &v, const string &s)
-{
-    auto index = find(v.begin(), v.end(), s);
-    if (index == v.end()) return -1;
-    return distance(v.begin(), index);
-}
+//static int indexOf(const vector<string> &v, const string &s)
+//{
+//    auto index = find(v.begin(), v.end(), s);
+//    if (index == v.end()) return -1;
+//    return distance(v.begin(), index);
+//}
 
 struct Node
 {
     string name;
     vector<Node> children;
+
+    Node() = default;
+    Node(const string &name_) : name(name_) {}
+    Node(const string &name_, const Node &node) : name(name_) { children.push_back(node); }
+    Node(const string &name_, const Node &nodeA, const Node &nodeB)
+        : name(name_) { children.push_back(nodeA); children.push_back(nodeB); }
 };
 
 struct Definition
 {
     string name, documentation;
-    vector<string> parameters, equation;
+    vector<string> parameters;
+    Node equation;
 
     Definition() = default;
     Definition(const smatch &sm)
@@ -143,6 +150,7 @@ struct Definition
 
         // Equation
         static const regex syntax("^\\s*([+\\-*/]|\\w+).*$");
+        vector<string> tokens;
         string unparsed = sm[1];
         while (!unparsed.empty()) {
             smatch sm;
@@ -152,9 +160,10 @@ struct Definition
                 abort();
             }
             const string &token = sm[1];
-            equation.push_back(token);
+            tokens.push_back(token);
             unparsed = unparsed.substr(unparsed.find(token.c_str())+token.size());
         }
+        getEquation(tokens, equation);
     }
 
     static Definition get(const string &description)
@@ -173,6 +182,9 @@ struct Definition
 
         return definition;
     }
+
+private:
+    static map<string,Definition> definitions;
 
     static vector<Definition> definitionsFromString(const string &str)
     {
@@ -201,8 +213,68 @@ struct Definition
         return definitions;
     }
 
-private:
-    static map<string,Definition> definitions;
+    static bool getEquation(const vector<string> &tokens, Node &equation)
+    {
+        if (getTerm(tokens, equation)) return true;
+        for (size_t i=1; i<tokens.size()-1; i++)
+            if ((tokens[i] == "+") || (tokens[i] == "-")) {
+                Node lhs, rhs;
+                if (!getTerm(vector<string>(tokens.begin(), tokens.begin()+i), lhs)) continue;
+                if (!getTerm(vector<string>(tokens.begin()+i+1, tokens.end()), rhs)) continue;
+                equation = Node(tokens[i], lhs, rhs);
+                return true;
+            }
+        return false;
+    }
+
+    static bool getTerm(const vector<string> &tokens, Node &term)
+    {
+        if (getFactor(tokens, term)) return true;
+        for (size_t i=1; i<tokens.size()-1; i++)
+            if ((tokens[i] == "*") || (tokens[i] == "/")) {
+                Node lhs, rhs;
+                if (!getFactor(vector<string>(tokens.begin(), tokens.begin()+i), lhs)) continue;
+                if (!getFactor(vector<string>(tokens.begin()+i+1, tokens.end()), rhs)) continue;
+                term = Node(tokens[i], lhs, rhs);
+                return true;
+            }
+        return false;
+    }
+
+    static bool getFactor(const vector<string> &tokens, Node &factor)
+    {
+        if (getMatrix(tokens, factor)) return true;
+        if (getParameter(tokens, factor)) return true;
+        if (getNumber(tokens, factor)) return true;
+        return false;
+    }
+
+    static bool getMatrix(const vector<string> &tokens, Node &matrix)
+    {
+        static const regex syntax("src[0-9]?");
+        return getTerminal(tokens, matrix, syntax);
+    }
+
+    static bool getParameter(const vector<string> &tokens, Node &parameter)
+    {
+        static const regex syntax("[a-z]+");
+        return getTerminal(tokens, parameter, syntax);
+    }
+
+    static bool getNumber(const vector<string> &tokens, Node &number)
+    {
+        static const regex syntax("[0-9\\.]+");
+        return getTerminal(tokens, number, syntax);
+    }
+
+    static bool getTerminal(const vector<string> &tokens, Node &terminal, const regex &syntax)
+    {
+        if (tokens.size() != 1) return false;
+        smatch sm;
+        if (!regex_match(tokens[0], sm, syntax)) return false;
+        terminal = Node(tokens[0]);
+        return true;
+    }
 };
 
 map<string, Definition> Definition::definitions;
@@ -465,11 +537,11 @@ public:
             abort();
         }
 
-        for (const string &token : definition.equation) {
-            const int index = indexOf(parameters, token);
-            if (index == -1) equation.push_back(token);
-            else             equation.push_back(arguments[index]);
-        }
+//        for (const string &token : definition.equation) {
+//            const int index = indexOf(parameters, token);
+//            if (index == -1) equation.push_back(token);
+//            else             equation.push_back(arguments[index]);
+//        }
     }
 
     void makeAllocation(Function *function, const vector<likely_matrix*> &matricies) const
