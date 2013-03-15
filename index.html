@@ -21,9 +21,8 @@
     <script src="../assets/js/html5shiv.js"></script>
   <![endif]-->
 
-  <script type="text/javascript"
-    src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
-  </script>
+  <script type="text/x-mathjax-config">MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}});</script>
+  <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
   <link href="google-code-prettify/prettify.css" type="text/css" rel="stylesheet"/>
   <script type="text/javascript" src="google-code-prettify/prettify.js"></script>
@@ -110,7 +109,7 @@
       In fact, this webpage is compiled into the Likely library and parsed at runtime to extract kernel definitions.
       You can access this content for yourself with <code class="prettyprint lang-c">const char *this_webpage = likely_index_html();</code>.
     </p>
-    <p>Kernels are written in \(\LaTeX\) allowing source code the same high-quality rendering used in professional publications.</p>
+    <p>Kernels are written in $LaTeX$ allowing source code the same high-quality rendering used in professional publications.</p>
     <h2 id="installation">Installation</h2>
     <p>The following sections discuss how to build and incorporate Likely into your own project.</p>
     <h3 id="build_instructions">Build Instructions</h3>
@@ -240,9 +239,9 @@
     <p>Lexical analysis is the process whereby the source code is scanned for function definitions and broken up into the indivisible <i>tokens</i> that constitute keywords, variables, and operators.
       The contents of this file, <tt>index.html</tt>, is scanned at runtime for code that matches the following pattern.
     </p>
-    <pre class="prettyprint lang-html">&lt;div class="likely"&gt;<br>  $$<i>Equation</i>$$<br>  &lt;h4&gt;<i>Name</i>&lt;small&gt;<i>Parameters</i>&lt;/small&gt;&lt;/h4&gt;<br>  &lt;p&gt;<i>Documentation</i>&lt;/p&gt;<br>&lt;/div&gt;</pre>
+    <pre class="prettyprint lang-html">&lt;div class="likely"&gt;<br>  $<i>Equation</i>$<br>  &lt;h4&gt;<i>Name</i>&lt;small&gt;<i>Parameters</i>&lt;/small&gt;&lt;/h4&gt;<br>  &lt;p&gt;<i>Documentation</i>&lt;/p&gt;<br>&lt;/div&gt;</pre>
     <p>Together the <i>equation</i>, <i>name</i>, <i>parameters</i>, and <i>documentation</i> constitute a function <i>definition</i>. For example:</p>
-    <pre class="prettyprint lang-html">&lt;div class="likely"&gt;<br>  $$a*src+b$$<br>  &lt;h4>madd&lt;small&gt;(a,b)&lt;/small&gt;&lt;/h4&gt;<br>  &lt;p&gt;Multiply-add.&lt;/p&gt;<br>&lt;/div&gt;</pre>
+    <pre class="prettyprint lang-html">&lt;div class="likely"&gt;<br>  $a*src+b$<br>  &lt;h4>madd&lt;small&gt;(a,b)&lt;/small&gt;&lt;/h4&gt;<br>  &lt;p&gt;Multiply-add.&lt;/p&gt;<br>&lt;/div&gt;</pre>
     <p>The equation is tokenized with a greedy parsing strategy and the <a href="http://www.cplusplus.com/reference/regex/ECMAScript/">ECMAScript</a> regular expression <code>^\\s*([+\\-*/]|\\w+).*$</code>.</p>
     <h4 id="recursive_descent_parsing">Recursive Descent Parsing</h4>
     <p>The tokenized equation is converted to a parse tree using recursive descent parsing on the following <a href="http://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form">BNF</a> grammar.</p>
@@ -264,7 +263,7 @@ digit = '0' | '1' | ... | '9' | '.'
     <ul class="thumbnails">
       <li class="thumbnail">
         <div class="likely">
-          $$a*src+b$$
+          $a*src+b$
           <h4>madd<small>(a,b)</small></h4>
           <p>Multiply-add.</p>
         </div>

@@ -193,7 +193,7 @@ private:
     {
         static const string begin = "<div class=\"likely\">";
         static const string end = "</div>";
-        static const regex  syntax("\\s*\\$\\$(.*)\\$\\$\\s*<h4>(.*)<small>(.*)</small></h4>\\s*<p>(.*)</p>\\s*");
+        static const regex  syntax("\\s*\\$(.*)\\$\\s*<h4>(.*)<small>(.*)</small></h4>\\s*<p>(.*)</p>\\s*");
 
         vector<Definition> definitions;
         size_t startDefinition = str.find(begin.c_str());
