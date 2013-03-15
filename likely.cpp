@@ -111,23 +111,24 @@ static vector<string> split(const string &s, char delim)
     return elems;
 }
 
-//static int indexOf(const vector<string> &v, const string &s)
-//{
-//    auto index = find(v.begin(), v.end(), s);
-//    if (index == v.end()) return -1;
-//    return distance(v.begin(), index);
-//}
+static int indexOf(const vector<string> &v, const string &s)
+{
+    auto index = find(v.begin(), v.end(), s);
+    if (index == v.end()) return -1;
+    return distance(v.begin(), index);
+}
 
 struct Node
 {
-    string name;
+    string value;
     vector<Node> children;
 
     Node() = default;
-    Node(const string &name_) : name(name_) {}
-    Node(const string &name_, const Node &node) : name(name_) { children.push_back(node); }
-    Node(const string &name_, const Node &nodeA, const Node &nodeB)
-        : name(name_) { children.push_back(nodeA); children.push_back(nodeB); }
+    Node(const string &value_) : value(value_) {}
+    Node(const string &value_, const vector<Node> &children_) : value(value_), children(children_) {}
+    Node(const string &value_, const Node &node) : value(value_) { children.push_back(node); }
+    Node(const string &value_, const Node &nodeA, const Node &nodeB)
+        : value(value_) { children.push_back(nodeA); children.push_back(nodeB); }
 };
 
 struct Definition
@@ -156,7 +157,7 @@ struct Definition
             smatch sm;
             regex_match(unparsed, sm, syntax);
             if (sm.size() < 2) {
-                fprintf(stderr, "ERROR - Unable to tokenize: %s", unparsed.c_str());
+                fprintf(stderr, "ERROR - Unable to tokenize: %s\n", unparsed.c_str());
                 abort();
             }
             const string &token = sm[1];
@@ -164,7 +165,7 @@ struct Definition
             unparsed = unparsed.substr(unparsed.find(token.c_str())+token.size());
         }
         if (!getEquation(tokens, equation)) {
-            fprintf(stderr, "ERROR - Unable to parse: %s", string(sm[1]).c_str());
+            fprintf(stderr, "ERROR - Unable to parse: %s\n", string(sm[1]).c_str());
             abort();
         }
     }
@@ -220,8 +221,8 @@ private:
         for (size_t i=1; i<tokens.size()-1; i++)
             if ((tokens[i] == "+") || (tokens[i] == "-")) {
                 Node lhs, rhs;
-                if (!getTerm(vector<string>(tokens.begin(), tokens.begin()+i), lhs)) continue;
-                if (!getTerm(vector<string>(tokens.begin()+i+1, tokens.end()), rhs)) continue;
+                if (!getEquation(vector<string>(tokens.begin(), tokens.begin()+i), lhs)) continue;
+                if (!getEquation(vector<string>(tokens.begin()+i+1, tokens.end()), rhs)) continue;
                 equation = Node(tokens[i], lhs, rhs);
                 return true;
             }
@@ -233,8 +234,8 @@ private:
         for (size_t i=1; i<tokens.size()-1; i++)
             if ((tokens[i] == "*") || (tokens[i] == "/")) {
                 Node lhs, rhs;
-                if (!getFactor(vector<string>(tokens.begin(), tokens.begin()+i), lhs)) continue;
-                if (!getFactor(vector<string>(tokens.begin()+i+1, tokens.end()), rhs)) continue;
+                if (!getTerm(vector<string>(tokens.begin(), tokens.begin()+i), lhs)) continue;
+                if (!getTerm(vector<string>(tokens.begin()+i+1, tokens.end()), rhs)) continue;
                 term = Node(tokens[i], lhs, rhs);
                 return true;
             }
@@ -307,7 +308,7 @@ struct MatrixBuilder
     Value *frames(Value *matrix, const Twine &name = "") const { return b->CreateLoad(b->CreateStructGEP(matrix, 4), name+"_frames"); }
     Value *hash(Value *matrix, const Twine &name = "") const { return b->CreateLoad(b->CreateStructGEP(matrix, 5), name+"_hash"); }
 
-    Value *data(bool cast = true) const { return cast ? data(v, ptrTy(), name) : data(v, name); }
+    Value *data(bool cast = true) const { return cast ? data(v, ty(true), name) : data(v, name); }
     Value *channels() const { return likely_is_single_channel(m) ? static_cast<Value*>(one()) : channels(v, name); }
     Value *columns() const { return likely_is_single_column(m) ? static_cast<Value*>(one()) : columns(v, name); }
     Value *rows() const { return likely_is_single_row(m) ? static_cast<Value*>(one()) : rows(v, name); }
@@ -437,15 +438,16 @@ struct MatrixBuilder
 
     LoadInst *load(Value *matrix, Type *type, Value *i) const { return b->CreateLoad(b->CreateGEP(data(matrix, type), i)); }
     LoadInst *load(Value *i) const { return b->CreateLoad(b->CreateGEP(data(), i)); }
-    StoreInst *store(Value *matrix, Type *type, Value *i, Value *value) const { Value *d = data(matrix, type);
-                                                                                d->dump(); i->dump();
-                                                                                Value *idx = b->CreateGEP(d, i);
-                                                                                return b->CreateStore(value, idx); }
+    StoreInst *store(Value *matrix, Value *i, Value *value) const { Value *d = data(matrix, ty());
+                                                                    Value *idx = b->CreateGEP(d, i);
+                                                                    return b->CreateStore(value, idx); }
     StoreInst *store(Value *i, Value *value) const { return b->CreateStore(value, b->CreateGEP(data(), i)); }
 
     Value *cast(Value *i, const MatrixBuilder &dst) const { return (likely_type(m) == likely_type(dst.m)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(m), dst.ty(), likely_is_signed(dst.m)), i, dst.ty()); }
     Value *add(Value *i, Value *j, const Twine &name = "") const { return likely_is_floating(m) ? b->CreateFAdd(i, j, name) : b->CreateAdd(i, j, name); }
+    Value *subtract(Value *i, Value *j, const Twine &name = "") const { return likely_is_floating(m) ? b->CreateFSub(i, j, name) : b->CreateSub(i, j, name); }
     Value *multiply(Value *i, Value *j, const Twine &name = "") const { return likely_is_floating(m) ? b->CreateFMul(i, j, name) : b->CreateMul(i, j, name); }
+    Value *divide(Value *i, Value *j, const Twine &name = "") const { return likely_is_floating(m) ? b->CreateFDiv(i, j, name) : (likely_is_signed(m) ? b->CreateSDiv(i,j, name) : b->CreateUDiv(i, j, name)); }
 
     Value *compareLT(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFCmpOLT(i, j) : (likely_is_signed(m) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
     Value *compareGT(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFCmpOGT(i, j) : (likely_is_signed(m) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
@@ -477,46 +479,26 @@ struct MatrixBuilder
     template <typename T>
     inline static vector<T> toVector(T value) { vector<T> vector; vector.push_back(value); return vector; }
 
-    static Type *ty(const likely_matrix &m)
+    static Type *ty(const likely_matrix *m, bool pointer = false)
     {
-        const int bits = likely_depth(&m);
-        if (likely_is_floating(&m)) {
-            if      (bits == 16) return Type::getHalfTy(getGlobalContext());
-            else if (bits == 32) return Type::getFloatTy(getGlobalContext());
-            else if (bits == 64) return Type::getDoubleTy(getGlobalContext());
+        const int bits = likely_depth(m);
+        if (likely_is_floating(m)) {
+            if      (bits == 16) return pointer ? Type::getHalfPtrTy(getGlobalContext())   : Type::getHalfTy(getGlobalContext());
+            else if (bits == 32) return pointer ? Type::getFloatPtrTy(getGlobalContext())  : Type::getFloatTy(getGlobalContext());
+            else if (bits == 64) return pointer ? Type::getDoublePtrTy(getGlobalContext()) : Type::getDoubleTy(getGlobalContext());
         } else {
-            if      (bits == 1)  return Type::getInt1Ty(getGlobalContext());
-            else if (bits == 8)  return Type::getInt8Ty(getGlobalContext());
-            else if (bits == 16) return Type::getInt16Ty(getGlobalContext());
-            else if (bits == 32) return Type::getInt32Ty(getGlobalContext());
-            else if (bits == 64) return Type::getInt64Ty(getGlobalContext());
+            if      (bits == 1)  return pointer ? Type::getInt1PtrTy(getGlobalContext())  : (Type*)Type::getInt1Ty(getGlobalContext());
+            else if (bits == 8)  return pointer ? Type::getInt8PtrTy(getGlobalContext())  : (Type*)Type::getInt8Ty(getGlobalContext());
+            else if (bits == 16) return pointer ? Type::getInt16PtrTy(getGlobalContext()) : (Type*)Type::getInt16Ty(getGlobalContext());
+            else if (bits == 32) return pointer ? Type::getInt32PtrTy(getGlobalContext()) : (Type*)Type::getInt32Ty(getGlobalContext());
+            else if (bits == 64) return pointer ? Type::getInt64PtrTy(getGlobalContext()) : (Type*)Type::getInt64Ty(getGlobalContext());
         }
         fprintf(stderr, "ERROR - Invalid matrix type\n");
         abort();
         return NULL;
     }
-    inline Type *ty() const { return ty(*m); }
-    inline vector<Type*> tys() const { return toVector<Type*>(ty()); }
-
-    static Type *ptrTy(const likely_matrix &m)
-    {
-        const int bits = likely_depth(&m);
-        if (likely_is_floating(&m)) {
-            if      (bits == 16) return Type::getHalfPtrTy(getGlobalContext());
-            else if (bits == 32) return Type::getFloatPtrTy(getGlobalContext());
-            else if (bits == 64) return Type::getDoublePtrTy(getGlobalContext());
-        } else {
-            if      (bits == 1)  return Type::getInt1PtrTy(getGlobalContext());
-            else if (bits == 8)  return Type::getInt8PtrTy(getGlobalContext());
-            else if (bits == 16) return Type::getInt16PtrTy(getGlobalContext());
-            else if (bits == 32) return Type::getInt32PtrTy(getGlobalContext());
-            else if (bits == 64) return Type::getInt64PtrTy(getGlobalContext());
-        }
-        fprintf(stderr, "ERROR - Invalid matrix type\n");
-        abort();
-        return NULL;
-    }
-    inline Type *ptrTy() const { return ptrTy(*m); }
+    inline Type *ty(bool pointer = false) const { return ty(m, pointer); }
+    inline vector<Type*> tys(bool pointer = false) const { return toVector<Type*>(ty(pointer)); }
 };
 
 class KernelBuilder
@@ -524,9 +506,11 @@ class KernelBuilder
     Definition definition;
     vector<string> arguments;
     MatrixBuilder kernel;
+    PHINode *i;
 
 public:
     KernelBuilder(const string &description)
+        : i(NULL)
     {
         const size_t lParen = description.find('(');
         const string name = description.substr(0, lParen);
@@ -551,7 +535,7 @@ public:
         builder.CreateRet(kernel.elements());
     }
 
-    void makeKernel(Function *function, const vector<likely_matrix*> &matricies) const
+    void makeKernel(Function *function, const vector<likely_matrix*> &matricies)
     {
         vector<Value*> srcs;
         Value *dst, *len;
@@ -565,9 +549,8 @@ public:
             matrixBuilders.push_back(MatrixBuilder(matricies[i], srcs[i], &builder, function, "src"+to_string(i)));
 
         BasicBlock *loop, *exit;
-        PHINode *i = MatrixBuilder::beginLoop(builder, function, entry, loop, exit, len, "i");
-
-        (void) i;
+        i = MatrixBuilder::beginLoop(builder, function, entry, loop, exit, len, "i");
+        kernel.store(dst, i, makeEquation(definition.equation));
         MatrixBuilder::endLoop(builder, loop, exit);
         builder.CreateRetVoid();
     }
@@ -595,6 +578,53 @@ public:
         dst = srcs.back();
         srcs.pop_back();
         dst->setName("dst");
+    }
+
+    Value *makeEquation(const Node &node)
+    {
+        if      (node.value == "+") return kernel.add(makeEquation(node.children[0]), makeEquation(node.children[1]));
+        else if (node.value == "-") return kernel.subtract(makeEquation(node.children[0]), makeEquation(node.children[1]));
+        else                        return makeTerm(node);
+    }
+
+    Value *makeTerm(const Node &node)
+    {
+        if      (node.value == "*") return kernel.multiply(makeEquation(node.children[0]), makeEquation(node.children[1]));
+        else if (node.value == "/") return kernel.divide(makeEquation(node.children[0]), makeEquation(node.children[1]));
+        else                        return makeFactor(node);
+    }
+
+    Value *makeFactor(const Node &node)
+    {
+        Value *            value = makeMatrix(node);
+        if (value == NULL) value = makeParameter(node);
+        if (value == NULL) value = makeNumber(node);
+        if (value == NULL) {
+            fprintf(stderr, "ERROR - Code generation failed for factor: %s\n", node.value.c_str());
+            abort();
+        }
+        return value;
+    }
+
+    Value *makeMatrix(const Node &node)
+    {
+        if (node.value == "src") return kernel.index(i);
+        else                     return NULL;
+    }
+
+    Value *makeParameter(const Node &node)
+    {
+        const int index = indexOf(definition.parameters, node.value);
+        if (index != -1) return makeNumber(Node(arguments[index], node.children));
+        else             return NULL;
+    }
+
+    Value *makeNumber(const Node &node)
+    {
+        char *endptr;
+        double value = strtod(node.value.c_str(), &endptr);
+        if (*endptr) return NULL;
+        else         return kernel.autoConstant(value);
     }
 };
 
@@ -772,7 +802,7 @@ private:
         string error;
         executionEngine = EngineBuilder(TheModule).setEngineKind(EngineKind::JIT).setErrorStr(&error).create();
         if (executionEngine == NULL) {
-            fprintf(stderr, "ERROR - Failed to create LLVM ExecutionEngine with error: %s", error.c_str());
+            fprintf(stderr, "ERROR - Failed to create LLVM ExecutionEngine with error: %s\n", error.c_str());
             abort();
         }
 
@@ -801,8 +831,8 @@ private:
             functionPassManager->add(createDeadInstEliminationPass());
 
             extraFunctionPassManager = new FunctionPassManager(TheModule);
-//            extraFunctionPassManager->add(createPrintFunctionPass("----------------------------------------"
-//                                                                  "----------------------------------------", &errs()));
+            extraFunctionPassManager->add(createPrintFunctionPass("----------------------------------------"
+                                                                  "----------------------------------------", &errs()));
 //            TheExtraFunctionPassManager->add(createLoopUnrollPass(INT_MAX,8));
         }
 
