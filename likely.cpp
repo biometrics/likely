@@ -290,6 +290,7 @@ struct MatrixBuilder
     MatrixBuilder() : m(NULL), v(NULL), b(NULL), f(NULL) {}
     MatrixBuilder(const likely_matrix *matrix, Value *value, IRBuilder<> *builder, Function *function, const Twine &name_)
         : m(matrix), v(value), b(builder), f(function), name(name_) {}
+    void reset(Value *value, IRBuilder<> *builder, Function *function) { v = value; b = builder; f = function; }
 
     static Constant *constant(int value, int bits = 32) { return Constant::getIntegerValue(Type::getInt32Ty(getGlobalContext()), APInt(bits, value)); }
     static Constant *constant(bool value) { return constant(value, 1); }
@@ -509,6 +510,7 @@ class KernelBuilder
     PHINode *i;
 
 public:
+    KernelBuilder() : i(NULL) {}
     KernelBuilder(const string &description)
         : i(NULL)
     {
@@ -535,7 +537,7 @@ public:
         builder.CreateRet(kernel.elements());
     }
 
-    void makeKernel(Function *function, const vector<likely_matrix*> &matricies)
+    void makeKernel(Function *function)
     {
         vector<Value*> srcs;
         Value *dst, *len;
@@ -543,10 +545,7 @@ public:
 
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
-
-        vector<MatrixBuilder> matrixBuilders;
-        for (size_t i = 0; i < matricies.size(); i++)
-            matrixBuilders.push_back(MatrixBuilder(matricies[i], srcs[i], &builder, function, "src"+to_string(i)));
+        kernel.reset(srcs[0], &builder, function);
 
         BasicBlock *loop, *exit;
         i = MatrixBuilder::beginLoop(builder, function, entry, loop, exit, len, "i");
@@ -608,7 +607,7 @@ public:
 
     Value *makeMatrix(const Node &node)
     {
-        if (node.value == "src") return kernel.index(i);
+        if (node.value == "src") return kernel.load(i);
         else                     return NULL;
     }
 
@@ -631,6 +630,7 @@ public:
 class FunctionBuilder
 {
     static vector<string> descriptions;
+    static map<string,KernelBuilder> kernels;
     static ExecutionEngine *executionEngine;
 
 public:
@@ -769,8 +769,12 @@ public:
             return executionEngine->getPointerToFunction(function);
         function = getFunction(name, matricies.size(), Type::getInt32Ty(getGlobalContext()));
 
-        KernelBuilder kb(description);
-        kb.makeAllocation(function, matricies);
+        auto kernelPointer = kernels.find(description);
+        if (kernelPointer == kernels.end()) {
+            kernels[description] = KernelBuilder(description);
+            kernelPointer = kernels.find(description);
+        }
+        (*kernelPointer).second.makeAllocation(function, matricies);
 
         optimize(function);
         return executionEngine->getPointerToFunction(function);
@@ -786,8 +790,7 @@ public:
             return executionEngine->getPointerToFunction(function);
         function = getFunction(name, matricies.size(), Type::getVoidTy(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
 
-        KernelBuilder kb(description);
-        kb.makeKernel(function, matricies);
+        kernels[description].makeKernel(function);
 
         optimize(function);
         return executionEngine->getPointerToFunction(function);
@@ -865,6 +868,7 @@ private:
 };
 
 vector<string> FunctionBuilder::descriptions;
+map<string,KernelBuilder> FunctionBuilder::kernels;
 ExecutionEngine *FunctionBuilder::executionEngine;
 
 } // namespace likely

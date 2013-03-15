@@ -114,16 +114,16 @@
     <p>The following sections discuss how to build and incorporate Likely into your own project.</p>
     <h3 id="build_instructions">Build Instructions</h3>
     <p>Likely uses the <i>CMake</i> (>= 2.8.9) build system and will automatically download and compile its LLVM dependency.</p>
-    <pre>$ git clone https://github.com/biometrics/likely.git<br>$ cd likely<br>$ mkdir build<br>$ cd build<br>$ cmake ..<br>$ make -j4 # First time builds LLVM<br>$ cmake ..<br>$ make -j4 # Second time builds Likely</pre>
+    <pre>$ git clone https://github.com/biometrics/likely.git<br>$ cd likely<br>$ mkdir build<br>$ cd build<br>$ cmake ..<br>$ make -j4 # First time builds LLVM (only needed once)<br>$ cmake ..<br>$ make -j4 # Second time builds Likely</pre>
     <p>Unit tests are an optional build flag whereby kernels are compared against equivalent <i>OpenCV</i> functions for correctness and speed.
       The build system will automatically download and compile OpenCV.
     </p>
-    <pre>$ cmake -D BUILD_TESTING=ON ..<br>$ make -j4 # First time builds OpenCV<br>$ cmake ..<br>$ make -j4 # Second time builds tests<br>$ make test</pre>
+    <pre>$ cmake -D BUILD_TESTING=ON ..<br>$ make -j4 # First time builds OpenCV (only needed once)<br>$ cmake ..<br>$ make -j4 # Second time builds tests<br>$ make test</pre>
     <p>Installation and packaging work as expected.</p>
     <pre>$ make install<br>$ cpack -G TGZ</pre>
     <h3 id="usage">Usage</h3>
     <p>C/C++ projects should <code class="prettyprint lang-c">#include &lt;likely.h&gt;</code> and link against the <code>likely</code> shared library.
-      <tt>FindLikely.cmake</tt> is provided as a convenience to CMake developers.
+      <tt>LikelyConfig.cmake</tt> is provided as a convenience to CMake developers.
     </p>
     <h2 id="interface">Interface</h2>
     <p>Likely is a C API that provides an optional C++ wrapper.
