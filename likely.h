@@ -116,9 +116,9 @@ inline uint32_t likely_elements(const likely_matrix *m) { return m->channels * m
 inline uint32_t likely_bytes(const likely_matrix *m) { return likely_depth(m) / 8 * likely_elements(m); }
 
 // Convenience functions for default initializing a matrix
-inline void likely_matrix_initialize(likely_matrix *m, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash)
+inline void likely_matrix_initialize(likely_matrix *m, uint8_t *data, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash)
 {
-    m->data = NULL;
+    m->data = data;
     m->channels = channels;
     m->columns = columns;
     m->rows = rows;
@@ -129,7 +129,7 @@ inline void likely_matrix_initialize(likely_matrix *m, uint32_t channels, uint32
     likely_set_single_row(m, rows == 1);
     likely_set_single_frame(m, frames == 1);
 }
-inline void likely_matrix_initialize_null(likely_matrix *m) { likely_matrix_initialize(m, 0, 0, 0, 0, 0); }
+inline void likely_matrix_initialize_null(likely_matrix *m) { likely_matrix_initialize(m, NULL, 0, 0, 0, 0, 0); }
 
 // Convenience functions for element access
 // By convention c = channel, x = column, y = row, t = frame
@@ -155,12 +155,16 @@ typedef void (*likely_ternary_function)(const likely_matrix *srcA, const likely_
 inline likely_ternary_function likely_make_ternary_function(const char *description)
 { return (likely_ternary_function)likely_make_function(description, 3); }
 
+// Debugging functions
+LIKELY_EXPORT void likely_print_matrix(const likely_matrix *m);
+
 #ifdef __cplusplus
 }
 #endif
 
 // C++ wrapper starts here
 #ifdef __cplusplus
+#include <ostream>
 #include <string>
 
 namespace likely {
@@ -170,9 +174,8 @@ inline const char *indexHTML() { return likely_index_html(); }
 struct Matrix : public likely_matrix
 {
     Matrix() { likely_matrix_initialize_null(this); }
-    Matrix(uint16_t hash) { likely_matrix_initialize(this, 0, 0, 0, 0, hash); }
-    Matrix(uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash)
-    { likely_matrix_initialize(this, channels, columns, rows, frames, hash); }
+    Matrix(uint8_t *data, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash)
+    { likely_matrix_initialize(this, data, channels, columns, rows, frames, hash); }
 
     inline int  depth() const { return likely_depth(this); }
     inline void setDepth(int bits) { likely_set_depth(this, bits); }
@@ -198,6 +201,7 @@ struct Matrix : public likely_matrix
     inline uint32_t bytes() const { return likely_bytes(this); }
     inline double element(uint32_t c, uint32_t x, uint32_t y, uint32_t t) const { return likely_element(this, c, x, y, t); }
     inline void setElement(double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t) { likely_set_element(this, value, c, x, y, t); }
+    inline void print() const { return likely_print_matrix(this); }
 };
 
 typedef likely_nullary_function NullaryFunction;

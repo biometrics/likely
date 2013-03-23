@@ -1,19 +1,21 @@
-#include <opencv2/core/core.hpp>
 #include "likely.h"
+#include "test.h"
 
-using namespace cv;
-using namespace likely;
+class maddTest : public Test
+{
+    const char *function() const { return "madd(2,3)"; }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat dst;
+        src.convertTo(dst, src.depth(), 2, 3);
+        return dst;
+    }
+};
 
 int main(int argc, char *argv[])
 {
     (void) argc; (void) argv;
-
-    Mat m(1000, 1000, CV_32FC1);
-    randu(m, 0, 255);
-
-    UnaryFunction function = makeUnaryFunction("madd(2,3)");
-    Matrix src(Matrix::f32), dst;
-    function(&src, &dst);
-
-    return 0;
+    maddTest t;
+    return t.run();
 }

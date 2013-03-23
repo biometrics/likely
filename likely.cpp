@@ -51,7 +51,7 @@ double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y
 {
     assert((m != NULL) && "Null matrix!");
     const int columnStep = m->channels;
-    const int rowStep = m->channels * columnStep;
+    const int rowStep = m->columns * columnStep;
     const int frameStep = m->rows * rowStep;
     const int index = t*frameStep + y*rowStep + x*columnStep + c;
 
@@ -439,7 +439,7 @@ struct MatrixBuilder
 
     LoadInst *load(Value *matrix, Type *type, Value *i) const { return b->CreateLoad(b->CreateGEP(data(matrix, type), i)); }
     LoadInst *load(Value *i) const { return b->CreateLoad(b->CreateGEP(data(), i)); }
-    StoreInst *store(Value *matrix, Value *i, Value *value) const { Value *d = data(matrix, ty());
+    StoreInst *store(Value *matrix, Value *i, Value *value) const { Value *d = data(matrix, ty(true));
                                                                     Value *idx = b->CreateGEP(d, i);
                                                                     return b->CreateStore(value, idx); }
     StoreInst *store(Value *i, Value *value) const { return b->CreateStore(value, b->CreateGEP(data(), i)); }
@@ -834,8 +834,8 @@ private:
             functionPassManager->add(createDeadInstEliminationPass());
 
             extraFunctionPassManager = new FunctionPassManager(TheModule);
-            extraFunctionPassManager->add(createPrintFunctionPass("----------------------------------------"
-                                                                  "----------------------------------------", &errs()));
+//            extraFunctionPassManager->add(createPrintFunctionPass("----------------------------------------"
+//                                                                  "----------------------------------------", &errs()));
 //            TheExtraFunctionPassManager->add(createLoopUnrollPass(INT_MAX,8));
         }
 
@@ -876,6 +876,39 @@ ExecutionEngine *FunctionBuilder::executionEngine;
 void *likely_make_function(const char *description, uint8_t arity)
 {
     return likely::FunctionBuilder::makeFunction(description, arity);
+}
+
+void likely_print_matrix(const likely_matrix *m)
+{
+    if ((m == NULL) || (m->data == NULL)) return;
+    const int type = likely_type(m);
+    for (uint t=0; t<m->frames; t++) {
+        for (uint y=0; y<m->rows; y++) {
+            cout << (m->rows > 1 ? (y == 0 ? "[" : " ") : "");
+            for (uint x=0; x<m->columns; x++) {
+                for (uint c=0; c<m->channels; c++) {
+                    const double value = likely_element(m, c, x, y, t);
+                    switch (type) {
+                      case likely_matrix::u8:  cout <<  (uint8_t)value; break;
+                      case likely_matrix::u16: cout << (uint16_t)value; break;
+                      case likely_matrix::u32: cout << (uint32_t)value; break;
+                      case likely_matrix::u64: cout << (uint64_t)value; break;
+                      case likely_matrix::i8:  cout <<   (int8_t)value; break;
+                      case likely_matrix::i16: cout <<  (int16_t)value; break;
+                      case likely_matrix::i32: cout <<  (int32_t)value; break;
+                      case likely_matrix::i64: cout <<  (int64_t)value; break;
+                      case likely_matrix::f32: cout <<    (float)value; break;
+                      case likely_matrix::f64: cout <<   (double)value; break;
+                      default:                 assert(!"Unsupported element type!");
+                    }
+                }
+                cout << (m->channels > 1 ? ";" : (x < m->columns-1 ? " " : ""));
+            }
+            cout << ((m->columns > 1) && (y < m->rows-1) ? "\n" : "");
+        }
+        cout << (m->rows > 1 ? "]\n" : "");
+        cout << (t < m->frames-1 ? "\n" : "");
+    }
 }
 
 extern "C" {
