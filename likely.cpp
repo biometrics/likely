@@ -310,10 +310,10 @@ struct MatrixBuilder
     Value *hash(Value *matrix, const Twine &name = "") const { return b->CreateLoad(b->CreateStructGEP(matrix, 5), name+"_hash"); }
 
     Value *data(bool cast = true) const { return cast ? data(v, ty(true), name) : data(v, name); }
-    Value *channels() const { return likely_is_single_channel(m) ? static_cast<Value*>(one()) : channels(v, name); }
-    Value *columns() const { return likely_is_single_column(m) ? static_cast<Value*>(one()) : columns(v, name); }
-    Value *rows() const { return likely_is_single_row(m) ? static_cast<Value*>(one()) : rows(v, name); }
-    Value *frames() const { return likely_is_single_frame(m) ? static_cast<Value*>(one()) : frames(v, name); }
+    Value *channels() const { return m && likely_is_single_channel(m) ? static_cast<Value*>(one()) : channels(v, name); }
+    Value *columns() const { return m && likely_is_single_column(m) ? static_cast<Value*>(one()) : columns(v, name); }
+    Value *rows() const { return m && likely_is_single_row(m) ? static_cast<Value*>(one()) : rows(v, name); }
+    Value *frames() const { return m && likely_is_single_frame(m) ? static_cast<Value*>(one()) : frames(v, name); }
     Value *hash() const { return hash(v, name); }
 
     void setData(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 0)); }
@@ -748,7 +748,9 @@ public:
                 malloc = Function::Create(mallocType, GlobalValue::ExternalLinkage, "malloc", TheModule);
                 malloc->setCallingConv(CallingConv::C);
             }
-            builder.CreateStore(builder.CreateCall(malloc, kernelSize), builder.CreateStructGEP(dst, 0));
+
+            MatrixBuilder mbDst(NULL, dst, &builder, function, "dst");
+            mbDst.setData(builder.CreateCall(malloc, mbDst.bytes()));
 
             args.push_back(kernelSize);
             builder.CreateCall(builder.CreateLoad(kernelFunction), args);

@@ -113,7 +113,7 @@ inline void likely_set_single_frame(likely_matrix *m, bool is_single_frame) { li
 
 // Convenience functions for determining matrix size
 inline uint32_t likely_elements(const likely_matrix *m) { return m->channels * m->columns * m->rows * m->frames; }
-inline uint32_t likely_bytes(const likely_matrix *m) { return likely_depth(m) / 8 * likely_elements(m); }
+inline uint32_t likely_bytes(const likely_matrix *m) { return uint64_t(likely_depth(m)) * uint64_t(likely_elements(m)) / uint64_t(8); }
 
 // Convenience functions for default initializing a matrix
 inline void likely_matrix_initialize(likely_matrix *m, uint8_t *data, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash)

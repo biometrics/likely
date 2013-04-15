@@ -8,7 +8,7 @@ using namespace cv;
 using namespace likely;
 using namespace std;
 
-const double errorTolerance = 0.0005;
+const double errorTolerance = 0.0001;
 
 static Matrix matrixFromMat(const Mat &mat)
 {
@@ -59,7 +59,7 @@ int Test::run() const
     UnaryFunction f = makeUnaryFunction(function());
 
     // Generate input matrix
-    Mat srcOpenCV(50, 50, CV_32FC1);
+    Mat srcOpenCV(100, 100, CV_32FC1);
     randu(srcOpenCV, 0, 255);
     Matrix srcLikely = matrixFromMat(srcOpenCV);
 
@@ -75,28 +75,26 @@ int Test::run() const
     }
 
     // Test speed
-    int iterations;
     clock_t startTime, endTime;
 
-    iterations = 0;
+    int openCVIterations = 0;
     startTime = endTime = clock();
-    while ((startTime - endTime) / CLOCKS_PER_SEC < 1) {
+    while ((endTime-startTime) / CLOCKS_PER_SEC < 1) {
         computeBaseline(srcOpenCV);
         endTime = clock();
-        iterations++;
+        openCVIterations++;
     }
-    double speedOpenCV = double(iterations) / (startTime - endTime);
+    double openCVSpeed = double(openCVIterations) / (endTime-startTime);
 
-//    iterations = 0;
-//    startTime = endTime = clock();
-//    while ((startTime - endTime) / CLOCKS_PER_SEC < 1) {
-//        f(&srcLikely, &dstLikely);
-//        endTime = clock();
-//        iterations++;
-//    }
-//    double speedLikely = double(iterations) / (startTime - endTime);
+    int likelyIterations = 0;
+    startTime = endTime = clock();
+    while ((endTime-startTime) / CLOCKS_PER_SEC < 1) {
+        f(&srcLikely, &dstLikely);
+        endTime = clock();
+        likelyIterations++;
+    }
+    double likelySpeed = double(likelyIterations) / (endTime-startTime);
 
-//    cout << "Speedup: " << speedLikely / speedOpenCV << "x";
-
+    cout << "Speedup: " << likelySpeed / openCVSpeed << "x (~= " << likelyIterations << "/" << openCVIterations << ")" << endl;
     return 0;
 }
