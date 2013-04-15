@@ -33,6 +33,7 @@
 #include <llvm/Support/ManagedStatic.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Vectorize.h>
 #include <stdarg.h>
 #include <iomanip>
 #include <iostream>
@@ -827,6 +828,9 @@ private:
         static FunctionPassManager *extraFunctionPassManager = NULL;
 
         if (functionPassManager == NULL) {
+            PassRegistry &registry = *PassRegistry::getPassRegistry();
+            initializeScalarOpts(registry);
+
             functionPassManager = new FunctionPassManager(TheModule);
             functionPassManager->add(createVerifierPass(PrintMessageAction));
             functionPassManager->add(createEarlyCSEPass());
@@ -836,9 +840,10 @@ private:
             functionPassManager->add(createDeadInstEliminationPass());
 
             extraFunctionPassManager = new FunctionPassManager(TheModule);
-//            extraFunctionPassManager->add(createPrintFunctionPass("----------------------------------------"
-//                                                                  "----------------------------------------", &errs()));
-//            TheExtraFunctionPassManager->add(createLoopUnrollPass(INT_MAX,8));
+            extraFunctionPassManager->add(createPrintFunctionPass("----------------------------------------"
+                                                                  "----------------------------------------", &errs()));
+            extraFunctionPassManager->add(createLoopVectorizePass());
+            extraFunctionPassManager->add(createLoopUnrollPass(INT_MAX,8));
         }
 
         while (functionPassManager->run(*f));
