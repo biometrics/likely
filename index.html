@@ -130,7 +130,7 @@
     <p>Unit tests are an optional build flag whereby kernels are compared against equivalent <i>OpenCV</i> functions for correctness and speed.
       The build system will automatically download and compile OpenCV.
     </p>
-    <pre>$ cmake -D BUILD_TESTING=ON ..<br>$ make -j4 # First time builds OpenCV (only needed once)<br>$ cmake ..<br>$ make -j4 # Second time builds tests<br>$ make test</pre>
+    <pre>$ cmake -DBUILD_TESTING=ON ..<br>$ make -j4 # First time builds OpenCV (only needed once)<br>$ cmake ..<br>$ make -j4 # Second time builds tests<br>$ make test</pre>
     <p>Installation and packaging work as expected.</p>
     <pre>$ make install<br>$ cpack -G TGZ</pre>
     <h3 id="usage">Usage</h3>
