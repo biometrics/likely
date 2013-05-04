@@ -125,8 +125,14 @@
     <h2 id="installation">Installation</h2>
     <p>The following sections discuss how to build and incorporate Likely into your own project.</p>
     <h3 id="build_instructions">Build Instructions</h3>
+    <p>Start by cloning the source code.</p>
+    <pre>$ git clone https://github.com/biometrics/likely.git<br>$ cd likely<br></pre>
+    <h4 id="the_short_way">The Short Way</h4>
+    <p>If you have a <i>POSIX</i> compliant shell you can simply run <tt>bootstrap.sh</tt> to automatically build, test, install, and package Likely.</p>
+    <pre>$ ./bootstrap.sh</pre>
+    <h4 id="the_long_way">The Longer Way</h4>
     <p>Likely uses the <i>CMake</i> (>= 2.8.9) build system and will automatically download and compile its LLVM dependency.</p>
-    <pre>$ git clone https://github.com/biometrics/likely.git<br>$ cd likely<br>$ mkdir build<br>$ cd build<br>$ cmake ..<br>$ make -j4 # First time builds LLVM (only needed once)<br>$ cmake ..<br>$ make -j4 # Second time builds Likely</pre>
+    <pre>$ mkdir build<br>$ cd build<br>$ cmake ..<br>$ make -j4 # First time builds LLVM (only needed once)<br>$ cmake ..<br>$ make -j4 # Second time builds Likely</pre>
     <p>Unit tests are an optional build flag whereby kernels are compared against equivalent <i>OpenCV</i> functions for correctness and speed.
       The build system will automatically download and compile OpenCV.
     </p>
