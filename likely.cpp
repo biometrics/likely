@@ -758,7 +758,14 @@ public:
             builder.CreateRetVoid();
         }
 
-        optimize(function);
+        static FunctionPassManager *functionPassManager = NULL;
+        if (functionPassManager == NULL) {
+            functionPassManager = new FunctionPassManager(TheModule);
+            functionPassManager->add(createVerifierPass(PrintMessageAction));
+//            functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
+        }
+        functionPassManager->run(*function);
+
         return executionEngine->getPointerToFunction(function);
     }
 
@@ -779,7 +786,14 @@ public:
         }
         (*kernelPointer).second.makeAllocation(function, matricies);
 
-        optimize(function);
+        static FunctionPassManager *functionPassManager = NULL;
+        if (functionPassManager == NULL) {
+            functionPassManager = new FunctionPassManager(TheModule);
+            functionPassManager->add(createVerifierPass(PrintMessageAction));
+//            functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
+        }
+        functionPassManager->run(*function);
+
         return executionEngine->getPointerToFunction(function);
     }
 
@@ -795,7 +809,24 @@ public:
 
         kernels[description].makeKernel(function);
 
-        optimize(function);
+        static FunctionPassManager *functionPassManager = NULL;
+        if (functionPassManager == NULL) {
+            PassRegistry &registry = *PassRegistry::getPassRegistry();
+            initializeScalarOpts(registry);
+
+            functionPassManager = new FunctionPassManager(TheModule);
+            functionPassManager->add(createVerifierPass(PrintMessageAction));
+            functionPassManager->add(createEarlyCSEPass());
+            functionPassManager->add(createInstructionCombiningPass());
+            functionPassManager->add(createDeadCodeEliminationPass());
+            functionPassManager->add(createGVNPass());
+            functionPassManager->add(createDeadInstEliminationPass());
+            functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
+            functionPassManager->add(createLoopVectorizePass());
+            functionPassManager->add(createLoopUnrollPass(INT_MAX,8));
+        }
+        functionPassManager->run(*function);
+
         return executionEngine->getPointerToFunction(function);
     }
 
@@ -820,34 +851,6 @@ private:
                                              Type::getInt32Ty(getGlobalContext()),   // frames
                                              Type::getInt16Ty(getGlobalContext()),   // hash
                                              NULL);
-    }
-
-    static void optimize(Function *f)
-    {
-        static FunctionPassManager *functionPassManager = NULL;
-        static FunctionPassManager *extraFunctionPassManager = NULL;
-
-        if (functionPassManager == NULL) {
-            PassRegistry &registry = *PassRegistry::getPassRegistry();
-            initializeScalarOpts(registry);
-
-            functionPassManager = new FunctionPassManager(TheModule);
-            functionPassManager->add(createVerifierPass(PrintMessageAction));
-            functionPassManager->add(createEarlyCSEPass());
-            functionPassManager->add(createInstructionCombiningPass());
-            functionPassManager->add(createDeadCodeEliminationPass());
-            functionPassManager->add(createGVNPass());
-            functionPassManager->add(createDeadInstEliminationPass());
-
-            extraFunctionPassManager = new FunctionPassManager(TheModule);
-            extraFunctionPassManager->add(createPrintFunctionPass("----------------------------------------"
-                                                                  "----------------------------------------", &errs()));
-            extraFunctionPassManager->add(createLoopVectorizePass());
-            extraFunctionPassManager->add(createLoopUnrollPass(INT_MAX,8));
-        }
-
-        while (functionPassManager->run(*f));
-        extraFunctionPassManager->run(*f);
     }
 
     static string mangledName(const string &description, const vector<likely_matrix*> &matrices)
