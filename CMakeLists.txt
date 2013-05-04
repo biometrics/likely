@@ -24,7 +24,6 @@ set(EXTERNAL_PROJECT_ARGS -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -DCMAKE_SHARED_LI
 # Build LLVM
 ExternalProject_Add(
   LLVM
-  PREFIX LLVM
   URL http://llvm.org/releases/3.2/llvm-3.2.src.tar.gz
   URL_MD5 71610289bbc819e3e15fdd562809a2d7
   CMAKE_ARGS ${EXTERNAL_PROJECT_ARGS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})
@@ -68,6 +67,7 @@ if(EXISTS "${EXTERNAL_PROJECT_PATH}/share/llvm/cmake/LLVMConfig.cmake")
           LIBRARY DESTINATION lib
           ARCHIVE DESTINATION lib)
 
+  enable_testing() # Must be in the root directory
   add_subdirectory(tests)
 endif()
 

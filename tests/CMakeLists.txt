@@ -4,7 +4,6 @@ if(${BUILD_TESTING})
   # Build OpenCV
   ExternalProject_Add(
     OpenCV
-    PREFIX OpenCV
     URL http://downloads.sourceforge.net/project/opencvlibrary/opencv-unix/2.4.5/opencv-2.4.5.tar.gz
     URL_MD5 8eac87462c7bec8b89021b723207c623
     CMAKE_ARGS ${EXTERNAL_PROJECT_ARGS} -DCMAKE_BUILD_TYPE=Release)
@@ -12,7 +11,6 @@ if(${BUILD_TESTING})
   # Find OpenCV
   find_package(OpenCV QUIET PATHS ${EXTERNAL_PROJECT_PATH} NO_DEFAULT_PATH)
   if(NOT ${OpenCV_DIR} MATCHES OpenCV_DIR-NOTFOUND)
-    enable_testing()
     include_directories(..)
 
     # Find tests

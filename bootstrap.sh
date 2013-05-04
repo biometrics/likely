@@ -19,4 +19,3 @@ cmake ..
 make -j${THREADS}
 make test
 cpack -G TGZ
-
