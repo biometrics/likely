@@ -454,29 +454,27 @@ struct MatrixBuilder
     Value *compareLT(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFCmpOLT(i, j) : (likely_is_signed(m) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
     Value *compareGT(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFCmpOGT(i, j) : (likely_is_signed(m) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
 
-    static PHINode *beginLoop(IRBuilder<> &builder, Function *function, BasicBlock *entry, BasicBlock *&loop, BasicBlock *&exit, Value *stop, const Twine &name = "") {
-        loop = BasicBlock::Create(getGlobalContext(), "loop_"+name, function);
-        builder.CreateBr(loop);
-        builder.SetInsertPoint(loop);
+    static void beginLoop(IRBuilder<> &builder, Function *function, BasicBlock *entry, Value *stop, PHINode **i, BasicBlock **loop, BasicBlock **exit, const Twine &name = "") {
+        *loop = BasicBlock::Create(getGlobalContext(), "loop_"+name, function);
+        *exit = BasicBlock::Create(getGlobalContext(), "loop_"+name+"_exit", function);
 
-        PHINode *i = builder.CreatePHI(Type::getInt32Ty(getGlobalContext()), 2, name);
-        i->addIncoming(MatrixBuilder::zero(), entry);
-        Value *increment = builder.CreateAdd(i, MatrixBuilder::one(), "increment_"+name);
-        BasicBlock *body = BasicBlock::Create(getGlobalContext(), "loop_"+name+"_body", function);
-        i->addIncoming(increment, body);
+        Value *start = MatrixBuilder::zero();
+        builder.CreateCondBr(builder.CreateICmpEQ(stop, start), *exit, *loop);
+        builder.SetInsertPoint(*loop);
 
-        exit = BasicBlock::Create(getGlobalContext(), "loop_"+name+"_exit", function);
-        builder.CreateCondBr(builder.CreateICmpEQ(i, stop, "loop_"+name+"_test"), exit, body);
-        builder.SetInsertPoint(body);
-        return i;
+        *i = builder.CreatePHI(Type::getInt32Ty(getGlobalContext()), 2, name);
+        (*i)->addIncoming(start, entry);
     }
-    PHINode *beginLoop(BasicBlock *entry, BasicBlock *&loop, BasicBlock *&exit, Value *stop, const Twine &name = "") const { return beginLoop(*b, f, entry, loop, exit, stop, name); }
+    void beginLoop(BasicBlock *entry, Value *stop, PHINode **i, BasicBlock **loop, BasicBlock **exit, const Twine &name = "") const { return beginLoop(*b, f, entry, stop, i, loop, exit, name); }
 
-    static void endLoop(IRBuilder<> &builder, BasicBlock *loop, BasicBlock *exit) {
-        builder.CreateBr(loop);
+    static void endLoop(IRBuilder<> &builder, Value *stop, PHINode *i, BasicBlock *loop, BasicBlock *exit, const Twine &name = "") {
+        Value *increment = builder.CreateAdd(i, MatrixBuilder::one(), "increment_"+name);
+        i->addIncoming(increment, loop);
+
+        builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, "loop_"+name+"_test"), exit, loop);
         builder.SetInsertPoint(exit);
     }
-    void endLoop(BasicBlock *loop, BasicBlock *exit) const { endLoop(*b, loop, exit); }
+    void endLoop(Value *stop, PHINode *i, BasicBlock *loop, BasicBlock *exit) const { endLoop(*b, stop, i, loop, exit, name); }
 
     template <typename T>
     inline static vector<T> toVector(T value) { vector<T> vector; vector.push_back(value); return vector; }
@@ -549,9 +547,9 @@ public:
         kernel.reset(srcs[0], &builder, function);
 
         BasicBlock *loop, *exit;
-        i = MatrixBuilder::beginLoop(builder, function, entry, loop, exit, len, "i");
+        MatrixBuilder::beginLoop(builder, function, entry, len, &i, &loop, &exit, "i");
         kernel.store(dst, i, makeEquation(definition.equation));
-        MatrixBuilder::endLoop(builder, loop, exit);
+        MatrixBuilder::endLoop(builder, len, i, loop, exit);
         builder.CreateRetVoid();
     }
 
@@ -816,14 +814,14 @@ public:
 
             functionPassManager = new FunctionPassManager(TheModule);
             functionPassManager->add(createVerifierPass(PrintMessageAction));
-            functionPassManager->add(createEarlyCSEPass());
-            functionPassManager->add(createInstructionCombiningPass());
-            functionPassManager->add(createDeadCodeEliminationPass());
-            functionPassManager->add(createGVNPass());
-            functionPassManager->add(createDeadInstEliminationPass());
+//            functionPassManager->add(createEarlyCSEPass());
+//            functionPassManager->add(createInstructionCombiningPass());
+//            functionPassManager->add(createDeadCodeEliminationPass());
+//            functionPassManager->add(createGVNPass());
+//            functionPassManager->add(createDeadInstEliminationPass());
+//            functionPassManager->add(createLoopVectorizePass());
+//            functionPassManager->add(createLoopUnrollPass(INT_MAX,8));
             functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
-            functionPassManager->add(createLoopVectorizePass());
-            functionPassManager->add(createLoopUnrollPass(INT_MAX,8));
         }
         functionPassManager->run(*function);
 
