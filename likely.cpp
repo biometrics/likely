@@ -14,34 +14,22 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include <llvm/Intrinsics.h>
-#include <llvm/LLVMContext.h>
-#include <llvm/DerivedTypes.h>
-#include <llvm/ExecutionEngine/JIT.h>
 #include <llvm/IRBuilder.h>
 #include <llvm/Module.h>
-#include <llvm/Operator.h>
 #include <llvm/PassManager.h>
-#include <llvm/Type.h>
-#include <llvm/Value.h>
-#include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/Assembly/PrintModulePass.h>
-#include <llvm/Config/llvm-config.h>
-#include <llvm/ExecutionEngine/ExecutionEngine.h>
-#include <llvm/Support/raw_ostream.h>
-#include <llvm/Support/ManagedStatic.h>
+#include <llvm/ExecutionEngine/JIT.h>
+#include <llvm/Support/Debug.h>
 #include <llvm/Support/TargetSelect.h>
+#include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Vectorize.h>
-#include <stdarg.h>
 #include <iomanip>
 #include <iostream>
 #include <regex>
 #include <sstream>
-#include <string>
 #include <thread>
-#include <vector>
 
 #include "likely.h"
 
@@ -542,6 +530,11 @@ public:
         Value *dst, *len;
         getValues(function, srcs, dst, len);
 
+        static const Attributes attributes = Attributes::get(getGlobalContext(), AttrBuilder().addAttribute(Attributes::NoAlias));
+        for (Argument &argument : function->getArgumentList())
+            if (argument.getArgNo() < function->arg_size()-1) // Exclude kernel size argument
+                argument.addAttr(attributes);
+
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
         kernel.reset(srcs[0], &builder, function);
@@ -814,6 +807,8 @@ public:
 
             functionPassManager = new FunctionPassManager(TheModule);
             functionPassManager->add(createVerifierPass(PrintMessageAction));
+            functionPassManager->add(createLICMPass());
+            functionPassManager->add(createCFGSimplificationPass());
 //            functionPassManager->add(createEarlyCSEPass());
 //            functionPassManager->add(createInstructionCombiningPass());
 //            functionPassManager->add(createDeadCodeEliminationPass());
@@ -822,6 +817,7 @@ public:
 //            functionPassManager->add(createLoopVectorizePass());
 //            functionPassManager->add(createLoopUnrollPass(INT_MAX,8));
             functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
+//            DebugFlag = true;
         }
         functionPassManager->run(*function);
 
