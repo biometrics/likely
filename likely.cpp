@@ -17,6 +17,7 @@
 #include <llvm/IRBuilder.h>
 #include <llvm/Module.h>
 #include <llvm/PassManager.h>
+#include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/Assembly/PrintModulePass.h>
 #include <llvm/ExecutionEngine/JIT.h>
@@ -530,10 +531,11 @@ public:
         Value *dst, *len;
         getValues(function, srcs, dst, len);
 
-        static const Attributes attributes = Attributes::get(getGlobalContext(), AttrBuilder().addAttribute(Attributes::NoAlias));
-        for (Argument &argument : function->getArgumentList())
-            if (argument.getArgNo() < function->arg_size()-1) // Exclude kernel size argument
-                argument.addAttr(attributes);
+        function->addFnAttr(Attributes::NoUnwind);
+        for (size_t i=1; i<function->arg_size(); i++) { // Exclude kernel size argument
+            function->setDoesNotAlias(i);
+            function->setDoesNotCapture(i);
+        }
 
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
@@ -815,15 +817,15 @@ public:
 
             functionPassManager = new FunctionPassManager(TheModule);
             functionPassManager->add(createVerifierPass(PrintMessageAction));
-//            functionPassManager->add(createLoopRotatePass());
-//            functionPassManager->add(createLICMPass());
+            functionPassManager->add(createBasicAliasAnalysisPass());
+            functionPassManager->add(createLICMPass());
 //            functionPassManager->add(createCFGSimplificationPass());
 //            functionPassManager->add(createEarlyCSEPass());
 //            functionPassManager->add(createInstructionCombiningPass());
 //            functionPassManager->add(createDeadCodeEliminationPass());
 //            functionPassManager->add(createGVNPass());
 //            functionPassManager->add(createDeadInstEliminationPass());
-//            functionPassManager->add(createLoopVectorizePass());
+            functionPassManager->add(createLoopVectorizePass());
 //            functionPassManager->add(createLoopUnrollPass(INT_MAX,8));
             functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
 //            DebugFlag = true;
