@@ -14,13 +14,13 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include <llvm/IRBuilder.h>
-#include <llvm/Module.h>
 #include <llvm/PassManager.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/Assembly/PrintModulePass.h>
 #include <llvm/ExecutionEngine/JIT.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Module.h>
 #include <llvm/Support/Debug.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_ostream.h>
@@ -575,7 +575,7 @@ public:
         Value *dst, *len;
         getValues(function, srcs, dst, len);
 
-        function->addFnAttr(Attributes::NoUnwind);
+        function->addFnAttr(Attribute::NoUnwind);
         for (size_t i=1; i<function->arg_size(); i++) { // Exclude kernel size argument
             function->setDoesNotAlias(i);
             function->setDoesNotCapture(i);
@@ -869,10 +869,12 @@ public:
 //            functionPassManager->add(createDeadInstEliminationPass());
 //            functionPassManager->add(createLoopVectorizePass());
 //            functionPassManager->add(createLoopUnrollPass(INT_MAX,8));
-            functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
+//            functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
 //            DebugFlag = true;
         }
         functionPassManager->run(*function);
+
+        TheModule->dump();
 
         return executionEngine->getPointerToFunction(function);
     }
