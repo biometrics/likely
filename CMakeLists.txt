@@ -26,7 +26,7 @@ ExternalProject_Add(
   LLVM
   URL http://llvm.org/releases/3.2/llvm-3.2.src.tar.gz
   URL_MD5 71610289bbc819e3e15fdd562809a2d7
-  CMAKE_ARGS ${EXTERNAL_PROJECT_ARGS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})
+  CMAKE_ARGS ${EXTERNAL_PROJECT_ARGS} -DCMAKE_BUILD_TYPE=Debug)
 
 # Build Likely
 if(EXISTS "${EXTERNAL_PROJECT_PATH}/share/llvm/cmake/LLVMConfig.cmake")

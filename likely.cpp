@@ -29,6 +29,7 @@
 #include <iomanip>
 #include <iostream>
 #include <regex>
+#include <stack>
 #include <sstream>
 #include <thread>
 
@@ -276,7 +277,15 @@ struct MatrixBuilder
     Twine name;
     Value *v;
     const likely_matrix *m;
-    MDNode *node = NULL; // Holds parallel loop metadata
+
+    struct Loop {
+        BasicBlock *body, *exit;
+        PHINode *i;
+        Value *stop;
+        MDNode *node;
+    };
+
+    stack<Loop> loops;
 
     MatrixBuilder() : b(NULL), f(NULL), v(NULL), m(NULL) {}
     MatrixBuilder(IRBuilder<> *builder, Function *function, const Twine &name_ = "", Value *value = NULL, const likely_matrix *matrix = NULL)
@@ -430,12 +439,12 @@ struct MatrixBuilder
 
     LoadInst *load(Value *matrix, Type *type, Value *i) {
         LoadInst *load = b->CreateLoad(b->CreateGEP(data(matrix, type), i));
-        load->setMetadata("llvm.mem.parallel_loop_access", getSelfReferencingMDNode());
+        load->setMetadata("llvm.mem.parallel_loop_access", getCurrentNode());
         return load;
     }
     LoadInst *load(Value *i) {
         LoadInst *load = b->CreateLoad(b->CreateGEP(data(), i));
-        load->setMetadata("llvm.mem.parallel_loop_access", getSelfReferencingMDNode());
+        load->setMetadata("llvm.mem.parallel_loop_access", getCurrentNode());
         return load;
     }
 
@@ -443,12 +452,12 @@ struct MatrixBuilder
         Value *d = data(matrix, ty(true));
         Value *idx = b->CreateGEP(d, i);
         StoreInst *store = b->CreateStore(value, idx);
-        store->setMetadata("llvm.mem.parallel_loop_access", getSelfReferencingMDNode());
+        store->setMetadata("llvm.mem.parallel_loop_access", getCurrentNode());
         return store;
     }
     StoreInst *store(Value *i, Value *value) {
         StoreInst *store = b->CreateStore(value, b->CreateGEP(data(), i));
-        store->setMetadata("llvm.mem.parallel_loop_access", getSelfReferencingMDNode());
+        store->setMetadata("llvm.mem.parallel_loop_access", getCurrentNode());
         return store;
     }
 
@@ -461,38 +470,44 @@ struct MatrixBuilder
     Value *compareLT(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFCmpOLT(i, j) : (likely_is_signed(m) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
     Value *compareGT(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFCmpOGT(i, j) : (likely_is_signed(m) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
 
-    void beginLoop(BasicBlock *entry, PHINode **i, BasicBlock **loop, BasicBlock **exit) {
-        *loop = BasicBlock::Create(getGlobalContext(), name+"_loop", f);
-        *exit = BasicBlock::Create(getGlobalContext(), name+"_loop_exit", f);
+    Loop beginLoop(BasicBlock *entry, Value *stop) {
+        Loop loop;
+        loop.stop = stop;
+        loop.body = BasicBlock::Create(getGlobalContext(), name+"_loop_body", f);
+        loop.exit = BasicBlock::Create(getGlobalContext(), name+"_loop_exit", f);
 
-        // Loops assume there is at least one iteration
-        b->CreateBr(*loop);
-        b->SetInsertPoint(*loop);
-
-        *i = b->CreatePHI(Type::getInt32Ty(getGlobalContext()), 2, name);
-        (*i)->addIncoming(MatrixBuilder::zero(), entry);
-    }
-
-    void endLoop(Value *stop, PHINode *i, BasicBlock *loop, BasicBlock *exit) {
-        Value *increment = b->CreateAdd(i, MatrixBuilder::one(), name+"_increment");
-        i->addIncoming(increment, loop);
-
-        BranchInst *latch = b->CreateCondBr(b->CreateICmpEQ(increment, stop, name+"_loop_test"), exit, loop);
-        latch->setMetadata("llvm.loop.parallel", getSelfReferencingMDNode());
-
-        b->SetInsertPoint(exit);
-    }
-
-    MDNode *getSelfReferencingMDNode() {
-        if (node != NULL) return node;
+        // Create self-referencing loop node
         vector<Value*> metadata;
         MDNode *tmp = MDNode::getTemporary(getGlobalContext(), metadata);
         metadata.push_back(tmp);
-        node = MDNode::get(getGlobalContext(), metadata);
-        tmp->replaceAllUsesWith(node);
+        loop.node = MDNode::get(getGlobalContext(), metadata);
+        tmp->replaceAllUsesWith(loop.node);
         MDNode::deleteTemporary(tmp);
-        return node;
+
+        // Loops assume there is at least one iteration
+        b->CreateBr(loop.body);
+        b->SetInsertPoint(loop.body);
+
+        loop.i = b->CreatePHI(Type::getInt32Ty(getGlobalContext()), 2, name);
+        loop.i->addIncoming(zero(), entry);
+
+        loops.push(loop);
+        return loop;
     }
+
+    void endLoop() {
+        const Loop &loop = loops.top();
+        Value *increment = b->CreateAdd(loop.i, one(), name+"_loop_increment");
+        loop.i->addIncoming(increment, loop.body);
+
+        BranchInst *latch = b->CreateCondBr(b->CreateICmpEQ(increment, loop.stop, name+"_loop_test"), loop.exit, loop.body);
+        latch->setMetadata("llvm.loop.parallel", loop.node);
+
+        b->SetInsertPoint(loop.exit);
+        loops.pop();
+    }
+
+    MDNode *getCurrentNode() const { return loops.empty() ? NULL : loops.top().node; }
 
     template <typename T>
     inline static vector<T> toVector(T value) { vector<T> vector; vector.push_back(value); return vector; }
@@ -570,11 +585,9 @@ public:
         IRBuilder<> builder(entry);
         kernel.reset(&builder, function, srcs[0]);
 
-        BasicBlock *loop, *exit;
-        MatrixBuilder mb(&builder, function, "kernel");
-        mb.beginLoop(entry, &i, &loop, &exit);
+        i = kernel.beginLoop(entry, len).i;
         kernel.store(dst, i, makeEquation(definition.equation));
-        mb.endLoop(len, i, loop, exit);
+        kernel.endLoop();
 
         builder.CreateRetVoid();
     }
