@@ -290,22 +290,22 @@ struct MatrixBuilder
     static Constant *zero() { return constant(0); }
     static Constant *one() { return constant(1); }
     Constant *autoConstant(double value) const { return likely_is_floating(m) ? ((likely_depth(m) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(m)); }
-    AllocaInst *autoAlloca(double value, const Twine &name = "") const { AllocaInst *alloca = b->CreateAlloca(ty(), 0, name); b->CreateStore(autoConstant(value), alloca); return alloca; }
+    AllocaInst *autoAlloca(double value) const { AllocaInst *alloca = b->CreateAlloca(ty(), 0, name); b->CreateStore(autoConstant(value), alloca); return alloca; }
 
-    Value *data(Value *matrix, const Twine &name = "") const { return b->CreateLoad(b->CreateStructGEP(matrix, 0), name+"_data"); }
-    Value *data(Value *matrix, Type *type, const Twine &name = "") const { return b->CreatePointerCast(data(matrix, name), type); }
-    Value *channels(Value *matrix, const Twine &name = "") const { return b->CreateLoad(b->CreateStructGEP(matrix, 1), name+"_channels"); }
-    Value *columns(Value *matrix, const Twine &name = "") const { return b->CreateLoad(b->CreateStructGEP(matrix, 2), name+"_columns"); }
-    Value *rows(Value *matrix, const Twine &name = "") const { return b->CreateLoad(b->CreateStructGEP(matrix, 3), name+"_rows"); }
-    Value *frames(Value *matrix, const Twine &name = "") const { return b->CreateLoad(b->CreateStructGEP(matrix, 4), name+"_frames"); }
-    Value *hash(Value *matrix, const Twine &name = "") const { return b->CreateLoad(b->CreateStructGEP(matrix, 5), name+"_hash"); }
+    Value *data(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 0), name+"_data"); }
+    Value *data(Value *matrix, Type *type) const { return b->CreatePointerCast(data(matrix), type); }
+    Value *channels(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 1), name+"_channels"); }
+    Value *columns(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 2), name+"_columns"); }
+    Value *rows(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 3), name+"_rows"); }
+    Value *frames(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 4), name+"_frames"); }
+    Value *hash(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 5), name+"_hash"); }
 
-    Value *data(bool cast = true) const { return cast ? data(v, ty(true), name) : data(v, name); }
-    Value *channels() const { return m && likely_is_single_channel(m) ? static_cast<Value*>(one()) : channels(v, name); }
-    Value *columns() const { return m && likely_is_single_column(m) ? static_cast<Value*>(one()) : columns(v, name); }
-    Value *rows() const { return m && likely_is_single_row(m) ? static_cast<Value*>(one()) : rows(v, name); }
-    Value *frames() const { return m && likely_is_single_frame(m) ? static_cast<Value*>(one()) : frames(v, name); }
-    Value *hash() const { return hash(v, name); }
+    Value *data(bool cast = true) const { return cast ? data(v, ty(true)) : data(v); }
+    Value *channels() const { return m && likely_is_single_channel(m) ? static_cast<Value*>(one()) : channels(v); }
+    Value *columns() const { return m && likely_is_single_column(m) ? static_cast<Value*>(one()) : columns(v); }
+    Value *rows() const { return m && likely_is_single_row(m) ? static_cast<Value*>(one()) : rows(v); }
+    Value *frames() const { return m && likely_is_single_frame(m) ? static_cast<Value*>(one()) : frames(v); }
+    Value *hash() const { return hash(v); }
 
     void setData(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 0)); }
     void setChannels(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 1)); }
@@ -453,17 +453,17 @@ struct MatrixBuilder
     }
 
     Value *cast(Value *i, const MatrixBuilder &dst) const { return (likely_type(m) == likely_type(dst.m)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(m), dst.ty(), likely_is_signed(dst.m)), i, dst.ty()); }
-    Value *add(Value *i, Value *j, const Twine &name = "") const { return likely_is_floating(m) ? b->CreateFAdd(i, j, name) : b->CreateAdd(i, j, name); }
-    Value *subtract(Value *i, Value *j, const Twine &name = "") const { return likely_is_floating(m) ? b->CreateFSub(i, j, name) : b->CreateSub(i, j, name); }
-    Value *multiply(Value *i, Value *j, const Twine &name = "") const { return likely_is_floating(m) ? b->CreateFMul(i, j, name) : b->CreateMul(i, j, name); }
-    Value *divide(Value *i, Value *j, const Twine &name = "") const { return likely_is_floating(m) ? b->CreateFDiv(i, j, name) : (likely_is_signed(m) ? b->CreateSDiv(i,j, name) : b->CreateUDiv(i, j, name)); }
+    Value *add(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFAdd(i, j, name) : b->CreateAdd(i, j, name); }
+    Value *subtract(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFSub(i, j, name) : b->CreateSub(i, j, name); }
+    Value *multiply(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFMul(i, j, name) : b->CreateMul(i, j, name); }
+    Value *divide(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFDiv(i, j, name) : (likely_is_signed(m) ? b->CreateSDiv(i,j, name) : b->CreateUDiv(i, j, name)); }
 
     Value *compareLT(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFCmpOLT(i, j) : (likely_is_signed(m) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
     Value *compareGT(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFCmpOGT(i, j) : (likely_is_signed(m) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
 
-    void beginLoop(BasicBlock *entry, PHINode **i, BasicBlock **loop, BasicBlock **exit, const Twine &name = "") {
-        *loop = BasicBlock::Create(getGlobalContext(), "loop_"+name, f);
-        *exit = BasicBlock::Create(getGlobalContext(), "loop_"+name+"_exit", f);
+    void beginLoop(BasicBlock *entry, PHINode **i, BasicBlock **loop, BasicBlock **exit) {
+        *loop = BasicBlock::Create(getGlobalContext(), name+"_loop", f);
+        *exit = BasicBlock::Create(getGlobalContext(), name+"_loop_exit", f);
 
         // Loops assume there is at least one iteration
         b->CreateBr(*loop);
@@ -473,11 +473,11 @@ struct MatrixBuilder
         (*i)->addIncoming(MatrixBuilder::zero(), entry);
     }
 
-    void endLoop(Value *stop, PHINode *i, BasicBlock *loop, BasicBlock *exit, const Twine &name = "") {
-        Value *increment = b->CreateAdd(i, MatrixBuilder::one(), "increment_"+name);
+    void endLoop(Value *stop, PHINode *i, BasicBlock *loop, BasicBlock *exit) {
+        Value *increment = b->CreateAdd(i, MatrixBuilder::one(), name+"_increment");
         i->addIncoming(increment, loop);
 
-        BranchInst *latch = b->CreateCondBr(b->CreateICmpEQ(increment, stop, "loop_"+name+"_test"), exit, loop);
+        BranchInst *latch = b->CreateCondBr(b->CreateICmpEQ(increment, stop, name+"_loop_test"), exit, loop);
         latch->setMetadata("llvm.loop.parallel", getSelfReferencingMDNode());
 
         b->SetInsertPoint(exit);
@@ -571,8 +571,8 @@ public:
         kernel.reset(&builder, function, srcs[0]);
 
         BasicBlock *loop, *exit;
-        MatrixBuilder mb(&builder, function);
-        mb.beginLoop(entry, &i, &loop, &exit, "i");
+        MatrixBuilder mb(&builder, function, "kernel");
+        mb.beginLoop(entry, &i, &loop, &exit);
         kernel.store(dst, i, makeEquation(definition.equation));
         mb.endLoop(len, i, loop, exit);
 
@@ -856,7 +856,7 @@ public:
 //            functionPassManager->add(createDeadInstEliminationPass());
 //            functionPassManager->add(createLoopVectorizePass());
 //            functionPassManager->add(createLoopUnrollPass(INT_MAX,8));
-//            functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
+            functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
 //            DebugFlag = true;
         }
         functionPassManager->run(*function);
