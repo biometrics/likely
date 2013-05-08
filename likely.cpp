@@ -271,17 +271,17 @@ map<string, Definition> Definition::definitions;
 
 struct MatrixBuilder
 {
-    const likely_matrix *m;
-    Value *v;
     IRBuilder<> *b;
     Function *f;
-    MDNode *node = NULL; // Holds parallel loop metadata
     Twine name;
+    Value *v;
+    const likely_matrix *m;
+    MDNode *node = NULL; // Holds parallel loop metadata
 
-    MatrixBuilder() : m(NULL), v(NULL), b(NULL), f(NULL) {}
-    MatrixBuilder(const likely_matrix *matrix, Value *value, IRBuilder<> *builder, Function *function, const Twine &name_ = "")
-        : m(matrix), v(value), b(builder), f(function), name(name_) {}
-    void reset(Value *value, IRBuilder<> *builder, Function *function) { v = value; b = builder; f = function; }
+    MatrixBuilder() : b(NULL), f(NULL), v(NULL), m(NULL) {}
+    MatrixBuilder(IRBuilder<> *builder, Function *function, const Twine &name_ = "", Value *value = NULL, const likely_matrix *matrix = NULL)
+        : b(builder), f(function), name(name_), v(value), m(matrix){}
+    void reset(IRBuilder<> *builder, Function *function, Value *value) { b = builder; f = function; v = value; }
 
     static Constant *constant(int value, int bits = 32) { return Constant::getIntegerValue(Type::getInt32Ty(getGlobalContext()), APInt(bits, value)); }
     static Constant *constant(bool value) { return constant(value, 1); }
@@ -549,7 +549,7 @@ public:
 
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
-        kernel = MatrixBuilder(matricies[0], srcs[0], &builder, function, "kernel");
+        kernel = MatrixBuilder(&builder, function, "kernel", srcs[0], matricies[0]);
         kernel.copyHeaderTo(dst);
         builder.CreateRet(kernel.elements());
     }
@@ -568,10 +568,10 @@ public:
 
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
-        kernel.reset(srcs[0], &builder, function);
+        kernel.reset(&builder, function, srcs[0]);
 
         BasicBlock *loop, *exit;
-        MatrixBuilder mb(NULL, NULL, &builder, function);
+        MatrixBuilder mb(&builder, function);
         mb.beginLoop(entry, &i, &loop, &exit, "i");
         kernel.store(dst, i, makeEquation(definition.equation));
         mb.endLoop(len, i, loop, exit);
@@ -774,7 +774,7 @@ public:
                 malloc->setCallingConv(CallingConv::C);
             }
 
-            MatrixBuilder mbDst(NULL, dst, &builder, function, "dst");
+            MatrixBuilder mbDst(&builder, function, "dst", dst);
             mbDst.setData(builder.CreateCall(malloc, mbDst.bytes()));
 
             BasicBlock *kernel = BasicBlock::Create(getGlobalContext(), "kernel", function);
@@ -794,7 +794,6 @@ public:
         if (functionPassManager == NULL) {
             functionPassManager = new FunctionPassManager(TheModule);
             functionPassManager->add(createVerifierPass(PrintMessageAction));
-//            functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
         }
         functionPassManager->run(*function);
 
@@ -822,7 +821,6 @@ public:
         if (functionPassManager == NULL) {
             functionPassManager = new FunctionPassManager(TheModule);
             functionPassManager->add(createVerifierPass(PrintMessageAction));
-//            functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
         }
         functionPassManager->run(*function);
 
