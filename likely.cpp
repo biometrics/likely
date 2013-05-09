@@ -16,6 +16,7 @@
 
 #include <llvm/PassManager.h>
 #include <llvm/Analysis/Passes.h>
+#include <llvm/Analysis/TargetTransformInfo.h>
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/Assembly/PrintModulePass.h>
 #include <llvm/ExecutionEngine/JIT.h>
@@ -859,6 +860,7 @@ public:
 
             functionPassManager = new FunctionPassManager(TheModule);
             functionPassManager->add(createVerifierPass(PrintMessageAction));
+            functionPassManager->add(new DataLayout(*executionEngine->getDataLayout()));
             functionPassManager->add(createBasicAliasAnalysisPass());
             functionPassManager->add(createLICMPass());
 //            functionPassManager->add(createCFGSimplificationPass());
@@ -873,8 +875,6 @@ public:
 //            DebugFlag = true;
         }
         functionPassManager->run(*function);
-
-        TheModule->dump();
 
         return executionEngine->getPointerToFunction(function);
     }
