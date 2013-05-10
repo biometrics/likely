@@ -15,6 +15,7 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <llvm/PassManager.h>
+#include <llvm/ADT/Triple.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
 #include <llvm/Analysis/Verifier.h>
@@ -23,6 +24,7 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Support/Debug.h>
+#include <llvm/Support/Host.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/Scalar.h>
@@ -471,7 +473,7 @@ struct MatrixBuilder
     Value *compareLT(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFCmpOLT(i, j) : (likely_is_signed(m) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
     Value *compareGT(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFCmpOGT(i, j) : (likely_is_signed(m) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
 
-    Loop beginLoop(BasicBlock *entry, Value *stop) {
+    Loop beginLoop(BasicBlock *entry, Value *start, Value *stop) {
         Loop loop;
         loop.stop = stop;
         loop.body = BasicBlock::Create(getGlobalContext(), name+"_loop_body", f);
@@ -490,7 +492,7 @@ struct MatrixBuilder
         b->SetInsertPoint(loop.body);
 
         loop.i = b->CreatePHI(Type::getInt32Ty(getGlobalContext()), 2, name);
-        loop.i->addIncoming(zero(), entry);
+        loop.i->addIncoming(start, entry);
 
         loops.push(loop);
         return loop;
@@ -573,11 +575,11 @@ public:
     void makeKernel(Function *function)
     {
         vector<Value*> srcs;
-        Value *dst, *len;
-        getValues(function, srcs, dst, len);
+        Value *dst, *start, *stop;
+        getValues(function, srcs, dst, start, stop);
 
         function->addFnAttr(Attribute::NoUnwind);
-        for (size_t i=1; i<function->arg_size(); i++) { // Exclude kernel size argument
+        for (size_t i=1; i<function->arg_size()-1; i++) { // Exclude kernel start and stop arguments
             function->setDoesNotAlias(i);
             function->setDoesNotCapture(i);
         }
@@ -586,7 +588,7 @@ public:
         IRBuilder<> builder(entry);
         kernel.reset(&builder, function, srcs[0]);
 
-        i = kernel.beginLoop(entry, len).i;
+        i = kernel.beginLoop(entry, start, stop).i;
         kernel.store(dst, i, makeEquation(definition.equation));
         kernel.endLoop();
 
@@ -608,13 +610,14 @@ public:
         dst->setName("dst");
     }
 
-    static void getValues(Function *function, vector<Value*> &srcs, Value *&dst, Value *&len)
+    static void getValues(Function *function, vector<Value*> &srcs, Value *&dst, Value *&start, Value *&stop)
     {
         getValues(function, srcs, dst);
-        len = dst;
-        len->setName("len");
-        dst = srcs.back();
-        srcs.pop_back();
+        stop = dst;
+        stop->setName("stop");
+        start = srcs.back(); srcs.pop_back();
+        start->setName("start");
+        dst = srcs.back(); srcs.pop_back();
         dst->setName("dst");
     }
 
@@ -715,6 +718,7 @@ public:
             for (int i=0; i < arity+1; i++)
                 kernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
             kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
+            kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
             Type *kernelReturn = Type::getVoidTy(getGlobalContext());
             kernelFunctionTypes[arity] = kernelFunctionType;
 
@@ -796,6 +800,7 @@ public:
             builder.CreateCondBr(builder.CreateICmpUGT(kernelSize, MatrixBuilder::zero()), kernel, exit);
 
             builder.SetInsertPoint(kernel);
+            args.push_back(MatrixBuilder::zero());
             args.push_back(kernelSize);
             builder.CreateCall(builder.CreateLoad(kernelFunction), args);
             builder.CreateBr(exit);
@@ -849,7 +854,7 @@ public:
         Function *function = TheModule->getFunction(name);
         if (function != NULL)
             return executionEngine->getPointerToFunction(function);
-        function = getFunction(name, matricies.size(), Type::getVoidTy(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
+        function = getFunction(name, matricies.size(), Type::getVoidTy(getGlobalContext()), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
 
         kernels[description].makeKernel(function);
 
@@ -875,10 +880,7 @@ public:
 //            DebugFlag = true;
         }
         functionPassManager->run(*function);
-
         TheModule->dump();
-        executionEngine->getDataLayout()->dump();
-
         return executionEngine->getPointerToFunction(function);
     }
 
@@ -887,14 +889,15 @@ private:
     {
         InitializeNativeTarget();
         TheModule = new Module("likely", getGlobalContext());
+//        TheModule->setDataLayout("E-p:64:64:64-S0-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-f16:16:16-f32:32:32-f64:64:64-f128:128:128-v64:64:64-v128:128:128-a0:0:64");
+        TheModule->setTargetTriple(sys::getProcessTriple());
 
         string error;
-        executionEngine = EngineBuilder(TheModule).setEngineKind(EngineKind::JIT).setErrorStr(&error).create();
+        executionEngine = EngineBuilder(TheModule).setMCPU(sys::getHostCPUName()).setEngineKind(EngineKind::JIT).setErrorStr(&error).create();
         if (executionEngine == NULL) {
             fprintf(stderr, "ERROR - Failed to create LLVM ExecutionEngine with error: %s\n", error.c_str());
             abort();
         }
-
         TheMatrixStruct = StructType::create("Matrix",
                                              Type::getInt8PtrTy(getGlobalContext()), // data
                                              Type::getInt32Ty(getGlobalContext()),   // channels
@@ -913,16 +916,16 @@ private:
         return stream.str();
     }
 
-    static Function *getFunction(const string &description, int arity, Type *returnType, Type *indexType = NULL)
+    static Function *getFunction(const string &description, int arity, Type *ret, Type *start = NULL, Type *stop = NULL)
     {
         PointerType *matrixPointer = PointerType::getUnqual(TheMatrixStruct);
         Function *function;
         switch (arity) {
-          case 0: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, indexType, NULL)); break;
-          case 1: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, matrixPointer, indexType, NULL)); break;
-          case 2: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, matrixPointer, matrixPointer, indexType, NULL)); break;
-          case 3: function = cast<Function>(TheModule->getOrInsertFunction(description, returnType, matrixPointer, matrixPointer, matrixPointer, matrixPointer, indexType, NULL)); break;
-          default: fprintf(stderr, "ERROR - Invalid function arity: %d\n", arity); abort();
+          case 0: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, start, stop, NULL)); break;
+          case 1: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer,  start, stop, NULL)); break;
+          case 2: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer,  start, stop, NULL)); break;
+          case 3: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer, matrixPointer,  start, stop, NULL)); break;
+          default: fprintf(stderr, "ERROR - FunctionBuilder::getFunction invalid arity: %d\n", arity); abort();
         }
         function->setCallingConv(CallingConv::C);
         return function;
@@ -1001,6 +1004,17 @@ LIKELY_EXPORT void *likely_make_kernel(int descriptionIndex, uint8_t arity, like
     va_end(ap);
     assert(arity == srcs.size());
     return likely::FunctionBuilder::makeKernel(descriptionIndex, srcs);
+}
+
+LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, int8_t arity, likely_matrix *src, ...)
+{
+    switch (arity) {
+      case 0: reinterpret_cast<likely_nullary_function>(kernel)(src); break;
+      case 1: reinterpret_cast<likely_unary_function>(kernel)(src, src+1); break;
+      case 2: reinterpret_cast<likely_binary_function>(kernel)(src, src+1, src+2); break;
+      case 3: reinterpret_cast<likely_ternary_function>(kernel)(src, src+1, src+2, src+3); break;
+      default: printf("ERROR - likely_parallel_dispatch invalid arity: %d.\n", arity); abort();
+    }
 }
 
 } // extern "C"
