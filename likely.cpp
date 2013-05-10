@@ -134,10 +134,8 @@ struct Definition
     Definition() = default;
     Definition(const smatch &sm)
     {
-        if (sm.size() != 5) {
-            printf("ERROR - Definition expected 5 fields.\n");
-            abort();
-        }
+        if (sm.size() != 5)
+            { fprintf(stderr, "LIKELY ERROR - Definition::Definition expected 5 fields, got: %d.\n", (int)sm.size()); abort(); }
 
         name = sm[2];
         parameters = split(string(sm[3]).substr(1, string(sm[3]).size()-2), ',');
@@ -150,18 +148,15 @@ struct Definition
         while (!unparsed.empty()) {
             smatch sm;
             regex_match(unparsed, sm, syntax);
-            if (sm.size() < 2) {
-                fprintf(stderr, "ERROR - Unable to tokenize: %s\n", unparsed.c_str());
-                abort();
-            }
+            if (sm.size() < 2)
+                { fprintf(stderr, "LIKELY ERROR - Definition::Definition unable to tokenize: %s.\n", unparsed.c_str()); abort(); }
+
             const string &token = sm[1];
             tokens.push_back(token);
             unparsed = unparsed.substr(unparsed.find(token.c_str())+token.size());
         }
-        if (!getEquation(tokens, equation)) {
-            fprintf(stderr, "ERROR - Unable to parse: %s\n", string(sm[1]).c_str());
-            abort();
-        }
+        if (!getEquation(tokens, equation))
+            { fprintf(stderr, "LIKELY ERROR - Definition::Definition unable to parse: %s.\n", string(sm[1]).c_str()); abort(); }
     }
 
     static Definition get(const string &name)
@@ -172,10 +167,8 @@ struct Definition
                 definitions[definition.name] = definition;
 
         Definition definition = definitions[name];
-        if (name != definition.name) {
-            fprintf(stderr, "ERROR - Missing definition for: %s\n", name.c_str());
-            abort();
-        }
+        if (name != definition.name)
+            { fprintf(stderr, "LIKELY ERROR - Definition::get missing definition for: %s.\n", name.c_str()); abort(); }
 
         return definition;
     }
@@ -193,16 +186,14 @@ private:
         size_t startDefinition = str.find(begin.c_str());
         while (startDefinition != string::npos) {
             size_t endDefinition = str.find(end.c_str(), startDefinition+begin.length());
-            if (endDefinition == string::npos) {
-                fprintf(stderr, "ERROR - Unclosed definition, missing %s\n", end.c_str());
-                abort();
-            }
+            if (endDefinition == string::npos)
+                { fprintf(stderr, "LIKELY ERROR - Definition::definitionsFromString unclosed definition, missing: %s.\n", end.c_str()); abort(); }
+
             const string definition = str.substr(startDefinition+begin.length(), endDefinition-startDefinition-begin.length());
             smatch sm;
-            if (!regex_match(definition, sm, syntax)) {
-                fprintf(stderr, "ERROR - Invalid definition: %s\n", definition.c_str());
-                abort();
-            }
+            if (!regex_match(definition, sm, syntax))
+                { fprintf(stderr, "LIKELY ERROR - Definition::definitionsFromString invalid definition: %s.\n", definition.c_str()); abort(); }
+
             definitions.push_back(Definition(sm));
             startDefinition = str.find(begin.c_str(), endDefinition+1, begin.length());
         }
@@ -511,7 +502,8 @@ struct MatrixBuilder
     static Type *ty(likely_hash hash, bool pointer = false)
     {
         const int bits = likely_depth(hash);
-        if (likely_is_floating(hash)) {
+        const bool floating = likely_is_floating(hash);
+        if (floating) {
             if      (bits == 16) return pointer ? Type::getHalfPtrTy(getGlobalContext())   : Type::getHalfTy(getGlobalContext());
             else if (bits == 32) return pointer ? Type::getFloatPtrTy(getGlobalContext())  : Type::getFloatTy(getGlobalContext());
             else if (bits == 64) return pointer ? Type::getDoublePtrTy(getGlobalContext()) : Type::getDoubleTy(getGlobalContext());
@@ -522,8 +514,7 @@ struct MatrixBuilder
             else if (bits == 32) return pointer ? Type::getInt32PtrTy(getGlobalContext()) : (Type*)Type::getInt32Ty(getGlobalContext());
             else if (bits == 64) return pointer ? Type::getInt64PtrTy(getGlobalContext()) : (Type*)Type::getInt64Ty(getGlobalContext());
         }
-        fprintf(stderr, "ERROR - Invalid matrix type\n");
-        abort();
+        fprintf(stderr, "LIKELY ERROR - MatrixBuilder::ty invalid matrix bits: %d and floating: %d.\n", bits, floating); abort();
         return NULL;
     }
     inline Type *ty(bool pointer = false) const { return ty(h, pointer); }
@@ -546,10 +537,8 @@ public:
         const string name = description.substr(0, lParen);
         arguments = split(description.substr(lParen+1, description.size()-lParen-2), ',');
         definition = Definition::get(name);
-        if (arguments.size() != definition.parameters.size()) {
-            fprintf(stderr, "ERROR - Function %s has %ld parameters but was only given %ld arguments\n", name.c_str(), definition.parameters.size(), arguments.size());
-            abort();
-        }
+        if (arguments.size() != definition.parameters.size())
+            { fprintf(stderr, "LIKELY ERROR - KernelBuilder::KernelBuilder function: %s has: %ld parameters but was only given: %ld arguments.\n", name.c_str(), definition.parameters.size(), arguments.size()); abort(); }
     }
 
     void makeAllocation(Function *function, const vector<likely_matrix*> &matricies)
@@ -633,10 +622,8 @@ public:
         Value *            value = makeMatrix(node);
         if (value == NULL) value = makeParameter(node);
         if (value == NULL) value = makeNumber(node);
-        if (value == NULL) {
-            fprintf(stderr, "ERROR - Code generation failed for factor: %s\n", node.value.c_str());
-            abort();
-        }
+        if (value == NULL)
+            { fprintf(stderr, "LIKELY ERROR - KernelBuilder::makeFactor code generation failed for factor: %s.\n", node.value.c_str()); abort(); }
         return value;
     }
 
@@ -887,10 +874,9 @@ private:
 
         string error;
         executionEngine = EngineBuilder(TheModule).setMCPU(sys::getHostCPUName()).setEngineKind(EngineKind::JIT).setErrorStr(&error).create();
-        if (executionEngine == NULL) {
-            fprintf(stderr, "ERROR - Failed to create LLVM ExecutionEngine with error: %s\n", error.c_str());
-            abort();
-        }
+        if (executionEngine == NULL)
+            { fprintf(stderr, "LIKELY ERROR - FunctionBuilder::initialize failed to create LLVM ExecutionEngine with error: %s.\n", error.c_str()); abort(); }
+
         TheMatrixStruct = StructType::create("Matrix",
                                              Type::getInt8PtrTy(getGlobalContext()), // data
                                              Type::getInt32Ty(getGlobalContext()),   // channels
@@ -918,7 +904,7 @@ private:
           case 1: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer,  start, stop, NULL)); break;
           case 2: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer,  start, stop, NULL)); break;
           case 3: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer, matrixPointer,  start, stop, NULL)); break;
-          default: fprintf(stderr, "ERROR - FunctionBuilder::getFunction invalid arity: %d\n", arity); abort();
+          default: fprintf(stderr, "LIKELY ERROR - FunctionBuilder::getFunction invalid arity: %d.\n", arity); abort();
         }
         function->setCallingConv(CallingConv::C);
         return function;
@@ -1006,7 +992,7 @@ LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, int8_t arity, likely_m
       case 1: reinterpret_cast<likely_unary_function>(kernel)(src, src+1); break;
       case 2: reinterpret_cast<likely_binary_function>(kernel)(src, src+1, src+2); break;
       case 3: reinterpret_cast<likely_ternary_function>(kernel)(src, src+1, src+2, src+3); break;
-      default: printf("ERROR - likely_parallel_dispatch invalid arity: %d.\n", arity); abort();
+      default: fprintf(stderr, "LIKELY ERROR - likely_parallel_dispatch invalid arity: %d.\n", arity); abort();
     }
 }
 
