@@ -41,10 +41,20 @@
 using namespace llvm;
 using namespace std;
 
+void likely_assert(bool condition, const char *format, ...)
+{
+    if (condition) return;
+    fprintf(stderr, "LIKELY ERROR - ");
+    va_list ap;
+    va_start(ap, format);
+    vfprintf(stderr, format, ap);
+    fprintf(stderr, ".\n");
+    abort();
+}
+
 double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
 {
-    if (m == NULL)
-        { fprintf(stderr, "LIKELY ERROR - likely_element received a null matrix.\n"); abort(); }
+    likely_assert(m != NULL, "likely_element received a null matrix");
     const int columnStep = m->channels;
     const int rowStep = m->columns * columnStep;
     const int frameStep = m->rows * rowStep;
@@ -61,15 +71,14 @@ double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y
       case likely_hash_i64: return  ((int64_t*)m->data)[index];
       case likely_hash_f32: return    ((float*)m->data)[index];
       case likely_hash_f64: return   ((double*)m->data)[index];
-      default: fprintf(stderr, "LIKELY ERROR - likely_element unsupported type.\n"); abort();
+      default: likely_assert(false, "likely_element unsupported type");
     }
     return numeric_limits<double>::quiet_NaN();
 }
 
 void likely_set_element(likely_matrix *m, double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
 {
-    if (m == NULL)
-        { fprintf(stderr, "LIKELY ERROR - likely_set_element received a null matrix.\n"); abort(); }
+    likely_assert(m != NULL, "likely_set_element received a null matrix");
     const int columnStep = m->channels;
     const int rowStep = m->channels * columnStep;
     const int frameStep = m->rows * rowStep;
@@ -86,7 +95,7 @@ void likely_set_element(likely_matrix *m, double value, uint32_t c, uint32_t x, 
       case likely_hash_i64:  ((int64_t*)m->data)[index] = value; break;
       case likely_hash_f32:    ((float*)m->data)[index] = value; break;
       case likely_hash_f64:   ((double*)m->data)[index] = value; break;
-      default: fprintf(stderr, "LIKELY ERROR - likely_set_element unsupported type.\n"); abort();
+      default: likely_assert(false, "likely_set_element unsupported type");
     }
 }
 
@@ -136,8 +145,7 @@ struct Definition
     Definition() = default;
     Definition(const smatch &sm)
     {
-        if (sm.size() != 5)
-            { fprintf(stderr, "LIKELY ERROR - Definition::Definition expected 5 fields, got: %zu.\n", sm.size()); abort(); }
+        likely_assert(sm.size() == 5, "Definition::Definition expected 5 fields, got: %zu", sm.size());
 
         name = sm[2];
         parameters = split(string(sm[3]).substr(1, string(sm[3]).size()-2), ',');
@@ -150,15 +158,13 @@ struct Definition
         while (!unparsed.empty()) {
             smatch sm;
             regex_match(unparsed, sm, syntax);
-            if (sm.size() < 2)
-                { fprintf(stderr, "LIKELY ERROR - Definition::Definition unable to tokenize: %s.\n", unparsed.c_str()); abort(); }
+            likely_assert(sm.size() >= 2, "Definition::Definition unable to tokenize: %s", unparsed.c_str());
 
             const string &token = sm[1];
             tokens.push_back(token);
             unparsed = unparsed.substr(unparsed.find(token.c_str())+token.size());
         }
-        if (!getEquation(tokens, equation))
-            { fprintf(stderr, "LIKELY ERROR - Definition::Definition unable to parse: %s.\n", string(sm[1]).c_str()); abort(); }
+        likely_assert(getEquation(tokens, equation), "Definition::Definition unable to parse: %s", string(sm[1]).c_str());
     }
 
     static Definition get(const string &name)
@@ -169,8 +175,7 @@ struct Definition
                 definitions[definition.name] = definition;
 
         Definition definition = definitions[name];
-        if (name != definition.name)
-            { fprintf(stderr, "LIKELY ERROR - Definition::get missing definition for: %s.\n", name.c_str()); abort(); }
+        likely_assert(name == definition.name, "Definition::get missing definition for: %s", name.c_str());
 
         return definition;
     }
@@ -188,13 +193,11 @@ private:
         size_t startDefinition = str.find(begin.c_str());
         while (startDefinition != string::npos) {
             size_t endDefinition = str.find(end.c_str(), startDefinition+begin.length());
-            if (endDefinition == string::npos)
-                { fprintf(stderr, "LIKELY ERROR - Definition::definitionsFromString unclosed definition, missing: %s.\n", end.c_str()); abort(); }
+            likely_assert(endDefinition != string::npos, "Definition::definitionsFromString unclosed definition, missing: %s", end.c_str());
 
             const string definition = str.substr(startDefinition+begin.length(), endDefinition-startDefinition-begin.length());
             smatch sm;
-            if (!regex_match(definition, sm, syntax))
-                { fprintf(stderr, "LIKELY ERROR - Definition::definitionsFromString invalid definition: %s.\n", definition.c_str()); abort(); }
+            likely_assert(regex_match(definition, sm, syntax), "Definition::definitionsFromString invalid definition: %s", definition.c_str());
 
             definitions.push_back(Definition(sm));
             startDefinition = str.find(begin.c_str(), endDefinition+1, begin.length());
@@ -516,7 +519,7 @@ struct MatrixBuilder
             else if (bits == 32) return pointer ? Type::getInt32PtrTy(getGlobalContext()) : (Type*)Type::getInt32Ty(getGlobalContext());
             else if (bits == 64) return pointer ? Type::getInt64PtrTy(getGlobalContext()) : (Type*)Type::getInt64Ty(getGlobalContext());
         }
-        fprintf(stderr, "LIKELY ERROR - MatrixBuilder::ty invalid matrix bits: %d and floating: %d.\n", bits, floating); abort();
+        likely_assert(false, "MatrixBuilder::ty invalid matrix bits: %d and floating: %d", bits, floating);
         return NULL;
     }
     inline Type *ty(bool pointer = false) const { return ty(h, pointer); }
@@ -541,8 +544,7 @@ public:
         const string name = description.substr(0, lParen);
         arguments = split(description.substr(lParen+1, description.size()-lParen-2), ',');
         definition = Definition::get(name);
-        if (arguments.size() != definition.parameters.size())
-            { fprintf(stderr, "LIKELY ERROR - KernelBuilder::KernelBuilder function: %s has: %ld parameters but was only given: %ld arguments.\n", name.c_str(), definition.parameters.size(), arguments.size()); abort(); }
+        likely_assert(arguments.size() == definition.parameters.size(), "KernelBuilder::KernelBuilder function: %s requires: %zu parameters but was only given: %zu arguments", name.c_str(), definition.parameters.size(), arguments.size());
     }
 
     void makeAllocation(Function *function, const vector<likely_hash> &hashes_)
@@ -666,8 +668,7 @@ public:
         Value *            value = makeMatrix(node);
         if (value == NULL) value = makeParameter(node);
         if (value == NULL) value = makeNumber(node);
-        if (value == NULL)
-            { fprintf(stderr, "LIKELY ERROR - KernelBuilder::makeFactor code generation failed for factor: %s.\n", node.value.c_str()); abort(); }
+        likely_assert(value != NULL, "KernelBuilder::makeFactor code generation failed for factor: %s", node.value.c_str());
         return value;
     }
 
@@ -896,8 +897,7 @@ private:
 
         string error;
         executionEngine = EngineBuilder(TheModule).setMCPU(sys::getHostCPUName()).setEngineKind(EngineKind::JIT).setErrorStr(&error).create();
-        if (executionEngine == NULL)
-            { fprintf(stderr, "LIKELY ERROR - FunctionBuilder::initialize failed to create LLVM ExecutionEngine with error: %s.\n", error.c_str()); abort(); }
+        likely_assert(executionEngine != NULL, "FunctionBuilder::initialize failed to create LLVM ExecutionEngine with error: %s", error.c_str());
 
         TheMatrixStruct = StructType::create("Matrix",
                                              Type::getInt8PtrTy(getGlobalContext()), // data
@@ -926,7 +926,7 @@ private:
           case 1: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer,  start, stop, NULL)); break;
           case 2: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer,  start, stop, NULL)); break;
           case 3: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer, matrixPointer,  start, stop, NULL)); break;
-          default: fprintf(stderr, "LIKELY ERROR - FunctionBuilder::getFunction invalid arity: %d.\n", arity); abort();
+          default: likely_assert(false, "FunctionBuilder::getFunction invalid arity: %d", arity);
         }
         function->setCallingConv(CallingConv::C);
         return function;
@@ -965,7 +965,7 @@ void likely_print_matrix(const likely_matrix *m)
                       case likely_hash_i64: cout <<  (int64_t)value; break;
                       case likely_hash_f32: cout <<    (float)value; break;
                       case likely_hash_f64: cout <<   (double)value; break;
-                      default: fprintf(stderr, "LIKELY ERROR - likely_print_matrix unsupported type.\n"); abort();
+                      default: likely_assert(false, "likely_print_matrix unsupported type.");
                     }
                 }
                 cout << (m->channels > 1 ? ";" : (x < m->columns-1 ? " " : ""));
@@ -989,8 +989,7 @@ LIKELY_EXPORT void *likely_make_allocation(int descriptionIndex, uint8_t arity, 
         src = va_arg(ap, likely_matrix*);
     }
     va_end(ap);
-    if (arity != hashes.size())
-        { fprintf(stderr, "LIKELY ERROR - likely_make_allocation expected: %u matricies but got %zu.\n", arity, hashes.size()); abort(); }
+    likely_assert(arity == hashes.size(), "likely_make_allocation expected: %u matricies but got %zu", arity, hashes.size());
     return likely::FunctionBuilder::makeAllocation(descriptionIndex, hashes);
 }
 
@@ -1004,8 +1003,7 @@ LIKELY_EXPORT void *likely_make_kernel(int descriptionIndex, uint8_t arity, like
         src = va_arg(ap, likely_matrix*);
     }
     va_end(ap);
-    if (arity != hashes.size())
-        { fprintf(stderr, "LIKELY ERROR - likely_make_kernel expected: %u matricies but got %zu.\n", arity, hashes.size()); abort(); }
+    likely_assert(arity == hashes.size(), "likely_make_kernel expected: %u matricies but got %zu", arity, hashes.size());
     return likely::FunctionBuilder::makeKernel(descriptionIndex, hashes);
 }
 
@@ -1016,7 +1014,7 @@ LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, int8_t arity, likely_m
       case 1: reinterpret_cast<likely_unary_function>(kernel)(src, src+1); break;
       case 2: reinterpret_cast<likely_binary_function>(kernel)(src, src+1, src+2); break;
       case 3: reinterpret_cast<likely_ternary_function>(kernel)(src, src+1, src+2, src+3); break;
-      default: fprintf(stderr, "LIKELY ERROR - likely_parallel_dispatch invalid arity: %d.\n", arity); abort();
+      default: likely_assert(false, "likely_parallel_dispatch invalid arity: %d", arity);
     }
 }
 
