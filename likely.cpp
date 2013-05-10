@@ -43,7 +43,8 @@ using namespace std;
 
 double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
 {
-    assert((m != NULL) && "Null matrix!");
+    if (m == NULL)
+        { fprintf(stderr, "LIKELY ERROR - likely_element received a null matrix.\n"); abort(); }
     const int columnStep = m->channels;
     const int rowStep = m->columns * columnStep;
     const int frameStep = m->rows * rowStep;
@@ -60,14 +61,15 @@ double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y
       case likely_hash_i64: return  ((int64_t*)m->data)[index];
       case likely_hash_f32: return    ((float*)m->data)[index];
       case likely_hash_f64: return   ((double*)m->data)[index];
-      default:                 assert(!"Unsupported element type!");
+      default: fprintf(stderr, "LIKELY ERROR - likely_element unsupported type.\n"); abort();
     }
     return numeric_limits<double>::quiet_NaN();
 }
 
 void likely_set_element(likely_matrix *m, double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
 {
-    assert((m != NULL) && "Null matrix!");
+    if (m == NULL)
+        { fprintf(stderr, "LIKELY ERROR - likely_set_element received a null matrix.\n"); abort(); }
     const int columnStep = m->channels;
     const int rowStep = m->channels * columnStep;
     const int frameStep = m->rows * rowStep;
@@ -84,7 +86,7 @@ void likely_set_element(likely_matrix *m, double value, uint32_t c, uint32_t x, 
       case likely_hash_i64:  ((int64_t*)m->data)[index] = value; break;
       case likely_hash_f32:    ((float*)m->data)[index] = value; break;
       case likely_hash_f64:   ((double*)m->data)[index] = value; break;
-      default:                 assert(!"Unsupported element type!");
+      default: fprintf(stderr, "LIKELY ERROR - likely_set_element unsupported type.\n"); abort();
     }
 }
 
@@ -135,7 +137,7 @@ struct Definition
     Definition(const smatch &sm)
     {
         if (sm.size() != 5)
-            { fprintf(stderr, "LIKELY ERROR - Definition::Definition expected 5 fields, got: %d.\n", (int)sm.size()); abort(); }
+            { fprintf(stderr, "LIKELY ERROR - Definition::Definition expected 5 fields, got: %zu.\n", sm.size()); abort(); }
 
         name = sm[2];
         parameters = split(string(sm[3]).substr(1, string(sm[3]).size()-2), ',');
@@ -523,15 +525,17 @@ struct MatrixBuilder
 
 class KernelBuilder
 {
+    string description;
     Definition definition;
     vector<string> arguments;
+    vector<likely_hash> hashes;
     MatrixBuilder kernel;
     PHINode *i;
 
 public:
     KernelBuilder() : i(NULL) {}
-    KernelBuilder(const string &description)
-        : i(NULL)
+    KernelBuilder(const string &description_)
+        : description(description_), i(NULL)
     {
         const size_t lParen = description.find('(');
         const string name = description.substr(0, lParen);
@@ -541,8 +545,9 @@ public:
             { fprintf(stderr, "LIKELY ERROR - KernelBuilder::KernelBuilder function: %s has: %ld parameters but was only given: %ld arguments.\n", name.c_str(), definition.parameters.size(), arguments.size()); abort(); }
     }
 
-    void makeAllocation(Function *function, const vector<likely_matrix*> &matricies)
+    void makeAllocation(Function *function, const vector<likely_hash> &hashes_)
     {
+        hashes = hashes_;
         vector<Value*> srcs;
         Value *dst;
         getValues(function, srcs, dst);
@@ -550,11 +555,11 @@ public:
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
 
-        likely_hash hash = likely_hash_null;
-        for (likely_matrix *matrix : matricies)
-            hash |= matrix->hash;
+        likely_hash kernelHash = likely_hash_null;
+        for (likely_hash hash : hashes)
+            kernelHash |= hash;
 
-        kernel = MatrixBuilder(&builder, function, "kernel", hash, srcs[0]);
+        kernel = MatrixBuilder(&builder, function, "kernel", kernelHash, srcs[0]);
         kernel.copyHeaderTo(dst);
         builder.CreateRet(kernel.elements());
     }
@@ -816,22 +821,22 @@ public:
         return executionEngine->getPointerToFunction(function);
     }
 
-    static void *makeAllocation(int descriptionIndex, const vector<likely_matrix*> &matricies)
+    static void *makeAllocation(int descriptionIndex, const vector<likely_hash> &hashes)
     {
         const string description = descriptions[descriptionIndex];
-        const string name = mangledName(description, matricies)+"_allocation";
+        const string name = mangledName(description, hashes)+"_allocation";
 
         Function *function = TheModule->getFunction(name);
         if (function != NULL)
             return executionEngine->getPointerToFunction(function);
-        function = getFunction(name, matricies.size(), Type::getInt32Ty(getGlobalContext()));
+        function = getFunction(name, hashes.size(), Type::getInt32Ty(getGlobalContext()));
 
         auto kernelPointer = kernels.find(description);
         if (kernelPointer == kernels.end()) {
             kernels[description] = KernelBuilder(description);
             kernelPointer = kernels.find(description);
         }
-        (*kernelPointer).second.makeAllocation(function, matricies);
+        (*kernelPointer).second.makeAllocation(function, hashes);
 
         static FunctionPassManager *functionPassManager = NULL;
         if (functionPassManager == NULL) {
@@ -843,15 +848,15 @@ public:
         return executionEngine->getPointerToFunction(function);
     }
 
-    static void *makeKernel(int descriptionIndex, const vector<likely_matrix*> &matricies)
+    static void *makeKernel(int descriptionIndex, const vector<likely_hash> &hashes)
     {
         const string description = descriptions[descriptionIndex];
-        const string name = mangledName(description, matricies)+"_kernel";
+        const string name = mangledName(description, hashes)+"_kernel";
 
         Function *function = TheModule->getFunction(name);
         if (function != NULL)
             return executionEngine->getPointerToFunction(function);
-        function = getFunction(name, matricies.size(), Type::getVoidTy(getGlobalContext()), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
+        function = getFunction(name, hashes.size(), Type::getVoidTy(getGlobalContext()), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
 
         kernels[description].makeKernel(function);
 
@@ -904,11 +909,11 @@ private:
                                              NULL);
     }
 
-    static string mangledName(const string &description, const vector<likely_matrix*> &matrices)
+    static string mangledName(const string &description, const vector<likely_hash> &hashes)
     {
         stringstream stream; stream << description;
-        for (likely_matrix *matrix : matrices)
-            stream << "_" << hex << setfill('0') << setw(4) << matrix->hash;
+        for (likely_hash hash : hashes)
+            stream << "_" << hex << setfill('0') << setw(4) << hash;
         return stream.str();
     }
 
@@ -960,7 +965,7 @@ void likely_print_matrix(const likely_matrix *m)
                       case likely_hash_i64: cout <<  (int64_t)value; break;
                       case likely_hash_f32: cout <<    (float)value; break;
                       case likely_hash_f64: cout <<   (double)value; break;
-                      default:                 assert(!"Unsupported element type!");
+                      default: fprintf(stderr, "LIKELY ERROR - likely_print_matrix unsupported type.\n"); abort();
                     }
                 }
                 cout << (m->channels > 1 ? ";" : (x < m->columns-1 ? " " : ""));
@@ -976,30 +981,32 @@ extern "C" {
 
 LIKELY_EXPORT void *likely_make_allocation(int descriptionIndex, uint8_t arity, likely_matrix *src, ...)
 {
-    vector<likely_matrix*> srcs;
+    vector<likely_hash> hashes;
     va_list ap;
     va_start(ap, src);
     while (src != NULL) {
-        srcs.push_back(src);
+        hashes.push_back(src->hash);
         src = va_arg(ap, likely_matrix*);
     }
     va_end(ap);
-    assert(arity == srcs.size());
-    return likely::FunctionBuilder::makeAllocation(descriptionIndex, srcs);
+    if (arity != hashes.size())
+        { fprintf(stderr, "LIKELY ERROR - likely_make_allocation expected: %u matricies but got %zu.\n", arity, hashes.size()); abort(); }
+    return likely::FunctionBuilder::makeAllocation(descriptionIndex, hashes);
 }
 
 LIKELY_EXPORT void *likely_make_kernel(int descriptionIndex, uint8_t arity, likely_matrix *src, ...)
 {
-    vector<likely_matrix*> srcs;
+    vector<likely_hash> hashes;
     va_list ap;
     va_start(ap, src);
     while (src != NULL) {
-        srcs.push_back(src);
+        hashes.push_back(src->hash);
         src = va_arg(ap, likely_matrix*);
     }
     va_end(ap);
-    assert(arity == srcs.size());
-    return likely::FunctionBuilder::makeKernel(descriptionIndex, srcs);
+    if (arity != hashes.size())
+        { fprintf(stderr, "LIKELY ERROR - likely_make_kernel expected: %u matricies but got %zu.\n", arity, hashes.size()); abort(); }
+    return likely::FunctionBuilder::makeKernel(descriptionIndex, hashes);
 }
 
 LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, int8_t arity, likely_matrix *src, ...)
