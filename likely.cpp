@@ -268,9 +268,9 @@ struct MatrixBuilder
 {
     IRBuilder<> *b;
     Function *f;
-    Twine name;
-    Value *v;
+    Twine n;
     likely_hash h;
+    Value *v;
 
     struct Loop {
         BasicBlock *body, *exit;
@@ -280,9 +280,9 @@ struct MatrixBuilder
     };
     stack<Loop> loops;
 
-    MatrixBuilder() : b(NULL), f(NULL), v(NULL), h(likely_hash_null) {}
-    MatrixBuilder(IRBuilder<> *builder, Function *function, const Twine &name_ = "", Value *value = NULL, likely_hash hash = likely_hash_null)
-        : b(builder), f(function), name(name_), v(value), h(hash){}
+    MatrixBuilder() : b(NULL), f(NULL), h(likely_hash_null), v(NULL) {}
+    MatrixBuilder(IRBuilder<> *builder, Function *function, const Twine &name, likely_hash hash = likely_hash_null, Value *value = NULL)
+        : b(builder), f(function), n(name), h(hash), v(value) {}
     void reset(IRBuilder<> *builder, Function *function, Value *value) { b = builder; f = function; v = value; }
 
     static Constant *constant(int value, int bits = 32) { return Constant::getIntegerValue(Type::getInt32Ty(getGlobalContext()), APInt(bits, value)); }
@@ -292,15 +292,15 @@ struct MatrixBuilder
     static Constant *zero() { return constant(0); }
     static Constant *one() { return constant(1); }
     Constant *autoConstant(double value) const { return likely_is_floating(h) ? ((likely_depth(h) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(h)); }
-    AllocaInst *autoAlloca(double value) const { AllocaInst *alloca = b->CreateAlloca(ty(), 0, name); b->CreateStore(autoConstant(value), alloca); return alloca; }
+    AllocaInst *autoAlloca(double value) const { AllocaInst *alloca = b->CreateAlloca(ty(), 0, n); b->CreateStore(autoConstant(value), alloca); return alloca; }
 
-    Value *data(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 0), name+"_data"); }
+    Value *data(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 0), n+"_data"); }
     Value *data(Value *matrix, Type *type) const { return b->CreatePointerCast(data(matrix), type); }
-    Value *channels(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 1), name+"_channels"); }
-    Value *columns(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 2), name+"_columns"); }
-    Value *rows(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 3), name+"_rows"); }
-    Value *frames(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 4), name+"_frames"); }
-    Value *hash(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 5), name+"_hash"); }
+    Value *channels(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 1), n+"_channels"); }
+    Value *columns(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 2), n+"_columns"); }
+    Value *rows(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 3), n+"_rows"); }
+    Value *frames(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 4), n+"_frames"); }
+    Value *hash(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 5), n+"_hash"); }
 
     Value *data(bool cast = true) const { return cast ? data(v, ty(true)) : data(v); }
     Value *channels() const { return likely_is_single_channel(h) ? static_cast<Value*>(one()) : channels(v); }
@@ -375,9 +375,9 @@ struct MatrixBuilder
     Value *elements() const { return b->CreateMul(b->CreateMul(b->CreateMul(channels(), columns()), rows()), frames()); }
     Value *bytes() const { return b->CreateMul(b->CreateUDiv(b->CreateCast(Instruction::ZExt, bits(), Type::getInt32Ty(getGlobalContext())), constant(8, 32)), elements()); }
 
-    Value *columnStep() const { Value *columnStep = channels(); columnStep->setName(name+"_cStep"); return columnStep; }
-    Value *rowStep() const { return b->CreateMul(columns(), columnStep(), name+"_rStep"); }
-    Value *frameStep() const { return b->CreateMul(rows(), rowStep(), name+"_tStep"); }
+    Value *columnStep() const { Value *columnStep = channels(); columnStep->setName(n+"_cStep"); return columnStep; }
+    Value *rowStep() const { return b->CreateMul(columns(), columnStep(), n+"_rStep"); }
+    Value *frameStep() const { return b->CreateMul(rows(), rowStep(), n+"_tStep"); }
 
     Value *index(Value *c) const { return likely_is_single_channel(h) ? constant(0) : c; }
     Value *index(Value *c, Value *x) const { return likely_is_single_column(h) ? index(c) : b->CreateAdd(b->CreateMul(x, columnStep()), index(c)); }
@@ -394,8 +394,8 @@ struct MatrixBuilder
             *x = constant(0);
         } else {
             Value *step = columnStep();
-            rem = b->CreateURem(i, step, name+"_xRem");
-            *x = b->CreateExactUDiv(b->CreateSub(i, rem), step, name+"_x");
+            rem = b->CreateURem(i, step, n+"_xRem");
+            *x = b->CreateExactUDiv(b->CreateSub(i, rem), step, n+"_x");
         }
         deindex(rem, c);
     }
@@ -406,8 +406,8 @@ struct MatrixBuilder
             *y = constant(0);
         } else {
             Value *step = rowStep();
-            rem = b->CreateURem(i, step, name+"_yRem");
-            *y = b->CreateExactUDiv(b->CreateSub(i, rem), step, name+"_y");
+            rem = b->CreateURem(i, step, n+"_yRem");
+            *y = b->CreateExactUDiv(b->CreateSub(i, rem), step, n+"_y");
         }
         deindex(rem, c, x);
     }
@@ -418,8 +418,8 @@ struct MatrixBuilder
             *t = constant(0);
         } else {
             Value *step = frameStep();
-            rem = b->CreateURem(i, step, name+"_tRem");
-            *t = b->CreateExactUDiv(b->CreateSub(i, rem), step, name+"_t");
+            rem = b->CreateURem(i, step, n+"_tRem");
+            *t = b->CreateExactUDiv(b->CreateSub(i, rem), step, n+"_t");
         }
         deindex(rem, c, x, y);
     }
@@ -449,10 +449,10 @@ struct MatrixBuilder
     }
 
     Value *cast(Value *i, const MatrixBuilder &dst) const { return (likely_type(h) == likely_type(dst.h)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(h), dst.ty(), likely_is_signed(h)), i, dst.ty()); }
-    Value *add(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFAdd(i, j, name) : b->CreateAdd(i, j, name); }
-    Value *subtract(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFSub(i, j, name) : b->CreateSub(i, j, name); }
-    Value *multiply(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFMul(i, j, name) : b->CreateMul(i, j, name); }
-    Value *divide(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFDiv(i, j, name) : (likely_is_signed(h) ? b->CreateSDiv(i,j, name) : b->CreateUDiv(i, j, name)); }
+    Value *add(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFAdd(i, j, n) : b->CreateAdd(i, j, n); }
+    Value *subtract(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFSub(i, j, n) : b->CreateSub(i, j, n); }
+    Value *multiply(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFMul(i, j, n) : b->CreateMul(i, j, n); }
+    Value *divide(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFDiv(i, j, n) : (likely_is_signed(h) ? b->CreateSDiv(i,j, n) : b->CreateUDiv(i, j, n)); }
 
     Value *compareLT(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFCmpOLT(i, j) : (likely_is_signed(h) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
     Value *compareGT(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFCmpOGT(i, j) : (likely_is_signed(h) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
@@ -460,8 +460,8 @@ struct MatrixBuilder
     Loop beginLoop(BasicBlock *entry, Value *start, Value *stop) {
         Loop loop;
         loop.stop = stop;
-        loop.body = BasicBlock::Create(getGlobalContext(), name+"_loop_body", f);
-        loop.exit = BasicBlock::Create(getGlobalContext(), name+"_loop_exit", f);
+        loop.body = BasicBlock::Create(getGlobalContext(), n+"_loop_body", f);
+        loop.exit = BasicBlock::Create(getGlobalContext(), n+"_loop_exit", f);
 
         // Create self-referencing loop node
         vector<Value*> metadata;
@@ -475,7 +475,7 @@ struct MatrixBuilder
         b->CreateBr(loop.body);
         b->SetInsertPoint(loop.body);
 
-        loop.i = b->CreatePHI(Type::getInt32Ty(getGlobalContext()), 2, name);
+        loop.i = b->CreatePHI(Type::getInt32Ty(getGlobalContext()), 2, n);
         loop.i->addIncoming(start, entry);
 
         loops.push(loop);
@@ -484,10 +484,10 @@ struct MatrixBuilder
 
     void endLoop() {
         const Loop &loop = loops.top();
-        Value *increment = b->CreateAdd(loop.i, one(), name+"_loop_increment");
+        Value *increment = b->CreateAdd(loop.i, one(), n+"_loop_increment");
         loop.i->addIncoming(increment, loop.body);
 
-        BranchInst *latch = b->CreateCondBr(b->CreateICmpEQ(increment, loop.stop, name+"_loop_test"), loop.exit, loop.body);
+        BranchInst *latch = b->CreateCondBr(b->CreateICmpEQ(increment, loop.stop, n+"_loop_test"), loop.exit, loop.body);
         latch->setMetadata("llvm.loop.parallel", loop.node);
 
         b->SetInsertPoint(loop.exit);
@@ -549,7 +549,12 @@ public:
 
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
-        kernel = MatrixBuilder(&builder, function, "kernel", srcs[0], matricies[0]->hash);
+
+        likely_hash hash = likely_hash_null;
+        for (likely_matrix *matrix : matricies)
+            hash |= matrix->hash;
+
+        kernel = MatrixBuilder(&builder, function, "kernel", hash, srcs[0]);
         kernel.copyHeaderTo(dst);
         builder.CreateRet(kernel.elements());
     }
@@ -772,7 +777,7 @@ public:
                 malloc->setCallingConv(CallingConv::C);
             }
 
-            MatrixBuilder mbDst(&builder, function, "dst", dst);
+            MatrixBuilder mbDst(&builder, function, "dst", likely_hash_null, dst);
             mbDst.setData(builder.CreateCall(malloc, mbDst.bytes()));
 
             BasicBlock *kernel = BasicBlock::Create(getGlobalContext(), "kernel", function);
