@@ -38,6 +38,8 @@
       var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
     })();
   </script>
+
+  <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
 </head>
 
 <body onload="prettyPrint()">
@@ -80,6 +82,7 @@
         <li><a href="#binary_functions">Binary Functions</a></li>
         <li><a hreg="#ternary_functions">Ternary Functions</a></li>
       </ul>
+      <li><a href="#benchmark">Benchmark</a></li>
     </ul>
     <h2 id="introduction">Introduction</h2>
     <p>Welcome to the documentation <i>and source code</i> for <i>Likely</i> the literate kernel library!
@@ -289,6 +292,35 @@ digit = '0' | '1' | ... | '9' | '.'
     </ul>
     <h3 id="binary_functions">Binary Functions</h3>
     <h3 id="ternary_functions">Ternary Functions</h3>
+    <h2 id="benchmark">Benchmark</h2>
+    <div id="viz"></div>
+        <script type="text/javascript">
+        d3.text("benchmark.csv", function(datasetText) {
+
+        var parsedCSV = d3.csv.parseRows(datasetText);
+
+        var sampleHTML = d3.select("#viz")
+            .append("table")
+            .style("border-collapse", "collapse")
+            .style("border", "2px black solid")
+
+            .selectAll("tr")
+            .data(parsedCSV)
+            .enter().append("tr")
+
+            .selectAll("td")
+            .data(function(d){return d;})
+            .enter().append("td")
+            .style("border", "1px black solid")
+            .style("padding", "5px")
+            .on("mouseover", function(){d3.select(this).style("background-color", "aliceblue")})
+            .on("mouseout", function(){d3.select(this).style("background-color", "white")})
+            .text(function(d){return d;})
+            .style("font-size", "12px");
+        });
+        </script>
+        <br>
+
   </div> </div> </div>
 </body>
 

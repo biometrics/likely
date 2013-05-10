@@ -876,6 +876,9 @@ public:
         }
         functionPassManager->run(*function);
 
+        TheModule->dump();
+        executionEngine->getDataLayout()->dump();
+
         return executionEngine->getPointerToFunction(function);
     }
 
