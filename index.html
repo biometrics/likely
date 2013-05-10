@@ -108,7 +108,7 @@
       The repeated execution of a kernel with the same matrix type means that branching to handle different data types is unnecessary, entire loops and code blocks can be eliminated, and many values that would be runtime parameters instead become compile time constants.
       For this reason, it's not uncommon for Likely kernels to be <i>faster</i> than equally generic <tt>C</tt> code.
     </p>
-    <p id="hash_introduction">In Likely, a matrix's type is referred to as its <i><a href="#the_matrix_hash">hash</a></i>, encompassing its data type (<tt>integer</tt> or <tt>floating point</tt>), depth (<tt>8</tt>, <tt>16</tt>, <tt>32</tt>, or <tt>64</tt> bits), computation location (<tt>serial CPU</tt>, <tt>parallel CPU</tt>, or <tt>heterogeneous coprocessor</tt>), and its <tt>single-dimension</tt> axes.
+    <p id="hash_introduction">In Likely, a matrix's type is referred to as its <i><a href="#the_hash">hash</a></i>, encompassing its data type (<tt>integer</tt> or <tt>floating point</tt>), depth (<tt>8</tt>, <tt>16</tt>, <tt>32</tt>, or <tt>64</tt> bits), computation location (<tt>serial CPU</tt>, <tt>parallel CPU</tt>, or <tt>heterogeneous coprocessor</tt>), and its <tt>single-dimension</tt> axes.
       Likely functions check the input's hash against the currently compiled kernel's hash and recompile on a mismatch.
       In this way,
       <blockquote>
@@ -116,13 +116,13 @@
       </blockquote>
     </p>
     <h3 id="uncompromisingly_elegant">Uncompromisingly Elegant</h3>
-    <p>Likely is inspired by Donald Knuth's <i>literate programming</i>.
-      It is a <i>literate</i> kernel library because
+    <p>Likely is loosely inspired by Donald Knuth's <i>literate programming</i>.
+      Though in this case <i>literate</i> refers to the fact that
       <blockquote>
-        <p>all the kernels documented on this webpage are also the source code for the library.</p>
+        <p>the kernels rendered on this webpage <i>are</i> the source code for the standard library.</p>
       </blockquote>
-      In fact, this webpage is compiled into the Likely library and parsed at runtime to extract kernel definitions.
-      You can access this content for yourself with <code class="prettyprint lang-c">const char *this_webpage = likely_index_html();</code>.
+      In fact, this webpage is compiled into the SDK and parsed at runtime to extract kernel definitions.
+      You can access it for yourself with <code class="prettyprint lang-c">const char *this_webpage = likely_index_html();</code>.
     </p>
     <p>Kernels are written in $LaTeX$ allowing source code the same high-quality rendering used in professional publications.</p>
     <h2 id="installation">Installation</h2>
@@ -166,34 +166,34 @@
     <pre class="prettyprint lang-c">likely_matrix *m = foo();<br>int columnStep = m->channels;<br>int rowStep = m->channels * columnStep;<br>int frameStep = m->rows * rowStep;<br>int index = t*frameStep + y*rowStep + x*columnStep + c;<br>assert(likely_type(m) == likely_matrix::f64);<br>double element = ((double*)m->data)[index];</pre>
     <p>Convenience functions <code class="prettyprint lang-c">double likely_element(...)</code> and <code class="prettyprint lang-c">void likely_set_element(...)</code> are provided for individual element access.
       Using the convenience functions is inefficient when iterating over a large numbers of elements due to the repeated index calculation, and their use is generally suggested only for debugging purposes or when the matrix is known to be small.</p>
-    <h4 id="the_matrix_hash">The Matrix Hash</h4>
-    <p>As suggested in the <a href="#hash_introduction">introduction</a>, the matrix hash plays a critical role in determining how to process the matrix.
+    <h4 id="the_matrix_hash">The Hash</h4>
+    <p>As suggested in the <a href="#hash_introduction">introduction</a>, the <tt>likely_hash</tt> plays a critical role in determining how to process matricies.
       The hash is a 2-byte <i>bit field</i> that encodes what data type the matrix is are where it should be processed.
       It also specifies which, if any, of the channels, columns, rows, and frames of the matrix are length 1.
       This knowledge is used during kernel compilation to simplify element access algebra and remove unneccesary loops and branches.
     </p>
     <p>The layout of the bits in the hash is documented below.</p>
     <table class="table table-bordered table-condensed table-hover table-striped">
-      <caption>Matrix Hash Bit Field Layout</caption>
+      <caption><tt>likely_hash</tt> Bit Field Layout</caption>
       <thead>
         <tr><th>Field</th><th>Bits</th><th>Enum</th><th>Mask</th></tr>
       </thead>
       <tbody>
-        <tr><td>Depth</td><td>8</td><td>likely_matrix::Depth</td><td>0x00FF</td></tr>
-        <tr><td>Signed</td><td>1</td><td>likely_matrix::Signed</td><td>0x0100</td></tr>
-        <tr><td>Floating</td><td>1</td><td>likely_matrix::Floating</td><td>0x0200</td></tr>
-        <tr><td>Type (= Depth | Signed | Floating)</td><td>10</td><td>likely_matrix::Type</td><td>0x03FF</td></tr>
-        <tr><td>Parallel</td><td>1</td><td>likely_matrix::Parallel</td><td>0x0400</td></tr>
-        <tr><td>Heterogeneous</td><td>1</td><td>likely_matrix::Heterogeneous</td><td>0x0800</td></tr>
-        <tr><td>Single Channel</td><td>1</td><td>likely_matrix::SingleChannel</td><td>0x1000</td></tr>
-        <tr><td>Single Column</td><td>1</td><td>likely_matrix::SingleColumn</td><td>0x2000</td></tr>
-        <tr><td>Single Row</td><td>1</td><td>likely_matrix::SingleRow</td><td>0x4000</td></tr>
-        <tr><td>Single Frame</td><td>1</td><td>likely_matrix::SingleFrame</td><td>0x8000</td></tr>
+        <tr><td>Depth</td><td>8</td><td>likely_hash_depth</td><td>0x00FF</td></tr>
+        <tr><td>Signed</td><td>1</td><td>likely_hash_signed</td><td>0x0100</td></tr>
+        <tr><td>Floating</td><td>1</td><td>likely_hash_floating</td><td>0x0200</td></tr>
+        <tr><td>Type (= Depth | Signed | Floating)</td><td>10</td><td>likely_hash_type</td><td>0x03FF</td></tr>
+        <tr><td>Parallel</td><td>1</td><td>likely_hash_parallel</td><td>0x0400</td></tr>
+        <tr><td>Heterogeneous</td><td>1</td><td>likely_hash_heterogeneous</td><td>0x0800</td></tr>
+        <tr><td>Single Channel</td><td>1</td><td>likely_hash_single_channel</td><td>0x1000</td></tr>
+        <tr><td>Single Column</td><td>1</td><td>likely_hash_single_column</td><td>0x2000</td></tr>
+        <tr><td>Single Row</td><td>1</td><td>likely_hash_single_row</td><td>0x4000</td></tr>
+        <tr><td>Single Frame</td><td>1</td><td>likely_hash_single_frame</td><td>0x8000</td></tr>
       </tbody>
     </table>
     <p>Logic for querying and editing the hash is simplified with the following <i>inline</i> convenience functions.</p>
     <table class="table table-bordered table-condensed table-hover table-striped">
-      <caption>Matrix Hash Convenience Functions</caption>
+      <caption><tt>likely_hash</tt> Convenience Functions</caption>
       <thead>
         <tr><th>Field</th><th>Type</th><th>Getter</th><th>Setter</th></tr>
       </thead>
