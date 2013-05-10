@@ -573,11 +573,15 @@ public:
 
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
-        kernel.reset(&builder, function, srcs[0]);
 
-        i = kernel.beginLoop(entry, start, stop).i;
-        kernel.store(dst, i, makeEquation(definition.equation));
-        kernel.endLoop();
+        if (likely_is_parallel(kernel.h)) {
+
+        } else {
+            kernel.reset(&builder, function, srcs[0]);
+            i = kernel.beginLoop(entry, start, stop).i;
+            kernel.store(dst, i, makeEquation(definition.equation));
+            kernel.endLoop();
+        }
 
         builder.CreateRetVoid();
     }
@@ -698,17 +702,17 @@ public:
         static Function *makeKernelFunction = NULL;
         static vector<PointerType*> kernelFunctionTypes(numArities, NULL);
         PointerType *kernelFunctionType = kernelFunctionTypes[arity];
-        if (makeKernelFunction == NULL) {
+        if (kernelFunctionType == NULL) {
             vector<Type*> kernelParams;
-            for (int i=0; i < arity+1; i++)
+            for (int i=0; i<arity+1; i++)
                 kernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
             kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
             kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
             Type *kernelReturn = Type::getVoidTy(getGlobalContext());
+            kernelFunctionType = PointerType::getUnqual(FunctionType::get(kernelReturn, kernelParams, false));
             kernelFunctionTypes[arity] = kernelFunctionType;
 
             if (makeKernelFunction == NULL) {
-                kernelFunctionType = PointerType::getUnqual(FunctionType::get(kernelReturn, kernelParams, false));
                 vector<Type*> makeKernelParams;
                 makeKernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
                 makeKernelParams.push_back(Type::getInt8Ty(getGlobalContext()));
