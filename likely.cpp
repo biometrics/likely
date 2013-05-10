@@ -279,7 +279,7 @@ struct MatrixBuilder
     Function *f;
     Twine name;
     Value *v;
-    const likely_matrix *m;
+    likely_hash h;
 
     struct Loop {
         BasicBlock *body, *exit;
@@ -287,12 +287,11 @@ struct MatrixBuilder
         Value *stop;
         MDNode *node;
     };
-
     stack<Loop> loops;
 
-    MatrixBuilder() : b(NULL), f(NULL), v(NULL), m(NULL) {}
-    MatrixBuilder(IRBuilder<> *builder, Function *function, const Twine &name_ = "", Value *value = NULL, const likely_matrix *matrix = NULL)
-        : b(builder), f(function), name(name_), v(value), m(matrix){}
+    MatrixBuilder() : b(NULL), f(NULL), v(NULL), h(likely_hash_null) {}
+    MatrixBuilder(IRBuilder<> *builder, Function *function, const Twine &name_ = "", Value *value = NULL, likely_hash hash = likely_hash_null)
+        : b(builder), f(function), name(name_), v(value), h(hash){}
     void reset(IRBuilder<> *builder, Function *function, Value *value) { b = builder; f = function; v = value; }
 
     static Constant *constant(int value, int bits = 32) { return Constant::getIntegerValue(Type::getInt32Ty(getGlobalContext()), APInt(bits, value)); }
@@ -301,7 +300,7 @@ struct MatrixBuilder
     static Constant *constant(double value) { return ConstantFP::get(Type::getDoubleTy(getGlobalContext()), value == 0 ? -0.0 : value); }
     static Constant *zero() { return constant(0); }
     static Constant *one() { return constant(1); }
-    Constant *autoConstant(double value) const { return likely_is_floating(m->hash) ? ((likely_depth(m->hash) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(m->hash)); }
+    Constant *autoConstant(double value) const { return likely_is_floating(h) ? ((likely_depth(h) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(h)); }
     AllocaInst *autoAlloca(double value) const { AllocaInst *alloca = b->CreateAlloca(ty(), 0, name); b->CreateStore(autoConstant(value), alloca); return alloca; }
 
     Value *data(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 0), name+"_data"); }
@@ -313,10 +312,10 @@ struct MatrixBuilder
     Value *hash(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 5), name+"_hash"); }
 
     Value *data(bool cast = true) const { return cast ? data(v, ty(true)) : data(v); }
-    Value *channels() const { return m && likely_is_single_channel(m->hash) ? static_cast<Value*>(one()) : channels(v); }
-    Value *columns() const { return m && likely_is_single_column(m->hash) ? static_cast<Value*>(one()) : columns(v); }
-    Value *rows() const { return m && likely_is_single_row(m->hash) ? static_cast<Value*>(one()) : rows(v); }
-    Value *frames() const { return m && likely_is_single_frame(m->hash) ? static_cast<Value*>(one()) : frames(v); }
+    Value *channels() const { return likely_is_single_channel(h) ? static_cast<Value*>(one()) : channels(v); }
+    Value *columns() const { return likely_is_single_column(h) ? static_cast<Value*>(one()) : columns(v); }
+    Value *rows() const { return likely_is_single_row(h) ? static_cast<Value*>(one()) : rows(v); }
+    Value *frames() const { return likely_is_single_frame(h) ? static_cast<Value*>(one()) : frames(v); }
     Value *hash() const { return hash(v); }
 
     void setData(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 0)); }
@@ -388,24 +387,18 @@ struct MatrixBuilder
     Value *columnStep() const { Value *columnStep = channels(); columnStep->setName(name+"_cStep"); return columnStep; }
     Value *rowStep() const { return b->CreateMul(columns(), columnStep(), name+"_rStep"); }
     Value *frameStep() const { return b->CreateMul(rows(), rowStep(), name+"_tStep"); }
-    Value *aliasColumnStep(const MatrixBuilder &other) const { return (m->channels == other.m->channels) ? other.columnStep() : columnStep(); }
-    Value *aliasRowStep(const MatrixBuilder &other) const { return (m->columns == other.m->columns) ? other.rowStep() : rowStep(); }
-    Value *aliasFrameStep(const MatrixBuilder &other) const { return (m->rows == other.m->rows) ? other.frameStep() : frameStep(); }
 
-    Value *index(Value *c) const { return likely_is_single_channel(m->hash) ? constant(0) : c; }
-    Value *index(Value *c, Value *x) const { return likely_is_single_column(m->hash) ? index(c) : b->CreateAdd(b->CreateMul(x, columnStep()), index(c)); }
-    Value *index(Value *c, Value *x, Value *y) const { return likely_is_single_row(m->hash) ? index(c, x) : b->CreateAdd(b->CreateMul(y, rowStep()), index(c, x)); }
-    Value *index(Value *c, Value *x, Value *y, Value *f) const { return likely_is_single_frame(m->hash) ? index(c, x, y) : b->CreateAdd(b->CreateMul(f, frameStep()), index(c, x, y)); }
-    Value *aliasIndex(const MatrixBuilder &other, Value *c, Value *x) const { return likely_is_single_column(m->hash) ? index(c) : b->CreateAdd(b->CreateMul(x, aliasColumnStep(other)), index(c)); }
-    Value *aliasIndex(const MatrixBuilder &other, Value *c, Value *x, Value *y) const { return likely_is_single_row(m->hash) ? aliasIndex(other, c, x) : b->CreateAdd(b->CreateMul(y, aliasRowStep(other)), aliasIndex(other, c, x)); }
-    Value *aliasIndex(const MatrixBuilder &other, Value *c, Value *x, Value *y, Value *f) const { return likely_is_single_frame(m->hash) ? aliasIndex(other, c, x, y) : b->CreateAdd(b->CreateMul(f, aliasFrameStep(other)), aliasIndex(other, c, x, y)); }
+    Value *index(Value *c) const { return likely_is_single_channel(h) ? constant(0) : c; }
+    Value *index(Value *c, Value *x) const { return likely_is_single_column(h) ? index(c) : b->CreateAdd(b->CreateMul(x, columnStep()), index(c)); }
+    Value *index(Value *c, Value *x, Value *y) const { return likely_is_single_row(h) ? index(c, x) : b->CreateAdd(b->CreateMul(y, rowStep()), index(c, x)); }
+    Value *index(Value *c, Value *x, Value *y, Value *f) const { return likely_is_single_frame(h) ? index(c, x, y) : b->CreateAdd(b->CreateMul(f, frameStep()), index(c, x, y)); }
 
     void deindex(Value *i, Value **c) const {
-        *c = likely_is_single_channel(m->hash) ? constant(0) : i;
+        *c = likely_is_single_channel(h) ? constant(0) : i;
     }
     void deindex(Value *i, Value **c, Value **x) const {
         Value *rem;
-        if (likely_is_single_column(m->hash)) {
+        if (likely_is_single_column(h)) {
             rem = i;
             *x = constant(0);
         } else {
@@ -417,7 +410,7 @@ struct MatrixBuilder
     }
     void deindex(Value *i, Value **c, Value **x, Value **y) const {
         Value *rem;
-        if (likely_is_single_row(m->hash)) {
+        if (likely_is_single_row(h)) {
             rem = i;
             *y = constant(0);
         } else {
@@ -429,7 +422,7 @@ struct MatrixBuilder
     }
     void deindex(Value *i, Value **c, Value **x, Value **y, Value **t) const {
         Value *rem;
-        if (likely_is_single_frame(m->hash)) {
+        if (likely_is_single_frame(h)) {
             rem = i;
             *t = constant(0);
         } else {
@@ -464,14 +457,14 @@ struct MatrixBuilder
         return store;
     }
 
-    Value *cast(Value *i, const MatrixBuilder &dst) const { return (likely_type(m->hash) == likely_type(dst.m->hash)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(m->hash), dst.ty(), likely_is_signed(dst.m->hash)), i, dst.ty()); }
-    Value *add(Value *i, Value *j) const { return likely_is_floating(m->hash) ? b->CreateFAdd(i, j, name) : b->CreateAdd(i, j, name); }
-    Value *subtract(Value *i, Value *j) const { return likely_is_floating(m->hash) ? b->CreateFSub(i, j, name) : b->CreateSub(i, j, name); }
-    Value *multiply(Value *i, Value *j) const { return likely_is_floating(m->hash) ? b->CreateFMul(i, j, name) : b->CreateMul(i, j, name); }
-    Value *divide(Value *i, Value *j) const { return likely_is_floating(m->hash) ? b->CreateFDiv(i, j, name) : (likely_is_signed(m->hash) ? b->CreateSDiv(i,j, name) : b->CreateUDiv(i, j, name)); }
+    Value *cast(Value *i, const MatrixBuilder &dst) const { return (likely_type(h) == likely_type(dst.h)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(h), dst.ty(), likely_is_signed(h)), i, dst.ty()); }
+    Value *add(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFAdd(i, j, name) : b->CreateAdd(i, j, name); }
+    Value *subtract(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFSub(i, j, name) : b->CreateSub(i, j, name); }
+    Value *multiply(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFMul(i, j, name) : b->CreateMul(i, j, name); }
+    Value *divide(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFDiv(i, j, name) : (likely_is_signed(h) ? b->CreateSDiv(i,j, name) : b->CreateUDiv(i, j, name)); }
 
-    Value *compareLT(Value *i, Value *j) const { return likely_is_floating(m->hash) ? b->CreateFCmpOLT(i, j) : (likely_is_signed(m->hash) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
-    Value *compareGT(Value *i, Value *j) const { return likely_is_floating(m->hash) ? b->CreateFCmpOGT(i, j) : (likely_is_signed(m->hash) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
+    Value *compareLT(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFCmpOLT(i, j) : (likely_is_signed(h) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
+    Value *compareGT(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFCmpOGT(i, j) : (likely_is_signed(h) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
 
     Loop beginLoop(BasicBlock *entry, Value *start, Value *stop) {
         Loop loop;
@@ -515,10 +508,10 @@ struct MatrixBuilder
     template <typename T>
     inline static vector<T> toVector(T value) { vector<T> vector; vector.push_back(value); return vector; }
 
-    static Type *ty(const likely_matrix *m, bool pointer = false)
+    static Type *ty(likely_hash hash, bool pointer = false)
     {
-        const int bits = likely_depth(m->hash);
-        if (likely_is_floating(m->hash)) {
+        const int bits = likely_depth(hash);
+        if (likely_is_floating(hash)) {
             if      (bits == 16) return pointer ? Type::getHalfPtrTy(getGlobalContext())   : Type::getHalfTy(getGlobalContext());
             else if (bits == 32) return pointer ? Type::getFloatPtrTy(getGlobalContext())  : Type::getFloatTy(getGlobalContext());
             else if (bits == 64) return pointer ? Type::getDoublePtrTy(getGlobalContext()) : Type::getDoubleTy(getGlobalContext());
@@ -533,7 +526,7 @@ struct MatrixBuilder
         abort();
         return NULL;
     }
-    inline Type *ty(bool pointer = false) const { return ty(m, pointer); }
+    inline Type *ty(bool pointer = false) const { return ty(h, pointer); }
     inline vector<Type*> tys(bool pointer = false) const { return toVector<Type*>(ty(pointer)); }
 };
 
@@ -567,7 +560,7 @@ public:
 
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
-        kernel = MatrixBuilder(&builder, function, "kernel", srcs[0], matricies[0]);
+        kernel = MatrixBuilder(&builder, function, "kernel", srcs[0], matricies[0]->hash);
         kernel.copyHeaderTo(dst);
         builder.CreateRet(kernel.elements());
     }

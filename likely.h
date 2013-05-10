@@ -58,6 +58,7 @@ typedef uint16_t likely_hash; /* Depth : 8
 // Convenience values for editing a likely_hash
 enum likely_hash_field
 {
+    likely_hash_null = 0x0000,
     likely_hash_depth = 0x00FF,
     likely_hash_signed = 0x0100,
     likely_hash_floating = 0x0200,
