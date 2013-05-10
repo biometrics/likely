@@ -25,13 +25,13 @@ static Matrix matrixFromMat(const Mat &mat)
     m.frames = 1;
 
     switch (mat.depth()) {
-      case CV_8U:  m.hash = likely_matrix::u8;  break;
-      case CV_8S:  m.hash = likely_matrix::i8;  break;
-      case CV_16U: m.hash = likely_matrix::u16; break;
-      case CV_16S: m.hash = likely_matrix::i16; break;
-      case CV_32S: m.hash = likely_matrix::i32; break;
-      case CV_32F: m.hash = likely_matrix::f32; break;
-      case CV_64F: m.hash = likely_matrix::f64; break;
+      case CV_8U:  m.hash = likely_hash_u8;  break;
+      case CV_8S:  m.hash = likely_hash_i8;  break;
+      case CV_16U: m.hash = likely_hash_u16; break;
+      case CV_16S: m.hash = likely_hash_i16; break;
+      case CV_32S: m.hash = likely_hash_i32; break;
+      case CV_32F: m.hash = likely_hash_f32; break;
+      case CV_64F: m.hash = likely_hash_f64; break;
       default:     fprintf(stderr, "ERROR - Unsupported matrix depth.\n"); abort();
     }
 
@@ -42,13 +42,13 @@ static Mat matrixToMat(const Matrix &m)
 {
     int depth = -1;
     switch (m.type()) {
-      case likely_matrix::u8:  depth = CV_8U;  break;
-      case likely_matrix::i8:  depth = CV_8S;  break;
-      case likely_matrix::u16: depth = CV_16U; break;
-      case likely_matrix::i16: depth = CV_16S; break;
-      case likely_matrix::i32: depth = CV_32S; break;
-      case likely_matrix::f32: depth = CV_32F; break;
-      case likely_matrix::f64: depth = CV_64F; break;
+      case likely_hash_u8:  depth = CV_8U;  break;
+      case likely_hash_i8:  depth = CV_8S;  break;
+      case likely_hash_u16: depth = CV_16U; break;
+      case likely_hash_i16: depth = CV_16S; break;
+      case likely_hash_i32: depth = CV_32S; break;
+      case likely_hash_f32: depth = CV_32F; break;
+      case likely_hash_f64: depth = CV_64F; break;
       default:                 fprintf(stderr, "ERROR - Unsupported matrix depth.\n"); abort();
     }
     return Mat(m.rows, m.columns, CV_MAKETYPE(depth, m.channels), m.data);

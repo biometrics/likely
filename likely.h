@@ -44,79 +44,85 @@ extern "C" {
 // The documentation and source code for Likely
 LIKELY_EXPORT const char *likely_index_html();
 
+// Encodes matrix metadata
+typedef uint16_t likely_hash; /* Depth : 8
+                                 Signed : 1
+                                 Floating : 1
+                                 Parallel : 1
+                                 Heterogeneous : 1
+                                 Single-channel : 1
+                                 Single-column : 1
+                                 Single-row : 1
+                                 Single-frame : 1 */
+
+// Convenience values for editing a likely_hash
+enum likely_hash_field
+{
+    likely_hash_depth = 0x00FF,
+    likely_hash_signed = 0x0100,
+    likely_hash_floating = 0x0200,
+    likely_hash_type = likely_hash_depth | likely_hash_signed | likely_hash_floating,
+    likely_hash_parallel = 0x0400,
+    likely_hash_heterogeneous = 0x0800,
+    likely_hash_single_channel = 0x1000,
+    likely_hash_single_column = 0x2000,
+    likely_hash_single_row = 0x4000,
+    likely_hash_single_frame = 0x8000,
+    likely_hash_u8  = 8,
+    likely_hash_u16 = 16,
+    likely_hash_u32 = 32,
+    likely_hash_u64 = 64,
+    likely_hash_i8  = 8  | likely_hash_signed,
+    likely_hash_i16 = 16 | likely_hash_signed,
+    likely_hash_i32 = 32 | likely_hash_signed,
+    likely_hash_i64 = 64 | likely_hash_signed,
+    likely_hash_f16 = 16 | likely_hash_floating | likely_hash_signed,
+    likely_hash_f32 = 32 | likely_hash_floating | likely_hash_signed,
+    likely_hash_f64 = 64 | likely_hash_floating | likely_hash_signed
+};
+
 // The only struct in the API
 struct likely_matrix
 {
     uint8_t *data;
     uint32_t channels, columns, rows, frames;
-    uint16_t hash; /* Depth : 8
-                      Signed : 1
-                      Floating : 1
-                      Parallel : 1
-                      Heterogeneous : 1
-                      Single-channel : 1
-                      Single-column : 1
-                      Single-row : 1
-                      Single-frame : 1 */
-
-    enum Hash { Depth = 0x00FF,
-                Signed = 0x0100,
-                Floating = 0x0200,
-                Type = Depth | Signed | Floating,
-                Parallel = 0x0400,
-                Heterogeneous = 0x0800,
-                SingleChannel = 0x1000,
-                SingleColumn = 0x2000,
-                SingleRow = 0x4000,
-                SingleFrame = 0x8000,
-                u1  = 1,
-                u8  = 8,
-                u16 = 16,
-                u32 = 32,
-                u64 = 64,
-                i8  = 8  | Signed,
-                i16 = 16 | Signed,
-                i32 = 32 | Signed,
-                i64 = 64 | Signed,
-                f16 = 16 | Floating | Signed,
-                f32 = 32 | Floating | Signed,
-                f64 = 64 | Floating | Signed };
+    likely_hash hash;
 };
 
 // You shouldn't need to call these directly
-inline int likely_get(const likely_matrix *m, likely_matrix::Hash h) { return m->hash & h; }
-inline void likely_set(likely_matrix *m, int i, likely_matrix::Hash h) { m->hash &= ~h; m->hash |= i & h; }
-inline bool likely_get_bool(const likely_matrix *m, likely_matrix::Hash h) { return m->hash & h; }
-inline void likely_set_bool(likely_matrix *m, bool b, likely_matrix::Hash h) { b ? m->hash |= h : m->hash &= ~h; }
+inline int likely_get(likely_hash hash, likely_hash_field mask) { return hash & mask; }
+inline void likely_set(likely_hash &hash, int i, likely_hash_field mask) { hash &= ~mask; hash |= i & mask; }
+inline bool likely_get_bool(likely_hash hash, likely_hash_field mask) { return hash & mask; }
+inline void likely_set_bool(likely_hash &hash, bool b, likely_hash_field mask) { b ? hash |= mask : hash &= ~mask; }
 
 // Convenience functions for querying and editing the hash
-inline int  likely_depth(const likely_matrix *m) { return likely_get(m, likely_matrix::Depth); }
-inline void likely_set_depth(likely_matrix *m, int bits) { likely_set(m, bits, likely_matrix::Depth); }
-inline bool likely_is_signed(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::Signed); }
-inline void likely_set_signed(likely_matrix *m, bool is_signed) { likely_set_bool(m, is_signed, likely_matrix::Signed); }
-inline bool likely_is_floating(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::Floating); }
-inline void likely_set_floating(likely_matrix *m, bool is_floating) { likely_set_bool(m, is_floating, likely_matrix::Floating); }
-inline int  likely_type(const likely_matrix *m) { return likely_get(m, likely_matrix::Type); }
-inline void likely_set_type(likely_matrix *m, int type) { likely_set(m, type, likely_matrix::Type); }
-inline bool likely_is_parallel(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::Parallel); }
-inline void likely_set_parallel(likely_matrix *m, bool is_parallel) { likely_set_bool(m, is_parallel, likely_matrix::Parallel); }
-inline bool likely_is_heterogeneous(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::Heterogeneous); }
-inline void likely_set_heterogeneous(likely_matrix *m, bool is_heterogeneous) { likely_set_bool(m, is_heterogeneous, likely_matrix::Heterogeneous); }
-inline bool likely_is_single_channel(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::SingleChannel); }
-inline void likely_set_single_channel(likely_matrix *m, bool is_single_channel) { likely_set_bool(m, is_single_channel, likely_matrix::SingleChannel); }
-inline bool likely_is_single_column(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::SingleColumn); }
-inline void likely_set_single_column(likely_matrix *m, bool is_single_column) { likely_set_bool(m, is_single_column, likely_matrix::SingleColumn); }
-inline bool likely_is_single_row(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::SingleRow); }
-inline void likely_set_single_row(likely_matrix *m, bool is_single_row) { likely_set_bool(m, is_single_row, likely_matrix::SingleRow); }
-inline bool likely_is_single_frame(const likely_matrix *m) { return likely_get_bool(m, likely_matrix::SingleFrame); }
-inline void likely_set_single_frame(likely_matrix *m, bool is_single_frame) { likely_set_bool(m, is_single_frame, likely_matrix::SingleFrame); }
+inline int  likely_depth(likely_hash hash) { return likely_get(hash, likely_hash_depth); }
+inline void likely_set_depth(likely_hash &hash, int bits) { likely_set(hash, bits, likely_hash_depth); }
+inline bool likely_is_signed(likely_hash hash) { return likely_get_bool(hash, likely_hash_signed); }
+inline void likely_set_signed(likely_hash &hash, bool is_signed) { likely_set_bool(hash, is_signed, likely_hash_signed); }
+inline bool likely_is_floating(likely_hash hash) { return likely_get_bool(hash, likely_hash_floating); }
+inline void likely_set_floating(likely_hash &hash, bool is_floating) { likely_set_bool(hash, is_floating, likely_hash_floating); }
+inline int  likely_type(likely_hash hash) { return likely_get(hash, likely_hash_type); }
+inline void likely_set_type(likely_hash &hash, int type) { likely_set(hash, type, likely_hash_type); }
+inline bool likely_is_parallel(likely_hash hash) { return likely_get_bool(hash, likely_hash_parallel); }
+inline void likely_set_parallel(likely_hash &hash, bool is_parallel) { likely_set_bool(hash, is_parallel, likely_hash_parallel); }
+inline bool likely_is_heterogeneous(likely_hash hash) { return likely_get_bool(hash, likely_hash_heterogeneous); }
+inline void likely_set_heterogeneous(likely_hash &hash, bool is_heterogeneous) { likely_set_bool(hash, is_heterogeneous, likely_hash_heterogeneous); }
+inline bool likely_is_single_channel(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_channel); }
+inline void likely_set_single_channel(likely_hash &hash, bool is_single_channel) { likely_set_bool(hash, is_single_channel, likely_hash_single_channel); }
+inline bool likely_is_single_column(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_column); }
+inline void likely_set_single_column(likely_hash &hash, bool is_single_column) { likely_set_bool(hash, is_single_column, likely_hash_single_column); }
+inline bool likely_is_single_row(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_row); }
+inline void likely_set_single_row(likely_hash &hash, bool is_single_row) { likely_set_bool(hash, is_single_row, likely_hash_single_row); }
+inline bool likely_is_single_frame(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_frame); }
+inline void likely_set_single_frame(likely_hash &hash, bool is_single_frame) { likely_set_bool(hash, is_single_frame, likely_hash_single_frame); }
 
 // Convenience functions for determining matrix size
 inline uint32_t likely_elements(const likely_matrix *m) { return m->channels * m->columns * m->rows * m->frames; }
-inline uint32_t likely_bytes(const likely_matrix *m) { return uint64_t(likely_depth(m)) * uint64_t(likely_elements(m)) / uint64_t(8); }
+inline uint32_t likely_bytes(const likely_matrix *m) { return uint64_t(likely_depth(m->hash)) * uint64_t(likely_elements(m)) / uint64_t(8); }
 
 // Convenience functions for default initializing a matrix
-inline void likely_matrix_initialize(likely_matrix *m, uint8_t *data, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash)
+inline void likely_matrix_initialize(likely_matrix *m, uint8_t *data, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, likely_hash hash)
 {
     m->data = data;
     m->channels = channels;
@@ -124,10 +130,10 @@ inline void likely_matrix_initialize(likely_matrix *m, uint8_t *data, uint32_t c
     m->rows = rows;
     m->frames = frames;
     m->hash = hash;
-    likely_set_single_channel(m, channels == 1);
-    likely_set_single_column(m, columns == 1);
-    likely_set_single_row(m, rows == 1);
-    likely_set_single_frame(m, frames == 1);
+    likely_set_single_channel(m->hash, channels == 1);
+    likely_set_single_column(m->hash, columns == 1);
+    likely_set_single_row(m->hash, rows == 1);
+    likely_set_single_frame(m->hash, frames == 1);
 }
 inline void likely_matrix_initialize_null(likely_matrix *m) { likely_matrix_initialize(m, NULL, 0, 0, 0, 0, 0); }
 
@@ -174,29 +180,29 @@ inline const char *indexHTML() { return likely_index_html(); }
 struct Matrix : public likely_matrix
 {
     Matrix() { likely_matrix_initialize_null(this); }
-    Matrix(uint8_t *data, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, uint16_t hash)
+    Matrix(uint8_t *data, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, likely_hash hash)
     { likely_matrix_initialize(this, data, channels, columns, rows, frames, hash); }
 
-    inline int  depth() const { return likely_depth(this); }
-    inline void setDepth(int bits) { likely_set_depth(this, bits); }
-    inline bool isFloating() const { return likely_is_floating(this); }
-    inline void setFloating(bool isFloating) { likely_set_floating(this, isFloating); }
-    inline bool isSigned() const { return likely_is_signed(this); }
-    inline void setSigned(bool isSigned) { likely_set_signed(this, isSigned); }
-    inline int  type() const { return likely_type(this); }
-    inline void setType(int type) { likely_set_type(this, type); }
-    inline bool parallel() const { return likely_is_parallel(this); }
-    inline void setParallel(bool parallel) { likely_set_parallel(this, parallel); }
-    inline bool heterogeneous() const { return likely_is_heterogeneous(this); }
-    inline void setHeterogeneous(bool heterogeneous) { likely_set_heterogeneous(this, heterogeneous); }
-    inline bool isSingleChannel() const { return likely_is_single_channel(this); }
-    inline void setSingleChannel(bool isSingleChannel) { likely_set_single_channel(this, isSingleChannel); }
-    inline bool isSingleColumn() const { return likely_is_single_column(this); }
-    inline void setSingleColumn(bool isSingleColumn) { likely_set_single_column(this, isSingleColumn); }
-    inline bool isSingleRow() const { return likely_is_single_row(this); }
-    inline void setSingleRow(bool isSingleRow) { likely_set_single_row(this, isSingleRow); }
-    inline bool isSingleFrame() const { return likely_is_single_frame(this); }
-    inline void setSingleFrame(bool isSingleFrame) { likely_set_single_frame(this, isSingleFrame); }
+    inline int  depth() const { return likely_depth(hash); }
+    inline void setDepth(int bits) { likely_set_depth(hash, bits); }
+    inline bool isFloating() const { return likely_is_floating(hash); }
+    inline void setFloating(bool isFloating) { likely_set_floating(hash, isFloating); }
+    inline bool isSigned() const { return likely_is_signed(hash); }
+    inline void setSigned(bool isSigned) { likely_set_signed(hash, isSigned); }
+    inline int  type() const { return likely_type(hash); }
+    inline void setType(int type) { likely_set_type(hash, type); }
+    inline bool parallel() const { return likely_is_parallel(hash); }
+    inline void setParallel(bool parallel) { likely_set_parallel(hash, parallel); }
+    inline bool heterogeneous() const { return likely_is_heterogeneous(hash); }
+    inline void setHeterogeneous(bool heterogeneous) { likely_set_heterogeneous(hash, heterogeneous); }
+    inline bool isSingleChannel() const { return likely_is_single_channel(hash); }
+    inline void setSingleChannel(bool isSingleChannel) { likely_set_single_channel(hash, isSingleChannel); }
+    inline bool isSingleColumn() const { return likely_is_single_column(hash); }
+    inline void setSingleColumn(bool isSingleColumn) { likely_set_single_column(hash, isSingleColumn); }
+    inline bool isSingleRow() const { return likely_is_single_row(hash); }
+    inline void setSingleRow(bool isSingleRow) { likely_set_single_row(hash, isSingleRow); }
+    inline bool isSingleFrame() const { return likely_is_single_frame(hash); }
+    inline void setSingleFrame(bool isSingleFrame) { likely_set_single_frame(hash, isSingleFrame); }
     inline uint32_t elements() const { return likely_elements(this); }
     inline uint32_t bytes() const { return likely_bytes(this); }
     inline double element(uint32_t c, uint32_t x, uint32_t y, uint32_t t) const { return likely_element(this, c, x, y, t); }

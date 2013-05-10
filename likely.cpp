@@ -49,17 +49,17 @@ double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y
     const int frameStep = m->rows * rowStep;
     const int index = t*frameStep + y*rowStep + x*columnStep + c;
 
-    switch (likely_type(m)) {
-      case likely_matrix::u8:  return  ((uint8_t*)m->data)[index];
-      case likely_matrix::u16: return ((uint16_t*)m->data)[index];
-      case likely_matrix::u32: return ((uint32_t*)m->data)[index];
-      case likely_matrix::u64: return ((uint64_t*)m->data)[index];
-      case likely_matrix::i8:  return   ((int8_t*)m->data)[index];
-      case likely_matrix::i16: return  ((int16_t*)m->data)[index];
-      case likely_matrix::i32: return  ((int32_t*)m->data)[index];
-      case likely_matrix::i64: return  ((int64_t*)m->data)[index];
-      case likely_matrix::f32: return    ((float*)m->data)[index];
-      case likely_matrix::f64: return   ((double*)m->data)[index];
+    switch (likely_type(m->hash)) {
+      case likely_hash_u8:  return  ((uint8_t*)m->data)[index];
+      case likely_hash_u16: return ((uint16_t*)m->data)[index];
+      case likely_hash_u32: return ((uint32_t*)m->data)[index];
+      case likely_hash_u64: return ((uint64_t*)m->data)[index];
+      case likely_hash_i8:  return   ((int8_t*)m->data)[index];
+      case likely_hash_i16: return  ((int16_t*)m->data)[index];
+      case likely_hash_i32: return  ((int32_t*)m->data)[index];
+      case likely_hash_i64: return  ((int64_t*)m->data)[index];
+      case likely_hash_f32: return    ((float*)m->data)[index];
+      case likely_hash_f64: return   ((double*)m->data)[index];
       default:                 assert(!"Unsupported element type!");
     }
     return numeric_limits<double>::quiet_NaN();
@@ -73,17 +73,17 @@ void likely_set_element(likely_matrix *m, double value, uint32_t c, uint32_t x, 
     const int frameStep = m->rows * rowStep;
     const int index = t*frameStep + y*rowStep + x*columnStep + c;
 
-    switch (likely_type(m)) {
-      case likely_matrix::u8:   ((uint8_t*)m->data)[index] = value; break;
-      case likely_matrix::u16: ((uint16_t*)m->data)[index] = value; break;
-      case likely_matrix::u32: ((uint32_t*)m->data)[index] = value; break;
-      case likely_matrix::u64: ((uint64_t*)m->data)[index] = value; break;
-      case likely_matrix::i8:    ((int8_t*)m->data)[index] = value; break;
-      case likely_matrix::i16:  ((int16_t*)m->data)[index] = value; break;
-      case likely_matrix::i32:  ((int32_t*)m->data)[index] = value; break;
-      case likely_matrix::i64:  ((int64_t*)m->data)[index] = value; break;
-      case likely_matrix::f32:    ((float*)m->data)[index] = value; break;
-      case likely_matrix::f64:   ((double*)m->data)[index] = value; break;
+    switch (likely_type(m->hash)) {
+      case likely_hash_u8:   ((uint8_t*)m->data)[index] = value; break;
+      case likely_hash_u16: ((uint16_t*)m->data)[index] = value; break;
+      case likely_hash_u32: ((uint32_t*)m->data)[index] = value; break;
+      case likely_hash_u64: ((uint64_t*)m->data)[index] = value; break;
+      case likely_hash_i8:    ((int8_t*)m->data)[index] = value; break;
+      case likely_hash_i16:  ((int16_t*)m->data)[index] = value; break;
+      case likely_hash_i32:  ((int32_t*)m->data)[index] = value; break;
+      case likely_hash_i64:  ((int64_t*)m->data)[index] = value; break;
+      case likely_hash_f32:    ((float*)m->data)[index] = value; break;
+      case likely_hash_f64:   ((double*)m->data)[index] = value; break;
       default:                 assert(!"Unsupported element type!");
     }
 }
@@ -301,7 +301,7 @@ struct MatrixBuilder
     static Constant *constant(double value) { return ConstantFP::get(Type::getDoubleTy(getGlobalContext()), value == 0 ? -0.0 : value); }
     static Constant *zero() { return constant(0); }
     static Constant *one() { return constant(1); }
-    Constant *autoConstant(double value) const { return likely_is_floating(m) ? ((likely_depth(m) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(m)); }
+    Constant *autoConstant(double value) const { return likely_is_floating(m->hash) ? ((likely_depth(m->hash) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(m->hash)); }
     AllocaInst *autoAlloca(double value) const { AllocaInst *alloca = b->CreateAlloca(ty(), 0, name); b->CreateStore(autoConstant(value), alloca); return alloca; }
 
     Value *data(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 0), name+"_data"); }
@@ -313,10 +313,10 @@ struct MatrixBuilder
     Value *hash(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 5), name+"_hash"); }
 
     Value *data(bool cast = true) const { return cast ? data(v, ty(true)) : data(v); }
-    Value *channels() const { return m && likely_is_single_channel(m) ? static_cast<Value*>(one()) : channels(v); }
-    Value *columns() const { return m && likely_is_single_column(m) ? static_cast<Value*>(one()) : columns(v); }
-    Value *rows() const { return m && likely_is_single_row(m) ? static_cast<Value*>(one()) : rows(v); }
-    Value *frames() const { return m && likely_is_single_frame(m) ? static_cast<Value*>(one()) : frames(v); }
+    Value *channels() const { return m && likely_is_single_channel(m->hash) ? static_cast<Value*>(one()) : channels(v); }
+    Value *columns() const { return m && likely_is_single_column(m->hash) ? static_cast<Value*>(one()) : columns(v); }
+    Value *rows() const { return m && likely_is_single_row(m->hash) ? static_cast<Value*>(one()) : rows(v); }
+    Value *frames() const { return m && likely_is_single_frame(m->hash) ? static_cast<Value*>(one()) : frames(v); }
     Value *hash() const { return hash(v); }
 
     void setData(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 0)); }
@@ -362,26 +362,26 @@ struct MatrixBuilder
     void set(int value, int mask) const { setHash(b->CreateOr(b->CreateAnd(hash(), constant(~mask, 16)), b->CreateAnd(constant(value, 16), constant(mask, 16)))); }
     void setBit(bool on, int mask) const { on ? setHash(b->CreateOr(hash(), constant(mask, 16))) : setHash(b->CreateAnd(hash(), constant(~mask, 16))); }
 
-    Value *bits() const { return get(likely_matrix::Depth); }
-    void setBits(int bits) const { set(bits, likely_matrix::Depth); }
-    Value *isSigned() const { return get(likely_matrix::Signed); }
-    void setSigned(bool isSigned) const { setBit(isSigned, likely_matrix::Signed); }
-    Value *isFloating() const { return get(likely_matrix::Floating); }
-    void setFloating(bool isFloating) const { if (isFloating) setSigned(true); setBit(isFloating, likely_matrix::Floating); }
-    Value *type() const { return get(likely_matrix::Depth + likely_matrix::Floating + likely_matrix::Signed); }
-    void setType(int type) const { set(type, likely_matrix::Depth + likely_matrix::Floating + likely_matrix::Signed); }
-    Value *isParallel() const { return get(likely_matrix::Parallel); }
-    void setParallel(bool isParallel) const { setBit(isParallel, likely_matrix::Parallel); }
-    Value *isHeterogeneous() const { return get(likely_matrix::Heterogeneous); }
-    void setHeterogeneous(bool isHeterogeneous) const { setBit(isHeterogeneous, likely_matrix::Heterogeneous); }
-    Value *isSingleChannel() const { return get(likely_matrix::SingleChannel); }
-    void setSingleChannel(bool isSingleChannel) const { setBit(isSingleChannel, likely_matrix::SingleChannel); }
-    Value *isSingleColumn() const { return get(likely_matrix::SingleColumn); }
-    void setSingleColumn(bool isSingleColumn) { setBit(isSingleColumn, likely_matrix::SingleColumn); }
-    Value *isSingleRow() const { return get(likely_matrix::SingleRow); }
-    void setSingleRow(bool isSingleRow) const { setBit(isSingleRow, likely_matrix::SingleRow); }
-    Value *isSingleFrame() const { return get(likely_matrix::SingleFrame); }
-    void setSingleFrame(bool isSingleFrame) const { setBit(isSingleFrame, likely_matrix::SingleFrame); }
+    Value *bits() const { return get(likely_hash_depth); }
+    void setBits(int bits) const { set(bits, likely_hash_depth); }
+    Value *isSigned() const { return get(likely_hash_signed); }
+    void setSigned(bool isSigned) const { setBit(isSigned, likely_hash_signed); }
+    Value *isFloating() const { return get(likely_hash_floating); }
+    void setFloating(bool isFloating) const { if (isFloating) setSigned(true); setBit(isFloating, likely_hash_floating); }
+    Value *type() const { return get(likely_hash_depth + likely_hash_floating + likely_hash_signed); }
+    void setType(int type) const { set(type, likely_hash_depth + likely_hash_floating + likely_hash_signed); }
+    Value *isParallel() const { return get(likely_hash_parallel); }
+    void setParallel(bool isParallel) const { setBit(isParallel, likely_hash_parallel); }
+    Value *isHeterogeneous() const { return get(likely_hash_heterogeneous); }
+    void setHeterogeneous(bool isHeterogeneous) const { setBit(isHeterogeneous, likely_hash_heterogeneous); }
+    Value *isSingleChannel() const { return get(likely_hash_single_channel); }
+    void setSingleChannel(bool isSingleChannel) const { setBit(isSingleChannel, likely_hash_single_channel); }
+    Value *isSingleColumn() const { return get(likely_hash_single_column); }
+    void setSingleColumn(bool isSingleColumn) { setBit(isSingleColumn, likely_hash_single_column); }
+    Value *isSingleRow() const { return get(likely_hash_single_row); }
+    void setSingleRow(bool isSingleRow) const { setBit(isSingleRow, likely_hash_single_row); }
+    Value *isSingleFrame() const { return get(likely_hash_single_frame); }
+    void setSingleFrame(bool isSingleFrame) const { setBit(isSingleFrame, likely_hash_single_frame); }
     Value *elements() const { return b->CreateMul(b->CreateMul(b->CreateMul(channels(), columns()), rows()), frames()); }
     Value *bytes() const { return b->CreateMul(b->CreateUDiv(b->CreateCast(Instruction::ZExt, bits(), Type::getInt32Ty(getGlobalContext())), constant(8, 32)), elements()); }
 
@@ -392,20 +392,20 @@ struct MatrixBuilder
     Value *aliasRowStep(const MatrixBuilder &other) const { return (m->columns == other.m->columns) ? other.rowStep() : rowStep(); }
     Value *aliasFrameStep(const MatrixBuilder &other) const { return (m->rows == other.m->rows) ? other.frameStep() : frameStep(); }
 
-    Value *index(Value *c) const { return likely_is_single_channel(m) ? constant(0) : c; }
-    Value *index(Value *c, Value *x) const { return likely_is_single_column(m) ? index(c) : b->CreateAdd(b->CreateMul(x, columnStep()), index(c)); }
-    Value *index(Value *c, Value *x, Value *y) const { return likely_is_single_row(m) ? index(c, x) : b->CreateAdd(b->CreateMul(y, rowStep()), index(c, x)); }
-    Value *index(Value *c, Value *x, Value *y, Value *f) const { return likely_is_single_frame(m) ? index(c, x, y) : b->CreateAdd(b->CreateMul(f, frameStep()), index(c, x, y)); }
-    Value *aliasIndex(const MatrixBuilder &other, Value *c, Value *x) const { return likely_is_single_column(m) ? index(c) : b->CreateAdd(b->CreateMul(x, aliasColumnStep(other)), index(c)); }
-    Value *aliasIndex(const MatrixBuilder &other, Value *c, Value *x, Value *y) const { return likely_is_single_row(m) ? aliasIndex(other, c, x) : b->CreateAdd(b->CreateMul(y, aliasRowStep(other)), aliasIndex(other, c, x)); }
-    Value *aliasIndex(const MatrixBuilder &other, Value *c, Value *x, Value *y, Value *f) const { return likely_is_single_frame(m) ? aliasIndex(other, c, x, y) : b->CreateAdd(b->CreateMul(f, aliasFrameStep(other)), aliasIndex(other, c, x, y)); }
+    Value *index(Value *c) const { return likely_is_single_channel(m->hash) ? constant(0) : c; }
+    Value *index(Value *c, Value *x) const { return likely_is_single_column(m->hash) ? index(c) : b->CreateAdd(b->CreateMul(x, columnStep()), index(c)); }
+    Value *index(Value *c, Value *x, Value *y) const { return likely_is_single_row(m->hash) ? index(c, x) : b->CreateAdd(b->CreateMul(y, rowStep()), index(c, x)); }
+    Value *index(Value *c, Value *x, Value *y, Value *f) const { return likely_is_single_frame(m->hash) ? index(c, x, y) : b->CreateAdd(b->CreateMul(f, frameStep()), index(c, x, y)); }
+    Value *aliasIndex(const MatrixBuilder &other, Value *c, Value *x) const { return likely_is_single_column(m->hash) ? index(c) : b->CreateAdd(b->CreateMul(x, aliasColumnStep(other)), index(c)); }
+    Value *aliasIndex(const MatrixBuilder &other, Value *c, Value *x, Value *y) const { return likely_is_single_row(m->hash) ? aliasIndex(other, c, x) : b->CreateAdd(b->CreateMul(y, aliasRowStep(other)), aliasIndex(other, c, x)); }
+    Value *aliasIndex(const MatrixBuilder &other, Value *c, Value *x, Value *y, Value *f) const { return likely_is_single_frame(m->hash) ? aliasIndex(other, c, x, y) : b->CreateAdd(b->CreateMul(f, aliasFrameStep(other)), aliasIndex(other, c, x, y)); }
 
     void deindex(Value *i, Value **c) const {
-        *c = likely_is_single_channel(m) ? constant(0) : i;
+        *c = likely_is_single_channel(m->hash) ? constant(0) : i;
     }
     void deindex(Value *i, Value **c, Value **x) const {
         Value *rem;
-        if (likely_is_single_column(m)) {
+        if (likely_is_single_column(m->hash)) {
             rem = i;
             *x = constant(0);
         } else {
@@ -417,7 +417,7 @@ struct MatrixBuilder
     }
     void deindex(Value *i, Value **c, Value **x, Value **y) const {
         Value *rem;
-        if (likely_is_single_row(m)) {
+        if (likely_is_single_row(m->hash)) {
             rem = i;
             *y = constant(0);
         } else {
@@ -429,7 +429,7 @@ struct MatrixBuilder
     }
     void deindex(Value *i, Value **c, Value **x, Value **y, Value **t) const {
         Value *rem;
-        if (likely_is_single_frame(m)) {
+        if (likely_is_single_frame(m->hash)) {
             rem = i;
             *t = constant(0);
         } else {
@@ -464,14 +464,14 @@ struct MatrixBuilder
         return store;
     }
 
-    Value *cast(Value *i, const MatrixBuilder &dst) const { return (likely_type(m) == likely_type(dst.m)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(m), dst.ty(), likely_is_signed(dst.m)), i, dst.ty()); }
-    Value *add(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFAdd(i, j, name) : b->CreateAdd(i, j, name); }
-    Value *subtract(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFSub(i, j, name) : b->CreateSub(i, j, name); }
-    Value *multiply(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFMul(i, j, name) : b->CreateMul(i, j, name); }
-    Value *divide(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFDiv(i, j, name) : (likely_is_signed(m) ? b->CreateSDiv(i,j, name) : b->CreateUDiv(i, j, name)); }
+    Value *cast(Value *i, const MatrixBuilder &dst) const { return (likely_type(m->hash) == likely_type(dst.m->hash)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(m->hash), dst.ty(), likely_is_signed(dst.m->hash)), i, dst.ty()); }
+    Value *add(Value *i, Value *j) const { return likely_is_floating(m->hash) ? b->CreateFAdd(i, j, name) : b->CreateAdd(i, j, name); }
+    Value *subtract(Value *i, Value *j) const { return likely_is_floating(m->hash) ? b->CreateFSub(i, j, name) : b->CreateSub(i, j, name); }
+    Value *multiply(Value *i, Value *j) const { return likely_is_floating(m->hash) ? b->CreateFMul(i, j, name) : b->CreateMul(i, j, name); }
+    Value *divide(Value *i, Value *j) const { return likely_is_floating(m->hash) ? b->CreateFDiv(i, j, name) : (likely_is_signed(m->hash) ? b->CreateSDiv(i,j, name) : b->CreateUDiv(i, j, name)); }
 
-    Value *compareLT(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFCmpOLT(i, j) : (likely_is_signed(m) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
-    Value *compareGT(Value *i, Value *j) const { return likely_is_floating(m) ? b->CreateFCmpOGT(i, j) : (likely_is_signed(m) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
+    Value *compareLT(Value *i, Value *j) const { return likely_is_floating(m->hash) ? b->CreateFCmpOLT(i, j) : (likely_is_signed(m->hash) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
+    Value *compareGT(Value *i, Value *j) const { return likely_is_floating(m->hash) ? b->CreateFCmpOGT(i, j) : (likely_is_signed(m->hash) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
 
     Loop beginLoop(BasicBlock *entry, Value *start, Value *stop) {
         Loop loop;
@@ -517,8 +517,8 @@ struct MatrixBuilder
 
     static Type *ty(const likely_matrix *m, bool pointer = false)
     {
-        const int bits = likely_depth(m);
-        if (likely_is_floating(m)) {
+        const int bits = likely_depth(m->hash);
+        if (likely_is_floating(m->hash)) {
             if      (bits == 16) return pointer ? Type::getHalfPtrTy(getGlobalContext())   : Type::getHalfTy(getGlobalContext());
             else if (bits == 32) return pointer ? Type::getFloatPtrTy(getGlobalContext())  : Type::getFloatTy(getGlobalContext());
             else if (bits == 64) return pointer ? Type::getDoublePtrTy(getGlobalContext()) : Type::getDoubleTy(getGlobalContext());
@@ -946,7 +946,7 @@ void *likely_make_function(const char *description, uint8_t arity)
 void likely_print_matrix(const likely_matrix *m)
 {
     if ((m == NULL) || (m->data == NULL)) return;
-    const int type = likely_type(m);
+    const int type = likely_type(m->hash);
     for (uint t=0; t<m->frames; t++) {
         for (uint y=0; y<m->rows; y++) {
             cout << (m->rows > 1 ? (y == 0 ? "[" : " ") : "");
@@ -954,16 +954,16 @@ void likely_print_matrix(const likely_matrix *m)
                 for (uint c=0; c<m->channels; c++) {
                     const double value = likely_element(m, c, x, y, t);
                     switch (type) {
-                      case likely_matrix::u8:  cout <<  (uint8_t)value; break;
-                      case likely_matrix::u16: cout << (uint16_t)value; break;
-                      case likely_matrix::u32: cout << (uint32_t)value; break;
-                      case likely_matrix::u64: cout << (uint64_t)value; break;
-                      case likely_matrix::i8:  cout <<   (int8_t)value; break;
-                      case likely_matrix::i16: cout <<  (int16_t)value; break;
-                      case likely_matrix::i32: cout <<  (int32_t)value; break;
-                      case likely_matrix::i64: cout <<  (int64_t)value; break;
-                      case likely_matrix::f32: cout <<    (float)value; break;
-                      case likely_matrix::f64: cout <<   (double)value; break;
+                      case likely_hash_u8:  cout <<  (uint8_t)value; break;
+                      case likely_hash_u16: cout << (uint16_t)value; break;
+                      case likely_hash_u32: cout << (uint32_t)value; break;
+                      case likely_hash_u64: cout << (uint64_t)value; break;
+                      case likely_hash_i8:  cout <<   (int8_t)value; break;
+                      case likely_hash_i16: cout <<  (int16_t)value; break;
+                      case likely_hash_i32: cout <<  (int32_t)value; break;
+                      case likely_hash_i64: cout <<  (int64_t)value; break;
+                      case likely_hash_f32: cout <<    (float)value; break;
+                      case likely_hash_f64: cout <<   (double)value; break;
                       default:                 assert(!"Unsupported element type!");
                     }
                 }
