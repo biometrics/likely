@@ -138,32 +138,30 @@ inline void likely_matrix_initialize(likely_matrix *m, uint8_t *data, uint32_t c
 }
 inline void likely_matrix_initialize_null(likely_matrix *m) { likely_matrix_initialize(m, NULL, 0, 0, 0, 0, 0); }
 
-// Convenience functions for element access
-// By convention c = channel, x = column, y = row, t = frame
+// Convenience functions for debugging; by convention c = channel, x = column, y = row, t = frame
 LIKELY_EXPORT double likely_element(const likely_matrix *m, uint32_t c = 0, uint32_t x = 0, uint32_t y = 0, uint32_t t = 0);
 LIKELY_EXPORT void likely_set_element(likely_matrix *m, double value, uint32_t c = 0, uint32_t x = 0, uint32_t y = 0, uint32_t t = 0);
+LIKELY_EXPORT void likely_print_matrix(const likely_matrix *m);
 
 // Core library functions
-LIKELY_EXPORT void *likely_make_function(const char *description, uint8_t arity); // You shouldn't call this directly
+typedef const char *likely_description;
+LIKELY_EXPORT void *likely_make_function(likely_description description, uint8_t arity); // You shouldn't call this directly
 
 typedef void (*likely_nullary_function)(likely_matrix *dst);
-inline likely_nullary_function likely_make_nullary_function(const char *description)
+inline likely_nullary_function likely_make_nullary_function(likely_description description)
 { return (likely_nullary_function)likely_make_function(description, 0); }
 
 typedef void (*likely_unary_function)(const likely_matrix *src, likely_matrix *dst);
-inline likely_unary_function likely_make_unary_function(const char *description)
+inline likely_unary_function likely_make_unary_function(likely_description description)
 { return (likely_unary_function)likely_make_function(description, 1); }
 
 typedef void (*likely_binary_function)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);
-inline likely_binary_function likely_make_binary_function(const char *description)
+inline likely_binary_function likely_make_binary_function(likely_description description)
 { return (likely_binary_function)likely_make_function(description, 2); }
 
 typedef void (*likely_ternary_function)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);
-inline likely_ternary_function likely_make_ternary_function(const char *description)
+inline likely_ternary_function likely_make_ternary_function(likely_description description)
 { return (likely_ternary_function)likely_make_function(description, 3); }
-
-// Debugging functions
-LIKELY_EXPORT void likely_print_matrix(const likely_matrix *m);
 
 #ifdef __cplusplus
 }
@@ -176,7 +174,7 @@ LIKELY_EXPORT void likely_print_matrix(const likely_matrix *m);
 
 namespace likely {
 
-inline const char *indexHTML() { return likely_index_html(); }
+inline std::string indexHTML() { return likely_index_html(); }
 
 struct Matrix : public likely_matrix
 {
@@ -212,16 +210,16 @@ struct Matrix : public likely_matrix
 };
 
 typedef likely_nullary_function NullaryFunction;
-inline NullaryFunction makeNullaryFunction(const char *description) { return likely_make_nullary_function(description); }
+inline NullaryFunction makeNullaryFunction(const std::string &description) { return likely_make_nullary_function(description.c_str()); }
 
 typedef likely_unary_function UnaryFunction;
-inline UnaryFunction makeUnaryFunction(const char *description) { return likely_make_unary_function(description); }
+inline UnaryFunction makeUnaryFunction(const std::string &description) { return likely_make_unary_function(description.c_str()); }
 
 typedef likely_binary_function BinaryFunction;
-inline BinaryFunction makeBinaryFunction(const char *description) { return likely_make_binary_function(description); }
+inline BinaryFunction makeBinaryFunction(const std::string &description) { return likely_make_binary_function(description.c_str()); }
 
 typedef likely_ternary_function TernaryFunction;
-inline TernaryFunction makeTernaryFunction(const char *description) { return likely_make_ternary_function(description); }
+inline TernaryFunction makeTernaryFunction(const std::string &description) { return likely_make_ternary_function(description.c_str()); }
 
 } // namespace likely
 
