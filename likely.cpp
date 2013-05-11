@@ -566,7 +566,7 @@ public:
         builder.CreateRet(kernel.elements());
     }
 
-    void makeKernel(Function *function)
+    void makeKernel(Function *function, int descriptionIndex)
     {
         vector<Value*> srcs;
         Value *dst, *start, *stop;
@@ -582,7 +582,21 @@ public:
         IRBuilder<> builder(entry);
 
         if (likely_is_parallel(kernel.h)) {
+            pair<GlobalVariable*,Function*> kernel = KernelBuilder::makeKernelMaker(description, srcs.size());
 
+            BasicBlock *loadKernel = BasicBlock::Create(getGlobalContext(), "load_kernel", function);
+            BasicBlock *executeKernel = BasicBlock::Create(getGlobalContext(), "execute_kernel", function);
+            builder.CreateCondBr(builder.CreateIsNull(kernel.first), loadKernel, executeKernel);
+
+            builder.SetInsertPoint(loadKernel); {
+                vector<Value*> args;
+                args.push_back(MatrixBuilder::constant(descriptionIndex, 32));
+                args.push_back(MatrixBuilder::constant(srcs.size(), 8));
+                args.insert(args.end(), srcs.begin(), srcs.end());
+                args.push_back(ConstantPointerNull::getNullValue(TheMatrixStruct));
+                builder.CreateStore(builder.CreateCall(kernel.second, args), kernel.first);
+                builder.CreateBr(executeKernel);
+            }
         } else {
             kernel.reset(&builder, function, srcs[0]);
             i = kernel.beginLoop(entry, start, stop).i;
@@ -859,7 +873,7 @@ public:
             return executionEngine->getPointerToFunction(function);
         function = getFunction(name, hashes.size(), Type::getVoidTy(getGlobalContext()), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
 
-        kernels[description].makeKernel(function);
+        kernels[description].makeKernel(function, descriptionIndex);
 
         static FunctionPassManager *functionPassManager = NULL;
         if (functionPassManager == NULL) {
