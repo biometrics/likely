@@ -31,6 +31,7 @@
 #include <llvm/Transforms/Vectorize.h>
 #include <iomanip>
 #include <iostream>
+#include <mutex>
 #include <regex>
 #include <stack>
 #include <sstream>
@@ -616,6 +617,12 @@ public:
         IRBuilder<> builder(entry);
 
         if (likely_is_parallel(kernel.h)) {
+            std::vector<likely_matrix> matricies;
+            for (likely_hash hash : hashes) {
+                Matrix matrix(hash);
+                matrix.setParallel(false);
+                matricies.push_back(matrix);
+            }
 //            pair<GlobalVariable*,Function*> kernel = KernelBuilder::makeKernelMaker(description, srcs.size());
 
             BasicBlock *loadKernel = BasicBlock::Create(getGlobalContext(), "load_kernel", function);
@@ -982,8 +989,11 @@ ExecutionEngine *FunctionBuilder::executionEngine;
 
 } // namespace likely
 
+static recursive_mutex maker_lock;
+
 void *likely_make_function(likely_description description, uint8_t arity)
 {
+    lock_guard<recursive_mutex> lock(maker_lock);
     return likely::FunctionBuilder::makeFunction(description, arity);
 }
 
@@ -1000,6 +1010,7 @@ LIKELY_EXPORT void *likely_make_allocation(likely_description description, uint8
     }
     va_end(ap);
     likely_assert(arity == hashes.size(), "likely_make_allocation expected: %u matricies but got %zu", arity, hashes.size());
+    lock_guard<recursive_mutex> lock(maker_lock);
     return likely::FunctionBuilder::makeAllocation(description, hashes);
 }
 
@@ -1014,6 +1025,7 @@ LIKELY_EXPORT void *likely_make_kernel(likely_description description, uint8_t a
     }
     va_end(ap);
     likely_assert(arity == hashes.size(), "likely_make_kernel expected: %u matricies but got %zu", arity, hashes.size());
+    lock_guard<recursive_mutex> lock(maker_lock);
     return likely::FunctionBuilder::makeKernel(description, hashes);
 }
 

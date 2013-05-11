@@ -136,7 +136,7 @@ inline void likely_matrix_initialize(likely_matrix *m, uint8_t *data, uint32_t c
     likely_set_single_row(m->hash, rows == 1);
     likely_set_single_frame(m->hash, frames == 1);
 }
-inline void likely_matrix_initialize_null(likely_matrix *m) { likely_matrix_initialize(m, NULL, 0, 0, 0, 0, 0); }
+inline void likely_matrix_initialize_null(likely_matrix *m, likely_hash hash = likely_hash_null) { likely_matrix_initialize(m, NULL, 0, 0, 0, 0, hash); }
 
 // Convenience functions for debugging; by convention c = channel, x = column, y = row, t = frame
 LIKELY_EXPORT double likely_element(const likely_matrix *m, uint32_t c = 0, uint32_t x = 0, uint32_t y = 0, uint32_t t = 0);
@@ -178,7 +178,7 @@ inline std::string indexHTML() { return likely_index_html(); }
 
 struct Matrix : public likely_matrix
 {
-    Matrix() { likely_matrix_initialize_null(this); }
+    Matrix(likely_hash hash = likely_hash_null) { likely_matrix_initialize_null(this, hash); }
     Matrix(uint8_t *data, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, likely_hash hash)
     { likely_matrix_initialize(this, data, channels, columns, rows, frames, hash); }
 
