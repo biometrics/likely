@@ -616,11 +616,11 @@ public:
         IRBuilder<> builder(entry);
 
         if (likely_is_parallel(kernel.h)) {
-            pair<GlobalVariable*,Function*> kernel = KernelBuilder::makeKernelMaker(description, srcs.size());
+//            pair<GlobalVariable*,Function*> kernel = KernelBuilder::makeKernelMaker(description, srcs.size());
 
             BasicBlock *loadKernel = BasicBlock::Create(getGlobalContext(), "load_kernel", function);
             BasicBlock *executeKernel = BasicBlock::Create(getGlobalContext(), "execute_kernel", function);
-            builder.CreateCondBr(builder.CreateIsNull(kernel.first), loadKernel, executeKernel);
+//            builder.CreateCondBr(builder.CreateIsNull(kernel.first), loadKernel, executeKernel);
 
             builder.SetInsertPoint(loadKernel); {
                 vector<Value*> args;
@@ -629,7 +629,7 @@ public:
                 args.push_back(MatrixBuilder::constant(srcs.size(), 8));
                 args.insert(args.end(), srcs.begin(), srcs.end());
                 args.push_back(ConstantPointerNull::getNullValue(TheMatrixStruct));
-                builder.CreateStore(builder.CreateCall(kernel.second, args), kernel.first);
+//                builder.CreateStore(builder.CreateCall(kernel.second, args), kernel.first);
                 builder.CreateBr(executeKernel);
             }
         } else {
@@ -640,36 +640,6 @@ public:
         }
 
         builder.CreateRetVoid();
-    }
-
-    static pair<GlobalVariable*, Function*> makeKernelMaker(const string &description, uint8_t arity)
-    {
-        static Function *makeKernelFunction = NULL;
-        static vector<PointerType*> kernelFunctionTypes(numArities, NULL);
-        PointerType *kernelFunctionType = kernelFunctionTypes[arity];
-        if (kernelFunctionType == NULL) {
-            vector<Type*> kernelParams;
-            for (int i=0; i<arity+1; i++)
-                kernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
-            kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
-            kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
-            Type *kernelReturn = Type::getVoidTy(getGlobalContext());
-            kernelFunctionType = PointerType::getUnqual(FunctionType::get(kernelReturn, kernelParams, false));
-            kernelFunctionTypes[arity] = kernelFunctionType;
-
-            if (makeKernelFunction == NULL) {
-                vector<Type*> makeKernelParams;
-                makeKernelParams.push_back(Type::getInt8PtrTy(getGlobalContext()));
-                makeKernelParams.push_back(Type::getInt8Ty(getGlobalContext()));
-                makeKernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
-                FunctionType* makeUnaryKernelType = FunctionType::get(kernelFunctionType, makeKernelParams, true);
-                makeKernelFunction = Function::Create(makeUnaryKernelType, GlobalValue::ExternalLinkage, "likely_make_kernel", TheModule);
-                makeKernelFunction->setCallingConv(CallingConv::C);
-            }
-        }
-        GlobalVariable *kernelFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(description+"_kernel", kernelFunctionType));
-        kernelFunction->setInitializer(ConstantPointerNull::get(kernelFunctionType));
-        return pair<GlobalVariable*, Function*>(kernelFunction, makeKernelFunction);
     }
 
     static void getValues(Function *function, vector<Value*> &srcs, Value *&dst)
@@ -760,6 +730,13 @@ public:
 
         function = getFunction(description, arity, Type::getVoidTy(getGlobalContext()));
 
+        static vector<Type*> makerParameters;
+        if (makerParameters.empty()) {
+            makerParameters.push_back(Type::getInt8PtrTy(getGlobalContext()));
+            makerParameters.push_back(Type::getInt8Ty(getGlobalContext()));
+            makerParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
+        }
+
         static Function *makeAllocationFunction = NULL;
         static vector<PointerType*> allocationFunctionTypes(numArities, NULL);
         PointerType *allocationFunctionType = allocationFunctionTypes[arity];
@@ -772,11 +749,7 @@ public:
             allocationFunctionTypes[arity] = allocationFunctionType;
 
             if (makeAllocationFunction == NULL) {
-                vector<Type*> makeAllocationParams;
-                makeAllocationParams.push_back(Type::getInt8PtrTy(getGlobalContext()));
-                makeAllocationParams.push_back(Type::getInt8Ty(getGlobalContext()));
-                makeAllocationParams.push_back(PointerType::getUnqual(TheMatrixStruct));
-                FunctionType* makeAllocationType = FunctionType::get(allocationFunctionType, makeAllocationParams, true);
+                FunctionType* makeAllocationType = FunctionType::get(allocationFunctionType, makerParameters, true);
                 makeAllocationFunction = Function::Create(makeAllocationType, GlobalValue::ExternalLinkage, "likely_make_allocation", TheModule);
                 makeAllocationFunction->setCallingConv(CallingConv::C);
             }
@@ -784,9 +757,27 @@ public:
         GlobalVariable *allocationFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_allocation", allocationFunctionType));
         allocationFunction->setInitializer(ConstantPointerNull::get(allocationFunctionType));
 
-        pair<GlobalVariable*,Function*> kernel = KernelBuilder::makeKernelMaker(description, arity);
-        GlobalVariable *kernelFunction = kernel.first;
-        Function *makeKernelFunction = kernel.second;
+        static Function *makeKernelFunction = NULL;
+        static vector<PointerType*> kernelFunctionTypes(numArities, NULL);
+        PointerType *kernelFunctionType = kernelFunctionTypes[arity];
+        if (kernelFunctionType == NULL) {
+            vector<Type*> kernelParams;
+            for (int i=0; i<arity+1; i++)
+                kernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
+            kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
+            kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
+            Type *kernelReturn = Type::getVoidTy(getGlobalContext());
+            kernelFunctionType = PointerType::getUnqual(FunctionType::get(kernelReturn, kernelParams, false));
+            kernelFunctionTypes[arity] = kernelFunctionType;
+
+            if (makeKernelFunction == NULL) {
+                FunctionType* makeUnaryKernelType = FunctionType::get(kernelFunctionType, makerParameters, true);
+                makeKernelFunction = Function::Create(makeUnaryKernelType, GlobalValue::ExternalLinkage, "likely_make_kernel", TheModule);
+                makeKernelFunction->setCallingConv(CallingConv::C);
+            }
+        }
+        GlobalVariable *kernelFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_kernel", kernelFunctionType));
+        kernelFunction->setInitializer(ConstantPointerNull::get(kernelFunctionType));
 
         vector<Value*> srcs;
         Value *dst;
