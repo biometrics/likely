@@ -68,11 +68,8 @@ int Test::run() const
     Matrix dstLikely;
     f(&srcLikely, &dstLikely);
 
-    float difference = sum(matrixToMat(dstLikely) - dstOpenCV)[0]/(dstOpenCV.rows*dstOpenCV.cols);
-    if (abs(difference) >= errorTolerance) {
-        fprintf(stderr, "ERROR - Test for %s differs by %.3f on average!\n", function(), difference);
-        abort();
-    }
+    const double errors = norm(abs(matrixToMat(dstLikely) - dstOpenCV) > errorTolerance, NORM_L1);
+    likely_assert(errors == 0, "Test for %s differs in %g locations", function(), errors);
 
     // Test speed
     clock_t startTime, endTime;

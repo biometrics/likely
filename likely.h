@@ -142,26 +142,35 @@ inline void likely_matrix_initialize_null(likely_matrix *m, likely_hash hash = l
 LIKELY_EXPORT double likely_element(const likely_matrix *m, uint32_t c = 0, uint32_t x = 0, uint32_t y = 0, uint32_t t = 0);
 LIKELY_EXPORT void likely_set_element(likely_matrix *m, double value, uint32_t c = 0, uint32_t x = 0, uint32_t y = 0, uint32_t t = 0);
 LIKELY_EXPORT void likely_print_matrix(const likely_matrix *m);
+LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
+
+// Helper library functions; you shouldn't call these directly
+typedef const char *likely_description;
+typedef void (*likely_nullary_kernel)(likely_matrix *dst, uint32_t start, uint32_t stop);
+typedef void (*likely_unary_kernel)(const likely_matrix *src, likely_matrix *dst, uint32_t start, uint32_t stop);
+typedef void (*likely_binary_kernel)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst, uint32_t start, uint32_t stop);
+typedef void (*likely_ternary_kernel)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst, uint32_t start, uint32_t stop);
+LIKELY_EXPORT void *likely_make_function(likely_description description, uint8_t arity);
+LIKELY_EXPORT void *likely_make_allocation(likely_description description, uint8_t arity, likely_matrix *src, ... /* NULL */);
+LIKELY_EXPORT void *likely_make_kernel(likely_description description, uint8_t arity, likely_matrix *src, ... /* NULL */);
+LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, int8_t arity, uint32_t start, uint32_t stop, likely_matrix *src, ... /* NULL */);
 
 // Core library functions
-typedef const char *likely_description;
-LIKELY_EXPORT void *likely_make_function(likely_description description, uint8_t arity); // You shouldn't call this directly
-
 typedef void (*likely_nullary_function)(likely_matrix *dst);
 inline likely_nullary_function likely_make_nullary_function(likely_description description)
-{ return (likely_nullary_function)likely_make_function(description, 0); }
+    { return (likely_nullary_function)likely_make_function(description, 0); }
 
 typedef void (*likely_unary_function)(const likely_matrix *src, likely_matrix *dst);
 inline likely_unary_function likely_make_unary_function(likely_description description)
-{ return (likely_unary_function)likely_make_function(description, 1); }
+    { return (likely_unary_function)likely_make_function(description, 1); }
 
 typedef void (*likely_binary_function)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);
 inline likely_binary_function likely_make_binary_function(likely_description description)
-{ return (likely_binary_function)likely_make_function(description, 2); }
+    { return (likely_binary_function)likely_make_function(description, 2); }
 
 typedef void (*likely_ternary_function)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);
 inline likely_ternary_function likely_make_ternary_function(likely_description description)
-{ return (likely_ternary_function)likely_make_function(description, 3); }
+    { return (likely_ternary_function)likely_make_function(description, 3); }
 
 #ifdef __cplusplus
 }
@@ -183,43 +192,47 @@ struct Matrix : public likely_matrix
     { likely_matrix_initialize(this, data, channels, columns, rows, frames, hash); }
 
     inline int  depth() const { return likely_depth(hash); }
-    inline void setDepth(int bits) { likely_set_depth(hash, bits); }
+    inline Matrix &setDepth(int bits) { likely_set_depth(hash, bits); return *this; }
     inline bool isFloating() const { return likely_is_floating(hash); }
-    inline void setFloating(bool isFloating) { likely_set_floating(hash, isFloating); }
+    inline Matrix &setFloating(bool isFloating) { likely_set_floating(hash, isFloating); return *this; }
     inline bool isSigned() const { return likely_is_signed(hash); }
-    inline void setSigned(bool isSigned) { likely_set_signed(hash, isSigned); }
+    inline Matrix &setSigned(bool isSigned) { likely_set_signed(hash, isSigned); return *this; }
     inline int  type() const { return likely_type(hash); }
-    inline void setType(int type) { likely_set_type(hash, type); }
+    inline Matrix &setType(int type) { likely_set_type(hash, type); return *this; }
     inline bool parallel() const { return likely_is_parallel(hash); }
-    inline void setParallel(bool parallel) { likely_set_parallel(hash, parallel); }
+    inline Matrix &setParallel(bool parallel) { likely_set_parallel(hash, parallel); return *this; }
     inline bool heterogeneous() const { return likely_is_heterogeneous(hash); }
-    inline void setHeterogeneous(bool heterogeneous) { likely_set_heterogeneous(hash, heterogeneous); }
+    inline Matrix &setHeterogeneous(bool heterogeneous) { likely_set_heterogeneous(hash, heterogeneous); return *this; }
     inline bool isSingleChannel() const { return likely_is_single_channel(hash); }
-    inline void setSingleChannel(bool isSingleChannel) { likely_set_single_channel(hash, isSingleChannel); }
+    inline Matrix &setSingleChannel(bool isSingleChannel) { likely_set_single_channel(hash, isSingleChannel); return *this; }
     inline bool isSingleColumn() const { return likely_is_single_column(hash); }
-    inline void setSingleColumn(bool isSingleColumn) { likely_set_single_column(hash, isSingleColumn); }
+    inline Matrix &setSingleColumn(bool isSingleColumn) { likely_set_single_column(hash, isSingleColumn); return *this; }
     inline bool isSingleRow() const { return likely_is_single_row(hash); }
-    inline void setSingleRow(bool isSingleRow) { likely_set_single_row(hash, isSingleRow); }
+    inline Matrix &setSingleRow(bool isSingleRow) { likely_set_single_row(hash, isSingleRow); return *this; }
     inline bool isSingleFrame() const { return likely_is_single_frame(hash); }
-    inline void setSingleFrame(bool isSingleFrame) { likely_set_single_frame(hash, isSingleFrame); }
+    inline Matrix &setSingleFrame(bool isSingleFrame) { likely_set_single_frame(hash, isSingleFrame); return *this; }
     inline uint32_t elements() const { return likely_elements(this); }
     inline uint32_t bytes() const { return likely_bytes(this); }
     inline double element(uint32_t c, uint32_t x, uint32_t y, uint32_t t) const { return likely_element(this, c, x, y, t); }
-    inline void setElement(double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t) { likely_set_element(this, value, c, x, y, t); }
+    inline Matrix &setElement(double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t) { likely_set_element(this, value, c, x, y, t); return *this; }
     inline void print() const { return likely_print_matrix(this); }
 };
 
 typedef likely_nullary_function NullaryFunction;
-inline NullaryFunction makeNullaryFunction(const std::string &description) { return likely_make_nullary_function(description.c_str()); }
+inline NullaryFunction makeNullaryFunction(const std::string &description)
+    { return likely_make_nullary_function(description.c_str()); }
 
 typedef likely_unary_function UnaryFunction;
-inline UnaryFunction makeUnaryFunction(const std::string &description) { return likely_make_unary_function(description.c_str()); }
+inline UnaryFunction makeUnaryFunction(const std::string &description)
+    { return likely_make_unary_function(description.c_str()); }
 
 typedef likely_binary_function BinaryFunction;
-inline BinaryFunction makeBinaryFunction(const std::string &description) { return likely_make_binary_function(description.c_str()); }
+inline BinaryFunction makeBinaryFunction(const std::string &description)
+    { return likely_make_binary_function(description.c_str()); }
 
 typedef likely_ternary_function TernaryFunction;
-inline TernaryFunction makeTernaryFunction(const std::string &description) { return likely_make_ternary_function(description.c_str()); }
+inline TernaryFunction makeTernaryFunction(const std::string &description)
+    { return likely_make_ternary_function(description.c_str()); }
 
 } // namespace likely
 

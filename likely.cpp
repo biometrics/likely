@@ -42,17 +42,6 @@
 using namespace llvm;
 using namespace std;
 
-void likely_assert(bool condition, const char *format, ...)
-{
-    if (condition) return;
-    fprintf(stderr, "LIKELY ERROR - ");
-    va_list ap;
-    va_start(ap, format);
-    vfprintf(stderr, format, ap);
-    fprintf(stderr, ".\n");
-    abort();
-}
-
 double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
 {
     likely_assert(m != NULL, "likely_element received a null matrix");
@@ -131,6 +120,17 @@ void likely_print_matrix(const likely_matrix *m)
         cout << (m->rows > 1 ? "]\n" : "");
         cout << (t < m->frames-1 ? "\n" : "");
     }
+}
+
+void likely_assert(bool condition, const char *format, ...)
+{
+    if (condition) return;
+    fprintf(stderr, "LIKELY ERROR - ");
+    va_list ap;
+    va_start(ap, format);
+    vfprintf(stderr, format, ap);
+    fprintf(stderr, ".\n");
+    abort();
 }
 
 namespace likely
@@ -328,6 +328,7 @@ struct MatrixBuilder
     static Constant *constant(bool value) { return constant(value, 1); }
     static Constant *constant(float value) { return ConstantFP::get(Type::getFloatTy(getGlobalContext()), value == 0 ? -0.0f : value); }
     static Constant *constant(double value) { return ConstantFP::get(Type::getDoubleTy(getGlobalContext()), value == 0 ? -0.0 : value); }
+    static Constant *constant(const char *value) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), Type::getInt8PtrTy(getGlobalContext())); }
     static Constant *zero() { return constant(0); }
     static Constant *one() { return constant(1); }
     Constant *autoConstant(double value) const { return likely_is_floating(h) ? ((likely_depth(h) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(h)); }
@@ -557,7 +558,7 @@ struct MatrixBuilder
         return NULL;
     }
     inline Type *ty(bool pointer = false) const { return ty(h, pointer); }
-    inline vector<Type*> tys(bool pointer = false) const { return toVector<Type*>(ty(pointer)); }
+    inline vector<Type*> tys(bool pointer = false) const { return toVector<Type*>(ty(pointer)); }  
 };
 
 class KernelBuilder
@@ -617,28 +618,41 @@ public:
         IRBuilder<> builder(entry);
 
         if (likely_is_parallel(kernel.h)) {
-            std::vector<likely_matrix> matricies;
-            for (likely_hash hash : hashes) {
-                Matrix matrix(hash);
-                matrix.setParallel(false);
-                matricies.push_back(matrix);
-            }
-//            pair<GlobalVariable*,Function*> kernel = KernelBuilder::makeKernelMaker(description, srcs.size());
+            vector<likely_matrix> matricies;
+            for (likely_hash hash : hashes)
+                matricies.push_back(Matrix(hash).setParallel(false));
 
-            BasicBlock *loadKernel = BasicBlock::Create(getGlobalContext(), "load_kernel", function);
-            BasicBlock *executeKernel = BasicBlock::Create(getGlobalContext(), "execute_kernel", function);
-//            builder.CreateCondBr(builder.CreateIsNull(kernel.first), loadKernel, executeKernel);
-
-            builder.SetInsertPoint(loadKernel); {
-                vector<Value*> args;
-                //IntegerType *nativeInteger = IntegerType::get(getGlobalContext(), executionEngine->getDataLayout()->getPointerSizeInBits());
-                //args.push_back(ConstantExpr::getIntToPtr(ConstantInt::get(nativeInteger, uint64_t(copy)), Type::getInt8PtrTy(getGlobalContext())));
-                args.push_back(MatrixBuilder::constant(srcs.size(), 8));
-                args.insert(args.end(), srcs.begin(), srcs.end());
-                args.push_back(ConstantPointerNull::getNullValue(TheMatrixStruct));
-//                builder.CreateStore(builder.CreateCall(kernel.second, args), kernel.first);
-                builder.CreateBr(executeKernel);
+            void *serialKernelFunction = NULL;
+            switch (matricies.size()) {
+              case 0: serialKernelFunction = likely_make_kernel(description, 0, NULL); break;
+              case 1: serialKernelFunction = likely_make_kernel(description, 1, &matricies[0], NULL); break;
+              case 2: serialKernelFunction = likely_make_kernel(description, 2, &matricies[0], &matricies[1], NULL); break;
+              case 3: serialKernelFunction = likely_make_kernel(description, 3, &matricies[0], &matricies[1], &matricies[2], NULL); break;
+              default: likely_assert(false, "KernelBuilder::make kernel invalid arity: %zu", matricies.size());
             }
+
+            static Function *parallelDispatch = NULL;
+            if (parallelDispatch == NULL) {
+                vector<Type*> params;
+                params.push_back(Type::getInt8PtrTy(getGlobalContext()));
+                params.push_back(Type::getInt8Ty(getGlobalContext()));
+                params.push_back(Type::getInt32Ty(getGlobalContext()));
+                params.push_back(Type::getInt32Ty(getGlobalContext()));
+                params.push_back(PointerType::getUnqual(TheMatrixStruct));
+                parallelDispatch = Function::Create(FunctionType::get(Type::getVoidTy(getGlobalContext()), params, true), GlobalValue::ExternalLinkage, "likely_parallel_dispatch", TheModule);
+                parallelDispatch->setCallingConv(CallingConv::C);
+            }
+
+            vector<Value*> args;
+            args.push_back(MatrixBuilder::constant(reinterpret_cast<const char*>(serialKernelFunction)));
+            args.push_back(MatrixBuilder::constant(matricies.size(), 8));
+            args.push_back(start);
+            args.push_back(stop);
+            args.insert(args.end(), srcs.begin(), srcs.end());
+            args.push_back(dst);
+
+            builder.CreateCall(parallelDispatch, args);
+            builder.CreateRetVoid();
         } else {
             kernel.reset(&builder, function, srcs[0]);
             i = kernel.beginLoop(entry, start, stop).i;
@@ -820,8 +834,7 @@ public:
             descriptions.push_back(copy);
 
             vector<Value*> args;
-            IntegerType *nativeInteger = IntegerType::get(getGlobalContext(), executionEngine->getDataLayout()->getPointerSizeInBits());
-            args.push_back(ConstantExpr::getIntToPtr(ConstantInt::get(nativeInteger, uint64_t(copy)), Type::getInt8PtrTy(getGlobalContext())));
+            args.push_back(MatrixBuilder::constant(copy));
             args.push_back(MatrixBuilder::constant(arity, 8));
             args.insert(args.end(), srcs.begin(), srcs.end());
             args.push_back(ConstantPointerNull::getNullValue(TheMatrixStruct));
@@ -837,7 +850,7 @@ public:
             vector<Value*> args(srcs); args.push_back(dst);
             Value *kernelSize = builder.CreateCall(builder.CreateLoad(allocationFunction), args);
 
-            static Function *malloc = TheModule->getFunction("malloc");
+            static Function *malloc = NULL;
             if (malloc == NULL) {
                 Type *mallocReturn = Type::getInt8PtrTy(getGlobalContext());
                 vector<Type*> mallocParams;
@@ -942,7 +955,6 @@ private:
     {
         InitializeNativeTarget();
         TheModule = new Module("likely", getGlobalContext());
-//        TheModule->setDataLayout("E-p:64:64:64-S0-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-f16:16:16-f32:32:32-f64:64:64-f128:128:128-v64:64:64-v128:128:128-a0:0:64");
         TheModule->setTargetTriple(sys::getProcessTriple());
 
         string error;
@@ -989,17 +1001,15 @@ ExecutionEngine *FunctionBuilder::executionEngine;
 
 } // namespace likely
 
-static recursive_mutex maker_lock;
+static mutex maker_lock;
 
 void *likely_make_function(likely_description description, uint8_t arity)
 {
-    lock_guard<recursive_mutex> lock(maker_lock);
+    lock_guard<mutex> lock(maker_lock);
     return likely::FunctionBuilder::makeFunction(description, arity);
 }
 
-extern "C" {
-
-LIKELY_EXPORT void *likely_make_allocation(likely_description description, uint8_t arity, likely_matrix *src, ...)
+void *likely_make_allocation(likely_description description, uint8_t arity, likely_matrix *src, ...)
 {
     vector<likely_hash> hashes;
     va_list ap;
@@ -1010,11 +1020,11 @@ LIKELY_EXPORT void *likely_make_allocation(likely_description description, uint8
     }
     va_end(ap);
     likely_assert(arity == hashes.size(), "likely_make_allocation expected: %u matricies but got %zu", arity, hashes.size());
-    lock_guard<recursive_mutex> lock(maker_lock);
+    lock_guard<mutex> lock(maker_lock);
     return likely::FunctionBuilder::makeAllocation(description, hashes);
 }
 
-LIKELY_EXPORT void *likely_make_kernel(likely_description description, uint8_t arity, likely_matrix *src, ...)
+void *likely_make_kernel(likely_description description, uint8_t arity, likely_matrix *src, ...)
 {
     vector<likely_hash> hashes;
     va_list ap;
@@ -1025,19 +1035,17 @@ LIKELY_EXPORT void *likely_make_kernel(likely_description description, uint8_t a
     }
     va_end(ap);
     likely_assert(arity == hashes.size(), "likely_make_kernel expected: %u matricies but got %zu", arity, hashes.size());
-    lock_guard<recursive_mutex> lock(maker_lock);
+    lock_guard<mutex> lock(maker_lock);
     return likely::FunctionBuilder::makeKernel(description, hashes);
 }
 
-LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, int8_t arity, likely_matrix *src, ...)
+void likely_parallel_dispatch(void *kernel, int8_t arity, uint32_t start, uint32_t stop, likely_matrix *src, ...)
 {
     switch (arity) {
-      case 0: reinterpret_cast<likely_nullary_function>(kernel)(src); break;
-      case 1: reinterpret_cast<likely_unary_function>(kernel)(src, src+1); break;
-      case 2: reinterpret_cast<likely_binary_function>(kernel)(src, src+1, src+2); break;
-      case 3: reinterpret_cast<likely_ternary_function>(kernel)(src, src+1, src+2, src+3); break;
+      case 0: reinterpret_cast<likely_nullary_kernel>(kernel)(src, start, stop); break;
+      case 1: reinterpret_cast<likely_unary_kernel>(kernel)(src, src+1, start, stop); break;
+      case 2: reinterpret_cast<likely_binary_kernel>(kernel)(src, src+1, src+2, start, stop); break;
+      case 3: reinterpret_cast<likely_ternary_kernel>(kernel)(src, src+1, src+2, src+3, start, stop); break;
       default: likely_assert(false, "likely_parallel_dispatch invalid arity: %d", arity);
     }
 }
-
-} // extern "C"
