@@ -746,7 +746,7 @@ class FunctionBuilder
     static ExecutionEngine *executionEngine;
 
 public:
-    static void *makeFunction(likely_description description, uint8_t arity)
+    static void *makeFunction(likely_description description, likely_arity arity)
     {
         if (TheModule == NULL) initialize();
 
@@ -812,18 +812,18 @@ public:
         IRBuilder<> builder(entry);
 
         vector<GlobalVariable*> kernelHashes;
-        for (int i = 0; i < arity; i++) {
+        for (int i=0; i<arity; i++) {
             GlobalVariable *kernelHash = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_hash"+to_string(i), Type::getInt16Ty(getGlobalContext())));
             kernelHash->setInitializer(MatrixBuilder::constant(0, 16));
             kernelHashes.push_back(kernelHash);
         }
 
         vector<Value*> srcHashes;
-        for (int i = 0; i < arity; i++)
+        for (int i=0; i<arity; i++)
             srcHashes.push_back(builder.CreateLoad(builder.CreateStructGEP(srcs[i], 5), "src_hash"+to_string(i)));
 
         Value *hashTest = MatrixBuilder::constant(true);
-        for (int i = 0; i < arity; i++)
+        for (int i=0; i<arity; i++)
             hashTest = builder.CreateAnd(hashTest, builder.CreateICmpEQ(builder.CreateLoad(kernelHashes[i]), srcHashes[i]));
 
         BasicBlock *hashFail = BasicBlock::Create(getGlobalContext(), "hash_fail", function);
@@ -844,7 +844,7 @@ public:
             args.push_back(ConstantPointerNull::getNullValue(TheMatrixStruct));
             builder.CreateStore(builder.CreateCall(makeAllocationFunction, args), allocationFunction);
             builder.CreateStore(builder.CreateCall(makeKernelFunction, args), kernelFunction);
-            for (int i = 0; i < arity; i++)
+            for (int i=0; i<arity; i++)
                 builder.CreateStore(srcHashes[i], kernelHashes[i]);
             builder.CreateBr(execute);
         }
@@ -983,7 +983,7 @@ private:
         return stream.str();
     }
 
-    static Function *getFunction(const string &description, int arity, Type *ret, Type *start = NULL, Type *stop = NULL)
+    static Function *getFunction(const string &description, likely_arity arity, Type *ret, Type *start = NULL, Type *stop = NULL)
     {
         PointerType *matrixPointer = PointerType::getUnqual(TheMatrixStruct);
         Function *function;
@@ -1007,13 +1007,13 @@ ExecutionEngine *FunctionBuilder::executionEngine;
 
 static recursive_mutex maker_lock;
 
-void *likely_make_function(likely_description description, uint8_t arity)
+void *likely_make_function(likely_description description, likely_arity arity)
 {
     lock_guard<recursive_mutex> lock(maker_lock);
     return likely::FunctionBuilder::makeFunction(description, arity);
 }
 
-void *likely_make_allocation(likely_description description, uint8_t arity, likely_matrix *src, ...)
+void *likely_make_allocation(likely_description description, likely_arity arity, likely_matrix *src, ...)
 {
     vector<likely_hash> hashes;
     va_list ap;
@@ -1028,7 +1028,7 @@ void *likely_make_allocation(likely_description description, uint8_t arity, like
     return likely::FunctionBuilder::makeAllocation(description, hashes);
 }
 
-void *likely_make_kernel(likely_description description, uint8_t arity, likely_matrix *src, ...)
+void *likely_make_kernel(likely_description description, likely_arity arity, likely_matrix *src, ...)
 {
     vector<likely_hash> hashes;
     va_list ap;
@@ -1044,7 +1044,7 @@ void *likely_make_kernel(likely_description description, uint8_t arity, likely_m
     return kernel;
 }
 
-void likely_parallel_dispatch(void *kernel, int8_t arity, uint32_t start, uint32_t stop, likely_matrix *src, ...)
+void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size start, likely_size stop, likely_matrix *src, ...)
 {
     likely_matrix* matricies[LIKELY_NUM_ARITIES+1];
     va_list ap;
