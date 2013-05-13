@@ -42,6 +42,11 @@
 using namespace llvm;
 using namespace std;
 
+#define LIKELY_NUM_ARITIES 4
+
+static Module *TheModule = NULL;
+static StructType *TheMatrixStruct = NULL;
+
 double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
 {
     likely_assert(m != NULL, "likely_element received a null matrix");
@@ -133,12 +138,13 @@ void likely_assert(bool condition, const char *format, ...)
     abort();
 }
 
+void likely_dump()
+{
+    TheModule->dump();
+}
+
 namespace likely
 {
-
-static const uint8_t numArities = 4; // 0 through 3
-static Module *TheModule = NULL;
-static StructType *TheMatrixStruct = NULL;
 
 static vector<string> split(const string &s, char delim)
 {
@@ -652,7 +658,6 @@ public:
             args.push_back(dst);
 
             builder.CreateCall(parallelDispatch, args);
-            builder.CreateRetVoid();
         } else {
             kernel.reset(&builder, function, srcs[0]);
             i = kernel.beginLoop(entry, start, stop).i;
@@ -748,7 +753,6 @@ public:
         Function *function = TheModule->getFunction(description);
         if (function != NULL)
             return executionEngine->getPointerToFunction(function);
-
         function = getFunction(description, arity, Type::getVoidTy(getGlobalContext()));
 
         static vector<Type*> makerParameters;
@@ -759,7 +763,7 @@ public:
         }
 
         static Function *makeAllocationFunction = NULL;
-        static vector<PointerType*> allocationFunctionTypes(numArities, NULL);
+        static vector<PointerType*> allocationFunctionTypes(LIKELY_NUM_ARITIES, NULL);
         PointerType *allocationFunctionType = allocationFunctionTypes[arity];
         if (allocationFunctionType == NULL) {
             vector<Type*> allocationParams;
@@ -779,7 +783,7 @@ public:
         allocationFunction->setInitializer(ConstantPointerNull::get(allocationFunctionType));
 
         static Function *makeKernelFunction = NULL;
-        static vector<PointerType*> kernelFunctionTypes(numArities, NULL);
+        static vector<PointerType*> kernelFunctionTypes(LIKELY_NUM_ARITIES, NULL);
         PointerType *kernelFunctionType = kernelFunctionTypes[arity];
         if (kernelFunctionType == NULL) {
             vector<Type*> kernelParams;
@@ -946,7 +950,7 @@ public:
 //            DebugFlag = true;
         }
         functionPassManager->run(*function);
-        TheModule->dump();
+
         return executionEngine->getPointerToFunction(function);
     }
 
@@ -1001,11 +1005,11 @@ ExecutionEngine *FunctionBuilder::executionEngine;
 
 } // namespace likely
 
-static mutex maker_lock;
+static recursive_mutex maker_lock;
 
 void *likely_make_function(likely_description description, uint8_t arity)
 {
-    lock_guard<mutex> lock(maker_lock);
+    lock_guard<recursive_mutex> lock(maker_lock);
     return likely::FunctionBuilder::makeFunction(description, arity);
 }
 
@@ -1020,7 +1024,7 @@ void *likely_make_allocation(likely_description description, uint8_t arity, like
     }
     va_end(ap);
     likely_assert(arity == hashes.size(), "likely_make_allocation expected: %u matricies but got %zu", arity, hashes.size());
-    lock_guard<mutex> lock(maker_lock);
+    lock_guard<recursive_mutex> lock(maker_lock);
     return likely::FunctionBuilder::makeAllocation(description, hashes);
 }
 
@@ -1035,17 +1039,27 @@ void *likely_make_kernel(likely_description description, uint8_t arity, likely_m
     }
     va_end(ap);
     likely_assert(arity == hashes.size(), "likely_make_kernel expected: %u matricies but got %zu", arity, hashes.size());
-    lock_guard<mutex> lock(maker_lock);
-    return likely::FunctionBuilder::makeKernel(description, hashes);
+    lock_guard<recursive_mutex> lock(maker_lock);
+    void *kernel = likely::FunctionBuilder::makeKernel(description, hashes);
+    return kernel;
 }
 
 void likely_parallel_dispatch(void *kernel, int8_t arity, uint32_t start, uint32_t stop, likely_matrix *src, ...)
 {
+    likely_matrix* matricies[LIKELY_NUM_ARITIES+1];
+    va_list ap;
+    va_start(ap, src);
+    for (int i=0; i<arity+1; i++) {
+        matricies[i] = src;
+        src = va_arg(ap, likely_matrix*);
+    }
+    va_end(ap);
+
     switch (arity) {
-      case 0: reinterpret_cast<likely_nullary_kernel>(kernel)(src, start, stop); break;
-      case 1: reinterpret_cast<likely_unary_kernel>(kernel)(src, src+1, start, stop); break;
-      case 2: reinterpret_cast<likely_binary_kernel>(kernel)(src, src+1, src+2, start, stop); break;
-      case 3: reinterpret_cast<likely_ternary_kernel>(kernel)(src, src+1, src+2, src+3, start, stop); break;
+      case 0: reinterpret_cast<likely_nullary_kernel>(kernel)(matricies[0], start, stop); break;
+      case 1: reinterpret_cast<likely_unary_kernel>(kernel)(matricies[0], matricies[1], start, stop); break;
+      case 2: reinterpret_cast<likely_binary_kernel>(kernel)(matricies[0], matricies[1], matricies[2], start, stop); break;
+      case 3: reinterpret_cast<likely_ternary_kernel>(kernel)(matricies[0], matricies[1], matricies[2], matricies[3], start, stop); break;
       default: likely_assert(false, "likely_parallel_dispatch invalid arity: %d", arity);
     }
 }

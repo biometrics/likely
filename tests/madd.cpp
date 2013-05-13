@@ -1,4 +1,3 @@
-#include "likely.h"
 #include "test.h"
 
 class maddTest : public Test

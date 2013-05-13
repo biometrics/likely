@@ -143,6 +143,7 @@ LIKELY_EXPORT double likely_element(const likely_matrix *m, uint32_t c = 0, uint
 LIKELY_EXPORT void likely_set_element(likely_matrix *m, double value, uint32_t c = 0, uint32_t x = 0, uint32_t y = 0, uint32_t t = 0);
 LIKELY_EXPORT void likely_print_matrix(const likely_matrix *m);
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
+LIKELY_EXPORT void likely_dump(); // Print LLVM module contents to stderr
 
 // Helper library functions; you shouldn't call these directly
 typedef const char *likely_description;
