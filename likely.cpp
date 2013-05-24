@@ -739,224 +739,44 @@ public:
     }
 };
 
-class FunctionBuilder
+static vector<likely_description> descriptions;
+static map<string,KernelBuilder> kernels;
+static ExecutionEngine *executionEngine;
+static recursive_mutex makerLock;
+
+static string mangledName(const string &description, const vector<likely_hash> &hashes)
 {
-    static vector<likely_description> descriptions;
-    static map<string,KernelBuilder> kernels;
-    static ExecutionEngine *executionEngine;
+    stringstream stream; stream << description;
+    for (likely_hash hash : hashes)
+        stream << "_" << hex << setfill('0') << setw(4) << hash;
+    return stream.str();
+}
 
-public:
-    static void *makeFunction(likely_description description, likely_arity arity)
-    {
-        if (TheModule == NULL) initialize();
-
-        Function *function = TheModule->getFunction(description);
-        if (function != NULL)
-            return executionEngine->getPointerToFunction(function);
-        function = getFunction(description, arity, Type::getVoidTy(getGlobalContext()));
-
-        static vector<Type*> makerParameters;
-        if (makerParameters.empty()) {
-            makerParameters.push_back(Type::getInt8PtrTy(getGlobalContext()));
-            makerParameters.push_back(Type::getInt8Ty(getGlobalContext()));
-            makerParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
-        }
-
-        static Function *makeAllocationFunction = NULL;
-        static vector<PointerType*> allocationFunctionTypes(LIKELY_NUM_ARITIES, NULL);
-        PointerType *allocationFunctionType = allocationFunctionTypes[arity];
-        if (allocationFunctionType == NULL) {
-            vector<Type*> allocationParams;
-            for (int i=0; i<arity+1; i++)
-                allocationParams.push_back(PointerType::getUnqual(TheMatrixStruct));
-            Type *allocationReturn = Type::getInt32Ty(getGlobalContext());
-            allocationFunctionType = PointerType::getUnqual(FunctionType::get(allocationReturn, allocationParams, false));
-            allocationFunctionTypes[arity] = allocationFunctionType;
-
-            if (makeAllocationFunction == NULL) {
-                FunctionType* makeAllocationType = FunctionType::get(allocationFunctionType, makerParameters, true);
-                makeAllocationFunction = Function::Create(makeAllocationType, GlobalValue::ExternalLinkage, "likely_make_allocation", TheModule);
-                makeAllocationFunction->setCallingConv(CallingConv::C);
-            }
-        }
-        GlobalVariable *allocationFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_allocation", allocationFunctionType));
-        allocationFunction->setInitializer(ConstantPointerNull::get(allocationFunctionType));
-
-        static Function *makeKernelFunction = NULL;
-        static vector<PointerType*> kernelFunctionTypes(LIKELY_NUM_ARITIES, NULL);
-        PointerType *kernelFunctionType = kernelFunctionTypes[arity];
-        if (kernelFunctionType == NULL) {
-            vector<Type*> kernelParams;
-            for (int i=0; i<arity+1; i++)
-                kernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
-            kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
-            kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
-            Type *kernelReturn = Type::getVoidTy(getGlobalContext());
-            kernelFunctionType = PointerType::getUnqual(FunctionType::get(kernelReturn, kernelParams, false));
-            kernelFunctionTypes[arity] = kernelFunctionType;
-
-            if (makeKernelFunction == NULL) {
-                FunctionType* makeUnaryKernelType = FunctionType::get(kernelFunctionType, makerParameters, true);
-                makeKernelFunction = Function::Create(makeUnaryKernelType, GlobalValue::ExternalLinkage, "likely_make_kernel", TheModule);
-                makeKernelFunction->setCallingConv(CallingConv::C);
-            }
-        }
-        GlobalVariable *kernelFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_kernel", kernelFunctionType));
-        kernelFunction->setInitializer(ConstantPointerNull::get(kernelFunctionType));
-
-        vector<Value*> srcs;
-        Value *dst;
-        KernelBuilder::getValues(function, srcs, dst);
-
-        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
-        IRBuilder<> builder(entry);
-
-        vector<GlobalVariable*> kernelHashes;
-        for (int i=0; i<arity; i++) {
-            GlobalVariable *kernelHash = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_hash"+to_string(i), Type::getInt16Ty(getGlobalContext())));
-            kernelHash->setInitializer(MatrixBuilder::constant(0, 16));
-            kernelHashes.push_back(kernelHash);
-        }
-
-        vector<Value*> srcHashes;
-        for (int i=0; i<arity; i++)
-            srcHashes.push_back(builder.CreateLoad(builder.CreateStructGEP(srcs[i], 5), "src_hash"+to_string(i)));
-
-        Value *hashTest = MatrixBuilder::constant(true);
-        for (int i=0; i<arity; i++)
-            hashTest = builder.CreateAnd(hashTest, builder.CreateICmpEQ(builder.CreateLoad(kernelHashes[i]), srcHashes[i]));
-
-        BasicBlock *hashFail = BasicBlock::Create(getGlobalContext(), "hash_fail", function);
-        BasicBlock *execute = BasicBlock::Create(getGlobalContext(), "execute", function);
-        builder.CreateCondBr(hashTest, execute, hashFail);
-
-        builder.SetInsertPoint(hashFail);
-        {
-            // Construct a description that stays valid for the lifetime of the program
-            char *copy = new char[strlen(description)+1];
-            strcpy(copy, description);
-            descriptions.push_back(copy);
-
-            vector<Value*> args;
-            args.push_back(MatrixBuilder::constant(copy));
-            args.push_back(MatrixBuilder::constant(arity, 8));
-            args.insert(args.end(), srcs.begin(), srcs.end());
-            args.push_back(ConstantPointerNull::getNullValue(TheMatrixStruct));
-            builder.CreateStore(builder.CreateCall(makeAllocationFunction, args), allocationFunction);
-            builder.CreateStore(builder.CreateCall(makeKernelFunction, args), kernelFunction);
-            for (int i=0; i<arity; i++)
-                builder.CreateStore(srcHashes[i], kernelHashes[i]);
-            builder.CreateBr(execute);
-        }
-
-        builder.SetInsertPoint(execute);
-        {
-            vector<Value*> args(srcs); args.push_back(dst);
-            Value *kernelSize = builder.CreateCall(builder.CreateLoad(allocationFunction), args);
-
-            static Function *malloc = NULL;
-            if (malloc == NULL) {
-                Type *mallocReturn = Type::getInt8PtrTy(getGlobalContext());
-                vector<Type*> mallocParams;
-                mallocParams.push_back(Type::getInt32Ty(getGlobalContext()));
-                FunctionType* mallocType = FunctionType::get(mallocReturn, mallocParams, false);
-                malloc = Function::Create(mallocType, GlobalValue::ExternalLinkage, "malloc", TheModule);
-                malloc->setCallingConv(CallingConv::C);
-            }
-
-            MatrixBuilder mbDst(&builder, function, "dst", likely_hash_null, dst);
-            mbDst.setData(builder.CreateCall(malloc, mbDst.bytes()));
-
-            BasicBlock *kernel = BasicBlock::Create(getGlobalContext(), "kernel", function);
-            BasicBlock *exit = BasicBlock::Create(getGlobalContext(), "exit", function);
-            builder.CreateCondBr(builder.CreateICmpUGT(kernelSize, MatrixBuilder::zero()), kernel, exit);
-
-            builder.SetInsertPoint(kernel);
-            args.push_back(MatrixBuilder::zero());
-            args.push_back(kernelSize);
-            builder.CreateCall(builder.CreateLoad(kernelFunction), args);
-            builder.CreateBr(exit);
-
-            builder.SetInsertPoint(exit);
-            builder.CreateRetVoid();
-        }
-
-        static FunctionPassManager *functionPassManager = NULL;
-        if (functionPassManager == NULL) {
-            functionPassManager = new FunctionPassManager(TheModule);
-            functionPassManager->add(createVerifierPass(PrintMessageAction));
-        }
-        functionPassManager->run(*function);
-
-        return executionEngine->getPointerToFunction(function);
+static Function *getFunction(const string &description, likely_arity arity, Type *ret, Type *start = NULL, Type *stop = NULL)
+{
+    PointerType *matrixPointer = PointerType::getUnqual(TheMatrixStruct);
+    Function *function;
+    switch (arity) {
+    case 0: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, start, stop, NULL)); break;
+    case 1: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer,  start, stop, NULL)); break;
+    case 2: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer,  start, stop, NULL)); break;
+    case 3: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer, matrixPointer,  start, stop, NULL)); break;
+    default: likely_assert(false, "FunctionBuilder::getFunction invalid arity: %d", arity);
     }
+    function->setCallingConv(CallingConv::C);
+    return function;
+}
 
-    static void *makeAllocation(likely_description description, const vector<likely_hash> &hashes)
-    {
-        const string name = mangledName(description, hashes)+"_allocation";
+} // namespace likely
 
-        Function *function = TheModule->getFunction(name);
-        if (function != NULL)
-            return executionEngine->getPointerToFunction(function);
-        function = getFunction(name, hashes.size(), Type::getInt32Ty(getGlobalContext()));
+using namespace likely;
 
-        auto kernelPointer = kernels.find(description);
-        if (kernelPointer == kernels.end()) {
-            kernels[description] = KernelBuilder(description);
-            kernelPointer = kernels.find(description);
-        }
-        (*kernelPointer).second.makeAllocation(function, hashes);
+void *likely_make_function(likely_description description, likely_arity arity)
+{
+    lock_guard<recursive_mutex> lock(makerLock);
 
-        static FunctionPassManager *functionPassManager = NULL;
-        if (functionPassManager == NULL) {
-            functionPassManager = new FunctionPassManager(TheModule);
-            functionPassManager->add(createVerifierPass(PrintMessageAction));
-        }
-        functionPassManager->run(*function);
-
-        return executionEngine->getPointerToFunction(function);
-    }
-
-    static void *makeKernel(likely_description description, const vector<likely_hash> &hashes)
-    {
-        const string name = mangledName(description, hashes)+"_kernel";
-
-        Function *function = TheModule->getFunction(name);
-        if (function != NULL)
-            return executionEngine->getPointerToFunction(function);
-        function = getFunction(name, hashes.size(), Type::getVoidTy(getGlobalContext()), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
-
-        kernels[description].makeKernel(function);
-
-        static FunctionPassManager *functionPassManager = NULL;
-        if (functionPassManager == NULL) {
-            PassRegistry &registry = *PassRegistry::getPassRegistry();
-            initializeScalarOpts(registry);
-
-            functionPassManager = new FunctionPassManager(TheModule);
-            functionPassManager->add(createVerifierPass(PrintMessageAction));
-            functionPassManager->add(new DataLayout(*executionEngine->getDataLayout()));
-            functionPassManager->add(createBasicAliasAnalysisPass());
-            functionPassManager->add(createLICMPass());
-//            functionPassManager->add(createCFGSimplificationPass());
-//            functionPassManager->add(createEarlyCSEPass());
-//            functionPassManager->add(createInstructionCombiningPass());
-//            functionPassManager->add(createDeadCodeEliminationPass());
-//            functionPassManager->add(createGVNPass());
-//            functionPassManager->add(createDeadInstEliminationPass());
-//            functionPassManager->add(createLoopVectorizePass());
-//            functionPassManager->add(createLoopUnrollPass(INT_MAX,8));
-//            functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
-//            DebugFlag = true;
-        }
-        functionPassManager->run(*function);
-
-        return executionEngine->getPointerToFunction(function);
-    }
-
-private:
-    static void initialize()
-    {
+    if (TheModule == NULL) {
+        // Initialize Likely
         InitializeNativeTarget();
         TheModule = new Module("likely", getGlobalContext());
         TheModule->setTargetTriple(sys::getProcessTriple());
@@ -975,42 +795,145 @@ private:
                                              NULL);
     }
 
-    static string mangledName(const string &description, const vector<likely_hash> &hashes)
-    {
-        stringstream stream; stream << description;
-        for (likely_hash hash : hashes)
-            stream << "_" << hex << setfill('0') << setw(4) << hash;
-        return stream.str();
+    Function *function = TheModule->getFunction(description);
+    if (function != NULL)
+        return executionEngine->getPointerToFunction(function);
+    function = getFunction(description, arity, Type::getVoidTy(getGlobalContext()));
+
+    static vector<Type*> makerParameters;
+    if (makerParameters.empty()) {
+        makerParameters.push_back(Type::getInt8PtrTy(getGlobalContext()));
+        makerParameters.push_back(Type::getInt8Ty(getGlobalContext()));
+        makerParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
     }
 
-    static Function *getFunction(const string &description, likely_arity arity, Type *ret, Type *start = NULL, Type *stop = NULL)
-    {
-        PointerType *matrixPointer = PointerType::getUnqual(TheMatrixStruct);
-        Function *function;
-        switch (arity) {
-          case 0: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, start, stop, NULL)); break;
-          case 1: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer,  start, stop, NULL)); break;
-          case 2: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer,  start, stop, NULL)); break;
-          case 3: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer, matrixPointer,  start, stop, NULL)); break;
-          default: likely_assert(false, "FunctionBuilder::getFunction invalid arity: %d", arity);
+    static Function *makeAllocationFunction = NULL;
+    static vector<PointerType*> allocationFunctionTypes(LIKELY_NUM_ARITIES, NULL);
+    PointerType *allocationFunctionType = allocationFunctionTypes[arity];
+    if (allocationFunctionType == NULL) {
+        vector<Type*> allocationParams;
+        for (int i=0; i<arity+1; i++)
+            allocationParams.push_back(PointerType::getUnqual(TheMatrixStruct));
+        Type *allocationReturn = Type::getInt32Ty(getGlobalContext());
+        allocationFunctionType = PointerType::getUnqual(FunctionType::get(allocationReturn, allocationParams, false));
+        allocationFunctionTypes[arity] = allocationFunctionType;
+
+        if (makeAllocationFunction == NULL) {
+            FunctionType* makeAllocationType = FunctionType::get(allocationFunctionType, makerParameters, true);
+            makeAllocationFunction = Function::Create(makeAllocationType, GlobalValue::ExternalLinkage, "likely_make_allocation", TheModule);
+            makeAllocationFunction->setCallingConv(CallingConv::C);
         }
-        function->setCallingConv(CallingConv::C);
-        return function;
     }
-};
+    GlobalVariable *allocationFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_allocation", allocationFunctionType));
+    allocationFunction->setInitializer(ConstantPointerNull::get(allocationFunctionType));
 
-vector<likely_description> FunctionBuilder::descriptions;
-map<string,KernelBuilder> FunctionBuilder::kernels;
-ExecutionEngine *FunctionBuilder::executionEngine;
+    static Function *makeKernelFunction = NULL;
+    static vector<PointerType*> kernelFunctionTypes(LIKELY_NUM_ARITIES, NULL);
+    PointerType *kernelFunctionType = kernelFunctionTypes[arity];
+    if (kernelFunctionType == NULL) {
+        vector<Type*> kernelParams;
+        for (int i=0; i<arity+1; i++)
+            kernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
+        kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
+        kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
+        Type *kernelReturn = Type::getVoidTy(getGlobalContext());
+        kernelFunctionType = PointerType::getUnqual(FunctionType::get(kernelReturn, kernelParams, false));
+        kernelFunctionTypes[arity] = kernelFunctionType;
 
-} // namespace likely
+        if (makeKernelFunction == NULL) {
+            FunctionType* makeUnaryKernelType = FunctionType::get(kernelFunctionType, makerParameters, true);
+            makeKernelFunction = Function::Create(makeUnaryKernelType, GlobalValue::ExternalLinkage, "likely_make_kernel", TheModule);
+            makeKernelFunction->setCallingConv(CallingConv::C);
+        }
+    }
+    GlobalVariable *kernelFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_kernel", kernelFunctionType));
+    kernelFunction->setInitializer(ConstantPointerNull::get(kernelFunctionType));
 
-static recursive_mutex maker_lock;
+    vector<Value*> srcs;
+    Value *dst;
+    KernelBuilder::getValues(function, srcs, dst);
 
-void *likely_make_function(likely_description description, likely_arity arity)
-{
-    lock_guard<recursive_mutex> lock(maker_lock);
-    return likely::FunctionBuilder::makeFunction(description, arity);
+    BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
+    IRBuilder<> builder(entry);
+
+    vector<GlobalVariable*> kernelHashes;
+    for (int i=0; i<arity; i++) {
+        GlobalVariable *kernelHash = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_hash"+to_string(i), Type::getInt16Ty(getGlobalContext())));
+        kernelHash->setInitializer(MatrixBuilder::constant(0, 16));
+        kernelHashes.push_back(kernelHash);
+    }
+
+    vector<Value*> srcHashes;
+    for (int i=0; i<arity; i++)
+        srcHashes.push_back(builder.CreateLoad(builder.CreateStructGEP(srcs[i], 5), "src_hash"+to_string(i)));
+
+    Value *hashTest = MatrixBuilder::constant(true);
+    for (int i=0; i<arity; i++)
+        hashTest = builder.CreateAnd(hashTest, builder.CreateICmpEQ(builder.CreateLoad(kernelHashes[i]), srcHashes[i]));
+
+    BasicBlock *hashFail = BasicBlock::Create(getGlobalContext(), "hash_fail", function);
+    BasicBlock *execute = BasicBlock::Create(getGlobalContext(), "execute", function);
+    builder.CreateCondBr(hashTest, execute, hashFail);
+
+    builder.SetInsertPoint(hashFail);
+    {
+        // Construct a description that stays valid for the lifetime of the program
+        char *copy = new char[strlen(description)+1];
+        strcpy(copy, description);
+        descriptions.push_back(copy);
+
+        vector<Value*> args;
+        args.push_back(MatrixBuilder::constant(copy));
+        args.push_back(MatrixBuilder::constant(arity, 8));
+        args.insert(args.end(), srcs.begin(), srcs.end());
+        args.push_back(ConstantPointerNull::getNullValue(TheMatrixStruct));
+        builder.CreateStore(builder.CreateCall(makeAllocationFunction, args), allocationFunction);
+        builder.CreateStore(builder.CreateCall(makeKernelFunction, args), kernelFunction);
+        for (int i=0; i<arity; i++)
+            builder.CreateStore(srcHashes[i], kernelHashes[i]);
+        builder.CreateBr(execute);
+    }
+
+    builder.SetInsertPoint(execute);
+    {
+        vector<Value*> args(srcs); args.push_back(dst);
+        Value *kernelSize = builder.CreateCall(builder.CreateLoad(allocationFunction), args);
+
+        static Function *malloc = NULL;
+        if (malloc == NULL) {
+            Type *mallocReturn = Type::getInt8PtrTy(getGlobalContext());
+            vector<Type*> mallocParams;
+            mallocParams.push_back(Type::getInt32Ty(getGlobalContext()));
+            FunctionType* mallocType = FunctionType::get(mallocReturn, mallocParams, false);
+            malloc = Function::Create(mallocType, GlobalValue::ExternalLinkage, "malloc", TheModule);
+            malloc->setCallingConv(CallingConv::C);
+        }
+
+        MatrixBuilder mbDst(&builder, function, "dst", likely_hash_null, dst);
+        mbDst.setData(builder.CreateCall(malloc, mbDst.bytes()));
+
+        BasicBlock *kernel = BasicBlock::Create(getGlobalContext(), "kernel", function);
+        BasicBlock *exit = BasicBlock::Create(getGlobalContext(), "exit", function);
+        builder.CreateCondBr(builder.CreateICmpUGT(kernelSize, MatrixBuilder::zero()), kernel, exit);
+
+        builder.SetInsertPoint(kernel);
+        args.push_back(MatrixBuilder::zero());
+        args.push_back(kernelSize);
+        builder.CreateCall(builder.CreateLoad(kernelFunction), args);
+        builder.CreateBr(exit);
+
+        builder.SetInsertPoint(exit);
+        builder.CreateRetVoid();
+    }
+
+    static FunctionPassManager *functionPassManager = NULL;
+    if (functionPassManager == NULL) {
+        functionPassManager = new FunctionPassManager(TheModule);
+        functionPassManager->add(createVerifierPass(PrintMessageAction));
+    }
+    functionPassManager->run(*function);
+
+    return executionEngine->getPointerToFunction(function);
 }
 
 void *likely_make_allocation(likely_description description, likely_arity arity, likely_matrix *src, ...)
@@ -1024,8 +947,30 @@ void *likely_make_allocation(likely_description description, likely_arity arity,
     }
     va_end(ap);
     likely_assert(arity == hashes.size(), "likely_make_allocation expected: %u matricies but got %zu", arity, hashes.size());
-    lock_guard<recursive_mutex> lock(maker_lock);
-    return likely::FunctionBuilder::makeAllocation(description, hashes);
+    lock_guard<recursive_mutex> lock(makerLock);
+
+    const string name = mangledName(description, hashes)+"_allocation";
+
+    Function *function = TheModule->getFunction(name);
+    if (function != NULL)
+        return executionEngine->getPointerToFunction(function);
+    function = getFunction(name, hashes.size(), Type::getInt32Ty(getGlobalContext()));
+
+    auto kernelPointer = kernels.find(description);
+    if (kernelPointer == kernels.end()) {
+        kernels[description] = KernelBuilder(description);
+        kernelPointer = kernels.find(description);
+    }
+    (*kernelPointer).second.makeAllocation(function, hashes);
+
+    static FunctionPassManager *functionPassManager = NULL;
+    if (functionPassManager == NULL) {
+        functionPassManager = new FunctionPassManager(TheModule);
+        functionPassManager->add(createVerifierPass(PrintMessageAction));
+    }
+    functionPassManager->run(*function);
+
+    return executionEngine->getPointerToFunction(function);
 }
 
 void *likely_make_kernel(likely_description description, likely_arity arity, likely_matrix *src, ...)
@@ -1039,9 +984,41 @@ void *likely_make_kernel(likely_description description, likely_arity arity, lik
     }
     va_end(ap);
     likely_assert(arity == hashes.size(), "likely_make_kernel expected: %u matricies but got %zu", arity, hashes.size());
-    lock_guard<recursive_mutex> lock(maker_lock);
-    void *kernel = likely::FunctionBuilder::makeKernel(description, hashes);
-    return kernel;
+    lock_guard<recursive_mutex> lock(makerLock);
+
+    const string name = mangledName(description, hashes)+"_kernel";
+
+    Function *function = TheModule->getFunction(name);
+    if (function != NULL)
+        return executionEngine->getPointerToFunction(function);
+    function = getFunction(name, hashes.size(), Type::getVoidTy(getGlobalContext()), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
+
+    kernels[description].makeKernel(function);
+
+    static FunctionPassManager *functionPassManager = NULL;
+    if (functionPassManager == NULL) {
+        PassRegistry &registry = *PassRegistry::getPassRegistry();
+        initializeScalarOpts(registry);
+
+        functionPassManager = new FunctionPassManager(TheModule);
+        functionPassManager->add(createVerifierPass(PrintMessageAction));
+        functionPassManager->add(new DataLayout(*executionEngine->getDataLayout()));
+        functionPassManager->add(createBasicAliasAnalysisPass());
+        functionPassManager->add(createLICMPass());
+        //            functionPassManager->add(createCFGSimplificationPass());
+        //            functionPassManager->add(createEarlyCSEPass());
+        //            functionPassManager->add(createInstructionCombiningPass());
+        //            functionPassManager->add(createDeadCodeEliminationPass());
+        //            functionPassManager->add(createGVNPass());
+        //            functionPassManager->add(createDeadInstEliminationPass());
+        //            functionPassManager->add(createLoopVectorizePass());
+        //            functionPassManager->add(createLoopUnrollPass(INT_MAX,8));
+        //            functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
+        //            DebugFlag = true;
+    }
+    functionPassManager->run(*function);
+
+    return executionEngine->getPointerToFunction(function);
 }
 
 void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size start, likely_size stop, likely_matrix *src, ...)
