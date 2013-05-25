@@ -60,12 +60,12 @@ int Test::run() const
 
     // Test correctness
     testCorrectness(f, src, false);
-//    testCorrectness(f, src, true);
+    testCorrectness(f, src, true);
 
     // Test speed
     Speed baseline = testBaselineSpeed(src);
     printSpeedup(baseline, testLikelySpeed(f, src, false), "  Serial");
-//    printSpeedup(baseline, testLikelySpeed(f, src, true),  "Parallel");
+    printSpeedup(baseline, testLikelySpeed(f, src, true),  "Parallel");
 
     return 0;
 }

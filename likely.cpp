@@ -649,12 +649,21 @@ public:
             for (likely_hash hash : hashes)
                 matricies.push_back(Matrix(hash).setParallel(false));
 
+            // Allocation needs to be done to properly initialize the kernel builder
+            switch (matricies.size()) {
+              case 0: likely_make_allocation(description, 0, NULL); break;
+              case 1: likely_make_allocation(description, 1, &matricies[0]); break;
+              case 2: likely_make_allocation(description, 2, &matricies[0], &matricies[1]); break;
+              case 3: likely_make_allocation(description, 3, &matricies[0], &matricies[1], &matricies[2]); break;
+              default: likely_assert(false, "KernelBuilder::make kernel invalid arity: %zu", matricies.size());
+            }
+
             void *serialKernelFunction = NULL;
             switch (matricies.size()) {
               case 0: serialKernelFunction = likely_make_kernel(description, 0, NULL); break;
-              case 1: serialKernelFunction = likely_make_kernel(description, 1, &matricies[0], NULL); break;
-              case 2: serialKernelFunction = likely_make_kernel(description, 2, &matricies[0], &matricies[1], NULL); break;
-              case 3: serialKernelFunction = likely_make_kernel(description, 3, &matricies[0], &matricies[1], &matricies[2], NULL); break;
+              case 1: serialKernelFunction = likely_make_kernel(description, 1, &matricies[0]); break;
+              case 2: serialKernelFunction = likely_make_kernel(description, 2, &matricies[0], &matricies[1]); break;
+              case 3: serialKernelFunction = likely_make_kernel(description, 3, &matricies[0], &matricies[1], &matricies[2]); break;
               default: likely_assert(false, "KernelBuilder::make kernel invalid arity: %zu", matricies.size());
             }
 
@@ -1084,7 +1093,7 @@ void *likely_make_kernel(likely_description description, likely_arity arity, lik
 //        functionPassManager->add(createDeadCodeEliminationPass());
 //        functionPassManager->add(createGVNPass());
 //        functionPassManager->add(createDeadInstEliminationPass());
-        functionPassManager->add(createLoopVectorizePass());
+//        functionPassManager->add(createLoopVectorizePass());
 //        functionPassManager->add(createLoopUnrollPass(INT_MAX,8));
 //        functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
 //        DebugFlag = true;
