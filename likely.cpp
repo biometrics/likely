@@ -932,7 +932,6 @@ void *likely_make_function(likely_description description, likely_arity arity)
         args.push_back(MatrixBuilder::constant(copy));
         args.push_back(MatrixBuilder::constant(arity, 8));
         args.insert(args.end(), srcs.begin(), srcs.end());
-        args.push_back(ConstantPointerNull::getNullValue(TheMatrixStruct));
         builder.CreateStore(builder.CreateCall(makeAllocationFunction, args), allocationFunction);
         builder.CreateStore(builder.CreateCall(makeKernelFunction, args), kernelFunction);
         for (int i=0; i<arity; i++)
@@ -987,14 +986,13 @@ void *likely_make_allocation(likely_description description, likely_arity arity,
     vector<likely_hash> hashes;
     va_list ap;
     va_start(ap, src);
-    while (src != NULL) {
+    for (int i=0; i<arity; i++) {
         hashes.push_back(src->hash);
         src = va_arg(ap, likely_matrix*);
     }
     va_end(ap);
-    likely_assert(arity == hashes.size(), "likely_make_allocation expected: %u matricies but got %zu", arity, hashes.size());
-    lock_guard<recursive_mutex> lock(makerLock);
 
+    lock_guard<recursive_mutex> lock(makerLock);
     const string name = mangledName(description, hashes)+"_allocation";
 
     Function *function = TheModule->getFunction(name);
@@ -1024,14 +1022,13 @@ void *likely_make_kernel(likely_description description, likely_arity arity, lik
     vector<likely_hash> hashes;
     va_list ap;
     va_start(ap, src);
-    while (src != NULL) {
+    for (int i=0; i<arity; i++) {
         hashes.push_back(src->hash);
         src = va_arg(ap, likely_matrix*);
     }
     va_end(ap);
-    likely_assert(arity == hashes.size(), "likely_make_kernel expected: %u matricies but got %zu", arity, hashes.size());
-    lock_guard<recursive_mutex> lock(makerLock);
 
+    lock_guard<recursive_mutex> lock(makerLock);
     const string name = mangledName(description, hashes)+"_kernel";
 
     Function *function = TheModule->getFunction(name);

@@ -154,9 +154,9 @@ typedef void (*likely_unary_kernel)(const likely_matrix *src, likely_matrix *dst
 typedef void (*likely_binary_kernel)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst, likely_size start, likely_size stop);
 typedef void (*likely_ternary_kernel)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst, likely_size start, likely_size stop);
 LIKELY_EXPORT void *likely_make_function(likely_description description, likely_arity arity);
-LIKELY_EXPORT void *likely_make_allocation(likely_description description, likely_arity arity, likely_matrix *src, ... /* NULL */);
-LIKELY_EXPORT void *likely_make_kernel(likely_description description, likely_arity arity, likely_matrix *src, ... /* NULL */);
-LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size start, likely_size stop, likely_matrix *src, ... /* NULL */);
+LIKELY_EXPORT void *likely_make_allocation(likely_description description, likely_arity arity, likely_matrix *src, ...);
+LIKELY_EXPORT void *likely_make_kernel(likely_description description, likely_arity arity, likely_matrix *src, ...);
+LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size start, likely_size stop, likely_matrix *src, ...);
 
 // Core library functions
 typedef void (*likely_nullary_function)(likely_matrix *dst);
