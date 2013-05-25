@@ -189,7 +189,8 @@
         <tr><td>Single Column</td><td>1</td><td>likely_hash_single_column</td><td>0x00002000</td></tr>
         <tr><td>Single Row</td><td>1</td><td>likely_hash_single_row</td><td>0x00004000</td></tr>
         <tr><td>Single Frame</td><td>1</td><td>likely_hash_single_frame</td><td>0x00008000</td></tr>
-        <tr><td>Reserved</td><td>16</td><td>likely_hash_reserved</td><td>0xFFFF0000</td></tr>
+        <tr><td>Owner</td><td>1</td><td>likely_hash_owner</td><td>0x00010000</td></tr>
+        <tr><td>Reserved</td><td>16</td><td>likely_hash_reserved</td><td>0xFFFE0000</td></tr>
       </tbody>
     </table>
     <p>Logic for querying and editing the hash is simplified with the following <i>inline</i> convenience functions.</p>
@@ -209,6 +210,7 @@
         <tr><td>Single Column</td><td>bool</td><td>likely_is_single_column</td><td>likely_set_single_column</td></tr>
         <tr><td>Single Row</td><td>bool</td><td>likely_is_single_row</td><td>likely_set_single_row</td></tr>
         <tr><td>Single Frame</td><td>bool</td><td>likely_is_single_frame</td><td>likely_set_single_frame</td></tr>
+        <tr><td>Owner</td><td>bool</td><td>likely_is_owner</td><td>likely_set_owner</td></tr>
         <tr><td>Reserved</td><td>int</td><td>likely_reserved</td><td>likely_set_reserved</td></tr>
       </tbody>
     </table>

@@ -52,11 +52,15 @@ static StructType *TheMatrixStruct = NULL;
 void likely_allocate(likely_matrix *m)
 {
     m->data = (uint8_t*)malloc(likely_bytes(m));
+    likely_set_owner(m->hash, true);
 }
 
 void likely_free(likely_matrix *m)
 {
+    if (!likely_is_owner(m->hash)) return;
     free(m->data);
+    m->data = NULL;
+    likely_set_owner(m->hash, false);
 }
 
 double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
@@ -410,8 +414,8 @@ struct MatrixBuilder
     void set(int value, int mask) const { setHash(b->CreateOr(b->CreateAnd(hash(), constant(~mask, 8*sizeof(likely_hash))), b->CreateAnd(constant(value, 8*sizeof(likely_hash)), constant(mask, 8*sizeof(likely_hash))))); }
     void setBit(bool on, int mask) const { on ? setHash(b->CreateOr(hash(), constant(mask, 8*sizeof(likely_hash)))) : setHash(b->CreateAnd(hash(), constant(~mask, 8*sizeof(likely_hash)))); }
 
-    Value *bits() const { return get(likely_hash_depth); }
-    void setBits(int bits) const { set(bits, likely_hash_depth); }
+    Value *depth() const { return get(likely_hash_depth); }
+    void setDepth(int depth) const { set(depth, likely_hash_depth); }
     Value *isSigned() const { return get(likely_hash_signed); }
     void setSigned(bool isSigned) const { setBit(isSigned, likely_hash_signed); }
     Value *isFloating() const { return get(likely_hash_floating); }
@@ -430,8 +434,13 @@ struct MatrixBuilder
     void setSingleRow(bool isSingleRow) const { setBit(isSingleRow, likely_hash_single_row); }
     Value *isSingleFrame() const { return get(likely_hash_single_frame); }
     void setSingleFrame(bool isSingleFrame) const { setBit(isSingleFrame, likely_hash_single_frame); }
+    Value *isOwner() const { return get(likely_hash_owner); }
+    void setOwner(bool isOwner) const { setBit(isOwner, likely_hash_owner); }
+    Value *reserved() const { return get(likely_hash_reserved); }
+    void setReserved(int reserved) const { set(reserved, likely_hash_reserved); }
+
     Value *elements() const { return b->CreateMul(b->CreateMul(b->CreateMul(channels(), columns()), rows()), frames()); }
-    Value *bytes() const { return b->CreateMul(b->CreateUDiv(b->CreateCast(Instruction::ZExt, bits(), Type::getInt32Ty(getGlobalContext())), constant(8, 32)), elements()); }
+    Value *bytes() const { return b->CreateMul(b->CreateUDiv(b->CreateCast(Instruction::ZExt, depth(), Type::getInt32Ty(getGlobalContext())), constant(8, 32)), elements()); }
 
     Value *columnStep() const { Value *columnStep = channels(); columnStep->setName(n+"_cStep"); return columnStep; }
     Value *rowStep() const { return b->CreateMul(columns(), columnStep(), n+"_rStep"); }

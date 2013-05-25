@@ -97,12 +97,12 @@ Test::Speed Test::testBaselineSpeed(const Mat &src) const
 Test::Speed Test::testLikelySpeed(UnaryFunction f, const Mat &src, bool parallel) const
 {
     Matrix srcLikely = matrixFromMat(src).setParallel(parallel);
-    Matrix dstLikely;
 
     clock_t startTime, endTime;
     int iter = 0;
     startTime = endTime = clock();
     while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
+        Matrix dstLikely;
         f(&srcLikely, &dstLikely);
         endTime = clock();
         iter++;

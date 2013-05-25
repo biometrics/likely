@@ -54,7 +54,8 @@ typedef uint32_t likely_hash; /* Depth : 8
                                  Single-column : 1
                                  Single-row : 1
                                  Single-frame : 1
-                                 Reserved : 16 */
+                                 Owner : 1
+                                 Reserved : 15 */
 
 // Convenience values for editing a likely_hash
 enum likely_hash_field
@@ -81,7 +82,8 @@ enum likely_hash_field
     likely_hash_single_column = 0x00002000,
     likely_hash_single_row = 0x00004000,
     likely_hash_single_frame = 0x00008000,
-    likely_hash_reserved = 0xFFFF0000
+    likely_hash_owner = 0x00010000,
+    likely_hash_reserved = 0xFFFE0000
 };
 
 // The only struct in the API
@@ -119,6 +121,8 @@ inline bool likely_is_single_row(likely_hash hash) { return likely_get_bool(hash
 inline void likely_set_single_row(likely_hash &hash, bool is_single_row) { likely_set_bool(hash, is_single_row, likely_hash_single_row); }
 inline bool likely_is_single_frame(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_frame); }
 inline void likely_set_single_frame(likely_hash &hash, bool is_single_frame) { likely_set_bool(hash, is_single_frame, likely_hash_single_frame); }
+inline bool likely_is_owner(likely_hash hash) { return likely_get_bool(hash, likely_hash_owner); }
+inline void likely_set_owner(likely_hash &hash, bool is_owner) { likely_set_bool(hash, is_owner, likely_hash_owner); }
 inline int  likely_reserved(likely_hash hash) { return likely_get(hash, likely_hash_reserved); }
 inline void likely_set_reserved(likely_hash &hash, int reserved) { likely_set(hash, reserved, likely_hash_reserved); }
 
@@ -201,6 +205,7 @@ struct Matrix : public likely_matrix
     Matrix(likely_hash hash = likely_hash_null) { likely_matrix_initialize_null(this, hash); }
     Matrix(uint8_t *data, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, likely_hash hash)
     { likely_matrix_initialize(this, data, channels, columns, rows, frames, hash); }
+    ~Matrix() { likely_free(this); }
 
     inline int     depth() const { return likely_depth(hash); }
     inline Matrix &setDepth(int bits) { likely_set_depth(hash, bits); return *this; }
@@ -222,6 +227,8 @@ struct Matrix : public likely_matrix
     inline Matrix &setSingleRow(bool isSingleRow) { likely_set_single_row(hash, isSingleRow); return *this; }
     inline bool    isSingleFrame() const { return likely_is_single_frame(hash); }
     inline Matrix &setSingleFrame(bool isSingleFrame) { likely_set_single_frame(hash, isSingleFrame); return *this; }
+    inline bool    isOwner() const { return likely_is_owner(hash); }
+    inline Matrix &setOwner(bool isOwner) { likely_set_owner(hash, isOwner); return *this; }
     inline int     reserved() const { return likely_reserved(hash); }
     inline Matrix &setReserved(int reserved) { likely_set_reserved(hash, reserved); return *this; }
 
