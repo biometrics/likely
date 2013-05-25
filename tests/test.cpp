@@ -1,5 +1,6 @@
 #include <ctime>
 #include <iostream>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #include "test.h"
 
@@ -77,7 +78,9 @@ void Test::testCorrectness(UnaryFunction f, const Mat &src, bool parallel) const
     Matrix dstLikely;
     f(&srcLikely, &dstLikely);
 
-    const double errors = norm(abs(matrixToMat(dstLikely) - dstOpenCV) > LIKELY_ERROR_TOLERANCE, NORM_L1);
+    Mat errorMat;
+    threshold(abs(matrixToMat(dstLikely) - dstOpenCV), errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
+    const double errors = norm(errorMat, NORM_L1);
     likely_assert(errors == 0, "Test for %s differs in %g locations", function(), errors);
 }
 
