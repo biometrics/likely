@@ -112,7 +112,7 @@
       Likely functions check the input's hash against the currently compiled kernel's hash and recompile on a mismatch.
       In this way,
       <blockquote>
-        <p>all the logic needed to handle different matrix types is reduced to a single 16-bit integer comparison which branch prediction can optimize out.</p>
+        <p>all the logic needed to handle different matrix types is reduced to a single 32-bit integer comparison which branch prediction can optimize out.</p>
       </blockquote>
     </p>
     <h3 id="uncompromisingly_elegant">Uncompromisingly Elegant</h3>
@@ -156,7 +156,7 @@
     <p>The <tt>likely_matrix</tt> is only struct in the API and serves as the input and output for all kernel invocations.
       The <tt>likely_matrix</tt>, hereafter referred to as the <i>matrix</i>, has the following fields:
     </p>
-    <pre class="prettyprint lang-c">uint8_t *data; // Pointer to the buffer of elements<br>uint32_t channels, columns, rows, frames; // Dimensions<br>uint16_t hash; // Data type</pre>
+    <pre class="prettyprint lang-c">uint8_t *data; // Pointer to the buffer of elements<br>uint32_t channels, columns, rows, frames; // Dimensions<br>uint32_t hash; // Data type</pre>
     <p>The five fields excepting the <i>data</i> pointer (<i>channels</i>, <i>columns</i>, <i>rows</i>, <i>frames</i>, and <i>hash</i>) are collectively referred to as the matrix <i>header</i>.
     In contrast to most image processing libraries which tend to feature 3-dimensional matrices (channels, columns, rows), Likely includes a fourth dimension, frames, in order to facilitate processing videos or collections of images.
     <h4 id="element_access">Element Access</h4>
@@ -179,16 +179,17 @@
         <tr><th>Field</th><th>Bits</th><th>Enum</th><th>Mask</th></tr>
       </thead>
       <tbody>
-        <tr><td>Depth</td><td>8</td><td>likely_hash_depth</td><td>0x00FF</td></tr>
-        <tr><td>Signed</td><td>1</td><td>likely_hash_signed</td><td>0x0100</td></tr>
-        <tr><td>Floating</td><td>1</td><td>likely_hash_floating</td><td>0x0200</td></tr>
-        <tr><td>Type (= Depth | Signed | Floating)</td><td>10</td><td>likely_hash_type</td><td>0x03FF</td></tr>
-        <tr><td>Parallel</td><td>1</td><td>likely_hash_parallel</td><td>0x0400</td></tr>
-        <tr><td>Heterogeneous</td><td>1</td><td>likely_hash_heterogeneous</td><td>0x0800</td></tr>
-        <tr><td>Single Channel</td><td>1</td><td>likely_hash_single_channel</td><td>0x1000</td></tr>
-        <tr><td>Single Column</td><td>1</td><td>likely_hash_single_column</td><td>0x2000</td></tr>
-        <tr><td>Single Row</td><td>1</td><td>likely_hash_single_row</td><td>0x4000</td></tr>
-        <tr><td>Single Frame</td><td>1</td><td>likely_hash_single_frame</td><td>0x8000</td></tr>
+        <tr><td>Depth</td><td>8</td><td>likely_hash_depth</td><td>0x000000FF</td></tr>
+        <tr><td>Signed</td><td>1</td><td>likely_hash_signed</td><td>0x00000100</td></tr>
+        <tr><td>Floating</td><td>1</td><td>likely_hash_floating</td><td>0x00000200</td></tr>
+        <tr><td>Type (= Depth | Signed | Floating)</td><td>10</td><td>likely_hash_type</td><td>0x000003FF</td></tr>
+        <tr><td>Parallel</td><td>1</td><td>likely_hash_parallel</td><td>0x00000400</td></tr>
+        <tr><td>Heterogeneous</td><td>1</td><td>likely_hash_heterogeneous</td><td>0x00000800</td></tr>
+        <tr><td>Single Channel</td><td>1</td><td>likely_hash_single_channel</td><td>0x00001000</td></tr>
+        <tr><td>Single Column</td><td>1</td><td>likely_hash_single_column</td><td>0x00002000</td></tr>
+        <tr><td>Single Row</td><td>1</td><td>likely_hash_single_row</td><td>0x00004000</td></tr>
+        <tr><td>Single Frame</td><td>1</td><td>likely_hash_single_frame</td><td>0x00008000</td></tr>
+        <tr><td>Reserved</td><td>16</td><td>likely_hash_reserved</td><td>0xFFFF0000</td></tr>
       </tbody>
     </table>
     <p>Logic for querying and editing the hash is simplified with the following <i>inline</i> convenience functions.</p>
@@ -208,6 +209,7 @@
         <tr><td>Single Column</td><td>bool</td><td>likely_is_single_column</td><td>likely_set_single_column</td></tr>
         <tr><td>Single Row</td><td>bool</td><td>likely_is_single_row</td><td>likely_set_single_row</td></tr>
         <tr><td>Single Frame</td><td>bool</td><td>likely_is_single_frame</td><td>likely_set_single_frame</td></tr>
+        <tr><td>Reserved</td><td>int</td><td>likely_reserved</td><td>likely_set_reserved</td></tr>
       </tbody>
     </table>
     <h3 id="functions_and_kernels">Functions and Kernels</h3>

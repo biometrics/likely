@@ -406,9 +406,9 @@ struct MatrixBuilder
         setData(ConstantPointerNull::get(Type::getInt8PtrTy(getGlobalContext())));
     }
 
-    Value *get(int mask) const { return b->CreateAnd(hash(), constant(mask, 16)); }
-    void set(int value, int mask) const { setHash(b->CreateOr(b->CreateAnd(hash(), constant(~mask, 16)), b->CreateAnd(constant(value, 16), constant(mask, 16)))); }
-    void setBit(bool on, int mask) const { on ? setHash(b->CreateOr(hash(), constant(mask, 16))) : setHash(b->CreateAnd(hash(), constant(~mask, 16))); }
+    Value *get(int mask) const { return b->CreateAnd(hash(), constant(mask, 8*sizeof(likely_hash))); }
+    void set(int value, int mask) const { setHash(b->CreateOr(b->CreateAnd(hash(), constant(~mask, 8*sizeof(likely_hash))), b->CreateAnd(constant(value, 8*sizeof(likely_hash)), constant(mask, 8*sizeof(likely_hash))))); }
+    void setBit(bool on, int mask) const { on ? setHash(b->CreateOr(hash(), constant(mask, 8*sizeof(likely_hash)))) : setHash(b->CreateAnd(hash(), constant(~mask, 8*sizeof(likely_hash)))); }
 
     Value *bits() const { return get(likely_hash_depth); }
     void setBits(int bits) const { set(bits, likely_hash_depth); }
@@ -771,7 +771,7 @@ static string mangledName(const string &description, const vector<likely_hash> &
 {
     stringstream stream; stream << description;
     for (likely_hash hash : hashes)
-        stream << "_" << hex << setfill('0') << setw(4) << hash;
+        stream << "_" << hex << setfill('0') << setw(2*sizeof(likely_hash)) << hash;
     return stream.str();
 }
 
@@ -850,7 +850,7 @@ void *likely_make_function(likely_description description, likely_arity arity)
                                              Type::getInt32Ty(getGlobalContext()),   // columns
                                              Type::getInt32Ty(getGlobalContext()),   // rows
                                              Type::getInt32Ty(getGlobalContext()),   // frames
-                                             Type::getInt16Ty(getGlobalContext()),   // hash
+                                             Type::getInt32Ty(getGlobalContext()),   // hash
                                              NULL);
 
         const int numWorkers = std::max((int)thread::hardware_concurrency()-1, 1);
@@ -925,8 +925,8 @@ void *likely_make_function(likely_description description, likely_arity arity)
 
     vector<GlobalVariable*> kernelHashes;
     for (int i=0; i<arity; i++) {
-        GlobalVariable *kernelHash = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_hash"+to_string(i), Type::getInt16Ty(getGlobalContext())));
-        kernelHash->setInitializer(MatrixBuilder::constant(0, 16));
+        GlobalVariable *kernelHash = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_hash"+to_string(i), Type::getInt32Ty(getGlobalContext())));
+        kernelHash->setInitializer(MatrixBuilder::constant(0, 8*sizeof(likely_hash)));
         kernelHashes.push_back(kernelHash);
     }
 
