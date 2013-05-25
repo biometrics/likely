@@ -778,23 +778,28 @@ static Function *getFunction(const string &description, likely_arity arity, Type
     return function;
 }
 
-static void workerThread(unsigned int workerID)
+static void executeWorker(int workerID)
+{
+    // There are hardware_concurrency-1 helper threads
+    // The main thread which assumes workerID = workers.size()
+    const likely_size step = 1 + (workerStop - workerStart - 1)/(workers.size()+1);
+    const likely_size start = workerStart + workerID * step;
+    const likely_size stop = std::min(workerStart + (workerID+1)*step, workerStop);
+
+    switch (workerArity) {
+      case 0: reinterpret_cast<likely_nullary_kernel>(workerKernel)(workerMatricies[0], start, stop); break;
+      case 1: reinterpret_cast<likely_unary_kernel>(workerKernel)(workerMatricies[0], workerMatricies[1], start, stop); break;
+      case 2: reinterpret_cast<likely_binary_kernel>(workerKernel)(workerMatricies[0], workerMatricies[1], workerMatricies[2], start, stop); break;
+      case 3: reinterpret_cast<likely_ternary_kernel>(workerKernel)(workerMatricies[0], workerMatricies[1], workerMatricies[2], workerMatricies[3], start, stop); break;
+      default: likely_assert(false, "likely_parallel_dispatch invalid arity: %d", workerArity);
+    }
+}
+
+static void workerThread(int workerID)
 {
     while (true) {
         workers[workerID]->lock();
-
-        const likely_size step = 1 + (workerStop - workerStart - 1)/workers.size();
-        const likely_size start = workerStart + workerID * step;
-        const likely_size stop = std::min(workerStart + (workerID+1)*step, workerStop);
-
-        switch (workerArity) {
-          case 0: reinterpret_cast<likely_nullary_kernel>(workerKernel)(workerMatricies[0], start, stop); break;
-          case 1: reinterpret_cast<likely_unary_kernel>(workerKernel)(workerMatricies[0], workerMatricies[1], start, stop); break;
-          case 2: reinterpret_cast<likely_binary_kernel>(workerKernel)(workerMatricies[0], workerMatricies[1], workerMatricies[2], start, stop); break;
-          case 3: reinterpret_cast<likely_ternary_kernel>(workerKernel)(workerMatricies[0], workerMatricies[1], workerMatricies[2], workerMatricies[3], start, stop); break;
-          default: likely_assert(false, "likely_parallel_dispatch invalid arity: %d", workerArity);
-        }
-
+        executeWorker(workerID);
         if (--workersRemaining == 0)
             workersActive.unlock();
     }
@@ -827,7 +832,7 @@ void *likely_make_function(likely_description description, likely_arity arity)
                                              Type::getInt16Ty(getGlobalContext()),   // hash
                                              NULL);
 
-        const int numWorkers = std::max((int)thread::hardware_concurrency(), 1);
+        const int numWorkers = std::max((int)thread::hardware_concurrency()-1, 1);
         for (int i=0; i<numWorkers; i++) {
             mutex *m = new mutex();
             m->lock();
@@ -1083,5 +1088,6 @@ void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size star
     for (size_t i=0; i<workers.size(); i++)
         workers[i]->unlock();
 
+    executeWorker(workers.size());
     while (workersRemaining > 0) {}
 }
