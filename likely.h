@@ -138,6 +138,10 @@ inline void likely_matrix_initialize(likely_matrix *m, uint8_t *data, uint32_t c
 }
 inline void likely_matrix_initialize_null(likely_matrix *m, likely_hash hash = likely_hash_null) { likely_matrix_initialize(m, NULL, 0, 0, 0, 0, hash); }
 
+// Functions for allocating and freeing matrix data
+LIKELY_EXPORT void likely_allocate(likely_matrix *m);
+LIKELY_EXPORT void likely_free(likely_matrix *m);
+
 // Convenience functions for debugging; by convention c = channel, x = column, y = row, t = frame
 LIKELY_EXPORT double likely_element(const likely_matrix *m, uint32_t c = 0, uint32_t x = 0, uint32_t y = 0, uint32_t t = 0);
 LIKELY_EXPORT void likely_set_element(likely_matrix *m, double value, uint32_t c = 0, uint32_t x = 0, uint32_t y = 0, uint32_t t = 0);

@@ -49,6 +49,16 @@ using namespace std;
 static Module *TheModule = NULL;
 static StructType *TheMatrixStruct = NULL;
 
+void likely_allocate(likely_matrix *m)
+{
+    m->data = (uint8_t*)malloc(likely_bytes(m));
+}
+
+void likely_free(likely_matrix *m)
+{
+    free(m->data);
+}
+
 double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
 {
     likely_assert(m != NULL, "likely_element received a null matrix");
@@ -955,18 +965,16 @@ void *likely_make_function(likely_description description, likely_arity arity)
         vector<Value*> args(srcs); args.push_back(dst);
         Value *kernelSize = builder.CreateCall(builder.CreateLoad(allocationFunction), args);
 
-        static Function *malloc = NULL;
-        if (malloc == NULL) {
-            Type *mallocReturn = Type::getInt8PtrTy(getGlobalContext());
-            vector<Type*> mallocParams;
-            mallocParams.push_back(Type::getInt32Ty(getGlobalContext()));
-            FunctionType* mallocType = FunctionType::get(mallocReturn, mallocParams, false);
-            malloc = Function::Create(mallocType, GlobalValue::ExternalLinkage, "malloc", TheModule);
-            malloc->setCallingConv(CallingConv::C);
+        static Function *likely_allocate = NULL;
+        if (likely_allocate == NULL) {
+            Type *allocateReturn = Type::getVoidTy(getGlobalContext());
+            vector<Type*> allocateParameters;
+            allocateParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
+            FunctionType* allocateType = FunctionType::get(allocateReturn, allocateParameters, false);
+            likely_allocate = Function::Create(allocateType, GlobalValue::ExternalLinkage, "likely_allocate", TheModule);
+            likely_allocate->setCallingConv(CallingConv::C);
         }
-
-        MatrixBuilder mbDst(&builder, function, "dst", likely_hash_null, dst);
-        mbDst.setData(builder.CreateCall(malloc, mbDst.bytes()));
+        builder.CreateCall(likely_allocate, dst);
 
         BasicBlock *kernel = BasicBlock::Create(getGlobalContext(), "kernel", function);
         BasicBlock *exit = BasicBlock::Create(getGlobalContext(), "exit", function);
