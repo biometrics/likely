@@ -45,7 +45,7 @@ static Mat matrixToMat(const Matrix &m)
       case likely_hash_i32: depth = CV_32S; break;
       case likely_hash_f32: depth = CV_32F; break;
       case likely_hash_f64: depth = CV_64F; break;
-      default:                 fprintf(stderr, "ERROR - Unsupported matrix depth.\n"); abort();
+      default:              fprintf(stderr, "ERROR - Unsupported matrix depth.\n"); abort();
     }
     return Mat(m.rows, m.columns, CV_MAKETYPE(depth, m.channels), m.data);
 }
@@ -60,12 +60,12 @@ int Test::run() const
 
     // Test correctness
     testCorrectness(f, src, false);
-    testCorrectness(f, src, true);
+//    testCorrectness(f, src, true);
 
     // Test speed
     Speed baseline = testBaselineSpeed(src);
     printSpeedup(baseline, testLikelySpeed(f, src, false), "  Serial");
-    printSpeedup(baseline, testLikelySpeed(f, src, true),  "Parallel");
+//    printSpeedup(baseline, testLikelySpeed(f, src, true),  "Parallel");
 
     return 0;
 }

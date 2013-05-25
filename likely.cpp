@@ -27,6 +27,7 @@
 #include <llvm/Support/Host.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Target/TargetLibraryInfo.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Vectorize.h>
 #include <atomic>
@@ -742,7 +743,8 @@ public:
 
 static vector<likely_description> descriptions;
 static map<string,KernelBuilder> kernels;
-static ExecutionEngine *executionEngine;
+static ExecutionEngine *executionEngine = NULL;
+static TargetMachine *targetMachine = NULL;
 static recursive_mutex makerLock;
 
 // Control parallel execution
@@ -820,8 +822,17 @@ void *likely_make_function(likely_description description, likely_arity arity)
         TheModule->setTargetTriple(sys::getProcessTriple());
 
         string error;
-        executionEngine = EngineBuilder(TheModule).setMCPU(sys::getHostCPUName()).setEngineKind(EngineKind::JIT).setErrorStr(&error).create();
-        likely_assert(executionEngine != NULL, "FunctionBuilder::initialize failed to create LLVM ExecutionEngine with error: %s", error.c_str());
+        EngineBuilder engineBuilder(TheModule);
+        engineBuilder.setMCPU(sys::getHostCPUName());
+        engineBuilder.setEngineKind(EngineKind::JIT);
+        engineBuilder.setOptLevel(CodeGenOpt::Aggressive);
+        engineBuilder.setErrorStr(&error);
+
+        executionEngine = engineBuilder.create();
+        likely_assert(executionEngine != NULL, "likely_make_function failed to create LLVM ExecutionEngine with error: %s", error.c_str());
+
+        targetMachine = engineBuilder.selectTarget();
+        likely_assert(targetMachine != NULL, "likely_make_function failed to create LLVM TargetMachine with error: %s", error.c_str());
 
         TheMatrixStruct = StructType::create("Matrix",
                                              Type::getInt8PtrTy(getGlobalContext()), // data
@@ -1045,19 +1056,21 @@ void *likely_make_kernel(likely_description description, likely_arity arity, lik
 
         functionPassManager = new FunctionPassManager(TheModule);
         functionPassManager->add(createVerifierPass(PrintMessageAction));
-        functionPassManager->add(new DataLayout(*executionEngine->getDataLayout()));
+        targetMachine->addAnalysisPasses(*functionPassManager);
+        functionPassManager->add(new TargetLibraryInfo(Triple(TheModule->getTargetTriple())));
+        functionPassManager->add(new DataLayout(TheModule));
         functionPassManager->add(createBasicAliasAnalysisPass());
         functionPassManager->add(createLICMPass());
-        //            functionPassManager->add(createCFGSimplificationPass());
-        //            functionPassManager->add(createEarlyCSEPass());
-        //            functionPassManager->add(createInstructionCombiningPass());
-        //            functionPassManager->add(createDeadCodeEliminationPass());
-        //            functionPassManager->add(createGVNPass());
-        //            functionPassManager->add(createDeadInstEliminationPass());
-        //            functionPassManager->add(createLoopVectorizePass());
-        //            functionPassManager->add(createLoopUnrollPass(INT_MAX,8));
-        //            functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
-        //            DebugFlag = true;
+//        functionPassManager->add(createCFGSimplificationPass());
+//        functionPassManager->add(createEarlyCSEPass());
+//        functionPassManager->add(createInstructionCombiningPass());
+//        functionPassManager->add(createDeadCodeEliminationPass());
+//        functionPassManager->add(createGVNPass());
+//        functionPassManager->add(createDeadInstEliminationPass());
+        functionPassManager->add(createLoopVectorizePass());
+//        functionPassManager->add(createLoopUnrollPass(INT_MAX,8));
+//        functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
+//        DebugFlag = true;
     }
     functionPassManager->run(*function);
 
