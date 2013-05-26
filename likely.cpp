@@ -30,6 +30,7 @@
 #include <llvm/Target/TargetLibraryInfo.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Vectorize.h>
+#include <stdlib.h>
 #include <atomic>
 #include <iomanip>
 #include <iostream>
@@ -48,17 +49,22 @@ using namespace std;
 
 static Module *TheModule = NULL;
 static StructType *TheMatrixStruct = NULL;
+static const int MaxRegisterWidth = 32; // This should be determined at run time
 
 void likely_allocate(likely_matrix *m)
 {
-    m->data = (uint8_t*)malloc(likely_bytes(m));
+    size_t alignment = MaxRegisterWidth;
+    uintptr_t r = (uintptr_t)malloc(likely_bytes(m) + --alignment + 2);
+    uintptr_t o = (r + 2 + alignment) & ~(uintptr_t)alignment;
+    ((uint16_t*)o)[-1] = (uint16_t)(o-r);
+    m->data = (uint8_t*)o;
     likely_set_owner(m->hash, true);
 }
 
 void likely_free(likely_matrix *m)
 {
-    if (!likely_is_owner(m->hash)) return;
-    free(m->data);
+    if (!likely_is_owner(m->hash) || !m->data) return;
+    free((void*)((uintptr_t)m->data-((uint16_t*)m->data)[-1]));
     m->data = NULL;
     likely_set_owner(m->hash, false);
 }
@@ -812,9 +818,10 @@ static void executeWorker(int workerID)
 {
     // There are hardware_concurrency-1 helper threads
     // The main thread which assumes workerID = workers.size()
-    const likely_size step = 1 + (workerStop - workerStart - 1)/(workers.size()+1);
+    const likely_size step = (MaxRegisterWidth + (workerStop-workerStart-1)/(workers.size()+1)) / MaxRegisterWidth * MaxRegisterWidth;
     const likely_size start = workerStart + workerID * step;
     const likely_size stop = std::min(workerStart + (workerID+1)*step, workerStop);
+    if (start >= stop) return;
 
     switch (workerArity) {
       case 0: reinterpret_cast<likely_nullary_kernel>(workerKernel)(workerMatricies[0], start, stop); break;
@@ -1087,14 +1094,14 @@ void *likely_make_kernel(likely_description description, likely_arity arity, lik
         functionPassManager->add(new DataLayout(TheModule));
         functionPassManager->add(createBasicAliasAnalysisPass());
         functionPassManager->add(createLICMPass());
-//        functionPassManager->add(createCFGSimplificationPass());
-//        functionPassManager->add(createEarlyCSEPass());
-//        functionPassManager->add(createInstructionCombiningPass());
+        functionPassManager->add(createLoopVectorizePass());
+        functionPassManager->add(createInstructionCombiningPass());
+        functionPassManager->add(createEarlyCSEPass());
+        functionPassManager->add(createCFGSimplificationPass());
 //        functionPassManager->add(createDeadCodeEliminationPass());
 //        functionPassManager->add(createGVNPass());
 //        functionPassManager->add(createDeadInstEliminationPass());
-//        functionPassManager->add(createLoopVectorizePass());
-//        functionPassManager->add(createLoopUnrollPass(INT_MAX,8));
+//        functionPassManager->add(createLoopUnrollPass());
 //        functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
 //        DebugFlag = true;
     }
