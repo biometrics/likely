@@ -69,6 +69,7 @@ int Test::run() const
 
     for (likely_hash type : types()) {
         // Generate input matrix
+        printf(" %s\n", likely_hash_to_string(type));
         Mat src = generateData(100, 100, type);
 
         // Test correctness
@@ -77,8 +78,8 @@ int Test::run() const
 
         // Test speed
         Speed baseline = testBaselineSpeed(src);
-        printSpeedup(baseline, testLikelySpeed(f, src, false), "Serial  ");
-        printSpeedup(baseline, testLikelySpeed(f, src, true),  "Parallel");
+        printSpeedup(baseline, testLikelySpeed(f, src, false), "Serial:  ");
+        printSpeedup(baseline, testLikelySpeed(f, src, true),  "Parallel:");
     }
 
     return 0;
@@ -91,8 +92,9 @@ void Test::testCorrectness(UnaryFunction f, const Mat &src, bool parallel) const
     Matrix dstLikely;
     f(&srcLikely, &dstLikely);
 
-    Mat errorMat;
-    threshold(abs(matrixToMat(dstLikely) - dstOpenCV), errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
+    Mat errorMat = abs(matrixToMat(dstLikely) - dstOpenCV);
+    errorMat.convertTo(errorMat, CV_32F);
+    threshold(errorMat, errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
     const double errors = norm(errorMat, NORM_L1);
     likely_assert(errors == 0, "Test for %s differs in %g locations", function(), errors);
 }
@@ -128,5 +130,5 @@ Test::Speed Test::testLikelySpeed(UnaryFunction f, const Mat &src, bool parallel
 
 void Test::printSpeedup(const Speed &baseline, const Speed &likely, const char *mode) const
 {
-    printf("  %s: %gx (~= %d/%d)\n", mode, likely.Hz / baseline.Hz, likely.iterations, baseline.iterations);
+    printf("  %s %.2fx (~= %d/%d)\n", mode, likely.Hz / baseline.Hz, likely.iterations, baseline.iterations);
 }
