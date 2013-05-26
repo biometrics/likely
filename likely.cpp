@@ -116,6 +116,33 @@ void likely_set_element(likely_matrix *m, double value, uint32_t c, uint32_t x, 
     }
 }
 
+const char *likely_hash_to_string(likely_hash h)
+{
+    static string str;
+
+    switch (h) {
+      case likely_hash_u8:  str="u8" ; break;
+      case likely_hash_u16: str="u16"; break;
+      case likely_hash_u32: str="u32"; break;
+      case likely_hash_u64: str="u64"; break;
+      case likely_hash_i8:  str="i8" ; break;
+      case likely_hash_i16: str="i16"; break;
+      case likely_hash_i32: str="i32"; break;
+      case likely_hash_i64: str="i64"; break;
+      case likely_hash_f32: str="f32"; break;
+      case likely_hash_f64: str="f64"; break;
+      default:              str="";
+    }
+
+    if (str.empty()) {
+        stringstream stream;
+        stream << hex << setfill('0') << setw(2*sizeof(likely_hash)) << h;
+        str = stream.str();
+    }
+
+    return str.c_str();
+}
+
 void likely_print_matrix(const likely_matrix *m)
 {
     if ((m == NULL) || (m->data == NULL)) return;
@@ -795,7 +822,7 @@ static string mangledName(const string &description, const vector<likely_hash> &
 {
     stringstream stream; stream << description;
     for (likely_hash hash : hashes)
-        stream << "_" << hex << setfill('0') << setw(2*sizeof(likely_hash)) << hash;
+        stream << "_" << likely_hash_to_string(hash);
     return stream.str();
 }
 

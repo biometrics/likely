@@ -14,10 +14,18 @@ struct Test
 protected:
     virtual const char *function() const = 0;
     virtual cv::Mat computeBaseline(const cv::Mat &src) const = 0;
+    virtual std::vector<likely_hash> types() const
+    {
+        std::vector<likely_hash> types;
+//        types.push_back(likely_hash_i16);
+//        types.push_back(likely_hash_i32);
+//        types.push_back(likely_hash_i64);
+        types.push_back(likely_hash_f32);
+//        types.push_back(likely_hash_f64);
+        return types;
+    }
 
 private:
-    void testCorrectness(UnaryFunction f, const cv::Mat &src, bool parallel) const;
-
     struct Speed
     {
         int iterations;
@@ -27,6 +35,7 @@ private:
             : iterations(iter), Hz(double(iter) / (endTime-startTime)) {}
     };
 
+    void testCorrectness(UnaryFunction f, const cv::Mat &src, bool parallel) const;
     Speed testBaselineSpeed(const cv::Mat &src) const;
     Speed testLikelySpeed(UnaryFunction f, const cv::Mat &src, bool parallel) const;
     void printSpeedup(const Speed &baseline, const Speed &likely, const char *mode) const;
