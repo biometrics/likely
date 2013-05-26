@@ -24,8 +24,8 @@ set(EXTERNAL_PROJECT_ARGS -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -DCMAKE_SHARED_LI
 # Build LLVM
 ExternalProject_Add(
   LLVM
-  URL http://llvm.org/pre-releases/3.3/rc1/llvm-3.3rc1-sources.tar.gz
-  URL_MD5 03858a64b29bd54b13fcaae0ef788de2
+  URL http://llvm.org/pre-releases/3.3/rc2/llvm-3.3rc2-source.tar.gz
+  URL_MD5 063396afe869f515abbdb76673d22b69
   CMAKE_ARGS ${EXTERNAL_PROJECT_ARGS} -DCMAKE_BUILD_TYPE=Debug)
 
 # Build Likely
