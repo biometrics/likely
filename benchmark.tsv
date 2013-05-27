@@ -1,0 +1,4 @@
+Function	Type	Baseline	Serial	Parallel
+madd(2,3)	i32	1.81e+04	4.94e+05	2.08e+04
+madd(2,3)	f32	1.96e+05	4.49e+05	2.06e+04
+madd(2,3)	f64	1.77e+05	2.34e+05	1.91e+04

@@ -34,7 +34,7 @@ private:
         double Hz;
         Speed() : iterations(-1), Hz(-1) {}
         Speed(int iter, clock_t startTime, clock_t endTime)
-            : iterations(iter), Hz(double(iter) / (endTime-startTime)) {}
+            : iterations(iter), Hz(double(iter) * CLOCKS_PER_SEC / (endTime-startTime)) {}
     };
 
     void testCorrectness(UnaryFunction f, const cv::Mat &src, bool parallel) const;
@@ -99,13 +99,10 @@ static Mat generateData(int rows, int columns, likely_hash type)
 
 int Test::run() const
 {
-    setbuf(stdout, NULL);
-    printf("%s\n", function());
     UnaryFunction f = makeUnaryFunction(function());
 
     for (likely_hash type : types()) {
         // Generate input matrix
-        printf(" %s\n", likely_hash_to_string(type));
         Mat src = generateData(100, 100, type);
 
         // Test correctness
@@ -114,8 +111,10 @@ int Test::run() const
 
         // Test speed
         Speed baseline = testBaselineSpeed(src);
-        printSpeedup(baseline, testLikelySpeed(f, src, false), "Serial:  ");
-        printSpeedup(baseline, testLikelySpeed(f, src, true),  "Parallel:");
+        Speed serial = testLikelySpeed(f, src, false);
+        Speed parallel = testLikelySpeed(f, src, true);
+
+        printf("%s\t%s\t%.2e\t%.2e\t%.2e\n", function(), likely_hash_to_string(type), baseline.Hz, serial.Hz, parallel.Hz);
     }
 
     return 0;
@@ -164,11 +163,6 @@ Test::Speed Test::testLikelySpeed(UnaryFunction f, const Mat &src, bool parallel
     return Test::Speed(iter, startTime, endTime);
 }
 
-void Test::printSpeedup(const Speed &baseline, const Speed &likely, const char *mode) const
-{
-    printf("  %s %.2fx (~= %d/%d)\n", mode, likely.Hz / baseline.Hz, likely.iterations, baseline.iterations);
-}
-
 class maddTest : public Test
 {
     const char *function() const { return "madd(2,3)"; }
@@ -184,6 +178,9 @@ class maddTest : public Test
 int main(int argc, char *argv[])
 {
     (void) argc; (void) argv;
+
+    setbuf(stdout, NULL);
+    printf("Function\tType\tBaseline\tSerial\tParallel\n");
 
     maddTest().run();
 
