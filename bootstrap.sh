@@ -9,7 +9,7 @@ THREADS=9
 rm -rf build
 mkdir build
 cd build
-cmake ..
+cmake -DCMAKE_BUILD_TYPE=Debug ..
 make -j${THREADS}
 cmake ..
 make -j${THREADS}
