@@ -1,11 +1,14 @@
-#ifndef __TEST_H
-#define __TEST_H
-
+#include <ctime>
 #include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include "likely.h"
 
-namespace likely
-{
+using namespace cv;
+using namespace likely;
+using namespace std;
+
+#define LIKELY_ERROR_TOLERANCE 0.0001
+#define LIKELY_TEST_SECONDS 1
 
 struct Test
 {
@@ -39,22 +42,6 @@ private:
     Speed testLikelySpeed(UnaryFunction f, const cv::Mat &src, bool parallel) const;
     void printSpeedup(const Speed &baseline, const Speed &likely, const char *mode) const;
 };
-
-} // namespace likely
-
-// Allows us to remove three lines of code from each test file
-using namespace cv;
-using namespace likely;
-using namespace std;
-
-#endif // __TEST_H
-
-#include <ctime>
-#include <iostream>
-#include <opencv2/imgproc/imgproc.hpp>
-
-#define LIKELY_ERROR_TOLERANCE 0.0001
-#define LIKELY_TEST_SECONDS 1
 
 static Matrix matrixFromMat(const Mat &mat)
 {
@@ -197,7 +184,9 @@ class maddTest : public Test
 int main(int argc, char *argv[])
 {
     (void) argc; (void) argv;
-    maddTest t;
-    return t.run();
+
+    maddTest().run();
+
+    return 0;
 }
 
