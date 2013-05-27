@@ -1,0 +1,6 @@
+[submodule "llvm"]
+	path = llvm
+	url = https://github.com/llvm-mirror/llvm.git
+[submodule "opencv"]
+	path = opencv
+	url = https://github.com/Itseez/opencv.git

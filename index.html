@@ -52,7 +52,7 @@
           <li><a href="https://github.com/jklontz">Author</a></li>
         </ul>
         <ul class="nav pull-right">
-          <li><a class="pull-right" href="LICENSE.txt">Licensed under Apache 2.0 &copy; 2013 Joshua C. Klontz</a></li>
+          <li><a class="pull-right" href="share/likely/LICENSE.txt">Licensed under Apache 2.0 &copy; 2013 Joshua C. Klontz</a></li>
         </ul>
       </div> </div> </div>
     </div>
@@ -128,26 +128,10 @@
     <h2 id="installation">Installation</h2>
     <p>The following sections discuss how to build and incorporate Likely into your own project.</p>
     <h3 id="build_instructions">Build Instructions</h3>
-    <p>Start by cloning the source code.</p>
-    <pre>$ git clone https://github.com/biometrics/likely.git<br>$ cd likely<br></pre>
-    <h4 id="the_short_way">The Short Way</h4>
-    <p>If you have a <i>POSIX</i> compliant shell you can simply run <tt>bootstrap.sh</tt> to automatically build, test, and package Likely.</p>
-    <pre>$ ./bootstrap.sh</pre>
-    <h4 id="the_long_way">The Longer Way</h4>
-    <h5 id="build">Build</h5>
-    <p>Likely uses the <i>CMake</i> (>= 2.8.9) build system and will automatically download and compile its LLVM dependency.</p>
-    <pre>$ mkdir build<br>$ cd build<br>$ cmake -DCMAKE_BUILD_TYPE=Debug .. # Or -DCMAKE_BUILD_TYPE=Release<br>$ make -j4 # First time builds LLVM (only needed once)<br>$ cmake ..<br>$ make -j4 # Second time builds Likely</pre>
-    <h5 id="test">Test</h5>
-    <p>Unit tests are an optional build flag whereby kernels are compared against equivalent <i>OpenCV</i> functions for correctness and speed.
-      The build system will automatically download and compile OpenCV if testing is enabled.
-    </p>
-    <pre>$ cmake -DBUILD_TESTING=ON ..<br>$ make -j4 # First time builds OpenCV (only needed once)<br>$ cmake ..<br>$ make -j4 # Second time builds tests<br>$ make test</pre>
-    <h5 id="package">Package</h5>
-    <p>Installation and packaging work as expected.</p>
-    <pre>$ make install<br>$ cpack -G TGZ</pre>
+    <pre>$ git clone https://github.com/biometrics/likely.git<br>$ cd likely<br>$ git submodule init<br>$ git submodule update<br>$ mkdir build<br>$ cd build<br>$ cmake ..<br>$ make<br>$ cpack -G TGZ</pre>
     <h3 id="usage">Usage</h3>
     <p>C/C++ projects should <code class="prettyprint lang-c">#include &lt;likely.h&gt;</code> and link against the <code>likely</code> shared library.
-      <tt>LikelyConfig.cmake</tt> is provided as a convenience to CMake developers.
+      <tt>LikelyConfig.cmake</tt> is provided in <tt>share/likely/</tt> as a convenience to CMake developers.
     </p>
     <h2 id="interface">Interface</h2>
     <p>Likely is a C API that provides an optional C++ wrapper.
