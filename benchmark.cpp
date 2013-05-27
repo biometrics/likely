@@ -1,8 +1,57 @@
+#ifndef __TEST_H
+#define __TEST_H
+
+#include <opencv2/core/core.hpp>
+#include "likely.h"
+
+namespace likely
+{
+
+struct Test
+{
+    int run() const;
+
+protected:
+    virtual const char *function() const = 0;
+    virtual cv::Mat computeBaseline(const cv::Mat &src) const = 0;
+    virtual std::vector<likely_hash> types() const
+    {
+        std::vector<likely_hash> types;
+//        types.push_back(likely_hash_i16);
+        types.push_back(likely_hash_i32);
+        types.push_back(likely_hash_f32);
+        types.push_back(likely_hash_f64);
+        return types;
+    }
+
+private:
+    struct Speed
+    {
+        int iterations;
+        double Hz;
+        Speed() : iterations(-1), Hz(-1) {}
+        Speed(int iter, clock_t startTime, clock_t endTime)
+            : iterations(iter), Hz(double(iter) / (endTime-startTime)) {}
+    };
+
+    void testCorrectness(UnaryFunction f, const cv::Mat &src, bool parallel) const;
+    Speed testBaselineSpeed(const cv::Mat &src) const;
+    Speed testLikelySpeed(UnaryFunction f, const cv::Mat &src, bool parallel) const;
+    void printSpeedup(const Speed &baseline, const Speed &likely, const char *mode) const;
+};
+
+} // namespace likely
+
+// Allows us to remove three lines of code from each test file
+using namespace cv;
+using namespace likely;
+using namespace std;
+
+#endif // __TEST_H
+
 #include <ctime>
 #include <iostream>
 #include <opencv2/imgproc/imgproc.hpp>
-
-#include "test.h"
 
 #define LIKELY_ERROR_TOLERANCE 0.0001
 #define LIKELY_TEST_SECONDS 1
@@ -132,3 +181,23 @@ void Test::printSpeedup(const Speed &baseline, const Speed &likely, const char *
 {
     printf("  %s %.2fx (~= %d/%d)\n", mode, likely.Hz / baseline.Hz, likely.iterations, baseline.iterations);
 }
+
+class maddTest : public Test
+{
+    const char *function() const { return "madd(2,3)"; }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat dst;
+        src.convertTo(dst, src.depth(), 2, 3);
+        return dst;
+    }
+};
+
+int main(int argc, char *argv[])
+{
+    (void) argc; (void) argv;
+    maddTest t;
+    return t.run();
+}
+

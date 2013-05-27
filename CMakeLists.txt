@@ -8,6 +8,7 @@ set(CPACK_PACKAGE_DESCRIPTION "Literate Kernel Library")
 set(CPACK_PACKAGE_VERSION_MAJOR 0)
 set(CPACK_PACKAGE_VERSION_MINOR 1)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
+option(LIKELY_BENCHMARK "Build application to benchmark against OpenCV" ON)
 
 # C++11 Compiler flags
 if(APPLE)
@@ -18,7 +19,9 @@ endif()
 
 # Build Submodules
 add_subdirectory(llvm)
-add_subdirectory(opencv)
+if(${LIKELY_BENCHMARK})
+  add_subdirectory(opencv)
+endif()
 
 # Find LLVM
 set(CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}/llvm/share/llvm/cmake/")
@@ -57,9 +60,12 @@ install(TARGETS likely
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
 
-# Test
-enable_testing() # Must be in the root directory
-add_subdirectory(tests)
+# Benchmark
+if(${LIKELY_BENCHMARK})
+  add_executable(benchmark benchmark.cpp)
+  target_link_libraries(benchmark likely opencv_core opencv_imgproc)
+  install(TARGETS benchmark RUNTIME DESTINATION bin)
+endif()
 
 # Install
 install(FILES likely.h DESTINATION include)
