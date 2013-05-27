@@ -1125,14 +1125,10 @@ void *likely_make_kernel(likely_description description, likely_arity arity, lik
         functionPassManager->add(createInstructionCombiningPass());
         functionPassManager->add(createEarlyCSEPass());
         functionPassManager->add(createCFGSimplificationPass());
-//        functionPassManager->add(createDeadCodeEliminationPass());
-//        functionPassManager->add(createGVNPass());
-//        functionPassManager->add(createDeadInstEliminationPass());
-//        functionPassManager->add(createLoopUnrollPass());
-//        functionPassManager->add(createPrintFunctionPass("--------------------------------------------------------------------------------", &errs()));
 //        DebugFlag = true;
     }
     functionPassManager->run(*function);
+//    function->dump();
 
     return executionEngine->getPointerToFunction(function);
 }

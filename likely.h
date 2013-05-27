@@ -41,7 +41,7 @@
 extern "C" {
 #endif
 
-// The documentation and source code for Likely
+// The documentation and source code for the Likely Standard Library
 LIKELY_EXPORT const char *likely_index_html();
 
 // Encodes matrix metadata

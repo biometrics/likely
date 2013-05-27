@@ -18,8 +18,7 @@ protected:
     {
         std::vector<likely_hash> types;
 //        types.push_back(likely_hash_i16);
-//        types.push_back(likely_hash_i32);
-//        types.push_back(likely_hash_i64);
+        types.push_back(likely_hash_i32);
         types.push_back(likely_hash_f32);
         types.push_back(likely_hash_f64);
         return types;
