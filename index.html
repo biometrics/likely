@@ -39,7 +39,8 @@
     })();
   </script>
 
-  <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+  <script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
+  <script type="text/javascript" src="http://underscorejs.org/underscore-min.js"></script>
 </head>
 
 <body onload="prettyPrint()">
@@ -285,9 +286,14 @@ digit = '0' | '1' | ... | '9' | '.'
     <h3 id="ternary_functions">Ternary Functions</h3>
     <h2 id="benchmark">Benchmark</h2>
     <div id="viz"></div>
+
     <script type="text/javascript">
       d3.tsv("benchmark.tsv", function(data) {
         data.forEach(function(d) {
+          d.Size = +d.Size;
+          d.Baseline = +d.Baseline;
+          d.Serial = +d.Serial;
+          d.Parallel = +d.Parallel;
           d.BaselineSpeedup = d.Baseline/d.Baseline;
           d.SerialSpeedup   = d.Serial  /d.Baseline;
           d.ParallelSpeedup = d.Parallel/d.Baseline;
@@ -299,24 +305,31 @@ digit = '0' | '1' | ... | '9' | '.'
                                  d3.max(data, function(d) { return d.SerialSpeedup; }),
                                  d3.max(data, function(d) { return d.ParallelSpeedup; })]);
 
-        var chart = d3.select("#viz").append("svg");
-        var width = parseInt(chart.style("width"));
+        var width = parseInt(d3.select("#viz").style("width"));
         var height = width/2;
         var margin = width/20;
-        chart.style("height", height);
 
-        var x = d3.scale.linear().domain([minSize, maxSize]).range([margin, width-margin]);
+        var chart = d3.select("#viz").append("svg").style("height", height);
+        var x = d3.scale.log().base(2).domain([minSize, maxSize]).range([margin, width-margin]);
         var y = d3.scale.linear().domain([0, maxSpeedup]).range([margin, height-margin]);
+        var color = d3.scale.category10().domain(_.uniq(_.map(data, function(d) { return d.Type; })));
+        var xAxis = d3.svg.axis().scale(x).orient("bottom");
+        var yAxis = d3.svg.axis().scale(y).orient("left");
+
+        var lines = _.values(_.groupBy(data, function(d) { return d.Type; }));
+
         var lineFunction = d3.svg.line()
                            .x(function(d) { return x(d.Size); })
                            .y(function(d) { return y(maxSpeedup-d.SerialSpeedup); })
                            .interpolate("linear");
-        var lineGraph = chart.append("path")
-                        .attr("d", lineFunction(data))
-                        .attr("stroke", "blue")
-                        .attr("stroke-width", 2)
-                        .attr("fill", "none");
 
+        var lineGraph = chart.selectAll(".benchmark").data(lines).enter().append("path")
+                        .attr("d", function(d) { return lineFunction(d); })
+                        .attr("stroke", function(d) { return color(d[0].Type); })
+                        .attr("fill", "none")
+                        .attr("stroke-width", 2);
+
+        chart.append("g").attr("transform", "translate(0," + (height-margin) + ")").call(xAxis);
       });
     </script>
     <br>
