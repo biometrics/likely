@@ -286,27 +286,28 @@ digit = '0' | '1' | ... | '9' | '.'
     <h2 id="benchmark">Benchmark</h2>
     <div id="viz"></div>
     <script type="text/javascript">
-      d3.text("benchmark.tsv", function(datasetText) {
-        var parsedCSV = d3.tsv.parseRows(datasetText);
+      d3.tsv("benchmark.tsv", function(data) {
+        data.forEach(function(d) {
+          d.SerialSpeedup   = d.Serial  /d.Baseline;
+          d.ParallelSpeedup = d.Parallel/d.Baseline;
+        });
 
-        var sampleHTML = d3.select("#viz")
-            .append("table")
-            .style("border-collapse", "collapse")
-            .style("border", "2px black solid")
+        var maxSpeedup = d3.max([d3.max(data, function(d) { return d.SerialSpeedup; }),
+                                 d3.max(data, function(d) { return d.ParallelSpeedup; })]);
 
-            .selectAll("tr")
-            .data(parsedCSV)
-            .enter().append("tr")
+        var chart = d3.select("#viz").append("svg");
+        chart.style("height", parseInt(chart.style("width"))/2);
 
-            .selectAll("td")
-            .data(function(d){return d;})
-            .enter().append("td")
-            .style("border", "1px black solid")
-            .style("padding", "5px")
-            .on("mouseover", function(){d3.select(this).style("background-color", "aliceblue")})
-            .on("mouseout", function(){d3.select(this).style("background-color", "white")})
-            .text(function(d){return d;})
-            .style("font-size", "12px");
+        var x = d3.scale.ordinal().domain(data, function(d) { return d.type; }).rangeBands([0, 120]);
+        var y = d3.scale.linear().domain([0, maxSpeedup]).range([0, chart.style("height")]);
+        var step = parseInt(chart.style("width"))/data.length;
+
+        chart.selectAll("rect").data(data).enter().append("rect")
+        .attr("x", function(d, i) { return i * step; })
+        .attr("y", function(d) { return y(maxSpeedup-d.SerialSpeedup); })
+        .attr("height", function(d) { return y(d.SerialSpeedup); })
+        .attr("width", step);
+
       });
     </script>
     <br>
