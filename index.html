@@ -288,25 +288,34 @@ digit = '0' | '1' | ... | '9' | '.'
     <script type="text/javascript">
       d3.tsv("benchmark.tsv", function(data) {
         data.forEach(function(d) {
+          d.BaselineSpeedup = d.Baseline/d.Baseline;
           d.SerialSpeedup   = d.Serial  /d.Baseline;
           d.ParallelSpeedup = d.Parallel/d.Baseline;
         });
 
-        var maxSpeedup = d3.max([d3.max(data, function(d) { return d.SerialSpeedup; }),
+        var minSize = d3.min(data, function(d) { return d.Size; });
+        var maxSize = d3.max(data, function(d) { return d.Size; });
+        var maxSpeedup = d3.max([d3.max(data, function(d) { return d.BaselineSpeedup; }),
+                                 d3.max(data, function(d) { return d.SerialSpeedup; }),
                                  d3.max(data, function(d) { return d.ParallelSpeedup; })]);
 
         var chart = d3.select("#viz").append("svg");
-        chart.style("height", parseInt(chart.style("width"))/2);
+        var width = parseInt(chart.style("width"));
+        var height = width/2;
+        var margin = width/20;
+        chart.style("height", height);
 
-        var x = d3.scale.ordinal().domain(data, function(d) { return d.type; }).rangeBands([0, 120]);
-        var y = d3.scale.linear().domain([0, maxSpeedup]).range([0, chart.style("height")]);
-        var step = parseInt(chart.style("width"))/data.length;
-
-        chart.selectAll("rect").data(data).enter().append("rect")
-        .attr("x", function(d, i) { return i * step; })
-        .attr("y", function(d) { return y(maxSpeedup-d.SerialSpeedup); })
-        .attr("height", function(d) { return y(d.SerialSpeedup); })
-        .attr("width", step);
+        var x = d3.scale.linear().domain([minSize, maxSize]).range([margin, width-margin]);
+        var y = d3.scale.linear().domain([0, maxSpeedup]).range([margin, height-margin]);
+        var lineFunction = d3.svg.line()
+                           .x(function(d) { return x(d.Size); })
+                           .y(function(d) { return y(maxSpeedup-d.SerialSpeedup); })
+                           .interpolate("linear");
+        var lineGraph = chart.append("path")
+                        .attr("d", lineFunction(data))
+                        .attr("stroke", "blue")
+                        .attr("stroke-width", 2)
+                        .attr("fill", "none");
 
       });
     </script>

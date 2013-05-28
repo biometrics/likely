@@ -27,6 +27,19 @@ protected:
         return types;
     }
 
+    virtual std::vector<int> sizes() const
+    {
+        std::vector<int> sizes;
+        sizes.push_back(2);
+        sizes.push_back(8);
+        sizes.push_back(32);
+        sizes.push_back(128);
+        sizes.push_back(512);
+        sizes.push_back(2048);
+        sizes.push_back(8192);
+        return sizes;
+    }
+
 private:
     struct Speed
     {
@@ -102,19 +115,23 @@ int Test::run() const
     UnaryFunction f = makeUnaryFunction(function());
 
     for (likely_hash type : types()) {
-        // Generate input matrix
-        Mat src = generateData(100, 100, type);
+        for (int size : sizes()) {
+            // Generate input matrix
+            Mat src = generateData(size, size, type);
 
-        // Test correctness
-        testCorrectness(f, src, false);
-        testCorrectness(f, src, true);
+            // Test correctness
+            testCorrectness(f, src, false);
+            testCorrectness(f, src, true);
 
-        // Test speed
-        Speed baseline = testBaselineSpeed(src);
-        Speed serial = testLikelySpeed(f, src, false);
-        Speed parallel = testLikelySpeed(f, src, true);
+            // Test speed
+            Speed baseline = testBaselineSpeed(src);
+            Speed serial = testLikelySpeed(f, src, false);
+            Speed parallel = testLikelySpeed(f, src, true);
 
-        printf("%s\t%s\t%.2e\t%.2e\t%.2e\n", function(), likely_hash_to_string(type), baseline.Hz, serial.Hz, parallel.Hz);
+            printf("%s\t%s\t%d\t%.2e\t%.2e\t%.2e\n",
+                   function(), likely_hash_to_string(type), size,
+                   baseline.Hz, serial.Hz, parallel.Hz);
+        }
     }
 
     return 0;
@@ -180,7 +197,7 @@ int main(int argc, char *argv[])
     (void) argc; (void) argv;
 
     setbuf(stdout, NULL);
-    printf("Function\tType\tBaseline\tSerial\tParallel\n");
+    printf("Function\tType\tSize\tBaseline\tSerial\tParallel\n");
 
     maddTest().run();
 
