@@ -8,7 +8,6 @@ set(CPACK_PACKAGE_DESCRIPTION "Literate Kernel Library")
 set(CPACK_PACKAGE_VERSION_MAJOR 0)
 set(CPACK_PACKAGE_VERSION_MINOR 1)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
-option(LIKELY_BENCHMARK "Build application to benchmark against OpenCV" ON)
 
 # C++11 Compiler flags
 if(APPLE)
@@ -61,7 +60,8 @@ install(TARGETS likely
         ARCHIVE DESTINATION lib)
 
 # Benchmark
-if(${LIKELY_BENCHMARK})
+find_package(OpenCV QUIET)
+if(${OpenCV_FOUND})
   add_executable(benchmark benchmark.cpp)
   target_link_libraries(benchmark likely opencv_core opencv_imgproc)
   install(TARGETS benchmark RUNTIME DESTINATION bin)
