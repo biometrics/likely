@@ -129,7 +129,7 @@
     <h2 id="installation">Installation</h2>
     <p>The following sections discuss how to build and incorporate Likely into your own project.</p>
     <h3 id="build_instructions">Build Instructions</h3>
-    <pre>$ git clone https://github.com/biometrics/likely.git<br>$ cd likely<br>$ git submodule init<br>$ git submodule update<br>$ mkdir build<br>$ cd build<br>$ cmake ..<br>$ make<br>$ cpack -G TGZ</pre>
+    <pre>$ git clone https://github.com/biometrics/likely.git<br>$ cd likely<br>$ git submodule init<br>$ git submodule update<br>$ mkdir build<br>$ cd build<br>$ cmake ..<br>$ make<br>$ make install<br>$ cpack -G TGZ</pre>
     <h3 id="usage">Usage</h3>
     <p>C/C++ projects should <code class="prettyprint lang-c">#include &lt;likely.h&gt;</code> and link against the <code>likely</code> shared library.
       <tt>LikelyConfig.cmake</tt> is provided in <tt>share/likely/</tt> as a convenience to CMake developers.
@@ -285,6 +285,23 @@ digit = '0' | '1' | ... | '9' | '.'
     <h3 id="binary_functions">Binary Functions</h3>
     <h3 id="ternary_functions">Ternary Functions</h3>
     <h2 id="benchmark">Benchmark</h2>
+    <style type="text/css">
+      .axis path,
+      .axis line {
+        fill: none;
+        stroke: black;
+        shape-rendering: crispEdges;
+      }
+
+      .axis text {
+        font-family: sans-serif;
+        font-size: 12px;
+      }
+
+      .title {
+        font: 14px sans-serif;
+      }
+    </style>
     <div id="viz"></div>
 
     <script type="text/javascript">
@@ -311,25 +328,49 @@ digit = '0' | '1' | ... | '9' | '.'
 
         var chart = d3.select("#viz").append("svg").style("height", height);
         var x = d3.scale.log().base(2).domain([minSize, maxSize]).range([margin, width-margin]);
-        var y = d3.scale.linear().domain([0, maxSpeedup]).range([margin, height-margin]);
+        var y = d3.scale.linear().domain([0, maxSpeedup]).range([height-margin, margin]).nice();
         var color = d3.scale.category10().domain(_.uniq(_.map(data, function(d) { return d.Type; })));
-        var xAxis = d3.svg.axis().scale(x).orient("bottom");
-        var yAxis = d3.svg.axis().scale(y).orient("left");
+        var colorMap = function(d) { return color(d[0].Type); }
+        var xAxis = d3.svg.axis().scale(x).orient("bottom").tickFormat(d3.format("f"));
+        var yAxis = d3.svg.axis().scale(y).orient("left").tickFormat(d3.format("d"));
 
         var lines = _.values(_.groupBy(data, function(d) { return d.Type; }));
 
         var lineFunction = d3.svg.line()
                            .x(function(d) { return x(d.Size); })
-                           .y(function(d) { return y(maxSpeedup-d.SerialSpeedup); })
+                           .y(function(d) { return y(d.SerialSpeedup); })
                            .interpolate("linear");
 
         var lineGraph = chart.selectAll(".benchmark").data(lines).enter().append("path")
                         .attr("d", function(d) { return lineFunction(d); })
-                        .attr("stroke", function(d) { return color(d[0].Type); })
+                        .attr("stroke", colorMap)
                         .attr("fill", "none")
                         .attr("stroke-width", 2);
 
-        chart.append("g").attr("transform", "translate(0," + (height-margin) + ")").call(xAxis);
+        chart.append("g").attr("class", "axis").attr("transform", "translate(0," + (height-margin) + ")").call(xAxis);
+        chart.append("g").attr("class", "axis").attr("transform", "translate(" + margin + ",0)").call(yAxis);
+
+        var legend = chart.append("g").attr("height", 100).attr("width", 100)
+        legend.selectAll('rect').data(lines).enter().append("rect")
+          .attr("x", width - 65)
+          .attr("y", function(d, i){ return i * 20;})
+          .attr("width", 10)
+          .attr("height", 10)
+          .style("fill", colorMap);
+
+        legend.selectAll('text').data(lines).enter().append("text").attr("class", "axis")
+          .attr("x", width - 52)
+          .attr("y", function(d, i){ return i * 20 + 9;})
+          .text(function(d) { return d[0].Type; });
+
+        var title = chart.append("text").attr("class", "title").attr("y", 20).text(lines[0][0].Function);
+        title.attr("x", (width-parseInt(title.style("width")))/2);
+
+        var xlab = chart.append("text").attr("class", "title").attr("y", height-20).text("Kernel Size (elements)");
+        xlab.attr("x", (width-parseInt(xlab.style("width")))/2);
+
+        var ylab = chart.append("text").attr("class", "title").attr("x", -height/2).attr("transform", "rotate(-90)").text("Speedup (times)");
+        ylab.attr("y", 20);
       });
     </script>
     <br>
