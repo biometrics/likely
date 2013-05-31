@@ -30,13 +30,17 @@ protected:
     virtual std::vector<int> sizes() const
     {
         std::vector<int> sizes;
-        sizes.push_back(2);
+        sizes.push_back(4);
         sizes.push_back(8);
+        sizes.push_back(16);
         sizes.push_back(32);
+        sizes.push_back(64);
         sizes.push_back(128);
+        sizes.push_back(256);
         sizes.push_back(512);
+        sizes.push_back(1024);
         sizes.push_back(2048);
-        sizes.push_back(8192);
+        sizes.push_back(4096);
         return sizes;
     }
 
@@ -128,9 +132,8 @@ int Test::run() const
             Speed serial = testLikelySpeed(f, src, false);
             Speed parallel = testLikelySpeed(f, src, true);
 
-            printf("%s\t%s\t%d\t%.2e\t%.2e\t%.2e\n",
-                   function(), likely_hash_to_string(type), size,
-                   baseline.Hz, serial.Hz, parallel.Hz);
+            printf("%s\t%s\t%d\tSerial\t%.2e\n", function(), likely_hash_to_string(type), size, serial.Hz/baseline.Hz);
+            printf("%s\t%s\t%d\tParallel\t%.2e\n", function(), likely_hash_to_string(type), size, parallel.Hz/baseline.Hz);
         }
     }
 
@@ -197,7 +200,7 @@ int main(int argc, char *argv[])
     (void) argc; (void) argv;
 
     setbuf(stdout, NULL);
-    printf("Function\tType\tSize\tBaseline\tSerial\tParallel\n");
+    printf("Function\tType\tSize\tExecution\tSpeedup\n");
 
     maddTest().run();
 

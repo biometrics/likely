@@ -1,22 +1,67 @@
-Function	Type	Size	Baseline	Serial	Parallel
-madd(2,3)	i32	2	1.75e+06	2.17e+06	2.62e+04
-madd(2,3)	i32	8	1.30e+06	1.85e+06	2.42e+04
-madd(2,3)	i32	32	3.20e+05	1.70e+06	2.24e+04
-madd(2,3)	i32	128	2.43e+04	3.32e+05	2.03e+04
-madd(2,3)	i32	512	1.54e+03	1.48e+04	6.38e+03
-madd(2,3)	i32	2048	7.22e+01	1.64e+02	5.55e+01
-madd(2,3)	i32	8192	3.64e+00	7.22e+00	2.81e+00
-madd(2,3)	f32	2	1.52e+06	1.80e+06	2.51e+04
-madd(2,3)	f32	8	1.50e+06	1.82e+06	2.44e+04
-madd(2,3)	f32	32	9.63e+05	1.73e+06	2.26e+04
-madd(2,3)	f32	128	1.27e+05	3.02e+05	1.99e+04
-madd(2,3)	f32	512	8.03e+03	1.45e+04	6.48e+03
-madd(2,3)	f32	2048	1.59e+02	1.57e+02	5.55e+01
-madd(2,3)	f32	8192	6.64e+00	7.05e+00	2.70e+00
-madd(2,3)	f64	2	1.52e+06	1.79e+06	2.48e+04
-madd(2,3)	f64	8	1.50e+06	1.88e+06	2.42e+04
-madd(2,3)	f64	32	9.48e+05	1.46e+06	2.25e+04
-madd(2,3)	f64	128	9.90e+04	1.40e+05	1.80e+04
-madd(2,3)	f64	512	5.58e+03	6.45e+03	3.28e+03
-madd(2,3)	f64	2048	8.32e+01	8.16e+01	2.79e+01
-madd(2,3)	f64	8192	3.54e+00	3.64e+00	1.81e+00
+Function	Type	Size	Execution	Speedup
+madd(2,3)	i32	4	Serial	1.36e+00
+madd(2,3)	i32	4	Parallel	1.57e-02
+madd(2,3)	i32	8	Serial	1.46e+00
+madd(2,3)	i32	8	Parallel	1.95e-02
+madd(2,3)	i32	16	Serial	2.44e+00
+madd(2,3)	i32	16	Parallel	2.83e-02
+madd(2,3)	i32	32	Serial	5.12e+00
+madd(2,3)	i32	32	Parallel	6.92e-02
+madd(2,3)	i32	64	Serial	9.37e+00
+madd(2,3)	i32	64	Parallel	2.37e-01
+madd(2,3)	i32	128	Serial	1.34e+01
+madd(2,3)	i32	128	Parallel	8.10e-01
+madd(2,3)	i32	256	Serial	9.15e+00
+madd(2,3)	i32	256	Parallel	2.36e+00
+madd(2,3)	i32	512	Serial	9.49e+00
+madd(2,3)	i32	512	Parallel	4.10e+00
+madd(2,3)	i32	1024	Serial	2.66e+00
+madd(2,3)	i32	1024	Parallel	1.26e+00
+madd(2,3)	i32	2048	Serial	2.35e+00
+madd(2,3)	i32	2048	Parallel	7.73e-01
+madd(2,3)	i32	4096	Serial	2.40e+00
+madd(2,3)	i32	4096	Parallel	7.46e-01
+madd(2,3)	f32	4	Serial	1.24e+00
+madd(2,3)	f32	4	Parallel	1.76e-02
+madd(2,3)	f32	8	Serial	1.33e+00
+madd(2,3)	f32	8	Parallel	1.82e-02
+madd(2,3)	f32	16	Serial	1.44e+00
+madd(2,3)	f32	16	Parallel	1.62e-02
+madd(2,3)	f32	32	Serial	1.81e+00
+madd(2,3)	f32	32	Parallel	2.41e-02
+madd(2,3)	f32	64	Serial	2.03e+00
+madd(2,3)	f32	64	Parallel	5.36e-02
+madd(2,3)	f32	128	Serial	2.18e+00
+madd(2,3)	f32	128	Parallel	1.53e-01
+madd(2,3)	f32	256	Serial	1.80e+00
+madd(2,3)	f32	256	Parallel	4.64e-01
+madd(2,3)	f32	512	Serial	1.80e+00
+madd(2,3)	f32	512	Parallel	8.16e-01
+madd(2,3)	f32	1024	Serial	1.05e+00
+madd(2,3)	f32	1024	Parallel	5.07e-01
+madd(2,3)	f32	2048	Serial	1.01e+00
+madd(2,3)	f32	2048	Parallel	3.34e-01
+madd(2,3)	f32	4096	Serial	9.80e-01
+madd(2,3)	f32	4096	Parallel	3.25e-01
+madd(2,3)	f64	4	Serial	1.26e+00
+madd(2,3)	f64	4	Parallel	1.76e-02
+madd(2,3)	f64	8	Serial	1.35e+00
+madd(2,3)	f64	8	Parallel	1.80e-02
+madd(2,3)	f64	16	Serial	1.37e+00
+madd(2,3)	f64	16	Parallel	1.61e-02
+madd(2,3)	f64	32	Serial	1.57e+00
+madd(2,3)	f64	32	Parallel	2.38e-02
+madd(2,3)	f64	64	Serial	1.32e+00
+madd(2,3)	f64	64	Parallel	5.67e-02
+madd(2,3)	f64	128	Serial	1.39e+00
+madd(2,3)	f64	128	Parallel	1.81e-01
+madd(2,3)	f64	256	Serial	1.26e+00
+madd(2,3)	f64	256	Parallel	4.67e-01
+madd(2,3)	f64	512	Serial	1.16e+00
+madd(2,3)	f64	512	Parallel	5.89e-01
+madd(2,3)	f64	1024	Serial	9.89e-01
+madd(2,3)	f64	1024	Parallel	3.60e-01
+madd(2,3)	f64	2048	Serial	9.78e-01
+madd(2,3)	f64	2048	Parallel	3.19e-01
+madd(2,3)	f64	4096	Serial	1.00e+00
+madd(2,3)	f64	4096	Parallel	2.17e-01

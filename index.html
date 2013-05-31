@@ -41,6 +41,7 @@
 
   <script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
   <script type="text/javascript" src="http://underscorejs.org/underscore-min.js"></script>
+  <script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js"></script>
 </head>
 
 <body onload="prettyPrint()">
@@ -298,79 +299,108 @@ digit = '0' | '1' | ... | '9' | '.'
         font-size: 12px;
       }
 
-      .title {
-        font: 14px sans-serif;
-      }
     </style>
     <div id="viz"></div>
 
     <script type="text/javascript">
       d3.tsv("benchmark.tsv", function(data) {
+        // Convert to numeric data
         data.forEach(function(d) {
           d.Size = +d.Size;
-          d.Baseline = +d.Baseline;
-          d.Serial = +d.Serial;
-          d.Parallel = +d.Parallel;
-          d.BaselineSpeedup = d.Baseline/d.Baseline;
-          d.SerialSpeedup   = d.Serial  /d.Baseline;
-          d.ParallelSpeedup = d.Parallel/d.Baseline;
+          d.Speedup = +d.Speedup;
         });
 
-        var minSize = d3.min(data, function(d) { return d.Size; });
-        var maxSize = d3.max(data, function(d) { return d.Size; });
-        var maxSpeedup = d3.max([d3.max(data, function(d) { return d.BaselineSpeedup; }),
-                                 d3.max(data, function(d) { return d.SerialSpeedup; }),
-                                 d3.max(data, function(d) { return d.ParallelSpeedup; })]);
-
-        var width = parseInt(d3.select("#viz").style("width"));
+        // Global sizes
+        var width  = $("#viz").width();
         var height = width/2;
         var margin = width/20;
 
+        // Construct chart
         var chart = d3.select("#viz").append("svg").style("height", height);
-        var x = d3.scale.log().base(2).domain([minSize, maxSize]).range([margin, width-margin]);
-        var y = d3.scale.linear().domain([0, maxSpeedup]).range([height-margin, margin]).nice();
-        var color = d3.scale.category10().domain(_.uniq(_.map(data, function(d) { return d.Type; })));
-        var colorMap = function(d) { return color(d[0].Type); }
-        var xAxis = d3.svg.axis().scale(x).orient("bottom").tickFormat(d3.format("f"));
-        var yAxis = d3.svg.axis().scale(y).orient("left").tickFormat(d3.format("d"));
 
-        var lines = _.values(_.groupBy(data, function(d) { return d.Type; }));
+        // Construct x & y scales & axis
+        var xScale = d3.scale.log().base(2)
+                     .domain(d3.extent(data, function(d) { return d.Size; }))
+                     .range([margin, width-margin]);
+        var yScale = d3.scale.linear()
+                     .domain([0, d3.max(data, function(d) { return d.Speedup; })])
+                     .range([height-margin, margin]).nice();
+        var xAxis  = d3.svg.axis().scale(xScale).orient("bottom").tickFormat(d3.format("f"));
+        var yAxis  = d3.svg.axis().scale(yScale).orient("left").tickFormat(d3.format("d"));
 
+        // Construct color mapping
+        var types      = _.uniq(_.map(data, function(d) { return d.Type; }));
+        var colorTable = d3.scale.category10().domain(types);
+        var colorMap   = function(d) { return colorTable(d[0].Type); }
+
+        // Construct line type mapping
+        var executions = _.uniq(_.map(data, function(d) { return d.Execution; }));
+        var lineTable  = function(d) { return ("1, " + String(_.indexOf(executions, d))); }
+        var lineMap    = function(d) { return lineTable(d[0].Execution); }
+
+        // Group and render data
+        var lines = _.values(_.groupBy(data, function(d) { return d.Execution+d.Type; }));
         var lineFunction = d3.svg.line()
-                           .x(function(d) { return x(d.Size); })
-                           .y(function(d) { return y(d.SerialSpeedup); })
-                           .interpolate("linear");
+                           .x(function(d) { return xScale(d.Size); })
+                           .y(function(d) { return yScale(d.Speedup); })
+        chart.selectAll(".benchmark").data(lines).enter().append("path")
+             .attr("d", function(d) { return lineFunction(d); })
+             .attr("stroke", colorMap)
+             .attr("stroke-dasharray", lineMap)
+             .attr("fill", "none")
+             .attr("stroke-width", 2);
 
-        var lineGraph = chart.selectAll(".benchmark").data(lines).enter().append("path")
-                        .attr("d", function(d) { return lineFunction(d); })
-                        .attr("stroke", colorMap)
-                        .attr("fill", "none")
-                        .attr("stroke-width", 2);
-
+        // Render axes
         chart.append("g").attr("class", "axis").attr("transform", "translate(0," + (height-margin) + ")").call(xAxis);
         chart.append("g").attr("class", "axis").attr("transform", "translate(" + margin + ",0)").call(yAxis);
 
-        var legend = chart.append("g").attr("height", 100).attr("width", 100)
-        legend.selectAll('rect').data(lines).enter().append("rect")
-          .attr("x", width - 65)
-          .attr("y", function(d, i){ return i * 20;})
-          .attr("width", 10)
-          .attr("height", 10)
-          .style("fill", colorMap);
+        // Legend position variables
+        var legendXOffset = 128;
+        var legendElementStep = 20;
+        var legendKeySize = 12;
+        var legendKeyValueSpacing = 3;
 
-        legend.selectAll('text').data(lines).enter().append("text").attr("class", "axis")
-          .attr("x", width - 52)
-          .attr("y", function(d, i){ return i * 20 + 9;})
-          .text(function(d) { return d[0].Type; });
+        // Render color legend
+        chart.selectAll("colorKeys").data(types).enter().append("rect")
+             .attr("x", width - legendXOffset)
+             .attr("y", function(d, i) { return (i+1) * legendElementStep;})
+             .attr("width", legendKeySize)
+             .attr("height", legendKeySize)
+             .attr("fill", colorTable);
+        chart.selectAll('colorText').data(types).enter().append("text")
+              .attr("x", width - legendXOffset + legendKeySize + legendKeyValueSpacing)
+              .attr("y", function(d, i) { return (i+1) * legendElementStep + legendKeySize; })
+              .text(function(d) { return String(d); });
 
+        // Render line type legend
+        chart.selectAll('linetypeRect').data(executions).enter().append("line")
+              .attr("x1", width - legendXOffset)
+              .attr("y1", function(d, i) { return (i+types.length+3) * legendElementStep - legendKeySize/2 + 1; })
+              .attr("x2", width - legendXOffset + legendKeySize)
+              .attr("y2", function(d, i) { return (i+types.length+3) * legendElementStep - legendKeySize/2 + 1; })
+              .attr("stroke", "black")
+              .attr("stroke-width", "2")
+              .attr("stroke-dasharray", lineTable);
+        chart.selectAll('linetypeText').data(executions).enter().append("text")
+              .attr("x", width - legendXOffset + legendKeySize + legendKeyValueSpacing)
+              .attr("y", function(d, i) { return (i+types.length+3) * legendElementStep; })
+              .text(function(d) { return String(d); });
+
+        // Render legend Titles
+        chart.append("text").attr("y", 10).attr("x", width - legendXOffset).attr("font-weight","bold").text("Type");
+        chart.append("text").attr("y", (types.length+2) * legendElementStep).attr("x", width - legendXOffset).attr("font-weight","bold").text("Execution");
+
+        // Render title
         var title = chart.append("text").attr("class", "title").attr("y", 20).text(lines[0][0].Function);
         title.attr("x", (width-parseInt(title.style("width")))/2);
 
-        var xlab = chart.append("text").attr("class", "title").attr("y", height-20).text("Kernel Size (elements)");
+        // Render x axis label
+        var xlab = chart.append("text").attr("class", "title").attr("y", height-10).text("Kernel Size (elements)");
         xlab.attr("x", (width-parseInt(xlab.style("width")))/2);
 
-        var ylab = chart.append("text").attr("class", "title").attr("x", -height/2).attr("transform", "rotate(-90)").text("Speedup (times)");
-        ylab.attr("y", 20);
+        // Render y axis label
+        var ylab = chart.append("text").attr("class", "title").attr("y", 10).attr("transform", "rotate(-90)").text("Speedup (times)");
+        ylab.attr("x", -(height+parseInt(ylab.style("width")))/2);
       });
     </script>
     <br>
