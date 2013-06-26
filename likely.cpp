@@ -143,6 +143,26 @@ const char *likely_hash_to_string(likely_hash h)
     return str.c_str();
 }
 
+likely_hash likely_string_to_hash(const char *str)
+{
+    if      (!strcmp(str, "u8"))  return likely_hash_u8;
+    else if (!strcmp(str, "u16")) return likely_hash_u16;
+    else if (!strcmp(str, "u32")) return likely_hash_u32;
+    else if (!strcmp(str, "u64")) return likely_hash_u64;
+    else if (!strcmp(str, "i8"))  return likely_hash_i8;
+    else if (!strcmp(str, "i16")) return likely_hash_i16;
+    else if (!strcmp(str, "i32")) return likely_hash_i32;
+    else if (!strcmp(str, "i64")) return likely_hash_i64;
+    else if (!strcmp(str, "f32")) return likely_hash_f32;
+    else if (!strcmp(str, "f64")) return likely_hash_f64;
+
+    stringstream stream;
+    stream << hex << str;
+    likely_hash h;
+    stream >> h;
+    return h;
+}
+
 void likely_print_matrix(const likely_matrix *m)
 {
     if ((m == NULL) || (m->data == NULL)) return;

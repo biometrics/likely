@@ -10,9 +10,14 @@ using namespace std;
 #define LIKELY_ERROR_TOLERANCE 0.0001
 #define LIKELY_TEST_SECONDS 1
 
+// Optional arguments to run only a subset of the benchmarks
+static string      BenchmarkFunction = "";
+static likely_hash BenchmarkType     = likely_hash_null;
+static int         BenchmarkSize     = 0;
+
 struct Test
 {
-    int run() const;
+    void run() const;
 
 protected:
     virtual const char *function() const = 0;
@@ -114,12 +119,18 @@ static Mat generateData(int rows, int columns, likely_hash type)
     return m;
 }
 
-int Test::run() const
+void Test::run() const
 {
+    if (!BenchmarkFunction.empty() && BenchmarkFunction != function()) return;
+
     UnaryFunction f = makeUnaryFunction(function());
 
     for (likely_hash type : types()) {
+        if ((BenchmarkType != likely_hash_null) && (BenchmarkType != type)) continue;
+
         for (int size : sizes()) {
+            if ((BenchmarkSize != 0) && (BenchmarkSize != size)) continue;
+
             // Generate input matrix
             Mat src = generateData(size, size, type);
 
@@ -136,8 +147,6 @@ int Test::run() const
             printf("%s\t%s\t%d\tParallel\t%.2e\n", function(), likely_hash_to_string(type), size, parallel.Hz/baseline.Hz);
         }
     }
-
-    return 0;
 }
 
 void Test::testCorrectness(UnaryFunction f, const Mat &src, bool parallel) const
@@ -197,7 +206,18 @@ class maddTest : public Test
 
 int main(int argc, char *argv[])
 {
-    (void) argc; (void) argv;
+    // Parse arguments
+    if (argc % 2 == 0) {
+        printf("benchmark [-function <str>] [-type <hash>] [-size <int>]\n");
+        return 1;
+    } else {
+        for (int i = 1; i < argc; i += 2) {
+            if      (!strcmp("-function", argv[i])) BenchmarkFunction = argv[i+1];
+            else if (!strcmp("-type", argv[i])) BenchmarkType = likely_string_to_hash(argv[i+1]);
+            else if (!strcmp("-size", argv[i])) BenchmarkSize = atoi(argv[i+1]);
+            else    likely_assert(false, "Unrecognized argument: %s", argv[i]);
+        }
+    }
 
     setbuf(stdout, NULL);
     printf("Function\tType\tSize\tExecution\tSpeedup\n");
