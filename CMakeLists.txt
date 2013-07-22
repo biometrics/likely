@@ -16,16 +16,12 @@ if(APPLE)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -stdlib=libc++")
 endif()
 
-# Build Submodules
+# Build LLVM
 add_subdirectory(llvm)
-if(${LIKELY_BENCHMARK})
-  add_subdirectory(opencv)
-endif()
-
-# Find LLVM
 set(CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}/llvm/share/llvm/cmake/")
 include(LLVMConfig)
-include_directories(${LLVM_INCLUDE_DIRS})
+include_directories(${CMAKE_SOURCE_DIR}/llvm/include)
+include_directories(${CMAKE_BINARY_DIR}/llvm/include)
 link_directories(${LLVM_LIBRARY_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES jit native vectorize)
@@ -47,6 +43,7 @@ else()
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter -fvisibility=hidden -fvisibility-inlines-hidden")
+add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
 add_library(likely SHARED likely.cpp index.html ${LIKELY_INDEX_HTML})
 add_dependencies(likely LLVM)
 set_target_properties(likely PROPERTIES

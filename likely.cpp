@@ -855,8 +855,9 @@ static Function *getFunction(const string &description, likely_arity arity, Type
       case 1: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer,  start, stop, NULL)); break;
       case 2: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer,  start, stop, NULL)); break;
       case 3: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer, matrixPointer,  start, stop, NULL)); break;
-      default: likely_assert(false, "FunctionBuilder::getFunction invalid arity: %d", arity);
+      default: function = NULL;
     }
+    likely_assert(function, "FunctionBuilder::getFunction invalid arity: %d", arity);
     function->setCallingConv(CallingConv::C);
     return function;
 }
