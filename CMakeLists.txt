@@ -64,6 +64,15 @@ if(${OpenCV_FOUND})
   install(TARGETS benchmark RUNTIME DESTINATION bin)
 endif()
 
+# Create
+find_package(Qt5Widgets QUIET)
+if(${Qt5Core_FOUND})
+  add_executable(create create.cpp)
+  qt5_use_modules(create Widgets)
+  target_link_libraries(create likely)
+  install(TARGETS create RUNTIME DESTINATION bin)
+endif()
+
 # Install
 install(FILES likely.h DESTINATION include)
 install(DIRECTORY share DESTINATION .)
