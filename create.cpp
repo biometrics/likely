@@ -14,27 +14,52 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include <QApplication>
-#include <QDebug>
-#include <QDragEnterEvent>
-#include <QLabel>
-#include <QMainWindow>
-#include <QMimeData>
-#include <QSizePolicy>
+#include <QtCore>
+#include <QtWidgets>
 
-class ImageViewer : public QLabel
+class Dataset : public QAction
+{
+    Q_OBJECT
+    QString file;
+
+public:
+    Dataset(const QString &file, QWidget *parent = 0)
+        : QAction(QIcon(file), QFileInfo(file).baseName(), parent)
+    {
+        this->file = file;
+        connect(this, SIGNAL(triggered()), this, SLOT(select()));
+    }
+
+private slots:
+    void select()
+    {
+        emit selected(file);
+    }
+
+signals:
+    void selected(QString file);
+};
+
+class DatasetViewer : public QLabel
 {
     Q_OBJECT
     QImage src;
 
 public:
-    explicit ImageViewer(QWidget *parent = 0)
+    explicit DatasetViewer(QWidget *parent = 0)
         : QLabel(parent)
     {
         setAcceptDrops(true);
         setAlignment(Qt::AlignCenter);
         setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
         setText("<b>Drag and Drop Image Here</b>");
+    }
+
+public slots:
+    void setDataset(const QString &file)
+    {
+        src = QImage(file);
+        updatePixmap();
     }
 
 private slots:
@@ -83,8 +108,21 @@ int main(int argc, char *argv[])
 {
     QApplication application(argc, argv);
 
+    DatasetViewer *datasetViewer = new DatasetViewer();
+
+    QMenu *datasetsMenu = new QMenu("Datasets");
+    foreach (const QString &file, QDir(":/img").entryList(QDir::Files, QDir::Name)) {
+        Dataset *dataset = new Dataset(":/img/"+file);
+        QObject::connect(dataset, SIGNAL(selected(QString)), datasetViewer, SLOT(setDataset(QString)));
+        datasetsMenu->addAction(dataset);
+    }
+
+    QMenuBar *menuBar = new QMenuBar();
+    menuBar->addMenu(datasetsMenu);
+
     QMainWindow mainWindow;
-    mainWindow.setCentralWidget(new ImageViewer());
+    mainWindow.setCentralWidget(datasetViewer);
+    mainWindow.setMenuBar(menuBar);
     mainWindow.setWindowTitle("Likely Creator");
     mainWindow.show();
 
