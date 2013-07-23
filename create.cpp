@@ -16,6 +16,7 @@
 
 #include <QtCore>
 #include <QtWidgets>
+#include "likely.h"
 
 class Dataset : public QAction
 {
@@ -60,6 +61,7 @@ public slots:
     {
         src = QImage(file);
         updatePixmap();
+        emit newDataset(src);
     }
 
 private slots:
@@ -102,6 +104,39 @@ private slots:
         if (src.isNull()) return;
         setPixmap(QPixmap::fromImage(src.scaled(size(), Qt::KeepAspectRatio)));
     }
+
+signals:
+    void newDataset(QImage dataset);
+};
+
+class Engine : public QObject
+{
+    Q_OBJECT
+    QImage input;
+    int param;
+    likely_unary_function function = NULL;
+
+public:
+    Engine(QObject *parent = 0)
+        : QObject(parent)
+    {
+        setParam(0);
+    }
+
+public slots:
+    void setInput(const QImage &input)
+    {
+        this->input = input;
+        // TODO: process image and emit result
+    }
+
+    void setParam(int param)
+    {
+        this->param = param;
+        function = likely_make_unary_function(qPrintable(QString::number(param/10.0) + "*src"));
+        qDebug() << param/10.0;
+        setInput(input);
+    }
 };
 
 int main(int argc, char *argv[])
@@ -120,10 +155,26 @@ int main(int argc, char *argv[])
     QMenuBar *menuBar = new QMenuBar();
     menuBar->addMenu(datasetsMenu);
 
+    QSlider *slider = new QSlider(Qt::Horizontal);
+    slider->setMinimum(0);
+    slider->setMaximum(20);
+
+    QVBoxLayout *centralWidgetLayout = new QVBoxLayout();
+    centralWidgetLayout->addWidget(datasetViewer);
+    centralWidgetLayout->addWidget(slider);
+
+    QWidget *centralWidget = new QWidget();
+    centralWidget->setLayout(centralWidgetLayout);
+
+    Engine *engine = new Engine();
+    QObject::connect(datasetViewer, SIGNAL(newDataset(QImage)), engine, SLOT(setInput(QImage)));
+    QObject::connect(slider, SIGNAL(valueChanged(int)), engine, SLOT(setParam(int)));
+
     QMainWindow mainWindow;
-    mainWindow.setCentralWidget(datasetViewer);
+    mainWindow.setCentralWidget(centralWidget);
     mainWindow.setMenuBar(menuBar);
     mainWindow.setWindowTitle("Likely Creator");
+    mainWindow.resize(800,600);
     mainWindow.show();
 
     return application.exec();
