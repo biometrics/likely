@@ -51,6 +51,20 @@ static Module *TheModule = NULL;
 static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
 
+void likely_matrix_initialize(likely_matrix *m, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, likely_hash hash, uint8_t *data)
+{
+    m->channels = channels;
+    m->columns = columns;
+    m->rows = rows;
+    m->frames = frames;
+    m->hash = hash;
+    m->data = data;
+    likely_set_single_channel(m->hash, channels == 1);
+    likely_set_single_column(m->hash, columns == 1);
+    likely_set_single_row(m->hash, rows == 1);
+    likely_set_single_frame(m->hash, frames == 1);
+}
+
 void likely_allocate(likely_matrix *m)
 {
     size_t alignment = MaxRegisterWidth;
@@ -700,7 +714,7 @@ public:
         if (likely_is_parallel(kernel.h)) {
             vector<likely_matrix> matricies;
             for (likely_hash hash : hashes)
-                matricies.push_back(Matrix(hash).setParallel(false));
+                matricies.push_back(Matrix().setHash(hash).setParallel(false));
 
             // Allocation needs to be done to properly initialize the kernel builder
             switch (matricies.size()) {

@@ -131,20 +131,8 @@ inline uint32_t likely_elements(const likely_matrix *m) { return m->channels * m
 inline uint32_t likely_bytes(const likely_matrix *m) { return uint64_t(likely_depth(m->hash)) * uint64_t(likely_elements(m)) / uint64_t(8); }
 
 // Convenience functions for default initializing a matrix
-inline void likely_matrix_initialize(likely_matrix *m, uint8_t *data, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, likely_hash hash)
-{
-    m->data = data;
-    m->channels = channels;
-    m->columns = columns;
-    m->rows = rows;
-    m->frames = frames;
-    m->hash = hash;
-    likely_set_single_channel(m->hash, channels == 1);
-    likely_set_single_column(m->hash, columns == 1);
-    likely_set_single_row(m->hash, rows == 1);
-    likely_set_single_frame(m->hash, frames == 1);
-}
-inline void likely_matrix_initialize_null(likely_matrix *m, likely_hash hash = likely_hash_null) { likely_matrix_initialize(m, NULL, 0, 0, 0, 0, hash); }
+LIKELY_EXPORT void likely_matrix_initialize(likely_matrix *m, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, likely_hash hash, uint8_t *data);
+inline        void likely_matrix_initialize_null(likely_matrix *m) { likely_matrix_initialize(m, 0, 0, 0, 0, likely_hash_null, NULL); }
 
 // Functions for allocating and freeing matrix data
 LIKELY_EXPORT void likely_allocate(likely_matrix *m);
@@ -204,11 +192,15 @@ inline std::string indexHTML() { return likely_index_html(); }
 
 struct Matrix : public likely_matrix
 {
-    Matrix(likely_hash hash = likely_hash_null) { likely_matrix_initialize_null(this, hash); }
-    Matrix(uint8_t *data, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, likely_hash hash)
-    { likely_matrix_initialize(this, data, channels, columns, rows, frames, hash); }
+    Matrix() { likely_matrix_initialize_null(this); }
+    Matrix(uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, likely_hash hash, uint8_t *data = NULL)
+    {
+        likely_matrix_initialize(this, channels, columns, rows, frames, hash, data);
+        if (data == NULL) likely_allocate(this);
+    }
     ~Matrix() { likely_free(this); }
 
+    inline Matrix &setHash(likely_hash hash) { this->hash = hash; return *this; }
     inline int     depth() const { return likely_depth(hash); }
     inline Matrix &setDepth(int bits) { likely_set_depth(hash, bits); return *this; }
     inline bool    isFloating() const { return likely_is_floating(hash); }
