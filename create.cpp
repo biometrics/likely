@@ -18,29 +18,6 @@
 #include <QtWidgets>
 #include "likely.h"
 
-class Dataset : public QAction
-{
-    Q_OBJECT
-    QString file;
-
-public:
-    Dataset(const QString &file, QWidget *parent = 0)
-        : QAction(QIcon(file), QFileInfo(file).baseName(), parent)
-    {
-        this->file = file;
-        connect(this, SIGNAL(triggered()), this, SLOT(select()));
-    }
-
-private slots:
-    void select()
-    {
-        emit selected(file);
-    }
-
-signals:
-    void selected(QString file);
-};
-
 class DatasetViewer : public QLabel
 {
     Q_OBJECT
@@ -57,9 +34,9 @@ public:
     }
 
 public slots:
-    void setDataset(const QString &file)
+    void setDataset(QAction *action)
     {
-        src = QImage(file);
+        src = QImage(action->data().toString());
         updatePixmap();
         emit newDataset(src);
     }
@@ -146,11 +123,13 @@ int main(int argc, char *argv[])
     DatasetViewer *datasetViewer = new DatasetViewer();
 
     QMenu *datasetsMenu = new QMenu("Datasets");
-    foreach (const QString &file, QDir(":/img").entryList(QDir::Files, QDir::Name)) {
-        Dataset *dataset = new Dataset(":/img/"+file);
-        QObject::connect(dataset, SIGNAL(selected(QString)), datasetViewer, SLOT(setDataset(QString)));
-        datasetsMenu->addAction(dataset);
+    foreach (const QString &fileName, QDir(":/img").entryList(QDir::Files, QDir::Name)) {
+        const QString filePath = ":/img/"+fileName;
+        QAction *potentialDataset = new QAction(QIcon(filePath), QFileInfo(filePath).baseName(), datasetsMenu);
+        potentialDataset->setData(filePath);
+        datasetsMenu->addAction(potentialDataset);
     }
+    QObject::connect(datasetsMenu, SIGNAL(triggered(QAction*)), datasetViewer, SLOT(setDataset(QAction*)));
 
     QMenuBar *menuBar = new QMenuBar();
     menuBar->addMenu(datasetsMenu);
