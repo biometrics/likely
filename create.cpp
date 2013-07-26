@@ -18,6 +18,30 @@
 #include <QtWidgets>
 #include "likely.h"
 
+using namespace likely;
+
+class Dataset : public QObject
+{
+    Q_OBJECT
+    Matrix matrix;
+
+public slots:
+    void setDataset(const QImage &image)
+    {
+        matrix = Matrix(3, image.width(), image.height(), 1, likely_hash_u8);
+        memcpy(matrix.data, image.constBits(), matrix.bytes());
+        emit newImage(image);
+    }
+
+    void setDataset(QAction *action)
+    {
+        setDataset(QImage(action->data().toString()).convertToFormat(QImage::Format_RGB888));
+    }
+
+signals:
+    void newImage(QImage image);
+};
+
 class DatasetViewer : public QLabel
 {
     Q_OBJECT
@@ -34,11 +58,10 @@ public:
     }
 
 public slots:
-    void setDataset(QAction *action)
+    void setImage(const QImage &image)
     {
-        src = QImage(action->data().toString());
+        src = image;
         updatePixmap();
-        emit newDataset(src);
     }
 
 private slots:
@@ -56,18 +79,16 @@ private slots:
 
         const QMimeData *mimeData = event->mimeData();
         if (mimeData->hasImage()) {
-            src = qvariant_cast<QImage>(mimeData->imageData());
-        } else if (event->mimeData()->hasUrls()) {
+            emit newDataset(qvariant_cast<QImage>(mimeData->imageData()));
+        } else if (mimeData->hasUrls()) {
             foreach (const QUrl &url, mimeData->urls()) {
                 if (!url.isValid()) continue;
                 const QString localFile = url.toLocalFile();
                 if (localFile.isNull()) continue;
-                src = QImage(localFile);
+                emit newDataset(QImage(localFile));
                 break;
             }
         }
-
-        updatePixmap();
     }
 
     void resizeEvent(QResizeEvent *event)
@@ -83,7 +104,7 @@ private slots:
     }
 
 signals:
-    void newDataset(QImage dataset);
+    void newDataset(QImage image);
 };
 
 class Engine : public QObject
@@ -120,7 +141,10 @@ int main(int argc, char *argv[])
 {
     QApplication application(argc, argv);
 
+    Dataset *dataset = new Dataset();
     DatasetViewer *datasetViewer = new DatasetViewer();
+    QObject::connect(dataset, SIGNAL(newImage(QImage)), datasetViewer, SLOT(setImage(QImage)));
+    QObject::connect(datasetViewer, SIGNAL(newDataset(QImage)), dataset, SLOT(setDataset(QImage)));
 
     QMenu *datasetsMenu = new QMenu("Datasets");
     foreach (const QString &fileName, QDir(":/img").entryList(QDir::Files, QDir::Name)) {
@@ -129,7 +153,7 @@ int main(int argc, char *argv[])
         potentialDataset->setData(filePath);
         datasetsMenu->addAction(potentialDataset);
     }
-    QObject::connect(datasetsMenu, SIGNAL(triggered(QAction*)), datasetViewer, SLOT(setDataset(QAction*)));
+    QObject::connect(datasetsMenu, SIGNAL(triggered(QAction*)), dataset, SLOT(setDataset(QAction*)));
 
     QMenuBar *menuBar = new QMenuBar();
     menuBar->addMenu(datasetsMenu);
