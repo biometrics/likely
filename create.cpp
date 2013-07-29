@@ -20,6 +20,18 @@
 
 using namespace likely;
 
+class Element : public QGraphicsRectItem
+{
+    const Matrix *matrix;
+    likely_size c, x, y, t;
+
+public:
+    Element(const Matrix *matrix_, likely_size c_, likely_size x_, likely_size y_, likely_size t_)
+        : matrix(matrix_), c(c_), x(x_), y(y_), t(t_) {}
+
+    double element() const { return likely_element(matrix, c, x, y, t); }
+};
+
 class Dataset : public QObject
 {
     Q_OBJECT
@@ -42,29 +54,28 @@ signals:
     void newImage(QImage image);
 };
 
-class DatasetViewer : public QLabel
+class DatasetViewer : public QGraphicsView
 {
     Q_OBJECT
-    QImage src;
+    QGraphicsScene scene;
     int zoomLevel;
 
 public:
     explicit DatasetViewer(QWidget *parent = 0)
-        : QLabel(parent)
+        : QGraphicsView(parent)
     {
+        scene.addText("Drag and Drop Image Here", QFont("", 24, QFont::Bold));
         zoomLevel = 0;
         setAcceptDrops(true);
         setAlignment(Qt::AlignCenter);
         setFocusPolicy(Qt::WheelFocus);
+        setScene(&scene);
         setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
-        setText("<b>Drag and Drop Image Here</b>");
     }
 
 public slots:
     void setImage(const QImage &image)
     {
-        src = image;
-        updatePixmap();
     }
 
 private slots:
@@ -101,19 +112,6 @@ private slots:
         else if (event->key() == Qt::Key_Minus) zoomLevel=qMax(zoomLevel-1, 0);
         else                                    return;
         event->accept();
-        updatePixmap();
-    }
-
-    void resizeEvent(QResizeEvent *event)
-    {
-        event->accept();
-        updatePixmap();
-    }
-
-    void updatePixmap()
-    {
-        if (src.isNull()) return;
-        setPixmap(QPixmap::fromImage(src.scaled(size()*exp(zoomLevel), Qt::KeepAspectRatio)));
     }
 
 signals:
