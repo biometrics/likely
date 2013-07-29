@@ -51,7 +51,7 @@ static Module *TheModule = NULL;
 static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
 
-void likely_matrix_initialize(likely_matrix *m, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, likely_hash hash, uint8_t *data)
+void likely_matrix_initialize(likely_matrix *m, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_hash hash, uint8_t *data)
 {
     m->channels = channels;
     m->columns = columns;
@@ -83,7 +83,7 @@ void likely_free(likely_matrix *m)
     likely_set_owner(m->hash, false);
 }
 
-double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
+double likely_element(const likely_matrix *m, likely_size c, likely_size x, likely_size y, likely_size t)
 {
     likely_assert(m != NULL, "likely_element received a null matrix");
     const int columnStep = m->channels;
@@ -107,7 +107,7 @@ double likely_element(const likely_matrix *m, uint32_t c, uint32_t x, uint32_t y
     return numeric_limits<double>::quiet_NaN();
 }
 
-void likely_set_element(likely_matrix *m, double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
+void likely_set_element(likely_matrix *m, double value, likely_size c, likely_size x, likely_size y, likely_size t)
 {
     likely_assert(m != NULL, "likely_set_element received a null matrix");
     const int columnStep = m->channels;

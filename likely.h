@@ -44,6 +44,9 @@ extern "C" {
 // The documentation and source code for the Likely Standard Library
 LIKELY_EXPORT const char *likely_index_html();
 
+// Stores matrix size
+typedef uint32_t likely_size;
+
 // Encodes matrix metadata
 typedef uint32_t likely_hash; /* Depth : 8
                                  Signed : 1
@@ -90,7 +93,7 @@ enum likely_hash_field
 struct likely_matrix
 {
     uint8_t *data;
-    uint32_t channels, columns, rows, frames;
+    likely_size channels, columns, rows, frames;
     likely_hash hash;
 };
 
@@ -127,11 +130,11 @@ inline int  likely_reserved(likely_hash hash) { return likely_get(hash, likely_h
 inline void likely_set_reserved(likely_hash &hash, int reserved) { likely_set(hash, reserved, likely_hash_reserved); }
 
 // Convenience functions for determining matrix size
-inline uint32_t likely_elements(const likely_matrix *m) { return m->channels * m->columns * m->rows * m->frames; }
-inline uint32_t likely_bytes(const likely_matrix *m) { return uint64_t(likely_depth(m->hash)) * uint64_t(likely_elements(m)) / uint64_t(8); }
+inline likely_size likely_elements(const likely_matrix *m) { return m->channels * m->columns * m->rows * m->frames; }
+inline likely_size likely_bytes(const likely_matrix *m) { return uint64_t(likely_depth(m->hash)) * uint64_t(likely_elements(m)) / uint64_t(8); }
 
 // Convenience functions for default initializing a matrix
-LIKELY_EXPORT void likely_matrix_initialize(likely_matrix *m, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, likely_hash hash, uint8_t *data);
+LIKELY_EXPORT void likely_matrix_initialize(likely_matrix *m, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_hash hash, uint8_t *data);
 inline        void likely_matrix_initialize_null(likely_matrix *m) { likely_matrix_initialize(m, 0, 0, 0, 0, likely_hash_null, NULL); }
 
 // Functions for allocating and freeing matrix data
@@ -139,8 +142,8 @@ LIKELY_EXPORT void likely_allocate(likely_matrix *m);
 LIKELY_EXPORT void likely_free(likely_matrix *m);
 
 // Convenience functions for debugging; by convention c = channel, x = column, y = row, t = frame
-LIKELY_EXPORT double likely_element(const likely_matrix *m, uint32_t c = 0, uint32_t x = 0, uint32_t y = 0, uint32_t t = 0);
-LIKELY_EXPORT void likely_set_element(likely_matrix *m, double value, uint32_t c = 0, uint32_t x = 0, uint32_t y = 0, uint32_t t = 0);
+LIKELY_EXPORT double likely_element(const likely_matrix *m, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
+LIKELY_EXPORT void likely_set_element(likely_matrix *m, double value, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
 LIKELY_EXPORT const char *likely_hash_to_string(likely_hash h); // Pointer guaranteed until the next call to this function
 LIKELY_EXPORT likely_hash likely_string_to_hash(const char *str);
 LIKELY_EXPORT void likely_print_matrix(const likely_matrix *m);
@@ -150,7 +153,6 @@ LIKELY_EXPORT void likely_dump(); // Print LLVM module contents to stderr
 // Helper library functions; you shouldn't call these directly
 typedef const char *likely_description;
 typedef uint8_t likely_arity;
-typedef uint32_t likely_size;
 typedef void (*likely_nullary_kernel)(likely_matrix *dst, likely_size start, likely_size stop);
 typedef void (*likely_unary_kernel)(const likely_matrix *src, likely_matrix *dst, likely_size start, likely_size stop);
 typedef void (*likely_binary_kernel)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst, likely_size start, likely_size stop);
@@ -193,7 +195,7 @@ inline std::string indexHTML() { return likely_index_html(); }
 struct Matrix : public likely_matrix
 {
     Matrix() { likely_matrix_initialize_null(this); }
-    Matrix(uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, likely_hash hash, uint8_t *data = NULL)
+    Matrix(likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_hash hash, uint8_t *data = NULL)
     {
         likely_matrix_initialize(this, channels, columns, rows, frames, hash, data);
         if (data == NULL) likely_allocate(this);
@@ -226,10 +228,10 @@ struct Matrix : public likely_matrix
     inline int     reserved() const { return likely_reserved(hash); }
     inline Matrix &setReserved(int reserved) { likely_set_reserved(hash, reserved); return *this; }
 
-    inline uint32_t elements() const { return likely_elements(this); }
-    inline uint32_t bytes() const { return likely_bytes(this); }
-    inline double element(uint32_t c, uint32_t x, uint32_t y, uint32_t t) const { return likely_element(this, c, x, y, t); }
-    inline Matrix &setElement(double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t) { likely_set_element(this, value, c, x, y, t); return *this; }
+    inline likely_size elements() const { return likely_elements(this); }
+    inline likely_size bytes() const { return likely_bytes(this); }
+    inline double element(likely_size c, likely_size x, likely_size y, likely_size t) const { return likely_element(this, c, x, y, t); }
+    inline Matrix &setElement(double value, likely_size c, likely_size x, likely_size y, likely_size t) { likely_set_element(this, value, c, x, y, t); return *this; }
     inline void print() const { return likely_print_matrix(this); }
 };
 
