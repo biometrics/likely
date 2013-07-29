@@ -46,13 +46,16 @@ class DatasetViewer : public QLabel
 {
     Q_OBJECT
     QImage src;
+    int zoomLevel;
 
 public:
     explicit DatasetViewer(QWidget *parent = 0)
         : QLabel(parent)
     {
+        zoomLevel = 0;
         setAcceptDrops(true);
         setAlignment(Qt::AlignCenter);
+        setFocusPolicy(Qt::WheelFocus);
         setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
         setText("<b>Drag and Drop Image Here</b>");
     }
@@ -91,6 +94,16 @@ private slots:
         }
     }
 
+    void keyPressEvent(QKeyEvent *event)
+    {
+        if (event->modifiers() != Qt::ControlModifier) return;
+        if      (event->key() == Qt::Key_Equal) zoomLevel=qMin(zoomLevel+1, 3);
+        else if (event->key() == Qt::Key_Minus) zoomLevel=qMax(zoomLevel-1, 0);
+        else                                    return;
+        event->accept();
+        updatePixmap();
+    }
+
     void resizeEvent(QResizeEvent *event)
     {
         event->accept();
@@ -100,7 +113,7 @@ private slots:
     void updatePixmap()
     {
         if (src.isNull()) return;
-        setPixmap(QPixmap::fromImage(src.scaled(size(), Qt::KeepAspectRatio)));
+        setPixmap(QPixmap::fromImage(src.scaled(size()*exp(zoomLevel), Qt::KeepAspectRatio)));
     }
 
 signals:
