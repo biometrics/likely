@@ -96,7 +96,7 @@ private slots:
 
     void keyPressEvent(QKeyEvent *event)
     {
-        if (event->modifiers() != Qt::ControlModifier) return;
+        if (event->modifiers() != Qt::CTRL) return;
         if      (event->key() == Qt::Key_Equal) zoomLevel=qMin(zoomLevel+1, 3);
         else if (event->key() == Qt::Key_Minus) zoomLevel=qMax(zoomLevel-1, 0);
         else                                    return;
@@ -164,6 +164,7 @@ int main(int argc, char *argv[])
         const QString filePath = ":/img/"+fileName;
         QAction *potentialDataset = new QAction(QIcon(filePath), QFileInfo(filePath).baseName(), datasetsMenu);
         potentialDataset->setData(filePath);
+        potentialDataset->setShortcut(QKeySequence("Ctrl+"+fileName.mid(0, 1)));
         datasetsMenu->addAction(potentialDataset);
     }
     QObject::connect(datasetsMenu, SIGNAL(triggered(QAction*)), dataset, SLOT(setDataset(QAction*)));
