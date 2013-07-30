@@ -56,8 +56,9 @@ public:
         setAcceptDrops(true);
         setAlignment(Qt::AlignCenter);
         setFocusPolicy(Qt::WheelFocus);
-        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+        setFrameShape(QFrame::StyledPanel);
         setText("<b>Drag and Drop Image Here</b>");
+        resize(512, 512);
     }
 
 public slots:
@@ -65,6 +66,21 @@ public slots:
     {
         src = image;
         updatePixmap();
+        setFrameShape(QFrame::NoFrame);
+    }
+
+    void zoomIn()
+    {
+        zoomLevel++;
+        if (zoomLevel > 4) zoomLevel = 4;
+        else               updatePixmap();
+    }
+
+    void zoomOut()
+    {
+        zoomLevel--;
+        if (zoomLevel < -4) zoomLevel = -4;
+        else                updatePixmap();
     }
 
 private slots:
@@ -94,26 +110,12 @@ private slots:
         }
     }
 
-    void keyPressEvent(QKeyEvent *event)
-    {
-        if (event->modifiers() != Qt::CTRL) return;
-        if      (event->key() == Qt::Key_Equal) zoomLevel=qMin(zoomLevel+1, 3);
-        else if (event->key() == Qt::Key_Minus) zoomLevel=qMax(zoomLevel-1, 0);
-        else                                    return;
-        event->accept();
-        updatePixmap();
-    }
-
-    void resizeEvent(QResizeEvent *event)
-    {
-        event->accept();
-        updatePixmap();
-    }
-
     void updatePixmap()
     {
         if (src.isNull()) return;
-        setPixmap(QPixmap::fromImage(src.scaled(size()*exp(zoomLevel), Qt::KeepAspectRatio)));
+        const QSize newSize = src.size() * pow(2, zoomLevel);
+        setPixmap(QPixmap::fromImage(src.scaled(newSize, Qt::KeepAspectRatio)));
+        resize(newSize);
     }
 
 signals:
@@ -169,15 +171,31 @@ int main(int argc, char *argv[])
     }
     QObject::connect(datasetsMenu, SIGNAL(triggered(QAction*)), dataset, SLOT(setDataset(QAction*)));
 
+    QMenu *viewMenu = new QMenu("View");
+    QAction *zoomIn = new QAction("Zoom In", viewMenu);
+    QAction *zoomOut = new QAction("Zoom Out", viewMenu);
+    zoomIn->setShortcut(QKeySequence("Ctrl++"));
+    zoomOut->setShortcut(QKeySequence("Ctrl+-"));
+    viewMenu->addAction(zoomIn);
+    viewMenu->addAction(zoomOut);
+    QObject::connect(zoomIn, SIGNAL(triggered()), datasetViewer, SLOT(zoomIn()));
+    QObject::connect(zoomOut, SIGNAL(triggered()), datasetViewer, SLOT(zoomOut()));
+
     QMenuBar *menuBar = new QMenuBar();
     menuBar->addMenu(datasetsMenu);
+    menuBar->addMenu(viewMenu);
 
     QSlider *slider = new QSlider(Qt::Horizontal);
     slider->setMinimum(0);
     slider->setMaximum(20);
 
     QVBoxLayout *centralWidgetLayout = new QVBoxLayout();
-    centralWidgetLayout->addWidget(datasetViewer);
+    QScrollArea *datasetViewerScrollArea = new QScrollArea();
+    datasetViewerScrollArea->setAlignment(Qt::AlignCenter);
+    datasetViewerScrollArea->setFocusPolicy(Qt::WheelFocus);
+    datasetViewerScrollArea->setFrameShape(QFrame::NoFrame);
+    datasetViewerScrollArea->setWidget(datasetViewer);
+    centralWidgetLayout->addWidget(datasetViewerScrollArea);
     centralWidgetLayout->addWidget(slider);
 
     QWidget *centralWidget = new QWidget();
