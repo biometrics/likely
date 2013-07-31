@@ -18,44 +18,42 @@
 #include <QtWidgets>
 #include "likely.h"
 
-using namespace likely;
-
-class Dataset : public QObject
+class Matrix : public QObject
 {
     Q_OBJECT
-    Matrix matrix;
+    likely::Matrix matrix;
 
 public slots:
-    void setDataset(const QImage &image)
+    void setMatrix(const QImage &image)
     {
-        matrix = Matrix(3, image.width(), image.height(), 1, likely_hash_u8);
+        matrix = likely::Matrix(3, image.width(), image.height(), 1, likely_hash_u8);
         memcpy(matrix.data, image.constBits(), matrix.bytes());
-        emit newImage(image);
-        emit newDatasetInfo(QString("%1 %2x%3x%4x%5").arg(likely_hash_to_string(matrix.hash),
+        emit newMatrixView(image);
+        emit newMatrixInfo(QString("%1 %2x%3x%4x%5").arg(likely_hash_to_string(matrix.hash),
                                                           QString::number(matrix.channels),
                                                           QString::number(matrix.rows),
                                                           QString::number(matrix.columns),
                                                           QString::number(matrix.frames)));
     }
 
-    void setDataset(QAction *action)
+    void setMatrix(QAction *action)
     {
-        setDataset(QImage(action->data().toString()).convertToFormat(QImage::Format_RGB888));
+        setMatrix(QImage(action->data().toString()).convertToFormat(QImage::Format_RGB888));
     }
 
 signals:
-    void newImage(QImage image);
-    void newDatasetInfo(QString info);
+    void newMatrixView(QImage image);
+    void newMatrixInfo(QString info);
 };
 
-class DatasetViewer : public QLabel
+class MatrixViewer : public QLabel
 {
     Q_OBJECT
     QImage src;
     int zoomLevel;
 
 public:
-    explicit DatasetViewer(QWidget *parent = 0)
+    explicit MatrixViewer(QWidget *parent = 0)
         : QLabel(parent)
     {
         zoomLevel = 0;
@@ -104,13 +102,13 @@ private slots:
 
         const QMimeData *mimeData = event->mimeData();
         if (mimeData->hasImage()) {
-            emit newDataset(qvariant_cast<QImage>(mimeData->imageData()));
+            emit newMatrix(qvariant_cast<QImage>(mimeData->imageData()));
         } else if (mimeData->hasUrls()) {
             foreach (const QUrl &url, mimeData->urls()) {
                 if (!url.isValid()) continue;
                 const QString localFile = url.toLocalFile();
                 if (localFile.isNull()) continue;
-                emit newDataset(QImage(localFile));
+                emit newMatrix(QImage(localFile));
                 break;
             }
         }
@@ -125,7 +123,7 @@ private slots:
     }
 
 signals:
-    void newDataset(QImage image);
+    void newMatrix(QImage image);
 };
 
 class Engine : public QObject
@@ -162,20 +160,20 @@ int main(int argc, char *argv[])
 {
     QApplication application(argc, argv);
 
-    Dataset *dataset = new Dataset();
-    DatasetViewer *datasetViewer = new DatasetViewer();
-    QObject::connect(dataset, SIGNAL(newImage(QImage)), datasetViewer, SLOT(setImage(QImage)));
-    QObject::connect(datasetViewer, SIGNAL(newDataset(QImage)), dataset, SLOT(setDataset(QImage)));
+    Matrix *matrix = new Matrix();
+    MatrixViewer *matrixViewer = new MatrixViewer();
+    QObject::connect(matrix, SIGNAL(newMatrixView(QImage)), matrixViewer, SLOT(setImage(QImage)));
+    QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), matrix, SLOT(setMatrix(QImage)));
 
-    QMenu *datasetsMenu = new QMenu("Datasets");
+    QMenu *matricesMenu = new QMenu("Matrices");
     foreach (const QString &fileName, QDir(":/img").entryList(QDir::Files, QDir::Name)) {
         const QString filePath = ":/img/"+fileName;
-        QAction *potentialDataset = new QAction(QIcon(filePath), QFileInfo(filePath).baseName(), datasetsMenu);
-        potentialDataset->setData(filePath);
-        potentialDataset->setShortcut(QKeySequence("Ctrl+"+fileName.mid(0, 1)));
-        datasetsMenu->addAction(potentialDataset);
+        QAction *potentialMatrix = new QAction(QIcon(filePath), QFileInfo(filePath).baseName(), matricesMenu);
+        potentialMatrix->setData(filePath);
+        potentialMatrix->setShortcut(QKeySequence("Ctrl+"+fileName.mid(0, 1)));
+        matricesMenu->addAction(potentialMatrix);
     }
-    QObject::connect(datasetsMenu, SIGNAL(triggered(QAction*)), dataset, SLOT(setDataset(QAction*)));
+    QObject::connect(matricesMenu, SIGNAL(triggered(QAction*)), matrix, SLOT(setMatrix(QAction*)));
 
     QMenu *viewMenu = new QMenu("View");
     QAction *zoomIn = new QAction("Zoom In", viewMenu);
@@ -184,11 +182,11 @@ int main(int argc, char *argv[])
     zoomOut->setShortcut(QKeySequence("Ctrl+-"));
     viewMenu->addAction(zoomIn);
     viewMenu->addAction(zoomOut);
-    QObject::connect(zoomIn, SIGNAL(triggered()), datasetViewer, SLOT(zoomIn()));
-    QObject::connect(zoomOut, SIGNAL(triggered()), datasetViewer, SLOT(zoomOut()));
+    QObject::connect(zoomIn, SIGNAL(triggered()), matrixViewer, SLOT(zoomIn()));
+    QObject::connect(zoomOut, SIGNAL(triggered()), matrixViewer, SLOT(zoomOut()));
 
     QMenuBar *menuBar = new QMenuBar();
-    menuBar->addMenu(datasetsMenu);
+    menuBar->addMenu(matricesMenu);
     menuBar->addMenu(viewMenu);
 
     QSlider *slider = new QSlider(Qt::Horizontal);
@@ -196,26 +194,26 @@ int main(int argc, char *argv[])
     slider->setMaximum(20);
 
     QVBoxLayout *centralWidgetLayout = new QVBoxLayout();
-    QScrollArea *datasetViewerScrollArea = new QScrollArea();
-    datasetViewerScrollArea->setAlignment(Qt::AlignCenter);
-    datasetViewerScrollArea->setFocusPolicy(Qt::WheelFocus);
-    datasetViewerScrollArea->setFrameShape(QFrame::NoFrame);
-    datasetViewerScrollArea->setWidget(datasetViewer);
-    centralWidgetLayout->addWidget(datasetViewerScrollArea);
+    QScrollArea *matrixViewerScrollArea = new QScrollArea();
+    matrixViewerScrollArea->setAlignment(Qt::AlignCenter);
+    matrixViewerScrollArea->setFocusPolicy(Qt::WheelFocus);
+    matrixViewerScrollArea->setFrameShape(QFrame::NoFrame);
+    matrixViewerScrollArea->setWidget(matrixViewer);
+    centralWidgetLayout->addWidget(matrixViewerScrollArea);
     centralWidgetLayout->addWidget(slider);
 
     QWidget *centralWidget = new QWidget();
     centralWidget->setLayout(centralWidgetLayout);
 
-    QLabel *datasetInfo = new QLabel;
-    datasetInfo->setAlignment(Qt::AlignRight);
-    datasetInfo->setToolTip("Matrix hash and dimensions");
-    QObject::connect(dataset, SIGNAL(newDatasetInfo(QString)), datasetInfo, SLOT(setText(QString)));
+    QLabel *matrixInfo = new QLabel;
+    matrixInfo->setAlignment(Qt::AlignRight);
+    matrixInfo->setToolTip("Matrix hash and dimensions");
+    QObject::connect(matrix, SIGNAL(newMatrixInfo(QString)), matrixInfo, SLOT(setText(QString)));
     QStatusBar *statusBar = new QStatusBar();
-    statusBar->addPermanentWidget(datasetInfo, 1);
+    statusBar->addPermanentWidget(matrixInfo, 1);
 
     Engine *engine = new Engine();
-    QObject::connect(datasetViewer, SIGNAL(newDataset(QImage)), engine, SLOT(setInput(QImage)));
+    QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), engine, SLOT(setInput(QImage)));
     QObject::connect(slider, SIGNAL(valueChanged(int)), engine, SLOT(setParam(int)));
 
     QMainWindow mainWindow;
