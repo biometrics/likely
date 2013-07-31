@@ -18,34 +18,6 @@
 #include <QtWidgets>
 #include "likely.h"
 
-class Matrix : public QObject
-{
-    Q_OBJECT
-    likely::Matrix matrix;
-
-public slots:
-    void setMatrix(const QImage &image)
-    {
-        matrix = likely::Matrix(3, image.width(), image.height(), 1, likely_hash_u8);
-        memcpy(matrix.data, image.constBits(), matrix.bytes());
-        emit newMatrixView(image);
-        emit newMatrixInfo(QString("%1 %2x%3x%4x%5").arg(likely_hash_to_string(matrix.hash),
-                                                         QString::number(matrix.channels),
-                                                         QString::number(matrix.rows),
-                                                         QString::number(matrix.columns),
-                                                         QString::number(matrix.frames)));
-    }
-
-    void setMatrix(QAction *action)
-    {
-        setMatrix(QImage(action->data().toString()).convertToFormat(QImage::Format_RGB888));
-    }
-
-signals:
-    void newMatrixView(QImage image);
-    void newMatrixInfo(QString info);
-};
-
 class MatrixViewer : public QLabel
 {
     Q_OBJECT
@@ -129,8 +101,7 @@ signals:
 class Engine : public QObject
 {
     Q_OBJECT
-    QImage input;
-    int param;
+    likely::Matrix matrix;
     likely_unary_function function = NULL;
 
 public:
@@ -141,29 +112,42 @@ public:
     }
 
 public slots:
-    void setInput(const QImage &input)
+    void setMatrix(const QImage &image)
     {
-        this->input = input;
-        // TODO: process image and emit result
+        matrix = likely::Matrix(3, image.width(), image.height(), 1, likely_hash_u8);
+        memcpy(matrix.data, image.constBits(), matrix.bytes());
+        emit newMatrixView(image);
+        emit newMatrixInfo(QString("%1 %2x%3x%4x%5").arg(likely_hash_to_string(matrix.hash),
+                                                         QString::number(matrix.channels),
+                                                         QString::number(matrix.rows),
+                                                         QString::number(matrix.columns),
+                                                         QString::number(matrix.frames)));
+    }
+
+    void setMatrix(QAction *action)
+    {
+        setMatrix(QImage(action->data().toString()).convertToFormat(QImage::Format_RGB888));
     }
 
     void setParam(int param)
     {
-        this->param = param;
         function = likely_make_unary_function(qPrintable(QString::number(param/10.0) + "*src"));
         qDebug() << param/10.0;
-        setInput(input);
     }
+
+signals:
+    void newMatrixView(QImage image);
+    void newMatrixInfo(QString info);
 };
 
 int main(int argc, char *argv[])
 {
     QApplication application(argc, argv);
 
-    Matrix *matrix = new Matrix();
+    Engine *engine = new Engine();
     MatrixViewer *matrixViewer = new MatrixViewer();
-    QObject::connect(matrix, SIGNAL(newMatrixView(QImage)), matrixViewer, SLOT(setImage(QImage)));
-    QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), matrix, SLOT(setMatrix(QImage)));
+    QObject::connect(engine, SIGNAL(newMatrixView(QImage)), matrixViewer, SLOT(setImage(QImage)));
+    QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), engine, SLOT(setMatrix(QImage)));
 
     QMenu *matricesMenu = new QMenu("Matrices");
     foreach (const QString &fileName, QDir(":/img").entryList(QDir::Files, QDir::Name)) {
@@ -173,7 +157,7 @@ int main(int argc, char *argv[])
         potentialMatrix->setShortcut(QKeySequence("Ctrl+"+fileName.mid(0, 1)));
         matricesMenu->addAction(potentialMatrix);
     }
-    QObject::connect(matricesMenu, SIGNAL(triggered(QAction*)), matrix, SLOT(setMatrix(QAction*)));
+    QObject::connect(matricesMenu, SIGNAL(triggered(QAction*)), engine, SLOT(setMatrix(QAction*)));
 
     QMenu *viewMenu = new QMenu("View");
     QAction *zoomIn = new QAction("Zoom In", viewMenu);
@@ -192,6 +176,7 @@ int main(int argc, char *argv[])
     QSlider *slider = new QSlider(Qt::Horizontal);
     slider->setMinimum(0);
     slider->setMaximum(20);
+    QObject::connect(slider, SIGNAL(valueChanged(int)), engine, SLOT(setParam(int)));
 
     QVBoxLayout *centralWidgetLayout = new QVBoxLayout();
     QScrollArea *matrixViewerScrollArea = new QScrollArea();
@@ -208,13 +193,9 @@ int main(int argc, char *argv[])
     QLabel *matrixInfo = new QLabel;
     matrixInfo->setAlignment(Qt::AlignRight);
     matrixInfo->setToolTip("Matrix hash and dimensions");
-    QObject::connect(matrix, SIGNAL(newMatrixInfo(QString)), matrixInfo, SLOT(setText(QString)));
+    QObject::connect(engine, SIGNAL(newMatrixInfo(QString)), matrixInfo, SLOT(setText(QString)));
     QStatusBar *statusBar = new QStatusBar();
     statusBar->addPermanentWidget(matrixInfo, 1);
-
-    Engine *engine = new Engine();
-    QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), engine, SLOT(setInput(QImage)));
-    QObject::connect(slider, SIGNAL(valueChanged(int)), engine, SLOT(setParam(int)));
 
     QMainWindow mainWindow;
     mainWindow.setCentralWidget(centralWidget);
