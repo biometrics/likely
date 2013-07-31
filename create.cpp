@@ -18,6 +18,8 @@
 #include <QtWidgets>
 #include "likely.h"
 
+using namespace likely;
+
 class MatrixViewer : public QLabel
 {
     Q_OBJECT
@@ -101,7 +103,7 @@ signals:
 class Engine : public QObject
 {
     Q_OBJECT
-    likely::Matrix matrix;
+    Matrix matrix;
     likely_unary_function function = NULL;
 
 public:
@@ -114,7 +116,7 @@ public:
 public slots:
     void setMatrix(const QImage &image)
     {
-        matrix = likely::Matrix(3, image.width(), image.height(), 1, likely_hash_u8);
+        matrix = Matrix(3, image.width(), image.height(), 1, likely_hash_u8);
         memcpy(matrix.data, image.constBits(), matrix.bytes());
         emit newMatrixView(image);
         emit newMatrixInfo(QString("%1 %2x%3x%4x%5").arg(likely_hash_to_string(matrix.hash),
