@@ -30,10 +30,10 @@ public slots:
         memcpy(matrix.data, image.constBits(), matrix.bytes());
         emit newMatrixView(image);
         emit newMatrixInfo(QString("%1 %2x%3x%4x%5").arg(likely_hash_to_string(matrix.hash),
-                                                          QString::number(matrix.channels),
-                                                          QString::number(matrix.rows),
-                                                          QString::number(matrix.columns),
-                                                          QString::number(matrix.frames)));
+                                                         QString::number(matrix.channels),
+                                                         QString::number(matrix.rows),
+                                                         QString::number(matrix.columns),
+                                                         QString::number(matrix.frames)));
     }
 
     void setMatrix(QAction *action)
