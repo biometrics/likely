@@ -31,6 +31,11 @@ public slots:
         matrix = Matrix(3, image.width(), image.height(), 1, likely_hash_u8);
         memcpy(matrix.data, image.constBits(), matrix.bytes());
         emit newImage(image);
+        emit newDatasetInfo(QString("%1 %2x%3x%4x%5").arg(likely_hash_to_string(matrix.hash),
+                                                          QString::number(matrix.channels),
+                                                          QString::number(matrix.rows),
+                                                          QString::number(matrix.columns),
+                                                          QString::number(matrix.frames)));
     }
 
     void setDataset(QAction *action)
@@ -40,6 +45,7 @@ public slots:
 
 signals:
     void newImage(QImage image);
+    void newDatasetInfo(QString info);
 };
 
 class DatasetViewer : public QLabel
@@ -201,6 +207,13 @@ int main(int argc, char *argv[])
     QWidget *centralWidget = new QWidget();
     centralWidget->setLayout(centralWidgetLayout);
 
+    QLabel *datasetInfo = new QLabel;
+    datasetInfo->setAlignment(Qt::AlignRight);
+    datasetInfo->setToolTip("Matrix hash and dimensions");
+    QObject::connect(dataset, SIGNAL(newDatasetInfo(QString)), datasetInfo, SLOT(setText(QString)));
+    QStatusBar *statusBar = new QStatusBar();
+    statusBar->addPermanentWidget(datasetInfo, 1);
+
     Engine *engine = new Engine();
     QObject::connect(datasetViewer, SIGNAL(newDataset(QImage)), engine, SLOT(setInput(QImage)));
     QObject::connect(slider, SIGNAL(valueChanged(int)), engine, SLOT(setParam(int)));
@@ -208,6 +221,7 @@ int main(int argc, char *argv[])
     QMainWindow mainWindow;
     mainWindow.setCentralWidget(centralWidget);
     mainWindow.setMenuBar(menuBar);
+    mainWindow.setStatusBar(statusBar);
     mainWindow.setWindowTitle("Likely Creator");
     mainWindow.resize(800,600);
     mainWindow.show();
