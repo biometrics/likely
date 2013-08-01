@@ -44,6 +44,7 @@ public slots:
         src = image;
         updatePixmap();
         setFrameShape(QFrame::NoFrame);
+        queryPoint(mapFromGlobal(QCursor::pos()) / pow(2, zoomLevel));
     }
 
     void zoomIn()
@@ -60,7 +61,7 @@ public slots:
         else                updatePixmap();
     }
 
-private slots:
+private:
     void dragEnterEvent(QDragEnterEvent *event)
     {
         event->accept();
@@ -72,7 +73,6 @@ private slots:
     {
         event->accept();
         event->acceptProposedAction();
-
         const QMimeData *mimeData = event->mimeData();
         if (mimeData->hasImage()) {
             emit newMatrix(qvariant_cast<QImage>(mimeData->imageData()));
@@ -90,32 +90,43 @@ private slots:
     void leaveEvent(QEvent *event)
     {
         event->accept();
-        emit newPosition("");
-        emit newColor("");
+        queryPoint(QPoint(-1, -1));
     }
 
     void mouseMoveEvent(QMouseEvent *event)
     {
-        if (src.isNull()) return;
         event->accept();
-
-        const QPoint point = event->pos() / pow(2, zoomLevel);
-        const QRgb pixel = src.pixel(point);
-        emit newPosition(QString("%1,%2")
-                         .arg(QString::number(point.x()),
-                              QString::number(point.y())));
-        emit newColor(QString("<font color=\"red\">%1</font>,<font color=\"green\">%2</font>,<font color=\"blue\">%3</font>")
-                      .arg(QString::number(qRed(pixel)),
-                           QString::number(qGreen(pixel)),
-                           QString::number(qBlue(pixel))));
+        queryPoint(event->pos() / pow(2, zoomLevel));
     }
 
     void updatePixmap()
     {
-        if (src.isNull()) return;
+        if (src.isNull()) {
+            clear();
+            queryPoint(QPoint(-1, -1));
+            return;
+        }
+
         const QSize newSize = src.size() * pow(2, zoomLevel);
         setPixmap(QPixmap::fromImage(src.scaled(newSize, Qt::KeepAspectRatio)));
         resize(newSize);
+    }
+
+    void queryPoint(const QPoint &point)
+    {
+        if (src.rect().contains(point)) {
+            const QRgb pixel = src.pixel(point);
+            emit newPosition(QString("%1,%2")
+                             .arg(QString::number(point.x()),
+                                  QString::number(point.y())));
+            emit newColor(QString("<font color=\"red\">%1</font>,<font color=\"green\">%2</font>,<font color=\"blue\">%3</font>")
+                          .arg(QString::number(qRed(pixel)),
+                               QString::number(qGreen(pixel)),
+                               QString::number(qBlue(pixel))));
+        } else {
+            emit newPosition("");
+            emit newColor("");
+        }
     }
 
 signals:
@@ -142,15 +153,18 @@ public slots:
     void setInput(const QImage &image)
     {
         likely_free(&input);
-        likely_matrix_initialize(&input, likely_hash_u8, 3, image.width(), image.height(), 1);
-        likely_allocate(&input);
-        memcpy(input.data, image.constBits(), likely_bytes(&input));
+        if (!image.isNull()) {
+            likely_matrix_initialize(&input, likely_hash_u8, 3, image.width(), image.height(), 1);
+            likely_allocate(&input);
+            memcpy(input.data, image.constBits(), likely_bytes(&input));
+        }
         compute();
     }
 
     void setInput(QAction *action)
     {
-        setInput(QImage(action->data().toString()).convertToFormat(QImage::Format_RGB888));
+        const QVariant data = action->data();
+        setInput(data.isNull() ? QImage() : QImage(data.toString()).convertToFormat(QImage::Format_RGB888));
     }
 
     void setParam(int param)
@@ -162,7 +176,13 @@ public slots:
 private:
     void compute()
     {
-        if (input.data == NULL) return;
+        if (input.data == NULL) {
+            emit newMatrixView(QImage());
+            emit newHash(QString());
+            emit newDimensions(QString());
+            return;
+        }
+
         likely_matrix output;
         likely_matrix_initialize(&output);
         function(&input, &output);
@@ -225,15 +245,19 @@ int main(int argc, char *argv[])
     QObject::connect(engine, SIGNAL(newMatrixView(QImage)), matrixViewer, SLOT(setImage(QImage)));
     QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), engine, SLOT(setInput(QImage)));
 
-    QMenu *matricesMenu = new QMenu("Matrices");
+    QMenu *fileMenu = new QMenu("File");
+    QAction *newFile = new QAction("New", fileMenu);
+    newFile->setShortcut(QKeySequence("Ctrl+N"));
+    fileMenu->addAction(newFile);
+    fileMenu->addSeparator();
     foreach (const QString &fileName, QDir(":/img").entryList(QDir::Files, QDir::Name)) {
         const QString filePath = ":/img/"+fileName;
-        QAction *potentialMatrix = new QAction(QIcon(filePath), QFileInfo(filePath).baseName(), matricesMenu);
-        potentialMatrix->setData(filePath);
-        potentialMatrix->setShortcut(QKeySequence("Ctrl+"+fileName.mid(0, 1)));
-        matricesMenu->addAction(potentialMatrix);
+        QAction *potentialFile = new QAction(QIcon(filePath), QFileInfo(filePath).baseName(), fileMenu);
+        potentialFile->setData(filePath);
+        potentialFile->setShortcut(QKeySequence("Ctrl+"+fileName.mid(0, 1)));
+        fileMenu->addAction(potentialFile);
     }
-    QObject::connect(matricesMenu, SIGNAL(triggered(QAction*)), engine, SLOT(setInput(QAction*)));
+    QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), engine, SLOT(setInput(QAction*)));
 
     QMenu *viewMenu = new QMenu("View");
     QAction *zoomIn = new QAction("Zoom In", viewMenu);
@@ -246,7 +270,7 @@ int main(int argc, char *argv[])
     QObject::connect(zoomOut, SIGNAL(triggered()), matrixViewer, SLOT(zoomOut()));
 
     QMenuBar *menuBar = new QMenuBar();
-    menuBar->addMenu(matricesMenu);
+    menuBar->addMenu(fileMenu);
     menuBar->addMenu(viewMenu);
 
     QSlider *slider = new QSlider(Qt::Horizontal);
