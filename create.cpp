@@ -129,7 +129,7 @@ public slots:
 
     void setParam(int param)
     {
-        function = likely_make_unary_function(qPrintable(QString("madd(%1,0)").arg(QString::number(param/10.0))));
+        function = likely_make_unary_function(qPrintable(QString("madd(1,%1)").arg(QString::number(param))));
         compute();
     }
 
@@ -189,9 +189,9 @@ int main(int argc, char *argv[])
 
     QSlider *slider = new QSlider(Qt::Horizontal);
     slider->setMinimum(0);
-    slider->setMaximum(20);
+    slider->setMaximum(256);
     QObject::connect(slider, SIGNAL(valueChanged(int)), engine, SLOT(setParam(int)));
-    slider->setValue(10);
+    slider->setValue(0);
 
     QVBoxLayout *centralWidgetLayout = new QVBoxLayout();
     QScrollArea *matrixViewerScrollArea = new QScrollArea();
