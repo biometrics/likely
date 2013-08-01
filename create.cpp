@@ -101,41 +101,52 @@ signals:
 class Engine : public QObject
 {
     Q_OBJECT
-    likely_matrix matrix;
+    likely_matrix input;
     likely_unary_function function = NULL;
 
 public:
     Engine(QObject *parent = 0)
         : QObject(parent)
     {
-        likely_matrix_initialize(&matrix);
+        likely_matrix_initialize(&input);
         setParam(0);
     }
 
 public slots:
-    void setMatrix(const QImage &image)
+    void setInput(const QImage &image)
     {
-        likely_free(&matrix);
-        likely_matrix_initialize(&matrix, likely_hash_u8, 3, image.width(), image.height(), 1);
-        likely_allocate(&matrix);
-        memcpy(matrix.data, image.constBits(), likely_bytes(&matrix));
-        emit newMatrixView(image);
-        emit newMatrixInfo(QString("%1 %2x%3x%4x%5").arg(likely_hash_to_string(matrix.hash),
-                                                         QString::number(matrix.channels),
-                                                         QString::number(matrix.rows),
-                                                         QString::number(matrix.columns),
-                                                         QString::number(matrix.frames)));
+        likely_free(&input);
+        likely_matrix_initialize(&input, likely_hash_u8, 3, image.width(), image.height(), 1);
+        likely_allocate(&input);
+        memcpy(input.data, image.constBits(), likely_bytes(&input));
+        compute();
     }
 
-    void setMatrix(QAction *action)
+    void setInput(QAction *action)
     {
-        setMatrix(QImage(action->data().toString()).convertToFormat(QImage::Format_RGB888));
+        setInput(QImage(action->data().toString()).convertToFormat(QImage::Format_RGB888));
     }
 
     void setParam(int param)
     {
-        function = likely_make_unary_function(qPrintable(QString::number(param/10.0) + "*src"));
-        qDebug() << param/10.0;
+        function = likely_make_unary_function(qPrintable(QString("madd(%1,0)").arg(QString::number(param/10.0))));
+        compute();
+    }
+
+private:
+    void compute()
+    {
+        if (input.data == NULL) return;
+        likely_matrix output;
+        likely_matrix_initialize(&output);
+        function(&input, &output);
+        QImage outputImage(output.data, output.columns, output.rows, QImage::Format_RGB888);
+        emit newMatrixView(outputImage.copy());
+        emit newMatrixInfo(QString("%1 %2x%3x%4x%5").arg(likely_hash_to_string(input.hash),
+                                                         QString::number(input.channels),
+                                                         QString::number(input.rows),
+                                                         QString::number(input.columns),
+                                                         QString::number(input.frames)));
     }
 
 signals:
@@ -150,7 +161,7 @@ int main(int argc, char *argv[])
     Engine *engine = new Engine();
     MatrixViewer *matrixViewer = new MatrixViewer();
     QObject::connect(engine, SIGNAL(newMatrixView(QImage)), matrixViewer, SLOT(setImage(QImage)));
-    QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), engine, SLOT(setMatrix(QImage)));
+    QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), engine, SLOT(setInput(QImage)));
 
     QMenu *matricesMenu = new QMenu("Matrices");
     foreach (const QString &fileName, QDir(":/img").entryList(QDir::Files, QDir::Name)) {
@@ -160,7 +171,7 @@ int main(int argc, char *argv[])
         potentialMatrix->setShortcut(QKeySequence("Ctrl+"+fileName.mid(0, 1)));
         matricesMenu->addAction(potentialMatrix);
     }
-    QObject::connect(matricesMenu, SIGNAL(triggered(QAction*)), engine, SLOT(setMatrix(QAction*)));
+    QObject::connect(matricesMenu, SIGNAL(triggered(QAction*)), engine, SLOT(setInput(QAction*)));
 
     QMenu *viewMenu = new QMenu("View");
     QAction *zoomIn = new QAction("Zoom In", viewMenu);
@@ -180,6 +191,7 @@ int main(int argc, char *argv[])
     slider->setMinimum(0);
     slider->setMaximum(20);
     QObject::connect(slider, SIGNAL(valueChanged(int)), engine, SLOT(setParam(int)));
+    slider->setValue(10);
 
     QVBoxLayout *centralWidgetLayout = new QVBoxLayout();
     QScrollArea *matrixViewerScrollArea = new QScrollArea();
