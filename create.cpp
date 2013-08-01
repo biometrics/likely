@@ -31,6 +31,7 @@ public:
         zoomLevel = 0;
         setAcceptDrops(true);
         setAlignment(Qt::AlignCenter);
+        setMouseTracking(true);
         setFocusPolicy(Qt::WheelFocus);
         setFrameShape(QFrame::StyledPanel);
         setText("<b>Drag and Drop Image Here</b>");
@@ -86,6 +87,29 @@ private slots:
         }
     }
 
+    void leaveEvent(QEvent *event)
+    {
+        event->accept();
+        emit newPosition("");
+        emit newColor("");
+    }
+
+    void mouseMoveEvent(QMouseEvent *event)
+    {
+        if (src.isNull()) return;
+        event->accept();
+
+        const QPoint point = event->pos() / pow(2, zoomLevel);
+        const QRgb pixel = src.pixel(point);
+        emit newPosition(QString("%1,%2")
+                         .arg(QString::number(point.x()),
+                              QString::number(point.y())));
+        emit newColor(QString("<font color=\"red\">%1</font>,<font color=\"green\">%2</font>,<font color=\"blue\">%3</font>")
+                      .arg(QString::number(qRed(pixel)),
+                           QString::number(qGreen(pixel)),
+                           QString::number(qBlue(pixel))));
+    }
+
     void updatePixmap()
     {
         if (src.isNull()) return;
@@ -96,6 +120,8 @@ private slots:
 
 signals:
     void newMatrix(QImage image);
+    void newPosition(QString position);
+    void newColor(QString color);
 };
 
 class Engine : public QObject
@@ -142,16 +168,52 @@ private:
         function(&input, &output);
         QImage outputImage(output.data, output.columns, output.rows, QImage::Format_RGB888);
         emit newMatrixView(outputImage.copy());
-        emit newMatrixInfo(QString("%1 %2x%3x%4x%5").arg(likely_hash_to_string(input.hash),
-                                                         QString::number(input.channels),
-                                                         QString::number(input.rows),
-                                                         QString::number(input.columns),
-                                                         QString::number(input.frames)));
+        emit newHash(likely_hash_to_string(input.hash));
+        emit newDimensions(QString("%1x%2x%3x%4")
+                           .arg(QString::number(input.channels),
+                                QString::number(input.rows),
+                                QString::number(input.columns),
+                                QString::number(input.frames)));
     }
 
 signals:
     void newMatrixView(QImage image);
-    void newMatrixInfo(QString info);
+    void newHash(QString hash);
+    void newDimensions(QString dimensions);
+};
+
+class StatusLabel : public QLabel
+{
+    Q_OBJECT
+    QString description;
+
+public:
+    StatusLabel(const QString &description)
+    {
+        this->description = description;
+        setToolTip(description);
+        setDescription();
+    }
+
+public slots:
+    void setText(const QString &text)
+    {
+        if (text.isEmpty()) setDescription();
+        else { setEnabled(true); QLabel::setText(text); }
+    }
+
+private:
+    void setDescription()
+    {
+        setEnabled(false);
+        QLabel::setText(description);
+    }
+
+    void resizeEvent(QResizeEvent *resizeEvent)
+    {
+        resizeEvent->accept();
+        setMinimumWidth(width());
+    }
 };
 
 int main(int argc, char *argv[])
@@ -205,12 +267,19 @@ int main(int argc, char *argv[])
     QWidget *centralWidget = new QWidget();
     centralWidget->setLayout(centralWidgetLayout);
 
-    QLabel *matrixInfo = new QLabel;
-    matrixInfo->setAlignment(Qt::AlignRight);
-    matrixInfo->setToolTip("Matrix hash and dimensions");
-    QObject::connect(engine, SIGNAL(newMatrixInfo(QString)), matrixInfo, SLOT(setText(QString)));
+    StatusLabel *hash = new StatusLabel("hash");
+    StatusLabel *dimensions = new StatusLabel("dimensions");
+    StatusLabel *position = new StatusLabel("position");
+    StatusLabel *color = new StatusLabel("color");
+    QObject::connect(engine, SIGNAL(newHash(QString)), hash, SLOT(setText(QString)));
+    QObject::connect(engine, SIGNAL(newDimensions(QString)), dimensions, SLOT(setText(QString)));
+    QObject::connect(matrixViewer, SIGNAL(newPosition(QString)), position, SLOT(setText(QString)));
+    QObject::connect(matrixViewer, SIGNAL(newColor(QString)), color, SLOT(setText(QString)));
     QStatusBar *statusBar = new QStatusBar();
-    statusBar->addPermanentWidget(matrixInfo, 1);
+    statusBar->addPermanentWidget(hash);
+    statusBar->addPermanentWidget(dimensions);
+    statusBar->addPermanentWidget(position);
+    statusBar->addPermanentWidget(color);
 
     QMainWindow mainWindow;
     mainWindow.setCentralWidget(centralWidget);
