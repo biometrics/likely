@@ -20,7 +20,6 @@
 #include "likely.h"
 
 using namespace cv;
-using namespace likely;
 using namespace std;
 
 #define LIKELY_ERROR_TOLERANCE 0.0001
@@ -75,17 +74,18 @@ private:
             : iterations(iter), Hz(double(iter) * CLOCKS_PER_SEC / (endTime-startTime)) {}
     };
 
-    void testCorrectness(UnaryFunction f, const cv::Mat &src, bool parallel) const;
+    void testCorrectness(likely_unary_function f, const cv::Mat &src, bool parallel) const;
     Speed testBaselineSpeed(const cv::Mat &src) const;
-    Speed testLikelySpeed(UnaryFunction f, const cv::Mat &src, bool parallel) const;
+    Speed testLikelySpeed(likely_unary_function f, const cv::Mat &src, bool parallel) const;
     void printSpeedup(const Speed &baseline, const Speed &likely, const char *mode) const;
 };
 
-static Matrix matrixFromMat(const Mat &mat)
+static likely_matrix matrixFromMat(const Mat &mat)
 {
     likely_assert(mat.isContinuous(), "Continuous data required");
 
-    Matrix m;
+    likely_matrix m;
+    likely_matrix_initialize(&m);
     m.data = mat.data;
     m.channels = mat.channels();
     m.columns = mat.cols;
@@ -123,9 +123,9 @@ static int getOpenCVType(likely_hash type, int channels = 1)
     return CV_MAKETYPE(depth, channels);
 }
 
-static Mat matrixToMat(const Matrix &m)
+static Mat matrixToMat(const likely_matrix &m)
 {
-    return Mat(m.rows, m.columns, getOpenCVType(m.type(), m.channels), m.data);
+    return Mat(m.rows, m.columns, getOpenCVType(likely_type(m.hash), m.channels), m.data);
 }
 
 static Mat generateData(int rows, int columns, likely_hash type)
@@ -139,7 +139,7 @@ void Test::run() const
 {
     if (!BenchmarkFunction.empty() && BenchmarkFunction != function()) return;
 
-    UnaryFunction f = makeUnaryFunction(function());
+    likely_unary_function f = likely_make_unary_function(function());
 
     for (likely_hash type : types()) {
         if ((BenchmarkType != likely_hash_null) && (BenchmarkType != type)) continue;
@@ -165,11 +165,13 @@ void Test::run() const
     }
 }
 
-void Test::testCorrectness(UnaryFunction f, const Mat &src, bool parallel) const
+void Test::testCorrectness(likely_unary_function f, const Mat &src, bool parallel) const
 {
     Mat dstOpenCV = computeBaseline(src);
-    Matrix srcLikely = matrixFromMat(src).setParallel(parallel);
-    Matrix dstLikely;
+    likely_matrix srcLikely = matrixFromMat(src);
+    likely_set_parallel(srcLikely.hash, parallel);
+    likely_matrix dstLikely;
+    likely_matrix_initialize(&dstLikely);
     f(&srcLikely, &dstLikely);
 
     Mat errorMat = abs(matrixToMat(dstLikely) - dstOpenCV);
@@ -192,15 +194,17 @@ Test::Speed Test::testBaselineSpeed(const Mat &src) const
     return Test::Speed(iter, startTime, endTime);
 }
 
-Test::Speed Test::testLikelySpeed(UnaryFunction f, const Mat &src, bool parallel) const
+Test::Speed Test::testLikelySpeed(likely_unary_function f, const Mat &src, bool parallel) const
 {
-    Matrix srcLikely = matrixFromMat(src).setParallel(parallel);
+    likely_matrix srcLikely = matrixFromMat(src);
+    likely_set_parallel(srcLikely.hash, parallel);
 
     clock_t startTime, endTime;
     int iter = 0;
     startTime = endTime = clock();
     while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
-        Matrix dstLikely;
+        likely_matrix dstLikely;
+        likely_matrix_initialize(&dstLikely);
         f(&srcLikely, &dstLikely);
         endTime = clock();
         iter++;

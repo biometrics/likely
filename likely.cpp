@@ -294,7 +294,7 @@ struct Definition
     {
         // Parse likely_index_html for definitions
         if (definitions.size() == 0)
-            for (const Definition &definition : Definition::definitionsFromString(indexHTML()))
+            for (const Definition &definition : Definition::definitionsFromString(likely_index_html()))
                 definitions[definition.name] = definition;
 
         Definition definition = definitions[name];
@@ -713,8 +713,13 @@ public:
 
         if (likely_is_parallel(kernel.h)) {
             vector<likely_matrix> matricies;
-            for (likely_hash hash : hashes)
-                matricies.push_back(Matrix().setHash(hash).setParallel(false));
+            for (likely_hash hash : hashes) {
+                likely_matrix matrix;
+                likely_matrix_initialize(&matrix);
+                matrix.hash = hash;
+                likely_set_parallel(matrix.hash, false);
+                matricies.push_back(matrix);
+            }
 
             // Allocation needs to be done to properly initialize the kernel builder
             switch (matricies.size()) {

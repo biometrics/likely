@@ -36,7 +36,6 @@
 #  endif
 #endif
 
-// C API starts here
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -134,8 +133,7 @@ inline likely_size likely_elements(const likely_matrix *m) { return m->channels 
 inline likely_size likely_bytes(const likely_matrix *m) { return uint64_t(likely_depth(m->hash)) * uint64_t(likely_elements(m)) / uint64_t(8); }
 
 // Convenience functions for default initializing a matrix
-LIKELY_EXPORT void likely_matrix_initialize(likely_matrix *m, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_hash hash, uint8_t *data);
-inline        void likely_matrix_initialize_null(likely_matrix *m) { likely_matrix_initialize(m, 0, 0, 0, 0, likely_hash_null, NULL); }
+LIKELY_EXPORT void likely_matrix_initialize(likely_matrix *m, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_hash hash = likely_hash_null, uint8_t *data = NULL);
 
 // Functions for allocating and freeing matrix data
 LIKELY_EXPORT void likely_allocate(likely_matrix *m);
@@ -182,77 +180,5 @@ inline likely_ternary_function likely_make_ternary_function(likely_description d
 #ifdef __cplusplus
 }
 #endif
-
-// C++ wrapper starts here
-#ifdef __cplusplus
-#include <ostream>
-#include <string>
-
-namespace likely {
-
-inline std::string indexHTML() { return likely_index_html(); }
-
-struct Matrix : public likely_matrix
-{
-    Matrix() { likely_matrix_initialize_null(this); }
-    Matrix(likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_hash hash, uint8_t *data = NULL)
-    {
-        likely_matrix_initialize(this, channels, columns, rows, frames, hash, data);
-        if (data == NULL) likely_allocate(this);
-    }
-    ~Matrix() { likely_free(this); }
-
-    inline Matrix &setHash(likely_hash hash) { this->hash = hash; return *this; }
-    inline int     depth() const { return likely_depth(hash); }
-    inline Matrix &setDepth(int bits) { likely_set_depth(hash, bits); return *this; }
-    inline bool    isFloating() const { return likely_is_floating(hash); }
-    inline Matrix &setFloating(bool isFloating) { likely_set_floating(hash, isFloating); return *this; }
-    inline bool    isSigned() const { return likely_is_signed(hash); }
-    inline Matrix &setSigned(bool isSigned) { likely_set_signed(hash, isSigned); return *this; }
-    inline int     type() const { return likely_type(hash); }
-    inline Matrix &setType(int type) { likely_set_type(hash, type); return *this; }
-    inline bool    parallel() const { return likely_is_parallel(hash); }
-    inline Matrix &setParallel(bool parallel) { likely_set_parallel(hash, parallel); return *this; }
-    inline bool    heterogeneous() const { return likely_is_heterogeneous(hash); }
-    inline Matrix &setHeterogeneous(bool heterogeneous) { likely_set_heterogeneous(hash, heterogeneous); return *this; }
-    inline bool    isSingleChannel() const { return likely_is_single_channel(hash); }
-    inline Matrix &setSingleChannel(bool isSingleChannel) { likely_set_single_channel(hash, isSingleChannel); return *this; }
-    inline bool    isSingleColumn() const { return likely_is_single_column(hash); }
-    inline Matrix &setSingleColumn(bool isSingleColumn) { likely_set_single_column(hash, isSingleColumn); return *this; }
-    inline bool    isSingleRow() const { return likely_is_single_row(hash); }
-    inline Matrix &setSingleRow(bool isSingleRow) { likely_set_single_row(hash, isSingleRow); return *this; }
-    inline bool    isSingleFrame() const { return likely_is_single_frame(hash); }
-    inline Matrix &setSingleFrame(bool isSingleFrame) { likely_set_single_frame(hash, isSingleFrame); return *this; }
-    inline bool    isOwner() const { return likely_is_owner(hash); }
-    inline Matrix &setOwner(bool isOwner) { likely_set_owner(hash, isOwner); return *this; }
-    inline int     reserved() const { return likely_reserved(hash); }
-    inline Matrix &setReserved(int reserved) { likely_set_reserved(hash, reserved); return *this; }
-
-    inline likely_size elements() const { return likely_elements(this); }
-    inline likely_size bytes() const { return likely_bytes(this); }
-    inline double element(likely_size c, likely_size x, likely_size y, likely_size t) const { return likely_element(this, c, x, y, t); }
-    inline Matrix &setElement(double value, likely_size c, likely_size x, likely_size y, likely_size t) { likely_set_element(this, value, c, x, y, t); return *this; }
-    inline void print() const { return likely_print_matrix(this); }
-};
-
-typedef likely_nullary_function NullaryFunction;
-inline NullaryFunction makeNullaryFunction(const std::string &description)
-    { return likely_make_nullary_function(description.c_str()); }
-
-typedef likely_unary_function UnaryFunction;
-inline UnaryFunction makeUnaryFunction(const std::string &description)
-    { return likely_make_unary_function(description.c_str()); }
-
-typedef likely_binary_function BinaryFunction;
-inline BinaryFunction makeBinaryFunction(const std::string &description)
-    { return likely_make_binary_function(description.c_str()); }
-
-typedef likely_ternary_function TernaryFunction;
-inline TernaryFunction makeTernaryFunction(const std::string &description)
-    { return likely_make_ternary_function(description.c_str()); }
-
-} // namespace likely
-
-#endif // __cplusplus
 
 #endif // __LIKELY_H
