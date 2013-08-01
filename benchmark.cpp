@@ -93,7 +93,7 @@ static likely_matrix matrixFromMat(const Mat &mat)
       case CV_32S: h = likely_hash_i32; break;
       case CV_32F: h = likely_hash_f32; break;
       case CV_64F: h = likely_hash_f64; break;
-      default:     likely_assert(false, "Unsupported matrix depth");
+      default:     h = likely_hash_null; likely_assert(false, "Unsupported matrix depth");
     }
 
     likely_matrix m;
