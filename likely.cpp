@@ -51,13 +51,13 @@ static Module *TheModule = NULL;
 static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
 
-void likely_matrix_initialize(likely_matrix *m, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_hash hash, uint8_t *data)
+void likely_matrix_initialize(likely_matrix *m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, uint8_t *data)
 {
+    m->hash = hash;
     m->channels = channels;
     m->columns = columns;
     m->rows = rows;
     m->frames = frames;
-    m->hash = hash;
     m->data = data;
     likely_set_single_channel(m->hash, channels == 1);
     likely_set_single_column(m->hash, columns == 1);
@@ -425,39 +425,39 @@ struct MatrixBuilder
 
     Value *data(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 0), n+"_data"); }
     Value *data(Value *matrix, Type *type) const { return b->CreatePointerCast(data(matrix), type); }
-    Value *channels(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 1), n+"_channels"); }
-    Value *columns(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 2), n+"_columns"); }
-    Value *rows(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 3), n+"_rows"); }
-    Value *frames(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 4), n+"_frames"); }
-    Value *hash(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 5), n+"_hash"); }
+    Value *hash(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 1), n+"_hash"); }
+    Value *channels(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 2), n+"_channels"); }
+    Value *columns(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 3), n+"_columns"); }
+    Value *rows(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 4), n+"_rows"); }
+    Value *frames(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 5), n+"_frames"); }
 
     Value *data(bool cast = true) const { return cast ? data(v, ty(true)) : data(v); }
+    Value *hash() const { return hash(v); }
     Value *channels() const { return likely_is_single_channel(h) ? static_cast<Value*>(one()) : channels(v); }
     Value *columns() const { return likely_is_single_column(h) ? static_cast<Value*>(one()) : columns(v); }
     Value *rows() const { return likely_is_single_row(h) ? static_cast<Value*>(one()) : rows(v); }
     Value *frames() const { return likely_is_single_frame(h) ? static_cast<Value*>(one()) : frames(v); }
-    Value *hash() const { return hash(v); }
 
     void setData(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 0)); }
-    void setChannels(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 1)); }
-    void setColumns(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 2)); }
-    void setRows(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 3)); }
-    void setFrames(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 4)); }
-    void setHash(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 5)); }
+    void setHash(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 1)); }
+    void setChannels(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 2)); }
+    void setColumns(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 3)); }
+    void setRows(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 4)); }
+    void setFrames(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 5)); }
 
     void setData(Value *value) const { setData(v, value); }
+    void setHash(Value *value) const { setHash(v, value); }
     void setChannels(Value *value) const { setChannels(v, value); }
     void setColumns(Value *value) const { setColumns(v, value); }
     void setRows(Value *value) const { setRows(v, value); }
     void setFrames(Value *value) const { setFrames(v, value); }
-    void setHash(Value *value) const { setHash(v, value); }
 
     void copyHeaderTo(Value *matrix) const {
+        setHash(matrix, hash());
         setChannels(matrix, channels());
         setColumns(matrix, columns());
         setRows(matrix, rows());
         setFrames(matrix, frames());
-        setHash(matrix, hash());
     }
 
     void deallocate() const {
@@ -715,8 +715,7 @@ public:
             vector<likely_matrix> matricies;
             for (likely_hash hash : hashes) {
                 likely_matrix matrix;
-                likely_matrix_initialize(&matrix);
-                matrix.hash = hash;
+                likely_matrix_initialize(&matrix, hash);
                 likely_set_parallel(matrix.hash, false);
                 matricies.push_back(matrix);
             }
@@ -938,11 +937,11 @@ void *likely_make_function(likely_description description, likely_arity arity)
 
         TheMatrixStruct = StructType::create("Matrix",
                                              Type::getInt8PtrTy(getGlobalContext()), // data
+                                             Type::getInt32Ty(getGlobalContext()),   // hash
                                              Type::getInt32Ty(getGlobalContext()),   // channels
                                              Type::getInt32Ty(getGlobalContext()),   // columns
                                              Type::getInt32Ty(getGlobalContext()),   // rows
                                              Type::getInt32Ty(getGlobalContext()),   // frames
-                                             Type::getInt32Ty(getGlobalContext()),   // hash
                                              NULL);
 
         const int numWorkers = std::max((int)thread::hardware_concurrency()-1, 1);
@@ -1024,7 +1023,7 @@ void *likely_make_function(likely_description description, likely_arity arity)
 
     vector<Value*> srcHashes;
     for (int i=0; i<arity; i++)
-        srcHashes.push_back(builder.CreateLoad(builder.CreateStructGEP(srcs[i], 5), "src_hash"+to_string(i)));
+        srcHashes.push_back(builder.CreateLoad(builder.CreateStructGEP(srcs[i], 1), "src_hash"+to_string(i)));
 
     Value *hashTest = MatrixBuilder::constant(true);
     for (int i=0; i<arity; i++)

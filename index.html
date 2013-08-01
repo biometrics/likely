@@ -143,8 +143,8 @@
     <p>The <tt>likely_matrix</tt> is only struct in the API and serves as the input and output for all kernel invocations.
       The <tt>likely_matrix</tt>, hereafter referred to as the <i>matrix</i>, has the following fields:
     </p>
-    <pre class="prettyprint lang-c">uint8_t *data; // Pointer to the buffer of elements<br>uint32_t channels, columns, rows, frames; // Dimensions<br>uint32_t hash; // Data type</pre>
-    <p>The five fields excepting the <i>data</i> pointer (<i>channels</i>, <i>columns</i>, <i>rows</i>, <i>frames</i>, and <i>hash</i>) are collectively referred to as the matrix <i>header</i>.
+    <pre class="prettyprint lang-c">uint8_t *data; // Pointer to the buffer of elements<br>uint32_t hash; // Data type<br>uint32_t channels, columns, rows, frames; // Dimensions</pre>
+    <p>The five fields excepting the <i>data</i> pointer (<i>hash</i>, <i>channels</i>, <i>columns</i>, <i>rows</i>, and <i>frames</i>) are collectively referred to as the matrix <i>header</i>.
     In contrast to most image processing libraries which tend to feature 3-dimensional matrices (channels, columns, rows), Likely includes a fourth dimension, frames, in order to facilitate processing videos or collections of images.
     <h4 id="element_access">Element Access</h4>
     <p>By convention, element layout in the data buffer with resepect to decreasing spatial locality is <i>channel</i>, <i>column</i>, <i>row</i>, <i>frame</i>.

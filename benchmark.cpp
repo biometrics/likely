@@ -84,25 +84,20 @@ static likely_matrix matrixFromMat(const Mat &mat)
 {
     likely_assert(mat.isContinuous(), "Continuous data required");
 
-    likely_matrix m;
-    likely_matrix_initialize(&m);
-    m.data = mat.data;
-    m.channels = mat.channels();
-    m.columns = mat.cols;
-    m.rows = mat.rows;
-    m.frames = 1;
-
+    likely_hash h;
     switch (mat.depth()) {
-      case CV_8U:  m.hash = likely_hash_u8;  break;
-      case CV_8S:  m.hash = likely_hash_i8;  break;
-      case CV_16U: m.hash = likely_hash_u16; break;
-      case CV_16S: m.hash = likely_hash_i16; break;
-      case CV_32S: m.hash = likely_hash_i32; break;
-      case CV_32F: m.hash = likely_hash_f32; break;
-      case CV_64F: m.hash = likely_hash_f64; break;
+      case CV_8U:  h = likely_hash_u8;  break;
+      case CV_8S:  h = likely_hash_i8;  break;
+      case CV_16U: h = likely_hash_u16; break;
+      case CV_16S: h = likely_hash_i16; break;
+      case CV_32S: h = likely_hash_i32; break;
+      case CV_32F: h = likely_hash_f32; break;
+      case CV_64F: h = likely_hash_f64; break;
       default:     likely_assert(false, "Unsupported matrix depth");
     }
 
+    likely_matrix m;
+    likely_matrix_initialize(&m, h, mat.channels(), mat.cols, mat.rows, 1, mat.data);
     return m;
 }
 

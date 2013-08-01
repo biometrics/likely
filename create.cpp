@@ -116,7 +116,7 @@ public slots:
     void setMatrix(const QImage &image)
     {
         likely_free(&matrix);
-        likely_matrix_initialize(&matrix, 3, image.width(), image.height(), 1, likely_hash_u8);
+        likely_matrix_initialize(&matrix, likely_hash_u8, 3, image.width(), image.height(), 1);
         likely_allocate(&matrix);
         memcpy(matrix.data, image.constBits(), likely_bytes(&matrix));
         emit newMatrixView(image);

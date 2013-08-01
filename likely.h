@@ -92,8 +92,8 @@ enum likely_hash_field
 struct likely_matrix
 {
     uint8_t *data;
-    likely_size channels, columns, rows, frames;
     likely_hash hash;
+    likely_size channels, columns, rows, frames;
 };
 
 // You shouldn't need to call these directly
@@ -133,7 +133,7 @@ inline likely_size likely_elements(const likely_matrix *m) { return m->channels 
 inline likely_size likely_bytes(const likely_matrix *m) { return uint64_t(likely_depth(m->hash)) * uint64_t(likely_elements(m)) / uint64_t(8); }
 
 // Convenience functions for default initializing a matrix
-LIKELY_EXPORT void likely_matrix_initialize(likely_matrix *m, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_hash hash = likely_hash_null, uint8_t *data = NULL);
+LIKELY_EXPORT void likely_matrix_initialize(likely_matrix *m, likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, uint8_t *data = NULL);
 
 // Functions for allocating and freeing matrix data
 LIKELY_EXPORT void likely_allocate(likely_matrix *m);
