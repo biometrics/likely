@@ -22,13 +22,12 @@ class MatrixViewer : public QLabel
 {
     Q_OBJECT
     QImage src;
-    int zoomLevel;
+    int zoomLevel = 0;
 
 public:
     explicit MatrixViewer(QWidget *parent = 0)
         : QLabel(parent)
     {
-        zoomLevel = 0;
         setAcceptDrops(true);
         setAlignment(Qt::AlignCenter);
         setMouseTracking(true);
@@ -163,8 +162,11 @@ public slots:
 
     void setInput(QAction *action)
     {
-        const QVariant data = action->data();
-        setInput(data.isNull() ? QImage() : QImage(data.toString()).convertToFormat(QImage::Format_RGB888));
+        QString file;
+        if      (action->text() == "New...")  file = "";
+        else if (action->text() == "Open...") file = QFileDialog::getOpenFileName(NULL, "Open File");
+        else                                  file = action->data().toString();
+        setInput(file.isEmpty() ? QImage() : QImage(file).convertToFormat(QImage::Format_RGB888));
     }
 
     void setParam(int param)
@@ -240,15 +242,13 @@ int main(int argc, char *argv[])
 {
     QApplication application(argc, argv);
 
-    Engine *engine = new Engine();
-    MatrixViewer *matrixViewer = new MatrixViewer();
-    QObject::connect(engine, SIGNAL(newMatrixView(QImage)), matrixViewer, SLOT(setImage(QImage)));
-    QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), engine, SLOT(setInput(QImage)));
-
     QMenu *fileMenu = new QMenu("File");
-    QAction *newFile = new QAction("New", fileMenu);
+    QAction *newFile = new QAction("New...", fileMenu);
+    QAction *openFile = new QAction("Open...", fileMenu);
     newFile->setShortcut(QKeySequence("Ctrl+N"));
+    openFile->setShortcut(QKeySequence("Ctrl+O"));
     fileMenu->addAction(newFile);
+    fileMenu->addAction(openFile);
     fileMenu->addSeparator();
     foreach (const QString &fileName, QDir(":/img").entryList(QDir::Files, QDir::Name)) {
         const QString filePath = ":/img/"+fileName;
@@ -257,6 +257,11 @@ int main(int argc, char *argv[])
         potentialFile->setShortcut(QKeySequence("Ctrl+"+fileName.mid(0, 1)));
         fileMenu->addAction(potentialFile);
     }
+
+    Engine *engine = new Engine();
+    MatrixViewer *matrixViewer = new MatrixViewer();
+    QObject::connect(engine, SIGNAL(newMatrixView(QImage)), matrixViewer, SLOT(setImage(QImage)));
+    QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), engine, SLOT(setInput(QImage)));
     QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), engine, SLOT(setInput(QAction*)));
 
     QMenu *viewMenu = new QMenu("View");
