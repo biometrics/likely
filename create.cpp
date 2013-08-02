@@ -32,9 +32,7 @@ public:
         setAlignment(Qt::AlignCenter);
         setMouseTracking(true);
         setFocusPolicy(Qt::WheelFocus);
-        setFrameShape(QFrame::StyledPanel);
-        setText("<b>Drag and Drop Image Here</b>");
-        resize(512, 512);
+        updatePixmap();
     }
 
 public slots:
@@ -42,8 +40,6 @@ public slots:
     {
         src = image;
         updatePixmap();
-        setFrameShape(QFrame::NoFrame);
-        queryPoint(mapFromGlobal(QCursor::pos()) / pow(2, zoomLevel));
     }
 
     void zoomIn()
@@ -102,13 +98,17 @@ private:
     {
         if (src.isNull()) {
             clear();
+            setText("<b>Drag and Drop Image Here</b>");
+            resize(512, 512);
             queryPoint(QPoint(-1, -1));
-            return;
+            setFrameShape(QFrame::StyledPanel);
+        } else {
+            const QSize newSize = src.size() * pow(2, zoomLevel);
+            setPixmap(QPixmap::fromImage(src.scaled(newSize, Qt::KeepAspectRatio)));
+            resize(newSize);
+            queryPoint(mapFromGlobal(QCursor::pos()) / pow(2, zoomLevel));
+            setFrameShape(QFrame::NoFrame);
         }
-
-        const QSize newSize = src.size() * pow(2, zoomLevel);
-        setPixmap(QPixmap::fromImage(src.scaled(newSize, Qt::KeepAspectRatio)));
-        resize(newSize);
     }
 
     void queryPoint(const QPoint &point)
