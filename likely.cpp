@@ -261,6 +261,7 @@ struct Node
 
 struct Definition
 {
+    static map<string,Definition> definitions;
     string name, documentation;
     vector<string> parameters;
     Node equation;
@@ -290,21 +291,21 @@ struct Definition
         likely_assert(getEquation(tokens, equation), "Definition::Definition unable to parse: %s", string(sm[1]).c_str());
     }
 
-    static Definition get(const string &name)
+    static void init()
     {
         // Parse likely_index_html for definitions
-        if (definitions.size() == 0)
-            for (const Definition &definition : Definition::definitionsFromString(likely_index_html()))
-                definitions[definition.name] = definition;
-
-        Definition definition = definitions[name];
-        likely_assert(name == definition.name, "Definition::get missing definition for: %s", name.c_str());
-
-        return definition;
+        if (definitions.size() > 0) return;
+        for (const Definition &definition : Definition::definitionsFromString(likely_index_html()))
+            definitions[definition.name] = definition;
     }
 
-private:
-    static map<string,Definition> definitions;
+    static Definition get(const string &name = string())
+    {
+        init();
+        Definition definition = definitions[name];
+        likely_assert(name == definition.name, "Definition::get missing definition for: %s", name.c_str());
+        return definition;
+    }
 
     static vector<Definition> definitionsFromString(const string &str)
     {
@@ -911,6 +912,20 @@ static void workerThread(int workerID)
 } // namespace likely
 
 using namespace likely;
+
+void likely_functions(const char ***functions, int *num_functions)
+{
+    static const char **allFunctions = NULL;
+    if (allFunctions == NULL) {
+        Definition::init();
+        allFunctions = new const char*[Definition::definitions.size()];
+        int i = 0;
+        for (map<string, Definition>::iterator iter = Definition::definitions.begin(); iter != Definition::definitions.end(); iter++)
+            allFunctions[i++] = iter->first.c_str();
+    }
+    *functions = allFunctions;
+    *num_functions = Definition::definitions.size();
+}
 
 void *likely_make_function(likely_description description, likely_arity arity)
 {

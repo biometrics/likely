@@ -284,14 +284,22 @@ int main(int argc, char *argv[])
     QObject::connect(slider, SIGNAL(valueChanged(int)), engine, SLOT(setParam(int)));
     slider->setValue(0);
 
-    QVBoxLayout *centralWidgetLayout = new QVBoxLayout();
+    const char **functionNames;
+    int numFunctions;
+    likely_functions(&functionNames, &numFunctions);
+    QListWidget *functionList = new QListWidget();
+    for (int i=0; i<numFunctions; i++)
+        functionList->addItem(functionNames[i]);
+
+    QGridLayout *centralWidgetLayout = new QGridLayout();
     QScrollArea *matrixViewerScrollArea = new QScrollArea();
     matrixViewerScrollArea->setAlignment(Qt::AlignCenter);
     matrixViewerScrollArea->setFocusPolicy(Qt::WheelFocus);
     matrixViewerScrollArea->setFrameShape(QFrame::NoFrame);
     matrixViewerScrollArea->setWidget(matrixViewer);
-    centralWidgetLayout->addWidget(matrixViewerScrollArea);
-    centralWidgetLayout->addWidget(slider);
+    centralWidgetLayout->addWidget(functionList, 0, 0);
+    centralWidgetLayout->addWidget(matrixViewerScrollArea, 0, 1);
+    centralWidgetLayout->addWidget(slider, 1, 1);
 
     QWidget *centralWidget = new QWidget();
     centralWidget->setLayout(centralWidgetLayout);
