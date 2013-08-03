@@ -275,7 +275,7 @@ struct Definition
         documentation = sm[4];
 
         // Equation
-        static const regex syntax("^\\s*([+\\-*/]|\\w+).*$");
+        static const regex syntax("^\\s*([+\\-]|\\\\?\\w+).*$");
         vector<string> tokens;
         string unparsed = sm[1];
         while (!unparsed.empty()) {
@@ -345,7 +345,7 @@ private:
     static bool getTerm(const vector<string> &tokens, Node &term)
     {
         for (size_t i=1; i<tokens.size()-1; i++)
-            if ((tokens[i] == "*") || (tokens[i] == "/")) {
+            if ((tokens[i] == "\\times") || (tokens[i] == "\\div")) {
                 Node lhs, rhs;
                 if (!getTerm(vector<string>(tokens.begin(), tokens.begin()+i), lhs)) continue;
                 if (!getTerm(vector<string>(tokens.begin()+i+1, tokens.end()), rhs)) continue;
@@ -804,9 +804,9 @@ public:
 
     Value *makeTerm(const Node &node)
     {
-        if      (node.value == "*") return kernel.multiply(makeEquation(node.children[0]), makeEquation(node.children[1]));
-        else if (node.value == "/") return kernel.divide(makeEquation(node.children[0]), makeEquation(node.children[1]));
-        else                        return makeFactor(node);
+        if      (node.value == "\\times") return kernel.multiply(makeEquation(node.children[0]), makeEquation(node.children[1]));
+        else if (node.value == "\\div")   return kernel.divide(makeEquation(node.children[0]), makeEquation(node.children[1]));
+        else                              return makeFactor(node);
     }
 
     Value *makeFactor(const Node &node)

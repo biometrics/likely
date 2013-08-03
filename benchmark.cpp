@@ -173,7 +173,21 @@ void Test::testCorrectness(likely_unary_function f, const Mat &src, bool paralle
     errorMat.convertTo(errorMat, CV_32F);
     threshold(errorMat, errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
     const double errors = norm(errorMat, NORM_L1);
-    likely_assert(errors == 0, "Test for %s differs in %g locations", function(), errors);
+    if (errors > 0) {
+        likely_matrix opencvLikely = matrixFromMat(dstOpenCV);
+        stringstream errorLocations;
+        errorLocations << "input\topencv\tlikely\trow\tcolumn\n";
+        for (int i=0; i<src.rows; i++)
+            for (int j=0; j<src.cols; j++)
+                if (errorMat.at<float>(i, j) == 1)
+                    errorLocations << likely_element(&srcLikely, 0, j, i) << "\t"
+                                   << likely_element(&opencvLikely, 0, j, i) << "\t"
+                                   << likely_element(&dstLikely, 0, j, i) << "\t"
+                                   << i << "\t" << j << "\n";
+        likely_assert(false, "Test for %s differs in %g locations:\n%s", function(), errors, errorLocations.str().c_str());
+    }
+
+    likely_free(&dstLikely);
 }
 
 Test::Speed Test::testBaselineSpeed(const Mat &src) const
@@ -201,22 +215,36 @@ Test::Speed Test::testLikelySpeed(likely_unary_function f, const Mat &src, bool 
         likely_matrix dstLikely;
         likely_matrix_initialize(&dstLikely);
         f(&srcLikely, &dstLikely);
+        likely_free(&dstLikely);
         endTime = clock();
         iter++;
     }
     return Test::Speed(iter, startTime, endTime);
 }
 
-class maddTest : public Test
-{
-    const char *function() const { return "madd(2,3)"; }
+class addTest : public Test {
+    const char *function() const { return "add(3)"; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; add(src, 3, dst); return dst; }
+};
 
-    Mat computeBaseline(const Mat &src) const
-    {
-        Mat dst;
-        src.convertTo(dst, src.depth(), 2, 3);
-        return dst;
-    }
+class divideTest : public Test {
+    const char *function() const { return "divide(2)"; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; divide(src, 2, dst); return dst; }
+};
+
+class multiplyTest : public Test {
+    const char *function() const { return "multiply(2)"; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; multiply(src, 2, dst); return dst; }
+};
+
+class maddTest : public Test {
+    const char *function() const { return "madd(2,3)"; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth(), 2, 3); return dst; }
+};
+
+class subtractTest : public Test {
+    const char *function() const { return "subtract(3)"; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; subtract(src, -3, dst); return dst; }
 };
 
 int main(int argc, char *argv[])
@@ -237,7 +265,11 @@ int main(int argc, char *argv[])
     setbuf(stdout, NULL);
     printf("Function\tType\tSize\tExecution\tSpeedup\n");
 
+    addTest().run();
+//    divideTest().run();
     maddTest().run();
+//    multiplyTest().run();
+//    subtractTest().run();
 
     return 0;
 }
