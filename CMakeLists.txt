@@ -69,11 +69,11 @@ endif()
 # Create
 find_package(Qt5Widgets QUIET)
 if(${Qt5Core_FOUND})
-  qt5_add_resources(RESOURCES create.qrc)
-  add_executable(create create.cpp ${RESOURCES})
-  qt5_use_modules(create Widgets)
-  target_link_libraries(create likely)
-  install(TARGETS create RUNTIME DESTINATION bin)
+  qt5_add_resources(RESOURCES dream.qrc)
+  add_executable(Dream dream.cpp ${RESOURCES})
+  qt5_use_modules(Dream Widgets)
+  target_link_libraries(Dream likely)
+  install(TARGETS Dream RUNTIME DESTINATION bin)
 endif()
 
 # Install

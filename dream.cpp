@@ -134,15 +134,15 @@ signals:
     void newColor(QString color);
 };
 
-class Engine : public QObject
+class Engine : public QWidget
 {
     Q_OBJECT
     likely_matrix input;
     likely_unary_function function = NULL;
 
 public:
-    Engine(QObject *parent = 0)
-        : QObject(parent)
+    Engine(QWidget *parent = 0)
+        : QWidget(parent)
     {
         likely_matrix_initialize(&input);
         setParam(0);
@@ -278,12 +278,6 @@ int main(int argc, char *argv[])
     menuBar->addMenu(fileMenu);
     menuBar->addMenu(viewMenu);
 
-    QSlider *slider = new QSlider(Qt::Horizontal);
-    slider->setMinimum(0);
-    slider->setMaximum(256);
-    QObject::connect(slider, SIGNAL(valueChanged(int)), engine, SLOT(setParam(int)));
-    slider->setValue(0);
-
     const char **functionNames;
     int numFunctions;
     likely_functions(&functionNames, &numFunctions);
@@ -291,15 +285,14 @@ int main(int argc, char *argv[])
     for (int i=0; i<numFunctions; i++)
         functionList->addItem(functionNames[i]);
 
-    QGridLayout *centralWidgetLayout = new QGridLayout();
+    QVBoxLayout *centralWidgetLayout = new QVBoxLayout();
     QScrollArea *matrixViewerScrollArea = new QScrollArea();
     matrixViewerScrollArea->setAlignment(Qt::AlignCenter);
     matrixViewerScrollArea->setFocusPolicy(Qt::WheelFocus);
     matrixViewerScrollArea->setFrameShape(QFrame::NoFrame);
     matrixViewerScrollArea->setWidget(matrixViewer);
-    centralWidgetLayout->addWidget(functionList, 0, 0);
-    centralWidgetLayout->addWidget(matrixViewerScrollArea, 0, 1);
-    centralWidgetLayout->addWidget(slider, 1, 1);
+    centralWidgetLayout->addWidget(engine);
+    centralWidgetLayout->addWidget(matrixViewerScrollArea);
 
     QWidget *centralWidget = new QWidget();
     centralWidget->setLayout(centralWidgetLayout);
@@ -322,11 +315,11 @@ int main(int argc, char *argv[])
     mainWindow.setCentralWidget(centralWidget);
     mainWindow.setMenuBar(menuBar);
     mainWindow.setStatusBar(statusBar);
-    mainWindow.setWindowTitle("Likely Creator");
+    mainWindow.setWindowTitle("Likely Dream");
     mainWindow.resize(800,600);
     mainWindow.show();
 
     return application.exec();
 }
 
-#include "create.moc"
+#include "dream.moc"
