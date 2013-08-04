@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/img">
+        <file>Lenna.tiff</file>
+        <file>Mandrill.tiff</file>
+    </qresource>
+</RCC>

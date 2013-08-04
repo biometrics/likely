@@ -69,7 +69,7 @@ endif()
 # Create
 find_package(Qt5Widgets QUIET)
 if(${Qt5Core_FOUND})
-  qt5_add_resources(RESOURCES dream.qrc)
+  qt5_add_resources(RESOURCES img/img.qrc)
   add_executable(Dream dream.cpp ${RESOURCES})
   qt5_use_modules(Dream Widgets)
   target_link_libraries(Dream likely)

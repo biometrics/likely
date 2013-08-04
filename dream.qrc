@@ -1,6 +1,0 @@
-<RCC>
-    <qresource prefix="/">
-        <file>img/Lenna.tiff</file>
-        <file>img/Mandrill.tiff</file>
-    </qresource>
-</RCC>
