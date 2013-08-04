@@ -915,16 +915,54 @@ using namespace likely;
 
 void likely_functions(const char ***functions, int *num_functions)
 {
-    static const char **allFunctions = NULL;
-    if (allFunctions == NULL) {
-        Definition::init();
-        allFunctions = new const char*[Definition::definitions.size()];
-        int i = 0;
-        for (map<string, Definition>::iterator iter = Definition::definitions.begin(); iter != Definition::definitions.end(); iter++)
-            allFunctions[i++] = iter->first.c_str();
+    static const char **currentFunctions = NULL;
+    static int currentNumFunctions = 0;
+
+    // Delete old values
+    for (int i=0; i<currentNumFunctions; i++)
+        delete[] currentFunctions[i];
+    delete[] currentFunctions;
+
+    // Allocate new values
+    Definition::init();
+    currentFunctions = new const char*[Definition::definitions.size()];
+    int i = 0;
+    for (map<string, Definition>::iterator iter = Definition::definitions.begin(); iter != Definition::definitions.end(); iter++) {
+        const int size = iter->first.size()+1; // +1 to include null terminator
+        char *function = new char[size];
+        memcpy(function, iter->first.c_str(), size);
+        currentFunctions[i++] = function;
     }
-    *functions = allFunctions;
+
+    // Assign results
+    *functions = currentFunctions;
     *num_functions = Definition::definitions.size();
+}
+
+void likely_arguments(const char *function, const char ***arguments, int *num_arguments)
+{
+    static const char **currentArguments = NULL;
+    static int currentNumArguments = 0;
+
+    // Delete old values
+    for (int i=0; i<currentNumArguments; i++)
+        delete[] currentArguments[i];
+    delete[] currentArguments;
+
+    // Allocate new values
+    Definition::init();
+    const Definition &definition = Definition::definitions[function];
+    currentArguments = new const char*[definition.parameters.size()];
+    for (size_t i=0; i<definition.parameters.size(); i++) {
+        const int size = definition.parameters[i].size()+1; // +1 to include null terminator
+        char *argument = new char[size];
+        memcpy(argument, definition.parameters[i].c_str(), size);
+        currentArguments[i] = argument;
+    }
+
+    // Assign results
+    *arguments = currentArguments;
+    *num_arguments = definition.parameters.size();
 }
 
 void *likely_make_function(likely_description description, likely_arity arity)

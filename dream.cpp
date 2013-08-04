@@ -134,18 +134,44 @@ signals:
     void newColor(QString color);
 };
 
-class Engine : public QWidget
+class Function : public QWidget
 {
     Q_OBJECT
+    static QStringListModel *functionNames;
+
+    QHBoxLayout *layout;
+    QComboBox *functionName;
+    QList<QLabel*> arguments;
+
     likely_matrix input;
     likely_unary_function function = NULL;
 
 public:
-    Engine(QWidget *parent = 0)
+    Function(QWidget *parent = 0)
         : QWidget(parent)
     {
+        if (functionNames == NULL) {
+            const char **function_names;
+            int num_functions;
+            likely_functions(&function_names, &num_functions);
+            QStringList strings; strings.reserve(num_functions);
+            for (int i=0; i<num_functions; i++)
+                strings.append(function_names[i]);
+            functionNames = new QStringListModel(strings);
+        }
+
+        functionName = new QComboBox(this);
+        functionName->setEditable(true);
+        functionName->setFrame(false);
+        functionName->setInsertPolicy(QComboBox::NoInsert);
+
+        layout = new QHBoxLayout(this);
+        layout->addWidget(functionName);
+
+        connect(functionName, SIGNAL(currentIndexChanged(QString)), this, SLOT(updateArguments(QString)));
+        functionName->setModel(functionNames);
+
         likely_matrix_initialize(&input);
-        setParam(0);
     }
 
 public slots:
@@ -167,12 +193,6 @@ public slots:
         else if (action->text() == "Open...") file = QFileDialog::getOpenFileName(NULL, "Open File");
         else                                  file = action->data().toString();
         setInput(file.isEmpty() ? QImage() : QImage(file).convertToFormat(QImage::Format_RGB888));
-    }
-
-    void setParam(int param)
-    {
-        function = likely_make_unary_function(qPrintable(QString("madd(1,%1)").arg(QString::number(param))));
-        compute();
     }
 
 private:
@@ -198,11 +218,36 @@ private:
                                 QString::number(input.frames)));
     }
 
+private slots:
+    void updateArguments(const QString &function)
+    {
+        const char **argument_names;
+        int num_arguments;
+        likely_arguments(qPrintable(function), &argument_names, &num_arguments);
+        QStringList strings; strings.reserve(num_arguments);
+        for (int i=0; i<num_arguments; i++)
+            strings.append(argument_names[i]);
+
+        while (arguments.size() > num_arguments) {
+            layout->removeWidget(arguments.last());
+            delete arguments.takeLast();
+        }
+        while (arguments.size() < num_arguments) {
+            arguments.append(new QLabel());
+            layout->addWidget(arguments.last());
+        }
+
+        for (int i=0; i<num_arguments; i++)
+            arguments[i]->setText(strings[i]);
+    }
+
 signals:
     void newMatrixView(QImage image);
     void newHash(QString hash);
     void newDimensions(QString dimensions);
 };
+
+QStringListModel *Function::functionNames = NULL;
 
 class StatusLabel : public QLabel
 {
@@ -258,7 +303,7 @@ int main(int argc, char *argv[])
         fileMenu->addAction(potentialFile);
     }
 
-    Engine *engine = new Engine();
+    Function *engine = new Function();
     MatrixViewer *matrixViewer = new MatrixViewer();
     QObject::connect(engine, SIGNAL(newMatrixView(QImage)), matrixViewer, SLOT(setImage(QImage)));
     QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), engine, SLOT(setInput(QImage)));
@@ -278,14 +323,7 @@ int main(int argc, char *argv[])
     menuBar->addMenu(fileMenu);
     menuBar->addMenu(viewMenu);
 
-    const char **functionNames;
-    int numFunctions;
-    likely_functions(&functionNames, &numFunctions);
-    QListWidget *functionList = new QListWidget();
-    for (int i=0; i<numFunctions; i++)
-        functionList->addItem(functionNames[i]);
-
-    QVBoxLayout *centralWidgetLayout = new QVBoxLayout();
+    QHBoxLayout *centralWidgetLayout = new QHBoxLayout();
     QScrollArea *matrixViewerScrollArea = new QScrollArea();
     matrixViewerScrollArea->setAlignment(Qt::AlignCenter);
     matrixViewerScrollArea->setFocusPolicy(Qt::WheelFocus);
