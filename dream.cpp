@@ -134,6 +134,32 @@ signals:
     void newColor(QString color);
 };
 
+class Parameter : public QLabel
+{
+    Q_OBJECT
+    QString name;
+    double currentValue;
+
+public:
+    Parameter() : currentValue(0) {}
+    Parameter(const QString &name_, const QString &default_) { reset(name_, default_); }
+
+    void reset(const QString &name_, const QString &default_)
+    {
+        name = name_;
+        bool ok;
+        currentValue = default_.toDouble(&ok);
+        likely_assert(ok, "Parameter::reset invalid default: %s", qPrintable(default_));
+        updateText();
+    }
+
+private:
+    void updateText()
+    {
+        setText(name+"="+QString::number(currentValue));
+    }
+};
+
 class Function : public QWidget
 {
     Q_OBJECT
@@ -141,7 +167,7 @@ class Function : public QWidget
 
     QHBoxLayout *layout;
     QComboBox *functionName;
-    QList<QLabel*> arguments;
+    QList<Parameter*> parameters;
 
     likely_matrix input;
     likely_unary_function function = NULL;
@@ -168,7 +194,7 @@ public:
         layout = new QHBoxLayout(this);
         layout->addWidget(functionName);
 
-        connect(functionName, SIGNAL(currentIndexChanged(QString)), this, SLOT(updateArguments(QString)));
+        connect(functionName, SIGNAL(currentIndexChanged(QString)), this, SLOT(updateParameters(QString)));
         functionName->setModel(functionNames);
 
         likely_matrix_initialize(&input);
@@ -219,26 +245,26 @@ private:
     }
 
 private slots:
-    void updateArguments(const QString &function)
+    void updateParameters(const QString &function)
     {
-        const char **argument_names;
-        int num_arguments;
-        likely_arguments(qPrintable(function), &argument_names, &num_arguments);
-        QStringList strings; strings.reserve(num_arguments);
-        for (int i=0; i<num_arguments; i++)
-            strings.append(argument_names[i]);
+        const char **parameter_names, **defaults;
+        int num_parameters;
+        likely_parameters(qPrintable(function), &parameter_names, &num_parameters, &defaults);
+        QStringList strings; strings.reserve(num_parameters);
+        for (int i=0; i<num_parameters; i++)
+            strings.append(parameter_names[i]);
 
-        while (arguments.size() > num_arguments) {
-            layout->removeWidget(arguments.last());
-            delete arguments.takeLast();
+        while (parameters.size() > num_parameters) {
+            layout->removeWidget(parameters.last());
+            delete parameters.takeLast();
         }
-        while (arguments.size() < num_arguments) {
-            arguments.append(new QLabel());
-            layout->addWidget(arguments.last());
+        while (parameters.size() < num_parameters) {
+            parameters.append(new Parameter());
+            layout->addWidget(parameters.last());
         }
 
-        for (int i=0; i<num_arguments; i++)
-            arguments[i]->setText(strings[i]);
+        for (int i=0; i<num_parameters; i++)
+            parameters[i]->reset(strings[i], defaults[i]);
     }
 
 signals:

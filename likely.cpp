@@ -264,6 +264,7 @@ struct Definition
     static map<string,Definition> definitions;
     string name, documentation;
     vector<string> parameters;
+    vector<string> defaults;
     Node equation;
 
     Definition() = default;
@@ -272,8 +273,15 @@ struct Definition
         likely_assert(sm.size() == 5, "Definition::Definition expected 5 fields, got: %zu", sm.size());
 
         name = sm[2];
-        parameters = split(string(sm[3]).substr(1, string(sm[3]).size()-2), ',');
         documentation = sm[4];
+
+        // Parameters and Defaults
+        for (const string &parameterAndDefault : split(string(sm[3]).substr(1, string(sm[3]).size()-2), ',')) {
+            vector<string> words = split(parameterAndDefault, '=');
+            likely_assert(words.size() == 2, "Definition::Definition expected one '=' for function: %s with parameter: %s", name.c_str(), parameterAndDefault.c_str());
+            parameters.push_back(words[0]);
+            defaults.push_back(words[1]);
+        }
 
         // Equation
         static const regex syntax("^\\s*([+\\-]|\\\\?\\w+).*$");
@@ -939,30 +947,42 @@ void likely_functions(const char ***functions, int *num_functions)
     *num_functions = Definition::definitions.size();
 }
 
-void likely_arguments(const char *function, const char ***arguments, int *num_arguments)
+void likely_parameters(const char *function, const char ***parameters, int *num_parameters, const char ***defaults)
 {
-    static const char **currentArguments = NULL;
-    static int currentNumArguments = 0;
+    static const char **currentParameters = NULL;
+    static const char **currentDefaults = NULL;
+    static int currentNumParameters = 0;
 
     // Delete old values
-    for (int i=0; i<currentNumArguments; i++)
-        delete[] currentArguments[i];
-    delete[] currentArguments;
+    for (int i=0; i<currentNumParameters; i++) {
+        delete[] currentParameters[i];
+        delete[] currentDefaults[i];
+    }
+    delete[] currentParameters;
+    delete[] currentDefaults;
 
     // Allocate new values
     Definition::init();
     const Definition &definition = Definition::definitions[function];
-    currentArguments = new const char*[definition.parameters.size()];
-    for (size_t i=0; i<definition.parameters.size(); i++) {
-        const int size = definition.parameters[i].size()+1; // +1 to include null terminator
-        char *argument = new char[size];
-        memcpy(argument, definition.parameters[i].c_str(), size);
-        currentArguments[i] = argument;
+    const int numParameters = definition.parameters.size();
+    currentParameters = new const char*[numParameters];
+    currentDefaults = new const char*[numParameters];
+    for (int i=0; i<numParameters; i++) {
+        const int parameterSize = definition.parameters[i].size()+1; // +1 to include null terminator
+        char *parameters = new char[parameterSize];
+        memcpy(parameters, definition.parameters[i].c_str(), parameterSize);
+        currentParameters[i] = parameters;
+
+        const int defaultSize = definition.defaults[i].size()+1; // +1 to include null terminator
+        char *default_ = new char[defaultSize];
+        memcpy(default_, definition.defaults[i].c_str(), defaultSize);
+        currentDefaults[i] = default_;
     }
 
     // Assign results
-    *arguments = currentArguments;
-    *num_arguments = definition.parameters.size();
+    *parameters = currentParameters;
+    *num_parameters = definition.parameters.size();
+    if (defaults) *defaults = currentDefaults;
 }
 
 void *likely_make_function(likely_description description, likely_arity arity)
