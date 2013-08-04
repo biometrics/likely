@@ -139,10 +139,16 @@ class Parameter : public QLabel
     Q_OBJECT
     QString name;
     double currentValue;
+    bool inside = false;
+    QSlider *slider = NULL;
 
 public:
-    Parameter() : currentValue(0) {}
-    Parameter(const QString &name_, const QString &default_) { reset(name_, default_); }
+    Parameter() : currentValue(0) { setFocusPolicy(Qt::StrongFocus); }
+    Parameter(const QString &name_, const QString &default_)
+    {
+        Parameter();
+        reset(name_, default_);
+    }
 
     void reset(const QString &name_, const QString &default_)
     {
@@ -154,6 +160,43 @@ public:
     }
 
 private:
+    void enterEvent(QEvent *event)
+    {
+        event->accept();
+        inside = true;
+        setCursor(Qt::IBeamCursor);
+    }
+
+    void keyPressEvent(QKeyEvent *keyEvent)
+    {
+        if (keyEvent->key() == Qt::Key_Control) {
+            keyEvent->accept();
+            if (slider == NULL) {
+                slider = new QSlider(Qt::Horizontal, this);
+                slider->setWindowFlags(Qt::Window|Qt::WindowStaysOnTopHint|Qt::FramelessWindowHint);
+                slider->setMinimum(-255);
+                slider->setMaximum(255);
+            }
+            slider->setValue(currentValue);
+            slider->show();
+        }
+    }
+
+    void keyReleaseEvent(QKeyEvent *keyEvent)
+    {
+        if (keyEvent->key() == Qt::Key_Control) {
+            keyEvent->accept();
+            if (slider != NULL) slider->hide();
+        }
+    }
+
+    void leaveEvent(QEvent *event)
+    {
+        event->accept();
+        inside = false;
+        setCursor(Qt::ArrowCursor);
+    }
+
     void updateText()
     {
         setText(name+"="+QString::number(currentValue));
@@ -349,14 +392,15 @@ int main(int argc, char *argv[])
     menuBar->addMenu(fileMenu);
     menuBar->addMenu(viewMenu);
 
-    QHBoxLayout *centralWidgetLayout = new QHBoxLayout();
+    QGridLayout *centralWidgetLayout = new QGridLayout();
     QScrollArea *matrixViewerScrollArea = new QScrollArea();
     matrixViewerScrollArea->setAlignment(Qt::AlignCenter);
     matrixViewerScrollArea->setFocusPolicy(Qt::WheelFocus);
     matrixViewerScrollArea->setFrameShape(QFrame::NoFrame);
     matrixViewerScrollArea->setWidget(matrixViewer);
-    centralWidgetLayout->addWidget(engine);
-    centralWidgetLayout->addWidget(matrixViewerScrollArea);
+    centralWidgetLayout->addWidget(engine, 0, 0);
+    centralWidgetLayout->addWidget(matrixViewerScrollArea, 0, 1, 2, 1);
+    centralWidgetLayout->setRowStretch(1, 1);
 
     QWidget *centralWidget = new QWidget();
     centralWidget->setLayout(centralWidgetLayout);
