@@ -31,30 +31,13 @@ public:
         setAcceptDrops(true);
         setAlignment(Qt::AlignCenter);
         setMouseTracking(true);
-        setFocusPolicy(Qt::WheelFocus);
         updatePixmap();
     }
 
 public slots:
-    void setImage(const QImage &image)
-    {
-        src = image;
-        updatePixmap();
-    }
-
-    void zoomIn()
-    {
-        zoomLevel++;
-        if (zoomLevel > 4) zoomLevel = 4;
-        else               updatePixmap();
-    }
-
-    void zoomOut()
-    {
-        zoomLevel--;
-        if (zoomLevel < -4) zoomLevel = -4;
-        else                updatePixmap();
-    }
+    void setImage(const QImage &image) { src = image; updatePixmap(); }
+    void zoomIn() { if (++zoomLevel > 4) zoomLevel = 4; else updatePixmap(); }
+    void zoomOut() { if (--zoomLevel < -4) zoomLevel = -4; else updatePixmap(); }
 
 private:
     void dragEnterEvent(QDragEnterEvent *event)
@@ -82,17 +65,8 @@ private:
         }
     }
 
-    void leaveEvent(QEvent *event)
-    {
-        event->accept();
-        queryPoint(QPoint(-1, -1));
-    }
-
-    void mouseMoveEvent(QMouseEvent *event)
-    {
-        event->accept();
-        queryPoint(event->pos() / pow(2, zoomLevel));
-    }
+    void leaveEvent(QEvent *event) { event->accept(); queryPoint(QPoint(-1, -1)); }
+    void mouseMoveEvent(QMouseEvent *mouseEvent) { mouseEvent->accept(); queryPoint(mouseEvent->pos() / pow(2, zoomLevel)); }
 
     void updatePixmap()
     {
@@ -142,8 +116,6 @@ class Parameter : public QLabel
     int wheelRemainder = 0;
 
 public:
-    Parameter() {}
-
     void reset(const QString &name, const QString &value)
     {
         this->name = name;
@@ -225,8 +197,6 @@ public:
     Function(QWidget *parent = 0)
         : QWidget(parent)
     {
-        likely_matrix_initialize(&input);
-
         if (functionNames == NULL) {
             const char **function_names;
             int num_functions;
@@ -236,6 +206,8 @@ public:
                 strings.append(function_names[i]);
             functionNames = new QStringListModel(strings);
         }
+
+        likely_matrix_initialize(&input);
 
         functionName = new QComboBox(this);
         functionName->setEditable(true);
