@@ -138,69 +138,75 @@ class Parameter : public QLabel
 {
     Q_OBJECT
     QString name;
-    double currentValue;
-    bool inside = false;
-    QSlider *slider = NULL;
+    double value = 0;
+    int wheelRemainder = 0;
 
 public:
-    Parameter() : currentValue(0) { setFocusPolicy(Qt::StrongFocus); }
-    Parameter(const QString &name_, const QString &default_)
+    Parameter() {}
+
+    void reset(const QString &name, const QString &value)
     {
-        Parameter();
-        reset(name_, default_);
+        this->name = name;
+        this->value = value.toDouble();
+        updateValue();
     }
 
-    void reset(const QString &name_, const QString &default_)
-    {
-        name = name_;
-        bool ok;
-        currentValue = default_.toDouble(&ok);
-        likely_assert(ok, "Parameter::reset invalid default: %s", qPrintable(default_));
-        updateText();
-    }
+    QString argument() const { return QString::number(value); }
 
 private:
+    void updateValue() { setText("<font color=\"blue\">"+QString::number(value)+"</font>"); }
+
     void enterEvent(QEvent *event)
     {
+        static QPixmap cursor;
+        if (cursor.isNull()) {
+            cursor = QPixmap(32, 32);
+            QPainter painter(&cursor);
+            painter.setRenderHint(QPainter::Antialiasing);
+            painter.setBrush(Qt::red);
+            painter.setPen(Qt::red);
+            painter.drawEllipse(-3, -3, 6, 6);
+            painter.end();
+            QBitmap mask(32, 32);
+            mask.clear();
+            painter.begin(&mask);
+            painter.setRenderHint(QPainter::Antialiasing, false);
+            painter.setBrush(Qt::color1);
+            painter.setPen(Qt::color1);
+            painter.drawEllipse(-3, -3, 6, 6);
+            painter.end();
+            cursor.setMask(mask);
+        }
+
         event->accept();
-        inside = true;
-        setCursor(Qt::IBeamCursor);
-    }
-
-    void keyPressEvent(QKeyEvent *keyEvent)
-    {
-        if (keyEvent->key() == Qt::Key_Control) {
-            keyEvent->accept();
-            if (slider == NULL) {
-                slider = new QSlider(Qt::Horizontal, this);
-                slider->setWindowFlags(Qt::Window|Qt::WindowStaysOnTopHint|Qt::FramelessWindowHint);
-                slider->setMinimum(-255);
-                slider->setMaximum(255);
-            }
-            slider->setValue(currentValue);
-            slider->show();
-        }
-    }
-
-    void keyReleaseEvent(QKeyEvent *keyEvent)
-    {
-        if (keyEvent->key() == Qt::Key_Control) {
-            keyEvent->accept();
-            if (slider != NULL) slider->hide();
-        }
+        setCursor(QCursor(cursor, 0, 0));
+        emit newParameter(name+"="+QString::number(value));
     }
 
     void leaveEvent(QEvent *event)
     {
         event->accept();
-        inside = false;
-        setCursor(Qt::ArrowCursor);
+        unsetCursor();
+        emit newParameter(QString());
     }
 
-    void updateText()
+    void wheelEvent(QWheelEvent *wheelEvent)
     {
-        setText(name+"="+QString::number(currentValue));
+        wheelEvent->accept();
+        wheelRemainder += wheelEvent->angleDelta().x() - wheelEvent->angleDelta().y();
+        const int delta = wheelRemainder / 120;
+        if (delta == 0) return;
+
+        value += delta;
+        wheelRemainder = wheelRemainder % 120;
+        updateValue();
+        emit newParameter(value);
+        emit newParameter(name+"="+QString::number(value));
     }
+
+signals:
+    void newParameter(QString parameter);
+    void newParameter(double value);
 };
 
 class Function : public QWidget
@@ -219,6 +225,8 @@ public:
     Function(QWidget *parent = 0)
         : QWidget(parent)
     {
+        likely_matrix_initialize(&input);
+
         if (functionNames == NULL) {
             const char **function_names;
             int num_functions;
@@ -239,8 +247,6 @@ public:
 
         connect(functionName, SIGNAL(currentIndexChanged(QString)), this, SLOT(updateParameters(QString)));
         functionName->setModel(functionNames);
-
-        likely_matrix_initialize(&input);
     }
 
 public slots:
@@ -304,16 +310,30 @@ private slots:
         while (parameters.size() < num_parameters) {
             parameters.append(new Parameter());
             layout->addWidget(parameters.last());
+            connect(parameters.last(), SIGNAL(newParameter(QString)), this, SIGNAL(newParameter(QString)));
+            connect(parameters.last(), SIGNAL(newParameter(double)), this, SLOT(compile()));
         }
 
         for (int i=0; i<num_parameters; i++)
             parameters[i]->reset(strings[i], defaults[i]);
+        compile();
+    }
+
+    void compile()
+    {
+        QStringList parameterValues; parameterValues.reserve(parameters.size());
+        foreach (const Parameter *parameter, parameters)
+            parameterValues.append(parameter->argument());
+        const QString description = functionName->currentText()+"("+parameterValues.join(',')+")";
+        function = likely_make_unary_function(qPrintable(description));
+        compute();
     }
 
 signals:
     void newMatrixView(QImage image);
     void newHash(QString hash);
     void newDimensions(QString dimensions);
+    void newParameter(QString parameter);
 };
 
 QStringListModel *Function::functionNames = NULL;
@@ -405,15 +425,19 @@ int main(int argc, char *argv[])
     QWidget *centralWidget = new QWidget();
     centralWidget->setLayout(centralWidgetLayout);
 
+    StatusLabel *parameter = new StatusLabel("parameter");
     StatusLabel *hash = new StatusLabel("hash");
     StatusLabel *dimensions = new StatusLabel("dimensions");
     StatusLabel *position = new StatusLabel("position");
     StatusLabel *color = new StatusLabel("color");
+    QObject::connect(engine, SIGNAL(newParameter(QString)), parameter, SLOT(setText(QString)));
     QObject::connect(engine, SIGNAL(newHash(QString)), hash, SLOT(setText(QString)));
     QObject::connect(engine, SIGNAL(newDimensions(QString)), dimensions, SLOT(setText(QString)));
     QObject::connect(matrixViewer, SIGNAL(newPosition(QString)), position, SLOT(setText(QString)));
     QObject::connect(matrixViewer, SIGNAL(newColor(QString)), color, SLOT(setText(QString)));
     QStatusBar *statusBar = new QStatusBar();
+    statusBar->addPermanentWidget(parameter);
+    statusBar->addPermanentWidget(new QWidget(), 1);
     statusBar->addPermanentWidget(hash);
     statusBar->addPermanentWidget(dimensions);
     statusBar->addPermanentWidget(position);
