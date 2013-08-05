@@ -120,14 +120,12 @@ public:
     {
         this->name = name;
         this->value = value.toDouble();
-        updateValue();
+        setText(value);
     }
 
     QString argument() const { return QString::number(value); }
 
 private:
-    void updateValue() { setText("<font color=\"blue\">"+QString::number(value)+"</font>"); }
-
     void enterEvent(QEvent *event)
     {
         static QPixmap cursor;
@@ -171,7 +169,7 @@ private:
 
         value += delta;
         wheelRemainder = wheelRemainder % 120;
-        updateValue();
+        setText(QString::number(value));
         emit newParameter(value);
         emit newParameter(name+"="+QString::number(value));
     }
@@ -181,13 +179,53 @@ signals:
     void newParameter(double value);
 };
 
+class ShyLabel : public QLabel
+{
+    Q_OBJECT
+
+public:
+    ShyLabel(QWidget *parent = 0)
+        : QLabel(parent) {}
+
+public slots:
+    void setText(const QString &string)
+    {
+        QLabel::setText(string);
+        setVisible(true);
+    }
+
+private:
+    void mousePressEvent(QMouseEvent *mouseEvent)
+    {
+        mouseEvent->accept();
+        setVisible(false);
+        emit hiding();
+    }
+
+signals:
+    void hiding();
+};
+
+class ShyComboBox : public QComboBox
+{
+    Q_OBJECT
+
+public:
+    ShyComboBox(QWidget *parent = 0)
+        : QComboBox(parent)
+    {
+        connect(this, SIGNAL(currentIndexChanged(QString)), this, SLOT(hide()));
+    }
+};
+
 class Function : public QWidget
 {
     Q_OBJECT
     static QStringListModel *functionNames;
 
     QHBoxLayout *layout;
-    QComboBox *functionName;
+    ShyLabel *functionName;
+    ShyComboBox *functionChooser;
     QList<Parameter*> parameters;
 
     likely_matrix input;
@@ -209,16 +247,19 @@ public:
 
         likely_matrix_initialize(&input);
 
-        functionName = new QComboBox(this);
-        functionName->setEditable(true);
-        functionName->setFrame(false);
-        functionName->setInsertPolicy(QComboBox::NoInsert);
-
+        functionName = new ShyLabel(this);
+        functionChooser = new ShyComboBox(this);
+        functionChooser->setEditable(true);
+        functionChooser->setInsertPolicy(QComboBox::NoInsert);
+        functionChooser->setVisible(false);
         layout = new QHBoxLayout(this);
         layout->addWidget(functionName);
+        layout->addWidget(functionChooser);
 
-        connect(functionName, SIGNAL(currentIndexChanged(QString)), this, SLOT(updateParameters(QString)));
-        functionName->setModel(functionNames);
+        connect(functionName, SIGNAL(hiding()), functionChooser, SLOT(show()));
+        connect(functionChooser, SIGNAL(currentIndexChanged(QString)), this, SLOT(updateParameters(QString)));
+        connect(functionChooser, SIGNAL(currentIndexChanged(QString)), functionName, SLOT(setText(QString)));
+        functionChooser->setModel(functionNames);
     }
 
 public slots:
@@ -296,7 +337,7 @@ private slots:
         QStringList parameterValues; parameterValues.reserve(parameters.size());
         foreach (const Parameter *parameter, parameters)
             parameterValues.append(parameter->argument());
-        const QString description = functionName->currentText()+"("+parameterValues.join(',')+")";
+        const QString description = functionChooser->currentText()+"("+parameterValues.join(',')+")";
         function = likely_make_unary_function(qPrintable(description));
         compute();
     }
