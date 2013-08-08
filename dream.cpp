@@ -115,7 +115,7 @@ class ShyLabel : public QLabel
 
 public:
     ShyLabel(QWidget *parent = 0)
-        : QLabel(parent) {}
+        : QLabel(parent) { setCursor(Qt::IBeamCursor); }
 
 private:
     void mousePressEvent(QMouseEvent *mouseEvent)
