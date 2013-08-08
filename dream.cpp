@@ -108,56 +108,21 @@ signals:
     void newColor(QString color);
 };
 
-class Parameter : public QLabel
+class ShyLabel : public QLabel
 {
     Q_OBJECT
-    QString name;
-    double value = 0;
     int wheelRemainder = 0;
 
 public:
-    void reset(const QString &name, const QString &value)
-    {
-        this->name = name;
-        this->value = value.toDouble();
-        setText(value);
-    }
-
-    QString argument() const { return QString::number(value); }
+    ShyLabel(QWidget *parent = 0)
+        : QLabel(parent) {}
 
 private:
-    void enterEvent(QEvent *event)
+    void mousePressEvent(QMouseEvent *mouseEvent)
     {
-        static QPixmap cursor;
-        if (cursor.isNull()) {
-            cursor = QPixmap(32, 32);
-            QPainter painter(&cursor);
-            painter.setRenderHint(QPainter::Antialiasing);
-            painter.setBrush(Qt::red);
-            painter.setPen(Qt::red);
-            painter.drawEllipse(-3, -3, 6, 6);
-            painter.end();
-            QBitmap mask(32, 32);
-            mask.clear();
-            painter.begin(&mask);
-            painter.setRenderHint(QPainter::Antialiasing, false);
-            painter.setBrush(Qt::color1);
-            painter.setPen(Qt::color1);
-            painter.drawEllipse(-3, -3, 6, 6);
-            painter.end();
-            cursor.setMask(mask);
-        }
-
-        event->accept();
-        setCursor(QCursor(cursor, 0, 0));
-        emit newParameter(name+"="+QString::number(value));
-    }
-
-    void leaveEvent(QEvent *event)
-    {
-        event->accept();
-        unsetCursor();
-        emit newParameter(QString());
+        mouseEvent->accept();
+        hide();
+        emit hiding();
     }
 
     void wheelEvent(QWheelEvent *wheelEvent)
@@ -165,45 +130,15 @@ private:
         wheelEvent->accept();
         wheelRemainder += wheelEvent->angleDelta().x() - wheelEvent->angleDelta().y();
         const int delta = wheelRemainder / 120;
-        if (delta == 0) return;
-
-        value += delta;
-        wheelRemainder = wheelRemainder % 120;
-        setText(QString::number(value));
-        emit newParameter(value);
-        emit newParameter(name+"="+QString::number(value));
-    }
-
-signals:
-    void newParameter(QString parameter);
-    void newParameter(double value);
-};
-
-class ShyLabel : public QLabel
-{
-    Q_OBJECT
-
-public:
-    ShyLabel(QWidget *parent = 0)
-        : QLabel(parent) {}
-
-public slots:
-    void setText(const QString &string)
-    {
-        QLabel::setText(string);
-        setVisible(true);
-    }
-
-private:
-    void mousePressEvent(QMouseEvent *mouseEvent)
-    {
-        mouseEvent->accept();
-        setVisible(false);
-        emit hiding();
+        if (delta != 0) {
+            wheelRemainder = wheelRemainder % 120;
+            emit change(delta);
+        }
     }
 
 signals:
     void hiding();
+    void change(int delta);
 };
 
 class ShyComboBox : public QComboBox
@@ -215,7 +150,63 @@ public:
         : QComboBox(parent)
     {
         connect(this, SIGNAL(currentIndexChanged(QString)), this, SLOT(hide()));
+        connect(this, SIGNAL(currentIndexChanged(QString)), this, SIGNAL(hiding()));
     }
+
+public slots:
+    void change(int delta)
+    {
+        setCurrentIndex(qMin(qMax(currentIndex() + delta, 0), count()-1));
+    }
+
+    void show()
+    {
+        QComboBox::show();
+        setFocus();
+    }
+
+private:
+    void focusOutEvent(QFocusEvent *focusEvent)
+    {
+        QComboBox::focusOutEvent(focusEvent);
+        if ((focusEvent->reason() != Qt::PopupFocusReason) &&
+            (focusEvent->reason() != Qt::OtherFocusReason)) {
+            focusEvent->accept();
+            hide();
+            emit hiding();
+        }
+    }
+
+signals:
+    void hiding();
+};
+
+class ShyDoubleSpinBox : public QDoubleSpinBox
+{
+    Q_OBJECT
+
+public slots:
+    void change(int delta)
+    {
+        setValue(value() + delta);
+    }
+
+    void show()
+    {
+        QDoubleSpinBox::show();
+        setFocus();
+    }
+
+private:
+    void focusOutEvent(QFocusEvent *event)
+    {
+        event->accept();
+        hide();
+        emit hiding();
+    }
+
+signals:
+    void hiding();
 };
 
 class Function : public QWidget
@@ -226,7 +217,8 @@ class Function : public QWidget
     QHBoxLayout *layout;
     ShyLabel *functionName;
     ShyComboBox *functionChooser;
-    QList<Parameter*> parameters;
+    QList<ShyLabel*> parameterValues;
+    QList<ShyDoubleSpinBox*> parameterChoosers;
 
     likely_matrix input;
     likely_unary_function function = NULL;
@@ -257,8 +249,10 @@ public:
         layout->addWidget(functionChooser);
 
         connect(functionName, SIGNAL(hiding()), functionChooser, SLOT(show()));
+        connect(functionChooser, SIGNAL(hiding()), functionName, SLOT(show()));
         connect(functionChooser, SIGNAL(currentIndexChanged(QString)), this, SLOT(updateParameters(QString)));
         connect(functionChooser, SIGNAL(currentIndexChanged(QString)), functionName, SLOT(setText(QString)));
+        connect(functionName, SIGNAL(change(int)), functionChooser, SLOT(change(int)));
         functionChooser->setModel(functionNames);
     }
 
@@ -316,28 +310,41 @@ private slots:
         for (int i=0; i<num_parameters; i++)
             strings.append(parameter_names[i]);
 
-        while (parameters.size() > num_parameters) {
-            layout->removeWidget(parameters.last());
-            delete parameters.takeLast();
-        }
-        while (parameters.size() < num_parameters) {
-            parameters.append(new Parameter());
-            layout->addWidget(parameters.last());
-            connect(parameters.last(), SIGNAL(newParameter(QString)), this, SIGNAL(newParameter(QString)));
-            connect(parameters.last(), SIGNAL(newParameter(double)), this, SLOT(compile()));
+        while (parameterValues.size() > num_parameters) {
+            layout->removeWidget(parameterValues.last());
+            layout->removeWidget(parameterChoosers.last());
+            delete parameterValues.takeLast();
+            delete parameterChoosers.takeLast();
         }
 
-        for (int i=0; i<num_parameters; i++)
-            parameters[i]->reset(strings[i], defaults[i]);
+        while (parameterValues.size() < num_parameters) {
+            ShyLabel *value = new ShyLabel();
+            ShyDoubleSpinBox *chooser = new ShyDoubleSpinBox();
+            chooser->hide();
+            parameterValues.append(value);
+            parameterChoosers.append(chooser);
+            layout->addWidget(value);
+            layout->addWidget(chooser);
+            connect(value, SIGNAL(hiding()), chooser, SLOT(show()));
+            connect(chooser, SIGNAL(hiding()), value, SLOT(show()));
+            connect(chooser, SIGNAL(valueChanged(QString)), value, SLOT(setText(QString)));
+            connect(chooser, SIGNAL(valueChanged(QString)), this, SLOT(compile()));
+            connect(value, SIGNAL(change(int)), chooser, SLOT(change(int)));
+        }
+
+        for (int i=0; i<num_parameters; i++) {
+            parameterValues[i]->setText(defaults[i]);
+            parameterChoosers[i]->setValue(QString(defaults[i]).toDouble());
+        }
         compile();
     }
 
     void compile()
     {
-        QStringList parameterValues; parameterValues.reserve(parameters.size());
-        foreach (const Parameter *parameter, parameters)
-            parameterValues.append(parameter->argument());
-        const QString description = functionChooser->currentText()+"("+parameterValues.join(',')+")";
+        QStringList arguments; arguments.reserve(arguments.size());
+        foreach (const ShyLabel *parameterValue, parameterValues)
+            arguments.append(parameterValue->text());
+        const QString description = functionChooser->currentText()+"("+arguments.join(',')+")";
         function = likely_make_unary_function(qPrintable(description));
         compute();
     }
