@@ -159,9 +159,9 @@ public slots:
         setCurrentIndex(qMin(qMax(currentIndex() + delta, 0), count()-1));
     }
 
-    void show()
+    void showEvent(QShowEvent *showEvent)
     {
-        QComboBox::show();
+        showEvent->accept();
         setFocus();
     }
 
@@ -191,9 +191,9 @@ public slots:
         setValue(value() + delta);
     }
 
-    void show()
+    void showEvent(QShowEvent *showEvent)
     {
-        QDoubleSpinBox::show();
+        showEvent->accept();
         setFocus();
     }
 
