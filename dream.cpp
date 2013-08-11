@@ -346,8 +346,12 @@ private slots:
             connect(chooser, SIGNAL(valueChanged(QString)), this, SLOT(compile()));
         }
 
-        for (int i=0; i<num_parameters; i++)
+        for (int i=0; i<num_parameters; i++) {
             parameterChoosers[i]->setValue(QString(defaults[i]).toDouble());
+            if (i == 0) setTabOrder(functionChooser, parameterChoosers[i]);
+            else        setTabOrder(parameterChoosers[i-1], parameterChoosers[i]);
+            if (i == num_parameters-1) setTabOrder(parameterChoosers[i], functionChooser);
+        }
 
         compile();
     }
@@ -448,7 +452,6 @@ int main(int argc, char *argv[])
     QGridLayout *centralWidgetLayout = new QGridLayout();
     QScrollArea *matrixViewerScrollArea = new QScrollArea();
     matrixViewerScrollArea->setAlignment(Qt::AlignCenter);
-    matrixViewerScrollArea->setFocusPolicy(Qt::WheelFocus);
     matrixViewerScrollArea->setFrameShape(QFrame::NoFrame);
     matrixViewerScrollArea->setWidget(matrixViewer);
     centralWidgetLayout->addWidget(engine, 0, 0);
