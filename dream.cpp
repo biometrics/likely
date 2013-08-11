@@ -19,75 +19,61 @@
 #include "likely.h"
 
 class MatrixViewer : public QLabel
-{
-    Q_OBJECT
+  { Q_OBJECT
     QImage src;
     int zoomLevel = 0;
 
 public:
-    explicit MatrixViewer(QWidget *parent = 0)
-        : QLabel(parent)
-    {
-        setAcceptDrops(true);
+    explicit MatrixViewer(QWidget *parent = 0) : QLabel(parent)
+      { setAcceptDrops(true);
         setAlignment(Qt::AlignCenter);
         setMouseTracking(true);
-        updatePixmap();
-    }
+        updatePixmap(); }
 
 public slots:
     void setImage(const QImage &image) { src = image; updatePixmap(); }
-    void zoomIn() { if (++zoomLevel > 4) zoomLevel = 4; else updatePixmap(); }
+    void zoomIn()  { if (++zoomLevel >  4) zoomLevel = 4;  else updatePixmap(); }
     void zoomOut() { if (--zoomLevel < -4) zoomLevel = -4; else updatePixmap(); }
 
 private:
     void dragEnterEvent(QDragEnterEvent *event)
-    {
-        event->accept();
+      { event->accept();
         if (event->mimeData()->hasUrls() || event->mimeData()->hasImage())
-            event->acceptProposedAction();
-    }
+            event->acceptProposedAction(); }
 
     void dropEvent(QDropEvent *event)
-    {
-        event->accept();
+      { event->accept();
         event->acceptProposedAction();
         const QMimeData *mimeData = event->mimeData();
-        if (mimeData->hasImage()) {
-            emit newMatrix(qvariant_cast<QImage>(mimeData->imageData()));
-        } else if (mimeData->hasUrls()) {
-            foreach (const QUrl &url, mimeData->urls()) {
-                if (!url.isValid()) continue;
+        if (mimeData->hasImage())
+          { emit newMatrix(qvariant_cast<QImage>(mimeData->imageData())); }
+        else if (mimeData->hasUrls())
+          { foreach (const QUrl &url, mimeData->urls())
+              { if (!url.isValid()) continue;
                 const QString localFile = url.toLocalFile();
                 if (localFile.isNull()) continue;
                 emit newMatrix(QImage(localFile));
-                break;
-            }
-        }
-    }
+                break; } } }
 
     void leaveEvent(QEvent *event) { event->accept(); queryPoint(QPoint(-1, -1)); }
     void mouseMoveEvent(QMouseEvent *mouseEvent) { mouseEvent->accept(); queryPoint(mouseEvent->pos() / pow(2, zoomLevel)); }
 
     void updatePixmap()
-    {
-        if (src.isNull()) {
-            clear();
+      { if (src.isNull())
+          { clear();
             setText("<b>Drag and Drop Image Here</b>");
             resize(512, 512);
             queryPoint(QPoint(-1, -1));
-            setFrameShape(QFrame::StyledPanel);
-        } else {
-            const QSize newSize = src.size() * pow(2, zoomLevel);
+            setFrameShape(QFrame::StyledPanel); }
+        else
+          { const QSize newSize = src.size() * pow(2, zoomLevel);
             setPixmap(QPixmap::fromImage(src.scaled(newSize, Qt::KeepAspectRatio)));
             resize(newSize);
             queryPoint(mapFromGlobal(QCursor::pos()) / pow(2, zoomLevel));
-            setFrameShape(QFrame::NoFrame);
-        }
-    }
+            setFrameShape(QFrame::NoFrame); } }
 
     void queryPoint(const QPoint &point)
-    {
-        if (src.rect().contains(point)) {
+      { if (src.rect().contains(point)) {
             const QRgb pixel = src.pixel(point);
             emit newPosition(QString("%1,%2")
                              .arg(QString::number(point.x()),
@@ -99,151 +85,111 @@ private:
         } else {
             emit newPosition("");
             emit newColor("");
-        }
-    }
+        } }
 
 signals:
     void newMatrix(QImage image);
     void newPosition(QString position);
-    void newColor(QString color);
-};
+    void newColor(QString color); };
 
 class ShyLabel : public QLabel
-{
-    Q_OBJECT
+  { Q_OBJECT
     int wheelRemainder = 0;
 
 public:
-    ShyLabel(QWidget *parent = 0)
-        : QLabel(parent) { setCursor(Qt::IBeamCursor); setFocusPolicy(Qt::StrongFocus); }
+    ShyLabel(QWidget *parent = 0) : QLabel(parent)
+      { setCursor(Qt::IBeamCursor);
+        setFocusPolicy(Qt::StrongFocus); }
 
 private:
     void focusInEvent(QFocusEvent *focusEvent)
-    {
-        focusEvent->accept();
-        emit focus();
-    }
+      { focusEvent->accept();
+        emit focus();}
 
     void wheelEvent(QWheelEvent *wheelEvent)
-    {
-        wheelEvent->accept();
+      { wheelEvent->accept();
         wheelRemainder += wheelEvent->angleDelta().x() + wheelEvent->angleDelta().y();
         const int delta = wheelRemainder / 120;
-        if (delta != 0) {
-            wheelRemainder = wheelRemainder % 120;
-            emit change(delta);
-        }
-    }
+        if (delta != 0)
+          { wheelRemainder = wheelRemainder % 120;
+            emit change(delta); } }
 
 signals:
     void focus();
-    void change(int delta);
-};
+    void change(int delta); };
 
 class ShyComboBox : public QComboBox
-{
-    Q_OBJECT
+  { Q_OBJECT
     ShyLabel *shyLabel;
 
 public:
-    ShyComboBox(QWidget *parent = 0)
-        : QComboBox(parent)
-    {
-        shyLabel = new ShyLabel(this);
+    ShyComboBox(QWidget *parent = 0) : QComboBox(parent)
+      { shyLabel = new ShyLabel(this);
         setEditable(true);
         setInsertPolicy(QComboBox::NoInsert);
         connect(this, SIGNAL(currentIndexChanged(QString)), shyLabel, SLOT(setText(QString)));
         connect(shyLabel, SIGNAL(focus()), this, SLOT(show()));
         connect(shyLabel, SIGNAL(change(int)), this, SLOT(change(int)));
-        hide();
-    }
+        hide(); }
 
-    ~ShyComboBox() { delete shyLabel; }
-
+    ~ShyComboBox()         { delete shyLabel; }
     QWidget *proxy() const { return shyLabel; }
 
 public slots:
-    void change(int delta)
-    {
-        setCurrentIndex(qMin(qMax(currentIndex() - delta, 0), count()-1));
-    }
+    void change(int delta) { setCurrentIndex(qMin(qMax(currentIndex() - delta, 0), count()-1)); }
 
     void hide()
-    {
-        QComboBox::hide();
-        shyLabel->show();
-    }
+      { QComboBox::hide();
+        shyLabel->show(); }
 
     void show()
-    {
-        QComboBox::show();
+      { QComboBox::show();
         shyLabel->hide();
-        setFocus();
-    }
+        setFocus(); }
 
 private:
     void focusOutEvent(QFocusEvent *focusEvent)
-    {
-        QComboBox::focusOutEvent(focusEvent);
+      { QComboBox::focusOutEvent(focusEvent);
         if ((focusEvent->reason() != Qt::PopupFocusReason) &&
-            (focusEvent->reason() != Qt::OtherFocusReason)) {
-            focusEvent->accept();
-            hide();
-        }
-    }
-};
+            (focusEvent->reason() != Qt::OtherFocusReason))
+          { focusEvent->accept();
+            hide(); } } };
 
 class ShyDoubleSpinBox : public QDoubleSpinBox
-{
-    Q_OBJECT
+  { Q_OBJECT
     ShyLabel *shyLabel;
 
- public:
-    ShyDoubleSpinBox(QWidget *parent = 0)
-        : QDoubleSpinBox(parent)
-    {
-        shyLabel = new ShyLabel(this);
+public:
+    ShyDoubleSpinBox(QWidget *parent = 0) : QDoubleSpinBox(parent)
+      { shyLabel = new ShyLabel(this);
         connect(this, SIGNAL(valueChanged(QString)), shyLabel, SLOT(setText(QString)));
         connect(shyLabel, SIGNAL(focus()), this, SLOT(show()));
         connect(shyLabel, SIGNAL(change(int)), this, SLOT(change(int)));
         shyLabel->setText(QString::number(value()));
-        hide();
-    }
+        hide(); }
 
-    ~ShyDoubleSpinBox() { delete shyLabel; }
-
+    ~ShyDoubleSpinBox()    { delete shyLabel; }
     QWidget *proxy() const { return shyLabel; }
 
 public slots:
-    void change(int delta)
-    {
-        setValue(value() + delta);
-    }
+    void change(int delta) { setValue(value() + delta); }
 
     void hide()
-    {
-        QDoubleSpinBox::hide();
-        shyLabel->show();
-    }
+      { QDoubleSpinBox::hide();
+        shyLabel->show(); }
 
     void show()
-    {
-        QDoubleSpinBox::show();
+      { QDoubleSpinBox::show();
         shyLabel->hide();
-        setFocus();
-    }
+        setFocus(); }
 
 private:
     void focusOutEvent(QFocusEvent *event)
-    {
-        event->accept();
-        hide();
-    }
-};
+      { event->accept();
+        hide(); } };
 
 class Function : public QWidget
-{
-    Q_OBJECT
+  { Q_OBJECT
     static QStringListModel *functionNames;
 
     QHBoxLayout *layout;
@@ -254,18 +200,15 @@ class Function : public QWidget
     likely_unary_function function = NULL;
 
 public:
-    Function(QWidget *parent = 0)
-        : QWidget(parent)
-    {
-        if (functionNames == NULL) {
-            const char **function_names;
+    Function(QWidget *parent = 0) : QWidget(parent)
+      { if (functionNames == NULL)
+          { const char **function_names;
             int num_functions;
             likely_functions(&function_names, &num_functions);
             QStringList strings; strings.reserve(num_functions);
             for (int i=0; i<num_functions; i++)
                 strings.append(function_names[i]);
-            functionNames = new QStringListModel(strings);
-        }
+            functionNames = new QStringListModel(strings); }
 
         likely_matrix_initialize(&input);
 
@@ -275,39 +218,31 @@ public:
         layout->addWidget(functionChooser);
 
         connect(functionChooser, SIGNAL(currentIndexChanged(QString)), this, SLOT(updateParameters(QString)));
-        functionChooser->setModel(functionNames);
-    }
+        functionChooser->setModel(functionNames); }
 
 public slots:
     void setInput(const QImage &image)
-    {
-        likely_free(&input);
-        if (!image.isNull()) {
-            likely_matrix_initialize(&input, likely_hash_u8, 3, image.width(), image.height(), 1);
+      { likely_free(&input);
+        if (!image.isNull())
+          { likely_matrix_initialize(&input, likely_hash_u8, 3, image.width(), image.height(), 1);
             likely_allocate(&input);
-            memcpy(input.data, image.constBits(), likely_bytes(&input));
-        }
-        compute();
-    }
+            memcpy(input.data, image.constBits(), likely_bytes(&input)); }
+        compute(); }
 
     void setInput(QAction *action)
-    {
-        QString file;
+      { QString file;
         if      (action->text() == "New...")  file = "";
         else if (action->text() == "Open...") file = QFileDialog::getOpenFileName(NULL, "Open File");
         else                                  file = action->data().toString();
-        setInput(file.isEmpty() ? QImage() : QImage(file).convertToFormat(QImage::Format_RGB888));
-    }
+        setInput(file.isEmpty() ? QImage() : QImage(file).convertToFormat(QImage::Format_RGB888)); }
 
 private:
     void compute()
-    {
-        if (input.data == NULL) {
-            emit newMatrixView(QImage());
+      { if (input.data == NULL)
+          { emit newMatrixView(QImage());
             emit newHash(QString());
             emit newDimensions(QString());
-            return;
-        }
+            return; }
 
         likely_matrix output;
         likely_matrix_initialize(&output);
@@ -319,59 +254,50 @@ private:
                            .arg(QString::number(input.channels),
                                 QString::number(input.rows),
                                 QString::number(input.columns),
-                                QString::number(input.frames)));
-    }
+                                QString::number(input.frames))); }
 
 private slots:
     void updateParameters(const QString &function)
-    {
-        const char **parameter_names, **defaults;
+      { const char **parameter_names, **defaults;
         int num_parameters;
         likely_parameters(qPrintable(function), &parameter_names, &num_parameters, &defaults);
         QStringList strings; strings.reserve(num_parameters);
         for (int i=0; i<num_parameters; i++)
             strings.append(parameter_names[i]);
 
-        while (parameterChoosers.size() > num_parameters) {
-            layout->removeWidget(parameterChoosers.last()->proxy());
+        while (parameterChoosers.size() > num_parameters)
+          { layout->removeWidget(parameterChoosers.last()->proxy());
             layout->removeWidget(parameterChoosers.last());
-            delete parameterChoosers.takeLast();
-        }
+            delete parameterChoosers.takeLast(); }
 
-        while (parameterChoosers.size() < num_parameters) {
-            ShyDoubleSpinBox *chooser = new ShyDoubleSpinBox(this);
+        while (parameterChoosers.size() < num_parameters)
+          { ShyDoubleSpinBox *chooser = new ShyDoubleSpinBox(this);
             parameterChoosers.append(chooser);
             layout->addWidget(chooser->proxy());
             layout->addWidget(chooser);
-            connect(chooser, SIGNAL(valueChanged(QString)), this, SLOT(compile()));
-        }
+            connect(chooser, SIGNAL(valueChanged(QString)), this, SLOT(compile())); }
 
-        for (int i=0; i<num_parameters; i++) {
-            parameterChoosers[i]->setValue(QString(defaults[i]).toDouble());
+        for (int i=0; i<num_parameters; i++)
+          { parameterChoosers[i]->setValue(QString(defaults[i]).toDouble());
             if (i == 0) setTabOrder(functionChooser, parameterChoosers[i]);
             else        setTabOrder(parameterChoosers[i-1], parameterChoosers[i]);
-            if (i == num_parameters-1) setTabOrder(parameterChoosers[i], functionChooser);
-        }
+            if (i == num_parameters-1) setTabOrder(parameterChoosers[i], functionChooser); }
 
-        compile();
-    }
+        compile(); }
 
     void compile()
-    {
-        QStringList arguments; arguments.reserve(arguments.size());
+      { QStringList arguments; arguments.reserve(arguments.size());
         foreach (const ShyDoubleSpinBox *parameterChooser, parameterChoosers)
             arguments.append(QString::number(parameterChooser->value()));
         const QString description = functionChooser->currentText()+"("+arguments.join(',')+")";
         function = likely_make_unary_function(qPrintable(description));
-        compute();
-    }
+        compute(); }
 
 signals:
     void newMatrixView(QImage image);
     void newHash(QString hash);
     void newDimensions(QString dimensions);
-    void newParameter(QString parameter);
-};
+    void newParameter(QString parameter); };
 
 QStringListModel *Function::functionNames = NULL;
 
@@ -382,36 +308,27 @@ class StatusLabel : public QLabel
 
 public:
     StatusLabel(const QString &description)
-    {
-        this->description = description;
+      { this->description = description;
         setToolTip(description);
-        setDescription();
-    }
+        setDescription(); }
 
 public slots:
     void setText(const QString &text)
-    {
-        if (text.isEmpty()) setDescription();
-        else { setEnabled(true); QLabel::setText(text); }
-    }
+      { if (text.isEmpty()) setDescription();
+        else { setEnabled(true); QLabel::setText(text); } }
 
 private:
     void setDescription()
-    {
-        setEnabled(false);
-        QLabel::setText(description);
-    }
+      { setEnabled(false);
+        QLabel::setText(description); }
 
     void resizeEvent(QResizeEvent *resizeEvent)
-    {
-        resizeEvent->accept();
-        setMinimumWidth(width());
-    }
+      { resizeEvent->accept();
+        setMinimumWidth(width()); }
 };
 
 int main(int argc, char *argv[])
-{
-    QApplication application(argc, argv);
+  { QApplication application(argc, argv);
 
     QMenu *fileMenu = new QMenu("File");
     QAction *newFile = new QAction("New...", fileMenu);
@@ -421,13 +338,12 @@ int main(int argc, char *argv[])
     fileMenu->addAction(newFile);
     fileMenu->addAction(openFile);
     fileMenu->addSeparator();
-    foreach (const QString &fileName, QDir(":/img").entryList(QDir::Files, QDir::Name)) {
-        const QString filePath = ":/img/"+fileName;
+    foreach (const QString &fileName, QDir(":/img").entryList(QDir::Files, QDir::Name))
+      { const QString filePath = ":/img/"+fileName;
         QAction *potentialFile = new QAction(QIcon(filePath), QFileInfo(filePath).baseName(), fileMenu);
         potentialFile->setData(filePath);
         potentialFile->setShortcut(QKeySequence("Ctrl+"+fileName.mid(0, 1)));
-        fileMenu->addAction(potentialFile);
-    }
+        fileMenu->addAction(potentialFile); }
 
     Function *engine = new Function();
     MatrixViewer *matrixViewer = new MatrixViewer();
@@ -487,7 +403,6 @@ int main(int argc, char *argv[])
     mainWindow.resize(800,600);
     mainWindow.show();
 
-    return application.exec();
-}
+    return application.exec(); }
 
 #include "dream.moc"
