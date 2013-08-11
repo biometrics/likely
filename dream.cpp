@@ -62,19 +62,18 @@ private:
             queryPoint(mapFromGlobal(QCursor::pos()) / pow(2, zoomLevel));
             setFrameShape(QFrame::NoFrame); } }
     void queryPoint(const QPoint &p)
-      { if (src.rect().contains(p)) {
-            const QRgb pixel = src.pixel(p);
+      { if (src.rect().contains(p))
+          { const QRgb pixel = src.pixel(p);
             emit newPosition(QString("%1,%2")
                              .arg(QString::number(p.x()),
                                   QString::number(p.y())));
             emit newColor(QString("<font color=\"red\">%1</font>,<font color=\"green\">%2</font>,<font color=\"blue\">%3</font>")
                           .arg(QString::number(qRed(pixel)),
                                QString::number(qGreen(pixel)),
-                               QString::number(qBlue(pixel))));
-        } else {
-            emit newPosition("");
-            emit newColor("");
-        } }
+                               QString::number(qBlue(pixel)))); }
+        else
+          { emit newPosition("");
+            emit newColor(""); } }
 signals:
     void newMatrix(QImage);
     void newPosition(QString);
