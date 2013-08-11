@@ -22,42 +22,32 @@ class MatrixViewer : public QLabel
   { Q_OBJECT
     QImage src;
     int zoomLevel = 0;
-
 public:
-    explicit MatrixViewer(QWidget *parent = 0) : QLabel(parent)
+    explicit MatrixViewer(QWidget *p = 0) : QLabel(p)
       { setAcceptDrops(true);
         setAlignment(Qt::AlignCenter);
         setMouseTracking(true);
         updatePixmap(); }
-
 public slots:
-    void setImage(const QImage &image) { src = image; updatePixmap(); }
-    void zoomIn()  { if (++zoomLevel >  4) zoomLevel = 4;  else updatePixmap(); }
+    void setImage(const QImage &i)             { src =  i;      updatePixmap(); }
+    void zoomIn()  { if (++zoomLevel >  4) zoomLevel =  4; else updatePixmap(); }
     void zoomOut() { if (--zoomLevel < -4) zoomLevel = -4; else updatePixmap(); }
-
 private:
-    void dragEnterEvent(QDragEnterEvent *event)
-      { event->accept();
-        if (event->mimeData()->hasUrls() || event->mimeData()->hasImage())
-            event->acceptProposedAction(); }
-
-    void dropEvent(QDropEvent *event)
-      { event->accept();
-        event->acceptProposedAction();
-        const QMimeData *mimeData = event->mimeData();
-        if (mimeData->hasImage())
-          { emit newMatrix(qvariant_cast<QImage>(mimeData->imageData())); }
-        else if (mimeData->hasUrls())
-          { foreach (const QUrl &url, mimeData->urls())
+    void dragEnterEvent(QDragEnterEvent *e) { e->accept(); if (e->mimeData()->hasUrls() || e->mimeData()->hasImage()) e->acceptProposedAction(); }
+    void dropEvent(QDropEvent *e)
+      { e->accept(); e->acceptProposedAction();
+        const QMimeData *md = e->mimeData();
+        if (md->hasImage())
+          { emit newMatrix(qvariant_cast<QImage>(md->imageData())); }
+        else if (md->hasUrls())
+          { foreach (const QUrl &url, md->urls())
               { if (!url.isValid()) continue;
-                const QString localFile = url.toLocalFile();
-                if (localFile.isNull()) continue;
-                emit newMatrix(QImage(localFile));
+                const QString file = url.toLocalFile();
+                if (file.isNull()) continue;
+                emit newMatrix(QImage(file));
                 break; } } }
-
-    void leaveEvent(QEvent *event) { event->accept(); queryPoint(QPoint(-1, -1)); }
-    void mouseMoveEvent(QMouseEvent *mouseEvent) { mouseEvent->accept(); queryPoint(mouseEvent->pos() / pow(2, zoomLevel)); }
-
+    void leaveEvent(QEvent *e) { e->accept(); queryPoint(QPoint(-1, -1)); }
+    void mouseMoveEvent(QMouseEvent *e) { e->accept(); queryPoint(e->pos() / pow(2, zoomLevel)); }
     void updatePixmap()
       { if (src.isNull())
           { clear();
@@ -71,13 +61,12 @@ private:
             resize(newSize);
             queryPoint(mapFromGlobal(QCursor::pos()) / pow(2, zoomLevel));
             setFrameShape(QFrame::NoFrame); } }
-
-    void queryPoint(const QPoint &point)
-      { if (src.rect().contains(point)) {
-            const QRgb pixel = src.pixel(point);
+    void queryPoint(const QPoint &p)
+      { if (src.rect().contains(p)) {
+            const QRgb pixel = src.pixel(p);
             emit newPosition(QString("%1,%2")
-                             .arg(QString::number(point.x()),
-                                  QString::number(point.y())));
+                             .arg(QString::number(p.x()),
+                                  QString::number(p.y())));
             emit newColor(QString("<font color=\"red\">%1</font>,<font color=\"green\">%2</font>,<font color=\"blue\">%3</font>")
                           .arg(QString::number(qRed(pixel)),
                                QString::number(qGreen(pixel)),
@@ -86,11 +75,10 @@ private:
             emit newPosition("");
             emit newColor("");
         } }
-
 signals:
-    void newMatrix(QImage image);
-    void newPosition(QString position);
-    void newColor(QString color); };
+    void newMatrix(QImage);
+    void newPosition(QString);
+    void newColor(QString); };
 
 class ShyLabel : public QLabel
   { Q_OBJECT
