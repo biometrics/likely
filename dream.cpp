@@ -94,17 +94,37 @@ signals:
 
 class ShyLabel : public QLabel
   { Q_OBJECT
+    QString name;
     int wheelRemainder = 0;
 
 public:
-    ShyLabel(QWidget *parent = 0) : QLabel(parent)
+    bool in = false;
+
+    ShyLabel(const QString &name_, QWidget *parent = 0) : QLabel(parent), name(name_)
       { setCursor(Qt::IBeamCursor);
         setFocusPolicy(Qt::StrongFocus); }
 
+    void setName(const QString &name_) { name = name_; }
+
+public slots:
+    void setText(const QString &text)
+      { QLabel::setText(text);
+        if (in) emit newParameter(name+" = "+text); }
+
 private:
+    void enterEvent(QEvent *event)
+      { event->accept();
+        emit newParameter(name+" = "+text());
+        in = true; }
+
     void focusInEvent(QFocusEvent *focusEvent)
       { focusEvent->accept();
         emit focus();}
+
+    void leaveEvent(QEvent *event)
+      { event->accept();
+        emit newParameter("");
+        in = false; }
 
     void wheelEvent(QWheelEvent *wheelEvent)
       { wheelEvent->accept();
@@ -115,21 +135,24 @@ private:
             emit change(delta); } }
 
 signals:
+    void change(int delta);
     void focus();
-    void change(int delta); };
+    void newParameter(QString parameter); };
 
 class ShyComboBox : public QComboBox
   { Q_OBJECT
+    QString name;
     ShyLabel *shyLabel;
 
 public:
-    ShyComboBox(QWidget *parent = 0) : QComboBox(parent)
-      { shyLabel = new ShyLabel(this);
+    ShyComboBox(const QString &name_, QWidget *parent = 0) : QComboBox(parent), name(name_)
+      { shyLabel = new ShyLabel(name_, this);
         setEditable(true);
         setInsertPolicy(QComboBox::NoInsert);
         connect(this, SIGNAL(currentIndexChanged(QString)), shyLabel, SLOT(setText(QString)));
-        connect(shyLabel, SIGNAL(focus()), this, SLOT(show()));
         connect(shyLabel, SIGNAL(change(int)), this, SLOT(change(int)));
+        connect(shyLabel, SIGNAL(focus()), this, SLOT(show()));
+        connect(shyLabel, SIGNAL(newParameter(QString)), this, SIGNAL(newParameter(QString)));
         hide(); }
 
     ~ShyComboBox()         { delete shyLabel; }
@@ -148,28 +171,44 @@ public slots:
         setFocus(); }
 
 private:
+    void enterEvent(QEvent *event)
+      { event->accept();
+        emit newParameter(name+" = "+currentText());
+        shyLabel->in = true; }
+
     void focusOutEvent(QFocusEvent *focusEvent)
       { QComboBox::focusOutEvent(focusEvent);
         if ((focusEvent->reason() != Qt::PopupFocusReason) &&
             (focusEvent->reason() != Qt::OtherFocusReason))
           { focusEvent->accept();
-            hide(); } } };
+            hide(); } }
+
+    void leaveEvent(QEvent *event)
+      { event->accept();
+        emit newParameter("");
+        shyLabel->in = false; }
+
+signals:
+    void newParameter(QString parameter); };
 
 class ShyDoubleSpinBox : public QDoubleSpinBox
   { Q_OBJECT
+    QString name;
     ShyLabel *shyLabel;
 
 public:
-    ShyDoubleSpinBox(QWidget *parent = 0) : QDoubleSpinBox(parent)
-      { shyLabel = new ShyLabel(this);
+    ShyDoubleSpinBox(const QString &name_, QWidget *parent = 0) : QDoubleSpinBox(parent), name(name_)
+      { shyLabel = new ShyLabel(name_, this);
         connect(this, SIGNAL(valueChanged(QString)), shyLabel, SLOT(setText(QString)));
-        connect(shyLabel, SIGNAL(focus()), this, SLOT(show()));
         connect(shyLabel, SIGNAL(change(int)), this, SLOT(change(int)));
+        connect(shyLabel, SIGNAL(focus()), this, SLOT(show()));
+        connect(shyLabel, SIGNAL(newParameter(QString)), this, SIGNAL(newParameter(QString)));
         shyLabel->setText(QString::number(value()));
         hide(); }
 
     ~ShyDoubleSpinBox()    { delete shyLabel; }
     QWidget *proxy() const { return shyLabel; }
+    void setName(const QString &name_) { name = name_; shyLabel->setName(name_); }
 
 public slots:
     void change(int delta) { setValue(value() + delta); }
@@ -184,9 +223,22 @@ public slots:
         setFocus(); }
 
 private:
+    void enterEvent(QEvent *event)
+      { event->accept();
+        emit newParameter(name+" = "+text());
+        shyLabel->in = true; }
+
     void focusOutEvent(QFocusEvent *event)
       { event->accept();
-        hide(); } };
+        hide(); }
+
+    void leaveEvent(QEvent *event)
+      { event->accept();
+        emit newParameter("");
+        shyLabel->in = false; }
+
+signals:
+    void newParameter(QString parameter); };
 
 class Function : public QWidget
   { Q_OBJECT
@@ -212,12 +264,13 @@ public:
 
         likely_matrix_initialize(&input);
 
-        functionChooser = new ShyComboBox(this);
+        functionChooser = new ShyComboBox("function", this);
         layout = new QHBoxLayout(this);
         layout->addWidget(functionChooser->proxy());
         layout->addWidget(functionChooser);
 
         connect(functionChooser, SIGNAL(currentIndexChanged(QString)), this, SLOT(updateParameters(QString)));
+        connect(functionChooser, SIGNAL(newParameter(QString)), this, SIGNAL(newParameter(QString)));
         functionChooser->setModel(functionNames); }
 
 public slots:
@@ -271,14 +324,16 @@ private slots:
             delete parameterChoosers.takeLast(); }
 
         while (parameterChoosers.size() < num_parameters)
-          { ShyDoubleSpinBox *chooser = new ShyDoubleSpinBox(this);
+          { ShyDoubleSpinBox *chooser = new ShyDoubleSpinBox("", this);
             parameterChoosers.append(chooser);
             layout->addWidget(chooser->proxy());
             layout->addWidget(chooser);
-            connect(chooser, SIGNAL(valueChanged(QString)), this, SLOT(compile())); }
+            connect(chooser, SIGNAL(valueChanged(QString)), this, SLOT(compile()));
+            connect(chooser, SIGNAL(newParameter(QString)), this, SIGNAL(newParameter(QString))); }
 
         for (int i=0; i<num_parameters; i++)
-          { parameterChoosers[i]->setValue(QString(defaults[i]).toDouble());
+          { parameterChoosers[i]->setName(parameter_names[i]);
+            parameterChoosers[i]->setValue(QString(defaults[i]).toDouble());
             if (i == 0) setTabOrder(functionChooser, parameterChoosers[i]);
             else        setTabOrder(parameterChoosers[i-1], parameterChoosers[i]);
             if (i == num_parameters-1) setTabOrder(parameterChoosers[i], functionChooser); }
@@ -345,11 +400,11 @@ int main(int argc, char *argv[])
         potentialFile->setShortcut(QKeySequence("Ctrl+"+fileName.mid(0, 1)));
         fileMenu->addAction(potentialFile); }
 
-    Function *engine = new Function();
+    Function *function = new Function();
     MatrixViewer *matrixViewer = new MatrixViewer();
-    QObject::connect(engine, SIGNAL(newMatrixView(QImage)), matrixViewer, SLOT(setImage(QImage)));
-    QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), engine, SLOT(setInput(QImage)));
-    QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), engine, SLOT(setInput(QAction*)));
+    QObject::connect(function, SIGNAL(newMatrixView(QImage)), matrixViewer, SLOT(setImage(QImage)));
+    QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), function, SLOT(setInput(QImage)));
+    QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), function, SLOT(setInput(QAction*)));
 
     QMenu *viewMenu = new QMenu("View");
     QAction *zoomIn = new QAction("Zoom In", viewMenu);
@@ -370,7 +425,7 @@ int main(int argc, char *argv[])
     matrixViewerScrollArea->setAlignment(Qt::AlignCenter);
     matrixViewerScrollArea->setFrameShape(QFrame::NoFrame);
     matrixViewerScrollArea->setWidget(matrixViewer);
-    centralWidgetLayout->addWidget(engine, 0, 0);
+    centralWidgetLayout->addWidget(function, 0, 0);
     centralWidgetLayout->addWidget(matrixViewerScrollArea, 0, 1, 2, 1);
     centralWidgetLayout->setRowStretch(1, 1);
 
@@ -382,9 +437,9 @@ int main(int argc, char *argv[])
     StatusLabel *dimensions = new StatusLabel("dimensions");
     StatusLabel *position = new StatusLabel("position");
     StatusLabel *color = new StatusLabel("color");
-    QObject::connect(engine, SIGNAL(newParameter(QString)), parameter, SLOT(setText(QString)));
-    QObject::connect(engine, SIGNAL(newHash(QString)), hash, SLOT(setText(QString)));
-    QObject::connect(engine, SIGNAL(newDimensions(QString)), dimensions, SLOT(setText(QString)));
+    QObject::connect(function, SIGNAL(newParameter(QString)), parameter, SLOT(setText(QString)));
+    QObject::connect(function, SIGNAL(newHash(QString)), hash, SLOT(setText(QString)));
+    QObject::connect(function, SIGNAL(newDimensions(QString)), dimensions, SLOT(setText(QString)));
     QObject::connect(matrixViewer, SIGNAL(newPosition(QString)), position, SLOT(setText(QString)));
     QObject::connect(matrixViewer, SIGNAL(newColor(QString)), color, SLOT(setText(QString)));
     QStatusBar *statusBar = new QStatusBar();
