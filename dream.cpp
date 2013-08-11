@@ -115,20 +115,19 @@ class ShyLabel : public QLabel
 
 public:
     ShyLabel(QWidget *parent = 0)
-        : QLabel(parent) { setCursor(Qt::IBeamCursor); }
+        : QLabel(parent) { setCursor(Qt::IBeamCursor); setFocusPolicy(Qt::StrongFocus); }
 
 private:
-    void mousePressEvent(QMouseEvent *mouseEvent)
+    void focusInEvent(QFocusEvent *focusEvent)
     {
-        mouseEvent->accept();
-        hide();
-        emit hiding();
+        focusEvent->accept();
+        emit focus();
     }
 
     void wheelEvent(QWheelEvent *wheelEvent)
     {
         wheelEvent->accept();
-        wheelRemainder += wheelEvent->angleDelta().x() - wheelEvent->angleDelta().y();
+        wheelRemainder += wheelEvent->angleDelta().x() + wheelEvent->angleDelta().y();
         const int delta = wheelRemainder / 120;
         if (delta != 0) {
             wheelRemainder = wheelRemainder % 120;
@@ -137,31 +136,48 @@ private:
     }
 
 signals:
-    void hiding();
+    void focus();
     void change(int delta);
 };
 
 class ShyComboBox : public QComboBox
 {
     Q_OBJECT
+    ShyLabel *shyLabel;
 
 public:
     ShyComboBox(QWidget *parent = 0)
         : QComboBox(parent)
     {
-        connect(this, SIGNAL(currentIndexChanged(QString)), this, SLOT(hide()));
-        connect(this, SIGNAL(currentIndexChanged(QString)), this, SIGNAL(hiding()));
+        shyLabel = new ShyLabel(this);
+        setEditable(true);
+        setInsertPolicy(QComboBox::NoInsert);
+        connect(this, SIGNAL(currentIndexChanged(QString)), shyLabel, SLOT(setText(QString)));
+        connect(shyLabel, SIGNAL(focus()), this, SLOT(show()));
+        connect(shyLabel, SIGNAL(change(int)), this, SLOT(change(int)));
+        hide();
     }
+
+    ~ShyComboBox() { delete shyLabel; }
+
+    QWidget *proxy() const { return shyLabel; }
 
 public slots:
     void change(int delta)
     {
-        setCurrentIndex(qMin(qMax(currentIndex() + delta, 0), count()-1));
+        setCurrentIndex(qMin(qMax(currentIndex() - delta, 0), count()-1));
     }
 
-    void showEvent(QShowEvent *showEvent)
+    void hide()
     {
-        showEvent->accept();
+        QComboBox::hide();
+        shyLabel->show();
+    }
+
+    void show()
+    {
+        QComboBox::show();
+        shyLabel->hide();
         setFocus();
     }
 
@@ -173,17 +189,30 @@ private:
             (focusEvent->reason() != Qt::OtherFocusReason)) {
             focusEvent->accept();
             hide();
-            emit hiding();
         }
     }
-
-signals:
-    void hiding();
 };
 
 class ShyDoubleSpinBox : public QDoubleSpinBox
 {
     Q_OBJECT
+    ShyLabel *shyLabel;
+
+ public:
+    ShyDoubleSpinBox(QWidget *parent = 0)
+        : QDoubleSpinBox(parent)
+    {
+        shyLabel = new ShyLabel(this);
+        connect(this, SIGNAL(valueChanged(QString)), shyLabel, SLOT(setText(QString)));
+        connect(shyLabel, SIGNAL(focus()), this, SLOT(show()));
+        connect(shyLabel, SIGNAL(change(int)), this, SLOT(change(int)));
+        shyLabel->setText(QString::number(value()));
+        hide();
+    }
+
+    ~ShyDoubleSpinBox() { delete shyLabel; }
+
+    QWidget *proxy() const { return shyLabel; }
 
 public slots:
     void change(int delta)
@@ -191,9 +220,16 @@ public slots:
         setValue(value() + delta);
     }
 
-    void showEvent(QShowEvent *showEvent)
+    void hide()
     {
-        showEvent->accept();
+        QDoubleSpinBox::hide();
+        shyLabel->show();
+    }
+
+    void show()
+    {
+        QDoubleSpinBox::show();
+        shyLabel->hide();
         setFocus();
     }
 
@@ -202,11 +238,7 @@ private:
     {
         event->accept();
         hide();
-        emit hiding();
     }
-
-signals:
-    void hiding();
 };
 
 class Function : public QWidget
@@ -215,9 +247,7 @@ class Function : public QWidget
     static QStringListModel *functionNames;
 
     QHBoxLayout *layout;
-    ShyLabel *functionName;
     ShyComboBox *functionChooser;
-    QList<ShyLabel*> parameterValues;
     QList<ShyDoubleSpinBox*> parameterChoosers;
 
     likely_matrix input;
@@ -239,20 +269,12 @@ public:
 
         likely_matrix_initialize(&input);
 
-        functionName = new ShyLabel(this);
         functionChooser = new ShyComboBox(this);
-        functionChooser->setEditable(true);
-        functionChooser->setInsertPolicy(QComboBox::NoInsert);
-        functionChooser->setVisible(false);
         layout = new QHBoxLayout(this);
-        layout->addWidget(functionName);
+        layout->addWidget(functionChooser->proxy());
         layout->addWidget(functionChooser);
 
-        connect(functionName, SIGNAL(hiding()), functionChooser, SLOT(show()));
-        connect(functionChooser, SIGNAL(hiding()), functionName, SLOT(show()));
         connect(functionChooser, SIGNAL(currentIndexChanged(QString)), this, SLOT(updateParameters(QString)));
-        connect(functionChooser, SIGNAL(currentIndexChanged(QString)), functionName, SLOT(setText(QString)));
-        connect(functionName, SIGNAL(change(int)), functionChooser, SLOT(change(int)));
         functionChooser->setModel(functionNames);
     }
 
@@ -310,40 +332,31 @@ private slots:
         for (int i=0; i<num_parameters; i++)
             strings.append(parameter_names[i]);
 
-        while (parameterValues.size() > num_parameters) {
-            layout->removeWidget(parameterValues.last());
+        while (parameterChoosers.size() > num_parameters) {
+            layout->removeWidget(parameterChoosers.last()->proxy());
             layout->removeWidget(parameterChoosers.last());
-            delete parameterValues.takeLast();
             delete parameterChoosers.takeLast();
         }
 
-        while (parameterValues.size() < num_parameters) {
-            ShyLabel *value = new ShyLabel();
-            ShyDoubleSpinBox *chooser = new ShyDoubleSpinBox();
-            chooser->hide();
-            parameterValues.append(value);
+        while (parameterChoosers.size() < num_parameters) {
+            ShyDoubleSpinBox *chooser = new ShyDoubleSpinBox(this);
             parameterChoosers.append(chooser);
-            layout->addWidget(value);
+            layout->addWidget(chooser->proxy());
             layout->addWidget(chooser);
-            connect(value, SIGNAL(hiding()), chooser, SLOT(show()));
-            connect(chooser, SIGNAL(hiding()), value, SLOT(show()));
-            connect(chooser, SIGNAL(valueChanged(QString)), value, SLOT(setText(QString)));
             connect(chooser, SIGNAL(valueChanged(QString)), this, SLOT(compile()));
-            connect(value, SIGNAL(change(int)), chooser, SLOT(change(int)));
         }
 
-        for (int i=0; i<num_parameters; i++) {
-            parameterValues[i]->setText(defaults[i]);
+        for (int i=0; i<num_parameters; i++)
             parameterChoosers[i]->setValue(QString(defaults[i]).toDouble());
-        }
+
         compile();
     }
 
     void compile()
     {
         QStringList arguments; arguments.reserve(arguments.size());
-        foreach (const ShyLabel *parameterValue, parameterValues)
-            arguments.append(parameterValue->text());
+        foreach (const ShyDoubleSpinBox *parameterChooser, parameterChoosers)
+            arguments.append(QString::number(parameterChooser->value()));
         const QString description = functionChooser->currentText()+"("+arguments.join(',')+")";
         function = likely_make_unary_function(qPrintable(description));
         compute();
