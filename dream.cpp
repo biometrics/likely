@@ -85,8 +85,6 @@ class ShyLabel : public QLabel
     int wheelRemainder = 0;
 
 public:
-    bool in = false;
-
     ShyLabel(const QString &name_, QWidget *parent = 0) : QLabel(parent), name(name_)
       { setCursor(Qt::IBeamCursor);
         setFocusPolicy(Qt::StrongFocus); }
@@ -96,13 +94,12 @@ public:
 public slots:
     void setText(const QString &text)
       { QLabel::setText(text);
-        if (in) emit newParameter(name+" = "+text); }
+        if (rect().contains(mapFromGlobal(QCursor::pos())) || !isVisible()) emit newParameter(name+" = "+text); }
 
 private:
     void enterEvent(QEvent *event)
       { event->accept();
-        emit newParameter(name+" = "+text());
-        in = true; }
+        emit newParameter(name+" = "+text()); }
 
     void focusInEvent(QFocusEvent *focusEvent)
       { focusEvent->accept();
@@ -110,8 +107,7 @@ private:
 
     void leaveEvent(QEvent *event)
       { event->accept();
-        emit newParameter("");
-        in = false; }
+        emit newParameter(""); }
 
     void wheelEvent(QWheelEvent *wheelEvent)
       { wheelEvent->accept();
@@ -160,8 +156,7 @@ public slots:
 private:
     void enterEvent(QEvent *event)
       { event->accept();
-        emit newParameter(name+" = "+currentText());
-        shyLabel->in = true; }
+        emit newParameter(name+" = "+currentText()); }
 
     void focusOutEvent(QFocusEvent *focusEvent)
       { QComboBox::focusOutEvent(focusEvent);
@@ -172,8 +167,7 @@ private:
 
     void leaveEvent(QEvent *event)
       { event->accept();
-        emit newParameter("");
-        shyLabel->in = false; }
+        emit newParameter(""); }
 
 signals:
     void newParameter(QString parameter); };
@@ -212,8 +206,7 @@ public slots:
 private:
     void enterEvent(QEvent *event)
       { event->accept();
-        emit newParameter(name+" = "+text());
-        shyLabel->in = true; }
+        emit newParameter(name+" = "+text()); }
 
     void focusOutEvent(QFocusEvent *event)
       { event->accept();
@@ -221,8 +214,7 @@ private:
 
     void leaveEvent(QEvent *event)
       { event->accept();
-        emit newParameter("");
-        shyLabel->in = false; }
+        emit newParameter(""); }
 
 signals:
     void newParameter(QString parameter); };
