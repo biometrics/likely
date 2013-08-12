@@ -15,6 +15,7 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <QtCore>
+#include <QtQuick>
 #include <QtWidgets>
 #include "likely.h"
 
@@ -328,8 +329,11 @@ int main(int argc, char *argv[])
     matrixViewerScrollArea->setAlignment(Qt::AlignCenter);
     matrixViewerScrollArea->setFrameShape(QFrame::NoFrame);
     matrixViewerScrollArea->setWidget(matrixViewer);
+    QQuickWindow *quickWindow = new QQuickView();
+    QWidget *quickWindowContainer = QWidget::createWindowContainer(quickWindow);
     centralWidgetLayout->addWidget(function, 0, 0);
     centralWidgetLayout->addWidget(matrixViewerScrollArea, 0, 1, 2, 1);
+    centralWidgetLayout->addWidget(quickWindowContainer, 1, 0);
     centralWidgetLayout->setRowStretch(1, 1);
     QWidget *centralWidget = new QWidget();
     centralWidget->setLayout(centralWidgetLayout);
