@@ -161,10 +161,25 @@ private:
 signals:
     void newParameter(QString); };
 
+class InsertRemove : public QWidget
+  { Q_OBJECT
+    QHBoxLayout *layout;
+    QPushButton *insert, *remove;
+public:
+    InsertRemove(QWidget *p = 0) : QWidget(p)
+      { layout = new QHBoxLayout(this);
+        layout->addWidget(insert = new QPushButton("+", this));
+        layout->addWidget(remove = new QPushButton("-", this));
+        insert->setFixedWidth(16);
+        remove->setFixedWidth(16);
+        setLayout(layout); }
+};
+
 class Function : public QWidget
   { Q_OBJECT
     static QStringListModel *functionNames;
-    QHBoxLayout *layout;
+    QGridLayout *layout;
+    InsertRemove *insertRemove;
     ShyComboBox *functionChooser;
     QList<ShyDoubleSpinBox*> parameterChoosers;
     likely_matrix input;
@@ -180,10 +195,10 @@ public:
                 strings.append(function_names[i]);
             functionNames = new QStringListModel(strings); }
         likely_matrix_initialize(&input);
-        functionChooser = new ShyComboBox("function", this);
-        layout = new QHBoxLayout(this);
-        layout->addWidget(functionChooser->proxy);
-        layout->addWidget(functionChooser);
+        layout = new QGridLayout(this);
+        layout->addWidget(insertRemove = new InsertRemove(this), 0, 0);
+        layout->addWidget(functionChooser = new ShyComboBox("function", this), 0, 1);
+        layout->addWidget(functionChooser->proxy, 0, 1);
         connect(functionChooser, SIGNAL(currentIndexChanged(QString)), this, SLOT(updateParameters(QString)));
         connect(functionChooser, SIGNAL(newParameter(QString)), this, SIGNAL(newParameter(QString)));
         functionChooser->setModel(functionNames); }
@@ -234,8 +249,8 @@ private slots:
         while (parameterChoosers.size() < num_parameters)
           { ShyDoubleSpinBox *chooser = new ShyDoubleSpinBox("", this);
             parameterChoosers.append(chooser);
-            layout->addWidget(chooser->proxy);
-            layout->addWidget(chooser);
+            layout->addWidget(chooser->proxy, 0, parameterChoosers.size()+1);
+            layout->addWidget(chooser, 0, parameterChoosers.size()+1);
             connect(chooser, SIGNAL(valueChanged(QString)), this, SLOT(compile()));
             connect(chooser, SIGNAL(newParameter(QString)), this, SIGNAL(newParameter(QString))); }
         for (int i=0; i<num_parameters; i++)
