@@ -260,34 +260,23 @@ signals:
 QStringListModel *Function::functionNames = NULL;
 
 class StatusLabel : public QLabel
-{
-    Q_OBJECT
+  { Q_OBJECT
     QString description;
-
 public:
-    StatusLabel(const QString &description)
-      { this->description = description;
-        setToolTip(description);
+    StatusLabel(const QString &description_) : description(description_)
+      { setToolTip(description);
         setDescription(); }
-
 public slots:
     void setText(const QString &text)
       { if (text.isEmpty()) setDescription();
         else { setEnabled(true); QLabel::setText(text); } }
-
 private:
-    void setDescription()
-      { setEnabled(false);
-        QLabel::setText(description); }
-
-    void resizeEvent(QResizeEvent *resizeEvent)
-      { resizeEvent->accept();
-        setMinimumWidth(width()); }
+    void setDescription() { setEnabled(false); QLabel::setText(description); }
+    void resizeEvent(QResizeEvent *e) { e->accept(); setMinimumWidth(width()); }
 };
 
 int main(int argc, char *argv[])
   { QApplication application(argc, argv);
-
     QMenu *fileMenu = new QMenu("File");
     QAction *newFile = new QAction("New...", fileMenu);
     QAction *openFile = new QAction("Open...", fileMenu);
@@ -302,13 +291,11 @@ int main(int argc, char *argv[])
         potentialFile->setData(filePath);
         potentialFile->setShortcut(QKeySequence("Ctrl+"+fileName.mid(0, 1)));
         fileMenu->addAction(potentialFile); }
-
     Function *function = new Function();
     MatrixViewer *matrixViewer = new MatrixViewer();
     QObject::connect(function, SIGNAL(newMatrixView(QImage)), matrixViewer, SLOT(setImage(QImage)));
     QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), function, SLOT(setInput(QImage)));
     QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), function, SLOT(setInput(QAction*)));
-
     QMenu *viewMenu = new QMenu("View");
     QAction *zoomIn = new QAction("Zoom In", viewMenu);
     QAction *zoomOut = new QAction("Zoom Out", viewMenu);
@@ -318,11 +305,9 @@ int main(int argc, char *argv[])
     viewMenu->addAction(zoomOut);
     QObject::connect(zoomIn, SIGNAL(triggered()), matrixViewer, SLOT(zoomIn()));
     QObject::connect(zoomOut, SIGNAL(triggered()), matrixViewer, SLOT(zoomOut()));
-
     QMenuBar *menuBar = new QMenuBar();
     menuBar->addMenu(fileMenu);
     menuBar->addMenu(viewMenu);
-
     QGridLayout *centralWidgetLayout = new QGridLayout();
     QScrollArea *matrixViewerScrollArea = new QScrollArea();
     matrixViewerScrollArea->setAlignment(Qt::AlignCenter);
@@ -331,10 +316,8 @@ int main(int argc, char *argv[])
     centralWidgetLayout->addWidget(function, 0, 0);
     centralWidgetLayout->addWidget(matrixViewerScrollArea, 0, 1, 2, 1);
     centralWidgetLayout->setRowStretch(1, 1);
-
     QWidget *centralWidget = new QWidget();
     centralWidget->setLayout(centralWidgetLayout);
-
     StatusLabel *parameter = new StatusLabel("parameter");
     StatusLabel *hash = new StatusLabel("hash");
     StatusLabel *dimensions = new StatusLabel("dimensions");
@@ -352,7 +335,6 @@ int main(int argc, char *argv[])
     statusBar->addPermanentWidget(dimensions);
     statusBar->addPermanentWidget(position);
     statusBar->addPermanentWidget(color);
-
     QMainWindow mainWindow;
     mainWindow.setCentralWidget(centralWidget);
     mainWindow.setMenuBar(menuBar);
@@ -360,7 +342,6 @@ int main(int argc, char *argv[])
     mainWindow.setWindowTitle("Likely Dream");
     mainWindow.resize(800,600);
     mainWindow.show();
-
     return application.exec(); }
 
 #include "dream.moc"
