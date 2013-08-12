@@ -164,16 +164,13 @@ signals:
 class Function : public QWidget
   { Q_OBJECT
     static QStringListModel *functionNames;
-
     QHBoxLayout *layout;
     ShyComboBox *functionChooser;
     QList<ShyDoubleSpinBox*> parameterChoosers;
-
     likely_matrix input;
     likely_unary_function function = NULL;
-
 public:
-    Function(QWidget *parent = 0) : QWidget(parent)
+    Function(QWidget *p = 0) : QWidget(p)
       { if (functionNames == NULL)
           { const char **function_names;
             int num_functions;
@@ -182,18 +179,14 @@ public:
             for (int i=0; i<num_functions; i++)
                 strings.append(function_names[i]);
             functionNames = new QStringListModel(strings); }
-
         likely_matrix_initialize(&input);
-
         functionChooser = new ShyComboBox("function", this);
         layout = new QHBoxLayout(this);
         layout->addWidget(functionChooser->proxy);
         layout->addWidget(functionChooser);
-
         connect(functionChooser, SIGNAL(currentIndexChanged(QString)), this, SLOT(updateParameters(QString)));
         connect(functionChooser, SIGNAL(newParameter(QString)), this, SIGNAL(newParameter(QString)));
         functionChooser->setModel(functionNames); }
-
 public slots:
     void setInput(const QImage &image)
       { likely_free(&input);
@@ -202,14 +195,12 @@ public slots:
             likely_allocate(&input);
             memcpy(input.data, image.constBits(), likely_bytes(&input)); }
         compute(); }
-
-    void setInput(QAction *action)
+    void setInput(QAction *a)
       { QString file;
-        if      (action->text() == "New...")  file = "";
-        else if (action->text() == "Open...") file = QFileDialog::getOpenFileName(NULL, "Open File");
-        else                                  file = action->data().toString();
+        if      (a->text() == "New...")  file = "";
+        else if (a->text() == "Open...") file = QFileDialog::getOpenFileName(NULL, "Open File");
+        else                             file = a->data().toString();
         setInput(file.isEmpty() ? QImage() : QImage(file).convertToFormat(QImage::Format_RGB888)); }
-
 private:
     void compute()
       { if (input.data == NULL)
@@ -217,7 +208,6 @@ private:
             emit newHash(QString());
             emit newDimensions(QString());
             return; }
-
         likely_matrix output;
         likely_matrix_initialize(&output);
         function(&input, &output);
@@ -229,7 +219,6 @@ private:
                                 QString::number(input.rows),
                                 QString::number(input.columns),
                                 QString::number(input.frames))); }
-
 private slots:
     void updateParameters(const QString &function)
       { const char **parameter_names, **defaults;
@@ -238,12 +227,10 @@ private slots:
         QStringList strings; strings.reserve(num_parameters);
         for (int i=0; i<num_parameters; i++)
             strings.append(parameter_names[i]);
-
         while (parameterChoosers.size() > num_parameters)
           { layout->removeWidget(parameterChoosers.last()->proxy);
             layout->removeWidget(parameterChoosers.last());
             delete parameterChoosers.takeLast(); }
-
         while (parameterChoosers.size() < num_parameters)
           { ShyDoubleSpinBox *chooser = new ShyDoubleSpinBox("", this);
             parameterChoosers.append(chooser);
@@ -251,16 +238,13 @@ private slots:
             layout->addWidget(chooser);
             connect(chooser, SIGNAL(valueChanged(QString)), this, SLOT(compile()));
             connect(chooser, SIGNAL(newParameter(QString)), this, SIGNAL(newParameter(QString))); }
-
         for (int i=0; i<num_parameters; i++)
           { parameterChoosers[i]->proxy->name = parameter_names[i];
             parameterChoosers[i]->setValue(QString(defaults[i]).toDouble());
             if (i == 0) setTabOrder(functionChooser, parameterChoosers[i]);
             else        setTabOrder(parameterChoosers[i-1], parameterChoosers[i]);
             if (i == num_parameters-1) setTabOrder(parameterChoosers[i], functionChooser); }
-
         compile(); }
-
     void compile()
       { QStringList arguments; arguments.reserve(arguments.size());
         foreach (const ShyDoubleSpinBox *parameterChooser, parameterChoosers)
@@ -268,13 +252,11 @@ private slots:
         const QString description = functionChooser->currentText()+"("+arguments.join(',')+")";
         function = likely_make_unary_function(qPrintable(description));
         compute(); }
-
 signals:
-    void newMatrixView(QImage image);
-    void newHash(QString hash);
-    void newDimensions(QString dimensions);
-    void newParameter(QString parameter); };
-
+    void newMatrixView(QImage);
+    void newHash(QString);
+    void newDimensions(QString);
+    void newParameter(QString); };
 QStringListModel *Function::functionNames = NULL;
 
 class StatusLabel : public QLabel
