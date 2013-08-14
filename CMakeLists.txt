@@ -27,6 +27,10 @@ link_directories(${LLVM_LIBRARY_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES jit native vectorize)
 
+# Build Lua
+add_subdirectory(lua)
+include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
+
 # Compile in index.html as a string
 set(LIKELY_INDEX_HTML ${CMAKE_BINARY_DIR}/likely_index_html.cpp)
 file(WRITE ${LIKELY_INDEX_HTML} "// Probably a bad idea to modify this automatically generated source file!\n\n")
@@ -52,7 +56,7 @@ set_target_properties(likely PROPERTIES
                       DEFINE_SYMBOL LIKELY_LIBRARY
                       VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
                       SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR})
-target_link_libraries(likely ${REQ_LLVM_LIBRARIES})
+target_link_libraries(likely ${REQ_LLVM_LIBRARIES} liblua)
 install(TARGETS likely
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib

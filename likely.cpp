@@ -30,6 +30,7 @@
 #include <llvm/Target/TargetLibraryInfo.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Vectorize.h>
+#include <lua.hpp>
 #include <stdlib.h>
 #include <atomic>
 #include <iomanip>
@@ -50,6 +51,7 @@ using namespace std;
 static Module *TheModule = NULL;
 static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
+static lua_State *L = NULL;
 
 void likely_matrix_initialize(likely_matrix *m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, uint8_t *data)
 {
@@ -1024,6 +1026,8 @@ void *likely_make_function(likely_description description, likely_arity arity)
             workers.push_back(m);
             thread(workerThread, i).detach();
         }
+
+        L = luaL_newstate();
     }
 
     Function *function = TheModule->getFunction(description);
