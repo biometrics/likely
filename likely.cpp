@@ -1028,6 +1028,11 @@ void *likely_make_function(likely_description description, likely_arity arity)
         }
 
         L = luaL_newstate();
+        luaL_openlibs(L);
+        if (luaL_loadstring(L, "x = 42") || lua_pcall(L, 0, 0, 0)) {
+            likely_assert(false, "%s", lua_tostring(L, -1));
+            lua_pop(L, 1);
+        }
     }
 
     Function *function = TheModule->getFunction(description);
