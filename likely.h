@@ -14,8 +14,8 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef __LIKELY_H
-#define __LIKELY_H
+#ifndef LIKELY_H
+#define LIKELY_H
 
 #include <assert.h>
 #include <stddef.h>
@@ -40,8 +40,8 @@
 extern "C" {
 #endif
 
-// The documentation and source code for the Likely Standard Library
-LIKELY_EXPORT const char *likely_index_html();
+// Contents of the Likely Standard Library, standard.likely
+LIKELY_EXPORT const char *likely_standard_library();
 
 // Stores matrix size
 typedef uint32_t likely_size;
@@ -186,4 +186,4 @@ inline likely_ternary_function likely_make_ternary_function(likely_description d
 }
 #endif
 
-#endif // __LIKELY_H
+#endif // LIKELY_H

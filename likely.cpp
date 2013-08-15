@@ -305,7 +305,7 @@ struct Definition
     {
         // Parse likely_index_html for definitions
         if (definitions.size() > 0) return;
-        for (const Definition &definition : Definition::definitionsFromString(likely_index_html()))
+        for (const Definition &definition : Definition::definitionsFromString(likely_standard_library()))
             definitions[definition.name] = definition;
     }
 
@@ -1033,6 +1033,10 @@ void *likely_make_function(likely_description description, likely_arity arity)
             likely_assert(false, "%s", lua_tostring(L, -1));
             lua_pop(L, 1);
         }
+
+        lua_getglobal(L, "x");
+        likely_assert(lua_isnumber(L, -1), "Expected a number");
+        printf(">> %d\n", (int)lua_tointeger(L, -1));
     }
 
     Function *function = TheModule->getFunction(description);

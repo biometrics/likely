@@ -32,15 +32,15 @@ add_subdirectory(lua)
 include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
 
 # Compile in index.html as a string
-set(LIKELY_INDEX_HTML ${CMAKE_BINARY_DIR}/likely_index_html.cpp)
-file(WRITE ${LIKELY_INDEX_HTML} "// Probably a bad idea to modify this automatically generated source file!\n\n")
-file(APPEND ${LIKELY_INDEX_HTML} "#include \"likely.h\"\n\nconst char *likely_index_html()\n{\n\treturn \"")
-file(READ index.html INDEX_HTML)
-string(REPLACE "\\" "\\\\" INDEX_HTML ${INDEX_HTML})
-string(REPLACE "\"" "\\\"" INDEX_HTML ${INDEX_HTML})
-string(REPLACE "\n" "\"\n\t\"" INDEX_HTML ${INDEX_HTML})
-file(APPEND ${LIKELY_INDEX_HTML} ${INDEX_HTML})
-file(APPEND ${LIKELY_INDEX_HTML} "\";\n}\n")
+set(LIKELY_STANDARD_LIBRARY ${CMAKE_BINARY_DIR}/likely_standard_library.cpp)
+file(WRITE ${LIKELY_STANDARD_LIBRARY} "// Probably a bad idea to modify this automatically generated source file!\n\n")
+file(APPEND ${LIKELY_STANDARD_LIBRARY} "#include \"likely.h\"\n\nconst char *likely_standard_library()\n{\n\treturn \"")
+file(READ standard.likely STANDARD_LIBRARY_SOURCE)
+string(REPLACE "\\" "\\\\" STANDARD_LIBRARY_SOURCE ${STANDARD_LIBRARY_SOURCE})
+string(REPLACE "\"" "\\\"" STANDARD_LIBRARY_SOURCE ${STANDARD_LIBRARY_SOURCE})
+string(REPLACE "\n" "\"\n\t\"" STANDARD_LIBRARY_SOURCE ${STANDARD_LIBRARY_SOURCE})
+file(APPEND ${LIKELY_STANDARD_LIBRARY} ${STANDARD_LIBRARY_SOURCE})
+file(APPEND ${LIKELY_STANDARD_LIBRARY} "\";\n}\n")
 
 if(CMAKE_COMPILER_IS_GNUCC)
   set(CXX11 "-std=c++0x")
@@ -50,7 +50,7 @@ endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter -fvisibility=hidden -fvisibility-inlines-hidden")
 add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
-add_library(likely SHARED likely.cpp index.html ${LIKELY_INDEX_HTML})
+add_library(likely SHARED likely.cpp index.html standard.likely ${LIKELY_STANDARD_LIBRARY})
 add_dependencies(likely LLVM)
 set_target_properties(likely PROPERTIES
                       DEFINE_SYMBOL LIKELY_LIBRARY
