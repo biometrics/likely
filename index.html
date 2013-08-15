@@ -61,39 +61,27 @@
   </div>
 
   <div class="container"> <div class="row"> <div class="span12">
-    <h1 id="literate_kernel_library">Literate Kernel Library <img src="http://2.bp.blogspot.com/-KRz2IaPH8NQ/UIG3TIL_uYI/AAAAAAAACm4/CtPen3jb6R4/s1600/SL_website-under-construction.jpeg" style="height:64px;" alt="Under Construction!"> </h1>
-    <p class="lead">Beautiful image processing functions for heterogenous architectures.</p>
-    <h2>Table of Contents</h2>
-    <ul>
-      <li><a href="#introduction">Introduction</a></li>
-      <li><a href="#installation">Installation</a></li>
-      <li><a href="#interface">Interface</a></li>
-      <ul>
-        <li><a href="#the_matrix_struct">The Matrix Struct</a></li>
-        <li><a href="#functions_and_kernels">Functions and Kernels</a></li>
-      </ul>
-      <li><a href="#language">Language</a></li>
-      <ul>
-        <li><a href="#grammar">Grammar</a></li>
-        <li><a href="#function_request">Function Request</a></li>
-      </ul>
-      <li><a href="#standard_library">Standard Library</a></li>
-      <ul>
-        <li><a href="#nullary_functions">Nullary Functions</a></li>
-        <li><a href="#unary_functions">Unary Functions</a></li>
-        <li><a href="#binary_functions">Binary Functions</a></li>
-        <li><a hreg="#ternary_functions">Ternary Functions</a></li>
-      </ul>
-      <li><a href="#benchmark">Benchmark</a></li>
-    </ul>
+    <h1 id="literate_kernel_library">Living Kernel Library <small>(under construction)</small></h1>
+    <p class="lead">Lively image processing functions for heterogenous architectures.</p>
     <h2 id="introduction">Introduction</h2>
-    <p>Welcome to the documentation <i>and source code</i> for <i>Likely</i> the literate kernel library!
-       Simply stated, the goals of Likely are to provide image processing and machine learning functions that are:
-      <ul>
-        <li>executable everywhere.</li>
-        <li>perfectly optimized.</li>
-        <li>uncompromisingly elegant.</li>
-      </ul>
+    <p>Welcome to the documentation for <tt>Likely</tt>, the visual recognition programming language!
+    <h3 id="principles">Principles</h3>
+      <ol>
+        <li>Immediate visual feedback while developing algorithms</li>
+        <li>Heterogeneous hardware architecture support</li>
+        <li>Simple and fast typeless kernel syntax</li>
+        <li>First class support for learning statistical models</li>
+        <li>Easy integration into other programming languages</li>
+        <li>Free open source software</li>
+      </ol>
+    </p>
+    <h3 id="background">Background</h3>
+    <p>The software development of a complex system is often facilitated by a Domain Specific Language (DSL) whose syntax is designed to concisely and efficiently solve problems encountered in that domain.
+       Many communities rely on DSLs; including TeX for typesetting, ggplot2 for plotting, SQL for database queries, GraphViz for graph layout, and Mathematica for symbolic math.
+    </p>
+    <p>However, there currently does not exist a suitable DSL for image processing and pattern recognition.
+       As a consequence, most libraries and applications for this task are written in either C++ or MATLAB, neither of which will simultaneously respect both the engineer's time and the hardware's compute capability.
+       In fact, a DSL for image recognition is essential in order to overcome the fundamental restrictions imposed by existing languages on the nature of algorithms that can be expressed: currently a method may be too cumbersome to implement in a “low-level language” and too slow to execute in a “high-level language”.
     </p>
     <h3 id="executable_everywhere">Executable Everywhere</h3>
     <p>Likely is written in a portable subset of <i>ISO C++11</i> and depends only on <i>LLVM</i> which means it runs <a href="http://llvm.org/docs/GettingStarted.html#hardware">everywhere LLVM does</a>.
@@ -272,13 +260,6 @@ digit = '0' | '1' | ... | '9' | '.'
     <p>All of the implemented functions.</p>
     <h3 id="nullary_functions">Nullary Functions</h3>
     <h3 id="unary_functions">Unary Functions</h3>
-    <ul class="thumbnails">
-      <li class="thumbnail"><div class="likely">$src + b$<h4>add<small>(b=0)</small></h4><p>Add.</p></div></li>
-      <li class="thumbnail"><div class="likely">$src \div a$<h4>divide<small>(a=1)</small></h4><p>Divide.</p></div></li>
-      <li class="thumbnail"><div class="likely">$a \times src + b$<h4>madd<small>(a=1,b=0)</small></h4><p>Multiply-add.</p></div></li>
-      <li class="thumbnail"><div class="likely">$a \times src$<h4>multiply<small>(a=1)</small></h4><p>Multiply.</p></div></li>
-      <li class="thumbnail"><div class="likely">$src - b$<h4>subtract<small>(b=0)</small></h4><p>Subtract.</p></div></li>
-    </ul>
     <h3 id="binary_functions">Binary Functions</h3>
     <h3 id="ternary_functions">Ternary Functions</h3>
     <h2 id="benchmark">Benchmark</h2>
