@@ -148,11 +148,6 @@ LIKELY_EXPORT void likely_print_matrix(const likely_matrix *m);
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
 LIKELY_EXPORT void likely_dump(); // Print LLVM module contents to stderr
 
-// Functions to query available definitions.
-// Note: Return value memory is managed internally and guaranteed until the next call to the function.
-LIKELY_EXPORT void likely_functions(const char ***functions, int *num_functions);
-LIKELY_EXPORT void likely_parameters(const char *function, const char ***parameters, int *num_parameters, const char ***defaults = NULL);
-
 // Helper library functions; you shouldn't call these directly
 typedef const char *likely_description;
 typedef uint8_t likely_arity;

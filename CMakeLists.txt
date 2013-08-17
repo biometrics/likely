@@ -34,11 +34,11 @@ include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
 # Compile in index.html as a string
 set(LIKELY_STANDARD_LIBRARY ${CMAKE_BINARY_DIR}/likely_standard_library.cpp)
 file(WRITE ${LIKELY_STANDARD_LIBRARY} "// Probably a bad idea to modify this automatically generated source file!\n\n")
-file(APPEND ${LIKELY_STANDARD_LIBRARY} "#include \"likely.h\"\n\nconst char *likely_standard_library()\n{\n\treturn \"")
+file(APPEND ${LIKELY_STANDARD_LIBRARY} "#include \"likely.h\"\n\nconst char *likely_standard_library()\n{\n\treturn\n\t\"")
 file(READ standard.likely STANDARD_LIBRARY_SOURCE)
 string(REPLACE "\\" "\\\\" STANDARD_LIBRARY_SOURCE ${STANDARD_LIBRARY_SOURCE})
 string(REPLACE "\"" "\\\"" STANDARD_LIBRARY_SOURCE ${STANDARD_LIBRARY_SOURCE})
-string(REPLACE "\n" "\"\n\t\"" STANDARD_LIBRARY_SOURCE ${STANDARD_LIBRARY_SOURCE})
+string(REPLACE "\n" "\\n\"\n\t\"" STANDARD_LIBRARY_SOURCE ${STANDARD_LIBRARY_SOURCE})
 file(APPEND ${LIKELY_STANDARD_LIBRARY} ${STANDARD_LIBRARY_SOURCE})
 file(APPEND ${LIKELY_STANDARD_LIBRARY} "\";\n}\n")
 

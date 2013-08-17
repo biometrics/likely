@@ -1,5 +1,5 @@
-<li class="thumbnail"><div class="likely">$src + b$<h4>add<small>(b=0)</small></h4><p>Add.</p></div></li>
-<li class="thumbnail"><div class="likely">$src \div a$<h4>divide<small>(a=1)</small></h4><p>Divide.</p></div></li>
-<li class="thumbnail"><div class="likely">$a \times src + b$<h4>madd<small>(a=1,b=0)</small></h4><p>Multiply-add.</p></div></li>
-<li class="thumbnail"><div class="likely">$a \times src$<h4>multiply<small>(a=1)</small></h4><p>Multiply.</p></div></li>
-<li class="thumbnail"><div class="likely">$src - b$<h4>subtract<small>(b=0)</small></h4><p>Subtract.</p></div></li>
+-- Basic arithmetic
+function add(b) return "src", b, "+" end
+function subtract(b) return "src", b, "-" end
+function multiply(a) return "src", a, "*" end
+function divide(a) return "src", a, "/" end

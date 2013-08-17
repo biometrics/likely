@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
 
     addTest().run();
 //    divideTest().run();
-    maddTest().run();
+//    maddTest().run();
 //    multiplyTest().run();
 //    subtractTest().run();
 

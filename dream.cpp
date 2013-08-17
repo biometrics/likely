@@ -187,15 +187,7 @@ class Function : public QWidget
     likely_unary_function function = NULL;
 public:
     Function(QWidget *p = 0) : QWidget(p)
-      { if (functionNames == NULL)
-          { const char **function_names;
-            int num_functions;
-            likely_functions(&function_names, &num_functions);
-            QStringList strings; strings.reserve(num_functions);
-            for (int i=0; i<num_functions; i++)
-                strings.append(function_names[i]);
-            functionNames = new QStringListModel(strings); }
-        likely_matrix_initialize(&input);
+      { likely_matrix_initialize(&input);
         layout = new QGridLayout(this);
         layout->addWidget(insertRemove = new InsertRemove(this), 0, 0);
         layout->addWidget(functionChooser = new ShyComboBox("function", this), 0, 1);
@@ -237,30 +229,7 @@ private:
                                 QString::number(input.frames))); }
 private slots:
     void updateParameters(const QString &function)
-      { const char **parameter_names, **defaults;
-        int num_parameters;
-        likely_parameters(qPrintable(function), &parameter_names, &num_parameters, &defaults);
-        QStringList strings; strings.reserve(num_parameters);
-        for (int i=0; i<num_parameters; i++)
-            strings.append(parameter_names[i]);
-        while (parameterChoosers.size() > num_parameters)
-          { layout->removeWidget(parameterChoosers.last()->proxy);
-            layout->removeWidget(parameterChoosers.last());
-            delete parameterChoosers.takeLast(); }
-        while (parameterChoosers.size() < num_parameters)
-          { ShyDoubleSpinBox *chooser = new ShyDoubleSpinBox("", this);
-            parameterChoosers.append(chooser);
-            layout->addWidget(chooser->proxy, 0, parameterChoosers.size()+1);
-            layout->addWidget(chooser, 0, parameterChoosers.size()+1);
-            connect(chooser, SIGNAL(valueChanged(QString)), this, SLOT(compile()));
-            connect(chooser, SIGNAL(newParameter(QString)), this, SIGNAL(newParameter(QString))); }
-        for (int i=0; i<num_parameters; i++)
-          { parameterChoosers[i]->proxy->name = parameter_names[i];
-            parameterChoosers[i]->setValue(QString(defaults[i]).toDouble());
-            if (i == 0) setTabOrder(functionChooser, parameterChoosers[i]);
-            else        setTabOrder(parameterChoosers[i-1], parameterChoosers[i]);
-            if (i == num_parameters-1) setTabOrder(parameterChoosers[i], functionChooser); }
-        compile(); }
+      { (void) function; }
     void compile()
       { QStringList arguments; arguments.reserve(arguments.size());
         foreach (const ShyDoubleSpinBox *parameterChooser, parameterChoosers)

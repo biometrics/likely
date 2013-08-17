@@ -51,7 +51,6 @@ using namespace std;
 static Module *TheModule = NULL;
 static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
-static lua_State *L = NULL;
 
 void likely_matrix_initialize(likely_matrix *m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, uint8_t *data)
 {
@@ -231,177 +230,30 @@ void likely_dump()
 namespace likely
 {
 
-static vector<string> split(const string &s, char delim)
+static string stackDump(lua_State *L)
 {
-    vector<string> elems;
-    stringstream ss(s);
-    string item;
-    while (getline(ss, item, delim))
-        elems.push_back(item);
-    return elems;
+    stringstream stream;
+    const int top = lua_gettop(L);
+    for (int i = 1; i <= top; i++) {  /* repeat for each level */
+        const int t = lua_type(L, i);
+        switch (t) {
+          case LUA_TSTRING:  stream << '`' << lua_tostring(L, i) << '`';         break;
+          case LUA_TBOOLEAN: stream << (lua_toboolean(L, i) ? "true" : "false"); break;
+          case LUA_TNUMBER:  stream << lua_tonumber(L, i);                       break;
+          default:           stream << lua_typename(L, t);                       break;
+        }
+        stream << "  ";
+    }
+    return stream.str();
 }
 
-static int indexOf(const vector<string> &v, const string &s)
+static void checkLua(lua_State *L, int error)
 {
-    auto index = find(v.begin(), v.end(), s);
-    if (index == v.end()) return -1;
-    return distance(v.begin(), index);
+    if (!error) return;
+    const string stack = stackDump(L);
+    likely_assert(false, "check_lua %s\n\tStack dump:\n\t%s", lua_tostring(L, -1), stack.c_str());
+    lua_pop(L, 1);
 }
-
-struct Node
-{
-    string value;
-    vector<Node> children;
-
-    Node() = default;
-    Node(const string &value_) : value(value_) {}
-    Node(const string &value_, const vector<Node> &children_) : value(value_), children(children_) {}
-    Node(const string &value_, const Node &node) : value(value_) { children.push_back(node); }
-    Node(const string &value_, const Node &nodeA, const Node &nodeB)
-        : value(value_) { children.push_back(nodeA); children.push_back(nodeB); }
-};
-
-struct Definition
-{
-    static map<string,Definition> definitions;
-    string name, documentation;
-    vector<string> parameters;
-    vector<string> defaults;
-    Node equation;
-
-    Definition() = default;
-    Definition(const smatch &sm)
-    {
-        likely_assert(sm.size() == 5, "Definition::Definition expected 5 fields, got: %zu", sm.size());
-
-        name = sm[2];
-        documentation = sm[4];
-
-        // Parameters and Defaults
-        for (const string &parameterAndDefault : split(string(sm[3]).substr(1, string(sm[3]).size()-2), ',')) {
-            vector<string> words = split(parameterAndDefault, '=');
-            likely_assert(words.size() == 2, "Definition::Definition expected one '=' for function: %s with parameter: %s", name.c_str(), parameterAndDefault.c_str());
-            parameters.push_back(words[0]);
-            defaults.push_back(words[1]);
-        }
-
-        // Equation
-        static const regex syntax("^\\s*([+\\-]|\\\\?\\w+).*$");
-        vector<string> tokens;
-        string unparsed = sm[1];
-        while (!unparsed.empty()) {
-            smatch sm;
-            regex_match(unparsed, sm, syntax);
-            likely_assert(sm.size() >= 2, "Definition::Definition unable to tokenize: %s", unparsed.c_str());
-
-            const string &token = sm[1];
-            tokens.push_back(token);
-            unparsed = unparsed.substr(unparsed.find(token.c_str())+token.size());
-        }
-        likely_assert(getEquation(tokens, equation), "Definition::Definition unable to parse: %s", string(sm[1]).c_str());
-    }
-
-    static void init()
-    {
-        // Parse likely_index_html for definitions
-        if (definitions.size() > 0) return;
-        for (const Definition &definition : Definition::definitionsFromString(likely_standard_library()))
-            definitions[definition.name] = definition;
-    }
-
-    static Definition get(const string &name = string())
-    {
-        init();
-        Definition definition = definitions[name];
-        likely_assert(name == definition.name, "Definition::get missing definition for: %s", name.c_str());
-        return definition;
-    }
-
-    static vector<Definition> definitionsFromString(const string &str)
-    {
-        static const string begin = "<div class=\"likely\">";
-        static const string end = "</div>";
-        static const regex  syntax("\\s*\\$(.*)\\$\\s*<h4>(.*)<small>(.*)</small></h4>\\s*<p>(.*)</p>\\s*");
-
-        vector<Definition> definitions;
-        size_t startDefinition = str.find(begin.c_str());
-        while (startDefinition != string::npos) {
-            size_t endDefinition = str.find(end.c_str(), startDefinition+begin.length());
-            likely_assert(endDefinition != string::npos, "Definition::definitionsFromString unclosed definition, missing: %s", end.c_str());
-
-            const string definition = str.substr(startDefinition+begin.length(), endDefinition-startDefinition-begin.length());
-            smatch sm;
-            likely_assert(regex_match(definition, sm, syntax), "Definition::definitionsFromString invalid definition: %s", definition.c_str());
-
-            definitions.push_back(Definition(sm));
-            startDefinition = str.find(begin.c_str(), endDefinition+1, begin.length());
-        }
-
-        return definitions;
-    }
-
-    static bool getEquation(const vector<string> &tokens, Node &equation)
-    {
-        for (size_t i=1; i<tokens.size()-1; i++)
-            if ((tokens[i] == "+") || (tokens[i] == "-")) {
-                Node lhs, rhs;
-                if (!getEquation(vector<string>(tokens.begin(), tokens.begin()+i), lhs)) continue;
-                if (!getEquation(vector<string>(tokens.begin()+i+1, tokens.end()), rhs)) continue;
-                equation = Node(tokens[i], lhs, rhs);
-                return true;
-            }
-        return getTerm(tokens, equation);
-    }
-
-    static bool getTerm(const vector<string> &tokens, Node &term)
-    {
-        for (size_t i=1; i<tokens.size()-1; i++)
-            if ((tokens[i] == "\\times") || (tokens[i] == "\\div")) {
-                Node lhs, rhs;
-                if (!getTerm(vector<string>(tokens.begin(), tokens.begin()+i), lhs)) continue;
-                if (!getTerm(vector<string>(tokens.begin()+i+1, tokens.end()), rhs)) continue;
-                term = Node(tokens[i], lhs, rhs);
-                return true;
-            }
-        return getFactor(tokens, term);
-    }
-
-    static bool getFactor(const vector<string> &tokens, Node &factor)
-    {
-        if (getMatrix(tokens, factor)) return true;
-        if (getParameter(tokens, factor)) return true;
-        return getNumber(tokens, factor);
-    }
-
-    static bool getMatrix(const vector<string> &tokens, Node &matrix)
-    {
-        static const regex syntax("src[0-9]?");
-        return getTerminal(tokens, matrix, syntax);
-    }
-
-    static bool getParameter(const vector<string> &tokens, Node &parameter)
-    {
-        static const regex syntax("[a-z]+");
-        return getTerminal(tokens, parameter, syntax);
-    }
-
-    static bool getNumber(const vector<string> &tokens, Node &number)
-    {
-        static const regex syntax("[0-9\\.]+");
-        return getTerminal(tokens, number, syntax);
-    }
-
-    static bool getTerminal(const vector<string> &tokens, Node &terminal, const regex &syntax)
-    {
-        if (tokens.size() != 1) return false;
-        smatch sm;
-        if (!regex_match(tokens[0], sm, syntax)) return false;
-        terminal = Node(tokens[0]);
-        return true;
-    }
-};
-
-map<string, Definition> Definition::definitions;
 
 struct MatrixBuilder
 {
@@ -669,8 +521,7 @@ struct MatrixBuilder
 class KernelBuilder
 {
     likely_description description;
-    Definition definition;
-    vector<string> arguments;
+    lua_State *L;
     vector<likely_hash> hashes;
     MatrixBuilder kernel;
     PHINode *i;
@@ -680,12 +531,10 @@ public:
     KernelBuilder(likely_description description_)
         : description(description_), i(NULL)
     {
-        const string str(description);
-        const size_t lParen = str.find('(');
-        const string name = str.substr(0, lParen);
-        arguments = split(str.substr(lParen+1, str.size()-lParen-2), ',');
-        definition = Definition::get(name);
-        likely_assert(arguments.size() == definition.parameters.size(), "KernelBuilder::KernelBuilder function: %s requires: %zu parameters but was only given: %zu arguments", name.c_str(), definition.parameters.size(), arguments.size());
+        L = luaL_newstate();
+        luaL_openlibs(L);
+        checkLua(L, luaL_dostring(L, likely_standard_library()));
+        checkLua(L, luaL_dostring(L, (string("return ") + description).c_str()));
     }
 
     void makeAllocation(Function *function, const vector<likely_hash> &hashes_)
@@ -773,7 +622,7 @@ public:
         } else {
             kernel.reset(&builder, function, srcs[0]);
             i = kernel.beginLoop(entry, start, stop).i;
-            kernel.store(dst, i, makeEquation(definition.equation));
+            kernel.store(dst, i, makeEquation());
             kernel.endLoop();
         }
 
@@ -806,48 +655,37 @@ public:
         dst->setName("dst");
     }
 
-    Value *makeEquation(const Node &node)
+    Value *makeEquation()
     {
-        if      (node.value == "+") return kernel.add(makeEquation(node.children[0]), makeEquation(node.children[1]));
-        else if (node.value == "-") return kernel.subtract(makeEquation(node.children[0]), makeEquation(node.children[1]));
-        else                        return makeTerm(node);
-    }
+        vector<Value*> values;
+        const int top = lua_gettop(L);
+        for (int j=1; j<=top; j++) {
+            const int type = lua_type(L, j);
+            if (type == LUA_TNUMBER) {
+                values.push_back(kernel.autoConstant(lua_tonumber(L, j)));
+            } else if (type == LUA_TSTRING) {
+                const string value = lua_tostring(L, j);
+                if (value == "src") {
+                    values.push_back(kernel.load(i));
+                } else {
+                    likely_assert(values.size() >= 2, "KernelBuilder::make equation insufficient operands: %lu for operator: %s", values.size(), value.c_str());
+                    Value *lhs = values[values.size()-2];
+                    Value *rhs = values[values.size()-1];
+                    values.pop_back();
+                    values.pop_back();
+                    if      (value == "+") values.push_back(kernel.add(lhs, rhs));
+                    else if (value == "-") values.push_back(kernel.subtract(lhs, rhs));
+                    else if (value == "*") values.push_back(kernel.multiply(lhs, rhs));
+                    else if (value == "/") values.push_back(kernel.divide(lhs, rhs));
+                    else                   likely_assert(false, "KernelBuilder::makeEquation unsupported operator: %s", value.c_str());
+                }
+            } else {
+                likely_assert(false, "KernelBuilder::makeEquation unsupported type: %s", lua_typename(L, type));
+            }
+        }
 
-    Value *makeTerm(const Node &node)
-    {
-        if      (node.value == "\\times") return kernel.multiply(makeEquation(node.children[0]), makeEquation(node.children[1]));
-        else if (node.value == "\\div")   return kernel.divide(makeEquation(node.children[0]), makeEquation(node.children[1]));
-        else                              return makeFactor(node);
-    }
-
-    Value *makeFactor(const Node &node)
-    {
-        Value *            value = makeMatrix(node);
-        if (value == NULL) value = makeParameter(node);
-        if (value == NULL) value = makeNumber(node);
-        likely_assert(value != NULL, "KernelBuilder::makeFactor code generation failed for factor: %s", node.value.c_str());
-        return value;
-    }
-
-    Value *makeMatrix(const Node &node)
-    {
-        if (node.value == "src") return kernel.load(i);
-        else                     return NULL;
-    }
-
-    Value *makeParameter(const Node &node)
-    {
-        const int index = indexOf(definition.parameters, node.value);
-        if (index != -1) return makeNumber(Node(arguments[index], node.children));
-        else             return NULL;
-    }
-
-    Value *makeNumber(const Node &node)
-    {
-        char *endptr;
-        double value = strtod(node.value.c_str(), &endptr);
-        if (*endptr) return NULL;
-        else         return kernel.autoConstant(value);
+        likely_assert(values.size() == 1, "KernelBuilder::makeEquation expected one value after parsing");
+        return values[0];
     }
 };
 
@@ -923,70 +761,6 @@ static void workerThread(int workerID)
 
 using namespace likely;
 
-void likely_functions(const char ***functions, int *num_functions)
-{
-    static const char **currentFunctions = NULL;
-    static int currentNumFunctions = 0;
-
-    // Delete old values
-    for (int i=0; i<currentNumFunctions; i++)
-        delete[] currentFunctions[i];
-    delete[] currentFunctions;
-
-    // Allocate new values
-    Definition::init();
-    currentFunctions = new const char*[Definition::definitions.size()];
-    int i = 0;
-    for (map<string, Definition>::iterator iter = Definition::definitions.begin(); iter != Definition::definitions.end(); iter++) {
-        const int size = iter->first.size()+1; // +1 to include null terminator
-        char *function = new char[size];
-        memcpy(function, iter->first.c_str(), size);
-        currentFunctions[i++] = function;
-    }
-
-    // Assign results
-    *functions = currentFunctions;
-    *num_functions = Definition::definitions.size();
-}
-
-void likely_parameters(const char *function, const char ***parameters, int *num_parameters, const char ***defaults)
-{
-    static const char **currentParameters = NULL;
-    static const char **currentDefaults = NULL;
-    static int currentNumParameters = 0;
-
-    // Delete old values
-    for (int i=0; i<currentNumParameters; i++) {
-        delete[] currentParameters[i];
-        delete[] currentDefaults[i];
-    }
-    delete[] currentParameters;
-    delete[] currentDefaults;
-
-    // Allocate new values
-    Definition::init();
-    const Definition &definition = Definition::definitions[function];
-    const int numParameters = definition.parameters.size();
-    currentParameters = new const char*[numParameters];
-    currentDefaults = new const char*[numParameters];
-    for (int i=0; i<numParameters; i++) {
-        const int parameterSize = definition.parameters[i].size()+1; // +1 to include null terminator
-        char *parameters = new char[parameterSize];
-        memcpy(parameters, definition.parameters[i].c_str(), parameterSize);
-        currentParameters[i] = parameters;
-
-        const int defaultSize = definition.defaults[i].size()+1; // +1 to include null terminator
-        char *default_ = new char[defaultSize];
-        memcpy(default_, definition.defaults[i].c_str(), defaultSize);
-        currentDefaults[i] = default_;
-    }
-
-    // Assign results
-    *parameters = currentParameters;
-    *num_parameters = definition.parameters.size();
-    if (defaults) *defaults = currentDefaults;
-}
-
 void *likely_make_function(likely_description description, likely_arity arity)
 {
     lock_guard<recursive_mutex> lock(makerLock);
@@ -1026,17 +800,6 @@ void *likely_make_function(likely_description description, likely_arity arity)
             workers.push_back(m);
             thread(workerThread, i).detach();
         }
-
-        L = luaL_newstate();
-        luaL_openlibs(L);
-        if (luaL_loadstring(L, "x = 42") || lua_pcall(L, 0, 0, 0)) {
-            likely_assert(false, "%s", lua_tostring(L, -1));
-            lua_pop(L, 1);
-        }
-
-        lua_getglobal(L, "x");
-        likely_assert(lua_isnumber(L, -1), "Expected a number");
-        printf(">> %d\n", (int)lua_tointeger(L, -1));
     }
 
     Function *function = TheModule->getFunction(description);
