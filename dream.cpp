@@ -124,8 +124,6 @@ private:
                                 QString::number(input.columns),
                                 QString::number(input.frames))); }
 private slots:
-    void updateParameters(const QString &function)
-      { (void) function; }
     void compile()
       { function = likely_make_unary_function(qPrintable(toPlainText()));
         compute(); }

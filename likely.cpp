@@ -51,6 +51,7 @@ using namespace std;
 static Module *TheModule = NULL;
 static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
+static likely_error_callback ErrorCallback = NULL;
 
 void likely_matrix_initialize(likely_matrix *m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, uint8_t *data)
 {
@@ -214,17 +215,31 @@ void likely_print_matrix(const likely_matrix *m)
 void likely_assert(bool condition, const char *format, ...)
 {
     if (condition) return;
-    fprintf(stderr, "LIKELY ERROR - ");
+    const int bufferSize = 1024;
+    char *buffer = new char[bufferSize];
+
     va_list ap;
     va_start(ap, format);
-    vfprintf(stderr, format, ap);
-    fprintf(stderr, ".\n");
-    abort();
+    vsnprintf(buffer, bufferSize, format, ap);
+
+    if (ErrorCallback) {
+        ErrorCallback(buffer);
+    } else {
+        fprintf(stderr, "LIKELY ERROR - %s.\n", buffer);
+        abort();
+    }
+
+    delete buffer;
 }
 
 void likely_dump()
 {
     TheModule->dump();
+}
+
+void likely_set_error_callback(likely_error_callback error_callback)
+{
+    ErrorCallback = error_callback;
 }
 
 namespace likely
