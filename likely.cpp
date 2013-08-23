@@ -955,14 +955,14 @@ void *likely_make_function(likely_description description, likely_arity arity)
     return executionEngine->getPointerToFunction(function);
 }
 
-void *likely_make_allocation(likely_description description, likely_arity arity, likely_matrix *src, ...)
+void *likely_make_allocation(likely_description description, likely_arity arity, const likely_matrix *src, ...)
 {
     vector<likely_hash> hashes;
     va_list ap;
     va_start(ap, src);
     for (int i=0; i<arity; i++) {
         hashes.push_back(src->hash);
-        src = va_arg(ap, likely_matrix*);
+        src = va_arg(ap, const likely_matrix*);
     }
     va_end(ap);
 
@@ -991,14 +991,14 @@ void *likely_make_allocation(likely_description description, likely_arity arity,
     return executionEngine->getPointerToFunction(function);
 }
 
-void *likely_make_kernel(likely_description description, likely_arity arity, likely_matrix *src, ...)
+void *likely_make_kernel(likely_description description, likely_arity arity, const likely_matrix *src, ...)
 {
     vector<likely_hash> hashes;
     va_list ap;
     va_start(ap, src);
     for (int i=0; i<arity; i++) {
         hashes.push_back(src->hash);
-        src = va_arg(ap, likely_matrix*);
+        src = va_arg(ap, const likely_matrix*);
     }
     va_end(ap);
 
