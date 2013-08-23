@@ -296,6 +296,8 @@ struct MatrixBuilder
     static Constant *constant(float value) { return ConstantFP::get(Type::getFloatTy(getGlobalContext()), value == 0 ? -0.0f : value); }
     static Constant *constant(double value) { return ConstantFP::get(Type::getDoubleTy(getGlobalContext()), value == 0 ? -0.0 : value); }
     static Constant *constant(const char *value) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), Type::getInt8PtrTy(getGlobalContext())); }
+    template <typename T>
+    static Constant *constant(T value, Type *type) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), type); }
     static Constant *zero() { return constant(0); }
     static Constant *one() { return constant(1); }
     Constant *autoConstant(double value) const { return likely_is_floating(h) ? ((likely_depth(h) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(h)); }
@@ -776,8 +778,18 @@ static void workerThread(int workerID)
 
 using namespace likely;
 
-void *likely_make_function(likely_description description, likely_arity arity)
+void *likely_make_function(likely_description description, likely_arity arity, const likely_matrix *src, ...)
 {
+    vector<const likely_matrix*> srcList;
+    va_list ap;
+    va_start(ap, src);
+    for (int i=0; i<arity; i++) {
+        likely_assert(src, "likely_make_function null matrix at index: %d", i);
+        srcList.push_back(src);
+        src = va_arg(ap, const likely_matrix*);
+    }
+    va_end(ap);
+
     lock_guard<recursive_mutex> lock(makerLock);
 
     if (TheModule == NULL) {
@@ -847,7 +859,15 @@ void *likely_make_function(likely_description description, likely_arity arity)
         }
     }
     GlobalVariable *allocationFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_allocation", allocationFunctionType));
-    allocationFunction->setInitializer(ConstantPointerNull::get(allocationFunctionType));
+    void *default_allocation;
+    switch (srcList.size()) {
+      case 0:  default_allocation = likely_make_allocation(description, arity, NULL); break;
+      case 1:  default_allocation = likely_make_allocation(description, arity, srcList[0], NULL); break;
+      case 2:  default_allocation = likely_make_allocation(description, arity, srcList[0], srcList[1], NULL); break;
+      case 3:  default_allocation = likely_make_allocation(description, arity, srcList[0], srcList[1], srcList[2], NULL); break;
+      default: default_allocation = NULL;
+    }
+    allocationFunction->setInitializer(MatrixBuilder::constant<void*>(default_allocation, allocationFunctionType));
 
     static Function *makeKernelFunction = NULL;
     static vector<PointerType*> kernelFunctionTypes(LIKELY_NUM_ARITIES, NULL);
@@ -869,7 +889,15 @@ void *likely_make_function(likely_description description, likely_arity arity)
         }
     }
     GlobalVariable *kernelFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_kernel", kernelFunctionType));
-    kernelFunction->setInitializer(ConstantPointerNull::get(kernelFunctionType));
+    void *default_kernel;
+    switch (srcList.size()) {
+      case 0:  default_kernel = likely_make_kernel(description, arity, NULL); break;
+      case 1:  default_kernel = likely_make_kernel(description, arity, srcList[0], NULL); break;
+      case 2:  default_kernel = likely_make_kernel(description, arity, srcList[0], srcList[1], NULL); break;
+      case 3:  default_kernel = likely_make_kernel(description, arity, srcList[0], srcList[1], srcList[2], NULL); break;
+      default: default_kernel = NULL;
+    }
+    kernelFunction->setInitializer(MatrixBuilder::constant<void*>(default_kernel, kernelFunctionType));
 
     vector<Value*> srcs;
     Value *dst;
@@ -881,7 +909,7 @@ void *likely_make_function(likely_description description, likely_arity arity)
     vector<GlobalVariable*> kernelHashes;
     for (int i=0; i<arity; i++) {
         GlobalVariable *kernelHash = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_hash"+to_string(i), Type::getInt32Ty(getGlobalContext())));
-        kernelHash->setInitializer(MatrixBuilder::constant(0, 8*sizeof(likely_hash)));
+        kernelHash->setInitializer(MatrixBuilder::constant(srcList[i]->hash, 8*sizeof(likely_hash)));
         kernelHashes.push_back(kernelHash);
     }
 
@@ -961,6 +989,7 @@ void *likely_make_allocation(likely_description description, likely_arity arity,
     va_list ap;
     va_start(ap, src);
     for (int i=0; i<arity; i++) {
+        likely_assert(src, "likely_make_allocation null matrix at index: %d", i);
         hashes.push_back(src->hash);
         src = va_arg(ap, const likely_matrix*);
     }
@@ -997,6 +1026,7 @@ void *likely_make_kernel(likely_description description, likely_arity arity, con
     va_list ap;
     va_start(ap, src);
     for (int i=0; i<arity; i++) {
+        likely_assert(src, "likely_make_kernel null matrix at index: %d", i);
         hashes.push_back(src->hash);
         src = va_arg(ap, const likely_matrix*);
     }

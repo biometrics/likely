@@ -134,8 +134,6 @@ void Test::run() const
 {
     if (!BenchmarkFunction.empty() && BenchmarkFunction != function()) return;
 
-    likely_unary_function f = likely_make_unary_function(function());
-
     for (likely_hash type : types()) {
         if ((BenchmarkType != likely_hash_null) && (BenchmarkType != type)) continue;
 
@@ -144,6 +142,8 @@ void Test::run() const
 
             // Generate input matrix
             Mat src = generateData(size, size, type);
+            likely_matrix srcLikely = matrixFromMat(src);
+            likely_unary_function f = likely_make_unary_function(function(), &srcLikely);
 
             // Test correctness
             testCorrectness(f, src, false);

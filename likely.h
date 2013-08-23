@@ -159,7 +159,7 @@ typedef void (*likely_nullary_kernel)(likely_matrix *dst, likely_size start, lik
 typedef void (*likely_unary_kernel)(const likely_matrix *src, likely_matrix *dst, likely_size start, likely_size stop);
 typedef void (*likely_binary_kernel)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst, likely_size start, likely_size stop);
 typedef void (*likely_ternary_kernel)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst, likely_size start, likely_size stop);
-LIKELY_EXPORT void *likely_make_function(likely_description description, likely_arity arity);
+LIKELY_EXPORT void *likely_make_function(likely_description description, likely_arity arity, const likely_matrix *src, ...);
 LIKELY_EXPORT void *likely_make_allocation(likely_description description, likely_arity arity, const likely_matrix *src, ...);
 LIKELY_EXPORT void *likely_make_kernel(likely_description description, likely_arity arity, const likely_matrix *src, ...);
 LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size start, likely_size stop, likely_matrix *src, ...);
@@ -167,19 +167,19 @@ LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, likely_arity arity, li
 // Core library functions
 typedef void (*likely_nullary_function)(likely_matrix *dst);
 inline likely_nullary_function likely_make_nullary_function(likely_description description)
-    { return (likely_nullary_function)likely_make_function(description, 0); }
+    { return (likely_nullary_function)likely_make_function(description, 0, NULL); }
 
 typedef void (*likely_unary_function)(const likely_matrix *src, likely_matrix *dst);
-inline likely_unary_function likely_make_unary_function(likely_description description)
-    { return (likely_unary_function)likely_make_function(description, 1); }
+inline likely_unary_function likely_make_unary_function(likely_description description, const likely_matrix *src)
+    { return (likely_unary_function)likely_make_function(description, 1, src, NULL); }
 
 typedef void (*likely_binary_function)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);
-inline likely_binary_function likely_make_binary_function(likely_description description)
-    { return (likely_binary_function)likely_make_function(description, 2); }
+inline likely_binary_function likely_make_binary_function(likely_description description, const likely_matrix *srcA, const likely_matrix *srcB)
+    { return (likely_binary_function)likely_make_function(description, 2, srcA, srcB, NULL); }
 
 typedef void (*likely_ternary_function)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);
-inline likely_ternary_function likely_make_ternary_function(likely_description description)
-    { return (likely_ternary_function)likely_make_function(description, 3); }
+inline likely_ternary_function likely_make_ternary_function(likely_description description, const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC)
+    { return (likely_ternary_function)likely_make_function(description, 3, srcA, srcB, srcC, NULL); }
 
 #ifdef __cplusplus
 }

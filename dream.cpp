@@ -125,7 +125,7 @@ private:
                                 QString::number(input.frames))); }
 private slots:
     void compile()
-      { function = likely_make_unary_function(qPrintable(toPlainText()));
+      { function = likely_make_unary_function(qPrintable(toPlainText()), &input);
         compute(); }
 signals:
     void newMatrixView(QImage);
