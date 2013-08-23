@@ -32,6 +32,7 @@
 #include <llvm/Transforms/Vectorize.h>
 #include <lua.hpp>
 #include <stdlib.h>
+#include <atomic>
 #include <iomanip>
 #include <iostream>
 #include <stack>
