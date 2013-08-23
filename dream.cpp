@@ -15,7 +15,6 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <QtCore>
-#include <QtQuick>
 #include <QtWidgets>
 #include "likely.h"
 
@@ -80,121 +79,14 @@ signals:
     void newPosition(QString);
     void newColor(QString); };
 
-class ShyLabel : public QLabel
+class Function : public QTextEdit
   { Q_OBJECT
-    int wheelRemainder = 0;
-public:
-    QString name;
-    ShyLabel(const QString &name_, QWidget *parent = 0) : QLabel(parent), name(name_)
-      { setCursor(Qt::IBeamCursor);
-        setFocusPolicy(Qt::StrongFocus);
-        connect(parent, SIGNAL(destroyed()), this, SLOT(deleteLater())); }
-    void emitValue(const QString &value) { emit newParameter(name + " = " + value); }
-public slots:
-    void setText(const QString &text)
-      { QLabel::setText(text);
-        if (rect().contains(mapFromGlobal(QCursor::pos())) || !isVisible()) emit emitValue(text); }
-private:
-    void enterEvent(QEvent *e)        { e->accept(); emitValue(text()); }
-    void focusInEvent(QFocusEvent *e) { e->accept(); emit focus();}
-    void leaveEvent(QEvent *e)        { e->accept(); emit newParameter(""); }
-    void wheelEvent(QWheelEvent *e)
-      { e->accept();
-        wheelRemainder += e->angleDelta().x() + e->angleDelta().y();
-        const int delta = wheelRemainder / 120;
-        if (delta != 0)
-          { wheelRemainder = wheelRemainder % 120;
-            emit change(delta); } }
-signals:
-    void change(int);
-    void focus();
-    void newParameter(QString); };
-
-class ShyComboBox : public QComboBox
-  { Q_OBJECT
-public:
-    ShyLabel *proxy;
-    ShyComboBox(const QString &name, QWidget *p = 0) : QComboBox(p)
-      { proxy = new ShyLabel(name, this);
-        setEditable(true);
-        setInsertPolicy(QComboBox::NoInsert);
-        connect(this, SIGNAL(currentIndexChanged(QString)), proxy, SLOT(setText(QString)));
-        connect(proxy, SIGNAL(change(int)), this, SLOT(change(int)));
-        connect(proxy, SIGNAL(focus()), this, SLOT(show()));
-        connect(proxy, SIGNAL(newParameter(QString)), this, SIGNAL(newParameter(QString)));
-        hide(); }
-public slots:
-    void change(int delta) { setCurrentIndex(qMin(qMax(currentIndex() - delta, 0), count()-1)); }
-    void hide() { QComboBox::hide(); proxy->show(); }
-    void show() { QComboBox::show(); proxy->hide(); setFocus(); }
-private:
-    void enterEvent(QEvent *e) { e->accept(); proxy->emitValue(currentText()); }
-    void focusOutEvent(QFocusEvent *e)
-      { QComboBox::focusOutEvent(e);
-        if ((e->reason() != Qt::PopupFocusReason) &&
-            (e->reason() != Qt::OtherFocusReason))
-          { e->accept();
-            hide(); } }
-    void leaveEvent(QEvent *e) { e->accept(); emit newParameter(""); }
-signals:
-    void newParameter(QString); };
-
-class ShyDoubleSpinBox : public QDoubleSpinBox
-  { Q_OBJECT
-public:
-    ShyLabel *proxy;
-    ShyDoubleSpinBox(const QString &name, QWidget *p = 0) : QDoubleSpinBox(p)
-      { proxy = new ShyLabel(name, this);
-        connect(this, SIGNAL(valueChanged(QString)), proxy, SLOT(setText(QString)));
-        connect(proxy, SIGNAL(change(int)), this, SLOT(change(int)));
-        connect(proxy, SIGNAL(focus()), this, SLOT(show()));
-        connect(proxy, SIGNAL(newParameter(QString)), this, SIGNAL(newParameter(QString)));
-        proxy->setText(QString::number(value()));
-        hide(); }
-public slots:
-    void change(int delta) { setValue(value() + delta); }
-    void hide() { QDoubleSpinBox::hide(); proxy->show(); }
-    void show() { QDoubleSpinBox::show(); proxy->hide(); setFocus(); }
-private:
-    void enterEvent(QEvent *e)         { e->accept(); proxy->emitValue(text()); }
-    void focusOutEvent(QFocusEvent *e) { e->accept(); hide(); }
-    void leaveEvent(QEvent *e)         { e->accept(); emit newParameter(""); }
-signals:
-    void newParameter(QString); };
-
-class InsertRemove : public QWidget
-  { Q_OBJECT
-    QHBoxLayout *layout;
-    QPushButton *insert, *remove;
-public:
-    InsertRemove(QWidget *p = 0) : QWidget(p)
-      { layout = new QHBoxLayout(this);
-        layout->addWidget(insert = new QPushButton("+", this));
-        layout->addWidget(remove = new QPushButton("-", this));
-        insert->setFixedWidth(16);
-        remove->setFixedWidth(16);
-        setLayout(layout); }
-};
-
-class Function : public QWidget
-  { Q_OBJECT
-    static QStringListModel *functionNames;
-    QGridLayout *layout;
-    InsertRemove *insertRemove;
-    ShyComboBox *functionChooser;
-    QList<ShyDoubleSpinBox*> parameterChoosers;
     likely_matrix input;
     likely_unary_function function = NULL;
 public:
-    Function(QWidget *p = 0) : QWidget(p)
+    Function(QWidget *p = 0) : QTextEdit(p)
       { likely_matrix_initialize(&input);
-        layout = new QGridLayout(this);
-        layout->addWidget(insertRemove = new InsertRemove(this), 0, 0);
-        layout->addWidget(functionChooser = new ShyComboBox("function", this), 0, 1);
-        layout->addWidget(functionChooser->proxy, 0, 1);
-        connect(functionChooser, SIGNAL(currentIndexChanged(QString)), this, SLOT(updateParameters(QString)));
-        connect(functionChooser, SIGNAL(newParameter(QString)), this, SIGNAL(newParameter(QString)));
-        functionChooser->setModel(functionNames); }
+        connect(this, SIGNAL(textChanged()), this, SLOT(compile())); }
 public slots:
     void setInput(const QImage &image)
       { likely_free(&input);
@@ -211,15 +103,19 @@ public slots:
         setInput(file.isEmpty() ? QImage() : QImage(file).convertToFormat(QImage::Format_RGB888)); }
 private:
     void compute()
-      { if (input.data == NULL)
+      { if (!input.data)
           { emit newMatrixView(QImage());
             emit newHash(QString());
             emit newDimensions(QString());
             return; }
-        likely_matrix output;
-        likely_matrix_initialize(&output);
-        function(&input, &output);
-        QImage outputImage(output.data, output.columns, output.rows, QImage::Format_RGB888);
+        QImage outputImage;
+        if (function)
+          { likely_matrix output;
+            likely_matrix_initialize(&output);
+            function(&input, &output);
+            outputImage = QImage(output.data, output.columns, output.rows, QImage::Format_RGB888); }
+        else
+          { outputImage = QImage(input.data, input.columns, input.rows, QImage::Format_RGB888); }
         emit newMatrixView(outputImage.copy());
         emit newHash(likely_hash_to_string(input.hash));
         emit newDimensions(QString("%1x%2x%3x%4")
@@ -231,18 +127,13 @@ private slots:
     void updateParameters(const QString &function)
       { (void) function; }
     void compile()
-      { QStringList arguments; arguments.reserve(arguments.size());
-        foreach (const ShyDoubleSpinBox *parameterChooser, parameterChoosers)
-            arguments.append(QString::number(parameterChooser->value()));
-        const QString description = functionChooser->currentText()+"("+arguments.join(',')+")";
-        function = likely_make_unary_function(qPrintable(description));
+      { function = likely_make_unary_function(qPrintable(toPlainText()));
         compute(); }
 signals:
     void newMatrixView(QImage);
     void newHash(QString);
     void newDimensions(QString);
     void newParameter(QString); };
-QStringListModel *Function::functionNames = NULL;
 
 class StatusLabel : public QLabel
   { Q_OBJECT
@@ -257,8 +148,7 @@ public slots:
         else { setEnabled(true); QLabel::setText(text); } }
 private:
     void setDescription() { setEnabled(false); QLabel::setText(description); }
-    void resizeEvent(QResizeEvent *e) { e->accept(); setMinimumWidth(width()); }
-};
+    void resizeEvent(QResizeEvent *e) { e->accept(); setMinimumWidth(width()); } };
 
 int main(int argc, char *argv[])
   { QApplication application(argc, argv);
@@ -298,12 +188,8 @@ int main(int argc, char *argv[])
     matrixViewerScrollArea->setAlignment(Qt::AlignCenter);
     matrixViewerScrollArea->setFrameShape(QFrame::NoFrame);
     matrixViewerScrollArea->setWidget(matrixViewer);
-    QQuickWindow *quickWindow = new QQuickView();
-    QWidget *quickWindowContainer = QWidget::createWindowContainer(quickWindow);
     centralWidgetLayout->addWidget(function, 0, 0);
     centralWidgetLayout->addWidget(matrixViewerScrollArea, 0, 1, 2, 1);
-    centralWidgetLayout->addWidget(quickWindowContainer, 1, 0);
-    centralWidgetLayout->setRowStretch(1, 1);
     QWidget *centralWidget = new QWidget();
     centralWidget->setLayout(centralWidgetLayout);
     StatusLabel *parameter = new StatusLabel("parameter");
