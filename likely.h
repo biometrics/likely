@@ -147,7 +147,8 @@ LIKELY_EXPORT likely_hash likely_string_to_hash(const char *str);
 LIKELY_EXPORT void likely_print_matrix(const likely_matrix *m);
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
 LIKELY_EXPORT void likely_dump(); // Print LLVM module contents to stderr
-// If set, likely_assert will call this function instead of aborting
+
+// If set, likely_assert will call this function instead of aborting on an error
 typedef void (*likely_error_callback)(const char *error_message);
 LIKELY_EXPORT void likely_set_error_callback(likely_error_callback error_callback = NULL);
 

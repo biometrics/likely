@@ -536,15 +536,15 @@ struct MatrixBuilder
 class KernelBuilder
 {
     likely_description description;
-    lua_State *L;
+    lua_State *L = NULL;
     vector<likely_hash> hashes;
     MatrixBuilder kernel;
-    PHINode *i;
+    PHINode *i = NULL;
 
 public:
-    KernelBuilder() : i(NULL) {}
+    KernelBuilder() = default;
     KernelBuilder(likely_description description_)
-        : description(description_), i(NULL)
+        : description(description_)
     {
         L = luaL_newstate();
         luaL_openlibs(L);
