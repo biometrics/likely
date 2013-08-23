@@ -41,7 +41,7 @@ protected:
     {
         std::vector<likely_hash> types;
 //        types.push_back(likely_hash_i16);
-        types.push_back(likely_hash_i32);
+//        types.push_back(likely_hash_i32);
         types.push_back(likely_hash_f32);
         types.push_back(likely_hash_f64);
         return types;
@@ -247,6 +247,16 @@ class subtractTest : public Test {
     Mat computeBaseline(const Mat &src) const { Mat dst; subtract(src, -3, dst); return dst; }
 };
 
+class logTest : public Test {
+    const char *function() const {return "log()"; }
+    Mat computeBaseline(const Mat &src) const { 
+        Mat dst;
+        if (src.depth() == CV_32F || src.depth() == CV_64F) { log(src, dst); }
+        else { dst = src; }
+        return dst;
+    }
+};
+
 int main(int argc, char *argv[])
 {
     // Parse arguments
@@ -265,12 +275,12 @@ int main(int argc, char *argv[])
     setbuf(stdout, NULL);
     printf("Function\tType\tSize\tExecution\tSpeedup\n");
 
-    addTest().run();
+//    addTest().run();
 //    divideTest().run();
 //    maddTest().run();
 //    multiplyTest().run();
 //    subtractTest().run();
-
+    logTest().run();
     return 0;
 }
 
