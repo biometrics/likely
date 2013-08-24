@@ -35,8 +35,6 @@
 #include <atomic>
 #include <iomanip>
 #include <iostream>
-#include <mutex>
-#include <regex>
 #include <stack>
 #include <sstream>
 #include <thread>
@@ -468,6 +466,35 @@ struct MatrixBuilder
     Value *multiply(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFMul(i, j, n) : b->CreateMul(i, j, n); }
     Value *divide(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFDiv(i, j, n) : (likely_is_signed(h) ? b->CreateSDiv(i,j, n) : b->CreateUDiv(i, j, n)); }
 
+    Value *toFP(Value *i) const {
+        switch (likely_type(h)) {
+            case likely_hash_u8:   return cast(i, MatrixBuilder(b, f, n, likely_hash_f32, i)); //First idea for the cast (doesn't work)
+            case likely_hash_u16:  return cast(i, MatrixBuilder(b, f, n, likely_hash_f32, i));
+            case likely_hash_u32:  return cast(i, MatrixBuilder(b, f, n, likely_hash_f32, i));
+            case likely_hash_u64:  return cast(i, MatrixBuilder(b, f, n, likely_hash_f64, i));
+            case likely_hash_i8:   return cast(i, MatrixBuilder(b, f, n, likely_hash_f32, i));
+            case likely_hash_i16:  return cast(i, MatrixBuilder(b, f, n, likely_hash_f32, i));
+            case likely_hash_i32:  return cast(i, MatrixBuilder(b, f, n, likely_hash_f32, i));
+            case likely_hash_i64:  return cast(i, MatrixBuilder(b, f, n, likely_hash_f64, i));
+            case likely_hash_f32:  return b->CreateFPCast(i, Type::getDoubleTy(getGlobalContext()), n); //Other idea for the cast (also doesn't work)
+            case likely_hash_f64:  return i;
+            default: return i;
+        };
+    }
+
+    //These are really long and I really want to make them readable but still on one line so i will have to think of a way to do that
+    Value *log(Value *i) const { i = toFP(i); vector<Type *> args; (i->getType() == Type::getFloatTy(getGlobalContext())) ? args.push_back(Type::getFloatTy(getGlobalContext())) : args.push_back(Type::getDoubleTy(getGlobalContext())); Function *f_log = Intrinsic::getDeclaration(TheModule, Intrinsic::log, args); return b->CreateCall(f_log, i, n); }
+    Value *log2(Value *i) const { vector<Type *> args; (likely_type(h) == likely_hash_f32) ? args.push_back(Type::getFloatTy(getGlobalContext())) : args.push_back(Type::getDoubleTy(getGlobalContext())); Function *f_log2 = Intrinsic::getDeclaration(TheModule, Intrinsic::log2, args); return b->CreateCall(f_log2, i, n); }
+    Value *log10(Value *i) const { vector<Type *> args; (likely_type(h) == likely_hash_f32) ? args.push_back(Type::getFloatTy(getGlobalContext())) : args.push_back(Type::getDoubleTy(getGlobalContext())); Function *f_log10 = Intrinsic::getDeclaration(TheModule, Intrinsic::log10, args); return b->CreateCall(f_log10, i, n); }
+    Value *sin(Value *i) const { vector<Type *> args; (likely_type(h) == likely_hash_f32) ? args.push_back(Type::getFloatTy(getGlobalContext())) : args.push_back(Type::getDoubleTy(getGlobalContext())); Function *f_sin = Intrinsic::getDeclaration(TheModule, Intrinsic::sin, args); return b->CreateCall(f_sin, i, n); }
+    Value *cos(Value *i) const { vector<Type *> args; (likely_type(h) == likely_hash_f32) ? args.push_back(Type::getFloatTy(getGlobalContext())) : args.push_back(Type::getDoubleTy(getGlobalContext())); Function *f_cos = Intrinsic::getDeclaration(TheModule, Intrinsic::cos, args); return b->CreateCall(f_cos, i, n); }
+    Value *fabs(Value *i) const { vector<Type *> args; (likely_type(h) == likely_hash_f32) ? args.push_back(Type::getFloatTy(getGlobalContext())) : args.push_back(Type::getDoubleTy(getGlobalContext())); Function *f_fabs = Intrinsic::getDeclaration(TheModule, Intrinsic::fabs, args); return b->CreateCall(f_fabs, i, n); }
+    Value *sqrt(Value *i) const { vector<Type *> args; (likely_type(h) == likely_hash_f32) ? args.push_back(Type::getFloatTy(getGlobalContext())) : args.push_back(Type::getDoubleTy(getGlobalContext())); Function *f_sqrt = Intrinsic::getDeclaration(TheModule, Intrinsic::sqrt, args); return b->CreateCall(f_sqrt, i, n); }
+    Value *pow(Value *i, Value *j) const { vector<Type *> args; (likely_type(h) == likely_hash_f32) ? args.push_back(Type::getFloatTy(getGlobalContext())) : args.push_back(Type::getDoubleTy(getGlobalContext())); Function *f_pow = Intrinsic::getDeclaration(TheModule, Intrinsic::pow, args); return b->CreateCall(f_pow, i, n); }
+    Value *exp(Value *i) const { vector<Type *> args; (likely_type(h) == likely_hash_f32) ? args.push_back(Type::getFloatTy(getGlobalContext())) : args.push_back(Type::getDoubleTy(getGlobalContext())); Function *f_exp = Intrinsic::getDeclaration(TheModule, Intrinsic::exp, args); return b->CreateCall(f_exp, i, n); }
+
+
+
     Value *compareLT(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFCmpOLT(i, j) : (likely_is_signed(h) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
     Value *compareGT(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFCmpOGT(i, j) : (likely_is_signed(h) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
 
@@ -684,7 +711,19 @@ public:
                 const string value = lua_tostring(L, j);
                 if (value == "src") {
                     values.push_back(kernel.load(i));
-                } else {
+                }
+                else if (values.size() < 2) {
+                	Value *operand = values[values.size()-1];
+                    values.pop_back();
+                    if (value == "log")  values.push_back(kernel.log(operand));
+                    else if (value == "log2") values.push_back(kernel.log2(operand));
+                    else if (value == "log10") values.push_back(kernel.log10(operand));
+                    else if (value == "sin") values.push_back(kernel.sin(operand));
+                    else if (value == "cos") values.push_back(kernel.cos(operand));
+                    else if (value == "fabs") values.push_back(kernel.fabs(operand));
+                    else                     likely_assert(false, "KernelBuilder::makeEquation unsupported operator: %s", value.c_str());
+                } 
+                else {
                     likely_assert(values.size() >= 2, "KernelBuilder::make equation insufficient operands: %lu for operator: %s", values.size(), value.c_str());
                     Value *lhs = values[values.size()-2];
                     Value *rhs = values[values.size()-1];
