@@ -711,6 +711,7 @@ public:
                     else if (value == "exp") values.push_back(kernel.exp(operand));
                     else                     {likely_assert(false, "KernelBuilder::makeEquation unsupported operator: %s", value.c_str()); return NULL; }
                 } else {
+                    if (!likely_assert(values.size() >= 2, "KernelBuilder::make equation insufficient operands: %lu for operator: %s", values.size(), value.c_str())) return NULL;)
                     Value *lhs = values[values.size()-2];
                     Value *rhs = values[values.size()-1];
                     values.pop_back();
