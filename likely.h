@@ -145,7 +145,7 @@ LIKELY_EXPORT void likely_set_element(likely_matrix *m, double value, likely_siz
 LIKELY_EXPORT const char *likely_hash_to_string(likely_hash h); // Pointer guaranteed until the next call to this function
 LIKELY_EXPORT likely_hash likely_string_to_hash(const char *str);
 LIKELY_EXPORT void likely_print_matrix(const likely_matrix *m);
-LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
+LIKELY_EXPORT bool likely_assert(bool condition, const char *format, ...); // Returns condition
 LIKELY_EXPORT void likely_dump(); // Print LLVM module contents to stderr
 
 // If set, likely_assert will call this function instead of aborting on an error

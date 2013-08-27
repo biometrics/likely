@@ -148,6 +148,18 @@ private:
     void setDescription() { setEnabled(false); QLabel::setText(description); }
     void resizeEvent(QResizeEvent *e) { e->accept(); setMinimumWidth(width()); } };
 
+class ErrorHandler : public QObject
+  { Q_OBJECT
+    static ErrorHandler *errorHandler;
+    ErrorHandler() : QObject(NULL) { likely_set_error_callback(likely_error_handler); }
+    void setError(const QString &error) { emit newError("<font color=\"red\">"+error+"</font>"); }
+    static void likely_error_handler(const char *error) { get()->setError(error); }
+public:
+    static ErrorHandler *get() { if (!errorHandler) errorHandler = new ErrorHandler(); return errorHandler; }
+signals:
+    void newError(QString); };
+ErrorHandler *ErrorHandler::errorHandler = NULL;
+
 int main(int argc, char *argv[])
   { QApplication application(argc, argv);
     QMenu *fileMenu = new QMenu("File");
@@ -190,18 +202,19 @@ int main(int argc, char *argv[])
     centralWidgetLayout->addWidget(matrixViewerScrollArea, 0, 1, 2, 1);
     QWidget *centralWidget = new QWidget();
     centralWidget->setLayout(centralWidgetLayout);
-    StatusLabel *parameter = new StatusLabel("parameter");
+    StatusLabel *info = new StatusLabel("info");
     StatusLabel *hash = new StatusLabel("hash");
     StatusLabel *dimensions = new StatusLabel("dimensions");
     StatusLabel *position = new StatusLabel("position");
     StatusLabel *color = new StatusLabel("color");
-    QObject::connect(function, SIGNAL(newParameter(QString)), parameter, SLOT(setText(QString)));
+    QObject::connect(ErrorHandler::get(), SIGNAL(newError(QString)), info, SLOT(setText(QString)));
+    QObject::connect(function, SIGNAL(newParameter(QString)), info, SLOT(setText(QString)));
     QObject::connect(function, SIGNAL(newHash(QString)), hash, SLOT(setText(QString)));
     QObject::connect(function, SIGNAL(newDimensions(QString)), dimensions, SLOT(setText(QString)));
     QObject::connect(matrixViewer, SIGNAL(newPosition(QString)), position, SLOT(setText(QString)));
     QObject::connect(matrixViewer, SIGNAL(newColor(QString)), color, SLOT(setText(QString)));
     QStatusBar *statusBar = new QStatusBar();
-    statusBar->addPermanentWidget(parameter);
+    statusBar->addPermanentWidget(info);
     statusBar->addPermanentWidget(new QWidget(), 1);
     statusBar->addPermanentWidget(hash);
     statusBar->addPermanentWidget(dimensions);

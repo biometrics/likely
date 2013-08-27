@@ -212,9 +212,9 @@ void likely_print_matrix(const likely_matrix *m)
     }
 }
 
-void likely_assert(bool condition, const char *format, ...)
+bool likely_assert(bool condition, const char *format, ...)
 {
-    if (condition) return;
+    if (condition) return true;
     const int bufferSize = 1024;
     char *buffer = new char[bufferSize];
 
@@ -230,6 +230,7 @@ void likely_assert(bool condition, const char *format, ...)
     }
 
     delete buffer;
+    return false;
 }
 
 void likely_dump()
@@ -554,7 +555,7 @@ public:
         checkLua(L, luaL_dostring(L, (string("return ") + description).c_str()));
     }
 
-    void makeAllocation(Function *function, const vector<likely_hash> &hashes_)
+    bool makeAllocation(Function *function, const vector<likely_hash> &hashes_)
     {
         hashes = hashes_;
         vector<Value*> srcs;
@@ -571,9 +572,10 @@ public:
         kernel = MatrixBuilder(&builder, function, "kernel", kernelHash, srcs[0]);
         kernel.copyHeaderTo(dst);
         builder.CreateRet(kernel.elements());
+        return true;
     }
 
-    void makeKernel(Function *function)
+    bool makeKernel(Function *function)
     {
         vector<Value*> srcs;
         Value *dst, *start, *stop;
@@ -639,11 +641,14 @@ public:
         } else {
             kernel.reset(&builder, function, srcs[0]);
             i = kernel.beginLoop(entry, start, stop).i;
+            Value *equation = makeEquation();
+            if (!equation) return false;
             kernel.store(dst, i, makeEquation());
             kernel.endLoop();
         }
 
         builder.CreateRetVoid();
+        return true;
     }
 
     static void getValues(Function *function, vector<Value*> &srcs, Value *&dst)
@@ -685,7 +690,7 @@ public:
                 if (value == "src") {
                     values.push_back(kernel.load(i));
                 } else {
-                    likely_assert(values.size() >= 2, "KernelBuilder::make equation insufficient operands: %lu for operator: %s", values.size(), value.c_str());
+                    if (!likely_assert(values.size() >= 2, "KernelBuilder::make equation insufficient operands: %lu for operator: %s", values.size(), value.c_str())) return NULL;
                     Value *lhs = values[values.size()-2];
                     Value *rhs = values[values.size()-1];
                     values.pop_back();
@@ -694,14 +699,14 @@ public:
                     else if (value == "-") values.push_back(kernel.subtract(lhs, rhs));
                     else if (value == "*") values.push_back(kernel.multiply(lhs, rhs));
                     else if (value == "/") values.push_back(kernel.divide(lhs, rhs));
-                    else                   likely_assert(false, "KernelBuilder::makeEquation unsupported operator: %s", value.c_str());
+                    else                   { likely_assert(false, "KernelBuilder::makeEquation unsupported operator: %s", value.c_str()); return NULL; }
                 }
             } else {
-                likely_assert(false, "KernelBuilder::makeEquation unsupported type: %s", lua_typename(L, type));
+                likely_assert(false, "KernelBuilder::makeEquation unsupported type: %s", lua_typename(L, type)); return NULL;
             }
         }
 
-        likely_assert(values.size() == 1, "KernelBuilder::makeEquation expected one value after parsing");
+        if (!likely_assert(values.size() == 1, "KernelBuilder::makeEquation expected one value after parsing")) return NULL;
         return values[0];
     }
 };
@@ -867,6 +872,7 @@ void *likely_make_function(likely_description description, likely_arity arity, c
       case 3:  default_allocation = likely_make_allocation(description, arity, srcList[0], srcList[1], srcList[2], NULL); break;
       default: default_allocation = NULL;
     }
+    if (default_allocation == NULL) { delete function; return NULL; }
     allocationFunction->setInitializer(MatrixBuilder::constant<void*>(default_allocation, allocationFunctionType));
 
     static Function *makeKernelFunction = NULL;
@@ -897,6 +903,7 @@ void *likely_make_function(likely_description description, likely_arity arity, c
       case 3:  default_kernel = likely_make_kernel(description, arity, srcList[0], srcList[1], srcList[2], NULL); break;
       default: default_kernel = NULL;
     }
+    if (default_kernel == NULL) { delete function; return NULL; }
     kernelFunction->setInitializer(MatrixBuilder::constant<void*>(default_kernel, kernelFunctionType));
 
     vector<Value*> srcs;
@@ -1008,7 +1015,7 @@ void *likely_make_allocation(likely_description description, likely_arity arity,
         kernels[description] = KernelBuilder(description);
         kernelPointer = kernels.find(description);
     }
-    (*kernelPointer).second.makeAllocation(function, hashes);
+    if (!(*kernelPointer).second.makeAllocation(function, hashes)) { delete function; return NULL; }
 
     static FunctionPassManager *functionPassManager = NULL;
     if (functionPassManager == NULL) {
@@ -1040,7 +1047,7 @@ void *likely_make_kernel(likely_description description, likely_arity arity, con
         return executionEngine->getPointerToFunction(function);
     function = getFunction(name, hashes.size(), Type::getVoidTy(getGlobalContext()), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
 
-    kernels[description].makeKernel(function);
+    if (!kernels[description].makeKernel(function)) { delete function; return NULL; }
 
     static FunctionPassManager *functionPassManager = NULL;
     if (functionPassManager == NULL) {
