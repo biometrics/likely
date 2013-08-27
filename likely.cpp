@@ -789,7 +789,8 @@ void *likely_make_function(likely_description description, likely_arity arity, c
     va_list ap;
     va_start(ap, src);
     for (int i=0; i<arity; i++) {
-        likely_assert(src, "likely_make_function null matrix at index: %d", i);
+        if (!likely_assert(src, "likely_make_function null matrix at index: %d", i)) return NULL;
+        if (!likely_assert(src->hash != likely_hash_null, "likely_make_function null matrix hash at index: %d", i)) return NULL;
         srcList.push_back(src);
         src = va_arg(ap, const likely_matrix*);
     }
