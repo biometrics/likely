@@ -463,7 +463,30 @@ struct MatrixBuilder
         return store;
     }
 
-    Value *cast(Value *i, likely_hash hash) const { return (likely_type(h) == likely_type(hash)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(h), Type::getFloatTy(getGlobalContext()), likely_is_signed(h)), i, Type::getFloatTy(getGlobalContext())); }
+    Type *getType(likely_hash hash) const {
+        switch (hash) {
+            case likely_hash_u8:  return Type::getInt8Ty(getGlobalContext());
+            case likely_hash_u16: return Type::getInt16Ty(getGlobalContext());
+            case likely_hash_u32: return Type::getInt32Ty(getGlobalContext());
+            case likely_hash_u64: return Type::getInt64Ty(getGlobalContext());
+            case likely_hash_i8:  return Type::getInt8Ty(getGlobalContext());
+            case likely_hash_i16: return Type::getInt16Ty(getGlobalContext());
+            case likely_hash_i32: return Type::getInt32Ty(getGlobalContext());
+            case likely_hash_i64: return Type::getInt64Ty(getGlobalContext());
+            case likely_hash_f32: return Type::getFloatTy(getGlobalContext());
+            case likely_hash_f64: return Type::getDoubleTy(getGlobalContext());
+            default:              likely_assert(false, "No supported type for %s", likely_hash_to_string(hash)); return Type::getVoidTy(getGlobalContext());
+        }
+    }
+
+    Value *cast(Value *i, likely_hash hash) const {
+        if (likely_type(h) == likely_type(hash)) return i;
+        else if (likely_is_floating(h) && likely_is_floating(hash)) return b->CreateFPCast(i, getType(hash), n);
+        else if (!likely_is_floating(h) && !likely_is_floating(hash)) return b->CreateIntCast(i, getType(hash), likely_is_signed(hash), n);
+        else if (getType(h)->getScalarSizeInBits() == getType(hash)->getScalarSizeInBits()) return b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(h), getType(hash), likely_is_signed(hash)), i, getType(hash), n);
+        //else { } //Need an intermediate cast to bitlength of hash in type of h then a final cast to correct hash type
+    }
+
     Value *add(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFAdd(i, j, n) : b->CreateAdd(i, j, n); }
     Value *subtract(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFSub(i, j, n) : b->CreateSub(i, j, n); }
     Value *multiply(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFMul(i, j, n) : b->CreateMul(i, j, n); }
