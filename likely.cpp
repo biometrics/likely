@@ -469,14 +469,14 @@ struct MatrixBuilder
     Value *multiply(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFMul(i, j, n) : b->CreateMul(i, j, n); }
     Value *divide(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFDiv(i, j, n) : (likely_is_signed(h) ? b->CreateSDiv(i,j, n) : b->CreateUDiv(i, j, n)); }
 
-    Value *log(Value *i) const { i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(Type::getFloatTy(getGlobalContext())); Function *f_log = Intrinsic::getDeclaration(TheModule, Intrinsic::log, args); return b->CreateCall(f_log, i, n); }
-    Value *log2(Value *i) const { i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(Type::getFloatTy(getGlobalContext())); Function *f_log2 = Intrinsic::getDeclaration(TheModule, Intrinsic::log2, args); return b->CreateCall(f_log2, i, n); }
-    Value *log10(Value *i) const { i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(Type::getFloatTy(getGlobalContext())); Function *f_log10 = Intrinsic::getDeclaration(TheModule, Intrinsic::log10, args); return b->CreateCall(f_log10, i, n); }
-    Value *sin(Value *i) const { i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(Type::getFloatTy(getGlobalContext())); Function *f_sin = Intrinsic::getDeclaration(TheModule, Intrinsic::sin, args); return b->CreateCall(f_sin, i, n); }
-    Value *cos(Value *i) const { i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(Type::getFloatTy(getGlobalContext())); Function *f_cos = Intrinsic::getDeclaration(TheModule, Intrinsic::cos, args); return b->CreateCall(f_cos, i, n); }
-    Value *fabs(Value *i) const { i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(Type::getFloatTy(getGlobalContext())); Function *f_fabs = Intrinsic::getDeclaration(TheModule, Intrinsic::fabs, args); return b->CreateCall(f_fabs, i, n); }
-    Value *sqrt(Value *i) const { i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(Type::getFloatTy(getGlobalContext())); Function *f_sqrt = Intrinsic::getDeclaration(TheModule, Intrinsic::sqrt, args); return b->CreateCall(f_sqrt, i, n); }
-    Value *exp(Value *i) const { i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(Type::getFloatTy(getGlobalContext())); Function *f_exp = Intrinsic::getDeclaration(TheModule, Intrinsic::exp, args); return b->CreateCall(f_exp, i, n); }
+    Value *log(Value *i) const { printf("value name: %s\n", i->getName().data()); i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(i->getType()); Function *f_log = Intrinsic::getDeclaration(TheModule, Intrinsic::log, args); return b->CreateCall(f_log, i, n); }
+    Value *log2(Value *i) const { i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(i->getType()); Function *f_log2 = Intrinsic::getDeclaration(TheModule, Intrinsic::log2, args); return b->CreateCall(f_log2, i, n); }
+    Value *log10(Value *i) const { i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(i->getType()); Function *f_log10 = Intrinsic::getDeclaration(TheModule, Intrinsic::log10, args); return b->CreateCall(f_log10, i, n); }
+    Value *sin(Value *i) const { i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(i->getType()); Function *f_sin = Intrinsic::getDeclaration(TheModule, Intrinsic::sin, args); return b->CreateCall(f_sin, i, n); }
+    Value *cos(Value *i) const { i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(i->getType()); Function *f_cos = Intrinsic::getDeclaration(TheModule, Intrinsic::cos, args); return b->CreateCall(f_cos, i, n); }
+    Value *fabs(Value *i) const { i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(i->getType()); Function *f_fabs = Intrinsic::getDeclaration(TheModule, Intrinsic::fabs, args); return b->CreateCall(f_fabs, i, n); }
+    Value *sqrt(Value *i) const { i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(i->getType()); Function *f_sqrt = Intrinsic::getDeclaration(TheModule, Intrinsic::sqrt, args); return b->CreateCall(f_sqrt, i, n); }
+    Value *exp(Value *i) const { i = cast(i, likely_hash_f32); vector<Type *> args; args.push_back(i->getType()); Function *f_exp = Intrinsic::getDeclaration(TheModule, Intrinsic::exp, args); return b->CreateCall(f_exp, i, n); }
 
     Value *compareLT(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFCmpOLT(i, j) : (likely_is_signed(h) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
     Value *compareGT(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFCmpOGT(i, j) : (likely_is_signed(h) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
@@ -711,7 +711,7 @@ public:
                     else if (value == "exp") values.push_back(kernel.exp(operand));
                     else                     {likely_assert(false, "KernelBuilder::makeEquation unsupported operator: %s", value.c_str()); return NULL; }
                 } else {
-                    if (!likely_assert(values.size() >= 2, "KernelBuilder::make equation insufficient operands: %lu for operator: %s", values.size(), value.c_str())) return NULL;)
+                    if (!likely_assert(values.size() >= 2, "KernelBuilder::make equation insufficient operands: %lu for operator: %s", values.size(), value.c_str())) return NULL;
                     Value *lhs = values[values.size()-2];
                     Value *rhs = values[values.size()-1];
                     values.pop_back();
