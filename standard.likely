@@ -3,3 +3,14 @@ function add(b) return "src", b, "+" end
 function subtract(b) return "src", b, "-" end
 function multiply(a) return "src", a, "*" end
 function divide(a) return "src", a, "/" end
+
+-- Basic math
+function log() return "src", "log" end
+function log2() return "src", "log2" end
+function log10() return "src", "log10" end
+function sin() return "src", "sin" end
+function cos() return "src", "cos" end
+function fabs() return "src", "fabs" end
+function sqrt() return "src", "sqrt" end
+function exp() return "src", "exp" end
+function pow() return "src", "a", "pow" end
