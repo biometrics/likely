@@ -533,7 +533,10 @@ struct MatrixBuilder
         return NULL;
     }
     inline Type *ty(bool pointer = false) const { return ty(h, pointer); }
-    inline vector<Type*> tys(bool pointer = false) const { return toVector<Type*>(ty(pointer)); }  
+    inline vector<Type*> tys(bool pointer = false) const { return toVector<Type*>(ty(pointer)); }
+
+    static void *cleanup(Function *f) { f->removeFromParent(); delete f; return NULL; }
+    void *cleanup() { return cleanup(f); }
 };
 
 class KernelBuilder
@@ -873,7 +876,7 @@ void *likely_make_function(likely_description description, likely_arity arity, c
       case 3:  default_allocation = likely_make_allocation(description, arity, srcList[0], srcList[1], srcList[2], NULL); break;
       default: default_allocation = NULL;
     }
-    if (default_allocation == NULL) { delete function; return NULL; }
+    if (default_allocation == NULL) return MatrixBuilder::cleanup(function);
     allocationFunction->setInitializer(MatrixBuilder::constant<void*>(default_allocation, allocationFunctionType));
 
     static Function *makeKernelFunction = NULL;
@@ -904,7 +907,7 @@ void *likely_make_function(likely_description description, likely_arity arity, c
       case 3:  default_kernel = likely_make_kernel(description, arity, srcList[0], srcList[1], srcList[2], NULL); break;
       default: default_kernel = NULL;
     }
-    if (default_kernel == NULL) { delete function; return NULL; }
+    if (default_kernel == NULL) return MatrixBuilder::cleanup(function);
     kernelFunction->setInitializer(MatrixBuilder::constant<void*>(default_kernel, kernelFunctionType));
 
     vector<Value*> srcs;
@@ -1016,7 +1019,7 @@ void *likely_make_allocation(likely_description description, likely_arity arity,
         kernels[description] = KernelBuilder(description);
         kernelPointer = kernels.find(description);
     }
-    if (!(*kernelPointer).second.makeAllocation(function, hashes)) { delete function; return NULL; }
+    if (!(*kernelPointer).second.makeAllocation(function, hashes)) return MatrixBuilder::cleanup(function);
 
     static FunctionPassManager *functionPassManager = NULL;
     if (functionPassManager == NULL) {
@@ -1048,7 +1051,7 @@ void *likely_make_kernel(likely_description description, likely_arity arity, con
         return executionEngine->getPointerToFunction(function);
     function = getFunction(name, hashes.size(), Type::getVoidTy(getGlobalContext()), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
 
-    if (!kernels[description].makeKernel(function)) { delete function; return NULL; }
+    if (!kernels[description].makeKernel(function)) return MatrixBuilder::cleanup(function);
 
     static FunctionPassManager *functionPassManager = NULL;
     if (functionPassManager == NULL) {

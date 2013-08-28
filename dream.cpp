@@ -94,16 +94,18 @@ public slots:
           { likely_matrix_initialize(&input, likely_hash_u8, 3, image.width(), image.height(), 1);
             likely_allocate(&input);
             memcpy(input.data, image.constBits(), likely_bytes(&input)); }
-        compute(); }
+        compile(); }
     void setInput(QAction *a)
       { QString file;
         if      (a->text() == "New...")  file = "";
         else if (a->text() == "Open...") file = QFileDialog::getOpenFileName(NULL, "Open File");
         else                             file = a->data().toString();
         setInput(file.isEmpty() ? QImage() : QImage(file).convertToFormat(QImage::Format_RGB888)); }
-private:
-    void compute()
-      { if (!input.data)
+
+private slots:
+    void compile()
+      { function = likely_make_unary_function(qPrintable(toPlainText()), &input);
+        if (!input.data)
           { emit newMatrixView(QImage());
             emit newHash(QString());
             emit newDimensions(QString());
@@ -116,6 +118,7 @@ private:
             outputImage = QImage(output.data, output.columns, output.rows, QImage::Format_RGB888); }
         else
           { outputImage = QImage(input.data, input.columns, input.rows, QImage::Format_RGB888); }
+        emit newParameter(QString());
         emit newMatrixView(outputImage.copy());
         emit newHash(likely_hash_to_string(input.hash));
         emit newDimensions(QString("%1x%2x%3x%4")
@@ -123,10 +126,6 @@ private:
                                 QString::number(input.rows),
                                 QString::number(input.columns),
                                 QString::number(input.frames))); }
-private slots:
-    void compile()
-      { function = likely_make_unary_function(qPrintable(toPlainText()), &input);
-        compute(); }
 signals:
     void newMatrixView(QImage);
     void newHash(QString);
