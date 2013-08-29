@@ -463,28 +463,13 @@ struct MatrixBuilder
         return store;
     }
 
-    Type *getType(likely_hash hash) const {
-        switch (hash) {
-            case likely_hash_u8:  return Type::getInt8Ty(getGlobalContext());
-            case likely_hash_u16: return Type::getInt16Ty(getGlobalContext());
-            case likely_hash_u32: return Type::getInt32Ty(getGlobalContext());
-            case likely_hash_u64: return Type::getInt64Ty(getGlobalContext());
-            case likely_hash_i8:  return Type::getInt8Ty(getGlobalContext());
-            case likely_hash_i16: return Type::getInt16Ty(getGlobalContext());
-            case likely_hash_i32: return Type::getInt32Ty(getGlobalContext());
-            case likely_hash_i64: return Type::getInt64Ty(getGlobalContext());
-            case likely_hash_f32: return Type::getFloatTy(getGlobalContext());
-            case likely_hash_f64: return Type::getDoubleTy(getGlobalContext());
-            default:              likely_assert(false, "No supported type for %s", likely_hash_to_string(hash)); return Type::getVoidTy(getGlobalContext());
-        }
-    }
-
     Value *cast(Value *i, likely_hash hash) const {
         if (likely_type(h) == likely_type(hash)) return i;
-        else if (likely_is_floating(h) && likely_is_floating(hash)) return b->CreateFPCast(i, getType(hash), n);
-        else if (!likely_is_floating(h) && !likely_is_floating(hash)) return b->CreateIntCast(i, getType(hash), likely_is_signed(hash), n);
-        else if (getType(h)->getScalarSizeInBits() == getType(hash)->getScalarSizeInBits()) return b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(h), getType(hash), likely_is_signed(hash)), i, getType(hash), n);
-        //else { } //Need an intermediate cast to bitlength of hash in type of h then a final cast to correct hash type
+        else if (likely_is_floating(h) && likely_is_floating(hash)) { setType(likely_type(hash)); return b->CreateFPCast(i, ty(), n); }
+        else if (!likely_is_floating(h) && !likely_is_floating(hash)) { setType(likely_type(hash)); setSigned(likely_is_signed(hash)); return b->CreateIntCast(i, ty(hash), likely_is_signed(hash), n); }
+        else if (ty(h)->getScalarSizeInBits() == ty(hash)->getScalarSizeInBits() && likely_is_floating(h)) { setType(likely_type(hash)); setSigned(likely_is_signed(hash)); return likely_is_signed(h) ? b->CreateFPToSI(i, ty(), n) : b->CreateFPToUI(i, ty(), n); }
+        else if (ty(h)->getScalarSizeInBits() == ty(hash)->getScalarSizeInBits()) { bool sign = likely_is_signed(h); setType(likely_type(hash)); setFloating(likely_is_floating(hash)); return sign ? b->CreateSIToFP(i, ty(), n) : b->CreateUIToFP(i, ty(), n); }
+        else { likely_assert(false, "invalid cast between %s and %s because bitlength differs. Consider using an intermediate cast.", likely_hash_to_string(h), likely_hash_to_string(hash)); return NULL; } //Need an intermediate cast to bitlength of hash in type of h then a final cast to correct hash type
     }
 
     Value *add(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFAdd(i, j, n) : b->CreateAdd(i, j, n); }
@@ -493,7 +478,7 @@ struct MatrixBuilder
     Value *divide(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFDiv(i, j, n) : (likely_is_signed(h) ? b->CreateSDiv(i,j, n) : b->CreateUDiv(i, j, n)); }
 
     Value *intrinsic(Value *i, Intrinsic::ID id) const { vector<Type*> args; args.push_back(i->getType()); Function *intrinsic = Intrinsic::getDeclaration(TheModule, id, args); return b->CreateCall(intrinsic, i, n); }
-    Value *log(Value *i) const { return intrinsic(i, Intrinsic::log); }
+    Value *log(Value *i) const { i = cast(i, likely_hash_f32); return intrinsic(i, Intrinsic::log); }
     Value *log2(Value *i) const { return intrinsic(i, Intrinsic::log2); }
     Value *log10(Value *i) const { return intrinsic(i, Intrinsic::log10); }
     Value *sin(Value *i) const { return intrinsic(i, Intrinsic::sin); }
@@ -725,7 +710,7 @@ public:
                 const string value = lua_tostring(L, j);
                 if (value == "src") {
                     values.push_back(kernel.load(i));
-                } else if (values.size() == 1) {
+                } else if (values.size() == 1) { //Unary equations
                     Value *operand = values[values.size()-1];
                     values.pop_back();
                     if      (value == "log")   values.push_back(kernel.log(operand));
@@ -737,8 +722,7 @@ public:
                     else if (value == "sqrt")  values.push_back(kernel.sqrt(operand));
                     else if (value == "exp")   values.push_back(kernel.exp(operand));
                     else                       { likely_assert(false, "KernelBuilder::makeEquation unsupported operator: %s", value.c_str()); return NULL; }
-                } else {
-                    if (!likely_assert(values.size() >= 2, "KernelBuilder::make equation insufficient operands: %lu for operator: %s", values.size(), value.c_str())) return NULL;
+                } else if (values.size() == 2) { //Binary equations
                     Value *lhs = values[values.size()-2];
                     Value *rhs = values[values.size()-1];
                     values.pop_back();
@@ -748,6 +732,16 @@ public:
                     else if (value == "*") values.push_back(kernel.multiply(lhs, rhs));
                     else if (value == "/") values.push_back(kernel.divide(lhs, rhs));
                     else                   { likely_assert(false, "KernelBuilder::makeEquation unsupported operator: %s", value.c_str()); return NULL; }
+                } else if (values.size() == 3) { //ternary equations
+                    Value *l = values[values.size()-3];
+                    Value *m = values[values.size()-2];
+                    Value *r = values[values.size()-1];
+                    values.pop_back();
+                    values.pop_back();
+                    values.pop_back();
+                    (void)l; (void)m; (void)r;
+                } else {
+                    likely_assert(false, "KernelBuilder::makeEquation unsupported number of operands: %d", values.size()); return NULL;
                 }
             } else {
                 likely_assert(false, "KernelBuilder::makeEquation unsupported type: %s", lua_typename(L, type)); return NULL;
