@@ -79,33 +79,68 @@ signals:
     void newPosition(QString);
     void newColor(QString); };
 
+class ErrorHandler : public QObject
+  { Q_OBJECT
+    static ErrorHandler *errorHandler;
+    ErrorHandler() : QObject(NULL) { likely_set_error_callback(likely_error_handler); }
+    void setError(const QString &error) { emit newError("<font color=\"red\">"+error+"</font>"); }
+    static void likely_error_handler(const char *error) { get()->setError(error); }
+public:
+    static ErrorHandler *get() { if (!errorHandler) errorHandler = new ErrorHandler(); return errorHandler; }
+signals:
+    void newError(QString); };
+ErrorHandler *ErrorHandler::errorHandler = NULL;
+
 class Function : public QTextEdit
   { Q_OBJECT
+    QString sourceFileName;
+    QSettings settings;
     likely_matrix input;
     likely_unary_function function = NULL;
 public:
     Function(QWidget *p = 0) : QTextEdit(p)
       { likely_matrix_initialize(&input);
-        connect(this, SIGNAL(textChanged()), this, SLOT(compile())); }
+        connect(this, SIGNAL(textChanged()), this, SLOT(compile()));
+        connect(ErrorHandler::get(), SIGNAL(newError(QString)), this, SIGNAL(newInfo(QString)));
+        setText(settings.value("source").toString()); }
 public slots:
-    void setInput(const QImage &image)
+    void setSource(QAction *a)
+      { if (a->text() == "Open...") {
+            sourceFileName = QFileDialog::getOpenFileName(NULL, "Open Source File");
+            if (!sourceFileName.isEmpty())
+              { QFile file(sourceFileName);
+                file.open(QFile::ReadOnly | QFile::Text);
+                setText(QString::fromLocal8Bit(file.readAll()));
+                file.close(); } }
+        else
+          { if (sourceFileName.isEmpty() || (a->text() == "Save As..."))
+                sourceFileName = QFileDialog::getSaveFileName(NULL, "Save Source File");
+            if (!sourceFileName.isEmpty())
+              { QFile file(sourceFileName);
+                file.open(QFile::WriteOnly | QFile::Text);
+                file.write(toPlainText().toLocal8Bit());
+                file.close(); } } }
+
+    void setData(const QImage &image)
       { likely_free(&input);
         if (!image.isNull())
           { likely_matrix_initialize(&input, likely_hash_u8, 3, image.width(), image.height(), 1);
             likely_allocate(&input);
             memcpy(input.data, image.constBits(), likely_bytes(&input)); }
         compile(); }
-    void setInput(QAction *a)
+    void setData(QAction *a)
       { QString file;
         if      (a->text() == "New...")  file = "";
-        else if (a->text() == "Open...") file = QFileDialog::getOpenFileName(NULL, "Open File");
+        else if (a->text() == "Open...") file = QFileDialog::getOpenFileName(NULL, "Open Data File");
         else                             file = a->data().toString();
-        setInput(file.isEmpty() ? QImage() : QImage(file).convertToFormat(QImage::Format_RGB888)); }
+        setData(file.isEmpty() ? QImage() : QImage(file).convertToFormat(QImage::Format_RGB888)); }
 
 private slots:
     void compile()
-      { emit newParameter(QString());
-        function = likely_make_unary_function(qPrintable(toPlainText()), &input);
+      { emit newInfo(QString());
+        const QString source = toPlainText();
+        settings.setValue("source", source);
+        function = likely_make_unary_function(qPrintable(source), &input);
         if (!input.data)
           { emit newMatrixView(QImage());
             emit newHash(QString());
@@ -130,7 +165,7 @@ signals:
     void newMatrixView(QImage);
     void newHash(QString);
     void newDimensions(QString);
-    void newParameter(QString); };
+    void newInfo(QString); };
 
 class StatusLabel : public QLabel
   { Q_OBJECT
@@ -147,39 +182,41 @@ private:
     void setDescription() { setEnabled(false); QLabel::setText(description); }
     void resizeEvent(QResizeEvent *e) { e->accept(); setMinimumWidth(width()); } };
 
-class ErrorHandler : public QObject
-  { Q_OBJECT
-    static ErrorHandler *errorHandler;
-    ErrorHandler() : QObject(NULL) { likely_set_error_callback(likely_error_handler); }
-    void setError(const QString &error) { emit newError("<font color=\"red\">"+error+"</font>"); }
-    static void likely_error_handler(const char *error) { get()->setError(error); }
-public:
-    static ErrorHandler *get() { if (!errorHandler) errorHandler = new ErrorHandler(); return errorHandler; }
-signals:
-    void newError(QString); };
-ErrorHandler *ErrorHandler::errorHandler = NULL;
-
 int main(int argc, char *argv[])
-  { QApplication application(argc, argv);
-    QMenu *fileMenu = new QMenu("File");
-    QAction *newFile = new QAction("New...", fileMenu);
-    QAction *openFile = new QAction("Open...", fileMenu);
-    newFile->setShortcut(QKeySequence("Ctrl+N"));
-    openFile->setShortcut(QKeySequence("Ctrl+O"));
-    fileMenu->addAction(newFile);
-    fileMenu->addAction(openFile);
-    fileMenu->addSeparator();
+  { QApplication::setApplicationName("Dream");
+    QApplication::setOrganizationName("Likely");
+    QApplication::setOrganizationDomain("liblikely.org");
+    QApplication application(argc, argv);
+    QMenu *sourceMenu = new QMenu("Source");
+    QAction *openSource = new QAction("Open...", sourceMenu);
+    QAction *saveSource = new QAction("Save", sourceMenu);
+    QAction *saveSourceAs = new QAction("Save As...", sourceMenu);
+    openSource->setShortcut(QKeySequence("Ctrl+O"));
+    saveSource->setShortcut(QKeySequence("Ctrl+S"));
+    saveSourceAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
+    sourceMenu->addAction(openSource);
+    sourceMenu->addAction(saveSource);
+    sourceMenu->addAction(saveSourceAs);
+    QMenu *dataMenu = new QMenu("Data");
+    QAction *clearData = new QAction("Clear", dataMenu);
+    QAction *openData = new QAction("Open...", dataMenu);
+    clearData->setShortcut(QKeySequence("Ctrl+C"));
+    openData->setShortcut(QKeySequence("Ctrl+D"));
+    dataMenu->addAction(clearData);
+    dataMenu->addAction(openData);
+    dataMenu->addSeparator();
     foreach (const QString &fileName, QDir(":/img").entryList(QDir::Files, QDir::Name))
       { const QString filePath = ":/img/"+fileName;
-        QAction *potentialFile = new QAction(QIcon(filePath), QFileInfo(filePath).baseName(), fileMenu);
+        QAction *potentialFile = new QAction(QIcon(filePath), QFileInfo(filePath).baseName(), dataMenu);
         potentialFile->setData(filePath);
         potentialFile->setShortcut(QKeySequence("Ctrl+"+fileName.mid(0, 1)));
-        fileMenu->addAction(potentialFile); }
+        dataMenu->addAction(potentialFile); }
     Function *function = new Function();
     MatrixViewer *matrixViewer = new MatrixViewer();
     QObject::connect(function, SIGNAL(newMatrixView(QImage)), matrixViewer, SLOT(setImage(QImage)));
-    QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), function, SLOT(setInput(QImage)));
-    QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), function, SLOT(setInput(QAction*)));
+    QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), function, SLOT(setData(QImage)));
+    QObject::connect(sourceMenu, SIGNAL(triggered(QAction*)), function, SLOT(setSource(QAction*)));
+    QObject::connect(dataMenu, SIGNAL(triggered(QAction*)), function, SLOT(setData(QAction*)));
     QMenu *viewMenu = new QMenu("View");
     QAction *zoomIn = new QAction("Zoom In", viewMenu);
     QAction *zoomOut = new QAction("Zoom Out", viewMenu);
@@ -190,7 +227,8 @@ int main(int argc, char *argv[])
     QObject::connect(zoomIn, SIGNAL(triggered()), matrixViewer, SLOT(zoomIn()));
     QObject::connect(zoomOut, SIGNAL(triggered()), matrixViewer, SLOT(zoomOut()));
     QMenuBar *menuBar = new QMenuBar();
-    menuBar->addMenu(fileMenu);
+    menuBar->addMenu(sourceMenu);
+    menuBar->addMenu(dataMenu);
     menuBar->addMenu(viewMenu);
     QGridLayout *centralWidgetLayout = new QGridLayout();
     QScrollArea *matrixViewerScrollArea = new QScrollArea();
@@ -206,8 +244,7 @@ int main(int argc, char *argv[])
     StatusLabel *dimensions = new StatusLabel("dimensions");
     StatusLabel *position = new StatusLabel("position");
     StatusLabel *color = new StatusLabel("color");
-    QObject::connect(ErrorHandler::get(), SIGNAL(newError(QString)), info, SLOT(setText(QString)));
-    QObject::connect(function, SIGNAL(newParameter(QString)), info, SLOT(setText(QString)));
+    QObject::connect(function, SIGNAL(newInfo(QString)), info, SLOT(setText(QString)));
     QObject::connect(function, SIGNAL(newHash(QString)), hash, SLOT(setText(QString)));
     QObject::connect(function, SIGNAL(newDimensions(QString)), dimensions, SLOT(setText(QString)));
     QObject::connect(matrixViewer, SIGNAL(newPosition(QString)), position, SLOT(setText(QString)));
