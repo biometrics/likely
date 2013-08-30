@@ -104,7 +104,8 @@ public slots:
 
 private slots:
     void compile()
-      { function = likely_make_unary_function(qPrintable(toPlainText()), &input);
+      { emit newParameter(QString());
+        function = likely_make_unary_function(qPrintable(toPlainText()), &input);
         if (!input.data)
           { emit newMatrixView(QImage());
             emit newHash(QString());
@@ -118,7 +119,6 @@ private slots:
             outputImage = QImage(output.data, output.columns, output.rows, QImage::Format_RGB888); }
         else
           { outputImage = QImage(input.data, input.columns, input.rows, QImage::Format_RGB888); }
-        emit newParameter(QString());
         emit newMatrixView(outputImage.copy());
         emit newHash(likely_hash_to_string(input.hash));
         emit newDimensions(QString("%1x%2x%3x%4")

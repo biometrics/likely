@@ -713,9 +713,9 @@ public:
                     else if (value == "fabs")  values.push_back(kernel.fabs(operand));
                     else if (value == "sqrt")  values.push_back(kernel.sqrt(operand));
                     else if (value == "exp")   values.push_back(kernel.exp(operand));
-                    else                       { likely_assert(false, "KernelBuilder::makeEquation unsupported operator: %s", value.c_str()); return NULL; }
+                    else                       { likely_assert(false, "Unsupported operator: %s", value.c_str()); return NULL; }
                 } else {
-                    if (!likely_assert(values.size() >= 2, "KernelBuilder::make equation insufficient operands: %lu for operator: %s", values.size(), value.c_str())) return NULL;
+                    if (!likely_assert(values.size() >= 2, "Insufficient operands: %lu for operator: %s", values.size(), value.c_str())) return NULL;
                     Value *lhs = values[values.size()-2];
                     Value *rhs = values[values.size()-1];
                     values.pop_back();
@@ -724,14 +724,24 @@ public:
                     else if (value == "-") values.push_back(kernel.subtract(lhs, rhs));
                     else if (value == "*") values.push_back(kernel.multiply(lhs, rhs));
                     else if (value == "/") values.push_back(kernel.divide(lhs, rhs));
-                    else                   { likely_assert(false, "KernelBuilder::makeEquation unsupported operator: %s", value.c_str()); return NULL; }
+                    else                   { likely_assert(false, "Unsupported operator: %s", value.c_str()); return NULL; }
                 }
             } else {
-                likely_assert(false, "KernelBuilder::makeEquation unsupported type: %s", lua_typename(L, type)); return NULL;
+                likely_assert(false, "Unrecognized token: %s of type: %s", lua_tostring(L, j), lua_typename(L, type)); return NULL;
             }
         }
 
-        if (!likely_assert(values.size() == 1, "KernelBuilder::makeEquation expected one value after parsing")) return NULL;
+        // Parsing a Reverse Polish Notation stack should yield one root value at the end
+        if (values.size() != 1) {
+            stringstream stream; stream << "[";
+            for (size_t i=0; i<values.size(); i++) {
+                stream << values[i];
+                if (i < values.size()-1)
+                    stream << ", ";
+            }
+            stream << "]";
+            likely_assert(false, "Expected one value after parsing, got: %s", stream.str().c_str()); return NULL;
+        }
         return values[0];
     }
 };
@@ -814,8 +824,8 @@ void *likely_make_function(likely_description description, likely_arity arity, c
     va_list ap;
     va_start(ap, src);
     for (int i=0; i<arity; i++) {
-        if (!likely_assert(src, "likely_make_function null matrix at index: %d", i)) return NULL;
-        if (!likely_assert(src->hash != likely_hash_null, "likely_make_function null matrix hash at index: %d", i)) return NULL;
+        if (!likely_assert(src, "Null matrix at index: %d", i)) return NULL;
+        if (!likely_assert(src->hash != likely_hash_null, "Null matrix hash at index: %d", i)) return NULL;
         srcList.push_back(src);
         src = va_arg(ap, const likely_matrix*);
     }
