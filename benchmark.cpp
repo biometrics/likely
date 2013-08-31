@@ -82,50 +82,22 @@ private:
 
 static likely_matrix matrixFromMat(const Mat &mat)
 {
-    likely_assert(mat.isContinuous(), "Continuous data required");
-
-    likely_hash h;
-    switch (mat.depth()) {
-      case CV_8U:  h = likely_hash_u8;  break;
-      case CV_8S:  h = likely_hash_i8;  break;
-      case CV_16U: h = likely_hash_u16; break;
-      case CV_16S: h = likely_hash_i16; break;
-      case CV_32S: h = likely_hash_i32; break;
-      case CV_32F: h = likely_hash_f32; break;
-      case CV_64F: h = likely_hash_f64; break;
-      default:     h = likely_hash_null; likely_assert(false, "Unsupported matrix depth");
-    }
-
+    CvMat cvMat = mat;
     likely_matrix m;
-    likely_matrix_initialize(&m, h, mat.channels(), mat.cols, mat.rows, 1, mat.data);
+    likely_from_cvmat(&cvMat, &m);
     return m;
-}
-
-static int getOpenCVType(likely_hash type, int channels = 1)
-{
-    int depth = -1;
-    switch (type) {
-      case likely_hash_u8:  depth = CV_8U;  break;
-      case likely_hash_i8:  depth = CV_8S;  break;
-      case likely_hash_u16: depth = CV_16U; break;
-      case likely_hash_i16: depth = CV_16S; break;
-      case likely_hash_i32: depth = CV_32S; break;
-      case likely_hash_f32: depth = CV_32F; break;
-      case likely_hash_f64: depth = CV_64F; break;
-      default:              likely_assert(false, "Unsupported matrix depth");
-    }
-
-    return CV_MAKETYPE(depth, channels);
 }
 
 static Mat matrixToMat(const likely_matrix &m)
 {
-    return Mat(m.rows, m.columns, getOpenCVType(likely_type(m.hash), m.channels), m.data);
+    CvMat cvMat;
+    likely_to_cvmat(&m, &cvMat);
+    return Mat(&cvMat);
 }
 
-static Mat generateData(int rows, int columns, likely_hash type)
+static Mat generateData(int rows, int columns, likely_hash hash)
 {
-    Mat m(rows, columns, getOpenCVType(type));
+    Mat m(rows, columns, likely_cvmat_type(hash));
     randu(m, 0, 255);
     return m;
 }

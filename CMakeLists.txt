@@ -16,6 +16,7 @@ if(APPLE)
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -stdlib=libc++")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -stdlib=libc++")
 endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden")
 
 # Build LLVM
 add_subdirectory(llvm)
@@ -30,6 +31,17 @@ llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES jit native vectorize)
 # Build Lua
 add_subdirectory(lua)
 include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
+
+# Build OpenCV
+set(BUILD_SHARED_LIBS OFF)
+set(BUILD_ZLIB ON)
+set(BUILD_TIFF ON)
+set(BUILD_JASPER ON)
+set(BUILD_JPEG ON)
+set(BUILD_PNG ON)
+set(BUILD_OPENEXR ON)
+add_subdirectory(opencv)
+include_directories(opencv/include)
 
 # Compile in index.html as a string
 set(LIKELY_STANDARD_LIBRARY ${CMAKE_BINARY_DIR}/likely_standard_library.cpp)
@@ -48,7 +60,7 @@ else()
   set(CXX11 "-std=c++11")
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter -fvisibility=hidden -fvisibility-inlines-hidden")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter")
 add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
 add_library(likely SHARED likely.cpp index.html standard.likely ${LIKELY_STANDARD_LIBRARY})
 add_dependencies(likely LLVM)
@@ -56,19 +68,16 @@ set_target_properties(likely PROPERTIES
                       DEFINE_SYMBOL LIKELY_LIBRARY
                       VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
                       SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR})
-target_link_libraries(likely ${REQ_LLVM_LIBRARIES} liblua)
+target_link_libraries(likely ${REQ_LLVM_LIBRARIES} liblua opencv_highgui)
 install(TARGETS likely
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
 
 # Benchmark
-find_package(OpenCV QUIET)
-if(${OpenCV_FOUND})
-  add_executable(benchmark benchmark.cpp)
-  target_link_libraries(benchmark likely opencv_core opencv_imgproc)
-  install(TARGETS benchmark RUNTIME DESTINATION bin)
-endif()
+add_executable(benchmark benchmark.cpp)
+target_link_libraries(benchmark likely opencv_imgproc)
+install(TARGETS benchmark RUNTIME DESTINATION bin)
 
 # Create
 find_package(Qt5Quick QUIET)

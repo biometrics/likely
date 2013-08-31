@@ -31,6 +31,7 @@
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Vectorize.h>
 #include <lua.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <stdlib.h>
 #include <atomic>
 #include <iomanip>
@@ -67,6 +68,13 @@ void likely_matrix_initialize(likely_matrix *m, likely_hash hash, likely_size ch
     likely_set_single_frame(m->hash, frames == 1);
 }
 
+void likely_clone(const likely_matrix *m, likely_matrix *n)
+{
+    likely_matrix_initialize(n, m->hash, m->channels, m->columns, m->rows, m->frames);
+    likely_allocate(n);
+    memcpy(n, m, likely_bytes(m));
+}
+
 void likely_allocate(likely_matrix *m)
 {
     size_t alignment = MaxRegisterWidth;
@@ -83,6 +91,61 @@ void likely_free(likely_matrix *m)
     free((void*)((uintptr_t)m->data-((uint16_t*)m->data)[-1]));
     m->data = NULL;
     likely_set_owner(m->hash, false);
+}
+
+int likely_cvmat_type(likely_hash hash, int channels)
+{
+    int depth = -1;
+    switch (likely_type(hash)) {
+      case likely_hash_u8:  depth = CV_8U;  break;
+      case likely_hash_i8:  depth = CV_8S;  break;
+      case likely_hash_u16: depth = CV_16U; break;
+      case likely_hash_i16: depth = CV_16S; break;
+      case likely_hash_i32: depth = CV_32S; break;
+      case likely_hash_f32: depth = CV_32F; break;
+      case likely_hash_f64: depth = CV_64F; break;
+      default:              likely_assert(false, "likely_cvmat_type Unsupported matrix depth");
+    }
+    return CV_MAKETYPE(depth, channels);
+}
+
+void likely_to_cvmat(const likely_matrix *m, CvMat *cvMat)
+{
+    *cvMat = cv::Mat(m->rows, m->columns, likely_cvmat_type(m->hash, m->channels), m->data);
+}
+
+void likely_from_cvmat(const CvMat *cvMat, likely_matrix *m)
+{
+    cv::Mat mat(cvMat);
+    likely_assert(mat.isContinuous(), "likely_from_cvmat Continuous data required");
+    likely_hash h;
+    switch (mat.depth()) {
+      case CV_8U:  h = likely_hash_u8;  break;
+      case CV_8S:  h = likely_hash_i8;  break;
+      case CV_16U: h = likely_hash_u16; break;
+      case CV_16S: h = likely_hash_i16; break;
+      case CV_32S: h = likely_hash_i32; break;
+      case CV_32F: h = likely_hash_f32; break;
+      case CV_64F: h = likely_hash_f64; break;
+      default:     h = likely_hash_null; likely_assert(false, "likely_from_cvmat Unsupported matrix depth");
+    }
+    likely_matrix_initialize(m, h, mat.channels(), mat.cols, mat.rows, 1, mat.data);
+}
+
+void likely_read(const char *file, likely_matrix *m)
+{
+    cv::Mat mat = cv::imread(file);
+    CvMat cvMat = mat;
+    likely_matrix l;
+    likely_from_cvmat(&cvMat, &l);
+    likely_clone(&l, m);
+}
+
+void likely_write(const likely_matrix *m, const char *file)
+{
+    CvMat cvMat;
+    likely_to_cvmat(m, &cvMat);
+    cv::imwrite(file, cv::Mat(&cvMat));
 }
 
 double likely_element(const likely_matrix *m, likely_size c, likely_size x, likely_size y, likely_size t)
