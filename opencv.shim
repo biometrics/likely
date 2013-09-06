@@ -1,0 +1,47 @@
+// This is actually just C++, but we use this file in a weird way
+
+#include <opencv2/core/core.hpp>
+#include "likely.h"
+
+static int hashToDepth(likely_hash hash, int channels = 1)
+{
+    switch (likely_type(hash)) {
+      case likely_hash_u8:  return CV_8U;
+      case likely_hash_i8:  return CV_8S;
+      case likely_hash_u16: return CV_16U;
+      case likely_hash_i16: return CV_16S;
+      case likely_hash_i32: return CV_32S;
+      case likely_hash_f32: return CV_32F;
+      case likely_hash_f64: return CV_64F;
+    }
+    likely_assert(false, "hashToDepth Unsupported matrix depth");
+    return 0;
+}
+
+static likely_hash depthToHash(int depth)
+{
+    switch (depth) {
+      case CV_8U:  return likely_hash_u8;
+      case CV_8S:  return likely_hash_i8;
+      case CV_16U: return likely_hash_u16;
+      case CV_16S: return likely_hash_i16;
+      case CV_32S: return likely_hash_i32;
+      case CV_32F: return likely_hash_f32;
+      case CV_64F: return likely_hash_f64;
+    }
+    likely_assert(false, "depthToHash Unsupported matrix depth");
+    return likely_hash_null;
+}
+
+static cv::Mat toMat(const likely_matrix &matrix)
+{
+    return cv::Mat(matrix.rows, matrix.columns, CV_MAKETYPE(hashToDepth(matrix.hash), matrix.channels), matrix.data);
+}
+
+static likely_matrix fromMat(const cv::Mat &mat)
+{
+    likely_assert(mat.isContinuous(), "fromMat Continuous data required");
+    likely_matrix matrix;
+    likely_matrix_initialize(&matrix, depthToHash(mat.depth()), mat.channels(), mat.cols, mat.rows, 1, mat.data);
+    return matrix;
+}

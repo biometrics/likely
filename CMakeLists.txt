@@ -62,7 +62,7 @@ endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter")
 add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
-add_library(likely SHARED likely.cpp index.html standard.likely ${LIKELY_STANDARD_LIBRARY})
+add_library(likely SHARED likely.cpp index.html standard.likely opencv.shim ${LIKELY_STANDARD_LIBRARY})
 add_dependencies(likely LLVM)
 set_target_properties(likely PROPERTIES
                       DEFINE_SYMBOL LIKELY_LIBRARY

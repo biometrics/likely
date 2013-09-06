@@ -18,6 +18,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include "likely.h"
+#include "opencv.shim"
 
 using namespace cv;
 using namespace std;
@@ -80,24 +81,9 @@ private:
     void printSpeedup(const Speed &baseline, const Speed &likely, const char *mode) const;
 };
 
-static likely_matrix matrixFromMat(const Mat &mat)
-{
-    CvMat cvMat = mat;
-    likely_matrix m;
-    likely_from_cvmat(&cvMat, &m);
-    return m;
-}
-
-static Mat matrixToMat(const likely_matrix &m)
-{
-    CvMat cvMat;
-    likely_to_cvmat(&m, &cvMat);
-    return Mat(&cvMat);
-}
-
 static Mat generateData(int rows, int columns, likely_hash hash)
 {
-    Mat m(rows, columns, likely_cvmat_type(hash));
+    Mat m(rows, columns, CV_MAKETYPE(hashToDepth(hash),1));
     randu(m, 0, 255);
     return m;
 }
@@ -114,7 +100,7 @@ void Test::run() const
 
             // Generate input matrix
             Mat src = generateData(size, size, type);
-            likely_matrix srcLikely = matrixFromMat(src);
+            likely_matrix srcLikely = fromMat(src);
             likely_unary_function f = likely_make_unary_function(function(), &srcLikely);
 
             // Test correctness
@@ -135,18 +121,18 @@ void Test::run() const
 void Test::testCorrectness(likely_unary_function f, const Mat &src, bool parallel) const
 {
     Mat dstOpenCV = computeBaseline(src);
-    likely_matrix srcLikely = matrixFromMat(src);
+    likely_matrix srcLikely = fromMat(src);
     likely_set_parallel(srcLikely.hash, parallel);
     likely_matrix dstLikely;
     likely_matrix_initialize(&dstLikely);
     f(&srcLikely, &dstLikely);
 
-    Mat errorMat = abs(matrixToMat(dstLikely) - dstOpenCV);
+    Mat errorMat = abs(toMat(dstLikely) - dstOpenCV);
     errorMat.convertTo(errorMat, CV_32F);
     threshold(errorMat, errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
     const double errors = norm(errorMat, NORM_L1);
     if (errors > 0) {
-        likely_matrix opencvLikely = matrixFromMat(dstOpenCV);
+        likely_matrix opencvLikely = fromMat(dstOpenCV);
         stringstream errorLocations;
         errorLocations << "input\topencv\tlikely\trow\tcolumn\n";
         for (int i=0; i<src.rows; i++)
@@ -177,7 +163,7 @@ Test::Speed Test::testBaselineSpeed(const Mat &src) const
 
 Test::Speed Test::testLikelySpeed(likely_unary_function f, const Mat &src, bool parallel) const
 {
-    likely_matrix srcLikely = matrixFromMat(src);
+    likely_matrix srcLikely = fromMat(src);
     likely_set_parallel(srcLikely.hash, parallel);
 
     clock_t startTime, endTime;

@@ -33,18 +33,18 @@ public slots:
     void zoomIn()  { if (++zoomLevel >  4) zoomLevel =  4; else updatePixmap(); }
     void zoomOut() { if (--zoomLevel < -4) zoomLevel = -4; else updatePixmap(); }
 private:
-    void dragEnterEvent(QDragEnterEvent *e) { e->accept(); if (e->mimeData()->hasUrls() || e->mimeData()->hasImage()) e->acceptProposedAction(); }
+    void dragEnterEvent(QDragEnterEvent *e) { e->accept(); if (e->mimeData()->hasUrls()) e->acceptProposedAction(); }
     void dropEvent(QDropEvent *e)
       { e->accept(); e->acceptProposedAction();
         const QMimeData *md = e->mimeData();
-        if (md->hasImage())
-          { emit newMatrix(qvariant_cast<QImage>(md->imageData())); }
-        else if (md->hasUrls())
+        if (md->hasUrls())
           { foreach (const QUrl &url, md->urls())
               { if (!url.isValid()) continue;
                 const QString file = url.toLocalFile();
                 if (file.isNull()) continue;
-                emit newMatrix(QImage(file));
+                QAction *action = new QAction(this);
+                action->setData(file);
+                emit newMatrix(action);
                 break; } } }
     void leaveEvent(QEvent *e) { e->accept(); queryPoint(QPoint(-1, -1)); }
     void mouseMoveEvent(QMouseEvent *e) { e->accept(); queryPoint(e->pos() / pow(2, zoomLevel)); }
@@ -75,7 +75,7 @@ private:
           { emit newPosition("");
             emit newColor(""); } }
 signals:
-    void newMatrix(QImage);
+    void newMatrix(QAction*);
     void newPosition(QString);
     void newColor(QString); };
 
@@ -121,19 +121,15 @@ public slots:
                 file.write(toPlainText().toLocal8Bit());
                 file.close(); } } }
 
-    void setData(const QImage &image)
-      { likely_free(&input);
-        if (!image.isNull())
-          { likely_matrix_initialize(&input, likely_hash_u8, 3, image.width(), image.height(), 1);
-            likely_allocate(&input);
-            memcpy(input.data, image.constBits(), likely_bytes(&input)); }
-        compile(); }
     void setData(QAction *a)
       { QString file;
         if      (a->text() == "New...")  file = "";
         else if (a->text() == "Open...") file = QFileDialog::getOpenFileName(NULL, "Open Data File");
         else                             file = a->data().toString();
-        setData(file.isEmpty() ? QImage() : QImage(file).convertToFormat(QImage::Format_RGB888)); }
+        likely_matrix m;
+        if (file.isEmpty()) likely_matrix_initialize(&m);
+        else                likely_read(qPrintable(file), &m);
+        compile(); }
 
 private slots:
     void compile()
@@ -214,7 +210,7 @@ int main(int argc, char *argv[])
     Function *function = new Function();
     MatrixViewer *matrixViewer = new MatrixViewer();
     QObject::connect(function, SIGNAL(newMatrixView(QImage)), matrixViewer, SLOT(setImage(QImage)));
-    QObject::connect(matrixViewer, SIGNAL(newMatrix(QImage)), function, SLOT(setData(QImage)));
+    QObject::connect(matrixViewer, SIGNAL(newMatrix(QAction*)), function, SLOT(setData(QAction*)));
     QObject::connect(sourceMenu, SIGNAL(triggered(QAction*)), function, SLOT(setSource(QAction*)));
     QObject::connect(dataMenu, SIGNAL(triggered(QAction*)), function, SLOT(setData(QAction*)));
     QMenu *viewMenu = new QMenu("View");

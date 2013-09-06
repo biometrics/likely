@@ -140,15 +140,11 @@ LIKELY_EXPORT void likely_clone(const likely_matrix *m, likely_matrix *n);
 LIKELY_EXPORT void likely_allocate(likely_matrix *m);
 LIKELY_EXPORT void likely_free(likely_matrix *m);
 
-// OpenCV Interface
-struct CvMat;
-LIKELY_EXPORT int likely_cvmat_type(likely_hash hash, int channels = 1); // Returns cv::Mat::type()
-LIKELY_EXPORT void likely_to_cvmat(const likely_matrix *m, CvMat *cvMat); // Does not copy data
-LIKELY_EXPORT void likely_from_cvmat(const CvMat *cvMat, likely_matrix *m); // Does not copy data
-
 // Matrix I/O
-LIKELY_EXPORT void likely_read(const char *file, likely_matrix *m);
-LIKELY_EXPORT void likely_write(const likely_matrix *m, const char *file);
+LIKELY_EXPORT void likely_read(const char *file, likely_matrix *image);
+LIKELY_EXPORT void likely_write(const likely_matrix *image, const char *file);
+LIKELY_EXPORT void likely_decode(const likely_matrix *buffer, likely_matrix *image);
+LIKELY_EXPORT void likely_encode(const likely_matrix *image, likely_matrix *buffer, const char *extension);
 
 // Convenience functions for debugging; by convention c = channel, x = column, y = row, t = frame
 LIKELY_EXPORT double likely_element(const likely_matrix *m, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
