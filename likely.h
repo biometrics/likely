@@ -89,12 +89,12 @@ enum likely_hash_field
 };
 
 // The only struct in the API
-struct likely_matrix
+typedef struct
 {
     uint8_t *data;
     likely_hash hash;
     likely_size channels, columns, rows, frames;
-};
+} likely_matrix;
 
 // You shouldn't need to call these directly
 inline int likely_get(likely_hash hash, likely_hash_field mask) { return hash & mask; }
