@@ -134,17 +134,16 @@ inline likely_size likely_elements(likely_const_mat m) { return m->channels * m-
 inline likely_size likely_bytes(likely_const_mat m) { return uint64_t(likely_depth(m->hash)) * uint64_t(likely_elements(m)) / uint64_t(8); }
 
 // Convenience functions for initializing a matrix
-LIKELY_EXPORT void likely_initialize(likely_mat m, likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL);
 LIKELY_EXPORT likely_mat likely_new(likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL);
 LIKELY_EXPORT void likely_delete(likely_mat m);
 
 // Functions for allocating and freeing matrix data
-LIKELY_EXPORT void likely_clone(likely_const_mat m, likely_mat n);
+LIKELY_EXPORT likely_mat likely_clone(likely_const_mat m);
 LIKELY_EXPORT void likely_allocate(likely_mat m);
 LIKELY_EXPORT void likely_free(likely_mat m);
 
 // Matrix I/O
-LIKELY_EXPORT void likely_read(const char *file, likely_mat image);
+LIKELY_EXPORT likely_mat likely_read(const char *file);
 LIKELY_EXPORT void likely_write(likely_const_mat image, const char *file);
 LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
 LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);

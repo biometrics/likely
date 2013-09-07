@@ -95,14 +95,15 @@ class Function : public QTextEdit
   { Q_OBJECT
     QString sourceFileName;
     QSettings settings;
-    likely_matrix input;
+    likely_mat input;
     likely_unary_function function = NULL;
 public:
     Function(QWidget *p = 0) : QTextEdit(p)
-      { likely_initialize(&input);
+      { input = likely_new();
         connect(this, SIGNAL(textChanged()), this, SLOT(compile()));
         connect(ErrorHandler::get(), SIGNAL(newError(QString)), this, SIGNAL(newInfo(QString)));
         setText(settings.value("source").toString()); }
+    ~Function() { likely_delete(input); }
 public slots:
     void setSource(QAction *a)
       { if (a->text() == "Open...") {
@@ -126,9 +127,9 @@ public slots:
         if      (a->text() == "New...")  file = "";
         else if (a->text() == "Open...") file = QFileDialog::getOpenFileName(NULL, "Open Data File");
         else                             file = a->data().toString();
-        likely_matrix m;
-        if (file.isEmpty()) likely_initialize(&m);
-        else                likely_read(qPrintable(file), &m);
+        likely_delete(input);
+        if (file.isEmpty()) input = likely_new();
+        else                input = likely_read(qPrintable(file));
         compile(); }
 
 private slots:
@@ -136,8 +137,8 @@ private slots:
       { emit newInfo(QString());
         const QString source = toPlainText();
         settings.setValue("source", source);
-        function = likely_make_unary_function(qPrintable(source), &input);
-        if (!input.data)
+        function = likely_make_unary_function(qPrintable(source), input);
+        if (!input->data)
           { emit newMatrixView(QImage());
             emit newHash(QString());
             emit newDimensions(QString());
@@ -145,18 +146,18 @@ private slots:
         QImage outputImage;
         if (function)
           { likely_mat output = likely_new();
-            function(&input, output);
+            function(input, output);
             outputImage = QImage(output->data, output->columns, output->rows, QImage::Format_RGB888);
             likely_delete(output); }
         else
-          { outputImage = QImage(input.data, input.columns, input.rows, QImage::Format_RGB888); }
+          { outputImage = QImage(input->data, input->columns, input->rows, QImage::Format_RGB888); }
         emit newMatrixView(outputImage.copy());
-        emit newHash(likely_hash_to_string(input.hash));
+        emit newHash(likely_hash_to_string(input->hash));
         emit newDimensions(QString("%1x%2x%3x%4")
-                           .arg(QString::number(input.channels),
-                                QString::number(input.rows),
-                                QString::number(input.columns),
-                                QString::number(input.frames))); }
+                           .arg(QString::number(input->channels),
+                                QString::number(input->rows),
+                                QString::number(input->columns),
+                                QString::number(input->frames))); }
 signals:
     void newMatrixView(QImage);
     void newHash(QString);

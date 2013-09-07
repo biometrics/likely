@@ -55,8 +55,9 @@ static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
 static likely_error_callback ErrorCallback = NULL;
 
-void likely_initialize(likely_mat m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
+likely_mat likely_new(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
 {
+    likely_mat m = new likely_matrix();
     m->hash = hash;
     m->channels = channels;
     m->columns = columns;
@@ -67,19 +68,6 @@ void likely_initialize(likely_mat m, likely_hash hash, likely_size channels, lik
     likely_set_single_column(m->hash, columns == 1);
     likely_set_single_row(m->hash, rows == 1);
     likely_set_single_frame(m->hash, frames == 1);
-}
-
-likely_matrix likely_get_matrix(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
-{
-    likely_matrix result;
-    likely_initialize(&result, hash, channels, columns, rows, frames, data);
-    return result;
-}
-
-likely_mat likely_new(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
-{
-    likely_mat m = new likely_matrix();
-    likely_initialize(m, hash, channels, columns, rows, frames, data);
     if (data == NULL) likely_allocate(m);
     return m;
 }
@@ -90,12 +78,11 @@ void likely_delete(likely_mat m)
     delete m;
 }
 
-void likely_clone(likely_const_mat m, likely_mat n)
+likely_mat likely_clone(likely_const_mat m)
 {
-    fprintf(stderr, "%d %d %d %d %d\n", m->channels, m->columns, m->rows, m->frames, likely_bytes(m));
-    likely_initialize(n, m->hash, m->channels, m->columns, m->rows, m->frames);
-    likely_allocate(n);
-    memcpy(n, m, likely_bytes(m));
+    likely_mat n = likely_new(m->hash, m->channels, m->columns, m->rows, m->frames);
+    memcpy(n->data, m->data, likely_bytes(m));
+    return n;
 }
 
 void likely_allocate(likely_mat m)
@@ -116,12 +103,13 @@ void likely_free(likely_mat m)
     likely_set_owner(m->hash, false);
 }
 
-void likely_read(const char *file, likely_mat image)
+likely_mat likely_read(const char *file)
 {
     cv::Mat mat = cv::imread(file);
     likely_mat temp = fromCvMat(mat);
-    likely_clone(temp, image);
+    likely_mat result = likely_clone(temp);
     likely_delete(temp);
+    return result;
 }
 
 void likely_write(likely_const_mat image, const char *file)
