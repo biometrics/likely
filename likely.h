@@ -135,7 +135,6 @@ inline likely_size likely_bytes(likely_const_mat m) { return uint64_t(likely_dep
 
 // Convenience functions for initializing a matrix
 LIKELY_EXPORT void likely_initialize(likely_mat m, likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL);
-LIKELY_EXPORT likely_matrix likely_get_matrix(likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL);
 LIKELY_EXPORT likely_mat likely_new(likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL);
 LIKELY_EXPORT void likely_delete(likely_mat m);
 
@@ -147,8 +146,8 @@ LIKELY_EXPORT void likely_free(likely_mat m);
 // Matrix I/O
 LIKELY_EXPORT void likely_read(const char *file, likely_mat image);
 LIKELY_EXPORT void likely_write(likely_const_mat image, const char *file);
-LIKELY_EXPORT void likely_decode(likely_const_mat buffer, likely_mat image);
-LIKELY_EXPORT void likely_encode(likely_const_mat image, likely_mat buffer, const char *extension);
+LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
+LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
 
 // Convenience functions for debugging; by convention c = channel, x = column, y = row, t = frame
 LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);

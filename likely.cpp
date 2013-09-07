@@ -119,25 +119,26 @@ void likely_free(likely_mat m)
 void likely_read(const char *file, likely_mat image)
 {
     cv::Mat mat = cv::imread(file);
-    likely_matrix temp = fromMat(mat);
-    likely_clone(&temp, image);
+    likely_mat temp = fromCvMat(mat);
+    likely_clone(temp, image);
+    likely_delete(temp);
 }
 
 void likely_write(likely_const_mat image, const char *file)
 {
-    cv::imwrite(file, toMat(*image));
+    cv::imwrite(file, toCvMat(image));
 }
 
-void likely_decode(likely_const_mat buffer, likely_mat image)
+likely_mat likely_decode(likely_const_mat buffer)
 {
-    *image = fromMat(cv::imdecode(toMat(*buffer), CV_LOAD_IMAGE_ANYDEPTH));
+    return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_ANYDEPTH));
 }
 
-void likely_encode(likely_const_mat image, likely_mat buffer, const char *extension)
+likely_mat likely_encode(likely_const_mat image, const char *extension)
 {
     vector<uchar> buf;
-    cv::imencode(extension, toMat(*image), buf);
-    *buffer = fromMat(cv::Mat(buf));
+    cv::imencode(extension, toCvMat(image), buf);
+    return fromCvMat(cv::Mat(buf));
 }
 
 double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
@@ -659,29 +660,29 @@ public:
         IRBuilder<> builder(entry);
 
         if (likely_is_parallel(kernel.h)) {
-            vector<likely_matrix> matricies;
+            vector<likely_mat> mats;
             for (likely_hash hash : hashes) {
-                likely_matrix matrix = likely_get_matrix(hash);
-                likely_set_parallel(matrix.hash, false);
-                matricies.push_back(matrix);
+                likely_mat m = likely_new(hash);
+                likely_set_parallel(m->hash, false);
+                mats.push_back(m);
             }
 
             // Allocation needs to be done to properly initialize the kernel builder
-            switch (matricies.size()) {
+            switch (mats.size()) {
               case 0: likely_make_allocation(description, 0, NULL); break;
-              case 1: likely_make_allocation(description, 1, &matricies[0]); break;
-              case 2: likely_make_allocation(description, 2, &matricies[0], &matricies[1]); break;
-              case 3: likely_make_allocation(description, 3, &matricies[0], &matricies[1], &matricies[2]); break;
-              default: likely_assert(false, "KernelBuilder::make kernel invalid arity: %zu", matricies.size());
+              case 1: likely_make_allocation(description, 1, mats[0]); break;
+              case 2: likely_make_allocation(description, 2, mats[0], mats[1]); break;
+              case 3: likely_make_allocation(description, 3, mats[0], mats[1], mats[2]); break;
+              default: likely_assert(false, "KernelBuilder::make kernel invalid arity: %zu", mats.size());
             }
 
             void *serialKernelFunction = NULL;
-            switch (matricies.size()) {
+            switch (mats.size()) {
               case 0: serialKernelFunction = likely_make_kernel(description, 0, NULL); break;
-              case 1: serialKernelFunction = likely_make_kernel(description, 1, &matricies[0]); break;
-              case 2: serialKernelFunction = likely_make_kernel(description, 2, &matricies[0], &matricies[1]); break;
-              case 3: serialKernelFunction = likely_make_kernel(description, 3, &matricies[0], &matricies[1], &matricies[2]); break;
-              default: likely_assert(false, "KernelBuilder::make kernel invalid arity: %zu", matricies.size());
+              case 1: serialKernelFunction = likely_make_kernel(description, 1, mats[0]); break;
+              case 2: serialKernelFunction = likely_make_kernel(description, 2, mats[0], mats[1]); break;
+              case 3: serialKernelFunction = likely_make_kernel(description, 3, mats[0], mats[1], mats[2]); break;
+              default: likely_assert(false, "KernelBuilder::make kernel invalid arity: %zu", mats.size());
             }
 
             static Function *parallelDispatch = NULL;
@@ -698,13 +699,16 @@ public:
 
             vector<Value*> args;
             args.push_back(MatrixBuilder::constant(reinterpret_cast<const char*>(serialKernelFunction)));
-            args.push_back(MatrixBuilder::constant(matricies.size(), 8));
+            args.push_back(MatrixBuilder::constant(mats.size(), 8));
             args.push_back(start);
             args.push_back(stop);
             args.insert(args.end(), srcs.begin(), srcs.end());
             args.push_back(dst);
 
             builder.CreateCall(parallelDispatch, args);
+
+            for (likely_mat m : mats)
+                likely_delete(m);
         } else {
             kernel.reset(&builder, function, srcs[0]);
             i = kernel.beginLoop(entry, start, stop).i;

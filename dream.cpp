@@ -144,9 +144,10 @@ private slots:
             return; }
         QImage outputImage;
         if (function)
-          { likely_matrix output = likely_get_matrix();
-            function(&input, &output);
-            outputImage = QImage(output.data, output.columns, output.rows, QImage::Format_RGB888); }
+          { likely_mat output = likely_new();
+            function(&input, output);
+            outputImage = QImage(output->data, output->columns, output->rows, QImage::Format_RGB888);
+            likely_delete(output); }
         else
           { outputImage = QImage(input.data, input.columns, input.rows, QImage::Format_RGB888); }
         emit newMatrixView(outputImage.copy());

@@ -33,13 +33,13 @@ static likely_hash depthToHash(int depth)
     return likely_hash_null;
 }
 
-static cv::Mat toMat(const likely_matrix &matrix)
+static cv::Mat toCvMat(likely_const_mat m)
 {
-    return cv::Mat(matrix.rows, matrix.columns, CV_MAKETYPE(hashToDepth(matrix.hash), matrix.channels), matrix.data);
+    return cv::Mat(m->rows, m->columns, CV_MAKETYPE(hashToDepth(m->hash), m->channels), m->data);
 }
 
-static likely_matrix fromMat(const cv::Mat &mat)
+static likely_mat fromCvMat(const cv::Mat &mat)
 {
-    likely_assert(mat.isContinuous(), "fromMat Continuous data required");
-    return likely_get_matrix(depthToHash(mat.depth()), mat.channels(), mat.cols, mat.rows, 1, mat.data);
+    likely_assert(mat.isContinuous(), "fromCvMat Continuous data required");
+    return likely_new(depthToHash(mat.depth()), mat.channels(), mat.cols, mat.rows, 1, mat.data);
 }
