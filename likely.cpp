@@ -76,6 +76,20 @@ likely_matrix likely_get_matrix(likely_hash hash, likely_size channels, likely_s
     return result;
 }
 
+likely_mat likely_new(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
+{
+    likely_mat m = new likely_matrix();
+    likely_initialize(m, hash, channels, columns, rows, frames, data);
+    if (data == NULL) likely_allocate(m);
+    return m;
+}
+
+void likely_delete(likely_mat m)
+{
+    likely_free(m);
+    delete m;
+}
+
 void likely_clone(likely_const_mat m, likely_mat n)
 {
     fprintf(stderr, "%d %d %d %d %d\n", m->channels, m->columns, m->rows, m->frames, likely_bytes(m));

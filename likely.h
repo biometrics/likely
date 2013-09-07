@@ -136,6 +136,8 @@ inline likely_size likely_bytes(likely_const_mat m) { return uint64_t(likely_dep
 // Convenience functions for initializing a matrix
 LIKELY_EXPORT void likely_initialize(likely_mat m, likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL);
 LIKELY_EXPORT likely_matrix likely_get_matrix(likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL);
+LIKELY_EXPORT likely_mat likely_new(likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL);
+LIKELY_EXPORT void likely_delete(likely_mat m);
 
 // Functions for allocating and freeing matrix data
 LIKELY_EXPORT void likely_clone(likely_const_mat m, likely_mat n);
