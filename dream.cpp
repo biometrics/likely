@@ -144,8 +144,7 @@ private slots:
             return; }
         QImage outputImage;
         if (function)
-          { likely_matrix output;
-            likely_matrix_initialize(&output);
+          { likely_matrix output = likely_get_matrix();
             function(&input, &output);
             outputImage = QImage(output.data, output.columns, output.rows, QImage::Format_RGB888); }
         else

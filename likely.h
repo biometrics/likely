@@ -43,6 +43,9 @@ extern "C" {
 // Contents of the Likely Standard Library, standard.likely
 LIKELY_EXPORT const char *likely_standard_library();
 
+// Stores matrix data
+typedef uint8_t likely_data;
+
 // Stores matrix size
 typedef uint32_t likely_size;
 
@@ -91,7 +94,7 @@ enum likely_hash_field
 // The only struct in the API
 typedef struct
 {
-    uint8_t *data;
+    likely_data *data;
     likely_hash hash;
     likely_size channels, columns, rows, frames;
 } likely_matrix;
@@ -132,8 +135,9 @@ inline void likely_set_reserved(likely_hash &hash, int reserved) { likely_set(ha
 inline likely_size likely_elements(const likely_matrix *m) { return m->channels * m->columns * m->rows * m->frames; }
 inline likely_size likely_bytes(const likely_matrix *m) { return uint64_t(likely_depth(m->hash)) * uint64_t(likely_elements(m)) / uint64_t(8); }
 
-// Convenience functions for default initializing a matrix
-LIKELY_EXPORT void likely_matrix_initialize(likely_matrix *m, likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, uint8_t *data = NULL);
+// Convenience functions for initializing a matrix
+LIKELY_EXPORT void likely_matrix_initialize(likely_matrix *m, likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL);
+LIKELY_EXPORT likely_matrix likely_get_matrix(likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL);
 
 // Functions for allocating and freeing matrix data
 LIKELY_EXPORT void likely_clone(const likely_matrix *m, likely_matrix *n);

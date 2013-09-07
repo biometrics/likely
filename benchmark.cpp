@@ -123,8 +123,7 @@ void Test::testCorrectness(likely_unary_function f, const Mat &src, bool paralle
     Mat dstOpenCV = computeBaseline(src);
     likely_matrix srcLikely = fromMat(src);
     likely_set_parallel(srcLikely.hash, parallel);
-    likely_matrix dstLikely;
-    likely_matrix_initialize(&dstLikely);
+    likely_matrix dstLikely = likely_get_matrix();
     f(&srcLikely, &dstLikely);
 
     Mat errorMat = abs(toMat(dstLikely) - dstOpenCV);
@@ -170,8 +169,7 @@ Test::Speed Test::testLikelySpeed(likely_unary_function f, const Mat &src, bool 
     int iter = 0;
     startTime = endTime = clock();
     while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
-        likely_matrix dstLikely;
-        likely_matrix_initialize(&dstLikely);
+        likely_matrix dstLikely = likely_get_matrix();
         f(&srcLikely, &dstLikely);
         likely_free(&dstLikely);
         endTime = clock();

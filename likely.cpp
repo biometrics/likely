@@ -55,7 +55,7 @@ static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
 static likely_error_callback ErrorCallback = NULL;
 
-void likely_matrix_initialize(likely_matrix *m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, uint8_t *data)
+void likely_matrix_initialize(likely_matrix *m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
 {
     m->hash = hash;
     m->channels = channels;
@@ -67,6 +67,13 @@ void likely_matrix_initialize(likely_matrix *m, likely_hash hash, likely_size ch
     likely_set_single_column(m->hash, columns == 1);
     likely_set_single_row(m->hash, rows == 1);
     likely_set_single_frame(m->hash, frames == 1);
+}
+
+likely_matrix likely_get_matrix(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
+{
+    likely_matrix result;
+    likely_matrix_initialize(&result, hash, channels, columns, rows, frames, data);
+    return result;
 }
 
 void likely_clone(const likely_matrix *m, likely_matrix *n)
@@ -83,7 +90,7 @@ void likely_allocate(likely_matrix *m)
     uintptr_t r = (uintptr_t)malloc(likely_bytes(m) + --alignment + 2);
     uintptr_t o = (r + 2 + alignment) & ~(uintptr_t)alignment;
     ((uint16_t*)o)[-1] = (uint16_t)(o-r);
-    m->data = (uint8_t*)o;
+    m->data = (likely_data*)o;
     likely_set_owner(m->hash, true);
 }
 
@@ -640,8 +647,7 @@ public:
         if (likely_is_parallel(kernel.h)) {
             vector<likely_matrix> matricies;
             for (likely_hash hash : hashes) {
-                likely_matrix matrix;
-                likely_matrix_initialize(&matrix, hash);
+                likely_matrix matrix = likely_get_matrix(hash);
                 likely_set_parallel(matrix.hash, false);
                 matricies.push_back(matrix);
             }
