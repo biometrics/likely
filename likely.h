@@ -156,6 +156,7 @@ LIKELY_EXPORT likely_hash likely_string_to_hash(const char *str);
 LIKELY_EXPORT void likely_print(likely_const_mat m);
 LIKELY_EXPORT bool likely_assert(bool condition, const char *format, ...); // Returns condition
 LIKELY_EXPORT void likely_dump(); // Print LLVM module contents to stderr
+LIKELY_EXPORT void likely_exec(const char *source); // Execute arbitrary Lua code in the Likely runtime environment
 
 // If set, likely_assert will call this function instead of aborting on an error
 typedef void (*likely_error_callback)(const char *error_message);

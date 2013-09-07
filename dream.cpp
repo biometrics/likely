@@ -180,7 +180,20 @@ private:
     void resizeEvent(QResizeEvent *e) { e->accept(); setMinimumWidth(width()); } };
 
 int main(int argc, char *argv[])
-  { QApplication::setApplicationName("Dream");
+  { for (int i=1; i<argc; i++)
+      { QString source;
+        if (QFileInfo(argv[i]).exists())
+          { QFile file(argv[i]);
+            file.open(QFile::ReadOnly | QFile::Text);
+            source = file.readAll();
+            file.close();
+            if (source.startsWith("#!")) source = source.mid(source.indexOf('\n')+1); }
+        else
+            source = argv[i];
+        likely_exec(qPrintable(source));
+    }
+    if (argc > 1) return 0;
+    QApplication::setApplicationName("Dream");
     QApplication::setOrganizationName("Likely");
     QApplication::setOrganizationDomain("liblikely.org");
     QApplication application(argc, argv);

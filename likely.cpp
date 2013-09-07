@@ -63,10 +63,10 @@ static void likelyInitialize(likely_mat m, likely_hash hash, likely_size channel
     m->rows = rows;
     m->frames = frames;
     m->data = data;
-    likely_set_single_channel(m->hash, channels == 1);
-    likely_set_single_column(m->hash, columns == 1);
-    likely_set_single_row(m->hash, rows == 1);
-    likely_set_single_frame(m->hash, frames == 1);
+//    likely_set_single_channel(m->hash, channels == 1);
+//    likely_set_single_column(m->hash, columns == 1);
+//    likely_set_single_row(m->hash, rows == 1);
+//    likely_set_single_frame(m->hash, frames == 1);
     if (data == NULL) likely_allocate(m);
 }
 
@@ -99,8 +99,10 @@ likely_mat likely_clone(likely_const_mat m)
 
 void likely_allocate(likely_mat m)
 {
+    const likely_size bytes = likely_bytes(m);
+    if (bytes == 0) return;
     size_t alignment = MaxRegisterWidth;
-    uintptr_t r = (uintptr_t)malloc(likely_bytes(m) + --alignment + 2);
+    uintptr_t r = (uintptr_t)malloc(bytes + --alignment + 2);
     uintptr_t o = (r + 2 + alignment) & ~(uintptr_t)alignment;
     ((uint16_t*)o)[-1] = (uint16_t)(o-r);
     m->data = (likely_data*)o;
@@ -294,14 +296,6 @@ void likely_dump()
     TheModule->dump();
 }
 
-void likely_set_error_callback(likely_error_callback error_callback)
-{
-    ErrorCallback = error_callback;
-}
-
-namespace likely
-{
-
 static string stackDump(lua_State *L)
 {
     stringstream stream;
@@ -326,6 +320,32 @@ static void checkLua(lua_State *L, int error)
     likely_assert(false, "check_lua %s\n\tStack dump:\n\t%s", lua_tostring(L, -1), stack.c_str());
     lua_pop(L, 1);
 }
+
+static lua_State *getLuaState()
+{
+    lua_State *L = luaL_newstate();
+    luaL_openlibs(L);
+    lua_pushcfunction(L, lua_likely_new);
+    lua_setglobal(L, "mynew");
+    checkLua(L, luaL_dostring(L, likely_standard_library()));
+    return L;
+}
+
+void likely_exec(const char *source)
+{
+    static lua_State *L = NULL;
+    if (L == NULL)
+        L = getLuaState();
+    checkLua(L, luaL_dostring(L, source));
+}
+
+void likely_set_error_callback(likely_error_callback error_callback)
+{
+    ErrorCallback = error_callback;
+}
+
+namespace likely
+{
 
 struct MatrixBuilder
 {
@@ -618,11 +638,7 @@ public:
     KernelBuilder(likely_description description_)
         : description(description_)
     {
-        L = luaL_newstate();
-        luaL_openlibs(L);
-        lua_pushcfunction(L, lua_likely_new);
-        lua_setglobal(L, "new");
-        checkLua(L, luaL_dostring(L, likely_standard_library()));
+        L = getLuaState();
         checkLua(L, luaL_dostring(L, (string("return ") + description).c_str()));
     }
 
