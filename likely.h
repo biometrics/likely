@@ -40,16 +40,12 @@
 extern "C" {
 #endif
 
-// Contents of the Likely Standard Library, standard.likely
+// Contents of standard.likely
 LIKELY_EXPORT const char *likely_standard_library();
 
-// Stores matrix data
+// Matrix types
 typedef uint8_t likely_data;
-
-// Stores matrix size
 typedef uint32_t likely_size;
-
-// Encodes matrix metadata
 typedef uint32_t likely_hash; /* Depth : 8
                                  Signed : 1
                                  Floating : 1
