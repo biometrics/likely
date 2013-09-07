@@ -55,9 +55,8 @@ static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
 static likely_error_callback ErrorCallback = NULL;
 
-likely_mat likely_new(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
+static void likelyInitialize(likely_mat m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
 {
-    likely_mat m = new likely_matrix();
     m->hash = hash;
     m->channels = channels;
     m->columns = columns;
@@ -69,7 +68,20 @@ likely_mat likely_new(likely_hash hash, likely_size channels, likely_size column
     likely_set_single_row(m->hash, rows == 1);
     likely_set_single_frame(m->hash, frames == 1);
     if (data == NULL) likely_allocate(m);
+}
+
+likely_mat likely_new(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
+{
+    likely_mat m = new likely_matrix();
+    likelyInitialize(m, hash, channels, columns, rows, frames, data);
     return m;
+}
+
+static int lua_likely_new(lua_State *L)
+{
+    likely_mat m = (likely_mat) lua_newuserdata(L, sizeof(likely_matrix));
+    likelyInitialize(m, likely_hash_null, 0, 0, 0, 0, NULL);
+    return 1;
 }
 
 void likely_delete(likely_mat m)
@@ -608,6 +620,8 @@ public:
     {
         L = luaL_newstate();
         luaL_openlibs(L);
+        lua_pushcfunction(L, lua_likely_new);
+        lua_setglobal(L, "new");
         checkLua(L, luaL_dostring(L, likely_standard_library()));
         checkLua(L, luaL_dostring(L, (string("return ") + description).c_str()));
     }
