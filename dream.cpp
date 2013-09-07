@@ -99,7 +99,7 @@ class Function : public QTextEdit
     likely_unary_function function = NULL;
 public:
     Function(QWidget *p = 0) : QTextEdit(p)
-      { likely_matrix_initialize(&input);
+      { likely_initialize(&input);
         connect(this, SIGNAL(textChanged()), this, SLOT(compile()));
         connect(ErrorHandler::get(), SIGNAL(newError(QString)), this, SIGNAL(newInfo(QString)));
         setText(settings.value("source").toString()); }
@@ -127,7 +127,7 @@ public slots:
         else if (a->text() == "Open...") file = QFileDialog::getOpenFileName(NULL, "Open Data File");
         else                             file = a->data().toString();
         likely_matrix m;
-        if (file.isEmpty()) likely_matrix_initialize(&m);
+        if (file.isEmpty()) likely_initialize(&m);
         else                likely_read(qPrintable(file), &m);
         compile(); }
 

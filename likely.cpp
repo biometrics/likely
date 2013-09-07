@@ -55,7 +55,7 @@ static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
 static likely_error_callback ErrorCallback = NULL;
 
-void likely_matrix_initialize(likely_matrix *m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
+void likely_initialize(likely_mat m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
 {
     m->hash = hash;
     m->channels = channels;
@@ -72,19 +72,19 @@ void likely_matrix_initialize(likely_matrix *m, likely_hash hash, likely_size ch
 likely_matrix likely_get_matrix(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
 {
     likely_matrix result;
-    likely_matrix_initialize(&result, hash, channels, columns, rows, frames, data);
+    likely_initialize(&result, hash, channels, columns, rows, frames, data);
     return result;
 }
 
-void likely_clone(const likely_matrix *m, likely_matrix *n)
+void likely_clone(likely_const_mat m, likely_mat n)
 {
     fprintf(stderr, "%d %d %d %d %d\n", m->channels, m->columns, m->rows, m->frames, likely_bytes(m));
-    likely_matrix_initialize(n, m->hash, m->channels, m->columns, m->rows, m->frames);
+    likely_initialize(n, m->hash, m->channels, m->columns, m->rows, m->frames);
     likely_allocate(n);
     memcpy(n, m, likely_bytes(m));
 }
 
-void likely_allocate(likely_matrix *m)
+void likely_allocate(likely_mat m)
 {
     size_t alignment = MaxRegisterWidth;
     uintptr_t r = (uintptr_t)malloc(likely_bytes(m) + --alignment + 2);
@@ -94,7 +94,7 @@ void likely_allocate(likely_matrix *m)
     likely_set_owner(m->hash, true);
 }
 
-void likely_free(likely_matrix *m)
+void likely_free(likely_mat m)
 {
     if (!likely_is_owner(m->hash) || !m->data) return;
     free((void*)((uintptr_t)m->data-((uint16_t*)m->data)[-1]));
@@ -102,31 +102,31 @@ void likely_free(likely_matrix *m)
     likely_set_owner(m->hash, false);
 }
 
-void likely_read(const char *file, likely_matrix *image)
+void likely_read(const char *file, likely_mat image)
 {
     cv::Mat mat = cv::imread(file);
     likely_matrix temp = fromMat(mat);
     likely_clone(&temp, image);
 }
 
-void likely_write(const likely_matrix *image, const char *file)
+void likely_write(likely_const_mat image, const char *file)
 {
     cv::imwrite(file, toMat(*image));
 }
 
-void likely_decode(const likely_matrix *buffer, likely_matrix *image)
+void likely_decode(likely_const_mat buffer, likely_mat image)
 {
     *image = fromMat(cv::imdecode(toMat(*buffer), CV_LOAD_IMAGE_ANYDEPTH));
 }
 
-void likely_encode(const likely_matrix *image, likely_matrix *buffer, const char *extension)
+void likely_encode(likely_const_mat image, likely_mat buffer, const char *extension)
 {
     vector<uchar> buf;
     cv::imencode(extension, toMat(*image), buf);
     *buffer = fromMat(cv::Mat(buf));
 }
 
-double likely_element(const likely_matrix *m, likely_size c, likely_size x, likely_size y, likely_size t)
+double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
 {
     likely_assert(m != NULL, "likely_element received a null matrix");
     const int columnStep = m->channels;
@@ -150,7 +150,7 @@ double likely_element(const likely_matrix *m, likely_size c, likely_size x, like
     return numeric_limits<double>::quiet_NaN();
 }
 
-void likely_set_element(likely_matrix *m, double value, likely_size c, likely_size x, likely_size y, likely_size t)
+void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t)
 {
     likely_assert(m != NULL, "likely_set_element received a null matrix");
     const int columnStep = m->channels;
@@ -220,7 +220,7 @@ likely_hash likely_string_to_hash(const char *str)
     return h;
 }
 
-void likely_print_matrix(const likely_matrix *m)
+void likely_print(likely_const_mat m)
 {
     if ((m == NULL) || (m->data == NULL)) return;
     const int type = likely_type(m->hash);
@@ -800,7 +800,7 @@ static void *workerKernel = NULL;
 static likely_arity workerArity = 0;
 static likely_size workerStart = 0;
 static likely_size workerStop = 0;
-static likely_matrix *workerMatricies[LIKELY_NUM_ARITIES+1];
+static likely_mat workerMatricies[LIKELY_NUM_ARITIES+1];
 
 static string mangledName(const string &description, const vector<likely_hash> &hashes)
 {
@@ -858,16 +858,16 @@ static void workerThread(int workerID)
 
 using namespace likely;
 
-void *likely_make_function(likely_description description, likely_arity arity, const likely_matrix *src, ...)
+void *likely_make_function(likely_description description, likely_arity arity, likely_const_mat src, ...)
 {
-    vector<const likely_matrix*> srcList;
+    vector<likely_const_mat> srcList;
     va_list ap;
     va_start(ap, src);
     for (int i=0; i<arity; i++) {
         if (!likely_assert(src, "Null matrix at index: %d", i)) return NULL;
         if (!likely_assert(src->hash != likely_hash_null, "Null matrix hash at index: %d", i)) return NULL;
         srcList.push_back(src);
-        src = va_arg(ap, const likely_matrix*);
+        src = va_arg(ap, likely_const_mat);
     }
     va_end(ap);
 
@@ -1066,7 +1066,7 @@ void *likely_make_function(likely_description description, likely_arity arity, c
     return executionEngine->getPointerToFunction(function);
 }
 
-void *likely_make_allocation(likely_description description, likely_arity arity, const likely_matrix *src, ...)
+void *likely_make_allocation(likely_description description, likely_arity arity, likely_const_mat src, ...)
 {
     vector<likely_hash> hashes;
     va_list ap;
@@ -1074,7 +1074,7 @@ void *likely_make_allocation(likely_description description, likely_arity arity,
     for (int i=0; i<arity; i++) {
         likely_assert(src, "likely_make_allocation null matrix at index: %d", i);
         hashes.push_back(src->hash);
-        src = va_arg(ap, const likely_matrix*);
+        src = va_arg(ap, likely_const_mat);
     }
     va_end(ap);
 
@@ -1103,7 +1103,7 @@ void *likely_make_allocation(likely_description description, likely_arity arity,
     return executionEngine->getPointerToFunction(function);
 }
 
-void *likely_make_kernel(likely_description description, likely_arity arity, const likely_matrix *src, ...)
+void *likely_make_kernel(likely_description description, likely_arity arity, likely_const_mat src, ...)
 {
     vector<likely_hash> hashes;
     va_list ap;
@@ -1111,7 +1111,7 @@ void *likely_make_kernel(likely_description description, likely_arity arity, con
     for (int i=0; i<arity; i++) {
         likely_assert(src, "likely_make_kernel null matrix at index: %d", i);
         hashes.push_back(src->hash);
-        src = va_arg(ap, const likely_matrix*);
+        src = va_arg(ap, likely_const_mat);
     }
     va_end(ap);
 
@@ -1149,7 +1149,7 @@ void *likely_make_kernel(likely_description description, likely_arity arity, con
     return executionEngine->getPointerToFunction(function);
 }
 
-void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size start, likely_size stop, likely_matrix *src, ...)
+void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size start, likely_size stop, likely_mat src, ...)
 {
     workersActive.lock();
 
@@ -1163,7 +1163,7 @@ void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size star
     va_start(ap, src);
     for (int i=0; i<arity+1; i++) {
         workerMatricies[i] = src;
-        src = va_arg(ap, likely_matrix*);
+        src = va_arg(ap, likely_mat);
     }
     va_end(ap);
 
