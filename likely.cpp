@@ -79,9 +79,28 @@ likely_mat likely_new(likely_hash hash, likely_size channels, likely_size column
 
 static int lua_likely_new(lua_State *L)
 {
+    likely_hash hash = likely_hash_null;
+    likely_size channels = 0;
+    likely_size columns = 0;
+    likely_size rows = 0;
+    likely_size frames = 0;
+    likely_data *data = NULL;
+
+    const int argc = lua_gettop(L);
+    switch (argc) {
+      case 6: data     = (likely_data*)lua_touserdata(L, 6);
+      case 5: frames   = lua_tonumber(L, 5);
+      case 4: rows     = lua_tonumber(L, 4);
+      case 3: columns  = lua_tonumber(L, 3);
+      case 2: channels = lua_tonumber(L, 2);
+      case 1: hash     = likely_string_to_hash(lua_tostring(L, 1));
+      case 0: break;
+      default: likely_assert(false, "lua_likely_new expected no more than 6 arguments, got: %d", argc);
+    }
+
     likely_mat m = (likely_mat) lua_newuserdata(L, sizeof(likely_matrix));
-    likelyInitialize(m, likely_hash_null, 0, 0, 0, 0, NULL);
-    return 1;
+    likelyInitialize(m, hash, channels, columns, rows, frames, NULL);
+    return argc;
 }
 
 void likely_delete(likely_mat m)
