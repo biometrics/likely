@@ -55,6 +55,31 @@ static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
 static likely_error_callback ErrorCallback = NULL;
 
+static string stackDump(lua_State *L)
+{
+    stringstream stream;
+    const int top = lua_gettop(L);
+    for (int i = 1; i <= top; i++) {  /* repeat for each level */
+        const int t = lua_type(L, i);
+        switch (t) {
+          case LUA_TSTRING:  stream << '`' << lua_tostring(L, i) << '`';         break;
+          case LUA_TBOOLEAN: stream << (lua_toboolean(L, i) ? "true" : "false"); break;
+          case LUA_TNUMBER:  stream << lua_tonumber(L, i);                       break;
+          default:           stream << lua_typename(L, t);                       break;
+        }
+        stream << "  ";
+    }
+    return stream.str();
+}
+
+static void checkLua(lua_State *L, int error)
+{
+    if (!error) return;
+    const string stack = stackDump(L);
+    likely_assert(false, "check_lua %s\n\tStack dump:\n\t%s", lua_tostring(L, -1), stack.c_str());
+    lua_pop(L, 1);
+}
+
 static void likelyInitialize(likely_mat m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
 {
     m->hash = hash;
@@ -109,6 +134,14 @@ void likely_delete(likely_mat m)
     delete m;
 }
 
+static int lua_likely_delete(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 1, "lua_likely_delete expected 1 argument, got: %d", lua_gettop(L));
+    likely_mat m = (likely_mat)lua_touserdata(L, 1);
+    likely_free(m);
+    return 1;
+}
+
 likely_mat likely_clone(likely_const_mat m)
 {
     likely_mat n = likely_new(m->hash, m->channels, m->columns, m->rows, m->frames);
@@ -130,7 +163,7 @@ void likely_allocate(likely_mat m)
 
 void likely_free(likely_mat m)
 {
-    if (!likely_is_owner(m->hash) || !m->data) return;
+    if (!m || !likely_is_owner(m->hash) || !m->data) return;
     free((void*)((uintptr_t)m->data-((uint16_t*)m->data)[-1]));
     m->data = NULL;
     likely_set_owner(m->hash, false);
@@ -315,37 +348,14 @@ void likely_dump()
     TheModule->dump();
 }
 
-static string stackDump(lua_State *L)
-{
-    stringstream stream;
-    const int top = lua_gettop(L);
-    for (int i = 1; i <= top; i++) {  /* repeat for each level */
-        const int t = lua_type(L, i);
-        switch (t) {
-          case LUA_TSTRING:  stream << '`' << lua_tostring(L, i) << '`';         break;
-          case LUA_TBOOLEAN: stream << (lua_toboolean(L, i) ? "true" : "false"); break;
-          case LUA_TNUMBER:  stream << lua_tonumber(L, i);                       break;
-          default:           stream << lua_typename(L, t);                       break;
-        }
-        stream << "  ";
-    }
-    return stream.str();
-}
-
-static void checkLua(lua_State *L, int error)
-{
-    if (!error) return;
-    const string stack = stackDump(L);
-    likely_assert(false, "check_lua %s\n\tStack dump:\n\t%s", lua_tostring(L, -1), stack.c_str());
-    lua_pop(L, 1);
-}
-
 static lua_State *getLuaState()
 {
     lua_State *L = luaL_newstate();
     luaL_openlibs(L);
     lua_pushcfunction(L, lua_likely_new);
-    lua_setglobal(L, "mynew");
+    lua_setglobal(L, "new");
+    lua_pushcfunction(L, lua_likely_delete);
+    lua_setglobal(L, "delete");
     checkLua(L, luaL_dostring(L, likely_standard_library()));
     return L;
 }

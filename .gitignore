@@ -9,3 +9,4 @@ CMakeLists.txt.user*
 
 # Repository specific
 build*
+test.likely
