@@ -568,12 +568,13 @@ struct MatrixBuilder
         return store;
     }
 
-    Value *cast(Value *i, likely_hash hash) const { return b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(h), ty(hash), likely_is_signed(hash)), i, ty(hash), n); }
-    Value *autocast(Value *i, likely_hash hash) const {
-        if (CastInst::castIsValid(CastInst::getCastOpcode(i, likely_is_signed(h), ty(hash), likely_is_signed(hash)), i, ty(hash))) { return cast(i, hash); }
-        else { stringstream intermediateHash; likely_is_floating(h) ? (likely_is_signed(hash) ? intermediateHash << "i" << likely_depth(h) : intermediateHash << "u" << likely_depth(h)) : (likely_is_signed(h) ? intermediateHash << "i" << likely_depth(hash) : intermediateHash << "u" << likely_depth(hash));
-               return cast(cast(i, likely_string_to_hash(intermediateHash.str().c_str())), hash);
-        }
+    Value *cast(Value *i, likely_hash hash) const
+    {
+        if (likely_is_floating(h) && likely_is_floating(hash)) { likely_depth(h) > likely_depth(hash) ? fptrunc(i, constant(likely_depth(hash))) : fpext(i, constant(likely_depth(hash))); }
+        else if (likely_is_signed(h) && likely_is_signed(hash)) { likely_depth(h) > likely_depth(hash) ? trunc(i, constant(likely_depth(hash))) : sext(i, constant(likely_depth(hash))); }
+        else if (!likely_is_signed(h) && !likely_is_signed(hash)) { likely_depth(h) > likely_depth(hash) ? trunc(i, constant(likely_depth(hash))) : zext(i, constant(likely_depth(hash))); }
+        else if (likely_is_floating(h)) { return likely_is_signed(hash) ? cast(i(i), hash) : cast(u(i), hash); }
+        else { stringstream intermediateHash; likely_is_signed(h) ? intermediateHash << "i" : intermediateHash << "u"; intermediateHash << likely_depth(hash); fp(cast(i, likely_string_to_hash(intermediateHash.str().c_str()))); }
     }
 
     Value *zext(Value *i, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateZExt(i, j->getType(), n); }
@@ -581,9 +582,21 @@ struct MatrixBuilder
     Value *fpext(Value *i, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateFPExt(i, j->getType(), n); }
     Value *trunc(Value *i, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateTrunc(i, j->getType(), n); }
     Value *fptrunc(Value *i, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateFPTrunc(i, j->getType(), n); }
-    Value *fp(Value *i) const { bool s = likely_is_signed(h); likely_set_floating(h, true); likely_set_signed(h, true); return s ? b->CreateSIToFP(i, ty(), n) : b->CreateUIToFP(i, ty(), n); }
-    Value *i(Value *i) const { likely_set_floating(h, false); likely_set_signed(h, true); return b->CreateFPToSI(i, ty(), n); }
-    Value *u(Value *i) const { likely_set_floating(h, false); likely_set_signed(h, false); return b->CreateFPToUI(i, ty(), n); }
+    Value *fp(Value *i) const {
+        if (likely_is_floating(h)) return i;
+        else if (likely_is_signed(h)) { likely_set_floating(h, true); return b->CreateSIToFP(i, ty(), n); }
+        else { likely_set_floating(h, true); likely_set_signed(h, true); return b->CreateUIToFP(i, ty(), n); }
+    }
+    Value *i(Value *i) const {
+        if (!likely_is_floating(h) && likely_is_signed(h)) return i;
+        else if (!likely_is_signed(h)) { likely_set_signed(h, true); return i; }
+        else { likely_set_floating(h, false); return b->CreateFPToSI(i, ty(), n); }
+    }
+    Value *u(Value *i) const {
+        if (!likely_is_signed(h)) return i;
+        else if (!likely_is_floating(h) && likely_is_signed) { likely_set_signed(h, false); return i; }
+        else { likely_set_floating(h, false); likely_set_signed(h, false); return b->CreateFPToUI(i, ty(), n); }
+    }
 
     Value *add(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFAdd(i, j, n) : b->CreateAdd(i, j, n); }
     Value *subtract(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFSub(i, j, n) : b->CreateSub(i, j, n); }
@@ -861,17 +874,17 @@ public:
                     else if (value == "fp")    values.push_back(kernel.fp(operand));
                     else if (value == "i")     values.push_back(kernel.i(operand));
                     else if (value == "u")     values.push_back(kernel.u(operand));
-//                    else if (value == "toF16") values.push_back(kernel.autocast(operand, likely_hash_f16));
-//                    else if (value == "toF32") values.push_back(kernel.autocast(operand, likely_hash_f32));
-//                    else if (value == "toF64") values.push_back(kernel.autocast(operand, likely_hash_f64));
-//                    else if (value == "toI8")  values.push_back(kernel.autocast(operand, likely_hash_i8));
-//                    else if (value == "toI16") values.push_back(kernel.autocast(operand, likely_hash_i16));
-//                    else if (value == "toI32") values.push_back(kernel.autocast(operand, likely_hash_i32));
-//                    else if (value == "toI64") values.push_back(kernel.autocast(operand, likely_hash_i64));
-//                    else if (value == "toU8")  values.push_back(kernel.autocast(operand, likely_hash_u8));
-//                    else if (value == "toU16") values.push_back(kernel.autocast(operand, likely_hash_u16));
-//                    else if (value == "toU32") values.push_back(kernel.autocast(operand, likely_hash_u32));
-//                    else if (value == "toU64") values.push_back(kernel.autocast(operand, likely_hash_u64));
+//                    else if (value == "toF16") values.push_back(kernel.cast(operand, likely_hash_f16));
+//                    else if (value == "toF32") values.push_back(kernel.cast(operand, likely_hash_f32));
+//                    else if (value == "toF64") values.push_back(kernel.cast(operand, likely_hash_f64));
+//                    else if (value == "toI8")  values.push_back(kernel.cast(operand, likely_hash_i8));
+//                    else if (value == "toI16") values.push_back(kernel.cast(operand, likely_hash_i16));
+//                    else if (value == "toI32") values.push_back(kernel.cast(operand, likely_hash_i32));
+//                    else if (value == "toI64") values.push_back(kernel.cast(operand, likely_hash_i64));
+//                    else if (value == "toU8")  values.push_back(kernel.cast(operand, likely_hash_u8));
+//                    else if (value == "toU16") values.push_back(kernel.cast(operand, likely_hash_u16));
+//                    else if (value == "toU32") values.push_back(kernel.cast(operand, likely_hash_u32));
+//                    else if (value == "toU64") values.push_back(kernel.cast(operand, likely_hash_u64));
                     else                       { likely_assert(false, "Unsupported operator: %s", value.c_str()); return NULL; }
                 } else {
                     if (!likely_assert(values.size() >= 2, "Insufficient operands: %lu for operator: %s", values.size(), value.c_str())) return NULL;
