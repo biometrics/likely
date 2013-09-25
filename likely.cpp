@@ -568,34 +568,34 @@ struct MatrixBuilder
         return store;
     }
 
-    Value *cast(Value *i, likely_hash hash) const
+    Value *cast(Value *c, likely_hash hash) const
     {
-        if (likely_is_floating(h) && likely_is_floating(hash)) { likely_depth(h) > likely_depth(hash) ? fptrunc(i, constant(likely_depth(hash))) : fpext(i, constant(likely_depth(hash))); }
-        else if (likely_is_signed(h) && likely_is_signed(hash)) { likely_depth(h) > likely_depth(hash) ? trunc(i, constant(likely_depth(hash))) : sext(i, constant(likely_depth(hash))); }
-        else if (!likely_is_signed(h) && !likely_is_signed(hash)) { likely_depth(h) > likely_depth(hash) ? trunc(i, constant(likely_depth(hash))) : zext(i, constant(likely_depth(hash))); }
-        else if (likely_is_floating(h)) { return likely_is_signed(hash) ? cast(i(i), hash) : cast(u(i), hash); }
-        else { stringstream intermediateHash; likely_is_signed(h) ? intermediateHash << "i" : intermediateHash << "u"; intermediateHash << likely_depth(hash); fp(cast(i, likely_string_to_hash(intermediateHash.str().c_str()))); }
+        if (likely_is_floating(h) && likely_is_floating(hash)) { return likely_depth(h) > likely_depth(hash) ? fptrunc(c, constant(likely_depth(hash))) : fpext(c, constant(likely_depth(hash))); }
+        else if (likely_is_signed(h) && likely_is_signed(hash)) { return likely_depth(h) > likely_depth(hash) ? trunc(c, constant(likely_depth(hash))) : sext(c, constant(likely_depth(hash))); }
+        else if (!likely_is_signed(h) && !likely_is_signed(hash)) { return likely_depth(h) > likely_depth(hash) ? trunc(c, constant(likely_depth(hash))) : zext(c, constant(likely_depth(hash))); }
+        else if (likely_is_floating(h)) { return likely_is_signed(hash) ? cast(i(c), hash) : cast(u(c), hash); }
+        else { stringstream intermediateHash; likely_is_signed(h) ? intermediateHash << "i" : intermediateHash << "u"; intermediateHash << likely_depth(hash); return fp(cast(c, likely_string_to_hash(intermediateHash.str().c_str()))); }
     }
 
-    Value *zext(Value *i, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateZExt(i, j->getType(), n); }
-    Value *sext(Value *i, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateSExt(i, j->getType(), n); }
-    Value *fpext(Value *i, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateFPExt(i, j->getType(), n); }
-    Value *trunc(Value *i, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateTrunc(i, j->getType(), n); }
-    Value *fptrunc(Value *i, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateFPTrunc(i, j->getType(), n); }
-    Value *fp(Value *i) const {
-        if (likely_is_floating(h)) return i;
-        else if (likely_is_signed(h)) { likely_set_floating(h, true); return b->CreateSIToFP(i, ty(), n); }
-        else { likely_set_floating(h, true); likely_set_signed(h, true); return b->CreateUIToFP(i, ty(), n); }
+    Value *zext(Value *c, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateZExt(c, j->getType(), n); }
+    Value *sext(Value *c, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateSExt(c, j->getType(), n); }
+    Value *fpext(Value *c, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateFPExt(c, j->getType(), n); }
+    Value *trunc(Value *c, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateTrunc(c, j->getType(), n); }
+    Value *fptrunc(Value *c, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateFPTrunc(c, j->getType(), n); }
+    Value *fp(Value *c) const {
+        if (likely_is_floating(h)) return c;
+        else if (likely_is_signed(h)) { likely_set_floating(h, true); return b->CreateSIToFP(c, ty(), n); }
+        else { likely_set_floating(h, true); likely_set_signed(h, true); return b->CreateUIToFP(c, ty(), n); }
     }
-    Value *i(Value *i) const {
-        if (!likely_is_floating(h) && likely_is_signed(h)) return i;
-        else if (!likely_is_signed(h)) { likely_set_signed(h, true); return i; }
-        else { likely_set_floating(h, false); return b->CreateFPToSI(i, ty(), n); }
+    Value *i(Value *c) const {
+        if (!likely_is_floating(h) && likely_is_signed(h)) return c;
+        else if (!likely_is_signed(h)) { likely_set_signed(h, true); return c; }
+        else { likely_set_floating(h, false); return b->CreateFPToSI(c, ty(), n); }
     }
-    Value *u(Value *i) const {
-        if (!likely_is_signed(h)) return i;
-        else if (!likely_is_floating(h) && likely_is_signed) { likely_set_signed(h, false); return i; }
-        else { likely_set_floating(h, false); likely_set_signed(h, false); return b->CreateFPToUI(i, ty(), n); }
+    Value *u(Value *c) const {
+        if (!likely_is_signed(h)) return c;
+        else if (!likely_is_floating(h) && likely_is_signed(h)) { likely_set_signed(h, false); return c; }
+        else { likely_set_floating(h, false); likely_set_signed(h, false); return b->CreateFPToUI(c, ty(), n); }
     }
 
     Value *add(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFAdd(i, j, n) : b->CreateAdd(i, j, n); }
