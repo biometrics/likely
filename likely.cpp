@@ -381,7 +381,7 @@ struct MatrixBuilder
     IRBuilder<> *b;
     Function *f;
     Twine n;
-    likely_hash h;
+    mutable likely_hash h;
     Value *v;
 
     struct Loop {
@@ -571,10 +571,19 @@ struct MatrixBuilder
     Value *cast(Value *i, likely_hash hash) const { return b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(h), ty(hash), likely_is_signed(hash)), i, ty(hash), n); }
     Value *autocast(Value *i, likely_hash hash) const {
         if (CastInst::castIsValid(CastInst::getCastOpcode(i, likely_is_signed(h), ty(hash), likely_is_signed(hash)), i, ty(hash))) { return cast(i, hash); }
-        else { stringstream intermediateHash; likely_is_floating(h) ? (likely_is_signed(hash) ? intermediateHash << "s" << likely_depth(h) : intermediateHash << "u" << likely_depth(h)) : (likely_is_signed(h) ? intermediateHash << "i" << likely_depth(hash) : intermediateHash << "u" << likely_depth(hash));
+        else { stringstream intermediateHash; likely_is_floating(h) ? (likely_is_signed(hash) ? intermediateHash << "i" << likely_depth(h) : intermediateHash << "u" << likely_depth(h)) : (likely_is_signed(h) ? intermediateHash << "i" << likely_depth(hash) : intermediateHash << "u" << likely_depth(hash));
                return cast(cast(i, likely_string_to_hash(intermediateHash.str().c_str())), hash);
         }
     }
+
+    Value *zext(Value *i, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateZExt(i, j->getType(), n); }
+    Value *sext(Value *i, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateSExt(i, j->getType(), n); }
+    Value *fpext(Value *i, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateFPExt(i, j->getType(), n); }
+    Value *trunc(Value *i, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateTrunc(i, j->getType(), n); }
+    Value *fptrunc(Value *i, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateFPTrunc(i, j->getType(), n); }
+    Value *fp(Value *i) const { bool s = likely_is_signed(h); likely_set_floating(h, true); likely_set_signed(h, true); return s ? b->CreateSIToFP(i, ty(), n) : b->CreateUIToFP(i, ty(), n); }
+    Value *i(Value *i) const { likely_set_floating(h, false); likely_set_signed(h, true); return b->CreateFPToSI(i, ty(), n); }
+    Value *u(Value *i) const { likely_set_floating(h, false); likely_set_signed(h, false); return b->CreateFPToUI(i, ty(), n); }
 
     Value *add(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFAdd(i, j, n) : b->CreateAdd(i, j, n); }
     Value *subtract(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFSub(i, j, n) : b->CreateSub(i, j, n); }
@@ -806,21 +815,21 @@ public:
     likely_hash getDstHash(likely_hash kernelHash)
     {
         const int top = lua_gettop(L);
+        int depth = 0;
         for (int j=1; j<=top; j++) {
             const int type = lua_type(L, j);
-            if (type == LUA_TSTRING) {
+            if (type == LUA_TNUMBER) {
+                depth = lua_tonumber(L, j);
+            } else if (type == LUA_TSTRING) {
                 const string value = lua_tostring(L, j);
-                if      (value == "toF16") return likely_hash_f16;
-                else if (value == "toF32") return likely_hash_f32;
-                else if (value == "toF64") return likely_hash_f64;
-                else if (value == "toI8")  return likely_hash_i8;
-                else if (value == "toI16") return likely_hash_i16;
-                else if (value == "toI32") return likely_hash_i32;
-                else if (value == "toI64") return likely_hash_i64;
-                else if (value == "toU8")  return likely_hash_u8;
-                else if (value == "toU16") return likely_hash_u16;
-                else if (value == "toU32") return likely_hash_u32;
-                else if (value == "toU64") return likely_hash_u64;
+                if      (value == "zext")    { likely_assert(likely_is_signed(kernelHash), "Attempted to zext signed number"); likely_set_depth(kernelHash, depth); }
+                else if (value == "sext")    { likely_assert(!likely_is_signed(kernelHash), "Attempted to sext unsigned number"); likely_set_depth(kernelHash, depth); }
+                else if (value == "FPext")   { likely_assert(!likely_is_floating(kernelHash), "Attempted to FPext a non FP number"); likely_set_depth(kernelHash, depth); }
+                else if (value == "trunc")   { likely_assert(likely_is_floating(kernelHash), "Attempted to trunc FP number"); likely_set_depth(kernelHash, depth); }
+                else if (value == "FPtrunc") { likely_assert(likely_is_floating(kernelHash), "Attempted to FPtrunc a non FP number"); likely_set_depth(kernelHash, depth); }
+                else if (value == "fp")      { likely_set_floating(kernelHash, true); likely_set_signed(kernelHash, true); }
+                else if (value == "i")       { likely_set_floating(kernelHash, false); likely_set_signed(kernelHash, true); }
+                else if (value == "u")       { likely_set_floating(kernelHash, false); likely_set_signed(kernelHash, false); }
             }
         }
         return kernelHash;
@@ -849,17 +858,20 @@ public:
                     else if (value == "fabs")  values.push_back(kernel.fabs(operand));
                     else if (value == "sqrt")  values.push_back(kernel.sqrt(operand));
                     else if (value == "exp")   values.push_back(kernel.exp(operand));
-                    else if (value == "toF16") values.push_back(kernel.autocast(operand, likely_hash_f16));
-                    else if (value == "toF32") values.push_back(kernel.autocast(operand, likely_hash_f32));
-                    else if (value == "toF64") values.push_back(kernel.autocast(operand, likely_hash_f64));
-                    else if (value == "toI8")  values.push_back(kernel.autocast(operand, likely_hash_i8));
-                    else if (value == "toI16") values.push_back(kernel.autocast(operand, likely_hash_i16));
-                    else if (value == "toI32") values.push_back(kernel.autocast(operand, likely_hash_i32));
-                    else if (value == "toI64") values.push_back(kernel.autocast(operand, likely_hash_i64));
-                    else if (value == "toU8")  values.push_back(kernel.autocast(operand, likely_hash_u8));
-                    else if (value == "toU16") values.push_back(kernel.autocast(operand, likely_hash_u16));
-                    else if (value == "toU32") values.push_back(kernel.autocast(operand, likely_hash_u32));
-                    else if (value == "toU64") values.push_back(kernel.autocast(operand, likely_hash_u64));
+                    else if (value == "fp")    values.push_back(kernel.fp(operand));
+                    else if (value == "i")     values.push_back(kernel.i(operand));
+                    else if (value == "u")     values.push_back(kernel.u(operand));
+//                    else if (value == "toF16") values.push_back(kernel.autocast(operand, likely_hash_f16));
+//                    else if (value == "toF32") values.push_back(kernel.autocast(operand, likely_hash_f32));
+//                    else if (value == "toF64") values.push_back(kernel.autocast(operand, likely_hash_f64));
+//                    else if (value == "toI8")  values.push_back(kernel.autocast(operand, likely_hash_i8));
+//                    else if (value == "toI16") values.push_back(kernel.autocast(operand, likely_hash_i16));
+//                    else if (value == "toI32") values.push_back(kernel.autocast(operand, likely_hash_i32));
+//                    else if (value == "toI64") values.push_back(kernel.autocast(operand, likely_hash_i64));
+//                    else if (value == "toU8")  values.push_back(kernel.autocast(operand, likely_hash_u8));
+//                    else if (value == "toU16") values.push_back(kernel.autocast(operand, likely_hash_u16));
+//                    else if (value == "toU32") values.push_back(kernel.autocast(operand, likely_hash_u32));
+//                    else if (value == "toU64") values.push_back(kernel.autocast(operand, likely_hash_u64));
                     else                       { likely_assert(false, "Unsupported operator: %s", value.c_str()); return NULL; }
                 } else {
                     if (!likely_assert(values.size() >= 2, "Insufficient operands: %lu for operator: %s", values.size(), value.c_str())) return NULL;
@@ -867,11 +879,16 @@ public:
                     Value *rhs = values[values.size()-1];
                     values.pop_back();
                     values.pop_back();
-                    if      (value == "+") values.push_back(kernel.add(lhs, rhs));
-                    else if (value == "-") values.push_back(kernel.subtract(lhs, rhs));
-                    else if (value == "*") values.push_back(kernel.multiply(lhs, rhs));
-                    else if (value == "/") values.push_back(kernel.divide(lhs, rhs));
-                    else                   { likely_assert(false, "Unsupported operator: %s", value.c_str()); return NULL; }
+                    if      (value == "+")       values.push_back(kernel.add(lhs, rhs));
+                    else if (value == "-")       values.push_back(kernel.subtract(lhs, rhs));
+                    else if (value == "*")       values.push_back(kernel.multiply(lhs, rhs));
+                    else if (value == "/")       values.push_back(kernel.divide(lhs, rhs));
+                    else if (value == "zext")    values.push_back(kernel.zext(lhs, rhs));
+                    else if (value == "sext")    values.push_back(kernel.sext(lhs, rhs));
+                    else if (value == "fpext")   values.push_back(kernel.fpext(lhs, rhs));
+                    else if (value == "trunc")   values.push_back(kernel.trunc(lhs, rhs));
+                    else if (value == "FPtrunc") values.push_back(kernel.fptrunc(lhs, rhs));
+                    else                         { likely_assert(false, "Unsupported operator: %s", value.c_str()); return NULL; }
                 }
             } else {
                 likely_assert(false, "Unrecognized token: %s of type: %s", lua_tostring(L, j), lua_typename(L, type)); return NULL;

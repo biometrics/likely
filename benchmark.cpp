@@ -213,8 +213,8 @@ class logTest : public Test {
 };
 
 class castTest : public Test {
-    const char *function() const {return "toF64()"; }
-    Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, CV_64F); return dst; }
+    const char *function() const {return "fp()"; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, CV_32F); return dst; }
 };
 
 int main(int argc, char *argv[])

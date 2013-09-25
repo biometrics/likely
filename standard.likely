@@ -16,14 +16,11 @@ function exp() return "src", "exp" end
 function pow() return "src", "a", "pow" end
 
 -- Casting
-function toF16() return "src", "toF16" end
-function toF32() return "src", "toF32" end
-function toF64() return "src", "toF64" end
-function toI8() return "src", "toI8" end
-function toI16() return "src", "toI16" end
-function toI32() return "src", "toI32" end
-function toI64() return "src", "toI64" end
-function toU8() return "src", "toU8" end
-function toU16() return "src", "toU16" end
-function toU32() return "src", "toU32" end
-function toU64() return "src", "toU64" end
+function zext(c) return "src", c, "zext" end
+function sext(c) return "src", c, "sext" end
+function FPext(c) return "src", c, "FPext" end
+function trunc(c) return "src", c, "trunc" end
+function FPtrunc(c) return "src", c, "FPtrunc" end
+function "fp" return "src", "fp" end
+function "i" return "src", "i" end
+function "u" return "src", "u" end
