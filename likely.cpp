@@ -568,7 +568,14 @@ struct MatrixBuilder
         return store;
     }
 
-    Value *cast(Value *i, likely_hash hash) const { return (likely_type(h) == likely_type(hash)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(h), Type::getFloatTy(getGlobalContext()), likely_is_signed(h)), i, Type::getFloatTy(getGlobalContext())); }
+    Value *cast(Value *i, likely_hash hash) const { return b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(h), ty(hash), likely_is_signed(hash)), i, ty(hash), n); }
+    Value *autocast(Value *i, likely_hash hash) const {
+        if (CastInst::castIsValid(CastInst::getCastOpcode(i, likely_is_signed(h), ty(hash), likely_is_signed(hash)), i, ty(hash))) { return cast(i, hash); }
+        else { stringstream intermediateHash; likely_is_floating(h) ? (likely_is_signed(hash) ? intermediateHash << "s" << likely_depth(h) : intermediateHash << "u" << likely_depth(h)) : (likely_is_signed(h) ? intermediateHash << "i" << likely_depth(hash) : intermediateHash << "u" << likely_depth(hash));
+               return cast(cast(i, likely_string_to_hash(intermediateHash.str().c_str())), hash);
+        }
+    }
+
     Value *add(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFAdd(i, j, n) : b->CreateAdd(i, j, n); }
     Value *subtract(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFSub(i, j, n) : b->CreateSub(i, j, n); }
     Value *multiply(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFMul(i, j, n) : b->CreateMul(i, j, n); }
@@ -686,7 +693,8 @@ public:
             kernelHash |= hash;
 
         kernel = MatrixBuilder(&builder, function, "kernel", kernelHash, srcs[0]);
-        kernel.copyHeaderTo(dst);
+        MatrixBuilder dstKernel = MatrixBuilder(&builder, function, "dstKernel", getDstHash(kernelHash), srcs[0]);
+        dstKernel.copyHeaderTo(dst);
         builder.CreateRet(kernel.elements());
         return true;
     }
@@ -795,6 +803,29 @@ public:
         dst->setName("dst");
     }
 
+    likely_hash getDstHash(likely_hash kernelHash)
+    {
+        const int top = lua_gettop(L);
+        for (int j=1; j<=top; j++) {
+            const int type = lua_type(L, j);
+            if (type == LUA_TSTRING) {
+                const string value = lua_tostring(L, j);
+                if      (value == "toF16") return likely_hash_f16;
+                else if (value == "toF32") return likely_hash_f32;
+                else if (value == "toF64") return likely_hash_f64;
+                else if (value == "toI8")  return likely_hash_i8;
+                else if (value == "toI16") return likely_hash_i16;
+                else if (value == "toI32") return likely_hash_i32;
+                else if (value == "toI64") return likely_hash_i64;
+                else if (value == "toU8")  return likely_hash_u8;
+                else if (value == "toU16") return likely_hash_u16;
+                else if (value == "toU32") return likely_hash_u32;
+                else if (value == "toU64") return likely_hash_u64;
+            }
+        }
+        return kernelHash;
+    }
+
     Value *makeEquation()
     {
         vector<Value*> values;
@@ -818,6 +849,17 @@ public:
                     else if (value == "fabs")  values.push_back(kernel.fabs(operand));
                     else if (value == "sqrt")  values.push_back(kernel.sqrt(operand));
                     else if (value == "exp")   values.push_back(kernel.exp(operand));
+                    else if (value == "toF16") values.push_back(kernel.autocast(operand, likely_hash_f16));
+                    else if (value == "toF32") values.push_back(kernel.autocast(operand, likely_hash_f32));
+                    else if (value == "toF64") values.push_back(kernel.autocast(operand, likely_hash_f64));
+                    else if (value == "toI8")  values.push_back(kernel.autocast(operand, likely_hash_i8));
+                    else if (value == "toI16") values.push_back(kernel.autocast(operand, likely_hash_i16));
+                    else if (value == "toI32") values.push_back(kernel.autocast(operand, likely_hash_i32));
+                    else if (value == "toI64") values.push_back(kernel.autocast(operand, likely_hash_i64));
+                    else if (value == "toU8")  values.push_back(kernel.autocast(operand, likely_hash_u8));
+                    else if (value == "toU16") values.push_back(kernel.autocast(operand, likely_hash_u16));
+                    else if (value == "toU32") values.push_back(kernel.autocast(operand, likely_hash_u32));
+                    else if (value == "toU64") values.push_back(kernel.autocast(operand, likely_hash_u64));
                     else                       { likely_assert(false, "Unsupported operator: %s", value.c_str()); return NULL; }
                 } else {
                     if (!likely_assert(values.size() >= 2, "Insufficient operands: %lu for operator: %s", values.size(), value.c_str())) return NULL;

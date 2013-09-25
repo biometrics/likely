@@ -42,7 +42,7 @@ protected:
     {
         std::vector<likely_hash> types;
 //        types.push_back(likely_hash_i16);
-//        types.push_back(likely_hash_i32);
+        types.push_back(likely_hash_i32);
         types.push_back(likely_hash_f32);
         types.push_back(likely_hash_f64);
         return types;
@@ -209,7 +209,12 @@ class subtractTest : public Test {
 
 class logTest : public Test {
     const char *function() const { return "log()"; }
-    Mat computeBaseline(const Mat &src) const {Mat dst; log(src, dst); return dst; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; log(src, dst); return dst; }
+};
+
+class castTest : public Test {
+    const char *function() const {return "toF64()"; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, CV_64F); return dst; }
 };
 
 int main(int argc, char *argv[])
@@ -235,7 +240,8 @@ int main(int argc, char *argv[])
 //    maddTest().run();
 //    multiplyTest().run();
 //    subtractTest().run();
-    logTest().run();
+//    logTest().run();
+    castTest().run();
 
     return 0;
 }

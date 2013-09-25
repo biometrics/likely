@@ -14,3 +14,16 @@ function fabs() return "src", "fabs" end
 function sqrt() return "src", "sqrt" end
 function exp() return "src", "exp" end
 function pow() return "src", "a", "pow" end
+
+-- Casting
+function toF16() return "src", "toF16" end
+function toF32() return "src", "toF32" end
+function toF64() return "src", "toF64" end
+function toI8() return "src", "toI8" end
+function toI16() return "src", "toI16" end
+function toI32() return "src", "toI32" end
+function toI64() return "src", "toI64" end
+function toU8() return "src", "toU8" end
+function toU16() return "src", "toU16" end
+function toU32() return "src", "toU32" end
+function toU64() return "src", "toU64" end
