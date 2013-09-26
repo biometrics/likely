@@ -100,7 +100,7 @@ void Test::run() const
 
             // Generate input matrix
             Mat src = generateData(size, size, type);
-            likely_mat srcLikely = fromCvMat(src);
+            likely_mat srcLikely = fromCvMat(src, false);
             likely_unary_function f = likely_make_unary_function(function(), srcLikely);
             likely_delete(srcLikely);
 
@@ -122,7 +122,7 @@ void Test::run() const
 void Test::testCorrectness(likely_unary_function f, const Mat &src, bool parallel) const
 {
     Mat dstOpenCV = computeBaseline(src);
-    likely_mat srcLikely = fromCvMat(src);
+    likely_mat srcLikely = fromCvMat(src, false);
     likely_set_parallel(srcLikely->hash, parallel);
     likely_mat dstLikely = likely_new();
     f(srcLikely, dstLikely);
@@ -132,7 +132,7 @@ void Test::testCorrectness(likely_unary_function f, const Mat &src, bool paralle
     threshold(errorMat, errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
     const double errors = norm(errorMat, NORM_L1);
     if (errors > 0) {
-        likely_mat cvLikely = fromCvMat(dstOpenCV);
+        likely_mat cvLikely = fromCvMat(dstOpenCV, false);
         stringstream errorLocations;
         errorLocations << "input\topencv\tlikely\trow\tcolumn\n";
         for (int i=0; i<src.rows; i++)
@@ -165,7 +165,7 @@ Test::Speed Test::testBaselineSpeed(const Mat &src) const
 
 Test::Speed Test::testLikelySpeed(likely_unary_function f, const Mat &src, bool parallel) const
 {
-    likely_mat srcLikely = fromCvMat(src);
+    likely_mat srcLikely = fromCvMat(src, false);
     likely_set_parallel(srcLikely->hash, parallel);
 
     clock_t startTime, endTime;
