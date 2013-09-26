@@ -55,29 +55,24 @@ static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
 static likely_error_callback ErrorCallback = NULL;
 
-static string stackDump(lua_State *L)
-{
-    stringstream stream;
-    const int top = lua_gettop(L);
-    for (int i = 1; i <= top; i++) {  /* repeat for each level */
-        const int t = lua_type(L, i);
-        switch (t) {
-          case LUA_TSTRING:  stream << '`' << lua_tostring(L, i) << '`';         break;
-          case LUA_TBOOLEAN: stream << (lua_toboolean(L, i) ? "true" : "false"); break;
-          case LUA_TNUMBER:  stream << lua_tonumber(L, i);                       break;
-          default:           stream << lua_typename(L, t);                       break;
-        }
-        stream << "  ";
-    }
-    return stream.str();
-}
-
 static void checkLua(lua_State *L, int error)
 {
     if (!error) return;
-    const string stack = stackDump(L);
-    likely_assert(false, "check_lua %s\n\tStack dump:\n\t%s", lua_tostring(L, -1), stack.c_str());
-    lua_pop(L, 1);
+
+    fprintf(stderr, "Lua Stack Dump:\n");
+    const int top = lua_gettop(L);
+    for (int i = 1; i <= top; i++) {
+        const int t = lua_type(L, i);
+        switch (t) {
+          case LUA_TSTRING:  fprintf(stderr, "\t'%s'\n", lua_tostring(L, i));                   break;
+          case LUA_TBOOLEAN: fprintf(stderr, "\t%s\n", lua_toboolean(L, i) ? "true" : "false"); break;
+          case LUA_TNUMBER:  fprintf(stderr, "\t%f\n", lua_tonumber(L, i));                     break;
+          default:           fprintf(stderr, "\t%s\n", lua_typename(L, t));                     break;
+        }
+    }
+
+    const string errorMessage = lua_tostring(L, -1); lua_pop(L, 1);
+    likely_assert(false, "%s", errorMessage.c_str());
 }
 
 static void likelyInitialize(likely_mat m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
