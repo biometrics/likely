@@ -59,7 +59,7 @@ static void checkLua(lua_State *L, int error = true)
 {
     if (!error) return;
 
-    fprintf(stderr, "Lua Stack Dump:\n");
+    fprintf(stderr, "Lua stack dump:\n");
     const int top = lua_gettop(L);
     for (int i = 1; i <= top; i++) {
         const int t = lua_type(L, i);
@@ -170,12 +170,26 @@ void likely_allocate(likely_mat m)
     likely_set_owner(m->hash, true);
 }
 
+static int lua_likely_allocate(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 1, "'allocate' expected 1 argument, got: %d", lua_gettop(L));
+    likely_allocate((likely_mat) lua_touserdata(L, 1));
+    return 0;
+}
+
 void likely_free(likely_mat m)
 {
     if (!m || !likely_is_owner(m->hash) || !m->data) return;
     free((void*)((uintptr_t)m->data-((uint16_t*)m->data)[-1]));
     m->data = NULL;
     likely_set_owner(m->hash, false);
+}
+
+static int lua_likely_free(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 1, "'free' expected 1 argument, got: %d", lua_gettop(L));
+    likely_free((likely_mat) lua_touserdata(L, 1));
+    return 0;
 }
 
 likely_mat likely_read(const char *file)
@@ -367,6 +381,10 @@ static lua_State *getLuaState()
     lua_setglobal(L, "clone");
     lua_pushcfunction(L, lua_likely_delete);
     lua_setglobal(L, "delete");
+    lua_pushcfunction(L, lua_likely_allocate);
+    lua_setglobal(L, "allocate");
+    lua_pushcfunction(L, lua_likely_free);
+    lua_setglobal(L, "free");
     checkLua(L, luaL_dostring(L, likely_standard_library()));
     return L;
 }
