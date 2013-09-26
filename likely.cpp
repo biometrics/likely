@@ -201,9 +201,27 @@ likely_mat likely_read(const char *file)
     return result;
 }
 
+static int lua_likely_read(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 1, "'read' expected 1 argument, got: %d", lua_gettop(L));
+    cv::Mat mat = cv::imread(lua_tostring(L, 1));
+    likely_mat m = (likely_mat) lua_newuserdata(L, sizeof(likely_matrix));
+    likely_mat temp = fromCvMat(mat);
+    likelyInitialize(m, temp->hash, temp->channels, temp->columns, temp->rows, temp->frames, temp->data);
+    likely_delete(temp);
+    return 1;
+}
+
 void likely_write(likely_const_mat image, const char *file)
 {
     cv::imwrite(file, toCvMat(image));
+}
+
+static int lua_likely_write(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 2, "'write' expected 2 arguments, got: %d", lua_gettop(L));
+    likely_write((likely_const_mat) lua_touserdata(L, 1), lua_tostring(L, 2));
+    return 0;
 }
 
 likely_mat likely_decode(likely_const_mat buffer)
@@ -385,6 +403,10 @@ static lua_State *getLuaState()
     lua_setglobal(L, "allocate");
     lua_pushcfunction(L, lua_likely_free);
     lua_setglobal(L, "free");
+    lua_pushcfunction(L, lua_likely_read);
+    lua_setglobal(L, "read");
+    lua_pushcfunction(L, lua_likely_write);
+    lua_setglobal(L, "write");
     checkLua(L, luaL_dostring(L, likely_standard_library()));
     return L;
 }
