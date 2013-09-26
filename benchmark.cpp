@@ -42,7 +42,7 @@ protected:
     {
         std::vector<likely_hash> types;
 //        types.push_back(likely_hash_i16);
-        types.push_back(likely_hash_i32);
+//        types.push_back(likely_hash_i32);
         types.push_back(likely_hash_f32);
         types.push_back(likely_hash_f64);
         return types;
@@ -213,7 +213,7 @@ class logTest : public Test {
 };
 
 class castTest : public Test {
-    const char *function() const {return "fp()"; }
+    const char *function() const { return "fp()"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, CV_32F); return dst; }
 };
 

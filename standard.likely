@@ -13,7 +13,7 @@ function cos() return "src", "cos" end
 function fabs() return "src", "fabs" end
 function sqrt() return "src", "sqrt" end
 function exp() return "src", "exp" end
-function pow() return "src", "a", "pow" end
+function pow(a) return "src", a, "pow" end
 
 -- Casting
 function zext(c) return "src", c, "zext" end
@@ -21,6 +21,6 @@ function sext(c) return "src", c, "sext" end
 function FPext(c) return "src", c, "FPext" end
 function trunc(c) return "src", c, "trunc" end
 function FPtrunc(c) return "src", c, "FPtrunc" end
-function "fp" return "src", "fp" end
-function "i" return "src", "i" end
-function "u" return "src", "u" end
+function fp() return "src", "fp" end
+function i() return "src", "i" end
+function u() return "src", "u" end
