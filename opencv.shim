@@ -41,5 +41,5 @@ static cv::Mat toCvMat(likely_const_mat m)
 static likely_mat fromCvMat(const cv::Mat &mat)
 {
     likely_assert(mat.isContinuous(), "fromCvMat Continuous data required");
-    return likely_new(depthToHash(mat.depth()), mat.channels(), mat.cols, mat.rows, 1, mat.data);
+    return likely_new(depthToHash(mat.depth()), mat.channels(), mat.cols, mat.rows, 1, mat.data, false);
 }

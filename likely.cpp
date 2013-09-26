@@ -75,25 +75,27 @@ static void checkLua(lua_State *L, int error = true)
     likely_assert(false, "%s", errorMessage.c_str());
 }
 
-static void likelyInitialize(likely_mat m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
+static void likelyInitialize(likely_mat m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data = NULL, bool clone = true)
 {
     m->hash = hash;
     m->channels = channels;
     m->columns = columns;
     m->rows = rows;
     m->frames = frames;
-    m->data = data;
-//    likely_set_single_channel(m->hash, channels == 1);
-//    likely_set_single_column(m->hash, columns == 1);
-//    likely_set_single_row(m->hash, rows == 1);
-//    likely_set_single_frame(m->hash, frames == 1);
-    if (data == NULL) likely_allocate(m);
+
+    if (!data || clone) {
+        likely_allocate(m);
+        if (data && clone)
+            memcpy(m->data, data, likely_bytes(m));
+    } else {
+        m->data = data;
+    }
 }
 
-likely_mat likely_new(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
+likely_mat likely_new(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, bool clone)
 {
     likely_mat m = new likely_matrix();
-    likelyInitialize(m, hash, channels, columns, rows, frames, data);
+    likelyInitialize(m, hash, channels, columns, rows, frames, data, clone);
     return m;
 }
 
@@ -105,9 +107,11 @@ static int lua_likely_new(lua_State *L)
     likely_size rows = 0;
     likely_size frames = 0;
     likely_data *data = NULL;
+    bool clone = true;
 
     const int argc = lua_gettop(L);
     switch (argc) {
+      case 7: clone    = lua_toboolean(L, 7);
       case 6: data     = (likely_data*)lua_touserdata(L, 6);
       case 5: frames   = lua_tonumber(L, 5);
       case 4: rows     = lua_tonumber(L, 4);
@@ -115,11 +119,25 @@ static int lua_likely_new(lua_State *L)
       case 2: channels = lua_tonumber(L, 2);
       case 1: hash     = likely_string_to_hash(lua_tostring(L, 1));
       case 0: break;
-      default: likely_assert(false, "lua_likely_new expected no more than 6 arguments, got: %d", argc);
+      default: likely_assert(false, "'new' expected no more than 7 arguments, got: %d", argc);
     }
 
     likely_mat m = (likely_mat) lua_newuserdata(L, sizeof(likely_matrix));
-    likelyInitialize(m, hash, channels, columns, rows, frames, NULL);
+    likelyInitialize(m, hash, channels, columns, rows, frames, data, clone);
+    return 1;
+}
+
+likely_mat likely_clone(likely_const_mat m)
+{
+    return likely_new(m->hash, m->channels, m->columns, m->rows, m->frames, m->data);
+}
+
+static int lua_likely_clone(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 1, "'clone' expected 1 argument, got: %d", lua_gettop(L));
+    likely_mat m = (likely_mat) lua_touserdata(L, 1);
+    likely_mat n = (likely_mat) lua_newuserdata(L, sizeof(likely_matrix));
+    likelyInitialize(n, m->hash, m->channels, m->columns, m->rows, m->frames, m->data);
     return 1;
 }
 
@@ -131,23 +149,19 @@ void likely_delete(likely_mat m)
 
 static int lua_likely_delete(lua_State *L)
 {
-    likely_assert(lua_gettop(L) == 1, "lua_likely_delete expected 1 argument, got: %d", lua_gettop(L));
-    likely_mat m = (likely_mat)lua_touserdata(L, 1);
+    likely_assert(lua_gettop(L) == 1, "'delete' expected 1 argument, got: %d", lua_gettop(L));
+    likely_mat m = (likely_mat) lua_touserdata(L, 1);
     likely_free(m);
     return 0;
-}
-
-likely_mat likely_clone(likely_const_mat m)
-{
-    likely_mat n = likely_new(m->hash, m->channels, m->columns, m->rows, m->frames);
-    memcpy(n->data, m->data, likely_bytes(m));
-    return n;
 }
 
 void likely_allocate(likely_mat m)
 {
     const likely_size bytes = likely_bytes(m);
-    if (bytes == 0) return;
+    if (bytes == 0) {
+        m->data = NULL;
+        return;
+    }
     size_t alignment = MaxRegisterWidth;
     uintptr_t r = (uintptr_t)malloc(bytes + --alignment + 2);
     uintptr_t o = (r + 2 + alignment) & ~(uintptr_t)alignment;
@@ -349,6 +363,8 @@ static lua_State *getLuaState()
     luaL_openlibs(L);
     lua_pushcfunction(L, lua_likely_new);
     lua_setglobal(L, "new");
+    lua_pushcfunction(L, lua_likely_clone);
+    lua_setglobal(L, "clone");
     lua_pushcfunction(L, lua_likely_delete);
     lua_setglobal(L, "delete");
     checkLua(L, luaL_dostring(L, likely_standard_library()));
