@@ -38,8 +38,12 @@ static cv::Mat toCvMat(likely_const_mat m)
     return cv::Mat(m->rows, m->columns, CV_MAKETYPE(hashToDepth(m->hash), m->channels), m->data);
 }
 
-static likely_mat fromCvMat(const cv::Mat &mat, bool clone = true)
+static likely_mat fromCvMat(const cv::Mat &src, bool clone, likely_mat dst = NULL)
 {
-    likely_assert(mat.isContinuous(), "fromCvMat Continuous data required");
-    return likely_new(depthToHash(mat.depth()), mat.channels(), mat.cols, mat.rows, 1, mat.data, clone);
+    likely_assert(src.isContinuous(), "fromCvMat requires continuous data");
+    if (dst)
+        likely_initialize(dst, depthToHash(src.depth()), src.channels(), src.cols, src.rows, 1, src.data, clone);
+    else
+        dst = likely_new(depthToHash(src.depth()), src.channels(), src.cols, src.rows, 1, src.data, clone);
+    return dst;
 }

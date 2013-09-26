@@ -222,7 +222,7 @@ static int lua_likely_free(lua_State *L)
 
 likely_mat likely_read(const char *file)
 {
-    return fromCvMat(cv::imread(file));
+    return fromCvMat(cv::imread(file), true);
 }
 
 static int lua_likely_read(lua_State *L)
@@ -230,9 +230,7 @@ static int lua_likely_read(lua_State *L)
     likely_assert(lua_gettop(L) == 1, "'read' expected 1 argument, got: %d", lua_gettop(L));
     cv::Mat mat = cv::imread(lua_tostring(L, 1));
     likely_mat m = (likely_mat) lua_newuserdata(L, sizeof(likely_matrix));
-    likely_mat temp = fromCvMat(mat, false);
-    likely_initialize(m, temp->hash, temp->channels, temp->columns, temp->rows, temp->frames, temp->data);
-    likely_delete(temp);
+    fromCvMat(mat, true, m);
     return 1;
 }
 
@@ -250,14 +248,14 @@ static int lua_likely_write(lua_State *L)
 
 likely_mat likely_decode(likely_const_mat buffer)
 {
-    return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_ANYDEPTH));
+    return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_ANYDEPTH), true);
 }
 
 likely_mat likely_encode(likely_const_mat image, const char *extension)
 {
     vector<uchar> buf;
     cv::imencode(extension, toCvMat(image), buf);
-    return fromCvMat(cv::Mat(buf));
+    return fromCvMat(cv::Mat(buf), true);
 }
 
 double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
