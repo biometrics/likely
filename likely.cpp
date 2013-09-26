@@ -55,7 +55,7 @@ static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
 static likely_error_callback ErrorCallback = NULL;
 
-static void checkLua(lua_State *L, int error)
+static void checkLua(lua_State *L, int error = true)
 {
     if (!error) return;
 
@@ -120,7 +120,7 @@ static int lua_likely_new(lua_State *L)
 
     likely_mat m = (likely_mat) lua_newuserdata(L, sizeof(likely_matrix));
     likelyInitialize(m, hash, channels, columns, rows, frames, NULL);
-    return argc;
+    return 1;
 }
 
 void likely_delete(likely_mat m)
@@ -134,7 +134,7 @@ static int lua_likely_delete(lua_State *L)
     likely_assert(lua_gettop(L) == 1, "lua_likely_delete expected 1 argument, got: %d", lua_gettop(L));
     likely_mat m = (likely_mat)lua_touserdata(L, 1);
     likely_free(m);
-    return 1;
+    return 0;
 }
 
 likely_mat likely_clone(likely_const_mat m)
