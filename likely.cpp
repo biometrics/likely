@@ -220,17 +220,15 @@ static int lua_likely_free(lua_State *L)
     return 0;
 }
 
-likely_mat likely_read(const char *file)
+likely_mat likely_read(const char *file, likely_mat image)
 {
-    return fromCvMat(cv::imread(file), true);
+    return fromCvMat(cv::imread(file), true, image);
 }
 
 static int lua_likely_read(lua_State *L)
 {
     likely_assert(lua_gettop(L) == 1, "'read' expected 1 argument, got: %d", lua_gettop(L));
-    cv::Mat mat = cv::imread(lua_tostring(L, 1));
-    likely_mat m = (likely_mat) lua_newuserdata(L, sizeof(likely_matrix));
-    fromCvMat(mat, true, m);
+    likely_read(lua_tostring(L, 1), (likely_mat) lua_newuserdata(L, sizeof(likely_matrix)));
     return 1;
 }
 
