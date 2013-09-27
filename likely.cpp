@@ -82,6 +82,19 @@ likely_mat likely_new(likely_hash hash, likely_size channels, likely_size column
     return m;
 }
 
+static likely_mat newLuaMat(lua_State *L)
+{
+    likely_mat m = (likely_mat) lua_newuserdata(L, sizeof(likely_matrix));
+    luaL_getmetatable(L, "likely");
+    lua_setmetatable(L, -2);
+    return m;
+}
+
+static likely_mat checkLuaMat(lua_State *L)
+{
+    return (likely_mat)luaL_checkudata(L, 1, "likely");
+}
+
 static int lua_likely_new(lua_State *L)
 {
     likely_hash hash = likely_hash_null;
@@ -110,8 +123,7 @@ static int lua_likely_new(lua_State *L)
       default: likely_assert(false, "'new' expected no more than 7 arguments, got: %d", argc);
     }
 
-    likely_mat m = (likely_mat) lua_newuserdata(L, sizeof(likely_matrix));
-    likely_initialize(m, hash, channels, columns, rows, frames, data, clone);
+    likely_initialize(newLuaMat(L), hash, channels, columns, rows, frames, data, clone);
     return 1;
 }
 
@@ -157,7 +169,7 @@ static int lua_likely_initialize(lua_State *L)
       case 3: channels = lua_tonumberx(L, 3, &isnum);
               likely_assert(isnum, "'new' expected channels to be an integer, got: %s", lua_tostring(L, 3));
       case 2: hash     = likely_string_to_hash(lua_tostring(L, 2));
-      case 1: m        = (likely_mat) lua_touserdata(L, 1); break;
+      case 1: m        = checkLuaMat(L); break;
       default: likely_assert(false, "'initialize' expected 1-8 arguments, got: %d", argc);
     }
 
@@ -174,8 +186,7 @@ static int lua_likely_clone(lua_State *L)
 {
     likely_assert(lua_gettop(L) == 1, "'clone' expected 1 argument, got: %d", lua_gettop(L));
     likely_mat m = (likely_mat) lua_touserdata(L, 1);
-    likely_mat n = (likely_mat) lua_newuserdata(L, sizeof(likely_matrix));
-    likely_initialize(n, m->hash, m->channels, m->columns, m->rows, m->frames, m->data);
+    likely_initialize(newLuaMat(L), m->hash, m->channels, m->columns, m->rows, m->frames, m->data);
     return 1;
 }
 
@@ -188,7 +199,7 @@ void likely_delete(likely_mat m)
 static int lua_likely_delete(lua_State *L)
 {
     likely_assert(lua_gettop(L) == 1, "'delete' expected 1 argument, got: %d", lua_gettop(L));
-    likely_mat m = (likely_mat) lua_touserdata(L, 1);
+    likely_mat m = checkLuaMat(L);
     likely_free(m);
     return 0;
 }
@@ -211,7 +222,7 @@ void likely_allocate(likely_mat m)
 static int lua_likely_allocate(lua_State *L)
 {
     likely_assert(lua_gettop(L) == 1, "'allocate' expected 1 argument, got: %d", lua_gettop(L));
-    likely_allocate((likely_mat) lua_touserdata(L, 1));
+    likely_allocate(checkLuaMat(L));
     return 0;
 }
 
@@ -226,7 +237,7 @@ void likely_free(likely_mat m)
 static int lua_likely_free(lua_State *L)
 {
     likely_assert(lua_gettop(L) == 1, "'free' expected 1 argument, got: %d", lua_gettop(L));
-    likely_free((likely_mat) lua_touserdata(L, 1));
+    likely_free(checkLuaMat(L));
     return 0;
 }
 
@@ -238,7 +249,7 @@ likely_mat likely_read(const char *file, likely_mat image)
 static int lua_likely_read(lua_State *L)
 {
     likely_assert(lua_gettop(L) == 1, "'read' expected 1 argument, got: %d", lua_gettop(L));
-    likely_read(lua_tostring(L, 1), (likely_mat) lua_newuserdata(L, sizeof(likely_matrix)));
+    likely_read(lua_tostring(L, 1), newLuaMat(L));
     return 1;
 }
 
@@ -250,7 +261,7 @@ void likely_write(likely_const_mat image, const char *file)
 static int lua_likely_write(lua_State *L)
 {
     likely_assert(lua_gettop(L) == 2, "'write' expected 2 arguments, got: %d", lua_gettop(L));
-    likely_write((likely_const_mat) lua_touserdata(L, 1), lua_tostring(L, 2));
+    likely_write(checkLuaMat(L), lua_tostring(L, 2));
     return 0;
 }
 
@@ -262,7 +273,7 @@ likely_mat likely_decode(likely_const_mat buffer, likely_mat image)
 static int lua_likely_decode(lua_State *L)
 {
     likely_assert(lua_gettop(L) == 1, "'decode' expected 1 argument, got: %d", lua_gettop(L));
-    likely_decode((likely_const_mat) lua_touserdata(L, 1), (likely_mat) lua_newuserdata(L, sizeof(likely_matrix)));
+    likely_decode(checkLuaMat(L), newLuaMat(L));
     return 1;
 }
 
@@ -276,7 +287,7 @@ likely_mat likely_encode(likely_const_mat image, const char *extension, likely_m
 static int lua_likely_encode(lua_State *L)
 {
     likely_assert(lua_gettop(L) == 2, "'write' expected 2 arguments, got: %d", lua_gettop(L));
-    likely_encode((likely_const_mat) lua_touserdata(L, 1), lua_tostring(L, 2), (likely_mat) lua_newuserdata(L, sizeof(likely_matrix)));
+    likely_encode(checkLuaMat(L), lua_tostring(L, 2), newLuaMat(L));
     return 1;
 }
 
@@ -1338,6 +1349,7 @@ int luaopen_likely(lua_State *L)
         {NULL, NULL}
     };
 
+    luaL_newmetatable(L, "likely");
     luaL_newlib(L, likely);
     return 1;
 }
