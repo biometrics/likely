@@ -92,14 +92,19 @@ static int lua_likely_new(lua_State *L)
     likely_data *data = NULL;
     bool clone = true;
 
+    int isnum;
     const int argc = lua_gettop(L);
     switch (argc) {
       case 7: clone    = lua_toboolean(L, 7);
       case 6: data     = (likely_data*) lua_touserdata(L, 6);
-      case 5: frames   = lua_tonumber(L, 5);
-      case 4: rows     = lua_tonumber(L, 4);
-      case 3: columns  = lua_tonumber(L, 3);
-      case 2: channels = lua_tonumber(L, 2);
+      case 5: frames   = lua_tointegerx(L, 5, &isnum);
+              likely_assert(isnum, "'new' expected frames to be an integer, got: %s", lua_tostring(L, 5));
+      case 4: rows     = lua_tointegerx(L, 4, &isnum);
+              likely_assert(isnum, "'new' expected rows to be an integer, got: %s", lua_tostring(L, 4));
+      case 3: columns  = lua_tointegerx(L, 3, &isnum);
+              likely_assert(isnum, "'new' expected columns to be an integer, got: %s", lua_tostring(L, 3));
+      case 2: channels = lua_tointegerx(L, 2, &isnum);
+              likely_assert(isnum, "'new' expected channels to be an integer, got: %s", lua_tostring(L, 2));
       case 1: hash     = likely_string_to_hash(lua_tostring(L, 1));
       case 0: break;
       default: likely_assert(false, "'new' expected no more than 7 arguments, got: %d", argc);
@@ -138,14 +143,19 @@ static int lua_likely_initialize(lua_State *L)
     likely_data *data = NULL;
     bool clone = true;
 
+    int isnum;
     const int argc = lua_gettop(L);
     switch (argc) {
       case 8: clone    = lua_toboolean(L, 8);
       case 7: data     = (likely_data*) lua_touserdata(L, 7);
-      case 6: frames   = lua_tonumber(L, 6);
-      case 5: rows     = lua_tonumber(L, 5);
-      case 4: columns  = lua_tonumber(L, 4);
-      case 3: channels = lua_tonumber(L, 3);
+      case 6: frames   = lua_tonumberx(L, 6, &isnum);
+              likely_assert(isnum, "'new' expected frames to be an integer, got: %s", lua_tostring(L, 6));
+      case 5: rows     = lua_tonumberx(L, 5, &isnum);
+              likely_assert(isnum, "'new' expected rows to be an integer, got: %s", lua_tostring(L, 5));
+      case 4: columns  = lua_tonumberx(L, 4, &isnum);
+              likely_assert(isnum, "'new' expected columns to be an integer, got: %s", lua_tostring(L, 4));
+      case 3: channels = lua_tonumberx(L, 3, &isnum);
+              likely_assert(isnum, "'new' expected channels to be an integer, got: %s", lua_tostring(L, 3));
       case 2: hash     = likely_string_to_hash(lua_tostring(L, 2));
       case 1: m        = (likely_mat) lua_touserdata(L, 1); break;
       default: likely_assert(false, "'initialize' expected 1-8 arguments, got: %d", argc);
