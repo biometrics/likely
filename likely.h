@@ -191,6 +191,10 @@ typedef void (*likely_ternary_function)(likely_const_mat srcA, likely_const_mat 
 inline likely_ternary_function likely_make_ternary_function(likely_description description, likely_const_mat srcA, likely_const_mat srcB, likely_const_mat srcC)
     { return (likely_ternary_function)likely_make_function(description, 3, srcA, srcB, srcC, NULL); }
 
+// Make Likely accessible as a Lua module
+struct lua_State;
+LIKELY_EXPORT int luaopen_likely(lua_State *L);
+
 #ifdef __cplusplus
 }
 #endif

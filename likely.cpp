@@ -437,26 +437,8 @@ static lua_State *getLuaState()
 {
     lua_State *L = luaL_newstate();
     luaL_openlibs(L);
-    lua_pushcfunction(L, lua_likely_new);
-    lua_setglobal(L, "new");
-    lua_pushcfunction(L, lua_likely_initialize);
-    lua_setglobal(L, "initialize");
-    lua_pushcfunction(L, lua_likely_clone);
-    lua_setglobal(L, "clone");
-    lua_pushcfunction(L, lua_likely_delete);
-    lua_setglobal(L, "delete");
-    lua_pushcfunction(L, lua_likely_allocate);
-    lua_setglobal(L, "allocate");
-    lua_pushcfunction(L, lua_likely_free);
-    lua_setglobal(L, "free");
-    lua_pushcfunction(L, lua_likely_read);
-    lua_setglobal(L, "read");
-    lua_pushcfunction(L, lua_likely_write);
-    lua_setglobal(L, "write");
-    lua_pushcfunction(L, lua_likely_encode);
-    lua_setglobal(L, "encode");
-    lua_pushcfunction(L, lua_likely_decode);
-    lua_setglobal(L, "decode");
+    luaL_requiref(L, "likely", luaopen_likely, 1);
+    lua_pop(L, 1);
     checkLua(L, luaL_dostring(L, likely_standard_library()));
     return L;
 }
@@ -1338,4 +1320,24 @@ void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size star
 
     executeWorker(workers.size());
     while (workersRemaining > 0) {}
+}
+
+int luaopen_likely(lua_State *L)
+{
+    static const struct luaL_Reg likely[] = {
+        {"new", lua_likely_new},
+        {"initialize", lua_likely_initialize},
+        {"clone", lua_likely_clone},
+        {"delete", lua_likely_delete},
+        {"allocate", lua_likely_allocate},
+        {"free", lua_likely_free},
+        {"read", lua_likely_read},
+        {"write", lua_likely_write},
+        {"encode", lua_likely_encode},
+        {"decode", lua_likely_decode},
+        {NULL, NULL}
+    };
+
+    luaL_newlib(L, likely);
+    return 1;
 }
