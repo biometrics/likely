@@ -55,50 +55,30 @@ static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
 static likely_error_callback ErrorCallback = NULL;
 
-static string stackDump(lua_State *L)
-{
-    stringstream stream;
-    const int top = lua_gettop(L);
-    for (int i = 1; i <= top; i++) {  /* repeat for each level */
-        const int t = lua_type(L, i);
-        switch (t) {
-          case LUA_TSTRING:  stream << '`' << lua_tostring(L, i) << '`';         break;
-          case LUA_TBOOLEAN: stream << (lua_toboolean(L, i) ? "true" : "false"); break;
-          case LUA_TNUMBER:  stream << lua_tonumber(L, i);                       break;
-          default:           stream << lua_typename(L, t);                       break;
-        }
-        stream << "  ";
-    }
-    return stream.str();
-}
-
-static void checkLua(lua_State *L, int error)
+static void checkLua(lua_State *L, int error = true)
 {
     if (!error) return;
-    const string stack = stackDump(L);
-    likely_assert(false, "check_lua %s\n\tStack dump:\n\t%s", lua_tostring(L, -1), stack.c_str());
-    lua_pop(L, 1);
+
+    fprintf(stderr, "Lua stack dump:\n");
+    const int top = lua_gettop(L);
+    for (int i = 1; i <= top; i++) {
+        const int t = lua_type(L, i);
+        switch (t) {
+          case LUA_TSTRING:  fprintf(stderr, "\t'%s'\n", lua_tostring(L, i));                   break;
+          case LUA_TBOOLEAN: fprintf(stderr, "\t%s\n", lua_toboolean(L, i) ? "true" : "false"); break;
+          case LUA_TNUMBER:  fprintf(stderr, "\t%f\n", lua_tonumber(L, i));                     break;
+          default:           fprintf(stderr, "\t%s\n", lua_typename(L, t));                     break;
+        }
+    }
+
+    const string errorMessage = lua_tostring(L, -1); lua_pop(L, 1);
+    likely_assert(false, "%s", errorMessage.c_str());
 }
 
-static void likelyInitialize(likely_mat m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
-{
-    m->hash = hash;
-    m->channels = channels;
-    m->columns = columns;
-    m->rows = rows;
-    m->frames = frames;
-    m->data = data;
-//    likely_set_single_channel(m->hash, channels == 1);
-//    likely_set_single_column(m->hash, columns == 1);
-//    likely_set_single_row(m->hash, rows == 1);
-//    likely_set_single_frame(m->hash, frames == 1);
-    if (data == NULL) likely_allocate(m);
-}
-
-likely_mat likely_new(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data)
+likely_mat likely_new(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, bool clone)
 {
     likely_mat m = new likely_matrix();
-    likelyInitialize(m, hash, channels, columns, rows, frames, data);
+    likely_initialize(m, hash, channels, columns, rows, frames, data, clone);
     return m;
 }
 
@@ -110,22 +90,83 @@ static int lua_likely_new(lua_State *L)
     likely_size rows = 0;
     likely_size frames = 0;
     likely_data *data = NULL;
+    bool clone = true;
 
     const int argc = lua_gettop(L);
     switch (argc) {
-      case 6: data     = (likely_data*)lua_touserdata(L, 6);
+      case 7: clone    = lua_toboolean(L, 7);
+      case 6: data     = (likely_data*) lua_touserdata(L, 6);
       case 5: frames   = lua_tonumber(L, 5);
       case 4: rows     = lua_tonumber(L, 4);
       case 3: columns  = lua_tonumber(L, 3);
       case 2: channels = lua_tonumber(L, 2);
       case 1: hash     = likely_string_to_hash(lua_tostring(L, 1));
       case 0: break;
-      default: likely_assert(false, "lua_likely_new expected no more than 6 arguments, got: %d", argc);
+      default: likely_assert(false, "'new' expected no more than 7 arguments, got: %d", argc);
     }
 
     likely_mat m = (likely_mat) lua_newuserdata(L, sizeof(likely_matrix));
-    likelyInitialize(m, hash, channels, columns, rows, frames, NULL);
-    return argc;
+    likely_initialize(m, hash, channels, columns, rows, frames, data, clone);
+    return 1;
+}
+
+void likely_initialize(likely_mat m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, bool clone)
+{
+    m->hash = hash;
+    m->channels = channels;
+    m->columns = columns;
+    m->rows = rows;
+    m->frames = frames;
+
+    if (!data || clone) {
+        likely_allocate(m);
+        if (data && clone)
+            memcpy(m->data, data, likely_bytes(m));
+    } else {
+        m->data = data;
+    }
+}
+
+static int lua_likely_initialize(lua_State *L)
+{
+    likely_mat  m = NULL;
+    likely_hash hash = likely_hash_null;
+    likely_size channels = 0;
+    likely_size columns = 0;
+    likely_size rows = 0;
+    likely_size frames = 0;
+    likely_data *data = NULL;
+    bool clone = true;
+
+    const int argc = lua_gettop(L);
+    switch (argc) {
+      case 8: clone    = lua_toboolean(L, 8);
+      case 7: data     = (likely_data*) lua_touserdata(L, 7);
+      case 6: frames   = lua_tonumber(L, 6);
+      case 5: rows     = lua_tonumber(L, 5);
+      case 4: columns  = lua_tonumber(L, 4);
+      case 3: channels = lua_tonumber(L, 3);
+      case 2: hash     = likely_string_to_hash(lua_tostring(L, 2));
+      case 1: m        = (likely_mat) lua_touserdata(L, 1); break;
+      default: likely_assert(false, "'initialize' expected 1-8 arguments, got: %d", argc);
+    }
+
+    likely_initialize(m, hash, channels, columns, rows, frames, data, clone);
+    return 0;
+}
+
+likely_mat likely_clone(likely_const_mat m)
+{
+    return likely_new(m->hash, m->channels, m->columns, m->rows, m->frames, m->data);
+}
+
+static int lua_likely_clone(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 1, "'clone' expected 1 argument, got: %d", lua_gettop(L));
+    likely_mat m = (likely_mat) lua_touserdata(L, 1);
+    likely_mat n = (likely_mat) lua_newuserdata(L, sizeof(likely_matrix));
+    likely_initialize(n, m->hash, m->channels, m->columns, m->rows, m->frames, m->data);
+    return 1;
 }
 
 void likely_delete(likely_mat m)
@@ -136,29 +177,32 @@ void likely_delete(likely_mat m)
 
 static int lua_likely_delete(lua_State *L)
 {
-    likely_assert(lua_gettop(L) == 1, "lua_likely_delete expected 1 argument, got: %d", lua_gettop(L));
-    likely_mat m = (likely_mat)lua_touserdata(L, 1);
+    likely_assert(lua_gettop(L) == 1, "'delete' expected 1 argument, got: %d", lua_gettop(L));
+    likely_mat m = (likely_mat) lua_touserdata(L, 1);
     likely_free(m);
-    return 1;
-}
-
-likely_mat likely_clone(likely_const_mat m)
-{
-    likely_mat n = likely_new(m->hash, m->channels, m->columns, m->rows, m->frames);
-    memcpy(n->data, m->data, likely_bytes(m));
-    return n;
+    return 0;
 }
 
 void likely_allocate(likely_mat m)
 {
     const likely_size bytes = likely_bytes(m);
-    if (bytes == 0) return;
+    if (bytes == 0) {
+        m->data = NULL;
+        return;
+    }
     size_t alignment = MaxRegisterWidth;
     uintptr_t r = (uintptr_t)malloc(bytes + --alignment + 2);
     uintptr_t o = (r + 2 + alignment) & ~(uintptr_t)alignment;
     ((uint16_t*)o)[-1] = (uint16_t)(o-r);
     m->data = (likely_data*)o;
     likely_set_owner(m->hash, true);
+}
+
+static int lua_likely_allocate(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 1, "'allocate' expected 1 argument, got: %d", lua_gettop(L));
+    likely_allocate((likely_mat) lua_touserdata(L, 1));
+    return 0;
 }
 
 void likely_free(likely_mat m)
@@ -169,13 +213,25 @@ void likely_free(likely_mat m)
     likely_set_owner(m->hash, false);
 }
 
+static int lua_likely_free(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 1, "'free' expected 1 argument, got: %d", lua_gettop(L));
+    likely_free((likely_mat) lua_touserdata(L, 1));
+    return 0;
+}
+
 likely_mat likely_read(const char *file)
 {
-    cv::Mat mat = cv::imread(file);
-    likely_mat temp = fromCvMat(mat);
-    likely_mat result = likely_clone(temp);
-    likely_delete(temp);
-    return result;
+    return fromCvMat(cv::imread(file), true);
+}
+
+static int lua_likely_read(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 1, "'read' expected 1 argument, got: %d", lua_gettop(L));
+    cv::Mat mat = cv::imread(lua_tostring(L, 1));
+    likely_mat m = (likely_mat) lua_newuserdata(L, sizeof(likely_matrix));
+    fromCvMat(mat, true, m);
+    return 1;
 }
 
 void likely_write(likely_const_mat image, const char *file)
@@ -183,16 +239,23 @@ void likely_write(likely_const_mat image, const char *file)
     cv::imwrite(file, toCvMat(image));
 }
 
+static int lua_likely_write(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 2, "'write' expected 2 arguments, got: %d", lua_gettop(L));
+    likely_write((likely_const_mat) lua_touserdata(L, 1), lua_tostring(L, 2));
+    return 0;
+}
+
 likely_mat likely_decode(likely_const_mat buffer)
 {
-    return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_ANYDEPTH));
+    return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_ANYDEPTH), true);
 }
 
 likely_mat likely_encode(likely_const_mat image, const char *extension)
 {
     vector<uchar> buf;
     cv::imencode(extension, toCvMat(image), buf);
-    return fromCvMat(cv::Mat(buf));
+    return fromCvMat(cv::Mat(buf), true);
 }
 
 double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
@@ -354,8 +417,20 @@ static lua_State *getLuaState()
     luaL_openlibs(L);
     lua_pushcfunction(L, lua_likely_new);
     lua_setglobal(L, "new");
+    lua_pushcfunction(L, lua_likely_initialize);
+    lua_setglobal(L, "initialize");
+    lua_pushcfunction(L, lua_likely_clone);
+    lua_setglobal(L, "clone");
     lua_pushcfunction(L, lua_likely_delete);
     lua_setglobal(L, "delete");
+    lua_pushcfunction(L, lua_likely_allocate);
+    lua_setglobal(L, "allocate");
+    lua_pushcfunction(L, lua_likely_free);
+    lua_setglobal(L, "free");
+    lua_pushcfunction(L, lua_likely_read);
+    lua_setglobal(L, "read");
+    lua_pushcfunction(L, lua_likely_write);
+    lua_setglobal(L, "write");
     checkLua(L, luaL_dostring(L, likely_standard_library()));
     return L;
 }

@@ -17,7 +17,6 @@
 #ifndef LIKELY_H
 #define LIKELY_H
 
-#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -58,7 +57,7 @@ typedef uint32_t likely_hash; /* Depth : 8
                                  Owner : 1
                                  Reserved : 15 */
 
-// Convenience values for editing a likely_hash
+// Standard hash masks and values
 enum likely_hash_field
 {
     likely_hash_null = 0x00000000,
@@ -103,7 +102,7 @@ inline void likely_set(likely_hash &hash, int i, likely_hash_field mask) { hash 
 inline bool likely_get_bool(likely_hash hash, likely_hash_field mask) { return hash & mask; }
 inline void likely_set_bool(likely_hash &hash, bool b, likely_hash_field mask) { b ? hash |= mask : hash &= ~mask; }
 
-// Convenience functions for querying and editing the hash
+// Query and edit the hash
 inline int  likely_depth(likely_hash hash) { return likely_get(hash, likely_hash_depth); }
 inline void likely_set_depth(likely_hash &hash, int depth) { likely_set(hash, depth, likely_hash_depth); }
 inline bool likely_is_signed(likely_hash hash) { return likely_get_bool(hash, likely_hash_signed); }
@@ -129,16 +128,17 @@ inline void likely_set_owner(likely_hash &hash, bool is_owner) { likely_set_bool
 inline int  likely_reserved(likely_hash hash) { return likely_get(hash, likely_hash_reserved); }
 inline void likely_set_reserved(likely_hash &hash, int reserved) { likely_set(hash, reserved, likely_hash_reserved); }
 
-// Convenience functions for determining matrix size
+// Determine matrix size
 inline likely_size likely_elements(likely_const_mat m) { return m->channels * m->columns * m->rows * m->frames; }
 inline likely_size likely_bytes(likely_const_mat m) { return uint64_t(likely_depth(m->hash)) * uint64_t(likely_elements(m)) / uint64_t(8); }
 
-// Convenience functions for initializing a matrix
-LIKELY_EXPORT likely_mat likely_new(likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL);
+// Create or delete a matrix
+LIKELY_EXPORT likely_mat likely_new(likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL, bool clone = true);
+LIKELY_EXPORT void likely_initialize(likely_mat m, likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL, bool clone = true);
 LIKELY_EXPORT void likely_delete(likely_mat m);
-
-// Functions for allocating and freeing matrix data
 LIKELY_EXPORT likely_mat likely_clone(likely_const_mat m);
+
+// Create or delete a matrix data buffer
 LIKELY_EXPORT void likely_allocate(likely_mat m);
 LIKELY_EXPORT void likely_free(likely_mat m);
 
@@ -148,7 +148,7 @@ LIKELY_EXPORT void likely_write(likely_const_mat image, const char *file);
 LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
 LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
 
-// Convenience functions for debugging; by convention c = channel, x = column, y = row, t = frame
+// Debugging functionality
 LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
 LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
 LIKELY_EXPORT const char *likely_hash_to_string(likely_hash h); // Pointer guaranteed until the next call to this function
