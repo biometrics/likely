@@ -222,7 +222,7 @@ static int lua_likely_free(lua_State *L)
 
 likely_mat likely_read(const char *file, likely_mat image)
 {
-    return fromCvMat(cv::imread(file), true, image);
+    return fromCvMat(cv::imread(file, CV_LOAD_IMAGE_UNCHANGED), true, image);
 }
 
 static int lua_likely_read(lua_State *L)
@@ -244,16 +244,30 @@ static int lua_likely_write(lua_State *L)
     return 0;
 }
 
-likely_mat likely_decode(likely_const_mat buffer)
+likely_mat likely_decode(likely_const_mat buffer, likely_mat image)
 {
-    return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_ANYDEPTH), true);
+    return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_UNCHANGED), true, image);
 }
 
-likely_mat likely_encode(likely_const_mat image, const char *extension)
+static int lua_likely_decode(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 1, "'decode' expected 1 argument, got: %d", lua_gettop(L));
+    likely_decode((likely_const_mat) lua_touserdata(L, 1), (likely_mat) lua_newuserdata(L, sizeof(likely_matrix)));
+    return 1;
+}
+
+likely_mat likely_encode(likely_const_mat image, const char *extension, likely_mat buffer)
 {
     vector<uchar> buf;
     cv::imencode(extension, toCvMat(image), buf);
-    return fromCvMat(cv::Mat(buf), true);
+    return fromCvMat(cv::Mat(buf), true, buffer);
+}
+
+static int lua_likely_encode(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 2, "'write' expected 2 arguments, got: %d", lua_gettop(L));
+    likely_encode((likely_const_mat) lua_touserdata(L, 1), lua_tostring(L, 2), (likely_mat) lua_newuserdata(L, sizeof(likely_matrix)));
+    return 1;
 }
 
 double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
@@ -429,6 +443,10 @@ static lua_State *getLuaState()
     lua_setglobal(L, "read");
     lua_pushcfunction(L, lua_likely_write);
     lua_setglobal(L, "write");
+    lua_pushcfunction(L, lua_likely_encode);
+    lua_setglobal(L, "encode");
+    lua_pushcfunction(L, lua_likely_decode);
+    lua_setglobal(L, "decode");
     checkLua(L, luaL_dostring(L, likely_standard_library()));
     return L;
 }
