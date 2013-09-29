@@ -143,10 +143,10 @@ LIKELY_EXPORT void likely_allocate(likely_mat m);
 LIKELY_EXPORT void likely_free(likely_mat m);
 
 // Matrix I/O
-LIKELY_EXPORT likely_mat likely_read(const char *file);
+LIKELY_EXPORT likely_mat likely_read(const char *file, likely_mat image = NULL);
 LIKELY_EXPORT void likely_write(likely_const_mat image, const char *file);
-LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
-LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
+LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer, likely_mat image = NULL);
+LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension, likely_mat buffer = NULL);
 
 // Debugging functionality
 LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
@@ -190,6 +190,10 @@ inline likely_binary_function likely_make_binary_function(likely_description des
 typedef void (*likely_ternary_function)(likely_const_mat srcA, likely_const_mat srcB, likely_const_mat srcC, likely_mat dst);
 inline likely_ternary_function likely_make_ternary_function(likely_description description, likely_const_mat srcA, likely_const_mat srcB, likely_const_mat srcC)
     { return (likely_ternary_function)likely_make_function(description, 3, srcA, srcB, srcC, NULL); }
+
+// Make Likely accessible as a Lua module
+struct lua_State;
+LIKELY_EXPORT int luaopen_likely(lua_State *L);
 
 #ifdef __cplusplus
 }
