@@ -929,11 +929,11 @@ public:
                 depth = lua_tonumber(L, j);
             } else if (type == LUA_TSTRING) {
                 const string value = lua_tostring(L, j);
-                if      (value == "zext")    { likely_assert(likely_is_signed(kernelHash), "Attempted to zext signed number"); likely_set_depth(kernelHash, depth); }
-                else if (value == "sext")    { likely_assert(!likely_is_signed(kernelHash), "Attempted to sext unsigned number"); likely_set_depth(kernelHash, depth); }
-                else if (value == "FPext")   { likely_assert(!likely_is_floating(kernelHash), "Attempted to FPext a non FP number"); likely_set_depth(kernelHash, depth); }
-                else if (value == "trunc")   { likely_assert(likely_is_floating(kernelHash), "Attempted to trunc FP number"); likely_set_depth(kernelHash, depth); }
-                else if (value == "FPtrunc") { likely_assert(likely_is_floating(kernelHash), "Attempted to FPtrunc a non FP number"); likely_set_depth(kernelHash, depth); }
+                if      (value == "zext")    { likely_set_depth(kernelHash, depth); }
+                else if (value == "sext")    { likely_set_depth(kernelHash, depth); }
+                else if (value == "FPext")   { likely_set_depth(kernelHash, depth); }
+                else if (value == "trunc")   { likely_set_depth(kernelHash, depth); }
+                else if (value == "FPtrunc") { likely_set_depth(kernelHash, depth); }
                 else if (value == "fp")      { likely_set_floating(kernelHash, true); likely_set_signed(kernelHash, true); }
                 else if (value == "i")       { likely_set_floating(kernelHash, false); likely_set_signed(kernelHash, true); }
                 else if (value == "u")       { likely_set_floating(kernelHash, false); likely_set_signed(kernelHash, false); }
