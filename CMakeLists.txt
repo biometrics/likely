@@ -18,6 +18,17 @@ if(APPLE)
 endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden")
 
+macro(get_subdirectories result curdir)
+  file(GLOB children RELATIVE ${curdir} ${curdir}/*)
+  set(dirlist "")
+  foreach(child ${children})
+    if(IS_DIRECTORY ${curdir}/${child})
+      set(dirlist ${dirlist} ${child})
+    endif()
+  endforeach()
+  set(${result} ${dirlist})
+endmacro()
+
 # Build LLVM
 add_subdirectory(llvm)
 set(CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}/llvm/share/llvm/cmake/")
@@ -33,13 +44,11 @@ add_subdirectory(lua)
 include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
 
 # Build OpenCV
-set(BUILD_SHARED_LIBS OFF)
-set(BUILD_ZLIB ON)
-set(BUILD_TIFF ON)
-set(BUILD_JASPER ON)
-set(BUILD_JPEG ON)
-set(BUILD_PNG ON)
-set(BUILD_OPENEXR ON)
+get_subdirectories(OPENCV_MODULES "${CMAKE_SOURCE_DIR}/opencv/modules")
+list(REMOVE_ITEM OPENCV_MODULES core imgproc highgui) # Disable all but these
+foreach(OPENCV_MODULE ${OPENCV_MODULES})
+  set(BUILD_opencv_${OPENCV_MODULE}_INIT OFF)
+endforeach()
 add_subdirectory(opencv)
 include_directories(opencv/include)
 
@@ -63,7 +72,7 @@ endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter")
 add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
 add_library(likely SHARED likely.cpp index.html standard.likely opencv.shim ${LIKELY_STANDARD_LIBRARY})
-add_dependencies(likely LLVM)
+add_dependencies(likely LLVM OpenCV lua)
 set_target_properties(likely PROPERTIES
                       DEFINE_SYMBOL LIKELY_LIBRARY
                       VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
@@ -76,6 +85,7 @@ install(TARGETS likely
 
 # Benchmark
 add_executable(benchmark benchmark.cpp)
+add_dependencies(benchmark OpenCV)
 target_link_libraries(benchmark likely opencv_imgproc)
 install(TARGETS benchmark RUNTIME DESTINATION bin)
 
