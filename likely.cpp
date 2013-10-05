@@ -340,48 +340,47 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
 
 const char *likely_hash_to_string(likely_hash h)
 {
-    static string str;
+    static stringstream hashString;
+    hashString << "Type: ";
 
-    switch (h) {
-      case likely_hash_u8:  str="u8" ; break;
-      case likely_hash_u16: str="u16"; break;
-      case likely_hash_u32: str="u32"; break;
-      case likely_hash_u64: str="u64"; break;
-      case likely_hash_i8:  str="i8" ; break;
-      case likely_hash_i16: str="i16"; break;
-      case likely_hash_i32: str="i32"; break;
-      case likely_hash_i64: str="i64"; break;
-      case likely_hash_f32: str="f32"; break;
-      case likely_hash_f64: str="f64"; break;
-      default:              str="";
+    switch (likely_type(h)) {
+      case likely_hash_u8:  hashString << "u8"; break;
+      case likely_hash_u16: hashString << "u16"; break;
+      case likely_hash_u32: hashString << "u32"; break;
+      case likely_hash_u64: hashString << "u64"; break;
+      case likely_hash_i8:  hashString << "i8" ; break;
+      case likely_hash_i16: hashString << "i16"; break;
+      case likely_hash_i32: hashString << "i32"; break;
+      case likely_hash_i64: hashString << "i64"; break;
+      case likely_hash_f32: hashString << "f32"; break;
+      case likely_hash_f64: hashString << "f64"; break;
+      default:              hashString << "Unrecognized Type";
     }
 
-    if (str.empty()) {
-        stringstream stream;
-        stream << hex << setfill('0') << setw(2*sizeof(likely_hash)) << h;
-        str = stream.str();
-    }
+    hashString << " Parallel: " << likely_is_parallel(h);
+    hashString << " Heterogeneous: " << likely_is_heterogeneous(h);
+    hashString << " Owner: " << likely_is_owner(h);
 
-    return str.c_str();
+    return hashString.str().c_str();
 }
 
-likely_hash likely_string_to_hash(const char *str)
+likely_hash likely_string_to_hash(const char *type, bool parallel = false, bool heterogeneous = false, bool owner = false)
 {
-    if      (!strcmp(str, "u8"))  return likely_hash_u8;
-    else if (!strcmp(str, "u16")) return likely_hash_u16;
-    else if (!strcmp(str, "u32")) return likely_hash_u32;
-    else if (!strcmp(str, "u64")) return likely_hash_u64;
-    else if (!strcmp(str, "i8"))  return likely_hash_i8;
-    else if (!strcmp(str, "i16")) return likely_hash_i16;
-    else if (!strcmp(str, "i32")) return likely_hash_i32;
-    else if (!strcmp(str, "i64")) return likely_hash_i64;
-    else if (!strcmp(str, "f32")) return likely_hash_f32;
-    else if (!strcmp(str, "f64")) return likely_hash_f64;
-
-    stringstream stream;
-    stream << hex << str;
     likely_hash h;
-    stream >> h;
+    if      (!strcmp(type, "u8"))  h = likely_hash_u8;
+    else if (!strcmp(type, "u16")) h = likely_hash_u16;
+    else if (!strcmp(type, "u32")) h = likely_hash_u32;
+    else if (!strcmp(type, "u64")) h = likely_hash_u64;
+    else if (!strcmp(type, "i8"))  h = likely_hash_i8;
+    else if (!strcmp(type, "i16")) h = likely_hash_i16;
+    else if (!strcmp(type, "i32")) h = likely_hash_i32;
+    else if (!strcmp(type, "i64")) h = likely_hash_i64;
+    else if (!strcmp(type, "f32")) h = likely_hash_f32;
+    else if (!strcmp(type, "f64")) h = likely_hash_f64;
+
+    likely_set_parallel(h, parallel);
+    likely_set_heterogeneous(h, heterogeneous);
+    likely_set_owner(h, owner);
     return h;
 }
 

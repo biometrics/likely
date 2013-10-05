@@ -127,8 +127,6 @@ void Test::testCorrectness(likely_unary_function f, const Mat &src, bool paralle
     likely_mat dstLikely = likely_new();
     f(srcLikely, dstLikely);
     printf("dstHash: %s\n", likely_hash_to_string(dstLikely->hash));
-    Mat printMat = toCvMat(dstLikely);
-    if (printMat.type() == CV_8S) printf("CV_8S\n");
     Mat errorMat = abs(toCvMat(dstLikely) - dstOpenCV);
     errorMat.convertTo(errorMat, CV_32F);
     threshold(errorMat, errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
