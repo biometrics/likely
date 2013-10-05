@@ -218,7 +218,7 @@ likely_mat likely_clone(likely_const_mat m)
 static int lua_likely_clone(lua_State *L)
 {
     likely_assert(lua_gettop(L) == 1, "'clone' expected 1 argument, got: %d", lua_gettop(L));
-    likely_mat m = (likely_mat) lua_touserdata(L, 1);
+    likely_const_mat m = checkLuaMat(L);
     likely_initialize(newLuaMat(L), m->hash, m->channels, m->columns, m->rows, m->frames, m->data);
     return 1;
 }
