@@ -1335,21 +1335,29 @@ void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size star
 
 int luaopen_likely(lua_State *L)
 {
-    static const struct luaL_Reg likely[] = {
+    static const struct luaL_Reg global_functions[] = {
         {"new", lua_likely_new},
+        {"read", lua_likely_read},
+        {NULL, NULL}
+    };
+
+    static const struct luaL_Reg member_functions[] = {
         {"initialize", lua_likely_initialize},
         {"clone", lua_likely_clone},
         {"delete", lua_likely_delete},
         {"allocate", lua_likely_allocate},
         {"free", lua_likely_free},
-        {"read", lua_likely_read},
         {"write", lua_likely_write},
         {"encode", lua_likely_encode},
         {"decode", lua_likely_decode},
         {NULL, NULL}
     };
 
+    // Idiom for registering library with member functions
     luaL_newmetatable(L, "likely");
-    luaL_newlib(L, likely);
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
+    luaL_setfuncs(L, member_functions, 0);
+    luaL_newlib(L, global_functions);
     return 1;
 }
