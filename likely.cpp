@@ -75,6 +75,39 @@ static void checkLua(lua_State *L, int error = true)
     likely_assert(false, "%s", errorMessage.c_str());
 }
 
+static inline int likely_get(likely_hash hash, likely_hash_field mask) { return hash & mask; }
+static inline void likely_set(likely_hash &hash, int i, likely_hash_field mask) { hash &= ~mask; hash |= i & mask; }
+static inline bool likely_get_bool(likely_hash hash, likely_hash_field mask) { return hash & mask; }
+static inline void likely_set_bool(likely_hash &hash, bool b, likely_hash_field mask) { b ? hash |= mask : hash &= ~mask; }
+
+int  likely_depth(likely_hash hash) { return likely_get(hash, likely_hash_depth); }
+void likely_set_depth(likely_hash &hash, int depth) { likely_set(hash, depth, likely_hash_depth); }
+bool likely_signed(likely_hash hash) { return likely_get_bool(hash, likely_hash_signed); }
+void likely_set_signed(likely_hash &hash, bool signed_) { likely_set_bool(hash, signed_, likely_hash_signed); }
+bool likely_floating(likely_hash hash) { return likely_get_bool(hash, likely_hash_floating); }
+void likely_set_floating(likely_hash &hash, bool floating) { likely_set_bool(hash, floating, likely_hash_floating); }
+int  likely_type(likely_hash hash) { return likely_get(hash, likely_hash_type); }
+void likely_set_type(likely_hash &hash, int type) { likely_set(hash, type, likely_hash_type); }
+bool likely_parallel(likely_hash hash) { return likely_get_bool(hash, likely_hash_parallel); }
+void likely_set_parallel(likely_hash &hash, bool parallel) { likely_set_bool(hash, parallel, likely_hash_parallel); }
+bool likely_heterogeneous(likely_hash hash) { return likely_get_bool(hash, likely_hash_heterogeneous); }
+void likely_set_heterogeneous(likely_hash &hash, bool heterogeneous) { likely_set_bool(hash, heterogeneous, likely_hash_heterogeneous); }
+bool likely_single_channel(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_channel); }
+void likely_set_single_channel(likely_hash &hash, bool single_channel) { likely_set_bool(hash, single_channel, likely_hash_single_channel); }
+bool likely_single_column(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_column); }
+void likely_set_single_column(likely_hash &hash, bool single_column) { likely_set_bool(hash, single_column, likely_hash_single_column); }
+bool likely_single_row(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_row); }
+void likely_set_single_row(likely_hash &hash, bool single_row) { likely_set_bool(hash, single_row, likely_hash_single_row); }
+bool likely_single_frame(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_frame); }
+void likely_set_single_frame(likely_hash &hash, bool single_frame) { likely_set_bool(hash, single_frame, likely_hash_single_frame); }
+bool likely_owner(likely_hash hash) { return likely_get_bool(hash, likely_hash_owner); }
+void likely_set_owner(likely_hash &hash, bool owner) { likely_set_bool(hash, owner, likely_hash_owner); }
+int  likely_reserved(likely_hash hash) { return likely_get(hash, likely_hash_reserved); }
+void likely_set_reserved(likely_hash &hash, int reserved) { likely_set(hash, reserved, likely_hash_reserved); }
+
+likely_size likely_elements(likely_const_mat m) { return m->channels * m->columns * m->rows * m->frames; }
+likely_size likely_bytes(likely_const_mat m) { return uint64_t(likely_depth(m->hash)) * uint64_t(likely_elements(m)) / uint64_t(8); }
+
 likely_mat likely_new(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, bool clone)
 {
     likely_mat m = new likely_matrix();
