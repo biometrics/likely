@@ -42,7 +42,7 @@ protected:
     {
         std::vector<likely_hash> types;
 //        types.push_back(likely_hash_i16);
-//        types.push_back(likely_hash_i32);
+        types.push_back(likely_hash_i32);
         types.push_back(likely_hash_f32);
         types.push_back(likely_hash_f64);
         return types;
@@ -126,7 +126,7 @@ void Test::testCorrectness(likely_unary_function f, const Mat &src, bool paralle
     likely_set_parallel(srcLikely->hash, parallel);
     likely_mat dstLikely = likely_new();
     f(srcLikely, dstLikely);
-
+    printf("dstHash: %s\n", likely_hash_to_string(dstLikely->hash));
     Mat errorMat = abs(toCvMat(dstLikely) - dstOpenCV);
     errorMat.convertTo(errorMat, CV_32F);
     threshold(errorMat, errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
@@ -209,7 +209,12 @@ class subtractTest : public Test {
 
 class logTest : public Test {
     const char *function() const { return "log()"; }
-    Mat computeBaseline(const Mat &src) const {Mat dst; log(src, dst); return dst; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; log(src, dst); return dst; }
+};
+
+class castTest : public Test {
+    const char *function() const { return "trunc(8)"; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, CV_8S); return dst; }
 };
 
 int main(int argc, char *argv[])
@@ -235,7 +240,8 @@ int main(int argc, char *argv[])
 //    maddTest().run();
 //    multiplyTest().run();
 //    subtractTest().run();
-    logTest().run();
+//    logTest().run();
+    castTest().run();
 
     return 0;
 }

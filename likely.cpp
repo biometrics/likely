@@ -340,48 +340,47 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
 
 const char *likely_hash_to_string(likely_hash h)
 {
-    static string str;
+    static stringstream hashString;
+    hashString << "Type: ";
 
-    switch (h) {
-      case likely_hash_u8:  str="u8" ; break;
-      case likely_hash_u16: str="u16"; break;
-      case likely_hash_u32: str="u32"; break;
-      case likely_hash_u64: str="u64"; break;
-      case likely_hash_i8:  str="i8" ; break;
-      case likely_hash_i16: str="i16"; break;
-      case likely_hash_i32: str="i32"; break;
-      case likely_hash_i64: str="i64"; break;
-      case likely_hash_f32: str="f32"; break;
-      case likely_hash_f64: str="f64"; break;
-      default:              str="";
+    switch (likely_type(h)) {
+      case likely_hash_u8:  hashString << "u8"; break;
+      case likely_hash_u16: hashString << "u16"; break;
+      case likely_hash_u32: hashString << "u32"; break;
+      case likely_hash_u64: hashString << "u64"; break;
+      case likely_hash_i8:  hashString << "i8" ; break;
+      case likely_hash_i16: hashString << "i16"; break;
+      case likely_hash_i32: hashString << "i32"; break;
+      case likely_hash_i64: hashString << "i64"; break;
+      case likely_hash_f32: hashString << "f32"; break;
+      case likely_hash_f64: hashString << "f64"; break;
+      default:              hashString << "Unrecognized Type";
     }
 
-    if (str.empty()) {
-        stringstream stream;
-        stream << hex << setfill('0') << setw(2*sizeof(likely_hash)) << h;
-        str = stream.str();
-    }
+    hashString << " Parallel: " << likely_is_parallel(h);
+    hashString << " Heterogeneous: " << likely_is_heterogeneous(h);
+    hashString << " Owner: " << likely_is_owner(h);
 
-    return str.c_str();
+    return hashString.str().c_str();
 }
 
-likely_hash likely_string_to_hash(const char *str)
+likely_hash likely_string_to_hash(const char *type, bool parallel = false, bool heterogeneous = false, bool owner = false)
 {
-    if      (!strcmp(str, "u8"))  return likely_hash_u8;
-    else if (!strcmp(str, "u16")) return likely_hash_u16;
-    else if (!strcmp(str, "u32")) return likely_hash_u32;
-    else if (!strcmp(str, "u64")) return likely_hash_u64;
-    else if (!strcmp(str, "i8"))  return likely_hash_i8;
-    else if (!strcmp(str, "i16")) return likely_hash_i16;
-    else if (!strcmp(str, "i32")) return likely_hash_i32;
-    else if (!strcmp(str, "i64")) return likely_hash_i64;
-    else if (!strcmp(str, "f32")) return likely_hash_f32;
-    else if (!strcmp(str, "f64")) return likely_hash_f64;
-
-    stringstream stream;
-    stream << hex << str;
     likely_hash h;
-    stream >> h;
+    if      (!strcmp(type, "u8"))  h = likely_hash_u8;
+    else if (!strcmp(type, "u16")) h = likely_hash_u16;
+    else if (!strcmp(type, "u32")) h = likely_hash_u32;
+    else if (!strcmp(type, "u64")) h = likely_hash_u64;
+    else if (!strcmp(type, "i8"))  h = likely_hash_i8;
+    else if (!strcmp(type, "i16")) h = likely_hash_i16;
+    else if (!strcmp(type, "i32")) h = likely_hash_i32;
+    else if (!strcmp(type, "i64")) h = likely_hash_i64;
+    else if (!strcmp(type, "f32")) h = likely_hash_f32;
+    else if (!strcmp(type, "f64")) h = likely_hash_f64;
+
+    likely_set_parallel(h, parallel);
+    likely_set_heterogeneous(h, heterogeneous);
+    likely_set_owner(h, owner);
     return h;
 }
 
@@ -475,7 +474,7 @@ struct MatrixBuilder
     IRBuilder<> *b;
     Function *f;
     Twine n;
-    likely_hash h;
+    mutable likely_hash h;
     Value *v;
 
     struct Loop {
@@ -662,7 +661,36 @@ struct MatrixBuilder
         return store;
     }
 
-    Value *cast(Value *i, likely_hash hash) const { return (likely_type(h) == likely_type(hash)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(h), Type::getFloatTy(getGlobalContext()), likely_is_signed(h)), i, Type::getFloatTy(getGlobalContext())); }
+    Value *cast(Value *c, likely_hash hash) const
+    {
+        if (likely_is_floating(h) && likely_is_floating(hash)) { return likely_depth(h) > likely_depth(hash) ? fptrunc(c, constant(likely_depth(hash))) : fpext(c, constant(likely_depth(hash))); }
+        else if (likely_is_signed(h) && likely_is_signed(hash)) { return likely_depth(h) > likely_depth(hash) ? trunc(c, constant(likely_depth(hash))) : sext(c, constant(likely_depth(hash))); }
+        else if (!likely_is_signed(h) && !likely_is_signed(hash)) { return likely_depth(h) > likely_depth(hash) ? trunc(c, constant(likely_depth(hash))) : zext(c, constant(likely_depth(hash))); }
+        else if (likely_is_floating(h)) { return likely_is_signed(hash) ? cast(i(c), hash) : cast(u(c), hash); }
+        else { stringstream intermediateHash; likely_is_signed(h) ? intermediateHash << "i" : intermediateHash << "u"; intermediateHash << likely_depth(hash); return fp(cast(c, likely_string_to_hash(intermediateHash.str().c_str()))); }
+    }
+
+    Value *zext(Value *c, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateZExt(c, j->getType(), n); }
+    Value *sext(Value *c, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateSExt(c, j->getType(), n); }
+    Value *fpext(Value *c, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateFPExt(c, j->getType(), n); }
+    Value *trunc(Value *c, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateTrunc(c, j->getType(), n); }
+    Value *fptrunc(Value *c, Value *j) const { likely_set_depth(h, j->getType()->getScalarSizeInBits()); return b->CreateFPTrunc(c, j->getType(), n); }
+    Value *fp(Value *c) const {
+        if (likely_is_floating(h)) return c;
+        else if (likely_is_signed(h)) { likely_set_floating(h, true); return b->CreateSIToFP(c, ty(), n); }
+        else { likely_set_floating(h, true); likely_set_signed(h, true); return b->CreateUIToFP(c, ty(), n); }
+    }
+    Value *i(Value *c) const {
+        if (!likely_is_floating(h) && likely_is_signed(h)) return c;
+        else if (!likely_is_signed(h)) { likely_set_signed(h, true); return c; }
+        else { likely_set_floating(h, false); return b->CreateFPToSI(c, ty(), n); }
+    }
+    Value *u(Value *c) const {
+        if (!likely_is_signed(h)) return c;
+        else if (!likely_is_floating(h) && likely_is_signed(h)) { likely_set_signed(h, false); return c; }
+        else { likely_set_floating(h, false); likely_set_signed(h, false); return b->CreateFPToUI(c, ty(), n); }
+    }
+
     Value *add(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFAdd(i, j, n) : b->CreateAdd(i, j, n); }
     Value *subtract(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFSub(i, j, n) : b->CreateSub(i, j, n); }
     Value *multiply(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFMul(i, j, n) : b->CreateMul(i, j, n); }
@@ -780,7 +808,8 @@ public:
             kernelHash |= hash;
 
         kernel = MatrixBuilder(&builder, function, "kernel", kernelHash, srcs[0]);
-        kernel.copyHeaderTo(dst);
+        MatrixBuilder dstKernel = MatrixBuilder(&builder, function, "dstKernel", getDstHash(kernelHash), srcs[0]);
+        dstKernel.copyHeaderTo(dst);
         builder.CreateRet(kernel.elements());
         return true;
     }
@@ -889,6 +918,29 @@ public:
         dst->setName("dst");
     }
 
+    likely_hash getDstHash(likely_hash kernelHash)
+    {
+        const int top = lua_gettop(L);
+        int depth = 0;
+        for (int j=1; j<=top; j++) {
+            const int type = lua_type(L, j);
+            if (type == LUA_TNUMBER) {
+                depth = lua_tonumber(L, j);
+            } else if (type == LUA_TSTRING) {
+                const string value = lua_tostring(L, j);
+                if      (value == "zext")    { likely_set_depth(kernelHash, depth); }
+                else if (value == "sext")    { likely_set_depth(kernelHash, depth); }
+                else if (value == "FPext")   { likely_set_depth(kernelHash, depth); }
+                else if (value == "trunc")   { likely_set_depth(kernelHash, depth); }
+                else if (value == "FPtrunc") { likely_set_depth(kernelHash, depth); }
+                else if (value == "fp")      { likely_set_floating(kernelHash, true); likely_set_signed(kernelHash, true); }
+                else if (value == "i")       { likely_set_floating(kernelHash, false); likely_set_signed(kernelHash, true); }
+                else if (value == "u")       { likely_set_floating(kernelHash, false); likely_set_signed(kernelHash, false); }
+            }
+        }
+        return kernelHash;
+    }
+
     Value *makeEquation()
     {
         vector<Value*> values;
@@ -912,6 +964,20 @@ public:
                     else if (value == "fabs")  values.push_back(kernel.fabs(operand));
                     else if (value == "sqrt")  values.push_back(kernel.sqrt(operand));
                     else if (value == "exp")   values.push_back(kernel.exp(operand));
+                    else if (value == "fp")    values.push_back(kernel.fp(operand));
+                    else if (value == "i")     values.push_back(kernel.i(operand));
+                    else if (value == "u")     values.push_back(kernel.u(operand));
+//                    else if (value == "toF16") values.push_back(kernel.cast(operand, likely_hash_f16));
+//                    else if (value == "toF32") values.push_back(kernel.cast(operand, likely_hash_f32));
+//                    else if (value == "toF64") values.push_back(kernel.cast(operand, likely_hash_f64));
+//                    else if (value == "toI8")  values.push_back(kernel.cast(operand, likely_hash_i8));
+//                    else if (value == "toI16") values.push_back(kernel.cast(operand, likely_hash_i16));
+//                    else if (value == "toI32") values.push_back(kernel.cast(operand, likely_hash_i32));
+//                    else if (value == "toI64") values.push_back(kernel.cast(operand, likely_hash_i64));
+//                    else if (value == "toU8")  values.push_back(kernel.cast(operand, likely_hash_u8));
+//                    else if (value == "toU16") values.push_back(kernel.cast(operand, likely_hash_u16));
+//                    else if (value == "toU32") values.push_back(kernel.cast(operand, likely_hash_u32));
+//                    else if (value == "toU64") values.push_back(kernel.cast(operand, likely_hash_u64));
                     else                       { likely_assert(false, "Unsupported operator: %s", value.c_str()); return NULL; }
                 } else {
                     if (!likely_assert(values.size() >= 2, "Insufficient operands: %lu for operator: %s", values.size(), value.c_str())) return NULL;
@@ -919,11 +985,16 @@ public:
                     Value *rhs = values[values.size()-1];
                     values.pop_back();
                     values.pop_back();
-                    if      (value == "+") values.push_back(kernel.add(lhs, rhs));
-                    else if (value == "-") values.push_back(kernel.subtract(lhs, rhs));
-                    else if (value == "*") values.push_back(kernel.multiply(lhs, rhs));
-                    else if (value == "/") values.push_back(kernel.divide(lhs, rhs));
-                    else                   { likely_assert(false, "Unsupported operator: %s", value.c_str()); return NULL; }
+                    if      (value == "+")       values.push_back(kernel.add(lhs, rhs));
+                    else if (value == "-")       values.push_back(kernel.subtract(lhs, rhs));
+                    else if (value == "*")       values.push_back(kernel.multiply(lhs, rhs));
+                    else if (value == "/")       values.push_back(kernel.divide(lhs, rhs));
+                    else if (value == "zext")    values.push_back(kernel.zext(lhs, rhs));
+                    else if (value == "sext")    values.push_back(kernel.sext(lhs, rhs));
+                    else if (value == "fpext")   values.push_back(kernel.fpext(lhs, rhs));
+                    else if (value == "trunc")   values.push_back(kernel.trunc(lhs, rhs));
+                    else if (value == "FPtrunc") values.push_back(kernel.fptrunc(lhs, rhs));
+                    else                         { likely_assert(false, "Unsupported operator: %s", value.c_str()); return NULL; }
                 }
             } else {
                 likely_assert(false, "Unrecognized token: %s of type: %s", lua_tostring(L, j), lua_typename(L, type)); return NULL;
