@@ -105,26 +105,26 @@ inline void likely_set_bool(likely_hash &hash, bool b, likely_hash_field mask) {
 // Query and edit the hash
 inline int  likely_depth(likely_hash hash) { return likely_get(hash, likely_hash_depth); }
 inline void likely_set_depth(likely_hash &hash, int depth) { likely_set(hash, depth, likely_hash_depth); }
-inline bool likely_is_signed(likely_hash hash) { return likely_get_bool(hash, likely_hash_signed); }
-inline void likely_set_signed(likely_hash &hash, bool is_signed) { likely_set_bool(hash, is_signed, likely_hash_signed); }
-inline bool likely_is_floating(likely_hash hash) { return likely_get_bool(hash, likely_hash_floating); }
-inline void likely_set_floating(likely_hash &hash, bool is_floating) { likely_set_bool(hash, is_floating, likely_hash_floating); }
+inline bool likely_signed(likely_hash hash) { return likely_get_bool(hash, likely_hash_signed); }
+inline void likely_set_signed(likely_hash &hash, bool signed_) { likely_set_bool(hash, signed_, likely_hash_signed); }
+inline bool likely_floating(likely_hash hash) { return likely_get_bool(hash, likely_hash_floating); }
+inline void likely_set_floating(likely_hash &hash, bool floating) { likely_set_bool(hash, floating, likely_hash_floating); }
 inline int  likely_type(likely_hash hash) { return likely_get(hash, likely_hash_type); }
 inline void likely_set_type(likely_hash &hash, int type) { likely_set(hash, type, likely_hash_type); }
-inline bool likely_is_parallel(likely_hash hash) { return likely_get_bool(hash, likely_hash_parallel); }
-inline void likely_set_parallel(likely_hash &hash, bool is_parallel) { likely_set_bool(hash, is_parallel, likely_hash_parallel); }
-inline bool likely_is_heterogeneous(likely_hash hash) { return likely_get_bool(hash, likely_hash_heterogeneous); }
-inline void likely_set_heterogeneous(likely_hash &hash, bool is_heterogeneous) { likely_set_bool(hash, is_heterogeneous, likely_hash_heterogeneous); }
-inline bool likely_is_single_channel(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_channel); }
-inline void likely_set_single_channel(likely_hash &hash, bool is_single_channel) { likely_set_bool(hash, is_single_channel, likely_hash_single_channel); }
-inline bool likely_is_single_column(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_column); }
-inline void likely_set_single_column(likely_hash &hash, bool is_single_column) { likely_set_bool(hash, is_single_column, likely_hash_single_column); }
-inline bool likely_is_single_row(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_row); }
-inline void likely_set_single_row(likely_hash &hash, bool is_single_row) { likely_set_bool(hash, is_single_row, likely_hash_single_row); }
-inline bool likely_is_single_frame(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_frame); }
-inline void likely_set_single_frame(likely_hash &hash, bool is_single_frame) { likely_set_bool(hash, is_single_frame, likely_hash_single_frame); }
-inline bool likely_is_owner(likely_hash hash) { return likely_get_bool(hash, likely_hash_owner); }
-inline void likely_set_owner(likely_hash &hash, bool is_owner) { likely_set_bool(hash, is_owner, likely_hash_owner); }
+inline bool likely_parallel(likely_hash hash) { return likely_get_bool(hash, likely_hash_parallel); }
+inline void likely_set_parallel(likely_hash &hash, bool parallel) { likely_set_bool(hash, parallel, likely_hash_parallel); }
+inline bool likely_heterogeneous(likely_hash hash) { return likely_get_bool(hash, likely_hash_heterogeneous); }
+inline void likely_set_heterogeneous(likely_hash &hash, bool heterogeneous) { likely_set_bool(hash, heterogeneous, likely_hash_heterogeneous); }
+inline bool likely_single_channel(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_channel); }
+inline void likely_set_single_channel(likely_hash &hash, bool single_channel) { likely_set_bool(hash, single_channel, likely_hash_single_channel); }
+inline bool likely_single_column(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_column); }
+inline void likely_set_single_column(likely_hash &hash, bool single_column) { likely_set_bool(hash, single_column, likely_hash_single_column); }
+inline bool likely_single_row(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_row); }
+inline void likely_set_single_row(likely_hash &hash, bool single_row) { likely_set_bool(hash, single_row, likely_hash_single_row); }
+inline bool likely_single_frame(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_frame); }
+inline void likely_set_single_frame(likely_hash &hash, bool single_frame) { likely_set_bool(hash, single_frame, likely_hash_single_frame); }
+inline bool likely_owner(likely_hash hash) { return likely_get_bool(hash, likely_hash_owner); }
+inline void likely_set_owner(likely_hash &hash, bool owner) { likely_set_bool(hash, owner, likely_hash_owner); }
 inline int  likely_reserved(likely_hash hash) { return likely_get(hash, likely_hash_reserved); }
 inline void likely_set_reserved(likely_hash &hash, int reserved) { likely_set(hash, reserved, likely_hash_reserved); }
 
