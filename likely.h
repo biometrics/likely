@@ -60,9 +60,9 @@ typedef uint32_t likely_hash; /* Depth : 8
 // Standard hash masks and values
 enum likely_hash_field
 {
-    likely_hash_null = 0x00000000,
-    likely_hash_depth = 0x000000FF,
-    likely_hash_signed = 0x00000100,
+    likely_hash_null     = 0x00000000,
+    likely_hash_depth    = 0x000000FF,
+    likely_hash_signed   = 0x00000100,
     likely_hash_floating = 0x00000200,
     likely_hash_type = likely_hash_depth | likely_hash_signed | likely_hash_floating,
     likely_hash_u8  = 8,
@@ -76,14 +76,14 @@ enum likely_hash_field
     likely_hash_f16 = 16 | likely_hash_floating | likely_hash_signed,
     likely_hash_f32 = 32 | likely_hash_floating | likely_hash_signed,
     likely_hash_f64 = 64 | likely_hash_floating | likely_hash_signed,
-    likely_hash_parallel = 0x00000400,
-    likely_hash_heterogeneous = 0x00000800,
+    likely_hash_parallel       = 0x00000400,
+    likely_hash_heterogeneous  = 0x00000800,
     likely_hash_single_channel = 0x00001000,
-    likely_hash_single_column = 0x00002000,
-    likely_hash_single_row = 0x00004000,
-    likely_hash_single_frame = 0x00008000,
-    likely_hash_owner = 0x00010000,
-    likely_hash_reserved = 0xFFFE0000
+    likely_hash_single_column  = 0x00002000,
+    likely_hash_single_row     = 0x00004000,
+    likely_hash_single_frame   = 0x00008000,
+    likely_hash_owner          = 0x00010000,
+    likely_hash_reserved       = 0xFFFE0000
 };
 
 // The only struct in the API
