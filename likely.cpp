@@ -340,47 +340,48 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
 
 const char *likely_hash_to_string(likely_hash h)
 {
-    stringstream hashString;
+    static string hashString; // Provides return value persistence
 
-    if (likely_is_floating(h)) hashString << "f";
-    if (!likely_is_floating(h) && likely_is_signed(h)) hashString << "i";
-    if (!likely_is_signed(h)) hashString << "u";
+    stringstream hashStream;
+    hashStream << (likely_is_floating(h) ? "f" : (likely_is_signed(h) ? "i" : "u"));
+    hashStream << likely_depth(h);
 
-    hashString << likely_depth(h);
+    if (likely_is_parallel(h))       hashStream << "P";
+    if (likely_is_heterogeneous(h))  hashStream << "H";
+    if (likely_is_single_channel(h)) hashStream << "C";
+    if (likely_is_single_column(h))  hashStream << "X";
+    if (likely_is_single_row(h))     hashStream << "Y";
+    if (likely_is_single_frame(h))   hashStream << "T";
+    if (likely_is_owner(h))          hashStream << "O";
 
-    if (likely_is_parallel(h)) hashString << "P";
-    if (likely_is_heterogeneous(h)) hashString << "H";
-    if (likely_is_owner(h)) hashString << "O";
-    if (likely_is_single_channel(h)) hashString << "CH";
-    if (likely_is_single_column(h)) hashString << "C";
-    if (likely_is_single_row(h)) hashString << "R";
-    if (likely_is_single_frame(h)) hashString << "F";
-
-    return hashString.str().c_str();
+    hashString = hashStream.str();
+    return hashString.c_str();
 }
 
 likely_hash likely_string_to_hash(const char *str)
 {
-    likely_hash h;
-    if      (strstr(str, "u8"))  h = likely_hash_u8;
-    else if (strstr(str, "u16")) h = likely_hash_u16;
-    else if (strstr(str, "u32")) h = likely_hash_u32;
-    else if (strstr(str, "u64")) h = likely_hash_u64;
-    else if (strstr(str, "i8"))  h = likely_hash_i8;
-    else if (strstr(str, "i16")) h = likely_hash_i16;
-    else if (strstr(str, "i32")) h = likely_hash_i32;
-    else if (strstr(str, "i64")) h = likely_hash_i64;
-    else if (strstr(str, "f32")) h = likely_hash_f32;
-    else if (strstr(str, "f64")) h = likely_hash_f64;
-    else {  likely_assert(false, "Unrecognized Type in string"); }
+    likely_hash h = likely_hash_null;
+    const size_t len = strlen(str);
+    if ((str == NULL) || (len == 0))
+        return h;
 
-    if (strstr(str, "P")) likely_set_parallel(h, true);
-    if (strstr(str, "H")) likely_set_heterogeneous(h, true);
-    if (strstr(str, "O")) likely_set_owner(h, true);
-    if (strstr(str, "CH")) likely_set_single_channel(h, true);
-    if (strstr(str, "C")) likely_set_single_column(h, true);
-    if (strstr(str, "R")) likely_set_single_row(h, true);
-    if (strstr(str, "F")) likely_set_single_frame(h, true);
+    if (str[0] == 'f') likely_set_floating(h, true);
+    if (str[0] != 'u') likely_set_signed(h, true);
+    likely_set_depth(h, atoi(str+1));
+
+    size_t startIndex = 1;
+    while ((str[startIndex] >= '0') && (str[startIndex] <= '9'))
+        startIndex++;
+
+    for (size_t i=startIndex; i<len; i++) {
+        if (str[i] == 'P') likely_set_parallel(h, true);
+        if (str[i] == 'H') likely_set_heterogeneous(h, true);
+        if (str[i] == 'C') likely_set_single_channel(h, true);
+        if (str[i] == 'X') likely_set_single_column(h, true);
+        if (str[i] == 'Y') likely_set_single_row(h, true);
+        if (str[i] == 'T') likely_set_single_frame(h, true);
+        if (str[i] == 'O') likely_set_owner(h, true);
+    }
 
     return h;
 }
