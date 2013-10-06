@@ -373,48 +373,49 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
 
 const char *likely_hash_to_string(likely_hash h)
 {
-    static string str;
+    static string hashString; // Provides return value persistence
 
-    switch (h) {
-      case likely_hash_u8:  str="u8" ; break;
-      case likely_hash_u16: str="u16"; break;
-      case likely_hash_u32: str="u32"; break;
-      case likely_hash_u64: str="u64"; break;
-      case likely_hash_i8:  str="i8" ; break;
-      case likely_hash_i16: str="i16"; break;
-      case likely_hash_i32: str="i32"; break;
-      case likely_hash_i64: str="i64"; break;
-      case likely_hash_f32: str="f32"; break;
-      case likely_hash_f64: str="f64"; break;
-      default:              str="";
-    }
+    stringstream hashStream;
+    hashStream << (likely_floating(h) ? "f" : (likely_signed(h) ? "i" : "u"));
+    hashStream << likely_depth(h);
 
-    if (str.empty()) {
-        stringstream stream;
-        stream << hex << setfill('0') << setw(2*sizeof(likely_hash)) << h;
-        str = stream.str();
-    }
+    if (likely_parallel(h))       hashStream << "P";
+    if (likely_heterogeneous(h))  hashStream << "H";
+    if (likely_single_channel(h)) hashStream << "C";
+    if (likely_single_column(h))  hashStream << "X";
+    if (likely_single_row(h))     hashStream << "Y";
+    if (likely_single_frame(h))   hashStream << "T";
+    if (likely_owner(h))          hashStream << "O";
 
-    return str.c_str();
+    hashString = hashStream.str();
+    return hashString.c_str();
 }
 
 likely_hash likely_string_to_hash(const char *str)
 {
-    if      (!strcmp(str, "u8"))  return likely_hash_u8;
-    else if (!strcmp(str, "u16")) return likely_hash_u16;
-    else if (!strcmp(str, "u32")) return likely_hash_u32;
-    else if (!strcmp(str, "u64")) return likely_hash_u64;
-    else if (!strcmp(str, "i8"))  return likely_hash_i8;
-    else if (!strcmp(str, "i16")) return likely_hash_i16;
-    else if (!strcmp(str, "i32")) return likely_hash_i32;
-    else if (!strcmp(str, "i64")) return likely_hash_i64;
-    else if (!strcmp(str, "f32")) return likely_hash_f32;
-    else if (!strcmp(str, "f64")) return likely_hash_f64;
+    likely_hash h = likely_hash_null;
+    const size_t len = strlen(str);
+    if ((str == NULL) || (len == 0))
+        return h;
 
-    stringstream stream;
-    stream << hex << str;
-    likely_hash h;
-    stream >> h;
+    if (str[0] == 'f') likely_set_floating(h, true);
+    if (str[0] != 'u') likely_set_signed(h, true);
+    likely_set_depth(h, atoi(str+1));
+
+    size_t startIndex = 1;
+    while ((str[startIndex] >= '0') && (str[startIndex] <= '9'))
+        startIndex++;
+
+    for (size_t i=startIndex; i<len; i++) {
+        if (str[i] == 'P') likely_set_parallel(h, true);
+        if (str[i] == 'H') likely_set_heterogeneous(h, true);
+        if (str[i] == 'C') likely_set_single_channel(h, true);
+        if (str[i] == 'X') likely_set_single_column(h, true);
+        if (str[i] == 'Y') likely_set_single_row(h, true);
+        if (str[i] == 'T') likely_set_single_frame(h, true);
+        if (str[i] == 'O') likely_set_owner(h, true);
+    }
+
     return h;
 }
 
