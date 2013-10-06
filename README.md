@@ -1,3 +1,3 @@
-www.openbiometrics.org/likely
+www.liblikely.org
 
-Project will compile but doesn't do anything yet!
+Project will compile but doesn't do anything useful yet!
