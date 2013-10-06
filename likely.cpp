@@ -376,16 +376,16 @@ const char *likely_hash_to_string(likely_hash h)
     static string hashString; // Provides return value persistence
 
     stringstream hashStream;
-    hashStream << (likely_is_floating(h) ? "f" : (likely_is_signed(h) ? "i" : "u"));
+    hashStream << (likely_floating(h) ? "f" : (likely_signed(h) ? "i" : "u"));
     hashStream << likely_depth(h);
 
-    if (likely_is_parallel(h))       hashStream << "P";
-    if (likely_is_heterogeneous(h))  hashStream << "H";
-    if (likely_is_single_channel(h)) hashStream << "C";
-    if (likely_is_single_column(h))  hashStream << "X";
-    if (likely_is_single_row(h))     hashStream << "Y";
-    if (likely_is_single_frame(h))   hashStream << "T";
-    if (likely_is_owner(h))          hashStream << "O";
+    if (likely_parallel(h))       hashStream << "P";
+    if (likely_heterogeneous(h))  hashStream << "H";
+    if (likely_single_channel(h)) hashStream << "C";
+    if (likely_single_column(h))  hashStream << "X";
+    if (likely_single_row(h))     hashStream << "Y";
+    if (likely_single_frame(h))   hashStream << "T";
+    if (likely_owner(h))          hashStream << "O";
 
     hashString = hashStream.str();
     return hashString.c_str();
