@@ -96,47 +96,41 @@ typedef struct
 typedef likely_matrix *likely_mat;
 typedef const likely_matrix *likely_const_mat;
 
-// You shouldn't need to call these directly
-inline int likely_get(likely_hash hash, likely_hash_field mask) { return hash & mask; }
-inline void likely_set(likely_hash &hash, int i, likely_hash_field mask) { hash &= ~mask; hash |= i & mask; }
-inline bool likely_get_bool(likely_hash hash, likely_hash_field mask) { return hash & mask; }
-inline void likely_set_bool(likely_hash &hash, bool b, likely_hash_field mask) { b ? hash |= mask : hash &= ~mask; }
-
 // Query and edit the hash
-inline int  likely_depth(likely_hash hash) { return likely_get(hash, likely_hash_depth); }
-inline void likely_set_depth(likely_hash &hash, int depth) { likely_set(hash, depth, likely_hash_depth); }
-inline bool likely_is_signed(likely_hash hash) { return likely_get_bool(hash, likely_hash_signed); }
-inline void likely_set_signed(likely_hash &hash, bool is_signed) { likely_set_bool(hash, is_signed, likely_hash_signed); }
-inline bool likely_is_floating(likely_hash hash) { return likely_get_bool(hash, likely_hash_floating); }
-inline void likely_set_floating(likely_hash &hash, bool is_floating) { likely_set_bool(hash, is_floating, likely_hash_floating); }
-inline int  likely_type(likely_hash hash) { return likely_get(hash, likely_hash_type); }
-inline void likely_set_type(likely_hash &hash, int type) { likely_set(hash, type, likely_hash_type); }
-inline bool likely_is_parallel(likely_hash hash) { return likely_get_bool(hash, likely_hash_parallel); }
-inline void likely_set_parallel(likely_hash &hash, bool is_parallel) { likely_set_bool(hash, is_parallel, likely_hash_parallel); }
-inline bool likely_is_heterogeneous(likely_hash hash) { return likely_get_bool(hash, likely_hash_heterogeneous); }
-inline void likely_set_heterogeneous(likely_hash &hash, bool is_heterogeneous) { likely_set_bool(hash, is_heterogeneous, likely_hash_heterogeneous); }
-inline bool likely_is_single_channel(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_channel); }
-inline void likely_set_single_channel(likely_hash &hash, bool is_single_channel) { likely_set_bool(hash, is_single_channel, likely_hash_single_channel); }
-inline bool likely_is_single_column(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_column); }
-inline void likely_set_single_column(likely_hash &hash, bool is_single_column) { likely_set_bool(hash, is_single_column, likely_hash_single_column); }
-inline bool likely_is_single_row(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_row); }
-inline void likely_set_single_row(likely_hash &hash, bool is_single_row) { likely_set_bool(hash, is_single_row, likely_hash_single_row); }
-inline bool likely_is_single_frame(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_frame); }
-inline void likely_set_single_frame(likely_hash &hash, bool is_single_frame) { likely_set_bool(hash, is_single_frame, likely_hash_single_frame); }
-inline bool likely_is_owner(likely_hash hash) { return likely_get_bool(hash, likely_hash_owner); }
-inline void likely_set_owner(likely_hash &hash, bool is_owner) { likely_set_bool(hash, is_owner, likely_hash_owner); }
-inline int  likely_reserved(likely_hash hash) { return likely_get(hash, likely_hash_reserved); }
-inline void likely_set_reserved(likely_hash &hash, int reserved) { likely_set(hash, reserved, likely_hash_reserved); }
+LIKELY_EXPORT int  likely_depth(likely_hash hash);
+LIKELY_EXPORT void likely_set_depth(likely_hash &hash, int depth);
+LIKELY_EXPORT bool likely_signed(likely_hash hash);
+LIKELY_EXPORT void likely_set_signed(likely_hash &hash, bool signed_);
+LIKELY_EXPORT bool likely_floating(likely_hash hash);
+LIKELY_EXPORT void likely_set_floating(likely_hash &hash, bool floating);
+LIKELY_EXPORT int  likely_type(likely_hash hash);
+LIKELY_EXPORT void likely_set_type(likely_hash &hash, int type);
+LIKELY_EXPORT bool likely_parallel(likely_hash hash);
+LIKELY_EXPORT void likely_set_parallel(likely_hash &hash, bool parallel);
+LIKELY_EXPORT bool likely_heterogeneous(likely_hash hash);
+LIKELY_EXPORT void likely_set_heterogeneous(likely_hash &hash, bool heterogeneous);
+LIKELY_EXPORT bool likely_single_channel(likely_hash hash);
+LIKELY_EXPORT void likely_set_single_channel(likely_hash &hash, bool single_channel);
+LIKELY_EXPORT bool likely_single_column(likely_hash hash);
+LIKELY_EXPORT void likely_set_single_column(likely_hash &hash, bool single_column);
+LIKELY_EXPORT bool likely_single_row(likely_hash hash);
+LIKELY_EXPORT void likely_set_single_row(likely_hash &hash, bool single_row);
+LIKELY_EXPORT bool likely_single_frame(likely_hash hash);
+LIKELY_EXPORT void likely_set_single_frame(likely_hash &hash, bool single_frame);
+LIKELY_EXPORT bool likely_owner(likely_hash hash);
+LIKELY_EXPORT void likely_set_owner(likely_hash &hash, bool owner);
+LIKELY_EXPORT int  likely_reserved(likely_hash hash);
+LIKELY_EXPORT void likely_set_reserved(likely_hash &hash, int reserved);
 
 // Determine matrix size
-inline likely_size likely_elements(likely_const_mat m) { return m->channels * m->columns * m->rows * m->frames; }
-inline likely_size likely_bytes(likely_const_mat m) { return uint64_t(likely_depth(m->hash)) * uint64_t(likely_elements(m)) / uint64_t(8); }
+LIKELY_EXPORT likely_size likely_elements(likely_const_mat m);
+LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
 
 // Create or delete a matrix
 LIKELY_EXPORT likely_mat likely_new(likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL, bool clone = true);
 LIKELY_EXPORT void likely_initialize(likely_mat m, likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL, bool clone = true);
-LIKELY_EXPORT void likely_delete(likely_mat m);
 LIKELY_EXPORT likely_mat likely_clone(likely_const_mat m);
+LIKELY_EXPORT void likely_delete(likely_mat m);
 
 // Create or delete a matrix data buffer
 LIKELY_EXPORT void likely_allocate(likely_mat m);

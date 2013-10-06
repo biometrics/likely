@@ -75,6 +75,39 @@ static void checkLua(lua_State *L, int error = true)
     likely_assert(false, "%s", errorMessage.c_str());
 }
 
+static inline int likely_get(likely_hash hash, likely_hash_field mask) { return hash & mask; }
+static inline void likely_set(likely_hash &hash, int i, likely_hash_field mask) { hash &= ~mask; hash |= i & mask; }
+static inline bool likely_get_bool(likely_hash hash, likely_hash_field mask) { return hash & mask; }
+static inline void likely_set_bool(likely_hash &hash, bool b, likely_hash_field mask) { b ? hash |= mask : hash &= ~mask; }
+
+int  likely_depth(likely_hash hash) { return likely_get(hash, likely_hash_depth); }
+void likely_set_depth(likely_hash &hash, int depth) { likely_set(hash, depth, likely_hash_depth); }
+bool likely_signed(likely_hash hash) { return likely_get_bool(hash, likely_hash_signed); }
+void likely_set_signed(likely_hash &hash, bool signed_) { likely_set_bool(hash, signed_, likely_hash_signed); }
+bool likely_floating(likely_hash hash) { return likely_get_bool(hash, likely_hash_floating); }
+void likely_set_floating(likely_hash &hash, bool floating) { likely_set_bool(hash, floating, likely_hash_floating); }
+int  likely_type(likely_hash hash) { return likely_get(hash, likely_hash_type); }
+void likely_set_type(likely_hash &hash, int type) { likely_set(hash, type, likely_hash_type); }
+bool likely_parallel(likely_hash hash) { return likely_get_bool(hash, likely_hash_parallel); }
+void likely_set_parallel(likely_hash &hash, bool parallel) { likely_set_bool(hash, parallel, likely_hash_parallel); }
+bool likely_heterogeneous(likely_hash hash) { return likely_get_bool(hash, likely_hash_heterogeneous); }
+void likely_set_heterogeneous(likely_hash &hash, bool heterogeneous) { likely_set_bool(hash, heterogeneous, likely_hash_heterogeneous); }
+bool likely_single_channel(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_channel); }
+void likely_set_single_channel(likely_hash &hash, bool single_channel) { likely_set_bool(hash, single_channel, likely_hash_single_channel); }
+bool likely_single_column(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_column); }
+void likely_set_single_column(likely_hash &hash, bool single_column) { likely_set_bool(hash, single_column, likely_hash_single_column); }
+bool likely_single_row(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_row); }
+void likely_set_single_row(likely_hash &hash, bool single_row) { likely_set_bool(hash, single_row, likely_hash_single_row); }
+bool likely_single_frame(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_frame); }
+void likely_set_single_frame(likely_hash &hash, bool single_frame) { likely_set_bool(hash, single_frame, likely_hash_single_frame); }
+bool likely_owner(likely_hash hash) { return likely_get_bool(hash, likely_hash_owner); }
+void likely_set_owner(likely_hash &hash, bool owner) { likely_set_bool(hash, owner, likely_hash_owner); }
+int  likely_reserved(likely_hash hash) { return likely_get(hash, likely_hash_reserved); }
+void likely_set_reserved(likely_hash &hash, int reserved) { likely_set(hash, reserved, likely_hash_reserved); }
+
+likely_size likely_elements(likely_const_mat m) { return m->channels * m->columns * m->rows * m->frames; }
+likely_size likely_bytes(likely_const_mat m) { return uint64_t(likely_depth(m->hash)) * uint64_t(likely_elements(m)) / uint64_t(8); }
+
 likely_mat likely_new(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, bool clone)
 {
     likely_mat m = new likely_matrix();
@@ -185,7 +218,7 @@ likely_mat likely_clone(likely_const_mat m)
 static int lua_likely_clone(lua_State *L)
 {
     likely_assert(lua_gettop(L) == 1, "'clone' expected 1 argument, got: %d", lua_gettop(L));
-    likely_mat m = (likely_mat) lua_touserdata(L, 1);
+    likely_const_mat m = checkLuaMat(L);
     likely_initialize(newLuaMat(L), m->hash, m->channels, m->columns, m->rows, m->frames, m->data);
     return 1;
 }
@@ -228,7 +261,7 @@ static int lua_likely_allocate(lua_State *L)
 
 void likely_free(likely_mat m)
 {
-    if (!m || !likely_is_owner(m->hash) || !m->data) return;
+    if (!m || !likely_owner(m->hash) || !m->data) return;
     free((void*)((uintptr_t)m->data-((uint16_t*)m->data)[-1]));
     m->data = NULL;
     likely_set_owner(m->hash, false);
@@ -501,7 +534,7 @@ struct MatrixBuilder
     static Constant *constant(T value, Type *type) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), type); }
     static Constant *zero() { return constant(0); }
     static Constant *one() { return constant(1); }
-    Constant *autoConstant(double value) const { return likely_is_floating(h) ? ((likely_depth(h) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(h)); }
+    Constant *autoConstant(double value) const { return likely_floating(h) ? ((likely_depth(h) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(h)); }
     AllocaInst *autoAlloca(double value) const { AllocaInst *alloca = b->CreateAlloca(ty(), 0, n); b->CreateStore(autoConstant(value), alloca); return alloca; }
 
     Value *data(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 0), n+"_data"); }
@@ -514,10 +547,10 @@ struct MatrixBuilder
 
     Value *data(bool cast = true) const { return cast ? data(v, ty(true)) : data(v); }
     Value *hash() const { return hash(v); }
-    Value *channels() const { return likely_is_single_channel(h) ? static_cast<Value*>(one()) : channels(v); }
-    Value *columns() const { return likely_is_single_column(h) ? static_cast<Value*>(one()) : columns(v); }
-    Value *rows() const { return likely_is_single_row(h) ? static_cast<Value*>(one()) : rows(v); }
-    Value *frames() const { return likely_is_single_frame(h) ? static_cast<Value*>(one()) : frames(v); }
+    Value *channels() const { return likely_single_channel(h) ? static_cast<Value*>(one()) : channels(v); }
+    Value *columns() const { return likely_single_column(h) ? static_cast<Value*>(one()) : columns(v); }
+    Value *rows() const { return likely_single_row(h) ? static_cast<Value*>(one()) : rows(v); }
+    Value *frames() const { return likely_single_frame(h) ? static_cast<Value*>(one()) : frames(v); }
 
     void setData(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 0)); }
     void setHash(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 1)); }
@@ -594,17 +627,17 @@ struct MatrixBuilder
     Value *rowStep() const { return b->CreateMul(columns(), columnStep(), n+"_rStep"); }
     Value *frameStep() const { return b->CreateMul(rows(), rowStep(), n+"_tStep"); }
 
-    Value *index(Value *c) const { return likely_is_single_channel(h) ? constant(0) : c; }
-    Value *index(Value *c, Value *x) const { return likely_is_single_column(h) ? index(c) : b->CreateAdd(b->CreateMul(x, columnStep()), index(c)); }
-    Value *index(Value *c, Value *x, Value *y) const { return likely_is_single_row(h) ? index(c, x) : b->CreateAdd(b->CreateMul(y, rowStep()), index(c, x)); }
-    Value *index(Value *c, Value *x, Value *y, Value *f) const { return likely_is_single_frame(h) ? index(c, x, y) : b->CreateAdd(b->CreateMul(f, frameStep()), index(c, x, y)); }
+    Value *index(Value *c) const { return likely_single_channel(h) ? constant(0) : c; }
+    Value *index(Value *c, Value *x) const { return likely_single_column(h) ? index(c) : b->CreateAdd(b->CreateMul(x, columnStep()), index(c)); }
+    Value *index(Value *c, Value *x, Value *y) const { return likely_single_row(h) ? index(c, x) : b->CreateAdd(b->CreateMul(y, rowStep()), index(c, x)); }
+    Value *index(Value *c, Value *x, Value *y, Value *f) const { return likely_single_frame(h) ? index(c, x, y) : b->CreateAdd(b->CreateMul(f, frameStep()), index(c, x, y)); }
 
     void deindex(Value *i, Value **c) const {
-        *c = likely_is_single_channel(h) ? constant(0) : i;
+        *c = likely_single_channel(h) ? constant(0) : i;
     }
     void deindex(Value *i, Value **c, Value **x) const {
         Value *rem;
-        if (likely_is_single_column(h)) {
+        if (likely_single_column(h)) {
             rem = i;
             *x = constant(0);
         } else {
@@ -616,7 +649,7 @@ struct MatrixBuilder
     }
     void deindex(Value *i, Value **c, Value **x, Value **y) const {
         Value *rem;
-        if (likely_is_single_row(h)) {
+        if (likely_single_row(h)) {
             rem = i;
             *y = constant(0);
         } else {
@@ -628,7 +661,7 @@ struct MatrixBuilder
     }
     void deindex(Value *i, Value **c, Value **x, Value **y, Value **t) const {
         Value *rem;
-        if (likely_is_single_frame(h)) {
+        if (likely_single_frame(h)) {
             rem = i;
             *t = constant(0);
         } else {
@@ -663,11 +696,11 @@ struct MatrixBuilder
         return store;
     }
 
-    Value *cast(Value *i, likely_hash hash) const { return (likely_type(h) == likely_type(hash)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_is_signed(h), Type::getFloatTy(getGlobalContext()), likely_is_signed(h)), i, Type::getFloatTy(getGlobalContext())); }
-    Value *add(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFAdd(i, j, n) : b->CreateAdd(i, j, n); }
-    Value *subtract(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFSub(i, j, n) : b->CreateSub(i, j, n); }
-    Value *multiply(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFMul(i, j, n) : b->CreateMul(i, j, n); }
-    Value *divide(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFDiv(i, j, n) : (likely_is_signed(h) ? b->CreateSDiv(i,j, n) : b->CreateUDiv(i, j, n)); }
+    Value *cast(Value *i, likely_hash hash) const { return (likely_type(h) == likely_type(hash)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_signed(h), Type::getFloatTy(getGlobalContext()), likely_signed(h)), i, Type::getFloatTy(getGlobalContext())); }
+    Value *add(Value *i, Value *j) const { return likely_floating(h) ? b->CreateFAdd(i, j, n) : b->CreateAdd(i, j, n); }
+    Value *subtract(Value *i, Value *j) const { return likely_floating(h) ? b->CreateFSub(i, j, n) : b->CreateSub(i, j, n); }
+    Value *multiply(Value *i, Value *j) const { return likely_floating(h) ? b->CreateFMul(i, j, n) : b->CreateMul(i, j, n); }
+    Value *divide(Value *i, Value *j) const { return likely_floating(h) ? b->CreateFDiv(i, j, n) : (likely_signed(h) ? b->CreateSDiv(i,j, n) : b->CreateUDiv(i, j, n)); }
 
     Value *intrinsic(Value *i, Intrinsic::ID id) const { vector<Type*> args; args.push_back(i->getType()); Function *intrinsic = Intrinsic::getDeclaration(TheModule, id, args); return b->CreateCall(intrinsic, i, n); }
     Value *log(Value *i) const { return intrinsic(i, Intrinsic::log); }
@@ -679,8 +712,8 @@ struct MatrixBuilder
     Value *sqrt(Value *i) const { return intrinsic(i, Intrinsic::sqrt); }
     Value *exp(Value *i) const { return intrinsic(i, Intrinsic::exp); }
 
-    Value *compareLT(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFCmpOLT(i, j) : (likely_is_signed(h) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
-    Value *compareGT(Value *i, Value *j) const { return likely_is_floating(h) ? b->CreateFCmpOGT(i, j) : (likely_is_signed(h) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
+    Value *compareLT(Value *i, Value *j) const { return likely_floating(h) ? b->CreateFCmpOLT(i, j) : (likely_signed(h) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
+    Value *compareGT(Value *i, Value *j) const { return likely_floating(h) ? b->CreateFCmpOGT(i, j) : (likely_signed(h) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
 
     Loop beginLoop(BasicBlock *entry, Value *start, Value *stop) {
         Loop loop;
@@ -727,7 +760,7 @@ struct MatrixBuilder
     static Type *ty(likely_hash hash, bool pointer = false)
     {
         const int bits = likely_depth(hash);
-        const bool floating = likely_is_floating(hash);
+        const bool floating = likely_floating(hash);
         if (floating) {
             if      (bits == 16) return pointer ? Type::getHalfPtrTy(getGlobalContext())   : Type::getHalfTy(getGlobalContext());
             else if (bits == 32) return pointer ? Type::getFloatPtrTy(getGlobalContext())  : Type::getFloatTy(getGlobalContext());
@@ -801,7 +834,7 @@ public:
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
 
-        if (likely_is_parallel(kernel.h)) {
+        if (likely_parallel(kernel.h)) {
             vector<likely_mat> mats;
             for (likely_hash hash : hashes) {
                 likely_mat m = likely_new(hash);
@@ -1336,21 +1369,29 @@ void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size star
 
 int luaopen_likely(lua_State *L)
 {
-    static const struct luaL_Reg likely[] = {
+    static const struct luaL_Reg global_functions[] = {
         {"new", lua_likely_new},
+        {"read", lua_likely_read},
+        {NULL, NULL}
+    };
+
+    static const struct luaL_Reg member_functions[] = {
         {"initialize", lua_likely_initialize},
         {"clone", lua_likely_clone},
         {"delete", lua_likely_delete},
         {"allocate", lua_likely_allocate},
         {"free", lua_likely_free},
-        {"read", lua_likely_read},
         {"write", lua_likely_write},
         {"encode", lua_likely_encode},
         {"decode", lua_likely_decode},
         {NULL, NULL}
     };
 
+    // Idiom for registering library with member functions
     luaL_newmetatable(L, "likely");
-    luaL_newlib(L, likely);
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
+    luaL_setfuncs(L, member_functions, 0);
+    luaL_newlib(L, global_functions);
     return 1;
 }
