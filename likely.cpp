@@ -587,10 +587,9 @@ static lua_State *getLuaState()
 
 void likely_exec(const char *source)
 {
-    static lua_State *L = NULL;
-    if (L == NULL)
-        L = getLuaState();
+    lua_State *L = getLuaState();
     checkLua(L, luaL_dostring(L, source));
+    lua_close(L);
 }
 
 void likely_set_error_callback(likely_error_callback error_callback)

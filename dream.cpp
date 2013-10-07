@@ -97,7 +97,8 @@ class Editor : public QTextEdit
     QSettings settings;
 public:
     Editor(QWidget *p = 0) : QTextEdit(p)
-      { connect(ErrorHandler::get(), SIGNAL(newError(QString)), this, SIGNAL(newInfo(QString)));
+      { connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
+        connect(ErrorHandler::get(), SIGNAL(newError(QString)), this, SIGNAL(newInfo(QString)));
         setText(settings.value("source").toString()); }
 public slots:
     void setSource(QAction *a)
@@ -116,6 +117,9 @@ public slots:
                 file.open(QFile::WriteOnly | QFile::Text);
                 file.write(toPlainText().toLocal8Bit());
                 file.close(); } } }
+    void exec()
+      { newInfo("");
+        likely_exec(toPlainText().toLocal8Bit().data()); }
 signals:
     void newInfo(QString); };
 
