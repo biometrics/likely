@@ -163,7 +163,7 @@ typedef void (*likely_nullary_kernel)(likely_mat dst, likely_size start, likely_
 typedef void (*likely_unary_kernel)(likely_const_mat src, likely_mat dst, likely_size start, likely_size stop);
 typedef void (*likely_binary_kernel)(likely_const_mat srcA, likely_const_mat srcB, likely_mat dst, likely_size start, likely_size stop);
 typedef void (*likely_ternary_kernel)(likely_const_mat srcA, likely_const_mat srcB, likely_const_mat srcC, likely_mat dst, likely_size start, likely_size stop);
-LIKELY_EXPORT void *likely_compile(likely_description description, likely_arity arity, likely_const_mat src, ...);
+LIKELY_EXPORT void *likely_compile(likely_description description, likely_arity num_inputs, likely_const_mat *srcs);
 LIKELY_EXPORT void *likely_compile_allocation(likely_description description, likely_arity arity, likely_const_mat src, ...);
 LIKELY_EXPORT void *likely_compile_kernel(likely_description description, likely_arity arity, likely_const_mat src, ...);
 LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size start, likely_size stop, likely_mat src, ...);
@@ -171,19 +171,19 @@ LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, likely_arity arity, li
 // Core library functions
 typedef void (*likely_nullary_function)(likely_mat dst);
 inline likely_nullary_function likely_compile_nullary(likely_description description)
-    { return (likely_nullary_function)likely_compile(description, 0, NULL); }
+    { return (likely_nullary_function) likely_compile(description, 0, NULL); }
 
 typedef void (*likely_unary_function)(likely_const_mat src, likely_mat dst);
-inline likely_unary_function likely_compile_unary(likely_description description, const likely_mat src)
-    { return (likely_unary_function)likely_compile(description, 1, src, NULL); }
+inline likely_unary_function likely_compile_unary(likely_description description, likely_const_mat src)
+    { likely_const_mat srcs[1] = { src }; return (likely_unary_function) likely_compile(description, 1, srcs); }
 
 typedef void (*likely_binary_function)(likely_const_mat srcA, likely_const_mat srcB, likely_mat dst);
 inline likely_binary_function likely_compile_binary(likely_description description, likely_const_mat srcA, likely_const_mat srcB)
-    { return (likely_binary_function)likely_compile(description, 2, srcA, srcB, NULL); }
+    { likely_const_mat srcs[2] = { srcA, srcB }; return (likely_binary_function) likely_compile(description, 2, srcs); }
 
 typedef void (*likely_ternary_function)(likely_const_mat srcA, likely_const_mat srcB, likely_const_mat srcC, likely_mat dst);
 inline likely_ternary_function likely_compile_ternary(likely_description description, likely_const_mat srcA, likely_const_mat srcB, likely_const_mat srcC)
-    { return (likely_ternary_function)likely_compile(description, 3, srcA, srcB, srcC, NULL); }
+    { likely_const_mat srcs[3] = { srcA, srcB, srcC }; return (likely_ternary_function) likely_compile(description, 3, srcs); }
 
 // Make Likely accessible as a Lua module
 struct lua_State;
