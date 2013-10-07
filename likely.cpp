@@ -140,7 +140,7 @@ static int lua_likely_get(lua_State *L)
     else if (!strcmp(field, "singleFrame"))   lua_pushboolean(L, likely_single_frame(m->hash));
     else if (!strcmp(field, "owner"))         lua_pushboolean(L, likely_owner(m->hash));
     else if (!strcmp(field, "reserved"))      lua_pushinteger(L, likely_reserved(m->hash));
-    else                                 { likely_assert(false, "unrecognized field: %s", field); return 0; }
+    else                                    { likely_assert(false, "unrecognized field: %s", field); return 0; }
     return 1;
 }
 
