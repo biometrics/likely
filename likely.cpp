@@ -371,9 +371,12 @@ static int lua_likely_free(lua_State *L)
     return 0;
 }
 
-likely_mat likely_read(const char *file, likely_mat image)
+likely_mat likely_read(const char *file_name, likely_mat image)
 {
-    return fromCvMat(cv::imread(file, CV_LOAD_IMAGE_UNCHANGED), true, image);
+    cv::Mat m = cv::imread(file_name, CV_LOAD_IMAGE_UNCHANGED);
+    likely_assert(m.data, "'read' failed to open: %s", file_name);
+    if (m.data) return fromCvMat(m, true, image);
+    else        return NULL;
 }
 
 static int lua_likely_read(lua_State *L)
@@ -383,9 +386,9 @@ static int lua_likely_read(lua_State *L)
     return 1;
 }
 
-void likely_write(likely_const_mat image, const char *file)
+void likely_write(likely_const_mat image, const char *file_name)
 {
-    cv::imwrite(file, toCvMat(image));
+    cv::imwrite(file_name, toCvMat(image));
 }
 
 static int lua_likely_write(lua_State *L)

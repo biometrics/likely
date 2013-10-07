@@ -137,8 +137,8 @@ LIKELY_EXPORT void likely_allocate(likely_mat m);
 LIKELY_EXPORT void likely_free(likely_mat m);
 
 // Matrix I/O
-LIKELY_EXPORT likely_mat likely_read(const char *file, likely_mat image = NULL);
-LIKELY_EXPORT void likely_write(likely_const_mat image, const char *file);
+LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_mat image = NULL);
+LIKELY_EXPORT void likely_write(likely_const_mat image, const char *file_name);
 LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer, likely_mat image = NULL);
 LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension, likely_mat buffer = NULL);
 
