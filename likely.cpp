@@ -77,7 +77,7 @@ static void checkLua(lua_State *L, int error = true)
 
 static likely_mat checkLuaMat(lua_State *L, int index = 1)
 {
-    return (likely_mat)luaL_checkudata(L, index, "likely");
+    return (likely_mat) luaL_checkudata(L, index, "likely");
 }
 
 static int lua_likely__tostring(lua_State *L)
@@ -1330,6 +1330,13 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
     return executionEngine->getPointerToFunction(function);
 }
 
+struct likely_function
+{
+    void *function;
+    likely_arity n;
+};
+typedef likely_function *likely_func;
+
 static int lua_likely_compile(lua_State *L)
 {
     const int args = lua_gettop(L);
@@ -1338,7 +1345,41 @@ static int lua_likely_compile(lua_State *L)
     vector<likely_const_mat> mats;
     for (int i=2; i<=args; i++)
         mats.push_back(checkLuaMat(L, i));
-    lua_pushlightuserdata(L, likely_compile_n(description, mats.size(), mats.data()));
+
+    likely_func f = (likely_func) lua_newuserdata(L, sizeof(likely_function));
+    luaL_getmetatable(L, "likely_function");
+    lua_setmetatable(L, -2);
+    f->function = likely_compile_n(description, mats.size(), mats.data());
+    f->n = mats.size();
+    return 1;
+}
+
+static int lua_likely__call(lua_State *L)
+{
+    const int args = lua_gettop(L);
+    likely_assert(args >= 1, "'__call' expected at least one argument, got: %d", lua_gettop(L));
+    likely_func f =  (likely_func) luaL_checkudata(L, 1, "likely_function");
+    likely_assert((args-1 == f->n) || (args-1 == f->n + 1), "'__call' expected: %d-%d arguments, got: %d", f->n, f->n+1, args-1);
+
+    vector<likely_const_mat> srcs;
+    for (int i=0; i<f->n; i++)
+        srcs.push_back(checkLuaMat(L, i+2));
+
+    likely_mat dst;
+    if (args-1 == f->n) {
+        dst = newLuaMat(L);
+    } else {
+        dst = checkLuaMat(L, args);
+        lua_pushvalue(L, -1);
+    }
+
+    switch (f->n) {
+      case 0: reinterpret_cast<likely_function_0>(f->function)(dst); break;
+      case 1: reinterpret_cast<likely_function_1>(f->function)(srcs[0], dst); break;
+      case 2: reinterpret_cast<likely_function_2>(f->function)(srcs[0], srcs[1], dst); break;
+      case 3: reinterpret_cast<likely_function_3>(f->function)(srcs[0], srcs[1], srcs[2], dst); break;
+      default: likely_assert(false, "__call invalid arity: %d", f->n);
+    }
     return 1;
 }
 
@@ -1472,14 +1513,14 @@ void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size star
 
 int luaopen_likely(lua_State *L)
 {
-    static const struct luaL_Reg global_functions[] = {
+    static const struct luaL_Reg likely_globals[] = {
         {"new", lua_likely_new},
         {"read", lua_likely_read},
         {"compile", lua_likely_compile},
         {NULL, NULL}
     };
 
-    static const struct luaL_Reg member_functions[] = {
+    static const struct luaL_Reg likely_members[] = {
         {"__index", lua_likely__index},
         {"__newindex", lua_likely__newindex},
         {"__tostring", lua_likely__tostring},
@@ -1498,11 +1539,18 @@ int luaopen_likely(lua_State *L)
         {NULL, NULL}
     };
 
+    // Register function metatable
+    luaL_newmetatable(L, "likely_function");
+    lua_pushstring(L, "__call");
+    lua_pushcfunction(L, lua_likely__call);
+    lua_settable(L, -3);
+
     // Idiom for registering library with member functions
     luaL_newmetatable(L, "likely");
     lua_pushvalue(L, -1);
     lua_setfield(L, -2, "__index");
-    luaL_setfuncs(L, member_functions, 0);
-    luaL_newlib(L, global_functions);
+    luaL_setfuncs(L, likely_members, 0);
+    luaL_newlib(L, likely_globals);
+
     return 1;
 }
