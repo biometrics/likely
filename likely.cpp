@@ -119,6 +119,28 @@ static int lua_likely__index(lua_State *L)
     return lua_likely_get(L);
 }
 
+static int lua_likely_set(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 3, "'set' expected 3 arguments, got: %d", lua_gettop(L));
+    likely_mat m = checkLuaMat(L);
+    const char *field = lua_tostring(L, 2);
+    int isnum;
+    if      (!strcmp(field, "data"))     m->data = (likely_data*) lua_touserdata(L, 3);
+    else if (!strcmp(field, "hash"))     m->hash = likely_string_to_hash(lua_tostring(L, 3));
+    else if (!strcmp(field, "channels")) { m->channels = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected channels to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "columns"))  { m->columns  = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected columns to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "rows"))     { m->rows     = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected rows to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "frames"))   { m->frames   = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected frames to be an integer, got: %s", lua_tostring(L, 3)); }
+    else                                 likely_assert(false, "unrecognized field: %s", field);
+    return 0;
+}
+
+static int lua_likely__newindex(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 3, "'__newindex' expected 3 arguments, got: %d", lua_gettop(L));
+    return lua_likely_set(L);
+}
+
 static inline int likely_get(likely_hash hash, likely_hash_field mask) { return hash & mask; }
 static inline void likely_set(likely_hash &hash, int i, likely_hash_field mask) { hash &= ~mask; hash |= i & mask; }
 static inline bool likely_get_bool(likely_hash hash, likely_hash_field mask) { return hash & mask; }
@@ -1408,8 +1430,10 @@ int luaopen_likely(lua_State *L)
 
     static const struct luaL_Reg member_functions[] = {
         {"__index", lua_likely__index},
+        {"__newindex", lua_likely__newindex},
         {"__tostring", lua_likely__tostring},
         {"get", lua_likely_get},
+        {"set", lua_likely_set},
         {"initialize", lua_likely_initialize},
         {"clone", lua_likely_clone},
         {"delete", lua_likely_delete},
