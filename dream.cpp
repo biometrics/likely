@@ -137,7 +137,7 @@ private slots:
       { emit newInfo(QString());
         const QString source = toPlainText();
         settings.setValue("source", source);
-        function = likely_make_unary_function(qPrintable(source), input);
+        function = likely_compile_unary(qPrintable(source), input);
         if (!input->data)
           { emit newMatrixView(QImage());
             emit newHash(QString());

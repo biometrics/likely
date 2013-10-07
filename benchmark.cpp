@@ -101,7 +101,7 @@ void Test::run() const
             // Generate input matrix
             Mat src = generateData(size, size, type);
             likely_mat srcLikely = fromCvMat(src, false);
-            likely_unary_function f = likely_make_unary_function(function(), srcLikely);
+            likely_unary_function f = likely_compile_unary(function(), srcLikely);
             likely_delete(srcLikely);
 
             // Test correctness

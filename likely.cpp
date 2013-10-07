@@ -941,19 +941,19 @@ public:
 
             // Allocation needs to be done to properly initialize the kernel builder
             switch (mats.size()) {
-              case 0: likely_make_allocation(description, 0, NULL); break;
-              case 1: likely_make_allocation(description, 1, mats[0]); break;
-              case 2: likely_make_allocation(description, 2, mats[0], mats[1]); break;
-              case 3: likely_make_allocation(description, 3, mats[0], mats[1], mats[2]); break;
+              case 0: likely_compile_allocation(description, 0, NULL); break;
+              case 1: likely_compile_allocation(description, 1, mats[0]); break;
+              case 2: likely_compile_allocation(description, 2, mats[0], mats[1]); break;
+              case 3: likely_compile_allocation(description, 3, mats[0], mats[1], mats[2]); break;
               default: likely_assert(false, "KernelBuilder::make kernel invalid arity: %zu", mats.size());
             }
 
             void *serialKernelFunction = NULL;
             switch (mats.size()) {
-              case 0: serialKernelFunction = likely_make_kernel(description, 0, NULL); break;
-              case 1: serialKernelFunction = likely_make_kernel(description, 1, mats[0]); break;
-              case 2: serialKernelFunction = likely_make_kernel(description, 2, mats[0], mats[1]); break;
-              case 3: serialKernelFunction = likely_make_kernel(description, 3, mats[0], mats[1], mats[2]); break;
+              case 0: serialKernelFunction = likely_compile_kernel(description, 0, NULL); break;
+              case 1: serialKernelFunction = likely_compile_kernel(description, 1, mats[0]); break;
+              case 2: serialKernelFunction = likely_compile_kernel(description, 2, mats[0], mats[1]); break;
+              case 3: serialKernelFunction = likely_compile_kernel(description, 3, mats[0], mats[1], mats[2]); break;
               default: likely_assert(false, "KernelBuilder::make kernel invalid arity: %zu", mats.size());
             }
 
@@ -1148,7 +1148,7 @@ static void workerThread(int workerID)
 
 using namespace likely;
 
-void *likely_make_function(likely_description description, likely_arity arity, likely_const_mat src, ...)
+void *likely_compile(likely_description description, likely_arity arity, likely_const_mat src, ...)
 {
     vector<likely_const_mat> srcList;
     va_list ap;
@@ -1225,17 +1225,17 @@ void *likely_make_function(likely_description description, likely_arity arity, l
 
         if (makeAllocationFunction == NULL) {
             FunctionType* makeAllocationType = FunctionType::get(allocationFunctionType, makerParameters, true);
-            makeAllocationFunction = Function::Create(makeAllocationType, GlobalValue::ExternalLinkage, "likely_make_allocation", TheModule);
+            makeAllocationFunction = Function::Create(makeAllocationType, GlobalValue::ExternalLinkage, "likely_compile_allocation", TheModule);
             makeAllocationFunction->setCallingConv(CallingConv::C);
         }
     }
     GlobalVariable *allocationFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_allocation", allocationFunctionType));
     void *default_allocation;
     switch (srcList.size()) {
-      case 0:  default_allocation = likely_make_allocation(description, arity, NULL); break;
-      case 1:  default_allocation = likely_make_allocation(description, arity, srcList[0], NULL); break;
-      case 2:  default_allocation = likely_make_allocation(description, arity, srcList[0], srcList[1], NULL); break;
-      case 3:  default_allocation = likely_make_allocation(description, arity, srcList[0], srcList[1], srcList[2], NULL); break;
+      case 0:  default_allocation = likely_compile_allocation(description, arity, NULL); break;
+      case 1:  default_allocation = likely_compile_allocation(description, arity, srcList[0], NULL); break;
+      case 2:  default_allocation = likely_compile_allocation(description, arity, srcList[0], srcList[1], NULL); break;
+      case 3:  default_allocation = likely_compile_allocation(description, arity, srcList[0], srcList[1], srcList[2], NULL); break;
       default: default_allocation = NULL;
     }
     if (default_allocation == NULL) return MatrixBuilder::cleanup(function);
@@ -1256,17 +1256,17 @@ void *likely_make_function(likely_description description, likely_arity arity, l
 
         if (makeKernelFunction == NULL) {
             FunctionType* makeUnaryKernelType = FunctionType::get(kernelFunctionType, makerParameters, true);
-            makeKernelFunction = Function::Create(makeUnaryKernelType, GlobalValue::ExternalLinkage, "likely_make_kernel", TheModule);
+            makeKernelFunction = Function::Create(makeUnaryKernelType, GlobalValue::ExternalLinkage, "likely_compile_kernel", TheModule);
             makeKernelFunction->setCallingConv(CallingConv::C);
         }
     }
     GlobalVariable *kernelFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_kernel", kernelFunctionType));
     void *default_kernel;
     switch (srcList.size()) {
-      case 0:  default_kernel = likely_make_kernel(description, arity, NULL); break;
-      case 1:  default_kernel = likely_make_kernel(description, arity, srcList[0], NULL); break;
-      case 2:  default_kernel = likely_make_kernel(description, arity, srcList[0], srcList[1], NULL); break;
-      case 3:  default_kernel = likely_make_kernel(description, arity, srcList[0], srcList[1], srcList[2], NULL); break;
+      case 0:  default_kernel = likely_compile_kernel(description, arity, NULL); break;
+      case 1:  default_kernel = likely_compile_kernel(description, arity, srcList[0], NULL); break;
+      case 2:  default_kernel = likely_compile_kernel(description, arity, srcList[0], srcList[1], NULL); break;
+      case 3:  default_kernel = likely_compile_kernel(description, arity, srcList[0], srcList[1], srcList[2], NULL); break;
       default: default_kernel = NULL;
     }
     if (default_kernel == NULL) return MatrixBuilder::cleanup(function);
@@ -1356,13 +1356,13 @@ void *likely_make_function(likely_description description, likely_arity arity, l
     return executionEngine->getPointerToFunction(function);
 }
 
-void *likely_make_allocation(likely_description description, likely_arity arity, likely_const_mat src, ...)
+void *likely_compile_allocation(likely_description description, likely_arity arity, likely_const_mat src, ...)
 {
     vector<likely_hash> hashes;
     va_list ap;
     va_start(ap, src);
     for (int i=0; i<arity; i++) {
-        likely_assert(src, "likely_make_allocation null matrix at index: %d", i);
+        likely_assert(src, "likely_compile_allocation null matrix at index: %d", i);
         hashes.push_back(src->hash);
         src = va_arg(ap, likely_const_mat);
     }
@@ -1393,13 +1393,13 @@ void *likely_make_allocation(likely_description description, likely_arity arity,
     return executionEngine->getPointerToFunction(function);
 }
 
-void *likely_make_kernel(likely_description description, likely_arity arity, likely_const_mat src, ...)
+void *likely_compile_kernel(likely_description description, likely_arity arity, likely_const_mat src, ...)
 {
     vector<likely_hash> hashes;
     va_list ap;
     va_start(ap, src);
     for (int i=0; i<arity; i++) {
-        likely_assert(src, "likely_make_kernel null matrix at index: %d", i);
+        likely_assert(src, "likely_compile_kernel null matrix at index: %d", i);
         hashes.push_back(src->hash);
         src = va_arg(ap, likely_const_mat);
     }
