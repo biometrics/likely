@@ -75,9 +75,9 @@ static void checkLua(lua_State *L, int error = true)
     likely_assert(false, "%s", errorMessage.c_str());
 }
 
-static likely_mat checkLuaMat(lua_State *L)
+static likely_mat checkLuaMat(lua_State *L, int index = 1)
 {
-    return (likely_mat)luaL_checkudata(L, 1, "likely");
+    return (likely_mat)luaL_checkudata(L, index, "likely");
 }
 
 static int lua_likely__tostring(lua_State *L)
@@ -1356,6 +1356,28 @@ void *likely_compile(likely_description description, likely_arity arity, likely_
     return executionEngine->getPointerToFunction(function);
 }
 
+static int lua_likely_compile(lua_State *L)
+{
+    const int args = lua_gettop(L);
+    likely_assert(args >= 1, "'compile' expected at least one argument, got: %d", lua_gettop(L));
+    likely_description description = lua_tostring(L, 1);
+    vector<likely_const_mat> mats;
+    for (int i=2; i<=args; i++)
+        mats.push_back(checkLuaMat(L, i));
+
+    void *function;
+    switch (mats.size()) {
+      case 0: function = likely_compile(description, 0, NULL); break;
+      case 1: function = likely_compile(description, 1, mats[0], NULL); break;
+      case 2: function = likely_compile(description, 2, mats[0], mats[1], NULL); break;
+      case 3: function = likely_compile(description, 3, mats[0], mats[1], mats[2], NULL); break;
+      default: likely_assert(false, "invalid arity: %d", mats.size()); return 0;
+    }
+
+    lua_pushlightuserdata(L, function);
+    return 1;
+}
+
 void *likely_compile_allocation(likely_description description, likely_arity arity, likely_const_mat src, ...)
 {
     vector<likely_hash> hashes;
@@ -1469,6 +1491,7 @@ int luaopen_likely(lua_State *L)
     static const struct luaL_Reg global_functions[] = {
         {"new", lua_likely_new},
         {"read", lua_likely_read},
+        {"compile", lua_likely_compile},
         {NULL, NULL}
     };
 
