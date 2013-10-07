@@ -939,23 +939,9 @@ public:
                 mats.push_back(m);
             }
 
-            // Allocation needs to be done to properly initialize the kernel builder
-            switch (mats.size()) {
-              case 0: likely_compile_allocation(description, 0, NULL); break;
-              case 1: likely_compile_allocation(description, 1, mats[0]); break;
-              case 2: likely_compile_allocation(description, 2, mats[0], mats[1]); break;
-              case 3: likely_compile_allocation(description, 3, mats[0], mats[1], mats[2]); break;
-              default: likely_assert(false, "KernelBuilder::make kernel invalid arity: %zu", mats.size());
-            }
-
-            void *serialKernelFunction = NULL;
-            switch (mats.size()) {
-              case 0: serialKernelFunction = likely_compile_kernel(description, 0, NULL); break;
-              case 1: serialKernelFunction = likely_compile_kernel(description, 1, mats[0]); break;
-              case 2: serialKernelFunction = likely_compile_kernel(description, 2, mats[0], mats[1]); break;
-              case 3: serialKernelFunction = likely_compile_kernel(description, 3, mats[0], mats[1], mats[2]); break;
-              default: likely_assert(false, "KernelBuilder::make kernel invalid arity: %zu", mats.size());
-            }
+            // Allocation must be called first to properly initialize the kernel builder
+            likely_compile_allocation_n(description, mats.size(), (likely_const_mat*)mats.data());
+            void *serialKernelFunction = likely_compile_kernel_n(description, mats.size(), (likely_const_mat*)mats.data());
 
             static Function *parallelDispatch = NULL;
             if (parallelDispatch == NULL) {
@@ -1126,10 +1112,10 @@ static void executeWorker(int workerID)
     if (start >= stop) return;
 
     switch (workerArity) {
-      case 0: reinterpret_cast<likely_nullary_kernel>(workerKernel)(workerMatricies[0], start, stop); break;
-      case 1: reinterpret_cast<likely_unary_kernel>(workerKernel)(workerMatricies[0], workerMatricies[1], start, stop); break;
-      case 2: reinterpret_cast<likely_binary_kernel>(workerKernel)(workerMatricies[0], workerMatricies[1], workerMatricies[2], start, stop); break;
-      case 3: reinterpret_cast<likely_ternary_kernel>(workerKernel)(workerMatricies[0], workerMatricies[1], workerMatricies[2], workerMatricies[3], start, stop); break;
+      case 0: reinterpret_cast<likely_kernel_0>(workerKernel)(workerMatricies[0], start, stop); break;
+      case 1: reinterpret_cast<likely_kernel_1>(workerKernel)(workerMatricies[0], workerMatricies[1], start, stop); break;
+      case 2: reinterpret_cast<likely_kernel_2>(workerKernel)(workerMatricies[0], workerMatricies[1], workerMatricies[2], start, stop); break;
+      case 3: reinterpret_cast<likely_kernel_3>(workerKernel)(workerMatricies[0], workerMatricies[1], workerMatricies[2], workerMatricies[3], start, stop); break;
       default: likely_assert(false, "likely_parallel_dispatch invalid arity: %d", workerArity);
     }
 }
@@ -1148,16 +1134,21 @@ static void workerThread(int workerID)
 
 using namespace likely;
 
-void *likely_compile(likely_description description, likely_arity num_inputs, likely_const_mat *srcs_)
+void *likely_compile(likely_description description, likely_arity n, likely_const_mat src, ...)
 {
-    vector<likely_const_mat> srcList;
-    for (int i=0; i<num_inputs; i++) {
-        likely_const_mat src = srcs_[i];
-        if (!likely_assert(src, "Null matrix at index: %d", i)) return NULL;
-        if (!likely_assert(src->hash != likely_hash_null, "Null matrix hash at index: %d", i)) return NULL;
-        srcList.push_back(src);
+    vector<likely_const_mat> srcs;
+    va_list ap;
+    va_start(ap, src);
+    for (int i=0; i<n; i++) {
+        srcs.push_back(src);
+        src = va_arg(ap, likely_const_mat);
     }
+    va_end(ap);
+    return likely_compile_n(description, n, srcs.data());
+}
 
+void *likely_compile_n(likely_description description, likely_arity n, likely_const_mat *srcList)
+{
     lock_guard<recursive_mutex> lock(makerLock);
 
     if (TheModule == NULL) {
@@ -1200,7 +1191,7 @@ void *likely_compile(likely_description description, likely_arity num_inputs, li
     Function *function = TheModule->getFunction(description);
     if (function != NULL)
         return executionEngine->getPointerToFunction(function);
-    function = getFunction(description, num_inputs, Type::getVoidTy(getGlobalContext()));
+    function = getFunction(description, n, Type::getVoidTy(getGlobalContext()));
 
     static vector<Type*> makerParameters;
     if (makerParameters.empty()) {
@@ -1211,14 +1202,14 @@ void *likely_compile(likely_description description, likely_arity num_inputs, li
 
     static Function *makeAllocationFunction = NULL;
     static vector<PointerType*> allocationFunctionTypes(LIKELY_NUM_ARITIES, NULL);
-    PointerType *allocationFunctionType = allocationFunctionTypes[num_inputs];
+    PointerType *allocationFunctionType = allocationFunctionTypes[n];
     if (allocationFunctionType == NULL) {
         vector<Type*> allocationParams;
-        for (int i=0; i<num_inputs+1; i++)
+        for (int i=0; i<n+1; i++)
             allocationParams.push_back(PointerType::getUnqual(TheMatrixStruct));
         Type *allocationReturn = Type::getInt32Ty(getGlobalContext());
         allocationFunctionType = PointerType::getUnqual(FunctionType::get(allocationReturn, allocationParams, false));
-        allocationFunctionTypes[num_inputs] = allocationFunctionType;
+        allocationFunctionTypes[n] = allocationFunctionType;
 
         if (makeAllocationFunction == NULL) {
             FunctionType* makeAllocationType = FunctionType::get(allocationFunctionType, makerParameters, true);
@@ -1227,29 +1218,22 @@ void *likely_compile(likely_description description, likely_arity num_inputs, li
         }
     }
     GlobalVariable *allocationFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_allocation", allocationFunctionType));
-    void *default_allocation;
-    switch (srcList.size()) {
-      case 0:  default_allocation = likely_compile_allocation(description, num_inputs, NULL); break;
-      case 1:  default_allocation = likely_compile_allocation(description, num_inputs, srcList[0], NULL); break;
-      case 2:  default_allocation = likely_compile_allocation(description, num_inputs, srcList[0], srcList[1], NULL); break;
-      case 3:  default_allocation = likely_compile_allocation(description, num_inputs, srcList[0], srcList[1], srcList[2], NULL); break;
-      default: default_allocation = NULL;
-    }
+    void *default_allocation = likely_compile_allocation_n(description, n, srcList);
     if (default_allocation == NULL) return MatrixBuilder::cleanup(function);
     allocationFunction->setInitializer(MatrixBuilder::constant<void*>(default_allocation, allocationFunctionType));
 
     static Function *makeKernelFunction = NULL;
     static vector<PointerType*> kernelFunctionTypes(LIKELY_NUM_ARITIES, NULL);
-    PointerType *kernelFunctionType = kernelFunctionTypes[num_inputs];
+    PointerType *kernelFunctionType = kernelFunctionTypes[n];
     if (kernelFunctionType == NULL) {
         vector<Type*> kernelParams;
-        for (int i=0; i<num_inputs+1; i++)
+        for (int i=0; i<n+1; i++)
             kernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
         kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
         kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
         Type *kernelReturn = Type::getVoidTy(getGlobalContext());
         kernelFunctionType = PointerType::getUnqual(FunctionType::get(kernelReturn, kernelParams, false));
-        kernelFunctionTypes[num_inputs] = kernelFunctionType;
+        kernelFunctionTypes[n] = kernelFunctionType;
 
         if (makeKernelFunction == NULL) {
             FunctionType* makeUnaryKernelType = FunctionType::get(kernelFunctionType, makerParameters, true);
@@ -1258,14 +1242,7 @@ void *likely_compile(likely_description description, likely_arity num_inputs, li
         }
     }
     GlobalVariable *kernelFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_kernel", kernelFunctionType));
-    void *default_kernel;
-    switch (srcList.size()) {
-      case 0:  default_kernel = likely_compile_kernel(description, num_inputs, NULL); break;
-      case 1:  default_kernel = likely_compile_kernel(description, num_inputs, srcList[0], NULL); break;
-      case 2:  default_kernel = likely_compile_kernel(description, num_inputs, srcList[0], srcList[1], NULL); break;
-      case 3:  default_kernel = likely_compile_kernel(description, num_inputs, srcList[0], srcList[1], srcList[2], NULL); break;
-      default: default_kernel = NULL;
-    }
+    void *default_kernel = likely_compile_kernel_n(description, n, srcList);
     if (default_kernel == NULL) return MatrixBuilder::cleanup(function);
     kernelFunction->setInitializer(MatrixBuilder::constant<void*>(default_kernel, kernelFunctionType));
 
@@ -1277,18 +1254,18 @@ void *likely_compile(likely_description description, likely_arity num_inputs, li
     IRBuilder<> builder(entry);
 
     vector<GlobalVariable*> kernelHashes;
-    for (int i=0; i<num_inputs; i++) {
+    for (int i=0; i<n; i++) {
         GlobalVariable *kernelHash = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_hash"+to_string(i), Type::getInt32Ty(getGlobalContext())));
         kernelHash->setInitializer(MatrixBuilder::constant(srcList[i]->hash, 8*sizeof(likely_hash)));
         kernelHashes.push_back(kernelHash);
     }
 
     vector<Value*> srcHashes;
-    for (int i=0; i<num_inputs; i++)
+    for (int i=0; i<n; i++)
         srcHashes.push_back(builder.CreateLoad(builder.CreateStructGEP(srcs[i], 1), "src_hash"+to_string(i)));
 
     Value *hashTest = MatrixBuilder::constant(true);
-    for (int i=0; i<num_inputs; i++)
+    for (int i=0; i<n; i++)
         hashTest = builder.CreateAnd(hashTest, builder.CreateICmpEQ(builder.CreateLoad(kernelHashes[i]), srcHashes[i]));
 
     BasicBlock *hashFail = BasicBlock::Create(getGlobalContext(), "hash_fail", function);
@@ -1304,11 +1281,11 @@ void *likely_compile(likely_description description, likely_arity num_inputs, li
 
         vector<Value*> args;
         args.push_back(MatrixBuilder::constant(copy));
-        args.push_back(MatrixBuilder::constant(num_inputs, 8));
+        args.push_back(MatrixBuilder::constant(n, 8));
         args.insert(args.end(), srcs.begin(), srcs.end());
         builder.CreateStore(builder.CreateCall(makeAllocationFunction, args), allocationFunction);
         builder.CreateStore(builder.CreateCall(makeKernelFunction, args), kernelFunction);
-        for (int i=0; i<num_inputs; i++)
+        for (int i=0; i<n; i++)
             builder.CreateStore(srcHashes[i], kernelHashes[i]);
         builder.CreateBr(execute);
     }
@@ -1361,21 +1338,31 @@ static int lua_likely_compile(lua_State *L)
     vector<likely_const_mat> mats;
     for (int i=2; i<=args; i++)
         mats.push_back(checkLuaMat(L, i));
-    lua_pushlightuserdata(L, likely_compile(description, mats.size(), mats.data()));
+    lua_pushlightuserdata(L, likely_compile_n(description, mats.size(), mats.data()));
     return 1;
 }
 
-void *likely_compile_allocation(likely_description description, likely_arity arity, likely_const_mat src, ...)
+void *likely_compile_allocation(likely_description description, likely_arity n, likely_const_mat src, ...)
 {
-    vector<likely_hash> hashes;
+    vector<likely_const_mat> srcs;
     va_list ap;
     va_start(ap, src);
-    for (int i=0; i<arity; i++) {
-        likely_assert(src, "likely_compile_allocation null matrix at index: %d", i);
-        hashes.push_back(src->hash);
+    for (int i=0; i<n; i++) {
+        srcs.push_back(src);
         src = va_arg(ap, likely_const_mat);
     }
     va_end(ap);
+    return likely_compile_allocation_n(description, n, srcs.data());
+}
+
+void *likely_compile_allocation_n(likely_description description, likely_arity n, likely_const_mat *srcs)
+{
+    vector<likely_hash> hashes;
+    for (int i=0; i<n; i++) {
+        likely_const_mat src = srcs[i];
+        likely_assert(src, "likely_compile_allocation_n null matrix at index: %d", i);
+        hashes.push_back(src->hash);
+    }
 
     lock_guard<recursive_mutex> lock(makerLock);
     const string name = mangledName(description, hashes)+"_allocation";
@@ -1402,17 +1389,27 @@ void *likely_compile_allocation(likely_description description, likely_arity ari
     return executionEngine->getPointerToFunction(function);
 }
 
-void *likely_compile_kernel(likely_description description, likely_arity arity, likely_const_mat src, ...)
+void *likely_compile_kernel(likely_description description, likely_arity n, likely_const_mat src, ...)
 {
-    vector<likely_hash> hashes;
+    vector<likely_const_mat> srcs;
     va_list ap;
     va_start(ap, src);
-    for (int i=0; i<arity; i++) {
-        likely_assert(src, "likely_compile_kernel null matrix at index: %d", i);
-        hashes.push_back(src->hash);
+    for (int i=0; i<n; i++) {
+        srcs.push_back(src);
         src = va_arg(ap, likely_const_mat);
     }
     va_end(ap);
+    return likely_compile_kernel_n(description, n, srcs.data());
+}
+
+void *likely_compile_kernel_n(likely_description description, likely_arity n, likely_const_mat *srcs)
+{
+    vector<likely_hash> hashes;
+    for (int i=0; i<n; i++) {
+        likely_const_mat src = srcs[i];
+        likely_assert(src, "likely_compile_kernel_n null matrix at index: %d", i);
+        hashes.push_back(src->hash);
+    }
 
     lock_guard<recursive_mutex> lock(makerLock);
     const string name = mangledName(description, hashes)+"_kernel";

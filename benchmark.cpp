@@ -75,9 +75,9 @@ private:
             : iterations(iter), Hz(double(iter) * CLOCKS_PER_SEC / (endTime-startTime)) {}
     };
 
-    void testCorrectness(likely_unary_function f, const cv::Mat &src, bool parallel) const;
+    void testCorrectness(likely_function_1 f, const cv::Mat &src, bool parallel) const;
     Speed testBaselineSpeed(const cv::Mat &src) const;
-    Speed testLikelySpeed(likely_unary_function f, const cv::Mat &src, bool parallel) const;
+    Speed testLikelySpeed(likely_function_1 f, const cv::Mat &src, bool parallel) const;
     void printSpeedup(const Speed &baseline, const Speed &likely, const char *mode) const;
 };
 
@@ -101,7 +101,7 @@ void Test::run() const
             // Generate input matrix
             Mat src = generateData(size, size, type);
             likely_mat srcLikely = fromCvMat(src, false);
-            likely_unary_function f = likely_compile_unary(function(), srcLikely);
+            likely_function_1 f = (likely_function_1) likely_compile(function(), 1, srcLikely);
             likely_delete(srcLikely);
 
             // Test correctness
@@ -119,7 +119,7 @@ void Test::run() const
     }
 }
 
-void Test::testCorrectness(likely_unary_function f, const Mat &src, bool parallel) const
+void Test::testCorrectness(likely_function_1 f, const Mat &src, bool parallel) const
 {
     Mat dstOpenCV = computeBaseline(src);
     likely_mat srcLikely = fromCvMat(src, false);
@@ -163,7 +163,7 @@ Test::Speed Test::testBaselineSpeed(const Mat &src) const
     return Test::Speed(iter, startTime, endTime);
 }
 
-Test::Speed Test::testLikelySpeed(likely_unary_function f, const Mat &src, bool parallel) const
+Test::Speed Test::testLikelySpeed(likely_function_1 f, const Mat &src, bool parallel) const
 {
     likely_mat srcLikely = fromCvMat(src, false);
     likely_set_parallel(&srcLikely->hash, parallel);

@@ -96,7 +96,7 @@ class Function : public QTextEdit
     QString sourceFileName;
     QSettings settings;
     likely_mat input;
-    likely_unary_function function = NULL;
+    likely_function_1 function = NULL;
 public:
     Function(QWidget *p = 0) : QTextEdit(p)
       { input = likely_new();
@@ -137,7 +137,7 @@ private slots:
       { emit newInfo(QString());
         const QString source = toPlainText();
         settings.setValue("source", source);
-        function = likely_compile_unary(qPrintable(source), input);
+        function = (likely_function_1) likely_compile(qPrintable(source), 1, input);
         if (!input->data)
           { emit newMatrixView(QImage());
             emit newHash(QString());

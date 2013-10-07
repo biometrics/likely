@@ -221,7 +221,7 @@
       </tbody>
     </table>
     <p>Note that the return type of each maker is a function pointer that can be then called to perform the requested operation.</p>
-    <pre class="prettyprint lang-c">typedef void (*likely_nullary_function)(likely_matrix *dst);<br>typedef void (*UnaryFunction)(const likely_matrix *src, likely_matrix *dst);<br>typedef void (*likely_binary_function)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);<br>typedef void (*likely_ternary_function)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);</pre>
+    <pre class="prettyprint lang-c">typedef void (*likely_function_0)(likely_matrix *dst);<br>typedef void (*UnaryFunction)(const likely_matrix *src, likely_matrix *dst);<br>typedef void (*likely_function_2)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);<br>typedef void (*likely_function_3)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);</pre>
     <p>As is true in the example below, most functions are either unary or binary.</p>
     <pre class="prettyprint lang-c">likely_matrix src = foo(); // Pre-initialized input matrix<br>likely_matrix dst; // Uninitialized output matrix<br>likely_unary_function multiply_add = likely_make_unary_function("madd(3,2)"); // Create a function that...<br>multiply_add(&src, &dst); // ...multiplies elements by three then adds two.</pre>
     <h2 id="language">Language</h2>
