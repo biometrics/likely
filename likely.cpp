@@ -88,6 +88,37 @@ static int lua_likely__tostring(lua_State *L)
     return 1;
 }
 
+static int lua_likely_get(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 2, "'get' expected 2 arguments, got: %d", lua_gettop(L));
+    likely_const_mat m = checkLuaMat(L);
+    const char *field = lua_tostring(L, 2);
+    if      (!strcmp(field, "data"))     lua_pushlightuserdata(L, m->data);
+    else if (!strcmp(field, "hash"))     lua_pushstring(L, likely_hash_to_string(m->hash));
+    else if (!strcmp(field, "channels")) lua_pushinteger(L, m->channels);
+    else if (!strcmp(field, "columns"))  lua_pushinteger(L, m->columns);
+    else if (!strcmp(field, "rows"))     lua_pushinteger(L, m->rows);
+    else if (!strcmp(field, "frames"))   lua_pushinteger(L, m->frames);
+    else                                 { likely_assert(false, "unrecognized field: %s", field); return 0; }
+    return 1;
+}
+
+static int lua_likely__index(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 2, "'__index' expected 2 arguments, got: %d", lua_gettop(L));
+    const char *key = luaL_checkstring(L, 2);
+    lua_getmetatable(L, 1);
+    lua_getfield(L, -1, key);
+
+    // Either key is name of a method in the metatable
+    if(!lua_isnil(L, -1))
+        return 1;
+
+    // ... or its a field access, so recall as self.get(self, value).
+    lua_settop(L, 2);
+    return lua_likely_get(L);
+}
+
 static inline int likely_get(likely_hash hash, likely_hash_field mask) { return hash & mask; }
 static inline void likely_set(likely_hash &hash, int i, likely_hash_field mask) { hash &= ~mask; hash |= i & mask; }
 static inline bool likely_get_bool(likely_hash hash, likely_hash_field mask) { return hash & mask; }
@@ -1376,7 +1407,9 @@ int luaopen_likely(lua_State *L)
     };
 
     static const struct luaL_Reg member_functions[] = {
+        {"__index", lua_likely__index},
         {"__tostring", lua_likely__tostring},
+        {"get", lua_likely_get},
         {"initialize", lua_likely_initialize},
         {"clone", lua_likely_clone},
         {"delete", lua_likely_delete},
