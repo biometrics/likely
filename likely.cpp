@@ -93,12 +93,24 @@ static int lua_likely_get(lua_State *L)
     likely_assert(lua_gettop(L) == 2, "'get' expected 2 arguments, got: %d", lua_gettop(L));
     likely_const_mat m = checkLuaMat(L);
     const char *field = lua_tostring(L, 2);
-    if      (!strcmp(field, "data"))     lua_pushlightuserdata(L, m->data);
-    else if (!strcmp(field, "hash"))     lua_pushstring(L, likely_hash_to_string(m->hash));
-    else if (!strcmp(field, "channels")) lua_pushinteger(L, m->channels);
-    else if (!strcmp(field, "columns"))  lua_pushinteger(L, m->columns);
-    else if (!strcmp(field, "rows"))     lua_pushinteger(L, m->rows);
-    else if (!strcmp(field, "frames"))   lua_pushinteger(L, m->frames);
+    if      (!strcmp(field, "data"))          lua_pushlightuserdata(L, m->data);
+    else if (!strcmp(field, "hash"))          lua_pushstring(L, likely_hash_to_string(m->hash));
+    else if (!strcmp(field, "channels"))      lua_pushinteger(L, m->channels);
+    else if (!strcmp(field, "columns"))       lua_pushinteger(L, m->columns);
+    else if (!strcmp(field, "rows"))          lua_pushinteger(L, m->rows);
+    else if (!strcmp(field, "frames"))        lua_pushinteger(L, m->frames);
+    else if (!strcmp(field, "depth"))         lua_pushinteger(L, likely_depth(m->hash));
+    else if (!strcmp(field, "signed"))        lua_pushboolean(L, likely_signed(m->hash));
+    else if (!strcmp(field, "floating"))      lua_pushboolean(L, likely_floating(m->hash));
+    else if (!strcmp(field, "type"))          lua_pushinteger(L, likely_type(m->hash));
+    else if (!strcmp(field, "parallel"))      lua_pushboolean(L, likely_parallel(m->hash));
+    else if (!strcmp(field, "heterogeneous")) lua_pushboolean(L, likely_heterogeneous(m->hash));
+    else if (!strcmp(field, "singleChannel")) lua_pushboolean(L, likely_single_channel(m->hash));
+    else if (!strcmp(field, "singleColumn"))  lua_pushboolean(L, likely_single_column(m->hash));
+    else if (!strcmp(field, "singleRow"))     lua_pushboolean(L, likely_single_row(m->hash));
+    else if (!strcmp(field, "singleFrame"))   lua_pushboolean(L, likely_single_frame(m->hash));
+    else if (!strcmp(field, "owner"))         lua_pushboolean(L, likely_owner(m->hash));
+    else if (!strcmp(field, "reserved"))      lua_pushinteger(L, likely_reserved(m->hash));
     else                                 { likely_assert(false, "unrecognized field: %s", field); return 0; }
     return 1;
 }
@@ -125,13 +137,25 @@ static int lua_likely_set(lua_State *L)
     likely_mat m = checkLuaMat(L);
     const char *field = lua_tostring(L, 2);
     int isnum;
-    if      (!strcmp(field, "data"))     m->data = (likely_data*) lua_touserdata(L, 3);
-    else if (!strcmp(field, "hash"))     m->hash = likely_string_to_hash(lua_tostring(L, 3));
-    else if (!strcmp(field, "channels")) { m->channels = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected channels to be an integer, got: %s", lua_tostring(L, 3)); }
-    else if (!strcmp(field, "columns"))  { m->columns  = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected columns to be an integer, got: %s", lua_tostring(L, 3)); }
-    else if (!strcmp(field, "rows"))     { m->rows     = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected rows to be an integer, got: %s", lua_tostring(L, 3)); }
-    else if (!strcmp(field, "frames"))   { m->frames   = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected frames to be an integer, got: %s", lua_tostring(L, 3)); }
-    else                                 likely_assert(false, "unrecognized field: %s", field);
+    if      (!strcmp(field, "data"))          m->data = (likely_data*) lua_touserdata(L, 3);
+    else if (!strcmp(field, "hash"))          m->hash = likely_string_to_hash(lua_tostring(L, 3));
+    else if (!strcmp(field, "channels"))    { m->channels = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected channels to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "columns"))     { m->columns  = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected columns to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "rows"))        { m->rows     = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected rows to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "frames"))      { m->frames   = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected frames to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "depth"))       { likely_set_depth(m->hash, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected depth to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "signed"))        likely_set_signed(m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "floating"))      likely_set_floating(m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "type"))        { likely_set_type(m->hash, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected type to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "parallel"))      likely_set_parallel(m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "heterogeneous")) likely_set_heterogeneous(m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "singleChannel")) likely_set_single_channel(m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "singleColumn"))  likely_set_single_column(m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "singleRow"))     likely_set_single_row(m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "singleFrame"))   likely_set_single_frame(m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "owner"))         likely_set_owner(m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "reserved"))    { likely_set_reserved(m->hash, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected reserved to be an integer, got: %s", lua_tostring(L, 3)); }
+    else                                      likely_assert(false, "unrecognized field: %s", field);
     return 0;
 }
 
