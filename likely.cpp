@@ -75,6 +75,19 @@ static void checkLua(lua_State *L, int error = true)
     likely_assert(false, "%s", errorMessage.c_str());
 }
 
+static likely_mat checkLuaMat(lua_State *L)
+{
+    return (likely_mat)luaL_checkudata(L, 1, "likely");
+}
+
+static int lua_likely__tostring(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 1, "'__tostring' expected 1 argument, got: %d", lua_gettop(L));
+    likely_const_mat m = checkLuaMat(L);
+    lua_pushfstring(L, "Likely %s 0x%p", likely_hash_to_string(m->hash), m);
+    return 1;
+}
+
 static inline int likely_get(likely_hash hash, likely_hash_field mask) { return hash & mask; }
 static inline void likely_set(likely_hash &hash, int i, likely_hash_field mask) { hash &= ~mask; hash |= i & mask; }
 static inline bool likely_get_bool(likely_hash hash, likely_hash_field mask) { return hash & mask; }
@@ -121,11 +134,6 @@ static likely_mat newLuaMat(lua_State *L)
     luaL_getmetatable(L, "likely");
     lua_setmetatable(L, -2);
     return m;
-}
-
-static likely_mat checkLuaMat(lua_State *L)
-{
-    return (likely_mat)luaL_checkudata(L, 1, "likely");
 }
 
 static int lua_likely_new(lua_State *L)
@@ -1368,6 +1376,7 @@ int luaopen_likely(lua_State *L)
     };
 
     static const struct luaL_Reg member_functions[] = {
+        {"__tostring", lua_likely__tostring},
         {"initialize", lua_likely_initialize},
         {"clone", lua_likely_clone},
         {"delete", lua_likely_delete},
