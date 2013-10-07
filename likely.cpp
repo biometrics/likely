@@ -89,33 +89,33 @@ static int lua_likely__tostring(lua_State *L)
 }
 
 static inline int likely_get(likely_hash hash, likely_hash_field mask) { return hash & mask; }
-static inline void likely_set(likely_hash &hash, int i, likely_hash_field mask) { hash &= ~mask; hash |= i & mask; }
+static inline void likely_set(likely_hash *hash, int i, likely_hash_field mask) { *hash &= ~mask; *hash |= i & mask; }
 static inline bool likely_get_bool(likely_hash hash, likely_hash_field mask) { return hash & mask; }
-static inline void likely_set_bool(likely_hash &hash, bool b, likely_hash_field mask) { b ? hash |= mask : hash &= ~mask; }
+static inline void likely_set_bool(likely_hash *hash, bool b, likely_hash_field mask) { b ? *hash |= mask : *hash &= ~mask; }
 int  likely_depth(likely_hash hash) { return likely_get(hash, likely_hash_depth); }
-void likely_set_depth(likely_hash &hash, int depth) { likely_set(hash, depth, likely_hash_depth); }
+void likely_set_depth(likely_hash *hash, int depth) { likely_set(hash, depth, likely_hash_depth); }
 bool likely_signed(likely_hash hash) { return likely_get_bool(hash, likely_hash_signed); }
-void likely_set_signed(likely_hash &hash, bool signed_) { likely_set_bool(hash, signed_, likely_hash_signed); }
+void likely_set_signed(likely_hash *hash, bool signed_) { likely_set_bool(hash, signed_, likely_hash_signed); }
 bool likely_floating(likely_hash hash) { return likely_get_bool(hash, likely_hash_floating); }
-void likely_set_floating(likely_hash &hash, bool floating) { likely_set_bool(hash, floating, likely_hash_floating); }
+void likely_set_floating(likely_hash *hash, bool floating) { likely_set_bool(hash, floating, likely_hash_floating); }
 int  likely_type(likely_hash hash) { return likely_get(hash, likely_hash_type); }
-void likely_set_type(likely_hash &hash, int type) { likely_set(hash, type, likely_hash_type); }
+void likely_set_type(likely_hash *hash, int type) { likely_set(hash, type, likely_hash_type); }
 bool likely_parallel(likely_hash hash) { return likely_get_bool(hash, likely_hash_parallel); }
-void likely_set_parallel(likely_hash &hash, bool parallel) { likely_set_bool(hash, parallel, likely_hash_parallel); }
+void likely_set_parallel(likely_hash *hash, bool parallel) { likely_set_bool(hash, parallel, likely_hash_parallel); }
 bool likely_heterogeneous(likely_hash hash) { return likely_get_bool(hash, likely_hash_heterogeneous); }
-void likely_set_heterogeneous(likely_hash &hash, bool heterogeneous) { likely_set_bool(hash, heterogeneous, likely_hash_heterogeneous); }
+void likely_set_heterogeneous(likely_hash *hash, bool heterogeneous) { likely_set_bool(hash, heterogeneous, likely_hash_heterogeneous); }
 bool likely_single_channel(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_channel); }
-void likely_set_single_channel(likely_hash &hash, bool single_channel) { likely_set_bool(hash, single_channel, likely_hash_single_channel); }
+void likely_set_single_channel(likely_hash *hash, bool single_channel) { likely_set_bool(hash, single_channel, likely_hash_single_channel); }
 bool likely_single_column(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_column); }
-void likely_set_single_column(likely_hash &hash, bool single_column) { likely_set_bool(hash, single_column, likely_hash_single_column); }
+void likely_set_single_column(likely_hash *hash, bool single_column) { likely_set_bool(hash, single_column, likely_hash_single_column); }
 bool likely_single_row(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_row); }
-void likely_set_single_row(likely_hash &hash, bool single_row) { likely_set_bool(hash, single_row, likely_hash_single_row); }
+void likely_set_single_row(likely_hash *hash, bool single_row) { likely_set_bool(hash, single_row, likely_hash_single_row); }
 bool likely_single_frame(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_frame); }
-void likely_set_single_frame(likely_hash &hash, bool single_frame) { likely_set_bool(hash, single_frame, likely_hash_single_frame); }
+void likely_set_single_frame(likely_hash *hash, bool single_frame) { likely_set_bool(hash, single_frame, likely_hash_single_frame); }
 bool likely_owner(likely_hash hash) { return likely_get_bool(hash, likely_hash_owner); }
-void likely_set_owner(likely_hash &hash, bool owner) { likely_set_bool(hash, owner, likely_hash_owner); }
+void likely_set_owner(likely_hash *hash, bool owner) { likely_set_bool(hash, owner, likely_hash_owner); }
 int  likely_reserved(likely_hash hash) { return likely_get(hash, likely_hash_reserved); }
-void likely_set_reserved(likely_hash &hash, int reserved) { likely_set(hash, reserved, likely_hash_reserved); }
+void likely_set_reserved(likely_hash *hash, int reserved) { likely_set(hash, reserved, likely_hash_reserved); }
 
 static int lua_likely_get(lua_State *L)
 {
@@ -172,18 +172,18 @@ static int lua_likely_set(lua_State *L)
     else if (!strcmp(field, "columns"))     { m->columns  = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected columns to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "rows"))        { m->rows     = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected rows to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "frames"))      { m->frames   = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected frames to be an integer, got: %s", lua_tostring(L, 3)); }
-    else if (!strcmp(field, "depth"))       { likely_set_depth(m->hash, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected depth to be an integer, got: %s", lua_tostring(L, 3)); }
-    else if (!strcmp(field, "signed"))        likely_set_signed(m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "floating"))      likely_set_floating(m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "type"))        { likely_set_type(m->hash, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected type to be an integer, got: %s", lua_tostring(L, 3)); }
-    else if (!strcmp(field, "parallel"))      likely_set_parallel(m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "heterogeneous")) likely_set_heterogeneous(m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "singleChannel")) likely_set_single_channel(m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "singleColumn"))  likely_set_single_column(m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "singleRow"))     likely_set_single_row(m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "singleFrame"))   likely_set_single_frame(m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "owner"))         likely_set_owner(m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "reserved"))    { likely_set_reserved(m->hash, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected reserved to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "depth"))       { likely_set_depth(&m->hash, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected depth to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "signed"))        likely_set_signed(&m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "floating"))      likely_set_floating(&m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "type"))        { likely_set_type(&m->hash, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected type to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "parallel"))      likely_set_parallel(&m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "heterogeneous")) likely_set_heterogeneous(&m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "singleChannel")) likely_set_single_channel(&m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "singleColumn"))  likely_set_single_column(&m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "singleRow"))     likely_set_single_row(&m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "singleFrame"))   likely_set_single_frame(&m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "owner"))         likely_set_owner(&m->hash, lua_toboolean(L, 3));
+    else if (!strcmp(field, "reserved"))    { likely_set_reserved(&m->hash, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected reserved to be an integer, got: %s", lua_tostring(L, 3)); }
     else                                      likely_assert(false, "unrecognized field: %s", field);
     return 0;
 }
@@ -346,7 +346,7 @@ void likely_allocate(likely_mat m)
     uintptr_t o = (r + 2 + alignment) & ~(uintptr_t)alignment;
     ((uint16_t*)o)[-1] = (uint16_t)(o-r);
     m->data = (likely_data*)o;
-    likely_set_owner(m->hash, true);
+    likely_set_owner(&m->hash, true);
 }
 
 static int lua_likely_allocate(lua_State *L)
@@ -361,7 +361,7 @@ void likely_free(likely_mat m)
     if (!m || !likely_owner(m->hash) || !m->data) return;
     free((void*)((uintptr_t)m->data-((uint16_t*)m->data)[-1]));
     m->data = NULL;
-    likely_set_owner(m->hash, false);
+    likely_set_owner(&m->hash, false);
 }
 
 static int lua_likely_free(lua_State *L)
@@ -495,22 +495,22 @@ likely_hash likely_string_to_hash(const char *str)
     if ((str == NULL) || (len == 0))
         return h;
 
-    if (str[0] == 'f') likely_set_floating(h, true);
-    if (str[0] != 'u') likely_set_signed(h, true);
-    likely_set_depth(h, atoi(str+1));
+    if (str[0] == 'f') likely_set_floating(&h, true);
+    if (str[0] != 'u') likely_set_signed(&h, true);
+    likely_set_depth(&h, atoi(str+1));
 
     size_t startIndex = 1;
     while ((str[startIndex] >= '0') && (str[startIndex] <= '9'))
         startIndex++;
 
     for (size_t i=startIndex; i<len; i++) {
-        if (str[i] == 'P') likely_set_parallel(h, true);
-        if (str[i] == 'H') likely_set_heterogeneous(h, true);
-        if (str[i] == 'C') likely_set_single_channel(h, true);
-        if (str[i] == 'X') likely_set_single_column(h, true);
-        if (str[i] == 'Y') likely_set_single_row(h, true);
-        if (str[i] == 'T') likely_set_single_frame(h, true);
-        if (str[i] == 'O') likely_set_owner(h, true);
+        if (str[i] == 'P') likely_set_parallel(&h, true);
+        if (str[i] == 'H') likely_set_heterogeneous(&h, true);
+        if (str[i] == 'C') likely_set_single_channel(&h, true);
+        if (str[i] == 'X') likely_set_single_column(&h, true);
+        if (str[i] == 'Y') likely_set_single_row(&h, true);
+        if (str[i] == 'T') likely_set_single_frame(&h, true);
+        if (str[i] == 'O') likely_set_owner(&h, true);
     }
 
     return h;
@@ -935,7 +935,7 @@ public:
             vector<likely_mat> mats;
             for (likely_hash hash : hashes) {
                 likely_mat m = likely_new(hash);
-                likely_set_parallel(m->hash, false);
+                likely_set_parallel(&m->hash, false);
                 mats.push_back(m);
             }
 

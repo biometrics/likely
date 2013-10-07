@@ -123,7 +123,7 @@ void Test::testCorrectness(likely_unary_function f, const Mat &src, bool paralle
 {
     Mat dstOpenCV = computeBaseline(src);
     likely_mat srcLikely = fromCvMat(src, false);
-    likely_set_parallel(srcLikely->hash, parallel);
+    likely_set_parallel(&srcLikely->hash, parallel);
     likely_mat dstLikely = likely_new();
     f(srcLikely, dstLikely);
 
@@ -166,7 +166,7 @@ Test::Speed Test::testBaselineSpeed(const Mat &src) const
 Test::Speed Test::testLikelySpeed(likely_unary_function f, const Mat &src, bool parallel) const
 {
     likely_mat srcLikely = fromCvMat(src, false);
-    likely_set_parallel(srcLikely->hash, parallel);
+    likely_set_parallel(&srcLikely->hash, parallel);
 
     clock_t startTime, endTime;
     int iter = 0;

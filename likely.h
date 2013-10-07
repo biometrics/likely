@@ -98,29 +98,29 @@ typedef const likely_matrix *likely_const_mat;
 
 // Query and edit the hash
 LIKELY_EXPORT int  likely_depth(likely_hash hash);
-LIKELY_EXPORT void likely_set_depth(likely_hash &hash, int depth);
+LIKELY_EXPORT void likely_set_depth(likely_hash *hash, int depth);
 LIKELY_EXPORT bool likely_signed(likely_hash hash);
-LIKELY_EXPORT void likely_set_signed(likely_hash &hash, bool signed_);
+LIKELY_EXPORT void likely_set_signed(likely_hash *hash, bool signed_);
 LIKELY_EXPORT bool likely_floating(likely_hash hash);
-LIKELY_EXPORT void likely_set_floating(likely_hash &hash, bool floating);
+LIKELY_EXPORT void likely_set_floating(likely_hash *hash, bool floating);
 LIKELY_EXPORT int  likely_type(likely_hash hash);
-LIKELY_EXPORT void likely_set_type(likely_hash &hash, int type);
+LIKELY_EXPORT void likely_set_type(likely_hash *hash, int type);
 LIKELY_EXPORT bool likely_parallel(likely_hash hash);
-LIKELY_EXPORT void likely_set_parallel(likely_hash &hash, bool parallel);
+LIKELY_EXPORT void likely_set_parallel(likely_hash *hash, bool parallel);
 LIKELY_EXPORT bool likely_heterogeneous(likely_hash hash);
-LIKELY_EXPORT void likely_set_heterogeneous(likely_hash &hash, bool heterogeneous);
+LIKELY_EXPORT void likely_set_heterogeneous(likely_hash *hash, bool heterogeneous);
 LIKELY_EXPORT bool likely_single_channel(likely_hash hash);
-LIKELY_EXPORT void likely_set_single_channel(likely_hash &hash, bool single_channel);
+LIKELY_EXPORT void likely_set_single_channel(likely_hash *hash, bool single_channel);
 LIKELY_EXPORT bool likely_single_column(likely_hash hash);
-LIKELY_EXPORT void likely_set_single_column(likely_hash &hash, bool single_column);
+LIKELY_EXPORT void likely_set_single_column(likely_hash *hash, bool single_column);
 LIKELY_EXPORT bool likely_single_row(likely_hash hash);
-LIKELY_EXPORT void likely_set_single_row(likely_hash &hash, bool single_row);
+LIKELY_EXPORT void likely_set_single_row(likely_hash *hash, bool single_row);
 LIKELY_EXPORT bool likely_single_frame(likely_hash hash);
-LIKELY_EXPORT void likely_set_single_frame(likely_hash &hash, bool single_frame);
+LIKELY_EXPORT void likely_set_single_frame(likely_hash *hash, bool single_frame);
 LIKELY_EXPORT bool likely_owner(likely_hash hash);
-LIKELY_EXPORT void likely_set_owner(likely_hash &hash, bool owner);
+LIKELY_EXPORT void likely_set_owner(likely_hash *hash, bool owner);
 LIKELY_EXPORT int  likely_reserved(likely_hash hash);
-LIKELY_EXPORT void likely_set_reserved(likely_hash &hash, int reserved);
+LIKELY_EXPORT void likely_set_reserved(likely_hash *hash, int reserved);
 
 // Determine matrix size
 LIKELY_EXPORT likely_size likely_elements(likely_const_mat m);
