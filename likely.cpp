@@ -84,7 +84,7 @@ static int lua_likely__tostring(lua_State *L)
 {
     likely_assert(lua_gettop(L) == 1, "'__tostring' expected 1 argument, got: %d", lua_gettop(L));
     likely_const_mat m = checkLuaMat(L);
-    lua_pushfstring(L, "Likely %s 0x%p", likely_hash_to_string(m->hash), m);
+    lua_pushfstring(L, "Likely %dx%dx%dx%d %s %p", m->channels, m->columns, m->rows, m->frames, likely_hash_to_string(m->hash), m);
     return 1;
 }
 
