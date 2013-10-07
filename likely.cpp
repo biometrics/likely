@@ -195,8 +195,29 @@ void likely_set_owner(likely_hash &hash, bool owner) { likely_set_bool(hash, own
 int  likely_reserved(likely_hash hash) { return likely_get(hash, likely_hash_reserved); }
 void likely_set_reserved(likely_hash &hash, int reserved) { likely_set(hash, reserved, likely_hash_reserved); }
 
-likely_size likely_elements(likely_const_mat m) { return m->channels * m->columns * m->rows * m->frames; }
-likely_size likely_bytes(likely_const_mat m) { return uint64_t(likely_depth(m->hash)) * uint64_t(likely_elements(m)) / uint64_t(8); }
+likely_size likely_elements(likely_const_mat m)
+{
+    return m->channels * m->columns * m->rows * m->frames;
+}
+
+static int lua_likely_elements(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 1, "'elements' expected 1 argument, got: %d", lua_gettop(L));
+    lua_pushinteger(L, likely_elements(checkLuaMat(L)));
+    return 1;
+}
+
+likely_size likely_bytes(likely_const_mat m)
+{
+    return uint64_t(likely_depth(m->hash)) * uint64_t(likely_elements(m)) / uint64_t(8);
+}
+
+static int lua_likely_bytes(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 1, "'bytes' expected 1 argument, got: %d", lua_gettop(L));
+    lua_pushinteger(L, likely_bytes(checkLuaMat(L)));
+    return 1;
+}
 
 likely_mat likely_new(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, bool clone)
 {
@@ -1458,6 +1479,8 @@ int luaopen_likely(lua_State *L)
         {"__tostring", lua_likely__tostring},
         {"get", lua_likely_get},
         {"set", lua_likely_set},
+        {"elements", lua_likely_elements},
+        {"bytes", lua_likely_bytes},
         {"initialize", lua_likely_initialize},
         {"clone", lua_likely_clone},
         {"delete", lua_likely_delete},
