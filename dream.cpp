@@ -91,19 +91,14 @@ signals:
     void newError(QString); };
 ErrorHandler *ErrorHandler::errorHandler = NULL;
 
-class Function : public QTextEdit
+class Editor : public QTextEdit
   { Q_OBJECT
     QString sourceFileName;
     QSettings settings;
-    likely_mat input;
-    likely_function_1 function = NULL;
 public:
-    Function(QWidget *p = 0) : QTextEdit(p)
-      { input = likely_new();
-        connect(this, SIGNAL(textChanged()), this, SLOT(compile()));
-        connect(ErrorHandler::get(), SIGNAL(newError(QString)), this, SIGNAL(newInfo(QString)));
+    Editor(QWidget *p = 0) : QTextEdit(p)
+      { connect(ErrorHandler::get(), SIGNAL(newError(QString)), this, SIGNAL(newInfo(QString)));
         setText(settings.value("source").toString()); }
-    ~Function() { likely_delete(input); }
 public slots:
     void setSource(QAction *a)
       { if (a->text() == "Open...") {
@@ -121,47 +116,7 @@ public slots:
                 file.open(QFile::WriteOnly | QFile::Text);
                 file.write(toPlainText().toLocal8Bit());
                 file.close(); } } }
-
-    void setData(QAction *a)
-      { QString file;
-        if      (a->text() == "New...")  file = "";
-        else if (a->text() == "Open...") file = QFileDialog::getOpenFileName(NULL, "Open Data File");
-        else                             file = a->data().toString();
-        likely_delete(input);
-        if (file.isEmpty()) input = likely_new();
-        else                input = likely_read(qPrintable(file));
-        compile(); }
-
-private slots:
-    void compile()
-      { emit newInfo(QString());
-        const QString source = toPlainText();
-        settings.setValue("source", source);
-        function = (likely_function_1) likely_compile(qPrintable(source), 1, input);
-        if (!input->data)
-          { emit newMatrixView(QImage());
-            emit newHash(QString());
-            emit newDimensions(QString());
-            return; }
-        QImage outputImage;
-        if (function)
-          { likely_mat output = likely_new();
-            function(input, output);
-            outputImage = QImage(output->data, output->columns, output->rows, QImage::Format_RGB888);
-            likely_delete(output); }
-        else
-          { outputImage = QImage(input->data, input->columns, input->rows, QImage::Format_RGB888); }
-        emit newMatrixView(outputImage.copy());
-        emit newHash(likely_hash_to_string(input->hash));
-        emit newDimensions(QString("%1x%2x%3x%4")
-                           .arg(QString::number(input->channels),
-                                QString::number(input->rows),
-                                QString::number(input->columns),
-                                QString::number(input->frames))); }
 signals:
-    void newMatrixView(QImage);
-    void newHash(QString);
-    void newDimensions(QString);
     void newInfo(QString); };
 
 class StatusLabel : public QLabel
@@ -207,26 +162,9 @@ int main(int argc, char *argv[])
     sourceMenu->addAction(openSource);
     sourceMenu->addAction(saveSource);
     sourceMenu->addAction(saveSourceAs);
-    QMenu *dataMenu = new QMenu("Data");
-    QAction *clearData = new QAction("Clear", dataMenu);
-    QAction *openData = new QAction("Open...", dataMenu);
-    clearData->setShortcut(QKeySequence("Ctrl+C"));
-    openData->setShortcut(QKeySequence("Ctrl+D"));
-    dataMenu->addAction(clearData);
-    dataMenu->addAction(openData);
-    dataMenu->addSeparator();
-    foreach (const QString &fileName, QDir(":/img").entryList(QDir::Files, QDir::Name))
-      { const QString filePath = ":/img/"+fileName;
-        QAction *potentialFile = new QAction(QIcon(filePath), QFileInfo(filePath).baseName(), dataMenu);
-        potentialFile->setData(filePath);
-        potentialFile->setShortcut(QKeySequence("Ctrl+"+fileName.mid(0, 1)));
-        dataMenu->addAction(potentialFile); }
-    Function *function = new Function();
+    Editor *editor = new Editor();
     MatrixViewer *matrixViewer = new MatrixViewer();
-    QObject::connect(function, SIGNAL(newMatrixView(QImage)), matrixViewer, SLOT(setImage(QImage)));
-    QObject::connect(matrixViewer, SIGNAL(newMatrix(QAction*)), function, SLOT(setData(QAction*)));
-    QObject::connect(sourceMenu, SIGNAL(triggered(QAction*)), function, SLOT(setSource(QAction*)));
-    QObject::connect(dataMenu, SIGNAL(triggered(QAction*)), function, SLOT(setData(QAction*)));
+    QObject::connect(sourceMenu, SIGNAL(triggered(QAction*)), editor, SLOT(setSource(QAction*)));
     QMenu *viewMenu = new QMenu("View");
     QAction *zoomIn = new QAction("Zoom In", viewMenu);
     QAction *zoomOut = new QAction("Zoom Out", viewMenu);
@@ -238,14 +176,13 @@ int main(int argc, char *argv[])
     QObject::connect(zoomOut, SIGNAL(triggered()), matrixViewer, SLOT(zoomOut()));
     QMenuBar *menuBar = new QMenuBar();
     menuBar->addMenu(sourceMenu);
-    menuBar->addMenu(dataMenu);
     menuBar->addMenu(viewMenu);
     QGridLayout *centralWidgetLayout = new QGridLayout();
     QScrollArea *matrixViewerScrollArea = new QScrollArea();
     matrixViewerScrollArea->setAlignment(Qt::AlignCenter);
     matrixViewerScrollArea->setFrameShape(QFrame::NoFrame);
     matrixViewerScrollArea->setWidget(matrixViewer);
-    centralWidgetLayout->addWidget(function, 0, 0);
+    centralWidgetLayout->addWidget(editor, 0, 0);
     centralWidgetLayout->addWidget(matrixViewerScrollArea, 0, 1, 2, 1);
     QWidget *centralWidget = new QWidget();
     centralWidget->setLayout(centralWidgetLayout);
@@ -254,9 +191,7 @@ int main(int argc, char *argv[])
     StatusLabel *dimensions = new StatusLabel("dimensions");
     StatusLabel *position = new StatusLabel("position");
     StatusLabel *color = new StatusLabel("color");
-    QObject::connect(function, SIGNAL(newInfo(QString)), info, SLOT(setText(QString)));
-    QObject::connect(function, SIGNAL(newHash(QString)), hash, SLOT(setText(QString)));
-    QObject::connect(function, SIGNAL(newDimensions(QString)), dimensions, SLOT(setText(QString)));
+    QObject::connect(editor, SIGNAL(newInfo(QString)), info, SLOT(setText(QString)));
     QObject::connect(matrixViewer, SIGNAL(newPosition(QString)), position, SLOT(setText(QString)));
     QObject::connect(matrixViewer, SIGNAL(newColor(QString)), color, SLOT(setText(QString)));
     QStatusBar *statusBar = new QStatusBar();
