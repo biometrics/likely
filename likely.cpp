@@ -588,13 +588,6 @@ static lua_State *getLuaState()
     return L;
 }
 
-void likely_exec(const char *source)
-{
-    lua_State *L = getLuaState();
-    checkLua(L, luaL_dostring(L, source));
-    lua_close(L);
-}
-
 void likely_set_error_callback(likely_error_callback error_callback)
 {
     ErrorCallback = error_callback;

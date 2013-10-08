@@ -16,6 +16,7 @@
 
 #include <QtCore>
 #include <QtWidgets>
+#include <lua.hpp>
 #include "likely.h"
 
 class MatrixViewer : public QLabel
@@ -95,11 +96,20 @@ class Editor : public QTextEdit
   { Q_OBJECT
     QString sourceFileName;
     QSettings settings;
+    lua_State *L;
 public:
-    Editor(QWidget *p = 0) : QTextEdit(p)
+    Editor(QWidget *p = 0) : QTextEdit(p), L(NULL)
       { connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
         connect(ErrorHandler::get(), SIGNAL(newError(QString)), this, SIGNAL(newInfo(QString)));
         setText(settings.value("source").toString()); }
+    static lua_State *exec(const QString &source, bool *error)
+      { lua_State *L = luaL_newstate();
+        luaL_openlibs(L);
+        luaL_requiref(L, "likely", luaopen_likely, 1);
+        lua_pop(L, 1);
+        *error = luaL_dostring(L, likely_standard_library()) ||
+                 luaL_dostring(L, qPrintable(source));
+        return L; }
 public slots:
     void setSource(QAction *a)
       { if (a->text() == "Open...") {
@@ -118,9 +128,15 @@ public slots:
                 file.write(toPlainText().toLocal8Bit());
                 file.close(); } } }
     void exec()
-      { newInfo("");
+      { emit newInfo("");
+        if (L) lua_close(L);
         const QString source = toPlainText();
-        likely_exec(qPrintable(source));
+        bool error;
+        L = exec(source, &error);
+        if (error) {
+            emit newInfo(lua_tostring(L, -1));
+            lua_pop(L, 1);
+        }
         settings.setValue("source", source); }
 signals:
     void newInfo(QString); };
@@ -151,7 +167,8 @@ int main(int argc, char *argv[])
             if (source.startsWith("#!")) source = source.mid(source.indexOf('\n')+1); }
         else
             source = argv[i];
-        likely_exec(qPrintable(source));
+        bool error;
+        Editor::exec(source, &error);
     }
     if (argc > 1) return 0;
     QApplication::setApplicationName("Dream");
