@@ -150,16 +150,52 @@ signals:
 
 ErrorHandler *ErrorHandler::errorHandler = NULL;
 
+class SyntaxHighlighter : public QSyntaxHighlighter
+{
+    QRegularExpression keywords, variables;
+    QTextCharFormat keywordsFont, variablesFont, commentFont;
+
+public:
+    SyntaxHighlighter(QTextDocument *parent)
+        : QSyntaxHighlighter(parent)
+        , keywords("and|break|do|else|elseif|end|false|goto|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while")
+    {}
+
+    void updateDictionary(lua_State *L)
+    {
+        (void) L;
+    }
+
+private:
+    void highlightBlock(const QString &text)
+    {
+        QTextCharFormat myClassFormat;
+        myClassFormat.setFontWeight(QFont::Bold);
+        myClassFormat.setForeground(Qt::darkMagenta);
+        QString pattern = "\\bMy[A-Za-z]+\\b";
+
+        QRegExp expression(pattern);
+        int index = text.indexOf(expression);
+        while (index >= 0) {
+            int length = expression.matchedLength();
+            setFormat(index, length, myClassFormat);
+            index = text.indexOf(expression, index + length);
+        }
+    }
+};
+
 class Editor : public QTextEdit
 {
     Q_OBJECT
     QString sourceFileName;
     QSettings settings;
     lua_State *L;
+    SyntaxHighlighter *highlighter;
 
 public:
     Editor(QWidget *p = 0) : QTextEdit(p), L(NULL)
     {
+        highlighter = new SyntaxHighlighter(document());
         connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
         connect(ErrorHandler::get(), SIGNAL(newError(QString)), this, SIGNAL(newInfo(QString)));
         setText(settings.value("source").toString());
