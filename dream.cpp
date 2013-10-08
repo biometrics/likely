@@ -119,7 +119,9 @@ public slots:
                 file.close(); } } }
     void exec()
       { newInfo("");
-        likely_exec(toPlainText().toLocal8Bit().data()); }
+        const QString source = toPlainText();
+        likely_exec(qPrintable(source));
+        settings.setValue("source", source); }
 signals:
     void newInfo(QString); };
 
