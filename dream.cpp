@@ -20,115 +20,188 @@
 #include "likely.h"
 
 class MatrixViewer : public QLabel
-  { Q_OBJECT
+{
+    Q_OBJECT
     QImage src;
     int zoomLevel = 0;
+
 public:
     explicit MatrixViewer(QWidget *p = 0) : QLabel(p)
-      { setAcceptDrops(true);
+    {
+        setAcceptDrops(true);
         setAlignment(Qt::AlignCenter);
         setMouseTracking(true);
-        updatePixmap(); }
+        updatePixmap();
+    }
+
 public slots:
     void setImage(const QImage &i)             { src =  i;      updatePixmap(); }
     void zoomIn()  { if (++zoomLevel >  4) zoomLevel =  4; else updatePixmap(); }
     void zoomOut() { if (--zoomLevel < -4) zoomLevel = -4; else updatePixmap(); }
+
 private:
-    void dragEnterEvent(QDragEnterEvent *e) { e->accept(); if (e->mimeData()->hasUrls()) e->acceptProposedAction(); }
+    void dragEnterEvent(QDragEnterEvent *e)
+    {
+        e->accept();
+        if (e->mimeData()->hasUrls())
+            e->acceptProposedAction();
+    }
+
     void dropEvent(QDropEvent *e)
-      { e->accept(); e->acceptProposedAction();
+    {
+        e->accept();
+        e->acceptProposedAction();
         const QMimeData *md = e->mimeData();
-        if (md->hasUrls())
-          { foreach (const QUrl &url, md->urls())
-              { if (!url.isValid()) continue;
+        if (md->hasUrls()) {
+            foreach (const QUrl &url, md->urls()) {
+                if (!url.isValid()) continue;
                 const QString file = url.toLocalFile();
                 if (file.isNull()) continue;
                 QAction *action = new QAction(this);
                 action->setData(file);
                 emit newMatrix(action);
-                break; } } }
-    void leaveEvent(QEvent *e) { e->accept(); queryPoint(QPoint(-1, -1)); }
-    void mouseMoveEvent(QMouseEvent *e) { e->accept(); queryPoint(e->pos() / pow(2, zoomLevel)); }
+                break;
+            }
+        }
+    }
+
+    void leaveEvent(QEvent *e)
+    {
+        e->accept();
+        queryPoint(QPoint(-1, -1));
+    }
+
+    void mouseMoveEvent(QMouseEvent *e)
+    {
+        e->accept();
+        queryPoint(e->pos() / pow(2, zoomLevel));
+    }
+
     void updatePixmap()
-      { if (src.isNull())
-          { clear();
+    {
+        if (src.isNull()) {
+            clear();
             setText("<b>Drag and Drop Image Here</b>");
             resize(512, 512);
             queryPoint(QPoint(-1, -1));
-            setFrameShape(QFrame::StyledPanel); }
-        else
-          { const QSize newSize = src.size() * pow(2, zoomLevel);
+            setFrameShape(QFrame::StyledPanel);
+        } else { const QSize newSize = src.size() * pow(2, zoomLevel);
             setPixmap(QPixmap::fromImage(src.scaled(newSize, Qt::KeepAspectRatio)));
             resize(newSize);
             queryPoint(mapFromGlobal(QCursor::pos()) / pow(2, zoomLevel));
-            setFrameShape(QFrame::NoFrame); } }
+            setFrameShape(QFrame::NoFrame);
+        }
+    }
+
     void queryPoint(const QPoint &p)
-      { if (src.rect().contains(p))
-          { const QRgb pixel = src.pixel(p);
+    {
+        if (src.rect().contains(p)) {
+            const QRgb pixel = src.pixel(p);
             emit newPosition(QString("%1,%2")
                              .arg(QString::number(p.x()),
                                   QString::number(p.y())));
             emit newColor(QString("<font color=\"red\">%1</font>,<font color=\"green\">%2</font>,<font color=\"blue\">%3</font>")
                           .arg(QString::number(qRed(pixel)),
                                QString::number(qGreen(pixel)),
-                               QString::number(qBlue(pixel)))); }
-        else
-          { emit newPosition("");
-            emit newColor(""); } }
+                               QString::number(qBlue(pixel))));
+        } else {
+            emit newPosition("");
+            emit newColor("");
+        }
+    }
+
 signals:
     void newMatrix(QAction*);
     void newPosition(QString);
-    void newColor(QString); };
+    void newColor(QString);
+};
 
 class ErrorHandler : public QObject
-  { Q_OBJECT
+{
+    Q_OBJECT
     static ErrorHandler *errorHandler;
-    ErrorHandler() : QObject(NULL) { likely_set_error_callback(likely_error_handler); }
-    void setError(const QString &error) { emit newError("<font color=\"red\">"+error+"</font>"); }
-    static void likely_error_handler(const char *error) { get()->setError(error); }
+
+    ErrorHandler() : QObject(NULL)
+    {
+        likely_set_error_callback(likely_error_handler);
+    }
+
+    void setError(const QString &error)
+    {
+        emit newError("<font color=\"red\">"+error+"</font>");
+    }
+
+    static void likely_error_handler(const char *error)
+    {
+        get()->setError(error);
+    }
+
 public:
-    static ErrorHandler *get() { if (!errorHandler) errorHandler = new ErrorHandler(); return errorHandler; }
+    static ErrorHandler *get()
+    {
+        if (!errorHandler)
+            errorHandler = new ErrorHandler();
+        return errorHandler;
+    }
+
 signals:
-    void newError(QString); };
+    void newError(QString);
+};
+
 ErrorHandler *ErrorHandler::errorHandler = NULL;
 
 class Editor : public QTextEdit
-  { Q_OBJECT
+{
+    Q_OBJECT
     QString sourceFileName;
     QSettings settings;
     lua_State *L;
+
 public:
     Editor(QWidget *p = 0) : QTextEdit(p), L(NULL)
-      { connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
+    {
+        connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
         connect(ErrorHandler::get(), SIGNAL(newError(QString)), this, SIGNAL(newInfo(QString)));
-        setText(settings.value("source").toString()); }
+        setText(settings.value("source").toString());
+    }
+
     static lua_State *exec(const QString &source, bool *error)
-      { lua_State *L = luaL_newstate();
+    {
+        lua_State *L = luaL_newstate();
         luaL_openlibs(L);
         luaL_requiref(L, "likely", luaopen_likely, 1);
         lua_pop(L, 1);
         *error = luaL_dostring(L, likely_standard_library()) ||
                  luaL_dostring(L, qPrintable(source));
-        return L; }
+        return L;
+    }
+
 public slots:
     void setSource(QAction *a)
-      { if (a->text() == "Open...") {
+    {
+        if (a->text() == "Open...") {
             sourceFileName = QFileDialog::getOpenFileName(NULL, "Open Source File");
-            if (!sourceFileName.isEmpty())
-              { QFile file(sourceFileName);
+            if (!sourceFileName.isEmpty()) {
+                QFile file(sourceFileName);
                 file.open(QFile::ReadOnly | QFile::Text);
                 setText(QString::fromLocal8Bit(file.readAll()));
-                file.close(); } }
-        else
-          { if (sourceFileName.isEmpty() || (a->text() == "Save As..."))
+                file.close();
+            }
+        } else {
+            if (sourceFileName.isEmpty() || (a->text() == "Save As..."))
                 sourceFileName = QFileDialog::getSaveFileName(NULL, "Save Source File");
-            if (!sourceFileName.isEmpty())
-              { QFile file(sourceFileName);
+            if (!sourceFileName.isEmpty()) {
+                QFile file(sourceFileName);
                 file.open(QFile::WriteOnly | QFile::Text);
                 file.write(toPlainText().toLocal8Bit());
-                file.close(); } } }
+                file.close();
+            }
+        }
+    }
+
     void exec()
-      { emit newInfo("");
+    {
+        emit newInfo("");
         if (L) lua_close(L);
         const QString source = toPlainText();
         bool error;
@@ -137,44 +210,77 @@ public slots:
             emit newInfo(lua_tostring(L, -1));
             lua_pop(L, 1);
         }
-        settings.setValue("source", source); }
+        settings.setValue("source", source);
+    }
+
 signals:
-    void newInfo(QString); };
+    void newInfo(QString);
+};
 
 class StatusLabel : public QLabel
-  { Q_OBJECT
+{
+    Q_OBJECT
     QString description;
+
 public:
     StatusLabel(const QString &description_) : description(description_)
-      { setToolTip(description);
-        setDescription(); }
+    {
+        setToolTip(description);
+        setDescription();
+    }
+
 public slots:
     void setText(const QString &text)
-      { if (text.isEmpty()) setDescription();
-        else { setEnabled(true); QLabel::setText(text); } }
+    {
+        if (text.isEmpty()) {
+            setDescription();
+        } else {
+            setEnabled(true);
+            QLabel::setText(text);
+        }
+    }
+
 private:
-    void setDescription() { setEnabled(false); QLabel::setText(description); }
-    void resizeEvent(QResizeEvent *e) { e->accept(); setMinimumWidth(width()); } };
+    void setDescription()
+    {
+        setEnabled(false);
+        QLabel::setText(description);
+    }
+
+    void resizeEvent(QResizeEvent *e)
+    {
+        e->accept();
+        setMinimumWidth(width());
+    }
+};
 
 int main(int argc, char *argv[])
-  { for (int i=1; i<argc; i++)
-      { QString source;
-        if (QFileInfo(argv[i]).exists())
-          { QFile file(argv[i]);
+{
+    for (int i=1; i<argc; i++) {
+        QString source;
+        if (QFileInfo(argv[i]).exists()) {
+            QFile file(argv[i]);
             file.open(QFile::ReadOnly | QFile::Text);
             source = file.readAll();
             file.close();
-            if (source.startsWith("#!")) source = source.mid(source.indexOf('\n')+1); }
-        else
+            if (source.startsWith("#!"))
+                source = source.mid(source.indexOf('\n')+1);
+        } else {
             source = argv[i];
+        }
+
         bool error;
-        Editor::exec(source, &error);
+        lua_close(Editor::exec(source, &error));
     }
-    if (argc > 1) return 0;
+
+    if (argc > 1)
+        return 0;
+
     QApplication::setApplicationName("Dream");
     QApplication::setOrganizationName("Likely");
     QApplication::setOrganizationDomain("liblikely.org");
     QApplication application(argc, argv);
+
     QMenu *sourceMenu = new QMenu("Source");
     QAction *openSource = new QAction("Open...", sourceMenu);
     QAction *saveSource = new QAction("Save", sourceMenu);
@@ -185,9 +291,12 @@ int main(int argc, char *argv[])
     sourceMenu->addAction(openSource);
     sourceMenu->addAction(saveSource);
     sourceMenu->addAction(saveSourceAs);
+
     Editor *editor = new Editor();
-    MatrixViewer *matrixViewer = new MatrixViewer();
     QObject::connect(sourceMenu, SIGNAL(triggered(QAction*)), editor, SLOT(setSource(QAction*)));
+
+    MatrixViewer *matrixViewer = new MatrixViewer();
+
     QMenu *viewMenu = new QMenu("View");
     QAction *zoomIn = new QAction("Zoom In", viewMenu);
     QAction *zoomOut = new QAction("Zoom Out", viewMenu);
@@ -197,9 +306,11 @@ int main(int argc, char *argv[])
     viewMenu->addAction(zoomOut);
     QObject::connect(zoomIn, SIGNAL(triggered()), matrixViewer, SLOT(zoomIn()));
     QObject::connect(zoomOut, SIGNAL(triggered()), matrixViewer, SLOT(zoomOut()));
+
     QMenuBar *menuBar = new QMenuBar();
     menuBar->addMenu(sourceMenu);
     menuBar->addMenu(viewMenu);
+
     QGridLayout *centralWidgetLayout = new QGridLayout();
     QScrollArea *matrixViewerScrollArea = new QScrollArea();
     matrixViewerScrollArea->setAlignment(Qt::AlignCenter);
@@ -209,6 +320,7 @@ int main(int argc, char *argv[])
     centralWidgetLayout->addWidget(matrixViewerScrollArea, 0, 1, 2, 1);
     QWidget *centralWidget = new QWidget();
     centralWidget->setLayout(centralWidgetLayout);
+
     StatusLabel *info = new StatusLabel("info");
     StatusLabel *hash = new StatusLabel("hash");
     StatusLabel *dimensions = new StatusLabel("dimensions");
@@ -224,6 +336,7 @@ int main(int argc, char *argv[])
     statusBar->addPermanentWidget(dimensions);
     statusBar->addPermanentWidget(position);
     statusBar->addPermanentWidget(color);
+
     QMainWindow mainWindow;
     mainWindow.setCentralWidget(centralWidget);
     mainWindow.setMenuBar(menuBar);
@@ -231,6 +344,8 @@ int main(int argc, char *argv[])
     mainWindow.setWindowTitle("Likely Dream");
     mainWindow.resize(800,600);
     mainWindow.show();
-    return application.exec(); }
+
+    return application.exec();
+}
 
 #include "dream.moc"
