@@ -158,8 +158,17 @@ class SyntaxHighlighter : public QSyntaxHighlighter
 public:
     SyntaxHighlighter(QTextDocument *parent)
         : QSyntaxHighlighter(parent)
-        , keywords("and|break|do|else|elseif|end|false|goto|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while")
-    {}
+    {
+        keywords.setPattern("\\W(and|break|do|else|elseif|"
+                            "end|false|goto|for|function|"
+                            "if|in|local|nil|not|"
+                            "or|repeat|return|then|true|"
+                            "until|while)\\W");
+        keywordsFont.setForeground(Qt::darkYellow);
+        variablesFont.setFontWeight(QFont::Bold);
+        variablesFont.setForeground(Qt::darkMagenta);
+        commentFont.setForeground(Qt::darkGreen);
+    }
 
     void updateDictionary(lua_State *L)
     {
@@ -169,17 +178,13 @@ public:
 private:
     void highlightBlock(const QString &text)
     {
-        QTextCharFormat myClassFormat;
-        myClassFormat.setFontWeight(QFont::Bold);
-        myClassFormat.setForeground(Qt::darkMagenta);
-        QString pattern = "\\bMy[A-Za-z]+\\b";
-
-        QRegExp expression(pattern);
-        int index = text.indexOf(expression);
+        QRegularExpressionMatch keywordsMatch = keywords.match(text);
+        int index = keywordsMatch.capturedStart();
         while (index >= 0) {
-            int length = expression.matchedLength();
-            setFormat(index, length, myClassFormat);
-            index = text.indexOf(expression, index + length);
+            const int length = keywordsMatch.capturedLength();
+            setFormat(index, keywordsMatch.capturedLength(), keywordsFont);
+            keywordsMatch = keywords.match(text, index + length);
+            index = keywordsMatch.capturedStart();
         }
     }
 };
