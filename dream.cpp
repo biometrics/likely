@@ -152,8 +152,8 @@ ErrorHandler *ErrorHandler::errorHandler = NULL;
 
 class SyntaxHighlighter : public QSyntaxHighlighter
 {
-    QRegularExpression keywords, variables;
-    QTextCharFormat keywordsFont, variablesFont, commentFont;
+    QRegularExpression keywords, variables, comments;
+    QTextCharFormat keywordsFont, variablesFont, commentsFont;
 
 public:
     SyntaxHighlighter(QTextDocument *parent)
@@ -164,27 +164,45 @@ public:
                             "if|in|local|nil|not|"
                             "or|repeat|return|then|true|"
                             "until|while)\\W");
+        comments.setPattern("--\\N*");
         keywordsFont.setForeground(Qt::darkYellow);
         variablesFont.setFontWeight(QFont::Bold);
         variablesFont.setForeground(Qt::darkMagenta);
-        commentFont.setForeground(Qt::darkGreen);
+        commentsFont.setForeground(Qt::darkGray);
     }
 
     void updateDictionary(lua_State *L)
     {
-        (void) L;
+        QStringList globals;
+        lua_getglobal(L, "_G");
+        lua_pushnil(L);
+        while (lua_next(L, -2)) {
+            globals.append(lua_tostring(L, -2));
+            lua_pop(L, 1);
+        }
+        lua_pop(L, 1);
+        variables.setPattern("\\W(" + globals.join('|') + ")\\W");
     }
 
 private:
     void highlightBlock(const QString &text)
     {
-        QRegularExpressionMatch keywordsMatch = keywords.match(text);
-        int index = keywordsMatch.capturedStart();
+        highlightHelp(text, keywords, keywordsFont);
+        highlightHelp(text, variables, variablesFont);
+        highlightHelp(text, comments, commentsFont);
+    }
+
+    void highlightHelp(const QString &text, const QRegularExpression &re, const QTextCharFormat &font)
+    {
+        if (re.pattern().isEmpty())
+            return;
+        QRegularExpressionMatch match = re.match(text);
+        int index = match.capturedStart();
         while (index >= 0) {
-            const int length = keywordsMatch.capturedLength();
-            setFormat(index, keywordsMatch.capturedLength(), keywordsFont);
-            keywordsMatch = keywords.match(text, index + length);
-            index = keywordsMatch.capturedStart();
+            const int length = match.capturedLength();
+            setFormat(index, match.capturedLength(), font);
+            match = re.match(text, index + length);
+            index = match.capturedStart();
         }
     }
 };
@@ -252,6 +270,7 @@ public slots:
             lua_pop(L, 1);
         }
         settings.setValue("source", source);
+        highlighter->updateDictionary(L);
     }
 
 signals:
