@@ -1,3 +1,8 @@
+-- Shorthand for Likely global functions
+new = likely.new
+read = likely.read
+compile = likely.compile
+
 -- Basic arithmetic
 function add(b) return "src", b, "+" end
 function subtract(b) return "src", b, "-" end

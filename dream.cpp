@@ -159,12 +159,12 @@ public:
     SyntaxHighlighter(QTextDocument *parent)
         : QSyntaxHighlighter(parent)
     {
-        keywords.setPattern("\\W(and|break|do|else|elseif|"
+        keywords.setPattern("\\b(?:and|break|do|else|elseif|"
                             "end|false|goto|for|function|"
                             "if|in|local|nil|not|"
                             "or|repeat|return|then|true|"
-                            "until|while)\\W");
-        comments.setPattern("--\\N*");
+                            "until|while)\\b");
+        comments.setPattern("(?:--\\N*|\"[^\"]*+\")");
         keywordsFont.setForeground(Qt::darkYellow);
         variablesFont.setFontWeight(QFont::Bold);
         variablesFont.setForeground(Qt::darkMagenta);
@@ -181,7 +181,7 @@ public:
             lua_pop(L, 1);
         }
         lua_pop(L, 1);
-        variables.setPattern("\\W(" + globals.join('|') + ")\\W");
+        variables.setPattern("\\b(?:" + globals.join('|') + ")\\b");
     }
 
 private:
