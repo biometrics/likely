@@ -152,23 +152,28 @@ ErrorHandler *ErrorHandler::errorHandler = NULL;
 
 class SyntaxHighlighter : public QSyntaxHighlighter
 {
-    QRegularExpression keywords, variables, comments;
-    QTextCharFormat keywordsFont, variablesFont, commentsFont;
+    QRegularExpression comments, keywords, numbers, strings, variables;
+    QTextCharFormat commentsFont, keywordsFont, numbersFont, stringsFont, variablesFont;
 
 public:
     SyntaxHighlighter(QTextDocument *parent)
         : QSyntaxHighlighter(parent)
     {
+        comments.setPattern("--\\N*");
         keywords.setPattern("\\b(?:and|break|do|else|elseif|"
                             "end|false|goto|for|function|"
                             "if|in|local|nil|not|"
                             "or|repeat|return|then|true|"
                             "until|while)\\b");
-        comments.setPattern("(?:--\\N*|\"[^\"]*+\")");
+        numbers.setPattern("(?:0x[\\da-fA-F]*\\.?[\\da-fA-F]+(?:[pP]-?\\d+)?|-?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?)");
+        strings.setPattern("\"[^\"]*+\"");
+        commentsFont.setForeground(Qt::darkGray);
         keywordsFont.setForeground(Qt::darkYellow);
+        numbersFont.setFontWeight(QFont::Bold);
+        numbersFont.setForeground(Qt::blue);
+        stringsFont.setForeground(Qt::darkGreen);
         variablesFont.setFontWeight(QFont::Bold);
         variablesFont.setForeground(Qt::darkMagenta);
-        commentsFont.setForeground(Qt::darkGray);
     }
 
     void updateDictionary(lua_State *L)
@@ -182,13 +187,16 @@ public:
         }
         lua_pop(L, 1);
         variables.setPattern("\\b(?:" + globals.join('|') + ")\\b");
+        rehighlight();
     }
 
 private:
     void highlightBlock(const QString &text)
     {
         highlightHelp(text, keywords, keywordsFont);
+        highlightHelp(text, numbers, numbersFont);
         highlightHelp(text, variables, variablesFont);
+        highlightHelp(text, strings, stringsFont);
         highlightHelp(text, comments, commentsFont);
     }
 
@@ -210,7 +218,7 @@ private:
 class Editor : public QTextEdit
 {
     Q_OBJECT
-    QString sourceFileName;
+    QString sourceFileName, previousSource;
     QSettings settings;
     lua_State *L;
     SyntaxHighlighter *highlighter;
@@ -221,6 +229,7 @@ public:
         highlighter = new SyntaxHighlighter(document());
         connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
         connect(ErrorHandler::get(), SIGNAL(newError(QString)), this, SIGNAL(newInfo(QString)));
+        setAcceptRichText(false);
         setText(settings.value("source").toString());
     }
 
@@ -260,9 +269,13 @@ public slots:
 
     void exec()
     {
+        // This check needed because syntax highlighting triggers a textChanged() signal
+        const QString source = toPlainText();
+        if (source == previousSource) return;
+        else previousSource = source;
+
         emit newInfo("");
         if (L) lua_close(L);
-        const QString source = toPlainText();
         bool error;
         L = exec(source, &error);
         if (error) {
