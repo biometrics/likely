@@ -154,6 +154,7 @@ class SyntaxHighlighter : public QSyntaxHighlighter
 {
     QRegularExpression comments, keywords, numbers, strings, variables;
     QTextCharFormat commentsFont, keywordsFont, numbersFont, stringsFont, variablesFont;
+    QStringList excludedVariables; // Lua internals
 
 public:
     SyntaxHighlighter(QTextDocument *parent)
@@ -170,23 +171,19 @@ public:
         commentsFont.setForeground(Qt::darkGray);
         keywordsFont.setForeground(Qt::darkYellow);
         numbersFont.setFontWeight(QFont::Bold);
-        numbersFont.setForeground(Qt::blue);
+        numbersFont.setForeground(Qt::darkBlue);
         stringsFont.setForeground(Qt::darkGreen);
         variablesFont.setFontWeight(QFont::Bold);
-        variablesFont.setForeground(Qt::darkMagenta);
+
+        lua_State *L = luaL_newstate();
+        luaL_openlibs(L);
+        excludedVariables = getGlobals(L, QStringList());
+        lua_close(L);
     }
 
     void updateDictionary(lua_State *L)
     {
-        QStringList globals;
-        lua_getglobal(L, "_G");
-        lua_pushnil(L);
-        while (lua_next(L, -2)) {
-            globals.append(lua_tostring(L, -2));
-            lua_pop(L, 1);
-        }
-        lua_pop(L, 1);
-        variables.setPattern("\\b(?:" + globals.join('|') + ")\\b");
+        variables.setPattern("\\b(?:" + getGlobals(L, excludedVariables).join('|') + ")\\b");
         rehighlight();
     }
 
@@ -212,6 +209,21 @@ private:
             match = re.match(text, index + length);
             index = match.capturedStart();
         }
+    }
+
+    static QStringList getGlobals(lua_State *L, const QStringList &exclude)
+    {
+        QStringList globals;
+        lua_getglobal(L, "_G");
+        lua_pushnil(L);
+        while (lua_next(L, -2)) {
+            const QString global = lua_tostring(L, -2);
+            if (!exclude.contains(global))
+                globals.append(global);
+            lua_pop(L, 1);
+        }
+        lua_pop(L, 1);
+        return globals;
     }
 };
 
