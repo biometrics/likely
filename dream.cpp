@@ -298,6 +298,15 @@ public slots:
         highlighter->updateDictionary(L);
     }
 
+private:
+    void mousePressEvent(QMouseEvent *e)
+    {
+        QTextEdit::mousePressEvent(e);
+        QTextCursor tc = textCursor();
+        tc.select(QTextCursor::WordUnderCursor);
+        const QString clickedWord = tc.selectedText();
+    }
+
 signals:
     void newInfo(QString);
 };
