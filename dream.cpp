@@ -145,16 +145,8 @@ public:
     Source(QWidget *p = 0) : QTextEdit(p), L(NULL)
     {
         highlighter = new SyntaxHighlighter(document());
-        connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
         setAcceptRichText(false);
-        QString source = settings.value("source").toString();
-        if (source.isEmpty())
-            source = "-- Control-click bold source code to interact\n"
-                     "lenna = read(\"img/Lenna.tiff\")\n\n"
-                     "-- Console output appears below\n"
-                     "print(\"Width:\" .. lenna.columns)\n"
-                     "print(\"Height:\" .. lenna.rows)\n";
-        setText(source);
+        connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
     }
 
     static lua_State *exec(const QString &source, bool *error)
@@ -169,6 +161,18 @@ public:
     }
 
 public slots:
+    void setDefaultSource()
+    {
+        QString source = settings.value("source").toString();
+        if (source.isEmpty())
+            source = "-- Source code is compiled as you type\n"
+                     "lenna = read(\"img/Lenna.tiff\")\n\n"
+                     "-- Console output appears below\n"
+                     "print(\"Width: \" .. lenna.columns)\n"
+                     "print(\"Height: \" .. lenna.rows)\n";
+        setText(source);
+    }
+
     void setSource(QAction *a)
     {
         if (a->text() == "Open...") {
@@ -235,6 +239,23 @@ public:
     }
 };
 
+class Documentation : public QWidget
+{
+    Q_OBJECT
+    QVBoxLayout *layout;
+    QLabel *introduction;
+
+public:
+    Documentation(QWidget *parent = 0)
+        : QWidget(parent)
+    {
+        layout = new QVBoxLayout(this);
+        introduction = new QLabel("<b>Ctrl-click bold source code to display information.</b>");
+        layout->addWidget(introduction);
+        setLayout(layout);
+    }
+};
+
 int main(int argc, char *argv[])
 {
     for (int i=1; i<argc; i++) {
@@ -275,9 +296,11 @@ int main(int argc, char *argv[])
 
     Source *source = new Source();
     Console *console = new Console();
+    Documentation *documentation = new Documentation();
     QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(setSource(QAction*)));
     QObject::connect(source, SIGNAL(recompiling()), console, SLOT(clear()));
     QObject::connect(Messenger::get(), SIGNAL(newMessage(QString)), console, SLOT(append(QString)));
+    source->setDefaultSource();
 
     QMenuBar *menuBar = new QMenuBar();
     menuBar->addMenu(fileMenu);
@@ -285,6 +308,7 @@ int main(int argc, char *argv[])
     QGridLayout *centralWidgetLayout = new QGridLayout();
     centralWidgetLayout->addWidget(source, 0, 0);
     centralWidgetLayout->addWidget(console, 1, 0);
+    centralWidgetLayout->addWidget(documentation, 0, 1, 2, 1);
     centralWidgetLayout->setRowStretch(0, 4);
     centralWidgetLayout->setRowStretch(1, 1);
     QWidget *centralWidget = new QWidget();
