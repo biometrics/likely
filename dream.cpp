@@ -20,39 +20,41 @@
 
 #include "likely.h"
 
-class ErrorHandler : public QObject
+class Messenger : public QObject
 {
     Q_OBJECT
-    static ErrorHandler *errorHandler;
+    static Messenger *singleton;
 
-    ErrorHandler() : QObject(NULL)
+    Messenger() : QObject(0)
     {
-        likely_set_error_callback(likely_error_handler);
+        likely_set_message_callback(Messenger::send);
     }
 
-    void setError(const QString &error)
+    void sendMessage(QString message, bool error)
     {
-        emit newError("<font color=\"red\">"+error+"</font>");
-    }
-
-    static void likely_error_handler(const char *error)
-    {
-        get()->setError(error);
+        if (error)
+            message = "<font color=\"red\">"+message+"</font>";
+        emit newMessage(message);
     }
 
 public:
-    static ErrorHandler *get()
+    static Messenger *get()
     {
-        if (!errorHandler)
-            errorHandler = new ErrorHandler();
-        return errorHandler;
+        if (!singleton)
+            singleton = new Messenger();
+        return singleton;
+    }
+
+    static void send(const char *message, bool error)
+    {
+        get()->sendMessage(message, error);
     }
 
 signals:
-    void newError(QString);
+    void newMessage(QString);
 };
 
-ErrorHandler *ErrorHandler::errorHandler = NULL;
+Messenger *Messenger::singleton = NULL;
 
 class SyntaxHighlighter : public QSyntaxHighlighter
 {
@@ -131,7 +133,7 @@ private:
     }
 };
 
-class Editor : public QTextEdit
+class Source : public QTextEdit
 {
     Q_OBJECT
     QString sourceFileName, previousSource;
@@ -140,13 +142,19 @@ class Editor : public QTextEdit
     SyntaxHighlighter *highlighter;
 
 public:
-    Editor(QWidget *p = 0) : QTextEdit(p), L(NULL)
+    Source(QWidget *p = 0) : QTextEdit(p), L(NULL)
     {
         highlighter = new SyntaxHighlighter(document());
         connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
-        connect(ErrorHandler::get(), SIGNAL(newError(QString)), this, SIGNAL(newInfo(QString)));
         setAcceptRichText(false);
-        setText(settings.value("source").toString());
+        QString source = settings.value("source").toString();
+        if (source.isEmpty())
+            source = "-- Control-click bold source code to interact\n"
+                     "lenna = read(\"img/Lenna.tiff\")\n\n"
+                     "-- Console output appears below\n"
+                     "print(\"Width:\" .. lenna.columns)\n"
+                     "print(\"Height:\" .. lenna.rows)\n";
+        setText(source);
     }
 
     static lua_State *exec(const QString &source, bool *error)
@@ -190,12 +198,12 @@ public slots:
         if (source == previousSource) return;
         else previousSource = source;
 
-        emit newInfo("");
+        emit recompiling();
         if (L) lua_close(L);
         bool error;
         L = exec(source, &error);
         if (error) {
-            emit newInfo(lua_tostring(L, -1));
+            Messenger::send(lua_tostring(L, -1), true);
             lua_pop(L, 1);
         }
         settings.setValue("source", source);
@@ -212,7 +220,19 @@ private:
     }
 
 signals:
-    void newInfo(QString);
+    void recompiling();
+};
+
+class Console : public QTextEdit
+{
+    Q_OBJECT
+
+public:
+    Console(QWidget *parent = 0)
+        : QTextEdit(parent)
+    {
+        setReadOnly(true);
+    }
 };
 
 int main(int argc, char *argv[])
@@ -231,7 +251,7 @@ int main(int argc, char *argv[])
         }
 
         bool error;
-        lua_close(Editor::exec(source, &error));
+        lua_close(Source::exec(source, &error));
     }
 
     if (argc > 1)
@@ -253,14 +273,20 @@ int main(int argc, char *argv[])
     fileMenu->addAction(saveSource);
     fileMenu->addAction(saveSourceAs);
 
-    Editor *editor = new Editor();
-    QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), editor, SLOT(setSource(QAction*)));
+    Source *source = new Source();
+    Console *console = new Console();
+    QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(setSource(QAction*)));
+    QObject::connect(source, SIGNAL(recompiling()), console, SLOT(clear()));
+    QObject::connect(Messenger::get(), SIGNAL(newMessage(QString)), console, SLOT(append(QString)));
 
     QMenuBar *menuBar = new QMenuBar();
     menuBar->addMenu(fileMenu);
 
     QGridLayout *centralWidgetLayout = new QGridLayout();
-    centralWidgetLayout->addWidget(editor, 0, 0);
+    centralWidgetLayout->addWidget(source, 0, 0);
+    centralWidgetLayout->addWidget(console, 1, 0);
+    centralWidgetLayout->setRowStretch(0, 4);
+    centralWidgetLayout->setRowStretch(1, 1);
     QWidget *centralWidget = new QWidget();
     centralWidget->setLayout(centralWidgetLayout);
 

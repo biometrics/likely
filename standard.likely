@@ -2,6 +2,7 @@
 new = likely.new
 read = likely.read
 compile = likely.compile
+print = likely.print
 
 -- Basic arithmetic
 function add(b) return "src", b, "+" end

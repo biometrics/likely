@@ -53,7 +53,7 @@ using namespace std;
 static Module *TheModule = NULL;
 static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
-static likely_error_callback ErrorCallback = NULL;
+static likely_message_callback MessageCallback = NULL;
 
 static void checkLua(lua_State *L, int error = true)
 {
@@ -86,6 +86,20 @@ static int lua_likely__tostring(lua_State *L)
     likely_const_mat m = checkLuaMat(L);
     lua_pushfstring(L, "Likely %dx%dx%dx%d %s %p", m->channels, m->columns, m->rows, m->frames, likely_hash_to_string(m->hash), m);
     return 1;
+}
+
+static int lua_likely_print(lua_State *L)
+{
+    const int argc = lua_gettop(L);
+    stringstream stream;
+    for (int i=1; i<=argc; i++) {
+        if (i > 1) stream << "\t";
+        stream << lua_tostring(L, i);
+    }
+
+    if (MessageCallback) MessageCallback(stream.str().c_str(), false);
+    else                 printf("%s\n", stream.str().c_str());
+    return 0;
 }
 
 static inline int likely_get(likely_hash hash, likely_hash_field mask) { return hash & mask; }
@@ -562,8 +576,8 @@ bool likely_assert(bool condition, const char *format, ...)
     va_start(ap, format);
     vsnprintf(buffer, bufferSize, format, ap);
 
-    if (ErrorCallback) {
-        ErrorCallback(buffer);
+    if (MessageCallback) {
+        MessageCallback(buffer, true);
     } else {
         fprintf(stderr, "LIKELY ERROR - %s.\n", buffer);
         abort();
@@ -588,9 +602,9 @@ static lua_State *getLuaState()
     return L;
 }
 
-void likely_set_error_callback(likely_error_callback error_callback)
+void likely_set_message_callback(likely_message_callback message_callback)
 {
-    ErrorCallback = error_callback;
+    MessageCallback = message_callback;
 }
 
 namespace likely
@@ -1512,6 +1526,7 @@ int luaopen_likely(lua_State *L)
         {"new", lua_likely_new},
         {"read", lua_likely_read},
         {"compile", lua_likely_compile},
+        {"print", lua_likely_print},
         {NULL, NULL}
     };
 

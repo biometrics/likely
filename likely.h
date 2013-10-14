@@ -152,8 +152,8 @@ LIKELY_EXPORT bool likely_assert(bool condition, const char *format, ...); // Re
 LIKELY_EXPORT void likely_dump(); // Print LLVM module contents to stderr
 
 // If set, likely_assert will call this function instead of aborting on an error
-typedef void (*likely_error_callback)(const char *error_message);
-LIKELY_EXPORT void likely_set_error_callback(likely_error_callback error_callback = NULL);
+typedef void (*likely_message_callback)(const char *message, bool error);
+LIKELY_EXPORT void likely_set_message_callback(likely_message_callback message_callback = NULL);
 
 // Core library types and functions
 typedef const char *likely_description;
