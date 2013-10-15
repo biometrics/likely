@@ -58,9 +58,9 @@ Messenger *Messenger::singleton = NULL;
 
 class SyntaxHighlighter : public QSyntaxHighlighter
 {
-    QRegularExpression comments, keywords, numbers, strings, variables;
-    QTextCharFormat commentsFont, keywordsFont, numbersFont, stringsFont, variablesFont;
-    QStringList excludedVariables; // Lua internals
+    QRegularExpression comments, keywords, numbers, strings, allowed, toggled;
+    QTextCharFormat commentsFont, keywordsFont, numbersFont, stringsFont, allowedFont, toggledFont;
+    QSet<QString> excludedSet, allowedSet, toggledSet; // Lua global variables
 
 public:
     SyntaxHighlighter(QTextDocument *parent)
@@ -79,18 +79,44 @@ public:
         numbersFont.setFontWeight(QFont::Bold);
         numbersFont.setForeground(Qt::darkBlue);
         stringsFont.setForeground(Qt::darkGreen);
-        variablesFont.setFontWeight(QFont::Bold);
+        allowedFont.setFontWeight(QFont::Bold);
+        toggledFont.setFontWeight(QFont::Bold);
+        toggledFont.setForeground(Qt::darkMagenta);
 
         lua_State *L = luaL_newstate();
         luaL_openlibs(L);
-        excludedVariables = getGlobals(L, QStringList());
+        excludedSet = getGlobals(L, QSet<QString>());
         lua_close(L);
     }
 
     void updateDictionary(lua_State *L)
     {
-        variables.setPattern("\\b(?:" + getGlobals(L, excludedVariables).join('|') + ")\\b");
+        allowedSet = getGlobals(L, excludedSet + toggledSet);
+        allowed.setPattern(getPattern(allowedSet));
         rehighlight();
+    }
+
+    int toggleVariable(const QString &variable)
+    {
+        int toggledResult = 0;
+
+        if (toggledSet.contains(variable)) {
+            toggledSet.remove(variable);
+            allowedSet.insert(variable);
+            toggledResult = 1;
+        } else if (allowedSet.contains(variable)) {
+            allowedSet.remove(variable);
+            toggledSet.insert(variable);
+            toggledResult = -1;
+        }
+
+        if (toggledResult) {
+            allowed.setPattern(getPattern(allowedSet));
+            toggled.setPattern(getPattern(toggledSet));
+            rehighlight();
+        }
+
+        return toggledResult;
     }
 
 private:
@@ -98,7 +124,8 @@ private:
     {
         highlightHelp(text, keywords, keywordsFont);
         highlightHelp(text, numbers, numbersFont);
-        highlightHelp(text, variables, variablesFont);
+        highlightHelp(text, allowed, allowedFont);
+        highlightHelp(text, toggled, toggledFont);
         highlightHelp(text, strings, stringsFont);
         highlightHelp(text, comments, commentsFont);
     }
@@ -117,19 +144,25 @@ private:
         }
     }
 
-    static QStringList getGlobals(lua_State *L, const QStringList &exclude)
+    static QSet<QString> getGlobals(lua_State *L, const QSet<QString> &exclude)
     {
-        QStringList globals;
+        QSet<QString> globals;
         lua_getglobal(L, "_G");
         lua_pushnil(L);
         while (lua_next(L, -2)) {
             const QString global = lua_tostring(L, -2);
             if (!exclude.contains(global))
-                globals.append(global);
+                globals.insert(global);
             lua_pop(L, 1);
         }
         lua_pop(L, 1);
         return globals;
+    }
+
+    static QString getPattern(const QSet<QString> &values)
+    {
+        if (values.isEmpty()) return "";
+        return "\\b(?:" + QStringList(values.toList()).join('|') + ")\\b";
     }
 };
 
@@ -221,7 +254,7 @@ private:
         QTextEdit::mousePressEvent(e);
         QTextCursor tc = textCursor();
         tc.select(QTextCursor::WordUnderCursor);
-        const QString clickedWord = tc.selectedText();
+        highlighter->toggleVariable(tc.selectedText());
     }
 
 signals:
