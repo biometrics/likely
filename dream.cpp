@@ -166,8 +166,9 @@ public slots:
         QString source = settings.value("source").toString();
         if (source.isEmpty())
             source = "-- Source code is compiled as you type\n"
-                     "lenna = read(\"img/Lenna.tiff\")\n\n"
-                     "-- Console output appears below\n"
+                     "lenna = read(\"img/Lenna.tiff\")\n"
+                     "\n"
+                     "-- Console output appears on the right\n"
                      "print(\"Width: \" .. lenna.columns)\n"
                      "print(\"Height: \" .. lenna.rows)\n";
         setText(source);
@@ -250,9 +251,16 @@ public:
         : QWidget(parent)
     {
         layout = new QVBoxLayout(this);
-        introduction = new QLabel("<b>Ctrl-click bold source code to display information.</b>");
+        introduction = new QLabel(QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText) + "+click <b>bold</b> source code to display information");
+        introduction->setWordWrap(true);
         layout->addWidget(introduction);
+        layout->setContentsMargins(0, 0, 0, 0);
         setLayout(layout);
+    }
+
+    void addPermanentWidget(QWidget *widget)
+    {
+        layout->insertWidget(layout->indexOf(introduction), widget);
     }
 };
 
@@ -293,6 +301,8 @@ int main(int argc, char *argv[])
     fileMenu->addAction(openSource);
     fileMenu->addAction(saveSource);
     fileMenu->addAction(saveSourceAs);
+    QMenuBar *menuBar = new QMenuBar();
+    menuBar->addMenu(fileMenu);
 
     Source *source = new Source();
     Console *console = new Console();
@@ -302,20 +312,13 @@ int main(int argc, char *argv[])
     QObject::connect(Messenger::get(), SIGNAL(newMessage(QString)), console, SLOT(append(QString)));
     source->setDefaultSource();
 
-    QMenuBar *menuBar = new QMenuBar();
-    menuBar->addMenu(fileMenu);
-
-    QGridLayout *centralWidgetLayout = new QGridLayout();
-    centralWidgetLayout->addWidget(source, 0, 0);
-    centralWidgetLayout->addWidget(console, 1, 0);
-    centralWidgetLayout->addWidget(documentation, 0, 1, 2, 1);
-    centralWidgetLayout->setRowStretch(0, 4);
-    centralWidgetLayout->setRowStretch(1, 1);
-    QWidget *centralWidget = new QWidget();
-    centralWidget->setLayout(centralWidgetLayout);
+    QSplitter *splitter = new QSplitter(Qt::Horizontal);
+    splitter->addWidget(source);
+    splitter->addWidget(documentation);
+    documentation->addPermanentWidget(console);
 
     QMainWindow mainWindow;
-    mainWindow.setCentralWidget(centralWidget);
+    mainWindow.setCentralWidget(splitter);
     mainWindow.setMenuBar(menuBar);
     mainWindow.setWindowTitle("Likely Dream");
     mainWindow.resize(800,600);
