@@ -56,6 +56,46 @@ signals:
 
 Messenger *Messenger::singleton = NULL;
 
+class Matrix : public QLabel
+{
+    Q_OBJECT
+    QImage src;
+
+public:
+    explicit Matrix(const QString &name, lua_State *L, QWidget *parent = 0)
+        : QLabel(parent)
+    {
+        setObjectName(name);
+        setAlignment(Qt::AlignCenter);
+    }
+
+public slots:
+    void refreshState(lua_State *L)
+    {
+        lua_getglobal(L, qPrintable(objectName()));
+        likely_mat mat = (likely_mat) luaL_checkudata(L, -1, "likely");
+        src = QImage(mat->data, mat->columns, mat->rows, QImage::Format_RGB888).copy();
+        updatePixmap();
+    }
+
+private:
+    void updatePixmap()
+    {
+        if (src.isNull()) {
+            clear();
+        } else {
+            setPixmap(QPixmap::fromImage(src.scaled(size(), Qt::KeepAspectRatio)));
+        }
+    }
+
+    void resizeEvent(QResizeEvent *e)
+    {
+        QLabel::resizeEvent(e);
+        e->accept();
+        updatePixmap();
+    }
+};
+
 class SyntaxHighlighter : public QSyntaxHighlighter
 {
     QRegularExpression comments, keywords, numbers, strings, allowed, toggled;
@@ -171,11 +211,13 @@ class Source : public QTextEdit
     Q_OBJECT
     QString sourceFileName, previousSource;
     QSettings settings;
-    lua_State *L;
+    lua_State *L = NULL;
     SyntaxHighlighter *highlighter;
+    QHash<QString, QWidget*> variables;
 
 public:
-    Source(QWidget *p = 0) : QTextEdit(p), L(NULL)
+    Source(QWidget *p = 0)
+        : QTextEdit(p)
     {
         highlighter = new SyntaxHighlighter(document());
         setAcceptRichText(false);
@@ -257,12 +299,22 @@ private:
         QTextEdit::mousePressEvent(e);
         QTextCursor tc = textCursor();
         tc.select(QTextCursor::WordUnderCursor);
-        highlighter->toggleVariable(tc.selectedText());
+        const QString variable = tc.selectedText();
+        int toggled = highlighter->toggleVariable(variable);
+
+        if (toggled > 0) {
+            Matrix *matrix = new Matrix(variable, L);
+            variables.insert(variable, matrix);
+            emit newVariable(matrix);
+        } else if (toggled < 0) {
+            variables.take(variable)->deleteLater();
+        }
     }
 
 signals:
     void recompiling();
     void executionTime(qint64);
+    void newVariable(QWidget *widget);
 };
 
 class Console : public QTextEdit
@@ -291,7 +343,7 @@ public:
 public slots:
     void reportTime(qint64 nsec)
     {
-        setText(QString("Execution Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec)));
+        setText(QString("Execution Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
     }
 };
 
@@ -316,6 +368,19 @@ public:
     void addPermanentWidget(QWidget *widget)
     {
         layout->insertWidget(layout->indexOf(introduction), widget);
+    }
+
+public slots:
+    void addWidget(QWidget *widget)
+    {
+        layout->addWidget(widget);
+        connect(widget, SIGNAL(destroyed(QObject*)), this, SLOT(removeWidget(QWidget*)));
+    }
+
+private slots:
+    void removeWidget(QWidget *widget)
+    {
+        layout->removeWidget(widget);
     }
 };
 
@@ -366,6 +431,7 @@ int main(int argc, char *argv[])
     QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(setSource(QAction*)));
     QObject::connect(source, SIGNAL(recompiling()), console, SLOT(clear()));
     QObject::connect(source, SIGNAL(executionTime(qint64)), benchmark, SLOT(reportTime(qint64)));
+    QObject::connect(source, SIGNAL(newVariable(QWidget*)), documentation, SLOT(addWidget(QWidget*)));
     QObject::connect(Messenger::get(), SIGNAL(newMessage(QString)), console, SLOT(append(QString)));
     source->setDefaultSource();
 
