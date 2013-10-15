@@ -239,7 +239,10 @@ public slots:
         emit recompiling();
         if (L) lua_close(L);
         bool error;
+        QElapsedTimer elapsedTimer;
+        elapsedTimer.start();
         L = exec(source, &error);
+        emit executionTime(elapsedTimer.nsecsElapsed());
         if (error) {
             Messenger::send(lua_tostring(L, -1), true);
             lua_pop(L, 1);
@@ -259,6 +262,7 @@ private:
 
 signals:
     void recompiling();
+    void executionTime(qint64);
 };
 
 class Console : public QTextEdit
@@ -270,6 +274,24 @@ public:
         : QTextEdit(parent)
     {
         setReadOnly(true);
+    }
+};
+
+class Benchmark : public QLabel
+{
+    Q_OBJECT
+
+public:
+    Benchmark(QWidget *parent = 0)
+        : QLabel(parent)
+    {
+        setWordWrap(true);
+    }
+
+public slots:
+    void reportTime(qint64 nsec)
+    {
+        setText(QString("Execution Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec)));
     }
 };
 
@@ -339,9 +361,11 @@ int main(int argc, char *argv[])
 
     Source *source = new Source();
     Console *console = new Console();
+    Benchmark *benchmark = new Benchmark();
     Documentation *documentation = new Documentation();
     QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(setSource(QAction*)));
     QObject::connect(source, SIGNAL(recompiling()), console, SLOT(clear()));
+    QObject::connect(source, SIGNAL(executionTime(qint64)), benchmark, SLOT(reportTime(qint64)));
     QObject::connect(Messenger::get(), SIGNAL(newMessage(QString)), console, SLOT(append(QString)));
     source->setDefaultSource();
 
@@ -349,6 +373,7 @@ int main(int argc, char *argv[])
     splitter->addWidget(source);
     splitter->addWidget(documentation);
     documentation->addPermanentWidget(console);
+    documentation->addPermanentWidget(benchmark);
 
     QMainWindow mainWindow;
     mainWindow.setCentralWidget(splitter);
