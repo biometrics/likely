@@ -65,8 +65,10 @@ public:
     explicit Matrix(const QString &name, lua_State *L, QWidget *parent = 0)
         : QLabel(parent)
     {
-        setObjectName(name);
         setAlignment(Qt::AlignCenter);
+        setObjectName(name);
+//        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+        refreshState(L);
     }
 
 public slots:
@@ -74,7 +76,8 @@ public slots:
     {
         lua_getglobal(L, qPrintable(objectName()));
         likely_mat mat = (likely_mat) luaL_checkudata(L, -1, "likely");
-        src = QImage(mat->data, mat->columns, mat->rows, QImage::Format_RGB888).copy();
+        if (mat) src = QImage(mat->data, mat->columns, mat->rows, QImage::Format_RGB888).rgbSwapped();
+        else     src = QImage();
         updatePixmap();
     }
 
@@ -83,6 +86,7 @@ private:
     {
         if (src.isNull()) {
             clear();
+            setText("Missing matrix: " + objectName());
         } else {
             setPixmap(QPixmap::fromImage(src.scaled(size(), Qt::KeepAspectRatio)));
         }
@@ -143,11 +147,11 @@ public:
         if (toggledSet.contains(variable)) {
             toggledSet.remove(variable);
             allowedSet.insert(variable);
-            toggledResult = 1;
+            toggledResult = -1;
         } else if (allowedSet.contains(variable)) {
             allowedSet.remove(variable);
             toggledSet.insert(variable);
-            toggledResult = -1;
+            toggledResult = 1;
         }
 
         if (toggledResult) {
@@ -240,12 +244,15 @@ public slots:
     {
         QString source = settings.value("source").toString();
         if (source.isEmpty())
-            source = "-- Source code is compiled as you type\n"
-                     "lenna = read(\"img/Lenna.tiff\")\n"
-                     "\n"
-                     "-- Console output appears on the right\n"
-                     "print(\"Width: \" .. lenna.columns)\n"
-                     "print(\"Height: \" .. lenna.rows)\n";
+            source = QString("-- Source code is compiled as you type\n"
+                             "message = \"Hello World!\"\n"
+                             "\n"
+                             "-- %1+click bold code to display information\n"
+                             "lenna = read(\"img/Lenna.tiff\")\n"
+                             "\n"
+                             "-- Console output appears on the right\n"
+                             "print(\"Width: \" .. lenna.columns)\n"
+                             "print(\"Height: \" .. lenna.rows)\n").arg(QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText));
         setText(source);
     }
 
@@ -351,36 +358,27 @@ class Documentation : public QWidget
 {
     Q_OBJECT
     QVBoxLayout *layout;
-    QLabel *introduction;
 
 public:
     Documentation(QWidget *parent = 0)
         : QWidget(parent)
     {
         layout = new QVBoxLayout(this);
-        introduction = new QLabel(QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText) + "+click <b>bold</b> source code to display information");
-        introduction->setWordWrap(true);
-        layout->addWidget(introduction);
         layout->setContentsMargins(0, 0, 0, 0);
         setLayout(layout);
-    }
-
-    void addPermanentWidget(QWidget *widget)
-    {
-        layout->insertWidget(layout->indexOf(introduction), widget);
     }
 
 public slots:
     void addWidget(QWidget *widget)
     {
         layout->addWidget(widget);
-        connect(widget, SIGNAL(destroyed(QObject*)), this, SLOT(removeWidget(QWidget*)));
+        connect(widget, SIGNAL(destroyed(QObject*)), this, SLOT(removeObject(QObject*)));
     }
 
 private slots:
-    void removeWidget(QWidget *widget)
+    void removeObject(QObject *object)
     {
-        layout->removeWidget(widget);
+        layout->removeWidget((QWidget*)object);
     }
 };
 
@@ -438,8 +436,8 @@ int main(int argc, char *argv[])
     QSplitter *splitter = new QSplitter(Qt::Horizontal);
     splitter->addWidget(source);
     splitter->addWidget(documentation);
-    documentation->addPermanentWidget(console);
-    documentation->addPermanentWidget(benchmark);
+    documentation->addWidget(console);
+    documentation->addWidget(benchmark);
 
     QMainWindow mainWindow;
     mainWindow.setCentralWidget(splitter);
