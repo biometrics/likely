@@ -65,8 +65,9 @@ public:
     explicit Matrix(const QString &name, lua_State *L, QWidget *parent = 0)
         : QLabel(parent)
     {
+        setAlignment(Qt::AlignCenter);
         setObjectName(name);
-        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
         refreshState(L);
     }
 
@@ -89,7 +90,7 @@ private:
         } else {
             const int width = qMin(size().width(), src.width());
             const int height = src.height() * width/src.width();
-            setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height), Qt::KeepAspectRatio)));
+            setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height))));
         }
     }
 
@@ -371,6 +372,7 @@ public:
         setWidgetResizable(true);
         layout = new QVBoxLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(0);
         widget()->setLayout(layout);
     }
 
