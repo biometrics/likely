@@ -56,18 +56,29 @@ signals:
 
 Messenger *Messenger::singleton = NULL;
 
-class Matrix : public QLabel
+class Matrix : public QWidget
 {
     Q_OBJECT
+    QLabel *image, *text;
+    QLayout *layout;
     QImage src;
 
 public:
     explicit Matrix(const QString &name, lua_State *L, QWidget *parent = 0)
-        : QLabel(parent)
+        : QWidget(parent)
     {
-        setAlignment(Qt::AlignCenter);
+        image = new QLabel(this);
+        image->setAlignment(Qt::AlignCenter);
+        image->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
+        text = new QLabel(this);
+        text->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
+        layout = new QVBoxLayout(this);
+        layout->addWidget(image);
+        layout->addWidget(text);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(0);
+        setLayout(layout);
         setObjectName(name);
-        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
         refreshState(L);
     }
 
@@ -76,8 +87,18 @@ public slots:
     {
         lua_getglobal(L, qPrintable(objectName()));
         likely_mat mat = (likely_mat) luaL_checkudata(L, -1, "likely");
-        if (mat) src = QImage(mat->data, mat->columns, mat->rows, QImage::Format_RGB888).rgbSwapped();
-        else     src = QImage();
+        if (mat) {
+            src = QImage(mat->data, mat->columns, mat->rows, QImage::Format_RGB888).rgbSwapped();
+            text->setText(QString("%1 - %2x%3x%4x%5 %6").arg(objectName(),
+                                                             QString::number(mat->channels),
+                                                             QString::number(mat->columns),
+                                                             QString::number(mat->rows),
+                                                             QString::number(mat->frames),
+                                                             likely_hash_to_string(mat->hash)));
+        } else {
+            src = QImage();
+            text->setText(objectName());
+        }
         updatePixmap();
     }
 
@@ -85,18 +106,18 @@ private:
     void updatePixmap()
     {
         if (src.isNull()) {
-            clear();
-            setText(objectName());
+            image->clear();
+            image->setText("?");
         } else {
-            const int width = qMin(size().width(), src.width());
+            const int width = qMin(image->size().width(), src.width());
             const int height = src.height() * width/src.width();
-            setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height))));
+            image->setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height))));
         }
     }
 
     void resizeEvent(QResizeEvent *e)
     {
-        QLabel::resizeEvent(e);
+        QWidget::resizeEvent(e);
         e->accept();
         updatePixmap();
     }
