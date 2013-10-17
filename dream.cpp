@@ -65,9 +65,8 @@ public:
     explicit Matrix(const QString &name, lua_State *L, QWidget *parent = 0)
         : QLabel(parent)
     {
-        setAlignment(Qt::AlignCenter);
         setObjectName(name);
-//        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
         refreshState(L);
     }
 
@@ -86,9 +85,11 @@ private:
     {
         if (src.isNull()) {
             clear();
-            setText("Missing matrix: " + objectName());
+            setText(objectName());
         } else {
-            setPixmap(QPixmap::fromImage(src.scaled(size(), Qt::KeepAspectRatio)));
+            const int width = qMin(size().width(), src.width());
+            const int height = src.height() * width/src.width();
+            setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height), Qt::KeepAspectRatio)));
         }
     }
 
@@ -333,6 +334,7 @@ public:
         : QTextEdit(parent)
     {
         setReadOnly(true);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     }
 };
 
@@ -344,6 +346,7 @@ public:
     Benchmark(QWidget *parent = 0)
         : QLabel(parent)
     {
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         setWordWrap(true);
     }
 
@@ -354,18 +357,21 @@ public slots:
     }
 };
 
-class Documentation : public QWidget
+class Documentation : public QScrollArea
 {
     Q_OBJECT
     QVBoxLayout *layout;
 
 public:
     Documentation(QWidget *parent = 0)
-        : QWidget(parent)
+        : QScrollArea(parent)
     {
+        setFrameShape(QFrame::NoFrame);
+        setWidget(new QWidget());
+        setWidgetResizable(true);
         layout = new QVBoxLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);
-        setLayout(layout);
+        widget()->setLayout(layout);
     }
 
 public slots:
@@ -433,17 +439,19 @@ int main(int argc, char *argv[])
     QObject::connect(Messenger::get(), SIGNAL(newMessage(QString)), console, SLOT(append(QString)));
     source->setDefaultSource();
 
+    const int WindowWidth = 600;
     QSplitter *splitter = new QSplitter(Qt::Horizontal);
     splitter->addWidget(source);
     splitter->addWidget(documentation);
     documentation->addWidget(console);
     documentation->addWidget(benchmark);
+    splitter->setSizes(QList<int>() << WindowWidth/2 << WindowWidth/2);
 
     QMainWindow mainWindow;
     mainWindow.setCentralWidget(splitter);
     mainWindow.setMenuBar(menuBar);
     mainWindow.setWindowTitle("Likely Dream");
-    mainWindow.resize(800,600);
+    mainWindow.resize(800,WindowWidth);
     mainWindow.show();
 
     return application.exec();
