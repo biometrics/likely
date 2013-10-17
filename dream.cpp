@@ -293,7 +293,9 @@ public slots:
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
         L = exec(source, &error);
-        emit executionTime(elapsedTimer.nsecsElapsed());
+        const qint64 nsec = elapsedTimer.nsecsElapsed();
+        emit newStatus(QString("Execution Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
+
         if (error) {
             Messenger::send(lua_tostring(L, -1), true);
             lua_pop(L, 1);
@@ -322,8 +324,8 @@ private:
 
 signals:
     void recompiling();
-    void executionTime(qint64);
-    void newVariable(QWidget *widget);
+    void newVariable(QWidget*);
+    void newStatus(QString);
 };
 
 class Console : public QTextEdit
@@ -336,25 +338,6 @@ public:
     {
         setReadOnly(true);
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    }
-};
-
-class Benchmark : public QLabel
-{
-    Q_OBJECT
-
-public:
-    Benchmark(QWidget *parent = 0)
-        : QLabel(parent)
-    {
-        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        setWordWrap(true);
-    }
-
-public slots:
-    void reportTime(qint64 nsec)
-    {
-        setText(QString("Execution Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
     }
 };
 
@@ -430,14 +413,16 @@ int main(int argc, char *argv[])
     QMenuBar *menuBar = new QMenuBar();
     menuBar->addMenu(fileMenu);
 
+    QStatusBar *statusBar = new QStatusBar();
+    statusBar->setSizeGripEnabled(true);
+
     Source *source = new Source();
     Console *console = new Console();
-    Benchmark *benchmark = new Benchmark();
     Documentation *documentation = new Documentation();
     QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(setSource(QAction*)));
-    QObject::connect(source, SIGNAL(recompiling()), console, SLOT(clear()));
-    QObject::connect(source, SIGNAL(executionTime(qint64)), benchmark, SLOT(reportTime(qint64)));
+    QObject::connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
     QObject::connect(source, SIGNAL(newVariable(QWidget*)), documentation, SLOT(addWidget(QWidget*)));
+    QObject::connect(source, SIGNAL(recompiling()), console, SLOT(clear()));
     QObject::connect(Messenger::get(), SIGNAL(newMessage(QString)), console, SLOT(append(QString)));
     source->setDefaultSource();
 
@@ -446,12 +431,12 @@ int main(int argc, char *argv[])
     splitter->addWidget(source);
     splitter->addWidget(documentation);
     documentation->addWidget(console);
-    documentation->addWidget(benchmark);
     splitter->setSizes(QList<int>() << WindowWidth/2 << WindowWidth/2);
 
     QMainWindow mainWindow;
     mainWindow.setCentralWidget(splitter);
     mainWindow.setMenuBar(menuBar);
+    mainWindow.setStatusBar(statusBar);
     mainWindow.setWindowTitle("Likely Dream");
     mainWindow.resize(800,WindowWidth);
     mainWindow.show();
