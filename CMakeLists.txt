@@ -52,7 +52,7 @@ endforeach()
 add_subdirectory(opencv)
 include_directories(opencv/include)
 
-# Compile in index.html as a string
+# Compile in standard.likely as a string
 set(LIKELY_STANDARD_LIBRARY ${CMAKE_BINARY_DIR}/likely_standard_library.cpp)
 file(WRITE ${LIKELY_STANDARD_LIBRARY} "// Probably a bad idea to modify this automatically generated source file!\n\n")
 file(APPEND ${LIKELY_STANDARD_LIBRARY} "#include \"likely.h\"\n\nconst char *likely_standard_library()\n{\n\treturn\n\t\"")

@@ -136,7 +136,8 @@ static int lua_likely_get(lua_State *L)
     likely_assert(lua_gettop(L) == 2, "'get' expected 2 arguments, got: %d", lua_gettop(L));
     likely_const_mat m = checkLuaMat(L);
     const char *field = lua_tostring(L, 2);
-    if      (!strcmp(field, "data"))          lua_pushlightuserdata(L, m->data);
+    if      (!strcmp(field, "likely"))        lua_pushstring(L, "matrix");
+    else if (!strcmp(field, "data"))          lua_pushlightuserdata(L, m->data);
     else if (!strcmp(field, "hash"))          lua_pushstring(L, likely_hash_to_string(m->hash));
     else if (!strcmp(field, "channels"))      lua_pushinteger(L, m->channels);
     else if (!strcmp(field, "columns"))       lua_pushinteger(L, m->columns);

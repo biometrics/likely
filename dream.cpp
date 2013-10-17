@@ -71,7 +71,7 @@ public:
         image->setAlignment(Qt::AlignCenter);
         image->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
         text = new QLabel(this);
-        text->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
+        text->setAlignment(Qt::AlignLeft | Qt::AlignTop);
         layout = new QVBoxLayout(this);
         layout->addWidget(image);
         layout->addWidget(text);
@@ -89,12 +89,12 @@ public slots:
         likely_mat mat = (likely_mat) luaL_checkudata(L, -1, "likely");
         if (mat) {
             src = QImage(mat->data, mat->columns, mat->rows, QImage::Format_RGB888).rgbSwapped();
-            text->setText(QString("%1 - %2x%3x%4x%5 %6").arg(objectName(),
-                                                             QString::number(mat->channels),
-                                                             QString::number(mat->columns),
-                                                             QString::number(mat->rows),
-                                                             QString::number(mat->frames),
-                                                             likely_hash_to_string(mat->hash)));
+            text->setText(QString("<b>%1</b> - %2x%3x%4x%5 %6").arg(objectName(),
+                                                                    QString::number(mat->channels),
+                                                                    QString::number(mat->columns),
+                                                                    QString::number(mat->rows),
+                                                                    QString::number(mat->frames),
+                                                                    likely_hash_to_string(mat->hash)));
         } else {
             src = QImage();
             text->setText(objectName());
@@ -120,6 +120,22 @@ private:
         QWidget::resizeEvent(e);
         e->accept();
         updatePixmap();
+    }
+};
+
+class Function : public QLabel
+{
+    Q_OBJECT
+
+public:
+    Function(const QString &name, lua_State *L, QWidget *parent = 0)
+        : QLabel(parent)
+    {
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        lua_getglobal(L, qPrintable(name));
+        lua_getfield(L, -1, "documentation");
+        setText(QString("<b>%1</b> - %2").arg(name, lua_tostring(L, -1)));
+        lua_pop(L, 2);
     }
 };
 
@@ -329,17 +345,36 @@ private:
     void mousePressEvent(QMouseEvent *e)
     {
         QTextEdit::mousePressEvent(e);
+        if (e->modifiers() != Qt::ControlModifier)
+            return;
+
         QTextCursor tc = textCursor();
         tc.select(QTextCursor::WordUnderCursor);
-        const QString variable = tc.selectedText();
-        int toggled = highlighter->toggleVariable(variable);
+        const QString name = tc.selectedText();
+        int toggled = highlighter->toggleVariable(name);
 
         if (toggled > 0) {
-            Matrix *matrix = new Matrix(variable, L);
-            variables.insert(variable, matrix);
-            emit newVariable(matrix);
+            QString type;
+            lua_getglobal(L, qPrintable(name));
+            if (lua_istable(L, -1) || lua_isuserdata(L, -1)) {
+                lua_getfield(L, -1, "likely");
+                type = lua_tostring(L, -1);
+                lua_pop(L, 1);
+            }
+            lua_pop(L, 1);
+
+            QWidget *variable;
+            if      (type == "matrix")   variable = new Matrix(name, L);
+            else if (type == "function") variable = new Function(name, L);
+            else                         variable = NULL;
+            if (variable) {
+                variables.insert(name, variable);
+                emit newVariable(variable);
+            } else {
+                highlighter->toggleVariable(name);
+            }
         } else if (toggled < 0) {
-            variables.take(variable)->deleteLater();
+            variables.take(name)->deleteLater();
         }
     }
 
