@@ -89,7 +89,7 @@ public slots:
         likely_mat mat = (likely_mat) luaL_checkudata(L, -1, "likely");
         if (mat) {
             src = QImage(mat->data, mat->columns, mat->rows, QImage::Format_RGB888).rgbSwapped();
-            text->setText(QString("<b>%1</b> - %2x%3x%4x%5 %6").arg(objectName(),
+            text->setText(QString("<b>%1</b>: %2x%3x%4x%5 %6").arg(objectName(),
                                                                     QString::number(mat->channels),
                                                                     QString::number(mat->columns),
                                                                     QString::number(mat->rows),
@@ -123,19 +123,30 @@ private:
     }
 };
 
-class Function : public QLabel
+struct Function : public QLabel
 {
-    Q_OBJECT
-
-public:
     Function(const QString &name, lua_State *L, QWidget *parent = 0)
         : QLabel(parent)
     {
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         lua_getglobal(L, qPrintable(name));
         lua_getfield(L, -1, "documentation");
-        setText(QString("<b>%1</b> - %2").arg(name, lua_tostring(L, -1)));
+        setText(QString("<b>%1</b>: %2").arg(name, lua_tostring(L, -1)));
         lua_pop(L, 2);
+    }
+};
+
+struct Generic : public QLabel
+{
+    Generic(const QString &name, lua_State *L, QWidget *parent = 0)
+        : QLabel(parent)
+    {
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        lua_getglobal(L, qPrintable(name));
+        QString contents = lua_tostring(L, -1);
+        if (contents.isEmpty())
+            contents = lua_typename(L, -1);
+        setText(QString("<b>%1</b>: %2").arg(name, contents));
     }
 };
 
@@ -366,13 +377,10 @@ private:
             QWidget *variable;
             if      (type == "matrix")   variable = new Matrix(name, L);
             else if (type == "function") variable = new Function(name, L);
-            else                         variable = NULL;
-            if (variable) {
-                variables.insert(name, variable);
-                emit newVariable(variable);
-            } else {
-                highlighter->toggleVariable(name);
-            }
+            else                         variable = new Generic(name, L);
+
+            variables.insert(name, variable);
+            emit newVariable(variable);
         } else if (toggled < 0) {
             variables.take(name)->deleteLater();
         }
