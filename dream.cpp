@@ -59,7 +59,7 @@ Messenger *Messenger::singleton = NULL;
 class Matrix : public QWidget
 {
     Q_OBJECT
-    QLabel *image, *text;
+    QLabel *text, *image;
     QLayout *layout;
     QImage src;
 
@@ -67,14 +67,14 @@ public:
     explicit Matrix(const QString &name, lua_State *L, QWidget *parent = 0)
         : QWidget(parent)
     {
+        text = new QLabel(this);
+        text->setAlignment(Qt::AlignLeft | Qt::AlignBottom);
         image = new QLabel(this);
         image->setAlignment(Qt::AlignCenter);
         image->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
-        text = new QLabel(this);
-        text->setAlignment(Qt::AlignLeft | Qt::AlignTop);
         layout = new QVBoxLayout(this);
-        layout->addWidget(image);
         layout->addWidget(text);
+        layout->addWidget(image);
         layout->setContentsMargins(0, 0, 0, 0);
         layout->setSpacing(0);
         setLayout(layout);
@@ -90,11 +90,11 @@ public slots:
         if (mat) {
             src = QImage(mat->data, mat->columns, mat->rows, QImage::Format_RGB888).rgbSwapped();
             text->setText(QString("<b>%1</b>: %2x%3x%4x%5 %6").arg(objectName(),
-                                                                    QString::number(mat->channels),
-                                                                    QString::number(mat->columns),
-                                                                    QString::number(mat->rows),
-                                                                    QString::number(mat->frames),
-                                                                    likely_hash_to_string(mat->hash)));
+                                                                   QString::number(mat->channels),
+                                                                   QString::number(mat->columns),
+                                                                   QString::number(mat->rows),
+                                                                   QString::number(mat->frames),
+                                                                   likely_hash_to_string(mat->hash)));
         } else {
             src = QImage();
             text->setText(objectName());
@@ -268,6 +268,7 @@ class Source : public QTextEdit
     lua_State *L = NULL;
     SyntaxHighlighter *highlighter;
     QHash<QString, QWidget*> variables;
+    int wheelRemainderX = 0, wheelRemainderY = 0;
 
 public:
     Source(QWidget *p = 0)
@@ -297,12 +298,16 @@ public slots:
             source = QString("-- Source code is compiled as you type\n"
                              "message = \"Hello World!\"\n"
                              "\n"
-                             "-- %1+click bold code to display information\n"
+                             "-- Console output appears on the right\n"
+                             "print(message)\n"
+                             "\n"
+                             "-- %1+click bold code to display value\n"
                              "lenna = read(\"img/Lenna.tiff\")\n"
                              "\n"
-                             "-- Console output appears on the right\n"
-                             "print(\"Width: \" .. lenna.columns)\n"
-                             "print(\"Height: \" .. lenna.rows)\n").arg(QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText));
+                             "-- %1+scroll to edit numerical constants\n"
+                             "x = 1 + 1\n"
+                             "print(\"x = \" .. x)\n"
+                             "").arg(QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText));
         setText(source);
     }
 
@@ -359,6 +364,7 @@ private:
         if (e->modifiers() != Qt::ControlModifier)
             return;
 
+        e->accept();
         QTextCursor tc = textCursor();
         tc.select(QTextCursor::WordUnderCursor);
         const QString name = tc.selectedText();
@@ -384,6 +390,30 @@ private:
         } else if (toggled < 0) {
             variables.take(name)->deleteLater();
         }
+    }
+
+    void wheelEvent(QWheelEvent *e)
+    {
+        if (e->modifiers() != Qt::ControlModifier) {
+            QTextEdit::wheelEvent(e);
+            return;
+        }
+
+        e->accept();
+        const int deltaX = getIncrement(e->angleDelta().x(), wheelRemainderX, wheelRemainderY);
+        const int deltaY = getIncrement(e->angleDelta().y(), wheelRemainderY, wheelRemainderX);
+        qDebug() << deltaX << deltaY;
+    }
+
+    static int getIncrement(int delta, int &remainder, int &remainderOther)
+    {
+        remainder += delta;
+        const int increment = remainder / 120;
+        if (increment != 0) {
+            remainder = remainder % 120;
+            remainderOther = 0;
+        }
+        return increment;
     }
 
 signals:
