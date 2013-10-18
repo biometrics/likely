@@ -53,15 +53,23 @@ add_subdirectory(opencv)
 include_directories(opencv/include)
 
 # Compile in standard.likely as a string
-set(LIKELY_STANDARD_LIBRARY ${CMAKE_BINARY_DIR}/likely_standard_library.cpp)
-file(WRITE ${LIKELY_STANDARD_LIBRARY} "// Probably a bad idea to modify this automatically generated source file!\n\n")
-file(APPEND ${LIKELY_STANDARD_LIBRARY} "#include \"likely.h\"\n\nconst char *likely_standard_library()\n{\n\treturn\n\t\"")
-file(READ standard.likely STANDARD_LIBRARY_SOURCE)
-string(REPLACE "\\" "\\\\" STANDARD_LIBRARY_SOURCE ${STANDARD_LIBRARY_SOURCE})
-string(REPLACE "\"" "\\\"" STANDARD_LIBRARY_SOURCE ${STANDARD_LIBRARY_SOURCE})
-string(REPLACE "\n" "\\n\"\n\t\"" STANDARD_LIBRARY_SOURCE ${STANDARD_LIBRARY_SOURCE})
-file(APPEND ${LIKELY_STANDARD_LIBRARY} ${STANDARD_LIBRARY_SOURCE})
-file(APPEND ${LIKELY_STANDARD_LIBRARY} "\";\n}\n")
+set(STANDARD_LIBRARY_CMAKE ${CMAKE_BINARY_DIR}/standard_library.cmake)
+set(STANDARD_LIBRARY_CPP ${CMAKE_BINARY_DIR}/likely_standard_library.cpp)
+file(WRITE ${STANDARD_LIBRARY_CMAKE}
+"set(STANDARD_LIBRARY_CPP ${STANDARD_LIBRARY_CPP})
+set(STANDARD_LIBRARY \"${CMAKE_SOURCE_DIR}/standard.likely\")
+if (\${STANDARD_LIBRARY} IS_NEWER_THAN \${STANDARD_LIBRARY_CPP})
+  file(WRITE \${STANDARD_LIBRARY_CPP} \"// Probably a bad idea to modify this automatically generated source file!\\n\\n\")
+  file(APPEND \${STANDARD_LIBRARY_CPP} \"#include \\\"likely.h\\\"\\n\\nconst char *likely_standard_library()\\n{\\n\\treturn\\n\\t\\\"\")
+  file(READ \${STANDARD_LIBRARY} STANDARD_LIBRARY_SOURCE)
+  string(REPLACE \"\\\\\" \"\\\\\\\\\" STANDARD_LIBRARY_SOURCE \${STANDARD_LIBRARY_SOURCE})
+  string(REPLACE \"\\\"\" \"\\\\\\\"\" STANDARD_LIBRARY_SOURCE \${STANDARD_LIBRARY_SOURCE})
+  string(REPLACE \"\\n\" \"\\\\n\\\"\\n\\t\\\"\" STANDARD_LIBRARY_SOURCE \${STANDARD_LIBRARY_SOURCE})
+  file(APPEND \${STANDARD_LIBRARY_CPP} \${STANDARD_LIBRARY_SOURCE})
+  file(APPEND \${STANDARD_LIBRARY_CPP} \"\\\";\\n}\\n\")
+endif()")
+include(${STANDARD_LIBRARY_CMAKE}) # Run it once
+add_custom_target(standard_library COMMAND ${CMAKE_COMMAND} -P ${STANDARD_LIBRARY_CMAKE})
 
 if(CMAKE_COMPILER_IS_GNUCC)
   set(CXX11 "-std=c++0x")
@@ -71,8 +79,8 @@ endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter")
 add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
-add_library(likely SHARED likely.cpp index.html standard.likely opencv.shim ${LIKELY_STANDARD_LIBRARY})
-add_dependencies(likely LLVM OpenCV lua)
+add_library(likely SHARED likely.cpp index.html standard.likely opencv.shim ${STANDARD_LIBRARY_CPP})
+add_dependencies(likely standard_library LLVM OpenCV lua)
 set_target_properties(likely PROPERTIES
                       DEFINE_SYMBOL LIKELY_LIBRARY
                       VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
@@ -82,6 +90,8 @@ install(TARGETS likely
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
+add_custom_command(TARGET likely POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E touch ${STANDARD_LIBRARY_CPP})
 
 # Benchmark
 add_executable(benchmark benchmark.cpp)
