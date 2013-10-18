@@ -1362,16 +1362,20 @@ typedef likely_function *likely_func;
 static int lua_likely_compile(lua_State *L)
 {
     const int args = lua_gettop(L);
-    likely_assert(args >= 1, "'compile' expected at least one argument, got: %d", lua_gettop(L));
-    likely_description description = lua_tostring(L, 1);
+    likely_assert(args >= 1, "'compile' expected at least one argument");
+    stringstream description;
+    description << "likely ";
+    int index = 1;
+    while (!luaL_testudata(L, index, "likely"))
+        description << lua_tostring(L, index++) << " ";
     vector<likely_const_mat> mats;
-    for (int i=2; i<=args; i++)
+    for (int i=index; i<=args; i++)
         mats.push_back(checkLuaMat(L, i));
 
     likely_func f = (likely_func) lua_newuserdata(L, sizeof(likely_function));
     luaL_getmetatable(L, "likely_function");
     lua_setmetatable(L, -2);
-    f->function = likely_compile_n(description, mats.size(), mats.data());
+    f->function = likely_compile_n(description.str().c_str(), mats.size(), mats.data());
     f->n = mats.size();
     return 1;
 }
