@@ -892,7 +892,7 @@ struct MatrixBuilder
 class KernelBuilder
 {
     likely_description description;
-    lua_State *L = NULL;
+    vector<string> stack;
     vector<likely_hash> hashes;
     MatrixBuilder kernel;
     PHINode *i = NULL;
@@ -902,8 +902,23 @@ public:
     KernelBuilder(likely_description description_)
         : description(description_)
     {
-        L = getLuaState();
-        checkLua(L, luaL_dostring(L, (string("return ") + description).c_str()));
+        const char *isStack = "likely";
+        if (!strncmp(description, isStack, strlen(isStack))) {
+            // It's already in intermediate representation
+            istringstream iss(description);
+            copy(istream_iterator<string>(iss),
+                 istream_iterator<string>(),
+                 back_inserter< vector<string> >(stack));
+            stack.erase(stack.begin()); // remove "likely"
+        } else {
+            // It needs to be interpreted
+            lua_State *L = getLuaState();
+            checkLua(L, luaL_dostring(L, (string("return ") + description).c_str()));
+            const int top = lua_gettop(L);
+            for (int j=1; j<=top; j++)
+                stack.push_back(lua_tostring(L, j));
+            lua_settop(L, 0);
+        }
     }
 
     bool makeAllocation(Function *function, const vector<likely_hash> &hashes_)
@@ -1019,41 +1034,38 @@ public:
     Value *makeEquation()
     {
         vector<Value*> values;
-        const int top = lua_gettop(L);
-        for (int j=1; j<=top; j++) {
-            const int type = lua_type(L, j);
-            if (type == LUA_TNUMBER) {
-                values.push_back(kernel.autoConstant(lua_tonumber(L, j)));
-            } else if (type == LUA_TSTRING) {
-                const string value = lua_tostring(L, j);
-                if (value == "src") {
-                    values.push_back(kernel.load(i));
-                } else if (values.size() == 1) {
-                    Value *operand = values[values.size()-1];
-                    values.pop_back();
-                    if      (value == "log")   values.push_back(kernel.log(operand));
-                    else if (value == "log2")  values.push_back(kernel.log2(operand));
-                    else if (value == "log10") values.push_back(kernel.log10(operand));
-                    else if (value == "sin")   values.push_back(kernel.sin(operand));
-                    else if (value == "cos")   values.push_back(kernel.cos(operand));
-                    else if (value == "fabs")  values.push_back(kernel.fabs(operand));
-                    else if (value == "sqrt")  values.push_back(kernel.sqrt(operand));
-                    else if (value == "exp")   values.push_back(kernel.exp(operand));
-                    else                       { likely_assert(false, "Unsupported operator: %s", value.c_str()); return NULL; }
-                } else {
-                    if (!likely_assert(values.size() >= 2, "Insufficient operands: %lu for operator: %s", values.size(), value.c_str())) return NULL;
-                    Value *lhs = values[values.size()-2];
-                    Value *rhs = values[values.size()-1];
-                    values.pop_back();
-                    values.pop_back();
-                    if      (value == "+") values.push_back(kernel.add(lhs, rhs));
-                    else if (value == "-") values.push_back(kernel.subtract(lhs, rhs));
-                    else if (value == "*") values.push_back(kernel.multiply(lhs, rhs));
-                    else if (value == "/") values.push_back(kernel.divide(lhs, rhs));
-                    else                   { likely_assert(false, "Unsupported operator: %s", value.c_str()); return NULL; }
-                }
+        for (size_t j=0; j<stack.size(); j++) {
+            const string &value = stack[j];
+            char *error;
+            const double x = strtod(value.c_str(), &error);
+            if (!error) {
+                values.push_back(kernel.autoConstant(x));
+            } else if (value == "src") {
+                values.push_back(kernel.load(i));
+            } else if (values.size() == 1) {
+                Value *operand = values[values.size()-1];
+                values.pop_back();
+                if      (value == "log")   values.push_back(kernel.log(operand));
+                else if (value == "log2")  values.push_back(kernel.log2(operand));
+                else if (value == "log10") values.push_back(kernel.log10(operand));
+                else if (value == "sin")   values.push_back(kernel.sin(operand));
+                else if (value == "cos")   values.push_back(kernel.cos(operand));
+                else if (value == "fabs")  values.push_back(kernel.fabs(operand));
+                else if (value == "sqrt")  values.push_back(kernel.sqrt(operand));
+                else if (value == "exp")   values.push_back(kernel.exp(operand));
+                else                       { likely_assert(false, "Unsupported unary operator: %s", value.c_str()); return NULL; }
+            } else if (values.size() == 2) {
+                Value *lhs = values[values.size()-2];
+                Value *rhs = values[values.size()-1];
+                values.pop_back();
+                values.pop_back();
+                if      (value == "+") values.push_back(kernel.add(lhs, rhs));
+                else if (value == "-") values.push_back(kernel.subtract(lhs, rhs));
+                else if (value == "*") values.push_back(kernel.multiply(lhs, rhs));
+                else if (value == "/") values.push_back(kernel.divide(lhs, rhs));
+                else                   { likely_assert(false, "Unsupported binary operator: %s", value.c_str()); return NULL; }
             } else {
-                likely_assert(false, "Unrecognized token: %s of type: %s", lua_tostring(L, j), lua_typename(L, type)); return NULL;
+                likely_assert(false, "Unrecognized token: %s", value.c_str()); return NULL;
             }
         }
 
