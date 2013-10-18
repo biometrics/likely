@@ -358,6 +358,28 @@ public slots:
     }
 
 private:
+    void keyPressEvent(QKeyEvent *e)
+    {
+        if (e->key() != Qt::Key_Control) {
+            QTextEdit::keyPressEvent(e);
+            return;
+        }
+
+        e->accept();
+        viewport()->setCursor(Qt::PointingHandCursor);
+    }
+
+    void keyReleaseEvent(QKeyEvent *e)
+    {
+        if (e->key() != Qt::Key_Control) {
+            QTextEdit::keyPressEvent(e);
+            return;
+        }
+
+        e->accept();
+        viewport()->setCursor(Qt::IBeamCursor);
+    }
+
     void mousePressEvent(QMouseEvent *e)
     {
         if (e->modifiers() != Qt::ControlModifier) {
