@@ -1175,10 +1175,10 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
         engineBuilder.setErrorStr(&error);
 
         executionEngine = engineBuilder.create();
-        likely_assert(executionEngine != NULL, "likely_make_function failed to create LLVM ExecutionEngine with error: %s", error.c_str());
+        likely_assert(executionEngine != NULL, "likely_compile_n failed to create LLVM ExecutionEngine with error: %s", error.c_str());
 
         targetMachine = engineBuilder.selectTarget();
-        likely_assert(targetMachine != NULL, "likely_make_function failed to create LLVM TargetMachine with error: %s", error.c_str());
+        likely_assert(targetMachine != NULL, "likely_compile_n failed to create LLVM TargetMachine with error: %s", error.c_str());
 
         TheMatrixStruct = StructType::create("Matrix",
                                              Type::getInt8PtrTy(getGlobalContext()), // data
