@@ -360,12 +360,13 @@ public slots:
 private:
     void mousePressEvent(QMouseEvent *e)
     {
-        QTextEdit::mousePressEvent(e);
-        if (e->modifiers() != Qt::ControlModifier)
+        if (e->modifiers() != Qt::ControlModifier) {
+            QTextEdit::mousePressEvent(e);
             return;
+        }
 
         e->accept();
-        QTextCursor tc = textCursor();
+        QTextCursor tc = cursorForPosition(e->pos());
         tc.select(QTextCursor::WordUnderCursor);
         const QString name = tc.selectedText();
         int toggled = highlighter->toggleVariable(name);
@@ -402,7 +403,24 @@ private:
         e->accept();
         const int deltaX = getIncrement(e->angleDelta().x(), wheelRemainderX, wheelRemainderY);
         const int deltaY = getIncrement(e->angleDelta().y(), wheelRemainderY, wheelRemainderX);
-        qDebug() << deltaX << deltaY;
+        if ((deltaX == 0) && (deltaY == 0))
+            return;
+
+        QTextCursor tc = cursorForPosition(e->pos());
+        tc.select(QTextCursor::WordUnderCursor);
+        { // Does the number start with a negative sign?
+            QTextCursor tcNegative(tc);
+            tcNegative.movePosition(QTextCursor::StartOfWord);
+            tcNegative.movePosition(QTextCursor::PreviousCharacter);
+            tcNegative.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor);
+            tcNegative.movePosition(QTextCursor::EndOfWord, QTextCursor::KeepAnchor);
+            if (tcNegative.selectedText().startsWith('-'))
+                tc = tcNegative;
+        }
+
+        bool ok;
+        const int val = tc.selectedText().toInt(&ok);
+        if (ok) tc.insertText(QString::number(qRound(qPow(10, deltaX) * (val + deltaY))));
     }
 
     static int getIncrement(int delta, int &remainder, int &remainderOther)
