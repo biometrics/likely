@@ -79,11 +79,11 @@ public:
         layout->setSpacing(0);
         setLayout(layout);
         setObjectName(name);
-        refreshState(L);
+        refresh(L);
     }
 
 public slots:
-    void refreshState(lua_State *L)
+    void refresh(lua_State *L)
     {
         lua_getglobal(L, qPrintable(objectName()));
         likely_mat mat = (likely_mat) luaL_checkudata(L, -1, "likely");
@@ -355,6 +355,7 @@ public slots:
         }
         settings.setValue("source", source);
         highlighter->updateDictionary(L);
+        emit newState(L);
     }
 
 private:
@@ -404,9 +405,15 @@ private:
             lua_pop(L, 1);
 
             QWidget *variable;
-            if      (type == "matrix")   variable = new Matrix(name, L);
-            else if (type == "function") variable = new Function(name, L);
-            else                         variable = new Generic(name, L);
+            if (type == "matrix") {
+                Matrix *matrix = new Matrix(name, L);
+                connect(this, SIGNAL(newState(lua_State*)), matrix, SLOT(refresh(lua_State*)));
+                variable = matrix;
+            } else if (type == "function") {
+                variable = new Function(name, L);
+            } else {
+                variable = new Generic(name, L);
+            }
 
             variables.insert(name, variable);
             emit newVariable(variable);
@@ -459,6 +466,7 @@ private:
 signals:
     void recompiling();
     void newVariable(QWidget*);
+    void newState(lua_State*);
     void newStatus(QString);
 };
 
