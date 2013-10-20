@@ -120,12 +120,13 @@ private:
         }
 
         src = QImage(mat->data, mat->columns, mat->rows, QImage::Format_RGB888).rgbSwapped();
-        text->setText(QString("<b>%1</b>: %2x%3x%4x%5 %6").arg(objectName(),
-                                                               QString::number(mat->channels),
-                                                               QString::number(mat->columns),
-                                                               QString::number(mat->rows),
-                                                               QString::number(mat->frames),
-                                                               likely_hash_to_string(mat->hash)));
+        text->setText(QString("<b>%1</b>: %2x%3x%4x%5 %6 (0x%7)").arg(objectName(),
+                                                                      QString::number(mat->channels),
+                                                                      QString::number(mat->columns),
+                                                                      QString::number(mat->rows),
+                                                                      QString::number(mat->frames),
+                                                                      likely_hash_to_string(mat->hash),
+                                                                      QString::number((ulong)mat->data, 16)));
         updatePixmap();
     }
 
