@@ -56,63 +56,78 @@ signals:
 
 Messenger *Messenger::singleton = NULL;
 
-class Matrix : public QWidget
+class Variable : public QWidget
 {
     Q_OBJECT
-    QLabel *text, *image;
+
+protected:
+    QLabel *text;
     QLayout *layout;
-    QImage src;
 
 public:
-    explicit Matrix(const QString &name, lua_State *L, QWidget *parent = 0)
-        : QWidget(parent)
+    explicit Variable(const QString &name)
     {
+        setObjectName(name);
         text = new QLabel(this);
         text->setAlignment(Qt::AlignLeft | Qt::AlignBottom);
-        image = new QLabel(this);
-        image->setAlignment(Qt::AlignCenter);
-        image->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
         layout = new QVBoxLayout(this);
         layout->addWidget(text);
-        layout->addWidget(image);
         layout->setContentsMargins(0, 0, 0, 0);
         layout->setSpacing(0);
         setLayout(layout);
-        setObjectName(name);
-        refresh(L);
     }
 
 public slots:
-    void refresh(lua_State *L)
+    virtual void refresh(lua_State *L) = 0;
+
+protected:
+    bool check(lua_State *L)
     {
         lua_getglobal(L, qPrintable(objectName()));
-        likely_mat mat = (likely_mat) luaL_checkudata(L, -1, "likely");
-        if (mat) {
-            src = QImage(mat->data, mat->columns, mat->rows, QImage::Format_RGB888).rgbSwapped();
-            text->setText(QString("<b>%1</b>: %2x%3x%4x%5 %6").arg(objectName(),
-                                                                   QString::number(mat->channels),
-                                                                   QString::number(mat->columns),
-                                                                   QString::number(mat->rows),
-                                                                   QString::number(mat->frames),
-                                                                   likely_hash_to_string(mat->hash)));
-        } else {
-            src = QImage();
-            text->setText(objectName());
+        const bool isNil = lua_isnil(L, -1);
+        if (isNil) {
+            lua_pop(L, 1);
+            deleteLater();
         }
-        updatePixmap();
+        return !isNil;
+    }
+};
+
+class Matrix : public Variable
+{
+    QLabel *image;
+    QImage src;
+
+public:
+    explicit Matrix(const QString &name, lua_State *L)
+        : Variable(name)
+    {
+        image = new QLabel(this);
+        image->setAlignment(Qt::AlignCenter);
+        image->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
+        layout->addWidget(image);
+        refresh(L);
     }
 
 private:
-    void updatePixmap()
+    void refresh(lua_State *L)
     {
-        if (src.isNull()) {
-            image->clear();
-            image->setText("?");
-        } else {
-            const int width = qMin(image->size().width(), src.width());
-            const int height = src.height() * width/src.width();
-            image->setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height))));
+        if (!check(L)) return;
+        likely_mat mat = (likely_mat) luaL_testudata(L, -1, "likely");
+        lua_pop(L, 1);
+        if (!mat) {
+            deleteLater();
+            return;
         }
+
+        src = QImage(mat->data, mat->columns, mat->rows, QImage::Format_RGB888).rgbSwapped();
+        text->setText(QString("<b>%1</b>: %2x%3x%4x%5 %6").arg(objectName(),
+                                                               QString::number(mat->channels),
+                                                               QString::number(mat->columns),
+                                                               QString::number(mat->rows),
+                                                               QString::number(mat->frames),
+                                                               likely_hash_to_string(mat->hash)));
+        updatePixmap();
     }
 
     void resizeEvent(QResizeEvent *e)
@@ -121,32 +136,55 @@ private:
         e->accept();
         updatePixmap();
     }
+
+    void updatePixmap()
+    {
+        image->setVisible(!src.isNull());
+        if (!src.isNull()) {
+            const int width = qMin(image->size().width(), src.width());
+            const int height = src.height() * width/src.width();
+            image->setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height))));
+        }
+    }
 };
 
-struct Function : public QLabel
+struct Function : public Variable
 {
-    Function(const QString &name, lua_State *L, QWidget *parent = 0)
-        : QLabel(parent)
+    Function(const QString &name, lua_State *L)
+        : Variable(name)
     {
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        lua_getglobal(L, qPrintable(name));
+        refresh(L);
+    }
+
+private:
+    void refresh(lua_State *L)
+    {
+        if (!check(L)) return;
         lua_getfield(L, -1, "documentation");
-        setText(QString("<b>%1</b>: %2").arg(name, lua_tostring(L, -1)));
+        text->setText(QString("<b>%1</b>: %2").arg(objectName(), lua_tostring(L, -1)));
         lua_pop(L, 2);
     }
 };
 
-struct Generic : public QLabel
+struct Generic : public Variable
 {
-    Generic(const QString &name, lua_State *L, QWidget *parent = 0)
-        : QLabel(parent)
+    Generic(const QString &name, lua_State *L)
+        : Variable(name)
     {
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        lua_getglobal(L, qPrintable(name));
+        refresh(L);
+    }
+
+private:
+    void refresh(lua_State *L)
+    {
+        if (!check(L)) return;
         QString contents = lua_tostring(L, -1);
         if (contents.isEmpty())
             contents = lua_typename(L, -1);
-        setText(QString("<b>%1</b>: %2").arg(name, contents));
+        text->setText(QString("<b>%1</b>: %2").arg(objectName(), contents));
+        lua_pop(L, 1);
     }
 };
 
@@ -267,7 +305,7 @@ class Source : public QTextEdit
     QSettings settings;
     lua_State *L = NULL;
     SyntaxHighlighter *highlighter;
-    QHash<QString, QWidget*> variables;
+    QHash<QString, Variable*> variables;
     int wheelRemainderX = 0, wheelRemainderY = 0;
 
 public:
@@ -404,17 +442,13 @@ private:
             }
             lua_pop(L, 1);
 
-            QWidget *variable;
-            if (type == "matrix") {
-                Matrix *matrix = new Matrix(name, L);
-                connect(this, SIGNAL(newState(lua_State*)), matrix, SLOT(refresh(lua_State*)));
-                variable = matrix;
-            } else if (type == "function") {
-                variable = new Function(name, L);
-            } else {
-                variable = new Generic(name, L);
-            }
+            Variable *variable;
+            if      (type == "matrix")   variable = new Matrix(name, L);
+            else if (type == "function") variable = new Function(name, L);
+            else                         variable = new Generic(name, L);
 
+            connect(this, SIGNAL(newState(lua_State*)), variable, SLOT(refresh(lua_State*)));
+            connect(variable, SIGNAL(destroyed(QObject*)), this, SLOT(removeObject(QObject*)));
             variables.insert(name, variable);
             emit newVariable(variable);
         } else if (toggled < 0) {
@@ -461,6 +495,16 @@ private:
             remainderOther = 0;
         }
         return increment;
+    }
+
+private slots:
+    void removeObject(QObject *object)
+    {
+        const QString key = variables.key((Variable*)object);
+        if (!key.isNull()) {
+            highlighter->toggleVariable(object->objectName());
+            variables.remove(key);
+        }
     }
 
 signals:

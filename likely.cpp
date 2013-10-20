@@ -93,8 +93,10 @@ static int lua_likely_print(lua_State *L)
     const int argc = lua_gettop(L);
     stringstream stream;
     for (int i=1; i<=argc; i++) {
+        const char *str = lua_tostring(L, i);
+        if (!str) continue;
         if (i > 1) stream << "\t";
-        stream << lua_tostring(L, i);
+        stream << str;
     }
 
     if (MessageCallback) MessageCallback(stream.str().c_str(), false);
@@ -390,8 +392,15 @@ likely_mat likely_read(const char *file_name, likely_mat image)
 {
     cv::Mat m = cv::imread(file_name, CV_LOAD_IMAGE_UNCHANGED);
     likely_assert(m.data, "'read' failed to open: %s", file_name);
-    if (m.data) return fromCvMat(m, true, image);
-    else        return NULL;
+    if (m.data) {
+        return fromCvMat(m, true, image);
+    } else {
+        if (image) {
+            likely_initialize(image);
+            return image;
+        }
+        return NULL;
+    }
 }
 
 static int lua_likely_read(lua_State *L)
