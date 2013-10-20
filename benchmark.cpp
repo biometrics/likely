@@ -230,12 +230,12 @@ int main(int argc, char *argv[])
     setbuf(stdout, NULL);
     printf("Function\tType\tSize\tExecution\tSpeedup\n");
 
-//    addTest().run();
+    addTest().run();
 //    divideTest().run();
 //    maddTest().run();
 //    multiplyTest().run();
 //    subtractTest().run();
-    logTest().run();
+//    logTest().run();
 
     return 0;
 }

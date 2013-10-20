@@ -1047,7 +1047,7 @@ public:
             const string &value = stack[j];
             char *error;
             const double x = strtod(value.c_str(), &error);
-            if (!error) {
+            if (*error == '\0') {
                 values.push_back(kernel.autoConstant(x));
             } else if (value == "src") {
                 values.push_back(kernel.load(i));
