@@ -68,8 +68,8 @@ public:
     explicit Variable(const QString &name)
     {
         setObjectName(name);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         text = new QLabel(this);
-        text->setAlignment(Qt::AlignLeft | Qt::AlignBottom);
         layout = new QVBoxLayout(this);
         layout->addWidget(text);
         layout->setContentsMargins(0, 0, 0, 0);
@@ -99,14 +99,13 @@ class Matrix : public Variable
     QImage src;
 
 public:
-    explicit Matrix(const QString &name, lua_State *L)
+    explicit Matrix(const QString &name)
         : Variable(name)
     {
         image = new QLabel(this);
         image->setAlignment(Qt::AlignCenter);
         image->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
         layout->addWidget(image);
-        refresh(L);
     }
 
 private:
@@ -150,12 +149,9 @@ private:
 
 struct Function : public Variable
 {
-    Function(const QString &name, lua_State *L)
+    Function(const QString &name)
         : Variable(name)
-    {
-        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        refresh(L);
-    }
+    {}
 
 private:
     void refresh(lua_State *L)
@@ -169,12 +165,9 @@ private:
 
 struct Generic : public Variable
 {
-    Generic(const QString &name, lua_State *L)
+    Generic(const QString &name)
         : Variable(name)
-    {
-        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        refresh(L);
-    }
+    {}
 
 private:
     void refresh(lua_State *L)
@@ -443,12 +436,12 @@ private:
             lua_pop(L, 1);
 
             Variable *variable;
-            if      (type == "matrix")   variable = new Matrix(name, L);
-            else if (type == "function") variable = new Function(name, L);
-            else                         variable = new Generic(name, L);
-
+            if      (type == "matrix")   variable = new Matrix(name);
+            else if (type == "function") variable = new Function(name);
+            else                         variable = new Generic(name);
             connect(this, SIGNAL(newState(lua_State*)), variable, SLOT(refresh(lua_State*)));
             connect(variable, SIGNAL(destroyed(QObject*)), this, SLOT(removeObject(QObject*)));
+            variable->refresh(L);
             variables.insert(name, variable);
             emit newVariable(variable);
         } else if (toggled < 0) {
