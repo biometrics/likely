@@ -331,14 +331,14 @@ public slots:
                              "message = \"Hello World!\"\n"
                              "\n"
                              "-- Console output appears on the right\n"
-                             "print(message)\n"
+                             "print{message}\n"
                              "\n"
                              "-- %1+click bold code to display value\n"
-                             "lenna = read(\"img/Lenna.tiff\")\n"
+                             "lenna = read{\"img/Lenna.tiff\"}\n"
                              "\n"
                              "-- %1+scroll to edit numerical constants\n"
                              "x = 1 + 1\n"
-                             "print(\"x = \" .. x)\n"
+                             "print{\"x = \" .. x}\n"
                              "").arg(QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText));
         setText(source);
     }

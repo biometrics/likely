@@ -1,27 +1,70 @@
+-- Likely Standard Library
+
+-- Spaces are used to separate tokens in the Likely intermediate representation
+concat = function(...) return table.concat(..., " ") end
+
 -- Setup function abstractions
 likely.func_mt = {}
-likely.func_mt.__call = function(f, ...) return f.source(...) end
-likely.func = function(source, documentation)
-                t = {}
-                t.likely = "function"
-                t.source = source
-                t.documentation = documentation
-                setmetatable(t, likely.func_mt)
-                return t
-              end
+
+function likely.func_mt.__call(f, args)
+  if #args == f.n then
+    return f.source(unpack(args))
+  elseif #args > f.n then
+    error("too many arguments")
+  else
+    -- TODO: implement function binding
+  end
+end
+
+function likely.func(source, documentation, parameters)
+  t = {}
+  t.likely = "function"
+  t.source = source
+  t.documentation = documentation
+  t.parameters = parameters
+  t.n = #parameters
+  setmetatable(t, likely.func_mt)
+  return t
+end
 
 -- Shorthand for Likely global functions
 func = likely.func
-new = func(likely.new, "Create an empty matrix")
-read = func(likely.read, "Create a matrix from a file")
-compile = func(likely.compile, "Create kernel")
-print = func(likely.print, "Write to console")
+new = func(likely.new,
+           "Create an empty matrix",
+           {{"hash", "matrix hash"},
+            {"channels", "matrix channels"},
+            {"columns", "matrix columns"},
+            {"rows", "matrix rows"},
+            {"frames", "matrix frames"},
+            {"data", "address of existing data buffer"},
+            {"clone", "copy the data buffer"}})
+read = func(likely.read,
+            "Create a matrix from a file",
+            {{"file_name", "path to file on disk"}})
+compile = func(likely.compile,
+               "Create kernel",
+               {{"function", "function expression"}})
+print = func(likely.print,
+             "Write to console",
+             {{"arguments", "values to print"}})
 
 -- Basic arithmetic
-function add(b) return "src", b, "+" end
-function subtract(b) return "src", b, "-" end
-function multiply(a) return "src", a, "*" end
-function divide(a) return "src", a, "/" end
+add = func(function(rhs, lhs) return concat(x, b, "+") end,
+           "Arithmetic addition",
+           {{"rhs", "right hand side"},
+            {"lhs", "left hand side"}})
+subtract = func(function(rhs, lhs) return contac(lhs, rhs, "-") end,
+                "Arithmetic subtraction",
+                {{"rhs", "right hand side"},
+                 {"lhs", "left hand side"}})
+multiply = func(function(rhs, lhs) return concat(lhs, rhs, "*") end,
+                "Arithmetic multiplication",
+                {{"rhs", "right hand side"},
+                 {"lhs", "left hand side"}})
+divide = func(function(rhs, lhs) return concat(lhs, rhs, "/") end,
+              "Arithmetic division",
+              {{"rhs", "right hand side"},
+               {"lhs", "left hand side"}})
 
 -- Basic math
 function log() return "src", "log" end
