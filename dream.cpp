@@ -32,8 +32,7 @@ class Messenger : public QObject
 
     void sendMessage(QString message, bool error)
     {
-        if (error)
-            message = "<font color=\"red\">"+message+"</font>";
+        (void) error;
         emit newMessage(message);
     }
 
@@ -292,6 +291,16 @@ private:
     }
 };
 
+static int traceback(lua_State *L)
+{
+    lua_getglobal(L, "debug");
+    lua_getfield(L, -1, "traceback");
+    lua_pushvalue(L, 1);
+    lua_pushinteger(L, 2);
+    lua_call(L, 2, 1);
+    return 1;
+}
+
 class Source : public QTextEdit
 {
     Q_OBJECT
@@ -317,8 +326,10 @@ public:
         luaL_openlibs(L);
         luaL_requiref(L, "likely", luaopen_likely, 1);
         lua_pop(L, 1);
-        *error = luaL_dostring(L, likely_standard_library()) ||
-                 luaL_dostring(L, qPrintable(source));
+        lua_pushcfunction(L, traceback);
+        const int tracebackPos = lua_gettop(L);
+        *error = luaL_loadstring(L, likely_standard_library()) || lua_pcall(L, 0, LUA_MULTRET, tracebackPos);
+        *error = *error || luaL_loadstring(L, qPrintable(source)) || lua_pcall(L, 0, LUA_MULTRET, tracebackPos);
         return L;
     }
 
@@ -370,7 +381,7 @@ public slots:
         // This check needed because syntax highlighting triggers a textChanged() signal
         const QString source = toPlainText();
         if (source == previousSource) return;
-        else previousSource = source;
+        else                          previousSource = source;
 
         emit recompiling();
         if (L) lua_close(L);

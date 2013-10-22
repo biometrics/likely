@@ -1,28 +1,76 @@
 -- Likely Standard Library
 
 -- Spaces are used to separate tokens in the Likely intermediate representation
-concat = function(...) return table.concat(..., " ") end
+function likely.concat(...)
+  return table.concat({...}, " ")
+end
+
+function likely.copy(t)
+  local t2 = {}
+  for k,v in pairs(t) do
+    t2[k] = v
+  end
+  return t2
+end
 
 -- Setup function abstractions
 likely.func_mt = {}
 
-function likely.func_mt.__call(f, args)
-  if #args == f.n then
-    return f.source(unpack(args))
-  elseif #args > f.n then
-    error("too many arguments")
+function likely.func_mt.__call(f, ...)
+  -- Likely functions support both regular Lua function call syntax and single argument tables,
+  -- this code must disambiguate between the two and order named arguments appropriately.
+  local allArgs = likely.copy(f.args)
+  local n = #f.args
+  local args = { ... }
+  if #args == 1 and type(args[1]) == "table" then
+    args = args[1]
+  end
+  for k,v in pairs(args) do
+    if type(k) == "number" then
+      allArgs[n+k] = v
+    else
+      allArgs[f.parameterLUT[k]] = v
+    end
+  end
+
+  if #allArgs == f.n then
+    return f.source(unpack(allArgs))
+  elseif #allArgs > f.n then
+    local isVarArg = f.parameters[#f.parameters][1] == "..."
+    if isVarArg then
+      return f.source(unpack(allArgs))
+    else
+      error("too many arguments")
+    end
   else
-    -- TODO: implement function binding
+    -- Return a new function that binds these arguments
+    return likely.func(f.source, f.documentation, f.parameters, allArgs)
   end
 end
 
-function likely.func(source, documentation, parameters)
-  t = {}
+function likely.func(source, documentation, parameters, args)
+  local t = {}
   t.likely = "function"
   t.source = source
   t.documentation = documentation
-  t.parameters = parameters
+  t.parameters = parameters  
   t.n = #parameters
+  t.parameterLUT = {}
+  for k,v in pairs(parameters) do
+    t.parameterLUT[v[1]] = k
+  end
+
+  t.args = {}
+  if type(args) == "table" then
+    for k,v in pairs(args) do
+      if type(k) == "number" then
+        t.args[k] = v
+      else
+        t.args[t.parameterLUT[k]] = v
+      end
+    end
+  end
+
   setmetatable(t, likely.func_mt)
   return t
 end
@@ -46,22 +94,22 @@ compile = func(likely.compile,
                {{"function", "function expression"}})
 print = func(likely.print,
              "Write to console",
-             {{"arguments", "values to print"}})
+             {{"...", "values to print"}})
 
 -- Basic arithmetic
-add = func(function(rhs, lhs) return concat(x, b, "+") end,
+add = func(function(rhs, lhs) return likely.concat(lhs, rhs, "+") end,
            "Arithmetic addition",
            {{"rhs", "right hand side"},
             {"lhs", "left hand side"}})
-subtract = func(function(rhs, lhs) return contac(lhs, rhs, "-") end,
+subtract = func(function(rhs, lhs) return likely.concat(lhs, rhs, "-") end,
                 "Arithmetic subtraction",
                 {{"rhs", "right hand side"},
                  {"lhs", "left hand side"}})
-multiply = func(function(rhs, lhs) return concat(lhs, rhs, "*") end,
+multiply = func(function(rhs, lhs) return likely.concat(lhs, rhs, "*") end,
                 "Arithmetic multiplication",
                 {{"rhs", "right hand side"},
                  {"lhs", "left hand side"}})
-divide = func(function(rhs, lhs) return concat(lhs, rhs, "/") end,
+divide = func(function(rhs, lhs) return likely.concat(lhs, rhs, "/") end,
               "Arithmetic division",
               {{"rhs", "right hand side"},
                {"lhs", "left hand side"}})
