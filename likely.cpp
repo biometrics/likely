@@ -1372,19 +1372,41 @@ static int lua_likely_compile(lua_State *L)
 {
     const int args = lua_gettop(L);
     likely_assert(args >= 1, "'compile' expected at least one argument");
-    stringstream description;
-    description << "likely ";
-    int index = 1;
-    while (!luaL_testudata(L, index, "likely"))
-        description << lua_tostring(L, index++) << " ";
-    vector<likely_const_mat> mats;
-    for (int i=index; i<=args; i++)
-        mats.push_back(checkLuaMat(L, i));
 
+    // Make sure we were given a function
+    lua_getfield(L, 1, "likely");
+    likely_assert(!strcmp("function", lua_tostring(L, -1)), "'compile' expected the function argument to be a function");
+    lua_pop(L, 1);
+
+    // Get the function's arity
+    lua_getfield(L, 1, "arity");
+    int isnum;
+    likely_arity arity = lua_tonumberx(L, -1, &isnum);
+    lua_pop(L, 1);
+    likely_assert(isnum, "'compile' expected function to have a numerical arity");
+    likely_assert(arity >= args -1, "'compile' was given a function with arity: %d but: %d default arguments", arity, args-1);
+
+    // Get the default matricies
+    vector<likely_const_mat> mats;
+    for (int i=2; i<=args; i++)
+        mats.push_back(checkLuaMat(L, i));
+    while (mats.size() < arity)
+        mats.push_back(NULL);
+
+    // Get the function source code
+    lua_pushvalue(L, 1);
+    for (int i=0; i<arity; i++)
+        lua_pushstring(L, "src"); // TODO: support arity > 1
+    lua_call(L, arity, 1);
+    string source = lua_tostring(L, -1);
+    lua_pop(L, 1);
+
+    // Compile the source code and return the compiled function
+    source.insert(0, "likely ");
     likely_func f = (likely_func) lua_newuserdata(L, sizeof(likely_function));
     luaL_getmetatable(L, "likely_function");
     lua_setmetatable(L, -2);
-    f->function = likely_compile_n(description.str().c_str(), mats.size(), mats.data());
+    f->function = likely_compile_n(source.c_str(), mats.size(), mats.data());
     f->n = mats.size();
     return 1;
 }

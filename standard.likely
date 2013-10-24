@@ -20,22 +20,22 @@ function likely.func_mt.__call(f, ...)
   -- Likely functions support both regular Lua function call syntax and single argument tables,
   -- this code must disambiguate between the two and order named arguments appropriately.
   local allArgs = likely.copy(f.args)
-  local n = #f.args
+  local offset = #f.args
   local args = { ... }
   if #args == 1 and type(args[1]) == "table" then
     args = args[1]
   end
   for k,v in pairs(args) do
     if type(k) == "number" then
-      allArgs[n+k] = v
+      allArgs[offset+k] = v
     else
       allArgs[f.parameterLUT[k]] = v
     end
   end
 
-  if #allArgs == f.n then
+  if #allArgs == #f.parameters then
     return f.source(unpack(allArgs))
-  elseif #allArgs > f.n then
+  elseif #allArgs > #f.parameters then
     local isVarArg = f.parameters[#f.parameters][1] == "..."
     if isVarArg then
       return f.source(unpack(allArgs))
@@ -54,7 +54,6 @@ function likely.func(source, documentation, parameters, args)
   t.source = source
   t.documentation = documentation
   t.parameters = parameters  
-  t.n = #parameters
   t.parameterLUT = {}
   for k,v in pairs(parameters) do
     t.parameterLUT[v[1]] = k
@@ -71,6 +70,7 @@ function likely.func(source, documentation, parameters, args)
     end
   end
 
+  t.arity = #t.parameters - #t.args
   setmetatable(t, likely.func_mt)
   return t
 end
@@ -91,7 +91,8 @@ read = func(likely.read,
             {{"file_name", "path to file on disk"}})
 compile = func(likely.compile,
                "Create kernel",
-               {{"function", "function expression"}})
+               {{"function", "function expression"},
+                {"...", "matricies to initialize the function"}})
 print = func(likely.print,
              "Write to console",
              {{"...", "values to print"}})
