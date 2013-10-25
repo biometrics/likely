@@ -13,6 +13,15 @@ function likely.copy(t)
   return t2
 end
 
+function likely.isnum(...)
+  for k,v in pairs({...}) do
+    if type(v) ~= "number" then
+      return false
+    end
+  end
+  return true
+end
+
 -- Setup function abstractions
 likely.func_mt = {}
 
@@ -98,22 +107,53 @@ print = func(likely.print,
              {{"...", "values to print"}})
 
 -- Basic arithmetic
-add = func(function(rhs, lhs) return likely.concat(lhs, rhs, "+") end,
-           "Arithmetic addition",
-           {{"rhs", "right hand side"},
-            {"lhs", "left hand side"}})
-subtract = func(function(rhs, lhs) return likely.concat(lhs, rhs, "-") end,
-                "Arithmetic subtraction",
-                {{"rhs", "right hand side"},
-                 {"lhs", "left hand side"}})
-multiply = func(function(rhs, lhs) return likely.concat(lhs, rhs, "*") end,
-                "Arithmetic multiplication",
-                {{"rhs", "right hand side"},
-                 {"lhs", "left hand side"}})
-divide = func(function(rhs, lhs) return likely.concat(lhs, rhs, "/") end,
-              "Arithmetic division",
-              {{"rhs", "right hand side"},
-               {"lhs", "left hand side"}})
+add = func(
+  function(rhs, lhs)
+    if likely.isnum(rhs, lhs) then
+      return lhs + rhs
+    else
+      return likely.concat(lhs, rhs, "+")
+    end
+  end,
+  "Arithmetic addition",
+  {{"rhs", "right hand side"},
+  {"lhs", "left hand side"}})
+
+subtract = func(
+  function(rhs, lhs)
+    if likely.isnum(rhs, lhs) then
+      return lhs - rhs
+    else
+      return likely.concat(lhs, rhs, "-")
+    end
+  end,
+  "Arithmetic subtraction",
+  {{"rhs", "right hand side"},
+   {"lhs", "left hand side"}})
+
+multiply = func(
+  function(rhs, lhs)
+    if likely.isnum(rhs, lhs) then
+      return lhs * rhs
+    else
+      return likely.concat(lhs, rhs, "*")
+    end
+  end,
+  "Arithmetic multiplication",
+  {{"rhs", "right hand side"},
+  {"lhs", "left hand side"}})
+
+divide = func(
+  function(rhs, lhs)
+    if likely.isnum(rhs, lhs) then
+      return lhs / rhs
+    else
+      return likely.concat(lhs, rhs, "/")
+    end
+  end,
+  "Arithmetic division",
+  {{"rhs", "right hand side"},
+   {"lhs", "left hand side"}})
 
 -- Basic math
 function log() return "src", "log" end
