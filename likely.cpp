@@ -1466,7 +1466,7 @@ void *likely_compile_allocation_n(likely_description description, likely_arity n
     vector<likely_hash> hashes;
     for (int i=0; i<n; i++) {
         likely_const_mat src = srcs[i];
-        likely_assert(src, "likely_compile_allocation_n null matrix at index: %d", i);
+        likely_assert(src && (src->hash != likely_hash_null), "likely_compile_allocation_n null matrix at index: %d", i);
         hashes.push_back(src->hash);
     }
 
@@ -1513,7 +1513,7 @@ void *likely_compile_kernel_n(likely_description description, likely_arity n, li
     vector<likely_hash> hashes;
     for (int i=0; i<n; i++) {
         likely_const_mat src = srcs[i];
-        likely_assert(src, "likely_compile_kernel_n null matrix at index: %d", i);
+        likely_assert(src && (src->hash != likely_hash_null), "likely_compile_kernel_n null matrix at index: %d", i);
         hashes.push_back(src->hash);
     }
 
