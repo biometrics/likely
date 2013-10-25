@@ -342,14 +342,14 @@ public slots:
                              "message = \"Hello World!\"\n"
                              "\n"
                              "-- Console output appears on the right\n"
-                             "print{message}\n"
+                             "print(message)\n"
                              "\n"
                              "-- %1+click bold code to display value\n"
-                             "lenna = read{\"img/Lenna.tiff\"}\n"
+                             "lenna = read(\"img/Lenna.tiff\")\n"
                              "\n"
                              "-- %1+scroll to edit numerical constants\n"
-                             "x = 1 + 1\n"
-                             "print{\"x = \" .. x}\n"
+                             "darken = compile(divide(2), lenna)\n"
+                             "dark_lenna = darken(lenna)\n"
                              "").arg(QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText));
         setText(source);
     }
@@ -469,25 +469,22 @@ private:
         }
 
         e->accept();
-        const int deltaX = getIncrement(e->angleDelta().x(), wheelRemainderX, wheelRemainderY);
-        const int deltaY = getIncrement(e->angleDelta().y(), wheelRemainderY, wheelRemainderX);
+        const int deltaY =                    getIncrement(e->angleDelta().y(), wheelRemainderY, wheelRemainderX);
+        const int deltaX = (deltaY != 0 ? 0 : getIncrement(e->angleDelta().x(), wheelRemainderX, wheelRemainderY));
         if ((deltaX == 0) && (deltaY == 0))
             return;
 
         QTextCursor tc = cursorForPosition(e->pos());
-        tc.select(QTextCursor::WordUnderCursor);
-        { // Does the number start with a negative sign?
-            QTextCursor tcNegative(tc);
-            tcNegative.movePosition(QTextCursor::StartOfWord);
-            tcNegative.movePosition(QTextCursor::PreviousCharacter);
-            tcNegative.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor);
-            tcNegative.movePosition(QTextCursor::EndOfWord, QTextCursor::KeepAnchor);
-            if (tcNegative.selectedText().startsWith('-'))
-                tc = tcNegative;
-        }
-
         bool ok;
-        const int val = tc.selectedText().toInt(&ok);
+        int val = selectValUnderCursor(tc, &ok);
+        if (!ok) {
+            tc.movePosition(QTextCursor::NextWord);
+            val = selectValUnderCursor(tc, &ok);
+        }
+        if (!ok) {
+            tc.movePosition(QTextCursor::PreviousWord, QTextCursor::MoveAnchor, 2);
+            val = selectValUnderCursor(tc, &ok);
+        }
         if (ok) tc.insertText(QString::number(qRound(qPow(10, deltaX) * (val + deltaY))));
     }
 
@@ -500,6 +497,25 @@ private:
             remainderOther = 0;
         }
         return increment;
+    }
+
+    static int selectValUnderCursor(QTextCursor &tc, bool *ok)
+    {
+        QTextCursor tcCopy(tc);
+        tcCopy.select(QTextCursor::WordUnderCursor);
+
+        // Does the number start with a negative sign?
+        QTextCursor tcNegative(tcCopy);
+        tcNegative.movePosition(QTextCursor::StartOfWord);
+        tcNegative.movePosition(QTextCursor::PreviousCharacter);
+        tcNegative.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor);
+        tcNegative.movePosition(QTextCursor::EndOfWord, QTextCursor::KeepAnchor);
+        if (tcNegative.selectedText().startsWith('-'))
+            tcCopy = tcNegative;
+
+        const int val = tcCopy.selectedText().toInt(ok);
+        if (*ok) tc = tcCopy;
+        return val;
     }
 
 private slots:
