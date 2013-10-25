@@ -34,26 +34,41 @@ function likely.func_mt.__call(f, ...)
   if #args == 1 and type(args[1]) == "table" then
     args = args[1]
   end
+
+  needsCompilation = false
   for k,v in pairs(args) do
-    if type(k) == "number" then
-      allArgs[offset+k] = v
-    else
-      allArgs[f.parameterLUT[k]] = v
+    if type(v) == "userdata" then
+      needsCompilation = needsCompilation or (v.likely == "matrix")
     end
   end
 
-  if #allArgs == #f.parameters then
-    return f.source(unpack(allArgs))
-  elseif #allArgs > #f.parameters then
-    local isVarArg = f.parameters[#f.parameters][1] == "..."
-    if isVarArg then
-      return f.source(unpack(allArgs))
-    else
-      error("too many arguments")
+  if needsCompilation then
+    if not f.binary then
+      f.binary = likely.compile(f, ...)
     end
+    return f.binary(...)
   else
-    -- Return a new function that binds these arguments
-    return likely.func(f.source, f.documentation, f.parameters, allArgs)
+    for k,v in pairs(args) do
+      if type(k) == "number" then
+        allArgs[offset+k] = v
+      else
+        allArgs[f.parameterLUT[k]] = v
+      end
+    end
+
+    if #allArgs == #f.parameters then
+      return f.source(unpack(allArgs))
+    elseif #allArgs > #f.parameters then
+      local isVarArg = f.parameters[#f.parameters][1] == "..."
+      if isVarArg then
+        return f.source(unpack(allArgs))
+      else
+        error("too many arguments")
+      end
+    else
+      -- Return a new function that binds these arguments
+      return likely.func(f.source, f.documentation, f.parameters, allArgs)
+    end
   end
 end
 
@@ -80,6 +95,7 @@ function likely.func(source, documentation, parameters, args)
   end
 
   t.arity = #t.parameters - #t.args
+  t.binary = nil
   setmetatable(t, likely.func_mt)
   return t
 end

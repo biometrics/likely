@@ -348,8 +348,7 @@ public slots:
                              "lenna = read(\"img/Lenna.tiff\")\n"
                              "\n"
                              "-- %1+scroll to edit numerical constants\n"
-                             "darken = compile(divide(2), lenna)\n"
-                             "dark_lenna = darken(lenna)\n"
+                             "dark_lenna = divide(2)(lenna)\n"
                              "").arg(QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText));
         setText(source);
     }
