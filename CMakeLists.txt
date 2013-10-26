@@ -44,13 +44,16 @@ add_subdirectory(lua)
 include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
 
 # Build OpenCV
-get_subdirectories(OPENCV_MODULES "${CMAKE_SOURCE_DIR}/opencv/modules")
-list(REMOVE_ITEM OPENCV_MODULES core imgproc highgui) # Disable all but these
-foreach(OPENCV_MODULE ${OPENCV_MODULES})
+get_subdirectories(DISABLED_OPENCV_MODULES "${CMAKE_SOURCE_DIR}/opencv/modules")
+set(REQUIRED_OPENCV_MODULES core imgproc highgui)
+list(REMOVE_ITEM DISABLED_OPENCV_MODULES ${REQUIRED_OPENCV_MODULES}) # Disable all but these
+foreach(OPENCV_MODULE ${DISABLED_OPENCV_MODULES})
   set(BUILD_opencv_${OPENCV_MODULE}_INIT OFF)
 endforeach()
 add_subdirectory(opencv)
-include_directories(opencv/include)
+foreach(OPENCV_MODULE ${REQUIRED_OPENCV_MODULES})
+  include_directories(opencv/modules/${OPENCV_MODULE}/include)
+endforeach()
 
 # Compile in standard.likely as a string
 set(STANDARD_LIBRARY_CMAKE ${CMAKE_BINARY_DIR}/standard_library.cmake)
