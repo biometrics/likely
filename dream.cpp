@@ -25,17 +25,6 @@ class Messenger : public QObject
     Q_OBJECT
     static Messenger *singleton;
 
-    Messenger() : QObject(0)
-    {
-        likely_set_message_callback(Messenger::send);
-    }
-
-    void sendMessage(QString message, bool error)
-    {
-        (void) error;
-        emit newMessage(message);
-    }
-
 public:
     static Messenger *get()
     {
@@ -44,9 +33,19 @@ public:
         return singleton;
     }
 
-    static void send(const char *message, bool error)
+    static void send(const char *message)
     {
-        get()->sendMessage(message, error);
+        get()->sendMessage(message);
+    }
+
+private:
+    Messenger()
+        : QObject(0)
+    {}
+
+    void sendMessage(const QString &message)
+    {
+        emit newMessage(message);
     }
 
 signals:
@@ -391,8 +390,13 @@ public slots:
         const qint64 nsec = elapsedTimer.nsecsElapsed();
         emit newStatus(QString("Execution Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
 
+        lua_getglobal(L, "likely");
+        lua_getfield(L, -1, "stdout");
+        Messenger::send(lua_tostring(L, -1));
+        lua_pop(L, 2);
+
         if (error) {
-            Messenger::send(lua_tostring(L, -1), true);
+            Messenger::send(lua_tostring(L, -1));
             lua_pop(L, 1);
         }
         settings.setValue("source", source);
