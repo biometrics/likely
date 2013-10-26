@@ -53,6 +53,18 @@ using namespace std;
 static Module *TheModule = NULL;
 static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
+static const int MostRecentErrorSize = 1024;
+static char MostRecentError[MostRecentErrorSize];
+
+bool likely_assert(bool condition, const char *format, ...)
+{
+    if (condition) return true;
+    va_list ap;
+    va_start(ap, format);
+    vsnprintf(MostRecentError, MostRecentErrorSize, format, ap);
+    fprintf(stderr, "LIKELY ERROR - %s.\n", MostRecentError);
+    return false;
+}
 
 static void checkLua(lua_State *L, int error = true)
 {
@@ -559,20 +571,12 @@ void likely_print(likely_const_mat m)
     }
 }
 
-bool likely_assert(bool condition, const char *format, ...)
+const char *likely_most_recent_error()
 {
-    if (condition) return true;
-    const int bufferSize = 1024;
-    char *buffer = new char[bufferSize];
-
-    va_list ap;
-    va_start(ap, format);
-    vsnprintf(buffer, bufferSize, format, ap);
-    fprintf(stderr, "LIKELY ERROR - %s.\n", buffer);
-    abort();
-
-    delete buffer;
-    return false;
+    static string result;
+    result = MostRecentError;
+    sprintf(MostRecentError, "");
+    return result.c_str();
 }
 
 void likely_dump()

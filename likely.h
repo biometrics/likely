@@ -148,7 +148,7 @@ LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c 
 LIKELY_EXPORT const char *likely_hash_to_string(likely_hash h); // Pointer guaranteed until the next call to this function
 LIKELY_EXPORT likely_hash likely_string_to_hash(const char *str);
 LIKELY_EXPORT void likely_print(likely_const_mat m);
-LIKELY_EXPORT bool likely_assert(bool condition, const char *format, ...); // Returns condition
+LIKELY_EXPORT const char *likely_most_recent_error();
 LIKELY_EXPORT void likely_dump(); // Print LLVM module contents to stderr
 
 // Core library types and functions

@@ -142,7 +142,7 @@ void Test::testCorrectness(likely_function_1 f, const Mat &src, bool parallel) c
                                    << likely_element(cvLikely, 0, j, i) << "\t"
                                    << likely_element(dstLikely, 0, j, i) << "\t"
                                    << i << "\t" << j << "\n";
-        likely_assert(false, "Test for %s differs in %g locations:\n%s", function(), errors, errorLocations.str().c_str());
+        fprintf(stderr, "Test for %s differs in %g locations:\n%s", function(), errors, errorLocations.str().c_str());
         likely_delete(cvLikely);
     }
 
@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
             if      (!strcmp("-function", argv[i])) BenchmarkFunction = argv[i+1];
             else if (!strcmp("-type", argv[i])) BenchmarkType = likely_string_to_hash(argv[i+1]);
             else if (!strcmp("-size", argv[i])) BenchmarkSize = atoi(argv[i+1]);
-            else    likely_assert(false, "Unrecognized argument: %s", argv[i]);
+            else    printf("Unrecognized argument: %s\n", argv[i]);
         }
     }
 
