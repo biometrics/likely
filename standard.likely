@@ -65,15 +65,8 @@ function likely.func_mt.__call(f, ...)
       end
     end
 
-    if #allArgs == #f.parameters then
+    if #allArgs >= #f.parameters then
       return f.source(unpack(allArgs))
-    elseif #allArgs > #f.parameters then
-      local isVarArg = f.parameters[#f.parameters][1] == "..."
-      if isVarArg then
-        return f.source(unpack(allArgs))
-      else
-        error("too many arguments")
-      end
     else
       -- Return a new function that binds these arguments
       return likely.func(f.source, f.documentation, f.parameters, allArgs)

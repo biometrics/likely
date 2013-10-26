@@ -56,14 +56,27 @@ static const int MaxRegisterWidth = 32; // This should be determined at run time
 static const int MostRecentErrorSize = 1024;
 static char MostRecentError[MostRecentErrorSize];
 
-bool likely_assert(bool condition, const char *format, ...)
+static bool likelyAssertHelper(bool condition, const char *format, va_list ap, lua_State *L = NULL)
 {
     if (condition) return true;
+    vsnprintf(MostRecentError, MostRecentErrorSize, format, ap);
+    fprintf(stderr, "Likely %s.\n", MostRecentError);
+    if (L) luaL_error(L, "Likely %s.", MostRecentError);
+    return false;
+}
+
+bool likely_assert(bool condition, const char *format, ...)
+{
     va_list ap;
     va_start(ap, format);
-    vsnprintf(MostRecentError, MostRecentErrorSize, format, ap);
-    fprintf(stderr, "LIKELY ERROR - %s.\n", MostRecentError);
-    return false;
+    return likelyAssertHelper(condition, format, ap);
+}
+
+static bool lua_likely_assert(lua_State *L, bool condition, const char *format, ...)
+{
+    va_list ap;
+    va_start(ap, format);
+    return likelyAssertHelper(condition, format, ap, L);
 }
 
 static void checkLua(lua_State *L, int error = true)
@@ -400,7 +413,7 @@ likely_mat likely_read(const char *file_name, likely_mat image)
 
 static int lua_likely_read(lua_State *L)
 {
-    likely_assert(lua_gettop(L) == 1, "'read' expected 1 argument, got: %d", lua_gettop(L));
+    lua_likely_assert(L, lua_gettop(L) == 1, "'read' expected 1 argument, got: %d", lua_gettop(L));
     likely_read(lua_tostring(L, 1), newLuaMat(L));
     return 1;
 }
