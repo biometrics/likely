@@ -42,6 +42,10 @@ extern "C" {
 // Contents of standard.likely
 LIKELY_EXPORT const char *likely_standard_library();
 
+// Resets the error message buffer,
+// but the return value is guaranteed until the next call to this function
+LIKELY_EXPORT const char *likely_most_recent_error();
+
 // Matrix types
 typedef uint8_t likely_data;
 typedef uint32_t likely_size;
@@ -145,10 +149,9 @@ LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *exten
 // Debugging functionality
 LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
 LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
-LIKELY_EXPORT const char *likely_hash_to_string(likely_hash h); // Pointer guaranteed until the next call to this function
+LIKELY_EXPORT const char *likely_hash_to_string(likely_hash h); // Return value guaranteed until the next call to this function
 LIKELY_EXPORT likely_hash likely_string_to_hash(const char *str);
 LIKELY_EXPORT void likely_print(likely_const_mat m);
-LIKELY_EXPORT const char *likely_most_recent_error();
 LIKELY_EXPORT void likely_dump(); // Print LLVM module contents to stderr
 
 // Core library types and functions

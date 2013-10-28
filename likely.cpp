@@ -60,8 +60,8 @@ static bool likelyAssertHelper(bool condition, const char *format, va_list ap, l
 {
     if (condition) return true;
     vsnprintf(MostRecentError, MostRecentErrorSize, format, ap);
-    fprintf(stderr, "Likely %s.\n", MostRecentError);
     if (L) luaL_error(L, "Likely %s.", MostRecentError);
+    else   fprintf(stderr, "Likely %s.\n", MostRecentError);
     return false;
 }
 
@@ -77,6 +77,22 @@ static bool lua_likely_assert(lua_State *L, bool condition, const char *format, 
     va_list ap;
     va_start(ap, format);
     return likelyAssertHelper(condition, format, ap, L);
+}
+
+const char *likely_most_recent_error()
+{
+    static string result;
+    result = MostRecentError;
+    sprintf(MostRecentError, "");
+    return result.c_str();
+}
+
+static int lua_likely_most_recent_error(lua_State *L)
+{
+    const char *error = likely_most_recent_error();
+    if (strcmp(error, ""))
+        luaL_error(L, error);
+    return 0;
 }
 
 static void checkLua(lua_State *L, int error = true)
@@ -415,6 +431,7 @@ static int lua_likely_read(lua_State *L)
 {
     lua_likely_assert(L, lua_gettop(L) == 1, "'read' expected 1 argument, got: %d", lua_gettop(L));
     likely_read(lua_tostring(L, 1), newLuaMat(L));
+    lua_likely_most_recent_error(L);
     return 1;
 }
 
@@ -582,14 +599,6 @@ void likely_print(likely_const_mat m)
         cout << (m->rows > 1 ? "]\n" : "");
         cout << (t < m->frames-1 ? "\n" : "");
     }
-}
-
-const char *likely_most_recent_error()
-{
-    static string result;
-    result = MostRecentError;
-    sprintf(MostRecentError, "");
-    return result.c_str();
 }
 
 void likely_dump()
@@ -1401,6 +1410,7 @@ static int lua_likely_compile(lua_State *L)
     lua_settable(L, -3);
     luaL_getmetatable(L, "likely_function");
     lua_setmetatable(L, -2);
+    lua_likely_most_recent_error(L);
     return 1;
 }
 
