@@ -63,7 +63,7 @@ protected:
     QLayout *layout;
 
 public:
-    explicit Variable(const QString &name)
+    Variable(const QString &name)
     {
         setFrameStyle(QFrame::Panel | QFrame::Raised);
         setLineWidth(2);
@@ -100,7 +100,7 @@ class Matrix : public Variable
     QImage src;
 
 public:
-    explicit Matrix(const QString &name)
+    Matrix(const QString &name)
         : Variable(name)
     {
         image = new QLabel(this);
@@ -134,7 +134,6 @@ private:
     void resizeEvent(QResizeEvent *e)
     {
         QWidget::resizeEvent(e);
-        e->accept();
         updatePixmap();
     }
 
@@ -304,8 +303,7 @@ class Source : public QTextEdit
     int wheelRemainderX = 0, wheelRemainderY = 0;
 
 public:
-    Source(QWidget *p = 0)
-        : QTextEdit(p)
+    Source()
     {
         highlighter = new SyntaxHighlighter(document());
         setAcceptRichText(false);
@@ -398,12 +396,9 @@ public slots:
 private:
     void mousePressEvent(QMouseEvent *e)
     {
-        if (e->modifiers() != Qt::ControlModifier) {
-            QTextEdit::mousePressEvent(e);
-            return;
-        }
+        if (e->modifiers() != Qt::ControlModifier)
+            return QTextEdit::mousePressEvent(e);
 
-        e->accept();
         QTextCursor tc = cursorForPosition(e->pos());
         tc.select(QTextCursor::WordUnderCursor);
         const QString name = tc.selectedText();
@@ -440,12 +435,9 @@ private:
 
     void wheelEvent(QWheelEvent *e)
     {
-        if (e->modifiers() != Qt::ControlModifier) {
-            QTextEdit::wheelEvent(e);
-            return;
-        }
+        if (e->modifiers() != Qt::ControlModifier)
+            return QTextEdit::wheelEvent(e);
 
-        e->accept();
         const int deltaY =                    getIncrement(e->angleDelta().y(), wheelRemainderY, wheelRemainderX);
         const int deltaX = (deltaY != 0 ? 0 : getIncrement(e->angleDelta().x(), wheelRemainderX, wheelRemainderY));
         if ((deltaX == 0) && (deltaY == 0))
