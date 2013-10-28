@@ -396,28 +396,6 @@ public slots:
     }
 
 private:
-    void keyPressEvent(QKeyEvent *e)
-    {
-        if (e->key() != Qt::Key_Control) {
-            QTextEdit::keyPressEvent(e);
-            return;
-        }
-
-        e->accept();
-        viewport()->setCursor(Qt::PointingHandCursor);
-    }
-
-    void keyReleaseEvent(QKeyEvent *e)
-    {
-        if (e->key() != Qt::Key_Control) {
-            QTextEdit::keyPressEvent(e);
-            return;
-        }
-
-        e->accept();
-        viewport()->setCursor(Qt::IBeamCursor);
-    }
-
     void mousePressEvent(QMouseEvent *e)
     {
         if (e->modifiers() != Qt::ControlModifier) {
@@ -567,6 +545,22 @@ private slots:
     }
 };
 
+class OverrideCursor : public QObject
+{
+    bool eventFilter(QObject *obj, QEvent *event)
+    {
+        if ((event->type() == QEvent::KeyPress) ||
+            (event->type() == QEvent::KeyRelease)) {
+            QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
+            if (keyEvent->key() == Qt::Key_Control) {
+                if (event->type() == QEvent::KeyPress) QGuiApplication::setOverrideCursor(Qt::PointingHandCursor);
+                else                                   QGuiApplication::restoreOverrideCursor();
+            }
+        }
+        return QObject::eventFilter(obj, event);
+    }
+};
+
 int main(int argc, char *argv[])
 {
     for (int i=1; i<argc; i++) {
@@ -631,6 +625,8 @@ int main(int argc, char *argv[])
     mainWindow.resize(800,WindowWidth);
     mainWindow.show();
 
+    OverrideCursor *overrideCursor = new OverrideCursor();
+    application.installEventFilter(overrideCursor);
     return application.exec();
 }
 
