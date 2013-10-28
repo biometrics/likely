@@ -54,7 +54,7 @@ signals:
 
 Messenger *Messenger::singleton = NULL;
 
-class Variable : public QWidget
+class Variable : public QFrame
 {
     Q_OBJECT
 
@@ -65,13 +65,16 @@ protected:
 public:
     explicit Variable(const QString &name)
     {
+        setFrameStyle(QFrame::Panel | QFrame::Raised);
+        setLineWidth(2);
         setObjectName(name);
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         text = new QLabel(this);
+        text->setWordWrap(true);
         layout = new QVBoxLayout(this);
         layout->addWidget(text);
-        layout->setContentsMargins(0, 0, 0, 0);
-        layout->setSpacing(0);
+        layout->setContentsMargins(3, 3, 3, 3);
+        layout->setSpacing(3);
         setLayout(layout);
     }
 
@@ -175,7 +178,7 @@ private:
         QString contents = lua_tostring(L, -1);
         if (contents.isEmpty())
             contents = lua_typename(L, -1);
-        text->setText(QString("<b>%1</b>: %2").arg(objectName(), contents));
+        text->setText(QString("<b>%1</b>:%2%3").arg(objectName(), contents.contains('\n') ? "<br>" : " ", contents.replace("\n", "<br>")));
         lua_pop(L, 1);
     }
 };
@@ -320,7 +323,7 @@ public:
     }
 
 public slots:
-    void setDefaultSource()
+    void restore()
     {
         QString source = settings.value("source").toString();
         if (source.isEmpty())
@@ -337,6 +340,7 @@ public slots:
                              "dark_lenna = divide(2)(lenna)\n"
                              "").arg(QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText));
         setText(source);
+        toggleOn("console");
     }
 
     void setSource(QAction *a)
@@ -437,18 +441,23 @@ private:
             }
             lua_pop(L, 1);
 
-            Variable *variable;
-            if      (type == "matrix")   variable = new Matrix(name);
-            else if (type == "function") variable = new Function(name);
-            else                         variable = new Generic(name);
-            connect(this, SIGNAL(newState(lua_State*)), variable, SLOT(refresh(lua_State*)));
-            connect(variable, SIGNAL(destroyed(QObject*)), this, SLOT(removeObject(QObject*)));
-            variable->refresh(L);
-            variables.insert(name, variable);
-            emit newVariable(variable);
+            toggleOn(name, type);
         } else if (toggled < 0) {
             variables.take(name)->deleteLater();
         }
+    }
+
+    void toggleOn(const QString &name, const QString &type = "")
+    {
+        Variable *variable;
+        if      (type == "matrix")   variable = new Matrix(name);
+        else if (type == "function") variable = new Function(name);
+        else                         variable = new Generic(name);
+        connect(this, SIGNAL(newState(lua_State*)), variable, SLOT(refresh(lua_State*)));
+        connect(variable, SIGNAL(destroyed(QObject*)), this, SLOT(removeObject(QObject*)));
+        variable->refresh(L);
+        variables.insert(name, variable);
+        emit newVariable(variable);
     }
 
     void wheelEvent(QWheelEvent *e)
@@ -525,19 +534,6 @@ signals:
     void newStatus(QString);
 };
 
-class Console : public QTextEdit
-{
-    Q_OBJECT
-
-public:
-    Console(QWidget *parent = 0)
-        : QTextEdit(parent)
-    {
-        setReadOnly(true);
-        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    }
-};
-
 class Documentation : public QScrollArea
 {
     Q_OBJECT
@@ -551,8 +547,9 @@ public:
         setWidget(new QWidget());
         setWidgetResizable(true);
         layout = new QVBoxLayout(this);
-        layout->setContentsMargins(0, 0, 0, 0);
-        layout->setSpacing(0);
+        layout->setAlignment(Qt::AlignTop);
+        layout->setContentsMargins(0, 6, 6, 6);
+        layout->setSpacing(6);
         widget()->setLayout(layout);
     }
 
@@ -614,20 +611,16 @@ int main(int argc, char *argv[])
     statusBar->setSizeGripEnabled(true);
 
     Source *source = new Source();
-    Console *console = new Console();
     Documentation *documentation = new Documentation();
     QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(setSource(QAction*)));
     QObject::connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
     QObject::connect(source, SIGNAL(newVariable(QWidget*)), documentation, SLOT(addWidget(QWidget*)));
-    QObject::connect(source, SIGNAL(recompiling()), console, SLOT(clear()));
-    QObject::connect(Messenger::get(), SIGNAL(newMessage(QString)), console, SLOT(append(QString)));
-    source->setDefaultSource();
+    source->restore();
 
     const int WindowWidth = 600;
     QSplitter *splitter = new QSplitter(Qt::Horizontal);
     splitter->addWidget(source);
     splitter->addWidget(documentation);
-    documentation->addWidget(console);
     splitter->setSizes(QList<int>() << WindowWidth/2 << WindowWidth/2);
 
     QMainWindow mainWindow;

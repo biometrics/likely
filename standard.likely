@@ -22,12 +22,18 @@ function likely.isnum(...)
   return true
 end
 
-likely.stdout = ""
+console = ""
 function likely.print(...)
-  for k,v in ipairs{...} do
-    likely.stdout = likely.stdout .. v .. " "
+  if #console > 0 then
+    console = console .. "\n"
   end
-  likely.stdout = likely.stdout .. "\n"
+  args = {...}
+  for k,v in ipairs(args) do
+    console = console .. v
+    if k ~= #args then
+      console = console .. " "
+    end
+  end
 end
 print = likely.print
 
