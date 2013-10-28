@@ -92,6 +92,14 @@ protected:
         }
         return !isNil;
     }
+
+private:
+    void mousePressEvent(QMouseEvent *e)
+    {
+        if (e->modifiers() != Qt::ControlModifier)
+            return QFrame::mousePressEvent(e);
+        deleteLater();
+    }
 };
 
 class Matrix : public Variable
