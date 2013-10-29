@@ -52,8 +52,17 @@ protected:
     {
         lua_getglobal(L, qPrintable(objectName()));
         const bool isValid = !lua_isnil(L, -1);
+
+        bool success = true;
+        if (!isValid) {
+            lua_getglobal(L, "compiler");
+            success = lua_isnil(L, -1);
+            lua_pop(L, 1);
+        }
+        setEnabled(success);
+
         if (!isValid) lua_pop(L, 1);
-        setVisible(isValid);
+        setVisible(isValid || !success);
         return isValid;
     }
 
