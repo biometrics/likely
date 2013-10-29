@@ -20,40 +20,6 @@
 
 #include "likely.h"
 
-class Messenger : public QObject
-{
-    Q_OBJECT
-    static Messenger *singleton;
-
-public:
-    static Messenger *get()
-    {
-        if (!singleton)
-            singleton = new Messenger();
-        return singleton;
-    }
-
-    static void send(const char *message)
-    {
-        get()->sendMessage(message);
-    }
-
-private:
-    Messenger()
-        : QObject(0)
-    {}
-
-    void sendMessage(const QString &message)
-    {
-        emit newMessage(message);
-    }
-
-signals:
-    void newMessage(QString);
-};
-
-Messenger *Messenger::singleton = NULL;
-
 class Variable : public QFrame
 {
     Q_OBJECT
@@ -85,12 +51,10 @@ protected:
     bool check(lua_State *L)
     {
         lua_getglobal(L, qPrintable(objectName()));
-        const bool isNil = lua_isnil(L, -1);
-        if (isNil) {
-            lua_pop(L, 1);
-            deleteLater();
-        }
-        return !isNil;
+        const bool isValid = !lua_isnil(L, -1);
+        if (!isValid) lua_pop(L, 1);
+        setVisible(isValid);
+        return isValid;
     }
 
 private:
@@ -183,10 +147,11 @@ private:
     {
         if (!check(L)) return;
         QString contents = lua_tostring(L, -1);
-        if (contents.isEmpty())
-            contents = lua_typename(L, -1);
-        text->setText(QString("<b>%1</b>:%2%3").arg(objectName(), contents.contains('\n') ? "<br>" : " ", contents.replace("\n", "<br>")));
         lua_pop(L, 1);
+        if (contents.isEmpty()) setVisible(false);
+        else                    text->setText(QString("<b>%1</b>:%2%3").arg(objectName(),
+                                                                            contents.contains('\n') ? "<br>" : " ",
+                                                                            contents.replace("\n", "<br>")));
     }
 };
 
@@ -346,6 +311,7 @@ public slots:
                              "dark_lenna = divide(2)(lenna)\n"
                              "").arg(QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText));
         setText(source);
+        toggleOn("compiler");
         toggleOn("console");
     }
 
@@ -387,15 +353,7 @@ public slots:
         const qint64 nsec = elapsedTimer.nsecsElapsed();
         emit newStatus(QString("Execution Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
 
-        lua_getglobal(L, "likely");
-        lua_getfield(L, -1, "stdout");
-        Messenger::send(lua_tostring(L, -1));
-        lua_pop(L, 2);
-
-        if (error) {
-            Messenger::send(lua_tostring(L, -1));
-            lua_pop(L, 1);
-        }
+        if (error) lua_setglobal(L, "compiler");
         settings.setValue("source", source);
         highlighter->updateDictionary(L);
         emit newState(L);
