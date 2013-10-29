@@ -87,14 +87,6 @@ const char *likely_most_recent_error()
     return result.c_str();
 }
 
-static int lua_likely_most_recent_error(lua_State *L)
-{
-    const char *error = likely_most_recent_error();
-    if (strcmp(error, ""))
-        luaL_error(L, error);
-    return 0;
-}
-
 static void checkLua(lua_State *L, int error = true)
 {
     if (!error) return;
@@ -412,10 +404,10 @@ static int lua_likely_free(lua_State *L)
     return 0;
 }
 
-likely_mat likely_read(const char *file_name, likely_mat image)
+static likely_mat likelyReadHelper(const char *file_name, likely_mat image, lua_State *L = NULL)
 {
     cv::Mat m = cv::imread(file_name, CV_LOAD_IMAGE_UNCHANGED);
-    likely_assert(m.data, "'read' failed to open: %s", file_name);
+    lua_likely_assert(L, m.data, "'read' failed to open: %s", file_name);
     if (m.data) {
         return fromCvMat(m, true, image);
     } else {
@@ -427,11 +419,15 @@ likely_mat likely_read(const char *file_name, likely_mat image)
     }
 }
 
+likely_mat likely_read(const char *file_name, likely_mat image)
+{
+    return likelyReadHelper(file_name, image);
+}
+
 static int lua_likely_read(lua_State *L)
 {
     lua_likely_assert(L, lua_gettop(L) == 1, "'read' expected 1 argument, got: %d", lua_gettop(L));
-    likely_read(lua_tostring(L, 1), newLuaMat(L));
-    lua_likely_most_recent_error(L);
+    likelyReadHelper(lua_tostring(L, 1), newLuaMat(L), L);
     return 1;
 }
 
@@ -1410,7 +1406,6 @@ static int lua_likely_compile(lua_State *L)
     lua_settable(L, -3);
     luaL_getmetatable(L, "likely_function");
     lua_setmetatable(L, -2);
-    lua_likely_most_recent_error(L);
     return 1;
 }
 
