@@ -2,4 +2,6 @@ language: cpp
 compiler:
   - gcc
   - clang
-script: mkdir build && cd build && cmake .. && make
+before_install:
+  - git submodule update --init --recursive
+script: mkdir build && cd build && cmake .. && make -j2
