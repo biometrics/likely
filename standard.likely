@@ -177,12 +177,163 @@ divide = func(
    {"lhs", "left hand side"}})
 
 -- Basic math
-function log() return "src", "log" end
-function log2() return "src", "log2" end
-function log10() return "src", "log10" end
-function sin() return "src", "sin" end
-function cos() return "src", "cos" end
-function fabs() return "src", "fabs" end
-function sqrt() return "src", "sqrt" end
-function exp() return "src", "exp" end
-function pow() return "src", "a", "pow" end
+log = func(
+  function(operand)
+    if likely.isnum(operand) then
+      return log(operand)
+    else
+      return likely.concat(operand, "log")
+    end
+  end,
+  "Logarithmic function",
+  {{"operand", "operand"}})
+
+log2 = func(
+  function(operand)
+    if likely.isnum(operand) then
+      return log2(operand)
+    else
+      return likely.concat(operand, "log2")
+    end
+  end,
+  "Logarithmic function with base 2",
+  {{"operand", "operand"}})
+
+log10 = func(
+  function(operand)
+    if likely.isnum(operand) then
+      return log10(operand)
+    else
+      return likely.concat(operand, "log10")
+    end
+  end,
+  "Logarithmic function with base of 10",
+  {{"operand", "operand"}})
+
+sin = func(
+  function(operand)
+    if likely.isnum(operand) then
+      return sin(operand)
+    else
+      return likely.concat(operand, "sin")
+    end
+  end,
+  "Sine function",
+  {{"operand", "operand"}})
+
+cos = func(
+  function(operand)
+    if likely.isnum(operand) then
+      return cos(operand)
+    else
+      return likely.concat(operand, "cos")
+    end
+  end,
+  "Cosine function",
+  {{"operand", "operand"}})
+
+fabs = func(
+  function(operand)
+    if likely.isnum(operand) then
+      return fabs(operand)
+    else
+      return likely.concat(operand, "fabs")
+    end
+  end,
+  "Absolute Value function",
+  {{"operand", "operand"}})
+
+sqrt = func(
+  function(operand)
+    if likely.isnum(operand) then
+      return sqrt(operand)
+    else
+      return likely.concat(operand, "sqrt")
+    end
+  end,
+  "Square Root function",
+  {{"operand", "operand"}})
+
+exp = func(
+  function(operand)
+    if likely.isnum(operand) then
+      return exp(operand)
+    else
+      return likely.concat(operand, "exp")
+    end
+  end,
+  "Exponential function",
+  {{"operand", "operand"}})
+
+pow = func(
+  function(rhs, lhs)
+    if likely.isnum(rhs, lhs) then
+      return pow(lhs, rhs)
+    else
+      return likely.concat(lhs, rhs, "pow")
+    end
+  end,
+  "Power Function",
+  {{"rhs", "right hand side"},
+   {"lhs", "left hand side"}})
+
+-- Casting functions
+zext = func(
+  function(rhs, lhs)
+    if likely.isnum(rhs, lhs) then
+      return zext(lhs, rhs)
+    else
+      return likely.concat(lhs, rhs, "zext")
+    end
+  end,
+  "Zero extend function",
+  {{"rhs", "right hand side"},
+   {"lhs", "left hand side"}})
+
+sext = func(
+  function(rhs, lhs)
+    if likely.isnum(rhs, lhs) then
+      return sext(lhs, rhs)
+    else
+      return likely.concat(lhs, rhs, "sext")
+    end
+  end,
+  "Sign extend function",
+  {{"rhs", "right hand side"},
+   {"lhs", "left hand side"}})
+
+fpext = func(
+  function(rhs, lhs)
+    if likely.isnum(rhs, lhs) then
+      return fpext(lhs, rhs)
+    else
+      return likely.concat(lhs, rhs, "fpext")
+    end
+  end,
+  "Floating point extend function",
+  {{"rhs", "right hand side"},
+   {"lhs", "left hand side"}})
+
+trunc = func(
+  function(rhs, lhs)
+    if likely.isnum(rhs, lhs) then
+      return trunc(lhs, rhs)
+    else
+      return likely.concat(lhs, rhs, "trunc")
+    end
+  end,
+  "Truncate function",
+  {{"rhs", "right hand side"},
+   {"lhs", "left hand side"}})
+
+fptrunc = func(
+  function(rhs, lhs)
+    if likely.isnum(rhs, lhs) then
+      return fptrunc(lhs, rhs)
+    else
+      return likely.concat(lhs, rhs, "fptrunc")
+    end
+  end,
+  "Floating point truncate function",
+  {{"rhs", "right hand side"},
+   {"lhs", "left hand side"}})
