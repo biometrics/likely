@@ -906,23 +906,54 @@ public:
     KernelBuilder(likely_description description_)
         : description(description_)
     {
-        const char *isStack = "likely";
-        if (!strncmp(description, isStack, strlen(isStack))) {
-            // It's already in intermediate representation
-            istringstream iss(description);
-            copy(istream_iterator<string>(iss),
-                 istream_iterator<string>(),
-                 back_inserter< vector<string> >(stack));
-            stack.erase(stack.begin()); // remove "likely"
-        } else {
+        const string prefix = "likely";
+        string source = description;
+        if (source.compare(0, prefix.size(), prefix)) {
             // It needs to be interpreted
             lua_State *L = getLuaState();
             checkLua(L, luaL_dostring(L, (string("return ") + description).c_str()));
-            const int top = lua_gettop(L);
-            for (int j=1; j<=top; j++)
-                stack.push_back(lua_tostring(L, j));
+            likely_arity arity;
+            source = compile(L, arity);
             lua_settop(L, 0);
         }
+
+        // Split on space character
+        istringstream iss(source);
+        copy(istream_iterator<string>(iss),
+             istream_iterator<string>(),
+             back_inserter< vector<string> >(stack));
+        stack.erase(stack.begin()); // remove "likely"
+    }
+
+    static string compile(lua_State *L, likely_arity &arity)
+    {
+        const int args = lua_gettop(L);
+        lua_likely_assert(L, args >= 1, "'compile' expected at least one argument");
+
+        // Make sure we were given a function
+        lua_getfield(L, 1, "likely");
+        lua_likely_assert(L, !strcmp("function", lua_tostring(L, -1)), "'compile' expected the function argument to be a function");
+        lua_pop(L, 1);
+
+        // Get the function's arity
+        lua_getfield(L, 1, "arity");
+        int isnum;
+        arity = lua_tonumberx(L, -1, &isnum);
+        lua_pop(L, 1);
+        lua_likely_assert(L, isnum, "'compile' expected function to have a numerical arity");
+        lua_likely_assert(L, arity >= args -1, "'compile' was given a function with arity: %d but: %d default arguments", arity, args-1);
+
+        // Get the function source code
+        lua_pushvalue(L, 1);
+        for (int i=0; i<arity; i++)
+            lua_pushstring(L, "src"); // TODO: support arity > 1
+        lua_call(L, arity, 1);
+        string source = lua_tostring(L, -1);
+        lua_pop(L, 1);
+
+        // Compile the source code
+        source.insert(0, "likely ");
+        return source;
     }
 
     bool makeAllocation(Function *function, const vector<likely_hash> &hashes_)
@@ -1358,39 +1389,19 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
 
 static int lua_likely_compile(lua_State *L)
 {
-    const int args = lua_gettop(L);
-    likely_assert(args >= 1, "'compile' expected at least one argument");
-
-    // Make sure we were given a function
-    lua_getfield(L, 1, "likely");
-    likely_assert(!strcmp("function", lua_tostring(L, -1)), "'compile' expected the function argument to be a function");
-    lua_pop(L, 1);
-
-    // Get the function's arity
-    lua_getfield(L, 1, "arity");
-    int isnum;
-    likely_arity arity = lua_tonumberx(L, -1, &isnum);
-    lua_pop(L, 1);
-    likely_assert(isnum, "'compile' expected function to have a numerical arity");
-    likely_assert(arity >= args -1, "'compile' was given a function with arity: %d but: %d default arguments", arity, args-1);
-
     // Get the default matricies
+    const int args = lua_gettop(L);
     vector<likely_const_mat> mats;
     for (int i=2; i<=args; i++)
         mats.push_back(checkLuaMat(L, i));
+
+    // Get the intermediate representation
+    likely_arity arity;
+    const string source = KernelBuilder::compile(L, arity);
+
+    // Compile the function
     while (mats.size() < arity)
         mats.push_back(NULL);
-
-    // Get the function source code
-    lua_pushvalue(L, 1);
-    for (int i=0; i<arity; i++)
-        lua_pushstring(L, "src"); // TODO: support arity > 1
-    lua_call(L, arity, 1);
-    string source = lua_tostring(L, -1);
-    lua_pop(L, 1);
-
-    // Compile the source code
-    source.insert(0, "likely ");
     void *compiled = likely_compile_n(source.c_str(), mats.size(), mats.data());
 
     // Return the compiled function
