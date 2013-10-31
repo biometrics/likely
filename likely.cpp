@@ -109,7 +109,9 @@ static void checkLua(lua_State *L, int error = true)
 
 static likely_mat checkLuaMat(lua_State *L, int index = 1)
 {
-    return (likely_mat) luaL_checkudata(L, index, "likely");
+    likely_mat *mp = (likely_mat*)luaL_checkudata(L, index, "likely");
+    assert(mp);
+    return *mp;
 }
 
 static int lua_likely__tostring(lua_State *L)
@@ -144,8 +146,6 @@ bool likely_single_row(likely_hash hash) { return likely_get_bool(hash, likely_h
 void likely_set_single_row(likely_hash *hash, bool single_row) { likely_set_bool(hash, single_row, likely_hash_single_row); }
 bool likely_single_frame(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_frame); }
 void likely_set_single_frame(likely_hash *hash, bool single_frame) { likely_set_bool(hash, single_frame, likely_hash_single_frame); }
-bool likely_owner(likely_hash hash) { return likely_get_bool(hash, likely_hash_owner); }
-void likely_set_owner(likely_hash *hash, bool owner) { likely_set_bool(hash, owner, likely_hash_owner); }
 int  likely_reserved(likely_hash hash) { return likely_get(hash, likely_hash_reserved); }
 void likely_set_reserved(likely_hash *hash, int reserved) { likely_set(hash, reserved, likely_hash_reserved); }
 
@@ -161,6 +161,7 @@ static int lua_likely_get(lua_State *L)
     else if (!strcmp(field, "columns"))       lua_pushinteger(L, m->columns);
     else if (!strcmp(field, "rows"))          lua_pushinteger(L, m->rows);
     else if (!strcmp(field, "frames"))        lua_pushinteger(L, m->frames);
+    else if (!strcmp(field, "ref_count"))     lua_pushinteger(L, m->ref_count);
     else if (!strcmp(field, "depth"))         lua_pushinteger(L, likely_depth(m->hash));
     else if (!strcmp(field, "signed"))        lua_pushboolean(L, likely_signed(m->hash));
     else if (!strcmp(field, "floating"))      lua_pushboolean(L, likely_floating(m->hash));
@@ -171,7 +172,6 @@ static int lua_likely_get(lua_State *L)
     else if (!strcmp(field, "singleColumn"))  lua_pushboolean(L, likely_single_column(m->hash));
     else if (!strcmp(field, "singleRow"))     lua_pushboolean(L, likely_single_row(m->hash));
     else if (!strcmp(field, "singleFrame"))   lua_pushboolean(L, likely_single_frame(m->hash));
-    else if (!strcmp(field, "owner"))         lua_pushboolean(L, likely_owner(m->hash));
     else if (!strcmp(field, "reserved"))      lua_pushinteger(L, likely_reserved(m->hash));
     else                                    { likely_assert(false, "unrecognized field: %s", field); return 0; }
     return 1;
@@ -201,10 +201,11 @@ static int lua_likely_set(lua_State *L)
     int isnum;
     if      (!strcmp(field, "data"))          m->data = (likely_data*) lua_touserdata(L, 3);
     else if (!strcmp(field, "hash"))          m->hash = likely_string_to_hash(lua_tostring(L, 3));
-    else if (!strcmp(field, "channels"))    { m->channels = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected channels to be an integer, got: %s", lua_tostring(L, 3)); }
-    else if (!strcmp(field, "columns"))     { m->columns  = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected columns to be an integer, got: %s", lua_tostring(L, 3)); }
-    else if (!strcmp(field, "rows"))        { m->rows     = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected rows to be an integer, got: %s", lua_tostring(L, 3)); }
-    else if (!strcmp(field, "frames"))      { m->frames   = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected frames to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "channels"))    { m->channels  = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected channels to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "columns"))     { m->columns   = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected columns to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "rows"))        { m->rows      = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected rows to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "frames"))      { m->frames    = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected frames to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "ref_count"))   { m->ref_count = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected ref_count to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "depth"))       { likely_set_depth(&m->hash, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected depth to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "signed"))        likely_set_signed(&m->hash, lua_toboolean(L, 3));
     else if (!strcmp(field, "floating"))      likely_set_floating(&m->hash, lua_toboolean(L, 3));
@@ -215,7 +216,6 @@ static int lua_likely_set(lua_State *L)
     else if (!strcmp(field, "singleColumn"))  likely_set_single_column(&m->hash, lua_toboolean(L, 3));
     else if (!strcmp(field, "singleRow"))     likely_set_single_row(&m->hash, lua_toboolean(L, 3));
     else if (!strcmp(field, "singleFrame"))   likely_set_single_frame(&m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "owner"))         likely_set_owner(&m->hash, lua_toboolean(L, 3));
     else if (!strcmp(field, "reserved"))    { likely_set_reserved(&m->hash, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected reserved to be an integer, got: %s", lua_tostring(L, 3)); }
     else                                      likely_assert(false, "unrecognized field: %s", field);
     return 0;
@@ -251,19 +251,30 @@ static int lua_likely_bytes(lua_State *L)
     return 1;
 }
 
-likely_mat likely_new(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, bool clone)
+static likely_mat *newLuaMat(lua_State *L)
 {
-    likely_mat m = new likely_matrix();
-    likely_initialize(m, hash, channels, columns, rows, frames, data, clone);
-    return m;
-}
-
-static likely_mat newLuaMat(lua_State *L)
-{
-    likely_mat m = (likely_mat) lua_newuserdata(L, sizeof(likely_matrix));
+    likely_mat *mp = (likely_mat*) lua_newuserdata(L, sizeof(likely_mat));
     luaL_getmetatable(L, "likely");
     lua_setmetatable(L, -2);
-    return m;
+    return mp;
+}
+
+likely_mat likely_new(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, int8_t copy)
+{
+    likely_mat dst = (likely_mat) malloc(sizeof(likely_matrix) + likely_depth(hash) * ((data && !copy) ? 0 : channels*columns*rows*frames) + (MaxRegisterWidth - 1));
+    dst->data = reinterpret_cast<likely_data*>((uintptr_t(dst+1)+(MaxRegisterWidth-1)) & ~uintptr_t(MaxRegisterWidth-1));
+    dst->hash = hash;
+    dst->channels = channels;
+    dst->columns = columns;
+    dst->rows = rows;
+    dst->frames = frames;
+    dst->ref_count = 1;
+
+    if (data) {
+        if (copy) memcpy(dst->data, data, likely_bytes(dst));
+        else      dst->data = data;
+    }
+    return dst;
 }
 
 static int lua_likely_new(lua_State *L)
@@ -290,144 +301,56 @@ static int lua_likely_new(lua_State *L)
       default: likely_assert(false, "'new' expected no more than 7 arguments, got: %d", argc);
     }
 
-    likely_initialize(newLuaMat(L), hash, channels, columns, rows, frames, data, clone);
+    *newLuaMat(L) = likely_new(hash, channels, columns, rows, frames, data, clone);
     return 1;
 }
 
-void likely_initialize(likely_mat m, likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, bool clone)
+likely_mat likely_retain(likely_mat m)
 {
-    m->hash = hash;
-    m->channels = channels;
-    m->columns = columns;
-    m->rows = rows;
-    m->frames = frames;
-
-    if (!data || clone) {
-        likely_allocate(m);
-        if (data && clone)
-            memcpy(m->data, data, likely_bytes(m));
-    } else {
-        m->data = data;
-    }
+    if (m && m->ref_count)
+        m->ref_count++;
+    return m;
 }
 
-static int lua_likely_initialize(lua_State *L)
+static int lua_likely_retain(lua_State *L)
 {
-    likely_mat  m = NULL;
-    likely_hash hash = likely_hash_null;
-    likely_size channels = 0;
-    likely_size columns = 0;
-    likely_size rows = 0;
-    likely_size frames = 0;
-    likely_data *data = NULL;
-    bool clone = true;
-
-    int isnum;
-    const int argc = lua_gettop(L);
-    switch (argc) {
-      case 8: clone    = lua_toboolean(L, 8);
-      case 7: data     = (likely_data*) lua_touserdata(L, 7);
-      case 6: frames   = lua_tonumberx(L, 6, &isnum); likely_assert(isnum, "'new' expected frames to be an integer, got: %s", lua_tostring(L, 6));
-      case 5: rows     = lua_tonumberx(L, 5, &isnum); likely_assert(isnum, "'new' expected rows to be an integer, got: %s", lua_tostring(L, 5));
-      case 4: columns  = lua_tonumberx(L, 4, &isnum); likely_assert(isnum, "'new' expected columns to be an integer, got: %s", lua_tostring(L, 4));
-      case 3: channels = lua_tonumberx(L, 3, &isnum); likely_assert(isnum, "'new' expected channels to be an integer, got: %s", lua_tostring(L, 3));
-      case 2: hash     = likely_string_to_hash(lua_tostring(L, 2));
-      case 1: m        = checkLuaMat(L); break;
-      default: likely_assert(false, "'initialize' expected 1-8 arguments, got: %d", argc);
-    }
-
-    likely_initialize(m, hash, channels, columns, rows, frames, data, clone);
-    return 0;
-}
-
-likely_mat likely_clone(likely_const_mat m)
-{
-    return likely_new(m->hash, m->channels, m->columns, m->rows, m->frames, m->data);
-}
-
-static int lua_likely_clone(lua_State *L)
-{
-    likely_assert(lua_gettop(L) == 1, "'clone' expected 1 argument, got: %d", lua_gettop(L));
-    likely_const_mat m = checkLuaMat(L);
-    likely_initialize(newLuaMat(L), m->hash, m->channels, m->columns, m->rows, m->frames, m->data);
+    likely_assert(lua_gettop(L) == 1, "'retain' expected 1 argument, got: %d", lua_gettop(L));
+    likely_retain(checkLuaMat(L));
+    lua_pushvalue(L, -1);
     return 1;
 }
 
-void likely_delete(likely_mat m)
+void likely_release(likely_mat m)
 {
-    likely_free(m);
-    delete m;
+    if (!m || !m->ref_count) return;
+    m->ref_count--;
+    if (m->ref_count > 0) return;
+    free(m);
 }
 
-static int lua_likely_delete(lua_State *L)
+static int lua_likely_release(lua_State *L)
 {
-    likely_assert(lua_gettop(L) == 1, "'delete' expected 1 argument, got: %d", lua_gettop(L));
-    likely_mat m = checkLuaMat(L);
-    likely_free(m);
+    likely_assert(lua_gettop(L) == 1, "'release' expected 1 argument, got: %d", lua_gettop(L));
+    likely_release(checkLuaMat(L));
     return 0;
 }
 
-void likely_allocate(likely_mat m)
-{
-    const likely_size bytes = likely_bytes(m);
-    if (bytes == 0) {
-        m->data = NULL;
-        return;
-    }
-    size_t alignment = MaxRegisterWidth;
-    uintptr_t r = (uintptr_t)malloc(bytes + --alignment + 2);
-    uintptr_t o = (r + 2 + alignment) & ~(uintptr_t)alignment;
-    ((uint16_t*)o)[-1] = (uint16_t)(o-r);
-    m->data = (likely_data*)o;
-    likely_set_owner(&m->hash, true);
-}
-
-static int lua_likely_allocate(lua_State *L)
-{
-    likely_assert(lua_gettop(L) == 1, "'allocate' expected 1 argument, got: %d", lua_gettop(L));
-    likely_allocate(checkLuaMat(L));
-    return 0;
-}
-
-void likely_free(likely_mat m)
-{
-    if (!m || !likely_owner(m->hash) || !m->data) return;
-    free((void*)((uintptr_t)m->data-((uint16_t*)m->data)[-1]));
-    m->data = NULL;
-    likely_set_owner(&m->hash, false);
-}
-
-static int lua_likely_free(lua_State *L)
-{
-    likely_assert(lua_gettop(L) == 1, "'free' expected 1 argument, got: %d", lua_gettop(L));
-    likely_free(checkLuaMat(L));
-    return 0;
-}
-
-static likely_mat likelyReadHelper(const char *file_name, likely_mat image, lua_State *L = NULL)
+static likely_mat likelyReadHelper(const char *file_name, lua_State *L = NULL)
 {
     cv::Mat m = cv::imread(file_name, CV_LOAD_IMAGE_UNCHANGED);
     lua_likely_assert(L, m.data, "'read' failed to open: %s", file_name);
-    if (m.data) {
-        return fromCvMat(m, true, image);
-    } else {
-        if (image) {
-            likely_initialize(image);
-            return image;
-        }
-        return NULL;
-    }
+    return fromCvMat(m, true);
 }
 
-likely_mat likely_read(const char *file_name, likely_mat image)
+likely_mat likely_read(const char *file_name)
 {
-    return likelyReadHelper(file_name, image);
+    return likelyReadHelper(file_name);
 }
 
 static int lua_likely_read(lua_State *L)
 {
     lua_likely_assert(L, lua_gettop(L) == 1, "'read' expected 1 argument, got: %d", lua_gettop(L));
-    likelyReadHelper(lua_tostring(L, 1), newLuaMat(L), L);
+    *newLuaMat(L) = likelyReadHelper(lua_tostring(L, 1), L);
     return 1;
 }
 
@@ -438,34 +361,34 @@ void likely_write(likely_const_mat image, const char *file_name)
 
 static int lua_likely_write(lua_State *L)
 {
-    likely_assert(lua_gettop(L) == 2, "'write' expected 2 arguments, got: %d", lua_gettop(L));
+    lua_likely_assert(L, lua_gettop(L) == 2, "'write' expected 2 arguments, got: %d", lua_gettop(L));
     likely_write(checkLuaMat(L), lua_tostring(L, 2));
     return 0;
 }
 
-likely_mat likely_decode(likely_const_mat buffer, likely_mat image)
+likely_mat likely_decode(likely_const_mat buffer)
 {
-    return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_UNCHANGED), true, image);
+    return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_UNCHANGED), true);
 }
 
 static int lua_likely_decode(lua_State *L)
 {
-    likely_assert(lua_gettop(L) == 1, "'decode' expected 1 argument, got: %d", lua_gettop(L));
-    likely_decode(checkLuaMat(L), newLuaMat(L));
+    lua_likely_assert(L, lua_gettop(L) == 1, "'decode' expected 1 argument, got: %d", lua_gettop(L));
+    *newLuaMat(L) = likely_decode(checkLuaMat(L));
     return 1;
 }
 
-likely_mat likely_encode(likely_const_mat image, const char *extension, likely_mat buffer)
+likely_mat likely_encode(likely_const_mat image, const char *extension)
 {
     vector<uchar> buf;
     cv::imencode(extension, toCvMat(image), buf);
-    return fromCvMat(cv::Mat(buf), true, buffer);
+    return fromCvMat(cv::Mat(buf), true);
 }
 
 static int lua_likely_encode(lua_State *L)
 {
-    likely_assert(lua_gettop(L) == 2, "'write' expected 2 arguments, got: %d", lua_gettop(L));
-    likely_encode(checkLuaMat(L), lua_tostring(L, 2), newLuaMat(L));
+    lua_likely_assert(L, lua_gettop(L) == 2, "'write' expected 2 arguments, got: %d", lua_gettop(L));
+    *newLuaMat(L) = likely_encode(checkLuaMat(L), lua_tostring(L, 2));
     return 1;
 }
 
@@ -530,7 +453,6 @@ const char *likely_hash_to_string(likely_hash h)
     if (likely_single_column(h))  hashStream << "X";
     if (likely_single_row(h))     hashStream << "Y";
     if (likely_single_frame(h))   hashStream << "T";
-    if (likely_owner(h))          hashStream << "O";
 
     hashString = hashStream.str();
     return hashString.c_str();
@@ -558,7 +480,6 @@ likely_hash likely_string_to_hash(const char *str)
         if (str[i] == 'X') likely_set_single_column(&h, true);
         if (str[i] == 'Y') likely_set_single_row(&h, true);
         if (str[i] == 'T') likely_set_single_frame(&h, true);
-        if (str[i] == 'O') likely_set_owner(&h, true);
     }
 
     return h;
@@ -685,21 +606,32 @@ struct MatrixBuilder
         setFrames(matrix, frames());
     }
 
-    void deallocate() const {
-        static Function *free = TheModule->getFunction("free");
-        if (!free) {
-            Type *freeReturn = Type::getVoidTy(getGlobalContext());
-            vector<Type*> freeParams;
-            freeParams.push_back(Type::getInt8PtrTy(getGlobalContext()));
-            FunctionType* freeType = FunctionType::get(freeReturn, freeParams, false);
-            free = Function::Create(freeType, GlobalValue::ExternalLinkage, "free", TheModule);
-            free->setCallingConv(CallingConv::C);
+    Value *newMat() const
+    {
+        static Function *likely_new = NULL;
+        if (likely_new == NULL) {
+            Type *newReturn = PointerType::getUnqual(TheMatrixStruct);
+            vector<Type*> newParameters;
+            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // hash
+            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // channels
+            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // columns
+            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // rows
+            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // frames
+            newParameters.push_back(Type::getInt8PtrTy(getGlobalContext())); // data
+            newParameters.push_back(Type::getInt8Ty(getGlobalContext())); // copy
+            FunctionType* elementsType = FunctionType::get(newReturn, newParameters, false);
+            likely_new = Function::Create(elementsType, GlobalValue::ExternalLinkage, "likely_new", TheModule);
+            likely_new->setCallingConv(CallingConv::C);
         }
-
-        vector<Value*> freeArgs;
-        freeArgs.push_back(b->CreateStructGEP(v, 0));
-        b->CreateCall(free, freeArgs);
-        setData(ConstantPointerNull::get(Type::getInt8PtrTy(getGlobalContext())));
+        std::vector<Value*> args;
+        args.push_back(hash());
+        args.push_back(channels());
+        args.push_back(columns());
+        args.push_back(rows());
+        args.push_back(frames());
+        args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(getGlobalContext())));
+        args.push_back(constant(1, 8));
+        return b->CreateCall(likely_new, args);
     }
 
     Value *get(int mask) const { return b->CreateAnd(hash(), constant(mask, 8*sizeof(likely_hash))); }
@@ -726,8 +658,6 @@ struct MatrixBuilder
     void setSingleRow(bool isSingleRow) const { setBit(isSingleRow, likely_hash_single_row); }
     Value *isSingleFrame() const { return get(likely_hash_single_frame); }
     void setSingleFrame(bool isSingleFrame) const { setBit(isSingleFrame, likely_hash_single_frame); }
-    Value *isOwner() const { return get(likely_hash_owner); }
-    void setOwner(bool isOwner) const { setBit(isOwner, likely_hash_owner); }
     Value *reserved() const { return get(likely_hash_reserved); }
     void setReserved(int reserved) const { set(reserved, likely_hash_reserved); }
 
@@ -960,8 +890,7 @@ public:
     {
         hashes = hashes_;
         vector<Value*> srcs;
-        Value *dst;
-        getValues(function, srcs, dst);
+        getValues(function, srcs);
 
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
@@ -971,8 +900,7 @@ public:
             kernelHash |= hash;
 
         kernel = MatrixBuilder(&builder, function, "kernel", kernelHash, srcs[0]);
-        kernel.copyHeaderTo(dst);
-        builder.CreateRet(kernel.elements());
+        builder.CreateRet(kernel.newMat());
         return true;
     }
 
@@ -1026,7 +954,7 @@ public:
             builder.CreateCall(parallelDispatch, args);
 
             for (likely_mat m : mats)
-                likely_delete(m);
+                likely_release(m);
         } else {
             kernel.reset(&builder, function, srcs[0]);
             i = kernel.beginLoop(entry, start, stop).i;
@@ -1040,7 +968,7 @@ public:
         return true;
     }
 
-    static void getValues(Function *function, vector<Value*> &srcs, Value *&dst)
+    static void getValues(Function *function, vector<Value*> &srcs)
     {
         Function::arg_iterator args = function->arg_begin();
         int i = 0;
@@ -1050,15 +978,12 @@ public:
             src->setName(name.str());
             srcs.push_back(src);
         }
-        dst = srcs.back();
-        srcs.pop_back();
-        dst->setName("dst");
     }
 
     static void getValues(Function *function, vector<Value*> &srcs, Value *&dst, Value *&start, Value *&stop)
     {
-        getValues(function, srcs, dst);
-        stop = dst;
+        getValues(function, srcs);
+        stop = srcs.back(); srcs.pop_back();
         stop->setName("stop");
         start = srcs.back(); srcs.pop_back();
         start->setName("start");
@@ -1143,15 +1068,15 @@ static string mangledName(const string &description, const vector<likely_hash> &
     return stream.str();
 }
 
-static Function *getFunction(const string &description, likely_arity arity, Type *ret, Type *start = NULL, Type *stop = NULL)
+static Function *getFunction(const string &description, likely_arity arity, Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
 {
     PointerType *matrixPointer = PointerType::getUnqual(TheMatrixStruct);
     Function *function;
     switch (arity) {
-      case 0: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, start, stop, NULL)); break;
-      case 1: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer,  start, stop, NULL)); break;
-      case 2: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer,  start, stop, NULL)); break;
-      case 3: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer, matrixPointer,  start, stop, NULL)); break;
+      case 0: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, dst, start, stop, NULL)); break;
+      case 1: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, dst, start, stop, NULL)); break;
+      case 2: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, dst, start, stop, NULL)); break;
+      case 3: function = cast<Function>(TheModule->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer, dst, start, stop, NULL)); break;
       default: function = NULL;
     }
     likely_assert(function, "FunctionBuilder::getFunction invalid arity: %d", arity);
@@ -1234,6 +1159,7 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
                                              Type::getInt32Ty(getGlobalContext()),   // columns
                                              Type::getInt32Ty(getGlobalContext()),   // rows
                                              Type::getInt32Ty(getGlobalContext()),   // frames
+                                             Type::getInt32Ty(getGlobalContext()),   // ref_count
                                              NULL);
 
         const int numWorkers = std::max((int)thread::hardware_concurrency()-1, 1);
@@ -1248,7 +1174,7 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
     Function *function = TheModule->getFunction(description);
     if (function != NULL)
         return executionEngine->getPointerToFunction(function);
-    function = getFunction(description, n, Type::getVoidTy(getGlobalContext()));
+    function = getFunction(description, n, PointerType::getUnqual(TheMatrixStruct));
 
     static vector<Type*> makerParameters;
     if (makerParameters.empty()) {
@@ -1261,10 +1187,10 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
     static vector<PointerType*> allocationFunctionTypes(LIKELY_NUM_ARITIES, NULL);
     PointerType *allocationFunctionType = allocationFunctionTypes[n];
     if (allocationFunctionType == NULL) {
+        Type *allocationReturn = PointerType::getUnqual(TheMatrixStruct);
         vector<Type*> allocationParams;
-        for (int i=0; i<n+1; i++)
+        for (int i=0; i<n; i++)
             allocationParams.push_back(PointerType::getUnqual(TheMatrixStruct));
-        Type *allocationReturn = Type::getInt32Ty(getGlobalContext());
         allocationFunctionType = PointerType::getUnqual(FunctionType::get(allocationReturn, allocationParams, false));
         allocationFunctionTypes[n] = allocationFunctionType;
 
@@ -1283,12 +1209,12 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
     static vector<PointerType*> kernelFunctionTypes(LIKELY_NUM_ARITIES, NULL);
     PointerType *kernelFunctionType = kernelFunctionTypes[n];
     if (kernelFunctionType == NULL) {
+        Type *kernelReturn = Type::getVoidTy(getGlobalContext());
         vector<Type*> kernelParams;
         for (int i=0; i<n+1; i++)
             kernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
         kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
         kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
-        Type *kernelReturn = Type::getVoidTy(getGlobalContext());
         kernelFunctionType = PointerType::getUnqual(FunctionType::get(kernelReturn, kernelParams, false));
         kernelFunctionTypes[n] = kernelFunctionType;
 
@@ -1304,8 +1230,7 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
     kernelFunction->setInitializer(MatrixBuilder::constant<void*>(default_kernel, kernelFunctionType));
 
     vector<Value*> srcs;
-    Value *dst;
-    KernelBuilder::getValues(function, srcs, dst);
+    KernelBuilder::getValues(function, srcs);
 
     BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
     IRBuilder<> builder(entry);
@@ -1349,32 +1274,33 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
 
     builder.SetInsertPoint(execute);
     {
-        vector<Value*> args(srcs); args.push_back(dst);
-        Value *kernelSize = builder.CreateCall(builder.CreateLoad(allocationFunction), args);
+        vector<Value*> args(srcs);
+        Value *dst = builder.CreateCall(builder.CreateLoad(allocationFunction), args);
 
-        static Function *likely_allocate = NULL;
-        if (likely_allocate == NULL) {
-            Type *allocateReturn = Type::getVoidTy(getGlobalContext());
-            vector<Type*> allocateParameters;
-            allocateParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
-            FunctionType* allocateType = FunctionType::get(allocateReturn, allocateParameters, false);
-            likely_allocate = Function::Create(allocateType, GlobalValue::ExternalLinkage, "likely_allocate", TheModule);
-            likely_allocate->setCallingConv(CallingConv::C);
+        static Function *likely_elements = NULL;
+        if (likely_elements == NULL) {
+            Type *elementsReturn = Type::getInt32Ty(getGlobalContext());
+            vector<Type*> elementsParameters;
+            elementsParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
+            FunctionType* elementsType = FunctionType::get(elementsReturn, elementsParameters, false);
+            likely_elements = Function::Create(elementsType, GlobalValue::ExternalLinkage, "likely_elements", TheModule);
+            likely_elements->setCallingConv(CallingConv::C);
         }
-        builder.CreateCall(likely_allocate, dst);
+        Value *kernelSize = builder.CreateCall(likely_elements, dst);
 
         BasicBlock *kernel = BasicBlock::Create(getGlobalContext(), "kernel", function);
         BasicBlock *exit = BasicBlock::Create(getGlobalContext(), "exit", function);
         builder.CreateCondBr(builder.CreateICmpUGT(kernelSize, MatrixBuilder::zero()), kernel, exit);
 
         builder.SetInsertPoint(kernel);
+        args.push_back(dst);
         args.push_back(MatrixBuilder::zero());
         args.push_back(kernelSize);
         builder.CreateCall(builder.CreateLoad(kernelFunction), args);
         builder.CreateBr(exit);
 
         builder.SetInsertPoint(exit);
-        builder.CreateRetVoid();
+        builder.CreateRet(dst);
     }
 
     static FunctionPassManager *functionPassManager = NULL;
@@ -1430,27 +1356,21 @@ static int lua_likely__call(lua_State *L)
     lua_getfield(L, 1, "arity");
     const int n = lua_tonumber(L, -1);
     lua_pop(L, 1);
-    likely_assert((args-1 == n) || (args-1 == n + 1), "'__call' expected: %d-%d arguments, got: %d", n, n+1, args-1);
+    likely_assert(args-1 == n, "'__call' expected: %d arguments, got: %d", n, args-1);
 
     vector<likely_const_mat> srcs;
     for (int i=0; i<n; i++)
         srcs.push_back(checkLuaMat(L, i+2));
 
     likely_mat dst;
-    if (args-1 == n) {
-        dst = newLuaMat(L);
-    } else {
-        dst = checkLuaMat(L, args);
-        lua_pushvalue(L, -1);
-    }
-
     switch (n) {
-      case 0: reinterpret_cast<likely_function_0>(function)(dst); break;
-      case 1: reinterpret_cast<likely_function_1>(function)(srcs[0], dst); break;
-      case 2: reinterpret_cast<likely_function_2>(function)(srcs[0], srcs[1], dst); break;
-      case 3: reinterpret_cast<likely_function_3>(function)(srcs[0], srcs[1], srcs[2], dst); break;
-      default: likely_assert(false, "__call invalid arity: %d", n);
+      case 0: dst = reinterpret_cast<likely_function_0>(function)(); break;
+      case 1: dst = reinterpret_cast<likely_function_1>(function)(srcs[0]); break;
+      case 2: dst = reinterpret_cast<likely_function_2>(function)(srcs[0], srcs[1]); break;
+      case 3: dst = reinterpret_cast<likely_function_3>(function)(srcs[0], srcs[1], srcs[2]); break;
+      default: dst = NULL; likely_assert(false, "__call invalid arity: %d", n);
     }
+    *newLuaMat(L) = dst;
     return 1;
 }
 
@@ -1482,14 +1402,15 @@ void *likely_compile_allocation_n(likely_description description, likely_arity n
     Function *function = TheModule->getFunction(name);
     if (function != NULL)
         return executionEngine->getPointerToFunction(function);
-    function = getFunction(name, hashes.size(), Type::getInt32Ty(getGlobalContext()));
+    function = getFunction(name, hashes.size(), PointerType::getUnqual(TheMatrixStruct));
 
     auto kernelPointer = kernels.find(description);
     if (kernelPointer == kernels.end()) {
         kernels[description] = KernelBuilder(description);
         kernelPointer = kernels.find(description);
     }
-    if (!(*kernelPointer).second.makeAllocation(function, hashes)) return MatrixBuilder::cleanup(function);
+    if (!(*kernelPointer).second.makeAllocation(function, hashes))
+        return MatrixBuilder::cleanup(function);
 
     static FunctionPassManager *functionPassManager = NULL;
     if (functionPassManager == NULL) {
@@ -1529,7 +1450,7 @@ void *likely_compile_kernel_n(likely_description description, likely_arity n, li
     Function *function = TheModule->getFunction(name);
     if (function != NULL)
         return executionEngine->getPointerToFunction(function);
-    function = getFunction(name, hashes.size(), Type::getVoidTy(getGlobalContext()), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
+    function = getFunction(name, hashes.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
 
     if (!kernels[description].makeKernel(function)) return MatrixBuilder::cleanup(function);
 
@@ -1599,11 +1520,8 @@ int luaopen_likely(lua_State *L)
         {"set", lua_likely_set},
         {"elements", lua_likely_elements},
         {"bytes", lua_likely_bytes},
-        {"initialize", lua_likely_initialize},
-        {"clone", lua_likely_clone},
-        {"delete", lua_likely_delete},
-        {"allocate", lua_likely_allocate},
-        {"free", lua_likely_free},
+        {"retain", lua_likely_retain},
+        {"release", lua_likely_release},
         {"write", lua_likely_write},
         {"encode", lua_likely_encode},
         {"decode", lua_likely_decode},
