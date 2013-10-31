@@ -335,11 +335,22 @@ static int lua_likely_release(lua_State *L)
     return 0;
 }
 
-static likely_mat likelyReadHelper(const char *file_name, lua_State *L = NULL)
+static likely_mat likelyReadHelper(const char *fileName, lua_State *L = NULL)
 {
-    cv::Mat m = cv::imread(file_name, CV_LOAD_IMAGE_UNCHANGED);
-    lua_likely_assert(L, m.data, "'read' failed to open: %s", file_name);
-    return fromCvMat(m, true);
+    static string previousFileName;
+    static likely_mat previousMat = NULL;
+    if (previousFileName == fileName)
+        return previousMat;
+
+    cv::Mat m = cv::imread(fileName, CV_LOAD_IMAGE_UNCHANGED);
+    lua_likely_assert(L, m.data, "'read' failed to open: %s", fileName);
+    likely_mat mat = fromCvMat(m, true);
+
+    likely_release(previousMat);
+    likely_retain(mat);
+    previousMat = mat;
+    previousFileName = fileName;
+    return mat;
 }
 
 likely_mat likely_read(const char *file_name)
