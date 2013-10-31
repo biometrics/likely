@@ -58,7 +58,6 @@ typedef uint32_t likely_hash; /* Depth : 8
                                  Single-column : 1
                                  Single-row : 1
                                  Single-frame : 1
-                                 Owner : 1
                                  Reserved : 15 */
 
 // Standard hash masks and values
@@ -86,8 +85,7 @@ enum likely_hash_field
     likely_hash_single_column  = 0x00002000,
     likely_hash_single_row     = 0x00004000,
     likely_hash_single_frame   = 0x00008000,
-    likely_hash_owner          = 0x00010000,
-    likely_hash_reserved       = 0xFFFE0000
+    likely_hash_reserved       = 0xFFFF0000
 };
 
 // The only struct in the API
@@ -96,6 +94,7 @@ typedef struct
     likely_data *data;
     likely_hash hash;
     likely_size channels, columns, rows, frames;
+    likely_size ref_count;
 } likely_matrix;
 typedef likely_matrix *likely_mat;
 typedef const likely_matrix *likely_const_mat;
@@ -121,8 +120,6 @@ LIKELY_EXPORT bool likely_single_row(likely_hash hash);
 LIKELY_EXPORT void likely_set_single_row(likely_hash *hash, bool single_row);
 LIKELY_EXPORT bool likely_single_frame(likely_hash hash);
 LIKELY_EXPORT void likely_set_single_frame(likely_hash *hash, bool single_frame);
-LIKELY_EXPORT bool likely_owner(likely_hash hash);
-LIKELY_EXPORT void likely_set_owner(likely_hash *hash, bool owner);
 LIKELY_EXPORT int  likely_reserved(likely_hash hash);
 LIKELY_EXPORT void likely_set_reserved(likely_hash *hash, int reserved);
 
@@ -130,21 +127,16 @@ LIKELY_EXPORT void likely_set_reserved(likely_hash *hash, int reserved);
 LIKELY_EXPORT likely_size likely_elements(likely_const_mat m);
 LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
 
-// Create or delete a matrix
-LIKELY_EXPORT likely_mat likely_new(likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL, bool clone = true);
-LIKELY_EXPORT void likely_initialize(likely_mat m, likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL, bool clone = true);
-LIKELY_EXPORT likely_mat likely_clone(likely_const_mat m);
-LIKELY_EXPORT void likely_delete(likely_mat m);
-
-// Create or delete a matrix data buffer
-LIKELY_EXPORT void likely_allocate(likely_mat m);
-LIKELY_EXPORT void likely_free(likely_mat m);
+// Create and manage a reference counted matrix
+LIKELY_EXPORT likely_mat likely_new(likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL, bool copy = true);
+LIKELY_EXPORT likely_mat likely_retain(likely_mat m);
+LIKELY_EXPORT void likely_release(likely_mat m);
 
 // Matrix I/O
-LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_mat image = NULL);
+LIKELY_EXPORT likely_mat likely_read(const char *file_name);
 LIKELY_EXPORT void likely_write(likely_const_mat image, const char *file_name);
-LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer, likely_mat image = NULL);
-LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension, likely_mat buffer = NULL);
+LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
+LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
 
 // Debugging functionality
 LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);

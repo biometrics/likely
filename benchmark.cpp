@@ -102,7 +102,7 @@ void Test::run() const
             Mat src = generateData(size, size, type);
             likely_mat srcLikely = fromCvMat(src, false);
             likely_function_1 f = (likely_function_1) likely_compile(function(), 1, srcLikely);
-            likely_delete(srcLikely);
+            likely_release(srcLikely);
 
             // Test correctness
             testCorrectness(f, src, false);
@@ -124,7 +124,7 @@ void Test::testCorrectness(likely_function_1 f, const Mat &src, bool parallel) c
     Mat dstOpenCV = computeBaseline(src);
     likely_mat srcLikely = fromCvMat(src, false);
     likely_set_parallel(&srcLikely->hash, parallel);
-    likely_mat dstLikely = likely_new();
+    likely_mat dstLikely = likely_new(); // TODO: fix
     f(srcLikely, dstLikely);
 
     Mat errorMat = abs(toCvMat(dstLikely) - dstOpenCV);
@@ -143,11 +143,11 @@ void Test::testCorrectness(likely_function_1 f, const Mat &src, bool parallel) c
                                    << likely_element(dstLikely, 0, j, i) << "\t"
                                    << i << "\t" << j << "\n";
         fprintf(stderr, "Test for %s differs in %g locations:\n%s", function(), errors, errorLocations.str().c_str());
-        likely_delete(cvLikely);
+        likely_release(cvLikely);
     }
 
-    likely_delete(srcLikely);
-    likely_delete(dstLikely);
+    likely_release(srcLikely);
+    likely_release(dstLikely);
 }
 
 Test::Speed Test::testBaselineSpeed(const Mat &src) const
@@ -172,13 +172,13 @@ Test::Speed Test::testLikelySpeed(likely_function_1 f, const Mat &src, bool para
     int iter = 0;
     startTime = endTime = clock();
     while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
-        likely_mat dstLikely = likely_new();
+        likely_mat dstLikely = likely_new(); // TODO: fix
         f(srcLikely, dstLikely);
-        likely_delete(dstLikely);
+        likely_release(dstLikely);
         endTime = clock();
         iter++;
     }
-    likely_delete(srcLikely);
+    likely_release(srcLikely);
     return Test::Speed(iter, startTime, endTime);
 }
 
