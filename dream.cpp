@@ -94,7 +94,7 @@ private:
     void refresh(lua_State *L)
     {
         if (!check(L)) return;
-        likely_mat mat = (likely_mat) luaL_testudata(L, -1, "likely");
+        likely_mat mat = *reinterpret_cast<likely_mat*>(luaL_testudata(L, -1, "likely"));
         lua_pop(L, 1);
         if (!mat) {
             deleteLater();

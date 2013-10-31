@@ -128,7 +128,7 @@ LIKELY_EXPORT likely_size likely_elements(likely_const_mat m);
 LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
 
 // Create and manage a reference counted matrix
-LIKELY_EXPORT likely_mat likely_new(likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL, bool copy = true);
+LIKELY_EXPORT likely_mat likely_new(likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL, int8_t copy = 0);
 LIKELY_EXPORT likely_mat likely_retain(likely_mat m);
 LIKELY_EXPORT void likely_release(likely_mat m);
 
@@ -150,24 +150,25 @@ LIKELY_EXPORT void likely_dump(); // Print LLVM module contents to stderr
 typedef const char *likely_description;
 typedef uint8_t likely_arity;
 
-typedef void (*likely_function_0)(likely_mat dst);
-typedef void (*likely_function_1)(likely_const_mat src, likely_mat dst);
-typedef void (*likely_function_2)(likely_const_mat srcA, likely_const_mat srcB, likely_mat dst);
-typedef void (*likely_function_3)(likely_const_mat srcA, likely_const_mat srcB, likely_const_mat srcC, likely_mat dst);
+typedef likely_mat (*likely_function_0)(void);
+typedef likely_mat (*likely_function_1)(likely_const_mat);
+typedef likely_mat (*likely_function_2)(likely_const_mat, likely_const_mat);
+typedef likely_mat (*likely_function_3)(likely_const_mat, likely_const_mat, likely_const_mat);
 LIKELY_EXPORT void *likely_compile(likely_description description, likely_arity n, likely_const_mat src, ...);
 LIKELY_EXPORT void *likely_compile_n(likely_description description, likely_arity n, likely_const_mat *srcs);
 
-typedef likely_size (*likely_allocation_0)(likely_mat dst);
-typedef likely_size (*likely_allocation_1)(likely_const_mat src, likely_mat dst);
-typedef likely_size (*likely_allocation_2)(likely_const_mat srcA, likely_const_mat srcB, likely_mat dst);
-typedef likely_size (*likely_allocation_3)(likely_const_mat srcA, likely_const_mat srcB, likely_const_mat srcC, likely_mat dst);
+typedef likely_mat (*likely_allocation_0)(void);
+typedef likely_mat (*likely_allocation_1)(likely_const_mat);
+typedef likely_mat (*likely_allocation_2)(likely_const_mat, likely_const_mat);
+typedef likely_mat (*likely_allocation_3)(likely_const_mat, likely_const_mat, likely_const_mat);
 LIKELY_EXPORT void *likely_compile_allocation(likely_description description, likely_arity n, likely_const_mat src, ...);
 LIKELY_EXPORT void *likely_compile_allocation_n(likely_description description, likely_arity n, likely_const_mat *srcs);
 
-typedef void (*likely_kernel_0)(likely_mat dst, likely_size start, likely_size stop);
-typedef void (*likely_kernel_1)(likely_const_mat src, likely_mat dst, likely_size start, likely_size stop);
-typedef void (*likely_kernel_2)(likely_const_mat srcA, likely_const_mat srcB, likely_mat dst, likely_size start, likely_size stop);
-typedef void (*likely_kernel_3)(likely_const_mat srcA, likely_const_mat srcB, likely_const_mat srcC, likely_mat dst, likely_size start, likely_size stop);
+// Final three parameters are: dst, start, stop
+typedef void (*likely_kernel_0)(likely_mat, likely_size, likely_size);
+typedef void (*likely_kernel_1)(likely_const_mat, likely_mat, likely_size, likely_size);
+typedef void (*likely_kernel_2)(likely_const_mat, likely_const_mat, likely_mat, likely_size, likely_size);
+typedef void (*likely_kernel_3)(likely_const_mat, likely_const_mat, likely_const_mat, likely_mat, likely_size, likely_size);
 LIKELY_EXPORT void *likely_compile_kernel(likely_description description, likely_arity n, likely_const_mat src, ...);
 LIKELY_EXPORT void *likely_compile_kernel_n(likely_description description, likely_arity n, likely_const_mat *srcs);
 

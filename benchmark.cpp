@@ -124,8 +124,7 @@ void Test::testCorrectness(likely_function_1 f, const Mat &src, bool parallel) c
     Mat dstOpenCV = computeBaseline(src);
     likely_mat srcLikely = fromCvMat(src, false);
     likely_set_parallel(&srcLikely->hash, parallel);
-    likely_mat dstLikely = likely_new(); // TODO: fix
-    f(srcLikely, dstLikely);
+    likely_mat dstLikely = f(srcLikely);
 
     Mat errorMat = abs(toCvMat(dstLikely) - dstOpenCV);
     errorMat.convertTo(errorMat, CV_32F);
@@ -172,8 +171,7 @@ Test::Speed Test::testLikelySpeed(likely_function_1 f, const Mat &src, bool para
     int iter = 0;
     startTime = endTime = clock();
     while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
-        likely_mat dstLikely = likely_new(); // TODO: fix
-        f(srcLikely, dstLikely);
+        likely_mat dstLikely = f(srcLikely);
         likely_release(dstLikely);
         endTime = clock();
         iter++;
