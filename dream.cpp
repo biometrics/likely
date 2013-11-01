@@ -73,6 +73,9 @@ private:
             return QFrame::mousePressEvent(e);
         deleteLater();
     }
+
+signals:
+    void typeChanged();
 };
 
 class Matrix : public Variable
@@ -94,13 +97,14 @@ private:
     void refresh(lua_State *L)
     {
         if (!check(L)) return;
+
         likely_mat *mp = reinterpret_cast<likely_mat*>(luaL_testudata(L, -1, "likely"));
         lua_pop(L, 1);
-        likely_mat mat = mp ? *mp : NULL;
-        if (!mat) {
-            deleteLater();
+        if (!mp) {
+            emit typeChanged();
             return;
         }
+        likely_mat mat = *mp;
 
         src = QImage(mat->data, mat->columns, mat->rows, QImage::Format_RGB888).rgbSwapped();
         text->setText(QString("<b>%1</b>: %2x%3x%4x%5 %6 (0x%7)").arg(objectName(),
@@ -141,6 +145,10 @@ private:
     {
         if (!check(L)) return;
         lua_getfield(L, -1, "documentation");
+        if (lua_isnil(L, -1)) {
+            emit typeChanged();
+            return;
+        }
         text->setText(QString("<b>%1</b>: %2").arg(objectName(), lua_tostring(L, -1)));
         lua_pop(L, 2);
     }
@@ -168,9 +176,10 @@ private:
 class SyntaxHighlighter : public QSyntaxHighlighter
 {
     Q_OBJECT
-    QRegularExpression comments, keywords, numbers, strings, allowed, active;
-    QTextCharFormat commentsFont, keywordsFont, numbersFont, stringsFont, allowedFont, activeFont;
+    QRegularExpression comments, keywords, numbers, strings, variables;
+    QTextCharFormat commentsFont, keywordsFont, numbersFont, stringsFont, variablesFont;
     QSet<QString> excludedSet, allowedSet; // Lua global variables
+    bool commandMode = false;
 
 public:
     SyntaxHighlighter(QTextDocument *parent)
@@ -182,16 +191,15 @@ public:
                             "if|in|local|nil|not|"
                             "or|repeat|return|then|true|"
                             "until|while)\\b");
-        numbers.setPattern("(?:0x[\\da-fA-F]*\\.?[\\da-fA-F]+(?:[pP]-?\\d+)?|-?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?)");
+        numbers.setPattern("-?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?");
         strings.setPattern("\"[^\"]*+\"");
         commentsFont.setForeground(Qt::darkGray);
         keywordsFont.setForeground(Qt::darkYellow);
-        numbersFont.setFontWeight(QFont::Bold);
-        numbersFont.setForeground(Qt::darkBlue);
+        numbersFont.setFontUnderline(true);
+        numbersFont.setUnderlineStyle(QTextCharFormat::DotLine);
         stringsFont.setForeground(Qt::darkGreen);
-        allowedFont.setFontWeight(QFont::Bold);
-        activeFont.setFontWeight(QFont::Bold);
-        activeFont.setForeground(Qt::darkMagenta);
+        variablesFont.setFontUnderline(true);
+        variablesFont.setUnderlineStyle(QTextCharFormat::DotLine);
 
         lua_State *L = luaL_newstate();
         luaL_openlibs(L);
@@ -203,13 +211,13 @@ public slots:
     void updateDictionary(lua_State *L)
     {
         allowedSet = getGlobals(L, excludedSet);
-        allowed.setPattern(getPattern(allowedSet));
+        variables.setPattern(getPattern(allowedSet));
         rehighlight();
     }
 
-    void setActive(const QSet<QString> &keywords)
+    void setCommandMode(bool enabled)
     {
-        active.setPattern(getPattern(keywords));
+        commandMode = enabled;
         rehighlight();
     }
 
@@ -217,9 +225,8 @@ private:
     void highlightBlock(const QString &text)
     {
         highlightHelp(text, keywords, keywordsFont);
-        highlightHelp(text, numbers, numbersFont);
-        highlightHelp(text, allowed, allowedFont);
-        highlightHelp(text, active, activeFont);
+        if (commandMode) highlightHelp(text, numbers, numbersFont);
+        if (commandMode) highlightHelp(text, variables, variablesFont);
         highlightHelp(text, strings, stringsFont);
         highlightHelp(text, comments, commentsFont);
     }
@@ -311,12 +318,9 @@ public slots:
         QString source = settings.value("source").toString();
         if (source.isEmpty())
             source = QString("-- Source code is compiled as you type\n"
-                             "message = \"Hello World!\"\n"
+                             "print(\"Hello World!\")\n"
                              "\n"
-                             "-- Console output appears on the right\n"
-                             "print(message)\n"
-                             "\n"
-                             "-- %1+click bold code to display value\n"
+                             "-- %1+click variables to display values\n"
                              "lenna = read(\"img/Lenna.tiff\")\n"
                              "\n"
                              "-- %1+scroll to edit numerical constants\n"
@@ -438,7 +442,7 @@ private slots:
     }
 
 signals:
-    void newVariable(QWidget*);
+    void newVariable(Variable*);
     void newState(lua_State*);
     void newStatus(QString);
     void recompiling();
@@ -448,7 +452,6 @@ signals:
 class Documentation : public QScrollArea
 {
     Q_OBJECT
-    QSet<QString> keywords;
     QVBoxLayout *layout;
 
 public:
@@ -466,43 +469,47 @@ public:
     }
 
 public slots:
-    void addWidget(QWidget *widget)
+    void addVariable(Variable *variable)
     {
-        layout->addWidget(widget);
-        connect(widget, SIGNAL(destroyed(QObject*)), this, SLOT(removeObject(QObject*)));
-        keywords.insert(widget->objectName());
-        emit newKeywords(keywords);
+        layout->addWidget(variable);
+        connect(variable, SIGNAL(destroyed(QObject*)), this, SLOT(removeObject(QObject*)));
+        connect(variable, SIGNAL(typeChanged()), this, SLOT(typeChanged()));
     }
 
     void toggle(const QString &name)
     {
-        if (keywords.contains(name)) {
-            keywords.remove(name);
-            for (int i=0; i<layout->count(); i++) {
-                QWidget *widget = layout->itemAt(i)->widget();
-                if (widget->objectName() == name)
-                    widget->deleteLater();
+        bool found = false;
+        for (int i=0; i<layout->count(); i++) {
+            QWidget *widget = layout->itemAt(i)->widget();
+            if (widget->objectName() == name) {
+                found = true;
+                widget->deleteLater();
             }
-        } else {
-            emit activate(name);
         }
+        if (!found) emit activate(name);
     }
 
 private slots:
+    void typeChanged()
+    {
+        QObject *variable = sender();
+        emit activate(variable->objectName());
+        variable->deleteLater();
+    }
+
     void removeObject(QObject *object)
     {
         layout->removeWidget((QWidget*)object);
-        keywords.remove(object->objectName());
-        emit newKeywords(keywords);
     }
 
 signals:
     void activate(QString);
-    void newKeywords(QSet<QString>);
 };
 
-class OverrideCursor : public QObject
+class CommandMode : public QObject
 {
+    Q_OBJECT
+
     bool eventFilter(QObject *obj, QEvent *event)
     {
         if ((event->type() == QEvent::KeyPress) ||
@@ -511,10 +518,14 @@ class OverrideCursor : public QObject
             if (keyEvent->key() == Qt::Key_Control) {
                 if (event->type() == QEvent::KeyPress) QGuiApplication::setOverrideCursor(Qt::PointingHandCursor);
                 else                                   QGuiApplication::restoreOverrideCursor();
+                emit commandMode(event->type() == QEvent::KeyPress);
             }
         }
         return QObject::eventFilter(obj, event);
     }
+
+signals:
+    void commandMode(bool);
 };
 
 int main(int argc, char *argv[])
@@ -560,16 +571,19 @@ int main(int argc, char *argv[])
     QStatusBar *statusBar = new QStatusBar();
     statusBar->setSizeGripEnabled(true);
 
+    CommandMode *commandMode = new CommandMode();
+    application.installEventFilter(commandMode);
+
     Source *source = new Source();
     SyntaxHighlighter *syntaxHighlighter = new SyntaxHighlighter(source->document());
     Documentation *documentation = new Documentation();
+    QObject::connect(commandMode, SIGNAL(commandMode(bool)), syntaxHighlighter, SLOT(setCommandMode(bool)));
     QObject::connect(documentation, SIGNAL(activate(QString)), source, SLOT(activate(QString)));
-    QObject::connect(documentation, SIGNAL(newKeywords(QSet<QString>)), syntaxHighlighter, SLOT(setActive(QSet<QString>)));
     QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(setSource(QAction*)));
     QObject::connect(source, SIGNAL(toggled(QString)), documentation, SLOT(toggle(QString)));
     QObject::connect(source, SIGNAL(newState(lua_State*)), syntaxHighlighter, SLOT(updateDictionary(lua_State*)));
     QObject::connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
-    QObject::connect(source, SIGNAL(newVariable(QWidget*)), documentation, SLOT(addWidget(QWidget*)));
+    QObject::connect(source, SIGNAL(newVariable(Variable*)), documentation, SLOT(addVariable(Variable*)));
     source->restore();
 
     const int WindowWidth = 600;
@@ -586,8 +600,6 @@ int main(int argc, char *argv[])
     mainWindow.resize(800,WindowWidth);
     mainWindow.show();
 
-    OverrideCursor *overrideCursor = new OverrideCursor();
-    application.installEventFilter(overrideCursor);
     return application.exec();
 }
 
