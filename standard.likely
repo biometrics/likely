@@ -337,3 +337,36 @@ fptrunc = func(
   "Floating point truncate function",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
+
+fp = func(
+  function(operand)
+    if likely.isnum(operand) then
+      return fp(operand)
+    else
+      return likely.concat(operand, "fp")
+    end
+  end,
+  "Cast to floating point",
+  {{"operand", "operand"}})
+
+i = func(
+  function(operand)
+    if likely.isnum(operand) then
+      return i(operand)
+    else
+      return likely.concat(operand, "i")
+    end
+  end,
+  "Cast to signed integer",
+  {{"operand", "operand"}})
+
+u = func(
+  function(operand)
+    if likely.isnum(operand) then
+      return u(operand)
+    else
+      return likely.concat(operand, "u")
+    end
+  end,
+  "Cast to an unsigned integer",
+  {{"operand", "operand"}})
