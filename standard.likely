@@ -50,33 +50,32 @@ function likely.func_mt.__call(f, ...)
     args = args[1]
   end
 
-  needsCompilation = false
   for k,v in pairs(args) do
-    if type(v) == "userdata" then
-      needsCompilation = needsCompilation or (v.likely == "matrix")
+    if type(k) == "number" then
+      allArgs[offset+k] = v
+    else
+      allArgs[f.parameterLUT[k]] = v
     end
   end
 
-  if needsCompilation then
-    if not f.binary then
-      f.binary = likely.compile(f, ...)
-    end
-    return f.binary(...)
-  else
-    for k,v in pairs(args) do
-      if type(k) == "number" then
-        allArgs[offset+k] = v
-      else
-        allArgs[f.parameterLUT[k]] = v
-      end
-    end
+  -- Create a new function that binds these arguments
+  f = likely.func(f.source, f.documentation, f.parameters, allArgs)
+  if #f.args < #f.parameters then
+    return f
+  end
 
-    if #allArgs >= #f.parameters then
-      return f.source(unpack(allArgs))
-    else
-      -- Return a new function that binds these arguments
-      return likely.func(f.source, f.documentation, f.parameters, allArgs)
+  matricies = {}
+  for k,v in pairs(f.args) do
+    if type(v) == "userdata" then
+      matricies[#matricies+1] = v
     end
+  end
+
+  if #matricies == 0 then
+    return f.source(unpack(f.args))
+  else
+    local compiled = likely.compile(f)
+    return compiled(unpack(matricies))
   end
 end
 
@@ -102,8 +101,6 @@ function likely.func(source, documentation, parameters, args)
     end
   end
 
-  t.arity = #t.parameters - #t.args
-  t.binary = nil
   setmetatable(t, likely.func_mt)
   return t
 end
@@ -124,8 +121,7 @@ read = func(likely.read,
             {{"file_name", "path to file on disk"}})
 compile = func(likely.compile,
                "Create kernel",
-               {{"function", "function expression"},
-                {"...", "matricies to initialize the function"}})
+               {{"function", "function expression"}})
 
 -- Basic arithmetic
 add = func(
