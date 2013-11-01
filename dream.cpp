@@ -94,8 +94,9 @@ private:
     void refresh(lua_State *L)
     {
         if (!check(L)) return;
-        likely_mat mat = *reinterpret_cast<likely_mat*>(luaL_testudata(L, -1, "likely"));
+        likely_mat *mp = reinterpret_cast<likely_mat*>(luaL_testudata(L, -1, "likely"));
         lua_pop(L, 1);
+        likely_mat mat = mp ? *mp : NULL;
         if (!mat) {
             deleteLater();
             return;
@@ -166,9 +167,10 @@ private:
 
 class SyntaxHighlighter : public QSyntaxHighlighter
 {
-    QRegularExpression comments, keywords, numbers, strings, allowed, toggled;
-    QTextCharFormat commentsFont, keywordsFont, numbersFont, stringsFont, allowedFont, toggledFont;
-    QSet<QString> excludedSet, allowedSet, toggledSet; // Lua global variables
+    Q_OBJECT
+    QRegularExpression comments, keywords, numbers, strings, allowed, active;
+    QTextCharFormat commentsFont, keywordsFont, numbersFont, stringsFont, allowedFont, activeFont;
+    QSet<QString> excludedSet, allowedSet; // Lua global variables
 
 public:
     SyntaxHighlighter(QTextDocument *parent)
@@ -188,8 +190,8 @@ public:
         numbersFont.setForeground(Qt::darkBlue);
         stringsFont.setForeground(Qt::darkGreen);
         allowedFont.setFontWeight(QFont::Bold);
-        toggledFont.setFontWeight(QFont::Bold);
-        toggledFont.setForeground(Qt::darkMagenta);
+        activeFont.setFontWeight(QFont::Bold);
+        activeFont.setForeground(Qt::darkMagenta);
 
         lua_State *L = luaL_newstate();
         luaL_openlibs(L);
@@ -197,34 +199,18 @@ public:
         lua_close(L);
     }
 
+public slots:
     void updateDictionary(lua_State *L)
     {
-        allowedSet = getGlobals(L, excludedSet + toggledSet);
+        allowedSet = getGlobals(L, excludedSet);
         allowed.setPattern(getPattern(allowedSet));
         rehighlight();
     }
 
-    int toggleVariable(const QString &variable)
+    void setActive(const QSet<QString> &keywords)
     {
-        int toggledResult = 0;
-
-        if (toggledSet.contains(variable)) {
-            toggledSet.remove(variable);
-            allowedSet.insert(variable);
-            toggledResult = -1;
-        } else if (allowedSet.contains(variable)) {
-            allowedSet.remove(variable);
-            toggledSet.insert(variable);
-            toggledResult = 1;
-        }
-
-        if (toggledResult) {
-            allowed.setPattern(getPattern(allowedSet));
-            toggled.setPattern(getPattern(toggledSet));
-            rehighlight();
-        }
-
-        return toggledResult;
+        active.setPattern(getPattern(keywords));
+        rehighlight();
     }
 
 private:
@@ -233,7 +219,7 @@ private:
         highlightHelp(text, keywords, keywordsFont);
         highlightHelp(text, numbers, numbersFont);
         highlightHelp(text, allowed, allowedFont);
-        highlightHelp(text, toggled, toggledFont);
+        highlightHelp(text, active, activeFont);
         highlightHelp(text, strings, stringsFont);
         highlightHelp(text, comments, commentsFont);
     }
@@ -280,14 +266,11 @@ class Source : public QTextEdit
     QString sourceFileName, previousSource;
     QSettings settings;
     lua_State *L = NULL;
-    SyntaxHighlighter *highlighter;
-    QHash<QString, Variable*> variables;
     int wheelRemainderX = 0, wheelRemainderY = 0;
 
 public:
     Source()
     {
-        highlighter = new SyntaxHighlighter(document());
         setAcceptRichText(false);
         connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
     }
@@ -303,6 +286,26 @@ public:
     }
 
 public slots:
+    void activate(const QString &name)
+    {
+        QString type;
+        lua_getglobal(L, qPrintable(name));
+        if (lua_istable(L, -1) || lua_isuserdata(L, -1)) {
+            lua_getfield(L, -1, "likely");
+            type = lua_tostring(L, -1);
+            lua_pop(L, 1);
+        }
+        lua_pop(L, 1);
+
+        Variable *variable;
+        if      (type == "matrix")   variable = new Matrix(name);
+        else if (type == "function") variable = new Function(name);
+        else                         variable = new Generic(name);
+        connect(this, SIGNAL(newState(lua_State*)), variable, SLOT(refresh(lua_State*)));
+        variable->refresh(L);
+        emit newVariable(variable);
+    }
+
     void restore()
     {
         QString source = settings.value("source").toString();
@@ -320,8 +323,8 @@ public slots:
                              "dark_lenna = divide(2)(lenna)\n"
                              "").arg(QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText));
         setText(source);
-        toggleOn("compiler");
-        toggleOn("console");
+        activate("compiler");
+        activate("console");
     }
 
     void setSource(QAction *a)
@@ -346,28 +349,6 @@ public slots:
         }
     }
 
-    void exec()
-    {
-        // This check needed because syntax highlighting triggers a textChanged() signal
-        const QString source = toPlainText();
-        if (source == previousSource) return;
-        else                          previousSource = source;
-
-        emit recompiling();
-        if (L) lua_close(L);
-        bool error;
-        QElapsedTimer elapsedTimer;
-        elapsedTimer.start();
-        L = exec(source, &error);
-        const qint64 nsec = elapsedTimer.nsecsElapsed();
-        emit newStatus(QString("Execution Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
-
-        if (error) lua_setglobal(L, "compiler");
-        settings.setValue("source", source);
-        highlighter->updateDictionary(L);
-        emit newState(L);
-    }
-
 private:
     void mousePressEvent(QMouseEvent *e)
     {
@@ -377,35 +358,7 @@ private:
         QTextCursor tc = cursorForPosition(e->pos());
         tc.select(QTextCursor::WordUnderCursor);
         const QString name = tc.selectedText();
-        int toggled = highlighter->toggleVariable(name);
-
-        if (toggled > 0) {
-            QString type;
-            lua_getglobal(L, qPrintable(name));
-            if (lua_istable(L, -1) || lua_isuserdata(L, -1)) {
-                lua_getfield(L, -1, "likely");
-                type = lua_tostring(L, -1);
-                lua_pop(L, 1);
-            }
-            lua_pop(L, 1);
-
-            toggleOn(name, type);
-        } else if (toggled < 0) {
-            variables.take(name)->deleteLater();
-        }
-    }
-
-    void toggleOn(const QString &name, const QString &type = "")
-    {
-        Variable *variable;
-        if      (type == "matrix")   variable = new Matrix(name);
-        else if (type == "function") variable = new Function(name);
-        else                         variable = new Generic(name);
-        connect(this, SIGNAL(newState(lua_State*)), variable, SLOT(refresh(lua_State*)));
-        connect(variable, SIGNAL(destroyed(QObject*)), this, SLOT(removeObject(QObject*)));
-        variable->refresh(L);
-        variables.insert(name, variable);
-        emit newVariable(variable);
+        emit toggled(name);
     }
 
     void wheelEvent(QWheelEvent *e)
@@ -463,25 +416,39 @@ private:
     }
 
 private slots:
-    void removeObject(QObject *object)
+    void exec()
     {
-        const QString key = variables.key((Variable*)object);
-        if (!key.isNull()) {
-            highlighter->toggleVariable(object->objectName());
-            variables.remove(key);
-        }
+        // This check needed because syntax highlighting triggers a textChanged() signal
+        const QString source = toPlainText();
+        if (source == previousSource) return;
+        else                          previousSource = source;
+
+        emit recompiling();
+        if (L) lua_close(L);
+        bool error;
+        QElapsedTimer elapsedTimer;
+        elapsedTimer.start();
+        L = exec(source, &error);
+        const qint64 nsec = elapsedTimer.nsecsElapsed();
+        emit newStatus(QString("Execution Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
+
+        if (error) lua_setglobal(L, "compiler");
+        settings.setValue("source", source);
+        emit newState(L);
     }
 
 signals:
-    void recompiling();
     void newVariable(QWidget*);
     void newState(lua_State*);
     void newStatus(QString);
+    void recompiling();
+    void toggled(QString);
 };
 
 class Documentation : public QScrollArea
 {
     Q_OBJECT
+    QSet<QString> keywords;
     QVBoxLayout *layout;
 
 public:
@@ -503,13 +470,35 @@ public slots:
     {
         layout->addWidget(widget);
         connect(widget, SIGNAL(destroyed(QObject*)), this, SLOT(removeObject(QObject*)));
+        keywords.insert(widget->objectName());
+        emit newKeywords(keywords);
+    }
+
+    void toggle(const QString &name)
+    {
+        if (keywords.contains(name)) {
+            keywords.remove(name);
+            for (int i=0; i<layout->count(); i++) {
+                QWidget *widget = layout->itemAt(i)->widget();
+                if (widget->objectName() == name)
+                    widget->deleteLater();
+            }
+        } else {
+            emit activate(name);
+        }
     }
 
 private slots:
     void removeObject(QObject *object)
     {
         layout->removeWidget((QWidget*)object);
+        keywords.remove(object->objectName());
+        emit newKeywords(keywords);
     }
+
+signals:
+    void activate(QString);
+    void newKeywords(QSet<QString>);
 };
 
 class OverrideCursor : public QObject
@@ -518,7 +507,7 @@ class OverrideCursor : public QObject
     {
         if ((event->type() == QEvent::KeyPress) ||
             (event->type() == QEvent::KeyRelease)) {
-            QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
+            QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
             if (keyEvent->key() == Qt::Key_Control) {
                 if (event->type() == QEvent::KeyPress) QGuiApplication::setOverrideCursor(Qt::PointingHandCursor);
                 else                                   QGuiApplication::restoreOverrideCursor();
@@ -572,8 +561,13 @@ int main(int argc, char *argv[])
     statusBar->setSizeGripEnabled(true);
 
     Source *source = new Source();
+    SyntaxHighlighter *syntaxHighlighter = new SyntaxHighlighter(source->document());
     Documentation *documentation = new Documentation();
+    QObject::connect(documentation, SIGNAL(activate(QString)), source, SLOT(activate(QString)));
+    QObject::connect(documentation, SIGNAL(newKeywords(QSet<QString>)), syntaxHighlighter, SLOT(setActive(QSet<QString>)));
     QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(setSource(QAction*)));
+    QObject::connect(source, SIGNAL(toggled(QString)), documentation, SLOT(toggle(QString)));
+    QObject::connect(source, SIGNAL(newState(lua_State*)), syntaxHighlighter, SLOT(updateDictionary(lua_State*)));
     QObject::connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
     QObject::connect(source, SIGNAL(newVariable(QWidget*)), documentation, SLOT(addWidget(QWidget*)));
     source->restore();
