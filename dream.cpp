@@ -144,13 +144,45 @@ private:
     void refresh(lua_State *L)
     {
         if (!check(L)) return;
+
         lua_getfield(L, -1, "documentation");
         if (lua_isnil(L, -1)) {
             emit typeChanged();
             return;
         }
-        text->setText(QString("<b>%1</b>: %2").arg(objectName(), lua_tostring(L, -1)));
+        const QString documentation = lua_tostring(L, -1);
+        lua_pop(L, 1);
+
+        QStringList parameterNames, parameterDocs;
+        lua_getfield(L, -1, "parameters");
+        lua_pushnil(L);
+        while (lua_next(L, -2)) {
+            lua_pushnil(L);
+            lua_next(L, -2);
+            parameterNames.append(lua_tostring(L, -1));
+            lua_pop(L, 1);
+            lua_next(L, -2);
+            parameterDocs.append(lua_tostring(L, -1));
+            lua_pop(L, 3);
+        }
+        lua_pop(L, 1);
+
+        QHash<int, QString> arguments;
+        lua_getfield(L, -1, "arguments");
+        lua_pushnil(L);
+        while (lua_next(L, -2)) {
+            if (lua_isnumber(L, -2))
+                arguments.insert(lua_tonumber(L, -2)-1, lua_tostring(L, -1));
+            lua_pop(L, 1);
+        }
         lua_pop(L, 2);
+
+        for (int i=parameterDocs.size()-1; i>=0; i--) {
+            parameterDocs[i] = QString("<br>&nbsp;&nbsp;%1%2: %3").arg(parameterNames[i], arguments.contains(i) ? "=" + arguments[i] : "", parameterDocs[i]);
+            if (arguments.contains(i))
+                parameterNames.removeAt(i);
+        }
+        text->setText(QString("<b>%1</b>(%2): %3%4").arg(objectName(), parameterNames.join(", "), documentation, parameterDocs.join("")));
     }
 };
 
@@ -317,7 +349,7 @@ public slots:
     {
         QString source = settings.value("source").toString();
         if (source.isEmpty())
-            source = QString("-- Source code is compiled as you type\n"
+            source = QString("-- Source code is executed as you type\n"
                              "print(\"Hello World!\")\n"
                              "\n"
                              "-- %1+click variables to display values\n"

@@ -876,7 +876,7 @@ public:
 
         // Setup and call the function
         lua_getfield(L, -1, "source");
-        lua_getfield(L, -2, "args");
+        lua_getfield(L, -2, "arguments");
         lua_pushnil(L);
         while (lua_next(L, -2)) {
             if (lua_isuserdata(L, -1)) {

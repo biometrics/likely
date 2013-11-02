@@ -29,7 +29,7 @@ function likely.print(...)
   end
   args = {...}
   for k,v in ipairs(args) do
-    console = console .. v
+    console = console .. tostring(v)
     if k ~= #args then
       console = console .. " "
     end
@@ -43,66 +43,66 @@ likely.func_mt = {}
 function likely.func_mt.__call(f, ...)
   -- Likely functions support both regular Lua function call syntax and single argument tables,
   -- this code must disambiguate between the two and order named arguments appropriately.
-  local allArgs = likely.copy(f.args)
-  local offset = #f.args
-  local args = {...}
-  if #args == 1 and type(args[1]) == "table" then
-    args = args[1]
+  local allArguments = likely.copy(f.arguments)
+  local offset = #f.arguments
+  local arguments = {...}
+  if #arguments == 1 and type(arguments[1]) == "table" then
+    arguments = arguments[1]
   end
 
-  for k,v in pairs(args) do
+  for k,v in pairs(arguments) do
     if type(k) == "number" then
-      allArgs[offset+k] = v
+      allArguments[offset+k] = v
     else
-      allArgs[f.parameterLUT[k]] = v
+      allArguments[f.parameterLUT[k]] = v
     end
   end
 
   -- Create a new function that binds these arguments
-  f = likely.func(f.source, f.documentation, f.parameters, allArgs)
-  if #f.args < #f.parameters then
+  f = likely.func(f.source, f.documentation, f.parameters, allArguments)
+  if #f.arguments < #f.parameters then
     return f
   end
 
   matricies = {}
-  for k,v in pairs(f.args) do
+  for k,v in pairs(f.arguments) do
     if type(v) == "userdata" then
       matricies[#matricies+1] = v
     end
   end
 
   if #matricies == 0 then
-    return f.source(unpack(f.args))
+    return f.source(unpack(f.arguments))
   else
     local compiled = likely.compile(f)
     return compiled(unpack(matricies))
   end
 end
 
-function likely.func(source, documentation, parameters, args)
-  local t = {}
-  t.likely = "function"
-  t.source = source
-  t.documentation = documentation
-  t.parameters = parameters  
-  t.parameterLUT = {}
-  for k,v in pairs(parameters) do
-    t.parameterLUT[v[1]] = k
+function likely.func(source, documentation, parameters, arguments)
+  local f = {}
+  f.likely = "function"
+  f.source = source
+  f.documentation = documentation
+  f.parameters = parameters
+  f.parameterLUT = {}
+  for k,v in ipairs(parameters) do
+    f.parameterLUT[v[1]] = k
   end
 
-  t.args = {}
-  if type(args) == "table" then
-    for k,v in pairs(args) do
+  f.arguments = {}
+  if type(arguments) == "table" then
+    for k,v in pairs(arguments) do
       if type(k) == "number" then
-        t.args[k] = v
+        f.arguments[k] = v
       else
-        t.args[t.parameterLUT[k]] = v
+        f.arguments[f.parameterLUT[k]] = v
       end
     end
   end
 
-  setmetatable(t, likely.func_mt)
-  return t
+  setmetatable(f, likely.func_mt)
+  return f
 end
 
 -- Shorthand for Likely global functions
