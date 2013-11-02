@@ -935,8 +935,7 @@ public:
         likely_hash dstHash = makeDstHash(kernelHash);
         MatrixBuilder dstKernel = MatrixBuilder(&builder, function, "dstKernel", dstHash, srcs[0]);
         if (dstHash != kernelHash) dstKernel.setType(likely_type(dstHash));
-        dstKernel.copyHeaderTo(srcs.back());
-        builder.CreateRet(kernel.newMat());
+        builder.CreateRet(dstKernel.newMat());
         return true;
     }
 
