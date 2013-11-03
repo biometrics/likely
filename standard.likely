@@ -59,7 +59,7 @@ function likely.func_mt.__call(f, ...)
   end
 
   -- Create a new function that binds these arguments
-  f = likely.func(f.source, f.documentation, f.parameters, allArguments)
+  f = likely.closure(f.source, f.documentation, f.parameters, allArguments)
   if #f.arguments < #f.parameters then
     return f
   end
@@ -79,52 +79,32 @@ function likely.func_mt.__call(f, ...)
   end
 end
 
-function likely.func(source, documentation, parameters, arguments)
-  local f = {}
-  f.likely = "function"
-  f.source = source
-  f.documentation = documentation
-  f.parameters = parameters
-  f.parameterLUT = {}
-  for k,v in ipairs(parameters) do
-    f.parameterLUT[v[1]] = k
-  end
+-- Likely global functions
+closure = likely.closure
 
-  f.arguments = {}
-  if type(arguments) == "table" then
-    for k,v in pairs(arguments) do
-      if type(k) == "number" then
-        f.arguments[k] = v
-      else
-        f.arguments[f.parameterLUT[k]] = v
-      end
-    end
-  end
+new = closure(
+  likely.new,
+  "Create an empty matrix",
+  {{"hash", "matrix hash"},
+   {"channels", "matrix channels"},
+   {"columns", "matrix columns"},
+   {"rows", "matrix rows"},
+   {"frames", "matrix frames"},
+   {"data", "address of existing data buffer"},
+   {"clone", "copy the data buffer"}})
 
-  setmetatable(f, likely.func_mt)
-  return f
-end
+read = closure(
+  likely.read,
+  "Create a matrix from a file",
+  {{"file_name", "path to file on disk"}})
 
--- Shorthand for Likely global functions
-func = likely.func
-new = func(likely.new,
-           "Create an empty matrix",
-           {{"hash", "matrix hash"},
-            {"channels", "matrix channels"},
-            {"columns", "matrix columns"},
-            {"rows", "matrix rows"},
-            {"frames", "matrix frames"},
-            {"data", "address of existing data buffer"},
-            {"clone", "copy the data buffer"}})
-read = func(likely.read,
-            "Create a matrix from a file",
-            {{"file_name", "path to file on disk"}})
-compile = func(likely.compile,
-               "Create kernel",
-               {{"function", "function expression"}})
+compile = closure(
+  likely.compile,
+  "Create kernel",
+  {{"function", "function expression"}})
 
 -- Basic arithmetic
-add = func(
+add = closure(
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return lhs + rhs
@@ -136,7 +116,7 @@ add = func(
   {{"rhs", "right hand side"},
   {"lhs", "left hand side"}})
 
-subtract = func(
+subtract = closure(
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return lhs - rhs
@@ -148,7 +128,7 @@ subtract = func(
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
-multiply = func(
+multiply = closure(
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return lhs * rhs
@@ -160,7 +140,7 @@ multiply = func(
   {{"rhs", "right hand side"},
   {"lhs", "left hand side"}})
 
-divide = func(
+divide = closure(
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return lhs / rhs
@@ -173,7 +153,7 @@ divide = func(
    {"lhs", "left hand side"}})
 
 -- Basic math
-log = func(
+log = closure(
   function(operand)
     if likely.isnum(operand) then
       return log(operand)
@@ -184,7 +164,7 @@ log = func(
   "Logarithmic function",
   {{"operand", "operand"}})
 
-log2 = func(
+log2 = closure(
   function(operand)
     if likely.isnum(operand) then
       return log2(operand)
@@ -195,7 +175,7 @@ log2 = func(
   "Logarithmic function with base 2",
   {{"operand", "operand"}})
 
-log10 = func(
+log10 = closure(
   function(operand)
     if likely.isnum(operand) then
       return log10(operand)
@@ -206,7 +186,7 @@ log10 = func(
   "Logarithmic function with base of 10",
   {{"operand", "operand"}})
 
-sin = func(
+sin = closure(
   function(operand)
     if likely.isnum(operand) then
       return sin(operand)
@@ -217,7 +197,7 @@ sin = func(
   "Sine function",
   {{"operand", "operand"}})
 
-cos = func(
+cos = closure(
   function(operand)
     if likely.isnum(operand) then
       return cos(operand)
@@ -228,7 +208,7 @@ cos = func(
   "Cosine function",
   {{"operand", "operand"}})
 
-fabs = func(
+fabs = closure(
   function(operand)
     if likely.isnum(operand) then
       return fabs(operand)
@@ -239,7 +219,7 @@ fabs = func(
   "Absolute Value function",
   {{"operand", "operand"}})
 
-sqrt = func(
+sqrt = closure(
   function(operand)
     if likely.isnum(operand) then
       return sqrt(operand)
@@ -250,7 +230,7 @@ sqrt = func(
   "Square Root function",
   {{"operand", "operand"}})
 
-exp = func(
+exp = closure(
   function(operand)
     if likely.isnum(operand) then
       return exp(operand)
@@ -261,7 +241,7 @@ exp = func(
   "Exponential function",
   {{"operand", "operand"}})
 
-pow = func(
+pow = closure(
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return pow(lhs, rhs)
@@ -274,7 +254,7 @@ pow = func(
    {"lhs", "left hand side"}})
 
 -- Casting functions
-zext = func(
+zext = closure(
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return zext(lhs, rhs)
@@ -286,7 +266,7 @@ zext = func(
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
-sext = func(
+sext = closure(
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return sext(lhs, rhs)
@@ -298,7 +278,7 @@ sext = func(
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
-fpext = func(
+fpext = closure(
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return fpext(lhs, rhs)
@@ -310,7 +290,7 @@ fpext = func(
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
-trunc = func(
+trunc = closure(
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return trunc(lhs, rhs)
@@ -322,7 +302,7 @@ trunc = func(
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
-fptrunc = func(
+fptrunc = closure(
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return fptrunc(lhs, rhs)

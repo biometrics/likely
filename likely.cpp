@@ -1348,6 +1348,59 @@ static int lua_likely_compile(lua_State *L)
     return 1;
 }
 
+static int lua_likely_closure(lua_State *L)
+{
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, (args >= 3) && (args <= 4), "'closure' expected 3-4 arguments, got: %d", args);
+
+    lua_newtable(L);
+    lua_pushstring(L, "likely");
+    lua_pushstring(L, "function");
+    lua_settable(L, -3);
+    lua_pushstring(L, "source");
+    lua_pushvalue(L, 1);
+    lua_settable(L, -3);
+    lua_pushstring(L, "documentation");
+    lua_pushvalue(L, 2);
+    lua_settable(L, -3);
+    lua_pushstring(L, "parameters");
+    lua_pushvalue(L, 3);
+    lua_settable(L, -3);
+
+    lua_newtable(L);
+    lua_pushnil(L);
+    while (lua_next(L, 3)) {
+        lua_pushinteger(L, 1);
+        lua_gettable(L, -2);
+        lua_pushvalue(L, -3);
+        lua_settable(L, -5);
+        lua_pop(L, 1);
+    }
+    lua_setfield(L, -2, "parameterLUT");
+
+    lua_newtable(L);
+    if ((args >= 4) && lua_istable(L, 4)) {
+        lua_getfield(L, -2, "parameterLUT");
+        lua_pushnil(L);
+        while (lua_next(L, 4)) {
+            lua_pushvalue(L, -2);
+            if (lua_type(L, -1) != LUA_TNUMBER)
+                lua_gettable(L, -4);
+            lua_insert(L, -2);
+            lua_settable(L, -5);
+        }
+        lua_pop(L, 1);
+    }
+    lua_setfield(L, -2, "arguments");
+
+    lua_getglobal(L, "likely");
+    lua_getfield(L, -1, "func_mt");
+    lua_setmetatable(L, -3);
+    lua_pop(L, 1);
+
+    return 1;
+}
+
 static int lua_likely__call(lua_State *L)
 {
     const int args = lua_gettop(L);
@@ -1510,6 +1563,7 @@ int luaopen_likely(lua_State *L)
     static const struct luaL_Reg likely_globals[] = {
         {"new", lua_likely_new},
         {"read", lua_likely_read},
+        {"closure", lua_likely_closure},
         {"compile", lua_likely_compile},
         {NULL, NULL}
     };
