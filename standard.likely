@@ -5,14 +5,6 @@ function likely.concat(...)
   return table.concat({...}, " ")
 end
 
-function likely.copy(t)
-  local t2 = {}
-  for k,v in pairs(t) do
-    t2[k] = v
-  end
-  return t2
-end
-
 function likely.isnum(...)
   for k,v in ipairs{...} do
     if type(v) ~= "number" then
@@ -37,53 +29,11 @@ function likely.print(...)
 end
 print = likely.print
 
--- Setup function abstractions
-likely.func_mt = {}
-
-function likely.func_mt.__call(f, ...)
-  -- Likely functions support both regular Lua function call syntax and single argument tables,
-  -- this code must disambiguate between the two and order named arguments appropriately.
-  local allArguments = likely.copy(f.arguments)
-  local offset = #f.arguments
-  local arguments = {...}
-  if #arguments == 1 and type(arguments[1]) == "table" then
-    arguments = arguments[1]
-  end
-
-  for k,v in pairs(arguments) do
-    if type(k) == "number" then
-      allArguments[offset+k] = v
-    else
-      allArguments[f.parameterLUT[k]] = v
-    end
-  end
-
-  -- Create a new function that binds these arguments
-  f = likely.closure(f.source, f.documentation, f.parameters, allArguments)
-  if #f.arguments < #f.parameters then
-    return f
-  end
-
-  matricies = {}
-  for k,v in pairs(f.arguments) do
-    if type(v) == "userdata" then
-      matricies[#matricies+1] = v
-    end
-  end
-
-  if #matricies == 0 then
-    return f.source(unpack(f.arguments))
-  else
-    local compiled = likely.compile(f)
-    return compiled(unpack(matricies))
-  end
-end
-
--- Likely global functions
+-- Likely core functions
 closure = likely.closure
 
 new = closure(
-  likely.new,
+  nil,
   "Create an empty matrix",
   {{"hash", "matrix hash"},
    {"channels", "matrix channels"},
@@ -91,17 +41,20 @@ new = closure(
    {"rows", "matrix rows"},
    {"frames", "matrix frames"},
    {"data", "address of existing data buffer"},
-   {"clone", "copy the data buffer"}})
+   {"clone", "copy the data buffer"}},
+  likely.new)
 
 read = closure(
-  likely.read,
+  nil,
   "Create a matrix from a file",
-  {{"file_name", "path to file on disk"}})
+  {{"file_name", "path to file on disk"}},
+  likely.read)
 
 compile = closure(
-  likely.compile,
+  nil,
   "Create kernel",
-  {{"function", "function expression"}})
+  {{"function", "function expression"}},
+  likely.compile)
 
 -- Basic arithmetic
 add = closure(
@@ -114,7 +67,7 @@ add = closure(
   end,
   "Arithmetic addition",
   {{"rhs", "right hand side"},
-  {"lhs", "left hand side"}})
+   {"lhs", "left hand side"}})
 
 subtract = closure(
   function(rhs, lhs)
@@ -138,7 +91,7 @@ multiply = closure(
   end,
   "Arithmetic multiplication",
   {{"rhs", "right hand side"},
-  {"lhs", "left hand side"}})
+   {"lhs", "left hand side"}})
 
 divide = closure(
   function(rhs, lhs)
