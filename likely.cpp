@@ -109,7 +109,7 @@ static void checkLua(lua_State *L, bool error = true)
 static likely_mat checkLuaMat(lua_State *L, int index = 1)
 {
     likely_mat *mp = (likely_mat*)luaL_checkudata(L, index, "likely");
-    assert(mp);
+    if (!mp) return NULL;
     return *mp;
 }
 
@@ -1331,27 +1331,14 @@ static int lua_likely_compile(lua_State *L)
 
     // Compile the function
     void *compiled = likely_compile_n(source.c_str(), mats.size(), mats.data());
-
-    // Return the compiled function
-    lua_newtable(L);
-    lua_pushstring(L, "likely");
-    lua_pushstring(L, "function");
-    lua_settable(L, -3);
-    lua_pushstring(L, "source");
     lua_pushlightuserdata(L, compiled);
-    lua_settable(L, -3);
-    lua_pushstring(L, "arity");
-    lua_pushnumber(L, mats.size());
-    lua_settable(L, -3);
-    luaL_getmetatable(L, "likely_function");
-    lua_setmetatable(L, -2);
     return 1;
 }
 
 static int lua_likely_closure(lua_State *L)
 {
     const int args = lua_gettop(L);
-    lua_likely_assert(L, (args >= 3) && (args <= 4), "'closure' expected 3-4 arguments, got: %d", args);
+    lua_likely_assert(L, (args >= 3) && (args <= 5), "'closure' expected 3-5 arguments, got: %d", args);
 
     lua_newtable(L);
     lua_pushstring(L, "likely");
@@ -1366,6 +1353,11 @@ static int lua_likely_closure(lua_State *L)
     lua_pushstring(L, "parameters");
     lua_pushvalue(L, 3);
     lua_settable(L, -3);
+    if (args >= 5) {
+        lua_pushstring(L, "binary");
+        lua_pushvalue(L, 5);
+        lua_settable(L, -3);
+    }
 
     lua_newtable(L);
     lua_pushnil(L);
@@ -1393,39 +1385,107 @@ static int lua_likely_closure(lua_State *L)
     }
     lua_setfield(L, -2, "arguments");
 
-    lua_getglobal(L, "likely");
-    lua_getfield(L, -1, "func_mt");
-    lua_setmetatable(L, -3);
-    lua_pop(L, 1);
-
+    luaL_getmetatable(L, "likely_function");
+    lua_setmetatable(L, -2);
     return 1;
 }
 
 static int lua_likely__call(lua_State *L)
 {
-    const int args = lua_gettop(L);
-    lua_likely_assert(L, args >= 1, "'__call' expected at least one argument, got: %d", lua_gettop(L));
-    lua_getfield(L, 1, "source");
-    void *function = lua_touserdata(L, -1);
-    lua_pop(L, 1);
-    lua_getfield(L, 1, "arity");
-    const int n = lua_tonumber(L, -1);
-    lua_pop(L, 1);
-    lua_likely_assert(L, args-1 == n, "'__call' expected: %d arguments, got: %d", n, args-1);
+    int args = lua_gettop(L);
+    lua_likely_assert(L, args >= 1, "'__call' expected at least one argument, got: %d", args);
 
-    vector<likely_const_mat> srcs;
-    for (int i=0; i<n; i++)
-        srcs.push_back(checkLuaMat(L, i+2));
-
-    likely_mat dst;
-    switch (n) {
-      case 0: dst = reinterpret_cast<likely_function_0>(function)(); break;
-      case 1: dst = reinterpret_cast<likely_function_1>(function)(srcs[0]); break;
-      case 2: dst = reinterpret_cast<likely_function_2>(function)(srcs[0], srcs[1]); break;
-      case 3: dst = reinterpret_cast<likely_function_3>(function)(srcs[0], srcs[1], srcs[2]); break;
-      default: dst = NULL; likely_assert(false, "__call invalid arity: %d", n);
+    // Combine arguments already in the closure...
+    lua_newtable(L);
+    lua_getfield(L, 1, "arguments");
+    lua_pushnil(L);
+    while (lua_next(L, -2)) {
+        lua_pushvalue(L, -2);
+        lua_insert(L, -2);
+        lua_settable(L, -5);
     }
-    *newLuaMat(L) = dst;
+    lua_pop(L, 1);
+
+    // ...with the ones just provided
+    const size_t offset = lua_objlen(L, -1);
+    if ((args == 2) && lua_istable(L, 2)) {
+        // Special case, expand the table
+        lua_getfield(L, 1, "parameterLUT");
+        lua_pushnil(L);
+        while (lua_next(L, 2)) {
+            if (lua_type(L, -2) == LUA_TNUMBER) {
+                lua_pushinteger(L, offset + lua_tonumber(L, -2));
+            } else {
+                lua_pushvalue(L, -2);
+                lua_gettable(L, -4);
+            }
+            lua_insert(L, -2);
+            lua_settable(L, -5);
+        }
+        lua_pop(L, 1);
+    } else {
+        for (int i=2; i<=args; i++) {
+            lua_pushinteger(L, offset + i - 1);
+            lua_pushvalue(L, i);
+            lua_settable(L, -3);
+        }
+    }
+
+    // Construct a new closure
+    lua_getglobal(L, "closure");
+    lua_getfield(L, 1, "source");
+    lua_getfield(L, 1, "documentation");
+    lua_getfield(L, 1, "parameters");
+    lua_pushvalue(L, -5); // arguments
+    lua_getfield(L, 1, "binary");
+    lua_call(L, 5, 1);
+
+    // Return the closure if there aren't enough arguments yet
+    lua_getfield(L, -1, "parameters");
+    const size_t parameters = lua_objlen(L, -1);
+    lua_pop(L, 1);
+    if (lua_objlen(L, -2) < parameters)
+        return 1;
+
+    // Compile the function if it doesn't exist
+    lua_getfield(L, -1, "binary");
+    if (lua_isnil(L, -1)) {
+        checkLua(L);
+
+        lua_pop(L, 1);
+        lua_pushstring(L, "binary");
+        lua_getglobal(L, "compile");
+        lua_pushvalue(L, -3);
+        lua_call(L, 1, 1);
+        lua_settable(L, -3);
+        lua_getfield(L, -1, "binary");
+    }
+
+    if (lua_isuserdata(L, -1)) {
+        // JIT function
+        void *function = lua_touserdata(L, -1);
+        vector<likely_const_mat> mats;
+        for (int i=2; i<args; i++)
+            mats.push_back(checkLuaMat(L, -1));
+
+        likely_mat dst;
+        switch (mats.size()) {
+          case 0: dst = reinterpret_cast<likely_function_0>(function)(); break;
+          case 1: dst = reinterpret_cast<likely_function_1>(function)(mats[0]); break;
+          case 2: dst = reinterpret_cast<likely_function_2>(function)(mats[0], mats[1]); break;
+          case 3: dst = reinterpret_cast<likely_function_3>(function)(mats[0], mats[1], mats[2]); break;
+          default: dst = NULL; likely_assert(false, "__call invalid arity: %d", mats.size());
+        }
+        *newLuaMat(L) = dst;
+    } else {
+        // Core function
+        lua_pushnil(L);
+        const int argsIndex = lua_gettop(L) - 3;
+        while (lua_next(L, argsIndex))
+            lua_insert(L, -2);
+        lua_call(L, lua_objlen(L, argsIndex), 1);
+    }
+
     return 1;
 }
 
