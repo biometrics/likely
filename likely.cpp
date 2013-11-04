@@ -87,22 +87,50 @@ const char *likely_most_recent_error()
     return result.c_str();
 }
 
+static void toStream(lua_State *L, int index, stringstream &stream, int recurseDepth = 1)
+{
+    lua_pushvalue(L, index);
+    const int type = lua_type(L, -1);
+    if (type == LUA_TSTRING) {
+        stream << lua_tostring(L, -1);
+    } else if (type == LUA_TBOOLEAN) {
+        stream << (lua_toboolean(L, -1) ? "true" : "false");
+    } else if (type == LUA_TNUMBER) {
+        stream << lua_tonumber(L, -1);
+    } else if (type == LUA_TTABLE) {
+        if (recurseDepth == 0) {
+            stream << "table";
+        } else {
+            stream << "{";
+            lua_pushnil(L);
+            bool first = true;
+            while (lua_next(L, -2)) {
+                if (first) first = false;
+                else       stream << ", ";
+                toStream(L, -2, stream, recurseDepth - 1);
+                stream << "=";
+                toStream(L, -1, stream, recurseDepth - 1);
+                lua_pop(L, 1);
+            }
+            stream << "}";
+        }
+    } else {
+        stream << lua_typename(L, type);
+    }
+    lua_pop(L, 1);
+}
+
 static void checkLua(lua_State *L, bool error = true)
 {
     if (!error) return;
-
-    fprintf(stderr, "Lua stack dump:\n");
+    stringstream stream;
     const int top = lua_gettop(L);
     for (int i=1; i<=top; i++) {
-        const int t = lua_type(L, i);
-        switch (t) {
-          case LUA_TSTRING:  fprintf(stderr, "\t'%s'\n", lua_tostring(L, i));                   break;
-          case LUA_TBOOLEAN: fprintf(stderr, "\t%s\n", lua_toboolean(L, i) ? "true" : "false"); break;
-          case LUA_TNUMBER:  fprintf(stderr, "\t%f\n", lua_tonumber(L, i));                     break;
-          default:           fprintf(stderr, "\t%s\n", lua_typename(L, t));                     break;
-        }
+        stream << i << ": ";
+        toStream(L, i, stream);
+        stream << "\n";
     }
-
+    fprintf(stderr, "Lua stack dump:\n%s", stream.str().c_str());
     lua_likely_assert(L, false, "Lua execution error");
 }
 
@@ -1358,6 +1386,8 @@ static int lua_likely_closure(lua_State *L)
         lua_pushvalue(L, 5);
         lua_settable(L, -3);
     }
+
+    checkLua(L);
 
     lua_newtable(L);
     lua_pushnil(L);
