@@ -87,53 +87,6 @@ const char *likely_most_recent_error()
     return result.c_str();
 }
 
-static void toStream(lua_State *L, int index, stringstream &stream, int recurseDepth = 1)
-{
-    lua_pushvalue(L, index);
-    const int type = lua_type(L, -1);
-    if (type == LUA_TSTRING) {
-        stream << lua_tostring(L, -1);
-    } else if (type == LUA_TBOOLEAN) {
-        stream << (lua_toboolean(L, -1) ? "true" : "false");
-    } else if (type == LUA_TNUMBER) {
-        stream << lua_tonumber(L, -1);
-    } else if (type == LUA_TTABLE) {
-        if (recurseDepth == 0) {
-            stream << "table";
-        } else {
-            stream << "{";
-            lua_pushnil(L);
-            bool first = true;
-            while (lua_next(L, -2)) {
-                if (first) first = false;
-                else       stream << ", ";
-                toStream(L, -2, stream, recurseDepth - 1);
-                stream << "=";
-                toStream(L, -1, stream, recurseDepth - 1);
-                lua_pop(L, 1);
-            }
-            stream << "}";
-        }
-    } else {
-        stream << lua_typename(L, type);
-    }
-    lua_pop(L, 1);
-}
-
-static void checkLua(lua_State *L, bool error = true)
-{
-    if (!error) return;
-    stringstream stream;
-    const int top = lua_gettop(L);
-    for (int i=1; i<=top; i++) {
-        stream << i << ": ";
-        toStream(L, i, stream);
-        stream << "\n";
-    }
-    fprintf(stderr, "Lua stack dump:\n%s", stream.str().c_str());
-    lua_likely_assert(L, false, "Lua execution error");
-}
-
 static likely_mat checkLuaMat(lua_State *L, int index = 1)
 {
     likely_mat *mp = (likely_mat*)luaL_checkudata(L, index, "likely");
@@ -567,7 +520,7 @@ static lua_State *getLuaState()
     luaL_openlibs(L);
     luaL_requiref(L, "likely", luaopen_likely, 1);
     lua_pop(L, 1);
-    checkLua(L, luaL_dostring(L, likely_standard_library()));
+    likely_stack_dump(L, luaL_dostring(L, likely_standard_library()));
     return L;
 }
 
@@ -879,9 +832,8 @@ public:
         if (source.compare(0, prefix.size(), prefix)) {
             // It needs to be interpreted
             lua_State *L = getLuaState();
-            checkLua(L, luaL_dostring(L, (string("return ") + description).c_str()));
-            vector<likely_const_mat> mats;
-            source = compile(L, mats);
+            likely_stack_dump(L, luaL_dostring(L, (string("return ") + description).c_str()));
+            source = interpret(L);
             lua_settop(L, 0);
         }
 
@@ -893,31 +845,34 @@ public:
         stack.erase(stack.begin()); // remove "likely"
     }
 
-    static string compile(lua_State *L, vector<likely_const_mat> &mats)
+    static string interpret(lua_State *L)
     {
-        lua_likely_assert(L, lua_gettop(L) == 1, "'compile' expected one argument");
+        const int args = lua_gettop(L);
+        lua_likely_assert(L, lua_gettop(L) >= 1, "'interpret' expected one argument");
 
         // Make sure we were given a function
-        lua_getfield(L, -1, "likely");
+        lua_getfield(L, 1, "likely");
         lua_likely_assert(L, !strcmp("function", lua_tostring(L, -1)), "'compile' expected a function");
         lua_pop(L, 1);
 
         // Setup and call the function
-        lua_getfield(L, -1, "source");
-        lua_getfield(L, -2, "arguments");
+        lua_getfield(L, 1, "source");
+        lua_getfield(L, 1, "parameters");
         lua_pushnil(L);
         while (lua_next(L, -2)) {
-            if (lua_isuserdata(L, -1)) {
-                mats.push_back(checkLuaMat(L, -1));
+            lua_pushinteger(L, 3);
+            lua_gettable(L, -2);
+            if (lua_isnil(L, -1)) {
                 lua_pop(L, 1);
                 lua_pushstring(L, "src"); // TODO: generalize
             }
-            lua_insert(L, -3);
+            lua_insert(L, -4);
+            lua_pop(L, 1);
         }
         lua_pop(L, 1);
 
         // Get the function source code
-        lua_call(L, lua_gettop(L)-2, 1);
+        lua_call(L, lua_gettop(L)-args-1, 1);
         string source = lua_tostring(L, -1);
         lua_pop(L, 1);
         source.insert(0, "likely ");
@@ -1353,9 +1308,14 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
 
 static int lua_likely_compile(lua_State *L)
 {
-    // Get the intermediate representation
+    // Remove the matricies
     vector<likely_const_mat> mats;
-    const string source = KernelBuilder::compile(L, mats);
+    const int args = lua_gettop(L);
+    for (int i=2; i<=args; i++)
+        mats.push_back(checkLuaMat(L, i));
+
+    // Get the intermediate representation
+    const string source = KernelBuilder::interpret(L);
 
     // Compile the function
     void *compiled = likely_compile_n(source.c_str(), mats.size(), mats.data());
@@ -1366,7 +1326,7 @@ static int lua_likely_compile(lua_State *L)
 static int lua_likely_closure(lua_State *L)
 {
     const int args = lua_gettop(L);
-    lua_likely_assert(L, (args >= 3) && (args <= 5), "'closure' expected 3-5 arguments, got: %d", args);
+    lua_likely_assert(L, (args >= 3) && (args <= 4), "'closure' expected 3-4 arguments, got: %d", args);
 
     lua_newtable(L);
     lua_pushstring(L, "likely");
@@ -1381,13 +1341,11 @@ static int lua_likely_closure(lua_State *L)
     lua_pushstring(L, "parameters");
     lua_pushvalue(L, 3);
     lua_settable(L, -3);
-    if (args >= 5) {
+    if (args >= 4) {
         lua_pushstring(L, "binary");
-        lua_pushvalue(L, 5);
+        lua_pushvalue(L, 4);
         lua_settable(L, -3);
     }
-
-    checkLua(L);
 
     lua_newtable(L);
     lua_pushnil(L);
@@ -1400,21 +1358,6 @@ static int lua_likely_closure(lua_State *L)
     }
     lua_setfield(L, -2, "parameterLUT");
 
-    lua_newtable(L);
-    if ((args >= 4) && lua_istable(L, 4)) {
-        lua_getfield(L, -2, "parameterLUT");
-        lua_pushnil(L);
-        while (lua_next(L, 4)) {
-            lua_pushvalue(L, -2);
-            if (lua_type(L, -1) != LUA_TNUMBER)
-                lua_gettable(L, -4);
-            lua_insert(L, -2);
-            lua_settable(L, -5);
-        }
-        lua_pop(L, 1);
-    }
-    lua_setfield(L, -2, "arguments");
-
     luaL_getmetatable(L, "likely_function");
     lua_setmetatable(L, -2);
     return 1;
@@ -1423,80 +1366,97 @@ static int lua_likely_closure(lua_State *L)
 static int lua_likely__call(lua_State *L)
 {
     int args = lua_gettop(L);
-    lua_likely_assert(L, args >= 1, "'__call' expected at least one argument, got: %d", args);
+    lua_likely_assert(L, args >= 1, "'__call' expected at least one argument");
 
-    // Combine arguments already in the closure...
+    // Copy the arguments already in the closure...
     lua_newtable(L);
-    lua_getfield(L, 1, "arguments");
+    lua_getfield(L, 1, "parameters");
     lua_pushnil(L);
     while (lua_next(L, -2)) {
-        lua_pushvalue(L, -2);
+        lua_newtable(L);
+        lua_pushnil(L);
+        while (lua_next(L, -3)) {
+            lua_pushvalue(L, -2);
+            lua_insert(L, -2);
+            lua_settable(L, -4);
+        }
+        lua_pushvalue(L, -3);
         lua_insert(L, -2);
-        lua_settable(L, -5);
+        lua_settable(L, -6);
+        lua_pop(L, 1);
     }
     lua_pop(L, 1);
 
-    // ...with the ones just provided
-    const size_t offset = lua_objlen(L, -1);
+    // ... and add the ones just provided
     if ((args == 2) && lua_istable(L, 2)) {
         // Special case, expand the table
         lua_getfield(L, 1, "parameterLUT");
         lua_pushnil(L);
         while (lua_next(L, 2)) {
-            if (lua_type(L, -2) == LUA_TNUMBER) {
-                lua_pushinteger(L, offset + lua_tonumber(L, -2));
-            } else {
-                lua_pushvalue(L, -2);
-                lua_gettable(L, -4);
-            }
+            lua_pushvalue(L, -2);
+            lua_gettable(L, -4);
+            lua_gettable(L, -5);
             lua_insert(L, -2);
-            lua_settable(L, -5);
+            lua_pushnumber(L, 3);
+            lua_insert(L, -2);
+            lua_settable(L, -3);
+            lua_pop(L, 1);
         }
         lua_pop(L, 1);
     } else {
+        lua_pushnil(L);
+        lua_next(L, -2);
         for (int i=2; i<=args; i++) {
-            lua_pushinteger(L, offset + i - 1);
+            // Find the next parameter without a bound argument
+            while (lua_objlen(L, -1) > 2) {
+                lua_pop(L, 1);
+                if (!lua_next(L, -2))
+                    luaL_error(L, "Too many arguments!");
+            }
+            lua_pushinteger(L, 3);
             lua_pushvalue(L, i);
             lua_settable(L, -3);
         }
+        lua_pop(L, 2);
     }
 
-    // Construct a new closure
-    lua_getglobal(L, "closure");
-    lua_getfield(L, 1, "source");
-    lua_getfield(L, 1, "documentation");
-    lua_getfield(L, 1, "parameters");
-    lua_pushvalue(L, -5); // arguments
-    lua_getfield(L, 1, "binary");
-    lua_call(L, 5, 1);
-
-    // Return the closure if there aren't enough arguments yet
-    lua_getfield(L, -1, "parameters");
-    const size_t parameters = lua_objlen(L, -1);
-    lua_pop(L, 1);
-    if (lua_objlen(L, -2) < parameters)
-        return 1;
-
-    // Compile the function if it doesn't exist
-    lua_getfield(L, -1, "binary");
-    if (lua_isnil(L, -1)) {
-        checkLua(L);
-
+    // Are all the arguments provided?
+    bool callable = true;
+    lua_pushnil(L);
+    while (lua_next(L, -2)) {
+        callable = callable && (lua_objlen(L, -1) >= 3);
         lua_pop(L, 1);
-        lua_pushstring(L, "binary");
-        lua_getglobal(L, "compile");
-        lua_pushvalue(L, -3);
-        lua_call(L, 1, 1);
-        lua_settable(L, -3);
-        lua_getfield(L, -1, "binary");
+    }
+
+    if (!callable) {
+        // Return a new closure
+        lua_getglobal(L, "closure");
+        lua_getfield(L, 1, "source");
+        lua_getfield(L, 1, "documentation");
+        lua_pushvalue(L, -4); // parameters
+        lua_getfield(L, 1, "binary");
+        lua_call(L, 4, 1);
+        return 1;
+    }
+
+    // Compile the function if neeed
+    lua_getfield(L, 1, "binary");
+    if (lua_isnil(L, -1)) {
+        lua_pop(L, 1);
+        lua_getglobal(L, "likely");
+        lua_getfield(L, -1, "compile");
+        lua_pushvalue(L, 1);
+        for (int i=2; i<=args; i++)
+            lua_pushvalue(L, i);
+        lua_call(L, args, 1);
     }
 
     if (lua_isuserdata(L, -1)) {
         // JIT function
         void *function = lua_touserdata(L, -1);
         vector<likely_const_mat> mats;
-        for (int i=2; i<args; i++)
-            mats.push_back(checkLuaMat(L, -1));
+        for (int i=2; i<=args; i++)
+            mats.push_back(checkLuaMat(L, i));
 
         likely_mat dst;
         switch (mats.size()) {
@@ -1510,9 +1470,13 @@ static int lua_likely__call(lua_State *L)
     } else {
         // Core function
         lua_pushnil(L);
-        const int argsIndex = lua_gettop(L) - 3;
-        while (lua_next(L, argsIndex))
-            lua_insert(L, -2);
+        const int argsIndex = lua_gettop(L) - 2;
+        while (lua_next(L, argsIndex)) {
+            lua_pushinteger(L, 3);
+            lua_gettable(L, -2);
+            lua_insert(L, -3);
+            lua_pop(L, 1);
+        }
         lua_call(L, lua_objlen(L, argsIndex), 1);
     }
 
@@ -1688,4 +1652,55 @@ int luaopen_likely(lua_State *L)
     luaL_newlib(L, likely_globals);
 
     return 1;
+}
+
+static void toStream(lua_State *L, int index, stringstream &stream, int levels = 1)
+{
+    lua_pushvalue(L, index);
+    const int type = lua_type(L, -1);
+    if (type == LUA_TSTRING) {
+        stream << lua_tostring(L, -1);
+    } else if (type == LUA_TBOOLEAN) {
+        stream << (lua_toboolean(L, -1) ? "true" : "false");
+    } else if (type == LUA_TNUMBER) {
+        stream << lua_tonumber(L, -1);
+    } else if (type == LUA_TTABLE) {
+        if (levels == 0) {
+            stream << "table";
+        } else {
+            stream << "{";
+            lua_pushnil(L);
+            bool first = true;
+            while (lua_next(L, -2)) {
+                if (first) first = false;
+                else       stream << ", ";
+                if (!lua_isnumber(L, -2)) {
+                    toStream(L, -2, stream, levels - 1);
+                    stream << "=";
+                }
+                toStream(L, -1, stream, levels - 1);
+                lua_pop(L, 1);
+            }
+            stream << "}";
+        }
+    } else {
+        stream << lua_typename(L, type);
+    }
+    lua_pop(L, 1);
+}
+
+void likely_stack_dump(lua_State *L, int levels)
+{
+    if (levels == 0)
+        return;
+
+    stringstream stream;
+    const int top = lua_gettop(L);
+    for (int i=1; i<=top; i++) {
+        stream << i << ": ";
+        toStream(L, i, stream, levels);
+        stream << "\n";
+    }
+    fprintf(stderr, "Lua stack dump:\n%s", stream.str().c_str());
+    lua_likely_assert(L, false, "Lua execution error");
 }

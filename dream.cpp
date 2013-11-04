@@ -153,36 +153,30 @@ private:
         const QString documentation = lua_tostring(L, -1);
         lua_pop(L, 1);
 
-        QStringList parameterNames, parameterDocs;
+        QStringList parameterDescriptions, parameterNames;
         lua_getfield(L, -1, "parameters");
         lua_pushnil(L);
         while (lua_next(L, -2)) {
             lua_pushnil(L);
             lua_next(L, -2);
-            parameterNames.append(lua_tostring(L, -1));
+            QString name = lua_tostring(L, -1);
             lua_pop(L, 1);
             lua_next(L, -2);
-            parameterDocs.append(lua_tostring(L, -1));
-            lua_pop(L, 3);
+            QString docs = lua_tostring(L, -1);
+            lua_pop(L, 1);
+            QString value;
+            if (lua_next(L, -2)) {
+                value = lua_tostring(L, -1);
+                lua_pop(L, 2);
+            }
+            lua_pop(L, 1);
+            parameterDescriptions.append(QString("<br>&nbsp;&nbsp;%1%2: %3").arg(name, value.isEmpty() ? QString() : "=" + value, docs));
+            if (value.isEmpty())
+                parameterNames.append(name);
         }
         lua_pop(L, 1);
 
-        QHash<int, QString> arguments;
-        lua_getfield(L, -1, "arguments");
-        lua_pushnil(L);
-        while (lua_next(L, -2)) {
-            if (lua_isnumber(L, -2))
-                arguments.insert(lua_tonumber(L, -2)-1, lua_tostring(L, -1));
-            lua_pop(L, 1);
-        }
-        lua_pop(L, 2);
-
-        for (int i=parameterDocs.size()-1; i>=0; i--) {
-            parameterDocs[i] = QString("<br>&nbsp;&nbsp;%1%2: %3").arg(parameterNames[i], arguments.contains(i) ? "=" + arguments[i] : "", parameterDocs[i]);
-            if (arguments.contains(i))
-                parameterNames.removeAt(i);
-        }
-        text->setText(QString("<b>%1</b>(%2): %3%4").arg(objectName(), parameterNames.join(", "), documentation, parameterDocs.join("")));
+        text->setText(QString("<b>%1</b>(%2): %3%4").arg(objectName(), parameterNames.join(", "), documentation, parameterDescriptions.join("")));
     }
 };
 

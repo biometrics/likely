@@ -178,6 +178,7 @@ LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, likely_arity arity, li
 // Make Likely accessible as a Lua module
 struct lua_State;
 LIKELY_EXPORT int luaopen_likely(lua_State *L);
+LIKELY_EXPORT void likely_stack_dump(lua_State *L, int levels = 1);
 
 #ifdef __cplusplus
 }

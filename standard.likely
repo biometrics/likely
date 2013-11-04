@@ -42,21 +42,18 @@ new = closure(
    {"frames", "matrix frames"},
    {"data", "address of existing data buffer"},
    {"clone", "copy the data buffer"}},
- {},
   likely.new)
 
 read = closure(
   nil,
   "Create a matrix from a file",
   {{"file_name", "path to file on disk"}},
-  {},
   likely.read)
 
 compile = closure(
   nil,
   "Create kernel",
   {{"function", "function expression"}},
-  {},
   likely.compile)
 
 -- Basic arithmetic
