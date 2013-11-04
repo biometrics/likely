@@ -341,23 +341,12 @@ public slots:
 
     void restore()
     {
-        QString source = settings.value("source").toString();
-        if (source.isEmpty())
-            source = QString("-- Source code is executed as you type\n"
-                             "print(\"Hello World!\")\n"
-                             "\n"
-                             "-- %1+click variables to display values\n"
-                             "lenna = read(\"img/Lenna.tiff\")\n"
-                             "\n"
-                             "-- %1+scroll to edit numerical constants\n"
-                             "dark_lenna = divide(2)(lenna)\n"
-                             "").arg(QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText));
-        setText(source);
+        setText(settings.value("source").toString());
         activate("compiler");
         activate("console");
     }
 
-    void setSource(QAction *a)
+    void fileMenu(QAction *a)
     {
         if (a->text() == "Open...") {
             sourceFileName = QFileDialog::getOpenFileName(NULL, "Open Source File");
@@ -377,6 +366,11 @@ public slots:
                 file.close();
             }
         }
+    }
+
+    void examplesMenu(QAction *a)
+    {
+        setText(a->data().toString());
     }
 
 private:
@@ -591,8 +585,31 @@ int main(int argc, char *argv[])
     fileMenu->addAction(openSource);
     fileMenu->addAction(saveSource);
     fileMenu->addAction(saveSourceAs);
+
+    QMenu *examplesMenu = new QMenu("Examples");
+    lua_State *L = luaL_newstate();
+    luaL_openlibs(L);
+    luaL_requiref(L, "likely", luaopen_likely, 1);
+    lua_pop(L, 1);
+    luaL_dostring(L, likely_standard_library());
+    lua_getglobal(L, "likely");
+    lua_getfield(L, -1, "examples");
+    lua_pushnil(L);
+    while (lua_next(L, -2)) {
+        const int index = lua_tonumber(L, -2);
+        QString source = lua_tostring(L, -1);
+        source = source.replace("CTRL", QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText));
+        QAction *example = new QAction(QString("%1. %2").arg(QString::number(index), source.mid(3, source.indexOf('\n')-3)), examplesMenu);
+        example->setData(source);
+        examplesMenu->addAction(example);
+        lua_pop(L, 1);
+    }
+    lua_pop(L, 2);
+    lua_close(L);
+
     QMenuBar *menuBar = new QMenuBar();
     menuBar->addMenu(fileMenu);
+    menuBar->addMenu(examplesMenu);
 
     QStatusBar *statusBar = new QStatusBar();
     statusBar->setSizeGripEnabled(true);
@@ -605,7 +622,8 @@ int main(int argc, char *argv[])
     Documentation *documentation = new Documentation();
     QObject::connect(commandMode, SIGNAL(commandMode(bool)), syntaxHighlighter, SLOT(setCommandMode(bool)));
     QObject::connect(documentation, SIGNAL(activate(QString)), source, SLOT(activate(QString)));
-    QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(setSource(QAction*)));
+    QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(fileMenu(QAction*)));
+    QObject::connect(examplesMenu, SIGNAL(triggered(QAction*)), source, SLOT(examplesMenu(QAction*)));
     QObject::connect(source, SIGNAL(toggled(QString)), documentation, SLOT(toggle(QString)));
     QObject::connect(source, SIGNAL(newState(lua_State*)), syntaxHighlighter, SLOT(updateDictionary(lua_State*)));
     QObject::connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));

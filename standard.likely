@@ -1,35 +1,6 @@
 -- Likely Standard Library
 
--- Spaces are used to separate tokens in the Likely intermediate representation
-function likely.concat(...)
-  return table.concat({...}, " ")
-end
-
-function likely.isnum(...)
-  for k,v in ipairs{...} do
-    if type(v) ~= "number" then
-      return false
-    end
-  end
-  return true
-end
-
-console = ""
-function likely.print(...)
-  if #console > 0 then
-    console = console .. "\n"
-  end
-  args = {...}
-  for k,v in ipairs(args) do
-    console = console .. tostring(v)
-    if k ~= #args then
-      console = console .. " "
-    end
-  end
-end
-print = likely.print
-
--- Likely core functions
+-- Core functions
 closure = likely.closure
 
 new = closure(
@@ -55,6 +26,51 @@ compile = closure(
   "Create kernel",
   {{"function", "function expression"}},
   likely.compile)
+
+console = ""
+function likely.print(...)
+  if #console > 0 then
+    console = console .. "\n"
+  end
+  args = {...}
+  for k,v in ipairs(args) do
+    console = console .. tostring(v)
+    if k ~= #args then
+      console = console .. " "
+    end
+  end
+end
+print = likely.print
+
+-- Examples
+likely.examples =
+{
+[[
+-- Hello World
+-- Source code is re-executed as you type
+print("Hello World!")
+
+-- CTRL+click variables to display values
+lenna = read("img/Lenna.tiff")
+
+-- CTRL+scroll to edit numerical constants
+dark_lenna = divide(2)(lenna)
+]]
+}
+
+-- Utility functions
+function likely.concat(...)
+  return table.concat({...}, " ")
+end
+
+function likely.isnum(...)
+  for k,v in ipairs{...} do
+    if type(v) ~= "number" then
+      return false
+    end
+  end
+  return true
+end
 
 -- Basic arithmetic
 add = closure(
