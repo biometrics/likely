@@ -579,7 +579,7 @@ struct MatrixBuilder
     IRBuilder<> *b;
     Function *f;
     Twine n;
-    likely_hash h;
+    mutable likely_hash h;
     Value *v;
 
     struct Loop {
@@ -775,7 +775,28 @@ struct MatrixBuilder
         return store;
     }
 
-    Value *cast(Value *i, likely_hash hash) const { return (likely_type(h) == likely_type(hash)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_signed(h), Type::getFloatTy(getGlobalContext()), likely_signed(h)), i, Type::getFloatTy(getGlobalContext())); }
+    Value *zext(Value *c, Value *j) const { ConstantInt *CI = dyn_cast<ConstantInt>(j); uint64_t depth = CI->getZExtValue(); likely_set_depth(&h, depth); setDepth(depth); return b->CreateZExt(c, ty(), n); }
+    Value *sext(Value *c, Value *j) const { ConstantInt *CI = dyn_cast<ConstantInt>(j); uint64_t depth = CI->getZExtValue(); likely_set_depth(&h, depth); setDepth(depth); return b->CreateSExt(c, ty(), n); }
+    Value *fpext(Value *c, Value *j) const { ConstantInt *CI = dyn_cast<ConstantInt>(j); uint64_t depth = CI->getZExtValue(); likely_set_depth(&h, depth); setDepth(depth); return b->CreateFPExt(c, ty(), n);}
+    Value *trunc(Value *c, Value *j) const { ConstantInt *CI = dyn_cast<ConstantInt>(j); uint64_t depth = CI->getZExtValue(); likely_set_depth(&h, depth); setDepth(depth); return b->CreateTrunc(c, ty(), n); }
+    Value *fptrunc(Value *c, Value *j) const { ConstantInt *CI = dyn_cast<ConstantInt>(j); uint64_t depth = CI->getZExtValue(); likely_set_depth(&h, depth); setDepth(depth); return b->CreateFPTrunc(c, ty(), n); }
+    Value *fp(Value *c) const {
+        setFloating(true);
+        if (likely_floating(h))    return c;
+        else if (likely_signed(h)) { likely_set_floating(&h, true); return b->CreateSIToFP(c, ty(), n); }
+        else                       { likely_set_floating(&h, true); return b->CreateUIToFP(c, ty(), n); }
+        }
+    Value *i(Value *c) const {
+        setFloating(false); setSigned(true);
+        if (likely_floating(h)) { likely_set_floating(&h, false); return b->CreateFPToSI(c, ty(), n); }
+        else                    { likely_set_signed(&h, true); return c; }
+    }
+    Value *u(Value *c) const {
+        setFloating(false); setSigned(false);
+        if (likely_floating(h)) { likely_set_floating(&h, false); return b->CreateFPToUI(c, ty(), n); }
+        else                    { likely_set_signed(&h, false); return c; }
+    }
+
     Value *add(Value *i, Value *j) const { return likely_floating(h) ? b->CreateFAdd(i, j, n) : b->CreateAdd(i, j, n); }
     Value *subtract(Value *i, Value *j) const { return likely_floating(h) ? b->CreateFSub(i, j, n) : b->CreateSub(i, j, n); }
     Value *multiply(Value *i, Value *j) const { return likely_floating(h) ? b->CreateFMul(i, j, n) : b->CreateMul(i, j, n); }
@@ -938,7 +959,10 @@ public:
             kernelHash |= hash;
 
         kernel = MatrixBuilder(&builder, function, "kernel", kernelHash, srcs[0]);
-        builder.CreateRet(kernel.newMat());
+        likely_hash dstHash = makeDstHash(kernelHash);
+        MatrixBuilder dstKernel = MatrixBuilder(&builder, function, "dstKernel", dstHash, srcs[0]);
+        if (dstHash != kernelHash) dstKernel.setType(likely_type(dstHash));
+        builder.CreateRet(dstKernel.newMat());
         return true;
     }
 
@@ -1028,6 +1052,27 @@ public:
         dst = srcs.back(); srcs.pop_back();
         dst->setName("dst");
     }
+    likely_hash makeDstHash(likely_hash srcHash)
+    {
+        int depth = 0;
+        for (size_t j=0; j<stack.size(); j++) {
+            const string &value = stack[j];
+            char *error;
+            const double x = strtod(value.c_str(), &error);
+            if (*error == '\0') {
+                depth = (int)x;
+            }
+            else if (value == "zext")    likely_set_depth(&srcHash, depth);
+            else if (value == "sext")    likely_set_depth(&srcHash, depth);
+            else if (value == "fpext")   likely_set_depth(&srcHash, depth);
+            else if (value == "trunc")   likely_set_depth(&srcHash, depth);
+            else if (value == "fptrunc") likely_set_depth(&srcHash, depth);
+            else if (value == "fp")      likely_set_floating(&srcHash, true);
+            else if (value == "i")       { likely_set_floating(&srcHash, false); likely_set_signed(&srcHash, true); }
+            else if (value == "u")       { likely_set_floating(&srcHash, false); likely_set_signed(&srcHash, false); }
+        }
+        return srcHash;
+    }
 
     Value *makeEquation()
     {
@@ -1051,17 +1096,25 @@ public:
                 else if (value == "fabs")  values.push_back(kernel.fabs(operand));
                 else if (value == "sqrt")  values.push_back(kernel.sqrt(operand));
                 else if (value == "exp")   values.push_back(kernel.exp(operand));
+                else if (value == "fp")    values.push_back(kernel.fp(operand));
+                else if (value == "i")     values.push_back(kernel.i(operand));
+                else if (value == "u")     values.push_back(kernel.u(operand));
                 else                       { likely_assert(false, "Unsupported unary operator: %s", value.c_str()); return NULL; }
             } else if (values.size() == 2) {
                 Value *lhs = values[values.size()-2];
                 Value *rhs = values[values.size()-1];
                 values.pop_back();
                 values.pop_back();
-                if      (value == "+") values.push_back(kernel.add(lhs, rhs));
-                else if (value == "-") values.push_back(kernel.subtract(lhs, rhs));
-                else if (value == "*") values.push_back(kernel.multiply(lhs, rhs));
-                else if (value == "/") values.push_back(kernel.divide(lhs, rhs));
-                else                   { likely_assert(false, "Unsupported binary operator: %s", value.c_str()); return NULL; }
+                if      (value == "+")       values.push_back(kernel.add(lhs, rhs));
+                else if (value == "-")       values.push_back(kernel.subtract(lhs, rhs));
+                else if (value == "*")       values.push_back(kernel.multiply(lhs, rhs));
+                else if (value == "/")       values.push_back(kernel.divide(lhs, rhs));
+                else if (value == "zext")    values.push_back(kernel.sext(lhs, rhs));
+                else if (value == "sext")    values.push_back(kernel.sext(lhs, rhs));
+                else if (value == "fpext")   values.push_back(kernel.fpext(lhs, rhs));
+                else if (value == "trunc")   values.push_back(kernel.trunc(lhs, rhs));
+                else if (value == "fptrunc") values.push_back(kernel.fptrunc(lhs, rhs));
+                else                         { likely_assert(false, "Unsupported binary operator: %s", value.c_str()); return NULL; }
             } else {
                 likely_assert(false, "Unrecognized token: %s", value.c_str()); return NULL;
             }
