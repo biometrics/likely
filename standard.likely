@@ -35,13 +35,13 @@ closure = likely.closure
 new = closure(
   nil,
   "Create an empty matrix",
-  {{"hash", "matrix hash"},
-   {"channels", "matrix channels"},
-   {"columns", "matrix columns"},
-   {"rows", "matrix rows"},
-   {"frames", "matrix frames"},
-   {"data", "address of existing data buffer"},
-   {"clone", "copy the data buffer"}},
+  {{"hash", "matrix hash", likely.f32},
+   {"channels", "matrix channels", 1},
+   {"columns", "matrix columns", 1},
+   {"rows", "matrix rows", 1},
+   {"frames", "matrix frames", 1},
+   {"data", "address of existing data buffer", 0},
+   {"copy", "copy the data buffer", 0}},
   likely.new)
 
 read = closure(

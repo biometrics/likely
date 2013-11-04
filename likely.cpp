@@ -259,29 +259,29 @@ likely_mat likely_new(likely_hash hash, likely_size channels, likely_size column
 
 static int lua_likely_new(lua_State *L)
 {
-    likely_hash hash = likely_hash_null;
-    likely_size channels = 0;
-    likely_size columns = 0;
-    likely_size rows = 0;
-    likely_size frames = 0;
+    likely_hash hash = likely_hash_f32;
+    likely_size channels = 1;
+    likely_size columns = 1;
+    likely_size rows = 1;
+    likely_size frames = 1;
     likely_data *data = NULL;
-    bool clone = true;
+    int8_t copy = 0;
 
     int isnum;
     const int argc = lua_gettop(L);
     switch (argc) {
-      case 7: clone    = lua_toboolean(L, 7);
+      case 7: copy    = lua_toboolean(L, 7);
       case 6: data     = (likely_data*) lua_touserdata(L, 6);
       case 5: frames   = lua_tointegerx(L, 5, &isnum); likely_assert(isnum, "'new' expected frames to be an integer, got: %s", lua_tostring(L, 5));
       case 4: rows     = lua_tointegerx(L, 4, &isnum); likely_assert(isnum, "'new' expected rows to be an integer, got: %s", lua_tostring(L, 4));
       case 3: columns  = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'new' expected columns to be an integer, got: %s", lua_tostring(L, 3));
       case 2: channels = lua_tointegerx(L, 2, &isnum); likely_assert(isnum, "'new' expected channels to be an integer, got: %s", lua_tostring(L, 2));
-      case 1: hash     = likely_string_to_hash(lua_tostring(L, 1));
+      case 1: hash     = lua_tointegerx(L, 1, &isnum); likely_assert(isnum, "'new' expected hash to be an integer, got: %s", lua_tostring(L, 2));
       case 0: break;
       default: likely_assert(false, "'new' expected no more than 7 arguments, got: %d", argc);
     }
 
-    *newLuaMat(L) = likely_new(hash, channels, columns, rows, frames, data, clone);
+    *newLuaMat(L) = likely_new(hash, channels, columns, rows, frames, data, copy);
     return 1;
 }
 
@@ -1640,9 +1640,8 @@ int luaopen_likely(lua_State *L)
 
     // Register function metatable
     luaL_newmetatable(L, "likely_function");
-    lua_pushstring(L, "__call");
     lua_pushcfunction(L, lua_likely__call);
-    lua_settable(L, -3);
+    lua_setfield(L, -2, "__call");
 
     // Idiom for registering library with member functions
     luaL_newmetatable(L, "likely");
@@ -1650,6 +1649,37 @@ int luaopen_likely(lua_State *L)
     lua_setfield(L, -2, "__index");
     luaL_setfuncs(L, likely_members, 0);
     luaL_newlib(L, likely_globals);
+
+    typedef pair<const char*, int> hash_field;
+    vector<hash_field> hashFields;
+    hashFields.push_back(hash_field("null", likely_hash_null));
+    hashFields.push_back(hash_field("depth", likely_hash_depth));
+    hashFields.push_back(hash_field("signed", likely_hash_signed));
+    hashFields.push_back(hash_field("floating", likely_hash_floating));
+    hashFields.push_back(hash_field("type", likely_hash_type));
+    hashFields.push_back(hash_field("u8", likely_hash_u8));
+    hashFields.push_back(hash_field("u16", likely_hash_u16));
+    hashFields.push_back(hash_field("u32", likely_hash_u32));
+    hashFields.push_back(hash_field("u64", likely_hash_u64));
+    hashFields.push_back(hash_field("i8", likely_hash_i8));
+    hashFields.push_back(hash_field("i16", likely_hash_i16));
+    hashFields.push_back(hash_field("i32", likely_hash_i32));
+    hashFields.push_back(hash_field("i64", likely_hash_i64));
+    hashFields.push_back(hash_field("f16", likely_hash_f16));
+    hashFields.push_back(hash_field("f32", likely_hash_f32));
+    hashFields.push_back(hash_field("f64", likely_hash_f64));
+    hashFields.push_back(hash_field("parallel", likely_hash_parallel));
+    hashFields.push_back(hash_field("heterogeneous", likely_hash_heterogeneous));
+    hashFields.push_back(hash_field("single_channel", likely_hash_single_channel));
+    hashFields.push_back(hash_field("single_column", likely_hash_single_column));
+    hashFields.push_back(hash_field("single_row", likely_hash_single_row));
+    hashFields.push_back(hash_field("single_frame", likely_hash_single_frame));
+    hashFields.push_back(hash_field("reserved", likely_hash_reserved));
+    for (hash_field hashField : hashFields) {
+        lua_pushstring(L, hashField.first);
+        lua_pushinteger(L, hashField.second);
+        lua_settable(L, -3);
+    }
 
     return 1;
 }

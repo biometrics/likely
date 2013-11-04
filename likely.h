@@ -128,7 +128,7 @@ LIKELY_EXPORT likely_size likely_elements(likely_const_mat m);
 LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
 
 // Create and manage a reference counted matrix
-LIKELY_EXPORT likely_mat likely_new(likely_hash hash = likely_hash_null, likely_size channels = 0, likely_size columns = 0, likely_size rows = 0, likely_size frames = 0, likely_data *data = NULL, int8_t copy = 0);
+LIKELY_EXPORT likely_mat likely_new(likely_hash hash = likely_hash_f32, likely_size channels = 1, likely_size columns = 1, likely_size rows = 1, likely_size frames = 1, likely_data *data = NULL, int8_t copy = 0);
 LIKELY_EXPORT likely_mat likely_retain(likely_mat m);
 LIKELY_EXPORT void likely_release(likely_mat m);
 
