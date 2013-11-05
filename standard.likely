@@ -64,7 +64,7 @@ x = new{rows=512, columns=512, hash=likely.f32}
 -- ...or anonymously in their canonical order.
 y = new(likely.f32, 1, 512, 512)
 
--- Anonymous arguments are assigned to the left-most default-less parameter. If all parameters have default values then arguments will replace the left-most default values.
+-- Anonymous arguments are assigned to the left-most default-less parameter. If all parameters have default values then arguments will replace the left-most values.
 ]]
 }
 

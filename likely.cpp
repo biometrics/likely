@@ -1406,18 +1406,29 @@ static int lua_likely__call(lua_State *L)
     } else {
         lua_pushnil(L);
         lua_next(L, -2);
+        bool overrideArguments = false;
         for (int i=2; i<=args; i++) {
             // Find the next parameter without a bound argument
-            while (lua_objlen(L, -1) > 2) {
+            while (!overrideArguments && (lua_objlen(L, -1) > 2)) {
                 lua_pop(L, 1);
-                if (!lua_next(L, -2))
-                    luaL_error(L, "Too many arguments!");
+                if (!lua_next(L, -2)) {
+                    if (i == 2) overrideArguments = true; // Override parameters if they all have values
+                    if (!overrideArguments) luaL_error(L, "Too many arguments!");
+                }
+            }
+
+            if (overrideArguments) {
+                lua_pushinteger(L, i-1);
+                lua_gettable(L, -2);
             }
             lua_pushinteger(L, 3);
             lua_pushvalue(L, i);
             lua_settable(L, -3);
+            if (overrideArguments)
+                lua_pop(L, 1);
         }
-        lua_pop(L, 2);
+        if (!overrideArguments)
+            lua_pop(L, 2);
     }
 
     // Are all the arguments provided?
