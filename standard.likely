@@ -50,15 +50,15 @@ likely.examples =
 -- Source code is re-executed as you type
 print("Hello World!")
 
--- CTRL+click variables to display values
+-- \dream{CTRL}+click variables to display values
 lenna = read("img/Lenna.tiff")
 
--- CTRL+scroll to edit numerical constants
+-- \dream{CTRL}+scroll to edit numerical constants
 dark_lenna = divide(2)(lenna)
 ]],
 [[
 -- Function Calls
--- Arguments can be assigned explicitly by name...
+-- Arguments can be assigned explicitly by name...\dream{activate:new}
 x = new{rows=512, columns=512, hash=likely.f32}
 
 -- ...or anonymously in their canonical order.

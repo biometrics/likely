@@ -374,6 +374,24 @@ public slots:
     }
 
 private:
+    void setText(QString text)
+    {
+        static const QRegularExpression ctrlExpression("\\\\dream\\{CTRL\\}");
+        text = text.replace(ctrlExpression, QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText));
+
+        static const QRegularExpression activateExpression("\\\\dream\\{activate\\:(\\w+)\\}");
+        QStringList activateVariables;
+        QRegularExpressionMatchIterator i = activateExpression.globalMatch(text);
+        while (i.hasNext())
+            activateVariables.append(i.next().captured(1));
+        text = text.replace(activateExpression, "");
+
+        emit newSource();
+        QTextEdit::setText(text);
+        foreach (const QString &variable, activateVariables)
+            activate(variable);
+    }
+
     void mousePressEvent(QMouseEvent *e)
     {
         if (e->modifiers() != Qt::ControlModifier)
@@ -462,9 +480,10 @@ private slots:
     }
 
 signals:
-    void newVariable(Variable*);
     void newState(lua_State*);
     void newStatus(QString);
+    void newSource();
+    void newVariable(Variable*);
     void recompiling();
     void toggled(QString);
 };
@@ -494,6 +513,12 @@ public slots:
         layout->addWidget(variable);
         connect(variable, SIGNAL(destroyed(QObject*)), this, SLOT(removeObject(QObject*)));
         connect(variable, SIGNAL(typeChanged()), this, SLOT(typeChanged()));
+    }
+
+    void clear()
+    {
+        for (int i=0; i<layout->count(); i++)
+            layout->itemAt(i)->widget()->deleteLater();
     }
 
     void toggle(const QString &name)
@@ -597,8 +622,7 @@ int main(int argc, char *argv[])
     lua_pushnil(L);
     while (lua_next(L, -2)) {
         const int index = lua_tonumber(L, -2);
-        QString source = lua_tostring(L, -1);
-        source = source.replace("CTRL", QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText));
+        const QString source = lua_tostring(L, -1);
         QAction *example = new QAction(QString("%1. %2").arg(QString::number(index), source.mid(3, source.indexOf('\n')-3)), examplesMenu);
         example->setData(source);
         examplesMenu->addAction(example);
@@ -625,6 +649,7 @@ int main(int argc, char *argv[])
     QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(fileMenu(QAction*)));
     QObject::connect(examplesMenu, SIGNAL(triggered(QAction*)), source, SLOT(examplesMenu(QAction*)));
     QObject::connect(source, SIGNAL(toggled(QString)), documentation, SLOT(toggle(QString)));
+    QObject::connect(source, SIGNAL(newSource()), documentation, SLOT(clear()));
     QObject::connect(source, SIGNAL(newState(lua_State*)), syntaxHighlighter, SLOT(updateDictionary(lua_State*)));
     QObject::connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
     QObject::connect(source, SIGNAL(newVariable(Variable*)), documentation, SLOT(addVariable(Variable*)));
