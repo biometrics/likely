@@ -235,9 +235,22 @@ static likely_mat *newLuaMat(lua_State *L)
     return mp;
 }
 
+// Note: these are currently not used in a thread safe manner
+static likely_mat recycledBuffer = NULL;
+static size_t recycledDataBytes = 0;
+
 likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, int8_t copy)
 {
-    likely_mat dst = (likely_mat) malloc(sizeof(likely_matrix) + likely_depth(type) * ((data && !copy) ? 0 : channels*columns*rows*frames) + (MaxRegisterWidth - 1));
+    likely_mat dst;
+    const size_t dataBytes =  uint64_t(likely_depth(type)) * uint64_t((data && !copy) ? 0 : channels*columns*rows*frames) / uint64_t(8);
+    const size_t headerBytes = sizeof(likely_matrix) + (MaxRegisterWidth - 1);
+    if (recycledBuffer) {
+        if (recycledDataBytes >= dataBytes) dst = recycledBuffer;
+        else                                dst = (likely_mat) realloc(recycledBuffer, headerBytes + dataBytes);
+        recycledBuffer = NULL;
+    } else {
+        dst = (likely_mat) malloc(headerBytes + dataBytes);
+    }
     dst->data = reinterpret_cast<likely_data*>((uintptr_t(dst+1)+(MaxRegisterWidth-1)) & ~uintptr_t(MaxRegisterWidth-1));
     dst->type = type;
     dst->channels = channels;
@@ -301,7 +314,19 @@ void likely_release(likely_mat m)
     if (!m || !m->ref_count) return;
     m->ref_count--;
     if (m->ref_count > 0) return;
-    free(m);
+    const size_t dataBytes = likely_bytes(m);
+    if (recycledBuffer) {
+        if (dataBytes > recycledDataBytes) {
+            free(recycledBuffer);
+            recycledBuffer = m;
+            recycledDataBytes = dataBytes;
+        } else {
+            free(m);
+        }
+    } else {
+        recycledBuffer = m;
+        recycledDataBytes = dataBytes;
+    }
 }
 
 static int lua_likely_release(lua_State *L)
