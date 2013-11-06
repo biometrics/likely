@@ -295,7 +295,7 @@ private:
     }
 };
 
-class Source : public QTextEdit
+class Source : public QPlainTextEdit
 {
     Q_OBJECT
     QString sourceFileName, previousSource;
@@ -306,7 +306,7 @@ class Source : public QTextEdit
 public:
     Source()
     {
-        setAcceptRichText(false);
+        setFont(QFont("Monaco"));
         connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
     }
 
@@ -389,7 +389,7 @@ private:
         text = text.replace(activateExpression, "");
 
         emit newSource();
-        QTextEdit::setText(text);
+        QPlainTextEdit::setPlainText(text);
         foreach (const QString &variable, activateVariables)
             activate(variable);
     }
@@ -397,7 +397,7 @@ private:
     void mousePressEvent(QMouseEvent *e)
     {
         if (e->modifiers() != Qt::ControlModifier)
-            return QTextEdit::mousePressEvent(e);
+            return QPlainTextEdit::mousePressEvent(e);
 
         QTextCursor tc = cursorForPosition(e->pos());
         tc.select(QTextCursor::WordUnderCursor);
@@ -408,7 +408,7 @@ private:
     void wheelEvent(QWheelEvent *e)
     {
         if (e->modifiers() != Qt::ControlModifier)
-            return QTextEdit::wheelEvent(e);
+            return QPlainTextEdit::wheelEvent(e);
 
         const int deltaY =                    getIncrement(e->angleDelta().y(), wheelRemainderY, wheelRemainderX);
         const int deltaX = (deltaY != 0 ? 0 : getIncrement(e->angleDelta().x(), wheelRemainderX, wheelRemainderY));
