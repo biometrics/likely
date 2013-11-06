@@ -5,7 +5,7 @@
 
 static int typeToDepth(likely_type type)
 {
-    switch (likely_type(type)) {
+    switch (type & likely_type_mask) {
       case likely_type_u8:  return CV_8U;
       case likely_type_i8:  return CV_8S;
       case likely_type_u16: return CV_16U;
