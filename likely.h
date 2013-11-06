@@ -137,6 +137,7 @@ LIKELY_EXPORT likely_mat likely_read(const char *file_name);
 LIKELY_EXPORT void likely_write(likely_const_mat image, const char *file_name);
 LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
 LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
+LIKELY_EXPORT likely_mat likely_render(likely_const_mat m); // Return a 888 matrix for visualization
 
 // Debugging functionality
 LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);

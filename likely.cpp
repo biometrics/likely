@@ -383,25 +383,52 @@ static int lua_likely_encode(lua_State *L)
     return 1;
 }
 
+likely_mat likely_render(likely_const_mat m)
+{
+    if ((likely_depth(m->hash) == 8) && !likely_floating(m->hash) && (m->channels == 3)) {
+        likely_mat n = const_cast<likely_mat>(m); // We don't consider a call to retain as violating logical constness
+        likely_retain(n);
+        return n;
+    }
+
+    likely_mat n = likely_new(likely_hash_u8, 3, m->columns, m->rows);
+    for (likely_size y=0; y<n->rows; y++) {
+        for (likely_size x=0; x<n->columns; x++) {
+            for (likely_size c=0; c<3; c++) {
+                const double value = likely_element(m, c % m->channels, x, y);
+                likely_set_element(n, value, c, x, y);
+            }
+        }
+    }
+    return n;
+}
+
+static int lua_likely_render(lua_State *L)
+{
+    lua_likely_assert(L, lua_gettop(L) == 1, "'render' expected 1 argument, got: %d", lua_gettop(L));
+    *newLuaMat(L) = likely_render(checkLuaMat(L));
+    return 1;
+}
+
 double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
 {
-    likely_assert(m != NULL, "likely_element received a null matrix");
-    const int columnStep = m->channels;
-    const int rowStep = m->columns * columnStep;
-    const int frameStep = m->rows * rowStep;
-    const int index = t*frameStep + y*rowStep + x*columnStep + c;
+    likely_assert(m, "likely_element received a null matrix");
+    const likely_size columnStep = m->channels;
+    const likely_size rowStep = m->columns * columnStep;
+    const likely_size frameStep = m->rows * rowStep;
+    const likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
 
     switch (likely_type(m->hash)) {
-      case likely_hash_u8:  return  ((uint8_t*)m->data)[index];
-      case likely_hash_u16: return ((uint16_t*)m->data)[index];
-      case likely_hash_u32: return ((uint32_t*)m->data)[index];
-      case likely_hash_u64: return ((uint64_t*)m->data)[index];
-      case likely_hash_i8:  return   ((int8_t*)m->data)[index];
-      case likely_hash_i16: return  ((int16_t*)m->data)[index];
-      case likely_hash_i32: return  ((int32_t*)m->data)[index];
-      case likely_hash_i64: return  ((int64_t*)m->data)[index];
-      case likely_hash_f32: return    ((float*)m->data)[index];
-      case likely_hash_f64: return   ((double*)m->data)[index];
+      case likely_hash_u8:  return reinterpret_cast< uint8_t*>(m->data)[index];
+      case likely_hash_u16: return reinterpret_cast<uint16_t*>(m->data)[index];
+      case likely_hash_u32: return reinterpret_cast<uint32_t*>(m->data)[index];
+      case likely_hash_u64: return reinterpret_cast<uint64_t*>(m->data)[index];
+      case likely_hash_i8:  return reinterpret_cast<  int8_t*>(m->data)[index];
+      case likely_hash_i16: return reinterpret_cast< int16_t*>(m->data)[index];
+      case likely_hash_i32: return reinterpret_cast< int32_t*>(m->data)[index];
+      case likely_hash_i64: return reinterpret_cast< int64_t*>(m->data)[index];
+      case likely_hash_f32: return reinterpret_cast<   float*>(m->data)[index];
+      case likely_hash_f64: return reinterpret_cast<  double*>(m->data)[index];
       default: likely_assert(false, "likely_element unsupported type");
     }
     return numeric_limits<double>::quiet_NaN();
@@ -409,23 +436,23 @@ double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_s
 
 void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t)
 {
-    likely_assert(m != NULL, "likely_set_element received a null matrix");
-    const int columnStep = m->channels;
-    const int rowStep = m->channels * columnStep;
-    const int frameStep = m->rows * rowStep;
-    const int index = t*frameStep + y*rowStep + x*columnStep + c;
+    likely_assert(m, "likely_set_element received a null matrix");
+    const likely_size columnStep = m->channels;
+    const likely_size rowStep = m->columns * columnStep;
+    const likely_size frameStep = m->rows * rowStep;
+    const likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
 
     switch (likely_type(m->hash)) {
-      case likely_hash_u8:   ((uint8_t*)m->data)[index] = value; break;
-      case likely_hash_u16: ((uint16_t*)m->data)[index] = value; break;
-      case likely_hash_u32: ((uint32_t*)m->data)[index] = value; break;
-      case likely_hash_u64: ((uint64_t*)m->data)[index] = value; break;
-      case likely_hash_i8:    ((int8_t*)m->data)[index] = value; break;
-      case likely_hash_i16:  ((int16_t*)m->data)[index] = value; break;
-      case likely_hash_i32:  ((int32_t*)m->data)[index] = value; break;
-      case likely_hash_i64:  ((int64_t*)m->data)[index] = value; break;
-      case likely_hash_f32:    ((float*)m->data)[index] = value; break;
-      case likely_hash_f64:   ((double*)m->data)[index] = value; break;
+      case likely_hash_u8:  reinterpret_cast< uint8_t*>(m->data)[index] = value; break;
+      case likely_hash_u16: reinterpret_cast<uint16_t*>(m->data)[index] = value; break;
+      case likely_hash_u32: reinterpret_cast<uint32_t*>(m->data)[index] = value; break;
+      case likely_hash_u64: reinterpret_cast<uint64_t*>(m->data)[index] = value; break;
+      case likely_hash_i8:  reinterpret_cast<  int8_t*>(m->data)[index] = value; break;
+      case likely_hash_i16: reinterpret_cast< int16_t*>(m->data)[index] = value; break;
+      case likely_hash_i32: reinterpret_cast< int32_t*>(m->data)[index] = value; break;
+      case likely_hash_i64: reinterpret_cast< int64_t*>(m->data)[index] = value; break;
+      case likely_hash_f32: reinterpret_cast<   float*>(m->data)[index] = value; break;
+      case likely_hash_f64: reinterpret_cast<  double*>(m->data)[index] = value; break;
       default: likely_assert(false, "likely_set_element unsupported type");
     }
 }
@@ -478,27 +505,15 @@ likely_hash likely_string_to_hash(const char *str)
 
 void likely_print(likely_const_mat m)
 {
-    if ((m == NULL) || (m->data == NULL)) return;
-    const int type = likely_type(m->hash);
+    if (!m) return;
     for (uint t=0; t<m->frames; t++) {
         for (uint y=0; y<m->rows; y++) {
             cout << (m->rows > 1 ? (y == 0 ? "[" : " ") : "");
             for (uint x=0; x<m->columns; x++) {
                 for (uint c=0; c<m->channels; c++) {
-                    const double value = likely_element(m, c, x, y, t);
-                    switch (type) {
-                      case likely_hash_u8:  cout <<  (uint8_t)value; break;
-                      case likely_hash_u16: cout << (uint16_t)value; break;
-                      case likely_hash_u32: cout << (uint32_t)value; break;
-                      case likely_hash_u64: cout << (uint64_t)value; break;
-                      case likely_hash_i8:  cout <<   (int8_t)value; break;
-                      case likely_hash_i16: cout <<  (int16_t)value; break;
-                      case likely_hash_i32: cout <<  (int32_t)value; break;
-                      case likely_hash_i64: cout <<  (int64_t)value; break;
-                      case likely_hash_f32: cout <<    (float)value; break;
-                      case likely_hash_f64: cout <<   (double)value; break;
-                      default: likely_assert(false, "likely_print_matrix unsupported type.");
-                    }
+                    cout << likely_element(m, c, x, y, t);
+                    if (c != m->channels-1)
+                        cout << " ";
                 }
                 cout << (m->channels > 1 ? ";" : (x < m->columns-1 ? " " : ""));
             }
@@ -1645,8 +1660,9 @@ int luaopen_likely(lua_State *L)
         {"retain", lua_likely_retain},
         {"release", lua_likely_release},
         {"write", lua_likely_write},
-        {"encode", lua_likely_encode},
         {"decode", lua_likely_decode},
+        {"encode", lua_likely_encode},
+        {"render", lua_likely_render},
         {NULL, NULL}
     };
 

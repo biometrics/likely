@@ -106,7 +106,9 @@ private:
         }
         likely_mat mat = *mp;
 
-        src = QImage(mat->data, mat->columns, mat->rows, QImage::Format_RGB888).rgbSwapped();
+        likely_mat rendered = likely_render(mat);
+        src = QImage(rendered->data, rendered->columns, rendered->rows, QImage::Format_RGB888).rgbSwapped();
+        likely_release(rendered);
         text->setText(QString("<b>%1</b>: %2x%3x%4x%5 %6 (0x%7)").arg(objectName(),
                                                                       QString::number(mat->channels),
                                                                       QString::number(mat->columns),
