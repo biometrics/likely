@@ -89,6 +89,21 @@ x = new{rows=512, columns=512, hash=f32}
 y = new(f32, 1, 512, 512)
 
 -- In the latter case, arguments are assigned to the first parameter without a default value. If all parameters have default values then arguments will replace the left-most values.
+]],
+[[
+-- Closures
+x = new{rows=512, columns=512, hash=i8}
+
+-- When a function is called without all of its arguments specified, a new function is returned with the bound arguments.\dream{activate:set}\dream{activate:setZero}
+setZero = set(0)
+
+-- Once all the arguments have been provided, the function is compiled and executed.\dream{activate:y}
+y = setZero(x)
+
+-- set(0)(x)
+--     ^  ^
+--     |  Run-time arguments
+--     Compile-time arguments
 ]]
 }
 
@@ -107,6 +122,14 @@ function likely.isnum(...)
 end
 
 -- Basic arithmetic
+set = closure(
+  function(rhs, lhs)
+    return likely.concat(lhs, rhs, "=")
+  end,
+  "Assignment",
+  {{"rhs", "right hand side"},
+   {"lhs", "left hand side"}})
+
 add = closure(
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
