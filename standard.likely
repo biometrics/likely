@@ -167,6 +167,9 @@ multiply = closure(
 
 divide = closure(
   function(rhs, lhs)
+    if rhs == 0 then
+      error("Denominator is zero!")
+    end
     if likely.isnum(rhs, lhs) then
       return lhs / rhs
     else
@@ -174,8 +177,8 @@ divide = closure(
     end
   end,
   "Arithmetic division",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
+  {{"lhs", "left hand side (denominator)"},
+   {"rhs", "right hand side (numerator)"}})
 
 -- Basic math
 log = closure(
