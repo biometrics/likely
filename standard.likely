@@ -122,12 +122,12 @@ end
 
 -- Basic arithmetic
 set = closure(
-  function(rhs, lhs)
-    return likely.concat(lhs, rhs, "=")
+  function(value, matrix)
+    return value
   end,
   "Assignment",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
+  {{"value", "numerical constant"},
+   {"matrix", "used to determine output size and type"}})
 
 add = closure(
   function(rhs, lhs)

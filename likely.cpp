@@ -1050,7 +1050,6 @@ public:
                 else if (value == "-") values.push_back(kernel.subtract(lhs, rhs));
                 else if (value == "*") values.push_back(kernel.multiply(lhs, rhs));
                 else if (value == "/") values.push_back(kernel.divide(lhs, rhs));
-                else if (value == "=") values.push_back(rhs);
                 else                   { likely_assert(false, "Unsupported binary operator: %s", value.c_str()); return NULL; }
             } else {
                 likely_assert(false, "Unrecognized token: %s", value.c_str()); return NULL;
