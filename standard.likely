@@ -42,6 +42,30 @@ function likely.print(...)
 end
 print = likely.print
 
+-- Type abbreviations
+null = likely.null
+depth = likely.depth
+signed = likely.signed
+floating = likely.floating
+type = likely.type
+u8 = likely.u8
+u16 = likely.u16
+u32 = likely.u32
+u64 = likely.u64
+i8 = likely.i8
+i16 = likely.i16
+i32 = likely.i32
+i64 = likely.i64
+f16 = likely.f16
+f32 = likely.f32
+f64 = likely.f64
+parallel = likely.parallel
+single_channel = likely.single_channel
+single_column = likely.single_column
+single_row = likely.single_row
+single_frame = likely.single_frame
+reserved = likely.reserved
+
 -- Examples
 likely.examples =
 {
@@ -59,12 +83,12 @@ dark_lenna = divide(2)(lenna)
 [[
 -- Function Calls
 -- Arguments can be assigned explicitly by name...\dream{activate:new}
-x = new{rows=512, columns=512, hash=likely.f32}
+x = new{rows=512, columns=512, hash=f32}
 
 -- ...or anonymously in their canonical order.
-y = new(likely.f32, 1, 512, 512)
+y = new(f32, 1, 512, 512)
 
--- Anonymous arguments are assigned to the left-most default-less parameter. If all parameters have default values then arguments will replace the left-most values.
+-- In the latter case, arguments are assigned to the first parameter without a default value. If all parameters have default values then arguments will replace the left-most values.
 ]]
 }
 
