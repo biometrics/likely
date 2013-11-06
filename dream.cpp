@@ -337,8 +337,8 @@ public slots:
         else if (type == "function") variable = new Function(name);
         else                         variable = new Generic(name);
         connect(this, SIGNAL(newState(lua_State*)), variable, SLOT(refresh(lua_State*)));
-        variable->refresh(L);
         emit newVariable(variable);
+        variable->refresh(L); // Render the widget _after_ emitting it to reduce rendering glitches
     }
 
     void restore()
