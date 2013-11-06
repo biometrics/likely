@@ -49,7 +49,7 @@ LIKELY_EXPORT const char *likely_most_recent_error();
 // Matrix types
 typedef uint8_t likely_data;
 typedef uint32_t likely_size;
-typedef uint32_t likely_hash; /* Depth : 8
+typedef uint32_t likely_type; /* Depth : 8
                                  Signed : 1
                                  Floating : 1
                                  Parallel : 1
@@ -60,75 +60,73 @@ typedef uint32_t likely_hash; /* Depth : 8
                                  Single-frame : 1
                                  Reserved : 15 */
 
-// Standard hash masks and values
-enum likely_hash_field
+// Standard type masks and values
+enum likely_type_field
 {
-    likely_hash_null     = 0x00000000,
-    likely_hash_depth    = 0x000000FF,
-    likely_hash_signed   = 0x00000100,
-    likely_hash_floating = 0x00000200,
-    likely_hash_type = likely_hash_depth | likely_hash_signed | likely_hash_floating,
-    likely_hash_u8  = 8,
-    likely_hash_u16 = 16,
-    likely_hash_u32 = 32,
-    likely_hash_u64 = 64,
-    likely_hash_i8  = 8  | likely_hash_signed,
-    likely_hash_i16 = 16 | likely_hash_signed,
-    likely_hash_i32 = 32 | likely_hash_signed,
-    likely_hash_i64 = 64 | likely_hash_signed,
-    likely_hash_f16 = 16 | likely_hash_floating | likely_hash_signed,
-    likely_hash_f32 = 32 | likely_hash_floating | likely_hash_signed,
-    likely_hash_f64 = 64 | likely_hash_floating | likely_hash_signed,
-    likely_hash_parallel       = 0x00000400,
-    likely_hash_heterogeneous  = 0x00000800,
-    likely_hash_single_channel = 0x00001000,
-    likely_hash_single_column  = 0x00002000,
-    likely_hash_single_row     = 0x00004000,
-    likely_hash_single_frame   = 0x00008000,
-    likely_hash_reserved       = 0xFFFF0000
+    likely_type_null     = 0x00000000,
+    likely_type_depth    = 0x000000FF,
+    likely_type_signed   = 0x00000100,
+    likely_type_floating = 0x00000200,
+    likely_type_mask     = likely_type_depth | likely_type_signed | likely_type_floating,
+    likely_type_u8  = 8,
+    likely_type_u16 = 16,
+    likely_type_u32 = 32,
+    likely_type_u64 = 64,
+    likely_type_i8  = 8  | likely_type_signed,
+    likely_type_i16 = 16 | likely_type_signed,
+    likely_type_i32 = 32 | likely_type_signed,
+    likely_type_i64 = 64 | likely_type_signed,
+    likely_type_f16 = 16 | likely_type_floating | likely_type_signed,
+    likely_type_f32 = 32 | likely_type_floating | likely_type_signed,
+    likely_type_f64 = 64 | likely_type_floating | likely_type_signed,
+    likely_type_parallel       = 0x00000400,
+    likely_type_heterogeneous  = 0x00000800,
+    likely_type_single_channel = 0x00001000,
+    likely_type_single_column  = 0x00002000,
+    likely_type_single_row     = 0x00004000,
+    likely_type_single_frame   = 0x00008000,
+    likely_type_reserved       = 0xFFFF0000
 };
 
 // The only struct in the API
 typedef struct
 {
     likely_data *data;
-    likely_hash hash;
+    likely_type type;
     likely_size channels, columns, rows, frames;
     likely_size ref_count;
 } likely_matrix;
 typedef likely_matrix *likely_mat;
 typedef const likely_matrix *likely_const_mat;
 
-// Query and edit the hash
-LIKELY_EXPORT int  likely_depth(likely_hash hash);
-LIKELY_EXPORT void likely_set_depth(likely_hash *hash, int depth);
-LIKELY_EXPORT bool likely_signed(likely_hash hash);
-LIKELY_EXPORT void likely_set_signed(likely_hash *hash, bool signed_);
-LIKELY_EXPORT bool likely_floating(likely_hash hash);
-LIKELY_EXPORT void likely_set_floating(likely_hash *hash, bool floating);
-LIKELY_EXPORT int  likely_type(likely_hash hash);
-LIKELY_EXPORT void likely_set_type(likely_hash *hash, int type);
-LIKELY_EXPORT bool likely_parallel(likely_hash hash);
-LIKELY_EXPORT void likely_set_parallel(likely_hash *hash, bool parallel);
-LIKELY_EXPORT bool likely_heterogeneous(likely_hash hash);
-LIKELY_EXPORT void likely_set_heterogeneous(likely_hash *hash, bool heterogeneous);
-LIKELY_EXPORT bool likely_single_channel(likely_hash hash);
-LIKELY_EXPORT void likely_set_single_channel(likely_hash *hash, bool single_channel);
-LIKELY_EXPORT bool likely_single_column(likely_hash hash);
-LIKELY_EXPORT void likely_set_single_column(likely_hash *hash, bool single_column);
-LIKELY_EXPORT bool likely_single_row(likely_hash hash);
-LIKELY_EXPORT void likely_set_single_row(likely_hash *hash, bool single_row);
-LIKELY_EXPORT bool likely_single_frame(likely_hash hash);
-LIKELY_EXPORT void likely_set_single_frame(likely_hash *hash, bool single_frame);
-LIKELY_EXPORT int  likely_reserved(likely_hash hash);
-LIKELY_EXPORT void likely_set_reserved(likely_hash *hash, int reserved);
+// Query and edit the type
+LIKELY_EXPORT int  likely_depth(likely_type type);
+LIKELY_EXPORT void likely_set_depth(likely_type *type, int depth);
+LIKELY_EXPORT bool likely_signed(likely_type type);
+LIKELY_EXPORT void likely_set_signed(likely_type *type, bool signed_);
+LIKELY_EXPORT bool likely_floating(likely_type type);
+LIKELY_EXPORT void likely_set_floating(likely_type *type, bool floating);
+LIKELY_EXPORT bool likely_parallel(likely_type type);
+LIKELY_EXPORT void likely_set_parallel(likely_type *type, bool parallel);
+LIKELY_EXPORT bool likely_heterogeneous(likely_type type);
+LIKELY_EXPORT void likely_set_heterogeneous(likely_type *type, bool heterogeneous);
+LIKELY_EXPORT bool likely_single_channel(likely_type type);
+LIKELY_EXPORT void likely_set_single_channel(likely_type *type, bool single_channel);
+LIKELY_EXPORT bool likely_single_column(likely_type type);
+LIKELY_EXPORT void likely_set_single_column(likely_type *type, bool single_column);
+LIKELY_EXPORT bool likely_single_row(likely_type type);
+LIKELY_EXPORT void likely_set_single_row(likely_type *type, bool single_row);
+LIKELY_EXPORT bool likely_single_frame(likely_type type);
+LIKELY_EXPORT void likely_set_single_frame(likely_type *type, bool single_frame);
+LIKELY_EXPORT int  likely_reserved(likely_type type);
+LIKELY_EXPORT void likely_set_reserved(likely_type *type, int reserved);
 
 // Determine matrix size
 LIKELY_EXPORT likely_size likely_elements(likely_const_mat m);
 LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
 
 // Create and manage a reference counted matrix
-LIKELY_EXPORT likely_mat likely_new(likely_hash hash = likely_hash_f32, likely_size channels = 1, likely_size columns = 1, likely_size rows = 1, likely_size frames = 1, likely_data *data = NULL, int8_t copy = 0);
+LIKELY_EXPORT likely_mat likely_new(likely_type type = likely_type_f32, likely_size channels = 1, likely_size columns = 1, likely_size rows = 1, likely_size frames = 1, likely_data *data = NULL, int8_t copy = 0);
 LIKELY_EXPORT likely_mat likely_retain(likely_mat m);
 LIKELY_EXPORT void likely_release(likely_mat m);
 
@@ -142,8 +140,8 @@ LIKELY_EXPORT likely_mat likely_render(likely_const_mat m); // Return a 888 matr
 // Debugging functionality
 LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
 LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
-LIKELY_EXPORT const char *likely_hash_to_string(likely_hash h); // Return value guaranteed until the next call to this function
-LIKELY_EXPORT likely_hash likely_string_to_hash(const char *str);
+LIKELY_EXPORT const char *likely_type_to_string(likely_type h); // Return value guaranteed until the next call to this function
+LIKELY_EXPORT likely_type likely_string_to_type(const char *str);
 LIKELY_EXPORT void likely_print(likely_const_mat m);
 LIKELY_EXPORT void likely_dump(); // Print LLVM module contents to stderr
 

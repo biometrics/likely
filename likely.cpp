@@ -98,36 +98,34 @@ static int lua_likely__tostring(lua_State *L)
 {
     likely_assert(lua_gettop(L) == 1, "'__tostring' expected 1 argument, got: %d", lua_gettop(L));
     likely_const_mat m = checkLuaMat(L);
-    lua_pushfstring(L, "Likely %dx%dx%dx%d %s %p", m->channels, m->columns, m->rows, m->frames, likely_hash_to_string(m->hash), m);
+    lua_pushfstring(L, "Likely %dx%dx%dx%d %s %p", m->channels, m->columns, m->rows, m->frames, likely_type_to_string(m->type), m);
     return 1;
 }
 
-static inline int likely_get(likely_hash hash, likely_hash_field mask) { return hash & mask; }
-static inline void likely_set(likely_hash *hash, int i, likely_hash_field mask) { *hash &= ~mask; *hash |= i & mask; }
-static inline bool likely_get_bool(likely_hash hash, likely_hash_field mask) { return hash & mask; }
-static inline void likely_set_bool(likely_hash *hash, bool b, likely_hash_field mask) { b ? *hash |= mask : *hash &= ~mask; }
-int  likely_depth(likely_hash hash) { return likely_get(hash, likely_hash_depth); }
-void likely_set_depth(likely_hash *hash, int depth) { likely_set(hash, depth, likely_hash_depth); }
-bool likely_signed(likely_hash hash) { return likely_get_bool(hash, likely_hash_signed); }
-void likely_set_signed(likely_hash *hash, bool signed_) { likely_set_bool(hash, signed_, likely_hash_signed); }
-bool likely_floating(likely_hash hash) { return likely_get_bool(hash, likely_hash_floating); }
-void likely_set_floating(likely_hash *hash, bool floating) { likely_set_bool(hash, floating, likely_hash_floating); }
-int  likely_type(likely_hash hash) { return likely_get(hash, likely_hash_type); }
-void likely_set_type(likely_hash *hash, int type) { likely_set(hash, type, likely_hash_type); }
-bool likely_parallel(likely_hash hash) { return likely_get_bool(hash, likely_hash_parallel); }
-void likely_set_parallel(likely_hash *hash, bool parallel) { likely_set_bool(hash, parallel, likely_hash_parallel); }
-bool likely_heterogeneous(likely_hash hash) { return likely_get_bool(hash, likely_hash_heterogeneous); }
-void likely_set_heterogeneous(likely_hash *hash, bool heterogeneous) { likely_set_bool(hash, heterogeneous, likely_hash_heterogeneous); }
-bool likely_single_channel(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_channel); }
-void likely_set_single_channel(likely_hash *hash, bool single_channel) { likely_set_bool(hash, single_channel, likely_hash_single_channel); }
-bool likely_single_column(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_column); }
-void likely_set_single_column(likely_hash *hash, bool single_column) { likely_set_bool(hash, single_column, likely_hash_single_column); }
-bool likely_single_row(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_row); }
-void likely_set_single_row(likely_hash *hash, bool single_row) { likely_set_bool(hash, single_row, likely_hash_single_row); }
-bool likely_single_frame(likely_hash hash) { return likely_get_bool(hash, likely_hash_single_frame); }
-void likely_set_single_frame(likely_hash *hash, bool single_frame) { likely_set_bool(hash, single_frame, likely_hash_single_frame); }
-int  likely_reserved(likely_hash hash) { return likely_get(hash, likely_hash_reserved); }
-void likely_set_reserved(likely_hash *hash, int reserved) { likely_set(hash, reserved, likely_hash_reserved); }
+static inline int likely_get(likely_type type, likely_type_field mask) { return type & mask; }
+static inline void likely_set(likely_type *type, int i, likely_type_field mask) { *type &= ~mask; *type |= i & mask; }
+static inline bool likely_get_bool(likely_type type, likely_type_field mask) { return type & mask; }
+static inline void likely_set_bool(likely_type *type, bool b, likely_type_field mask) { b ? *type |= mask : *type &= ~mask; }
+int  likely_depth(likely_type type) { return likely_get(type, likely_type_depth); }
+void likely_set_depth(likely_type *type, int depth) { likely_set(type, depth, likely_type_depth); }
+bool likely_signed(likely_type type) { return likely_get_bool(type, likely_type_signed); }
+void likely_set_signed(likely_type *type, bool signed_) { likely_set_bool(type, signed_, likely_type_signed); }
+bool likely_floating(likely_type type) { return likely_get_bool(type, likely_type_floating); }
+void likely_set_floating(likely_type *type, bool floating) { likely_set_bool(type, floating, likely_type_floating); }
+bool likely_parallel(likely_type type) { return likely_get_bool(type, likely_type_parallel); }
+void likely_set_parallel(likely_type *type, bool parallel) { likely_set_bool(type, parallel, likely_type_parallel); }
+bool likely_heterogeneous(likely_type type) { return likely_get_bool(type, likely_type_heterogeneous); }
+void likely_set_heterogeneous(likely_type *type, bool heterogeneous) { likely_set_bool(type, heterogeneous, likely_type_heterogeneous); }
+bool likely_single_channel(likely_type type) { return likely_get_bool(type, likely_type_single_channel); }
+void likely_set_single_channel(likely_type *type, bool single_channel) { likely_set_bool(type, single_channel, likely_type_single_channel); }
+bool likely_single_column(likely_type type) { return likely_get_bool(type, likely_type_single_column); }
+void likely_set_single_column(likely_type *type, bool single_column) { likely_set_bool(type, single_column, likely_type_single_column); }
+bool likely_single_row(likely_type type) { return likely_get_bool(type, likely_type_single_row); }
+void likely_set_single_row(likely_type *type, bool single_row) { likely_set_bool(type, single_row, likely_type_single_row); }
+bool likely_single_frame(likely_type type) { return likely_get_bool(type, likely_type_single_frame); }
+void likely_set_single_frame(likely_type *type, bool single_frame) { likely_set_bool(type, single_frame, likely_type_single_frame); }
+int  likely_reserved(likely_type type) { return likely_get(type, likely_type_reserved); }
+void likely_set_reserved(likely_type *type, int reserved) { likely_set(type, reserved, likely_type_reserved); }
 
 static int lua_likely_get(lua_State *L)
 {
@@ -136,23 +134,22 @@ static int lua_likely_get(lua_State *L)
     const char *field = lua_tostring(L, 2);
     if      (!strcmp(field, "likely"))        lua_pushstring(L, "matrix");
     else if (!strcmp(field, "data"))          lua_pushlightuserdata(L, m->data);
-    else if (!strcmp(field, "hash"))          lua_pushstring(L, likely_hash_to_string(m->hash));
+    else if (!strcmp(field, "type"))          lua_pushinteger(L, m->type);
     else if (!strcmp(field, "channels"))      lua_pushinteger(L, m->channels);
     else if (!strcmp(field, "columns"))       lua_pushinteger(L, m->columns);
     else if (!strcmp(field, "rows"))          lua_pushinteger(L, m->rows);
     else if (!strcmp(field, "frames"))        lua_pushinteger(L, m->frames);
     else if (!strcmp(field, "ref_count"))     lua_pushinteger(L, m->ref_count);
-    else if (!strcmp(field, "depth"))         lua_pushinteger(L, likely_depth(m->hash));
-    else if (!strcmp(field, "signed"))        lua_pushboolean(L, likely_signed(m->hash));
-    else if (!strcmp(field, "floating"))      lua_pushboolean(L, likely_floating(m->hash));
-    else if (!strcmp(field, "type"))          lua_pushinteger(L, likely_type(m->hash));
-    else if (!strcmp(field, "parallel"))      lua_pushboolean(L, likely_parallel(m->hash));
-    else if (!strcmp(field, "heterogeneous")) lua_pushboolean(L, likely_heterogeneous(m->hash));
-    else if (!strcmp(field, "singleChannel")) lua_pushboolean(L, likely_single_channel(m->hash));
-    else if (!strcmp(field, "singleColumn"))  lua_pushboolean(L, likely_single_column(m->hash));
-    else if (!strcmp(field, "singleRow"))     lua_pushboolean(L, likely_single_row(m->hash));
-    else if (!strcmp(field, "singleFrame"))   lua_pushboolean(L, likely_single_frame(m->hash));
-    else if (!strcmp(field, "reserved"))      lua_pushinteger(L, likely_reserved(m->hash));
+    else if (!strcmp(field, "depth"))         lua_pushinteger(L, likely_depth(m->type));
+    else if (!strcmp(field, "signed"))        lua_pushboolean(L, likely_signed(m->type));
+    else if (!strcmp(field, "floating"))      lua_pushboolean(L, likely_floating(m->type));
+    else if (!strcmp(field, "parallel"))      lua_pushboolean(L, likely_parallel(m->type));
+    else if (!strcmp(field, "heterogeneous")) lua_pushboolean(L, likely_heterogeneous(m->type));
+    else if (!strcmp(field, "singleChannel")) lua_pushboolean(L, likely_single_channel(m->type));
+    else if (!strcmp(field, "singleColumn"))  lua_pushboolean(L, likely_single_column(m->type));
+    else if (!strcmp(field, "singleRow"))     lua_pushboolean(L, likely_single_row(m->type));
+    else if (!strcmp(field, "singleFrame"))   lua_pushboolean(L, likely_single_frame(m->type));
+    else if (!strcmp(field, "reserved"))      lua_pushinteger(L, likely_reserved(m->type));
     else                                      lua_pushnil(L);
     return 1;
 }
@@ -180,23 +177,22 @@ static int lua_likely_set(lua_State *L)
     const char *field = lua_tostring(L, 2);
     int isnum;
     if      (!strcmp(field, "data"))          m->data = (likely_data*) lua_touserdata(L, 3);
-    else if (!strcmp(field, "hash"))          m->hash = likely_string_to_hash(lua_tostring(L, 3));
+    else if (!strcmp(field, "type"))        { m->type  = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected type to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "channels"))    { m->channels  = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected channels to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "columns"))     { m->columns   = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected columns to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "rows"))        { m->rows      = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected rows to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "frames"))      { m->frames    = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected frames to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "ref_count"))   { m->ref_count = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected ref_count to be an integer, got: %s", lua_tostring(L, 3)); }
-    else if (!strcmp(field, "depth"))       { likely_set_depth(&m->hash, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected depth to be an integer, got: %s", lua_tostring(L, 3)); }
-    else if (!strcmp(field, "signed"))        likely_set_signed(&m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "floating"))      likely_set_floating(&m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "type"))        { likely_set_type(&m->hash, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected type to be an integer, got: %s", lua_tostring(L, 3)); }
-    else if (!strcmp(field, "parallel"))      likely_set_parallel(&m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "heterogeneous")) likely_set_heterogeneous(&m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "singleChannel")) likely_set_single_channel(&m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "singleColumn"))  likely_set_single_column(&m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "singleRow"))     likely_set_single_row(&m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "singleFrame"))   likely_set_single_frame(&m->hash, lua_toboolean(L, 3));
-    else if (!strcmp(field, "reserved"))    { likely_set_reserved(&m->hash, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected reserved to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "depth"))       { likely_set_depth(&m->type, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected depth to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "signed"))        likely_set_signed(&m->type, lua_toboolean(L, 3));
+    else if (!strcmp(field, "floating"))      likely_set_floating(&m->type, lua_toboolean(L, 3));
+    else if (!strcmp(field, "parallel"))      likely_set_parallel(&m->type, lua_toboolean(L, 3));
+    else if (!strcmp(field, "heterogeneous")) likely_set_heterogeneous(&m->type, lua_toboolean(L, 3));
+    else if (!strcmp(field, "singleChannel")) likely_set_single_channel(&m->type, lua_toboolean(L, 3));
+    else if (!strcmp(field, "singleColumn"))  likely_set_single_column(&m->type, lua_toboolean(L, 3));
+    else if (!strcmp(field, "singleRow"))     likely_set_single_row(&m->type, lua_toboolean(L, 3));
+    else if (!strcmp(field, "singleFrame"))   likely_set_single_frame(&m->type, lua_toboolean(L, 3));
+    else if (!strcmp(field, "reserved"))    { likely_set_reserved(&m->type, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected reserved to be an integer, got: %s", lua_tostring(L, 3)); }
     else                                      likely_assert(false, "unrecognized field: %s", field);
     return 0;
 }
@@ -221,7 +217,7 @@ static int lua_likely_elements(lua_State *L)
 
 likely_size likely_bytes(likely_const_mat m)
 {
-    return uint64_t(likely_depth(m->hash)) * uint64_t(likely_elements(m)) / uint64_t(8);
+    return uint64_t(likely_depth(m->type)) * uint64_t(likely_elements(m)) / uint64_t(8);
 }
 
 static int lua_likely_bytes(lua_State *L)
@@ -239,11 +235,11 @@ static likely_mat *newLuaMat(lua_State *L)
     return mp;
 }
 
-likely_mat likely_new(likely_hash hash, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, int8_t copy)
+likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, int8_t copy)
 {
-    likely_mat dst = (likely_mat) malloc(sizeof(likely_matrix) + likely_depth(hash) * ((data && !copy) ? 0 : channels*columns*rows*frames) + (MaxRegisterWidth - 1));
+    likely_mat dst = (likely_mat) malloc(sizeof(likely_matrix) + likely_depth(type) * ((data && !copy) ? 0 : channels*columns*rows*frames) + (MaxRegisterWidth - 1));
     dst->data = reinterpret_cast<likely_data*>((uintptr_t(dst+1)+(MaxRegisterWidth-1)) & ~uintptr_t(MaxRegisterWidth-1));
-    dst->hash = hash;
+    dst->type = type;
     dst->channels = channels;
     dst->columns = columns;
     dst->rows = rows;
@@ -259,7 +255,7 @@ likely_mat likely_new(likely_hash hash, likely_size channels, likely_size column
 
 static int lua_likely_new(lua_State *L)
 {
-    likely_hash hash = likely_hash_f32;
+    likely_type type = likely_type_f32;
     likely_size channels = 1;
     likely_size columns = 1;
     likely_size rows = 1;
@@ -276,12 +272,12 @@ static int lua_likely_new(lua_State *L)
       case 4: rows     = lua_tointegerx(L, 4, &isnum); likely_assert(isnum, "'new' expected rows to be an integer, got: %s", lua_tostring(L, 4));
       case 3: columns  = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'new' expected columns to be an integer, got: %s", lua_tostring(L, 3));
       case 2: channels = lua_tointegerx(L, 2, &isnum); likely_assert(isnum, "'new' expected channels to be an integer, got: %s", lua_tostring(L, 2));
-      case 1: hash     = lua_tointegerx(L, 1, &isnum); likely_assert(isnum, "'new' expected hash to be an integer, got: %s", lua_tostring(L, 2));
+      case 1: type     = lua_tointegerx(L, 1, &isnum); likely_assert(isnum, "'new' expected type to be an integer, got: %s", lua_tostring(L, 2));
       case 0: break;
       default: likely_assert(false, "'new' expected no more than 7 arguments, got: %d", argc);
     }
 
-    *newLuaMat(L) = likely_new(hash, channels, columns, rows, frames, data, copy);
+    *newLuaMat(L) = likely_new(type, channels, columns, rows, frames, data, copy);
     return 1;
 }
 
@@ -385,13 +381,13 @@ static int lua_likely_encode(lua_State *L)
 
 likely_mat likely_render(likely_const_mat m)
 {
-    if ((likely_depth(m->hash) == 8) && !likely_floating(m->hash) && (m->channels == 3)) {
+    if ((likely_depth(m->type) == 8) && !likely_floating(m->type) && (m->channels == 3)) {
         likely_mat n = const_cast<likely_mat>(m); // We don't consider a call to retain as violating logical constness
         likely_retain(n);
         return n;
     }
 
-    likely_mat n = likely_new(likely_hash_u8, 3, m->columns, m->rows);
+    likely_mat n = likely_new(likely_type_u8, 3, m->columns, m->rows);
     for (likely_size y=0; y<n->rows; y++) {
         for (likely_size x=0; x<n->columns; x++) {
             for (likely_size c=0; c<3; c++) {
@@ -418,17 +414,17 @@ double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_s
     const likely_size frameStep = m->rows * rowStep;
     const likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
 
-    switch (likely_type(m->hash)) {
-      case likely_hash_u8:  return reinterpret_cast< uint8_t*>(m->data)[index];
-      case likely_hash_u16: return reinterpret_cast<uint16_t*>(m->data)[index];
-      case likely_hash_u32: return reinterpret_cast<uint32_t*>(m->data)[index];
-      case likely_hash_u64: return reinterpret_cast<uint64_t*>(m->data)[index];
-      case likely_hash_i8:  return reinterpret_cast<  int8_t*>(m->data)[index];
-      case likely_hash_i16: return reinterpret_cast< int16_t*>(m->data)[index];
-      case likely_hash_i32: return reinterpret_cast< int32_t*>(m->data)[index];
-      case likely_hash_i64: return reinterpret_cast< int64_t*>(m->data)[index];
-      case likely_hash_f32: return reinterpret_cast<   float*>(m->data)[index];
-      case likely_hash_f64: return reinterpret_cast<  double*>(m->data)[index];
+    switch (m->type & likely_type_mask) {
+      case likely_type_u8:  return reinterpret_cast< uint8_t*>(m->data)[index];
+      case likely_type_u16: return reinterpret_cast<uint16_t*>(m->data)[index];
+      case likely_type_u32: return reinterpret_cast<uint32_t*>(m->data)[index];
+      case likely_type_u64: return reinterpret_cast<uint64_t*>(m->data)[index];
+      case likely_type_i8:  return reinterpret_cast<  int8_t*>(m->data)[index];
+      case likely_type_i16: return reinterpret_cast< int16_t*>(m->data)[index];
+      case likely_type_i32: return reinterpret_cast< int32_t*>(m->data)[index];
+      case likely_type_i64: return reinterpret_cast< int64_t*>(m->data)[index];
+      case likely_type_f32: return reinterpret_cast<   float*>(m->data)[index];
+      case likely_type_f64: return reinterpret_cast<  double*>(m->data)[index];
       default: likely_assert(false, "likely_element unsupported type");
     }
     return numeric_limits<double>::quiet_NaN();
@@ -442,65 +438,65 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
     const likely_size frameStep = m->rows * rowStep;
     const likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
 
-    switch (likely_type(m->hash)) {
-      case likely_hash_u8:  reinterpret_cast< uint8_t*>(m->data)[index] = value; break;
-      case likely_hash_u16: reinterpret_cast<uint16_t*>(m->data)[index] = value; break;
-      case likely_hash_u32: reinterpret_cast<uint32_t*>(m->data)[index] = value; break;
-      case likely_hash_u64: reinterpret_cast<uint64_t*>(m->data)[index] = value; break;
-      case likely_hash_i8:  reinterpret_cast<  int8_t*>(m->data)[index] = value; break;
-      case likely_hash_i16: reinterpret_cast< int16_t*>(m->data)[index] = value; break;
-      case likely_hash_i32: reinterpret_cast< int32_t*>(m->data)[index] = value; break;
-      case likely_hash_i64: reinterpret_cast< int64_t*>(m->data)[index] = value; break;
-      case likely_hash_f32: reinterpret_cast<   float*>(m->data)[index] = value; break;
-      case likely_hash_f64: reinterpret_cast<  double*>(m->data)[index] = value; break;
+    switch (m->type & likely_type_mask) {
+      case likely_type_u8:  reinterpret_cast< uint8_t*>(m->data)[index] = value; break;
+      case likely_type_u16: reinterpret_cast<uint16_t*>(m->data)[index] = value; break;
+      case likely_type_u32: reinterpret_cast<uint32_t*>(m->data)[index] = value; break;
+      case likely_type_u64: reinterpret_cast<uint64_t*>(m->data)[index] = value; break;
+      case likely_type_i8:  reinterpret_cast<  int8_t*>(m->data)[index] = value; break;
+      case likely_type_i16: reinterpret_cast< int16_t*>(m->data)[index] = value; break;
+      case likely_type_i32: reinterpret_cast< int32_t*>(m->data)[index] = value; break;
+      case likely_type_i64: reinterpret_cast< int64_t*>(m->data)[index] = value; break;
+      case likely_type_f32: reinterpret_cast<   float*>(m->data)[index] = value; break;
+      case likely_type_f64: reinterpret_cast<  double*>(m->data)[index] = value; break;
       default: likely_assert(false, "likely_set_element unsupported type");
     }
 }
 
-const char *likely_hash_to_string(likely_hash h)
+const char *likely_type_to_string(likely_type h)
 {
-    static string hashString; // Provides return value persistence
+    static string typeString; // Provides return value persistence
 
-    stringstream hashStream;
-    hashStream << (likely_floating(h) ? "f" : (likely_signed(h) ? "i" : "u"));
-    hashStream << likely_depth(h);
+    stringstream typeStream;
+    typeStream << (likely_floating(h) ? "f" : (likely_signed(h) ? "i" : "u"));
+    typeStream << likely_depth(h);
 
-    if (likely_parallel(h))       hashStream << "P";
-    if (likely_heterogeneous(h))  hashStream << "H";
-    if (likely_single_channel(h)) hashStream << "C";
-    if (likely_single_column(h))  hashStream << "X";
-    if (likely_single_row(h))     hashStream << "Y";
-    if (likely_single_frame(h))   hashStream << "T";
+    if (likely_parallel(h))       typeStream << "P";
+    if (likely_heterogeneous(h))  typeStream << "H";
+    if (likely_single_channel(h)) typeStream << "C";
+    if (likely_single_column(h))  typeStream << "X";
+    if (likely_single_row(h))     typeStream << "Y";
+    if (likely_single_frame(h))   typeStream << "T";
 
-    hashString = hashStream.str();
-    return hashString.c_str();
+    typeString = typeStream.str();
+    return typeString.c_str();
 }
 
-likely_hash likely_string_to_hash(const char *str)
+likely_type likely_string_to_type(const char *str)
 {
-    likely_hash h = likely_hash_null;
+    likely_type t = likely_type_null;
     const size_t len = strlen(str);
     if ((str == NULL) || (len == 0))
-        return h;
+        return t;
 
-    if (str[0] == 'f') likely_set_floating(&h, true);
-    if (str[0] != 'u') likely_set_signed(&h, true);
-    likely_set_depth(&h, atoi(str+1));
+    if (str[0] == 'f') likely_set_floating(&t, true);
+    if (str[0] != 'u') likely_set_signed(&t, true);
+    likely_set_depth(&t, atoi(str+1));
 
     size_t startIndex = 1;
     while ((str[startIndex] >= '0') && (str[startIndex] <= '9'))
         startIndex++;
 
     for (size_t i=startIndex; i<len; i++) {
-        if (str[i] == 'P') likely_set_parallel(&h, true);
-        if (str[i] == 'H') likely_set_heterogeneous(&h, true);
-        if (str[i] == 'C') likely_set_single_channel(&h, true);
-        if (str[i] == 'X') likely_set_single_column(&h, true);
-        if (str[i] == 'Y') likely_set_single_row(&h, true);
-        if (str[i] == 'T') likely_set_single_frame(&h, true);
+        if (str[i] == 'P') likely_set_parallel(&t, true);
+        if (str[i] == 'H') likely_set_heterogeneous(&t, true);
+        if (str[i] == 'C') likely_set_single_channel(&t, true);
+        if (str[i] == 'X') likely_set_single_column(&t, true);
+        if (str[i] == 'Y') likely_set_single_row(&t, true);
+        if (str[i] == 'T') likely_set_single_frame(&t, true);
     }
 
-    return h;
+    return t;
 }
 
 void likely_print(likely_const_mat m)
@@ -547,7 +543,7 @@ struct MatrixBuilder
     IRBuilder<> *b;
     Function *f;
     Twine n;
-    likely_hash h;
+    likely_type t;
     Value *v;
 
     struct Loop {
@@ -558,9 +554,9 @@ struct MatrixBuilder
     };
     stack<Loop> loops;
 
-    MatrixBuilder() : b(NULL), f(NULL), h(likely_hash_null), v(NULL) {}
-    MatrixBuilder(IRBuilder<> *builder, Function *function, const Twine &name, likely_hash hash = likely_hash_null, Value *value = NULL)
-        : b(builder), f(function), n(name), h(hash), v(value) {}
+    MatrixBuilder() : b(NULL), f(NULL), t(likely_type_null), v(NULL) {}
+    MatrixBuilder(IRBuilder<> *builder, Function *function, const Twine &name, likely_type type = likely_type_null, Value *value = NULL)
+        : b(builder), f(function), n(name), t(type), v(value) {}
     void reset(IRBuilder<> *builder, Function *function, Value *value) { b = builder; f = function; v = value; }
 
     static Constant *constant(int value, int bits = 32) { return Constant::getIntegerValue(Type::getInt32Ty(getGlobalContext()), APInt(bits, value)); }
@@ -572,40 +568,40 @@ struct MatrixBuilder
     static Constant *constant(T value, Type *type) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), type); }
     static Constant *zero() { return constant(0); }
     static Constant *one() { return constant(1); }
-    Constant *autoConstant(double value) const { return likely_floating(h) ? ((likely_depth(h) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(h)); }
+    Constant *autoConstant(double value) const { return likely_floating(t) ? ((likely_depth(t) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(t)); }
     AllocaInst *autoAlloca(double value) const { AllocaInst *alloca = b->CreateAlloca(ty(), 0, n); b->CreateStore(autoConstant(value), alloca); return alloca; }
 
     Value *data(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 0), n+"_data"); }
     Value *data(Value *matrix, Type *type) const { return b->CreatePointerCast(data(matrix), type); }
-    Value *hash(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 1), n+"_hash"); }
+    Value *type(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 1), n+"_type"); }
     Value *channels(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 2), n+"_channels"); }
     Value *columns(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 3), n+"_columns"); }
     Value *rows(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 4), n+"_rows"); }
     Value *frames(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 5), n+"_frames"); }
 
     Value *data(bool cast = true) const { return cast ? data(v, ty(true)) : data(v); }
-    Value *hash() const { return hash(v); }
-    Value *channels() const { return likely_single_channel(h) ? static_cast<Value*>(one()) : channels(v); }
-    Value *columns() const { return likely_single_column(h) ? static_cast<Value*>(one()) : columns(v); }
-    Value *rows() const { return likely_single_row(h) ? static_cast<Value*>(one()) : rows(v); }
-    Value *frames() const { return likely_single_frame(h) ? static_cast<Value*>(one()) : frames(v); }
+    Value *type() const { return type(v); }
+    Value *channels() const { return likely_single_channel(t) ? static_cast<Value*>(one()) : channels(v); }
+    Value *columns() const { return likely_single_column(t) ? static_cast<Value*>(one()) : columns(v); }
+    Value *rows() const { return likely_single_row(t) ? static_cast<Value*>(one()) : rows(v); }
+    Value *frames() const { return likely_single_frame(t) ? static_cast<Value*>(one()) : frames(v); }
 
     void setData(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 0)); }
-    void setHash(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 1)); }
+    void setType(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 1)); }
     void setChannels(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 2)); }
     void setColumns(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 3)); }
     void setRows(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 4)); }
     void setFrames(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 5)); }
 
     void setData(Value *value) const { setData(v, value); }
-    void setHash(Value *value) const { setHash(v, value); }
+    void setType(Value *value) const { setType(v, value); }
     void setChannels(Value *value) const { setChannels(v, value); }
     void setColumns(Value *value) const { setColumns(v, value); }
     void setRows(Value *value) const { setRows(v, value); }
     void setFrames(Value *value) const { setFrames(v, value); }
 
     void copyHeaderTo(Value *matrix) const {
-        setHash(matrix, hash());
+        setType(matrix, type());
         setChannels(matrix, channels());
         setColumns(matrix, columns());
         setRows(matrix, rows());
@@ -618,7 +614,7 @@ struct MatrixBuilder
         if (likely_new == NULL) {
             Type *newReturn = PointerType::getUnqual(TheMatrixStruct);
             vector<Type*> newParameters;
-            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // hash
+            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // type
             newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // channels
             newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // columns
             newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // rows
@@ -630,7 +626,7 @@ struct MatrixBuilder
             likely_new->setCallingConv(CallingConv::C);
         }
         std::vector<Value*> args;
-        args.push_back(hash());
+        args.push_back(type());
         args.push_back(channels());
         args.push_back(columns());
         args.push_back(rows());
@@ -640,32 +636,30 @@ struct MatrixBuilder
         return b->CreateCall(likely_new, args);
     }
 
-    Value *get(int mask) const { return b->CreateAnd(hash(), constant(mask, 8*sizeof(likely_hash))); }
-    void set(int value, int mask) const { setHash(b->CreateOr(b->CreateAnd(hash(), constant(~mask, 8*sizeof(likely_hash))), b->CreateAnd(constant(value, 8*sizeof(likely_hash)), constant(mask, 8*sizeof(likely_hash))))); }
-    void setBit(bool on, int mask) const { on ? setHash(b->CreateOr(hash(), constant(mask, 8*sizeof(likely_hash)))) : setHash(b->CreateAnd(hash(), constant(~mask, 8*sizeof(likely_hash)))); }
+    Value *get(int mask) const { return b->CreateAnd(type(), constant(mask, 8*sizeof(likely_type))); }
+    void set(int value, int mask) const { setType(b->CreateOr(b->CreateAnd(type(), constant(~mask, 8*sizeof(likely_type))), b->CreateAnd(constant(value, 8*sizeof(likely_type)), constant(mask, 8*sizeof(likely_type))))); }
+    void setBit(bool on, int mask) const { on ? setType(b->CreateOr(type(), constant(mask, 8*sizeof(likely_type)))) : setType(b->CreateAnd(type(), constant(~mask, 8*sizeof(likely_type)))); }
 
-    Value *depth() const { return get(likely_hash_depth); }
-    void setDepth(int depth) const { set(depth, likely_hash_depth); }
-    Value *isSigned() const { return get(likely_hash_signed); }
-    void setSigned(bool isSigned) const { setBit(isSigned, likely_hash_signed); }
-    Value *isFloating() const { return get(likely_hash_floating); }
-    void setFloating(bool isFloating) const { if (isFloating) setSigned(true); setBit(isFloating, likely_hash_floating); }
-    Value *type() const { return get(likely_hash_depth + likely_hash_floating + likely_hash_signed); }
-    void setType(int type) const { set(type, likely_hash_depth + likely_hash_floating + likely_hash_signed); }
-    Value *isParallel() const { return get(likely_hash_parallel); }
-    void setParallel(bool isParallel) const { setBit(isParallel, likely_hash_parallel); }
-    Value *isHeterogeneous() const { return get(likely_hash_heterogeneous); }
-    void setHeterogeneous(bool isHeterogeneous) const { setBit(isHeterogeneous, likely_hash_heterogeneous); }
-    Value *isSingleChannel() const { return get(likely_hash_single_channel); }
-    void setSingleChannel(bool isSingleChannel) const { setBit(isSingleChannel, likely_hash_single_channel); }
-    Value *isSingleColumn() const { return get(likely_hash_single_column); }
-    void setSingleColumn(bool isSingleColumn) { setBit(isSingleColumn, likely_hash_single_column); }
-    Value *isSingleRow() const { return get(likely_hash_single_row); }
-    void setSingleRow(bool isSingleRow) const { setBit(isSingleRow, likely_hash_single_row); }
-    Value *isSingleFrame() const { return get(likely_hash_single_frame); }
-    void setSingleFrame(bool isSingleFrame) const { setBit(isSingleFrame, likely_hash_single_frame); }
-    Value *reserved() const { return get(likely_hash_reserved); }
-    void setReserved(int reserved) const { set(reserved, likely_hash_reserved); }
+    Value *depth() const { return get(likely_type_depth); }
+    void setDepth(int depth) const { set(depth, likely_type_depth); }
+    Value *isSigned() const { return get(likely_type_signed); }
+    void setSigned(bool isSigned) const { setBit(isSigned, likely_type_signed); }
+    Value *isFloating() const { return get(likely_type_floating); }
+    void setFloating(bool isFloating) const { if (isFloating) setSigned(true); setBit(isFloating, likely_type_floating); }
+    Value *isParallel() const { return get(likely_type_parallel); }
+    void setParallel(bool isParallel) const { setBit(isParallel, likely_type_parallel); }
+    Value *isHeterogeneous() const { return get(likely_type_heterogeneous); }
+    void setHeterogeneous(bool isHeterogeneous) const { setBit(isHeterogeneous, likely_type_heterogeneous); }
+    Value *isSingleChannel() const { return get(likely_type_single_channel); }
+    void setSingleChannel(bool isSingleChannel) const { setBit(isSingleChannel, likely_type_single_channel); }
+    Value *isSingleColumn() const { return get(likely_type_single_column); }
+    void setSingleColumn(bool isSingleColumn) { setBit(isSingleColumn, likely_type_single_column); }
+    Value *isSingleRow() const { return get(likely_type_single_row); }
+    void setSingleRow(bool isSingleRow) const { setBit(isSingleRow, likely_type_single_row); }
+    Value *isSingleFrame() const { return get(likely_type_single_frame); }
+    void setSingleFrame(bool isSingleFrame) const { setBit(isSingleFrame, likely_type_single_frame); }
+    Value *reserved() const { return get(likely_type_reserved); }
+    void setReserved(int reserved) const { set(reserved, likely_type_reserved); }
 
     Value *elements() const { return b->CreateMul(b->CreateMul(b->CreateMul(channels(), columns()), rows()), frames()); }
     Value *bytes() const { return b->CreateMul(b->CreateUDiv(b->CreateCast(Instruction::ZExt, depth(), Type::getInt32Ty(getGlobalContext())), constant(8, 32)), elements()); }
@@ -674,17 +668,17 @@ struct MatrixBuilder
     Value *rowStep() const { return b->CreateMul(columns(), columnStep(), n+"_rStep"); }
     Value *frameStep() const { return b->CreateMul(rows(), rowStep(), n+"_tStep"); }
 
-    Value *index(Value *c) const { return likely_single_channel(h) ? constant(0) : c; }
-    Value *index(Value *c, Value *x) const { return likely_single_column(h) ? index(c) : b->CreateAdd(b->CreateMul(x, columnStep()), index(c)); }
-    Value *index(Value *c, Value *x, Value *y) const { return likely_single_row(h) ? index(c, x) : b->CreateAdd(b->CreateMul(y, rowStep()), index(c, x)); }
-    Value *index(Value *c, Value *x, Value *y, Value *f) const { return likely_single_frame(h) ? index(c, x, y) : b->CreateAdd(b->CreateMul(f, frameStep()), index(c, x, y)); }
+    Value *index(Value *c) const { return likely_single_channel(t) ? constant(0) : c; }
+    Value *index(Value *c, Value *x) const { return likely_single_column(t) ? index(c) : b->CreateAdd(b->CreateMul(x, columnStep()), index(c)); }
+    Value *index(Value *c, Value *x, Value *y) const { return likely_single_row(t) ? index(c, x) : b->CreateAdd(b->CreateMul(y, rowStep()), index(c, x)); }
+    Value *index(Value *c, Value *x, Value *y, Value *f) const { return likely_single_frame(t) ? index(c, x, y) : b->CreateAdd(b->CreateMul(f, frameStep()), index(c, x, y)); }
 
     void deindex(Value *i, Value **c) const {
-        *c = likely_single_channel(h) ? constant(0) : i;
+        *c = likely_single_channel(t) ? constant(0) : i;
     }
     void deindex(Value *i, Value **c, Value **x) const {
         Value *rem;
-        if (likely_single_column(h)) {
+        if (likely_single_column(t)) {
             rem = i;
             *x = constant(0);
         } else {
@@ -696,7 +690,7 @@ struct MatrixBuilder
     }
     void deindex(Value *i, Value **c, Value **x, Value **y) const {
         Value *rem;
-        if (likely_single_row(h)) {
+        if (likely_single_row(t)) {
             rem = i;
             *y = constant(0);
         } else {
@@ -706,15 +700,15 @@ struct MatrixBuilder
         }
         deindex(rem, c, x);
     }
-    void deindex(Value *i, Value **c, Value **x, Value **y, Value **t) const {
+    void deindex(Value *i, Value **c, Value **x, Value **y, Value **t_) const {
         Value *rem;
-        if (likely_single_frame(h)) {
+        if (likely_single_frame(t)) {
             rem = i;
-            *t = constant(0);
+            *t_ = constant(0);
         } else {
             Value *step = frameStep();
             rem = b->CreateURem(i, step, n+"_tRem");
-            *t = b->CreateExactUDiv(b->CreateSub(i, rem), step, n+"_t");
+            *t_ = b->CreateExactUDiv(b->CreateSub(i, rem), step, n+"_t");
         }
         deindex(rem, c, x, y);
     }
@@ -743,11 +737,11 @@ struct MatrixBuilder
         return store;
     }
 
-    Value *cast(Value *i, likely_hash hash) const { return (likely_type(h) == likely_type(hash)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_signed(h), Type::getFloatTy(getGlobalContext()), likely_signed(h)), i, Type::getFloatTy(getGlobalContext())); }
-    Value *add(Value *i, Value *j) const { return likely_floating(h) ? b->CreateFAdd(i, j, n) : b->CreateAdd(i, j, n); }
-    Value *subtract(Value *i, Value *j) const { return likely_floating(h) ? b->CreateFSub(i, j, n) : b->CreateSub(i, j, n); }
-    Value *multiply(Value *i, Value *j) const { return likely_floating(h) ? b->CreateFMul(i, j, n) : b->CreateMul(i, j, n); }
-    Value *divide(Value *i, Value *j) const { return likely_floating(h) ? b->CreateFDiv(i, j, n) : (likely_signed(h) ? b->CreateSDiv(i,j, n) : b->CreateUDiv(i, j, n)); }
+    Value *cast(Value *i, likely_type type) const { return ((t & likely_type_mask) == (type & likely_type_mask)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_signed(t), Type::getFloatTy(getGlobalContext()), likely_signed(t)), i, Type::getFloatTy(getGlobalContext())); }
+    Value *add(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFAdd(i, j, n) : b->CreateAdd(i, j, n); }
+    Value *subtract(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFSub(i, j, n) : b->CreateSub(i, j, n); }
+    Value *multiply(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFMul(i, j, n) : b->CreateMul(i, j, n); }
+    Value *divide(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFDiv(i, j, n) : (likely_signed(t) ? b->CreateSDiv(i,j, n) : b->CreateUDiv(i, j, n)); }
 
     Value *intrinsic(Value *i, Intrinsic::ID id) const { vector<Type*> args; args.push_back(i->getType()); Function *intrinsic = Intrinsic::getDeclaration(TheModule, id, args); return b->CreateCall(intrinsic, i, n); }
     Value *log(Value *i) const { return intrinsic(i, Intrinsic::log); }
@@ -759,8 +753,8 @@ struct MatrixBuilder
     Value *sqrt(Value *i) const { return intrinsic(i, Intrinsic::sqrt); }
     Value *exp(Value *i) const { return intrinsic(i, Intrinsic::exp); }
 
-    Value *compareLT(Value *i, Value *j) const { return likely_floating(h) ? b->CreateFCmpOLT(i, j) : (likely_signed(h) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
-    Value *compareGT(Value *i, Value *j) const { return likely_floating(h) ? b->CreateFCmpOGT(i, j) : (likely_signed(h) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
+    Value *compareLT(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFCmpOLT(i, j) : (likely_signed(t) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
+    Value *compareGT(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFCmpOGT(i, j) : (likely_signed(t) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
 
     Loop beginLoop(BasicBlock *entry, Value *start, Value *stop) {
         Loop loop;
@@ -804,10 +798,10 @@ struct MatrixBuilder
     template <typename T>
     inline static vector<T> toVector(T value) { vector<T> vector; vector.push_back(value); return vector; }
 
-    static Type *ty(likely_hash hash, bool pointer = false)
+    static Type *ty(likely_type type, bool pointer = false)
     {
-        const int bits = likely_depth(hash);
-        const bool floating = likely_floating(hash);
+        const int bits = likely_depth(type);
+        const bool floating = likely_floating(type);
         if (floating) {
             if      (bits == 16) return pointer ? Type::getHalfPtrTy(getGlobalContext())   : Type::getHalfTy(getGlobalContext());
             else if (bits == 32) return pointer ? Type::getFloatPtrTy(getGlobalContext())  : Type::getFloatTy(getGlobalContext());
@@ -822,7 +816,7 @@ struct MatrixBuilder
         likely_assert(false, "MatrixBuilder::ty invalid matrix bits: %d and floating: %d", bits, floating);
         return NULL;
     }
-    inline Type *ty(bool pointer = false) const { return ty(h, pointer); }
+    inline Type *ty(bool pointer = false) const { return ty(t, pointer); }
     inline vector<Type*> tys(bool pointer = false) const { return toVector<Type*>(ty(pointer)); }
 
     static void *cleanup(Function *f) { f->removeFromParent(); delete f; return NULL; }
@@ -833,7 +827,7 @@ class KernelBuilder
 {
     likely_description description;
     vector<string> stack;
-    vector<likely_hash> hashes;
+    vector<likely_type> types;
     MatrixBuilder kernel;
     PHINode *i = NULL;
 
@@ -894,20 +888,20 @@ public:
         return source;
     }
 
-    bool makeAllocation(Function *function, const vector<likely_hash> &hashes_)
+    bool makeAllocation(Function *function, const vector<likely_type> &types_)
     {
-        hashes = hashes_;
+        types = types_;
         vector<Value*> srcs;
         getValues(function, srcs);
 
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
 
-        likely_hash kernelHash = likely_hash_null;
-        for (likely_hash hash : hashes)
-            kernelHash |= hash;
+        likely_type kernelType = likely_type_null;
+        for (likely_type type : types)
+            kernelType |= type;
 
-        kernel = MatrixBuilder(&builder, function, "kernel", kernelHash, srcs[0]);
+        kernel = MatrixBuilder(&builder, function, "kernel", kernelType, srcs[0]);
         builder.CreateRet(kernel.newMat());
         return true;
     }
@@ -927,11 +921,11 @@ public:
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
 
-        if (likely_parallel(kernel.h)) {
+        if (likely_parallel(kernel.t)) {
             vector<likely_mat> mats;
-            for (likely_hash hash : hashes) {
-                likely_mat m = likely_new(hash);
-                likely_set_parallel(&m->hash, false);
+            for (likely_type type : types) {
+                likely_mat m = likely_new(type);
+                likely_set_parallel(&m->type, false);
                 mats.push_back(m);
             }
 
@@ -1069,11 +1063,11 @@ static likely_size workerStart = 0;
 static likely_size workerStop = 0;
 static likely_mat workerMatricies[LIKELY_NUM_ARITIES+1];
 
-static string mangledName(const string &description, const vector<likely_hash> &hashes)
+static string mangledName(const string &description, const vector<likely_type> &types)
 {
     stringstream stream; stream << description;
-    for (likely_hash hash : hashes)
-        stream << "_" << likely_hash_to_string(hash);
+    for (likely_type type : types)
+        stream << "_" << likely_type_to_string(type);
     return stream.str();
 }
 
@@ -1163,7 +1157,7 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
 
         TheMatrixStruct = StructType::create("Matrix",
                                              Type::getInt8PtrTy(getGlobalContext()), // data
-                                             Type::getInt32Ty(getGlobalContext()),   // hash
+                                             Type::getInt32Ty(getGlobalContext()),   // type
                                              Type::getInt32Ty(getGlobalContext()),   // channels
                                              Type::getInt32Ty(getGlobalContext()),   // columns
                                              Type::getInt32Ty(getGlobalContext()),   // rows
@@ -1244,26 +1238,26 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
     BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
     IRBuilder<> builder(entry);
 
-    vector<GlobalVariable*> kernelHashes;
+    vector<GlobalVariable*> kernelTypes;
     for (int i=0; i<n; i++) {
-        GlobalVariable *kernelHash = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_hash"+to_string(i), Type::getInt32Ty(getGlobalContext())));
-        kernelHash->setInitializer(MatrixBuilder::constant(srcList[i]->hash, 8*sizeof(likely_hash)));
-        kernelHashes.push_back(kernelHash);
+        GlobalVariable *kernelType = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_type"+to_string(i), Type::getInt32Ty(getGlobalContext())));
+        kernelType->setInitializer(MatrixBuilder::constant(srcList[i]->type, 8*sizeof(likely_type)));
+        kernelTypes.push_back(kernelType);
     }
 
-    vector<Value*> srcHashes;
+    vector<Value*> srcTypes;
     for (int i=0; i<n; i++)
-        srcHashes.push_back(builder.CreateLoad(builder.CreateStructGEP(srcs[i], 1), "src_hash"+to_string(i)));
+        srcTypes.push_back(builder.CreateLoad(builder.CreateStructGEP(srcs[i], 1), "src_type"+to_string(i)));
 
-    Value *hashTest = MatrixBuilder::constant(true);
+    Value *typeTest = MatrixBuilder::constant(true);
     for (int i=0; i<n; i++)
-        hashTest = builder.CreateAnd(hashTest, builder.CreateICmpEQ(builder.CreateLoad(kernelHashes[i]), srcHashes[i]));
+        typeTest = builder.CreateAnd(typeTest, builder.CreateICmpEQ(builder.CreateLoad(kernelTypes[i]), srcTypes[i]));
 
-    BasicBlock *hashFail = BasicBlock::Create(getGlobalContext(), "hash_fail", function);
+    BasicBlock *typeFail = BasicBlock::Create(getGlobalContext(), "type_fail", function);
     BasicBlock *execute = BasicBlock::Create(getGlobalContext(), "execute", function);
-    builder.CreateCondBr(hashTest, execute, hashFail);
+    builder.CreateCondBr(typeTest, execute, typeFail);
 
-    builder.SetInsertPoint(hashFail);
+    builder.SetInsertPoint(typeFail);
     {
         // Construct a description that stays valid for the lifetime of the program
         char *copy = new char[strlen(description)+1];
@@ -1277,7 +1271,7 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
         builder.CreateStore(builder.CreateCall(makeAllocationFunction, args), allocationFunction);
         builder.CreateStore(builder.CreateCall(makeKernelFunction, args), kernelFunction);
         for (int i=0; i<n; i++)
-            builder.CreateStore(srcHashes[i], kernelHashes[i]);
+            builder.CreateStore(srcTypes[i], kernelTypes[i]);
         builder.CreateBr(execute);
     }
 
@@ -1525,27 +1519,27 @@ void *likely_compile_allocation(likely_description description, likely_arity n, 
 
 void *likely_compile_allocation_n(likely_description description, likely_arity n, likely_const_mat *srcs)
 {
-    vector<likely_hash> hashes;
+    vector<likely_type> types;
     for (int i=0; i<n; i++) {
         likely_const_mat src = srcs[i];
-        likely_assert(src && (src->hash != likely_hash_null), "likely_compile_allocation_n null matrix at index: %d", i);
-        hashes.push_back(src->hash);
+        likely_assert(src && (src->type != likely_type_null), "likely_compile_allocation_n null matrix at index: %d", i);
+        types.push_back(src->type);
     }
 
     lock_guard<recursive_mutex> lock(makerLock);
-    const string name = mangledName(description, hashes)+"_allocation";
+    const string name = mangledName(description, types)+"_allocation";
 
     Function *function = TheModule->getFunction(name);
     if (function != NULL)
         return executionEngine->getPointerToFunction(function);
-    function = getFunction(name, hashes.size(), PointerType::getUnqual(TheMatrixStruct));
+    function = getFunction(name, types.size(), PointerType::getUnqual(TheMatrixStruct));
 
     auto kernelPointer = kernels.find(description);
     if (kernelPointer == kernels.end()) {
         kernels[description] = KernelBuilder(description);
         kernelPointer = kernels.find(description);
     }
-    if (!(*kernelPointer).second.makeAllocation(function, hashes))
+    if (!(*kernelPointer).second.makeAllocation(function, types))
         return MatrixBuilder::cleanup(function);
 
     static FunctionPassManager *functionPassManager = NULL;
@@ -1573,20 +1567,20 @@ void *likely_compile_kernel(likely_description description, likely_arity n, like
 
 void *likely_compile_kernel_n(likely_description description, likely_arity n, likely_const_mat *srcs)
 {
-    vector<likely_hash> hashes;
+    vector<likely_type> types;
     for (int i=0; i<n; i++) {
         likely_const_mat src = srcs[i];
-        likely_assert(src && (src->hash != likely_hash_null), "likely_compile_kernel_n null matrix at index: %d", i);
-        hashes.push_back(src->hash);
+        likely_assert(src && (src->type != likely_type_null), "likely_compile_kernel_n null matrix at index: %d", i);
+        types.push_back(src->type);
     }
 
     lock_guard<recursive_mutex> lock(makerLock);
-    const string name = mangledName(description, hashes)+"_kernel";
+    const string name = mangledName(description, types)+"_kernel";
 
     Function *function = TheModule->getFunction(name);
     if (function != NULL)
         return executionEngine->getPointerToFunction(function);
-    function = getFunction(name, hashes.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
+    function = getFunction(name, types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
 
     if (!kernels[description].makeKernel(function)) return MatrixBuilder::cleanup(function);
 
@@ -1678,34 +1672,33 @@ int luaopen_likely(lua_State *L)
     luaL_setfuncs(L, likely_members, 0);
     luaL_newlib(L, likely_globals);
 
-    typedef pair<const char*, int> hash_field;
-    vector<hash_field> hashFields;
-    hashFields.push_back(hash_field("null", likely_hash_null));
-    hashFields.push_back(hash_field("depth", likely_hash_depth));
-    hashFields.push_back(hash_field("signed", likely_hash_signed));
-    hashFields.push_back(hash_field("floating", likely_hash_floating));
-    hashFields.push_back(hash_field("type", likely_hash_type));
-    hashFields.push_back(hash_field("u8", likely_hash_u8));
-    hashFields.push_back(hash_field("u16", likely_hash_u16));
-    hashFields.push_back(hash_field("u32", likely_hash_u32));
-    hashFields.push_back(hash_field("u64", likely_hash_u64));
-    hashFields.push_back(hash_field("i8", likely_hash_i8));
-    hashFields.push_back(hash_field("i16", likely_hash_i16));
-    hashFields.push_back(hash_field("i32", likely_hash_i32));
-    hashFields.push_back(hash_field("i64", likely_hash_i64));
-    hashFields.push_back(hash_field("f16", likely_hash_f16));
-    hashFields.push_back(hash_field("f32", likely_hash_f32));
-    hashFields.push_back(hash_field("f64", likely_hash_f64));
-    hashFields.push_back(hash_field("parallel", likely_hash_parallel));
-    hashFields.push_back(hash_field("heterogeneous", likely_hash_heterogeneous));
-    hashFields.push_back(hash_field("single_channel", likely_hash_single_channel));
-    hashFields.push_back(hash_field("single_column", likely_hash_single_column));
-    hashFields.push_back(hash_field("single_row", likely_hash_single_row));
-    hashFields.push_back(hash_field("single_frame", likely_hash_single_frame));
-    hashFields.push_back(hash_field("reserved", likely_hash_reserved));
-    for (hash_field hashField : hashFields) {
-        lua_pushstring(L, hashField.first);
-        lua_pushinteger(L, hashField.second);
+    typedef pair<const char*, int> type_field;
+    vector<type_field> typeFields;
+    typeFields.push_back(type_field("null", likely_type_null));
+    typeFields.push_back(type_field("depth", likely_type_depth));
+    typeFields.push_back(type_field("signed", likely_type_signed));
+    typeFields.push_back(type_field("floating", likely_type_floating));
+    typeFields.push_back(type_field("u8", likely_type_u8));
+    typeFields.push_back(type_field("u16", likely_type_u16));
+    typeFields.push_back(type_field("u32", likely_type_u32));
+    typeFields.push_back(type_field("u64", likely_type_u64));
+    typeFields.push_back(type_field("i8", likely_type_i8));
+    typeFields.push_back(type_field("i16", likely_type_i16));
+    typeFields.push_back(type_field("i32", likely_type_i32));
+    typeFields.push_back(type_field("i64", likely_type_i64));
+    typeFields.push_back(type_field("f16", likely_type_f16));
+    typeFields.push_back(type_field("f32", likely_type_f32));
+    typeFields.push_back(type_field("f64", likely_type_f64));
+    typeFields.push_back(type_field("parallel", likely_type_parallel));
+    typeFields.push_back(type_field("heterogeneous", likely_type_heterogeneous));
+    typeFields.push_back(type_field("single_channel", likely_type_single_channel));
+    typeFields.push_back(type_field("single_column", likely_type_single_column));
+    typeFields.push_back(type_field("single_row", likely_type_single_row));
+    typeFields.push_back(type_field("single_frame", likely_type_single_frame));
+    typeFields.push_back(type_field("reserved", likely_type_reserved));
+    for (type_field typeField : typeFields) {
+        lua_pushstring(L, typeField.first);
+        lua_pushinteger(L, typeField.second);
         lua_settable(L, -3);
     }
 

@@ -114,7 +114,7 @@ private:
                                                                       QString::number(mat->columns),
                                                                       QString::number(mat->rows),
                                                                       QString::number(mat->frames),
-                                                                      likely_hash_to_string(mat->hash),
+                                                                      likely_type_to_string(mat->type),
                                                                       QString::number((ulong)mat->data, 16)));
         updatePixmap();
     }

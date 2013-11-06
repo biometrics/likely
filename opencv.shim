@@ -3,43 +3,43 @@
 #include <opencv2/core/core.hpp>
 #include "likely.h"
 
-static int hashToDepth(likely_hash hash, int channels = 1)
+static int typeToDepth(likely_type type)
 {
-    switch (likely_type(hash)) {
-      case likely_hash_u8:  return CV_8U;
-      case likely_hash_i8:  return CV_8S;
-      case likely_hash_u16: return CV_16U;
-      case likely_hash_i16: return CV_16S;
-      case likely_hash_i32: return CV_32S;
-      case likely_hash_f32: return CV_32F;
-      case likely_hash_f64: return CV_64F;
+    switch (likely_type(type)) {
+      case likely_type_u8:  return CV_8U;
+      case likely_type_i8:  return CV_8S;
+      case likely_type_u16: return CV_16U;
+      case likely_type_i16: return CV_16S;
+      case likely_type_i32: return CV_32S;
+      case likely_type_f32: return CV_32F;
+      case likely_type_f64: return CV_64F;
     }
     assert(!"Unsupported matrix depth.");
     return 0;
 }
 
-static likely_hash depthToHash(int depth)
+static likely_type depthToType(int depth)
 {
     switch (depth) {
-      case CV_8U:  return likely_hash_u8;
-      case CV_8S:  return likely_hash_i8;
-      case CV_16U: return likely_hash_u16;
-      case CV_16S: return likely_hash_i16;
-      case CV_32S: return likely_hash_i32;
-      case CV_32F: return likely_hash_f32;
-      case CV_64F: return likely_hash_f64;
+      case CV_8U:  return likely_type_u8;
+      case CV_8S:  return likely_type_i8;
+      case CV_16U: return likely_type_u16;
+      case CV_16S: return likely_type_i16;
+      case CV_32S: return likely_type_i32;
+      case CV_32F: return likely_type_f32;
+      case CV_64F: return likely_type_f64;
     }
     assert(!"Unsupported matrix depth.");
-    return likely_hash_null;
+    return likely_type_null;
 }
 
 static cv::Mat toCvMat(likely_const_mat m)
 {
-    return cv::Mat(m->rows, m->columns, CV_MAKETYPE(hashToDepth(m->hash), m->channels), m->data);
+    return cv::Mat(m->rows, m->columns, CV_MAKETYPE(typeToDepth(m->type), m->channels), m->data);
 }
 
 static likely_mat fromCvMat(const cv::Mat &src, bool copy)
 {
     assert(src.isContinuous());
-    return likely_new(depthToHash(src.depth()), src.channels(), src.cols, src.rows, 1, src.data, copy);
+    return likely_new(depthToType(src.depth()), src.channels(), src.cols, src.rows, 1, src.data, copy);
 }

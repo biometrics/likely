@@ -6,7 +6,7 @@ closure = likely.closure
 new = closure(
   nil,
   "Create an empty matrix",
-  {{"hash", "matrix hash", likely.f32},
+  {{"type", "matrix type", f32},
    {"channels", "matrix channels", 1},
    {"columns", "matrix columns", 1},
    {"rows", "matrix rows", 1},
@@ -82,7 +82,7 @@ dark_lenna = divide(2)(lenna)
 [[
 -- Function Calls
 -- Arguments can be assigned explicitly by name...\dream{activate:new}
-x = new{rows=512, columns=512, hash=f32}
+x = new{rows=512, columns=512, type=f32}
 
 -- ...or anonymously in their canonical order.
 y = new(f32, 1, 512, 512)
@@ -91,7 +91,7 @@ y = new(f32, 1, 512, 512)
 ]],
 [[
 -- Closures
-x = new{rows=512, columns=512, hash=i8}
+x = new{rows=512, columns=512, type=i8}
 
 -- When a function is called without all of its arguments specified, a new function is returned with the bound arguments.\dream{activate:set}\dream{activate:setZero}
 setZero = set(0)

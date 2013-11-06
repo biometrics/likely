@@ -28,7 +28,7 @@ using namespace std;
 
 // Optional arguments to run only a subset of the benchmarks
 static string      BenchmarkFunction = "";
-static likely_hash BenchmarkType     = likely_hash_null;
+static likely_type BenchmarkType     = likely_type_null;
 static int         BenchmarkSize     = 0;
 
 struct Test
@@ -38,13 +38,13 @@ struct Test
 protected:
     virtual const char *function() const = 0;
     virtual cv::Mat computeBaseline(const cv::Mat &src) const = 0;
-    virtual std::vector<likely_hash> types() const
+    virtual std::vector<likely_type> types() const
     {
-        std::vector<likely_hash> types;
-//        types.push_back(likely_hash_i16);
-//        types.push_back(likely_hash_i32);
-        types.push_back(likely_hash_f32);
-        types.push_back(likely_hash_f64);
+        std::vector<likely_type> types;
+//        types.push_back(likely_type_i16);
+//        types.push_back(likely_type_i32);
+        types.push_back(likely_type_f32);
+        types.push_back(likely_type_f64);
         return types;
     }
 
@@ -81,9 +81,9 @@ private:
     void printSpeedup(const Speed &baseline, const Speed &likely, const char *mode) const;
 };
 
-static Mat generateData(int rows, int columns, likely_hash hash)
+static Mat generateData(int rows, int columns, likely_type type)
 {
-    Mat m(rows, columns, CV_MAKETYPE(hashToDepth(hash),1));
+    Mat m(rows, columns, CV_MAKETYPE(typeToDepth(type),1));
     randu(m, 0, 255);
     return m;
 }
@@ -92,8 +92,8 @@ void Test::run() const
 {
     if (!BenchmarkFunction.empty() && BenchmarkFunction != function()) return;
 
-    for (likely_hash type : types()) {
-        if ((BenchmarkType != likely_hash_null) && (BenchmarkType != type)) continue;
+    for (likely_type type : types()) {
+        if ((BenchmarkType != likely_type_null) && (BenchmarkType != type)) continue;
 
         for (int size : sizes()) {
             if ((BenchmarkSize != 0) && (BenchmarkSize != size)) continue;
@@ -113,8 +113,8 @@ void Test::run() const
             Speed serial = testLikelySpeed(f, src, false);
             Speed parallel = testLikelySpeed(f, src, true);
 
-            printf("%s\t%s\t%d\tSerial\t%.2e\n", function(), likely_hash_to_string(type), size, serial.Hz/baseline.Hz);
-            printf("%s\t%s\t%d\tParallel\t%.2e\n", function(), likely_hash_to_string(type), size, parallel.Hz/baseline.Hz);
+            printf("%s\t%s\t%d\tSerial\t%.2e\n", function(), likely_type_to_string(type), size, serial.Hz/baseline.Hz);
+            printf("%s\t%s\t%d\tParallel\t%.2e\n", function(), likely_type_to_string(type), size, parallel.Hz/baseline.Hz);
         }
     }
 }
@@ -123,7 +123,7 @@ void Test::testCorrectness(likely_function_1 f, const Mat &src, bool parallel) c
 {
     Mat dstOpenCV = computeBaseline(src);
     likely_mat srcLikely = fromCvMat(src, false);
-    likely_set_parallel(&srcLikely->hash, parallel);
+    likely_set_parallel(&srcLikely->type, parallel);
     likely_mat dstLikely = f(srcLikely);
 
     Mat errorMat = abs(toCvMat(dstLikely) - dstOpenCV);
@@ -165,7 +165,7 @@ Test::Speed Test::testBaselineSpeed(const Mat &src) const
 Test::Speed Test::testLikelySpeed(likely_function_1 f, const Mat &src, bool parallel) const
 {
     likely_mat srcLikely = fromCvMat(src, false);
-    likely_set_parallel(&srcLikely->hash, parallel);
+    likely_set_parallel(&srcLikely->type, parallel);
 
     clock_t startTime, endTime;
     int iter = 0;
@@ -214,12 +214,12 @@ int main(int argc, char *argv[])
 {
     // Parse arguments
     if (argc % 2 == 0) {
-        printf("benchmark [-function <str>] [-type <hash>] [-size <int>]\n");
+        printf("benchmark [-function <str>] [-type <type>] [-size <int>]\n");
         return 1;
     } else {
         for (int i = 1; i < argc; i += 2) {
             if      (!strcmp("-function", argv[i])) BenchmarkFunction = argv[i+1];
-            else if (!strcmp("-type", argv[i])) BenchmarkType = likely_string_to_hash(argv[i+1]);
+            else if (!strcmp("-type", argv[i])) BenchmarkType = likely_string_to_type(argv[i+1]);
             else if (!strcmp("-size", argv[i])) BenchmarkSize = atoi(argv[i+1]);
             else    printf("Unrecognized argument: %s\n", argv[i]);
         }
