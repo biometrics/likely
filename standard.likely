@@ -47,7 +47,6 @@ null = likely.null
 depth = likely.depth
 signed = likely.signed
 floating = likely.floating
-type = likely.type
 u8 = likely.u8
 u16 = likely.u16
 u32 = likely.u32
