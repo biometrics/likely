@@ -301,14 +301,6 @@ likely_mat likely_retain(likely_mat m)
     return m;
 }
 
-static int lua_likely_retain(lua_State *L)
-{
-    likely_assert(lua_gettop(L) == 1, "'retain' expected 1 argument, got: %d", lua_gettop(L));
-    likely_retain(checkLuaMat(L));
-    lua_pushvalue(L, -1);
-    return 1;
-}
-
 void likely_release(likely_mat m)
 {
     if (!m || !m->ref_count) return;
@@ -329,9 +321,9 @@ void likely_release(likely_mat m)
     }
 }
 
-static int lua_likely_release(lua_State *L)
+static int lua_likely__gc(lua_State *L)
 {
-    likely_assert(lua_gettop(L) == 1, "'release' expected 1 argument, got: %d", lua_gettop(L));
+    likely_assert(lua_gettop(L) == 1, "'__gc' expected 1 argument, got: %d", lua_gettop(L));
     likely_release(checkLuaMat(L));
     return 0;
 }
@@ -340,8 +332,10 @@ static likely_mat likelyReadHelper(const char *fileName, lua_State *L = NULL)
 {
     static string previousFileName;
     static likely_mat previousMat = NULL;
-    if (previousFileName == fileName)
+    if (previousFileName == fileName) {
+        likely_retain(previousMat);
         return previousMat;
+    }
 
     cv::Mat m = cv::imread(fileName, CV_LOAD_IMAGE_UNCHANGED);
     lua_likely_assert(L, m.data, "'read' failed to open: %s", fileName);
@@ -1665,12 +1659,11 @@ int luaopen_likely(lua_State *L)
         {"__index", lua_likely__index},
         {"__newindex", lua_likely__newindex},
         {"__tostring", lua_likely__tostring},
+        {"__gc", lua_likely__gc},
         {"get", lua_likely_get},
         {"set", lua_likely_set},
         {"elements", lua_likely_elements},
         {"bytes", lua_likely_bytes},
-        {"retain", lua_likely_retain},
-        {"release", lua_likely_release},
         {"write", lua_likely_write},
         {"decode", lua_likely_decode},
         {"encode", lua_likely_encode},
