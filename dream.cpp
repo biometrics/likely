@@ -149,7 +149,7 @@ private:
 
         lua_getfield(L, -1, "documentation");
         if (lua_isnil(L, -1)) {
-            lua_pop(L, 1);
+            lua_pop(L, 2);
             emit typeChanged();
             return;
         }
@@ -177,7 +177,7 @@ private:
             if (value.isEmpty())
                 parameterNames.append(name);
         }
-        lua_pop(L, 1);
+        lua_pop(L, 2);
 
         text->setText(QString("<b>%1</b>(%2): %3%4").arg(objectName(), parameterNames.join(", "), documentation, parameterDescriptions.join("")));
     }
