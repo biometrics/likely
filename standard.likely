@@ -88,6 +88,16 @@ y = setZero(x)
 --     ^  ^
 --     |  Run-time arguments
 --     Compile-time arguments
+]],
+[[
+-- Arithmetic
+lenna = read("img/Lenna.tiff")
+
+-- Likely will automatically apply operations to all elements in a matrix
+added = add(16)(lenna)
+subtracted = subtract(16)(lenna)
+multiplied = multiply(2)(lenna)
+divided = divide(2)(lenna)
 ]]
 }
 
