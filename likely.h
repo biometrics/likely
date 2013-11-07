@@ -140,7 +140,7 @@ LIKELY_EXPORT likely_mat likely_render(likely_const_mat m); // Return a 888 matr
 // Debugging functionality
 LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
 LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
-LIKELY_EXPORT const char *likely_type_to_string(likely_type h); // Return value guaranteed until the next call to this function
+LIKELY_EXPORT const char *likely_type_to_string(likely_type h); // Return value managed internally and guaranteed until the next call to this function
 LIKELY_EXPORT likely_type likely_string_to_type(const char *str);
 LIKELY_EXPORT void likely_print(likely_const_mat m);
 LIKELY_EXPORT void likely_dump(); // Print LLVM module contents to stderr
@@ -177,6 +177,7 @@ LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, likely_arity arity, li
 // Make Likely accessible as a Lua module
 struct lua_State;
 LIKELY_EXPORT int luaopen_likely(lua_State *L);
+LIKELY_EXPORT lua_State *likely_exec(const char *source, lua_State *L = NULL);
 LIKELY_EXPORT void likely_stack_dump(lua_State *L, int levels = 1);
 
 #ifdef __cplusplus

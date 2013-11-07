@@ -550,16 +550,6 @@ void likely_dump()
     TheModule->dump();
 }
 
-static lua_State *getLuaState()
-{
-    lua_State *L = luaL_newstate();
-    luaL_openlibs(L);
-    luaL_requiref(L, "likely", luaopen_likely, 1);
-    lua_pop(L, 1);
-    likely_stack_dump(L, luaL_dostring(L, likely_standard_library()));
-    return L;
-}
-
 namespace likely
 {
 
@@ -865,10 +855,14 @@ public:
         string source = description;
         if (source.compare(0, prefix.size(), prefix)) {
             // It needs to be interpreted
-            lua_State *L = getLuaState();
-            likely_stack_dump(L, luaL_dostring(L, (string("return ") + description).c_str()));
+            static lua_State *L = NULL;
+            L = likely_exec((string("__likely =") + string(description)).c_str(), L);
+            if (lua_type(L, -1) == LUA_TSTRING)
+                likely_stack_dump(L);
+            lua_getfield(L, -1, "__likely");
+            lua_insert(L, 1);
+            lua_settop(L, 1);
             source = interpret(L);
-            lua_settop(L, 0);
         }
 
         // Split on space character
@@ -1762,6 +1756,33 @@ static void toStream(lua_State *L, int index, stringstream &stream, int levels =
         stream << lua_typename(L, type);
     }
     lua_pop(L, 1);
+}
+
+lua_State *likely_exec(const char *source, lua_State *L)
+{
+    if (L == NULL) {
+        L = luaL_newstate();
+        luaL_openlibs(L);
+        luaL_requiref(L, "likely", luaopen_likely, 1);
+        lua_pop(L, 1);
+        luaL_dostring(L, likely_standard_library());
+    }
+
+    // Clear the previous stack
+    lua_settop(L, 0);
+
+    // Create a sandboxed enviornment
+    lua_newtable(L); // _ENV
+    lua_newtable(L); // metatable
+    lua_getglobal(L, "_G");
+    lua_setfield(L, -2, "__index");
+    lua_setmetatable(L, -2);
+
+    if (luaL_loadstring(L, source)) return L;
+    lua_pushvalue(L, -2);
+    lua_setupvalue(L, -2, 1);
+    lua_pcall(L, 0, LUA_MULTRET, 0);
+    return L; // The sandboxed environment results are now on the top of the stack
 }
 
 void likely_stack_dump(lua_State *L, int levels)

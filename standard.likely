@@ -50,28 +50,13 @@ compile = closure(
   {{"function", "function expression"}},
   likely.compile)
 
-console = ""
-function likely.print(...)
-  if #console > 0 then
-    console = console .. "\n"
-  end
-  args = {...}
-  for k,v in ipairs(args) do
-    console = console .. tostring(v)
-    if k ~= #args then
-      console = console .. " "
-    end
-  end
-end
-print = likely.print
-
 -- Examples
 likely.examples =
 {
 [[
 -- Hello World
--- Source code is re-executed as you type
-print("Hello World!")
+-- Source code is re-executed as you type\dream{activate:message}
+message = "Hello World!"
 
 -- \dream{CTRL}+click variables to display values
 lenna = read("img/Lenna.tiff")

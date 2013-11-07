@@ -50,12 +50,12 @@ public slots:
 protected:
     bool check(lua_State *L)
     {
-        lua_getglobal(L, qPrintable(objectName()));
+        lua_getfield(L, -1, qPrintable(objectName()));
         const bool isValid = !lua_isnil(L, -1);
 
         bool success = true;
         if (!isValid) {
-            lua_getglobal(L, "compiler");
+            lua_getfield(L, -2, "compiler");
             success = lua_isnil(L, -1);
             lua_pop(L, 1);
         }
@@ -149,6 +149,7 @@ private:
 
         lua_getfield(L, -1, "documentation");
         if (lua_isnil(L, -1)) {
+            lua_pop(L, 1);
             emit typeChanged();
             return;
         }
@@ -206,7 +207,7 @@ class SyntaxHighlighter : public QSyntaxHighlighter
     Q_OBJECT
     QRegularExpression comments, keywords, numbers, strings, variables;
     QTextCharFormat commentsFont, keywordsFont, numbersFont, stringsFont, variablesFont;
-    QSet<QString> excludedSet, allowedSet; // Lua global variables
+    QSet<QString> allowedSet; // Lua global variables
     bool commandMode = false;
 
 public:
@@ -228,17 +229,12 @@ public:
         stringsFont.setForeground(Qt::darkGreen);
         variablesFont.setFontUnderline(true);
         variablesFont.setUnderlineStyle(QTextCharFormat::DotLine);
-
-        lua_State *L = luaL_newstate();
-        luaL_openlibs(L);
-        excludedSet = getGlobals(L, QSet<QString>());
-        lua_close(L);
     }
 
 public slots:
     void updateDictionary(lua_State *L)
     {
-        allowedSet = getGlobals(L, excludedSet);
+        allowedSet = getGlobals(L);
         variables.setPattern(getPattern(allowedSet));
         rehighlight();
     }
@@ -273,15 +269,21 @@ private:
         }
     }
 
-    static QSet<QString> getGlobals(lua_State *L, const QSet<QString> &exclude)
+    static QSet<QString> getGlobals(lua_State *L)
     {
         QSet<QString> globals;
+        // Get the newly created variables...
+        lua_pushnil(L);
+        while (lua_next(L, -2)) {
+            globals.insert(lua_tostring(L, -2));
+            lua_pop(L, 1);
+        }
+
+        // ...and the existing globals
         lua_getglobal(L, "_G");
         lua_pushnil(L);
         while (lua_next(L, -2)) {
-            const QString global = lua_tostring(L, -2);
-            if (!exclude.contains(global))
-                globals.insert(global);
+            globals.insert(lua_tostring(L, -2));
             lua_pop(L, 1);
         }
         lua_pop(L, 1);
@@ -310,21 +312,11 @@ public:
         connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
     }
 
-    static lua_State *exec(const QString &source, bool *error)
-    {
-        lua_State *L = luaL_newstate();
-        luaL_openlibs(L);
-        luaL_requiref(L, "likely", luaopen_likely, 1);
-        lua_pop(L, 1);
-        *error = luaL_dostring(L, likely_standard_library()) || luaL_dostring(L, qPrintable(source));
-        return L;
-    }
-
 public slots:
     void activate(const QString &name)
     {
         QString type;
-        lua_getglobal(L, qPrintable(name));
+        lua_getfield(L, -1, qPrintable(name));
         if (lua_istable(L, -1) || lua_isuserdata(L, -1)) {
             lua_getfield(L, -1, "likely");
             type = lua_tostring(L, -1);
@@ -344,8 +336,6 @@ public slots:
     void restore()
     {
         setText(settings.value("source").toString());
-        activate("compiler");
-        activate("console");
     }
 
     void fileMenu(QAction *a)
@@ -382,7 +372,7 @@ private:
         text = text.replace(ctrlExpression, QKeySequence(Qt::ControlModifier).toString(QKeySequence::NativeText));
 
         static const QRegularExpression activateExpression("\\\\dream\\{activate\\:(\\w+)\\}");
-        QStringList activateVariables;
+        QStringList activateVariables; activateVariables.append("compiler");
         QRegularExpressionMatchIterator i = activateExpression.globalMatch(text);
         while (i.hasNext())
             activateVariables.append(i.next().captured(1));
@@ -468,15 +458,17 @@ private slots:
         else                          previousSource = source;
 
         emit recompiling();
-        if (L) lua_close(L);
-        bool error;
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
-        L = exec(source, &error);
+        L = likely_exec(qPrintable(source), L);
+
         const qint64 nsec = elapsedTimer.nsecsElapsed();
         emit newStatus(QString("Execution Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
 
-        if (error) lua_setglobal(L, "compiler");
+        // Check for an error
+        if (lua_type(L, -1) == LUA_TSTRING)
+            lua_setfield(L, -2, "compiler");
+
         settings.setValue("source", source);
         emit newState(L);
     }
@@ -589,9 +581,7 @@ int main(int argc, char *argv[])
         } else {
             source = argv[i];
         }
-
-        bool error;
-        lua_close(Source::exec(source, &error));
+        lua_close(likely_exec(qPrintable(source)));
     }
 
     if (argc > 1)
