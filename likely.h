@@ -42,10 +42,6 @@ extern "C" {
 // Contents of standard.likely
 LIKELY_EXPORT const char *likely_standard_library();
 
-// Resets the error message buffer,
-// but the return value is guaranteed until the next call to this function
-LIKELY_EXPORT const char *likely_most_recent_error();
-
 // Matrix types
 typedef uint8_t likely_data;
 typedef uint32_t likely_size;

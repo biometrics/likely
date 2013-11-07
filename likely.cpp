@@ -53,15 +53,15 @@ using namespace std;
 static Module *TheModule = NULL;
 static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
-static const int MostRecentErrorSize = 1024;
-static char MostRecentError[MostRecentErrorSize];
 
 static bool likelyAssertHelper(bool condition, const char *format, va_list ap, lua_State *L = NULL)
 {
     if (condition) return true;
-    vsnprintf(MostRecentError, MostRecentErrorSize, format, ap);
-    if (L) luaL_error(L, "Likely %s.", MostRecentError);
-    else   fprintf(stderr, "Likely %s.\n", MostRecentError);
+    static const int errorBufferSize = 1024;
+    static char errorBuffer[errorBufferSize];
+    vsnprintf(errorBuffer, errorBufferSize, format, ap);
+    if (L) luaL_error(L, "Likely %s.", errorBuffer);
+    else   fprintf(stderr, "Likely %s.\n", errorBuffer);
     return false;
 }
 
@@ -77,14 +77,6 @@ static bool lua_likely_assert(lua_State *L, bool condition, const char *format, 
     va_list ap;
     va_start(ap, format);
     return likelyAssertHelper(condition, format, ap, L);
-}
-
-const char *likely_most_recent_error()
-{
-    static string result;
-    result = MostRecentError;
-    sprintf(MostRecentError, "");
-    return result.c_str();
 }
 
 static likely_mat checkLuaMat(lua_State *L, int index = 1)
