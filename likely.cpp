@@ -235,6 +235,11 @@ static likely_mat *newLuaMat(lua_State *L)
 static likely_mat recycledBuffer = NULL;
 static size_t recycledDataBytes = 0;
 
+static likely_data *alignedPointer(likely_mat m)
+{
+    return reinterpret_cast<likely_data*>((uintptr_t(m+1)+(MaxRegisterWidth-1)) & ~uintptr_t(MaxRegisterWidth-1));
+}
+
 likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, int8_t copy)
 {
     likely_mat dst;
@@ -247,7 +252,7 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     } else {
         dst = (likely_mat) malloc(headerBytes + dataBytes);
     }
-    dst->data = reinterpret_cast<likely_data*>((uintptr_t(dst+1)+(MaxRegisterWidth-1)) & ~uintptr_t(MaxRegisterWidth-1));
+    dst->data = alignedPointer(dst);
     dst->type = type;
     dst->channels = channels;
     dst->columns = columns;
@@ -302,7 +307,7 @@ void likely_release(likely_mat m)
     if (!m || !m->ref_count) return;
     m->ref_count--;
     if (m->ref_count > 0) return;
-    const size_t dataBytes = likely_bytes(m);
+    const size_t dataBytes = (m->data == alignedPointer(m) ? likely_bytes(m) : 0); // TODO: make this safer
     if (recycledBuffer) {
         if (dataBytes > recycledDataBytes) {
             free(recycledBuffer);
@@ -329,8 +334,8 @@ static likely_mat likelyReadHelper(const char *fileName, lua_State *L = NULL)
     static string previousFileName;
     static likely_mat previousMat = NULL;
     if (previousFileName == fileName) {
-        likely_retain(previousMat);
-        return previousMat;
+        // The hash is modifiable, so we need to return a (shallow) copy
+        return likely_new(previousMat->type, previousMat->channels, previousMat->columns, previousMat->rows, previousMat->frames, previousMat->data);
     }
 
     cv::Mat m = cv::imread(fileName, CV_LOAD_IMAGE_UNCHANGED);
