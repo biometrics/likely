@@ -417,14 +417,10 @@ static int lua_likely_encode(lua_State *L)
     return 1;
 }
 
-likely_mat likely_render(likely_const_mat m)
+likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
 {
-    if (((m->type & likely_type_mask) == likely_type_u8) && (m->channels == 3))
-        return likely_copy(m);
-
-    double min, range;
+    double min, max, range;
     if ((m->type & likely_type_mask) != likely_type_u8) {
-        double max;
         min = std::numeric_limits<double>::max();
         max = -std::numeric_limits<double>::max();
         for (likely_size t=0; t<m->frames; t++) {
@@ -439,11 +435,20 @@ likely_mat likely_render(likely_const_mat m)
             }
         }
         range = (max - min)/255;
-        if ((range >= 0.25) && (range < 1))
+        if ((range >= 0.25) && (range < 1)) {
+            max = min + 255;
             range = 1;
+        }
     } else {
         min = 0;
+        max = 255;
         range = 1;
+        // Special case, return the original image
+        if (m->channels == 3) {
+            if (min_) *min_ = min;
+            if (max_) *max_ = max;
+            return likely_copy(m);
+        }
     }
 
     likely_mat n = likely_new(likely_type_u8, 3, m->columns, m->rows);
@@ -455,6 +460,9 @@ likely_mat likely_render(likely_const_mat m)
             }
         }
     }
+
+    if (min_) *min_ = min;
+    if (max_) *max_ = max;
     return n;
 }
 

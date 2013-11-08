@@ -106,16 +106,19 @@ private:
         }
         likely_mat mat = *mp;
 
-        likely_mat rendered = likely_render(mat);
+        double min, max;
+        likely_mat rendered = likely_render(mat, &min, &max);
         src = QImage(rendered->data, rendered->columns, rendered->rows, QImage::Format_RGB888).rgbSwapped();
         likely_release(rendered);
-        text->setText(QString("<b>%1</b>: %2x%3x%4x%5 %6 (0x%7)").arg(objectName(),
-                                                                      QString::number(mat->channels),
-                                                                      QString::number(mat->columns),
-                                                                      QString::number(mat->rows),
-                                                                      QString::number(mat->frames),
-                                                                      likely_type_to_string(mat->type),
-                                                                      QString::number((ulong)mat->data, 16)));
+        text->setText(QString("<b>%1</b>: %2x%3x%4x%5 %6 (0x%7) [%8,%9]").arg(objectName(),
+                                                                              QString::number(mat->channels),
+                                                                              QString::number(mat->columns),
+                                                                              QString::number(mat->rows),
+                                                                              QString::number(mat->frames),
+                                                                              likely_type_to_string(mat->type),
+                                                                              QString::number((ulong)mat->data, 16),
+                                                                              QString::number(min),
+                                                                              QString::number(max)));
         updatePixmap();
     }
 
