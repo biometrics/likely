@@ -757,8 +757,23 @@ struct MatrixBuilder
         } else {
             if (likely_saturation(t)) {
                 if (likely_signed(t)) {
-                    likely_assert(false, "'add' not implemented");
-                    return NULL;
+                    const int depth = likely_depth(t);
+                    Value *result = b->CreateAdd(i, j, n);
+                    Value *overflowResult = b->CreateAdd(b->CreateLShr(i, depth-1), constant((1 << (depth-1))-1, depth));
+                    Value *overflowCondition = b->CreateICmpSGE(b->CreateOr(b->CreateXor(i, j), b->CreateNot(b->CreateXor(j, result))), zero(depth));
+                    BasicBlock *overflowResolved = BasicBlock::Create(getGlobalContext(), n + "_overflow_resolved", f);
+                    BasicBlock *overflowTrue = BasicBlock::Create(getGlobalContext(), n + "_overflow_true", f);
+                    BasicBlock *overflowFalse = BasicBlock::Create(getGlobalContext(), n + "_overflow_false", f);
+                    b->CreateCondBr(overflowCondition, overflowTrue, overflowFalse);
+                    b->SetInsertPoint(overflowTrue);
+                    b->CreateBr(overflowResolved);
+                    b->SetInsertPoint(overflowFalse);
+                    b->CreateBr(overflowResolved);
+                    b->SetInsertPoint(overflowResolved);
+                    PHINode *conditionalResult = b->CreatePHI(Type::getIntNTy(getGlobalContext(), depth), 2);
+                    conditionalResult->addIncoming(overflowResult, overflowTrue);
+                    conditionalResult->addIncoming(result, overflowFalse);
+                    return conditionalResult;
                 } else {
                     Value *result = b->CreateAdd(i, j, n);
                     Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULT(result, i, n),
@@ -872,11 +887,12 @@ struct MatrixBuilder
     void endLoop() {
         const Loop &loop = loops.top();
         Value *increment = b->CreateAdd(loop.i, one(), n+"_loop_increment");
-        loop.i->addIncoming(increment, loop.body);
-
+        BasicBlock *loopLatch = BasicBlock::Create(getGlobalContext(), "_loop_latch", f);
+        b->CreateBr(loopLatch);
+        b->SetInsertPoint(loopLatch);
         BranchInst *latch = b->CreateCondBr(b->CreateICmpEQ(increment, loop.stop, n+"_loop_test"), loop.exit, loop.body);
         latch->setMetadata("llvm.loop.parallel", loop.node);
-
+        loop.i->addIncoming(increment, loopLatch);
         b->SetInsertPoint(loop.exit);
         loops.pop();
     }
