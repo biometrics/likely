@@ -747,7 +747,30 @@ struct MatrixBuilder
     }
 
     Value *cast(Value *i, likely_type type) const { return ((t & likely_type_mask) == (type & likely_type_mask)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_signed(t), Type::getFloatTy(getGlobalContext()), likely_signed(t)), i, Type::getFloatTy(getGlobalContext())); }
-    Value *add(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFAdd(i, j, n) : b->CreateAdd(i, j, n); }
+
+    // Saturation arithmetic logic:
+    // http://locklessinc.com/articles/sat_arithmetic/
+    Value *add(Value *i, Value *j) const
+    {
+        if (likely_floating(t)) {
+            return b->CreateFAdd(i, j, n);
+        } else {
+            if (likely_saturation(t)) {
+                if (likely_signed(t)) {
+                    likely_assert(false, "'add' not implemented");
+                    return NULL;
+                } else {
+                    Value *result = b->CreateAdd(i, j, n);
+                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULT(result, i, n),
+                                                   Type::getIntNTy(getGlobalContext(), likely_depth(t))));
+                    return b->CreateOr(result, overflow, n);
+                }
+            } else {
+                return b->CreateAdd(i, j, n);
+            }
+        }
+    }
+
     Value *subtract(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFSub(i, j, n) : b->CreateSub(i, j, n); }
     Value *multiply(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFMul(i, j, n) : b->CreateMul(i, j, n); }
     Value *divide(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFDiv(i, j, n) : (likely_signed(t) ? b->CreateSDiv(i,j, n) : b->CreateUDiv(i, j, n)); }
