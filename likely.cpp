@@ -402,12 +402,36 @@ likely_mat likely_render(likely_const_mat m)
         return n;
     }
 
+    double min, range;
+    if ((m->type & likely_type_mask) != likely_type_u8) {
+        double max;
+        min = std::numeric_limits<double>::max();
+        max = -std::numeric_limits<double>::max();
+        for (likely_size t=0; t<m->frames; t++) {
+            for (likely_size y=0; y<m->rows; y++) {
+                for (likely_size x=0; x<m->columns; x++) {
+                    for (likely_size c=0; c<m->channels; c++) {
+                        const double value = likely_element(m, c, x, y, t);
+                        min = std::min(min, value);
+                        max = std::max(max, value);
+                    }
+                }
+            }
+        }
+        range = (max - min)/255;
+        if ((range >= 0.5) && (range < 1))
+            range = 1;
+    } else {
+        min = 0;
+        range = 1;
+    }
+
     likely_mat n = likely_new(likely_type_u8, 3, m->columns, m->rows);
     for (likely_size y=0; y<n->rows; y++) {
         for (likely_size x=0; x<n->columns; x++) {
             for (likely_size c=0; c<3; c++) {
                 const double value = likely_element(m, c % m->channels, x, y);
-                likely_set_element(n, value, c, x, y);
+                likely_set_element(n, (value-min)/range, c, x, y);
             }
         }
     }
