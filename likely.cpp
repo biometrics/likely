@@ -793,7 +793,19 @@ struct MatrixBuilder
     }
 
     Value *multiply(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFMul(i, j, n) : b->CreateMul(i, j, n); }
-    Value *divide(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFDiv(i, j, n) : (likely_signed(t) ? b->CreateSDiv(i,j, n) : b->CreateUDiv(i, j, n)); }
+
+    Value *divide(Value *i, Value *j) const
+    {
+        if (likely_floating(t)) {
+            b->CreateFDiv(i, j, n);
+        } else {
+            if (likely_signed(t)) {
+                return b->CreateSDiv(i,j, n);
+            } else {
+                return b->CreateUDiv(i, j, n);
+            }
+        }
+    }
 
     Value *intrinsic(Value *i, Intrinsic::ID id) const { vector<Type*> args; args.push_back(i->getType()); Function *intrinsic = Intrinsic::getDeclaration(TheModule, id, args); return b->CreateCall(intrinsic, i, n); }
     Value *log(Value *i) const { return intrinsic(i, Intrinsic::log); }
