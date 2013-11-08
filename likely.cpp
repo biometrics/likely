@@ -771,7 +771,27 @@ struct MatrixBuilder
         }
     }
 
-    Value *subtract(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFSub(i, j, n) : b->CreateSub(i, j, n); }
+    Value *subtract(Value *i, Value *j) const
+    {
+        if (likely_floating(t)) {
+            return b->CreateFSub(i, j, n);
+        } else {
+            if (likely_saturation(t)) {
+                if (likely_signed(t)) {
+                    likely_assert(false, "'subtract' not implemented");
+                    return NULL;
+                } else {
+                    Value *result = b->CreateSub(i, j, n);
+                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULE(result, i, n),
+                                                   Type::getIntNTy(getGlobalContext(), likely_depth(t))));
+                    return b->CreateAnd(result, overflow, n);
+                }
+            } else {
+                return b->CreateSub(i, j, n);
+            }
+        }
+    }
+
     Value *multiply(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFMul(i, j, n) : b->CreateMul(i, j, n); }
     Value *divide(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFDiv(i, j, n) : (likely_signed(t) ? b->CreateSDiv(i,j, n) : b->CreateUDiv(i, j, n)); }
 
