@@ -627,6 +627,7 @@ struct MatrixBuilder
     static Constant *constant(T value, Type *type) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), type); }
     static Constant *zero(int bits = 32) { return constant(0, bits); }
     static Constant *one(int bits = 32) { return constant(1, bits); }
+    static Constant *intMax(int bits = 32, bool signed_ = false) { return constant((1 << (signed_ ? bits-1 : bits))-1, bits); }
     Constant *autoConstant(double value) const { return likely_floating(t) ? ((likely_depth(t) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(t)); }
     AllocaInst *autoAlloca(double value) const { AllocaInst *alloca = b->CreateAlloca(ty(), 0, n); b->CreateStore(autoConstant(value), alloca); return alloca; }
 
@@ -802,6 +803,23 @@ struct MatrixBuilder
 
     // Saturation arithmetic logic:
     // http://locklessinc.com/articles/sat_arithmetic/
+    Value *signedSaturationHelper(Value *result, Value *overflowResult, Value *overflowCondition) const
+    {
+        BasicBlock *overflowResolved = BasicBlock::Create(getGlobalContext(), n + "_overflow_resolved", f);
+        BasicBlock *overflowTrue = BasicBlock::Create(getGlobalContext(), n + "_overflow_true", f);
+        BasicBlock *overflowFalse = BasicBlock::Create(getGlobalContext(), n + "_overflow_false", f);
+        b->CreateCondBr(overflowCondition, overflowTrue, overflowFalse);
+        b->SetInsertPoint(overflowTrue);
+        b->CreateBr(overflowResolved);
+        b->SetInsertPoint(overflowFalse);
+        b->CreateBr(overflowResolved);
+        b->SetInsertPoint(overflowResolved);
+        PHINode *conditionalResult = b->CreatePHI(result->getType(), 2);
+        conditionalResult->addIncoming(overflowResult, overflowTrue);
+        conditionalResult->addIncoming(result, overflowFalse);
+        return conditionalResult;
+    }
+
     Value *add(Value *i, Value *j) const
     {
         if (likely_floating(t)) {
@@ -811,21 +829,9 @@ struct MatrixBuilder
                 if (likely_signed(t)) {
                     const int depth = likely_depth(t);
                     Value *result = b->CreateAdd(i, j, n);
-                    Value *overflowResult = b->CreateAdd(b->CreateLShr(i, depth-1), constant((1 << (depth-1))-1, depth));
+                    Value *overflowResult = b->CreateAdd(b->CreateLShr(i, depth-1), intMax(depth, true));
                     Value *overflowCondition = b->CreateICmpSGE(b->CreateOr(b->CreateXor(i, j), b->CreateNot(b->CreateXor(j, result))), zero(depth));
-                    BasicBlock *overflowResolved = BasicBlock::Create(getGlobalContext(), n + "_overflow_resolved", f);
-                    BasicBlock *overflowTrue = BasicBlock::Create(getGlobalContext(), n + "_overflow_true", f);
-                    BasicBlock *overflowFalse = BasicBlock::Create(getGlobalContext(), n + "_overflow_false", f);
-                    b->CreateCondBr(overflowCondition, overflowTrue, overflowFalse);
-                    b->SetInsertPoint(overflowTrue);
-                    b->CreateBr(overflowResolved);
-                    b->SetInsertPoint(overflowFalse);
-                    b->CreateBr(overflowResolved);
-                    b->SetInsertPoint(overflowResolved);
-                    PHINode *conditionalResult = b->CreatePHI(Type::getIntNTy(getGlobalContext(), depth), 2);
-                    conditionalResult->addIncoming(overflowResult, overflowTrue);
-                    conditionalResult->addIncoming(result, overflowFalse);
-                    return conditionalResult;
+                    return signedSaturationHelper(result, overflowResult, overflowCondition);
                 } else {
                     Value *result = b->CreateAdd(i, j, n);
                     Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULT(result, i, n),
@@ -845,8 +851,11 @@ struct MatrixBuilder
         } else {
             if (likely_saturation(t)) {
                 if (likely_signed(t)) {
-                    likely_assert(false, "'subtract' not implemented");
-                    return NULL;
+                    const int depth = likely_depth(t);
+                    Value *result = b->CreateSub(i, j, n);
+                    Value *overflowResult = b->CreateAdd(b->CreateLShr(i, depth-1), intMax(depth, true));
+                    Value *overflowCondition = b->CreateICmpSLT(b->CreateAnd(b->CreateXor(i, j), b->CreateXor(i, result)), zero(depth));
+                    return signedSaturationHelper(result, overflowResult, overflowCondition);
                 } else {
                     Value *result = b->CreateSub(i, j, n);
                     Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULE(result, i, n),
