@@ -21,6 +21,7 @@ single_channel = likely.single_channel
 single_column = likely.single_column
 single_row = likely.single_row
 single_frame = likely.single_frame
+saturation = likely.saturation
 reserved = likely.reserved
 
 -- Core functions

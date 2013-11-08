@@ -54,6 +54,7 @@ typedef uint32_t likely_type; /* Depth : 8
                                  Single-column : 1
                                  Single-row : 1
                                  Single-frame : 1
+                                 Saturation : 1
                                  Reserved : 15 */
 
 // Standard type masks and values
@@ -81,7 +82,8 @@ enum likely_type_field
     likely_type_single_column  = 0x00002000,
     likely_type_single_row     = 0x00004000,
     likely_type_single_frame   = 0x00008000,
-    likely_type_reserved       = 0xFFFF0000
+    likely_type_saturation     = 0x00010000,
+    likely_type_reserved       = 0xFFFE0000
 };
 
 // The only struct in the API
@@ -114,6 +116,8 @@ LIKELY_EXPORT bool likely_single_row(likely_type type);
 LIKELY_EXPORT void likely_set_single_row(likely_type *type, bool single_row);
 LIKELY_EXPORT bool likely_single_frame(likely_type type);
 LIKELY_EXPORT void likely_set_single_frame(likely_type *type, bool single_frame);
+LIKELY_EXPORT bool likely_saturation(likely_type type);
+LIKELY_EXPORT void likely_set_saturation(likely_type *type, bool saturation);
 LIKELY_EXPORT int  likely_reserved(likely_type type);
 LIKELY_EXPORT void likely_set_reserved(likely_type *type, int reserved);
 

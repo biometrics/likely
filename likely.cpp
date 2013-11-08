@@ -116,6 +116,8 @@ bool likely_single_row(likely_type type) { return likely_get_bool(type, likely_t
 void likely_set_single_row(likely_type *type, bool single_row) { likely_set_bool(type, single_row, likely_type_single_row); }
 bool likely_single_frame(likely_type type) { return likely_get_bool(type, likely_type_single_frame); }
 void likely_set_single_frame(likely_type *type, bool single_frame) { likely_set_bool(type, single_frame, likely_type_single_frame); }
+bool likely_saturation(likely_type type) { return likely_get_bool(type, likely_type_saturation); }
+void likely_set_saturation(likely_type *type, bool saturation) { likely_set_bool(type, saturation, likely_type_saturation); }
 int  likely_reserved(likely_type type) { return likely_get(type, likely_type_reserved); }
 void likely_set_reserved(likely_type *type, int reserved) { likely_set(type, reserved, likely_type_reserved); }
 
@@ -141,6 +143,7 @@ static int lua_likely_get(lua_State *L)
     else if (!strcmp(field, "singleColumn"))  lua_pushboolean(L, likely_single_column(m->type));
     else if (!strcmp(field, "singleRow"))     lua_pushboolean(L, likely_single_row(m->type));
     else if (!strcmp(field, "singleFrame"))   lua_pushboolean(L, likely_single_frame(m->type));
+    else if (!strcmp(field, "saturation"))    lua_pushboolean(L, likely_saturation(m->type));
     else if (!strcmp(field, "reserved"))      lua_pushinteger(L, likely_reserved(m->type));
     else                                      lua_pushnil(L);
     return 1;
@@ -184,6 +187,7 @@ static int lua_likely_set(lua_State *L)
     else if (!strcmp(field, "singleColumn"))  likely_set_single_column(&m->type, lua_toboolean(L, 3));
     else if (!strcmp(field, "singleRow"))     likely_set_single_row(&m->type, lua_toboolean(L, 3));
     else if (!strcmp(field, "singleFrame"))   likely_set_single_frame(&m->type, lua_toboolean(L, 3));
+    else if (!strcmp(field, "saturation"))    likely_set_saturation(&m->type, lua_toboolean(L, 3));
     else if (!strcmp(field, "reserved"))    { likely_set_reserved(&m->type, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected reserved to be an integer, got: %s", lua_tostring(L, 3)); }
     else                                      likely_assert(false, "unrecognized field: %s", field);
     return 0;
@@ -478,6 +482,7 @@ const char *likely_type_to_string(likely_type h)
     if (likely_single_column(h))  typeStream << "X";
     if (likely_single_row(h))     typeStream << "Y";
     if (likely_single_frame(h))   typeStream << "T";
+    if (likely_saturation(h))     typeStream << "S";
 
     typeString = typeStream.str();
     return typeString.c_str();
@@ -505,6 +510,7 @@ likely_type likely_string_to_type(const char *str)
         if (str[i] == 'X') likely_set_single_column(&t, true);
         if (str[i] == 'Y') likely_set_single_row(&t, true);
         if (str[i] == 'T') likely_set_single_frame(&t, true);
+        if (str[i] == 'S') likely_set_saturation(&t, true);
     }
 
     return t;
@@ -659,6 +665,8 @@ struct MatrixBuilder
     void setSingleRow(bool isSingleRow) const { setBit(isSingleRow, likely_type_single_row); }
     Value *isSingleFrame() const { return get(likely_type_single_frame); }
     void setSingleFrame(bool isSingleFrame) const { setBit(isSingleFrame, likely_type_single_frame); }
+    Value *isSaturation() const { return get(likely_type_saturation); }
+    void setSaturation(bool isSaturation) const { setBit(isSaturation, likely_type_saturation); }
     Value *reserved() const { return get(likely_type_reserved); }
     void setReserved(int reserved) const { set(reserved, likely_type_reserved); }
 
@@ -1698,6 +1706,7 @@ int luaopen_likely(lua_State *L)
     typeFields.push_back(type_field("single_column", likely_type_single_column));
     typeFields.push_back(type_field("single_row", likely_type_single_row));
     typeFields.push_back(type_field("single_frame", likely_type_single_frame));
+    typeFields.push_back(type_field("saturation", likely_type_saturation));
     typeFields.push_back(type_field("reserved", likely_type_reserved));
     for (type_field typeField : typeFields) {
         lua_pushstring(L, typeField.first);
