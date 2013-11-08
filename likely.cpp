@@ -627,7 +627,8 @@ struct MatrixBuilder
     static Constant *constant(T value, Type *type) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), type); }
     static Constant *zero(int bits = 32) { return constant(0, bits); }
     static Constant *one(int bits = 32) { return constant(1, bits); }
-    static Constant *intMax(int bits = 32, bool signed_ = false) { return constant((1 << (signed_ ? bits-1 : bits))-1, bits); }
+    static Constant *intMax(int bits = 32) { return constant((1 << (bits-1))-1, bits); }
+    static Constant *intMin(int bits = 32) { return constant((1 << (bits-1)), bits); }
     Constant *autoConstant(double value) const { return likely_floating(t) ? ((likely_depth(t) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(t)); }
     AllocaInst *autoAlloca(double value) const { AllocaInst *alloca = b->CreateAlloca(ty(), 0, n); b->CreateStore(autoConstant(value), alloca); return alloca; }
 
@@ -829,7 +830,7 @@ struct MatrixBuilder
                 if (likely_signed(t)) {
                     const int depth = likely_depth(t);
                     Value *result = b->CreateAdd(i, j, n);
-                    Value *overflowResult = b->CreateAdd(b->CreateLShr(i, depth-1), intMax(depth, true));
+                    Value *overflowResult = b->CreateAdd(b->CreateLShr(i, depth-1), intMax(depth));
                     Value *overflowCondition = b->CreateICmpSGE(b->CreateOr(b->CreateXor(i, j), b->CreateNot(b->CreateXor(j, result))), zero(depth));
                     return signedSaturationHelper(result, overflowResult, overflowCondition);
                 } else {
@@ -853,7 +854,7 @@ struct MatrixBuilder
                 if (likely_signed(t)) {
                     const int depth = likely_depth(t);
                     Value *result = b->CreateSub(i, j, n);
-                    Value *overflowResult = b->CreateAdd(b->CreateLShr(i, depth-1), intMax(depth, true));
+                    Value *overflowResult = b->CreateAdd(b->CreateLShr(i, depth-1), intMax(depth));
                     Value *overflowCondition = b->CreateICmpSLT(b->CreateAnd(b->CreateXor(i, j), b->CreateXor(i, result)), zero(depth));
                     return signedSaturationHelper(result, overflowResult, overflowCondition);
                 } else {
@@ -874,17 +875,20 @@ struct MatrixBuilder
             return b->CreateFMul(i, j, n);
         } else {
             if (likely_saturation(t)) {
+                const int depth = likely_depth(t);
+                Type *originalType = Type::getIntNTy(getGlobalContext(), depth);
+                Type *extendedType = Type::getIntNTy(getGlobalContext(), 2*depth);
+                Value *result = b->CreateMul(b->CreateZExt(i, extendedType),
+                                             b->CreateZExt(j, extendedType), n);
+                Value *lo = b->CreateTrunc(result, originalType, n);
+
                 if (likely_signed(t)) {
-                    likely_assert(false, "'multiply' not implemented");
-                    return NULL;
+                    Value *hi = b->CreateTrunc(b->CreateAShr(result, depth, n), originalType, n);
+                    Value *overflowResult = b->CreateAdd(b->CreateLShr(b->CreateXor(i, j, n), depth-1, n), intMax(depth), n);
+                    Value *overflowCondition = b->CreateICmpNE(hi, b->CreateAShr(lo, depth-1, n), n);
+                    return signedSaturationHelper(b->CreateTrunc(result, i->getType(), n), overflowResult, overflowCondition);
                 } else {
-                    const int depth = likely_depth(t);
-                    Type *originalType = Type::getIntNTy(getGlobalContext(), depth);
-                    Type *extendedType = Type::getIntNTy(getGlobalContext(), 2*depth);
-                    Value *result = b->CreateMul(b->CreateZExt(i, extendedType),
-                                                 b->CreateZExt(j, extendedType), n);
                     Value *hi = b->CreateTrunc(b->CreateLShr(result, depth, n), originalType, n);
-                    Value *lo = b->CreateTrunc(result, originalType, n);
                     Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpNE(hi, zero(depth), n), originalType, n), n);
                     return b->CreateOr(lo, overflow, n);
                 }
@@ -900,7 +904,13 @@ struct MatrixBuilder
             return b->CreateFDiv(i, j, n);
         } else {
             if (likely_signed(t)) {
-                return b->CreateSDiv(i,j, n);
+                if (likely_saturation(t)) {
+                    const int depth = likely_depth(t);
+                    Value *safe_i = b->CreateAdd(i, b->CreateZExt(b->CreateICmpNE(b->CreateOr(b->CreateAdd(j, constant(1, depth), n), b->CreateAdd(i, intMin(depth), n), n), zero(depth), n), i->getType(), n), n);
+                    return b->CreateSDiv(safe_i, j, n);
+                } else {
+                    return b->CreateSDiv(i, j, n);
+                }
             } else {
                 return b->CreateUDiv(i, j, n);
             }
