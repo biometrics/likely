@@ -17,6 +17,8 @@
 #include <ctime>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <lua.hpp>
+
 #include "likely.h"
 #include "opencv.shim"
 
@@ -27,13 +29,69 @@ using namespace std;
 #define LIKELY_TEST_SECONDS 1
 
 // Optional arguments to run only a subset of the benchmarks
+static bool        BenchmarkExamples = false;
 static string      BenchmarkFunction = "";
 static likely_type BenchmarkType     = likely_type_null;
 static int         BenchmarkSize     = 0;
 
+static Mat generateData(int rows, int columns, likely_type type)
+{
+    Mat m(rows, columns, CV_MAKETYPE(typeToDepth(type),1));
+    randu(m, 0, 255);
+    return m;
+}
+
 struct Test
 {
-    void run() const;
+    void run() const
+    {
+        if (!BenchmarkFunction.empty() && BenchmarkFunction != function()) return;
+
+        for (likely_type type : types()) {
+            if ((BenchmarkType != likely_type_null) && (BenchmarkType != type)) continue;
+
+            for (int size : sizes()) {
+                if ((BenchmarkSize != 0) && (BenchmarkSize != size)) continue;
+
+                // Generate input matrix
+                Mat src = generateData(size, size, type);
+                likely_mat srcLikely = fromCvMat(src, false);
+                likely_function_1 f = (likely_function_1) likely_compile(function(), 1, srcLikely);
+                likely_release(srcLikely);
+
+                // Test correctness
+                testCorrectness(f, src, false);
+                testCorrectness(f, src, true);
+
+                // Test speed
+                Speed baseline = testBaselineSpeed(src);
+                Speed serial = testLikelySpeed(f, src, false);
+                Speed parallel = testLikelySpeed(f, src, true);
+
+                printf("%s\t%s\t%d\tSerial\t%.2e\n", function(), likely_type_to_string(type), size, serial.Hz/baseline.Hz);
+                printf("%s\t%s\t%d\tParallel\t%.2e\n", function(), likely_type_to_string(type), size, parallel.Hz/baseline.Hz);
+            }
+        }
+    }
+
+    static void runExample(const char *source)
+    {
+        static lua_State *L = likely_exec("");
+        likely_exec(source, L);
+        clock_t startTime, endTime;
+        int iter = 0;
+        startTime = endTime = clock();
+        while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
+            likely_exec(source, L);
+            endTime = clock();
+            iter++;
+        }
+        Speed speed(iter, startTime, endTime);
+        const size_t exampleStartPos = 3;
+        const size_t tabSize = 11;
+        const size_t exampleNameSize = string(source).find('\n') - exampleStartPos;
+        printf("%s%s\t%.2e\n", string(source).substr(exampleStartPos, std::min(exampleNameSize, 2*tabSize-1)).c_str(), exampleNameSize > tabSize ? "" : "\t", speed.Hz);
+    }
 
 protected:
     virtual const char *function() const = 0;
@@ -75,110 +133,67 @@ private:
             : iterations(iter), Hz(double(iter) * CLOCKS_PER_SEC / (endTime-startTime)) {}
     };
 
-    void testCorrectness(likely_function_1 f, const cv::Mat &src, bool parallel) const;
-    Speed testBaselineSpeed(const cv::Mat &src) const;
-    Speed testLikelySpeed(likely_function_1 f, const cv::Mat &src, bool parallel) const;
-    void printSpeedup(const Speed &baseline, const Speed &likely, const char *mode) const;
-};
-
-static Mat generateData(int rows, int columns, likely_type type)
-{
-    Mat m(rows, columns, CV_MAKETYPE(typeToDepth(type),1));
-    randu(m, 0, 255);
-    return m;
-}
-
-void Test::run() const
-{
-    if (!BenchmarkFunction.empty() && BenchmarkFunction != function()) return;
-
-    for (likely_type type : types()) {
-        if ((BenchmarkType != likely_type_null) && (BenchmarkType != type)) continue;
-
-        for (int size : sizes()) {
-            if ((BenchmarkSize != 0) && (BenchmarkSize != size)) continue;
-
-            // Generate input matrix
-            Mat src = generateData(size, size, type);
-            likely_mat srcLikely = fromCvMat(src, false);
-            likely_function_1 f = (likely_function_1) likely_compile(function(), 1, srcLikely);
-            likely_release(srcLikely);
-
-            // Test correctness
-            testCorrectness(f, src, false);
-            testCorrectness(f, src, true);
-
-            // Test speed
-            Speed baseline = testBaselineSpeed(src);
-            Speed serial = testLikelySpeed(f, src, false);
-            Speed parallel = testLikelySpeed(f, src, true);
-
-            printf("%s\t%s\t%d\tSerial\t%.2e\n", function(), likely_type_to_string(type), size, serial.Hz/baseline.Hz);
-            printf("%s\t%s\t%d\tParallel\t%.2e\n", function(), likely_type_to_string(type), size, parallel.Hz/baseline.Hz);
-        }
-    }
-}
-
-void Test::testCorrectness(likely_function_1 f, const Mat &src, bool parallel) const
-{
-    Mat dstOpenCV = computeBaseline(src);
-    likely_mat srcLikely = fromCvMat(src, false);
-    likely_set_parallel(&srcLikely->type, parallel);
-    likely_mat dstLikely = f(srcLikely);
-
-    Mat errorMat = abs(toCvMat(dstLikely) - dstOpenCV);
-    errorMat.convertTo(errorMat, CV_32F);
-    threshold(errorMat, errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
-    const double errors = norm(errorMat, NORM_L1);
-    if (errors > 0) {
-        likely_mat cvLikely = fromCvMat(dstOpenCV, false);
-        stringstream errorLocations;
-        errorLocations << "input\topencv\tlikely\trow\tcolumn\n";
-        for (int i=0; i<src.rows; i++)
-            for (int j=0; j<src.cols; j++)
-                if (errorMat.at<float>(i, j) == 1)
-                    errorLocations << likely_element(srcLikely, 0, j, i) << "\t"
-                                   << likely_element(cvLikely, 0, j, i) << "\t"
-                                   << likely_element(dstLikely, 0, j, i) << "\t"
-                                   << i << "\t" << j << "\n";
-        fprintf(stderr, "Test for %s differs in %g locations:\n%s", function(), errors, errorLocations.str().c_str());
-        likely_release(cvLikely);
-    }
-
-    likely_release(srcLikely);
-    likely_release(dstLikely);
-}
-
-Test::Speed Test::testBaselineSpeed(const Mat &src) const
-{
-    clock_t startTime, endTime;
-    int iter = 0;
-    startTime = endTime = clock();
-    while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
-        computeBaseline(src);
-        endTime = clock();
-        iter++;
-    }
-    return Test::Speed(iter, startTime, endTime);
-}
-
-Test::Speed Test::testLikelySpeed(likely_function_1 f, const Mat &src, bool parallel) const
-{
-    likely_mat srcLikely = fromCvMat(src, false);
-    likely_set_parallel(&srcLikely->type, parallel);
-
-    clock_t startTime, endTime;
-    int iter = 0;
-    startTime = endTime = clock();
-    while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
+    void testCorrectness(likely_function_1 f, const cv::Mat &src, bool parallel) const
+    {
+        Mat dstOpenCV = computeBaseline(src);
+        likely_mat srcLikely = fromCvMat(src, false);
+        likely_set_parallel(&srcLikely->type, parallel);
         likely_mat dstLikely = f(srcLikely);
+
+        Mat errorMat = abs(toCvMat(dstLikely) - dstOpenCV);
+        errorMat.convertTo(errorMat, CV_32F);
+        threshold(errorMat, errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
+        const double errors = norm(errorMat, NORM_L1);
+        if (errors > 0) {
+            likely_mat cvLikely = fromCvMat(dstOpenCV, false);
+            stringstream errorLocations;
+            errorLocations << "input\topencv\tlikely\trow\tcolumn\n";
+            for (int i=0; i<src.rows; i++)
+                for (int j=0; j<src.cols; j++)
+                    if (errorMat.at<float>(i, j) == 1)
+                        errorLocations << likely_element(srcLikely, 0, j, i) << "\t"
+                                       << likely_element(cvLikely, 0, j, i) << "\t"
+                                       << likely_element(dstLikely, 0, j, i) << "\t"
+                                       << i << "\t" << j << "\n";
+            fprintf(stderr, "Test for %s differs in %g locations:\n%s", function(), errors, errorLocations.str().c_str());
+            likely_release(cvLikely);
+        }
+
+        likely_release(srcLikely);
         likely_release(dstLikely);
-        endTime = clock();
-        iter++;
     }
-    likely_release(srcLikely);
-    return Test::Speed(iter, startTime, endTime);
-}
+
+    Speed testBaselineSpeed(const cv::Mat &src) const
+    {
+        clock_t startTime, endTime;
+        int iter = 0;
+        startTime = endTime = clock();
+        while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
+            computeBaseline(src);
+            endTime = clock();
+            iter++;
+        }
+        return Test::Speed(iter, startTime, endTime);
+    }
+
+    Speed testLikelySpeed(likely_function_1 f, const cv::Mat &src, bool parallel) const
+    {
+        likely_mat srcLikely = fromCvMat(src, false);
+        likely_set_parallel(&srcLikely->type, parallel);
+
+        clock_t startTime, endTime;
+        int iter = 0;
+        startTime = endTime = clock();
+        while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
+            likely_mat dstLikely = f(srcLikely);
+            likely_release(dstLikely);
+            endTime = clock();
+            iter++;
+        }
+        likely_release(srcLikely);
+        return Test::Speed(iter, startTime, endTime);
+    }
+};
 
 class addTest : public Test {
     const char *function() const { return "add(3)"; }
@@ -213,27 +228,39 @@ class logTest : public Test {
 int main(int argc, char *argv[])
 {
     // Parse arguments
-    if (argc % 2 == 0) {
-        printf("benchmark [-function <str>] [-type <type>] [-size <int>]\n");
-        return 1;
-    } else {
-        for (int i = 1; i < argc; i += 2) {
-            if      (!strcmp("-function", argv[i])) BenchmarkFunction = argv[i+1];
-            else if (!strcmp("-type", argv[i])) BenchmarkType = likely_string_to_type(argv[i+1]);
-            else if (!strcmp("-size", argv[i])) BenchmarkSize = atoi(argv[i+1]);
-            else    printf("Unrecognized argument: %s\n", argv[i]);
-        }
+    for (int i=1; i<argc; i++) {
+        if      (!strcmp("-h", argv[i])) printf("benchmark [--examples] [-function <str>] [-type <type>] [-size <int>]\n");
+        else if (!strcmp("--examples", argv[i])) BenchmarkExamples = true;
+        else if (!strcmp("-function", argv[i])) BenchmarkFunction = argv[++i];
+        else if (!strcmp("-type", argv[i])) BenchmarkType = likely_string_to_type(argv[++i]);
+        else if (!strcmp("-size", argv[i])) BenchmarkSize = atoi(argv[++i]);
+        else    printf("Unrecognized argument: %s\n", argv[i]);
     }
 
+    // Print to console immediately
     setbuf(stdout, NULL);
-    printf("Function\tType\tSize\tExecution\tSpeedup\n");
 
-    addTest().run();
-//    divideTest().run();
-//    maddTest().run();
-//    multiplyTest().run();
-//    subtractTest().run();
-//    logTest().run();
+    if (BenchmarkExamples) {
+        printf("Example\t\tSpeed\n");
+        lua_State *L = likely_exec("");
+        lua_getfield(L, -1, "likely");
+        lua_getfield(L, -1, "examples");
+        lua_pushnil(L);
+        while (lua_next(L, -2)) {
+            Test::runExample(lua_tostring(L, -1));
+            lua_pop(L, 1);
+        }
+        lua_pop(L, 2);
+        lua_close(L);
+    } else {
+        printf("Function\tType\tSize\tExecution\tSpeedup\n");
+        addTest().run();
+        //    divideTest().run();
+        //    maddTest().run();
+        //    multiplyTest().run();
+        //    subtractTest().run();
+        //    logTest().run();
+    }
 
     return 0;
 }
