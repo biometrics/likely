@@ -439,7 +439,6 @@ likely_mat likely_render(likely_const_mat m)
             }
         }
         range = (max - min)/255;
-        fprintf(stderr, "%f %f %f\n", min, max, range);
         if ((range >= 0.25) && (range < 1))
             range = 1;
     } else {
