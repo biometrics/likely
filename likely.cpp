@@ -573,8 +573,8 @@ struct MatrixBuilder
     static Constant *constant(const char *value) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), Type::getInt8PtrTy(getGlobalContext())); }
     template <typename T>
     static Constant *constant(T value, Type *type) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), type); }
-    static Constant *zero() { return constant(0); }
-    static Constant *one() { return constant(1); }
+    static Constant *zero(int bits = 32) { return constant(0, bits); }
+    static Constant *one(int bits = 32) { return constant(1, bits); }
     Constant *autoConstant(double value) const { return likely_floating(t) ? ((likely_depth(t) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(t)); }
     AllocaInst *autoAlloca(double value) const { AllocaInst *alloca = b->CreateAlloca(ty(), 0, n); b->CreateStore(autoConstant(value), alloca); return alloca; }
 
@@ -762,7 +762,7 @@ struct MatrixBuilder
                 } else {
                     Value *result = b->CreateAdd(i, j, n);
                     Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULT(result, i, n),
-                                                   Type::getIntNTy(getGlobalContext(), likely_depth(t))));
+                                                   Type::getIntNTy(getGlobalContext(), likely_depth(t))), n);
                     return b->CreateOr(result, overflow, n);
                 }
             } else {
@@ -783,7 +783,7 @@ struct MatrixBuilder
                 } else {
                     Value *result = b->CreateSub(i, j, n);
                     Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULE(result, i, n),
-                                                   Type::getIntNTy(getGlobalContext(), likely_depth(t))));
+                                                   Type::getIntNTy(getGlobalContext(), likely_depth(t))), n);
                     return b->CreateAnd(result, overflow, n);
                 }
             } else {
@@ -792,12 +792,36 @@ struct MatrixBuilder
         }
     }
 
-    Value *multiply(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFMul(i, j, n) : b->CreateMul(i, j, n); }
+    Value *multiply(Value *i, Value *j) const
+    {
+        if (likely_floating(t)) {
+            return b->CreateFMul(i, j, n);
+        } else {
+            if (likely_saturation(t)) {
+                if (likely_signed(t)) {
+                    likely_assert(false, "'multiply' not implemented");
+                    return NULL;
+                } else {
+                    const int depth = likely_depth(t);
+                    Type *originalType = Type::getIntNTy(getGlobalContext(), depth);
+                    Type *extendedType = Type::getIntNTy(getGlobalContext(), 2*depth);
+                    Value *result = b->CreateMul(b->CreateZExt(i, extendedType),
+                                                 b->CreateZExt(j, extendedType), n);
+                    Value *hi = b->CreateTrunc(b->CreateLShr(result, depth, n), originalType, n);
+                    Value *lo = b->CreateTrunc(result, originalType, n);
+                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpNE(hi, zero(depth), n), originalType, n), n);
+                    return b->CreateOr(lo, overflow, n);
+                }
+            } else {
+                return b->CreateMul(i, j, n);
+            }
+        }
+    }
 
     Value *divide(Value *i, Value *j) const
     {
         if (likely_floating(t)) {
-            b->CreateFDiv(i, j, n);
+            return b->CreateFDiv(i, j, n);
         } else {
             if (likely_signed(t)) {
                 return b->CreateSDiv(i,j, n);
