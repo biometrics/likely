@@ -295,6 +295,26 @@ static int lua_likely_new(lua_State *L)
     return 1;
 }
 
+likely_mat likely_copy(likely_const_mat m, int8_t copy_data)
+{
+    return likely_new(m->type, m->channels, m->columns, m->rows, m->frames, m->data, copy_data);
+}
+
+static int lua_likely_copy(lua_State *L)
+{
+    const int args = lua_gettop(L);
+    bool copy_data = false;
+    likely_mat m = NULL;
+    switch (args) {
+        case 2: copy_data = lua_toboolean(L, 2);
+        case 1: m = checkLuaMat(L);
+        case 0: break;
+        default: lua_likely_assert(L, false, "'copy' expected 1-2 arguments, got: %d", args);
+    }
+    *newLuaMat(L) = likely_copy(m, copy_data);
+    return 1;
+}
+
 likely_mat likely_retain(likely_mat m)
 {
     if (m && m->ref_count)
@@ -333,10 +353,8 @@ static likely_mat likelyReadHelper(const char *fileName, lua_State *L = NULL)
 {
     static string previousFileName;
     static likely_mat previousMat = NULL;
-    if (previousFileName == fileName) {
-        // The hash is modifiable, so we need to return a (shallow) copy
-        return likely_new(previousMat->type, previousMat->channels, previousMat->columns, previousMat->rows, previousMat->frames, previousMat->data);
-    }
+    if (previousFileName == fileName)
+        return likely_copy(previousMat);
 
     cv::Mat m = cv::imread(fileName, CV_LOAD_IMAGE_UNCHANGED);
     lua_likely_assert(L, m.data, "'read' failed to open: %s", fileName);
@@ -401,11 +419,8 @@ static int lua_likely_encode(lua_State *L)
 
 likely_mat likely_render(likely_const_mat m)
 {
-    if ((likely_depth(m->type) == 8) && !likely_floating(m->type) && (m->channels == 3)) {
-        likely_mat n = const_cast<likely_mat>(m); // We don't consider a call to retain as violating logical constness
-        likely_retain(n);
-        return n;
-    }
+    if (((m->type & likely_type_mask) == likely_type_u8) && (m->channels == 3))
+        return likely_copy(m);
 
     double min, range;
     if ((m->type & likely_type_mask) != likely_type_u8) {
@@ -424,7 +439,8 @@ likely_mat likely_render(likely_const_mat m)
             }
         }
         range = (max - min)/255;
-        if ((range >= 0.5) && (range < 1))
+        fprintf(stderr, "%f %f %f\n", min, max, range);
+        if ((range >= 0.25) && (range < 1))
             range = 1;
     } else {
         min = 0;
@@ -1784,6 +1800,7 @@ int luaopen_likely(lua_State *L)
         {"__newindex", lua_likely__newindex},
         {"__tostring", lua_likely__tostring},
         {"__gc", lua_likely__gc},
+        {"copy", lua_likely_copy},
         {"get", lua_likely_get},
         {"set", lua_likely_set},
         {"elements", lua_likely_elements},
