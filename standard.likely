@@ -132,6 +132,10 @@ add = closure(
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return lhs + rhs
+    elseif rhs == 0 then
+      return lhs
+    elseif lhs == 0 then
+      return rhs
     else
       return likely.concat(lhs, rhs, "+")
     end
@@ -144,6 +148,8 @@ subtract = closure(
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return lhs - rhs
+    elseif lhs == 0 then
+      return rhs
     else
       return likely.concat(lhs, rhs, "-")
     end
@@ -156,6 +162,10 @@ multiply = closure(
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return lhs * rhs
+    elseif rhs == 1 then
+      return lhs
+    elseif lhs == 1 then
+      return rhs
     else
       return likely.concat(lhs, rhs, "*")
     end
@@ -168,9 +178,10 @@ divide = closure(
   function(rhs, lhs)
     if rhs == 0 then
       error("Denominator is zero!")
-    end
-    if likely.isnum(rhs, lhs) then
+    elseif likely.isnum(rhs, lhs) then
       return lhs / rhs
+    elseif rhs == 1 then
+      return lhs
     else
       return likely.concat(lhs, rhs, "/")
     end
