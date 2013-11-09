@@ -55,7 +55,7 @@ struct Test
 
                 // Generate input matrix
                 Mat src = generateData(size, size, type);
-                likely_mat srcLikely = fromCvMat(src, false);
+                likely_mat srcLikely = fromCvMat(src);
                 likely_function_1 f = (likely_function_1) likely_compile(function(), 1, srcLikely);
                 likely_release(srcLikely);
 
@@ -99,8 +99,9 @@ protected:
     virtual std::vector<likely_type> types() const
     {
         std::vector<likely_type> types;
+//        types.push_back(likely_type_u8);
 //        types.push_back(likely_type_i16);
-//        types.push_back(likely_type_i32);
+        types.push_back(likely_type_i32);
         types.push_back(likely_type_f32);
         types.push_back(likely_type_f64);
         return types;
@@ -133,10 +134,18 @@ private:
             : iterations(iter), Hz(double(iter) * CLOCKS_PER_SEC / (endTime-startTime)) {}
     };
 
+    static likely_mat fromCvMat(const Mat &src)
+    {
+        likely_mat m = ::fromCvMat(src, false);
+        if (!likely_floating(m->type) && (likely_depth(m->type) <= 16))
+            likely_set_saturation(&m->type, true);
+        return m;
+    }
+
     void testCorrectness(likely_function_1 f, const cv::Mat &src, bool parallel) const
     {
         Mat dstOpenCV = computeBaseline(src);
-        likely_mat srcLikely = fromCvMat(src, false);
+        likely_mat srcLikely = fromCvMat(src);
         likely_set_parallel(&srcLikely->type, parallel);
         likely_mat dstLikely = f(srcLikely);
 
@@ -145,7 +154,7 @@ private:
         threshold(errorMat, errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
         const double errors = norm(errorMat, NORM_L1);
         if (errors > 0) {
-            likely_mat cvLikely = fromCvMat(dstOpenCV, false);
+            likely_mat cvLikely = fromCvMat(dstOpenCV);
             stringstream errorLocations;
             errorLocations << "input\topencv\tlikely\trow\tcolumn\n";
             for (int i=0; i<src.rows; i++)
@@ -178,7 +187,7 @@ private:
 
     Speed testLikelySpeed(likely_function_1 f, const cv::Mat &src, bool parallel) const
     {
-        likely_mat srcLikely = fromCvMat(src, false);
+        likely_mat srcLikely = fromCvMat(src);
         likely_set_parallel(&srcLikely->type, parallel);
 
         clock_t startTime, endTime;
@@ -196,13 +205,13 @@ private:
 };
 
 class addTest : public Test {
-    const char *function() const { return "add(3)"; }
-    Mat computeBaseline(const Mat &src) const { Mat dst; add(src, 3, dst); return dst; }
+    const char *function() const { return "add(32)"; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; add(src, 32, dst); return dst; }
 };
 
-class divideTest : public Test {
-    const char *function() const { return "divide(2)"; }
-    Mat computeBaseline(const Mat &src) const { Mat dst; divide(src, 2, dst); return dst; }
+class subtractTest : public Test {
+    const char *function() const { return "subtract(32)"; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; subtract(src, 32, dst); return dst; }
 };
 
 class multiplyTest : public Test {
@@ -210,14 +219,14 @@ class multiplyTest : public Test {
     Mat computeBaseline(const Mat &src) const { Mat dst; multiply(src, 2, dst); return dst; }
 };
 
+class divideTest : public Test {
+    const char *function() const { return "divide(2)"; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; divide(src, 2, dst); return dst; }
+};
+
 class maddTest : public Test {
     const char *function() const { return "madd(2,3)"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth(), 2, 3); return dst; }
-};
-
-class subtractTest : public Test {
-    const char *function() const { return "subtract(3)"; }
-    Mat computeBaseline(const Mat &src) const { Mat dst; subtract(src, -3, dst); return dst; }
 };
 
 class logTest : public Test {
@@ -255,11 +264,11 @@ int main(int argc, char *argv[])
     } else {
         printf("Function\tType\tSize\tExecution\tSpeedup\n");
         addTest().run();
-        //    divideTest().run();
-        //    maddTest().run();
-        //    multiplyTest().run();
-        //    subtractTest().run();
-        //    logTest().run();
+        subtractTest().run();
+        multiplyTest().run();
+        divideTest().run();
+//        maddTest().run();
+//        logTest().run();
     }
 
     return 0;
