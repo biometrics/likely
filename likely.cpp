@@ -967,7 +967,7 @@ struct MatrixBuilder
         b->SetInsertPoint(loopLatch);
         BasicBlock *loopExit = BasicBlock::Create(getGlobalContext(), n+"_loop_exit", f);
         BranchInst *latch = b->CreateCondBr(b->CreateICmpEQ(increment, loop.stop, n+"_loop_test"), loopExit, loop.body);
-        latch->setMetadata("llvm.loop.parallel", loop.node);
+        latch->setMetadata("llvm.loop", loop.node);
         loop.i->addIncoming(increment, loopLatch);
         b->SetInsertPoint(loopExit);
         loops.pop();
