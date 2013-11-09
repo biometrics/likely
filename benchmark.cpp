@@ -17,6 +17,7 @@
 #include <ctime>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <lua.hpp>
 
 #include "likely.h"
@@ -36,9 +37,17 @@ static int         BenchmarkSize     = 0;
 
 static Mat generateData(int rows, int columns, likely_type type)
 {
-    Mat m(rows, columns, CV_MAKETYPE(typeToDepth(type),1));
-    randu(m, 0, 255);
-    return m;
+    static Mat m;
+    if (!m.data) {
+        m = imread("../img/Lenna.tiff");
+        assert(m.data);
+        cvtColor(m, m, CV_BGR2GRAY);
+    }
+
+    Mat n;
+    resize(m, n, Size(columns, rows), 0, 0, INTER_NEAREST);
+    n.convertTo(n, typeToDepth(type));
+    return n;
 }
 
 struct Test
@@ -68,8 +77,8 @@ struct Test
                 Speed serial = testLikelySpeed(f, src, false);
                 Speed parallel = testLikelySpeed(f, src, true);
 
-                printf("%s\t%s\t%d\tSerial\t%.2e\n", function(), likely_type_to_string(type), size, serial.Hz/baseline.Hz);
-                printf("%s\t%s\t%d\tParallel\t%.2e\n", function(), likely_type_to_string(type), size, parallel.Hz/baseline.Hz);
+                printf("%s \t%s \t%d \tSerial \t%.2e\n", function(), likely_type_to_string(type), size, serial.Hz/baseline.Hz);
+                printf("%s \t%s \t%d \tParallel \t%.2e\n", function(), likely_type_to_string(type), size, parallel.Hz/baseline.Hz);
             }
         }
     }
@@ -88,9 +97,8 @@ struct Test
         }
         Speed speed(iter, startTime, endTime);
         const size_t exampleStartPos = 3;
-        const size_t tabSize = 11;
         const size_t exampleNameSize = string(source).find('\n') - exampleStartPos;
-        printf("%s%s\t%.2e\n", string(source).substr(exampleStartPos, std::min(exampleNameSize, 2*tabSize-1)).c_str(), exampleNameSize > tabSize ? "" : "\t", speed.Hz);
+        printf("%s \t%.2e \n", string(source).substr(exampleStartPos, exampleNameSize).c_str(), speed.Hz);
     }
 
 protected:
@@ -161,7 +169,7 @@ private:
                 for (int j=0; j<src.cols; j++)
                     if (errorMat.at<float>(i, j) == 1)
                         errorLocations << likely_element(srcLikely, 0, j, i) << "\t"
-                                       << likely_element(cvLikely, 0, j, i) << "\t"
+                                       << likely_element(cvLikely,  0, j, i) << "\t"
                                        << likely_element(dstLikely, 0, j, i) << "\t"
                                        << i << "\t" << j << "\n";
             fprintf(stderr, "Test for %s differs in %g locations:\n%s", function(), errors, errorLocations.str().c_str());
@@ -250,7 +258,7 @@ int main(int argc, char *argv[])
     setbuf(stdout, NULL);
 
     if (BenchmarkExamples) {
-        printf("Example\t\tSpeed\n");
+        printf("Example \tSpeed\n");
         lua_State *L = likely_exec("");
         lua_getfield(L, -1, "likely");
         lua_getfield(L, -1, "examples");
@@ -262,7 +270,7 @@ int main(int argc, char *argv[])
         lua_pop(L, 2);
         lua_close(L);
     } else {
-        printf("Function\tType\tSize\tExecution\tSpeedup\n");
+        printf("Function \tType \tSize \tExecution \tSpeedup\n");
         addTest().run();
         subtractTest().run();
         multiplyTest().run();
