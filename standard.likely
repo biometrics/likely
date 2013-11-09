@@ -36,7 +36,7 @@ new = closure(
    {"rows", "matrix rows", 1},
    {"frames", "matrix frames", 1},
    {"data", "address of existing data buffer", 0},
-   {"copy", "copy the data buffer", 0}},
+   {"copy", "copy the data buffer", false}},
   likely.new)
 
 read = closure(

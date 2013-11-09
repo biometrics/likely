@@ -92,7 +92,7 @@ typedef struct
     likely_data *data;
     likely_type type;
     likely_size channels, columns, rows, frames;
-    likely_size ref_count;
+    struct likely_matrix_private *d_ptr; // Private data for internal bookkeeping
 } likely_matrix;
 typedef likely_matrix *likely_mat;
 typedef const likely_matrix *likely_const_mat;

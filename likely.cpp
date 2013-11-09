@@ -54,6 +54,12 @@ static Module *TheModule = NULL;
 static StructType *TheMatrixStruct = NULL;
 static const int MaxRegisterWidth = 32; // This should be determined at run time
 
+typedef struct likely_matrix_private
+{
+    size_t data_bytes;
+    int ref_count;
+} likely_matrix_private;
+
 static bool likelyAssertHelper(bool condition, const char *format, va_list ap, lua_State *L = NULL)
 {
     if (condition) return true;
@@ -133,7 +139,6 @@ static int lua_likely_get(lua_State *L)
     else if (!strcmp(field, "columns"))       lua_pushinteger(L, m->columns);
     else if (!strcmp(field, "rows"))          lua_pushinteger(L, m->rows);
     else if (!strcmp(field, "frames"))        lua_pushinteger(L, m->frames);
-    else if (!strcmp(field, "ref_count"))     lua_pushinteger(L, m->ref_count);
     else if (!strcmp(field, "depth"))         lua_pushinteger(L, likely_depth(m->type));
     else if (!strcmp(field, "signed"))        lua_pushboolean(L, likely_signed(m->type));
     else if (!strcmp(field, "floating"))      lua_pushboolean(L, likely_floating(m->type));
@@ -177,7 +182,6 @@ static int lua_likely_set(lua_State *L)
     else if (!strcmp(field, "columns"))     { m->columns   = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected columns to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "rows"))        { m->rows      = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected rows to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "frames"))      { m->frames    = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected frames to be an integer, got: %s", lua_tostring(L, 3)); }
-    else if (!strcmp(field, "ref_count"))   { m->ref_count = lua_tointegerx(L, 3, &isnum); likely_assert(isnum, "'set' expected ref_count to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "depth"))       { likely_set_depth(&m->type, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected depth to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "signed"))        likely_set_signed(&m->type, lua_toboolean(L, 3));
     else if (!strcmp(field, "floating"))      likely_set_floating(&m->type, lua_toboolean(L, 3));
@@ -233,38 +237,45 @@ static likely_mat *newLuaMat(lua_State *L)
 
 // Note: these are currently not used in a thread safe manner
 static likely_mat recycledBuffer = NULL;
-static size_t recycledDataBytes = 0;
 
-static likely_data *alignedPointer(likely_mat m)
+static likely_data *alignedDataPointer(likely_mat m)
 {
-    return reinterpret_cast<likely_data*>((uintptr_t(m+1)+(MaxRegisterWidth-1)) & ~uintptr_t(MaxRegisterWidth-1));
+    return reinterpret_cast<likely_data*>((uintptr_t(m+1) + sizeof(likely_matrix_private) + (MaxRegisterWidth-1)) & ~uintptr_t(MaxRegisterWidth-1));
 }
 
 likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, int8_t copy)
 {
-    likely_mat dst;
-    const size_t dataBytes =  uint64_t(likely_depth(type)) * uint64_t((data && !copy) ? 0 : channels*columns*rows*frames) / uint64_t(8);
-    const size_t headerBytes = sizeof(likely_matrix) + (MaxRegisterWidth - 1);
+    likely_mat m;
+    size_t dataBytes = ((data && !copy) ? 0 : uint64_t(likely_depth(type)) * channels * columns * rows * frames / 8);
+    const size_t headerBytes = sizeof(likely_matrix) + sizeof(likely_matrix_private) + (MaxRegisterWidth - 1);
     if (recycledBuffer) {
-        if (recycledDataBytes >= dataBytes) dst = recycledBuffer;
-        else                                dst = (likely_mat) realloc(recycledBuffer, headerBytes + dataBytes);
+        const size_t recycledDataBytes = recycledBuffer->d_ptr->data_bytes;
+        if (recycledDataBytes >= dataBytes) { m = recycledBuffer; dataBytes = recycledDataBytes; }
+        else                                m = (likely_mat) realloc(recycledBuffer, headerBytes + dataBytes);
         recycledBuffer = NULL;
     } else {
-        dst = (likely_mat) malloc(headerBytes + dataBytes);
+        m = (likely_mat) malloc(headerBytes + dataBytes);
     }
-    dst->data = alignedPointer(dst);
-    dst->type = type;
-    dst->channels = channels;
-    dst->columns = columns;
-    dst->rows = rows;
-    dst->frames = frames;
-    dst->ref_count = 1;
 
-    if (data) {
-        if (copy) memcpy(dst->data, data, likely_bytes(dst));
-        else      dst->data = data;
+    m->type = type;
+    m->channels = channels;
+    m->columns = columns;
+    m->rows = rows;
+    m->frames = frames;
+
+    assert(alignof(likely_matrix_private) <= alignof(likely_matrix));
+    m->d_ptr = reinterpret_cast<likely_matrix_private*>(m+1);
+    m->d_ptr->ref_count = 1;
+    m->d_ptr->data_bytes = dataBytes;
+
+    if (data && !copy) {
+        m->data = data;
+    } else {
+        m->data = alignedDataPointer(m);
+        if (data && copy) memcpy(m->data, data, likely_bytes(m));
     }
-    return dst;
+
+    return m;
 }
 
 static int lua_likely_new(lua_State *L)
@@ -317,28 +328,22 @@ static int lua_likely_copy(lua_State *L)
 
 likely_mat likely_retain(likely_mat m)
 {
-    if (m && m->ref_count)
-        m->ref_count++;
+    if (!m) return m;
+    ++m->d_ptr->ref_count;
     return m;
 }
 
 void likely_release(likely_mat m)
 {
-    if (!m || !m->ref_count) return;
-    m->ref_count--;
-    if (m->ref_count > 0) return;
-    const size_t dataBytes = (m->data == alignedPointer(m) ? likely_bytes(m) : 0); // TODO: make this safer
+    if (!m) return;
+    if (--m->d_ptr->ref_count != 0) return;
+    const size_t dataBytes = m->d_ptr->data_bytes;
     if (recycledBuffer) {
-        if (dataBytes > recycledDataBytes) {
-            free(recycledBuffer);
-            recycledBuffer = m;
-            recycledDataBytes = dataBytes;
-        } else {
-            free(m);
-        }
+        if (dataBytes > recycledBuffer->d_ptr->data_bytes)
+            swap(m, recycledBuffer);
+        free(m);
     } else {
         recycledBuffer = m;
-        recycledDataBytes = dataBytes;
     }
 }
 
@@ -1333,14 +1338,14 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
         targetMachine = engineBuilder.selectTarget();
         likely_assert(targetMachine != NULL, "likely_compile_n failed to create LLVM TargetMachine with error: %s", error.c_str());
 
-        TheMatrixStruct = StructType::create("Matrix",
+        TheMatrixStruct = StructType::create("likely_matrix",
                                              Type::getInt8PtrTy(getGlobalContext()), // data
                                              Type::getInt32Ty(getGlobalContext()),   // type
                                              Type::getInt32Ty(getGlobalContext()),   // channels
                                              Type::getInt32Ty(getGlobalContext()),   // columns
                                              Type::getInt32Ty(getGlobalContext()),   // rows
                                              Type::getInt32Ty(getGlobalContext()),   // frames
-                                             Type::getInt32Ty(getGlobalContext()),   // ref_count
+                                             PointerType::getUnqual(StructType::create(getGlobalContext(), "likely_matrix_private")), // d_ptr
                                              NULL);
 
         const int numWorkers = std::max((int)thread::hardware_concurrency()-1, 1);
