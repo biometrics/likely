@@ -611,7 +611,7 @@ struct MatrixBuilder
     Value *v;
 
     struct Loop {
-        BasicBlock *body, *exit;
+        BasicBlock *body;
         PHINode *i;
         Value *stop;
         MDNode *node;
@@ -939,7 +939,6 @@ struct MatrixBuilder
         Loop loop;
         loop.stop = stop;
         loop.body = BasicBlock::Create(getGlobalContext(), n+"_loop_body", f);
-        loop.exit = BasicBlock::Create(getGlobalContext(), n+"_loop_exit", f);
 
         // Create self-referencing loop node
         vector<Value*> metadata;
@@ -963,13 +962,14 @@ struct MatrixBuilder
     void endLoop() {
         const Loop &loop = loops.top();
         Value *increment = b->CreateAdd(loop.i, one(), n+"_loop_increment");
-        BasicBlock *loopLatch = BasicBlock::Create(getGlobalContext(), "_loop_latch", f);
+        BasicBlock *loopLatch = BasicBlock::Create(getGlobalContext(), n+"_loop_latch", f);
         b->CreateBr(loopLatch);
         b->SetInsertPoint(loopLatch);
-        BranchInst *latch = b->CreateCondBr(b->CreateICmpEQ(increment, loop.stop, n+"_loop_test"), loop.exit, loop.body);
+        BasicBlock *loopExit = BasicBlock::Create(getGlobalContext(), n+"_loop_exit", f);
+        BranchInst *latch = b->CreateCondBr(b->CreateICmpEQ(increment, loop.stop, n+"_loop_test"), loopExit, loop.body);
         latch->setMetadata("llvm.loop.parallel", loop.node);
         loop.i->addIncoming(increment, loopLatch);
-        b->SetInsertPoint(loop.exit);
+        b->SetInsertPoint(loopExit);
         loops.pop();
     }
 
