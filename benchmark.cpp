@@ -139,6 +139,9 @@ protected:
         return sizes;
     }
 
+    // OpenCV rounds integer division, Likely floors it.
+    virtual bool ignoreOffByOne() const { return false; }
+
 private:
     struct Speed
     {
@@ -167,19 +170,22 @@ private:
         Mat errorMat = abs(toCvMat(dstLikely) - dstOpenCV);
         errorMat.convertTo(errorMat, CV_32F);
         threshold(errorMat, errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
-        const double errors = norm(errorMat, NORM_L1);
+        double errors = norm(errorMat, NORM_L1);
         if (errors > 0) {
             likely_mat cvLikely = fromCvMat(dstOpenCV);
             stringstream errorLocations;
             errorLocations << "input\topencv\tlikely\trow\tcolumn\n";
             for (int i=0; i<src.rows; i++)
                 for (int j=0; j<src.cols; j++)
-                    if (errorMat.at<float>(i, j) == 1)
-                        errorLocations << likely_element(srcLikely, 0, j, i) << "\t"
-                                       << likely_element(cvLikely,  0, j, i) << "\t"
-                                       << likely_element(dstLikely, 0, j, i) << "\t"
-                                       << i << "\t" << j << "\n";
-            fprintf(stderr, "Test for %s differs in %g locations:\n%s", function(), errors, errorLocations.str().c_str());
+                    if (errorMat.at<float>(i, j) == 1) {
+                        const double src = likely_element(srcLikely, 0, j, i);
+                        const double cv  = likely_element(cvLikely,  0, j, i);
+                        const double dst = likely_element(dstLikely, 0, j, i);
+                        if (ignoreOffByOne() && (cv-dst == 1)) errors--;
+                        else errorLocations << src << "\t" << cv << "\t" << dst << "\t" << i << "\t" << j << "\n";
+                    }
+            if (errors > 0)
+                fprintf(stderr, "Test for %s differs in %g locations:\n%s", function(), errors, errorLocations.str().c_str());
             likely_release(cvLikely);
         }
 
@@ -237,6 +243,7 @@ class multiplyTest : public Test {
 class divideTest : public Test {
     const char *function() const { return "divide(2)"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; divide(src, 2, dst); return dst; }
+    bool ignoreOffByOne() const { return true; }
 };
 
 class maddTest : public Test {
