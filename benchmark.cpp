@@ -114,8 +114,8 @@ protected:
     virtual std::vector<likely_type> types() const
     {
         std::vector<likely_type> types;
-//        types.push_back(likely_type_u8);
-//        types.push_back(likely_type_i16);
+        types.push_back(likely_type_u8);
+        types.push_back(likely_type_u16);
         types.push_back(likely_type_i32);
         types.push_back(likely_type_f32);
         types.push_back(likely_type_f64);
