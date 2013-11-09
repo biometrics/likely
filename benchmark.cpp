@@ -34,6 +34,8 @@ static bool        BenchmarkExamples = false;
 static string      BenchmarkFunction = "";
 static likely_type BenchmarkType     = likely_type_null;
 static int         BenchmarkSize     = 0;
+static bool        BenchmarkSerial   = false;
+static bool        BenchmarkParallel = false;
 
 static Mat generateData(int rows, int columns, likely_type type)
 {
@@ -74,11 +76,16 @@ struct Test
 
                 // Test speed
                 Speed baseline = testBaselineSpeed(src);
-                Speed serial = testLikelySpeed(f, src, false);
-                Speed parallel = testLikelySpeed(f, src, true);
 
-                printf("%s \t%s \t%d \tSerial \t%.2e\n", function(), likely_type_to_string(type), size, serial.Hz/baseline.Hz);
-                printf("%s \t%s \t%d \tParallel \t%.2e\n", function(), likely_type_to_string(type), size, parallel.Hz/baseline.Hz);
+                if (BenchmarkSerial) {
+                    Speed serial = testLikelySpeed(f, src, false);
+                    printf("%s \t%s \t%d \tSerial \t%.2e\n", function(), likely_type_to_string(type), size, serial.Hz/baseline.Hz);
+                }
+
+                if (BenchmarkParallel) {
+                    Speed parallel = testLikelySpeed(f, src, true);
+                    printf("%s \t%s \t%d \tParallel \t%.2e\n", function(), likely_type_to_string(type), size, parallel.Hz/baseline.Hz);
+                }
             }
         }
     }
@@ -248,11 +255,16 @@ int main(int argc, char *argv[])
     for (int i=1; i<argc; i++) {
         if      (!strcmp("-h", argv[i])) printf("benchmark [--examples] [-function <str>] [-type <type>] [-size <int>]\n");
         else if (!strcmp("--examples", argv[i])) BenchmarkExamples = true;
+        else if (!strcmp("--serial", argv[i])) BenchmarkSerial = true;
+        else if (!strcmp("--parallel", argv[i])) BenchmarkParallel = true;
         else if (!strcmp("-function", argv[i])) BenchmarkFunction = argv[++i];
         else if (!strcmp("-type", argv[i])) BenchmarkType = likely_string_to_type(argv[++i]);
         else if (!strcmp("-size", argv[i])) BenchmarkSize = atoi(argv[++i]);
-        else    printf("Unrecognized argument: %s\n", argv[i]);
+        else    { printf("Unrecognized argument: %s\nTry running 'benchmark -h' for help", argv[i]); return 1; }
     }
+
+    if (!BenchmarkSerial && !BenchmarkParallel)
+        BenchmarkSerial = BenchmarkParallel = true;
 
     // Print to console immediately
     setbuf(stdout, NULL);
