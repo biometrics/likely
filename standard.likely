@@ -28,6 +28,7 @@ reserved = likely.reserved
 closure = likely.closure
 
 new = closure(
+  "new",
   nil,
   "Create an empty matrix",
   {{"type", "matrix type", f32},
@@ -40,12 +41,14 @@ new = closure(
   likely.new)
 
 read = closure(
+  "read",
   nil,
   "Create a matrix from a file",
   {{"file_name", "path to file on disk"}},
   likely.read)
 
 compile = closure(
+  "compile",
   nil,
   "Create kernel",
   {{"function", "function expression"}},
@@ -121,6 +124,7 @@ end
 
 -- Basic arithmetic
 set = closure(
+  "set",
   function(value, matrix)
     return value
   end,
@@ -129,6 +133,7 @@ set = closure(
    {"matrix", "used to determine output size and type"}})
 
 add = closure(
+  "add",
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return lhs + rhs
@@ -145,6 +150,7 @@ add = closure(
    {"lhs", "left hand side"}})
 
 subtract = closure(
+  "subtract",
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return lhs - rhs
@@ -159,6 +165,7 @@ subtract = closure(
    {"lhs", "left hand side"}})
 
 multiply = closure(
+  "multiply",
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return lhs * rhs
@@ -175,6 +182,7 @@ multiply = closure(
    {"lhs", "left hand side"}})
 
 divide = closure(
+  "divide",
   function(rhs, lhs)
     if rhs == 0 then
       error("Denominator is zero!")
@@ -192,6 +200,7 @@ divide = closure(
 
 -- Basic math
 log = closure(
+  "log",
   function(operand)
     if likely.isnum(operand) then
       return log(operand)
@@ -203,6 +212,7 @@ log = closure(
   {{"operand", "operand"}})
 
 log2 = closure(
+  "log2",
   function(operand)
     if likely.isnum(operand) then
       return log2(operand)
@@ -214,6 +224,7 @@ log2 = closure(
   {{"operand", "operand"}})
 
 log10 = closure(
+  "log10",
   function(operand)
     if likely.isnum(operand) then
       return log10(operand)
@@ -225,6 +236,7 @@ log10 = closure(
   {{"operand", "operand"}})
 
 sin = closure(
+  "sin",
   function(operand)
     if likely.isnum(operand) then
       return sin(operand)
@@ -236,6 +248,7 @@ sin = closure(
   {{"operand", "operand"}})
 
 cos = closure(
+  "cos",
   function(operand)
     if likely.isnum(operand) then
       return cos(operand)
@@ -247,6 +260,7 @@ cos = closure(
   {{"operand", "operand"}})
 
 fabs = closure(
+  "fabs",
   function(operand)
     if likely.isnum(operand) then
       return fabs(operand)
@@ -258,6 +272,7 @@ fabs = closure(
   {{"operand", "operand"}})
 
 sqrt = closure(
+  "sqrt",
   function(operand)
     if likely.isnum(operand) then
       return sqrt(operand)
@@ -269,6 +284,7 @@ sqrt = closure(
   {{"operand", "operand"}})
 
 exp = closure(
+  "exp",
   function(operand)
     if likely.isnum(operand) then
       return exp(operand)
@@ -280,6 +296,7 @@ exp = closure(
   {{"operand", "operand"}})
 
 pow = closure(
+  "pow",
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return pow(lhs, rhs)
@@ -293,6 +310,7 @@ pow = closure(
 
 -- Casting functions
 zext = closure(
+  "zext",
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return zext(lhs, rhs)
@@ -305,6 +323,7 @@ zext = closure(
    {"lhs", "left hand side"}})
 
 sext = closure(
+  "sext",
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return sext(lhs, rhs)
@@ -317,6 +336,7 @@ sext = closure(
    {"lhs", "left hand side"}})
 
 fpext = closure(
+  "fpext",
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return fpext(lhs, rhs)
@@ -329,6 +349,7 @@ fpext = closure(
    {"lhs", "left hand side"}})
 
 trunc = closure(
+  "trunc",
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return trunc(lhs, rhs)
@@ -341,6 +362,7 @@ trunc = closure(
    {"lhs", "left hand side"}})
 
 fptrunc = closure(
+  "fptrunc",
   function(rhs, lhs)
     if likely.isnum(rhs, lhs) then
       return fptrunc(lhs, rhs)

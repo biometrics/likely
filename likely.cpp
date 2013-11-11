@@ -669,34 +669,6 @@ struct MatrixBuilder
         setFrames(matrix, frames());
     }
 
-    Value *newMat() const
-    {
-        static Function *likely_new = NULL;
-        if (likely_new == NULL) {
-            Type *newReturn = PointerType::getUnqual(TheMatrixStruct);
-            vector<Type*> newParameters;
-            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // type
-            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // channels
-            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // columns
-            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // rows
-            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // frames
-            newParameters.push_back(Type::getInt8PtrTy(getGlobalContext())); // data
-            newParameters.push_back(Type::getInt8Ty(getGlobalContext())); // copy
-            FunctionType* elementsType = FunctionType::get(newReturn, newParameters, false);
-            likely_new = Function::Create(elementsType, GlobalValue::ExternalLinkage, "likely_new", m);
-            likely_new->setCallingConv(CallingConv::C);
-        }
-        std::vector<Value*> args;
-        args.push_back(type());
-        args.push_back(channels());
-        args.push_back(columns());
-        args.push_back(rows());
-        args.push_back(frames());
-        args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(getGlobalContext())));
-        args.push_back(constant(1, 8));
-        return b->CreateCall(likely_new, args);
-    }
-
     Value *get(int mask) const { return b->CreateAnd(type(), constant(mask, 8*sizeof(likely_type))); }
     void set(int value, int mask) const { setType(b->CreateOr(b->CreateAnd(type(), constant(~mask, 8*sizeof(likely_type))), b->CreateAnd(constant(value, 8*sizeof(likely_type)), constant(mask, 8*sizeof(likely_type))))); }
     void setBit(bool on, int mask) const { on ? setType(b->CreateOr(type(), constant(mask, 8*sizeof(likely_type)))) : setType(b->CreateAnd(type(), constant(~mask, 8*sizeof(likely_type)))); }
@@ -1003,17 +975,16 @@ class KernelBuilder
     string name;
     vector<string> stack;
     vector<likely_type> types;
-    MatrixBuilder kernel;
-    PHINode *i = NULL;
-    Module *m;
-    ExecutionEngine *e;
-    TargetMachine *tm;
+    Module *m = NULL;
+    ExecutionEngine *ee = NULL;
+    TargetMachine *tm = NULL;
 
 public:
     KernelBuilder(const string &name_, const vector<string> &tokens, const vector<likely_type> &types_)
         : name(name_), stack(tokens), types(types_)
     {
         m = new Module(name, getGlobalContext());
+        likely_assert(m != NULL, "KernelBuilder failed to create LLVM Module");
         m->setTargetTriple(sys::getProcessTriple());
 
         string error;
@@ -1023,8 +994,8 @@ public:
         engineBuilder.setOptLevel(CodeGenOpt::Aggressive);
         engineBuilder.setErrorStr(&error);
 
-        e = engineBuilder.create();
-        likely_assert(e != NULL, "KernelBuilder failed to create LLVM ExecutionEngine with error: %s", error.c_str());
+        ee = engineBuilder.create();
+        likely_assert(ee != NULL, "KernelBuilder failed to create LLVM ExecutionEngine with error: %s", error.c_str());
 
         tm = engineBuilder.selectTarget();
         likely_assert(tm != NULL, "KernelBuilder failed to create LLVM TargetMachine with error: %s", error.c_str());
@@ -1034,8 +1005,15 @@ public:
     {
         Function *function = m->getFunction(name);
         if (function != NULL)
-            return e->getPointerToFunction(function);
+            return ee->getPointerToFunction(function);
         function = getFunction(name, m, types.size(), PointerType::getUnqual(TheMatrixStruct));
+
+        function->addFnAttr(Attribute::NoUnwind);
+        function->setDoesNotAlias(0);
+        for (size_t i=1; i<=function->arg_size(); i++) {
+            function->setDoesNotAlias(i);
+            function->setDoesNotCapture(i);
+        }
 
         vector<Value*> srcs;
         getValues(function, srcs);
@@ -1043,181 +1021,119 @@ public:
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
 
-        likely_type kernelType = likely_type_null;
-        for (likely_type type : types)
-            kernelType |= type;
+        static FunctionType* LikelyNewSignature = NULL;
+        if (LikelyNewSignature == NULL) {
+            Type *newReturn = PointerType::getUnqual(TheMatrixStruct);
+            vector<Type*> newParameters;
+            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // type
+            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // channels
+            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // columns
+            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // rows
+            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // frames
+            newParameters.push_back(Type::getInt8PtrTy(getGlobalContext())); // data
+            newParameters.push_back(Type::getInt8Ty(getGlobalContext())); // copy
+            LikelyNewSignature = FunctionType::get(newReturn, newParameters, false);
+        }
 
-        kernel = MatrixBuilder(&builder, function, "kernel", kernelType, srcs[0]);
+        Function *likelyNew = Function::Create(LikelyNewSignature, GlobalValue::ExternalLinkage, "likely_new", m);
+        likelyNew->setCallingConv(CallingConv::C);
+        likelyNew->setDoesNotAlias(0);
 
-        //    if (!(*kernelPointer).second.makeAllocation(function, types))
-        //        return MatrixBuilder::cleanup(function);
+        MatrixBuilder matrix(&builder, function, "src", types[0], srcs[0]);
 
-        //    Function *function = TheModule->getFunction(name);
-        //    if (function != NULL)
-        //        return executionEngine->getPointerToFunction(function);
-        //    function = getFunction(name, types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
+        std::vector<Value*> likelyNewArgs;
+        likelyNewArgs.push_back(matrix.type());
+        likelyNewArgs.push_back(matrix.channels());
+        likelyNewArgs.push_back(matrix.columns());
+        likelyNewArgs.push_back(matrix.rows());
+        likelyNewArgs.push_back(matrix.frames());
+        likelyNewArgs.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(getGlobalContext())));
+        likelyNewArgs.push_back(matrix.constant(0, 8));
+        Value *dst = builder.CreateCall(likelyNew, likelyNewArgs);
 
-        //    if (!kernels[description].makeKernel(function)) return MatrixBuilder::cleanup(function);
+        static FunctionType *likelyElementsType = NULL;
+        if (likelyElementsType == NULL) {
+            Type *elementsReturn = Type::getInt32Ty(getGlobalContext());
+            vector<Type*> elementsParameters;
+            elementsParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
+            likelyElementsType = FunctionType::get(elementsReturn, elementsParameters, false);
+        }
 
-        //    static FunctionPassManager *functionPassManager = NULL;
-        //    if (functionPassManager == NULL) {
-        //        PassRegistry &registry = *PassRegistry::getPassRegistry();
-        //        initializeScalarOpts(registry);
+        Value *start = MatrixBuilder::zero();
+        static Function *likelyElements = Function::Create(likelyElementsType, GlobalValue::ExternalLinkage, "likely_elements", m);
+        likelyElements->setCallingConv(CallingConv::C);
+        Value *kernelSize = builder.CreateCall(likelyElements, dst);
+        Value *i = matrix.beginLoop(entry, start, kernelSize).i;
 
-        //        functionPassManager = new FunctionPassManager(TheModule);
-        //        functionPassManager->add(createVerifierPass(PrintMessageAction));
-        //        targetMachine->addAnalysisPasses(*functionPassManager);
-        //        functionPassManager->add(new TargetLibraryInfo(Triple(TheModule->getTargetTriple())));
-        //        functionPassManager->add(new DataLayout(TheModule));
-        //        functionPassManager->add(createBasicAliasAnalysisPass());
-        //        functionPassManager->add(createLICMPass());
-        //        functionPassManager->add(createLoopVectorizePass());
-        //        functionPassManager->add(createInstructionCombiningPass());
-        //        functionPassManager->add(createEarlyCSEPass());
-        //        functionPassManager->add(createCFGSimplificationPass());
-        ////        DebugFlag = true;
-        //    }
-        //    functionPassManager->run(*function);
-        ////    function->dump();
+        vector<Value*> values;
+        for (size_t j=0; j<stack.size(); j++) {
+            const string &value = stack[j];
+            char *error;
+            const double x = strtod(value.c_str(), &error);
+            if (*error == '\0') {
+                values.push_back(matrix.autoConstant(x));
+            } else if (value == "src") {
+                values.push_back(matrix.load(i));
+            } else if (values.size() == 1) {
+                Value *operand = values[values.size()-1];
+                values.pop_back();
+                if      (value == "log")   values.push_back(matrix.log(operand));
+                else if (value == "log2")  values.push_back(matrix.log2(operand));
+                else if (value == "log10") values.push_back(matrix.log10(operand));
+                else if (value == "sin")   values.push_back(matrix.sin(operand));
+                else if (value == "cos")   values.push_back(matrix.cos(operand));
+                else if (value == "fabs")  values.push_back(matrix.fabs(operand));
+                else if (value == "sqrt")  values.push_back(matrix.sqrt(operand));
+                else if (value == "exp")   values.push_back(matrix.exp(operand));
+                else                       { likely_assert(false, "Unsupported unary operator: %s", value.c_str()); return NULL; }
+            } else if (values.size() == 2) {
+                Value *lhs = values[values.size()-2];
+                Value *rhs = values[values.size()-1];
+                values.pop_back();
+                values.pop_back();
+                if      (value == "+") values.push_back(matrix.add(lhs, rhs));
+                else if (value == "-") values.push_back(matrix.subtract(lhs, rhs));
+                else if (value == "*") values.push_back(matrix.multiply(lhs, rhs));
+                else if (value == "/") values.push_back(matrix.divide(lhs, rhs));
+                else                   { likely_assert(false, "Unsupported binary operator: %s", value.c_str()); return NULL; }
+            } else {
+                likely_assert(false, "Unrecognized token: %s", value.c_str()); return NULL;
+            }
+        }
 
-        //    return executionEngine->getPointerToFunction(function);
+        // Parsing a Reverse Polish Notation stack should yield one root value at the end
+        if (values.size() != 1) {
+            stringstream stream; stream << "[";
+            for (size_t i=0; i<values.size(); i++) {
+                stream << values[i];
+                if (i < values.size()-1)
+                    stream << ", ";
+            }
+            stream << "]";
+            likely_assert(false, "Expected one value after parsing, got: %s", stream.str().c_str()); return NULL;
+        }
+        Value *equation = values[0];
 
-//        static vector<Type*> makerParameters;
-//        if (makerParameters.empty()) {
-//            makerParameters.push_back(Type::getInt8PtrTy(getGlobalContext()));
-//            makerParameters.push_back(Type::getInt8Ty(getGlobalContext()));
-//            makerParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
-//        }
+        matrix.store(dst, i, equation);
+        matrix.endLoop();
+        builder.CreateRet(dst);
 
-//        static Function *makeAllocationFunction = NULL;
-//        static vector<PointerType*> allocationFunctionTypes(LIKELY_NUM_ARITIES, NULL);
-//        PointerType *allocationFunctionType = allocationFunctionTypes[n];
-//        if (allocationFunctionType == NULL) {
-//            Type *allocationReturn = PointerType::getUnqual(TheMatrixStruct);
-//            vector<Type*> allocationParams;
-//            for (int i=0; i<n; i++)
-//                allocationParams.push_back(PointerType::getUnqual(TheMatrixStruct));
-//            allocationFunctionType = PointerType::getUnqual(FunctionType::get(allocationReturn, allocationParams, false));
-//            allocationFunctionTypes[n] = allocationFunctionType;
+        FunctionPassManager fpm(m);
+        fpm.add(createVerifierPass(PrintMessageAction));
+        tm->addAnalysisPasses(fpm);
+        fpm.add(new TargetLibraryInfo(Triple(m->getTargetTriple())));
+        fpm.add(new DataLayout(m));
+        fpm.add(createBasicAliasAnalysisPass());
+        fpm.add(createLICMPass());
+        fpm.add(createLoopVectorizePass());
+        fpm.add(createInstructionCombiningPass());
+        fpm.add(createEarlyCSEPass());
+        fpm.add(createCFGSimplificationPass());
+//        DebugFlag = true;
+        fpm.run(*function);
+//        function->dump();
 
-//            if (makeAllocationFunction == NULL) {
-//                FunctionType* makeAllocationType = FunctionType::get(allocationFunctionType, makerParameters, true);
-//                makeAllocationFunction = Function::Create(makeAllocationType, GlobalValue::ExternalLinkage, "likely_compile_allocation", TheModule);
-//                makeAllocationFunction->setCallingConv(CallingConv::C);
-//            }
-//        }
-//        GlobalVariable *allocationFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_allocation", allocationFunctionType));
-//        void *default_allocation = NULL; //likely_compile_allocation_n(description, n, srcList);
-//        if (default_allocation == NULL) return MatrixBuilder::cleanup(function);
-//        allocationFunction->setInitializer(MatrixBuilder::constant<void*>(default_allocation, allocationFunctionType));
-
-//        static Function *makeKernelFunction = NULL;
-//        static vector<PointerType*> kernelFunctionTypes(LIKELY_NUM_ARITIES, NULL);
-//        PointerType *kernelFunctionType = kernelFunctionTypes[n];
-//        if (kernelFunctionType == NULL) {
-//            Type *kernelReturn = Type::getVoidTy(getGlobalContext());
-//            vector<Type*> kernelParams;
-//            for (int i=0; i<n+1; i++)
-//                kernelParams.push_back(PointerType::getUnqual(TheMatrixStruct));
-//            kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
-//            kernelParams.push_back(Type::getInt32Ty(getGlobalContext()));
-//            kernelFunctionType = PointerType::getUnqual(FunctionType::get(kernelReturn, kernelParams, false));
-//            kernelFunctionTypes[n] = kernelFunctionType;
-
-//            if (makeKernelFunction == NULL) {
-//                FunctionType* makeUnaryKernelType = FunctionType::get(kernelFunctionType, makerParameters, true);
-//                makeKernelFunction = Function::Create(makeUnaryKernelType, GlobalValue::ExternalLinkage, "likely_compile_kernel", TheModule);
-//                makeKernelFunction->setCallingConv(CallingConv::C);
-//            }
-//        }
-//        GlobalVariable *kernelFunction = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_kernel", kernelFunctionType));
-//        void *default_kernel = NULL; //likely_compile_kernel_n(description, n, srcList);
-//        if (default_kernel == NULL) return MatrixBuilder::cleanup(function);
-//        kernelFunction->setInitializer(MatrixBuilder::constant<void*>(default_kernel, kernelFunctionType));
-
-//        vector<Value*> srcs;
-//        KernelBuilder::getValues(function, srcs);
-
-//        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
-//        IRBuilder<> builder(entry);
-
-//        vector<GlobalVariable*> kernelTypes;
-//        for (int i=0; i<n; i++) {
-//            GlobalVariable *kernelType = cast<GlobalVariable>(TheModule->getOrInsertGlobal(string(description)+"_type"+to_string(i), Type::getInt32Ty(getGlobalContext())));
-//            kernelType->setInitializer(MatrixBuilder::constant(srcList[i]->type, 8*sizeof(likely_type)));
-//            kernelTypes.push_back(kernelType);
-//        }
-
-//        vector<Value*> srcTypes;
-//        for (int i=0; i<n; i++)
-//            srcTypes.push_back(builder.CreateLoad(builder.CreateStructGEP(srcs[i], 1), "src_type"+to_string(i)));
-
-//        Value *typeTest = MatrixBuilder::constant(true);
-//        for (int i=0; i<n; i++)
-//            typeTest = builder.CreateAnd(typeTest, builder.CreateICmpEQ(builder.CreateLoad(kernelTypes[i]), srcTypes[i]));
-
-//        BasicBlock *typeFail = BasicBlock::Create(getGlobalContext(), "type_fail", function);
-//        BasicBlock *execute = BasicBlock::Create(getGlobalContext(), "execute", function);
-//        builder.CreateCondBr(typeTest, execute, typeFail);
-
-//        builder.SetInsertPoint(typeFail);
-//        {
-//            // Construct a description that stays valid for the lifetime of the program
-//            char *copy = new char[strlen(description)+1];
-//            strcpy(copy, description);
-//            descriptions.push_back(copy);
-
-//            vector<Value*> args;
-//            args.push_back(MatrixBuilder::constant(copy));
-//            args.push_back(MatrixBuilder::constant(n, 8));
-//            args.insert(args.end(), srcs.begin(), srcs.end());
-//            builder.CreateStore(builder.CreateCall(makeAllocationFunction, args), allocationFunction);
-//            builder.CreateStore(builder.CreateCall(makeKernelFunction, args), kernelFunction);
-//            for (int i=0; i<n; i++)
-//                builder.CreateStore(srcTypes[i], kernelTypes[i]);
-//            builder.CreateBr(execute);
-//        }
-
-//        builder.SetInsertPoint(execute);
-//        {
-//            vector<Value*> args(srcs);
-//            Value *dst = builder.CreateCall(builder.CreateLoad(allocationFunction), args);
-
-//            static Function *likely_elements = NULL;
-//            if (likely_elements == NULL) {
-//                Type *elementsReturn = Type::getInt32Ty(getGlobalContext());
-//                vector<Type*> elementsParameters;
-//                elementsParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
-//                FunctionType* elementsType = FunctionType::get(elementsReturn, elementsParameters, false);
-//                likely_elements = Function::Create(elementsType, GlobalValue::ExternalLinkage, "likely_elements", TheModule);
-//                likely_elements->setCallingConv(CallingConv::C);
-//            }
-//            Value *kernelSize = builder.CreateCall(likely_elements, dst);
-
-//            BasicBlock *kernel = BasicBlock::Create(getGlobalContext(), "kernel", function);
-//            BasicBlock *exit = BasicBlock::Create(getGlobalContext(), "exit", function);
-//            builder.CreateCondBr(builder.CreateICmpUGT(kernelSize, MatrixBuilder::zero()), kernel, exit);
-
-//            builder.SetInsertPoint(kernel);
-//            args.push_back(dst);
-//            args.push_back(MatrixBuilder::zero());
-//            args.push_back(kernelSize);
-//            builder.CreateCall(builder.CreateLoad(kernelFunction), args);
-//            builder.CreateBr(exit);
-
-//            builder.SetInsertPoint(exit);
-//            builder.CreateRet(dst);
-//        }
-
-//        static FunctionPassManager *functionPassManager = NULL;
-//        if (functionPassManager == NULL) {
-//            functionPassManager = new FunctionPassManager(TheModule);
-//            functionPassManager->add(createVerifierPass(PrintMessageAction));
-//        }
-//        functionPassManager->run(*function);
-
-//        return executionEngine->getPointerToFunction(function);
-        return NULL;
+        return ee->getPointerToFunction(function);
     }
 
     static string interpret(lua_State *L)
@@ -1228,6 +1144,9 @@ public:
         // Make sure we were given a function
         lua_getfield(L, 1, "likely");
         lua_likely_assert(L, !strcmp("function", lua_tostring(L, -1)), "'compile' expected a function");
+        lua_pop(L, 1);
+        lua_getfield(L, 1, "name");
+        const string name = lua_tostring(L, -1);
         lua_pop(L, 1);
 
         // Setup and call the function
@@ -1250,72 +1169,8 @@ public:
         lua_call(L, lua_gettop(L)-args-1, 1);
         string source = lua_tostring(L, -1);
         lua_pop(L, 1);
-        source.insert(0, "likely ");
+        source.insert(0, "likely " + name + " ");
         return source;
-    }
-
-    bool makeKernel(Function *function)
-    {
-        vector<Value*> srcs;
-        Value *dst, *start, *stop;
-        getValues(function, srcs, dst, start, stop);
-
-        function->addFnAttr(Attribute::NoUnwind);
-        for (size_t i=1; i<function->arg_size()-1; i++) { // Exclude kernel start and stop arguments
-            function->setDoesNotAlias(i);
-            function->setDoesNotCapture(i);
-        }
-
-        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
-        IRBuilder<> builder(entry);
-
-//        if (likely_parallel(kernel.t)) {
-//            vector<likely_mat> mats;
-//            for (likely_type type : types) {
-//                likely_mat m = likely_new(type);
-//                likely_set_parallel(&m->type, false);
-//                mats.push_back(m);
-//            }
-
-//            // Allocation must be called first to properly initialize the kernel builder
-//            likely_compile_allocation_n(description, mats.size(), (likely_const_mat*)mats.data());
-//            void *serialKernelFunction = likely_compile_kernel_n(description, mats.size(), (likely_const_mat*)mats.data());
-
-//            static Function *parallelDispatch = NULL;
-//            if (parallelDispatch == NULL) {
-//                vector<Type*> params;
-//                params.push_back(Type::getInt8PtrTy(getGlobalContext()));
-//                params.push_back(Type::getInt8Ty(getGlobalContext()));
-//                params.push_back(Type::getInt32Ty(getGlobalContext()));
-//                params.push_back(Type::getInt32Ty(getGlobalContext()));
-//                params.push_back(PointerType::getUnqual(TheMatrixStruct));
-//                parallelDispatch = Function::Create(FunctionType::get(Type::getVoidTy(getGlobalContext()), params, true), GlobalValue::ExternalLinkage, "likely_parallel_dispatch", TheModule);
-//                parallelDispatch->setCallingConv(CallingConv::C);
-//            }
-
-//            vector<Value*> args;
-//            args.push_back(MatrixBuilder::constant(reinterpret_cast<const char*>(serialKernelFunction)));
-//            args.push_back(MatrixBuilder::constant(mats.size(), 8));
-//            args.push_back(start);
-//            args.push_back(stop);
-//            args.insert(args.end(), srcs.begin(), srcs.end());
-//            args.push_back(dst);
-
-//            builder.CreateCall(parallelDispatch, args);
-
-//            for (likely_mat m : mats)
-//                likely_release(m);
-//        } else {
-            kernel.reset(&builder, function, srcs[0]);
-            i = kernel.beginLoop(entry, start, stop).i;
-            Value *equation = makeEquation();
-            if (!equation) return false;
-            kernel.store(dst, i, makeEquation());
-            kernel.endLoop();
-//        }
-
-        builder.CreateRetVoid();
-        return true;
     }
 
     static void getValues(Function *function, vector<Value*> &srcs)
@@ -1355,58 +1210,6 @@ public:
         likely_assert(function, "KernelBuilder::getFunction invalid arity: %d", arity);
         function->setCallingConv(CallingConv::C);
         return function;
-    }
-
-    Value *makeEquation()
-    {
-        vector<Value*> values;
-        for (size_t j=0; j<stack.size(); j++) {
-            const string &value = stack[j];
-            char *error;
-            const double x = strtod(value.c_str(), &error);
-            if (*error == '\0') {
-                values.push_back(kernel.autoConstant(x));
-            } else if (value == "src") {
-                values.push_back(kernel.load(i));
-            } else if (values.size() == 1) {
-                Value *operand = values[values.size()-1];
-                values.pop_back();
-                if      (value == "log")   values.push_back(kernel.log(operand));
-                else if (value == "log2")  values.push_back(kernel.log2(operand));
-                else if (value == "log10") values.push_back(kernel.log10(operand));
-                else if (value == "sin")   values.push_back(kernel.sin(operand));
-                else if (value == "cos")   values.push_back(kernel.cos(operand));
-                else if (value == "fabs")  values.push_back(kernel.fabs(operand));
-                else if (value == "sqrt")  values.push_back(kernel.sqrt(operand));
-                else if (value == "exp")   values.push_back(kernel.exp(operand));
-                else                       { likely_assert(false, "Unsupported unary operator: %s", value.c_str()); return NULL; }
-            } else if (values.size() == 2) {
-                Value *lhs = values[values.size()-2];
-                Value *rhs = values[values.size()-1];
-                values.pop_back();
-                values.pop_back();
-                if      (value == "+") values.push_back(kernel.add(lhs, rhs));
-                else if (value == "-") values.push_back(kernel.subtract(lhs, rhs));
-                else if (value == "*") values.push_back(kernel.multiply(lhs, rhs));
-                else if (value == "/") values.push_back(kernel.divide(lhs, rhs));
-                else                   { likely_assert(false, "Unsupported binary operator: %s", value.c_str()); return NULL; }
-            } else {
-                likely_assert(false, "Unrecognized token: %s", value.c_str()); return NULL;
-            }
-        }
-
-        // Parsing a Reverse Polish Notation stack should yield one root value at the end
-        if (values.size() != 1) {
-            stringstream stream; stream << "[";
-            for (size_t i=0; i<values.size(); i++) {
-                stream << values[i];
-                if (i < values.size()-1)
-                    stream << ", ";
-            }
-            stream << "]";
-            likely_assert(false, "Expected one value after parsing, got: %s", stream.str().c_str()); return NULL;
-        }
-        return values[0];
     }
 };
 
@@ -1480,6 +1283,7 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
     if (TheMatrixStruct == NULL) {
         // Initialize Likely
         InitializeNativeTarget();
+        initializeScalarOpts(*PassRegistry::getPassRegistry());
 
         TheMatrixStruct = StructType::create("likely_matrix",
                                              Type::getInt8PtrTy(getGlobalContext()), // data
@@ -1524,6 +1328,7 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
 
     // Compute function name and types
     stringstream nameStream; nameStream << tokens.front();
+    tokens.erase(tokens.begin()); // remove name
     vector<likely_type> types;
     for (int i=0; i<n; i++) {
         likely_const_mat src = srcs[i];
@@ -1536,7 +1341,7 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
     map<string,KernelBuilder*>::const_iterator it = kernels.find(name);
     if (it == kernels.end()) {
         kernels.insert(pair<string,KernelBuilder*>(name, new KernelBuilder(name, tokens, types)));
-        it = kernels.find(description);
+        it = kernels.find(name);
     }
     return it->second->getPointerToFunction();
 }
@@ -1561,30 +1366,33 @@ static int lua_likely_compile(lua_State *L)
 static int lua_likely_closure(lua_State *L)
 {
     const int args = lua_gettop(L);
-    lua_likely_assert(L, (args >= 3) && (args <= 4), "'closure' expected 3-4 arguments, got: %d", args);
+    lua_likely_assert(L, (args >= 4) && (args <= 5), "'closure' expected 4-5 arguments, got: %d", args);
 
     lua_newtable(L);
     lua_pushstring(L, "likely");
     lua_pushstring(L, "function");
     lua_settable(L, -3);
-    lua_pushstring(L, "source");
+    lua_pushstring(L, "name");
     lua_pushvalue(L, 1);
     lua_settable(L, -3);
-    lua_pushstring(L, "documentation");
+    lua_pushstring(L, "source");
     lua_pushvalue(L, 2);
     lua_settable(L, -3);
-    lua_pushstring(L, "parameters");
+    lua_pushstring(L, "documentation");
     lua_pushvalue(L, 3);
     lua_settable(L, -3);
-    if (args >= 4) {
+    lua_pushstring(L, "parameters");
+    lua_pushvalue(L, 4);
+    lua_settable(L, -3);
+    if (args >= 5) {
         lua_pushstring(L, "binary");
-        lua_pushvalue(L, 4);
+        lua_pushvalue(L, 5);
         lua_settable(L, -3);
     }
 
     lua_newtable(L);
     lua_pushnil(L);
-    while (lua_next(L, 3)) {
+    while (lua_next(L, 4)) {
         lua_pushinteger(L, 1);
         lua_gettable(L, -2);
         lua_pushvalue(L, -3);
@@ -1677,11 +1485,12 @@ static int lua_likely__call(lua_State *L)
     if (!callable) {
         // Return a new closure
         lua_getglobal(L, "closure");
+        lua_getfield(L, 1, "name");
         lua_getfield(L, 1, "source");
         lua_getfield(L, 1, "documentation");
-        lua_pushvalue(L, -4); // parameters
+        lua_pushvalue(L, -5); // parameters
         lua_getfield(L, 1, "binary");
-        lua_call(L, 4, 1);
+        lua_call(L, 5, 1);
         return 1;
     }
 
