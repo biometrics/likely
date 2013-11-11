@@ -919,7 +919,7 @@ struct MatrixBuilder
         b->CreateBr(loop.body);
         b->SetInsertPoint(loop.body);
 
-        loop.i = b->CreatePHI(Type::getInt32Ty(getGlobalContext()), 2, n);
+        loop.i = b->CreatePHI(Type::getInt32Ty(getGlobalContext()), 2, n + "_i");
         loop.i->addIncoming(start, entry);
 
         loops.push(loop);
@@ -1038,8 +1038,10 @@ public:
         Function *likelyNew = Function::Create(LikelyNewSignature, GlobalValue::ExternalLinkage, "likely_new", m);
         likelyNew->setCallingConv(CallingConv::C);
         likelyNew->setDoesNotAlias(0);
+        likelyNew->setDoesNotAlias(6);
+        likelyNew->setDoesNotCapture(6);
 
-        MatrixBuilder matrix(&builder, function, "src", types[0], srcs[0]);
+        MatrixBuilder matrix(&builder, function, "kernel", types[0], srcs[0]);
 
         std::vector<Value*> likelyNewArgs;
         likelyNewArgs.push_back(matrix.type());
@@ -1059,9 +1061,12 @@ public:
             likelyElementsType = FunctionType::get(elementsReturn, elementsParameters, false);
         }
 
-        Value *start = MatrixBuilder::zero();
-        static Function *likelyElements = Function::Create(likelyElementsType, GlobalValue::ExternalLinkage, "likely_elements", m);
+        Function *likelyElements = Function::Create(likelyElementsType, GlobalValue::ExternalLinkage, "likely_elements", m);
         likelyElements->setCallingConv(CallingConv::C);
+        likelyElements->setDoesNotAlias(1);
+        likelyElements->setDoesNotCapture(1);
+
+        Value *start = MatrixBuilder::zero();
         Value *kernelSize = builder.CreateCall(likelyElements, dst);
         Value *i = matrix.beginLoop(entry, start, kernelSize).i;
 
@@ -1131,7 +1136,7 @@ public:
         fpm.add(createCFGSimplificationPass());
 //        DebugFlag = true;
         fpm.run(*function);
-//        function->dump();
+//        m->dump();
 
         return ee->getPointerToFunction(function);
     }
