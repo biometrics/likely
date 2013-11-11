@@ -144,7 +144,6 @@ LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c 
 LIKELY_EXPORT const char *likely_type_to_string(likely_type h); // Return value managed internally and guaranteed until the next call to this function
 LIKELY_EXPORT likely_type likely_string_to_type(const char *str);
 LIKELY_EXPORT void likely_print(likely_const_mat m);
-LIKELY_EXPORT void likely_dump(); // Print LLVM module contents to stderr
 
 // Core library types and functions
 typedef const char *likely_description;
@@ -156,21 +155,6 @@ typedef likely_mat (*likely_function_2)(likely_const_mat, likely_const_mat);
 typedef likely_mat (*likely_function_3)(likely_const_mat, likely_const_mat, likely_const_mat);
 LIKELY_EXPORT void *likely_compile(likely_description description, likely_arity n, likely_const_mat src, ...);
 LIKELY_EXPORT void *likely_compile_n(likely_description description, likely_arity n, likely_const_mat *srcs);
-
-typedef likely_mat (*likely_allocation_0)(void);
-typedef likely_mat (*likely_allocation_1)(likely_const_mat);
-typedef likely_mat (*likely_allocation_2)(likely_const_mat, likely_const_mat);
-typedef likely_mat (*likely_allocation_3)(likely_const_mat, likely_const_mat, likely_const_mat);
-LIKELY_EXPORT void *likely_compile_allocation(likely_description description, likely_arity n, likely_const_mat src, ...);
-LIKELY_EXPORT void *likely_compile_allocation_n(likely_description description, likely_arity n, likely_const_mat *srcs);
-
-// Final three parameters are: dst, start, stop
-typedef void (*likely_kernel_0)(likely_mat, likely_size, likely_size);
-typedef void (*likely_kernel_1)(likely_const_mat, likely_mat, likely_size, likely_size);
-typedef void (*likely_kernel_2)(likely_const_mat, likely_const_mat, likely_mat, likely_size, likely_size);
-typedef void (*likely_kernel_3)(likely_const_mat, likely_const_mat, likely_const_mat, likely_mat, likely_size, likely_size);
-LIKELY_EXPORT void *likely_compile_kernel(likely_description description, likely_arity n, likely_const_mat src, ...);
-LIKELY_EXPORT void *likely_compile_kernel_n(likely_description description, likely_arity n, likely_const_mat *srcs);
 
 // Helper library functions
 LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size start, likely_size stop, likely_mat src, ...);
