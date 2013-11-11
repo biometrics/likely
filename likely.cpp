@@ -598,12 +598,12 @@ namespace likely
 
 struct MatrixBuilder
 {
+    Module *m;
     IRBuilder<> *b;
     Function *f;
     Twine n;
     likely_type t;
     Value *v;
-    Module *m = NULL;
 
     struct Loop {
         BasicBlock *body;
@@ -613,9 +613,8 @@ struct MatrixBuilder
     };
     stack<Loop> loops;
 
-    MatrixBuilder() : b(NULL), f(NULL), t(likely_type_null), v(NULL) {}
-    MatrixBuilder(IRBuilder<> *builder, Function *function, const Twine &name, likely_type type = likely_type_null, Value *value = NULL)
-        : b(builder), f(function), n(name), t(type), v(value) {}
+    MatrixBuilder(Module *module, IRBuilder<> *builder, Function *function, const Twine &name, likely_type type = likely_type_null, Value *value = NULL)
+        : m(module), b(builder), f(function), n(name), t(type), v(value) {}
     void reset(IRBuilder<> *builder, Function *function, Value *value) { b = builder; f = function; v = value; }
 
     static Constant *constant(int value, int bits = 32) { return Constant::getIntegerValue(Type::getInt32Ty(getGlobalContext()), APInt(bits, value)); }
@@ -1041,7 +1040,7 @@ public:
         likelyNew->setDoesNotAlias(6);
         likelyNew->setDoesNotCapture(6);
 
-        MatrixBuilder matrix(&builder, function, "kernel", types[0], srcs[0]);
+        MatrixBuilder matrix(m, &builder, function, "kernel", types[0], srcs[0]);
 
         std::vector<Value*> likelyNewArgs;
         likelyNewArgs.push_back(matrix.type());
