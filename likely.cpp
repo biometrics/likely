@@ -994,6 +994,11 @@ public:
         engineBuilder.setErrorStr(&error);
         engineBuilder.setUseMCJIT(true);
 
+        // Avoid an LLVM codegen bug on AVX architectures
+        vector<string> mAttrs;
+        mAttrs.push_back("-avx");
+        engineBuilder.setMAttrs(mAttrs);
+
         ee = engineBuilder.create();
         likely_assert(ee != NULL, "KernelBuilder failed to create LLVM ExecutionEngine with error: %s", error.c_str());
 
