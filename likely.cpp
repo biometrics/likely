@@ -20,7 +20,7 @@
 #include <llvm/Analysis/TargetTransformInfo.h>
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/Assembly/PrintModulePass.h>
-#include <llvm/ExecutionEngine/JIT.h>
+#include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Support/Debug.h>
@@ -992,6 +992,7 @@ public:
         engineBuilder.setEngineKind(EngineKind::JIT);
         engineBuilder.setOptLevel(CodeGenOpt::Aggressive);
         engineBuilder.setErrorStr(&error);
+        engineBuilder.setUseMCJIT(true);
 
         ee = engineBuilder.create();
         likely_assert(ee != NULL, "KernelBuilder failed to create LLVM ExecutionEngine with error: %s", error.c_str());
@@ -1133,10 +1134,12 @@ public:
         fpm.add(createInstructionCombiningPass());
         fpm.add(createEarlyCSEPass());
         fpm.add(createCFGSimplificationPass());
+        fpm.doInitialization();
 //        DebugFlag = true;
         fpm.run(*function);
 //        m->dump();
 
+        ee->finalizeObject();
         return ee->getPointerToFunction(function);
     }
 
@@ -1287,6 +1290,8 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
     if (TheMatrixStruct == NULL) {
         // Initialize Likely
         InitializeNativeTarget();
+        InitializeNativeTargetAsmPrinter();
+        InitializeNativeTargetAsmParser();
         initializeScalarOpts(*PassRegistry::getPassRegistry());
 
         TheMatrixStruct = StructType::create("likely_matrix",

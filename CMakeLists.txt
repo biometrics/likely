@@ -37,7 +37,7 @@ include_directories(${CMAKE_SOURCE_DIR}/llvm/include)
 include_directories(${CMAKE_BINARY_DIR}/llvm/include)
 link_directories(${LLVM_LIBRARY_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
-llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES jit native vectorize)
+llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES mcjit native vectorize)
 
 # Build Lua
 add_subdirectory(lua)
