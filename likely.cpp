@@ -1269,7 +1269,6 @@ static mutex workersActive;
 static atomic_uint workersRemaining(0);
 static void *workerKernel = NULL;
 static likely_arity workerArity = 0;
-static likely_size workerStart = 0;
 static likely_size workerStop = 0;
 static likely_const_mat workerMatricies[LIKELY_NUM_ARITIES+1];
 
@@ -1283,9 +1282,9 @@ static void executeWorker(int workerID)
 {
     // There are hardware_concurrency-1 helper threads
     // The main thread which assumes workerID = workers.size()
-    const likely_size step = (MaxRegisterWidth + (workerStop-workerStart-1)/(workers.size()+1)) / MaxRegisterWidth * MaxRegisterWidth;
-    const likely_size start = workerStart + workerID * step;
-    const likely_size stop = std::min(workerStart + (workerID+1)*step, workerStop);
+    const likely_size step = (MaxRegisterWidth + (workerStop-1)/(workers.size()+1)) / MaxRegisterWidth * MaxRegisterWidth;
+    const likely_size start = workerID * step;
+    const likely_size stop = std::min((workerID+1)*step, workerStop);
     if (start >= stop) return;
 
     switch (workerArity) {
@@ -1594,7 +1593,6 @@ void _likely_fork(void *kernel, likely_arity arity, likely_size size, likely_con
     workersRemaining = workers.size();
     workerKernel = kernel;
     workerArity = arity;
-    workerStart = 0;
     workerStop = size;
 
     va_list ap;
