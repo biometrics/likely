@@ -1267,10 +1267,10 @@ private:
 static vector<mutex*> workers;
 static mutex workersActive;
 static atomic_uint workersRemaining(0);
-static void *workerKernel = NULL;
-static likely_arity workerArity = 0;
-static likely_size workerStop = 0;
-static likely_const_mat workerMatricies[LIKELY_NUM_ARITIES+1];
+static void *currentThunk = NULL;
+static likely_arity thunkArity = 0;
+static likely_size thunkSize = 0;
+static likely_const_mat thunkMatricies[LIKELY_NUM_ARITIES+1];
 
 // Final three parameters are: dst, start, stop
 typedef void (*likely_kernel_0)(likely_mat, likely_size, likely_size);
@@ -1282,17 +1282,17 @@ static void executeWorker(int workerID)
 {
     // There are hardware_concurrency-1 helper threads
     // The main thread which assumes workerID = workers.size()
-    const likely_size step = (MaxRegisterWidth + (workerStop-1)/(workers.size()+1)) / MaxRegisterWidth * MaxRegisterWidth;
+    const likely_size step = (MaxRegisterWidth + (thunkSize-1)/(workers.size()+1)) / MaxRegisterWidth * MaxRegisterWidth;
     const likely_size start = workerID * step;
-    const likely_size stop = std::min((workerID+1)*step, workerStop);
+    const likely_size stop = std::min((workerID+1)*step, thunkSize);
     if (start >= stop) return;
 
-    switch (workerArity) {
-      case 0: reinterpret_cast<likely_kernel_0>(workerKernel)((likely_mat)workerMatricies[0], start, stop); break;
-      case 1: reinterpret_cast<likely_kernel_1>(workerKernel)(workerMatricies[0], (likely_mat)workerMatricies[1], start, stop); break;
-      case 2: reinterpret_cast<likely_kernel_2>(workerKernel)(workerMatricies[0], workerMatricies[1], (likely_mat)workerMatricies[2], start, stop); break;
-      case 3: reinterpret_cast<likely_kernel_3>(workerKernel)(workerMatricies[0], workerMatricies[1], workerMatricies[2], (likely_mat)workerMatricies[3], start, stop); break;
-      default: likely_assert(false, "likely_parallel_dispatch invalid arity: %d", workerArity);
+    switch (thunkArity) {
+      case 0: reinterpret_cast<likely_kernel_0>(currentThunk)((likely_mat)thunkMatricies[0], start, stop); break;
+      case 1: reinterpret_cast<likely_kernel_1>(currentThunk)(thunkMatricies[0], (likely_mat)thunkMatricies[1], start, stop); break;
+      case 2: reinterpret_cast<likely_kernel_2>(currentThunk)(thunkMatricies[0], thunkMatricies[1], (likely_mat)thunkMatricies[2], start, stop); break;
+      case 3: reinterpret_cast<likely_kernel_3>(currentThunk)(thunkMatricies[0], thunkMatricies[1], thunkMatricies[2], (likely_mat)thunkMatricies[3], start, stop); break;
+      default: likely_assert(false, "likely_parallel_dispatch invalid arity: %d", thunkArity);
     }
 }
 
@@ -1586,19 +1586,19 @@ static int lua_likely__call(lua_State *L)
     return 1;
 }
 
-void _likely_fork(void *kernel, likely_arity arity, likely_size size, likely_const_mat src, ...)
+void _likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...)
 {
     workersActive.lock();
 
     workersRemaining = workers.size();
-    workerKernel = kernel;
-    workerArity = arity;
-    workerStop = size;
+    currentThunk = thunk;
+    thunkArity = arity;
+    thunkSize = size;
 
     va_list ap;
     va_start(ap, src);
     for (int i=0; i<arity+1; i++) {
-        workerMatricies[i] = src;
+        thunkMatricies[i] = src;
         src = va_arg(ap, likely_const_mat);
     }
     va_end(ap);
