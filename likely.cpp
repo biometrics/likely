@@ -1008,27 +1008,24 @@ public:
 
     void *getPointerToFunction()
     {
-        if (likely_parallel(types[0])) {
-            Function *thunk = getFunction(name+"_thunk", m, types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
-            vector<Value*> thunkSrcs;
-            getValues(thunk, thunkSrcs);
-            Value *thunkStop = thunkSrcs.back(); thunkSrcs.pop_back();
-            thunkStop->setName("stop");
-            Value *thunkStart = thunkSrcs.back(); thunkSrcs.pop_back();
-            thunkStart->setName("start");
-            Value *thunkDst = thunkSrcs.back(); thunkSrcs.pop_back();
-            thunkDst->setName("dst");
-            BasicBlock *thunkEntry = BasicBlock::Create(getGlobalContext(), "thunk_entry", thunk);
-            IRBuilder<> thunkBuilder(thunkEntry);
-            MatrixBuilder thunkMatrix(m, &thunkBuilder, thunk, "thunk", types[0], thunkSrcs[0]);
-            generateKernel(thunkMatrix, thunkEntry, thunkStart, thunkStop, thunkDst);
-            thunkBuilder.CreateRetVoid();
-        }
-
         Function *function = m->getFunction(name);
         if (function != NULL)
             return ee->getPointerToFunction(function);
         function = getFunction(name, m, types.size(), PointerType::getUnqual(TheMatrixStruct));
+
+        FunctionPassManager fpm(m);
+        fpm.add(createVerifierPass(PrintMessageAction));
+        tm->addAnalysisPasses(fpm);
+        fpm.add(new TargetLibraryInfo(Triple(m->getTargetTriple())));
+        fpm.add(new DataLayout(m));
+        fpm.add(createBasicAliasAnalysisPass());
+        fpm.add(createLICMPass());
+        fpm.add(createLoopVectorizePass());
+        fpm.add(createInstructionCombiningPass());
+        fpm.add(createEarlyCSEPass());
+        fpm.add(createCFGSimplificationPass());
+        fpm.doInitialization();
+//        DebugFlag = true;
 
         vector<Value*> srcs;
         getValues(function, srcs);
@@ -1082,6 +1079,7 @@ public:
             MatrixBuilder thunkMatrix(m, &thunkBuilder, thunk, "thunk", types[0], thunkSrcs[0]);
             generateKernel(thunkMatrix, thunkEntry, thunkStart, thunkStop, thunkDst);
             thunkBuilder.CreateRetVoid();
+            fpm.run(*thunk);
 
             static FunctionType *likelyForkType = NULL;
             if (likelyForkType == NULL) {
@@ -1109,23 +1107,9 @@ public:
             generateKernel(matrix, entry, start, kernelSize, dst);
         }
         builder.CreateRet(dst);
-
-        FunctionPassManager fpm(m);
-        fpm.add(createVerifierPass(PrintMessageAction));
-        tm->addAnalysisPasses(fpm);
-        fpm.add(new TargetLibraryInfo(Triple(m->getTargetTriple())));
-        fpm.add(new DataLayout(m));
-        fpm.add(createBasicAliasAnalysisPass());
-        fpm.add(createLICMPass());
-        fpm.add(createLoopVectorizePass());
-        fpm.add(createInstructionCombiningPass());
-        fpm.add(createEarlyCSEPass());
-        fpm.add(createCFGSimplificationPass());
-        fpm.doInitialization();
-//        DebugFlag = true;
         fpm.run(*function);
-//        m->dump();
 
+        m->dump();
         ee->finalizeObject();
         return ee->getPointerToFunction(function);
     }
