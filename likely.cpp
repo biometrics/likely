@@ -1012,7 +1012,6 @@ public:
         if (function != NULL)
             return ee->getPointerToFunction(function);
         function = getFunction(name, m, types.size(), PointerType::getUnqual(TheMatrixStruct));
-
         function->addFnAttr(Attribute::NoUnwind);
         function->setDoesNotAlias(0);
         for (size_t i=1; i<=function->arg_size(); i++) {
@@ -1022,9 +1021,9 @@ public:
 
         vector<Value*> srcs;
         getValues(function, srcs);
-
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
+        MatrixBuilder matrix(m, &builder, function, "kernel", types[0], srcs[0]);
 
         static FunctionType* LikelyNewSignature = NULL;
         if (LikelyNewSignature == NULL) {
@@ -1039,14 +1038,11 @@ public:
             newParameters.push_back(Type::getInt8Ty(getGlobalContext())); // copy
             LikelyNewSignature = FunctionType::get(newReturn, newParameters, false);
         }
-
         Function *likelyNew = Function::Create(LikelyNewSignature, GlobalValue::ExternalLinkage, "likely_new", m);
         likelyNew->setCallingConv(CallingConv::C);
         likelyNew->setDoesNotAlias(0);
         likelyNew->setDoesNotAlias(6);
         likelyNew->setDoesNotCapture(6);
-
-        MatrixBuilder matrix(m, &builder, function, "kernel", types[0], srcs[0]);
 
         std::vector<Value*> likelyNewArgs;
         likelyNewArgs.push_back(matrix.type());
@@ -1058,21 +1054,8 @@ public:
         likelyNewArgs.push_back(matrix.constant(0, 8));
         Value *dst = builder.CreateCall(likelyNew, likelyNewArgs);
 
-        static FunctionType *likelyElementsType = NULL;
-        if (likelyElementsType == NULL) {
-            Type *elementsReturn = Type::getInt32Ty(getGlobalContext());
-            vector<Type*> elementsParameters;
-            elementsParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
-            likelyElementsType = FunctionType::get(elementsReturn, elementsParameters, false);
-        }
-
-        Function *likelyElements = Function::Create(likelyElementsType, GlobalValue::ExternalLinkage, "likely_elements", m);
-        likelyElements->setCallingConv(CallingConv::C);
-        likelyElements->setDoesNotAlias(1);
-        likelyElements->setDoesNotCapture(1);
-
         Value *start = MatrixBuilder::zero();
-        Value *kernelSize = builder.CreateCall(likelyElements, dst);
+        Value *kernelSize = matrix.elements();
         generateKernel(matrix, entry, start, kernelSize, dst);
         builder.CreateRet(dst);
 
