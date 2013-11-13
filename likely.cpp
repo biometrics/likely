@@ -1008,6 +1008,23 @@ public:
 
     void *getPointerToFunction()
     {
+        if (likely_parallel(types[0])) {
+            Function *thunk = getFunction(name+"_thunk", m, types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
+            vector<Value*> thunkSrcs;
+            getValues(thunk, thunkSrcs);
+            Value *thunkStop = thunkSrcs.back(); thunkSrcs.pop_back();
+            thunkStop->setName("stop");
+            Value *thunkStart = thunkSrcs.back(); thunkSrcs.pop_back();
+            thunkStart->setName("start");
+            Value *thunkDst = thunkSrcs.back(); thunkSrcs.pop_back();
+            thunkDst->setName("dst");
+            BasicBlock *thunkEntry = BasicBlock::Create(getGlobalContext(), "thunk_entry", thunk);
+            IRBuilder<> thunkBuilder(thunkEntry);
+            MatrixBuilder thunkMatrix(m, &thunkBuilder, thunk, "thunk", types[0], thunkSrcs[0]);
+            generateKernel(thunkMatrix, thunkEntry, thunkStart, thunkStop, thunkDst);
+            thunkBuilder.CreateRetVoid();
+        }
+
         Function *function = m->getFunction(name);
         if (function != NULL)
             return ee->getPointerToFunction(function);
@@ -1051,8 +1068,43 @@ public:
         Value *start = MatrixBuilder::zero();
         Value *kernelSize = matrix.elements();
         if (likely_parallel(types[0])) {
-            function = getFunction(name+"_thunk", m, types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), Type::getInt32Ty(getGlobalContext()));
-            assert(false); // TODO: finish implementing this
+            Function *thunk = getFunction(name+"_thunk", m, types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
+            vector<Value*> thunkSrcs;
+            getValues(thunk, thunkSrcs);
+            Value *thunkStop = thunkSrcs.back(); thunkSrcs.pop_back();
+            thunkStop->setName("stop");
+            Value *thunkStart = thunkSrcs.back(); thunkSrcs.pop_back();
+            thunkStart->setName("start");
+            Value *thunkDst = thunkSrcs.back(); thunkSrcs.pop_back();
+            thunkDst->setName("dst");
+            BasicBlock *thunkEntry = BasicBlock::Create(getGlobalContext(), "thunk_entry", thunk);
+            IRBuilder<> thunkBuilder(thunkEntry);
+            MatrixBuilder thunkMatrix(m, &thunkBuilder, thunk, "thunk", types[0], thunkSrcs[0]);
+            generateKernel(thunkMatrix, thunkEntry, thunkStart, thunkStop, thunkDst);
+            thunkBuilder.CreateRetVoid();
+
+            static FunctionType *likelyForkType = NULL;
+            if (likelyForkType == NULL) {
+                vector<Type*> likelyForkParameters;
+                likelyForkParameters.push_back(thunk->getType());
+                likelyForkParameters.push_back(Type::getInt8Ty(getGlobalContext()));
+                likelyForkParameters.push_back(Type::getInt32Ty(getGlobalContext()));
+                likelyForkParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
+                Type *likelyForkReturn = Type::getVoidTy(getGlobalContext());
+                likelyForkType = FunctionType::get(likelyForkReturn, likelyForkParameters, true);
+            }
+            Function *likelyFork = Function::Create(likelyForkType, GlobalValue::ExternalLinkage, "_likely_fork", m);
+            likelyFork->setCallingConv(CallingConv::C);
+            likelyFork->setDoesNotCapture(4);
+            likelyFork->setDoesNotAlias(4);
+
+            vector<Value*> likelyForkArgs;
+            likelyForkArgs.push_back(m->getFunction(thunk->getName()));
+            likelyForkArgs.push_back(MatrixBuilder::constant(types.size(), 8));
+            likelyForkArgs.push_back(kernelSize);
+            likelyForkArgs.insert(likelyForkArgs.end(), srcs.begin(), srcs.end());
+            likelyForkArgs.push_back(dst);
+            builder.CreateCall(likelyFork, likelyForkArgs);
         } else {
             generateKernel(matrix, entry, start, kernelSize, dst);
         }
@@ -1127,21 +1179,24 @@ public:
         }
     }
 
-    static Function *getFunction(const string &description, Module *m, likely_arity arity, Type *ret, Type *dst = NULL, Type *id = NULL)
+    static Function *getFunction(const string &name, Module *m, likely_arity arity, Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
     {
         PointerType *matrixPointer = PointerType::getUnqual(TheMatrixStruct);
         Function *function;
         switch (arity) {
-          case 0: function = cast<Function>(m->getOrInsertFunction(description, ret, dst, id, NULL)); break;
-          case 1: function = cast<Function>(m->getOrInsertFunction(description, ret, matrixPointer, dst, id, NULL)); break;
-          case 2: function = cast<Function>(m->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, dst, id, NULL)); break;
-          case 3: function = cast<Function>(m->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer, dst, id, NULL)); break;
+          case 0: function = cast<Function>(m->getOrInsertFunction(name, ret, dst, start, stop, NULL)); break;
+          case 1: function = cast<Function>(m->getOrInsertFunction(name, ret, matrixPointer, dst, start, stop, NULL)); break;
+          case 2: function = cast<Function>(m->getOrInsertFunction(name, ret, matrixPointer, matrixPointer, dst, start, stop, NULL)); break;
+          case 3: function = cast<Function>(m->getOrInsertFunction(name, ret, matrixPointer, matrixPointer, matrixPointer, dst, start, stop, NULL)); break;
           default: { function = NULL; likely_assert(false, "KernelBuilder::getFunction invalid arity: %d", arity); }
         }
         function->addFnAttr(Attribute::NoUnwind);
         function->setCallingConv(CallingConv::C);
-        function->setDoesNotAlias(0);
-        for (size_t i=0; i<arity; i++) {
+        if (ret->isPointerTy())
+            function->setDoesNotAlias(0);
+        size_t num_mats = arity;
+        if (dst) num_mats++;
+        for (size_t i=0; i<num_mats; i++) {
             function->setDoesNotAlias(i+1);
             function->setDoesNotCapture(i+1);
         }
@@ -1216,7 +1271,7 @@ static void *workerKernel = NULL;
 static likely_arity workerArity = 0;
 static likely_size workerStart = 0;
 static likely_size workerStop = 0;
-static likely_mat workerMatricies[LIKELY_NUM_ARITIES+1];
+static likely_const_mat workerMatricies[LIKELY_NUM_ARITIES+1];
 
 // Final three parameters are: dst, start, stop
 typedef void (*likely_kernel_0)(likely_mat, likely_size, likely_size);
@@ -1234,10 +1289,10 @@ static void executeWorker(int workerID)
     if (start >= stop) return;
 
     switch (workerArity) {
-      case 0: reinterpret_cast<likely_kernel_0>(workerKernel)(workerMatricies[0], start, stop); break;
-      case 1: reinterpret_cast<likely_kernel_1>(workerKernel)(workerMatricies[0], workerMatricies[1], start, stop); break;
-      case 2: reinterpret_cast<likely_kernel_2>(workerKernel)(workerMatricies[0], workerMatricies[1], workerMatricies[2], start, stop); break;
-      case 3: reinterpret_cast<likely_kernel_3>(workerKernel)(workerMatricies[0], workerMatricies[1], workerMatricies[2], workerMatricies[3], start, stop); break;
+      case 0: reinterpret_cast<likely_kernel_0>(workerKernel)((likely_mat)workerMatricies[0], start, stop); break;
+      case 1: reinterpret_cast<likely_kernel_1>(workerKernel)(workerMatricies[0], (likely_mat)workerMatricies[1], start, stop); break;
+      case 2: reinterpret_cast<likely_kernel_2>(workerKernel)(workerMatricies[0], workerMatricies[1], (likely_mat)workerMatricies[2], start, stop); break;
+      case 3: reinterpret_cast<likely_kernel_3>(workerKernel)(workerMatricies[0], workerMatricies[1], workerMatricies[2], (likely_mat)workerMatricies[3], start, stop); break;
       default: likely_assert(false, "likely_parallel_dispatch invalid arity: %d", workerArity);
     }
 }
@@ -1532,21 +1587,21 @@ static int lua_likely__call(lua_State *L)
     return 1;
 }
 
-void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size start, likely_size stop, likely_mat src, ...)
+void _likely_fork(void *kernel, likely_arity arity, likely_size size, likely_const_mat src, ...)
 {
     workersActive.lock();
 
     workersRemaining = workers.size();
     workerKernel = kernel;
     workerArity = arity;
-    workerStart = start;
-    workerStop = stop;
+    workerStart = 0;
+    workerStop = size;
 
     va_list ap;
     va_start(ap, src);
     for (int i=0; i<arity+1; i++) {
         workerMatricies[i] = src;
-        src = va_arg(ap, likely_mat);
+        src = va_arg(ap, likely_const_mat);
     }
     va_end(ap);
 

@@ -156,8 +156,8 @@ typedef likely_mat (*likely_function_3)(likely_const_mat, likely_const_mat, like
 LIKELY_EXPORT void *likely_compile(likely_description description, likely_arity n, likely_type type, ...);
 LIKELY_EXPORT void *likely_compile_n(likely_description description, likely_arity n, likely_type *types);
 
-// Helper library functions
-LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size start, likely_size stop, likely_mat src, ...);
+// Used internally for OpenMP-like parallelization
+LIKELY_EXPORT void _likely_fork(void *kernel, likely_arity arity, likely_size size, likely_const_mat src, ...);
 
 // Make Likely accessible as a Lua module
 struct lua_State;

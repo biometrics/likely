@@ -30,12 +30,11 @@ using namespace std;
 #define LIKELY_TEST_SECONDS 1
 
 // Optional arguments to run only a subset of the benchmarks
-static bool        BenchmarkExamples = false;
-static string      BenchmarkFunction = "";
-static likely_type BenchmarkType     = likely_type_null;
-static int         BenchmarkSize     = 0;
-static bool        BenchmarkSerial   = false;
-static bool        BenchmarkParallel = false;
+static bool        BenchmarkExamples  = false;
+static string      BenchmarkFunction  = "";
+static likely_type BenchmarkType      = likely_type_null;
+static int         BenchmarkSize      = 0;
+static int         BenchmarkExecution = -1;
 
 static Mat generateData(int rows, int columns, likely_type type)
 {
@@ -64,27 +63,20 @@ struct Test
             for (int size : sizes()) {
                 if ((BenchmarkSize != 0) && (BenchmarkSize != size)) continue;
 
-                // Generate input matrix
-                Mat src = generateData(size, size, type);
-                likely_mat srcLikely = fromCvMat(src);
-                likely_function_1 f = (likely_function_1) likely_compile(function(), 1, srcLikely->type);
-                likely_release(srcLikely);
+                for (bool execution : executions()) {
+                    if ((BenchmarkExecution != -1) && (BenchmarkExecution != execution)) continue;
 
-                // Test correctness
-                testCorrectness(f, src, false);
-                testCorrectness(f, src, true);
+                    // Generate input matrix
+                    Mat src = generateData(size, size, type);
+                    likely_mat srcLikely = fromCvMat(src);
+                    likely_set_parallel(&srcLikely->type, execution);
+                    likely_function_1 f = (likely_function_1) likely_compile(function(), 1, srcLikely->type);
+                    likely_release(srcLikely);
 
-                // Test speed
-                Speed baseline = testBaselineSpeed(src);
-
-                if (BenchmarkSerial) {
-                    Speed serial = testLikelySpeed(f, src, false);
-                    printf("%s \t%s \t%d \tSerial \t%.2e\n", function(), likely_type_to_string(type), size, serial.Hz/baseline.Hz);
-                }
-
-                if (BenchmarkParallel) {
-                    Speed parallel = testLikelySpeed(f, src, true);
-                    printf("%s \t%s \t%d \tParallel \t%.2e\n", function(), likely_type_to_string(type), size, parallel.Hz/baseline.Hz);
+                    testCorrectness(f, src);
+                    Speed baseline = testBaselineSpeed(src);
+                    Speed likely = testLikelySpeed(f, src);
+                    printf("%s \t%s \t%d \t%s \t%.2e\n", function(), likely_type_to_string(type), size, execution ? "Parallel" : "Serial", likely.Hz/baseline.Hz);
                 }
             }
         }
@@ -113,30 +105,44 @@ protected:
     virtual cv::Mat computeBaseline(const cv::Mat &src) const = 0;
     virtual std::vector<likely_type> types() const
     {
-        std::vector<likely_type> types;
-        types.push_back(likely_type_u8);
-        types.push_back(likely_type_u16);
-        types.push_back(likely_type_i32);
-        types.push_back(likely_type_f32);
-        types.push_back(likely_type_f64);
+        static std::vector<likely_type> types;
+        if (types.empty()) {
+            types.push_back(likely_type_u8);
+            types.push_back(likely_type_u16);
+            types.push_back(likely_type_i32);
+            types.push_back(likely_type_f32);
+            types.push_back(likely_type_f64);
+        }
         return types;
     }
 
     virtual std::vector<int> sizes() const
     {
-        std::vector<int> sizes;
-        sizes.push_back(4);
-        sizes.push_back(8);
-        sizes.push_back(16);
-        sizes.push_back(32);
-        sizes.push_back(64);
-        sizes.push_back(128);
-        sizes.push_back(256);
-        sizes.push_back(512);
-        sizes.push_back(1024);
-        sizes.push_back(2048);
-        sizes.push_back(4096);
+        static std::vector<int> sizes;
+        if (sizes.empty()) {
+            sizes.push_back(4);
+            sizes.push_back(8);
+            sizes.push_back(16);
+            sizes.push_back(32);
+            sizes.push_back(64);
+            sizes.push_back(128);
+            sizes.push_back(256);
+            sizes.push_back(512);
+            sizes.push_back(1024);
+            sizes.push_back(2048);
+            sizes.push_back(4096);
+        }
         return sizes;
+    }
+
+    virtual std::vector<bool> executions() const
+    {
+        static std::vector<bool> executions;
+        if (executions.empty()) {
+            executions.push_back(false);
+            executions.push_back(true);
+        }
+        return executions;
     }
 
     // OpenCV rounds integer division, Likely floors it.
@@ -160,11 +166,10 @@ private:
         return m;
     }
 
-    void testCorrectness(likely_function_1 f, const cv::Mat &src, bool parallel) const
+    void testCorrectness(likely_function_1 f, const cv::Mat &src) const
     {
         Mat dstOpenCV = computeBaseline(src);
         likely_mat srcLikely = fromCvMat(src);
-        likely_set_parallel(&srcLikely->type, parallel);
         likely_mat dstLikely = f(srcLikely);
 
         Mat errorMat = abs(toCvMat(dstLikely) - dstOpenCV);
@@ -206,11 +211,9 @@ private:
         return Test::Speed(iter, startTime, endTime);
     }
 
-    Speed testLikelySpeed(likely_function_1 f, const cv::Mat &src, bool parallel) const
+    Speed testLikelySpeed(likely_function_1 f, const cv::Mat &src) const
     {
         likely_mat srcLikely = fromCvMat(src);
-        likely_set_parallel(&srcLikely->type, parallel);
-
         clock_t startTime, endTime;
         int iter = 0;
         startTime = endTime = clock();
@@ -262,16 +265,13 @@ int main(int argc, char *argv[])
     for (int i=1; i<argc; i++) {
         if      (!strcmp("-h", argv[i])) printf("benchmark [--examples] [-function <str>] [-type <type>] [-size <int>]\n");
         else if (!strcmp("--examples", argv[i])) BenchmarkExamples = true;
-        else if (!strcmp("--serial", argv[i])) BenchmarkSerial = true;
-        else if (!strcmp("--parallel", argv[i])) BenchmarkParallel = true;
+        else if (!strcmp("--serial", argv[i])) BenchmarkExecution = false;
+        else if (!strcmp("--parallel", argv[i])) BenchmarkExecution = true;
         else if (!strcmp("-function", argv[i])) BenchmarkFunction = argv[++i];
         else if (!strcmp("-type", argv[i])) BenchmarkType = likely_string_to_type(argv[++i]);
         else if (!strcmp("-size", argv[i])) BenchmarkSize = atoi(argv[++i]);
         else    { printf("Unrecognized argument: %s\nTry running 'benchmark -h' for help", argv[i]); return 1; }
     }
-
-    if (!BenchmarkSerial && !BenchmarkParallel)
-        BenchmarkSerial = BenchmarkParallel = true;
 
     // Print to console immediately
     setbuf(stdout, NULL);
