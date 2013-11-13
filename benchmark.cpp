@@ -67,7 +67,7 @@ struct Test
                 // Generate input matrix
                 Mat src = generateData(size, size, type);
                 likely_mat srcLikely = fromCvMat(src);
-                likely_function_1 f = (likely_function_1) likely_compile(function(), 1, srcLikely);
+                likely_function_1 f = (likely_function_1) likely_compile(function(), 1, srcLikely->type);
                 likely_release(srcLikely);
 
                 // Test correctness

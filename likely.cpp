@@ -1273,20 +1273,20 @@ static void workerThread(int workerID)
 
 using namespace likely;
 
-void *likely_compile(likely_description description, likely_arity n, likely_const_mat src, ...)
+void *likely_compile(likely_description description, likely_arity n, likely_type type, ...)
 {
-    vector<likely_const_mat> srcs;
+    vector<likely_type> srcs;
     va_list ap;
-    va_start(ap, src);
+    va_start(ap, type);
     for (int i=0; i<n; i++) {
-        srcs.push_back(src);
-        src = va_arg(ap, likely_const_mat);
+        srcs.push_back(type);
+        type = va_arg(ap, likely_type);
     }
     va_end(ap);
     return likely_compile_n(description, n, srcs.data());
 }
 
-void *likely_compile_n(likely_description description, likely_arity n, likely_const_mat *srcs)
+void *likely_compile_n(likely_description description, likely_arity n, likely_type *types)
 {
     static map<string,KernelBuilder*> kernels;
     static recursive_mutex makerLock;
@@ -1343,18 +1343,15 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
     // Compute function name and types
     stringstream nameStream; nameStream << tokens.front();
     tokens.erase(tokens.begin()); // remove name
-    vector<likely_type> types;
     for (int i=0; i<n; i++) {
-        likely_const_mat src = srcs[i];
-        likely_assert(src && (src->type != likely_type_null), "likely_compile_n null matrix at index: %d", i);
-        nameStream << "_" << likely_type_to_string(src->type);
-        types.push_back(src->type);
+        likely_assert(types[i] != likely_type_null, "likely_compile_n null matrix at index: %d", i);
+        nameStream << "_" << likely_type_to_string(types[i]);
     }
     const string name = nameStream.str();
 
     map<string,KernelBuilder*>::const_iterator it = kernels.find(name);
     if (it == kernels.end()) {
-        kernels.insert(pair<string,KernelBuilder*>(name, new KernelBuilder(name, tokens, types)));
+        kernels.insert(pair<string,KernelBuilder*>(name, new KernelBuilder(name, tokens, vector<likely_type>(types,types+n))));
         it = kernels.find(name);
     }
     return it->second->getPointerToFunction();
@@ -1363,16 +1360,16 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_co
 static int lua_likely_compile(lua_State *L)
 {
     // Remove the matricies
-    vector<likely_const_mat> mats;
+    vector<likely_type> types;
     const int args = lua_gettop(L);
     for (int i=2; i<=args; i++)
-        mats.push_back(checkLuaMat(L, i));
+        types.push_back(checkLuaMat(L, i)->type);
 
     // Get the intermediate representation
     const string source = KernelBuilder::interpret(L);
 
     // Compile the function
-    void *compiled = likely_compile_n(source.c_str(), mats.size(), mats.data());
+    void *compiled = likely_compile_n(source.c_str(), types.size(), types.data());
     lua_pushlightuserdata(L, compiled);
     return 1;
 }

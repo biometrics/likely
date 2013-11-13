@@ -153,8 +153,8 @@ typedef likely_mat (*likely_function_0)(void);
 typedef likely_mat (*likely_function_1)(likely_const_mat);
 typedef likely_mat (*likely_function_2)(likely_const_mat, likely_const_mat);
 typedef likely_mat (*likely_function_3)(likely_const_mat, likely_const_mat, likely_const_mat);
-LIKELY_EXPORT void *likely_compile(likely_description description, likely_arity n, likely_const_mat src, ...);
-LIKELY_EXPORT void *likely_compile_n(likely_description description, likely_arity n, likely_const_mat *srcs);
+LIKELY_EXPORT void *likely_compile(likely_description description, likely_arity n, likely_type type, ...);
+LIKELY_EXPORT void *likely_compile_n(likely_description description, likely_arity n, likely_type *types);
 
 // Helper library functions
 LIKELY_EXPORT void likely_parallel_dispatch(void *kernel, likely_arity arity, likely_size start, likely_size stop, likely_mat src, ...);
