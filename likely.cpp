@@ -1012,12 +1012,6 @@ public:
         if (function != NULL)
             return ee->getPointerToFunction(function);
         function = getFunction(name, m, types.size(), PointerType::getUnqual(TheMatrixStruct));
-        function->addFnAttr(Attribute::NoUnwind);
-        function->setDoesNotAlias(0);
-        for (size_t i=1; i<=function->arg_size(); i++) {
-            function->setDoesNotAlias(i);
-            function->setDoesNotCapture(i);
-        }
 
         vector<Value*> srcs;
         getValues(function, srcs);
@@ -1056,7 +1050,12 @@ public:
 
         Value *start = MatrixBuilder::zero();
         Value *kernelSize = matrix.elements();
-        generateKernel(matrix, entry, start, kernelSize, dst);
+        if (likely_parallel(types[0])) {
+            function = getFunction(name+"_thunk", m, types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), Type::getInt32Ty(getGlobalContext()));
+            assert(false); // TODO: finish implementing this
+        } else {
+            generateKernel(matrix, entry, start, kernelSize, dst);
+        }
         builder.CreateRet(dst);
 
         FunctionPassManager fpm(m);
@@ -1128,30 +1127,24 @@ public:
         }
     }
 
-    static void getValues(Function *function, vector<Value*> &srcs, Value *&dst, Value *&start, Value *&stop)
-    {
-        getValues(function, srcs);
-        stop = srcs.back(); srcs.pop_back();
-        stop->setName("stop");
-        start = srcs.back(); srcs.pop_back();
-        start->setName("start");
-        dst = srcs.back(); srcs.pop_back();
-        dst->setName("dst");
-    }
-
-    static Function *getFunction(const string &description, Module *m, likely_arity arity, Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
+    static Function *getFunction(const string &description, Module *m, likely_arity arity, Type *ret, Type *dst = NULL, Type *id = NULL)
     {
         PointerType *matrixPointer = PointerType::getUnqual(TheMatrixStruct);
         Function *function;
         switch (arity) {
-          case 0: function = cast<Function>(m->getOrInsertFunction(description, ret, dst, start, stop, NULL)); break;
-          case 1: function = cast<Function>(m->getOrInsertFunction(description, ret, matrixPointer, dst, start, stop, NULL)); break;
-          case 2: function = cast<Function>(m->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, dst, start, stop, NULL)); break;
-          case 3: function = cast<Function>(m->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer, dst, start, stop, NULL)); break;
-          default: function = NULL;
+          case 0: function = cast<Function>(m->getOrInsertFunction(description, ret, dst, id, NULL)); break;
+          case 1: function = cast<Function>(m->getOrInsertFunction(description, ret, matrixPointer, dst, id, NULL)); break;
+          case 2: function = cast<Function>(m->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, dst, id, NULL)); break;
+          case 3: function = cast<Function>(m->getOrInsertFunction(description, ret, matrixPointer, matrixPointer, matrixPointer, dst, id, NULL)); break;
+          default: { function = NULL; likely_assert(false, "KernelBuilder::getFunction invalid arity: %d", arity); }
         }
-        likely_assert(function, "KernelBuilder::getFunction invalid arity: %d", arity);
+        function->addFnAttr(Attribute::NoUnwind);
         function->setCallingConv(CallingConv::C);
+        function->setDoesNotAlias(0);
+        for (size_t i=0; i<arity; i++) {
+            function->setDoesNotAlias(i+1);
+            function->setDoesNotCapture(i+1);
+        }
         return function;
     }
 
