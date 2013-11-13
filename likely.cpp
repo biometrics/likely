@@ -1109,7 +1109,7 @@ public:
         builder.CreateRet(dst);
         fpm.run(*function);
 
-        m->dump();
+//        m->dump();
         ee->finalizeObject();
         return ee->getPointerToFunction(function);
     }
