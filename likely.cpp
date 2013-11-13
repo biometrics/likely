@@ -1278,13 +1278,12 @@ typedef void (*likely_kernel_1)(likely_const_mat, likely_mat, likely_size, likel
 typedef void (*likely_kernel_2)(likely_const_mat, likely_const_mat, likely_mat, likely_size, likely_size);
 typedef void (*likely_kernel_3)(likely_const_mat, likely_const_mat, likely_const_mat, likely_mat, likely_size, likely_size);
 
-static void executeWorker(int workerID)
+static void executeWorker(int id, int numWorkers)
 {
-    // There are hardware_concurrency-1 helper threads
-    // The main thread which assumes workerID = workers.size()
-    const likely_size step = (MaxRegisterWidth + (thunkSize-1)/(workers.size()+1)) / MaxRegisterWidth * MaxRegisterWidth;
-    const likely_size start = workerID * step;
-    const likely_size stop = std::min((workerID+1)*step, thunkSize);
+    // There are hardware_concurrency-1 helper threads and the main thread with id = 0
+    const likely_size step = (thunkSize/numWorkers/MaxRegisterWidth+1) * MaxRegisterWidth;
+    const likely_size start = id * step;
+    const likely_size stop = std::min((id+1)*step, thunkSize);
     if (start >= stop) return;
 
     switch (thunkArity) {
@@ -1292,15 +1291,15 @@ static void executeWorker(int workerID)
       case 1: reinterpret_cast<likely_kernel_1>(currentThunk)(thunkMatricies[0], (likely_mat)thunkMatricies[1], start, stop); break;
       case 2: reinterpret_cast<likely_kernel_2>(currentThunk)(thunkMatricies[0], thunkMatricies[1], (likely_mat)thunkMatricies[2], start, stop); break;
       case 3: reinterpret_cast<likely_kernel_3>(currentThunk)(thunkMatricies[0], thunkMatricies[1], thunkMatricies[2], (likely_mat)thunkMatricies[3], start, stop); break;
-      default: likely_assert(false, "likely_parallel_dispatch invalid arity: %d", thunkArity);
+      default: likely_assert(false, "executeWorker invalid arity: %d", thunkArity);
     }
 }
 
-static void workerThread(int workerID)
+static void workerThread(int id, int numWorkers)
 {
     while (true) {
-        workers[workerID]->lock();
-        executeWorker(workerID);
+        workers[id]->lock();
+        executeWorker(id, numWorkers);
         if (--workersRemaining == 0)
             workersActive.unlock();
     }
@@ -1346,12 +1345,13 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_ty
                                              PointerType::getUnqual(StructType::create(getGlobalContext(), "likely_matrix_private")), // d_ptr
                                              NULL);
 
-        const int numWorkers = std::max((int)thread::hardware_concurrency()-1, 1);
-        for (int i=0; i<numWorkers; i++) {
+        const int numWorkers = std::max((int)thread::hardware_concurrency(), 1);
+        workers.push_back(NULL); // main thread = 0
+        for (int i=1; i<numWorkers; i++) {
             mutex *m = new mutex();
             m->lock();
             workers.push_back(m);
-            thread(workerThread, i).detach();
+            thread(workerThread, i, numWorkers).detach();
         }
     }
 
@@ -1590,7 +1590,6 @@ void _likely_fork(void *thunk, likely_arity arity, likely_size size, likely_cons
 {
     workersActive.lock();
 
-    workersRemaining = workers.size();
     currentThunk = thunk;
     thunkArity = arity;
     thunkSize = size;
@@ -1603,10 +1602,12 @@ void _likely_fork(void *thunk, likely_arity arity, likely_size size, likely_cons
     }
     va_end(ap);
 
-    for (size_t i=0; i<workers.size(); i++)
+    // Skip myself when starting other threads
+    workersRemaining = workers.size()-1;
+    for (size_t i=1; i<workers.size(); i++)
         workers[i]->unlock();
 
-    executeWorker(workers.size());
+    executeWorker(0, workers.size());
     while (workersRemaining > 0) {}
 }
 
