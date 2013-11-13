@@ -1073,59 +1073,7 @@ public:
 
         Value *start = MatrixBuilder::zero();
         Value *kernelSize = builder.CreateCall(likelyElements, dst);
-        Value *i = matrix.beginLoop(entry, start, kernelSize).i;
-
-        vector<Value*> values;
-        for (size_t j=0; j<stack.size(); j++) {
-            const string &value = stack[j];
-            char *error;
-            const double x = strtod(value.c_str(), &error);
-            if (*error == '\0') {
-                values.push_back(matrix.autoConstant(x));
-            } else if (value == "src") {
-                values.push_back(matrix.load(i));
-            } else if (values.size() == 1) {
-                Value *operand = values[values.size()-1];
-                values.pop_back();
-                if      (value == "log")   values.push_back(matrix.log(operand));
-                else if (value == "log2")  values.push_back(matrix.log2(operand));
-                else if (value == "log10") values.push_back(matrix.log10(operand));
-                else if (value == "sin")   values.push_back(matrix.sin(operand));
-                else if (value == "cos")   values.push_back(matrix.cos(operand));
-                else if (value == "fabs")  values.push_back(matrix.fabs(operand));
-                else if (value == "sqrt")  values.push_back(matrix.sqrt(operand));
-                else if (value == "exp")   values.push_back(matrix.exp(operand));
-                else                       { likely_assert(false, "Unsupported unary operator: %s", value.c_str()); return NULL; }
-            } else if (values.size() == 2) {
-                Value *lhs = values[values.size()-2];
-                Value *rhs = values[values.size()-1];
-                values.pop_back();
-                values.pop_back();
-                if      (value == "+") values.push_back(matrix.add(lhs, rhs));
-                else if (value == "-") values.push_back(matrix.subtract(lhs, rhs));
-                else if (value == "*") values.push_back(matrix.multiply(lhs, rhs));
-                else if (value == "/") values.push_back(matrix.divide(lhs, rhs));
-                else                   { likely_assert(false, "Unsupported binary operator: %s", value.c_str()); return NULL; }
-            } else {
-                likely_assert(false, "Unrecognized token: %s", value.c_str()); return NULL;
-            }
-        }
-
-        // Parsing a Reverse Polish Notation stack should yield one root value at the end
-        if (values.size() != 1) {
-            stringstream stream; stream << "[";
-            for (size_t i=0; i<values.size(); i++) {
-                stream << values[i];
-                if (i < values.size()-1)
-                    stream << ", ";
-            }
-            stream << "]";
-            likely_assert(false, "Expected one value after parsing, got: %s", stream.str().c_str()); return NULL;
-        }
-        Value *equation = values[0];
-
-        matrix.store(dst, i, equation);
-        matrix.endLoop();
+        generateKernel(matrix, entry, start, kernelSize, dst);
         builder.CreateRet(dst);
 
         FunctionPassManager fpm(m);
@@ -1222,6 +1170,65 @@ public:
         likely_assert(function, "KernelBuilder::getFunction invalid arity: %d", arity);
         function->setCallingConv(CallingConv::C);
         return function;
+    }
+
+private:
+    bool generateKernel(MatrixBuilder &matrix, BasicBlock *entry, Value *start, Value *stop, Value *dst)
+    {
+        Value *i = matrix.beginLoop(entry, start, stop).i;
+
+        vector<Value*> values;
+        for (size_t j=0; j<stack.size(); j++) {
+            const string &value = stack[j];
+            char *error;
+            const double x = strtod(value.c_str(), &error);
+            if (*error == '\0') {
+                values.push_back(matrix.autoConstant(x));
+            } else if (value == "src") {
+                values.push_back(matrix.load(i));
+            } else if (values.size() == 1) {
+                Value *operand = values[values.size()-1];
+                values.pop_back();
+                if      (value == "log")   values.push_back(matrix.log(operand));
+                else if (value == "log2")  values.push_back(matrix.log2(operand));
+                else if (value == "log10") values.push_back(matrix.log10(operand));
+                else if (value == "sin")   values.push_back(matrix.sin(operand));
+                else if (value == "cos")   values.push_back(matrix.cos(operand));
+                else if (value == "fabs")  values.push_back(matrix.fabs(operand));
+                else if (value == "sqrt")  values.push_back(matrix.sqrt(operand));
+                else if (value == "exp")   values.push_back(matrix.exp(operand));
+                else                       { likely_assert(false, "Unsupported unary operator: %s", value.c_str()); return false; }
+            } else if (values.size() == 2) {
+                Value *lhs = values[values.size()-2];
+                Value *rhs = values[values.size()-1];
+                values.pop_back();
+                values.pop_back();
+                if      (value == "+") values.push_back(matrix.add(lhs, rhs));
+                else if (value == "-") values.push_back(matrix.subtract(lhs, rhs));
+                else if (value == "*") values.push_back(matrix.multiply(lhs, rhs));
+                else if (value == "/") values.push_back(matrix.divide(lhs, rhs));
+                else                   { likely_assert(false, "Unsupported binary operator: %s", value.c_str()); return false; }
+            } else {
+                likely_assert(false, "Unrecognized token: %s", value.c_str()); return false;
+            }
+        }
+
+        // Parsing a Reverse Polish Notation stack should yield one root value at the end
+        if (values.size() != 1) {
+            stringstream stream; stream << "[";
+            for (size_t i=0; i<values.size(); i++) {
+                stream << values[i];
+                if (i < values.size()-1)
+                    stream << ", ";
+            }
+            stream << "]";
+            likely_assert(false, "Expected one value after parsing, got: %s", stream.str().c_str()); return false;
+        }
+        Value *equation = values[0];
+
+        matrix.store(dst, i, equation);
+        matrix.endLoop();
+        return true;
     }
 };
 
