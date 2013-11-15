@@ -1550,19 +1550,26 @@ static int lua_likely__call(lua_State *L)
         return 1;
     }
 
-    // Compile the function if neeed
     lua_getfield(L, 1, "binary");
-    if (lua_isnil(L, -1)) {
-        lua_pop(L, 1);
-        lua_getglobal(L, "likely");
-        lua_getfield(L, -1, "compile");
-        lua_pushvalue(L, 1);
+    if (lua_isnil(L, -1) || lua_isuserdata(L, -1)) {
+        // Convert numbers to matricies
         for (int i=2; i<=args; i++)
-            lua_pushvalue(L, i);
-        lua_call(L, args, 1);
-    }
+            if (lua_isnumber(L, i)) {
+                *newLuaMat(L) = likely_scalar(lua_tonumber(L, i));
+                lua_replace(L, i);
+            }
 
-    if (lua_isuserdata(L, -1)) {
+        // Compile the function if needed
+        if (lua_isnil(L, -1)) {
+            lua_pop(L, 1);
+            lua_getglobal(L, "likely");
+            lua_getfield(L, -1, "compile");
+            lua_pushvalue(L, 1);
+            for (int i=2; i<=args; i++)
+                lua_pushvalue(L, i);
+            lua_call(L, args, 1);
+        }
+
         // JIT function
         void *function = lua_touserdata(L, -1);
         vector<likely_const_mat> mats;
