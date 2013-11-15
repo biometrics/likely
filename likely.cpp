@@ -268,6 +268,7 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     m->d_ptr->data_bytes = dataBytes;
 
     if (data && !copy) {
+        likely_assert(uintptr_t(data) % MaxRegisterWidth == 0, "expected pointer to be: %d-byte aligned", MaxRegisterWidth);
         m->data = data;
     } else {
         m->data = alignedDataPointer(m);
@@ -993,11 +994,6 @@ public:
         engineBuilder.setOptLevel(CodeGenOpt::Aggressive);
         engineBuilder.setErrorStr(&error);
         engineBuilder.setUseMCJIT(true);
-
-        // Avoid an LLVM codegen bug on AVX architectures
-        vector<string> mAttrs;
-        mAttrs.push_back("-avx");
-        engineBuilder.setMAttrs(mAttrs);
 
         ee = engineBuilder.create();
         likely_assert(ee != NULL, "KernelBuilder failed to create LLVM ExecutionEngine with error: %s", error.c_str());

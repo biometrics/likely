@@ -160,7 +160,7 @@ private:
 
     static likely_mat fromCvMat(const Mat &src)
     {
-        likely_mat m = ::fromCvMat(src, false);
+        likely_mat m = ::fromCvMat(src, true);
         if (!likely_floating(m->type) && (likely_depth(m->type) <= 16))
             likely_set_saturation(&m->type, true);
         return m;
