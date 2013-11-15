@@ -306,6 +306,34 @@ static int lua_likely_new(lua_State *L)
     return 1;
 }
 
+likely_mat likely_scalar(double value)
+{
+    likely_type type;
+    if      (static_cast< uint8_t>(value) == value) type = likely_type_u8;
+    else if (static_cast<  int8_t>(value) == value) type = likely_type_i8;
+    else if (static_cast<uint16_t>(value) == value) type = likely_type_u16;
+    else if (static_cast< int16_t>(value) == value) type = likely_type_i16;
+    else if (static_cast<uint32_t>(value) == value) type = likely_type_u32;
+    else if (static_cast< int32_t>(value) == value) type = likely_type_i32;
+    else if (static_cast<uint64_t>(value) == value) type = likely_type_u64;
+    else if (static_cast< int64_t>(value) == value) type = likely_type_i64;
+    else if (static_cast<   float>(value) == value) type = likely_type_f32;
+    else                                            type = likely_type_f64;
+    likely_mat m = likely_new(type);
+    likely_set_element(m, value);
+    return m;
+}
+
+static int lua_likely_scalar(lua_State *L)
+{
+    likely_assert(lua_gettop(L) == 1, "'scalar' expected 1 argument, got: %d", lua_gettop(L));
+    int isnum;
+    double value = lua_tonumberx(L, 1, &isnum);
+    likely_assert(isnum, "'scalar' expected a numeric argument, got: %s", lua_tostring(L, 1));
+    *newLuaMat(L) = likely_scalar(value);
+    return 1;
+}
+
 likely_mat likely_copy(likely_const_mat m, int8_t copy_data)
 {
     return likely_new(m->type, m->channels, m->columns, m->rows, m->frames, m->data, copy_data);
@@ -1595,6 +1623,7 @@ int luaopen_likely(lua_State *L)
 {
     static const struct luaL_Reg likely_globals[] = {
         {"new", lua_likely_new},
+        {"scalar", lua_likely_scalar},
         {"read", lua_likely_read},
         {"closure", lua_likely_closure},
         {"compile", lua_likely_compile},

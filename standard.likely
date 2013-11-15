@@ -40,6 +40,13 @@ new = closure(
    {"copy", "copy the data buffer", false}},
   likely.new)
 
+scalar = closure(
+  "scalar",
+  nil,
+  "Create a matrix from a number",
+  {{"value", "matrix value"}},
+  likely.scalar)
+
 read = closure(
   "read",
   nil,
