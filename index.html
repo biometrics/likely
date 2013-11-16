@@ -21,9 +21,6 @@
     <script src="../assets/js/html5shiv.js"></script>
   <![endif]-->
 
-  <script type="text/x-mathjax-config">MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}});</script>
-  <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-
   <link href="google-code-prettify/prettify.css" type="text/css" rel="stylesheet"/>
   <script type="text/javascript" src="google-code-prettify/prettify.js"></script>
 
@@ -108,7 +105,7 @@
     <h2 id="installation">Installation</h2>
     <p>The following sections discuss how to build and incorporate Likely into your own project.</p>
     <h3 id="build_instructions">Build Instructions</h3>
-    <pre>$ git clone https://github.com/biometrics/likely.git<br>$ cd likely<br>$ git submodule init<br>$ git submodule update<br>$ mkdir build<br>$ cd build<br>$ cmake ..<br>$ make<br>$ make install<br>$ cpack -G TGZ</pre>
+    <pre>$ git clone https://github.com/biometrics/likely.git<br>$ cd likely<br>$ git submodule init<br>$ git submodule update<br>$ mkdir build<br>$ cd build<br>$ cmake ..<br>$ make<br>$ make install</pre>
     <h3 id="usage">Usage</h3>
     <p>C/C++ projects should <code class="prettyprint lang-c">#include &lt;likely.h&gt;</code> and link against the <code>likely</code> shared library.
       <tt>LikelyConfig.cmake</tt> is provided in <tt>share/likely/</tt> as a convenience to CMake developers.
@@ -214,44 +211,6 @@
     <pre class="prettyprint lang-c">typedef void (*likely_function_0)(likely_matrix *dst);<br>typedef void (*UnaryFunction)(const likely_matrix *src, likely_matrix *dst);<br>typedef void (*likely_function_2)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);<br>typedef void (*likely_function_3)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);</pre>
     <p>As is true in the example below, most functions are either unary or binary.</p>
     <pre class="prettyprint lang-c">likely_matrix src = foo(); // Pre-initialized input matrix<br>likely_matrix dst; // Uninitialized output matrix<br>likely_unary_function multiply_add = likely_make_unary_function("madd(3,2)"); // Create a function that...<br>multiply_add(&src, &dst); // ...multiplies elements by three then adds two.</pre>
-    <h2 id="language">Language</h2>
-    <p>By this point all the entire API has been covered though you are probably still wondering how, exactly, to request functions and define new ones.
-      Lets begin with how functions are defined, as once that is understood, it will become evident how they can be requested.
-    </p>
-    <h3 id="grammar">Grammar</h3>
-    <p>Like most programming language compilers, the Likely runtime follows three primary steps to compile code.</p>
-    <ol>
-      <li>Lexical Analysis</li>
-      <li>Recursive Descent Parsing</li>
-      <li>Code Generation</li>
-    </ol>
-    <h4 id="lexical_analysis">Lexical Analysis</h4>
-    <p>Lexical analysis is the process whereby the source code is scanned for function definitions and broken up into the indivisible <i>tokens</i> that constitute keywords, variables, and operators.
-      The contents of this file, <tt>index.html</tt>, is scanned at runtime for code that matches the following pattern.
-    </p>
-    <pre class="prettyprint lang-html">&lt;div class="likely"&gt;<br>  $<i>Equation</i>$<br>  &lt;h4&gt;<i>Name</i>&lt;small&gt;<i>Parameters</i>&lt;/small&gt;&lt;/h4&gt;<br>  &lt;p&gt;<i>Documentation</i>&lt;/p&gt;<br>&lt;/div&gt;</pre>
-    <p>Together the <i>equation</i>, <i>name</i>, <i>parameters</i>, and <i>documentation</i> constitute a function <i>definition</i>. For example:</p>
-    <pre class="prettyprint lang-html">&lt;div class="likely"&gt;<br>  $a*src+b$<br>  &lt;h4>madd&lt;small&gt;(a,b)&lt;/small&gt;&lt;/h4&gt;<br>  &lt;p&gt;Multiply-add.&lt;/p&gt;<br>&lt;/div&gt;</pre>
-    <p>The equation is tokenized with a greedy parsing strategy and the <a href="http://www.cplusplus.com/reference/regex/ECMAScript/">ECMAScript</a> regular expression <code>^\\s*([+\\-*/]|\\w+).*$</code>.</p>
-    <h4 id="recursive_descent_parsing">Recursive Descent Parsing</h4>
-    <p>The tokenized equation is converted to a parse tree using recursive descent parsing on the following <a href="http://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form">BNF</a> grammar.</p>
-<pre class="prettyprint">
-equation = term | term '+' term | term '-' term
-term = factor | factor '*' factor | factor '/' factor
-factor = matrix | parameter | number
-matrix = 'src' | 'src_'digit
-parameter = character | parameter character
-number = digit | number digit
-character = 'a' | 'b' | ... | 'z'
-digit = '0' | '1' | ... | '9' | '.'
-</pre>
-    <h3 id="function_request">Function Request</h3>
-    <h2 id="standard_library">Standard Library</h2>
-    <p>All of the implemented functions.</p>
-    <h3 id="nullary_functions">Nullary Functions</h3>
-    <h3 id="unary_functions">Unary Functions</h3>
-    <h3 id="binary_functions">Binary Functions</h3>
-    <h3 id="ternary_functions">Ternary Functions</h3>
     <h2 id="benchmark">Benchmark</h2>
     <style type="text/css">
       .axis path,
