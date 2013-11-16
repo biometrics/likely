@@ -84,8 +84,8 @@
        </blockquote>
     </p>
     <h3 id="executable_everywhere">Executable Everywhere</h3>
-    <p>Likely is written in a portable subset of <i>ISO C++11</i> and depends only on <i>LLVM</i> which means it runs <a href="http://llvm.org/docs/GettingStarted.html#hardware">everywhere LLVM does</a>.
-      Kernels execute natively on single CPU threads via the LLVM <i>Just-In-Time</i> (JIT) compiler, multi-core CPUs with <i>std::thread</i>, and <i>OpenCL</i> compatible GPUs and coprocessors.
+    <p>Likely is built on top of the <i>Low Level Virtual Machine</i> (LLVM) compiler infrastructure using a portable subset of <tt>ISO C++11</tt>, which means it runs <a href="http://llvm.org/docs/GettingStarted.html#hardware">everywhere LLVM does</a>.
+       Algorithms execute natively on single CPU threads via the LLVM <i>Machine Code Just-In-Time</i> (MCJIT) compiler, multi-core CPUs via a custom <tt>OpenMP</tt>-like backend, and GPUs and coprocessors via <i>OpenCL</i>, <i>HSAIL</i>, or <i>CUDA</i>.
     </p>
     <h3 id="perfectly_optimized">Perfectly Optimized</h3>
     <p>Likely relies on the powerful and well established LLVM optimization passes to make kernel execution as fast as possible.
