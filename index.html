@@ -63,12 +63,12 @@
     <h1 id="literate_kernel_library">Likely Kernel Library <small>(under construction)</small></h1>
     <p class="lead">An image recognition runtime for heterogenous architectures.</p>
     <h2 id="introduction">Introduction</h2>
-    <p>Welcome to the documentation for <tt>Likely</tt>, the image recognition programming language and runtime!</p>
+    <p>Welcome to the documentation for <tt>Likely</tt>, the image recognition programming language!</p>
     <h3 id="principles">Principles</h3>
     <ol>
-      <li>Immediate visual feedback while developing algorithms</li>
       <li>Heterogeneous hardware architecture support</li>
-      <li>Typeless and efficient kernel syntax for statistical learning</li>
+      <li>Efficient syntax for feature representation and statistical learning</li>
+      <li>Immediate visual feedback during algorithm development</li>
       <li>Embeddable into other projects and languages</li>
       <li>Free open source software</li>
     </ol>
@@ -76,12 +76,12 @@
     <p>We try to keep this document complete and correct.
        However, should you run into trouble, please feel free to ask questions on our <a href="https://groups.google.com/forum/#!forum/likely-dev">mailing list</a> or report bugs on our <a href="https://github.com/biometrics/likely/issues">issue tracker</a>.</p>
     <h3 id="background">Background</h3>
-    <p>The software development of a complex system is often facilitated by a Domain Specific Language (DSL) whose syntax is designed to concisely and efficiently solve problems encountered in that domain.
-       Many communities rely on DSLs; including TeX for typesetting, ggplot2 for plotting, SQL for database queries, GraphViz for graph layout, and Mathematica for symbolic math.
-    </p>
-    <p>However, there currently does not exist a suitable DSL for image processing and pattern recognition.
-       As a consequence, most libraries and applications for this task are written in either C++ or MATLAB, neither of which will simultaneously respect both the engineer's time and the hardware's compute capability.
-       In fact, a DSL for image recognition is essential in order to overcome the fundamental restrictions imposed by existing languages on the nature of algorithms that can be expressed: currently a method may be too cumbersome to implement in a “low-level language” and too slow to execute in a “high-level language”.
+    <p>The software development of a complex system is often facilitated by a <i>Domain Specific Language</i> (DSL) whose syntax is designed to concisely and efficiently solve problems frequently encountered in the domain.
+       While many technical communities rely on DSLs, there currently exists no suitable language for image recognition researchers.
+       As a consequence, most libraries and applications are written in either <tt>C++</tt> or <tt>MATLAB</tt>, neither of which will simultaneously respect both the engineer's time and the hardware's compute capability.
+       <blockquote>
+         <p>We believe a DSL for image recognition is essential to express algorithms that are currently too complex to implement in a "low-level" language and too slow to execute in a "high-level" language.</p>
+       </blockquote>
     </p>
     <h3 id="executable_everywhere">Executable Everywhere</h3>
     <p>Likely is written in a portable subset of <i>ISO C++11</i> and depends only on <i>LLVM</i> which means it runs <a href="http://llvm.org/docs/GettingStarted.html#hardware">everywhere LLVM does</a>.
