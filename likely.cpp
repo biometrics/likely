@@ -628,7 +628,8 @@ struct KernelBuilder
     IRBuilder<> *b;
     Function *f;
     likely_type t;
-    Value *v;
+    vector<Value*> matricies;
+    vector<likely_type> types;
 
     struct Loop {
         BasicBlock *body;
@@ -638,8 +639,13 @@ struct KernelBuilder
     };
     stack<Loop> loops;
 
-    KernelBuilder(Module *module, IRBuilder<> *builder, Function *function, likely_type type = likely_type_null, Value *value = NULL)
-        : m(module), b(builder), f(function), t(type), v(value) {}
+    KernelBuilder(Module *module, IRBuilder<> *builder, Function *function, const vector<Value*> &matricies_, const vector<likely_type> &types_)
+        : m(module), b(builder), f(function), matricies(matricies_), types(types_)
+    {
+        t = likely_type_null;
+        for (likely_type type : types)
+            t |= type;
+    }
 
     static Constant *constant(int value, int bits = 32) { return Constant::getIntegerValue(Type::getInt32Ty(getGlobalContext()), APInt(bits, value)); }
     static Constant *constant(bool value) { return constant(value, 1); }
@@ -655,120 +661,98 @@ struct KernelBuilder
     Constant *autoConstant(double value) const { return likely_floating(t) ? ((likely_depth(t) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(t)); }
     AllocaInst *autoAlloca(double value) const { AllocaInst *alloca = b->CreateAlloca(ty(), 0); b->CreateStore(autoConstant(value), alloca); return alloca; }
 
-    Value *data(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 0), "_data"); }
-    Value *data(Value *matrix, Type *type) const { return b->CreatePointerCast(data(matrix), type); }
-    Value *type(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 1), "_type"); }
-    Value *channels(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 2), "_channels"); }
-    Value *columns(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 3), "_columns"); }
-    Value *rows(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 4), "_rows"); }
-    Value *frames(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 5), "_frames"); }
+    Value *data(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 0), "_data"); }
+    Value *data(Value *v, Type *type) const { return b->CreatePointerCast(data(v), type); }
+    Value *type(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 1), "_type"); }
+    Value *channels(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 2), "_channels"); }
+    Value *columns(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 3), "_columns"); }
+    Value *rows(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 4), "_rows"); }
+    Value *frames(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 5), "_frames"); }
 
-    Value *data(bool cast = true) const { return cast ? data(v, ty(true)) : data(v); }
-    Value *type() const { return type(v); }
-    Value *channels() const { return likely_single_channel(t) ? static_cast<Value*>(one()) : channels(v); }
-    Value *columns() const { return likely_single_column(t) ? static_cast<Value*>(one()) : columns(v); }
-    Value *rows() const { return likely_single_row(t) ? static_cast<Value*>(one()) : rows(v); }
-    Value *frames() const { return likely_single_frame(t) ? static_cast<Value*>(one()) : frames(v); }
-
-    void setData(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 0)); }
+    void setData(Value *ma, Value *value) const { b->CreateStore(value, b->CreateStructGEP(ma, 0)); }
     void setType(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 1)); }
     void setChannels(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 2)); }
     void setColumns(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 3)); }
     void setRows(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 4)); }
     void setFrames(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 5)); }
 
-    void setData(Value *value) const { setData(v, value); }
-    void setType(Value *value) const { setType(v, value); }
-    void setChannels(Value *value) const { setChannels(v, value); }
-    void setColumns(Value *value) const { setColumns(v, value); }
-    void setRows(Value *value) const { setRows(v, value); }
-    void setFrames(Value *value) const { setFrames(v, value); }
+    Value *get(Value *matrix, int mask) const { return b->CreateAnd(type(matrix), constant(mask, 8*sizeof(likely_type))); }
+    void set(Value *matrix, int value, int mask) const { setType(matrix, b->CreateOr(b->CreateAnd(type(matrix), constant(~mask, 8*sizeof(likely_type))), b->CreateAnd(constant(value, 8*sizeof(likely_type)), constant(mask, 8*sizeof(likely_type))))); }
+    void setBit(Value *matrix, bool on, int mask) const { on ? setType(matrix, b->CreateOr(type(matrix), constant(mask, 8*sizeof(likely_type)))) : setType(matrix, b->CreateAnd(type(matrix), constant(~mask, 8*sizeof(likely_type)))); }
 
-    void copyHeaderTo(Value *matrix) const {
-        setType(matrix, type());
-        setChannels(matrix, channels());
-        setColumns(matrix, columns());
-        setRows(matrix, rows());
-        setFrames(matrix, frames());
-    }
+    Value *depth(Value *matrix) const { return get(matrix, likely_type_depth); }
+    void setDepth(Value *matrix, int depth) const { set(matrix, depth, likely_type_depth); }
+    Value *isSigned(Value *matrix) const { return get(matrix, likely_type_signed); }
+    void setSigned(Value *matrix, bool isSigned) const { setBit(matrix, isSigned, likely_type_signed); }
+    Value *isFloating(Value *matrix) const { return get(matrix, likely_type_floating); }
+    void setFloating(Value *matrix, bool isFloating) const { setBit(matrix, isFloating, likely_type_floating); }
+    Value *isParallel(Value *matrix) const { return get(matrix, likely_type_parallel); }
+    void setParallel(Value *matrix, bool isParallel) const { setBit(matrix, isParallel, likely_type_parallel); }
+    Value *isHeterogeneous(Value *matrix) const { return get(matrix, likely_type_heterogeneous); }
+    void setHeterogeneous(Value *matrix, bool isHeterogeneous) const { setBit(matrix, isHeterogeneous, likely_type_heterogeneous); }
+    Value *isSingleChannel(Value *matrix) const { return get(matrix, likely_type_single_channel); }
+    void setSingleChannel(Value *matrix, bool isSingleChannel) const { setBit(matrix, isSingleChannel, likely_type_single_channel); }
+    Value *isSingleColumn(Value *matrix) const { return get(matrix, likely_type_single_column); }
+    void setSingleColumn(Value *matrix, bool isSingleColumn) { setBit(matrix, isSingleColumn, likely_type_single_column); }
+    Value *isSingleRow(Value *matrix) const { return get(matrix, likely_type_single_row); }
+    void setSingleRow(Value *matrix, bool isSingleRow) const { setBit(matrix, isSingleRow, likely_type_single_row); }
+    Value *isSingleFrame(Value *matrix) const { return get(matrix, likely_type_single_frame); }
+    void setSingleFrame(Value *matrix, bool isSingleFrame) const { setBit(matrix, isSingleFrame, likely_type_single_frame); }
+    Value *isSaturation(Value *matrix) const { return get(matrix, likely_type_saturation); }
+    void setSaturation(Value *matrix, bool isSaturation) const { setBit(matrix, isSaturation, likely_type_saturation); }
+    Value *reserved(Value *matrix) const { return get(matrix, likely_type_reserved); }
+    void setReserved(Value *matrix, int reserved) const { set(matrix, reserved, likely_type_reserved); }
 
-    Value *get(int mask) const { return b->CreateAnd(type(), constant(mask, 8*sizeof(likely_type))); }
-    void set(int value, int mask) const { setType(b->CreateOr(b->CreateAnd(type(), constant(~mask, 8*sizeof(likely_type))), b->CreateAnd(constant(value, 8*sizeof(likely_type)), constant(mask, 8*sizeof(likely_type))))); }
-    void setBit(bool on, int mask) const { on ? setType(b->CreateOr(type(), constant(mask, 8*sizeof(likely_type)))) : setType(b->CreateAnd(type(), constant(~mask, 8*sizeof(likely_type)))); }
+    Value *elements(Value *matrix) const { return b->CreateMul(b->CreateMul(b->CreateMul(channels(matrix), columns(matrix)), rows(matrix)), frames(matrix)); }
+    Value *bytes(Value *matrix) const { return b->CreateMul(b->CreateUDiv(b->CreateCast(Instruction::ZExt, depth(matrix), Type::getInt32Ty(getGlobalContext())), constant(8, 32)), elements(matrix)); }
 
-    Value *depth() const { return get(likely_type_depth); }
-    void setDepth(int depth) const { set(depth, likely_type_depth); }
-    Value *isSigned() const { return get(likely_type_signed); }
-    void setSigned(bool isSigned) const { setBit(isSigned, likely_type_signed); }
-    Value *isFloating() const { return get(likely_type_floating); }
-    void setFloating(bool isFloating) const { if (isFloating) setSigned(true); setBit(isFloating, likely_type_floating); }
-    Value *isParallel() const { return get(likely_type_parallel); }
-    void setParallel(bool isParallel) const { setBit(isParallel, likely_type_parallel); }
-    Value *isHeterogeneous() const { return get(likely_type_heterogeneous); }
-    void setHeterogeneous(bool isHeterogeneous) const { setBit(isHeterogeneous, likely_type_heterogeneous); }
-    Value *isSingleChannel() const { return get(likely_type_single_channel); }
-    void setSingleChannel(bool isSingleChannel) const { setBit(isSingleChannel, likely_type_single_channel); }
-    Value *isSingleColumn() const { return get(likely_type_single_column); }
-    void setSingleColumn(bool isSingleColumn) { setBit(isSingleColumn, likely_type_single_column); }
-    Value *isSingleRow() const { return get(likely_type_single_row); }
-    void setSingleRow(bool isSingleRow) const { setBit(isSingleRow, likely_type_single_row); }
-    Value *isSingleFrame() const { return get(likely_type_single_frame); }
-    void setSingleFrame(bool isSingleFrame) const { setBit(isSingleFrame, likely_type_single_frame); }
-    Value *isSaturation() const { return get(likely_type_saturation); }
-    void setSaturation(bool isSaturation) const { setBit(isSaturation, likely_type_saturation); }
-    Value *reserved() const { return get(likely_type_reserved); }
-    void setReserved(int reserved) const { set(reserved, likely_type_reserved); }
-
-    Value *elements() const { return b->CreateMul(b->CreateMul(b->CreateMul(channels(), columns()), rows()), frames()); }
-    Value *bytes() const { return b->CreateMul(b->CreateUDiv(b->CreateCast(Instruction::ZExt, depth(), Type::getInt32Ty(getGlobalContext())), constant(8, 32)), elements()); }
-
-    Value *columnStep() const { Value *columnStep = channels(); columnStep->setName("_cStep"); return columnStep; }
-    Value *rowStep() const { return b->CreateMul(columns(), columnStep(), "_rStep"); }
-    Value *frameStep() const { return b->CreateMul(rows(), rowStep(), "_tStep"); }
+    Value *columnStep(Value *matrix) const { Value *columnStep = channels(matrix); columnStep->setName("_cStep"); return columnStep; }
+    Value *rowStep(Value *matrix) const { return b->CreateMul(columns(matrix), columnStep(matrix), "_rStep"); }
+    Value *frameStep(Value *matrix) const { return b->CreateMul(rows(matrix), rowStep(matrix), "_tStep"); }
 
     Value *index(Value *c) const { return likely_single_channel(t) ? constant(0) : c; }
-    Value *index(Value *c, Value *x) const { return likely_single_column(t) ? index(c) : b->CreateAdd(b->CreateMul(x, columnStep()), index(c)); }
-    Value *index(Value *c, Value *x, Value *y) const { return likely_single_row(t) ? index(c, x) : b->CreateAdd(b->CreateMul(y, rowStep()), index(c, x)); }
-    Value *index(Value *c, Value *x, Value *y, Value *f) const { return likely_single_frame(t) ? index(c, x, y) : b->CreateAdd(b->CreateMul(f, frameStep()), index(c, x, y)); }
+    Value *index(Value *matrix, Value *c, Value *x) const { return likely_single_column(t) ? index(c) : b->CreateAdd(b->CreateMul(x, columnStep(matrix)), index(c)); }
+    Value *index(Value *matrix, Value *c, Value *x, Value *y) const { return likely_single_row(t) ? index(matrix, c, x) : b->CreateAdd(b->CreateMul(y, rowStep(matrix)), index(matrix, c, x)); }
+    Value *index(Value *matrix, Value *c, Value *x, Value *y, Value *f) const { return likely_single_frame(t) ? index(matrix, c, x, y) : b->CreateAdd(b->CreateMul(f, frameStep(matrix)), index(matrix, c, x, y)); }
 
     void deindex(Value *i, Value **c) const {
         *c = likely_single_channel(t) ? constant(0) : i;
     }
-    void deindex(Value *i, Value **c, Value **x) const {
+    void deindex(Value *matrix, Value *i, Value **c, Value **x) const {
         Value *rem;
         if (likely_single_column(t)) {
             rem = i;
             *x = constant(0);
         } else {
-            Value *step = columnStep();
+            Value *step = columnStep(matrix);
             rem = b->CreateURem(i, step, "_xRem");
             *x = b->CreateExactUDiv(b->CreateSub(i, rem), step, "_x");
         }
         deindex(rem, c);
     }
-    void deindex(Value *i, Value **c, Value **x, Value **y) const {
+    void deindex(Value *matrix, Value *i, Value **c, Value **x, Value **y) const {
         Value *rem;
         if (likely_single_row(t)) {
             rem = i;
             *y = constant(0);
         } else {
-            Value *step = rowStep();
+            Value *step = rowStep(matrix);
             rem = b->CreateURem(i, step, "_yRem");
             *y = b->CreateExactUDiv(b->CreateSub(i, rem), step, "_y");
         }
-        deindex(rem, c, x);
+        deindex(matrix, rem, c, x);
     }
-    void deindex(Value *i, Value **c, Value **x, Value **y, Value **t_) const {
+    void deindex(Value *matrix, Value *i, Value **c, Value **x, Value **y, Value **t_) const {
         Value *rem;
         if (likely_single_frame(t)) {
             rem = i;
             *t_ = constant(0);
         } else {
-            Value *step = frameStep();
+            Value *step = frameStep(matrix);
             rem = b->CreateURem(i, step, "_tRem");
             *t_ = b->CreateExactUDiv(b->CreateSub(i, rem), step, "_t");
         }
-        deindex(rem, c, x, y);
+        deindex(matrix, rem, c, x, y);
     }
 
     LoadInst *load(Value *matrix, Type *type, Value *i) {
@@ -776,21 +760,13 @@ struct KernelBuilder
         load->setMetadata("llvm.mem.parallel_loop_access", getCurrentNode());
         return load;
     }
-    LoadInst *load(Value *i) {
-        LoadInst *load = b->CreateLoad(b->CreateGEP(data(), i));
-        load->setMetadata("llvm.mem.parallel_loop_access", getCurrentNode());
-        return load;
-    }
+
+    LoadInst *load(likely_arity n, Value *i) { return load(matricies[n], ty(types[n], true), i); }
 
     StoreInst *store(Value *matrix, Value *i, Value *value) {
         Value *d = data(matrix, ty(true));
         Value *idx = b->CreateGEP(d, i);
         StoreInst *store = b->CreateStore(value, idx);
-        store->setMetadata("llvm.mem.parallel_loop_access", getCurrentNode());
-        return store;
-    }
-    StoreInst *store(Value *i, Value *value) {
-        StoreInst *store = b->CreateStore(value, b->CreateGEP(data(), i));
         store->setMetadata("llvm.mem.parallel_loop_access", getCurrentNode());
         return store;
     }
@@ -1057,7 +1033,7 @@ public:
         getValues(function, srcs);
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
-        KernelBuilder matrix(module, &builder, function, types[0], srcs[0]);
+        KernelBuilder kernel(module, &builder, function, srcs, types);
 
         static FunctionType* LikelyNewSignature = NULL;
         if (LikelyNewSignature == NULL) {
@@ -1079,17 +1055,17 @@ public:
         likelyNew->setDoesNotCapture(6);
 
         std::vector<Value*> likelyNewArgs;
-        likelyNewArgs.push_back(matrix.type());
-        likelyNewArgs.push_back(matrix.channels());
-        likelyNewArgs.push_back(matrix.columns());
-        likelyNewArgs.push_back(matrix.rows());
-        likelyNewArgs.push_back(matrix.frames());
+        likelyNewArgs.push_back(kernel.type(srcs[0]));
+        likelyNewArgs.push_back(kernel.channels(srcs[0]));
+        likelyNewArgs.push_back(kernel.columns(srcs[0]));
+        likelyNewArgs.push_back(kernel.rows(srcs[0]));
+        likelyNewArgs.push_back(kernel.frames(srcs[0]));
         likelyNewArgs.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(getGlobalContext())));
-        likelyNewArgs.push_back(matrix.constant(0, 8));
+        likelyNewArgs.push_back(kernel.constant(0, 8));
         Value *dst = builder.CreateCall(likelyNew, likelyNewArgs);
 
         Value *start = KernelBuilder::zero();
-        Value *kernelSize = matrix.elements();
+        Value *kernelSize = kernel.elements(srcs[0]);
         if (likely_parallel(types[0])) {
             Function *thunk = getFunction(name+"_thunk", module, types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
             vector<Value*> thunkSrcs;
@@ -1102,7 +1078,7 @@ public:
             thunkDst->setName("dst");
             BasicBlock *thunkEntry = BasicBlock::Create(getGlobalContext(), "thunk_entry", thunk);
             IRBuilder<> thunkBuilder(thunkEntry);
-            KernelBuilder thunkMatrix(module, &thunkBuilder, thunk, types[0], thunkSrcs[0]);
+            KernelBuilder thunkMatrix(module, &thunkBuilder, thunk, thunkSrcs, types);
             generateKernel(thunkMatrix, thunkEntry, thunkStart, thunkStop, thunkDst);
             thunkBuilder.CreateRetVoid();
             functionPassManager.run(*thunk);
@@ -1130,7 +1106,7 @@ public:
             likelyForkArgs.push_back(dst);
             builder.CreateCall(likelyFork, likelyForkArgs);
         } else {
-            generateKernel(matrix, entry, start, kernelSize, dst);
+            generateKernel(kernel, entry, start, kernelSize, dst);
         }
         builder.CreateRet(dst);
         functionPassManager.run(*function);
@@ -1230,8 +1206,7 @@ private:
                 values.push_back(matrix.autoConstant(x));
             } else if (value.substr(0,1) == "#") {
                 int index = atoi(value.substr(1, value.size()-1).c_str());
-                (void) index; // TODO: reference the correct matrix
-                values.push_back(matrix.load(i));
+                values.push_back(matrix.load(index, i));
             } else if (values.size() == 1) {
                 Value *operand = values[values.size()-1];
                 values.pop_back();
