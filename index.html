@@ -1,28 +1,27 @@
 <!DOCTYPE html>
-<?xml-stylesheet type="text/xsl" href="http://www.w3.org/Math/XSL/mathml.xsl"?>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Likely</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Literate Kernel Library">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Likely Kernel Library">
   <meta name="author" content="Josh Klontz">
+  <title>Likely</title>
 
-  <link href="bootstrap/css/bootstrap.css" rel="stylesheet">
-  <style>
-    body {
-      padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
-    }
-  </style>
-  <link href="bootstrap/css/bootstrap-responsive.css" rel="stylesheet">
+  <!-- Bootstrap -->
+  <link href="http://getbootstrap.com/dist/css/bootstrap.css" rel="stylesheet">
+  <style> body { padding-top: 70px; } </style>
 
-  <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
-  <!--[if lt IE 9]>
-    <script src="../assets/js/html5shiv.js"></script>
-  <![endif]-->
+  <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+  <script src="https://code.jquery.com/jquery.js"></script>
+
+  <!-- Include all compiled plugins (below), or include individual files as needed -->
+  <script src="http://getbootstrap.com/dist/js/bootstrap.min.js"></script>
 
   <link href="google-code-prettify/prettify.css" type="text/css" rel="stylesheet"/>
   <script type="text/javascript" src="google-code-prettify/prettify.js"></script>
+  <script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
+  <script type="text/javascript" src="http://underscorejs.org/underscore-min.js"></script>
 
   <script type="text/javascript">
     var _gaq = _gaq || [];
@@ -34,30 +33,28 @@
       var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
     })();
   </script>
-
-  <script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
-  <script type="text/javascript" src="http://underscorejs.org/underscore-min.js"></script>
-  <script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js"></script>
 </head>
 
 <body onload="prettyPrint()">
-  <div class="navbar navbar-inverse navbar-fixed-top">
-    <div class="navbar-inner">
-      <div class="container"> <div class="row"> <div class="span12">
-        <a class="brand" href="#">Likely</a>
-        <ul class="nav">
+  <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="#">Likely</a>
+      </div>
+      <div class="collapse navbar-collapse">
+        <ul class="nav navbar-nav">
           <li><a href="https://github.com/biometrics/likely">Source</a></li>
           <li><a href="https://github.com/jklontz">Author</a></li>
         </ul>
-        <ul class="nav pull-right">
-          <li><a class="pull-right" href="share/likely/LICENSE.txt">Licensed under Apache 2.0 &copy; 2013 Joshua C. Klontz</a></li>
+        <ul class="nav navbar-nav navbar-right">
+          <li><a href="share/likely/LICENSE.txt">Licensed under Apache 2.0 &copy; 2013 Joshua C. Klontz</a></li>
         </ul>
-      </div> </div> </div>
+      </div>
     </div>
   </div>
 
   <div class="container"> <div class="row"> <div class="span12">
-    <h1 id="literate_kernel_library">Likely Kernel Library <small>(under construction)</small></h1>
+    <h1 id="likely_kernel_library">Likely Kernel Library <small>(under construction)</small></h1>
     <p class="lead">An image recognition runtime for heterogenous architectures.</p>
     <h2 id="introduction">Introduction</h2>
     <p>Welcome to the documentation for <tt>Likely</tt>, the image recognition programming language!</p>
