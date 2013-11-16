@@ -161,7 +161,7 @@ static int lua_likely__index(lua_State *L)
     lua_getfield(L, -1, key);
 
     // Either key is name of a method in the metatable
-    if(!lua_isnil(L, -1))
+    if (!lua_isnil(L, -1))
         return 1;
 
     // ... or its a field access, so recall as self.get(self, value).
@@ -234,7 +234,7 @@ static likely_mat *newLuaMat(lua_State *L)
     return mp;
 }
 
-// Note: these are currently not used in a thread safe manner
+// TODO: make this thread_local when compiler support improves
 static likely_mat recycledBuffer = NULL;
 
 static likely_data *alignedDataPointer(likely_mat m)
@@ -627,7 +627,6 @@ struct KernelBuilder
     Module *m;
     IRBuilder<> *b;
     Function *f;
-    Twine n;
     likely_type t;
     Value *v;
 
@@ -639,8 +638,8 @@ struct KernelBuilder
     };
     stack<Loop> loops;
 
-    KernelBuilder(Module *module, IRBuilder<> *builder, Function *function, const Twine &name, likely_type type = likely_type_null, Value *value = NULL)
-        : m(module), b(builder), f(function), n(name), t(type), v(value) {}
+    KernelBuilder(Module *module, IRBuilder<> *builder, Function *function, likely_type type = likely_type_null, Value *value = NULL)
+        : m(module), b(builder), f(function), t(type), v(value) {}
 
     static Constant *constant(int value, int bits = 32) { return Constant::getIntegerValue(Type::getInt32Ty(getGlobalContext()), APInt(bits, value)); }
     static Constant *constant(bool value) { return constant(value, 1); }
@@ -654,15 +653,15 @@ struct KernelBuilder
     static Constant *intMax(int bits = 32) { return constant((1 << (bits-1))-1, bits); }
     static Constant *intMin(int bits = 32) { return constant((1 << (bits-1)), bits); }
     Constant *autoConstant(double value) const { return likely_floating(t) ? ((likely_depth(t) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(t)); }
-    AllocaInst *autoAlloca(double value) const { AllocaInst *alloca = b->CreateAlloca(ty(), 0, n); b->CreateStore(autoConstant(value), alloca); return alloca; }
+    AllocaInst *autoAlloca(double value) const { AllocaInst *alloca = b->CreateAlloca(ty(), 0); b->CreateStore(autoConstant(value), alloca); return alloca; }
 
-    Value *data(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 0), n+"_data"); }
+    Value *data(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 0), "_data"); }
     Value *data(Value *matrix, Type *type) const { return b->CreatePointerCast(data(matrix), type); }
-    Value *type(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 1), n+"_type"); }
-    Value *channels(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 2), n+"_channels"); }
-    Value *columns(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 3), n+"_columns"); }
-    Value *rows(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 4), n+"_rows"); }
-    Value *frames(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 5), n+"_frames"); }
+    Value *type(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 1), "_type"); }
+    Value *channels(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 2), "_channels"); }
+    Value *columns(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 3), "_columns"); }
+    Value *rows(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 4), "_rows"); }
+    Value *frames(Value *matrix) const { return b->CreateLoad(b->CreateStructGEP(matrix, 5), "_frames"); }
 
     Value *data(bool cast = true) const { return cast ? data(v, ty(true)) : data(v); }
     Value *type() const { return type(v); }
@@ -723,9 +722,9 @@ struct KernelBuilder
     Value *elements() const { return b->CreateMul(b->CreateMul(b->CreateMul(channels(), columns()), rows()), frames()); }
     Value *bytes() const { return b->CreateMul(b->CreateUDiv(b->CreateCast(Instruction::ZExt, depth(), Type::getInt32Ty(getGlobalContext())), constant(8, 32)), elements()); }
 
-    Value *columnStep() const { Value *columnStep = channels(); columnStep->setName(n+"_cStep"); return columnStep; }
-    Value *rowStep() const { return b->CreateMul(columns(), columnStep(), n+"_rStep"); }
-    Value *frameStep() const { return b->CreateMul(rows(), rowStep(), n+"_tStep"); }
+    Value *columnStep() const { Value *columnStep = channels(); columnStep->setName("_cStep"); return columnStep; }
+    Value *rowStep() const { return b->CreateMul(columns(), columnStep(), "_rStep"); }
+    Value *frameStep() const { return b->CreateMul(rows(), rowStep(), "_tStep"); }
 
     Value *index(Value *c) const { return likely_single_channel(t) ? constant(0) : c; }
     Value *index(Value *c, Value *x) const { return likely_single_column(t) ? index(c) : b->CreateAdd(b->CreateMul(x, columnStep()), index(c)); }
@@ -742,8 +741,8 @@ struct KernelBuilder
             *x = constant(0);
         } else {
             Value *step = columnStep();
-            rem = b->CreateURem(i, step, n+"_xRem");
-            *x = b->CreateExactUDiv(b->CreateSub(i, rem), step, n+"_x");
+            rem = b->CreateURem(i, step, "_xRem");
+            *x = b->CreateExactUDiv(b->CreateSub(i, rem), step, "_x");
         }
         deindex(rem, c);
     }
@@ -754,8 +753,8 @@ struct KernelBuilder
             *y = constant(0);
         } else {
             Value *step = rowStep();
-            rem = b->CreateURem(i, step, n+"_yRem");
-            *y = b->CreateExactUDiv(b->CreateSub(i, rem), step, n+"_y");
+            rem = b->CreateURem(i, step, "_yRem");
+            *y = b->CreateExactUDiv(b->CreateSub(i, rem), step, "_y");
         }
         deindex(rem, c, x);
     }
@@ -766,8 +765,8 @@ struct KernelBuilder
             *t_ = constant(0);
         } else {
             Value *step = frameStep();
-            rem = b->CreateURem(i, step, n+"_tRem");
-            *t_ = b->CreateExactUDiv(b->CreateSub(i, rem), step, n+"_t");
+            rem = b->CreateURem(i, step, "_tRem");
+            *t_ = b->CreateExactUDiv(b->CreateSub(i, rem), step, "_t");
         }
         deindex(rem, c, x, y);
     }
@@ -802,9 +801,9 @@ struct KernelBuilder
     // http://locklessinc.com/articles/sat_arithmetic/
     Value *signedSaturationHelper(Value *result, Value *overflowResult, Value *overflowCondition) const
     {
-        BasicBlock *overflowResolved = BasicBlock::Create(getGlobalContext(), n + "_overflow_resolved", f);
-        BasicBlock *overflowTrue = BasicBlock::Create(getGlobalContext(), n + "_overflow_true", f);
-        BasicBlock *overflowFalse = BasicBlock::Create(getGlobalContext(), n + "_overflow_false", f);
+        BasicBlock *overflowResolved = BasicBlock::Create(getGlobalContext(), "_overflow_resolved", f);
+        BasicBlock *overflowTrue = BasicBlock::Create(getGlobalContext(), "_overflow_true", f);
+        BasicBlock *overflowFalse = BasicBlock::Create(getGlobalContext(), "_overflow_false", f);
         b->CreateCondBr(overflowCondition, overflowTrue, overflowFalse);
         b->SetInsertPoint(overflowTrue);
         b->CreateBr(overflowResolved);
@@ -820,23 +819,23 @@ struct KernelBuilder
     Value *add(Value *i, Value *j) const
     {
         if (likely_floating(t)) {
-            return b->CreateFAdd(i, j, n);
+            return b->CreateFAdd(i, j);
         } else {
             if (likely_saturation(t)) {
                 if (likely_signed(t)) {
                     const int depth = likely_depth(t);
-                    Value *result = b->CreateAdd(i, j, n);
+                    Value *result = b->CreateAdd(i, j);
                     Value *overflowResult = b->CreateAdd(b->CreateLShr(i, depth-1), intMax(depth));
                     Value *overflowCondition = b->CreateICmpSGE(b->CreateOr(b->CreateXor(i, j), b->CreateNot(b->CreateXor(j, result))), zero(depth));
                     return signedSaturationHelper(result, overflowResult, overflowCondition);
                 } else {
-                    Value *result = b->CreateAdd(i, j, n);
-                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULT(result, i, n),
-                                                   Type::getIntNTy(getGlobalContext(), likely_depth(t))), n);
-                    return b->CreateOr(result, overflow, n);
+                    Value *result = b->CreateAdd(i, j);
+                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULT(result, i),
+                                                   Type::getIntNTy(getGlobalContext(), likely_depth(t))));
+                    return b->CreateOr(result, overflow);
                 }
             } else {
-                return b->CreateAdd(i, j, n);
+                return b->CreateAdd(i, j);
             }
         }
     }
@@ -844,23 +843,23 @@ struct KernelBuilder
     Value *subtract(Value *i, Value *j) const
     {
         if (likely_floating(t)) {
-            return b->CreateFSub(i, j, n);
+            return b->CreateFSub(i, j);
         } else {
             if (likely_saturation(t)) {
                 if (likely_signed(t)) {
                     const int depth = likely_depth(t);
-                    Value *result = b->CreateSub(i, j, n);
+                    Value *result = b->CreateSub(i, j);
                     Value *overflowResult = b->CreateAdd(b->CreateLShr(i, depth-1), intMax(depth));
                     Value *overflowCondition = b->CreateICmpSLT(b->CreateAnd(b->CreateXor(i, j), b->CreateXor(i, result)), zero(depth));
                     return signedSaturationHelper(result, overflowResult, overflowCondition);
                 } else {
-                    Value *result = b->CreateSub(i, j, n);
-                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULE(result, i, n),
-                                                   Type::getIntNTy(getGlobalContext(), likely_depth(t))), n);
-                    return b->CreateAnd(result, overflow, n);
+                    Value *result = b->CreateSub(i, j);
+                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULE(result, i),
+                                                   Type::getIntNTy(getGlobalContext(), likely_depth(t))));
+                    return b->CreateAnd(result, overflow);
                 }
             } else {
-                return b->CreateSub(i, j, n);
+                return b->CreateSub(i, j);
             }
         }
     }
@@ -868,28 +867,28 @@ struct KernelBuilder
     Value *multiply(Value *i, Value *j) const
     {
         if (likely_floating(t)) {
-            return b->CreateFMul(i, j, n);
+            return b->CreateFMul(i, j);
         } else {
             if (likely_saturation(t)) {
                 const int depth = likely_depth(t);
                 Type *originalType = Type::getIntNTy(getGlobalContext(), depth);
                 Type *extendedType = Type::getIntNTy(getGlobalContext(), 2*depth);
                 Value *result = b->CreateMul(b->CreateZExt(i, extendedType),
-                                             b->CreateZExt(j, extendedType), n);
-                Value *lo = b->CreateTrunc(result, originalType, n);
+                                             b->CreateZExt(j, extendedType));
+                Value *lo = b->CreateTrunc(result, originalType);
 
                 if (likely_signed(t)) {
-                    Value *hi = b->CreateTrunc(b->CreateAShr(result, depth, n), originalType, n);
-                    Value *overflowResult = b->CreateAdd(b->CreateLShr(b->CreateXor(i, j, n), depth-1, n), intMax(depth), n);
-                    Value *overflowCondition = b->CreateICmpNE(hi, b->CreateAShr(lo, depth-1, n), n);
-                    return signedSaturationHelper(b->CreateTrunc(result, i->getType(), n), overflowResult, overflowCondition);
+                    Value *hi = b->CreateTrunc(b->CreateAShr(result, depth), originalType);
+                    Value *overflowResult = b->CreateAdd(b->CreateLShr(b->CreateXor(i, j), depth-1), intMax(depth));
+                    Value *overflowCondition = b->CreateICmpNE(hi, b->CreateAShr(lo, depth-1));
+                    return signedSaturationHelper(b->CreateTrunc(result, i->getType()), overflowResult, overflowCondition);
                 } else {
-                    Value *hi = b->CreateTrunc(b->CreateLShr(result, depth, n), originalType, n);
-                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpNE(hi, zero(depth), n), originalType, n), n);
-                    return b->CreateOr(lo, overflow, n);
+                    Value *hi = b->CreateTrunc(b->CreateLShr(result, depth), originalType);
+                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpNE(hi, zero(depth)), originalType));
+                    return b->CreateOr(lo, overflow);
                 }
             } else {
-                return b->CreateMul(i, j, n);
+                return b->CreateMul(i, j);
             }
         }
     }
@@ -897,23 +896,23 @@ struct KernelBuilder
     Value *divide(Value *i, Value *j) const
     {
         if (likely_floating(t)) {
-            return b->CreateFDiv(i, j, n);
+            return b->CreateFDiv(i, j);
         } else {
             if (likely_signed(t)) {
                 if (likely_saturation(t)) {
                     const int depth = likely_depth(t);
-                    Value *safe_i = b->CreateAdd(i, b->CreateZExt(b->CreateICmpNE(b->CreateOr(b->CreateAdd(j, constant(1, depth), n), b->CreateAdd(i, intMin(depth), n), n), zero(depth), n), i->getType(), n), n);
-                    return b->CreateSDiv(safe_i, j, n);
+                    Value *safe_i = b->CreateAdd(i, b->CreateZExt(b->CreateICmpNE(b->CreateOr(b->CreateAdd(j, constant(1, depth)), b->CreateAdd(i, intMin(depth))), zero(depth)), i->getType()));
+                    return b->CreateSDiv(safe_i, j);
                 } else {
-                    return b->CreateSDiv(i, j, n);
+                    return b->CreateSDiv(i, j);
                 }
             } else {
-                return b->CreateUDiv(i, j, n);
+                return b->CreateUDiv(i, j);
             }
         }
     }
 
-    Value *intrinsic(Value *i, Intrinsic::ID id) const { vector<Type*> args; args.push_back(i->getType()); Function *intrinsic = Intrinsic::getDeclaration(m, id, args); return b->CreateCall(intrinsic, i, n); }
+    Value *intrinsic(Value *i, Intrinsic::ID id) const { vector<Type*> args; args.push_back(i->getType()); Function *intrinsic = Intrinsic::getDeclaration(m, id, args); return b->CreateCall(intrinsic, i); }
     Value *log(Value *i) const { return intrinsic(i, Intrinsic::log); }
     Value *log2(Value *i) const { return intrinsic(i, Intrinsic::log2); }
     Value *log10(Value *i) const { return intrinsic(i, Intrinsic::log10); }
@@ -929,7 +928,7 @@ struct KernelBuilder
     Loop beginLoop(BasicBlock *entry, Value *start, Value *stop) {
         Loop loop;
         loop.stop = stop;
-        loop.body = BasicBlock::Create(getGlobalContext(), n+"_loop_body", f);
+        loop.body = BasicBlock::Create(getGlobalContext(), "_loop_body", f);
 
         // Create self-referencing loop node
         vector<Value*> metadata;
@@ -943,7 +942,7 @@ struct KernelBuilder
         b->CreateBr(loop.body);
         b->SetInsertPoint(loop.body);
 
-        loop.i = b->CreatePHI(Type::getInt32Ty(getGlobalContext()), 2, n + "_i");
+        loop.i = b->CreatePHI(Type::getInt32Ty(getGlobalContext()), 2, "_i");
         loop.i->addIncoming(start, entry);
 
         loops.push(loop);
@@ -952,12 +951,12 @@ struct KernelBuilder
 
     void endLoop() {
         const Loop &loop = loops.top();
-        Value *increment = b->CreateAdd(loop.i, one(), n+"_loop_increment");
-        BasicBlock *loopLatch = BasicBlock::Create(getGlobalContext(), n+"_loop_latch", f);
+        Value *increment = b->CreateAdd(loop.i, one(), "_loop_increment");
+        BasicBlock *loopLatch = BasicBlock::Create(getGlobalContext(), "_loop_latch", f);
         b->CreateBr(loopLatch);
         b->SetInsertPoint(loopLatch);
-        BasicBlock *loopExit = BasicBlock::Create(getGlobalContext(), n+"_loop_exit", f);
-        BranchInst *latch = b->CreateCondBr(b->CreateICmpEQ(increment, loop.stop, n+"_loop_test"), loopExit, loop.body);
+        BasicBlock *loopExit = BasicBlock::Create(getGlobalContext(), "_loop_exit", f);
+        BranchInst *latch = b->CreateCondBr(b->CreateICmpEQ(increment, loop.stop, "_loop_test"), loopExit, loop.body);
         latch->setMetadata("llvm.loop", loop.node);
         loop.i->addIncoming(increment, loopLatch);
         b->SetInsertPoint(loopExit);
@@ -1058,7 +1057,7 @@ public:
         getValues(function, srcs);
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
-        KernelBuilder matrix(module, &builder, function, "kernel", types[0], srcs[0]);
+        KernelBuilder matrix(module, &builder, function, types[0], srcs[0]);
 
         static FunctionType* LikelyNewSignature = NULL;
         if (LikelyNewSignature == NULL) {
@@ -1103,7 +1102,7 @@ public:
             thunkDst->setName("dst");
             BasicBlock *thunkEntry = BasicBlock::Create(getGlobalContext(), "thunk_entry", thunk);
             IRBuilder<> thunkBuilder(thunkEntry);
-            KernelBuilder thunkMatrix(module, &thunkBuilder, thunk, "thunk", types[0], thunkSrcs[0]);
+            KernelBuilder thunkMatrix(module, &thunkBuilder, thunk, types[0], thunkSrcs[0]);
             generateKernel(thunkMatrix, thunkEntry, thunkStart, thunkStop, thunkDst);
             thunkBuilder.CreateRetVoid();
             functionPassManager.run(*thunk);
