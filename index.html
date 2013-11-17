@@ -77,6 +77,44 @@
          <p>We believe a DSL for image recognition is essential to express algorithms that are currently too complex to implement in a "low-level" language and too slow to execute in a "high-level" language.</p>
        </blockquote>
     </p>
+    <h4 id="why_not_cpp">Why not C++?</h4>
+    <p>As image recognition engineers, we desire a curated set of image processing functions from which to compose sophisticated algorithms.
+       Despite the multi-paradigm virtues of C++, it is extraordinarily difficult to provide library routines that are both generic and efficient.
+       For example, consider the following library function for adding two vectors:
+    </p>
+<pre class="prettyprint lang-c">
+void add(const float *a, const float *b, float *c, unsigned int n) {
+    for (unsigned int i = 0; i &lt n; i++)
+        c[i] = a[i] + b[i];
+}
+</pre>
+    <h5 id="aliasing">Pointer Aliasing</h5>
+    <p>While this function is simple, it is neither particularly fast nor generic.
+       A popular assuption made in numerical libraries is that pointers never <i>alias</i>.
+       In other words, variables <tt>a</tt>, <tt>b</tt> and <tt>c</tt> point to distinct non-overlaping regions in memory.
+       The <tt>C</tt> language specification states that pointers may alias, so the compiler must insert a runtime check when vectorizing loops.
+       This is the primary reason why <a href="http://stackoverflow.com/a/146186">Fortran is faster than C</a>.
+       While C has since introduced the <tt>restrict</tt> keyword to specify pointers that do not alias, this keyword is not supported in the C++:
+    </p>
+<pre class="prettyprint lang-c">
+// Valid C, invalid C++
+void add(const float * restrict a, const float * restrict b, float * restrict c, unsigned int n) {
+    for (unsigned int i = 0; i &lt n; i++)
+        c[i] = a[i] + b[i];
+}
+</pre>
+    <h5 id="types">Generics</h5>
+    <p>Different image processing operations may operate on different data types, so we might try to generalize our function using templates:
+    </p>
+<pre class="prettyprint lang-c">
+template &lttypename T&gt
+void add(const T *a, const T *b, T *c, unsigned int n) {
+    for (unsigned int i = 0; i < n; i++)
+        c[i] = a[i] + b[i];
+}
+</pre>
+    <p>However, what if we would like <tt>a</tt> or <tt>b</tt> to be a numerical constant? Or <tt>c</tt> to be a different type?
+    </p>
     <h3 id="executable_everywhere">Executable Everywhere</h3>
     <p>Likely is built on top of the <i>Low Level Virtual Machine</i> (LLVM) compiler infrastructure using a portable subset of <tt>ISO C++11</tt>, which means it runs <a href="http://llvm.org/docs/GettingStarted.html#hardware">everywhere LLVM does</a>.
        Algorithms execute natively on single CPU threads via the LLVM <i>Machine Code Just-In-Time</i> (MCJIT) compiler, multi-core CPUs via a custom <tt>OpenMP</tt>-like backend, and GPUs and coprocessors via <i>OpenCL</i>, <i>HSAIL</i>, or <i>CUDA</i>.
