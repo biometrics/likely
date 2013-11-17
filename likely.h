@@ -145,6 +145,7 @@ LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c 
 LIKELY_EXPORT const char *likely_type_to_string(likely_type h); // Return value managed internally and guaranteed until the next call to this function
 LIKELY_EXPORT likely_type likely_type_from_string(const char *str);
 LIKELY_EXPORT likely_type likely_type_from_value(double value);
+LIKELY_EXPORT likely_type likely_type_from_types(likely_type lhs, likely_type rhs);
 LIKELY_EXPORT void likely_print(likely_const_mat m);
 
 // Core library types and functions

@@ -604,6 +604,13 @@ likely_type likely_type_from_value(double value)
     else                                            return likely_type_f64;
 }
 
+likely_type likely_type_from_types(likely_type lhs, likely_type rhs)
+{
+    likely_type result = lhs | rhs;
+    likely_set_depth(&result, max(likely_depth(lhs), likely_depth(rhs)));
+    return result;
+}
+
 void likely_print(likely_const_mat m)
 {
     if (!m) return;
@@ -641,8 +648,7 @@ struct KernelBuilder
     IRBuilder<> *b;
     Function *f;
     likely_type t;
-    vector<Value*> matricies;
-    vector<likely_type> types;
+    vector<TypedValue> matricies;
 
     struct Loop {
         BasicBlock *body;
@@ -652,12 +658,24 @@ struct KernelBuilder
     };
     stack<Loop> loops;
 
-    KernelBuilder(Module *module, IRBuilder<> *builder, Function *function, const vector<Value*> &matricies_, const vector<likely_type> &types_)
-        : m(module), b(builder), f(function), matricies(matricies_), types(types_)
+    KernelBuilder(Module *module, IRBuilder<> *builder, Function *function, const vector<TypedValue> &matricies_)
+        : m(module), b(builder), f(function), matricies(matricies_)
     {
         t = likely_type_null;
-        for (likely_type type : types)
-            t |= type;
+        for (const TypedValue &matrix : matricies)
+            t |= matrix.type;
+    }
+
+    static TypedValue constant(double value, likely_type type)
+    {
+        const int depth = likely_depth(type);
+        if (likely_floating(type)) {
+            if (value == 0) value = -0; // IEEE/LLVM optimization quirk
+            if (depth > 32) return TypedValue(ConstantFP::get(Type::getDoubleTy(getGlobalContext()), value), type);
+            else            return TypedValue(ConstantFP::get(Type::getFloatTy(getGlobalContext()), value), type);
+        } else {
+            return TypedValue(Constant::getIntegerValue(Type::getIntNTy(getGlobalContext(), depth), APInt(depth, value)), type);
+        }
     }
 
     static Constant *constant(int value, int bits = 32) { return Constant::getIntegerValue(Type::getInt32Ty(getGlobalContext()), APInt(bits, value)); }
@@ -674,8 +692,7 @@ struct KernelBuilder
     Constant *autoConstant(double value) const { return likely_floating(t) ? ((likely_depth(t) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(t)); }
     AllocaInst *autoAlloca(double value) const { AllocaInst *alloca = b->CreateAlloca(ty(), 0); b->CreateStore(autoConstant(value), alloca); return alloca; }
 
-    Value *data(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 0), "_data"); }
-    Value *data(Value *v, Type *type) const { return b->CreatePointerCast(data(v), type); }
+    Value *data(const TypedValue &matrix) const { return b->CreatePointerCast(b->CreateLoad(b->CreateStructGEP(matrix, 0), "_data"), ty(matrix, true)); }
     Value *type(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 1), "_type"); }
     Value *channels(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 2), "_channels"); }
     Value *columns(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 3), "_columns"); }
@@ -768,23 +785,32 @@ struct KernelBuilder
         deindex(matrix, rem, c, x, y);
     }
 
-    LoadInst *load(Value *matrix, Type *type, Value *i) {
-        LoadInst *load = b->CreateLoad(b->CreateGEP(data(matrix, type), i));
-        load->setMetadata("llvm.mem.parallel_loop_access", getCurrentNode());
-        return load;
+    TypedValue GEP(const TypedValue &matrix, Value *i)
+    {
+        return TypedValue(b->CreateGEP(data(matrix), i), matrix.type);
     }
 
-    LoadInst *load(likely_arity n, Value *i) { return load(matricies[n], ty(types[n], true), i); }
+    TypedValue load(const TypedValue &matrix, Value *i)
+    {
+        LoadInst *load = b->CreateLoad(GEP(matrix, i));
+        load->setMetadata("llvm.mem.parallel_loop_access", getCurrentNode());
+        return TypedValue(load, matrix.type);
+    }
 
-    StoreInst *store(Value *matrix, Value *i, Value *value) {
-        Value *d = data(matrix, ty(true));
-        Value *idx = b->CreateGEP(d, i);
-        StoreInst *store = b->CreateStore(value, idx);
+    TypedValue store(const TypedValue &matrix, Value *i, const TypedValue &value)
+    {
+        StoreInst *store = b->CreateStore(value, GEP(matrix, i));
         store->setMetadata("llvm.mem.parallel_loop_access", getCurrentNode());
         return store;
     }
 
-    Value *cast(Value *i, likely_type type) const { return ((t & likely_type_mask) == (type & likely_type_mask)) ? i : b->CreateCast(CastInst::getCastOpcode(i, likely_signed(t), Type::getFloatTy(getGlobalContext()), likely_signed(t)), i, Type::getFloatTy(getGlobalContext())); }
+    TypedValue cast(const TypedValue &value, likely_type type) const
+    {
+        if ((value.type & likely_type_mask) == (type & likely_type_mask))
+            return value;
+        Type *dstType = ty(type);
+        return TypedValue(b->CreateCast(CastInst::getCastOpcode(value, likely_signed(value.type), dstType, likely_signed(type)), value, dstType), type);
+    }
 
     // Saturation arithmetic logic:
     // http://locklessinc.com/articles/sat_arithmetic/
@@ -805,98 +831,110 @@ struct KernelBuilder
         return conditionalResult;
     }
 
-    Value *add(Value *i, Value *j) const
+    TypedValue add(TypedValue lhs, TypedValue rhs) const
     {
-        if (likely_floating(t)) {
-            return b->CreateFAdd(i, j);
+        likely_type type = likely_type_from_types(lhs, rhs);
+        lhs = cast(lhs, type);
+        rhs = cast(rhs, type);
+        if (likely_floating(type)) {
+            return TypedValue(b->CreateFAdd(lhs, rhs), type);
         } else {
-            if (likely_saturation(t)) {
-                if (likely_signed(t)) {
-                    const int depth = likely_depth(t);
-                    Value *result = b->CreateAdd(i, j);
-                    Value *overflowResult = b->CreateAdd(b->CreateLShr(i, depth-1), intMax(depth));
-                    Value *overflowCondition = b->CreateICmpSGE(b->CreateOr(b->CreateXor(i, j), b->CreateNot(b->CreateXor(j, result))), zero(depth));
-                    return signedSaturationHelper(result, overflowResult, overflowCondition);
+            if (likely_saturation(type)) {
+                if (likely_signed(type)) {
+                    const int depth = likely_depth(type);
+                    Value *result = b->CreateAdd(lhs, rhs);
+                    Value *overflowResult = b->CreateAdd(b->CreateLShr(lhs, depth-1), intMax(depth));
+                    Value *overflowCondition = b->CreateICmpSGE(b->CreateOr(b->CreateXor(lhs.value, rhs.value), b->CreateNot(b->CreateXor(rhs, result))), zero(depth));
+                    return TypedValue(signedSaturationHelper(result, overflowResult, overflowCondition), type);
                 } else {
-                    Value *result = b->CreateAdd(i, j);
-                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULT(result, i),
+                    Value *result = b->CreateAdd(lhs, rhs);
+                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULT(result, lhs),
                                                    Type::getIntNTy(getGlobalContext(), likely_depth(t))));
-                    return b->CreateOr(result, overflow);
+                    return TypedValue(b->CreateOr(result, overflow), type);
                 }
             } else {
-                return b->CreateAdd(i, j);
+                return TypedValue(b->CreateAdd(lhs, rhs), type);
             }
         }
     }
 
-    Value *subtract(Value *i, Value *j) const
+    TypedValue subtract(TypedValue lhs, TypedValue rhs) const
     {
-        if (likely_floating(t)) {
-            return b->CreateFSub(i, j);
+        likely_type type = likely_type_from_types(lhs, rhs);
+        lhs = cast(lhs, type);
+        rhs = cast(rhs, type);
+        if (likely_floating(type)) {
+            return TypedValue(b->CreateFSub(lhs, rhs), type);
         } else {
-            if (likely_saturation(t)) {
-                if (likely_signed(t)) {
-                    const int depth = likely_depth(t);
-                    Value *result = b->CreateSub(i, j);
-                    Value *overflowResult = b->CreateAdd(b->CreateLShr(i, depth-1), intMax(depth));
-                    Value *overflowCondition = b->CreateICmpSLT(b->CreateAnd(b->CreateXor(i, j), b->CreateXor(i, result)), zero(depth));
-                    return signedSaturationHelper(result, overflowResult, overflowCondition);
+            if (likely_saturation(type)) {
+                if (likely_signed(type)) {
+                    const int depth = likely_depth(type);
+                    Value *result = b->CreateSub(lhs, rhs);
+                    Value *overflowResult = b->CreateAdd(b->CreateLShr(lhs, depth-1), intMax(depth));
+                    Value *overflowCondition = b->CreateICmpSLT(b->CreateAnd(b->CreateXor(lhs.value, rhs.value), b->CreateXor(lhs, result)), zero(depth));
+                    return TypedValue(signedSaturationHelper(result, overflowResult, overflowCondition), type);
                 } else {
-                    Value *result = b->CreateSub(i, j);
-                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULE(result, i),
+                    Value *result = b->CreateSub(lhs, rhs);
+                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULE(result, lhs),
                                                    Type::getIntNTy(getGlobalContext(), likely_depth(t))));
-                    return b->CreateAnd(result, overflow);
+                    return TypedValue(b->CreateAnd(result, overflow), type);
                 }
             } else {
-                return b->CreateSub(i, j);
+                return TypedValue(b->CreateSub(lhs, rhs), type);
             }
         }
     }
 
-    Value *multiply(Value *i, Value *j) const
+    TypedValue multiply(TypedValue lhs, TypedValue rhs) const
     {
-        if (likely_floating(t)) {
-            return b->CreateFMul(i, j);
+        likely_type type = likely_type_from_types(lhs, rhs);
+        lhs = cast(lhs, type);
+        rhs = cast(rhs, type);
+        if (likely_floating(type)) {
+            return TypedValue(b->CreateFMul(lhs, rhs), type);
         } else {
-            if (likely_saturation(t)) {
-                const int depth = likely_depth(t);
+            if (likely_saturation(type)) {
+                const int depth = likely_depth(type);
                 Type *originalType = Type::getIntNTy(getGlobalContext(), depth);
                 Type *extendedType = Type::getIntNTy(getGlobalContext(), 2*depth);
-                Value *result = b->CreateMul(b->CreateZExt(i, extendedType),
-                                             b->CreateZExt(j, extendedType));
+                Value *result = b->CreateMul(b->CreateZExt(lhs, extendedType),
+                                             b->CreateZExt(rhs, extendedType));
                 Value *lo = b->CreateTrunc(result, originalType);
 
-                if (likely_signed(t)) {
+                if (likely_signed(type)) {
                     Value *hi = b->CreateTrunc(b->CreateAShr(result, depth), originalType);
-                    Value *overflowResult = b->CreateAdd(b->CreateLShr(b->CreateXor(i, j), depth-1), intMax(depth));
+                    Value *overflowResult = b->CreateAdd(b->CreateLShr(b->CreateXor(lhs.value, rhs.value), depth-1), intMax(depth));
                     Value *overflowCondition = b->CreateICmpNE(hi, b->CreateAShr(lo, depth-1));
-                    return signedSaturationHelper(b->CreateTrunc(result, i->getType()), overflowResult, overflowCondition);
+                    return TypedValue(signedSaturationHelper(b->CreateTrunc(result, lhs.value->getType()), overflowResult, overflowCondition), type);
                 } else {
                     Value *hi = b->CreateTrunc(b->CreateLShr(result, depth), originalType);
                     Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpNE(hi, zero(depth)), originalType));
-                    return b->CreateOr(lo, overflow);
+                    return TypedValue(b->CreateOr(lo, overflow), type);
                 }
             } else {
-                return b->CreateMul(i, j);
+                return TypedValue(b->CreateMul(lhs, rhs), type);
             }
         }
     }
 
-    Value *divide(Value *i, Value *j) const
+    TypedValue divide(TypedValue n, TypedValue d) const
     {
-        if (likely_floating(t)) {
-            return b->CreateFDiv(i, j);
+        likely_type type = likely_type_from_types(n, d);
+        n = cast(n, type);
+        d = cast(d, type);
+        if (likely_floating(type)) {
+            return TypedValue(b->CreateFDiv(n, d), type);
         } else {
-            if (likely_signed(t)) {
-                if (likely_saturation(t)) {
-                    const int depth = likely_depth(t);
-                    Value *safe_i = b->CreateAdd(i, b->CreateZExt(b->CreateICmpNE(b->CreateOr(b->CreateAdd(j, constant(1, depth)), b->CreateAdd(i, intMin(depth))), zero(depth)), i->getType()));
-                    return b->CreateSDiv(safe_i, j);
+            if (likely_signed(type)) {
+                if (likely_saturation(type)) {
+                    const int depth = likely_depth(type);
+                    Value *safe_i = b->CreateAdd(n, b->CreateZExt(b->CreateICmpNE(b->CreateOr(b->CreateAdd(d, constant(1, depth)), b->CreateAdd(n, intMin(depth))), zero(depth)), n.value->getType()));
+                    return TypedValue(b->CreateSDiv(safe_i, d), type);
                 } else {
-                    return b->CreateSDiv(i, j);
+                    return TypedValue(b->CreateSDiv(n, d), type);
                 }
             } else {
-                return b->CreateUDiv(i, j);
+                return TypedValue(b->CreateUDiv(n, d), type);
             }
         }
     }
@@ -1077,11 +1115,11 @@ public:
         functionPassManager.doInitialization();
 //        DebugFlag = true;
 
-        vector<Value*> srcs;
-        getValues(function, srcs);
+        vector<TypedValue> srcs;
+        getValues(function, types, srcs);
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
-        KernelBuilder kernel(module, &builder, function, srcs, types);
+        KernelBuilder kernel(module, &builder, function, srcs);
 
         static FunctionType* LikelyNewSignature = NULL;
         if (LikelyNewSignature == NULL) {
@@ -1116,17 +1154,19 @@ public:
         Value *kernelSize = kernel.elements(srcs[0]);
         if (likely_parallel(types[0])) {
             Function *thunk = getFunction(name+"_thunk", module, types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
-            vector<Value*> thunkSrcs;
-            getValues(thunk, thunkSrcs);
-            Value *thunkStop = thunkSrcs.back(); thunkSrcs.pop_back();
-            thunkStop->setName("stop");
-            Value *thunkStart = thunkSrcs.back(); thunkSrcs.pop_back();
-            thunkStart->setName("start");
-            Value *thunkDst = thunkSrcs.back(); thunkSrcs.pop_back();
-            thunkDst->setName("dst");
+            vector<TypedValue> thunkSrcs;
+            getValues(thunk, types, thunkSrcs);
+            TypedValue thunkStop = thunkSrcs.back(); thunkSrcs.pop_back();
+            thunkStop.value->setName("stop");
+            thunkStop.type = likely_type_i32;
+            TypedValue thunkStart = thunkSrcs.back(); thunkSrcs.pop_back();
+            thunkStart.value->setName("start");
+            thunkStart.type = likely_type_i32;
+            TypedValue thunkDst = thunkSrcs.back(); thunkSrcs.pop_back();
+            thunkDst.value->setName("dst");
             BasicBlock *thunkEntry = BasicBlock::Create(getGlobalContext(), "thunk_entry", thunk);
             IRBuilder<> thunkBuilder(thunkEntry);
-            KernelBuilder thunkMatrix(module, &thunkBuilder, thunk, thunkSrcs, types);
+            KernelBuilder thunkMatrix(module, &thunkBuilder, thunk, thunkSrcs);
             generateKernel(thunkMatrix, thunkEntry, thunkStart, thunkStop, thunkDst);
             thunkBuilder.CreateRetVoid();
             functionPassManager.run(*thunk);
@@ -1234,59 +1274,60 @@ private:
         return function;
     }
 
-    static void getValues(Function *function, vector<Value*> &srcs)
+    static void getValues(Function *function, const vector<likely_type> &types, vector<TypedValue> &srcs)
     {
         Function::arg_iterator args = function->arg_begin();
         likely_arity arity = 0;
         while (args != function->arg_end()) {
             Value *src = args++;
-            stringstream name; name << "#" << arity++;
+            stringstream name; name << "#" << int(arity);
             src->setName(name.str());
-            srcs.push_back(src);
+            srcs.push_back(TypedValue(src, arity < types.size() ? types[arity] : likely_type_null));
+            arity++;
         }
     }
 
-    bool generateKernel(KernelBuilder &matrix, BasicBlock *entry, Value *start, Value *stop, Value *dst)
+    likely_type generateKernel(KernelBuilder &kernel, BasicBlock *entry, Value *start, Value *stop, Value *dst)
     {
-        Value *i = matrix.beginLoop(entry, start, stop).i;
-        Value *equation = generateKernelHelp(matrix, sexp, i);
-        matrix.store(dst, i, equation);
-        matrix.endLoop();
-        return true;
+        Value *i = kernel.beginLoop(entry, start, stop).i;
+        TypedValue equation = generateKernelRecursive(kernel, sexp, i);
+        kernel.store(TypedValue(dst, equation.type), i, equation);
+        kernel.endLoop();
+        return equation.type;
     }
 
-    TypedValue generateKernelHelp(KernelBuilder &matrix, const SExp &expression, Value *i)
+    TypedValue generateKernelRecursive(KernelBuilder &kernel, const SExp &expression, Value *i)
     {
         vector<TypedValue> operands;
         for (const SExp &operand : expression.sexps)
-            operands.push_back(generateKernelHelp(matrix, operand, i));
+            operands.push_back(generateKernelRecursive(kernel, operand, i));
 
         const string &op = expression.op;
         char *error;
-        const double x = strtod(op.c_str(), &error);
+        const double value = strtod(op.c_str(), &error);
         if (*error == '\0') {
-            return matrix.autoConstant(x);
+            return KernelBuilder::constant(value, likely_type_from_value(value));
         } else if (op.substr(0,1) == "#") {
             int index = atoi(op.substr(1, op.size()-1).c_str());
-            return matrix.load(index, i);
+            return kernel.load(kernel.matricies[index], i);
         } else if (operands.size() == 1) {
-            Value *operand = operands[0];
-            if      (op == "log")   return matrix.log(operand);
-            else if (op == "log2")  return matrix.log2(operand);
-            else if (op == "log10") return matrix.log10(operand);
-            else if (op == "sin")   return matrix.sin(operand);
-            else if (op == "cos")   return matrix.cos(operand);
-            else if (op == "fabs")  return matrix.fabs(operand);
-            else if (op == "sqrt")  return matrix.sqrt(operand);
-            else if (op == "exp")   return matrix.exp(operand);
+            const TypedValue &operand = operands[0];
+            if      (op == "log")   return kernel.log(operand);
+            else if (op == "log2")  return kernel.log2(operand);
+            else if (op == "log10") return kernel.log10(operand);
+            else if (op == "sin")   return kernel.sin(operand);
+            else if (op == "cos")   return kernel.cos(operand);
+            else if (op == "fabs")  return kernel.fabs(operand);
+            else if (op == "sqrt")  return kernel.sqrt(operand);
+            else if (op == "exp")   return kernel.exp(operand);
             likely_assert(false, "unsupported unary operator: %s", op.c_str());
         } else if (operands.size() == 2) {
-            Value *lhs = operands[0];
-            Value *rhs = operands[1];
-            if      (op == "+") return matrix.add(lhs, rhs);
-            else if (op == "-") return matrix.subtract(lhs, rhs);
-            else if (op == "*") return matrix.multiply(lhs, rhs);
-            else if (op == "/") return matrix.divide(lhs, rhs);
+            const TypedValue &lhs = operands[0];
+            const TypedValue &rhs = operands[1];
+            if      (op == "+") return kernel.add(lhs, rhs);
+            else if (op == "-") return kernel.subtract(lhs, rhs);
+            else if (op == "*") return kernel.multiply(lhs, rhs);
+            else if (op == "/") return kernel.divide(lhs, rhs);
             likely_assert(false, "unsupported binary operator: %s", op.c_str());
         }
 
