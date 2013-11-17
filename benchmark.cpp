@@ -268,7 +268,7 @@ int main(int argc, char *argv[])
         else if (!strcmp("--serial", argv[i])) BenchmarkExecution = false;
         else if (!strcmp("--parallel", argv[i])) BenchmarkExecution = true;
         else if (!strcmp("-function", argv[i])) BenchmarkFunction = argv[++i];
-        else if (!strcmp("-type", argv[i])) BenchmarkType = likely_string_to_type(argv[++i]);
+        else if (!strcmp("-type", argv[i])) BenchmarkType = likely_type_from_string(argv[++i]);
         else if (!strcmp("-size", argv[i])) BenchmarkSize = atoi(argv[++i]);
         else    { printf("Unrecognized argument: %s\nTry running 'benchmark -h' for help", argv[i]); return 1; }
     }

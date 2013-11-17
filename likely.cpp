@@ -308,18 +308,7 @@ static int lua_likely_new(lua_State *L)
 
 likely_mat likely_scalar(double value)
 {
-    likely_type type;
-    if      (static_cast< uint8_t>(value) == value) type = likely_type_u8;
-    else if (static_cast<  int8_t>(value) == value) type = likely_type_i8;
-    else if (static_cast<uint16_t>(value) == value) type = likely_type_u16;
-    else if (static_cast< int16_t>(value) == value) type = likely_type_i16;
-    else if (static_cast<uint32_t>(value) == value) type = likely_type_u32;
-    else if (static_cast< int32_t>(value) == value) type = likely_type_i32;
-    else if (static_cast<uint64_t>(value) == value) type = likely_type_u64;
-    else if (static_cast< int64_t>(value) == value) type = likely_type_i64;
-    else if (static_cast<   float>(value) == value) type = likely_type_f32;
-    else                                            type = likely_type_f64;
-    likely_mat m = likely_new(type);
+    likely_mat m = likely_new(likely_type_from_value(value));
     likely_set_element(m, value);
     return m;
 }
@@ -573,7 +562,7 @@ const char *likely_type_to_string(likely_type h)
     return typeString.c_str();
 }
 
-likely_type likely_string_to_type(const char *str)
+likely_type likely_type_from_string(const char *str)
 {
     likely_type t = likely_type_null;
     const size_t len = strlen(str);
@@ -601,6 +590,20 @@ likely_type likely_string_to_type(const char *str)
     return t;
 }
 
+likely_type likely_type_from_value(double value)
+{
+    if      (static_cast< uint8_t>(value) == value) return likely_type_u8;
+    else if (static_cast<  int8_t>(value) == value) return likely_type_i8;
+    else if (static_cast<uint16_t>(value) == value) return likely_type_u16;
+    else if (static_cast< int16_t>(value) == value) return likely_type_i16;
+    else if (static_cast<uint32_t>(value) == value) return likely_type_u32;
+    else if (static_cast< int32_t>(value) == value) return likely_type_i32;
+    else if (static_cast<uint64_t>(value) == value) return likely_type_u64;
+    else if (static_cast< int64_t>(value) == value) return likely_type_i64;
+    else if (static_cast<   float>(value) == value) return likely_type_f32;
+    else                                            return likely_type_f64;
+}
+
 void likely_print(likely_const_mat m)
 {
     if (!m) return;
@@ -621,6 +624,16 @@ void likely_print(likely_const_mat m)
         cout << (t < m->frames-1 ? "\n" : "");
     }
 }
+
+struct TypedValue
+{
+    Value *value;
+    likely_type type;
+    TypedValue(Value *value_ = NULL, likely_type type_ = likely_type_null)
+        : value(value_), type(type_) {}
+    operator Value*() const { return value; }
+    operator likely_type() const { return type; }
+};
 
 struct KernelBuilder
 {
@@ -1242,9 +1255,9 @@ private:
         return true;
     }
 
-    Value *generateKernelHelp(KernelBuilder &matrix, const SExp &expression, Value *i)
+    TypedValue generateKernelHelp(KernelBuilder &matrix, const SExp &expression, Value *i)
     {
-        vector<Value*> operands;
+        vector<TypedValue> operands;
         for (const SExp &operand : expression.sexps)
             operands.push_back(generateKernelHelp(matrix, operand, i));
 
