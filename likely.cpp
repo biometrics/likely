@@ -969,18 +969,53 @@ struct KernelBuilder
     void *cleanup() { return cleanup(f); }
 };
 
+struct SExp
+{
+    string op;
+    vector<SExp> sexps;
+    SExp() = default;
+    SExp(const string &source)
+    {
+        likely_assert(!source.empty(), "empty expression");
+        if ((source[0] == '(') && (source[source.size()-1] == ')')) {
+            size_t start = 1, depth = 0;
+            for (size_t i=1; i<source.size()-1; i++) {
+                if (source[i] == '(') {
+                    depth++;
+                } else if (source[i] == ')') {
+                    likely_assert(depth > 0, "unexpected ')' in: %s", source.c_str());
+                    depth--;
+                } else if ((source[i] == ' ') && (depth == 0)) {
+                    if (start != i)
+                        sexps.push_back(source.substr(start, i-start));
+                    start = i + 1;
+                }
+            }
+            likely_assert(depth == 0, "missing ')' in :%s", source.c_str());
+            if (start != source.size()-1)
+                sexps.push_back(source.substr(start, source.size()-1-start));
+            likely_assert(sexps.front().sexps.empty(), "unexpected operand: %s", source.c_str());
+            op = sexps.front().op;
+            sexps.erase(sexps.begin());
+        } else {
+            likely_assert(source.find(' ') == string::npos, "unexpected ' ' in: %s", source.c_str());
+            op = source;
+        }
+    }
+};
+
 class FunctionBuilder
 {
     string name;
-    vector<string> stack;
+    SExp sexp;
     vector<likely_type> types;
     Module *module;
     ExecutionEngine *executionEngine;
     TargetMachine *targetMachine;
 
 public:
-    FunctionBuilder(const string &name_, const vector<string> &tokens, const vector<likely_type> &types_)
-        : name(name_), stack(tokens), types(types_)
+    FunctionBuilder(const string &name_, const SExp &sexp_, const vector<likely_type> &types_)
+        : name(name_), sexp(sexp_), types(types_)
     {
         module = new Module(name, getGlobalContext());
         likely_assert(module != NULL, "failed to create LLVM Module");
@@ -1116,17 +1151,18 @@ public:
         return executionEngine->getPointerToFunction(function);
     }
 
-    static string interpret(lua_State *L)
+    static string interpret(lua_State *L, const vector<likely_type> &types)
     {
         const int args = lua_gettop(L);
         lua_likely_assert(L, lua_gettop(L) >= 1, "'interpret' expected one argument");
 
         // Make sure we were given a function
+        stringstream name;
         lua_getfield(L, 1, "likely");
         lua_likely_assert(L, !strcmp("function", lua_tostring(L, -1)), "'compile' expected a function");
         lua_pop(L, 1);
         lua_getfield(L, 1, "name");
-        const string name = lua_tostring(L, -1);
+        name << lua_tostring(L, -1);
         lua_pop(L, 1);
 
         // Setup and call the function
@@ -1140,8 +1176,12 @@ public:
             if (lua_isnil(L, -1)) {
                 lua_pop(L, 1);
                 stringstream parameter;
-                parameter << "#" << arity++;
+                parameter << "#" << int(arity);
                 lua_pushstring(L, parameter.str().c_str());
+                name << "_" << likely_type_to_string(types[arity]);
+                arity++;
+            } else {
+                name << "_" << lua_tostring(L, -1);
             }
             lua_insert(L, -4);
             lua_pop(L, 1);
@@ -1152,7 +1192,7 @@ public:
         lua_call(L, lua_gettop(L)-args-1, 1);
         string source = lua_tostring(L, -1);
         lua_pop(L, 1);
-        source.insert(0, "likely " + name + " ");
+        source = "(compile " + name.str() + " " + source + ")";
         return source;
     }
 
@@ -1196,60 +1236,49 @@ private:
     bool generateKernel(KernelBuilder &matrix, BasicBlock *entry, Value *start, Value *stop, Value *dst)
     {
         Value *i = matrix.beginLoop(entry, start, stop).i;
-
-        vector<Value*> values;
-        for (size_t j=0; j<stack.size(); j++) {
-            const string &value = stack[j];
-            char *error;
-            const double x = strtod(value.c_str(), &error);
-            if (*error == '\0') {
-                values.push_back(matrix.autoConstant(x));
-            } else if (value.substr(0,1) == "#") {
-                int index = atoi(value.substr(1, value.size()-1).c_str());
-                values.push_back(matrix.load(index, i));
-            } else if (values.size() == 1) {
-                Value *operand = values[values.size()-1];
-                values.pop_back();
-                if      (value == "log")   values.push_back(matrix.log(operand));
-                else if (value == "log2")  values.push_back(matrix.log2(operand));
-                else if (value == "log10") values.push_back(matrix.log10(operand));
-                else if (value == "sin")   values.push_back(matrix.sin(operand));
-                else if (value == "cos")   values.push_back(matrix.cos(operand));
-                else if (value == "fabs")  values.push_back(matrix.fabs(operand));
-                else if (value == "sqrt")  values.push_back(matrix.sqrt(operand));
-                else if (value == "exp")   values.push_back(matrix.exp(operand));
-                else                       { likely_assert(false, "Unsupported unary operator: %s", value.c_str()); return false; }
-            } else if (values.size() == 2) {
-                Value *lhs = values[values.size()-2];
-                Value *rhs = values[values.size()-1];
-                values.pop_back();
-                values.pop_back();
-                if      (value == "+") values.push_back(matrix.add(lhs, rhs));
-                else if (value == "-") values.push_back(matrix.subtract(lhs, rhs));
-                else if (value == "*") values.push_back(matrix.multiply(lhs, rhs));
-                else if (value == "/") values.push_back(matrix.divide(lhs, rhs));
-                else                   { likely_assert(false, "Unsupported binary operator: %s", value.c_str()); return false; }
-            } else {
-                likely_assert(false, "Unrecognized token: %s", value.c_str()); return false;
-            }
-        }
-
-        // Parsing a Reverse Polish Notation stack should yield one root value at the end
-        if (values.size() != 1) {
-            stringstream stream; stream << "[";
-            for (size_t i=0; i<values.size(); i++) {
-                stream << values[i];
-                if (i < values.size()-1)
-                    stream << ", ";
-            }
-            stream << "]";
-            likely_assert(false, "Expected one value after parsing, got: %s", stream.str().c_str()); return false;
-        }
-        Value *equation = values[0];
-
+        Value *equation = generateKernelHelp(matrix, sexp, i);
         matrix.store(dst, i, equation);
         matrix.endLoop();
         return true;
+    }
+
+    Value *generateKernelHelp(KernelBuilder &matrix, const SExp &expression, Value *i)
+    {
+        vector<Value*> operands;
+        for (const SExp &operand : expression.sexps)
+            operands.push_back(generateKernelHelp(matrix, operand, i));
+
+        const string &op = expression.op;
+        char *error;
+        const double x = strtod(op.c_str(), &error);
+        if (*error == '\0') {
+            return matrix.autoConstant(x);
+        } else if (op.substr(0,1) == "#") {
+            int index = atoi(op.substr(1, op.size()-1).c_str());
+            return matrix.load(index, i);
+        } else if (operands.size() == 1) {
+            Value *operand = operands[0];
+            if      (op == "log")   return matrix.log(operand);
+            else if (op == "log2")  return matrix.log2(operand);
+            else if (op == "log10") return matrix.log10(operand);
+            else if (op == "sin")   return matrix.sin(operand);
+            else if (op == "cos")   return matrix.cos(operand);
+            else if (op == "fabs")  return matrix.fabs(operand);
+            else if (op == "sqrt")  return matrix.sqrt(operand);
+            else if (op == "exp")   return matrix.exp(operand);
+            likely_assert(false, "unsupported unary operator: %s", op.c_str());
+        } else if (operands.size() == 2) {
+            Value *lhs = operands[0];
+            Value *rhs = operands[1];
+            if      (op == "+") return matrix.add(lhs, rhs);
+            else if (op == "-") return matrix.subtract(lhs, rhs);
+            else if (op == "*") return matrix.multiply(lhs, rhs);
+            else if (op == "/") return matrix.divide(lhs, rhs);
+            likely_assert(false, "unsupported binary operator: %s", op.c_str());
+        }
+
+        likely_assert(false, "unrecognized operator: %s", op.c_str());
+        return NULL;
     }
 };
 
@@ -1308,8 +1337,9 @@ void *likely_compile(likely_description description, likely_arity n, likely_type
     return likely_compile_n(description, n, srcs.data());
 }
 
-void *likely_compile_n(likely_description description, likely_arity n, likely_type *types)
+void *likely_compile_n(likely_description description, likely_arity n, likely_type *types_)
 {
+    const vector<likely_type> types(types_,types_+n);
     static map<string,FunctionBuilder*> kernels;
     static recursive_mutex makerLock;
     lock_guard<recursive_mutex> lock(makerLock);
@@ -1341,7 +1371,7 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_ty
         }
     }
 
-    const string prefix = "likely";
+    const string prefix = "(compile";
     string source = description;
     if (source.compare(0, prefix.size(), prefix)) {
         // It needs to be interpreted (usually the case)
@@ -1352,29 +1382,16 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_ty
         lua_getfield(L, -1, "__likely");
         lua_insert(L, 1);
         lua_settop(L, 1);
-        source = FunctionBuilder::interpret(L);
+        source = FunctionBuilder::interpret(L,types);
     }
 
-    // Split source on space character
-    vector<string> tokens;
-    istringstream iss(source);
-    copy(istream_iterator<string>(iss),
-         istream_iterator<string>(),
-         back_inserter< vector<string> >(tokens));
-    tokens.erase(tokens.begin()); // remove "likely"
-
-    // Compute function name and types
-    stringstream nameStream; nameStream << tokens.front();
-    tokens.erase(tokens.begin()); // remove name
-    for (int i=0; i<n; i++) {
-        likely_assert(types[i] != likely_type_null, "likely_compile_n null matrix at index: %d", i);
-        nameStream << "_" << likely_type_to_string(types[i]);
-    }
-    const string name = nameStream.str();
+    const SExp sexp(source);
+    likely_assert(sexp.sexps.size() == 2, "'compile' expected two operands, got %zu", sexp.sexps.size());
+    const string name = sexp.sexps[0].op;
 
     map<string,FunctionBuilder*>::const_iterator it = kernels.find(name);
     if (it == kernels.end()) {
-        kernels.insert(pair<string,FunctionBuilder*>(name, new FunctionBuilder(name, tokens, vector<likely_type>(types,types+n))));
+        kernels.insert(pair<string,FunctionBuilder*>(name, new FunctionBuilder(name, sexp.sexps[1], types)));
         it = kernels.find(name);
     }
     return it->second->getPointerToFunction();
@@ -1389,7 +1406,7 @@ static int lua_likely_compile(lua_State *L)
         types.push_back(checkLuaMat(L, i)->type);
 
     // Get the intermediate representation
-    const string source = FunctionBuilder::interpret(L);
+    const string source = FunctionBuilder::interpret(L, types);
 
     // Compile the function
     void *compiled = likely_compile_n(source.c_str(), types.size(), types.data());

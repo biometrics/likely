@@ -116,8 +116,8 @@ divided = divide(2)(lenna)
 }
 
 -- Utility functions
-function likely.concat(...)
-  return table.concat({...}, " ")
+function likely.s(...)
+  return "(" .. table.concat({...}, " ") .. ")"
 end
 
 function likely.isnum(...)
@@ -149,7 +149,7 @@ add = closure(
     elseif lhs == 0 then
       return rhs
     else
-      return likely.concat(lhs, rhs, "+")
+      return likely.s("+", lhs, rhs)
     end
   end,
   "Arithmetic addition",
@@ -164,7 +164,7 @@ subtract = closure(
     elseif lhs == 0 then
       return rhs
     else
-      return likely.concat(lhs, rhs, "-")
+      return likely.s("-", lhs, rhs)
     end
   end,
   "Arithmetic subtraction",
@@ -181,7 +181,7 @@ multiply = closure(
     elseif lhs == 1 then
       return rhs
     else
-      return likely.concat(lhs, rhs, "*")
+      return likely.s("*", lhs, rhs)
     end
   end,
   "Arithmetic multiplication",
@@ -198,7 +198,7 @@ divide = closure(
     elseif rhs == 1 then
       return lhs
     else
-      return likely.concat(lhs, rhs, "/")
+      return likely.s("/", lhs, rhs)
     end
   end,
   "Arithmetic division",
@@ -212,7 +212,7 @@ log = closure(
     if likely.isnum(operand) then
       return log(operand)
     else
-      return likely.concat(operand, "log")
+      return likely.s("log", operand)
     end
   end,
   "Logarithmic function",
@@ -224,7 +224,7 @@ log2 = closure(
     if likely.isnum(operand) then
       return log2(operand)
     else
-      return likely.concat(operand, "log2")
+      return likely.s("log2", operand)
     end
   end,
   "Logarithmic function with base 2",
@@ -236,7 +236,7 @@ log10 = closure(
     if likely.isnum(operand) then
       return log10(operand)
     else
-      return likely.concat(operand, "log10")
+      return likely.s("log10", operand)
     end
   end,
   "Logarithmic function with base of 10",
@@ -248,7 +248,7 @@ sin = closure(
     if likely.isnum(operand) then
       return sin(operand)
     else
-      return likely.concat(operand, "sin")
+      return likely.s("sin", operand)
     end
   end,
   "Sine function",
@@ -260,7 +260,7 @@ cos = closure(
     if likely.isnum(operand) then
       return cos(operand)
     else
-      return likely.concat(operand, "cos")
+      return likely.s("cos", operand)
     end
   end,
   "Cosine function",
@@ -272,7 +272,7 @@ fabs = closure(
     if likely.isnum(operand) then
       return fabs(operand)
     else
-      return likely.concat(operand, "fabs")
+      return likely.s("fabs", operand)
     end
   end,
   "Absolute Value function",
@@ -284,7 +284,7 @@ sqrt = closure(
     if likely.isnum(operand) then
       return sqrt(operand)
     else
-      return likely.concat(operand, "sqrt")
+      return likely.s("sqrt", operand)
     end
   end,
   "Square Root function",
@@ -296,7 +296,7 @@ exp = closure(
     if likely.isnum(operand) then
       return exp(operand)
     else
-      return likely.concat(operand, "exp")
+      return likely.s("exp", operand)
     end
   end,
   "Exponential function",
@@ -308,7 +308,7 @@ pow = closure(
     if likely.isnum(rhs, lhs) then
       return pow(lhs, rhs)
     else
-      return likely.concat(lhs, rhs, "pow")
+      return likely.s("pow", lhs, rhs)
     end
   end,
   "Power Function",
@@ -322,7 +322,7 @@ zext = closure(
     if likely.isnum(rhs, lhs) then
       return zext(lhs, rhs)
     else
-      return likely.concat(lhs, rhs, "zext")
+      return likely.s("zext", lhs, rhs)
     end
   end,
   "Zero extend function",
@@ -335,7 +335,7 @@ sext = closure(
     if likely.isnum(rhs, lhs) then
       return sext(lhs, rhs)
     else
-      return likely.concat(lhs, rhs, "sext")
+      return likely.s("sext", lhs, rhs)
     end
   end,
   "Sign extend function",
@@ -348,7 +348,7 @@ fpext = closure(
     if likely.isnum(rhs, lhs) then
       return fpext(lhs, rhs)
     else
-      return likely.concat(lhs, rhs, "fpext")
+      return likely.s("fpext", lhs, rhs)
     end
   end,
   "Floating point extend function",
@@ -361,7 +361,7 @@ trunc = closure(
     if likely.isnum(rhs, lhs) then
       return trunc(lhs, rhs)
     else
-      return likely.concat(lhs, rhs, "trunc")
+      return likely.s("trunc", lhs, rhs)
     end
   end,
   "Truncate function",
@@ -374,7 +374,7 @@ fptrunc = closure(
     if likely.isnum(rhs, lhs) then
       return fptrunc(lhs, rhs)
     else
-      return likely.concat(lhs, rhs, "fptrunc")
+      return likely.s("fptrunc", lhs, rhs)
     end
   end,
   "Floating point truncate function",
