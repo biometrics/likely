@@ -36,7 +36,7 @@ static likely_type BenchmarkType      = likely_type_null;
 static int         BenchmarkSize      = 0;
 static int         BenchmarkExecution = -1;
 
-static Mat generateData(int rows, int columns, likely_type type)
+static Mat generateData(int rows, int columns, likely_type type, double scaleFactor)
 {
     static Mat m;
     if (!m.data) {
@@ -47,7 +47,7 @@ static Mat generateData(int rows, int columns, likely_type type)
 
     Mat n;
     resize(m, n, Size(columns, rows), 0, 0, INTER_NEAREST);
-    n.convertTo(n, typeToDepth(type));
+    n.convertTo(n, typeToDepth(type), scaleFactor);
     return n;
 }
 
@@ -67,7 +67,7 @@ struct Test
                     if ((BenchmarkExecution != -1) && (BenchmarkExecution != execution)) continue;
 
                     // Generate input matrix
-                    Mat src = generateData(size, size, type);
+                    Mat src = generateData(size, size, type, scaleFactor());
                     likely_mat srcLikely = fromCvMat(src);
                     likely_set_parallel(&srcLikely->type, execution);
                     likely_function_1 f = (likely_function_1) likely_compile(function(), 1, srcLikely->type);
@@ -144,6 +144,8 @@ protected:
         }
         return executions;
     }
+
+    virtual double scaleFactor() const { return 1.0; }
 
     // OpenCV rounds integer division, Likely floors it.
     virtual bool ignoreOffByOne() const { return false; }
@@ -312,6 +314,14 @@ class powTest : public FloatingTest {
 class expTest : public FloatingTest {
     const char *function() const { return "exp()"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; exp(src, dst); return dst; }
+    double scaleFactor() const { return 0.1; }
+};
+
+class exp2Test : public ScalarFloatingTest {
+    const char *function() const { return "exp2()"; }
+    void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = exp2f(src[i]); }
+    void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = exp2(src[i]); }
+    double scaleFactor() const { return 0.1; }
 };
 
 class maddTest : public Test {
@@ -365,6 +375,7 @@ int main(int argc, char *argv[])
         cosTest().run();
         powTest().run();
         expTest().run();
+        exp2Test().run();
 //        maddTest().run();
 //        logTest().run();
     }

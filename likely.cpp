@@ -971,7 +971,7 @@ struct KernelBuilder
     TypedValue cos(const TypedValue &x) const { return intrinsic(x, Intrinsic::cos); }
     TypedValue pow(const TypedValue &x, const TypedValue &n) const { return intrinsic(x, n, Intrinsic::pow); }
     TypedValue exp(const TypedValue &x) const { return intrinsic(x, Intrinsic::exp); }
-    Value *exp2(Value *i) const { return intrinsic(i, Intrinsic::exp2); }
+    TypedValue exp2(const TypedValue &x) const { return intrinsic(x, Intrinsic::exp2); }
     Value *log(Value *i) const { return intrinsic(i, Intrinsic::log); }
     Value *log10(Value *i) const { return intrinsic(i, Intrinsic::log10); }
     Value *log2(Value *i) const { return intrinsic(i, Intrinsic::log2); }
@@ -1356,6 +1356,7 @@ private:
             else if (op == "sin")   return kernel.sin(operand);
             else if (op == "cos")   return kernel.cos(operand);
             else if (op == "exp")   return kernel.exp(operand);
+            else if (op == "exp2")  return kernel.exp2(operand);
             else if (op == "log")   return kernel.log(operand);
             else if (op == "log2")  return kernel.log2(operand);
             else if (op == "log10") return kernel.log10(operand);
