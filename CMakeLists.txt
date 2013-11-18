@@ -30,6 +30,11 @@ macro(get_subdirectories result curdir)
 endmacro()
 
 # Build LLVM
+set(LLVM_TARGETS_TO_BUILD "host" CACHE STRING "LLVM targets")
+set(LLVM_INCLUDE_TOOLS OFF CACHE BOOL "Build LLVM tools")
+set(LLVM_INCLUDE_EXAMPLES OFF CACHE BOOL "Build LLVM examples")
+set(LLVM_INCLUDE_TESTS OFF CACHE BOOL "Build LLVM tests")
+set(LLVM_INCLUDE_DOCS OFF CACHE BOOL "Build LLVM docs")
 add_subdirectory(llvm)
 set(CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}/llvm/share/llvm/cmake/")
 include(LLVMConfig)
