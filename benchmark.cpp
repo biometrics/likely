@@ -268,6 +268,11 @@ class sqrtTest : public FloatingTest {
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; sqrt(src, dst); return dst; }
 };
 
+class powiTest : public FloatingTest {
+    const char *function() const { return "powi(2)"; }
+    Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 2, dst); return dst; }
+};
+
 class maddTest : public Test {
     const char *function() const { return "madd(2,3)"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth(), 2, 3); return dst; }
@@ -314,6 +319,7 @@ int main(int argc, char *argv[])
         multiplyTest().run();
         divideTest().run();
         sqrtTest().run();
+        powiTest().run();
 //        maddTest().run();
 //        logTest().run();
     }

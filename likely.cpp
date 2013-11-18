@@ -953,12 +953,20 @@ struct KernelBuilder
         x = cast(x, validFloatType(x.type));
         vector<Type*> args;
         args.push_back(x.value->getType());
-        Function *intrinsic = Intrinsic::getDeclaration(m, id, args);
-        return TypedValue(b->CreateCall(intrinsic, x), x.type);
+        return TypedValue(b->CreateCall(Intrinsic::getDeclaration(m, id, args), x), x.type);
+    }
+
+    TypedValue intrinsic(TypedValue x, TypedValue n, Intrinsic::ID id) const
+    {
+        x = cast(x, validFloatType(x.type));
+        n = cast(n, likely_type_i32);
+        vector<Type*> args;
+        args.push_back(x.value->getType());
+        return TypedValue(b->CreateCall2(Intrinsic::getDeclaration(m, id, args), x.value, n.value), x.type);
     }
 
     TypedValue sqrt(const TypedValue &x) const { return intrinsic(x, Intrinsic::sqrt); }
-    Value *powi(Value *i) const { return intrinsic(i, Intrinsic::powi); }
+    TypedValue powi(const TypedValue &x, const TypedValue &n) const { return intrinsic(x, n, Intrinsic::powi); }
     Value *sin(Value *i) const { return intrinsic(i, Intrinsic::sin); }
     Value *cos(Value *i) const { return intrinsic(i, Intrinsic::cos); }
     Value *pow(Value *i) const { return intrinsic(i, Intrinsic::pow); }
@@ -1360,6 +1368,7 @@ private:
             else if (op == "-") return kernel.subtract(lhs, rhs);
             else if (op == "*") return kernel.multiply(lhs, rhs);
             else if (op == "/") return kernel.divide(lhs, rhs);
+            else if (op == "powi") return kernel.powi(lhs, rhs);
             likely_assert(false, "unsupported binary operator: %s", op.c_str());
         }
 
