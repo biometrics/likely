@@ -26,7 +26,7 @@
 using namespace cv;
 using namespace std;
 
-#define LIKELY_ERROR_TOLERANCE 0.01
+#define LIKELY_ERROR_TOLERANCE 0.000001
 #define LIKELY_TEST_SECONDS 1
 
 // Optional arguments to run only a subset of the benchmarks
@@ -174,23 +174,27 @@ private:
 
         Mat errorMat = abs(toCvMat(dstLikely) - dstOpenCV);
         errorMat.convertTo(errorMat, CV_32F);
+        dstOpenCV.convertTo(dstOpenCV, CV_32F);
+        errorMat = errorMat / (dstOpenCV + LIKELY_ERROR_TOLERANCE); // Normalize errors
         threshold(errorMat, errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
-        double errors = norm(errorMat, NORM_L1);
+        int errors = (int) norm(errorMat, NORM_L1);
         if (errors > 0) {
             likely_mat cvLikely = fromCvMat(dstOpenCV);
             stringstream errorLocations;
             errorLocations << "input\topencv\tlikely\trow\tcolumn\n";
+            errors = 0;
             for (int i=0; i<src.rows; i++)
                 for (int j=0; j<src.cols; j++)
                     if (errorMat.at<float>(i, j) == 1) {
                         const double src = likely_element(srcLikely, 0, j, i);
                         const double cv  = likely_element(cvLikely,  0, j, i);
                         const double dst = likely_element(dstLikely, 0, j, i);
-                        if (ignoreOffByOne() && (cv-dst == 1)) errors--;
-                        else errorLocations << src << "\t" << cv << "\t" << dst << "\t" << i << "\t" << j << "\n";
+                        if (ignoreOffByOne() && (cv-dst == 1)) continue;
+                        if (errors < 100) errorLocations << src << "\t" << cv << "\t" << dst << "\t" << i << "\t" << j << "\n";
+                        errors++;
                     }
             if (errors > 0)
-                fprintf(stderr, "Test for %s differs in %g locations:\n%s", function(), errors, errorLocations.str().c_str());
+                fprintf(stderr, "Test for %s differs in %d locations:\n%s", function(), errors, errorLocations.str().c_str());
             likely_release(cvLikely);
         }
 
@@ -305,6 +309,11 @@ class powTest : public FloatingTest {
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 1.5, dst); return dst; }
 };
 
+class expTest : public FloatingTest {
+    const char *function() const { return "exp()"; }
+    Mat computeFloatingBaseline(const Mat &src) const { Mat dst; exp(src, dst); return dst; }
+};
+
 class maddTest : public Test {
     const char *function() const { return "madd(2,3)"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth(), 2, 3); return dst; }
@@ -355,6 +364,7 @@ int main(int argc, char *argv[])
         sinTest().run();
         cosTest().run();
         powTest().run();
+        expTest().run();
 //        maddTest().run();
 //        logTest().run();
     }
