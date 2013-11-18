@@ -242,6 +242,21 @@ class FloatingTest : public Test
     virtual Mat computeFloatingBaseline(const Mat &src) const = 0;
 };
 
+class ScalarFloatingTest : public FloatingTest
+{
+    Mat computeFloatingBaseline(const Mat &src) const
+    {
+        Mat dst(src.rows, src.cols, src.depth());
+        const int elements = src.rows * src.cols;
+        if (src.depth() == CV_32F) compute32f(reinterpret_cast<const float*>(src.data), reinterpret_cast<float*>(dst.data), elements);
+        else                       compute64f(reinterpret_cast<const double*>(src.data), reinterpret_cast<double*>(dst.data), elements);
+        return dst;
+    }
+
+    virtual void compute32f(const float *src, float *dst, int n) const = 0;
+    virtual void compute64f(const double *src, double *dst, int n) const = 0;
+};
+
 class addTest : public Test {
     const char *function() const { return "add(32)"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; add(src, 32, dst); return dst; }
@@ -273,20 +288,16 @@ class powiTest : public FloatingTest {
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 2, dst); return dst; }
 };
 
-class sinTest : public FloatingTest {
+class sinTest : public ScalarFloatingTest {
     const char *function() const { return "sin()"; }
-    Mat computeFloatingBaseline(const Mat &src) const
-    {
-        Mat dst(src.rows, src.cols, src.depth());
-        const int elements = src.rows * src.cols;
-        if (src.depth() == CV_32F)
-            for (int i=0; i<elements; i++)
-                reinterpret_cast<float*>(dst.data)[i] = sinf(reinterpret_cast<float*>(src.data)[i]);
-        else // src.depth() == CV_64F
-            for (int i=0; i<elements; i++)
-                reinterpret_cast<double*>(dst.data)[i] = sin(reinterpret_cast<double*>(src.data)[i]);
-        return dst;
-    }
+    void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = sinf(src[i]); }
+    void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = sin(src[i]); }
+};
+
+class cosTest : public ScalarFloatingTest {
+    const char *function() const { return "cos()"; }
+    void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = cosf(src[i]); }
+    void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = cos(src[i]); }
 };
 
 class maddTest : public Test {
@@ -337,6 +348,7 @@ int main(int argc, char *argv[])
         sqrtTest().run();
         powiTest().run();
         sinTest().run();
+        cosTest().run();
 //        maddTest().run();
 //        logTest().run();
     }
