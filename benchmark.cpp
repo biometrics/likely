@@ -324,14 +324,14 @@ class exp2Test : public ScalarFloatingTest {
     double scaleFactor() const { return 0.1; }
 };
 
+class logTest : public FloatingTest {
+    const char *function() const { return "log()"; }
+    Mat computeFloatingBaseline(const Mat &src) const { Mat dst; log(src, dst); return dst; }
+};
+
 class maddTest : public Test {
     const char *function() const { return "madd(2,3)"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth(), 2, 3); return dst; }
-};
-
-class logTest : public Test {
-    const char *function() const { return "log()"; }
-    Mat computeBaseline(const Mat &src) const {Mat dst; log(src, dst); return dst; }
 };
 
 int main(int argc, char *argv[])
@@ -376,6 +376,7 @@ int main(int argc, char *argv[])
         powTest().run();
         expTest().run();
         exp2Test().run();
+        logTest().run();
 //        maddTest().run();
 //        logTest().run();
     }

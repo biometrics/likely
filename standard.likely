@@ -215,7 +215,7 @@ sqrt = closure(
       return likely.s("sqrt", x)
     end
   end,
-  "Square root: f(x) = sqrt(x)",
+  "Square root: f(x) = x ** 0.5",
   {{"x", "operand"}})
 
 powi = closure(
@@ -294,15 +294,15 @@ exp2 = closure(
 
 log = closure(
   "log",
-  function(operand)
-    if likely.isnum(operand) then
-      return log(operand)
+  function(x)
+    if likely.isnum(x) then
+      return math.log(x)
     else
-      return likely.s("log", operand)
+      return likely.s("log", x)
     end
   end,
-  "Logarithmic function",
-  {{"operand", "operand"}})
+  "Natural logarithm: f(x) = log_e(x)",
+  {{"x", "operand"}})
 
 log2 = closure(
   "log2",

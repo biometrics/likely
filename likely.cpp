@@ -972,7 +972,7 @@ struct KernelBuilder
     TypedValue pow(const TypedValue &x, const TypedValue &n) const { return intrinsic(x, n, Intrinsic::pow); }
     TypedValue exp(const TypedValue &x) const { return intrinsic(x, Intrinsic::exp); }
     TypedValue exp2(const TypedValue &x) const { return intrinsic(x, Intrinsic::exp2); }
-    Value *log(Value *i) const { return intrinsic(i, Intrinsic::log); }
+    TypedValue log(const TypedValue &x) const { return intrinsic(x, Intrinsic::log); }
     Value *log10(Value *i) const { return intrinsic(i, Intrinsic::log10); }
     Value *log2(Value *i) const { return intrinsic(i, Intrinsic::log2); }
     Value *fma(Value *i) const { return intrinsic(i, Intrinsic::fma); }
