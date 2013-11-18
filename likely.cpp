@@ -694,6 +694,7 @@ struct KernelBuilder
 
     Value *data(const TypedValue &matrix) const { return b->CreatePointerCast(b->CreateLoad(b->CreateStructGEP(matrix, 0), "_data"), ty(matrix, true)); }
     Value *type(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 1), "_type"); }
+    Value *type(likely_type type) const { return constant(type, 32); }
     Value *channels(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 2), "_channels"); }
     Value *columns(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 3), "_columns"); }
     Value *rows(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 4), "_rows"); }
@@ -1101,25 +1102,45 @@ public:
             return executionEngine->getPointerToFunction(function);
         function = getFunction(name, module, types.size(), PointerType::getUnqual(TheMatrixStruct));
 
-        FunctionPassManager functionPassManager(module);
-        functionPassManager.add(createVerifierPass(PrintMessageAction));
-        targetMachine->addAnalysisPasses(functionPassManager);
-        functionPassManager.add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
-        functionPassManager.add(new DataLayout(module));
-        functionPassManager.add(createBasicAliasAnalysisPass());
-        functionPassManager.add(createLICMPass());
-        functionPassManager.add(createLoopVectorizePass());
-        functionPassManager.add(createInstructionCombiningPass());
-        functionPassManager.add(createEarlyCSEPass());
-        functionPassManager.add(createCFGSimplificationPass());
-        functionPassManager.doInitialization();
-//        DebugFlag = true;
+        Function *thunk;
+        likely_type dstType;
+        {
+            thunk = getFunction(name+"_thunk", module, types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
+            vector<TypedValue> thunkSrcs;
+            getValues(thunk, types, thunkSrcs);
+            TypedValue thunkStop = thunkSrcs.back(); thunkSrcs.pop_back();
+            thunkStop.value->setName("stop");
+            thunkStop.type = likely_type_i32;
+            TypedValue thunkStart = thunkSrcs.back(); thunkSrcs.pop_back();
+            thunkStart.value->setName("start");
+            thunkStart.type = likely_type_i32;
+            TypedValue thunkDst = thunkSrcs.back(); thunkSrcs.pop_back();
+            thunkDst.value->setName("dst");
+            BasicBlock *thunkEntry = BasicBlock::Create(getGlobalContext(), "thunk_entry", thunk);
+            IRBuilder<> thunkBuilder(thunkEntry);
+            KernelBuilder thunkKernel(module, &thunkBuilder, thunk, thunkSrcs);
+            Value *i = thunkKernel.beginLoop(thunkEntry, thunkStart, thunkStop).i;
+            TypedValue result = generateKernelRecursive(thunkKernel, sexp, i);
+            dstType = result.type;
+            thunkKernel.store(TypedValue(thunkDst.value, dstType), i, result);
+            thunkKernel.endLoop();
+            thunkBuilder.CreateRetVoid();
 
-        vector<TypedValue> srcs;
-        getValues(function, types, srcs);
-        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
-        IRBuilder<> builder(entry);
-        KernelBuilder kernel(module, &builder, function, srcs);
+            FunctionPassManager functionPassManager(module);
+            functionPassManager.add(createVerifierPass(PrintMessageAction));
+            targetMachine->addAnalysisPasses(functionPassManager);
+            functionPassManager.add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
+            functionPassManager.add(new DataLayout(module));
+            functionPassManager.add(createBasicAliasAnalysisPass());
+            functionPassManager.add(createLICMPass());
+            functionPassManager.add(createLoopVectorizePass());
+            functionPassManager.add(createInstructionCombiningPass());
+            functionPassManager.add(createEarlyCSEPass());
+            functionPassManager.add(createCFGSimplificationPass());
+            functionPassManager.doInitialization();
+//            DebugFlag = true;
+            functionPassManager.run(*thunk);
+        }
 
         static FunctionType* LikelyNewSignature = NULL;
         if (LikelyNewSignature == NULL) {
@@ -1140,8 +1161,14 @@ public:
         likelyNew->setDoesNotAlias(6);
         likelyNew->setDoesNotCapture(6);
 
+        vector<TypedValue> srcs;
+        getValues(function, types, srcs);
+        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
+        IRBuilder<> builder(entry);
+        KernelBuilder kernel(module, &builder, function, srcs);
+
         std::vector<Value*> likelyNewArgs;
-        likelyNewArgs.push_back(kernel.type(srcs[0]));
+        likelyNewArgs.push_back(kernel.type(dstType));
         likelyNewArgs.push_back(kernel.channels(srcs[0]));
         likelyNewArgs.push_back(kernel.columns(srcs[0]));
         likelyNewArgs.push_back(kernel.rows(srcs[0]));
@@ -1150,27 +1177,8 @@ public:
         likelyNewArgs.push_back(kernel.constant(0, 8));
         Value *dst = builder.CreateCall(likelyNew, likelyNewArgs);
 
-        Value *start = KernelBuilder::zero();
         Value *kernelSize = kernel.elements(srcs[0]);
         if (likely_parallel(types[0])) {
-            Function *thunk = getFunction(name+"_thunk", module, types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
-            vector<TypedValue> thunkSrcs;
-            getValues(thunk, types, thunkSrcs);
-            TypedValue thunkStop = thunkSrcs.back(); thunkSrcs.pop_back();
-            thunkStop.value->setName("stop");
-            thunkStop.type = likely_type_i32;
-            TypedValue thunkStart = thunkSrcs.back(); thunkSrcs.pop_back();
-            thunkStart.value->setName("start");
-            thunkStart.type = likely_type_i32;
-            TypedValue thunkDst = thunkSrcs.back(); thunkSrcs.pop_back();
-            thunkDst.value->setName("dst");
-            BasicBlock *thunkEntry = BasicBlock::Create(getGlobalContext(), "thunk_entry", thunk);
-            IRBuilder<> thunkBuilder(thunkEntry);
-            KernelBuilder thunkMatrix(module, &thunkBuilder, thunk, thunkSrcs);
-            generateKernel(thunkMatrix, thunkEntry, thunkStart, thunkStop, thunkDst);
-            thunkBuilder.CreateRetVoid();
-            functionPassManager.run(*thunk);
-
             static FunctionType *likelyForkType = NULL;
             if (likelyForkType == NULL) {
                 vector<Type*> likelyForkParameters;
@@ -1194,10 +1202,16 @@ public:
             likelyForkArgs.push_back(dst);
             builder.CreateCall(likelyFork, likelyForkArgs);
         } else {
-            generateKernel(kernel, entry, start, kernelSize, dst);
+            vector<Value*> thunkArgs;
+            for (const TypedValue &src : srcs)
+                thunkArgs.push_back(src.value);
+            thunkArgs.push_back(dst);
+            thunkArgs.push_back(KernelBuilder::zero());
+            thunkArgs.push_back(kernelSize);
+            builder.CreateCall(thunk, thunkArgs);
         }
+
         builder.CreateRet(dst);
-        functionPassManager.run(*function);
 
 //        module->dump();
         executionEngine->finalizeObject();
@@ -1285,15 +1299,6 @@ private:
             srcs.push_back(TypedValue(src, arity < types.size() ? types[arity] : likely_type_null));
             arity++;
         }
-    }
-
-    likely_type generateKernel(KernelBuilder &kernel, BasicBlock *entry, Value *start, Value *stop, Value *dst)
-    {
-        Value *i = kernel.beginLoop(entry, start, stop).i;
-        TypedValue equation = generateKernelRecursive(kernel, sexp, i);
-        kernel.store(TypedValue(dst, equation.type), i, equation);
-        kernel.endLoop();
-        return equation.type;
     }
 
     TypedValue generateKernelRecursive(KernelBuilder &kernel, const SExp &expression, Value *i)
