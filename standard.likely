@@ -318,15 +318,15 @@ log10 = closure(
 
 log2 = closure(
   "log2",
-  function(operand)
-    if likely.isnum(operand) then
-      return log2(operand)
+  function(x)
+    if likely.isnum(x) then
+      return math.log(x) / math.log(2)
     else
       return likely.s("log2", operand)
     end
   end,
-  "Logarithmic function with base 2",
-  {{"operand", "operand"}})
+  "Base-2 logarithm: f(x) = log_2(x)",
+  {{"x", "operand"}})
 
 fabs = closure(
   "fabs",

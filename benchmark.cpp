@@ -335,6 +335,12 @@ class log10Test : public ScalarFloatingTest {
     void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = log10(src[i]); }
 };
 
+class log2Test : public ScalarFloatingTest {
+    const char *function() const { return "log2()"; }
+    void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = log2f(src[i]); }
+    void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = log2(src[i]); }
+};
+
 class maddTest : public Test {
     const char *function() const { return "madd(2,3)"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth(), 2, 3); return dst; }
@@ -384,6 +390,7 @@ int main(int argc, char *argv[])
         exp2Test().run();
         logTest().run();
         log10Test().run();
+        log2Test().run();
 //        maddTest().run();
 //        logTest().run();
     }
