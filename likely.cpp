@@ -98,10 +98,11 @@ static int lua_likely__tostring(lua_State *L)
     return 1;
 }
 
-static inline int likely_get(likely_type type, likely_type_field mask) { return type & mask; }
-static inline void likely_set(likely_type *type, int i, likely_type_field mask) { *type &= ~mask; *type |= i & mask; }
-static inline bool likely_get_bool(likely_type type, likely_type_field mask) { return type & mask; }
-static inline void likely_set_bool(likely_type *type, bool b, likely_type_field mask) { b ? *type |= mask : *type &= ~mask; }
+static int likely_get(likely_type type, likely_type_field mask) { return type & mask; }
+static void likely_set(likely_type *type, int i, likely_type_field mask) { *type &= ~mask; *type |= i & mask; }
+static bool likely_get_bool(likely_type type, likely_type_field mask) { return type & mask; }
+static void likely_set_bool(likely_type *type, bool b, likely_type_field mask) { b ? *type |= mask : *type &= ~mask; }
+
 int  likely_depth(likely_type type) { return likely_get(type, likely_type_depth); }
 void likely_set_depth(likely_type *type, int depth) { likely_set(type, depth, likely_type_depth); }
 bool likely_signed(likely_type type) { return likely_get_bool(type, likely_type_signed); }
@@ -669,8 +670,9 @@ struct KernelBuilder
         const int depth = likely_depth(type);
         if (likely_floating(type)) {
             if (value == 0) value = -0; // IEEE/LLVM optimization quirk
-            if (depth > 32) return TypedValue(ConstantFP::get(Type::getDoubleTy(getGlobalContext()), value), type);
-            else            return TypedValue(ConstantFP::get(Type::getFloatTy(getGlobalContext()), value), type);
+            if      (depth == 32) return TypedValue(ConstantFP::get(Type::getDoubleTy(getGlobalContext()), value), type);
+            else if (depth == 64) return TypedValue(ConstantFP::get(Type::getFloatTy(getGlobalContext()), value), type);
+            else                  { likely_assert(false, "invalid floating point constant depth: %d", depth); return TypedValue(); }
         } else {
             return TypedValue(Constant::getIntegerValue(Type::getIntNTy(getGlobalContext(), depth), APInt(depth, value)), type);
         }
@@ -938,15 +940,42 @@ struct KernelBuilder
         }
     }
 
-    Value *intrinsic(Value *i, Intrinsic::ID id) const { vector<Type*> args; args.push_back(i->getType()); Function *intrinsic = Intrinsic::getDeclaration(m, id, args); return b->CreateCall(intrinsic, i); }
-    Value *log(Value *i) const { return intrinsic(i, Intrinsic::log); }
-    Value *log2(Value *i) const { return intrinsic(i, Intrinsic::log2); }
-    Value *log10(Value *i) const { return intrinsic(i, Intrinsic::log10); }
+    static likely_type validFloatType(likely_type type)
+    {
+        likely_set_floating(&type, true);
+        likely_set_signed(&type, true);
+        likely_set_depth(&type, likely_depth(type) > 32 ? 64 : 32);
+        return type;
+    }
+
+    TypedValue intrinsic(TypedValue x, Intrinsic::ID id) const
+    {
+        x = cast(x, validFloatType(x.type));
+        vector<Type*> args;
+        args.push_back(x.value->getType());
+        Function *intrinsic = Intrinsic::getDeclaration(m, id, args);
+        return TypedValue(b->CreateCall(intrinsic, x), x.type);
+    }
+
+    TypedValue sqrt(const TypedValue &x) const { return intrinsic(x, Intrinsic::sqrt); }
+    Value *powi(Value *i) const { return intrinsic(i, Intrinsic::powi); }
     Value *sin(Value *i) const { return intrinsic(i, Intrinsic::sin); }
     Value *cos(Value *i) const { return intrinsic(i, Intrinsic::cos); }
-    Value *fabs(Value *i) const { return intrinsic(i, Intrinsic::fabs); }
-    Value *sqrt(Value *i) const { return intrinsic(i, Intrinsic::sqrt); }
+    Value *pow(Value *i) const { return intrinsic(i, Intrinsic::pow); }
     Value *exp(Value *i) const { return intrinsic(i, Intrinsic::exp); }
+    Value *exp2(Value *i) const { return intrinsic(i, Intrinsic::exp2); }
+    Value *log(Value *i) const { return intrinsic(i, Intrinsic::log); }
+    Value *log10(Value *i) const { return intrinsic(i, Intrinsic::log10); }
+    Value *log2(Value *i) const { return intrinsic(i, Intrinsic::log2); }
+    Value *fma(Value *i) const { return intrinsic(i, Intrinsic::fma); }
+    Value *fabs(Value *i) const { return intrinsic(i, Intrinsic::fabs); }
+    Value *copysign(Value *i) const { return intrinsic(i, Intrinsic::copysign); }
+    Value *floor(Value *i) const { return intrinsic(i, Intrinsic::floor); }
+    Value *ceil(Value *i) const { return intrinsic(i, Intrinsic::ceil); }
+    Value *trunc(Value *i) const { return intrinsic(i, Intrinsic::trunc); }
+    Value *rint(Value *i) const { return intrinsic(i, Intrinsic::rint); }
+    Value *nearbyint(Value *i) const { return intrinsic(i, Intrinsic::nearbyint); }
+    Value *round(Value *i) const { return intrinsic(i, Intrinsic::round); }
 
     Value *compareLT(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFCmpOLT(i, j) : (likely_signed(t) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
     Value *compareGT(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFCmpOGT(i, j) : (likely_signed(t) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
@@ -1315,13 +1344,13 @@ private:
             return kernel.load(kernel.matricies[index], i);
         } else if (operands.size() == 1) {
             const TypedValue &operand = operands[0];
-            if      (op == "log")   return kernel.log(operand);
+            if      (op == "sqrt")  return kernel.sqrt(operand);
+            else if (op == "log")   return kernel.log(operand);
             else if (op == "log2")  return kernel.log2(operand);
             else if (op == "log10") return kernel.log10(operand);
             else if (op == "sin")   return kernel.sin(operand);
             else if (op == "cos")   return kernel.cos(operand);
             else if (op == "fabs")  return kernel.fabs(operand);
-            else if (op == "sqrt")  return kernel.sqrt(operand);
             else if (op == "exp")   return kernel.exp(operand);
             likely_assert(false, "unsupported unary operator: %s", op.c_str());
         } else if (operands.size() == 2) {

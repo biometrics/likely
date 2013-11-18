@@ -228,6 +228,20 @@ private:
     }
 };
 
+class FloatingTest : public Test
+{
+    Mat computeBaseline(const Mat &src) const
+    {
+        if ((src.depth() == CV_32F) || (src.depth() == CV_64F))
+            return computeFloatingBaseline(src);
+        Mat floating;
+        src.convertTo(floating, CV_32F);
+        return computeFloatingBaseline(floating);
+    }
+
+    virtual Mat computeFloatingBaseline(const Mat &src) const = 0;
+};
+
 class addTest : public Test {
     const char *function() const { return "add(32)"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; add(src, 32, dst); return dst; }
@@ -247,6 +261,11 @@ class divideTest : public Test {
     const char *function() const { return "divide(2)"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; divide(src, 2, dst); return dst; }
     bool ignoreOffByOne() const { return true; }
+};
+
+class sqrtTest : public FloatingTest {
+    const char *function() const { return "sqrt()"; }
+    Mat computeFloatingBaseline(const Mat &src) const { Mat dst; sqrt(src, dst); return dst; }
 };
 
 class maddTest : public Test {
@@ -294,6 +313,7 @@ int main(int argc, char *argv[])
         subtractTest().run();
         multiplyTest().run();
         divideTest().run();
+        sqrtTest().run();
 //        maddTest().run();
 //        logTest().run();
     }
