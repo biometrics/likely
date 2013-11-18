@@ -51,7 +51,6 @@ using namespace std;
 #define LIKELY_NUM_ARITIES 4
 
 static StructType *TheMatrixStruct = NULL;
-static const int MaxRegisterWidth = 32; // This should be determined at run time
 
 typedef struct likely_matrix_private
 {
@@ -237,16 +236,16 @@ static likely_mat *newLuaMat(lua_State *L)
 // TODO: make this thread_local when compiler support improves
 static likely_mat recycledBuffer = NULL;
 
-static likely_data *alignedDataPointer(likely_mat m)
+static likely_data *dataPointer(likely_mat m)
 {
-    return reinterpret_cast<likely_data*>((uintptr_t(m+1) + sizeof(likely_matrix_private) + (MaxRegisterWidth-1)) & ~uintptr_t(MaxRegisterWidth-1));
+    return reinterpret_cast<likely_data*>(uintptr_t(m+1) + sizeof(likely_matrix_private));
 }
 
 likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, int8_t copy)
 {
     likely_mat m;
     size_t dataBytes = ((data && !copy) ? 0 : uint64_t(likely_depth(type)) * channels * columns * rows * frames / 8);
-    const size_t headerBytes = sizeof(likely_matrix) + sizeof(likely_matrix_private) + (MaxRegisterWidth - 1);
+    const size_t headerBytes = sizeof(likely_matrix) + sizeof(likely_matrix_private);
     if (recycledBuffer) {
         const size_t recycledDataBytes = recycledBuffer->d_ptr->data_bytes;
         if (recycledDataBytes >= dataBytes) { m = recycledBuffer; dataBytes = recycledDataBytes; }
@@ -268,10 +267,9 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     m->d_ptr->data_bytes = dataBytes;
 
     if (data && !copy) {
-        likely_assert(uintptr_t(data) % MaxRegisterWidth == 0, "expected pointer to be: %d-byte aligned", MaxRegisterWidth);
         m->data = data;
     } else {
-        m->data = alignedDataPointer(m);
+        m->data = dataPointer(m);
         if (data && copy) memcpy(m->data, data, likely_bytes(m));
     }
 
@@ -1359,7 +1357,7 @@ typedef void (*likely_kernel_3)(likely_const_mat, likely_const_mat, likely_const
 static void executeWorker(int id, int numWorkers)
 {
     // There are hardware_concurrency-1 helper threads and the main thread with id = 0
-    const likely_size step = (thunkSize/numWorkers/MaxRegisterWidth+1) * MaxRegisterWidth;
+    const likely_size step = (thunkSize+numWorkers-1)/numWorkers;
     const likely_size start = id * step;
     const likely_size stop = std::min((id+1)*step, thunkSize);
     if (start >= stop) return;
