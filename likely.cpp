@@ -973,7 +973,7 @@ struct KernelBuilder
     TypedValue exp(const TypedValue &x) const { return intrinsic(x, Intrinsic::exp); }
     TypedValue exp2(const TypedValue &x) const { return intrinsic(x, Intrinsic::exp2); }
     TypedValue log(const TypedValue &x) const { return intrinsic(x, Intrinsic::log); }
-    Value *log10(Value *i) const { return intrinsic(i, Intrinsic::log10); }
+    TypedValue log10(const TypedValue &x) const { return intrinsic(x, Intrinsic::log10); }
     Value *log2(Value *i) const { return intrinsic(i, Intrinsic::log2); }
     Value *fma(Value *i) const { return intrinsic(i, Intrinsic::fma); }
     Value *fabs(Value *i) const { return intrinsic(i, Intrinsic::fabs); }
@@ -1358,8 +1358,8 @@ private:
             else if (op == "exp")   return kernel.exp(operand);
             else if (op == "exp2")  return kernel.exp2(operand);
             else if (op == "log")   return kernel.log(operand);
-            else if (op == "log2")  return kernel.log2(operand);
             else if (op == "log10") return kernel.log10(operand);
+            else if (op == "log2")  return kernel.log2(operand);
             else if (op == "fabs")  return kernel.fabs(operand);
             likely_assert(false, "unsupported unary operator: %s", op.c_str());
         } else if (operands.size() == 2) {
