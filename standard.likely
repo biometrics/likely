@@ -328,6 +328,20 @@ log2 = closure(
   "Base-2 logarithm: f(x) = log_2(x)",
   {{"x", "operand"}})
 
+fma = closure(
+  "fma",
+  function(a, c, x)
+    if likely.isnum(a, c, x) then
+      return a * x + c
+    else
+      return likely.s("fma", a, x, c)
+    end
+  end,
+  "Fused multiply-add: f(a, b, x) = a * x + c",
+  {{"a", "operand"},
+   {"c", "operand"},
+   {"x", "operand"}})
+
 fabs = closure(
   "fabs",
   function(operand)

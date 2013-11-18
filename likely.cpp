@@ -958,11 +958,23 @@ struct KernelBuilder
 
     TypedValue intrinsic(TypedValue x, TypedValue n, Intrinsic::ID id, bool nIsInteger = false) const
     {
+        // TODO: resolve type using likely_type_from_types
         x = cast(x, validFloatType(x.type));
         n = cast(n, nIsInteger ? likely_type_i32 : x.type);
         vector<Type*> args;
         args.push_back(x.value->getType());
-        return TypedValue(b->CreateCall2(Intrinsic::getDeclaration(m, id, args), x.value, n.value), x.type);
+        return TypedValue(b->CreateCall2(Intrinsic::getDeclaration(m, id, args), x, n), x.type);
+    }
+
+    TypedValue intrinsic(TypedValue a, TypedValue x, TypedValue c, Intrinsic::ID id) const
+    {
+        // TODO: resolve type using likely_type_from_types
+        x = cast(x, validFloatType(x.type));
+        a = cast(a, x.type);
+        c = cast(c, x.type);
+        vector<Type*> args;
+        args.push_back(x.value->getType());
+        return TypedValue(b->CreateCall3(Intrinsic::getDeclaration(m, id, args), x, a, c), x.type);
     }
 
     TypedValue sqrt(const TypedValue &x) const { return intrinsic(x, Intrinsic::sqrt); }
@@ -975,7 +987,7 @@ struct KernelBuilder
     TypedValue log(const TypedValue &x) const { return intrinsic(x, Intrinsic::log); }
     TypedValue log10(const TypedValue &x) const { return intrinsic(x, Intrinsic::log10); }
     TypedValue log2(const TypedValue &x) const { return intrinsic(x, Intrinsic::log2); }
-    Value *fma(Value *i) const { return intrinsic(i, Intrinsic::fma); }
+    TypedValue fma(const TypedValue &a, const TypedValue &x, const TypedValue &c) const { return intrinsic(a, x, c, Intrinsic::fma); }
     Value *fabs(Value *i) const { return intrinsic(i, Intrinsic::fabs); }
     Value *copysign(Value *i) const { return intrinsic(i, Intrinsic::copysign); }
     Value *floor(Value *i) const { return intrinsic(i, Intrinsic::floor); }
@@ -1372,6 +1384,12 @@ private:
             else if (op == "powi") return kernel.powi(lhs, rhs);
             else if (op == "pow") return kernel.pow(lhs, rhs);
             likely_assert(false, "unsupported binary operator: %s", op.c_str());
+        } else if (operands.size() == 3) {
+            const TypedValue &a = operands[0];
+            const TypedValue &b = operands[1];
+            const TypedValue &c = operands[2];
+            if (op == "fma") return kernel.fma(a, b, c);
+            likely_assert(false, "unsupported ternary operator: %s", op.c_str());
         }
 
         likely_assert(false, "unrecognized operator: %s", op.c_str());

@@ -341,9 +341,9 @@ class log2Test : public ScalarFloatingTest {
     void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = log2(src[i]); }
 };
 
-class maddTest : public Test {
-    const char *function() const { return "madd(2,3)"; }
-    Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth(), 2, 3); return dst; }
+class fmaTest : public Test {
+    const char *function() const { return "fma(2,3)"; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3); return dst; }
 };
 
 int main(int argc, char *argv[])
@@ -391,6 +391,7 @@ int main(int argc, char *argv[])
         logTest().run();
         log10Test().run();
         log2Test().run();
+        fmaTest().run();
 //        maddTest().run();
 //        logTest().run();
     }
