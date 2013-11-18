@@ -273,6 +273,22 @@ class powiTest : public FloatingTest {
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 2, dst); return dst; }
 };
 
+class sinTest : public FloatingTest {
+    const char *function() const { return "sin()"; }
+    Mat computeFloatingBaseline(const Mat &src) const
+    {
+        Mat dst(src.rows, src.cols, src.depth());
+        const int elements = src.rows * src.cols;
+        if (src.depth() == CV_32F)
+            for (int i=0; i<elements; i++)
+                reinterpret_cast<float*>(dst.data)[i] = sinf(reinterpret_cast<float*>(src.data)[i]);
+        else // src.depth() == CV_64F
+            for (int i=0; i<elements; i++)
+                reinterpret_cast<double*>(dst.data)[i] = sin(reinterpret_cast<double*>(src.data)[i]);
+        return dst;
+    }
+};
+
 class maddTest : public Test {
     const char *function() const { return "madd(2,3)"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth(), 2, 3); return dst; }
@@ -320,6 +336,7 @@ int main(int argc, char *argv[])
         divideTest().run();
         sqrtTest().run();
         powiTest().run();
+        sinTest().run();
 //        maddTest().run();
 //        logTest().run();
     }

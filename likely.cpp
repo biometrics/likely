@@ -967,7 +967,7 @@ struct KernelBuilder
 
     TypedValue sqrt(const TypedValue &x) const { return intrinsic(x, Intrinsic::sqrt); }
     TypedValue powi(const TypedValue &x, const TypedValue &n) const { return intrinsic(x, n, Intrinsic::powi); }
-    Value *sin(Value *i) const { return intrinsic(i, Intrinsic::sin); }
+    TypedValue sin(const TypedValue &x) const { return intrinsic(x, Intrinsic::sin); }
     Value *cos(Value *i) const { return intrinsic(i, Intrinsic::cos); }
     Value *pow(Value *i) const { return intrinsic(i, Intrinsic::pow); }
     Value *exp(Value *i) const { return intrinsic(i, Intrinsic::exp); }
@@ -1353,10 +1353,10 @@ private:
         } else if (operands.size() == 1) {
             const TypedValue &operand = operands[0];
             if      (op == "sqrt")  return kernel.sqrt(operand);
+            else if (op == "sin")   return kernel.sin(operand);
             else if (op == "log")   return kernel.log(operand);
             else if (op == "log2")  return kernel.log2(operand);
             else if (op == "log10") return kernel.log10(operand);
-            else if (op == "sin")   return kernel.sin(operand);
             else if (op == "cos")   return kernel.cos(operand);
             else if (op == "fabs")  return kernel.fabs(operand);
             else if (op == "exp")   return kernel.exp(operand);

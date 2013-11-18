@@ -231,6 +231,18 @@ powi = closure(
   {{"x", "base"},
    {"n", "integer exponent"}})
 
+sin = closure(
+  "sin",
+  function(x)
+    if likely.isnum(x) then
+      return math.sin(x)
+    else
+      return likely.s("sin", x)
+    end
+  end,
+  "Sine: f(x) = sin(x)",
+  {{"x", "radians"}})
+
 log = closure(
   "log",
   function(operand)
@@ -265,18 +277,6 @@ log10 = closure(
     end
   end,
   "Logarithmic function with base of 10",
-  {{"operand", "operand"}})
-
-sin = closure(
-  "sin",
-  function(operand)
-    if likely.isnum(operand) then
-      return sin(operand)
-    else
-      return likely.s("sin", operand)
-    end
-  end,
-  "Sine function",
   {{"operand", "operand"}})
 
 cos = closure(
