@@ -255,6 +255,19 @@ cos = closure(
   "Cosine: f(x) = cos(x)",
   {{"x", "operand"}})
 
+pow = closure(
+  "pow",
+  function(n, x)
+    if likely.isnum(n, x) then
+      return math.pow(x, n)
+    else
+      return likely.s("pow", x, n)
+    end
+  end,
+  "Power: f(x) = x ** n",
+  {{"x", "base"},
+   {"n", "exponent"}})
+
 log = closure(
   "log",
   function(operand)
@@ -314,19 +327,6 @@ exp = closure(
   end,
   "Exponential function",
   {{"operand", "operand"}})
-
-pow = closure(
-  "pow",
-  function(rhs, lhs)
-    if likely.isnum(rhs, lhs) then
-      return pow(lhs, rhs)
-    else
-      return likely.s("pow", lhs, rhs)
-    end
-  end,
-  "Power Function",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
 
 -- Casting functions
 zext = closure(

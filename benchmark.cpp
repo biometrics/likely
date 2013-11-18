@@ -26,7 +26,7 @@
 using namespace cv;
 using namespace std;
 
-#define LIKELY_ERROR_TOLERANCE 0.0001
+#define LIKELY_ERROR_TOLERANCE 0.01
 #define LIKELY_TEST_SECONDS 1
 
 // Optional arguments to run only a subset of the benchmarks
@@ -284,8 +284,8 @@ class sqrtTest : public FloatingTest {
 };
 
 class powiTest : public FloatingTest {
-    const char *function() const { return "powi(2)"; }
-    Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 2, dst); return dst; }
+    const char *function() const { return "powi(3)"; }
+    Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 3, dst); return dst; }
 };
 
 class sinTest : public ScalarFloatingTest {
@@ -298,6 +298,11 @@ class cosTest : public ScalarFloatingTest {
     const char *function() const { return "cos()"; }
     void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = cosf(src[i]); }
     void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = cos(src[i]); }
+};
+
+class powTest : public FloatingTest {
+    const char *function() const { return "pow(1.5)"; }
+    Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 1.5, dst); return dst; }
 };
 
 class maddTest : public Test {
@@ -349,6 +354,7 @@ int main(int argc, char *argv[])
         powiTest().run();
         sinTest().run();
         cosTest().run();
+        powTest().run();
 //        maddTest().run();
 //        logTest().run();
     }

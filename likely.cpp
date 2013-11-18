@@ -670,8 +670,8 @@ struct KernelBuilder
         const int depth = likely_depth(type);
         if (likely_floating(type)) {
             if (value == 0) value = -0; // IEEE/LLVM optimization quirk
-            if      (depth == 32) return TypedValue(ConstantFP::get(Type::getDoubleTy(getGlobalContext()), value), type);
-            else if (depth == 64) return TypedValue(ConstantFP::get(Type::getFloatTy(getGlobalContext()), value), type);
+            if      (depth == 64) return TypedValue(ConstantFP::get(Type::getDoubleTy(getGlobalContext()), value), type);
+            else if (depth == 32) return TypedValue(ConstantFP::get(Type::getFloatTy(getGlobalContext()), value), type);
             else                  { likely_assert(false, "invalid floating point constant depth: %d", depth); return TypedValue(); }
         } else {
             return TypedValue(Constant::getIntegerValue(Type::getIntNTy(getGlobalContext(), depth), APInt(depth, value)), type);
@@ -805,12 +805,12 @@ struct KernelBuilder
         return store;
     }
 
-    TypedValue cast(const TypedValue &value, likely_type type) const
+    TypedValue cast(const TypedValue &x, likely_type type) const
     {
-        if ((value.type & likely_type_mask) == (type & likely_type_mask))
-            return value;
+        if ((x.type & likely_type_mask) == (type & likely_type_mask))
+            return x;
         Type *dstType = ty(type);
-        return TypedValue(b->CreateCast(CastInst::getCastOpcode(value, likely_signed(value.type), dstType, likely_signed(type)), value, dstType), type);
+        return TypedValue(b->CreateCast(CastInst::getCastOpcode(x, likely_signed(x.type), dstType, likely_signed(type)), x, dstType), type);
     }
 
     // Saturation arithmetic logic:
@@ -956,20 +956,20 @@ struct KernelBuilder
         return TypedValue(b->CreateCall(Intrinsic::getDeclaration(m, id, args), x), x.type);
     }
 
-    TypedValue intrinsic(TypedValue x, TypedValue n, Intrinsic::ID id) const
+    TypedValue intrinsic(TypedValue x, TypedValue n, Intrinsic::ID id, bool nIsInteger = false) const
     {
         x = cast(x, validFloatType(x.type));
-        n = cast(n, likely_type_i32);
+        n = cast(n, nIsInteger ? likely_type_i32 : x.type);
         vector<Type*> args;
         args.push_back(x.value->getType());
         return TypedValue(b->CreateCall2(Intrinsic::getDeclaration(m, id, args), x.value, n.value), x.type);
     }
 
     TypedValue sqrt(const TypedValue &x) const { return intrinsic(x, Intrinsic::sqrt); }
-    TypedValue powi(const TypedValue &x, const TypedValue &n) const { return intrinsic(x, n, Intrinsic::powi); }
+    TypedValue powi(const TypedValue &x, const TypedValue &n) const { return intrinsic(x, n, Intrinsic::powi, true); }
     TypedValue sin(const TypedValue &x) const { return intrinsic(x, Intrinsic::sin); }
     TypedValue cos(const TypedValue &x) const { return intrinsic(x, Intrinsic::cos); }
-    Value *pow(Value *i) const { return intrinsic(i, Intrinsic::pow); }
+    TypedValue pow(const TypedValue &x, const TypedValue &n) const { return intrinsic(x, n, Intrinsic::pow); }
     Value *exp(Value *i) const { return intrinsic(i, Intrinsic::exp); }
     Value *exp2(Value *i) const { return intrinsic(i, Intrinsic::exp2); }
     Value *log(Value *i) const { return intrinsic(i, Intrinsic::log); }
@@ -1369,6 +1369,7 @@ private:
             else if (op == "*") return kernel.multiply(lhs, rhs);
             else if (op == "/") return kernel.divide(lhs, rhs);
             else if (op == "powi") return kernel.powi(lhs, rhs);
+            else if (op == "pow") return kernel.pow(lhs, rhs);
             likely_assert(false, "unsupported binary operator: %s", op.c_str());
         }
 
