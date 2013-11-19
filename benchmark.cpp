@@ -263,6 +263,15 @@ class ScalarFloatingTest : public FloatingTest
     virtual void compute64f(const double *src, double *dst, int n) const = 0;
 };
 
+#define MATH_TEST(FUNC) \
+class FUNC##Test : public ScalarFloatingTest {                   \
+    const char *function() const { return #FUNC ; }              \
+    void compute32f(const float *src, float *dst, int n) const   \
+        { for (int i=0; i<n; i++) dst[i] = FUNC##f(src[i]); }    \
+    void compute64f(const double *src, double *dst, int n) const \
+        { for (int i=0; i<n; i++) dst[i] = FUNC(src[i]); }       \
+};                                                               \
+
 class addTest : public Test {
     const char *function() const { return "add(32)"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; add(src, 32, dst); return dst; }
@@ -294,52 +303,24 @@ class powiTest : public FloatingTest {
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 3, dst); return dst; }
 };
 
-class sinTest : public ScalarFloatingTest {
-    const char *function() const { return "sin"; }
-    void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = sinf(src[i]); }
-    void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = sin(src[i]); }
-};
-
-class cosTest : public ScalarFloatingTest {
-    const char *function() const { return "cos"; }
-    void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = cosf(src[i]); }
-    void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = cos(src[i]); }
-};
+MATH_TEST(sin)
+MATH_TEST(cos)
 
 class powTest : public FloatingTest {
     const char *function() const { return "pow(\"1.5f\")"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 1.5, dst); return dst; }
 };
 
-class expTest : public FloatingTest {
-    const char *function() const { return "exp"; }
-    Mat computeFloatingBaseline(const Mat &src) const { Mat dst; exp(src, dst); return dst; }
-    double scaleFactor() const { return 0.1; }
-};
-
-class exp2Test : public ScalarFloatingTest {
-    const char *function() const { return "exp2"; }
-    void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = exp2f(src[i]); }
-    void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = exp2(src[i]); }
-    double scaleFactor() const { return 0.1; }
-};
+MATH_TEST(exp)
+MATH_TEST(exp2)
 
 class logTest : public FloatingTest {
     const char *function() const { return "log"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; log(src, dst); return dst; }
 };
 
-class log10Test : public ScalarFloatingTest {
-    const char *function() const { return "log10"; }
-    void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = log10f(src[i]); }
-    void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = log10(src[i]); }
-};
-
-class log2Test : public ScalarFloatingTest {
-    const char *function() const { return "log2"; }
-    void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = log2f(src[i]); }
-    void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = log2(src[i]); }
-};
+MATH_TEST(log10)
+MATH_TEST(log2)
 
 class fmaTest : public Test {
     const char *function() const { return "fma(2,3)"; }
@@ -357,17 +338,8 @@ class copysignTest : public ScalarFloatingTest {
     void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = copysign(src[i], -1); }
 };
 
-class floorTest : public ScalarFloatingTest {
-    const char *function() const { return "floor"; }
-    void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = floorf(src[i]); }
-    void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = floor(src[i]); }
-};
-
-class ceilTest : public ScalarFloatingTest {
-    const char *function() const { return "ceil"; }
-    void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = ceilf(src[i]); }
-    void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = ceil(src[i]); }
-};
+MATH_TEST(floor)
+MATH_TEST(ceil)
 
 int main(int argc, char *argv[])
 {
