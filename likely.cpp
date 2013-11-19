@@ -992,7 +992,7 @@ struct KernelBuilder
     TypedValue fma(const TypedValue &a, const TypedValue &x, const TypedValue &c) const { return intrinsic(a, x, c, Intrinsic::fma); }
     TypedValue fabs(const TypedValue &x) const { return intrinsic(x, Intrinsic::fabs); }
     TypedValue copysign(const TypedValue &m, const TypedValue &s) const { return intrinsic(m, s, Intrinsic::copysign); }
-    Value *floor(Value *i) const { return intrinsic(i, Intrinsic::floor); }
+    TypedValue floor(const TypedValue &x) const { return intrinsic(x, Intrinsic::floor); }
     Value *ceil(Value *i) const { return intrinsic(i, Intrinsic::ceil); }
     Value *trunc(Value *i) const { return intrinsic(i, Intrinsic::trunc); }
     Value *rint(Value *i) const { return intrinsic(i, Intrinsic::rint); }
@@ -1380,6 +1380,7 @@ private:
             else if (op == "log10") return kernel.log10(operand);
             else if (op == "log2")  return kernel.log2(operand);
             else if (op == "fabs")  return kernel.fabs(operand);
+            else if (op == "floor") return kernel.floor(operand);
             likely_assert(false, "unsupported unary operator: %s", op.c_str());
         } else if (operands.size() == 2) {
             const TypedValue &lhs = operands[0];

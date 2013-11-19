@@ -367,6 +367,18 @@ copysign = closure(
   {{"s", "value containing sign"},
    {"m", "value containing magnitude"}})
 
+floor = closure(
+  "floor",
+  function(x)
+    if likely.isnum(x) then
+      return math.floor(x)
+    else
+      return likely.s("floor", x)
+    end
+  end,
+  "Floating floor: f(x) = floor(x)",
+  {{"x", "operand"}})
+
 -- Casting functions
 zext = closure(
   "zext",

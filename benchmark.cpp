@@ -357,6 +357,12 @@ class copysignTest : public ScalarFloatingTest {
     void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = copysign(src[i], -1); }
 };
 
+class floorTest : public ScalarFloatingTest {
+    const char *function() const { return "floor()"; }
+    void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = floorf(src[i]); }
+    void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = floor(src[i]); }
+};
+
 int main(int argc, char *argv[])
 {
     // Parse arguments
@@ -405,6 +411,7 @@ int main(int argc, char *argv[])
         fmaTest().run();
         fabsTest().run();
         copysignTest().run();
+        floorTest().run();
     }
 
     return 0;
