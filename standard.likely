@@ -416,5 +416,29 @@ rint = closure(
       return likely.s("rint", x)
     end
   end,
+  "Floating round to nearest integer: f(x) = rint(x)",
+  {{"x", "operand"}})
+
+nearbyint = closure(
+  "nearbyint",
+  function(x)
+    if likely.isnum(x) then
+      return math.round(x)
+    else
+      return likely.s("nearbyint", x)
+    end
+  end,
+  "Floating round to nearest integer: f(x) = nearbyint(x)",
+  {{"x", "operand"}})
+
+round = closure(
+  "round",
+  function(x)
+    if likely.isnum(x) then
+      return math.round(x)
+    else
+      return likely.s("round", x)
+    end
+  end,
   "Floating round to nearest integer: f(x) = round(x)",
   {{"x", "operand"}})

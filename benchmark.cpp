@@ -342,6 +342,8 @@ MATH_TEST(floor)
 MATH_TEST(ceil)
 MATH_TEST(trunc)
 MATH_TEST(rint)
+MATH_TEST(nearbyint)
+MATH_TEST(round)
 
 int main(int argc, char *argv[])
 {
@@ -395,6 +397,8 @@ int main(int argc, char *argv[])
         ceilTest().run();
         truncTest().run();
         rintTest().run();
+        nearbyintTest().run();
+        roundTest().run();
     }
 
     return 0;

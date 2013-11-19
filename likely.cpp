@@ -996,8 +996,8 @@ struct KernelBuilder
     TypedValue ceil(const TypedValue &x) const { return intrinsic(x, Intrinsic::ceil); }
     TypedValue trunc(const TypedValue &x) const { return intrinsic(x, Intrinsic::trunc); }
     TypedValue rint(const TypedValue &x) const { return intrinsic(x, Intrinsic::rint); }
-    Value *nearbyint(Value *i) const { return intrinsic(i, Intrinsic::nearbyint); }
-    Value *round(Value *i) const { return intrinsic(i, Intrinsic::round); }
+    TypedValue nearbyint(const TypedValue &x) const { return intrinsic(x, Intrinsic::nearbyint); }
+    TypedValue round(const TypedValue &x) const { return intrinsic(x, Intrinsic::round); }
 
     Value *compareLT(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFCmpOLT(i, j) : (likely_signed(t) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
     Value *compareGT(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFCmpOGT(i, j) : (likely_signed(t) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
@@ -1371,19 +1371,21 @@ private:
             return kernel.load(kernel.matricies[index], i);
         } else if (operands.size() == 1) {
             const TypedValue &operand = operands[0];
-            if      (op == "sqrt")  return kernel.sqrt(operand);
-            else if (op == "sin")   return kernel.sin(operand);
-            else if (op == "cos")   return kernel.cos(operand);
-            else if (op == "exp")   return kernel.exp(operand);
-            else if (op == "exp2")  return kernel.exp2(operand);
-            else if (op == "log")   return kernel.log(operand);
-            else if (op == "log10") return kernel.log10(operand);
-            else if (op == "log2")  return kernel.log2(operand);
-            else if (op == "fabs")  return kernel.fabs(operand);
-            else if (op == "floor") return kernel.floor(operand);
-            else if (op == "ceil")  return kernel.ceil(operand);
-            else if (op == "trunc") return kernel.trunc(operand);
-            else if (op == "rint")  return kernel.rint(operand);
+            if      (op == "sqrt")      return kernel.sqrt(operand);
+            else if (op == "sin")       return kernel.sin(operand);
+            else if (op == "cos")       return kernel.cos(operand);
+            else if (op == "exp")       return kernel.exp(operand);
+            else if (op == "exp2")      return kernel.exp2(operand);
+            else if (op == "log")       return kernel.log(operand);
+            else if (op == "log10")     return kernel.log10(operand);
+            else if (op == "log2")      return kernel.log2(operand);
+            else if (op == "fabs")      return kernel.fabs(operand);
+            else if (op == "floor")     return kernel.floor(operand);
+            else if (op == "ceil")      return kernel.ceil(operand);
+            else if (op == "trunc")     return kernel.trunc(operand);
+            else if (op == "rint")      return kernel.rint(operand);
+            else if (op == "nearbyint") return kernel.nearbyint(operand);
+            else if (op == "round")     return kernel.round(operand);
             likely_assert(false, "unsupported unary operator: %s", op.c_str());
         } else if (operands.size() == 2) {
             const TypedValue &lhs = operands[0];
