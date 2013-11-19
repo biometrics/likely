@@ -995,7 +995,7 @@ struct KernelBuilder
     TypedValue floor(const TypedValue &x) const { return intrinsic(x, Intrinsic::floor); }
     TypedValue ceil(const TypedValue &x) const { return intrinsic(x, Intrinsic::ceil); }
     TypedValue trunc(const TypedValue &x) const { return intrinsic(x, Intrinsic::trunc); }
-    Value *rint(Value *i) const { return intrinsic(i, Intrinsic::rint); }
+    TypedValue rint(const TypedValue &x) const { return intrinsic(x, Intrinsic::rint); }
     Value *nearbyint(Value *i) const { return intrinsic(i, Intrinsic::nearbyint); }
     Value *round(Value *i) const { return intrinsic(i, Intrinsic::round); }
 
@@ -1383,6 +1383,7 @@ private:
             else if (op == "floor") return kernel.floor(operand);
             else if (op == "ceil")  return kernel.ceil(operand);
             else if (op == "trunc") return kernel.trunc(operand);
+            else if (op == "rint")  return kernel.rint(operand);
             likely_assert(false, "unsupported unary operator: %s", op.c_str());
         } else if (operands.size() == 2) {
             const TypedValue &lhs = operands[0];

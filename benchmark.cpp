@@ -341,6 +341,7 @@ class copysignTest : public ScalarFloatingTest {
 MATH_TEST(floor)
 MATH_TEST(ceil)
 MATH_TEST(trunc)
+MATH_TEST(rint)
 
 int main(int argc, char *argv[])
 {
@@ -393,6 +394,7 @@ int main(int argc, char *argv[])
         floorTest().run();
         ceilTest().run();
         truncTest().run();
+        rintTest().run();
     }
 
     return 0;
