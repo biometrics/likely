@@ -322,7 +322,7 @@ log2 = closure(
     if likely.isnum(x) then
       return math.log(x) / math.log(2)
     else
-      return likely.s("log2", operand)
+      return likely.s("log2", x)
     end
   end,
   "Base-2 logarithm: f(x) = log_2(x)",

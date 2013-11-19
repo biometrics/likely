@@ -55,7 +55,7 @@ struct Test
 {
     void run() const
     {
-        if (!BenchmarkFunction.empty() && BenchmarkFunction != function()) return;
+        if (!BenchmarkFunction.empty() && string(function()).compare(0, BenchmarkFunction.size(), BenchmarkFunction)) return;
 
         for (likely_type type : types()) {
             if ((BenchmarkType != likely_type_null) && (BenchmarkType != type)) continue;
@@ -307,7 +307,7 @@ class cosTest : public ScalarFloatingTest {
 };
 
 class powTest : public FloatingTest {
-    const char *function() const { return "pow(1.5)"; }
+    const char *function() const { return "pow(\"1.5f\")"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 1.5, dst); return dst; }
 };
 

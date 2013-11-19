@@ -563,17 +563,19 @@ const char *likely_type_to_string(likely_type h)
 
 likely_type likely_type_from_string(const char *str)
 {
+    assert(str);
     likely_type t = likely_type_null;
     const size_t len = strlen(str);
-    if ((str == NULL) || (len == 0))
-        return t;
+    if (len == 0) return t;
 
     if (str[0] == 'f') likely_set_floating(&t, true);
     if (str[0] != 'u') likely_set_signed(&t, true);
-    likely_set_depth(&t, atoi(str+1));
+    int depth = atoi(str+1); // atoi ignores characters after the number
+    if (depth == 0) depth = 32;
+    likely_set_depth(&t, depth);
 
     size_t startIndex = 1;
-    while ((str[startIndex] >= '0') && (str[startIndex] <= '9'))
+    while ((startIndex < len) && (str[startIndex] >= '0') && (str[startIndex] <= '9'))
         startIndex++;
 
     for (size_t i=startIndex; i<len; i++) {
@@ -958,8 +960,8 @@ struct KernelBuilder
 
     TypedValue intrinsic(TypedValue x, TypedValue n, Intrinsic::ID id, bool nIsInteger = false) const
     {
-        // TODO: resolve type using likely_type_from_types
-        x = cast(x, validFloatType(x.type));
+        const likely_type type = nIsInteger ? x.type : likely_type_from_types(x, n);
+        x = cast(x, validFloatType(type));
         n = cast(n, nIsInteger ? likely_type_i32 : x.type);
         vector<Type*> args;
         args.push_back(x.value->getType());
@@ -968,8 +970,8 @@ struct KernelBuilder
 
     TypedValue intrinsic(TypedValue a, TypedValue x, TypedValue c, Intrinsic::ID id) const
     {
-        // TODO: resolve type using likely_type_from_types
-        x = cast(x, validFloatType(x.type));
+        const likely_type type = likely_type_from_types(likely_type_from_types(a, x), c);
+        x = cast(x, validFloatType(type));
         a = cast(a, x.type);
         c = cast(c, x.type);
         vector<Type*> args;
@@ -1353,12 +1355,17 @@ private:
         vector<TypedValue> operands;
         for (const SExp &operand : expression.sexps)
             operands.push_back(generateKernelRecursive(kernel, operand, i));
-
         const string &op = expression.op;
-        char *error;
-        const double value = strtod(op.c_str(), &error);
-        if (*error == '\0') {
-            return KernelBuilder::constant(value, likely_type_from_value(value));
+
+        static regex constant("(-?\\d*\\.?\\d+)([uif]\\d*)?");
+        std::smatch sm;
+        if (regex_match(op, sm, constant)) {
+            assert(sm.size() == 3);
+            const double value = atof(string(sm[1]).c_str());
+            const likely_type type = string(sm[2]).empty()
+                                   ? likely_type_from_value(value)
+                                   : likely_type_from_string(string(sm[2]).c_str());
+            return KernelBuilder::constant(value, type);
         } else if (op.substr(0,1) == "#") {
             int index = atoi(op.substr(1, op.size()-1).c_str());
             return kernel.load(kernel.matricies[index], i);
@@ -1392,7 +1399,7 @@ private:
             likely_assert(false, "unsupported ternary operator: %s", op.c_str());
         }
 
-        likely_assert(false, "unrecognized operator: %s", op.c_str());
+        likely_assert(false, "unrecognized literal: %s", op.c_str());
         return NULL;
     }
 };
