@@ -442,3 +442,12 @@ round = closure(
   end,
   "Floating round to nearest integer: f(x) = round(x)",
   {{"x", "operand"}})
+
+cast = closure(
+  "cast",
+  function(type, x)
+    return likely.s("cast", x, type)
+  end,
+  "Cast matrix to another type",
+  {{"type", "Likely type"},
+   {"x", "operand"}})

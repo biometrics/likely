@@ -345,6 +345,11 @@ MATH_TEST(rint)
 MATH_TEST(nearbyint)
 MATH_TEST(round)
 
+class castTest : public Test {
+    const char *function() const { return "cast(f32)"; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, CV_32F); return dst; }
+};
+
 int main(int argc, char *argv[])
 {
     // Parse arguments
@@ -399,6 +404,7 @@ int main(int argc, char *argv[])
         rintTest().run();
         nearbyintTest().run();
         roundTest().run();
+        castTest().run();
     }
 
     return 0;

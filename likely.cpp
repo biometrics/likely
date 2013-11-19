@@ -815,6 +815,11 @@ struct KernelBuilder
         return TypedValue(b->CreateCast(CastInst::getCastOpcode(x, likely_signed(x.type), dstType, likely_signed(type)), x, dstType), type);
     }
 
+    TypedValue cast(const TypedValue &x, const TypedValue &type) const
+    {
+        return cast(x, llvm::cast<Constant>(type.value)->getUniqueInteger().getZExtValue());
+    }
+
     // Saturation arithmetic logic:
     // http://locklessinc.com/articles/sat_arithmetic/
     Value *signedSaturationHelper(Value *result, Value *overflowResult, Value *overflowCondition) const
@@ -1394,9 +1399,10 @@ private:
             else if (op == "-") return kernel.subtract(lhs, rhs);
             else if (op == "*") return kernel.multiply(lhs, rhs);
             else if (op == "/") return kernel.divide(lhs, rhs);
-            else if (op == "powi") return kernel.powi(lhs, rhs);
-            else if (op == "pow") return kernel.pow(lhs, rhs);
+            else if (op == "powi")     return kernel.powi(lhs, rhs);
+            else if (op == "pow")      return kernel.pow(lhs, rhs);
             else if (op == "copysign") return kernel.copysign(lhs, rhs);
+            else if (op == "cast")     return kernel.cast(lhs, rhs);
             likely_assert(false, "unsupported binary operator: %s", op.c_str());
         } else if (operands.size() == 3) {
             const TypedValue &a = operands[0];
