@@ -354,6 +354,19 @@ fabs = closure(
   "Floating absolute value: f(x) = |x|",
   {{"x", "operand"}})
 
+copysign = closure(
+  "copysign",
+  function(s, m)
+    if likely.isnum(s, m) then
+      return m * s / math.abs(s)
+    else
+      return likely.s("copysign", m, s)
+    end
+  end,
+  "Floating copy sign: f(x) = copysign(m, s)",
+  {{"s", "value containing sign"},
+   {"m", "value containing magnitude"}})
+
 -- Casting functions
 zext = closure(
   "zext",

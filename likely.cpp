@@ -991,7 +991,7 @@ struct KernelBuilder
     TypedValue log2(const TypedValue &x) const { return intrinsic(x, Intrinsic::log2); }
     TypedValue fma(const TypedValue &a, const TypedValue &x, const TypedValue &c) const { return intrinsic(a, x, c, Intrinsic::fma); }
     TypedValue fabs(const TypedValue &x) const { return intrinsic(x, Intrinsic::fabs); }
-    Value *copysign(Value *i) const { return intrinsic(i, Intrinsic::copysign); }
+    TypedValue copysign(const TypedValue &m, const TypedValue &s) const { return intrinsic(m, s, Intrinsic::copysign); }
     Value *floor(Value *i) const { return intrinsic(i, Intrinsic::floor); }
     Value *ceil(Value *i) const { return intrinsic(i, Intrinsic::ceil); }
     Value *trunc(Value *i) const { return intrinsic(i, Intrinsic::trunc); }
@@ -1390,6 +1390,7 @@ private:
             else if (op == "/") return kernel.divide(lhs, rhs);
             else if (op == "powi") return kernel.powi(lhs, rhs);
             else if (op == "pow") return kernel.pow(lhs, rhs);
+            else if (op == "copysign") return kernel.copysign(lhs, rhs);
             likely_assert(false, "unsupported binary operator: %s", op.c_str());
         } else if (operands.size() == 3) {
             const TypedValue &a = operands[0];

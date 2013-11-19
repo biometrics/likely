@@ -351,6 +351,12 @@ class fabsTest : public FloatingTest {
     Mat computeFloatingBaseline(const Mat &src) const { return abs(src); }
 };
 
+class copysignTest : public ScalarFloatingTest {
+    const char *function() const { return "copysign(-1)"; }
+    void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = copysignf(src[i], -1); }
+    void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = copysign(src[i], -1); }
+};
+
 int main(int argc, char *argv[])
 {
     // Parse arguments
@@ -398,6 +404,7 @@ int main(int argc, char *argv[])
         log2Test().run();
         fmaTest().run();
         fabsTest().run();
+        copysignTest().run();
     }
 
     return 0;
