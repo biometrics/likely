@@ -344,15 +344,15 @@ fma = closure(
 
 fabs = closure(
   "fabs",
-  function(operand)
-    if likely.isnum(operand) then
-      return fabs(operand)
+  function(x)
+    if likely.isnum(x) then
+      return math.abs(x)
     else
-      return likely.s("fabs", operand)
+      return likely.s("fabs", x)
     end
   end,
-  "Absolute Value function",
-  {{"operand", "operand"}})
+  "Floating absolute value: f(x) = |x|",
+  {{"x", "operand"}})
 
 -- Casting functions
 zext = closure(

@@ -346,6 +346,11 @@ class fmaTest : public Test {
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3); return dst; }
 };
 
+class fabsTest : public FloatingTest {
+    const char *function() const { return "fabs()"; }
+    Mat computeFloatingBaseline(const Mat &src) const { return abs(src); }
+};
+
 int main(int argc, char *argv[])
 {
     // Parse arguments
@@ -392,8 +397,7 @@ int main(int argc, char *argv[])
         log10Test().run();
         log2Test().run();
         fmaTest().run();
-//        maddTest().run();
-//        logTest().run();
+        fabsTest().run();
     }
 
     return 0;
