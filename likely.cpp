@@ -993,7 +993,7 @@ struct KernelBuilder
     TypedValue fabs(const TypedValue &x) const { return intrinsic(x, Intrinsic::fabs); }
     TypedValue copysign(const TypedValue &m, const TypedValue &s) const { return intrinsic(m, s, Intrinsic::copysign); }
     TypedValue floor(const TypedValue &x) const { return intrinsic(x, Intrinsic::floor); }
-    Value *ceil(Value *i) const { return intrinsic(i, Intrinsic::ceil); }
+    TypedValue ceil(const TypedValue &x) const { return intrinsic(x, Intrinsic::ceil); }
     Value *trunc(Value *i) const { return intrinsic(i, Intrinsic::trunc); }
     Value *rint(Value *i) const { return intrinsic(i, Intrinsic::rint); }
     Value *nearbyint(Value *i) const { return intrinsic(i, Intrinsic::nearbyint); }
@@ -1381,6 +1381,7 @@ private:
             else if (op == "log2")  return kernel.log2(operand);
             else if (op == "fabs")  return kernel.fabs(operand);
             else if (op == "floor") return kernel.floor(operand);
+            else if (op == "ceil")  return kernel.ceil(operand);
             likely_assert(false, "unsupported unary operator: %s", op.c_str());
         } else if (operands.size() == 2) {
             const TypedValue &lhs = operands[0];

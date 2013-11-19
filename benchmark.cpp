@@ -363,6 +363,12 @@ class floorTest : public ScalarFloatingTest {
     void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = floor(src[i]); }
 };
 
+class ceilTest : public ScalarFloatingTest {
+    const char *function() const { return "ceil"; }
+    void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = ceilf(src[i]); }
+    void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = ceil(src[i]); }
+};
+
 int main(int argc, char *argv[])
 {
     // Parse arguments
@@ -412,6 +418,7 @@ int main(int argc, char *argv[])
         fabsTest().run();
         copysignTest().run();
         floorTest().run();
+        ceilTest().run();
     }
 
     return 0;

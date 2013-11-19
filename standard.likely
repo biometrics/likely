@@ -379,6 +379,18 @@ floor = closure(
   "Floating floor: f(x) = floor(x)",
   {{"x", "operand"}})
 
+ceil = closure(
+  "ceil",
+  function(x)
+    if likely.isnum(x) then
+      return math.floor(x)
+    else
+      return likely.s("ceil", x)
+    end
+  end,
+  "Floating ceil: f(x) = ceil(x)",
+  {{"x", "operand"}})
+
 -- Casting functions
 zext = closure(
   "zext",
