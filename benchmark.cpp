@@ -285,7 +285,7 @@ class divideTest : public Test {
 };
 
 class sqrtTest : public FloatingTest {
-    const char *function() const { return "sqrt()"; }
+    const char *function() const { return "sqrt"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; sqrt(src, dst); return dst; }
 };
 
@@ -295,13 +295,13 @@ class powiTest : public FloatingTest {
 };
 
 class sinTest : public ScalarFloatingTest {
-    const char *function() const { return "sin()"; }
+    const char *function() const { return "sin"; }
     void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = sinf(src[i]); }
     void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = sin(src[i]); }
 };
 
 class cosTest : public ScalarFloatingTest {
-    const char *function() const { return "cos()"; }
+    const char *function() const { return "cos"; }
     void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = cosf(src[i]); }
     void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = cos(src[i]); }
 };
@@ -312,31 +312,31 @@ class powTest : public FloatingTest {
 };
 
 class expTest : public FloatingTest {
-    const char *function() const { return "exp()"; }
+    const char *function() const { return "exp"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; exp(src, dst); return dst; }
     double scaleFactor() const { return 0.1; }
 };
 
 class exp2Test : public ScalarFloatingTest {
-    const char *function() const { return "exp2()"; }
+    const char *function() const { return "exp2"; }
     void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = exp2f(src[i]); }
     void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = exp2(src[i]); }
     double scaleFactor() const { return 0.1; }
 };
 
 class logTest : public FloatingTest {
-    const char *function() const { return "log()"; }
+    const char *function() const { return "log"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; log(src, dst); return dst; }
 };
 
 class log10Test : public ScalarFloatingTest {
-    const char *function() const { return "log10()"; }
+    const char *function() const { return "log10"; }
     void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = log10f(src[i]); }
     void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = log10(src[i]); }
 };
 
 class log2Test : public ScalarFloatingTest {
-    const char *function() const { return "log2()"; }
+    const char *function() const { return "log2"; }
     void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = log2f(src[i]); }
     void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = log2(src[i]); }
 };
@@ -347,7 +347,7 @@ class fmaTest : public Test {
 };
 
 class fabsTest : public FloatingTest {
-    const char *function() const { return "fabs()"; }
+    const char *function() const { return "fabs"; }
     Mat computeFloatingBaseline(const Mat &src) const { return abs(src); }
 };
 
@@ -358,7 +358,7 @@ class copysignTest : public ScalarFloatingTest {
 };
 
 class floorTest : public ScalarFloatingTest {
-    const char *function() const { return "floor()"; }
+    const char *function() const { return "floor"; }
     void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = floorf(src[i]); }
     void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = floor(src[i]); }
 };
