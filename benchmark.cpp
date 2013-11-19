@@ -307,7 +307,7 @@ MATH_TEST(sin)
 MATH_TEST(cos)
 
 class powTest : public FloatingTest {
-    const char *function() const { return "pow(\"1.5f\")"; }
+    const char *function() const { return "pow(1.5)"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 1.5, dst); return dst; }
 };
 

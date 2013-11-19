@@ -541,21 +541,21 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
     }
 }
 
-const char *likely_type_to_string(likely_type h)
+const char *likely_type_to_string(likely_type type)
 {
     static string typeString; // Provides return value persistence
 
     stringstream typeStream;
-    typeStream << (likely_floating(h) ? "f" : (likely_signed(h) ? "i" : "u"));
-    typeStream << likely_depth(h);
+    typeStream << (likely_floating(type) ? "f" : (likely_signed(type) ? "i" : "u"));
+    typeStream << likely_depth(type);
 
-    if (likely_parallel(h))       typeStream << "P";
-    if (likely_heterogeneous(h))  typeStream << "H";
-    if (likely_multi_channel(h)) typeStream << "C";
-    if (likely_multi_column(h))  typeStream << "X";
-    if (likely_multi_row(h))     typeStream << "Y";
-    if (likely_multi_frame(h))   typeStream << "T";
-    if (likely_saturation(h))     typeStream << "S";
+    if (likely_parallel(type))       typeStream << "P";
+    if (likely_heterogeneous(type))  typeStream << "H";
+    if (likely_multi_channel(type)) typeStream << "C";
+    if (likely_multi_column(type))  typeStream << "X";
+    if (likely_multi_row(type))     typeStream << "Y";
+    if (likely_multi_frame(type))   typeStream << "T";
+    if (likely_saturation(type))     typeStream << "S";
 
     typeString = typeStream.str();
     return typeString.c_str();
