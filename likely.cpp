@@ -113,14 +113,14 @@ bool likely_parallel(likely_type type) { return likely_get_bool(type, likely_typ
 void likely_set_parallel(likely_type *type, bool parallel) { likely_set_bool(type, parallel, likely_type_parallel); }
 bool likely_heterogeneous(likely_type type) { return likely_get_bool(type, likely_type_heterogeneous); }
 void likely_set_heterogeneous(likely_type *type, bool heterogeneous) { likely_set_bool(type, heterogeneous, likely_type_heterogeneous); }
-bool likely_single_channel(likely_type type) { return likely_get_bool(type, likely_type_single_channel); }
-void likely_set_single_channel(likely_type *type, bool single_channel) { likely_set_bool(type, single_channel, likely_type_single_channel); }
-bool likely_single_column(likely_type type) { return likely_get_bool(type, likely_type_single_column); }
-void likely_set_single_column(likely_type *type, bool single_column) { likely_set_bool(type, single_column, likely_type_single_column); }
-bool likely_single_row(likely_type type) { return likely_get_bool(type, likely_type_single_row); }
-void likely_set_single_row(likely_type *type, bool single_row) { likely_set_bool(type, single_row, likely_type_single_row); }
-bool likely_single_frame(likely_type type) { return likely_get_bool(type, likely_type_single_frame); }
-void likely_set_single_frame(likely_type *type, bool single_frame) { likely_set_bool(type, single_frame, likely_type_single_frame); }
+bool likely_multi_channel(likely_type type) { return likely_get_bool(type, likely_type_multi_channel); }
+void likely_set_multi_channel(likely_type *type, bool multi_channel) { likely_set_bool(type, multi_channel, likely_type_multi_channel); }
+bool likely_multi_column(likely_type type) { return likely_get_bool(type, likely_type_multi_column); }
+void likely_set_multi_column(likely_type *type, bool multi_column) { likely_set_bool(type, multi_column, likely_type_multi_column); }
+bool likely_multi_row(likely_type type) { return likely_get_bool(type, likely_type_multi_row); }
+void likely_set_multi_row(likely_type *type, bool multi_row) { likely_set_bool(type, multi_row, likely_type_multi_row); }
+bool likely_multi_frame(likely_type type) { return likely_get_bool(type, likely_type_multi_frame); }
+void likely_set_multi_frame(likely_type *type, bool multi_frame) { likely_set_bool(type, multi_frame, likely_type_multi_frame); }
 bool likely_saturation(likely_type type) { return likely_get_bool(type, likely_type_saturation); }
 void likely_set_saturation(likely_type *type, bool saturation) { likely_set_bool(type, saturation, likely_type_saturation); }
 int  likely_reserved(likely_type type) { return likely_get(type, likely_type_reserved); }
@@ -143,10 +143,10 @@ static int lua_likely_get(lua_State *L)
     else if (!strcmp(field, "floating"))      lua_pushboolean(L, likely_floating(m->type));
     else if (!strcmp(field, "parallel"))      lua_pushboolean(L, likely_parallel(m->type));
     else if (!strcmp(field, "heterogeneous")) lua_pushboolean(L, likely_heterogeneous(m->type));
-    else if (!strcmp(field, "singleChannel")) lua_pushboolean(L, likely_single_channel(m->type));
-    else if (!strcmp(field, "singleColumn"))  lua_pushboolean(L, likely_single_column(m->type));
-    else if (!strcmp(field, "singleRow"))     lua_pushboolean(L, likely_single_row(m->type));
-    else if (!strcmp(field, "singleFrame"))   lua_pushboolean(L, likely_single_frame(m->type));
+    else if (!strcmp(field, "multiChannel"))  lua_pushboolean(L, likely_multi_channel(m->type));
+    else if (!strcmp(field, "multiColumn"))   lua_pushboolean(L, likely_multi_column(m->type));
+    else if (!strcmp(field, "multiRow"))      lua_pushboolean(L, likely_multi_row(m->type));
+    else if (!strcmp(field, "multiFrame"))    lua_pushboolean(L, likely_multi_frame(m->type));
     else if (!strcmp(field, "saturation"))    lua_pushboolean(L, likely_saturation(m->type));
     else if (!strcmp(field, "reserved"))      lua_pushinteger(L, likely_reserved(m->type));
     else                                      lua_pushnil(L);
@@ -186,10 +186,10 @@ static int lua_likely_set(lua_State *L)
     else if (!strcmp(field, "floating"))      likely_set_floating(&m->type, lua_toboolean(L, 3));
     else if (!strcmp(field, "parallel"))      likely_set_parallel(&m->type, lua_toboolean(L, 3));
     else if (!strcmp(field, "heterogeneous")) likely_set_heterogeneous(&m->type, lua_toboolean(L, 3));
-    else if (!strcmp(field, "singleChannel")) likely_set_single_channel(&m->type, lua_toboolean(L, 3));
-    else if (!strcmp(field, "singleColumn"))  likely_set_single_column(&m->type, lua_toboolean(L, 3));
-    else if (!strcmp(field, "singleRow"))     likely_set_single_row(&m->type, lua_toboolean(L, 3));
-    else if (!strcmp(field, "singleFrame"))   likely_set_single_frame(&m->type, lua_toboolean(L, 3));
+    else if (!strcmp(field, "multiChannel"))  likely_set_multi_channel(&m->type, lua_toboolean(L, 3));
+    else if (!strcmp(field, "multiColumn"))   likely_set_multi_column(&m->type, lua_toboolean(L, 3));
+    else if (!strcmp(field, "multiRow"))      likely_set_multi_row(&m->type, lua_toboolean(L, 3));
+    else if (!strcmp(field, "multiFrame"))    likely_set_multi_frame(&m->type, lua_toboolean(L, 3));
     else if (!strcmp(field, "saturation"))    likely_set_saturation(&m->type, lua_toboolean(L, 3));
     else if (!strcmp(field, "reserved"))    { likely_set_reserved(&m->type, lua_tointegerx(L, 3, &isnum)); likely_assert(isnum, "'set' expected reserved to be an integer, got: %s", lua_tostring(L, 3)); }
     else                                      likely_assert(false, "unrecognized field: %s", field);
@@ -551,10 +551,10 @@ const char *likely_type_to_string(likely_type h)
 
     if (likely_parallel(h))       typeStream << "P";
     if (likely_heterogeneous(h))  typeStream << "H";
-    if (likely_single_channel(h)) typeStream << "C";
-    if (likely_single_column(h))  typeStream << "X";
-    if (likely_single_row(h))     typeStream << "Y";
-    if (likely_single_frame(h))   typeStream << "T";
+    if (likely_multi_channel(h)) typeStream << "C";
+    if (likely_multi_column(h))  typeStream << "X";
+    if (likely_multi_row(h))     typeStream << "Y";
+    if (likely_multi_frame(h))   typeStream << "T";
     if (likely_saturation(h))     typeStream << "S";
 
     typeString = typeStream.str();
@@ -581,10 +581,10 @@ likely_type likely_type_from_string(const char *str)
     for (size_t i=startIndex; i<len; i++) {
         if (str[i] == 'P') likely_set_parallel(&t, true);
         if (str[i] == 'H') likely_set_heterogeneous(&t, true);
-        if (str[i] == 'C') likely_set_single_channel(&t, true);
-        if (str[i] == 'X') likely_set_single_column(&t, true);
-        if (str[i] == 'Y') likely_set_single_row(&t, true);
-        if (str[i] == 'T') likely_set_single_frame(&t, true);
+        if (str[i] == 'C') likely_set_multi_channel(&t, true);
+        if (str[i] == 'X') likely_set_multi_column(&t, true);
+        if (str[i] == 'Y') likely_set_multi_row(&t, true);
+        if (str[i] == 'T') likely_set_multi_frame(&t, true);
         if (str[i] == 'S') likely_set_saturation(&t, true);
     }
 
@@ -715,24 +715,24 @@ struct KernelBuilder
 
     Value *depth(Value *matrix) const { return get(matrix, likely_type_depth); }
     void setDepth(Value *matrix, int depth) const { set(matrix, depth, likely_type_depth); }
-    Value *isSigned(Value *matrix) const { return get(matrix, likely_type_signed); }
-    void setSigned(Value *matrix, bool isSigned) const { setBit(matrix, isSigned, likely_type_signed); }
-    Value *isFloating(Value *matrix) const { return get(matrix, likely_type_floating); }
-    void setFloating(Value *matrix, bool isFloating) const { setBit(matrix, isFloating, likely_type_floating); }
-    Value *isParallel(Value *matrix) const { return get(matrix, likely_type_parallel); }
-    void setParallel(Value *matrix, bool isParallel) const { setBit(matrix, isParallel, likely_type_parallel); }
-    Value *isHeterogeneous(Value *matrix) const { return get(matrix, likely_type_heterogeneous); }
-    void setHeterogeneous(Value *matrix, bool isHeterogeneous) const { setBit(matrix, isHeterogeneous, likely_type_heterogeneous); }
-    Value *isSingleChannel(Value *matrix) const { return get(matrix, likely_type_single_channel); }
-    void setSingleChannel(Value *matrix, bool isSingleChannel) const { setBit(matrix, isSingleChannel, likely_type_single_channel); }
-    Value *isSingleColumn(Value *matrix) const { return get(matrix, likely_type_single_column); }
-    void setSingleColumn(Value *matrix, bool isSingleColumn) { setBit(matrix, isSingleColumn, likely_type_single_column); }
-    Value *isSingleRow(Value *matrix) const { return get(matrix, likely_type_single_row); }
-    void setSingleRow(Value *matrix, bool isSingleRow) const { setBit(matrix, isSingleRow, likely_type_single_row); }
-    Value *isSingleFrame(Value *matrix) const { return get(matrix, likely_type_single_frame); }
-    void setSingleFrame(Value *matrix, bool isSingleFrame) const { setBit(matrix, isSingleFrame, likely_type_single_frame); }
-    Value *isSaturation(Value *matrix) const { return get(matrix, likely_type_saturation); }
-    void setSaturation(Value *matrix, bool isSaturation) const { setBit(matrix, isSaturation, likely_type_saturation); }
+    Value *signed_(Value *matrix) const { return get(matrix, likely_type_signed); }
+    void setSigned(Value *matrix, bool signed_) const { setBit(matrix, signed_, likely_type_signed); }
+    Value *floating(Value *matrix) const { return get(matrix, likely_type_floating); }
+    void setFloating(Value *matrix, bool floating) const { setBit(matrix, floating, likely_type_floating); }
+    Value *parallel(Value *matrix) const { return get(matrix, likely_type_parallel); }
+    void setParallel(Value *matrix, bool parallel) const { setBit(matrix, parallel, likely_type_parallel); }
+    Value *heterogeneous(Value *matrix) const { return get(matrix, likely_type_heterogeneous); }
+    void setHeterogeneous(Value *matrix, bool heterogeneous) const { setBit(matrix, heterogeneous, likely_type_heterogeneous); }
+    Value *multiChannel(Value *matrix) const { return get(matrix, likely_type_multi_channel); }
+    void setMultiChannel(Value *matrix, bool multiChannel) const { setBit(matrix, multiChannel, likely_type_multi_channel); }
+    Value *multiColumn(Value *matrix) const { return get(matrix, likely_type_multi_column); }
+    void setMultiColumn(Value *matrix, bool multiColumn) { setBit(matrix, multiColumn, likely_type_multi_column); }
+    Value *multiRow(Value *matrix) const { return get(matrix, likely_type_multi_row); }
+    void setMultiRow(Value *matrix, bool multiRow) const { setBit(matrix, multiRow, likely_type_multi_row); }
+    Value *multiFrame(Value *matrix) const { return get(matrix, likely_type_multi_frame); }
+    void multiFrame(Value *matrix, bool multiFrame) const { setBit(matrix, multiFrame, likely_type_multi_frame); }
+    Value *saturation(Value *matrix) const { return get(matrix, likely_type_saturation); }
+    void setSaturation(Value *matrix, bool saturation) const { setBit(matrix, saturation, likely_type_saturation); }
     Value *reserved(Value *matrix) const { return get(matrix, likely_type_reserved); }
     void setReserved(Value *matrix, int reserved) const { set(matrix, reserved, likely_type_reserved); }
 
@@ -743,17 +743,17 @@ struct KernelBuilder
     Value *rowStep(Value *matrix) const { return b->CreateMul(columns(matrix), columnStep(matrix), "_rStep"); }
     Value *frameStep(Value *matrix) const { return b->CreateMul(rows(matrix), rowStep(matrix), "_tStep"); }
 
-    Value *index(Value *c) const { return likely_single_channel(t) ? constant(0) : c; }
-    Value *index(Value *matrix, Value *c, Value *x) const { return likely_single_column(t) ? index(c) : b->CreateAdd(b->CreateMul(x, columnStep(matrix)), index(c)); }
-    Value *index(Value *matrix, Value *c, Value *x, Value *y) const { return likely_single_row(t) ? index(matrix, c, x) : b->CreateAdd(b->CreateMul(y, rowStep(matrix)), index(matrix, c, x)); }
-    Value *index(Value *matrix, Value *c, Value *x, Value *y, Value *f) const { return likely_single_frame(t) ? index(matrix, c, x, y) : b->CreateAdd(b->CreateMul(f, frameStep(matrix)), index(matrix, c, x, y)); }
+    Value *index(Value *c) const { return likely_multi_channel(t) ? constant(0) : c; }
+    Value *index(Value *matrix, Value *c, Value *x) const { return likely_multi_column(t) ? index(c) : b->CreateAdd(b->CreateMul(x, columnStep(matrix)), index(c)); }
+    Value *index(Value *matrix, Value *c, Value *x, Value *y) const { return likely_multi_row(t) ? index(matrix, c, x) : b->CreateAdd(b->CreateMul(y, rowStep(matrix)), index(matrix, c, x)); }
+    Value *index(Value *matrix, Value *c, Value *x, Value *y, Value *f) const { return likely_multi_frame(t) ? index(matrix, c, x, y) : b->CreateAdd(b->CreateMul(f, frameStep(matrix)), index(matrix, c, x, y)); }
 
     void deindex(Value *i, Value **c) const {
-        *c = likely_single_channel(t) ? constant(0) : i;
+        *c = likely_multi_channel(t) ? constant(0) : i;
     }
     void deindex(Value *matrix, Value *i, Value **c, Value **x) const {
         Value *rem;
-        if (likely_single_column(t)) {
+        if (likely_multi_column(t)) {
             rem = i;
             *x = constant(0);
         } else {
@@ -765,7 +765,7 @@ struct KernelBuilder
     }
     void deindex(Value *matrix, Value *i, Value **c, Value **x, Value **y) const {
         Value *rem;
-        if (likely_single_row(t)) {
+        if (likely_multi_row(t)) {
             rem = i;
             *y = constant(0);
         } else {
@@ -777,7 +777,7 @@ struct KernelBuilder
     }
     void deindex(Value *matrix, Value *i, Value **c, Value **x, Value **y, Value **t_) const {
         Value *rem;
-        if (likely_single_frame(t)) {
+        if (likely_multi_frame(t)) {
             rem = i;
             *t_ = constant(0);
         } else {
@@ -1809,10 +1809,10 @@ int luaopen_likely(lua_State *L)
     typeFields.push_back(type_field("f64", likely_type_f64));
     typeFields.push_back(type_field("parallel", likely_type_parallel));
     typeFields.push_back(type_field("heterogeneous", likely_type_heterogeneous));
-    typeFields.push_back(type_field("single_channel", likely_type_single_channel));
-    typeFields.push_back(type_field("single_column", likely_type_single_column));
-    typeFields.push_back(type_field("single_row", likely_type_single_row));
-    typeFields.push_back(type_field("single_frame", likely_type_single_frame));
+    typeFields.push_back(type_field("multi_channel", likely_type_multi_channel));
+    typeFields.push_back(type_field("multi_column", likely_type_multi_column));
+    typeFields.push_back(type_field("multi_row", likely_type_multi_row));
+    typeFields.push_back(type_field("multi_frame", likely_type_multi_frame));
     typeFields.push_back(type_field("saturation", likely_type_saturation));
     typeFields.push_back(type_field("reserved", likely_type_reserved));
     for (type_field typeField : typeFields) {

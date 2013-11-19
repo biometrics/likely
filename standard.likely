@@ -17,10 +17,10 @@ f16 = likely.f16
 f32 = likely.f32
 f64 = likely.f64
 parallel = likely.parallel
-single_channel = likely.single_channel
-single_column = likely.single_column
-single_row = likely.single_row
-single_frame = likely.single_frame
+multi_channel = likely.multi_channel
+multi_column = likely.multi_column
+multi_row = likely.multi_row
+multi_frame = likely.multi_frame
 saturation = likely.saturation
 reserved = likely.reserved
 
