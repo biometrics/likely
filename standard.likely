@@ -391,68 +391,18 @@ ceil = closure(
   "Floating ceil: f(x) = ceil(x)",
   {{"x", "operand"}})
 
--- Casting functions
-zext = closure(
-  "zext",
-  function(rhs, lhs)
-    if likely.isnum(rhs, lhs) then
-      return zext(lhs, rhs)
-    else
-      return likely.s("zext", lhs, rhs)
-    end
-  end,
-  "Zero extend function",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
-
-sext = closure(
-  "sext",
-  function(rhs, lhs)
-    if likely.isnum(rhs, lhs) then
-      return sext(lhs, rhs)
-    else
-      return likely.s("sext", lhs, rhs)
-    end
-  end,
-  "Sign extend function",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
-
-fpext = closure(
-  "fpext",
-  function(rhs, lhs)
-    if likely.isnum(rhs, lhs) then
-      return fpext(lhs, rhs)
-    else
-      return likely.s("fpext", lhs, rhs)
-    end
-  end,
-  "Floating point extend function",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
-
 trunc = closure(
   "trunc",
-  function(rhs, lhs)
-    if likely.isnum(rhs, lhs) then
-      return trunc(lhs, rhs)
+  function(x)
+    if likely.isnum(x) then
+      if x > 0 then
+        return math.floor(x)
+      else
+        return math.ceil(x)
+      end
     else
-      return likely.s("trunc", lhs, rhs)
+      return likely.s("trunc", x)
     end
   end,
-  "Truncate function",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
-
-fptrunc = closure(
-  "fptrunc",
-  function(rhs, lhs)
-    if likely.isnum(rhs, lhs) then
-      return fptrunc(lhs, rhs)
-    else
-      return likely.s("fptrunc", lhs, rhs)
-    end
-  end,
-  "Floating point truncate function",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
+  "Floating round toward zero: f(x) = x > 0 ? floor(x) : ceil(x)",
+  {{"x", "operand"}})
