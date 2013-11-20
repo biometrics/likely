@@ -262,6 +262,11 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     m->rows = rows;
     m->frames = frames;
 
+    likely_set_multi_channel(&m->type, channels != 1);
+    likely_set_multi_column(&m->type, columns != 1);
+    likely_set_multi_row(&m->type, rows != 1);
+    likely_set_multi_frame(&m->type, frames != 1);
+
     assert(alignof(likely_matrix_private) <= alignof(likely_matrix));
     m->d_ptr = reinterpret_cast<likely_matrix_private*>(m+1);
     m->d_ptr->ref_count = 1;
@@ -1070,9 +1075,6 @@ struct KernelBuilder
     }
     inline Type *ty(bool pointer = false) const { return ty(t, pointer); }
     inline vector<Type*> tys(bool pointer = false) const { return toVector<Type*>(ty(pointer)); }
-
-    static void *cleanup(Function *f) { f->removeFromParent(); delete f; return NULL; }
-    void *cleanup() { return cleanup(f); }
 };
 
 struct SExp
@@ -1221,17 +1223,29 @@ public:
         IRBuilder<> builder(entry);
         KernelBuilder kernel(module, &builder, function, srcs);
 
+        Value *dstChannels = NULL, *dstColumns = NULL, *dstRows = NULL, *dstFrames = NULL;
+        for (size_t i=0; i<types.size(); i++) {
+            if (!dstChannels && likely_multi_channel(types[i])) dstChannels = kernel.channels(srcs[i]);
+            if (!dstColumns  && likely_multi_column(types[i]))  dstColumns  = kernel.columns(srcs[i]);
+            if (!dstRows     && likely_multi_row(types[i]))     dstRows     = kernel.rows(srcs[i]);
+            if (!dstFrames   && likely_multi_frame(types[i]))   dstFrames   = kernel.frames(srcs[i]);
+        }
+        if (!dstChannels) { dstChannels = kernel.constant(1); assert(!likely_multi_channel(dstType)); }
+        if (!dstColumns)  { dstColumns  = kernel.constant(1); assert(!likely_multi_column(dstType));  }
+        if (!dstRows)     { dstRows     = kernel.constant(1); assert(!likely_multi_row(dstType));     }
+        if (!dstFrames)   { dstFrames   = kernel.constant(1); assert(!likely_multi_frame(dstType));   }
+
         std::vector<Value*> likelyNewArgs;
         likelyNewArgs.push_back(kernel.type(dstType));
-        likelyNewArgs.push_back(kernel.channels(srcs[0]));
-        likelyNewArgs.push_back(kernel.columns(srcs[0]));
-        likelyNewArgs.push_back(kernel.rows(srcs[0]));
-        likelyNewArgs.push_back(kernel.frames(srcs[0]));
+        likelyNewArgs.push_back(dstChannels);
+        likelyNewArgs.push_back(dstColumns);
+        likelyNewArgs.push_back(dstRows);
+        likelyNewArgs.push_back(dstFrames);
         likelyNewArgs.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(getGlobalContext())));
         likelyNewArgs.push_back(kernel.constant(0, 8));
         Value *dst = builder.CreateCall(likelyNew, likelyNewArgs);
 
-        Value *kernelSize = kernel.elements(srcs[0]);
+        Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
         if (likely_parallel(types[0])) {
             static FunctionType *likelyForkType = NULL;
             if (likelyForkType == NULL) {
@@ -1266,6 +1280,11 @@ public:
         }
 
         builder.CreateRet(dst);
+
+        FunctionPassManager functionPassManager(module);
+        functionPassManager.add(createVerifierPass(PrintMessageAction));
+        functionPassManager.add(createInstructionCombiningPass());
+        functionPassManager.run(*function);
 
 //        module->dump();
         executionEngine->finalizeObject();
