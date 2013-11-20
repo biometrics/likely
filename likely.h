@@ -76,14 +76,15 @@ enum likely_type_field
     likely_type_f16 = 16 | likely_type_floating | likely_type_signed,
     likely_type_f32 = 32 | likely_type_floating | likely_type_signed,
     likely_type_f64 = 64 | likely_type_floating | likely_type_signed,
-    likely_type_parallel       = 0x00000400,
-    likely_type_heterogeneous  = 0x00000800,
-    likely_type_multi_channel  = 0x00001000,
-    likely_type_multi_column   = 0x00002000,
-    likely_type_multi_row      = 0x00004000,
-    likely_type_multi_frame    = 0x00008000,
-    likely_type_saturation     = 0x00010000,
-    likely_type_reserved       = 0xFFFE0000
+    likely_type_parallel        = 0x00000400,
+    likely_type_heterogeneous   = 0x00000800,
+    likely_type_multi_channel   = 0x00001000,
+    likely_type_multi_column    = 0x00002000,
+    likely_type_multi_row       = 0x00004000,
+    likely_type_multi_frame     = 0x00008000,
+    likely_type_multi_dimension = 0x0000F000,
+    likely_type_saturation      = 0x00010000,
+    likely_type_reserved        = 0xFFFE0000
 };
 
 // The only struct in the API

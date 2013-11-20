@@ -644,8 +644,8 @@ struct TypedValue
 {
     Value *value;
     likely_type type;
-    TypedValue(Value *value_ = NULL, likely_type type_ = likely_type_null)
-        : value(value_), type(type_) {}
+    TypedValue() : value(NULL), type(likely_type_null) {}
+    TypedValue(Value *value_, likely_type type_) : value(value_), type(type_) {}
     operator Value*() const { return value; }
     operator likely_type() const { return type; }
 };
@@ -833,7 +833,7 @@ struct KernelBuilder
     {
         StoreInst *store = b->CreateStore(value, GEP(matrix, i));
         store->setMetadata("llvm.mem.parallel_loop_access", getCurrentNode());
-        return store;
+        return TypedValue(store, matrix.type);
     }
 
     TypedValue cast(const TypedValue &x, likely_type type) const
@@ -1183,25 +1183,30 @@ public:
         likely_type dstType;
         {
             thunk = getFunction(name+"_thunk", module, types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
-            vector<TypedValue> thunkSrcs;
-            getValues(thunk, types, thunkSrcs);
-            TypedValue thunkStop = thunkSrcs.back(); thunkSrcs.pop_back();
-            thunkStop.value->setName("stop");
-            thunkStop.type = likely_type_i32;
-            TypedValue thunkStart = thunkSrcs.back(); thunkSrcs.pop_back();
-            thunkStart.value->setName("start");
-            thunkStart.type = likely_type_i32;
-            TypedValue thunkDst = thunkSrcs.back(); thunkSrcs.pop_back();
-            thunkDst.value->setName("dst");
-            BasicBlock *thunkEntry = BasicBlock::Create(getGlobalContext(), "entry", thunk);
-            IRBuilder<> thunkBuilder(thunkEntry);
-            KernelBuilder thunkKernel(module, &thunkBuilder, thunk);
-            Value *i = thunkKernel.beginLoop(thunkEntry, thunkStart, thunkStop).i;
-            TypedValue result = generateKernelRecursive(thunkKernel, thunkSrcs, sexp, i);
+            vector<TypedValue> srcs;
+            getValues(thunk, types, srcs);
+            TypedValue stop = srcs.back(); srcs.pop_back();
+            stop.value->setName("stop");
+            stop.type = likely_type_i32;
+            TypedValue start = srcs.back(); srcs.pop_back();
+            start.value->setName("start");
+            start.type = likely_type_i32;
+            TypedValue dst = srcs.back(); srcs.pop_back();
+            dst.value->setName("dst");
+
+            BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", thunk);
+            IRBuilder<> builder(entry);
+            KernelBuilder kernel(module, &builder, thunk);
+            Value *i = kernel.beginLoop(entry, start, stop).i;
+            KernelInfo info(kernel, srcs, dst, i);
+
+            TypedValue result = generateKernelRecursive(kernel, info, sexp);
+
             dstType = result.type;
-            thunkKernel.store(TypedValue(thunkDst.value, dstType), i, result);
-            thunkKernel.endLoop();
-            thunkBuilder.CreateRetVoid();
+            assert((dstType & likely_type_multi_dimension) == info.dims);
+            kernel.store(TypedValue(dst.value, dstType), i, result);
+            kernel.endLoop();
+            builder.CreateRetVoid();
 
             FunctionPassManager functionPassManager(module);
             functionPassManager.add(createVerifierPass(PrintMessageAction));
@@ -1358,6 +1363,21 @@ public:
     }
 
 private:
+    struct KernelInfo
+    {
+        vector<TypedValue> srcs;
+        Value *i, *c, *x, *y, *t;
+        likely_type dims;
+        KernelInfo(const KernelBuilder &kernel, const vector<TypedValue> &srcs_, const TypedValue &dst, Value *i_)
+            : srcs(srcs_), i(i_)
+        {
+            kernel.deindex(dst, i, &c, &x, &y, &t);
+            dims = likely_type_null;
+            for (const TypedValue &src : srcs)
+                dims |= (src.type & likely_type_multi_dimension);
+        }
+    };
+
     static Function *getFunction(const string &name, Module *m, likely_arity arity, Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
     {
         PointerType *matrixPointer = PointerType::getUnqual(TheMatrixStruct);
@@ -1395,11 +1415,11 @@ private:
         }
     }
 
-    TypedValue generateKernelRecursive(KernelBuilder &kernel, const vector<TypedValue> &matricies, const SExp &expression, Value *i)
+    TypedValue generateKernelRecursive(KernelBuilder &kernel, const KernelInfo &info, const SExp &expression)
     {
         vector<TypedValue> operands;
         for (const SExp &operand : expression.sexps)
-            operands.push_back(generateKernelRecursive(kernel, matricies, operand, i));
+            operands.push_back(generateKernelRecursive(kernel, info, operand));
         const string &op = expression.op;
 
         static regex constant("(-?\\d*\\.?\\d+)([uif]\\d*)?");
@@ -1413,11 +1433,17 @@ private:
             return KernelBuilder::constant(value, type);
         } else if (op.substr(0,2) == "__") {
             int index = atoi(op.substr(1, op.size()-1).c_str());
-            const TypedValue matrix = matricies[index];
-            Value *c, *x, *y, *t;
-            kernel.deindex(matrix, i, &c, &x, &y, &t);
-            Value *matrix_i = kernel.index(matrix, c, x, y, t);
-            return kernel.load(matrix, matrix_i);
+            const TypedValue matrix = info.srcs[index];
+            Value *matrix_i;
+            if ((matrix.type & likely_type_multi_dimension) == info.dims) {
+                // This matrix has the same dimensionality as the output
+                matrix_i = info.i;
+            } else {
+                Value *c, *x, *y, *t;
+                kernel.deindex(matrix, info.i, &c, &x, &y, &t);
+                matrix_i = kernel.index(matrix, c, x, y, t);
+            }
+            return TypedValue(kernel.load(matrix, matrix_i), matrix.type);
         } else if (operands.size() == 1) {
             const TypedValue &operand = operands[0];
             if      (op == "sqrt")      return kernel.sqrt(operand);
@@ -1457,7 +1483,7 @@ private:
         }
 
         likely_assert(false, "unrecognized literal: %s", op.c_str());
-        return NULL;
+        return TypedValue();
     }
 };
 
