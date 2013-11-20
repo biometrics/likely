@@ -50,6 +50,8 @@ using namespace std;
 
 #define LIKELY_NUM_ARITIES 4
 
+#define LLVM_VALUE_TO_INT(VALUE) (llvm::cast<Constant>(VALUE)->getUniqueInteger().getZExtValue())
+
 static StructType *TheMatrixStruct = NULL;
 
 typedef struct likely_matrix_private
@@ -822,7 +824,7 @@ struct KernelBuilder
 
     TypedValue cast(const TypedValue &x, const TypedValue &type) const
     {
-        return cast(x, llvm::cast<Constant>(type.value)->getUniqueInteger().getZExtValue());
+        return cast(x, LLVM_VALUE_TO_INT(type.value));
     }
 
     // Saturation arithmetic logic:
