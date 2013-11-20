@@ -297,7 +297,7 @@ static int lua_likely_new(lua_State *L)
     int isnum;
     const int argc = lua_gettop(L);
     switch (argc) {
-      case 7: copy    = lua_toboolean(L, 7);
+      case 7: copy     = lua_toboolean(L, 7);
       case 6: data     = (likely_data*) lua_touserdata(L, 6);
       case 5: frames   = lua_tointegerx(L, 5, &isnum); likely_assert(isnum, "'new' expected frames to be an integer, got: %s", lua_tostring(L, 5));
       case 4: rows     = lua_tointegerx(L, 4, &isnum); likely_assert(isnum, "'new' expected rows to be an integer, got: %s", lua_tostring(L, 4));
@@ -655,8 +655,6 @@ struct KernelBuilder
     Module *m;
     IRBuilder<> *b;
     Function *f;
-    likely_type t;
-    vector<TypedValue> matricies;
 
     struct Loop {
         BasicBlock *body;
@@ -666,13 +664,9 @@ struct KernelBuilder
     };
     stack<Loop> loops;
 
-    KernelBuilder(Module *module, IRBuilder<> *builder, Function *function, const vector<TypedValue> &matricies_)
-        : m(module), b(builder), f(function), matricies(matricies_)
-    {
-        t = likely_type_null;
-        for (const TypedValue &matrix : matricies)
-            t |= matrix.type;
-    }
+    KernelBuilder(Module *module, IRBuilder<> *builder, Function *function)
+        : m(module), b(builder), f(function)
+    {}
 
     static TypedValue constant(double value, likely_type type)
     {
@@ -698,8 +692,6 @@ struct KernelBuilder
     static Constant *one(int bits = 32) { return constant(1, bits); }
     static Constant *intMax(int bits = 32) { return constant((1 << (bits-1))-1, bits); }
     static Constant *intMin(int bits = 32) { return constant((1 << (bits-1)), bits); }
-    Constant *autoConstant(double value) const { return likely_floating(t) ? ((likely_depth(t) == 64) ? constant(value) : constant(float(value))) : constant(int(value), likely_depth(t)); }
-    AllocaInst *autoAlloca(double value) const { AllocaInst *alloca = b->CreateAlloca(ty(), 0); b->CreateStore(autoConstant(value), alloca); return alloca; }
 
     Value *data(const TypedValue &matrix) const { return b->CreatePointerCast(b->CreateLoad(b->CreateStructGEP(matrix, 0), "_data"), ty(matrix, true)); }
     Value *type(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 1), "_type"); }
@@ -709,7 +701,7 @@ struct KernelBuilder
     Value *rows(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 4), "_rows"); }
     Value *frames(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 5), "_frames"); }
 
-    void setData(Value *ma, Value *value) const { b->CreateStore(value, b->CreateStructGEP(ma, 0)); }
+    void setData(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 0)); }
     void setType(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 1)); }
     void setChannels(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 2)); }
     void setColumns(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 3)); }
@@ -750,49 +742,79 @@ struct KernelBuilder
     Value *rowStep(Value *matrix) const { return b->CreateMul(columns(matrix), columnStep(matrix), "_rStep"); }
     Value *frameStep(Value *matrix) const { return b->CreateMul(rows(matrix), rowStep(matrix), "_tStep"); }
 
-    Value *index(Value *c) const { return likely_multi_channel(t) ? constant(0) : c; }
-    Value *index(Value *matrix, Value *c, Value *x) const { return likely_multi_column(t) ? index(c) : b->CreateAdd(b->CreateMul(x, columnStep(matrix)), index(c)); }
-    Value *index(Value *matrix, Value *c, Value *x, Value *y) const { return likely_multi_row(t) ? index(matrix, c, x) : b->CreateAdd(b->CreateMul(y, rowStep(matrix)), index(matrix, c, x)); }
-    Value *index(Value *matrix, Value *c, Value *x, Value *y, Value *f) const { return likely_multi_frame(t) ? index(matrix, c, x, y) : b->CreateAdd(b->CreateMul(f, frameStep(matrix)), index(matrix, c, x, y)); }
+    TypedValue index(const TypedValue &matrix, Value *c) const
+    {
+        if (likely_multi_channel(matrix)) return c;
+        else                              return zero();
+    }
 
-    void deindex(Value *i, Value **c) const {
-        *c = likely_multi_channel(t) ? constant(0) : i;
+    TypedValue index(const TypedValue &matrix, Value *c, Value *x) const
+    {
+        const TypedValue remainder = index(matrix, c);
+        if (likely_multi_column(matrix)) return b->CreateAdd(b->CreateMul(x, columnStep(matrix)), remainder);
+        else                             return remainder;
     }
-    void deindex(Value *matrix, Value *i, Value **c, Value **x) const {
-        Value *rem;
-        if (likely_multi_column(t)) {
-            rem = i;
-            *x = constant(0);
-        } else {
+
+    TypedValue index(const TypedValue &matrix, Value *c, Value *x, Value *y) const
+    {
+        const TypedValue remainder = index(matrix, c, x);
+        if (likely_multi_row(matrix)) return b->CreateAdd(b->CreateMul(y, rowStep(matrix)), remainder);
+        else                          return remainder;
+    }
+
+    TypedValue index(const TypedValue &matrix, Value *c, Value *x, Value *y, Value *f) const
+    {
+        const TypedValue remainder = index(matrix, c, x, y);
+        if (likely_multi_frame(matrix)) return b->CreateAdd(b->CreateMul(f, frameStep(matrix)), remainder);
+        else                            return remainder;
+    }
+
+    void deindex(const TypedValue &matrix, Value *i, Value **c) const
+    {
+        if (likely_multi_channel(matrix)) *c = i;
+        else                              *c = zero();
+    }
+
+    void deindex(const TypedValue &matrix, Value *i, Value **c, Value **x) const
+    {
+        Value *remainder;
+        if (likely_multi_column(matrix)) {
             Value *step = columnStep(matrix);
-            rem = b->CreateURem(i, step, "_xRem");
-            *x = b->CreateExactUDiv(b->CreateSub(i, rem), step, "_x");
-        }
-        deindex(rem, c);
-    }
-    void deindex(Value *matrix, Value *i, Value **c, Value **x, Value **y) const {
-        Value *rem;
-        if (likely_multi_row(t)) {
-            rem = i;
-            *y = constant(0);
+            remainder = b->CreateURem(i, step, "_xRem");
+            *x = b->CreateExactUDiv(b->CreateSub(i, remainder), step, "_x");
         } else {
+            remainder = i;
+            *x = zero();
+        }
+        deindex(matrix, remainder, c);
+    }
+
+    void deindex(const TypedValue &matrix, Value *i, Value **c, Value **x, Value **y) const
+    {
+        Value *remainder;
+        if (likely_multi_row(matrix)) {
             Value *step = rowStep(matrix);
-            rem = b->CreateURem(i, step, "_yRem");
-            *y = b->CreateExactUDiv(b->CreateSub(i, rem), step, "_y");
-        }
-        deindex(matrix, rem, c, x);
-    }
-    void deindex(Value *matrix, Value *i, Value **c, Value **x, Value **y, Value **t_) const {
-        Value *rem;
-        if (likely_multi_frame(t)) {
-            rem = i;
-            *t_ = constant(0);
+            remainder = b->CreateURem(i, step, "_yRem");
+            *y = b->CreateExactUDiv(b->CreateSub(i, remainder), step, "_y");
         } else {
-            Value *step = frameStep(matrix);
-            rem = b->CreateURem(i, step, "_tRem");
-            *t_ = b->CreateExactUDiv(b->CreateSub(i, rem), step, "_t");
+            remainder = i;
+            *y = zero();
         }
-        deindex(matrix, rem, c, x, y);
+        deindex(matrix, remainder, c, x);
+    }
+
+    void deindex(const TypedValue &matrix, Value *i, Value **c, Value **x, Value **y, Value **t) const
+    {
+        Value *remainder;
+        if (likely_multi_frame(matrix)) {
+            Value *step = frameStep(matrix);
+            remainder = b->CreateURem(i, step, "_tRem");
+            *t = b->CreateExactUDiv(b->CreateSub(i, remainder), step, "_t");
+        } else {
+            remainder = i;
+            *t = zero();
+        }
+        deindex(matrix, remainder, c, x, y);
     }
 
     TypedValue GEP(const TypedValue &matrix, Value *i)
@@ -864,7 +886,7 @@ struct KernelBuilder
                 } else {
                     Value *result = b->CreateAdd(lhs, rhs);
                     Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULT(result, lhs),
-                                                   Type::getIntNTy(getGlobalContext(), likely_depth(t))));
+                                                   Type::getIntNTy(getGlobalContext(), likely_depth(type))));
                     return TypedValue(b->CreateOr(result, overflow), type);
                 }
             } else {
@@ -891,7 +913,7 @@ struct KernelBuilder
                 } else {
                     Value *result = b->CreateSub(lhs, rhs);
                     Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULE(result, lhs),
-                                                   Type::getIntNTy(getGlobalContext(), likely_depth(t))));
+                                                   Type::getIntNTy(getGlobalContext(), likely_depth(type))));
                     return TypedValue(b->CreateAnd(result, overflow), type);
                 }
             } else {
@@ -1011,10 +1033,8 @@ struct KernelBuilder
     TypedValue nearbyint(const TypedValue &x) const { return intrinsic(x, Intrinsic::nearbyint); }
     TypedValue round(const TypedValue &x) const { return intrinsic(x, Intrinsic::round); }
 
-    Value *compareLT(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFCmpOLT(i, j) : (likely_signed(t) ? b->CreateICmpSLT(i, j) : b->CreateICmpULT(i, j)); }
-    Value *compareGT(Value *i, Value *j) const { return likely_floating(t) ? b->CreateFCmpOGT(i, j) : (likely_signed(t) ? b->CreateICmpSGT(i, j) : b->CreateICmpUGT(i, j)); }
-
-    Loop beginLoop(BasicBlock *entry, Value *start, Value *stop) {
+    Loop beginLoop(BasicBlock *entry, Value *start, Value *stop)
+    {
         Loop loop;
         loop.stop = stop;
         loop.body = BasicBlock::Create(getGlobalContext(), "_loop_body", f);
@@ -1038,7 +1058,8 @@ struct KernelBuilder
         return loop;
     }
 
-    void endLoop() {
+    void endLoop()
+    {
         const Loop &loop = loops.top();
         Value *increment = b->CreateAdd(loop.i, one(), "_loop_increment");
         BasicBlock *loopLatch = BasicBlock::Create(getGlobalContext(), "_loop_latch", f);
@@ -1075,8 +1096,6 @@ struct KernelBuilder
         likely_assert(false, "MatrixBuilder::ty invalid matrix bits: %d and floating: %d", bits, floating);
         return NULL;
     }
-    inline Type *ty(bool pointer = false) const { return ty(t, pointer); }
-    inline vector<Type*> tys(bool pointer = false) const { return toVector<Type*>(ty(pointer)); }
 };
 
 struct SExp
@@ -1176,9 +1195,9 @@ public:
             thunkDst.value->setName("dst");
             BasicBlock *thunkEntry = BasicBlock::Create(getGlobalContext(), "thunk_entry", thunk);
             IRBuilder<> thunkBuilder(thunkEntry);
-            KernelBuilder thunkKernel(module, &thunkBuilder, thunk, thunkSrcs);
+            KernelBuilder thunkKernel(module, &thunkBuilder, thunk);
             Value *i = thunkKernel.beginLoop(thunkEntry, thunkStart, thunkStop).i;
-            TypedValue result = generateKernelRecursive(thunkKernel, sexp, i);
+            TypedValue result = generateKernelRecursive(thunkKernel, thunkSrcs, sexp, i);
             dstType = result.type;
             thunkKernel.store(TypedValue(thunkDst.value, dstType), i, result);
             thunkKernel.endLoop();
@@ -1223,7 +1242,7 @@ public:
         getValues(function, types, srcs);
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
-        KernelBuilder kernel(module, &builder, function, srcs);
+        KernelBuilder kernel(module, &builder, function);
 
         Value *dstChannels = NULL, *dstColumns = NULL, *dstRows = NULL, *dstFrames = NULL;
         for (size_t i=0; i<types.size(); i++) {
@@ -1376,11 +1395,11 @@ private:
         }
     }
 
-    TypedValue generateKernelRecursive(KernelBuilder &kernel, const SExp &expression, Value *i)
+    TypedValue generateKernelRecursive(KernelBuilder &kernel, const vector<TypedValue> &matricies, const SExp &expression, Value *i)
     {
         vector<TypedValue> operands;
         for (const SExp &operand : expression.sexps)
-            operands.push_back(generateKernelRecursive(kernel, operand, i));
+            operands.push_back(generateKernelRecursive(kernel, matricies, operand, i));
         const string &op = expression.op;
 
         static regex constant("(-?\\d*\\.?\\d+)([uif]\\d*)?");
@@ -1394,7 +1413,7 @@ private:
             return KernelBuilder::constant(value, type);
         } else if (op.substr(0,1) == "#") {
             int index = atoi(op.substr(1, op.size()-1).c_str());
-            return kernel.load(kernel.matricies[index], i);
+            return kernel.load(matricies[index], i);
         } else if (operands.size() == 1) {
             const TypedValue &operand = operands[0];
             if      (op == "sqrt")      return kernel.sqrt(operand);
