@@ -30,11 +30,13 @@ using namespace std;
 #define LIKELY_TEST_SECONDS 1
 
 // Optional arguments to run only a subset of the benchmarks
-static bool        BenchmarkExamples  = false;
-static string      BenchmarkFunction  = "";
-static likely_type BenchmarkType      = likely_type_null;
-static int         BenchmarkSize      = 0;
-static int         BenchmarkExecution = -1;
+static bool        BenchmarkExamples   = false;
+static string      BenchmarkFunction   = "";
+static likely_type BenchmarkType       = likely_type_null;
+static int         BenchmarkSize       = 0;
+static int         BenchmarkExecution  = -1;
+static bool        BenchmarkQuiet      = false;
+static bool        BenchmarkSaturation = true;
 
 static Mat generateData(int rows, int columns, likely_type type, double scaleFactor)
 {
@@ -76,7 +78,8 @@ struct Test
                     testCorrectness(f, src);
                     Speed baseline = testBaselineSpeed(src);
                     Speed likely = testLikelySpeed(f, src);
-                    printf("%s \t%s \t%d \t%s \t%.2e\n", function(), likely_type_to_string(type), size, execution ? "Parallel" : "Serial", likely.Hz/baseline.Hz);
+                    if (!BenchmarkQuiet)
+                        printf("%s \t%s \t%d \t%s \t%.2e\n", function(), likely_type_to_string(type), size, execution ? "Parallel" : "Serial", likely.Hz/baseline.Hz);
                 }
             }
         }
@@ -97,7 +100,8 @@ struct Test
         Speed speed(iter, startTime, endTime);
         const size_t exampleStartPos = 3;
         const size_t exampleNameSize = string(source).find('\n') - exampleStartPos;
-        printf("%s \t%.2e \n", string(source).substr(exampleStartPos, exampleNameSize).c_str(), speed.Hz);
+        if (!BenchmarkQuiet)
+            printf("%s \t%.2e \n", string(source).substr(exampleStartPos, exampleNameSize).c_str(), speed.Hz);
     }
 
 protected:
@@ -164,7 +168,7 @@ private:
     {
         likely_mat m = ::fromCvMat(src, true);
         if (!likely_floating(m->type) && (likely_depth(m->type) <= 16))
-            likely_set_saturation(&m->type, true);
+            likely_set_saturation(&m->type, BenchmarkSaturation);
         return m;
     }
 
@@ -180,7 +184,7 @@ private:
         errorMat = errorMat / (dstOpenCV + LIKELY_ERROR_TOLERANCE); // Normalize errors
         threshold(errorMat, errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
         int errors = (int) norm(errorMat, NORM_L1);
-        if (errors > 0) {
+        if (errors > 0 && !BenchmarkQuiet) {
             likely_mat cvLikely = fromCvMat(dstOpenCV);
             stringstream errorLocations;
             errorLocations << "input\topencv\tlikely\trow\tcolumn\n";
@@ -350,18 +354,38 @@ class castTest : public Test {
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, CV_32F); return dst; }
 };
 
+void help()
+{
+    printf("Usage:\n"
+           "  benchmark [arguments]\n"
+           "\n"
+           "Arguments:\n"
+           "  --examples      Run Dream examples instead of benchmarking\n"
+           "  --help          Print benchmark usage\n"
+           "  -function <str> Benchmark only the specified function\n"
+           "  --nosat         Benchmark without saturated arithmetic\n"
+           "  --parallel      Benchmark only multi-threaded\n"
+           "  --quiet         Don't print to results or errors\n"
+           "  --serial        Benchmark only single-threaded\n"
+           "  -size <int>     Benchmark only the specified size\n"
+           "  -type <type>    Benchmark only the specified type\n");
+    exit(0);
+}
+
 int main(int argc, char *argv[])
 {
     // Parse arguments
     for (int i=1; i<argc; i++) {
-        if      (!strcmp("-h", argv[i])) printf("benchmark [--examples] [-function <str>] [-type <type>] [-size <int>]\n");
-        else if (!strcmp("--examples", argv[i])) BenchmarkExamples = true;
-        else if (!strcmp("--serial", argv[i])) BenchmarkExecution = false;
+        if      (!strcmp("--examples", argv[i])) BenchmarkExamples = true;
+        else if (!strcmp("--help"    , argv[i]) || !strcmp("-h", argv[i])) help();
+        else if (!strcmp("-function" , argv[i])) BenchmarkFunction = argv[++i];
+        else if (!strcmp("--nosat"   , argv[i])) BenchmarkSaturation = false;
         else if (!strcmp("--parallel", argv[i])) BenchmarkExecution = true;
-        else if (!strcmp("-function", argv[i])) BenchmarkFunction = argv[++i];
-        else if (!strcmp("-type", argv[i])) BenchmarkType = likely_type_from_string(argv[++i]);
-        else if (!strcmp("-size", argv[i])) BenchmarkSize = atoi(argv[++i]);
-        else    { printf("Unrecognized argument: %s\nTry running 'benchmark -h' for help", argv[i]); return 1; }
+        else if (!strcmp("--quiet"   , argv[i])) BenchmarkQuiet = true;
+        else if (!strcmp("--serial"  , argv[i])) BenchmarkExecution = false;
+        else if (!strcmp("-size"     , argv[i])) BenchmarkSize = atoi(argv[++i]);
+        else if (!strcmp("-type"     , argv[i])) BenchmarkType = likely_type_from_string(argv[++i]);
+        else    { printf("Unrecognized argument: %s\nTry running 'benchmark --help' for help", argv[i]); return 1; }
     }
 
     // Print to console immediately
