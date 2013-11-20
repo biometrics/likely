@@ -693,13 +693,13 @@ struct KernelBuilder
     static Constant *intMax(int bits = 32) { return constant((1 << (bits-1))-1, bits); }
     static Constant *intMin(int bits = 32) { return constant((1 << (bits-1)), bits); }
 
-    Value *data(const TypedValue &matrix) const { return b->CreatePointerCast(b->CreateLoad(b->CreateStructGEP(matrix, 0), "_data"), ty(matrix, true)); }
-    Value *type(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 1), "_type"); }
+    Value *data(const TypedValue &matrix) const { return b->CreatePointerCast(b->CreateLoad(b->CreateStructGEP(matrix, 0), "data"), ty(matrix, true)); }
+    Value *type(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 1), "type"); }
     Value *type(likely_type type) const { return constant(type, 32); }
-    Value *channels(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 2), "_channels"); }
-    Value *columns(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 3), "_columns"); }
-    Value *rows(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 4), "_rows"); }
-    Value *frames(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 5), "_frames"); }
+    Value *channels(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 2), "channels"); }
+    Value *columns(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 3), "columns"); }
+    Value *rows(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 4), "rows"); }
+    Value *frames(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 5), "frames"); }
 
     void setData(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 0)); }
     void setType(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 1)); }
@@ -738,9 +738,9 @@ struct KernelBuilder
     Value *elements(Value *matrix) const { return b->CreateMul(b->CreateMul(b->CreateMul(channels(matrix), columns(matrix)), rows(matrix)), frames(matrix)); }
     Value *bytes(Value *matrix) const { return b->CreateMul(b->CreateUDiv(b->CreateCast(Instruction::ZExt, depth(matrix), Type::getInt32Ty(getGlobalContext())), constant(8, 32)), elements(matrix)); }
 
-    Value *columnStep(Value *matrix) const { Value *columnStep = channels(matrix); columnStep->setName("_cStep"); return columnStep; }
-    Value *rowStep(Value *matrix) const { return b->CreateMul(columns(matrix), columnStep(matrix), "_rStep"); }
-    Value *frameStep(Value *matrix) const { return b->CreateMul(rows(matrix), rowStep(matrix), "_tStep"); }
+    Value *columnStep(Value *matrix) const { Value *columnStep = channels(matrix); columnStep->setName("cStep"); return columnStep; }
+    Value *rowStep(Value *matrix) const { return b->CreateMul(columns(matrix), columnStep(matrix), "rStep"); }
+    Value *frameStep(Value *matrix) const { return b->CreateMul(rows(matrix), rowStep(matrix), "tStep"); }
 
     Value *index(const TypedValue &matrix, Value *c) const
     {
@@ -780,8 +780,8 @@ struct KernelBuilder
         Value *remainder;
         if (likely_multi_column(matrix)) {
             Value *step = columnStep(matrix);
-            remainder = b->CreateURem(i, step, "_xRem");
-            *x = b->CreateExactUDiv(b->CreateSub(i, remainder), step, "_x");
+            remainder = b->CreateURem(i, step, "xRem");
+            *x = b->CreateExactUDiv(b->CreateSub(i, remainder), step, "x");
         } else {
             remainder = i;
             *x = zero();
@@ -794,8 +794,8 @@ struct KernelBuilder
         Value *remainder;
         if (likely_multi_row(matrix)) {
             Value *step = rowStep(matrix);
-            remainder = b->CreateURem(i, step, "_yRem");
-            *y = b->CreateExactUDiv(b->CreateSub(i, remainder), step, "_y");
+            remainder = b->CreateURem(i, step, "yRem");
+            *y = b->CreateExactUDiv(b->CreateSub(i, remainder), step, "y");
         } else {
             remainder = i;
             *y = zero();
@@ -808,8 +808,8 @@ struct KernelBuilder
         Value *remainder;
         if (likely_multi_frame(matrix)) {
             Value *step = frameStep(matrix);
-            remainder = b->CreateURem(i, step, "_tRem");
-            *t = b->CreateExactUDiv(b->CreateSub(i, remainder), step, "_t");
+            remainder = b->CreateURem(i, step, "tRem");
+            *t = b->CreateExactUDiv(b->CreateSub(i, remainder), step, "t");
         } else {
             remainder = i;
             *t = zero();
@@ -853,9 +853,9 @@ struct KernelBuilder
     // http://locklessinc.com/articles/sat_arithmetic/
     Value *signedSaturationHelper(Value *result, Value *overflowResult, Value *overflowCondition) const
     {
-        BasicBlock *overflowResolved = BasicBlock::Create(getGlobalContext(), "_overflow_resolved", f);
-        BasicBlock *overflowTrue = BasicBlock::Create(getGlobalContext(), "_overflow_true", f);
-        BasicBlock *overflowFalse = BasicBlock::Create(getGlobalContext(), "_overflow_false", f);
+        BasicBlock *overflowResolved = BasicBlock::Create(getGlobalContext(), "overflow_resolved", f);
+        BasicBlock *overflowTrue = BasicBlock::Create(getGlobalContext(), "overflow_true", f);
+        BasicBlock *overflowFalse = BasicBlock::Create(getGlobalContext(), "overflow_false", f);
         b->CreateCondBr(overflowCondition, overflowTrue, overflowFalse);
         b->SetInsertPoint(overflowTrue);
         b->CreateBr(overflowResolved);
@@ -1037,7 +1037,7 @@ struct KernelBuilder
     {
         Loop loop;
         loop.stop = stop;
-        loop.body = BasicBlock::Create(getGlobalContext(), "_loop_body", f);
+        loop.body = BasicBlock::Create(getGlobalContext(), "loop_body", f);
 
         // Create self-referencing loop node
         vector<Value*> metadata;
@@ -1051,7 +1051,7 @@ struct KernelBuilder
         b->CreateBr(loop.body);
         b->SetInsertPoint(loop.body);
 
-        loop.i = b->CreatePHI(Type::getInt32Ty(getGlobalContext()), 2, "_i");
+        loop.i = b->CreatePHI(Type::getInt32Ty(getGlobalContext()), 2, "i");
         loop.i->addIncoming(start, entry);
 
         loops.push(loop);
@@ -1061,12 +1061,12 @@ struct KernelBuilder
     void endLoop()
     {
         const Loop &loop = loops.top();
-        Value *increment = b->CreateAdd(loop.i, one(), "_loop_increment");
-        BasicBlock *loopLatch = BasicBlock::Create(getGlobalContext(), "_loop_latch", f);
+        Value *increment = b->CreateAdd(loop.i, one(), "loop_increment");
+        BasicBlock *loopLatch = BasicBlock::Create(getGlobalContext(), "loop_latch", f);
         b->CreateBr(loopLatch);
         b->SetInsertPoint(loopLatch);
-        BasicBlock *loopExit = BasicBlock::Create(getGlobalContext(), "_loop_exit", f);
-        BranchInst *latch = b->CreateCondBr(b->CreateICmpEQ(increment, loop.stop, "_loop_test"), loopExit, loop.body);
+        BasicBlock *loopExit = BasicBlock::Create(getGlobalContext(), "loop_exit", f);
+        BranchInst *latch = b->CreateCondBr(b->CreateICmpEQ(increment, loop.stop, "loop_test"), loopExit, loop.body);
         latch->setMetadata("llvm.loop", loop.node);
         loop.i->addIncoming(increment, loopLatch);
         b->SetInsertPoint(loopExit);
@@ -1193,7 +1193,7 @@ public:
             thunkStart.type = likely_type_i32;
             TypedValue thunkDst = thunkSrcs.back(); thunkSrcs.pop_back();
             thunkDst.value->setName("dst");
-            BasicBlock *thunkEntry = BasicBlock::Create(getGlobalContext(), "thunk_entry", thunk);
+            BasicBlock *thunkEntry = BasicBlock::Create(getGlobalContext(), "entry", thunk);
             IRBuilder<> thunkBuilder(thunkEntry);
             KernelBuilder thunkKernel(module, &thunkBuilder, thunk);
             Value *i = thunkKernel.beginLoop(thunkEntry, thunkStart, thunkStop).i;
@@ -1278,7 +1278,7 @@ public:
                 Type *likelyForkReturn = Type::getVoidTy(getGlobalContext());
                 likelyForkType = FunctionType::get(likelyForkReturn, likelyForkParameters, true);
             }
-            Function *likelyFork = Function::Create(likelyForkType, GlobalValue::ExternalLinkage, "_likely_fork", module);
+            Function *likelyFork = Function::Create(likelyForkType, GlobalValue::ExternalLinkage, "likely_fork", module);
             likelyFork->setCallingConv(CallingConv::C);
             likelyFork->setDoesNotCapture(4);
             likelyFork->setDoesNotAlias(4);
@@ -1337,7 +1337,7 @@ public:
             if (lua_isnil(L, -1)) {
                 lua_pop(L, 1);
                 stringstream parameter;
-                parameter << "#" << int(arity);
+                parameter << "__" << int(arity);
                 lua_pushstring(L, parameter.str().c_str());
                 name << "_" << likely_type_to_string(types[arity]);
                 arity++;
@@ -1388,7 +1388,7 @@ private:
         likely_arity arity = 0;
         while (args != function->arg_end()) {
             Value *src = args++;
-            stringstream name; name << "#" << int(arity);
+            stringstream name; name << "__" << int(arity);
             src->setName(name.str());
             srcs.push_back(TypedValue(src, arity < types.size() ? types[arity] : likely_type_null));
             arity++;
@@ -1411,7 +1411,7 @@ private:
                                    ? likely_type_from_value(value)
                                    : likely_type_from_string(string(sm[2]).c_str());
             return KernelBuilder::constant(value, type);
-        } else if (op.substr(0,1) == "#") {
+        } else if (op.substr(0,2) == "__") {
             int index = atoi(op.substr(1, op.size()-1).c_str());
             const TypedValue matrix = matricies[index];
             Value *c, *x, *y, *t;
