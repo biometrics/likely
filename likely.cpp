@@ -742,30 +742,30 @@ struct KernelBuilder
     Value *rowStep(Value *matrix) const { return b->CreateMul(columns(matrix), columnStep(matrix), "_rStep"); }
     Value *frameStep(Value *matrix) const { return b->CreateMul(rows(matrix), rowStep(matrix), "_tStep"); }
 
-    TypedValue index(const TypedValue &matrix, Value *c) const
+    Value *index(const TypedValue &matrix, Value *c) const
     {
         if (likely_multi_channel(matrix)) return c;
         else                              return zero();
     }
 
-    TypedValue index(const TypedValue &matrix, Value *c, Value *x) const
+    Value *index(const TypedValue &matrix, Value *c, Value *x) const
     {
-        const TypedValue remainder = index(matrix, c);
+        Value *remainder = index(matrix, c);
         if (likely_multi_column(matrix)) return b->CreateAdd(b->CreateMul(x, columnStep(matrix)), remainder);
         else                             return remainder;
     }
 
-    TypedValue index(const TypedValue &matrix, Value *c, Value *x, Value *y) const
+    Value *index(const TypedValue &matrix, Value *c, Value *x, Value *y) const
     {
-        const TypedValue remainder = index(matrix, c, x);
+        Value *remainder = index(matrix, c, x);
         if (likely_multi_row(matrix)) return b->CreateAdd(b->CreateMul(y, rowStep(matrix)), remainder);
         else                          return remainder;
     }
 
-    TypedValue index(const TypedValue &matrix, Value *c, Value *x, Value *y, Value *f) const
+    Value *index(const TypedValue &matrix, Value *c, Value *x, Value *y, Value *t) const
     {
-        const TypedValue remainder = index(matrix, c, x, y);
-        if (likely_multi_frame(matrix)) return b->CreateAdd(b->CreateMul(f, frameStep(matrix)), remainder);
+        Value *remainder = index(matrix, c, x, y);
+        if (likely_multi_frame(matrix)) return b->CreateAdd(b->CreateMul(t, frameStep(matrix)), remainder);
         else                            return remainder;
     }
 
@@ -1413,7 +1413,11 @@ private:
             return KernelBuilder::constant(value, type);
         } else if (op.substr(0,1) == "#") {
             int index = atoi(op.substr(1, op.size()-1).c_str());
-            return kernel.load(matricies[index], i);
+            const TypedValue matrix = matricies[index];
+            Value *c, *x, *y, *t;
+            kernel.deindex(matrix, i, &c, &x, &y, &t);
+            Value *matrix_i = kernel.index(matrix, c, x, y, t);
+            return kernel.load(matrix, matrix_i);
         } else if (operands.size() == 1) {
             const TypedValue &operand = operands[0];
             if      (op == "sqrt")      return kernel.sqrt(operand);
