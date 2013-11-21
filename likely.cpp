@@ -690,8 +690,24 @@ struct KernelBuilder
     static Constant *constant(T value, Type *type) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), type); }
     static Constant *zero(int bits = 32) { return constant(0, bits); }
     static Constant *one(int bits = 32) { return constant(1, bits); }
-    static Constant *intMax(int bits = 32) { return constant((1 << (bits-1))-1, bits); }
-    static Constant *intMin(int bits = 32) { return constant((1 << (bits-1)), bits); }
+    static Constant *intMax(likely_type type)
+    {
+        int bits = likely_depth(type);
+        if (likely_signed(type)) {
+            return constant((1 << (bits-1))-1, bits);
+        } else {
+            return constant(((1 << bits)-1), bits);
+        }
+    }
+    static Constant *intMin(likely_type type)
+    {
+        int bits = likely_depth(type);
+        if (likely_signed(type)) {
+            return constant((1 << (bits-1)), bits);
+        } else {
+            return zero(bits);
+        }
+    }
 
     Value *data(const TypedValue &matrix) const { return b->CreatePointerCast(b->CreateLoad(b->CreateStructGEP(matrix, 0), "data"), ty(matrix, true)); }
     Value *type(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 1), "type"); }
@@ -847,6 +863,17 @@ struct KernelBuilder
     TypedValue cast(const TypedValue &x, const TypedValue &type) const
     {
         return cast(x, LLVM_VALUE_TO_INT(type.value));
+    }
+
+    TypedValue threshold(TypedValue x, TypedValue t) const
+    {
+        likely_type type = likely_type_from_types(x, t);
+        x = cast(x, type);
+        t = cast(t, type);
+        Value *condition = likely_floating(type) ? b->CreateFCmpOLT(x, t) : (likely_signed(type) ? b->CreateICmpSLT(x, t) : b->CreateICmpULT(x, t));
+        TypedValue low = constant(0.0, type);
+        TypedValue high = constant(1.0, type);
+        return TypedValue(b->CreateSelect(condition, high, low), type);
     }
 
     // Saturation arithmetic logic:
@@ -1421,7 +1448,6 @@ private:
         for (const SExp &operand : expression.sexps)
             operands.push_back(generateKernelRecursive(kernel, info, operand));
         const string &op = expression.op;
-
         static regex constant("(-?\\d*\\.?\\d+)([uif]\\d*)?");
         std::smatch sm;
         if (regex_match(op, sm, constant)) {
@@ -1473,6 +1499,7 @@ private:
             else if (op == "pow")      return kernel.pow(lhs, rhs);
             else if (op == "copysign") return kernel.copysign(lhs, rhs);
             else if (op == "cast")     return kernel.cast(lhs, rhs);
+            else if (op == "threshold") return kernel.threshold(lhs, rhs);
             likely_assert(false, "unsupported binary operator: %s", op.c_str());
         } else if (operands.size() == 3) {
             const TypedValue &a = operands[0];
@@ -1481,7 +1508,6 @@ private:
             if (op == "fma") return kernel.fma(a, b, c);
             likely_assert(false, "unsupported ternary operator: %s", op.c_str());
         }
-
         likely_assert(false, "unrecognized literal: %s", op.c_str());
         return TypedValue();
     }
