@@ -25,6 +25,10 @@ saturation = likely.saturation
 reserved = likely.reserved
 
 -- Core functions
+function chain(x,y)
+  return function(w) return y(x(w)) end
+end
+
 closure = likely.closure
 
 new = closure(

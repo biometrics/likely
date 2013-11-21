@@ -1856,6 +1856,47 @@ static int lua_likely__call(lua_State *L)
     return 1;
 }
 
+static int lua_likely__concat(lua_State *L)
+{
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, args == 2, "__concat expected two arguments, got: %d", args);
+    lua_getglobal(L, "closure");
+
+    // name
+    lua_getfield(L, 1, "name");
+    lua_pushstring(L, "_");
+    lua_getfield(L, 2, "name");
+    lua_concat(L, 3);
+
+    // source
+    lua_getglobal(L, "chain");
+    lua_pushvalue(L, 1);
+    lua_pushvalue(L, 2);
+    lua_call(L, 2, 1);
+
+    // documentation
+    lua_getfield(L, 1, "name");
+    lua_pushstring(L, " .. ");
+    lua_getfield(L, 2, "name");
+    lua_concat(L, 3);
+
+    // parameters
+    lua_newtable(L);
+    lua_pushinteger(L, 1);
+    lua_newtable(L);
+    lua_pushinteger(L, 1);
+    lua_pushstring(L, "x");
+    lua_settable(L, -3);
+    lua_pushinteger(L, 2);
+    lua_pushstring(L, "operand");
+    lua_settable(L, -3);
+    lua_settable(L, -3);
+
+    // return a new closure
+    lua_call(L, 4, 1);
+    return 1;
+}
+
 void _likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...)
 {
     workersActive.lock();
@@ -1913,6 +1954,8 @@ int luaopen_likely(lua_State *L)
     luaL_newmetatable(L, "likely_function");
     lua_pushcfunction(L, lua_likely__call);
     lua_setfield(L, -2, "__call");
+    lua_pushcfunction(L, lua_likely__concat);
+    lua_setfield(L, -2, "__concat");
 
     // Idiom for registering library with member functions
     luaL_newmetatable(L, "likely");
