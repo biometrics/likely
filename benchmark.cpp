@@ -354,6 +354,11 @@ class castTest : public Test {
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, CV_32F); return dst; }
 };
 
+class thresholdTest : public Test {
+    const char *function() const { return "threshold(127)"; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 255, THRESH_BINARY); return dst; }
+};
+
 void help()
 {
     printf("Usage:\n"
@@ -405,6 +410,7 @@ int main(int argc, char *argv[])
         lua_close(L);
     } else {
         printf("Function \tType \tSize \tExecution \tSpeedup\n");
+        thresholdTest().run();
         addTest().run();
         subtractTest().run();
         multiplyTest().run();

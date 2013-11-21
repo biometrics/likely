@@ -451,3 +451,12 @@ cast = closure(
   "Cast matrix to another type",
   {{"type", "Likely type"},
    {"x", "operand"}})
+
+threshold = closure(
+  "threshold",
+  function(x, threshVal)
+    return likely.s("threshold", x, threshVal)
+  end,
+  "Threshold the image at the threshold value",
+  {{"threshValue", "Threshold value"},
+   {"x", "operand"}})

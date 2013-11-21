@@ -690,8 +690,24 @@ struct KernelBuilder
     static Constant *constant(T value, Type *type) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), type); }
     static Constant *zero(int bits = 32) { return constant(0, bits); }
     static Constant *one(int bits = 32) { return constant(1, bits); }
-    static Constant *intMax(int bits = 32) { return constant((1 << (bits-1))-1, bits); }
-    static Constant *intMin(int bits = 32) { return constant((1 << (bits-1)), bits); }
+    static Constant *intMax(likely_type type)
+    {
+        int bits = likely_depth(type);
+        if (likely_signed(type)) {
+            return constant((1 << (bits-1))-1, bits);
+        } else {
+            return constant(((1 << bits)-1), bits);
+        }
+    }
+    static Constant *intMin(likely_type type)
+    {
+        int bits = likely_depth(type);
+        if (likely_signed(type)) {
+            return constant((1 << (bits-1)), bits);
+        } else {
+            return zero(bits);
+        }
+    }
 
     Value *data(const TypedValue &matrix) const { return b->CreatePointerCast(b->CreateLoad(b->CreateStructGEP(matrix, 0), "data"), ty(matrix, true)); }
     Value *type(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 1), "type"); }
@@ -847,6 +863,35 @@ struct KernelBuilder
     TypedValue cast(const TypedValue &x, const TypedValue &type) const
     {
         return cast(x, LLVM_VALUE_TO_INT(type.value));
+    }
+
+    TypedValue threshold(const TypedValue &x, const TypedValue &t) const
+    {
+        likely_type type = x.type;
+        TypedValue c = cast(t, x.type); //t doesn't always have the same type as x which leads to problems with comparisons
+        Value *condition = likely_signed(type) ? b->CreateICmpSLT(x, c) : b->CreateICmpULT(x, c);
+        Value *l = NULL;
+        Value *h = NULL;
+        if (likely_floating(type)) {
+            likely_assert(false, "Not supported yet");
+        } else {
+            l = intMin(type);
+            h = intMax(type);
+        }
+
+        BasicBlock *thresholdResolved = BasicBlock::Create(getGlobalContext(), "threshold_resolved", f);
+        BasicBlock *thresholdHigh = BasicBlock::Create(getGlobalContext(), "threshold_high", f);
+        BasicBlock *thresholdLow = BasicBlock::Create(getGlobalContext(), "threshold_low", f);
+        b->CreateCondBr(condition, thresholdHigh, thresholdLow);
+        b->SetInsertPoint(thresholdHigh);
+        b->CreateBr(thresholdResolved);
+        b->SetInsertPoint(thresholdLow);
+        b->CreateBr(thresholdResolved);
+        b->SetInsertPoint(thresholdResolved);
+        PHINode *conditionalResult = b->CreatePHI(ty(type), 2);
+        conditionalResult->addIncoming(h, thresholdHigh);
+        conditionalResult->addIncoming(l, thresholdLow);
+        return TypedValue(conditionalResult, type);
     }
 
     // Saturation arithmetic logic:
@@ -1447,6 +1492,7 @@ private:
             else if (op == "pow")      return kernel.pow(lhs, rhs);
             else if (op == "copysign") return kernel.copysign(lhs, rhs);
             else if (op == "cast")     return kernel.cast(lhs, rhs);
+            else if (op == "threshold") return kernel.threshold(lhs, rhs);
             likely_assert(false, "unsupported binary operator: %s", op.c_str());
         } else if (operands.size() == 3) {
             const TypedValue &a = operands[0];
