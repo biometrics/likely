@@ -1033,6 +1033,55 @@ struct KernelBuilder
     TypedValue nearbyint(const TypedValue &x) const { return intrinsic(x, Intrinsic::nearbyint); }
     TypedValue round(const TypedValue &x) const { return intrinsic(x, Intrinsic::round); }
 
+    TypedValue lt(TypedValue lhs, TypedValue rhs)
+    {
+        likely_type type = likely_type_from_types(lhs, rhs);
+        lhs = cast(lhs, type);
+        rhs = cast(rhs, type);
+        Value *comp = likely_floating(type) ? b->CreateFCmpOLT(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSLT(lhs, rhs) : b->CreateICmpULT(lhs, rhs));
+        return TypedValue(comp, type);
+    }
+    TypedValue le(TypedValue lhs, TypedValue rhs)
+    {
+        likely_type type = likely_type_from_types(lhs, rhs);
+        lhs = cast(lhs, type);
+        rhs = cast(rhs, type);
+        Value *comp = likely_floating(type) ? b->CreateFCmpOLE(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSLE(lhs, rhs) : b->CreateICmpULE(lhs, rhs));
+        return TypedValue(comp, type);
+    }
+    TypedValue gt(TypedValue lhs, TypedValue rhs)
+    {
+        likely_type type = likely_type_from_types(lhs, rhs);
+        lhs = cast(lhs, type);
+        rhs = cast(rhs, type);
+        Value *comp = likely_floating(type) ? b->CreateFCmpOGT(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSGT(lhs, rhs) : b->CreateICmpUGT(lhs, rhs));
+        return TypedValue(comp, type);
+    }
+    TypedValue ge(TypedValue lhs, TypedValue rhs)
+    {
+        likely_type type = likely_type_from_types(lhs, rhs);
+        lhs = cast(lhs, type);
+        rhs = cast(rhs, type);
+        Value *comp = likely_floating(type) ? b->CreateFCmpOGE(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSGE(lhs, rhs) : b->CreateICmpUGE(lhs, rhs));
+        return TypedValue(comp, type);
+    }
+    TypedValue eq(TypedValue lhs, TypedValue rhs)
+    {
+        likely_type type = likely_type_from_types(lhs, rhs);
+        lhs = cast(lhs, type);
+        rhs = cast(rhs, type);
+        Value *comp = likely_floating(type) ? b->CreateFCmpOEQ(lhs, rhs) : b->CreateICmpEQ(lhs, rhs);
+        return TypedValue(comp, type);
+    }
+    TypedValue neq(TypedValue lhs, TypedValue rhs)
+    {
+        likely_type type = likely_type_from_types(lhs, rhs);
+        lhs = cast(lhs, type);
+        rhs = cast(rhs, type);
+        Value *comp = likely_floating(type) ? b->CreateFCmpONE(lhs, rhs) : b->CreateICmpNE(lhs, rhs);
+        return TypedValue(comp, type);
+    }
+
     Loop beginLoop(BasicBlock *entry, Value *start, Value *stop)
     {
         Loop loop;
@@ -1473,6 +1522,12 @@ private:
             else if (op == "pow")      return kernel.pow(lhs, rhs);
             else if (op == "copysign") return kernel.copysign(lhs, rhs);
             else if (op == "cast")     return kernel.cast(lhs, rhs);
+            else if (op == "lt")  return kernel.lt(lhs, rhs);
+            else if (op == "le")  return kernel.le(lhs, rhs);
+            else if (op == "gt")  return kernel.gt(lhs, rhs);
+            else if (op == "ge")  return kernel.ge(lhs, rhs);
+            else if (op == "eq")  return kernel.eq(lhs, rhs);
+            else if (op == "neq") return kernel.neq(lhs, rhs);
             likely_assert(false, "unsupported binary operator: %s", op.c_str());
         } else if (operands.size() == 3) {
             const TypedValue &a = operands[0];
