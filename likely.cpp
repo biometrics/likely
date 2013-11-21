@@ -690,24 +690,8 @@ struct KernelBuilder
     static Constant *constant(T value, Type *type) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), type); }
     static Constant *zero(int bits = 32) { return constant(0, bits); }
     static Constant *one(int bits = 32) { return constant(1, bits); }
-    static Constant *intMax(likely_type type)
-    {
-        int bits = likely_depth(type);
-        if (likely_signed(type)) {
-            return constant((1 << (bits-1))-1, bits);
-        } else {
-            return constant(((1 << bits)-1), bits);
-        }
-    }
-    static Constant *intMin(likely_type type)
-    {
-        int bits = likely_depth(type);
-        if (likely_signed(type)) {
-            return constant((1 << (bits-1)), bits);
-        } else {
-            return zero(bits);
-        }
-    }
+    static Constant *intMax(int bits = 32) { return constant((1 << (bits-1))-1, bits); }
+    static Constant *intMin(int bits = 32) { return constant((1 << (bits-1)), bits); }
 
     Value *data(const TypedValue &matrix) const { return b->CreatePointerCast(b->CreateLoad(b->CreateStructGEP(matrix, 0), "data"), ty(matrix, true)); }
     Value *type(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 1), "type"); }
@@ -865,17 +849,16 @@ struct KernelBuilder
         return cast(x, LLVM_VALUE_TO_INT(type.value));
     }
 
-    TypedValue threshold(const TypedValue &x, const TypedValue &t) const
+    TypedValue threshold(TypedValue x, TypedValue t) const
     {
-        likely_type type = x.type;
-        TypedValue c = cast(t, x.type); //t doesn't always have the same type as x which leads to problems with comparisons
-        Value *condition = likely_signed(type) ? b->CreateICmpSLT(x, c) : b->CreateICmpULT(x, c);
-        Value *low = intMin(type);
-        Value *high = intMax(type);
-
+        likely_type type = likely_type_from_types(x, t);
+        x = cast(x, type);
+        t = cast(t, type);
+        Value *condition = likely_floating(type) ? b->CreateFCmpOLT(x, t) : (likely_signed(type) ? b->CreateICmpSLT(x, t) : b->CreateICmpULT(x, t));
+        TypedValue low = constant(0.0, type);
+        TypedValue high = constant(1.0, type);
         return TypedValue(b->CreateSelect(condition, high, low), type);
     }
-
 
     // Saturation arithmetic logic:
     // http://locklessinc.com/articles/sat_arithmetic/
@@ -1429,7 +1412,6 @@ private:
         for (const SExp &operand : expression.sexps)
             operands.push_back(generateKernelRecursive(kernel, matricies, operand, i));
         const string &op = expression.op;
-
         static regex constant("(-?\\d*\\.?\\d+)([uif]\\d*)?");
         std::smatch sm;
         if (regex_match(op, sm, constant)) {

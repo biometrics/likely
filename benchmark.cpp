@@ -356,7 +356,7 @@ class castTest : public Test {
 
 class thresholdTest : public Test {
     const char *function() const { return "threshold(127)"; }
-    Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 255, THRESH_BINARY); return dst; }
+    Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 1, THRESH_BINARY); return dst; }
 };
 
 void help()
