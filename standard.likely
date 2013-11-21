@@ -457,6 +457,7 @@ threshold = closure(
   function(x, threshVal)
     return likely.s("threshold", x, threshVal)
   end,
-  "Threshold the image at the threshold value",
-  {{"threshValue", "Threshold value"},
+  "Threshold the image to the minimum and maximum value allowed by the likely_type of the matrix",
+  {{"threshVal", "Threshold value"},
    {"x", "operand"}})
+

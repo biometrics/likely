@@ -870,29 +870,12 @@ struct KernelBuilder
         likely_type type = x.type;
         TypedValue c = cast(t, x.type); //t doesn't always have the same type as x which leads to problems with comparisons
         Value *condition = likely_signed(type) ? b->CreateICmpSLT(x, c) : b->CreateICmpULT(x, c);
-        Value *l = NULL;
-        Value *h = NULL;
-        if (likely_floating(type)) {
-            likely_assert(false, "Not supported yet");
-        } else {
-            l = intMin(type);
-            h = intMax(type);
-        }
+        Value *low = intMin(type);
+        Value *high = intMax(type);
 
-        BasicBlock *thresholdResolved = BasicBlock::Create(getGlobalContext(), "threshold_resolved", f);
-        BasicBlock *thresholdHigh = BasicBlock::Create(getGlobalContext(), "threshold_high", f);
-        BasicBlock *thresholdLow = BasicBlock::Create(getGlobalContext(), "threshold_low", f);
-        b->CreateCondBr(condition, thresholdHigh, thresholdLow);
-        b->SetInsertPoint(thresholdHigh);
-        b->CreateBr(thresholdResolved);
-        b->SetInsertPoint(thresholdLow);
-        b->CreateBr(thresholdResolved);
-        b->SetInsertPoint(thresholdResolved);
-        PHINode *conditionalResult = b->CreatePHI(ty(type), 2);
-        conditionalResult->addIncoming(h, thresholdHigh);
-        conditionalResult->addIncoming(l, thresholdLow);
-        return TypedValue(conditionalResult, type);
+        return TypedValue(b->CreateSelect(condition, high, low), type);
     }
+
 
     // Saturation arithmetic logic:
     // http://locklessinc.com/articles/sat_arithmetic/
@@ -1501,7 +1484,6 @@ private:
             if (op == "fma") return kernel.fma(a, b, c);
             likely_assert(false, "unsupported ternary operator: %s", op.c_str());
         }
-
         likely_assert(false, "unrecognized literal: %s", op.c_str());
         return NULL;
     }
