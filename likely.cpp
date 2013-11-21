@@ -1432,7 +1432,7 @@ private:
                                    : likely_type_from_string(string(sm[2]).c_str());
             return KernelBuilder::constant(value, type);
         } else if (op.substr(0,2) == "__") {
-            int index = atoi(op.substr(1, op.size()-1).c_str());
+            int index = atoi(op.substr(2, op.size()-2).c_str());
             const TypedValue matrix = info.srcs[index];
             Value *matrix_i;
             if ((matrix.type & likely_type_multi_dimension) == info.dims) {
