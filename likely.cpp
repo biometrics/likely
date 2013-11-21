@@ -690,8 +690,24 @@ struct KernelBuilder
     static Constant *constant(T value, Type *type) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), type); }
     static Constant *zero(int bits = 32) { return constant(0, bits); }
     static Constant *one(int bits = 32) { return constant(1, bits); }
-    static Constant *intMax(int bits = 32) { return constant((1 << (bits-1))-1, bits); }
-    static Constant *intMin(int bits = 32) { return constant((1 << (bits-1)), bits); }
+    static Constant *intMax(likely_type type)
+    {
+        int bits = likely_depth(type);
+        if (likely_signed(type)) {
+            return constant((1 << (bits-1))-1, bits);
+        } else {
+            return constant(((1 << bits)-1), bits);
+        }
+    }
+    static Constant *intMin(likely_type type)
+    {
+        int bits = likely_depth(type);
+        if (likely_signed(type)) {
+            return constant((1 << (bits-1)), bits);
+        } else {
+            return zero(bits);
+        }
+    }
 
     Value *data(const TypedValue &matrix) const { return b->CreatePointerCast(b->CreateLoad(b->CreateStructGEP(matrix, 0), "data"), ty(matrix, true)); }
     Value *type(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 1), "type"); }
