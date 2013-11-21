@@ -451,3 +451,57 @@ cast = closure(
   "Cast matrix to another type",
   {{"type", "Likely type"},
    {"x", "operand"}})
+
+lt = closure(
+    "lt",
+    function(lhs, rhs)
+      return likely.s("lt", lhs, rhs)
+    end,
+    "Check if lhs is less than rhs",
+    {{"lhs", "left hand side"},
+     {"rhs", "right hand side"}})
+
+le = closure(
+    "le",
+    function(lhs, rhs)
+      return likely.s("le", lhs, rhs)
+    end,
+    "Check if lhs is less than or equal to rhs",
+    {{"lhs", "left hand side"},
+     {"rhs", "right hand side"}})
+
+gt = closure(
+    "gt",
+    function(lhs, rhs)
+      return likely.s("gt", lhs, rhs)
+    end,
+    "Check if lhs is greater than rhs",
+    {{"lhs", "left hand side"},
+     {"rhs", "right hand side"}})
+
+ge = closure(
+    "ge",
+    function(lhs, rhs)
+      return likely.s("ge", lhs, rhs)
+    end,
+    "Check if lhs is greater than or equal to rhs",
+    {{"lhs", "left hand side"},
+     {"rhs", "right hand side"}})
+
+eq = closure(
+    "eq",
+    function(lhs, rhs)
+      return likely.s("eq", lhs, rhs)
+    end,
+    "Check if lhs is equal to rhs",
+    {{"lhs", "left hand side"},
+     {"rhs", "right hand side"}})
+
+neq = closure(
+    "neq",
+    function(lhs, rhs)
+      return likely.s("neq", lhs, rhs)
+    end,
+    "Check if lhs is not equal to rhs",
+    {{"lhs", "left hand side"},
+     {"rhs", "right hand side"}})
