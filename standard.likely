@@ -26,7 +26,7 @@ reserved = likely.reserved
 
 -- Core functions
 function chain(x,y)
-  return function(w) return y(x(w)) end
+  return function(w) return y{x{w}} end
 end
 
 closure = likely.closure
@@ -77,29 +77,29 @@ message = "Hello World!"
 lenna = read("img/Lenna.tiff")
 
 -- \dream{CTRL}+scroll to edit numerical constants
-dark_lenna = divide(2)(lenna)
+dark_lenna = divide{2}(lenna)
 ]],
 [[
 -- Function Calls
--- Arguments can be assigned explicitly by name...\dream{activate:new}
-x = new{rows=512, columns=512, type=f32}
+-- Arguments can be specified by name...\dream{activate:new}
+x = new{rows=512, columns=512, type=f32}()
 
 -- ...or anonymously in their canonical order.
 y = new(f32, 1, 512, 512)
 
--- In the latter case, arguments are assigned to the first parameter without a default value. If all parameters have default values then arguments will replace the left-most values.
+-- Arguments not specified by name are assigned to the first parameter without a bound value. If all parameters are bound then arguments will override the left-most values.
 ]],
 [[
 -- Closures
-x = new{rows=512, columns=512, type=i8}
+x = new{rows=512, columns=512, type=i8}()
 
--- When a function is called without all of its arguments specified, a new function is returned with the bound arguments.\dream{activate:set}\dream{activate:setZero}
-setZero = set(0)
+-- The braces {} syntax returns a new function with the bound arguments.\dream{activate:set}\dream{activate:setZero}
+setZero = set{0}
 
--- Once all the arguments have been provided, the function is compiled and executed.\dream{activate:y}
+-- The function is just-in-time compiled using the bound arguments before execution.\dream{activate:y}
 y = setZero(x)
 
--- set(0)(x)
+-- set{0}(x)
 --     ^  ^
 --     |  Run-time arguments
 --     Compile-time arguments
@@ -112,10 +112,10 @@ lenna = read("img/Lenna.tiff")
 lenna.saturation = true
 
 -- Likely will automatically apply operations to all elements in a matrix
-added = add(32)(lenna)
-subtracted = subtract(32)(lenna)
-multiplied = multiply(2)(lenna)
-divided = divide(2)(lenna)
+added = add(32,lenna)
+subtracted = subtract(32,lenna)
+multiplied = multiply(2,lenna)
+divided = divide(2,lenna)
 ]]
 }
 
@@ -206,8 +206,8 @@ divide = closure(
     end
   end,
   "Arithmetic division",
-  {{"lhs", "left hand side (denominator)"},
-   {"rhs", "right hand side (numerator)"}})
+  {{"rhs", "left hand side (denominator)"},
+   {"lhs", "right hand side (numerator)"}})
 
 -- Basic math
 sqrt = closure(

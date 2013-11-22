@@ -277,22 +277,22 @@ class FUNC##Test : public ScalarFloatingTest {                   \
 };                                                               \
 
 class addTest : public Test {
-    const char *function() const { return "add(32)"; }
+    const char *function() const { return "add{32}"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; add(src, 32, dst); return dst; }
 };
 
 class subtractTest : public Test {
-    const char *function() const { return "subtract(32)"; }
+    const char *function() const { return "subtract{32}"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; subtract(src, 32, dst); return dst; }
 };
 
 class multiplyTest : public Test {
-    const char *function() const { return "multiply(2)"; }
+    const char *function() const { return "multiply{2}"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; multiply(src, 2, dst); return dst; }
 };
 
 class divideTest : public Test {
-    const char *function() const { return "divide(2)"; }
+    const char *function() const { return "divide{2}"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; divide(src, 2, dst); return dst; }
     bool ignoreOffByOne() const { return true; }
 };
@@ -303,7 +303,7 @@ class sqrtTest : public FloatingTest {
 };
 
 class powiTest : public FloatingTest {
-    const char *function() const { return "powi(3)"; }
+    const char *function() const { return "powi{3}"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 3, dst); return dst; }
 };
 
@@ -311,7 +311,7 @@ MATH_TEST(sin)
 MATH_TEST(cos)
 
 class powTest : public FloatingTest {
-    const char *function() const { return "pow(1.5)"; }
+    const char *function() const { return "pow{1.5}"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 1.5, dst); return dst; }
 };
 
@@ -327,7 +327,7 @@ MATH_TEST(log10)
 MATH_TEST(log2)
 
 class fmaTest : public Test {
-    const char *function() const { return "fma(2,3)"; }
+    const char *function() const { return "fma{2,3}"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3); return dst; }
 };
 
@@ -337,7 +337,7 @@ class fabsTest : public FloatingTest {
 };
 
 class copysignTest : public ScalarFloatingTest {
-    const char *function() const { return "copysign(-1)"; }
+    const char *function() const { return "copysign{-1}"; }
     void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = copysignf(src[i], -1); }
     void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = copysign(src[i], -1); }
 };
@@ -350,7 +350,7 @@ MATH_TEST(nearbyint)
 MATH_TEST(round)
 
 class castTest : public Test {
-    const char *function() const { return "cast(f32)"; }
+    const char *function() const { return "cast{f32}"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, CV_32F); return dst; }
 };
 

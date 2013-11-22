@@ -1252,7 +1252,6 @@ public:
             TypedValue result = generateKernelRecursive(kernel, info, sexp);
 
             dstType = result.type;
-            assert((dstType & likely_type_multi_dimension) == info.dims);
             kernel.store(TypedValue(dst.value, dstType), i, result);
             kernel.endLoop();
             builder.CreateRetVoid();
@@ -1703,11 +1702,21 @@ static int lua_likely_closure(lua_State *L)
 
     lua_newtable(L);
     lua_pushnil(L);
+    int i = 1;
     while (lua_next(L, 4)) {
+        // All parameters can be set by name
         lua_pushinteger(L, 1);
         lua_gettable(L, -2);
         lua_pushvalue(L, -3);
         lua_settable(L, -5);
+
+        // Unassigned parameters can also be set by index
+        if (lua_objlen(L, -1) < 3) {
+            lua_pushinteger(L, i);
+            lua_pushvalue(L, -3);
+            lua_settable(L, -5);
+            i++;
+        }
         lua_pop(L, 1);
     }
     lua_setfield(L, -2, "parameterLUT");
@@ -1722,11 +1731,13 @@ static int lua_likely__call(lua_State *L)
     int args = lua_gettop(L);
     lua_likely_assert(L, args >= 1, "'__call' expected at least one argument");
 
-    // Copy the arguments already in the closure...
+    // Copy the arguments already in the closure to a new table
     lua_newtable(L);
     lua_getfield(L, 1, "parameters");
     lua_pushnil(L);
+    bool overrideArguments = true;
     while (lua_next(L, -2)) {
+        overrideArguments = overrideArguments && (lua_objlen(L, -1) >= 3);
         lua_newtable(L);
         lua_pushnil(L);
         while (lua_next(L, -3)) {
@@ -1741,14 +1752,17 @@ static int lua_likely__call(lua_State *L)
     }
     lua_pop(L, 1);
 
-    // ... and add the ones just provided
-    if ((args == 2) && lua_istable(L, 2)) {
-        // Special case, expand the table
-        lua_getfield(L, 1, "parameterLUT");
+    // Using {} syntax?
+    const bool curry = (args == 2) && lua_istable(L, 2);
+
+    // Add the new arguments
+    lua_getfield(L, 1, "parameterLUT");
+    if (curry) {
         lua_pushnil(L);
         while (lua_next(L, 2)) {
             lua_pushvalue(L, -2);
-            lua_gettable(L, -4);
+            if (!lua_isnumber(L, -1) || !overrideArguments)
+                lua_gettable(L, -4);
             lua_gettable(L, -5);
             lua_insert(L, -2);
             lua_pushnumber(L, 3);
@@ -1756,44 +1770,21 @@ static int lua_likely__call(lua_State *L)
             lua_settable(L, -3);
             lua_pop(L, 1);
         }
-        lua_pop(L, 1);
     } else {
-        lua_pushnil(L);
-        lua_next(L, -2);
-        bool overrideArguments = false;
-        for (int i=2; i<=args; i++) {
-            // Find the next parameter without a bound argument
-            while (!overrideArguments && (lua_objlen(L, -1) > 2)) {
-                lua_pop(L, 1);
-                if (!lua_next(L, -2)) {
-                    if (i == 2) overrideArguments = true; // Override parameters if they all have values
-                    if (!overrideArguments) luaL_error(L, "Too many arguments!");
-                }
-            }
-
-            if (overrideArguments) {
-                lua_pushinteger(L, i-1);
+        for (int i=1; i<args; i++) {
+            lua_pushinteger(L, i);
+            if (!overrideArguments)
                 lua_gettable(L, -2);
-            }
-            lua_pushinteger(L, 3);
-            lua_pushvalue(L, i);
+            lua_gettable(L, -3);
+            lua_pushnumber(L, 3);
+            lua_pushvalue(L, i+1);
             lua_settable(L, -3);
-            if (overrideArguments)
-                lua_pop(L, 1);
+            lua_pop(L, 1);
         }
-        if (!overrideArguments)
-            lua_pop(L, 2);
     }
+    lua_pop(L, 1);
 
-    // Are all the arguments provided?
-    bool callable = true;
-    lua_pushnil(L);
-    while (lua_next(L, -2)) {
-        callable = callable && (lua_objlen(L, -1) >= 3);
-        lua_pop(L, 1);
-    }
-
-    if (!callable) {
+    if (curry) {
         // Return a new closure
         lua_getglobal(L, "closure");
         lua_getfield(L, 1, "name");
@@ -1805,6 +1796,7 @@ static int lua_likely__call(lua_State *L)
         return 1;
     }
 
+    // Call the function
     lua_getfield(L, 1, "binary");
     if (lua_isnil(L, -1) || lua_isuserdata(L, -1)) {
         // Convert numbers to matricies
@@ -1825,12 +1817,13 @@ static int lua_likely__call(lua_State *L)
             lua_call(L, args, 1);
         }
 
-        // JIT function
+        // Prepare the JIT function
         void *function = lua_touserdata(L, -1);
         vector<likely_const_mat> mats;
         for (int i=2; i<=args; i++)
             mats.push_back(checkLuaMat(L, i));
 
+        // Call the function, return the result
         likely_mat dst;
         switch (mats.size()) {
           case 0: dst = reinterpret_cast<likely_function_0>(function)(); break;
