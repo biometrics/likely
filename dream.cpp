@@ -318,6 +318,7 @@ public:
 public slots:
     void activate(const QString &name)
     {
+        if (!L) return;
         QString type;
         lua_getfield(L, -1, qPrintable(name));
         if (lua_istable(L, -1) || lua_isuserdata(L, -1)) {
@@ -341,6 +342,7 @@ public slots:
         const QString source = settings.value("source").toString();
         // Start empty the next time if this source code crashes
         settings.setValue("source", QString());
+        settings.sync();
         setText(source);
     }
 
