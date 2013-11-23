@@ -112,6 +112,16 @@ added = add(32,lenna)
 subtracted = subtract(32,lenna)
 multiplied = multiply(2,lenna)
 divided = divide(2,lenna)
+]],
+[[
+-- Currying
+x = read("img/Lenna.tiff")
+x.saturation = true
+
+-- Likely supports currying to compose higher order functions\dream{activate:y}
+fma = multiply{2} .. add{3}
+
+y = fma(x)
 ]]
 }
 
