@@ -1620,8 +1620,12 @@ static int lua_likely_compile(lua_State *L)
     for (int i=2; i<=args; i++)
         types.push_back(checkLuaMat(L, i)->type);
 
+    lua_getglobal(L, "tostring");
+    lua_pushvalue(L, 1);
+    lua_call(L, 1, 1);
+
     // Compile the function
-    lua_pushlightuserdata(L, likely_compile_n(lua_tostring(L, 1), types.size(), types.data()));
+    lua_pushlightuserdata(L, likely_compile_n(lua_tostring(L, -1), types.size(), types.data()));
     return 1;
 }
 
@@ -1905,14 +1909,18 @@ int luaopen_likely(lua_State *L)
         {NULL, NULL}
     };
 
-    // Register function metatable
+    static const struct luaL_Reg likely_closure[] = {
+        {"__call", lua_likely__call},
+        {"__concat", lua_likely__concat},
+        {"__tostring", lua_likely_closure__tostring},
+        {NULL, NULL}
+    };
+
+    // Register closure metatable
     luaL_newmetatable(L, "likely_closure");
-    lua_pushcfunction(L, lua_likely__call);
-    lua_setfield(L, -2, "__call");
-    lua_pushcfunction(L, lua_likely__concat);
-    lua_setfield(L, -2, "__concat");
-    lua_pushcfunction(L, lua_likely_closure__tostring);
-    lua_setfield(L, -2, "__tostring");
+    luaL_setfuncs(L, likely_closure, 0);
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
 
     // Idiom for registering library with member functions
     luaL_newmetatable(L, "likely");
