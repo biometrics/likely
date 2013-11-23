@@ -1365,51 +1365,6 @@ public:
         return executionEngine->getPointerToFunction(function);
     }
 
-    static string interpret(lua_State *L, const vector<likely_type> &types)
-    {
-        const int args = lua_gettop(L);
-        lua_likely_assert(L, lua_gettop(L) >= 1, "'interpret' expected one argument");
-
-        // Make sure we were given a function
-        stringstream name;
-        lua_getfield(L, 1, "likely");
-        lua_likely_assert(L, !strcmp("function", lua_tostring(L, -1)), "'compile' expected a function");
-        lua_pop(L, 1);
-        lua_getfield(L, 1, "name");
-        name << lua_tostring(L, -1);
-        lua_pop(L, 1);
-
-        // Setup and call the function
-        lua_getfield(L, 1, "source");
-        lua_getfield(L, 1, "parameters");
-        lua_pushnil(L);
-        likely_arity arity = 0;
-        while (lua_next(L, -2)) {
-            lua_pushinteger(L, 3);
-            lua_gettable(L, -2);
-            if (lua_isnil(L, -1)) {
-                lua_pop(L, 1);
-                stringstream parameter;
-                parameter << "__" << int(arity);
-                lua_pushstring(L, parameter.str().c_str());
-                name << "_" << likely_type_to_string(types[arity]);
-                arity++;
-            } else {
-                name << "_" << lua_tostring(L, -1);
-            }
-            lua_insert(L, -4);
-            lua_pop(L, 1);
-        }
-        lua_pop(L, 1);
-
-        // Get the function source code
-        lua_call(L, lua_gettop(L)-args-1, 1);
-        string source = lua_tostring(L, -1);
-        lua_pop(L, 1);
-        source = "(compile " + name.str() + " " + source + ")";
-        return source;
-    }
-
 private:
     struct KernelInfo
     {
@@ -1630,80 +1585,71 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_ty
         }
     }
 
-    const string prefix = "(compile";
     string source = description;
-    if (source.compare(0, prefix.size(), prefix)) {
+    if (source.compare(0, 1, "(")) {
         // It needs to be interpreted (usually the case)
         static lua_State *L = NULL;
-        L = likely_exec((string("__likely =") + string(description)).c_str(), L);
-        if (lua_type(L, -1) == LUA_TSTRING)
-            likely_stack_dump(L);
-        lua_getfield(L, -1, "__likely");
-        lua_insert(L, 1);
-        lua_settop(L, 1);
-        source = FunctionBuilder::interpret(L,types);
+        stringstream command; command << "return tostring(" << description << ")";
+        L = likely_exec(command.str().c_str(), L);
+        source = lua_tostring(L, -1);
     }
 
-    const SExp sexp(source);
-    likely_assert(sexp.sexps.size() == 2, "'compile' expected two operands, got %zu", sexp.sexps.size());
-    const string name = sexp.sexps[0].op;
+    static int index = 0;
+    stringstream name; name << "likely_" << index++;
 
-    map<string,FunctionBuilder*>::const_iterator it = kernels.find(name);
+    stringstream uniqueIDStream;
+    for (likely_type type : types)
+        uniqueIDStream << likely_type_to_string(type) << "_";
+    uniqueIDStream << "_" << source;
+    const string uniqueID = uniqueIDStream.str();
+
+    map<string,FunctionBuilder*>::const_iterator it = kernels.find(uniqueID);
     if (it == kernels.end()) {
-        kernels.insert(pair<string,FunctionBuilder*>(name, new FunctionBuilder(name, sexp.sexps[1], types)));
-        it = kernels.find(name);
+        kernels.insert(pair<string,FunctionBuilder*>(uniqueID, new FunctionBuilder(name.str(), SExp(source), types)));
+        it = kernels.find(uniqueID);
     }
     return it->second->getPointerToFunction();
 }
 
 static int lua_likely_compile(lua_State *L)
 {
-    // Remove the matricies
-    vector<likely_type> types;
     const int args = lua_gettop(L);
+    lua_likely_assert(L, args >= 1, "'compile' expected at least one argument");
+
+    vector<likely_type> types;
     for (int i=2; i<=args; i++)
         types.push_back(checkLuaMat(L, i)->type);
 
-    // Get the intermediate representation
-    const string source = FunctionBuilder::interpret(L, types);
-
     // Compile the function
-    void *compiled = likely_compile_n(source.c_str(), types.size(), types.data());
-    lua_pushlightuserdata(L, compiled);
+    lua_pushlightuserdata(L, likely_compile_n(lua_tostring(L, 1), types.size(), types.data()));
     return 1;
 }
 
 static int lua_likely_closure(lua_State *L)
 {
     const int args = lua_gettop(L);
-    lua_likely_assert(L, (args >= 4) && (args <= 5), "'closure' expected 4-5 arguments, got: %d", args);
+    lua_likely_assert(L, (args >= 3) && (args <= 4), "'closure' expected 3-4 arguments, got: %d", args);
 
     lua_newtable(L);
-    lua_pushstring(L, "likely");
-    lua_pushstring(L, "function");
-    lua_settable(L, -3);
-    lua_pushstring(L, "name");
+    lua_pushstring(L, "source");
     lua_pushvalue(L, 1);
     lua_settable(L, -3);
-    lua_pushstring(L, "source");
+    lua_pushstring(L, "documentation");
     lua_pushvalue(L, 2);
     lua_settable(L, -3);
-    lua_pushstring(L, "documentation");
+    lua_pushstring(L, "parameters");
     lua_pushvalue(L, 3);
     lua_settable(L, -3);
-    lua_pushstring(L, "parameters");
-    lua_pushvalue(L, 4);
-    lua_settable(L, -3);
-    if (args >= 5) {
+    if (args >= 4) {
         lua_pushstring(L, "binary");
-        lua_pushvalue(L, 5);
+        lua_pushvalue(L, 4);
         lua_settable(L, -3);
     }
 
     lua_newtable(L);
     lua_pushnil(L);
     int i = 1;
-    while (lua_next(L, 4)) {
+    while (lua_next(L, 3)) {
         // All parameters can be set by name
         lua_pushinteger(L, 1);
         lua_gettable(L, -2);
@@ -1712,16 +1658,15 @@ static int lua_likely_closure(lua_State *L)
 
         // Unassigned parameters can also be set by index
         if (lua_objlen(L, -1) < 3) {
-            lua_pushinteger(L, i);
+            lua_pushinteger(L, i++);
             lua_pushvalue(L, -3);
             lua_settable(L, -5);
-            i++;
         }
         lua_pop(L, 1);
     }
     lua_setfield(L, -2, "parameterLUT");
 
-    luaL_getmetatable(L, "likely_function");
+    luaL_getmetatable(L, "likely_closure");
     lua_setmetatable(L, -2);
     return 1;
 }
@@ -1787,12 +1732,11 @@ static int lua_likely__call(lua_State *L)
     if (curry) {
         // Return a new closure
         lua_getglobal(L, "closure");
-        lua_getfield(L, 1, "name");
         lua_getfield(L, 1, "source");
         lua_getfield(L, 1, "documentation");
-        lua_pushvalue(L, -5); // parameters
+        lua_pushvalue(L, -4); // parameters
         lua_getfield(L, 1, "binary");
-        lua_call(L, 5, 1);
+        lua_call(L, 4, 1);
         return 1;
     }
 
@@ -1855,12 +1799,6 @@ static int lua_likely__concat(lua_State *L)
     lua_likely_assert(L, args == 2, "__concat expected two arguments, got: %d", args);
     lua_getglobal(L, "closure");
 
-    // name
-    lua_getfield(L, 1, "name");
-    lua_pushstring(L, "_");
-    lua_getfield(L, 2, "name");
-    lua_concat(L, 3);
-
     // source
     lua_getglobal(L, "chain");
     lua_pushvalue(L, 1);
@@ -1868,10 +1806,7 @@ static int lua_likely__concat(lua_State *L)
     lua_call(L, 2, 1);
 
     // documentation
-    lua_getfield(L, 1, "name");
-    lua_pushstring(L, " .. ");
-    lua_getfield(L, 2, "name");
-    lua_concat(L, 3);
+    lua_pushstring(L, "..");
 
     // parameters
     lua_newtable(L);
@@ -1886,7 +1821,34 @@ static int lua_likely__concat(lua_State *L)
     lua_settable(L, -3);
 
     // return a new closure
-    lua_call(L, 4, 1);
+    lua_call(L, 3, 1);
+    return 1;
+}
+
+static int lua_likely_closure__tostring(lua_State *L)
+{
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, args == 1, "__tostring expected one argument, got: %d", args);
+
+    // Setup and call the function
+    lua_getfield(L, 1, "source");
+    lua_getfield(L, 1, "parameters");
+    lua_pushnil(L);
+    likely_arity arity = 0;
+    while (lua_next(L, -2)) {
+        lua_pushinteger(L, 3);
+        lua_gettable(L, -2);
+        if (lua_isnil(L, -1)) {
+            lua_pop(L, 1);
+            stringstream parameter;
+            parameter << "__" << int(arity++);
+            lua_pushstring(L, parameter.str().c_str());
+        }
+        lua_insert(L, -4);
+        lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
+    lua_call(L, lua_gettop(L)-2, 1);
     return 1;
 }
 
@@ -1944,11 +1906,13 @@ int luaopen_likely(lua_State *L)
     };
 
     // Register function metatable
-    luaL_newmetatable(L, "likely_function");
+    luaL_newmetatable(L, "likely_closure");
     lua_pushcfunction(L, lua_likely__call);
     lua_setfield(L, -2, "__call");
     lua_pushcfunction(L, lua_likely__concat);
     lua_setfield(L, -2, "__concat");
+    lua_pushcfunction(L, lua_likely_closure__tostring);
+    lua_setfield(L, -2, "__tostring");
 
     // Idiom for registering library with member functions
     luaL_newmetatable(L, "likely");

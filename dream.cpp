@@ -338,7 +338,10 @@ public slots:
 
     void restore()
     {
-        setText(settings.value("source").toString());
+        const QString source = settings.value("source").toString();
+        // Start empty the next time if this source code crashes
+        settings.setValue("source", QString());
+        setText(source);
     }
 
     void fileMenu(QAction *a)
