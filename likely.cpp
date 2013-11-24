@@ -852,55 +852,6 @@ struct KernelBuilder
         return type;
     }
 
-    TypedValue lt(TypedValue lhs, TypedValue rhs)
-    {
-        likely_type type = likely_type_from_types(lhs, rhs);
-        lhs = cast(lhs, type);
-        rhs = cast(rhs, type);
-        Value *comp = likely_floating(type) ? b->CreateFCmpOLT(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSLT(lhs, rhs) : b->CreateICmpULT(lhs, rhs));
-        return TypedValue(comp, type);
-    }
-    TypedValue le(TypedValue lhs, TypedValue rhs)
-    {
-        likely_type type = likely_type_from_types(lhs, rhs);
-        lhs = cast(lhs, type);
-        rhs = cast(rhs, type);
-        Value *comp = likely_floating(type) ? b->CreateFCmpOLE(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSLE(lhs, rhs) : b->CreateICmpULE(lhs, rhs));
-        return TypedValue(comp, type);
-    }
-    TypedValue gt(TypedValue lhs, TypedValue rhs)
-    {
-        likely_type type = likely_type_from_types(lhs, rhs);
-        lhs = cast(lhs, type);
-        rhs = cast(rhs, type);
-        Value *comp = likely_floating(type) ? b->CreateFCmpOGT(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSGT(lhs, rhs) : b->CreateICmpUGT(lhs, rhs));
-        return TypedValue(comp, type);
-    }
-    TypedValue ge(TypedValue lhs, TypedValue rhs)
-    {
-        likely_type type = likely_type_from_types(lhs, rhs);
-        lhs = cast(lhs, type);
-        rhs = cast(rhs, type);
-        Value *comp = likely_floating(type) ? b->CreateFCmpOGE(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSGE(lhs, rhs) : b->CreateICmpUGE(lhs, rhs));
-        return TypedValue(comp, type);
-    }
-    TypedValue eq(TypedValue lhs, TypedValue rhs)
-    {
-        likely_type type = likely_type_from_types(lhs, rhs);
-        lhs = cast(lhs, type);
-        rhs = cast(rhs, type);
-        Value *comp = likely_floating(type) ? b->CreateFCmpOEQ(lhs, rhs) : b->CreateICmpEQ(lhs, rhs);
-        return TypedValue(comp, type);
-    }
-    TypedValue neq(TypedValue lhs, TypedValue rhs)
-    {
-        likely_type type = likely_type_from_types(lhs, rhs);
-        lhs = cast(lhs, type);
-        rhs = cast(rhs, type);
-        Value *comp = likely_floating(type) ? b->CreateFCmpONE(lhs, rhs) : b->CreateICmpNE(lhs, rhs);
-        return TypedValue(comp, type);
-    }
-
     Loop beginLoop(BasicBlock *entry, Value *start, Value *stop)
     {
         Loop loop;
@@ -1307,6 +1258,72 @@ class divideOperation : public ArithmeticOperation
 };
 LIKELY_REGISTER(divideOperation)
 
+class ltOperation : public ArithmeticOperation
+{
+    string name() const { return "<"; }
+    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
+    {
+        Value *comp = likely_floating(type) ? b->CreateFCmpOLT(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSLT(lhs, rhs) : b->CreateICmpULT(lhs, rhs));
+        return TypedValue(comp, type);
+    }
+};
+LIKELY_REGISTER(ltOperation)
+
+class leOperation : public ArithmeticOperation
+{
+    string name() const { return "<="; }
+    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
+    {
+        Value *comp = likely_floating(type) ? b->CreateFCmpOLE(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSLE(lhs, rhs) : b->CreateICmpULE(lhs, rhs));
+        return TypedValue(comp, type);
+    }
+};
+LIKELY_REGISTER(leOperation)
+
+class gtOperation : public ArithmeticOperation
+{
+    string name() const { return ">"; }
+    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
+    {
+        Value *comp = likely_floating(type) ? b->CreateFCmpOGT(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSGT(lhs, rhs) : b->CreateICmpUGT(lhs, rhs));
+        return TypedValue(comp, type);
+    }
+};
+LIKELY_REGISTER(gtOperation)
+
+class geOperation : public ArithmeticOperation
+{
+    string name() const { return ">="; }
+    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
+    {
+        Value *comp = likely_floating(type) ? b->CreateFCmpOGE(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSGE(lhs, rhs) : b->CreateICmpUGE(lhs, rhs));
+        return TypedValue(comp, type);
+    }
+};
+LIKELY_REGISTER(geOperation)
+
+class eqOperation : public ArithmeticOperation
+{
+    string name() const { return "=="; }
+    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
+    {
+        Value *comp = likely_floating(type) ? b->CreateFCmpOEQ(lhs, rhs) : b->CreateICmpEQ(lhs, rhs);
+        return TypedValue(comp, type);
+    }
+};
+LIKELY_REGISTER(eqOperation)
+
+class neOperation : public ArithmeticOperation
+{
+    string name() const { return "!="; }
+    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
+    {
+        Value *comp = likely_floating(type) ? b->CreateFCmpONE(lhs, rhs) : b->CreateICmpNE(lhs, rhs);
+        return TypedValue(comp, type);
+    }
+};
+LIKELY_REGISTER(neOperation)
+
 class BinaryMathOperation : public BinaryOperation
 {
     TypedValue callBinary(KernelBuilder &kernel, const KernelInfo &info, TypedValue x, TypedValue n) const
@@ -1626,16 +1643,6 @@ private:
                 matrix_i = kernel.index(matrix, c, x, y, t);
             }
             return TypedValue(kernel.load(matrix, matrix_i), matrix.type);
-        } else if (operands.size() == 2) {
-            const TypedValue &lhs = operands[0];
-            const TypedValue &rhs = operands[1];
-            if      (op == "lt")  return kernel.lt(lhs, rhs);
-            else if (op == "le")  return kernel.le(lhs, rhs);
-            else if (op == "gt")  return kernel.gt(lhs, rhs);
-            else if (op == "ge")  return kernel.ge(lhs, rhs);
-            else if (op == "eq")  return kernel.eq(lhs, rhs);
-            else if (op == "neq") return kernel.neq(lhs, rhs);
-            likely_assert(false, "unsupported binary operator: %s", op.c_str());
         }
 
         likely_assert(false, "unrecognized literal: %s", op.c_str());

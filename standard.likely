@@ -444,49 +444,49 @@ cast = closure(
    {"x", "operand"}})
 
 lt = closure(
-  function(lhs, rhs)
-    return likely.s("lt", lhs, rhs)
+  function(rhs, lhs)
+    return likely.s("<", lhs, rhs)
   end,
   "Check if lhs is less than rhs",
-  {{"lhs", "left hand side"},
-   {"rhs", "right hand side"}})
+  {{"rhs", "right hand side"},
+   {"lhs", "left hand side"}})
 
 le = closure(
-  function(lhs, rhs)
-    return likely.s("le", lhs, rhs)
+  function(rhs, lhs)
+    return likely.s("<=", lhs, rhs)
   end,
   "Check if lhs is less than or equal to rhs",
-  {{"lhs", "left hand side"},
-   {"rhs", "right hand side"}})
+  {{"rhs", "right hand side"},
+   {"lhs", "left hand side"}})
 
 gt = closure(
-  function(lhs, rhs)
-    return likely.s("gt", lhs, rhs)
+  function(rhs, lhs)
+    return likely.s(">", lhs, rhs)
   end,
   "Check if lhs is greater than rhs",
-  {{"lhs", "left hand side"},
-   {"rhs", "right hand side"}})
+  {{"rhs", "right hand side"},
+   {"lhs", "left hand side"}})
 
 ge = closure(
-  function(lhs, rhs)
-    return likely.s("ge", lhs, rhs)
+  function(rhs, lhs)
+    return likely.s(">=", lhs, rhs)
   end,
   "Check if lhs is greater than or equal to rhs",
-  {{"lhs", "left hand side"},
-   {"rhs", "right hand side"}})
+  {{"rhs", "right hand side"},
+   {"lhs", "left hand side"}})
 
 eq = closure(
-  function(lhs, rhs)
-    return likely.s("eq", lhs, rhs)
+  function(rhs, lhs)
+    return likely.s("==", lhs, rhs)
   end,
   "Check if lhs is equal to rhs",
-  {{"lhs", "left hand side"},
-   {"rhs", "right hand side"}})
+  {{"rhs", "right hand side"},
+   {"lhs", "left hand side"}})
 
-neq = closure(
-  function(lhs, rhs)
-    return likely.s("neq", lhs, rhs)
+ne = closure(
+  function(rhs, lhs)
+    return likely.s("!=", lhs, rhs)
   end,
   "Check if lhs is not equal to rhs",
-  {{"lhs", "left hand side"},
-   {"rhs", "right hand side"}})
+  {{"rhs", "right hand side"},
+   {"lhs", "left hand side"}})
