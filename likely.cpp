@@ -1096,6 +1096,86 @@ struct RegisterOperation
 };
 #define LIKELY_REGISTER(OPERATION) static struct RegisterOperation<OPERATION> Register##OPERATION;
 
+class NullaryOperation : public Operation
+{
+    TypedValue call(KernelBuilder &kernel, const KernelInfo &info, const vector<TypedValue> &args) const
+    {
+        assert(args.empty());
+        return callNullary(kernel, info);
+    }
+    virtual TypedValue callNullary(KernelBuilder &kernel, const KernelInfo &info) const = 0;
+};
+
+class IndexOperation : public NullaryOperation
+{
+    TypedValue callNullary(KernelBuilder &kernel, const KernelInfo &info) const
+    {
+        (void) kernel;
+        return callIndex(info);
+    }
+    virtual TypedValue callIndex(const KernelInfo &info) const = 0;
+};
+
+class iOperation : public IndexOperation
+{
+    string name() const { return "i"; }
+    TypedValue callIndex(const KernelInfo &info) const
+    {
+        return info.i;
+    }
+};
+LIKELY_REGISTER(iOperation)
+
+class cOperation : public IndexOperation
+{
+    string name() const { return "c"; }
+    TypedValue callIndex(const KernelInfo &info) const
+    {
+        return info.c;
+    }
+};
+LIKELY_REGISTER(cOperation)
+
+class xOperation : public IndexOperation
+{
+    string name() const { return "x"; }
+    TypedValue callIndex(const KernelInfo &info) const
+    {
+        return info.x;
+    }
+};
+LIKELY_REGISTER(xOperation)
+
+class yOperation : public IndexOperation
+{
+    string name() const { return "y"; }
+    TypedValue callIndex(const KernelInfo &info) const
+    {
+        return info.y;
+    }
+};
+LIKELY_REGISTER(yOperation)
+
+class tOperation : public IndexOperation
+{
+    string name() const { return "t"; }
+    TypedValue callIndex(const KernelInfo &info) const
+    {
+        return info.t;
+    }
+};
+LIKELY_REGISTER(tOperation)
+
+class UnaryOperation : public Operation
+{
+    TypedValue call(KernelBuilder &kernel, const KernelInfo &info, const vector<TypedValue> &args) const
+    {
+        assert(args.size() == 1);
+        return callUnary(kernel, info, args[0]);
+    }
+    virtual TypedValue callUnary(KernelBuilder &kernel, const KernelInfo &info, TypedValue arg) const = 0;
+};
+
 class BinaryOperation : public Operation
 {
     TypedValue call(KernelBuilder &kernel, const KernelInfo &info, const vector<TypedValue> &args) const
@@ -1103,7 +1183,6 @@ class BinaryOperation : public Operation
         assert(args.size() == 2);
         return callBinary(kernel, info, args[0], args[1]);
     }
-
     virtual TypedValue callBinary(KernelBuilder &kernel, const KernelInfo &info, TypedValue arg1, TypedValue arg2) const = 0;
 };
 
@@ -1115,7 +1194,6 @@ class ArithmeticOperation : public BinaryOperation
         likely_type type = likely_type_from_types(arg1, arg2);
         return callArithmetic(kernel.b, kernel.cast(arg1, type), kernel.cast(arg2, type), type);
     }
-
     virtual TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const = 0;
 };
 
@@ -1489,13 +1567,6 @@ private:
                 matrix_i = kernel.index(matrix, c, x, y, t);
             }
             return TypedValue(kernel.load(matrix, matrix_i), matrix.type);
-        } else if (operands.size() == 0) {
-            if      (op == "i") return info.i;
-            else if (op == "c") return info.c;
-            else if (op == "x") return info.x;
-            else if (op == "y") return info.y;
-            else if (op == "t") return info.t;
-            likely_assert(false, "unsupported nullary operator: %s", op.c_str());
         } else if (operands.size() == 1) {
             const TypedValue &operand = operands[0];
             if      (op == "sqrt")      return kernel.sqrt(operand);
