@@ -844,11 +844,6 @@ struct KernelBuilder
         return TypedValue(b->CreateCast(CastInst::getCastOpcode(x, likely_signed(x.type), dstType, likely_signed(type)), x, dstType), type);
     }
 
-    TypedValue cast(const TypedValue &x, const TypedValue &type) const
-    {
-        return cast(x, LLVM_VALUE_TO_INT(type.value));
-    }
-
     static likely_type validFloatType(likely_type type)
     {
         likely_set_floating(&type, true);
@@ -856,20 +851,6 @@ struct KernelBuilder
         likely_set_depth(&type, likely_depth(type) > 32 ? 64 : 32);
         return type;
     }
-
-    TypedValue intrinsic(TypedValue x, TypedValue n, Intrinsic::ID id, bool nIsInteger = false) const
-    {
-        const likely_type type = nIsInteger ? x.type : likely_type_from_types(x, n);
-        x = cast(x, validFloatType(type));
-        n = cast(n, nIsInteger ? likely_type_i32 : x.type);
-        vector<Type*> args;
-        args.push_back(x.value->getType());
-        return TypedValue(b->CreateCall2(Intrinsic::getDeclaration(m, id, args), x, n), x.type);
-    }
-
-    TypedValue powi(const TypedValue &x, const TypedValue &n) const { return intrinsic(x, n, Intrinsic::powi, true); }
-    TypedValue pow(const TypedValue &x, const TypedValue &n) const { return intrinsic(x, n, Intrinsic::pow); }
-    TypedValue copysign(const TypedValue &m, const TypedValue &s) const { return intrinsic(m, s, Intrinsic::copysign); }
 
     TypedValue lt(TypedValue lhs, TypedValue rhs)
     {
@@ -1188,6 +1169,17 @@ class BinaryOperation : public Operation
     virtual TypedValue callBinary(KernelBuilder &kernel, const KernelInfo &info, TypedValue arg1, TypedValue arg2) const = 0;
 };
 
+class castOperation : public BinaryOperation
+{
+    string name() const { return "cast"; }
+    TypedValue callBinary(KernelBuilder &kernel, const KernelInfo &info, TypedValue x, TypedValue type) const
+    {
+        (void) info;
+        return kernel.cast(x, LLVM_VALUE_TO_INT(type.value));
+    }
+};
+LIKELY_REGISTER(castOperation)
+
 class ArithmeticOperation : public BinaryOperation
 {
     TypedValue callBinary(KernelBuilder &kernel, const KernelInfo &info, TypedValue arg1, TypedValue arg2) const
@@ -1314,6 +1306,44 @@ class divideOperation : public ArithmeticOperation
     }
 };
 LIKELY_REGISTER(divideOperation)
+
+class BinaryMathOperation : public BinaryOperation
+{
+    TypedValue callBinary(KernelBuilder &kernel, const KernelInfo &info, TypedValue x, TypedValue n) const
+    {
+        (void) info;
+        const likely_type type = nIsInteger() ? x.type : likely_type_from_types(x, n);
+        x = kernel.cast(x, KernelBuilder::validFloatType(type));
+        n = kernel.cast(n, nIsInteger() ? likely_type_i32 : x.type);
+        vector<Type*> args;
+        args.push_back(x.value->getType());
+        return TypedValue(kernel.b->CreateCall2(Intrinsic::getDeclaration(kernel.m, id(), args), x, n), x.type);
+    }
+    virtual Intrinsic::ID id() const = 0;
+    virtual bool nIsInteger() const { return false; }
+};
+
+class powiOperation : public BinaryMathOperation
+{
+    string name() const { return "powi"; }
+    Intrinsic::ID id() const { return Intrinsic::powi; }
+    bool nIsInteger() const { return true; }
+};
+LIKELY_REGISTER(powiOperation)
+
+class powOperation : public BinaryMathOperation
+{
+    string name() const { return "pow"; }
+    Intrinsic::ID id() const { return Intrinsic::pow; }
+};
+LIKELY_REGISTER(powOperation)
+
+class copysignOperation : public BinaryMathOperation
+{
+    string name() const { return "copysign"; }
+    Intrinsic::ID id() const { return Intrinsic::copysign; }
+};
+LIKELY_REGISTER(copysignOperation)
 
 class TernaryOperation : public Operation
 {
@@ -1599,11 +1629,7 @@ private:
         } else if (operands.size() == 2) {
             const TypedValue &lhs = operands[0];
             const TypedValue &rhs = operands[1];
-            if      (op == "powi")     return kernel.powi(lhs, rhs);
-            else if (op == "pow")      return kernel.pow(lhs, rhs);
-            else if (op == "copysign") return kernel.copysign(lhs, rhs);
-            else if (op == "cast")     return kernel.cast(lhs, rhs);
-            else if (op == "lt")  return kernel.lt(lhs, rhs);
+            if      (op == "lt")  return kernel.lt(lhs, rhs);
             else if (op == "le")  return kernel.le(lhs, rhs);
             else if (op == "gt")  return kernel.gt(lhs, rhs);
             else if (op == "ge")  return kernel.ge(lhs, rhs);
