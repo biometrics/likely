@@ -849,133 +849,6 @@ struct KernelBuilder
         return cast(x, LLVM_VALUE_TO_INT(type.value));
     }
 
-    // Saturation arithmetic logic:
-    // http://locklessinc.com/articles/sat_arithmetic/
-    Value *signedSaturationHelper(Value *result, Value *overflowResult, Value *overflowCondition) const
-    {
-        BasicBlock *overflowResolved = BasicBlock::Create(getGlobalContext(), "overflow_resolved", f);
-        BasicBlock *overflowTrue = BasicBlock::Create(getGlobalContext(), "overflow_true", f);
-        BasicBlock *overflowFalse = BasicBlock::Create(getGlobalContext(), "overflow_false", f);
-        b->CreateCondBr(overflowCondition, overflowTrue, overflowFalse);
-        b->SetInsertPoint(overflowTrue);
-        b->CreateBr(overflowResolved);
-        b->SetInsertPoint(overflowFalse);
-        b->CreateBr(overflowResolved);
-        b->SetInsertPoint(overflowResolved);
-        PHINode *conditionalResult = b->CreatePHI(result->getType(), 2);
-        conditionalResult->addIncoming(overflowResult, overflowTrue);
-        conditionalResult->addIncoming(result, overflowFalse);
-        return conditionalResult;
-    }
-
-    TypedValue add(TypedValue lhs, TypedValue rhs) const
-    {
-        likely_type type = likely_type_from_types(lhs, rhs);
-        lhs = cast(lhs, type);
-        rhs = cast(rhs, type);
-        if (likely_floating(type)) {
-            return TypedValue(b->CreateFAdd(lhs, rhs), type);
-        } else {
-            if (likely_saturation(type)) {
-                if (likely_signed(type)) {
-                    const int depth = likely_depth(type);
-                    Value *result = b->CreateAdd(lhs, rhs);
-                    Value *overflowResult = b->CreateAdd(b->CreateLShr(lhs, depth-1), intMax(depth));
-                    Value *overflowCondition = b->CreateICmpSGE(b->CreateOr(b->CreateXor(lhs.value, rhs.value), b->CreateNot(b->CreateXor(rhs, result))), zero(depth));
-                    return TypedValue(signedSaturationHelper(result, overflowResult, overflowCondition), type);
-                } else {
-                    Value *result = b->CreateAdd(lhs, rhs);
-                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULT(result, lhs),
-                                                   Type::getIntNTy(getGlobalContext(), likely_depth(type))));
-                    return TypedValue(b->CreateOr(result, overflow), type);
-                }
-            } else {
-                return TypedValue(b->CreateAdd(lhs, rhs), type);
-            }
-        }
-    }
-
-    TypedValue subtract(TypedValue lhs, TypedValue rhs) const
-    {
-        likely_type type = likely_type_from_types(lhs, rhs);
-        lhs = cast(lhs, type);
-        rhs = cast(rhs, type);
-        if (likely_floating(type)) {
-            return TypedValue(b->CreateFSub(lhs, rhs), type);
-        } else {
-            if (likely_saturation(type)) {
-                if (likely_signed(type)) {
-                    const int depth = likely_depth(type);
-                    Value *result = b->CreateSub(lhs, rhs);
-                    Value *overflowResult = b->CreateAdd(b->CreateLShr(lhs, depth-1), intMax(depth));
-                    Value *overflowCondition = b->CreateICmpSLT(b->CreateAnd(b->CreateXor(lhs.value, rhs.value), b->CreateXor(lhs, result)), zero(depth));
-                    return TypedValue(signedSaturationHelper(result, overflowResult, overflowCondition), type);
-                } else {
-                    Value *result = b->CreateSub(lhs, rhs);
-                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULE(result, lhs),
-                                                   Type::getIntNTy(getGlobalContext(), likely_depth(type))));
-                    return TypedValue(b->CreateAnd(result, overflow), type);
-                }
-            } else {
-                return TypedValue(b->CreateSub(lhs, rhs), type);
-            }
-        }
-    }
-
-    TypedValue multiply(TypedValue lhs, TypedValue rhs) const
-    {
-        likely_type type = likely_type_from_types(lhs, rhs);
-        lhs = cast(lhs, type);
-        rhs = cast(rhs, type);
-        if (likely_floating(type)) {
-            return TypedValue(b->CreateFMul(lhs, rhs), type);
-        } else {
-            if (likely_saturation(type)) {
-                const int depth = likely_depth(type);
-                Type *originalType = Type::getIntNTy(getGlobalContext(), depth);
-                Type *extendedType = Type::getIntNTy(getGlobalContext(), 2*depth);
-                Value *result = b->CreateMul(b->CreateZExt(lhs, extendedType),
-                                             b->CreateZExt(rhs, extendedType));
-                Value *lo = b->CreateTrunc(result, originalType);
-
-                if (likely_signed(type)) {
-                    Value *hi = b->CreateTrunc(b->CreateAShr(result, depth), originalType);
-                    Value *overflowResult = b->CreateAdd(b->CreateLShr(b->CreateXor(lhs.value, rhs.value), depth-1), intMax(depth));
-                    Value *overflowCondition = b->CreateICmpNE(hi, b->CreateAShr(lo, depth-1));
-                    return TypedValue(signedSaturationHelper(b->CreateTrunc(result, lhs.value->getType()), overflowResult, overflowCondition), type);
-                } else {
-                    Value *hi = b->CreateTrunc(b->CreateLShr(result, depth), originalType);
-                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpNE(hi, zero(depth)), originalType));
-                    return TypedValue(b->CreateOr(lo, overflow), type);
-                }
-            } else {
-                return TypedValue(b->CreateMul(lhs, rhs), type);
-            }
-        }
-    }
-
-    TypedValue divide(TypedValue n, TypedValue d) const
-    {
-        likely_type type = likely_type_from_types(n, d);
-        n = cast(n, type);
-        d = cast(d, type);
-        if (likely_floating(type)) {
-            return TypedValue(b->CreateFDiv(n, d), type);
-        } else {
-            if (likely_signed(type)) {
-                if (likely_saturation(type)) {
-                    const int depth = likely_depth(type);
-                    Value *safe_i = b->CreateAdd(n, b->CreateZExt(b->CreateICmpNE(b->CreateOr(b->CreateAdd(d, constant(1, depth)), b->CreateAdd(n, intMin(depth))), zero(depth)), n.value->getType()));
-                    return TypedValue(b->CreateSDiv(safe_i, d), type);
-                } else {
-                    return TypedValue(b->CreateSDiv(n, d), type);
-                }
-            } else {
-                return TypedValue(b->CreateUDiv(n, d), type);
-            }
-        }
-    }
-
     static likely_type validFloatType(likely_type type)
     {
         likely_set_floating(&type, true);
@@ -1182,6 +1055,186 @@ struct SExp
     }
 };
 
+struct KernelInfo
+{
+    vector<TypedValue> srcs;
+    TypedValue i, c, x, y, t;
+    likely_type dims;
+    KernelInfo(const KernelBuilder &kernel, const vector<TypedValue> &srcs_, const TypedValue &dst, Value *i_)
+        : srcs(srcs_), i(i_, likely_type_i32)
+    {
+        c.type = x.type = y.type = t.type = i.type;
+        kernel.deindex(dst, i, &c.value, &x.value, &y.value, &t.value);
+        dims = likely_type_null;
+        for (const TypedValue &src : srcs)
+            dims |= (src.type & likely_type_multi_dimension);
+    }
+};
+
+struct Operation
+{
+    static map<string, const Operation*> operations;
+    static void add(const Operation *operation)
+    {
+        assert(operations.find(operation->name()) == operations.end());
+        operations.insert(pair<string, const Operation*>(operation->name(), operation));
+    }
+
+    virtual ~Operation() {}
+    virtual string name() const = 0;
+    virtual TypedValue call(KernelBuilder &kernel, const KernelInfo &info, const vector<TypedValue> &args) const = 0;
+};
+map<string, const Operation*> Operation::operations;
+
+template <class T>
+struct RegisterOperation
+{
+    RegisterOperation()
+    {
+        Operation::add(new T());
+    }
+};
+#define LIKELY_REGISTER(OPERATION) static struct RegisterOperation<OPERATION> Register##OPERATION;
+
+class BinaryOperation : public Operation
+{
+    TypedValue call(KernelBuilder &kernel, const KernelInfo &info, const vector<TypedValue> &args) const
+    {
+        assert(args.size() == 2);
+        return callBinary(kernel, info, args[0], args[1]);
+    }
+
+    virtual TypedValue callBinary(KernelBuilder &kernel, const KernelInfo &info, TypedValue arg1, TypedValue arg2) const = 0;
+};
+
+class ArithmeticOperation : public BinaryOperation
+{
+    TypedValue callBinary(KernelBuilder &kernel, const KernelInfo &info, TypedValue arg1, TypedValue arg2) const
+    {
+        (void) info;
+        likely_type type = likely_type_from_types(arg1, arg2);
+        return callArithmetic(kernel.b, kernel.cast(arg1, type), kernel.cast(arg2, type), type);
+    }
+
+    virtual TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const = 0;
+};
+
+class AddOperation : public ArithmeticOperation
+{
+    string name() const { return "+"; }
+    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
+    {
+        if (likely_floating(type)) {
+            return TypedValue(b->CreateFAdd(lhs, rhs), type);
+        } else {
+            if (likely_saturation(type)) {
+                if (likely_signed(type)) {
+                    const int depth = likely_depth(type);
+                    Value *result = b->CreateAdd(lhs, rhs);
+                    Value *overflowResult = b->CreateAdd(b->CreateLShr(lhs, depth-1), KernelBuilder::intMax(depth));
+                    Value *overflowCondition = b->CreateICmpSGE(b->CreateOr(b->CreateXor(lhs.value, rhs.value), b->CreateNot(b->CreateXor(rhs, result))), KernelBuilder::zero(depth));
+                    return TypedValue(b->CreateSelect(overflowCondition, overflowResult, result), type);
+                } else {
+                    Value *result = b->CreateAdd(lhs, rhs);
+                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULT(result, lhs),
+                                                   Type::getIntNTy(getGlobalContext(), likely_depth(type))));
+                    return TypedValue(b->CreateOr(result, overflow), type);
+                }
+            } else {
+                return TypedValue(b->CreateAdd(lhs, rhs), type);
+            }
+        }
+    }
+};
+LIKELY_REGISTER(AddOperation)
+
+class SubtractOperation : public ArithmeticOperation
+{
+    string name() const { return "-"; }
+    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
+    {
+        if (likely_floating(type)) {
+            return TypedValue(b->CreateFSub(lhs, rhs), type);
+        } else {
+            if (likely_saturation(type)) {
+                if (likely_signed(type)) {
+                    const int depth = likely_depth(type);
+                    Value *result = b->CreateSub(lhs, rhs);
+                    Value *overflowResult = b->CreateAdd(b->CreateLShr(lhs, depth-1), KernelBuilder::intMax(depth));
+                    Value *overflowCondition = b->CreateICmpSLT(b->CreateAnd(b->CreateXor(lhs.value, rhs.value), b->CreateXor(lhs, result)), KernelBuilder::zero(depth));
+                    return TypedValue(b->CreateSelect(overflowCondition, overflowResult, result), type);
+                } else {
+                    Value *result = b->CreateSub(lhs, rhs);
+                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpULE(result, lhs),
+                                                   Type::getIntNTy(getGlobalContext(), likely_depth(type))));
+                    return TypedValue(b->CreateAnd(result, overflow), type);
+                }
+            } else {
+                return TypedValue(b->CreateSub(lhs, rhs), type);
+            }
+        }
+    }
+};
+LIKELY_REGISTER(SubtractOperation)
+
+class MultiplyOperation : public ArithmeticOperation
+{
+    string name() const { return "*"; }
+    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
+    {
+        if (likely_floating(type)) {
+            return TypedValue(b->CreateFMul(lhs, rhs), type);
+        } else {
+            if (likely_saturation(type)) {
+                const int depth = likely_depth(type);
+                Type *originalType = Type::getIntNTy(getGlobalContext(), depth);
+                Type *extendedType = Type::getIntNTy(getGlobalContext(), 2*depth);
+                Value *result = b->CreateMul(b->CreateZExt(lhs, extendedType),
+                                             b->CreateZExt(rhs, extendedType));
+                Value *lo = b->CreateTrunc(result, originalType);
+
+                if (likely_signed(type)) {
+                    Value *hi = b->CreateTrunc(b->CreateAShr(result, depth), originalType);
+                    Value *overflowResult = b->CreateAdd(b->CreateLShr(b->CreateXor(lhs.value, rhs.value), depth-1), KernelBuilder::intMax(depth));
+                    Value *overflowCondition = b->CreateICmpNE(hi, b->CreateAShr(lo, depth-1));
+                    return TypedValue(b->CreateSelect(overflowCondition, overflowResult, b->CreateTrunc(result, lhs.value->getType())), type);
+                } else {
+                    Value *hi = b->CreateTrunc(b->CreateLShr(result, depth), originalType);
+                    Value *overflow = b->CreateNeg(b->CreateZExt(b->CreateICmpNE(hi, KernelBuilder::zero(depth)), originalType));
+                    return TypedValue(b->CreateOr(lo, overflow), type);
+                }
+            } else {
+                return TypedValue(b->CreateMul(lhs, rhs), type);
+            }
+        }
+    }
+};
+LIKELY_REGISTER(MultiplyOperation)
+
+class DivideOperation : public ArithmeticOperation
+{
+    string name() const { return "/"; }
+    TypedValue callArithmetic(IRBuilder<> *b, TypedValue n, TypedValue d, likely_type type) const
+    {
+        if (likely_floating(type)) {
+            return TypedValue(b->CreateFDiv(n, d), type);
+        } else {
+            if (likely_signed(type)) {
+                if (likely_saturation(type)) {
+                    const int depth = likely_depth(type);
+                    Value *safe_i = b->CreateAdd(n, b->CreateZExt(b->CreateICmpNE(b->CreateOr(b->CreateAdd(d, KernelBuilder::constant(1, depth)), b->CreateAdd(n, KernelBuilder::intMin(depth))), KernelBuilder::zero(depth)), n.value->getType()));
+                    return TypedValue(b->CreateSDiv(safe_i, d), type);
+                } else {
+                    return TypedValue(b->CreateSDiv(n, d), type);
+                }
+            } else {
+                return TypedValue(b->CreateUDiv(n, d), type);
+            }
+        }
+    }
+};
+LIKELY_REGISTER(DivideOperation)
+
 class FunctionBuilder
 {
     string name;
@@ -1366,22 +1419,6 @@ public:
     }
 
 private:
-    struct KernelInfo
-    {
-        vector<TypedValue> srcs;
-        TypedValue i, c, x, y, t;
-        likely_type dims;
-        KernelInfo(const KernelBuilder &kernel, const vector<TypedValue> &srcs_, const TypedValue &dst, Value *i_)
-            : srcs(srcs_), i(i_, likely_type_i32)
-        {
-            c.type = x.type = y.type = t.type = i.type;
-            kernel.deindex(dst, i, &c.value, &x.value, &y.value, &t.value);
-            dims = likely_type_null;
-            for (const TypedValue &src : srcs)
-                dims |= (src.type & likely_type_multi_dimension);
-        }
-    };
-
     static Function *getFunction(const string &name, Module *m, likely_arity arity, Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
     {
         PointerType *matrixPointer = PointerType::getUnqual(TheMatrixStruct);
@@ -1425,6 +1462,10 @@ private:
         for (const SExp &operand : expression.sexps)
             operands.push_back(generateKernelRecursive(kernel, info, operand));
         const string &op = expression.op;
+
+        map<string,const Operation*>::iterator it = Operation::operations.find(op);
+        if (it != Operation::operations.end())
+            return it->second->call(kernel, info, operands);
 
         static regex constant("(-?\\d*\\.?\\d+)([uif]\\d*)?");
         std::smatch sm;
@@ -1476,11 +1517,7 @@ private:
         } else if (operands.size() == 2) {
             const TypedValue &lhs = operands[0];
             const TypedValue &rhs = operands[1];
-            if      (op == "+") return kernel.add(lhs, rhs);
-            else if (op == "-") return kernel.subtract(lhs, rhs);
-            else if (op == "*") return kernel.multiply(lhs, rhs);
-            else if (op == "/") return kernel.divide(lhs, rhs);
-            else if (op == "powi")     return kernel.powi(lhs, rhs);
+            if      (op == "powi")     return kernel.powi(lhs, rhs);
             else if (op == "pow")      return kernel.pow(lhs, rhs);
             else if (op == "copysign") return kernel.copysign(lhs, rhs);
             else if (op == "cast")     return kernel.cast(lhs, rhs);
