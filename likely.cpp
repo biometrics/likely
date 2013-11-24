@@ -867,20 +867,8 @@ struct KernelBuilder
         return TypedValue(b->CreateCall2(Intrinsic::getDeclaration(m, id, args), x, n), x.type);
     }
 
-    TypedValue intrinsic(TypedValue a, TypedValue x, TypedValue c, Intrinsic::ID id) const
-    {
-        const likely_type type = likely_type_from_types(likely_type_from_types(a, x), c);
-        x = cast(x, validFloatType(type));
-        a = cast(a, x.type);
-        c = cast(c, x.type);
-        vector<Type*> args;
-        args.push_back(x.value->getType());
-        return TypedValue(b->CreateCall3(Intrinsic::getDeclaration(m, id, args), x, a, c), x.type);
-    }
-
     TypedValue powi(const TypedValue &x, const TypedValue &n) const { return intrinsic(x, n, Intrinsic::powi, true); }
     TypedValue pow(const TypedValue &x, const TypedValue &n) const { return intrinsic(x, n, Intrinsic::pow); }
-    TypedValue fma(const TypedValue &a, const TypedValue &x, const TypedValue &c) const { return intrinsic(a, x, c, Intrinsic::fma); }
     TypedValue copysign(const TypedValue &m, const TypedValue &s) const { return intrinsic(m, s, Intrinsic::copysign); }
 
     TypedValue lt(TypedValue lhs, TypedValue rhs)
@@ -1211,7 +1199,7 @@ class ArithmeticOperation : public BinaryOperation
     virtual TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const = 0;
 };
 
-class AddOperation : public ArithmeticOperation
+class addOperation : public ArithmeticOperation
 {
     string name() const { return "+"; }
     TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
@@ -1238,9 +1226,9 @@ class AddOperation : public ArithmeticOperation
         }
     }
 };
-LIKELY_REGISTER(AddOperation)
+LIKELY_REGISTER(addOperation)
 
-class SubtractOperation : public ArithmeticOperation
+class subtractOperation : public ArithmeticOperation
 {
     string name() const { return "-"; }
     TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
@@ -1267,9 +1255,9 @@ class SubtractOperation : public ArithmeticOperation
         }
     }
 };
-LIKELY_REGISTER(SubtractOperation)
+LIKELY_REGISTER(subtractOperation)
 
-class MultiplyOperation : public ArithmeticOperation
+class multiplyOperation : public ArithmeticOperation
 {
     string name() const { return "*"; }
     TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
@@ -1301,9 +1289,9 @@ class MultiplyOperation : public ArithmeticOperation
         }
     }
 };
-LIKELY_REGISTER(MultiplyOperation)
+LIKELY_REGISTER(multiplyOperation)
 
-class DivideOperation : public ArithmeticOperation
+class divideOperation : public ArithmeticOperation
 {
     string name() const { return "/"; }
     TypedValue callArithmetic(IRBuilder<> *b, TypedValue n, TypedValue d, likely_type type) const
@@ -1325,7 +1313,34 @@ class DivideOperation : public ArithmeticOperation
         }
     }
 };
-LIKELY_REGISTER(DivideOperation)
+LIKELY_REGISTER(divideOperation)
+
+class TernaryOperation : public Operation
+{
+    TypedValue call(KernelBuilder &kernel, const KernelInfo &info, const vector<TypedValue> &args) const
+    {
+        assert(args.size() == 3);
+        return callTernary(kernel, info, args[0], args[1], args[2]);
+    }
+    virtual TypedValue callTernary(KernelBuilder &kernel, const KernelInfo &info, TypedValue arg1, TypedValue arg2, TypedValue arg3) const = 0;
+};
+
+class fmaOperation : public TernaryOperation
+{
+    string name() const { return "fma"; }
+    TypedValue callTernary(KernelBuilder &kernel, const KernelInfo &info, TypedValue a, TypedValue x, TypedValue c) const
+    {
+        (void) info;
+        const likely_type type = likely_type_from_types(likely_type_from_types(a, x), c);
+        x = kernel.cast(x, KernelBuilder::validFloatType(type));
+        a = kernel.cast(a, x.type);
+        c = kernel.cast(c, x.type);
+        vector<Type*> args;
+        args.push_back(x.value->getType());
+        return TypedValue(kernel.b->CreateCall3(Intrinsic::getDeclaration(kernel.m, Intrinsic::fma, args), x, a, c), x.type);
+    }
+};
+LIKELY_REGISTER(fmaOperation)
 
 class FunctionBuilder
 {
@@ -1595,12 +1610,6 @@ private:
             else if (op == "eq")  return kernel.eq(lhs, rhs);
             else if (op == "neq") return kernel.neq(lhs, rhs);
             likely_assert(false, "unsupported binary operator: %s", op.c_str());
-        } else if (operands.size() == 3) {
-            const TypedValue &a = operands[0];
-            const TypedValue &b = operands[1];
-            const TypedValue &c = operands[2];
-            if (op == "fma") return kernel.fma(a, b, c);
-            likely_assert(false, "unsupported ternary operator: %s", op.c_str());
         }
 
         likely_assert(false, "unrecognized literal: %s", op.c_str());
