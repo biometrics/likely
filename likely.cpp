@@ -857,14 +857,6 @@ struct KernelBuilder
         return type;
     }
 
-    TypedValue intrinsic(TypedValue x, Intrinsic::ID id) const
-    {
-        x = cast(x, validFloatType(x.type));
-        vector<Type*> args;
-        args.push_back(x.value->getType());
-        return TypedValue(b->CreateCall(Intrinsic::getDeclaration(m, id, args), x), x.type);
-    }
-
     TypedValue intrinsic(TypedValue x, TypedValue n, Intrinsic::ID id, bool nIsInteger = false) const
     {
         const likely_type type = nIsInteger ? x.type : likely_type_from_types(x, n);
@@ -886,25 +878,10 @@ struct KernelBuilder
         return TypedValue(b->CreateCall3(Intrinsic::getDeclaration(m, id, args), x, a, c), x.type);
     }
 
-    TypedValue sqrt(const TypedValue &x) const { return intrinsic(x, Intrinsic::sqrt); }
     TypedValue powi(const TypedValue &x, const TypedValue &n) const { return intrinsic(x, n, Intrinsic::powi, true); }
-    TypedValue sin(const TypedValue &x) const { return intrinsic(x, Intrinsic::sin); }
-    TypedValue cos(const TypedValue &x) const { return intrinsic(x, Intrinsic::cos); }
     TypedValue pow(const TypedValue &x, const TypedValue &n) const { return intrinsic(x, n, Intrinsic::pow); }
-    TypedValue exp(const TypedValue &x) const { return intrinsic(x, Intrinsic::exp); }
-    TypedValue exp2(const TypedValue &x) const { return intrinsic(x, Intrinsic::exp2); }
-    TypedValue log(const TypedValue &x) const { return intrinsic(x, Intrinsic::log); }
-    TypedValue log10(const TypedValue &x) const { return intrinsic(x, Intrinsic::log10); }
-    TypedValue log2(const TypedValue &x) const { return intrinsic(x, Intrinsic::log2); }
     TypedValue fma(const TypedValue &a, const TypedValue &x, const TypedValue &c) const { return intrinsic(a, x, c, Intrinsic::fma); }
-    TypedValue fabs(const TypedValue &x) const { return intrinsic(x, Intrinsic::fabs); }
     TypedValue copysign(const TypedValue &m, const TypedValue &s) const { return intrinsic(m, s, Intrinsic::copysign); }
-    TypedValue floor(const TypedValue &x) const { return intrinsic(x, Intrinsic::floor); }
-    TypedValue ceil(const TypedValue &x) const { return intrinsic(x, Intrinsic::ceil); }
-    TypedValue trunc(const TypedValue &x) const { return intrinsic(x, Intrinsic::trunc); }
-    TypedValue rint(const TypedValue &x) const { return intrinsic(x, Intrinsic::rint); }
-    TypedValue nearbyint(const TypedValue &x) const { return intrinsic(x, Intrinsic::nearbyint); }
-    TypedValue round(const TypedValue &x) const { return intrinsic(x, Intrinsic::round); }
 
     TypedValue lt(TypedValue lhs, TypedValue rhs)
     {
@@ -1175,6 +1152,43 @@ class UnaryOperation : public Operation
     }
     virtual TypedValue callUnary(KernelBuilder &kernel, const KernelInfo &info, TypedValue arg) const = 0;
 };
+
+class UnaryMathOperation : public UnaryOperation
+{
+    TypedValue callUnary(KernelBuilder &kernel, const KernelInfo &info, TypedValue x) const
+    {
+        (void) info;
+        x = kernel.cast(x, KernelBuilder::validFloatType(x.type));
+        vector<Type*> args;
+        args.push_back(x.value->getType());
+        return TypedValue(kernel.b->CreateCall(Intrinsic::getDeclaration(kernel.m, id(), args), x), x.type);
+    }
+    virtual Intrinsic::ID id() const = 0;
+};
+
+#define LIKELY_REGISTER_UNARY_MATH(OPERATION)                 \
+class OPERATION##Operation : public UnaryMathOperation        \
+{                                                             \
+    string name() const { return #OPERATION; }                \
+    Intrinsic::ID id() const { return Intrinsic::OPERATION; } \
+};                                                            \
+LIKELY_REGISTER(OPERATION##Operation)                         \
+
+LIKELY_REGISTER_UNARY_MATH(sqrt)
+LIKELY_REGISTER_UNARY_MATH(sin)
+LIKELY_REGISTER_UNARY_MATH(cos)
+LIKELY_REGISTER_UNARY_MATH(exp)
+LIKELY_REGISTER_UNARY_MATH(exp2)
+LIKELY_REGISTER_UNARY_MATH(log)
+LIKELY_REGISTER_UNARY_MATH(log10)
+LIKELY_REGISTER_UNARY_MATH(log2)
+LIKELY_REGISTER_UNARY_MATH(fabs)
+LIKELY_REGISTER_UNARY_MATH(floor)
+LIKELY_REGISTER_UNARY_MATH(ceil)
+LIKELY_REGISTER_UNARY_MATH(trunc)
+LIKELY_REGISTER_UNARY_MATH(rint)
+LIKELY_REGISTER_UNARY_MATH(nearbyint)
+LIKELY_REGISTER_UNARY_MATH(round)
 
 class BinaryOperation : public Operation
 {
@@ -1567,24 +1581,6 @@ private:
                 matrix_i = kernel.index(matrix, c, x, y, t);
             }
             return TypedValue(kernel.load(matrix, matrix_i), matrix.type);
-        } else if (operands.size() == 1) {
-            const TypedValue &operand = operands[0];
-            if      (op == "sqrt")      return kernel.sqrt(operand);
-            else if (op == "sin")       return kernel.sin(operand);
-            else if (op == "cos")       return kernel.cos(operand);
-            else if (op == "exp")       return kernel.exp(operand);
-            else if (op == "exp2")      return kernel.exp2(operand);
-            else if (op == "log")       return kernel.log(operand);
-            else if (op == "log10")     return kernel.log10(operand);
-            else if (op == "log2")      return kernel.log2(operand);
-            else if (op == "fabs")      return kernel.fabs(operand);
-            else if (op == "floor")     return kernel.floor(operand);
-            else if (op == "ceil")      return kernel.ceil(operand);
-            else if (op == "trunc")     return kernel.trunc(operand);
-            else if (op == "rint")      return kernel.rint(operand);
-            else if (op == "nearbyint") return kernel.nearbyint(operand);
-            else if (op == "round")     return kernel.round(operand);
-            likely_assert(false, "unsupported unary operator: %s", op.c_str());
         } else if (operands.size() == 2) {
             const TypedValue &lhs = operands[0];
             const TypedValue &rhs = operands[1];
