@@ -1369,12 +1369,13 @@ private:
     struct KernelInfo
     {
         vector<TypedValue> srcs;
-        Value *i, *c, *x, *y, *t;
+        TypedValue i, c, x, y, t;
         likely_type dims;
         KernelInfo(const KernelBuilder &kernel, const vector<TypedValue> &srcs_, const TypedValue &dst, Value *i_)
-            : srcs(srcs_), i(i_)
+            : srcs(srcs_), i(i_, likely_type_i32)
         {
-            kernel.deindex(dst, i, &c, &x, &y, &t);
+            c.type = x.type = y.type = t.type = i.type;
+            kernel.deindex(dst, i, &c.value, &x.value, &y.value, &t.value);
             dims = likely_type_null;
             for (const TypedValue &src : srcs)
                 dims |= (src.type & likely_type_multi_dimension);
@@ -1447,6 +1448,13 @@ private:
                 matrix_i = kernel.index(matrix, c, x, y, t);
             }
             return TypedValue(kernel.load(matrix, matrix_i), matrix.type);
+        } else if (operands.size() == 0) {
+            if      (op == "i") return info.i;
+            else if (op == "c") return info.c;
+            else if (op == "x") return info.x;
+            else if (op == "y") return info.y;
+            else if (op == "t") return info.t;
+            likely_assert(false, "unsupported nullary operator: %s", op.c_str());
         } else if (operands.size() == 1) {
             const TypedValue &operand = operands[0];
             if      (op == "sqrt")      return kernel.sqrt(operand);
@@ -1742,6 +1750,16 @@ static int lua_likely__call(lua_State *L)
         lua_getfield(L, 1, "binary");
         lua_call(L, 4, 1);
         return 1;
+    }
+
+    // Ensure all the arguments are provided
+    lua_pushnil(L);
+    while (lua_next(L, -2)) {
+        lua_pushnumber(L, 3);
+        lua_gettable(L, -2);
+        if (lua_isnil(L, -1))
+            luaL_error(L, "Insufficient arguments!");
+        lua_pop(L, 2);
     }
 
     // Call the function

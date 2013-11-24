@@ -24,6 +24,12 @@ multi_frame = likely.multi_frame
 saturation = likely.saturation
 reserved = likely.reserved
 
+i = "i"
+c = "c"
+x = "x"
+y = "y"
+t = "t"
+
 -- Core functions
 function chain(x,y)
   return function(w) return tostring(y{tostring(x{w})}) end
@@ -78,24 +84,24 @@ dark_lenna = divide{2}(lenna)
 [[
 -- Function Calls
 -- Arguments can be specified by name...\dream{activate:new}
-x = new{rows=512, columns=512, type=f32}()
+m = new{rows=512, columns=512, type=f32}()
 
 -- ...or anonymously in their canonical order.
-y = new(f32, 1, 512, 512)
+n = new(f32, 1, 512, 512)
 
 -- Arguments not specified by name are assigned to the first parameter without a bound value. If all parameters are bound then arguments will override the left-most values.
 ]],
 [[
 -- Closures
-x = new{rows=512, columns=512, type=i8}()
+m = new{rows=512, columns=512, type=i8}()
 
 -- The braces {} syntax returns a new function with the bound arguments.\dream{activate:set}\dream{activate:setZero}
 setZero = set{0}
 
--- The function is just-in-time compiled using the bound arguments before execution.\dream{activate:y}
-y = setZero(x)
+-- The function is just-in-time compiled using the bound arguments before execution.\dream{activate:n}
+n = setZero(m)
 
--- set{0}(x)
+-- set{0}(m)
 --     ^  ^
 --     |  Run-time arguments
 --     Compile-time arguments
@@ -115,13 +121,13 @@ divided = divide(2,lenna)
 ]],
 [[
 -- Currying
-x = read("img/Lenna.tiff")
-x.saturation = true
+m = read("img/Lenna.tiff")
+m.saturation = true
 
 -- Likely supports currying to compose higher order functions\dream{activate:y}
 fma = multiply{2} .. add{3}
 
-y = fma(x)
+n = fma(m)
 ]]
 }
 
