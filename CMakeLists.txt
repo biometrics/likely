@@ -49,6 +49,7 @@ add_subdirectory(lua)
 include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
 
 # Build OpenCV
+set(WITH_CUDA OFF)
 get_subdirectories(DISABLED_OPENCV_MODULES "${CMAKE_SOURCE_DIR}/opencv/modules")
 set(REQUIRED_OPENCV_MODULES core imgproc highgui)
 list(REMOVE_ITEM DISABLED_OPENCV_MODULES ${REQUIRED_OPENCV_MODULES}) # Disable all but these
@@ -85,7 +86,7 @@ else()
   set(CXX11 "-std=c++11")
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter -fno-rtti")
 add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
 add_library(likely SHARED likely.cpp index.html standard.likely opencv.shim ${STANDARD_LIBRARY_CPP})
 add_dependencies(likely standard_library LLVM OpenCV lua)

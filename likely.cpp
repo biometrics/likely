@@ -1389,6 +1389,18 @@ class fmaOperation : public TernaryOperation
 };
 LIKELY_REGISTER(fmaOperation)
 
+struct LikelyKernelOptimizationPass : public FunctionPass
+{
+    static char ID;
+    LikelyKernelOptimizationPass() : FunctionPass(ID) {}
+    virtual bool runOnFunction(Function &F) {
+      DEBUG(dbgs() << "LKO: " << F.getName() << "\n");
+      return false;
+    }
+};
+char LikelyKernelOptimizationPass::ID = 0;
+static RegisterPass<LikelyKernelOptimizationPass> RegisterLikelyKernelOptimizationPass("likely", "Likely Kernel Optimization Pass", false, false);
+
 class FunctionBuilder
 {
     string name;
@@ -1465,6 +1477,7 @@ public:
 
             FunctionPassManager functionPassManager(module);
             functionPassManager.add(createVerifierPass(PrintMessageAction));
+            functionPassManager.add(new LikelyKernelOptimizationPass());
             targetMachine->addAnalysisPasses(functionPassManager);
             functionPassManager.add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
             functionPassManager.add(new DataLayout(module));
