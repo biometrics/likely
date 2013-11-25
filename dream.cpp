@@ -26,10 +26,13 @@ class Variable : public QFrame
 
 protected:
     QLabel *text;
-    QLayout *layout;
+    QCheckBox *edit;
+    QWidget *top;
+    QHBoxLayout *topLayout;
+    QVBoxLayout *layout;
 
 public:
-    Variable(const QString &name)
+    Variable(const QString &name, bool editable = false)
     {
         setFrameStyle(QFrame::Panel | QFrame::Raised);
         setLineWidth(2);
@@ -37,8 +40,16 @@ public:
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         text = new QLabel(this);
         text->setWordWrap(true);
+        edit = new QCheckBox("Edit", this);
+        edit->setVisible(editable);
+        top = new QWidget(this);
+        topLayout = new QHBoxLayout();
+        topLayout->addWidget(text, 1);
+        topLayout->addWidget(edit);
+        topLayout->setContentsMargins(0, 0, 0, 0);
+        top->setLayout(topLayout);
         layout = new QVBoxLayout(this);
-        layout->addWidget(text);
+        layout->addWidget(top);
         layout->setContentsMargins(3, 3, 3, 3);
         layout->setSpacing(3);
         setLayout(layout);
@@ -78,19 +89,54 @@ signals:
     void typeChanged();
 };
 
+class EditableAxis : public QWidget
+{
+    Q_OBJECT
+    QLabel *label;
+    QLineEdit *min, *max, *resolution;
+    QHBoxLayout *layout;
+
+public:
+    EditableAxis(const QString &name)
+    {
+        label = new QLabel(QString("<b>%1:</b>").arg(name), this);
+        min = new QLineEdit(this);
+        min->setPlaceholderText("min");
+        max = new QLineEdit(this);
+        max->setPlaceholderText("max");
+        resolution = new QLineEdit(this);
+        resolution->setPlaceholderText("resolution");
+        layout = new QHBoxLayout(this);
+        layout->addWidget(label);
+        layout->addWidget(min, 1);
+        layout->addWidget(max, 1);
+        layout->addWidget(resolution, 1);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(3);
+        setVisible(false);
+    }
+};
+
 class Matrix : public Variable
 {
     QLabel *image;
+    EditableAxis *x, *y;
     QImage src;
 
 public:
     Matrix(const QString &name)
-        : Variable(name)
+        : Variable(name, true)
     {
         image = new QLabel(this);
         image->setAlignment(Qt::AlignCenter);
         image->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
+        x = new EditableAxis("x");
+        y = new EditableAxis("y");
         layout->addWidget(image);
+        layout->addWidget(x);
+        layout->addWidget(y);
+        connect(edit, SIGNAL(toggled(bool)), x, SLOT(setVisible(bool)));
+        connect(edit, SIGNAL(toggled(bool)), y, SLOT(setVisible(bool)));
     }
 
 private:
