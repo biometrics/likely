@@ -771,49 +771,32 @@ struct KernelBuilder
 
     void deindex(const TypedValue &matrix, Value *i, Value **c) const
     {
-        if (likely_multi_channel(matrix)) *c = i;
-        else                              *c = zero();
+        (void) matrix;
+        *c = i;
     }
 
     void deindex(const TypedValue &matrix, Value *i, Value **c, Value **x) const
     {
-        Value *remainder;
-        if (likely_multi_column(matrix)) {
-            Value *step = columnStep(matrix);
-            remainder = b->CreateURem(i, step, "xRem");
-            *x = b->CreateExactUDiv(b->CreateSub(i, remainder), step, "x");
-        } else {
-            remainder = i;
-            *x = zero();
-        }
+
+        Value *step = columnStep(matrix);
+        Value *remainder = b->CreateURem(i, step, "xRem");
+        *x = b->CreateExactUDiv(b->CreateSub(i, remainder), step, "x");
         deindex(matrix, remainder, c);
     }
 
     void deindex(const TypedValue &matrix, Value *i, Value **c, Value **x, Value **y) const
     {
-        Value *remainder;
-        if (likely_multi_row(matrix)) {
-            Value *step = rowStep(matrix);
-            remainder = b->CreateURem(i, step, "yRem");
-            *y = b->CreateExactUDiv(b->CreateSub(i, remainder), step, "y");
-        } else {
-            remainder = i;
-            *y = zero();
-        }
+        Value *step = rowStep(matrix);
+        Value *remainder = b->CreateURem(i, step, "yRem");
+        *y = b->CreateExactUDiv(b->CreateSub(i, remainder), step, "y");
         deindex(matrix, remainder, c, x);
     }
 
     void deindex(const TypedValue &matrix, Value *i, Value **c, Value **x, Value **y, Value **t) const
     {
-        Value *remainder;
-        if (likely_multi_frame(matrix)) {
-            Value *step = frameStep(matrix);
-            remainder = b->CreateURem(i, step, "tRem");
-            *t = b->CreateExactUDiv(b->CreateSub(i, remainder), step, "t");
-        } else {
-            remainder = i;
-            *t = zero();
-        }
+        Value *step = frameStep(matrix);
+        Value *remainder = b->CreateURem(i, step, "tRem");
+        *t = b->CreateExactUDiv(b->CreateSub(i, remainder), step, "t");
         deindex(matrix, remainder, c, x, y);
     }
 
@@ -1393,9 +1376,40 @@ struct LikelyKernelOptimizationPass : public FunctionPass
 {
     static char ID;
     LikelyKernelOptimizationPass() : FunctionPass(ID) {}
-    virtual bool runOnFunction(Function &F) {
-      DEBUG(dbgs() << "LKO: " << F.getName() << "\n");
-      return false;
+
+    struct MatrixInfo
+    {
+        Value *channels = NULL,
+              *columns  = NULL,
+              *rows     = NULL,
+              *frames   = NULL,
+              *columnStep = NULL,
+              *rowStep    = NULL,
+              *frameStep  = NULL;
+    };
+
+    bool runOnFunction(Function &F)
+    {
+        DEBUG(dbgs() << "LKO: " << F.getName() << "\n");
+
+        vector<Argument*> matricies;
+        Argument *start = NULL, *stop = NULL;
+
+        Function::arg_iterator args = F.arg_begin();
+        while ((args != F.arg_end()) && (args->getType() == PointerType::getUnqual(TheMatrixStruct)))
+            matricies.push_back(args++);
+        if ((args != F.arg_end()) && (args->getType() == Type::getInt32Ty(getGlobalContext())))
+            start = args++;
+        if ((args != F.arg_end()) && (args->getType() == Type::getInt32Ty(getGlobalContext())))
+            stop = args++;
+        if (matricies.empty() || !start || !stop || (args != F.arg_end()))
+            return false;
+        DEBUG(dbgs() << "LKO: found a kernel with " << matricies.size() << " matricies\n");
+
+        vector<MatrixInfo> matrixInfo(matricies.size());
+        (void) matrixInfo;
+
+        return false;
     }
 };
 char LikelyKernelOptimizationPass::ID = 0;
