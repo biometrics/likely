@@ -505,7 +505,7 @@ static int lua_likely_render(lua_State *L)
 
 double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
 {
-    likely_assert(m, "likely_element received a null matrix");
+    assert(m);
     const likely_size columnStep = m->channels;
     const likely_size rowStep = m->columns * columnStep;
     const likely_size frameStep = m->rows * rowStep;
@@ -522,14 +522,14 @@ double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_s
       case likely_type_i64: return reinterpret_cast< int64_t*>(m->data)[index];
       case likely_type_f32: return reinterpret_cast<   float*>(m->data)[index];
       case likely_type_f64: return reinterpret_cast<  double*>(m->data)[index];
-      default: likely_assert(false, "likely_element unsupported type");
+      default: assert(false && "likely_element unsupported type");
     }
     return numeric_limits<double>::quiet_NaN();
 }
 
 void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t)
 {
-    likely_assert(m, "likely_set_element received a null matrix");
+    assert(m);
     const likely_size columnStep = m->channels;
     const likely_size rowStep = m->columns * columnStep;
     const likely_size frameStep = m->rows * rowStep;
@@ -546,7 +546,7 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
       case likely_type_i64: reinterpret_cast< int64_t*>(m->data)[index] = value; break;
       case likely_type_f32: reinterpret_cast<   float*>(m->data)[index] = value; break;
       case likely_type_f64: reinterpret_cast<  double*>(m->data)[index] = value; break;
-      default: likely_assert(false, "likely_set_element unsupported type");
+      default: assert(false && "likely_set_element unsupported type");
     }
 }
 

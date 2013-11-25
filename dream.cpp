@@ -25,23 +25,54 @@ class Variable : public QFrame
     Q_OBJECT
 
 protected:
-    QLabel *text;
-    QLayout *layout;
+    QWidget *top;
+    QCheckBox *define;
+    QLabel *text, *definition;
+    QHBoxLayout *topLayout;
+    QVBoxLayout *layout;
 
 public:
-    Variable(const QString &name)
+    Variable(const QString &name, bool definable = false)
     {
         setFrameStyle(QFrame::Panel | QFrame::Raised);
         setLineWidth(2);
         setObjectName(name);
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        top = new QWidget(this);
+        define = new QCheckBox("Define", this);
+        define->setVisible(definable);
         text = new QLabel(this);
         text->setWordWrap(true);
+        definition = new QLabel(this);
+        definition->setWordWrap(true);
+        definition->setVisible(false);
+        topLayout = new QHBoxLayout(top);
+        topLayout->addWidget(text, 1);
+        topLayout->addWidget(define);
+        topLayout->setContentsMargins(0, 0, 0, 0);
+        topLayout->setSpacing(3);
         layout = new QVBoxLayout(this);
-        layout->addWidget(text);
+        layout->addWidget(top);
+        layout->addWidget(definition);
         layout->setContentsMargins(3, 3, 3, 3);
         layout->setSpacing(3);
         setLayout(layout);
+        connect(define, SIGNAL(toggled(bool)), definition, SLOT(setVisible(bool)));
+        connect(define, SIGNAL(toggled(bool)), this, SIGNAL(definitionChanged()));
+    }
+
+    QString getDefinition() const
+    {
+        return define->isChecked() ? definition->text() : QString();
+    }
+
+    void setDefinition(const QString &source)
+    {
+        const QString newDefinition = objectName() + " = " + source;
+        if (newDefinition == definition->text())
+            return;
+        definition->setText(newDefinition);
+        emit definitionChanged();
     }
 
 public slots:
@@ -76,6 +107,7 @@ private:
 
 signals:
     void typeChanged();
+    void definitionChanged();
 };
 
 class Matrix : public Variable
@@ -85,7 +117,7 @@ class Matrix : public Variable
 
 public:
     Matrix(const QString &name)
-        : Variable(name)
+        : Variable(name, true)
     {
         image = new QLabel(this);
         image->setAlignment(Qt::AlignCenter);
@@ -110,13 +142,12 @@ private:
         likely_mat rendered = likely_render(mat, &min, &max);
         src = QImage(rendered->data, rendered->columns, rendered->rows, QImage::Format_RGB888).rgbSwapped();
         likely_release(rendered);
-        text->setText(QString("<b>%1</b>: %2x%3x%4x%5 %6 (0x%7) [%8,%9]").arg(objectName(),
+        text->setText(QString("<b>%1</b>: %2x%3x%4x%5 %6 [%7,%8]").arg(objectName(),
                                                                               QString::number(mat->channels),
                                                                               QString::number(mat->columns),
                                                                               QString::number(mat->rows),
                                                                               QString::number(mat->frames),
                                                                               likely_type_to_string(mat->type),
-                                                                              QString::number((ulong)mat->data, 16),
                                                                               QString::number(min),
                                                                               QString::number(max)));
         updatePixmap();
@@ -131,17 +162,17 @@ private:
     void updatePixmap()
     {
         image->setVisible(!src.isNull());
-        if (!src.isNull()) {
-            const int width = qMin(image->size().width(), src.width());
-            const int height = src.height() * width/src.width();
-            image->setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height))));
-        }
+        if (src.isNull()) return;
+        const int width = qMin(image->size().width(), src.width());
+        const int height = src.height() * width/src.width();
+        image->setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height))));
+        setDefinition(QString("{ width = %1, height = %2 }").arg(QString::number(image->size().width()), QString::number(image->size().height())));
     }
 };
 
-struct Function : public Variable
+struct Closure : public Variable
 {
-    Function(const QString &name)
+    Closure(const QString &name)
         : Variable(name)
     {}
 
@@ -303,7 +334,7 @@ private:
 class Source : public QPlainTextEdit
 {
     Q_OBJECT
-    QString sourceFileName, previousSource;
+    QString sourceFileName, definitions, previousSource;
     QSettings settings;
     lua_State *L = NULL;
     int wheelRemainderX = 0, wheelRemainderY = 0;
@@ -315,28 +346,6 @@ public:
         connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
     }
 
-public slots:
-    void activate(const QString &name)
-    {
-        if (!L) return;
-        QString type;
-        lua_getfield(L, -1, qPrintable(name));
-        if (lua_istable(L, -1) || lua_isuserdata(L, -1)) {
-            lua_getfield(L, -1, "likely");
-            type = lua_tostring(L, -1);
-            lua_pop(L, 1);
-        }
-        lua_pop(L, 1);
-
-        Variable *variable;
-        if      (type == "matrix")   variable = new Matrix(name);
-        else if (type == "function") variable = new Function(name);
-        else                         variable = new Generic(name);
-        connect(this, SIGNAL(newState(lua_State*)), variable, SLOT(refresh(lua_State*)));
-        emit newVariable(variable);
-        variable->refresh(L); // Render the widget _after_ emitting it to reduce rendering glitches
-    }
-
     void restore()
     {
         const QString source = settings.value("source").toString();
@@ -344,6 +353,27 @@ public slots:
         settings.setValue("source", QString());
         settings.sync();
         setText(source);
+    }
+
+public slots:
+    void activate(const QString &name)
+    {
+        if (!L) return;
+        lua_getfield(L, -1, qPrintable(name));
+        Variable *variable;
+        if      (luaL_testudata(L, -1, "likely")) variable = new Matrix(name);
+        else if (lua_istable(L, -1))              variable = new Closure(name);
+        else                                      variable = new Generic(name);
+        lua_pop(L, 1);
+        connect(this, SIGNAL(newState(lua_State*)), variable, SLOT(refresh(lua_State*)));
+        emit newVariable(variable);
+        variable->refresh(L); // Render the widget _after_ emitting it to reduce rendering glitches
+    }
+
+    void setDefinitions(const QString &definitions)
+    {
+        this->definitions = definitions;
+        exec();
     }
 
     void fileMenu(QAction *a)
@@ -489,7 +519,7 @@ private slots:
     void exec()
     {
         // This check needed because syntax highlighting triggers a textChanged() signal
-        const QString source = toPlainText();
+        const QString source = definitions + "\n" + toPlainText();
         if (source == previousSource) return;
         else                          previousSource = source;
 
@@ -505,7 +535,7 @@ private slots:
         if (lua_type(L, -1) == LUA_TSTRING)
             lua_setfield(L, -2, "compiler");
 
-        settings.setValue("source", source);
+        settings.setValue("source", toPlainText());
         emit newState(L);
     }
 
@@ -543,6 +573,7 @@ public slots:
         layout->addWidget(variable);
         connect(variable, SIGNAL(destroyed(QObject*)), this, SLOT(removeObject(QObject*)));
         connect(variable, SIGNAL(typeChanged()), this, SLOT(typeChanged()));
+        connect(variable, SIGNAL(definitionChanged()), this, SLOT(definitionChanged()));
     }
 
     void clear()
@@ -572,13 +603,26 @@ private slots:
         variable->deleteLater();
     }
 
+    void definitionChanged()
+    {
+        QStringList definitions;
+        for (int i=0; i<layout->count(); i++)
+            definitions.append(static_cast<Variable*>(layout->itemAt(i)->widget())->getDefinition());
+        definitions.removeAll(QString());
+        emit newDefinitions(definitions.join("\n"));
+    }
+
     void removeObject(QObject *object)
     {
-        layout->removeWidget((QWidget*)object);
+        Variable *variable = static_cast<Variable*>(object);
+        layout->removeWidget(variable);
+        if (!variable->getDefinition().isEmpty())
+            definitionChanged();
     }
 
 signals:
     void activate(QString);
+    void newDefinitions(QString);
 };
 
 class CommandMode : public QObject
@@ -692,6 +736,7 @@ int main(int argc, char *argv[])
     Documentation *documentation = new Documentation();
     QObject::connect(commandMode, SIGNAL(commandMode(bool)), syntaxHighlighter, SLOT(setCommandMode(bool)));
     QObject::connect(documentation, SIGNAL(activate(QString)), source, SLOT(activate(QString)));
+    QObject::connect(documentation, SIGNAL(newDefinitions(QString)), source, SLOT(setDefinitions(QString)));
     QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(fileMenu(QAction*)));
     QObject::connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
     QObject::connect(examplesMenu, SIGNAL(triggered(QAction*)), source, SLOT(examplesMenu(QAction*)));
