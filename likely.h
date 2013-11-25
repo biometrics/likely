@@ -44,7 +44,7 @@ LIKELY_EXPORT const char *likely_standard_library();
 
 // Matrix types
 typedef uint8_t likely_data;
-typedef uint32_t likely_size;
+typedef uintptr_t likely_size;
 typedef uint32_t likely_type; /* Depth : 8
                                  Signed : 1
                                  Floating : 1
@@ -91,9 +91,9 @@ enum likely_type_field
 typedef struct
 {
     likely_data *data;
-    likely_type type;
-    likely_size channels, columns, rows, frames;
     struct likely_matrix_private *d_ptr; // Private data for internal bookkeeping
+    likely_size channels, columns, rows, frames;
+    likely_type type;
 } likely_matrix;
 typedef likely_matrix *likely_mat;
 typedef const likely_matrix *likely_const_mat;

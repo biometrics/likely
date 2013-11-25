@@ -52,6 +52,8 @@ using namespace std;
 
 #define LLVM_VALUE_TO_INT(VALUE) (llvm::cast<Constant>(VALUE)->getUniqueInteger().getZExtValue())
 
+static likely_type likely_type_native = likely_type_null;
+static IntegerType *NativeIntegerType = NULL;
 static StructType *TheMatrixStruct = NULL;
 
 typedef struct likely_matrix_private
@@ -218,7 +220,7 @@ static int lua_likely_elements(lua_State *L)
 
 likely_size likely_bytes(likely_const_mat m)
 {
-    return uint64_t(likely_depth(m->type)) * uint64_t(likely_elements(m)) / uint64_t(8);
+    return likely_depth(m->type) * likely_elements(m) / 8;
 }
 
 static int lua_likely_bytes(lua_State *L)
@@ -681,32 +683,32 @@ struct KernelBuilder
         }
     }
 
-    static Constant *constant(int value, int bits = 32) { return Constant::getIntegerValue(Type::getInt32Ty(getGlobalContext()), APInt(bits, value)); }
+    static Constant *constant(int value, int bits = likely_depth(likely_type_native)) { return Constant::getIntegerValue(Type::getIntNTy(getGlobalContext(), bits), APInt(bits, value)); }
     static Constant *constant(bool value) { return constant(value, 1); }
     static Constant *constant(float value) { return ConstantFP::get(Type::getFloatTy(getGlobalContext()), value == 0 ? -0.0f : value); }
     static Constant *constant(double value) { return ConstantFP::get(Type::getDoubleTy(getGlobalContext()), value == 0 ? -0.0 : value); }
     static Constant *constant(const char *value) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), Type::getInt8PtrTy(getGlobalContext())); }
     template <typename T>
     static Constant *constant(T value, Type *type) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), type); }
-    static Constant *zero(int bits = 32) { return constant(0, bits); }
-    static Constant *one(int bits = 32) { return constant(1, bits); }
-    static Constant *intMax(int bits = 32) { return constant((1 << (bits-1))-1, bits); }
-    static Constant *intMin(int bits = 32) { return constant((1 << (bits-1)), bits); }
+    static Constant *zero(int bits = likely_depth(likely_type_native)) { return constant(0, bits); }
+    static Constant *one(int bits = likely_depth(likely_type_native)) { return constant(1, bits); }
+    static Constant *intMax(int bits) { return constant((1 << (bits-1))-1, bits); }
+    static Constant *intMin(int bits) { return constant((1 << (bits-1)), bits); }
 
     Value *data(const TypedValue &matrix) const { return b->CreatePointerCast(b->CreateLoad(b->CreateStructGEP(matrix, 0), "data"), ty(matrix, true)); }
-    Value *type(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 1), "type"); }
-    Value *type(likely_type type) const { return constant(type, 32); }
     Value *channels(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 2), "channels"); }
     Value *columns(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 3), "columns"); }
     Value *rows(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 4), "rows"); }
     Value *frames(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 5), "frames"); }
+    Value *type(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 6), "type"); }
+    Value *type(likely_type type) const { return constant(type, int(sizeof(likely_type)*8)); }
 
     void setData(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 0)); }
-    void setType(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 1)); }
     void setChannels(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 2)); }
     void setColumns(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 3)); }
     void setRows(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 4)); }
     void setFrames(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 5)); }
+    void setType(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 6)); }
 
     Value *get(Value *matrix, int mask) const { return b->CreateAnd(type(matrix), constant(mask, 8*sizeof(likely_type))); }
     void set(Value *matrix, int value, int mask) const { setType(matrix, b->CreateOr(b->CreateAnd(type(matrix), constant(~mask, 8*sizeof(likely_type))), b->CreateAnd(constant(value, 8*sizeof(likely_type)), constant(mask, 8*sizeof(likely_type))))); }
@@ -736,7 +738,7 @@ struct KernelBuilder
     void setReserved(Value *matrix, int reserved) const { set(matrix, reserved, likely_type_reserved); }
 
     Value *elements(Value *matrix) const { return b->CreateMul(b->CreateMul(b->CreateMul(channels(matrix), columns(matrix)), rows(matrix)), frames(matrix)); }
-    Value *bytes(Value *matrix) const { return b->CreateMul(b->CreateUDiv(b->CreateCast(Instruction::ZExt, depth(matrix), Type::getInt32Ty(getGlobalContext())), constant(8, 32)), elements(matrix)); }
+    Value *bytes(Value *matrix) const { return b->CreateMul(b->CreateUDiv(b->CreateCast(Instruction::ZExt, depth(matrix), NativeIntegerType), constant(8)), elements(matrix)); }
 
     Value *columnStep(Value *matrix) const { Value *columnStep = channels(matrix); columnStep->setName("cStep"); return columnStep; }
     Value *rowStep(Value *matrix) const { return b->CreateMul(columns(matrix), columnStep(matrix), "rStep"); }
@@ -853,7 +855,7 @@ struct KernelBuilder
         b->CreateBr(loop.body);
         b->SetInsertPoint(loop.body);
 
-        loop.i = b->CreatePHI(Type::getInt32Ty(getGlobalContext()), 2, "i");
+        loop.i = b->CreatePHI(NativeIntegerType, 2, "i");
         loop.i->addIncoming(start, entry);
 
         loops.push(loop);
@@ -941,7 +943,7 @@ struct KernelInfo
     TypedValue i, c, x, y, t;
     likely_type dims;
     KernelInfo(const KernelBuilder &kernel, const vector<TypedValue> &srcs_, const TypedValue &dst, Value *i_)
-        : srcs(srcs_), i(i_, likely_type_i32)
+        : srcs(srcs_), i(i_, likely_type_native)
     {
         c.type = x.type = y.type = t.type = i.type;
         kernel.deindex(dst, i, &c.value, &x.value, &y.value, &t.value);
@@ -1398,9 +1400,9 @@ struct LikelyKernelOptimizationPass : public FunctionPass
         Function::arg_iterator args = F.arg_begin();
         while ((args != F.arg_end()) && (args->getType() == PointerType::getUnqual(TheMatrixStruct)))
             matricies.push_back(args++);
-        if ((args != F.arg_end()) && (args->getType() == Type::getInt32Ty(getGlobalContext())))
+        if ((args != F.arg_end()) && (args->getType() == NativeIntegerType))
             start = args++;
-        if ((args != F.arg_end()) && (args->getType() == Type::getInt32Ty(getGlobalContext())))
+        if ((args != F.arg_end()) && (args->getType() == NativeIntegerType))
             stop = args++;
         if (matricies.empty() || !start || !stop || (args != F.arg_end()))
             return false;
@@ -1415,6 +1417,48 @@ struct LikelyKernelOptimizationPass : public FunctionPass
 char LikelyKernelOptimizationPass::ID = 0;
 static RegisterPass<LikelyKernelOptimizationPass> RegisterLikelyKernelOptimizationPass("likely", "Likely Kernel Optimization Pass", false, false);
 
+// Control parallel execution
+static vector<mutex*> workers;
+static mutex workersActive;
+static atomic_uint workersRemaining(0);
+static void *currentThunk = NULL;
+static likely_arity thunkArity = 0;
+static likely_size thunkSize = 0;
+static likely_const_mat thunkMatricies[LIKELY_NUM_ARITIES+1];
+
+static void executeWorker(int id, int numWorkers)
+{
+    // There are hardware_concurrency-1 helper threads and the main thread with id = 0
+    const likely_size step = (thunkSize+numWorkers-1)/numWorkers;
+    const likely_size start = id * step;
+    const likely_size stop = std::min((id+1)*step, thunkSize);
+    if (start >= stop) return;
+
+    // Final three parameters are: dst, start, stop
+    typedef void (*likely_kernel_0)(likely_mat, likely_size, likely_size);
+    typedef void (*likely_kernel_1)(likely_const_mat, likely_mat, likely_size, likely_size);
+    typedef void (*likely_kernel_2)(likely_const_mat, likely_const_mat, likely_mat, likely_size, likely_size);
+    typedef void (*likely_kernel_3)(likely_const_mat, likely_const_mat, likely_const_mat, likely_mat, likely_size, likely_size);
+
+    switch (thunkArity) {
+      case 0: reinterpret_cast<likely_kernel_0>(currentThunk)((likely_mat)thunkMatricies[0], start, stop); break;
+      case 1: reinterpret_cast<likely_kernel_1>(currentThunk)(thunkMatricies[0], (likely_mat)thunkMatricies[1], start, stop); break;
+      case 2: reinterpret_cast<likely_kernel_2>(currentThunk)(thunkMatricies[0], thunkMatricies[1], (likely_mat)thunkMatricies[2], start, stop); break;
+      case 3: reinterpret_cast<likely_kernel_3>(currentThunk)(thunkMatricies[0], thunkMatricies[1], thunkMatricies[2], (likely_mat)thunkMatricies[3], start, stop); break;
+      default: likely_assert(false, "executeWorker invalid arity: %d", thunkArity);
+    }
+}
+
+static void workerThread(int id, int numWorkers)
+{
+    while (true) {
+        workers[id]->lock();
+        executeWorker(id, numWorkers);
+        if (--workersRemaining == 0)
+            workersActive.unlock();
+    }
+}
+
 class FunctionBuilder
 {
     string name;
@@ -1428,6 +1472,26 @@ public:
     FunctionBuilder(const string &name_, const SExp &sexp_, const vector<likely_type> &types_)
         : name(name_), sexp(sexp_), types(types_)
     {
+        if (TheMatrixStruct == NULL) {
+            assert(sizeof(likely_size) == sizeof(void*));
+            InitializeNativeTarget();
+            InitializeNativeTargetAsmPrinter();
+            InitializeNativeTargetAsmParser();
+            initializeScalarOpts(*PassRegistry::getPassRegistry());
+
+            likely_set_depth(&likely_type_native, sizeof(likely_size)*8);
+            NativeIntegerType = Type::getIntNTy(getGlobalContext(), likely_depth(likely_type_native));
+            TheMatrixStruct = StructType::create("likely_matrix",
+                                                 Type::getInt8PtrTy(getGlobalContext()), // data
+                                                 PointerType::getUnqual(StructType::create(getGlobalContext(), "likely_matrix_private")), // d_ptr
+                                                 NativeIntegerType,                      // channels
+                                                 NativeIntegerType,                      // columns
+                                                 NativeIntegerType,                      // rows
+                                                 NativeIntegerType,                      // frames
+                                                 Type::getInt32Ty(getGlobalContext()),   // type
+                                                 NULL);
+        }
+
         module = new Module(name, getGlobalContext());
         likely_assert(module != NULL, "failed to create LLVM Module");
         module->setTargetTriple(sys::getProcessTriple());
@@ -1464,15 +1528,15 @@ public:
         Function *thunk;
         likely_type dstType;
         {
-            thunk = getFunction(name+"_thunk", module, types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), Type::getInt32Ty(getGlobalContext()), Type::getInt32Ty(getGlobalContext()));
+            thunk = getFunction(name+"_thunk", module, types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), NativeIntegerType, NativeIntegerType);
             vector<TypedValue> srcs;
             getValues(thunk, types, srcs);
             TypedValue stop = srcs.back(); srcs.pop_back();
             stop.value->setName("stop");
-            stop.type = likely_type_i32;
+            stop.type = likely_type_native;
             TypedValue start = srcs.back(); srcs.pop_back();
             start.value->setName("start");
-            start.type = likely_type_i32;
+            start.type = likely_type_native;
             TypedValue dst = srcs.back(); srcs.pop_back();
             dst.value->setName("dst");
 
@@ -1511,10 +1575,10 @@ public:
             Type *newReturn = PointerType::getUnqual(TheMatrixStruct);
             vector<Type*> newParameters;
             newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // type
-            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // channels
-            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // columns
-            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // rows
-            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // frames
+            newParameters.push_back(NativeIntegerType); // channels
+            newParameters.push_back(NativeIntegerType); // columns
+            newParameters.push_back(NativeIntegerType); // rows
+            newParameters.push_back(NativeIntegerType); // frames
             newParameters.push_back(Type::getInt8PtrTy(getGlobalContext())); // data
             newParameters.push_back(Type::getInt8Ty(getGlobalContext())); // copy
             LikelyNewSignature = FunctionType::get(newReturn, newParameters, false);
@@ -1555,12 +1619,23 @@ public:
 
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
         if (likely_parallel(types[0])) {
+            if (workers.empty()) {
+                const int numWorkers = std::max((int)thread::hardware_concurrency(), 1);
+                workers.push_back(NULL); // main thread = 0
+                for (int i=1; i<numWorkers; i++) {
+                    mutex *m = new mutex();
+                    m->lock();
+                    workers.push_back(m);
+                    thread(workerThread, i, numWorkers).detach();
+                }
+            }
+
             static FunctionType *likelyForkType = NULL;
             if (likelyForkType == NULL) {
                 vector<Type*> likelyForkParameters;
                 likelyForkParameters.push_back(thunk->getType());
                 likelyForkParameters.push_back(Type::getInt8Ty(getGlobalContext()));
-                likelyForkParameters.push_back(Type::getInt32Ty(getGlobalContext()));
+                likelyForkParameters.push_back(NativeIntegerType);
                 likelyForkParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
                 Type *likelyForkReturn = Type::getVoidTy(getGlobalContext());
                 likelyForkType = FunctionType::get(likelyForkReturn, likelyForkParameters, true);
@@ -1677,48 +1752,6 @@ private:
     }
 };
 
-// Control parallel execution
-static vector<mutex*> workers;
-static mutex workersActive;
-static atomic_uint workersRemaining(0);
-static void *currentThunk = NULL;
-static likely_arity thunkArity = 0;
-static likely_size thunkSize = 0;
-static likely_const_mat thunkMatricies[LIKELY_NUM_ARITIES+1];
-
-// Final three parameters are: dst, start, stop
-typedef void (*likely_kernel_0)(likely_mat, likely_size, likely_size);
-typedef void (*likely_kernel_1)(likely_const_mat, likely_mat, likely_size, likely_size);
-typedef void (*likely_kernel_2)(likely_const_mat, likely_const_mat, likely_mat, likely_size, likely_size);
-typedef void (*likely_kernel_3)(likely_const_mat, likely_const_mat, likely_const_mat, likely_mat, likely_size, likely_size);
-
-static void executeWorker(int id, int numWorkers)
-{
-    // There are hardware_concurrency-1 helper threads and the main thread with id = 0
-    const likely_size step = (thunkSize+numWorkers-1)/numWorkers;
-    const likely_size start = id * step;
-    const likely_size stop = std::min((id+1)*step, thunkSize);
-    if (start >= stop) return;
-
-    switch (thunkArity) {
-      case 0: reinterpret_cast<likely_kernel_0>(currentThunk)((likely_mat)thunkMatricies[0], start, stop); break;
-      case 1: reinterpret_cast<likely_kernel_1>(currentThunk)(thunkMatricies[0], (likely_mat)thunkMatricies[1], start, stop); break;
-      case 2: reinterpret_cast<likely_kernel_2>(currentThunk)(thunkMatricies[0], thunkMatricies[1], (likely_mat)thunkMatricies[2], start, stop); break;
-      case 3: reinterpret_cast<likely_kernel_3>(currentThunk)(thunkMatricies[0], thunkMatricies[1], thunkMatricies[2], (likely_mat)thunkMatricies[3], start, stop); break;
-      default: likely_assert(false, "executeWorker invalid arity: %d", thunkArity);
-    }
-}
-
-static void workerThread(int id, int numWorkers)
-{
-    while (true) {
-        workers[id]->lock();
-        executeWorker(id, numWorkers);
-        if (--workersRemaining == 0)
-            workersActive.unlock();
-    }
-}
-
 void *likely_compile(likely_description description, likely_arity n, likely_type type, ...)
 {
     vector<likely_type> srcs;
@@ -1738,33 +1771,6 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_ty
     static map<string,FunctionBuilder*> kernels;
     static recursive_mutex makerLock;
     lock_guard<recursive_mutex> lock(makerLock);
-
-    if (TheMatrixStruct == NULL) {
-        // Initialize Likely
-        InitializeNativeTarget();
-        InitializeNativeTargetAsmPrinter();
-        InitializeNativeTargetAsmParser();
-        initializeScalarOpts(*PassRegistry::getPassRegistry());
-
-        TheMatrixStruct = StructType::create("likely_matrix",
-                                             Type::getInt8PtrTy(getGlobalContext()), // data
-                                             Type::getInt32Ty(getGlobalContext()),   // type
-                                             Type::getInt32Ty(getGlobalContext()),   // channels
-                                             Type::getInt32Ty(getGlobalContext()),   // columns
-                                             Type::getInt32Ty(getGlobalContext()),   // rows
-                                             Type::getInt32Ty(getGlobalContext()),   // frames
-                                             PointerType::getUnqual(StructType::create(getGlobalContext(), "likely_matrix_private")), // d_ptr
-                                             NULL);
-
-        const int numWorkers = std::max((int)thread::hardware_concurrency(), 1);
-        workers.push_back(NULL); // main thread = 0
-        for (int i=1; i<numWorkers; i++) {
-            mutex *m = new mutex();
-            m->lock();
-            workers.push_back(m);
-            thread(workerThread, i, numWorkers).detach();
-        }
-    }
 
     string source = description;
     if (source.compare(0, 1, "(")) {
