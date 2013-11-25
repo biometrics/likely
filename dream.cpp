@@ -368,6 +368,26 @@ public slots:
         }
     }
 
+    void commandsMenu(QAction *a)
+    {
+        if (a->text() == "Toggle") {
+            toggle(textCursor());
+        } else if (a->text().startsWith("Increment") ||
+                   a->text().startsWith("Decrement")) {
+            QTextCursor tc = textCursor();
+            bool ok;
+            int n = selectNumber(tc, &ok);
+            if (ok) {
+                int scale = 0, add = 0;
+                if      (a->text() == "Increment")     add = 1;
+                else if (a->text() == "Decrement")     add = -1;
+                else if (a->text() == "Increment 10x") scale = 1;
+                else if (a->text() == "Decrement 10x") scale = -1;
+                tc.insertText(QString::number(qRound(qPow(10,scale)*n+add)));
+            }
+        }
+    }
+
     void examplesMenu(QAction *a)
     {
         setText(a->data().toString());
@@ -392,15 +412,31 @@ private:
             activate(variable);
     }
 
+    void toggle(QTextCursor tc)
+    {
+        tc.select(QTextCursor::WordUnderCursor);
+        emit toggled(tc.selectedText());
+    }
+
+    int selectNumber(QTextCursor &tc, bool *ok)
+    {
+        int n = selectValUnderCursor(tc, ok);
+        if (!*ok) {
+            tc.movePosition(QTextCursor::NextWord);
+            n = selectValUnderCursor(tc, ok);
+        }
+        if (!*ok) {
+            tc.movePosition(QTextCursor::PreviousWord, QTextCursor::MoveAnchor, 2);
+            n = selectValUnderCursor(tc, ok);
+        }
+        return n;
+    }
+
     void mousePressEvent(QMouseEvent *e)
     {
         if (e->modifiers() != Qt::ControlModifier)
             return QPlainTextEdit::mousePressEvent(e);
-
-        QTextCursor tc = cursorForPosition(e->pos());
-        tc.select(QTextCursor::WordUnderCursor);
-        const QString name = tc.selectedText();
-        emit toggled(name);
+        toggle(cursorForPosition(e->pos()));
     }
 
     void wheelEvent(QWheelEvent *e)
@@ -415,16 +451,8 @@ private:
 
         QTextCursor tc = cursorForPosition(e->pos());
         bool ok;
-        int val = selectValUnderCursor(tc, &ok);
-        if (!ok) {
-            tc.movePosition(QTextCursor::NextWord);
-            val = selectValUnderCursor(tc, &ok);
-        }
-        if (!ok) {
-            tc.movePosition(QTextCursor::PreviousWord, QTextCursor::MoveAnchor, 2);
-            val = selectValUnderCursor(tc, &ok);
-        }
-        if (ok) tc.insertText(QString::number(qRound(qPow(10, deltaX) * (val + deltaY))));
+        int n = selectNumber(tc, &ok);
+        if (ok) tc.insertText(QString::number(qRound(qPow(10, deltaX) * (n + deltaY))));
     }
 
     static int getIncrement(int delta, int &remainder, int &remainderOther)
@@ -611,6 +639,23 @@ int main(int argc, char *argv[])
     fileMenu->addAction(saveSource);
     fileMenu->addAction(saveSourceAs);
 
+    QMenu *commandsMenu = new QMenu("Commands");
+    QAction *toggle = new QAction("Toggle", commandsMenu);
+    QAction *increment = new QAction("Increment", commandsMenu);
+    QAction *decrement = new QAction("Decrement", commandsMenu);
+    QAction *increment10x = new QAction("Increment 10x", commandsMenu);
+    QAction *decrement10x = new QAction("Decrement 10x", commandsMenu);
+    toggle->setShortcut(QKeySequence("Ctrl+\n"));
+    increment->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_Equal));
+    decrement->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_Minus));
+    increment10x->setShortcut(QKeySequence(Qt::CTRL+Qt::SHIFT+Qt::Key_Equal));
+    decrement10x->setShortcut(QKeySequence(Qt::CTRL+Qt::SHIFT+Qt::Key_Minus));
+    commandsMenu->addAction(toggle);
+    commandsMenu->addAction(increment);
+    commandsMenu->addAction(decrement);
+    commandsMenu->addAction(increment10x);
+    commandsMenu->addAction(decrement10x);
+
     QMenu *examplesMenu = new QMenu("Examples");
     lua_State *L = luaL_newstate();
     luaL_openlibs(L);
@@ -633,6 +678,7 @@ int main(int argc, char *argv[])
 
     QMenuBar *menuBar = new QMenuBar();
     menuBar->addMenu(fileMenu);
+    menuBar->addMenu(commandsMenu);
     menuBar->addMenu(examplesMenu);
 
     QStatusBar *statusBar = new QStatusBar();
@@ -647,6 +693,7 @@ int main(int argc, char *argv[])
     QObject::connect(commandMode, SIGNAL(commandMode(bool)), syntaxHighlighter, SLOT(setCommandMode(bool)));
     QObject::connect(documentation, SIGNAL(activate(QString)), source, SLOT(activate(QString)));
     QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(fileMenu(QAction*)));
+    QObject::connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
     QObject::connect(examplesMenu, SIGNAL(triggered(QAction*)), source, SLOT(examplesMenu(QAction*)));
     QObject::connect(source, SIGNAL(toggled(QString)), documentation, SLOT(toggle(QString)));
     QObject::connect(source, SIGNAL(newSource()), documentation, SLOT(clear()));
