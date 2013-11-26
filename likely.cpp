@@ -37,7 +37,6 @@
 #include <iomanip>
 #include <iostream>
 #include <mutex>
-#include <regex>
 #include <stack>
 #include <sstream>
 #include <thread>
@@ -1729,6 +1728,24 @@ private:
         }
     }
 
+    TypedValue constant(const string &str, bool *ok)
+    {
+        // Split value from type
+        size_t i = 0;
+        while ((i < str.size()) && ((str[i] != 'u') || (str[i] != 'i') || (str[i] != 'f')))
+            i++;
+
+        // Parse string
+        char *p;
+        const double value = strtod(str.substr(0, i).c_str(), &p);
+        const likely_type type = (  i == str.size()
+                                  ? likely_type_from_value(value)
+                                  : likely_type_from_string(str.substr(i, str.size()-i).c_str()));
+
+        *ok = ((*p == 0) && (type != likely_type_null));
+        return KernelBuilder::constant(value, type);
+    }
+
     TypedValue generateKernelRecursive(KernelBuilder &kernel, const KernelInfo &info, const SExp &expression)
     {
         vector<TypedValue> operands;
@@ -1740,16 +1757,7 @@ private:
         if (it != Operation::operations.end())
             return it->second->call(kernel, info, operands);
 
-        static regex constant("(-?\\d*\\.?\\d+)([uif]\\d*)?");
-        std::smatch sm;
-        if (regex_match(op, sm, constant)) {
-            assert(sm.size() == 3);
-            const double value = atof(string(sm[1]).c_str());
-            const likely_type type = string(sm[2]).empty()
-                                   ? likely_type_from_value(value)
-                                   : likely_type_from_string(string(sm[2]).c_str());
-            return KernelBuilder::constant(value, type);
-        } else if (op.substr(0,2) == "__") {
+        if (op.substr(0,2) == "__") {
             int index = atoi(op.substr(2, op.size()-2).c_str());
             const TypedValue matrix = info.srcs[index];
             Value *matrix_i;
@@ -1762,9 +1770,13 @@ private:
                 matrix_i = kernel.index(matrix, c, x, y, t);
             }
             return TypedValue(kernel.load(matrix, matrix_i), matrix.type);
+        } else {
+            bool ok;
+            TypedValue c = constant(op, &ok);
+            likely_assert(ok, "unrecognized literal: %s", op.c_str());
+            return c;
         }
 
-        likely_assert(false, "unrecognized literal: %s", op.c_str());
         return TypedValue();
     }
 };
@@ -1881,7 +1893,7 @@ static int lua_likely_closure(lua_State *L)
 
 static int lua_likely__call(lua_State *L)
 {
-    int args = lua_gettop(L);
+    const int args = lua_gettop(L);
     lua_likely_assert(L, args >= 1, "'__call' expected at least one argument");
 
     // Copy the arguments already in the closure to a new table
@@ -2070,7 +2082,7 @@ static int lua_likely_closure__tostring(lua_State *L)
     return 1;
 }
 
-void _likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...)
+void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...)
 {
     workersActive.lock();
 

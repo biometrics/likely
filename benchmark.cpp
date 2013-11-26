@@ -410,7 +410,6 @@ int main(int argc, char *argv[])
         lua_close(L);
     } else {
         printf("Function \tType \tSize \tExecution \tSpeedup\n");
-        thresholdTest().run();
         addTest().run();
         subtractTest().run();
         multiplyTest().run();
@@ -435,6 +434,7 @@ int main(int argc, char *argv[])
         nearbyintTest().run();
         roundTest().run();
         castTest().run();
+        thresholdTest().run();
     }
 
     return 0;

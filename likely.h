@@ -161,7 +161,7 @@ LIKELY_EXPORT void *likely_compile(likely_description description, likely_arity 
 LIKELY_EXPORT void *likely_compile_n(likely_description description, likely_arity n, likely_type *types);
 
 // Used internally for OpenMP-like parallelization
-LIKELY_EXPORT void _likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...);
+LIKELY_EXPORT void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...);
 
 // Make Likely accessible as a Lua module
 struct lua_State;
