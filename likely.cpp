@@ -1116,6 +1116,23 @@ class castOperation : public BinaryOperation
 };
 LIKELY_REGISTER(castOperation)
 
+class thresholdOperation : public BinaryOperation
+{
+    string name() const { return "threshold"; }
+    TypedValue callBinary(KernelBuilder &kernel, const KernelInfo &info, TypedValue x, TypedValue t) const
+    {
+         (void) info;
+         likely_type type = likely_type_from_types(x, t);
+         x = kernel.cast(x, type);
+         t = kernel.cast(t, type);
+         Value *comp = likely_floating(type) ? kernel.b->CreateFCmpOLE(x, t) : (likely_signed(type) ? kernel.b->CreateICmpSLE(x, t) : kernel.b->CreateICmpULE(x, t));
+         TypedValue high = kernel.constant(1.0, type);
+         TypedValue low = kernel.constant(0.0, type);
+         return TypedValue(kernel.b->CreateSelect(comp, low, high), type);
+    }
+};
+LIKELY_REGISTER(thresholdOperation)
+
 class ArithmeticOperation : public BinaryOperation
 {
     TypedValue callBinary(KernelBuilder &kernel, const KernelInfo &info, TypedValue arg1, TypedValue arg2) const
