@@ -19,6 +19,9 @@
 
 #include <likely.h>
 
+// Contents of standard.likely
+LIKELY_EXPORT const char *likely_standard_library();
+
 struct lua_State;
 LIKELY_EXPORT int luaopen_likely(lua_State *L);
 LIKELY_EXPORT lua_State *likely_exec(const char *source, lua_State *L = NULL);

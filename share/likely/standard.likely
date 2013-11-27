@@ -136,15 +136,6 @@ function likely.s(...)
   return "(" .. table.concat({...}, " ") .. ")"
 end
 
-function likely.isnum(...)
-  for k,v in ipairs{...} do
-    if type(v) ~= "number" then
-      return false
-    end
-  end
-  return true
-end
-
 -- Basic arithmetic
 set = closure(
   function(value, matrix)
@@ -155,47 +146,19 @@ set = closure(
    {"matrix", "used to determine output size and type"}})
 
 add = closure(
-  function(rhs, lhs)
-    if likely.isnum(rhs, lhs) then
-      return lhs + rhs
-    elseif rhs == 0 then
-      return lhs
-    elseif lhs == 0 then
-      return rhs
-    else
-      return likely.s("+", lhs, rhs)
-    end
-  end,
+  function(rhs, lhs) return likely.s("+", lhs, rhs) end,
   "Arithmetic addition",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
 subtract = closure(
-  function(rhs, lhs)
-    if likely.isnum(rhs, lhs) then
-      return lhs - rhs
-    elseif lhs == 0 then
-      return rhs
-    else
-      return likely.s("-", lhs, rhs)
-    end
-  end,
+  function(rhs, lhs) return likely.s("-", lhs, rhs) end,
   "Arithmetic subtraction",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
 multiply = closure(
-  function(rhs, lhs)
-    if likely.isnum(rhs, lhs) then
-      return lhs * rhs
-    elseif rhs == 1 then
-      return lhs
-    elseif lhs == 1 then
-      return rhs
-    else
-      return likely.s("*", lhs, rhs)
-    end
-  end,
+  function(rhs, lhs) return likely.s("*", lhs, rhs) end,
   "Arithmetic multiplication",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
@@ -204,10 +167,6 @@ divide = closure(
   function(rhs, lhs)
     if rhs == 0 then
       error("Denominator is zero!")
-    elseif likely.isnum(rhs, lhs) then
-      return lhs / rhs
-    elseif rhs == 1 then
-      return lhs
     else
       return likely.s("/", lhs, rhs)
     end
@@ -218,275 +177,143 @@ divide = closure(
 
 -- Basic math
 sqrt = closure(
-  function(x)
-    if likely.isnum(x) then
-      return math.sqrt(x)
-    else
-      return likely.s("sqrt", x)
-    end
-  end,
+  function(x) return likely.s("sqrt", x) end,
   "Square root: f(x) = x ** 0.5",
   {{"x", "operand"}})
 
 powi = closure(
-  function(n, x)
-    if likely.isnum(n, x) then
-      return math.pow(x, n)
-    else
-      return likely.s("powi", x, n)
-    end
-  end,
+  function(n, x) return likely.s("powi", x, n) end,
   "Integer power: f(x) = x ** n",
   {{"x", "base"},
    {"n", "integer exponent"}})
 
 sin = closure(
-  function(x)
-    if likely.isnum(x) then
-      return math.sin(x)
-    else
-      return likely.s("sin", x)
-    end
-  end,
+  function(x) return likely.s("sin", x) end,
   "Sine: f(x) = sin(x)",
   {{"x", "radians"}})
 
 cos = closure(
-  function(x)
-    if likely.isnum(x) then
-      return math.cos(x)
-    else
-      return likely.s("cos", x)
-    end
-  end,
+  function(x) return likely.s("cos", x) end,
   "Cosine: f(x) = cos(x)",
   {{"x", "operand"}})
 
 pow = closure(
-  function(n, x)
-    if likely.isnum(n, x) then
-      return math.pow(x, n)
-    else
-      return likely.s("pow", x, n)
-    end
-  end,
+  function(n, x) return likely.s("pow", x, n) end,
   "Power: f(x) = x ** n",
   {{"x", "base"},
    {"n", "exponent"}})
 
 exp = closure(
-  function(x)
-    if likely.isnum(x) then
-      return math.exp(x)
-    else
-      return likely.s("exp", x)
-    end
-  end,
+  function(x) return likely.s("exp", x) end,
   "Base-e exponential: f(x) = e ** x",
   {{"x", "exponent"}})
 
 exp2 = closure(
-  function(x)
-    if likely.isnum(x) then
-      return math.pow(2, x)
-    else
-      return likely.s("exp2", x)
-    end
-  end,
+  function(x) return likely.s("exp2", x) end,
   "Base-2 exponential: f(x) = 2 ** x",
   {{"x", "exponent"}})
 
 log = closure(
-  function(x)
-    if likely.isnum(x) then
-      return math.log(x)
-    else
-      return likely.s("log", x)
-    end
-  end,
+  function(x) return likely.s("log", x) end,
   "Natural logarithm: f(x) = log_e(x)",
   {{"x", "operand"}})
 
 log10 = closure(
-  function(x)
-    if likely.isnum(x) then
-      return math.log10(x)
-    else
-      return likely.s("log10", x)
-    end
-  end,
+  function(x) return likely.s("log10", x) end,
   "Base-10 logarithm: f(x) = log_10(x)",
   {{"x", "operand"}})
 
 log2 = closure(
-  function(x)
-    if likely.isnum(x) then
-      return math.log(x) / math.log(2)
-    else
-      return likely.s("log2", x)
-    end
-  end,
+  function(x) return likely.s("log2", x) end,
   "Base-2 logarithm: f(x) = log_2(x)",
   {{"x", "operand"}})
 
 fma = closure(
-  function(a, c, x)
-    if likely.isnum(a, c, x) then
-      return a * x + c
-    else
-      return likely.s("fma", a, x, c)
-    end
-  end,
+  function(a, c, x) return likely.s("fma", a, x, c) end,
   "Fused multiply-add: f(a, b, x) = a * x + c",
   {{"a", "operand"},
    {"c", "operand"},
    {"x", "operand"}})
 
 fabs = closure(
-  function(x)
-    if likely.isnum(x) then
-      return math.abs(x)
-    else
-      return likely.s("fabs", x)
-    end
-  end,
+  function(x) return likely.s("fabs", x) end,
   "Floating absolute value: f(x) = |x|",
   {{"x", "operand"}})
 
 copysign = closure(
-  function(s, m)
-    if likely.isnum(s, m) then
-      return m * s / math.abs(s)
-    else
-      return likely.s("copysign", m, s)
-    end
-  end,
+  function(s, m) return likely.s("copysign", m, s) end,
   "Floating copy sign: f(x) = copysign(m, s)",
   {{"s", "value containing sign"},
    {"m", "value containing magnitude"}})
 
 floor = closure(
-  function(x)
-    if likely.isnum(x) then
-      return math.floor(x)
-    else
-      return likely.s("floor", x)
-    end
-  end,
+  function(x) return likely.s("floor", x) end,
   "Floating floor: f(x) = floor(x)",
   {{"x", "operand"}})
 
 ceil = closure(
-  function(x)
-    if likely.isnum(x) then
-      return math.floor(x)
-    else
-      return likely.s("ceil", x)
-    end
-  end,
+  function(x) return likely.s("ceil", x) end,
   "Floating ceil: f(x) = ceil(x)",
   {{"x", "operand"}})
 
 trunc = closure(
-  function(x)
-    if likely.isnum(x) then
-      if x > 0 then
-        return math.floor(x)
-      else
-        return math.ceil(x)
-      end
-    else
-      return likely.s("trunc", x)
-    end
-  end,
+  function(x) return likely.s("trunc", x) end,
   "Floating round toward zero: f(x) = x > 0 ? floor(x) : ceil(x)",
   {{"x", "operand"}})
 
 rint = closure(
-  function(x)
-    if likely.isnum(x) then
-      return math.round(x)
-    else
-      return likely.s("rint", x)
-    end
-  end,
+  function(x) return likely.s("rint", x) end,
   "Floating round to nearest integer: f(x) = rint(x)",
   {{"x", "operand"}})
 
 nearbyint = closure(
-  function(x)
-    if likely.isnum(x) then
-      return math.round(x)
-    else
-      return likely.s("nearbyint", x)
-    end
-  end,
+  function(x) return likely.s("nearbyint", x) end,
   "Floating round to nearest integer: f(x) = nearbyint(x)",
   {{"x", "operand"}})
 
 round = closure(
-  function(x)
-    if likely.isnum(x) then
-      return math.round(x)
-    else
-      return likely.s("round", x)
-    end
-  end,
+  function(x) return likely.s("round", x) end,
   "Floating round to nearest integer: f(x) = round(x)",
   {{"x", "operand"}})
 
 cast = closure(
-  function(type, x)
-    return likely.s("cast", x, type)
-  end,
+  function(type, x) return likely.s("cast", x, type) end,
   "Cast matrix to another type",
   {{"type", "Likely type"},
    {"x", "operand"}})
 
 lt = closure(
-  function(rhs, lhs)
-    return likely.s("<", lhs, rhs)
-  end,
+  function(rhs, lhs) return likely.s("<", lhs, rhs) end,
   "Check if lhs is less than rhs",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
 le = closure(
-  function(rhs, lhs)
-    return likely.s("<=", lhs, rhs)
-  end,
+  function(rhs, lhs) return likely.s("<=", lhs, rhs) end,
   "Check if lhs is less than or equal to rhs",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
 gt = closure(
-  function(rhs, lhs)
-    return likely.s(">", lhs, rhs)
-  end,
+  function(rhs, lhs) return likely.s(">", lhs, rhs) end,
   "Check if lhs is greater than rhs",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
 ge = closure(
-  function(rhs, lhs)
-    return likely.s(">=", lhs, rhs)
-  end,
+  function(rhs, lhs) return likely.s(">=", lhs, rhs) end,
   "Check if lhs is greater than or equal to rhs",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
 eq = closure(
-  function(rhs, lhs)
-    return likely.s("==", lhs, rhs)
-  end,
+  function(rhs, lhs) return likely.s("==", lhs, rhs) end,
   "Check if lhs is equal to rhs",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
 ne = closure(
-  function(rhs, lhs)
-    return likely.s("!=", lhs, rhs)
-  end,
+  function(rhs, lhs) return likely.s("!=", lhs, rhs) end,
   "Check if lhs is not equal to rhs",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})

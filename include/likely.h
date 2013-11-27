@@ -39,9 +39,6 @@
 extern "C" {
 #endif
 
-// Contents of standard.likely
-LIKELY_EXPORT const char *likely_standard_library();
-
 // Matrix types
 typedef uint8_t likely_data;
 typedef uintptr_t likely_size;
