@@ -19,6 +19,7 @@
 #include <lua.hpp>
 
 #include "likely.h"
+#include "likely_aux.h"
 #include "likely_script.h"
 
 class Variable : public QFrame

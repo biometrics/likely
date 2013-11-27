@@ -122,32 +122,21 @@ LIKELY_EXPORT void likely_set_saturation(likely_type *type, bool saturation);
 LIKELY_EXPORT int  likely_reserved(likely_type type);
 LIKELY_EXPORT void likely_set_reserved(likely_type *type, int reserved);
 
-// Determine matrix size
+// Matrix size
 LIKELY_EXPORT likely_size likely_elements(likely_const_mat m);
 LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
 
-// Create and manage a reference counted matrix
+// Matrix creation
 LIKELY_EXPORT likely_mat likely_new(likely_type type = likely_type_f32, likely_size channels = 1, likely_size columns = 1, likely_size rows = 1, likely_size frames = 1, likely_data *data = NULL, int8_t copy = 0);
-LIKELY_EXPORT likely_mat likely_scalar(double value);
 LIKELY_EXPORT likely_mat likely_copy(likely_const_mat m, int8_t copy_data = 0);
 LIKELY_EXPORT likely_mat likely_retain(likely_mat m);
 LIKELY_EXPORT void likely_release(likely_mat m);
 
-// Matrix I/O
-LIKELY_EXPORT likely_mat likely_read(const char *file_name);
-LIKELY_EXPORT void likely_write(likely_const_mat image, const char *file_name);
-LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
-LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
-LIKELY_EXPORT likely_mat likely_render(likely_const_mat m, double *min = NULL, double *max = NULL); // Return a 888 matrix for visualization
-
-// Debugging functionality
-LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
-LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
+// Type conversion
 LIKELY_EXPORT const char *likely_type_to_string(likely_type type); // Return value managed internally and guaranteed until the next call to this function
 LIKELY_EXPORT likely_type likely_type_from_string(const char *str);
 LIKELY_EXPORT likely_type likely_type_from_value(double value);
 LIKELY_EXPORT likely_type likely_type_from_types(likely_type lhs, likely_type rhs);
-LIKELY_EXPORT void likely_print(likely_const_mat m);
 
 // Core library types and functions
 typedef const char *likely_description;

@@ -3,6 +3,7 @@
 #include <vector>
 #include <lua.hpp>
 
+#include "likely_aux.h"
 #include "likely_script.h"
 
 using namespace std;
