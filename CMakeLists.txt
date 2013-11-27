@@ -49,6 +49,7 @@ llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES mcjit native vectorize)
 option(LIKELY_AUX "Build Likely with matrix I/O and debugging" ON)
 if(${LIKELY_AUX})
   set(WITH_CUDA OFF)
+  set(WITH_OPENEXR OFF)
   get_subdirectories(DISABLED_OPENCV_MODULES "${CMAKE_SOURCE_DIR}/opencv/modules")
   set(REQUIRED_OPENCV_MODULES core imgproc highgui)
   list(REMOVE_ITEM DISABLED_OPENCV_MODULES ${REQUIRED_OPENCV_MODULES}) # Disable all but these
@@ -59,38 +60,13 @@ if(${LIKELY_AUX})
   foreach(OPENCV_MODULE ${REQUIRED_OPENCV_MODULES})
     include_directories(opencv/modules/${OPENCV_MODULE}/include)
   endforeach()
-  set(LIKELY_SRC ${LIKELY_SRC} likely_aux.cpp)
-  set(LIKELY_LIBS ${LIKELY_LIBS} OpenCV)
-  install(FILES likely_aux.h DESTINATION include)
 endif()
 
 option(LIKELY_SCRIPT "Build Likely with Lua frontend (requires LIKELY_AUX)" ON)
 if(${LIKELY_SCRIPT})
   add_subdirectory(lua)
   include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
-  set(LIKELY_SRC ${LIKELY_SRC} likely_script.cpp)
-  set(LIKELY_LIBS ${LIKELY_LIBS} lua)
-  install(FILES likely_script.h DESTINATION include)
 endif()
-
-# Compile in standard.likely as a string
-set(STANDARD_LIBRARY_CMAKE ${CMAKE_BINARY_DIR}/standard_library.cmake)
-set(STANDARD_LIBRARY_CPP ${CMAKE_BINARY_DIR}/likely_standard_library.cpp)
-file(WRITE ${STANDARD_LIBRARY_CMAKE}
-"set(STANDARD_LIBRARY_CPP ${STANDARD_LIBRARY_CPP})
-set(STANDARD_LIBRARY \"${CMAKE_SOURCE_DIR}/standard.likely\")
-if (\${STANDARD_LIBRARY} IS_NEWER_THAN \${STANDARD_LIBRARY_CPP})
-  file(WRITE \${STANDARD_LIBRARY_CPP} \"// Probably a bad idea to modify this automatically generated source file!\\n\\n\")
-  file(APPEND \${STANDARD_LIBRARY_CPP} \"#include \\\"likely.h\\\"\\n\\nconst char *likely_standard_library()\\n{\\n\\treturn\\n\\t\\\"\")
-  file(READ \${STANDARD_LIBRARY} STANDARD_LIBRARY_SOURCE)
-  string(REPLACE \"\\\\\" \"\\\\\\\\\" STANDARD_LIBRARY_SOURCE \${STANDARD_LIBRARY_SOURCE})
-  string(REPLACE \"\\\"\" \"\\\\\\\"\" STANDARD_LIBRARY_SOURCE \${STANDARD_LIBRARY_SOURCE})
-  string(REPLACE \"\\n\" \"\\\\n\\\"\\n\\t\\\"\" STANDARD_LIBRARY_SOURCE \${STANDARD_LIBRARY_SOURCE})
-  file(APPEND \${STANDARD_LIBRARY_CPP} \${STANDARD_LIBRARY_SOURCE})
-  file(APPEND \${STANDARD_LIBRARY_CPP} \"\\\";\\n}\\n\")
-endif()")
-include(${STANDARD_LIBRARY_CMAKE}) # Run it once
-add_custom_target(standard_library COMMAND ${CMAKE_COMMAND} -P ${STANDARD_LIBRARY_CMAKE})
 
 if(CMAKE_COMPILER_IS_GNUCC)
   set(CXX11 "-std=c++0x")
@@ -98,47 +74,10 @@ else()
   set(CXX11 "-std=c++11")
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter -fno-rtti")
-add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
-add_library(likely SHARED likely.cpp ${LIKELY_SRC} standard.likely opencv.shim ${STANDARD_LIBRARY_CPP})
-add_dependencies(likely standard_library LLVM ${LIKELY_LIBS})
-set_target_properties(likely PROPERTIES
-                      DEFINE_SYMBOL LIKELY_LIBRARY
-                      VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
-                      SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR})
-target_link_libraries(likely ${REQ_LLVM_LIBRARIES} liblua opencv_highgui)
-install(TARGETS likely
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
-add_custom_command(TARGET likely POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E touch ${STANDARD_LIBRARY_CPP})
-install(FILES likely.h DESTINATION include)
-install(DIRECTORY share DESTINATION .)
-
-if(${LIKELY_AUX} AND ${LIKELY_SCRIPT})
-  # Benchmark
-  add_executable(benchmark benchmark.cpp)
-  add_dependencies(benchmark OpenCV)
-  target_link_libraries(benchmark likely opencv_imgproc)
-  install(TARGETS benchmark RUNTIME DESTINATION bin)
-
-  # Dream
-  find_package(Qt5Quick QUIET)
-  find_package(Qt5Widgets QUIET)
-  find_package(Qt5PrintSupport QUIET)
-  if(${Qt5Quick_FOUND} AND ${Qt5Widgets_FOUND} AND ${Qt5PrintSupport_FOUND})
-    # Get QCustomPlot source
-    # aux_source_directory(qcustomplot/src QCUSTOMPLOT_SRC)
-    # aux_source_directory(qcustomplot/src/plottables QCUSTOMPLOT_SRC_PLOTTABLES)
-    # aux_source_directory(qcustomplot/src/items QCUSTOMPLOT_SRC_ITEMS)
-    # aux_source_directory(qcustomplot/src/layoutelements QCUSTOMPLOT_SRC_LAYOUTELEMENTS)
-    # set(QCUSTOMPLOT_SRC ${QCUSTOMPLOT_SRC} ${QCUSTOMPLOT_SRC_PLOTTABLES} ${QCUSTOMPLOT_SRC_ITEMS} ${QCUSTOMPLOT_SRC_LAYOUTELEMENTS})
-
-    qt5_add_resources(RESOURCES img/img.qrc)
-    add_executable(Dream dream.cpp ${QCUSTOMPLOT_SRC} ${RESOURCES})
-    qt5_use_modules(Dream Quick Widgets PrintSupport)
-    target_link_libraries(Dream likely)
-    install(TARGETS Dream RUNTIME DESTINATION bin)
-  endif()
+if(NOT MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter -fno-rtti")
 endif()
+
+include_directories(include share/likely)
+add_subdirectory(src)
+add_subdirectory(app)
