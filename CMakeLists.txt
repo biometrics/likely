@@ -47,8 +47,13 @@ add_definitions(${LLVM_DEFINITIONS})
 llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES mcjit native vectorize)
 
 # Build Lua
-add_subdirectory(lua)
-include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
+option(LIKELY_SCRIPT "Build Likely with Lua frontend" ON)
+if(${LIKELY_SCRIPT})
+  add_subdirectory(lua)
+  include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
+  set(LIKELY_SRC ${LIKELY_SRC} likely_script.cpp)
+  set(LIKELY_LIBS ${LIKELY_LIBS} lua)
+endif()
 
 # Build OpenCV
 set(WITH_CUDA OFF)
@@ -90,8 +95,8 @@ endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter -fno-rtti")
 add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
-add_library(likely SHARED likely.cpp standard.likely opencv.shim ${STANDARD_LIBRARY_CPP})
-add_dependencies(likely standard_library LLVM OpenCV lua)
+add_library(likely SHARED likely.cpp ${LIKELY_SRC} standard.likely opencv.shim ${STANDARD_LIBRARY_CPP})
+add_dependencies(likely standard_library LLVM OpenCV ${LIKELY_LIBS})
 set_target_properties(likely PROPERTIES
                       DEFINE_SYMBOL LIKELY_LIBRARY
                       VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}

@@ -21,6 +21,7 @@
 #include <lua.hpp>
 
 #include "likely.h"
+#include "likely_script.h"
 #include "opencv.shim"
 
 using namespace cv;
@@ -72,7 +73,8 @@ struct Test
                     Mat src = generateData(size, size, type, scaleFactor());
                     likely_mat srcLikely = fromCvMat(src);
                     likely_set_parallel(&srcLikely->type, execution);
-                    likely_function_1 f = (likely_function_1) likely_compile(function(), 1, srcLikely->type);
+                    likely_description description = likely_interpret(function());
+                    likely_function_1 f = (likely_function_1) likely_compile(description, 1, srcLikely->type);
                     likely_release(srcLikely);
 
                     testCorrectness(f, src);
