@@ -76,7 +76,7 @@ likely.examples =
 message = "Hello World!"
 
 -- \dream{CTRL}+click variables to display values
-lenna = read("img/Lenna.tiff")
+lenna = read("data/misc/lenna.tiff")
 
 -- \dream{CTRL}+scroll to edit numerical constants
 dark_lenna = divide{2}(lenna)
@@ -108,7 +108,7 @@ n = setZero(m)
 ]],
 [[
 -- Arithmetic
-lenna = read("img/Lenna.tiff")
+lenna = read("data/misc/lenna.tiff")
 
 -- Saturation arithmetic is part of the type system
 lenna.saturation = true
@@ -121,10 +121,10 @@ divided = divide(2,lenna)
 ]],
 [[
 -- Currying
-m = read("img/Lenna.tiff")
+m = read("data/misc/lenna.tiff")
 m.saturation = true
 
--- Likely supports currying to compose higher order functions\dream{activate:y}
+-- Likely supports currying to compose higher order functions\dream{activate:n}
 fma = multiply{2} .. add{3}
 
 n = fma(m)

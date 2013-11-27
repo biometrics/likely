@@ -44,7 +44,7 @@ static Mat generateData(int rows, int columns, likely_type type, double scaleFac
 {
     static Mat m;
     if (!m.data) {
-        m = imread("../img/Lenna.tiff");
+        m = imread("../data/misc/lenna.tiff");
         assert(m.data);
         cvtColor(m, m, CV_BGR2GRAY);
     }
