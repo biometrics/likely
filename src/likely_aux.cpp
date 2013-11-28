@@ -163,11 +163,11 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
 void likely_print(likely_const_mat m)
 {
     if (!m) return;
-    for (uint t=0; t<m->frames; t++) {
-        for (uint y=0; y<m->rows; y++) {
+    for (likely_size t=0; t<m->frames; t++) {
+        for (likely_size y=0; y<m->rows; y++) {
             cout << (m->rows > 1 ? (y == 0 ? "[" : " ") : "");
-            for (uint x=0; x<m->columns; x++) {
-                for (uint c=0; c<m->channels; c++) {
+            for (likely_size x=0; x<m->columns; x++) {
+                for (likely_size c=0; c<m->channels; c++) {
                     cout << likely_element(m, c, x, y, t);
                     if (c != m->channels-1)
                         cout << " ";
