@@ -279,7 +279,7 @@ struct KernelBuilder
         : m(module), b(builder), f(function)
     {}
 
-    static TypedValue constant(double value, likely_type type)
+    static TypedValue constant(double value, likely_type type = likely_type_native)
     {
         const int depth = likely_depth(type);
         if (likely_floating(type)) {
@@ -292,17 +292,10 @@ struct KernelBuilder
         }
     }
 
-    static Constant *constant(int value, int bits = likely_depth(likely_type_native)) { return Constant::getIntegerValue(Type::getIntNTy(getGlobalContext(), bits), APInt(bits, value)); }
-    static Constant *constant(bool value) { return constant(value, 1); }
-    static Constant *constant(float value) { return ConstantFP::get(Type::getFloatTy(getGlobalContext()), value == 0 ? -0.0f : value); }
-    static Constant *constant(double value) { return ConstantFP::get(Type::getDoubleTy(getGlobalContext()), value == 0 ? -0.0 : value); }
-    static Constant *constant(const char *value) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), Type::getInt8PtrTy(getGlobalContext())); }
-    template <typename T>
-    static Constant *constant(T value, Type *type) { return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(value)), uint64_t(value)), type); }
-    static Constant *zero(int bits = likely_depth(likely_type_native)) { return constant(0, bits); }
-    static Constant *one(int bits = likely_depth(likely_type_native)) { return constant(1, bits); }
-    static Constant *intMax(int bits) { return constant((1 << (bits-1))-1, bits); }
-    static Constant *intMin(int bits) { return constant((1 << (bits-1)), bits); }
+    static TypedValue zero(int bits = likely_depth(likely_type_native)) { return constant(0, bits); }
+    static TypedValue one(int bits = likely_depth(likely_type_native)) { return constant(1, bits); }
+    static TypedValue intMax(int bits) { return constant((1 << (bits-1))-1, bits); }
+    static TypedValue intMin(int bits) { return constant((1 << (bits-1)), bits); }
 
     Value *data(const TypedValue &matrix) const { return b->CreatePointerCast(b->CreateLoad(b->CreateStructGEP(matrix, 0), "data"), ty(matrix, true)); }
     Value *channels(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 2), "channels"); }
@@ -319,9 +312,9 @@ struct KernelBuilder
     void setFrames(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 5)); }
     void setType(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 6)); }
 
-    Value *get(Value *matrix, int mask) const { return b->CreateAnd(type(matrix), constant(mask, 8*sizeof(likely_type))); }
-    void set(Value *matrix, int value, int mask) const { setType(matrix, b->CreateOr(b->CreateAnd(type(matrix), constant(~mask, 8*sizeof(likely_type))), b->CreateAnd(constant(value, 8*sizeof(likely_type)), constant(mask, 8*sizeof(likely_type))))); }
-    void setBit(Value *matrix, bool on, int mask) const { on ? setType(matrix, b->CreateOr(type(matrix), constant(mask, 8*sizeof(likely_type)))) : setType(matrix, b->CreateAnd(type(matrix), constant(~mask, 8*sizeof(likely_type)))); }
+    Value *get(Value *matrix, int mask) const { return b->CreateAnd(type(matrix), constant(mask, 8*sizeof(likely_type)).value); }
+    void set(Value *matrix, int value, int mask) const { setType(matrix, b->CreateOr(b->CreateAnd(type(matrix), constant(~mask, 8*sizeof(likely_type)).value), b->CreateAnd(constant(value, 8*sizeof(likely_type)), constant(mask, 8*sizeof(likely_type)).value))); }
+    void setBit(Value *matrix, bool on, int mask) const { on ? setType(matrix, b->CreateOr(type(matrix), constant(mask, 8*sizeof(likely_type)).value)) : setType(matrix, b->CreateAnd(type(matrix), constant(~mask, 8*sizeof(likely_type)).value)); }
 
     Value *depth(Value *matrix) const { return get(matrix, likely_type_depth); }
     void setDepth(Value *matrix, int depth) const { set(matrix, depth, likely_type_depth); }
