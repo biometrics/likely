@@ -30,8 +30,9 @@
 #include <llvm/Target/TargetLibraryInfo.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Vectorize.h>
-#include <stdlib.h>
 #include <atomic>
+#include <cstdarg>
+#include <cstdlib>
 #include <iomanip>
 #include <iostream>
 #include <mutex>

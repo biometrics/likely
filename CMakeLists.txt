@@ -69,7 +69,7 @@ if(${LIKELY_SCRIPT})
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCC)
-  set(CXX11 "-std=c++0x")
+  set(CXX11 "-std=gnu++11")
 else()
   set(CXX11 "-std=c++11")
 endif()
