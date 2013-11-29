@@ -3,7 +3,7 @@
 	url = https://github.com/llvm-mirror/llvm.git
 [submodule "lua"]
 	path = lua
-	url = https://github.com/LuaDist/lua.git
+	url = https://github.com/biometrics/lua.git
 [submodule "opencv"]
 	path = opencv
 	url = https://github.com/Itseez/opencv.git

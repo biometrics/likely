@@ -9,6 +9,7 @@ set(CPACK_PACKAGE_VERSION_MAJOR 0)
 set(CPACK_PACKAGE_VERSION_MINOR 1)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
 set(CMAKE_AUTOMOC ON)
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
 # C++11 Compiler flags
 if(APPLE)
@@ -48,8 +49,8 @@ llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES mcjit native vectorize)
 
 option(LIKELY_AUX "Build Likely with matrix I/O and debugging" ON)
 if(${LIKELY_AUX})
-  set(WITH_CUDA OFF)
-  set(WITH_OPENEXR OFF)
+  option(WITH_CUDA "OpenCV CUDA support" OFF)
+  option(WITH_OPENEXR "OpenCV OpenEXR support" OFF)
   get_subdirectories(DISABLED_OPENCV_MODULES "${CMAKE_SOURCE_DIR}/opencv/modules")
   set(REQUIRED_OPENCV_MODULES core imgproc highgui)
   list(REMOVE_ITEM DISABLED_OPENCV_MODULES ${REQUIRED_OPENCV_MODULES}) # Disable all but these
