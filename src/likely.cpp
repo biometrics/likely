@@ -585,6 +585,7 @@ class NullaryOperation : public Operation
     TypedValue call(KernelBuilder &kernel, const KernelInfo &info, const vector<TypedValue> &args) const
     {
         assert(args.empty());
+        (void) args;
         return callNullary(kernel, info);
     }
     virtual TypedValue callNullary(KernelBuilder &kernel, const KernelInfo &info) const = 0;

@@ -1,3 +1,13 @@
+if(CMAKE_COMPILER_IS_GNUCC)
+  set(CXX11 "-std=gnu++11")
+else()
+  set(CXX11 "-std=c++11")
+endif()
+
+if(NOT MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter -fvisibility=hidden -fno-rtti")
+endif()
+
 set(LIKELY_SRC likely.cpp ${CMAKE_SOURCE_DIR}/include/likely.h)
 set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES})
 set(LIKELY_DEPENDS LLVM)
@@ -58,4 +68,30 @@ install(FILES ${CMAKE_SOURCE_DIR}/LICENSE.txt DESTINATION share/likely)
 if(${LIKELY_SCRIPT})
   add_custom_command(TARGET likely POST_BUILD
                      COMMAND ${CMAKE_COMMAND} -E touch ${LIKELY_STANDARD_LIBRARY_CPP})
+endif()
+
+if(${LIKELY_AUX} AND ${LIKELY_SCRIPT})
+  # Benchmark
+  add_executable(benchmark benchmark.cpp)
+  add_dependencies(benchmark OpenCV)
+  target_link_libraries(benchmark likely opencv_imgproc)
+  install(TARGETS benchmark RUNTIME DESTINATION bin)
+
+  # Dream
+  find_package(Qt5Quick QUIET)
+  find_package(Qt5Widgets QUIET)
+  find_package(Qt5PrintSupport QUIET)
+  if(${Qt5Quick_FOUND} AND ${Qt5Widgets_FOUND} AND ${Qt5PrintSupport_FOUND})
+    # Get QCustomPlot source
+    # aux_source_directory(qcustomplot/src QCUSTOMPLOT_SRC)
+    # aux_source_directory(qcustomplot/src/plottables QCUSTOMPLOT_SRC_PLOTTABLES)
+    # aux_source_directory(qcustomplot/src/items QCUSTOMPLOT_SRC_ITEMS)
+    # aux_source_directory(qcustomplot/src/layoutelements QCUSTOMPLOT_SRC_LAYOUTELEMENTS)
+    # set(QCUSTOMPLOT_SRC ${QCUSTOMPLOT_SRC} ${QCUSTOMPLOT_SRC_PLOTTABLES} ${QCUSTOMPLOT_SRC_ITEMS} ${QCUSTOMPLOT_SRC_LAYOUTELEMENTS})
+
+    add_executable(Dream dream.cpp ${QCUSTOMPLOT_SRC})
+    qt5_use_modules(Dream Quick Widgets PrintSupport)
+    target_link_libraries(Dream likely)
+    install(TARGETS Dream RUNTIME DESTINATION bin)
+  endif()
 endif()
