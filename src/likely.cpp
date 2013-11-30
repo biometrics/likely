@@ -70,7 +70,7 @@ void likely_assert(bool condition, const char *format, ...)
 
 static int likely_get(likely_type type, likely_type_field mask) { return type & mask; }
 static void likely_set(likely_type *type, int i, likely_type_field mask) { *type &= ~mask; *type |= i & mask; }
-static bool likely_get_bool(likely_type type, likely_type_field mask) { return type & mask; }
+static bool likely_get_bool(likely_type type, likely_type_field mask) { return (type & mask) != 0; }
 static void likely_set_bool(likely_type *type, bool b, likely_type_field mask) { b ? *type |= mask : *type &= ~mask; }
 
 int  likely_depth(likely_type type) { return likely_get(type, likely_type_depth); }
@@ -288,7 +288,7 @@ struct KernelBuilder
             else if (depth == 32) return TypedValue(ConstantFP::get(Type::getFloatTy(getGlobalContext()), value), type);
             else                  { likely_assert(false, "invalid floating point constant depth: %d", depth); return TypedValue(); }
         } else {
-            return TypedValue(Constant::getIntegerValue(Type::getIntNTy(getGlobalContext(), depth), APInt(depth, value)), type);
+            return TypedValue(Constant::getIntegerValue(Type::getIntNTy(getGlobalContext(), depth), APInt(depth, uint64_t(value))), type);
         }
     }
 
@@ -508,7 +508,7 @@ struct SExp
 {
     string op;
     vector<SExp> sexps;
-    SExp() = default;
+	SExp() {}
     SExp(const string &source)
     {
         likely_assert(!source.empty(), "empty expression");
@@ -714,7 +714,7 @@ class castOperation : public BinaryOperation
     TypedValue callBinary(KernelBuilder &kernel, const KernelInfo &info, TypedValue x, TypedValue type) const
     {
         (void) info;
-        return kernel.cast(x, LLVM_VALUE_TO_INT(type.value));
+        return kernel.cast(x, (likely_type)LLVM_VALUE_TO_INT(type.value));
     }
 };
 LIKELY_REGISTER(castOperation)
@@ -1001,13 +1001,10 @@ struct LikelyKernelOptimizationPass : public FunctionPass
 
     struct MatrixInfo
     {
-        Value *channels = NULL,
-              *columns  = NULL,
-              *rows     = NULL,
-              *frames   = NULL,
-              *columnStep = NULL,
-              *rowStep    = NULL,
-              *frameStep  = NULL;
+        Value *channels, *columns, *rows, *frames, *columnStep, *rowStep, *frameStep;
+		MatrixInfo()
+		  : channels(NULL), columns(NULL), rows(NULL), frames(NULL), columnStep(NULL), rowStep(NULL), frameStep(NULL)
+		{}
     };
 
     bool runOnFunction(Function &F)
@@ -1040,7 +1037,7 @@ static RegisterPass<LikelyKernelOptimizationPass> RegisterLikelyKernelOptimizati
 // Control parallel execution
 static vector<mutex*> workers;
 static mutex workersActive;
-static atomic_uint workersRemaining(0);
+static atomic<int> workersRemaining(0);
 static void *currentThunk = NULL;
 static likely_arity thunkArity = 0;
 static likely_size thunkSize = 0;

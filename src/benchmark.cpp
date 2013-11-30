@@ -67,7 +67,7 @@ struct Test
             for (int size : sizes()) {
                 if ((BenchmarkSize != 0) && (BenchmarkSize != size)) continue;
 
-                for (bool execution : executions()) {
+                for (int execution : executions()) {
                     if ((BenchmarkExecution != -1) && (BenchmarkExecution != execution)) continue;
 
                     // Generate input matrix
