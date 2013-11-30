@@ -19,6 +19,10 @@
 
 #include <likely.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Contents of standard.likely
 LIKELY_EXPORT const char *likely_standard_library();
 
@@ -27,5 +31,9 @@ LIKELY_EXPORT int luaopen_likely(lua_State *L);
 LIKELY_EXPORT lua_State *likely_exec(const char *source, lua_State *L = NULL);
 LIKELY_EXPORT likely_description likely_interpret(const char *source);
 LIKELY_EXPORT void likely_stack_dump(lua_State *L, int levels = 1);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // LIKELY_SCRIPT_H

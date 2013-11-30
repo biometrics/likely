@@ -19,6 +19,10 @@
 
 #include <likely.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Matrix I/O
 LIKELY_EXPORT likely_mat likely_read(const char *file_name);
 LIKELY_EXPORT void likely_write(likely_const_mat image, const char *file_name);
@@ -31,5 +35,9 @@ LIKELY_EXPORT likely_mat likely_render(likely_const_mat m, double *min = NULL, d
 LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
 LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c = 0, likely_size x = 0, likely_size y = 0, likely_size t = 0);
 LIKELY_EXPORT void likely_print(likely_const_mat m);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // LIKELY_AUX_H
