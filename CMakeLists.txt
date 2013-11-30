@@ -32,6 +32,7 @@ llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES mcjit native vectorize)
 
 option(LIKELY_AUX "Build Likely with matrix I/O and debugging" ON)
 if(${LIKELY_AUX})
+  option(BUILD_WITH_STATIC_CRT "OpenCV static MSVC CRT" OFF)
   option(WITH_CUDA "OpenCV CUDA support" OFF)
   option(WITH_OPENEXR "OpenCV OpenEXR support" OFF)
   add_subdirectory(opencv EXCLUDE_FROM_ALL)

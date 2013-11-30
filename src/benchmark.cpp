@@ -73,7 +73,7 @@ struct Test
                     // Generate input matrix
                     Mat src = generateData(size, size, type, scaleFactor());
                     likely_mat srcLikely = fromCvMat(src);
-                    likely_set_parallel(&srcLikely->type, execution);
+                    likely_set_parallel(&srcLikely->type, execution != 0);
                     likely_description description = likely_interpret(function());
                     likely_function_1 f = (likely_function_1) likely_compile(description, 1, srcLikely->type);
                     likely_release(srcLikely);
