@@ -59,7 +59,7 @@ typedef struct likely_matrix_private
     int ref_count;
 } likely_matrix_private;
 
-void likely_assert(bool condition, const char *format, ...)
+static void likely_assert(bool condition, const char *format, ...)
 {
     if (condition) return;
     va_list ap;
@@ -250,6 +250,8 @@ likely_type likely_type_from_types(likely_type lhs, likely_type rhs)
     likely_set_depth(&result, max(likely_depth(lhs), likely_depth(rhs)));
     return result;
 }
+
+namespace {
 
 struct TypedValue
 {
@@ -1381,6 +1383,8 @@ private:
         return TypedValue();
     }
 };
+
+} // namespace (anonymous)
 
 void *likely_compile(likely_description description, likely_arity n, likely_type type, ...)
 {

@@ -21,18 +21,14 @@
 #include <stdint.h>
 
 // Don't worry about this
-#if defined LIKELY_LIBRARY
-#  if defined _WIN32 || defined __CYGWIN__
+#if defined _WIN32 || defined __CYGWIN__
+#  if defined LIKELY_LIBRARY
 #    define LIKELY_EXPORT __declspec(dllexport)
 #  else
-#    define LIKELY_EXPORT __attribute__((visibility("default")))
+#    define LIKELY_EXPORT __declspec(dllimport)
 #  endif
 #else
-#  if defined _WIN32 || defined __CYGWIN__
-#    define LIKELY_EXPORT __declspec(dllimport)
-#  else
-#    define LIKELY_EXPORT
-#  endif
+#  define LIKELY_EXPORT
 #endif
 
 #ifdef __cplusplus

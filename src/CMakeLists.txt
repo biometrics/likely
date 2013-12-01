@@ -6,9 +6,6 @@ endif()
 
 if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter -fno-rtti")
-  if(${BUILD_SHARED_LIBS})
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
-  endif()
 endif()
 
 set(LIKELY_SRC likely.cpp ${CMAKE_SOURCE_DIR}/include/likely.h)
