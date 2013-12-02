@@ -104,12 +104,12 @@ static int lua_likely_set(lua_State *L)
     const char *field = lua_tostring(L, 2);
     int isnum;
     if      (!strcmp(field, "data"))          m->data = (likely_data*) lua_touserdata(L, 3);
-    else if (!strcmp(field, "type"))        { m->type  = lua_tointegerx(L, 3, &isnum);     lua_likely_assert(L, isnum != 0, "'set' expected type to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "type"))        { m->type = (likely_type) lua_tointegerx(L, 3, &isnum); lua_likely_assert(L, isnum != 0, "'set' expected type to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "channels"))    { m->channels  = lua_tointegerx(L, 3, &isnum); lua_likely_assert(L, isnum != 0, "'set' expected channels to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "columns"))     { m->columns   = lua_tointegerx(L, 3, &isnum); lua_likely_assert(L, isnum != 0, "'set' expected columns to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "rows"))        { m->rows      = lua_tointegerx(L, 3, &isnum); lua_likely_assert(L, isnum != 0, "'set' expected rows to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "frames"))      { m->frames    = lua_tointegerx(L, 3, &isnum); lua_likely_assert(L, isnum != 0, "'set' expected frames to be an integer, got: %s", lua_tostring(L, 3)); }
-    else if (!strcmp(field, "depth"))       { likely_set_depth(&m->type, lua_tointegerx(L, 3, &isnum)); lua_likely_assert(L, isnum != 0, "'set' expected depth to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "depth"))       { likely_set_depth(&m->type, (int)lua_tointegerx(L, 3, &isnum)); lua_likely_assert(L, isnum != 0, "'set' expected depth to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "signed"))        likely_set_signed(&m->type, lua_toboolean(L, 3) != 0);
     else if (!strcmp(field, "floating"))      likely_set_floating(&m->type, lua_toboolean(L, 3) != 0);
     else if (!strcmp(field, "parallel"))      likely_set_parallel(&m->type, lua_toboolean(L, 3) != 0);
@@ -119,7 +119,7 @@ static int lua_likely_set(lua_State *L)
     else if (!strcmp(field, "multiRow"))      likely_set_multi_row(&m->type, lua_toboolean(L, 3) != 0);
     else if (!strcmp(field, "multiFrame"))    likely_set_multi_frame(&m->type, lua_toboolean(L, 3) != 0);
     else if (!strcmp(field, "saturation"))    likely_set_saturation(&m->type, lua_toboolean(L, 3) != 0);
-    else if (!strcmp(field, "reserved"))    { likely_set_reserved(&m->type, lua_tointegerx(L, 3, &isnum)); lua_likely_assert(L, isnum != 0, "'set' expected reserved to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "reserved"))    { likely_set_reserved(&m->type, (int)lua_tointegerx(L, 3, &isnum)); lua_likely_assert(L, isnum != 0, "'set' expected reserved to be an integer, got: %s", lua_tostring(L, 3)); }
     else                                      lua_likely_assert(L, false, "unrecognized field: %s", field);
     return 0;
 }
@@ -171,7 +171,7 @@ static int lua_likely_new(lua_State *L)
       case 4: rows     = lua_tointegerx(L, 4, &isnum); lua_likely_assert(L, isnum != 0, "'new' expected rows to be an integer, got: %s", lua_tostring(L, 4));
       case 3: columns  = lua_tointegerx(L, 3, &isnum); lua_likely_assert(L, isnum != 0, "'new' expected columns to be an integer, got: %s", lua_tostring(L, 3));
       case 2: channels = lua_tointegerx(L, 2, &isnum); lua_likely_assert(L, isnum != 0, "'new' expected channels to be an integer, got: %s", lua_tostring(L, 2));
-      case 1: type     = lua_tointegerx(L, 1, &isnum); lua_likely_assert(L, isnum != 0, "'new' expected type to be an integer, got: %s", lua_tostring(L, 2));
+      case 1: type     = (likely_type) lua_tointegerx(L, 1, &isnum); lua_likely_assert(L, isnum != 0, "'new' expected type to be an integer, got: %s", lua_tostring(L, 2));
       case 0: break;
       default: lua_likely_assert(L, false, "'new' expected no more than 7 arguments, got: %d", argc);
     }
@@ -257,7 +257,7 @@ static int lua_likely_compile(lua_State *L)
         types.push_back(checkLuaMat(L, i)->type);
 
     // Compile the function
-    lua_pushlightuserdata(L, likely_compile_n(lua_tostring(L, 1), types.size(), types.data()));
+    lua_pushlightuserdata(L, likely_compile_n(lua_tostring(L, 1), (likely_arity)types.size(), types.data()));
     return 1;
 }
 
@@ -435,7 +435,7 @@ static int lua_likely__call(lua_State *L)
             lua_insert(L, -3);
             lua_pop(L, 1);
         }
-        lua_call(L, lua_objlen(L, argsIndex), 1);
+        lua_call(L, (int)lua_objlen(L, argsIndex), 1);
     }
 
     return 1;

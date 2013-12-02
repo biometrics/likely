@@ -1045,7 +1045,7 @@ static likely_arity thunkArity = 0;
 static likely_size thunkSize = 0;
 static likely_const_mat thunkMatricies[LIKELY_NUM_ARITIES+1];
 
-static void executeWorker(int id, int numWorkers)
+static void executeWorker(int id, size_t numWorkers)
 {
     // There are hardware_concurrency-1 helper threads and the main thread with id = 0
     const likely_size step = (thunkSize+numWorkers-1)/numWorkers;
@@ -1142,12 +1142,12 @@ public:
         Function *function = module->getFunction(name);
         if (function != NULL)
             return executionEngine->getPointerToFunction(function);
-        function = getFunction(name, module, types.size(), PointerType::getUnqual(TheMatrixStruct));
+        function = getFunction(name, module, (likely_arity)types.size(), PointerType::getUnqual(TheMatrixStruct));
 
         Function *thunk;
         likely_type dstType;
         {
-            thunk = getFunction(name+"_thunk", module, types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), NativeIntegerType, NativeIntegerType);
+            thunk = getFunction(name+"_thunk", module, (likely_arity)types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), NativeIntegerType, NativeIntegerType);
             vector<TypedValue> srcs;
             getValues(thunk, types, srcs);
             TypedValue stop = srcs.back(); srcs.pop_back();
@@ -1266,7 +1266,7 @@ public:
 
             vector<Value*> likelyForkArgs;
             likelyForkArgs.push_back(module->getFunction(thunk->getName()));
-            likelyForkArgs.push_back(KernelBuilder::constant(types.size(), 8));
+            likelyForkArgs.push_back(KernelBuilder::constant((double)types.size(), 8));
             likelyForkArgs.push_back(kernelSize);
             likelyForkArgs.insert(likelyForkArgs.end(), srcs.begin(), srcs.end());
             likelyForkArgs.push_back(dst);
@@ -1312,8 +1312,8 @@ private:
         size_t num_mats = arity;
         if (dst) num_mats++;
         for (size_t i=0; i<num_mats; i++) {
-            function->setDoesNotAlias(i+1);
-            function->setDoesNotCapture(i+1);
+            function->setDoesNotAlias((unsigned int)i+1);
+            function->setDoesNotCapture((unsigned int)i+1);
         }
         return function;
     }
@@ -1440,7 +1440,7 @@ void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const
     va_end(ap);
 
     // Skip myself when starting other threads
-    workersRemaining = workers.size()-1;
+    workersRemaining = (int)workers.size()-1;
     for (size_t i=1; i<workers.size(); i++)
         workers[i]->unlock();
 
