@@ -20,15 +20,23 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// Don't worry about this
-#if defined _WIN32 || defined __CYGWIN__
-#  if defined LIKELY_LIBRARY
-#    define LIKELY_EXPORT __declspec(dllexport)
-#  else
-#    define LIKELY_EXPORT __declspec(dllimport)
-#  endif
-#else
+// Export symbols, don't worry about this
+#if defined LIKELY_STATIC
 #  define LIKELY_EXPORT
+#else
+#  if defined _WIN32 || defined __CYGWIN__
+#    if defined LIKELY_LIBRARY
+#      define LIKELY_EXPORT __declspec(dllexport)
+#    else
+#      define LIKELY_EXPORT __declspec(dllimport)
+#    endif
+#  else
+#    if defined LIKELY_LIBRARY
+#      define LIKELY_EXPORT __attribute__((visibility("default")))
+#    else
+#      define LIKELY_EXPORT
+#    endif
+#  endif
 #endif
 
 #ifdef __cplusplus

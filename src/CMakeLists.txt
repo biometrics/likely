@@ -49,6 +49,10 @@ if(${LIKELY_SCRIPT})
   install(FILES ${CMAKE_SOURCE_DIR}/include/likely_script.h DESTINATION include)
 endif()
 
+if(NOT ${BUILD_SHARED_LIBS})
+  add_definitions(-DLIKELY_STATIC)
+endif()
+
 add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
 add_library(likely ${LIKELY_SRC})
 add_dependencies(likely ${LIKELY_DEPENDS})
