@@ -12,6 +12,16 @@ set(CMAKE_AUTOMOC ON)
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 cmake_policy(SET CMP0020 NEW)
 
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+  set(CLANG ON)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  set(GCC ON)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+  set(ICC ON)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  set(VS ON)
+endif()
+
 # C++11 standard library configuration
 if(APPLE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
@@ -19,7 +29,7 @@ if(APPLE)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -stdlib=libc++")
 endif()
 
-if(NOT ${BUILD_SHARED_LIBS} AND NOT MSVC)
+if(NOT ${BUILD_SHARED_LIBS} AND NOT VS)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
 endif()
 
