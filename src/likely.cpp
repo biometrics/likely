@@ -1035,10 +1035,7 @@ struct LikelyKernelOptimizationPass : public FunctionPass
 char LikelyKernelOptimizationPass::ID = 0;
 static RegisterPass<LikelyKernelOptimizationPass> RegisterLikelyKernelOptimizationPass("likely", "Likely Kernel Optimization Pass", false, false);
 
-// Control parallel execution
-static vector<mutex*> workers;
-static mutex workersActive;
-static atomic<int> workersRemaining(0);
+// Share parallel execution
 static void *currentThunk = NULL;
 static likely_arity thunkArity = 0;
 static likely_size thunkSize = 0;
@@ -1067,13 +1064,12 @@ static void executeWorker(int id, size_t numWorkers)
     }
 }
 
-static void workerThread(int id, int numWorkers)
+static void workerThread(int id, int numWorkers, mutex *work, atomic<int> *remaining)
 {
     while (true) {
-        workers[id]->lock();
+        work->lock();
         executeWorker(id, numWorkers);
-        if (--workersRemaining == 0)
-            workersActive.unlock();
+        remaining--;
     }
 }
 
@@ -1244,17 +1240,6 @@ public:
 
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
         if (likely_parallel(types[0])) {
-            if (workers.empty()) {
-                const int numWorkers = std::max((int)thread::hardware_concurrency(), 1);
-                workers.push_back(NULL); // main thread = 0
-                for (int i=1; i<numWorkers; i++) {
-                    mutex *m = new mutex();
-                    m->lock();
-                    workers.push_back(m);
-                    thread(workerThread, i, numWorkers).detach();
-                }
-            }
-
             static FunctionType *likelyForkType = NULL;
             if (likelyForkType == NULL) {
                 vector<Type*> likelyForkParameters;
@@ -1434,7 +1419,21 @@ void *likely_compile_n(likely_description description, likely_arity n, likely_ty
 
 void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...)
 {
-    workersActive.lock();
+    static mutex forkLock;
+    lock_guard<mutex> lockFork(forkLock);
+
+    static vector<mutex*> workers;
+    static atomic<int> workersRemaining(0);
+    if (workers.empty()) {
+        const int numWorkers = std::max((int)thread::hardware_concurrency(), 1);
+        workers.push_back(NULL); // main thread = 0
+        for (int i = 1; i < numWorkers; i++) {
+            mutex *m = new mutex();
+            m->lock();
+            workers.push_back(m);
+            thread(workerThread, i, numWorkers, m, &workersRemaining).detach();
+        }
+    }
 
     currentThunk = thunk;
     thunkArity = arity;
