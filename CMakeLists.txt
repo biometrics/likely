@@ -19,6 +19,10 @@ if(APPLE)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -stdlib=libc++")
 endif()
 
+if(NOT ${BUILD_SHARED_LIBS} AND NOT MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
+endif()
+
 # Build LLVM
 set(LLVM_TARGETS_TO_BUILD "host" CACHE STRING "LLVM targets")
 add_subdirectory(llvm EXCLUDE_FROM_ALL)
