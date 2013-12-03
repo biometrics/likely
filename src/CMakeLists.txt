@@ -54,7 +54,7 @@ if(${LIKELY_SCRIPT})
 endif()
 
 if(NOT ${BUILD_SHARED_LIBS})
-  add_definitions(-DLIKELY_STATIC)
+  add_definitions(-DLIKELY_LIBRARY)
 endif()
 
 add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)

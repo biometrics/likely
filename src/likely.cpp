@@ -139,7 +139,6 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     likely_set_multi_row(&m->type, rows != 1);
     likely_set_multi_frame(&m->type, frames != 1);
 
-    assert(alignof(likely_matrix_private) <= alignof(likely_matrix));
     m->d_ptr = reinterpret_cast<likely_matrix_private*>(m+1);
     m->d_ptr->ref_count = 1;
     m->d_ptr->data_bytes = dataBytes;
@@ -1113,7 +1112,11 @@ public:
 
         module = new Module(name, getGlobalContext());
         likely_assert(module != NULL, "failed to create LLVM Module");
-        module->setTargetTriple(sys::getProcessTriple());
+        string targetTriple = sys::getProcessTriple();
+#ifdef _WIN32
+        targetTriple = targetTriple + "-elf";
+#endif
+        module->setTargetTriple(targetTriple);
 
         string error;
         EngineBuilder engineBuilder(module);

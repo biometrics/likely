@@ -21,21 +21,17 @@
 #include <stdint.h>
 
 // Export symbols, don't worry about this
-#if defined LIKELY_STATIC
-#  define LIKELY_EXPORT
-#else
-#  if defined _WIN32 || defined __CYGWIN__
-#    if defined LIKELY_LIBRARY
-#      define LIKELY_EXPORT __declspec(dllexport)
-#    else
-#      define LIKELY_EXPORT __declspec(dllimport)
-#    endif
+#if defined _WIN32
+#  if defined LIKELY_LIBRARY
+#    define LIKELY_EXPORT __declspec(dllexport)
 #  else
-#    if defined LIKELY_LIBRARY
-#      define LIKELY_EXPORT __attribute__((visibility("default")))
-#    else
-#      define LIKELY_EXPORT
-#    endif
+#    define LIKELY_EXPORT __declspec(dllimport)
+#  endif
+#else
+#  if defined LIKELY_LIBRARY
+#    define LIKELY_EXPORT __attribute__((visibility("default")))
+#  else
+#    define LIKELY_EXPORT
 #  endif
 #endif
 
