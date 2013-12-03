@@ -8,6 +8,10 @@ if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11} -Wall -Wextra -Wno-unused-parameter -fno-rtti -fvisibility=hidden")
 endif()
 
+if(APPLE)
+  set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL "${CMAKE_EXE_LINKER_FLAGS_MINSIZEREL} -dead_strip")
+endif()
+
 set(LIKELY_SRC likely.cpp ${CMAKE_SOURCE_DIR}/include/likely.h)
 set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES})
 set(LIKELY_DEPENDS LLVM)

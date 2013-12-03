@@ -1239,6 +1239,9 @@ public:
         likelyNewArgs.push_back(kernel.constant(0, 8));
         Value *dst = builder.CreateCall(likelyNew, likelyNewArgs);
 
+        // An impossible case used to ensure that the `likely_new` isn't stripped when optimizing executable size
+        if (likelyNewArgs.empty()) likely_new();
+
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
         if (likely_parallel(types[0])) {
             if (workers.empty()) {
@@ -1274,6 +1277,9 @@ public:
             likelyForkArgs.insert(likelyForkArgs.end(), srcs.begin(), srcs.end());
             likelyForkArgs.push_back(dst);
             builder.CreateCall(likelyFork, likelyForkArgs);
+
+            // An impossible case used to ensure that the `likely_fork` isn't stripped when optimizing executable size
+            if (likelyForkArgs.empty()) likely_fork(NULL, 0, 0, NULL);
         } else {
             vector<Value*> thunkArgs;
             for (const TypedValue &src : srcs)
