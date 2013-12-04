@@ -20,7 +20,6 @@ endif()
 
 set(LIKELY_SRC likely.cpp)
 set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES})
-set(LIKELY_DEPENDS LLVM)
 set(LIKELY_MISC ${CMAKE_SOURCE_DIR}/include/likely.h
                 ${CMAKE_SOURCE_DIR}/README.md)
 install(FILES ${CMAKE_SOURCE_DIR}/include/likely.h DESTINATION include)
@@ -28,7 +27,6 @@ install(FILES ${CMAKE_SOURCE_DIR}/include/likely.h DESTINATION include)
 if(${LIKELY_AUX})
   set(LIKELY_SRC ${LIKELY_SRC} likely_aux.cpp)
   set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui libcurl)
-  set(LIKELY_DEPENDS ${LIKELY_DEPENDS} OpenCV CURL)
   set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely_aux.h)
   install(FILES ${CMAKE_SOURCE_DIR}/include/likely_aux.h DESTINATION include)
 endif()
@@ -56,7 +54,7 @@ if(${LIKELY_SCRIPT})
   set(LIKELY_SRC ${LIKELY_SRC} likely_script.cpp
                                ${LIKELY_STANDARD_LIBRARY_CPP})
   set(LIKELY_LIBS ${LIKELY_LIBS} liblua)
-  set(LIKELY_DEPENDS ${LIKELY_DEPENDS} lua likely_standard_library)
+  set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library)
   set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely_script.h
                                  ${CMAKE_SOURCE_DIR}/share/likely/standard.likely
                                  ${CMAKE_SOURCE_DIR}/share/likely/opencv.shim)
@@ -66,7 +64,7 @@ endif()
 # Build common object files
 add_definitions(-DLIKELY_LIBRARY -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
 add_library(likely_object OBJECT ${LIKELY_SRC})
-add_dependencies(likely_object ${LIKELY_DEPENDS})
+add_dependencies(likely_object ${LIKELY_LIBS} ${LIKELY_DEPENDS})
 
 # Build share library
 add_library(likely SHARED $<TARGET_OBJECTS:likely_object> ${LIKELY_MISC})
