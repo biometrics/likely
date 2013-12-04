@@ -1,5 +1,6 @@
 project(likely)
 cmake_minimum_required(VERSION 2.8.11)
+cmake_policy(SET CMP0020 NEW)
 
 # Configure
 set(CPACK_PACKAGE_NAME "Likely")
@@ -9,8 +10,7 @@ set(CPACK_PACKAGE_VERSION_MINOR 1)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
-option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
-cmake_policy(SET CMP0020 NEW)
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set(CLANG ON)
@@ -29,9 +29,13 @@ if(APPLE)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -stdlib=libc++")
 endif()
 
-if(NOT ${BUILD_SHARED_LIBS} AND NOT VS)
+if(NOT VS)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
 endif()
+
+# Build the submodules statically
+set(LIKELY_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+set(BUILD_SHARED_LIBS OFF)
 
 # Build LLVM
 set(LLVM_TARGETS_TO_BUILD "host" CACHE STRING "LLVM targets")
@@ -54,9 +58,7 @@ if(${LIKELY_AUX})
                       ${CMAKE_SOURCE_DIR}/opencv/modules/highgui/include
                       ${CMAKE_SOURCE_DIR}/opencv/modules/imgproc/include)
 
-  if(NOT ${BUILD_SHARED_LIBS})
-    option(CURL_STATICLIB "CURL static library" ON)
-  endif()
+  option(CURL_STATICLIB "CURL static library" ON)
   add_subdirectory(curl EXCLUDE_FROM_ALL)
   include_directories(${CMAKE_SOURCE_DIR}/curl/include
                       ${CMAKE_BINARY_DIR}/curl/include/curl)
@@ -68,6 +70,7 @@ if(${LIKELY_SCRIPT})
   include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
 endif()
 
+set(BUILD_SHARED_LIBS ${LIKELY_BUILD_SHARED_LIBS})
 include_directories(include share/likely)
 add_subdirectory(src)
 

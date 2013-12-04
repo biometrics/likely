@@ -8,7 +8,7 @@
     $ git submodule update
     $ mkdir build
     $ cd build
-    $ cmake -DBUILD_SHARED_LIBS=ON ..
+    $ cmake ..
     $ make
     $ make install
 
