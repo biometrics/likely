@@ -23,8 +23,8 @@ set(LIKELY_DEPENDS LLVM)
 
 if(${LIKELY_AUX})
   set(LIKELY_SRC ${LIKELY_SRC} likely_aux.cpp ${CMAKE_SOURCE_DIR}/include/likely_aux.h)
-  set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui)
-  set(LIKELY_DEPENDS ${LIKELY_DEPENDS} OpenCV)
+  set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui libcurl)
+  set(LIKELY_DEPENDS ${LIKELY_DEPENDS} OpenCV CURL)
   install(FILES ${CMAKE_SOURCE_DIR}/include/likely_aux.h DESTINATION include)
 endif()
 

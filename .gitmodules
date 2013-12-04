@@ -13,3 +13,6 @@
 [submodule "data"]
 	path = data
 	url = https://github.com/biometrics/likely-data.git
+[submodule "curl"]
+	path = curl
+	url = https://github.com/bagder/curl.git

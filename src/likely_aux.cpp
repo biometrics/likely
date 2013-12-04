@@ -17,6 +17,7 @@
 #include <iostream>
 #include <string>
 #include <opencv2/highgui/highgui.hpp>
+#include <curl/curl.h>
 
 #include "likely_aux.h"
 #include "opencv.shim"

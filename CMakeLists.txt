@@ -38,8 +38,8 @@ set(LLVM_TARGETS_TO_BUILD "host" CACHE STRING "LLVM targets")
 add_subdirectory(llvm EXCLUDE_FROM_ALL)
 set(CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}/llvm/share/llvm/cmake/")
 include(LLVMConfig)
-include_directories(${CMAKE_SOURCE_DIR}/llvm/include)
-include_directories(${CMAKE_BINARY_DIR}/llvm/include)
+include_directories(${CMAKE_SOURCE_DIR}/llvm/include
+                    ${CMAKE_BINARY_DIR}/llvm/include)
 link_directories(${LLVM_LIBRARY_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES mcjit native vectorize)
@@ -50,9 +50,16 @@ if(${LIKELY_AUX})
   option(WITH_CUDA "OpenCV CUDA support" OFF)
   option(WITH_OPENEXR "OpenCV OpenEXR support" OFF)
   add_subdirectory(opencv EXCLUDE_FROM_ALL)
-  include_directories(opencv/modules/core/include
-                      opencv/modules/highgui/include
-                      opencv/modules/imgproc/include)
+  include_directories(${CMAKE_SOURCE_DIR}/opencv/modules/core/include
+                      ${CMAKE_SOURCE_DIR}/opencv/modules/highgui/include
+                      ${CMAKE_SOURCE_DIR}/opencv/modules/imgproc/include)
+
+  if(NOT ${BUILD_SHARED_LIBS})
+    option(CURL_STATICLIB "CURL static library" ON)
+  endif()
+  add_subdirectory(curl EXCLUDE_FROM_ALL)
+  include_directories(${CMAKE_SOURCE_DIR}/curl/include
+                      ${CMAKE_BINARY_DIR}/curl/include/curl)
 endif()
 
 option(LIKELY_SCRIPT "Build Likely with Lua frontend (requires LIKELY_AUX)" ON)
