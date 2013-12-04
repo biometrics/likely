@@ -14,6 +14,10 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#ifdef _MSC_VER
+#  define NOMINMAX
+#endif
+
 #include <iostream>
 #include <string>
 #include <opencv2/highgui/highgui.hpp>
@@ -69,15 +73,15 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
 {
     double min, max, range;
     if ((m->type & likely_type_mask) != likely_type_u8) {
-        min = std::numeric_limits<double>::max();
-        max = -std::numeric_limits<double>::max();
+        min = numeric_limits<double>::max();
+        max = -numeric_limits<double>::max();
         for (likely_size t=0; t<m->frames; t++) {
             for (likely_size y=0; y<m->rows; y++) {
                 for (likely_size x=0; x<m->columns; x++) {
                     for (likely_size c=0; c<m->channels; c++) {
                         const double value = likely_element(m, c, x, y, t);
-                        min = std::min(min, value);
-                        max = std::max(max, value);
+                        min = ::min(min, value);
+                        max = ::max(max, value);
                     }
                 }
             }
