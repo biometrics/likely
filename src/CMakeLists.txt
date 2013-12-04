@@ -18,14 +18,18 @@ if(APPLE)
   set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL "${CMAKE_EXE_LINKER_FLAGS_MINSIZEREL} -Wl,-dead_strip")
 endif()
 
-set(LIKELY_SRC likely.cpp ${CMAKE_SOURCE_DIR}/include/likely.h ${CMAKE_SOURCE_DIR}/README.md)
+set(LIKELY_SRC likely.cpp)
 set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES})
 set(LIKELY_DEPENDS LLVM)
+set(LIKELY_MISC ${CMAKE_SOURCE_DIR}/include/likely.h
+                ${CMAKE_SOURCE_DIR}/README.md)
+install(FILES ${CMAKE_SOURCE_DIR}/include/likely.h DESTINATION include)
 
 if(${LIKELY_AUX})
-  set(LIKELY_SRC ${LIKELY_SRC} likely_aux.cpp ${CMAKE_SOURCE_DIR}/include/likely_aux.h)
+  set(LIKELY_SRC ${LIKELY_SRC} likely_aux.cpp)
   set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui libcurl)
   set(LIKELY_DEPENDS ${LIKELY_DEPENDS} OpenCV CURL)
+  set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely_aux.h)
   install(FILES ${CMAKE_SOURCE_DIR}/include/likely_aux.h DESTINATION include)
 endif()
 
@@ -50,32 +54,34 @@ if(${LIKELY_SCRIPT})
   add_custom_target(likely_standard_library COMMAND ${CMAKE_COMMAND} -P ${LIKELY_STANDARD_LIBRARY_CMAKE})
 
   set(LIKELY_SRC ${LIKELY_SRC} likely_script.cpp
-                               ${LIKELY_STANDARD_LIBRARY_CPP}
-                               ${CMAKE_SOURCE_DIR}/include/likely_script.h
-                               ${CMAKE_SOURCE_DIR}/share/likely/standard.likely
-                               ${CMAKE_SOURCE_DIR}/share/likely/opencv.shim)
+                               ${LIKELY_STANDARD_LIBRARY_CPP})
   set(LIKELY_LIBS ${LIKELY_LIBS} liblua)
   set(LIKELY_DEPENDS ${LIKELY_DEPENDS} lua likely_standard_library)
+  set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely_script.h
+                                 ${CMAKE_SOURCE_DIR}/share/likely/standard.likely
+                                 ${CMAKE_SOURCE_DIR}/share/likely/opencv.shim)
   install(FILES ${CMAKE_SOURCE_DIR}/include/likely_script.h DESTINATION include)
 endif()
 
-if(NOT ${BUILD_SHARED_LIBS})
-  add_definitions(-DLIKELY_LIBRARY)
-endif()
+# Build common object files
+add_definitions(-DLIKELY_LIBRARY -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
+add_library(likely_object OBJECT ${LIKELY_SRC})
+add_dependencies(likely_object ${LIKELY_DEPENDS})
 
-add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
-add_library(likely ${LIKELY_SRC})
-add_dependencies(likely ${LIKELY_DEPENDS})
-set_target_properties(likely PROPERTIES
-                      DEFINE_SYMBOL LIKELY_LIBRARY
-                      VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
-                      SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR})
+# Build share library
+add_library(likely SHARED $<TARGET_OBJECTS:likely_object> ${LIKELY_MISC})
+set_target_properties(likely PROPERTIES VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
+                                        SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR})
 target_link_libraries(likely ${LIKELY_LIBS})
-install(TARGETS likely
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
-install(FILES ${CMAKE_SOURCE_DIR}/include/likely.h DESTINATION include)
+install(TARGETS likely ARCHIVE DESTINATION lib
+                       LIBRARY DESTINATION lib
+                       RUNTIME DESTINATION bin)
+
+# Build static library
+add_library(likely_static STATIC $<TARGET_OBJECTS:likely_object>)
+set_target_properties(likely_static PROPERTIES OUTPUT_NAME likely)
+target_link_libraries(likely_static ${LIKELY_LIBS})
+install(TARGETS likely_static ARCHIVE DESTINATION lib)
 
 if(${LIKELY_SCRIPT})
   add_custom_command(TARGET likely POST_BUILD
@@ -103,7 +109,7 @@ if(${LIKELY_AUX} AND ${LIKELY_SCRIPT})
 
     add_executable(Dream dream.cpp ${QCUSTOMPLOT_SRC})
     qt5_use_modules(Dream Quick Widgets PrintSupport)
-    target_link_libraries(Dream likely)
+    target_link_libraries(Dream likely_static)
     install(TARGETS Dream RUNTIME DESTINATION bin)
   endif()
 endif()

@@ -10,7 +10,7 @@ set(CPACK_PACKAGE_VERSION_MINOR 1)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
-option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set(CLANG ON)
@@ -33,10 +33,6 @@ if(NOT VS)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -fvisibility=hidden")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS}")
 endif()
-
-# Build the submodules statically
-set(LIKELY_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-set(BUILD_SHARED_LIBS OFF)
 
 # Build LLVM
 set(LLVM_TARGETS_TO_BUILD "host" CACHE STRING "LLVM targets")
@@ -71,7 +67,6 @@ if(${LIKELY_SCRIPT})
   include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
 endif()
 
-set(BUILD_SHARED_LIBS ${LIKELY_BUILD_SHARED_LIBS})
 include_directories(include share/likely)
 add_subdirectory(src)
 
