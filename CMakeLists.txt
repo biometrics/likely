@@ -2,12 +2,12 @@ project(likely)
 cmake_minimum_required(VERSION 2.8.11)
 
 # Configure
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CPACK_PACKAGE_NAME "Likely")
 set(CPACK_PACKAGE_DESCRIPTION "Literate Kernel Library")
 set(CPACK_PACKAGE_VERSION_MAJOR 0)
 set(CPACK_PACKAGE_VERSION_MINOR 1)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 cmake_policy(SET CMP0020 NEW)
@@ -63,3 +63,7 @@ endif()
 
 include_directories(include share/likely)
 add_subdirectory(src)
+
+install(DIRECTORY share DESTINATION .)
+install(FILES ${CMAKE_SOURCE_DIR}/LICENSE.txt DESTINATION share/likely)
+include(CPack)

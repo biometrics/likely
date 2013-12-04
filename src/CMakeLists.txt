@@ -75,8 +75,6 @@ install(TARGETS likely
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
 install(FILES ${CMAKE_SOURCE_DIR}/include/likely.h DESTINATION include)
-install(DIRECTORY share DESTINATION .)
-install(FILES ${CMAKE_SOURCE_DIR}/LICENSE.txt DESTINATION share/likely)
 
 if(${LIKELY_SCRIPT})
   add_custom_command(TARGET likely POST_BUILD
