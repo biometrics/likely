@@ -31,6 +31,7 @@
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Vectorize.h>
 #include <atomic>
+#include <condition_variable>
 #include <cstdarg>
 #include <cstdlib>
 #include <iomanip>
