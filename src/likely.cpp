@@ -1035,13 +1035,19 @@ struct LikelyKernelOptimizationPass : public FunctionPass
 char LikelyKernelOptimizationPass::ID = 0;
 static RegisterPass<LikelyKernelOptimizationPass> RegisterLikelyKernelOptimizationPass("likely", "Likely Kernel Optimization Pass", false, false);
 
-// Share parallel execution
+// Parallel synchronization
+static condition_variable worker;
+static mutex work;
+static atomic<bool> *workers = NULL;
+static size_t numWorkers = 0;
+
+// Parallel data
 static void *currentThunk = NULL;
 static likely_arity thunkArity = 0;
 static likely_size thunkSize = 0;
 static likely_const_mat thunkMatricies[LIKELY_NUM_ARITIES+1];
 
-static void executeWorker(int id, size_t numWorkers)
+static void executeWorker(size_t id)
 {
     // There are hardware_concurrency-1 helper threads and the main thread with id = 0
     const likely_size step = (thunkSize+numWorkers-1)/numWorkers;
@@ -1064,12 +1070,17 @@ static void executeWorker(int id, size_t numWorkers)
     }
 }
 
-static void workerThread(int id, int numWorkers, mutex *work, atomic<int> *remaining)
+static void workerThread(size_t id)
 {
     while (true) {
-        work->lock();
-        executeWorker(id, numWorkers);
-        remaining--;
+        {
+            unique_lock<mutex> lock(work);
+            workers[id] = false;
+            while (!workers[id])
+                worker.wait(lock);
+        }
+
+        executeWorker(id);
     }
 }
 
@@ -1422,16 +1433,14 @@ void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const
     static mutex forkLock;
     lock_guard<mutex> lockFork(forkLock);
 
-    static vector<mutex*> workers;
-    static atomic<int> workersRemaining(0);
-    if (workers.empty()) {
-        const int numWorkers = std::max((int)thread::hardware_concurrency(), 1);
-        workers.push_back(NULL); // main thread = 0
-        for (int i = 1; i < numWorkers; i++) {
-            mutex *m = new mutex();
-            m->lock();
-            workers.push_back(m);
-            thread(workerThread, i, numWorkers, m, &workersRemaining).detach();
+    // Spin up the worker threads
+    if (workers == NULL) {
+        numWorkers = std::max((int)thread::hardware_concurrency(), 1);
+        workers = new atomic<bool>[numWorkers];
+        for (size_t i = 1; i < numWorkers; i++) {
+            workers[i] = true;
+            thread(workerThread, i).detach();
+            while (workers[i]) {} // Wait for the worker to initialize
         }
     }
 
@@ -1447,11 +1456,17 @@ void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const
     }
     va_end(ap);
 
-    // Skip myself when starting other threads
-    workersRemaining = (int)workers.size()-1;
-    for (size_t i=1; i<workers.size(); i++)
-        workers[i]->unlock();
+    {
+        unique_lock<mutex> lock(work);
+        for (size_t i = 1; i < numWorkers; i++) {
+            assert(!workers[i]);
+            workers[i] = true;
+        }
+    }
 
-    executeWorker(0, workers.size());
-    while (workersRemaining > 0) {}
+    worker.notify_all();
+    executeWorker(0);
+
+    for (size_t i = 1; i < numWorkers; i++)
+        while (workers[i]) {} // Wait for the worker to finish
 }
