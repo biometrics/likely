@@ -1,5 +1,17 @@
 www.liblikely.org
 
+#### Build instructions
+
+    $ git clone https://github.com/biometrics/likely.git
+    $ cd likely
+    $ git submodule init
+    $ git submodule update
+    $ mkdir build
+    $ cd build
+    $ cmake -DBUILD_SHARED_LIBS=ON ..
+    $ make
+    $ make install
+
 ##### Supported Platforms
 | OS           | Compiler  |
 |--------------|-----------|
