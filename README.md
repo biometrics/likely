@@ -1,6 +1,6 @@
-www.liblikely.org
+##### www.liblikely.org
 
-#### Build instructions
+##### Build instructions
 
     $ git clone https://github.com/biometrics/likely.git
     $ cd likely
