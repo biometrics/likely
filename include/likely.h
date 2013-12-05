@@ -17,6 +17,7 @@
 #ifndef LIKELY_H
 #define LIKELY_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -124,8 +125,8 @@ LIKELY_EXPORT likely_size likely_elements(likely_const_mat m);
 LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
 
 // Matrix creation
-LIKELY_EXPORT likely_mat likely_new(likely_type type = likely_type_f32, likely_size channels = 1, likely_size columns = 1, likely_size rows = 1, likely_size frames = 1, likely_data *data = NULL, int8_t copy = 0);
-LIKELY_EXPORT likely_mat likely_copy(likely_const_mat m, int8_t copy_data = 0);
+LIKELY_EXPORT likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, int8_t copy);
+LIKELY_EXPORT likely_mat likely_copy(likely_const_mat m, int8_t clone);
 LIKELY_EXPORT likely_mat likely_retain(likely_mat m);
 LIKELY_EXPORT void likely_release(likely_mat m);
 

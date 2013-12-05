@@ -243,7 +243,7 @@ static int lua_likely_encode(lua_State *L)
 static int lua_likely_render(lua_State *L)
 {
     lua_likely_assert(L, lua_gettop(L) == 1, "'render' expected 1 argument, got: %d", lua_gettop(L));
-    *newLuaMat(L) = likely_render(checkLuaMat(L));
+    *newLuaMat(L) = likely_render(checkLuaMat(L), NULL, NULL);
     return 1;
 }
 
@@ -589,7 +589,7 @@ lua_State *likely_exec(const char *source, lua_State *L)
         luaL_openlibs(L);
         luaL_requiref(L, "likely", luaopen_likely, 1);
         lua_pop(L, 1);
-        luaL_dostring(L, likely_standard_library());
+        luaL_dostring(L, likely_standard_library);
     }
 
     // Clear the previous stack

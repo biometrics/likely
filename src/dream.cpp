@@ -663,7 +663,7 @@ int main(int argc, char *argv[])
         } else {
             source = argv[i];
         }
-        lua_close(likely_exec(qPrintable(source)));
+        lua_close(likely_exec(qPrintable(source), NULL));
     }
 
     if (argc > 1)
@@ -707,7 +707,7 @@ int main(int argc, char *argv[])
     luaL_openlibs(L);
     luaL_requiref(L, "likely", luaopen_likely, 1);
     lua_pop(L, 1);
-    luaL_dostring(L, likely_standard_library());
+    luaL_dostring(L, likely_standard_library);
     lua_getglobal(L, "likely");
     lua_getfield(L, -1, "examples");
     lua_pushnil(L);

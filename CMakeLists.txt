@@ -9,7 +9,6 @@ set(CPACK_PACKAGE_VERSION_MAJOR 0)
 set(CPACK_PACKAGE_VERSION_MINOR 1)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_AUTOMOC ON)
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
@@ -67,7 +66,7 @@ if(${LIKELY_SCRIPT})
   include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
 endif()
 
-include_directories(include share/likely)
+include_directories(include)
 add_subdirectory(src)
 
 install(DIRECTORY share DESTINATION .)

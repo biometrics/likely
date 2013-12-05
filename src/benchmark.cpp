@@ -94,7 +94,7 @@ struct Test
 
     static void runExample(const char *source)
     {
-        static lua_State *L = likely_exec("");
+        static lua_State *L = likely_exec("", NULL);
         likely_exec(source, L);
         clock_t startTime, endTime;
         int iter = 0;
@@ -199,9 +199,9 @@ private:
             for (int i=0; i<src.rows; i++)
                 for (int j=0; j<src.cols; j++)
                     if (errorMat.at<float>(i, j) == 1) {
-                        const double src = likely_element(srcLikely, 0, j, i);
-                        const double cv  = likely_element(cvLikely,  0, j, i);
-                        const double dst = likely_element(dstLikely, 0, j, i);
+                        const double src = likely_element(srcLikely, 0, j, i, 0);
+                        const double cv  = likely_element(cvLikely,  0, j, i, 0);
+                        const double dst = likely_element(dstLikely, 0, j, i, 0);
                         if (ignoreOffByOne() && (cv-dst == 1)) continue;
                         if (errors < 100) errorLocations << src << "\t" << cv << "\t" << dst << "\t" << i << "\t" << j << "\n";
                         errors++;
@@ -405,7 +405,7 @@ int main(int argc, char *argv[])
 
     if (BenchmarkExamples) {
         printf("Example \tSpeed\n");
-        lua_State *L = likely_exec("");
+        lua_State *L = likely_exec("", NULL);
         lua_getfield(L, -1, "likely");
         lua_getfield(L, -1, "examples");
         lua_pushnil(L);

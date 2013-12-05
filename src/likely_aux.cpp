@@ -33,7 +33,7 @@ likely_mat likely_read(const char *file_name)
     static string previousFileName;
     static likely_mat previousMat = NULL;
     if (previousFileName == file_name)
-        return likely_copy(previousMat);
+        return likely_copy(previousMat, 0);
 
     cv::Mat m = cv::imread(file_name, CV_LOAD_IMAGE_UNCHANGED);
     likely_mat mat = fromCvMat(m, true);
@@ -64,8 +64,8 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
 
 likely_mat likely_scalar(double value)
 {
-    likely_mat m = likely_new(likely_type_from_value(value));
-    likely_set_element(m, value);
+    likely_mat m = likely_new(likely_type_from_value(value), 1, 1, 1, 1, NULL, 0);
+    likely_set_element(m, value, 0, 0, 0, 0);
     return m;
 }
 
@@ -99,16 +99,16 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
         if (m->channels == 3) {
             if (min_) *min_ = min;
             if (max_) *max_ = max;
-            return likely_copy(m);
+            return likely_copy(m, 0);
         }
     }
 
-    likely_mat n = likely_new(likely_type_u8, 3, m->columns, m->rows);
+    likely_mat n = likely_new(likely_type_u8, 3, m->columns, m->rows, 1, NULL, 0);
     for (likely_size y=0; y<n->rows; y++) {
         for (likely_size x=0; x<n->columns; x++) {
             for (likely_size c=0; c<3; c++) {
-                const double value = likely_element(m, c % m->channels, x, y);
-                likely_set_element(n, (value-min)/range, c, x, y);
+                const double value = likely_element(m, c % m->channels, x, y, 0);
+                likely_set_element(n, (value-min)/range, c, x, y, 0);
             }
         }
     }

@@ -154,9 +154,9 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     return m;
 }
 
-likely_mat likely_copy(likely_const_mat m, int8_t copy_data)
+likely_mat likely_copy(likely_const_mat m, int8_t clone)
 {
-    return likely_new(m->type, m->channels, m->columns, m->rows, m->frames, m->data, copy_data);
+    return likely_new(m->type, m->channels, m->columns, m->rows, m->frames, m->data, clone);
 }
 
 likely_mat likely_retain(likely_mat m)
@@ -1248,7 +1248,7 @@ public:
         Value *dst = builder.CreateCall(likelyNew, likelyNewArgs);
 
         // An impossible case used to ensure that the `likely_new` isn't stripped when optimizing executable size
-        if (likelyNewArgs.empty()) likely_new();
+        if (likelyNewArgs.empty()) likely_new(likely_type_null, 0, 0, 0, 0, NULL, 0);
 
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
         if (likely_parallel(types[0])) {

@@ -18,6 +18,8 @@ if(APPLE)
   set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL "${CMAKE_EXE_LINKER_FLAGS_MINSIZEREL} -Wl,-dead_strip")
 endif()
 
+add_executable(embedfile embedfile.c)
+
 set(LIKELY_SRC likely.cpp)
 set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES})
 set(LIKELY_MISC ${CMAKE_SOURCE_DIR}/include/likely.h
@@ -32,32 +34,14 @@ if(${LIKELY_AUX})
 endif()
 
 if(${LIKELY_SCRIPT})
-  # Compile in standard.likely as a string
-  set(LIKELY_STANDARD_LIBRARY_CMAKE ${CMAKE_BINARY_DIR}/standard_library.cmake)
-  set(LIKELY_STANDARD_LIBRARY_CPP ${CMAKE_BINARY_DIR}/likely_standard_library.cpp)
-  file(WRITE ${LIKELY_STANDARD_LIBRARY_CMAKE}
-       "set(LIKELY_STANDARD_LIBRARY_CPP ${LIKELY_STANDARD_LIBRARY_CPP})
-        set(LIKELY_STANDARD_LIBRARY \"${CMAKE_SOURCE_DIR}/share/likely/standard.likely\")
-        if (\${LIKELY_STANDARD_LIBRARY} IS_NEWER_THAN \${LIKELY_STANDARD_LIBRARY_CPP})
-        file(WRITE \${LIKELY_STANDARD_LIBRARY_CPP} \"// Probably a bad idea to modify this automatically generated source file!\\n\\n\")
-        file(APPEND \${LIKELY_STANDARD_LIBRARY_CPP} \"#include \\\"likely_script.h\\\"\\n\\nconst char *likely_standard_library()\\n{\\n\\treturn\\n\\t\\\"\")
-        file(READ \${LIKELY_STANDARD_LIBRARY} STANDARD_LIBRARY_SOURCE)
-        string(REPLACE \"\\\\\" \"\\\\\\\\\" STANDARD_LIBRARY_SOURCE \${STANDARD_LIBRARY_SOURCE})
-        string(REPLACE \"\\\"\" \"\\\\\\\"\" STANDARD_LIBRARY_SOURCE \${STANDARD_LIBRARY_SOURCE})
-        string(REPLACE \"\\n\" \"\\\\n\\\"\\n\\t\\\"\" STANDARD_LIBRARY_SOURCE \${STANDARD_LIBRARY_SOURCE})
-        file(APPEND \${LIKELY_STANDARD_LIBRARY_CPP} \${STANDARD_LIBRARY_SOURCE})
-        file(APPEND \${LIKELY_STANDARD_LIBRARY_CPP} \"\\\";\\n}\\n\")
-        endif()")
-  include(${LIKELY_STANDARD_LIBRARY_CMAKE}) # Run it once
-  add_custom_target(likely_standard_library COMMAND ${CMAKE_COMMAND} -P ${LIKELY_STANDARD_LIBRARY_CMAKE})
-
-  set(LIKELY_SRC ${LIKELY_SRC} likely_script.cpp
-                               ${LIKELY_STANDARD_LIBRARY_CPP})
+  add_custom_command(OUTPUT likely_standard_library.c
+                     COMMAND embedfile likely_standard_library ${CMAKE_CURRENT_SOURCE_DIR}/standard.likely
+                     DEPENDS embedfile standard.likely)
+  set(LIKELY_SRC ${LIKELY_SRC} likely_script.cpp ${CMAKE_CURRENT_BINARY_DIR}/likely_standard_library.c)
   set(LIKELY_LIBS ${LIKELY_LIBS} liblua)
-  set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library)
-  set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely_script.h
-                                 ${CMAKE_SOURCE_DIR}/share/likely/standard.likely
-                                 ${CMAKE_SOURCE_DIR}/share/likely/opencv.shim)
+  set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
+  set(LIKELY_MISC ${LIKELY_MISC} standard.likely opencv.shim
+                                 ${CMAKE_SOURCE_DIR}/include/likely_script.h)
   install(FILES ${CMAKE_SOURCE_DIR}/include/likely_script.h DESTINATION include)
 endif()
 
@@ -66,7 +50,7 @@ add_definitions(-DLIKELY_LIBRARY -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS
 add_library(likely_object OBJECT ${LIKELY_SRC})
 add_dependencies(likely_object ${LIKELY_LIBS} ${LIKELY_DEPENDS})
 
-# Build share library
+# Build shared library
 add_library(likely SHARED $<TARGET_OBJECTS:likely_object> ${LIKELY_MISC})
 set_target_properties(likely PROPERTIES VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
                                         SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR})
@@ -80,11 +64,6 @@ add_library(likely_static STATIC $<TARGET_OBJECTS:likely_object>)
 set_target_properties(likely_static PROPERTIES OUTPUT_NAME likely)
 target_link_libraries(likely_static ${LIKELY_LIBS})
 install(TARGETS likely_static ARCHIVE DESTINATION lib)
-
-if(${LIKELY_SCRIPT})
-  add_custom_command(TARGET likely POST_BUILD
-                     COMMAND ${CMAKE_COMMAND} -E touch ${LIKELY_STANDARD_LIBRARY_CPP})
-endif()
 
 if(${LIKELY_AUX} AND ${LIKELY_SCRIPT})
   # Benchmark
@@ -105,6 +84,7 @@ if(${LIKELY_AUX} AND ${LIKELY_SCRIPT})
     # aux_source_directory(qcustomplot/src/layoutelements QCUSTOMPLOT_SRC_LAYOUTELEMENTS)
     # set(QCUSTOMPLOT_SRC ${QCUSTOMPLOT_SRC} ${QCUSTOMPLOT_SRC_PLOTTABLES} ${QCUSTOMPLOT_SRC_ITEMS} ${QCUSTOMPLOT_SRC_LAYOUTELEMENTS})
 
+    set(CMAKE_AUTOMOC ON)
     add_executable(Dream dream.cpp ${QCUSTOMPLOT_SRC})
     qt5_use_modules(Dream Quick Widgets PrintSupport)
     target_link_libraries(Dream likely_static)
