@@ -35,8 +35,8 @@ endif()
 
 if(${LIKELY_SCRIPT})
   add_custom_command(OUTPUT likely_standard_library.c
-                     COMMAND embedfile likely_standard_library ${CMAKE_CURRENT_SOURCE_DIR}/standard.likely
-                     DEPENDS embedfile standard.likely)
+                     COMMAND embedfile likely_standard_library ${CMAKE_CURRENT_SOURCE_DIR}/standard.likely.lua
+                     DEPENDS embedfile standard.likely.lua)
   set(LIKELY_SRC ${LIKELY_SRC} likely_script.cpp ${CMAKE_CURRENT_BINARY_DIR}/likely_standard_library.c)
   set(LIKELY_LIBS ${LIKELY_LIBS} liblua)
   set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
