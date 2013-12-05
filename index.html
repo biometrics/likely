@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Likely Kernel Library">
+  <meta name="author" content="Josh Klontz">
+  <title>Likely</title>
+
+  <!-- Bootstrap -->
+  <link href="http://getbootstrap.com/dist/css/bootstrap.css" rel="stylesheet">
+  <style> body { padding-top: 70px; } </style>
+
+  <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+  <script src="https://code.jquery.com/jquery.js"></script>
+
+  <!-- Include all compiled plugins (below), or include individual files as needed -->
+  <script src="http://getbootstrap.com/dist/js/bootstrap.min.js"></script>
+
+  <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
+  <script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
+  <script type="text/javascript" src="http://underscorejs.org/underscore-min.js"></script>
+  <script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/oj.markdown/0.2.9/oj.markdown.min.js"></script>
+
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-9623786-4']);
+    _gaq.push(['_trackPageview']);
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+</head>
+
+<body onload="prettyPrint()">
+  <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="#">Likely</a>
+      </div>
+      <div class="collapse navbar-collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="https://github.com/biometrics/likely">Source</a></li>
+          <li><a href="https://github.com/jklontz">Author</a></li>
+          <li><a href="http://www.noblis.org/">Noblis</a></li>
+        </ul>
+        <ul class="nav navbar-nav navbar-right">
+          <li><a href="https://raw.github.com/biometrics/likely/master/LICENSE.txt">Licensed under Apache 2.0 &copy; 2013 Joshua C. Klontz</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="container"> <div class="row"> <div class="span12">
+    <h1 id="likely_kernel_library">Likely Kernel Library <small>(under construction)</small></h1>
+    <p class="lead">An image recognition runtime for heterogenous architectures.</p>
+    <h2 id="introduction">Introduction</h2>
+    <p>Welcome to the documentation for <tt>Likely</tt>, the image recognition programming language!</p>
+    <h3 id="principles">Principles</h3>
+    <ol>
+      <li>Heterogeneous hardware architecture support</li>
+      <li>Efficient syntax for feature representation and statistical learning</li>
+      <li>Immediate visual feedback during algorithm development</li>
+      <li>Embeddable into other projects and languages</li>
+      <li>Free open source software</li>
+    </ol>
+    <h3 id="help">Help</h3>
+    <p>We try to keep this document complete and correct.
+       However, should you run into trouble, please feel free to ask questions on our <a href="https://groups.google.com/forum/#!forum/likely-dev">mailing list</a> or report bugs on our <a href="https://github.com/biometrics/likely/issues">issue tracker</a>.</p>
+    <h3 id="background">Background</h3>
+    <p>The software development of a complex system is often facilitated by a <i>Domain Specific Language</i> (DSL) whose syntax is designed to concisely and efficiently solve problems frequently encountered in the domain.
+       While many technical communities rely on DSLs, there currently exists no suitable language for image recognition researchers.
+       As a consequence, most libraries and applications are written in either <tt>C++</tt> or <tt>MATLAB</tt>, neither of which will simultaneously respect both the engineer's time and the hardware's compute capability.
+       <blockquote>
+         <p>We believe a DSL for image recognition is essential to express algorithms that are currently too complex to implement in a "low-level" language and too slow to execute in a "high-level" language.</p>
+       </blockquote>
+    </p>
+    <h4 id="why_not_cpp">Why not C++?</h4>
+    <p>As image recognition engineers, we desire a curated set of image processing functions from which to compose sophisticated algorithms.
+       Despite the multi-paradigm virtues of C++, it is extraordinarily difficult to provide library routines that are both generic and efficient.
+       For example, consider the following library function for adding two vectors:
+    </p>
+<pre class="prettyprint lang-c">
+void add(const float *a, const float *b, float *c, unsigned int n) {
+    for (unsigned int i = 0; i &lt n; i++)
+        c[i] = a[i] + b[i];
+}
+</pre>
+    <h5 id="aliasing">Pointer Aliasing</h5>
+    <p>While this function is simple, it is neither particularly fast nor generic.
+       A popular assuption made in numerical libraries is that pointers never <i>alias</i>.
+       In other words, variables <tt>a</tt>, <tt>b</tt> and <tt>c</tt> point to distinct non-overlaping regions in memory.
+       The <tt>C</tt> language specification states that pointers may alias, so the compiler must insert a runtime check when vectorizing loops.
+       This is the primary reason why <a href="http://stackoverflow.com/a/146186">Fortran is faster than C</a>.
+       While C has since introduced the <tt>restrict</tt> keyword to specify pointers that do not alias, this keyword is not supported in the C++:
+    </p>
+<pre class="prettyprint lang-c">
+// Valid C, invalid C++
+void add(const float * restrict a, const float * restrict b, float * restrict c, unsigned int n) {
+    for (unsigned int i = 0; i &lt n; i++)
+        c[i] = a[i] + b[i];
+}
+</pre>
+    <h5 id="types">Generics</h5>
+    <p>Different image processing operations may operate on different data types, so we might try to generalize our function using templates:
+    </p>
+<pre class="prettyprint lang-c">
+template &lttypename T&gt
+void add(const T *a, const T *b, T *c, unsigned int n) {
+    for (unsigned int i = 0; i < n; i++)
+        c[i] = a[i] + b[i];
+}
+</pre>
+    <p>However, what if we would like <tt>a</tt> or <tt>b</tt> to be a numerical constant? Or <tt>c</tt> to be a different type?
+    </p>
+    <p><i>&ltTo Be Continued&gt</i></p>
+    <h4 id="why_not_matlab">Why not MATLAB?</h4>
+    <p><i>&ltTo Be Continued&gt</i></p>
+    <h3 id="executable_everywhere">Executable Everywhere</h3>
+    <p>Likely is built on top of the <i>Low Level Virtual Machine</i> (LLVM) compiler infrastructure using a portable subset of <tt>ISO C++11</tt>, which means it runs <a href="http://llvm.org/docs/GettingStarted.html#hardware">everywhere LLVM does</a>.
+       Algorithms execute natively on single CPU threads via the LLVM <i>Machine Code Just-In-Time</i> (MCJIT) compiler, multi-core CPUs via a custom <tt>OpenMP</tt>-like backend, and GPUs and coprocessors via <i>OpenCL</i>, <i>HSAIL</i>, or <i>CUDA</i>.
+    </p>
+    <h3 id="perfectly_optimized">Perfectly Optimized</h3>
+    <p>Likely relies on the powerful and well established LLVM optimization passes to make kernel execution as fast as possible.
+      Since compilation is held off until runtime, kernels are optimized to take advantage of all instruction set extensions available on the host processor.
+      In reality, compilation is delayed until a function is called for the first time, enabling optimization opportunities that are impossible in conventional image processing libraries.
+      The entire premise of Likely is hinged on the observation that for image processing applications
+      <blockquote>
+        <p>while kernels must be written generically to handle any matrix type, at runtime they tend to be executed repeatedly on the same type.</p>
+      </blockquote>
+      The repeated execution of a kernel with the same matrix type means that branching to handle different data types is unnecessary, entire loops and code blocks can be eliminated, and many values that would be runtime parameters instead become compile time constants.
+      For this reason, it's not uncommon for Likely kernels to be <i>faster</i> than equally generic <tt>C</tt> code.
+    </p>
+    <p id="hash_introduction">In Likely, a matrix's type is referred to as its <i><a href="#the_hash">hash</a></i>, encompassing its data type (<tt>integer</tt> or <tt>floating point</tt>), depth (<tt>8</tt>, <tt>16</tt>, <tt>32</tt>, or <tt>64</tt> bits), computation location (<tt>serial CPU</tt>, <tt>parallel CPU</tt>, or <tt>heterogeneous coprocessor</tt>), and its <tt>single-dimension</tt> axes.
+      Likely functions check the input's hash against the currently compiled kernel's hash and recompile on a mismatch.
+      In this way,
+      <blockquote>
+        <p>all the logic needed to handle different matrix types is reduced to a single 32-bit integer comparison which branch prediction can optimize out.</p>
+      </blockquote>
+    </p>    
+    <h2 id="interface">Interface</h2>
+    <p>C/C++ projects should <code class="prettyprint lang-c">#include &lt;likely.h&gt;</code> and link against the <code>likely</code> shared library.
+      <tt>LikelyConfig.cmake</tt> is provided in <tt>share/likely/</tt> as a convenience to CMake developers.
+    </p>
+    <p>Likely is a C API and definitions are prefixed with <tt>likely_</tt> and use a <tt>lowercase_underscore</tt> naming convention.
+      Consider taking a moment to skim the <a href="https://github.com/biometrics/likely/blob/master/likely.h">header file</a>.
+    </p>
+    <h3 id="the_matrix_struct">The Matrix Struct</h3>
+    <p>The <tt>likely_matrix</tt> is only struct in the API and serves as the input and output for all kernel invocations.
+      The <tt>likely_matrix</tt>, hereafter referred to as the <i>matrix</i>, has the following fields:
+    </p>
+    <pre class="prettyprint lang-c">uint8_t *data; // Pointer to the buffer of elements<br>uint32_t hash; // Data type<br>uint32_t channels, columns, rows, frames; // Dimensions</pre>
+    <p>The five fields excepting the <i>data</i> pointer (<i>hash</i>, <i>channels</i>, <i>columns</i>, <i>rows</i>, and <i>frames</i>) are collectively referred to as the matrix <i>header</i>.
+    In contrast to most image processing libraries which tend to feature 3-dimensional matrices (channels, columns, rows), Likely includes a fourth dimension, frames, in order to facilitate processing videos or collections of images.
+    <h4 id="element_access">Element Access</h4>
+    <p>By convention, element layout in the data buffer with resepect to decreasing spatial locality is <i>channel</i>, <i>column</i>, <i>row</i>, <i>frame</i>.
+      Thus an element at channel <i>c</i>, column <i>x</i>, row <i>y</i>, and frame <i>t</i>, or (c, x, y, t), can be indexed into like:
+    </p>
+    <pre class="prettyprint lang-c">likely_matrix *m = foo();<br>int columnStep = m->channels;<br>int rowStep = m->channels * columnStep;<br>int frameStep = m->rows * rowStep;<br>int index = t*frameStep + y*rowStep + x*columnStep + c;<br>assert(likely_type(m) == likely_matrix::f64);<br>double element = ((double*)m->data)[index];</pre>
+    <p>Convenience functions <code class="prettyprint lang-c">double likely_element(...)</code> and <code class="prettyprint lang-c">void likely_set_element(...)</code> are provided for individual element access.
+      Using the convenience functions is inefficient when iterating over a large numbers of elements due to the repeated index calculation, and their use is generally suggested only for debugging purposes or when the matrix is known to be small.</p>
+    <h4 id="the_matrix_hash">The Hash</h4>
+    <p>As suggested in the <a href="#hash_introduction">introduction</a>, the <tt>likely_hash</tt> plays a critical role in determining how to process matricies.
+      The hash is a 2-byte <i>bit field</i> that encodes what data type the matrix is are where it should be processed.
+      It also specifies which, if any, of the channels, columns, rows, and frames of the matrix are length 1.
+      This knowledge is used during kernel compilation to simplify element access algebra and remove unneccesary loops and branches.
+    </p>
+    <p>The layout of the bits in the hash is documented below.</p>
+    <table class="table table-bordered table-condensed table-hover table-striped">
+      <caption><tt>likely_hash</tt> Bit Field Layout</caption>
+      <thead>
+        <tr><th>Field</th><th>Bits</th><th>Enum</th><th>Mask</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Depth</td><td>8</td><td>likely_hash_depth</td><td>0x000000FF</td></tr>
+        <tr><td>Signed</td><td>1</td><td>likely_hash_signed</td><td>0x00000100</td></tr>
+        <tr><td>Floating</td><td>1</td><td>likely_hash_floating</td><td>0x00000200</td></tr>
+        <tr><td>Type (= Depth | Signed | Floating)</td><td>10</td><td>likely_hash_type</td><td>0x000003FF</td></tr>
+        <tr><td>Parallel</td><td>1</td><td>likely_hash_parallel</td><td>0x00000400</td></tr>
+        <tr><td>Heterogeneous</td><td>1</td><td>likely_hash_heterogeneous</td><td>0x00000800</td></tr>
+        <tr><td>Single Channel</td><td>1</td><td>likely_hash_single_channel</td><td>0x00001000</td></tr>
+        <tr><td>Single Column</td><td>1</td><td>likely_hash_single_column</td><td>0x00002000</td></tr>
+        <tr><td>Single Row</td><td>1</td><td>likely_hash_single_row</td><td>0x00004000</td></tr>
+        <tr><td>Single Frame</td><td>1</td><td>likely_hash_single_frame</td><td>0x00008000</td></tr>
+        <tr><td>Owner</td><td>1</td><td>likely_hash_owner</td><td>0x00010000</td></tr>
+        <tr><td>Reserved</td><td>15</td><td>likely_hash_reserved</td><td>0xFFFE0000</td></tr>
+      </tbody>
+    </table>
+    <p>Logic for querying and editing the hash is simplified with the following <i>inline</i> convenience functions.</p>
+    <table class="table table-bordered table-condensed table-hover table-striped">
+      <caption><tt>likely_hash</tt> Convenience Functions</caption>
+      <thead>
+        <tr><th>Field</th><th>Type</th><th>Getter</th><th>Setter</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Depth</td><td>int</td><td>likely_depth</td><td>likely_set_depth</td></tr>
+        <tr><td>Signed</td><td>bool</td><td>likely_is_signed</td><td>likely_set_signed</td></tr>
+        <tr><td>Floating</td><td>bool</td><td>likely_is_floating</td><td>likely_set_floating</td></tr>
+        <tr><td>Type</td><td>int</td><td>likely_type</td><td>likely_set_type</td></tr>
+        <tr><td>Parallel</td><td>bool</td><td>likely_is_parallel</td><td>likely_set_parallel</td></tr>
+        <tr><td>Heterogeneous</td><td>bool</td><td>likely_is_heterogeneous</td><td>likely_set_heterogeneous</td></tr>
+        <tr><td>Single Channel</td><td>bool</td><td>likely_is_single_channel</td><td>likely_set_single_channel</td></tr>
+        <tr><td>Single Column</td><td>bool</td><td>likely_is_single_column</td><td>likely_set_single_column</td></tr>
+        <tr><td>Single Row</td><td>bool</td><td>likely_is_single_row</td><td>likely_set_single_row</td></tr>
+        <tr><td>Single Frame</td><td>bool</td><td>likely_is_single_frame</td><td>likely_set_single_frame</td></tr>
+        <tr><td>Owner</td><td>bool</td><td>likely_is_owner</td><td>likely_set_owner</td></tr>
+        <tr><td>Reserved</td><td>int</td><td>likely_reserved</td><td>likely_set_reserved</td></tr>
+      </tbody>
+    </table>
+    <h3 id="functions_and_kernels">Functions and Kernels</h3>
+    <p>While both functions and kernels are thought of as mathematical transforms on matrices, the two words have distinct definitions in Likely.
+      <i>Functions</i> are exposed through the API and accept input matrices with arbitrary hashes.
+      <i>Kernels</i> are JIT compiled to calculate the requested operation for a particular matrix hash.
+      Kernels are managed automatically by functions and are hidden from the end user.
+    </p>
+    <p>All functions peform the following general steps:</p>
+    <dl class="dl-horizontal">
+      <dt>Hash Check</dt><dd>Compare the hash of the input against the hash of the currently loaded kernel, compile and load the correct kernel if they differ.</dd>
+      <dt>Preallocation</dt><dd>Compute the header of the output from the header of the input.</dd>
+      <dt>Allocation</dt><dd>Heap-allocate the output data buffer based on its elements and type.</dd>
+      <dt>Kernel Invocation</dt><dd>Call the kernel with the input and output matricies.</dd>
+    </dl>
+    <h4 id="function_arity">Function Arity</h4>
+    <p>There are four function types in Likely taking between zero and three input matrices.
+      The number of input matrices a function accepts is referred to as its <i>arity</i>.
+      All functions compute one output matrix that is passed by reference as the last argument.
+      Each function arity has a <i>maker</i> function in the API for requesting paricular mathematical transforms of its type.
+    </p>
+    <table class="table table-bordered table-condensed table-hover table-striped">
+      <caption>Maker Functions - The Core API</caption>
+      <thead>
+        <tr><th>Arity</th><th>Signature</th><th>Return Type</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>0</td><td>likely_make_nullary_function(const char *description)</td><td>likely_nullary_function</td></tr>
+        <tr><td>1</td><td>likely_make_unary_function(const char *description)</td><td>likely_unary_function</td></tr>
+        <tr><td>2</td><td>likely_make_binary_function(const char *description)</td><td>likely_binary_function</td></tr>
+        <tr><td>3</td><td>likely_make_ternary_function(const char *description)</td><td>likely_ternary_function</td></tr>
+      </tbody>
+    </table>
+    <p>Note that the return type of each maker is a function pointer that can be then called to perform the requested operation.</p>
+    <pre class="prettyprint lang-c">typedef void (*likely_function_0)(likely_matrix *dst);<br>typedef void (*UnaryFunction)(const likely_matrix *src, likely_matrix *dst);<br>typedef void (*likely_function_2)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);<br>typedef void (*likely_function_3)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);</pre>
+    <p>As is true in the example below, most functions are either unary or binary.</p>
+    <pre class="prettyprint lang-c">likely_matrix src = foo(); // Pre-initialized input matrix<br>likely_matrix dst; // Uninitialized output matrix<br>likely_unary_function multiply_add = likely_make_unary_function("madd(3,2)"); // Create a function that...<br>multiply_add(&src, &dst); // ...multiplies elements by three then adds two.</pre>
+    <h2 id="standard_library">Standard Library</h2>
+    <div id="includedContent"></div>
+    <script>
+      $(function(){
+        $("#includedContent").load("src/standard.likely");
+      });
+    </script>
+
+    <h2 id="benchmark">Benchmark</h2>
+    <style type="text/css">
+      .axis path,
+      .axis line {
+        fill: none;
+        stroke: black;
+        shape-rendering: crispEdges;
+      }
+
+      .axis text {
+        font-family: sans-serif;
+        font-size: 12px;
+      }
+
+    </style>
+    <div id="viz"></div>
+
+    <script type="text/javascript">
+      d3.tsv("benchmark.tsv", function(data) {
+        // Convert to numeric data
+        data.forEach(function(d) {
+          d.Size = +d.Size;
+          d.Speedup = +d.Speedup;
+        });
+
+        // Global sizes
+        var width  = $("#viz").width();
+        var height = width/2;
+        var margin = width/20;
+
+        // Construct chart
+        var chart = d3.select("#viz").append("svg").style("height", height);
+
+        // Construct x & y scales & axis
+        var xScale = d3.scale.log().base(2)
+                     .domain(d3.extent(data, function(d) { return d.Size; }))
+                     .range([margin, width-margin]);
+        var yScale = d3.scale.linear()
+                     .domain([0, d3.max(data, function(d) { return d.Speedup; })])
+                     .range([height-margin, margin]).nice();
+        var xAxis  = d3.svg.axis().scale(xScale).orient("bottom").tickFormat(d3.format("f"));
+        var yAxis  = d3.svg.axis().scale(yScale).orient("left").tickFormat(d3.format("d"));
+
+        // Construct color mapping
+        var types      = _.uniq(_.map(data, function(d) { return d.Type; }));
+        var colorTable = d3.scale.category10().domain(types);
+        var colorMap   = function(d) { return colorTable(d[0].Type); }
+
+        // Construct line type mapping
+        var executions = _.uniq(_.map(data, function(d) { return d.Execution; }));
+        var lineTable  = function(d) { return ("1, " + String(_.indexOf(executions, d))); }
+        var lineMap    = function(d) { return lineTable(d[0].Execution); }
+
+        // Group and render data
+        var lines = _.values(_.groupBy(data, function(d) { return d.Execution+d.Type; }));
+        var lineFunction = d3.svg.line()
+                           .x(function(d) { return xScale(d.Size); })
+                           .y(function(d) { return yScale(d.Speedup); })
+        chart.selectAll(".benchmark").data(lines).enter().append("path")
+             .attr("d", function(d) { return lineFunction(d); })
+             .attr("stroke", colorMap)
+             .attr("stroke-dasharray", lineMap)
+             .attr("fill", "none")
+             .attr("stroke-width", 2);
+
+        // Render axes
+        chart.append("g").attr("class", "axis").attr("transform", "translate(0," + (height-margin) + ")").call(xAxis);
+        chart.append("g").attr("class", "axis").attr("transform", "translate(" + margin + ",0)").call(yAxis);
+
+        // Legend position variables
+        var legendXOffset = 128;
+        var legendElementStep = 20;
+        var legendKeySize = 12;
+        var legendKeyValueSpacing = 3;
+
+        // Render color legend
+        chart.selectAll("colorKeys").data(types).enter().append("rect")
+             .attr("x", width - legendXOffset)
+             .attr("y", function(d, i) { return (i+1) * legendElementStep;})
+             .attr("width", legendKeySize)
+             .attr("height", legendKeySize)
+             .attr("fill", colorTable);
+        chart.selectAll('colorText').data(types).enter().append("text")
+              .attr("x", width - legendXOffset + legendKeySize + legendKeyValueSpacing)
+              .attr("y", function(d, i) { return (i+1) * legendElementStep + legendKeySize; })
+              .text(function(d) { return String(d); });
+
+        // Render line type legend
+        chart.selectAll('linetypeRect').data(executions).enter().append("line")
+              .attr("x1", width - legendXOffset)
+              .attr("y1", function(d, i) { return (i+types.length+3) * legendElementStep - legendKeySize/2 + 1; })
+              .attr("x2", width - legendXOffset + legendKeySize)
+              .attr("y2", function(d, i) { return (i+types.length+3) * legendElementStep - legendKeySize/2 + 1; })
+              .attr("stroke", "black")
+              .attr("stroke-width", "2")
+              .attr("stroke-dasharray", lineTable);
+        chart.selectAll('linetypeText').data(executions).enter().append("text")
+              .attr("x", width - legendXOffset + legendKeySize + legendKeyValueSpacing)
+              .attr("y", function(d, i) { return (i+types.length+3) * legendElementStep; })
+              .text(function(d) { return String(d); });
+
+        // Render legend Titles
+        chart.append("text").attr("y", 10).attr("x", width - legendXOffset).attr("font-weight","bold").text("Type");
+        chart.append("text").attr("y", (types.length+2) * legendElementStep).attr("x", width - legendXOffset).attr("font-weight","bold").text("Execution");
+
+        // Render title
+        var title = chart.append("text").attr("class", "title").attr("y", 20).text(lines[0][0].Function);
+        title.attr("x", (width-parseInt(title.style("width")))/2);
+
+        // Render x axis label
+        var xlab = chart.append("text").attr("class", "title").attr("y", height-10).text("Kernel Size (elements)");
+        xlab.attr("x", (width-parseInt(xlab.style("width")))/2);
+
+        // Render y axis label
+        var ylab = chart.append("text").attr("class", "title").attr("y", 10).attr("transform", "rotate(-90)").text("Speedup (times)");
+        ylab.attr("x", -(height+parseInt(ylab.style("width")))/2);
+      });
+    </script>
+    <br>
+  </div> </div> </div>
+</body>
+
+</html>
