@@ -256,4 +256,10 @@ ne = closure(
   "Check if lhs is not equal to rhs",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
+
+threshold = closure(
+  function(val, x) return likely.s("threshold", x, val) end,
+  "Binary threshold",
+  {{"val", "threshold"},
+   {"x", "opeand"}})
 ```

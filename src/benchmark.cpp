@@ -126,10 +126,10 @@ struct Test
 
 protected:
     virtual const char *function() const = 0;
-    virtual cv::Mat computeBaseline(const cv::Mat &src) const = 0;
-    virtual std::vector<likely_type> types() const
+    virtual Mat computeBaseline(const Mat &src) const = 0;
+    virtual vector<likely_type> types() const
     {
-        static std::vector<likely_type> types;
+        static vector<likely_type> types;
         if (types.empty()) {
             types.push_back(likely_type_u8);
             types.push_back(likely_type_u16);
@@ -140,9 +140,9 @@ protected:
         return types;
     }
 
-    virtual std::vector<int> sizes() const
+    virtual vector<int> sizes() const
     {
-        static std::vector<int> sizes;
+        static vector<int> sizes;
         if (sizes.empty()) {
             sizes.push_back(4);
             sizes.push_back(8);
@@ -159,9 +159,9 @@ protected:
         return sizes;
     }
 
-    virtual std::vector<bool> executions() const
+    virtual vector<bool> executions() const
     {
-        static std::vector<bool> executions;
+        static vector<bool> executions;
         if (executions.empty()) {
             executions.push_back(false);
             executions.push_back(true);
@@ -192,7 +192,7 @@ private:
         return m;
     }
 
-    void testCorrectness(likely_function_1 f, const cv::Mat &src) const
+    void testCorrectness(likely_function_1 f, const Mat &src) const
     {
         Mat dstOpenCV = computeBaseline(src);
         likely_mat srcLikely = fromCvMat(src);
@@ -228,7 +228,7 @@ private:
         likely_release(dstLikely);
     }
 
-    Speed testBaselineSpeed(const cv::Mat &src) const
+    Speed testBaselineSpeed(const Mat &src) const
     {
         clock_t startTime, endTime;
         int iter = 0;
@@ -241,7 +241,7 @@ private:
         return Test::Speed(iter, startTime, endTime);
     }
 
-    Speed testLikelySpeed(likely_function_1 f, const cv::Mat &src) const
+    Speed testLikelySpeed(likely_function_1 f, const Mat &src) const
     {
         likely_mat srcLikely = fromCvMat(src);
         clock_t startTime, endTime;
@@ -377,6 +377,7 @@ class castTest : public Test {
 class thresholdTest : public Test {
     const char *function() const { return "threshold{127}"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 1, THRESH_BINARY); return dst; }
+    vector<likely_type> types() const { vector<likely_type> types; types.push_back(likely_type_u8); types.push_back(likely_type_f32); return types; }
 };
 
 void help()
