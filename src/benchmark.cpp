@@ -43,6 +43,7 @@ static int         BenchmarkSize       = 0;
 static int         BenchmarkExecution  = -1;
 static bool        BenchmarkQuiet      = false;
 static bool        BenchmarkSaturation = true;
+static bool        BenchmarkSpeed      = true;
 
 static Mat generateData(int rows, int columns, likely_type type, double scaleFactor)
 {
@@ -82,11 +83,20 @@ struct Test
                     likely_function_1 f = (likely_function_1) likely_compile(description, 1, srcLikely->type);
                     likely_release(srcLikely);
 
+                    if (!BenchmarkQuiet)
+                        printf("%s \t%s \t%d \t%s\t", function(), likely_type_to_string(type), size, execution ? "Parallel" : "Serial  ");
                     testCorrectness(f, src);
+
+                    if (!BenchmarkSpeed) {
+                        if (!BenchmarkQuiet)
+                            printf("\n");
+                        continue;
+                    }
+
                     Speed baseline = testBaselineSpeed(src);
                     Speed likely = testLikelySpeed(f, src);
                     if (!BenchmarkQuiet)
-                        printf("%s \t%s \t%d \t%s \t%.2e\n", function(), likely_type_to_string(type), size, execution ? "Parallel" : "Serial", likely.Hz/baseline.Hz);
+                        printf("%.2e\n", likely.Hz/baseline.Hz);
                 }
             }
         }
@@ -374,13 +384,14 @@ void help()
            "Arguments:\n"
            "  --examples      Run Dream examples instead of benchmarking\n"
            "  --help          Print benchmark usage\n"
-           "  -function <str> Benchmark only the specified function\n"
+           "  -function <str> Benchmark the specified function only\n"
            "  --nosat         Benchmark without saturated arithmetic\n"
-           "  --parallel      Benchmark only multi-threaded\n"
+           "  --nospeed       Benchmark correctness only\n"
+           "  --parallel      Benchmark multi-threaded only\n"
            "  --quiet         Don't print to results or errors\n"
-           "  --serial        Benchmark only single-threaded\n"
-           "  -size <int>     Benchmark only the specified size\n"
-           "  -type <type>    Benchmark only the specified type\n");
+           "  --serial        Benchmark single-threaded only\n"
+           "  -size <int>     Benchmark the specified size only\n"
+           "  -type <type>    Benchmark the specified type only\n");
     exit(0);
 }
 
@@ -392,6 +403,7 @@ int main(int argc, char *argv[])
         else if (!strcmp("--help"    , argv[i]) || !strcmp("-h", argv[i])) help();
         else if (!strcmp("-function" , argv[i])) BenchmarkFunction = argv[++i];
         else if (!strcmp("--nosat"   , argv[i])) BenchmarkSaturation = false;
+        else if (!strcmp("--nospeed" , argv[i])) BenchmarkSpeed = false;
         else if (!strcmp("--parallel", argv[i])) BenchmarkExecution = true;
         else if (!strcmp("--quiet"   , argv[i])) BenchmarkQuiet = true;
         else if (!strcmp("--serial"  , argv[i])) BenchmarkExecution = false;

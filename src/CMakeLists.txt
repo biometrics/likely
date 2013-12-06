@@ -74,6 +74,10 @@ if(${LIKELY_AUX} AND ${LIKELY_SCRIPT})
   target_link_libraries(benchmark likely opencv_imgproc)
   install(TARGETS benchmark RUNTIME DESTINATION bin)
 
+  add_custom_target(test
+                    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/data
+                    COMMAND benchmark -size 4096 --nospeed)
+
   # Dream
   find_package(Qt5Quick QUIET)
   find_package(Qt5Widgets QUIET)
