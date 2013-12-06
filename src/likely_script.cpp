@@ -582,6 +582,35 @@ int luaopen_likely(lua_State *L)
     return 1;
 }
 
+vector<string> split(const string &s, char delim) {
+    vector<string> elems;
+    stringstream ss(s);
+    string item;
+    while (getline(ss, item, delim))
+        elems.push_back(item);
+    return elems;
+}
+
+// GFM = Github Flavored Markdown
+static string removeGFM(const string &source)
+{
+    stringstream result;
+    bool inCode = false;
+    for (const string line : split(source, '\n')) {
+        if (line == "```") {
+            inCode = !inCode;
+            continue;
+        }
+
+        if (inCode || (line.substr(0, 4) == "    "))
+            result << line << "\n";
+    }
+
+    if (result.str().empty())
+        result << source;
+    return result.str();
+}
+
 lua_State *likely_exec(const char *source, lua_State *L)
 {
     if (L == NULL) {
@@ -589,7 +618,7 @@ lua_State *likely_exec(const char *source, lua_State *L)
         luaL_openlibs(L);
         luaL_requiref(L, "likely", luaopen_likely, 1);
         lua_pop(L, 1);
-        luaL_dostring(L, likely_standard_library);
+        luaL_dostring(L, removeGFM(likely_standard_library).c_str());
     }
 
     // Clear the previous stack
@@ -602,7 +631,7 @@ lua_State *likely_exec(const char *source, lua_State *L)
     lua_setfield(L, -2, "__index");
     lua_setmetatable(L, -2);
 
-    if (luaL_loadstring(L, source)) return L;
+    if (luaL_loadstring(L, removeGFM(source).c_str())) return L;
     lua_pushvalue(L, -2);
     lua_setupvalue(L, -2, 1);
     lua_pcall(L, 0, LUA_MULTRET, 0);
