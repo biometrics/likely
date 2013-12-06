@@ -19,6 +19,7 @@
 #endif
 
 #include <ctime>
+#include <fstream>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -102,23 +103,25 @@ struct Test
         }
     }
 
-    static void runExample(const char *source)
+    static void runExample(const string &fileName)
     {
         static lua_State *L = likely_exec("", NULL);
-        likely_exec(source, L);
+        ifstream file("../examples/" + fileName + ".likely");
+        const string source((istreambuf_iterator<char>(file)),
+                             istreambuf_iterator<char>());
+
+        likely_exec(source.c_str(), L);
         clock_t startTime, endTime;
         int iter = 0;
         startTime = endTime = clock();
         while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
-            likely_exec(source, L);
+            likely_exec(source.c_str(), L);
             endTime = clock();
             iter++;
         }
         Speed speed(iter, startTime, endTime);
-        const size_t exampleStartPos = 3;
-        const size_t exampleNameSize = string(source).find('\n') - exampleStartPos;
         if (!BenchmarkQuiet)
-            printf("%s \t%.2e \n", string(source).substr(exampleStartPos, exampleNameSize).c_str(), speed.Hz);
+            printf("%s \t%.2e \n", fileName.c_str(), speed.Hz);
     }
 
 protected:
@@ -417,16 +420,11 @@ int main(int argc, char *argv[])
 
     if (BenchmarkExamples) {
         printf("Example \tSpeed\n");
-        lua_State *L = likely_exec("", NULL);
-        lua_getfield(L, -1, "likely");
-        lua_getfield(L, -1, "examples");
-        lua_pushnil(L);
-        while (lua_next(L, -2)) {
-            Test::runExample(lua_tostring(L, -1));
-            lua_pop(L, 1);
-        }
-        lua_pop(L, 2);
-        lua_close(L);
+        Test::runExample("hello_world");
+        Test::runExample("function_calls");
+        Test::runExample("closures");
+        Test::runExample("arithmetic");
+        Test::runExample("currying");
     } else {
         printf("Function \tType \tSize \tExecution \tSpeedup\n");
         addTest().run();

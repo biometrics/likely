@@ -1,0 +1,12 @@
+Function Calls
+==============
+
+Arguments can be specified by name...\dream{activate:new}
+
+    m = new{rows=512, columns=512, type=f32}()
+
+...or anonymously in their canonical order.
+
+    n = new(f32, 1, 512, 512)
+
+Arguments not specified by name are assigned to the first parameter without a bound value. If all parameters are bound then arguments will override the left-most values.

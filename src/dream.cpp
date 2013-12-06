@@ -420,11 +420,6 @@ public slots:
         }
     }
 
-    void examplesMenu(QAction *a)
-    {
-        setText(a->data().toString());
-    }
-
 private:
     void setText(QString text)
     {
@@ -702,30 +697,9 @@ int main(int argc, char *argv[])
     commandsMenu->addAction(increment10x);
     commandsMenu->addAction(decrement10x);
 
-    QMenu *examplesMenu = new QMenu("Examples");
-    lua_State *L = luaL_newstate();
-    luaL_openlibs(L);
-    luaL_requiref(L, "likely", luaopen_likely, 1);
-    lua_pop(L, 1);
-    luaL_dostring(L, likely_standard_library);
-    lua_getglobal(L, "likely");
-    lua_getfield(L, -1, "examples");
-    lua_pushnil(L);
-    while (lua_next(L, -2)) {
-        const int index = lua_tonumber(L, -2);
-        const QString source = lua_tostring(L, -1);
-        QAction *example = new QAction(QString("%1. %2").arg(QString::number(index), source.mid(3, source.indexOf('\n')-3)), examplesMenu);
-        example->setData(source);
-        examplesMenu->addAction(example);
-        lua_pop(L, 1);
-    }
-    lua_pop(L, 2);
-    lua_close(L);
-
     QMenuBar *menuBar = new QMenuBar();
     menuBar->addMenu(fileMenu);
     menuBar->addMenu(commandsMenu);
-    menuBar->addMenu(examplesMenu);
 
     QStatusBar *statusBar = new QStatusBar();
     statusBar->setSizeGripEnabled(true);
@@ -741,7 +715,6 @@ int main(int argc, char *argv[])
     QObject::connect(documentation, SIGNAL(newDefinitions(QString)), source, SLOT(setDefinitions(QString)));
     QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(fileMenu(QAction*)));
     QObject::connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
-    QObject::connect(examplesMenu, SIGNAL(triggered(QAction*)), source, SLOT(examplesMenu(QAction*)));
     QObject::connect(source, SIGNAL(toggled(QString)), documentation, SLOT(toggle(QString)));
     QObject::connect(source, SIGNAL(newSource()), documentation, SLOT(clear()));
     QObject::connect(source, SIGNAL(newState(lua_State*)), syntaxHighlighter, SLOT(updateDictionary(lua_State*)));
@@ -759,7 +732,7 @@ int main(int argc, char *argv[])
     mainWindow.setCentralWidget(splitter);
     mainWindow.setMenuBar(menuBar);
     mainWindow.setStatusBar(statusBar);
-    mainWindow.setWindowTitle("Likely Dream");
+    mainWindow.setWindowTitle("Likely");
     mainWindow.resize(800,WindowWidth);
     mainWindow.show();
 

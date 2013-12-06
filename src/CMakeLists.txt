@@ -78,7 +78,7 @@ if(${LIKELY_AUX} AND ${LIKELY_SCRIPT})
                     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/data
                     COMMAND benchmark -size 4096 --nospeed)
 
-  # Dream
+  # Dream (likely)
   find_package(Qt5Quick QUIET)
   find_package(Qt5Widgets QUIET)
   find_package(Qt5PrintSupport QUIET)
@@ -91,9 +91,10 @@ if(${LIKELY_AUX} AND ${LIKELY_SCRIPT})
     # set(QCUSTOMPLOT_SRC ${QCUSTOMPLOT_SRC} ${QCUSTOMPLOT_SRC_PLOTTABLES} ${QCUSTOMPLOT_SRC_ITEMS} ${QCUSTOMPLOT_SRC_LAYOUTELEMENTS})
 
     set(CMAKE_AUTOMOC ON)
-    add_executable(Dream dream.cpp ${QCUSTOMPLOT_SRC})
-    qt5_use_modules(Dream Quick Widgets PrintSupport)
-    target_link_libraries(Dream likely_static)
-    install(TARGETS Dream RUNTIME DESTINATION bin)
+    add_executable(dream dream.cpp ${QCUSTOMPLOT_SRC})
+    set_target_properties(dream PROPERTIES OUTPUT_NAME likely)
+    qt5_use_modules(dream Quick Widgets PrintSupport)
+    target_link_libraries(dream likely_static)
+    install(TARGETS dream RUNTIME DESTINATION bin)
   endif()
 endif()

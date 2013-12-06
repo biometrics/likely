@@ -1,0 +1,17 @@
+Arithmetic
+==========
+
+    lenna = read("../data/misc/lenna.tiff")
+
+Saturation arithmetic is part of the type system
+
+    lenna.saturation = true
+
+Likely will automatically apply operations to all elements in a matrix
+
+```
+added = add(32,lenna)
+subtracted = subtract(32,lenna)
+multiplied = multiply(2,lenna)
+divided = divide(2,lenna)
+```

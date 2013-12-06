@@ -602,8 +602,10 @@ static string removeGFM(const string &source)
             continue;
         }
 
-        if (inCode || (line.substr(0, 4) == "    "))
+        if (inCode)
             result << line << "\n";
+        else if (line.substr(0, 4) == "    ")
+            result << line.substr(4, line.size()-4) << "\n";
     }
 
     if (result.str().empty())

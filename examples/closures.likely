@@ -1,0 +1,17 @@
+Closures
+========
+
+    m = new{rows=512, columns=512, type=i8}()
+
+The braces {} syntax returns a new function with the bound arguments.\dream{activate:set}\dream{activate:setZero}
+
+    setZero = set{0}
+
+The function is just-in-time compiled using the bound arguments before execution.\dream{activate:n}
+
+    n = setZero(m)
+
+set{0}(m)
+    ^  ^
+    |  Run-time arguments
+    Compile-time arguments

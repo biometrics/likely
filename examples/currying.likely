@@ -1,0 +1,14 @@
+Currying
+========
+
+```
+m = read("../data/misc/lenna.tiff")
+m.saturation = true
+```
+
+Likely supports currying to compose higher order functions\dream{activate:n}
+
+```
+fma = multiply{2} .. add{3}
+n = fma(m)
+```

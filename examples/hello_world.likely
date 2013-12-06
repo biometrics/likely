@@ -1,0 +1,13 @@
+Hello World
+===========
+Source code is re-executed as you type\dream{activate:message}
+
+    message = "Hello World!"
+
+\dream{CTRL}+click variables to display values
+
+    lenna = read("../data/misc/lenna.tiff")
+
+\dream{CTRL}+scroll to edit numerical constants
+
+    dark_lenna = divide{2}(lenna)
