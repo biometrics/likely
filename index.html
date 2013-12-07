@@ -21,7 +21,6 @@
   <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
   <script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
   <script type="text/javascript" src="http://underscorejs.org/underscore-min.js"></script>
-  <script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/oj.markdown/0.2.9/oj.markdown.min.js"></script>
 
   <script type="text/javascript">
     var _gaq = _gaq || [];
@@ -35,7 +34,7 @@
   </script>
 </head>
 
-<body onload="prettyPrint()">
+<body>
   <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
     <div class="container">
       <div class="navbar-header">
@@ -140,117 +139,24 @@ void add(const T *a, const T *b, T *c, unsigned int n) {
       <blockquote>
         <p>all the logic needed to handle different matrix types is reduced to a single 32-bit integer comparison which branch prediction can optimize out.</p>
       </blockquote>
-    </p>    
-    <h2 id="interface">Interface</h2>
-    <p>C/C++ projects should <code class="prettyprint lang-c">#include &lt;likely.h&gt;</code> and link against the <code>likely</code> shared library.
-      <tt>LikelyConfig.cmake</tt> is provided in <tt>share/likely/</tt> as a convenience to CMake developers.
     </p>
-    <p>Likely is a C API and definitions are prefixed with <tt>likely_</tt> and use a <tt>lowercase_underscore</tt> naming convention.
-      Consider taking a moment to skim the <a href="https://github.com/biometrics/likely/blob/master/likely.h">header file</a>.
-    </p>
-    <h3 id="the_matrix_struct">The Matrix Struct</h3>
-    <p>The <tt>likely_matrix</tt> is only struct in the API and serves as the input and output for all kernel invocations.
-      The <tt>likely_matrix</tt>, hereafter referred to as the <i>matrix</i>, has the following fields:
-    </p>
-    <pre class="prettyprint lang-c">uint8_t *data; // Pointer to the buffer of elements<br>uint32_t hash; // Data type<br>uint32_t channels, columns, rows, frames; // Dimensions</pre>
-    <p>The five fields excepting the <i>data</i> pointer (<i>hash</i>, <i>channels</i>, <i>columns</i>, <i>rows</i>, and <i>frames</i>) are collectively referred to as the matrix <i>header</i>.
-    In contrast to most image processing libraries which tend to feature 3-dimensional matrices (channels, columns, rows), Likely includes a fourth dimension, frames, in order to facilitate processing videos or collections of images.
-    <h4 id="element_access">Element Access</h4>
-    <p>By convention, element layout in the data buffer with resepect to decreasing spatial locality is <i>channel</i>, <i>column</i>, <i>row</i>, <i>frame</i>.
-      Thus an element at channel <i>c</i>, column <i>x</i>, row <i>y</i>, and frame <i>t</i>, or (c, x, y, t), can be indexed into like:
-    </p>
-    <pre class="prettyprint lang-c">likely_matrix *m = foo();<br>int columnStep = m->channels;<br>int rowStep = m->channels * columnStep;<br>int frameStep = m->rows * rowStep;<br>int index = t*frameStep + y*rowStep + x*columnStep + c;<br>assert(likely_type(m) == likely_matrix::f64);<br>double element = ((double*)m->data)[index];</pre>
-    <p>Convenience functions <code class="prettyprint lang-c">double likely_element(...)</code> and <code class="prettyprint lang-c">void likely_set_element(...)</code> are provided for individual element access.
-      Using the convenience functions is inefficient when iterating over a large numbers of elements due to the repeated index calculation, and their use is generally suggested only for debugging purposes or when the matrix is known to be small.</p>
-    <h4 id="the_matrix_hash">The Hash</h4>
-    <p>As suggested in the <a href="#hash_introduction">introduction</a>, the <tt>likely_hash</tt> plays a critical role in determining how to process matricies.
-      The hash is a 2-byte <i>bit field</i> that encodes what data type the matrix is are where it should be processed.
-      It also specifies which, if any, of the channels, columns, rows, and frames of the matrix are length 1.
-      This knowledge is used during kernel compilation to simplify element access algebra and remove unneccesary loops and branches.
-    </p>
-    <p>The layout of the bits in the hash is documented below.</p>
-    <table class="table table-bordered table-condensed table-hover table-striped">
-      <caption><tt>likely_hash</tt> Bit Field Layout</caption>
-      <thead>
-        <tr><th>Field</th><th>Bits</th><th>Enum</th><th>Mask</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Depth</td><td>8</td><td>likely_hash_depth</td><td>0x000000FF</td></tr>
-        <tr><td>Signed</td><td>1</td><td>likely_hash_signed</td><td>0x00000100</td></tr>
-        <tr><td>Floating</td><td>1</td><td>likely_hash_floating</td><td>0x00000200</td></tr>
-        <tr><td>Type (= Depth | Signed | Floating)</td><td>10</td><td>likely_hash_type</td><td>0x000003FF</td></tr>
-        <tr><td>Parallel</td><td>1</td><td>likely_hash_parallel</td><td>0x00000400</td></tr>
-        <tr><td>Heterogeneous</td><td>1</td><td>likely_hash_heterogeneous</td><td>0x00000800</td></tr>
-        <tr><td>Single Channel</td><td>1</td><td>likely_hash_single_channel</td><td>0x00001000</td></tr>
-        <tr><td>Single Column</td><td>1</td><td>likely_hash_single_column</td><td>0x00002000</td></tr>
-        <tr><td>Single Row</td><td>1</td><td>likely_hash_single_row</td><td>0x00004000</td></tr>
-        <tr><td>Single Frame</td><td>1</td><td>likely_hash_single_frame</td><td>0x00008000</td></tr>
-        <tr><td>Owner</td><td>1</td><td>likely_hash_owner</td><td>0x00010000</td></tr>
-        <tr><td>Reserved</td><td>15</td><td>likely_hash_reserved</td><td>0xFFFE0000</td></tr>
-      </tbody>
-    </table>
-    <p>Logic for querying and editing the hash is simplified with the following <i>inline</i> convenience functions.</p>
-    <table class="table table-bordered table-condensed table-hover table-striped">
-      <caption><tt>likely_hash</tt> Convenience Functions</caption>
-      <thead>
-        <tr><th>Field</th><th>Type</th><th>Getter</th><th>Setter</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Depth</td><td>int</td><td>likely_depth</td><td>likely_set_depth</td></tr>
-        <tr><td>Signed</td><td>bool</td><td>likely_is_signed</td><td>likely_set_signed</td></tr>
-        <tr><td>Floating</td><td>bool</td><td>likely_is_floating</td><td>likely_set_floating</td></tr>
-        <tr><td>Type</td><td>int</td><td>likely_type</td><td>likely_set_type</td></tr>
-        <tr><td>Parallel</td><td>bool</td><td>likely_is_parallel</td><td>likely_set_parallel</td></tr>
-        <tr><td>Heterogeneous</td><td>bool</td><td>likely_is_heterogeneous</td><td>likely_set_heterogeneous</td></tr>
-        <tr><td>Single Channel</td><td>bool</td><td>likely_is_single_channel</td><td>likely_set_single_channel</td></tr>
-        <tr><td>Single Column</td><td>bool</td><td>likely_is_single_column</td><td>likely_set_single_column</td></tr>
-        <tr><td>Single Row</td><td>bool</td><td>likely_is_single_row</td><td>likely_set_single_row</td></tr>
-        <tr><td>Single Frame</td><td>bool</td><td>likely_is_single_frame</td><td>likely_set_single_frame</td></tr>
-        <tr><td>Owner</td><td>bool</td><td>likely_is_owner</td><td>likely_set_owner</td></tr>
-        <tr><td>Reserved</td><td>int</td><td>likely_reserved</td><td>likely_set_reserved</td></tr>
-      </tbody>
-    </table>
-    <h3 id="functions_and_kernels">Functions and Kernels</h3>
-    <p>While both functions and kernels are thought of as mathematical transforms on matrices, the two words have distinct definitions in Likely.
-      <i>Functions</i> are exposed through the API and accept input matrices with arbitrary hashes.
-      <i>Kernels</i> are JIT compiled to calculate the requested operation for a particular matrix hash.
-      Kernels are managed automatically by functions and are hidden from the end user.
-    </p>
-    <p>All functions peform the following general steps:</p>
-    <dl class="dl-horizontal">
-      <dt>Hash Check</dt><dd>Compare the hash of the input against the hash of the currently loaded kernel, compile and load the correct kernel if they differ.</dd>
-      <dt>Preallocation</dt><dd>Compute the header of the output from the header of the input.</dd>
-      <dt>Allocation</dt><dd>Heap-allocate the output data buffer based on its elements and type.</dd>
-      <dt>Kernel Invocation</dt><dd>Call the kernel with the input and output matricies.</dd>
-    </dl>
-    <h4 id="function_arity">Function Arity</h4>
-    <p>There are four function types in Likely taking between zero and three input matrices.
-      The number of input matrices a function accepts is referred to as its <i>arity</i>.
-      All functions compute one output matrix that is passed by reference as the last argument.
-      Each function arity has a <i>maker</i> function in the API for requesting paricular mathematical transforms of its type.
-    </p>
-    <table class="table table-bordered table-condensed table-hover table-striped">
-      <caption>Maker Functions - The Core API</caption>
-      <thead>
-        <tr><th>Arity</th><th>Signature</th><th>Return Type</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>0</td><td>likely_make_nullary_function(const char *description)</td><td>likely_nullary_function</td></tr>
-        <tr><td>1</td><td>likely_make_unary_function(const char *description)</td><td>likely_unary_function</td></tr>
-        <tr><td>2</td><td>likely_make_binary_function(const char *description)</td><td>likely_binary_function</td></tr>
-        <tr><td>3</td><td>likely_make_ternary_function(const char *description)</td><td>likely_ternary_function</td></tr>
-      </tbody>
-    </table>
-    <p>Note that the return type of each maker is a function pointer that can be then called to perform the requested operation.</p>
-    <pre class="prettyprint lang-c">typedef void (*likely_function_0)(likely_matrix *dst);<br>typedef void (*UnaryFunction)(const likely_matrix *src, likely_matrix *dst);<br>typedef void (*likely_function_2)(const likely_matrix *srcA, const likely_matrix *srcB, likely_matrix *dst);<br>typedef void (*likely_function_3)(const likely_matrix *srcA, const likely_matrix *srcB, const likely_matrix *srcC, likely_matrix *dst);</pre>
-    <p>As is true in the example below, most functions are either unary or binary.</p>
-    <pre class="prettyprint lang-c">likely_matrix src = foo(); // Pre-initialized input matrix<br>likely_matrix dst; // Uninitialized output matrix<br>likely_unary_function multiply_add = likely_make_unary_function("madd(3,2)"); // Create a function that...<br>multiply_add(&src, &dst); // ...multiplies elements by three then adds two.</pre>
-    <h2 id="standard_library">Standard Library</h2>
-    <div id="includedContent"></div>
+    <div id="standard_library"></div>
     <script>
-      $(function(){
-        $("#includedContent").load("src/standard.likely");
-      });
+      escape = function (str) {
+        return str
+          .replace(/[\\]/g, '\\\\')
+          .replace(/[\"]/g, '\\\"')
+          .replace(/[\/]/g, '\\/')
+          .replace(/[\b]/g, '\\b')
+          .replace(/[\f]/g, '\\f')
+          .replace(/[\n]/g, '\\n')
+          .replace(/[\r]/g, '\\r')
+          .replace(/[\t]/g, '\\t');
+      };
+
+      var setStandardLibrary = function(html) { $("#standard_library").html(html); }
+      var markdownToHTML = function(md) { $.post("https://api.github.com/markdown", '{"text":"' + escape(md) + '", "mode":"gfm", "context":"biometrics/likely"}', setStandardLibrary); }
+      $.get("src/standard.likely").done(markdownToHTML)
     </script>
 
     <h2 id="benchmark">Benchmark</h2>

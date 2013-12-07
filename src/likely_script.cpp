@@ -103,7 +103,7 @@ static int lua_likely_set(lua_State *L)
     likely_mat m = checkLuaMat(L);
     const char *field = lua_tostring(L, 2);
     int isnum;
-    if      (!strcmp(field, "data"))          m->data = (likely_data*) lua_touserdata(L, 3);
+    if      (!strcmp(field, "data"))          m->data = (likely_data) lua_touserdata(L, 3);
     else if (!strcmp(field, "type"))        { m->type = (likely_type) lua_tointegerx(L, 3, &isnum); lua_likely_assert(L, isnum != 0, "'set' expected type to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "channels"))    { m->channels  = lua_tointegerx(L, 3, &isnum); lua_likely_assert(L, isnum != 0, "'set' expected channels to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "columns"))     { m->columns   = lua_tointegerx(L, 3, &isnum); lua_likely_assert(L, isnum != 0, "'set' expected columns to be an integer, got: %s", lua_tostring(L, 3)); }
@@ -159,14 +159,14 @@ static int lua_likely_new(lua_State *L)
     likely_size columns = 1;
     likely_size rows = 1;
     likely_size frames = 1;
-    likely_data *data = NULL;
+    likely_data data = NULL;
     int8_t copy = 0;
 
     int isnum;
     const int argc = lua_gettop(L);
     switch (argc) {
       case 7: copy     = lua_toboolean(L, 7);
-      case 6: data     = (likely_data*) lua_touserdata(L, 6);
+      case 6: data     = (likely_data) lua_touserdata(L, 6);
       case 5: frames   = lua_tointegerx(L, 5, &isnum); lua_likely_assert(L, isnum != 0, "'new' expected frames to be an integer, got: %s", lua_tostring(L, 5));
       case 4: rows     = lua_tointegerx(L, 4, &isnum); lua_likely_assert(L, isnum != 0, "'new' expected rows to be an integer, got: %s", lua_tostring(L, 4));
       case 3: columns  = lua_tointegerx(L, 3, &isnum); lua_likely_assert(L, isnum != 0, "'new' expected columns to be an integer, got: %s", lua_tostring(L, 3));

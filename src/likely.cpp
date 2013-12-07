@@ -110,12 +110,12 @@ likely_size likely_bytes(likely_const_mat m)
 // TODO: make this thread_local when compiler support improves
 static likely_mat recycledBuffer = NULL;
 
-static likely_data *dataPointer(likely_mat m)
+static likely_data dataPointer(likely_mat m)
 {
-    return reinterpret_cast<likely_data*>(uintptr_t(m+1) + sizeof(likely_matrix_private));
+    return reinterpret_cast<likely_data>(uintptr_t(m+1) + sizeof(likely_matrix_private));
 }
 
-likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, int8_t copy)
+likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data data, int8_t copy)
 {
     likely_mat m;
     size_t dataBytes = ((data && !copy) ? 0 : uint64_t(likely_depth(type)) * channels * columns * rows * frames / 8);

@@ -41,7 +41,8 @@ extern "C" {
 #endif
 
 // Matrix types
-typedef uint8_t likely_data;
+typedef uint8_t *likely_data;
+typedef struct likely_matrix_private *likely_private;
 typedef uintptr_t likely_size;
 typedef uint32_t likely_type; /* Depth : 8
                                  Signed : 1
@@ -88,8 +89,8 @@ enum likely_type_field
 // The only struct in the API
 typedef struct
 {
-    likely_data *data;
-    struct likely_matrix_private *d_ptr; // Private data for internal bookkeeping
+    likely_data data;
+    likely_private d_ptr;
     likely_size channels, columns, rows, frames;
     likely_type type;
 } likely_matrix;
@@ -125,7 +126,7 @@ LIKELY_EXPORT likely_size likely_elements(likely_const_mat m);
 LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
 
 // Matrix creation
-LIKELY_EXPORT likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data *data, int8_t copy);
+LIKELY_EXPORT likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data data, int8_t copy);
 LIKELY_EXPORT likely_mat likely_copy(likely_const_mat m, int8_t clone);
 LIKELY_EXPORT likely_mat likely_retain(likely_mat m);
 LIKELY_EXPORT void likely_release(likely_mat m);
