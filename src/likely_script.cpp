@@ -19,6 +19,7 @@
 #endif
 
 #include <cstring>
+#include <iostream>
 #include <sstream>
 #include <vector>
 #include <lua.hpp>
@@ -595,16 +596,28 @@ vector<string> split(const string &s, char delim) {
 static string removeGFM(const string &source)
 {
     stringstream result;
-    bool inCode = false;
+    bool inCode = false, skipBlock = false;
+    const string codeBlock = "```";
     for (const string line : split(source, '\n')) {
-        if (line == "```") {
-            inCode = !inCode;
+        if (line.substr(0, 3) == codeBlock) {
+            const string syntax = line.substr(line.size()-3, 3);
+            if (skipBlock) {
+                skipBlock = false;
+            } else if ((syntax != codeBlock) &&
+                       (syntax != "Lua") &&
+                       (syntax != "lua")) {
+                skipBlock = true;
+            } else {
+                if (inCode)
+                    result << "\n";
+                inCode = !inCode;
+            }
             continue;
         }
 
         if (inCode)
             result << line << "\n";
-        else if (line.substr(0, 4) == "    ")
+        else if (!skipBlock && (line.substr(0, 4) == "    "))
             result << line.substr(4, line.size()-4) << "\n";
     }
 

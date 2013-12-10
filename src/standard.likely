@@ -35,39 +35,33 @@ The repeated execution of a kernel with the same matrix type means that branchin
 ### Why not C++?
 As image recognition engineers, we desire a curated set of image processing functions from which to compose sophisticated algorithms. Despite the multi-paradigm virtues of C++, it is extraordinarily difficult to provide library routines that are both generic and efficient. For example, consider the following library function for adding two vectors:
 
-```
---[[
+```C++
 void add(const float *a, const float *b, float *c, unsigned int n) {
-    for (unsigned int i = 0; i &lt n; i++)
+    for (unsigned int i = 0; i < n; i++)
         c[i] = a[i] + b[i];
 }
---]]
 ```
 
 #### Pointer Aliasing
 While this function is simple, it is neither particularly fast nor generic. A popular assumption made in numerical libraries is that pointers never _alias_. In other words, variables _a_, _b_ and _c_ point to distinct non-overlapping regions in memory. The C language specification states that pointers may alias, so the compiler must insert a runtime check when vectorizing loops. This is the primary reason why [Fortran is faster than C](http://stackoverflow.com/a/146186). While C has since introduced the _restrict_ keyword to specify pointers that do not alias, this keyword is not supported in the C++:
 
-```
---[[
+```C++
 // Valid C, invalid C++
 void add(const float * restrict a, const float * restrict b, float * restrict c, unsigned int n) {
-    for (unsigned int i = 0; i &lt n; i++)
+    for (unsigned int i = 0; i < n; i++)
         c[i] = a[i] + b[i];
 }
---]]
 ```
 
 #### Generics
 Different image processing operations may operate on different data types, so we might try to generalize our function using templates:
 
-```
---[[
+```C++
 template <typename T>
 void add(const T *a, const T *b, T *c, unsigned int n) {
     for (unsigned int i = 0; i < n; i++)
         c[i] = a[i] + b[i];
 }
---]]
 ```
 
 However, what if we would like _a_ or _b_ to be a numerical constant? Or _c_ to be a different type?
@@ -97,8 +91,7 @@ The last five fields (_channels_, _columns_, _rows_, _frames_, and _type_) are c
 
 #### Element Access
 By convention, element layout in the data buffer with resepect to decreasing spatial locality is _channel_, _column_, _row_, _frame_. Thus an element at channel _c_, column _x_, row _y_, and frame _t_, can be retrieved like:
-```
---[[
+```C++
 float likely_get_element(likely_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
 {
     likely_size columnStep = m->channels;
@@ -108,7 +101,6 @@ float likely_get_element(likely_mat m, likely_size c, likely_size x, likely_size
     assert(likely_type(m) == likely_type_f32);
     return reinterpret_cast<float*>(m->data)[index];
 }
---]]
 ```
 
 Convenience functions `likely_element` and `likely_set_element` are provided for individual element access. These functions are inefficient for iterating over a large numbers of elements due to the repeated index calculations, and their use is suggested only for debugging purposes or when the matrix is known to be small.
@@ -135,7 +127,7 @@ Here is the layout of the bits in `likey_type`:
 Convenience functions `likely_<field>` and `likely_set_<field>` are provided for querying and editing the type.
 
 ### Type abbreviations
-```
+```Lua
 null = likely.null
 depth = likely.depth
 signed = likely.signed
@@ -167,7 +159,7 @@ t = "t"
 ```
 
 ### Core functions
-```
+```Lua
 function chain(x,y)
   return function(w) return tostring(y{tostring(x{w})}) end
 end
@@ -206,14 +198,14 @@ compile = closure(
 ```
 
 ### Utility functions
-```
+```Lua
 function likely.s(...)
   return "(" .. table.concat({...}, " ") .. ")"
 end
 ```
 
 ### Arithmetic
-```
+```Lua
 set = closure(
   function(value, matrix)
     return value
@@ -254,7 +246,7 @@ divide = closure(
 ```
 
 ### Math
-```
+```Lua
 sqrt = closure(
   function(x) return likely.s("sqrt", x) end,
   "Square root: f(x) = x ** 0.5",
@@ -357,7 +349,7 @@ round = closure(
 ```
 
 ### Casting
-```
+```Lua
 cast = closure(
   function(type, x) return likely.s("cast", x, type) end,
   "Cast matrix to another type",
@@ -366,7 +358,7 @@ cast = closure(
 ```
 
 ### Comparison
-```
+```Lua
 lt = closure(
   function(rhs, lhs) return likely.s("<", lhs, rhs) end,
   "Check if lhs is less than rhs",
@@ -405,7 +397,7 @@ ne = closure(
 ```
 
 ### Image Processing
-```
+```Lua
 threshold = closure(
   function(val, x) return likely.s("threshold", x, val) end,
   "Binary threshold",
