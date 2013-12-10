@@ -1,6 +1,81 @@
-Likely Standard Library
-=======================
-Author: @jklontz
+Likely Kernel Library
+=====================
+
+ > An image recognition runtime for heterogenous architectures.
+ > -- @jklontz
+
+## Introduction
+Welcome to the documentation and source code for _Likely_, the image recognition programming language!
+
+### Principles
+ - Heterogeneous hardware architecture support
+ - Efficient syntax for feature representation and statistical learning
+ - Immediate visual feedback during algorithm development
+ - Embeddable into other projects and languages
+ - Free open source software
+
+### Help
+We try to keep this document complete and correct. However, should you run into trouble, please feel free to ask questions on our [mailing list](https://groups.google.com/forum/#!forum/likely-dev) or report bugs on our [issue tracker](https://github.com/biometrics/likely/issues).
+
+### Background
+The software development of a complex system is often facilitated by a _Domain Specific Language_ (DSL) whose syntax is designed to concisely and efficiently solve problems frequently encountered in the domain. While many technical communities rely on DSLs, there currently exists no suitable language for image recognition researchers. As a consequence, most libraries and applications are written in either _C++_ or _MATLAB_, neither of which will simultaneously respect both the engineer's time and the hardware's compute capability.
+
+> We believe a DSL for image recognition is essential to express algorithms that are currently too complex to implement in a "low-level" language and too slow to execute in a "high-level" language.
+
+### Portability
+Likely is built on top of the _Low Level Virtual Machine_ (LLVM) compiler infrastructure using a portable subset of ISO C++11, which means it runs [everywhere](http://llvm.org/docs/GettingStarted.html#hardware) LLVM does. Algorithms execute natively on single CPU threads via the LLVM _Machine Code Just-In-Time_ (MCJIT) compiler, multi-core CPUs via a custom OpenMP-like backend, and GPUs and coprocessors via _OpenCL_ or _CUDA_.
+
+### Speed
+Likely relies on powerful and well established LLVM compiler infrastructure to make function execution as fast as possible. Since compilation is held off until runtime, functions automatically take advantage of all instruction set extensions available on the host processor. In reality, compilation is delayed until a function is called for the first time, enabling optimization opportunities that are impossible in conventional image processing libraries. The entire premise of Likely is hinged on the observation that for image processing applications
+
+> while kernels must be written generically to handle any matrix type, at runtime they tend to be executed repeatedly on the same type.
+
+The repeated execution of a kernel with the same matrix type means that branching to handle different data types is unnecessary, entire loops and code blocks can be eliminated, and many values that would be runtime parameters instead become compile time constants. For these reasons, we expect Likely kernels to be faster than equally generic statically compiled code.
+
+### Why not C++?
+As image recognition engineers, we desire a curated set of image processing functions from which to compose sophisticated algorithms. Despite the multi-paradigm virtues of C++, it is extraordinarily difficult to provide library routines that are both generic and efficient. For example, consider the following library function for adding two vectors:
+
+```
+--[[
+void add(const float *a, const float *b, float *c, unsigned int n) {
+    for (unsigned int i = 0; i &lt n; i++)
+        c[i] = a[i] + b[i];
+}
+--]]
+```
+
+#### Pointer Aliasing
+While this function is simple, it is neither particularly fast nor generic. A popular assumption made in numerical libraries is that pointers never _alias_. In other words, variables _a_, _b_ and _c_ point to distinct non-overlapping regions in memory. The C language specification states that pointers may alias, so the compiler must insert a runtime check when vectorizing loops. This is the primary reason why [Fortran is faster than C](http://stackoverflow.com/a/146186). While C has since introduced the _restrict_ keyword to specify pointers that do not alias, this keyword is not supported in the C++:
+
+```
+--[[
+// Valid C, invalid C++
+void add(const float * restrict a, const float * restrict b, float * restrict c, unsigned int n) {
+    for (unsigned int i = 0; i &lt n; i++)
+        c[i] = a[i] + b[i];
+}
+--]]
+```
+
+#### Generics
+Different image processing operations may operate on different data types, so we might try to generalize our function using templates:
+
+```
+--[[
+template <typename T>
+void add(const T *a, const T *b, T *c, unsigned int n) {
+    for (unsigned int i = 0; i < n; i++)
+        c[i] = a[i] + b[i];
+}
+--]]
+```
+
+However, what if we would like _a_ or _b_ to be a numerical constant? Or _c_ to be a different type?
+
+_<To Be Continued>_
+
+#### Why not MATLAB?
+_<To Be Continued>_
 
 ## C API
 C/C++ projects should `#include <likely.h>` and link against the `likely` library. `LikelyConfig.cmake` is provided in `share/likely/` as a convenience to CMake developers. Likely definitions are prefixed with `likely_` and use a `lowercase_underscore` naming convention. Consider taking a moment to skim the [header file](include/likely.h).
@@ -59,8 +134,7 @@ Here is the layout of the bits in `likey_type`:
 
 Convenience functions `likely_<field>` and `likely_set_<field>` are provided for querying and editing the type.
 
-Type abbreviations
-------------------
+### Type abbreviations
 ```
 null = likely.null
 depth = likely.depth
@@ -92,8 +166,7 @@ y = "y"
 t = "t"
 ```
 
-Core functions
---------------
+### Core functions
 ```
 function chain(x,y)
   return function(w) return tostring(y{tostring(x{w})}) end
@@ -132,16 +205,14 @@ compile = closure(
   likely.compile)
 ```
 
-Utility functions
------------------
+### Utility functions
 ```
 function likely.s(...)
   return "(" .. table.concat({...}, " ") .. ")"
 end
 ```
 
-Arithmetic
-----------
+### Arithmetic
 ```
 set = closure(
   function(value, matrix)
@@ -182,8 +253,7 @@ divide = closure(
    {"lhs", "right hand side (numerator)"}})
 ```
 
-Math
-----
+### Math
 ```
 sqrt = closure(
   function(x) return likely.s("sqrt", x) end,
@@ -286,8 +356,7 @@ round = closure(
   {{"x", "operand"}})
 ```
 
-Casting
--------
+### Casting
 ```
 cast = closure(
   function(type, x) return likely.s("cast", x, type) end,
@@ -296,8 +365,7 @@ cast = closure(
    {"x", "operand"}})
 ```
 
-Comparison
-----------
+### Comparison
 ```
 lt = closure(
   function(rhs, lhs) return likely.s("<", lhs, rhs) end,
@@ -336,8 +404,7 @@ ne = closure(
    {"lhs", "left hand side"}})
 ```
 
-Image Processing
-----------------
+### Image Processing
 ```
 threshold = closure(
   function(val, x) return likely.s("threshold", x, val) end,

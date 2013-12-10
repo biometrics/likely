@@ -8,7 +8,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="description" content="Likely Kernel Library">
-  <meta name="author" content="Josh Klontz">
+  <meta name="author" content="Joshua C. Klontz">
   <title>Likely</title>
 
   <!-- Bootstrap -->
@@ -21,7 +21,6 @@
   <!-- Include all compiled plugins (below), or include individual files as needed -->
   <script src="http://getbootstrap.com/dist/js/bootstrap.min.js"></script>
 
-  <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
   <script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
   <script type="text/javascript" src="http://underscorejs.org/underscore-min.js"></script>
 
@@ -57,92 +56,6 @@
   </div>
 
   <div class="container"> <div class="row"> <div class="span12">
-    <h1 id="likely_kernel_library">Likely Kernel Library <small>(under construction)</small></h1>
-    <p class="lead">An image recognition runtime for heterogenous architectures.</p>
-    <h2 id="introduction">Introduction</h2>
-    <p>Welcome to the documentation for <tt>Likely</tt>, the image recognition programming language!</p>
-    <h3 id="principles">Principles</h3>
-    <ol>
-      <li>Heterogeneous hardware architecture support</li>
-      <li>Efficient syntax for feature representation and statistical learning</li>
-      <li>Immediate visual feedback during algorithm development</li>
-      <li>Embeddable into other projects and languages</li>
-      <li>Free open source software</li>
-    </ol>
-    <h3 id="help">Help</h3>
-    <p>We try to keep this document complete and correct.
-       However, should you run into trouble, please feel free to ask questions on our <a href="https://groups.google.com/forum/#!forum/likely-dev">mailing list</a> or report bugs on our <a href="https://github.com/biometrics/likely/issues">issue tracker</a>.</p>
-    <h3 id="background">Background</h3>
-    <p>The software development of a complex system is often facilitated by a <i>Domain Specific Language</i> (DSL) whose syntax is designed to concisely and efficiently solve problems frequently encountered in the domain.
-       While many technical communities rely on DSLs, there currently exists no suitable language for image recognition researchers.
-       As a consequence, most libraries and applications are written in either <tt>C++</tt> or <tt>MATLAB</tt>, neither of which will simultaneously respect both the engineer's time and the hardware's compute capability.
-       <blockquote>
-         <p>We believe a DSL for image recognition is essential to express algorithms that are currently too complex to implement in a "low-level" language and too slow to execute in a "high-level" language.</p>
-       </blockquote>
-    </p>
-    <h4 id="why_not_cpp">Why not C++?</h4>
-    <p>As image recognition engineers, we desire a curated set of image processing functions from which to compose sophisticated algorithms.
-       Despite the multi-paradigm virtues of C++, it is extraordinarily difficult to provide library routines that are both generic and efficient.
-       For example, consider the following library function for adding two vectors:
-    </p>
-<pre class="prettyprint lang-c">
-void add(const float *a, const float *b, float *c, unsigned int n) {
-    for (unsigned int i = 0; i &lt n; i++)
-        c[i] = a[i] + b[i];
-}
-</pre>
-    <h5 id="aliasing">Pointer Aliasing</h5>
-    <p>While this function is simple, it is neither particularly fast nor generic.
-       A popular assuption made in numerical libraries is that pointers never <i>alias</i>.
-       In other words, variables <tt>a</tt>, <tt>b</tt> and <tt>c</tt> point to distinct non-overlaping regions in memory.
-       The <tt>C</tt> language specification states that pointers may alias, so the compiler must insert a runtime check when vectorizing loops.
-       This is the primary reason why <a href="http://stackoverflow.com/a/146186">Fortran is faster than C</a>.
-       While C has since introduced the <tt>restrict</tt> keyword to specify pointers that do not alias, this keyword is not supported in the C++:
-    </p>
-<pre class="prettyprint lang-c">
-// Valid C, invalid C++
-void add(const float * restrict a, const float * restrict b, float * restrict c, unsigned int n) {
-    for (unsigned int i = 0; i &lt n; i++)
-        c[i] = a[i] + b[i];
-}
-</pre>
-    <h5 id="types">Generics</h5>
-    <p>Different image processing operations may operate on different data types, so we might try to generalize our function using templates:
-    </p>
-<pre class="prettyprint lang-c">
-template &lttypename T&gt
-void add(const T *a, const T *b, T *c, unsigned int n) {
-    for (unsigned int i = 0; i < n; i++)
-        c[i] = a[i] + b[i];
-}
-</pre>
-    <p>However, what if we would like <tt>a</tt> or <tt>b</tt> to be a numerical constant? Or <tt>c</tt> to be a different type?
-    </p>
-    <p><i>&ltTo Be Continued&gt</i></p>
-    <h4 id="why_not_matlab">Why not MATLAB?</h4>
-    <p><i>&ltTo Be Continued&gt</i></p>
-    <h3 id="executable_everywhere">Executable Everywhere</h3>
-    <p>Likely is built on top of the <i>Low Level Virtual Machine</i> (LLVM) compiler infrastructure using a portable subset of <tt>ISO C++11</tt>, which means it runs <a href="http://llvm.org/docs/GettingStarted.html#hardware">everywhere LLVM does</a>.
-       Algorithms execute natively on single CPU threads via the LLVM <i>Machine Code Just-In-Time</i> (MCJIT) compiler, multi-core CPUs via a custom <tt>OpenMP</tt>-like backend, and GPUs and coprocessors via <i>OpenCL</i>, <i>HSAIL</i>, or <i>CUDA</i>.
-    </p>
-    <h3 id="perfectly_optimized">Perfectly Optimized</h3>
-    <p>Likely relies on the powerful and well established LLVM optimization passes to make kernel execution as fast as possible.
-      Since compilation is held off until runtime, kernels are optimized to take advantage of all instruction set extensions available on the host processor.
-      In reality, compilation is delayed until a function is called for the first time, enabling optimization opportunities that are impossible in conventional image processing libraries.
-      The entire premise of Likely is hinged on the observation that for image processing applications
-      <blockquote>
-        <p>while kernels must be written generically to handle any matrix type, at runtime they tend to be executed repeatedly on the same type.</p>
-      </blockquote>
-      The repeated execution of a kernel with the same matrix type means that branching to handle different data types is unnecessary, entire loops and code blocks can be eliminated, and many values that would be runtime parameters instead become compile time constants.
-      For this reason, it's not uncommon for Likely kernels to be <i>faster</i> than equally generic <tt>C</tt> code.
-    </p>
-    <p id="hash_introduction">In Likely, a matrix's type is referred to as its <i><a href="#the_hash">hash</a></i>, encompassing its data type (<tt>integer</tt> or <tt>floating point</tt>), depth (<tt>8</tt>, <tt>16</tt>, <tt>32</tt>, or <tt>64</tt> bits), computation location (<tt>serial CPU</tt>, <tt>parallel CPU</tt>, or <tt>heterogeneous coprocessor</tt>), and its <tt>single-dimension</tt> axes.
-      Likely functions check the input's hash against the currently compiled kernel's hash and recompile on a mismatch.
-      In this way,
-      <blockquote>
-        <p>all the logic needed to handle different matrix types is reduced to a single 32-bit integer comparison which branch prediction can optimize out.</p>
-      </blockquote>
-    </p>
     <div id="standard_library"></div>
     <script>
       escape = function (str) {
