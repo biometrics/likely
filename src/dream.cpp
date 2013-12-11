@@ -145,13 +145,13 @@ private:
         src = QImage(rendered->data, rendered->columns, rendered->rows, QImage::Format_RGB888).rgbSwapped();
         likely_release(rendered);
         text->setText(QString("<b>%1</b>: %2x%3x%4x%5 %6 [%7,%8]").arg(objectName(),
-                                                                              QString::number(mat->channels),
-                                                                              QString::number(mat->columns),
-                                                                              QString::number(mat->rows),
-                                                                              QString::number(mat->frames),
-                                                                              likely_type_to_string(mat->type),
-                                                                              QString::number(min),
-                                                                              QString::number(max)));
+                                                                       QString::number(mat->channels),
+                                                                       QString::number(mat->columns),
+                                                                       QString::number(mat->rows),
+                                                                       QString::number(mat->frames),
+                                                                       likely_type_to_string(mat->type),
+                                                                       QString::number(min),
+                                                                       QString::number(max)));
         updatePixmap();
     }
 
@@ -348,7 +348,7 @@ private:
 class Source : public QPlainTextEdit
 {
     Q_OBJECT
-    QString sourceFileName, definitions, previousSource;
+    QString definitions, previousSource;
     QSettings settings;
     lua_State *L = NULL;
     int wheelRemainderX = 0, wheelRemainderY = 0;
@@ -362,6 +362,10 @@ public:
 
     void restore()
     {
+        // Try to open the previous file
+        if (fileMenu("Open Quiet"))
+            return;
+
         const QString source = settings.value("source").toString();
         // Start empty the next time if this source code crashes
         settings.setValue("source", QString());
@@ -390,26 +394,46 @@ public slots:
         exec();
     }
 
-    void fileMenu(QAction *a)
+    bool fileMenu(const QString &action)
     {
-        if (a->text() == "Open...") {
-            sourceFileName = QFileDialog::getOpenFileName(NULL, "Open Source File");
+        QString sourceFileName = settings.value("sourceFileName").toString();
+        QString sourceFilePath = settings.value("sourceFilePath").toString();
+        if (action.startsWith("New")) {
+            sourceFileName.clear();
+            setText("");
+        } else if (action.startsWith("Open")) {
+            if (!action.endsWith("Quiet"))
+                sourceFileName = QFileDialog::getOpenFileName(this, "Open Source File", sourceFilePath);
             if (!sourceFileName.isEmpty()) {
                 QFile file(sourceFileName);
-                file.open(QFile::ReadOnly | QFile::Text);
-                setText(QString::fromLocal8Bit(file.readAll()));
-                file.close();
+                if (file.open(QFile::ReadOnly | QFile::Text))
+                    setText(QString::fromLocal8Bit(file.readAll()));
+                else
+                    sourceFileName.clear();
             }
         } else {
-            if (sourceFileName.isEmpty() || (a->text() == "Save As..."))
-                sourceFileName = QFileDialog::getSaveFileName(NULL, "Save Source File");
+            if (sourceFileName.isEmpty() || action.startsWith("Save As"))
+                sourceFileName = QFileDialog::getSaveFileName(this, "Save Source File", sourceFilePath);
             if (!sourceFileName.isEmpty()) {
                 QFile file(sourceFileName);
                 file.open(QFile::WriteOnly | QFile::Text);
                 file.write(toPlainText().toLocal8Bit());
-                file.close();
             }
         }
+
+        if (!sourceFileName.isEmpty())
+            sourceFilePath = QFileInfo(sourceFileName).filePath();
+
+        settings.setValue("sourceFileName", sourceFileName);
+        settings.setValue("sourceFilePath", sourceFilePath);
+        settings.sync();
+        emit newFileName(sourceFileName.isEmpty() ? "Likely" : QFileInfo(sourceFileName).fileName());
+        return !sourceFileName.isEmpty();
+    }
+
+    void fileMenu(QAction *a)
+    {
+        fileMenu(a->text());
     }
 
     void commandsMenu(QAction *a)
@@ -528,7 +552,7 @@ private slots:
     void exec()
     {
         // This check needed because syntax highlighting triggers a textChanged() signal
-        const QString source = definitions + "\n" + toPlainText();
+        const QString source = definitions + toPlainText();
         if (source == previousSource) return;
         else                          previousSource = source;
 
@@ -549,6 +573,7 @@ private slots:
     }
 
 signals:
+    void newFileName(QString);
     void newState(lua_State*);
     void newStatus(QString);
     void newSource();
@@ -618,7 +643,7 @@ private slots:
         for (int i=0; i<layout->count(); i++)
             definitions.append(static_cast<Variable*>(layout->itemAt(i)->widget())->getDefinition());
         definitions.removeAll(QString());
-        emit newDefinitions(definitions.join("\n"));
+        emit newDefinitions(definitions.join("\n") + (definitions.isEmpty() ? "" : "\n"));
     }
 
     void removeObject(QObject *object)
@@ -656,6 +681,93 @@ signals:
     void commandMode(bool);
 };
 
+class MainWindow : public QMainWindow
+{
+    Q_OBJECT
+
+public:
+    MainWindow(QApplication &application)
+    {
+        QMenu *fileMenu = new QMenu("File");
+        QAction *newSource = new QAction("New...", fileMenu);
+        QAction *openSource = new QAction("Open...", fileMenu);
+        QAction *saveSource = new QAction("Save", fileMenu);
+        QAction *saveSourceAs = new QAction("Save As...", fileMenu);
+        newSource->setShortcut(QKeySequence("Ctrl+N"));
+        openSource->setShortcut(QKeySequence("Ctrl+O"));
+        saveSource->setShortcut(QKeySequence("Ctrl+S"));
+        saveSourceAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
+        fileMenu->addAction(newSource);
+        fileMenu->addAction(openSource);
+        fileMenu->addAction(saveSource);
+        fileMenu->addAction(saveSourceAs);
+
+        QMenu *commandsMenu = new QMenu("Commands");
+        QAction *toggle = new QAction("Toggle", commandsMenu);
+        QAction *increment = new QAction("Increment", commandsMenu);
+        QAction *decrement = new QAction("Decrement", commandsMenu);
+        QAction *increment10x = new QAction("Increment 10x", commandsMenu);
+        QAction *decrement10x = new QAction("Decrement 10x", commandsMenu);
+        toggle->setShortcut(QKeySequence("Ctrl+\n"));
+        increment->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_Equal));
+        decrement->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_Minus));
+        increment10x->setShortcut(QKeySequence(Qt::CTRL+Qt::SHIFT+Qt::Key_Equal));
+        decrement10x->setShortcut(QKeySequence(Qt::CTRL+Qt::SHIFT+Qt::Key_Minus));
+        commandsMenu->addAction(toggle);
+        commandsMenu->addAction(increment);
+        commandsMenu->addAction(decrement);
+        commandsMenu->addAction(increment10x);
+        commandsMenu->addAction(decrement10x);
+
+        QMenuBar *menuBar = new QMenuBar();
+        menuBar->addMenu(fileMenu);
+        menuBar->addMenu(commandsMenu);
+
+        QStatusBar *statusBar = new QStatusBar();
+        statusBar->setSizeGripEnabled(true);
+
+        CommandMode *commandMode = new CommandMode();
+        application.installEventFilter(commandMode);
+
+        Source *source = new Source();
+        SyntaxHighlighter *syntaxHighlighter = new SyntaxHighlighter(source->document());
+        Documentation *documentation = new Documentation();
+
+        const int WindowWidth = 600;
+        QSplitter *splitter = new QSplitter(Qt::Horizontal);
+        splitter->addWidget(source);
+        splitter->addWidget(documentation);
+        splitter->setSizes(QList<int>() << WindowWidth/2 << WindowWidth/2);
+
+        setCentralWidget(splitter);
+        setMenuBar(menuBar);
+        setStatusBar(statusBar);
+        setWindowTitle("Likely");
+        resize(800, WindowWidth);
+
+        connect(commandMode, SIGNAL(commandMode(bool)), syntaxHighlighter, SLOT(setCommandMode(bool)));
+        connect(documentation, SIGNAL(activate(QString)), source, SLOT(activate(QString)));
+        connect(documentation, SIGNAL(newDefinitions(QString)), source, SLOT(setDefinitions(QString)));
+        connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(fileMenu(QAction*)));
+        connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
+        connect(source, SIGNAL(toggled(QString)), documentation, SLOT(toggle(QString)));
+        connect(source, SIGNAL(newFileName(QString)), this, SLOT(setWindowTitle(QString)));
+        connect(source, SIGNAL(newSource()), documentation, SLOT(clear()));
+        connect(source, SIGNAL(newState(lua_State*)), this, SLOT(stateChanged()));
+        connect(source, SIGNAL(newState(lua_State*)), syntaxHighlighter, SLOT(updateDictionary(lua_State*)));
+        connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
+        connect(source, SIGNAL(newVariable(Variable*)), documentation, SLOT(addVariable(Variable*)));
+        source->restore();
+    }
+
+private slots:
+    void stateChanged()
+    {
+        if ((windowTitle() != "Likely") && !windowTitle().endsWith("*"))
+            setWindowTitle(windowTitle() + "*");
+    }
+};
+
 int main(int argc, char *argv[])
 {
     for (int i=1; i<argc; i++) {
@@ -681,71 +793,7 @@ int main(int argc, char *argv[])
     QApplication::setOrganizationDomain("liblikely.org");
     QApplication application(argc, argv);
 
-    QMenu *fileMenu = new QMenu("File");
-    QAction *openSource = new QAction("Open...", fileMenu);
-    QAction *saveSource = new QAction("Save", fileMenu);
-    QAction *saveSourceAs = new QAction("Save As...", fileMenu);
-    openSource->setShortcut(QKeySequence("Ctrl+O"));
-    saveSource->setShortcut(QKeySequence("Ctrl+S"));
-    saveSourceAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
-    fileMenu->addAction(openSource);
-    fileMenu->addAction(saveSource);
-    fileMenu->addAction(saveSourceAs);
-
-    QMenu *commandsMenu = new QMenu("Commands");
-    QAction *toggle = new QAction("Toggle", commandsMenu);
-    QAction *increment = new QAction("Increment", commandsMenu);
-    QAction *decrement = new QAction("Decrement", commandsMenu);
-    QAction *increment10x = new QAction("Increment 10x", commandsMenu);
-    QAction *decrement10x = new QAction("Decrement 10x", commandsMenu);
-    toggle->setShortcut(QKeySequence("Ctrl+\n"));
-    increment->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_Equal));
-    decrement->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_Minus));
-    increment10x->setShortcut(QKeySequence(Qt::CTRL+Qt::SHIFT+Qt::Key_Equal));
-    decrement10x->setShortcut(QKeySequence(Qt::CTRL+Qt::SHIFT+Qt::Key_Minus));
-    commandsMenu->addAction(toggle);
-    commandsMenu->addAction(increment);
-    commandsMenu->addAction(decrement);
-    commandsMenu->addAction(increment10x);
-    commandsMenu->addAction(decrement10x);
-
-    QMenuBar *menuBar = new QMenuBar();
-    menuBar->addMenu(fileMenu);
-    menuBar->addMenu(commandsMenu);
-
-    QStatusBar *statusBar = new QStatusBar();
-    statusBar->setSizeGripEnabled(true);
-
-    CommandMode *commandMode = new CommandMode();
-    application.installEventFilter(commandMode);
-
-    Source *source = new Source();
-    SyntaxHighlighter *syntaxHighlighter = new SyntaxHighlighter(source->document());
-    Documentation *documentation = new Documentation();
-    QObject::connect(commandMode, SIGNAL(commandMode(bool)), syntaxHighlighter, SLOT(setCommandMode(bool)));
-    QObject::connect(documentation, SIGNAL(activate(QString)), source, SLOT(activate(QString)));
-    QObject::connect(documentation, SIGNAL(newDefinitions(QString)), source, SLOT(setDefinitions(QString)));
-    QObject::connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(fileMenu(QAction*)));
-    QObject::connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
-    QObject::connect(source, SIGNAL(toggled(QString)), documentation, SLOT(toggle(QString)));
-    QObject::connect(source, SIGNAL(newSource()), documentation, SLOT(clear()));
-    QObject::connect(source, SIGNAL(newState(lua_State*)), syntaxHighlighter, SLOT(updateDictionary(lua_State*)));
-    QObject::connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
-    QObject::connect(source, SIGNAL(newVariable(Variable*)), documentation, SLOT(addVariable(Variable*)));
-    source->restore();
-
-    const int WindowWidth = 600;
-    QSplitter *splitter = new QSplitter(Qt::Horizontal);
-    splitter->addWidget(source);
-    splitter->addWidget(documentation);
-    splitter->setSizes(QList<int>() << WindowWidth/2 << WindowWidth/2);
-
-    QMainWindow mainWindow;
-    mainWindow.setCentralWidget(splitter);
-    mainWindow.setMenuBar(menuBar);
-    mainWindow.setStatusBar(statusBar);
-    mainWindow.setWindowTitle("Likely");
-    mainWindow.resize(800,WindowWidth);
+    MainWindow mainWindow(application);
     mainWindow.show();
 
     return application.exec();

@@ -624,8 +624,6 @@ static string removeGFM(const string &source)
             result << line.substr(4, line.size()-4) << "\n";
     }
 
-    if (result.str().empty())
-        result << source;
     return result.str();
 }
 
@@ -659,7 +657,7 @@ lua_State *likely_exec(const char *source, lua_State *L)
 likely_description likely_interpret(const char *source)
 {
     static lua_State *L = NULL;
-    stringstream command; command << "return tostring(" << source << ")";
+    stringstream command; command << "    return tostring(" << source << ")";
     L = likely_exec(command.str().c_str(), L);
     return lua_tostring(L, -1);
 }
