@@ -216,7 +216,10 @@ static int lua_likely__gc(lua_State *L)
 static int lua_likely_read(lua_State *L)
 {
     lua_likely_assert(L, lua_gettop(L) == 1, "'read' expected 1 argument, got: %d", lua_gettop(L));
-    *newLuaMat(L) = likely_read(lua_tostring(L, 1));
+    likely_mat m = likely_read(lua_tostring(L, 1));
+    if (m->type == likely_type_null)
+        luaL_error(L, "Likely 'read' failed on %s.", lua_tostring(L, 1));
+    *newLuaMat(L) = m;
     return 1;
 }
 

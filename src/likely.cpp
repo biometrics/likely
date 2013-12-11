@@ -135,10 +135,10 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     m->rows = rows;
     m->frames = frames;
 
-    likely_set_multi_channel(&m->type, channels != 1);
-    likely_set_multi_column(&m->type, columns != 1);
-    likely_set_multi_row(&m->type, rows != 1);
-    likely_set_multi_frame(&m->type, frames != 1);
+    likely_set_multi_channel(&m->type, channels > 1);
+    likely_set_multi_column(&m->type, columns > 1);
+    likely_set_multi_row(&m->type, rows > 1);
+    likely_set_multi_frame(&m->type, frames > 1);
 
     m->d_ptr = reinterpret_cast<likely_matrix_private*>(m+1);
     m->d_ptr->ref_count = 1;

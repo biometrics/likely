@@ -40,7 +40,7 @@ static cv::Mat toCvMat(likely_const_mat m)
 
 static likely_mat fromCvMat(const cv::Mat &src, bool copy)
 {
-    if (!src.isContinuous())
+    if (!src.isContinuous() || !src.data)
         return likely_new(likely_type_null, 0, 0, 0, 0, NULL, 0);
     return likely_new(depthToType(src.depth()), src.channels(), src.cols, src.rows, 1, src.data, copy);
 }
