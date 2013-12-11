@@ -1,0 +1,21 @@
+Mandelbrot Set
+==============
+[Explanation](http://en.wikipedia.org/wiki/Mandelbrot_set)
+
+Control parameters
+
+    x_min = -2
+    x_max = 1
+    y_min = -1
+    y_max = 1
+    resolution = 128
+
+Derived values
+
+    columns = (x_max - x_min) * resolution
+    rows = (y_max - y_min) * resolution
+
+Initialization
+
+    real = new(f32, 1, columns, rows)
+    imag = new(f32, 1, columns, rows)
