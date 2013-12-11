@@ -131,6 +131,11 @@ LIKELY_EXPORT likely_mat likely_copy(likely_const_mat m, int8_t clone);
 LIKELY_EXPORT likely_mat likely_retain(likely_mat m);
 LIKELY_EXPORT void likely_release(likely_mat m);
 
+// Element access
+LIKELY_EXPORT likely_mat likely_scalar(double value);
+LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t);
+LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t);
+
 // Type conversion
 LIKELY_EXPORT const char *likely_type_to_string(likely_type type); // Return value managed internally and guaranteed until the next call to this function
 LIKELY_EXPORT likely_type likely_type_from_string(const char *str);

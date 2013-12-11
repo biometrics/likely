@@ -29,6 +29,7 @@ set(LIKELY_MISC ${LIKELY_EXAMPLES}
 install(FILES ${CMAKE_SOURCE_DIR}/include/likely.h DESTINATION include)
 
 if(${LIKELY_AUX})
+  add_definitions(-DLIKELY_AUX)
   set(LIKELY_SRC ${LIKELY_SRC} likely_aux.cpp)
   set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui libcurl)
   set(LIKELY_MISC ${LIKELY_MISC} standard.likely
@@ -38,6 +39,7 @@ if(${LIKELY_AUX})
 endif()
 
 if(${LIKELY_SCRIPT})
+  add_definitions(-DLIKELY_SCRIPT)
   add_custom_command(OUTPUT likely_standard_library.c
                      COMMAND embedfile likely_standard_library ${CMAKE_CURRENT_SOURCE_DIR}/standard.likely
                      DEPENDS embedfile standard.likely)

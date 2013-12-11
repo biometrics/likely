@@ -60,7 +60,7 @@ if(${LIKELY_AUX})
                       ${CMAKE_BINARY_DIR}/curl/include/curl)
 endif()
 
-option(LIKELY_SCRIPT "Build Likely with Lua frontend (requires LIKELY_AUX)" ON)
+option(LIKELY_SCRIPT "Build Likely with Lua frontend" ON)
 if(${LIKELY_SCRIPT})
   add_subdirectory(lua EXCLUDE_FROM_ALL)
   include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)

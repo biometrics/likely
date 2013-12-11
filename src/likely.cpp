@@ -180,6 +180,60 @@ void likely_release(likely_mat m)
     }
 }
 
+likely_mat likely_scalar(double value)
+{
+    likely_mat m = likely_new(likely_type_from_value(value), 1, 1, 1, 1, NULL, 0);
+    likely_set_element(m, value, 0, 0, 0, 0);
+    return m;
+}
+
+double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
+{
+    assert(m);
+    const likely_size columnStep = m->channels;
+    const likely_size rowStep = m->columns * columnStep;
+    const likely_size frameStep = m->rows * rowStep;
+    const likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
+
+    switch (m->type & likely_type_mask) {
+      case likely_type_u8:  return (double)reinterpret_cast< uint8_t*>(m->data)[index];
+      case likely_type_u16: return (double)reinterpret_cast<uint16_t*>(m->data)[index];
+      case likely_type_u32: return (double)reinterpret_cast<uint32_t*>(m->data)[index];
+      case likely_type_u64: return (double)reinterpret_cast<uint64_t*>(m->data)[index];
+      case likely_type_i8:  return (double)reinterpret_cast<  int8_t*>(m->data)[index];
+      case likely_type_i16: return (double)reinterpret_cast< int16_t*>(m->data)[index];
+      case likely_type_i32: return (double)reinterpret_cast< int32_t*>(m->data)[index];
+      case likely_type_i64: return (double)reinterpret_cast< int64_t*>(m->data)[index];
+      case likely_type_f32: return (double)reinterpret_cast<   float*>(m->data)[index];
+      case likely_type_f64: return (double)reinterpret_cast<  double*>(m->data)[index];
+      default: assert(false && "likely_element unsupported type");
+    }
+    return numeric_limits<double>::quiet_NaN();
+}
+
+void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t)
+{
+    assert(m);
+    const likely_size columnStep = m->channels;
+    const likely_size rowStep = m->columns * columnStep;
+    const likely_size frameStep = m->rows * rowStep;
+    const likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
+
+    switch (m->type & likely_type_mask) {
+      case likely_type_u8:  reinterpret_cast< uint8_t*>(m->data)[index] = ( uint8_t)value; break;
+      case likely_type_u16: reinterpret_cast<uint16_t*>(m->data)[index] = (uint16_t)value; break;
+      case likely_type_u32: reinterpret_cast<uint32_t*>(m->data)[index] = (uint32_t)value; break;
+      case likely_type_u64: reinterpret_cast<uint64_t*>(m->data)[index] = (uint64_t)value; break;
+      case likely_type_i8:  reinterpret_cast<  int8_t*>(m->data)[index] = (  int8_t)value; break;
+      case likely_type_i16: reinterpret_cast< int16_t*>(m->data)[index] = ( int16_t)value; break;
+      case likely_type_i32: reinterpret_cast< int32_t*>(m->data)[index] = ( int32_t)value; break;
+      case likely_type_i64: reinterpret_cast< int64_t*>(m->data)[index] = ( int64_t)value; break;
+      case likely_type_f32: reinterpret_cast<   float*>(m->data)[index] = (   float)value; break;
+      case likely_type_f64: reinterpret_cast<  double*>(m->data)[index] = (  double)value; break;
+      default: assert(false && "likely_set_element unsupported type");
+    }
+}
+
 const char *likely_type_to_string(likely_type type)
 {
     static string typeString; // Provides return value persistence
