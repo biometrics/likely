@@ -242,7 +242,7 @@ class SyntaxHighlighter : public QSyntaxHighlighter
 {
     Q_OBJECT
     QRegularExpression comments, keywords, numbers, strings, variables;
-    QTextCharFormat commentsFont, keywordsFont, numbersFont, stringsFont, variablesFont;
+    QTextCharFormat commentsFont, keywordsFont, markdownFont, numbersFont, stringsFont, variablesFont;
     QSet<QString> allowedSet; // Lua global variables
     bool commandMode = false;
 
@@ -260,6 +260,7 @@ public:
         strings.setPattern("\"[^\"]*+\"");
         commentsFont.setForeground(Qt::darkGray);
         keywordsFont.setForeground(Qt::darkYellow);
+        markdownFont.setForeground(Qt::darkGray);
         numbersFont.setFontUnderline(true);
         numbersFont.setUnderlineStyle(QTextCharFormat::DotLine);
         stringsFont.setForeground(Qt::darkGreen);
@@ -289,6 +290,7 @@ private:
         if (commandMode) highlightHelp(text, variables, variablesFont);
         highlightHelp(text, strings, stringsFont);
         highlightHelp(text, comments, commentsFont);
+        highlightMarkdown(text, markdownFont);
     }
 
     void highlightHelp(const QString &text, const QRegularExpression &re, const QTextCharFormat &font)
@@ -303,6 +305,16 @@ private:
             match = re.match(text, index + length);
             index = match.capturedStart();
         }
+    }
+
+    void highlightMarkdown(const QString &text, const QTextCharFormat &font)
+    {
+        const bool codeBlockMarker = text.startsWith("```");
+        if (codeBlockMarker)
+            setCurrentBlockState(!currentBlockState());
+
+        if (!text.startsWith("    ") && (currentBlockState() || codeBlockMarker))
+            setFormat(0, text.size(), font);
     }
 
     static QSet<QString> getGlobals(lua_State *L)
