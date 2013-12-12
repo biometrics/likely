@@ -311,7 +311,9 @@ private:
     {
         const bool codeBlockMarker = text.startsWith("```");
         if (codeBlockMarker)
-            setCurrentBlockState(!currentBlockState());
+            setCurrentBlockState(previousBlockState() == 0);
+        else
+            setCurrentBlockState(previousBlockState() == -1 ? 1 : previousBlockState());
 
         if (!text.startsWith("    ") && (currentBlockState() || codeBlockMarker))
             setFormat(0, text.size(), font);
