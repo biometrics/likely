@@ -285,7 +285,28 @@ static int lua_likely_compile(lua_State *L)
         types.push_back(checkLuaMat(L, i)->type);
 
     // Compile the function
-    lua_pushlightuserdata(L, likely_compile_n(lua_tostring(L, 1), (likely_arity)types.size(), types.data()));
+    void *function = likely_compile_n(lua_tostring(L, 1), (likely_arity)types.size(), types.data());
+
+    // Return a closure
+    lua_getglobal(L, "closure");
+    lua_pushstring(L, ""); // source
+    lua_pushstring(L, "Likely compiled function"); // documentation
+    lua_newtable(L); // parameters
+    for (int i=2; i<=args; i++) {
+        lua_pushinteger(L, i-1);
+        lua_newtable(L);
+        stringstream stream;
+        stream << "arg" << i;
+        lua_pushinteger(L, 1);
+        lua_pushstring(L, stream.str().c_str());
+        lua_settable(L, -3);
+        lua_pushinteger(L, 2);
+        lua_pushstring(L, "");
+        lua_settable(L, -3);
+        lua_settable(L, -3);
+    }
+    lua_pushlightuserdata(L, function); // binary
+    lua_call(L, 4, 1);
     return 1;
 }
 
@@ -380,15 +401,31 @@ static int lua_likely__call(lua_State *L)
             lua_pop(L, 1);
         }
     } else {
+        const int parameters = luaL_len(L, -1);
         for (int i=1; i<args; i++) {
             lua_pushinteger(L, i);
-            if (!overrideArguments)
-                lua_gettable(L, -2);
-            lua_gettable(L, -3);
-            lua_pushnumber(L, 3);
-            lua_pushvalue(L, i+1);
-            lua_settable(L, -3);
-            lua_pop(L, 1);
+            if (i <= parameters) {
+                if (!overrideArguments)
+                    lua_gettable(L, -2);
+                lua_gettable(L, -3);
+                lua_pushnumber(L, 3);
+                lua_pushvalue(L, i+1);
+                lua_settable(L, -3);
+                lua_pop(L, 1);
+            } else {
+                // Handle extra arguments
+                lua_newtable(L);
+                stringstream stream;
+                stream << "extra_" << i - parameters;
+                lua_pushinteger(L, 1);
+                lua_pushstring(L, stream.str().c_str());
+                lua_settable(L, -3);
+                lua_pushinteger(L, 2);
+                lua_pushstring(L, "");
+                lua_pushvalue(L, i+1);
+                lua_settable(L, -3);
+                lua_settable(L, -3);
+            }
         }
     }
     lua_pop(L, 1);
@@ -414,9 +451,12 @@ static int lua_likely__call(lua_State *L)
         lua_pop(L, 2);
     }
 
-    // Call the function
     lua_getfield(L, 1, "binary");
-    if (lua_isnil(L, -1) || lua_isuserdata(L, -1)) {
+
+    // Compile if needed
+    if (lua_isnil(L, -1)) {
+        lua_pop(L, 1);
+
         // Convert numbers to matricies
         for (int i=2; i<=args; i++)
             if (lua_isnumber(L, i)) {
@@ -424,19 +464,22 @@ static int lua_likely__call(lua_State *L)
                 lua_replace(L, i);
             }
 
-        // Compile the function if needed
-        if (lua_isnil(L, -1)) {
-            lua_pop(L, 1);
-            lua_getglobal(L, "likely");
-            lua_getfield(L, -1, "compile");
-            lua_getglobal(L, "tostring");
-            lua_pushvalue(L, 1);
-            lua_call(L, 1, 1);
-            for (int i=2; i<=args; i++)
-                lua_pushvalue(L, i);
-            lua_call(L, args, 1);
-        }
+        // Compile the function
+        lua_getglobal(L, "likely");
+        lua_getfield(L, -1, "compile");
+        lua_getglobal(L, "tostring");
+        lua_pushvalue(L, 1);
+        lua_call(L, 1, 1);
+        for (int i=2; i<=args; i++)
+            lua_pushvalue(L, i);
+        lua_call(L, args, 1);
+        lua_getfield(L, -1, "binary");
+        lua_insert(L, -3);
+        lua_pop(L, 2);
+    }
 
+    // Call the function
+    if (lua_isuserdata(L, -1)) {
         // Prepare the JIT function
         void *function = lua_touserdata(L, -1);
         vector<likely_const_mat> mats;
@@ -454,7 +497,7 @@ static int lua_likely__call(lua_State *L)
         }
         *newLuaMat(L) = dst;
     } else {
-        // Core function
+        // Closure
         lua_pushnil(L);
         const int argsIndex = lua_gettop(L) - 2;
         while (lua_next(L, argsIndex)) {
