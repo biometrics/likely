@@ -1,5 +1,7 @@
 Hello World
 ===========
+[C API Hello World](src/hello_world.c)
+
 Source code is re-executed as you type\dream{activate:message}
 
     message = "Hello World!"
