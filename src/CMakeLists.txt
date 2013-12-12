@@ -25,6 +25,7 @@ set(LIKELY_SRC likely.cpp)
 set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES})
 set(LIKELY_MISC ${LIKELY_EXAMPLES}
                 ${CMAKE_SOURCE_DIR}/include/likely.h
+                ${CMAKE_SOURCE_DIR}/LICENSE.txt
                 ${CMAKE_SOURCE_DIR}/README.md)
 install(FILES ${CMAKE_SOURCE_DIR}/include/likely.h DESTINATION include)
 
