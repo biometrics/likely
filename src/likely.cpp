@@ -60,6 +60,9 @@ typedef struct likely_matrix_private
     int ref_count;
 } likely_matrix_private;
 
+// This symbol needs to be found at run time
+extern "C" LIKELY_EXPORT void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...);
+
 static void likely_assert(bool condition, const char *format, ...)
 {
     if (condition) return;
@@ -1445,6 +1448,39 @@ private:
 };
 
 } // namespace (anonymous)
+
+typedef pair<likely_type*, void*> likely_vtable_entry;
+struct likely_vtable
+{
+    SExp sexp;
+    likely_arity n;
+    vector<likely_vtable_entry> entries;
+};
+
+likely_mat likely_dispatch(struct likely_vtable *vtable, likely_mat args, ...)
+{
+    const size_t types_size = sizeof(likely_type) * vtable->n;
+    likely_type *types = (likely_type*) alloca(types_size);
+    va_list ap;
+    va_start(ap, args);
+    for (likely_arity i=0; i<vtable->n; i++) {
+        types[i] = args->type;
+        args = va_arg(ap, likely_mat);
+    }
+    va_end(ap);
+
+    void *function;
+    for (size_t i=0; i<vtable->entries.size(); i++) {
+        const likely_vtable_entry &entry = vtable->entries[i];
+        if (!memcmp(types, entry.first, types_size)) {
+            function = entry.second;
+            break;
+        }
+    }
+
+//    return function(args);
+    return NULL;
+}
 
 void *likely_compile(likely_description description, likely_arity n, likely_type type, ...)
 {

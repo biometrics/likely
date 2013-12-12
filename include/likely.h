@@ -153,9 +153,6 @@ typedef likely_mat (*likely_function_3)(likely_const_mat, likely_const_mat, like
 LIKELY_EXPORT void *likely_compile(likely_description description, likely_arity n, likely_type type, ...);
 LIKELY_EXPORT void *likely_compile_n(likely_description description, likely_arity n, likely_type *types);
 
-// Used internally for OpenMP-like parallelization
-LIKELY_EXPORT void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...);
-
 #ifdef __cplusplus
 }
 #endif
