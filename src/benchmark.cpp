@@ -20,6 +20,7 @@
 
 #include <ctime>
 #include <fstream>
+#include <iostream>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -65,28 +66,32 @@ struct Test
 {
     void run() const
     {
-        if (!BenchmarkFunction.empty() && string(function()).compare(0, BenchmarkFunction.size(), BenchmarkFunction)) return;
+        if (!BenchmarkFunction.empty() && string(function()).compare(0, BenchmarkFunction.size(), BenchmarkFunction))
+            return;
+
+        likely_function f = likely_compile(likely_interpret(function()));
 
         for (likely_type type : types()) {
-            if ((BenchmarkType != likely_type_null) && (BenchmarkType != type)) continue;
+            if ((BenchmarkType != likely_type_null) && (BenchmarkType != type))
+                continue;
 
             for (int size : sizes()) {
-                if ((BenchmarkSize != 0) && (BenchmarkSize != size)) continue;
+                if ((BenchmarkSize != 0) && (BenchmarkSize != size))
+                    continue;
+
+                // Generate input matrix
+                Mat srcCV = generateData(size, size, type, scaleFactor());
+                likely_mat srcLikely = fromCvMat(srcCV);
 
                 for (int execution : executions()) {
-                    if ((BenchmarkExecution != -1) && (BenchmarkExecution != execution)) continue;
+                    if ((BenchmarkExecution != -1) && (BenchmarkExecution != execution))
+                        continue;
 
-                    // Generate input matrix
-                    Mat src = generateData(size, size, type, scaleFactor());
-                    likely_mat srcLikely = fromCvMat(src);
                     likely_set_parallel(&srcLikely->type, execution != 0);
-                    likely_description description = likely_interpret(function());
-                    likely_function_1 f = (likely_function_1) likely_compile(description, 1, srcLikely->type);
-                    likely_release(srcLikely);
 
                     if (!BenchmarkQuiet)
                         printf("%s \t%s \t%d \t%s\t", function(), likely_type_to_string(type), size, execution ? "Parallel" : "Serial  ");
-                    testCorrectness(f, src);
+                    testCorrectness(f, srcCV, srcLikely);
 
                     if (!BenchmarkSpeed) {
                         if (!BenchmarkQuiet)
@@ -94,8 +99,8 @@ struct Test
                         continue;
                     }
 
-                    Speed baseline = testBaselineSpeed(src);
-                    Speed likely = testLikelySpeed(f, src);
+                    Speed baseline = testBaselineSpeed(srcCV);
+                    Speed likely = testLikelySpeed(f, srcLikely);
                     if (!BenchmarkQuiet)
                         printf("%.2e\n", likely.Hz/baseline.Hz);
                 }
@@ -192,10 +197,9 @@ private:
         return m;
     }
 
-    void testCorrectness(likely_function_1 f, const Mat &src) const
+    void testCorrectness(likely_function f, const Mat &srcCV, likely_const_mat srcLikely) const
     {
-        Mat dstOpenCV = computeBaseline(src);
-        likely_mat srcLikely = fromCvMat(src);
+        Mat dstOpenCV = computeBaseline(srcCV);
         likely_mat dstLikely = f(srcLikely);
 
         Mat errorMat = abs(toCvMat(dstLikely) - dstOpenCV);
@@ -209,8 +213,8 @@ private:
             stringstream errorLocations;
             errorLocations << "input\topencv\tlikely\trow\tcolumn\n";
             errors = 0;
-            for (int i=0; i<src.rows; i++)
-                for (int j=0; j<src.cols; j++)
+            for (int i=0; i<srcCV.rows; i++)
+                for (int j=0; j<srcCV.cols; j++)
                     if (errorMat.at<float>(i, j) == 1) {
                         const double src = likely_element(srcLikely, 0, j, i, 0);
                         const double cv  = likely_element(cvLikely,  0, j, i, 0);
@@ -224,7 +228,6 @@ private:
             likely_release(cvLikely);
         }
 
-        likely_release(srcLikely);
         likely_release(dstLikely);
     }
 
@@ -241,9 +244,8 @@ private:
         return Test::Speed(iter, startTime, endTime);
     }
 
-    Speed testLikelySpeed(likely_function_1 f, const Mat &src) const
+    Speed testLikelySpeed(likely_function f, likely_const_mat srcLikely) const
     {
-        likely_mat srcLikely = fromCvMat(src);
         clock_t startTime, endTime;
         int iter = 0;
         startTime = endTime = clock();
@@ -253,7 +255,6 @@ private:
             endTime = clock();
             iter++;
         }
-        likely_release(srcLikely);
         return Test::Speed(iter, startTime, endTime);
     }
 };

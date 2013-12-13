@@ -15,14 +15,14 @@ int main()
     }
 
     printf("Retrieving source code for expression...\n");
-    likely_description source = likely_interpret("divide{2}");
+    likely_source source = likely_interpret("divide{2}");
     if (!source) {
         printf("Failed to interpret!\n");
         return -1;
     }
 
     printf("Compiling source code...\n");
-    likely_function_1 darken = likely_compile(source, 1, lenna->type);
+    likely_function darken = likely_compile(source);
     if (!darken) {
         printf("Failed to compile!\n");
         return -1;

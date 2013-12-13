@@ -29,7 +29,7 @@ LIKELY_EXPORT extern const char likely_standard_library[];
 struct lua_State;
 LIKELY_EXPORT int luaopen_likely(struct lua_State *L);
 LIKELY_EXPORT struct lua_State *likely_exec(const char *source, struct lua_State *L);
-LIKELY_EXPORT likely_description likely_interpret(const char *source);
+LIKELY_EXPORT likely_source likely_interpret(const char *source);
 LIKELY_EXPORT void likely_stack_dump(struct lua_State *L, int levels);
 
 #ifdef __cplusplus

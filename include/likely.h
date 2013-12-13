@@ -142,16 +142,13 @@ LIKELY_EXPORT likely_type likely_type_from_string(const char *str);
 LIKELY_EXPORT likely_type likely_type_from_value(double value);
 LIKELY_EXPORT likely_type likely_type_from_types(likely_type lhs, likely_type rhs);
 
-// Core library types and functions
-typedef const char *likely_description;
+// Function compilation
 typedef uint8_t likely_arity;
-
-typedef likely_mat (*likely_function_0)(void);
-typedef likely_mat (*likely_function_1)(likely_const_mat);
-typedef likely_mat (*likely_function_2)(likely_const_mat, likely_const_mat);
-typedef likely_mat (*likely_function_3)(likely_const_mat, likely_const_mat, likely_const_mat);
-LIKELY_EXPORT void *likely_compile(likely_description description, likely_arity n, likely_type type, ...);
-LIKELY_EXPORT void *likely_compile_n(likely_description description, likely_arity n, likely_type *types);
+typedef const char *likely_source;
+typedef likely_mat (*likely_function)(likely_const_mat, ...);
+typedef likely_mat (*likely_function_n)(likely_const_mat*);
+LIKELY_EXPORT likely_function likely_compile(likely_source source);
+LIKELY_EXPORT likely_function_n likely_compile_n(likely_source source);
 
 #ifdef __cplusplus
 }

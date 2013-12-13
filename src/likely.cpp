@@ -21,6 +21,7 @@
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/Assembly/PrintModulePass.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Support/Debug.h>
@@ -60,8 +61,11 @@ typedef struct likely_matrix_private
     int ref_count;
 } likely_matrix_private;
 
-// This symbol needs to be found at run time
-extern "C" LIKELY_EXPORT void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...);
+// These symbol needs to be found at run time
+extern "C" {
+LIKELY_EXPORT void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...);
+LIKELY_EXPORT likely_mat likely_dispatch(struct VTable *vtable, likely_mat *mats);
+}
 
 static void likely_assert(bool condition, const char *format, ...)
 {
@@ -1142,18 +1146,14 @@ static void workerThread(size_t id)
     }
 }
 
-class FunctionBuilder
+struct JITResources
 {
     string name;
-    SExp sexp;
-    vector<likely_type> types;
     Module *module;
     ExecutionEngine *executionEngine;
     TargetMachine *targetMachine;
 
-public:
-    FunctionBuilder(const string &name_, const SExp &sexp_, const vector<likely_type> &types_)
-        : name(name_), sexp(sexp_), types(types_)
+    JITResources()
     {
         if (TheMatrixStruct == NULL) {
             assert(sizeof(likely_size) == sizeof(void*));
@@ -1174,6 +1174,10 @@ public:
                                                  Type::getInt32Ty(getGlobalContext()),   // type
                                                  NULL);
         }
+
+        static int index = 0;
+        stringstream stream; stream << "likely_" << index++;
+        name = stream.str();
 
         module = new Module(name, getGlobalContext());
         likely_assert(module != NULL, "failed to create LLVM Module");
@@ -1198,19 +1202,25 @@ public:
         likely_assert(targetMachine != NULL, "failed to create LLVM TargetMachine with error: %s", error.c_str());
     }
 
-    ~FunctionBuilder()
+    ~JITResources()
     {
         delete targetMachine;
         delete executionEngine;
         delete module;
     }
+};
 
-    void *getPointerToFunction()
+struct FunctionBuilder : private JITResources
+{
+    likely_type *type;
+    void *f;
+
+    FunctionBuilder(const SExp &sexp, const vector<likely_type> &types)
     {
-        Function *function = module->getFunction(name);
-        if (function != NULL)
-            return executionEngine->getPointerToFunction(function);
-        function = getFunction(name, module, (likely_arity)types.size(), PointerType::getUnqual(TheMatrixStruct));
+        type = new likely_type[types.size()];
+        memcpy(type, types.data(), sizeof(likely_type) * types.size());
+
+        Function *function = getFunction(name, module, (likely_arity)types.size(), PointerType::getUnqual(TheMatrixStruct));
 
         Function *thunk;
         likely_type dstType;
@@ -1304,8 +1314,9 @@ public:
         likelyNewArgs.push_back(kernel.constant(0, 8));
         Value *dst = builder.CreateCall(likelyNew, likelyNewArgs);
 
-        // An impossible case used to ensure that the `likely_new` isn't stripped when optimizing executable size
-        if (likelyNewArgs.empty()) likely_new(likely_type_null, 0, 0, 0, 0, NULL, 0);
+        // An impossible case used to ensure that `likely_new` isn't stripped when optimizing executable size
+        if (likelyNew == NULL)
+            likely_new(likely_type_null, 0, 0, 0, 0, NULL, 0);
 
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
         if (likely_parallel(types[0])) {
@@ -1332,8 +1343,9 @@ public:
             likelyForkArgs.push_back(dst);
             builder.CreateCall(likelyFork, likelyForkArgs);
 
-            // An impossible case used to ensure that the `likely_fork` isn't stripped when optimizing executable size
-            if (likelyForkArgs.empty()) likely_fork(NULL, 0, 0, NULL);
+            // An impossible case used to ensure that `likely_fork` isn't stripped when optimizing executable size
+            if (likelyFork == NULL)
+                likely_fork(NULL, 0, 0, NULL);
         } else {
             vector<Value*> thunkArgs;
             for (const TypedValue &src : srcs)
@@ -1353,7 +1365,12 @@ public:
 
 //        module->dump();
         executionEngine->finalizeObject();
-        return executionEngine->getPointerToFunction(function);
+        f = executionEngine->getPointerToFunction(function);
+    }
+
+    ~FunctionBuilder()
+    {
+        delete type;
     }
 
 private:
@@ -1449,74 +1466,178 @@ private:
 
 } // namespace (anonymous)
 
-typedef pair<likely_type*, void*> likely_vtable_entry;
-struct likely_vtable
+struct VTable : public JITResources
 {
+    static PointerType *vtableType;
     SExp sexp;
     likely_arity n;
-    vector<likely_vtable_entry> entries;
-};
+    vector<FunctionBuilder*> functions;
+    Function *likelyDispatch;
 
-likely_mat likely_dispatch(struct likely_vtable *vtable, likely_mat args, ...)
-{
-    const size_t types_size = sizeof(likely_type) * vtable->n;
-    likely_type *types = (likely_type*) alloca(types_size);
-    va_list ap;
-    va_start(ap, args);
-    for (likely_arity i=0; i<vtable->n; i++) {
-        types[i] = args->type;
-        args = va_arg(ap, likely_mat);
-    }
-    va_end(ap);
+    VTable(likely_source source)
+        : sexp(source)
+    {
+        n = 0;
+        const int length = strlen(source);
+        for (int i=2; i<length; i++)
+            if (!strncmp(&source[i-2], "__", 2))
+                n = max(n, likely_arity(atoi(&source[i])+1));
 
-    void *function;
-    for (size_t i=0; i<vtable->entries.size(); i++) {
-        const likely_vtable_entry &entry = vtable->entries[i];
-        if (!memcmp(types, entry.first, types_size)) {
-            function = entry.second;
-            break;
+        if (vtableType == NULL)
+            vtableType = PointerType::getUnqual(StructType::create(getGlobalContext(), "VTable"));
+
+        static FunctionType *LikelyDispatchSignature = NULL;
+        if (LikelyDispatchSignature == NULL) {
+            Type *dispatchReturn = PointerType::getUnqual(TheMatrixStruct);
+            vector<Type*> dispatchParameters;
+            dispatchParameters.push_back(vtableType);
+            dispatchParameters.push_back(PointerType::getUnqual(PointerType::getUnqual(TheMatrixStruct)));
+            LikelyDispatchSignature = FunctionType::get(dispatchReturn, dispatchParameters, false);
         }
+        likelyDispatch = Function::Create(LikelyDispatchSignature, GlobalValue::ExternalLinkage, "likely_dispatch", module);
+        likelyDispatch->setCallingConv(CallingConv::C);
+        likelyDispatch->setDoesNotAlias(0);
+        likelyDispatch->setDoesNotAlias(1);
+        likelyDispatch->setDoesNotAlias(2);
+        likelyDispatch->setDoesNotCapture(1);
+        likelyDispatch->setDoesNotCapture(2);
+
+        // An impossible case used to ensure that `likely_dispatch` isn't stripped when optimizing executable size
+        if (likelyDispatch == NULL)
+            likely_dispatch(NULL, NULL);
     }
 
-//    return function(args);
-    return NULL;
+    ~VTable()
+    {
+        for (FunctionBuilder *function : functions)
+            delete function;
+    }
+
+    likely_function compile() const
+    {
+        static FunctionType* functionType = NULL;
+        if (functionType == NULL) {
+            Type *functionReturn = PointerType::getUnqual(TheMatrixStruct);
+            vector<Type*> functionParameters;
+            functionParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
+            functionType = FunctionType::get(functionReturn, functionParameters, true);
+        }
+        Function *function = getFunction(functionType);
+        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
+        IRBuilder<> builder(entry);
+
+        Value *array;
+        if (n > 0) {
+            array = builder.CreateAlloca(PointerType::getUnqual(TheMatrixStruct), Constant::getIntegerValue(Type::getInt32Ty(getGlobalContext()), APInt(32, (uint64_t)n)));
+            builder.CreateStore(function->arg_begin(), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), 0))));
+            if (n > 1) {
+                Value *vaList = builder.CreateAlloca(IntegerType::getInt8PtrTy(getGlobalContext()));
+                Value *vaListRef = builder.CreateBitCast(vaList, Type::getInt8PtrTy(getGlobalContext()));
+                builder.CreateCall(Intrinsic::getDeclaration(module, Intrinsic::vastart), vaListRef);
+                for (likely_arity i=1; i<n; i++)
+                    builder.CreateStore(builder.CreateVAArg(vaList, PointerType::getUnqual(TheMatrixStruct)), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), i))));
+                builder.CreateCall(Intrinsic::getDeclaration(module, Intrinsic::vaend), vaListRef);
+            }
+        } else {
+            array = ConstantPointerNull::get(PointerType::getUnqual(PointerType::getUnqual(TheMatrixStruct)));
+        }
+        builder.CreateRet(builder.CreateCall2(likelyDispatch, thisVTable(), array));
+
+        return reinterpret_cast<likely_function>(finalize(function));
+    }
+
+    likely_function_n compileN() const
+    {
+        static FunctionType* functionType = NULL;
+        if (functionType == NULL) {
+            Type *functionReturn = PointerType::getUnqual(TheMatrixStruct);
+            vector<Type*> functionParameters;
+            functionParameters.push_back(PointerType::getUnqual(PointerType::getUnqual(TheMatrixStruct)));
+            functionType = FunctionType::get(functionReturn, functionParameters, true);
+        }
+        Function *function = getFunction(functionType);
+        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
+        IRBuilder<> builder(entry);
+        builder.CreateRet(builder.CreateCall2(likelyDispatch, thisVTable(), function->arg_begin()));
+        return reinterpret_cast<likely_function_n>(finalize(function));
+    }
+
+private:
+    Function *getFunction(FunctionType *functionType) const
+    {
+        Function *function = cast<Function>(module->getOrInsertFunction(name, functionType));
+        function->addFnAttr(Attribute::NoUnwind);
+        function->setCallingConv(CallingConv::C);
+        function->setDoesNotAlias(0);
+        function->setDoesNotAlias(1);
+        function->setDoesNotCapture(1);
+        return function;
+    }
+
+    Constant *thisVTable() const
+    {
+        return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(this)), uintptr_t(this)), vtableType);
+    }
+
+    void *finalize(Function *function) const
+    {
+        FunctionPassManager functionPassManager(module);
+        functionPassManager.add(createVerifierPass(PrintMessageAction));
+        functionPassManager.run(*function);
+        executionEngine->finalizeObject();
+        return executionEngine->getPointerToFunction(function);
+    }
+};
+PointerType *VTable::vtableType = NULL;
+
+likely_mat likely_dispatch(struct VTable *vtable, likely_mat *m)
+{
+    void *function = NULL;
+    for (size_t i=0; i<vtable->functions.size(); i++) {
+        const FunctionBuilder *functionBuilder = vtable->functions[i];
+        for (likely_arity j=0; j<vtable->n; j++)
+            if (m[j]->type != functionBuilder->type[j])
+                goto Next;
+        function = functionBuilder->f;
+        break;
+    Next:
+        continue;
+    }
+
+    if (function == NULL) {
+        vector<likely_type> types;
+        for (int i=0; i<vtable->n; i++)
+            types.push_back(m[i]->type);
+        FunctionBuilder *functionBuilder = new FunctionBuilder(vtable->sexp, types);
+        vtable->functions.push_back(functionBuilder);
+        function = vtable->functions.back()->f;
+    }
+
+    typedef likely_mat (*f0)(void);
+    typedef likely_mat (*f1)(likely_const_mat);
+    typedef likely_mat (*f2)(likely_const_mat, likely_const_mat);
+    typedef likely_mat (*f3)(likely_const_mat, likely_const_mat, likely_const_mat);
+
+    likely_mat dst;
+    switch (vtable->n) {
+      case 0: dst = reinterpret_cast<f0>(function)(); break;
+      case 1: dst = reinterpret_cast<f1>(function)(m[0]); break;
+      case 2: dst = reinterpret_cast<f2>(function)(m[0], m[1]); break;
+      case 3: dst = reinterpret_cast<f3>(function)(m[0], m[1], m[2]); break;
+      default: dst = NULL; likely_assert(false, "likely_dispatch invalid arity: %d", vtable->n);
+    }
+
+    return dst;
 }
 
-void *likely_compile(likely_description description, likely_arity n, likely_type type, ...)
+likely_function likely_compile(likely_source source)
 {
-    vector<likely_type> srcs;
-    va_list ap;
-    va_start(ap, type);
-    for (int i=0; i<n; i++) {
-        srcs.push_back(type);
-        type = va_arg(ap, likely_type);
-    }
-    va_end(ap);
-    return likely_compile_n(description, n, srcs.data());
+    return (new VTable(source))->compile();
 }
 
-void *likely_compile_n(likely_description description, likely_arity n, likely_type *types_)
+likely_function_n likely_compile_n(likely_source source)
 {
-    const vector<likely_type> types(types_,types_+n);
-    static map<string,FunctionBuilder*> kernels;
-    static recursive_mutex makerLock;
-    lock_guard<recursive_mutex> lock(makerLock);
-
-    static int index = 0;
-    stringstream name; name << "likely_" << index++;
-
-    stringstream uniqueIDStream;
-    for (likely_type type : types)
-        uniqueIDStream << likely_type_to_string(type) << "_";
-    uniqueIDStream << "_" << description;
-    const string uniqueID = uniqueIDStream.str();
-
-    map<string,FunctionBuilder*>::const_iterator it = kernels.find(uniqueID);
-    if (it == kernels.end()) {
-        kernels.insert(pair<string,FunctionBuilder*>(uniqueID, new FunctionBuilder(name.str(), SExp(description), types)));
-        it = kernels.find(uniqueID);
-    }
-    return it->second->getPointerToFunction();
+    return (new VTable(source))->compileN();
 }
 
 void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...)

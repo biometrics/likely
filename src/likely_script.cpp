@@ -20,6 +20,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <vector>
 #include <lua.hpp>
@@ -284,8 +285,14 @@ static int lua_likely_compile(lua_State *L)
     for (int i=2; i<=args; i++)
         types.push_back(checkLuaMat(L, i)->type);
 
-    // Compile the function
-    void *function = likely_compile_n(lua_tostring(L, 1), (likely_arity)types.size(), types.data());
+    // Retrieve or compile the function
+    static map<string,likely_function_n> functions;
+    likely_source source = lua_tostring(L, 1);
+    map<string,likely_function_n>::const_iterator it = functions.find(source);
+    if (it == functions.end()) {
+        functions.insert(pair<string,likely_function_n>(source, likely_compile_n(source)));
+        it = functions.find(source);
+    }
 
     // Return a closure
     lua_getglobal(L, "closure");
@@ -305,7 +312,7 @@ static int lua_likely_compile(lua_State *L)
         lua_settable(L, -3);
         lua_settable(L, -3);
     }
-    lua_pushlightuserdata(L, function); // binary
+    lua_pushlightuserdata(L, (void*)it->second); // binary
     lua_call(L, 4, 1);
     return 1;
 }
@@ -481,21 +488,10 @@ static int lua_likely__call(lua_State *L)
     // Call the function
     if (lua_isuserdata(L, -1)) {
         // Prepare the JIT function
-        void *function = lua_touserdata(L, -1);
         vector<likely_const_mat> mats;
         for (int i=2; i<=args; i++)
             mats.push_back(checkLuaMat(L, i));
-
-        // Call the function, return the result
-        likely_mat dst;
-        switch (mats.size()) {
-          case 0: dst = reinterpret_cast<likely_function_0>(function)(); break;
-          case 1: dst = reinterpret_cast<likely_function_1>(function)(mats[0]); break;
-          case 2: dst = reinterpret_cast<likely_function_2>(function)(mats[0], mats[1]); break;
-          case 3: dst = reinterpret_cast<likely_function_3>(function)(mats[0], mats[1], mats[2]); break;
-          default: dst = NULL; lua_likely_assert(L, false, "__call invalid arity: %d", mats.size());
-        }
-        *newLuaMat(L) = dst;
+        *newLuaMat(L) = reinterpret_cast<likely_function_n>(lua_touserdata(L, -1))(mats.data());
     } else {
         // Closure
         lua_pushnil(L);
@@ -721,7 +717,7 @@ lua_State *likely_exec(const char *source, lua_State *L)
     return L; // The sandboxed environment results are now on the top of the stack
 }
 
-likely_description likely_interpret(const char *source)
+likely_source likely_interpret(const char *source)
 {
     static lua_State *L = NULL;
     stringstream command; command << "    return tostring(" << source << ")";
