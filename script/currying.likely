@@ -1,5 +1,6 @@
-[Currying](examples/currying.likely)
-====================================
+Currying
+--------
+**[Source Code](script/currying.likely)**
 
 ```
 m = read("../data/misc/lenna.tiff")

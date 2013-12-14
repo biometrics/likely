@@ -1,5 +1,6 @@
-[Closures](examples/closures.likely)
-====================================
+Closures
+--------
+**[Source Code](script/closures.likely)**
 
     m = new{rows=512, columns=512, type=i8}()
 

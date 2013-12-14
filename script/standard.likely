@@ -6,6 +6,7 @@ Likely Kernel Library
 
 ## Introduction
 Welcome to the documentation and source code for _Likely_, the image recognition programming language!
+
 **Skip to the good stuff: [examples](./index.html?show=script/examples.likely), [demos](./index.html?show=script/demos.likely), [benchmark](./index.html?show=benchmark.tsv).**
 
 ### Principles
@@ -16,21 +17,28 @@ Welcome to the documentation and source code for _Likely_, the image recognition
  - Free open source software
 
 ### Help
-We try to keep this document complete and correct. However, should you run into trouble, please feel free to ask questions on our [mailing list](https://groups.google.com/forum/#!forum/likely-dev) or report bugs on our [issue tracker](https://github.com/biometrics/likely/issues).
+We try to keep this document complete and correct. However, should you run into trouble, please feel free to ask questions on our [mailing list](https://groups.google.com/forum/#!forum/likely-dev) or report bugs on our [issue tracker](https://github.com/biometrics/likely/issues). Consider starting with **hello world in [Likely](./index.html?show=script/hello_world.likely) and [C](src/hello_world.c)**.
 
-#### About This Document
-Likely draws inspiration from Knuth's literate programming, as this file is also the [source code](script/standard.likely) for the Likely standard library. Likely supports [Github Flavored Markdown](https://help.github.com/articles/github-flavored-markdown) (GFM) syntax, and the Likely runtime will automatically extract and execute _code blocks_ found in GFM source files.
+#### This Document
+**Likely is a [literate programming](http://en.wikipedia.org/wiki/Literate_programming) language.** In addition to documenting the project, this file is also the [source code](script/standard.likely) for the standard library. Likely uses [Github Flavored Markdown](https://help.github.com/articles/github-flavored-markdown) (GFM) syntax, and the Likely runtime will automatically extract and execute _code blocks_ found in GFM source files.
 
 #### License
-Likely is licensed under [Apache 2.0](LICENSE.txt), meaning it is free for academic and commercial use.
+Likely is licensed under [Apache 2.0](LICENSE.txt), meaning it is *free for academic and commercial use*.
 
 ### Background
-The software engineering of a complex system is often facilitated by a _Domain Specific Language_ (DSL) whose syntax is designed to concisely and efficiently solve problems frequently encountered in the domain. While many technical communities rely on DSLs, there currently exists no DSL designed for image recognition research. As a consequence, most libraries and applications are written in either _C++_ or _MATLAB_, neither of which respect both the engineer's time and the hardware's compute capability.
+The software engineering of a complex system is often facilitated by a _Domain Specific Language_ (DSL) whose syntax is designed to concisely and efficiently solve problems frequently encountered in the domain. While many technical communities rely on DSLs, there currently exists no DSL designed for image recognition. As a consequence, most libraries and applications are written in either _C++_ or _MATLAB_, neither of which respect both the engineer's time and the hardware's compute capability.
 
-> We believe a DSL for image recognition is essential to express algorithms that are currently too complex to implement in a "low-level" language and too slow to execute in a "high-level" language.
+> A just-in-time compiled DSL for image recognition is essential to express algorithms that are currently too complex to implement in native languages and too inefficient to execute in scripting languages.
 
 ### Portability
-Likely is built on top of the _Low Level Virtual Machine_ (LLVM) compiler infrastructure using a portable subset of ISO C++11, which means it runs [everywhere](http://llvm.org/docs/GettingStarted.html#hardware) LLVM does. Algorithms execute natively on single CPU threads via the LLVM _Machine Code Just-In-Time_ (MCJIT) compiler, multi-core CPUs via a custom OpenMP-like backend, and GPUs and coprocessors via _OpenCL_ or _CUDA_.
+Likely is built on top of the _Low Level Virtual Machine_ (LLVM) compiler infrastructure using a portable subset of ISO C++11, which means it runs [everywhere](http://llvm.org/docs/GettingStarted.html#hardware) LLVM does. Algorithms execute natively on single CPU threads via the LLVM _Machine Code Just-In-Time_ (MCJIT) compiler, multi-core CPUs via a custom _OpenMP_-like backend, and GPUs and coprocessors via _CUDA_ or _OpenCL_.
+
+| Backend     | Status |
+|-------------|--------|
+| Single-core | Done   |
+| Multi-core  | Done   |
+| CUDA        | [#24](https://github.com/biometrics/likely/issues/24) |
+| OpenCL      | [#25](https://github.com/biometrics/likely/issues/25) |
 
 ### Speed
 Likely relies on the powerful and well established LLVM compiler infrastructure to make function execution as fast as possible. Since compilation is held off until runtime, functions automatically leverage all instruction set extensions and co-processors available on the host. Delaying compilation until runtime also enables optimization opportunities that are impossible in conventional languages and libraries. In fact, the entire premise of Likely is hinged on the observation that for image processing applications
@@ -40,7 +48,7 @@ Likely relies on the powerful and well established LLVM compiler infrastructure 
 The repeated execution of a function with the same matrix type means that branching to handle different data types is unnecessary, entire loops and code blocks can be eliminated, and many values that would be runtime parameters can instead become compile time constants. For these reasons, we expect Likely to be faster than equally-generic statically-compiled native code.
 
 ### Motivation
-This section considers some of the drawbacks in using the two incumbent languages in the field (C++ and MATLAB) to help motivate why an image recognition DSL is important. Please [let us know](https://groups.google.com/forum/#!forum/likely-dev) if you disagree with this analysis or would like to contribute to it!
+This section considers some of the drawbacks in using the two incumbent languages in the field (C++ and MATLAB) to help motivate why an image recognition DSL is important. It is a work in progress, so please [let us know](https://groups.google.com/forum/#!forum/likely-dev) if you disagree with this analysis or would like to contribute to it!
 
 #### Why not C++?
 As image recognition engineers, we desire a curated set of image processing and statistical learning functions from which to compose higher-order algorithms. Of fundamental concern is the  construction of leak-free abstractions that enable complex reasoning. To do so

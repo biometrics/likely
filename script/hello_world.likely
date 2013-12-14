@@ -1,6 +1,6 @@
-[Hello World](examples/hello_world.likely)
-==========================================
-[C API Hello World](src/hello_world.c)
+Hello World
+-----------
+**[Source Code](script/hello_world.likely)**
 
 Source code is re-executed as you type\dream{activate:message}
 

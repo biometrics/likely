@@ -1,5 +1,6 @@
-[Arithmetic](examples/arithmetic.likely)
-========================================
+Arithmetic
+----------
+**[Source Code](script/arithmetic.likely)**
 
     lenna = read("../data/misc/lenna.tiff")
 

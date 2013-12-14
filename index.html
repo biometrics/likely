@@ -69,6 +69,9 @@ _gaq.push(['_trackPageview']);
     font-family: sans-serif;
     font-size: 12px;
   }
+  .table-nonfluid {
+    width: auto;
+  }
 </style>
 
 <div class="container"> <div class="row"> <div class="span12">
@@ -115,7 +118,10 @@ if (!show.endsWith(".tsv")) {
     smartypants: true,
   });
 
-  $.get(show).done(function(md) { $("#content").html(marked(md)); })
+  $.get(show).done(function(md) {
+    $("#content").html(marked(md));
+    $('table').addClass("table table-condensed table-nonfluid");
+  })
 } else {
   plot = function(data) {
     // Convert to numeric data

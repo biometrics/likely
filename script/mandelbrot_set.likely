@@ -1,5 +1,6 @@
-[Mandelbrot Set](examples/mandelbrot_set.likely)
-================================================
+Mandelbrot Set
+--------------
+**[Source Code](script/mandelbrot_set.likely)**
 [Explanation](http://en.wikipedia.org/wiki/Mandelbrot_set)
 
 Control parameters
