@@ -1,5 +1,5 @@
-Closures
-========
+[Closures](examples/closures.likely)
+====================================
 
     m = new{rows=512, columns=512, type=i8}()
 
@@ -15,3 +15,5 @@ set{0}(m)
     ^  ^
     |  Run-time arguments
     Compile-time arguments
+
+[Previous](./index.html?show=examples/function_calls.likely) | [Next](./index.html?show=examples/arithmetic.likely)

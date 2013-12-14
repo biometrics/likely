@@ -1,200 +1,219 @@
 <!DOCTYPE html>
 <html lang="en">
 <head profile="http://www.w3.org/2005/10/profile">
-  <link rel="icon"
-        type="image/png"
-        href="share/likely/likely.png">
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="description" content="Likely Kernel Library">
-  <meta name="author" content="Joshua C. Klontz">
-  <title>Likely</title>
 
-  <!-- Bootstrap -->
-  <link href="http://getbootstrap.com/dist/css/bootstrap.css" rel="stylesheet">
-  <style> body { padding-top: 70px; } </style>
+<link rel="icon"
+      type="image/png"
+      href="share/likely/likely.png">
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="Likely Kernel Library">
+<meta name="author" content="Joshua C. Klontz">
+<title>Likely</title>
 
-  <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-  <script src="https://code.jquery.com/jquery.js"></script>
+<!-- Bootstrap -->
+<link href="http://getbootstrap.com/dist/css/bootstrap.css" rel="stylesheet">
+<style> body { padding-top: 50px; } </style>
 
-  <!-- Include all compiled plugins (below), or include individual files as needed -->
-  <script src="http://getbootstrap.com/dist/js/bootstrap.min.js"></script>
+<!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+<script src="https://code.jquery.com/jquery.js"></script>
 
-  <script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
-  <script type="text/javascript" src="http://underscorejs.org/underscore-min.js"></script>
+<!-- Include all compiled plugins (below), or include individual files as needed -->
+<script src="http://getbootstrap.com/dist/js/bootstrap.min.js"></script>
 
-  <!-- GFM Syntax Highlighting -->
-  <link href="https://raw.github.com/jekyll/jekyll/master/lib/site_template/css/syntax.css" rel="stylesheet">
+<script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
+<script type="text/javascript" src="http://underscorejs.org/underscore-min.js"></script>
 
-  <script type="text/javascript">
-    var _gaq = _gaq || [];
-    _gaq.push(['_setAccount', 'UA-9623786-4']);
-    _gaq.push(['_trackPageview']);
-    (function() {
-      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-    })();
-  </script>
+<!-- GFM Syntax Highlighting -->
+<link href="https://raw.github.com/jekyll/jekyll/master/lib/site_template/css/syntax.css" rel="stylesheet">
+
+<script type="text/javascript">
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-9623786-4']);
+_gaq.push(['_trackPageview']);
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+
 </head>
-
 <body>
-  <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
-    <div class="container">
-      <div class="navbar-header">
-        <a class="navbar-brand" href="#">Likely</a>
-      </div>
-      <div class="collapse navbar-collapse">
-        <ul class="nav navbar-nav">
-          <li><a href="https://github.com/biometrics/likely">Source</a></li>
-          <li><a href="https://github.com/jklontz">Author</a></li>
-          <li><a href="http://www.noblis.org/">Noblis</a></li>
-        </ul>
-      </div>
+
+<div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="./index.html">Likely</a>
+    </div>
+    <div class="collapse navbar-collapse">
+      <ul class="nav navbar-nav">
+        <li><a href="https://github.com/biometrics/likely">Source</a></li>
+        <li><a href="https://github.com/jklontz">Author</a></li>
+        <li><a href="http://www.noblis.org/">Noblis</a></li>
+      </ul>
     </div>
   </div>
+</div>
 
-  <div class="container"> <div class="row"> <div class="span12">
-    <div id="standard_library">Loading...</div>
-    <script>
-      escape = function (str) {
-        return str
-          .replace(/[\\]/g, '\\\\')
-          .replace(/[\"]/g, '\\\"')
-          .replace(/[\/]/g, '\\/')
-          .replace(/[\b]/g, '\\b')
-          .replace(/[\f]/g, '\\f')
-          .replace(/[\n]/g, '\\n')
-          .replace(/[\r]/g, '\\r')
-          .replace(/[\t]/g, '\\t');
-      };
+<style type="text/css">
+  .axis path,
+  .axis line {
+    fill: none;
+    stroke: black;
+    shape-rendering: crispEdges;
+  }
+  .axis text {
+    font-family: sans-serif;
+    font-size: 12px;
+  }
+</style>
 
-      var setStandardLibrary = function(html) { $("#standard_library").html(html); }
-      var markdownToHTML = function(md) { $.post("https://api.github.com/markdown", '{"text":"' + escape(md) + '", "mode":"gfm", "context":"biometrics/likely"}', setStandardLibrary); }
-      $.get("src/standard.likely").done(markdownToHTML)
-    </script>
+<div class="container"> <div class="row"> <div class="span12">
+<div id="content"><br>Loading...</div>
+<script>
+function getQueryVariable(variable) {
+  var query = window.location.search.substring(1);
+  var vars = query.split("&");
+  for (var i=0; i<vars.length; i++) {
+    var pair = vars[i].split("=");
+    if (pair[0] == variable) {
+      return pair[1];
+    }
+  }
+}
 
-    <h2 id="benchmark">Benchmark</h2>
-    <style type="text/css">
-      .axis path,
-      .axis line {
-        fill: none;
-        stroke: black;
-        shape-rendering: crispEdges;
-      }
+show = getQueryVariable("show");
+if (!show) show = "src/standard.likely"
 
-      .axis text {
-        font-family: sans-serif;
-        font-size: 12px;
-      }
+String.prototype.endsWith = function(suffix) {
+  return this.indexOf(suffix, this.length - suffix.length) !== -1;
+};
 
-    </style>
-    <div id="viz"></div>
+if (!show.endsWith(".tsv")) {
+  escape = function (str) {
+    return str
+    .replace(/[\\]/g, '\\\\')
+    .replace(/[\"]/g, '\\\"')
+    .replace(/[\/]/g, '\\/')
+    .replace(/[\b]/g, '\\b')
+    .replace(/[\f]/g, '\\f')
+    .replace(/[\n]/g, '\\n')
+    .replace(/[\r]/g, '\\r')
+    .replace(/[\t]/g, '\\t');
+  };
 
-    <script type="text/javascript">
-      d3.tsv("benchmark.tsv", function(data) {
-        // Convert to numeric data
-        data.forEach(function(d) {
-          d.Size = +d.Size;
-          d.Speedup = +d.Speedup;
-        });
+  var setStandardLibrary = function(html) { $("#content").html(html); }
+  var markdownToHTML = function(md) { $.post("https://api.github.com/markdown", '{"text":"' + escape(md) + '", "mode":"gfm", "context":"biometrics/likely"}', setStandardLibrary); }
+  $.get(show).done(markdownToHTML)
+} else {
+  plot = function(data) {
+    // Convert to numeric data
+    data.forEach(function(d) {
+      d.Size = +d.Size;
+      d.Speedup = +d.Speedup;
+    });
 
-        // Global sizes
-        var width  = $("#viz").width();
-        var height = width/2;
-        var margin = width/20;
+    // Global sizes
+    var width  = $("#content").width();
+    var height = width/2;
+    var margin = width/20;
 
-        // Construct chart
-        var chart = d3.select("#viz").append("svg").style("height", height);
+    // Construct chart
+    $("#content").html("<br>");
+    var chart = d3.select("#content").append("svg").style("height", height);
 
-        // Construct x & y scales & axis
-        var xScale = d3.scale.log().base(2)
-                     .domain(d3.extent(data, function(d) { return d.Size; }))
-                     .range([margin, width-margin]);
-        var yScale = d3.scale.linear()
-                     .domain([0, d3.max(data, function(d) { return d.Speedup; })])
-                     .range([height-margin, margin]).nice();
-        var xAxis  = d3.svg.axis().scale(xScale).orient("bottom").tickFormat(d3.format("f"));
-        var yAxis  = d3.svg.axis().scale(yScale).orient("left").tickFormat(d3.format("d"));
+    // Construct x & y scales & axis
+    var xScale = d3.scale.log().base(2)
+                 .domain(d3.extent(data, function(d) { return d.Size; }))
+                 .range([margin, width-margin]);
+    var yScale = d3.scale.linear()
+                 .domain([0, d3.max(data, function(d) { return d.Speedup; })])
+                 .range([height-margin, margin]).nice();
+    var xAxis  = d3.svg.axis().scale(xScale).orient("bottom").tickFormat(d3.format("f"));
+    var yAxis  = d3.svg.axis().scale(yScale).orient("left").tickFormat(d3.format("d"));
 
-        // Construct color mapping
-        var types      = _.uniq(_.map(data, function(d) { return d.Type; }));
-        var colorTable = d3.scale.category10().domain(types);
-        var colorMap   = function(d) { return colorTable(d[0].Type); }
+    // Construct color mapping
+    var types      = _.uniq(_.map(data, function(d) { return d.Type; }));
+    var colorTable = d3.scale.category10().domain(types);
+    var colorMap   = function(d) { return colorTable(d[0].Type); }
 
-        // Construct line type mapping
-        var executions = _.uniq(_.map(data, function(d) { return d.Execution; }));
-        var lineTable  = function(d) { return ("1, " + String(_.indexOf(executions, d))); }
-        var lineMap    = function(d) { return lineTable(d[0].Execution); }
+    // Construct line type mapping
+    var executions = _.uniq(_.map(data, function(d) { return d.Execution; }));
+    var lineTable  = function(d) { return ("1, " + String(_.indexOf(executions, d))); }
+    var lineMap    = function(d) { return lineTable(d[0].Execution); }
 
-        // Group and render data
-        var lines = _.values(_.groupBy(data, function(d) { return d.Execution+d.Type; }));
-        var lineFunction = d3.svg.line()
-                           .x(function(d) { return xScale(d.Size); })
-                           .y(function(d) { return yScale(d.Speedup); })
-        chart.selectAll(".benchmark").data(lines).enter().append("path")
-             .attr("d", function(d) { return lineFunction(d); })
-             .attr("stroke", colorMap)
-             .attr("stroke-dasharray", lineMap)
-             .attr("fill", "none")
-             .attr("stroke-width", 2);
+    // Group and render data
+    var lines = _.values(_.groupBy(data, function(d) { return d.Execution+d.Type; }));
+    var lineFunction = d3.svg.line()
+                       .x(function(d) { return xScale(d.Size); })
+                       .y(function(d) { return yScale(d.Speedup); })
+    chart.selectAll(".benchmark").data(lines).enter().append("path")
+         .attr("d", function(d) { return lineFunction(d); })
+         .attr("stroke", colorMap)
+         .attr("stroke-dasharray", lineMap)
+         .attr("fill", "none")
+         .attr("stroke-width", 2);
 
-        // Render axes
-        chart.append("g").attr("class", "axis").attr("transform", "translate(0," + (height-margin) + ")").call(xAxis);
-        chart.append("g").attr("class", "axis").attr("transform", "translate(" + margin + ",0)").call(yAxis);
+    // Render axes
+    chart.append("g").attr("class", "axis").attr("transform", "translate(0," + (height-margin) + ")").call(xAxis);
+    chart.append("g").attr("class", "axis").attr("transform", "translate(" + margin + ",0)").call(yAxis);
 
-        // Legend position variables
-        var legendXOffset = 128;
-        var legendElementStep = 20;
-        var legendKeySize = 12;
-        var legendKeyValueSpacing = 3;
+    // Legend position variables
+    var legendXOffset = 128;
+    var legendElementStep = 20;
+    var legendKeySize = 12;
+    var legendKeyValueSpacing = 3;
 
-        // Render color legend
-        chart.selectAll("colorKeys").data(types).enter().append("rect")
-             .attr("x", width - legendXOffset)
-             .attr("y", function(d, i) { return (i+1) * legendElementStep;})
-             .attr("width", legendKeySize)
-             .attr("height", legendKeySize)
-             .attr("fill", colorTable);
-        chart.selectAll('colorText').data(types).enter().append("text")
-              .attr("x", width - legendXOffset + legendKeySize + legendKeyValueSpacing)
-              .attr("y", function(d, i) { return (i+1) * legendElementStep + legendKeySize; })
-              .text(function(d) { return String(d); });
+    // Render color legend
+    chart.selectAll("colorKeys").data(types).enter().append("rect")
+         .attr("x", width - legendXOffset)
+         .attr("y", function(d, i) { return (i+1) * legendElementStep;})
+         .attr("width", legendKeySize)
+         .attr("height", legendKeySize)
+         .attr("fill", colorTable);
+    chart.selectAll('colorText').data(types).enter().append("text")
+         .attr("x", width - legendXOffset + legendKeySize + legendKeyValueSpacing)
+         .attr("y", function(d, i) { return (i+1) * legendElementStep + legendKeySize; })
+         .text(function(d) { return String(d); });
 
-        // Render line type legend
-        chart.selectAll('linetypeRect').data(executions).enter().append("line")
-              .attr("x1", width - legendXOffset)
-              .attr("y1", function(d, i) { return (i+types.length+3) * legendElementStep - legendKeySize/2 + 1; })
-              .attr("x2", width - legendXOffset + legendKeySize)
-              .attr("y2", function(d, i) { return (i+types.length+3) * legendElementStep - legendKeySize/2 + 1; })
-              .attr("stroke", "black")
-              .attr("stroke-width", "2")
-              .attr("stroke-dasharray", lineTable);
-        chart.selectAll('linetypeText').data(executions).enter().append("text")
-              .attr("x", width - legendXOffset + legendKeySize + legendKeyValueSpacing)
-              .attr("y", function(d, i) { return (i+types.length+3) * legendElementStep; })
-              .text(function(d) { return String(d); });
+    // Render line type legend
+    chart.selectAll('linetypeRect').data(executions).enter().append("line")
+         .attr("x1", width - legendXOffset)
+         .attr("y1", function(d, i) { return (i+types.length+3) * legendElementStep - legendKeySize/2 + 1; })
+         .attr("x2", width - legendXOffset + legendKeySize)
+         .attr("y2", function(d, i) { return (i+types.length+3) * legendElementStep - legendKeySize/2 + 1; })
+         .attr("stroke", "black")
+         .attr("stroke-width", "2")
+         .attr("stroke-dasharray", lineTable);
+    chart.selectAll('linetypeText').data(executions).enter().append("text")
+         .attr("x", width - legendXOffset + legendKeySize + legendKeyValueSpacing)
+         .attr("y", function(d, i) { return (i+types.length+3) * legendElementStep; })
+         .text(function(d) { return String(d); });
 
-        // Render legend Titles
-        chart.append("text").attr("y", 10).attr("x", width - legendXOffset).attr("font-weight","bold").text("Type");
-        chart.append("text").attr("y", (types.length+2) * legendElementStep).attr("x", width - legendXOffset).attr("font-weight","bold").text("Execution");
+    // Render legend Titles
+    chart.append("text").attr("y", 10).attr("x", width - legendXOffset).attr("font-weight","bold").text("Type");
+    chart.append("text").attr("y", (types.length+2) * legendElementStep).attr("x", width - legendXOffset).attr("font-weight","bold").text("Execution");
 
-        // Render title
-        var title = chart.append("text").attr("class", "title").attr("y", 20).text(lines[0][0].Function);
-        title.attr("x", (width-parseInt(title.style("width")))/2);
+    // Render title
+    var title = chart.append("text").attr("class", "title").attr("y", 20).text(lines[0][0].Function);
+    title.attr("x", (width-parseInt(title.style("width")))/2);
 
-        // Render x axis label
-        var xlab = chart.append("text").attr("class", "title").attr("y", height-10).text("Kernel Size (elements)");
-        xlab.attr("x", (width-parseInt(xlab.style("width")))/2);
+    // Render x axis label
+    var xlab = chart.append("text").attr("class", "title").attr("y", height-10).text("Kernel Size (elements)");
+    xlab.attr("x", (width-parseInt(xlab.style("width")))/2);
 
-        // Render y axis label
-        var ylab = chart.append("text").attr("class", "title").attr("y", 10).attr("transform", "rotate(-90)").text("Speedup (times)");
-        ylab.attr("x", -(height+parseInt(ylab.style("width")))/2);
-      });
-    </script>
-    <br>
-  </div> </div> </div>
+    // Render y axis label
+    var ylab = chart.append("text").attr("class", "title").attr("y", 10).attr("transform", "rotate(-90)").text("Speedup (times)");
+    ylab.attr("x", -(height+parseInt(ylab.style("width")))/2);
+  }
+
+  d3.tsv(show, plot);
+}
+</script>
+<br>
+</div> </div> </div>
+
 </body>
-
 </html>

@@ -1,5 +1,5 @@
-Arithmetic
-==========
+[Arithmetic](examples/arithmetic.likely)
+========================================
 
     lenna = read("../data/misc/lenna.tiff")
 
@@ -15,3 +15,5 @@ subtracted = subtract(32,lenna)
 multiplied = multiply(2,lenna)
 divided = divide(2,lenna)
 ```
+
+[Previous](./index.html?show=examples/closures.likely) | [Next](./index.html?show=examples/currying.likely)

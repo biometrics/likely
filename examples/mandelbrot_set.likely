@@ -1,5 +1,5 @@
-Mandelbrot Set
-==============
+[Mandelbrot Set](examples/mandelbrot_set.likely)
+================================================
 [Explanation](http://en.wikipedia.org/wiki/Mandelbrot_set)
 
 Control parameters
@@ -25,3 +25,5 @@ Initialization
     fy = set{y}
     real = fx(real)
     imag = fy(imag)
+
+[Previous](./index.html?show=examples/currying.likely)

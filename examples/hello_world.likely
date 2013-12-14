@@ -1,5 +1,5 @@
-Hello World
-===========
+[Hello World](examples/hello_world.likely)
+==========================================
 [C API Hello World](src/hello_world.c)
 
 Source code is re-executed as you type\dream{activate:message}
@@ -13,3 +13,5 @@ Source code is re-executed as you type\dream{activate:message}
 \dream{CTRL}+scroll to edit numerical constants
 
     dark_lenna = divide{2}(lenna)
+
+[Next](./index.html?show=examples/function_calls.likely)
