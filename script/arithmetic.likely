@@ -16,4 +16,4 @@ multiplied = multiply(2,lenna)
 divided = divide(2,lenna)
 ```
 
-[Previous](./index.html?show=examples/closures.likely) | [Next](./index.html?show=examples/currying.likely)
+[Previous](./index.html?show=script/closures.likely) | [Next](./index.html?show=script/currying.likely)

@@ -25,5 +25,3 @@ Initialization
     fy = set{y}
     real = fx(real)
     imag = fy(imag)
-
-[Previous](./index.html?show=examples/currying.likely)

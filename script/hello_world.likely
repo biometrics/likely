@@ -14,4 +14,4 @@ Source code is re-executed as you type\dream{activate:message}
 
     dark_lenna = divide{2}(lenna)
 
-[Next](./index.html?show=examples/function_calls.likely)
+[Next](./index.html?show=script/function_calls.likely)

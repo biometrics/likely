@@ -86,7 +86,7 @@ function getQueryVariable(variable) {
 }
 
 show = getQueryVariable("show");
-if (!show) show = "src/standard.likely"
+if (!show) show = "script/standard.likely"
 
 String.prototype.endsWith = function(suffix) {
   return this.indexOf(suffix, this.length - suffix.length) !== -1;

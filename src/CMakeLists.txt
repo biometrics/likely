@@ -19,11 +19,11 @@ if(APPLE)
 endif()
 
 add_executable(embedfile embedfile.c)
-file(GLOB LIKELY_EXAMPLES ${CMAKE_SOURCE_DIR}/examples/*)
+file(GLOB LIKELY_SCRIPTS ${CMAKE_SOURCE_DIR}/script/*.likely)
 
 set(LIKELY_SRC likely.cpp)
 set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES})
-set(LIKELY_MISC ${LIKELY_EXAMPLES}
+set(LIKELY_MISC ${LIKELY_SCRIPTS}
                 ${CMAKE_SOURCE_DIR}/include/likely.h
                 ${CMAKE_SOURCE_DIR}/LICENSE.txt
                 ${CMAKE_SOURCE_DIR}/README.md)
@@ -33,8 +33,7 @@ if(${LIKELY_AUX})
   add_definitions(-DLIKELY_AUX)
   set(LIKELY_SRC ${LIKELY_SRC} likely_aux.cpp)
   set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui libcurl)
-  set(LIKELY_MISC ${LIKELY_MISC} standard.likely
-                                 ${CMAKE_SOURCE_DIR}/index.html
+  set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/index.html
                                  ${CMAKE_SOURCE_DIR}/include/likely_aux.h)
   install(FILES ${CMAKE_SOURCE_DIR}/include/likely_aux.h DESTINATION include)
 endif()
@@ -42,12 +41,12 @@ endif()
 if(${LIKELY_SCRIPT})
   add_definitions(-DLIKELY_SCRIPT)
   add_custom_command(OUTPUT likely_standard_library.c
-                     COMMAND embedfile likely_standard_library ${CMAKE_CURRENT_SOURCE_DIR}/standard.likely
-                     DEPENDS embedfile standard.likely)
+                     COMMAND embedfile likely_standard_library ${CMAKE_SOURCE_DIR}/script/standard.likely
+                     DEPENDS embedfile ${CMAKE_SOURCE_DIR}/script/standard.likely)
   set(LIKELY_SRC ${LIKELY_SRC} likely_script.cpp ${CMAKE_CURRENT_BINARY_DIR}/likely_standard_library.c)
   set(LIKELY_LIBS ${LIKELY_LIBS} liblua)
   set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
-  set(LIKELY_MISC ${LIKELY_MISC} standard.likely opencv.shim
+  set(LIKELY_MISC ${LIKELY_MISC} opencv.shim
                                  ${CMAKE_SOURCE_DIR}/include/likely_script.h)
   install(FILES ${CMAKE_SOURCE_DIR}/include/likely_script.h DESTINATION include)
 endif()
