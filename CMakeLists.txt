@@ -33,10 +33,10 @@ if(NOT VS)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS}")
 endif()
 
-# CMAKE_BUILD_TYPE will be null otw
-if (CMAKE_BUILD_TYPE STREQUAL "")
-  set (CMAKE_BUILD_TYPE Debug CACHE STRING "One of: None Debug Release" FORCE)
-endif ()
+# Build in Debug mode by default
+if(CMAKE_BUILD_TYPE STREQUAL "")
+  set(CMAKE_BUILD_TYPE Debug CACHE STRING "One of: Debug, Release, RelWithDebInfo, MinSizeRel" FORCE)
+endif()
 
 # Build LLVM
 string(TOLOWER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
