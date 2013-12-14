@@ -33,9 +33,14 @@ if(NOT VS)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS}")
 endif()
 
+# CMAKE_BUILD_TYPE will be null otw
+if (CMAKE_BUILD_TYPE STREQUAL "")
+  set (CMAKE_BUILD_TYPE Debug CACHE STRING "One of: None Debug Release" FORCE)
+endif ()
+
 # Build LLVM
 string(TOLOWER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
-if(${BUILD_TYPE} STREQUAL "debug" )
+if("${BUILD_TYPE}" STREQUAL "debug" )
   set(LLVM_ENABLE_ASSERTIONS ON CACHE INTERNAL "")
 endif()
 set(LLVM_TARGETS_TO_BUILD "host" CACHE STRING "LLVM targets")
