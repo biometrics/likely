@@ -25,7 +25,8 @@
 <script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
 <script type="text/javascript" src="http://underscorejs.org/underscore-min.js"></script>
 
-<!-- GFM Syntax Highlighting -->
+<!-- Markdown and GFM Syntax Highlighting -->
+<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/marked/0.2.9/marked.min.js"></script>
 <link href="https://raw.github.com/jekyll/jekyll/master/lib/site_template/css/syntax.css" rel="stylesheet">
 
 <script type="text/javascript">
@@ -104,9 +105,17 @@ if (!show.endsWith(".tsv")) {
     .replace(/[\t]/g, '\\t');
   };
 
-  var setStandardLibrary = function(html) { $("#content").html(html); }
-  var markdownToHTML = function(md) { $.post("https://api.github.com/markdown", '{"text":"' + escape(md) + '", "mode":"gfm", "context":"biometrics/likely"}', setStandardLibrary); }
-  $.get(show).done(markdownToHTML)
+  marked.setOptions({
+    gfm: true,
+    tables: true,
+    breaks: true,
+    pedantic: false,
+    sanitize: true,
+    smartLists: true,
+    smartypants: true,
+  });
+
+  $.get(show).done(function(md) { $("#content").html(marked(md)); })
 } else {
   plot = function(data) {
     // Convert to numeric data
