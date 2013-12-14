@@ -73,6 +73,10 @@ endif()
 include_directories(include)
 add_subdirectory(src)
 
+if(UNIX)
+  execute_process(COMMAND cmake -E create_symlink ${CMAKE_SOURCE_DIR}/data ${CMAKE_BINARY_DIR}/data)
+endif()
+
 install(DIRECTORY share DESTINATION .)
 install(FILES ${CMAKE_SOURCE_DIR}/LICENSE.txt DESTINATION share/likely)
 include(CPack)
