@@ -34,6 +34,10 @@ if(NOT VS)
 endif()
 
 # Build LLVM
+string(TOLOWER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
+if(${BUILD_TYPE} STREQUAL "debug" )
+  set(LLVM_ENABLE_ASSERTIONS ON CACHE INTERNAL "")
+endif()
 set(LLVM_TARGETS_TO_BUILD "host" CACHE STRING "LLVM targets")
 add_subdirectory(llvm EXCLUDE_FROM_ALL)
 set(CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}/llvm/share/llvm/cmake/")
