@@ -13,4 +13,4 @@ Arguments can be specified by name...
 
 Arguments not specified by name are assigned to the first parameter without a bound value. If all parameters are bound then arguments will override the left-most values.
 
-[Previous](./index.html?show=script/hello_world.likely) | [Next](./index.html?show=script/closures.likely)
+[Previous](./index.html?show=hello_world) | [Next](./index.html?show=closures)

@@ -1,7 +1,7 @@
 Examples
 --------
-1. [Hello World](./index.html?show=script/hello_world.likely)
-2. [Function Calls](./index.html?show=script/function_calls.likely)
-3. [Closures](./index.html?show=script/closures.likely)
-4. [Arithmetic](./index.html?show=script/arithmetic.likely)
-5. [Currying](./index.html?show=script/currying.likely)
+1. [Hello World](./index.html?show=hello_world)
+2. [Function Calls](./index.html?show=function_calls)
+3. [Closures](./index.html?show=closures)
+4. [Arithmetic](./index.html?show=arithmetic)
+5. [Currying](./index.html?show=currying)

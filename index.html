@@ -89,7 +89,7 @@ function getQueryVariable(variable) {
 }
 
 show = getQueryVariable("show");
-if (!show) show = "script/standard.likely"
+if (!show) show = "standard"
 
 String.prototype.endsWith = function(suffix) {
   return this.indexOf(suffix, this.length - suffix.length) !== -1;
@@ -118,7 +118,7 @@ if (!show.endsWith(".tsv")) {
     smartypants: true,
   });
 
-  $.get(show).done(function(md) {
+  $.get("script/" + show + ".likely").done(function(md) {
     $("#content").html(marked(md));
     $('table').addClass("table table-condensed table-nonfluid");
   })

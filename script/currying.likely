@@ -15,4 +15,4 @@ n = fma(m)
 show(n)
 ```
 
-[Previous](./index.html?show=script/arithmetic.likely) | [Next](./index.html?show=script/mandelbrot_set.likely)
+[Previous](./index.html?show=arithmetic)
