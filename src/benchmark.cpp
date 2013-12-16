@@ -111,7 +111,7 @@ struct Test
     static void runExample(const string &fileName)
     {
         static lua_State *L = likely_exec("", NULL);
-        ifstream file("../script/" + fileName + ".likely");
+        ifstream file("../" + fileName);
         const string source((istreambuf_iterator<char>(file)),
                              istreambuf_iterator<char>());
 
@@ -125,8 +125,11 @@ struct Test
             iter++;
         }
         Speed speed(iter, startTime, endTime);
-        if (!BenchmarkQuiet)
-            printf("%s \t%.2e \n", fileName.c_str(), speed.Hz);
+        if (!BenchmarkQuiet) {
+            const string::size_type start = fileName.find_last_of("/")+1;
+            const string::size_type stop = fileName.find_last_of(".");
+            printf("%s \t%.2e \n", fileName.substr(start, stop-start).c_str(), speed.Hz);
+        }
     }
 
 protected:
@@ -422,11 +425,15 @@ int main(int argc, char *argv[])
 
     if (BenchmarkExamples) {
         printf("Example \tSpeed\n");
-        Test::runExample("hello_world");
-        Test::runExample("function_calls");
-        Test::runExample("closures");
-        Test::runExample("arithmetic");
-        Test::runExample("currying");
+        ifstream file("../script/examples.likely");
+        string line;
+        // Skip header
+        getline(file, line);
+        getline(file, line);
+        while (getline(file, line)) {
+            string::size_type index = line.find("=", 0);
+            Test::runExample(line.substr(index+1, line.size()-index-2));
+        }
     } else {
         printf("Function \tType \tSize \tExecution \tSpeedup\n");
         addTest().run();
