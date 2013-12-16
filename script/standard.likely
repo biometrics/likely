@@ -7,7 +7,7 @@ Likely Kernel Library
 ## Introduction
 Welcome to the documentation and source code for _Likely_, the image recognition programming language!
 
-**Skip to the good stuff: [examples](./index.html?show=examples), [demos](./index.html?show=demos), [benchmark](./index.html?show=benchmark.tsv).**
+**Skip to the good stuff: [examples](index.html?show=examples), [demos](index.html?show=demos), [benchmark](index.html?show=benchmark.tsv).**
 
 ### Principles
  - Heterogeneous hardware architecture support
@@ -17,7 +17,7 @@ Welcome to the documentation and source code for _Likely_, the image recognition
  - Free open source software
 
 ### Help
-We try to keep this document complete and correct. However, should you run into trouble, please feel free to ask questions on our [mailing list](https://groups.google.com/forum/#!forum/likely-dev) or report bugs on our [issue tracker](https://github.com/biometrics/likely/issues). Consider starting with **hello world in [Likely](./index.html?show=hello_world) and [C](src/hello_world.c)**.
+We try to keep this document complete and correct. However, should you run into trouble, please feel free to ask questions on our [mailing list](https://groups.google.com/forum/#!forum/likely-dev) or report bugs on our [issue tracker](https://github.com/biometrics/likely/issues). Consider starting with **hello world in [Likely](index.html?show=hello_world) and [C](src/hello_world.c)**.
 
 #### This Document
 **Likely is a [literate programming](http://en.wikipedia.org/wiki/Literate_programming) language.** In addition to documenting the project, this file is also the [source code](script/standard.likely) for the standard library. Likely uses [Github Flavored Markdown](https://help.github.com/articles/github-flavored-markdown) (GFM) syntax, and the Likely runtime will automatically extract and execute _code blocks_ found in GFM source files.

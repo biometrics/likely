@@ -111,7 +111,7 @@ struct Test
     static void runExample(const string &fileName)
     {
         static lua_State *L = likely_exec("", NULL);
-        ifstream file("../" + fileName);
+        ifstream file("../script/" + fileName + ".likely");
         const string source((istreambuf_iterator<char>(file)),
                              istreambuf_iterator<char>());
 
@@ -125,11 +125,8 @@ struct Test
             iter++;
         }
         Speed speed(iter, startTime, endTime);
-        if (!BenchmarkQuiet) {
-            const string::size_type start = fileName.find_last_of("/")+1;
-            const string::size_type stop = fileName.find_last_of(".");
-            printf("%s \t%.2e \n", fileName.substr(start, stop-start).c_str(), speed.Hz);
-        }
+        if (!BenchmarkQuiet)
+            printf("%s \t%.2e \n", fileName.c_str(), speed.Hz);
     }
 
 protected:
