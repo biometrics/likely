@@ -111,7 +111,7 @@ struct Test
     static void runExample(const string &fileName)
     {
         static lua_State *L = likely_exec("", NULL);
-        ifstream file("../examples/" + fileName + ".likely");
+        ifstream file("../script/" + fileName + ".likely");
         const string source((istreambuf_iterator<char>(file)),
                              istreambuf_iterator<char>());
 

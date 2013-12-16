@@ -2,8 +2,9 @@ Function Calls
 --------------
 **[Source Code](script/function_calls.likely)**
 
-Arguments can be specified by name...\dream{activate:new}
+Arguments can be specified by name...
 
+    show(new)
     m = new{rows=512, columns=512, type=f32}()
 
 ...or anonymously in their canonical order.

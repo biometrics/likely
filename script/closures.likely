@@ -4,13 +4,16 @@ Closures
 
     m = new{rows=512, columns=512, type=i8}()
 
-The braces {} syntax returns a new function with the bound arguments.\dream{activate:set}\dream{activate:setZero}
+The braces {} syntax returns a new function with the bound arguments.
 
     setZero = set{0}
+    show(set)
+    show(setZero)
 
-The function is just-in-time compiled using the bound arguments before execution.\dream{activate:n}
+The function is just-in-time compiled using the bound arguments before execution.
 
     n = setZero(m)
+    show(n)
 
 set{0}(m)
     ^  ^

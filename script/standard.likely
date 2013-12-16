@@ -246,6 +246,13 @@ compile = closure(
   "Create kernel",
   {{"function", "function expression"}},
   likely.compile)
+
+show = closure(
+  nil,
+  "Display a value",
+  {{"value", "value to display"},
+   {"name", "display title", ""}},
+  likely.show)
 ```
 
 ### Utility functions

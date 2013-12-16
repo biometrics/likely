@@ -276,6 +276,17 @@ static int lua_likely_render(lua_State *L)
     return 1;
 }
 
+static likely_show_callback ShowCallback = NULL;
+static void *ShowContext = NULL;
+
+static int lua_likely_show(lua_State *L)
+{
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, args == 2, "'show' expected 2 arguments, got: %d", args);
+    if (ShowCallback) ShowCallback(L, ShowContext);
+    return 0;
+}
+
 static int lua_likely_compile(lua_State *L)
 {
     const int args = lua_gettop(L);
@@ -340,7 +351,7 @@ static int lua_likely_closure(lua_State *L)
 
     lua_newtable(L);
     lua_pushnil(L);
-    int i = 1;
+    int key = 1, value = 1, lastUnset = 0;
     while (lua_next(L, 3)) {
         // All parameters can be set by name
         lua_pushinteger(L, 1);
@@ -350,11 +361,21 @@ static int lua_likely_closure(lua_State *L)
 
         // Unassigned parameters can also be set by index
         if (lua_objlen(L, -1) < 3) {
-            lua_pushinteger(L, i++);
+            lua_pushinteger(L, value++);
             lua_pushvalue(L, -3);
             lua_settable(L, -5);
+            lastUnset = key;
         }
+
+        key++;
         lua_pop(L, 1);
+    }
+
+    // Assigned parameters after the last unassigned parameter can be set by index
+    for (int i=lastUnset+1; i<key; i++) {
+        lua_pushinteger(L, value++);
+        lua_pushinteger(L, i);
+        lua_settable(L, -3);
     }
     lua_setfield(L, -2, "parameterLUT");
 
@@ -368,13 +389,14 @@ static int lua_likely__call(lua_State *L)
     const int args = lua_gettop(L);
     lua_likely_assert(L, args >= 1, "'__call' expected at least one argument");
 
+    static int i = -1;
+    i++;
+
     // Copy the arguments already in the closure to a new table
     lua_newtable(L);
     lua_getfield(L, 1, "parameters");
     lua_pushnil(L);
-    bool overrideArguments = true;
     while (lua_next(L, -2)) {
-        overrideArguments = overrideArguments && (lua_objlen(L, -1) >= 3);
         lua_newtable(L);
         lua_pushnil(L);
         while (lua_next(L, -3)) {
@@ -398,7 +420,7 @@ static int lua_likely__call(lua_State *L)
         lua_pushnil(L);
         while (lua_next(L, 2)) {
             lua_pushvalue(L, -2);
-            if (!lua_isnumber(L, -1) || !overrideArguments)
+            if (!lua_isnumber(L, -1))
                 lua_gettable(L, -4);
             lua_gettable(L, -5);
             lua_insert(L, -2);
@@ -412,8 +434,7 @@ static int lua_likely__call(lua_State *L)
         for (int i=1; i<args; i++) {
             lua_pushinteger(L, i);
             if (i <= parameters) {
-                if (!overrideArguments)
-                    lua_gettable(L, -2);
+                lua_gettable(L, -2);
                 lua_gettable(L, -3);
                 lua_pushnumber(L, 3);
                 lua_pushvalue(L, i+1);
@@ -575,6 +596,7 @@ int luaopen_likely(lua_State *L)
         {"read", lua_likely_read},
         {"closure", lua_likely_closure},
         {"compile", lua_likely_compile},
+        {"show", lua_likely_show},
         {NULL, NULL}
     };
 
@@ -758,6 +780,12 @@ static void toStream(lua_State *L, int index, stringstream &stream, int levels =
         stream << lua_typename(L, type);
     }
     lua_pop(L, 1);
+}
+
+LIKELY_EXPORT void likely_set_show_callback(likely_show_callback callback, void *context)
+{
+    ShowCallback = callback;
+    ShowContext = context;
 }
 
 void likely_stack_dump(lua_State *L, int levels)

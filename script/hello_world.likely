@@ -1,16 +1,19 @@
 Hello World
 -----------
-**[Source Code](script/hello_world.likely)**
+Copy and paste this **[source code](script/hello_world.likely)** into _likely_.
 
-Source code is re-executed as you type\dream{activate:message}
+Source code is re-executed as you type:
 
     message = "Hello World!"
+    show(message)
 
-\dream{CTRL}+click variables to display values
+CTRL+click variables to display values (CTRL = command key on OS X):
 
     lenna = read("../data/misc/lenna.tiff")
 
-\dream{CTRL}+scroll to edit numerical constants
+This is equivalent to calling 'show'.
+
+CTRL+scroll to edit numerical constants:
 
     dark_lenna = divide{2}(lenna)
 
