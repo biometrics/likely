@@ -7,14 +7,14 @@ Source code is re-executed as you type:
     message = "Hello World!"
     show(message)
 
-CTRL+click variables to display values (CTRL = command key on OS X):
+CTRL+click variables to display values (CTRL = 'command' on OS X):
 
     lenna = read("../data/misc/lenna.tiff")
 
-This is equivalent to calling 'show'.
+This is equivalent to calling 'show(lenna, "lenna")'.
 
 CTRL+scroll to edit numerical constants:
 
     dark_lenna = divide{2}(lenna)
 
-[Next](index.html?show=function_calls)
+[Next](index.html?show=comments)

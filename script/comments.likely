@@ -1,0 +1,17 @@
+Comments
+--------
+**[Source Code](script/comments.likely)**
+
+Likely supports [Github Flavored Markdown](https://help.github.com/articles/github-flavored-markdown). Code can be specified like:
+
+    x = 1
+
+or
+
+```
+y = 2
+```
+
+or `z = 3`. Everything else is comments!
+
+[Previous](index.html?show=hello_world) | [Next](index.html?show=function_calls)

@@ -106,7 +106,7 @@ What if we'd like our function to execute in parallel on multiple CPU cores? Or 
 The critical reader will no doubt observe that C++ offers reasonable solutions to each of the individual considerations mentioned above. However, in reality an algorithm designer must wrestle with all of these considerations simultaneously, and it takes a herculean effort to do so. Consider the software engineering involved in implementing and maintaining OpenCV's optimized generic matrix addition and subtraction [arithm_op](https://raw.github.com/Itseez/opencv/master/modules/core/src/arithm.cpp) function. Yet it's still a leaky abstraction because it prevents arguably the single most important optimization that can be made when writing image processing algorithms: avoiding memory I/O when chaining together multiple arithmetic operations. Writing generic code while juggling all of these optimization considerations requires considerable cognitive load and developement time that would be better spent designing algorithms with a compiler that automatically handled them.
 
 ### Why not MATLAB?
-`To Be Continued`
+**To Be Continued**
 
 ### Why not _X_?
 How well does _X_ support the following features?
@@ -123,10 +123,10 @@ How well does _X_ support the following features?
  - Algorithm visualization and interaction
 
 ## C API
-C/C++ projects should `#include <likely.h>` and link against the `likely` library. `LikelyConfig.cmake` is provided in `share/likely/` as a convenience to CMake developers. Likely definitions are prefixed with `likely_` and use a `lowercase_underscore` naming convention. Consider taking a moment to skim the [header file](include/likely.h).
+C/C++ projects should **#include <likely.h>** and link against the **likely** library. **LikelyConfig.cmake** is provided in **share/likely/** as a convenience to CMake developers. Likely definitions are prefixed with **likely_** and use a **lowercase_underscore** naming convention. Consider taking a moment to skim the [header file](include/likely.h).
 
 ### The Matrix Struct
-The `likely_mat`, or _matrix_, is only struct in the API and serves as the input and output for all function invocations:
+The **likely_mat**, or _matrix_, is only struct in the API and serves as the input and output for all function invocations:
 
 | Field    | Type           | Description                       |
 |----------|----------------|-----------------------------------|
@@ -154,12 +154,12 @@ float likely_get_element(likely_mat m, likely_size c, likely_size x, likely_size
 }
 ```
 
-Convenience functions `likely_element` and `likely_set_element` are provided for individual element access. These functions are inefficient for iterating over a large numbers of elements due to the repeated index calculations, and their use is suggested only for debugging purposes or when the matrix is known to be small.
+Convenience functions **likely_element** and **likely_set_element** are provided for individual element access. These functions are inefficient for iterating over a large numbers of elements due to the repeated index calculations, and their use is suggested only for debugging purposes or when the matrix is known to be small.
 
 #### Matrix Type
-As suggested earlier, `likely_type` plays a critical role in determining how to process matricies. The type is a 4-byte _bit field_ that encodes what data type the matrix is and how/where it should be processed. It also specifies knowledge used to optimized code generation and by removing unneccesary indexing, looping, and branching.
+As suggested earlier, **likely_type** plays a critical role in determining how to process matricies. The type is a 4-byte _bit field_ that encodes what data type the matrix is and how/where it should be processed. It also specifies knowledge used to optimized code generation and by removing unneccesary indexing, looping, and branching.
 
-Here is the layout of the bits in `likey_type`:
+Here is the layout of the bits in **likey_type**:
 
 | Field         | Bits | Mask       |
 |---------------|------|------------|
@@ -175,7 +175,7 @@ Here is the layout of the bits in `likey_type`:
 | saturation    | 1    | 0x00010000 |
 | reserved      | 15   | 0xFFFE0000 |
 
-Convenience functions `likely_<field>` and `likely_set_<field>` are provided for querying and editing the type.
+Convenience functions **likely_<field>** and **likely_set_<field>** are provided for querying and editing the type.
 
 ### Type abbreviations
 ```Lua
@@ -292,8 +292,8 @@ divide = closure(
     end
   end,
   "Arithmetic division",
-  {{"rhs", "left hand side (denominator)"},
-   {"lhs", "right hand side (numerator)"}})
+  {{"rhs", "right hand side (denominator)"},
+   {"lhs", "left hand side (numerator)"}})
 ```
 
 ### Math

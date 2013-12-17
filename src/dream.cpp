@@ -278,8 +278,20 @@ private:
         else
             setCurrentBlockState(previousBlockState() == -1 ? 1 : previousBlockState());
 
-        if (!text.startsWith("    ") && (currentBlockState() || codeBlockMarker))
-            setFormat(0, text.size(), font);
+        if (!text.startsWith("    ") && (currentBlockState() || codeBlockMarker)) {
+            int start = -1, stop = -1;
+            do {
+                start = stop;
+                stop = codeBlockMarker ? -1 : text.indexOf('`', start+1);
+                if (start == -1) start = 0;
+                if (stop == -1) stop = text.size();
+                else            stop++;
+                setFormat(start, stop - start, font);
+                if (stop == text.size())
+                    break;
+                stop = text.indexOf('`', stop);
+            } while (true);
+        }
     }
 
     static QSet<QString> getGlobals(lua_State *L)

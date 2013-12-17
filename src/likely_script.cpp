@@ -696,17 +696,24 @@ static string removeGFM(const string &source)
                        (syntax != "lua")) {
                 skipBlock = true;
             } else {
-                if (inCode)
-                    result << "\n";
                 inCode = !inCode;
             }
             continue;
         }
 
-        if (inCode)
+        if (inCode) {
             result << line << "\n";
-        else if (!skipBlock && (line.substr(0, 4) == "    "))
+        } else if (!skipBlock && (line.substr(0, 4) == "    ")) {
             result << line.substr(4, line.size()-4) << "\n";
+        } else {
+            string::size_type start = -1, stop = -1;
+            do {
+                start = line.find('`', stop  + 1);
+                stop  = line.find('`', start + 1);
+                if ((start != string::npos) && (stop != string::npos))
+                    result << line.substr(start + 1, stop - start - 1) << "\n";
+            } while (start != string::npos);
+        }
     }
 
     return result.str();
