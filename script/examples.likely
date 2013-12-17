@@ -1,7 +1,8 @@
 Examples
 --------
 1. [Hello World](index.html?show=hello_world)
-2. [Function Calls](index.html?show=function_calls)
-3. [Closures](index.html?show=closures)
-4. [Arithmetic](index.html?show=arithmetic)
-5. [Currying](index.html?show=currying)
+2. [Comments](index.html?show=comments)
+3. [Function Calls](index.html?show=function_calls)
+4. [Closures](index.html?show=closures)
+5. [Arithmetic](index.html?show=arithmetic)
+6. [Currying](index.html?show=currying)
