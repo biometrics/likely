@@ -2,15 +2,12 @@ Function Calls
 --------------
 **[Source Code](script/function_calls.likely)**
 
-Arguments can be specified by name...
+Likely uses a conventional function call syntax where arguments are provided in a canonical order:
 
-    show(new)
-    m = new{rows=512, columns=512, type=f32}()
+    show(new, "new")
+    n = new(f32,  1,        512,     512)
+    --      type  channels  columns  rows
 
-...or anonymously in their canonical order.
-
-    n = new(f32, 1, 512, 512)
-
-Arguments not specified by name are assigned to the first parameter without a bound value. If all parameters are bound then arguments will override the left-most values.
+Any parameter in a function may have a default value bound to it. Arguments are assigned left-to-right first to unbound parameters then to bound parameters.
 
 [Previous](index.html?show=comments) | [Next](index.html?show=closures)

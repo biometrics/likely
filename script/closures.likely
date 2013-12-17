@@ -2,22 +2,13 @@ Closures
 --------
 **[Source Code](script/closures.likely)**
 
-    m = new{rows=512, columns=512, type=i8}()
+The braces {} syntax returns a new function with the bound arguments:
 
-The braces {} syntax returns a new function with the bound arguments.
+    m = new{rows=512, columns=512, channels=1, type=i8}
+    n = new{i8, 1, 512, 512} -- equivalent to m
 
-    setZero = set{0}
-    show(set)
-    show(setZero)
-
-The function is just-in-time compiled using the bound arguments before execution.
-
-    n = setZero(m)
+    show(new)
     show(n)
-
-set{0}(m)
-    ^  ^
-    |  Run-time arguments
-    Compile-time arguments
+    uninitialized_memory = n()
 
 [Previous](index.html?show=function_calls) | [Next](index.html?show=arithmetic)

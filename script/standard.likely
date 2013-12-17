@@ -7,7 +7,7 @@ Likely Kernel Library
 ## Introduction
 Welcome to the documentation and source code for _Likely_, the image recognition programming language!
 
-**Skip to the good stuff: [examples](index.html?show=examples), [demos](index.html?show=demos), [benchmark](index.html?show=benchmark.tsv).**
+**Skip to the good stuff: [examples](?show=examples), [demos](index.html?show=demos), [benchmark](index.html?show=benchmark.tsv).**
 
 ### Principles
  - Heterogeneous hardware architecture support
@@ -225,7 +225,7 @@ new = closure(
    {"columns", "matrix columns", 1},
    {"rows", "matrix rows", 1},
    {"frames", "matrix frames", 1},
-   {"data", "address of existing data buffer", 0},
+   {"data", "pointer to existing data buffer", 0},
    {"copy", "copy the data buffer", false}},
   likely.new)
 

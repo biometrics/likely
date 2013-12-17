@@ -389,9 +389,6 @@ static int lua_likely__call(lua_State *L)
     const int args = lua_gettop(L);
     lua_likely_assert(L, args >= 1, "'__call' expected at least one argument");
 
-    static int i = -1;
-    i++;
-
     // Copy the arguments already in the closure to a new table
     lua_newtable(L);
     lua_getfield(L, 1, "parameters");
@@ -412,7 +409,14 @@ static int lua_likely__call(lua_State *L)
     lua_pop(L, 1);
 
     // Using {} syntax?
-    const bool curry = (args == 2) && lua_istable(L, 2);
+    bool curry = (args == 2) && lua_istable(L, 2);
+    if (curry) {
+        // Make sure it isn't a closure
+        lua_getmetatable(L, 2);
+        luaL_getmetatable(L, "likely_closure");
+        curry = !lua_rawequal(L, -1, -2);
+        lua_pop(L, 2);
+    }
 
     // Add the new arguments
     lua_getfield(L, 1, "parameterLUT");
@@ -626,9 +630,9 @@ int luaopen_likely(lua_State *L)
 
     // Register closure metatable
     luaL_newmetatable(L, "likely_closure");
-    luaL_setfuncs(L, likely_closure, 0);
     lua_pushvalue(L, -1);
     lua_setfield(L, -2, "__index");
+    luaL_setfuncs(L, likely_closure, 0);
 
     // Idiom for registering library with member functions
     luaL_newmetatable(L, "likely");
@@ -808,5 +812,5 @@ void likely_stack_dump(lua_State *L, int levels)
         stream << "\n";
     }
     fprintf(stderr, "Lua stack dump:\n%s", stream.str().c_str());
-    lua_likely_assert(L, false, "Lua execution error");
+    abort();
 }

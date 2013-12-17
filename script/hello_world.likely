@@ -1,17 +1,15 @@
 Hello World
 -----------
-Copy and paste this **[source code](script/hello_world.likely)** into _likely_.
-
-Source code is re-executed as you type:
+Copy and paste this **[source code](script/hello_world.likely)** into _likely_. Note that it is re-executed as you edit:
 
     message = "Hello World!"
     show(message)
 
-CTRL+click variables to display values (CTRL = 'command' on OS X):
+'show' is the graphical equivalent of 'print'. Alternatively, CTRL+click variables to display values (command+click on OS X):
 
     lenna = read("../data/misc/lenna.tiff")
 
-This is equivalent to calling 'show(lenna, "lenna")'.
+CTRL+click is equivalent to calling 'show(lenna, "lenna")' at the end of the script.
 
 CTRL+scroll to edit numerical constants:
 

@@ -172,7 +172,12 @@ class Closure : public Variable
             lua_pop(L, 1);
             QString value;
             if (lua_next(L, -2)) {
-                value = lua_tostring(L, -1);
+                if (lua_isboolean(L, -1)) {
+                    if (lua_toboolean(L, -1)) value = "true";
+                    else                      value = "false";
+                } else {
+                    value = lua_tostring(L, -1);
+                }
                 lua_pop(L, 2);
             }
             lua_pop(L, 1);
