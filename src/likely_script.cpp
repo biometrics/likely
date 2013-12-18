@@ -290,15 +290,14 @@ static int lua_likely_show(lua_State *L)
 static int lua_likely_compile(lua_State *L)
 {
     const int args = lua_gettop(L);
-    lua_likely_assert(L, args >= 1, "'compile' expected at least one argument");
-
-    vector<likely_type> types;
-    for (int i=2; i<=args; i++)
-        types.push_back(checkLuaMat(L, i)->type);
+    lua_likely_assert(L, args == 1, "'compile' expected one argument, got: %d", args);
+    lua_getglobal(L, "tostring");
+    lua_pushvalue(L, 1);
+    lua_call(L, 1, 1);
 
     // Retrieve or compile the function
     static map<string,likely_function_n> functions;
-    likely_source source = lua_tostring(L, 1);
+    likely_source source = lua_tostring(L, -1);
     map<string,likely_function_n>::const_iterator it = functions.find(source);
     if (it == functions.end()) {
         functions.insert(pair<string,likely_function_n>(source, likely_compile_n(source)));
@@ -308,23 +307,11 @@ static int lua_likely_compile(lua_State *L)
     // Return a closure
     lua_getglobal(L, "closure");
     lua_pushstring(L, ""); // source
-    lua_pushstring(L, "Likely compiled function"); // documentation
+    lua_pushstring(L, "Likely JIT function"); // documentation
     lua_newtable(L); // parameters
-    for (int i=2; i<=args; i++) {
-        lua_pushinteger(L, i-1);
-        lua_newtable(L);
-        stringstream stream;
-        stream << "arg" << i;
-        lua_pushinteger(L, 1);
-        lua_pushstring(L, stream.str().c_str());
-        lua_settable(L, -3);
-        lua_pushinteger(L, 2);
-        lua_pushstring(L, "");
-        lua_settable(L, -3);
-        lua_settable(L, -3);
-    }
     lua_pushlightuserdata(L, (void*)it->second); // binary
     lua_call(L, 4, 1);
+
     return 1;
 }
 
@@ -482,11 +469,15 @@ static int lua_likely__call(lua_State *L)
         lua_pop(L, 2);
     }
 
-    lua_getfield(L, 1, "binary");
-
     // Compile if needed
+    lua_getfield(L, 1, "binary");
     if (lua_isnil(L, -1)) {
-        lua_pop(L, 1);
+        lua_getglobal(L, "compile");
+        lua_pushvalue(L, 1);
+        lua_call(L, 1, 1);
+        lua_getfield(L, -1, "binary");
+        lua_insert(L, -3);
+        lua_pop(L, 2);
 
         // Convert numbers to matricies
         for (int i=2; i<=args; i++)
@@ -494,19 +485,6 @@ static int lua_likely__call(lua_State *L)
                 *newLuaMat(L) = likely_scalar(lua_tonumber(L, i));
                 lua_replace(L, i);
             }
-
-        // Compile the function
-        lua_getglobal(L, "likely");
-        lua_getfield(L, -1, "compile");
-        lua_getglobal(L, "tostring");
-        lua_pushvalue(L, 1);
-        lua_call(L, 1, 1);
-        for (int i=2; i<=args; i++)
-            lua_pushvalue(L, i);
-        lua_call(L, args, 1);
-        lua_getfield(L, -1, "binary");
-        lua_insert(L, -3);
-        lua_pop(L, 2);
     }
 
     // Call the function

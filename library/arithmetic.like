@@ -1,5 +1,6 @@
 Arithmetic
 ----------
+
     lenna = read("../data/misc/lenna.tiff")
 
 Saturation arithmetic is part of the type system
@@ -15,4 +16,4 @@ multiplied = multiply(2,lenna)
 divided = divide(2,lenna)
 ```
 
-[Previous](?show=core_functions) | [Next](?show=currying)
+[Previous](?show=compilation) | [Next](?show=currying)

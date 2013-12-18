@@ -11,6 +11,6 @@ or
 y = 4*x
 ```
 
-or `z = y+6` `show(z)`. Everything not in a code block is a comment!
+or `z = y+6` `show(z)`. Everything outside a code block is a comment!
 
 [Previous](?show=hello_world) | [Next](?show=function_calls)

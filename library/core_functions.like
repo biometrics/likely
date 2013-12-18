@@ -14,4 +14,4 @@ There are 3 principal functions in Likely:
 
 **new** and **read** are our familar methods for creating matricies. **compile** is our interface into the Likely just-in-time compiler for generating image recognition functions that operate on matricies. As we will learn next, nearly all the remaining Likely functionality exists to make compilation as easy as possible.
 
-[Previous](?show=closures) | [Next](?show=arithmetic)
+[Previous](?show=closures) | [Next](?show=compilation)
