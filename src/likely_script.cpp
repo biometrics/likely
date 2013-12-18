@@ -421,27 +421,29 @@ static int lua_likely__call(lua_State *L)
         }
     } else {
         const int parameters = luaL_len(L, -1);
-        for (int i=1; i<args; i++) {
-            lua_pushinteger(L, i);
-            if (i <= parameters) {
+        for (int i=2; i<=args; i++) {
+            lua_pushinteger(L, i-1);
+            if (i-1 <= parameters) {
                 lua_gettable(L, -2);
                 lua_gettable(L, -3);
                 lua_pushnumber(L, 3);
-                lua_pushvalue(L, i+1);
+                lua_pushvalue(L, i);
                 lua_settable(L, -3);
                 lua_pop(L, 1);
             } else {
                 // Handle extra arguments
                 lua_newtable(L);
                 stringstream stream;
-                stream << "extra_" << i - parameters;
+                stream << "extra_" << i - 1 - parameters;
                 lua_pushinteger(L, 1);
                 lua_pushstring(L, stream.str().c_str());
-                lua_settable(L, -3);
+                lua_settable(L, -3); // name
                 lua_pushinteger(L, 2);
-                lua_pushstring(L, "");
-                lua_pushvalue(L, i+1);
+                lua_pushstring(L, ""); // documentation
                 lua_settable(L, -3);
+                lua_pushinteger(L, 3);
+                lua_pushvalue(L, i);
+                lua_settable(L, -3); // value
                 lua_settable(L, -3);
             }
         }

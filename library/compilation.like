@@ -11,12 +11,12 @@ Just-in-time (JIT) compilation is the key feature enabling Likely algorithms to 
     divide2 = divide{2}
     likely_ir = tostring(divide2)
     jit_function = compile(likely_ir)
-    -- dark_lenna = jit_function(lenna)
+    dark_lenna = jit_function(lenna)
 
     show(divide, "divide")
     show(divide2, "divide2")
     show(likely_ir, "likely_ir")
-    -- show(jit_function, "jit_function")
+    show(jit_function, "jit_function")
 
 **divide** is a function in the standard library that returns a _source code expression_ of scalar division. **div2** is a new closure around the *divide* function with *2* bound as the denominator.
 
