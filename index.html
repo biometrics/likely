@@ -46,14 +46,25 @@ _gaq.push(['_trackPageview']);
 <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
   <div class="container">
     <div class="navbar-header">
-      <a class="navbar-brand" href="./index.html">Likely</a>
+      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar-collapse">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Likely</a>
     </div>
-    <div class="collapse navbar-collapse">
+    <div class="collapse navbar-collapse" id="navbar-collapse">
       <ul class="nav navbar-nav">
         <li><a href="https://github.com/biometrics/likely">Source</a></li>
         <li><a href="https://github.com/jklontz">Author</a></li>
         <li><a href="http://www.noblis.org/">Noblis</a></li>
       </ul>
+      <div class="pull-right">
+        <form class="navbar-form navbar-right">
+          <a class="btn btn-primary" id="raw">View Source</a>
+        </form>
+      </div>
     </div>
   </div>
 </div>
@@ -95,19 +106,13 @@ String.prototype.endsWith = function(suffix) {
   return this.indexOf(suffix, this.length - suffix.length) !== -1;
 };
 
-if (!show.endsWith(".tsv")) {
-  escape = function (str) {
-    return str
-    .replace(/[\\]/g, '\\\\')
-    .replace(/[\"]/g, '\\\"')
-    .replace(/[\/]/g, '\\/')
-    .replace(/[\b]/g, '\\b')
-    .replace(/[\f]/g, '\\f')
-    .replace(/[\n]/g, '\\n')
-    .replace(/[\r]/g, '\\r')
-    .replace(/[\t]/g, '\\t');
-  };
+if (show.endsWith("/"))
+    show = show.substring(0, show.length-1);
+if (!show.endsWith(".tsv"))
+    show = "script/" + show + ".likely";
+$("#raw").attr("href","http://raw.github.com/biometrics/likely/gh-pages/"+show);
 
+if (!show.endsWith(".tsv")) {
   marked.setOptions({
     gfm: true,
     tables: true,
@@ -118,7 +123,7 @@ if (!show.endsWith(".tsv")) {
     smartypants: true,
   });
 
-  $.get("script/" + show + ".likely").done(function(md) {
+  $.get(show).done(function(md) {
     $("#content").html(marked(md));
     $('table').addClass("table table-condensed table-nonfluid");
   })

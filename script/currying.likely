@@ -1,7 +1,5 @@
 Currying
 --------
-**[Source Code](script/currying.likely)**
-
 ```
 m = read("../data/misc/lenna.tiff")
 m.saturation = true
@@ -15,4 +13,4 @@ n = fma(m)
 show(n)
 ```
 
-[Previous](index.html?show=arithmetic)
+[Previous](?show=arithmetic)

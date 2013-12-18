@@ -1,6 +1,6 @@
 Hello World
 -----------
-Copy and paste this **[source code](script/hello_world.likely)** into _likely_. Note that it is re-executed as you edit:
+Click *View Source* and copy this source code into _likely_. Note that it is re-executed as you edit:
 
     message = "Hello World!"
     show(message)
@@ -15,4 +15,4 @@ CTRL+scroll to edit numerical constants:
 
     dark_lenna = divide{2}(lenna)
 
-[Next](index.html?show=comments)
+[Next](?show=comments)

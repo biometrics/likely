@@ -1,7 +1,5 @@
 Function Calls
 --------------
-**[Source Code](script/function_calls.likely)**
-
 Likely uses a conventional function call syntax where arguments are provided in a canonical order:
 
     show(new, "new")
@@ -10,4 +8,4 @@ Likely uses a conventional function call syntax where arguments are provided in 
 
 Any parameter in a function may have a default value bound to it. Arguments are assigned left-to-right first to unbound parameters then to bound parameters.
 
-[Previous](index.html?show=comments) | [Next](index.html?show=closures)
+[Previous](?show=comments) | [Next](?show=closures)

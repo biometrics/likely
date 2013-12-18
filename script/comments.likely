@@ -1,7 +1,5 @@
 Comments
 --------
-**[Source Code](script/comments.likely)**
-
 Likely supports [Github Flavored Markdown](https://help.github.com/articles/github-flavored-markdown). Code is specified in blocks like
 
     x = 9
@@ -15,4 +13,4 @@ y = 4*x
 
 or `z = y+6`, `show(z)`. Everything not in a code block is also a comment!
 
-[Previous](index.html?show=hello_world) | [Next](index.html?show=function_calls)
+[Previous](?show=hello_world) | [Next](?show=function_calls)

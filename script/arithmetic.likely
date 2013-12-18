@@ -1,7 +1,5 @@
 Arithmetic
 ----------
-**[Source Code](script/arithmetic.likely)**
-
     lenna = read("../data/misc/lenna.tiff")
 
 Saturation arithmetic is part of the type system
@@ -17,4 +15,4 @@ multiplied = multiply(2,lenna)
 divided = divide(2,lenna)
 ```
 
-[Previous](index.html?show=closures) | [Next](index.html?show=currying)
+[Previous](?show=closures) | [Next](?show=currying)

@@ -1,7 +1,5 @@
 Closures
 --------
-**[Source Code](script/closures.likely)**
-
 The braces {} syntax returns a new function with the bound arguments:
 
     m = new{rows=512, columns=512, channels=1, type=i8}
@@ -11,4 +9,4 @@ The braces {} syntax returns a new function with the bound arguments:
     show(n)
     uninitialized_memory = n()
 
-[Previous](index.html?show=function_calls) | [Next](index.html?show=arithmetic)
+[Previous](?show=function_calls) | [Next](?show=arithmetic)
