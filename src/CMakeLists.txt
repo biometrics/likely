@@ -19,11 +19,11 @@ if(APPLE)
 endif()
 
 add_executable(embedfile embedfile.c)
-file(GLOB LIKELY_SCRIPTS ${CMAKE_SOURCE_DIR}/script/*.likely)
+file(GLOB LIKELY_LIBRARY ${CMAKE_SOURCE_DIR}/library/*.like)
 
 set(LIKELY_SRC likely.cpp)
 set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES})
-set(LIKELY_MISC ${LIKELY_SCRIPTS}
+set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/include/likely.h
                 ${CMAKE_SOURCE_DIR}/LICENSE.txt
                 ${CMAKE_SOURCE_DIR}/README.md)
@@ -41,8 +41,8 @@ endif()
 if(${LIKELY_SCRIPT})
   add_definitions(-DLIKELY_SCRIPT)
   add_custom_command(OUTPUT likely_standard_library.c
-                     COMMAND embedfile likely_standard_library ${CMAKE_SOURCE_DIR}/script/standard.likely
-                     DEPENDS embedfile ${CMAKE_SOURCE_DIR}/script/standard.likely)
+                     COMMAND embedfile likely_standard_library ${CMAKE_SOURCE_DIR}/library/standard.like
+                     DEPENDS embedfile ${CMAKE_SOURCE_DIR}/library/standard.like)
   set(LIKELY_SRC ${LIKELY_SRC} likely_script.cpp ${CMAKE_CURRENT_BINARY_DIR}/likely_standard_library.c)
   set(LIKELY_LIBS ${LIKELY_LIBS} liblua)
   set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)

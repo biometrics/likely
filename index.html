@@ -109,7 +109,7 @@ String.prototype.endsWith = function(suffix) {
 if (show.endsWith("/"))
     show = show.substring(0, show.length-1);
 if (!show.endsWith(".tsv"))
-    show = "script/" + show + ".likely";
+    show = "library/" + show + ".like";
 $("#raw").attr("href","http://raw.github.com/biometrics/likely/gh-pages/"+show);
 
 if (!show.endsWith(".tsv")) {

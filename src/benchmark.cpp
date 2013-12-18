@@ -110,7 +110,7 @@ struct Test
     static void runFile(const string &fileName)
     {
         static lua_State *L = likely_exec("", NULL);
-        ifstream file("../script/" + fileName + ".likely");
+        ifstream file("../library/" + fileName + ".like");
         const string source((istreambuf_iterator<char>(file)),
                              istreambuf_iterator<char>());
 
@@ -433,7 +433,7 @@ int main(int argc, char *argv[])
 
     if (BenchmarkTutorial || BenchmarkAll) {
         printf("File     \tSpeed (Hz)\n");
-        ifstream file("../script/tutorial.likely");
+        ifstream file("../library/tutorial.like");
         string line;
         // Skip header
         getline(file, line);
