@@ -401,8 +401,8 @@ void help()
            "  --all           Run tutorial and benchmark\n"
            "  --help          Print benchmark usage\n"
            "  -function <str> Benchmark the specified function only\n"
-           "  --nosat         Test without saturated arithmetic\n"
-           "  --nospeed       Test correctness only\n"
+           "  --no-sat        Test without saturated arithmetic\n"
+           "  --no-speed      Test correctness only\n"
            "  --parallel      Benchmark multi-threaded only\n"
            "  --serial        Benchmark single-threaded only\n"
            "  -size <int>     Benchmark the specified size only\n"
@@ -418,8 +418,8 @@ int main(int argc, char *argv[])
         if      (!strcmp("--all"     , argv[i])) BenchmarkAll = true;
         else if (!strcmp("--help"    , argv[i]) || !strcmp("-h", argv[i])) help();
         else if (!strcmp("-function" , argv[i])) BenchmarkFunction = argv[++i];
-        else if (!strcmp("--nosat"   , argv[i])) BenchmarkSaturation = false;
-        else if (!strcmp("--nospeed" , argv[i])) BenchmarkSpeed = false;
+        else if (!strcmp("--no-sat"  , argv[i])) BenchmarkSaturation = false;
+        else if (!strcmp("--no-speed", argv[i])) BenchmarkSpeed = false;
         else if (!strcmp("--parallel", argv[i])) BenchmarkExecution = true;
         else if (!strcmp("--serial"  , argv[i])) BenchmarkExecution = false;
         else if (!strcmp("-size"     , argv[i])) BenchmarkSize = atoi(argv[++i]);
