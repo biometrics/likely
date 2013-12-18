@@ -6,6 +6,6 @@ Likely uses a conventional function call syntax where arguments are provided in 
     n = new(f32,  1,        512,     512)
     --      type  channels  columns  rows
 
-Any parameter in a function may have a default value bound to it. Arguments are assigned left-to-right first to unbound parameters then to bound parameters.
+_Any_ parameter in a function may have a default value bound to it. Arguments are assigned left-to-right _first_ to unbound parameters _then_ to bound parameters.
 
 [Previous](?show=comments) | [Next](?show=closures)

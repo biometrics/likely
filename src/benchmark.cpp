@@ -40,14 +40,14 @@ using namespace std;
 static int ExitStatus = EXIT_SUCCESS;
 
 // Optional arguments to run only a subset of the benchmarks
-static bool        BenchmarkExamples   = false;
-static string      BenchmarkFunction   = "";
-static likely_type BenchmarkType       = likely_type_null;
-static int         BenchmarkSize       = 0;
+static bool        BenchmarkAll        = false;
 static int         BenchmarkExecution  = -1;
-static bool        BenchmarkQuiet      = false;
+static string      BenchmarkFunction   = "";
 static bool        BenchmarkSaturation = true;
+static int         BenchmarkSize       = 0;
 static bool        BenchmarkSpeed      = true;
+static bool        BenchmarkTutorial   = false;
+static likely_type BenchmarkType       = likely_type_null;
 
 static Mat generateData(int rows, int columns, likely_type type, double scaleFactor)
 {
@@ -91,36 +91,39 @@ struct Test
 
                     likely_set_parallel(&srcLikely->type, execution != 0);
 
-                    if (!BenchmarkQuiet)
-                        printf("%s \t%s \t%d \t%s\t", function(), likely_type_to_string(type), size, execution ? "Parallel" : "Serial  ");
+                    printf("%s \t%s \t%d \t%s\t", function(), likely_type_to_string(type), size, execution ? "Parallel" : "Serial  ");
                     testCorrectness(f, srcCV, srcLikely);
 
                     if (!BenchmarkSpeed) {
-                        if (!BenchmarkQuiet)
-                            printf("\n");
+                        printf("\n");
                         continue;
                     }
 
                     Speed baseline = testBaselineSpeed(srcCV);
                     Speed likely = testLikelySpeed(f, srcLikely);
-                    if (!BenchmarkQuiet)
-                        printf("%.2e\n", likely.Hz/baseline.Hz);
+                    printf("%.2e\n", likely.Hz/baseline.Hz);
                 }
             }
         }
     }
 
-    static void runExample(const string &fileName)
+    static void runFile(const string &fileName)
     {
         static lua_State *L = likely_exec("", NULL);
         ifstream file("../script/" + fileName + ".likely");
         const string source((istreambuf_iterator<char>(file)),
                              istreambuf_iterator<char>());
 
+        printf("%s \t", fileName.c_str());
         likely_exec(source.c_str(), L);
         if (lua_type(L, -1) == LUA_TSTRING) {
             fprintf(stderr, "%s\n", lua_tostring(L, -1));
             ExitStatus = EXIT_FAILURE;
+        }
+
+        if (!BenchmarkSpeed) {
+            printf("\n");
+            return;
         }
 
         clock_t startTime, endTime;
@@ -132,8 +135,7 @@ struct Test
             iter++;
         }
         Speed speed(iter, startTime, endTime);
-        if (!BenchmarkQuiet)
-            printf("%s \t%.2e \n", fileName.c_str(), speed.Hz);
+        printf("%.2e\n", speed.Hz);
     }
 
 protected:
@@ -215,7 +217,7 @@ private:
         errorMat = errorMat / (dstOpenCV + LIKELY_ERROR_TOLERANCE); // Normalize errors
         threshold(errorMat, errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
         int errors = (int) norm(errorMat, NORM_L1);
-        if (errors > 0 && !BenchmarkQuiet) {
+        if (errors > 0) {
             likely_mat cvLikely = fromCvMat(dstOpenCV);
             stringstream errorLocations;
             errorLocations << "input\topencv\tlikely\trow\tcolumn\n";
@@ -396,15 +398,15 @@ void help()
            "  benchmark [arguments]\n"
            "\n"
            "Arguments:\n"
-           "  --examples      Run Dream examples instead of benchmarking\n"
+           "  --all           Run tutorial and benchmark\n"
            "  --help          Print benchmark usage\n"
            "  -function <str> Benchmark the specified function only\n"
-           "  --nosat         Benchmark without saturated arithmetic\n"
-           "  --nospeed       Benchmark correctness only\n"
+           "  --nosat         Test without saturated arithmetic\n"
+           "  --nospeed       Test correctness only\n"
            "  --parallel      Benchmark multi-threaded only\n"
-           "  --quiet         Don't print to results or errors\n"
            "  --serial        Benchmark single-threaded only\n"
            "  -size <int>     Benchmark the specified size only\n"
+           "  --tutorial      Run Likely tutorial instead of benchmarking\n"
            "  -type <type>    Benchmark the specified type only\n");
     exit(ExitStatus);
 }
@@ -413,15 +415,15 @@ int main(int argc, char *argv[])
 {
     // Parse arguments
     for (int i=1; i<argc; i++) {
-        if      (!strcmp("--examples", argv[i])) BenchmarkExamples = true;
+        if      (!strcmp("--all"     , argv[i])) BenchmarkAll = true;
         else if (!strcmp("--help"    , argv[i]) || !strcmp("-h", argv[i])) help();
         else if (!strcmp("-function" , argv[i])) BenchmarkFunction = argv[++i];
         else if (!strcmp("--nosat"   , argv[i])) BenchmarkSaturation = false;
         else if (!strcmp("--nospeed" , argv[i])) BenchmarkSpeed = false;
         else if (!strcmp("--parallel", argv[i])) BenchmarkExecution = true;
-        else if (!strcmp("--quiet"   , argv[i])) BenchmarkQuiet = true;
         else if (!strcmp("--serial"  , argv[i])) BenchmarkExecution = false;
         else if (!strcmp("-size"     , argv[i])) BenchmarkSize = atoi(argv[++i]);
+        else if (!strcmp("--tutorial", argv[i])) BenchmarkTutorial = true;
         else if (!strcmp("-type"     , argv[i])) BenchmarkType = likely_type_from_string(argv[++i]);
         else    { printf("Unrecognized argument: %s\nTry running 'benchmark --help' for help", argv[i]); return 1; }
     }
@@ -429,18 +431,20 @@ int main(int argc, char *argv[])
     // Print to console immediately
     setbuf(stdout, NULL);
 
-    if (BenchmarkExamples) {
-        printf("Example \tSpeed\n");
-        ifstream file("../script/examples.likely");
+    if (BenchmarkTutorial || BenchmarkAll) {
+        printf("File     \tSpeed (Hz)\n");
+        ifstream file("../script/tutorial.likely");
         string line;
         // Skip header
         getline(file, line);
         getline(file, line);
         while (getline(file, line)) {
             string::size_type index = line.find("=", 0);
-            Test::runExample(line.substr(index+1, line.size()-index-2));
+            Test::runFile(line.substr(index+1, line.size()-index-2));
         }
-    } else {
+    }
+
+    if (!BenchmarkTutorial || BenchmarkAll) {
         printf("Function \tType \tSize \tExecution \tSpeedup\n");
         addTest().run();
         subtractTest().run();

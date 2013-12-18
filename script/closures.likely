@@ -1,6 +1,6 @@
 Closures
 --------
-The braces {} syntax returns a new function with the bound arguments:
+The braces **{ }** syntax returns a new function with bound arguments:
 
     my_new = new{u8, 1, 512, 512}
 

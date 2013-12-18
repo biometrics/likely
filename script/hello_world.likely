@@ -1,17 +1,17 @@
 Hello World
 -----------
-Click *View Source* and copy this source code into _likely_. Note that it is re-executed as you edit:
+Click **View Source** and copy this source code into _likely_. Note that it is re-executed as you edit:
 
     message = "Hello World!"
     show(message)
 
-'show' is the graphical equivalent of 'print'. Alternatively, CTRL+click variables to display values (command+click on OS X):
+**show** is the graphical equivalent of *print*. Alternatively, **CTRL+click** (*command+click* on OS X) variables to display values:
 
     lenna = read("../data/misc/lenna.tiff")
 
-CTRL+click is equivalent to calling 'show(lenna, "lenna")' at the end of the script.
+*CTRL+click* is equivalent to calling 'show(lenna, "lenna")' at the end of the script.
 
-CTRL+scroll to edit numerical constants:
+**CTRL+scroll** to edit numerical constants:
 
     dark_lenna = divide{2}(lenna)
 

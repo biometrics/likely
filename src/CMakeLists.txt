@@ -83,7 +83,7 @@ if(${LIKELY_AUX} AND ${LIKELY_SCRIPT})
 
   add_custom_target(test
                     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/data
-                    COMMAND benchmark -size 4096 --nospeed)
+                    COMMAND benchmark --all -size 4096 --nospeed)
 
   # Dream (likely)
   find_package(Qt5Quick QUIET)
