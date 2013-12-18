@@ -713,7 +713,7 @@ lua_State *likely_exec(const char *source, lua_State *L)
     // Clear the previous stack
     lua_settop(L, 0);
 
-    // Create a sandboxed enviornment
+    // Create a sandboxed environment
     lua_newtable(L); // _ENV
     lua_newtable(L); // metatable
     lua_getglobal(L, "_G");
@@ -724,7 +724,7 @@ lua_State *likely_exec(const char *source, lua_State *L)
     lua_pushvalue(L, -2);
     lua_setupvalue(L, -2, 1);
     lua_pcall(L, 0, LUA_MULTRET, 0);
-    return L; // The sandboxed environment results are now on the top of the stack
+    return L; // The sandboxed environment is now on the top of the stack
 }
 
 likely_source likely_interpret(const char *source)

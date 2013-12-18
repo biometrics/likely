@@ -22,190 +22,6 @@
 #include "likely_aux.h"
 #include "likely_script.h"
 
-class Variable : public QFrame
-{
-    Q_OBJECT
-
-protected:
-    QWidget *top;
-    QCheckBox *define;
-    QLabel *text, *definition;
-    QHBoxLayout *topLayout;
-    QVBoxLayout *layout;
-
-public:
-    Variable(bool definable = false)
-    {
-        setFrameStyle(QFrame::Panel | QFrame::Raised);
-        setLineWidth(2);
-        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        top = new QWidget(this);
-        define = new QCheckBox("Define", this);
-        define->setVisible(definable);
-        text = new QLabel(this);
-        text->setWordWrap(true);
-        definition = new QLabel(this);
-        definition->setWordWrap(true);
-        definition->setVisible(false);
-        topLayout = new QHBoxLayout(top);
-        topLayout->addWidget(text, 1);
-        topLayout->addWidget(define);
-        topLayout->setContentsMargins(0, 0, 0, 0);
-        topLayout->setSpacing(3);
-        layout = new QVBoxLayout(this);
-        layout->addWidget(top);
-        layout->addWidget(definition);
-        layout->setContentsMargins(3, 3, 3, 3);
-        layout->setSpacing(3);
-        setLayout(layout);
-        connect(define, SIGNAL(toggled(bool)), definition, SLOT(setVisible(bool)));
-        connect(define, SIGNAL(toggled(bool)), this, SIGNAL(definitionChanged()));
-    }
-
-    QString getDefinition() const
-    {
-        return define->isChecked() ? definition->text() : QString();
-    }
-
-    void setDefinition(const QString &source)
-    {
-        const QString newDefinition = objectName() + " = " + source;
-        if (newDefinition == definition->text())
-            return;
-        definition->setText(newDefinition);
-        emit definitionChanged();
-    }
-
-public slots:
-    virtual bool refresh(lua_State *L) = 0;
-
-protected:
-    QString getName(lua_State *L)
-    {
-        const QString name = lua_tostring(L, 2);
-        lua_settop(L, 1);
-        return name;
-    }
-
-signals:
-    void definitionChanged();
-};
-
-class Matrix : public Variable
-{
-    QLabel *image;
-    QImage src;
-
-public:
-    Matrix()
-        : Variable(true)
-    {
-        image = new QLabel(this);
-        image->setAlignment(Qt::AlignCenter);
-        image->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
-        layout->addWidget(image);
-    }
-
-private:
-    bool refresh(lua_State *L)
-    {
-        const QString name = getName(L);
-        likely_mat *mp = reinterpret_cast<likely_mat*>(luaL_testudata(L, -1, "likely"));
-        if (!mp)
-            return false;
-        likely_mat mat = *mp;
-
-        double min, max;
-        likely_mat rendered = likely_render(mat, &min, &max);
-        src = QImage(rendered->data, rendered->columns, rendered->rows, QImage::Format_RGB888).rgbSwapped();
-        likely_release(rendered);
-        text->setText(QString("%1%2x%3x%4x%5 %6 [%7,%8]").arg(name.isEmpty() ? QString() : QString("<b>%1</b>: ").arg(name),
-                                                              QString::number(mat->channels),
-                                                              QString::number(mat->columns),
-                                                              QString::number(mat->rows),
-                                                              QString::number(mat->frames),
-                                                              likely_type_to_string(mat->type),
-                                                              QString::number(min),
-                                                              QString::number(max)));
-        updatePixmap();
-        return true;
-    }
-
-    void resizeEvent(QResizeEvent *e)
-    {
-        QWidget::resizeEvent(e);
-        updatePixmap();
-    }
-
-    void updatePixmap()
-    {
-        image->setVisible(!src.isNull());
-        if (src.isNull()) return;
-        const int width = qMin(image->size().width(), src.width());
-        const int height = src.height() * width/src.width();
-        image->setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height))));
-        setDefinition(QString("{ width = %1, height = %2 }").arg(QString::number(image->size().width()), QString::number(image->size().height())));
-    }
-};
-
-class Closure : public Variable
-{
-    bool refresh(lua_State *L)
-    {
-        const QString name = getName(L);
-        lua_getfield(L, -1, "documentation");
-        if (lua_isnil(L, -1))
-            return false;
-        const QString documentation = lua_tostring(L, -1);
-        lua_pop(L, 1);
-
-        QStringList parameterDescriptions, parameterNames;
-        lua_getfield(L, -1, "parameters");
-        lua_pushnil(L);
-        while (lua_next(L, -2)) {
-            lua_pushnil(L);
-            lua_next(L, -2);
-            QString name = lua_tostring(L, -1);
-            lua_pop(L, 1);
-            lua_next(L, -2);
-            QString docs = lua_tostring(L, -1);
-            lua_pop(L, 1);
-            QString value;
-            if (lua_next(L, -2)) {
-                if (lua_isboolean(L, -1)) {
-                    if (lua_toboolean(L, -1)) value = "true";
-                    else                      value = "false";
-                } else {
-                    value = lua_tostring(L, -1);
-                }
-                lua_pop(L, 2);
-            }
-            lua_pop(L, 1);
-            parameterDescriptions.append(QString("<br>&nbsp;&nbsp;%1%2: %3").arg(name, value.isEmpty() ? QString() : "=" + value, docs));
-            if (value.isEmpty())
-                parameterNames.append(name);
-        }
-        lua_pop(L, 2);
-
-        text->setText(QString("<b>%1</b>(%2): %3%4").arg(name, parameterNames.join(", "), documentation, parameterDescriptions.join("")));
-        return true;
-    }
-};
-
-class Generic : public Variable
-{
-    bool refresh(lua_State *L)
-    {
-        const QString name = getName(L);
-        QString contents = lua_tostring(L, -1);
-        if (contents.isEmpty()) setVisible(false);
-        else                    text->setText(QString("%1%2%3").arg(name.isEmpty() ? QString() : QString("<b>%1</b>:").arg(name),
-                                                                    name.isEmpty() ? "" : (contents.contains('\n') ? "<br>" : " "),
-                                                                    contents.replace("\n", "<br>")));
-        return true;
-    }
-};
-
 class SyntaxHighlighter : public QSyntaxHighlighter
 {
     Q_OBJECT
@@ -540,6 +356,196 @@ signals:
     void newStatus(QString);
 };
 
+class Variable : public QFrame
+{
+    Q_OBJECT
+
+protected:
+    QWidget *top;
+    QCheckBox *define;
+    QLabel *text, *definition;
+    QHBoxLayout *topLayout;
+    QVBoxLayout *layout;
+
+public:
+    Variable(bool definable = false)
+    {
+        setFrameStyle(QFrame::Panel | QFrame::Raised);
+        setLineWidth(2);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        top = new QWidget(this);
+        define = new QCheckBox("Define", this);
+        define->setVisible(definable);
+        text = new QLabel(this);
+        text->setWordWrap(true);
+        definition = new QLabel(this);
+        definition->setWordWrap(true);
+        definition->setVisible(false);
+        topLayout = new QHBoxLayout(top);
+        topLayout->addWidget(text, 1);
+        topLayout->addWidget(define);
+        topLayout->setContentsMargins(0, 0, 0, 0);
+        topLayout->setSpacing(3);
+        layout = new QVBoxLayout(this);
+        layout->addWidget(top);
+        layout->addWidget(definition);
+        layout->setContentsMargins(3, 3, 3, 3);
+        layout->setSpacing(3);
+        setLayout(layout);
+        connect(define, SIGNAL(toggled(bool)), definition, SLOT(setVisible(bool)));
+        connect(define, SIGNAL(toggled(bool)), this, SIGNAL(definitionChanged()));
+    }
+
+    QString getDefinition() const
+    {
+        return define->isChecked() ? definition->text() : QString();
+    }
+
+    void setDefinition(const QString &source)
+    {
+        const QString newDefinition = objectName() + " = " + source;
+        if (newDefinition == definition->text())
+            return;
+        definition->setText(newDefinition);
+        emit definitionChanged();
+    }
+
+public slots:
+    virtual bool show(lua_State *L) = 0;
+
+signals:
+    void definitionChanged();
+};
+
+class Matrix : public Variable
+{
+    QLabel *image;
+    QImage src;
+
+public:
+    Matrix() : Variable(true)
+    {
+        image = new QLabel(this);
+        image->setAlignment(Qt::AlignCenter);
+        image->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
+        layout->addWidget(image);
+    }
+
+    static bool is(lua_State *L)
+    {
+        return luaL_testudata(L, 1, "likely") != NULL;
+    }
+
+private:
+    bool show(lua_State *L)
+    {
+        const QString name = lua_tostring(L, 2);
+        if (!is(L)) return false;
+        likely_mat mat = *reinterpret_cast<likely_mat*>(luaL_testudata(L, 1, "likely"));
+
+        double min, max;
+        likely_mat rendered = likely_render(mat, &min, &max);
+        src = QImage(rendered->data, rendered->columns, rendered->rows, QImage::Format_RGB888).rgbSwapped();
+        likely_release(rendered);
+        text->setText(QString("%1%2x%3x%4x%5 %6 [%7,%8]").arg(name.isEmpty() ? QString() : QString("<b>%1</b>: ").arg(name),
+                                                              QString::number(mat->channels),
+                                                              QString::number(mat->columns),
+                                                              QString::number(mat->rows),
+                                                              QString::number(mat->frames),
+                                                              likely_type_to_string(mat->type),
+                                                              QString::number(min),
+                                                              QString::number(max)));
+        updatePixmap();
+        return true;
+    }
+
+    void resizeEvent(QResizeEvent *e)
+    {
+        QWidget::resizeEvent(e);
+        updatePixmap();
+    }
+
+    void updatePixmap()
+    {
+        image->setVisible(!src.isNull());
+        if (src.isNull()) return;
+        const int width = qMin(image->size().width(), src.width());
+        const int height = src.height() * width/src.width();
+        image->setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height))));
+        setDefinition(QString("{ width = %1, height = %2 }").arg(QString::number(image->size().width()), QString::number(image->size().height())));
+    }
+};
+
+struct Closure : public Variable
+{
+    static bool is(lua_State *L)
+    {
+        if (!lua_getmetatable(L, 1))
+            return false;
+        luaL_getmetatable(L, "likely_closure");
+        const bool closure = lua_rawequal(L, -1, -2);
+        lua_pop(L, 2);
+        return closure;
+    }
+
+private:
+    bool show(lua_State *L)
+    {
+        if (!is(L))
+            return false;
+
+        lua_getfield(L, 1, "documentation");
+        const QString documentation = lua_tostring(L, -1);
+        lua_pop(L, 1);
+
+        QStringList parameterDescriptions, parameterNames;
+        lua_getfield(L, 1, "parameters");
+        lua_pushnil(L);
+        while (lua_next(L, -2)) {
+            lua_pushnil(L);
+            lua_next(L, -2);
+            QString name = lua_tostring(L, -1);
+            lua_pop(L, 1);
+            lua_next(L, -2);
+            QString docs = lua_tostring(L, -1);
+            lua_pop(L, 1);
+            QString value;
+            if (lua_next(L, -2)) {
+                if (lua_isboolean(L, -1)) {
+                    if (lua_toboolean(L, -1)) value = "true";
+                    else                      value = "false";
+                } else {
+                    value = lua_tostring(L, -1);
+                }
+                lua_pop(L, 2);
+            }
+            lua_pop(L, 1);
+            parameterDescriptions.append(QString("<br>&nbsp;&nbsp;%1%2: %3").arg(name, value.isEmpty() ? QString() : "=" + value, docs));
+            if (value.isEmpty())
+                parameterNames.append(name);
+        }
+        lua_pop(L, 1);
+
+        text->setText(QString("<b>%1</b>(%2): %3%4").arg(lua_tostring(L, 2), parameterNames.join(", "), documentation, parameterDescriptions.join("")));
+        return true;
+    }
+};
+
+class Generic : public Variable
+{
+    bool show(lua_State *L)
+    {
+        if (Matrix::is(L) || Closure::is(L))
+            return false;
+        const QString name = lua_tostring(L, 2);
+        const QString contents = lua_tostring(L, 1);
+        text->setText(QString("%1%2%3").arg(name.isEmpty() ? QString() : QString("<b>%1</b>:").arg(name),
+                                            name.isEmpty() ? "" : (contents.contains('\n') ? "<br>" : " "),
+                                            QString(contents).replace("\n", "<br>")));
+        return true;
+    }
+};
+
 class Documentation : public QScrollArea
 {
     Q_OBJECT
@@ -568,8 +574,7 @@ public slots:
 
     void newState(lua_State *L)
     {
-        const bool error = (lua_type(L, -1) == LUA_TSTRING);
-        if (error) {
+        if (lua_type(L, -1) == LUA_TSTRING) {
             // Show the compilation error
             lua_pushstring(L, "compiler");
             lua_getglobal(L, "show");
@@ -577,11 +582,8 @@ public slots:
             lua_call(L, 2, 0);
         }
 
-        for (int i=showIndex; i<layout->count(); i++) {
-            QWidget *widget = layout->itemAt(i)->widget();
-            if (error) widget->setEnabled(false);
-            else       widget->deleteLater();
-        }
+        for (int i=showIndex; i<layout->count(); i++)
+            layout->itemAt(i)->widget()->deleteLater();
     }
 
     void show(lua_State *L)
@@ -590,17 +592,17 @@ public slots:
         Variable *variable = NULL;
         if (layout->itemAt(i) != NULL) {
             variable = static_cast<Variable*>(layout->itemAt(i)->widget());
-            if (variable->refresh(L))
-                return variable->setEnabled(true);
+            if (variable->show(L))
+                return;
             variable->deleteLater();
         }
 
-        if      (luaL_testudata(L, 1, "likely")) variable = new Matrix();
-        else if (lua_istable(L, 1))              variable = new Closure();
-        else                                     variable = new Generic();
+        if      (Matrix::is(L))  variable = new Matrix();
+        else if (Closure::is(L)) variable = new Closure();
+        else                     variable = new Generic();
         layout->insertWidget(i, variable);
         connect(variable, SIGNAL(definitionChanged()), this, SLOT(definitionChanged()));
-        variable->refresh(L);
+        variable->show(L);
     }
 
 private slots:
