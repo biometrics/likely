@@ -2,11 +2,15 @@ Closures
 --------
 The braces {} syntax returns a new function with the bound arguments:
 
-    m = new{rows=512, columns=512, channels=1, type=i8}
-    n = new{i8, 1, 512, 512} -- equivalent to m
+    my_new = new{u8, 1, 512, 512}
 
-    show(new)
-    show(n)
-    uninitialized_memory = n()
+    -- Equivalent to my_new
+    my_new_alt = new{rows=512, columns=512, type=u8}
+
+    show(new, "new")
+    show(my_new, "my_new")
+
+    -- Equivalent to calling new(u8, 1, 512, 512)
+    uninitialized_matrix = my_new()
 
 [Previous](?show=function_calls) | [Next](?show=arithmetic)

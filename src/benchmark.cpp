@@ -37,6 +37,8 @@ using namespace std;
 #define LIKELY_ERROR_TOLERANCE 0.000001
 #define LIKELY_TEST_SECONDS 1
 
+static int ExitStatus = EXIT_SUCCESS;
+
 // Optional arguments to run only a subset of the benchmarks
 static bool        BenchmarkExamples   = false;
 static string      BenchmarkFunction   = "";
@@ -116,6 +118,11 @@ struct Test
                              istreambuf_iterator<char>());
 
         likely_exec(source.c_str(), L);
+        if (lua_type(L, -1) == LUA_TSTRING) {
+            fprintf(stderr, "%s\n", lua_tostring(L, -1));
+            ExitStatus = EXIT_FAILURE;
+        }
+
         clock_t startTime, endTime;
         int iter = 0;
         startTime = endTime = clock();
@@ -223,8 +230,10 @@ private:
                         if (errors < 100) errorLocations << src << "\t" << cv << "\t" << dst << "\t" << i << "\t" << j << "\n";
                         errors++;
                     }
-            if (errors > 0)
+            if (errors > 0) {
                 fprintf(stderr, "Test for %s differs in %d locations:\n%s", function(), errors, errorLocations.str().c_str());
+                ExitStatus = EXIT_FAILURE;
+            }
             likely_release(cvLikely);
         }
 
@@ -397,7 +406,7 @@ void help()
            "  --serial        Benchmark single-threaded only\n"
            "  -size <int>     Benchmark the specified size only\n"
            "  -type <type>    Benchmark the specified type only\n");
-    exit(0);
+    exit(ExitStatus);
 }
 
 int main(int argc, char *argv[])
@@ -460,6 +469,6 @@ int main(int argc, char *argv[])
         thresholdTest().run();
     }
 
-    return 0;
+    return ExitStatus;
 }
 

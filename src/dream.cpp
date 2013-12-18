@@ -568,7 +568,7 @@ public slots:
 
     void newState(lua_State *L)
     {
-        const bool error = lua_type(L, -1) == LUA_TSTRING;
+        const bool error = (lua_type(L, -1) == LUA_TSTRING);
         if (error) {
             // Show the compilation error
             lua_pushstring(L, "compiler");

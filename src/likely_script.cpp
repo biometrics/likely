@@ -410,9 +410,8 @@ static int lua_likely__call(lua_State *L)
 
     // Using {} syntax?
     bool curry = (args == 2) && lua_istable(L, 2);
-    if (curry) {
+    if (curry && lua_getmetatable(L, 2)) {
         // Make sure it isn't a closure
-        lua_getmetatable(L, 2);
         luaL_getmetatable(L, "likely_closure");
         curry = !lua_rawequal(L, -1, -2);
         lua_pop(L, 2);
