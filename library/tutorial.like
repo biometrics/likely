@@ -4,5 +4,6 @@ Tutorial
 2. [Comments](?show=comments)
 3. [Function Calls](?show=function_calls)
 4. [Closures](?show=closures)
-5. [Arithmetic](?show=arithmetic)
-6. [Currying](?show=currying)
+5. [Core Functions](?show=core_functions)
+6. [Arithmetic](?show=arithmetic)
+7. [Currying](?show=currying)

@@ -219,7 +219,7 @@ closure = likely.closure
 
 new = closure(
   nil,
-  "Create an empty matrix",
+  "Create an uninitialized matrix",
   {{"type", "matrix type", f32},
    {"channels", "matrix channels", 1},
    {"columns", "matrix columns", 1},
@@ -231,7 +231,7 @@ new = closure(
 
 scalar = closure(
   nil,
-  "Create a matrix from a number",
+  "Create and initialize a single-dimension matrix from a number",
   {{"value", "matrix value"}},
   likely.scalar)
 
@@ -243,8 +243,8 @@ read = closure(
 
 compile = closure(
   nil,
-  "Create kernel",
-  {{"function", "function expression"}},
+  "Create a function from source code",
+  {{"source", "Likely kernel expression"}},
   likely.compile)
 
 show = closure(

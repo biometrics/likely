@@ -15,4 +15,4 @@ multiplied = multiply(2,lenna)
 divided = divide(2,lenna)
 ```
 
-[Previous](?show=closures) | [Next](?show=currying)
+[Previous](?show=core_functions) | [Next](?show=currying)
