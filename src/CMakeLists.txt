@@ -32,7 +32,7 @@ install(FILES ${CMAKE_SOURCE_DIR}/include/likely.h DESTINATION include)
 if(${LIKELY_AUX})
   add_definitions(-DLIKELY_AUX)
   set(LIKELY_SRC ${LIKELY_SRC} likely_aux.cpp)
-  set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui libcurl)
+  set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui)
   set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/index.html
                                  ${CMAKE_SOURCE_DIR}/include/likely_aux.h)
   install(FILES ${CMAKE_SOURCE_DIR}/include/likely_aux.h DESTINATION include)

@@ -63,10 +63,10 @@ if(${LIKELY_AUX})
                       ${CMAKE_SOURCE_DIR}/opencv/modules/highgui/include
                       ${CMAKE_SOURCE_DIR}/opencv/modules/imgproc/include)
 
-  option(CURL_STATICLIB "CURL static library" ON)
-  add_subdirectory(curl EXCLUDE_FROM_ALL)
-  include_directories(${CMAKE_SOURCE_DIR}/curl/include
-                      ${CMAKE_BINARY_DIR}/curl/include/curl)
+  # option(CURL_STATICLIB "CURL static library" ON)
+  # add_subdirectory(curl EXCLUDE_FROM_ALL)
+  # include_directories(${CMAKE_SOURCE_DIR}/curl/include
+  #                     ${CMAKE_BINARY_DIR}/curl/include/curl)
 endif()
 
 option(LIKELY_SCRIPT "Build Likely with Lua frontend" ON)
