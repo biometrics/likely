@@ -21,21 +21,20 @@ endif()
 add_executable(embedfile embedfile.c)
 file(GLOB LIKELY_LIBRARY ${CMAKE_SOURCE_DIR}/library/*.like)
 
-set(LIKELY_SRC likely.cpp)
+set(LIKELY_SRC likely_core.cpp)
 set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES})
 set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/include/likely.h
+                ${CMAKE_SOURCE_DIR}/include/likely/likely_core.h
                 ${CMAKE_SOURCE_DIR}/LICENSE.txt
                 ${CMAKE_SOURCE_DIR}/README.md)
-install(FILES ${CMAKE_SOURCE_DIR}/include/likely.h DESTINATION include)
 
 if(${LIKELY_AUX})
   add_definitions(-DLIKELY_AUX)
   set(LIKELY_SRC ${LIKELY_SRC} likely_aux.cpp)
   set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui)
   set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/index.html
-                                 ${CMAKE_SOURCE_DIR}/include/likely_aux.h)
-  install(FILES ${CMAKE_SOURCE_DIR}/include/likely_aux.h DESTINATION include)
+                                 ${CMAKE_SOURCE_DIR}/include/likely/likely_aux.h)
 endif()
 
 if(${LIKELY_SCRIPT})
@@ -47,8 +46,7 @@ if(${LIKELY_SCRIPT})
   set(LIKELY_LIBS ${LIKELY_LIBS} liblua)
   set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
   set(LIKELY_MISC ${LIKELY_MISC} opencv.shim
-                                 ${CMAKE_SOURCE_DIR}/include/likely_script.h)
-  install(FILES ${CMAKE_SOURCE_DIR}/include/likely_script.h DESTINATION include)
+                                 ${CMAKE_SOURCE_DIR}/include/likely/likely_script.h)
 endif()
 
 # Build common object files

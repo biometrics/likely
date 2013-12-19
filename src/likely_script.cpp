@@ -26,10 +26,10 @@
 #include <lua.hpp>
 
 #ifdef LIKELY_AUX
-#include "likely_aux.h"
+#include "likely/likely_aux.h"
 #endif
 
-#include "likely_script.h"
+#include "likely/likely_script.h"
 
 using namespace std;
 
@@ -309,7 +309,7 @@ static int lua_likely_compile(lua_State *L)
 
     // Retrieve or compile the function
     static map<string,likely_function_n> functions;
-    likely_source source = lua_tostring(L, -1);
+    likely_ir source = lua_tostring(L, -1);
     map<string,likely_function_n>::const_iterator it = functions.find(source);
     if (it == functions.end()) {
         functions.insert(pair<string,likely_function_n>(source, likely_compile_n(source)));
@@ -741,7 +741,7 @@ lua_State *likely_exec(const char *source, lua_State *L)
     return L; // The sandboxed environment is now on the top of the stack
 }
 
-likely_source likely_interpret(const char *source)
+likely_ir likely_interpret(const char *source)
 {
     static lua_State *L = NULL;
     stringstream command; command << "    return tostring(" << source << ")";

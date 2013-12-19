@@ -25,10 +25,8 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <lua.hpp>
+#include <likely.h>
 
-#include "likely.h"
-#include "likely_aux.h"
-#include "likely_script.h"
 #include "opencv.shim"
 
 using namespace cv;

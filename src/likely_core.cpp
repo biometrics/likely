@@ -42,7 +42,7 @@
 #include <sstream>
 #include <thread>
 
-#include "likely.h"
+#include "likely/likely_core.h"
 
 using namespace llvm;
 using namespace std;
@@ -1474,14 +1474,14 @@ struct VTable : public JITResources
     vector<FunctionBuilder*> functions;
     Function *likelyDispatch;
 
-    VTable(likely_source source)
-        : sexp(source)
+    VTable(likely_ir ir)
+        : sexp(ir)
     {
         n = 0;
-        const int length = strlen(source);
+        const int length = strlen(ir);
         for (int i=2; i<length; i++)
-            if (!strncmp(&source[i-2], "__", 2))
-                n = max(n, likely_arity(atoi(&source[i])+1));
+            if (!strncmp(&ir[i-2], "__", 2))
+                n = max(n, likely_arity(atoi(&ir[i])+1));
 
         if (vtableType == NULL)
             vtableType = PointerType::getUnqual(StructType::create(getGlobalContext(), "VTable"));
@@ -1630,14 +1630,14 @@ likely_mat likely_dispatch(struct VTable *vtable, likely_mat *m)
     return dst;
 }
 
-likely_function likely_compile(likely_source source)
+likely_function likely_compile(likely_ir ir)
 {
-    return (new VTable(source))->compile();
+    return (new VTable(ir))->compile();
 }
 
-likely_function_n likely_compile_n(likely_source source)
+likely_function_n likely_compile_n(likely_ir ir)
 {
-    return (new VTable(source))->compileN();
+    return (new VTable(ir))->compileN();
 }
 
 void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...)

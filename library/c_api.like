@@ -1,0 +1,26 @@
+C API
+-----
+So you've developed an algorithm in Likely, how do you integrate it into your application? Once again, let's consider our *[Hello World](?show=hello_world)* example:
+
+    lenna = read("../data/misc/lenna.tiff")
+    dark_lenna = divide{2}(lenna)
+
+The **C translation** of this is:
+
+```C
+#include <likely.h>
+
+int main()
+{
+    likely_mat lenna = likely_read("../data/misc/lenna.tiff");
+    likely_ir ir = likely_interpret("divide{2}");
+    likely_function darken = likely_compile(ir);
+    likely_mat dark_lenna = darken(lenna);
+    return 0;
+}
+
+```
+
+**[Here](src/hello_world.c)** is the source code for *Hello World* in *C*.
+
+[Previous](?show=matrix_io) | [Next](?show=arithmetic)

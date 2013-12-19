@@ -2,11 +2,11 @@ Core Functions
 --------------
 There are 3 principal functions in Likely:
 
-| Function                 | C API                               |
-|--------------------------|-------------------------------------|
-| **new**(*...*)           | [likely_new](include/likely.h)      |
-| **read**(*file_name*)    | [likely_read](include/likely_aux.h) |
-| **compile**(*likely_ir*) | [likely_compile](include/likely.h)  |
+| Function                 | C API                                          |
+|--------------------------|------------------------------------------------|
+| **new**(*...*)           | [likely_new](include/likely/likely_core.h)     |
+| **read**(*file_name*)    | [likely_read](include/likely/likely_aux.h)     |
+| **compile**(*likely_ir*) | [likely_compile](include/likely/likely_core.h) |
 
     show(new, "new")
     show(read, "read")

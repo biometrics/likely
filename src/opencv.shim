@@ -1,7 +1,7 @@
 // This is actually just C++, but we use this file in a weird way
 
 #include <opencv2/core/core.hpp>
-#include "likely.h"
+#include "likely/likely_core.h"
 
 static int typeToDepth(likely_type type)
 {

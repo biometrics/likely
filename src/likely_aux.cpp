@@ -22,7 +22,7 @@
 #include <string>
 #include <opencv2/highgui/highgui.hpp>
 
-#include "likely_aux.h"
+#include "likely/likely_aux.h"
 #include "opencv.shim"
 
 using namespace std;

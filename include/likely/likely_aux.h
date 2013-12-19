@@ -14,37 +14,27 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef LIKELY_SCRIPT_H
-#define LIKELY_SCRIPT_H
+#ifndef LIKELY_AUX_H
+#define LIKELY_AUX_H
 
-#include <likely.h>
+#include <likely/likely_core.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Contents of standard.likely
-LIKELY_EXPORT extern const char likely_standard_library[];
-
-// Import Likely into a Lua runtime
-struct lua_State;
-LIKELY_EXPORT int luaopen_likely(struct lua_State *L);
-
-// Execute a Likely script
-LIKELY_EXPORT struct lua_State *likely_exec(const char *source, struct lua_State *L);
-
-// Convert a likely expression into source code
-LIKELY_EXPORT likely_source likely_interpret(const char *source);
-
-// show() callback
-typedef void (*likely_show_callback)(struct lua_State *L, void *context);
-LIKELY_EXPORT void likely_set_show_callback(likely_show_callback callback, void *context);
+// Matrix I/O
+LIKELY_EXPORT likely_mat likely_read(const char *file_name);
+LIKELY_EXPORT void likely_write(likely_const_mat image, const char *file_name);
+LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
+LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
+LIKELY_EXPORT likely_mat likely_render(likely_const_mat m, double *min, double *max); // Return a 888 matrix for visualization
 
 // Debug
-LIKELY_EXPORT void likely_stack_dump(struct lua_State *L, int levels);
+LIKELY_EXPORT void likely_print(likely_const_mat m);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // LIKELY_SCRIPT_H
+#endif // LIKELY_AUX_H

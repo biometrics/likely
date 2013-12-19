@@ -2,12 +2,12 @@ Matrix I/O
 ----------
 There are 4 functions covering matrix input and output from disk and memory:
 
-| Function                         | C API                                 |
-|----------------------------------|---------------------------------------|
-| **read**(*file_name*)            | [likely_read](include/likely_aux.h)   |
-| *matrix*:**write**(*file_name*)  | [likely_write](include/likely_aux.h)  |
-| *matrix*:**encode**(*extension*) | [likely_encode](include/likely_aux.h) |
-| *matrix*:**decode**()            | [likely_decode](include/likely_aux.h) |
+| Function                         | C API                                        |
+|----------------------------------|----------------------------------------------|
+| **read**(*file_name*)            | [likely_read](include/likely/likely_aux.h)   |
+| *matrix*:**write**(*file_name*)  | [likely_write](include/likely/likely_aux.h)  |
+| *matrix*:**encode**(*extension*) | [likely_encode](include/likely/likely_aux.h) |
+| *matrix*:**decode**()            | [likely_decode](include/likely/likely_aux.h) |
 
     image = read("../data/misc/lenna.tiff")
     encoded = image:encode("jpg")

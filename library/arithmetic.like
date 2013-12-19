@@ -16,4 +16,4 @@ multiplied = multiply(2,lenna)
 divided = divide(2,lenna)
 ```
 
-[Previous](?show=matrix_io) | [Next](?show=currying)
+[Previous](?show=c_api) | [Next](?show=currying)

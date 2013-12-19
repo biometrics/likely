@@ -8,5 +8,6 @@ Tutorial
 6. [Core Functions](?show=core_functions)
 7. [Compilation](?show=compilation)
 8. [Matix I/O](?show=matrix_io)
-9. [Arithmetic](?show=arithmetic)
-10. [Currying](?show=currying)
+9. [C API](?show=c_api)
+10. [Arithmetic](?show=arithmetic)
+11. [Currying](?show=currying)

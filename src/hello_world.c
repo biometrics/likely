@@ -1,7 +1,5 @@
-#include <likely.h>
-#include <likely_aux.h>
-#include <likely_script.h>
 #include <stdio.h>
+#include <likely.h>
 
 int main()
 {
@@ -14,15 +12,15 @@ int main()
         return -1;
     }
 
-    printf("Retrieving source code for expression...\n");
-    likely_source source = likely_interpret("divide{2}");
-    if (!source) {
+    printf("Retrieving IR for expression...\n");
+    likely_ir ir = likely_interpret("divide{2}");
+    if (!ir) {
         printf("Failed to interpret!\n");
         return -1;
     }
 
     printf("Compiling source code...\n");
-    likely_function darken = likely_compile(source);
+    likely_function darken = likely_compile(ir);
     if (!darken) {
         printf("Failed to compile!\n");
         return -1;

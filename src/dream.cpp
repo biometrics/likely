@@ -17,10 +17,7 @@
 #include <QtCore>
 #include <QtWidgets>
 #include <lua.hpp>
-
-#include "likely.h"
-#include "likely_aux.h"
-#include "likely_script.h"
+#include <likely.h>
 
 class SyntaxHighlighter : public QSyntaxHighlighter
 {
