@@ -6,5 +6,6 @@ Tutorial
 4. [Closures](?show=closures)
 5. [Core Functions](?show=core_functions)
 6. [Compilation](?show=compilation)
-7. [Arithmetic](?show=arithmetic)
-8. [Currying](?show=currying)
+7. [Matix IO](?show=matrix_io)
+8. [Arithmetic](?show=arithmetic)
+9. [Currying](?show=currying)

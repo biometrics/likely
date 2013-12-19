@@ -219,7 +219,8 @@ static int lua_likely__gc(lua_State *L)
 
 static int lua_likely_read(lua_State *L)
 {
-    lua_likely_assert(L, lua_gettop(L) == 1, "'read' expected 1 argument, got: %d", lua_gettop(L));
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, args, "'read' expected 1 argument, got: %d", args);
 #ifdef LIKELY_AUX
     likely_mat m = likely_read(lua_tostring(L, 1));
 #else
@@ -234,7 +235,8 @@ static int lua_likely_read(lua_State *L)
 
 static int lua_likely_write(lua_State *L)
 {
-    lua_likely_assert(L, lua_gettop(L) == 2, "'write' expected 2 arguments, got: %d", lua_gettop(L));
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, args, "'write' expected 2 arguments, got: %d", args);
 #ifdef LIKELY_AUX
     likely_write(checkLuaMat(L), lua_tostring(L, 2));
 #else
@@ -245,7 +247,8 @@ static int lua_likely_write(lua_State *L)
 
 static int lua_likely_decode(lua_State *L)
 {
-    lua_likely_assert(L, lua_gettop(L) == 1, "'decode' expected 1 argument, got: %d", lua_gettop(L));
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, args, "'decode' expected 1 argument, got: %d", args);
 #ifdef LIKELY_AUX
     *newLuaMat(L) = likely_decode(checkLuaMat(L));
 #else
@@ -256,7 +259,8 @@ static int lua_likely_decode(lua_State *L)
 
 static int lua_likely_encode(lua_State *L)
 {
-    lua_likely_assert(L, lua_gettop(L) == 2, "'write' expected 2 arguments, got: %d", lua_gettop(L));
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, args == 2, "'encode' expected 2 arguments, got: %d", args);
 #ifdef LIKELY_AUX
     *newLuaMat(L) = likely_encode(checkLuaMat(L), lua_tostring(L, 2));
 #else

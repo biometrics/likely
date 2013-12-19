@@ -22,4 +22,4 @@ Let's **deconstruct this example** to see what's taking place behind the scenes:
 
 All of these intermediate steps happen automatically when a closure **divide{2}** is called with arguments **(lenna)**.
 
-[Previous](?show=core_functions) | [Next](?show=arithmetic)
+[Previous](?show=core_functions) | [Next](?show=matrix_io)

@@ -57,7 +57,7 @@ likely_mat likely_decode(likely_const_mat buffer)
 likely_mat likely_encode(likely_const_mat image, const char *extension)
 {
     vector<uchar> buf;
-    cv::imencode(extension, toCvMat(image), buf);
+    cv::imencode(string(".") + extension, toCvMat(image), buf);
     return fromCvMat(cv::Mat(buf), true);
 }
 
