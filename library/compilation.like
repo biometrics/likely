@@ -1,11 +1,11 @@
 Compilation
 -----------
-Just-in-time (JIT) compilation is the key feature enabling Likely algorithms to execute fast.
+Just-in-time (JIT) compilation is the key feature enabling Likely algorithms to execute fast. [Hello World](?show=hello_world) (reproduced below) made use of the JIT compiler to create a function that returns a new image with every pixel intensity divided in half.
 
     lenna = read("../data/misc/lenna.tiff")
     dark_lenna = divide{2}(lenna)
 
-[Hello World](?show=hello_world) (reproduced above) made use of the JIT compiler to create a function that returns a new image with every pixel intensity divided in half. Let's **deconstruct this example** to see what's taking place behind the scenes:
+Let's **deconstruct this example** to see what's taking place behind the scenes:
 
     lenna = read("../data/misc/lenna.tiff")
     divide2 = divide{2}
@@ -18,6 +18,8 @@ Just-in-time (JIT) compilation is the key feature enabling Likely algorithms to 
     show(likely_ir, "likely_ir")
     show(jit_function, "jit_function")
 
-**divide** is a function in the standard library that returns a _source code expression_ of scalar division. **div2** is a new closure around the *divide* function with *2* bound as the denominator.
+**divide** is a standard library function that returns _source code_ expressing scalar division. **divide2** is a closure around the *divide* function with *2* bound as the denominator. Closures implement the **tostring** operator to return source code representing their operation. This source code is called the **Likely Intermediate Representation** or *Likely IR*. **compile** returns a **JIT-compiled function** for the given IR, which is subsequently called with **lenna** to produce **dark_lenna**.
+
+All of these intermediate steps happen automatically when a closure **divide{2}** is called with arguments **(lenna)**.
 
 [Previous](?show=core_functions) | [Next](?show=arithmetic)
