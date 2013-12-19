@@ -34,7 +34,13 @@ likely_mat likely_read(const char *file_name)
     if (previousFileName == file_name)
         return likely_copy(previousMat, 0);
 
-    cv::Mat m = cv::imread(file_name, CV_LOAD_IMAGE_UNCHANGED);
+    cv::Mat m;
+    try {
+        m = cv::imread(file_name, CV_LOAD_IMAGE_UNCHANGED);
+    } catch (...) {
+        return NULL;
+    }
+
     likely_mat mat = fromCvMat(m, true);
 
     likely_release(previousMat);
@@ -46,18 +52,30 @@ likely_mat likely_read(const char *file_name)
 
 void likely_write(likely_const_mat image, const char *file_name)
 {
-    cv::imwrite(file_name, toCvMat(image));
+    try {
+        cv::imwrite(file_name, toCvMat(image));
+    } catch (...) {
+        return;
+    }
 }
 
 likely_mat likely_decode(likely_const_mat buffer)
 {
-    return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_UNCHANGED), true);
+    try {
+        return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_UNCHANGED), true);
+    } catch (...) {
+        return NULL;
+    }
 }
 
 likely_mat likely_encode(likely_const_mat image, const char *extension)
 {
     vector<uchar> buf;
-    cv::imencode(string(".") + extension, toCvMat(image), buf);
+    try {
+        cv::imencode(string(".") + extension, toCvMat(image), buf);
+    } catch (...) {
+        return NULL;
+    }
     return fromCvMat(cv::Mat(buf), true);
 }
 
