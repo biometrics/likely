@@ -1,6 +1,6 @@
 Comments
 --------
-Likely uses **[Github Flavored Markdown](https://help.github.com/articles/github-flavored-markdown)**. Code is specified in blocks like:
+Likely uses **[Github Flavored Markdown](https://help.github.com/articles/github-flavored-markdown)** syntax. Code is specified in blocks like:
 
     x = 9
     -- This is a single line comment in a code block
@@ -13,4 +13,4 @@ y = 4*x
 
 or `z = y+6` `show(z)`. Everything outside a code block is a comment!
 
-[Previous](?show=hello_world) | [Next](?show=function_calls)
+[Previous](?show=hello_world) | [Next](?show=code)
