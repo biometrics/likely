@@ -184,7 +184,11 @@ show = closure(
 ### Utility functions
 ```Lua
 function likely.s(...)
-  return "(" .. table.concat({...}, " ") .. ")"
+  local t = {}
+  for i, v in ipairs({...}) do
+    t[#t+1] = translate(v)
+  end
+  return "(" .. table.concat(t, " ") .. ")"
 end
 s = likely.s
 ```
@@ -387,7 +391,7 @@ threshold = closure(
    {"x", "operand"}})
 
 set = closure(
-  function(value, matrix) return cast{type{matrix}, value} end,
+  function(value, matrix) return translate(cast{type{matrix}, value}) end,
   "Assignment",
   {{"value", "numerical constant"},
    {"matrix", "used to determine output size and type"}})
