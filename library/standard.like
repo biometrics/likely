@@ -332,6 +332,11 @@ cast = closure(
   "Cast matrix to another type",
   {{"type", "Likely type"},
    {"x", "operand"}})
+
+type = closure(
+  function(x) return s("type", x) end,
+  "Extract the matrix type",
+  {{"x", "matrix"}})
 ```
 
 ### Comparison
@@ -382,9 +387,7 @@ threshold = closure(
    {"x", "operand"}})
 
 set = closure(
-  function(value, matrix)
-    return value
-  end,
+  function(value, matrix) return cast{type{matrix}, value} end,
   "Assignment",
   {{"value", "numerical constant"},
    {"matrix", "used to determine output size and type"}})

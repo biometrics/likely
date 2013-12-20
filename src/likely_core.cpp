@@ -366,7 +366,7 @@ struct KernelBuilder
     Value *rows(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 4), "rows"); }
     Value *frames(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 5), "frames"); }
     Value *type(Value *v) const { return b->CreateLoad(b->CreateStructGEP(v, 6), "type"); }
-    Value *type(likely_type type) const { return constant(type, int(sizeof(likely_type)*8)); }
+    static TypedValue type(likely_type type) { return constant(type, int(sizeof(likely_type)*8)); }
 
     void setData(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 0)); }
     void setChannels(Value *matrix, Value *value) const { b->CreateStore(value, b->CreateStructGEP(matrix, 2)); }
@@ -723,6 +723,18 @@ class UnaryOperation : public Operation
     }
     virtual TypedValue callUnary(KernelBuilder &kernel, const KernelInfo &info, TypedValue arg) const = 0;
 };
+
+class typeOperation : public UnaryOperation
+{
+    string name() const { return "type"; }
+    TypedValue callUnary(KernelBuilder &kernel, const KernelInfo &info, TypedValue arg) const
+    {
+        (void) kernel;
+        (void) info;
+        return KernelBuilder::type(arg);
+    }
+};
+LIKELY_REGISTER(typeOperation)
 
 class UnaryMathOperation : public UnaryOperation
 {

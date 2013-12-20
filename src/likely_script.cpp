@@ -696,7 +696,7 @@ static string removeGFM(const string &source)
             continue;
         }
 
-        if (inCode) {
+        if (inCode && (line.find('`') == string::npos)) {
             result << line << "\n";
         } else if (!skipBlock && (line.substr(0, 4) == "    ")) {
             result << line.substr(4, line.size()-4) << "\n";
@@ -707,7 +707,9 @@ static string removeGFM(const string &source)
                 stop  = line.find('`', start + 1);
                 if ((start != string::npos) && (stop != string::npos))
                     result << line.substr(start + 1, stop - start - 1) << "\n";
-            } while (start != string::npos);
+                else
+                    break;
+            } while (true);
         }
     }
 
@@ -744,7 +746,7 @@ lua_State *likely_exec(const char *source, lua_State *L)
 likely_ir likely_translate(const char *source)
 {
     static lua_State *L = NULL;
-    stringstream command; command << "    return tostring(" << source << ")";
+    stringstream command; command << "`return translate(" << source << ")`";
     L = likely_exec(command.str().c_str(), L);
     return lua_tostring(L, -1);
 }

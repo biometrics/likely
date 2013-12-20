@@ -325,7 +325,7 @@ private:
 private slots:
     void exec()
     {
-        QString footer = "\n#Footer\n```";
+        QString footer = "\n--Footer\n```";
         foreach (const QString &variable, shownVariables)
             footer += QString("\nshow(%1, \"%1\")").arg(variable);
         footer += "\n```\n";
