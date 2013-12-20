@@ -751,59 +751,8 @@ likely_ir likely_translate(const char *source)
     return lua_tostring(L, -1);
 }
 
-static void toStream(lua_State *L, int index, stringstream &stream, int levels = 1)
-{
-    lua_pushvalue(L, index);
-    const int type = lua_type(L, -1);
-    if (type == LUA_TSTRING) {
-        stream << lua_tostring(L, -1);
-    } else if (type == LUA_TBOOLEAN) {
-        stream << (lua_toboolean(L, -1) ? "true" : "false");
-    } else if (type == LUA_TNUMBER) {
-        stream << lua_tonumber(L, -1);
-    } else if (type == LUA_TTABLE) {
-        if (levels == 0) {
-            stream << "table";
-        } else {
-            stream << "{";
-            lua_pushnil(L);
-            bool first = true;
-            while (lua_next(L, -2)) {
-                if (first) first = false;
-                else       stream << ", ";
-                if (!lua_isnumber(L, -2)) {
-                    toStream(L, -2, stream, levels - 1);
-                    stream << "=";
-                }
-                toStream(L, -1, stream, levels - 1);
-                lua_pop(L, 1);
-            }
-            stream << "}";
-        }
-    } else {
-        stream << lua_typename(L, type);
-    }
-    lua_pop(L, 1);
-}
-
 LIKELY_EXPORT void likely_set_show_callback(likely_show_callback callback, void *context)
 {
     ShowCallback = callback;
     ShowContext = context;
-}
-
-void likely_stack_dump(lua_State *L, int levels)
-{
-    if (levels == 0)
-        return;
-
-    stringstream stream;
-    const int top = lua_gettop(L);
-    for (int i=1; i<=top; i++) {
-        stream << i << ": ";
-        toStream(L, i, stream, levels);
-        stream << "\n";
-    }
-    fprintf(stderr, "Lua stack dump:\n%s", stream.str().c_str());
-    abort();
 }

@@ -39,9 +39,6 @@ LIKELY_EXPORT likely_ir likely_translate(const char *source);
 typedef void (*likely_show_callback)(struct lua_State *L, void *context);
 LIKELY_EXPORT void likely_set_show_callback(likely_show_callback callback, void *context);
 
-// Debug
-LIKELY_EXPORT void likely_stack_dump(struct lua_State *L, int levels);
-
 #ifdef __cplusplus
 }
 #endif

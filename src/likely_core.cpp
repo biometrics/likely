@@ -31,6 +31,7 @@
 #include <llvm/Target/TargetLibraryInfo.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Vectorize.h>
+#include <lua.hpp>
 #include <atomic>
 #include <condition_variable>
 #include <cstdarg>
@@ -1693,4 +1694,78 @@ void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const
 
     for (size_t i = 1; i < numWorkers; i++)
         while (workers[i]) {} // Wait for the worker to finish
+}
+
+likely_irl likely_ir_from_string(const char *str)
+{
+    likely_irl L = luaL_newstate();
+    luaL_dostring(L, str);
+    const int args = lua_gettop(L);
+    likely_assert(args == 1, "'likely_ir_from_string' expected one result, got: %d", args);
+    likely_assert(lua_istable(L, 1), "'likely_ir_from_string' expected a table result");
+    return L;
+}
+
+static void toStream(lua_State *L, int index, stringstream &stream, int levels = 1)
+{
+    lua_pushvalue(L, index);
+    const int type = lua_type(L, -1);
+    if (type == LUA_TSTRING) {
+        stream << lua_tostring(L, -1);
+    } else if (type == LUA_TBOOLEAN) {
+        stream << (lua_toboolean(L, -1) ? "true" : "false");
+    } else if (type == LUA_TNUMBER) {
+        stream << lua_tonumber(L, -1);
+    } else if (type == LUA_TTABLE) {
+        if (levels == 0) {
+            stream << "table";
+        } else {
+            stream << "{";
+            lua_pushnil(L);
+            bool first = true;
+            while (lua_next(L, -2)) {
+                if (first) first = false;
+                else       stream << ", ";
+                if (!lua_isnumber(L, -2)) {
+                    toStream(L, -2, stream, levels - 1);
+                    stream << "=";
+                }
+                toStream(L, -1, stream, levels - 1);
+                lua_pop(L, 1);
+            }
+            stream << "}";
+        }
+    } else {
+        stream << lua_typename(L, type);
+    }
+    lua_pop(L, 1);
+}
+
+const char *likely_ir_to_string(likely_irl ir)
+{
+    static string result;
+    lua_State *L = ir;
+    const int args = lua_gettop(L);
+    likely_assert(args == 1, "'likely_ir_to_string' expected one argument, got: %d", args);
+    likely_assert(lua_istable(L, 1), "'likely_ir_to_string' expected a table argument");
+    stringstream stream;
+    toStream(L, 1, stream, std::numeric_limits<int>::max());
+    result = stream.str();
+    return result.c_str();
+}
+
+void likely_stack_dump(lua_State *L, int levels)
+{
+    if (levels == 0)
+        return;
+
+    stringstream stream;
+    const int top = lua_gettop(L);
+    for (int i=1; i<=top; i++) {
+        stream << i << ": ";
+        toStream(L, i, stream, levels);
+        stream << "\n";
+    }
+    fprintf(stderr, "Lua stack dump:\n%s", stream.str().c_str());
+    abort();
 }

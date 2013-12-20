@@ -144,12 +144,18 @@ LIKELY_EXPORT likely_type likely_type_from_types(likely_type lhs, likely_type rh
 
 // Function compilation
 struct lua_State;
+typedef struct lua_State* likely_irl;
+LIKELY_EXPORT likely_irl likely_ir_from_string(const char *str);
+LIKELY_EXPORT const char *likely_ir_to_string(likely_irl ir);
+
 typedef uint8_t likely_arity;
 typedef const char *likely_ir;
 typedef likely_mat (*likely_function)(likely_const_mat, ...);
 typedef likely_mat (*likely_function_n)(likely_const_mat*);
 LIKELY_EXPORT likely_function likely_compile(likely_ir ir);
 LIKELY_EXPORT likely_function_n likely_compile_n(likely_ir ir);
+
+LIKELY_EXPORT void likely_stack_dump(struct lua_State *L, int levels);
 
 #ifdef __cplusplus
 }
