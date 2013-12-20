@@ -26,4 +26,4 @@ Supported file formats are:
 
 **Image** formats expect single-frame matricies, **Video** formats (not supported yet) expect multi-frame matricies.
 
-[Previous](?show=compilation) | [Next](?show=arithmetic)
+[Previous](?show=core_functions) | [Next](?show=compilation)

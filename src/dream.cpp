@@ -436,8 +436,10 @@ public:
 private:
     bool show(lua_State *L)
     {
+        if (!is(L))
+            return false;
+
         const QString name = lua_tostring(L, 2);
-        if (!is(L)) return false;
         likely_mat mat = *reinterpret_cast<likely_mat*>(luaL_testudata(L, 1, "likely"));
 
         double min, max;
@@ -587,13 +589,14 @@ public slots:
     {
         const int i = showIndex++;
         Variable *variable = NULL;
-        if (layout->itemAt(i) != NULL) {
-            variable = static_cast<Variable*>(layout->itemAt(i)->widget());
+        QLayoutItem *item = layout->itemAt(i);
+        if (item != NULL) {
+            variable = static_cast<Variable*>(item->widget());
             if (variable->show(L))
                 return;
+            layout->removeWidget(variable);
             variable->deleteLater();
         }
-
         if      (Matrix::is(L))  variable = new Matrix();
         else if (Closure::is(L)) variable = new Closure();
         else                     variable = new Generic();

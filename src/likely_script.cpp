@@ -303,7 +303,7 @@ static int lua_likely_compile(lua_State *L)
 {
     const int args = lua_gettop(L);
     lua_likely_assert(L, args == 1, "'compile' expected one argument, got: %d", args);
-    lua_getglobal(L, "tostring");
+    lua_getglobal(L, "translate");
     lua_pushvalue(L, 1);
     lua_call(L, 1, 1);
 
@@ -741,7 +741,7 @@ lua_State *likely_exec(const char *source, lua_State *L)
     return L; // The sandboxed environment is now on the top of the stack
 }
 
-likely_ir likely_interpret(const char *source)
+likely_ir likely_translate(const char *source)
 {
     static lua_State *L = NULL;
     stringstream command; command << "    return tostring(" << source << ")";

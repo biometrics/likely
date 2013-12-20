@@ -136,8 +136,9 @@ t = "t"
 
 ### Core functions
 ```Lua
+translate = tostring
 function chain(x,y)
-  return function(w) return tostring(y{tostring(x{w})}) end
+  return function(w) return translate(y{translate(x{w})}) end
 end
 
 closure = likely.closure

@@ -13,7 +13,7 @@ The **C translation** of this is:
 int main()
 {
     likely_mat lenna = likely_read("../data/misc/lenna.tiff");
-    likely_ir ir = likely_interpret("divide{2}");
+    likely_ir ir = likely_translate("divide{2}");
     likely_function darken = likely_compile(ir);
     likely_mat dark_lenna = darken(lenna);
     return 0;
@@ -23,4 +23,4 @@ int main()
 
 **[Here](src/hello_world.c)** is the source code for *Hello World* in *C*.
 
-[Previous](?show=matrix_io) | [Next](?show=arithmetic)
+[Previous](?show=compilation) | [Next](?show=arithmetic)
