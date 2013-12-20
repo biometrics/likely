@@ -4,11 +4,15 @@ cmake_policy(SET CMP0020 NEW)
 
 # Configure
 set(CPACK_PACKAGE_NAME "Likely")
-set(CPACK_PACKAGE_DESCRIPTION "Literate Kernel Library")
+set(CPACK_PACKAGE_DESCRIPTION "Likely Image Recognition Runtime")
 set(CPACK_PACKAGE_VERSION_MAJOR 0)
 set(CPACK_PACKAGE_VERSION_MINOR 1)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
+option(LIKELY_AUX "Build Likely with matrix I/O" ON)
+option(LIKELY_SCRIPT "Build Likely with Lua frontend" ON)
+
+# Build configuration
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
@@ -53,7 +57,10 @@ link_directories(${LLVM_LIBRARY_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES mcjit native vectorize)
 
-option(LIKELY_AUX "Build Likely with matrix I/O and debugging" ON)
+# Build Lua
+add_subdirectory(lua EXCLUDE_FROM_ALL)
+include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
+
 if(${LIKELY_AUX})
   option(BUILD_WITH_STATIC_CRT "OpenCV static MSVC CRT" OFF)
   option(WITH_CUDA "OpenCV CUDA support" OFF)
@@ -67,12 +74,6 @@ if(${LIKELY_AUX})
   # add_subdirectory(curl EXCLUDE_FROM_ALL)
   # include_directories(${CMAKE_SOURCE_DIR}/curl/include
   #                     ${CMAKE_BINARY_DIR}/curl/include/curl)
-endif()
-
-option(LIKELY_SCRIPT "Build Likely with Lua frontend" ON)
-if(${LIKELY_SCRIPT})
-  add_subdirectory(lua EXCLUDE_FROM_ALL)
-  include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
 endif()
 
 include_directories(include)

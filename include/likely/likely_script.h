@@ -27,7 +27,6 @@ extern "C" {
 LIKELY_EXPORT extern const char likely_standard_library[];
 
 // Import Likely into a Lua runtime
-struct lua_State;
 LIKELY_EXPORT int luaopen_likely(struct lua_State *L);
 
 // Execute a Likely script

@@ -143,6 +143,7 @@ LIKELY_EXPORT likely_type likely_type_from_value(double value);
 LIKELY_EXPORT likely_type likely_type_from_types(likely_type lhs, likely_type rhs);
 
 // Function compilation
+struct lua_State;
 typedef uint8_t likely_arity;
 typedef const char *likely_ir;
 typedef likely_mat (*likely_function)(likely_const_mat, ...);

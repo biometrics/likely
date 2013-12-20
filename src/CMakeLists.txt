@@ -18,35 +18,33 @@ if(APPLE)
   set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL "${CMAKE_EXE_LINKER_FLAGS_MINSIZEREL} -Wl,-dead_strip")
 endif()
 
-add_executable(embedfile embedfile.c)
-file(GLOB LIKELY_LIBRARY ${CMAKE_SOURCE_DIR}/library/*.like)
-
 set(LIKELY_SRC likely_core.cpp)
-set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES})
+set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES} liblua)
+file(GLOB LIKELY_LIBRARY ${CMAKE_SOURCE_DIR}/library/*.like)
 set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/include/likely.h
                 ${CMAKE_SOURCE_DIR}/include/likely/likely_core.h
                 ${CMAKE_SOURCE_DIR}/LICENSE.txt
-                ${CMAKE_SOURCE_DIR}/README.md)
+                ${CMAKE_SOURCE_DIR}/README.md
+                ${CMAKE_SOURCE_DIR}/index.html)
 
 if(${LIKELY_AUX})
   add_definitions(-DLIKELY_AUX)
   set(LIKELY_SRC ${LIKELY_SRC} likely_aux.cpp)
   set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui)
-  set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/index.html
-                                 ${CMAKE_SOURCE_DIR}/include/likely/likely_aux.h)
+  set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely/likely_aux.h
+                                 opencv.shim)
 endif()
 
 if(${LIKELY_SCRIPT})
   add_definitions(-DLIKELY_SCRIPT)
+  add_executable(embedfile embedfile.c)
   add_custom_command(OUTPUT likely_standard_library.c
                      COMMAND embedfile likely_standard_library ${CMAKE_SOURCE_DIR}/library/standard.like
                      DEPENDS embedfile ${CMAKE_SOURCE_DIR}/library/standard.like)
   set(LIKELY_SRC ${LIKELY_SRC} likely_script.cpp ${CMAKE_CURRENT_BINARY_DIR}/likely_standard_library.c)
-  set(LIKELY_LIBS ${LIKELY_LIBS} liblua)
   set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
-  set(LIKELY_MISC ${LIKELY_MISC} opencv.shim
-                                 ${CMAKE_SOURCE_DIR}/include/likely/likely_script.h)
+  set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely/likely_script.h)
 endif()
 
 # Build common object files
