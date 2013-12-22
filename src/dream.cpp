@@ -152,7 +152,6 @@ class Source : public QPlainTextEdit
 public:
     Source()
     {
-        setFont(QFont("Monaco"));
         connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
     }
 
@@ -773,6 +772,7 @@ int main(int argc, char *argv[])
     QApplication::setOrganizationName("Likely");
     QApplication::setOrganizationDomain("liblikely.org");
     QApplication application(argc, argv);
+    application.setStyleSheet("QWidget { font-family: Monaco }\n");
 
     MainWindow mainWindow(application);
     mainWindow.show();
