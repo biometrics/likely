@@ -68,7 +68,7 @@ LIKELY_EXPORT void likely_fork(void *thunk, likely_arity arity, likely_size size
 LIKELY_EXPORT likely_mat likely_dispatch(struct VTable *vtable, likely_mat *mats);
 }
 
-static void likely_assert(bool condition, const char *format, ...)
+void likely_assert(bool condition, const char *format, ...)
 {
     if (condition) return;
     va_list ap;
@@ -1228,7 +1228,7 @@ struct FunctionBuilder : private JITResources
     likely_type *type;
     void *f;
 
-    FunctionBuilder(const SExp &sexp, const vector<likely_type> &types)
+    FunctionBuilder(likely_ir ir, const vector<likely_type> &types)
     {
         type = new likely_type[types.size()];
         memcpy(type, types.data(), sizeof(likely_type) * types.size());
@@ -1256,7 +1256,7 @@ struct FunctionBuilder : private JITResources
             Value *i = kernel.beginLoop(entry, start, stop).i;
             KernelInfo info(kernel, srcs, dst, i);
 
-            TypedValue result = generateKernelRecursive(kernel, info, sexp);
+            TypedValue result = generateKernelRecursive(kernel, info, ir);
 
             dstType = result.type;
             kernel.store(TypedValue(dst.value, dstType), i, result);
@@ -1442,19 +1442,29 @@ private:
         return KernelBuilder::constant(value, type);
     }
 
-    TypedValue generateKernelRecursive(KernelBuilder &kernel, const KernelInfo &info, const SExp &expression)
+    TypedValue generateKernelRecursive(KernelBuilder &kernel, const KernelInfo &info, likely_ir ir)
     {
+        string operator_;
         vector<TypedValue> operands;
-        for (const SExp &operand : expression.sexps)
-            operands.push_back(generateKernelRecursive(kernel, info, operand));
-        const string &op = expression.op;
+        if (lua_istable(ir, -1)) {
+            lua_pushnil(ir);
+            likely_assert(lua_next(ir, -2), "'generateKernelRecursive' missing operator");
+            operator_ = lua_tostring(ir, -1);
+            lua_pop(ir, 1);
+            while (lua_next(ir, -2)) {
+                operands.push_back(generateKernelRecursive(kernel, info, ir));
+                lua_pop(ir, 1);
+            }
+        } else {
+            operator_ = lua_tostring(ir, -1);
+        }
 
-        map<string,const Operation*>::iterator it = Operation::operations.find(op);
+        map<string,const Operation*>::iterator it = Operation::operations.find(operator_);
         if (it != Operation::operations.end())
             return it->second->call(kernel, info, operands);
 
-        if (op.substr(0,2) == "__") {
-            int index = atoi(op.substr(2, op.size()-2).c_str());
+        if (operator_.substr(0,2) == "__") {
+            int index = atoi(operator_.substr(2, operator_.size()-2).c_str());
             const TypedValue matrix = info.srcs[index];
             Value *matrix_i;
             if ((matrix.type & likely_type_multi_dimension) == info.dims) {
@@ -1468,8 +1478,8 @@ private:
             return TypedValue(kernel.load(matrix, matrix_i), matrix.type);
         } else {
             bool ok;
-            TypedValue c = constant(op, &ok);
-            likely_assert(ok, "unrecognized literal: %s", op.c_str());
+            TypedValue c = constant(operator_, &ok);
+            likely_assert(ok, "unrecognized literal: %s", operator_.c_str());
             return c;
         }
 
@@ -1482,19 +1492,15 @@ private:
 struct VTable : public JITResources
 {
     static PointerType *vtableType;
-    SExp sexp;
+    likely_ir ir;
     likely_arity n;
     vector<FunctionBuilder*> functions;
     Function *likelyDispatch;
 
-    VTable(likely_ir ir)
-        : sexp(ir)
+    VTable(likely_ir ir_)
+        : ir(ir_)
     {
-        n = 0;
-        const int length = strlen(ir);
-        for (int i=2; i<length; i++)
-            if (!strncmp(&ir[i-2], "__", 2))
-                n = max(n, likely_arity(atoi(&ir[i])+1));
+        n = computeArityRecursive(ir);
 
         if (vtableType == NULL)
             vtableType = PointerType::getUnqual(StructType::create(getGlobalContext(), "VTable"));
@@ -1522,6 +1528,7 @@ struct VTable : public JITResources
 
     ~VTable()
     {
+        lua_close(ir);
         for (FunctionBuilder *function : functions)
             delete function;
     }
@@ -1576,6 +1583,23 @@ struct VTable : public JITResources
     }
 
 private:
+    static likely_arity computeArityRecursive(likely_ir ir)
+    {
+        likely_arity n = 0;
+        lua_pushnil(ir);
+        while (lua_next(ir, -2)) {
+            if (lua_istable(ir, -1)) {
+                n = max(n, computeArityRecursive(ir));
+            } else {
+                const char *str = lua_tostring(ir, -1);
+                if (!strncmp(str, "__", 2))
+                    n = max(n, likely_arity(atoi(&str[2])+1));
+            }
+            lua_pop(ir, 1);
+        }
+        return n;
+    }
+
     Function *getFunction(FunctionType *functionType) const
     {
         Function *function = cast<Function>(module->getOrInsertFunction(name, functionType));
@@ -1621,7 +1645,7 @@ likely_mat likely_dispatch(struct VTable *vtable, likely_mat *m)
         vector<likely_type> types;
         for (int i=0; i<vtable->n; i++)
             types.push_back(m[i]->type);
-        FunctionBuilder *functionBuilder = new FunctionBuilder(vtable->sexp, types);
+        FunctionBuilder *functionBuilder = new FunctionBuilder(vtable->ir, types);
         vtable->functions.push_back(functionBuilder);
         function = vtable->functions.back()->f;
     }
@@ -1641,16 +1665,6 @@ likely_mat likely_dispatch(struct VTable *vtable, likely_mat *m)
     }
 
     return dst;
-}
-
-likely_function likely_compile(likely_ir ir)
-{
-    return (new VTable(ir))->compile();
-}
-
-likely_function_n likely_compile_n(likely_ir ir)
-{
-    return (new VTable(ir))->compileN();
 }
 
 void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...)
@@ -1696,9 +1710,9 @@ void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const
         while (workers[i]) {} // Wait for the worker to finish
 }
 
-likely_irl likely_ir_from_string(const char *str)
+likely_ir likely_ir_from_string(const char *str)
 {
-    likely_irl L = luaL_newstate();
+    likely_ir L = luaL_newstate();
     luaL_dostring(L, str);
     const int args = lua_gettop(L);
     likely_assert(args == 1, "'likely_ir_from_string' expected one result, got: %d", args);
@@ -1710,12 +1724,12 @@ static void toStream(lua_State *L, int index, stringstream &stream, int levels =
 {
     lua_pushvalue(L, index);
     const int type = lua_type(L, -1);
-    if (type == LUA_TSTRING) {
-        stream << lua_tostring(L, -1);
-    } else if (type == LUA_TBOOLEAN) {
+    if (type == LUA_TBOOLEAN) {
         stream << (lua_toboolean(L, -1) ? "true" : "false");
     } else if (type == LUA_TNUMBER) {
         stream << lua_tonumber(L, -1);
+    } else if (type == LUA_TSTRING) {
+        stream << "\"" << lua_tostring(L, -1) << "\"";
     } else if (type == LUA_TTABLE) {
         if (levels == 0) {
             stream << "table";
@@ -1741,17 +1755,24 @@ static void toStream(lua_State *L, int index, stringstream &stream, int levels =
     lua_pop(L, 1);
 }
 
-const char *likely_ir_to_string(likely_irl ir)
+const char *likely_ir_to_string(likely_ir ir)
 {
     static string result;
-    lua_State *L = ir;
-    const int args = lua_gettop(L);
-    likely_assert(args == 1, "'likely_ir_to_string' expected one argument, got: %d", args);
-    likely_assert(lua_istable(L, 1), "'likely_ir_to_string' expected a table argument");
+    likely_assert(lua_istable(ir, -1), "'likely_ir_to_string' expected a table");
     stringstream stream;
-    toStream(L, 1, stream, std::numeric_limits<int>::max());
+    toStream(ir, -1, stream, std::numeric_limits<int>::max());
     result = stream.str();
     return result.c_str();
+}
+
+likely_function likely_compile(likely_ir ir)
+{
+    return (new VTable(ir))->compile();
+}
+
+likely_function_n likely_compile_n(likely_ir ir)
+{
+    return (new VTable(ir))->compileN();
 }
 
 void likely_stack_dump(lua_State *L, int levels)

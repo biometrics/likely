@@ -136,12 +136,12 @@ t = "t"
 
 ### Core functions
 ```Lua
-translate = tostring
-function chain(x,y)
-  return function(w) return translate(y{translate(x{w})}) end
-end
-
 closure = likely.closure
+parse = likely.parse
+
+function chain(x,y)
+  return function(w) return parse(y{parse(x{w})}) end
+end
 
 new = closure(
   nil,
@@ -181,34 +181,22 @@ show = closure(
   likely.show)
 ```
 
-### Utility functions
-```Lua
-function likely.s(...)
-  local t = {}
-  for i, v in ipairs({...}) do
-    t[#t+1] = translate(v)
-  end
-  return "(" .. table.concat(t, " ") .. ")"
-end
-s = likely.s
-```
-
 ### Arithmetic
 ```Lua
 add = closure(
-  function(rhs, lhs) return s("+", lhs, rhs) end,
+  function(rhs, lhs) return {"+", lhs, rhs} end,
   "Arithmetic addition",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
 subtract = closure(
-  function(rhs, lhs) return s("-", lhs, rhs) end,
+  function(rhs, lhs) return {"-", lhs, rhs} end,
   "Arithmetic subtraction",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
 multiply = closure(
-  function(rhs, lhs) return s("*", lhs, rhs) end,
+  function(rhs, lhs) return {"*", lhs, rhs} end,
   "Arithmetic multiplication",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
@@ -218,7 +206,7 @@ divide = closure(
     if rhs == 0 then
       error("Denominator is zero!")
     else
-      return s("/", lhs, rhs)
+      return {"/", lhs, rhs}
     end
   end,
   "Arithmetic division",
@@ -229,102 +217,102 @@ divide = closure(
 ### Math
 ```Lua
 sqrt = closure(
-  function(x) return s("sqrt", x) end,
+  function(x) return {"sqrt", x} end,
   "Square root: f(x) = x ** 0.5",
   {{"x", "operand"}})
 
 powi = closure(
-  function(n, x) return s("powi", x, n) end,
+  function(n, x) return {"powi", x, n} end,
   "Integer power: f(x) = x ** n",
   {{"x", "base"},
    {"n", "integer exponent"}})
 
 sin = closure(
-  function(x) return s("sin", x) end,
+  function(x) return {"sin", x} end,
   "Sine: f(x) = sin(x)",
   {{"x", "radians"}})
 
 cos = closure(
-  function(x) return s("cos", x) end,
+  function(x) return {"cos", x} end,
   "Cosine: f(x) = cos(x)",
   {{"x", "operand"}})
 
 pow = closure(
-  function(n, x) return s("pow", x, n) end,
+  function(n, x) return {"pow", x, n} end,
   "Power: f(x) = x ** n",
   {{"x", "base"},
    {"n", "exponent"}})
 
 exp = closure(
-  function(x) return s("exp", x) end,
+  function(x) return {"exp", x} end,
   "Base-e exponential: f(x) = e ** x",
   {{"x", "exponent"}})
 
 exp2 = closure(
-  function(x) return s("exp2", x) end,
+  function(x) return {"exp2", x} end,
   "Base-2 exponential: f(x) = 2 ** x",
   {{"x", "exponent"}})
 
 log = closure(
-  function(x) return s("log", x) end,
+  function(x) return {"log", x} end,
   "Natural logarithm: f(x) = log_e(x)",
   {{"x", "operand"}})
 
 log10 = closure(
-  function(x) return s("log10", x) end,
+  function(x) return {"log10", x} end,
   "Base-10 logarithm: f(x) = log_10(x)",
   {{"x", "operand"}})
 
 log2 = closure(
-  function(x) return s("log2", x) end,
+  function(x) return {"log2", x} end,
   "Base-2 logarithm: f(x) = log_2(x)",
   {{"x", "operand"}})
 
 fma = closure(
-  function(a, c, x) return s("fma", a, x, c) end,
+  function(a, c, x) return {"fma", a, x, c} end,
   "Fused multiply-add: f(a, b, x) = a * x + c",
   {{"a", "operand"},
    {"c", "operand"},
    {"x", "operand"}})
 
 fabs = closure(
-  function(x) return s("fabs", x) end,
+  function(x) return {"fabs", x} end,
   "Floating absolute value: f(x) = |x|",
   {{"x", "operand"}})
 
 copysign = closure(
-  function(s, m) return s("copysign", m, s) end,
+  function(s, m) return {"copysign", m, s} end,
   "Floating copy sign: f(x) = copysign(m, s)",
   {{"s", "value containing sign"},
    {"m", "value containing magnitude"}})
 
 floor = closure(
-  function(x) return s("floor", x) end,
+  function(x) return {"floor", x} end,
   "Floating floor: f(x) = floor(x)",
   {{"x", "operand"}})
 
 ceil = closure(
-  function(x) return s("ceil", x) end,
+  function(x) return {"ceil", x} end,
   "Floating ceil: f(x) = ceil(x)",
   {{"x", "operand"}})
 
 trunc = closure(
-  function(x) return s("trunc", x) end,
+  function(x) return {"trunc", x} end,
   "Floating round toward zero: f(x) = x > 0 ? floor(x) : ceil(x)",
   {{"x", "operand"}})
 
 rint = closure(
-  function(x) return s("rint", x) end,
+  function(x) return {"rint", x} end,
   "Floating round to nearest integer: f(x) = rint(x)",
   {{"x", "operand"}})
 
 nearbyint = closure(
-  function(x) return s("nearbyint", x) end,
+  function(x) return {"nearbyint", x} end,
   "Floating round to nearest integer: f(x) = nearbyint(x)",
   {{"x", "operand"}})
 
 round = closure(
-  function(x) return s("round", x) end,
+  function(x) return {"round", x} end,
   "Floating round to nearest integer: f(x) = round(x)",
   {{"x", "operand"}})
 ```
@@ -332,13 +320,13 @@ round = closure(
 ### Casting
 ```Lua
 cast = closure(
-  function(type, x) return s("cast", x, type) end,
+  function(type, x) return {"cast", x, type} end,
   "Cast matrix to another type",
   {{"type", "Likely type"},
    {"x", "operand"}})
 
 type = closure(
-  function(x) return s("type", x) end,
+  function(x) return {"type", x} end,
   "Extract the matrix type",
   {{"x", "matrix"}})
 ```
@@ -346,37 +334,37 @@ type = closure(
 ### Comparison
 ```Lua
 lt = closure(
-  function(rhs, lhs) return s("<", lhs, rhs) end,
+  function(rhs, lhs) return {"<", lhs, rhs} end,
   "Check if lhs is less than rhs",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
 le = closure(
-  function(rhs, lhs) return s("<=", lhs, rhs) end,
+  function(rhs, lhs) return {"<=", lhs, rhs} end,
   "Check if lhs is less than or equal to rhs",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
 gt = closure(
-  function(rhs, lhs) return s(">", lhs, rhs) end,
+  function(rhs, lhs) return {">", lhs, rhs} end,
   "Check if lhs is greater than rhs",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
 ge = closure(
-  function(rhs, lhs) return s(">=", lhs, rhs) end,
+  function(rhs, lhs) return {">=", lhs, rhs} end,
   "Check if lhs is greater than or equal to rhs",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
 eq = closure(
-  function(rhs, lhs) return s("==", lhs, rhs) end,
+  function(rhs, lhs) return {"==", lhs, rhs} end,
   "Check if lhs is equal to rhs",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
 
 ne = closure(
-  function(rhs, lhs) return s("!=", lhs, rhs) end,
+  function(rhs, lhs) return {"!=", lhs, rhs} end,
   "Check if lhs is not equal to rhs",
   {{"rhs", "right hand side"},
    {"lhs", "left hand side"}})
@@ -385,13 +373,13 @@ ne = closure(
 ### Image Processing
 ```Lua
 threshold = closure(
-  function(val, x) return s("threshold", x, val) end,
+  function(val, x) return {"threshold", x, val} end,
   "Binary threshold",
   {{"val", "threshold"},
    {"x", "operand"}})
 
 set = closure(
-  function(value, matrix) return translate(cast{type{matrix}, value}) end,
+  function(value, matrix) return cast{type{matrix}, value} end,
   "Assignment",
   {{"value", "numerical constant"},
    {"matrix", "used to determine output size and type"}})

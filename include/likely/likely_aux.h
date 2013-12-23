@@ -28,9 +28,9 @@ LIKELY_EXPORT likely_mat likely_read(const char *file_name);
 LIKELY_EXPORT void likely_write(likely_const_mat image, const char *file_name);
 LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
 LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
-LIKELY_EXPORT likely_mat likely_render(likely_const_mat m, double *min, double *max); // Return a 888 matrix for visualization
 
-// Debug
+// Matrix Visualization
+LIKELY_EXPORT likely_mat likely_render(likely_const_mat m, double *min, double *max); // Return a 888 matrix for visualization
 LIKELY_EXPORT void likely_print(likely_const_mat m);
 
 #ifdef __cplusplus

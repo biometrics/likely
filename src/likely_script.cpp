@@ -18,6 +18,7 @@
 #  define _CRT_SECURE_NO_WARNINGS
 #endif
 
+#include <assert.h>
 #include <cstring>
 #include <iostream>
 #include <map>
@@ -299,20 +300,44 @@ static int lua_likely_show(lua_State *L)
     return 0;
 }
 
+static void copyRecursive(lua_State *src, lua_State *dst)
+{
+    const int type = lua_type(src, -1);
+    if (type == LUA_TBOOLEAN) {
+        lua_pushboolean(dst, lua_toboolean(src, -1));
+    } else if (type == LUA_TNUMBER) {
+        lua_pushnumber(dst, lua_tonumber(src, -1));
+    } else if (type == LUA_TSTRING) {
+        lua_pushstring(dst, lua_tostring(src, -1));
+    } else if (type == LUA_TTABLE) {
+        lua_newtable(dst);
+        lua_pushnil(src);
+        while (lua_next(src, -2)) {
+            lua_pushvalue(src, -2);
+            copyRecursive(src, dst); // copy key
+            lua_pop(src, 1);
+            copyRecursive(src, dst); // copy value
+            lua_pop(src, 1);
+            lua_settable(dst, -3);
+        }
+    } else {
+        likely_assert(false, "'copyRecursive' unsupported type");
+    }
+}
+
 static int lua_likely_compile(lua_State *L)
 {
     const int args = lua_gettop(L);
     lua_likely_assert(L, args == 1, "'compile' expected one argument, got: %d", args);
-    lua_getglobal(L, "translate");
-    lua_pushvalue(L, 1);
-    lua_call(L, 1, 1);
 
     // Retrieve or compile the function
     static map<string,likely_function_n> functions;
-    likely_ir source = lua_tostring(L, -1);
+    const string source = likely_ir_to_string(L);
     map<string,likely_function_n>::const_iterator it = functions.find(source);
     if (it == functions.end()) {
-        functions.insert(pair<string,likely_function_n>(source, likely_compile_n(source)));
+        likely_ir ir = luaL_newstate();
+        copyRecursive(L, ir);
+        functions.insert(pair<string,likely_function_n>(source, likely_compile_n(ir)));
         it = functions.find(source);
     }
 
@@ -487,7 +512,9 @@ static int lua_likely__call(lua_State *L)
     lua_getfield(L, 1, "binary");
     if (lua_isnil(L, -1)) {
         lua_getglobal(L, "compile");
+        lua_getglobal(L, "parse");
         lua_pushvalue(L, 1);
+        lua_call(L, 1, 1);
         lua_call(L, 1, 1);
         lua_getfield(L, -1, "binary");
         lua_insert(L, -3);
@@ -556,10 +583,10 @@ static int lua_likely__concat(lua_State *L)
     return 1;
 }
 
-static int lua_likely_closure__tostring(lua_State *L)
+static int lua_likely_parse(lua_State *L)
 {
     const int args = lua_gettop(L);
-    lua_likely_assert(L, args == 1, "__tostring expected one argument, got: %d", args);
+    lua_likely_assert(L, args == 1, "parse expected one argument, got: %d", args);
 
     // Setup and call the function
     lua_getfield(L, 1, "source");
@@ -580,6 +607,9 @@ static int lua_likely_closure__tostring(lua_State *L)
     }
     lua_pop(L, 1);
     lua_call(L, lua_gettop(L)-2, 1);
+
+    luaL_getmetatable(L, "likely_closure");
+    lua_setmetatable(L, -2);
     return 1;
 }
 
@@ -590,6 +620,7 @@ int luaopen_likely(lua_State *L)
         {"scalar", lua_likely_scalar},
         {"read", lua_likely_read},
         {"closure", lua_likely_closure},
+        {"parse", lua_likely_parse},
         {"compile", lua_likely_compile},
         {"show", lua_likely_show},
         {NULL, NULL}
@@ -615,7 +646,6 @@ int luaopen_likely(lua_State *L)
     static const struct luaL_Reg likely_closure[] = {
         {"__call", lua_likely__call},
         {"__concat", lua_likely__concat},
-        {"__tostring", lua_likely_closure__tostring},
         {NULL, NULL}
     };
 
@@ -743,12 +773,17 @@ lua_State *likely_exec(const char *source, lua_State *L)
     return L; // The sandboxed environment is now on the top of the stack
 }
 
-likely_ir likely_translate(const char *source)
+likely_ir likely_parse(const char *expression)
 {
     static lua_State *L = NULL;
-    stringstream command; command << "`return translate(" << source << ")`";
+    stringstream command; command << "`return parse(" << expression << ")`";
     L = likely_exec(command.str().c_str(), L);
-    return lua_tostring(L, -1);
+    likely_assert(lua_istable(L, -1), "'likely_parse' expected a table result");
+
+    // Return the result in a new state
+    likely_ir ir = luaL_newstate();
+    copyRecursive(L, ir);
+    return ir;
 }
 
 LIKELY_EXPORT void likely_set_show_callback(likely_show_callback callback, void *context)
