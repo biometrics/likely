@@ -30,7 +30,7 @@ LIKELY_EXPORT extern const char likely_standard_library[];
 LIKELY_EXPORT int luaopen_likely(struct lua_State *L);
 
 // Execute a Likely script
-LIKELY_EXPORT struct lua_State *likely_exec(const char *source, struct lua_State *L);
+LIKELY_EXPORT struct lua_State *likely_exec(const char *source, struct lua_State *L, int markdown);
 
 // Retrieve Likely IR from a Lua closure
 LIKELY_EXPORT likely_ir likely_parse(const char *expression);

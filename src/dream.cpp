@@ -337,7 +337,7 @@ private slots:
         emit aboutToExec();
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
-        L = likely_exec(qPrintable(source), L);
+        L = likely_exec(qPrintable(source), L, 1);
         const qint64 nsec = elapsedTimer.nsecsElapsed();
 
         settings.setValue("source", toPlainText());
@@ -762,7 +762,7 @@ int main(int argc, char *argv[])
         } else {
             source = argv[i];
         }
-        lua_close(likely_exec(qPrintable(source), NULL));
+        lua_close(likely_exec(qPrintable(source), NULL, 1));
     }
 
     if (argc > 1)

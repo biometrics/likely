@@ -568,41 +568,6 @@ struct KernelBuilder
     }
 };
 
-struct SExp
-{
-    string op;
-    vector<SExp> sexps;
-	SExp() {}
-    SExp(const string &source)
-    {
-        likely_assert(!source.empty(), "empty expression");
-        if ((source[0] == '(') && (source[source.size()-1] == ')')) {
-            size_t start = 1, depth = 0;
-            for (size_t i=1; i<source.size()-1; i++) {
-                if (source[i] == '(') {
-                    depth++;
-                } else if (source[i] == ')') {
-                    likely_assert(depth > 0, "unexpected ')' in: %s", source.c_str());
-                    depth--;
-                } else if ((source[i] == ' ') && (depth == 0)) {
-                    if (start != i)
-                        sexps.push_back(source.substr(start, i-start));
-                    start = i + 1;
-                }
-            }
-            likely_assert(depth == 0, "missing ')' in :%s", source.c_str());
-            if (start != source.size()-1)
-                sexps.push_back(source.substr(start, source.size()-1-start));
-            likely_assert(sexps.front().sexps.empty(), "unexpected operand: %s", source.c_str());
-            op = sexps.front().op;
-            sexps.erase(sexps.begin());
-        } else {
-            likely_assert(source.find(' ') == string::npos, "unexpected ' ' in: %s", source.c_str());
-            op = source;
-        }
-    }
-};
-
 struct KernelInfo
 {
     vector<TypedValue> srcs;
@@ -1734,18 +1699,43 @@ static void toStream(lua_State *L, int index, stringstream &stream, int levels =
         if (levels == 0) {
             stream << "table";
         } else {
-            stream << "{";
+            map<int,string> integers;
+            map<string,string> strings;
             lua_pushnil(L);
-            bool first = true;
             while (lua_next(L, -2)) {
-                if (first) first = false;
-                else       stream << ", ";
-                if (!lua_isnumber(L, -2)) {
-                    toStream(L, -2, stream, levels - 1);
-                    stream << "=";
-                }
-                toStream(L, -1, stream, levels - 1);
+                lua_pushvalue(L, -2);
+                int isnum;
+                int key = lua_tointegerx(L, -1, &isnum);
                 lua_pop(L, 1);
+                stringstream value;
+                toStream(L, -1, value, levels - 1);
+                if (isnum) {
+                    integers.insert(pair<int,string>(key, value.str()));
+                } else {
+                    lua_pushvalue(L, -2);
+                    strings.insert(pair<string,string>(lua_tostring(L, -1), value.str()));
+                    lua_pop(L, 1);
+                }
+                lua_pop(L, 1);
+            }
+
+            stream << "{";
+            int expectedIndex = 1;
+            for (map<int,string>::iterator iter = integers.begin(); iter != integers.end(); iter++) {
+                if (iter != integers.begin())
+                    stream << ", ";
+                if (iter->first == expectedIndex) {
+                    stream << iter->second;
+                    expectedIndex++;
+                } else {
+                    stream << iter->first << "=" << iter->second;
+                }
+            }
+
+            for (map<string,string>::iterator iter = strings.begin(); iter != strings.end(); iter++) {
+                if (iter != strings.begin() || !integers.empty())
+                    stream << ", ";
+                stream << iter->first << "=" << iter->second;
             }
             stream << "}";
         }

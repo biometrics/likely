@@ -137,250 +137,146 @@ t = "t"
 ### Core functions
 ```Lua
 closure = likely.closure
-parse = likely.parse
+
+new = closure({ likely.new, f32, 1, 1, 1, 1, 0, false },
+              { "Create an uninitialized matrix", "type", "channels", "columns", "rows", "frames", "data", "copy" })
+
+scalar = closure({ likely.scalar, nil },
+                 { "Create and initialize a single-dimension matrix from a number", "number" })
+
+read = closure({ likely.read, nil },
+               { "Create a matrix from a file", "file_name" })
+
+parse = closure({ likely.parse, nil },
+                { "Create Likely IR from a closure", "closure" })
+
+compile = closure({ likely.compile, nil },
+                  { "Create a function from Likely IR", "likely_ir" })
+
+show = closure({ likely.show, nil, "" },
+               { "Display a value", "value", "name" })
 
 function chain(x,y)
-  return function(w) return parse(y{parse(x{w})}) end
+  return function(w) return y(x(w)) end
 end
-
-new = closure(
-  nil,
-  "Create an uninitialized matrix",
-  {{"type", "matrix type", f32},
-   {"channels", "matrix channels", 1},
-   {"columns", "matrix columns", 1},
-   {"rows", "matrix rows", 1},
-   {"frames", "matrix frames", 1},
-   {"data", "pointer to existing data buffer", 0},
-   {"copy", "copy the data buffer", false}},
-  likely.new)
-
-scalar = closure(
-  nil,
-  "Create and initialize a single-dimension matrix from a number",
-  {{"value", "matrix value"}},
-  likely.scalar)
-
-read = closure(
-  nil,
-  "Create a matrix from a file",
-  {{"file_name", "path to file on disk"}},
-  likely.read)
-
-compile = closure(
-  nil,
-  "Create a function from source code",
-  {{"likely_ir", "Likely intermediate representation"}},
-  likely.compile)
-
-show = closure(
-  nil,
-  "Display a value",
-  {{"value", "value to display"},
-   {"name", "display title", ""}},
-  likely.show)
 ```
 
 ### Arithmetic
 ```Lua
-add = closure(
-  function(rhs, lhs) return {"+", lhs, rhs} end,
-  "Arithmetic addition",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
+add = closure({ function(rhs, lhs) return { "+", lhs, rhs } end, nil, nil },
+              { "Arithmetic addition", "rhs", "lhs" })
 
-subtract = closure(
-  function(rhs, lhs) return {"-", lhs, rhs} end,
-  "Arithmetic subtraction",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
+subtract = closure({ function(rhs, lhs) return { "-", lhs, rhs } end, nil, nil },
+                   { "Arithmetic subtraction", "rhs", "lhs" })
 
-multiply = closure(
-  function(rhs, lhs) return {"*", lhs, rhs} end,
-  "Arithmetic multiplication",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
+multiply = closure({ function(rhs, lhs) return { "*", lhs, rhs } end, nil, nil },
+                   { "Arithmetic multiplication", "rhs", "lhs" })
 
-divide = closure(
-  function(rhs, lhs)
-    if rhs == 0 then
-      error("Denominator is zero!")
-    else
-      return {"/", lhs, rhs}
-    end
-  end,
-  "Arithmetic division",
-  {{"rhs", "right hand side (denominator)"},
-   {"lhs", "left hand side (numerator)"}})
+divide = closure({ function(rhs, lhs)
+                     if rhs == 0 then
+                       error("Denominator is zero!")
+                     else
+                       return { "/", lhs, rhs }
+                     end
+                   end, nil, nil },
+                 { "Arithmetic division", "rhs", "lhs" })
 ```
 
 ### Math
 ```Lua
-sqrt = closure(
-  function(x) return {"sqrt", x} end,
-  "Square root: f(x) = x ** 0.5",
-  {{"x", "operand"}})
+sqrt = closure({ function(x) return { "sqrt", x } end, nil },
+               { "Square root", "operand" })
 
-powi = closure(
-  function(n, x) return {"powi", x, n} end,
-  "Integer power: f(x) = x ** n",
-  {{"x", "base"},
-   {"n", "integer exponent"}})
+powi = closure({ function(iexp, base) return { "powi", base, iexp } end, nil, nil },
+               { "Integer power", "integer_exponent", "base" })
 
-sin = closure(
-  function(x) return {"sin", x} end,
-  "Sine: f(x) = sin(x)",
-  {{"x", "radians"}})
+sin = closure({ function(x) return { "sin", x } end, nil },
+              { "Sine", "radians" })
 
-cos = closure(
-  function(x) return {"cos", x} end,
-  "Cosine: f(x) = cos(x)",
-  {{"x", "operand"}})
+cos = closure({ function(x) return { "cos", x } end, nil },
+              { "Cosine", "radians" })
 
-pow = closure(
-  function(n, x) return {"pow", x, n} end,
-  "Power: f(x) = x ** n",
-  {{"x", "base"},
-   {"n", "exponent"}})
+pow = closure({ function(exp, base) return { "pow", base, exp } end, nil, nil },
+              { "Power", "exponent", "base" })
 
-exp = closure(
-  function(x) return {"exp", x} end,
-  "Base-e exponential: f(x) = e ** x",
-  {{"x", "exponent"}})
+exp = closure({ function(x) return { "exp", x } end, nil },
+              { "Base-e exponential", "exponent" })
 
-exp2 = closure(
-  function(x) return {"exp2", x} end,
-  "Base-2 exponential: f(x) = 2 ** x",
-  {{"x", "exponent"}})
+exp2 = closure({ function(x) return { "exp2", x } end, nil },
+               { "Base-2 exponential", "exponent" })
 
-log = closure(
-  function(x) return {"log", x} end,
-  "Natural logarithm: f(x) = log_e(x)",
-  {{"x", "operand"}})
+log = closure({ function(x) return { "log", x } end, nil },
+              { "Natural logarithm", "operand" })
 
-log10 = closure(
-  function(x) return {"log10", x} end,
-  "Base-10 logarithm: f(x) = log_10(x)",
-  {{"x", "operand"}})
+log10 = closure({ function(x) return { "log10", x } end, nil },
+                { "Base-10 logarithm", "operand" })
 
-log2 = closure(
-  function(x) return {"log2", x} end,
-  "Base-2 logarithm: f(x) = log_2(x)",
-  {{"x", "operand"}})
+log2 = closure({ function(x) return { "log2", x } end, nil },
+               { "Base-2 logarithm", "operand" })
 
-fma = closure(
-  function(a, c, x) return {"fma", a, x, c} end,
-  "Fused multiply-add: f(a, b, x) = a * x + c",
-  {{"a", "operand"},
-   {"c", "operand"},
-   {"x", "operand"}})
+fma = closure({ function(a, b, x) return { "fma", a, x, b } end, nil, nil, nil },
+              { "Fused multiply-add (a*x+b)", "a", "b", "x" })
 
-fabs = closure(
-  function(x) return {"fabs", x} end,
-  "Floating absolute value: f(x) = |x|",
-  {{"x", "operand"}})
+fabs = closure({ function(x) return { "fabs", x } end, nil },
+               { "Floating absolute value", "operand" })
 
-copysign = closure(
-  function(s, m) return {"copysign", m, s} end,
-  "Floating copy sign: f(x) = copysign(m, s)",
-  {{"s", "value containing sign"},
-   {"m", "value containing magnitude"}})
+copysign = closure({ function(sign, magnitude) return { "copysign", magnitude, sign } end, nil, nil },
+                   { "Floating copy sign", "sign", "magnitude" })
 
-floor = closure(
-  function(x) return {"floor", x} end,
-  "Floating floor: f(x) = floor(x)",
-  {{"x", "operand"}})
+floor = closure({ function(x) return { "floor", x } end, nil },
+                { "Floating floor", "operand" })
 
-ceil = closure(
-  function(x) return {"ceil", x} end,
-  "Floating ceil: f(x) = ceil(x)",
-  {{"x", "operand"}})
+ceil = closure({ function(x) return { "ceil", x} end, nil },
+               { "Floating ceil", "operand" })
 
-trunc = closure(
-  function(x) return {"trunc", x} end,
-  "Floating round toward zero: f(x) = x > 0 ? floor(x) : ceil(x)",
-  {{"x", "operand"}})
+trunc = closure({ function(x) return { "trunc", x } end, nil },
+                { "Floating round toward zero", "operand" })
 
-rint = closure(
-  function(x) return {"rint", x} end,
-  "Floating round to nearest integer: f(x) = rint(x)",
-  {{"x", "operand"}})
+rint = closure({ function(x) return { "rint", x } end, nil },
+               { "Floating round to nearest integer", "operand" })
 
-nearbyint = closure(
-  function(x) return {"nearbyint", x} end,
-  "Floating round to nearest integer: f(x) = nearbyint(x)",
-  {{"x", "operand"}})
+nearbyint = closure({ function(x) return { "nearbyint", x } end, nil },
+                    { "Floating round to nearest integer", "operand" })
 
-round = closure(
-  function(x) return {"round", x} end,
-  "Floating round to nearest integer: f(x) = round(x)",
-  {{"x", "operand"}})
+round = closure({ function(x) return { "round", x } end, nil },
+                { "Floating round to nearest integer", "operand" })
 ```
 
 ### Casting
 ```Lua
-cast = closure(
-  function(type, x) return {"cast", x, type} end,
-  "Cast matrix to another type",
-  {{"type", "Likely type"},
-   {"x", "operand"}})
+cast = closure({ function(type, x) return { "cast", x, type } end, nil, nil },
+               { "Convert matrix to another type", "matrix", "type" })
 
-type = closure(
-  function(x) return {"type", x} end,
-  "Extract the matrix type",
-  {{"x", "matrix"}})
+type = closure({ function(x) return { "type", x } end, nil },
+               { "Extract the matrix type", "matrix" })
 ```
 
 ### Comparison
 ```Lua
-lt = closure(
-  function(rhs, lhs) return {"<", lhs, rhs} end,
-  "Check if lhs is less than rhs",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
+lt = closure({ function(rhs, lhs) return { "<", lhs, rhs } end, nil, nil },
+             { "Less than", "rhs", "lhs" })
 
-le = closure(
-  function(rhs, lhs) return {"<=", lhs, rhs} end,
-  "Check if lhs is less than or equal to rhs",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
+le = closure({ function(rhs, lhs) return { "<=", lhs, rhs } end, nil, nil },
+             { "Less than or equal to", "rhs", "lhs" })
 
-gt = closure(
-  function(rhs, lhs) return {">", lhs, rhs} end,
-  "Check if lhs is greater than rhs",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
+gt = closure({ function(rhs, lhs) return { ">", lhs, rhs } end, nil, nil },
+             { "Greater than", "rhs", "lhs" })
 
-ge = closure(
-  function(rhs, lhs) return {">=", lhs, rhs} end,
-  "Check if lhs is greater than or equal to rhs",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
+ge = closure({ function(rhs, lhs) return { ">=", lhs, rhs } end, nil, nil },
+             { "Greater than or equal to", "rhs", "lhs" })
 
-eq = closure(
-  function(rhs, lhs) return {"==", lhs, rhs} end,
-  "Check if lhs is equal to rhs",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
+eq = closure({ function(rhs, lhs) return { "==", lhs, rhs } end, nil, nil },
+             { "Equal to", "rhs", "lhs" })
 
-ne = closure(
-  function(rhs, lhs) return {"!=", lhs, rhs} end,
-  "Check if lhs is not equal to rhs",
-  {{"rhs", "right hand side"},
-   {"lhs", "left hand side"}})
+ne = closure({ function(rhs, lhs) return { "!=", lhs, rhs } end, nil, nil },
+             { "Not equal to", "rhs", "lhs" })
 ```
 
 ### Image Processing
 ```Lua
-threshold = closure(
-  function(val, x) return {"threshold", x, val} end,
-  "Binary threshold",
-  {{"val", "threshold"},
-   {"x", "operand"}})
+threshold = closure({ function(t, x) return { "threshold", x, t } end, nil, nil },
+                    { "Binary threshold", "threshold", "operand" })
 
-set = closure(
-  function(value, matrix) return cast{type{matrix}, value} end,
-  "Assignment",
-  {{"value", "numerical constant"},
-   {"matrix", "used to determine output size and type"}})
+set = closure({ function(value, matrix) return cast(type(matrix), value) end, nil, nil },
+              { "Assignment", "value", "matrix" })
 ```

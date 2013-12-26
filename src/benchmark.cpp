@@ -107,13 +107,13 @@ struct Test
 
     static void runFile(const string &fileName)
     {
-        static lua_State *L = likely_exec("", NULL);
+        static lua_State *L = likely_exec("", NULL, 0);
         ifstream file("../library/" + fileName + ".like");
         const string source((istreambuf_iterator<char>(file)),
                              istreambuf_iterator<char>());
 
         printf("%s \t", fileName.c_str());
-        likely_exec(source.c_str(), L);
+        likely_exec(source.c_str(), L, 1);
         if (lua_type(L, -1) == LUA_TSTRING) {
             fprintf(stderr, "%s\n", lua_tostring(L, -1));
             ExitStatus = EXIT_FAILURE;
@@ -128,7 +128,7 @@ struct Test
         int iter = 0;
         startTime = endTime = clock();
         while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
-            likely_exec(source.c_str(), L);
+            likely_exec(source.c_str(), L, 1);
             endTime = clock();
             iter++;
         }
