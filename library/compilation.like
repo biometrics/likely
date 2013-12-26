@@ -18,8 +18,8 @@ Let's **deconstruct this example** to see what's taking place behind the scenes:
     show(likely_ir, "likely_ir")
     show(jit_function, "jit_function")
 
-**divide** is a standard library function that returns *source code* expressing scalar division. **divide2** is a closure around the *divide* function with *2* bound as the denominator. The **parse** function retrieves the source code representation from a closure. This source code is called the **Likely Intermediate Representation**, or *Likely IR* for short. **compile** returns a **JIT-compiled function** from the specified IR, which is subsequently called with **lenna** to produce **dark_lenna**.
+**divide** is a standard library function that returns *source code* expression of scalar division. **divide2** is a closure around the *divide* function with *2* bound as the denominator. The **parse** function retrieves the source code representation from a closure. This source code is called the **Likely Intermediate Representation**, or *Likely IR* for short. **compile** returns a **JIT-compiled function** from the specified IR, which is subsequently called with **lenna** to produce **dark_lenna**.
 
-All of these intermediate steps happen automatically when a closure **divide{2}** is called with arguments **(lenna)**.
+All of these intermediate steps happen automatically when an expression **divide{2}(lenna)** is assigned to a variable **dark_lenna**.
 
 [Previous](?show=matrix_io) | [Next](?show=c_api)

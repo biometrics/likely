@@ -1748,7 +1748,6 @@ static void toStream(lua_State *L, int index, stringstream &stream, int levels =
 const char *likely_ir_to_string(likely_ir ir)
 {
     static string result;
-    likely_assert(lua_istable(ir, -1), "'likely_ir_to_string' expected a table");
     stringstream stream;
     toStream(ir, -1, stream, std::numeric_limits<int>::max());
     result = stream.str();

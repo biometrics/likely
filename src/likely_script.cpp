@@ -343,12 +343,15 @@ static int lua_likely_compile(lua_State *L)
 
     // Return a closure
     lua_getglobal(L, "closure");
-    lua_pushstring(L, ""); // source
-    lua_pushstring(L, "Likely JIT function"); // documentation
+    lua_newtable(L); // arguments
+    lua_pushinteger(L, 1);
+    lua_pushlightuserdata(L, (void*)it->second);
+    lua_settable(L, -3);
     lua_newtable(L); // parameters
-    lua_pushlightuserdata(L, (void*)it->second); // binary
-    lua_call(L, 4, 1);
-
+    lua_pushinteger(L, 1);
+    lua_pushstring(L, "Likely JIT function");
+    lua_settable(L, -3);
+    lua_call(L, 2, 1);
     return 1;
 }
 
@@ -430,7 +433,8 @@ static int lua_likely__call(lua_State *L)
     if (curry) {
         lua_pushnil(L);
         while (lua_next(L, 2)) {
-            lua_pushinteger(L, lua_tointeger(L, -2) + 1);
+            if (lua_isnumber(L, -2)) lua_pushinteger(L, lua_tointeger(L, -2) + 1);
+            else                     lua_pushvalue(L, -2);
             lua_gettable(L, -4);
             lua_insert(L, -2);
             lua_settable(L, -5);
@@ -442,7 +446,7 @@ static int lua_likely__call(lua_State *L)
             if (lua_isnil(L, -1)) {
                 // Append extra arguments
                 lua_pop(L, 1);
-                lua_pushinteger(L, luaL_len(L, -3)+1);
+                lua_pushinteger(L, luaL_len(L, -2) + 1);
             }
             lua_pushvalue(L, i);
             lua_settable(L, -4);
@@ -482,7 +486,13 @@ static int lua_likely__call(lua_State *L)
         *newLuaMat(L) = reinterpret_cast<likely_function_n>(lua_touserdata(L, closureIndex+1))(mats.data());
     } else {
         // Regular
+        const bool core = lua_iscfunction(L, closureIndex+1);
         lua_call(L, parameters-1, 1);
+        if (!core && lua_istable(L, -1)) {
+            // Assume an expression was created
+            luaL_getmetatable(L, "likely_expression");
+            lua_setmetatable(L, -2);
+        }
     }
 
     return 1;
@@ -541,6 +551,64 @@ static int lua_likely_parse(lua_State *L)
     return 1;
 }
 
+static void expressionToIR(lua_State *L, vector<likely_mat> &mats)
+{
+    int i = 1;
+    bool done = false;
+    while (!done) {
+        lua_pushinteger(L, i);
+        lua_gettable(L, -2);
+
+        if (lua_isnil(L, -1)) {
+            done = true;
+        } else if (lua_istable(L, -1)) {
+            expressionToIR(L, mats);
+        } else if (likely_mat *mat = (likely_mat*)luaL_testudata(L, -1, "likely")) {
+            stringstream arg; arg << "__";
+            const vector<likely_mat>::iterator it = find(mats.begin(), mats.end(), *mat);
+            if (it == mats.end()) {
+                arg << mats.size();
+                mats.push_back(*mat);
+            } else {
+                arg << it - mats.begin();
+            }
+            lua_pushinteger(L, i);
+            lua_pushstring(L, arg.str().c_str());
+            lua_settable(L, -4);
+        }
+
+        lua_pop(L, 1);
+        i++;
+    }
+}
+
+static int lua_likely_new_global(lua_State *L)
+{
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, args == 3, "'new_global' expected three arguments, got: %d", args);
+
+    bool expression = false;
+    if (lua_istable(L, 3) && lua_getmetatable(L, 3)) {
+        luaL_getmetatable(L, "likely_expression");
+        expression = lua_rawequal(L, -1, -2);
+        lua_pop(L, 2);
+    }
+
+    if (expression) {
+        vector<likely_mat> mats;
+        expressionToIR(L, mats);
+        lua_getglobal(L, "compile");
+        lua_insert(L, -2);
+        lua_call(L, 1, 1);
+        for (size_t i=0; i<mats.size(); i++)
+            *newLuaMat(L) = mats[i];
+        lua_call(L, mats.size(), 1);
+    }
+
+    lua_rawset(L, 1);
+    return 0;
+}
+
 int luaopen_likely(lua_State *L)
 {
     static const struct luaL_Reg likely_globals[] = {
@@ -582,6 +650,11 @@ int luaopen_likely(lua_State *L)
     lua_pushvalue(L, -1);
     lua_setfield(L, -2, "__index");
     luaL_setfuncs(L, likely_closure, 0);
+
+    // Register expression metatable
+    luaL_newmetatable(L, "likely_expression");
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
 
     // Idiom for registering library with member functions
     luaL_newmetatable(L, "likely");
@@ -692,6 +765,8 @@ lua_State *likely_exec(const char *source, lua_State *L, int markdown)
     lua_newtable(L); // metatable
     lua_getglobal(L, "_G");
     lua_setfield(L, -2, "__index");
+    lua_pushcfunction(L, lua_likely_new_global);
+    lua_setfield(L, -2, "__newindex");
     lua_setmetatable(L, -2);
 
     if (luaL_loadstring(L, markdown ? removeGFM(source).c_str() : source)) return L;

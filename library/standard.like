@@ -137,6 +137,8 @@ t = "t"
 ### Core functions
 ```Lua
 closure = likely.closure
+compile = likely.compile
+parse = likely.parse
 
 new = closure({ likely.new, f32, 1, 1, 1, 1, 0, false },
               { "Create an uninitialized matrix", "type", "channels", "columns", "rows", "frames", "data", "copy" })
@@ -146,12 +148,6 @@ scalar = closure({ likely.scalar, nil },
 
 read = closure({ likely.read, nil },
                { "Create a matrix from a file", "file_name" })
-
-parse = closure({ likely.parse, nil },
-                { "Create Likely IR from a closure", "closure" })
-
-compile = closure({ likely.compile, nil },
-                  { "Create a function from Likely IR", "likely_ir" })
 
 show = closure({ likely.show, nil, "" },
                { "Display a value", "value", "name" })
