@@ -10,10 +10,10 @@ Saturation arithmetic is part of the type system
 Likely will automatically apply operations to all elements in a matrix
 
 ```
-added = add(32,lenna)
-subtracted = subtract(32,lenna)
-multiplied = multiply(2,lenna)
-divided = divide(2,lenna)
+added = lenna + 32
+subtracted = lenna - 32
+multiplied = lenna * 2
+divided = lenna / 2
 ```
 
 [Previous](?show=c_api) | [Next](?show=currying)

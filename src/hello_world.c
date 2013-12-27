@@ -13,7 +13,7 @@ int main()
     }
 
     printf("Retrieving IR for expression...\n");
-    likely_ir ir = likely_parse("divide{2}");
+    likely_ir ir = likely_ir_from_expression("arg(0) / 2");
     if (!ir) {
         printf("Failed to interpret!\n");
         return -1;

@@ -138,7 +138,8 @@ t = "t"
 ```Lua
 closure = likely.closure
 compile = likely.compile
-parse = likely.parse
+expression = likely.expression
+replace = likely.replace
 
 new = closure({ likely.new, f32, 1, 1, 1, 1, 0, false },
               { "Create an uninitialized matrix", "type", "channels", "columns", "rows", "frames", "data", "copy" })
@@ -157,25 +158,31 @@ function chain(x,y)
 end
 ```
 
+### Arguments
+```Lua
+arg = closure({ function(n) return { "arg", n } end, nil, nil },
+              { "Function argument", "index" })
+```
+
 ### Arithmetic
 ```Lua
-add = closure({ function(rhs, lhs) return { "+", lhs, rhs } end, nil, nil },
-              { "Arithmetic addition", "rhs", "lhs" })
+add = closure({ function(lhs, rhs) return { "+", lhs, rhs } end, nil, nil },
+              { "Arithmetic addition", "lhs", "rhs" })
 
-subtract = closure({ function(rhs, lhs) return { "-", lhs, rhs } end, nil, nil },
-                   { "Arithmetic subtraction", "rhs", "lhs" })
+sub = closure({ function(lhs, rhs) return { "-", lhs, rhs } end, nil, nil },
+              { "Arithmetic subtraction", "lhs", "rhs" })
 
-multiply = closure({ function(rhs, lhs) return { "*", lhs, rhs } end, nil, nil },
-                   { "Arithmetic multiplication", "rhs", "lhs" })
+mul = closure({ function(lhs, rhs) return { "*", lhs, rhs } end, nil, nil },
+              { "Arithmetic multiplication", "lhs", "rhs" })
 
-divide = closure({ function(rhs, lhs)
-                     if rhs == 0 then
-                       error("Denominator is zero!")
-                     else
-                       return { "/", lhs, rhs }
-                     end
-                   end, nil, nil },
-                 { "Arithmetic division", "rhs", "lhs" })
+div = closure({ function(lhs, rhs)
+                  if rhs == 0 then
+                    error("Denominator is zero!")
+                  else
+                    return { "/", lhs, rhs }
+                  end
+                end, nil, nil },
+              { "Arithmetic division", "lhs", "rhs" })
 ```
 
 ### Math
@@ -183,8 +190,8 @@ divide = closure({ function(rhs, lhs)
 sqrt = closure({ function(x) return { "sqrt", x } end, nil },
                { "Square root", "operand" })
 
-powi = closure({ function(iexp, base) return { "powi", base, iexp } end, nil, nil },
-               { "Integer power", "integer_exponent", "base" })
+powi = closure({ function(base, iexp) return { "powi", base, iexp } end, nil, nil },
+               { "Integer power", "base", "iexp" })
 
 sin = closure({ function(x) return { "sin", x } end, nil },
               { "Sine", "radians" })
@@ -192,8 +199,8 @@ sin = closure({ function(x) return { "sin", x } end, nil },
 cos = closure({ function(x) return { "cos", x } end, nil },
               { "Cosine", "radians" })
 
-pow = closure({ function(exp, base) return { "pow", base, exp } end, nil, nil },
-              { "Power", "exponent", "base" })
+pow = closure({ function(base, exp) return { "pow", base, exp } end, nil, nil },
+              { "Power", "base", "exp" })
 
 exp = closure({ function(x) return { "exp", x } end, nil },
               { "Base-e exponential", "exponent" })
@@ -210,14 +217,14 @@ log10 = closure({ function(x) return { "log10", x } end, nil },
 log2 = closure({ function(x) return { "log2", x } end, nil },
                { "Base-2 logarithm", "operand" })
 
-fma = closure({ function(a, b, x) return { "fma", a, x, b } end, nil, nil, nil },
-              { "Fused multiply-add (a*x+b)", "a", "b", "x" })
+fma = closure({ function(a, b, c) return { "fma", a, b, c } end, nil, nil, nil },
+              { "Fused multiply-add (a*b+c)", "a", "b", "c" })
 
 fabs = closure({ function(x) return { "fabs", x } end, nil },
                { "Floating absolute value", "operand" })
 
-copysign = closure({ function(sign, magnitude) return { "copysign", magnitude, sign } end, nil, nil },
-                   { "Floating copy sign", "sign", "magnitude" })
+copysign = closure({ function(magnitude, sign) return { "copysign", magnitude, sign } end, nil, nil },
+                   { "Floating copy sign", "magnitude", "sign" })
 
 floor = closure({ function(x) return { "floor", x } end, nil },
                 { "Floating floor", "operand" })
@@ -238,9 +245,21 @@ round = closure({ function(x) return { "round", x } end, nil },
                 { "Floating round to nearest integer", "operand" })
 ```
 
+### Operators
+```Lua
+for k, v in ipairs({ new(), arg(0) }) do
+  mt = getmetatable(v)
+  mt.__add = function(lhs, rhs) return add(lhs, rhs) end
+  mt.__sub = function(lhs, rhs) return sub(lhs, rhs) end
+  mt.__mul = function(lhs, rhs) return mul(lhs, rhs) end
+  mt.__div = function(lhs, rhs) return div(lhs, rhs) end
+  mt.__pow = function(lhs, rhs) return pow(lhs, rhs) end
+end
+```
+
 ### Casting
 ```Lua
-cast = closure({ function(type, x) return { "cast", x, type } end, nil, nil },
+cast = closure({ function(x, type) return { "cast", x, type } end, nil, nil },
                { "Convert matrix to another type", "matrix", "type" })
 
 type = closure({ function(x) return { "type", x } end, nil },
@@ -249,30 +268,30 @@ type = closure({ function(x) return { "type", x } end, nil },
 
 ### Comparison
 ```Lua
-lt = closure({ function(rhs, lhs) return { "<", lhs, rhs } end, nil, nil },
-             { "Less than", "rhs", "lhs" })
+lt = closure({ function(lhs, rhs) return { "<", lhs, rhs } end, nil, nil },
+             { "Less than", "lhs", "rhs" })
 
-le = closure({ function(rhs, lhs) return { "<=", lhs, rhs } end, nil, nil },
-             { "Less than or equal to", "rhs", "lhs" })
+le = closure({ function(lhs, rhs) return { "<=", lhs, rhs } end, nil, nil },
+             { "Less than or equal to", "lhs", "rhs" })
 
-gt = closure({ function(rhs, lhs) return { ">", lhs, rhs } end, nil, nil },
-             { "Greater than", "rhs", "lhs" })
+gt = closure({ function(lhs, rhs) return { ">", lhs, rhs } end, nil, nil },
+             { "Greater than", "lhs", "rhs" })
 
-ge = closure({ function(rhs, lhs) return { ">=", lhs, rhs } end, nil, nil },
-             { "Greater than or equal to", "rhs", "lhs" })
+ge = closure({ function(lhs, rhs) return { ">=", lhs, rhs } end, nil, nil },
+             { "Greater than or equal to", "lhs", "rhs" })
 
-eq = closure({ function(rhs, lhs) return { "==", lhs, rhs } end, nil, nil },
-             { "Equal to", "rhs", "lhs" })
+eq = closure({ function(lhs, rhs) return { "==", lhs, rhs } end, nil, nil },
+             { "Equal to", "lhs", "rhs" })
 
-ne = closure({ function(rhs, lhs) return { "!=", lhs, rhs } end, nil, nil },
-             { "Not equal to", "rhs", "lhs" })
+ne = closure({ function(lhs, rhs) return { "!=", lhs, rhs } end, nil, nil },
+             { "Not equal to", "lhs", "rhs" })
 ```
 
 ### Image Processing
 ```Lua
-threshold = closure({ function(t, x) return { "threshold", x, t } end, nil, nil },
-                    { "Binary threshold", "threshold", "operand" })
+threshold = closure({ function(x, t) return { "threshold", x, t } end, nil, nil },
+                    { "Binary threshold", "operand", "threshold" })
 
-set = closure({ function(value, matrix) return cast(type(matrix), value) end, nil, nil },
-              { "Assignment", "value", "matrix" })
+set = closure({ function(matrix, value) return cast(type(matrix), value) end, nil, nil },
+              { "Assignment", "matrix", "value" })
 ```

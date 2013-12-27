@@ -115,6 +115,7 @@ private:
     static QSet<QString> getGlobals(lua_State *L)
     {
         QSet<QString> globals;
+
         // Get the newly created variables...
         lua_pushnil(L);
         while (lua_next(L, -2)) {
@@ -130,6 +131,10 @@ private:
             lua_pop(L, 1);
         }
         lua_pop(L, 1);
+
+        // As a precaution
+        globals.remove(QString());
+
         return globals;
     }
 
@@ -178,6 +183,11 @@ public slots:
     {
         QString sourceFileName = settings.value("sourceFileName").toString();
         QString sourceFilePath = settings.value("sourceFilePath").toString();
+
+        // Start empty the next time if this source code crashes
+        settings.setValue("sourceFileName", QString());
+        settings.sync();
+
         if (action.startsWith("New")) {
             sourceFileName.clear();
             setText("");

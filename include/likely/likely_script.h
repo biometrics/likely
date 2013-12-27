@@ -33,7 +33,7 @@ LIKELY_EXPORT int luaopen_likely(struct lua_State *L);
 LIKELY_EXPORT struct lua_State *likely_exec(const char *source, struct lua_State *L, int markdown);
 
 // Retrieve Likely IR from a Lua closure
-LIKELY_EXPORT likely_ir likely_parse(const char *expression);
+LIKELY_EXPORT likely_ir likely_ir_from_expression(const char *expression);
 
 // show() callback
 typedef void (*likely_show_callback)(struct lua_State *L, void *context);

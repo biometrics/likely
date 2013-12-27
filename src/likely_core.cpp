@@ -648,6 +648,26 @@ class UnaryOperation : public Operation
     virtual TypedValue callUnary(KernelBuilder &kernel, const KernelInfo &info, TypedValue arg) const = 0;
 };
 
+class argOperation : public UnaryOperation
+{
+    TypedValue callUnary(KernelBuilder &kernel, const KernelInfo &info, TypedValue arg) const
+    {
+        int index = LLVM_VALUE_TO_INT(arg.value);
+        const TypedValue matrix = info.srcs[index];
+        Value *matrix_i;
+        if ((matrix.type & likely_type_multi_dimension) == info.dims) {
+            // This matrix has the same dimensionality as the output
+            matrix_i = info.i;
+        } else {
+            Value *c, *x, *y, *t;
+            kernel.deindex(matrix, info.i, &c, &x, &y, &t);
+            matrix_i = kernel.index(matrix, c, x, y, t);
+        }
+        return TypedValue(kernel.load(matrix, matrix_i), matrix.type);
+    }
+};
+LIKELY_REGISTER(arg)
+
 class typeOperation : public UnaryOperation
 {
     TypedValue callUnary(KernelBuilder &kernel, const KernelInfo &info, TypedValue arg) const
@@ -1288,13 +1308,13 @@ private:
     static void getValues(Function *function, const vector<likely_type> &types, vector<TypedValue> &srcs)
     {
         Function::arg_iterator args = function->arg_begin();
-        likely_arity arity = 0;
+        likely_arity n = 0;
         while (args != function->arg_end()) {
             Value *src = args++;
-            stringstream name; name << "__" << int(arity);
+            stringstream name; name << "arg_" << int(n);
             src->setName(name.str());
-            srcs.push_back(TypedValue(src, arity < types.size() ? types[arity] : likely_type_null));
-            arity++;
+            srcs.push_back(TypedValue(src, n < types.size() ? types[n] : likely_type_null));
+            n++;
         }
     }
 
@@ -1337,25 +1357,10 @@ private:
         if (it != Operation::operations.end())
             return it->second->call(kernel, info, operands);
 
-        if (operator_.substr(0,2) == "__") {
-            int index = atoi(operator_.substr(2, operator_.size()-2).c_str());
-            const TypedValue matrix = info.srcs[index];
-            Value *matrix_i;
-            if ((matrix.type & likely_type_multi_dimension) == info.dims) {
-                // This matrix has the same dimensionality as the output
-                matrix_i = info.i;
-            } else {
-                Value *c, *x, *y, *t;
-                kernel.deindex(matrix, info.i, &c, &x, &y, &t);
-                matrix_i = kernel.index(matrix, c, x, y, t);
-            }
-            return TypedValue(kernel.load(matrix, matrix_i), matrix.type);
-        } else {
-            bool ok;
-            TypedValue c = constant(operator_, &ok);
-            likely_assert(ok, "unrecognized literal: %s", operator_.c_str());
-            return c;
-        }
+        bool ok;
+        TypedValue c = constant(operator_, &ok);
+        likely_assert(ok, "unrecognized literal: %s", operator_.c_str());
+        return c;
 
         return TypedValue();
     }
@@ -1457,19 +1462,30 @@ struct VTable : public JITResources
     }
 
 private:
-    static likely_arity computeArityRecursive(likely_ir ir)
+    static likely_arity computeArityRecursive(lua_State *L)
     {
+        if (!lua_istable(L, -1))
+            return 0;
+
+        lua_pushinteger(L, 1);
+        lua_gettable(L, -2);
+        if (!strcmp(lua_tostring(L, -1), "arg")) {
+            lua_pushinteger(L, 2);
+            lua_gettable(L, -3);
+            likely_arity n = (likely_arity) lua_tointeger(L, -1) + 1;
+            lua_pop(L, 2);
+            return n;
+        } else {
+            lua_pop(L, 1);
+        }
+
         likely_arity n = 0;
-        lua_pushnil(ir);
-        while (lua_next(ir, -2)) {
-            if (lua_istable(ir, -1)) {
-                n = max(n, computeArityRecursive(ir));
-            } else {
-                const char *str = lua_tostring(ir, -1);
-                if (!strncmp(str, "__", 2))
-                    n = max(n, likely_arity(atoi(&str[2])+1));
-            }
-            lua_pop(ir, 1);
+        const int len = luaL_len(L, -1);
+        for (int i=1; i<=len; i++) {
+            lua_pushinteger(L, i);
+            lua_gettable(L, -2);
+            n = max(n, computeArityRecursive(L));
+            lua_pop(L, 1);
         }
         return n;
     }

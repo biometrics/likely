@@ -136,6 +136,13 @@ static int lua_likely__newindex(lua_State *L)
     return lua_likely_set(L);
 }
 
+static int lua_likely__eq(lua_State *L)
+{
+    lua_likely_assert(L, lua_gettop(L) == 2, "'__eq' expected 2 arguments, got: %d", lua_gettop(L));
+    lua_pushboolean(L, checkLuaMat(L, 1)->data == checkLuaMat(L, 2)->data);
+    return 1;
+}
+
 static int lua_likely_elements(lua_State *L)
 {
     lua_likely_assert(L, lua_gettop(L) == 1, "'elements' expected 1 argument, got: %d", lua_gettop(L));
@@ -323,6 +330,46 @@ static void copyRecursive(lua_State *src, lua_State *dst)
     } else {
         likely_assert(false, "'copyRecursive' unsupported type");
     }
+}
+
+static int lua_likely_expression(lua_State *L)
+{
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, args == 1, "'expression' expected one argument, got: %d", args);
+    lua_newtable(L);
+    lua_setmetatable(L, -2);
+    return 1;
+}
+
+static void replaceRecursive(lua_State *L)
+{
+    int i = 1;
+    bool done = false;
+    while (!done) {
+        lua_pushinteger(L, i);
+        lua_gettable(L, -2);
+
+        if (lua_isnil(L, -1)) {
+            done = true;
+        } else if (lua_istable(L, -1)) {
+            replaceRecursive(L);
+        } else if (lua_equal(L, -1, 1)) {
+            lua_pushinteger(L, i);
+            lua_pushvalue(L, 2);
+            lua_settable(L, -4);
+        }
+
+        lua_pop(L, 1);
+        i++;
+    }
+}
+
+static int lua_likely_replace(lua_State *L)
+{
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, args == 3, "'replace' expected three arguments, got: %d", args);
+    replaceRecursive(L);
+    return 1;
 }
 
 static int lua_likely_compile(lua_State *L)
@@ -527,31 +574,7 @@ static int lua_likely__concat(lua_State *L)
     return 1;
 }
 
-static int lua_likely_parse(lua_State *L)
-{
-    const int args = lua_gettop(L);
-    lua_likely_assert(L, args == 1, "'parse' expected one argument, got: %d", args);
-
-    // Setup and call the function
-    lua_getfield(L, 1, "parameters");
-    const int len = luaL_len(L, -1);
-    likely_arity arity = 0;
-    for (int i=1; i<=len; i++) {
-        lua_pushinteger(L, i);
-        lua_gettable(L, 1);
-        if (lua_isnil(L, -1)) {
-            lua_pop(L, 1);
-            stringstream parameter;
-            parameter << "__" << int(arity++);
-            lua_pushstring(L, parameter.str().c_str());
-        }
-    }
-
-    lua_call(L, lua_gettop(L)-3, 1);
-    return 1;
-}
-
-static void expressionToIR(lua_State *L, vector<likely_mat> &mats)
+static void findMats(lua_State *L, vector<likely_mat> &mats)
 {
     int i = 1;
     bool done = false;
@@ -562,19 +585,10 @@ static void expressionToIR(lua_State *L, vector<likely_mat> &mats)
         if (lua_isnil(L, -1)) {
             done = true;
         } else if (lua_istable(L, -1)) {
-            expressionToIR(L, mats);
+            findMats(L, mats);
         } else if (likely_mat *mat = (likely_mat*)luaL_testudata(L, -1, "likely")) {
-            stringstream arg; arg << "__";
-            const vector<likely_mat>::iterator it = find(mats.begin(), mats.end(), *mat);
-            if (it == mats.end()) {
-                arg << mats.size();
+            if (find(mats.begin(), mats.end(), *mat) == mats.end())
                 mats.push_back(*mat);
-            } else {
-                arg << it - mats.begin();
-            }
-            lua_pushinteger(L, i);
-            lua_pushstring(L, arg.str().c_str());
-            lua_settable(L, -4);
         }
 
         lua_pop(L, 1);
@@ -596,10 +610,23 @@ static int lua_likely_new_global(lua_State *L)
 
     if (expression) {
         vector<likely_mat> mats;
-        expressionToIR(L, mats);
+        findMats(L, mats);
+
+        for (size_t i=0; i<mats.size(); i++) {
+            lua_getglobal(L, "replace");
+            *newLuaMat(L) = mats[i];
+            likely_retain(mats[i]);
+            lua_getglobal(L, "arg");
+            lua_pushinteger(L, i);
+            lua_call(L, 1, 1);
+            lua_pushvalue(L, -4);
+            lua_call(L, 3, 0);
+        }
+
         lua_getglobal(L, "compile");
         lua_insert(L, -2);
         lua_call(L, 1, 1);
+
         for (size_t i=0; i<mats.size(); i++) {
             *newLuaMat(L) = mats[i];
             likely_retain(mats[i]);
@@ -618,8 +645,9 @@ int luaopen_likely(lua_State *L)
         {"scalar", lua_likely_scalar},
         {"read", lua_likely_read},
         {"closure", lua_likely_closure},
-        {"parse", lua_likely_parse},
         {"compile", lua_likely_compile},
+        {"expression", lua_likely_expression},
+        {"replace", lua_likely_replace},
         {"show", lua_likely_show},
         {NULL, NULL}
     };
@@ -627,6 +655,7 @@ int luaopen_likely(lua_State *L)
     static const struct luaL_Reg likely_members[] = {
         {"__index", lua_likely__index},
         {"__newindex", lua_likely__newindex},
+        {"__eq", lua_likely__eq},
         {"__tostring", lua_likely__tostring},
         {"__gc", lua_likely__gc},
         {"copy", lua_likely_copy},
@@ -778,12 +807,12 @@ lua_State *likely_exec(const char *source, lua_State *L, int markdown)
     return L; // The sandboxed environment is now on the top of the stack
 }
 
-likely_ir likely_parse(const char *expression)
+likely_ir likely_ir_from_expression(const char *expression)
 {
     static lua_State *L = NULL;
-    stringstream command; command << "return parse(" << expression << ")";
+    stringstream command; command << "return " << expression;
     L = likely_exec(command.str().c_str(), L, 0);
-    likely_assert(lua_istable(L, -1), "'likely_parse' expected a table result");
+    likely_assert(lua_istable(L, -1), "'likely_ir_from_expression' expected a table result");
 
     // Return the result in a new state
     likely_ir ir = luaL_newstate();

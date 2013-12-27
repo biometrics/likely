@@ -8,7 +8,7 @@ m.saturation = true
 Likely supports currying to compose higher order functions
 
 ```
-fma = multiply{2} .. add{3}
+fma = mul{2} .. add{3}
 n = fma(m)
 show(n)
 ```

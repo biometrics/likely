@@ -13,6 +13,6 @@ A *CTRL+click* on *lenna* is equivalent to adding **show(lenna, "lenna")** to th
 
 **CTRL+scroll** to edit numerical constants:
 
-    dark_lenna = divide{2}(lenna)
+    dark_lenna = lenna / 2
 
 [Next](?show=comments)
