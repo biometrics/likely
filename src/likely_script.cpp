@@ -600,8 +600,10 @@ static int lua_likely_new_global(lua_State *L)
         lua_getglobal(L, "compile");
         lua_insert(L, -2);
         lua_call(L, 1, 1);
-        for (size_t i=0; i<mats.size(); i++)
+        for (size_t i=0; i<mats.size(); i++) {
             *newLuaMat(L) = mats[i];
+            likely_retain(mats[i]);
+        }
         lua_call(L, mats.size(), 1);
     }
 

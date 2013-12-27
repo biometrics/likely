@@ -32,7 +32,7 @@ likely_mat likely_read(const char *file_name)
     static string previousFileName;
     static likely_mat previousMat = NULL;
     if (previousFileName == file_name)
-        return likely_copy(previousMat, 0);
+        return likely_copy(previousMat, 1);
 
     cv::Mat m;
     try {
