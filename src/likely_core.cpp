@@ -73,7 +73,9 @@ void likely_assert(bool condition, const char *format, ...)
     if (condition) return;
     va_list ap;
     va_start(ap, format);
-    vfprintf(stderr, "Likely %s.\n", ap);
+    fprintf(stderr, "Likely ");
+    vfprintf(stderr, format, ap);
+    fprintf(stderr, "\n");
     abort();
 }
 
