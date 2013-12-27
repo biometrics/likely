@@ -62,7 +62,7 @@ typedef struct likely_matrix_private
     int ref_count;
 } likely_matrix_private;
 
-// These symbol needs to be found at run time
+// These symbols needs to be found at run time
 extern "C" {
 LIKELY_EXPORT void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...);
 LIKELY_EXPORT likely_mat likely_dispatch(struct VTable *vtable, likely_mat *mats);
@@ -254,10 +254,10 @@ const char *likely_type_to_string(likely_type type)
 
     if (likely_parallel(type))       typeStream << "P";
     if (likely_heterogeneous(type))  typeStream << "H";
-    if (likely_multi_channel(type)) typeStream << "C";
-    if (likely_multi_column(type))  typeStream << "X";
-    if (likely_multi_row(type))     typeStream << "Y";
-    if (likely_multi_frame(type))   typeStream << "T";
+    if (likely_multi_channel(type))  typeStream << "C";
+    if (likely_multi_column(type))   typeStream << "X";
+    if (likely_multi_row(type))      typeStream << "Y";
+    if (likely_multi_frame(type))    typeStream << "T";
     if (likely_saturation(type))     typeStream << "S";
 
     typeString = typeStream.str();
