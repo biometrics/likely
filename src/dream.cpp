@@ -337,7 +337,7 @@ private slots:
         emit aboutToExec();
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
-        L = likely_exec(qPrintable(source), L);
+        L = likely_exec(qPrintable(source), L, 1);
         const qint64 nsec = elapsedTimer.nsecsElapsed();
 
         settings.setValue("source", toPlainText());
@@ -492,39 +492,31 @@ private:
         if (!is(L))
             return false;
 
-        lua_getfield(L, 1, "documentation");
+        lua_getfield(L, 1, "parameters");
+        const int numParameters = luaL_len(L, -1);
+
+        lua_pushinteger(L, 1);
+        lua_gettable(L, -2);
         const QString documentation = lua_tostring(L, -1);
         lua_pop(L, 1);
 
-        QStringList parameterDescriptions, parameterNames;
-        lua_getfield(L, 1, "parameters");
-        lua_pushnil(L);
-        while (lua_next(L, -2)) {
-            lua_pushnil(L);
-            lua_next(L, -2);
-            QString name = lua_tostring(L, -1);
+        QStringList parameters;
+        for (int i=2; i<=numParameters; i++) {
+            lua_pushinteger(L, i);
+            lua_gettable(L, -2);
+            QString parameter = lua_tostring(L, -1);
             lua_pop(L, 1);
-            lua_next(L, -2);
-            QString docs = lua_tostring(L, -1);
-            lua_pop(L, 1);
-            QString value;
-            if (lua_next(L, -2)) {
-                if (lua_isboolean(L, -1)) {
-                    if (lua_toboolean(L, -1)) value = "true";
-                    else                      value = "false";
-                } else {
-                    value = lua_tostring(L, -1);
-                }
-                lua_pop(L, 2);
-            }
-            lua_pop(L, 1);
-            parameterDescriptions.append(QString("<br>&nbsp;&nbsp;%1%2: %3").arg(name, value.isEmpty() ? QString() : "=" + value, docs));
-            if (value.isEmpty())
-                parameterNames.append(name);
-        }
-        lua_pop(L, 1);
 
-        text->setText(QString("<b>%1</b>(%2): %3%4").arg(lua_tostring(L, 2), parameterNames.join(", "), documentation, parameterDescriptions.join("")));
+            lua_pushinteger(L, i);
+            lua_gettable(L, 1);
+            if (!lua_isnil(L, -1))
+                parameter += QString("=") + likely_ir_to_string(L);
+            lua_pop(L, 1);
+
+            parameters.append(parameter);
+        }
+
+        text->setText(QString("<b>%1</b>(%2): %3").arg(lua_tostring(L, 2), parameters.join(", "), documentation));
         return true;
     }
 };
@@ -536,7 +528,9 @@ class Generic : public Variable
         if (Matrix::is(L) || Closure::is(L))
             return false;
         const QString name = lua_tostring(L, 2);
-        const QString contents = lua_tostring(L, 1);
+        lua_pop(L, 1);
+        const QString contents = likely_ir_to_string(L);
+        lua_pushstring(L, qPrintable(name));
         text->setText(QString("%1%2%3").arg(name.isEmpty() ? QString() : QString("<b>%1</b>:").arg(name),
                                             name.isEmpty() ? "" : (contents.contains('\n') ? "<br>" : " "),
                                             QString(contents).replace("\n", "<br>")));
@@ -762,7 +756,7 @@ int main(int argc, char *argv[])
         } else {
             source = argv[i];
         }
-        lua_close(likely_exec(qPrintable(source), NULL));
+        lua_close(likely_exec(qPrintable(source), NULL, 1));
     }
 
     if (argc > 1)

@@ -97,6 +97,9 @@ typedef struct
 typedef likely_matrix *likely_mat;
 typedef const likely_matrix *likely_const_mat;
 
+// Error handling
+LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
+
 // Query and edit the type
 LIKELY_EXPORT int  likely_depth(likely_type type);
 LIKELY_EXPORT void likely_set_depth(likely_type *type, int depth);
@@ -144,16 +147,15 @@ LIKELY_EXPORT likely_type likely_type_from_types(likely_type lhs, likely_type rh
 
 // Function compilation
 struct lua_State;
-typedef struct lua_State* likely_irl;
-LIKELY_EXPORT likely_irl likely_ir_from_string(const char *str);
-LIKELY_EXPORT const char *likely_ir_to_string(likely_irl ir);
+typedef struct lua_State* likely_ir;
+LIKELY_EXPORT likely_ir likely_ir_from_string(const char *str);
+LIKELY_EXPORT const char *likely_ir_to_string(likely_ir ir);
 
 typedef uint8_t likely_arity;
-typedef const char *likely_ir;
 typedef likely_mat (*likely_function)(likely_const_mat, ...);
 typedef likely_mat (*likely_function_n)(likely_const_mat*);
-LIKELY_EXPORT likely_function likely_compile(likely_ir ir);
-LIKELY_EXPORT likely_function_n likely_compile_n(likely_ir ir);
+LIKELY_EXPORT likely_function likely_compile(likely_ir ir); // Takes ownership of ir
+LIKELY_EXPORT likely_function_n likely_compile_n(likely_ir ir); // Takes ownership of ir
 
 LIKELY_EXPORT void likely_stack_dump(struct lua_State *L, int levels);
 

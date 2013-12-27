@@ -18,6 +18,7 @@
 #  define _CRT_SECURE_NO_WARNINGS
 #endif
 
+#include <assert.h>
 #include <cstring>
 #include <iostream>
 #include <map>
@@ -125,7 +126,7 @@ static int lua_likely_set(lua_State *L)
     else if (!strcmp(field, "multiFrame"))    likely_set_multi_frame(&m->type, lua_toboolean(L, 3) != 0);
     else if (!strcmp(field, "saturation"))    likely_set_saturation(&m->type, lua_toboolean(L, 3) != 0);
     else if (!strcmp(field, "reserved"))    { likely_set_reserved(&m->type, (int)lua_tointegerx(L, 3, &isnum)); lua_likely_assert(L, isnum != 0, "'set' expected reserved to be an integer, got: %s", lua_tostring(L, 3)); }
-    else                                      lua_likely_assert(L, false, "unrecognized field: %s", field);
+    else                                      lua_likely_assert(L, false, "'set' unrecognized field: %s", field);
     return 0;
 }
 
@@ -299,82 +300,104 @@ static int lua_likely_show(lua_State *L)
     return 0;
 }
 
+static void copyRecursive(lua_State *src, lua_State *dst)
+{
+    const int type = lua_type(src, -1);
+    if (type == LUA_TBOOLEAN) {
+        lua_pushboolean(dst, lua_toboolean(src, -1));
+    } else if (type == LUA_TNUMBER) {
+        lua_pushnumber(dst, lua_tonumber(src, -1));
+    } else if (type == LUA_TSTRING) {
+        lua_pushstring(dst, lua_tostring(src, -1));
+    } else if (type == LUA_TTABLE) {
+        lua_newtable(dst);
+        lua_pushnil(src);
+        while (lua_next(src, -2)) {
+            lua_pushvalue(src, -2);
+            copyRecursive(src, dst); // copy key
+            lua_pop(src, 1);
+            copyRecursive(src, dst); // copy value
+            lua_pop(src, 1);
+            lua_settable(dst, -3);
+        }
+    } else {
+        likely_assert(false, "'copyRecursive' unsupported type");
+    }
+}
+
 static int lua_likely_compile(lua_State *L)
 {
     const int args = lua_gettop(L);
     lua_likely_assert(L, args == 1, "'compile' expected one argument, got: %d", args);
-    lua_getglobal(L, "translate");
-    lua_pushvalue(L, 1);
-    lua_call(L, 1, 1);
 
     // Retrieve or compile the function
     static map<string,likely_function_n> functions;
-    likely_ir source = lua_tostring(L, -1);
+    const string source = likely_ir_to_string(L);
     map<string,likely_function_n>::const_iterator it = functions.find(source);
     if (it == functions.end()) {
-        functions.insert(pair<string,likely_function_n>(source, likely_compile_n(source)));
+        likely_ir ir = luaL_newstate();
+        copyRecursive(L, ir);
+        functions.insert(pair<string,likely_function_n>(source, likely_compile_n(ir)));
         it = functions.find(source);
     }
 
     // Return a closure
     lua_getglobal(L, "closure");
-    lua_pushstring(L, ""); // source
-    lua_pushstring(L, "Likely JIT function"); // documentation
+    lua_newtable(L); // arguments
+    lua_pushinteger(L, 1);
+    lua_pushlightuserdata(L, (void*)it->second);
+    lua_settable(L, -3);
     lua_newtable(L); // parameters
-    lua_pushlightuserdata(L, (void*)it->second); // binary
-    lua_call(L, 4, 1);
-
+    lua_pushinteger(L, 1);
+    lua_pushstring(L, "Likely JIT function");
+    lua_settable(L, -3);
+    lua_call(L, 2, 1);
     return 1;
 }
 
 static int lua_likely_closure(lua_State *L)
 {
     const int args = lua_gettop(L);
-    lua_likely_assert(L, (args >= 3) && (args <= 4), "'closure' expected 3-4 arguments, got: %d", args);
+    lua_likely_assert(L, args == 2, "'closure' expected 2 arguments, got: %d", args);
 
-    lua_newtable(L);
-    lua_pushstring(L, "source");
     lua_pushvalue(L, 1);
-    lua_settable(L, -3);
-    lua_pushstring(L, "documentation");
     lua_pushvalue(L, 2);
-    lua_settable(L, -3);
-    lua_pushstring(L, "parameters");
-    lua_pushvalue(L, 3);
-    lua_settable(L, -3);
-    if (args >= 4) {
-        lua_pushstring(L, "binary");
-        lua_pushvalue(L, 4);
-        lua_settable(L, -3);
-    }
+    lua_setfield(L, -2, "parameters");
 
+    // Construct parameter LUT
     lua_newtable(L);
     lua_pushnil(L);
-    int key = 1, value = 1, lastUnset = 0;
-    while (lua_next(L, 3)) {
-        // All parameters can be set by name
-        lua_pushinteger(L, 1);
-        lua_gettable(L, -2);
-        lua_pushvalue(L, -3);
-        lua_settable(L, -5);
+    int index = 1, newIndex = 2, lastUnset = 1;
+    while (lua_next(L, 2)) {
+        if (index == 1) { // skip function
+            lua_pop(L, 1);
+        } else {
+            // All parameters can be set by name
+            lua_pushvalue(L, -2);
+            lua_settable(L, -4);
 
-        // Unassigned parameters can also be set by index
-        if (lua_objlen(L, -1) < 3) {
-            lua_pushinteger(L, value++);
-            lua_pushvalue(L, -3);
-            lua_settable(L, -5);
-            lastUnset = key;
+            // Unassigned parameters can also be set by index
+            lua_pushvalue(L, -1);
+            lua_gettable(L, 1);
+            if (lua_isnil(L, -1)) {
+                lua_pushinteger(L, newIndex);
+                lua_pushvalue(L, -3);
+                lua_settable(L, -5);
+                lastUnset = index;
+                newIndex++;
+            }
+            lua_pop(L, 1);
         }
 
-        key++;
-        lua_pop(L, 1);
+        index++;
     }
 
     // Assigned parameters after the last unassigned parameter can be set by index
-    for (int i=lastUnset+1; i<key; i++) {
-        lua_pushinteger(L, value++);
+    for (int i=lastUnset+1; i<index; i++) {
+        lua_pushinteger(L, newIndex);
         lua_pushinteger(L, i);
         lua_settable(L, -3);
+        newIndex++;
     }
     lua_setfield(L, -2, "parameterLUT");
 
@@ -388,32 +411,21 @@ static int lua_likely__call(lua_State *L)
     const int args = lua_gettop(L);
     lua_likely_assert(L, args >= 1, "'__call' expected at least one argument");
 
-    // Copy the arguments already in the closure to a new table
+    // Copy the closure
     lua_newtable(L);
-    lua_getfield(L, 1, "parameters");
     lua_pushnil(L);
-    while (lua_next(L, -2)) {
-        lua_newtable(L);
-        lua_pushnil(L);
-        while (lua_next(L, -3)) {
-            lua_pushvalue(L, -2);
-            lua_insert(L, -2);
-            lua_settable(L, -4);
-        }
-        lua_pushvalue(L, -3);
+    while (lua_next(L, 1)) {
+        lua_pushvalue(L, -2);
         lua_insert(L, -2);
-        lua_settable(L, -6);
-        lua_pop(L, 1);
+        lua_settable(L, -4);
     }
-    lua_pop(L, 1);
 
     // Using {} syntax?
     bool curry = (args == 2) && lua_istable(L, 2);
     if (curry && lua_getmetatable(L, 2)) {
-        // Make sure it isn't a closure
-        luaL_getmetatable(L, "likely_closure");
-        curry = !lua_rawequal(L, -1, -2);
-        lua_pop(L, 2);
+        // Make sure it isn't a class
+        curry = false;
+        lua_pop(L, 1);
     }
 
     // Add the new arguments
@@ -421,43 +433,23 @@ static int lua_likely__call(lua_State *L)
     if (curry) {
         lua_pushnil(L);
         while (lua_next(L, 2)) {
-            lua_pushvalue(L, -2);
-            if (!lua_isnumber(L, -1))
-                lua_gettable(L, -4);
-            lua_gettable(L, -5);
+            if (lua_isnumber(L, -2)) lua_pushinteger(L, lua_tointeger(L, -2) + 1);
+            else                     lua_pushvalue(L, -2);
+            lua_gettable(L, -4);
             lua_insert(L, -2);
-            lua_pushnumber(L, 3);
-            lua_insert(L, -2);
-            lua_settable(L, -3);
-            lua_pop(L, 1);
+            lua_settable(L, -5);
         }
     } else {
-        const int parameters = luaL_len(L, -1);
         for (int i=2; i<=args; i++) {
-            lua_pushinteger(L, i-1);
-            if (i-1 <= parameters) {
-                lua_gettable(L, -2);
-                lua_gettable(L, -3);
-                lua_pushnumber(L, 3);
-                lua_pushvalue(L, i);
-                lua_settable(L, -3);
+            lua_pushinteger(L, i);
+            lua_gettable(L, -2);
+            if (lua_isnil(L, -1)) {
+                // Append extra arguments
                 lua_pop(L, 1);
-            } else {
-                // Handle extra arguments
-                lua_newtable(L);
-                stringstream stream;
-                stream << "extra_" << i - 1 - parameters;
-                lua_pushinteger(L, 1);
-                lua_pushstring(L, stream.str().c_str());
-                lua_settable(L, -3); // name
-                lua_pushinteger(L, 2);
-                lua_pushstring(L, ""); // documentation
-                lua_settable(L, -3);
-                lua_pushinteger(L, 3);
-                lua_pushvalue(L, i);
-                lua_settable(L, -3); // value
-                lua_settable(L, -3);
+                lua_pushinteger(L, luaL_len(L, -2) + 1);
             }
+            lua_pushvalue(L, i);
+            lua_settable(L, -4);
         }
     }
     lua_pop(L, 1);
@@ -465,60 +457,42 @@ static int lua_likely__call(lua_State *L)
     if (curry) {
         // Return a new closure
         lua_getglobal(L, "closure");
-        lua_getfield(L, 1, "source");
-        lua_getfield(L, 1, "documentation");
-        lua_pushvalue(L, -4); // parameters
-        lua_getfield(L, 1, "binary");
-        lua_call(L, 4, 1);
+        lua_pushvalue(L, -2); // arguments
+        lua_getfield(L, 1, "parameters");
+        lua_call(L, 2, 1);
         return 1;
     }
 
     // Ensure all the arguments are provided
-    lua_pushnil(L);
-    while (lua_next(L, -2)) {
-        lua_pushnumber(L, 3);
-        lua_gettable(L, -2);
-        if (lua_isnil(L, -1))
-            luaL_error(L, "Insufficient arguments!");
-        lua_pop(L, 2);
-    }
+    lua_getfield(L, 1, "parameters");
+    const int parameters = luaL_len(L, -2);
+    if (parameters < luaL_len(L, -1))
+        luaL_error(L, "Insufficient arguments!");
+    lua_pop(L, 1);
 
-    // Compile if needed
-    lua_getfield(L, 1, "binary");
-    if (lua_isnil(L, -1)) {
-        lua_getglobal(L, "compile");
-        lua_pushvalue(L, 1);
-        lua_call(L, 1, 1);
-        lua_getfield(L, -1, "binary");
-        lua_insert(L, -3);
-        lua_pop(L, 2);
-
-        // Convert numbers to matricies
-        for (int i=2; i<=args; i++)
-            if (lua_isnumber(L, i)) {
-                *newLuaMat(L) = likely_scalar(lua_tonumber(L, i));
-                lua_replace(L, i);
-            }
+    // Unroll the arguments
+    const int closureIndex = lua_gettop(L);
+    for (int i=1; i<=parameters; i++) {
+        lua_pushinteger(L, i);
+        lua_gettable(L, closureIndex);
     }
 
     // Call the function
-    if (lua_isuserdata(L, -1)) {
-        // Prepare the JIT function
+    if (lua_isuserdata(L, closureIndex+1)) {
+        // JIT
         vector<likely_const_mat> mats;
-        for (int i=2; i<=args; i++)
-            mats.push_back(checkLuaMat(L, i));
-        *newLuaMat(L) = reinterpret_cast<likely_function_n>(lua_touserdata(L, -1))(mats.data());
+        for (int i=2; i<=parameters; i++)
+            mats.push_back(checkLuaMat(L, closureIndex+i));
+        *newLuaMat(L) = reinterpret_cast<likely_function_n>(lua_touserdata(L, closureIndex+1))(mats.data());
     } else {
-        // Closure
-        lua_pushnil(L);
-        const int argsIndex = lua_gettop(L) - 2;
-        while (lua_next(L, argsIndex)) {
-            lua_pushinteger(L, 3);
-            lua_gettable(L, -2);
-            lua_insert(L, -3);
-            lua_pop(L, 1);
+        // Regular
+        const bool core = lua_iscfunction(L, closureIndex+1);
+        lua_call(L, parameters-1, 1);
+        if (!core && lua_istable(L, -1)) {
+            // Assume an expression was created
+            luaL_getmetatable(L, "likely_expression");
+            lua_setmetatable(L, -2);
         }
-        lua_call(L, (int)lua_objlen(L, argsIndex), 1);
     }
 
     return 1;
@@ -527,60 +501,112 @@ static int lua_likely__call(lua_State *L)
 static int lua_likely__concat(lua_State *L)
 {
     const int args = lua_gettop(L);
-    lua_likely_assert(L, args == 2, "__concat expected two arguments, got: %d", args);
+    lua_likely_assert(L, args == 2, "'__concat' expected two arguments, got: %d", args);
     lua_getglobal(L, "closure");
 
-    // source
+    // arguments
+    lua_newtable(L);
+    lua_pushinteger(L, 1);
     lua_getglobal(L, "chain");
     lua_pushvalue(L, 1);
     lua_pushvalue(L, 2);
     lua_call(L, 2, 1);
-
-    // documentation
-    lua_pushstring(L, "..");
+    lua_settable(L, -3);
 
     // parameters
     lua_newtable(L);
     lua_pushinteger(L, 1);
-    lua_newtable(L);
-    lua_pushinteger(L, 1);
-    lua_pushstring(L, "x");
+    lua_pushstring(L, "chain");
     lua_settable(L, -3);
     lua_pushinteger(L, 2);
     lua_pushstring(L, "operand");
     lua_settable(L, -3);
-    lua_settable(L, -3);
 
     // return a new closure
-    lua_call(L, 3, 1);
+    lua_call(L, 2, 1);
     return 1;
 }
 
-static int lua_likely_closure__tostring(lua_State *L)
+static int lua_likely_parse(lua_State *L)
 {
     const int args = lua_gettop(L);
-    lua_likely_assert(L, args == 1, "__tostring expected one argument, got: %d", args);
+    lua_likely_assert(L, args == 1, "'parse' expected one argument, got: %d", args);
 
     // Setup and call the function
-    lua_getfield(L, 1, "source");
     lua_getfield(L, 1, "parameters");
-    lua_pushnil(L);
+    const int len = luaL_len(L, -1);
     likely_arity arity = 0;
-    while (lua_next(L, -2)) {
-        lua_pushinteger(L, 3);
-        lua_gettable(L, -2);
+    for (int i=1; i<=len; i++) {
+        lua_pushinteger(L, i);
+        lua_gettable(L, 1);
         if (lua_isnil(L, -1)) {
             lua_pop(L, 1);
             stringstream parameter;
             parameter << "__" << int(arity++);
             lua_pushstring(L, parameter.str().c_str());
         }
-        lua_insert(L, -4);
-        lua_pop(L, 1);
     }
-    lua_pop(L, 1);
-    lua_call(L, lua_gettop(L)-2, 1);
+
+    lua_call(L, lua_gettop(L)-3, 1);
     return 1;
+}
+
+static void expressionToIR(lua_State *L, vector<likely_mat> &mats)
+{
+    int i = 1;
+    bool done = false;
+    while (!done) {
+        lua_pushinteger(L, i);
+        lua_gettable(L, -2);
+
+        if (lua_isnil(L, -1)) {
+            done = true;
+        } else if (lua_istable(L, -1)) {
+            expressionToIR(L, mats);
+        } else if (likely_mat *mat = (likely_mat*)luaL_testudata(L, -1, "likely")) {
+            stringstream arg; arg << "__";
+            const vector<likely_mat>::iterator it = find(mats.begin(), mats.end(), *mat);
+            if (it == mats.end()) {
+                arg << mats.size();
+                mats.push_back(*mat);
+            } else {
+                arg << it - mats.begin();
+            }
+            lua_pushinteger(L, i);
+            lua_pushstring(L, arg.str().c_str());
+            lua_settable(L, -4);
+        }
+
+        lua_pop(L, 1);
+        i++;
+    }
+}
+
+static int lua_likely_new_global(lua_State *L)
+{
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, args == 3, "'new_global' expected three arguments, got: %d", args);
+
+    bool expression = false;
+    if (lua_istable(L, 3) && lua_getmetatable(L, 3)) {
+        luaL_getmetatable(L, "likely_expression");
+        expression = lua_rawequal(L, -1, -2);
+        lua_pop(L, 2);
+    }
+
+    if (expression) {
+        vector<likely_mat> mats;
+        expressionToIR(L, mats);
+        lua_getglobal(L, "compile");
+        lua_insert(L, -2);
+        lua_call(L, 1, 1);
+        for (size_t i=0; i<mats.size(); i++)
+            *newLuaMat(L) = mats[i];
+        lua_call(L, mats.size(), 1);
+    }
+
+    lua_rawset(L, 1);
+    return 0;
 }
 
 int luaopen_likely(lua_State *L)
@@ -590,6 +616,7 @@ int luaopen_likely(lua_State *L)
         {"scalar", lua_likely_scalar},
         {"read", lua_likely_read},
         {"closure", lua_likely_closure},
+        {"parse", lua_likely_parse},
         {"compile", lua_likely_compile},
         {"show", lua_likely_show},
         {NULL, NULL}
@@ -615,7 +642,6 @@ int luaopen_likely(lua_State *L)
     static const struct luaL_Reg likely_closure[] = {
         {"__call", lua_likely__call},
         {"__concat", lua_likely__concat},
-        {"__tostring", lua_likely_closure__tostring},
         {NULL, NULL}
     };
 
@@ -624,6 +650,11 @@ int luaopen_likely(lua_State *L)
     lua_pushvalue(L, -1);
     lua_setfield(L, -2, "__index");
     luaL_setfuncs(L, likely_closure, 0);
+
+    // Register expression metatable
+    luaL_newmetatable(L, "likely_expression");
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
 
     // Idiom for registering library with member functions
     luaL_newmetatable(L, "likely");
@@ -716,7 +747,7 @@ static string removeGFM(const string &source)
     return result.str();
 }
 
-lua_State *likely_exec(const char *source, lua_State *L)
+lua_State *likely_exec(const char *source, lua_State *L, int markdown)
 {
     if (L == NULL) {
         L = luaL_newstate();
@@ -734,21 +765,28 @@ lua_State *likely_exec(const char *source, lua_State *L)
     lua_newtable(L); // metatable
     lua_getglobal(L, "_G");
     lua_setfield(L, -2, "__index");
+    lua_pushcfunction(L, lua_likely_new_global);
+    lua_setfield(L, -2, "__newindex");
     lua_setmetatable(L, -2);
 
-    if (luaL_loadstring(L, removeGFM(source).c_str())) return L;
+    if (luaL_loadstring(L, markdown ? removeGFM(source).c_str() : source)) return L;
     lua_pushvalue(L, -2);
     lua_setupvalue(L, -2, 1);
     lua_pcall(L, 0, LUA_MULTRET, 0);
     return L; // The sandboxed environment is now on the top of the stack
 }
 
-likely_ir likely_translate(const char *source)
+likely_ir likely_parse(const char *expression)
 {
     static lua_State *L = NULL;
-    stringstream command; command << "`return translate(" << source << ")`";
-    L = likely_exec(command.str().c_str(), L);
-    return lua_tostring(L, -1);
+    stringstream command; command << "return parse(" << expression << ")";
+    L = likely_exec(command.str().c_str(), L, 0);
+    likely_assert(lua_istable(L, -1), "'likely_parse' expected a table result");
+
+    // Return the result in a new state
+    likely_ir ir = luaL_newstate();
+    copyRecursive(L, ir);
+    return ir;
 }
 
 LIKELY_EXPORT void likely_set_show_callback(likely_show_callback callback, void *context)

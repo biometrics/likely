@@ -23,17 +23,17 @@
 extern "C" {
 #endif
 
-// Contents of standard.likely
+// Contents of library/standard.like
 LIKELY_EXPORT extern const char likely_standard_library[];
 
 // Import Likely into a Lua runtime
 LIKELY_EXPORT int luaopen_likely(struct lua_State *L);
 
 // Execute a Likely script
-LIKELY_EXPORT struct lua_State *likely_exec(const char *source, struct lua_State *L);
+LIKELY_EXPORT struct lua_State *likely_exec(const char *source, struct lua_State *L, int markdown);
 
 // Retrieve Likely IR from a Lua closure
-LIKELY_EXPORT likely_ir likely_translate(const char *source);
+LIKELY_EXPORT likely_ir likely_parse(const char *expression);
 
 // show() callback
 typedef void (*likely_show_callback)(struct lua_State *L, void *context);
