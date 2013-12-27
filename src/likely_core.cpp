@@ -587,14 +587,12 @@ struct KernelInfo
 struct Operation
 {
     static map<string, const Operation*> operations;
-    static void add(const Operation *operation)
+    static void add(const string &symbol, const Operation *operation)
     {
-        assert(operations.find(operation->name()) == operations.end());
-        operations.insert(pair<string, const Operation*>(operation->name(), operation));
+        operations.insert(pair<string, const Operation*>(symbol, operation));
     }
 
     virtual ~Operation() {}
-    virtual string name() const = 0;
     virtual TypedValue call(KernelBuilder &kernel, const KernelInfo &info, const vector<TypedValue> &args) const = 0;
 };
 map<string, const Operation*> Operation::operations;
@@ -602,12 +600,13 @@ map<string, const Operation*> Operation::operations;
 template <class T>
 struct RegisterOperation
 {
-    RegisterOperation()
+    RegisterOperation(const string &symbol)
     {
-        Operation::add(new T());
+        Operation::add(symbol, new T());
     }
 };
-#define LIKELY_REGISTER(OPERATION) static struct RegisterOperation<OPERATION> Register##OPERATION;
+#define LIKELY_REGISTER_OPERATION(OP, SYM) static struct RegisterOperation<OP##Operation> Register##OP##Operation(SYM);
+#define LIKELY_REGISTER(OP) LIKELY_REGISTER_OPERATION(OP, #OP)
 
 class NullaryOperation : public Operation
 {
@@ -620,65 +619,22 @@ class NullaryOperation : public Operation
     virtual TypedValue callNullary(KernelBuilder &kernel, const KernelInfo &info) const = 0;
 };
 
-class IndexOperation : public NullaryOperation
-{
-    TypedValue callNullary(KernelBuilder &kernel, const KernelInfo &info) const
-    {
-        (void) kernel;
-        return callIndex(info);
-    }
-    virtual TypedValue callIndex(const KernelInfo &info) const = 0;
-};
+#define LIKELY_REGISTER_INDEX(OP)                                               \
+class OP##Operation : public NullaryOperation                                   \
+{                                                                               \
+    TypedValue callNullary(KernelBuilder &kernel, const KernelInfo &info) const \
+    {                                                                           \
+        (void) kernel;                                                          \
+        return info.OP;                                                         \
+    }                                                                           \
+};                                                                              \
+LIKELY_REGISTER(OP)                                                             \
 
-class iOperation : public IndexOperation
-{
-    string name() const { return "i"; }
-    TypedValue callIndex(const KernelInfo &info) const
-    {
-        return info.i;
-    }
-};
-LIKELY_REGISTER(iOperation)
-
-class cOperation : public IndexOperation
-{
-    string name() const { return "c"; }
-    TypedValue callIndex(const KernelInfo &info) const
-    {
-        return info.c;
-    }
-};
-LIKELY_REGISTER(cOperation)
-
-class xOperation : public IndexOperation
-{
-    string name() const { return "x"; }
-    TypedValue callIndex(const KernelInfo &info) const
-    {
-        return info.x;
-    }
-};
-LIKELY_REGISTER(xOperation)
-
-class yOperation : public IndexOperation
-{
-    string name() const { return "y"; }
-    TypedValue callIndex(const KernelInfo &info) const
-    {
-        return info.y;
-    }
-};
-LIKELY_REGISTER(yOperation)
-
-class tOperation : public IndexOperation
-{
-    string name() const { return "t"; }
-    TypedValue callIndex(const KernelInfo &info) const
-    {
-        return info.t;
-    }
-};
-LIKELY_REGISTER(tOperation)
+LIKELY_REGISTER_INDEX(i)
+LIKELY_REGISTER_INDEX(c)
+LIKELY_REGISTER_INDEX(x)
+LIKELY_REGISTER_INDEX(y)
+LIKELY_REGISTER_INDEX(t)
 
 class UnaryOperation : public Operation
 {
@@ -692,7 +648,6 @@ class UnaryOperation : public Operation
 
 class typeOperation : public UnaryOperation
 {
-    string name() const { return "type"; }
     TypedValue callUnary(KernelBuilder &kernel, const KernelInfo &info, TypedValue arg) const
     {
         (void) kernel;
@@ -700,7 +655,7 @@ class typeOperation : public UnaryOperation
         return KernelBuilder::type(arg);
     }
 };
-LIKELY_REGISTER(typeOperation)
+LIKELY_REGISTER(type)
 
 class UnaryMathOperation : public UnaryOperation
 {
@@ -715,13 +670,12 @@ class UnaryMathOperation : public UnaryOperation
     virtual Intrinsic::ID id() const = 0;
 };
 
-#define LIKELY_REGISTER_UNARY_MATH(OPERATION)                 \
-class OPERATION##Operation : public UnaryMathOperation        \
-{                                                             \
-    string name() const { return #OPERATION; }                \
-    Intrinsic::ID id() const { return Intrinsic::OPERATION; } \
-};                                                            \
-LIKELY_REGISTER(OPERATION##Operation)                         \
+#define LIKELY_REGISTER_UNARY_MATH(OP)                 \
+class OP##Operation : public UnaryMathOperation        \
+{                                                      \
+    Intrinsic::ID id() const { return Intrinsic::OP; } \
+};                                                     \
+LIKELY_REGISTER(OP)                                    \
 
 LIKELY_REGISTER_UNARY_MATH(sqrt)
 LIKELY_REGISTER_UNARY_MATH(sin)
@@ -751,18 +705,16 @@ class BinaryOperation : public Operation
 
 class castOperation : public BinaryOperation
 {
-    string name() const { return "cast"; }
     TypedValue callBinary(KernelBuilder &kernel, const KernelInfo &info, TypedValue x, TypedValue type) const
     {
         (void) info;
         return kernel.cast(x, (likely_type)LLVM_VALUE_TO_INT(type.value));
     }
 };
-LIKELY_REGISTER(castOperation)
+LIKELY_REGISTER(cast)
 
 class thresholdOperation : public BinaryOperation
 {
-    string name() const { return "threshold"; }
     TypedValue callBinary(KernelBuilder &kernel, const KernelInfo &info, TypedValue x, TypedValue t) const
     {
          (void) info;
@@ -775,7 +727,7 @@ class thresholdOperation : public BinaryOperation
          return TypedValue(kernel.b->CreateSelect(comp, low, high), type);
     }
 };
-LIKELY_REGISTER(thresholdOperation)
+LIKELY_REGISTER(threshold)
 
 class ArithmeticOperation : public BinaryOperation
 {
@@ -790,7 +742,6 @@ class ArithmeticOperation : public BinaryOperation
 
 class addOperation : public ArithmeticOperation
 {
-    string name() const { return "+"; }
     TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
     {
         if (likely_floating(type)) {
@@ -815,11 +766,10 @@ class addOperation : public ArithmeticOperation
         }
     }
 };
-LIKELY_REGISTER(addOperation)
+LIKELY_REGISTER_OPERATION(add, "+")
 
 class subtractOperation : public ArithmeticOperation
 {
-    string name() const { return "-"; }
     TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
     {
         if (likely_floating(type)) {
@@ -844,11 +794,10 @@ class subtractOperation : public ArithmeticOperation
         }
     }
 };
-LIKELY_REGISTER(subtractOperation)
+LIKELY_REGISTER_OPERATION(subtract, "-")
 
 class multiplyOperation : public ArithmeticOperation
 {
-    string name() const { return "*"; }
     TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
     {
         if (likely_floating(type)) {
@@ -878,11 +827,10 @@ class multiplyOperation : public ArithmeticOperation
         }
     }
 };
-LIKELY_REGISTER(multiplyOperation)
+LIKELY_REGISTER_OPERATION(multiply, "*")
 
 class divideOperation : public ArithmeticOperation
 {
-    string name() const { return "/"; }
     TypedValue callArithmetic(IRBuilder<> *b, TypedValue n, TypedValue d, likely_type type) const
     {
         if (likely_floating(type)) {
@@ -902,73 +850,38 @@ class divideOperation : public ArithmeticOperation
         }
     }
 };
-LIKELY_REGISTER(divideOperation)
+LIKELY_REGISTER_OPERATION(divide, "/")
 
-class ltOperation : public ArithmeticOperation
-{
-    string name() const { return "<"; }
-    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
-    {
-        Value *comp = likely_floating(type) ? b->CreateFCmpOLT(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSLT(lhs, rhs) : b->CreateICmpULT(lhs, rhs));
-        return TypedValue(comp, type);
-    }
-};
-LIKELY_REGISTER(ltOperation)
+#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                    \
+class OP##Operation : public ArithmeticOperation                                                               \
+{                                                                                                              \
+    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const          \
+    {                                                                                                          \
+        return TypedValue(likely_floating(type) ? b->CreateFCmpO##OP(lhs, rhs)                                 \
+                                                : (likely_signed(type) ? b->CreateICmpS##OP(lhs, rhs)          \
+                                                                       : b->CreateICmpU##OP(lhs, rhs)), type); \
+    }                                                                                                          \
+};                                                                                                             \
+LIKELY_REGISTER_OPERATION(OP, SYM)                                                                             \
 
-class leOperation : public ArithmeticOperation
-{
-    string name() const { return "<="; }
-    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
-    {
-        Value *comp = likely_floating(type) ? b->CreateFCmpOLE(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSLE(lhs, rhs) : b->CreateICmpULE(lhs, rhs));
-        return TypedValue(comp, type);
-    }
-};
-LIKELY_REGISTER(leOperation)
+LIKELY_REGISTER_COMPARISON(LT, "<")
+LIKELY_REGISTER_COMPARISON(LE, "<=")
+LIKELY_REGISTER_COMPARISON(GT, ">")
+LIKELY_REGISTER_COMPARISON(GE, ">=")
 
-class gtOperation : public ArithmeticOperation
-{
-    string name() const { return ">"; }
-    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
-    {
-        Value *comp = likely_floating(type) ? b->CreateFCmpOGT(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSGT(lhs, rhs) : b->CreateICmpUGT(lhs, rhs));
-        return TypedValue(comp, type);
-    }
-};
-LIKELY_REGISTER(gtOperation)
+#define LIKELY_REGISTER_EQUALITY(OP, SYM)                                                             \
+class OP##Operation : public ArithmeticOperation                                                      \
+{                                                                                                     \
+    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const \
+    {                                                                                                 \
+        return TypedValue(likely_floating(type) ? b->CreateFCmpO##OP(lhs, rhs)                        \
+                                                : b->CreateICmp##OP(lhs, rhs), type);                 \
+    }                                                                                                 \
+};                                                                                                    \
+LIKELY_REGISTER_OPERATION(OP, SYM)                                                                    \
 
-class geOperation : public ArithmeticOperation
-{
-    string name() const { return ">="; }
-    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
-    {
-        Value *comp = likely_floating(type) ? b->CreateFCmpOGE(lhs, rhs) : (likely_signed(type) ? b->CreateICmpSGE(lhs, rhs) : b->CreateICmpUGE(lhs, rhs));
-        return TypedValue(comp, type);
-    }
-};
-LIKELY_REGISTER(geOperation)
-
-class eqOperation : public ArithmeticOperation
-{
-    string name() const { return "=="; }
-    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
-    {
-        Value *comp = likely_floating(type) ? b->CreateFCmpOEQ(lhs, rhs) : b->CreateICmpEQ(lhs, rhs);
-        return TypedValue(comp, type);
-    }
-};
-LIKELY_REGISTER(eqOperation)
-
-class neOperation : public ArithmeticOperation
-{
-    string name() const { return "!="; }
-    TypedValue callArithmetic(IRBuilder<> *b, TypedValue lhs, TypedValue rhs, likely_type type) const
-    {
-        Value *comp = likely_floating(type) ? b->CreateFCmpONE(lhs, rhs) : b->CreateICmpNE(lhs, rhs);
-        return TypedValue(comp, type);
-    }
-};
-LIKELY_REGISTER(neOperation)
+LIKELY_REGISTER_EQUALITY(EQ, "==")
+LIKELY_REGISTER_EQUALITY(NE, "!=")
 
 class BinaryMathOperation : public BinaryOperation
 {
@@ -988,25 +901,20 @@ class BinaryMathOperation : public BinaryOperation
 
 class powiOperation : public BinaryMathOperation
 {
-    string name() const { return "powi"; }
     Intrinsic::ID id() const { return Intrinsic::powi; }
     bool nIsInteger() const { return true; }
 };
-LIKELY_REGISTER(powiOperation)
+LIKELY_REGISTER(powi)
 
-class powOperation : public BinaryMathOperation
-{
-    string name() const { return "pow"; }
-    Intrinsic::ID id() const { return Intrinsic::pow; }
-};
-LIKELY_REGISTER(powOperation)
+#define LIKELY_REGISTER_BINARY_MATH(OP)                \
+class OP##Operation : public BinaryMathOperation       \
+{                                                      \
+    Intrinsic::ID id() const { return Intrinsic::OP; } \
+};                                                     \
+LIKELY_REGISTER(OP)                                    \
 
-class copysignOperation : public BinaryMathOperation
-{
-    string name() const { return "copysign"; }
-    Intrinsic::ID id() const { return Intrinsic::copysign; }
-};
-LIKELY_REGISTER(copysignOperation)
+LIKELY_REGISTER_BINARY_MATH(pow)
+LIKELY_REGISTER_BINARY_MATH(copysign)
 
 class TernaryOperation : public Operation
 {
@@ -1020,7 +928,6 @@ class TernaryOperation : public Operation
 
 class fmaOperation : public TernaryOperation
 {
-    string name() const { return "fma"; }
     TypedValue callTernary(KernelBuilder &kernel, const KernelInfo &info, TypedValue a, TypedValue x, TypedValue c) const
     {
         (void) info;
@@ -1033,7 +940,7 @@ class fmaOperation : public TernaryOperation
         return TypedValue(kernel.b->CreateCall3(Intrinsic::getDeclaration(kernel.m, Intrinsic::fma, args), x, a, c), x.type);
     }
 };
-LIKELY_REGISTER(fmaOperation)
+LIKELY_REGISTER(fma)
 
 struct LikelyKernelOptimizationPass : public FunctionPass
 {
