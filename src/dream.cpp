@@ -116,15 +116,17 @@ private:
     {
         QSet<QString> globals;
 
-        // Get the newly created variables...
+        // Get the existing globals...
+        lua_getfield(L, -1, "_G");
         lua_pushnil(L);
         while (lua_next(L, -2)) {
             globals.insert(lua_tostring(L, -2));
             lua_pop(L, 1);
         }
+        lua_pop(L, 1);
 
-        // ...and the existing globals
-        lua_getglobal(L, "_G");
+        // ... and the newly created globals
+        lua_getfield(L, -1, "_L");
         lua_pushnil(L);
         while (lua_next(L, -2)) {
             globals.insert(lua_tostring(L, -2));

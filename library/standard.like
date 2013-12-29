@@ -292,6 +292,6 @@ ne = closure({ function(lhs, rhs) return { "!=", lhs, rhs } end, nil, nil },
 threshold = closure({ function(x, t) return { "threshold", x, t } end, nil, nil },
                     { "Binary threshold", "operand", "threshold" })
 
-set = closure({ function(matrix, value) return cast(type(matrix), value) end, nil, nil },
+set = closure({ function(matrix, value) return cast(value, type(matrix)) end, nil, nil },
               { "Assignment", "matrix", "value" })
 ```

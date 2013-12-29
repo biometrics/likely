@@ -404,6 +404,7 @@ void help()
            "  --parallel      Benchmark multi-threaded only\n"
            "  --serial        Benchmark single-threaded only\n"
            "  -size <int>     Benchmark the specified size only\n"
+           "  --test          --all -size 256 --no-speed\n"
            "  --tutorial      Run Likely tutorial instead of benchmarking\n"
            "  -type <type>    Benchmark the specified type only\n");
     exit(ExitStatus);
@@ -421,6 +422,7 @@ int main(int argc, char *argv[])
         else if (!strcmp("--parallel", argv[i])) BenchmarkExecution = true;
         else if (!strcmp("--serial"  , argv[i])) BenchmarkExecution = false;
         else if (!strcmp("-size"     , argv[i])) BenchmarkSize = atoi(argv[++i]);
+        else if (!strcmp("--test"    , argv[i])) { BenchmarkAll = true; BenchmarkSize = 256, BenchmarkSpeed = false; }
         else if (!strcmp("--tutorial", argv[i])) BenchmarkTutorial = true;
         else if (!strcmp("-type"     , argv[i])) BenchmarkType = likely_type_from_string(argv[++i]);
         else    { printf("Unrecognized argument: %s\nTry running 'benchmark --help' for help", argv[i]); return 1; }

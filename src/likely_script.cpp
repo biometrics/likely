@@ -596,6 +596,24 @@ static void findMats(lua_State *L, vector<likely_mat> &mats)
     }
 }
 
+static int lua_likely_global(lua_State *L)
+{
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, args == 2, "'global' expected three arguments, got: %d", args);
+
+    lua_getfield(L, 1, "_L");
+    lua_pushvalue(L, 2);
+    lua_gettable(L, -2);
+
+    if (lua_isnil(L, -1)) {
+        lua_getfield(L, 1, "_G");
+        lua_pushvalue(L, 2);
+        lua_gettable(L, -2);
+    }
+
+    return 1;
+}
+
 static int lua_likely_new_global(lua_State *L)
 {
     const int args = lua_gettop(L);
@@ -634,7 +652,11 @@ static int lua_likely_new_global(lua_State *L)
         lua_call(L, mats.size(), 1);
     }
 
-    lua_rawset(L, 1);
+    // Assign it to the proxy table
+    lua_getfield(L, 1, "_L");
+    lua_pushvalue(L, -3);
+    lua_pushvalue(L, -3);
+    lua_rawset(L, -3);
     return 0;
 }
 
@@ -793,8 +815,12 @@ lua_State *likely_exec(const char *source, lua_State *L, int markdown)
 
     // Create a sandboxed environment
     lua_newtable(L); // _ENV
-    lua_newtable(L); // metatable
     lua_getglobal(L, "_G");
+    lua_setfield(L, -2, "_G");
+    lua_newtable(L); // proxy
+    lua_setfield(L, -2, "_L");
+    lua_newtable(L); // metatable
+    lua_pushcfunction(L, lua_likely_global);
     lua_setfield(L, -2, "__index");
     lua_pushcfunction(L, lua_likely_new_global);
     lua_setfield(L, -2, "__newindex");
