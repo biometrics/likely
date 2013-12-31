@@ -1359,7 +1359,9 @@ private:
 
         bool ok;
         TypedValue c = constant(operator_, &ok);
-        likely_assert(ok, "unrecognized literal: %s", operator_.c_str());
+        if (!ok)
+            c = KernelBuilder::constant(likely_type_from_string(operator_.c_str()), likely_type_u32);
+        likely_assert(c.type != likely_type_null, "unrecognized literal: %s", operator_.c_str());
         return c;
 
         return TypedValue();
@@ -1603,7 +1605,7 @@ void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const
 likely_ir likely_ir_from_string(const char *str)
 {
     likely_ir L = luaL_newstate();
-    luaL_dostring(L, str);
+    luaL_dostring(L, (string("return ") + str).c_str());
     const int args = lua_gettop(L);
     likely_assert(args == 1, "'likely_ir_from_string' expected one result, got: %d", args);
     likely_assert(lua_istable(L, 1), "'likely_ir_from_string' expected a table result");
