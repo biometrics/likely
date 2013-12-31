@@ -103,6 +103,24 @@ static int lua_likely__index(lua_State *L)
     return lua_likely_get(L);
 }
 
+static likely_type getType(lua_State *L, int index)
+{
+    int isnum;
+    likely_type type = (likely_type) lua_tointegerx(L, index, &isnum);
+    if (isnum)
+        return type;
+
+    if (lua_istable(L, index)) {
+        lua_getfield(L, index, "type");
+        type = getType(L, -1);
+        lua_pop(L, 1);
+        return type;
+    }
+
+    lua_likely_assert(L, false, "'getType' failure");
+    return likely_type_null;
+}
+
 static int lua_likely_set(lua_State *L)
 {
     lua_likely_assert(L, lua_gettop(L) == 3, "'set' expected 3 arguments, got: %d", lua_gettop(L));
@@ -110,7 +128,7 @@ static int lua_likely_set(lua_State *L)
     const char *field = lua_tostring(L, 2);
     int isnum;
     if      (!strcmp(field, "data"))          m->data = (likely_data) lua_touserdata(L, 3);
-    else if (!strcmp(field, "type"))        { m->type = (likely_type) lua_tointegerx(L, 3, &isnum); lua_likely_assert(L, isnum != 0, "'set' expected type to be an integer, got: %s", lua_tostring(L, 3)); }
+    else if (!strcmp(field, "type"))        { m->type = getType(L, 3); }
     else if (!strcmp(field, "channels"))    { m->channels  = lua_tointegerx(L, 3, &isnum); lua_likely_assert(L, isnum != 0, "'set' expected channels to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "columns"))     { m->columns   = lua_tointegerx(L, 3, &isnum); lua_likely_assert(L, isnum != 0, "'set' expected columns to be an integer, got: %s", lua_tostring(L, 3)); }
     else if (!strcmp(field, "rows"))        { m->rows      = lua_tointegerx(L, 3, &isnum); lua_likely_assert(L, isnum != 0, "'set' expected rows to be an integer, got: %s", lua_tostring(L, 3)); }
@@ -184,7 +202,7 @@ static int lua_likely_new(lua_State *L)
       case 4: rows     = lua_tointegerx(L, 4, &isnum); lua_likely_assert(L, isnum != 0, "'new' expected rows to be an integer, got: %s", lua_tostring(L, 4));
       case 3: columns  = lua_tointegerx(L, 3, &isnum); lua_likely_assert(L, isnum != 0, "'new' expected columns to be an integer, got: %s", lua_tostring(L, 3));
       case 2: channels = lua_tointegerx(L, 2, &isnum); lua_likely_assert(L, isnum != 0, "'new' expected channels to be an integer, got: %s", lua_tostring(L, 2));
-      case 1: type     = (likely_type) lua_tointegerx(L, 1, &isnum); lua_likely_assert(L, isnum != 0, "'new' expected type to be an integer, got: %s", lua_tostring(L, 2));
+      case 1: type     = getType(L, 1);
       case 0: break;
       default: lua_likely_assert(L, false, "'new' expected no more than 7 arguments, got: %d", argc);
     }

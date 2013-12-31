@@ -108,17 +108,6 @@ null = likely.null
 depth = likely.depth
 signed = likely.signed
 floating = likely.floating
-u8 = likely.u8
-u16 = likely.u16
-u32 = likely.u32
-u64 = likely.u64
-i8 = likely.i8
-i16 = likely.i16
-i32 = likely.i32
-i64 = likely.i64
-f16 = likely.f16
-f32 = likely.f32
-f64 = likely.f64
 parallel = likely.parallel
 multi_channel = likely.multi_channel
 multi_column = likely.multi_column
@@ -135,7 +124,7 @@ compile = likely.compile
 expression = likely.expression
 replace = likely.replace
 
-new = closure({ likely.new, f32, 1, 1, 1, 1, 0, false },
+new = closure({ likely.new, likely.f32, 1, 1, 1, 1, 0, false },
               { "Create an uninitialized matrix", "type", "channels", "columns", "rows", "frames", "data", "copy" })
 
 scalar = closure({ likely.scalar, nil },
@@ -269,6 +258,39 @@ cast = closure({ function(x, type) return { "cast", x, type } end, nil, nil },
 
 type = closure({ function(x) return { "type", x } end, nil },
                { "Extract the matrix type", "matrix" })
+
+u8  = closure({ function(x) return cast(x, likely.u8) end, nil, type = likely.u8 },
+              { "Convert matrix to type u8", "matrix" })
+
+u16 = closure({ function(x) return cast(x, likely.u16) end, nil, type = likely.u16 },
+              { "Convert matrix to type u16", "matrix" })
+
+u32 = closure({ function(x) return cast(x, likely.u32) end, nil, type = likely.u32 },
+              { "Convert matrix to type u32", "matrix" })
+
+u64 = closure({ function(x) return cast(x, likely.u64) end, nil, type = likely.u64 },
+              { "Convert matrix to type u64", "matrix" })
+
+i8  = closure({ function(x) return cast(x, likely.i8) end, nil, type = likely.i8 },
+              { "Convert matrix to type i8", "matrix" })
+
+i16 = closure({ function(x) return cast(x, likely.i16) end, nil, type = likely.i16 },
+              { "Convert matrix to type i16", "matrix" })
+
+i32 = closure({ function(x) return cast(x, likely.i32) end, nil, type = likely.i32 },
+              { "Convert matrix to type i32", "matrix" })
+
+i64 = closure({ function(x) return cast(x, likely.i64) end, nil, type = likely.i64 },
+              { "Convert matrix to type i64", "matrix" })
+
+f16 = closure({ function(x) return cast(x, likely.f16) end, nil, type = likely.f16 },
+              { "Convert matrix to type f16", "matrix" })
+
+f32 = closure({ function(x) return cast(x, likely.f32) end, nil, type = likely.f32 },
+              { "Convert matrix to type f32", "matrix" })
+
+f64 = closure({ function(x) return cast(x, likely.f64) end, nil, type = likely.f64 },
+              { "Convert matrix to type f64", "matrix" })
 ```
 
 ### Comparison
