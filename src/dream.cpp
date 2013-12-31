@@ -455,7 +455,7 @@ private:
 
         double min, max;
         likely_mat rendered = likely_render(mat, &min, &max);
-        src = QImage(rendered->data, rendered->columns, rendered->rows, QImage::Format_RGB888).rgbSwapped();
+        src = QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped();
         likely_release(rendered);
         text->setText(QString("%1%2x%3x%4x%5 %6 [%7,%8]").arg(name.isEmpty() ? QString() : QString("<b>%1</b>: ").arg(name),
                                                               QString::number(mat->channels),
