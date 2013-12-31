@@ -325,6 +325,7 @@ struct TypedValue
     TypedValue(Value *value_, likely_type type_) : value(value_), type(type_) {}
     operator Value*() const { return value; }
     operator likely_type() const { return type; }
+    bool isNull() const { return value == NULL; }
 };
 
 struct KernelBuilder
@@ -1199,17 +1200,10 @@ struct FunctionBuilder : private JITResources
         IRBuilder<> builder(entry);
         KernelBuilder kernel(module, &builder, function);
 
-        Value *dstChannels = NULL, *dstColumns = NULL, *dstRows = NULL, *dstFrames = NULL;
-        for (size_t i=0; i<types.size(); i++) {
-            if (!dstChannels && likely_multi_channel(types[i])) dstChannels = kernel.channels(srcs[i]);
-            if (!dstColumns  && likely_multi_column(types[i]))  dstColumns  = kernel.columns(srcs[i]);
-            if (!dstRows     && likely_multi_row(types[i]))     dstRows     = kernel.rows(srcs[i]);
-            if (!dstFrames   && likely_multi_frame(types[i]))   dstFrames   = kernel.frames(srcs[i]);
-        }
-        if (!dstChannels) { dstChannels = kernel.constant(1); assert(!likely_multi_channel(dstType)); }
-        if (!dstColumns)  { dstColumns  = kernel.constant(1); assert(!likely_multi_column(dstType));  }
-        if (!dstRows)     { dstRows     = kernel.constant(1); assert(!likely_multi_row(dstType));     }
-        if (!dstFrames)   { dstFrames   = kernel.constant(1); assert(!likely_multi_frame(dstType));   }
+        Value *dstChannels = getDimensions(kernel, ir, "channels", srcs.size() > 0 ? srcs[0] : TypedValue());
+        Value *dstColumns  = getDimensions(kernel, ir, "columns" , srcs.size() > 0 ? srcs[0] : TypedValue());
+        Value *dstRows     = getDimensions(kernel, ir, "rows"    , srcs.size() > 0 ? srcs[0] : TypedValue());
+        Value *dstFrames   = getDimensions(kernel, ir, "frames"  , srcs.size() > 0 ? srcs[0] : TypedValue());
 
         std::vector<Value*> likelyNewArgs;
         likelyNewArgs.push_back(kernel.type(dstType));
@@ -1316,6 +1310,28 @@ private:
             srcs.push_back(TypedValue(src, n < types.size() ? types[n] : likely_type_null));
             n++;
         }
+    }
+
+    static Value *getDimensions(KernelBuilder &kernel, lua_State *L, const char *axis, const TypedValue &arg0)
+    {
+        lua_getfield(L, -1, axis);
+        Value *result;
+        if (lua_isnil(L, -1)) {
+            if (arg0.isNull()) {
+                result = KernelBuilder::constant(1);
+            } else {
+                if      (!strcmp(axis, "channels")) result = kernel.channels(arg0);
+                else if (!strcmp(axis, "columns"))  result = kernel.columns(arg0);
+                else if (!strcmp(axis, "rows"))     result = kernel.rows(arg0);
+                else                                result = kernel.frames(arg0);
+            }
+        } else {
+            result = NULL;
+            likely_assert(false, "not implemented");
+        }
+
+        lua_pop(L, 1);
+        return result;
     }
 
     TypedValue constant(const string &str, bool *ok)
