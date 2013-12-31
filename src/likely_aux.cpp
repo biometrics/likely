@@ -128,23 +128,46 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
     return n;
 }
 
-void likely_print(likely_const_mat m)
+const char *likely_print(likely_const_mat m)
 {
-    if (!m) return;
-    for (likely_size t=0; t<m->frames; t++) {
-        for (likely_size y=0; y<m->rows; y++) {
-            cout << (m->rows > 1 ? (y == 0 ? "[" : " ") : "");
-            for (likely_size x=0; x<m->columns; x++) {
-                for (likely_size c=0; c<m->channels; c++) {
-                    cout << likely_element(m, c, x, y, t);
-                    if (c != m->channels-1)
-                        cout << " ";
+    static string result;
+
+    stringstream stream;
+    if (m) {
+        stream << "{ type=" << likely_type_to_string(m->type)
+               << ", channels=" << m->channels
+               << ", columns=" << m->columns
+               << ", rows=" << m->rows
+               << ", frames=" << m->frames
+               << ", data={\n";
+        stream << (m->frames > 1 ? "{" : "");
+        for (likely_size t=0; t<m->frames; t++) {
+            stream << (m->rows > 1 ? "{" : "");
+            for (likely_size y=0; y<m->rows; y++) {
+                stream << (m->columns > 1 ? "{" : "");
+                for (likely_size x=0; x<m->columns; x++) {
+                    stream << (m->channels > 1 ? "{" : "");
+                    for (likely_size c=0; c<m->channels; c++) {
+                        stream << likely_element(m, c, x, y, t);
+                        if (c != m->channels-1)
+                            stream << ", ";
+                    }
+                    stream << (m->channels > 1 ? "}" : "");
+                    if (x != m->columns-1)
+                        stream << ", ";
                 }
-                cout << (m->channels > 1 ? ";" : (x < m->columns-1 ? " " : ""));
+                stream << (m->columns > 1 ? "}" : "");
+                if (y != m->rows-1)
+                    stream << ",\n";
             }
-            cout << ((m->columns > 1) && (y < m->rows-1) ? "\n" : "");
+            stream << (m->rows > 1 ? "}" : "");
+            if (t != m->frames-1)
+                stream << ",\n\n";
         }
-        cout << (m->rows > 1 ? "]\n" : "");
-        cout << (t < m->frames-1 ? "\n" : "");
+        stream << (m->frames > 1 ? "}" : "");
+        stream << "\n} }";
     }
+
+    result = stream.str();
+    return result.c_str();
 }

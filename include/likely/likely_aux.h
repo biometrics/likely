@@ -31,7 +31,7 @@ LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *exten
 
 // Matrix Visualization
 LIKELY_EXPORT likely_mat likely_render(likely_const_mat m, double *min, double *max); // Return a 888 matrix for visualization
-LIKELY_EXPORT void likely_print(likely_const_mat m);
+LIKELY_EXPORT const char *likely_print(likely_const_mat m); // Return value managed internally and guaranteed until the next call to this function
 
 #ifdef __cplusplus
 }
