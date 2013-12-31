@@ -21,5 +21,5 @@ Initialization
 
     real = new(f32, 1, columns, rows)
     imag = new(f32, 1, columns, rows)
-    real = set(real, x)
-    imag = set(imag, y)
+    real = set(real, x / x_range - x_min)
+    imag = set(imag, y / y_range - y_min)
