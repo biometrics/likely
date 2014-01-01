@@ -1221,7 +1221,7 @@ struct FunctionBuilder : private JITResources
             likely_new(likely_type_null, 0, 0, 0, 0, NULL, 0);
 
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
-        if (likely_parallel(types[0])) {
+        if (!types.empty() && likely_parallel(types[0])) {
             static FunctionType *likelyForkType = NULL;
             if (likelyForkType == NULL) {
                 vector<Type*> likelyForkParameters;
@@ -1357,12 +1357,15 @@ private:
         string operator_;
         vector<TypedValue> operands;
         if (lua_istable(ir, -1)) {
-            lua_pushnil(ir);
-            likely_assert(lua_next(ir, -2), "'generateKernelRecursive' missing operator");
+            lua_rawgeti(ir, -1, 1);
             operator_ = lua_tostring(ir, -1);
             lua_pop(ir, 1);
-            while (lua_next(ir, -2)) {
-                operands.push_back(getExpression(kernel, info, ir));
+            int index = 2;
+            bool done = false;
+            while (!done) {
+                lua_rawgeti(ir, -1, index++);
+                if (!lua_isnil(ir, -1)) operands.push_back(getExpression(kernel, info, ir));
+                else                    done = true;
                 lua_pop(ir, 1);
             }
         } else {

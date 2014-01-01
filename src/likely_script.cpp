@@ -591,6 +591,22 @@ static int lua_likely__concat(lua_State *L)
     return 1;
 }
 
+static int lua_likely_expression__call(lua_State *L)
+{
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, args == 2, "'expression__call' expected exactly two arguments");
+
+    lua_pushnil(L);
+    while (lua_next(L, -2)) {
+        lua_pushvalue(L, -2);
+        lua_insert(L, -2);
+        lua_settable(L, 1);
+    }
+
+    lua_pushvalue(L, 1);
+    return 1;
+}
+
 static void findMats(lua_State *L, vector<likely_mat> &mats)
 {
     int i = 1;
@@ -715,6 +731,11 @@ int luaopen_likely(lua_State *L)
         {NULL, NULL}
     };
 
+    static const struct luaL_Reg likely_expression[] = {
+        {"__call", lua_likely_expression__call},
+        {NULL, NULL}
+    };
+
     // Register closure metatable
     luaL_newmetatable(L, "likely_closure");
     lua_pushvalue(L, -1);
@@ -725,6 +746,7 @@ int luaopen_likely(lua_State *L)
     luaL_newmetatable(L, "likely_expression");
     lua_pushvalue(L, -1);
     lua_setfield(L, -2, "__index");
+    luaL_setfuncs(L, likely_expression, 0);
 
     // Idiom for registering library with member functions
     luaL_newmetatable(L, "likely");

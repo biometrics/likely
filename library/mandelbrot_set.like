@@ -12,14 +12,10 @@ Control parameters
 
 Derived values
 
-    x_range = x_max - x_min
-    y_range = y_max - y_min
-    columns = x_range * resolution + 1
-    rows    = y_range * resolution + 1
+    cols = (x_max - x_min) * resolution + 1
+    rows = (y_max - y_min) * resolution + 1
 
 Initialization
 
-    real = new(f32, 1, columns, rows)
-    imag = new(f32, 1, columns, rows)
-    real = set(real, f32(x) / resolution - x_min)
-    imag = set(imag, f32(y) / resolution - y_min)
+    real = (f32(x) / resolution - x_min){rows = rows, columns = cols}
+    imag = (f32(y) / resolution - y_min){rows = rows, columns = cols}

@@ -380,7 +380,7 @@ MATH_TEST(nearbyint)
 MATH_TEST(round)
 
 class castTest : public Test {
-    const char *function() const { return "cast(arg(0), f32)"; }
+    const char *function() const { return "cast(arg(0), likely.f32)"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, CV_32F); return dst; }
 };
 
