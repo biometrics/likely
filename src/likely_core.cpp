@@ -574,16 +574,16 @@ struct KernelBuilder
 struct KernelInfo
 {
     vector<TypedValue> srcs;
-    TypedValue i, c, x, y, t;
     likely_type dims;
-    KernelInfo(const KernelBuilder &kernel, const vector<TypedValue> &srcs_, const TypedValue &dst, Value *i_)
+    TypedValue i, c, x, y, t;
+    KernelInfo(const KernelBuilder &kernel, const vector<TypedValue> &srcs_, const TypedValue &dst = TypedValue(), Value *i_ = NULL)
         : srcs(srcs_), i(i_, likely_type_native)
     {
-        c.type = x.type = y.type = t.type = i.type;
-        kernel.deindex(dst, i, &c.value, &x.value, &y.value, &t.value);
-        dims = likely_type_null;
-        for (const TypedValue &src : srcs)
-            dims |= (src.type & likely_type_multi_dimension);
+        dims = srcs.empty() ? likely_type_null : (srcs[0].type & likely_type_multi_dimension);
+        if (!dst.isNull() && !i.isNull()) {
+            c.type = x.type = y.type = t.type = i.type;
+            kernel.deindex(dst, i, &c.value, &x.value, &y.value, &t.value);
+        }
     }
 };
 
@@ -1151,7 +1151,7 @@ struct FunctionBuilder : private JITResources
             Value *i = kernel.beginLoop(entry, start, stop).i;
             KernelInfo info(kernel, srcs, dst, i);
 
-            TypedValue result = generateKernelRecursive(kernel, info, ir);
+            TypedValue result = getExpression(kernel, info, ir);
 
             dstType = result.type;
             kernel.store(TypedValue(dst.value, dstType), i, result);
@@ -1199,11 +1199,12 @@ struct FunctionBuilder : private JITResources
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
         KernelBuilder kernel(module, &builder, function);
+        KernelInfo info(kernel, srcs);
 
-        Value *dstChannels = getDimensions(kernel, ir, "channels", srcs.size() > 0 ? srcs[0] : TypedValue());
-        Value *dstColumns  = getDimensions(kernel, ir, "columns" , srcs.size() > 0 ? srcs[0] : TypedValue());
-        Value *dstRows     = getDimensions(kernel, ir, "rows"    , srcs.size() > 0 ? srcs[0] : TypedValue());
-        Value *dstFrames   = getDimensions(kernel, ir, "frames"  , srcs.size() > 0 ? srcs[0] : TypedValue());
+        Value *dstChannels = getDimensions(kernel, info, ir, "channels", srcs.size() > 0 ? srcs[0] : TypedValue());
+        Value *dstColumns  = getDimensions(kernel, info, ir, "columns" , srcs.size() > 0 ? srcs[0] : TypedValue());
+        Value *dstRows     = getDimensions(kernel, info, ir, "rows"    , srcs.size() > 0 ? srcs[0] : TypedValue());
+        Value *dstFrames   = getDimensions(kernel, info, ir, "frames"  , srcs.size() > 0 ? srcs[0] : TypedValue());
 
         std::vector<Value*> likelyNewArgs;
         likelyNewArgs.push_back(kernel.type(dstType));
@@ -1312,11 +1313,11 @@ private:
         }
     }
 
-    static Value *getDimensions(KernelBuilder &kernel, lua_State *L, const char *axis, const TypedValue &arg0)
+    static Value *getDimensions(KernelBuilder &kernel, const KernelInfo &info, likely_ir ir, const char *axis, const TypedValue &arg0)
     {
-        lua_getfield(L, -1, axis);
+        lua_getfield(ir, -1, axis);
         Value *result;
-        if (lua_isnil(L, -1)) {
+        if (lua_isnil(ir, -1)) {
             if (arg0.isNull()) {
                 result = KernelBuilder::constant(1);
             } else {
@@ -1326,15 +1327,14 @@ private:
                 else                                result = kernel.frames(arg0);
             }
         } else {
-            result = NULL;
-            likely_assert(false, "not implemented");
+            result = kernel.cast(getExpression(kernel, info, ir), likely_type_native);
         }
 
-        lua_pop(L, 1);
+        lua_pop(ir, 1);
         return result;
     }
 
-    TypedValue constant(const string &str, bool *ok)
+    static TypedValue getConstant(const string &str, bool *ok)
     {
         // Split value from type
         size_t i = 0;
@@ -1352,7 +1352,7 @@ private:
         return KernelBuilder::constant(value, type);
     }
 
-    TypedValue generateKernelRecursive(KernelBuilder &kernel, const KernelInfo &info, likely_ir ir)
+    static TypedValue getExpression(KernelBuilder &kernel, const KernelInfo &info, likely_ir ir)
     {
         string operator_;
         vector<TypedValue> operands;
@@ -1362,7 +1362,7 @@ private:
             operator_ = lua_tostring(ir, -1);
             lua_pop(ir, 1);
             while (lua_next(ir, -2)) {
-                operands.push_back(generateKernelRecursive(kernel, info, ir));
+                operands.push_back(getExpression(kernel, info, ir));
                 lua_pop(ir, 1);
             }
         } else {
@@ -1374,7 +1374,7 @@ private:
             return it->second->call(kernel, info, operands);
 
         bool ok;
-        TypedValue c = constant(operator_, &ok);
+        TypedValue c = getConstant(operator_, &ok);
         if (!ok)
             c = KernelBuilder::constant(likely_type_from_string(operator_.c_str()), likely_type_u32);
         likely_assert(c.type != likely_type_null, "unrecognized literal: %s", operator_.c_str());
