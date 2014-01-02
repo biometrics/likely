@@ -790,24 +790,6 @@ class castOperation : public BinaryOperation
 };
 LIKELY_REGISTER(cast)
 
-class thresholdOperation : public BinaryOperation
-{
-    TypedValue callBinary(ExpressionBuilder &builder, const KernelInfo &info, const TypedValue &x, const TypedValue &t) const
-    {
-         (void) info;
-         likely_type type = likely_type_from_types(x, t);
-         TypedValue xc = builder.cast(x, type);
-         TypedValue tc = builder.cast(t, type);
-         Value *comp = likely_floating(type) ? builder.CreateFCmpOLE(xc, tc)
-                                             : (likely_signed(type) ? builder.CreateICmpSLE(xc, tc)
-                                                                    : builder.CreateICmpULE(xc, tc));
-         TypedValue high = builder.constant(1.0, type);
-         TypedValue low = builder.constant(0.0, type);
-         return TypedValue(builder.CreateSelect(comp, low, high), type);
-    }
-};
-LIKELY_REGISTER(threshold)
-
 class ArithmeticOperation : public BinaryOperation
 {
     TypedValue callBinary(ExpressionBuilder &builder, const KernelInfo &info, const TypedValue &arg1, const TypedValue &arg2) const
@@ -1020,6 +1002,17 @@ class fmaOperation : public TernaryOperation
     }
 };
 LIKELY_REGISTER(fma)
+
+class selectOperation : public TernaryOperation
+{
+    TypedValue callTernary(ExpressionBuilder &builder, const KernelInfo &info, const TypedValue &c, const TypedValue &t, const TypedValue &f) const
+    {
+         (void) info;
+         const likely_type type = likely_type_from_types(t, f);
+         return TypedValue(builder.CreateSelect(c,  builder.cast(t, type), builder.cast(f, type)), type);
+    }
+};
+LIKELY_REGISTER(select)
 
 struct LikelyKernelOptimizationPass : public FunctionPass
 {

@@ -259,6 +259,9 @@ cast = closure({ function(x, type) return { "cast", x, type } end, nil, nil },
 type = closure({ function(x) return { "type", x } end, nil },
                { "Extract the matrix type", "matrix" })
 
+set = closure({ function(matrix, value) return cast(value, type(matrix)) end, nil, nil },
+              { "Assignment", "matrix", "value" })
+
 u8  = closure({ function(x) return cast(x, likely.u8) end, nil, type = likely.u8 },
               { "Convert matrix to type u8", "matrix" })
 
@@ -314,11 +317,11 @@ ne = closure({ function(lhs, rhs) return { "!=", lhs, rhs } end, nil, nil },
              { "Not equal to", "lhs", "rhs" })
 ```
 
-### Image Processing
+### Conditionals
 ```Lua
-threshold = closure({ function(x, t) return { "threshold", x, t } end, nil, nil },
-                    { "Binary threshold", "operand", "threshold" })
+select = closure({ function(c, t, f) return { "select", c, t, f } end, nil, nil, nil },
+                 { "Conditional selection", "condition", "t", "f" })
 
-set = closure({ function(matrix, value) return cast(value, type(matrix)) end, nil, nil },
-              { "Assignment", "matrix", "value" })
+threshold = closure({ function(x, t) return select(gt(x, t), 1, 0) end, nil, nil },
+                    { "Binary threshold", "operand", "threshold" })
 ```
