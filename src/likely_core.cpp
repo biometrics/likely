@@ -710,9 +710,7 @@ class argOperation : public UnaryOperation
             // This matrix has the same dimensionality as the output
             matrix_i = info.i;
         } else {
-            TypedValue c, x, y, t;
-            builder.deindex(matrix, info.i, &c, &x, &y, &t);
-            matrix_i = builder.index(matrix, c, x, y, t);
+            matrix_i = builder.index(matrix, info.c, info.x, info.y, info.t);
         }
         return builder.load(matrix, matrix_i);
     }

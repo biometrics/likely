@@ -113,24 +113,13 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
         }
     }
 
-//    TODO: Switch to this once it works
-//    static likely_function_n normalize = likely_compile_n(likely_ir_from_string("{'cast', {'/', {'-',  {'arg', 0}, {'arg', 1}}, {'arg', 2}}, 'u8', channels=3}"));
-//    likely_mat min_val = likely_scalar(min);
-//    likely_mat range_val = likely_scalar(range);
-//    likely_const_mat args[] = { m, min_val, range_val };
-//    likely_mat n = normalize(args);
-//    likely_release(min_val);
-//    likely_release(range_val);
-
-    likely_mat n = likely_new(likely_type_u8, 3, m->columns, m->rows, 1, NULL, 0);
-    for (likely_size y=0; y<n->rows; y++) {
-        for (likely_size x=0; x<n->columns; x++) {
-            for (likely_size c=0; c<3; c++) {
-                const double value = likely_element(m, c % m->channels, x, y, 0);
-                likely_set_element(n, (value-min)/range, c, x, y, 0);
-            }
-        }
-    }
+    static likely_function_n normalize = likely_compile_n(likely_ir_from_string("{'cast', {'/', {'-',  {'arg', 0}, {'arg', 1}}, {'arg', 2}}, 'u8', channels=3}"));
+    likely_mat min_val = likely_scalar(min);
+    likely_mat range_val = likely_scalar(range);
+    likely_const_mat args[] = { m, min_val, range_val };
+    likely_mat n = normalize(args);
+    likely_release(min_val);
+    likely_release(range_val);
 
     if (min_) *min_ = min;
     if (max_) *max_ = max;
