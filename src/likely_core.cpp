@@ -50,6 +50,7 @@ using namespace std;
 
 #define LIKELY_NUM_ARITIES 4
 
+#define LLVM_VALUE_IS_INT(VALUE) (llvm::isa<Constant>(VALUE))
 #define LLVM_VALUE_TO_INT(VALUE) (llvm::cast<Constant>(VALUE)->getUniqueInteger().getZExtValue())
 
 static likely_type likely_type_native = likely_type_null;
@@ -576,14 +577,18 @@ struct KernelInfo
     vector<TypedValue> srcs;
     likely_type dims;
     TypedValue i, c, x, y, t;
-    KernelInfo(const KernelBuilder &kernel, const vector<TypedValue> &srcs_, const TypedValue &dst = TypedValue(), Value *i_ = NULL)
-        : srcs(srcs_), i(i_, likely_type_native)
+
+    KernelInfo(const vector<TypedValue> &srcs) : srcs(srcs)
     {
-        dims = srcs.empty() ? likely_type_null : (srcs[0].type & likely_type_multi_dimension);
-        if (!dst.isNull() && !i.isNull()) {
-            c.type = x.type = y.type = t.type = i.type;
-            kernel.deindex(dst, i, &c.value, &x.value, &y.value, &t.value);
-        }
+        dims = likely_type_null;
+    }
+
+    void init(const vector<TypedValue> &srcs, const KernelBuilder &kernel, const TypedValue &dst, Value *i)
+    {
+        this->srcs = srcs;
+        this->i = TypedValue(i, likely_type_native);
+        c.type = x.type = y.type = t.type = likely_type_native;
+        kernel.deindex(dst, i, &c.value, &x.value, &y.value, &t.value);
     }
 };
 
@@ -1129,13 +1134,22 @@ struct FunctionBuilder : private JITResources
         memcpy(type, types.data(), sizeof(likely_type) * types.size());
 
         Function *function = getFunction(name, module, (likely_arity)types.size(), PointerType::getUnqual(TheMatrixStruct));
+        vector<TypedValue> srcs = getArgs(function, types);
+        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
+        IRBuilder<> builder(entry);
+        KernelBuilder kernel(module, &builder, function);
+        KernelInfo info(srcs);
+
+        Value *dstChannels = getDimensions(kernel, info, ir, "channels", srcs.size() > 0 ? srcs[0] : TypedValue());
+        Value *dstColumns  = getDimensions(kernel, info, ir, "columns" , srcs.size() > 0 ? srcs[0] : TypedValue());
+        Value *dstRows     = getDimensions(kernel, info, ir, "rows"    , srcs.size() > 0 ? srcs[0] : TypedValue());
+        Value *dstFrames   = getDimensions(kernel, info, ir, "frames"  , srcs.size() > 0 ? srcs[0] : TypedValue());
 
         Function *thunk;
         likely_type dstType;
         {
             thunk = getFunction(name+"_thunk", module, (likely_arity)types.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), NativeIntegerType, NativeIntegerType);
-            vector<TypedValue> srcs;
-            getValues(thunk, types, srcs);
+            vector<TypedValue> srcs = getArgs(thunk, types);
             TypedValue stop = srcs.back(); srcs.pop_back();
             stop.value->setName("stop");
             stop.type = likely_type_native;
@@ -1149,7 +1163,7 @@ struct FunctionBuilder : private JITResources
             IRBuilder<> builder(entry);
             KernelBuilder kernel(module, &builder, thunk);
             Value *i = kernel.beginLoop(entry, start, stop).i;
-            KernelInfo info(kernel, srcs, dst, i);
+            info.init(srcs, kernel, dst, i);
 
             TypedValue result = getExpression(kernel, info, ir);
 
@@ -1194,18 +1208,6 @@ struct FunctionBuilder : private JITResources
         likelyNew->setDoesNotAlias(6);
         likelyNew->setDoesNotCapture(6);
 
-        vector<TypedValue> srcs;
-        getValues(function, types, srcs);
-        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
-        IRBuilder<> builder(entry);
-        KernelBuilder kernel(module, &builder, function);
-        KernelInfo info(kernel, srcs);
-
-        Value *dstChannels = getDimensions(kernel, info, ir, "channels", srcs.size() > 0 ? srcs[0] : TypedValue());
-        Value *dstColumns  = getDimensions(kernel, info, ir, "columns" , srcs.size() > 0 ? srcs[0] : TypedValue());
-        Value *dstRows     = getDimensions(kernel, info, ir, "rows"    , srcs.size() > 0 ? srcs[0] : TypedValue());
-        Value *dstFrames   = getDimensions(kernel, info, ir, "frames"  , srcs.size() > 0 ? srcs[0] : TypedValue());
-
         std::vector<Value*> likelyNewArgs;
         likelyNewArgs.push_back(kernel.type(dstType));
         likelyNewArgs.push_back(dstChannels);
@@ -1221,6 +1223,7 @@ struct FunctionBuilder : private JITResources
             likely_new(likely_type_null, 0, 0, 0, 0, NULL, 0);
 
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
+
         if (!types.empty() && likely_parallel(types[0])) {
             static FunctionType *likelyForkType = NULL;
             if (likelyForkType == NULL) {
@@ -1272,7 +1275,7 @@ struct FunctionBuilder : private JITResources
 
     ~FunctionBuilder()
     {
-        delete type;
+        delete[] type;
     }
 
 private:
@@ -1300,20 +1303,22 @@ private:
         return function;
     }
 
-    static void getValues(Function *function, const vector<likely_type> &types, vector<TypedValue> &srcs)
+    static vector<TypedValue> getArgs(Function *function, const vector<likely_type> &types)
     {
+        vector<TypedValue> result;
         Function::arg_iterator args = function->arg_begin();
         likely_arity n = 0;
         while (args != function->arg_end()) {
             Value *src = args++;
             stringstream name; name << "arg_" << int(n);
             src->setName(name.str());
-            srcs.push_back(TypedValue(src, n < types.size() ? types[n] : likely_type_null));
+            result.push_back(TypedValue(src, n < types.size() ? types[n] : likely_type_null));
             n++;
         }
+        return result;
     }
 
-    static Value *getDimensions(KernelBuilder &kernel, const KernelInfo &info, likely_ir ir, const char *axis, const TypedValue &arg0)
+    static Value *getDimensions(KernelBuilder &kernel, KernelInfo &info, likely_ir ir, const char *axis, const TypedValue &arg0)
     {
         lua_getfield(ir, -1, axis);
         Value *result;
@@ -1322,13 +1327,19 @@ private:
                 result = KernelBuilder::constant(1);
             } else {
                 if      (!strcmp(axis, "channels")) result = kernel.channels(arg0);
-                else if (!strcmp(axis, "columns"))  result = kernel.columns(arg0);
-                else if (!strcmp(axis, "rows"))     result = kernel.rows(arg0);
-                else                                result = kernel.frames(arg0);
+                else if (!strcmp(axis, "columns"))  result = kernel.columns (arg0);
+                else if (!strcmp(axis, "rows"))     result = kernel.rows    (arg0);
+                else                                result = kernel.frames  (arg0);
             }
         } else {
             result = kernel.cast(getExpression(kernel, info, ir), likely_type_native);
         }
+
+        const bool isMulti = (!LLVM_VALUE_IS_INT(result)) || (LLVM_VALUE_TO_INT(result) > 1);
+        if      (!strcmp(axis, "channels")) likely_set_multi_channel(&info.dims, isMulti);
+        else if (!strcmp(axis, "columns"))  likely_set_multi_column (&info.dims, isMulti);
+        else if (!strcmp(axis, "rows"))     likely_set_multi_row    (&info.dims, isMulti);
+        else                                likely_set_multi_frame  (&info.dims, isMulti);
 
         lua_pop(ir, 1);
         return result;
