@@ -17,5 +17,5 @@ Derived values
 
 Initialization
 
-    real = (f32(x) / resolution - x_min){rows = rows, columns = cols}
-    imag = (f32(y) / resolution - y_min){rows = rows, columns = cols}
+    complex = select(c == 0, f32(x) / resolution - x_min,
+                             f32(y) / resolution - y_min){rows = rows, columns = cols, channels = 3}
