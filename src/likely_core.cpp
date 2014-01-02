@@ -332,8 +332,8 @@ struct TypedValue
 struct ExpressionBuilder : public IRBuilder<>
 {
     BasicBlock *entry;
-    Module *m;
-    Function *f;
+    Module *module;
+    Function *function;
 
     struct Loop {
         BasicBlock *body;
@@ -344,7 +344,7 @@ struct ExpressionBuilder : public IRBuilder<>
     stack<Loop> loops;
 
     ExpressionBuilder(Module *module, Function *function)
-        : IRBuilder<>(getGlobalContext()), m(module), f(function)
+        : IRBuilder<>(getGlobalContext()), module(module), function(function)
     {
         entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         SetInsertPoint(entry);
@@ -560,7 +560,7 @@ struct ExpressionBuilder : public IRBuilder<>
     {
         Loop loop;
         loop.stop = stop;
-        loop.body = BasicBlock::Create(getGlobalContext(), "loop_body", f);
+        loop.body = BasicBlock::Create(getGlobalContext(), "loop_body", function);
 
         // Create self-referencing loop node
         vector<Value*> metadata;
@@ -585,10 +585,10 @@ struct ExpressionBuilder : public IRBuilder<>
     {
         const Loop &loop = loops.top();
         Value *increment = CreateAdd(loop.i, one(), "loop_increment");
-        BasicBlock *loopLatch = BasicBlock::Create(getGlobalContext(), "loop_latch", f);
+        BasicBlock *loopLatch = BasicBlock::Create(getGlobalContext(), "loop_latch", function);
         CreateBr(loopLatch);
         SetInsertPoint(loopLatch);
-        BasicBlock *loopExit = BasicBlock::Create(getGlobalContext(), "loop_exit", f);
+        BasicBlock *loopExit = BasicBlock::Create(getGlobalContext(), "loop_exit", function);
         BranchInst *latch = CreateCondBr(CreateICmpEQ(increment, loop.stop, "loop_test"), loopExit, loop.body);
         latch->setMetadata("llvm.loop", loop.node);
         loop.i->addIncoming(increment, loopLatch);
@@ -742,7 +742,7 @@ class UnaryMathOperation : public UnaryOperation
         x = builder.cast(x, ExpressionBuilder::validFloatType(x.type));
         vector<Type*> args;
         args.push_back(x.value->getType());
-        return TypedValue(builder.CreateCall(Intrinsic::getDeclaration(builder.m, id(), args), x), x.type);
+        return TypedValue(builder.CreateCall(Intrinsic::getDeclaration(builder.module, id(), args), x), x.type);
     }
     virtual Intrinsic::ID id() const = 0;
 };
@@ -970,7 +970,7 @@ class BinaryMathOperation : public BinaryOperation
         n = builder.cast(n, nIsInteger() ? likely_type_i32 : x.type);
         vector<Type*> args;
         args.push_back(x.value->getType());
-        return TypedValue(builder.CreateCall2(Intrinsic::getDeclaration(builder.m, id(), args), x, n), x.type);
+        return TypedValue(builder.CreateCall2(Intrinsic::getDeclaration(builder.module, id(), args), x, n), x.type);
     }
     virtual Intrinsic::ID id() const = 0;
     virtual bool nIsInteger() const { return false; }
@@ -1014,7 +1014,7 @@ class fmaOperation : public TernaryOperation
         c = builder.cast(c, x.type);
         vector<Type*> args;
         args.push_back(x.value->getType());
-        return TypedValue(builder.CreateCall3(Intrinsic::getDeclaration(builder.m, Intrinsic::fma, args), x, a, c), x.type);
+        return TypedValue(builder.CreateCall3(Intrinsic::getDeclaration(builder.module, Intrinsic::fma, args), x, a, c), x.type);
     }
 };
 LIKELY_REGISTER(fma)
