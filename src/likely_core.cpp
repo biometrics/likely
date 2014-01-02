@@ -1138,13 +1138,13 @@ struct FunctionBuilder : private JITResources
 
         Function *function = getFunction(name, module, (likely_arity)types.size(), PointerType::getUnqual(TheMatrixStruct));
         vector<TypedValue> srcs = getArgs(function, types);
-        ExpressionBuilder kernel(module, function);
+        ExpressionBuilder builder(module, function);
         KernelInfo info(srcs);
 
-        Value *dstChannels = getDimensions(kernel, info, ir, "channels", srcs.size() > 0 ? srcs[0] : TypedValue());
-        Value *dstColumns  = getDimensions(kernel, info, ir, "columns" , srcs.size() > 0 ? srcs[0] : TypedValue());
-        Value *dstRows     = getDimensions(kernel, info, ir, "rows"    , srcs.size() > 0 ? srcs[0] : TypedValue());
-        Value *dstFrames   = getDimensions(kernel, info, ir, "frames"  , srcs.size() > 0 ? srcs[0] : TypedValue());
+        Value *dstChannels = getDimensions(builder, info, ir, "channels", srcs.size() > 0 ? srcs[0] : TypedValue());
+        Value *dstColumns  = getDimensions(builder, info, ir, "columns" , srcs.size() > 0 ? srcs[0] : TypedValue());
+        Value *dstRows     = getDimensions(builder, info, ir, "rows"    , srcs.size() > 0 ? srcs[0] : TypedValue());
+        Value *dstFrames   = getDimensions(builder, info, ir, "frames"  , srcs.size() > 0 ? srcs[0] : TypedValue());
 
         Function *thunk;
         likely_type dstType;
@@ -1160,16 +1160,16 @@ struct FunctionBuilder : private JITResources
             TypedValue dst = srcs.back(); srcs.pop_back();
             dst.value->setName("dst");
 
-            ExpressionBuilder kernel(module, thunk);
-            Value *i = kernel.beginLoop(kernel.entry, start, stop).i;
-            info.init(srcs, kernel, dst, i);
+            ExpressionBuilder builder(module, thunk);
+            Value *i = builder.beginLoop(builder.entry, start, stop).i;
+            info.init(srcs, builder, dst, i);
 
-            TypedValue result = getExpression(kernel, info, ir);
+            TypedValue result = getExpression(builder, info, ir);
 
             dstType = result.type;
-            kernel.store(TypedValue(dst.value, dstType), i, result);
-            kernel.endLoop();
-            kernel.CreateRetVoid();
+            builder.store(TypedValue(dst.value, dstType), i, result);
+            builder.endLoop();
+            builder.CreateRetVoid();
 
             FunctionPassManager functionPassManager(module);
             functionPassManager.add(createVerifierPass(PrintMessageAction));
@@ -1208,20 +1208,20 @@ struct FunctionBuilder : private JITResources
         likelyNew->setDoesNotCapture(6);
 
         std::vector<Value*> likelyNewArgs;
-        likelyNewArgs.push_back(kernel.type(dstType));
+        likelyNewArgs.push_back(builder.type(dstType));
         likelyNewArgs.push_back(dstChannels);
         likelyNewArgs.push_back(dstColumns);
         likelyNewArgs.push_back(dstRows);
         likelyNewArgs.push_back(dstFrames);
         likelyNewArgs.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(getGlobalContext())));
-        likelyNewArgs.push_back(kernel.constant(0, 8));
-        Value *dst = kernel.CreateCall(likelyNew, likelyNewArgs);
+        likelyNewArgs.push_back(builder.constant(0, 8));
+        Value *dst = builder.CreateCall(likelyNew, likelyNewArgs);
 
         // An impossible case used to ensure that `likely_new` isn't stripped when optimizing executable size
         if (likelyNew == NULL)
             likely_new(likely_type_null, 0, 0, 0, 0, NULL, 0);
 
-        Value *kernelSize = kernel.CreateMul(kernel.CreateMul(kernel.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
+        Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
 
         if (!types.empty() && likely_parallel(types[0])) {
             static FunctionType *likelyForkType = NULL;
@@ -1245,7 +1245,7 @@ struct FunctionBuilder : private JITResources
             likelyForkArgs.push_back(kernelSize);
             likelyForkArgs.insert(likelyForkArgs.end(), srcs.begin(), srcs.end());
             likelyForkArgs.push_back(dst);
-            kernel.CreateCall(likelyFork, likelyForkArgs);
+            builder.CreateCall(likelyFork, likelyForkArgs);
 
             // An impossible case used to ensure that `likely_fork` isn't stripped when optimizing executable size
             if (likelyFork == NULL)
@@ -1257,10 +1257,10 @@ struct FunctionBuilder : private JITResources
             thunkArgs.push_back(dst);
             thunkArgs.push_back(ExpressionBuilder::zero());
             thunkArgs.push_back(kernelSize);
-            kernel.CreateCall(thunk, thunkArgs);
+            builder.CreateCall(thunk, thunkArgs);
         }
 
-        kernel.CreateRet(dst);
+        builder.CreateRet(dst);
 
         FunctionPassManager functionPassManager(module);
         functionPassManager.add(createVerifierPass(PrintMessageAction));
