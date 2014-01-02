@@ -370,11 +370,11 @@ struct ExpressionBuilder : public IRBuilder<>
     static TypedValue type(likely_type type) { return constant(type, int(sizeof(likely_type)*8)); }
 
     TypedValue data    (const TypedValue &matrix) { return TypedValue(CreatePointerCast(CreateLoad(CreateStructGEP(matrix, 0), "data"), ty(matrix, true)), matrix.type & likely_type_mask); }
-    TypedValue channels(const TypedValue &matrix) { return TypedValue(CreateLoad(CreateStructGEP(matrix, 2), "channels"), matrix.type & likely_type_mask); }
-    TypedValue columns (const TypedValue &matrix) { return TypedValue(CreateLoad(CreateStructGEP(matrix, 3), "columns" ), matrix.type & likely_type_mask); }
-    TypedValue rows    (const TypedValue &matrix) { return TypedValue(CreateLoad(CreateStructGEP(matrix, 4), "rows"    ), matrix.type & likely_type_mask); }
-    TypedValue frames  (const TypedValue &matrix) { return TypedValue(CreateLoad(CreateStructGEP(matrix, 5), "frames"  ), matrix.type & likely_type_mask); }
-    TypedValue type    (const TypedValue &matrix) { return TypedValue(CreateLoad(CreateStructGEP(matrix, 6), "type"    ), likely_type_u32); }
+    TypedValue channels(const TypedValue &matrix) { return likely_multi_channel(matrix) ? TypedValue(CreateLoad(CreateStructGEP(matrix, 2), "channels"), likely_type_native) : one(); }
+    TypedValue columns (const TypedValue &matrix) { return likely_multi_column (matrix) ? TypedValue(CreateLoad(CreateStructGEP(matrix, 3), "columns" ), likely_type_native) : one(); }
+    TypedValue rows    (const TypedValue &matrix) { return likely_multi_row    (matrix) ? TypedValue(CreateLoad(CreateStructGEP(matrix, 4), "rows"    ), likely_type_native) : one(); }
+    TypedValue frames  (const TypedValue &matrix) { return likely_multi_frame  (matrix) ? TypedValue(CreateLoad(CreateStructGEP(matrix, 5), "frames"  ), likely_type_native) : one(); }
+    TypedValue type    (const TypedValue &matrix) { return TypedValue(CreateLoad(CreateStructGEP(matrix, 6), "type"), likely_type_u32); }
 
     void setData    (const TypedValue &matrix, const TypedValue &value) { CreateStore(value, CreateStructGEP(matrix, 0)); }
     void setChannels(const TypedValue &matrix, const TypedValue &value) { CreateStore(value, CreateStructGEP(matrix, 2)); }
@@ -463,61 +463,60 @@ struct ExpressionBuilder : public IRBuilder<>
                                     rowStep(matrix), "tStep"), likely_type_native);
     }
 
-    Value *index(const TypedValue &matrix, Value *c)
+    TypedValue index(const TypedValue &matrix, const TypedValue &c)
     {
         if (likely_multi_channel(matrix)) return c;
         else                              return zero();
     }
 
-    Value *index(const TypedValue &matrix, Value *c, Value *x)
+    TypedValue index(const TypedValue &matrix, const TypedValue &c, const TypedValue &x)
     {
-        Value *remainder = index(matrix, c);
-        if (likely_multi_column(matrix)) return CreateAdd(CreateMul(x, columnStep(matrix)), remainder);
+        TypedValue remainder = index(matrix, c);
+        if (likely_multi_column(matrix)) return TypedValue(CreateAdd(CreateMul(x, columnStep(matrix)), remainder), likely_type_native);
         else                             return remainder;
     }
 
-    Value *index(const TypedValue &matrix, Value *c, Value *x, Value *y)
+    TypedValue index(const TypedValue &matrix, const TypedValue &c, const TypedValue &x, const TypedValue &y)
     {
-        Value *remainder = index(matrix, c, x);
-        if (likely_multi_row(matrix)) return CreateAdd(CreateMul(y, rowStep(matrix)), remainder);
+        TypedValue remainder = index(matrix, c, x);
+        if (likely_multi_row(matrix)) return TypedValue(CreateAdd(CreateMul(y, rowStep(matrix)), remainder), likely_type_native);
         else                          return remainder;
     }
 
-    Value *index(const TypedValue &matrix, Value *c, Value *x, Value *y, Value *t)
+    TypedValue index(const TypedValue &matrix, const TypedValue &c, const TypedValue &x, const TypedValue &y, const TypedValue &t)
     {
-        Value *remainder = index(matrix, c, x, y);
-        if (likely_multi_frame(matrix)) return CreateAdd(CreateMul(t, frameStep(matrix)), remainder);
+        TypedValue remainder = index(matrix, c, x, y);
+        if (likely_multi_frame(matrix)) return TypedValue(CreateAdd(CreateMul(t, frameStep(matrix)), remainder), likely_type_native);
         else                            return remainder;
     }
 
-    void deindex(const TypedValue &matrix, Value *i, Value **c)
+    void deindex(const TypedValue &matrix, const TypedValue &i, TypedValue *c)
     {
         (void) matrix;
         *c = i;
     }
 
-    void deindex(const TypedValue &matrix, Value *i, Value **c, Value **x)
+    void deindex(const TypedValue &matrix, const TypedValue &i, TypedValue *c, TypedValue *x)
     {
-
-        Value *step = columnStep(matrix);
-        Value *remainder = CreateURem(i, step, "xRem");
-        *x = CreateExactUDiv(CreateSub(i, remainder), step, "x");
+        TypedValue step = columnStep(matrix);
+        TypedValue remainder(CreateURem(i, step, "xRem"), likely_type_native);
+        *x = TypedValue(CreateExactUDiv(CreateSub(i, remainder), step, "x"), likely_type_native);
         deindex(matrix, remainder, c);
     }
 
-    void deindex(const TypedValue &matrix, Value *i, Value **c, Value **x, Value **y)
+    void deindex(const TypedValue &matrix, const TypedValue &i, TypedValue *c, TypedValue *x, TypedValue *y)
     {
-        Value *step = rowStep(matrix);
-        Value *remainder = CreateURem(i, step, "yRem");
-        *y = CreateExactUDiv(CreateSub(i, remainder), step, "y");
+        TypedValue step = rowStep(matrix);
+        TypedValue remainder(CreateURem(i, step, "yRem"), likely_type_native);
+        *y = TypedValue(CreateExactUDiv(CreateSub(i, remainder), step, "y"), likely_type_native);
         deindex(matrix, remainder, c, x);
     }
 
-    void deindex(const TypedValue &matrix, Value *i, Value **c, Value **x, Value **y, Value **t)
+    void deindex(const TypedValue &matrix, const TypedValue &i, TypedValue *c, TypedValue *x, TypedValue *y, TypedValue *t)
     {
-        Value *step = frameStep(matrix);
-        Value *remainder = CreateURem(i, step, "tRem");
-        *t = CreateExactUDiv(CreateSub(i, remainder), step, "t");
+        TypedValue step = frameStep(matrix);
+        TypedValue remainder(CreateURem(i, step, "tRem"), likely_type_native);
+        *t = TypedValue(CreateExactUDiv(CreateSub(i, remainder), step, "t"), likely_type_native);
         deindex(matrix, remainder, c, x, y);
     }
 
@@ -624,20 +623,17 @@ struct ExpressionBuilder : public IRBuilder<>
 struct KernelInfo
 {
     vector<TypedValue> srcs;
-    likely_type dims;
     TypedValue i, c, x, y, t;
+    likely_type dims;
 
-    KernelInfo(const vector<TypedValue> &srcs) : srcs(srcs)
-    {
-        dims = likely_type_null;
-    }
+    KernelInfo(const vector<TypedValue> &srcs) : srcs(srcs) {}
 
-    void init(const vector<TypedValue> &srcs, ExpressionBuilder &builder, const TypedValue &dst, Value *i)
+    void init(const vector<TypedValue> &srcs, ExpressionBuilder &builder, const TypedValue &dst, const TypedValue &i)
     {
         this->srcs = srcs;
-        this->i = TypedValue(i, likely_type_native);
-        c.type = x.type = y.type = t.type = likely_type_native;
-        builder.deindex(dst, i, &c.value, &x.value, &y.value, &t.value);
+        this->i = i;
+        this->dims = dst.type & likely_type_multi_dimension;
+        builder.deindex(dst, i, &c, &x, &y, &t);
     }
 };
 
@@ -676,16 +672,16 @@ class NullaryOperation : public Operation
     virtual TypedValue callNullary(ExpressionBuilder &builder, const KernelInfo &info) const = 0;
 };
 
-#define LIKELY_REGISTER_INDEX(OP)                                               \
-class OP##Operation : public NullaryOperation                                   \
-{                                                                               \
+#define LIKELY_REGISTER_INDEX(OP)                                                    \
+class OP##Operation : public NullaryOperation                                        \
+{                                                                                    \
     TypedValue callNullary(ExpressionBuilder &builder, const KernelInfo &info) const \
-    {                                                                           \
-        (void) builder;                                                          \
-        return info.OP;                                                         \
-    }                                                                           \
-};                                                                              \
-LIKELY_REGISTER(OP)                                                             \
+    {                                                                                \
+        (void) builder;                                                              \
+        return info.OP;                                                              \
+    }                                                                                \
+};                                                                                   \
+LIKELY_REGISTER(OP)                                                                  \
 
 LIKELY_REGISTER_INDEX(i)
 LIKELY_REGISTER_INDEX(c)
@@ -709,16 +705,16 @@ class argOperation : public UnaryOperation
     {
         int index = LLVM_VALUE_TO_INT(arg.value);
         const TypedValue matrix = info.srcs[index];
-        Value *matrix_i;
+        TypedValue matrix_i;
         if ((matrix.type & likely_type_multi_dimension) == info.dims) {
             // This matrix has the same dimensionality as the output
             matrix_i = info.i;
         } else {
-            Value *c, *x, *y, *t;
+            TypedValue c, x, y, t;
             builder.deindex(matrix, info.i, &c, &x, &y, &t);
             matrix_i = builder.index(matrix, c, x, y, t);
         }
-        return TypedValue(builder.load(matrix, matrix_i), matrix.type);
+        return builder.load(matrix, matrix_i);
     }
 };
 LIKELY_REGISTER(arg)
@@ -929,33 +925,33 @@ class divideOperation : public ArithmeticOperation
 };
 LIKELY_REGISTER_OPERATION(divide, "/")
 
-#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                    \
-class OP##Operation : public ArithmeticOperation                                                               \
-{                                                                                                              \
-    TypedValue callArithmetic(ExpressionBuilder &builder, TypedValue lhs, TypedValue rhs, likely_type type) const          \
-    {                                                                                                          \
+#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                         \
+class OP##Operation : public ArithmeticOperation                                                                    \
+{                                                                                                                   \
+    TypedValue callArithmetic(ExpressionBuilder &builder, TypedValue lhs, TypedValue rhs, likely_type type) const   \
+    {                                                                                                               \
         return TypedValue(likely_floating(type) ? builder.CreateFCmpO##OP(lhs, rhs)                                 \
                                                 : (likely_signed(type) ? builder.CreateICmpS##OP(lhs, rhs)          \
                                                                        : builder.CreateICmpU##OP(lhs, rhs)), type); \
-    }                                                                                                          \
-};                                                                                                             \
-LIKELY_REGISTER_OPERATION(OP, SYM)                                                                             \
+    }                                                                                                               \
+};                                                                                                                  \
+LIKELY_REGISTER_OPERATION(OP, SYM)                                                                                  \
 
 LIKELY_REGISTER_COMPARISON(LT, "<")
 LIKELY_REGISTER_COMPARISON(LE, "<=")
 LIKELY_REGISTER_COMPARISON(GT, ">")
 LIKELY_REGISTER_COMPARISON(GE, ">=")
 
-#define LIKELY_REGISTER_EQUALITY(OP, SYM)                                                             \
-class OP##Operation : public ArithmeticOperation                                                      \
-{                                                                                                     \
+#define LIKELY_REGISTER_EQUALITY(OP, SYM)                                                                         \
+class OP##Operation : public ArithmeticOperation                                                                  \
+{                                                                                                                 \
     TypedValue callArithmetic(ExpressionBuilder &builder, TypedValue lhs, TypedValue rhs, likely_type type) const \
-    {                                                                                                 \
-        return TypedValue(likely_floating(type) ? builder.CreateFCmpO##OP(lhs, rhs)                        \
-                                                : builder.CreateICmp##OP(lhs, rhs), type);                 \
-    }                                                                                                 \
-};                                                                                                    \
-LIKELY_REGISTER_OPERATION(OP, SYM)                                                                    \
+    {                                                                                                             \
+        return TypedValue(likely_floating(type) ? builder.CreateFCmpO##OP(lhs, rhs)                               \
+                                                : builder.CreateICmp##OP(lhs, rhs), type);                        \
+    }                                                                                                             \
+};                                                                                                                \
+LIKELY_REGISTER_OPERATION(OP, SYM)                                                                                \
 
 LIKELY_REGISTER_EQUALITY(EQ, "==")
 LIKELY_REGISTER_EQUALITY(NE, "!=")
@@ -1187,10 +1183,10 @@ struct FunctionBuilder : private JITResources
         ExpressionBuilder builder(module, function);
         KernelInfo info(srcs);
 
-        Value *dstChannels = getDimensions(builder, info, ir, "channels", srcs.size() > 0 ? srcs[0] : TypedValue());
-        Value *dstColumns  = getDimensions(builder, info, ir, "columns" , srcs.size() > 0 ? srcs[0] : TypedValue());
-        Value *dstRows     = getDimensions(builder, info, ir, "rows"    , srcs.size() > 0 ? srcs[0] : TypedValue());
-        Value *dstFrames   = getDimensions(builder, info, ir, "frames"  , srcs.size() > 0 ? srcs[0] : TypedValue());
+        TypedValue dstChannels = getDimensions(builder, info, ir, "channels", srcs.size() > 0 ? srcs[0] : TypedValue());
+        TypedValue dstColumns  = getDimensions(builder, info, ir, "columns" , srcs.size() > 0 ? srcs[0] : TypedValue());
+        TypedValue dstRows     = getDimensions(builder, info, ir, "rows"    , srcs.size() > 0 ? srcs[0] : TypedValue());
+        TypedValue dstFrames   = getDimensions(builder, info, ir, "frames"  , srcs.size() > 0 ? srcs[0] : TypedValue());
 
         Function *thunk;
         likely_type dstType;
@@ -1206,8 +1202,14 @@ struct FunctionBuilder : private JITResources
             TypedValue dst = srcs.back(); srcs.pop_back();
             dst.value->setName("dst");
 
+            likely_set_multi_channel(&dst.type, likely_multi_channel(dstChannels.type));
+            likely_set_multi_column (&dst.type, likely_multi_column (dstColumns.type));
+            likely_set_multi_row    (&dst.type, likely_multi_row    (dstRows.type));
+            likely_set_multi_frame  (&dst.type, likely_multi_frame  (dstFrames.type));
+
             ExpressionBuilder builder(module, thunk);
-            Value *i = builder.beginLoop(builder.entry, start, stop).i;
+            KernelInfo info(srcs);
+            TypedValue i = TypedValue(builder.beginLoop(builder.entry, start, stop).i, likely_type_native);
             info.init(srcs, builder, dst, i);
 
             TypedValue result = getExpression(builder, info, ir);
@@ -1363,7 +1365,7 @@ private:
         return result;
     }
 
-    static Value *getDimensions(ExpressionBuilder &builder, KernelInfo &info, likely_ir ir, const char *axis, const TypedValue &arg0)
+    static TypedValue getDimensions(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir, const char *axis, const TypedValue &arg0)
     {
         lua_getfield(ir, -1, axis);
         Value *result;
@@ -1380,14 +1382,15 @@ private:
             result = builder.cast(getExpression(builder, info, ir), likely_type_native);
         }
 
+        likely_type type = likely_type_native;
         const bool isMulti = (!LLVM_VALUE_IS_INT(result)) || (LLVM_VALUE_TO_INT(result) > 1);
-        if      (!strcmp(axis, "channels")) likely_set_multi_channel(&info.dims, isMulti);
-        else if (!strcmp(axis, "columns"))  likely_set_multi_column (&info.dims, isMulti);
-        else if (!strcmp(axis, "rows"))     likely_set_multi_row    (&info.dims, isMulti);
-        else                                likely_set_multi_frame  (&info.dims, isMulti);
+        if      (!strcmp(axis, "channels")) likely_set_multi_channel(&type, isMulti);
+        else if (!strcmp(axis, "columns"))  likely_set_multi_column (&type, isMulti);
+        else if (!strcmp(axis, "rows"))     likely_set_multi_row    (&type, isMulti);
+        else                                likely_set_multi_frame  (&type, isMulti);
 
         lua_pop(ir, 1);
-        return result;
+        return TypedValue(result, type);
     }
 
     static TypedValue getConstant(const string &str, bool *ok)
