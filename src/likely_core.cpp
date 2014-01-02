@@ -367,55 +367,101 @@ struct ExpressionBuilder : public IRBuilder<>
     static TypedValue one(int bits = likely_depth(likely_type_native)) { return constant(1, bits); }
     static TypedValue intMax(int bits) { return constant((1 << (bits-1))-1, bits); }
     static TypedValue intMin(int bits) { return constant((1 << (bits-1)), bits); }
-
-    Value *data(const TypedValue &matrix) { return CreatePointerCast(CreateLoad(CreateStructGEP(matrix, 0), "data"), ty(matrix, true)); }
-    Value *channels(Value *v) { return CreateLoad(CreateStructGEP(v, 2), "channels"); }
-    Value *columns(Value *v) { return CreateLoad(CreateStructGEP(v, 3), "columns"); }
-    Value *rows(Value *v) { return CreateLoad(CreateStructGEP(v, 4), "rows"); }
-    Value *frames(Value *v) { return CreateLoad(CreateStructGEP(v, 5), "frames"); }
-    Value *type(Value *v) { return CreateLoad(CreateStructGEP(v, 6), "type"); }
     static TypedValue type(likely_type type) { return constant(type, int(sizeof(likely_type)*8)); }
 
-    void setData(Value *matrix, Value *value) { CreateStore(value, CreateStructGEP(matrix, 0)); }
-    void setChannels(Value *matrix, Value *value) { CreateStore(value, CreateStructGEP(matrix, 2)); }
-    void setColumns(Value *matrix, Value *value) { CreateStore(value, CreateStructGEP(matrix, 3)); }
-    void setRows(Value *matrix, Value *value) { CreateStore(value, CreateStructGEP(matrix, 4)); }
-    void setFrames(Value *matrix, Value *value) { CreateStore(value, CreateStructGEP(matrix, 5)); }
-    void setType(Value *matrix, Value *value) { CreateStore(value, CreateStructGEP(matrix, 6)); }
+    TypedValue data    (const TypedValue &matrix) { return TypedValue(CreatePointerCast(CreateLoad(CreateStructGEP(matrix, 0), "data"), ty(matrix, true)), matrix.type & likely_type_mask); }
+    TypedValue channels(const TypedValue &matrix) { return TypedValue(CreateLoad(CreateStructGEP(matrix, 2), "channels"), matrix.type & likely_type_mask); }
+    TypedValue columns (const TypedValue &matrix) { return TypedValue(CreateLoad(CreateStructGEP(matrix, 3), "columns" ), matrix.type & likely_type_mask); }
+    TypedValue rows    (const TypedValue &matrix) { return TypedValue(CreateLoad(CreateStructGEP(matrix, 4), "rows"    ), matrix.type & likely_type_mask); }
+    TypedValue frames  (const TypedValue &matrix) { return TypedValue(CreateLoad(CreateStructGEP(matrix, 5), "frames"  ), matrix.type & likely_type_mask); }
+    TypedValue type    (const TypedValue &matrix) { return TypedValue(CreateLoad(CreateStructGEP(matrix, 6), "type"    ), likely_type_u32); }
 
-    Value *get(Value *matrix, int mask) { return CreateAnd(type(matrix), constant(mask, 8*sizeof(likely_type)).value); }
-    void set(Value *matrix, int value, int mask) { setType(matrix, CreateOr(CreateAnd(type(matrix), constant(~mask, 8*sizeof(likely_type)).value), CreateAnd(constant(value, 8*sizeof(likely_type)), constant(mask, 8*sizeof(likely_type)).value))); }
-    void setBit(Value *matrix, bool on, int mask) { on ? setType(matrix, CreateOr(type(matrix), constant(mask, 8*sizeof(likely_type)).value)) : setType(matrix, CreateAnd(type(matrix), constant(~mask, 8*sizeof(likely_type)).value)); }
+    void setData    (const TypedValue &matrix, const TypedValue &value) { CreateStore(value, CreateStructGEP(matrix, 0)); }
+    void setChannels(const TypedValue &matrix, const TypedValue &value) { CreateStore(value, CreateStructGEP(matrix, 2)); }
+    void setColumns (const TypedValue &matrix, const TypedValue &value) { CreateStore(value, CreateStructGEP(matrix, 3)); }
+    void setRows    (const TypedValue &matrix, const TypedValue &value) { CreateStore(value, CreateStructGEP(matrix, 4)); }
+    void setFrames  (const TypedValue &matrix, const TypedValue &value) { CreateStore(value, CreateStructGEP(matrix, 5)); }
+    void setType    (const TypedValue &matrix, const TypedValue &value) { CreateStore(value, CreateStructGEP(matrix, 6)); }
 
-    Value *depth(Value *matrix) { return get(matrix, likely_type_depth); }
-    void setDepth(Value *matrix, int depth) { set(matrix, depth, likely_type_depth); }
-    Value *signed_(Value *matrix) { return get(matrix, likely_type_signed); }
-    void setSigned(Value *matrix, bool signed_) { setBit(matrix, signed_, likely_type_signed); }
-    Value *floating(Value *matrix) { return get(matrix, likely_type_floating); }
-    void setFloating(Value *matrix, bool floating) { setBit(matrix, floating, likely_type_floating); }
-    Value *parallel(Value *matrix) { return get(matrix, likely_type_parallel); }
-    void setParallel(Value *matrix, bool parallel) { setBit(matrix, parallel, likely_type_parallel); }
-    Value *heterogeneous(Value *matrix) { return get(matrix, likely_type_heterogeneous); }
-    void setHeterogeneous(Value *matrix, bool heterogeneous) { setBit(matrix, heterogeneous, likely_type_heterogeneous); }
-    Value *multiChannel(Value *matrix) { return get(matrix, likely_type_multi_channel); }
-    void setMultiChannel(Value *matrix, bool multiChannel) { setBit(matrix, multiChannel, likely_type_multi_channel); }
-    Value *multiColumn(Value *matrix) { return get(matrix, likely_type_multi_column); }
-    void setMultiColumn(Value *matrix, bool multiColumn) { setBit(matrix, multiColumn, likely_type_multi_column); }
-    Value *multiRow(Value *matrix) { return get(matrix, likely_type_multi_row); }
-    void setMultiRow(Value *matrix, bool multiRow) { setBit(matrix, multiRow, likely_type_multi_row); }
-    Value *multiFrame(Value *matrix) { return get(matrix, likely_type_multi_frame); }
-    void multiFrame(Value *matrix, bool multiFrame) { setBit(matrix, multiFrame, likely_type_multi_frame); }
-    Value *saturation(Value *matrix) { return get(matrix, likely_type_saturation); }
-    void setSaturation(Value *matrix, bool saturation) { setBit(matrix, saturation, likely_type_saturation); }
-    Value *reserved(Value *matrix) { return get(matrix, likely_type_reserved); }
-    void setReserved(Value *matrix, int reserved) { set(matrix, reserved, likely_type_reserved); }
+    TypedValue get(const TypedValue &matrix, likely_type mask)
+    {
+        return TypedValue(CreateAnd(type(matrix),
+                                    constant(mask, 8*sizeof(likely_type)).value), likely_type_u32);
+    }
 
-    Value *elements(Value *matrix) { return CreateMul(CreateMul(CreateMul(channels(matrix), columns(matrix)), rows(matrix)), frames(matrix)); }
-    Value *bytes(Value *matrix) { return CreateMul(CreateUDiv(CreateCast(Instruction::ZExt, depth(matrix), NativeIntegerType), constant(8)), elements(matrix)); }
+    void set(const TypedValue &matrix, likely_type mask, int value)
+    {
+        setType(matrix, TypedValue(CreateOr(CreateAnd(type(matrix),
+                                                      constant(~mask, 8*sizeof(likely_type)).value),
+                                            CreateAnd(constant(value, 8*sizeof(likely_type)),
+                                                      constant( mask, 8*sizeof(likely_type)).value)), likely_type_u32));
+    }
 
-    Value *columnStep(Value *matrix) { Value *columnStep = channels(matrix); columnStep->setName("cStep"); return columnStep; }
-    Value *rowStep(Value *matrix) { return CreateMul(columns(matrix), columnStep(matrix), "rStep"); }
-    Value *frameStep(Value *matrix) { return CreateMul(rows(matrix), rowStep(matrix), "tStep"); }
+    void setBit(const TypedValue &matrix, likely_type mask, bool on)
+    {
+        Value *value;
+        if (on) value = CreateOr (type(matrix), constant( mask, 8*sizeof(likely_type)).value);
+        else    value = CreateAnd(type(matrix), constant(~mask, 8*sizeof(likely_type)).value);
+        setType(matrix, TypedValue(value, likely_type_u32));
+    }
+
+    TypedValue depth(const TypedValue &matrix)     { return get(matrix, likely_type_depth); }
+    void    setDepth(const TypedValue &matrix, int depth) { set(matrix, likely_type_depth, depth); }
+    TypedValue signed_(const TypedValue &matrix)          { return get(matrix, likely_type_signed); }
+    void    setSigned (const TypedValue &matrix, bool signed_) { setBit(matrix, likely_type_signed, signed_); }
+    TypedValue floating(const TypedValue &matrix)            { return get(matrix, likely_type_floating); }
+    void    setFloating(const TypedValue &matrix, bool floating) { setBit(matrix, likely_type_floating, floating); }
+    TypedValue parallel(const TypedValue &matrix)            { return get(matrix, likely_type_parallel); }
+    void    setParallel(const TypedValue &matrix, bool parallel) { setBit(matrix, likely_type_parallel, parallel); }
+    TypedValue heterogeneous(const TypedValue &matrix)                 { return get(matrix, likely_type_heterogeneous); }
+    void    setHeterogeneous(const TypedValue &matrix, bool heterogeneous) { setBit(matrix, likely_type_heterogeneous, heterogeneous); }
+    TypedValue multiChannel(const TypedValue &matrix)                { return get(matrix, likely_type_multi_channel); }
+    void    setMultiChannel(const TypedValue &matrix, bool multiChannel) { setBit(matrix, likely_type_multi_channel, multiChannel); }
+    TypedValue multiColumn(const TypedValue &matrix)               { return get(matrix, likely_type_multi_column); }
+    void    setMultiColumn(const TypedValue &matrix, bool multiColumn) { setBit(matrix, likely_type_multi_column, multiColumn); }
+    TypedValue multiRow(const TypedValue &matrix)            { return get(matrix, likely_type_multi_row); }
+    void    setMultiRow(const TypedValue &matrix, bool multiRow) { setBit(matrix, likely_type_multi_row, multiRow); }
+    TypedValue multiFrame(const TypedValue &matrix)              { return get(matrix, likely_type_multi_frame); }
+    void    setMultiFrame(const TypedValue &matrix, bool multiFrame) { setBit(matrix, likely_type_multi_frame, multiFrame); }
+    TypedValue saturation(const TypedValue &matrix)              { return get(matrix, likely_type_saturation); }
+    void    setSaturation(const TypedValue &matrix, bool saturation) { setBit(matrix, likely_type_saturation, saturation); }
+    TypedValue reserved(const TypedValue &matrix)        { return get(matrix, likely_type_reserved); }
+    void    setReserved(const TypedValue &matrix, int reserved) { set(matrix, likely_type_reserved, reserved); }
+
+    TypedValue elements(const TypedValue &matrix)
+    {
+        return TypedValue(CreateMul(CreateMul(CreateMul(channels(matrix),
+                                                        columns(matrix)),
+                                              rows(matrix)),
+                                    frames(matrix)), likely_type_native);
+    }
+
+    TypedValue bytes(const TypedValue &matrix)
+    {
+        return TypedValue(CreateMul(CreateUDiv(CreateCast(Instruction::ZExt, depth(matrix),
+                                                          NativeIntegerType),
+                                               constant(8)),
+                                    elements(matrix)), likely_type_native);
+    }
+
+    TypedValue columnStep(const TypedValue &matrix)
+    {
+        Value *columnStep = channels(matrix);
+        columnStep->setName("cStep");
+        return TypedValue(columnStep, likely_type_native);
+    }
+
+    TypedValue rowStep(const TypedValue &matrix)
+    {
+        return TypedValue(CreateMul(columns(matrix),
+                                    columnStep(matrix), "rStep"), likely_type_native);
+    }
+
+    TypedValue frameStep(const TypedValue &matrix)
+    {
+        return TypedValue(CreateMul(rows(matrix),
+                                    rowStep(matrix), "tStep"), likely_type_native);
+    }
 
     Value *index(const TypedValue &matrix, Value *c)
     {
