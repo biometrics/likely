@@ -746,26 +746,16 @@ class letOperation : public Operation
 {
     TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir) const
     {
-        // Create a new closure
         builder.closures.push_back(ExpressionBuilder::Closure());
 
-        // Add variables to the closure
         lua_rawgeti(ir, -1, 2);
-        lua_pushnil(ir);
-        while (lua_next(ir, -2)) {
-            lua_pushvalue(ir, -2);
-            lua_insert(ir, -2);
-            builder.addVariable(lua_tostring(ir, -2), expression(builder, info, ir));
-            lua_pop(ir, 2);
-        }
+        addToClosure(builder, info, ir);
         lua_pop(ir, 1);
 
-        // Compute the expression using the closure
         lua_rawgeti(ir, -1, 3);
         TypedValue result = expression(builder, info, ir);
         lua_pop(ir, 1);
 
-        // Unwind and return
         builder.closures.pop_back();
         return result;
     }
@@ -777,6 +767,26 @@ class letOperation : public Operation
         (void) args;
         likely_assert(false, "'let' logic error");
         return TypedValue();
+    }
+
+    void addToClosure(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir) const
+    {
+        const int len = luaL_len(ir, -1);
+        if (len > 0) {
+            for (int i=1; i<=len; i++) {
+                lua_rawgeti(ir, -1, i);
+                addToClosure(builder, info, ir);
+                lua_pop(ir, 1);
+            }
+        } else {
+            lua_pushnil(ir);
+            while (lua_next(ir, -2)) {
+                lua_pushvalue(ir, -2);
+                lua_insert(ir, -2);
+                builder.addVariable(lua_tostring(ir, -2), expression(builder, info, ir));
+                lua_pop(ir, 2);
+            }
+        }
     }
 };
 LIKELY_REGISTER(let)
@@ -1609,7 +1619,7 @@ private:
             return 0;
 
         lua_rawgeti(L, -1, 1);
-        if (!lua_isnil(L, -1) && !strcmp(lua_tostring(L, -1), "arg")) {
+        if (lua_isstring(L, -1) && !strcmp(lua_tostring(L, -1), "arg")) {
             lua_pushinteger(L, 2);
             lua_gettable(L, -3);
             likely_arity n = (likely_arity) lua_tointeger(L, -1) + 1;
