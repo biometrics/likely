@@ -606,9 +606,17 @@ struct ExpressionBuilder : public IRBuilder<>
 
     void addVariable(const string &name, const TypedValue &value)
     {
-        AllocaInst *variable = CreateAlloca(ty(value), 0, name);
-        CreateStore(value, variable);
-        closures.back().insert(pair<string,TypedValue>(name, TypedValue(variable, value)));
+        Closure &closure = closures.back();
+        Closure::iterator it = closure.find(name);
+        if (it != closure.end()) {
+            // Update variable
+            CreateStore(value, it->second);
+        } else {
+            // New variable
+            AllocaInst *variable = CreateAlloca(ty(value), 0, name);
+            CreateStore(value, variable);
+            closure.insert(pair<string,TypedValue>(name, TypedValue(variable, value)));
+        }
     }
 
     TypedValue getVariable(const string &name)

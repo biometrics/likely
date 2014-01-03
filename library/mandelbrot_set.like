@@ -17,7 +17,10 @@ Derived values
 
 Initialization
 
-    complex = let({ a = f32(x) / resolution - x_min,
-                    b = f32(y) / resolution - y_min},
+    complex = let({ { a = f32(x) / resolution - x_min,
+                      b = f32(y) / resolution - y_min },
+                    { a = add("a", 1),
+                      b = add("b", 1) } },
                   add("a", "b")
                  ){columns = cols, rows = rows}
+    show(complex)
