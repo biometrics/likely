@@ -651,7 +651,56 @@ struct Operation
         operations.insert(pair<string, const Operation*>(symbol, operation));
     }
 
+    static TypedValue expression(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir)
+    {
+        string operator_;
+        if (lua_istable(ir, -1)) {
+            lua_rawgeti(ir, -1, 1);
+            operator_ = lua_tostring(ir, -1);
+            lua_pop(ir, 1);
+        } else {
+            operator_ = lua_tostring(ir, -1);
+        }
+
+        map<string,const Operation*>::iterator it = operations.find(operator_);
+        if (it != operations.end())
+            return it->second->call(builder, info, ir);
+
+        bool ok;
+        TypedValue c = constant(operator_, &ok);
+        if (!ok)
+            c = ExpressionBuilder::constant(likely_type_from_string(operator_.c_str()), likely_type_u32);
+        likely_assert(c.type != likely_type_null, "unrecognized literal: %s", operator_.c_str());
+        return c;
+    }
+
+    static TypedValue constant(const string &str, bool *ok)
+    {
+        char *p;
+        const double value = strtod(str.c_str(), &p);
+        const likely_type type = likely_type_from_value(value);
+        *ok = (*p == 0);
+        return ExpressionBuilder::constant(value, type);
+    }
+
     virtual ~Operation() {}
+
+    virtual TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir) const
+    {
+        vector<TypedValue> operands;
+        if (lua_istable(ir, -1)) {
+            int index = 2;
+            bool done = false;
+            while (!done) {
+                lua_rawgeti(ir, -1, index++);
+                if (!lua_isnil(ir, -1)) operands.push_back(expression(builder, info, ir));
+                else                    done = true;
+                lua_pop(ir, 1);
+            }
+        }
+        return call(builder, info, operands);
+    }
+
     virtual TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, const vector<TypedValue> &args) const = 0;
 };
 map<string, const Operation*> Operation::operations;
@@ -1211,7 +1260,7 @@ struct FunctionBuilder : private JITResources
             TypedValue i = TypedValue(builder.beginLoop(builder.entry, start, stop).i, likely_type_native);
             info.init(srcs, builder, dst, i);
 
-            TypedValue result = getExpression(builder, info, ir);
+            TypedValue result = Operation::expression(builder, info, ir);
 
             dstType = result.type;
             builder.store(TypedValue(dst.value, dstType), i, result);
@@ -1378,7 +1427,7 @@ private:
                 else                                result = builder.frames  (arg0);
             }
         } else {
-            result = builder.cast(getExpression(builder, info, ir), likely_type_native);
+            result = builder.cast(Operation::expression(builder, info, ir), likely_type_native);
         }
 
         likely_type type = likely_type_native;
@@ -1390,58 +1439,6 @@ private:
 
         lua_pop(ir, 1);
         return TypedValue(result, type);
-    }
-
-    static TypedValue getConstant(const string &str, bool *ok)
-    {
-        // Split value from type
-        size_t i = 0;
-        while ((i < str.size()) && ((str[i] != 'u') || (str[i] != 'i') || (str[i] != 'f')))
-            i++;
-
-        // Parse string
-        char *p;
-        const double value = strtod(str.substr(0, i).c_str(), &p);
-        const likely_type type = (  i == str.size()
-                                  ? likely_type_from_value(value)
-                                  : likely_type_from_string(str.substr(i, str.size()-i).c_str()));
-
-        *ok = ((*p == 0) && (type != likely_type_null));
-        return ExpressionBuilder::constant(value, type);
-    }
-
-    static TypedValue getExpression(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir)
-    {
-        string operator_;
-        vector<TypedValue> operands;
-        if (lua_istable(ir, -1)) {
-            lua_rawgeti(ir, -1, 1);
-            operator_ = lua_tostring(ir, -1);
-            lua_pop(ir, 1);
-            int index = 2;
-            bool done = false;
-            while (!done) {
-                lua_rawgeti(ir, -1, index++);
-                if (!lua_isnil(ir, -1)) operands.push_back(getExpression(builder, info, ir));
-                else                    done = true;
-                lua_pop(ir, 1);
-            }
-        } else {
-            operator_ = lua_tostring(ir, -1);
-        }
-
-        map<string,const Operation*>::iterator it = Operation::operations.find(operator_);
-        if (it != Operation::operations.end())
-            return it->second->call(builder, info, operands);
-
-        bool ok;
-        TypedValue c = getConstant(operator_, &ok);
-        if (!ok)
-            c = ExpressionBuilder::constant(likely_type_from_string(operator_.c_str()), likely_type_u32);
-        likely_assert(c.type != likely_type_null, "unrecognized literal: %s", operator_.c_str());
-        return c;
-
-        return TypedValue();
     }
 };
 
