@@ -349,6 +349,9 @@ struct ExpressionBuilder : public IRBuilder<>
     };
     stack<Loop> loops;
 
+    typedef map<string,TypedValue> Closure;
+    vector<Closure> closures;
+
     ExpressionBuilder(Module *module, Function *function)
         : IRBuilder<>(getGlobalContext()), module(module), function(function)
     {
@@ -601,6 +604,25 @@ struct ExpressionBuilder : public IRBuilder<>
         loops.pop();
     }
 
+    void addVariable(const string &name, const TypedValue &value)
+    {
+        AllocaInst *variable = CreateAlloca(ty(value), 0, name);
+        CreateStore(value, variable);
+        closures.back().insert(pair<string,TypedValue>(name, TypedValue(variable, value)));
+    }
+
+    TypedValue getVariable(const string &name)
+    {
+        for (vector<Closure>::reverse_iterator rit = closures.rbegin(); rit != closures.rend(); rit++) {
+            Closure::iterator it = rit->find(name);
+            if (it != rit->end()) {
+                LoadInst *variable = CreateLoad(it->second, name);
+                return TypedValue(variable, it->second);
+            }
+        }
+        return TypedValue();
+    }
+
     MDNode *getCurrentNode() { return loops.empty() ? NULL : loops.top().node; }
 
     template <typename T>
@@ -666,6 +688,10 @@ struct Operation
         if (it != operations.end())
             return it->second->call(builder, info, ir);
 
+        const TypedValue variable = builder.getVariable(operator_);
+        if (!variable.isNull())
+            return variable;
+
         bool ok;
         TypedValue c = constant(operator_, &ok);
         if (!ok)
@@ -715,6 +741,45 @@ struct RegisterOperation
 };
 #define LIKELY_REGISTER_OPERATION(OP, SYM) static struct RegisterOperation<OP##Operation> Register##OP##Operation(SYM);
 #define LIKELY_REGISTER(OP) LIKELY_REGISTER_OPERATION(OP, #OP)
+
+class letOperation : public Operation
+{
+    TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir) const
+    {
+        // Create a new closure
+        builder.closures.push_back(ExpressionBuilder::Closure());
+
+        // Add variables to the closure
+        lua_rawgeti(ir, -1, 2);
+        lua_pushnil(ir);
+        while (lua_next(ir, -2)) {
+            lua_pushvalue(ir, -2);
+            lua_insert(ir, -2);
+            builder.addVariable(lua_tostring(ir, -2), expression(builder, info, ir));
+            lua_pop(ir, 2);
+        }
+        lua_pop(ir, 1);
+
+        // Compute the expression using the closure
+        lua_rawgeti(ir, -1, 3);
+        TypedValue result = expression(builder, info, ir);
+        lua_pop(ir, 1);
+
+        // Unwind and return
+        builder.closures.pop_back();
+        return result;
+    }
+
+    TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, const vector<TypedValue> &args) const
+    {
+        (void) builder;
+        (void) info;
+        (void) args;
+        likely_assert(false, "'let' logic error");
+        return TypedValue();
+    }
+};
+LIKELY_REGISTER(let)
 
 class NullaryOperation : public Operation
 {
@@ -1543,9 +1608,8 @@ private:
         if (!lua_istable(L, -1))
             return 0;
 
-        lua_pushinteger(L, 1);
-        lua_gettable(L, -2);
-        if (!strcmp(lua_tostring(L, -1), "arg")) {
+        lua_rawgeti(L, -1, 1);
+        if (!lua_isnil(L, -1) && !strcmp(lua_tostring(L, -1), "arg")) {
             lua_pushinteger(L, 2);
             lua_gettable(L, -3);
             likely_arity n = (likely_arity) lua_tointeger(L, -1) + 1;

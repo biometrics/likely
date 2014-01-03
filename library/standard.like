@@ -325,3 +325,9 @@ select = closure({ function(c, t, f) return { "select", c, t, f } end, nil, nil,
 threshold = closure({ function(x, t) return select(gt(x, t), 1, 0) end, nil, nil },
                     { "Binary threshold", "operand", "threshold" })
 ```
+
+### Closures
+```Lua
+let = closure({ function(d, e) return { "let", d, e } end, nil, nil },
+              { "Introduce variables", "definitions", "expression" })
+```
