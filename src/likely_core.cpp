@@ -247,7 +247,7 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
 
 const char *likely_type_to_string(likely_type type)
 {
-    static string typeString; // Provides return value persistence
+    static string typeString;
 
     stringstream typeStream;
     typeStream << (likely_floating(type) ? "f" : (likely_signed(type) ? "i" : "u"));
@@ -405,11 +405,6 @@ struct ExpressionBuilder : public IRBuilder<>
                                     rowStep(matrix), "tStep"), likely_type_native);
     }
 
-    TypedValue GEP(const TypedValue &matrix, Value *i)
-    {
-        return TypedValue(CreateGEP(data(matrix), i), matrix.type);
-    }
-
     void annotateParallel(Instruction *i) const
     {
         i->setMetadata("llvm.mem.parallel_loop_access", node);
@@ -421,14 +416,6 @@ struct ExpressionBuilder : public IRBuilder<>
             return x;
         Type *dstType = ty(type);
         return TypedValue(CreateCast(CastInst::getCastOpcode(x, likely_signed(x.type), dstType, likely_signed(type)), x, dstType), type);
-    }
-
-    static likely_type validFloatType(likely_type type)
-    {
-        likely_set_floating(&type, true);
-        likely_set_signed(&type, true);
-        likely_set_depth(&type, likely_depth(type) > 32 ? 64 : 32);
-        return type;
     }
 
     void addVariable(const string &name, const TypedValue &value)
@@ -514,10 +501,6 @@ struct KernelInfo
 struct Operation
 {
     static map<string, const Operation*> operations;
-    static void add(const string &symbol, const Operation *operation)
-    {
-        operations.insert(pair<string, const Operation*>(symbol, operation));
-    }
 
     static TypedValue expression(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir)
     {
@@ -546,6 +529,7 @@ struct Operation
         return c;
     }
 
+protected:
     static TypedValue constant(const string &str, bool *ok)
     {
         char *p;
@@ -555,8 +539,15 @@ struct Operation
         return ExpressionBuilder::constant(value, type);
     }
 
-    virtual ~Operation() {}
+    static likely_type validFloatType(likely_type type)
+    {
+        likely_set_floating(&type, true);
+        likely_set_signed(&type, true);
+        likely_set_depth(&type, likely_depth(type) > 32 ? 64 : 32);
+        return type;
+    }
 
+private:
     virtual TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir) const
     {
         vector<TypedValue> operands;
@@ -582,7 +573,7 @@ struct RegisterOperation
 {
     RegisterOperation(const string &symbol)
     {
-        Operation::add(symbol, new T());
+        Operation::operations.insert(pair<string, const Operation*>(symbol, new T()));
     }
 };
 #define LIKELY_REGISTER_OPERATION(OP, SYM) static struct RegisterOperation<OP##Operation> Register##OP##Operation(SYM);
@@ -693,7 +684,7 @@ class argOperation : public UnaryOperation
             if (likely_multi_frame(matrix))   i = builder.CreateAdd(builder.CreateMul(info.t, builder.frameStep(matrix)), i);
         }
 
-        LoadInst *load = builder.CreateLoad(builder.GEP(matrix, i));
+        LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(matrix), i));
         builder.annotateParallel(load);
         return TypedValue(load, matrix.type);
     }
@@ -716,7 +707,7 @@ class UnaryMathOperation : public UnaryOperation
     TypedValue callUnary(ExpressionBuilder &builder, const KernelInfo &info, const TypedValue &x) const
     {
         (void) info;
-        TypedValue xc = builder.cast(x, ExpressionBuilder::validFloatType(x.type));
+        TypedValue xc = builder.cast(x, validFloatType(x.type));
         vector<Type*> args;
         args.push_back(xc.value->getType());
         return TypedValue(builder.CreateCall(Intrinsic::getDeclaration(builder.module, id(), args), xc), xc.type);
@@ -895,7 +886,7 @@ class BinaryMathOperation : public BinaryOperation
     {
         (void) info;
         const likely_type type = nIsInteger() ? x.type : likely_type_from_types(x, n);
-        TypedValue xc = builder.cast(x, ExpressionBuilder::validFloatType(type));
+        TypedValue xc = builder.cast(x, validFloatType(type));
         TypedValue nc = builder.cast(n, nIsInteger() ? likely_type_i32 : xc.type);
         vector<Type*> args;
         args.push_back(xc.value->getType());
@@ -938,7 +929,7 @@ class fmaOperation : public TernaryOperation
     {
         (void) info;
         const likely_type type = likely_type_from_types(likely_type_from_types(a, b), c);
-        TypedValue ac = builder.cast(a, ExpressionBuilder::validFloatType(type));
+        TypedValue ac = builder.cast(a, validFloatType(type));
         TypedValue bc = builder.cast(b, ac.type);
         TypedValue cc = builder.cast(c, ac.type);
         vector<Type*> args;
@@ -1124,7 +1115,7 @@ struct FunctionBuilder : private JITResources
             info.init(srcs, builder, dst, TypedValue(i, likely_type_native));
             TypedValue result = Operation::expression(builder, info, ir);
             dstType = dst.type = result.type;
-            StoreInst *store = builder.CreateStore(result, builder.GEP(dst, i));
+            StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(dst), i));
             builder.annotateParallel(store);
 
             Value *increment = builder.CreateAdd(i, builder.one(), "kernel_increment");
