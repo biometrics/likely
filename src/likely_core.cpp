@@ -374,9 +374,9 @@ struct ExpressionBuilder : public IRBuilder<>
     }
 
     static TypedValue zero(int bits = likely_depth(likely_type_native)) { return constant(0, bits); }
-    static TypedValue one(int bits = likely_depth(likely_type_native)) { return constant(1, bits); }
+    static TypedValue one (int bits = likely_depth(likely_type_native)) { return constant(1, bits); }
     static TypedValue intMax(int bits) { return constant((1 << (bits-1))-1, bits); }
-    static TypedValue intMin(int bits) { return constant((1 << (bits-1)), bits); }
+    static TypedValue intMin(int bits) { return constant((1 << (bits-1))  , bits); }
     static TypedValue type(likely_type type) { return constant(type, int(sizeof(likely_type)*8)); }
 
     TypedValue data    (const TypedValue &matrix) { return TypedValue(CreatePointerCast(CreateLoad(CreateStructGEP(matrix, 0), "data"), ty(matrix, true)), matrix.type & likely_type_mask); }
@@ -385,74 +385,6 @@ struct ExpressionBuilder : public IRBuilder<>
     TypedValue rows    (const TypedValue &matrix) { return likely_multi_row    (matrix) ? TypedValue(CreateLoad(CreateStructGEP(matrix, 4), "rows"    ), likely_type_native) : one(); }
     TypedValue frames  (const TypedValue &matrix) { return likely_multi_frame  (matrix) ? TypedValue(CreateLoad(CreateStructGEP(matrix, 5), "frames"  ), likely_type_native) : one(); }
     TypedValue type    (const TypedValue &matrix) { return TypedValue(CreateLoad(CreateStructGEP(matrix, 6), "type"), likely_type_u32); }
-
-    void setData    (const TypedValue &matrix, const TypedValue &value) { CreateStore(value, CreateStructGEP(matrix, 0)); }
-    void setChannels(const TypedValue &matrix, const TypedValue &value) { CreateStore(value, CreateStructGEP(matrix, 2)); }
-    void setColumns (const TypedValue &matrix, const TypedValue &value) { CreateStore(value, CreateStructGEP(matrix, 3)); }
-    void setRows    (const TypedValue &matrix, const TypedValue &value) { CreateStore(value, CreateStructGEP(matrix, 4)); }
-    void setFrames  (const TypedValue &matrix, const TypedValue &value) { CreateStore(value, CreateStructGEP(matrix, 5)); }
-    void setType    (const TypedValue &matrix, const TypedValue &value) { CreateStore(value, CreateStructGEP(matrix, 6)); }
-
-    TypedValue get(const TypedValue &matrix, likely_type mask)
-    {
-        return TypedValue(CreateAnd(type(matrix),
-                                    constant(mask, 8*sizeof(likely_type)).value), likely_type_u32);
-    }
-
-    void set(const TypedValue &matrix, likely_type mask, int value)
-    {
-        setType(matrix, TypedValue(CreateOr(CreateAnd(type(matrix),
-                                                      constant(~mask, 8*sizeof(likely_type)).value),
-                                            CreateAnd(constant(value, 8*sizeof(likely_type)),
-                                                      constant( mask, 8*sizeof(likely_type)).value)), likely_type_u32));
-    }
-
-    void setBit(const TypedValue &matrix, likely_type mask, bool on)
-    {
-        Value *value;
-        if (on) value = CreateOr (type(matrix), constant( mask, 8*sizeof(likely_type)).value);
-        else    value = CreateAnd(type(matrix), constant(~mask, 8*sizeof(likely_type)).value);
-        setType(matrix, TypedValue(value, likely_type_u32));
-    }
-
-    TypedValue depth(const TypedValue &matrix)     { return get(matrix, likely_type_depth); }
-    void    setDepth(const TypedValue &matrix, int depth) { set(matrix, likely_type_depth, depth); }
-    TypedValue signed_(const TypedValue &matrix)          { return get(matrix, likely_type_signed); }
-    void    setSigned (const TypedValue &matrix, bool signed_) { setBit(matrix, likely_type_signed, signed_); }
-    TypedValue floating(const TypedValue &matrix)            { return get(matrix, likely_type_floating); }
-    void    setFloating(const TypedValue &matrix, bool floating) { setBit(matrix, likely_type_floating, floating); }
-    TypedValue parallel(const TypedValue &matrix)            { return get(matrix, likely_type_parallel); }
-    void    setParallel(const TypedValue &matrix, bool parallel) { setBit(matrix, likely_type_parallel, parallel); }
-    TypedValue heterogeneous(const TypedValue &matrix)                 { return get(matrix, likely_type_heterogeneous); }
-    void    setHeterogeneous(const TypedValue &matrix, bool heterogeneous) { setBit(matrix, likely_type_heterogeneous, heterogeneous); }
-    TypedValue multiChannel(const TypedValue &matrix)                { return get(matrix, likely_type_multi_channel); }
-    void    setMultiChannel(const TypedValue &matrix, bool multiChannel) { setBit(matrix, likely_type_multi_channel, multiChannel); }
-    TypedValue multiColumn(const TypedValue &matrix)               { return get(matrix, likely_type_multi_column); }
-    void    setMultiColumn(const TypedValue &matrix, bool multiColumn) { setBit(matrix, likely_type_multi_column, multiColumn); }
-    TypedValue multiRow(const TypedValue &matrix)            { return get(matrix, likely_type_multi_row); }
-    void    setMultiRow(const TypedValue &matrix, bool multiRow) { setBit(matrix, likely_type_multi_row, multiRow); }
-    TypedValue multiFrame(const TypedValue &matrix)              { return get(matrix, likely_type_multi_frame); }
-    void    setMultiFrame(const TypedValue &matrix, bool multiFrame) { setBit(matrix, likely_type_multi_frame, multiFrame); }
-    TypedValue saturation(const TypedValue &matrix)              { return get(matrix, likely_type_saturation); }
-    void    setSaturation(const TypedValue &matrix, bool saturation) { setBit(matrix, likely_type_saturation, saturation); }
-    TypedValue reserved(const TypedValue &matrix)        { return get(matrix, likely_type_reserved); }
-    void    setReserved(const TypedValue &matrix, int reserved) { set(matrix, likely_type_reserved, reserved); }
-
-    TypedValue elements(const TypedValue &matrix)
-    {
-        return TypedValue(CreateMul(CreateMul(CreateMul(channels(matrix),
-                                                        columns(matrix)),
-                                              rows(matrix)),
-                                    frames(matrix)), likely_type_native);
-    }
-
-    TypedValue bytes(const TypedValue &matrix)
-    {
-        return TypedValue(CreateMul(CreateUDiv(CreateCast(Instruction::ZExt, depth(matrix),
-                                                          NativeIntegerType),
-                                               constant(8)),
-                                    elements(matrix)), likely_type_native);
-    }
 
     TypedValue columnStep(const TypedValue &matrix)
     {
@@ -1059,46 +991,6 @@ class selectOperation : public TernaryOperation
 };
 LIKELY_REGISTER(select)
 
-struct LikelyKernelOptimizationPass : public FunctionPass
-{
-    static char ID;
-    LikelyKernelOptimizationPass() : FunctionPass(ID) {}
-
-    struct MatrixInfo
-    {
-        Value *channels, *columns, *rows, *frames, *columnStep, *rowStep, *frameStep;
-		MatrixInfo()
-		  : channels(NULL), columns(NULL), rows(NULL), frames(NULL), columnStep(NULL), rowStep(NULL), frameStep(NULL)
-		{}
-    };
-
-    bool runOnFunction(Function &F)
-    {
-        DEBUG(dbgs() << "LKO: " << F.getName() << "\n");
-
-        vector<Argument*> matricies;
-        Argument *start = NULL, *stop = NULL;
-
-        Function::arg_iterator args = F.arg_begin();
-        while ((args != F.arg_end()) && (args->getType() == PointerType::getUnqual(TheMatrixStruct)))
-            matricies.push_back(args++);
-        if ((args != F.arg_end()) && (args->getType() == NativeIntegerType))
-            start = args++;
-        if ((args != F.arg_end()) && (args->getType() == NativeIntegerType))
-            stop = args++;
-        if (matricies.empty() || !start || !stop || (args != F.arg_end()))
-            return false;
-        DEBUG(dbgs() << "LKO: found a kernel with " << matricies.size() << " matricies\n");
-
-        vector<MatrixInfo> matrixInfo(matricies.size());
-        (void) matrixInfo;
-
-        return false;
-    }
-};
-char LikelyKernelOptimizationPass::ID = 0;
-static RegisterPass<LikelyKernelOptimizationPass> RegisterLikelyKernelOptimizationPass("likely", "Likely Kernel Optimization Pass", false, false);
-
 // Parallel synchronization
 static condition_variable worker;
 static mutex work;
@@ -1281,7 +1173,6 @@ struct FunctionBuilder : private JITResources
 
             FunctionPassManager functionPassManager(module);
             functionPassManager.add(createVerifierPass(PrintMessageAction));
-            functionPassManager.add(new LikelyKernelOptimizationPass());
             targetMachine->addAnalysisPasses(functionPassManager);
             functionPassManager.add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
             functionPassManager.add(new DataLayout(module));
@@ -1316,7 +1207,7 @@ struct FunctionBuilder : private JITResources
         likelyNew->setDoesNotCapture(6);
 
         std::vector<Value*> likelyNewArgs;
-        likelyNewArgs.push_back(builder.type(dstType));
+        likelyNewArgs.push_back(ExpressionBuilder::type(dstType));
         likelyNewArgs.push_back(dstChannels);
         likelyNewArgs.push_back(dstColumns);
         likelyNewArgs.push_back(dstRows);
