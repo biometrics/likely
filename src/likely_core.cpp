@@ -386,23 +386,11 @@ struct ExpressionBuilder : public IRBuilder<>
     TypedValue frames  (const TypedValue &matrix) { return likely_multi_frame  (matrix) ? TypedValue(CreateLoad(CreateStructGEP(matrix, 5), "frames"  ), likely_type_native) : one(); }
     TypedValue type    (const TypedValue &matrix) { return TypedValue(CreateLoad(CreateStructGEP(matrix, 6), "type"), likely_type_u32); }
 
-    TypedValue columnStep(const TypedValue &matrix)
+    void steps(const TypedValue &matrix, Value **columnStep, Value **rowStep, Value **frameStep)
     {
-        Value *columnStep = channels(matrix);
-        columnStep->setName("cStep");
-        return TypedValue(columnStep, likely_type_native);
-    }
-
-    TypedValue rowStep(const TypedValue &matrix)
-    {
-        return TypedValue(CreateMul(columns(matrix),
-                                    columnStep(matrix), "rStep"), likely_type_native);
-    }
-
-    TypedValue frameStep(const TypedValue &matrix)
-    {
-        return TypedValue(CreateMul(rows(matrix),
-                                    rowStep(matrix), "tStep"), likely_type_native);
+        *columnStep = channels(matrix);
+        *rowStep    = CreateMul(columns(matrix), *columnStep, "y_step");
+        *frameStep  = CreateMul(rows(matrix), *rowStep, "t_step");
     }
 
     void annotateParallel(Instruction *i) const
@@ -482,15 +470,14 @@ struct KernelInfo
         this->i = i;
         this->dims = dst.type & likely_type_multi_dimension;
 
-        Value *frameStep = builder.frameStep(dst);
+        Value *columnStep, *rowStep, *frameStep;
+        builder.steps(dst, &columnStep, &rowStep, &frameStep);
         Value *frameRemainder = builder.CreateURem(i, frameStep, "t_rem");
         t = TypedValue(builder.CreateUDiv(i, frameStep, "t"), likely_type_native);
 
-        Value *rowStep = builder.rowStep(dst);
         Value *rowRemainder = builder.CreateURem(frameRemainder, rowStep, "y_rem");
         y = TypedValue(builder.CreateUDiv(frameRemainder, rowStep, "y"), likely_type_native);
 
-        Value *columnStep = builder.columnStep(dst);
         Value *columnRemainder = builder.CreateURem(rowRemainder, columnStep, "c");
         x = TypedValue(builder.CreateUDiv(rowRemainder, columnStep, "x"), likely_type_native);
 
@@ -677,11 +664,13 @@ class argOperation : public UnaryOperation
             // This matrix has the same dimensionality as the output
             i = info.i;
         } else {
+            Value *columnStep, *rowStep, *frameStep;
+            builder.steps(matrix, &columnStep, &rowStep, &frameStep);
             i = ExpressionBuilder::zero();
             if (likely_multi_channel(matrix)) i = info.c;
-            if (likely_multi_column(matrix))  i = builder.CreateAdd(builder.CreateMul(info.x, builder.columnStep(matrix)), i);
-            if (likely_multi_row(matrix))     i = builder.CreateAdd(builder.CreateMul(info.y, builder.rowStep(matrix)), i);
-            if (likely_multi_frame(matrix))   i = builder.CreateAdd(builder.CreateMul(info.t, builder.frameStep(matrix)), i);
+            if (likely_multi_column(matrix))  i = builder.CreateAdd(builder.CreateMul(info.x, columnStep), i);
+            if (likely_multi_row(matrix))     i = builder.CreateAdd(builder.CreateMul(info.y, rowStep), i);
+            if (likely_multi_frame(matrix))   i = builder.CreateAdd(builder.CreateMul(info.t, frameStep), i);
         }
 
         LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(matrix), i));
