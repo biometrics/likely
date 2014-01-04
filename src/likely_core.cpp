@@ -500,36 +500,6 @@ struct ExpressionBuilder : public IRBuilder<>
         else                            return remainder;
     }
 
-    void deindex(const TypedValue &matrix, const TypedValue &i, TypedValue *c)
-    {
-        (void) matrix;
-        *c = i;
-    }
-
-    void deindex(const TypedValue &matrix, const TypedValue &i, TypedValue *c, TypedValue *x)
-    {
-        TypedValue step = columnStep(matrix);
-        TypedValue remainder(CreateURem(i, step, "xRem"), likely_type_native);
-        *x = TypedValue(CreateExactUDiv(CreateSub(i, remainder), step, "x"), likely_type_native);
-        deindex(matrix, remainder, c);
-    }
-
-    void deindex(const TypedValue &matrix, const TypedValue &i, TypedValue *c, TypedValue *x, TypedValue *y)
-    {
-        TypedValue step = rowStep(matrix);
-        TypedValue remainder(CreateURem(i, step, "yRem"), likely_type_native);
-        *y = TypedValue(CreateExactUDiv(CreateSub(i, remainder), step, "y"), likely_type_native);
-        deindex(matrix, remainder, c, x);
-    }
-
-    void deindex(const TypedValue &matrix, const TypedValue &i, TypedValue *c, TypedValue *x, TypedValue *y, TypedValue *t)
-    {
-        TypedValue step = frameStep(matrix);
-        TypedValue remainder(CreateURem(i, step, "tRem"), likely_type_native);
-        *t = TypedValue(CreateExactUDiv(CreateSub(i, remainder), step, "t"), likely_type_native);
-        deindex(matrix, remainder, c, x, y);
-    }
-
     TypedValue GEP(const TypedValue &matrix, Value *i)
     {
         return TypedValue(CreateGEP(data(matrix), i), matrix.type);
@@ -619,7 +589,20 @@ struct KernelInfo
         this->srcs = srcs;
         this->i = i;
         this->dims = dst.type & likely_type_multi_dimension;
-        builder.deindex(dst, i, &c, &x, &y, &t);
+
+        Value *frameStep = builder.frameStep(dst);
+        Value *frameRemainder = builder.CreateURem(i, frameStep, "t_rem");
+        t = TypedValue(builder.CreateUDiv(i, frameStep, "t"), likely_type_native);
+
+        Value *rowStep = builder.rowStep(dst);
+        Value *rowRemainder = builder.CreateURem(frameRemainder, rowStep, "y_rem");
+        y = TypedValue(builder.CreateUDiv(frameRemainder, rowStep, "y"), likely_type_native);
+
+        Value *columnStep = builder.columnStep(dst);
+        Value *columnRemainder = builder.CreateURem(rowRemainder, columnStep, "c");
+        x = TypedValue(builder.CreateUDiv(rowRemainder, columnStep, "x"), likely_type_native);
+
+        c = TypedValue(columnRemainder, likely_type_native);
     }
 };
 
