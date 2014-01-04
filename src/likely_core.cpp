@@ -340,14 +340,7 @@ struct ExpressionBuilder : public IRBuilder<>
     BasicBlock *entry;
     Module *module;
     Function *function;
-
-    struct Loop {
-        BasicBlock *body;
-        PHINode *i;
-        Value *stop;
-        MDNode *node;
-    };
-    stack<Loop> loops;
+    MDNode *node;
 
     typedef map<string,TypedValue> Closure;
     vector<Closure> closures;
@@ -357,6 +350,14 @@ struct ExpressionBuilder : public IRBuilder<>
     {
         entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         SetInsertPoint(entry);
+
+        // Create self-referencing loop node
+        vector<Value*> metadata;
+        MDNode *tmp = MDNode::getTemporary(getGlobalContext(), metadata);
+        metadata.push_back(tmp);
+        node = MDNode::get(getGlobalContext(), metadata);
+        tmp->replaceAllUsesWith(node);
+        MDNode::deleteTemporary(tmp);
     }
 
     static TypedValue constant(double value, likely_type type = likely_type_native)
@@ -534,18 +535,9 @@ struct ExpressionBuilder : public IRBuilder<>
         return TypedValue(CreateGEP(data(matrix), i), matrix.type);
     }
 
-    TypedValue load(const TypedValue &matrix, Value *i)
+    void annotateParallel(Instruction *i) const
     {
-        LoadInst *load = CreateLoad(GEP(matrix, i));
-        load->setMetadata("llvm.mem.parallel_loop_access", getCurrentNode());
-        return TypedValue(load, matrix.type);
-    }
-
-    TypedValue store(const TypedValue &matrix, Value *i, const TypedValue &value)
-    {
-        StoreInst *store = CreateStore(value, GEP(matrix, i));
-        store->setMetadata("llvm.mem.parallel_loop_access", getCurrentNode());
-        return TypedValue(store, matrix.type);
+        i->setMetadata("llvm.mem.parallel_loop_access", node);
     }
 
     TypedValue cast(const TypedValue &x, likely_type type)
@@ -562,46 +554,6 @@ struct ExpressionBuilder : public IRBuilder<>
         likely_set_signed(&type, true);
         likely_set_depth(&type, likely_depth(type) > 32 ? 64 : 32);
         return type;
-    }
-
-    Loop beginLoop(BasicBlock *entry, Value *start, Value *stop)
-    {
-        Loop loop;
-        loop.stop = stop;
-        loop.body = BasicBlock::Create(getGlobalContext(), "loop_body", function);
-
-        // Create self-referencing loop node
-        vector<Value*> metadata;
-        MDNode *tmp = MDNode::getTemporary(getGlobalContext(), metadata);
-        metadata.push_back(tmp);
-        loop.node = MDNode::get(getGlobalContext(), metadata);
-        tmp->replaceAllUsesWith(loop.node);
-        MDNode::deleteTemporary(tmp);
-
-        // Loops assume there is at least one iteration
-        CreateBr(loop.body);
-        SetInsertPoint(loop.body);
-
-        loop.i = CreatePHI(NativeIntegerType, 2, "i");
-        loop.i->addIncoming(start, entry);
-
-        loops.push(loop);
-        return loop;
-    }
-
-    void endLoop()
-    {
-        const Loop &loop = loops.top();
-        Value *increment = CreateAdd(loop.i, one(), "loop_increment");
-        BasicBlock *loopLatch = BasicBlock::Create(getGlobalContext(), "loop_latch", function);
-        CreateBr(loopLatch);
-        SetInsertPoint(loopLatch);
-        BasicBlock *loopExit = BasicBlock::Create(getGlobalContext(), "loop_exit", function);
-        BranchInst *latch = CreateCondBr(CreateICmpEQ(increment, loop.stop, "loop_test"), loopExit, loop.body);
-        latch->setMetadata("llvm.loop", loop.node);
-        loop.i->addIncoming(increment, loopLatch);
-        SetInsertPoint(loopExit);
-        loops.pop();
     }
 
     void addVariable(const string &name, const TypedValue &value)
@@ -630,8 +582,6 @@ struct ExpressionBuilder : public IRBuilder<>
         }
         return TypedValue();
     }
-
-    MDNode *getCurrentNode() { return loops.empty() ? NULL : loops.top().node; }
 
     template <typename T>
     inline static vector<T> toVector(T value) { vector<T> vector; vector.push_back(value); return vector; }
@@ -843,14 +793,17 @@ class argOperation : public UnaryOperation
     {
         int index = LLVM_VALUE_TO_INT(arg.value);
         const TypedValue &matrix = info.srcs[index];
-        TypedValue matrix_i;
+        TypedValue i;
         if ((matrix.type & likely_type_multi_dimension) == info.dims) {
             // This matrix has the same dimensionality as the output
-            matrix_i = info.i;
+            i = info.i;
         } else {
-            matrix_i = builder.index(matrix, info.c, info.x, info.y, info.t);
+            i = builder.index(matrix, info.c, info.x, info.y, info.t);
         }
-        return builder.load(matrix, matrix_i);
+
+        LoadInst *load = builder.CreateLoad(builder.GEP(matrix, i));
+        builder.annotateParallel(load);
+        return TypedValue(load, matrix.type);
     }
 };
 LIKELY_REGISTER(arg)
@@ -1340,14 +1293,30 @@ struct FunctionBuilder : private JITResources
 
             ExpressionBuilder builder(module, thunk);
             KernelInfo info(srcs);
-            TypedValue i = TypedValue(builder.beginLoop(builder.entry, start, stop).i, likely_type_native);
-            info.init(srcs, builder, dst, i);
 
+            // The kernel assumes there is at least one iteration
+            BasicBlock *body = BasicBlock::Create(getGlobalContext(), "kernel_body", thunk);
+            builder.CreateBr(body);
+            builder.SetInsertPoint(body);
+            PHINode *i = builder.CreatePHI(NativeIntegerType, 2, "i");
+            i->addIncoming(start, builder.entry);
+
+            info.init(srcs, builder, dst, TypedValue(i, likely_type_native));
             TypedValue result = Operation::expression(builder, info, ir);
+            dstType = dst.type = result.type;
+            StoreInst *store = builder.CreateStore(result, builder.GEP(dst, i));
+            builder.annotateParallel(store);
 
-            dstType = result.type;
-            builder.store(TypedValue(dst.value, dstType), i, result);
-            builder.endLoop();
+            Value *increment = builder.CreateAdd(i, builder.one(), "kernel_increment");
+            BasicBlock *loopLatch = BasicBlock::Create(getGlobalContext(), "kernel_latch", thunk);
+            builder.CreateBr(loopLatch);
+            builder.SetInsertPoint(loopLatch);
+            BasicBlock *loopExit = BasicBlock::Create(getGlobalContext(), "kernel_exit", thunk);
+            BranchInst *latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, "kernel_test"), loopExit, body);
+            latch->setMetadata("llvm.loop", builder.node);
+            i->addIncoming(increment, loopLatch);
+            builder.SetInsertPoint(loopExit);
+
             builder.CreateRetVoid();
 
             FunctionPassManager functionPassManager(module);
