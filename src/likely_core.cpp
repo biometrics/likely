@@ -373,10 +373,10 @@ struct ExpressionBuilder : public IRBuilder<>
         }
     }
 
-    static TypedValue zero(int bits = likely_depth(likely_type_native)) { return constant(0, bits); }
-    static TypedValue one (int bits = likely_depth(likely_type_native)) { return constant(1, bits); }
-    static TypedValue intMax(int bits) { return constant((1 << (bits-1))-1, bits); }
-    static TypedValue intMin(int bits) { return constant((1 << (bits-1))  , bits); }
+    static TypedValue zero(likely_type type = likely_type_native) { return constant(0, type); }
+    static TypedValue one (likely_type type = likely_type_native) { return constant(1, type); }
+    static TypedValue intMax(likely_type type) { const int bits = likely_depth(type); return constant((1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
+    static TypedValue intMin(likely_type type) { const int bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
     static TypedValue type(likely_type type) { return constant(type, int(sizeof(likely_type)*8)); }
 
     TypedValue data    (const TypedValue &matrix) { return TypedValue(CreatePointerCast(CreateLoad(CreateStructGEP(matrix, 0), "data"), ty(matrix, true)), matrix.type & likely_type_mask); }
@@ -686,7 +686,7 @@ class argOperation : public UnaryOperation
             // This matrix has the same dimensionality as the output
             i = info.i;
         } else {
-            i = builder.zero();
+            i = ExpressionBuilder::zero();
             if (likely_multi_channel(matrix)) i = info.c;
             if (likely_multi_column(matrix))  i = builder.CreateAdd(builder.CreateMul(info.x, builder.columnStep(matrix)), i);
             if (likely_multi_row(matrix))     i = builder.CreateAdd(builder.CreateMul(info.y, builder.rowStep(matrix)), i);
@@ -786,18 +786,9 @@ class addOperation : public ArithmeticOperation
             return TypedValue(builder.CreateFAdd(lhs, rhs), type);
         } else {
             if (likely_saturation(type)) {
-                if (likely_signed(type)) {
-                    const int depth = likely_depth(type);
-                    Value *result = builder.CreateAdd(lhs, rhs);
-                    Value *overflowResult = builder.CreateAdd(builder.CreateLShr(lhs, depth-1), ExpressionBuilder::intMax(depth));
-                    Value *overflowCondition = builder.CreateICmpSGE(builder.CreateOr(builder.CreateXor(lhs.value, rhs.value), builder.CreateNot(builder.CreateXor(rhs, result))), ExpressionBuilder::zero(depth));
-                    return TypedValue(builder.CreateSelect(overflowCondition, overflowResult, result), type);
-                } else {
-                    Value *result = builder.CreateAdd(lhs, rhs);
-                    Value *overflow = builder.CreateNeg(builder.CreateZExt(builder.CreateICmpULT(result, lhs),
-                                                                           Type::getIntNTy(getGlobalContext(), likely_depth(type))));
-                    return TypedValue(builder.CreateOr(result, overflow), type);
-                }
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module, likely_signed(type) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs.value->getType()), lhs, rhs);
+                Value *overflowResult = likely_signed(type) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, ExpressionBuilder::zero(type)), builder.intMax(type), builder.intMin(type)) : ExpressionBuilder::intMax(type);
+                return TypedValue(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
             } else {
                 return TypedValue(builder.CreateAdd(lhs, rhs), type);
             }
@@ -814,18 +805,9 @@ class subtractOperation : public ArithmeticOperation
             return TypedValue(builder.CreateFSub(lhs, rhs), type);
         } else {
             if (likely_saturation(type)) {
-                if (likely_signed(type)) {
-                    const int depth = likely_depth(type);
-                    Value *result = builder.CreateSub(lhs, rhs);
-                    Value *overflowResult = builder.CreateAdd(builder.CreateLShr(lhs, depth-1), ExpressionBuilder::intMax(depth));
-                    Value *overflowCondition = builder.CreateICmpSLT(builder.CreateAnd(builder.CreateXor(lhs.value, rhs.value), builder.CreateXor(lhs, result)), ExpressionBuilder::zero(depth));
-                    return TypedValue(builder.CreateSelect(overflowCondition, overflowResult, result), type);
-                } else {
-                    Value *result = builder.CreateSub(lhs, rhs);
-                    Value *overflow = builder.CreateNeg(builder.CreateZExt(builder.CreateICmpULE(result, lhs),
-                                                                           Type::getIntNTy(getGlobalContext(), likely_depth(type))));
-                    return TypedValue(builder.CreateAnd(result, overflow), type);
-                }
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module, likely_signed(type) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value->getType()), lhs, rhs);
+                Value *overflowResult = likely_signed(type) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, ExpressionBuilder::zero(type)), builder.intMax(type), builder.intMin(type)) : ExpressionBuilder::intMin(type);
+                return TypedValue(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
             } else {
                 return TypedValue(builder.CreateSub(lhs, rhs), type);
             }
@@ -842,23 +824,10 @@ class multiplyOperation : public ArithmeticOperation
             return TypedValue(builder.CreateFMul(lhs, rhs), type);
         } else {
             if (likely_saturation(type)) {
-                const int depth = likely_depth(type);
-                Type *originalType = Type::getIntNTy(getGlobalContext(), depth);
-                Type *extendedType = Type::getIntNTy(getGlobalContext(), 2*depth);
-                Value *result = builder.CreateMul(builder.CreateZExt(lhs, extendedType),
-                                                  builder.CreateZExt(rhs, extendedType));
-                Value *lo = builder.CreateTrunc(result, originalType);
-
-                if (likely_signed(type)) {
-                    Value *hi = builder.CreateTrunc(builder.CreateAShr(result, depth), originalType);
-                    Value *overflowResult = builder.CreateAdd(builder.CreateLShr(builder.CreateXor(lhs.value, rhs.value), depth-1), ExpressionBuilder::intMax(depth));
-                    Value *overflowCondition = builder.CreateICmpNE(hi, builder.CreateAShr(lo, depth-1));
-                    return TypedValue(builder.CreateSelect(overflowCondition, overflowResult, builder.CreateTrunc(result, lhs.value->getType())), type);
-                } else {
-                    Value *hi = builder.CreateTrunc(builder.CreateLShr(result, depth), originalType);
-                    Value *overflow = builder.CreateNeg(builder.CreateZExt(builder.CreateICmpNE(hi, ExpressionBuilder::zero(depth)), originalType));
-                    return TypedValue(builder.CreateOr(lo, overflow), type);
-                }
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module, likely_signed(type) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs.value->getType()), lhs, rhs);
+                Value *zero = ExpressionBuilder::zero(type);
+                Value *overflowResult = likely_signed(type) ? builder.CreateSelect(builder.CreateXor(builder.CreateICmpSGE(lhs, zero), builder.CreateICmpSGE(rhs, zero)), builder.intMin(type), builder.intMax(type)) : ExpressionBuilder::intMax(type);
+                return TypedValue(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
             } else {
                 return TypedValue(builder.CreateMul(lhs, rhs), type);
             }
@@ -876,8 +845,7 @@ class divideOperation : public ArithmeticOperation
         } else {
             if (likely_signed(type)) {
                 if (likely_saturation(type)) {
-                    const int depth = likely_depth(type);
-                    Value *safe_i = builder.CreateAdd(n, builder.CreateZExt(builder.CreateICmpNE(builder.CreateOr(builder.CreateAdd(d, ExpressionBuilder::constant(1, depth)), builder.CreateAdd(n, ExpressionBuilder::intMin(depth))), ExpressionBuilder::zero(depth)), n.value->getType()));
+                    Value *safe_i = builder.CreateAdd(n, builder.CreateZExt(builder.CreateICmpNE(builder.CreateOr(builder.CreateAdd(d, ExpressionBuilder::one(type)), builder.CreateAdd(n, ExpressionBuilder::intMin(type))), ExpressionBuilder::zero(type)), n.value->getType()));
                     return TypedValue(builder.CreateSDiv(safe_i, d), type);
                 } else {
                     return TypedValue(builder.CreateSDiv(n, d), type);
