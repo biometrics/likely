@@ -473,33 +473,6 @@ struct ExpressionBuilder : public IRBuilder<>
                                     rowStep(matrix), "tStep"), likely_type_native);
     }
 
-    TypedValue index(const TypedValue &matrix, const TypedValue &c)
-    {
-        if (likely_multi_channel(matrix)) return c;
-        else                              return zero();
-    }
-
-    TypedValue index(const TypedValue &matrix, const TypedValue &c, const TypedValue &x)
-    {
-        TypedValue remainder = index(matrix, c);
-        if (likely_multi_column(matrix)) return TypedValue(CreateAdd(CreateMul(x, columnStep(matrix)), remainder), likely_type_native);
-        else                             return remainder;
-    }
-
-    TypedValue index(const TypedValue &matrix, const TypedValue &c, const TypedValue &x, const TypedValue &y)
-    {
-        TypedValue remainder = index(matrix, c, x);
-        if (likely_multi_row(matrix)) return TypedValue(CreateAdd(CreateMul(y, rowStep(matrix)), remainder), likely_type_native);
-        else                          return remainder;
-    }
-
-    TypedValue index(const TypedValue &matrix, const TypedValue &c, const TypedValue &x, const TypedValue &y, const TypedValue &t)
-    {
-        TypedValue remainder = index(matrix, c, x, y);
-        if (likely_multi_frame(matrix)) return TypedValue(CreateAdd(CreateMul(t, frameStep(matrix)), remainder), likely_type_native);
-        else                            return remainder;
-    }
-
     TypedValue GEP(const TypedValue &matrix, Value *i)
     {
         return TypedValue(CreateGEP(data(matrix), i), matrix.type);
@@ -776,12 +749,16 @@ class argOperation : public UnaryOperation
     {
         int index = LLVM_VALUE_TO_INT(arg.value);
         const TypedValue &matrix = info.srcs[index];
-        TypedValue i;
+        Value *i;
         if ((matrix.type & likely_type_multi_dimension) == info.dims) {
             // This matrix has the same dimensionality as the output
             i = info.i;
         } else {
-            i = builder.index(matrix, info.c, info.x, info.y, info.t);
+            i = builder.zero();
+            if (likely_multi_channel(matrix)) i = info.c;
+            if (likely_multi_column(matrix))  i = builder.CreateAdd(builder.CreateMul(info.x, builder.columnStep(matrix)), i);
+            if (likely_multi_row(matrix))     i = builder.CreateAdd(builder.CreateMul(info.y, builder.rowStep(matrix)), i);
+            if (likely_multi_frame(matrix))   i = builder.CreateAdd(builder.CreateMul(info.t, builder.frameStep(matrix)), i);
         }
 
         LoadInst *load = builder.CreateLoad(builder.GEP(matrix, i));
