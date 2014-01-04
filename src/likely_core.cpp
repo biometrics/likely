@@ -384,7 +384,6 @@ struct ExpressionBuilder : public IRBuilder<>
     TypedValue columns (const TypedValue &matrix) { return likely_multi_column (matrix) ? TypedValue(CreateLoad(CreateStructGEP(matrix, 3), "columns" ), likely_type_native) : one(); }
     TypedValue rows    (const TypedValue &matrix) { return likely_multi_row    (matrix) ? TypedValue(CreateLoad(CreateStructGEP(matrix, 4), "rows"    ), likely_type_native) : one(); }
     TypedValue frames  (const TypedValue &matrix) { return likely_multi_frame  (matrix) ? TypedValue(CreateLoad(CreateStructGEP(matrix, 5), "frames"  ), likely_type_native) : one(); }
-    TypedValue type    (const TypedValue &matrix) { return TypedValue(CreateLoad(CreateStructGEP(matrix, 6), "type"), likely_type_u32); }
 
     void steps(const TypedValue &matrix, Value **columnStep, Value **rowStep, Value **frameStep)
     {
@@ -433,9 +432,6 @@ struct ExpressionBuilder : public IRBuilder<>
         return TypedValue();
     }
 
-    template <typename T>
-    inline static vector<T> toVector(T value) { vector<T> vector; vector.push_back(value); return vector; }
-
     static Type *ty(likely_type type, bool pointer = false)
     {
         const int bits = likely_depth(type);
@@ -451,7 +447,7 @@ struct ExpressionBuilder : public IRBuilder<>
             else if (bits == 32) return pointer ? Type::getInt32PtrTy(getGlobalContext()) : (Type*)Type::getInt32Ty(getGlobalContext());
             else if (bits == 64) return pointer ? Type::getInt64PtrTy(getGlobalContext()) : (Type*)Type::getInt64Ty(getGlobalContext());
         }
-        likely_assert(false, "MatrixBuilder::ty invalid matrix bits: %d and floating: %d", bits, floating);
+        likely_assert(false, "ty invalid matrix bits: %d and floating: %d", bits, floating);
         return NULL;
     }
 };
