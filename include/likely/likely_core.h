@@ -20,6 +20,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 // Export symbols, don't worry about this
 #if defined _WIN32
@@ -156,6 +157,7 @@ typedef likely_mat (*likely_function)(likely_const_mat, ...);
 typedef likely_mat (*likely_function_n)(likely_const_mat*);
 LIKELY_EXPORT likely_function likely_compile(likely_ir ir); // Takes ownership of ir
 LIKELY_EXPORT likely_function_n likely_compile_n(likely_ir ir); // Takes ownership of ir
+LIKELY_EXPORT void likely_write_bitcode(likely_ir ir, likely_type *types, likely_arity n, const char *file_name); // Does _not_ take ownership of ir
 
 LIKELY_EXPORT void likely_stack_dump(struct lua_State *L, int levels);
 

@@ -20,6 +20,7 @@
 #include <llvm/Analysis/TargetTransformInfo.h>
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/Assembly/PrintModulePass.h>
+#include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/IRBuilder.h>
@@ -991,7 +992,7 @@ struct JITResources
     ExecutionEngine *executionEngine;
     TargetMachine *targetMachine;
 
-    JITResources()
+    JITResources(bool native)
     {
         if (TheMatrixStruct == NULL) {
             assert(sizeof(likely_size) == sizeof(void*));
@@ -1019,11 +1020,14 @@ struct JITResources
 
         module = new Module(name, getGlobalContext());
         likely_assert(module != NULL, "failed to create LLVM Module");
-        string targetTriple = sys::getProcessTriple();
+
+        if (native) {
+            string targetTriple = sys::getProcessTriple();
 #ifdef _WIN32
-        targetTriple = targetTriple + "-elf";
+            targetTriple = targetTriple + "-elf";
 #endif
-        module->setTargetTriple(targetTriple);
+            module->setTargetTriple(targetTriple);
+        }
 
         string error;
         EngineBuilder engineBuilder(module);
@@ -1043,8 +1047,7 @@ struct JITResources
     ~JITResources()
     {
         delete targetMachine;
-        delete executionEngine;
-        delete module;
+        delete executionEngine; // owns module
     }
 };
 
@@ -1053,7 +1056,8 @@ struct FunctionBuilder : private JITResources
     likely_type *type;
     void *f;
 
-    FunctionBuilder(likely_ir ir, const vector<likely_type> &types)
+    FunctionBuilder(likely_ir ir, const vector<likely_type> &types, bool native)
+        : JITResources(native)
     {
         type = new likely_type[types.size()];
         memcpy(type, types.data(), sizeof(likely_type) * types.size());
@@ -1117,9 +1121,11 @@ struct FunctionBuilder : private JITResources
 
             FunctionPassManager functionPassManager(module);
             functionPassManager.add(createVerifierPass(PrintMessageAction));
-            targetMachine->addAnalysisPasses(functionPassManager);
-            functionPassManager.add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
-            functionPassManager.add(new DataLayout(module));
+            if (native) {
+                targetMachine->addAnalysisPasses(functionPassManager);
+                functionPassManager.add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
+                functionPassManager.add(new DataLayout(module));
+            }
             functionPassManager.add(createBasicAliasAnalysisPass());
             functionPassManager.add(createLICMPass());
             functionPassManager.add(createLoopVectorizePass());
@@ -1215,6 +1221,14 @@ struct FunctionBuilder : private JITResources
         f = executionEngine->getPointerToFunction(function);
     }
 
+    void write(const char *fileName) const
+    {
+        string errorInfo;
+        raw_fd_ostream stream(fileName, errorInfo);
+        WriteBitcodeToFile(module, stream);
+        likely_assert(errorInfo.empty(), "failed to write bitcode with error: %s", errorInfo.c_str());
+    }
+
     ~FunctionBuilder()
     {
         delete[] type;
@@ -1300,7 +1314,7 @@ struct VTable : public JITResources
     Function *likelyDispatch;
 
     VTable(likely_ir ir_)
-        : ir(ir_)
+        : JITResources(true), ir(ir_)
     {
         n = computeArityRecursive(ir);
 
@@ -1457,7 +1471,7 @@ likely_mat likely_dispatch(struct VTable *vtable, likely_mat *m)
         vector<likely_type> types;
         for (int i=0; i<vtable->n; i++)
             types.push_back(m[i]->type);
-        FunctionBuilder *functionBuilder = new FunctionBuilder(vtable->ir, types);
+        FunctionBuilder *functionBuilder = new FunctionBuilder(vtable->ir, types, true);
         vtable->functions.push_back(functionBuilder);
         function = vtable->functions.back()->f;
     }
@@ -1609,6 +1623,11 @@ likely_function likely_compile(likely_ir ir)
 likely_function_n likely_compile_n(likely_ir ir)
 {
     return (new VTable(ir))->compileN();
+}
+
+void likely_write_bitcode(likely_ir ir, likely_type *types, likely_arity n, const char *file_name)
+{
+    FunctionBuilder(ir, vector<likely_type>(types, types+n), false).write(file_name);
 }
 
 void likely_stack_dump(lua_State *L, int levels)
