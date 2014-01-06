@@ -992,7 +992,8 @@ struct JITResources
     ExecutionEngine *executionEngine;
     TargetMachine *targetMachine;
 
-    JITResources(bool native)
+    JITResources(bool native, const string &symbol_name = string())
+        : name(symbol_name)
     {
         if (TheMatrixStruct == NULL) {
             assert(sizeof(likely_size) == sizeof(void*));
@@ -1056,8 +1057,8 @@ struct FunctionBuilder : private JITResources
     likely_type *type;
     void *f;
 
-    FunctionBuilder(likely_ir ir, const vector<likely_type> &types, bool native)
-        : JITResources(native)
+    FunctionBuilder(likely_ir ir, const vector<likely_type> &types, bool native, const string &name = string())
+        : JITResources(native, name)
     {
         type = new likely_type[types.size()];
         memcpy(type, types.data(), sizeof(likely_type) * types.size());
@@ -1625,9 +1626,9 @@ likely_function_n likely_compile_n(likely_ir ir)
     return (new VTable(ir))->compileN();
 }
 
-void likely_write_bitcode(likely_ir ir, likely_type *types, likely_arity n, const char *file_name)
+void likely_write_bitcode(likely_ir ir, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name)
 {
-    FunctionBuilder(ir, vector<likely_type>(types, types+n), false).write(file_name);
+    FunctionBuilder(ir, vector<likely_type>(types, types+n), false, symbol_name).write(file_name);
 }
 
 void likely_stack_dump(lua_State *L, int levels)
