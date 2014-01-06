@@ -27,7 +27,9 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Support/Debug.h>
 #include <llvm/Support/Host.h>
+#include <llvm/Support/FormattedStream.h>
 #include <llvm/Support/TargetSelect.h>
+#include <llvm/Support/ToolOutputFile.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetLibraryInfo.h>
 #include <llvm/Transforms/Scalar.h>
@@ -1228,18 +1230,22 @@ struct FunctionBuilder : private JITResources
     void write(const string &fileName) const
     {
         const string extension = fileName.substr(fileName.find_last_of(".") + 1);
-        if ((extension == "ll") || (extension == "bc")) {
-            string errorInfo;
-            raw_fd_ostream stream(fileName.c_str(), errorInfo);
-            if (extension == "ll") module->print(stream, NULL);
-            else                   WriteBitcodeToFile(module, stream);
-            likely_assert(errorInfo.empty(), "failed to write to: %s with error: %s", fileName.c_str(), errorInfo.c_str());
-        } else if ((extension == "s") || (extension == "o")) {
-            //    OwningPtr<tool_output_file> Out
-            //    (GetOutputStream(TheTarget->getName(), TheTriple.getOS(), argv[0]));
+
+        string errorInfo;
+        tool_output_file output(fileName.c_str(), errorInfo);
+        if (extension == "ll") {
+            module->print(output.os(), NULL);
+        } else if (extension == "bc") {
+            WriteBitcodeToFile(module, output.os());
         } else {
-            likely_assert(false, "unrecognized file extension: %s", extension.c_str());
+            PassManager pm;
+            formatted_raw_ostream fos(output.os());
+            targetMachine->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
+            pm.run(*module);
         }
+
+        likely_assert(errorInfo.empty(), "failed to write to: %s with error: %s", fileName.c_str(), errorInfo.c_str());
+        output.keep();
     }
 
     ~FunctionBuilder()
