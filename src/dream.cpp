@@ -756,14 +756,6 @@ private slots:
 
 int main(int argc, char *argv[])
 {
-    if ((argc > 1) && !strcmp("-compile", argv[1])) {
-        likely_ir ir = likely_ir_from_expression(argv[2]);
-        QVector<likely_type> types;
-        for (int i=3; i<argc-1; i++)
-            types.append(likely_type_from_string(argv[i]));
-        likely_compile_to_file(ir, qPrintable(QFileInfo(argv[argc-1]).baseName()), types.data(), types.size(), argv[argc-1], true);
-    }
-
     for (int i=1; i<argc; i++) {
         QString source;
         if (QFileInfo(argv[i]).exists()) {

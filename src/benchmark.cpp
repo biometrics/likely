@@ -390,7 +390,7 @@ class thresholdTest : public Test {
     vector<likely_type> types() const { vector<likely_type> types; types.push_back(likely_type_u8); types.push_back(likely_type_f32); return types; }
 };
 
-void help()
+static void help()
 {
     printf("Usage:\n"
            "  benchmark [arguments]\n"

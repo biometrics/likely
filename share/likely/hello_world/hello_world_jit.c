@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include <likely.h>
+#include <stdio.h>
 
 int main()
 {

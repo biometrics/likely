@@ -67,6 +67,12 @@ set_target_properties(likely_static PROPERTIES OUTPUT_NAME likely)
 target_link_libraries(likely_static ${LIKELY_LIBS})
 install(TARGETS likely_static ARCHIVE DESTINATION lib)
 
+# Build static compiler
+if(${LIKELY_SCRIPT})
+  add_executable(like like.c)
+  target_link_libraries(like likely)
+endif()
+
 if(${LIKELY_AUX} AND ${LIKELY_SCRIPT})
   # Benchmark
   add_executable(benchmark benchmark.cpp)
