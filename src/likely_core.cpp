@@ -37,6 +37,7 @@
 #include <condition_variable>
 #include <cstdarg>
 #include <cstdlib>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <mutex>
@@ -1224,12 +1225,21 @@ struct FunctionBuilder : private JITResources
         f = executionEngine->getPointerToFunction(function);
     }
 
-    void write(const char *fileName) const
+    void write(const string &fileName) const
     {
-        string errorInfo;
-        raw_fd_ostream stream(fileName, errorInfo);
-        WriteBitcodeToFile(module, stream);
-        likely_assert(errorInfo.empty(), "failed to write bitcode with error: %s", errorInfo.c_str());
+        const string extension = fileName.substr(fileName.find_last_of(".") + 1);
+        if ((extension == "ll") || (extension == "bc")) {
+            string errorInfo;
+            raw_fd_ostream stream(fileName.c_str(), errorInfo);
+            if (extension == "ll") module->print(stream, NULL);
+            else                   WriteBitcodeToFile(module, stream);
+            likely_assert(errorInfo.empty(), "failed to write to: %s with error: %s", fileName.c_str(), errorInfo.c_str());
+        } else if ((extension == "s") || (extension == "o")) {
+            //    OwningPtr<tool_output_file> Out
+            //    (GetOutputStream(TheTarget->getName(), TheTriple.getOS(), argv[0]));
+        } else {
+            likely_assert(false, "unrecognized file extension: %s", extension.c_str());
+        }
     }
 
     ~FunctionBuilder()
@@ -1628,7 +1638,7 @@ likely_function_n likely_compile_n(likely_ir ir)
     return (new VTable(ir))->compileN();
 }
 
-void likely_write_bitcode(likely_ir ir, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
+void likely_compile_to_file(likely_ir ir, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
 {
     FunctionBuilder(ir, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
 }
