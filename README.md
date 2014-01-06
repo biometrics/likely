@@ -19,4 +19,6 @@
 | Ubuntu 13.10 | GCC 4.8.1 |
 | Windows 7    | VS 2013   |
 
+##### [Hello World](share/likely/hello_world/README.md)
+
 [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/biometrics/likely/trend.png)](https://bitdeli.com/free "Bitdeli Badge")

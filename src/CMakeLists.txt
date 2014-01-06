@@ -68,10 +68,6 @@ target_link_libraries(likely_static ${LIKELY_LIBS})
 install(TARGETS likely_static ARCHIVE DESTINATION lib)
 
 if(${LIKELY_AUX} AND ${LIKELY_SCRIPT})
-  # Hello World
-  add_executable(hello_world hello_world.c)
-  target_link_libraries(hello_world likely)
-
   # Benchmark
   add_executable(benchmark benchmark.cpp)
   target_link_libraries(benchmark likely opencv_imgproc)

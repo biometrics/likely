@@ -78,6 +78,7 @@ endif()
 
 include_directories(include)
 add_subdirectory(src)
+add_subdirectory(share/likely/hello_world)
 
 if(UNIX)
   execute_process(COMMAND cmake -E create_symlink ${CMAKE_SOURCE_DIR}/data ${CMAKE_BINARY_DIR}/data)
