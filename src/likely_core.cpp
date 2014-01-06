@@ -1015,9 +1015,11 @@ struct JITResources
                                                  NULL);
         }
 
-        static int index = 0;
-        stringstream stream; stream << "likely_" << index++;
-        name = stream.str();
+        if (name.empty()) {
+            static int index = 0;
+            stringstream stream; stream << "likely_" << index++;
+            name = stream.str();
+        }
 
         module = new Module(name, getGlobalContext());
         likely_assert(module != NULL, "failed to create LLVM Module");
@@ -1057,8 +1059,8 @@ struct FunctionBuilder : private JITResources
     likely_type *type;
     void *f;
 
-    FunctionBuilder(likely_ir ir, const vector<likely_type> &types, bool native, const string &name = string())
-        : JITResources(native, name)
+    FunctionBuilder(likely_ir ir, const vector<likely_type> &types, bool native, const string &symbol_name = string())
+        : JITResources(native, symbol_name)
     {
         type = new likely_type[types.size()];
         memcpy(type, types.data(), sizeof(likely_type) * types.size());
