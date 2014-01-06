@@ -47,7 +47,7 @@
 #include <sstream>
 #include <thread>
 
-#include "likely/likely_core.h"
+#include "likely/likely_compiler.h"
 
 using namespace llvm;
 using namespace std;

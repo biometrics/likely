@@ -14,8 +14,8 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef LIKELY_AUX_H
-#define LIKELY_AUX_H
+#ifndef LIKELY_COMPILER_H
+#define LIKELY_COMPILER_H
 
 #include <likely/likely_runtime.h>
 
@@ -23,18 +23,22 @@
 extern "C" {
 #endif
 
-// Matrix I/O
-LIKELY_EXPORT likely_mat likely_read(const char *file_name);
-LIKELY_EXPORT void likely_write(likely_const_mat image, const char *file_name);
-LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
-LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
+struct lua_State;
+typedef struct lua_State* likely_ir;
+LIKELY_EXPORT likely_ir likely_ir_from_string(const char *str);
+LIKELY_EXPORT const char *likely_ir_to_string(likely_ir ir);
 
-// Matrix Visualization
-LIKELY_EXPORT likely_mat likely_render(likely_const_mat m, double *min, double *max); // Return a 888 matrix for visualization
-LIKELY_EXPORT const char *likely_print(likely_const_mat m); // Return value managed internally and guaranteed until the next call to this function
+typedef uint8_t likely_arity;
+typedef likely_mat (*likely_function)(likely_const_mat, ...);
+typedef likely_mat (*likely_function_n)(likely_const_mat*);
+LIKELY_EXPORT likely_function likely_compile(likely_ir ir); // Takes ownership of ir
+LIKELY_EXPORT likely_function_n likely_compile_n(likely_ir ir); // Takes ownership of ir
+LIKELY_EXPORT void likely_compile_to_file(likely_ir ir, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native); // Does _not_ take ownership of ir
+
+LIKELY_EXPORT void likely_stack_dump(struct lua_State *L, int levels);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // LIKELY_AUX_H
+#endif // LIKELY_COMPILER_H

@@ -17,7 +17,7 @@
 #ifndef LIKELY_SCRIPT_H
 #define LIKELY_SCRIPT_H
 
-#include <likely/likely_core.h>
+#include <likely/likely_compiler.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -48,7 +48,7 @@ Likely relies on the powerful and well established LLVM compiler infrastructure 
 The repeated execution of a function with the same matrix type means that branching to handle different data types is unnecessary, entire loops and code blocks can be eliminated, and many values that would be runtime parameters can instead become compile time constants. For these reasons, we expect Likely to be faster than equally-generic statically-compiled native code.
 
 ## C API
-C/C++ projects should **#include <likely.h>** and link against the **likely** library. **LikelyConfig.cmake** is provided in **share/likely/** as a convenience to CMake developers. Likely definitions are prefixed with **likely_** and use a **lowercase_underscore** naming convention. Consider taking a moment to skim the [header file](include/likely.h).
+C/C++ projects should **#include <likely.h>** and link against the **likely** library. **LikelyConfig.cmake** is provided in **share/likely/** as a convenience to CMake developers. Likely definitions are prefixed with **likely_** and use a **lowercase_underscore** naming convention. Consider taking a moment to skim the header files: [likely_runtime.h](include/likely/likely_runtime.h), [likely_compiler.h](include/likely/likely_compiler.h), [likely_script.h](include/likely/likely_script.h), [likely_aux.h](include/likely/likely_aux.h).
 
 ### The Matrix Struct
 The **likely_mat**, or _matrix_, is only struct in the API and serves as the input and output for all function invocations:
