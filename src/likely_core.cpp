@@ -1628,9 +1628,9 @@ likely_function_n likely_compile_n(likely_ir ir)
     return (new VTable(ir))->compileN();
 }
 
-void likely_write_bitcode(likely_ir ir, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name)
+void likely_write_bitcode(likely_ir ir, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
 {
-    FunctionBuilder(ir, vector<likely_type>(types, types+n), false, symbol_name).write(file_name);
+    FunctionBuilder(ir, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
 }
 
 void likely_stack_dump(lua_State *L, int levels)

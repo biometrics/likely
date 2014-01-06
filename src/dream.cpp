@@ -761,7 +761,7 @@ int main(int argc, char *argv[])
         QVector<likely_type> types;
         for (int i=3; i<argc-1; i++)
             types.append(likely_type_from_string(argv[i]));
-        likely_write_bitcode(ir, qPrintable(QFileInfo(argv[argc-1]).baseName()), types.data(), types.size(), argv[argc-1]);
+        likely_write_bitcode(ir, qPrintable(QFileInfo(argv[argc-1]).baseName()), types.data(), types.size(), argv[argc-1], true);
     }
 
     for (int i=1; i<argc; i++) {
