@@ -22,11 +22,12 @@ set(LIKELY_SRC likely_core.cpp)
 set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES} liblua)
 file(GLOB LIKELY_LIBRARY ${CMAKE_SOURCE_DIR}/library/*.like)
 set(LIKELY_MISC ${LIKELY_LIBRARY}
-                ${CMAKE_SOURCE_DIR}/include/likely.h
-                ${CMAKE_SOURCE_DIR}/include/likely/likely_core.h
                 ${CMAKE_SOURCE_DIR}/LICENSE.txt
                 ${CMAKE_SOURCE_DIR}/README.md
-                ${CMAKE_SOURCE_DIR}/index.html)
+                ${CMAKE_SOURCE_DIR}/include/likely.h
+                ${CMAKE_SOURCE_DIR}/include/likely/likely_core.h
+                ${CMAKE_SOURCE_DIR}/index.html
+                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/README.md)
 
 if(${LIKELY_AUX})
   add_definitions(-DLIKELY_AUX)
