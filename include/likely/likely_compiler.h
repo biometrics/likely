@@ -28,7 +28,6 @@ typedef struct lua_State* likely_ir;
 LIKELY_EXPORT likely_ir likely_ir_from_string(const char *str);
 LIKELY_EXPORT const char *likely_ir_to_string(likely_ir ir);
 
-typedef uint8_t likely_arity;
 typedef likely_mat (*likely_function)(likely_const_mat, ...);
 typedef likely_mat (*likely_function_n)(likely_const_mat*);
 LIKELY_EXPORT likely_function likely_compile(likely_ir ir); // Takes ownership of ir

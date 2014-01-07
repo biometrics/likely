@@ -18,7 +18,7 @@ if(APPLE)
   set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL "${CMAKE_EXE_LINKER_FLAGS_MINSIZEREL} -Wl,-dead_strip")
 endif()
 
-set(LIKELY_SRC likely_compiler.cpp likely_runtime.cpp)
+set(LIKELY_SRC likely_compiler.cpp)
 set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES} liblua)
 file(GLOB LIKELY_LIBRARY ${CMAKE_SOURCE_DIR}/library/*.like)
 set(LIKELY_MISC ${LIKELY_LIBRARY}
@@ -49,16 +49,20 @@ if(${LIKELY_SCRIPT})
   set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely/likely_script.h)
 endif()
 
+# Build runtime-only library
+add_definitions(-DLIKELY_LIBRARY)
+add_library(likely_runtime STATIC likely_runtime.cpp)
+
 # Build common object files
-add_definitions(-DLIKELY_LIBRARY -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
+add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
 add_library(likely_object OBJECT ${LIKELY_SRC})
-add_dependencies(likely_object ${LIKELY_LIBS} ${LIKELY_DEPENDS})
+add_dependencies(likely_object likely_runtime ${LIKELY_LIBS} ${LIKELY_DEPENDS})
 
 # Build shared library
 add_library(likely SHARED $<TARGET_OBJECTS:likely_object> ${LIKELY_MISC})
 set_target_properties(likely PROPERTIES VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
                                         SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR})
-target_link_libraries(likely ${LIKELY_LIBS})
+target_link_libraries(likely likely_runtime ${LIKELY_LIBS})
 install(TARGETS likely ARCHIVE DESTINATION lib
                        LIBRARY DESTINATION lib
                        RUNTIME DESTINATION bin)
@@ -66,7 +70,7 @@ install(TARGETS likely ARCHIVE DESTINATION lib
 # Build static library
 add_library(likely_static STATIC $<TARGET_OBJECTS:likely_object>)
 set_target_properties(likely_static PROPERTIES OUTPUT_NAME likely)
-target_link_libraries(likely_static ${LIKELY_LIBS})
+target_link_libraries(likely_static likely_runtime ${LIKELY_LIBS})
 install(TARGETS likely_static ARCHIVE DESTINATION lib)
 
 # Build static compiler

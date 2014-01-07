@@ -145,6 +145,8 @@ LIKELY_EXPORT likely_type likely_type_from_string(const char *str);
 LIKELY_EXPORT likely_type likely_type_from_value(double value);
 LIKELY_EXPORT likely_type likely_type_from_types(likely_type lhs, likely_type rhs);
 
+typedef uint8_t likely_arity;
+
 #ifdef __cplusplus
 }
 #endif
