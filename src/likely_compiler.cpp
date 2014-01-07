@@ -32,6 +32,7 @@
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Vectorize.h>
 #include <lua.hpp>
+#include <iostream>
 #include <sstream>
 
 #include "likely/likely_compiler.h"
@@ -713,6 +714,7 @@ struct JITResources
         engineBuilder.setOptLevel(CodeGenOpt::Aggressive);
         engineBuilder.setErrorStr(&error);
         engineBuilder.setUseMCJIT(true);
+        engineBuilder.setRelocationModel(Reloc::PIC_);
 
         executionEngine = engineBuilder.create();
         likely_assert(executionEngine != NULL, "failed to create LLVM ExecutionEngine with error: %s", error.c_str());
