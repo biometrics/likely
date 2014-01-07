@@ -30,11 +30,11 @@ set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/index.html
                 ${CMAKE_SOURCE_DIR}/share/likely/hello_world/README.md)
 
-if(${LIKELY_AUX})
-  add_definitions(-DLIKELY_AUX)
-  set(LIKELY_SRC ${LIKELY_SRC} likely_aux.cpp)
+if(${LIKELY_IO})
+  add_definitions(-DLIKELY_IO)
+  set(LIKELY_SRC ${LIKELY_SRC} likely_io.cpp)
   set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui)
-  set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely/likely_aux.h
+  set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely/likely_io.h
                                  opencv.shim)
 endif()
 
@@ -79,7 +79,7 @@ if(${LIKELY_SCRIPT})
   target_link_libraries(like likely)
 endif()
 
-if(${LIKELY_AUX} AND ${LIKELY_SCRIPT})
+if(${LIKELY_IO} AND ${LIKELY_SCRIPT})
   # Benchmark
   add_executable(benchmark benchmark.cpp)
   target_link_libraries(benchmark likely opencv_imgproc)

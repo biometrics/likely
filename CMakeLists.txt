@@ -9,7 +9,7 @@ set(CPACK_PACKAGE_VERSION_MAJOR 0)
 set(CPACK_PACKAGE_VERSION_MINOR 1)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-option(LIKELY_AUX "Build Likely with matrix I/O" ON)
+option(LIKELY_IO "Build Likely with matrix I/O" ON)
 option(LIKELY_SCRIPT "Build Likely with Lua frontend" ON)
 
 # Build configuration
@@ -61,7 +61,7 @@ llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES bitwriter mcjit native vecto
 add_subdirectory(lua EXCLUDE_FROM_ALL)
 include_directories(lua/src ${CMAKE_BINARY_DIR}/lua)
 
-if(${LIKELY_AUX})
+if(${LIKELY_IO})
   option(BUILD_WITH_STATIC_CRT "OpenCV static MSVC CRT" OFF)
   option(WITH_CUDA "OpenCV CUDA support" OFF)
   option(WITH_OPENEXR "OpenCV OpenEXR support" OFF)

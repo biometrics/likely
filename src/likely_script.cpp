@@ -26,8 +26,8 @@
 #include <vector>
 #include <lua.hpp>
 
-#ifdef LIKELY_AUX
-#include "likely/likely_aux.h"
+#ifdef LIKELY_IO
+#include "likely/likely_io.h"
 #endif
 
 #include "likely/likely_script.h"
@@ -246,7 +246,7 @@ static int lua_likely_read(lua_State *L)
 {
     const int args = lua_gettop(L);
     lua_likely_assert(L, args, "'read' expected 1 argument, got: %d", args);
-#ifdef LIKELY_AUX
+#ifdef LIKELY_IO
     likely_mat m = likely_read(lua_tostring(L, 1));
     if (m == NULL)
         luaL_error(L, "Likely 'read' failure.");
@@ -264,7 +264,7 @@ static int lua_likely_write(lua_State *L)
 {
     const int args = lua_gettop(L);
     lua_likely_assert(L, args, "'write' expected 2 arguments, got: %d", args);
-#ifdef LIKELY_AUX
+#ifdef LIKELY_IO
     likely_write(checkLuaMat(L), lua_tostring(L, 2));
 #else
     luaL_error(L, "Likely 'write' unsupported.");
@@ -276,7 +276,7 @@ static int lua_likely_decode(lua_State *L)
 {
     const int args = lua_gettop(L);
     lua_likely_assert(L, args, "'decode' expected 1 argument, got: %d", args);
-#ifdef LIKELY_AUX
+#ifdef LIKELY_IO
     likely_mat m = likely_decode(checkLuaMat(L));
     if (m == NULL)
         luaL_error(L, "Likely 'decode' failure.");
@@ -291,7 +291,7 @@ static int lua_likely_encode(lua_State *L)
 {
     const int args = lua_gettop(L);
     lua_likely_assert(L, args == 2, "'encode' expected 2 arguments, got: %d", args);
-#ifdef LIKELY_AUX
+#ifdef LIKELY_IO
     likely_mat m = likely_encode(checkLuaMat(L), lua_tostring(L, 2));
     if (m == NULL)
         luaL_error(L, "Likely 'encode' failure.");
@@ -305,7 +305,7 @@ static int lua_likely_encode(lua_State *L)
 static int lua_likely_render(lua_State *L)
 {
     lua_likely_assert(L, lua_gettop(L) == 1, "'render' expected 1 argument, got: %d", lua_gettop(L));
-#ifdef LIKELY_AUX
+#ifdef LIKELY_IO
     *newLuaMat(L) = likely_render(checkLuaMat(L), NULL, NULL);
 #else
     luaL_error(L, "likely 'render' unsupported.");

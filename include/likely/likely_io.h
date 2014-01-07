@@ -14,8 +14,8 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef LIKELY_AUX_H
-#define LIKELY_AUX_H
+#ifndef LIKELY_IO_H
+#define LIKELY_IO_H
 
 #include <likely/likely_runtime.h>
 
@@ -37,4 +37,4 @@ LIKELY_EXPORT const char *likely_print(likely_const_mat m); // Return value mana
 }
 #endif
 
-#endif // LIKELY_AUX_H
+#endif // LIKELY_IO_H
