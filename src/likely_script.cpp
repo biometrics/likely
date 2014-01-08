@@ -19,6 +19,7 @@
 #endif
 
 #include <assert.h>
+#include <algorithm>
 #include <cstring>
 #include <iostream>
 #include <map>
