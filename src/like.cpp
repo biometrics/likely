@@ -14,10 +14,10 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <likely.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 static void help()
 {

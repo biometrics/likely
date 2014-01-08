@@ -1,7 +1,16 @@
 // Based on http://stackoverflow.com/a/11814544/448695
 
+#ifdef _MSC_VER
+#  define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
+
+// Until Microsoft implements snprintf
+#if _MSC_VER
+#define snprintf _snprintf
+#endif
 
 FILE *open_or_exit(const char *fname, const char *mode)
 {

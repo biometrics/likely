@@ -378,7 +378,7 @@ class argOperation : public UnaryOperation
 {
     TypedValue callUnary(ExpressionBuilder &builder, const KernelInfo &info, const TypedValue &arg) const
     {
-        int index = LLVM_VALUE_TO_INT(arg.value);
+        int index = (int) LLVM_VALUE_TO_INT(arg.value);
         const TypedValue &matrix = info.srcs[index];
         Value *i;
         if ((matrix.type & likely_type_multi_dimension) == info.dims) {
@@ -1223,7 +1223,7 @@ static void toStream(lua_State *L, int index, stringstream &stream, int levels =
             while (lua_next(L, -2)) {
                 lua_pushvalue(L, -2);
                 int isnum;
-                int key = lua_tointegerx(L, -1, &isnum);
+                int key = (int) lua_tointegerx(L, -1, &isnum);
                 lua_pop(L, 1);
                 stringstream value;
                 toStream(L, -1, value, levels - 1);

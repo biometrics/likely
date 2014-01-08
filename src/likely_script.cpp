@@ -246,7 +246,7 @@ static int lua_likely__gc(lua_State *L)
 static int lua_likely_read(lua_State *L)
 {
     const int args = lua_gettop(L);
-    lua_likely_assert(L, args, "'read' expected 1 argument, got: %d", args);
+    lua_likely_assert(L, args == 1, "'read' expected 1 argument, got: %d", args);
 #ifdef LIKELY_IO
     likely_mat m = likely_read(lua_tostring(L, 1));
     if (m == NULL)
@@ -264,7 +264,7 @@ static int lua_likely_read(lua_State *L)
 static int lua_likely_write(lua_State *L)
 {
     const int args = lua_gettop(L);
-    lua_likely_assert(L, args, "'write' expected 2 arguments, got: %d", args);
+    lua_likely_assert(L, args == 2, "'write' expected 2 arguments, got: %d", args);
 #ifdef LIKELY_IO
     likely_write(checkLuaMat(L), lua_tostring(L, 2));
 #else
@@ -276,7 +276,7 @@ static int lua_likely_write(lua_State *L)
 static int lua_likely_decode(lua_State *L)
 {
     const int args = lua_gettop(L);
-    lua_likely_assert(L, args, "'decode' expected 1 argument, got: %d", args);
+    lua_likely_assert(L, args == 1, "'decode' expected 1 argument, got: %d", args);
 #ifdef LIKELY_IO
     likely_mat m = likely_decode(checkLuaMat(L));
     if (m == NULL)
@@ -551,7 +551,7 @@ static int lua_likely__call(lua_State *L)
         *newLuaMat(L) = reinterpret_cast<likely_function_n>(lua_touserdata(L, closureIndex+1))(mats.data());
     } else {
         // Regular
-        const bool core = lua_iscfunction(L, closureIndex+1);
+        const bool core = (lua_iscfunction(L, closureIndex+1) != 0);
         lua_call(L, parameters-1, 1);
         if (!core && lua_istable(L, -1)) {
             // Assume an expression was created
@@ -656,7 +656,7 @@ static int lua_likely_new_global(lua_State *L)
     bool expression = false;
     if (lua_istable(L, 3) && lua_getmetatable(L, 3)) {
         luaL_getmetatable(L, "likely_expression");
-        expression = lua_rawequal(L, -1, -2);
+        expression = (lua_rawequal(L, -1, -2) != 0);
         lua_pop(L, 2);
     }
 
@@ -683,7 +683,7 @@ static int lua_likely_new_global(lua_State *L)
             *newLuaMat(L) = mats[i];
             likely_retain(mats[i]);
         }
-        lua_call(L, mats.size(), 1);
+        lua_call(L, (int) mats.size(), 1);
     }
 
     // Assign it to the proxy table

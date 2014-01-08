@@ -38,7 +38,7 @@ if(NOT VS)
 endif()
 
 # Build in Debug mode by default
-if(CMAKE_BUILD_TYPE STREQUAL "")
+if("${CMAKE_BUILD_TYPE}" STREQUAL "")
   set(CMAKE_BUILD_TYPE Debug CACHE STRING "One of: Debug, Release, RelWithDebInfo, MinSizeRel" FORCE)
 endif()
 

@@ -55,7 +55,7 @@ install(TARGETS likely_static ARCHIVE DESTINATION lib)
 
 # Build static compiler
 if(${LIKELY_SCRIPT})
-  add_executable(like like.c)
+  add_executable(like like.cpp)
   target_link_libraries(like likely)
 endif()
 
