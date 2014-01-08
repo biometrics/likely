@@ -14,9 +14,9 @@ int main()
     printf("Input type: %s\n", likely_type_to_string(input->type));
 
     printf("Initializing input...\n");
-    srand(time(NULL));
+    srand((unsigned int) time(NULL));
     for (int i=0; i<elements; i++)
-        ((float*)input->data)[i] = rand();
+        ((float*)input->data)[i] = (float) rand();
 
     printf("Computing output...\n");
     likely_mat output = hello_world_div2(input);
