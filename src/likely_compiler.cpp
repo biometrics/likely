@@ -690,37 +690,44 @@ struct JITResources
                                                  NULL);
         }
 
-        if (name.empty()) {
+        const bool JIT = symbol_name.empty();
+
+        if (JIT) {
             static int index = 0;
             stringstream stream; stream << "likely_" << index++;
             name = stream.str();
         }
 
         module = new Module(name, getGlobalContext());
-        likely_assert(module != NULL, "failed to create LLVM Module");
+        likely_assert(module != NULL, "failed to create module");
 
         if (native) {
             string targetTriple = sys::getProcessTriple();
 #ifdef _WIN32
-            targetTriple = targetTriple + "-elf";
+            if (JIT)
+                targetTriple = targetTriple + "-elf";
 #endif
             module->setTargetTriple(targetTriple);
         }
 
         string error;
         EngineBuilder engineBuilder(module);
-        engineBuilder.setMCPU(sys::getHostCPUName());
-        engineBuilder.setEngineKind(EngineKind::JIT);
-        engineBuilder.setOptLevel(CodeGenOpt::Aggressive);
-        engineBuilder.setErrorStr(&error);
-        engineBuilder.setUseMCJIT(true);
-        engineBuilder.setRelocationModel(Reloc::PIC_);
+        engineBuilder.setMCPU(sys::getHostCPUName())
+                     .setEngineKind(EngineKind::JIT)
+                     .setOptLevel(CodeGenOpt::Aggressive)
+                     .setErrorStr(&error)
+                     .setUseMCJIT(true);
 
-        executionEngine = engineBuilder.create();
-        likely_assert(executionEngine != NULL, "failed to create LLVM ExecutionEngine with error: %s", error.c_str());
+        if (JIT) {
+            executionEngine = engineBuilder.create();
+            likely_assert(executionEngine != NULL, "failed to create execution engine with error: %s", error.c_str());
+        } else {
+            executionEngine = NULL;
+        }
 
+        engineBuilder.setCodeModel(CodeModel::Default);
         targetMachine = engineBuilder.selectTarget();
-        likely_assert(targetMachine != NULL, "failed to create LLVM TargetMachine with error: %s", error.c_str());
+        likely_assert(targetMachine != NULL, "failed to create target machine with error: %s", error.c_str());
     }
 
     ~JITResources()
@@ -892,8 +899,13 @@ struct FunctionBuilder : private JITResources
         functionPassManager.run(*function);
 
 //        module->dump();
-        executionEngine->finalizeObject();
-        f = executionEngine->getPointerToFunction(function);
+
+        if (executionEngine) {
+            executionEngine->finalizeObject();
+            f = executionEngine->getPointerToFunction(function);
+        } else {
+            f = NULL;
+        }
     }
 
     void write(const string &fileName) const
