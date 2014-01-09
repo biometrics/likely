@@ -613,6 +613,20 @@ class divideOperation : public ArithmeticOperation
 };
 LIKELY_REGISTER_OPERATION(divide, "/")
 
+#define LIKELY_REGISTER_LOGIC(OP, SYM)                                                                                          \
+class OP##Operation : public ArithmeticOperation                                                                                \
+{                                                                                                                               \
+    TypedValue callArithmetic(ExpressionBuilder &builder, const TypedValue &lhs, const TypedValue &rhs, likely_type type) const \
+    {                                                                                                                           \
+        return TypedValue(builder.Create##OP(lhs.value, rhs.value), type);                                                      \
+    }                                                                                                                           \
+};                                                                                                                              \
+LIKELY_REGISTER_OPERATION(OP, SYM)                                                                                              \
+
+LIKELY_REGISTER_LOGIC(And, "and")
+LIKELY_REGISTER_LOGIC(Or, "or")
+LIKELY_REGISTER_LOGIC(Xor, "xor")
+
 #define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                     \
 class OP##Operation : public ArithmeticOperation                                                                                \
 {                                                                                                                               \
