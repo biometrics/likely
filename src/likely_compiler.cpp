@@ -308,13 +308,18 @@ protected:
                 lua_pop(ir, 1);
             }
         } else {
+            map<string,TypedValue> variables;
             lua_pushnil(ir);
             while (lua_next(ir, -2)) {
                 lua_pushvalue(ir, -2);
                 lua_insert(ir, -2);
-                builder.addVariable(lua_tostring(ir, -2), expression(builder, info, ir));
+                variables.insert(pair<string, TypedValue>(lua_tostring(ir, -2), expression(builder, info, ir)));
                 lua_pop(ir, 2);
             }
+
+            // Compute all the expressions before updating the values so that reassignments appear atomic
+            for (map<string,TypedValue>::iterator it = variables.begin(); it != variables.end(); it++)
+                builder.addVariable(it->first, it->second);
         }
     }
 };
