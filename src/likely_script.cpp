@@ -633,7 +633,7 @@ static void findMats(lua_State *L, vector<likely_mat> &mats)
 static int lua_likely_global(lua_State *L)
 {
     const int args = lua_gettop(L);
-    lua_likely_assert(L, args == 2, "'global' expected three arguments, got: %d", args);
+    lua_likely_assert(L, args == 2, "'global' expected two arguments, got: %d", args);
 
     lua_getfield(L, 1, "_L");
     lua_pushvalue(L, 2);
@@ -643,6 +643,16 @@ static int lua_likely_global(lua_State *L)
         lua_getfield(L, 1, "_G");
         lua_pushvalue(L, 2);
         lua_gettable(L, -2);
+    }
+
+    if (lua_isnil(L, -1)) {
+        // Construct an expression
+        lua_newtable(L);
+        lua_pushinteger(L, 1);
+        lua_pushvalue(L, 2);
+        lua_settable(L, -3);
+        luaL_getmetatable(L, "likely_expression");
+        lua_setmetatable(L, -2);
     }
 
     return 1;

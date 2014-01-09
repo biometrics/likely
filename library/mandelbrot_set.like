@@ -21,8 +21,8 @@ Initialization
                      b = f32(y) / resolution - y_min,
                      j = 0 },
                    lt("j", 10),
-                   { j = add("j", 1),
-                     a = add("a", 1) },
-                   add("a", "b")
+                   { j = j + 1,
+                     a = a + 1 },
+                   a + b
                   ){ columns = cols, rows = rows }
     show(complex)
