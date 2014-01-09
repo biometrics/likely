@@ -70,7 +70,7 @@ if(${LIKELY_IO} AND ${LIKELY_SCRIPT})
                     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/data
                     COMMAND benchmark --test)
 
-  # Dream (likely)
+  # Dream
   find_package(Qt5Quick QUIET)
   find_package(Qt5Widgets QUIET)
   find_package(Qt5PrintSupport QUIET)

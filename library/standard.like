@@ -339,6 +339,9 @@ threshold = closure({ function(x, t) return select(gt(x, t), 1, 0) end, nil, nil
 
 ### Closures
 ```Lua
-let = closure({ function(d, e) return { "let", d, e } end, nil, nil },
-              { "Introduce variables", "definitions", "expression" })
+let = closure({ function(d, r) return { "let", d, r } end, nil, nil },
+              { "Introduce variables", "definitions", "result" })
+
+loop = closure({ function(d, c, i, r) return { "loop", d, c, i, r } end, nil, nil, nil, nil },
+               { "Loop over expression", "definitions", "condition", "iteration", "result" })
 ```

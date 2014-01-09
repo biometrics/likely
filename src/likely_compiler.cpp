@@ -255,7 +255,6 @@ protected:
         return type;
     }
 
-private:
     virtual TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir) const
     {
         vector<TypedValue> operands;
@@ -287,33 +286,18 @@ struct RegisterOperation
 #define LIKELY_REGISTER_OPERATION(OP, SYM) static struct RegisterOperation<OP##Operation> Register##OP##Operation(SYM);
 #define LIKELY_REGISTER(OP) LIKELY_REGISTER_OPERATION(OP, #OP)
 
-class letOperation : public Operation
+class GenericOperation : public Operation
 {
-    TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir) const
-    {
-        builder.closures.push_back(ExpressionBuilder::Closure());
-
-        lua_rawgeti(ir, -1, 2);
-        addToClosure(builder, info, ir);
-        lua_pop(ir, 1);
-
-        lua_rawgeti(ir, -1, 3);
-        TypedValue result = expression(builder, info, ir);
-        lua_pop(ir, 1);
-
-        builder.closures.pop_back();
-        return result;
-    }
-
     TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, const vector<TypedValue> &args) const
     {
         (void) builder;
         (void) info;
         (void) args;
-        likely_assert(false, "'let' logic error");
+        likely_assert(false, "generic operation logic error");
         return TypedValue();
     }
 
+protected:
     void addToClosure(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir) const
     {
         const int len = luaL_len(ir, -1);
@@ -334,7 +318,64 @@ class letOperation : public Operation
         }
     }
 };
+
+class letOperation : public GenericOperation
+{
+    using Operation::call;
+    TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir) const
+    {
+        builder.closures.push_back(ExpressionBuilder::Closure());
+
+        lua_rawgeti(ir, -1, 2);
+        addToClosure(builder, info, ir);
+        lua_pop(ir, 1);
+
+        lua_rawgeti(ir, -1, 3);
+        TypedValue result = expression(builder, info, ir);
+        lua_pop(ir, 1);
+
+        builder.closures.pop_back();
+        return result;
+    }
+};
 LIKELY_REGISTER(let)
+
+class loopOperation : public GenericOperation
+{
+    using Operation::call;
+    TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir) const
+    {
+        builder.closures.push_back(ExpressionBuilder::Closure());
+        lua_rawgeti(ir, -1, 2);
+        addToClosure(builder, info, ir);
+        lua_pop(ir, 1);
+
+        BasicBlock *loopCondition = BasicBlock::Create(getGlobalContext(), "loop_condition", builder.function);
+        BasicBlock *loopIteration = BasicBlock::Create(getGlobalContext(), "loop_iteration", builder.function);
+        BasicBlock *loopEnd = BasicBlock::Create(getGlobalContext(), "loop_end", builder.function);
+
+        builder.CreateBr(loopCondition);
+        builder.SetInsertPoint(loopCondition);
+        lua_rawgeti(ir, -1, 3);
+        builder.CreateCondBr(expression(builder, info, ir), loopIteration, loopEnd);
+        lua_pop(ir, 1);
+
+        builder.SetInsertPoint(loopIteration);
+        lua_rawgeti(ir, -1, 4);
+        addToClosure(builder, info, ir);
+        lua_pop(ir, 1);
+        builder.CreateBr(loopCondition);
+
+        builder.SetInsertPoint(loopEnd);
+        lua_rawgeti(ir, -1, 5);
+        TypedValue result = expression(builder, info, ir);
+        lua_pop(ir, 1);
+
+        builder.closures.pop_back();
+        return result;
+    }
+};
+LIKELY_REGISTER(loop)
 
 class NullaryOperation : public Operation
 {
