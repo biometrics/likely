@@ -31,7 +31,7 @@ The software engineering of a complex system is often facilitated by a _Domain S
 > A just-in-time compiled DSL for image recognition is essential to express algorithms that are currently too complex to implement in native languages and too inefficient to execute in scripting languages.
 
 ### Portability
-Likely is built on top of the _Low Level Virtual Machine_ (LLVM) compiler infrastructure using a portable subset of ISO C++11, which means it runs [everywhere](http://llvm.org/docs/GettingStarted.html#hardware) LLVM does. Algorithms execute natively on single CPU threads via the LLVM _Machine Code Just-In-Time_ (MCJIT) compiler, multi-core CPUs via a custom _OpenMP_-like backend, and GPUs and coprocessors via _CUDA_ or _OpenCL_.
+Likely is built on top of the _Low Level Virtual Machine_ (LLVM) compiler infrastructure using a portable subset of ISO C++11, which means it can **[run everywhere](http://llvm.org/docs/GettingStarted.html#hardware)** LLVM does. Algorithms execute natively on single CPU threads via the LLVM _Machine Code Just-In-Time_ (MCJIT) compiler, multi-core CPUs via a custom _OpenMP_-like backend, and GPUs and coprocessors via _CUDA_ or _OpenCL_.
 
 | Backend     | Status |
 |-------------|--------|
@@ -39,6 +39,17 @@ Likely is built on top of the _Low Level Virtual Machine_ (LLVM) compiler infras
 | Multi-core  | Done   |
 | CUDA        | [#24](https://github.com/biometrics/likely/issues/24) |
 | OpenCL      | [#25](https://github.com/biometrics/likely/issues/25) |
+
+Algorithms written in Likely should **deploy everywhere**, including minimalist native libraries, dynamic just-in-time applications, light-weight scripts, high-level language integration, web services, and pure JavaScript.
+
+| Frontend        | Status |
+|-----------------|--------|
+| Static compiler | Done   |
+| JIT compiler    | Done   |
+| Lua             | Done   |
+| SWIG            | [#46](https://github.com/biometrics/likely/issues/46) |
+| Web services    | [#44](https://github.com/biometrics/likely/issues/44) |
+| JavaScript      | [#45](https://github.com/biometrics/likely/issues/45) |
 
 ### Speed
 Likely relies on the powerful and well established LLVM compiler infrastructure to make function execution as fast as possible. Since compilation is held off until runtime, functions automatically leverage all instruction set extensions and co-processors available on the host. Delaying compilation until runtime also enables optimization opportunities that are impossible in conventional languages and libraries. In fact, the entire premise of Likely is hinged on the observation that for image processing applications
