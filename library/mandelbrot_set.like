@@ -9,7 +9,7 @@ Control parameters
     y_min = -1
     y_max = 1
     resolution = 128
-    iterations = 100
+    iterations = 3
 
 Derived values
 
@@ -18,13 +18,16 @@ Derived values
 
 Initialization
 
-    complex = loop({ a = f32(x) / resolution - x_min,
-                     b = f32(y) / resolution - y_min,
-                     j = 0 },
+    complex = loop({ dzr = f32(x) / resolution - x_min,
+                     dzi = f32(y) / resolution - y_min,
+                     zr = f32(0),
+                     zi = f32(0),
+                     j  = u32(0),
+                     it = u32(0) },
                    lt(j, iterations),
                    { j = j + 1,
-                     a = b + 1,
-                     b = a + 1 },
-                   a + b
+                     zr = zr*zr - zi*zi + dzr,
+                     zi = zr*zi*2 + dzi },
+                   zr + zi
                   ){ columns = cols, rows = rows }
     show(complex)

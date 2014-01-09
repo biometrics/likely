@@ -58,6 +58,14 @@ struct TypedValue
     operator Value*() const { return value; }
     operator likely_type() const { return type; }
     bool isNull() const { return value == NULL; }
+
+    void print(raw_ostream &o) const
+    {
+        value->print(o);
+        o << "; " << likely_type_to_string(type) << "\n";
+    }
+
+    void dump() const { print(dbgs()); }
 };
 
 struct ExpressionBuilder : public IRBuilder<>
