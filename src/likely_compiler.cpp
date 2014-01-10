@@ -428,6 +428,19 @@ class UnaryOperation : public Operation
     virtual TypedValue callUnary(ExpressionBuilder &builder, const KernelInfo &info, const TypedValue &arg) const = 0;
 };
 
+class notOperation : public UnaryOperation
+{
+    TypedValue callUnary(ExpressionBuilder &builder, const KernelInfo &info, const TypedValue &arg) const
+    {
+        (void) info;
+        likely_type type = arg.type;
+        likely_set_signed(&type, false);
+        likely_set_floating(&type, false);
+        return TypedValue(builder.CreateXor(builder.intMax(type), arg.value), type);
+    }
+};
+LIKELY_REGISTER_OPERATION(not, "~")
+
 class argOperation : public UnaryOperation
 {
     TypedValue callUnary(ExpressionBuilder &builder, const KernelInfo &info, const TypedValue &arg) const

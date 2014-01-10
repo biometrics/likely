@@ -339,12 +339,16 @@ OR = closure({ function(lhs, rhs) return { "or", lhs, rhs } end, nil, nil },
               { "Bitwise or", "lhs", "rhs" })
 XOR = closure({ function(lhs, rhs) return { "xor", lhs, rhs } end, nil, nil },
               { "Bitwise exclusive or", "lhs", "rhs" })
+NOT = closure({ function(x) return { "~", x } end, nil },
+              { "Bitwise not", "operand" })
 And = closure({ function(lhs, rhs) return ne(AND(lhs, rhs), 0) end, nil, nil },
               { "Logical and", "lhs", "rhs" })
 Or = closure({ function(lhs, rhs) return ne(OR(lhs, rhs), 0) end, nil, nil },
               { "Logical or", "lhs", "rhs" })
 Xor = closure({ function(lhs, rhs) return ne(XOR(lhs, rhs), 0) end, nil, nil },
               { "Logical exclusive or", "lhs", "rhs" })
+Not = closure({ function(x) return eq(x, 0) end, nil },
+              { "Logical not", "operand" })
 shl = closure({ function(lhs, rhs) return { "shl", lhs, rhs } end, nil, nil },
               { "Shift left", "lhs", "rhs" })
 lshr = closure({ function(lhs, rhs) return { "lshr", lhs, rhs } end, nil, nil },
