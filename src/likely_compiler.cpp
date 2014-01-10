@@ -613,6 +613,15 @@ class divideOperation : public ArithmeticOperation
 };
 LIKELY_REGISTER_OPERATION(divide, "/")
 
+class remOperation : public ArithmeticOperation
+{
+    TypedValue callArithmetic(ExpressionBuilder &builder, const TypedValue &lhs, const TypedValue &rhs, likely_type type) const
+    {
+        return TypedValue(likely_floating(type) ? builder.CreateFRem(lhs, rhs) : (likely_signed(type) ? builder.CreateSRem(lhs, rhs) : builder.CreateURem(lhs, rhs)), type);
+    }
+};
+LIKELY_REGISTER(rem)
+
 #define LIKELY_REGISTER_LOGIC(OP, SYM)                                                                                          \
 class OP##Operation : public ArithmeticOperation                                                                                \
 {                                                                                                                               \
@@ -626,6 +635,9 @@ LIKELY_REGISTER_OPERATION(OP, SYM)                                              
 LIKELY_REGISTER_LOGIC(And, "and")
 LIKELY_REGISTER_LOGIC(Or, "or")
 LIKELY_REGISTER_LOGIC(Xor, "xor")
+LIKELY_REGISTER_LOGIC(Shl, "shl")
+LIKELY_REGISTER_LOGIC(LShr, "lshr")
+LIKELY_REGISTER_LOGIC(AShr, "ashr")
 
 #define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                     \
 class OP##Operation : public ArithmeticOperation                                                                                \
