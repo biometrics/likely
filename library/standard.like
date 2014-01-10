@@ -232,7 +232,7 @@ copysign = closure({ function(magnitude, sign) return { "copysign", magnitude, s
 floor = closure({ function(x) return { "floor", x } end, nil },
                 { "Floating floor", "operand" })
 
-ceil = closure({ function(x) return { "ceil", x} end, nil },
+ceil = closure({ function(x) return { "ceil", x } end, nil },
                { "Floating ceil", "operand" })
 
 trunc = closure({ function(x) return { "trunc", x } end, nil },
@@ -246,6 +246,9 @@ nearbyint = closure({ function(x) return { "nearbyint", x } end, nil },
 
 round = closure({ function(x) return { "round", x } end, nil },
                 { "Floating round to nearest integer", "operand" })
+
+mod = closure({ function(lhs, rhs) return sub(lhs, mul(floor(lhs, rhs), rhs)) end, nil, nil },
+              { "Modulo: a % b == a - floor(a/b)*b", "lhs", "rhs" })
 ```
 
 ### Operators
@@ -256,6 +259,7 @@ for k, v in ipairs({ new(), arg(0) }) do
   mt.__sub = function(lhs, rhs) return sub(lhs, rhs) end
   mt.__mul = function(lhs, rhs) return mul(lhs, rhs) end
   mt.__div = function(lhs, rhs) return div(lhs, rhs) end
+  mt.__mod = function(lhs, rhs) return rem(lhs, rhs) end
   mt.__pow = function(lhs, rhs) return pow(lhs, rhs) end
 end
 ```
