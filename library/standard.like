@@ -261,19 +261,8 @@ for k, v in ipairs({ new(), arg(0) }) do
   mt.__div = function(lhs, rhs) return div(lhs, rhs) end
   mt.__mod = function(lhs, rhs) return rem(lhs, rhs) end
   mt.__pow = function(lhs, rhs) return pow(lhs, rhs) end
+  mt.__unm = function(x) return sub(0, x) end
 end
-```
-
-### Logic
-```
-xor = closure({ function(lhs, rhs) return { "xor", lhs, rhs } end, nil, nil },
-              { "Exclusive Or", "lhs", "rhs" })
-shl = closure({ function(lhs, rhs) return { "shl", lhs, rhs } end, nil, nil },
-              { "Shift left", "lhs", "rhs" })
-lshr = closure({ function(lhs, rhs) return { "lshr", lhs, rhs } end, nil, nil },
-              { "Logical shift right", "lhs", "rhs" })
-ashr = closure({ function(lhs, rhs) return { "ashr", lhs, rhs } end, nil, nil },
-              { "Arithmetic shift right", "lhs", "rhs" })
 ```
 
 ### Casting
@@ -340,6 +329,28 @@ eq = closure({ function(lhs, rhs) return { "==", lhs, rhs } end, nil, nil },
 
 ne = closure({ function(lhs, rhs) return { "!=", lhs, rhs } end, nil, nil },
              { "Not equal to", "lhs", "rhs" })
+```
+
+### Logic
+```
+AND = closure({ function(lhs, rhs) return { "and", lhs, rhs } end, nil, nil },
+              { "Bitwise and", "lhs", "rhs" })
+OR = closure({ function(lhs, rhs) return { "or", lhs, rhs } end, nil, nil },
+              { "Bitwise or", "lhs", "rhs" })
+XOR = closure({ function(lhs, rhs) return { "xor", lhs, rhs } end, nil, nil },
+              { "Bitwise exclusive or", "lhs", "rhs" })
+And = closure({ function(lhs, rhs) return ne(AND(lhs, rhs), 0) end, nil, nil },
+              { "Logical and", "lhs", "rhs" })
+Or = closure({ function(lhs, rhs) return ne(OR(lhs, rhs), 0) end, nil, nil },
+              { "Logical or", "lhs", "rhs" })
+Xor = closure({ function(lhs, rhs) return ne(XOR(lhs, rhs), 0) end, nil, nil },
+              { "Logical exclusive or", "lhs", "rhs" })
+shl = closure({ function(lhs, rhs) return { "shl", lhs, rhs } end, nil, nil },
+              { "Shift left", "lhs", "rhs" })
+lshr = closure({ function(lhs, rhs) return { "lshr", lhs, rhs } end, nil, nil },
+              { "Logical shift right", "lhs", "rhs" })
+ashr = closure({ function(lhs, rhs) return { "ashr", lhs, rhs } end, nil, nil },
+              { "Arithmetic shift right", "lhs", "rhs" })
 ```
 
 ### Conditionals
