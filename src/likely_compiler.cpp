@@ -620,7 +620,7 @@ class remOperation : public ArithmeticOperation
         return TypedValue(likely_floating(type) ? builder.CreateFRem(lhs, rhs) : (likely_signed(type) ? builder.CreateSRem(lhs, rhs) : builder.CreateURem(lhs, rhs)), type);
     }
 };
-LIKELY_REGISTER(rem)
+LIKELY_REGISTER_OPERATION(rem, "%")
 
 #define LIKELY_REGISTER_LOGIC(OP, SYM)                                                                                          \
 class OP##Operation : public ArithmeticOperation                                                                                \

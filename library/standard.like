@@ -182,7 +182,7 @@ rem = closure({ function(lhs, rhs)
                   if rhs == 0 then
                     error("Denominator is zero!")
                   else
-                    return { "rem", lhs, rhs }
+                    return { "%", lhs, rhs }
                   end
                 end, nil, nil },
               { "Arithmetic remainder", "lhs", "rhs" })
