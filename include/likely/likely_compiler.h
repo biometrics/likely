@@ -23,10 +23,30 @@
 extern "C" {
 #endif
 
+typedef struct likely_ast
+{
+    union {
+        struct {
+            struct likely_ast *atoms;
+            size_t num_atoms;
+        };
+        struct {
+            const char *atom;
+            size_t atom_len;
+        };
+    };
+    size_t start_pos, end_pos;
+    bool is_list;
+} likely_ast;
+
 struct lua_State;
 typedef struct lua_State* likely_ir;
 LIKELY_EXPORT likely_ir likely_ir_from_string(const char *str);
 LIKELY_EXPORT const char *likely_ir_to_string(likely_ir ir);
+
+LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str);
+LIKELY_EXPORT const char *likely_ast_to_string(const likely_ast ast); // Return value managed internally and guaranteed until the next call to this function
+LIKELY_EXPORT void likely_free_ast(likely_ast ast);
 
 typedef likely_mat (*likely_function)(likely_const_mat, ...);
 typedef likely_mat (*likely_function_n)(likely_const_mat*);

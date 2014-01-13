@@ -1296,6 +1296,91 @@ likely_ir likely_ir_from_string(const char *str)
     return L;
 }
 
+static inline bool isWhitespace(const char c) { return (c == ' ') || (c == '\t') || (c == '\n'); }
+
+static likely_ast likely_ast_from_string(const char *expression, size_t offset)
+{
+    likely_ast ast;
+    while (isWhitespace(expression[offset]))
+        offset++;
+
+    ast.start_pos = offset;
+    ast.is_list = (expression[offset] == '(');
+
+    if (ast.is_list) {
+        vector<likely_ast> atoms;
+        size_t i = ast.start_pos + 1;
+        while (true) {
+            while (isWhitespace(expression[i]))
+                i++;
+            if (expression[i] == ')')
+                break;
+            if (expression[i] == '\0')
+                likely_assert(false, "unexpected end of expression");
+            likely_ast atom = likely_ast_from_string(expression, i);
+            atoms.push_back(atom);
+            i = atom.end_pos;
+        }
+
+        ast.end_pos = i + 1;
+        ast.atoms = new likely_ast[atoms.size()];
+        ast.num_atoms = atoms.size();
+        memcpy(ast.atoms, atoms.data(), sizeof(likely_ast) * atoms.size());
+    } else {
+        size_t i = ast.start_pos + 1;
+        while (!isWhitespace(expression[i])) {
+            if (expression[i] == ')')
+                break;
+            if (expression[i] == '\0')
+                likely_assert(false, "unexpected end of expression");
+            i++;
+        }
+        ast.end_pos = i;
+        ast.atom = &expression[ast.start_pos];
+        ast.atom_len = ast.end_pos - ast.start_pos;
+    }
+
+    return ast;
+}
+
+likely_ast likely_ast_from_string(const char *expression)
+{
+    return likely_ast_from_string(expression, 0);
+}
+
+static void astToStream(const likely_ast ast, stringstream &stream)
+{
+    if (ast.is_list) {
+        stream << "(";
+        for (size_t i=0; i<ast.num_atoms; i++) {
+            astToStream(ast.atoms[i], stream);
+            if (i != ast.num_atoms - 1)
+                stream << " ";
+        }
+        stream << ")";
+    } else {
+        stream.write(ast.atom, ast.atom_len);
+    }
+}
+
+const char *likely_ast_to_string(const likely_ast ast)
+{
+    static string result;
+    stringstream stream;
+    astToStream(ast, stream);
+    result = stream.str();
+    return result.c_str();
+}
+
+void likely_free_ast(likely_ast ast)
+{
+    if (ast.is_list) {
+        for (size_t i=0; i<ast.num_atoms; i++)
+            likely_free_ast(ast.atoms[i]);
+        delete[] ast.atoms;
+    }
+}
+
 static void toStream(lua_State *L, int index, stringstream &stream, int levels = 1)
 {
     lua_pushvalue(L, index);
