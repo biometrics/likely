@@ -32,6 +32,7 @@
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Vectorize.h>
 #include <lua.hpp>
+#include <stack>
 #include <iostream>
 #include <sstream>
 
@@ -216,7 +217,7 @@ struct KernelInfo
 
 struct Operation
 {
-    static map<string, const Operation*> operations;
+    static map<string, stack<const Operation*>> operations; // stack allows shadowing
 
     static TypedValue expression(ExpressionBuilder &builder, const KernelInfo &info, likely_ast ast)
     {
@@ -228,9 +229,9 @@ struct Operation
             operator_ = string(ast.atom, ast.atom_len);
         }
 
-        map<string,const Operation*>::iterator it = operations.find(operator_);
+        map<string,stack<const Operation*>>::iterator it = operations.find(operator_);
         if (it != operations.end())
-            return it->second->call(builder, info, ast);
+            return it->second.top()->call(builder, info, ast);
 
         const TypedValue variable = builder.getVariable(operator_);
         if (!variable.isNull())
@@ -273,14 +274,14 @@ protected:
 
     virtual TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, const vector<TypedValue> &args) const = 0;
 };
-map<string, const Operation*> Operation::operations;
+map<string, stack<const Operation*>> Operation::operations;
 
 template <class T>
 struct RegisterOperation
 {
     RegisterOperation(const string &symbol)
     {
-        Operation::operations.insert(pair<string, const Operation*>(symbol, new T()));
+        Operation::operations[symbol].push(new T());
     }
 };
 #define LIKELY_REGISTER_OPERATION(OP, SYM) static struct RegisterOperation<OP##Operation> Register##OP##Operation(SYM);
@@ -406,9 +407,14 @@ LIKELY_REGISTER_OPERATION(not, "~")
 
 class argOperation : public UnaryOperation
 {
+    friend class lambdaArgOperation;
     TypedValue callUnary(ExpressionBuilder &builder, const KernelInfo &info, const TypedValue &arg) const
     {
-        int index = (int) LLVM_VALUE_TO_INT(arg.value);
+         return callArg(builder, info, (int) LLVM_VALUE_TO_INT(arg.value));
+    }
+
+    static TypedValue callArg(ExpressionBuilder &builder, const KernelInfo &info, int index)
+    {
         const TypedValue &matrix = info.srcs[index];
         Value *i;
         if ((matrix.type & likely_type_multi_dimension) == info.dims) {
@@ -430,6 +436,21 @@ class argOperation : public UnaryOperation
     }
 };
 LIKELY_REGISTER(arg)
+
+class lambdaArgOperation : public NullaryOperation
+{
+    int index;
+
+public:
+    lambdaArgOperation(int index = -1)
+        : index(index) {}
+
+private:
+    TypedValue callNullary(ExpressionBuilder &builder, const KernelInfo &info) const
+    {
+        return argOperation::callArg(builder, info, index);
+    }
+};
 
 class typeOperation : public UnaryOperation
 {
@@ -836,6 +857,13 @@ struct FunctionBuilder : private JITResources
             ExpressionBuilder builder(module, thunk);
             KernelInfo info(srcs);
 
+            const bool lambda = ast.is_list && (ast.num_atoms == 3) && (!strncmp(ast.atoms[0].atom, "lambda", 6));
+            if (lambda) {
+                const likely_ast &args = ast.atoms[1];
+                for (size_t i=0; i<args.num_atoms; i++)
+                    Operation::operations[string(args.atoms[i].atom, args.atoms[i].atom_len)].push(new lambdaArgOperation(i));
+            }
+
             // The kernel assumes there is at least one iteration
             BasicBlock *body = BasicBlock::Create(getGlobalContext(), "kernel_body", thunk);
             builder.CreateBr(body);
@@ -844,7 +872,7 @@ struct FunctionBuilder : private JITResources
             i->addIncoming(start, builder.entry);
 
             info.init(srcs, builder, dst, TypedValue(i, likely_type_native));
-            TypedValue result = Operation::expression(builder, info, ast);
+            TypedValue result = Operation::expression(builder, info, lambda ? ast.atoms[2] : ast);
             dstType = dst.type = result.type;
             StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(dst), i));
             builder.annotateParallel(store);
@@ -858,8 +886,13 @@ struct FunctionBuilder : private JITResources
             latch->setMetadata("llvm.loop", builder.node);
             i->addIncoming(increment, loopLatch);
             builder.SetInsertPoint(loopExit);
-
             builder.CreateRetVoid();
+
+            if (lambda) {
+                const likely_ast &args = ast.atoms[1];
+                for (size_t i=0; i<args.num_atoms; i++)
+                    Operation::operations[string(args.atoms[i].atom, args.atoms[i].atom_len)].pop();
+            }
 
             FunctionPassManager functionPassManager(module);
             functionPassManager.add(createVerifierPass(PrintMessageAction));
@@ -1068,7 +1101,12 @@ struct VTable : public JITResources
     VTable(likely_ast ast)
         : JITResources(true), ast(ast)
     {
-        n = computeArityRecursive(ast);
+        if (ast.is_list && (ast.num_atoms == 3) && (!strncmp(ast.atoms[0].atom, "lambda", 6))) {
+            likely_assert(ast.atoms[1].is_list, "ill-formed lambda expression");
+            n = (likely_arity) ast.atoms[1].num_atoms;
+        } else {
+            n = computeArityRecursive(ast);
+        }
 
         if (vtableType == NULL)
             vtableType = PointerType::getUnqual(StructType::create(getGlobalContext(), "VTable"));
