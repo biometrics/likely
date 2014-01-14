@@ -69,7 +69,7 @@ struct Test
         if (!BenchmarkFunction.empty() && string(function()).compare(0, BenchmarkFunction.size(), BenchmarkFunction))
             return;
 
-        likely_function f = likely_compile(likely_ir_from_expression(function()));
+        likely_function f = likely_compile(likely_ir_to_ast(likely_ir_from_expression(function())));
 
         for (likely_type type : types()) {
             if ((BenchmarkType != likely_type_null) && (BenchmarkType != type))

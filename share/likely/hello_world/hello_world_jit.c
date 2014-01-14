@@ -20,7 +20,7 @@ int main()
     }
 
     printf("Compiling source code...\n");
-    likely_function darken = likely_compile(ir);
+    likely_function darken = likely_compile(likely_ir_to_ast(ir));
     if (!darken) {
         printf("Failed to compile!\n");
         return -1;

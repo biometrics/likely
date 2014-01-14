@@ -114,7 +114,7 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
         }
     }
 
-    static likely_function_n normalize = likely_compile_n(likely_ir_from_string("{'cast', {'/', {'-',  {'arg', 0}, {'arg', 1}}, {'arg', 2}}, 'u8', channels=3}"));
+    static likely_function_n normalize = likely_compile_n(likely_ir_to_ast(likely_ir_from_string("{'cast', {'/', {'-',  {'arg', 0}, {'arg', 1}}, {'arg', 2}}, 'u8', channels=3}")));
     likely_mat min_val = likely_scalar(min);
     likely_mat range_val = likely_scalar(range);
     likely_const_mat args[] = { m, min_val, range_val };

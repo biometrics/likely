@@ -402,7 +402,7 @@ static int lua_likely_compile(lua_State *L)
     if (it == functions.end()) {
         likely_ir ir = luaL_newstate();
         copyRecursive(L, ir);
-        functions.insert(pair<string,likely_function_n>(source, likely_compile_n(ir)));
+        functions.insert(pair<string,likely_function_n>(source, likely_compile_n(likely_ir_to_ast(ir))));
         it = functions.find(source);
     }
 

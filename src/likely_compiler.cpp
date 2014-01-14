@@ -218,20 +218,19 @@ struct Operation
 {
     static map<string, const Operation*> operations;
 
-    static TypedValue expression(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir)
+    static TypedValue expression(ExpressionBuilder &builder, const KernelInfo &info, likely_ast ast)
     {
         string operator_;
-        if (lua_istable(ir, -1)) {
-            lua_rawgeti(ir, -1, 1);
-            operator_ = lua_tostring(ir, -1);
-            lua_pop(ir, 1);
+        if (ast.is_list) {
+            likely_assert((ast.num_atoms > 0) && !ast.atoms[0].is_list, "ill-formed abstract syntax tree");
+            operator_ = string(ast.atoms[0].atom, ast.atoms[0].atom_len);
         } else {
-            operator_ = lua_tostring(ir, -1);
+            operator_ = string(ast.atom, ast.atom_len);
         }
 
         map<string,const Operation*>::iterator it = operations.find(operator_);
         if (it != operations.end())
-            return it->second->call(builder, info, ir);
+            return it->second->call(builder, info, ast);
 
         const TypedValue variable = builder.getVariable(operator_);
         if (!variable.isNull())
@@ -263,19 +262,12 @@ protected:
         return type;
     }
 
-    virtual TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir) const
+    virtual TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ast ast) const
     {
         vector<TypedValue> operands;
-        if (lua_istable(ir, -1)) {
-            int index = 2;
-            bool done = false;
-            while (!done) {
-                lua_rawgeti(ir, -1, index++);
-                if (!lua_isnil(ir, -1)) operands.push_back(expression(builder, info, ir));
-                else                    done = true;
-                lua_pop(ir, 1);
-            }
-        }
+        if (ast.is_list)
+            for (size_t i=1; i<ast.num_atoms; i++)
+                operands.push_back(expression(builder, info, ast.atoms[i]));
         return call(builder, info, operands);
     }
 
@@ -306,28 +298,14 @@ class GenericOperation : public Operation
     }
 
 protected:
-    void addToClosure(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir) const
+    void addToClosure(ExpressionBuilder &builder, const KernelInfo &info, likely_ast ast) const
     {
-        const int len = luaL_len(ir, -1);
-        if (len > 0) {
-            for (int i=1; i<=len; i++) {
-                lua_rawgeti(ir, -1, i);
-                addToClosure(builder, info, ir);
-                lua_pop(ir, 1);
-            }
+        likely_assert(ast.is_list, "invalid closure");
+        if ((ast.num_atoms == 2) && !ast.atoms[0].is_list) {
+            builder.addVariable(string(ast.atoms[0].atom, ast.atoms[0].atom_len), expression(builder, info, ast.atoms[1]));
         } else {
-            map<string,TypedValue> variables;
-            lua_pushnil(ir);
-            while (lua_next(ir, -2)) {
-                lua_pushvalue(ir, -2);
-                lua_insert(ir, -2);
-                variables.insert(pair<string, TypedValue>(lua_tostring(ir, -2), expression(builder, info, ir)));
-                lua_pop(ir, 2);
-            }
-
-            // Compute all the expressions before updating the values so that reassignments appear atomic
-            for (map<string,TypedValue>::iterator it = variables.begin(); it != variables.end(); it++)
-                builder.addVariable(it->first, it->second);
+            for (size_t i=0; i<ast.num_atoms; i++)
+                addToClosure(builder, info, ast.atoms[i]);
         }
     }
 };
@@ -335,18 +313,11 @@ protected:
 class letOperation : public GenericOperation
 {
     using Operation::call;
-    TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir) const
+    TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ast ast) const
     {
         builder.closures.push_back(ExpressionBuilder::Closure());
-
-        lua_rawgeti(ir, -1, 2);
-        addToClosure(builder, info, ir);
-        lua_pop(ir, 1);
-
-        lua_rawgeti(ir, -1, 3);
-        TypedValue result = expression(builder, info, ir);
-        lua_pop(ir, 1);
-
+        addToClosure(builder, info, ast.atoms[1]);
+        TypedValue result = expression(builder, info, ast.atoms[2]);
         builder.closures.pop_back();
         return result;
     }
@@ -356,12 +327,10 @@ LIKELY_REGISTER(let)
 class loopOperation : public GenericOperation
 {
     using Operation::call;
-    TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir) const
+    TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ast ast) const
     {
         builder.closures.push_back(ExpressionBuilder::Closure());
-        lua_rawgeti(ir, -1, 2);
-        addToClosure(builder, info, ir);
-        lua_pop(ir, 1);
+        addToClosure(builder, info, ast.atoms[1]);
 
         BasicBlock *loopCondition = BasicBlock::Create(getGlobalContext(), "loop_condition", builder.function);
         BasicBlock *loopIteration = BasicBlock::Create(getGlobalContext(), "loop_iteration", builder.function);
@@ -369,20 +338,14 @@ class loopOperation : public GenericOperation
 
         builder.CreateBr(loopCondition);
         builder.SetInsertPoint(loopCondition);
-        lua_rawgeti(ir, -1, 3);
-        builder.CreateCondBr(expression(builder, info, ir), loopIteration, loopEnd);
-        lua_pop(ir, 1);
+        builder.CreateCondBr(expression(builder, info, ast.atoms[2]), loopIteration, loopEnd);
 
         builder.SetInsertPoint(loopIteration);
-        lua_rawgeti(ir, -1, 4);
-        addToClosure(builder, info, ir);
-        lua_pop(ir, 1);
+        addToClosure(builder, info, ast.atoms[3]);
         builder.CreateBr(loopCondition);
 
         builder.SetInsertPoint(loopEnd);
-        lua_rawgeti(ir, -1, 5);
-        TypedValue result = expression(builder, info, ir);
-        lua_pop(ir, 1);
+        TypedValue result = expression(builder, info, ast.atoms[4]);
 
         builder.closures.pop_back();
         return result;
@@ -835,7 +798,7 @@ struct FunctionBuilder : private JITResources
     likely_type *type;
     void *f;
 
-    FunctionBuilder(likely_ir ir, const vector<likely_type> &types, bool native, const string &symbol_name = string())
+    FunctionBuilder(likely_ast ast, const vector<likely_type> &types, bool native, const string &symbol_name = string())
         : JITResources(native, symbol_name)
     {
         type = new likely_type[types.size()];
@@ -846,10 +809,10 @@ struct FunctionBuilder : private JITResources
         ExpressionBuilder builder(module, function);
         KernelInfo info(srcs);
 
-        TypedValue dstChannels = getDimensions(builder, info, ir, "channels", srcs.size() > 0 ? srcs[0] : TypedValue());
-        TypedValue dstColumns  = getDimensions(builder, info, ir, "columns" , srcs.size() > 0 ? srcs[0] : TypedValue());
-        TypedValue dstRows     = getDimensions(builder, info, ir, "rows"    , srcs.size() > 0 ? srcs[0] : TypedValue());
-        TypedValue dstFrames   = getDimensions(builder, info, ir, "frames"  , srcs.size() > 0 ? srcs[0] : TypedValue());
+        TypedValue dstChannels = getDimensions(builder, info, ast, "channels", srcs.size() > 0 ? srcs[0] : TypedValue());
+        TypedValue dstColumns  = getDimensions(builder, info, ast, "columns" , srcs.size() > 0 ? srcs[0] : TypedValue());
+        TypedValue dstRows     = getDimensions(builder, info, ast, "rows"    , srcs.size() > 0 ? srcs[0] : TypedValue());
+        TypedValue dstFrames   = getDimensions(builder, info, ast, "frames"  , srcs.size() > 0 ? srcs[0] : TypedValue());
 
         Function *thunk;
         likely_type dstType;
@@ -881,7 +844,7 @@ struct FunctionBuilder : private JITResources
             i->addIncoming(start, builder.entry);
 
             info.init(srcs, builder, dst, TypedValue(i, likely_type_native));
-            TypedValue result = Operation::expression(builder, info, ir);
+            TypedValue result = Operation::expression(builder, info, ast);
             dstType = dst.type = result.type;
             StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(dst), i));
             builder.annotateParallel(store);
@@ -1067,11 +1030,10 @@ private:
         return result;
     }
 
-    static TypedValue getDimensions(ExpressionBuilder &builder, const KernelInfo &info, likely_ir ir, const char *axis, const TypedValue &arg0)
+    static TypedValue getDimensions(ExpressionBuilder &builder, const KernelInfo &info, likely_ast ast, const char *axis, const TypedValue &arg0)
     {
-        lua_getfield(ir, -1, axis);
         Value *result;
-        if (lua_isnil(ir, -1)) {
+        if (true /* TODO: Fix me */) {
             if (arg0.isNull()) {
                 result = ExpressionBuilder::constant(1);
             } else {
@@ -1081,7 +1043,7 @@ private:
                 else                                result = builder.frames  (arg0);
             }
         } else {
-            result = builder.cast(Operation::expression(builder, info, ir), likely_type_native);
+            result = builder.cast(Operation::expression(builder, info, ast), likely_type_native);
         }
 
         likely_type type = likely_type_native;
@@ -1091,7 +1053,6 @@ private:
         else if (!strcmp(axis, "rows"))     likely_set_multi_row    (&type, isMulti);
         else                                likely_set_multi_frame  (&type, isMulti);
 
-        lua_pop(ir, 1);
         return TypedValue(result, type);
     }
 };
@@ -1099,15 +1060,15 @@ private:
 struct VTable : public JITResources
 {
     static PointerType *vtableType;
-    likely_ir ir;
+    likely_ast ast;
     likely_arity n;
     vector<FunctionBuilder*> functions;
     Function *likelyDispatch;
 
-    VTable(likely_ir ir_)
-        : JITResources(true), ir(ir_)
+    VTable(likely_ast ast)
+        : JITResources(true), ast(ast)
     {
-        n = computeArityRecursive(ir);
+        n = computeArityRecursive(ast);
 
         if (vtableType == NULL)
             vtableType = PointerType::getUnqual(StructType::create(getGlobalContext(), "VTable"));
@@ -1131,7 +1092,7 @@ struct VTable : public JITResources
 
     ~VTable()
     {
-        lua_close(ir);
+        likely_free_ast(ast);
         for (FunctionBuilder *function : functions)
             delete function;
     }
@@ -1186,30 +1147,20 @@ struct VTable : public JITResources
     }
 
 private:
-    static likely_arity computeArityRecursive(lua_State *L)
+    static likely_arity computeArityRecursive(likely_ast ast)
     {
-        if (!lua_istable(L, -1))
+        if (!ast.is_list)
             return 0;
 
-        lua_rawgeti(L, -1, 1);
-        if (lua_isstring(L, -1) && !strcmp(lua_tostring(L, -1), "arg")) {
-            lua_pushinteger(L, 2);
-            lua_gettable(L, -3);
-            likely_arity n = (likely_arity) lua_tointeger(L, -1) + 1;
-            lua_pop(L, 2);
-            return n;
-        } else {
-            lua_pop(L, 1);
-        }
+        if ((ast.num_atoms == 2) &&
+            !ast.atoms[0].is_list &&
+            !ast.atoms[1].is_list &&
+            !strncmp(ast.atoms[0].atom, "arg", 3))
+        return likely_arity(atoi(ast.atoms[1].atom) + 1);
 
         likely_arity n = 0;
-        const int len = luaL_len(L, -1);
-        for (int i=1; i<=len; i++) {
-            lua_pushinteger(L, i);
-            lua_gettable(L, -2);
-            n = max(n, computeArityRecursive(L));
-            lua_pop(L, 1);
-        }
+        for (size_t i=0; i<ast.num_atoms; i++)
+            n = max(n, computeArityRecursive(ast.atoms[i]));
         return n;
     }
 
@@ -1260,7 +1211,7 @@ extern "C" LIKELY_EXPORT likely_mat likely_dispatch(struct VTable *vtable, likel
         vector<likely_type> types;
         for (int i=0; i<vtable->n; i++)
             types.push_back(m[i]->type);
-        FunctionBuilder *functionBuilder = new FunctionBuilder(vtable->ir, types, true);
+        FunctionBuilder *functionBuilder = new FunctionBuilder(vtable->ast, types, true);
         vtable->functions.push_back(functionBuilder);
         function = vtable->functions.back()->f;
 
@@ -1470,19 +1421,19 @@ likely_ast likely_ir_to_ast(likely_ir ir)
     return ast;
 }
 
-likely_function likely_compile(likely_ir ir)
+likely_function likely_compile(likely_ast ast)
 {
-    return (new VTable(ir))->compile();
+    return (new VTable(ast))->compile();
 }
 
-likely_function_n likely_compile_n(likely_ir ir)
+likely_function_n likely_compile_n(likely_ast ast)
 {
-    return (new VTable(ir))->compileN();
+    return (new VTable(ast))->compileN();
 }
 
-void likely_compile_to_file(likely_ir ir, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
+void likely_compile_to_file(likely_ast ast, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
 {
-    FunctionBuilder(ir, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
+    FunctionBuilder(ast, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
 }
 
 void likely_stack_dump(lua_State *L, int levels)

@@ -51,9 +51,9 @@ LIKELY_EXPORT void likely_free_ast(likely_ast ast);
 
 typedef likely_mat (*likely_function)(likely_const_mat, ...);
 typedef likely_mat (*likely_function_n)(likely_const_mat*);
-LIKELY_EXPORT likely_function likely_compile(likely_ir ir); // Takes ownership of ir
-LIKELY_EXPORT likely_function_n likely_compile_n(likely_ir ir); // Takes ownership of ir
-LIKELY_EXPORT void likely_compile_to_file(likely_ir ir, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native); // Does _not_ take ownership of ir
+LIKELY_EXPORT likely_function likely_compile(likely_ast ast); // Takes ownership of ast
+LIKELY_EXPORT likely_function_n likely_compile_n(likely_ast ast); // Takes ownership of ast
+LIKELY_EXPORT void likely_compile_to_file(likely_ast ast, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native); // Does _not_ take ownership of ast
 
 LIKELY_EXPORT void likely_stack_dump(struct lua_State *L, int levels);
 
