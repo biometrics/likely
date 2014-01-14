@@ -43,6 +43,7 @@ struct lua_State;
 typedef struct lua_State* likely_ir;
 LIKELY_EXPORT likely_ir likely_ir_from_string(const char *str);
 LIKELY_EXPORT const char *likely_ir_to_string(likely_ir ir);
+LIKELY_EXPORT likely_ast likely_ir_to_ast(likely_ir ir);
 
 LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str);
 LIKELY_EXPORT const char *likely_ast_to_string(const likely_ast ast); // Return value managed internally and guaranteed until the next call to this function

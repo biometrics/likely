@@ -1450,6 +1450,26 @@ const char *likely_ir_to_string(likely_ir ir)
     return result.c_str();
 }
 
+likely_ast likely_ir_to_ast(likely_ir ir)
+{
+    likely_ast ast;
+    ast.start_pos = ast.end_pos = 0;
+    ast.is_list = lua_istable(ir, -1);
+    if (ast.is_list) {
+        ast.num_atoms = luaL_len(ir, -1);
+        ast.atoms = new likely_ast[ast.num_atoms];
+        for (size_t i=0; i<ast.num_atoms; i++) {
+            lua_rawgeti(ir, -1, i+1);
+            ast.atoms[i] = likely_ir_to_ast(ir);
+            lua_pop(ir, 1);
+        }
+    } else {
+        ast.atom = strdup(lua_tostring(ir, -1)); // Temporary memory leak while we refactor
+        ast.atom_len = strlen(ast.atom);
+    }
+    return ast;
+}
+
 likely_function likely_compile(likely_ir ir)
 {
     return (new VTable(ir))->compile();
