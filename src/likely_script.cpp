@@ -50,7 +50,9 @@ static void toStream(lua_State *L, int index, stringstream &stream, int levels =
 {
     lua_pushvalue(L, index);
     const int type = lua_type(L, -1);
-    if (type == LUA_TBOOLEAN) {
+    if (type == LUA_TNIL) {
+        stream << "nil";
+    } else if (type == LUA_TBOOLEAN) {
         stream << (lua_toboolean(L, -1) ? "true" : "false");
     } else if (type == LUA_TNUMBER) {
         stream << lua_tonumber(L, -1);
@@ -66,15 +68,16 @@ static void toStream(lua_State *L, int index, stringstream &stream, int levels =
             while (lua_next(L, -2)) {
                 lua_pushvalue(L, -2);
                 int isnum;
-                int key = (int) lua_tointegerx(L, -1, &isnum);
+                const int intKey = (int) lua_tointegerx(L, -1, &isnum);
+                const string stringKey = lua_tostring(L, -1);
                 lua_pop(L, 1);
                 stringstream value;
-                toStream(L, -1, value, levels - 1);
+                toStream(L, -1, value, stringKey.compare(0, 2, "__") ? levels - 1 : 0);
                 if (isnum) {
-                    integers.insert(pair<int,string>(key, value.str()));
+                    integers.insert(pair<int,string>(intKey, value.str()));
                 } else {
                     lua_pushvalue(L, -2);
-                    strings.insert(pair<string,string>(lua_tostring(L, -1), value.str()));
+                    strings.insert(pair<string,string>(stringKey, value.str()));
                     lua_pop(L, 1);
                 }
                 lua_pop(L, 1);
@@ -157,7 +160,7 @@ likely_ast likely_lua_to_ast(struct lua_State *L)
             atom.num_atoms = 2;
             atom.atoms = new likely_ast[2];
             setAtom(atom.atoms[0], lua_tostring(L, -2));
-            setAtom(atom.atoms[1], lua_tostring(L, -1));
+            atom.atoms[1] = likely_lua_to_ast(L);
             atoms.push_back(atom);
 
             lua_pop(L, 1);
@@ -468,12 +471,28 @@ static int lua_likely_show(lua_State *L)
     return 0;
 }
 
+static int lua_likely_ast(lua_State *L)
+{
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, args == 1, "'ast' expected 1 argument, got: %d", args);
+    lua_pushstring(L, likely_ast_to_string(likely_lua_to_ast(L)));
+    return 1;
+}
+
 static int lua_likely_expression(lua_State *L)
 {
     const int args = lua_gettop(L);
-    lua_likely_assert(L, args == 1, "'expression' expected one argument, got: %d", args);
+    lua_likely_assert(L, args == 1, "'expression' expected 1 argument, got: %d", args);
     lua_newtable(L);
     lua_setmetatable(L, -2);
+    return 1;
+}
+
+static int lua_likely_expression_mt(lua_State *L)
+{
+    const int args = lua_gettop(L);
+    lua_likely_assert(L, args == 0, "'expression_mt' expected 0 arguments, got: %d", args);
+    luaL_getmetatable(L, "likely_expression");
     return 1;
 }
 
@@ -838,7 +857,9 @@ int luaopen_likely(lua_State *L)
         {"read", lua_likely_read},
         {"closure", lua_likely_closure},
         {"compile", lua_likely_compile},
+        {"ast", lua_likely_ast},
         {"expression", lua_likely_expression},
+        {"expression_mt", lua_likely_expression_mt},
         {"replace", lua_likely_replace},
         {"show", lua_likely_show},
         {NULL, NULL}

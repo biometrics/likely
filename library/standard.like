@@ -130,6 +130,7 @@ reserved = likely.reserved
 
 ### Core functions
 ```Lua
+ast     = likely.ast
 closure = likely.closure
 compile = likely.compile
 expression = likely.expression
@@ -247,15 +248,14 @@ mod = closure({ function(lhs, rhs) return sub(lhs, mul(floor(lhs, rhs), rhs)) en
 
 ### Operators
 ```Lua
-for k, v in ipairs({ new(), c }) do
-  local mt = getmetatable(v)
-  mt.__add = function(lhs, rhs) return add(lhs, rhs) end
-  mt.__sub = function(lhs, rhs) return sub(lhs, rhs) end
-  mt.__mul = function(lhs, rhs) return mul(lhs, rhs) end
-  mt.__div = function(lhs, rhs) return div(lhs, rhs) end
-  mt.__mod = function(lhs, rhs) return rem(lhs, rhs) end
-  mt.__pow = function(lhs, rhs) return pow(lhs, rhs) end
-  mt.__unm = function(x) return sub(0, x) end
+for k, v in ipairs({ getmetatable(new()), likely.expression_mt() }) do
+  v.__add = function(lhs, rhs) return add(lhs, rhs) end
+  v.__sub = function(lhs, rhs) return sub(lhs, rhs) end
+  v.__mul = function(lhs, rhs) return mul(lhs, rhs) end
+  v.__div = function(lhs, rhs) return div(lhs, rhs) end
+  v.__mod = function(lhs, rhs) return rem(lhs, rhs) end
+  v.__pow = function(lhs, rhs) return pow(lhs, rhs) end
+  v.__unm = function(x) return sub(0, x) end
 end
 ```
 
