@@ -31,7 +31,6 @@
 #include <llvm/Target/TargetLibraryInfo.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Vectorize.h>
-#include <lua.hpp>
 #include <stack>
 #include <iostream>
 #include <sstream>
@@ -1275,16 +1274,6 @@ extern "C" LIKELY_EXPORT likely_mat likely_dispatch(struct VTable *vtable, likel
     return dst;
 }
 
-likely_ir likely_ir_from_string(const char *str)
-{
-    likely_ir L = luaL_newstate();
-    luaL_dostring(L, (string("return ") + str).c_str());
-    const int args = lua_gettop(L);
-    likely_assert(args == 1, "'likely_ir_from_string' expected one result, got: %d", args);
-    likely_assert(lua_istable(L, 1), "'likely_ir_from_string' expected a table result");
-    return L;
-}
-
 static inline bool isWhitespace(const char c) { return (c == ' ') || (c == '\t') || (c == '\n'); }
 
 static likely_ast likely_ast_from_string(const char *expression, size_t offset)
@@ -1370,95 +1359,6 @@ void likely_free_ast(likely_ast ast)
     }
 }
 
-static void toStream(lua_State *L, int index, stringstream &stream, int levels = 1)
-{
-    lua_pushvalue(L, index);
-    const int type = lua_type(L, -1);
-    if (type == LUA_TBOOLEAN) {
-        stream << (lua_toboolean(L, -1) ? "true" : "false");
-    } else if (type == LUA_TNUMBER) {
-        stream << lua_tonumber(L, -1);
-    } else if (type == LUA_TSTRING) {
-        stream << "\"" << lua_tostring(L, -1) << "\"";
-    } else if (type == LUA_TTABLE) {
-        if (levels == 0) {
-            stream << "table";
-        } else {
-            map<int,string> integers;
-            map<string,string> strings;
-            lua_pushnil(L);
-            while (lua_next(L, -2)) {
-                lua_pushvalue(L, -2);
-                int isnum;
-                int key = (int) lua_tointegerx(L, -1, &isnum);
-                lua_pop(L, 1);
-                stringstream value;
-                toStream(L, -1, value, levels - 1);
-                if (isnum) {
-                    integers.insert(pair<int,string>(key, value.str()));
-                } else {
-                    lua_pushvalue(L, -2);
-                    strings.insert(pair<string,string>(lua_tostring(L, -1), value.str()));
-                    lua_pop(L, 1);
-                }
-                lua_pop(L, 1);
-            }
-
-            stream << "{";
-            int expectedIndex = 1;
-            for (map<int,string>::iterator iter = integers.begin(); iter != integers.end(); iter++) {
-                if (iter != integers.begin())
-                    stream << ", ";
-                if (iter->first == expectedIndex) {
-                    stream << iter->second;
-                    expectedIndex++;
-                } else {
-                    stream << iter->first << "=" << iter->second;
-                }
-            }
-
-            for (map<string,string>::iterator iter = strings.begin(); iter != strings.end(); iter++) {
-                if (iter != strings.begin() || !integers.empty())
-                    stream << ", ";
-                stream << iter->first << "=" << iter->second;
-            }
-            stream << "}";
-        }
-    } else {
-        stream << lua_typename(L, type);
-    }
-    lua_pop(L, 1);
-}
-
-const char *likely_ir_to_string(likely_ir ir)
-{
-    static string result;
-    stringstream stream;
-    toStream(ir, -1, stream, std::numeric_limits<int>::max());
-    result = stream.str();
-    return result.c_str();
-}
-
-likely_ast likely_ir_to_ast(likely_ir ir)
-{
-    likely_ast ast;
-    ast.start_pos = ast.end_pos = 0;
-    ast.is_list = lua_istable(ir, -1);
-    if (ast.is_list) {
-        ast.num_atoms = luaL_len(ir, -1);
-        ast.atoms = new likely_ast[ast.num_atoms];
-        for (size_t i=0; i<ast.num_atoms; i++) {
-            lua_rawgeti(ir, -1, i+1);
-            ast.atoms[i] = likely_ir_to_ast(ir);
-            lua_pop(ir, 1);
-        }
-    } else {
-        ast.atom = strdup(lua_tostring(ir, -1)); // Temporary memory leak while we refactor
-        ast.atom_len = strlen(ast.atom);
-    }
-    return ast;
-}
-
 likely_function likely_compile(likely_ast ast)
 {
     return (new VTable(ast))->compile();
@@ -1472,20 +1372,4 @@ likely_function_n likely_compile_n(likely_ast ast)
 void likely_compile_to_file(likely_ast ast, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
 {
     FunctionBuilder(ast, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
-}
-
-void likely_stack_dump(lua_State *L, int levels)
-{
-    if (levels == 0)
-        return;
-
-    stringstream stream;
-    const int top = lua_gettop(L);
-    for (int i=1; i<=top; i++) {
-        stream << i << ": ";
-        toStream(L, i, stream, levels);
-        stream << "\n";
-    }
-    fprintf(stderr, "Lua stack dump:\n%s", stream.str().c_str());
-    abort();
 }

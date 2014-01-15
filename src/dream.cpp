@@ -522,7 +522,7 @@ private:
             lua_pushinteger(L, i);
             lua_gettable(L, 1);
             if (!lua_isnil(L, -1))
-                parameter += QString("=") + likely_ir_to_string(L);
+                parameter += QString("=") + likely_lua_to_string(L);
             lua_pop(L, 1);
 
             parameters.append(parameter);
@@ -541,7 +541,7 @@ class Generic : public Variable
             return false;
         const QString name = lua_tostring(L, 2);
         lua_pop(L, 1);
-        const QString contents = likely_ir_to_string(L);
+        const QString contents = likely_lua_to_string(L);
         lua_pushstring(L, qPrintable(name));
         text->setText(QString("%1%2%3").arg(name.isEmpty() ? QString() : QString("<b>%1</b>:").arg(name),
                                             name.isEmpty() ? "" : (contents.contains('\n') ? "<br>" : " "),

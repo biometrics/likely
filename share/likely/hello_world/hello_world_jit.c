@@ -12,15 +12,11 @@ int main()
         return -1;
     }
 
-    printf("Retrieving IR for expression...\n");
-    likely_ir ir = likely_ir_from_expression("arg(0) / 2");
-    if (!ir) {
-        printf("Failed to interpret!\n");
-        return -1;
-    }
+    printf("Parsing abstract syntax tree...\n");
+    likely_ast ast = likely_ast_from_string("(lambda (a) (/ a 2))");
 
     printf("Compiling source code...\n");
-    likely_function darken = likely_compile(likely_ir_to_ast(ir));
+    likely_function darken = likely_compile(ast);
     if (!darken) {
         printf("Failed to compile!\n");
         return -1;

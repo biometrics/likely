@@ -31,11 +31,11 @@ int main(int argc, char *argv[])
     if ((argc < 2) || !strcmp(argv[1], "--help"))
         help();
 
-    likely_ir ir = likely_ir_from_expression(argv[1]);
+    likely_ast ast = likely_ast_from_string(argv[1]);
     likely_arity n = (likely_arity) argc-4;
     likely_type *types = (likely_type*) malloc(n * sizeof(likely_type));
     for (likely_arity i=0; i<n; i++)
         types[i] = likely_type_from_string(argv[i+3]);
 
-    likely_compile_to_file(likely_ir_to_ast(ir), argv[2], types, n, argv[argc-1], true);
+    likely_compile_to_file(ast, argv[2], types, n, argv[argc-1], true);
 }

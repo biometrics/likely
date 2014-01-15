@@ -1,5 +1,5 @@
 set(LIKELY_SRC likely_compiler.cpp)
-set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES} liblua)
+set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES})
 file(GLOB LIKELY_LIBRARY ${CMAKE_SOURCE_DIR}/library/*.like)
 set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/LICENSE.txt
@@ -25,6 +25,7 @@ if(${LIKELY_SCRIPT})
                      COMMAND embedfile likely_standard_library ${CMAKE_SOURCE_DIR}/library/standard.like
                      DEPENDS embedfile ${CMAKE_SOURCE_DIR}/library/standard.like)
   set(LIKELY_SRC ${LIKELY_SRC} likely_script.cpp ${CMAKE_CURRENT_BINARY_DIR}/likely_standard_library.c)
+  set(LIKELY_LIBS ${LIKELY_LIBS} liblua)
   set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
   set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely/likely_script.h)
 endif()

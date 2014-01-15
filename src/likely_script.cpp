@@ -46,6 +46,111 @@ static void lua_likely_assert(lua_State *L, bool condition, const char *format, 
     luaL_error(L, "Likely %s.", errorBuffer);
 }
 
+static void toStream(lua_State *L, int index, stringstream &stream, int levels = 1)
+{
+    lua_pushvalue(L, index);
+    const int type = lua_type(L, -1);
+    if (type == LUA_TBOOLEAN) {
+        stream << (lua_toboolean(L, -1) ? "true" : "false");
+    } else if (type == LUA_TNUMBER) {
+        stream << lua_tonumber(L, -1);
+    } else if (type == LUA_TSTRING) {
+        stream << "\"" << lua_tostring(L, -1) << "\"";
+    } else if (type == LUA_TTABLE) {
+        if (levels == 0) {
+            stream << "table";
+        } else {
+            map<int,string> integers;
+            map<string,string> strings;
+            lua_pushnil(L);
+            while (lua_next(L, -2)) {
+                lua_pushvalue(L, -2);
+                int isnum;
+                int key = (int) lua_tointegerx(L, -1, &isnum);
+                lua_pop(L, 1);
+                stringstream value;
+                toStream(L, -1, value, levels - 1);
+                if (isnum) {
+                    integers.insert(pair<int,string>(key, value.str()));
+                } else {
+                    lua_pushvalue(L, -2);
+                    strings.insert(pair<string,string>(lua_tostring(L, -1), value.str()));
+                    lua_pop(L, 1);
+                }
+                lua_pop(L, 1);
+            }
+
+            stream << "{";
+            int expectedIndex = 1;
+            for (map<int,string>::iterator iter = integers.begin(); iter != integers.end(); iter++) {
+                if (iter != integers.begin())
+                    stream << ", ";
+                if (iter->first == expectedIndex) {
+                    stream << iter->second;
+                    expectedIndex++;
+                } else {
+                    stream << iter->first << "=" << iter->second;
+                }
+            }
+
+            for (map<string,string>::iterator iter = strings.begin(); iter != strings.end(); iter++) {
+                if (iter != strings.begin() || !integers.empty())
+                    stream << ", ";
+                stream << iter->first << "=" << iter->second;
+            }
+            stream << "}";
+        }
+    } else {
+        stream << lua_typename(L, type);
+    }
+    lua_pop(L, 1);
+}
+
+const char *likely_lua_to_string(struct lua_State *L)
+{
+    static string result;
+    stringstream stream;
+    toStream(L, -1, stream, std::numeric_limits<int>::max());
+    result = stream.str();
+    return result.c_str();
+}
+
+likely_ast likely_lua_to_ast(struct lua_State *L)
+{
+    likely_ast ast;
+    ast.start_pos = ast.end_pos = 0;
+    ast.is_list = lua_istable(L, -1);
+    if (ast.is_list) {
+        ast.num_atoms = luaL_len(L, -1);
+        ast.atoms = new likely_ast[ast.num_atoms];
+        for (size_t i=0; i<ast.num_atoms; i++) {
+            lua_rawgeti(L, -1, i+1);
+            ast.atoms[i] = likely_lua_to_ast(L);
+            lua_pop(L, 1);
+        }
+    } else {
+        ast.atom = strdup(lua_tostring(L, -1)); // Temporary memory leak while we refactor
+        ast.atom_len = strlen(ast.atom);
+    }
+    return ast;
+}
+
+void likely_lua_dump(lua_State *L, int levels)
+{
+    if (levels == 0)
+        return;
+
+    stringstream stream;
+    const int top = lua_gettop(L);
+    for (int i=1; i<=top; i++) {
+        stream << i << ": ";
+        toStream(L, i, stream, levels);
+        stream << "\n";
+    }
+    fprintf(stderr, "Lua stack dump:\n%s", stream.str().c_str());
+    abort();
+}
+
 static likely_mat checkLuaMat(lua_State *L, int index = 1)
 {
     likely_mat *mp = (likely_mat*)luaL_checkudata(L, index, "likely");
@@ -325,31 +430,6 @@ static int lua_likely_show(lua_State *L)
     return 0;
 }
 
-static void copyRecursive(lua_State *src, lua_State *dst)
-{
-    const int type = lua_type(src, -1);
-    if (type == LUA_TBOOLEAN) {
-        lua_pushboolean(dst, lua_toboolean(src, -1));
-    } else if (type == LUA_TNUMBER) {
-        lua_pushnumber(dst, lua_tonumber(src, -1));
-    } else if (type == LUA_TSTRING) {
-        lua_pushstring(dst, lua_tostring(src, -1));
-    } else if (type == LUA_TTABLE) {
-        lua_newtable(dst);
-        lua_pushnil(src);
-        while (lua_next(src, -2)) {
-            lua_pushvalue(src, -2);
-            copyRecursive(src, dst); // copy key
-            lua_pop(src, 1);
-            copyRecursive(src, dst); // copy value
-            lua_pop(src, 1);
-            lua_settable(dst, -3);
-        }
-    } else {
-        likely_assert(false, "'copyRecursive' unsupported type");
-    }
-}
-
 static int lua_likely_expression(lua_State *L)
 {
     const int args = lua_gettop(L);
@@ -397,12 +477,10 @@ static int lua_likely_compile(lua_State *L)
 
     // Retrieve or compile the function
     static map<string,likely_function_n> functions;
-    const string source = likely_ir_to_string(L);
+    const string source = likely_lua_to_string(L);
     map<string,likely_function_n>::const_iterator it = functions.find(source);
     if (it == functions.end()) {
-        likely_ir ir = luaL_newstate();
-        copyRecursive(L, ir);
-        functions.insert(pair<string,likely_function_n>(source, likely_compile_n(likely_ir_to_ast(ir))));
+        functions.insert(pair<string,likely_function_n>(source, likely_compile_n(likely_lua_to_ast(L))));
         it = functions.find(source);
     }
 
@@ -881,19 +959,6 @@ lua_State *likely_exec(const char *source, lua_State *L, int markdown)
     lua_setupvalue(L, -2, 1);
     lua_pcall(L, 0, LUA_MULTRET, 0);
     return L; // The sandboxed environment is now on the top of the stack
-}
-
-likely_ir likely_ir_from_expression(const char *expression)
-{
-    static lua_State *L = NULL;
-    stringstream command; command << "return " << expression;
-    L = likely_exec(command.str().c_str(), L, 0);
-    likely_assert(lua_istable(L, -1), "'likely_ir_from_expression' expected a table result");
-
-    // Return the result in a new state
-    likely_ir ir = luaL_newstate();
-    copyRecursive(L, ir);
-    return ir;
 }
 
 LIKELY_EXPORT void likely_set_show_callback(likely_show_callback callback, void *context)

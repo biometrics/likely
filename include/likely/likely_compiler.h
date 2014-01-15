@@ -39,12 +39,6 @@ typedef struct likely_ast
     bool is_list;
 } likely_ast;
 
-struct lua_State;
-typedef struct lua_State* likely_ir;
-LIKELY_EXPORT likely_ir likely_ir_from_string(const char *str);
-LIKELY_EXPORT const char *likely_ir_to_string(likely_ir ir);
-LIKELY_EXPORT likely_ast likely_ir_to_ast(likely_ir ir);
-
 LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str);
 LIKELY_EXPORT const char *likely_ast_to_string(const likely_ast ast); // Return value managed internally and guaranteed until the next call to this function
 LIKELY_EXPORT void likely_free_ast(likely_ast ast);
@@ -54,8 +48,6 @@ typedef likely_mat (*likely_function_n)(likely_const_mat*);
 LIKELY_EXPORT likely_function likely_compile(likely_ast ast); // Takes ownership of ast
 LIKELY_EXPORT likely_function_n likely_compile_n(likely_ast ast); // Takes ownership of ast
 LIKELY_EXPORT void likely_compile_to_file(likely_ast ast, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native); // Does _not_ take ownership of ast
-
-LIKELY_EXPORT void likely_stack_dump(struct lua_State *L, int levels);
 
 #ifdef __cplusplus
 }

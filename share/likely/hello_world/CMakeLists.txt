@@ -9,7 +9,7 @@ endif()
 # hello_world_static
 if(${LIKELY_SCRIPT})
   add_custom_command(OUTPUT hello_world_div2.o
-                     COMMAND like "div(arg(0), 2)" hello_world_div2 f32X hello_world_div2.o
+                     COMMAND like "(lambda (a) (/ a 2))" hello_world_div2 f32X hello_world_div2.o
                      DEPENDS like
                      VERBATIM)
 
