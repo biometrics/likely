@@ -381,6 +381,43 @@ LIKELY_REGISTER_INDEX(x)
 LIKELY_REGISTER_INDEX(y)
 LIKELY_REGISTER_INDEX(t)
 
+#define LIKELY_REGISTER_TYPE(OP)                                                     \
+class OP##Operation : public NullaryOperation                                        \
+{                                                                                    \
+    TypedValue callNullary(ExpressionBuilder &builder, const KernelInfo &info) const \
+    {                                                                                \
+        (void) info;                                                                 \
+        return builder.constant(likely_type_##OP, likely_type_u32);                  \
+    }                                                                                \
+};                                                                                   \
+LIKELY_REGISTER(OP)                                                                  \
+
+LIKELY_REGISTER_TYPE(null)
+LIKELY_REGISTER_TYPE(depth)
+LIKELY_REGISTER_TYPE(signed)
+LIKELY_REGISTER_TYPE(floating)
+LIKELY_REGISTER_TYPE(mask)
+LIKELY_REGISTER_TYPE(u8)
+LIKELY_REGISTER_TYPE(u16)
+LIKELY_REGISTER_TYPE(u32)
+LIKELY_REGISTER_TYPE(u64)
+LIKELY_REGISTER_TYPE(i8)
+LIKELY_REGISTER_TYPE(i16)
+LIKELY_REGISTER_TYPE(i32)
+LIKELY_REGISTER_TYPE(i64)
+LIKELY_REGISTER_TYPE(f16)
+LIKELY_REGISTER_TYPE(f32)
+LIKELY_REGISTER_TYPE(f64)
+LIKELY_REGISTER_TYPE(parallel)
+LIKELY_REGISTER_TYPE(heterogeneous)
+LIKELY_REGISTER_TYPE(multi_channel)
+LIKELY_REGISTER_TYPE(multi_column)
+LIKELY_REGISTER_TYPE(multi_row)
+LIKELY_REGISTER_TYPE(multi_frame)
+LIKELY_REGISTER_TYPE(multi_dimension)
+LIKELY_REGISTER_TYPE(saturation)
+LIKELY_REGISTER_TYPE(reserved)
+
 class UnaryOperation : public Operation
 {
     TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, const vector<TypedValue> &args) const
