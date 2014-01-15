@@ -115,23 +115,61 @@ const char *likely_lua_to_string(struct lua_State *L)
     return result.c_str();
 }
 
+static void setAtom(likely_ast &atom, const char *value)
+{
+    atom.is_list = false;
+    atom.start_pos = atom.end_pos = 0;
+    atom.atom = strdup(value); // Temporary memory leak while we refactor
+    atom.atom_len = strlen(atom.atom);
+}
+
 likely_ast likely_lua_to_ast(struct lua_State *L)
 {
     likely_ast ast;
     ast.start_pos = ast.end_pos = 0;
     ast.is_list = lua_istable(L, -1);
     if (ast.is_list) {
-        ast.num_atoms = luaL_len(L, -1);
-        ast.atoms = new likely_ast[ast.num_atoms];
-        for (size_t i=0; i<ast.num_atoms; i++) {
+        vector<likely_ast> atoms;
+
+        // Add the list-like elements
+        const int len = luaL_len(L, -1);
+        for (int i=0; i<len; i++) {
             lua_rawgeti(L, -1, i+1);
-            ast.atoms[i] = likely_lua_to_ast(L);
+            atoms.push_back(likely_lua_to_ast(L));
             lua_pop(L, 1);
         }
+
+        // Add the map-like elements
+        lua_pushnil(L);
+        while (lua_next(L, -2)) {
+            if (lua_isnumber(L, -2)) {
+                lua_Number value = lua_tonumber(L, -2);
+                if ((value == int(value)) && (value >= 1) && (value <= len)) {
+                    // Skip the list-like elements
+                    lua_pop(L, 1);
+                    continue;
+                }
+            }
+
+            likely_ast atom;
+            atom.start_pos = atom.end_pos = 0;
+            atom.is_list = true;
+            atom.num_atoms = 2;
+            atom.atoms = new likely_ast[2];
+            setAtom(atom.atoms[0], lua_tostring(L, -2));
+            setAtom(atom.atoms[1], lua_tostring(L, -1));
+            atoms.push_back(atom);
+
+            lua_pop(L, 1);
+        }
+
+        ast.num_atoms = atoms.size();
+        ast.atoms = new likely_ast[ast.num_atoms];
+        memcpy(ast.atoms, atoms.data(), atoms.size() * sizeof(likely_ast));
     } else {
-        ast.atom = strdup(lua_tostring(L, -1)); // Temporary memory leak while we refactor
-        ast.atom_len = strlen(ast.atom);
+        setAtom(ast, lua_tostring(L, -1));
     }
+
     return ast;
 }
 
@@ -781,6 +819,7 @@ static int lua_likely_new_global(lua_State *L)
             likely_retain(mats[i]);
         }
         lua_call(L, (int) mats.size(), 1);
+        lua_remove(L, 3);
     }
 
     // Assign it to the proxy table

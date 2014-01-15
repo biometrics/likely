@@ -1049,8 +1049,18 @@ private:
 
     static TypedValue getDimensions(ExpressionBuilder &builder, const KernelInfo &info, likely_ast ast, const char *axis, const TypedValue &arg0)
     {
-        Value *result;
-        if (true /* TODO: Fix me */) {
+        Value *result = NULL;
+
+        // Look for a dimensionality expression
+        for (size_t i=3; i<ast.num_atoms; i++) {
+            if (ast.atoms[i].is_list && (ast.atoms[i].num_atoms == 2) && (!ast.atoms[i].atoms[0].is_list) && !strncmp(axis, ast.atoms[i].atoms[0].atom, ast.atoms[i].atoms[0].atom_len)) {
+                result = builder.cast(Operation::expression(builder, info, ast.atoms[i].atoms[1]), likely_type_native);
+                break;
+            }
+        }
+
+        // Use default dimensionality
+        if (result == NULL) {
             if (arg0.isNull()) {
                 result = ExpressionBuilder::constant(1);
             } else {
@@ -1059,8 +1069,6 @@ private:
                 else if (!strcmp(axis, "rows"))     result = builder.rows    (arg0);
                 else                                result = builder.frames  (arg0);
             }
-        } else {
-            result = builder.cast(Operation::expression(builder, info, ast), likely_type_native);
         }
 
         likely_type type = likely_type_native;
