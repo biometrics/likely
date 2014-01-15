@@ -752,19 +752,28 @@ static int lua_likely_new_global(lua_State *L)
         vector<likely_mat> mats;
         findMats(L, mats);
 
+        lua_getglobal(L, "compile");
+        lua_newtable(L);
+        lua_pushstring(L, "lambda");
+        lua_rawseti(L, -2, 1);
+        lua_newtable(L);
+
         for (size_t i=0; i<mats.size(); i++) {
             lua_getglobal(L, "replace");
             *newLuaMat(L) = mats[i];
             likely_retain(mats[i]);
-            lua_getglobal(L, "arg");
-            lua_pushinteger(L, i);
-            lua_call(L, 1, 1);
-            lua_pushvalue(L, -4);
+            stringstream stream;
+            stream << "__arg" << i;
+            lua_pushstring(L, stream.str().c_str());
+            lua_pushvalue(L, -1);
+            lua_rawseti(L, -5, i+1);
+            lua_pushvalue(L, 3);
             lua_call(L, 3, 0);
         }
 
-        lua_getglobal(L, "compile");
-        lua_insert(L, -2);
+        lua_rawseti(L, -2, 2);
+        lua_pushvalue(L, 3);
+        lua_rawseti(L, -2, 3);
         lua_call(L, 1, 1);
 
         for (size_t i=0; i<mats.size(); i++) {

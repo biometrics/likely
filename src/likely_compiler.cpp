@@ -404,15 +404,16 @@ class notOperation : public UnaryOperation
 };
 LIKELY_REGISTER_OPERATION(not, "~")
 
-class argOperation : public UnaryOperation
+class lambdaArgOperation : public NullaryOperation
 {
-    friend class lambdaArgOperation;
-    TypedValue callUnary(ExpressionBuilder &builder, const KernelInfo &info, const TypedValue &arg) const
-    {
-         return callArg(builder, info, (int) LLVM_VALUE_TO_INT(arg.value));
-    }
+    int index;
 
-    static TypedValue callArg(ExpressionBuilder &builder, const KernelInfo &info, int index)
+public:
+    lambdaArgOperation(int index)
+        : index(index) {}
+
+private:
+    TypedValue callNullary(ExpressionBuilder &builder, const KernelInfo &info) const
     {
         const TypedValue &matrix = info.srcs[index];
         Value *i;
@@ -432,22 +433,6 @@ class argOperation : public UnaryOperation
         LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(matrix), i));
         builder.annotateParallel(load);
         return TypedValue(load, matrix.type);
-    }
-};
-LIKELY_REGISTER(arg)
-
-class lambdaArgOperation : public NullaryOperation
-{
-    int index;
-
-public:
-    lambdaArgOperation(int index = -1)
-        : index(index) {}
-
-private:
-    TypedValue callNullary(ExpressionBuilder &builder, const KernelInfo &info) const
-    {
-        return argOperation::callArg(builder, info, index);
     }
 };
 
