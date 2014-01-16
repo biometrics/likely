@@ -878,12 +878,9 @@ struct FunctionBuilder : private JITResources
             ExpressionBuilder builder(module, thunk);
             KernelInfo info(srcs);
 
-            const bool lambda = ast.is_list && (ast.num_atoms == 3) && (!strncmp(ast.atoms[0].atom, "lambda", 6));
-            if (lambda) {
-                const likely_ast &args = ast.atoms[1];
-                for (size_t i=0; i<args.num_atoms; i++)
-                    Operation::operations[string(args.atoms[i].atom, args.atoms[i].atom_len)].push(new lambdaArgOperation(i));
-            }
+            const likely_ast &args = ast.atoms[1];
+            for (size_t i=0; i<args.num_atoms; i++)
+                Operation::operations[string(args.atoms[i].atom, args.atoms[i].atom_len)].push(new lambdaArgOperation(i));
 
             // The kernel assumes there is at least one iteration
             BasicBlock *body = BasicBlock::Create(getGlobalContext(), "kernel_body", thunk);
@@ -893,7 +890,7 @@ struct FunctionBuilder : private JITResources
             i->addIncoming(start, builder.entry);
 
             info.init(srcs, builder, dst, TypedValue(i, likely_type_native));
-            TypedValue result = Operation::expression(builder, info, lambda ? ast.atoms[2] : ast);
+            TypedValue result = Operation::expression(builder, info, ast.atoms[2]);
             dstType = dst.type = result.type;
             StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(dst), i));
             builder.annotateParallel(store);
@@ -909,11 +906,8 @@ struct FunctionBuilder : private JITResources
             builder.SetInsertPoint(loopExit);
             builder.CreateRetVoid();
 
-            if (lambda) {
-                const likely_ast &args = ast.atoms[1];
-                for (size_t i=0; i<args.num_atoms; i++)
-                    Operation::operations[string(args.atoms[i].atom, args.atoms[i].atom_len)].pop();
-            }
+            for (size_t i=0; i<args.num_atoms; i++)
+                Operation::operations[string(args.atoms[i].atom, args.atoms[i].atom_len)].pop();
 
             FunctionPassManager functionPassManager(module);
             functionPassManager.add(createVerifierPass(PrintMessageAction));
@@ -1130,12 +1124,8 @@ struct VTable : public JITResources
     VTable(likely_ast ast)
         : JITResources(true), ast(ast)
     {
-        if (ast.is_list && (ast.num_atoms == 3) && (!strncmp(ast.atoms[0].atom, "lambda", 6))) {
-            likely_assert(ast.atoms[1].is_list, "ill-formed lambda expression");
-            n = (likely_arity) ast.atoms[1].num_atoms;
-        } else {
-            n = computeArityRecursive(ast);
-        }
+        likely_assert(ast.is_list && (ast.num_atoms == 3) && !strncmp(ast.atoms[0].atom, "lambda", 6) && ast.atoms[1].is_list, "ill-formed lambda expression");
+        n = (likely_arity) ast.atoms[1].num_atoms;
 
         if (vtableType == NULL)
             vtableType = PointerType::getUnqual(StructType::create(getGlobalContext(), "VTable"));
@@ -1214,23 +1204,6 @@ struct VTable : public JITResources
     }
 
 private:
-    static likely_arity computeArityRecursive(likely_ast ast)
-    {
-        if (!ast.is_list)
-            return 0;
-
-        if ((ast.num_atoms == 2) &&
-            !ast.atoms[0].is_list &&
-            !ast.atoms[1].is_list &&
-            !strncmp(ast.atoms[0].atom, "arg", 3))
-        return likely_arity(atoi(ast.atoms[1].atom) + 1);
-
-        likely_arity n = 0;
-        for (size_t i=0; i<ast.num_atoms; i++)
-            n = max(n, computeArityRecursive(ast.atoms[i]));
-        return n;
-    }
-
     Function *getFunction(FunctionType *functionType) const
     {
         Function *function = cast<Function>(module->getOrInsertFunction(name, functionType));
