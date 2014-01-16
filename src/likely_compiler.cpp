@@ -1279,54 +1279,77 @@ extern "C" LIKELY_EXPORT likely_mat likely_dispatch(struct VTable *vtable, likel
 
 static inline bool isWhitespace(const char c) { return (c == ' ') || (c == '\t') || (c == '\n'); }
 
-static likely_ast likely_ast_from_string(const char *expression, size_t offset)
+likely_ast *likely_tokens_from_string(const char *str, int *num_tokens)
 {
-    likely_ast ast;
-    while (isWhitespace(expression[offset]))
-        offset++;
+    static vector<likely_ast> tokens;
+    tokens.clear();
 
-    ast.start_pos = offset;
-    ast.is_list = (expression[offset] == '(');
-
-    if (ast.is_list) {
-        vector<likely_ast> atoms;
-        size_t i = ast.start_pos + 1;
-        while (true) {
-            while (isWhitespace(expression[i]))
-                i++;
-            if (expression[i] == ')')
-                break;
-            if (expression[i] == '\0')
-                likely_assert(false, "unexpected end of expression");
-            likely_ast atom = likely_ast_from_string(expression, i);
-            atoms.push_back(atom);
-            i = atom.end_pos;
-        }
-
-        ast.end_pos = i + 1;
-        ast.atoms = new likely_ast[atoms.size()];
-        ast.num_atoms = atoms.size();
-        memcpy(ast.atoms, atoms.data(), sizeof(likely_ast) * atoms.size());
-    } else {
-        size_t i = ast.start_pos + 1;
-        while (!isWhitespace(expression[i])) {
-            if (expression[i] == ')')
-                break;
-            if (expression[i] == '\0')
-                likely_assert(false, "unexpected end of expression");
+    const size_t len = strlen(str);
+    size_t i = 0;
+    while (i < len) {
+        while (str[i] <= ' ') // ASCII whitespace and ignored characters
             i++;
-        }
-        ast.end_pos = i;
-        ast.atom = &expression[ast.start_pos];
-        ast.atom_len = ast.end_pos - ast.start_pos;
+
+        likely_ast token;
+        token.is_list = false;
+        token.start_pos = i;
+        token.atom = &str[i];
+        while ((str[i] > ' ') && (str[i] != '(') && (str[i] != ')'))
+            i++;
+        if (i == token.start_pos)
+            i++;
+        token.end_pos = i;
+        token.atom_len = token.end_pos - token.start_pos;
+
+        tokens.push_back(token);
     }
 
+    *num_tokens = tokens.size();
+    return tokens.data();
+}
+
+static inline void checkTokens(size_t num_tokens, size_t offset)
+{
+    if (offset >= num_tokens)
+        likely_assert(false, "unexpected end of expression");
+}
+
+static likely_ast likely_ast_from_tokens(likely_ast *tokens, size_t num_tokens, size_t &offset)
+{
+    checkTokens(num_tokens, offset);
+    const likely_ast &start = tokens[offset++];
+    if (start.atom[0] != '(')
+        return start;
+
+    vector<likely_ast> atoms;
+    checkTokens(num_tokens, offset);
+    while (tokens[offset].atom[0] != ')') {
+        atoms.push_back(likely_ast_from_tokens(tokens, num_tokens, offset));
+        checkTokens(num_tokens, offset);
+    }
+    const likely_ast &end = tokens[offset++];
+
+    likely_ast ast;
+    ast.is_list = true;
+    ast.start_pos = start.start_pos;
+    ast.end_pos = end.end_pos;
+    ast.atoms = new likely_ast[atoms.size()];
+    ast.num_atoms = atoms.size();
+    memcpy(ast.atoms, atoms.data(), sizeof(likely_ast) * atoms.size());
     return ast;
+}
+
+likely_ast likely_ast_from_tokens(likely_ast *tokens, int num_tokens)
+{
+    size_t offset = 0;
+    return likely_ast_from_tokens(tokens, num_tokens, offset);
 }
 
 likely_ast likely_ast_from_string(const char *expression)
 {
-    return likely_ast_from_string(expression, 0);
+    int num_tokens;
+    likely_ast *tokens = likely_tokens_from_string(expression, &num_tokens);
+    return likely_ast_from_tokens(tokens, num_tokens);
 }
 
 static void astToStream(const likely_ast ast, stringstream &stream)

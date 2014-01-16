@@ -39,6 +39,8 @@ typedef struct likely_ast
     bool is_list;
 } likely_ast;
 
+LIKELY_EXPORT likely_ast *likely_tokens_from_string(const char *str, int *num_tokens); // Return value managed internally and guaranteed until the next call to this function
+LIKELY_EXPORT likely_ast likely_ast_from_tokens(likely_ast *tokens, int num_tokens);
 LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str);
 LIKELY_EXPORT const char *likely_ast_to_string(const likely_ast ast); // Return value managed internally and guaranteed until the next call to this function
 LIKELY_EXPORT void likely_free_ast(likely_ast ast);
