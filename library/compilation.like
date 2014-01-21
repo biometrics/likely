@@ -10,7 +10,7 @@ Let's **deconstruct this example** to see what's taking place behind the scenes:
     lenna = read("../data/misc/lenna.tiff")
     expr  = expression(lenna / 2)
     ast = replace(lenna, "num", expr)
-    ast = {"lambda", {"num"}, ast}
+    ast = {"kernel", {"num"}, ast}
     jit_function = compile(ast)
     dark_lenna = jit_function(lenna)
 

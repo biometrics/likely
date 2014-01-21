@@ -441,12 +441,12 @@ class notOperation : public UnaryOperation
 };
 LIKELY_REGISTER_OPERATION(not, "~")
 
-class lambdaArgOperation : public NullaryOperation
+class kernelArgOperation : public NullaryOperation
 {
     int index;
 
 public:
-    lambdaArgOperation(int index)
+    kernelArgOperation(int index)
         : index(index) {}
 
 private:
@@ -880,7 +880,7 @@ struct FunctionBuilder : private JITResources
 
             const likely_ast &args = ast.atoms[1];
             for (size_t i=0; i<args.num_atoms; i++)
-                Operation::operations[string(args.atoms[i].atom, args.atoms[i].atom_len)].push(new lambdaArgOperation(i));
+                Operation::operations[string(args.atoms[i].atom, args.atoms[i].atom_len)].push(new kernelArgOperation(i));
 
             // The kernel assumes there is at least one iteration
             BasicBlock *body = BasicBlock::Create(getGlobalContext(), "kernel_body", thunk);
@@ -1124,7 +1124,7 @@ struct VTable : public JITResources
     VTable(likely_ast ast)
         : JITResources(true), ast(ast)
     {
-        likely_assert(ast.is_list && (ast.num_atoms == 3) && !strncmp(ast.atoms[0].atom, "lambda", 6) && ast.atoms[1].is_list, "ill-formed lambda expression");
+        likely_assert(ast.is_list && (ast.num_atoms == 3) && !strncmp(ast.atoms[0].atom, "kernel", 6) && ast.atoms[1].is_list, "ill-formed kernel expression");
         n = (likely_arity) ast.atoms[1].num_atoms;
 
         if (vtableType == NULL)

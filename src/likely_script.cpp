@@ -811,7 +811,7 @@ static int lua_likely_new_global(lua_State *L)
 
         lua_getglobal(L, "compile");
         lua_newtable(L);
-        lua_pushstring(L, "lambda");
+        lua_pushstring(L, "kernel");
         lua_rawseti(L, -2, 1);
         lua_newtable(L);
 

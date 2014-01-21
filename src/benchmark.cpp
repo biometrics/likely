@@ -299,7 +299,7 @@ class ScalarFloatingTest : public FloatingTest
 
 #define MATH_TEST(FUNC) \
 class FUNC##Test : public ScalarFloatingTest {                   \
-    const char *function() const { return "(lambda (a) (" #FUNC " a))" ; }   \
+    const char *function() const { return "(kernel (a) (" #FUNC " a))" ; }   \
     void compute32f(const float *src, float *dst, int n) const   \
         { for (int i=0; i<n; i++) dst[i] = FUNC##f(src[i]); }    \
     void compute64f(const double *src, double *dst, int n) const \
@@ -307,33 +307,33 @@ class FUNC##Test : public ScalarFloatingTest {                   \
 };                                                               \
 
 class addTest : public Test {
-    const char *function() const { return "(lambda (a) (+ a 32))"; }
+    const char *function() const { return "(kernel (a) (+ a 32))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; add(src, 32, dst); return dst; }
 };
 
 class subtractTest : public Test {
-    const char *function() const { return "(lambda (a) (- a 32))"; }
+    const char *function() const { return "(kernel (a) (- a 32))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; subtract(src, 32, dst); return dst; }
 };
 
 class multiplyTest : public Test {
-    const char *function() const { return "(lambda (a) (* a 2))"; }
+    const char *function() const { return "(kernel (a) (* a 2))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; multiply(src, 2, dst); return dst; }
 };
 
 class divideTest : public Test {
-    const char *function() const { return "(lambda (a) (/ a 2))"; }
+    const char *function() const { return "(kernel (a) (/ a 2))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; divide(src, 2, dst); return dst; }
     bool ignoreOffByOne() const { return true; }
 };
 
 class sqrtTest : public FloatingTest {
-    const char *function() const { return "(lambda (a) (sqrt a))"; }
+    const char *function() const { return "(kernel (a) (sqrt a))"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; sqrt(src, dst); return dst; }
 };
 
 class powiTest : public FloatingTest {
-    const char *function() const { return "(lambda (a) (powi a 3))"; }
+    const char *function() const { return "(kernel (a) (powi a 3))"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 3, dst); return dst; }
 };
 
@@ -341,7 +341,7 @@ MATH_TEST(sin)
 MATH_TEST(cos)
 
 class powTest : public FloatingTest {
-    const char *function() const { return "(lambda (a) (pow a 1.5))"; }
+    const char *function() const { return "(kernel (a) (pow a 1.5))"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 1.5, dst); return dst; }
 };
 
@@ -349,7 +349,7 @@ MATH_TEST(exp)
 MATH_TEST(exp2)
 
 class logTest : public FloatingTest {
-    const char *function() const { return "(lambda (a) (log a))"; }
+    const char *function() const { return "(kernel (a) (log a))"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; log(src, dst); return dst; }
 };
 
@@ -357,17 +357,17 @@ MATH_TEST(log10)
 MATH_TEST(log2)
 
 class fmaTest : public Test {
-    const char *function() const { return "(lambda (a) (fma a 2 3))"; }
+    const char *function() const { return "(kernel (a) (fma a 2 3))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3); return dst; }
 };
 
 class fabsTest : public FloatingTest {
-    const char *function() const { return "(lambda (a) (fabs a))"; }
+    const char *function() const { return "(kernel (a) (fabs a))"; }
     Mat computeFloatingBaseline(const Mat &src) const { return abs(src); }
 };
 
 class copysignTest : public ScalarFloatingTest {
-    const char *function() const { return "(lambda (a) (copysign a -1))"; }
+    const char *function() const { return "(kernel (a) (copysign a -1))"; }
     void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = copysignf(src[i], -1); }
     void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = copysign(src[i], -1); }
 };
@@ -380,12 +380,12 @@ MATH_TEST(nearbyint)
 MATH_TEST(round)
 
 class castTest : public Test {
-    const char *function() const { return "(lambda (a) (cast a 800))"; }
+    const char *function() const { return "(kernel (a) (cast a 800))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, CV_32F); return dst; }
 };
 
 class thresholdTest : public Test {
-    const char *function() const { return "(lambda (a) (cast (select (> a 127) 1 0) (type a)))"; }
+    const char *function() const { return "(kernel (a) (cast (select (> a 127) 1 0) (type a)))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 1, THRESH_BINARY); return dst; }
     vector<likely_type> types() const { vector<likely_type> types; types.push_back(likely_type_u8); types.push_back(likely_type_f32); return types; }
 };
