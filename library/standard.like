@@ -7,7 +7,7 @@ Likely
 ## Introduction
 Welcome to the documentation and source code for _Likely_, the image recognition programming language!
 
-**Skip to the good stuff: [tutorial](?show=tutorial), [demos](?show=demos), [benchmark](?show=benchmark.tsv).**
+**Skip to the good stuff: [tutorial](?show=tutorial), [demos](?show=demos).**
 
 ### Principles
  - Heterogeneous hardware architecture support
