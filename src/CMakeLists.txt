@@ -10,24 +10,20 @@ set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/index.html
                 ${CMAKE_SOURCE_DIR}/share/likely/hello_world/README.md)
 
+# Build standard library
+add_executable(embedfile embedfile.c)
+add_custom_command(OUTPUT likely_standard_library.c
+                   COMMAND embedfile likely_standard_library ${CMAKE_SOURCE_DIR}/library/standard.like
+                   DEPENDS embedfile ${CMAKE_SOURCE_DIR}/library/standard.like)
+set(LIKELY_SRC ${LIKELY_SRC} ${CMAKE_CURRENT_BINARY_DIR}/likely_standard_library.c)
+set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
+
 if(${LIKELY_IO})
   add_definitions(-DLIKELY_IO)
   set(LIKELY_SRC ${LIKELY_SRC} likely_io.cpp)
   set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui)
   set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely/likely_io.h
                                  opencv.shim)
-endif()
-
-if(${LIKELY_SCRIPT})
-  add_definitions(-DLIKELY_SCRIPT)
-  add_executable(embedfile embedfile.c)
-  add_custom_command(OUTPUT likely_standard_library.c
-                     COMMAND embedfile likely_standard_library ${CMAKE_SOURCE_DIR}/library/standard.like
-                     DEPENDS embedfile ${CMAKE_SOURCE_DIR}/library/standard.like)
-  set(LIKELY_SRC ${LIKELY_SRC} likely_script.cpp ${CMAKE_CURRENT_BINARY_DIR}/likely_standard_library.c)
-  set(LIKELY_LIBS ${LIKELY_LIBS} liblua)
-  set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
-  set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely/likely_script.h)
 endif()
 
 # Build runtime-only library
@@ -55,13 +51,11 @@ target_link_libraries(likely_static likely_runtime ${LIKELY_LIBS})
 install(TARGETS likely_static ARCHIVE DESTINATION lib)
 
 # Build static compiler
-if(${LIKELY_SCRIPT})
-  add_executable(like like.cpp)
-  target_link_libraries(like likely)
-  install(TARGETS like RUNTIME DESTINATION bin)
-endif()
+add_executable(like like.cpp)
+target_link_libraries(like likely)
+install(TARGETS like RUNTIME DESTINATION bin)
 
-if(${LIKELY_IO} AND ${LIKELY_SCRIPT})
+if(${LIKELY_IO})
   # Benchmark
   add_executable(benchmark benchmark.cpp)
   target_link_libraries(benchmark likely opencv_imgproc)

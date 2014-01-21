@@ -16,22 +16,19 @@
 
 #include <QtCore>
 #include <QtWidgets>
-#include <lua.hpp>
 #include <likely.h>
 
 class SyntaxHighlighter : public QSyntaxHighlighter
 {
     Q_OBJECT
-    QRegularExpression comments, keywords, numbers, strings, variables;
-    QTextCharFormat commentsFont, keywordsFont, markdownFont, numbersFont, stringsFont, variablesFont;
-    QSet<QString> allowedSet; // Lua global variables
+    QRegularExpression keywords, numbers, strings;
+    QTextCharFormat keywordsFont, markdownFont, numbersFont, stringsFont;
     bool commandMode = false;
 
 public:
     SyntaxHighlighter(QTextDocument *parent)
         : QSyntaxHighlighter(parent)
     {
-        comments.setPattern("--\\N*");
         keywords.setPattern("\\b(?:and|break|do|else|elseif|"
                             "end|false|goto|for|function|"
                             "if|in|local|nil|not|"
@@ -39,24 +36,14 @@ public:
                             "until|while)\\b");
         numbers.setPattern("-?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?");
         strings.setPattern("\"[^\"]*+\"");
-        commentsFont.setForeground(Qt::darkGray);
         keywordsFont.setForeground(Qt::darkYellow);
         markdownFont.setForeground(Qt::darkGray);
         numbersFont.setFontUnderline(true);
         numbersFont.setUnderlineStyle(QTextCharFormat::DotLine);
         stringsFont.setForeground(Qt::darkGreen);
-        variablesFont.setFontUnderline(true);
-        variablesFont.setUnderlineStyle(QTextCharFormat::DotLine);
     }
 
 public slots:
-    void updateDictionary(lua_State *L)
-    {
-        allowedSet = getGlobals(L);
-        variables.setPattern(getPattern(allowedSet));
-        rehighlight();
-    }
-
     void setCommandMode(bool enabled)
     {
         commandMode = enabled;
@@ -68,9 +55,7 @@ private:
     {
         highlightHelp(text, keywords, keywordsFont);
         if (commandMode) highlightHelp(text, numbers, numbersFont);
-        if (commandMode) highlightHelp(text, variables, variablesFont);
         highlightHelp(text, strings, stringsFont);
-        highlightHelp(text, comments, commentsFont);
         highlightMarkdown(text, markdownFont);
     }
 
@@ -112,34 +97,6 @@ private:
         }
     }
 
-    static QSet<QString> getGlobals(lua_State *L)
-    {
-        QSet<QString> globals;
-
-        // Get the existing globals...
-        lua_getfield(L, -1, "_G");
-        lua_pushnil(L);
-        while (lua_next(L, -2)) {
-            globals.insert(lua_tostring(L, -2));
-            lua_pop(L, 1);
-        }
-        lua_pop(L, 1);
-
-        // ... and the newly created globals
-        lua_getfield(L, -1, "_L");
-        lua_pushnil(L);
-        while (lua_next(L, -2)) {
-            globals.insert(lua_tostring(L, -2));
-            lua_pop(L, 1);
-        }
-        lua_pop(L, 1);
-
-        // As a precaution
-        globals.remove(QString());
-
-        return globals;
-    }
-
     static QString getPattern(const QSet<QString> &values)
     {
         if (values.isEmpty()) return "";
@@ -152,7 +109,6 @@ class Source : public QPlainTextEdit
     Q_OBJECT
     QString header, previousSource;
     QSettings settings;
-    lua_State *L = NULL;
     int wheelRemainderX = 0, wheelRemainderY = 0;
     QStringList shownVariables;
 
@@ -334,7 +290,7 @@ private:
     }
 
 private slots:
-    void exec()
+    void exec() // TODO: FIX
     {
         QString footer = "\n--Footer\n```";
         foreach (const QString &variable, shownVariables)
@@ -349,18 +305,16 @@ private slots:
         emit aboutToExec();
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
-        L = likely_exec(qPrintable(source), L, 1);
+//        L = likely_exec(qPrintable(source), L, 1);
         const qint64 nsec = elapsedTimer.nsecsElapsed();
 
         settings.setValue("source", toPlainText());
         emit newStatus(QString("Execution Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
-        emit newState(L);
     }
 
 signals:
     void aboutToExec();
     void newFileName(QString);
-    void newState(lua_State*);
     void newStatus(QString);
 };
 
@@ -418,9 +372,6 @@ public:
         emit definitionChanged();
     }
 
-public slots:
-    virtual bool show(lua_State *L) = 0;
-
 signals:
     void definitionChanged();
 };
@@ -439,32 +390,20 @@ public:
         layout->addWidget(image);
     }
 
-    static bool is(lua_State *L)
-    {
-        return luaL_testudata(L, 1, "likely") != NULL;
-    }
-
 private:
-    bool show(lua_State *L)
+    bool show(likely_mat mat)
     {
-        if (!is(L))
-            return false;
-
-        const QString name = lua_tostring(L, 2);
-        likely_mat mat = *reinterpret_cast<likely_mat*>(luaL_testudata(L, 1, "likely"));
-
         double min, max;
         likely_mat rendered = likely_render(mat, &min, &max);
         src = QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped();
         likely_release(rendered);
-        text->setText(QString("%1%2x%3x%4x%5 %6 [%7,%8]").arg(name.isEmpty() ? QString() : QString("<b>%1</b>: ").arg(name),
-                                                              QString::number(mat->channels),
-                                                              QString::number(mat->columns),
-                                                              QString::number(mat->rows),
-                                                              QString::number(mat->frames),
-                                                              likely_type_to_string(mat->type),
-                                                              QString::number(min),
-                                                              QString::number(max)));
+        text->setText(QString("%1x%2x%3x%4 %5 [%6,%7]").arg(QString::number(mat->channels),
+                                                            QString::number(mat->columns),
+                                                            QString::number(mat->rows),
+                                                            QString::number(mat->frames),
+                                                            likely_type_to_string(mat->type),
+                                                            QString::number(min),
+                                                            QString::number(max)));
         updatePixmap();
         return true;
     }
@@ -483,70 +422,6 @@ private:
         const int height = src.height() * width/src.width();
         image->setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height))));
         setDefinition(QString("{ width = %1, height = %2 }").arg(QString::number(image->size().width()), QString::number(image->size().height())));
-    }
-};
-
-struct Closure : public Variable
-{
-    static bool is(lua_State *L)
-    {
-        if (!lua_getmetatable(L, 1))
-            return false;
-        luaL_getmetatable(L, "likely_closure");
-        const bool closure = lua_rawequal(L, -1, -2);
-        lua_pop(L, 2);
-        return closure;
-    }
-
-private:
-    bool show(lua_State *L)
-    {
-        if (!is(L))
-            return false;
-
-        lua_getfield(L, 1, "parameters");
-        const int numParameters = luaL_len(L, -1);
-
-        lua_pushinteger(L, 1);
-        lua_gettable(L, -2);
-        const QString documentation = lua_tostring(L, -1);
-        lua_pop(L, 1);
-
-        QStringList parameters;
-        for (int i=2; i<=numParameters; i++) {
-            lua_pushinteger(L, i);
-            lua_gettable(L, -2);
-            QString parameter = lua_tostring(L, -1);
-            lua_pop(L, 1);
-
-            lua_pushinteger(L, i);
-            lua_gettable(L, 1);
-            if (!lua_isnil(L, -1))
-                parameter += QString("=") + likely_lua_to_string(L);
-            lua_pop(L, 1);
-
-            parameters.append(parameter);
-        }
-
-        text->setText(QString("<b>%1</b>(%2): %3").arg(lua_tostring(L, 2), parameters.join(", "), documentation));
-        return true;
-    }
-};
-
-class Generic : public Variable
-{
-    bool show(lua_State *L)
-    {
-        if (Matrix::is(L) || Closure::is(L))
-            return false;
-        const QString name = lua_tostring(L, 2);
-        lua_pop(L, 1);
-        const QString contents = likely_lua_to_string(L);
-        lua_pushstring(L, qPrintable(name));
-        text->setText(QString("%1%2%3").arg(name.isEmpty() ? QString() : QString("<b>%1</b>:").arg(name),
-                                            name.isEmpty() ? "" : (contents.contains('\n') ? "<br>" : " "),
-                                            QString(contents).replace("\n", "<br>")));
-        return true;
     }
 };
 
@@ -574,40 +449,6 @@ public slots:
     void aboutToExec()
     {
         showIndex = 0;
-    }
-
-    void newState(lua_State *L)
-    {
-        if (lua_type(L, -1) == LUA_TSTRING) {
-            // Show the compilation error
-            lua_pushstring(L, "compiler");
-            lua_getglobal(L, "show");
-            lua_insert(L, -3);
-            lua_call(L, 2, 0);
-        }
-
-        for (int i=showIndex; i<layout->count(); i++)
-            layout->itemAt(i)->widget()->deleteLater();
-    }
-
-    void show(lua_State *L)
-    {
-        const int i = showIndex++;
-        Variable *variable = NULL;
-        QLayoutItem *item = layout->itemAt(i);
-        if (item != NULL) {
-            variable = static_cast<Variable*>(item->widget());
-            if (variable->show(L))
-                return;
-            layout->removeWidget(variable);
-            variable->deleteLater();
-        }
-        if      (Matrix::is(L))  variable = new Matrix();
-        else if (Closure::is(L)) variable = new Closure();
-        else                     variable = new Generic();
-        layout->insertWidget(i, variable);
-        connect(variable, SIGNAL(definitionChanged()), this, SLOT(definitionChanged()));
-        variable->show(L);
     }
 
 private slots:
@@ -734,10 +575,8 @@ public:
         connect(source, SIGNAL(newFileName(QString)), this, SLOT(setWindowTitle(QString)));
         connect(source, SIGNAL(newState(lua_State*)), this, SLOT(stateChanged()));
         connect(source, SIGNAL(newState(lua_State*)), documentation, SLOT(newState(lua_State*)));
-        connect(source, SIGNAL(newState(lua_State*)), syntaxHighlighter, SLOT(updateDictionary(lua_State*)));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
 
-        likely_set_show_callback(show_callback, documentation);
         source->restore();
     }
 
@@ -746,11 +585,6 @@ private slots:
     {
         if ((windowTitle() != "Likely") && !windowTitle().endsWith("*"))
             setWindowTitle(windowTitle() + "*");
-    }
-
-    static void show_callback(lua_State *L, void *context)
-    {
-        reinterpret_cast<Documentation*>(context)->show(L);
     }
 };
 
@@ -768,7 +602,8 @@ int main(int argc, char *argv[])
         } else {
             source = argv[i];
         }
-        lua_close(likely_exec(qPrintable(source), NULL, 1));
+// TODO: FIX
+//        lua_close(likely_exec(qPrintable(source), NULL, 1));
     }
 
     if (argc > 1)
