@@ -68,7 +68,9 @@ struct Test
         if (!BenchmarkFunction.empty() && string(function()).compare(0, BenchmarkFunction.size(), BenchmarkFunction))
             return;
 
-        likely_function f = likely_compile(likely_ast_from_string(function()));
+        likely_ast ast = likely_ast_from_string(function());
+        likely_assert(ast.num_atoms == 1, "expected a single expression");
+        likely_function f = likely_compile(ast.atoms[0]);
 
         for (likely_type type : types()) {
             if ((BenchmarkType != likely_type_null) && (BenchmarkType != type))

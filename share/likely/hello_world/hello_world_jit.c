@@ -13,10 +13,11 @@ int main()
     }
 
     printf("Parsing abstract syntax tree...\n");
-    likely_ast ast = likely_ast_from_string("(lambda (a) (/ a 2))");
+    likely_ast ast = likely_ast_from_string("(kernel (a) (/ a 2))");
+    likely_assert(ast.num_atoms == 1, "expected a single expression");
 
     printf("Compiling source code...\n");
-    likely_function darken = likely_compile(ast);
+    likely_function darken = likely_compile(ast.atoms[0]);
     if (!darken) {
         printf("Failed to compile!\n");
         return -1;

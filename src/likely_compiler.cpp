@@ -1279,7 +1279,7 @@ extern "C" LIKELY_EXPORT likely_mat likely_dispatch(struct VTable *vtable, likel
 
 static inline bool isWhitespace(const char c) { return (c == ' ') || (c == '\t') || (c == '\n'); }
 
-likely_ast *likely_tokens_from_string(const char *str, int *num_tokens)
+likely_ast *likely_tokens_from_string(const char *str, size_t *num_tokens)
 {
     static vector<likely_ast> tokens;
     tokens.clear();
@@ -1339,15 +1339,26 @@ static likely_ast likely_ast_from_tokens(likely_ast *tokens, size_t num_tokens, 
     return ast;
 }
 
-likely_ast likely_ast_from_tokens(likely_ast *tokens, int num_tokens)
+likely_ast likely_ast_from_tokens(likely_ast *tokens, size_t num_tokens)
 {
     size_t offset = 0;
-    return likely_ast_from_tokens(tokens, num_tokens, offset);
+    vector<likely_ast> expressions;
+    while (offset < num_tokens)
+        expressions.push_back(likely_ast_from_tokens(tokens, num_tokens, offset));
+
+    likely_ast ast;
+    ast.is_list = true;
+    ast.start_pos = expressions.front().start_pos;
+    ast.end_pos = expressions.back().end_pos;
+    ast.atoms = new likely_ast[expressions.size()];
+    ast.num_atoms = expressions.size();
+    memcpy(ast.atoms, expressions.data(), sizeof(likely_ast) * expressions.size());
+    return ast;
 }
 
 likely_ast likely_ast_from_string(const char *expression)
 {
-    int num_tokens;
+    size_t num_tokens;
     likely_ast *tokens = likely_tokens_from_string(expression, &num_tokens);
     return likely_ast_from_tokens(tokens, num_tokens);
 }
