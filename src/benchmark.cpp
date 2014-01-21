@@ -106,7 +106,6 @@ struct Test
         }
     }
 
-    // TODO: Fix
     static void runFile(const string &fileName)
     {
         ifstream file("../library/" + fileName + ".like");
@@ -114,7 +113,9 @@ struct Test
                              istreambuf_iterator<char>());
 
         printf("%s \t", fileName.c_str());
-//        likely_exec(source.c_str(), L, 1);
+        likely_ast ast = likely_ast_from_string(source.c_str());
+        for (size_t i=0; i<ast.num_atoms; i++)
+            likely_release(likely_eval(ast.atoms[i]));
 
         if (!BenchmarkSpeed) {
             printf("\n");
@@ -125,7 +126,8 @@ struct Test
         int iter = 0;
         startTime = endTime = clock();
         while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
-//            likely_exec(source.c_str(), L, 1);
+            for (size_t i=0; i<ast.num_atoms; i++)
+                likely_release(likely_eval(ast.atoms[i]));
             endTime = clock();
             iter++;
         }

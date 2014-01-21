@@ -1277,14 +1277,8 @@ extern "C" LIKELY_EXPORT likely_mat likely_dispatch(struct VTable *vtable, likel
     return dst;
 }
 
-static inline bool isWhitespace(const char c) { return (c == ' ') || (c == '\t') || (c == '\n'); }
-
-likely_ast *likely_tokens_from_string(const char *str, size_t *num_tokens)
+static void tokenize(const char *str, const size_t len, vector<likely_ast> &tokens)
 {
-    static vector<likely_ast> tokens;
-    tokens.clear();
-
-    const size_t len = strlen(str);
     size_t i = 0;
     while (i < len) {
         while (str[i] <= ' ') // ASCII whitespace and ignored characters
@@ -1303,7 +1297,68 @@ likely_ast *likely_tokens_from_string(const char *str, size_t *num_tokens)
 
         tokens.push_back(token);
     }
+}
 
+// GFM = Github Flavored Markdown
+static void tokenizeGFM(const char *str, const size_t len, vector<likely_ast> &tokens)
+{
+    bool inBlock = false, skipBlock = false;
+    size_t lineStart = 0;
+    while (lineStart < len) {
+        size_t lineEnd = lineStart;
+        while ((lineEnd < len) && (str[lineEnd] != '\n'))
+            lineEnd++;
+        const size_t lineLen = lineEnd - lineStart;
+
+        if ((lineLen > 3) && !strncmp(&str[lineStart], "```", 3)) {
+            // Found a code block marker
+            if (skipBlock) {
+                skipBlock = false;
+            } else if (inBlock) {
+                inBlock = false;
+            } else if (str[3] != '\n') {
+                // skip code blocks marked for specific languages
+                skipBlock = true;
+            } else {
+                inBlock = true;
+            }
+        } else if (!skipBlock) {
+            if (inBlock || ((lineLen > 4) && !strncmp(&str[lineStart], "    ", 4))) {
+                // It's a code block
+                tokenize(&str[lineStart], lineLen, tokens);
+            } else {
+                // Look for `inline code`
+                size_t inlineStart = lineStart;
+                do {
+                    while ((inlineStart < lineEnd) && (str[inlineStart] != '`'))
+                        inlineStart++;
+                    size_t inlineEnd = inlineStart + 1;
+                    while ((inlineEnd < lineEnd) && (str[inlineEnd] != '`'))
+                        inlineEnd++;
+
+                    if ((inlineStart < lineEnd) && (inlineEnd < lineEnd))
+                        tokenize(&str[inlineStart], inlineEnd-inlineStart, tokens);
+
+                    inlineStart = inlineEnd + 1;
+                } while (inlineStart < lineEnd);
+            }
+        }
+
+        lineStart = lineEnd + 1;
+    }
+}
+
+likely_ast *likely_tokens_from_string(const char *str, size_t *num_tokens)
+{
+    static vector<likely_ast> tokens;
+    tokens.clear();
+
+    if ((str == NULL) || (num_tokens == NULL))
+        return NULL;
+
+    const size_t len = strlen(str);
+    if (str[0] == '(') tokenize(str, len, tokens); // s-expression(s)
+    else               tokenizeGFM(str, len, tokens); // Github Flavored Markdown (GFM) with s-expression(s) in code blocks
     *num_tokens = tokens.size();
     return tokens.data();
 }
@@ -1348,8 +1403,8 @@ likely_ast likely_ast_from_tokens(likely_ast *tokens, size_t num_tokens)
 
     likely_ast ast;
     ast.is_list = true;
-    ast.start_pos = expressions.front().start_pos;
-    ast.end_pos = expressions.back().end_pos;
+    ast.start_pos = expressions.empty() ? 0 : expressions.front().start_pos;
+    ast.end_pos = expressions.empty() ? 0 : expressions.back().end_pos;
     ast.atoms = new likely_ast[expressions.size()];
     ast.num_atoms = expressions.size();
     memcpy(ast.atoms, expressions.data(), sizeof(likely_ast) * expressions.size());
@@ -1409,4 +1464,10 @@ likely_function_n likely_compile_n(likely_ast ast)
 void likely_compile_to_file(likely_ast ast, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
 {
     FunctionBuilder(ast, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
+}
+
+likely_mat likely_eval(likely_ast ast)
+{
+    (void) ast;
+    return NULL;
 }
