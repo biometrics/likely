@@ -22,8 +22,9 @@
 #include <string>
 #include <opencv2/highgui/highgui.hpp>
 
+#include "likely/likely_backend.h"
+#include "likely/likely_frontend.h"
 #include "likely/likely_io.h"
-#include "likely/likely_compiler.h"
 #include "opencv.shim"
 
 using namespace std;

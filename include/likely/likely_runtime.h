@@ -20,21 +20,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
-// Export symbols, don't worry about this
-#if defined _WIN32
-#  if defined LIKELY_LIBRARY
-#    define LIKELY_EXPORT __declspec(dllexport)
-#  else
-#    define LIKELY_EXPORT __declspec(dllimport)
-#  endif
-#else
-#  if defined LIKELY_LIBRARY
-#    define LIKELY_EXPORT __attribute__((visibility("default")))
-#  else
-#    define LIKELY_EXPORT
-#  endif
-#endif
+#include <likely/likely_export.h>
 
 #ifdef __cplusplus
 extern "C" {

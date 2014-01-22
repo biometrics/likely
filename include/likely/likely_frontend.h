@@ -14,10 +14,10 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef LIKELY_COMPILER_H
-#define LIKELY_COMPILER_H
+#ifndef LIKELY_FRONTEND_H
+#define LIKELY_FRONTEND_H
 
-#include <likely/likely_runtime.h>
+#include <likely/likely_export.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,19 +49,8 @@ LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str);
 LIKELY_EXPORT const char *likely_ast_to_string(const likely_ast ast); // Return value managed internally and guaranteed until the next call to this function
 LIKELY_EXPORT void likely_free_ast(likely_ast ast);
 
-typedef likely_mat (*likely_function)(likely_const_mat, ...);
-typedef likely_mat (*likely_function_n)(likely_const_mat*);
-LIKELY_EXPORT likely_function likely_compile(likely_ast ast); // Takes ownership of ast
-LIKELY_EXPORT likely_function_n likely_compile_n(likely_ast ast); // Takes ownership of ast
-LIKELY_EXPORT void likely_compile_to_file(likely_ast ast, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native); // Does _not_ take ownership of ast
-
-LIKELY_EXPORT likely_mat likely_eval(likely_ast ast);
-
-// Contents of library/standard.like
-LIKELY_EXPORT extern const char likely_standard_library[];
-
 #ifdef __cplusplus
 }
 #endif
 
-#endif // LIKELY_COMPILER_H
+#endif // LIKELY_FRONTEND_H

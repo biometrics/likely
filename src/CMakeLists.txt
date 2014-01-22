@@ -1,12 +1,14 @@
-set(LIKELY_SRC likely_compiler.cpp)
+set(LIKELY_SRC likely_backend.cpp likely_frontend.cpp)
 set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES})
 file(GLOB LIKELY_LIBRARY ${CMAKE_SOURCE_DIR}/library/*.like)
 set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/LICENSE.txt
                 ${CMAKE_SOURCE_DIR}/README.md
                 ${CMAKE_SOURCE_DIR}/include/likely.h
+                ${CMAKE_SOURCE_DIR}/include/likely/likely_backend.h
+                ${CMAKE_SOURCE_DIR}/include/likely/likely_export.h
+                ${CMAKE_SOURCE_DIR}/include/likely/likely_frontend.h
                 ${CMAKE_SOURCE_DIR}/include/likely/likely_runtime.h
-                ${CMAKE_SOURCE_DIR}/include/likely/likely_compiler.h
                 ${CMAKE_SOURCE_DIR}/index.html
                 ${CMAKE_SOURCE_DIR}/share/likely/hello_world/README.md)
 
