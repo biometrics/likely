@@ -14,8 +14,9 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include <vector>
+#include <iostream>
 #include <sstream>
+#include <vector>
 
 #include "likely/likely_frontend.h"
 #include "likely/likely_runtime.h"
@@ -33,8 +34,14 @@ static void tokenize(const char *str, const size_t len, vector<likely_ast> &toke
         token.is_list = false;
         token.start_pos = i;
         token.atom = &str[i];
-        while ((str[i] > ' ') && (str[i] != '(') && (str[i] != ')'))
+        bool inString = false;
+        while (((str[i] > ' ') && (str[i] != '(') && (str[i] != ')')) || inString) {
+            if (str[i] == '"')
+                inString = !inString;
+            if (str[i] == '\\')
+                i++;
             i++;
+        }
         if (i == token.start_pos)
             i++;
         token.end_pos = i;
@@ -122,15 +129,15 @@ static void print(const likely_ast &ast, stringstream &stream)
     }
 }
 
-const char *likely_tokens_to_string(likely_ast *ast, size_t num_tokens)
+const char *likely_tokens_to_string(likely_ast *tokens, size_t num_tokens)
 {
     static string str;
-    likely_assert((ast != NULL), "NULL 'ast' argument in 'likely_tokens_to_string'");
+    likely_assert((tokens != NULL), "NULL 'tokens' argument in 'likely_tokens_to_string'");
 
     stringstream stream;
     for (size_t i=0; i<num_tokens; i++) {
-        print(ast[i], stream);
-        stream << "\n";
+        print(tokens[i], stream);
+        stream << " ";
     }
     str = stream.str();
     return str.c_str();
