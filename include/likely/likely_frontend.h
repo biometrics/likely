@@ -35,7 +35,7 @@ typedef struct likely_ast
             size_t atom_len;
         };
     };
-    size_t start_pos, end_pos;
+    size_t begin, end; // indicies into the source string
     bool is_list;
 } likely_ast;
 

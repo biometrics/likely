@@ -32,7 +32,7 @@ static void tokenize(const char *str, const size_t len, vector<likely_ast> &toke
 
         likely_ast token;
         token.is_list = false;
-        token.start_pos = i;
+        token.begin = i;
         token.atom = &str[i];
         bool inString = false;
         while (((str[i] > ' ') && (str[i] != '(') && (str[i] != ')')) || inString) {
@@ -42,10 +42,10 @@ static void tokenize(const char *str, const size_t len, vector<likely_ast> &toke
                 i++;
             i++;
         }
-        if (i == token.start_pos)
+        if (i == token.begin)
             i++;
-        token.end_pos = i;
-        token.atom_len = token.end_pos - token.start_pos;
+        token.end = i;
+        token.atom_len = token.end - token.begin;
 
         tokens.push_back(token);
     }
@@ -166,8 +166,8 @@ static likely_ast parse(likely_ast *tokens, size_t num_tokens, size_t &offset)
 
     likely_ast ast;
     ast.is_list = true;
-    ast.start_pos = start.start_pos;
-    ast.end_pos = end.end_pos;
+    ast.begin = start.begin;
+    ast.end = end.end;
     ast.atoms = new likely_ast[atoms.size()];
     ast.num_atoms = atoms.size();
     memcpy(ast.atoms, atoms.data(), sizeof(likely_ast) * atoms.size());
@@ -183,8 +183,8 @@ likely_ast likely_ast_from_tokens(likely_ast *tokens, size_t num_tokens)
 
     likely_ast ast;
     ast.is_list = true;
-    ast.start_pos = expressions.empty() ? 0 : expressions.front().start_pos;
-    ast.end_pos = expressions.empty() ? 0 : expressions.back().end_pos;
+    ast.begin = expressions.empty() ? 0 : expressions.front().begin;
+    ast.end = expressions.empty() ? 0 : expressions.back().end;
     ast.atoms = new likely_ast[expressions.size()];
     ast.num_atoms = expressions.size();
     memcpy(ast.atoms, expressions.data(), sizeof(likely_ast) * expressions.size());
@@ -196,8 +196,8 @@ static void print(const likely_ast &ast, vector<likely_ast> &tokens)
     if (ast.is_list) {
         likely_ast lParen;
         lParen.is_list = false;
-        lParen.start_pos = 0;
-        lParen.end_pos = 0;
+        lParen.begin = 0;
+        lParen.end = 0;
         lParen.atom = "(";
         lParen.atom_len = 1;
         tokens.push_back(lParen);
@@ -207,8 +207,8 @@ static void print(const likely_ast &ast, vector<likely_ast> &tokens)
 
         likely_ast rParen;
         rParen.is_list = false;
-        rParen.start_pos = 0;
-        rParen.end_pos = 0;
+        rParen.begin = 0;
+        rParen.end = 0;
         rParen.atom = ")";
         rParen.atom_len = 1;
         tokens.push_back(rParen);
