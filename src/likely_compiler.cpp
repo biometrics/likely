@@ -1351,16 +1351,44 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_ast> &t
 likely_ast *likely_tokens_from_string(const char *str, size_t *num_tokens)
 {
     static vector<likely_ast> tokens;
+    likely_assert(str != NULL, "NULL 'str' argument in 'likely_tokens_from_string'");
+    likely_assert(num_tokens != NULL, "NULL 'num_tokens' argument in 'likely_tokens_from_string'");
+
     tokens.clear();
-
-    if ((str == NULL) || (num_tokens == NULL))
-        return NULL;
-
     const size_t len = strlen(str);
-    if (str[0] == '(') tokenize(str, len, tokens); // s-expression(s)
-    else               tokenizeGFM(str, len, tokens); // Github Flavored Markdown (GFM) with s-expression(s) in code blocks
+    if (str[0] == '(') tokenize(str, len, tokens);
+    else               tokenizeGFM(str, len, tokens);
     *num_tokens = tokens.size();
     return tokens.data();
+}
+
+static void print(const likely_ast &ast, stringstream &stream)
+{
+    if (ast.is_list) {
+        stream << "(";
+        for (size_t i=0; i<ast.num_atoms; i++) {
+            print(ast.atoms[i], stream);
+            if (i != ast.num_atoms - 1)
+                stream << " ";
+        }
+        stream << ")";
+    } else {
+        stream.write(ast.atom, ast.atom_len);
+    }
+}
+
+const char *likely_tokens_to_string(likely_ast *ast, size_t num_tokens)
+{
+    static string str;
+    likely_assert((ast != NULL), "NULL 'ast' argument in 'likely_tokens_to_string'");
+
+    stringstream stream;
+    for (size_t i=0; i<num_tokens; i++) {
+        print(ast[i], stream);
+        stream << "\n";
+    }
+    str = stream.str();
+    return str.c_str();
 }
 
 static inline void checkTokens(size_t num_tokens, size_t offset)
@@ -1369,7 +1397,7 @@ static inline void checkTokens(size_t num_tokens, size_t offset)
         likely_assert(false, "unexpected end of expression");
 }
 
-static likely_ast likely_ast_from_tokens(likely_ast *tokens, size_t num_tokens, size_t &offset)
+static likely_ast parse(likely_ast *tokens, size_t num_tokens, size_t &offset)
 {
     checkTokens(num_tokens, offset);
     const likely_ast &start = tokens[offset++];
@@ -1379,7 +1407,7 @@ static likely_ast likely_ast_from_tokens(likely_ast *tokens, size_t num_tokens, 
     vector<likely_ast> atoms;
     checkTokens(num_tokens, offset);
     while (tokens[offset].atom[0] != ')') {
-        atoms.push_back(likely_ast_from_tokens(tokens, num_tokens, offset));
+        atoms.push_back(parse(tokens, num_tokens, offset));
         checkTokens(num_tokens, offset);
     }
     const likely_ast &end = tokens[offset++];
@@ -1399,7 +1427,7 @@ likely_ast likely_ast_from_tokens(likely_ast *tokens, size_t num_tokens)
     size_t offset = 0;
     vector<likely_ast> expressions;
     while (offset < num_tokens)
-        expressions.push_back(likely_ast_from_tokens(tokens, num_tokens, offset));
+        expressions.push_back(parse(tokens, num_tokens, offset));
 
     likely_ast ast;
     ast.is_list = true;
@@ -1411,6 +1439,41 @@ likely_ast likely_ast_from_tokens(likely_ast *tokens, size_t num_tokens)
     return ast;
 }
 
+static void print(const likely_ast &ast, vector<likely_ast> &tokens)
+{
+    if (ast.is_list) {
+        likely_ast lParen;
+        lParen.is_list = false;
+        lParen.start_pos = 0;
+        lParen.end_pos = 0;
+        lParen.atom = "(";
+        lParen.atom_len = 1;
+        tokens.push_back(lParen);
+
+        for (size_t i=0; i<ast.num_atoms; i++)
+            print(ast.atoms[i], tokens);
+
+        likely_ast rParen;
+        rParen.is_list = false;
+        rParen.start_pos = 0;
+        rParen.end_pos = 0;
+        rParen.atom = ")";
+        rParen.atom_len = 1;
+        tokens.push_back(rParen);
+    } else {
+        tokens.push_back(ast);
+    }
+}
+
+likely_ast *likely_ast_to_tokens(const likely_ast ast, size_t *num_tokens)
+{
+    static vector<likely_ast> tokens;
+    tokens.clear();
+    print(ast, tokens);
+    *num_tokens = tokens.size();
+    return tokens.data();
+}
+
 likely_ast likely_ast_from_string(const char *expression)
 {
     size_t num_tokens;
@@ -1418,26 +1481,11 @@ likely_ast likely_ast_from_string(const char *expression)
     return likely_ast_from_tokens(tokens, num_tokens);
 }
 
-static void astToStream(const likely_ast ast, stringstream &stream)
-{
-    if (ast.is_list) {
-        stream << "(";
-        for (size_t i=0; i<ast.num_atoms; i++) {
-            astToStream(ast.atoms[i], stream);
-            if (i != ast.num_atoms - 1)
-                stream << " ";
-        }
-        stream << ")";
-    } else {
-        stream.write(ast.atom, ast.atom_len);
-    }
-}
-
 const char *likely_ast_to_string(const likely_ast ast)
 {
     static string result;
     stringstream stream;
-    astToStream(ast, stream);
+    print(ast, stream);
     result = stream.str();
     return result.c_str();
 }
