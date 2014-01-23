@@ -23,6 +23,35 @@
 
 using namespace std;
 
+typedef struct likely_ast_private
+{
+    int ref_count;
+} likely_ast_private;
+
+LIKELY_EXPORT likely_ast *likely_new_ast(int num_atoms, size_t begin, size_t end)
+{
+    size_t size = sizeof(likely_ast) + sizeof(likely_ast_private);
+    if (num_atoms >= 0)
+        size += num_atoms * sizeof(likely_ast*);
+    likely_ast *ast = (likely_ast*) malloc(size);
+
+    ast->d_ptr = (likely_ast_private*) (ast + 1);
+    ast->d_ptr->ref_count = 1;
+
+    ast->is_list = (num_atoms >= 0);
+    if (ast->is_list) {
+        ast->num_atoms = num_atoms;
+        ast->atoms = (likely_ast*) (ast->d_ptr+1);
+    } else {
+        ast->atom = "";
+        ast->atom_len = 0;
+    }
+
+    ast->begin = begin;
+    ast->end = end;
+    return ast;
+}
+
 static void tokenize(const char *str, const size_t len, vector<likely_ast> &tokens)
 {
     size_t i = 0;

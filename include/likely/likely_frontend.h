@@ -17,6 +17,7 @@
 #ifndef LIKELY_FRONTEND_H
 #define LIKELY_FRONTEND_H
 
+#include <stddef.h>
 #include <likely/likely_export.h>
 
 #ifdef __cplusplus
@@ -25,6 +26,7 @@ extern "C" {
 
 typedef struct likely_ast
 {
+    struct likely_ast_private *d_ptr;
     union {
         struct {
             struct likely_ast *atoms;
@@ -39,6 +41,8 @@ typedef struct likely_ast
     size_t begin, end; // indicies into the source string
     bool is_list;
 } likely_ast;
+
+LIKELY_EXPORT likely_ast *likely_new_ast(int num_atoms, size_t begin, size_t end);
 
 // If 'str' starts with '(' the string is assumed to contain s-expressions,
 // otherwise 'str' is assumed to be Github Flavored Markdown (GFM) with s-expression(s) in the code blocks

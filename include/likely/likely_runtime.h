@@ -28,7 +28,6 @@ extern "C" {
 
 // Matrix types
 typedef uint8_t *likely_data;
-typedef struct likely_matrix_private *likely_private;
 typedef uintptr_t likely_size;
 typedef uint32_t likely_type; /* Depth : 8
                                  Signed : 1
@@ -76,7 +75,7 @@ enum likely_type_field
 typedef struct
 {
     likely_data data;
-    likely_private d_ptr;
+    struct likely_matrix_private *d_ptr;
     likely_size channels, columns, rows, frames;
     likely_type type;
 } likely_matrix;
