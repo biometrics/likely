@@ -21,22 +21,16 @@
 class SyntaxHighlighter : public QSyntaxHighlighter
 {
     Q_OBJECT
-    QRegularExpression keywords, numbers, strings;
-    QTextCharFormat keywordsFont, markdownFont, numbersFont, stringsFont;
+    QRegularExpression numbers, strings;
+    QTextCharFormat markdownFont, numbersFont, stringsFont;
     bool commandMode = false;
 
 public:
     SyntaxHighlighter(QTextDocument *parent)
         : QSyntaxHighlighter(parent)
     {
-        keywords.setPattern("\\b(?:and|break|do|else|elseif|"
-                            "end|false|goto|for|function|"
-                            "if|in|local|nil|not|"
-                            "or|repeat|return|then|true|"
-                            "until|while)\\b");
         numbers.setPattern("-?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?");
         strings.setPattern("\"[^\"]*+\"");
-        keywordsFont.setForeground(Qt::darkYellow);
         markdownFont.setForeground(Qt::darkGray);
         numbersFont.setFontUnderline(true);
         numbersFont.setUnderlineStyle(QTextCharFormat::DotLine);
@@ -53,7 +47,6 @@ public slots:
 private:
     void highlightBlock(const QString &text)
     {
-        highlightHelp(text, keywords, keywordsFont);
         if (commandMode) highlightHelp(text, numbers, numbersFont);
         highlightHelp(text, strings, stringsFont);
         highlightMarkdown(text, markdownFont);
@@ -110,7 +103,6 @@ class Source : public QPlainTextEdit
     QString header, previousSource;
     QSettings settings;
     int wheelRemainderX = 0, wheelRemainderY = 0;
-    QStringList shownVariables;
 
 public:
     Source()
@@ -127,7 +119,7 @@ public:
         const QString source = settings.value("source").toString();
         settings.setValue("source", QString()); // Start empty the next time if this source code crashes
         settings.sync();
-        setText(source);
+        setPlainText(source);
     }
 
 public slots:
@@ -148,14 +140,14 @@ public slots:
 
         if (action.startsWith("New")) {
             sourceFileName.clear();
-            setText("");
+            setPlainText("");
         } else if (action.startsWith("Open")) {
             if (!action.endsWith("Quiet"))
                 sourceFileName = QFileDialog::getOpenFileName(this, "Open Source File", sourceFilePath);
             if (!sourceFileName.isEmpty()) {
                 QFile file(sourceFileName);
                 if (file.open(QFile::ReadOnly | QFile::Text))
-                    setText(QString::fromLocal8Bit(file.readAll()));
+                    setPlainText(QString::fromLocal8Bit(file.readAll()));
                 else
                     sourceFileName.clear();
             }
@@ -186,10 +178,8 @@ public slots:
 
     void commandsMenu(QAction *a)
     {
-        if (a->text() == "Toggle") {
-            toggle(textCursor());
-        } else if (a->text().startsWith("Increment") ||
-                   a->text().startsWith("Decrement")) {
+        if (a->text().startsWith("Increment") ||
+            a->text().startsWith("Decrement")) {
             QTextCursor tc = textCursor();
             bool ok;
             int n = selectNumber(tc, &ok);
@@ -205,23 +195,6 @@ public slots:
     }
 
 private:
-    void setText(const QString &text)
-    {
-        shownVariables.clear();
-        QPlainTextEdit::setPlainText(text);
-    }
-
-    void toggle(QTextCursor tc)
-    {
-        tc.select(QTextCursor::WordUnderCursor);
-        QString name = tc.selectedText();
-        if (shownVariables.contains(name))
-            shownVariables.removeOne(name);
-        else
-            shownVariables.append(name);
-        exec();
-    }
-
     int selectNumber(QTextCursor &tc, bool *ok)
     {
         int n = selectValUnderCursor(tc, ok);
@@ -234,13 +207,6 @@ private:
             n = selectValUnderCursor(tc, ok);
         }
         return n;
-    }
-
-    void mousePressEvent(QMouseEvent *e)
-    {
-        if (e->modifiers() != Qt::ControlModifier)
-            return QPlainTextEdit::mousePressEvent(e);
-        toggle(cursorForPosition(e->pos()));
     }
 
     void wheelEvent(QWheelEvent *e)
@@ -290,22 +256,22 @@ private:
     }
 
 private slots:
-    void exec() // TODO: FIX
+    void exec()
     {
-        QString footer = "\n--Footer\n```";
-        foreach (const QString &variable, shownVariables)
-            footer += QString("\nshow(%1, \"%1\")").arg(variable);
-        footer += "\n```\n";
-
         // This check needed because syntax highlighting triggers a textChanged() signal
-        const QString source = header + toPlainText() + footer;
+        const QString source = header + toPlainText();
         if (source == previousSource) return;
         else                          previousSource = source;
 
         emit aboutToExec();
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
-//        L = likely_exec(qPrintable(source), L, 1);
+        likely_ast ast = likely_ast_from_string(qPrintable(source));
+        for (size_t i=0; i<ast.num_atoms; i++) {
+            likely_mat result = likely_eval(ast.atoms[i]);
+            emit newResult(result);
+            likely_release(result);
+        }
         const qint64 nsec = elapsedTimer.nsecsElapsed();
 
         settings.setValue("source", toPlainText());
@@ -315,89 +281,61 @@ private slots:
 signals:
     void aboutToExec();
     void newFileName(QString);
+    void newResult(likely_mat result);
     void newStatus(QString);
 };
 
-class Variable : public QFrame
+class Matrix : public QFrame
 {
     Q_OBJECT
 
-protected:
-    QWidget *top;
-    QCheckBox *define;
-    QLabel *text, *definition;
-    QHBoxLayout *topLayout;
+    QImage src;
+    QLabel *image;
+    QWidget *caption;
+    QLabel *type;
+    QLineEdit *name;
+    QLabel *definition;
+    QHBoxLayout *captionLayout;
     QVBoxLayout *layout;
 
 public:
-    Variable(bool definable = false)
+    Matrix()
     {
         setFrameStyle(QFrame::Panel | QFrame::Raised);
         setLineWidth(2);
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        top = new QWidget(this);
-        define = new QCheckBox("Define", this);
-        define->setVisible(definable);
-        text = new QLabel(this);
-        text->setWordWrap(true);
+        image = new QLabel(this);
+        image->setAlignment(Qt::AlignCenter);
+        image->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
+        caption = new QWidget(this);
+        type = new QLabel(this);
+        name = new QLineEdit(this);
         definition = new QLabel(this);
         definition->setWordWrap(true);
         definition->setVisible(false);
-        topLayout = new QHBoxLayout(top);
-        topLayout->addWidget(text, 1);
-        topLayout->addWidget(define);
-        topLayout->setContentsMargins(0, 0, 0, 0);
-        topLayout->setSpacing(3);
+        captionLayout = new QHBoxLayout(caption);
+        captionLayout->addWidget(type);
+        captionLayout->addWidget(name);
+        captionLayout->setContentsMargins(0, 0, 0, 0);
+        captionLayout->setSpacing(3);
         layout = new QVBoxLayout(this);
-        layout->addWidget(top);
+        layout->addWidget(image);
+        layout->addWidget(name);
+        layout->addWidget(caption);
         layout->addWidget(definition);
         layout->setContentsMargins(3, 3, 3, 3);
         layout->setSpacing(3);
         setLayout(layout);
-        connect(define, SIGNAL(toggled(bool)), definition, SLOT(setVisible(bool)));
-        connect(define, SIGNAL(toggled(bool)), this, SIGNAL(definitionChanged()));
+        connect(name, SIGNAL(textChanged()), this, SLOT(updateDefinition()));
     }
 
-    QString getDefinition() const
-    {
-        return define->isChecked() ? definition->text() : QString();
-    }
-
-    void setDefinition(const QString &source)
-    {
-        const QString newDefinition = objectName() + " = " + source;
-        if (newDefinition == definition->text())
-            return;
-        definition->setText(newDefinition);
-        emit definitionChanged();
-    }
-
-signals:
-    void definitionChanged();
-};
-
-class Matrix : public Variable
-{
-    QLabel *image;
-    QImage src;
-
-public:
-    Matrix() : Variable(true)
-    {
-        image = new QLabel(this);
-        image->setAlignment(Qt::AlignCenter);
-        image->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
-        layout->addWidget(image);
-    }
-
-private:
-    bool show(likely_mat mat)
+    void show(likely_mat mat)
     {
         double min, max;
         likely_mat rendered = likely_render(mat, &min, &max);
         src = QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped();
         likely_release(rendered);
-        text->setText(QString("%1x%2x%3x%4 %5 [%6,%7]").arg(QString::number(mat->channels),
+        type->setText(QString("%1x%2x%3x%4 %5 [%6,%7]").arg(QString::number(mat->channels),
                                                             QString::number(mat->columns),
                                                             QString::number(mat->rows),
                                                             QString::number(mat->frames),
@@ -405,9 +343,14 @@ private:
                                                             QString::number(min),
                                                             QString::number(max)));
         updatePixmap();
-        return true;
     }
 
+    QString getDefinition() const
+    {
+        return definition->text();
+    }
+
+private:
     void resizeEvent(QResizeEvent *e)
     {
         QWidget::resizeEvent(e);
@@ -421,8 +364,25 @@ private:
         const int width = qMin(image->size().width(), src.width());
         const int height = src.height() * width/src.width();
         image->setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height))));
-        setDefinition(QString("{ width = %1, height = %2 }").arg(QString::number(image->size().width()), QString::number(image->size().height())));
+        updateDefinition();
     }
+
+private slots:
+    void updateDefinition()
+    {
+        if (name->text().isEmpty()) {
+            definition->clear();
+            definition->setVisible(false);
+        } else {
+            definition->setText(QString("(define %1.width %2)\n"
+                                        "(define %1.height %3)").arg(name->text(), QString::number(image->size().width()), QString::number(image->size().height())));
+            definition->setVisible(true);
+        }
+        emit definitionChanged();
+    }
+
+signals:
+    void definitionChanged();
 };
 
 class Documentation : public QScrollArea
@@ -448,7 +408,26 @@ public:
 public slots:
     void aboutToExec()
     {
+
+        for (int i=0; i<layout->count(); i++) {
+            QWidget *widget = layout->itemAt(i)->widget();
+            if (i < showIndex) widget->setVisible(false);
+            else               widget->deleteLater();
+        }
         showIndex = 0;
+    }
+
+    void show(likely_mat mat)
+    {
+        const int i = showIndex++;
+        Matrix *matrix = NULL;
+        QLayoutItem *item = layout->itemAt(i);
+        if (item != NULL)
+            return static_cast<Matrix*>(item->widget())->show(mat);
+        matrix = new Matrix();
+        layout->insertWidget(i, matrix);
+        connect(matrix, SIGNAL(definitionChanged()), this, SLOT(definitionChanged()));
+        matrix->show(mat);
     }
 
 private slots:
@@ -456,16 +435,16 @@ private slots:
     {
         QStringList definitions;
         for (int i=0; i<layout->count(); i++)
-            definitions.append(static_cast<Variable*>(layout->itemAt(i)->widget())->getDefinition());
+            definitions.append(static_cast<Matrix*>(layout->itemAt(i)->widget())->getDefinition());
         definitions.removeAll(QString());
         emit newDefinitions(definitions.join("\n") + (definitions.isEmpty() ? "" : "\n"));
     }
 
     void removeObject(QObject *object)
     {
-        Variable *variable = static_cast<Variable*>(object);
-        layout->removeWidget(variable);
-        if (!variable->getDefinition().isEmpty())
+        Matrix *matrix = static_cast<Matrix*>(object);
+        layout->removeWidget(matrix);
+        if (!matrix->getDefinition().isEmpty())
             definitionChanged();
     }
 
@@ -525,17 +504,14 @@ public:
         fileMenu->addAction(saveSourceAs);
 
         QMenu *commandsMenu = new QMenu("Commands");
-        QAction *toggle = new QAction("Toggle", commandsMenu);
         QAction *increment = new QAction("Increment", commandsMenu);
         QAction *decrement = new QAction("Decrement", commandsMenu);
         QAction *increment10x = new QAction("Increment 10x", commandsMenu);
         QAction *decrement10x = new QAction("Decrement 10x", commandsMenu);
-        toggle->setShortcut(QKeySequence("Ctrl+\n"));
         increment->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_Equal));
         decrement->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_Minus));
         increment10x->setShortcut(QKeySequence(Qt::CTRL+Qt::SHIFT+Qt::Key_Equal));
         decrement10x->setShortcut(QKeySequence(Qt::CTRL+Qt::SHIFT+Qt::Key_Minus));
-        commandsMenu->addAction(toggle);
         commandsMenu->addAction(increment);
         commandsMenu->addAction(decrement);
         commandsMenu->addAction(increment10x);
@@ -573,8 +549,6 @@ public:
         connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
         connect(source, SIGNAL(aboutToExec()), documentation, SLOT(aboutToExec()));
         connect(source, SIGNAL(newFileName(QString)), this, SLOT(setWindowTitle(QString)));
-        connect(source, SIGNAL(newState(lua_State*)), this, SLOT(stateChanged()));
-        connect(source, SIGNAL(newState(lua_State*)), documentation, SLOT(newState(lua_State*)));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
 
         source->restore();
@@ -602,8 +576,10 @@ int main(int argc, char *argv[])
         } else {
             source = argv[i];
         }
-// TODO: FIX
-//        lua_close(likely_exec(qPrintable(source), NULL, 1));
+
+        likely_ast ast = likely_ast_from_string(qPrintable(source));
+        for (size_t i=0; i<ast.num_atoms; i++)
+            likely_release(likely_eval(ast.atoms[i]));
     }
 
     if (argc > 1)
