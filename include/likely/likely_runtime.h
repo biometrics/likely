@@ -72,7 +72,7 @@ enum likely_type_field
     likely_type_reserved        = 0xFFFE0000
 };
 
-// The only struct in the API
+// The main datatype in the API
 typedef struct
 {
     likely_data data;
@@ -83,7 +83,7 @@ typedef struct
 typedef likely_matrix *likely_mat;
 typedef const likely_matrix *likely_const_mat;
 
-// Error handling
+// Abort-style error handling
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
 
 // Query and edit the type

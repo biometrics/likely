@@ -35,6 +35,7 @@ typedef struct likely_ast
             size_t atom_len;
         };
     };
+
     size_t begin, end; // indicies into the source string
     bool is_list;
 } likely_ast;
@@ -57,7 +58,10 @@ typedef struct likely_error
 
 typedef void (*likely_error_callback)(likely_error error, void *context);
 LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, void *context);
+
+// Exception-style error handling
 LIKELY_EXPORT void likely_throw(likely_ast token, const char *message);
+
 #ifdef __cplusplus
 }
 #endif
