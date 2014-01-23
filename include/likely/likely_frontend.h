@@ -49,6 +49,15 @@ LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str);
 LIKELY_EXPORT const char *likely_ast_to_string(const likely_ast ast); // Return value managed internally and guaranteed until the next call to this function
 LIKELY_EXPORT void likely_free_ast(likely_ast ast);
 
+typedef struct likely_error
+{
+    likely_ast ast; // where
+    const char *message; //what
+} likely_error;
+
+typedef void (*likely_error_callback)(likely_error error, void *context);
+LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, void *context);
+LIKELY_EXPORT void likely_throw(likely_ast token, const char *message);
 #ifdef __cplusplus
 }
 #endif

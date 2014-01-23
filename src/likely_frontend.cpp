@@ -143,26 +143,36 @@ const char *likely_tokens_to_string(likely_ast *tokens, size_t num_tokens)
     return str.c_str();
 }
 
-static inline void checkTokens(size_t num_tokens, size_t offset)
+static inline void check(likely_ast *tokens, size_t num_tokens, size_t offset)
 {
     if (offset >= num_tokens)
-        likely_assert(false, "unexpected end of expression");
+        likely_throw(tokens[num_tokens-1], "unexpected end of expression");
 }
 
 static likely_ast parse(likely_ast *tokens, size_t num_tokens, size_t &offset)
 {
-    checkTokens(num_tokens, offset);
-    const likely_ast &start = tokens[offset++];
-    if (start.atom[0] != '(')
-        return start;
-
+    likely_ast start, end;
     vector<likely_ast> atoms;
-    checkTokens(num_tokens, offset);
-    while (tokens[offset].atom[0] != ')') {
-        atoms.push_back(parse(tokens, num_tokens, offset));
-        checkTokens(num_tokens, offset);
+    try {
+        check(tokens, num_tokens, offset);
+        start = tokens[offset++];
+        if (start.atom[0] != '(')
+            return start;
+
+        check(tokens, num_tokens, offset);
+        while (tokens[offset].atom[0] != ')') {
+            atoms.push_back(parse(tokens, num_tokens, offset));
+            check(tokens, num_tokens, offset);
+        }
+        end = tokens[offset++];
+    } catch (...) {
+        likely_ast ast;
+        ast.is_list = false;
+        ast.begin = ast.end = 0;
+        ast.atom = "";
+        ast.atom_len = 0;
+        return ast;
     }
-    const likely_ast &end = tokens[offset++];
 
     likely_ast ast;
     ast.is_list = true;
@@ -249,4 +259,25 @@ void likely_free_ast(likely_ast ast)
             likely_free_ast(ast.atoms[i]);
         delete[] ast.atoms;
     }
+}
+
+static likely_error_callback ErrorCallback = NULL;
+static void *ErrorContext = NULL;
+
+void likely_set_error_callback(likely_error_callback callback, void *context)
+{
+    ErrorCallback = callback;
+    ErrorContext = context;
+}
+
+void likely_throw(likely_ast ast, const char *message)
+{
+    likely_error error;
+    error.ast = ast;
+    error.message = message;
+
+    if (ErrorCallback) ErrorCallback(error, ErrorContext);
+    else               likely_assert(false, message);
+
+    throw error;
 }
