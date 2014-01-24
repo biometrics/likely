@@ -267,11 +267,12 @@ private slots:
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
         likely_ast ast = likely_ast_from_string(qPrintable(source));
-        for (size_t i=0; i<ast.num_atoms; i++) {
-            likely_mat result = likely_eval(ast.atoms[i]);
+        for (size_t i=0; i<ast->num_atoms; i++) {
+            likely_mat result = likely_eval(ast->atoms[i]);
             emit newResult(result);
             likely_release(result);
         }
+        likely_release_ast(ast);
         const qint64 nsec = elapsedTimer.nsecsElapsed();
 
         settings.setValue("source", toPlainText());
@@ -594,8 +595,9 @@ int main(int argc, char *argv[])
         }
 
         likely_ast ast = likely_ast_from_string(qPrintable(source));
-        for (size_t i=0; i<ast.num_atoms; i++)
-            likely_release(likely_eval(ast.atoms[i]));
+        for (size_t i=0; i<ast->num_atoms; i++)
+            likely_release(likely_eval(ast->atoms[i]));
+        likely_release_ast(ast);
     }
 
     if (argc > 1)

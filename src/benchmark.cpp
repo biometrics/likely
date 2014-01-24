@@ -69,8 +69,9 @@ struct Test
             return;
 
         likely_ast ast = likely_ast_from_string(function());
-        likely_assert(ast.num_atoms == 1, "expected a single expression");
-        likely_function f = likely_compile(ast.atoms[0]);
+        likely_assert(ast->num_atoms == 1, "expected a single expression");
+        likely_function f = likely_compile(ast->atoms[0]);
+        likely_release_ast(ast);
 
         for (likely_type type : types()) {
             if ((BenchmarkType != likely_type_null) && (BenchmarkType != type))
@@ -114,8 +115,8 @@ struct Test
 
         printf("%s \t", fileName.c_str());
         likely_ast ast = likely_ast_from_string(source.c_str());
-        for (size_t i=0; i<ast.num_atoms; i++)
-            likely_release(likely_eval(ast.atoms[i]));
+        for (size_t i=0; i<ast->num_atoms; i++)
+            likely_release(likely_eval(ast->atoms[i]));
 
         if (!BenchmarkSpeed) {
             printf("\n");
@@ -126,13 +127,14 @@ struct Test
         int iter = 0;
         startTime = endTime = clock();
         while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
-            for (size_t i=0; i<ast.num_atoms; i++)
-                likely_release(likely_eval(ast.atoms[i]));
+            for (size_t i=0; i<ast->num_atoms; i++)
+                likely_release(likely_eval(ast->atoms[i]));
             endTime = clock();
             iter++;
         }
         Speed speed(iter, startTime, endTime);
         printf("%.2e\n", speed.Hz);
+        likely_release_ast(ast);
     }
 
 protected:

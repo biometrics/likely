@@ -31,6 +31,7 @@
 #include <llvm/Target/TargetLibraryInfo.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Vectorize.h>
+#include <iostream>
 #include <sstream>
 
 #include "likely/likely_backend.h"
@@ -219,11 +220,11 @@ struct Operation
     static TypedValue expression(ExpressionBuilder &builder, const KernelInfo &info, likely_ast ast)
     {
         string operator_;
-        if (ast.is_list) {
-            likely_assert((ast.num_atoms > 0) && !ast.atoms[0].is_list, "ill-formed abstract syntax tree");
-            operator_ = string(ast.atoms[0].atom, ast.atoms[0].atom_len);
+        if (ast->is_list) {
+            likely_assert((ast->num_atoms > 0) && !ast->atoms[0]->is_list, "ill-formed abstract syntax tree");
+            operator_ = ast->atoms[0]->atom;
         } else {
-            operator_ = string(ast.atom, ast.atom_len);
+            operator_ = ast->atom;
         }
 
         map<string,stack<const Operation*>>::iterator it = operations.find(operator_);
@@ -263,9 +264,9 @@ protected:
     virtual TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ast ast) const
     {
         vector<TypedValue> operands;
-        if (ast.is_list)
-            for (size_t i=1; i<ast.num_atoms; i++)
-                operands.push_back(expression(builder, info, ast.atoms[i]));
+        if (ast->is_list)
+            for (size_t i=1; i<ast->num_atoms; i++)
+                operands.push_back(expression(builder, info, ast->atoms[i]));
         return call(builder, info, operands);
     }
 
@@ -298,12 +299,12 @@ class GenericOperation : public Operation
 protected:
     void addToClosure(ExpressionBuilder &builder, const KernelInfo &info, likely_ast ast) const
     {
-        likely_assert(ast.is_list, "invalid closure");
-        if ((ast.num_atoms == 2) && !ast.atoms[0].is_list) {
-            builder.addVariable(string(ast.atoms[0].atom, ast.atoms[0].atom_len), expression(builder, info, ast.atoms[1]));
+        likely_assert(ast->is_list, "invalid closure");
+        if ((ast->num_atoms == 2) && !ast->atoms[0]->is_list) {
+            builder.addVariable(ast->atoms[0]->atom, expression(builder, info, ast->atoms[1]));
         } else {
-            for (size_t i=0; i<ast.num_atoms; i++)
-                addToClosure(builder, info, ast.atoms[i]);
+            for (size_t i=0; i<ast->num_atoms; i++)
+                addToClosure(builder, info, ast->atoms[i]);
         }
     }
 };
@@ -311,7 +312,7 @@ protected:
 class letOperation : public GenericOperation
 {
     using Operation::call;
-    TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ast ast) const
+    TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ast_struct ast) const
     {
         builder.closures.push_back(ExpressionBuilder::Closure());
         addToClosure(builder, info, ast.atoms[1]);
@@ -325,7 +326,7 @@ LIKELY_REGISTER(let)
 class loopOperation : public GenericOperation
 {
     using Operation::call;
-    TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ast ast) const
+    TypedValue call(ExpressionBuilder &builder, const KernelInfo &info, likely_ast_struct ast) const
     {
         builder.closures.push_back(ExpressionBuilder::Closure());
         addToClosure(builder, info, ast.atoms[1]);
@@ -876,9 +877,9 @@ struct FunctionBuilder : private JITResources
             ExpressionBuilder builder(module, thunk);
             KernelInfo info(srcs);
 
-            const likely_ast &args = ast.atoms[1];
-            for (size_t i=0; i<args.num_atoms; i++)
-                Operation::operations[string(args.atoms[i].atom, args.atoms[i].atom_len)].push(new kernelArgOperation(i));
+            const likely_ast args = ast->atoms[1];
+            for (size_t i=0; i<args->num_atoms; i++)
+                Operation::operations[args->atoms[i]->atom].push(new kernelArgOperation(i));
 
             // The kernel assumes there is at least one iteration
             BasicBlock *body = BasicBlock::Create(getGlobalContext(), "kernel_body", thunk);
@@ -888,7 +889,7 @@ struct FunctionBuilder : private JITResources
             i->addIncoming(start, builder.entry);
 
             info.init(srcs, builder, dst, TypedValue(i, likely_type_native));
-            TypedValue result = Operation::expression(builder, info, ast.atoms[2]);
+            TypedValue result = Operation::expression(builder, info, ast->atoms[2]);
             dstType = dst.type = result.type;
             StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(dst), i));
             builder.annotateParallel(store);
@@ -904,8 +905,8 @@ struct FunctionBuilder : private JITResources
             builder.SetInsertPoint(loopExit);
             builder.CreateRetVoid();
 
-            for (size_t i=0; i<args.num_atoms; i++)
-                Operation::operations[string(args.atoms[i].atom, args.atoms[i].atom_len)].pop();
+            for (size_t i=0; i<args->num_atoms; i++)
+                Operation::operations[args->atoms[i]->atom].pop();
 
             FunctionPassManager functionPassManager(module);
             functionPassManager.add(createVerifierPass(PrintMessageAction));
@@ -1081,9 +1082,9 @@ private:
         Value *result = NULL;
 
         // Look for a dimensionality expression
-        for (size_t i=3; i<ast.num_atoms; i++) {
-            if (ast.atoms[i].is_list && (ast.atoms[i].num_atoms == 2) && (!ast.atoms[i].atoms[0].is_list) && !strncmp(axis, ast.atoms[i].atoms[0].atom, ast.atoms[i].atoms[0].atom_len)) {
-                result = builder.cast(Operation::expression(builder, info, ast.atoms[i].atoms[1]), likely_type_native);
+        for (size_t i=3; i<ast->num_atoms; i++) {
+            if (ast->atoms[i]->is_list && (ast->atoms[i]->num_atoms == 2) && (!ast->atoms[i]->atoms[0]->is_list) && !strcmp(axis, ast->atoms[i]->atoms[0]->atom)) {
+                result = builder.cast(Operation::expression(builder, info, ast->atoms[i]->atoms[1]), likely_type_native);
                 break;
             }
         }
@@ -1122,8 +1123,8 @@ struct VTable : public JITResources
     VTable(likely_ast ast)
         : JITResources(true), ast(ast)
     {
-        likely_assert(ast.is_list && (ast.num_atoms == 3) && !strncmp(ast.atoms[0].atom, "kernel", 6) && ast.atoms[1].is_list, "ill-formed kernel expression");
-        n = (likely_arity) ast.atoms[1].num_atoms;
+        likely_assert(ast->is_list && (ast->num_atoms == 3) && !strcmp(ast->atoms[0]->atom, "kernel") && ast->atoms[1]->is_list, "ill-formed kernel expression");
+        n = (likely_arity) ast->atoms[1]->num_atoms;
 
         if (vtableType == NULL)
             vtableType = PointerType::getUnqual(StructType::create(getGlobalContext(), "VTable"));
@@ -1143,11 +1144,12 @@ struct VTable : public JITResources
         likelyDispatch->setDoesNotAlias(2);
         likelyDispatch->setDoesNotCapture(1);
         likelyDispatch->setDoesNotCapture(2);
+        likely_retain_ast(ast);
     }
 
     ~VTable()
     {
-        likely_free_ast(ast);
+        likely_release_ast(ast);
         for (FunctionBuilder *function : functions)
             delete function;
     }

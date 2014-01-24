@@ -32,13 +32,14 @@ int main(int argc, char *argv[])
         help();
 
     likely_ast ast = likely_ast_from_string(argv[1]);
-    likely_assert(ast.num_atoms == 1, "expected a single expression");
+    likely_assert(ast->num_atoms == 1, "expected a single expression");
 
     likely_arity n = (likely_arity) argc-4;
     likely_type *types = (likely_type*) malloc(n * sizeof(likely_type));
     for (likely_arity i=0; i<n; i++)
         types[i] = likely_type_from_string(argv[i+3]);
 
-    likely_compile_to_file(ast.atoms[0], argv[2], types, n, argv[argc-1], true);
-    likely_free_ast(ast);
+    likely_compile_to_file(ast->atoms[0], argv[2], types, n, argv[argc-1], true);
+    likely_release_ast(ast);
+    free(types);
 }

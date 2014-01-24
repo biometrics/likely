@@ -24,12 +24,12 @@
 extern "C" {
 #endif
 
-typedef struct likely_ast
+typedef struct likely_ast_struct
 {
     struct likely_ast_private *d_ptr;
     union {
         struct {
-            struct likely_ast *atoms;
+            struct likely_ast_struct **atoms;
             size_t num_atoms;
         };
         struct {
@@ -40,19 +40,21 @@ typedef struct likely_ast
 
     size_t begin, end; // indicies into the source string
     bool is_list;
-} likely_ast;
+} *likely_ast;
 
-LIKELY_EXPORT likely_ast *likely_new_ast(int num_atoms, size_t begin, size_t end);
+LIKELY_EXPORT likely_ast likely_new_atom(const char *atom, size_t begin, size_t end);
+LIKELY_EXPORT likely_ast likely_new_list(likely_ast *atoms, size_t num_atoms);
+LIKELY_EXPORT likely_ast likely_retain_ast(likely_ast ast);
+LIKELY_EXPORT void likely_release_ast(likely_ast ast);
 
 // If 'str' starts with '(' the string is assumed to contain s-expressions,
 // otherwise 'str' is assumed to be Github Flavored Markdown (GFM) with s-expression(s) in the code blocks
 LIKELY_EXPORT likely_ast *likely_tokens_from_string(const char *str, size_t *num_tokens); // Return value managed internally and guaranteed until the next call to this function
-LIKELY_EXPORT const char *likely_tokens_to_string(likely_ast *tokens, size_t num_tokens); // Return value managed internally and guaranteed until the next call to this function
+LIKELY_EXPORT const char *likely_tokens_to_string(const likely_ast *tokens, size_t num_tokens); // Return value managed internally and guaranteed until the next call to this function
 LIKELY_EXPORT likely_ast likely_ast_from_tokens(likely_ast *tokens, size_t num_tokens); // Top level is a list of expressions
 LIKELY_EXPORT likely_ast *likely_ast_to_tokens(const likely_ast ast, size_t *num_tokens); // Return value managed internally and guaranteed until the next call to this function
-LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str);
+LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str); // Top level is a list of expressions
 LIKELY_EXPORT const char *likely_ast_to_string(const likely_ast ast); // Return value managed internally and guaranteed until the next call to this function
-LIKELY_EXPORT void likely_free_ast(likely_ast ast);
 
 typedef struct likely_error
 {
