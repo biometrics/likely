@@ -1,17 +1,20 @@
 project(hello_world)
+option(LIKELY_HELLOWORLD "Build Likely Hello World examples" ON)
 
-# hello_world_jit
-if(${LIKELY_IO})
-  add_executable(hello_world_jit hello_world_jit.c)
-  target_link_libraries(hello_world_jit likely)
+if(${LIKELY_HELLOWORLD})
+  # hello_world_jit
+  if(${LIKELY_IO})
+    add_executable(hello_world_jit hello_world_jit.c)
+    target_link_libraries(hello_world_jit likely)
+  endif()
+
+  # hello_world_static
+  add_custom_command(OUTPUT hello_world_div2.o
+                     COMMAND like "(kernel (a) (/ a 2))" hello_world_div2 f32X hello_world_div2.o
+                     DEPENDS like
+                     VERBATIM)
+
+  add_executable(hello_world_static hello_world_static.c hello_world_div2.o)
+  set_source_files_properties(hello_world_div2.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
+  target_link_libraries(hello_world_static likely_runtime)
 endif()
-
-# hello_world_static
-add_custom_command(OUTPUT hello_world_div2.o
-                   COMMAND like "(kernel (a) (/ a 2))" hello_world_div2 f32X hello_world_div2.o
-                   DEPENDS like
-                   VERBATIM)
-
-add_executable(hello_world_static hello_world_static.c hello_world_div2.o)
-set_source_files_properties(hello_world_div2.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
-target_link_libraries(hello_world_static likely_runtime)

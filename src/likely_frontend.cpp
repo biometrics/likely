@@ -55,8 +55,6 @@ likely_ast likely_new_list(likely_ast *atoms, size_t num_atoms)
     ast->is_list = true;
     ast->begin = num_atoms == 0 ? 0 : atoms[0]->begin;
     ast->end = num_atoms == 0 ? 0 : atoms[num_atoms-1]->end;
-    for (size_t i=0; i<ast->num_atoms; i++)
-        likely_retain_ast(ast->atoms[i]);
     return ast;
 }
 
@@ -148,21 +146,26 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_ast> &t
     }
 }
 
+static likely_ast cleanup(vector<likely_ast> &atoms)
+{
+    for (size_t i=0; i<atoms.size(); i++)
+        likely_release_ast(atoms[i]);
+    atoms.clear();
+    return NULL;
+}
+
 likely_ast *likely_tokens_from_string(const char *str, size_t *num_tokens)
 {
     static vector<likely_ast> tokens;
-    likely_assert(str != NULL, "NULL 'str' argument in 'likely_tokens_from_string'");
-    likely_assert(num_tokens != NULL, "NULL 'num_tokens' argument in 'likely_tokens_from_string'");
-
-    for (size_t i=0; i<tokens.size(); i++)
-        likely_release_ast(tokens[i]);
-    tokens.clear();
+    cleanup(tokens);
+    if ((str == NULL) || (num_tokens == NULL))
+        return NULL;
 
     const size_t len = strlen(str);
     if (str[0] == '(') tokenize(str, len, tokens);
     else               tokenizeGFM(str, len, tokens);
     *num_tokens = tokens.size();
-    return tokens.data();
+    return tokens.empty() ? NULL : tokens.data();
 }
 
 static void print(const likely_ast ast, stringstream &stream)
@@ -183,7 +186,9 @@ static void print(const likely_ast ast, stringstream &stream)
 const char *likely_tokens_to_string(const likely_ast *tokens, size_t num_tokens)
 {
     static string str;
-    likely_assert((tokens != NULL), "NULL 'tokens' argument in 'likely_tokens_to_string'");
+    str.clear();
+    if (tokens == NULL)
+        return NULL;
 
     stringstream stream;
     for (size_t i=0; i<num_tokens; i++) {
@@ -194,41 +199,43 @@ const char *likely_tokens_to_string(const likely_ast *tokens, size_t num_tokens)
     return str.c_str();
 }
 
-static inline void check(likely_ast *tokens, size_t num_tokens, size_t offset)
-{
-    if (offset >= num_tokens)
-        likely_throw(tokens[num_tokens-1], "unexpected end of expression");
-}
-
 static likely_ast parse(likely_ast *tokens, size_t num_tokens, size_t &offset)
 {
-    likely_ast start, end;
+    likely_ast start = tokens[offset++];
+    if (strcmp(start->atom, "("))
+        return likely_retain_ast(start);
+
     vector<likely_ast> atoms;
-    try {
-        check(tokens, num_tokens, offset);
-        start = tokens[offset++];
-        if (start->atom[0] != '(')
-            return start;
-
-        check(tokens, num_tokens, offset);
-        while (tokens[offset]->atom[0] != ')') {
-            atoms.push_back(parse(tokens, num_tokens, offset));
-            check(tokens, num_tokens, offset);
+    do {
+        if (offset >= num_tokens) {
+            likely_throw(tokens[num_tokens-1], "unexpected end of expression");
+            return cleanup(atoms);
         }
-        end = tokens[offset++];
-    } catch (...) {
-        return NULL;
-    }
+        if (!strcmp(tokens[offset]->atom, ")"))
+            break;
+        likely_ast atom = parse(tokens, num_tokens, offset);
+        if (atom == NULL)
+            return cleanup(atoms);
+        atoms.push_back(atom);
+    } while (true);
+    likely_ast end = tokens[offset++];
 
-    return likely_new_list(atoms.data(), atoms.size());
+    likely_ast list = likely_new_list(atoms.data(), atoms.size());
+    list->begin = start->begin;
+    list->end = end->end;
+    return list;
 }
 
 likely_ast likely_ast_from_tokens(likely_ast *tokens, size_t num_tokens)
 {
     size_t offset = 0;
     vector<likely_ast> expressions;
-    while (offset < num_tokens)
-        expressions.push_back(parse(tokens, num_tokens, offset));
+    while (offset < num_tokens) {
+        likely_ast expression = parse(tokens, num_tokens, offset);
+        if (expression == NULL)
+            return cleanup(expressions);
+        expressions.push_back(expression);
+    }
     return likely_new_list(expressions.data(), expressions.size());
 }
 
@@ -240,23 +247,20 @@ static void print(const likely_ast ast, vector<likely_ast> &tokens)
             print(ast->atoms[i], tokens);
         tokens.push_back(likely_new_atom(")", 0, 1));
     } else {
-        likely_retain_ast(ast);
-        tokens.push_back(ast);
+        tokens.push_back(likely_retain_ast(ast));
     }
 }
 
 likely_ast *likely_ast_to_tokens(const likely_ast ast, size_t *num_tokens)
 {
     static vector<likely_ast> tokens;
-    likely_assert((num_tokens != NULL), "NULL 'num_tokens' argument in 'likely_ast_to_tokens'");
-
-    for (size_t i=0; i<tokens.size(); i++)
-        likely_release_ast(tokens[i]);
-    tokens.clear();
+    cleanup(tokens);
+    if ((ast == NULL) || (num_tokens == NULL))
+        return NULL;
 
     print(ast, tokens);
     *num_tokens = tokens.size();
-    return tokens.data();
+    return tokens.empty() ? NULL : tokens.data();
 }
 
 likely_ast likely_ast_from_string(const char *expression)
@@ -286,12 +290,12 @@ void likely_set_error_callback(likely_error_callback callback, void *context)
 
 void likely_throw(likely_ast ast, const char *message)
 {
-    likely_error error;
-    error.ast = ast;
-    error.message = message;
-
-    if (ErrorCallback) ErrorCallback(error, ErrorContext);
-    else               likely_assert(false, message);
-
-    throw error;
+    if (ErrorCallback) {
+        likely_error error;
+        error.ast = ast;
+        error.message = message;
+        ErrorCallback(error, ErrorContext);
+    } else {
+        likely_assert(false, message);
+    }
 }
