@@ -42,7 +42,7 @@ typedef struct likely_ast_struct
     bool is_list;
 } *likely_ast;
 
-LIKELY_EXPORT likely_ast likely_new_atom(const char *atom, size_t begin, size_t end);
+LIKELY_EXPORT likely_ast likely_new_atom(const char *str, size_t begin, size_t end);
 LIKELY_EXPORT likely_ast likely_new_list(likely_ast *atoms, size_t num_atoms);
 LIKELY_EXPORT likely_ast likely_retain_ast(likely_ast ast);
 LIKELY_EXPORT void likely_release_ast(likely_ast ast);

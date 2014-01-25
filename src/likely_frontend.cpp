@@ -28,14 +28,14 @@ typedef struct likely_ast_private
     int ref_count;
 } likely_ast_private;
 
-likely_ast likely_new_atom(const char *atom, size_t begin, size_t end)
+likely_ast likely_new_atom(const char *str, size_t begin, size_t end)
 {
     const size_t atom_len = end - begin;
     likely_ast ast = (likely_ast) malloc(sizeof(likely_ast_struct) + sizeof(likely_ast_private) + atom_len + 1);
     ast->d_ptr = (likely_ast_private*) (ast + 1);
     ast->d_ptr->ref_count = 1;
     ast->atom = (const char*) (ast->d_ptr + 1);
-    memcpy((void*) ast->atom, atom, atom_len);
+    memcpy((void*) ast->atom, &str[begin], atom_len);
     ((char*) ast->atom)[atom_len] = '\0';
     ast->atom_len = atom_len;
     ast->is_list = false;
@@ -93,7 +93,7 @@ static void tokenize(const char *str, const size_t len, vector<likely_ast> &toke
         }
         if (i == begin)
             i++;
-        tokens.push_back(likely_new_atom(&str[begin], begin, i));
+        tokens.push_back(likely_new_atom(str, begin, i));
     }
 }
 
