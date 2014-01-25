@@ -267,6 +267,8 @@ private slots:
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
         likely_ast ast = likely_ast_from_string(qPrintable(source));
+        if (ast == NULL)
+            return;
         for (size_t i=0; i<ast->num_atoms; i++) {
             likely_mat result = likely_eval(ast->atoms[i]);
             emit newResult(result);
@@ -419,6 +421,7 @@ public:
 public slots:
     void aboutToExec()
     {
+        error->clear();
         for (int i=1; i<layout->count(); i++) {
             QWidget *widget = layout->itemAt(i)->widget();
             if (i < showIndex) widget->setVisible(false);
