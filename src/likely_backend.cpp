@@ -182,46 +182,46 @@ struct ExpressionBuilder : public IRBuilder<>
         likely_assert(false, "ty invalid matrix bits: %d and floating: %d", bits, floating);
         return NULL;
     }
+
+    static Function *getFunction(const string &name, Module *m, likely_arity arity, Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
+    {
+        PointerType *matrixPointer = PointerType::getUnqual(TheMatrixStruct);
+        Function *f;
+        switch (arity) {
+          case 0: f = ::cast<Function>(m->getOrInsertFunction(name, ret, dst, start, stop, NULL)); break;
+          case 1: f = ::cast<Function>(m->getOrInsertFunction(name, ret, matrixPointer, dst, start, stop, NULL)); break;
+          case 2: f = ::cast<Function>(m->getOrInsertFunction(name, ret, matrixPointer, matrixPointer, dst, start, stop, NULL)); break;
+          case 3: f = ::cast<Function>(m->getOrInsertFunction(name, ret, matrixPointer, matrixPointer, matrixPointer, dst, start, stop, NULL)); break;
+          default: { f = NULL; likely_assert(false, "FunctionBuilder::getFunction invalid arity: %d", arity); }
+        }
+        f->addFnAttr(Attribute::NoUnwind);
+        f->setCallingConv(CallingConv::C);
+        if (ret->isPointerTy())
+            f->setDoesNotAlias(0);
+        size_t num_mats = arity;
+        if (dst) num_mats++;
+        for (size_t i=0; i<num_mats; i++) {
+            f->setDoesNotAlias((unsigned int)i+1);
+            f->setDoesNotCapture((unsigned int)i+1);
+        }
+        return f;
+    }
+
+    static vector<TypedValue> getArgs(Function *function, const vector<likely_type> &types)
+    {
+        vector<TypedValue> result;
+        Function::arg_iterator args = function->arg_begin();
+        likely_arity n = 0;
+        while (args != function->arg_end()) {
+            Value *src = args++;
+            stringstream name; name << "arg_" << int(n);
+            src->setName(name.str());
+            result.push_back(TypedValue(src, n < types.size() ? types[n] : likely_type_null));
+            n++;
+        }
+        return result;
+    }
 };
-
-static Function *getFunction(const string &name, Module *m, likely_arity arity, Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
-{
-    PointerType *matrixPointer = PointerType::getUnqual(TheMatrixStruct);
-    Function *function;
-    switch (arity) {
-    case 0: function = cast<Function>(m->getOrInsertFunction(name, ret, dst, start, stop, NULL)); break;
-    case 1: function = cast<Function>(m->getOrInsertFunction(name, ret, matrixPointer, dst, start, stop, NULL)); break;
-    case 2: function = cast<Function>(m->getOrInsertFunction(name, ret, matrixPointer, matrixPointer, dst, start, stop, NULL)); break;
-    case 3: function = cast<Function>(m->getOrInsertFunction(name, ret, matrixPointer, matrixPointer, matrixPointer, dst, start, stop, NULL)); break;
-    default: { function = NULL; likely_assert(false, "FunctionBuilder::getFunction invalid arity: %d", arity); }
-    }
-    function->addFnAttr(Attribute::NoUnwind);
-    function->setCallingConv(CallingConv::C);
-    if (ret->isPointerTy())
-        function->setDoesNotAlias(0);
-    size_t num_mats = arity;
-    if (dst) num_mats++;
-    for (size_t i=0; i<num_mats; i++) {
-        function->setDoesNotAlias((unsigned int)i+1);
-        function->setDoesNotCapture((unsigned int)i+1);
-    }
-    return function;
-}
-
-static vector<TypedValue> getArgs(Function *function, const vector<likely_type> &types)
-{
-    vector<TypedValue> result;
-    Function::arg_iterator args = function->arg_begin();
-    likely_arity n = 0;
-    while (args != function->arg_end()) {
-        Value *src = args++;
-        stringstream name; name << "arg_" << int(n);
-        src->setName(name.str());
-        result.push_back(TypedValue(src, n < types.size() ? types[n] : likely_type_null));
-        n++;
-    }
-    return result;
-}
 
 struct KernelInfo
 {
@@ -781,8 +781,8 @@ class kernelOperation : public GenericOperation
         Function *thunk;
         likely_type dstType;
         {
-            thunk = getFunction(name+"_thunk", module, (likely_arity) info.srcs.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), NativeIntegerType, NativeIntegerType);
-            vector<TypedValue> srcs = getArgs(thunk, types);
+            thunk = ExpressionBuilder::getFunction(name+"_thunk", module, (likely_arity) info.srcs.size(), Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), NativeIntegerType, NativeIntegerType);
+            vector<TypedValue> srcs = ExpressionBuilder::getArgs(thunk, types);
             TypedValue stop = srcs.back(); srcs.pop_back();
             stop.value->setName("stop");
             stop.type = likely_type_native;
@@ -1087,8 +1087,8 @@ struct FunctionBuilder : private JITResources
         type = new likely_type[types.size()];
         memcpy(type, types.data(), sizeof(likely_type) * types.size());
 
-        Function *function = getFunction(name, module, (likely_arity)types.size(), PointerType::getUnqual(TheMatrixStruct));
-        vector<TypedValue> srcs = getArgs(function, types);
+        Function *function = ExpressionBuilder::getFunction(name, module, (likely_arity)types.size(), PointerType::getUnqual(TheMatrixStruct));
+        vector<TypedValue> srcs = ExpressionBuilder::getArgs(function, types);
         ExpressionBuilder builder(module, function);
         KernelInfo info(name, srcs, native ? targetMachine : NULL);
         builder.CreateRet(Operation::expression(builder, info, ast));
