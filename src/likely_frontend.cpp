@@ -108,13 +108,13 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_ast> &t
             lineEnd++;
         const size_t lineLen = lineEnd - lineStart;
 
-        if ((lineLen > 3) && !strncmp(&str[lineStart], "```", 3)) {
+        if ((lineLen >= 3) && !strncmp(&str[lineStart], "```", 3)) {
             // Found a code block marker
             if (skipBlock) {
                 skipBlock = false;
             } else if (inBlock) {
                 inBlock = false;
-            } else if (str[3] != '\n') {
+            } else if (lineLen > 3) {
                 // skip code blocks marked for specific languages
                 skipBlock = true;
             } else {
@@ -202,13 +202,18 @@ const char *likely_tokens_to_string(const likely_ast *tokens, size_t num_tokens)
 static likely_ast parse(likely_ast *tokens, size_t num_tokens, size_t &offset)
 {
     likely_ast start = tokens[offset++];
-    if (strcmp(start->atom, "("))
+    if (strcmp(start->atom, "(")) {
+        if (!strcmp(start->atom, ")")) {
+            likely_throw(start, "extra ')'");
+            return NULL;
+        }
         return likely_retain_ast(start);
+    }
 
     vector<likely_ast> atoms;
     do {
         if (offset >= num_tokens) {
-            likely_throw(tokens[num_tokens-1], "unexpected end of expression");
+            likely_throw(tokens[num_tokens-1], "missing ')'");
             return cleanup(atoms);
         }
         if (!strcmp(tokens[offset]->atom, ")"))

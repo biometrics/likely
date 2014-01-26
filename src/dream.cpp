@@ -72,7 +72,9 @@ private:
         if (codeBlockMarker)
             setCurrentBlockState(previousBlockState() == 0);
         else
-            setCurrentBlockState(previousBlockState() == -1 ? 1 : previousBlockState());
+            setCurrentBlockState(previousBlockState() == -1
+                                 ? (text.startsWith("(") ? 0 : 1)
+                                 : previousBlockState());
 
         if (!text.startsWith("    ") && (currentBlockState() || codeBlockMarker)) {
             int start = -1, stop = -1;
@@ -107,6 +109,7 @@ class Source : public QPlainTextEdit
 public:
     Source()
     {
+        setLineWrapMode(QPlainTextEdit::NoWrap);
         connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
     }
 
