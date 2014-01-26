@@ -394,7 +394,6 @@ signals:
 class Documentation : public QScrollArea
 {
     Q_OBJECT
-    QLabel *error;
     QVBoxLayout *layout;
     int showIndex = 0;
 
@@ -405,32 +404,22 @@ public:
         setFrameShape(QFrame::NoFrame);
         setWidget(new QWidget());
         setWidgetResizable(true);
-        error = new QLabel(this);
-        error->setVisible(false);
         layout = new QVBoxLayout(this);
-        layout->addWidget(error);
         layout->setAlignment(Qt::AlignTop);
         layout->setContentsMargins(0, 6, 6, 6);
         layout->setSpacing(6);
         widget()->setLayout(layout);
     }
 
-    void showError(likely_error err)
-    {
-        error->setText(err.message);
-        error->setVisible(true);
-    }
-
 public slots:
     void aboutToExec()
     {
-        error->clear();
-        for (int i=1; i<layout->count(); i++) {
+        for (int i=0; i<layout->count(); i++) {
             QWidget *widget = layout->itemAt(i)->widget();
             if (i < showIndex) widget->setVisible(false);
             else               widget->deleteLater();
         }
-        showIndex = 1;
+        showIndex = 0;
     }
 
     void show(likely_mat mat)
@@ -450,18 +439,10 @@ private slots:
     void definitionChanged()
     {
         QStringList definitions;
-        for (int i=1; i<layout->count(); i++)
+        for (int i=0; i<layout->count(); i++)
             definitions.append(static_cast<Matrix*>(layout->itemAt(i)->widget())->getDefinition());
         definitions.removeAll(QString());
         emit newDefinitions(definitions.join("\n") + (definitions.isEmpty() ? "" : "\n"));
-    }
-
-    void removeObject(QObject *object)
-    {
-        Matrix *matrix = static_cast<Matrix*>(object);
-        layout->removeWidget(matrix);
-        if (!matrix->getDefinition().isEmpty())
-            definitionChanged();
     }
 
 signals:
@@ -567,7 +548,7 @@ public:
         connect(source, SIGNAL(newFileName(QString)), this, SLOT(setWindowTitle(QString)));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
 
-        likely_set_error_callback(error_callback, documentation);
+        likely_set_error_callback(error_callback, statusBar);
         source->restore();
     }
 
@@ -581,7 +562,7 @@ private slots:
 private:
     static void error_callback(likely_error error, void *context)
     {
-        reinterpret_cast<Documentation*>(context)->showError(error);
+        reinterpret_cast<QStatusBar*>(context)->showMessage(error.message);
     }
 };
 
