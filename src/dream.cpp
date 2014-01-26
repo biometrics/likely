@@ -110,7 +110,7 @@ public:
     Source()
     {
         setLineWrapMode(QPlainTextEdit::NoWrap);
-        connect(this, SIGNAL(textChanged()), this, SLOT(exec()));
+        connect(this, SIGNAL(textChanged()), this, SLOT(eval()));
     }
 
     void restore()
@@ -129,7 +129,7 @@ public slots:
     void setHeader(const QString &header)
     {
         this->header = header;
-        exec();
+        eval();
     }
 
     bool fileMenu(const QString &action)
@@ -259,33 +259,32 @@ private:
     }
 
 private slots:
-    void exec()
+    void eval()
     {
         // This check needed because syntax highlighting triggers a textChanged() signal
         const QString source = header + toPlainText();
         if (source == previousSource) return;
         else                          previousSource = source;
 
-        emit aboutToExec();
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
         likely_ast ast = likely_ast_from_string(qPrintable(source));
-        if (ast == NULL)
-            return;
-        for (size_t i=0; i<ast->num_atoms; i++) {
-            likely_mat result = likely_eval(ast->atoms[i]);
-            emit newResult(result);
-            likely_release(result);
+        if (ast != NULL) {
+            for (size_t i=0; i<ast->num_atoms; i++) {
+                likely_mat result = likely_eval(ast->atoms[i]);
+                emit newResult(result);
+                likely_release(result);
+            }
+            likely_release_ast(ast);
+            const qint64 nsec = elapsedTimer.nsecsElapsed();
+            emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
         }
-        likely_release_ast(ast);
-        const qint64 nsec = elapsedTimer.nsecsElapsed();
-
+        emit finishedEval();
         settings.setValue("source", toPlainText());
-        emit newStatus(QString("Execution Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
     }
 
 signals:
-    void aboutToExec();
+    void finishedEval();
     void newFileName(QString);
     void newResult(likely_mat result);
     void newStatus(QString);
@@ -332,20 +331,26 @@ public:
         layout->setContentsMargins(3, 3, 3, 3);
         layout->setSpacing(3);
         setLayout(layout);
-        connect(name, SIGNAL(textChanged()), this, SLOT(updateDefinition()));
+        connect(name, SIGNAL(textChanged(QString)), this, SLOT(updateDefinition()));
     }
 
     void show(likely_mat mat)
     {
         double min, max;
-        likely_mat rendered = likely_render(mat, &min, &max);
-        src = QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped();
-        likely_release(rendered);
-        type->setText(QString("%1x%2x%3x%4 %5 [%6,%7]").arg(QString::number(mat->channels),
-                                                            QString::number(mat->columns),
-                                                            QString::number(mat->rows),
-                                                            QString::number(mat->frames),
-                                                            likely_type_to_string(mat->type),
+        if (mat) {
+            likely_mat rendered = likely_render(mat, &min, &max);
+            src = QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped();
+            likely_release(rendered);
+        } else {
+            min = max = 0;
+            src = QImage();
+        }
+
+        type->setText(QString("%1x%2x%3x%4 %5 [%6,%7]").arg(QString::number(mat == NULL ? 0 : mat->channels),
+                                                            QString::number(mat == NULL ? 0 : mat->columns),
+                                                            QString::number(mat == NULL ? 0 : mat->rows),
+                                                            QString::number(mat == NULL ? 0 : mat->frames),
+                                                            likely_type_to_string(mat == NULL ? likely_type_null : mat->type),
                                                             QString::number(min),
                                                             QString::number(max)));
         updatePixmap();
@@ -366,17 +371,19 @@ private:
     void updatePixmap()
     {
         image->setVisible(!src.isNull());
-        if (src.isNull()) return;
-        const int width = qMin(image->size().width(), src.width());
-        const int height = src.height() * width/src.width();
-        image->setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height))));
+        if (image->isVisible()) {
+            const int width = qMin(image->size().width(), src.width());
+            const int height = src.height() * width / src.width();
+            image->setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height))));
+        }
         updateDefinition();
     }
 
 private slots:
     void updateDefinition()
     {
-        if (name->text().isEmpty()) {
+        name->setVisible(!src.isNull());
+        if (!name->isVisible() || name->text().isEmpty()) {
             definition->clear();
             definition->setVisible(false);
         } else {
@@ -391,14 +398,14 @@ signals:
     void definitionChanged();
 };
 
-class Documentation : public QScrollArea
+class Printer : public QScrollArea
 {
     Q_OBJECT
     QVBoxLayout *layout;
     int showIndex = 0;
 
 public:
-    Documentation(QWidget *parent = 0)
+    Printer(QWidget *parent = 0)
         : QScrollArea(parent)
     {
         setFrameShape(QFrame::NoFrame);
@@ -412,17 +419,14 @@ public:
     }
 
 public slots:
-    void aboutToExec()
+    void finishedEval()
     {
-        for (int i=0; i<layout->count(); i++) {
-            QWidget *widget = layout->itemAt(i)->widget();
-            if (i < showIndex) widget->setVisible(false);
-            else               widget->deleteLater();
-        }
+        for (int i=showIndex; i<layout->count(); i++)
+            layout->itemAt(i)->widget()->deleteLater();
         showIndex = 0;
     }
 
-    void show(likely_mat mat)
+    void print(likely_mat mat)
     {
         const int i = showIndex++;
         Matrix *matrix = NULL;
@@ -526,12 +530,12 @@ public:
 
         Source *source = new Source();
         SyntaxHighlighter *syntaxHighlighter = new SyntaxHighlighter(source->document());
-        Documentation *documentation = new Documentation();
+        Printer *printer = new Printer();
 
         const int WindowWidth = 600;
         QSplitter *splitter = new QSplitter(Qt::Horizontal);
         splitter->addWidget(source);
-        splitter->addWidget(documentation);
+        splitter->addWidget(printer);
         splitter->setSizes(QList<int>() << WindowWidth/2 << WindowWidth/2);
 
         setCentralWidget(splitter);
@@ -541,10 +545,11 @@ public:
         resize(800, WindowWidth);
 
         connect(commandMode, SIGNAL(commandMode(bool)), syntaxHighlighter, SLOT(setCommandMode(bool)));
-        connect(documentation, SIGNAL(newDefinitions(QString)), source, SLOT(setHeader(QString)));
+        connect(printer, SIGNAL(newDefinitions(QString)), source, SLOT(setHeader(QString)));
         connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(fileMenu(QAction*)));
         connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
-        connect(source, SIGNAL(aboutToExec()), documentation, SLOT(aboutToExec()));
+        connect(source, SIGNAL(finishedEval()), printer, SLOT(finishedEval()));
+        connect(source, SIGNAL(newResult(likely_mat)), printer, SLOT(print(likely_mat)));
         connect(source, SIGNAL(newFileName(QString)), this, SLOT(setWindowTitle(QString)));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
 
