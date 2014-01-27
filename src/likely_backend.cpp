@@ -978,9 +978,9 @@ class loopOperation : public GenericOperation
         builder.closures.push_back(ExpressionBuilder::Closure());
         addToClosure(builder, info, ast.atoms[1]);
 
-        BasicBlock *loopCondition = BasicBlock::Create(getGlobalContext(), "loop_condition", builder.function);
-        BasicBlock *loopIteration = BasicBlock::Create(getGlobalContext(), "loop_iteration", builder.function);
-        BasicBlock *loopEnd = BasicBlock::Create(getGlobalContext(), "loop_end", builder.function);
+        BasicBlock *loopCondition = BasicBlock::Create(getGlobalContext(), "loop_condition");
+        BasicBlock *loopIteration = BasicBlock::Create(getGlobalContext(), "loop_iteration");
+        BasicBlock *loopEnd = BasicBlock::Create(getGlobalContext(), "loop_end");
 
         builder.CreateBr(loopCondition);
         builder.SetInsertPoint(loopCondition);
@@ -1146,7 +1146,7 @@ struct VTable : public JITResources
     VTable(likely_ast ast)
         : JITResources(true), ast(ast)
     {
-        likely_assert(ast->is_list && (ast->num_atoms == 3) && !strcmp(ast->atoms[0]->atom, "kernel") && ast->atoms[1]->is_list, "ill-formed kernel expression");
+        likely_assert(ast->is_list && (ast->num_atoms == 3) && ast->atoms[1]->is_list, "ill-formed function");
         n = (likely_arity) ast->atoms[1]->num_atoms;
 
         if (vtableType == NULL)
