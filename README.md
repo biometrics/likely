@@ -13,7 +13,7 @@
     $ make test
     $ make install
 
-##### Supported Platforms
+##### Minimum Supported Platforms
 | OS           | Compiler  |
 |--------------|-----------|
 | OS X 10.8.5  | XCode 5.0 |
