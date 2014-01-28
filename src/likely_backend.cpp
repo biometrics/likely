@@ -351,40 +351,6 @@ class notOperation : public UnaryOperation
 };
 LIKELY_REGISTER_OPERATION(not, "~")
 
-class kernelArgOperation : public NullaryOperation
-{
-    TypedValue matrix;
-    likely_type kernel;
-    Value *c, *x, *y, *t, *i;
-    MDNode *node;
-
-public:
-    kernelArgOperation(const TypedValue &matrix, likely_type kernel, Value *c, Value *x, Value *y, Value *t, Value *i, MDNode *node)
-        : matrix(matrix), kernel(kernel), c(c), x(x), y(y), t(t), i(i), node(node) {}
-
-private:
-    TypedValue callNullary(ExpressionBuilder &builder) const
-    {
-        Value *j;
-        if (((matrix ^ kernel) & likely_type_multi_dimension) == 0) {
-            // This matrix has the same dimensionality as the kernel
-            j = i;
-        } else {
-            Value *columnStep, *rowStep, *frameStep;
-            builder.steps(matrix, &columnStep, &rowStep, &frameStep);
-            j = ExpressionBuilder::zero();
-            if (likely_multi_channel(matrix)) j = c;
-            if (likely_multi_column(matrix))  j = builder.CreateAdd(builder.CreateMul(x, columnStep), j);
-            if (likely_multi_row(matrix))     j = builder.CreateAdd(builder.CreateMul(y, rowStep), j);
-            if (likely_multi_frame(matrix))   j = builder.CreateAdd(builder.CreateMul(t, frameStep), j);
-        }
-
-        LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(matrix), j));
-        load->setMetadata("llvm.mem.parallel_loop_access", node);
-        return TypedValue(load, matrix.type);
-    }
-};
-
 class typeOperation : public UnaryOperation
 {
     TypedValue callUnary(ExpressionBuilder &builder, const TypedValue &arg) const
@@ -688,19 +654,42 @@ protected:
 
 class kernelOperation : public GenericOperation
 {
+    class kernelArgOperation : public NullaryOperation
+    {
+        TypedValue matrix;
+        likely_type kernel;
+        MDNode *node;
+
+    public:
+        kernelArgOperation(const TypedValue &matrix, likely_type kernel, MDNode *node)
+            : matrix(matrix), kernel(kernel), node(node) {}
+
+    private:
+        TypedValue callNullary(ExpressionBuilder &builder) const
+        {
+            Value *i;
+            if (((matrix ^ kernel) & likely_type_multi_dimension) == 0) {
+                // This matrix has the same dimensionality as the kernel
+                i = builder.getVariable("i");
+            } else {
+                Value *columnStep, *rowStep, *frameStep;
+                builder.steps(matrix, &columnStep, &rowStep, &frameStep);
+                i = ExpressionBuilder::zero();
+                if (likely_multi_channel(matrix)) i = builder.getVariable("c");
+                if (likely_multi_column(matrix))  i = builder.CreateAdd(builder.CreateMul(builder.getVariable("x"), columnStep), i);
+                if (likely_multi_row(matrix))     i = builder.CreateAdd(builder.CreateMul(builder.getVariable("y"), rowStep), i);
+                if (likely_multi_frame(matrix))   i = builder.CreateAdd(builder.CreateMul(builder.getVariable("t"), frameStep), i);
+            }
+
+            LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(matrix), i));
+            load->setMetadata("llvm.mem.parallel_loop_access", node);
+            return TypedValue(load, matrix.type);
+        }
+    };
+
     using Operation::call;
     TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
     {
-        // Create self-referencing loop node
-        MDNode *node; {
-            vector<Value*> metadata;
-            MDNode *tmp = MDNode::getTemporary(getGlobalContext(), metadata);
-            metadata.push_back(tmp);
-            node = MDNode::get(getGlobalContext(), metadata);
-            tmp->replaceAllUsesWith(node);
-            MDNode::deleteTemporary(tmp);
-        }
-
         Function *function = builder.getKernel(PointerType::getUnqual(TheMatrixStruct));
         vector<TypedValue> srcs = builder.getArgs(function);
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
@@ -732,6 +721,16 @@ class kernelOperation : public GenericOperation
             likely_set_multi_row    (&dst.type, likely_multi_row    (dstRows.type));
             likely_set_multi_frame  (&dst.type, likely_multi_frame  (dstFrames.type));
 
+            // Create self-referencing loop node
+            MDNode *node; {
+                vector<Value*> metadata;
+                MDNode *tmp = MDNode::getTemporary(getGlobalContext(), metadata);
+                metadata.push_back(tmp);
+                node = MDNode::get(getGlobalContext(), metadata);
+                tmp->replaceAllUsesWith(node);
+                MDNode::deleteTemporary(tmp);
+            }
+
             // The kernel assumes there is at least one iteration
             BasicBlock *body = BasicBlock::Create(getGlobalContext(), "kernel_body", thunk);
             builder.CreateBr(body);
@@ -750,6 +749,7 @@ class kernelOperation : public GenericOperation
             TypedValue c(columnRemainder, likely_type_native);
 
             builder.closures.push_back(ExpressionBuilder::Closure());
+            builder.addVariable("i", TypedValue(i, likely_type_native));
             builder.addVariable("c", c);
             builder.addVariable("x", x);
             builder.addVariable("y", y);
@@ -758,7 +758,7 @@ class kernelOperation : public GenericOperation
             const likely_ast args = ast->atoms[1];
             assert(args->num_atoms == srcs.size());
             for (size_t j=0; j<args->num_atoms; j++)
-                Operation::operations[args->atoms[j]->atom].push(new kernelArgOperation(srcs[j], dst.type, c, x, y, t, i, node));
+                Operation::operations[args->atoms[j]->atom].push(new kernelArgOperation(srcs[j], dst.type, node));
 
             TypedValue result = Operation::expression(builder, ast->atoms[2]);
             dstType = dst.type = result.type;
