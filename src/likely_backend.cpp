@@ -1267,6 +1267,15 @@ void likely_compile_to_file(likely_ast ast, const char *symbol_name, likely_type
 
 likely_mat likely_eval(likely_ast ast)
 {
-    (void) ast;
-    return NULL;
+    if (ast == NULL)
+        return NULL;
+
+    vector<likely_ast> scalarTokens;
+    scalarTokens.push_back(likely_new_atom("scalar", 0, 6));
+    scalarTokens.push_back(likely_retain_ast(ast));
+    likely_ast scalar = likely_new_list(scalarTokens.data(), scalarTokens.size());
+    FunctionBuilder functionBuilder(scalar, vector<likely_type>(), true);
+    likely_release_ast(scalar);
+
+    return reinterpret_cast<likely_mat(*)(void)>(functionBuilder.f)();
 }

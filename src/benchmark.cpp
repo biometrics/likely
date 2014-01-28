@@ -440,8 +440,8 @@ int main(int argc, char *argv[])
         getline(file, line);
         getline(file, line);
         while (getline(file, line)) {
-            string::size_type index = line.find("=", 0);
-            Test::runFile(line.substr(index+1, line.size()-index-2));
+//            string::size_type index = line.find("=", 0);
+//            Test::runFile(line.substr(index+1, line.size()-index-2));
         }
     }
 
