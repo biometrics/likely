@@ -18,7 +18,7 @@
 #define LIKELY_FRONTEND_H
 
 #include <stddef.h>
-#include <likely/likely_export.h>
+#include <likely/likely_runtime.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,6 +55,8 @@ LIKELY_EXPORT likely_ast likely_ast_from_tokens(likely_ast *tokens, size_t num_t
 LIKELY_EXPORT likely_ast *likely_ast_to_tokens(const likely_ast ast, size_t *num_tokens); // Return value managed internally and guaranteed until the next call to this function
 LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str); // Top level is a list of expressions
 LIKELY_EXPORT const char *likely_ast_to_string(const likely_ast ast); // Return value managed internally and guaranteed until the next call to this function
+
+LIKELY_EXPORT likely_arity likely_get_arity(likely_ast ast);
 
 typedef struct likely_error
 {
