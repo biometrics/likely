@@ -76,11 +76,6 @@ likely_size likely_bytes(const likely_matrix m)
 // TODO: make this thread_local when compiler support improves
 static likely_matrix recycledBuffer = NULL;
 
-static likely_data dataPointer(likely_matrix m)
-{
-    return reinterpret_cast<likely_data>(uintptr_t(m+1) + sizeof(likely_matrix_private));
-}
-
 likely_matrix likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data data, int8_t copy)
 {
     likely_matrix m;
@@ -113,7 +108,7 @@ likely_matrix likely_new(likely_type type, likely_size channels, likely_size col
     if (data && !copy) {
         m->data = data;
     } else {
-        m->data = dataPointer(m);
+        m->data = reinterpret_cast<likely_data>(m->d_ptr+1);
         if (data && copy) memcpy(m->data, data, likely_bytes(m));
     }
 

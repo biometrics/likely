@@ -71,11 +71,11 @@ enum likely_type_field
     likely_type_reserved        = 0xFFFE0000
 };
 
-// The main datatype in the API
+// The main datatype in Likely
 typedef struct likely_matrix_struct
 {
-    likely_data data;
     struct likely_matrix_private *d_ptr;
+    likely_data data;
     likely_size channels, columns, rows, frames;
     likely_type type;
 } *likely_matrix;

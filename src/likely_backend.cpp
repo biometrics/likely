@@ -100,7 +100,7 @@ struct ExpressionBuilder : public IRBuilder<>
     static TypedValue intMin(likely_type type) { const int bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
     static TypedValue type(likely_type type) { return constant(type, int(sizeof(likely_type)*8)); }
 
-    TypedValue data    (const TypedValue &matrix) { return TypedValue(CreatePointerCast(CreateLoad(CreateStructGEP(matrix, 0), "data"), ty(matrix, true)), matrix.type & likely_type_mask); }
+    TypedValue data    (const TypedValue &matrix) { return TypedValue(CreatePointerCast(CreateLoad(CreateStructGEP(matrix, 1), "data"), ty(matrix, true)), matrix.type & likely_type_mask); }
     TypedValue channels(const TypedValue &matrix) { return likely_multi_channel(matrix) ? TypedValue(CreateLoad(CreateStructGEP(matrix, 2), "channels"), likely_type_native) : one(); }
     TypedValue columns (const TypedValue &matrix) { return likely_multi_column (matrix) ? TypedValue(CreateLoad(CreateStructGEP(matrix, 3), "columns" ), likely_type_native) : one(); }
     TypedValue rows    (const TypedValue &matrix) { return likely_multi_row    (matrix) ? TypedValue(CreateLoad(CreateStructGEP(matrix, 4), "rows"    ), likely_type_native) : one(); }
@@ -978,9 +978,9 @@ struct JITResources
 
             likely_set_depth(&likely_type_native, sizeof(likely_size)*8);
             NativeIntegerType = Type::getIntNTy(getGlobalContext(), likely_depth(likely_type_native));
-            TheMatrixStruct = StructType::create("likely_matrix",
-                                                 Type::getInt8PtrTy(getGlobalContext()), // data
+            TheMatrixStruct = StructType::create("likely_matrix_struct",
                                                  PointerType::getUnqual(StructType::create(getGlobalContext(), "likely_matrix_private")), // d_ptr
+                                                 Type::getInt8PtrTy(getGlobalContext()), // data
                                                  NativeIntegerType,                      // channels
                                                  NativeIntegerType,                      // columns
                                                  NativeIntegerType,                      // rows
