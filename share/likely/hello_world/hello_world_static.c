@@ -5,12 +5,12 @@
 
 // Provided by a call to the static compiler:
 // $ like 'div(arg(0), 2)' hello_world_div2 f32 hello_world_div2.o
-likely_mat hello_world_div2(likely_const_mat m);
+likely_matrix hello_world_div2(const likely_matrix m);
 
 int main()
 {
     const int elements = 1000;
-    likely_mat input = likely_new(likely_type_f32, 1, elements, 1, 1, NULL, 0);
+    likely_matrix input = likely_new(likely_type_f32, 1, elements, 1, 1, NULL, 0);
     printf("Input type: %s\n", likely_type_to_string(input->type));
 
     printf("Initializing input...\n");
@@ -19,7 +19,7 @@ int main()
         ((float*)input->data)[i] = (float) rand();
 
     printf("Computing output...\n");
-    likely_mat output = hello_world_div2(input);
+    likely_matrix output = hello_world_div2(input);
 
     printf("Checking output...\n");
     for (int i=0; i<elements; i++)

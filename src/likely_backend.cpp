@@ -1206,7 +1206,7 @@ PointerType *VTable::vtableType = NULL;
 
 } // namespace (anonymous)
 
-extern "C" LIKELY_EXPORT likely_mat likely_dispatch(struct VTable *vtable, likely_mat *m)
+extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct VTable *vtable, likely_matrix *m)
 {
     void *function = NULL;
     for (size_t i=0; i<vtable->functions.size(); i++) {
@@ -1233,12 +1233,12 @@ extern "C" LIKELY_EXPORT likely_mat likely_dispatch(struct VTable *vtable, likel
             likely_dispatch(NULL, NULL);
     }
 
-    typedef likely_mat (*f0)(void);
-    typedef likely_mat (*f1)(likely_const_mat);
-    typedef likely_mat (*f2)(likely_const_mat, likely_const_mat);
-    typedef likely_mat (*f3)(likely_const_mat, likely_const_mat, likely_const_mat);
+    typedef likely_matrix (*f0)(void);
+    typedef likely_matrix (*f1)(const likely_matrix);
+    typedef likely_matrix (*f2)(const likely_matrix, const likely_matrix);
+    typedef likely_matrix (*f3)(const likely_matrix, const likely_matrix, const likely_matrix);
 
-    likely_mat dst;
+    likely_matrix dst;
     switch (vtable->n) {
       case 0: dst = reinterpret_cast<f0>(function)(); break;
       case 1: dst = reinterpret_cast<f1>(function)(m[0]); break;
@@ -1265,7 +1265,7 @@ void likely_compile_to_file(likely_ast ast, const char *symbol_name, likely_type
     FunctionBuilder(ast, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
 }
 
-likely_mat likely_eval(likely_ast ast)
+likely_matrix likely_eval(likely_ast ast)
 {
     if (ast == NULL)
         return NULL;
@@ -1277,5 +1277,5 @@ likely_mat likely_eval(likely_ast ast)
     FunctionBuilder functionBuilder(scalar, vector<likely_type>(), true);
     likely_release_ast(scalar);
 
-    return reinterpret_cast<likely_mat(*)(void)>(functionBuilder.f)();
+    return reinterpret_cast<likely_matrix(*)(void)>(functionBuilder.f)();
 }

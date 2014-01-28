@@ -29,10 +29,10 @@
 
 using namespace std;
 
-likely_mat likely_read(const char *file_name)
+likely_matrix likely_read(const char *file_name)
 {
     static string previousFileName;
-    static likely_mat previousMat = NULL;
+    static likely_matrix previousMat = NULL;
     if (previousFileName == file_name)
         return likely_copy(previousMat, 1);
 
@@ -43,7 +43,7 @@ likely_mat likely_read(const char *file_name)
         return NULL;
     }
 
-    likely_mat mat = fromCvMat(m, true);
+    likely_matrix mat = fromCvMat(m, true);
 
     likely_release(previousMat);
     likely_retain(mat);
@@ -52,7 +52,7 @@ likely_mat likely_read(const char *file_name)
     return mat;
 }
 
-void likely_write(likely_const_mat image, const char *file_name)
+void likely_write(const likely_matrix image, const char *file_name)
 {
     try {
         cv::imwrite(file_name, toCvMat(image));
@@ -61,7 +61,7 @@ void likely_write(likely_const_mat image, const char *file_name)
     }
 }
 
-likely_mat likely_decode(likely_const_mat buffer)
+likely_matrix likely_decode(const likely_matrix buffer)
 {
     try {
         return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_UNCHANGED), true);
@@ -70,7 +70,7 @@ likely_mat likely_decode(likely_const_mat buffer)
     }
 }
 
-likely_mat likely_encode(likely_const_mat image, const char *extension)
+likely_matrix likely_encode(const likely_matrix image, const char *extension)
 {
     vector<uchar> buf;
     try {
@@ -81,7 +81,7 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
     return fromCvMat(cv::Mat(buf), true);
 }
 
-likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
+likely_matrix likely_render(const likely_matrix m, double *min_, double *max_)
 {
     double min, max, range;
     if ((m->type & likely_type_mask) != likely_type_u8) {
@@ -116,10 +116,10 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
     }
 
     static likely_function_n normalize = likely_compile_n(likely_ast_from_string("(lambda (img min range) (cast (/ (- img min) range) u8) (channels 3))"));
-    likely_mat min_val = likely_scalar(min);
-    likely_mat range_val = likely_scalar(range);
-    likely_const_mat args[] = { m, min_val, range_val };
-    likely_mat n = normalize(args);
+    likely_matrix min_val = likely_scalar(min);
+    likely_matrix range_val = likely_scalar(range);
+    const likely_matrix args[] = { m, min_val, range_val };
+    likely_matrix n = normalize(args);
     likely_release(min_val);
     likely_release(range_val);
 
@@ -128,7 +128,7 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
     return n;
 }
 
-const char *likely_print(likely_const_mat m)
+const char *likely_print(const likely_matrix m)
 {
     static string result;
 

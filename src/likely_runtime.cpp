@@ -63,36 +63,36 @@ void likely_set_saturation(likely_type *type, bool saturation) { likely_set_bool
 int  likely_reserved(likely_type type) { return likely_get(type, likely_type_reserved); }
 void likely_set_reserved(likely_type *type, int reserved) { likely_set(type, reserved, likely_type_reserved); }
 
-likely_size likely_elements(likely_const_mat m)
+likely_size likely_elements(const likely_matrix m)
 {
     return m->channels * m->columns * m->rows * m->frames;
 }
 
-likely_size likely_bytes(likely_const_mat m)
+likely_size likely_bytes(const likely_matrix m)
 {
     return likely_depth(m->type) * likely_elements(m) / 8;
 }
 
 // TODO: make this thread_local when compiler support improves
-static likely_mat recycledBuffer = NULL;
+static likely_matrix recycledBuffer = NULL;
 
-static likely_data dataPointer(likely_mat m)
+static likely_data dataPointer(likely_matrix m)
 {
     return reinterpret_cast<likely_data>(uintptr_t(m+1) + sizeof(likely_matrix_private));
 }
 
-likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data data, int8_t copy)
+likely_matrix likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data data, int8_t copy)
 {
-    likely_mat m;
+    likely_matrix m;
     size_t dataBytes = ((data && !copy) ? 0 : uint64_t(likely_depth(type)) * channels * columns * rows * frames / 8);
-    const size_t headerBytes = sizeof(likely_matrix) + sizeof(likely_matrix_private);
+    const size_t headerBytes = sizeof(likely_matrix_struct) + sizeof(likely_matrix_private);
     if (recycledBuffer) {
         const size_t recycledDataBytes = recycledBuffer->d_ptr->data_bytes;
         if (recycledDataBytes >= dataBytes) { m = recycledBuffer; dataBytes = recycledDataBytes; }
-        else                                m = (likely_mat) realloc(recycledBuffer, headerBytes + dataBytes);
+        else                                m = (likely_matrix) realloc(recycledBuffer, headerBytes + dataBytes);
         recycledBuffer = NULL;
     } else {
-        m = (likely_mat) malloc(headerBytes + dataBytes);
+        m = (likely_matrix) malloc(headerBytes + dataBytes);
     }
 
     m->type = type;
@@ -120,19 +120,19 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     return m;
 }
 
-likely_mat likely_copy(likely_const_mat m, int8_t clone)
+likely_matrix likely_copy(const likely_matrix m, int8_t clone)
 {
     return likely_new(m->type, m->channels, m->columns, m->rows, m->frames, m->data, clone);
 }
 
-likely_mat likely_retain(likely_mat m)
+likely_matrix likely_retain(likely_matrix m)
 {
     if (!m) return m;
     ++m->d_ptr->ref_count;
     return m;
 }
 
-void likely_release(likely_mat m)
+void likely_release(likely_matrix m)
 {
     if (!m) return;
     if (--m->d_ptr->ref_count != 0) return;
@@ -146,14 +146,14 @@ void likely_release(likely_mat m)
     }
 }
 
-likely_mat likely_scalar(double value)
+likely_matrix likely_scalar(double value)
 {
-    likely_mat m = likely_new(likely_type_from_value(value), 1, 1, 1, 1, NULL, 0);
+    likely_matrix m = likely_new(likely_type_from_value(value), 1, 1, 1, 1, NULL, 0);
     likely_set_element(m, value, 0, 0, 0, 0);
     return m;
 }
 
-double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
+double likely_element(const likely_matrix m, likely_size c, likely_size x, likely_size y, likely_size t)
 {
     assert(m);
     const likely_size columnStep = m->channels;
@@ -177,7 +177,7 @@ double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_s
     return numeric_limits<double>::quiet_NaN();
 }
 
-void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t)
+void likely_set_element(likely_matrix m, double value, likely_size c, likely_size x, likely_size y, likely_size t)
 {
     assert(m);
     const likely_size columnStep = m->channels;
@@ -287,7 +287,7 @@ static size_t numWorkers = 0;
 static void *currentThunk = NULL;
 static likely_arity thunkArity = 0;
 static likely_size thunkSize = 0;
-static likely_const_mat thunkMatricies[LIKELY_NUM_ARITIES+1];
+static likely_matrix thunkMatricies[LIKELY_NUM_ARITIES+1];
 
 static void executeWorker(size_t id)
 {
@@ -298,16 +298,16 @@ static void executeWorker(size_t id)
     if (start >= stop) return;
 
     // Final three parameters are: dst, start, stop
-    typedef void (*likely_kernel_0)(likely_mat, likely_size, likely_size);
-    typedef void (*likely_kernel_1)(likely_const_mat, likely_mat, likely_size, likely_size);
-    typedef void (*likely_kernel_2)(likely_const_mat, likely_const_mat, likely_mat, likely_size, likely_size);
-    typedef void (*likely_kernel_3)(likely_const_mat, likely_const_mat, likely_const_mat, likely_mat, likely_size, likely_size);
+    typedef void (*likely_kernel_0)(likely_matrix, likely_size, likely_size);
+    typedef void (*likely_kernel_1)(const likely_matrix, likely_matrix, likely_size, likely_size);
+    typedef void (*likely_kernel_2)(const likely_matrix, const likely_matrix, likely_matrix, likely_size, likely_size);
+    typedef void (*likely_kernel_3)(const likely_matrix, const likely_matrix, const likely_matrix, likely_matrix, likely_size, likely_size);
 
     switch (thunkArity) {
-      case 0: reinterpret_cast<likely_kernel_0>(currentThunk)((likely_mat)thunkMatricies[0], start, stop); break;
-      case 1: reinterpret_cast<likely_kernel_1>(currentThunk)(thunkMatricies[0], (likely_mat)thunkMatricies[1], start, stop); break;
-      case 2: reinterpret_cast<likely_kernel_2>(currentThunk)(thunkMatricies[0], thunkMatricies[1], (likely_mat)thunkMatricies[2], start, stop); break;
-      case 3: reinterpret_cast<likely_kernel_3>(currentThunk)(thunkMatricies[0], thunkMatricies[1], thunkMatricies[2], (likely_mat)thunkMatricies[3], start, stop); break;
+      case 0: reinterpret_cast<likely_kernel_0>(currentThunk)((likely_matrix)thunkMatricies[0], start, stop); break;
+      case 1: reinterpret_cast<likely_kernel_1>(currentThunk)(thunkMatricies[0], (likely_matrix)thunkMatricies[1], start, stop); break;
+      case 2: reinterpret_cast<likely_kernel_2>(currentThunk)(thunkMatricies[0], thunkMatricies[1], (likely_matrix)thunkMatricies[2], start, stop); break;
+      case 3: reinterpret_cast<likely_kernel_3>(currentThunk)(thunkMatricies[0], thunkMatricies[1], thunkMatricies[2], (likely_matrix)thunkMatricies[3], start, stop); break;
       default: likely_assert(false, "executeWorker invalid arity: %d", thunkArity);
     }
 }
@@ -326,7 +326,7 @@ static void workerThread(size_t id)
     }
 }
 
-extern "C" LIKELY_EXPORT void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...)
+extern "C" LIKELY_EXPORT void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_matrix src, ...)
 {
     static mutex forkLock;
     lock_guard<mutex> lockFork(forkLock);
@@ -354,7 +354,7 @@ extern "C" LIKELY_EXPORT void likely_fork(void *thunk, likely_arity arity, likel
     va_start(ap, src);
     for (int i=0; i<arity+1; i++) {
         thunkMatricies[i] = src;
-        src = va_arg(ap, likely_const_mat);
+        src = va_arg(ap, likely_matrix);
     }
     va_end(ap);
 

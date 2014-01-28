@@ -271,7 +271,7 @@ private slots:
         likely_ast ast = likely_ast_from_string(qPrintable(source));
         if (ast != NULL) {
             for (size_t i=0; i<ast->num_atoms; i++) {
-                likely_mat result = likely_eval(ast->atoms[i]);
+                likely_matrix result = likely_eval(ast->atoms[i]);
                 emit newResult(result);
                 likely_release(result);
             }
@@ -286,7 +286,7 @@ private slots:
 signals:
     void finishedEval();
     void newFileName(QString);
-    void newResult(likely_mat result);
+    void newResult(likely_matrix result);
     void newStatus(QString);
 };
 
@@ -334,11 +334,11 @@ public:
         connect(name, SIGNAL(textChanged(QString)), this, SLOT(updateDefinition()));
     }
 
-    void show(likely_mat mat)
+    void show(likely_matrix mat)
     {
         double min, max;
         if (mat) {
-            likely_mat rendered = likely_render(mat, &min, &max);
+            likely_matrix rendered = likely_render(mat, &min, &max);
             src = QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped();
             likely_release(rendered);
         } else {
@@ -426,7 +426,7 @@ public slots:
         showIndex = 0;
     }
 
-    void print(likely_mat mat)
+    void print(likely_matrix mat)
     {
         const int i = showIndex++;
         Matrix *matrix = NULL;
@@ -549,7 +549,7 @@ public:
         connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(fileMenu(QAction*)));
         connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
         connect(source, SIGNAL(finishedEval()), printer, SLOT(finishedEval()));
-        connect(source, SIGNAL(newResult(likely_mat)), printer, SLOT(print(likely_mat)));
+        connect(source, SIGNAL(newResult(likely_matrix)), printer, SLOT(print(likely_matrix)));
         connect(source, SIGNAL(newFileName(QString)), this, SLOT(setWindowTitle(QString)));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
 

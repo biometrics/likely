@@ -72,15 +72,13 @@ enum likely_type_field
 };
 
 // The main datatype in the API
-typedef struct
+typedef struct likely_matrix_struct
 {
     likely_data data;
     struct likely_matrix_private *d_ptr;
     likely_size channels, columns, rows, frames;
     likely_type type;
-} likely_matrix;
-typedef likely_matrix *likely_mat;
-typedef const likely_matrix *likely_const_mat;
+} *likely_matrix;
 
 // Abort-style error handling
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
@@ -110,19 +108,19 @@ LIKELY_EXPORT int  likely_reserved(likely_type type);
 LIKELY_EXPORT void likely_set_reserved(likely_type *type, int reserved);
 
 // Matrix size
-LIKELY_EXPORT likely_size likely_elements(likely_const_mat m);
-LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
+LIKELY_EXPORT likely_size likely_elements(const likely_matrix m);
+LIKELY_EXPORT likely_size likely_bytes(const likely_matrix m);
 
 // Matrix creation
-LIKELY_EXPORT likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data data, int8_t copy);
-LIKELY_EXPORT likely_mat likely_copy(likely_const_mat m, int8_t clone);
-LIKELY_EXPORT likely_mat likely_retain(likely_mat m);
-LIKELY_EXPORT void likely_release(likely_mat m);
+LIKELY_EXPORT likely_matrix likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data data, int8_t copy);
+LIKELY_EXPORT likely_matrix likely_copy(const likely_matrix m, int8_t clone);
+LIKELY_EXPORT likely_matrix likely_retain(likely_matrix m);
+LIKELY_EXPORT void likely_release(likely_matrix m);
 
 // Element access
-LIKELY_EXPORT likely_mat likely_scalar(double value);
-LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t);
-LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t);
+LIKELY_EXPORT likely_matrix likely_scalar(double value);
+LIKELY_EXPORT double likely_element(const likely_matrix m, likely_size c, likely_size x, likely_size y, likely_size t);
+LIKELY_EXPORT void likely_set_element(likely_matrix m, double value, likely_size c, likely_size x, likely_size y, likely_size t);
 
 // Type conversion
 LIKELY_EXPORT const char *likely_type_to_string(likely_type type); // Return value managed internally and guaranteed until the next call to this function

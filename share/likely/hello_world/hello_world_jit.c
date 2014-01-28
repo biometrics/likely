@@ -4,7 +4,7 @@
 int main()
 {
     printf("Reading input image...\n");
-    likely_mat lenna = likely_read("../data/misc/lenna.tiff");
+    likely_matrix lenna = likely_read("../data/misc/lenna.tiff");
     if (lenna) {
         printf("Width: %zu\nHeight: %zu\n", lenna->columns, lenna->rows);
     } else {
@@ -25,7 +25,7 @@ int main()
     }
 
     printf("Calling compiled function...\n");
-    likely_mat dark_lenna = darken(lenna);
+    likely_matrix dark_lenna = darken(lenna);
     if (!dark_lenna) {
         printf("Failed to execute!\n");
         return -1;
