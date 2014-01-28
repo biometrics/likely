@@ -113,12 +113,12 @@ LIKELY_EXPORT likely_size likely_bytes(const likely_matrix m);
 
 // Matrix creation
 LIKELY_EXPORT likely_matrix likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data data, int8_t copy);
+LIKELY_EXPORT likely_matrix likely_scalar(double value);
 LIKELY_EXPORT likely_matrix likely_copy(const likely_matrix m, int8_t clone);
 LIKELY_EXPORT likely_matrix likely_retain(likely_matrix m);
 LIKELY_EXPORT void likely_release(likely_matrix m);
 
 // Element access
-LIKELY_EXPORT likely_matrix likely_scalar(double value);
 LIKELY_EXPORT double likely_element(const likely_matrix m, likely_size c, likely_size x, likely_size y, likely_size t);
 LIKELY_EXPORT void likely_set_element(likely_matrix m, double value, likely_size c, likely_size x, likely_size y, likely_size t);
 

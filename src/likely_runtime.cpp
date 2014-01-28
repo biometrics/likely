@@ -115,6 +115,13 @@ likely_matrix likely_new(likely_type type, likely_size channels, likely_size col
     return m;
 }
 
+likely_matrix likely_scalar(double value)
+{
+    likely_matrix m = likely_new(likely_type_from_value(value), 1, 1, 1, 1, NULL, 0);
+    likely_set_element(m, value, 0, 0, 0, 0);
+    return m;
+}
+
 likely_matrix likely_copy(const likely_matrix m, int8_t clone)
 {
     return likely_new(m->type, m->channels, m->columns, m->rows, m->frames, m->data, clone);
@@ -139,13 +146,6 @@ void likely_release(likely_matrix m)
     } else {
         recycledBuffer = m;
     }
-}
-
-likely_matrix likely_scalar(double value)
-{
-    likely_matrix m = likely_new(likely_type_from_value(value), 1, 1, 1, 1, NULL, 0);
-    likely_set_element(m, value, 0, 0, 0, 0);
-    return m;
 }
 
 double likely_element(const likely_matrix m, likely_size c, likely_size x, likely_size y, likely_size t)

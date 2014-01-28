@@ -361,6 +361,30 @@ class typeOperation : public UnaryOperation
 };
 LIKELY_REGISTER(type)
 
+class scalarOperation : public UnaryOperation
+{
+    TypedValue callUnary(ExpressionBuilder &builder, const TypedValue &arg) const
+    {
+        if (arg.value->getType() == PointerType::getUnqual(TheMatrixStruct))
+            return arg;
+
+        static FunctionType* LikelyScalarSignature = NULL;
+        if (LikelyScalarSignature == NULL)
+            LikelyScalarSignature = FunctionType::get(PointerType::getUnqual(TheMatrixStruct), Type::getDoubleTy(getGlobalContext()), false);
+
+        Function *likelyScalar = Function::Create(LikelyScalarSignature, GlobalValue::ExternalLinkage, "likely_scalar", builder.module);
+        likelyScalar->setCallingConv(CallingConv::C);
+        likelyScalar->setDoesNotAlias(0);
+
+         // An impossible case used to ensure that `likely_scalar` isn't stripped when optimizing executable size
+        if (likelyScalar == NULL)
+            likely_scalar(0);
+
+        return TypedValue(builder.CreateCall(likelyScalar, builder.cast(arg, likely_type_f64)), arg.type);
+    }
+};
+LIKELY_REGISTER(scalar)
+
 class UnaryMathOperation : public UnaryOperation
 {
     TypedValue callUnary(ExpressionBuilder &builder, const TypedValue &x) const
