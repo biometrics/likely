@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 
     if (argc == 1) {
 #ifdef _WIN32 // TODO: Windows binaries should end up in build/bin
-        imageName = "../../../data/misc/lenna.tiff";
+        inputImage = "../../../data/misc/lenna.tiff";
 #else
         inputImage = "../data/misc/lenna.tiff";
 #endif
