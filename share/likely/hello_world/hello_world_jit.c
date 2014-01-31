@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
 
         FILE* fp = fopen(argv[2], "rb");
         if (!fp) {
-            printf("Failed to read filter!\n");
+            printf("Failed to open filter!\n");
             return -1;
         }
 
@@ -30,7 +30,11 @@ int main(int argc, char *argv[])
         long size = ftell(fp);
         fseek(fp, 0, SEEK_SET);
         filter = malloc(size);
-        fread(filter, 1, size, fp);
+        long size_read = fread(filter, 1, size, fp);
+        if (size_read != size) {
+            printf("Failed to read filter!\n");
+            return -1;
+        }
         filter[size] = 0;
     } else {
         printf("Usage:\n");
