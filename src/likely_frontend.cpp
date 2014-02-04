@@ -227,30 +227,6 @@ likely_ast likely_ast_from_tokens(likely_ast tokens)
     return likely_new_list(expressions.data(), expressions.size());
 }
 
-static void print(const likely_ast ast, vector<likely_ast> &tokens)
-{
-    if (ast->is_list) {
-        tokens.push_back(likely_new_atom("(", 0, 1));
-        for (size_t i=0; i<ast->num_atoms; i++)
-            print(ast->atoms[i], tokens);
-        tokens.push_back(likely_new_atom(")", 0, 1));
-    } else {
-        tokens.push_back(likely_retain_ast(ast));
-    }
-}
-
-likely_ast *likely_ast_to_tokens(const likely_ast ast, size_t *num_tokens)
-{
-    static vector<likely_ast> tokens;
-    cleanup(tokens);
-    if ((ast == NULL) || (num_tokens == NULL))
-        return NULL;
-
-    print(ast, tokens);
-    *num_tokens = tokens.size();
-    return tokens.empty() ? NULL : tokens.data();
-}
-
 likely_ast likely_ast_from_string(const char *expression)
 {
     likely_ast tokens = likely_tokens_from_string(expression);
