@@ -71,8 +71,7 @@ struct Test
             return;
 
         likely_ast ast = likely_ast_from_string(function());
-        likely_assert(ast->num_atoms == 1, "expected a single expression");
-        likely_function f = likely_compile(ast->atoms[0]);
+        likely_function f = likely_compile(ast);
         likely_release_ast(ast);
 
         for (likely_type type : types()) {
@@ -122,7 +121,7 @@ struct Test
         }
 
         printf("%s \t", fileName.c_str());
-        likely_ast ast = likely_ast_from_string(source.c_str());
+        likely_ast ast = likely_asts_from_string(source.c_str());
         if (BenchmarkVerbose)
             printf("\n");
         for (size_t i=0; i<ast->num_atoms; i++) {

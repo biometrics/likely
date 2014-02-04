@@ -1295,8 +1295,8 @@ likely_matrix likely_eval(likely_ast ast)
         return NULL;
 
     likely_ast expr = likely_ast_from_string("(function (scalar <ast>))");
-    expr->atoms[0]->atoms[1]->atoms[1] = likely_retain_ast(ast);
-    FunctionBuilder functionBuilder(expr->atoms[0], vector<likely_type>(), true);
+    expr->atoms[1]->atoms[1] = likely_retain_ast(ast);
+    FunctionBuilder functionBuilder(expr, vector<likely_type>(), true);
     likely_release_ast(expr);
 
     return reinterpret_cast<likely_matrix(*)(void)>(functionBuilder.function)();
