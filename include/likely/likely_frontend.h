@@ -51,6 +51,7 @@ LIKELY_EXPORT void likely_release_ast(likely_ast ast);
 // otherwise 'str' is assumed to be Github Flavored Markdown (GFM) with s-expression(s) in the code blocks
 LIKELY_EXPORT likely_ast likely_tokens_from_string(const char *str);
 LIKELY_EXPORT likely_ast likely_ast_from_tokens(likely_ast tokens);
+LIKELY_EXPORT likely_ast likely_ast_from_tokens_at(likely_ast tokens, size_t *offset);
 LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str);
 LIKELY_EXPORT likely_ast likely_asts_from_string(const char *str); // Top level is a list of expressions
 LIKELY_EXPORT const char *likely_ast_to_string(const likely_ast ast); // Return value managed internally and guaranteed until the next call to this function

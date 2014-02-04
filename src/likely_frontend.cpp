@@ -167,24 +167,21 @@ likely_ast likely_tokens_from_string(const char *str)
     return likely_new_list(tokens.data(), tokens.size());
 }
 
-static void print(const likely_ast ast, stringstream &stream)
+likely_ast likely_ast_from_tokens(likely_ast tokens)
 {
-    if (ast->is_list) {
-        stream << "(";
-        for (size_t i=0; i<ast->num_atoms; i++) {
-            print(ast->atoms[i], stream);
-            if (i != ast->num_atoms - 1)
-                stream << " ";
-        }
-        stream << ")";
-    } else {
-        stream.write(ast->atom, ast->atom_len);
+    size_t offset = 0;
+    likely_ast ast = likely_ast_from_tokens_at(tokens, &offset);
+    if (offset < tokens->num_atoms) {
+        likely_throw(tokens->atoms[offset], "tokens leftover after parsing");
+        likely_release_ast(ast);
+        return NULL;
     }
+    return ast;
 }
 
-static likely_ast parse(likely_ast *tokens, size_t num_tokens, size_t &offset)
+likely_ast likely_ast_from_tokens_at(likely_ast tokens, size_t *offset)
 {
-    likely_ast start = tokens[offset++];
+    likely_ast start = tokens->atoms[(*offset)++];
     if (strcmp(start->atom, "(")) {
         if (!strcmp(start->atom, ")")) {
             likely_throw(start, "extra ')'");
@@ -195,35 +192,23 @@ static likely_ast parse(likely_ast *tokens, size_t num_tokens, size_t &offset)
 
     vector<likely_ast> atoms;
     do {
-        if (offset >= num_tokens) {
-            likely_throw(tokens[num_tokens-1], "missing ')'");
+        if (*offset >= tokens->num_atoms) {
+            likely_throw(tokens->atoms[tokens->num_atoms-1], "missing ')'");
             return cleanup(atoms);
         }
-        if (!strcmp(tokens[offset]->atom, ")"))
+        if (!strcmp(tokens->atoms[*offset]->atom, ")"))
             break;
-        likely_ast atom = parse(tokens, num_tokens, offset);
+        likely_ast atom = likely_ast_from_tokens_at(tokens, offset);
         if (atom == NULL)
             return cleanup(atoms);
         atoms.push_back(atom);
     } while (true);
-    likely_ast end = tokens[offset++];
+    likely_ast end = tokens->atoms[(*offset)++];
 
     likely_ast list = likely_new_list(atoms.data(), atoms.size());
     list->begin = start->begin;
     list->end = end->end;
     return list;
-}
-
-likely_ast likely_ast_from_tokens(likely_ast tokens)
-{
-    size_t offset = 0;
-    likely_ast ast = parse(tokens->atoms, tokens->num_atoms, offset);
-    if (offset < tokens->num_atoms) {
-        likely_throw(tokens->atoms[offset], "tokens leftover after parsing");
-        likely_release_ast(ast);
-        return NULL;
-    }
-    return ast;
 }
 
 likely_ast likely_ast_from_string(const char *str)
@@ -240,13 +225,28 @@ likely_ast likely_asts_from_string(const char *str)
     size_t offset = 0;
     vector<likely_ast> expressions;
     while (offset < tokens->num_atoms) {
-        likely_ast expression = parse(tokens->atoms, tokens->num_atoms, offset);
+        likely_ast expression = likely_ast_from_tokens_at(tokens, &offset);
         if (expression == NULL)
             return cleanup(expressions);
         expressions.push_back(expression);
     }
     likely_release_ast(tokens);
     return likely_new_list(expressions.data(), expressions.size());
+}
+
+static void print(const likely_ast ast, stringstream &stream)
+{
+    if (ast->is_list) {
+        stream << "(";
+        for (size_t i=0; i<ast->num_atoms; i++) {
+            print(ast->atoms[i], stream);
+            if (i != ast->num_atoms - 1)
+                stream << " ";
+        }
+        stream << ")";
+    } else {
+        stream.write(ast->atom, ast->atom_len);
+    }
 }
 
 const char *likely_ast_to_string(const likely_ast ast)
