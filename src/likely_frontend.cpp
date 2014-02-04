@@ -214,12 +214,12 @@ static likely_ast parse(likely_ast *tokens, size_t num_tokens, size_t &offset)
     return list;
 }
 
-likely_ast likely_ast_from_tokens(likely_ast *tokens, size_t num_tokens)
+likely_ast likely_ast_from_tokens(likely_ast tokens)
 {
     size_t offset = 0;
     vector<likely_ast> expressions;
-    while (offset < num_tokens) {
-        likely_ast expression = parse(tokens, num_tokens, offset);
+    while (offset < tokens->num_atoms) {
+        likely_ast expression = parse(tokens->atoms, tokens->num_atoms, offset);
         if (expression == NULL)
             return cleanup(expressions);
         expressions.push_back(expression);
@@ -254,7 +254,7 @@ likely_ast *likely_ast_to_tokens(const likely_ast ast, size_t *num_tokens)
 likely_ast likely_ast_from_string(const char *expression)
 {
     likely_ast tokens = likely_tokens_from_string(expression);
-    likely_ast ast = likely_ast_from_tokens(tokens->atoms, tokens->num_atoms);
+    likely_ast ast = likely_ast_from_tokens(tokens);
     likely_release_ast(tokens);
     return ast;
 }
