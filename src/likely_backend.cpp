@@ -1063,7 +1063,7 @@ struct JITResources
 struct FunctionBuilder : private JITResources
 {
     likely_type *type;
-    void *f;
+    void *function;
 
     FunctionBuilder(likely_ast ast, const vector<likely_type> &types, bool native, const string &symbol_name = string())
         : JITResources(native, symbol_name)
@@ -1072,14 +1072,14 @@ struct FunctionBuilder : private JITResources
         memcpy(type, types.data(), sizeof(likely_type) * types.size());
 
         ExpressionBuilder builder(module, name, types, native ? targetMachine : NULL);
-        Function *function = cast<Function>(Operation::expression(builder, ast).value);
+        Function *result = cast<Function>(Operation::expression(builder, ast).value);
 //        module->dump();
 
         if (executionEngine) {
             executionEngine->finalizeObject();
-            f = executionEngine->getPointerToFunction(function);
+            function = executionEngine->getPointerToFunction(result);
         } else {
-            f = NULL;
+            function = NULL;
         }
     }
 
@@ -1238,7 +1238,7 @@ extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct VTable *vtable, li
         for (likely_arity j=0; j<vtable->n; j++)
             if (m[j]->type != functionBuilder->type[j])
                 goto Next;
-        function = functionBuilder->f;
+        function = functionBuilder->function;
         break;
     Next:
         continue;
@@ -1250,7 +1250,7 @@ extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct VTable *vtable, li
             types.push_back(m[i]->type);
         FunctionBuilder *functionBuilder = new FunctionBuilder(vtable->ast, types, true);
         vtable->functions.push_back(functionBuilder);
-        function = vtable->functions.back()->f;
+        function = vtable->functions.back()->function;
 
         // An impossible case used to ensure that `likely_dispatch` isn't stripped when optimizing executable size
         if (function == NULL)
@@ -1294,12 +1294,10 @@ likely_matrix likely_eval(likely_ast ast)
     if (ast == NULL)
         return NULL;
 
-    vector<likely_ast> scalarTokens;
-    scalarTokens.push_back(likely_new_atom("scalar", 0, 6));
-    scalarTokens.push_back(likely_retain_ast(ast));
-    likely_ast scalar = likely_new_list(scalarTokens.data(), scalarTokens.size());
-    FunctionBuilder functionBuilder(scalar, vector<likely_type>(), true);
-    likely_release_ast(scalar);
+    likely_ast expr = likely_ast_from_string("(function (scalar <ast>))");
+    expr->atoms[0]->atoms[1]->atoms[1] = likely_retain_ast(ast);
+    FunctionBuilder functionBuilder(expr->atoms[0], vector<likely_type>(), true);
+    likely_release_ast(expr);
 
-    return reinterpret_cast<likely_matrix(*)(void)>(functionBuilder.f)();
+    return reinterpret_cast<likely_matrix(*)(void)>(functionBuilder.function)();
 }
