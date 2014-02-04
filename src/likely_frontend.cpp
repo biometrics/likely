@@ -155,18 +155,16 @@ static likely_ast cleanup(vector<likely_ast> &atoms)
     return NULL;
 }
 
-likely_ast *likely_tokens_from_string(const char *str, size_t *num_tokens)
+likely_ast likely_tokens_from_string(const char *str)
 {
-    static vector<likely_ast> tokens;
-    cleanup(tokens);
-    if ((str == NULL) || (num_tokens == NULL))
+    if (str == NULL)
         return NULL;
 
+    vector<likely_ast> tokens;
     const size_t len = strlen(str);
     if (str[0] == '(') tokenize(str, len, tokens);
     else               tokenizeGFM(str, len, tokens);
-    *num_tokens = tokens.size();
-    return tokens.empty() ? NULL : tokens.data();
+    return likely_new_list(tokens.data(), tokens.size());
 }
 
 static void print(const likely_ast ast, stringstream &stream)
@@ -271,9 +269,10 @@ likely_ast *likely_ast_to_tokens(const likely_ast ast, size_t *num_tokens)
 
 likely_ast likely_ast_from_string(const char *expression)
 {
-    size_t num_tokens;
-    likely_ast *tokens = likely_tokens_from_string(expression, &num_tokens);
-    return likely_ast_from_tokens(tokens, num_tokens);
+    likely_ast tokens = likely_tokens_from_string(expression);
+    likely_ast ast = likely_ast_from_tokens(tokens->atoms, tokens->num_atoms);
+    likely_release_ast(tokens);
+    return ast;
 }
 
 const char *likely_ast_to_string(const likely_ast ast)
