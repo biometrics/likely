@@ -232,10 +232,14 @@ struct Operation
 
         bool ok;
         TypedValue c = constant(operator_, &ok);
-        if (!ok)
-            c = ExpressionBuilder::constant(likely_type_from_string(operator_.c_str()), likely_type_u32);
-        likely_assert(c.type != likely_type_null, "unrecognized literal: %s", operator_.c_str());
-        return c;
+        if (ok) return c;
+
+        likely_type type = likely_type_from_string(operator_.c_str());
+        if (type != likely_type_null)
+            return ExpressionBuilder::constant(type, likely_type_u32);
+
+        likely_throw(ast->is_list ? ast->atoms[0] : ast, "unrecognized literal");
+        return TypedValue();
     }
 
     virtual ~Operation() {}
@@ -308,17 +312,6 @@ LIKELY_REGISTER_TYPE(depth)
 LIKELY_REGISTER_TYPE(signed)
 LIKELY_REGISTER_TYPE(floating)
 LIKELY_REGISTER_TYPE(mask)
-LIKELY_REGISTER_TYPE(u8)
-LIKELY_REGISTER_TYPE(u16)
-LIKELY_REGISTER_TYPE(u32)
-LIKELY_REGISTER_TYPE(u64)
-LIKELY_REGISTER_TYPE(i8)
-LIKELY_REGISTER_TYPE(i16)
-LIKELY_REGISTER_TYPE(i32)
-LIKELY_REGISTER_TYPE(i64)
-LIKELY_REGISTER_TYPE(f16)
-LIKELY_REGISTER_TYPE(f32)
-LIKELY_REGISTER_TYPE(f64)
 LIKELY_REGISTER_TYPE(parallel)
 LIKELY_REGISTER_TYPE(heterogeneous)
 LIKELY_REGISTER_TYPE(multi_channel)

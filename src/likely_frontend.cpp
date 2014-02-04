@@ -281,6 +281,8 @@ void likely_throw(likely_ast ast, const char *message)
         error.message = message;
         ErrorCallback(error, ErrorContext);
     } else {
-        likely_assert(false, message);
+        stringstream msg;
+        msg << message << ": " << likely_ast_to_string(ast) << " at position: " << ast->begin;
+        likely_assert(false, msg.str().c_str());
     }
 }

@@ -67,7 +67,7 @@ typedef struct likely_error
 typedef void (*likely_error_callback)(likely_error error, void *context);
 LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, void *context);
 
-// Exception-style error handling
+// Callback-style error handling
 LIKELY_EXPORT void likely_throw(likely_ast token, const char *message);
 
 #ifdef __cplusplus

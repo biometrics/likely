@@ -233,13 +233,14 @@ likely_type likely_type_from_string(const char *str)
         startIndex++;
 
     for (size_t i=startIndex; i<len; i++) {
-        if (str[i] == 'P') likely_set_parallel(&t, true);
-        if (str[i] == 'H') likely_set_heterogeneous(&t, true);
-        if (str[i] == 'C') likely_set_multi_channel(&t, true);
-        if (str[i] == 'X') likely_set_multi_column(&t, true);
-        if (str[i] == 'Y') likely_set_multi_row(&t, true);
-        if (str[i] == 'T') likely_set_multi_frame(&t, true);
-        if (str[i] == 'S') likely_set_saturation(&t, true);
+        if      (str[i] == 'P') likely_set_parallel(&t, true);
+        else if (str[i] == 'H') likely_set_heterogeneous(&t, true);
+        else if (str[i] == 'C') likely_set_multi_channel(&t, true);
+        else if (str[i] == 'X') likely_set_multi_column(&t, true);
+        else if (str[i] == 'Y') likely_set_multi_row(&t, true);
+        else if (str[i] == 'T') likely_set_multi_frame(&t, true);
+        else if (str[i] == 'S') likely_set_saturation(&t, true);
+        else                    return likely_type_null;
     }
 
     return t;
