@@ -8,21 +8,15 @@
 
 int main(int argc, char *argv[])
 {
-    char *inputImage;
-    char *outputImage;
-    char *filter;
+    char *input_image, *filter, *output_image;
 
     if (argc == 1) {
-#ifdef _WIN32 // TODO: Windows binaries should end up in build/bin
-        inputImage = "../../../data/misc/lenna.tiff";
-#else
-        inputImage = "../data/misc/lenna.tiff";
-#endif
-        outputImage = "dark_lenna.png";
+        input_image = "../data/misc/lenna.tiff"; // Assume we are run from a hypothetical /bin folder
+        output_image = "dark_lenna.png";
         filter = "(kernel (a) (/ a 2))";
     } else if (argc == 4) {
-        inputImage = argv[1];
-        outputImage = argv[3];
+        input_image = argv[1];
+        output_image = argv[3];
 
         FILE* fp = fopen(argv[2], "rb");
         if (!fp) {
@@ -48,7 +42,7 @@ int main(int argc, char *argv[])
     }
 
     printf("Reading input image...\n");
-    likely_matrix lenna = likely_read(inputImage);
+    likely_matrix lenna = likely_read(input_image);
     if (lenna) {
         printf("Width: %zu\nHeight: %zu\n", lenna->columns, lenna->rows);
     } else {
@@ -82,7 +76,7 @@ int main(int argc, char *argv[])
     }
 
     printf("Writing output image...\n");
-    likely_write(dark_lenna, outputImage);
+    likely_write(dark_lenna, output_image);
 
     printf("Releasing data...\n");
     likely_release(lenna);
