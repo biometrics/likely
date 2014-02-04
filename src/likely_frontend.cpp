@@ -182,22 +182,6 @@ static void print(const likely_ast ast, stringstream &stream)
     }
 }
 
-const char *likely_tokens_to_string(const likely_ast *tokens, size_t num_tokens)
-{
-    static string str;
-    str.clear();
-    if (tokens == NULL)
-        return NULL;
-
-    stringstream stream;
-    for (size_t i=0; i<num_tokens; i++) {
-        print(tokens[i], stream);
-        stream << " ";
-    }
-    str = stream.str();
-    return str.c_str();
-}
-
 static likely_ast parse(likely_ast *tokens, size_t num_tokens, size_t &offset)
 {
     likely_ast start = tokens[offset++];
