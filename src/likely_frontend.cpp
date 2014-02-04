@@ -218,7 +218,11 @@ likely_ast likely_ast_from_tokens(likely_ast tokens)
 {
     size_t offset = 0;
     likely_ast ast = parse(tokens->atoms, tokens->num_atoms, offset);
-    likely_assert(offset == tokens->num_atoms, "tokens leftover after parsing");
+    if (offset < tokens->num_atoms) {
+        likely_throw(tokens->atoms[offset], "tokens leftover after parsing");
+        likely_release_ast(ast);
+        return NULL;
+    }
     return ast;
 }
 
