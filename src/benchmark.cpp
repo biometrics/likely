@@ -39,6 +39,7 @@ static int ExitStatus = EXIT_SUCCESS;
 // Optional arguments to run only a subset of the benchmarks
 static bool        BenchmarkAll        = false;
 static int         BenchmarkExecution  = -1;
+static string      BenchmarkFile       = "";
 static string      BenchmarkFunction   = "";
 static bool        BenchmarkSaturation = true;
 static int         BenchmarkSize       = 0;
@@ -399,6 +400,7 @@ static void help()
            "Arguments:\n"
            "  --all           Run tutorial and benchmark\n"
            "  --help          Print benchmark usage\n"
+           "  -file <str>     Benchmark the specified file only\n"
            "  -function <str> Benchmark the specified function only\n"
            "  --no-sat        Test without saturated arithmetic\n"
            "  --no-speed      Test correctness only\n"
@@ -417,6 +419,7 @@ int main(int argc, char *argv[])
     for (int i=1; i<argc; i++) {
         if      (!strcmp("--all"     , argv[i])) BenchmarkAll = true;
         else if (!strcmp("--help"    , argv[i]) || !strcmp("-h", argv[i])) help();
+        else if (!strcmp("-file"     , argv[i])) BenchmarkFile = argv[++i];
         else if (!strcmp("-function" , argv[i])) BenchmarkFunction = argv[++i];
         else if (!strcmp("--no-sat"  , argv[i])) BenchmarkSaturation = false;
         else if (!strcmp("--no-speed", argv[i])) BenchmarkSpeed = false;
@@ -431,6 +434,11 @@ int main(int argc, char *argv[])
 
     // Print to console immediately
     setbuf(stdout, NULL);
+
+    if (!BenchmarkFile.empty()) {
+        Test::runFile(BenchmarkFile);
+        return EXIT_SUCCESS;
+    }
 
     if (BenchmarkTutorial || BenchmarkAll) {
         printf("File     \tSpeed (Hz)\n");
