@@ -13,7 +13,7 @@ if(${LIKELY_HELLOWORLD})
                      COMMAND like "(kernel (a) (/ a 2))" hello_world_div2 f32X hello_world_div2.o
                      DEPENDS like
                      VERBATIM)
-
+  add_definitions(-DLIKELY_LIBRARY)
   add_executable(hello_world_static hello_world_static.c hello_world_div2.o)
   set_source_files_properties(hello_world_div2.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
   target_link_libraries(hello_world_static likely_runtime)

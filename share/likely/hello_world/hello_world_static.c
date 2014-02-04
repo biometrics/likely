@@ -4,7 +4,7 @@
 #include <likely/likely_runtime.h>
 
 // Provided by a call to the static compiler:
-// $ like 'div(arg(0), 2)' hello_world_div2 f32 hello_world_div2.o
+// $ like '(kernel (a) (/ a 2))' hello_world_div2 f32 hello_world_div2.o
 likely_matrix hello_world_div2(const likely_matrix m);
 
 int main()

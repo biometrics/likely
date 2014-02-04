@@ -1,3 +1,7 @@
+#ifdef _MSC_VER
+#  define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include <likely.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,7 +34,7 @@ int main(int argc, char *argv[])
         long size = ftell(fp);
         fseek(fp, 0, SEEK_SET);
         filter = malloc(size);
-        long size_read = fread(filter, 1, size, fp);
+        long size_read = (long)fread(filter, 1, size, fp);
         if (size_read != size) {
             printf("Failed to read filter!\n");
             return -1;
