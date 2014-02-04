@@ -46,6 +46,7 @@ static int         BenchmarkSize       = 0;
 static bool        BenchmarkSpeed      = true;
 static bool        BenchmarkTutorial   = false;
 static likely_type BenchmarkType       = likely_type_null;
+static bool        BenchmarkVerbose    = false;
 
 static Mat generateData(int rows, int columns, likely_type type, double scaleFactor)
 {
@@ -110,14 +111,28 @@ struct Test
 
     static void runFile(const string &fileName)
     {
-        ifstream file("../library/" + fileName + ".like");
+        ifstream file(fileName.compare(fileName.length()-5, 5, ".like") == 0
+                      ? fileName
+                      : "../library/" + fileName + ".like");
         const string source((istreambuf_iterator<char>(file)),
                              istreambuf_iterator<char>());
+        if (source.empty()) {
+            printf("Failed to read from: %s\n", fileName.c_str());
+            return;
+        }
 
         printf("%s \t", fileName.c_str());
         likely_ast ast = likely_ast_from_string(source.c_str());
-        for (size_t i=0; i<ast->num_atoms; i++)
-            likely_release(likely_eval(ast->atoms[i]));
+        if (BenchmarkVerbose)
+            printf("\n");
+        for (size_t i=0; i<ast->num_atoms; i++) {
+            if (BenchmarkVerbose)
+                printf("%s\n", likely_ast_to_string(ast->atoms[i]));
+            likely_matrix result = likely_eval(ast->atoms[i]);
+            if (BenchmarkVerbose)
+                printf("%s\n\n", likely_print(result));
+            likely_release(result);
+        }
 
         if (!BenchmarkSpeed) {
             printf("\n");
@@ -409,7 +424,8 @@ static void help()
            "  -size <int>     Benchmark the specified size only\n"
            "  --test          --all -size 256 --no-speed\n"
            "  --tutorial      Run Likely tutorial instead of benchmarking\n"
-           "  -type <type>    Benchmark the specified type only\n");
+           "  -type <type>    Benchmark the specified type only\n"
+           "  --verbose       Verbose benchmark output\n");
     exit(ExitStatus);
 }
 
@@ -429,6 +445,7 @@ int main(int argc, char *argv[])
         else if (!strcmp("--test"    , argv[i])) { BenchmarkAll = true; BenchmarkSize = 256, BenchmarkSpeed = false; }
         else if (!strcmp("--tutorial", argv[i])) BenchmarkTutorial = true;
         else if (!strcmp("-type"     , argv[i])) BenchmarkType = likely_type_from_string(argv[++i]);
+        else if (!strcmp("--verbose" , argv[i])) BenchmarkVerbose = true;
         else    { printf("Unrecognized argument: %s\nTry running 'benchmark --help' for help", argv[i]); return 1; }
     }
 
