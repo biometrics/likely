@@ -54,7 +54,7 @@ include_directories(${CMAKE_SOURCE_DIR}/llvm/include
                     ${CMAKE_BINARY_DIR}/llvm/include)
 link_directories(${LLVM_LIBRARY_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
-llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES bitwriter mcjit native vectorize)
+llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES bitwriter ipo mcjit native vectorize)
 
 if(${LIKELY_IO})
   option(BUILD_WITH_STATIC_CRT "OpenCV static MSVC CRT" OFF)

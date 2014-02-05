@@ -29,6 +29,7 @@
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/ToolOutputFile.h>
 #include <llvm/Target/TargetLibraryInfo.h>
+#include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Vectorize.h>
 #include <iostream>
@@ -798,23 +799,6 @@ class kernelOperation : public GenericOperation
                 Operation::operations[args->atoms[i]->atom].pop();
             }
             builder.closures.pop_back();
-
-            FunctionPassManager functionPassManager(builder.module);
-            functionPassManager.add(createVerifierPass(PrintMessageAction));
-            if (builder.targetMachine != NULL) {
-                builder.targetMachine->addAnalysisPasses(functionPassManager);
-                functionPassManager.add(new TargetLibraryInfo(Triple(builder.module->getTargetTriple())));
-                functionPassManager.add(new DataLayout(builder.module));
-            }
-            functionPassManager.add(createBasicAliasAnalysisPass());
-            functionPassManager.add(createLICMPass());
-            functionPassManager.add(createLoopVectorizePass());
-            functionPassManager.add(createInstructionCombiningPass());
-            functionPassManager.add(createEarlyCSEPass());
-            functionPassManager.add(createCFGSimplificationPass());
-            functionPassManager.doInitialization();
-//            DebugFlag = true;
-            functionPassManager.run(*thunk);
         }
 
         builder.SetInsertPoint(entry);
@@ -888,12 +872,6 @@ class kernelOperation : public GenericOperation
         }
 
         builder.CreateRet(dst);
-
-        FunctionPassManager functionPassManager(builder.module);
-        functionPassManager.add(createVerifierPass(PrintMessageAction));
-        functionPassManager.add(createInstructionCombiningPass());
-        functionPassManager.run(*function);
-
         return TypedValue(function, dstType);
     }
 
@@ -1022,7 +1000,7 @@ struct JITResources
 #ifdef _WIN32
             if (JIT)
                 targetTriple = targetTriple + "-elf";
-#endif
+#endif // _WIN32
             module->setTargetTriple(targetTriple);
         }
 
@@ -1054,6 +1032,36 @@ struct JITResources
 
     void *finalize(Function *function)
     {
+        static PassManager *NativePassManager = NULL;
+        static PassManager *GenericPassManager = NULL;
+
+        if ((targetMachine != NULL) && (NativePassManager == NULL)) {
+            NativePassManager = new PassManager();
+            TargetLibraryInfo *TLI = new TargetLibraryInfo(Triple(module->getTargetTriple()));
+//            TLI->disableAllFunctions();
+            NativePassManager->add(TLI);
+            NativePassManager->add(new DataLayout(module));
+            targetMachine->addAnalysisPasses(*NativePassManager);
+        }
+
+        if (GenericPassManager == NULL) {
+            PassManagerBuilder builder;
+            builder.OptLevel = 3;
+            builder.SizeLevel = 0;
+            builder.LoopVectorize = true;
+            GenericPassManager = new PassManager();
+            GenericPassManager->add(createVerifierPass());
+            builder.populateModulePassManager(*GenericPassManager);
+            GenericPassManager->add(createVerifierPass());
+        }
+
+//        DebugFlag = true;
+//        module->dump();
+        if (targetMachine != NULL)
+            NativePassManager->run(*module);
+        GenericPassManager->run(*module);
+//        module->dump();
+
         if (!executionEngine)
             return NULL;
         executionEngine->finalizeObject();
@@ -1074,7 +1082,6 @@ struct FunctionBuilder : private JITResources
 
         ExpressionBuilder builder(module, name, types, native ? targetMachine : NULL);
         Function *result = cast<Function>(Operation::expression(builder, ast).value);
-//        module->dump();
         function = finalize(result);
     }
 
@@ -1175,7 +1182,6 @@ struct VTable : public JITResources
             array = ConstantPointerNull::get(PointerType::getUnqual(PointerType::getUnqual(TheMatrixStruct)));
         }
         builder.CreateRet(builder.CreateCall2(likelyDispatch, thisVTable(), array));
-        optimize(function);
         return reinterpret_cast<likely_function>(finalize(function));
     }
 
@@ -1192,7 +1198,6 @@ struct VTable : public JITResources
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
         builder.CreateRet(builder.CreateCall2(likelyDispatch, thisVTable(), function->arg_begin()));
-        optimize(function);
         return reinterpret_cast<likely_function_n>(finalize(function));
     }
 
@@ -1211,13 +1216,6 @@ private:
     Constant *thisVTable() const
     {
         return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(this)), uintptr_t(this)), vtableType);
-    }
-
-    void optimize(Function *function) const
-    {
-        FunctionPassManager functionPassManager(module);
-        functionPassManager.add(createVerifierPass(PrintMessageAction));
-        functionPassManager.run(*function);
     }
 };
 PointerType *VTable::vtableType = NULL;
