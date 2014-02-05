@@ -969,7 +969,18 @@ struct JITResources
             InitializeNativeTarget();
             InitializeNativeTargetAsmPrinter();
             InitializeNativeTargetAsmParser();
-            initializeScalarOpts(*PassRegistry::getPassRegistry());
+
+            PassRegistry &Registry = *PassRegistry::getPassRegistry();
+            initializeCore(Registry);
+            initializeScalarOpts(Registry);
+            initializeObjCARCOpts(Registry);
+            initializeVectorization(Registry);
+            initializeIPO(Registry);
+            initializeAnalysis(Registry);
+            initializeIPA(Registry);
+            initializeTransformUtils(Registry);
+            initializeInstCombine(Registry);
+            initializeTarget(Registry);
 
             likely_set_depth(&likely_type_native, sizeof(likely_size)*8);
             NativeIntegerType = Type::getIntNTy(getGlobalContext(), likely_depth(likely_type_native));
@@ -1001,7 +1012,7 @@ struct JITResources
             if (JIT)
                 targetTriple = targetTriple + "-elf";
 #endif // _WIN32
-            module->setTargetTriple(targetTriple);
+            module->setTargetTriple(Triple::normalize(targetTriple));
         }
 
         string error;
