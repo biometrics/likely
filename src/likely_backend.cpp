@@ -1051,6 +1051,14 @@ struct JITResources
         delete targetMachine;
         delete executionEngine; // owns module
     }
+
+    void *finalize(Function *function)
+    {
+        if (!executionEngine)
+            return NULL;
+        executionEngine->finalizeObject();
+        return executionEngine->getPointerToFunction(function);
+    }
 };
 
 struct FunctionBuilder : private JITResources
@@ -1067,13 +1075,7 @@ struct FunctionBuilder : private JITResources
         ExpressionBuilder builder(module, name, types, native ? targetMachine : NULL);
         Function *result = cast<Function>(Operation::expression(builder, ast).value);
 //        module->dump();
-
-        if (executionEngine) {
-            executionEngine->finalizeObject();
-            function = executionEngine->getPointerToFunction(result);
-        } else {
-            function = NULL;
-        }
+        function = finalize(result);
     }
 
     void write(const string &fileName) const
@@ -1144,7 +1146,7 @@ struct VTable : public JITResources
             delete function;
     }
 
-    likely_function compile() const
+    likely_function compile()
     {
         static FunctionType* functionType = NULL;
         if (functionType == NULL) {
@@ -1173,11 +1175,11 @@ struct VTable : public JITResources
             array = ConstantPointerNull::get(PointerType::getUnqual(PointerType::getUnqual(TheMatrixStruct)));
         }
         builder.CreateRet(builder.CreateCall2(likelyDispatch, thisVTable(), array));
-
+        optimize(function);
         return reinterpret_cast<likely_function>(finalize(function));
     }
 
-    likely_function_n compileN() const
+    likely_function_n compileN()
     {
         static FunctionType* functionType = NULL;
         if (functionType == NULL) {
@@ -1190,6 +1192,7 @@ struct VTable : public JITResources
         BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
         IRBuilder<> builder(entry);
         builder.CreateRet(builder.CreateCall2(likelyDispatch, thisVTable(), function->arg_begin()));
+        optimize(function);
         return reinterpret_cast<likely_function_n>(finalize(function));
     }
 
@@ -1210,13 +1213,11 @@ private:
         return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(this)), uintptr_t(this)), vtableType);
     }
 
-    void *finalize(Function *function) const
+    void optimize(Function *function) const
     {
         FunctionPassManager functionPassManager(module);
         functionPassManager.add(createVerifierPass(PrintMessageAction));
         functionPassManager.run(*function);
-        executionEngine->finalizeObject();
-        return executionEngine->getPointerToFunction(function);
     }
 };
 PointerType *VTable::vtableType = NULL;
