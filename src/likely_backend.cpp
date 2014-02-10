@@ -1019,9 +1019,11 @@ struct JITResources
             executionEngine = NULL;
         }
 
-        engineBuilder.setCodeModel(CodeModel::Default);
-        targetMachine = engineBuilder.selectTarget();
-        likely_assert(targetMachine != NULL, "failed to create target machine with error: %s", error.c_str());
+        if (native) {
+            engineBuilder.setCodeModel(CodeModel::Default);
+            targetMachine = engineBuilder.selectTarget();
+            likely_assert(targetMachine != NULL, "failed to create target machine with error: %s", error.c_str());
+        }
     }
 
     ~JITResources()
