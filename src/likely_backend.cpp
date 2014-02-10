@@ -1040,7 +1040,8 @@ struct JITResources
     ~JITResources()
     {
         delete targetMachine;
-        delete executionEngine; // owns module
+        if (executionEngine) delete executionEngine; // owns module
+        else                 delete module;
     }
 
     void *finalize(Function *function)
