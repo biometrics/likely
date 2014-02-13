@@ -1,5 +1,4 @@
 set(LIKELY_SRC likely_backend.cpp likely_frontend.cpp)
-set(LIKELY_LIBS ${REQ_LLVM_LIBRARIES})
 file(GLOB LIKELY_LIBRARY ${CMAKE_SOURCE_DIR}/library/*.like)
 set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/LICENSE.txt
@@ -23,7 +22,6 @@ set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
 if(${LIKELY_IO})
   add_definitions(-DLIKELY_IO)
   set(LIKELY_SRC ${LIKELY_SRC} likely_io.cpp)
-  set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui)
   set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely/likely_io.h
                                  opencv.shim)
 endif()

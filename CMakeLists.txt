@@ -41,34 +41,50 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "")
   set(CMAKE_BUILD_TYPE Debug CACHE STRING "One of: Debug, Release, RelWithDebInfo, MinSizeRel" FORCE)
 endif()
 
-# Build LLVM
-string(TOLOWER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
-if("${BUILD_TYPE}" STREQUAL "debug" )
-  set(LLVM_ENABLE_ASSERTIONS ON CACHE INTERNAL "")
+# Find or build LLVM
+option(LIKELY_SYSTEM_LLVM "Use system LLVM" OFF)
+if(${LIKELY_SYSTEM_LLVM})
+  find_package(LLVM REQUIRED)
+  include_directories(${LLVM_INCLUDE_DIRS})
+  link_directories(${LLVM_LIBRARY_DIRS})
+else()
+  string(TOLOWER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
+  if("${BUILD_TYPE}" STREQUAL "debug")
+    set(LLVM_ENABLE_ASSERTIONS ON CACHE INTERNAL "")
+  endif()
+  set(LLVM_TARGETS_TO_BUILD "host" CACHE STRING "LLVM targets")
+  add_subdirectory(llvm EXCLUDE_FROM_ALL)
+  set(CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}/llvm/share/llvm/cmake/")
+  include(LLVMConfig)
+  include_directories(${CMAKE_SOURCE_DIR}/llvm/include
+                      ${CMAKE_BINARY_DIR}/llvm/include)
+  link_directories(${LLVM_LIBRARY_DIRS})
+  add_definitions(${LLVM_DEFINITIONS})
 endif()
-set(LLVM_TARGETS_TO_BUILD "host" CACHE STRING "LLVM targets")
-add_subdirectory(llvm EXCLUDE_FROM_ALL)
-set(CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}/llvm/share/llvm/cmake/")
-include(LLVMConfig)
-include_directories(${CMAKE_SOURCE_DIR}/llvm/include
-                    ${CMAKE_BINARY_DIR}/llvm/include)
-link_directories(${LLVM_LIBRARY_DIRS})
-add_definitions(${LLVM_DEFINITIONS})
 llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES bitwriter ipo mcjit native vectorize)
+set(LIKELY_LIBS ${LIKELY_LIBS} ${REQ_LLVM_LIBRARIES})
 
 if(${LIKELY_IO})
-  option(BUILD_WITH_STATIC_CRT "OpenCV static MSVC CRT" OFF)
-  option(WITH_CUDA "OpenCV CUDA support" OFF)
-  option(WITH_OPENEXR "OpenCV OpenEXR support" OFF)
-  add_subdirectory(opencv EXCLUDE_FROM_ALL)
-  include_directories(${CMAKE_SOURCE_DIR}/opencv/modules/core/include
-                      ${CMAKE_SOURCE_DIR}/opencv/modules/highgui/include
-                      ${CMAKE_SOURCE_DIR}/opencv/modules/imgproc/include)
+  # Find or build OpenCV
+  option(LIKELY_SYSTEM_OPENCV "Use system OpenCV" OFF)
+  if(${LIKELY_SYSTEM_OPENCV})
+    find_package(OpenCV REQUIRED)
+    set(LIKELY_LIBS ${LIKELY_LIBS} ${OpenCV_LIBS})
+  else()
+    option(BUILD_WITH_STATIC_CRT "OpenCV static MSVC CRT" OFF)
+    option(WITH_CUDA "OpenCV CUDA support" OFF)
+    option(WITH_OPENEXR "OpenCV OpenEXR support" OFF)
+    add_subdirectory(opencv EXCLUDE_FROM_ALL)
+    include_directories(${CMAKE_SOURCE_DIR}/opencv/modules/core/include
+                        ${CMAKE_SOURCE_DIR}/opencv/modules/highgui/include
+                        ${CMAKE_SOURCE_DIR}/opencv/modules/imgproc/include)
+    set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui)
 
-  # option(CURL_STATICLIB "CURL static library" ON)
-  # add_subdirectory(curl EXCLUDE_FROM_ALL)
-  # include_directories(${CMAKE_SOURCE_DIR}/curl/include
-  #                     ${CMAKE_BINARY_DIR}/curl/include/curl)
+    # option(CURL_STATICLIB "CURL static library" ON)
+    # add_subdirectory(curl EXCLUDE_FROM_ALL)
+    # include_directories(${CMAKE_SOURCE_DIR}/curl/include
+    #                     ${CMAKE_BINARY_DIR}/curl/include/curl)
+  endif()
 endif()
 
 # Compiler configuration
