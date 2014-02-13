@@ -18,11 +18,11 @@
 #include <llvm/ADT/Triple.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
-#include <llvm/Analysis/Verifier.h>
 #include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/Verifier.h>
 #include <llvm/Support/Debug.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/FormattedStream.h>
@@ -973,7 +973,6 @@ struct JITResources
             PassRegistry &Registry = *PassRegistry::getPassRegistry();
             initializeCore(Registry);
             initializeScalarOpts(Registry);
-            initializeObjCARCOpts(Registry);
             initializeVectorization(Registry);
             initializeIPO(Registry);
             initializeAnalysis(Registry);
@@ -1048,40 +1047,34 @@ struct JITResources
 
     void *finalize(Function *function)
     {
-        static PassManager *NativePassManager = NULL;
-        static PassManager *GenericPassManager = NULL;
+        if (targetMachine) {
+            static PassManager *PM = NULL;
+            if (!PM) {
+                PM = new PassManager();
+                PM->add(createVerifierPass());
+                PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
+                PM->add(new DataLayout(module));
+                targetMachine->addAnalysisPasses(*PM);
+                PassManagerBuilder builder;
+                builder.OptLevel = 3;
+                builder.SizeLevel = 0;
+                builder.LoopVectorize = true;
+                builder.populateModulePassManager(*PM);
+                PM->add(createVerifierPass());
+            }
 
-        if ((targetMachine != NULL) && (NativePassManager == NULL)) {
-            NativePassManager = new PassManager();
-            TargetLibraryInfo *TLI = new TargetLibraryInfo(Triple(module->getTargetTriple()));
-//            TLI->disableAllFunctions();
-            NativePassManager->add(TLI);
-            NativePassManager->add(new DataLayout(module));
-            targetMachine->addAnalysisPasses(*NativePassManager);
+//            DebugFlag = true;
+//            module->dump();
+            PM->run(*module);
+//            module->dump();
         }
 
-        if (GenericPassManager == NULL) {
-            PassManagerBuilder builder;
-            builder.OptLevel = 3;
-            builder.SizeLevel = 0;
-            builder.LoopVectorize = true;
-            GenericPassManager = new PassManager();
-            GenericPassManager->add(createVerifierPass());
-            builder.populateModulePassManager(*GenericPassManager);
-            GenericPassManager->add(createVerifierPass());
-        }
-
-//        DebugFlag = true;
-//        module->dump();
-        if (targetMachine != NULL)
-            NativePassManager->run(*module);
-        GenericPassManager->run(*module);
-//        module->dump();
-
-        if (!executionEngine)
+        if (executionEngine) {
+            executionEngine->finalizeObject();
+            return executionEngine->getPointerToFunction(function);
+        } else {
             return NULL;
-        executionEngine->finalizeObject();
-        return executionEngine->getPointerToFunction(function);
+        }
     }
 };
 
