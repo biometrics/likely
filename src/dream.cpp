@@ -587,8 +587,11 @@ int main(int argc, char *argv[])
         }
 
         likely_ast asts = likely_asts_from_string(qPrintable(source));
-        for (size_t i=0; i<asts->num_atoms; i++)
-            likely_release(likely_eval(asts->atoms[i]));
+        for (size_t i=0; i<asts->num_atoms; i++) {
+            likely_matrix m = likely_eval(asts->atoms[i]);
+            printf("%s", likely_print(m));
+            likely_release(m);
+        }
         likely_release_ast(asts);
     }
 
