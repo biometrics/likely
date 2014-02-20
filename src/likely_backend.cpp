@@ -31,6 +31,7 @@
 #include <llvm/Target/TargetLibraryInfo.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Vectorize.h>
 #include <iostream>
 #include <sstream>
@@ -918,13 +919,34 @@ class functionOperation : public GenericOperation
 
     TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
     {
-        (void) ast;
         vector<Type*> types;
         for (likely_type t : builder.types)
             types.push_back(ExpressionBuilder::ty(t));
-        Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(Type::getVoidTy(C), types, false)));
-        (void) function;
-        return TypedValue();
+        Function *tmpFunction = cast<Function>(builder.module->getOrInsertFunction(builder.name+"_tmp", FunctionType::get(Type::getVoidTy(C), types, false)));
+        vector<TypedValue> tmpArgs = builder.getArgs(tmpFunction);
+        BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
+        builder.SetInsertPoint(entry);
+
+        assert(tmpArgs.size() == ast->atoms[1]->num_atoms);
+        builder.closures.push_back(ExpressionBuilder::Closure());
+        for (size_t i=0; i<tmpArgs.size(); i++)
+            builder.addVariable(ast->atoms[1]->atoms[i]->atom, tmpArgs[i]);
+        TypedValue result = expression(builder, ast->atoms[2]);
+        builder.closures.pop_back();
+        builder.CreateRet(result);
+
+        Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(result.value->getType(), types, false)));
+        vector<TypedValue> args = builder.getArgs(function);
+
+        ValueToValueMapTy VMap;
+        for (size_t i=0; i<args.size(); i++)
+            VMap[tmpArgs[i]] = args[i];
+
+        SmallVector<ReturnInst*, 1> returns;
+        CloneFunctionInto(function, tmpFunction, VMap, false, returns);
+        tmpFunction->eraseFromParent();
+
+        return TypedValue(function, result.type);
     }
 };
 LIKELY_REGISTER(function)
