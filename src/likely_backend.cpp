@@ -1041,6 +1041,8 @@ class writeOperation : public GenericOperation
         likelyWrite->setDoesNotAlias(0);
         likelyWrite->setDoesNotAlias(1);
         likelyWrite->setDoesNotCapture(1);
+        likelyWrite->setDoesNotAlias(2);
+        likelyWrite->setDoesNotCapture(2);
         vector<Value*> likelyWriteArguments;
         likelyWriteArguments.push_back(expression(builder, ast->atoms[1]));
         likelyWriteArguments.push_back(expression(builder, ast->atoms[2]));
@@ -1048,6 +1050,59 @@ class writeOperation : public GenericOperation
     }
 };
 LIKELY_REGISTER(write)
+
+class decodeOperation : public GenericOperation
+{
+    using Operation::call;
+    TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
+    {
+        static FunctionType *LikelyDecodeSignature = NULL;
+        if (LikelyDecodeSignature == NULL) {
+            LikelyDecodeSignature = FunctionType::get(PointerType::getUnqual(TheMatrixStruct), PointerType::getUnqual(TheMatrixStruct), false);
+            // An impossible case used to ensure that `likely_decode` isn't stripped when optimizing executable size
+            if (LikelyDecodeSignature == NULL)
+                likely_decode(NULL);
+        }
+        Function *likelyDecode = Function::Create(LikelyDecodeSignature, GlobalValue::ExternalLinkage, "likely_decode", builder.module);
+        likelyDecode->setCallingConv(CallingConv::C);
+        likelyDecode->setDoesNotAlias(0);
+        likelyDecode->setDoesNotAlias(1);
+        likelyDecode->setDoesNotCapture(1);
+        TypedValue matrix = expression(builder, ast->atoms[1]);
+        return TypedValue(builder.CreateCall(likelyDecode, matrix), likely_type_null);
+    }
+};
+LIKELY_REGISTER(decode)
+
+class encodeOperation : public GenericOperation
+{
+    using Operation::call;
+    TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
+    {
+        static FunctionType *LikelyEncodeSignature = NULL;
+        if (LikelyEncodeSignature == NULL) {
+            vector<Type*> likelyEncodeParameters;
+            likelyEncodeParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
+            likelyEncodeParameters.push_back(Type::getInt8PtrTy(C));
+            LikelyEncodeSignature = FunctionType::get(PointerType::getUnqual(TheMatrixStruct), likelyEncodeParameters, false);
+            // An impossible case used to ensure that `likely_encode` isn't stripped when optimizing executable size
+            if (LikelyEncodeSignature == NULL)
+                likely_encode(NULL, NULL);
+        }
+        Function *likelyEncode = Function::Create(LikelyEncodeSignature, GlobalValue::ExternalLinkage, "likely_encode", builder.module);
+        likelyEncode->setCallingConv(CallingConv::C);
+        likelyEncode->setDoesNotAlias(0);
+        likelyEncode->setDoesNotAlias(1);
+        likelyEncode->setDoesNotCapture(1);
+        likelyEncode->setDoesNotAlias(2);
+        likelyEncode->setDoesNotCapture(2);
+        vector<Value*> likelyEncodeArguments;
+        likelyEncodeArguments.push_back(expression(builder, ast->atoms[1]));
+        likelyEncodeArguments.push_back(expression(builder, ast->atoms[2]));
+        return TypedValue(builder.CreateCall(likelyEncode, likelyEncodeArguments), likely_type_null);
+    }
+};
+LIKELY_REGISTER(encode)
 #endif // LIKELY_IO
 
 struct JITResources
