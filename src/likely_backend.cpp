@@ -911,6 +911,23 @@ class kernelOperation : public GenericOperation
 };
 LIKELY_REGISTER(kernel)
 
+class functionOperation : public GenericOperation
+{
+    using Operation::call;
+
+    TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
+    {
+        (void) ast;
+        vector<Type*> types;
+        for (likely_type t : builder.types)
+            types.push_back(ExpressionBuilder::ty(t));
+        Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(Type::getVoidTy(getGlobalContext()), types, false)));
+        (void) function;
+        return TypedValue();
+    }
+};
+LIKELY_REGISTER(function)
+
 class letOperation : public GenericOperation
 {
     using Operation::call;
@@ -1295,8 +1312,8 @@ likely_matrix likely_eval(likely_ast ast)
     if (ast == NULL)
         return NULL;
 
-    likely_ast expr = likely_ast_from_string("(function (scalar <ast>))");
-    expr->atoms[1]->atoms[1] = likely_retain_ast(ast);
+    likely_ast expr = likely_ast_from_string("(function () (scalar <ast>))");
+    expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
     FunctionBuilder functionBuilder(expr, vector<likely_type>(), true);
     likely_release_ast(expr);
 
