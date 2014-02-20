@@ -233,6 +233,9 @@ struct Operation
         if (!variable.isNull())
             return variable;
 
+        if ((operator_.front() == '"') && (operator_.back() == '"'))
+            return TypedValue(builder.CreateGlobalStringPtr(operator_.substr(1, operator_.length()-2)), likely_type_null);
+
         bool ok;
         TypedValue c = constant(operator_, &ok);
         if (ok) return c;
@@ -954,11 +957,11 @@ LIKELY_REGISTER(function)
 class letOperation : public GenericOperation
 {
     using Operation::call;
-    TypedValue call(ExpressionBuilder &builder, likely_ast_struct ast) const
+    TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
     {
         builder.closures.push_back(ExpressionBuilder::Closure());
-        addToClosure(builder, ast.atoms[1]);
-        TypedValue result = expression(builder, ast.atoms[2]);
+        addToClosure(builder, ast->atoms[1]);
+        TypedValue result = expression(builder, ast->atoms[2]);
         builder.closures.pop_back();
         return result;
     }
@@ -968,10 +971,10 @@ LIKELY_REGISTER(let)
 class loopOperation : public GenericOperation
 {
     using Operation::call;
-    TypedValue call(ExpressionBuilder &builder, likely_ast_struct ast) const
+    TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
     {
         builder.closures.push_back(ExpressionBuilder::Closure());
-        addToClosure(builder, ast.atoms[1]);
+        addToClosure(builder, ast->atoms[1]);
 
         BasicBlock *loopCondition = BasicBlock::Create(C, "loop_condition");
         BasicBlock *loopIteration = BasicBlock::Create(C, "loop_iteration");
@@ -979,20 +982,39 @@ class loopOperation : public GenericOperation
 
         builder.CreateBr(loopCondition);
         builder.SetInsertPoint(loopCondition);
-        builder.CreateCondBr(expression(builder, ast.atoms[2]), loopIteration, loopEnd);
+        builder.CreateCondBr(expression(builder, ast->atoms[2]), loopIteration, loopEnd);
 
         builder.SetInsertPoint(loopIteration);
-        addToClosure(builder, ast.atoms[3]);
+        addToClosure(builder, ast->atoms[3]);
         builder.CreateBr(loopCondition);
 
         builder.SetInsertPoint(loopEnd);
-        TypedValue result = expression(builder, ast.atoms[4]);
+        TypedValue result = expression(builder, ast->atoms[4]);
 
         builder.closures.pop_back();
         return result;
     }
 };
 LIKELY_REGISTER(loop)
+
+#ifdef LIKELY_IO
+class readOperation : public GenericOperation
+{
+    using Operation::call;
+    TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
+    {
+        static FunctionType *LikelyReadSignature = NULL;
+        if (LikelyReadSignature == NULL)
+            LikelyReadSignature = FunctionType::get(PointerType::getUnqual(TheMatrixStruct), Type::getInt8PtrTy(C), false);
+        Function *likelyRead = Function::Create(LikelyReadSignature, GlobalValue::ExternalLinkage, "likely_read", builder.module);
+        likelyRead->setCallingConv(CallingConv::C);
+        likelyRead->setDoesNotAlias(0);
+        TypedValue fileName = expression(builder, ast->atoms[1]);
+        return TypedValue(builder.CreateCall(likelyRead, fileName), likely_type_null);
+    }
+};
+LIKELY_REGISTER(read)
+#endif // LIKELY_IO
 
 struct JITResources
 {
