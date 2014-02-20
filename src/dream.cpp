@@ -370,8 +370,9 @@ private:
 
     void updatePixmap()
     {
-        image->setVisible(!src.isNull());
-        if (image->isVisible()) {
+        const bool visible = !src.isNull();
+        image->setVisible(visible);
+        if (visible) {
             const int width = qMin(image->size().width(), src.width());
             const int height = src.height() * width / src.width();
             image->setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height))));
