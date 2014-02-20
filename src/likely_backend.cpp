@@ -46,6 +46,7 @@ using namespace std;
 static likely_type likely_type_native = likely_type_null;
 static IntegerType *NativeIntegerType = NULL;
 static StructType *TheMatrixStruct = NULL;
+static LLVMContext &C = getGlobalContext();
 
 namespace {
 
@@ -79,7 +80,7 @@ struct ExpressionBuilder : public IRBuilder<>
     vector<Closure> closures;
 
     ExpressionBuilder(Module *module, const string &name, const vector<likely_type> &types, TargetMachine *targetMachine = NULL)
-        : IRBuilder<>(getGlobalContext()), module(module), name(name), types(types), targetMachine(targetMachine)
+        : IRBuilder<>(C), module(module), name(name), types(types), targetMachine(targetMachine)
     {}
 
     static TypedValue constant(double value, likely_type type = likely_type_native)
@@ -87,11 +88,11 @@ struct ExpressionBuilder : public IRBuilder<>
         const int depth = likely_depth(type);
         if (likely_floating(type)) {
             if (value == 0) value = -0; // IEEE/LLVM optimization quirk
-            if      (depth == 64) return TypedValue(ConstantFP::get(Type::getDoubleTy(getGlobalContext()), value), type);
-            else if (depth == 32) return TypedValue(ConstantFP::get(Type::getFloatTy(getGlobalContext()), value), type);
+            if      (depth == 64) return TypedValue(ConstantFP::get(Type::getDoubleTy(C), value), type);
+            else if (depth == 32) return TypedValue(ConstantFP::get(Type::getFloatTy(C), value), type);
             else                  { likely_assert(false, "invalid floating point constant depth: %d", depth); return TypedValue(); }
         } else {
-            return TypedValue(Constant::getIntegerValue(Type::getIntNTy(getGlobalContext(), depth), APInt(depth, uint64_t(value))), type);
+            return TypedValue(Constant::getIntegerValue(Type::getIntNTy(C, depth), APInt(depth, uint64_t(value))), type);
         }
     }
 
@@ -154,15 +155,15 @@ struct ExpressionBuilder : public IRBuilder<>
         const int bits = likely_depth(type);
         const bool floating = likely_floating(type);
         if (floating) {
-            if      (bits == 16) return pointer ? Type::getHalfPtrTy(getGlobalContext())   : Type::getHalfTy(getGlobalContext());
-            else if (bits == 32) return pointer ? Type::getFloatPtrTy(getGlobalContext())  : Type::getFloatTy(getGlobalContext());
-            else if (bits == 64) return pointer ? Type::getDoublePtrTy(getGlobalContext()) : Type::getDoubleTy(getGlobalContext());
+            if      (bits == 16) return pointer ? Type::getHalfPtrTy(C)   : Type::getHalfTy(C);
+            else if (bits == 32) return pointer ? Type::getFloatPtrTy(C)  : Type::getFloatTy(C);
+            else if (bits == 64) return pointer ? Type::getDoublePtrTy(C) : Type::getDoubleTy(C);
         } else {
-            if      (bits == 1)  return pointer ? Type::getInt1PtrTy(getGlobalContext())  : (Type*)Type::getInt1Ty(getGlobalContext());
-            else if (bits == 8)  return pointer ? Type::getInt8PtrTy(getGlobalContext())  : (Type*)Type::getInt8Ty(getGlobalContext());
-            else if (bits == 16) return pointer ? Type::getInt16PtrTy(getGlobalContext()) : (Type*)Type::getInt16Ty(getGlobalContext());
-            else if (bits == 32) return pointer ? Type::getInt32PtrTy(getGlobalContext()) : (Type*)Type::getInt32Ty(getGlobalContext());
-            else if (bits == 64) return pointer ? Type::getInt64PtrTy(getGlobalContext()) : (Type*)Type::getInt64Ty(getGlobalContext());
+            if      (bits == 1)  return pointer ? Type::getInt1PtrTy(C)  : (Type*)Type::getInt1Ty(C);
+            else if (bits == 8)  return pointer ? Type::getInt8PtrTy(C)  : (Type*)Type::getInt8Ty(C);
+            else if (bits == 16) return pointer ? Type::getInt16PtrTy(C) : (Type*)Type::getInt16Ty(C);
+            else if (bits == 32) return pointer ? Type::getInt32PtrTy(C) : (Type*)Type::getInt32Ty(C);
+            else if (bits == 64) return pointer ? Type::getInt64PtrTy(C) : (Type*)Type::getInt64Ty(C);
         }
         likely_assert(false, "ty invalid matrix bits: %d and floating: %d", bits, floating);
         return NULL;
@@ -364,7 +365,7 @@ class scalarOperation : public UnaryOperation
 
         static FunctionType* LikelyScalarSignature = NULL;
         if (LikelyScalarSignature == NULL)
-            LikelyScalarSignature = FunctionType::get(PointerType::getUnqual(TheMatrixStruct), Type::getDoubleTy(getGlobalContext()), false);
+            LikelyScalarSignature = FunctionType::get(PointerType::getUnqual(TheMatrixStruct), Type::getDoubleTy(C), false);
 
         Function *likelyScalar = Function::Create(LikelyScalarSignature, GlobalValue::ExternalLinkage, "likely_scalar", builder.module);
         likelyScalar->setCallingConv(CallingConv::C);
@@ -710,7 +711,7 @@ class kernelOperation : public GenericOperation
     {
         Function *function = builder.getKernel(PointerType::getUnqual(TheMatrixStruct));
         vector<TypedValue> srcs = builder.getArgs(function);
-        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
+        BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         builder.SetInsertPoint(entry);
 
         TypedValue dstChannels = getDimensions(builder, ast, "channels", srcs);
@@ -721,8 +722,8 @@ class kernelOperation : public GenericOperation
         Function *thunk;
         likely_type dstType;
         {
-            thunk = builder.getKernel(Type::getVoidTy(getGlobalContext()), PointerType::getUnqual(TheMatrixStruct), NativeIntegerType, NativeIntegerType);
-            BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", thunk);
+            thunk = builder.getKernel(Type::getVoidTy(C), PointerType::getUnqual(TheMatrixStruct), NativeIntegerType, NativeIntegerType);
+            BasicBlock *entry = BasicBlock::Create(C, "entry", thunk);
             builder.SetInsertPoint(entry);
             vector<TypedValue> srcs = builder.getArgs(thunk);
             TypedValue stop = srcs.back(); srcs.pop_back();
@@ -742,15 +743,15 @@ class kernelOperation : public GenericOperation
             // Create self-referencing loop node
             MDNode *node; {
                 vector<Value*> metadata;
-                MDNode *tmp = MDNode::getTemporary(getGlobalContext(), metadata);
+                MDNode *tmp = MDNode::getTemporary(C, metadata);
                 metadata.push_back(tmp);
-                node = MDNode::get(getGlobalContext(), metadata);
+                node = MDNode::get(C, metadata);
                 tmp->replaceAllUsesWith(node);
                 MDNode::deleteTemporary(tmp);
             }
 
             // The kernel assumes there is at least one iteration
-            BasicBlock *body = BasicBlock::Create(getGlobalContext(), "kernel_body", thunk);
+            BasicBlock *body = BasicBlock::Create(C, "kernel_body", thunk);
             builder.CreateBr(body);
             builder.SetInsertPoint(body);
             PHINode *i = builder.CreatePHI(NativeIntegerType, 2, "i");
@@ -784,10 +785,10 @@ class kernelOperation : public GenericOperation
             store->setMetadata("llvm.mem.parallel_loop_access", node);
 
             Value *increment = builder.CreateAdd(i, builder.one(), "kernel_increment");
-            BasicBlock *loopLatch = BasicBlock::Create(getGlobalContext(), "kernel_latch", thunk);
+            BasicBlock *loopLatch = BasicBlock::Create(C, "kernel_latch", thunk);
             builder.CreateBr(loopLatch);
             builder.SetInsertPoint(loopLatch);
-            BasicBlock *loopExit = BasicBlock::Create(getGlobalContext(), "kernel_exit", thunk);
+            BasicBlock *loopExit = BasicBlock::Create(C, "kernel_exit", thunk);
             BranchInst *latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, "kernel_test"), loopExit, body);
             latch->setMetadata("llvm.loop", node);
             i->addIncoming(increment, loopLatch);
@@ -807,13 +808,13 @@ class kernelOperation : public GenericOperation
         if (LikelyNewSignature == NULL) {
             Type *newReturn = PointerType::getUnqual(TheMatrixStruct);
             vector<Type*> newParameters;
-            newParameters.push_back(Type::getInt32Ty(getGlobalContext())); // type
+            newParameters.push_back(Type::getInt32Ty(C)); // type
             newParameters.push_back(NativeIntegerType); // channels
             newParameters.push_back(NativeIntegerType); // columns
             newParameters.push_back(NativeIntegerType); // rows
             newParameters.push_back(NativeIntegerType); // frames
-            newParameters.push_back(Type::getInt8PtrTy(getGlobalContext())); // data
-            newParameters.push_back(Type::getInt8Ty(getGlobalContext())); // copy
+            newParameters.push_back(Type::getInt8PtrTy(C)); // data
+            newParameters.push_back(Type::getInt8Ty(C)); // copy
             LikelyNewSignature = FunctionType::get(newReturn, newParameters, false);
         }
         Function *likelyNew = Function::Create(LikelyNewSignature, GlobalValue::ExternalLinkage, "likely_new", builder.module);
@@ -828,7 +829,7 @@ class kernelOperation : public GenericOperation
         likelyNewArgs.push_back(dstColumns);
         likelyNewArgs.push_back(dstRows);
         likelyNewArgs.push_back(dstFrames);
-        likelyNewArgs.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(getGlobalContext())));
+        likelyNewArgs.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(C)));
         likelyNewArgs.push_back(builder.constant(0, 8));
         Value *dst = builder.CreateCall(likelyNew, likelyNewArgs);
 
@@ -843,10 +844,10 @@ class kernelOperation : public GenericOperation
             if (likelyForkType == NULL) {
                 vector<Type*> likelyForkParameters;
                 likelyForkParameters.push_back(thunk->getType());
-                likelyForkParameters.push_back(Type::getInt8Ty(getGlobalContext()));
+                likelyForkParameters.push_back(Type::getInt8Ty(C));
                 likelyForkParameters.push_back(NativeIntegerType);
                 likelyForkParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
-                Type *likelyForkReturn = Type::getVoidTy(getGlobalContext());
+                Type *likelyForkReturn = Type::getVoidTy(C);
                 likelyForkType = FunctionType::get(likelyForkReturn, likelyForkParameters, true);
             }
             Function *likelyFork = Function::Create(likelyForkType, GlobalValue::ExternalLinkage, "likely_fork", builder.module);
@@ -921,7 +922,7 @@ class functionOperation : public GenericOperation
         vector<Type*> types;
         for (likely_type t : builder.types)
             types.push_back(ExpressionBuilder::ty(t));
-        Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(Type::getVoidTy(getGlobalContext()), types, false)));
+        Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(Type::getVoidTy(C), types, false)));
         (void) function;
         return TypedValue();
     }
@@ -950,9 +951,9 @@ class loopOperation : public GenericOperation
         builder.closures.push_back(ExpressionBuilder::Closure());
         addToClosure(builder, ast.atoms[1]);
 
-        BasicBlock *loopCondition = BasicBlock::Create(getGlobalContext(), "loop_condition");
-        BasicBlock *loopIteration = BasicBlock::Create(getGlobalContext(), "loop_iteration");
-        BasicBlock *loopEnd = BasicBlock::Create(getGlobalContext(), "loop_end");
+        BasicBlock *loopCondition = BasicBlock::Create(C, "loop_condition");
+        BasicBlock *loopIteration = BasicBlock::Create(C, "loop_iteration");
+        BasicBlock *loopEnd = BasicBlock::Create(C, "loop_end");
 
         builder.CreateBr(loopCondition);
         builder.SetInsertPoint(loopCondition);
@@ -999,15 +1000,15 @@ struct JITResources
             initializeTarget(Registry);
 
             likely_set_depth(&likely_type_native, sizeof(likely_size)*8);
-            NativeIntegerType = Type::getIntNTy(getGlobalContext(), likely_depth(likely_type_native));
+            NativeIntegerType = Type::getIntNTy(C, likely_depth(likely_type_native));
             TheMatrixStruct = StructType::create("likely_matrix_struct",
-                                                 PointerType::getUnqual(StructType::create(getGlobalContext(), "likely_matrix_private")), // d_ptr
-                                                 Type::getInt8PtrTy(getGlobalContext()), // data
+                                                 PointerType::getUnqual(StructType::create(C, "likely_matrix_private")), // d_ptr
+                                                 Type::getInt8PtrTy(C), // data
                                                  NativeIntegerType,                      // channels
                                                  NativeIntegerType,                      // columns
                                                  NativeIntegerType,                      // rows
                                                  NativeIntegerType,                      // frames
-                                                 Type::getInt32Ty(getGlobalContext()),   // type
+                                                 Type::getInt32Ty(C),   // type
                                                  NULL);
         }
 
@@ -1019,7 +1020,7 @@ struct JITResources
             name = stream.str();
         }
 
-        module = new Module(name, getGlobalContext());
+        module = new Module(name, C);
         likely_assert(module != NULL, "failed to create module");
 
         if (native) {
@@ -1152,7 +1153,7 @@ struct VTable : public JITResources
         n = likely_get_arity(ast);
 
         if (vtableType == NULL)
-            vtableType = PointerType::getUnqual(StructType::create(getGlobalContext(), "VTable"));
+            vtableType = PointerType::getUnqual(StructType::create(C, "VTable"));
 
         static FunctionType *LikelyDispatchSignature = NULL;
         if (LikelyDispatchSignature == NULL) {
@@ -1189,16 +1190,16 @@ struct VTable : public JITResources
             functionType = FunctionType::get(functionReturn, functionParameters, true);
         }
         Function *function = getFunction(functionType);
-        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
+        BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         IRBuilder<> builder(entry);
 
         Value *array;
         if (n > 0) {
-            array = builder.CreateAlloca(PointerType::getUnqual(TheMatrixStruct), Constant::getIntegerValue(Type::getInt32Ty(getGlobalContext()), APInt(32, (uint64_t)n)));
+            array = builder.CreateAlloca(PointerType::getUnqual(TheMatrixStruct), Constant::getIntegerValue(Type::getInt32Ty(C), APInt(32, (uint64_t)n)));
             builder.CreateStore(function->arg_begin(), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), 0))));
             if (n > 1) {
-                Value *vaList = builder.CreateAlloca(IntegerType::getInt8PtrTy(getGlobalContext()));
-                Value *vaListRef = builder.CreateBitCast(vaList, Type::getInt8PtrTy(getGlobalContext()));
+                Value *vaList = builder.CreateAlloca(IntegerType::getInt8PtrTy(C));
+                Value *vaListRef = builder.CreateBitCast(vaList, Type::getInt8PtrTy(C));
                 builder.CreateCall(Intrinsic::getDeclaration(module, Intrinsic::vastart), vaListRef);
                 for (likely_arity i=1; i<n; i++)
                     builder.CreateStore(builder.CreateVAArg(vaList, PointerType::getUnqual(TheMatrixStruct)), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), i))));
@@ -1221,7 +1222,7 @@ struct VTable : public JITResources
             functionType = FunctionType::get(functionReturn, functionParameters, true);
         }
         Function *function = getFunction(functionType);
-        BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", function);
+        BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         IRBuilder<> builder(entry);
         builder.CreateRet(builder.CreateCall2(likelyDispatch, thisVTable(), function->arg_begin()));
         return reinterpret_cast<likely_function_n>(finalize(function));
@@ -1241,7 +1242,7 @@ private:
 
     Constant *thisVTable() const
     {
-        return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getGlobalContext(), 8*sizeof(this)), uintptr_t(this)), vtableType);
+        return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(this)), uintptr_t(this)), vtableType);
     }
 };
 PointerType *VTable::vtableType = NULL;
