@@ -135,12 +135,13 @@ const char *likely_print(const likely_matrix m)
 
     stringstream stream;
     if (m) {
-        stream << "{ type=" << likely_type_to_string(m->type)
-               << ", channels=" << m->channels
-               << ", columns=" << m->columns
-               << ", rows=" << m->rows
-               << ", frames=" << m->frames
-               << ", data={\n";
+        stream << "{ type=" << likely_type_to_string(m->type);
+        if (m->channels > 1) stream << ", channels=" << m->channels;
+        if (m->columns  > 1) stream << ", columns="  << m->columns;
+        if (m->rows     > 1) stream << ", rows="     << m->rows;
+        if (m->frames   > 1) stream << ", frames="   << m->frames;
+        stream << ", data=";
+        if (likely_elements(m) > 1) stream << "{\n";
         stream << (m->frames > 1 ? "{" : "");
         for (likely_size t=0; t<m->frames; t++) {
             stream << (m->rows > 1 ? "{" : "");
@@ -166,7 +167,8 @@ const char *likely_print(const likely_matrix m)
                 stream << ",\n\n";
         }
         stream << (m->frames > 1 ? "}" : "");
-        stream << "\n} }";
+        if (likely_elements(m) > 1) stream << "\n}";
+        stream << " }";
     }
 
     result = stream.str();
