@@ -25,7 +25,7 @@ extern "C" {
 
 // Matrix I/O
 LIKELY_EXPORT likely_matrix likely_read(const char *file_name);
-LIKELY_EXPORT void likely_write(const likely_matrix image, const char *file_name);
+LIKELY_EXPORT likely_matrix likely_write(const likely_matrix image, const char *file_name);
 LIKELY_EXPORT likely_matrix likely_decode(const likely_matrix buffer);
 LIKELY_EXPORT likely_matrix likely_encode(const likely_matrix image, const char *extension);
 

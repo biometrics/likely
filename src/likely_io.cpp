@@ -52,13 +52,14 @@ likely_matrix likely_read(const char *file_name)
     return mat;
 }
 
-void likely_write(const likely_matrix image, const char *file_name)
+likely_matrix likely_write(const likely_matrix image, const char *file_name)
 {
     try {
         cv::imwrite(file_name, toCvMat(image));
     } catch (...) {
-        return;
+        return NULL;
     }
+    return image;
 }
 
 likely_matrix likely_decode(const likely_matrix buffer)

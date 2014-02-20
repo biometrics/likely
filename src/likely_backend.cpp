@@ -998,14 +998,20 @@ class loopOperation : public GenericOperation
 LIKELY_REGISTER(loop)
 
 #ifdef LIKELY_IO
+#include "likely/likely_io.h"
+
 class readOperation : public GenericOperation
 {
     using Operation::call;
     TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
     {
         static FunctionType *LikelyReadSignature = NULL;
-        if (LikelyReadSignature == NULL)
+        if (LikelyReadSignature == NULL) {
             LikelyReadSignature = FunctionType::get(PointerType::getUnqual(TheMatrixStruct), Type::getInt8PtrTy(C), false);
+            // An impossible case used to ensure that `likely_read` isn't stripped when optimizing executable size
+            if (LikelyReadSignature == NULL)
+                likely_read(NULL);
+        }
         Function *likelyRead = Function::Create(LikelyReadSignature, GlobalValue::ExternalLinkage, "likely_read", builder.module);
         likelyRead->setCallingConv(CallingConv::C);
         likelyRead->setDoesNotAlias(0);
@@ -1014,6 +1020,34 @@ class readOperation : public GenericOperation
     }
 };
 LIKELY_REGISTER(read)
+
+class writeOperation : public GenericOperation
+{
+    using Operation::call;
+    TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
+    {
+        static FunctionType *LikelyWriteSignature = NULL;
+        if (LikelyWriteSignature == NULL) {
+            vector<Type*> likelyWriteParameters;
+            likelyWriteParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
+            likelyWriteParameters.push_back(Type::getInt8PtrTy(C));
+            LikelyWriteSignature = FunctionType::get(PointerType::getUnqual(TheMatrixStruct), likelyWriteParameters, false);
+            // An impossible case used to ensure that `likely_write` isn't stripped when optimizing executable size
+            if (LikelyWriteSignature == NULL)
+                likely_write(NULL, NULL);
+        }
+        Function *likelyWrite = Function::Create(LikelyWriteSignature, GlobalValue::ExternalLinkage, "likely_write", builder.module);
+        likelyWrite->setCallingConv(CallingConv::C);
+        likelyWrite->setDoesNotAlias(0);
+        likelyWrite->setDoesNotAlias(1);
+        likelyWrite->setDoesNotCapture(1);
+        vector<Value*> likelyWriteArguments;
+        likelyWriteArguments.push_back(expression(builder, ast->atoms[1]));
+        likelyWriteArguments.push_back(expression(builder, ast->atoms[2]));
+        return TypedValue(builder.CreateCall(likelyWrite, likelyWriteArguments), likely_type_null);
+    }
+};
+LIKELY_REGISTER(write)
 #endif // LIKELY_IO
 
 struct JITResources
