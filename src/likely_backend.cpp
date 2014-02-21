@@ -712,6 +712,18 @@ class defineOperation : public GenericOperation
 };
 LIKELY_REGISTER(define)
 
+class lambdaOperation : public GenericOperation
+{
+    using Operation::call;
+    TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
+    {
+        (void) builder;
+        (void) ast;
+        return TypedValue();
+    }
+};
+LIKELY_REGISTER(lambda)
+
 class kernelOperation : public GenericOperation
 {
     class kernelArgOperation : public NullaryOperation
