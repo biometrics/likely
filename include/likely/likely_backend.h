@@ -24,6 +24,12 @@
 extern "C" {
 #endif
 
+// Environments
+typedef struct likely_env_struct *likely_env;
+LIKELY_EXPORT likely_env likely_new_env();
+LIKELY_EXPORT likely_env likely_retain_env(likely_env env);
+LIKELY_EXPORT void likely_release_env(likely_env env);
+
 typedef likely_matrix (*likely_function)(const likely_matrix, ...);
 typedef likely_matrix (*likely_function_n)(const likely_matrix*);
 LIKELY_EXPORT likely_function likely_compile(likely_ast ast); // Takes ownership of ast

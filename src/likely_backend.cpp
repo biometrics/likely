@@ -281,6 +281,16 @@ protected:
 };
 map<string, stack<shared_ptr<Operation>>> Operation::operations;
 
+} // namespace (anonymous)
+
+struct likely_env_struct
+{
+    map<string, stack<shared_ptr<Operation>>> operations;
+    int ref_count;
+};
+
+namespace {
+
 template <class T>
 struct RegisterOperation
 {
@@ -1419,6 +1429,28 @@ private:
 PointerType *VTable::vtableType = NULL;
 
 } // namespace (anonymous)
+
+LIKELY_EXPORT likely_env likely_new_env()
+{
+    likely_env env = new likely_env_struct();
+    env->operations = Operation::operations;
+    env->ref_count = 1;
+    return env;
+}
+
+LIKELY_EXPORT likely_env likely_retain_env(likely_env env)
+{
+    if (!env) return env;
+    env->ref_count++;
+    return env;
+}
+
+LIKELY_EXPORT void likely_release_env(likely_env env)
+{
+    if (!env) return;
+    if (--env->ref_count != 0) return;
+    delete env;
+}
 
 extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct VTable *vtable, likely_matrix *m)
 {
