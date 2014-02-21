@@ -34,6 +34,7 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Vectorize.h>
 #include <iostream>
+#include <memory>
 #include <sstream>
 
 #include "likely/likely_backend.h"
@@ -212,7 +213,7 @@ struct ExpressionBuilder : public IRBuilder<>
 
 struct Operation
 {
-    static map<string, stack<const Operation*>> operations; // stack allows shadowing
+    static map<string, stack<shared_ptr<Operation>>> operations; // stack allows shadowing
 
     static TypedValue expression(ExpressionBuilder &builder, likely_ast ast)
     {
@@ -224,7 +225,7 @@ struct Operation
             operator_ = ast->atom;
         }
 
-        map<string,stack<const Operation*>>::iterator it = operations.find(operator_);
+        map<string,stack<shared_ptr<Operation>>>::iterator it = operations.find(operator_);
         if (it != operations.end())
             return it->second.top()->call(builder, ast);
 
@@ -278,14 +279,14 @@ protected:
 
     virtual TypedValue call(ExpressionBuilder &builder, const vector<TypedValue> &args) const = 0;
 };
-map<string, stack<const Operation*>> Operation::operations;
+map<string, stack<shared_ptr<Operation>>> Operation::operations;
 
 template <class T>
 struct RegisterOperation
 {
     RegisterOperation(const string &symbol)
     {
-        Operation::operations[symbol].push(new T());
+        Operation::operations[symbol].push(shared_ptr<Operation>(new T()));
     }
 };
 #define LIKELY_REGISTER_OPERATION(OP, SYM) static struct RegisterOperation<OP##Operation> Register##OP##Operation(SYM);
@@ -706,7 +707,7 @@ class defineOperation : public GenericOperation
     TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
     {
         (void) builder;
-        operations[ast->atoms[1]->atom].push(new Definition(ast->atoms[2]));
+        operations[ast->atoms[1]->atom].push(shared_ptr<Operation>(new Definition(ast->atoms[2])));
         return TypedValue();
     }
 };
@@ -830,7 +831,7 @@ class kernelOperation : public GenericOperation
             const likely_ast args = ast->atoms[1];
             assert(args->num_atoms == srcs.size());
             for (size_t j=0; j<args->num_atoms; j++)
-                Operation::operations[args->atoms[j]->atom].push(new kernelArgOperation(srcs[j], dst.type, node));
+                Operation::operations[args->atoms[j]->atom].push(shared_ptr<Operation>(new kernelArgOperation(srcs[j], dst.type, node)));
 
             TypedValue result = Operation::expression(builder, ast->atoms[2]);
             dstType = dst.type = result.type;
@@ -848,10 +849,8 @@ class kernelOperation : public GenericOperation
             builder.SetInsertPoint(loopExit);
             builder.CreateRetVoid();
 
-            for (size_t i=0; i<args->num_atoms; i++) {
-                delete Operation::operations[args->atoms[i]->atom].top();
+            for (size_t i=0; i<args->num_atoms; i++)
                 Operation::operations[args->atoms[i]->atom].pop();
-            }
             builder.closures.pop_back();
         }
 
