@@ -214,10 +214,20 @@ struct ExpressionBuilder : public IRBuilder<>
     }
 };
 
+struct Operation;
+
+} // namespace (anonymous)
+
+struct likely_env_struct
+{
+    map<string, stack<shared_ptr<Operation>>> operations;
+    int ref_count;
+};
+
+namespace {
+
 struct Operation
 {
-    static map<string, stack<shared_ptr<Operation>>> operations; // stack allows shadowing
-
     static TypedValue expression(ExpressionBuilder &builder, likely_ast ast)
     {
         string operator_;
@@ -228,8 +238,8 @@ struct Operation
             operator_ = ast->atom;
         }
 
-        map<string,stack<shared_ptr<Operation>>>::iterator it = operations.find(operator_);
-        if (it != operations.end())
+        map<string,stack<shared_ptr<Operation>>>::iterator it = builder.env->operations.find(operator_);
+        if (it != builder.env->operations.end())
             return it->second.top()->call(builder, ast);
 
         const TypedValue variable = builder.getVariable(operator_);
@@ -282,24 +292,15 @@ protected:
 
     virtual TypedValue call(ExpressionBuilder &builder, const vector<TypedValue> &args) const = 0;
 };
-map<string, stack<shared_ptr<Operation>>> Operation::operations;
 
-} // namespace (anonymous)
-
-struct likely_env_struct
-{
-    map<string, stack<shared_ptr<Operation>>> operations;
-    int ref_count;
-};
-
-namespace {
+static map<string, stack<shared_ptr<Operation>>> DefaultOperations;
 
 template <class T>
 struct RegisterOperation
 {
     RegisterOperation(const string &symbol)
     {
-        Operation::operations[symbol].push(shared_ptr<Operation>(new T()));
+        DefaultOperations[symbol].push(shared_ptr<Operation>(new T()));
     }
 };
 #define LIKELY_REGISTER_OPERATION(OP, SYM) static struct RegisterOperation<OP##Operation> Register##OP##Operation(SYM);
@@ -719,8 +720,7 @@ class defineOperation : public GenericOperation
     using Operation::call;
     TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
     {
-        (void) builder;
-        operations[ast->atoms[1]->atom].push(shared_ptr<Operation>(new Definition(ast->atoms[2])));
+        builder.env->operations[ast->atoms[1]->atom].push(shared_ptr<Operation>(new Definition(ast->atoms[2])));
         return TypedValue();
     }
 };
@@ -844,7 +844,7 @@ class kernelOperation : public GenericOperation
             const likely_ast args = ast->atoms[1];
             assert(args->num_atoms == srcs.size());
             for (size_t j=0; j<args->num_atoms; j++)
-                Operation::operations[args->atoms[j]->atom].push(shared_ptr<Operation>(new kernelArgOperation(srcs[j], dst.type, node)));
+                builder.env->operations[args->atoms[j]->atom].push(shared_ptr<Operation>(new kernelArgOperation(srcs[j], dst.type, node)));
 
             TypedValue result = Operation::expression(builder, ast->atoms[2]);
             dstType = dst.type = result.type;
@@ -863,7 +863,7 @@ class kernelOperation : public GenericOperation
             builder.CreateRetVoid();
 
             for (size_t i=0; i<args->num_atoms; i++)
-                Operation::operations[args->atoms[i]->atom].pop();
+                builder.env->operations[args->atoms[i]->atom].pop();
             builder.closures.pop_back();
         }
 
@@ -1436,7 +1436,7 @@ PointerType *VTable::vtableType = NULL;
 LIKELY_EXPORT likely_env likely_new_env()
 {
     likely_env env = new likely_env_struct();
-    env->operations = Operation::operations;
+    env->operations = DefaultOperations;
     env->ref_count = 1;
     return env;
 }
