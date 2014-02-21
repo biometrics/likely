@@ -61,15 +61,13 @@ likely_ast likely_new_list(likely_ast *atoms, size_t num_atoms)
 
 likely_ast likely_retain_ast(likely_ast ast)
 {
-    if (!ast) return ast;
-    ++ast->d_ptr->ref_count;
+    if (ast) ++ast->d_ptr->ref_count;
     return ast;
 }
 
 void likely_release_ast(likely_ast ast)
 {
-    if (!ast) return;
-    if (--ast->d_ptr->ref_count != 0) return;
+    if (!ast || --ast->d_ptr->ref_count) return;
     if (ast->is_list)
         for (size_t i=0; i<ast->num_atoms; i++)
             likely_release_ast(ast->atoms[i]);

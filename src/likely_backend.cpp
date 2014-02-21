@@ -1440,15 +1440,13 @@ LIKELY_EXPORT likely_env likely_new_env()
 
 LIKELY_EXPORT likely_env likely_retain_env(likely_env env)
 {
-    if (!env) return env;
-    env->ref_count++;
+    if (env) env->ref_count++;
     return env;
 }
 
 LIKELY_EXPORT void likely_release_env(likely_env env)
 {
-    if (!env) return;
-    if (--env->ref_count != 0) return;
+    if (!env || --env->ref_count) return;
     delete env;
 }
 

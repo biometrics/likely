@@ -129,18 +129,15 @@ likely_matrix likely_copy(const likely_matrix m, int8_t clone)
 
 likely_matrix likely_retain(likely_matrix m)
 {
-    if (!m) return m;
-    ++m->d_ptr->ref_count;
+    if (m) ++m->d_ptr->ref_count;
     return m;
 }
 
 void likely_release(likely_matrix m)
 {
-    if (!m) return;
-    if (--m->d_ptr->ref_count != 0) return;
-    const size_t dataBytes = m->d_ptr->data_bytes;
+    if (!m || --m->d_ptr->ref_count) return;
     if (recycledBuffer) {
-        if (dataBytes > recycledBuffer->d_ptr->data_bytes)
+        if (m->d_ptr->data_bytes > recycledBuffer->d_ptr->data_bytes)
             swap(m, recycledBuffer);
         free(m);
     } else {
