@@ -1171,14 +1171,14 @@ struct JITResources
             likely_set_depth(&likely_type_native, sizeof(likely_size)*8);
             NativeIntegerType = Type::getIntNTy(C, likely_depth(likely_type_native));
             Matrix = PointerType::getUnqual(StructType::create("likely_matrix_struct",
-                                                                        PointerType::getUnqual(StructType::create(C, "likely_matrix_private")), // d_ptr
-                                                                        Type::getInt8PtrTy(C), // data
-                                                                        NativeIntegerType,                      // channels
-                                                                        NativeIntegerType,                      // columns
-                                                                        NativeIntegerType,                      // rows
-                                                                        NativeIntegerType,                      // frames
-                                                                        Type::getInt32Ty(C),   // type
-                                                                        NULL));
+                                                               PointerType::getUnqual(StructType::create(C, "likely_matrix_private")), // d_ptr
+                                                               Type::getInt8PtrTy(C), // data
+                                                               NativeIntegerType,     // channels
+                                                               NativeIntegerType,     // columns
+                                                               NativeIntegerType,     // rows
+                                                               NativeIntegerType,     // frames
+                                                               Type::getInt32Ty(C),   // type
+                                                               NULL));
         }
 
         const bool JIT = symbol_name.empty();
