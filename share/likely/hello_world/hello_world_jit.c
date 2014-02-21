@@ -58,8 +58,11 @@ int main(int argc, char *argv[])
     printf("Parsing abstract syntax tree...\n");
     likely_ast ast = likely_ast_from_string(filter);
 
+    printf("Creating a compiler environment...\n");
+    likely_env env = likely_new_env();
+
     printf("Compiling source code...\n");
-    likely_function darken = likely_compile(ast);
+    likely_function darken = likely_compile(ast, env);
     likely_release_ast(ast);
     if (!darken) {
         printf("Failed to compile!\n");
@@ -76,9 +79,11 @@ int main(int argc, char *argv[])
     printf("Writing output image...\n");
     likely_write(dark_lenna, output_image);
 
-    printf("Releasing data...\n");
-    likely_release(lenna);
+    printf("Cleaning up...\n");
     likely_release(dark_lenna);
+    likely_release(lenna);
+    likely_release_env(env);
+    likely_release_ast(ast);
 
     printf("Done!\n");
     return 0;

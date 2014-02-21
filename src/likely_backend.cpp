@@ -74,6 +74,7 @@ struct TypedValue
 struct ExpressionBuilder : public IRBuilder<>
 {
     Module *module;
+    likely_env env;
     string name;
     vector<likely_type> types;
     TargetMachine *targetMachine;
@@ -81,9 +82,11 @@ struct ExpressionBuilder : public IRBuilder<>
     typedef map<string,TypedValue> Closure;
     vector<Closure> closures;
 
-    ExpressionBuilder(Module *module, const string &name, const vector<likely_type> &types, TargetMachine *targetMachine = NULL)
-        : IRBuilder<>(C), module(module), name(name), types(types), targetMachine(targetMachine)
+    ExpressionBuilder(Module *module, likely_env env, const string &name, const vector<likely_type> &types, TargetMachine *targetMachine = NULL)
+        : IRBuilder<>(C), module(module), env(likely_retain_env(env)), name(name), types(types), targetMachine(targetMachine)
     {}
+
+    ~ExpressionBuilder() { likely_release_env(env); }
 
     static TypedValue constant(double value, likely_type type = likely_type_native)
     {
@@ -1291,13 +1294,13 @@ struct FunctionBuilder : private JITResources
     likely_type *type;
     void *function;
 
-    FunctionBuilder(likely_ast ast, const vector<likely_type> &types, bool native, const string &symbol_name = string())
+    FunctionBuilder(likely_ast ast, likely_env env, const vector<likely_type> &types, bool native, const string &symbol_name = string())
         : JITResources(native, symbol_name)
     {
         type = new likely_type[types.size()];
         memcpy(type, types.data(), sizeof(likely_type) * types.size());
 
-        ExpressionBuilder builder(module, name, types, native ? targetMachine : NULL);
+        ExpressionBuilder builder(module, env, name, types, native ? targetMachine : NULL);
         Function *result = cast<Function>(Operation::expression(builder, ast).value);
         function = finalize(result);
     }
@@ -1333,12 +1336,13 @@ struct VTable : public JITResources
 {
     static PointerType *vtableType;
     likely_ast ast;
+    likely_env env;
     likely_arity n;
     vector<FunctionBuilder*> functions;
     Function *likelyDispatch;
 
-    VTable(likely_ast ast)
-        : JITResources(true), ast(ast)
+    VTable(likely_ast ast, likely_env env)
+        : JITResources(true), ast(likely_retain_ast(ast)), env(likely_retain_env(env))
     {
         n = likely_get_arity(ast);
 
@@ -1359,7 +1363,6 @@ struct VTable : public JITResources
         likelyDispatch->setDoesNotAlias(2);
         likelyDispatch->setDoesNotCapture(1);
         likelyDispatch->setDoesNotCapture(2);
-        likely_retain_ast(ast);
     }
 
     ~VTable()
@@ -1468,7 +1471,7 @@ extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct VTable *vtable, li
         vector<likely_type> types;
         for (int i=0; i<vtable->n; i++)
             types.push_back(m[i]->type);
-        FunctionBuilder *functionBuilder = new FunctionBuilder(vtable->ast, types, true);
+        FunctionBuilder *functionBuilder = new FunctionBuilder(vtable->ast, vtable->env, types, true);
         vtable->functions.push_back(functionBuilder);
         function = vtable->functions.back()->function;
 
@@ -1497,19 +1500,19 @@ extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct VTable *vtable, li
 likely_function likely_compile(likely_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    return (new VTable(ast))->compile();
+    return (new VTable(ast, env))->compile();
 }
 
 likely_function_n likely_compile_n(likely_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    return (new VTable(ast))->compileN();
+    return (new VTable(ast, env))->compileN();
 }
 
 void likely_compile_to_file(likely_ast ast, likely_env env, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
 {
     if (!ast || !env) return;
-    FunctionBuilder(ast, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
+    FunctionBuilder(ast, env, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
 }
 
 likely_matrix likely_eval(likely_ast ast, likely_env env)
@@ -1517,7 +1520,7 @@ likely_matrix likely_eval(likely_ast ast, likely_env env)
     if (!ast || !env) return NULL;
     likely_ast expr = likely_ast_from_string("(function () (scalar <ast>))");
     expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
-    FunctionBuilder functionBuilder(expr, vector<likely_type>(), true);
+    FunctionBuilder functionBuilder(expr, env, vector<likely_type>(), true);
     likely_release_ast(expr);
     return reinterpret_cast<likely_matrix(*)(void)>(functionBuilder.function)();
 }
