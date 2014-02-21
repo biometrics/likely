@@ -30,13 +30,15 @@ LIKELY_EXPORT likely_env likely_new_env();
 LIKELY_EXPORT likely_env likely_retain_env(likely_env env);
 LIKELY_EXPORT void likely_release_env(likely_env env);
 
+// Compilation
 typedef likely_matrix (*likely_function)(const likely_matrix, ...);
 typedef likely_matrix (*likely_function_n)(const likely_matrix*);
-LIKELY_EXPORT likely_function likely_compile(likely_ast ast); // Takes ownership of ast
-LIKELY_EXPORT likely_function_n likely_compile_n(likely_ast ast); // Takes ownership of ast
-LIKELY_EXPORT void likely_compile_to_file(likely_ast ast, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native); // Does _not_ take ownership of ast
+LIKELY_EXPORT likely_function likely_compile(likely_ast ast, likely_env env);
+LIKELY_EXPORT likely_function_n likely_compile_n(likely_ast ast, likely_env env);
+LIKELY_EXPORT void likely_compile_to_file(likely_ast ast, likely_env env, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native);
 
-LIKELY_EXPORT likely_matrix likely_eval(likely_ast ast);
+// Evaluation
+LIKELY_EXPORT likely_matrix likely_eval(likely_ast ast, likely_env env);
 
 // Contents of library/standard.like
 LIKELY_EXPORT extern const char likely_standard_library[];

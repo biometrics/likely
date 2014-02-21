@@ -37,7 +37,9 @@ int main(int argc, char *argv[])
     for (likely_arity i=0; i<n; i++)
         types[i] = likely_type_from_string(argv[i+3]);
 
-    likely_compile_to_file(ast, argv[2], types, n, argv[argc-1], true);
+    likely_env env = likely_new_env();
+    likely_compile_to_file(ast, env, argv[2], types, n, argv[argc-1], true);
+    likely_release_env(env);
     likely_release_ast(ast);
     free(types);
 }

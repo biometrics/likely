@@ -71,7 +71,9 @@ struct Test
             return;
 
         likely_ast ast = likely_ast_from_string(function());
-        likely_function f = likely_compile(ast);
+        likely_env env = likely_new_env();
+        likely_function f = likely_compile(ast, env);
+        likely_release_env(env);
         likely_release_ast(ast);
 
         for (likely_type type : types()) {
@@ -122,16 +124,18 @@ struct Test
 
         printf("%s \t", fileName.c_str());
         likely_ast ast = likely_asts_from_string(source.c_str());
+        likely_env env = likely_new_env();
         if (BenchmarkVerbose)
             printf("\n");
         for (size_t i=0; i<ast->num_atoms; i++) {
             if (BenchmarkVerbose)
                 printf("%s\n", likely_ast_to_string(ast->atoms[i]));
-            likely_matrix result = likely_eval(ast->atoms[i]);
+            likely_matrix result = likely_eval(ast->atoms[i], env);
             if (BenchmarkVerbose)
                 printf("%s\n\n", likely_print(result));
             likely_release(result);
         }
+        likely_release_env(env);
 
         if (!BenchmarkSpeed) {
             printf("\n");
@@ -142,8 +146,10 @@ struct Test
         int iter = 0;
         startTime = endTime = clock();
         while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
+            likely_env env = likely_new_env();
             for (size_t i=0; i<ast->num_atoms; i++)
-                likely_release(likely_eval(ast->atoms[i]));
+                likely_release(likely_eval(ast->atoms[i], env));
+            likely_release_env(env);
             endTime = clock();
             iter++;
         }

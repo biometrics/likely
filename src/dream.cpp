@@ -269,12 +269,14 @@ private slots:
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
         likely_ast asts = likely_asts_from_string(qPrintable(source));
-        if (asts != NULL) {
+        if (asts) {
+            likely_env env = likely_new_env();
             for (size_t i=0; i<asts->num_atoms; i++) {
-                likely_matrix result = likely_eval(asts->atoms[i]);
+                likely_matrix result = likely_eval(asts->atoms[i], env);
                 emit newResult(result);
                 likely_release(result);
             }
+            likely_release_env(env);
             likely_release_ast(asts);
             const qint64 nsec = elapsedTimer.nsecsElapsed();
             emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
@@ -588,11 +590,13 @@ int main(int argc, char *argv[])
         }
 
         likely_ast asts = likely_asts_from_string(qPrintable(source));
+        likely_env env = likely_new_env();
         for (size_t i=0; i<asts->num_atoms; i++) {
-            likely_matrix m = likely_eval(asts->atoms[i]);
+            likely_matrix m = likely_eval(asts->atoms[i], env);
             printf("%s", likely_print(m));
             likely_release(m);
         }
+        likely_release_env(env);
         likely_release_ast(asts);
     }
 

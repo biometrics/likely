@@ -117,7 +117,8 @@ likely_matrix likely_render(const likely_matrix m, double *min_, double *max_)
     }
 
     likely_ast ast = likely_ast_from_string("(lambda (img min range) (cast (/ (- img min) range) u8) (channels 3))");
-    static likely_function_n normalize = likely_compile_n(ast);
+    static likely_env env = likely_new_env();
+    static likely_function_n normalize = likely_compile_n(ast, env);
     likely_matrix min_val = likely_scalar(min);
     likely_matrix range_val = likely_scalar(range);
     const likely_matrix args[] = { m, min_val, range_val };

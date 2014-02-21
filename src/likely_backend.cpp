@@ -1494,30 +1494,30 @@ extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct VTable *vtable, li
     return dst;
 }
 
-likely_function likely_compile(likely_ast ast)
+likely_function likely_compile(likely_ast ast, likely_env env)
 {
+    if (!ast || !env) return NULL;
     return (new VTable(ast))->compile();
 }
 
-likely_function_n likely_compile_n(likely_ast ast)
+likely_function_n likely_compile_n(likely_ast ast, likely_env env)
 {
+    if (!ast || !env) return NULL;
     return (new VTable(ast))->compileN();
 }
 
-void likely_compile_to_file(likely_ast ast, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
+void likely_compile_to_file(likely_ast ast, likely_env env, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
 {
+    if (!ast || !env) return;
     FunctionBuilder(ast, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
 }
 
-likely_matrix likely_eval(likely_ast ast)
+likely_matrix likely_eval(likely_ast ast, likely_env env)
 {
-    if (ast == NULL)
-        return NULL;
-
+    if (!ast || !env) return NULL;
     likely_ast expr = likely_ast_from_string("(function () (scalar <ast>))");
     expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
     FunctionBuilder functionBuilder(expr, vector<likely_type>(), true);
     likely_release_ast(expr);
-
     return reinterpret_cast<likely_matrix(*)(void)>(functionBuilder.function)();
 }
