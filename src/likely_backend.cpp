@@ -364,6 +364,9 @@ class scalarOperation : public UnaryOperation
 {
     TypedValue callUnary(ExpressionBuilder &builder, const TypedValue &arg) const
     {
+        if (arg.isNull())
+            return builder.zero();
+
         if (arg.value->getType() == PointerType::getUnqual(TheMatrixStruct))
             return arg;
 
@@ -674,6 +677,18 @@ protected:
         }
     }
 };
+
+class defineOperation : public GenericOperation
+{
+    using Operation::call;
+    TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
+    {
+        builder.closures.push_back(ExpressionBuilder::Closure());
+        builder.addVariable(ast->atoms[1]->atom, expression(builder, ast->atoms[2]));
+        return TypedValue();
+    }
+};
+LIKELY_REGISTER(define)
 
 class kernelOperation : public GenericOperation
 {
