@@ -679,11 +679,34 @@ protected:
 
 class defineOperation : public GenericOperation
 {
+    class Definition : public NullaryOperation
+    {
+        likely_ast ast;
+
+    public:
+        Definition(likely_ast ast)
+            : ast(ast)
+        {
+            likely_retain_ast(ast);
+        }
+
+        ~Definition()
+        {
+            likely_release_ast(ast);
+        }
+
+    private:
+        TypedValue callNullary(ExpressionBuilder &builder) const
+        {
+            return expression(builder, ast);
+        }
+    };
+
     using Operation::call;
     TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
     {
-        builder.closures.push_back(ExpressionBuilder::Closure());
-        builder.addVariable(ast->atoms[1]->atom, expression(builder, ast->atoms[2]));
+        (void) builder;
+        operations[ast->atoms[1]->atom].push(new Definition(ast->atoms[2]));
         return TypedValue();
     }
 };
