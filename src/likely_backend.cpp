@@ -46,7 +46,7 @@ using namespace std;
 
 static likely_type likely_type_native = likely_type_null;
 static IntegerType *NativeIntegerType = NULL;
-static StructType *TheMatrixStruct = NULL;
+static PointerType *Matrix = NULL;
 static LLVMContext &C = getGlobalContext();
 
 namespace {
@@ -172,14 +172,13 @@ struct ExpressionBuilder : public IRBuilder<>
 
     Function *getKernel(Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
     {
-        PointerType *matrixPointer = PointerType::getUnqual(TheMatrixStruct);
         Function *kernel;
         const string name = this->name + (dst == NULL ? "" : "_thunk");
         switch (types.size()) {
           case 0: kernel = ::cast<Function>(module->getOrInsertFunction(name, ret, dst, start, stop, NULL)); break;
-          case 1: kernel = ::cast<Function>(module->getOrInsertFunction(name, ret, matrixPointer, dst, start, stop, NULL)); break;
-          case 2: kernel = ::cast<Function>(module->getOrInsertFunction(name, ret, matrixPointer, matrixPointer, dst, start, stop, NULL)); break;
-          case 3: kernel = ::cast<Function>(module->getOrInsertFunction(name, ret, matrixPointer, matrixPointer, matrixPointer, dst, start, stop, NULL)); break;
+          case 1: kernel = ::cast<Function>(module->getOrInsertFunction(name, ret, Matrix, dst, start, stop, NULL)); break;
+          case 2: kernel = ::cast<Function>(module->getOrInsertFunction(name, ret, Matrix, Matrix, dst, start, stop, NULL)); break;
+          case 3: kernel = ::cast<Function>(module->getOrInsertFunction(name, ret, Matrix, Matrix, Matrix, dst, start, stop, NULL)); break;
           default: { kernel = NULL; likely_assert(false, "FunctionBuilder::getFunction invalid arity: %zu", types.size()); }
         }
         kernel->addFnAttr(Attribute::NoUnwind);
@@ -367,12 +366,12 @@ class scalarOperation : public UnaryOperation
         if (arg.isNull())
             return builder.zero();
 
-        if (arg.value->getType() == PointerType::getUnqual(TheMatrixStruct))
+        if (arg.value->getType() == Matrix)
             return arg;
 
         static FunctionType* LikelyScalarSignature = NULL;
         if (LikelyScalarSignature == NULL)
-            LikelyScalarSignature = FunctionType::get(PointerType::getUnqual(TheMatrixStruct), Type::getDoubleTy(C), false);
+            LikelyScalarSignature = FunctionType::get(Matrix, Type::getDoubleTy(C), false);
 
         Function *likelyScalar = Function::Create(LikelyScalarSignature, GlobalValue::ExternalLinkage, "likely_scalar", builder.module);
         likelyScalar->setCallingConv(CallingConv::C);
@@ -728,7 +727,7 @@ class kernelOperation : public GenericOperation
     using Operation::call;
     TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
     {
-        Function *function = builder.getKernel(PointerType::getUnqual(TheMatrixStruct));
+        Function *function = builder.getKernel(Matrix);
         vector<TypedValue> srcs = builder.getArgs(function);
         BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         builder.SetInsertPoint(entry);
@@ -741,7 +740,7 @@ class kernelOperation : public GenericOperation
         Function *thunk;
         likely_type dstType;
         {
-            thunk = builder.getKernel(Type::getVoidTy(C), PointerType::getUnqual(TheMatrixStruct), NativeIntegerType, NativeIntegerType);
+            thunk = builder.getKernel(Type::getVoidTy(C), Matrix, NativeIntegerType, NativeIntegerType);
             BasicBlock *entry = BasicBlock::Create(C, "entry", thunk);
             builder.SetInsertPoint(entry);
             vector<TypedValue> srcs = builder.getArgs(thunk);
@@ -825,7 +824,6 @@ class kernelOperation : public GenericOperation
 
         static FunctionType* LikelyNewSignature = NULL;
         if (LikelyNewSignature == NULL) {
-            Type *newReturn = PointerType::getUnqual(TheMatrixStruct);
             vector<Type*> newParameters;
             newParameters.push_back(Type::getInt32Ty(C)); // type
             newParameters.push_back(NativeIntegerType); // channels
@@ -834,7 +832,7 @@ class kernelOperation : public GenericOperation
             newParameters.push_back(NativeIntegerType); // frames
             newParameters.push_back(Type::getInt8PtrTy(C)); // data
             newParameters.push_back(Type::getInt8Ty(C)); // copy
-            LikelyNewSignature = FunctionType::get(newReturn, newParameters, false);
+            LikelyNewSignature = FunctionType::get(Matrix, newParameters, false);
         }
         Function *likelyNew = Function::Create(LikelyNewSignature, GlobalValue::ExternalLinkage, "likely_new", builder.module);
         likelyNew->setCallingConv(CallingConv::C);
@@ -865,7 +863,7 @@ class kernelOperation : public GenericOperation
                 likelyForkParameters.push_back(thunk->getType());
                 likelyForkParameters.push_back(Type::getInt8Ty(C));
                 likelyForkParameters.push_back(NativeIntegerType);
-                likelyForkParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
+                likelyForkParameters.push_back(Matrix);
                 Type *likelyForkReturn = Type::getVoidTy(C);
                 likelyForkType = FunctionType::get(likelyForkReturn, likelyForkParameters, true);
             }
@@ -1022,7 +1020,7 @@ class readOperation : public GenericOperation
     {
         static FunctionType *LikelyReadSignature = NULL;
         if (LikelyReadSignature == NULL) {
-            LikelyReadSignature = FunctionType::get(PointerType::getUnqual(TheMatrixStruct), Type::getInt8PtrTy(C), false);
+            LikelyReadSignature = FunctionType::get(Matrix, Type::getInt8PtrTy(C), false);
             // An impossible case used to ensure that `likely_read` isn't stripped when optimizing executable size
             if (LikelyReadSignature == NULL)
                 likely_read(NULL);
@@ -1044,9 +1042,9 @@ class writeOperation : public GenericOperation
         static FunctionType *LikelyWriteSignature = NULL;
         if (LikelyWriteSignature == NULL) {
             vector<Type*> likelyWriteParameters;
-            likelyWriteParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
+            likelyWriteParameters.push_back(Matrix);
             likelyWriteParameters.push_back(Type::getInt8PtrTy(C));
-            LikelyWriteSignature = FunctionType::get(PointerType::getUnqual(TheMatrixStruct), likelyWriteParameters, false);
+            LikelyWriteSignature = FunctionType::get(Matrix, likelyWriteParameters, false);
             // An impossible case used to ensure that `likely_write` isn't stripped when optimizing executable size
             if (LikelyWriteSignature == NULL)
                 likely_write(NULL, NULL);
@@ -1073,7 +1071,7 @@ class decodeOperation : public GenericOperation
     {
         static FunctionType *LikelyDecodeSignature = NULL;
         if (LikelyDecodeSignature == NULL) {
-            LikelyDecodeSignature = FunctionType::get(PointerType::getUnqual(TheMatrixStruct), PointerType::getUnqual(TheMatrixStruct), false);
+            LikelyDecodeSignature = FunctionType::get(Matrix, Matrix, false);
             // An impossible case used to ensure that `likely_decode` isn't stripped when optimizing executable size
             if (LikelyDecodeSignature == NULL)
                 likely_decode(NULL);
@@ -1097,9 +1095,9 @@ class encodeOperation : public GenericOperation
         static FunctionType *LikelyEncodeSignature = NULL;
         if (LikelyEncodeSignature == NULL) {
             vector<Type*> likelyEncodeParameters;
-            likelyEncodeParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
+            likelyEncodeParameters.push_back(Matrix);
             likelyEncodeParameters.push_back(Type::getInt8PtrTy(C));
-            LikelyEncodeSignature = FunctionType::get(PointerType::getUnqual(TheMatrixStruct), likelyEncodeParameters, false);
+            LikelyEncodeSignature = FunctionType::get(Matrix, likelyEncodeParameters, false);
             // An impossible case used to ensure that `likely_encode` isn't stripped when optimizing executable size
             if (LikelyEncodeSignature == NULL)
                 likely_encode(NULL, NULL);
@@ -1130,7 +1128,7 @@ struct JITResources
     JITResources(bool native, const string &symbol_name = string())
         : name(symbol_name)
     {
-        if (TheMatrixStruct == NULL) {
+        if (Matrix == NULL) {
             assert(sizeof(likely_size) == sizeof(void*));
             InitializeNativeTarget();
             InitializeNativeTargetAsmPrinter();
@@ -1149,15 +1147,15 @@ struct JITResources
 
             likely_set_depth(&likely_type_native, sizeof(likely_size)*8);
             NativeIntegerType = Type::getIntNTy(C, likely_depth(likely_type_native));
-            TheMatrixStruct = StructType::create("likely_matrix_struct",
-                                                 PointerType::getUnqual(StructType::create(C, "likely_matrix_private")), // d_ptr
-                                                 Type::getInt8PtrTy(C), // data
-                                                 NativeIntegerType,                      // channels
-                                                 NativeIntegerType,                      // columns
-                                                 NativeIntegerType,                      // rows
-                                                 NativeIntegerType,                      // frames
-                                                 Type::getInt32Ty(C),   // type
-                                                 NULL);
+            Matrix = PointerType::getUnqual(StructType::create("likely_matrix_struct",
+                                                                        PointerType::getUnqual(StructType::create(C, "likely_matrix_private")), // d_ptr
+                                                                        Type::getInt8PtrTy(C), // data
+                                                                        NativeIntegerType,                      // channels
+                                                                        NativeIntegerType,                      // columns
+                                                                        NativeIntegerType,                      // rows
+                                                                        NativeIntegerType,                      // frames
+                                                                        Type::getInt32Ty(C),   // type
+                                                                        NULL));
         }
 
         const bool JIT = symbol_name.empty();
@@ -1305,11 +1303,10 @@ struct VTable : public JITResources
 
         static FunctionType *LikelyDispatchSignature = NULL;
         if (LikelyDispatchSignature == NULL) {
-            Type *dispatchReturn = PointerType::getUnqual(TheMatrixStruct);
             vector<Type*> dispatchParameters;
             dispatchParameters.push_back(vtableType);
-            dispatchParameters.push_back(PointerType::getUnqual(PointerType::getUnqual(TheMatrixStruct)));
-            LikelyDispatchSignature = FunctionType::get(dispatchReturn, dispatchParameters, false);
+            dispatchParameters.push_back(PointerType::getUnqual(Matrix));
+            LikelyDispatchSignature = FunctionType::get(Matrix, dispatchParameters, false);
         }
         likelyDispatch = Function::Create(LikelyDispatchSignature, GlobalValue::ExternalLinkage, "likely_dispatch", module);
         likelyDispatch->setCallingConv(CallingConv::C);
@@ -1331,30 +1328,26 @@ struct VTable : public JITResources
     likely_function compile()
     {
         static FunctionType* functionType = NULL;
-        if (functionType == NULL) {
-            Type *functionReturn = PointerType::getUnqual(TheMatrixStruct);
-            vector<Type*> functionParameters;
-            functionParameters.push_back(PointerType::getUnqual(TheMatrixStruct));
-            functionType = FunctionType::get(functionReturn, functionParameters, true);
-        }
+        if (functionType == NULL)
+            functionType = FunctionType::get(Matrix, Matrix, true);
         Function *function = getFunction(functionType);
         BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         IRBuilder<> builder(entry);
 
         Value *array;
         if (n > 0) {
-            array = builder.CreateAlloca(PointerType::getUnqual(TheMatrixStruct), Constant::getIntegerValue(Type::getInt32Ty(C), APInt(32, (uint64_t)n)));
+            array = builder.CreateAlloca(Matrix, Constant::getIntegerValue(Type::getInt32Ty(C), APInt(32, (uint64_t)n)));
             builder.CreateStore(function->arg_begin(), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), 0))));
             if (n > 1) {
                 Value *vaList = builder.CreateAlloca(IntegerType::getInt8PtrTy(C));
                 Value *vaListRef = builder.CreateBitCast(vaList, Type::getInt8PtrTy(C));
                 builder.CreateCall(Intrinsic::getDeclaration(module, Intrinsic::vastart), vaListRef);
                 for (likely_arity i=1; i<n; i++)
-                    builder.CreateStore(builder.CreateVAArg(vaList, PointerType::getUnqual(TheMatrixStruct)), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), i))));
+                    builder.CreateStore(builder.CreateVAArg(vaList, Matrix), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), i))));
                 builder.CreateCall(Intrinsic::getDeclaration(module, Intrinsic::vaend), vaListRef);
             }
         } else {
-            array = ConstantPointerNull::get(PointerType::getUnqual(PointerType::getUnqual(TheMatrixStruct)));
+            array = ConstantPointerNull::get(PointerType::getUnqual(Matrix));
         }
         builder.CreateRet(builder.CreateCall2(likelyDispatch, thisVTable(), array));
         return reinterpret_cast<likely_function>(finalize(function));
@@ -1363,12 +1356,8 @@ struct VTable : public JITResources
     likely_function_n compileN()
     {
         static FunctionType* functionType = NULL;
-        if (functionType == NULL) {
-            Type *functionReturn = PointerType::getUnqual(TheMatrixStruct);
-            vector<Type*> functionParameters;
-            functionParameters.push_back(PointerType::getUnqual(PointerType::getUnqual(TheMatrixStruct)));
-            functionType = FunctionType::get(functionReturn, functionParameters, true);
-        }
+        if (functionType == NULL)
+            functionType = FunctionType::get(Matrix, PointerType::getUnqual(Matrix), true);
         Function *function = getFunction(functionType);
         BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         IRBuilder<> builder(entry);
