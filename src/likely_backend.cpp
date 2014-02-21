@@ -79,9 +79,6 @@ struct ExpressionBuilder : public IRBuilder<>
     vector<likely_type> types;
     TargetMachine *targetMachine;
 
-    typedef map<string,TypedValue> Closure;
-    vector<Closure> closures;
-
     ExpressionBuilder(Module *module, likely_env env, const string &name, const vector<likely_type> &types, TargetMachine *targetMachine = NULL)
         : IRBuilder<>(C), module(module), env(likely_retain_env(env)), name(name), types(types), targetMachine(targetMachine)
     {}
@@ -126,33 +123,6 @@ struct ExpressionBuilder : public IRBuilder<>
             return x;
         Type *dstType = ty(type);
         return TypedValue(CreateCast(CastInst::getCastOpcode(x, likely_signed(x.type), dstType, likely_signed(type)), x, dstType), type);
-    }
-
-    void addVariable(const string &name, const TypedValue &value)
-    {
-        Closure &closure = closures.back();
-        Closure::iterator it = closure.find(name);
-        if (it != closure.end()) {
-            // Update variable
-            CreateStore(value, it->second);
-        } else {
-            // New variable
-            AllocaInst *variable = CreateAlloca(ty(value), 0, name);
-            CreateStore(value, variable);
-            closure.insert(pair<string,TypedValue>(name, TypedValue(variable, value)));
-        }
-    }
-
-    TypedValue getVariable(const string &name)
-    {
-        for (vector<Closure>::reverse_iterator rit = closures.rbegin(); rit != closures.rend(); rit++) {
-            Closure::iterator it = rit->find(name);
-            if (it != rit->end()) {
-                LoadInst *variable = CreateLoad(it->second, name);
-                return TypedValue(variable, it->second);
-            }
-        }
-        return TypedValue();
     }
 
     static Type *ty(likely_type type, bool pointer = false)
@@ -241,10 +211,6 @@ struct Operation
         map<string,stack<shared_ptr<Operation>>>::iterator it = builder.env->operations.find(operator_);
         if (it != builder.env->operations.end())
             return it->second.top()->call(builder, ast);
-
-        const TypedValue variable = builder.getVariable(operator_);
-        if (!variable.isNull())
-            return variable;
 
         if ((operator_.front() == '"') && (operator_.back() == '"'))
             return TypedValue(builder.CreateGlobalStringPtr(operator_.substr(1, operator_.length()-2)), likely_type_null);
@@ -678,17 +644,32 @@ class GenericOperation : public Operation
         likely_assert(false, "generic operation logic error");
         return TypedValue();
     }
+};
 
-protected:
-    void addToClosure(ExpressionBuilder &builder, likely_ast ast) const
+class LocalVariable : public NullaryOperation
+{
+    TypedValue value;
+
+public:
+    LocalVariable(const TypedValue &value)
+        : value(value)
+    {}
+
+    static void define(ExpressionBuilder &builder, const string &name, const TypedValue &value)
     {
-        likely_assert(ast->is_list, "invalid closure");
-        if ((ast->num_atoms == 2) && !ast->atoms[0]->is_list) {
-            builder.addVariable(ast->atoms[0]->atom, expression(builder, ast->atoms[1]));
-        } else {
-            for (size_t i=0; i<ast->num_atoms; i++)
-                addToClosure(builder, ast->atoms[i]);
-        }
+        builder.env->operations[name].push(shared_ptr<Operation>(new LocalVariable(value)));
+    }
+
+    static void undefine(ExpressionBuilder &builder, const string &name)
+    {
+        builder.env->operations[name].pop();
+    }
+
+private:
+    TypedValue callNullary(ExpressionBuilder &builder) const
+    {
+        (void) builder;
+        return value;
     }
 };
 
@@ -756,15 +737,20 @@ class kernelOperation : public GenericOperation
             Value *i;
             if (((matrix ^ kernel) & likely_type_multi_dimension) == 0) {
                 // This matrix has the same dimensionality as the kernel
-                i = builder.getVariable("i");
+                static likely_ast ast_i = likely_new_atom("i", 0, 1);
+                i = expression(builder, ast_i);
             } else {
+                static likely_ast ast_c = likely_new_atom("c", 0, 1);
+                static likely_ast ast_x = likely_new_atom("x", 0, 1);
+                static likely_ast ast_y = likely_new_atom("y", 0, 1);
+                static likely_ast ast_t = likely_new_atom("t", 0, 1);
                 Value *columnStep, *rowStep, *frameStep;
                 builder.steps(matrix, &columnStep, &rowStep, &frameStep);
                 i = ExpressionBuilder::zero();
-                if (likely_multi_channel(matrix)) i = builder.getVariable("c");
-                if (likely_multi_column(matrix))  i = builder.CreateAdd(builder.CreateMul(builder.getVariable("x"), columnStep), i);
-                if (likely_multi_row(matrix))     i = builder.CreateAdd(builder.CreateMul(builder.getVariable("y"), rowStep), i);
-                if (likely_multi_frame(matrix))   i = builder.CreateAdd(builder.CreateMul(builder.getVariable("t"), frameStep), i);
+                if (likely_multi_channel(matrix)) i = expression(builder, ast_c);
+                if (likely_multi_column(matrix))  i = builder.CreateAdd(builder.CreateMul(expression(builder, ast_x), columnStep), i);
+                if (likely_multi_row(matrix))     i = builder.CreateAdd(builder.CreateMul(expression(builder, ast_y), rowStep), i);
+                if (likely_multi_frame(matrix))   i = builder.CreateAdd(builder.CreateMul(expression(builder, ast_t), frameStep), i);
             }
 
             LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(matrix), i));
@@ -834,12 +820,11 @@ class kernelOperation : public GenericOperation
             TypedValue x(builder.CreateUDiv(rowRemainder, columnStep, "x"), likely_type_native);
             TypedValue c(columnRemainder, likely_type_native);
 
-            builder.closures.push_back(ExpressionBuilder::Closure());
-            builder.addVariable("i", TypedValue(i, likely_type_native));
-            builder.addVariable("c", c);
-            builder.addVariable("x", x);
-            builder.addVariable("y", y);
-            builder.addVariable("t", t);
+            LocalVariable::define(builder, "i", TypedValue(i, likely_type_native));
+            LocalVariable::define(builder, "c", TypedValue(c, likely_type_native));
+            LocalVariable::define(builder, "x", TypedValue(x, likely_type_native));
+            LocalVariable::define(builder, "y", TypedValue(y, likely_type_native));
+            LocalVariable::define(builder, "t", TypedValue(t, likely_type_native));
 
             const likely_ast args = ast->atoms[1];
             assert(args->num_atoms == srcs.size());
@@ -864,7 +849,11 @@ class kernelOperation : public GenericOperation
 
             for (size_t i=0; i<args->num_atoms; i++)
                 builder.env->operations[args->atoms[i]->atom].pop();
-            builder.closures.pop_back();
+            LocalVariable::undefine(builder, "i");
+            LocalVariable::undefine(builder, "c");
+            LocalVariable::undefine(builder, "x");
+            LocalVariable::undefine(builder, "y");
+            LocalVariable::undefine(builder, "t");
         }
 
         builder.SetInsertPoint(entry);
@@ -991,11 +980,11 @@ class functionOperation : public GenericOperation
         builder.SetInsertPoint(entry);
 
         assert(tmpArgs.size() == ast->atoms[1]->num_atoms);
-        builder.closures.push_back(ExpressionBuilder::Closure());
         for (size_t i=0; i<tmpArgs.size(); i++)
-            builder.addVariable(ast->atoms[1]->atoms[i]->atom, tmpArgs[i]);
+            LocalVariable::define(builder, ast->atoms[1]->atoms[i]->atom, tmpArgs[i]);
         TypedValue result = expression(builder, ast->atoms[2]);
-        builder.closures.pop_back();
+        for (size_t i=0; i<tmpArgs.size(); i++)
+            LocalVariable::undefine(builder, ast->atoms[1]->atoms[i]->atom);
         builder.CreateRet(result);
 
         Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(result.value->getType(), types, false)));
@@ -1013,49 +1002,6 @@ class functionOperation : public GenericOperation
     }
 };
 LIKELY_REGISTER(function)
-
-class letOperation : public GenericOperation
-{
-    using Operation::call;
-    TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
-    {
-        builder.closures.push_back(ExpressionBuilder::Closure());
-        addToClosure(builder, ast->atoms[1]);
-        TypedValue result = expression(builder, ast->atoms[2]);
-        builder.closures.pop_back();
-        return result;
-    }
-};
-LIKELY_REGISTER(let)
-
-class loopOperation : public GenericOperation
-{
-    using Operation::call;
-    TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
-    {
-        builder.closures.push_back(ExpressionBuilder::Closure());
-        addToClosure(builder, ast->atoms[1]);
-
-        BasicBlock *loopCondition = BasicBlock::Create(C, "loop_condition");
-        BasicBlock *loopIteration = BasicBlock::Create(C, "loop_iteration");
-        BasicBlock *loopEnd = BasicBlock::Create(C, "loop_end");
-
-        builder.CreateBr(loopCondition);
-        builder.SetInsertPoint(loopCondition);
-        builder.CreateCondBr(expression(builder, ast->atoms[2]), loopIteration, loopEnd);
-
-        builder.SetInsertPoint(loopIteration);
-        addToClosure(builder, ast->atoms[3]);
-        builder.CreateBr(loopCondition);
-
-        builder.SetInsertPoint(loopEnd);
-        TypedValue result = expression(builder, ast->atoms[4]);
-
-        builder.closures.pop_back();
-        return result;
-    }
-};
-LIKELY_REGISTER(loop)
 
 #ifdef LIKELY_IO
 #include "likely/likely_io.h"
