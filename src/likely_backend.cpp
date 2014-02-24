@@ -1293,7 +1293,8 @@ struct VTable : public JITResources
     VTable(likely_ast ast, likely_env env)
         : JITResources(true), ast(likely_retain_ast(ast)), env(likely_retain_env(env))
     {
-        n = likely_get_arity(ast);
+        likely_assert(ast && ast->is_list && (ast->num_atoms == 3) && ast->atoms[1]->is_list, "ill-formed ast");
+        n = ast->atoms[1]->num_atoms;
 
         if (vtableType == NULL)
             vtableType = PointerType::getUnqual(StructType::create(C, "VTable"));

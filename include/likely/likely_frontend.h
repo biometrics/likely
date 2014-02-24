@@ -56,8 +56,6 @@ LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str);
 LIKELY_EXPORT likely_ast likely_asts_from_string(const char *str); // Top level is a list of expressions
 LIKELY_EXPORT const char *likely_ast_to_string(const likely_ast ast); // Return value managed internally and guaranteed until the next call to this function
 
-LIKELY_EXPORT likely_arity likely_get_arity(likely_ast ast);
-
 typedef struct likely_error
 {
     likely_ast ast; // where

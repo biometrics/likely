@@ -256,12 +256,6 @@ const char *likely_ast_to_string(const likely_ast ast)
     return result.c_str();
 }
 
-likely_arity likely_get_arity(likely_ast ast)
-{
-    likely_assert(ast && ast->is_list && (ast->num_atoms == 3) && ast->atoms[1]->is_list, "ill-formed ast");
-    return (likely_arity) ast->atoms[1]->num_atoms;
-}
-
 static likely_error_callback ErrorCallback = NULL;
 static void *ErrorContext = NULL;
 
