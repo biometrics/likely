@@ -84,6 +84,9 @@ likely_matrix likely_encode(const likely_matrix image, const char *extension)
 
 likely_matrix likely_render(const likely_matrix m, double *min_, double *max_)
 {
+    if (!m)
+        return NULL;
+
     double min, max, range;
     if ((m->type & likely_type_mask) != likely_type_u8) {
         min = numeric_limits<double>::max();
@@ -116,9 +119,15 @@ likely_matrix likely_render(const likely_matrix m, double *min_, double *max_)
         }
     }
 
-    likely_ast ast = likely_ast_from_string("(lambda (img min range) (cast (/ (- img min) range) u8) (channels 3))");
-    static likely_env env = likely_new_env();
-    static likely_function_n normalize = likely_compile_n(ast, env);
+    static likely_function_n normalize = NULL;
+    if (normalize == NULL) {
+        likely_ast ast = likely_ast_from_string("(kernel (img min range) (cast (/ (- img min) range) u8) (channels 3))");
+        likely_env env = likely_new_env();
+        normalize = likely_compile_n(ast, env);
+        likely_release_env(env);
+        likely_release_ast(ast);
+    }
+
     likely_matrix min_val = likely_scalar(min);
     likely_matrix range_val = likely_scalar(range);
     const likely_matrix args[] = { m, min_val, range_val };
