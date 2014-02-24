@@ -202,7 +202,10 @@ struct Operation
     {
         string operator_;
         if (ast->is_list) {
-            likely_assert((ast->num_atoms > 0) && !ast->atoms[0]->is_list, "ill-formed abstract syntax tree");
+            if ((ast->num_atoms == 0) || ast->atoms[0]->is_list) {
+                likely_throw(ast, "ill-formed expression");
+                return TypedValue();
+            }
             operator_ = ast->atoms[0]->atom;
         } else {
             operator_ = ast->atom;

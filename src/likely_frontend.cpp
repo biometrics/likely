@@ -76,22 +76,24 @@ void likely_release_ast(likely_ast ast)
 
 static void tokenize(const char *str, const size_t len, vector<likely_ast> &tokens)
 {
+    const char ignored = ' '; // Skip whitespace and control characters
     size_t i = 0;
-    while (i < len) {
-        while (str[i] <= ' ') // ASCII whitespace and ignored characters
+    while (true) {
+        while ((i < len) && (str[i] <= ignored))
             i++;
+        if (i == len)
+            break;
 
         size_t begin = i;
         bool inString = false;
-        while (((str[i] > ' ') && (str[i] != '(') && (str[i] != ')')) || inString) {
-            if (str[i] == '"')
-                inString = !inString;
-            if (str[i] == '\\')
-                i++;
+        while ((i < len) && (inString || ((str[i] > ignored) && (str[i] != '(') && (str[i] != ')')))) {
+            if      (str[i] == '"')  inString = !inString;
+            else if (str[i] == '\\') i++;
             i++;
         }
         if (i == begin)
             i++;
+
         tokens.push_back(likely_new_atom(str, begin, i));
     }
 }
@@ -155,9 +157,7 @@ static likely_ast cleanup(vector<likely_ast> &atoms)
 
 likely_ast likely_tokens_from_string(const char *str)
 {
-    if (str == NULL)
-        return NULL;
-
+    if (!str) return NULL;
     vector<likely_ast> tokens;
     const size_t len = strlen(str);
     if (str[0] == '(') tokenize(str, len, tokens);
