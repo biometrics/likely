@@ -71,6 +71,12 @@ struct TypedValue
     void dump() const { print(dbgs()); }
 };
 
+static inline TypedValue likelyThrow(likely_ast ast, const char *message)
+{
+    likely_throw(ast, message);
+    return TypedValue();
+}
+
 struct ExpressionBuilder : public IRBuilder<>
 {
     Module *module;
@@ -712,11 +718,40 @@ LIKELY_REGISTER(define)
 
 class lambdaOperation : public GenericOperation
 {
+    struct Lambda : public GenericOperation
+    {
+        likely_ast params, body;
+        likely_env env;
+
+        Lambda(likely_ast params, likely_ast body, likely_env env)
+            : params(likely_retain_ast(params))
+            , body(likely_retain_ast(body))
+            , env(likely_retain_env(env))
+        {}
+
+        ~Lambda()
+        {
+            likely_release_ast(params);
+            likely_release_ast(body);
+            likely_release_env(env);
+        }
+
+        using Operation::call;
+        TypedValue call(ExpressionBuilder &builder, const vector<TypedValue> &args) const
+        {
+            (void) builder;
+            (void) args;
+            return TypedValue();
+        }
+    };
+
     using Operation::call;
     TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
     {
-        (void) builder;
-        (void) ast;
+        if (!ast->is_list) return likelyThrow(ast, "lambda missing parameters");
+        if (ast->num_atoms != 3) return likelyThrow(ast, "lambda expected two parameters");
+        Lambda *lambda = new Lambda(ast->atoms[1], ast->atoms[2], builder.env);
+        (void) lambda;
         return TypedValue();
     }
 };
@@ -1478,5 +1513,6 @@ likely_matrix likely_eval(likely_ast ast, likely_env env)
     expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
     FunctionBuilder functionBuilder(expr, env, vector<likely_type>(), true);
     likely_release_ast(expr);
-    return reinterpret_cast<likely_matrix(*)(void)>(functionBuilder.function)();
+    if (functionBuilder.function) return reinterpret_cast<likely_matrix(*)(void)>(functionBuilder.function)();
+    else                          return NULL;
 }
