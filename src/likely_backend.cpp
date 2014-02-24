@@ -1248,10 +1248,15 @@ struct FunctionBuilder : private JITResources
     {
         type = new likely_type[types.size()];
         memcpy(type, types.data(), sizeof(likely_type) * types.size());
-
         ExpressionBuilder builder(module, env, name, types, native ? targetMachine : NULL);
-        Function *result = cast<Function>(Operation::expression(builder, ast).value);
-        function = finalize(result);
+        TypedValue result = Operation::expression(builder, ast);
+        if (!result.isNull()) function = finalize(cast<Function>(result.value));
+        else                  function = NULL;
+    }
+
+    ~FunctionBuilder()
+    {
+        delete[] type;
     }
 
     void write(const string &fileName) const
@@ -1273,11 +1278,6 @@ struct FunctionBuilder : private JITResources
 
         likely_assert(errorInfo.empty(), "failed to write to: %s with error: %s", fileName.c_str(), errorInfo.c_str());
         output.keep();
-    }
-
-    ~FunctionBuilder()
-    {
-        delete[] type;
     }
 };
 
@@ -1416,6 +1416,8 @@ extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct VTable *vtable, li
             if (m[j]->type != functionBuilder->type[j])
                 goto Next;
         function = functionBuilder->function;
+        if (function == NULL)
+            return NULL;
         break;
     Next:
         continue;
