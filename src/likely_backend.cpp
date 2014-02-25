@@ -52,51 +52,58 @@ static IntegerType *NativeIntegerType = NULL;
 static PointerType *Matrix = NULL;
 static LLVMContext &C = getGlobalContext();
 
-struct Expression
-{
-    virtual Value* value() const = 0;
-    virtual likely_type type() const = 0;
-    operator Value*() const { return value(); }
-    operator likely_type() const { return type(); }
-    bool isNull() const { return value() == NULL; }
-};
-
+struct Expression;
 struct Expr : public shared_ptr<Expression>
 {
     Expr() : shared_ptr<Expression>(NULL) {}
-    Expr(Expression *expression) : shared_ptr<Expression>(expression) {}
-    Value* value() const { return get()->value(); }
-    likely_type type() const { return get()->type(); }
-    operator Value*() const { return get()->value(); }
-    operator likely_type() const { return get()->type(); }
-    bool isNull() const { return get()->isNull(); }
+    Expr(Expression *e) : shared_ptr<Expression>(e) {}
+    bool isNull() const;
+    operator Value*() const;
+    operator likely_type() const;
 };
 
-struct Immediate : public Expr
+struct ExpressionBuilder;
+struct Expression
 {
-    class immediate : public Expression
-    {
-        Value *value_;
-        likely_type type_;
-
-    public:
-        immediate(Value *value_, likely_type type_)
-            : value_(value_), type_(type_) {}
-
-    private:
-        Value* value() const { return value_; }
-        likely_type type() const { return type_; }
-    };
-
-    Immediate() {}
-    Immediate(Value *value, likely_type type) : Expr(new immediate(value, type)) {}
+    virtual Value *value() const = 0;
+    virtual likely_type type() const = 0;
+    virtual Expr evaluate(ExpressionBuilder &expressionBuilder, const vector<Expr> &args) const = 0;
 };
+Expr::operator Value*() const { return get()->value(); }
+Expr::operator likely_type() const { return get()->type(); }
+bool Expr::isNull() const { return !get() || !get()->value(); }
 
 static inline Expr likelyThrow(likely_ast ast, const char *message)
 {
     likely_throw(ast, message);
     return Expr();
 }
+
+struct Immediate : public Expr
+{
+    class Immediate_ : public Expression
+    {
+        Value *value_;
+        likely_type type_;
+
+    public:
+        Immediate_(Value *value_, likely_type type_)
+            : value_(value_), type_(type_) {}
+
+    private:
+        Value *value() const { return value_; }
+        likely_type type() const { return type_; }
+        Expr evaluate(ExpressionBuilder &expressionBuilder, const vector<Expr> &args) const
+        {
+            (void) expressionBuilder;
+            (void) args;
+            return Expr(new Immediate_(value(), type()));
+        }
+    };
+
+    Immediate(Value *value, likely_type type)
+        : Expr(new Immediate_(value, type)) {}
+};
 
 struct ExpressionBuilder : public IRBuilder<>
 {
@@ -131,7 +138,7 @@ struct ExpressionBuilder : public IRBuilder<>
     static Expr intMin(likely_type type) { const int bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
     static Expr type(likely_type type) { return constant(type, int(sizeof(likely_type)*8)); }
 
-    Expr data    (const Expr &matrix) { return Immediate(CreatePointerCast(CreateLoad(CreateStructGEP(matrix, 1), "data"), ty(matrix, true)), matrix.type() & likely_type_mask); }
+    Expr data    (const Expr &matrix) { return Immediate(CreatePointerCast(CreateLoad(CreateStructGEP(matrix, 1), "data"), ty(matrix, true)), matrix->type() & likely_type_mask); }
     Expr channels(const Expr &matrix) { return likely_multi_channel(matrix) ? Immediate(CreateLoad(CreateStructGEP(matrix, 2), "channels"), likely_type_native) : one(); }
     Expr columns (const Expr &matrix) { return likely_multi_column (matrix) ? Immediate(CreateLoad(CreateStructGEP(matrix, 3), "columns" ), likely_type_native) : one(); }
     Expr rows    (const Expr &matrix) { return likely_multi_row    (matrix) ? Immediate(CreateLoad(CreateStructGEP(matrix, 4), "rows"    ), likely_type_native) : one(); }
@@ -146,10 +153,10 @@ struct ExpressionBuilder : public IRBuilder<>
 
     Expr cast(const Expr &x, likely_type type)
     {
-        if ((x.type() & likely_type_mask) == (type & likely_type_mask))
+        if ((x->type() & likely_type_mask) == (type & likely_type_mask))
             return x;
         Type *dstType = ty(type);
-        return Immediate(CreateCast(CastInst::getCastOpcode(x, likely_signed(x.type()), dstType, likely_signed(type)), x, dstType), type);
+        return Immediate(CreateCast(CastInst::getCastOpcode(x, likely_signed(x->type()), dstType, likely_signed(type)), x, dstType), type);
     }
 
     static Type *ty(likely_type type, bool pointer = false)
@@ -353,10 +360,10 @@ class notOperation : public UnaryOperation
 {
     Expr callUnary(ExpressionBuilder &builder, const Expr &arg) const
     {
-        likely_type type = arg.type();
+        likely_type type = arg->type();
         likely_set_signed(&type, false);
         likely_set_floating(&type, false);
-        return Immediate(builder.CreateXor(builder.intMax(type), arg.value()), type);
+        return Immediate(builder.CreateXor(builder.intMax(type), arg->value()), type);
     }
 };
 LIKELY_REGISTER_OPERATION(not, "~")
@@ -378,7 +385,7 @@ class scalarOperation : public UnaryOperation
         if (arg.isNull())
             return builder.zero();
 
-        if (arg.value()->getType() == Matrix)
+        if (arg->value()->getType() == Matrix)
             return arg;
 
         static FunctionType* LikelyScalarSignature = NULL;
@@ -393,7 +400,7 @@ class scalarOperation : public UnaryOperation
         if (likelyScalar == NULL)
             likely_scalar(0);
 
-        return Immediate(builder.CreateCall(likelyScalar, builder.cast(arg, likely_type_f64)), arg.type());
+        return Immediate(builder.CreateCall(likelyScalar, builder.cast(arg, likely_type_f64)), arg->type());
     }
 };
 LIKELY_REGISTER(scalar)
@@ -402,10 +409,10 @@ class UnaryMathOperation : public UnaryOperation
 {
     Expr callUnary(ExpressionBuilder &builder, const Expr &x) const
     {
-        Expr xc = builder.cast(x, validFloatType(x.type()));
+        Expr xc = builder.cast(x, validFloatType(x->type()));
         vector<Type*> args;
-        args.push_back(xc.value()->getType());
-        return Immediate(builder.CreateCall(Intrinsic::getDeclaration(builder.module, id(), args), xc), xc.type());
+        args.push_back(xc->value()->getType());
+        return Immediate(builder.CreateCall(Intrinsic::getDeclaration(builder.module, id(), args), xc), xc->type());
     }
     virtual Intrinsic::ID id() const = 0;
 };
@@ -447,7 +454,7 @@ class castOperation : public BinaryOperation
 {
     Expr callBinary(ExpressionBuilder &builder, const Expr &x, const Expr &type) const
     {
-        return builder.cast(x, (likely_type)LLVM_VALUE_TO_INT(type.value()));
+        return builder.cast(x, (likely_type)LLVM_VALUE_TO_INT(type->value()));
     }
 };
 LIKELY_REGISTER(cast)
@@ -470,7 +477,7 @@ class addOperation : public ArithmeticOperation
             return Immediate(builder.CreateFAdd(lhs, rhs), type);
         } else {
             if (likely_saturation(type)) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module, likely_signed(type) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs.value()->getType()), lhs, rhs);
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module, likely_signed(type) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs->value()->getType()), lhs, rhs);
                 Value *overflowResult = likely_signed(type) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, ExpressionBuilder::zero(type)), builder.intMax(type), builder.intMin(type)) : ExpressionBuilder::intMax(type);
                 return Immediate(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
             } else {
@@ -489,7 +496,7 @@ class subtractOperation : public ArithmeticOperation
             return Immediate(builder.CreateFSub(lhs, rhs), type);
         } else {
             if (likely_saturation(type)) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module, likely_signed(type) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value()->getType()), lhs, rhs);
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module, likely_signed(type) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs->value()->getType()), lhs, rhs);
                 Value *overflowResult = likely_signed(type) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, ExpressionBuilder::zero(type)), builder.intMax(type), builder.intMin(type)) : ExpressionBuilder::intMin(type);
                 return Immediate(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
             } else {
@@ -508,7 +515,7 @@ class multiplyOperation : public ArithmeticOperation
             return Immediate(builder.CreateFMul(lhs, rhs), type);
         } else {
             if (likely_saturation(type)) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module, likely_signed(type) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs.value()->getType()), lhs, rhs);
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module, likely_signed(type) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs->value()->getType()), lhs, rhs);
                 Value *zero = ExpressionBuilder::zero(type);
                 Value *overflowResult = likely_signed(type) ? builder.CreateSelect(builder.CreateXor(builder.CreateICmpSGE(lhs, zero), builder.CreateICmpSGE(rhs, zero)), builder.intMin(type), builder.intMax(type)) : ExpressionBuilder::intMax(type);
                 return Immediate(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
@@ -529,7 +536,7 @@ class divideOperation : public ArithmeticOperation
         } else {
             if (likely_signed(type)) {
                 if (likely_saturation(type)) {
-                    Value *safe_i = builder.CreateAdd(n, builder.CreateZExt(builder.CreateICmpNE(builder.CreateOr(builder.CreateAdd(d, ExpressionBuilder::one(type)), builder.CreateAdd(n, ExpressionBuilder::intMin(type))), ExpressionBuilder::zero(type)), n.value()->getType()));
+                    Value *safe_i = builder.CreateAdd(n, builder.CreateZExt(builder.CreateICmpNE(builder.CreateOr(builder.CreateAdd(d, ExpressionBuilder::one(type)), builder.CreateAdd(n, ExpressionBuilder::intMin(type))), ExpressionBuilder::zero(type)), n->value()->getType()));
                     return Immediate(builder.CreateSDiv(safe_i, d), type);
                 } else {
                     return Immediate(builder.CreateSDiv(n, d), type);
@@ -556,7 +563,7 @@ class OP##Operation : public ArithmeticOperation                                
 {                                                                                                             \
     Expr callArithmetic(ExpressionBuilder &builder, const Expr &lhs, const Expr &rhs, likely_type type) const \
     {                                                                                                         \
-        return Immediate(builder.Create##OP(lhs.value(), rhs.value()), type);                                 \
+        return Immediate(builder.Create##OP(lhs->value(), rhs->value()), type);                               \
     }                                                                                                         \
 };                                                                                                            \
 LIKELY_REGISTER_OPERATION(OP, SYM)                                                                            \
@@ -603,12 +610,12 @@ class BinaryMathOperation : public BinaryOperation
 {
     Expr callBinary(ExpressionBuilder &builder, const Expr &x, const Expr &n) const
     {
-        const likely_type type = nIsInteger() ? x.type() : likely_type_from_types(x, n);
+        const likely_type type = nIsInteger() ? x->type() : likely_type_from_types(x, n);
         Expr xc = builder.cast(x, validFloatType(type));
-        Expr nc = builder.cast(n, nIsInteger() ? likely_type_i32 : xc.type());
+        Expr nc = builder.cast(n, nIsInteger() ? likely_type_i32 : xc->type());
         vector<Type*> args;
-        args.push_back(xc.value()->getType());
-        return Immediate(builder.CreateCall2(Intrinsic::getDeclaration(builder.module, id(), args), xc, nc), xc.type());
+        args.push_back(xc->value()->getType());
+        return Immediate(builder.CreateCall2(Intrinsic::getDeclaration(builder.module, id(), args), xc, nc), xc->type());
     }
     virtual Intrinsic::ID id() const = 0;
     virtual bool nIsInteger() const { return false; }
@@ -647,11 +654,11 @@ class fmaOperation : public TernaryOperation
     {
         const likely_type type = likely_type_from_types(likely_type_from_types(a, b), c);
         Expr ac = builder.cast(a, validFloatType(type));
-        Expr bc = builder.cast(b, ac.type());
-        Expr cc = builder.cast(c, ac.type());
+        Expr bc = builder.cast(b, ac->type());
+        Expr cc = builder.cast(c, ac->type());
         vector<Type*> args;
-        args.push_back(ac.value()->getType());
-        return Immediate(builder.CreateCall3(Intrinsic::getDeclaration(builder.module, Intrinsic::fma, args), ac, bc, cc), ac.type());
+        args.push_back(ac->value()->getType());
+        return Immediate(builder.CreateCall3(Intrinsic::getDeclaration(builder.module, Intrinsic::fma, args), ac, bc, cc), ac->type());
     }
 };
 LIKELY_REGISTER(fma)
@@ -815,7 +822,7 @@ class kernelOperation : public GenericOperation
 
             LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(matrix), i));
             load->setMetadata("llvm.mem.parallel_loop_access", node);
-            return Immediate(load, matrix.type());
+            return Immediate(load, matrix->type());
         }
     };
 
@@ -840,19 +847,19 @@ class kernelOperation : public GenericOperation
             builder.SetInsertPoint(entry);
             vector<Expr> srcs = builder.getArgs(thunk);
             Immediate stop(srcs.back(), likely_type_native);
-            stop.value()->setName("stop");
+            stop->value()->setName("stop");
             srcs.pop_back();
             Immediate start(srcs.back(), likely_type_native);
-            start.value()->setName("start");
+            start->value()->setName("start");
             srcs.pop_back();
             Expr dst = srcs.back(); srcs.pop_back();
-            dst.value()->setName("dst");
+            dst->value()->setName("dst");
 
-            dstType = dst.type();
-            likely_set_multi_channel(&dstType, likely_multi_channel(dstChannels.type()));
-            likely_set_multi_column (&dstType, likely_multi_column (dstColumns.type()));
-            likely_set_multi_row    (&dstType, likely_multi_row    (dstRows.type()));
-            likely_set_multi_frame  (&dstType, likely_multi_frame  (dstFrames.type()));
+            dstType = dst->type();
+            likely_set_multi_channel(&dstType, likely_multi_channel(dstChannels->type()));
+            likely_set_multi_column (&dstType, likely_multi_column (dstColumns->type()));
+            likely_set_multi_row    (&dstType, likely_multi_row    (dstRows->type()));
+            likely_set_multi_frame  (&dstType, likely_multi_frame  (dstFrames->type()));
             dst = Immediate(dst, dstType);
 
             // Create self-referencing loop node
@@ -891,11 +898,11 @@ class kernelOperation : public GenericOperation
             const likely_ast args = ast->atoms[1];
             assert(args->num_atoms == srcs.size());
             for (size_t j=0; j<args->num_atoms; j++)
-                builder.env->operations[args->atoms[j]->atom].push(Op(new kernelArgOperation(srcs[j], dst.type(), node)));
+                builder.env->operations[args->atoms[j]->atom].push(Op(new kernelArgOperation(srcs[j], dst->type(), node)));
 
             Expr result = Operation::expression(builder, ast->atoms[2]);
-            dst = Immediate(dst, result.type());
-            dstType = dst.type();
+            dst = Immediate(dst, result->type());
+            dstType = dst->type();
             StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(dst), i));
             store->setMetadata("llvm.mem.parallel_loop_access", node);
 
@@ -981,7 +988,7 @@ class kernelOperation : public GenericOperation
         } else {
             vector<Value*> thunkArgs;
             for (const Expr &src : srcs)
-                thunkArgs.push_back(src.value());
+                thunkArgs.push_back(src->value());
             thunkArgs.push_back(dst);
             thunkArgs.push_back(ExpressionBuilder::zero());
             thunkArgs.push_back(kernelSize);
@@ -1050,7 +1057,7 @@ class functionOperation : public GenericOperation
             LocalVariable::undefine(builder, ast->atoms[1]->atoms[i]->atom);
         builder.CreateRet(result);
 
-        Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(result.value()->getType(), types, false)));
+        Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(result->value()->getType(), types, false)));
         vector<Expr> args = builder.getArgs(function);
 
         ValueToValueMapTy VMap;
@@ -1061,7 +1068,7 @@ class functionOperation : public GenericOperation
         CloneFunctionInto(function, tmpFunction, VMap, false, returns);
         tmpFunction->eraseFromParent();
 
-        return Immediate(function, result.type());
+        return Immediate(function, result->type());
     }
 };
 LIKELY_REGISTER(function)
@@ -1310,7 +1317,7 @@ struct FunctionBuilder : private JITResources
         memcpy(type, types.data(), sizeof(likely_type) * types.size());
         ExpressionBuilder builder(module, env, name, types, native ? targetMachine : NULL);
         Expr result = Operation::expression(builder, ast);
-        if (!result.isNull()) function = finalize(cast<Function>(result.value()));
+        if (!result.isNull()) function = finalize(cast<Function>(result->value()));
         else                  function = NULL;
     }
 
