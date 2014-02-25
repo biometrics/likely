@@ -231,7 +231,7 @@ struct likely_env_struct
 
 namespace {
 
-struct Operation
+struct Operation : public Expression
 {
     static Expr expression(Builder &builder, likely_ast ast)
     {
@@ -248,7 +248,7 @@ struct Operation
 
         map<string,stack<Op>>::iterator it = builder.env->operations.find(operator_);
         if (it != builder.env->operations.end())
-            return it->second.top()->call(builder, ast);
+            return it->second.top()->evaluate(builder, ast);
 
         if ((operator_.front() == '"') && (operator_.back() == '"'))
             return Immediate(builder.CreateGlobalStringPtr(operator_.substr(1, operator_.length()-2)), likely_type_null);
@@ -285,7 +285,7 @@ protected:
         return type;
     }
 
-    virtual Expr call(Builder &builder, likely_ast ast) const
+    virtual Expr evaluate(Builder &builder, likely_ast ast) const
     {
         vector<Expr> operands;
         if (ast->is_list)
@@ -293,8 +293,6 @@ protected:
                 operands.push_back(expression(builder, ast->atoms[i]));
         return call(builder, operands);
     }
-
-    virtual Expr call(Builder &builder, const vector<Expr> &args) const = 0;
 
 private:
     Value *value() const
@@ -749,8 +747,7 @@ class defineOperation : public GenericOperation
         }
     };
 
-    using Operation::call;
-    Expr call(Builder &builder, likely_ast ast) const
+    Expr evaluate(Builder &builder, likely_ast ast) const
     {
         builder.env->operations[ast->atoms[1]->atom].push(Op(new Definition(ast->atoms[2])));
         return Expr();
@@ -778,7 +775,6 @@ class lambdaOperation : public GenericOperation
             likely_release_env(env);
         }
 
-        using Operation::call;
         Expr call(Builder &builder, const vector<Expr> &args) const
         {
             (void) builder;
@@ -787,8 +783,7 @@ class lambdaOperation : public GenericOperation
         }
     };
 
-    using Operation::call;
-    Expr call(Builder &builder, likely_ast ast) const
+    Expr evaluate(Builder &builder, likely_ast ast) const
     {
         if (!ast->is_list) return likelyThrow(ast, "lambda missing parameters");
         if (ast->num_atoms != 3) return likelyThrow(ast, "lambda expected two parameters");
@@ -839,8 +834,7 @@ class kernelOperation : public GenericOperation
         }
     };
 
-    using Operation::call;
-    Expr call(Builder &builder, likely_ast ast) const
+    Expr evaluate(Builder &builder, likely_ast ast) const
     {
         Function *function = builder.getKernel(Matrix);
         vector<Expr> srcs = builder.getArgs(function);
@@ -1050,9 +1044,7 @@ LIKELY_REGISTER(kernel)
 
 class functionOperation : public GenericOperation
 {
-    using Operation::call;
-
-    Expr call(Builder &builder, likely_ast ast) const
+    Expr evaluate(Builder &builder, likely_ast ast) const
     {
         vector<Type*> types;
         for (likely_type t : builder.types)
@@ -1091,8 +1083,7 @@ LIKELY_REGISTER(function)
 
 class readOperation : public GenericOperation
 {
-    using Operation::call;
-    Expr call(Builder &builder, likely_ast ast) const
+    Expr evaluate(Builder &builder, likely_ast ast) const
     {
         static FunctionType *LikelyReadSignature = NULL;
         if (LikelyReadSignature == NULL) {
@@ -1112,8 +1103,7 @@ LIKELY_REGISTER(read)
 
 class writeOperation : public GenericOperation
 {
-    using Operation::call;
-    Expr call(Builder &builder, likely_ast ast) const
+    Expr evaluate(Builder &builder, likely_ast ast) const
     {
         static FunctionType *LikelyWriteSignature = NULL;
         if (LikelyWriteSignature == NULL) {
@@ -1142,8 +1132,7 @@ LIKELY_REGISTER(write)
 
 class decodeOperation : public GenericOperation
 {
-    using Operation::call;
-    Expr call(Builder &builder, likely_ast ast) const
+    Expr evaluate(Builder &builder, likely_ast ast) const
     {
         static FunctionType *LikelyDecodeSignature = NULL;
         if (LikelyDecodeSignature == NULL) {
@@ -1165,8 +1154,7 @@ LIKELY_REGISTER(decode)
 
 class encodeOperation : public GenericOperation
 {
-    using Operation::call;
-    Expr call(Builder &builder, likely_ast ast) const
+    Expr evaluate(Builder &builder, likely_ast ast) const
     {
         static FunctionType *LikelyEncodeSignature = NULL;
         if (LikelyEncodeSignature == NULL) {
