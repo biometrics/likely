@@ -61,23 +61,24 @@ struct Expression
     bool isNull() const { return value() == NULL; }
 };
 
-class Immediate : public Expression
+struct Val : public shared_ptr<Expression>
 {
-    Value *value_;
-    likely_type type_;
+    class Immediate : public Expression
+    {
+        Value *value_;
+        likely_type type_;
 
-public:
-    Immediate() : value_(NULL), type_(likely_type_null) {}
-    Immediate(Value *value_, likely_type type_) : value_(value_), type_(type_) {}
-    Value* value() const { return value_; }
-    likely_type type() const { return type_; }
-};
+    public:
+        Immediate(Value *value_, likely_type type_)
+            : value_(value_), type_(type_) {}
 
-struct Val : public shared_ptr<Immediate>
-{
-    Val() : shared_ptr<Immediate>(NULL) {}
-    Val(const Immediate &other) : shared_ptr<Immediate>(new Immediate(other)) {}
-    Val(Value *value, likely_type type) : shared_ptr<Immediate>(new Immediate(value, type)) {}
+    private:
+        Value* value() const { return value_; }
+        likely_type type() const { return type_; }
+    };
+
+    Val() : shared_ptr<Expression>(NULL) {}
+    Val(Value *value, likely_type type) : shared_ptr<Expression>(new Immediate(value, type)) {}
     Value* value() const { return get()->value(); }
     likely_type type() const { return get()->type(); }
     operator Value*() const { return value(); }
