@@ -52,7 +52,16 @@ static LLVMContext &C = getGlobalContext();
 
 namespace {
 
-class Immediate
+struct Expression
+{
+    virtual Value* value() const = 0;
+    virtual likely_type type() const = 0;
+    operator Value*() const { return value(); }
+    operator likely_type() const { return type(); }
+    bool isNull() const { return value() == NULL; }
+};
+
+class Immediate : public Expression
 {
     Value *value_;
     likely_type type_;
@@ -62,9 +71,6 @@ public:
     Immediate(Value *value_, likely_type type_) : value_(value_), type_(type_) {}
     Value* value() const { return value_; }
     likely_type type() const { return type_; }
-    operator Value*() const { return value(); }
-    operator likely_type() const { return type(); }
-    bool isNull() const { return value() == NULL; }
 };
 
 struct Val : public shared_ptr<Immediate>
