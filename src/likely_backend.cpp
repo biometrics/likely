@@ -195,12 +195,13 @@ struct ExpressionBuilder : public IRBuilder<>
 };
 
 struct Operation;
+typedef shared_ptr<Operation> Op;
 
 } // namespace (anonymous)
 
 struct likely_env_struct
 {
-    map<string, stack<shared_ptr<Operation>>> operations;
+    map<string, stack<Op>> operations;
     int ref_count;
 };
 
@@ -221,7 +222,7 @@ struct Operation
             operator_ = ast->atom;
         }
 
-        map<string,stack<shared_ptr<Operation>>>::iterator it = builder.env->operations.find(operator_);
+        map<string,stack<Op>>::iterator it = builder.env->operations.find(operator_);
         if (it != builder.env->operations.end())
             return it->second.top()->call(builder, ast);
 
@@ -272,14 +273,14 @@ protected:
     virtual TypedValue call(ExpressionBuilder &builder, const vector<TypedValue> &args) const = 0;
 };
 
-static map<string, stack<shared_ptr<Operation>>> DefaultOperations;
+static map<string, stack<Op>> DefaultOperations;
 
 template <class T>
 struct RegisterOperation
 {
     RegisterOperation(const string &symbol)
     {
-        DefaultOperations[symbol].push(shared_ptr<Operation>(new T()));
+        DefaultOperations[symbol].push(Op(new T()));
     }
 };
 #define LIKELY_REGISTER_OPERATION(OP, SYM) static struct RegisterOperation<OP##Operation> Register##OP##Operation(SYM);
@@ -670,7 +671,7 @@ public:
 
     static void define(ExpressionBuilder &builder, const string &name, const TypedValue &value)
     {
-        builder.env->operations[name].push(shared_ptr<Operation>(new LocalVariable(value)));
+        builder.env->operations[name].push(Op(new LocalVariable(value)));
     }
 
     static void undefine(ExpressionBuilder &builder, const string &name)
@@ -714,7 +715,7 @@ class defineOperation : public GenericOperation
     using Operation::call;
     TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
     {
-        builder.env->operations[ast->atoms[1]->atom].push(shared_ptr<Operation>(new Definition(ast->atoms[2])));
+        builder.env->operations[ast->atoms[1]->atom].push(Op(new Definition(ast->atoms[2])));
         return TypedValue();
     }
 };
@@ -873,7 +874,7 @@ class kernelOperation : public GenericOperation
             const likely_ast args = ast->atoms[1];
             assert(args->num_atoms == srcs.size());
             for (size_t j=0; j<args->num_atoms; j++)
-                builder.env->operations[args->atoms[j]->atom].push(shared_ptr<Operation>(new kernelArgOperation(srcs[j], dst.type(), node)));
+                builder.env->operations[args->atoms[j]->atom].push(Op(new kernelArgOperation(srcs[j], dst.type(), node)));
 
             TypedValue result = Operation::expression(builder, ast->atoms[2]);
             dst = TypedValue(dst, result.type());
