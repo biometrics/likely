@@ -68,6 +68,7 @@ struct Expression
     virtual Value *value() const = 0;
     virtual likely_type type() const = 0;
     virtual Expr call(Builder &builder, const vector<Expr> &args) const = 0;
+    virtual Expr evaluate(Builder &builder, likely_ast ast) const;
 };
 Expr::operator Value*() const { return get()->value(); }
 Expr::operator likely_type() const { return get()->type(); }
@@ -218,14 +219,11 @@ struct Builder : public IRBuilder<>
     }
 };
 
-struct Operation;
-typedef shared_ptr<Operation> Op;
-
 } // namespace (anonymous)
 
 struct likely_env_struct
 {
-    map<string, stack<Op>> operations;
+    map<string, stack<Expr>> operations;
     int ref_count;
 };
 
@@ -246,7 +244,7 @@ struct Operation : public Expression
             operator_ = ast->atom;
         }
 
-        map<string,stack<Op>>::iterator it = builder.env->operations.find(operator_);
+        map<string,stack<Expr>>::iterator it = builder.env->operations.find(operator_);
         if (it != builder.env->operations.end())
             return it->second.top()->evaluate(builder, ast);
 
@@ -285,15 +283,6 @@ protected:
         return type;
     }
 
-    virtual Expr evaluate(Builder &builder, likely_ast ast) const
-    {
-        vector<Expr> operands;
-        if (ast->is_list)
-            for (size_t i=1; i<ast->num_atoms; i++)
-                operands.push_back(expression(builder, ast->atoms[i]));
-        return call(builder, operands);
-    }
-
 private:
     Value *value() const
     {
@@ -308,14 +297,23 @@ private:
     }
 };
 
-static map<string, stack<Op>> DefaultOperations;
+Expr Expression::evaluate(Builder &builder, likely_ast ast) const
+{
+    vector<Expr> operands;
+    if (ast->is_list)
+        for (size_t i=1; i<ast->num_atoms; i++)
+            operands.push_back(Operation::expression(builder, ast->atoms[i]));
+    return call(builder, operands);
+}
+
+static map<string, stack<Expr>> DefaultOperations;
 
 template <class T>
 struct RegisterOperation
 {
     RegisterOperation(const string &symbol)
     {
-        DefaultOperations[symbol].push(Op(new T()));
+        DefaultOperations[symbol].push(new T());
     }
 };
 #define LIKELY_REGISTER_OPERATION(OP, SYM) static struct RegisterOperation<OP##Operation> Register##OP##Operation(SYM);
@@ -706,7 +704,7 @@ public:
 
     static void define(Builder &builder, const string &name, const Expr &value)
     {
-        builder.env->operations[name].push(Op(new LocalVariable(value)));
+        builder.env->operations[name].push(new LocalVariable(value));
     }
 
     static void undefine(Builder &builder, const string &name)
@@ -749,7 +747,7 @@ class defineOperation : public GenericOperation
 
     Expr evaluate(Builder &builder, likely_ast ast) const
     {
-        builder.env->operations[ast->atoms[1]->atom].push(Op(new Definition(ast->atoms[2])));
+        builder.env->operations[ast->atoms[1]->atom].push(new Definition(ast->atoms[2]));
         return Expr();
     }
 };
@@ -905,7 +903,7 @@ class kernelOperation : public GenericOperation
             const likely_ast args = ast->atoms[1];
             assert(args->num_atoms == srcs.size());
             for (size_t j=0; j<args->num_atoms; j++)
-                builder.env->operations[args->atoms[j]->atom].push(Op(new kernelArgOperation(srcs[j], dst->type(), node)));
+                builder.env->operations[args->atoms[j]->atom].push(new kernelArgOperation(srcs[j], dst->type(), node));
 
             Expr result = Operation::expression(builder, ast->atoms[2]);
             dst = Immediate(dst, result->type());
