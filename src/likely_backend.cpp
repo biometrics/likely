@@ -75,10 +75,12 @@ public:
     void dump() const { print(dbgs()); }
 };
 
-static inline TypedValue likelyThrow(likely_ast ast, const char *message)
+typedef shared_ptr<TypedValue> Val;
+
+static inline Val likelyThrow(likely_ast ast, const char *message)
 {
     likely_throw(ast, message);
-    return TypedValue();
+    return Val(NULL);
 }
 
 struct ExpressionBuilder : public IRBuilder<>
@@ -753,8 +755,8 @@ class lambdaOperation : public GenericOperation
     using Operation::call;
     TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
     {
-        if (!ast->is_list) return likelyThrow(ast, "lambda missing parameters");
-        if (ast->num_atoms != 3) return likelyThrow(ast, "lambda expected two parameters");
+        if (!ast->is_list) return *likelyThrow(ast, "lambda missing parameters");
+        if (ast->num_atoms != 3) return *likelyThrow(ast, "lambda expected two parameters");
         Lambda *lambda = new Lambda(ast->atoms[1], ast->atoms[2], builder.env);
         (void) lambda;
         return TypedValue();
