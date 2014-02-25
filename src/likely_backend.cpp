@@ -61,7 +61,18 @@ struct Expression
     bool isNull() const { return value() == NULL; }
 };
 
-struct Val : public shared_ptr<Expression>
+struct Expr : public shared_ptr<Expression>
+{
+    Expr() : shared_ptr<Expression>(NULL) {}
+    Expr(Expression *expression) : shared_ptr<Expression>(expression) {}
+    Value* value() const { return get()->value(); }
+    likely_type type() const { return get()->type(); }
+    operator Value*() const { return get()->value(); }
+    operator likely_type() const { return get()->type(); }
+    bool isNull() const { return get()->isNull(); }
+};
+
+struct Val : public Expr
 {
     class Immediate : public Expression
     {
@@ -77,13 +88,8 @@ struct Val : public shared_ptr<Expression>
         likely_type type() const { return type_; }
     };
 
-    Val() : shared_ptr<Expression>(NULL) {}
-    Val(Value *value, likely_type type) : shared_ptr<Expression>(new Immediate(value, type)) {}
-    Value* value() const { return get()->value(); }
-    likely_type type() const { return get()->type(); }
-    operator Value*() const { return value(); }
-    operator likely_type() const { return type(); }
-    bool isNull() const { return value() == NULL; }
+    Val() {}
+    Val(Value *value, likely_type type) : Expr(new Immediate(value, type)) {}
 };
 
 static inline Val likelyThrow(likely_ast ast, const char *message)
