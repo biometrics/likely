@@ -67,8 +67,8 @@ struct Expr : public shared_ptr<Expression>
 struct likely_env_struct
 {
     static map<string,Expr> defaultExprs;
-    const map<string,Expr> exprs = defaultExprs;
-    int ref_count = 1;
+    map<string,Expr> exprs = defaultExprs;
+    mutable int ref_count = 1;
 };
 map<string,Expr> likely_env_struct::defaultExprs;
 
