@@ -62,6 +62,18 @@ struct Expr : public shared_ptr<Expression>
     operator likely_type() const;
 };
 
+} // namespace (anonymous)
+
+struct likely_env_struct
+{
+    static map<string,Expr> defaultExprs;
+    const map<string,Expr> exprs = defaultExprs;
+    int ref_count = 1;
+};
+map<string,Expr> likely_env_struct::defaultExprs;
+
+namespace {
+
 struct Builder;
 struct Expression
 {
@@ -108,17 +120,24 @@ struct Immediate : public Expr
 
 struct Builder : public IRBuilder<>
 {
+    struct Environment : public map<string,stack<Expr>>
+    {
+        Environment(likely_env env)
+        {
+            for (const auto &kv : env->exprs)
+                (*this)[kv.first].push(kv.second);
+        }
+    };
+
     Module *module;
-    likely_env env;
+    Environment env;
     string name;
     vector<likely_type> types;
     TargetMachine *targetMachine;
 
     Builder(Module *module, likely_env env, const string &name, const vector<likely_type> &types, TargetMachine *targetMachine = NULL)
-        : IRBuilder<>(C), module(module), env(likely_retain_env(env)), name(name), types(types), targetMachine(targetMachine)
+        : IRBuilder<>(C), module(module), env(env), name(name), types(types), targetMachine(targetMachine)
     {}
-
-    ~Builder() { likely_release_env(env); }
 
     static Expr constant(double value, likely_type type = likely_type_native)
     {
@@ -219,16 +238,6 @@ struct Builder : public IRBuilder<>
     }
 };
 
-} // namespace (anonymous)
-
-struct likely_env_struct
-{
-    map<string, stack<Expr>> exprs;
-    int ref_count;
-};
-
-namespace {
-
 struct Operator : public Expression
 {
     static Expr expression(Builder &builder, likely_ast ast)
@@ -244,8 +253,8 @@ struct Operator : public Expression
             operator_ = ast->atom;
         }
 
-        map<string,stack<Expr>>::iterator it = builder.env->exprs.find(operator_);
-        if (it != builder.env->exprs.end())
+        map<string,stack<Expr>>::iterator it = builder.env.find(operator_);
+        if (it != builder.env.end())
             return it->second.top()->evaluate(builder, ast);
 
         if ((operator_.front() == '"') && (operator_.back() == '"'))
@@ -304,14 +313,12 @@ Expr Expression::evaluate(Builder &builder, likely_ast ast) const
     return call(builder, operands);
 }
 
-static map<string, stack<Expr>> DefaultExprs;
-
 template <class T>
 struct RegisterExpression
 {
     RegisterExpression(const string &symbol)
     {
-        DefaultExprs[symbol].push(new T());
+        likely_env_struct::defaultExprs[symbol] = new T();
     }
 };
 #define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
@@ -702,12 +709,12 @@ public:
 
     static void define(Builder &builder, const string &name, const Expr &value)
     {
-        builder.env->exprs[name].push(new LocalVariable(value));
+        builder.env[name].push(new LocalVariable(value));
     }
 
     static void undefine(Builder &builder, const string &name)
     {
-        builder.env->exprs[name].pop();
+        builder.env[name].pop();
     }
 
 private:
@@ -745,7 +752,7 @@ class defineExpression : public GenericOperator
 
     Expr evaluate(Builder &builder, likely_ast ast) const
     {
-        builder.env->exprs[ast->atoms[1]->atom].push(new Definition(ast->atoms[2]));
+        builder.env[ast->atoms[1]->atom].push(new Definition(ast->atoms[2]));
         return Expr();
     }
 };
@@ -756,19 +763,16 @@ class lambdaExpression : public GenericOperator
     struct Lambda : public GenericOperator
     {
         likely_ast params, body;
-        likely_env env;
 
-        Lambda(likely_ast params, likely_ast body, likely_env env)
+        Lambda(likely_ast params, likely_ast body)
             : params(likely_retain_ast(params))
             , body(likely_retain_ast(body))
-            , env(likely_retain_env(env))
         {}
 
         ~Lambda()
         {
             likely_release_ast(params);
             likely_release_ast(body);
-            likely_release_env(env);
         }
 
         Expr call(Builder &builder, const vector<Expr> &args) const
@@ -783,7 +787,8 @@ class lambdaExpression : public GenericOperator
     {
         if (!ast->is_list) return likelyThrow(ast, "lambda missing parameters");
         if (ast->num_atoms != 3) return likelyThrow(ast, "lambda expected two parameters");
-        Lambda *lambda = new Lambda(ast->atoms[1], ast->atoms[2], builder.env);
+        Lambda *lambda = new Lambda(ast->atoms[1], ast->atoms[2]);
+        (void) builder;
         (void) lambda;
         return Expr();
     }
@@ -901,7 +906,7 @@ class kernelExpression : public GenericOperator
             const likely_ast args = ast->atoms[1];
             assert(args->num_atoms == srcs.size());
             for (size_t j=0; j<args->num_atoms; j++)
-                builder.env->exprs[args->atoms[j]->atom].push(new kernelArgOperator(srcs[j], dst->type(), node));
+                builder.env[args->atoms[j]->atom].push(new kernelArgOperator(srcs[j], dst->type(), node));
 
             Expr result = Operator::expression(builder, ast->atoms[2]);
             dst = Immediate(dst, result->type());
@@ -921,7 +926,7 @@ class kernelExpression : public GenericOperator
             builder.CreateRetVoid();
 
             for (size_t i=0; i<args->num_atoms; i++)
-                builder.env->exprs[args->atoms[i]->atom].pop();
+                builder.env[args->atoms[i]->atom].pop();
             LocalVariable::undefine(builder, "i");
             LocalVariable::undefine(builder, "c");
             LocalVariable::undefine(builder, "x");
@@ -1453,10 +1458,7 @@ PointerType *VTable::vtableType = NULL;
 
 LIKELY_EXPORT likely_env likely_new_env()
 {
-    likely_env env = new likely_env_struct();
-    env->exprs = DefaultExprs;
-    env->ref_count = 1;
-    return env;
+    return new likely_env_struct();
 }
 
 LIKELY_EXPORT likely_env likely_retain_env(likely_env env)
