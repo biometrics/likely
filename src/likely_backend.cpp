@@ -67,7 +67,7 @@ struct Expression
 {
     virtual Value *value() const = 0;
     virtual likely_type type() const = 0;
-    virtual Expr evaluate(Builder &builder, const vector<Expr> &args) const = 0;
+    virtual Expr call(Builder &builder, const vector<Expr> &args) const = 0;
 };
 Expr::operator Value*() const { return get()->value(); }
 Expr::operator likely_type() const { return get()->type(); }
@@ -93,7 +93,7 @@ struct Immediate : public Expr
     private:
         Value *value() const { return value_; }
         likely_type type() const { return type_; }
-        Expr evaluate(Builder &builder, const vector<Expr> &args) const
+        Expr call(Builder &builder, const vector<Expr> &args) const
         {
             (void) builder;
             (void) args;
@@ -295,6 +295,19 @@ protected:
     }
 
     virtual Expr call(Builder &builder, const vector<Expr> &args) const = 0;
+
+private:
+    Value *value() const
+    {
+        likely_assert(false, "Operation has no value!");
+        return NULL;
+    }
+
+    likely_type type() const
+    {
+        likely_assert(false, "Operation has no type!");
+        return likely_type_null;
+    }
 };
 
 static map<string, stack<Op>> DefaultOperations;
