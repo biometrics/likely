@@ -39,18 +39,18 @@
 
 #include "likely/likely_backend.h"
 
+#define LLVM_VALUE_IS_INT(VALUE) (llvm::isa<Constant>(VALUE))
+#define LLVM_VALUE_TO_INT(VALUE) (llvm::cast<Constant>(VALUE)->getUniqueInteger().getZExtValue())
+
 using namespace llvm;
 using namespace std;
 
-#define LLVM_VALUE_IS_INT(VALUE) (llvm::isa<Constant>(VALUE))
-#define LLVM_VALUE_TO_INT(VALUE) (llvm::cast<Constant>(VALUE)->getUniqueInteger().getZExtValue())
+namespace {
 
 static likely_type likely_type_native = likely_type_null;
 static IntegerType *NativeIntegerType = NULL;
 static PointerType *Matrix = NULL;
 static LLVMContext &C = getGlobalContext();
-
-namespace {
 
 struct Expression
 {
