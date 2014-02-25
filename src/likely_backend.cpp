@@ -75,12 +75,23 @@ public:
     void dump() const { print(dbgs()); }
 };
 
-typedef shared_ptr<TypedValue> Val;
+struct Val : public shared_ptr<TypedValue>
+{
+    Val() : shared_ptr<TypedValue>(NULL) {}
+    Val(const TypedValue &other) : shared_ptr<TypedValue>(new TypedValue(other)) {}
+    Val(Value *value, likely_type type) : shared_ptr<TypedValue>(new TypedValue(value, type)) {}
+    Value* value() const { return get()->value(); }
+    likely_type type() const { return get()->type(); }
+    operator Value*() const { return value(); }
+    operator likely_type() const { return type(); }
+    operator TypedValue() const { return *get(); }
+    bool isNull() const { return value() == NULL; }
+};
 
 static inline Val likelyThrow(likely_ast ast, const char *message)
 {
     likely_throw(ast, message);
-    return Val(NULL);
+    return Val();
 }
 
 struct ExpressionBuilder : public IRBuilder<>
@@ -755,8 +766,8 @@ class lambdaOperation : public GenericOperation
     using Operation::call;
     TypedValue call(ExpressionBuilder &builder, likely_ast ast) const
     {
-        if (!ast->is_list) return *likelyThrow(ast, "lambda missing parameters");
-        if (ast->num_atoms != 3) return *likelyThrow(ast, "lambda expected two parameters");
+        if (!ast->is_list) return likelyThrow(ast, "lambda missing parameters");
+        if (ast->num_atoms != 3) return likelyThrow(ast, "lambda expected two parameters");
         Lambda *lambda = new Lambda(ast->atoms[1], ast->atoms[2], builder.env);
         (void) lambda;
         return TypedValue();
