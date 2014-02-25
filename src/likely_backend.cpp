@@ -52,39 +52,30 @@ static LLVMContext &C = getGlobalContext();
 
 namespace {
 
-class TypedValue
+class Immediate
 {
     Value *value_;
     likely_type type_;
 
 public:
-    TypedValue() : value_(NULL), type_(likely_type_null) {}
-    TypedValue(Value *value_, likely_type type_) : value_(value_), type_(type_) {}
+    Immediate() : value_(NULL), type_(likely_type_null) {}
+    Immediate(Value *value_, likely_type type_) : value_(value_), type_(type_) {}
     Value* value() const { return value_; }
     likely_type type() const { return type_; }
     operator Value*() const { return value(); }
     operator likely_type() const { return type(); }
     bool isNull() const { return value() == NULL; }
-
-    void print(raw_ostream &o) const
-    {
-        value()->print(o);
-        o << "; " << likely_type_to_string(type()) << "\n";
-    }
-
-    void dump() const { print(dbgs()); }
 };
 
-struct Val : public shared_ptr<TypedValue>
+struct Val : public shared_ptr<Immediate>
 {
-    Val() : shared_ptr<TypedValue>(NULL) {}
-    Val(const TypedValue &other) : shared_ptr<TypedValue>(new TypedValue(other)) {}
-    Val(Value *value, likely_type type) : shared_ptr<TypedValue>(new TypedValue(value, type)) {}
+    Val() : shared_ptr<Immediate>(NULL) {}
+    Val(const Immediate &other) : shared_ptr<Immediate>(new Immediate(other)) {}
+    Val(Value *value, likely_type type) : shared_ptr<Immediate>(new Immediate(value, type)) {}
     Value* value() const { return get()->value(); }
     likely_type type() const { return get()->type(); }
     operator Value*() const { return value(); }
     operator likely_type() const { return type(); }
-    operator TypedValue() const { return *get(); }
     bool isNull() const { return value() == NULL; }
 };
 
