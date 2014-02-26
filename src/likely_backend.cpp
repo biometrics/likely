@@ -680,20 +680,14 @@ class defineExpression : public Operator
 
     public:
         Definition(likely_ast ast)
-            : ast(ast)
-        {
-            likely_retain_ast(ast);
-        }
-
-        ~Definition()
-        {
-            likely_release_ast(ast);
-        }
+            : ast(likely_retain_ast(ast)) {}
+        ~Definition() { likely_release_ast(ast); }
 
     private:
         Expression *evaluate(Builder &builder, likely_ast ast) const
         {
-            (void) ast;
+            if (ast->is_list)
+                return likelyThrow(ast, "definition does not take arguments");
             return expression(builder, this->ast);
         }
     };
@@ -975,7 +969,7 @@ class kernelExpression : public Operator
         return kernel;
     }
 
-    static Immediate getDimensions(Builder &builder, likely_ast ast, const char *axis, vector<Immediate> &srcs)
+    static Immediate getDimensions(Builder &builder, likely_ast ast, const char *axis, const vector<Immediate> &srcs)
     {
         Value *result = NULL;
 
