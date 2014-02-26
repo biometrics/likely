@@ -59,6 +59,13 @@ struct Expression
     virtual Value *value() const = 0;
     virtual likely_type type() const = 0;
     virtual Expression *evaluate(Builder &builder, likely_ast ast) const = 0;
+
+    Value *take()
+    {
+        Value *result = value();
+        delete this; // With great power comes great responsibility
+        return result;
+    }
 };
 
 } // namespace (anonymous)
@@ -100,13 +107,6 @@ private:
         return new Immediate(value(), type());
     }
 };
-
-static inline Value *extractValue(Expression *expression)
-{
-    Value *value = expression->value();
-    delete expression;
-    return value;
-}
 
 struct Builder : public IRBuilder<>
 {
@@ -797,7 +797,7 @@ class kernelExpression : public Operator
             if (((matrix.type_ ^ kernel) & likely_type_multi_dimension) == 0) {
                 // This matrix has the same dimensionality as the kernel
                 static likely_ast ast_i = likely_new_atom("i", 0, 1);
-                i = extractValue(expression(builder, ast_i));
+                i = expression(builder, ast_i)->take();
             } else {
                 static likely_ast ast_c = likely_new_atom("c", 0, 1);
                 static likely_ast ast_x = likely_new_atom("x", 0, 1);
@@ -806,10 +806,10 @@ class kernelExpression : public Operator
                 Value *columnStep, *rowStep, *frameStep;
                 builder.steps(&matrix, &columnStep, &rowStep, &frameStep);
                 i = Builder::zero();
-                if (likely_multi_channel(matrix.type_)) i = extractValue(expression(builder, ast_c));
-                if (likely_multi_column(matrix.type_))  i = builder.CreateAdd(builder.CreateMul(extractValue(expression(builder, ast_x)), columnStep), i);
-                if (likely_multi_row(matrix.type_))     i = builder.CreateAdd(builder.CreateMul(extractValue(expression(builder, ast_y)), rowStep), i);
-                if (likely_multi_frame(matrix.type_))   i = builder.CreateAdd(builder.CreateMul(extractValue(expression(builder, ast_t)), frameStep), i);
+                if (likely_multi_channel(matrix.type_)) i = expression(builder, ast_c)->take();
+                if (likely_multi_column(matrix.type_))  i = builder.CreateAdd(builder.CreateMul(expression(builder, ast_x)->take(), columnStep), i);
+                if (likely_multi_row(matrix.type_))     i = builder.CreateAdd(builder.CreateMul(expression(builder, ast_y)->take(), rowStep), i);
+                if (likely_multi_frame(matrix.type_))   i = builder.CreateAdd(builder.CreateMul(expression(builder, ast_t)->take(), frameStep), i);
             }
 
             LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(&matrix), i));
@@ -1077,7 +1077,7 @@ class readExpression : public Operator
         Function *likelyRead = Function::Create(LikelyReadSignature, GlobalValue::ExternalLinkage, "likely_read", builder.module);
         likelyRead->setCallingConv(CallingConv::C);
         likelyRead->setDoesNotAlias(0);
-        return new Immediate(builder.CreateCall(likelyRead, extractValue(expression(builder, ast->atoms[1]))), likely_type_null);
+        return new Immediate(builder.CreateCall(likelyRead, expression(builder, ast->atoms[1])->take()), likely_type_null);
     }
 };
 LIKELY_REGISTER(read)
@@ -1104,8 +1104,8 @@ class writeExpression : public Operator
         likelyWrite->setDoesNotAlias(2);
         likelyWrite->setDoesNotCapture(2);
         vector<Value*> likelyWriteArguments;
-        likelyWriteArguments.push_back(extractValue(expression(builder, ast->atoms[1])));
-        likelyWriteArguments.push_back(extractValue(expression(builder, ast->atoms[2])));
+        likelyWriteArguments.push_back(expression(builder, ast->atoms[1])->take());
+        likelyWriteArguments.push_back(expression(builder, ast->atoms[2])->take());
         return new Immediate(builder.CreateCall(likelyWrite, likelyWriteArguments), likely_type_null);
     }
 };
@@ -1127,7 +1127,7 @@ class decodeExpression : public Operator
         likelyDecode->setDoesNotAlias(0);
         likelyDecode->setDoesNotAlias(1);
         likelyDecode->setDoesNotCapture(1);
-        return new Immediate(builder.CreateCall(likelyDecode, extractValue(expression(builder, ast->atoms[1]))), likely_type_null);
+        return new Immediate(builder.CreateCall(likelyDecode, expression(builder, ast->atoms[1])->take()), likely_type_null);
     }
 };
 LIKELY_REGISTER(decode)
@@ -1154,8 +1154,8 @@ class encodeExpression : public Operator
         likelyEncode->setDoesNotAlias(2);
         likelyEncode->setDoesNotCapture(2);
         vector<Value*> likelyEncodeArguments;
-        likelyEncodeArguments.push_back(extractValue(expression(builder, ast->atoms[1])));
-        likelyEncodeArguments.push_back(extractValue(expression(builder, ast->atoms[2])));
+        likelyEncodeArguments.push_back(expression(builder, ast->atoms[1])->take());
+        likelyEncodeArguments.push_back(expression(builder, ast->atoms[2])->take());
         return new Immediate(builder.CreateCall(likelyEncode, likelyEncodeArguments), likely_type_null);
     }
 };
