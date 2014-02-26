@@ -400,7 +400,7 @@ class UnaryMathOperator : public UnaryOperator
         Immediate xc(builder.cast(x.get(), Builder::validFloatType(x->type())));
         vector<Type*> args;
         args.push_back(xc.value_->getType());
-        return new Immediate(builder.CreateCall(Intrinsic::getDeclaration(builder.module, id(), args), xc.value_), xc.type_);
+        return new Immediate(builder.CreateCall(Intrinsic::getDeclaration(builder.module, id(), args), xc), xc);
     }
     virtual Intrinsic::ID id() const = 0;
 };
@@ -611,10 +611,10 @@ class BinaryMathOperator : public BinaryOperator
         TRY_EXPR(builder, arg2, n)
         const likely_type type = nIsInteger() ? x->type() : likely_type_from_types(x->type(), n->type());
         Immediate xc(builder.cast(x.get(), Builder::validFloatType(type)));
-        Immediate nc(builder.cast(n.get(), nIsInteger() ? likely_type_i32 : xc.type_));
+        Immediate nc(builder.cast(n.get(), nIsInteger() ? likely_type_i32 : xc));
         vector<Type*> args;
         args.push_back(xc.value_->getType());
-        return new Immediate(builder.CreateCall2(Intrinsic::getDeclaration(builder.module, id(), args), xc.value_, nc.value_), xc.type_);
+        return new Immediate(builder.CreateCall2(Intrinsic::getDeclaration(builder.module, id(), args), xc, nc), xc);
     }
     virtual Intrinsic::ID id() const = 0;
     virtual bool nIsInteger() const { return false; }
@@ -657,11 +657,11 @@ class fmaExpression : public TernaryOperator
         TRY_EXPR(builder, arg3, c)
         const likely_type type = likely_type_from_types(likely_type_from_types(a->type(), b->type()), c->type());
         Immediate ac(builder.cast(a.get(), Builder::validFloatType(type)));
-        Immediate bc(builder.cast(b.get(), ac.type_));
-        Immediate cc(builder.cast(c.get(), ac.type_));
+        Immediate bc(builder.cast(b.get(), ac));
+        Immediate cc(builder.cast(c.get(), ac));
         vector<Type*> args;
         args.push_back(ac.value_->getType());
-        return new Immediate(builder.CreateCall3(Intrinsic::getDeclaration(builder.module, Intrinsic::fma, args), ac.value_, bc.value_, cc.value_), ac.type_);
+        return new Immediate(builder.CreateCall3(Intrinsic::getDeclaration(builder.module, Intrinsic::fma, args), ac, bc, cc), ac);
     }
 };
 LIKELY_REGISTER(fma)
@@ -767,7 +767,7 @@ class kernelExpression : public Operator
         {
             (void) ast;
             Value *i;
-            if (((matrix.type_ ^ kernel) & likely_type_multi_dimension) == 0) {
+            if (((matrix ^ kernel) & likely_type_multi_dimension) == 0) {
                 // This matrix has the same dimensionality as the kernel
                 static likely_ast ast_i = likely_new_atom("i", 0, 1);
                 i = expression(builder, ast_i)->take();
@@ -779,15 +779,15 @@ class kernelExpression : public Operator
                 Value *columnStep, *rowStep, *frameStep;
                 builder.steps(&matrix, &columnStep, &rowStep, &frameStep);
                 i = Builder::zero();
-                if (likely_multi_channel(matrix.type_)) i = expression(builder, ast_c)->take();
-                if (likely_multi_column(matrix.type_))  i = builder.CreateAdd(builder.CreateMul(expression(builder, ast_x)->take(), columnStep), i);
-                if (likely_multi_row(matrix.type_))     i = builder.CreateAdd(builder.CreateMul(expression(builder, ast_y)->take(), rowStep), i);
-                if (likely_multi_frame(matrix.type_))   i = builder.CreateAdd(builder.CreateMul(expression(builder, ast_t)->take(), frameStep), i);
+                if (likely_multi_channel(matrix)) i = expression(builder, ast_c)->take();
+                if (likely_multi_column (matrix)) i = builder.CreateAdd(builder.CreateMul(expression(builder, ast_x)->take(), columnStep), i);
+                if (likely_multi_row    (matrix)) i = builder.CreateAdd(builder.CreateMul(expression(builder, ast_y)->take(), rowStep), i);
+                if (likely_multi_frame  (matrix)) i = builder.CreateAdd(builder.CreateMul(expression(builder, ast_t)->take(), frameStep), i);
             }
 
             LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(&matrix), i));
             load->setMetadata("llvm.mem.parallel_loop_access", node);
-            return new Immediate(load, matrix.type_);
+            return new Immediate(load, matrix);
         }
     };
 
@@ -810,19 +810,19 @@ class kernelExpression : public Operator
             BasicBlock *entry = BasicBlock::Create(C, "entry", thunk);
             builder.SetInsertPoint(entry);
             vector<Immediate> srcs = builder.getArgs(thunk);
-            Immediate stop(srcs.back().value_, likely_type_native);
+            Immediate stop = srcs.back(); srcs.pop_back();
+            stop.type_ = likely_type_native;
             stop.value_->setName("stop");
-            srcs.pop_back();
-            Immediate start(srcs.back().value_, likely_type_native);
+            Immediate start = srcs.back(); srcs.pop_back();
+            start.type_ = likely_type_native;
             start.value_->setName("start");
-            srcs.pop_back();
             Immediate dst = srcs.back(); srcs.pop_back();
             dst.value_->setName("dst");
 
-            likely_set_multi_channel(&dst.type_, likely_multi_channel(dstChannels.type_));
-            likely_set_multi_column (&dst.type_, likely_multi_column (dstColumns.type_));
-            likely_set_multi_row    (&dst.type_, likely_multi_row    (dstRows.type_));
-            likely_set_multi_frame  (&dst.type_, likely_multi_frame  (dstFrames.type_));
+            likely_set_multi_channel(&dst.type_, likely_multi_channel(dstChannels));
+            likely_set_multi_column (&dst.type_, likely_multi_column (dstColumns));
+            likely_set_multi_row    (&dst.type_, likely_multi_row    (dstRows));
+            likely_set_multi_frame  (&dst.type_, likely_multi_frame  (dstFrames));
 
             // Create self-referencing loop node
             MDNode *node; {
@@ -839,7 +839,7 @@ class kernelExpression : public Operator
             builder.CreateBr(body);
             builder.SetInsertPoint(body);
             PHINode *i = builder.CreatePHI(NativeIntegerType, 2, "i");
-            i->addIncoming(start.value_, entry);
+            i->addIncoming(start, entry);
 
             Value *columnStep, *rowStep, *frameStep;
             builder.steps(&dst, &columnStep, &rowStep, &frameStep);
@@ -851,16 +851,16 @@ class kernelExpression : public Operator
             Immediate x(builder.CreateUDiv(rowRemainder, columnStep, "x"), likely_type_native);
             Immediate c(columnRemainder, likely_type_native);
 
-            builder.define("i", Immediate(i       , likely_type_native));
-            builder.define("c", Immediate(c.value_, likely_type_native));
-            builder.define("x", Immediate(x.value_, likely_type_native));
-            builder.define("y", Immediate(y.value_, likely_type_native));
-            builder.define("t", Immediate(t.value_, likely_type_native));
+            builder.define("i", Immediate(i, likely_type_native));
+            builder.define("c", Immediate(c, likely_type_native));
+            builder.define("x", Immediate(x, likely_type_native));
+            builder.define("y", Immediate(y, likely_type_native));
+            builder.define("t", Immediate(t, likely_type_native));
 
             const likely_ast args = ast->atoms[1];
             assert(args->num_atoms == srcs.size());
             for (size_t j=0; j<args->num_atoms; j++)
-                builder.env[args->atoms[j]->atom].push(shared_ptr<Expression>(new kernelArgOperator(srcs[j], dst.type_, node)));
+                builder.env[args->atoms[j]->atom].push(shared_ptr<Expression>(new kernelArgOperator(srcs[j], dst, node)));
 
             unique_ptr<Expression> result(expression(builder, ast->atoms[2]));
             dstType = dst.type_ = result->type();
@@ -872,7 +872,7 @@ class kernelExpression : public Operator
             builder.CreateBr(loopLatch);
             builder.SetInsertPoint(loopLatch);
             BasicBlock *loopExit = BasicBlock::Create(C, "kernel_exit", thunk);
-            BranchInst *latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop.value_, "kernel_test"), loopExit, body);
+            BranchInst *latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, "kernel_test"), loopExit, body);
             latch->setMetadata("llvm.loop", node);
             i->addIncoming(increment, loopLatch);
             builder.SetInsertPoint(loopExit);
@@ -909,10 +909,10 @@ class kernelExpression : public Operator
 
         std::vector<Value*> likelyNewArgs;
         likelyNewArgs.push_back(Builder::type(dstType));
-        likelyNewArgs.push_back(dstChannels.value_);
-        likelyNewArgs.push_back(dstColumns.value_);
-        likelyNewArgs.push_back(dstRows.value_);
-        likelyNewArgs.push_back(dstFrames.value_);
+        likelyNewArgs.push_back(dstChannels);
+        likelyNewArgs.push_back(dstColumns);
+        likelyNewArgs.push_back(dstRows);
+        likelyNewArgs.push_back(dstFrames);
         likelyNewArgs.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(C)));
         likelyNewArgs.push_back(builder.constant(0, 8));
         Value *dst = builder.CreateCall(likelyNew, likelyNewArgs);
@@ -921,7 +921,7 @@ class kernelExpression : public Operator
         if (likelyNew == NULL)
             likely_new(likely_type_null, 0, 0, 0, 0, NULL, 0);
 
-        Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels.value_, dstColumns.value_), dstRows.value_), dstFrames.value_);
+        Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
 
         if (!builder.types.empty() && likely_parallel(builder.types[0])) {
             static FunctionType *likelyForkType = NULL;
@@ -944,13 +944,13 @@ class kernelExpression : public Operator
             likelyForkArgs.push_back(Builder::constant((double)builder.types.size(), 8));
             likelyForkArgs.push_back(kernelSize);
             for (const Immediate &src : srcs)
-                likelyForkArgs.push_back(src.value_);
+                likelyForkArgs.push_back(src);
             likelyForkArgs.push_back(dst);
             builder.CreateCall(likelyFork, likelyForkArgs);
         } else {
             vector<Value*> thunkArgs;
             for (const Immediate &src : srcs)
-                thunkArgs.push_back(src.value_);
+                thunkArgs.push_back(src);
             thunkArgs.push_back(dst);
             thunkArgs.push_back(Builder::zero());
             thunkArgs.push_back(kernelSize);
@@ -1022,7 +1022,7 @@ class functionExpression : public Operator
 
         ValueToValueMapTy VMap;
         for (size_t i=0; i<args.size(); i++)
-            VMap[tmpArgs[i].value_] = args[i].value_;
+            VMap[tmpArgs[i]] = args[i];
 
         SmallVector<ReturnInst*, 1> returns;
         CloneFunctionInto(function, tmpFunction, VMap, false, returns);
