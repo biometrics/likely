@@ -700,43 +700,6 @@ class defineExpression : public Operator
 };
 LIKELY_REGISTER(define)
 
-class lambdaExpression : public Operator
-{
-    struct Lambda : public Operator
-    {
-        likely_ast params, body;
-
-        Lambda(likely_ast params, likely_ast body)
-            : params(likely_retain_ast(params))
-            , body(likely_retain_ast(body))
-        {}
-
-        ~Lambda()
-        {
-            likely_release_ast(params);
-            likely_release_ast(body);
-        }
-
-        Expression *evaluate(Builder &builder, likely_ast ast) const
-        {
-            (void) builder;
-            (void) ast;
-            return NULL;
-        }
-    };
-
-    Expression *evaluate(Builder &builder, likely_ast ast) const
-    {
-        if (!ast->is_list) return likelyThrow(ast, "lambda missing parameters");
-        if (ast->num_atoms != 3) return likelyThrow(ast, "lambda expected two parameters");
-        Lambda *lambda = new Lambda(ast->atoms[1], ast->atoms[2]);
-        (void) builder;
-        (void) lambda;
-        return NULL;
-    }
-};
-LIKELY_REGISTER(lambda)
-
 class kernelExpression : public Operator
 {
     class kernelArgument : public Operator
@@ -1005,7 +968,7 @@ class kernelExpression : public Operator
 };
 LIKELY_REGISTER(kernel)
 
-class functionExpression : public Operator
+class lambdaExpression : public Operator
 {
     Expression *evaluate(Builder &builder, likely_ast ast) const
     {
@@ -1039,7 +1002,7 @@ class functionExpression : public Operator
         return new Immediate(function, result->type());
     }
 };
-LIKELY_REGISTER(function)
+LIKELY_REGISTER(lambda)
 
 #ifdef LIKELY_IO
 #include "likely/likely_io.h"
@@ -1499,7 +1462,7 @@ void likely_compile_to_file(likely_ast ast, likely_env env, const char *symbol_n
 likely_matrix likely_eval(likely_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    likely_ast expr = likely_ast_from_string("(function () (scalar <ast>))");
+    likely_ast expr = likely_ast_from_string("(lambda () (scalar <ast>))");
     expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
     FunctionBuilder functionBuilder(expr, env, vector<likely_type>(), true);
     likely_release_ast(expr);
