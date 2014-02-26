@@ -191,30 +191,6 @@ public:
         return type;
     }
 
-    Function *getKernel(Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
-    {
-        Function *kernel;
-        const string name = this->name + (dst == NULL ? "" : "_thunk");
-        switch (types.size()) {
-          case 0: kernel = ::cast<Function>(module->getOrInsertFunction(name, ret, dst, start, stop, NULL)); break;
-          case 1: kernel = ::cast<Function>(module->getOrInsertFunction(name, ret, Matrix, dst, start, stop, NULL)); break;
-          case 2: kernel = ::cast<Function>(module->getOrInsertFunction(name, ret, Matrix, Matrix, dst, start, stop, NULL)); break;
-          case 3: kernel = ::cast<Function>(module->getOrInsertFunction(name, ret, Matrix, Matrix, Matrix, dst, start, stop, NULL)); break;
-          default: { kernel = NULL; likely_assert(false, "FunctionBuilder::getFunction invalid arity: %zu", types.size()); }
-        }
-        kernel->addFnAttr(Attribute::NoUnwind);
-        kernel->setCallingConv(CallingConv::C);
-        if (ret->isPointerTy())
-            kernel->setDoesNotAlias(0);
-        size_t argc = types.size();
-        if (dst) argc++;
-        for (size_t i=0; i<argc; i++) {
-            kernel->setDoesNotAlias((unsigned int) i+1);
-            kernel->setDoesNotCapture((unsigned int) i+1);
-        }
-        return kernel;
-    }
-
     vector<Immediate> getArgs(Function *function)
     {
         vector<Immediate> result;
@@ -807,7 +783,7 @@ class kernelExpression : public Operator
 
     Expression *evaluate(Builder &builder, likely_ast ast) const
     {
-        Function *function = builder.getKernel(Matrix);
+        Function *function = getKernel(builder, Matrix);
         vector<Immediate> srcs = builder.getArgs(function);
         BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         builder.SetInsertPoint(entry);
@@ -820,7 +796,7 @@ class kernelExpression : public Operator
         Function *thunk;
         likely_type dstType;
         {
-            thunk = builder.getKernel(Type::getVoidTy(C), Matrix, NativeIntegerType, NativeIntegerType);
+            thunk = getKernel(builder, Type::getVoidTy(C), Matrix, NativeIntegerType, NativeIntegerType);
             BasicBlock *entry = BasicBlock::Create(C, "entry", thunk);
             builder.SetInsertPoint(entry);
             vector<Immediate> srcs = builder.getArgs(thunk);
@@ -973,6 +949,30 @@ class kernelExpression : public Operator
 
         builder.CreateRet(dst);
         return new Immediate(function, dstType);
+    }
+
+    static Function *getKernel(Builder &builder, Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
+    {
+        Function *kernel;
+        const string name = builder.name + (dst == NULL ? "" : "_thunk");
+        size_t argc = builder.types.size();
+        switch (argc) {
+          case 0: kernel = ::cast<Function>(builder.module->getOrInsertFunction(name, ret, dst, start, stop, NULL)); break;
+          case 1: kernel = ::cast<Function>(builder.module->getOrInsertFunction(name, ret, Matrix, dst, start, stop, NULL)); break;
+          case 2: kernel = ::cast<Function>(builder.module->getOrInsertFunction(name, ret, Matrix, Matrix, dst, start, stop, NULL)); break;
+          case 3: kernel = ::cast<Function>(builder.module->getOrInsertFunction(name, ret, Matrix, Matrix, Matrix, dst, start, stop, NULL)); break;
+          default: { kernel = NULL; likely_assert(false, "kernelExpression::getKernel invalid arity: %zu", argc); }
+        }
+        kernel->addFnAttr(Attribute::NoUnwind);
+        kernel->setCallingConv(CallingConv::C);
+        if (ret->isPointerTy())
+            kernel->setDoesNotAlias(0);
+        if (dst) argc++;
+        for (size_t i=0; i<argc; i++) {
+            kernel->setDoesNotAlias((unsigned int) i+1);
+            kernel->setDoesNotCapture((unsigned int) i+1);
+        }
+        return kernel;
     }
 
     static Immediate getDimensions(Builder &builder, likely_ast ast, const char *axis, vector<Immediate> &srcs)
