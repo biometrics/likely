@@ -84,9 +84,6 @@ struct Immediate : public Expression
     Value *value_;
     likely_type type_;
 
-    Immediate()
-        : value_(NULL), type_(likely_type_null) {}
-
     Immediate(Value *value, likely_type type)
         : value_(value), type_(type) {}
 
@@ -133,7 +130,7 @@ struct Builder : public IRBuilder<>
             if (value == 0) value = -0; // IEEE/LLVM optimization quirk
             if      (depth == 64) return Immediate(ConstantFP::get(Type::getDoubleTy(C), value), type);
             else if (depth == 32) return Immediate(ConstantFP::get(Type::getFloatTy(C), value), type);
-            else                  { likely_assert(false, "invalid floating point constant depth: %d", depth); return Immediate(); }
+            else                  { likely_assert(false, "invalid floating point constant depth: %d", depth); return Immediate(NULL, likely_type_null); }
         } else {
             return Immediate(Constant::getIntegerValue(Type::getIntNTy(C, depth), APInt(depth, uint64_t(value))), type);
         }
@@ -183,6 +180,14 @@ struct Builder : public IRBuilder<>
         }
         likely_assert(false, "ty invalid matrix bits: %d and floating: %d", bits, floating);
         return NULL;
+    }
+
+    static likely_type validFloatType(likely_type type)
+    {
+        likely_set_floating(&type, true);
+        likely_set_signed(&type, true);
+        likely_set_depth(&type, likely_depth(type) > 32 ? 64 : 32);
+        return type;
     }
 
     Function *getKernel(Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
@@ -247,8 +252,12 @@ struct Operator : public Expression
         if ((operator_.front() == '"') && (operator_.back() == '"'))
             return new Immediate(builder.CreateGlobalStringPtr(operator_.substr(1, operator_.length()-2)), likely_type_u8);
 
-        if (Expression *c = constant(operator_))
-            return c;
+        { // Is it a number?
+            char *p;
+            const double value = strtod(operator_.c_str(), &p);
+            if (*p == 0)
+                return new Immediate(Builder::constant(value, likely_type_from_value(value)));
+        }
 
         likely_type type = likely_type_from_string(operator_.c_str());
         if (type != likely_type_null)
@@ -256,24 +265,6 @@ struct Operator : public Expression
 
         likely_throw(ast->is_list ? ast->atoms[0] : ast, "unrecognized literal");
         return NULL;
-    }
-
-protected:
-    static Expression *constant(const string &str)
-    {
-        char *p;
-        const double value = strtod(str.c_str(), &p);
-        const likely_type type = likely_type_from_value(value);
-        if (*p == 0) return new Immediate(Builder::constant(value, type));
-        else         return NULL;
-    }
-
-    static likely_type validFloatType(likely_type type)
-    {
-        likely_set_floating(&type, true);
-        likely_set_signed(&type, true);
-        likely_set_depth(&type, likely_depth(type) > 32 ? 64 : 32);
-        return type;
     }
 
 private:
@@ -409,7 +400,7 @@ class UnaryMathOperator : public UnaryOperator
     Expression *evaluateUnary(Builder &builder, likely_ast arg) const
     {
         TRY_EXPR(builder, arg, x)
-        unique_ptr<Expression> xc(builder.cast(x.get(), validFloatType(x->type())));
+        unique_ptr<Expression> xc(builder.cast(x.get(), Builder::validFloatType(x->type())));
         vector<Type*> args;
         args.push_back(xc->value()->getType());
         return new Immediate(builder.CreateCall(Intrinsic::getDeclaration(builder.module, id(), args), xc->value()), xc->type());
@@ -620,7 +611,7 @@ class BinaryMathOperator : public BinaryOperator
         TRY_EXPR(builder, arg1, x)
         TRY_EXPR(builder, arg2, n)
         const likely_type type = nIsInteger() ? x->type() : likely_type_from_types(x->type(), n->type());
-        unique_ptr<Expression> xc(builder.cast(x.get(), validFloatType(type)));
+        unique_ptr<Expression> xc(builder.cast(x.get(), Builder::validFloatType(type)));
         unique_ptr<Expression> nc(builder.cast(n.get(), nIsInteger() ? likely_type_i32 : xc->type()));
         vector<Type*> args;
         args.push_back(xc->value()->getType());
@@ -666,7 +657,7 @@ class fmaExpression : public TernaryOperator
         TRY_EXPR(builder, arg2, b)
         TRY_EXPR(builder, arg3, c)
         const likely_type type = likely_type_from_types(likely_type_from_types(a->type(), b->type()), c->type());
-        unique_ptr<Expression> ac(builder.cast(a.get(), validFloatType(type)));
+        unique_ptr<Expression> ac(builder.cast(a.get(), Builder::validFloatType(type)));
         unique_ptr<Expression> bc(builder.cast(b.get(), ac->type()));
         unique_ptr<Expression> cc(builder.cast(c.get(), ac->type()));
         vector<Type*> args;
