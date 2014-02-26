@@ -155,12 +155,12 @@ struct Builder : public IRBuilder<>
         *frameStep  = CreateMul(rows(matrix), *rowStep, "t_step");
     }
 
-    Expression *cast(const Expression *x, likely_type type)
+    Immediate cast(const Expression *x, likely_type type)
     {
         if ((x->type() & likely_type_mask) == (type & likely_type_mask))
-            return new Immediate(x->value(), type);
+            return Immediate(x->value(), type);
         Type *dstType = ty(type);
-        return new Immediate(CreateCast(CastInst::getCastOpcode(x->value(), likely_signed(x->type()), dstType, likely_signed(type)), x->value(), dstType), type);
+        return Immediate(CreateCast(CastInst::getCastOpcode(x->value(), likely_signed(x->type()), dstType, likely_signed(type)), x->value(), dstType), type);
     }
 
     static Type *ty(likely_type type, bool pointer = false)
@@ -390,7 +390,7 @@ class scalarExpression : public UnaryOperator
         if (likelyScalar == NULL)
             likely_scalar(0);
 
-        return new Immediate(builder.CreateCall(likelyScalar, extractValue(builder.cast(argExpr, likely_type_f64))), argExpr->type());
+        return new Immediate(builder.CreateCall(likelyScalar, builder.cast(argExpr, likely_type_f64)), argExpr->type());
     }
 };
 LIKELY_REGISTER(scalar)
@@ -400,10 +400,10 @@ class UnaryMathOperator : public UnaryOperator
     Expression *evaluateUnary(Builder &builder, likely_ast arg) const
     {
         TRY_EXPR(builder, arg, x)
-        unique_ptr<Expression> xc(builder.cast(x.get(), Builder::validFloatType(x->type())));
+        Immediate xc(builder.cast(x.get(), Builder::validFloatType(x->type())));
         vector<Type*> args;
-        args.push_back(xc->value()->getType());
-        return new Immediate(builder.CreateCall(Intrinsic::getDeclaration(builder.module, id(), args), xc->value()), xc->type());
+        args.push_back(xc.value_->getType());
+        return new Immediate(builder.CreateCall(Intrinsic::getDeclaration(builder.module, id(), args), xc.value_), xc.type_);
     }
     virtual Intrinsic::ID id() const = 0;
 };
@@ -448,7 +448,7 @@ class castExpression : public BinaryOperator
     {
         TRY_EXPR(builder, arg1, x)
         TRY_EXPR(builder, arg2, type)
-        return builder.cast(x.get(), (likely_type)LLVM_VALUE_TO_INT(type->value()));
+        return new Immediate(builder.cast(x.get(), (likely_type)LLVM_VALUE_TO_INT(type->value())));
     }
 };
 LIKELY_REGISTER(cast)
@@ -460,7 +460,9 @@ class ArithmeticOperator : public BinaryOperator
         TRY_EXPR(builder, arg1, lhs)
         TRY_EXPR(builder, arg2, rhs)
         likely_type type = likely_type_from_types(lhs->type(), rhs->type());
-        return evaluateArithmetic(builder, unique_ptr<Expression>(builder.cast(lhs.get(), type)).get(), unique_ptr<Expression>(builder.cast(rhs.get(), type)).get(), type);
+        Immediate lhsc(builder.cast(lhs.get(), type));
+        Immediate rhsc(builder.cast(rhs.get(), type));
+        return evaluateArithmetic(builder, &lhsc, &rhsc, type);
     }
     virtual Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const = 0;
 };
@@ -611,11 +613,11 @@ class BinaryMathOperator : public BinaryOperator
         TRY_EXPR(builder, arg1, x)
         TRY_EXPR(builder, arg2, n)
         const likely_type type = nIsInteger() ? x->type() : likely_type_from_types(x->type(), n->type());
-        unique_ptr<Expression> xc(builder.cast(x.get(), Builder::validFloatType(type)));
-        unique_ptr<Expression> nc(builder.cast(n.get(), nIsInteger() ? likely_type_i32 : xc->type()));
+        Immediate xc(builder.cast(x.get(), Builder::validFloatType(type)));
+        Immediate nc(builder.cast(n.get(), nIsInteger() ? likely_type_i32 : xc.type_));
         vector<Type*> args;
-        args.push_back(xc->value()->getType());
-        return new Immediate(builder.CreateCall2(Intrinsic::getDeclaration(builder.module, id(), args), xc->value(), nc->value()), xc->type());
+        args.push_back(xc.value_->getType());
+        return new Immediate(builder.CreateCall2(Intrinsic::getDeclaration(builder.module, id(), args), xc.value_, nc.value_), xc.type_);
     }
     virtual Intrinsic::ID id() const = 0;
     virtual bool nIsInteger() const { return false; }
@@ -657,12 +659,12 @@ class fmaExpression : public TernaryOperator
         TRY_EXPR(builder, arg2, b)
         TRY_EXPR(builder, arg3, c)
         const likely_type type = likely_type_from_types(likely_type_from_types(a->type(), b->type()), c->type());
-        unique_ptr<Expression> ac(builder.cast(a.get(), Builder::validFloatType(type)));
-        unique_ptr<Expression> bc(builder.cast(b.get(), ac->type()));
-        unique_ptr<Expression> cc(builder.cast(c.get(), ac->type()));
+        Immediate ac(builder.cast(a.get(), Builder::validFloatType(type)));
+        Immediate bc(builder.cast(b.get(), ac.type_));
+        Immediate cc(builder.cast(c.get(), ac.type_));
         vector<Type*> args;
-        args.push_back(ac->value()->getType());
-        return new Immediate(builder.CreateCall3(Intrinsic::getDeclaration(builder.module, Intrinsic::fma, args), ac->value(), bc->value(), cc->value()), ac->type());
+        args.push_back(ac.value_->getType());
+        return new Immediate(builder.CreateCall3(Intrinsic::getDeclaration(builder.module, Intrinsic::fma, args), ac.value_, bc.value_, cc.value_), ac.type_);
     }
 };
 LIKELY_REGISTER(fma)
@@ -675,7 +677,7 @@ class selectExpression : public TernaryOperator
         TRY_EXPR(builder, arg2, t)
         TRY_EXPR(builder, arg3, f)
         const likely_type type = likely_type_from_types(t->type(), f->type());
-        return new Immediate(builder.CreateSelect(c->value(), extractValue(builder.cast(t.get(), type)), extractValue(builder.cast(f.get(), type))), type);
+        return new Immediate(builder.CreateSelect(c->value(), builder.cast(t.get(), type), builder.cast(f.get(), type)), type);
     }
 };
 LIKELY_REGISTER(select)
@@ -993,7 +995,7 @@ class kernelExpression : public Operator
         // Look for a dimensionality expression
         for (size_t i=3; i<ast->num_atoms; i++) {
             if (ast->atoms[i]->is_list && (ast->atoms[i]->num_atoms == 2) && (!ast->atoms[i]->atoms[0]->is_list) && !strcmp(axis, ast->atoms[i]->atoms[0]->atom)) {
-                result = extractValue(builder.cast(unique_ptr<Expression>(expression(builder, ast->atoms[i]->atoms[1])).get(), likely_type_native));
+                result = builder.cast(unique_ptr<Expression>(expression(builder, ast->atoms[i]->atoms[1])).get(), likely_type_native);
                 break;
             }
         }
