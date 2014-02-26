@@ -68,7 +68,8 @@ enum likely_type_field
     likely_type_multi_frame     = 0x00008000,
     likely_type_multi_dimension = 0x0000F000,
     likely_type_saturation      = 0x00010000,
-    likely_type_reserved        = 0xFFFE0000
+    likely_type_reserved        = 0xFFFE0000,
+    likely_type_type = likely_type_u32
 };
 
 // The main datatype in Likely

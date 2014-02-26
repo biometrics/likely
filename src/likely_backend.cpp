@@ -137,7 +137,7 @@ struct Builder : public IRBuilder<>
     static Value *one (likely_type type = likely_type_native) { return constant(1, type); }
     static Value *intMax(likely_type type) { const int bits = likely_depth(type); return constant((1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
     static Value *intMin(likely_type type) { const int bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
-    static Value *type(likely_type type) { return constant(type, int(sizeof(likely_type)*8)); }
+    static Value *type(likely_type type) { return constant(type, likely_depth(likely_type_type)); }
 
     Value *data    (const Expression *matrix) { return CreatePointerCast(CreateLoad(CreateStructGEP(matrix->value(), 1), "data"), ty(matrix->type(), true)); }
     Value *channels(const Expression *matrix) { return likely_multi_channel(matrix->type()) ? CreateLoad(CreateStructGEP(matrix->value(), 2), "channels") : one(); }
@@ -365,7 +365,7 @@ class typeExpression : public UnaryOperator
     Expression *evaluateUnary(Builder &builder, likely_ast arg) const
     {
         TRY_EXPR(builder, arg, argExpr)
-        return new Immediate(Builder::type(argExpr->type()), likely_type_u32);
+        return new Immediate(Builder::type(argExpr->type()), likely_type_type);
     }
 };
 LIKELY_REGISTER(type)
