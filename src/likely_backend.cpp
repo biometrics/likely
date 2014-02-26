@@ -52,28 +52,6 @@ static IntegerType *NativeIntegerType = NULL;
 static PointerType *Matrix = NULL;
 static LLVMContext &C = getGlobalContext();
 
-struct Expression;
-struct Expr : public shared_ptr<Expression>
-{
-    Expr() : shared_ptr<Expression>(NULL) {}
-    Expr(Expression *e) : shared_ptr<Expression>(e) {}
-    bool isNull() const;
-    operator Value*() const;
-    operator likely_type() const;
-};
-
-} // namespace (anonymous)
-
-struct likely_env_struct
-{
-    static map<string,Expr> defaultExprs;
-    map<string,Expr> exprs = defaultExprs;
-    mutable int ref_count = 1;
-};
-map<string,Expr> likely_env_struct::defaultExprs;
-
-namespace {
-
 struct Builder;
 struct Expression
 {
@@ -82,9 +60,18 @@ struct Expression
     virtual likely_type type() const = 0;
     virtual Expression *evaluate(Builder &builder, likely_ast ast) const = 0;
 };
-Expr::operator Value*() const { return get()->value(); }
-Expr::operator likely_type() const { return get()->type(); }
-bool Expr::isNull() const { return !get() || !get()->value(); }
+
+} // namespace (anonymous)
+
+struct likely_env_struct
+{
+    static map<string,shared_ptr<Expression>> defaultExprs;
+    map<string,shared_ptr<Expression>> exprs = defaultExprs;
+    mutable int ref_count = 1;
+};
+map<string,shared_ptr<Expression>> likely_env_struct::defaultExprs;
+
+namespace {
 
 static inline Expression *likelyThrow(likely_ast ast, const char *message)
 {
@@ -120,7 +107,7 @@ static inline Value *extractValue(Expression *expression)
 
 struct Builder : public IRBuilder<>
 {
-    struct Environment : public map<string,stack<Expr>>
+    struct Environment : public map<string,stack<shared_ptr<Expression>>>
     {
         Environment(likely_env env)
         {
@@ -253,7 +240,7 @@ struct Operator : public Expression
             operator_ = ast->atom;
         }
 
-        map<string,stack<Expr>>::iterator it = builder.env.find(operator_);
+        map<string,stack<shared_ptr<Expression>>>::iterator it = builder.env.find(operator_);
         if (it != builder.env.end())
             return it->second.top()->evaluate(builder, ast);
 
@@ -308,7 +295,7 @@ struct RegisterExpression
 {
     RegisterExpression(const string &symbol)
     {
-        likely_env_struct::defaultExprs[symbol] = new T();
+        likely_env_struct::defaultExprs[symbol] = shared_ptr<Expression>(new T());
     }
 };
 #define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
@@ -633,11 +620,11 @@ class BinaryMathOperator : public BinaryOperator
         TRY_EXPR(builder, arg1, x)
         TRY_EXPR(builder, arg2, n)
         const likely_type type = nIsInteger() ? x->type() : likely_type_from_types(x->type(), n->type());
-        Expr xc = builder.cast(x.get(), validFloatType(type));
-        Expr nc = builder.cast(n.get(), nIsInteger() ? likely_type_i32 : xc->type());
+        unique_ptr<Expression> xc(builder.cast(x.get(), validFloatType(type)));
+        unique_ptr<Expression> nc(builder.cast(n.get(), nIsInteger() ? likely_type_i32 : xc->type()));
         vector<Type*> args;
         args.push_back(xc->value()->getType());
-        return new Immediate(builder.CreateCall2(Intrinsic::getDeclaration(builder.module, id(), args), xc, nc), xc->type());
+        return new Immediate(builder.CreateCall2(Intrinsic::getDeclaration(builder.module, id(), args), xc->value(), nc->value()), xc->type());
     }
     virtual Intrinsic::ID id() const = 0;
     virtual bool nIsInteger() const { return false; }
@@ -712,7 +699,7 @@ public:
 
     static void define(Builder &builder, const string &name, const Immediate &i)
     {
-        builder.env[name].push(new LocalVariable(i));
+        builder.env[name].push(shared_ptr<Expression>(new LocalVariable(i)));
     }
 
     static void undefine(Builder &builder, const string &name)
@@ -755,7 +742,7 @@ class defineExpression : public Operator
 
     Expression *evaluate(Builder &builder, likely_ast ast) const
     {
-        builder.env[ast->atoms[1]->atom].push(new Definition(ast->atoms[2]));
+        builder.env[ast->atoms[1]->atom].push(shared_ptr<Expression>(new Definition(ast->atoms[2])));
         return NULL;
     }
 };
@@ -907,7 +894,7 @@ class kernelExpression : public Operator
             const likely_ast args = ast->atoms[1];
             assert(args->num_atoms == srcs.size());
             for (size_t j=0; j<args->num_atoms; j++)
-                builder.env[args->atoms[j]->atom].push(new kernelArgOperator(srcs[j], dst.type_, node));
+                builder.env[args->atoms[j]->atom].push(shared_ptr<Expression>(new kernelArgOperator(srcs[j], dst.type_, node)));
 
             unique_ptr<Expression> result(expression(builder, ast->atoms[2]));
             dstType = dst.type_ = result->type();
@@ -1059,10 +1046,10 @@ class functionExpression : public Operator
         assert(tmpArgs.size() == ast->atoms[1]->num_atoms);
         for (size_t i=0; i<tmpArgs.size(); i++)
             LocalVariable::define(builder, ast->atoms[1]->atoms[i]->atom, tmpArgs[i]);
-        Expr result = expression(builder, ast->atoms[2]);
+        unique_ptr<Expression> result(expression(builder, ast->atoms[2]));
         for (size_t i=0; i<tmpArgs.size(); i++)
             LocalVariable::undefine(builder, ast->atoms[1]->atoms[i]->atom);
-        builder.CreateRet(result);
+        builder.CreateRet(result->value());
 
         Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(result->value()->getType(), types, false)));
         vector<Immediate> args = builder.getArgs(function);
@@ -1317,9 +1304,9 @@ struct FunctionBuilder : private JITResources
         type = new likely_type[types.size()];
         memcpy(type, types.data(), sizeof(likely_type) * types.size());
         Builder builder(module, env, name, types, native ? targetMachine : NULL);
-        Expr result = Operator::expression(builder, ast);
-        if (!result.isNull()) function = finalize(cast<Function>(result->value()));
-        else                  function = NULL;
+        unique_ptr<Expression> result(Operator::expression(builder, ast));
+        if (result.get() && result->value()) function = finalize(cast<Function>(result->value()));
+        else                                 function = NULL;
     }
 
     ~FunctionBuilder()
