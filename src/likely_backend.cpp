@@ -52,7 +52,7 @@ static IntegerType *NativeIntegerType = NULL;
 static PointerType *Matrix = NULL;
 static LLVMContext &C = getGlobalContext();
 
-struct Builder;
+class Builder;
 struct Expression
 {
     virtual ~Expression() {}
@@ -108,10 +108,12 @@ private:
     }
 };
 
-struct Builder : public IRBuilder<>
+class Builder : public IRBuilder<>
 {
-    Module *module;
     map<string,stack<shared_ptr<Expression>>> env;
+
+public:
+    Module *module;
     string name;
     vector<likely_type> types;
     TargetMachine *targetMachine;
@@ -229,14 +231,31 @@ struct Builder : public IRBuilder<>
         return result;
     }
 
+    void define(const string &name, Expression *e)
+    {
+        env[name].push(shared_ptr<Expression>(e));
+    }
+
     void define(const string &name, const Immediate &i)
     {
-        env[name].push(shared_ptr<Expression>(new Immediate(i)));
+        define(name, new Immediate(i));
+    }
+
+    void define(const string &name, Value *value, likely_type type)
+    {
+        define(name, Immediate(value, type));
     }
 
     void undefine(const string &name)
     {
         env[name].pop();
+    }
+
+    Expression *lookup(const string &name)
+    {
+        map<string,stack<shared_ptr<Expression>>>::iterator it = env.find(name);
+        if (it != env.end()) return it->second.top().get();
+        else                 return NULL;
     }
 };
 
@@ -255,9 +274,8 @@ struct Operator : public Expression
             operator_ = ast->atom;
         }
 
-        map<string,stack<shared_ptr<Expression>>>::iterator it = builder.env.find(operator_);
-        if (it != builder.env.end())
-            return it->second.top()->evaluate(builder, ast);
+        if (Expression *e = builder.lookup(operator_))
+            return e->evaluate(builder, ast);
 
         if ((operator_.front() == '"') && (operator_.back() == '"'))
             return new Immediate(builder.CreateGlobalStringPtr(operator_.substr(1, operator_.length()-2)), likely_type_u8);
@@ -707,7 +725,7 @@ class defineExpression : public Operator
 
     Expression *evaluate(Builder &builder, likely_ast ast) const
     {
-        builder.env[ast->atoms[1]->atom].push(shared_ptr<Expression>(new Definition(ast->atoms[2])));
+        builder.define(ast->atoms[1]->atom, new Definition(ast->atoms[2]));
         return NULL;
     }
 };
@@ -851,16 +869,16 @@ class kernelExpression : public Operator
             Immediate x(builder.CreateUDiv(rowRemainder, columnStep, "x"), likely_type_native);
             Immediate c(columnRemainder, likely_type_native);
 
-            builder.define("i", Immediate(i, likely_type_native));
-            builder.define("c", Immediate(c, likely_type_native));
-            builder.define("x", Immediate(x, likely_type_native));
-            builder.define("y", Immediate(y, likely_type_native));
-            builder.define("t", Immediate(t, likely_type_native));
+            builder.define("i", i, likely_type_native);
+            builder.define("c", c, likely_type_native);
+            builder.define("x", x, likely_type_native);
+            builder.define("y", y, likely_type_native);
+            builder.define("t", t, likely_type_native);
 
             const likely_ast args = ast->atoms[1];
             assert(args->num_atoms == srcs.size());
             for (size_t j=0; j<args->num_atoms; j++)
-                builder.env[args->atoms[j]->atom].push(shared_ptr<Expression>(new kernelArgOperator(srcs[j], dst, node)));
+                builder.define(args->atoms[j]->atom, new kernelArgOperator(srcs[j], dst, node));
 
             unique_ptr<Expression> result(expression(builder, ast->atoms[2]));
             dstType = dst.type_ = result->type();
@@ -879,7 +897,7 @@ class kernelExpression : public Operator
             builder.CreateRetVoid();
 
             for (size_t i=0; i<args->num_atoms; i++)
-                builder.env[args->atoms[i]->atom].pop();
+                builder.undefine(args->atoms[i]->atom);
             builder.undefine("i");
             builder.undefine("c");
             builder.undefine("x");
