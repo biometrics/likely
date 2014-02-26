@@ -769,37 +769,34 @@ LIKELY_REGISTER(lambda)
 
 class kernelExpression : public Operator
 {
-    class kernelArgOperator : public Operator
+    class kernelArgument : public Operator
     {
         Immediate matrix;
         likely_type kernel;
         MDNode *node;
 
     public:
-        kernelArgOperator(Immediate matrix, likely_type kernel, MDNode *node)
+        kernelArgument(const Immediate &matrix, likely_type kernel, MDNode *node)
             : matrix(matrix), kernel(kernel), node(node) {}
 
     private:
         Expression *evaluate(Builder &builder, likely_ast ast) const
         {
-            (void) ast;
+            if (ast->is_list)
+                return likelyThrow(ast, "kernel argument does not take arguments");
+
             Value *i;
             if (((matrix ^ kernel) & likely_type_multi_dimension) == 0) {
                 // This matrix has the same dimensionality as the kernel
-                static likely_ast ast_i = likely_new_atom("i", 0, 1);
-                i = expression(builder, ast_i)->take();
+                i = builder.lookup("i")->value();
             } else {
-                static likely_ast ast_c = likely_new_atom("c", 0, 1);
-                static likely_ast ast_x = likely_new_atom("x", 0, 1);
-                static likely_ast ast_y = likely_new_atom("y", 0, 1);
-                static likely_ast ast_t = likely_new_atom("t", 0, 1);
                 Value *columnStep, *rowStep, *frameStep;
                 builder.steps(&matrix, &columnStep, &rowStep, &frameStep);
                 i = Builder::zero();
-                if (likely_multi_channel(matrix)) i = expression(builder, ast_c)->take();
-                if (likely_multi_column (matrix)) i = builder.CreateAdd(builder.CreateMul(expression(builder, ast_x)->take(), columnStep), i);
-                if (likely_multi_row    (matrix)) i = builder.CreateAdd(builder.CreateMul(expression(builder, ast_y)->take(), rowStep), i);
-                if (likely_multi_frame  (matrix)) i = builder.CreateAdd(builder.CreateMul(expression(builder, ast_t)->take(), frameStep), i);
+                if (likely_multi_channel(matrix)) i = builder.lookup("c")->value();
+                if (likely_multi_column (matrix)) i = builder.CreateAdd(builder.CreateMul(builder.lookup("x")->value(), columnStep), i);
+                if (likely_multi_row    (matrix)) i = builder.CreateAdd(builder.CreateMul(builder.lookup("y")->value(), rowStep   ), i);
+                if (likely_multi_frame  (matrix)) i = builder.CreateAdd(builder.CreateMul(builder.lookup("t")->value(), frameStep ), i);
             }
 
             LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(&matrix), i));
@@ -877,7 +874,7 @@ class kernelExpression : public Operator
             const likely_ast args = ast->atoms[1];
             assert(args->num_atoms == srcs.size());
             for (size_t j=0; j<args->num_atoms; j++)
-                builder.define(args->atoms[j]->atom, new kernelArgOperator(srcs[j], dst, node));
+                builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, node));
 
             unique_ptr<Expression> result(expression(builder, ast->atoms[2]));
             dstType = dst.type_ = result->type();
