@@ -84,8 +84,8 @@ struct Immediate : public Expression
     Value *value_;
     likely_type type_;
 
-    Immediate(Value *value_, likely_type type_)
-        : value_(value_), type_(type_) {}
+    Immediate(Value *value, likely_type type)
+        : value_(value), type_(type) {}
 
 private:
     Value *value() const { return value_; }
@@ -107,24 +107,18 @@ static inline Value *extractValue(Expression *expression)
 
 struct Builder : public IRBuilder<>
 {
-    struct Environment : public map<string,stack<shared_ptr<Expression>>>
-    {
-        Environment(likely_env env)
-        {
-            for (const auto &kv : env->exprs)
-                (*this)[kv.first].push(kv.second);
-        }
-    };
-
     Module *module;
-    Environment env;
+    map<string,stack<shared_ptr<Expression>>> env;
     string name;
     vector<likely_type> types;
     TargetMachine *targetMachine;
 
     Builder(Module *module, likely_env env, const string &name, const vector<likely_type> &types, TargetMachine *targetMachine = NULL)
-        : IRBuilder<>(C), module(module), env(env), name(name), types(types), targetMachine(targetMachine)
-    {}
+        : IRBuilder<>(C), module(module), name(name), types(types), targetMachine(targetMachine)
+    {
+        for (const auto &kv : env->exprs)
+            this->env[kv.first].push(kv.second);
+    }
 
     static Expression *constant(double value, likely_type type = likely_type_native)
     {
