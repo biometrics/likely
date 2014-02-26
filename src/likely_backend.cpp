@@ -47,7 +47,6 @@ using namespace std;
 
 namespace {
 
-static likely_type likely_type_native = likely_type_null;
 static IntegerType *NativeIntegerType = NULL;
 static PointerType *Matrix = NULL;
 static LLVMContext &C = getGlobalContext();
@@ -1180,7 +1179,6 @@ struct JITResources
             initializeInstCombine(Registry);
             initializeTarget(Registry);
 
-            likely_set_depth(&likely_type_native, sizeof(likely_size)*8);
             NativeIntegerType = Type::getIntNTy(C, likely_depth(likely_type_native));
             Matrix = PointerType::getUnqual(StructType::create("likely_matrix_struct",
                                                                PointerType::getUnqual(StructType::create(C, "likely_matrix_private")), // d_ptr
