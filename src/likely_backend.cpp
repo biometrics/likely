@@ -84,8 +84,14 @@ struct Immediate : public Expression
     Value *value_;
     likely_type type_;
 
+    Immediate()
+        : value_(NULL), type_(likely_type_null) {}
+
     Immediate(Value *value, likely_type type)
         : value_(value), type_(type) {}
+
+    operator Value*() const { return value_; }
+    operator likely_type() const { return type_; }
 
 private:
     Value *value() const { return value_; }
@@ -120,30 +126,30 @@ struct Builder : public IRBuilder<>
             this->env[kv.first].push(kv.second);
     }
 
-    static Value *constant(double value, likely_type type = likely_type_native)
+    static Immediate constant(double value, likely_type type = likely_type_native)
     {
         const int depth = likely_depth(type);
         if (likely_floating(type)) {
             if (value == 0) value = -0; // IEEE/LLVM optimization quirk
-            if      (depth == 64) return ConstantFP::get(Type::getDoubleTy(C), value);
-            else if (depth == 32) return ConstantFP::get(Type::getFloatTy(C), value);
-            else                  { likely_assert(false, "invalid floating point constant depth: %d", depth); return NULL; }
+            if      (depth == 64) return Immediate(ConstantFP::get(Type::getDoubleTy(C), value), type);
+            else if (depth == 32) return Immediate(ConstantFP::get(Type::getFloatTy(C), value), type);
+            else                  { likely_assert(false, "invalid floating point constant depth: %d", depth); return Immediate(); }
         } else {
-            return Constant::getIntegerValue(Type::getIntNTy(C, depth), APInt(depth, uint64_t(value)));
+            return Immediate(Constant::getIntegerValue(Type::getIntNTy(C, depth), APInt(depth, uint64_t(value))), type);
         }
     }
 
-    static Value *zero(likely_type type = likely_type_native) { return constant(0, type); }
-    static Value *one (likely_type type = likely_type_native) { return constant(1, type); }
-    static Value *intMax(likely_type type) { const int bits = likely_depth(type); return constant((1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
-    static Value *intMin(likely_type type) { const int bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
-    static Value *type(likely_type type) { return constant(type, likely_depth(likely_type_type)); }
+    static Immediate zero(likely_type type = likely_type_native) { return constant(0, type); }
+    static Immediate one (likely_type type = likely_type_native) { return constant(1, type); }
+    static Immediate intMax(likely_type type) { const int bits = likely_depth(type); return constant((1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
+    static Immediate intMin(likely_type type) { const int bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
+    static Immediate type(likely_type type) { return constant(type, likely_depth(likely_type_type)); }
 
-    Value *data    (const Expression *matrix) { return CreatePointerCast(CreateLoad(CreateStructGEP(matrix->value(), 1), "data"), ty(matrix->type(), true)); }
-    Value *channels(const Expression *matrix) { return likely_multi_channel(matrix->type()) ? CreateLoad(CreateStructGEP(matrix->value(), 2), "channels") : one(); }
-    Value *columns (const Expression *matrix) { return likely_multi_column (matrix->type()) ? CreateLoad(CreateStructGEP(matrix->value(), 3), "columns" ) : one(); }
-    Value *rows    (const Expression *matrix) { return likely_multi_row    (matrix->type()) ? CreateLoad(CreateStructGEP(matrix->value(), 4), "rows"    ) : one(); }
-    Value *frames  (const Expression *matrix) { return likely_multi_frame  (matrix->type()) ? CreateLoad(CreateStructGEP(matrix->value(), 5), "frames"  ) : one(); }
+    Immediate data    (const Expression *matrix) { return Immediate(CreatePointerCast(CreateLoad(CreateStructGEP(matrix->value(), 1), "data"), ty(matrix->type(), true)), matrix->type() & likely_type_mask); }
+    Immediate channels(const Expression *matrix) { return likely_multi_channel(matrix->type()) ? Immediate(CreateLoad(CreateStructGEP(matrix->value(), 2), "channels"), likely_type_native) : one(); }
+    Immediate columns (const Expression *matrix) { return likely_multi_column (matrix->type()) ? Immediate(CreateLoad(CreateStructGEP(matrix->value(), 3), "columns" ), likely_type_native) : one(); }
+    Immediate rows    (const Expression *matrix) { return likely_multi_row    (matrix->type()) ? Immediate(CreateLoad(CreateStructGEP(matrix->value(), 4), "rows"    ), likely_type_native) : one(); }
+    Immediate frames  (const Expression *matrix) { return likely_multi_frame  (matrix->type()) ? Immediate(CreateLoad(CreateStructGEP(matrix->value(), 5), "frames"  ), likely_type_native) : one(); }
 
     void steps(const Expression *matrix, Value **columnStep, Value **rowStep, Value **frameStep)
     {
@@ -246,7 +252,7 @@ struct Operator : public Expression
 
         likely_type type = likely_type_from_string(operator_.c_str());
         if (type != likely_type_null)
-            return new Immediate(Builder::constant(type, likely_type_u32), likely_type_u32);
+            return new Immediate(Builder::constant(type, likely_type_u32));
 
         likely_throw(ast->is_list ? ast->atoms[0] : ast, "unrecognized literal");
         return NULL;
@@ -258,7 +264,7 @@ protected:
         char *p;
         const double value = strtod(str.c_str(), &p);
         const likely_type type = likely_type_from_value(value);
-        if (*p == 0) return new Immediate(Builder::constant(value, type), type);
+        if (*p == 0) return new Immediate(Builder::constant(value, type));
         else         return NULL;
     }
 
@@ -306,15 +312,15 @@ class NullaryOperator : public Operator
     virtual Expression *evaluateNullary(Builder &builder) const = 0;
 };
 
-#define LIKELY_REGISTER_TYPE(OP)                                                                    \
-class OP##Expression : public NullaryOperator                                                       \
-{                                                                                                   \
-    Expression *evaluateNullary(Builder &builder) const                                             \
-    {                                                                                               \
-        return new Immediate(builder.constant(likely_type_##OP, likely_type_u32), likely_type_u32); \
-    }                                                                                               \
-};                                                                                                  \
-LIKELY_REGISTER(OP)                                                                                 \
+#define LIKELY_REGISTER_TYPE(OP)                                                   \
+class OP##Expression : public NullaryOperator                                      \
+{                                                                                  \
+    Expression *evaluateNullary(Builder &builder) const                            \
+    {                                                                              \
+        return new Immediate(builder.constant(likely_type_##OP, likely_type_u32)); \
+    }                                                                              \
+};                                                                                 \
+LIKELY_REGISTER(OP)                                                                \
 
 LIKELY_REGISTER_TYPE(null)
 LIKELY_REGISTER_TYPE(depth)
@@ -365,7 +371,7 @@ class typeExpression : public UnaryOperator
     Expression *evaluateUnary(Builder &builder, likely_ast arg) const
     {
         TRY_EXPR(builder, arg, argExpr)
-        return new Immediate(Builder::type(argExpr->type()), likely_type_type);
+        return new Immediate(Builder::type(argExpr->type()));
     }
 };
 LIKELY_REGISTER(type)
@@ -376,7 +382,7 @@ class scalarExpression : public UnaryOperator
     {
         Expression *argExpr = expression(builder, arg);
         if (!argExpr)
-            return new Immediate(builder.zero(), likely_type_native);
+            return new Immediate(builder.zero());
 
         if (argExpr->value()->getType() == Matrix)
             return argExpr;
