@@ -228,6 +228,16 @@ struct Builder : public IRBuilder<>
         }
         return result;
     }
+
+    void define(const string &name, const Immediate &i)
+    {
+        env[name].push(shared_ptr<Expression>(new Immediate(i)));
+    }
+
+    void undefine(const string &name)
+    {
+        env[name].pop();
+    }
 };
 
 struct Operator : public Expression
@@ -292,26 +302,13 @@ struct RegisterExpression
 #define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
 #define LIKELY_REGISTER(EXP) LIKELY_REGISTER_EXPRESSION(EXP, #EXP)
 
-class NullaryOperator : public Operator
-{
-    Expression *evaluate(Builder &builder, likely_ast ast) const
-    {
-        if (ast->is_list && (ast->num_atoms != 1))
-            return likelyThrow(ast, "expected 0 operands");
-        return evaluateNullary(builder);
-    }
-    virtual Expression *evaluateNullary(Builder &builder) const = 0;
-};
-
-#define LIKELY_REGISTER_TYPE(OP)                                                   \
-class OP##Expression : public NullaryOperator                                      \
-{                                                                                  \
-    Expression *evaluateNullary(Builder &builder) const                            \
-    {                                                                              \
-        return new Immediate(builder.constant(likely_type_##OP, likely_type_u32)); \
-    }                                                                              \
-};                                                                                 \
-LIKELY_REGISTER(OP)                                                                \
+#define LIKELY_REGISTER_TYPE(TYPE)                                             \
+struct TYPE##Expression : public Immediate                                     \
+{                                                                              \
+    TYPE##Expression()                                                         \
+        : Immediate(Builder::constant(likely_type_##TYPE, likely_type_u32)) {} \
+};                                                                             \
+LIKELY_REGISTER(TYPE)                                                          \
 
 LIKELY_REGISTER_TYPE(null)
 LIKELY_REGISTER_TYPE(depth)
@@ -682,35 +679,9 @@ class selectExpression : public TernaryOperator
 };
 LIKELY_REGISTER(select)
 
-class LocalVariable : public NullaryOperator
-{
-    Immediate i;
-
-public:
-    LocalVariable(const Immediate &i)
-        : i(i) {}
-
-    static void define(Builder &builder, const string &name, const Immediate &i)
-    {
-        builder.env[name].push(shared_ptr<Expression>(new LocalVariable(i)));
-    }
-
-    static void undefine(Builder &builder, const string &name)
-    {
-        builder.env[name].pop();
-    }
-
-private:
-    Expression *evaluateNullary(Builder &builder) const
-    {
-        (void) builder;
-        return new Immediate(i);
-    }
-};
-
 class defineExpression : public Operator
 {
-    class Definition : public NullaryOperator
+    class Definition : public Operator
     {
         likely_ast ast;
 
@@ -727,9 +698,10 @@ class defineExpression : public Operator
         }
 
     private:
-        Expression *evaluateNullary(Builder &builder) const
+        Expression *evaluate(Builder &builder, likely_ast ast) const
         {
-            return expression(builder, ast);
+            (void) ast;
+            return expression(builder, this->ast);
         }
     };
 
@@ -780,7 +752,7 @@ LIKELY_REGISTER(lambda)
 
 class kernelExpression : public Operator
 {
-    class kernelArgOperator : public NullaryOperator
+    class kernelArgOperator : public Operator
     {
         Immediate matrix;
         likely_type kernel;
@@ -791,8 +763,9 @@ class kernelExpression : public Operator
             : matrix(matrix), kernel(kernel), node(node) {}
 
     private:
-        Expression *evaluateNullary(Builder &builder) const
+        Expression *evaluate(Builder &builder, likely_ast ast) const
         {
+            (void) ast;
             Value *i;
             if (((matrix.type_ ^ kernel) & likely_type_multi_dimension) == 0) {
                 // This matrix has the same dimensionality as the kernel
@@ -878,11 +851,11 @@ class kernelExpression : public Operator
             Immediate x(builder.CreateUDiv(rowRemainder, columnStep, "x"), likely_type_native);
             Immediate c(columnRemainder, likely_type_native);
 
-            LocalVariable::define(builder, "i", Immediate(i       , likely_type_native));
-            LocalVariable::define(builder, "c", Immediate(c.value_, likely_type_native));
-            LocalVariable::define(builder, "x", Immediate(x.value_, likely_type_native));
-            LocalVariable::define(builder, "y", Immediate(y.value_, likely_type_native));
-            LocalVariable::define(builder, "t", Immediate(t.value_, likely_type_native));
+            builder.define("i", Immediate(i       , likely_type_native));
+            builder.define("c", Immediate(c.value_, likely_type_native));
+            builder.define("x", Immediate(x.value_, likely_type_native));
+            builder.define("y", Immediate(y.value_, likely_type_native));
+            builder.define("t", Immediate(t.value_, likely_type_native));
 
             const likely_ast args = ast->atoms[1];
             assert(args->num_atoms == srcs.size());
@@ -907,11 +880,11 @@ class kernelExpression : public Operator
 
             for (size_t i=0; i<args->num_atoms; i++)
                 builder.env[args->atoms[i]->atom].pop();
-            LocalVariable::undefine(builder, "i");
-            LocalVariable::undefine(builder, "c");
-            LocalVariable::undefine(builder, "x");
-            LocalVariable::undefine(builder, "y");
-            LocalVariable::undefine(builder, "t");
+            builder.undefine("i");
+            builder.undefine("c");
+            builder.undefine("x");
+            builder.undefine("y");
+            builder.undefine("t");
         }
 
         builder.SetInsertPoint(entry);
@@ -1038,10 +1011,10 @@ class functionExpression : public Operator
 
         assert(tmpArgs.size() == ast->atoms[1]->num_atoms);
         for (size_t i=0; i<tmpArgs.size(); i++)
-            LocalVariable::define(builder, ast->atoms[1]->atoms[i]->atom, tmpArgs[i]);
+            builder.define(ast->atoms[1]->atoms[i]->atom, tmpArgs[i]);
         unique_ptr<Expression> result(expression(builder, ast->atoms[2]));
         for (size_t i=0; i<tmpArgs.size(); i++)
-            LocalVariable::undefine(builder, ast->atoms[1]->atoms[i]->atom);
+            builder.undefine(ast->atoms[1]->atoms[i]->atom);
         builder.CreateRet(result->value());
 
         Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(result->value()->getType(), types, false)));
