@@ -155,7 +155,7 @@ struct Builder : public IRBuilder<>
     Expression *cast(const Expression *x, likely_type type)
     {
         if ((x->type() & likely_type_mask) == (type & likely_type_mask))
-            return new Immediate(x->value(), x->type());
+            return new Immediate(x->value(), type);
         Type *dstType = ty(type);
         return new Immediate(CreateCast(CastInst::getCastOpcode(x->value(), likely_signed(x->type()), dstType, likely_signed(type)), x->value(), dstType), type);
     }
@@ -239,7 +239,7 @@ struct Operator : public Expression
             return it->second.top()->evaluate(builder, ast);
 
         if ((operator_.front() == '"') && (operator_.back() == '"'))
-            return new Immediate(builder.CreateGlobalStringPtr(operator_.substr(1, operator_.length()-2)), likely_type_null);
+            return new Immediate(builder.CreateGlobalStringPtr(operator_.substr(1, operator_.length()-2)), likely_type_u8);
 
         if (Expression *c = constant(operator_))
             return c;
