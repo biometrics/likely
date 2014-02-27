@@ -706,27 +706,9 @@ LIKELY_REGISTER(select)
 
 class defineExpression : public Operator
 {
-    class Definition : public ParameterizedExpression
-    {
-        likely_ast ast;
-
-    public:
-        Definition(likely_ast ast)
-            : ast(likely_retain_ast(ast)) {}
-        ~Definition() { likely_release_ast(ast); }
-
-    private:
-        Expression *evaluate(Builder &builder, likely_ast ast) const
-        {
-            if (ast->is_list)
-                return likelyThrow(ast, "definition does not take arguments");
-            return expression(builder, this->ast);
-        }
-    };
-
     Expression *evaluateOperator(Builder &builder, likely_ast ast) const
     {
-        builder.define(ast->atoms[1]->atom, new Definition(ast->atoms[2]));
+        builder.define(ast->atoms[1]->atom, expression(builder, ast->atoms[2]));
         return NULL;
     }
 };
