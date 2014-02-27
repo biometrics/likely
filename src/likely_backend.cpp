@@ -69,15 +69,14 @@ struct Expression
 
 } // namespace (anonymous)
 
-struct likely_env_struct
+struct likely_env_struct : public map<string,stack<shared_ptr<Expression>>>
 {
-    static map<string,shared_ptr<Expression>> defaultExprs;
-    map<string,shared_ptr<Expression>> exprs;
+    static likely_env_struct defaultExprs;
     mutable int ref_count = 1;
-    likely_env_struct(const map<string,shared_ptr<Expression>> &exprs = defaultExprs)
-        : exprs(exprs) {}
+    likely_env_struct(const likely_env_struct &exprs = defaultExprs)
+        : map<string,stack<shared_ptr<Expression>>>(exprs) {}
 };
-map<string,shared_ptr<Expression>> likely_env_struct::defaultExprs;
+likely_env_struct likely_env_struct::defaultExprs;
 
 namespace {
 
@@ -111,21 +110,20 @@ private:
 
 class Builder : public IRBuilder<>
 {
-    map<string,stack<shared_ptr<Expression>>> env;
+    likely_env env;
 
 public:
     Module *module;
     string name;
 
     Builder(Module *module, likely_env env, const string &name)
-        : IRBuilder<>(C), module(module), name(name)
-    {
-        for (const auto &kv : env->exprs)
-            this->env[kv.first].push(kv.second);
-    }
+        : IRBuilder<>(C), env(likely_retain_env(env)), module(module), name(name)
+    {}
 
     Builder(Builder &other, likely_env env)
         : Builder(other.module, env, other.name) {}
+
+    ~Builder() { likely_release_env(env); }
 
     static Immediate constant(double value, likely_type type = likely_type_native)
     {
@@ -211,7 +209,7 @@ public:
 
     void define(const string &name, Expression *e)
     {
-        env[name].push(shared_ptr<Expression>(e));
+        (*env)[name].push(shared_ptr<Expression>(e));
     }
 
     void define(const string &name, const Immediate &i)
@@ -226,23 +224,17 @@ public:
 
     void undefine(const string &name)
     {
-        env[name].pop();
+        (*env)[name].pop();
     }
 
     Expression *lookup(const string &name)
     {
-        auto it = env.find(name);
-        if (it != env.end()) return it->second.top().get();
-        else                 return NULL;
+        auto it = env->find(name);
+        if (it != env->end()) return it->second.top().get();
+        else                  return NULL;
     }
 
-    likely_env snapshot() const
-    {
-        map<string,shared_ptr<Expression>> snapshot;
-        for (auto it : env)
-            snapshot.insert(pair<string,shared_ptr<Expression>>(it.first, it.second.top()));
-        return new likely_env_struct(snapshot);
-    }
+    likely_env snapshot() const { return new likely_env_struct(*env); }
 };
 
 template <class T>
@@ -250,7 +242,7 @@ struct RegisterExpression
 {
     RegisterExpression(const string &symbol)
     {
-        likely_env_struct::defaultExprs[symbol] = shared_ptr<Expression>(new T());
+        likely_env_struct::defaultExprs[symbol].push(shared_ptr<Expression>(new T()));
     }
 };
 #define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
