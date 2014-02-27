@@ -2,6 +2,10 @@ Hello World
 -----------
 **CTRL+scroll** to edit numerical constants, note that it is re-executed as you edit:
 
-    (/ (read "../data/misc/lenna.tiff") 2)
+    (define hello_world
+      (kernel (a)
+        (/ a (cast 2 (type a)))))
+
+    (hello_world (read "../data/misc/lenna.tiff"))
 
 [Next](?show=comments)

@@ -80,10 +80,17 @@ likely_env_struct likely_env_struct::defaultExprs;
 
 namespace {
 
-static inline Expression *likelyThrow(likely_ast ast, const char *message)
+static Expression *likelyThrow(likely_ast ast, const char *message)
 {
     likely_throw(ast, message);
     return NULL;
+}
+
+static Expression *likelyThrowArgumentCount(likely_ast ast, const string &function, int parameters, int arguments)
+{
+    stringstream stream;
+    stream << function << " with: " << parameters << " parameters passed: " << arguments << " arguments";
+    return likelyThrow(ast, stream.str().c_str());
 }
 
 struct Immediate : public Expression
@@ -700,6 +707,8 @@ class defineExpression : public Operator
 {
     Expression *evaluateOperator(Builder &builder, likely_ast ast) const
     {
+        if (!ast->is_list || (ast->num_atoms != 3))
+            return likelyThrowArgumentCount(ast, "define", 3, ast->is_list ? ast->num_atoms : 0);
         builder.define(ast->atoms[1]->atom, expression(builder, ast->atoms[2]));
         return NULL;
     }
@@ -742,11 +751,8 @@ private:
         assert(ast->is_list);
         const int parameters = argc();
         const int arguments = ast->num_atoms - 1;
-        if (parameters != arguments) {
-            stringstream stream;
-            stream << "lambda with: " << parameters << " parameters passed: " << arguments << " arguments";
-            return likelyThrow(ast, stream.str().c_str());
-        }
+        if (parameters != arguments)
+            return likelyThrowArgumentCount(ast, "lambda", parameters, arguments);
 
         vector<Value*> args;
         vector<likely_type> types;
