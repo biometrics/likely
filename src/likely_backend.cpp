@@ -72,8 +72,10 @@ struct Expression
 struct likely_env_struct
 {
     static map<string,shared_ptr<Expression>> defaultExprs;
-    map<string,shared_ptr<Expression>> exprs = defaultExprs;
+    map<string,shared_ptr<Expression>> exprs;
     mutable int ref_count = 1;
+    likely_env_struct(const map<string,shared_ptr<Expression>> &exprs = defaultExprs)
+        : exprs(exprs) {}
 };
 map<string,shared_ptr<Expression>> likely_env_struct::defaultExprs;
 
@@ -114,15 +116,16 @@ class Builder : public IRBuilder<>
 public:
     Module *module;
     string name;
-    vector<likely_type> types;
-    TargetMachine *targetMachine;
 
-    Builder(Module *module, likely_env env, const string &name, const vector<likely_type> &types, TargetMachine *targetMachine = NULL)
-        : IRBuilder<>(C), module(module), name(name), types(types), targetMachine(targetMachine)
+    Builder(Module *module, likely_env env, const string &name)
+        : IRBuilder<>(C), module(module), name(name)
     {
         for (const auto &kv : env->exprs)
             this->env[kv.first].push(kv.second);
     }
+
+    Builder(Builder &other, likely_env env)
+        : Builder(other.module, env, other.name) {}
 
     static Immediate constant(double value, likely_type type = likely_type_native)
     {
@@ -191,7 +194,7 @@ public:
         return type;
     }
 
-    vector<Immediate> getArgs(Function *function)
+    vector<Immediate> getArgs(Function *function, const vector<likely_type> &types)
     {
         vector<Immediate> result;
         Function::arg_iterator args = function->arg_begin();
@@ -228,59 +231,17 @@ public:
 
     Expression *lookup(const string &name)
     {
-        map<string,stack<shared_ptr<Expression>>>::iterator it = env.find(name);
+        auto it = env.find(name);
         if (it != env.end()) return it->second.top().get();
         else                 return NULL;
     }
-};
 
-struct Operator : public Expression
-{
-    static Expression *expression(Builder &builder, likely_ast ast)
+    likely_env snapshot() const
     {
-        string operator_;
-        if (ast->is_list) {
-            if ((ast->num_atoms == 0) || ast->atoms[0]->is_list) {
-                likely_throw(ast, "ill-formed expression");
-                return NULL;
-            }
-            operator_ = ast->atoms[0]->atom;
-        } else {
-            operator_ = ast->atom;
-        }
-
-        if (Expression *e = builder.lookup(operator_))
-            return e->evaluate(builder, ast);
-
-        if ((operator_.front() == '"') && (operator_.back() == '"'))
-            return new Immediate(builder.CreateGlobalStringPtr(operator_.substr(1, operator_.length()-2)), likely_type_u8);
-
-        { // Is it a number?
-            char *p;
-            const double value = strtod(operator_.c_str(), &p);
-            if (*p == 0)
-                return new Immediate(Builder::constant(value, likely_type_from_value(value)));
-        }
-
-        likely_type type = likely_type_from_string(operator_.c_str());
-        if (type != likely_type_null)
-            return new Immediate(Builder::constant(type, likely_type_u32));
-
-        likely_throw(ast->is_list ? ast->atoms[0] : ast, "unrecognized literal");
-        return NULL;
-    }
-
-private:
-    Value *value() const
-    {
-        likely_assert(false, "Operator has no value!");
-        return NULL;
-    }
-
-    likely_type type() const
-    {
-        likely_assert(false, "Operator has no type!");
-        return likely_type_null;
+        map<string,shared_ptr<Expression>> snapshot;
+        for (auto it : env)
+            snapshot.insert(pair<string,shared_ptr<Expression>>(it.first, it.second.top()));
+        return new likely_env_struct(snapshot);
     }
 };
 
@@ -318,9 +279,85 @@ LIKELY_REGISTER_TYPE(multi_dimension)
 LIKELY_REGISTER_TYPE(saturation)
 LIKELY_REGISTER_TYPE(reserved)
 
+#define TRY_EXPR(BUILDER, AST, EXPR)                   \
+unique_ptr<Expression> EXPR(expression(BUILDER, AST)); \
+if (!EXPR.get())                                       \
+    return NULL;                                       \
+
+struct ParameterizedExpression : public Expression
+{
+    static Expression *expression(Builder &builder, likely_ast ast)
+    {
+        if (ast->is_list) {
+            TRY_EXPR(builder, ast->atoms[0], op);
+            return op->evaluate(builder, ast);
+        }
+        const string op = ast->atom;
+
+        if (Expression *e = builder.lookup(op))
+            return e->evaluate(builder, ast);
+
+        if ((op.front() == '"') && (op.back() == '"'))
+            return new Immediate(builder.CreateGlobalStringPtr(op.substr(1, op.length()-2)), likely_type_u8);
+
+        { // Is it a number?
+            char *p;
+            const double value = strtod(op.c_str(), &p);
+            if (*p == 0)
+                return new Immediate(Builder::constant(value, likely_type_from_value(value)));
+        }
+
+        likely_type type = likely_type_from_string(op.c_str());
+        if (type != likely_type_null)
+            return new Immediate(Builder::constant(type, likely_type_u32));
+
+        return likelyThrow(ast, "unrecognized literal");
+    }
+
+private:
+    Value *value() const
+    {
+        likely_assert(false, "ParameterizedExpression has no value!");
+        return NULL;
+    }
+
+    likely_type type() const
+    {
+        likely_assert(false, "ParameterizedExpression has no type!");
+        return likely_type_null;
+    }
+};
+
+class Operator : public ParameterizedExpression
+{
+    class Apply : public ParameterizedExpression
+    {
+        const Operator *op;
+
+    public:
+        Apply(const Operator *op)
+            : op(op) {}
+
+    private:
+        Expression *evaluate(Builder &builder, likely_ast ast) const
+        {
+            return op->evaluateOperator(builder, ast);
+        }
+    };
+
+    Expression *evaluate(Builder &builder, likely_ast ast) const
+    {
+        (void) builder;
+        likely_assert(!ast->is_list, "Operator syntax error!");
+        return new Apply(this);
+    }
+
+    virtual Expression *evaluateOperator(Builder &builder, likely_ast ast) const = 0;
+};
+
 class UnaryOperator : public Operator
 {
-    Expression *evaluate(Builder &builder, likely_ast ast) const
+    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
     {
         if (!ast->is_list || (ast->num_atoms != 2))
             return likelyThrow(ast, "expected 1 operand");
@@ -328,11 +365,6 @@ class UnaryOperator : public Operator
     }
     virtual Expression *evaluateUnary(Builder &builder, likely_ast arg) const = 0;
 };
-
-#define TRY_EXPR(BUILDER, AST, EXPR)                   \
-unique_ptr<Expression> EXPR(expression(BUILDER, AST)); \
-if (!EXPR.get())                                       \
-    return NULL;                                       \
 
 class notExpression : public UnaryOperator
 {
@@ -423,7 +455,7 @@ LIKELY_REGISTER_UNARY_MATH(round)
 
 class BinaryOperator : public Operator
 {
-    Expression *evaluate(Builder &builder, likely_ast ast) const
+    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
     {
         if (!ast->is_list || (ast->num_atoms != 3))
             return likelyThrow(ast, "expected 2 operands");
@@ -632,7 +664,7 @@ LIKELY_REGISTER_BINARY_MATH(copysign)
 
 class TernaryOperator : public Operator
 {
-    Expression *evaluate(Builder &builder, likely_ast ast) const
+    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
     {
         if (!ast->is_list || (ast->num_atoms != 4))
             return likelyThrow(ast, "expected 3 operands");
@@ -674,7 +706,7 @@ LIKELY_REGISTER(select)
 
 class defineExpression : public Operator
 {
-    class Definition : public Operator
+    class Definition : public ParameterizedExpression
     {
         likely_ast ast;
 
@@ -692,7 +724,7 @@ class defineExpression : public Operator
         }
     };
 
-    Expression *evaluate(Builder &builder, likely_ast ast) const
+    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
     {
         builder.define(ast->atoms[1]->atom, new Definition(ast->atoms[2]));
         return NULL;
@@ -700,9 +732,71 @@ class defineExpression : public Operator
 };
 LIKELY_REGISTER(define)
 
-class kernelExpression : public Operator
+class ScopedExpression : public ParameterizedExpression
 {
-    class kernelArgument : public Operator
+    likely_env env;
+
+protected:
+    likely_ast ast;
+
+public:
+    ScopedExpression(Builder &builder, likely_ast ast)
+        : env(builder.snapshot()), ast(likely_retain_ast(ast)) {}
+
+    ~ScopedExpression()
+    {
+        likely_release_ast(ast);
+        likely_release_env(env);
+    }
+
+    virtual Immediate generate(Builder &builder, const vector<likely_type> &types) const = 0;
+
+    size_t argc() const
+    {
+        // Where 'ast' is of the form:
+        //     (lambda/kernel (arg0 arg1 ... argN) (expression))
+        if (!ast->is_list || (ast->num_atoms < 2))
+            return 0;
+        if (!ast->atoms[1]->is_list)
+            return 1;
+        return ast->atoms[1]->num_atoms;
+    }
+
+private:
+    Expression *evaluate(Builder &builder, likely_ast ast) const
+    {
+        assert(ast->is_list);
+        const int parameters = argc();
+        const int arguments = ast->num_atoms - 1;
+        if (parameters != arguments) {
+            stringstream stream;
+            stream << "lambda with: " << parameters << " parameters passed: " << arguments << " arguments";
+            return likelyThrow(ast, stream.str().c_str());
+        }
+
+        vector<Value*> args;
+        vector<likely_type> types;
+        for (int i=0; i<arguments; i++) {
+            TRY_EXPR(builder, ast->atoms[i+1], arg)
+            args.push_back(arg->value());
+            types.push_back(arg->type());
+        }
+
+        Builder lambdaBuilder(builder, env);
+        Immediate i = generate(lambdaBuilder, types);
+        Function *f = cast<Function>(i.value_);
+        if (f) return new Immediate(builder.CreateCall(f, args), i.type_);
+        else   return NULL;
+    }
+};
+
+struct Kernel : public ScopedExpression
+{
+    Kernel(Builder &builder, likely_ast ast)
+        : ScopedExpression(builder, ast) {}
+
+private:
+    class kernelArgument : public ParameterizedExpression
     {
         Immediate matrix;
         likely_type kernel;
@@ -738,10 +832,10 @@ class kernelExpression : public Operator
         }
     };
 
-    Expression *evaluate(Builder &builder, likely_ast ast) const
+    Immediate generate(Builder &builder, const vector<likely_type> &types) const
     {
-        Function *function = getKernel(builder, Matrix);
-        vector<Immediate> srcs = builder.getArgs(function);
+        Function *function = getKernel(builder, types.size(), Matrix);
+        vector<Immediate> srcs = builder.getArgs(function, types);
         BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         builder.SetInsertPoint(entry);
 
@@ -753,10 +847,10 @@ class kernelExpression : public Operator
         Function *thunk;
         likely_type dstType;
         {
-            thunk = getKernel(builder, Type::getVoidTy(C), Matrix, NativeIntegerType, NativeIntegerType);
+            thunk = getKernel(builder, types.size(), Type::getVoidTy(C), Matrix, NativeIntegerType, NativeIntegerType);
             BasicBlock *entry = BasicBlock::Create(C, "entry", thunk);
             builder.SetInsertPoint(entry);
-            vector<Immediate> srcs = builder.getArgs(thunk);
+            vector<Immediate> srcs = builder.getArgs(thunk, types);
             Immediate stop = srcs.back(); srcs.pop_back();
             stop.type_ = likely_type_native;
             stop.value_->setName("stop");
@@ -870,7 +964,7 @@ class kernelExpression : public Operator
 
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
 
-        if (!builder.types.empty() && likely_parallel(builder.types[0])) {
+        if (!srcs.empty() && likely_parallel(srcs[0])) {
             static FunctionType *likelyForkType = NULL;
             if (likelyForkType == NULL) {
                 vector<Type*> likelyForkParameters;
@@ -888,7 +982,7 @@ class kernelExpression : public Operator
 
             vector<Value*> likelyForkArgs;
             likelyForkArgs.push_back(builder.module->getFunction(thunk->getName()));
-            likelyForkArgs.push_back(Builder::constant((double)builder.types.size(), 8));
+            likelyForkArgs.push_back(Builder::constant((double)srcs.size(), 8));
             likelyForkArgs.push_back(kernelSize);
             for (const Immediate &src : srcs)
                 likelyForkArgs.push_back(src);
@@ -905,20 +999,19 @@ class kernelExpression : public Operator
         }
 
         builder.CreateRet(dst);
-        return new Immediate(function, dstType);
+        return Immediate(function, dstType);
     }
 
-    static Function *getKernel(Builder &builder, Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
+    static Function *getKernel(Builder &builder, size_t argc, Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
     {
         Function *kernel;
         const string name = builder.name + (dst == NULL ? "" : "_thunk");
-        size_t argc = builder.types.size();
         switch (argc) {
           case 0: kernel = ::cast<Function>(builder.module->getOrInsertFunction(name, ret, dst, start, stop, NULL)); break;
           case 1: kernel = ::cast<Function>(builder.module->getOrInsertFunction(name, ret, Matrix, dst, start, stop, NULL)); break;
           case 2: kernel = ::cast<Function>(builder.module->getOrInsertFunction(name, ret, Matrix, Matrix, dst, start, stop, NULL)); break;
           case 3: kernel = ::cast<Function>(builder.module->getOrInsertFunction(name, ret, Matrix, Matrix, Matrix, dst, start, stop, NULL)); break;
-          default: { kernel = NULL; likely_assert(false, "kernelExpression::getKernel invalid arity: %zu", argc); }
+          default: { kernel = NULL; likely_assert(false, "Kernel::getKernel invalid arity: %zu", argc); }
         }
         kernel->addFnAttr(Attribute::NoUnwind);
         kernel->setCallingConv(CallingConv::C);
@@ -966,17 +1059,29 @@ class kernelExpression : public Operator
         return Immediate(result, type);
     }
 };
+
+class kernelExpression : public Operator
+{
+    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
+    {
+        return new Kernel(builder, ast);
+    }
+};
 LIKELY_REGISTER(kernel)
 
-class lambdaExpression : public Operator
+struct Lambda : public ScopedExpression
 {
-    Expression *evaluate(Builder &builder, likely_ast ast) const
+    Lambda(Builder &builder, likely_ast ast)
+        : ScopedExpression(builder, ast) {}
+
+private:
+    Immediate generate(Builder &builder, const vector<likely_type> &types) const
     {
-        vector<Type*> types;
-        for (likely_type t : builder.types)
-            types.push_back(Builder::ty(t));
-        Function *tmpFunction = cast<Function>(builder.module->getOrInsertFunction(builder.name+"_tmp", FunctionType::get(Type::getVoidTy(C), types, false)));
-        vector<Immediate> tmpArgs = builder.getArgs(tmpFunction);
+        vector<Type*> tys;
+        for (likely_type type : types)
+            tys.push_back(Builder::ty(type));
+        Function *tmpFunction = cast<Function>(builder.module->getOrInsertFunction(builder.name+"_tmp", FunctionType::get(Type::getVoidTy(C), tys, false)));
+        vector<Immediate> tmpArgs = builder.getArgs(tmpFunction, types);
         BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
         builder.SetInsertPoint(entry);
 
@@ -988,8 +1093,8 @@ class lambdaExpression : public Operator
             builder.undefine(ast->atoms[1]->atoms[i]->atom);
         builder.CreateRet(result->value());
 
-        Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(result->value()->getType(), types, false)));
-        vector<Immediate> args = builder.getArgs(function);
+        Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(result->value()->getType(), tys, false)));
+        vector<Immediate> args = builder.getArgs(function, types);
 
         ValueToValueMapTy VMap;
         for (size_t i=0; i<args.size(); i++)
@@ -998,8 +1103,15 @@ class lambdaExpression : public Operator
         SmallVector<ReturnInst*, 1> returns;
         CloneFunctionInto(function, tmpFunction, VMap, false, returns);
         tmpFunction->eraseFromParent();
+        return Immediate(function, result->type());
+    }
+};
 
-        return new Immediate(function, result->type());
+class lambdaExpression : public Operator
+{
+    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
+    {
+        return new Lambda(builder, ast);
     }
 };
 LIKELY_REGISTER(lambda)
@@ -1009,7 +1121,7 @@ LIKELY_REGISTER(lambda)
 
 class readExpression : public Operator
 {
-    Expression *evaluate(Builder &builder, likely_ast ast) const
+    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
     {
         static FunctionType *LikelyReadSignature = NULL;
         if (LikelyReadSignature == NULL) {
@@ -1028,7 +1140,7 @@ LIKELY_REGISTER(read)
 
 class writeExpression : public Operator
 {
-    Expression *evaluate(Builder &builder, likely_ast ast) const
+    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
     {
         static FunctionType *LikelyWriteSignature = NULL;
         if (LikelyWriteSignature == NULL) {
@@ -1057,7 +1169,7 @@ LIKELY_REGISTER(write)
 
 class decodeExpression : public Operator
 {
-    Expression *evaluate(Builder &builder, likely_ast ast) const
+    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
     {
         static FunctionType *LikelyDecodeSignature = NULL;
         if (LikelyDecodeSignature == NULL) {
@@ -1078,7 +1190,7 @@ LIKELY_REGISTER(decode)
 
 class encodeExpression : public Operator
 {
-    Expression *evaluate(Builder &builder, likely_ast ast) const
+    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
     {
         static FunctionType *LikelyEncodeSignature = NULL;
         if (LikelyEncodeSignature == NULL) {
@@ -1198,6 +1310,9 @@ struct JITResources
 
     void *finalize(Function *function)
     {
+        if (!function)
+            return NULL;
+
         if (targetMachine) {
             static PassManager *PM = NULL;
             if (!PM) {
@@ -1237,12 +1352,14 @@ struct FunctionBuilder : private JITResources
     FunctionBuilder(likely_ast ast, likely_env env, const vector<likely_type> &types, bool native, const string &symbol_name = string())
         : JITResources(native, symbol_name)
     {
+        likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
+                      (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel")),
+                      "expected a lambda/kernel expression");
         type = new likely_type[types.size()];
         memcpy(type, types.data(), sizeof(likely_type) * types.size());
-        Builder builder(module, env, name, types, native ? targetMachine : NULL);
+        Builder builder(module, env, name);
         unique_ptr<Expression> result(Operator::expression(builder, ast));
-        if (result.get() && result->value()) function = finalize(cast<Function>(result->value()));
-        else                                 function = NULL;
+        function = finalize(dyn_cast<Function>(static_cast<ScopedExpression*>(result.get())->generate(builder, types).value_));
     }
 
     ~FunctionBuilder()
