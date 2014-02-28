@@ -254,8 +254,14 @@ struct Operator : public Expression
     static Expression *expression(Builder &builder, likely_ast ast)
     {
         if (ast->is_list) {
-            TRY_EXPR(builder, ast->atoms[0], op);
-            return op->evaluate(builder, ast);
+            if (ast->num_atoms == 0)
+                return likelyThrow(ast, "Empty expression");
+            likely_ast op = ast->atoms[0];
+            if (!op->is_list)
+                if (Expression *e = builder.lookup(op->atom))
+                    return e->evaluate(builder, ast);
+            TRY_EXPR(builder, op, e);
+            return e->evaluate(builder, ast);
         }
         const string op = ast->atom;
 
@@ -294,22 +300,11 @@ private:
 };
 
 template <class T>
-class Apply : public Operator
-{
-    Expression *evaluate(Builder &builder, likely_ast ast) const
-    {
-        (void) builder;
-        likely_assert(!ast->is_list, "Apply expects an atom but given a list");
-        return new T();
-    }
-};
-
-template <class T>
 struct RegisterExpression
 {
     RegisterExpression(const string &symbol)
     {
-        likely_env_struct::defaultExprs[symbol].push(shared_ptr<Expression>(new Apply<T>()));
+        likely_env_struct::defaultExprs[symbol].push(shared_ptr<Expression>(new T()));
     }
 };
 #define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
