@@ -244,18 +244,22 @@ public:
     likely_env snapshot() const { return new likely_env_struct(*env); }
 };
 
-struct ManagedExpression : unique_ptr<Expression>
+class ManagedExpression : public Expression
 {
-    ManagedExpression(Expression *e)
-        : unique_ptr<Expression>(e) {}
-    operator Expression*() const { return get(); }
-    operator Value*() const { return get()->value(); }
-    operator likely_type() const { return get()->type(); }
+    Expression *e;
+
+public:
+    ManagedExpression(Expression *e) : e(e) {}
+    ~ManagedExpression() { delete e; }
+    bool isNull() const { return !e; }
+    Value* value() const { return e->value(); }
+    likely_type type() const { return e->type(); }
+    Expression *evaluate(Builder &builder, likely_ast ast) const { return e->evaluate(builder, ast); }
 };
 
 #define TRY_EXPR(BUILDER, AST, EXPR)                    \
 const ManagedExpression EXPR(expression(BUILDER, AST)); \
-if (!EXPR) return NULL;                                 \
+if (EXPR.isNull()) return NULL;                         \
 
 struct Operator : public Expression
 {
@@ -269,7 +273,7 @@ struct Operator : public Expression
                 if (Expression *e = builder.lookup(op->atom))
                     return e->evaluate(builder, ast);
             TRY_EXPR(builder, op, e);
-            return e->evaluate(builder, ast);
+            return e.evaluate(builder, ast);
         }
         const string op = ast->atom;
 
@@ -357,7 +361,7 @@ class notExpression : public UnaryOperator
     Expression *evaluateUnary(Builder &builder, likely_ast arg) const
     {
         TRY_EXPR(builder, arg, argExpr)
-        return new Immediate(builder.CreateXor(builder.intMax(argExpr), argExpr->value()), argExpr);
+        return new Immediate(builder.CreateXor(builder.intMax(argExpr), argExpr.value()), argExpr);
     }
 };
 LIKELY_REGISTER_EXPRESSION(not, "~")
@@ -405,7 +409,7 @@ class UnaryMathOperator : public UnaryOperator
     Expression *evaluateUnary(Builder &builder, likely_ast arg) const
     {
         TRY_EXPR(builder, arg, x)
-        Immediate xc(builder.cast(x, Builder::validFloatType(x)));
+        Immediate xc(builder.cast(&x, Builder::validFloatType(x)));
         vector<Type*> args;
         args.push_back(xc.value_->getType());
         return new Immediate(builder.CreateCall(Intrinsic::getDeclaration(builder.module, id(), args), xc), xc);
@@ -453,7 +457,7 @@ class castExpression : public BinaryOperator
     {
         TRY_EXPR(builder, arg1, x)
         TRY_EXPR(builder, arg2, type)
-        return new Immediate(builder.cast(x, (likely_type)LLVM_VALUE_TO_INT(type->value())));
+        return new Immediate(builder.cast(&x, (likely_type)LLVM_VALUE_TO_INT(type.value())));
     }
 };
 LIKELY_REGISTER(cast)
@@ -465,8 +469,8 @@ class ArithmeticOperator : public BinaryOperator
         TRY_EXPR(builder, arg1, lhs)
         TRY_EXPR(builder, arg2, rhs)
         likely_type type = likely_type_from_types(lhs, rhs);
-        Immediate lhsc(builder.cast(lhs, type));
-        Immediate rhsc(builder.cast(rhs, type));
+        Immediate lhsc(builder.cast(&lhs, type));
+        Immediate rhsc(builder.cast(&rhs, type));
         return evaluateArithmetic(builder, &lhsc, &rhsc, type);
     }
     virtual Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const = 0;
@@ -618,8 +622,8 @@ class BinaryMathOperator : public BinaryOperator
         TRY_EXPR(builder, arg1, x)
         TRY_EXPR(builder, arg2, n)
         const likely_type type = nIsInteger() ? x : likely_type_from_types(x, n);
-        Immediate xc(builder.cast(x, Builder::validFloatType(type)));
-        Immediate nc(builder.cast(n, nIsInteger() ? likely_type_i32 : xc));
+        Immediate xc(builder.cast(&x, Builder::validFloatType(type)));
+        Immediate nc(builder.cast(&n, nIsInteger() ? likely_type_i32 : xc));
         vector<Type*> args;
         args.push_back(xc.value_->getType());
         return new Immediate(builder.CreateCall2(Intrinsic::getDeclaration(builder.module, id(), args), xc, nc), xc);
@@ -664,9 +668,9 @@ class fmaExpression : public TernaryOperator
         TRY_EXPR(builder, arg2, b)
         TRY_EXPR(builder, arg3, c)
         const likely_type type = likely_type_from_types(likely_type_from_types(a, b), c);
-        Immediate ac(builder.cast(a, Builder::validFloatType(type)));
-        Immediate bc(builder.cast(b, ac));
-        Immediate cc(builder.cast(c, ac));
+        Immediate ac(builder.cast(&a, Builder::validFloatType(type)));
+        Immediate bc(builder.cast(&b, ac));
+        Immediate cc(builder.cast(&c, ac));
         vector<Type*> args;
         args.push_back(ac.value_->getType());
         return new Immediate(builder.CreateCall3(Intrinsic::getDeclaration(builder.module, Intrinsic::fma, args), ac, bc, cc), ac);
@@ -682,7 +686,7 @@ class selectExpression : public TernaryOperator
         TRY_EXPR(builder, arg2, t)
         TRY_EXPR(builder, arg3, f)
         const likely_type type = likely_type_from_types(t, f);
-        return new Immediate(builder.CreateSelect(c, builder.cast(t, type), builder.cast(f, type)), type);
+        return new Immediate(builder.CreateSelect(c, builder.cast(&t, type), builder.cast(&f, type)), type);
     }
 };
 LIKELY_REGISTER(select)
@@ -1059,7 +1063,7 @@ private:
             builder.undefine(ast->atoms[1]->atoms[i]->atom);
         builder.CreateRet(result);
 
-        Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(result->value()->getType(), tys, false)));
+        Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(result.value()->getType(), tys, false)));
         vector<Immediate> args = builder.getArgs(function, types);
 
         ValueToValueMapTy VMap;
@@ -1069,7 +1073,7 @@ private:
         SmallVector<ReturnInst*, 1> returns;
         CloneFunctionInto(function, tmpFunction, VMap, false, returns);
         tmpFunction->eraseFromParent();
-        return Immediate(function, result->type());
+        return Immediate(function, result.type());
     }
 };
 
