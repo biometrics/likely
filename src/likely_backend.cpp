@@ -244,46 +244,12 @@ public:
     likely_env snapshot() const { return new likely_env_struct(*env); }
 };
 
-template <class T>
-struct RegisterExpression
-{
-    RegisterExpression(const string &symbol)
-    {
-        likely_env_struct::defaultExprs[symbol].push(shared_ptr<Expression>(new T()));
-    }
-};
-#define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
-#define LIKELY_REGISTER(EXP) LIKELY_REGISTER_EXPRESSION(EXP, #EXP)
-
-#define LIKELY_REGISTER_TYPE(TYPE)                                             \
-struct TYPE##Expression : public Immediate                                     \
-{                                                                              \
-    TYPE##Expression()                                                         \
-        : Immediate(Builder::constant(likely_type_##TYPE, likely_type_u32)) {} \
-};                                                                             \
-LIKELY_REGISTER(TYPE)                                                          \
-
-LIKELY_REGISTER_TYPE(null)
-LIKELY_REGISTER_TYPE(depth)
-LIKELY_REGISTER_TYPE(signed)
-LIKELY_REGISTER_TYPE(floating)
-LIKELY_REGISTER_TYPE(mask)
-LIKELY_REGISTER_TYPE(parallel)
-LIKELY_REGISTER_TYPE(heterogeneous)
-LIKELY_REGISTER_TYPE(multi_channel)
-LIKELY_REGISTER_TYPE(multi_column)
-LIKELY_REGISTER_TYPE(multi_row)
-LIKELY_REGISTER_TYPE(multi_frame)
-LIKELY_REGISTER_TYPE(multi_dimension)
-LIKELY_REGISTER_TYPE(saturation)
-LIKELY_REGISTER_TYPE(reserved)
-
 #define TRY_EXPR(BUILDER, AST, EXPR)                   \
 unique_ptr<Expression> EXPR(expression(BUILDER, AST)); \
 if (!EXPR.get())                                       \
     return NULL;                                       \
 
-struct ParameterizedExpression : public Expression
+struct Operator : public Expression
 {
     static Expression *expression(Builder &builder, likely_ast ast)
     {
@@ -316,47 +282,65 @@ struct ParameterizedExpression : public Expression
 private:
     Value *value() const
     {
-        likely_assert(false, "ParameterizedExpression has no value!");
+        likely_assert(false, "Operator has no value!");
         return NULL;
     }
 
     likely_type type() const
     {
-        likely_assert(false, "ParameterizedExpression has no type!");
+        likely_assert(false, "Operator has no type!");
         return likely_type_null;
     }
 };
 
-class Operator : public ParameterizedExpression
+template <class T>
+class Apply : public Operator
 {
-    class Apply : public ParameterizedExpression
-    {
-        const Operator *op;
-
-    public:
-        Apply(const Operator *op)
-            : op(op) {}
-
-    private:
-        Expression *evaluate(Builder &builder, likely_ast ast) const
-        {
-            return op->evaluateOperator(builder, ast);
-        }
-    };
-
     Expression *evaluate(Builder &builder, likely_ast ast) const
     {
         (void) builder;
-        likely_assert(!ast->is_list, "Operator syntax error!");
-        return new Apply(this);
+        likely_assert(!ast->is_list, "Apply expects an atom but given a list");
+        return new T();
     }
-
-    virtual Expression *evaluateOperator(Builder &builder, likely_ast ast) const = 0;
 };
+
+template <class T>
+struct RegisterExpression
+{
+    RegisterExpression(const string &symbol)
+    {
+        likely_env_struct::defaultExprs[symbol].push(shared_ptr<Expression>(new Apply<T>()));
+    }
+};
+#define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
+#define LIKELY_REGISTER(EXP) LIKELY_REGISTER_EXPRESSION(EXP, #EXP)
+
+#define LIKELY_REGISTER_TYPE(TYPE)                                             \
+struct TYPE##Expression : public Immediate                                     \
+{                                                                              \
+    TYPE##Expression()                                                         \
+        : Immediate(Builder::constant(likely_type_##TYPE, likely_type_u32)) {} \
+};                                                                             \
+LIKELY_REGISTER(TYPE)                                                          \
+
+LIKELY_REGISTER_TYPE(null)
+LIKELY_REGISTER_TYPE(depth)
+LIKELY_REGISTER_TYPE(signed)
+LIKELY_REGISTER_TYPE(floating)
+LIKELY_REGISTER_TYPE(mask)
+LIKELY_REGISTER_TYPE(parallel)
+LIKELY_REGISTER_TYPE(heterogeneous)
+LIKELY_REGISTER_TYPE(multi_channel)
+LIKELY_REGISTER_TYPE(multi_column)
+LIKELY_REGISTER_TYPE(multi_row)
+LIKELY_REGISTER_TYPE(multi_frame)
+LIKELY_REGISTER_TYPE(multi_dimension)
+LIKELY_REGISTER_TYPE(saturation)
+LIKELY_REGISTER_TYPE(reserved)
 
 class UnaryOperator : public Operator
 {
-    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
+    Expression *evaluate(Builder &builder, likely_ast ast) const
     {
         if (!ast->is_list || (ast->num_atoms != 2))
             return likelyThrow(ast, "expected 1 operand");
@@ -454,7 +438,7 @@ LIKELY_REGISTER_UNARY_MATH(round)
 
 class BinaryOperator : public Operator
 {
-    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
+    Expression *evaluate(Builder &builder, likely_ast ast) const
     {
         if (!ast->is_list || (ast->num_atoms != 3))
             return likelyThrow(ast, "expected 2 operands");
@@ -663,7 +647,7 @@ LIKELY_REGISTER_BINARY_MATH(copysign)
 
 class TernaryOperator : public Operator
 {
-    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
+    Expression *evaluate(Builder &builder, likely_ast ast) const
     {
         if (!ast->is_list || (ast->num_atoms != 4))
             return likelyThrow(ast, "expected 3 operands");
@@ -705,7 +689,7 @@ LIKELY_REGISTER(select)
 
 class defineExpression : public Operator
 {
-    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
+    Expression *evaluate(Builder &builder, likely_ast ast) const
     {
         if (!ast->is_list || (ast->num_atoms != 3))
             return likelyThrowArgumentCount(ast, "define", 3, ast->is_list ? ast->num_atoms : 0);
@@ -715,7 +699,7 @@ class defineExpression : public Operator
 };
 LIKELY_REGISTER(define)
 
-class ScopedExpression : public ParameterizedExpression
+class ScopedExpression : public Operator
 {
     likely_env env;
 
@@ -776,7 +760,7 @@ struct Kernel : public ScopedExpression
         : ScopedExpression(builder, ast) {}
 
 private:
-    class kernelArgument : public ParameterizedExpression
+    class kernelArgument : public Operator
     {
         Immediate matrix;
         likely_type kernel;
@@ -1042,7 +1026,7 @@ private:
 
 class kernelExpression : public Operator
 {
-    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
+    Expression *evaluate(Builder &builder, likely_ast ast) const
     {
         return new Kernel(builder, ast);
     }
@@ -1089,7 +1073,7 @@ private:
 
 class lambdaExpression : public Operator
 {
-    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
+    Expression *evaluate(Builder &builder, likely_ast ast) const
     {
         return new Lambda(builder, ast);
     }
@@ -1101,7 +1085,7 @@ LIKELY_REGISTER(lambda)
 
 class readExpression : public Operator
 {
-    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
+    Expression *evaluate(Builder &builder, likely_ast ast) const
     {
         static FunctionType *LikelyReadSignature = NULL;
         if (LikelyReadSignature == NULL) {
@@ -1120,7 +1104,7 @@ LIKELY_REGISTER(read)
 
 class writeExpression : public Operator
 {
-    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
+    Expression *evaluate(Builder &builder, likely_ast ast) const
     {
         static FunctionType *LikelyWriteSignature = NULL;
         if (LikelyWriteSignature == NULL) {
@@ -1149,7 +1133,7 @@ LIKELY_REGISTER(write)
 
 class decodeExpression : public Operator
 {
-    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
+    Expression *evaluate(Builder &builder, likely_ast ast) const
     {
         static FunctionType *LikelyDecodeSignature = NULL;
         if (LikelyDecodeSignature == NULL) {
@@ -1170,7 +1154,7 @@ LIKELY_REGISTER(decode)
 
 class encodeExpression : public Operator
 {
-    Expression *evaluateOperator(Builder &builder, likely_ast ast) const
+    Expression *evaluate(Builder &builder, likely_ast ast) const
     {
         static FunctionType *LikelyEncodeSignature = NULL;
         if (LikelyEncodeSignature == NULL) {
