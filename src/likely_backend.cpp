@@ -399,7 +399,9 @@ class scalarExpression : public UnaryOperator
         if (likelyScalar == NULL)
             likely_scalar(0);
 
-        return new Immediate(builder.CreateCall(likelyScalar, builder.cast(argExpr, likely_type_f64)), argExpr->type());
+        Immediate result(builder.CreateCall(likelyScalar, builder.cast(argExpr, likely_type_f64)), argExpr->type());
+        delete argExpr;
+        return new Immediate(result);
     }
 };
 LIKELY_REGISTER(scalar)
