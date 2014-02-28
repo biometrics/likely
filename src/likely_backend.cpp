@@ -349,10 +349,7 @@ class notExpression : public UnaryOperator
     Expression *evaluateUnary(Builder &builder, likely_ast arg) const
     {
         TRY_EXPR(builder, arg, argExpr)
-        likely_type type = argExpr->type();
-        likely_set_signed(&type, false);
-        likely_set_floating(&type, false);
-        return new Immediate(builder.CreateXor(builder.intMax(type), argExpr->value()), type);
+        return new Immediate(builder.CreateXor(builder.intMax(argExpr->type()), argExpr->value()), argExpr->type());
     }
 };
 LIKELY_REGISTER_EXPRESSION(not, "~")
