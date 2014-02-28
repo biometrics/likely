@@ -693,7 +693,7 @@ class defineExpression : public Operator
 };
 LIKELY_REGISTER(define)
 
-class ScopedExpression : public Operator
+class FunctionExpression : public Operator
 {
     likely_env env;
 
@@ -701,10 +701,10 @@ protected:
     likely_ast ast;
 
 public:
-    ScopedExpression(Builder &builder, likely_ast ast)
+    FunctionExpression(Builder &builder, likely_ast ast)
         : env(builder.snapshot()), ast(likely_retain_ast(ast)) {}
 
-    ~ScopedExpression()
+    ~FunctionExpression()
     {
         likely_release_ast(ast);
         likely_release_env(env);
@@ -748,10 +748,10 @@ private:
     }
 };
 
-struct Kernel : public ScopedExpression
+struct Kernel : public FunctionExpression
 {
     Kernel(Builder &builder, likely_ast ast)
-        : ScopedExpression(builder, ast) {}
+        : FunctionExpression(builder, ast) {}
 
 private:
     class kernelArgument : public Operator
@@ -1027,10 +1027,10 @@ class kernelExpression : public Operator
 };
 LIKELY_REGISTER(kernel)
 
-struct Lambda : public ScopedExpression
+struct Lambda : public FunctionExpression
 {
     Lambda(Builder &builder, likely_ast ast)
-        : ScopedExpression(builder, ast) {}
+        : FunctionExpression(builder, ast) {}
 
 private:
     Immediate generate(Builder &builder, const vector<likely_type> &types) const
@@ -1317,7 +1317,7 @@ struct FunctionBuilder : private JITResources
         memcpy(type, types.data(), sizeof(likely_type) * types.size());
         Builder builder(module, env, name);
         unique_ptr<Expression> result(Operator::expression(builder, ast));
-        function = finalize(dyn_cast<Function>(static_cast<ScopedExpression*>(result.get())->generate(builder, types).value_));
+        function = finalize(dyn_cast<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, types).value_));
     }
 
     ~FunctionBuilder()
