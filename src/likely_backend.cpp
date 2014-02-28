@@ -688,6 +688,8 @@ class defineExpression : public Operator
     {
         if (!ast->is_list || (ast->num_atoms != 3))
             return likelyThrowArgumentCount(ast, "define", 3, ast->is_list ? ast->num_atoms : 0);
+        if (ast->atoms[1]->is_list)
+            return likelyThrow(ast->atoms[1], "define expected an atom name");
         builder.define(ast->atoms[1]->atom, expression(builder, ast->atoms[2]));
         return NULL;
     }
