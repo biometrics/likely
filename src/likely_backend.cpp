@@ -59,6 +59,9 @@ struct Expression
     virtual likely_type type() const = 0;
     virtual Expression *evaluate(Builder &builder, likely_ast ast) const = 0;
 
+    operator Value*() const { return value(); }
+    operator likely_type() const { return type(); }
+
     Value *take()
     {
         Value *result = value();
@@ -100,9 +103,6 @@ struct Immediate : public Expression
 
     Immediate(Value *value, likely_type type)
         : value_(value), type_(type) {}
-
-    operator Value*() const { return value_; }
-    operator likely_type() const { return type_; }
 
 private:
     Value *value() const { return value_; }
@@ -151,11 +151,11 @@ public:
     static Immediate intMin(likely_type type) { const int bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
     static Immediate type(likely_type type) { return constant(type, likely_depth(likely_type_type)); }
 
-    Immediate data    (const Expression *matrix) { return Immediate(CreatePointerCast(CreateLoad(CreateStructGEP(matrix->value(), 1), "data"), ty(matrix->type(), true)), matrix->type() & likely_type_mask); }
-    Immediate channels(const Expression *matrix) { return likely_multi_channel(matrix->type()) ? Immediate(CreateLoad(CreateStructGEP(matrix->value(), 2), "channels"), likely_type_native) : one(); }
-    Immediate columns (const Expression *matrix) { return likely_multi_column (matrix->type()) ? Immediate(CreateLoad(CreateStructGEP(matrix->value(), 3), "columns" ), likely_type_native) : one(); }
-    Immediate rows    (const Expression *matrix) { return likely_multi_row    (matrix->type()) ? Immediate(CreateLoad(CreateStructGEP(matrix->value(), 4), "rows"    ), likely_type_native) : one(); }
-    Immediate frames  (const Expression *matrix) { return likely_multi_frame  (matrix->type()) ? Immediate(CreateLoad(CreateStructGEP(matrix->value(), 5), "frames"  ), likely_type_native) : one(); }
+    Immediate data    (const Expression *matrix) { return Immediate(CreatePointerCast(CreateLoad(CreateStructGEP(*matrix, 1), "data"), ty(*matrix, true)), matrix->type() & likely_type_mask); }
+    Immediate channels(const Expression *matrix) { return likely_multi_channel(*matrix) ? Immediate(CreateLoad(CreateStructGEP(*matrix, 2), "channels"), likely_type_native) : one(); }
+    Immediate columns (const Expression *matrix) { return likely_multi_column (*matrix) ? Immediate(CreateLoad(CreateStructGEP(*matrix, 3), "columns" ), likely_type_native) : one(); }
+    Immediate rows    (const Expression *matrix) { return likely_multi_row    (*matrix) ? Immediate(CreateLoad(CreateStructGEP(*matrix, 4), "rows"    ), likely_type_native) : one(); }
+    Immediate frames  (const Expression *matrix) { return likely_multi_frame  (*matrix) ? Immediate(CreateLoad(CreateStructGEP(*matrix, 5), "frames"  ), likely_type_native) : one(); }
 
     void steps(const Expression *matrix, Value **columnStep, Value **rowStep, Value **frameStep)
     {
@@ -167,9 +167,9 @@ public:
     Immediate cast(const Expression *x, likely_type type)
     {
         if ((x->type() & likely_type_mask) == (type & likely_type_mask))
-            return Immediate(x->value(), type);
+            return Immediate(*x, type);
         Type *dstType = ty(type);
-        return Immediate(CreateCast(CastInst::getCastOpcode(x->value(), likely_signed(x->type()), dstType, likely_signed(type)), x->value(), dstType), type);
+        return Immediate(CreateCast(CastInst::getCastOpcode(*x, likely_signed(*x), dstType, likely_signed(type)), *x, dstType), type);
     }
 
     static Type *ty(likely_type type, bool pointer = false)
@@ -477,14 +477,14 @@ class addExpression : public ArithmeticOperator
     Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const
     {
         if (likely_floating(type)) {
-            return new Immediate(builder.CreateFAdd(lhs->value(), rhs->value()), type);
+            return new Immediate(builder.CreateFAdd(*lhs, *rhs), type);
         } else {
             if (likely_saturation(type)) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module, likely_signed(type) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs->value()->getType()), lhs->value(), rhs->value());
-                Value *overflowResult = likely_signed(type) ? builder.CreateSelect(builder.CreateICmpSGE(lhs->value(), Builder::zero(type)), Builder::intMax(type), Builder::intMin(type)) : Builder::intMax(type);
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module, likely_signed(type) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs->value()->getType()), *lhs, *rhs);
+                Value *overflowResult = likely_signed(type) ? builder.CreateSelect(builder.CreateICmpSGE(*lhs, Builder::zero(type)), Builder::intMax(type), Builder::intMin(type)) : Builder::intMax(type);
                 return new Immediate(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
             } else {
-                return new Immediate(builder.CreateAdd(lhs->value(), rhs->value()), type);
+                return new Immediate(builder.CreateAdd(*lhs, *rhs), type);
             }
         }
     }
@@ -496,14 +496,14 @@ class subtractExpression : public ArithmeticOperator
     Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const
     {
         if (likely_floating(type)) {
-            return new Immediate(builder.CreateFSub(lhs->value(), rhs->value()), type);
+            return new Immediate(builder.CreateFSub(*lhs, *rhs), type);
         } else {
             if (likely_saturation(type)) {
                 CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module, likely_signed(type) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs->value()->getType()), lhs->value(), rhs->value());
                 Value *overflowResult = likely_signed(type) ? builder.CreateSelect(builder.CreateICmpSGE(lhs->value(), Builder::zero(type)), Builder::intMax(type), Builder::intMin(type)) : Builder::intMin(type);
                 return new Immediate(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
             } else {
-                return new Immediate(builder.CreateSub(lhs->value(), rhs->value()), type);
+                return new Immediate(builder.CreateSub(*lhs, *rhs), type);
             }
         }
     }
@@ -515,7 +515,7 @@ class multiplyExpression : public ArithmeticOperator
     Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const
     {
         if (likely_floating(type)) {
-            return new Immediate(builder.CreateFMul(lhs->value(), rhs->value()), type);
+            return new Immediate(builder.CreateFMul(*lhs, *rhs), type);
         } else {
             if (likely_saturation(type)) {
                 CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module, likely_signed(type) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs->value()->getType()), lhs->value(), rhs->value());
@@ -523,7 +523,7 @@ class multiplyExpression : public ArithmeticOperator
                 Value *overflowResult = likely_signed(type) ? builder.CreateSelect(builder.CreateXor(builder.CreateICmpSGE(lhs->value(), zero), builder.CreateICmpSGE(rhs->value(), zero)), Builder::intMin(type), Builder::intMax(type)) : Builder::intMax(type);
                 return new Immediate(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
             } else {
-                return new Immediate(builder.CreateMul(lhs->value(), rhs->value()), type);
+                return new Immediate(builder.CreateMul(*lhs, *rhs), type);
             }
         }
     }
@@ -535,17 +535,17 @@ class divideExpression : public ArithmeticOperator
     Expression *evaluateArithmetic(Builder &builder, const Expression *n, const Expression *d, likely_type type) const
     {
         if (likely_floating(type)) {
-            return new Immediate(builder.CreateFDiv(n->value(), d->value()), type);
+            return new Immediate(builder.CreateFDiv(*n, *d), type);
         } else {
             if (likely_signed(type)) {
                 if (likely_saturation(type)) {
-                    Value *safe_i = builder.CreateAdd(n->value(), builder.CreateZExt(builder.CreateICmpNE(builder.CreateOr(builder.CreateAdd(d->value(), Builder::one(type)), builder.CreateAdd(n->value(), Builder::intMin(type))), Builder::zero(type)), n->value()->getType()));
-                    return new Immediate(builder.CreateSDiv(safe_i, d->value()), type);
+                    Value *safe_i = builder.CreateAdd(*n, builder.CreateZExt(builder.CreateICmpNE(builder.CreateOr(builder.CreateAdd(d->value(), Builder::one(type)), builder.CreateAdd(n->value(), Builder::intMin(type))), Builder::zero(type)), n->value()->getType()));
+                    return new Immediate(builder.CreateSDiv(safe_i, *d), type);
                 } else {
-                    return new Immediate(builder.CreateSDiv(n->value(), d->value()), type);
+                    return new Immediate(builder.CreateSDiv(*n, *d), type);
                 }
             } else {
-                return new Immediate(builder.CreateUDiv(n->value(), d->value()), type);
+                return new Immediate(builder.CreateUDiv(*n, *d), type);
             }
         }
     }
@@ -556,9 +556,9 @@ class remExpression : public ArithmeticOperator
 {
     Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const
     {
-        return new Immediate(likely_floating(type) ? builder.CreateFRem(lhs->value(), rhs->value())
-                                                   : (likely_signed(type) ? builder.CreateSRem(lhs->value(), rhs->value())
-                                                                          : builder.CreateURem(lhs->value(), rhs->value())), type);
+        return new Immediate(likely_floating(type) ? builder.CreateFRem(*lhs, *rhs)
+                                                   : (likely_signed(type) ? builder.CreateSRem(*lhs, *rhs)
+                                                                          : builder.CreateURem(*lhs, *rhs)), type);
     }
 };
 LIKELY_REGISTER_EXPRESSION(rem, "%")
@@ -568,7 +568,7 @@ class OP##Expression : public ArithmeticOperator                                
 {                                                                                                                          \
     Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const \
     {                                                                                                                      \
-        return new Immediate(builder.Create##OP(lhs->value(), rhs->value()), type);                                        \
+        return new Immediate(builder.Create##OP(*lhs, rhs->value()), type);                                                \
     }                                                                                                                      \
 };                                                                                                                         \
 LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                        \
@@ -580,17 +580,17 @@ LIKELY_REGISTER_LOGIC(Shl, "shl")
 LIKELY_REGISTER_LOGIC(LShr, "lshr")
 LIKELY_REGISTER_LOGIC(AShr, "ashr")
 
-#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                              \
-class OP##Expression : public ArithmeticOperator                                                                                         \
-{                                                                                                                                        \
-    Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const               \
-    {                                                                                                                                    \
-        return new Immediate(likely_floating(type) ? builder.CreateFCmpO##OP(lhs->value(), rhs->value())                                 \
-                                                   : (likely_signed(type) ? builder.CreateICmpS##OP(lhs->value(), rhs->value())          \
-                                                                          : builder.CreateICmpU##OP(lhs->value(), rhs->value())), type); \
-    }                                                                                                                                    \
-};                                                                                                                                       \
-LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                                      \
+#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                \
+class OP##Expression : public ArithmeticOperator                                                                           \
+{                                                                                                                          \
+    Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const \
+    {                                                                                                                      \
+        return new Immediate(likely_floating(type) ? builder.CreateFCmpO##OP(*lhs, *rhs)                                   \
+                                                   : (likely_signed(type) ? builder.CreateICmpS##OP(*lhs, *rhs)            \
+                                                                          : builder.CreateICmpU##OP(*lhs, *rhs)), type);   \
+    }                                                                                                                      \
+};                                                                                                                         \
+LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                        \
 
 LIKELY_REGISTER_COMPARISON(LT, "<")
 LIKELY_REGISTER_COMPARISON(LE, "<=")
@@ -602,8 +602,8 @@ class OP##Expression : public ArithmeticOperator                                
 {                                                                                                                          \
     Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const \
     {                                                                                                                      \
-        return new Immediate(likely_floating(type) ? builder.CreateFCmpO##OP(lhs->value(), rhs->value())                   \
-                                                   : builder.CreateICmp##OP(lhs->value(), rhs->value()), type);            \
+        return new Immediate(likely_floating(type) ? builder.CreateFCmpO##OP(*lhs, *rhs)                                   \
+                                                   : builder.CreateICmp##OP(*lhs, *rhs), type);                            \
     }                                                                                                                      \
 };                                                                                                                         \
 LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                        \
@@ -781,15 +781,15 @@ private:
             Value *i;
             if (((matrix ^ kernel) & likely_type_multi_dimension) == 0) {
                 // This matrix has the same dimensionality as the kernel
-                i = builder.lookup("i")->value();
+                i = *builder.lookup("i");
             } else {
                 Value *columnStep, *rowStep, *frameStep;
                 builder.steps(&matrix, &columnStep, &rowStep, &frameStep);
                 i = Builder::zero();
-                if (likely_multi_channel(matrix)) i = builder.lookup("c")->value();
-                if (likely_multi_column (matrix)) i = builder.CreateAdd(builder.CreateMul(builder.lookup("x")->value(), columnStep), i);
-                if (likely_multi_row    (matrix)) i = builder.CreateAdd(builder.CreateMul(builder.lookup("y")->value(), rowStep   ), i);
-                if (likely_multi_frame  (matrix)) i = builder.CreateAdd(builder.CreateMul(builder.lookup("t")->value(), frameStep ), i);
+                if (likely_multi_channel(matrix)) i = *builder.lookup("c");
+                if (likely_multi_column (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), columnStep), i);
+                if (likely_multi_row    (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep   ), i);
+                if (likely_multi_frame  (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep ), i);
             }
 
             LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(&matrix), i));
@@ -869,9 +869,9 @@ private:
             for (size_t j=0; j<args->num_atoms; j++)
                 builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, node));
 
-            unique_ptr<Expression> result(expression(builder, ast->atoms[2]));
-            dstType = dst.type_ = result->type();
-            StoreInst *store = builder.CreateStore(result->value(), builder.CreateGEP(builder.data(&dst), i));
+            ManagedExpression result(expression(builder, ast->atoms[2]));
+            dstType = dst.type_ = result;
+            StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), i));
             store->setMetadata("llvm.mem.parallel_loop_access", node);
 
             Value *increment = builder.CreateAdd(i, builder.one(), "kernel_increment");
@@ -1054,10 +1054,10 @@ private:
         assert(tmpArgs.size() == ast->atoms[1]->num_atoms);
         for (size_t i=0; i<tmpArgs.size(); i++)
             builder.define(ast->atoms[1]->atoms[i]->atom, tmpArgs[i]);
-        unique_ptr<Expression> result(expression(builder, ast->atoms[2]));
+        ManagedExpression result(expression(builder, ast->atoms[2]));
         for (size_t i=0; i<tmpArgs.size(); i++)
             builder.undefine(ast->atoms[1]->atoms[i]->atom);
-        builder.CreateRet(result->value());
+        builder.CreateRet(result);
 
         Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(result->value()->getType(), tys, false)));
         vector<Immediate> args = builder.getArgs(function, types);
