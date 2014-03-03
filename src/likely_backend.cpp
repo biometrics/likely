@@ -518,10 +518,10 @@ struct StaticFunction : public JITResources
     }
 };
 
-struct VTable : public JITResources
+struct DynamicFunction : public JITResources
 {
-    static PointerType *vtableType;
-    static map<void*,VTable*> reverseLUT;
+    static PointerType *dynamicType;
+    static map<void*,DynamicFunction*> reverseLUT;
     likely_ast ast;
     likely_env env;
     likely_arity n;
@@ -529,7 +529,7 @@ struct VTable : public JITResources
     Function *likelyDispatch;
     int ref_count = 1;
 
-    VTable(likely_ast ast, likely_env env)
+    DynamicFunction(likely_ast ast, likely_env env)
         : JITResources(true, true), ast(likely_retain_ast(ast)), env(likely_retain_env(env))
     {
         // Try to compute arity
@@ -538,13 +538,13 @@ struct VTable : public JITResources
             else                        n = 1;
         else                            n = 0;
 
-        if (vtableType == NULL)
-            vtableType = PointerType::getUnqual(StructType::create(C, "VTable"));
+        if (dynamicType == NULL)
+            dynamicType = PointerType::getUnqual(StructType::create(C, "DynamicFunction"));
 
         static FunctionType *LikelyDispatchSignature = NULL;
         if (LikelyDispatchSignature == NULL) {
             vector<Type*> dispatchParameters;
-            dispatchParameters.push_back(vtableType);
+            dispatchParameters.push_back(dynamicType);
             dispatchParameters.push_back(PointerType::getUnqual(Matrix));
             LikelyDispatchSignature = FunctionType::get(Matrix, dispatchParameters, false);
         }
@@ -557,7 +557,7 @@ struct VTable : public JITResources
         likelyDispatch->setDoesNotCapture(2);
     }
 
-    ~VTable()
+    ~DynamicFunction()
     {
         likely_release_ast(ast);
         likely_release_env(env);
@@ -589,7 +589,7 @@ struct VTable : public JITResources
         } else {
             array = ConstantPointerNull::get(PointerType::getUnqual(Matrix));
         }
-        builder.CreateRet(builder.CreateCall2(likelyDispatch, thisVTable(), array));
+        builder.CreateRet(builder.CreateCall2(likelyDispatch, thisDynamicFunction(), array));
         return function;
     }
 
@@ -606,14 +606,14 @@ struct VTable : public JITResources
         Function *function = getFunction(functionType);
         BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         IRBuilder<> builder(entry);
-        builder.CreateRet(builder.CreateCall2(likelyDispatch, thisVTable(), function->arg_begin()));
+        builder.CreateRet(builder.CreateCall2(likelyDispatch, thisDynamicFunction(), function->arg_begin()));
         return reinterpret_cast<likely_function_n>(finalize(function));
     }
 
 private:
     Function *getFunction(FunctionType *functionType) const
     {
-        Function *function = cast<Function>(module->getOrInsertFunction(getUniqueName("vtable"), functionType));
+        Function *function = cast<Function>(module->getOrInsertFunction(getUniqueName("dynamic"), functionType));
         function->addFnAttr(Attribute::NoUnwind);
         function->setCallingConv(CallingConv::C);
         function->setDoesNotAlias(0);
@@ -622,13 +622,13 @@ private:
         return function;
     }
 
-    Constant *thisVTable() const
+    Constant *thisDynamicFunction() const
     {
-        return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(this)), uintptr_t(this)), vtableType);
+        return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(this)), uintptr_t(this)), dynamicType);
     }
 };
-PointerType *VTable::vtableType = NULL;
-map<void*,VTable*> VTable::reverseLUT;
+PointerType *DynamicFunction::dynamicType = NULL;
+map<void*,DynamicFunction*> DynamicFunction::reverseLUT;
 
 template <class T>
 struct RegisterExpression
@@ -1076,12 +1076,12 @@ private:
         for (likely_type type : types)
             if (type == likely_type_null) {
                 // Dynamic dispatch
-                static vector<VTable*> vtables; // These should be associated with their JITResources
+                static vector<DynamicFunction*> dynamicFunctions; // These should be associated with their JITResources
                 likely_env env = builder.snapshot();
-                VTable *vtable = new VTable(ast, env);
+                DynamicFunction *dynamicFunction = new DynamicFunction(ast, env);
                 likely_release_env(env);
-                vtables.push_back(vtable);
-                return Immediate(vtable->generate(), likely_type_null);
+                dynamicFunctions.push_back(dynamicFunction);
+                return Immediate(dynamicFunction->generate(), likely_type_null);
             }
 
         Function *function = getKernel(builder, name, types.size(), Matrix);
@@ -1489,12 +1489,12 @@ LIKELY_EXPORT void likely_release_env(likely_env env)
     delete env;
 }
 
-extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct VTable *vtable, likely_matrix *m)
+extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct DynamicFunction *dynamicFunction, likely_matrix *m)
 {
     void *function = NULL;
-    for (size_t i=0; i<vtable->functions.size(); i++) {
-        const StaticFunction *staticFunction = vtable->functions[i];
-        for (likely_arity j=0; j<vtable->n; j++)
+    for (size_t i=0; i<dynamicFunction->functions.size(); i++) {
+        const StaticFunction *staticFunction = dynamicFunction->functions[i];
+        for (likely_arity j=0; j<dynamicFunction->n; j++)
             if (m[j]->type != staticFunction->type[j])
                 goto Next;
         function = staticFunction->function;
@@ -1507,11 +1507,11 @@ extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct VTable *vtable, li
 
     if (function == NULL) {
         vector<likely_type> types;
-        for (int i=0; i<vtable->n; i++)
+        for (int i=0; i<dynamicFunction->n; i++)
             types.push_back(m[i]->type);
-        StaticFunction *staticFunction = new StaticFunction(vtable->ast, vtable->env, types, true);
-        vtable->functions.push_back(staticFunction);
-        function = vtable->functions.back()->function;
+        StaticFunction *staticFunction = new StaticFunction(dynamicFunction->ast, dynamicFunction->env, types, true);
+        dynamicFunction->functions.push_back(staticFunction);
+        function = dynamicFunction->functions.back()->function;
 
         // An impossible case used to ensure that `likely_dispatch` isn't stripped when optimizing executable size
         if (function == NULL)
@@ -1524,12 +1524,12 @@ extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct VTable *vtable, li
     typedef likely_matrix (*f3)(const likely_matrix, const likely_matrix, const likely_matrix);
 
     likely_matrix dst;
-    switch (vtable->n) {
+    switch (dynamicFunction->n) {
       case 0: dst = reinterpret_cast<f0>(function)(); break;
       case 1: dst = reinterpret_cast<f1>(function)(m[0]); break;
       case 2: dst = reinterpret_cast<f2>(function)(m[0], m[1]); break;
       case 3: dst = reinterpret_cast<f3>(function)(m[0], m[1], m[2]); break;
-      default: dst = NULL; likely_assert(false, "likely_dispatch invalid arity: %d", vtable->n);
+      default: dst = NULL; likely_assert(false, "likely_dispatch invalid arity: %d", dynamicFunction->n);
     }
 
     return dst;
@@ -1538,36 +1538,36 @@ extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct VTable *vtable, li
 likely_function likely_compile(likely_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    VTable *vtable = new VTable(ast, env);
-    likely_function function = vtable->compile();
+    DynamicFunction *dynamicFunction = new DynamicFunction(ast, env);
+    likely_function function = dynamicFunction->compile();
     assert(function);
-    VTable::reverseLUT[(void*)function] = vtable;
+    DynamicFunction::reverseLUT[(void*)function] = dynamicFunction;
     return function;
 }
 
 likely_function_n likely_compile_n(likely_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    VTable *vtable = new VTable(ast, env);
-    likely_function_n function = vtable->compileN();
+    DynamicFunction *dynamicFunction = new DynamicFunction(ast, env);
+    likely_function_n function = dynamicFunction->compileN();
     assert(function);
-    VTable::reverseLUT[(void*)function] = vtable;
+    DynamicFunction::reverseLUT[(void*)function] = dynamicFunction;
     return function;
 }
 
 void *likely_retain_function(void *function)
 {
-    if (function) VTable::reverseLUT[function]->ref_count++;
+    if (function) DynamicFunction::reverseLUT[function]->ref_count++;
     return function;
 }
 
 void likely_release_function(void *function)
 {
     if (!function) return;
-    VTable *vtable = VTable::reverseLUT[function];
-    if (--vtable->ref_count) return;
-    VTable::reverseLUT.erase(function);
-    delete vtable;
+    DynamicFunction *dynamicFunction = DynamicFunction::reverseLUT[function];
+    if (--dynamicFunction->ref_count) return;
+    DynamicFunction::reverseLUT.erase(function);
+    delete dynamicFunction;
 }
 
 void likely_compile_to_file(likely_ast ast, likely_env env, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
