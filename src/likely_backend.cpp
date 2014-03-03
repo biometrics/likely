@@ -70,6 +70,23 @@ struct Expression
     }
 };
 
+class ManagedExpression : public Expression
+{
+    Expression *e;
+
+public:
+    ManagedExpression(Expression *e) : e(e) {}
+    ~ManagedExpression() { delete e; }
+    bool isNull() const { return !e; }
+    Value* value() const { return e->value(); }
+    likely_type type() const { return e->type(); }
+    Expression *evaluate(Builder &builder, likely_ast ast) const { return e->evaluate(builder, ast); }
+};
+
+#define TRY_EXPR(BUILDER, AST, EXPR)                     \
+const ManagedExpression EXPR((BUILDER).expression(AST)); \
+if (EXPR.isNull()) return NULL;                          \
+
 } // namespace (anonymous)
 
 struct likely_env_struct : public map<string,stack<shared_ptr<Expression>>>
@@ -246,62 +263,44 @@ public:
     }
 
     likely_env snapshot() const { return new likely_env_struct(*env); }
-};
 
-class ManagedExpression : public Expression
-{
-    Expression *e;
-
-public:
-    ManagedExpression(Expression *e) : e(e) {}
-    ~ManagedExpression() { delete e; }
-    bool isNull() const { return !e; }
-    Value* value() const { return e->value(); }
-    likely_type type() const { return e->type(); }
-    Expression *evaluate(Builder &builder, likely_ast ast) const { return e->evaluate(builder, ast); }
-};
-
-#define TRY_EXPR(BUILDER, AST, EXPR)                    \
-const ManagedExpression EXPR(expression(BUILDER, AST)); \
-if (EXPR.isNull()) return NULL;                         \
-
-struct Operator : public Expression
-{
-    static Expression *expression(Builder &builder, likely_ast ast)
+    Expression *expression(likely_ast ast)
     {
         if (ast->is_list) {
             if (ast->num_atoms == 0)
                 return likelyThrow(ast, "Empty expression");
             likely_ast op = ast->atoms[0];
             if (!op->is_list)
-                if (Expression *e = builder.lookup(op->atom))
-                    return e->evaluate(builder, ast);
-            TRY_EXPR(builder, op, e);
-            return e.evaluate(builder, ast);
+                if (Expression *e = lookup(op->atom))
+                    return e->evaluate(*this, ast);
+            TRY_EXPR(*this, op, e);
+            return e.evaluate(*this, ast);
         }
         const string op = ast->atom;
 
-        if (Expression *e = builder.lookup(op))
-            return e->evaluate(builder, ast);
+        if (Expression *e = lookup(op))
+            return e->evaluate(*this, ast);
 
         if ((op.front() == '"') && (op.back() == '"'))
-            return new Immediate(builder.CreateGlobalStringPtr(op.substr(1, op.length()-2)), likely_type_u8);
+            return new Immediate(CreateGlobalStringPtr(op.substr(1, op.length()-2)), likely_type_u8);
 
         { // Is it a number?
             char *p;
             const double value = strtod(op.c_str(), &p);
             if (*p == 0)
-                return new Immediate(Builder::constant(value, likely_type_from_value(value)));
+                return new Immediate(constant(value, likely_type_from_value(value)));
         }
 
         likely_type type = likely_type_from_string(op.c_str());
         if (type != likely_type_null)
-            return new Immediate(Builder::constant(type, likely_type_u32));
+            return new Immediate(constant(type, likely_type_u32));
 
         return likelyThrow(ast, "unrecognized literal");
     }
+};
 
-private:
+class Operator : public Expression
+{
     Value *value() const
     {
         likely_assert(false, "Operator has no value!");
@@ -314,6 +313,317 @@ private:
         return likely_type_null;
     }
 };
+
+class FunctionExpression : public Operator
+{
+    likely_env env;
+
+protected:
+    likely_ast ast;
+
+public:
+    FunctionExpression(Builder &builder, likely_ast ast)
+        : env(builder.snapshot()), ast(likely_retain_ast(ast)) {}
+
+    ~FunctionExpression()
+    {
+        likely_release_ast(ast);
+        likely_release_env(env);
+    }
+
+    virtual Immediate generate(Builder &builder, const vector<likely_type> &types, string name = string()) const = 0;
+
+    size_t argc() const
+    {
+        // Where 'ast' is of the form:
+        //     (lambda/kernel (arg0 arg1 ... argN) (expression))
+        if (!ast->is_list || (ast->num_atoms < 2))
+            return 0;
+        if (!ast->atoms[1]->is_list)
+            return 1;
+        return ast->atoms[1]->num_atoms;
+    }
+
+private:
+    Expression *evaluate(Builder &builder, likely_ast ast) const
+    {
+        assert(ast->is_list);
+        const int parameters = argc();
+        const int arguments = ast->num_atoms - 1;
+        if (parameters != arguments)
+            return likelyThrowArgumentCount(ast, "lambda", parameters, arguments);
+
+        vector<Value*> args;
+        vector<likely_type> types;
+        for (int i=0; i<arguments; i++) {
+            TRY_EXPR(builder, ast->atoms[i+1], arg)
+            args.push_back(arg);
+            types.push_back(arg);
+        }
+
+        Builder lambdaBuilder(builder.module, env);
+        Immediate i = generate(lambdaBuilder, types);
+        Function *f = cast<Function>(i.value_);
+        if (f) return new Immediate(builder.CreateCall(f, args), i.type_);
+        else   return NULL;
+    }
+};
+
+struct JITResources
+{
+    Module *module;
+    ExecutionEngine *executionEngine = NULL;
+    TargetMachine *targetMachine = NULL;
+    void *function = NULL;
+
+    JITResources(bool native, bool JIT)
+    {
+        if (Matrix == NULL) {
+            assert(sizeof(likely_size) == sizeof(void*));
+            InitializeNativeTarget();
+            InitializeNativeTargetAsmPrinter();
+            InitializeNativeTargetAsmParser();
+
+            PassRegistry &Registry = *PassRegistry::getPassRegistry();
+            initializeCore(Registry);
+            initializeScalarOpts(Registry);
+            initializeVectorization(Registry);
+            initializeIPO(Registry);
+            initializeAnalysis(Registry);
+            initializeIPA(Registry);
+            initializeTransformUtils(Registry);
+            initializeInstCombine(Registry);
+            initializeTarget(Registry);
+
+            NativeIntegerType = Type::getIntNTy(C, likely_depth(likely_type_native));
+            Matrix = PointerType::getUnqual(StructType::create("likely_matrix_struct",
+                                                               PointerType::getUnqual(StructType::create(C, "likely_matrix_private")), // d_ptr
+                                                               Type::getInt8PtrTy(C), // data
+                                                               NativeIntegerType,     // channels
+                                                               NativeIntegerType,     // columns
+                                                               NativeIntegerType,     // rows
+                                                               NativeIntegerType,     // frames
+                                                               Type::getInt32Ty(C),   // type
+                                                               NULL));
+        }
+
+        module = new Module(getUniqueName("module"), C);
+        likely_assert(module != NULL, "failed to create module");
+
+        if (native) {
+            string targetTriple = sys::getProcessTriple();
+#ifdef _WIN32
+            if (JIT)
+                targetTriple = targetTriple + "-elf";
+#endif // _WIN32
+            module->setTargetTriple(Triple::normalize(targetTriple));
+        }
+
+        string error;
+        EngineBuilder engineBuilder(module);
+        engineBuilder.setMCPU(sys::getHostCPUName())
+                     .setEngineKind(EngineKind::JIT)
+                     .setOptLevel(CodeGenOpt::Aggressive)
+                     .setErrorStr(&error)
+                     .setUseMCJIT(true);
+
+        if (JIT) {
+            executionEngine = engineBuilder.create();
+            likely_assert(executionEngine != NULL, "failed to create execution engine with error: %s", error.c_str());
+        }
+
+        if (native) {
+            engineBuilder.setCodeModel(CodeModel::Default);
+            targetMachine = engineBuilder.selectTarget();
+            likely_assert(targetMachine != NULL, "failed to select target machine with error: %s", error.c_str());
+        }
+    }
+
+    ~JITResources()
+    {
+        if (executionEngine) delete executionEngine; // owns module
+        else                 delete module;
+    }
+
+    void *finalize(Function *F)
+    {
+        if (!F)
+            return NULL;
+
+        if (targetMachine) {
+            static PassManager *PM = NULL;
+            if (!PM) {
+                PM = new PassManager();
+                PM->add(createVerifierPass());
+                PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
+                PM->add(new DataLayout(module));
+                targetMachine->addAnalysisPasses(*PM);
+                PassManagerBuilder builder;
+                builder.OptLevel = 3;
+                builder.SizeLevel = 0;
+                builder.LoopVectorize = true;
+                builder.populateModulePassManager(*PM);
+                PM->add(createVerifierPass());
+            }
+
+//            DebugFlag = true;
+//            module->dump();
+            PM->run(*module);
+//            module->dump();
+        }
+
+        if (executionEngine) {
+            executionEngine->finalizeObject();
+            function = executionEngine->getPointerToFunction(F);
+        }
+
+        return function;
+    }
+};
+
+struct FunctionBuilder : public JITResources
+{
+    const vector<likely_type> type;
+
+    FunctionBuilder(likely_ast ast, likely_env env, const vector<likely_type> &type, bool native, string name = string())
+        : JITResources(native, name.empty()), type(type)
+    {
+        likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
+                      (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel")),
+                      "expected a lambda/kernel expression");
+        Builder builder(module, env);
+        unique_ptr<Expression> result(builder.expression(ast));
+        function = finalize(dyn_cast<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, type, name).value_));
+    }
+
+    void write(const string &fileName) const
+    {
+        const string extension = fileName.substr(fileName.find_last_of(".") + 1);
+
+        string errorInfo;
+        tool_output_file output(fileName.c_str(), errorInfo);
+        if (extension == "ll") {
+            module->print(output.os(), NULL);
+        } else if (extension == "bc") {
+            WriteBitcodeToFile(module, output.os());
+        } else {
+            PassManager pm;
+            formatted_raw_ostream fos(output.os());
+            targetMachine->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
+            pm.run(*module);
+        }
+
+        likely_assert(errorInfo.empty(), "failed to write to: %s with error: %s", fileName.c_str(), errorInfo.c_str());
+        output.keep();
+    }
+};
+
+struct VTable : public JITResources
+{
+    static PointerType *vtableType;
+    static map<void*,VTable*> reverseLUT;
+    likely_ast ast;
+    likely_env env;
+    likely_arity n;
+    vector<FunctionBuilder*> functions;
+    Function *likelyDispatch;
+    int ref_count = 1;
+
+    VTable(likely_ast ast, likely_env env)
+        : JITResources(true, true), ast(likely_retain_ast(ast)), env(likely_retain_env(env))
+    {
+        // Try to compute arity
+        if (ast->is_list && (ast->num_atoms > 1))
+            if (ast->atoms[1]->is_list) n = ast->atoms[1]->num_atoms;
+            else                        n = 1;
+        else                            n = 0;
+
+        if (vtableType == NULL)
+            vtableType = PointerType::getUnqual(StructType::create(C, "VTable"));
+
+        static FunctionType *LikelyDispatchSignature = NULL;
+        if (LikelyDispatchSignature == NULL) {
+            vector<Type*> dispatchParameters;
+            dispatchParameters.push_back(vtableType);
+            dispatchParameters.push_back(PointerType::getUnqual(Matrix));
+            LikelyDispatchSignature = FunctionType::get(Matrix, dispatchParameters, false);
+        }
+        likelyDispatch = Function::Create(LikelyDispatchSignature, GlobalValue::ExternalLinkage, "likely_dispatch", module);
+        likelyDispatch->setCallingConv(CallingConv::C);
+        likelyDispatch->setDoesNotAlias(0);
+        likelyDispatch->setDoesNotAlias(1);
+        likelyDispatch->setDoesNotAlias(2);
+        likelyDispatch->setDoesNotCapture(1);
+        likelyDispatch->setDoesNotCapture(2);
+    }
+
+    ~VTable()
+    {
+        likely_release_ast(ast);
+        likely_release_env(env);
+        for (FunctionBuilder *function : functions)
+            delete function;
+    }
+
+    likely_function compile()
+    {
+        static FunctionType* functionType = NULL;
+        if (functionType == NULL)
+            functionType = FunctionType::get(Matrix, Matrix, true);
+        Function *function = getFunction(functionType);
+        BasicBlock *entry = BasicBlock::Create(C, "entry", function);
+        IRBuilder<> builder(entry);
+
+        Value *array;
+        if (n > 0) {
+            array = builder.CreateAlloca(Matrix, Constant::getIntegerValue(Type::getInt32Ty(C), APInt(32, (uint64_t)n)));
+            builder.CreateStore(function->arg_begin(), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), 0))));
+            if (n > 1) {
+                Value *vaList = builder.CreateAlloca(IntegerType::getInt8PtrTy(C));
+                Value *vaListRef = builder.CreateBitCast(vaList, Type::getInt8PtrTy(C));
+                builder.CreateCall(Intrinsic::getDeclaration(module, Intrinsic::vastart), vaListRef);
+                for (likely_arity i=1; i<n; i++)
+                    builder.CreateStore(builder.CreateVAArg(vaList, Matrix), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), i))));
+                builder.CreateCall(Intrinsic::getDeclaration(module, Intrinsic::vaend), vaListRef);
+            }
+        } else {
+            array = ConstantPointerNull::get(PointerType::getUnqual(Matrix));
+        }
+        builder.CreateRet(builder.CreateCall2(likelyDispatch, thisVTable(), array));
+        return reinterpret_cast<likely_function>(finalize(function));
+    }
+
+    likely_function_n compileN()
+    {
+        static FunctionType* functionType = NULL;
+        if (functionType == NULL)
+            functionType = FunctionType::get(Matrix, PointerType::getUnqual(Matrix), true);
+        Function *function = getFunction(functionType);
+        BasicBlock *entry = BasicBlock::Create(C, "entry", function);
+        IRBuilder<> builder(entry);
+        builder.CreateRet(builder.CreateCall2(likelyDispatch, thisVTable(), function->arg_begin()));
+        return reinterpret_cast<likely_function_n>(finalize(function));
+    }
+
+private:
+    Function *getFunction(FunctionType *functionType) const
+    {
+        Function *function = cast<Function>(module->getOrInsertFunction(getUniqueName("vtable"), functionType));
+        function->addFnAttr(Attribute::NoUnwind);
+        function->setCallingConv(CallingConv::C);
+        function->setDoesNotAlias(0);
+        function->setDoesNotAlias(1);
+        function->setDoesNotCapture(1);
+        return function;
+    }
+
+    Constant *thisVTable() const
+    {
+        return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(this)), uintptr_t(this)), vtableType);
+    }
+};
+PointerType *VTable::vtableType = NULL;
+map<void*,VTable*> VTable::reverseLUT;
 
 template <class T>
 struct RegisterExpression
@@ -384,7 +694,7 @@ class scalarExpression : public UnaryOperator
 {
     Expression *evaluateUnary(Builder &builder, likely_ast arg) const
     {
-        Expression *argExpr = expression(builder, arg);
+        Expression *argExpr = builder.expression(arg);
         if (!argExpr)
             return new Immediate(builder.zero());
 
@@ -705,66 +1015,11 @@ class defineExpression : public Operator
             return likelyThrowArgumentCount(ast, "define", 3, ast->is_list ? ast->num_atoms : 0);
         if (ast->atoms[1]->is_list)
             return likelyThrow(ast->atoms[1], "define expected an atom name");
-        builder.define(ast->atoms[1]->atom, expression(builder, ast->atoms[2]));
+        builder.define(ast->atoms[1]->atom, builder.expression(ast->atoms[2]));
         return NULL;
     }
 };
 LIKELY_REGISTER(define)
-
-class FunctionExpression : public Operator
-{
-    likely_env env;
-
-protected:
-    likely_ast ast;
-
-public:
-    FunctionExpression(Builder &builder, likely_ast ast)
-        : env(builder.snapshot()), ast(likely_retain_ast(ast)) {}
-
-    ~FunctionExpression()
-    {
-        likely_release_ast(ast);
-        likely_release_env(env);
-    }
-
-    virtual Immediate generate(Builder &builder, const vector<likely_type> &types, string name = string()) const = 0;
-
-    size_t argc() const
-    {
-        // Where 'ast' is of the form:
-        //     (lambda/kernel (arg0 arg1 ... argN) (expression))
-        if (!ast->is_list || (ast->num_atoms < 2))
-            return 0;
-        if (!ast->atoms[1]->is_list)
-            return 1;
-        return ast->atoms[1]->num_atoms;
-    }
-
-private:
-    Expression *evaluate(Builder &builder, likely_ast ast) const
-    {
-        assert(ast->is_list);
-        const int parameters = argc();
-        const int arguments = ast->num_atoms - 1;
-        if (parameters != arguments)
-            return likelyThrowArgumentCount(ast, "lambda", parameters, arguments);
-
-        vector<Value*> args;
-        vector<likely_type> types;
-        for (int i=0; i<arguments; i++) {
-            TRY_EXPR(builder, ast->atoms[i+1], arg)
-            args.push_back(arg);
-            types.push_back(arg);
-        }
-
-        Builder lambdaBuilder(builder.module, env);
-        Immediate i = generate(lambdaBuilder, types);
-        Function *f = cast<Function>(i.value_);
-        if (f) return new Immediate(builder.CreateCall(f, args), i.type_);
-        else   return NULL;
-    }
-};
 
 struct Kernel : public FunctionExpression
 {
@@ -892,7 +1147,7 @@ private:
             for (size_t j=0; j<args->num_atoms; j++)
                 builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, node));
 
-            ManagedExpression result(expression(builder, ast->atoms[2]));
+            ManagedExpression result(builder.expression(ast->atoms[2]));
             dstType = dst.type_ = result;
             StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), i));
             store->setMetadata("llvm.mem.parallel_loop_access", node);
@@ -1020,7 +1275,7 @@ private:
         // Look for a dimensionality expression
         for (size_t i=3; i<ast->num_atoms; i++) {
             if (ast->atoms[i]->is_list && (ast->atoms[i]->num_atoms == 2) && (!ast->atoms[i]->atoms[0]->is_list) && !strcmp(axis, ast->atoms[i]->atoms[0]->atom)) {
-                result = builder.cast(unique_ptr<Expression>(expression(builder, ast->atoms[i]->atoms[1])).get(), likely_type_native);
+                result = builder.cast(unique_ptr<Expression>(builder.expression(ast->atoms[i]->atoms[1])).get(), likely_type_native);
                 break;
             }
         }
@@ -1079,7 +1334,7 @@ private:
         assert(tmpArgs.size() == ast->atoms[1]->num_atoms);
         for (size_t i=0; i<tmpArgs.size(); i++)
             builder.define(ast->atoms[1]->atoms[i]->atom, tmpArgs[i]);
-        ManagedExpression result(expression(builder, ast->atoms[2]));
+        ManagedExpression result(builder.expression(ast->atoms[2]));
         for (size_t i=0; i<tmpArgs.size(); i++)
             builder.undefine(ast->atoms[1]->atoms[i]->atom);
         builder.CreateRet(result);
@@ -1124,7 +1379,7 @@ class readExpression : public Operator
         Function *likelyRead = Function::Create(LikelyReadSignature, GlobalValue::ExternalLinkage, "likely_read", builder.module);
         likelyRead->setCallingConv(CallingConv::C);
         likelyRead->setDoesNotAlias(0);
-        return new Immediate(builder.CreateCall(likelyRead, expression(builder, ast->atoms[1])->take()), likely_type_null);
+        return new Immediate(builder.CreateCall(likelyRead, builder.expression(ast->atoms[1])->take()), likely_type_null);
     }
 };
 LIKELY_REGISTER(read)
@@ -1151,8 +1406,8 @@ class writeExpression : public Operator
         likelyWrite->setDoesNotAlias(2);
         likelyWrite->setDoesNotCapture(2);
         vector<Value*> likelyWriteArguments;
-        likelyWriteArguments.push_back(expression(builder, ast->atoms[1])->take());
-        likelyWriteArguments.push_back(expression(builder, ast->atoms[2])->take());
+        likelyWriteArguments.push_back(builder.expression(ast->atoms[1])->take());
+        likelyWriteArguments.push_back(builder.expression(ast->atoms[2])->take());
         return new Immediate(builder.CreateCall(likelyWrite, likelyWriteArguments), likely_type_null);
     }
 };
@@ -1174,7 +1429,7 @@ class decodeExpression : public Operator
         likelyDecode->setDoesNotAlias(0);
         likelyDecode->setDoesNotAlias(1);
         likelyDecode->setDoesNotCapture(1);
-        return new Immediate(builder.CreateCall(likelyDecode, expression(builder, ast->atoms[1])->take()), likely_type_null);
+        return new Immediate(builder.CreateCall(likelyDecode, builder.expression(ast->atoms[1])->take()), likely_type_null);
     }
 };
 LIKELY_REGISTER(decode)
@@ -1201,269 +1456,13 @@ class encodeExpression : public Operator
         likelyEncode->setDoesNotAlias(2);
         likelyEncode->setDoesNotCapture(2);
         vector<Value*> likelyEncodeArguments;
-        likelyEncodeArguments.push_back(expression(builder, ast->atoms[1])->take());
-        likelyEncodeArguments.push_back(expression(builder, ast->atoms[2])->take());
+        likelyEncodeArguments.push_back(builder.expression(ast->atoms[1])->take());
+        likelyEncodeArguments.push_back(builder.expression(ast->atoms[2])->take());
         return new Immediate(builder.CreateCall(likelyEncode, likelyEncodeArguments), likely_type_null);
     }
 };
 LIKELY_REGISTER(encode)
 #endif // LIKELY_IO
-
-struct JITResources
-{
-    Module *module;
-    ExecutionEngine *executionEngine = NULL;
-    TargetMachine *targetMachine = NULL;
-    void *function = NULL;
-
-    JITResources(bool native, bool JIT)
-    {
-        if (Matrix == NULL) {
-            assert(sizeof(likely_size) == sizeof(void*));
-            InitializeNativeTarget();
-            InitializeNativeTargetAsmPrinter();
-            InitializeNativeTargetAsmParser();
-
-            PassRegistry &Registry = *PassRegistry::getPassRegistry();
-            initializeCore(Registry);
-            initializeScalarOpts(Registry);
-            initializeVectorization(Registry);
-            initializeIPO(Registry);
-            initializeAnalysis(Registry);
-            initializeIPA(Registry);
-            initializeTransformUtils(Registry);
-            initializeInstCombine(Registry);
-            initializeTarget(Registry);
-
-            NativeIntegerType = Type::getIntNTy(C, likely_depth(likely_type_native));
-            Matrix = PointerType::getUnqual(StructType::create("likely_matrix_struct",
-                                                               PointerType::getUnqual(StructType::create(C, "likely_matrix_private")), // d_ptr
-                                                               Type::getInt8PtrTy(C), // data
-                                                               NativeIntegerType,     // channels
-                                                               NativeIntegerType,     // columns
-                                                               NativeIntegerType,     // rows
-                                                               NativeIntegerType,     // frames
-                                                               Type::getInt32Ty(C),   // type
-                                                               NULL));
-        }
-
-        module = new Module(getUniqueName("module"), C);
-        likely_assert(module != NULL, "failed to create module");
-
-        if (native) {
-            string targetTriple = sys::getProcessTriple();
-#ifdef _WIN32
-            if (JIT)
-                targetTriple = targetTriple + "-elf";
-#endif // _WIN32
-            module->setTargetTriple(Triple::normalize(targetTriple));
-        }
-
-        string error;
-        EngineBuilder engineBuilder(module);
-        engineBuilder.setMCPU(sys::getHostCPUName())
-                     .setEngineKind(EngineKind::JIT)
-                     .setOptLevel(CodeGenOpt::Aggressive)
-                     .setErrorStr(&error)
-                     .setUseMCJIT(true);
-
-        if (JIT) {
-            executionEngine = engineBuilder.create();
-            likely_assert(executionEngine != NULL, "failed to create execution engine with error: %s", error.c_str());
-        }
-
-        if (native) {
-            engineBuilder.setCodeModel(CodeModel::Default);
-            targetMachine = engineBuilder.selectTarget();
-            likely_assert(targetMachine != NULL, "failed to select target machine with error: %s", error.c_str());
-        }
-    }
-
-    ~JITResources()
-    {
-        if (executionEngine) delete executionEngine; // owns module
-        else                 delete module;
-    }
-
-    void *finalize(Function *F)
-    {
-        if (!F)
-            return NULL;
-
-        if (targetMachine) {
-            static PassManager *PM = NULL;
-            if (!PM) {
-                PM = new PassManager();
-                PM->add(createVerifierPass());
-                PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
-                PM->add(new DataLayout(module));
-                targetMachine->addAnalysisPasses(*PM);
-                PassManagerBuilder builder;
-                builder.OptLevel = 3;
-                builder.SizeLevel = 0;
-                builder.LoopVectorize = true;
-                builder.populateModulePassManager(*PM);
-                PM->add(createVerifierPass());
-            }
-
-//            DebugFlag = true;
-//            module->dump();
-            PM->run(*module);
-//            module->dump();
-        }
-
-        if (executionEngine) {
-            executionEngine->finalizeObject();
-            function = executionEngine->getPointerToFunction(F);
-        }
-
-        return function;
-    }
-};
-
-struct FunctionBuilder : public JITResources
-{
-    const vector<likely_type> type;
-
-    FunctionBuilder(likely_ast ast, likely_env env, const vector<likely_type> &type, bool native, string name = string())
-        : JITResources(native, name.empty()), type(type)
-    {
-        likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
-                      (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel")),
-                      "expected a lambda/kernel expression");
-        Builder builder(module, env);
-        unique_ptr<Expression> result(Operator::expression(builder, ast));
-        function = finalize(dyn_cast<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, type, name).value_));
-    }
-
-    void write(const string &fileName) const
-    {
-        const string extension = fileName.substr(fileName.find_last_of(".") + 1);
-
-        string errorInfo;
-        tool_output_file output(fileName.c_str(), errorInfo);
-        if (extension == "ll") {
-            module->print(output.os(), NULL);
-        } else if (extension == "bc") {
-            WriteBitcodeToFile(module, output.os());
-        } else {
-            PassManager pm;
-            formatted_raw_ostream fos(output.os());
-            targetMachine->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
-            pm.run(*module);
-        }
-
-        likely_assert(errorInfo.empty(), "failed to write to: %s with error: %s", fileName.c_str(), errorInfo.c_str());
-        output.keep();
-    }
-};
-
-struct VTable : public JITResources
-{
-    static PointerType *vtableType;
-    static map<void*,VTable*> reverseLUT;
-    likely_ast ast;
-    likely_env env;
-    likely_arity n;
-    vector<FunctionBuilder*> functions;
-    Function *likelyDispatch;
-    int ref_count = 1;
-
-    VTable(likely_ast ast, likely_env env)
-        : JITResources(true, true), ast(likely_retain_ast(ast)), env(likely_retain_env(env))
-    {
-        // Try to compute arity
-        if (ast->is_list && (ast->num_atoms > 1))
-            if (ast->atoms[1]->is_list) n = ast->atoms[1]->num_atoms;
-            else                        n = 1;
-        else                            n = 0;
-
-        if (vtableType == NULL)
-            vtableType = PointerType::getUnqual(StructType::create(C, "VTable"));
-
-        static FunctionType *LikelyDispatchSignature = NULL;
-        if (LikelyDispatchSignature == NULL) {
-            vector<Type*> dispatchParameters;
-            dispatchParameters.push_back(vtableType);
-            dispatchParameters.push_back(PointerType::getUnqual(Matrix));
-            LikelyDispatchSignature = FunctionType::get(Matrix, dispatchParameters, false);
-        }
-        likelyDispatch = Function::Create(LikelyDispatchSignature, GlobalValue::ExternalLinkage, "likely_dispatch", module);
-        likelyDispatch->setCallingConv(CallingConv::C);
-        likelyDispatch->setDoesNotAlias(0);
-        likelyDispatch->setDoesNotAlias(1);
-        likelyDispatch->setDoesNotAlias(2);
-        likelyDispatch->setDoesNotCapture(1);
-        likelyDispatch->setDoesNotCapture(2);
-    }
-
-    ~VTable()
-    {
-        likely_release_ast(ast);
-        likely_release_env(env);
-        for (FunctionBuilder *function : functions)
-            delete function;
-    }
-
-    likely_function compile()
-    {
-        static FunctionType* functionType = NULL;
-        if (functionType == NULL)
-            functionType = FunctionType::get(Matrix, Matrix, true);
-        Function *function = getFunction(functionType);
-        BasicBlock *entry = BasicBlock::Create(C, "entry", function);
-        IRBuilder<> builder(entry);
-
-        Value *array;
-        if (n > 0) {
-            array = builder.CreateAlloca(Matrix, Constant::getIntegerValue(Type::getInt32Ty(C), APInt(32, (uint64_t)n)));
-            builder.CreateStore(function->arg_begin(), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), 0))));
-            if (n > 1) {
-                Value *vaList = builder.CreateAlloca(IntegerType::getInt8PtrTy(C));
-                Value *vaListRef = builder.CreateBitCast(vaList, Type::getInt8PtrTy(C));
-                builder.CreateCall(Intrinsic::getDeclaration(module, Intrinsic::vastart), vaListRef);
-                for (likely_arity i=1; i<n; i++)
-                    builder.CreateStore(builder.CreateVAArg(vaList, Matrix), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), i))));
-                builder.CreateCall(Intrinsic::getDeclaration(module, Intrinsic::vaend), vaListRef);
-            }
-        } else {
-            array = ConstantPointerNull::get(PointerType::getUnqual(Matrix));
-        }
-        builder.CreateRet(builder.CreateCall2(likelyDispatch, thisVTable(), array));
-        return reinterpret_cast<likely_function>(finalize(function));
-    }
-
-    likely_function_n compileN()
-    {
-        static FunctionType* functionType = NULL;
-        if (functionType == NULL)
-            functionType = FunctionType::get(Matrix, PointerType::getUnqual(Matrix), true);
-        Function *function = getFunction(functionType);
-        BasicBlock *entry = BasicBlock::Create(C, "entry", function);
-        IRBuilder<> builder(entry);
-        builder.CreateRet(builder.CreateCall2(likelyDispatch, thisVTable(), function->arg_begin()));
-        return reinterpret_cast<likely_function_n>(finalize(function));
-    }
-
-private:
-    Function *getFunction(FunctionType *functionType) const
-    {
-        Function *function = cast<Function>(module->getOrInsertFunction(getUniqueName("vtable"), functionType));
-        function->addFnAttr(Attribute::NoUnwind);
-        function->setCallingConv(CallingConv::C);
-        function->setDoesNotAlias(0);
-        function->setDoesNotAlias(1);
-        function->setDoesNotCapture(1);
-        return function;
-    }
-
-    Constant *thisVTable() const
-    {
-        return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(this)), uintptr_t(this)), vtableType);
-    }
-};
-PointerType *VTable::vtableType = NULL;
-map<void*,VTable*> VTable::reverseLUT;
 
 } // namespace (anonymous)
 
