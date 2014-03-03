@@ -565,7 +565,7 @@ struct VTable : public JITResources
             delete function;
     }
 
-    likely_function compile()
+    Function *generate()
     {
         static FunctionType* functionType = NULL;
         if (functionType == NULL)
@@ -590,7 +590,12 @@ struct VTable : public JITResources
             array = ConstantPointerNull::get(PointerType::getUnqual(Matrix));
         }
         builder.CreateRet(builder.CreateCall2(likelyDispatch, thisVTable(), array));
-        return reinterpret_cast<likely_function>(finalize(function));
+        return function;
+    }
+
+    likely_function compile()
+    {
+        return reinterpret_cast<likely_function>(finalize(generate()));
     }
 
     likely_function_n compileN()
@@ -1071,11 +1076,12 @@ private:
         for (likely_type type : types)
             if (type == likely_type_null) {
                 // Dynamic dispatch
+                static vector<VTable*> vtables; // These should be associated with their JITResources
                 likely_env env = builder.snapshot();
-                likely_function_n function = likely_compile_n(ast, env);
-                (void) function;
+                VTable *vtable = new VTable(ast, env);
                 likely_release_env(env);
-                assert(!"Unfinished implementation");
+                vtables.push_back(vtable);
+                return Immediate(vtable->generate(), likely_type_null);
             }
 
         Function *function = getKernel(builder, name, types.size(), Matrix);
