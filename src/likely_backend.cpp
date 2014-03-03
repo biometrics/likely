@@ -1192,14 +1192,12 @@ LIKELY_REGISTER(encode)
 
 struct JITResources
 {
-    string name;
     Module *module;
     ExecutionEngine *executionEngine = NULL;
     TargetMachine *targetMachine = NULL;
     void *function = NULL;
 
-    JITResources(bool native, const string &symbol_name = string())
-        : name(symbol_name)
+    JITResources(bool native, bool JIT)
     {
         if (Matrix == NULL) {
             assert(sizeof(likely_size) == sizeof(void*));
@@ -1230,15 +1228,9 @@ struct JITResources
                                                                NULL));
         }
 
-        const bool JIT = symbol_name.empty();
-
-        if (JIT) {
-            static int index = 0;
-            stringstream stream; stream << "likely_" << index++;
-            name = stream.str();
-        }
-
-        module = new Module(name, C);
+        static int index = 0;
+        stringstream stream; stream << "likely_module_" << index++;
+        module = new Module(stream.str(), C);
         likely_assert(module != NULL, "failed to create module");
 
         if (native) {
@@ -1316,13 +1308,18 @@ struct FunctionBuilder : public JITResources
 {
     const vector<likely_type> type;
 
-    FunctionBuilder(likely_ast ast, likely_env env, const vector<likely_type> &type, bool native, const string &symbol_name = string())
-        : JITResources(native, symbol_name), type(type)
+    FunctionBuilder(likely_ast ast, likely_env env, const vector<likely_type> &type, bool native, string symbolName = string())
+        : JITResources(native, symbolName.empty()), type(type)
     {
         likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
                       (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel")),
                       "expected a lambda/kernel expression");
-        Builder builder(module, env, name);
+        if (symbolName.empty()) {
+            static int index = 0;
+            stringstream stream; stream << "likely_function_" << index++;
+            symbolName = stream.str();
+        }
+        Builder builder(module, env, symbolName);
         unique_ptr<Expression> result(Operator::expression(builder, ast));
         function = finalize(dyn_cast<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, type).value_));
     }
@@ -1361,7 +1358,7 @@ struct VTable : public JITResources
     int ref_count = 1;
 
     VTable(likely_ast ast, likely_env env)
-        : JITResources(true), ast(likely_retain_ast(ast)), env(likely_retain_env(env))
+        : JITResources(true, true), ast(likely_retain_ast(ast)), env(likely_retain_env(env))
     {
         // Try to compute arity
         if (ast->is_list && (ast->num_atoms > 1))
@@ -1439,7 +1436,9 @@ struct VTable : public JITResources
 private:
     Function *getFunction(FunctionType *functionType) const
     {
-        Function *function = cast<Function>(module->getOrInsertFunction(name, functionType));
+        static int index = 0;
+        stringstream stream; stream << "likely_vtable_" << index++;
+        Function *function = cast<Function>(module->getOrInsertFunction(stream.str(), functionType));
         function->addFnAttr(Attribute::NoUnwind);
         function->setCallingConv(CallingConv::C);
         function->setDoesNotAlias(0);
