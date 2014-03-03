@@ -140,12 +140,18 @@ private:
     }
 };
 
-struct Resources
+struct Object
+{
+    virtual ~Object() {}
+};
+
+struct Resources : public Object
 {
     Module *module;
     ExecutionEngine *executionEngine = NULL;
     TargetMachine *targetMachine = NULL;
     void *function = NULL;
+    vector<Object*> children;
 
     Resources(bool native, bool JIT)
     {
@@ -212,6 +218,8 @@ struct Resources
 
     ~Resources()
     {
+        for (Object *child : children)
+            delete child;
         if (executionEngine) delete executionEngine; // owns module
         else                 delete module;
     }
@@ -518,18 +526,21 @@ struct StaticFunction : public Resources
     }
 };
 
-struct DynamicFunction : public Resources
+struct DynamicFunction : public Object
 {
     static PointerType *dynamicType;
+    Resources *resources;
     likely_ast ast;
     likely_env env;
     likely_arity n;
     vector<StaticFunction*> functions;
     Function *likelyDispatch;
 
-    DynamicFunction(likely_ast ast, likely_env env)
-        : Resources(true, true), ast(likely_retain_ast(ast)), env(likely_retain_env(env))
+    DynamicFunction(Resources *parent, likely_ast ast, likely_env env)
+        : resources(parent), ast(likely_retain_ast(ast)), env(likely_retain_env(env))
     {
+        parent->children.push_back(this);
+
         // Try to compute arity
         if (ast->is_list && (ast->num_atoms > 1))
             if (ast->atoms[1]->is_list) n = ast->atoms[1]->num_atoms;
@@ -546,7 +557,7 @@ struct DynamicFunction : public Resources
             dispatchParameters.push_back(PointerType::getUnqual(Matrix));
             LikelyDispatchSignature = FunctionType::get(Matrix, dispatchParameters, false);
         }
-        likelyDispatch = Function::Create(LikelyDispatchSignature, GlobalValue::ExternalLinkage, "likely_dispatch", module);
+        likelyDispatch = Function::Create(LikelyDispatchSignature, GlobalValue::ExternalLinkage, "likely_dispatch", resources->module);
         likelyDispatch->setCallingConv(CallingConv::C);
         likelyDispatch->setDoesNotAlias(0);
         likelyDispatch->setDoesNotAlias(1);
@@ -579,10 +590,10 @@ struct DynamicFunction : public Resources
             if (n > 1) {
                 Value *vaList = builder.CreateAlloca(IntegerType::getInt8PtrTy(C));
                 Value *vaListRef = builder.CreateBitCast(vaList, Type::getInt8PtrTy(C));
-                builder.CreateCall(Intrinsic::getDeclaration(module, Intrinsic::vastart), vaListRef);
+                builder.CreateCall(Intrinsic::getDeclaration(resources->module, Intrinsic::vastart), vaListRef);
                 for (likely_arity i=1; i<n; i++)
                     builder.CreateStore(builder.CreateVAArg(vaList, Matrix), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), i))));
-                builder.CreateCall(Intrinsic::getDeclaration(module, Intrinsic::vaend), vaListRef);
+                builder.CreateCall(Intrinsic::getDeclaration(resources->module, Intrinsic::vaend), vaListRef);
             }
         } else {
             array = ConstantPointerNull::get(PointerType::getUnqual(Matrix));
@@ -593,7 +604,7 @@ struct DynamicFunction : public Resources
 
     likely_function compile()
     {
-        return reinterpret_cast<likely_function>(finalize(generate()));
+        return reinterpret_cast<likely_function>(resources->finalize(generate()));
     }
 
     likely_function_n compileN()
@@ -605,13 +616,13 @@ struct DynamicFunction : public Resources
         BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         IRBuilder<> builder(entry);
         builder.CreateRet(builder.CreateCall2(likelyDispatch, thisDynamicFunction(), function->arg_begin()));
-        return reinterpret_cast<likely_function_n>(finalize(function));
+        return reinterpret_cast<likely_function_n>(resources->finalize(function));
     }
 
 private:
     Function *getFunction(FunctionType *functionType) const
     {
-        Function *function = cast<Function>(module->getOrInsertFunction(getUniqueName("dynamic"), functionType));
+        Function *function = cast<Function>(resources->module->getOrInsertFunction(getUniqueName("dynamic"), functionType));
         function->addFnAttr(Attribute::NoUnwind);
         function->setCallingConv(CallingConv::C);
         function->setDoesNotAlias(0);
@@ -1073,11 +1084,9 @@ private:
         for (likely_type type : types)
             if (type == likely_type_null) {
                 // Dynamic dispatch
-                static vector<DynamicFunction*> dynamicFunctions; // These should be associated with their JITResources
                 likely_env env = builder.snapshot();
-                DynamicFunction *dynamicFunction = new DynamicFunction(ast, env);
+                DynamicFunction *dynamicFunction = new DynamicFunction(builder.resources, ast, env);
                 likely_release_env(env);
-                dynamicFunctions.push_back(dynamicFunction);
                 return Immediate(dynamicFunction->generate(), likely_type_null);
             }
 
@@ -1532,25 +1541,27 @@ extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct DynamicFunction *d
     return dst;
 }
 
-static map<void*,pair<DynamicFunction*,int>> DynamicFunctionLUT;
+static map<void*,pair<Object*,int>> DynamicFunctionLUT;
 
 likely_function likely_compile(likely_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    DynamicFunction *df = new DynamicFunction(ast, env);
+    Resources *r = new Resources(true, true);
+    DynamicFunction *df = new DynamicFunction(r, ast, env);
     likely_function f = df->compile();
-    if (f) DynamicFunctionLUT[(void*)f] = pair<DynamicFunction*,int>(df, 1);
-    else   delete df;
+    if (f) DynamicFunctionLUT[(void*)f] = pair<Object*,int>(r, 1);
+    else   delete r;
     return f;
 }
 
 likely_function_n likely_compile_n(likely_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    DynamicFunction *df = new DynamicFunction(ast, env);
+    Resources *r = new Resources(true, true);
+    DynamicFunction *df = new DynamicFunction(r, ast, env);
     likely_function_n f = df->compileN();
-    if (f) DynamicFunctionLUT[(void*)f] = pair<DynamicFunction*,int>(df, 1);
-    else   delete df;
+    if (f) DynamicFunctionLUT[(void*)f] = pair<Object*,int>(r, 1);
+    else   delete r;
     return f;
 }
 
@@ -1563,7 +1574,7 @@ void *likely_retain_function(void *function)
 void likely_release_function(void *function)
 {
     if (!function) return;
-    pair<DynamicFunction*,int> &df = DynamicFunctionLUT[function];
+    pair<Object*,int> &df = DynamicFunctionLUT[function];
     if (--df.second) return;
     DynamicFunctionLUT.erase(function);
     delete df.first;
