@@ -813,6 +813,16 @@ private:
         if (name.empty())
             name = getUniqueName("kernel");
 
+        for (likely_type type : types)
+            if (type == likely_type_null) {
+                // Dynamic dispatch
+                likely_env env = builder.snapshot();
+                likely_function_n function = likely_compile_n(ast, env);
+                (void) function;
+                likely_release_env(env);
+                assert(!"Unfinished implementation");
+            }
+
         Function *function = getKernel(builder, name, types.size(), Matrix);
         vector<Immediate> srcs = builder.getArgs(function, types);
         BasicBlock *entry = BasicBlock::Create(C, "entry", function);
