@@ -521,13 +521,11 @@ struct StaticFunction : public Resources
 struct DynamicFunction : public Resources
 {
     static PointerType *dynamicType;
-    static map<void*,DynamicFunction*> reverseLUT;
     likely_ast ast;
     likely_env env;
     likely_arity n;
     vector<StaticFunction*> functions;
     Function *likelyDispatch;
-    int ref_count = 1;
 
     DynamicFunction(likely_ast ast, likely_env env)
         : Resources(true, true), ast(likely_retain_ast(ast)), env(likely_retain_env(env))
@@ -628,7 +626,6 @@ private:
     }
 };
 PointerType *DynamicFunction::dynamicType = NULL;
-map<void*,DynamicFunction*> DynamicFunction::reverseLUT;
 
 template <class T>
 struct RegisterExpression
@@ -1472,18 +1469,18 @@ LIKELY_REGISTER(encode)
 
 } // namespace (anonymous)
 
-LIKELY_EXPORT likely_env likely_new_env()
+likely_env likely_new_env()
 {
     return new likely_env_struct();
 }
 
-LIKELY_EXPORT likely_env likely_retain_env(likely_env env)
+likely_env likely_retain_env(likely_env env)
 {
     if (env) env->ref_count++;
     return env;
 }
 
-LIKELY_EXPORT void likely_release_env(likely_env env)
+void likely_release_env(likely_env env)
 {
     if (!env || --env->ref_count) return;
     delete env;
@@ -1535,39 +1532,41 @@ extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct DynamicFunction *d
     return dst;
 }
 
+static map<void*,pair<DynamicFunction*,int>> DynamicFunctionLUT;
+
 likely_function likely_compile(likely_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    DynamicFunction *dynamicFunction = new DynamicFunction(ast, env);
-    likely_function function = dynamicFunction->compile();
-    assert(function);
-    DynamicFunction::reverseLUT[(void*)function] = dynamicFunction;
-    return function;
+    DynamicFunction *df = new DynamicFunction(ast, env);
+    likely_function f = df->compile();
+    if (f) DynamicFunctionLUT[(void*)f] = pair<DynamicFunction*,int>(df, 1);
+    else   delete df;
+    return f;
 }
 
 likely_function_n likely_compile_n(likely_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    DynamicFunction *dynamicFunction = new DynamicFunction(ast, env);
-    likely_function_n function = dynamicFunction->compileN();
-    assert(function);
-    DynamicFunction::reverseLUT[(void*)function] = dynamicFunction;
-    return function;
+    DynamicFunction *df = new DynamicFunction(ast, env);
+    likely_function_n f = df->compileN();
+    if (f) DynamicFunctionLUT[(void*)f] = pair<DynamicFunction*,int>(df, 1);
+    else   delete df;
+    return f;
 }
 
 void *likely_retain_function(void *function)
 {
-    if (function) DynamicFunction::reverseLUT[function]->ref_count++;
+    if (function) DynamicFunctionLUT[function].second++;
     return function;
 }
 
 void likely_release_function(void *function)
 {
     if (!function) return;
-    DynamicFunction *dynamicFunction = DynamicFunction::reverseLUT[function];
-    if (--dynamicFunction->ref_count) return;
-    DynamicFunction::reverseLUT.erase(function);
-    delete dynamicFunction;
+    pair<DynamicFunction*,int> &df = DynamicFunctionLUT[function];
+    if (--df.second) return;
+    DynamicFunctionLUT.erase(function);
+    delete df.first;
 }
 
 void likely_compile_to_file(likely_ast ast, likely_env env, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
