@@ -96,6 +96,14 @@ static Expression *likelyThrowArgumentCount(likely_ast ast, const string &functi
     return likelyThrow(ast, stream.str().c_str());
 }
 
+static string getUniqueName(const string &prefix)
+{
+    static map<string, int> uidLUT;
+    stringstream stream;
+    stream << "likely_" << prefix << "_" << uidLUT[prefix]++;
+    return stream.str();
+}
+
 struct Immediate : public Expression
 {
     Value *value_;
@@ -802,11 +810,8 @@ private:
 
     Immediate generate(Builder &builder, const vector<likely_type> &types, string name) const
     {
-        if (name.empty()) {
-            static int index = 0;
-            stringstream stream; stream << "likely_kernel_" << index++;
-            name = stream.str();
-        }
+        if (name.empty())
+            name = getUniqueName("kernel");
 
         Function *function = getKernel(builder, name, types.size(), Matrix);
         vector<Immediate> srcs = builder.getArgs(function, types);
@@ -1050,11 +1055,8 @@ struct Lambda : public FunctionExpression
 private:
     Immediate generate(Builder &builder, const vector<likely_type> &types, string name) const
     {
-        if (name.empty()) {
-            static int index = 0;
-            stringstream stream; stream << "likely_lambda_" << index++;
-            name = stream.str();
-        }
+        if (name.empty())
+            name = getUniqueName("lambda");
 
         vector<Type*> tys;
         for (likely_type type : types)
@@ -1235,9 +1237,7 @@ struct JITResources
                                                                NULL));
         }
 
-        static int index = 0;
-        stringstream stream; stream << "likely_module_" << index++;
-        module = new Module(stream.str(), C);
+        module = new Module(getUniqueName("module"), C);
         likely_assert(module != NULL, "failed to create module");
 
         if (native) {
@@ -1438,9 +1438,7 @@ struct VTable : public JITResources
 private:
     Function *getFunction(FunctionType *functionType) const
     {
-        static int index = 0;
-        stringstream stream; stream << "likely_vtable_" << index++;
-        Function *function = cast<Function>(module->getOrInsertFunction(stream.str(), functionType));
+        Function *function = cast<Function>(module->getOrInsertFunction(getUniqueName("vtable"), functionType));
         function->addFnAttr(Attribute::NoUnwind);
         function->setCallingConv(CallingConv::C);
         function->setDoesNotAlias(0);
