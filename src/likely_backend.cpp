@@ -140,6 +140,118 @@ private:
     }
 };
 
+struct Resources
+{
+    Module *module;
+    ExecutionEngine *executionEngine = NULL;
+    TargetMachine *targetMachine = NULL;
+    void *function = NULL;
+
+    Resources(bool native, bool JIT)
+    {
+        if (Matrix == NULL) {
+            assert(sizeof(likely_size) == sizeof(void*));
+            InitializeNativeTarget();
+            InitializeNativeTargetAsmPrinter();
+            InitializeNativeTargetAsmParser();
+
+            PassRegistry &Registry = *PassRegistry::getPassRegistry();
+            initializeCore(Registry);
+            initializeScalarOpts(Registry);
+            initializeVectorization(Registry);
+            initializeIPO(Registry);
+            initializeAnalysis(Registry);
+            initializeIPA(Registry);
+            initializeTransformUtils(Registry);
+            initializeInstCombine(Registry);
+            initializeTarget(Registry);
+
+            NativeIntegerType = Type::getIntNTy(C, likely_depth(likely_type_native));
+            Matrix = PointerType::getUnqual(StructType::create("likely_matrix_struct",
+                                                               PointerType::getUnqual(StructType::create(C, "likely_matrix_private")), // d_ptr
+                                                               Type::getInt8PtrTy(C), // data
+                                                               NativeIntegerType,     // channels
+                                                               NativeIntegerType,     // columns
+                                                               NativeIntegerType,     // rows
+                                                               NativeIntegerType,     // frames
+                                                               Type::getInt32Ty(C),   // type
+                                                               NULL));
+        }
+
+        module = new Module(getUniqueName("module"), C);
+        likely_assert(module != NULL, "failed to create module");
+
+        if (native) {
+            string targetTriple = sys::getProcessTriple();
+#ifdef _WIN32
+            if (JIT)
+                targetTriple = targetTriple + "-elf";
+#endif // _WIN32
+            module->setTargetTriple(Triple::normalize(targetTriple));
+        }
+
+        string error;
+        EngineBuilder engineBuilder(module);
+        engineBuilder.setMCPU(sys::getHostCPUName())
+                     .setEngineKind(EngineKind::JIT)
+                     .setOptLevel(CodeGenOpt::Aggressive)
+                     .setErrorStr(&error)
+                     .setUseMCJIT(true);
+
+        if (JIT) {
+            executionEngine = engineBuilder.create();
+            likely_assert(executionEngine != NULL, "failed to create execution engine with error: %s", error.c_str());
+        }
+
+        if (native) {
+            engineBuilder.setCodeModel(CodeModel::Default);
+            targetMachine = engineBuilder.selectTarget();
+            likely_assert(targetMachine != NULL, "failed to select target machine with error: %s", error.c_str());
+        }
+    }
+
+    ~Resources()
+    {
+        if (executionEngine) delete executionEngine; // owns module
+        else                 delete module;
+    }
+
+    void *finalize(Function *F)
+    {
+        if (!F)
+            return NULL;
+
+        if (targetMachine) {
+            static PassManager *PM = NULL;
+            if (!PM) {
+                PM = new PassManager();
+                PM->add(createVerifierPass());
+                PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
+                PM->add(new DataLayout(module));
+                targetMachine->addAnalysisPasses(*PM);
+                PassManagerBuilder builder;
+                builder.OptLevel = 3;
+                builder.SizeLevel = 0;
+                builder.LoopVectorize = true;
+                builder.populateModulePassManager(*PM);
+                PM->add(createVerifierPass());
+            }
+
+//            DebugFlag = true;
+//            module->dump();
+            PM->run(*module);
+//            module->dump();
+        }
+
+        if (executionEngine) {
+            executionEngine->finalizeObject();
+            function = executionEngine->getPointerToFunction(F);
+        }
+
+        return function;
+    }
+};
+
 class Builder : public IRBuilder<>
 {
     likely_env env;
@@ -369,124 +481,12 @@ private:
     }
 };
 
-struct JITResources
-{
-    Module *module;
-    ExecutionEngine *executionEngine = NULL;
-    TargetMachine *targetMachine = NULL;
-    void *function = NULL;
-
-    JITResources(bool native, bool JIT)
-    {
-        if (Matrix == NULL) {
-            assert(sizeof(likely_size) == sizeof(void*));
-            InitializeNativeTarget();
-            InitializeNativeTargetAsmPrinter();
-            InitializeNativeTargetAsmParser();
-
-            PassRegistry &Registry = *PassRegistry::getPassRegistry();
-            initializeCore(Registry);
-            initializeScalarOpts(Registry);
-            initializeVectorization(Registry);
-            initializeIPO(Registry);
-            initializeAnalysis(Registry);
-            initializeIPA(Registry);
-            initializeTransformUtils(Registry);
-            initializeInstCombine(Registry);
-            initializeTarget(Registry);
-
-            NativeIntegerType = Type::getIntNTy(C, likely_depth(likely_type_native));
-            Matrix = PointerType::getUnqual(StructType::create("likely_matrix_struct",
-                                                               PointerType::getUnqual(StructType::create(C, "likely_matrix_private")), // d_ptr
-                                                               Type::getInt8PtrTy(C), // data
-                                                               NativeIntegerType,     // channels
-                                                               NativeIntegerType,     // columns
-                                                               NativeIntegerType,     // rows
-                                                               NativeIntegerType,     // frames
-                                                               Type::getInt32Ty(C),   // type
-                                                               NULL));
-        }
-
-        module = new Module(getUniqueName("module"), C);
-        likely_assert(module != NULL, "failed to create module");
-
-        if (native) {
-            string targetTriple = sys::getProcessTriple();
-#ifdef _WIN32
-            if (JIT)
-                targetTriple = targetTriple + "-elf";
-#endif // _WIN32
-            module->setTargetTriple(Triple::normalize(targetTriple));
-        }
-
-        string error;
-        EngineBuilder engineBuilder(module);
-        engineBuilder.setMCPU(sys::getHostCPUName())
-                     .setEngineKind(EngineKind::JIT)
-                     .setOptLevel(CodeGenOpt::Aggressive)
-                     .setErrorStr(&error)
-                     .setUseMCJIT(true);
-
-        if (JIT) {
-            executionEngine = engineBuilder.create();
-            likely_assert(executionEngine != NULL, "failed to create execution engine with error: %s", error.c_str());
-        }
-
-        if (native) {
-            engineBuilder.setCodeModel(CodeModel::Default);
-            targetMachine = engineBuilder.selectTarget();
-            likely_assert(targetMachine != NULL, "failed to select target machine with error: %s", error.c_str());
-        }
-    }
-
-    ~JITResources()
-    {
-        if (executionEngine) delete executionEngine; // owns module
-        else                 delete module;
-    }
-
-    void *finalize(Function *F)
-    {
-        if (!F)
-            return NULL;
-
-        if (targetMachine) {
-            static PassManager *PM = NULL;
-            if (!PM) {
-                PM = new PassManager();
-                PM->add(createVerifierPass());
-                PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
-                PM->add(new DataLayout(module));
-                targetMachine->addAnalysisPasses(*PM);
-                PassManagerBuilder builder;
-                builder.OptLevel = 3;
-                builder.SizeLevel = 0;
-                builder.LoopVectorize = true;
-                builder.populateModulePassManager(*PM);
-                PM->add(createVerifierPass());
-            }
-
-//            DebugFlag = true;
-//            module->dump();
-            PM->run(*module);
-//            module->dump();
-        }
-
-        if (executionEngine) {
-            executionEngine->finalizeObject();
-            function = executionEngine->getPointerToFunction(F);
-        }
-
-        return function;
-    }
-};
-
-struct StaticFunction : public JITResources
+struct StaticFunction : public Resources
 {
     const vector<likely_type> type;
 
     StaticFunction(likely_ast ast, likely_env env, const vector<likely_type> &type, bool native, string name = string())
-        : JITResources(native, name.empty()), type(type)
+        : Resources(native, name.empty()), type(type)
     {
         likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
                       (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel")),
@@ -518,7 +518,7 @@ struct StaticFunction : public JITResources
     }
 };
 
-struct DynamicFunction : public JITResources
+struct DynamicFunction : public Resources
 {
     static PointerType *dynamicType;
     static map<void*,DynamicFunction*> reverseLUT;
@@ -530,7 +530,7 @@ struct DynamicFunction : public JITResources
     int ref_count = 1;
 
     DynamicFunction(likely_ast ast, likely_env env)
-        : JITResources(true, true), ast(likely_retain_ast(ast)), env(likely_retain_env(env))
+        : Resources(true, true), ast(likely_retain_ast(ast)), env(likely_retain_env(env))
     {
         // Try to compute arity
         if (ast->is_list && (ast->num_atoms > 1))
