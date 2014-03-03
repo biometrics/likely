@@ -481,11 +481,11 @@ struct JITResources
     }
 };
 
-struct FunctionBuilder : public JITResources
+struct StaticFunction : public JITResources
 {
     const vector<likely_type> type;
 
-    FunctionBuilder(likely_ast ast, likely_env env, const vector<likely_type> &type, bool native, string name = string())
+    StaticFunction(likely_ast ast, likely_env env, const vector<likely_type> &type, bool native, string name = string())
         : JITResources(native, name.empty()), type(type)
     {
         likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
@@ -525,7 +525,7 @@ struct VTable : public JITResources
     likely_ast ast;
     likely_env env;
     likely_arity n;
-    vector<FunctionBuilder*> functions;
+    vector<StaticFunction*> functions;
     Function *likelyDispatch;
     int ref_count = 1;
 
@@ -561,7 +561,7 @@ struct VTable : public JITResources
     {
         likely_release_ast(ast);
         likely_release_env(env);
-        for (FunctionBuilder *function : functions)
+        for (StaticFunction *function : functions)
             delete function;
     }
 
@@ -1493,11 +1493,11 @@ extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct VTable *vtable, li
 {
     void *function = NULL;
     for (size_t i=0; i<vtable->functions.size(); i++) {
-        const FunctionBuilder *functionBuilder = vtable->functions[i];
+        const StaticFunction *staticFunction = vtable->functions[i];
         for (likely_arity j=0; j<vtable->n; j++)
-            if (m[j]->type != functionBuilder->type[j])
+            if (m[j]->type != staticFunction->type[j])
                 goto Next;
-        function = functionBuilder->function;
+        function = staticFunction->function;
         if (function == NULL)
             return NULL;
         break;
@@ -1509,8 +1509,8 @@ extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct VTable *vtable, li
         vector<likely_type> types;
         for (int i=0; i<vtable->n; i++)
             types.push_back(m[i]->type);
-        FunctionBuilder *functionBuilder = new FunctionBuilder(vtable->ast, vtable->env, types, true);
-        vtable->functions.push_back(functionBuilder);
+        StaticFunction *staticFunction = new StaticFunction(vtable->ast, vtable->env, types, true);
+        vtable->functions.push_back(staticFunction);
         function = vtable->functions.back()->function;
 
         // An impossible case used to ensure that `likely_dispatch` isn't stripped when optimizing executable size
@@ -1573,7 +1573,7 @@ void likely_release_function(void *function)
 void likely_compile_to_file(likely_ast ast, likely_env env, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
 {
     if (!ast || !env) return;
-    FunctionBuilder(ast, env, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
+    StaticFunction(ast, env, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
 }
 
 likely_matrix likely_eval(likely_ast ast, likely_env env)
@@ -1581,8 +1581,8 @@ likely_matrix likely_eval(likely_ast ast, likely_env env)
     if (!ast || !env) return NULL;
     likely_ast expr = likely_ast_from_string("(lambda () (scalar <ast>))");
     expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
-    FunctionBuilder functionBuilder(expr, env, vector<likely_type>(), true);
+    StaticFunction staticFunction(expr, env, vector<likely_type>(), true);
     likely_release_ast(expr);
-    if (functionBuilder.function) return reinterpret_cast<likely_matrix(*)(void)>(functionBuilder.function)();
-    else                          return NULL;
+    if (staticFunction.function) return reinterpret_cast<likely_matrix(*)(void)>(staticFunction.function)();
+    else                         return NULL;
 }
