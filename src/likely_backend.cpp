@@ -121,14 +121,10 @@ class Builder : public IRBuilder<>
 
 public:
     Module *module;
-    string name;
 
-    Builder(Module *module, likely_env env, const string &name)
-        : IRBuilder<>(C), env(likely_retain_env(env)), module(module), name(name)
+    Builder(Module *module, likely_env env)
+        : IRBuilder<>(C), env(likely_retain_env(env)), module(module)
     {}
-
-    Builder(Builder &other, likely_env env)
-        : Builder(other.module, env, other.name) {}
 
     ~Builder() { likely_release_env(env); }
 
@@ -724,7 +720,7 @@ public:
         likely_release_env(env);
     }
 
-    virtual Immediate generate(Builder &builder, const vector<likely_type> &types) const = 0;
+    virtual Immediate generate(Builder &builder, const vector<likely_type> &types, string name = string()) const = 0;
 
     size_t argc() const
     {
@@ -754,7 +750,7 @@ private:
             types.push_back(arg);
         }
 
-        Builder lambdaBuilder(builder, env);
+        Builder lambdaBuilder(builder.module, env);
         Immediate i = generate(lambdaBuilder, types);
         Function *f = cast<Function>(i.value_);
         if (f) return new Immediate(builder.CreateCall(f, args), i.type_);
@@ -804,9 +800,15 @@ private:
         }
     };
 
-    Immediate generate(Builder &builder, const vector<likely_type> &types) const
+    Immediate generate(Builder &builder, const vector<likely_type> &types, string name) const
     {
-        Function *function = getKernel(builder, types.size(), Matrix);
+        if (name.empty()) {
+            static int index = 0;
+            stringstream stream; stream << "likely_kernel_" << index++;
+            name = stream.str();
+        }
+
+        Function *function = getKernel(builder, name, types.size(), Matrix);
         vector<Immediate> srcs = builder.getArgs(function, types);
         BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         builder.SetInsertPoint(entry);
@@ -819,7 +821,7 @@ private:
         Function *thunk;
         likely_type dstType;
         {
-            thunk = getKernel(builder, types.size(), Type::getVoidTy(C), Matrix, NativeIntegerType, NativeIntegerType);
+            thunk = getKernel(builder, name + "_thunk", types.size(), Type::getVoidTy(C), Matrix, NativeIntegerType, NativeIntegerType);
             BasicBlock *entry = BasicBlock::Create(C, "entry", thunk);
             builder.SetInsertPoint(entry);
             vector<Immediate> srcs = builder.getArgs(thunk, types);
@@ -974,10 +976,9 @@ private:
         return Immediate(function, dstType);
     }
 
-    static Function *getKernel(Builder &builder, size_t argc, Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
+    static Function *getKernel(Builder &builder, const string &name, size_t argc, Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
     {
         Function *kernel;
-        const string name = builder.name + (dst == NULL ? "" : "_thunk");
         switch (argc) {
           case 0: kernel = ::cast<Function>(builder.module->getOrInsertFunction(name, ret, dst, start, stop, NULL)); break;
           case 1: kernel = ::cast<Function>(builder.module->getOrInsertFunction(name, ret, Matrix, dst, start, stop, NULL)); break;
@@ -1047,12 +1048,18 @@ struct Lambda : public FunctionExpression
         : FunctionExpression(builder, ast) {}
 
 private:
-    Immediate generate(Builder &builder, const vector<likely_type> &types) const
+    Immediate generate(Builder &builder, const vector<likely_type> &types, string name) const
     {
+        if (name.empty()) {
+            static int index = 0;
+            stringstream stream; stream << "likely_lambda_" << index++;
+            name = stream.str();
+        }
+
         vector<Type*> tys;
         for (likely_type type : types)
             tys.push_back(Builder::ty(type));
-        Function *tmpFunction = cast<Function>(builder.module->getOrInsertFunction(builder.name+"_tmp", FunctionType::get(Type::getVoidTy(C), tys, false)));
+        Function *tmpFunction = cast<Function>(builder.module->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), tys, false)));
         vector<Immediate> tmpArgs = builder.getArgs(tmpFunction, types);
         BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
         builder.SetInsertPoint(entry);
@@ -1065,7 +1072,7 @@ private:
             builder.undefine(ast->atoms[1]->atoms[i]->atom);
         builder.CreateRet(result);
 
-        Function *function = cast<Function>(builder.module->getOrInsertFunction(builder.name, FunctionType::get(result.value()->getType(), tys, false)));
+        Function *function = cast<Function>(builder.module->getOrInsertFunction(name, FunctionType::get(result.value()->getType(), tys, false)));
         vector<Immediate> args = builder.getArgs(function, types);
 
         ValueToValueMapTy VMap;
@@ -1308,20 +1315,15 @@ struct FunctionBuilder : public JITResources
 {
     const vector<likely_type> type;
 
-    FunctionBuilder(likely_ast ast, likely_env env, const vector<likely_type> &type, bool native, string symbolName = string())
-        : JITResources(native, symbolName.empty()), type(type)
+    FunctionBuilder(likely_ast ast, likely_env env, const vector<likely_type> &type, bool native, string name = string())
+        : JITResources(native, name.empty()), type(type)
     {
         likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
                       (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel")),
                       "expected a lambda/kernel expression");
-        if (symbolName.empty()) {
-            static int index = 0;
-            stringstream stream; stream << "likely_function_" << index++;
-            symbolName = stream.str();
-        }
-        Builder builder(module, env, symbolName);
+        Builder builder(module, env);
         unique_ptr<Expression> result(Operator::expression(builder, ast));
-        function = finalize(dyn_cast<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, type).value_));
+        function = finalize(dyn_cast<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, type, name).value_));
     }
 
     void write(const string &fileName) const
