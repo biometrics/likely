@@ -63,7 +63,6 @@ int main(int argc, char *argv[])
 
     printf("Compiling source code...\n");
     likely_function darken = likely_compile(ast, env);
-    likely_release_ast(ast);
     if (!darken) {
         printf("Failed to compile!\n");
         return -1;
@@ -82,8 +81,9 @@ int main(int argc, char *argv[])
     printf("Cleaning up...\n");
     likely_release(dark_lenna);
     likely_release(lenna);
-    likely_release_env(env);
     likely_release_ast(ast);
+    likely_release_env(env);
+    likely_release_function(darken);
 
     printf("Done!\n");
     return 0;

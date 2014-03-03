@@ -1194,8 +1194,9 @@ struct JITResources
 {
     string name;
     Module *module;
-    ExecutionEngine *executionEngine;
-    TargetMachine *targetMachine;
+    ExecutionEngine *executionEngine = NULL;
+    TargetMachine *targetMachine = NULL;
+    void *function = NULL;
 
     JITResources(bool native, const string &symbol_name = string())
         : name(symbol_name)
@@ -1260,29 +1261,24 @@ struct JITResources
         if (JIT) {
             executionEngine = engineBuilder.create();
             likely_assert(executionEngine != NULL, "failed to create execution engine with error: %s", error.c_str());
-        } else {
-            executionEngine = NULL;
         }
 
         if (native) {
             engineBuilder.setCodeModel(CodeModel::Default);
             targetMachine = engineBuilder.selectTarget();
-            likely_assert(targetMachine != NULL, "failed to create target machine with error: %s", error.c_str());
-        } else {
-            targetMachine = NULL;
+            likely_assert(targetMachine != NULL, "failed to select target machine with error: %s", error.c_str());
         }
     }
 
     ~JITResources()
     {
-        delete targetMachine;
         if (executionEngine) delete executionEngine; // owns module
         else                 delete module;
     }
 
-    void *finalize(Function *function)
+    void *finalize(Function *F)
     {
-        if (!function)
+        if (!F)
             return NULL;
 
         if (targetMachine) {
@@ -1309,34 +1305,26 @@ struct JITResources
 
         if (executionEngine) {
             executionEngine->finalizeObject();
-            return executionEngine->getPointerToFunction(function);
-        } else {
-            return NULL;
+            function = executionEngine->getPointerToFunction(F);
         }
+
+        return function;
     }
 };
 
-struct FunctionBuilder : private JITResources
+struct FunctionBuilder : public JITResources
 {
-    likely_type *type;
-    void *function;
+    const vector<likely_type> type;
 
-    FunctionBuilder(likely_ast ast, likely_env env, const vector<likely_type> &types, bool native, const string &symbol_name = string())
-        : JITResources(native, symbol_name)
+    FunctionBuilder(likely_ast ast, likely_env env, const vector<likely_type> &type, bool native, const string &symbol_name = string())
+        : JITResources(native, symbol_name), type(type)
     {
         likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
                       (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel")),
                       "expected a lambda/kernel expression");
-        type = new likely_type[types.size()];
-        memcpy(type, types.data(), sizeof(likely_type) * types.size());
         Builder builder(module, env, name);
         unique_ptr<Expression> result(Operator::expression(builder, ast));
-        function = finalize(dyn_cast<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, types).value_));
-    }
-
-    ~FunctionBuilder()
-    {
-        delete[] type;
+        function = finalize(dyn_cast<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, type).value_));
     }
 
     void write(const string &fileName) const
@@ -1364,11 +1352,13 @@ struct FunctionBuilder : private JITResources
 struct VTable : public JITResources
 {
     static PointerType *vtableType;
+    static map<void*,VTable*> reverseLUT;
     likely_ast ast;
     likely_env env;
     likely_arity n;
     vector<FunctionBuilder*> functions;
     Function *likelyDispatch;
+    int ref_count = 1;
 
     VTable(likely_ast ast, likely_env env)
         : JITResources(true), ast(likely_retain_ast(ast)), env(likely_retain_env(env))
@@ -1464,6 +1454,7 @@ private:
     }
 };
 PointerType *VTable::vtableType = NULL;
+map<void*,VTable*> VTable::reverseLUT;
 
 } // namespace (anonymous)
 
@@ -1533,13 +1524,36 @@ extern "C" LIKELY_EXPORT likely_matrix likely_dispatch(struct VTable *vtable, li
 likely_function likely_compile(likely_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    return (new VTable(ast, env))->compile();
+    VTable *vtable = new VTable(ast, env);
+    likely_function function = vtable->compile();
+    assert(function);
+    VTable::reverseLUT[(void*)function] = vtable;
+    return function;
 }
 
 likely_function_n likely_compile_n(likely_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    return (new VTable(ast, env))->compileN();
+    VTable *vtable = new VTable(ast, env);
+    likely_function_n function = vtable->compileN();
+    assert(function);
+    VTable::reverseLUT[(void*)function] = vtable;
+    return function;
+}
+
+void *likely_retain_function(void *function)
+{
+    if (function) VTable::reverseLUT[function]->ref_count++;
+    return function;
+}
+
+void likely_release_function(void *function)
+{
+    if (!function) return;
+    VTable *vtable = VTable::reverseLUT[function];
+    if (--vtable->ref_count) return;
+    VTable::reverseLUT.erase(function);
+    delete vtable;
 }
 
 void likely_compile_to_file(likely_ast ast, likely_env env, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
