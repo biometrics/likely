@@ -51,7 +51,7 @@ static IntegerType *NativeIntegerType = NULL;
 static PointerType *Matrix = NULL;
 static LLVMContext &C = getGlobalContext();
 
-class Builder;
+struct Builder;
 struct Expression
 {
     virtual ~Expression() {}
@@ -268,18 +268,14 @@ struct Resources : public Object
     }
 };
 
-class Builder : public IRBuilder<>
+struct Builder : public IRBuilder<>
 {
     likely_env env;
-
-public:
     Resources *resources;
 
     Builder(Resources *resources, likely_env env)
-        : IRBuilder<>(C), env(likely_retain_env(env)), resources(resources)
+        : IRBuilder<>(C), env(env), resources(resources)
     {}
-
-    ~Builder() { likely_release_env(env); }
 
     static Immediate constant(double value, likely_type type = likely_type_native)
     {
@@ -1042,7 +1038,10 @@ struct Definition : public ScopedExpression
 private:
     Expression *evaluate(Builder &builder, likely_ast ast) const
     {
-        unique_ptr<Expression> op(Builder(builder.resources, env).expression(this->ast));
+        likely_env restored = builder.env;
+        builder.env = this->env;
+        unique_ptr<Expression> op(builder.expression(this->ast));
+        builder.env = restored;
         return op->evaluate(builder, ast);
     }
 };
