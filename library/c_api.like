@@ -22,4 +22,4 @@ int main()
 
 **[Here](src/hello_world.c)** is the source code for *Hello World* in *C*.
 
-[Previous](?show=compilation) | [Next](?show=arithmetic)
+[Previous](?show=matrix_io) | [Next](?show=arithmetic)

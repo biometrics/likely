@@ -16,4 +16,4 @@ multiplied = lenna * 2
 divided = lenna / 2
 ```
 
-[Previous](?show=c_api) | [Next](?show=currying)
+[Previous](?show=c_api)
