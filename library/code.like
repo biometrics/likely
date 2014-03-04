@@ -1,7 +1,0 @@
-Code
-----
-Actual Likely code is written in **[Lua](http://www.lua.org/)**. Reading **[Programming in Lua](http://www.lua.org/pil/contents.html)** is a great way to learn Lua if you are unfamiliar with the language.
-
-This tutorial assumes a working knowledge of Lua and focuses on concepts specific to Likely. Nevertheless, it is hoped that even users entirely new to Lua will find it accessible.
-
-[Previous](?show=comments) | [Next](?show=function_calls)

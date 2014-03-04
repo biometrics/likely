@@ -1,7 +1,7 @@
 Likely
 ======
 
- > An image recognition runtime for heterogenous architectures.
+ > A Lisp for image recognition and heterogenous architectures.
  > -- [@jklontz](https://github.com/jklontz)
 
 ## Introduction
@@ -46,7 +46,7 @@ Algorithms written in Likely should **deploy everywhere**, including minimalist 
 |-----------------|--------|
 | Static compiler | Done   |
 | JIT compiler    | Done   |
-| Lua             | Done   |
+| REPL shell      | Done   |
 | SWIG            | [#46](https://github.com/biometrics/likely/issues/46) |
 | Web services    | [#44](https://github.com/biometrics/likely/issues/44) |
 | JavaScript      | [#45](https://github.com/biometrics/likely/issues/45) |
@@ -62,12 +62,12 @@ The repeated execution of a function with the same matrix type means that branch
 C/C++ projects should **#include <likely.h>** and link against the **likely** library. **LikelyConfig.cmake** is provided in **share/likely/** as a convenience to CMake developers. Likely definitions are prefixed with **likely_** and use a **lowercase_underscore** naming convention. Consider taking a moment to skim the header files: [likely_runtime.h](include/likely/likely_runtime.h), [likely_compiler.h](include/likely/likely_compiler.h), [likely_script.h](include/likely/likely_script.h), [likely_io.h](include/likely/likely_io.h).
 
 ### The Matrix Struct
-The **likely_mat**, or _matrix_, is only struct in the API and serves as the input and output for all function invocations:
+The **likely_matrix**, or _matrix_, is the principal data type for input and output to all function calls:
 
 | Field    | Type           | Description                       |
 |----------|----------------|-----------------------------------|
-| data     | likely_data    | Pointer to the buffer of elements |
 | d_ptr    | likely_private | Used for internal bookkeeping     |
+| data     | likely_data    | Pointer to the buffer of elements |
 | channels | likely_size    | Matrix dimension                  |
 | columns  | likely_size    | Matrix dimension                  |
 | rows     | likely_size    | Matrix dimension                  |
@@ -79,7 +79,7 @@ The last five fields (_channels_, _columns_, _rows_, _frames_, and _type_) are c
 #### Element Access
 By convention, element layout in the data buffer with resepect to decreasing spatial locality is _channel_, _column_, _row_, _frame_. Thus an element at channel _c_, column _x_, row _y_, and frame _t_, can be retrieved like:
 ```C++
-float likely_get_element(likely_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
+float likely_get_element(likely_matrix m, likely_size c, likely_size x, likely_size y, likely_size t)
 {
     likely_size columnStep = m->channels;
     likely_size rowStep = m->channels * columnStep;
@@ -112,259 +112,3 @@ Here is the layout of the bits in **likey_type**:
 | reserved      | 15   | 0xFFFE0000 |
 
 Convenience functions **likely_<field>** and **likely_set_<field>** are provided for querying and editing the type.
-
-### Type abbreviations
-```Lua
-null = likely.null
-depth = likely.depth
-signed = likely.signed
-floating = likely.floating
-parallel = likely.parallel
-multi_channel = likely.multi_channel
-multi_column = likely.multi_column
-multi_row = likely.multi_row
-multi_frame = likely.multi_frame
-saturation = likely.saturation
-reserved = likely.reserved
-```
-
-### Core functions
-```Lua
-ast     = likely.ast
-closure = likely.closure
-compile = likely.compile
-expression = likely.expression
-replace = likely.replace
-
-new = closure({ likely.new, likely.f32, 1, 1, 1, 1, 0, false },
-              { "Create an uninitialized matrix", "type", "channels", "columns", "rows", "frames", "data", "copy" })
-
-scalar = closure({ likely.scalar, nil },
-                 { "Create and initialize a single-dimension matrix from a number", "number" })
-
-read = closure({ likely.read, nil },
-               { "Create a matrix from a file", "file_name" })
-
-show = closure({ likely.show, nil, "" },
-               { "Display a value", "value", "name" })
-
-function chain(x,y)
-  return function(w) return y(x(w)) end
-end
-```
-
-### Arithmetic
-```Lua
-add = closure({ function(lhs, rhs) return { "+", lhs, rhs } end, nil, nil },
-              { "Arithmetic addition", "lhs", "rhs" })
-
-sub = closure({ function(lhs, rhs) return { "-", lhs, rhs } end, nil, nil },
-              { "Arithmetic subtraction", "lhs", "rhs" })
-
-mul = closure({ function(lhs, rhs) return { "*", lhs, rhs } end, nil, nil },
-              { "Arithmetic multiplication", "lhs", "rhs" })
-
-div = closure({ function(lhs, rhs)
-                  if rhs == 0 then
-                    error("Denominator is zero!")
-                  else
-                    return { "/", lhs, rhs }
-                  end
-                end, nil, nil },
-              { "Arithmetic division", "lhs", "rhs" })
-
-rem = closure({ function(lhs, rhs)
-                  if rhs == 0 then
-                    error("Denominator is zero!")
-                  else
-                    return { "%", lhs, rhs }
-                  end
-                end, nil, nil },
-              { "Arithmetic remainder", "lhs", "rhs" })
-```
-
-### Math
-```Lua
-sqrt = closure({ function(x) return { "sqrt", x } end, nil },
-               { "Square root", "operand" })
-
-powi = closure({ function(base, iexp) return { "powi", base, iexp } end, nil, nil },
-               { "Integer power", "base", "iexp" })
-
-sin = closure({ function(x) return { "sin", x } end, nil },
-              { "Sine", "radians" })
-
-cos = closure({ function(x) return { "cos", x } end, nil },
-              { "Cosine", "radians" })
-
-pow = closure({ function(base, exp) return { "pow", base, exp } end, nil, nil },
-              { "Power", "base", "exp" })
-
-exp = closure({ function(x) return { "exp", x } end, nil },
-              { "Base-e exponential", "exponent" })
-
-exp2 = closure({ function(x) return { "exp2", x } end, nil },
-               { "Base-2 exponential", "exponent" })
-
-log = closure({ function(x) return { "log", x } end, nil },
-              { "Natural logarithm", "operand" })
-
-log10 = closure({ function(x) return { "log10", x } end, nil },
-                { "Base-10 logarithm", "operand" })
-
-log2 = closure({ function(x) return { "log2", x } end, nil },
-               { "Base-2 logarithm", "operand" })
-
-fma = closure({ function(a, b, c) return { "fma", a, b, c } end, nil, nil, nil },
-              { "Fused multiply-add (a*b+c)", "a", "b", "c" })
-
-fabs = closure({ function(x) return { "fabs", x } end, nil },
-               { "Floating absolute value", "operand" })
-
-copysign = closure({ function(magnitude, sign) return { "copysign", magnitude, sign } end, nil, nil },
-                   { "Floating copy sign", "magnitude", "sign" })
-
-floor = closure({ function(x) return { "floor", x } end, nil },
-                { "Floating floor", "operand" })
-
-ceil = closure({ function(x) return { "ceil", x } end, nil },
-               { "Floating ceil", "operand" })
-
-trunc = closure({ function(x) return { "trunc", x } end, nil },
-                { "Floating round toward zero", "operand" })
-
-rint = closure({ function(x) return { "rint", x } end, nil },
-               { "Floating round to nearest integer", "operand" })
-
-nearbyint = closure({ function(x) return { "nearbyint", x } end, nil },
-                    { "Floating round to nearest integer", "operand" })
-
-round = closure({ function(x) return { "round", x } end, nil },
-                { "Floating round to nearest integer", "operand" })
-
-mod = closure({ function(lhs, rhs) return sub(lhs, mul(floor(lhs, rhs), rhs)) end, nil, nil },
-              { "Modulo: a % b == a - floor(a/b)*b", "lhs", "rhs" })
-```
-
-### Operators
-```Lua
-for k, v in ipairs({ getmetatable(new()), likely.expression_mt() }) do
-  v.__add = function(lhs, rhs) return add(lhs, rhs) end
-  v.__sub = function(lhs, rhs) return sub(lhs, rhs) end
-  v.__mul = function(lhs, rhs) return mul(lhs, rhs) end
-  v.__div = function(lhs, rhs) return div(lhs, rhs) end
-  v.__mod = function(lhs, rhs) return rem(lhs, rhs) end
-  v.__pow = function(lhs, rhs) return pow(lhs, rhs) end
-  v.__unm = function(x) return sub(0, x) end
-end
-```
-
-### Casting
-```Lua
-cast = closure({ function(x, type) return { "cast", x, type } end, nil, nil },
-               { "Convert matrix to another type", "matrix", "type" })
-
-type = closure({ function(x) return { "type", x } end, nil },
-               { "Extract the matrix type", "matrix" })
-
-set = closure({ function(matrix, value) return cast(value, type(matrix)) end, nil, nil },
-              { "Assignment", "matrix", "value" })
-
-u8  = closure({ function(x) return cast(x, likely.u8) end, nil, type = likely.u8 },
-              { "Convert matrix to type u8", "matrix" })
-
-u16 = closure({ function(x) return cast(x, likely.u16) end, nil, type = likely.u16 },
-              { "Convert matrix to type u16", "matrix" })
-
-u32 = closure({ function(x) return cast(x, likely.u32) end, nil, type = likely.u32 },
-              { "Convert matrix to type u32", "matrix" })
-
-u64 = closure({ function(x) return cast(x, likely.u64) end, nil, type = likely.u64 },
-              { "Convert matrix to type u64", "matrix" })
-
-i8  = closure({ function(x) return cast(x, likely.i8) end, nil, type = likely.i8 },
-              { "Convert matrix to type i8", "matrix" })
-
-i16 = closure({ function(x) return cast(x, likely.i16) end, nil, type = likely.i16 },
-              { "Convert matrix to type i16", "matrix" })
-
-i32 = closure({ function(x) return cast(x, likely.i32) end, nil, type = likely.i32 },
-              { "Convert matrix to type i32", "matrix" })
-
-i64 = closure({ function(x) return cast(x, likely.i64) end, nil, type = likely.i64 },
-              { "Convert matrix to type i64", "matrix" })
-
-f16 = closure({ function(x) return cast(x, likely.f16) end, nil, type = likely.f16 },
-              { "Convert matrix to type f16", "matrix" })
-
-f32 = closure({ function(x) return cast(x, likely.f32) end, nil, type = likely.f32 },
-              { "Convert matrix to type f32", "matrix" })
-
-f64 = closure({ function(x) return cast(x, likely.f64) end, nil, type = likely.f64 },
-              { "Convert matrix to type f64", "matrix" })
-```
-
-### Comparison
-```Lua
-lt = closure({ function(lhs, rhs) return { "<", lhs, rhs } end, nil, nil },
-             { "Less than", "lhs", "rhs" })
-
-le = closure({ function(lhs, rhs) return { "<=", lhs, rhs } end, nil, nil },
-             { "Less than or equal to", "lhs", "rhs" })
-
-gt = closure({ function(lhs, rhs) return { ">", lhs, rhs } end, nil, nil },
-             { "Greater than", "lhs", "rhs" })
-
-ge = closure({ function(lhs, rhs) return { ">=", lhs, rhs } end, nil, nil },
-             { "Greater than or equal to", "lhs", "rhs" })
-
-eq = closure({ function(lhs, rhs) return { "==", lhs, rhs } end, nil, nil },
-             { "Equal to", "lhs", "rhs" })
-
-ne = closure({ function(lhs, rhs) return { "!=", lhs, rhs } end, nil, nil },
-             { "Not equal to", "lhs", "rhs" })
-```
-
-### Logic
-```
-AND = closure({ function(lhs, rhs) return { "and", lhs, rhs } end, nil, nil },
-              { "Bitwise and", "lhs", "rhs" })
-OR = closure({ function(lhs, rhs) return { "or", lhs, rhs } end, nil, nil },
-             { "Bitwise or", "lhs", "rhs" })
-XOR = closure({ function(lhs, rhs) return { "xor", lhs, rhs } end, nil, nil },
-              { "Bitwise exclusive or", "lhs", "rhs" })
-NOT = closure({ function(x) return { "~", x } end, nil },
-              { "Bitwise not", "operand" })
-And = closure({ function(lhs, rhs) return ne(AND(lhs, rhs), 0) end, nil, nil },
-              { "Logical and", "lhs", "rhs" })
-Or = closure({ function(lhs, rhs) return ne(OR(lhs, rhs), 0) end, nil, nil },
-             { "Logical or", "lhs", "rhs" })
-Xor = closure({ function(lhs, rhs) return ne(XOR(lhs, rhs), 0) end, nil, nil },
-              { "Logical exclusive or", "lhs", "rhs" })
-Not = closure({ function(x) return eq(x, 0) end, nil },
-              { "Logical not", "operand" })
-shl = closure({ function(lhs, rhs) return { "shl", lhs, rhs } end, nil, nil },
-              { "Shift left", "lhs", "rhs" })
-lshr = closure({ function(lhs, rhs) return { "lshr", lhs, rhs } end, nil, nil },
-               { "Logical shift right", "lhs", "rhs" })
-ashr = closure({ function(lhs, rhs) return { "ashr", lhs, rhs } end, nil, nil },
-               { "Arithmetic shift right", "lhs", "rhs" })
-```
-
-### Conditionals
-```Lua
-select = closure({ function(c, t, f) return { "select", c, t, f } end, nil, nil, nil },
-                 { "Conditional selection", "condition", "t", "f" })
-
-threshold = closure({ function(x, t) return select(gt(x, t), 1, 0) end, nil, nil },
-                    { "Binary threshold", "operand", "threshold" })
-```
-
-### Closures
-```Lua
-let = closure({ function(d, r) return { "let", d, r } end, nil, nil },
-              { "Introduce variables", "definitions", "result" })
-
-loop = closure({ function(d, c, i, r) return { "loop", d, c, i, r } end, nil, nil, nil, nil },
-               { "Loop over expression", "definitions", "condition", "iteration", "result" })
-```
