@@ -1,6 +1,6 @@
 Hello World
 -----------
-**CTRL+scroll** to edit numerical constants, note that it is re-executed as you edit:
+Click **View Source** and copy this source code into _dream_. **CTRL+scroll** to edit numerical constants, note that it is re-executed as you edit:
 
     (define hello_world
       (kernel (a)

@@ -501,7 +501,7 @@ struct StaticFunction : public Resources
                       "expected a lambda/kernel expression");
         Builder builder(this, env);
         unique_ptr<Expression> result(builder.expression(ast));
-        function = finalize(dyn_cast<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, type, name).value_));
+        function = finalize(dyn_cast_or_null<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, type, name).value_));
     }
 
     void write(const string &fileName) const
@@ -709,7 +709,7 @@ class scalarExpression : public UnaryOperator
     {
         Expression *argExpr = builder.expression(arg);
         if (!argExpr)
-            return new Immediate(builder.zero());
+            return NULL;
 
         if (argExpr->value()->getType() == Matrix)
             return argExpr;
@@ -1347,6 +1347,8 @@ private:
         for (size_t i=0; i<tmpArgs.size(); i++)
             builder.define(ast->atoms[1]->atoms[i]->atom, tmpArgs[i]);
         ManagedExpression result(builder.expression(ast->atoms[2]));
+        if (result.isNull())
+            return Immediate(NULL, likely_type_null);
         for (size_t i=0; i<tmpArgs.size(); i++)
             builder.undefine(ast->atoms[1]->atoms[i]->atom);
         builder.CreateRet(result);

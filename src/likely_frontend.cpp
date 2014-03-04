@@ -127,9 +127,9 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_ast> &t
                 tokenize(&str[lineStart], lineLen, tokens);
             } else {
                 // Look for `inline code`
-                size_t inlineStart = lineStart;
+                size_t inlineStart = lineStart+1;
                 do {
-                    while ((inlineStart < lineEnd) && (str[inlineStart] != '`'))
+                    while ((inlineStart < lineEnd) && (str[inlineStart-1] != '`'))
                         inlineStart++;
                     size_t inlineEnd = inlineStart + 1;
                     while ((inlineEnd < lineEnd) && (str[inlineEnd] != '`'))

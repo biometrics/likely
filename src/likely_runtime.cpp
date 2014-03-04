@@ -214,30 +214,29 @@ const char *likely_type_to_string(likely_type type)
 
 likely_type likely_type_from_string(const char *str)
 {
-    assert(str);
-    likely_type t = likely_type_null;
     const size_t len = strlen(str);
-    if (len == 0) return t;
+    if (len == 0) return likely_type_null;
 
-    if (str[0] == 'f') likely_set_floating(&t, true);
-    if (str[0] != 'u') likely_set_signed(&t, true);
-    int depth = atoi(str+1); // atoi ignores characters after the number
-    if (depth == 0) depth = 32;
+    likely_type t = likely_type_null;
+    if      (str[0] == 'f') likely_set_floating(&t, true);
+    else if (str[0] == 's') likely_set_signed(&t, true);
+    else if (str[0] != 'u') return likely_type_null;
+
+    char *rem;
+    int depth = (int)strtol(str+1, &rem, 10);
+    if (depth == 0) depth = likely_type_native;
     likely_set_depth(&t, depth);
 
-    size_t startIndex = 1;
-    while ((startIndex < len) && (str[startIndex] >= '0') && (str[startIndex] <= '9'))
-        startIndex++;
-
-    for (size_t i=startIndex; i<len; i++) {
-        if      (str[i] == 'P') likely_set_parallel(&t, true);
-        else if (str[i] == 'H') likely_set_heterogeneous(&t, true);
-        else if (str[i] == 'C') likely_set_multi_channel(&t, true);
-        else if (str[i] == 'X') likely_set_multi_column(&t, true);
-        else if (str[i] == 'Y') likely_set_multi_row(&t, true);
-        else if (str[i] == 'T') likely_set_multi_frame(&t, true);
-        else if (str[i] == 'S') likely_set_saturation(&t, true);
-        else                    return likely_type_null;
+    while (*rem) {
+        if      (*rem == 'P') likely_set_parallel     (&t, true);
+        else if (*rem == 'H') likely_set_heterogeneous(&t, true);
+        else if (*rem == 'C') likely_set_multi_channel(&t, true);
+        else if (*rem == 'X') likely_set_multi_column (&t, true);
+        else if (*rem == 'Y') likely_set_multi_row    (&t, true);
+        else if (*rem == 'T') likely_set_multi_frame  (&t, true);
+        else if (*rem == 'S') likely_set_saturation   (&t, true);
+        else                  return likely_type_null;
+        rem++;
     }
 
     return t;
