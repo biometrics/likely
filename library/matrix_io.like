@@ -1,19 +1,16 @@
 Matrix I/O
 ----------
-There are 4 functions covering matrix input and output from disk and memory:
+There are 5 functions covering matrix creation, input, and output:
 
 | Function                         | C API                                        |
 |----------------------------------|----------------------------------------------|
-| **read**(*file_name*)            | [likely_read](include/likely/likely_aux.h)   |
-| *matrix*:**write**(*file_name*)  | [likely_write](include/likely/likely_aux.h)  |
-| *matrix*:**encode**(*extension*) | [likely_encode](include/likely/likely_aux.h) |
-| *matrix*:**decode**()            | [likely_decode](include/likely/likely_aux.h) |
+| (**new** type channels columns rows frames data copy) | [likely_new](include/likely/likely_runtime.h) |
+| (**read** file_name)          | [likely_read](include/likely/likely_io.h)   |
+| (**write** matrix file_name)  | [likely_write](include/likely/likely_io.h)  |
+| (**encode** matrix extension) | [likely_encode](include/likely/likely_io.h) |
+| (**decode** matrix)           | [likely_decode](include/likely/likely_io.h) |
 
-    image = read("../data/misc/lenna.tiff")
-    encoded = image:encode("jpg")
-    show(image:bytes() / encoded:bytes(), "compression ratio")
-    decoded = encoded:decode()
-    -- decoded:write("lenna.png")
+    (define image (read "../data/misc/lenna.tiff"))
 
 Supported file formats are:
 
