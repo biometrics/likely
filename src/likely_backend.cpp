@@ -75,7 +75,7 @@ class ManagedExpression : public Expression
     Expression *e;
 
 public:
-    ManagedExpression(Expression *e) : e(e) {}
+    ManagedExpression(Expression *e = NULL) : e(e) {}
     ~ManagedExpression() { delete e; }
     bool isNull() const { return !e; }
     Value* value() const { return e->value(); }
@@ -100,16 +100,24 @@ likely_env_struct likely_env_struct::defaultExprs;
 
 namespace {
 
+static int numAtoms(likely_ast ast)
+{
+    return ast->is_list ? ast->num_atoms : -1;
+}
+
 static Expression *likelyThrow(likely_ast ast, const char *message)
 {
     likely_throw(ast, message);
     return NULL;
 }
 
-static Expression *likelyThrowArgumentCount(likely_ast ast, const string &function, int parameters, int arguments)
+static Expression *likelyThrowArgc(likely_ast ast, const string &function, int args, int params, int minParams = -1)
 {
     stringstream stream;
-    stream << function << " with: " << parameters << " parameters passed: " << arguments << " arguments";
+    stream << function << " with: ";
+    if (minParams != -1)
+        stream << minParams << "-";
+    stream << params << " parameters passed: " << args << " arguments";
     return likelyThrow(ast, stream.str().c_str());
 }
 
@@ -291,6 +299,7 @@ public:
     static Immediate intMax(likely_type type) { const int bits = likely_depth(type); return constant((1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
     static Immediate intMin(likely_type type) { const int bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
     static Immediate type(likely_type type) { return constant(type, likely_depth(likely_type_type)); }
+    static Immediate nullDataPtr() { return Immediate(ConstantPointerNull::get(Type::getInt8PtrTy(C)), likely_type_native); }
 
     Immediate data    (const Expression *matrix) { return Immediate(CreatePointerCast(CreateLoad(CreateStructGEP(*matrix, 1), "data"), ty(*matrix, true)), matrix->type() & likely_type_mask); }
     Immediate channels(const Expression *matrix) { return likely_multi_channel(*matrix) ? Immediate(CreateLoad(CreateStructGEP(*matrix, 2), "channels"), likely_type_native) : one(); }
@@ -471,7 +480,7 @@ private:
         const int parameters = argc();
         const int arguments = ast->num_atoms - 1;
         if (parameters != arguments)
-            return likelyThrowArgumentCount(ast, "lambda", parameters, arguments);
+            return likelyThrowArgc(ast, "lambda", arguments, parameters);
 
         vector<Value*> args;
         vector<likely_type> types;
@@ -1024,8 +1033,9 @@ class defineExpression : public Operator
 {
     Expression *evaluate(Builder &builder, likely_ast ast) const
     {
-        if (!ast->is_list || (ast->num_atoms != 3))
-            return likelyThrowArgumentCount(ast, "define", 3, ast->is_list ? ast->num_atoms : 0);
+        const int n = numAtoms(ast);
+        if (n != 3)
+            return likelyThrowArgc(ast, "define", n, 3);
         if (ast->atoms[1]->is_list)
             return likelyThrow(ast->atoms[1], "define expected an atom name");
         builder.define(ast->atoms[1]->atom, builder.expression(ast->atoms[2]));
@@ -1033,6 +1043,83 @@ class defineExpression : public Operator
     }
 };
 LIKELY_REGISTER(define)
+
+class newExpression : public Operator
+{
+    Expression *evaluate(Builder &builder, likely_ast ast) const
+    {
+        const int n = numAtoms(ast);
+        if ((n < 1) || (n > 8))
+            return likelyThrowArgc(ast, "new", n, 7, 0);
+
+        ManagedExpression type;
+        Value *channels, *columns, *rows, *frames, *data, *copy;
+        switch (n-1) {
+            case 7: copy     = builder.expression(ast->atoms[7])->take();
+            case 6: data     = builder.expression(ast->atoms[6])->take();
+            case 5: frames   = builder.expression(ast->atoms[5])->take();
+            case 4: rows     = builder.expression(ast->atoms[4])->take();
+            case 3: columns  = builder.expression(ast->atoms[3])->take();
+            case 2: channels = builder.expression(ast->atoms[2])->take();
+            case 1: type     = ManagedExpression(builder.expression(ast->atoms[1]));
+            default:           break;
+        }
+
+        switch (8-n) {
+            case 7: type     = ManagedExpression(new Immediate(Builder::type(Builder::validFloatType(likely_type_native))));
+            case 6: channels = Builder::one();
+            case 5: columns  = Builder::one();
+            case 4: rows     = Builder::one();
+            case 3: frames   = Builder::one();
+            case 2: data     = Builder::nullDataPtr();
+            case 1: copy     = Builder::constant(0, 8);
+            default:           break;
+        }
+
+        return new Immediate(createCall(builder, type, channels, columns, rows, frames, data, copy), type);
+    }
+
+public:
+    static CallInst *createCall(Builder &builder, Value *type, Value *channels, Value *columns, Value *rows, Value *frames, Value *data, Value *copy)
+    {
+        static FunctionType* LikelyNewSignature = NULL;
+        if (LikelyNewSignature == NULL) {
+            vector<Type*> newParameters;
+            newParameters.push_back(Type::getInt32Ty(C)); // type
+            newParameters.push_back(NativeIntegerType); // channels
+            newParameters.push_back(NativeIntegerType); // columns
+            newParameters.push_back(NativeIntegerType); // rows
+            newParameters.push_back(NativeIntegerType); // frames
+            newParameters.push_back(Type::getInt8PtrTy(C)); // data
+            newParameters.push_back(Type::getInt8Ty(C)); // copy
+            LikelyNewSignature = FunctionType::get(Matrix, newParameters, false);
+
+            // An impossible case used to ensure that `likely_new` isn't stripped when optimizing executable size
+            if (LikelyNewSignature == NULL)
+                likely_new(likely_type_null, 0, 0, 0, 0, NULL, 0);
+        }
+
+        Function *likelyNew = builder.resources->module->getFunction("likely_new");
+        if (!likelyNew) {
+            likelyNew = Function::Create(LikelyNewSignature, GlobalValue::ExternalLinkage, "likely_new", builder.resources->module);
+            likelyNew->setCallingConv(CallingConv::C);
+            likelyNew->setDoesNotAlias(0);
+            likelyNew->setDoesNotAlias(6);
+            likelyNew->setDoesNotCapture(6);
+        }
+
+        vector<Value*> likelyNewArgs;
+        likelyNewArgs.push_back(type);
+        likelyNewArgs.push_back(channels);
+        likelyNewArgs.push_back(columns);
+        likelyNewArgs.push_back(rows);
+        likelyNewArgs.push_back(frames);
+        likelyNewArgs.push_back(data);
+        likelyNewArgs.push_back(copy);
+        return builder.CreateCall(likelyNew, likelyNewArgs);
+    }
+};
+LIKELY_REGISTER(new)
 
 struct Kernel : public FunctionExpression
 {
@@ -1186,37 +1273,7 @@ private:
 
         builder.SetInsertPoint(entry);
 
-        static FunctionType* LikelyNewSignature = NULL;
-        if (LikelyNewSignature == NULL) {
-            vector<Type*> newParameters;
-            newParameters.push_back(Type::getInt32Ty(C)); // type
-            newParameters.push_back(NativeIntegerType); // channels
-            newParameters.push_back(NativeIntegerType); // columns
-            newParameters.push_back(NativeIntegerType); // rows
-            newParameters.push_back(NativeIntegerType); // frames
-            newParameters.push_back(Type::getInt8PtrTy(C)); // data
-            newParameters.push_back(Type::getInt8Ty(C)); // copy
-            LikelyNewSignature = FunctionType::get(Matrix, newParameters, false);
-        }
-        Function *likelyNew = Function::Create(LikelyNewSignature, GlobalValue::ExternalLinkage, "likely_new", builder.resources->module);
-        likelyNew->setCallingConv(CallingConv::C);
-        likelyNew->setDoesNotAlias(0);
-        likelyNew->setDoesNotAlias(6);
-        likelyNew->setDoesNotCapture(6);
-
-        std::vector<Value*> likelyNewArgs;
-        likelyNewArgs.push_back(Builder::type(dstType));
-        likelyNewArgs.push_back(dstChannels);
-        likelyNewArgs.push_back(dstColumns);
-        likelyNewArgs.push_back(dstRows);
-        likelyNewArgs.push_back(dstFrames);
-        likelyNewArgs.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(C)));
-        likelyNewArgs.push_back(builder.constant(0, 8));
-        Value *dst = builder.CreateCall(likelyNew, likelyNewArgs);
-
-        // An impossible case used to ensure that `likely_new` isn't stripped when optimizing executable size
-        if (likelyNew == NULL)
-            likely_new(likely_type_null, 0, 0, 0, 0, NULL, 0);
+        Value *dst = newExpression::createCall(builder, Builder::type(dstType), dstChannels, dstColumns, dstRows, dstFrames, Builder::nullDataPtr(), Builder::constant(0, 8));
 
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
 
