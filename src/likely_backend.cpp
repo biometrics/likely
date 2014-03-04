@@ -443,25 +443,31 @@ class Operator : public Expression
     }
 };
 
-class FunctionExpression : public Operator
+struct ScopedExpression : public Operator
 {
-    likely_env env;
-
 protected:
+    likely_env env;
     likely_ast ast;
 
 public:
-    FunctionExpression(Builder &builder, likely_ast ast)
+    ScopedExpression(Builder &builder, likely_ast ast)
         : env(builder.snapshot()), ast(likely_retain_ast(ast)) {}
 
-    ~FunctionExpression()
+    ~ScopedExpression()
     {
         likely_release_ast(ast);
         likely_release_env(env);
     }
+};
+
+struct FunctionExpression : public ScopedExpression
+{
+    FunctionExpression(Builder &builder, likely_ast ast)
+        : ScopedExpression(builder, ast) {}
 
     virtual Immediate generate(Builder &builder, const vector<likely_type> &types, string name = string()) const = 0;
 
+private:
     size_t argc() const
     {
         // Where 'ast' is of the form:
@@ -473,7 +479,6 @@ public:
         return ast->atoms[1]->num_atoms;
     }
 
-private:
     Expression *evaluate(Builder &builder, likely_ast ast) const
     {
         assert(ast->is_list);
@@ -1029,6 +1034,19 @@ class selectExpression : public TernaryOperator
 };
 LIKELY_REGISTER(select)
 
+struct Definition : public ScopedExpression
+{
+    Definition(Builder &builder, likely_ast ast)
+        : ScopedExpression(builder, ast) {}
+
+private:
+    Expression *evaluate(Builder &builder, likely_ast ast) const
+    {
+        unique_ptr<Expression> op(Builder(builder.resources, env).expression(this->ast));
+        return op->evaluate(builder, ast);
+    }
+};
+
 class defineExpression : public Operator
 {
     Expression *evaluate(Builder &builder, likely_ast ast) const
@@ -1038,7 +1056,7 @@ class defineExpression : public Operator
             return likelyThrowArgc(ast, "define", n, 3);
         if (ast->atoms[1]->is_list)
             return likelyThrow(ast->atoms[1], "define expected an atom name");
-        builder.define(ast->atoms[1]->atom, builder.expression(ast->atoms[2]));
+        builder.define(ast->atoms[1]->atom, new Definition(builder, ast->atoms[2]));
         return NULL;
     }
 };

@@ -11,6 +11,8 @@ There are 5 functions covering matrix creation, input, and output:
 | (**decode** matrix)           | [likely_decode](include/likely/likely_io.h) |
 
     (define image (read "../data/misc/lenna.tiff"))
+    (define encoded (encode image "jpg"))
+    (define decoded (decode encoded))
 
 Supported file formats are:
 
