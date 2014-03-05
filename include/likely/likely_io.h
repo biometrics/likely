@@ -30,8 +30,9 @@ LIKELY_EXPORT likely_matrix likely_decode(const likely_matrix buffer);
 LIKELY_EXPORT likely_matrix likely_encode(const likely_matrix image, const char *extension);
 
 // Matrix Visualization
-LIKELY_EXPORT likely_matrix likely_render(const likely_matrix m, double *min, double *max); // Return a 888 matrix for visualization
-LIKELY_EXPORT const char *likely_print(const likely_matrix m); // Return value managed internally and guaranteed until the next call to this function
+LIKELY_EXPORT const char *likely_matrix_to_string(const likely_matrix m); // Return value managed internally and guaranteed until the next call to this function
+LIKELY_EXPORT likely_matrix likely_print(likely_matrix m, ...);
+LIKELY_EXPORT likely_matrix likely_render(const likely_matrix m, double *min, double *max); // Return an 888 matrix for visualization
 
 #ifdef __cplusplus
 }

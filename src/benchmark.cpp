@@ -134,7 +134,7 @@ struct Test
                 printf("%s\n", likely_ast_to_string(ast->atoms[i]));
             likely_matrix result = likely_eval(ast->atoms[i], env);
             if (BenchmarkVerbose)
-                printf("%s\n\n", likely_print(result));
+                printf("%s\n\n", likely_matrix_to_string(result));
             likely_release(result);
         }
         likely_release_env(env);

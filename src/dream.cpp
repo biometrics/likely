@@ -593,7 +593,7 @@ int main(int argc, char *argv[])
         likely_env env = likely_new_env();
         for (size_t i=0; i<asts->num_atoms; i++) {
             likely_matrix m = likely_eval(asts->atoms[i], env);
-            printf("%s", likely_print(m));
+            printf("%s", likely_matrix_to_string(m));
             likely_release(m);
         }
         likely_release_env(env);
