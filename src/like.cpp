@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     if ((argc < 2) || !strcmp(argv[1], "--help"))
         help();
 
-    likely_ast ast = likely_ast_from_string(argv[1]);
+    likely_const_ast ast = likely_ast_from_string(argv[1]);
     likely_arity n = (likely_arity) argc-4;
     likely_type *types = (likely_type*) malloc(n * sizeof(likely_type));
     for (likely_arity i=0; i<n; i++)

@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
     }
 
     printf("Parsing abstract syntax tree...\n");
-    likely_ast ast = likely_ast_from_string(filter);
+    likely_const_ast ast = likely_ast_from_string(filter);
 
     printf("Creating a compiler environment...\n");
     likely_env env = likely_new_env();

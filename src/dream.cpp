@@ -268,7 +268,7 @@ private slots:
 
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
-        likely_ast asts = likely_asts_from_string(qPrintable(source));
+        likely_const_ast asts = likely_asts_from_string(qPrintable(source));
         if (asts) {
             likely_env env = likely_new_env();
             for (size_t i=0; i<asts->num_atoms; i++) {
@@ -589,7 +589,7 @@ int main(int argc, char *argv[])
             source = argv[i];
         }
 
-        likely_ast asts = likely_asts_from_string(qPrintable(source));
+        likely_const_ast asts = likely_asts_from_string(qPrintable(source));
         likely_env env = likely_new_env();
         for (size_t i=0; i<asts->num_atoms; i++) {
             likely_mat m = likely_eval(asts->atoms[i], env);

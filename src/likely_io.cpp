@@ -181,7 +181,7 @@ likely_mut likely_render(likely_mat m, double *min_, double *max_)
 
     static likely_function_n normalize = NULL;
     if (normalize == NULL) {
-        likely_ast ast = likely_ast_from_string("(kernel (img min range) (cast (/ (- img min) range) u8) (channels 3))");
+        likely_const_ast ast = likely_ast_from_string("(kernel (img min range) (cast (/ (- img min) range) u8) (channels 3))");
         likely_env env = likely_new_env();
         normalize = likely_compile_n(ast, env);
         likely_release_env(env);
