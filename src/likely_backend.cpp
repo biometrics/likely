@@ -1571,7 +1571,7 @@ void likely_release_env(likely_env env)
     delete env;
 }
 
-extern "C" LIKELY_EXPORT likely_mat likely_dispatch(struct DynamicFunction *dynamicFunction, likely_mat *m)
+extern "C" LIKELY_EXPORT likely_const_mat likely_dispatch(struct DynamicFunction *dynamicFunction, likely_const_mat *m)
 {
     void *function = NULL;
     for (size_t i=0; i<dynamicFunction->functions.size(); i++) {
@@ -1600,12 +1600,12 @@ extern "C" LIKELY_EXPORT likely_mat likely_dispatch(struct DynamicFunction *dyna
             likely_dispatch(NULL, NULL);
     }
 
-    typedef likely_mat (*f0)(void);
-    typedef likely_mat (*f1)(const likely_mat);
-    typedef likely_mat (*f2)(const likely_mat, const likely_mat);
-    typedef likely_mat (*f3)(const likely_mat, const likely_mat, const likely_mat);
+    typedef likely_const_mat (*f0)(void);
+    typedef likely_const_mat (*f1)(const likely_const_mat);
+    typedef likely_const_mat (*f2)(const likely_const_mat, const likely_const_mat);
+    typedef likely_const_mat (*f3)(const likely_const_mat, const likely_const_mat, const likely_const_mat);
 
-    likely_mat dst;
+    likely_const_mat dst;
     switch (dynamicFunction->n) {
       case 0: dst = reinterpret_cast<f0>(function)(); break;
       case 1: dst = reinterpret_cast<f1>(function)(m[0]); break;
@@ -1662,13 +1662,13 @@ void likely_compile_to_file(likely_const_ast ast, likely_env env, const char *sy
     StaticFunction(ast, env, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
 }
 
-likely_mut likely_eval(likely_const_ast ast, likely_env env)
+likely_mat likely_eval(likely_const_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
     likely_const_ast expr = likely_ast_from_string("(lambda () (scalar <ast>))");
     expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
     StaticFunction staticFunction(expr, env, vector<likely_type>(), true);
     likely_release_ast(expr);
-    if (staticFunction.function) return reinterpret_cast<likely_mut(*)(void)>(staticFunction.function)();
+    if (staticFunction.function) return reinterpret_cast<likely_mat(*)(void)>(staticFunction.function)();
     else                         return NULL;
 }

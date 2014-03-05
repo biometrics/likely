@@ -29,10 +29,10 @@
 
 using namespace std;
 
-likely_mut likely_read(const char *file_name)
+likely_mat likely_read(const char *file_name)
 {
     static string previousFileName;
-    static likely_mut previousMat = NULL;
+    static likely_mat previousMat = NULL;
     if (previousFileName == file_name)
         return likely_copy(previousMat);
 
@@ -43,7 +43,7 @@ likely_mut likely_read(const char *file_name)
         return NULL;
     }
 
-    likely_mut mat = fromCvMat(m, true);
+    likely_mat mat = fromCvMat(m, true);
 
     likely_release(previousMat);
     likely_retain(mat);
@@ -52,17 +52,17 @@ likely_mut likely_read(const char *file_name)
     return mat;
 }
 
-likely_mut likely_write(likely_mat image, const char *file_name)
+likely_mat likely_write(likely_const_mat image, const char *file_name)
 {
     try {
         cv::imwrite(file_name, toCvMat(image));
     } catch (...) {
         return NULL;
     }
-    return (likely_mut) image;
+    return (likely_mat) image;
 }
 
-likely_mut likely_decode(likely_mat buffer)
+likely_mat likely_decode(likely_const_mat buffer)
 {
     try {
         return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_UNCHANGED), true);
@@ -71,7 +71,7 @@ likely_mut likely_decode(likely_mat buffer)
     }
 }
 
-likely_mut likely_encode(likely_mat image, const char *extension)
+likely_mat likely_encode(likely_const_mat image, const char *extension)
 {
     vector<uchar> buf;
     try {
@@ -82,7 +82,7 @@ likely_mut likely_encode(likely_mat image, const char *extension)
     return fromCvMat(cv::Mat(buf), true);
 }
 
-const char *likely_to_string(likely_mat m)
+const char *likely_to_string(likely_const_mat m)
 {
     static string result;
 
@@ -128,21 +128,21 @@ const char *likely_to_string(likely_mat m)
     return result.c_str();
 }
 
-likely_mut likely_print(likely_mat m, ...)
+likely_mat likely_print(likely_const_mat m, ...)
 {
     va_list ap;
     va_start(ap, m);
     stringstream buffer;
     while (m) {
         buffer << likely_to_string(m);
-        m = va_arg(ap, likely_mat);
+        m = va_arg(ap, likely_const_mat);
     }
     va_end(ap);
     const string result = buffer.str();
     return likely_new(likely_type_i8, result.length()+1, 1, 1, 1, (likely_data)result.c_str(), true);
 }
 
-likely_mut likely_render(likely_mat m, double *min_, double *max_)
+likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
 {
     if (!m)
         return NULL;
@@ -188,10 +188,10 @@ likely_mut likely_render(likely_mat m, double *min_, double *max_)
         likely_release_ast(ast);
     }
 
-    likely_mat min_val = likely_scalar(min);
-    likely_mat range_val = likely_scalar(range);
-    likely_mat args[] = { m, min_val, range_val };
-    likely_mut n = normalize(args);
+    likely_const_mat min_val = likely_scalar(min);
+    likely_const_mat range_val = likely_scalar(range);
+    likely_const_mat args[] = { m, min_val, range_val };
+    likely_mat n = normalize(args);
     likely_release(min_val);
     likely_release(range_val);
 

@@ -32,12 +32,12 @@ static likely_type depthToType(int depth)
     return likely_type_null;
 }
 
-static cv::Mat toCvMat(likely_mat m)
+static cv::Mat toCvMat(likely_const_mat m)
 {
     return cv::Mat((int)m->rows, (int)m->columns, CV_MAKETYPE(typeToDepth(m->type), (int)m->channels), (void*)m->data);
 }
 
-static likely_mut fromCvMat(const cv::Mat &src, bool copy)
+static likely_mat fromCvMat(const cv::Mat &src, bool copy)
 {
     if (!src.isContinuous() || !src.data)
         return likely_new(likely_type_null, 0, 0, 0, 0, NULL, 0);

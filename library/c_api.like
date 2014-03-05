@@ -12,10 +12,10 @@ The **C translation** of this is:
 
 int main()
 {
-    likely_mat lenna = likely_read("../data/misc/lenna.tiff");
+    likely_const_mat lenna = likely_read("../data/misc/lenna.tiff");
     likely_ir ir = likely_ir_from_expression("arg(0) / 2");
     likely_function darken = likely_compile(ir);
-    likely_mat dark_lenna = darken(lenna);
+    likely_const_mat dark_lenna = darken(lenna);
     return 0;
 }
 ```
