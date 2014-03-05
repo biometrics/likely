@@ -89,14 +89,14 @@ if (EXPR.isNull()) return NULL;                          \
 
 } // namespace (anonymous)
 
-struct likely_env_struct : public map<string,stack<shared_ptr<Expression>>>
+struct likely_environment : public map<string,stack<shared_ptr<Expression>>>
 {
-    static likely_env_struct defaultExprs;
+    static likely_environment defaultExprs;
     mutable int ref_count = 1;
-    likely_env_struct(const likely_env_struct &exprs = defaultExprs)
+    likely_environment(const likely_environment &exprs = defaultExprs)
         : map<string,stack<shared_ptr<Expression>>>(exprs) {}
 };
-likely_env_struct likely_env_struct::defaultExprs;
+likely_environment likely_environment::defaultExprs;
 
 namespace {
 
@@ -387,7 +387,7 @@ struct Builder : public IRBuilder<>
         else                  return NULL;
     }
 
-    likely_env snapshot() const { return new likely_env_struct(*env); }
+    likely_env snapshot() const { return new likely_environment(*env); }
 
     Expression *expression(likely_const_ast ast)
     {
@@ -653,7 +653,7 @@ struct RegisterExpression
 {
     RegisterExpression(const string &symbol)
     {
-        likely_env_struct::defaultExprs[symbol].push(shared_ptr<Expression>(new T()));
+        likely_environment::defaultExprs[symbol].push(shared_ptr<Expression>(new T()));
     }
 };
 #define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
@@ -1556,16 +1556,16 @@ LIKELY_REGISTER(encode)
 
 likely_env likely_new_env()
 {
-    return new likely_env_struct();
+    return new likely_environment();
 }
 
-likely_env likely_retain_env(likely_env env)
+likely_env likely_retain_env(likely_const_env env)
 {
     if (env) env->ref_count++;
-    return env;
+    return (likely_env) env;
 }
 
-void likely_release_env(likely_env env)
+void likely_release_env(likely_const_env env)
 {
     if (!env || --env->ref_count) return;
     delete env;

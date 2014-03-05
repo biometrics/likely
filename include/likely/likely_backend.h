@@ -25,10 +25,11 @@ extern "C" {
 #endif
 
 // Environments
-typedef struct likely_env_struct *likely_env;
+typedef struct likely_environment *likely_env;
+typedef struct likely_environment const *likely_const_env;
 LIKELY_EXPORT likely_env likely_new_env();
-LIKELY_EXPORT likely_env likely_retain_env(likely_env env);
-LIKELY_EXPORT void likely_release_env(likely_env env);
+LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
+LIKELY_EXPORT void likely_release_env(likely_const_env env);
 
 // Compilation
 typedef likely_mat (*likely_function)(likely_const_mat, ...);
