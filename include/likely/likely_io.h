@@ -24,15 +24,15 @@ extern "C" {
 #endif
 
 // Matrix I/O
-LIKELY_EXPORT likely_mutable likely_read(const char *file_name);
-LIKELY_EXPORT likely_mutable likely_write(likely_matrix image, const char *file_name);
-LIKELY_EXPORT likely_mutable likely_decode(likely_matrix buffer);
-LIKELY_EXPORT likely_mutable likely_encode(likely_matrix image, const char *extension);
+LIKELY_EXPORT likely_mut likely_read(const char *file_name);
+LIKELY_EXPORT likely_mut likely_write(likely_mat image, const char *file_name);
+LIKELY_EXPORT likely_mut likely_decode(likely_mat buffer);
+LIKELY_EXPORT likely_mut likely_encode(likely_mat image, const char *extension);
 
 // Matrix Visualization
-LIKELY_EXPORT const char *likely_matrix_to_string(likely_matrix m); // Return value managed internally and guaranteed until the next call to this function
-LIKELY_EXPORT likely_mutable likely_print(likely_matrix m, ...);
-LIKELY_EXPORT likely_mutable likely_render(likely_matrix m, double *min, double *max); // Return an 888 matrix for visualization
+LIKELY_EXPORT const char *likely_to_string(likely_mat m); // Return value managed internally and guaranteed until the next call to this function
+LIKELY_EXPORT likely_mut likely_print(likely_mat m, ...);
+LIKELY_EXPORT likely_mut likely_render(likely_mat m, double *min, double *max); // Return an 888 matrix for visualization
 
 #ifdef __cplusplus
 }

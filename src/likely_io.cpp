@@ -29,10 +29,10 @@
 
 using namespace std;
 
-likely_mutable likely_read(const char *file_name)
+likely_mut likely_read(const char *file_name)
 {
     static string previousFileName;
-    static likely_mutable previousMat = NULL;
+    static likely_mut previousMat = NULL;
     if (previousFileName == file_name)
         return likely_copy(previousMat);
 
@@ -43,7 +43,7 @@ likely_mutable likely_read(const char *file_name)
         return NULL;
     }
 
-    likely_mutable mat = fromCvMat(m, true);
+    likely_mut mat = fromCvMat(m, true);
 
     likely_release(previousMat);
     likely_retain(mat);
@@ -52,17 +52,17 @@ likely_mutable likely_read(const char *file_name)
     return mat;
 }
 
-likely_mutable likely_write(likely_matrix image, const char *file_name)
+likely_mut likely_write(likely_mat image, const char *file_name)
 {
     try {
         cv::imwrite(file_name, toCvMat(image));
     } catch (...) {
         return NULL;
     }
-    return (likely_mutable) image;
+    return (likely_mut) image;
 }
 
-likely_mutable likely_decode(likely_matrix buffer)
+likely_mut likely_decode(likely_mat buffer)
 {
     try {
         return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_UNCHANGED), true);
@@ -71,7 +71,7 @@ likely_mutable likely_decode(likely_matrix buffer)
     }
 }
 
-likely_mutable likely_encode(likely_matrix image, const char *extension)
+likely_mut likely_encode(likely_mat image, const char *extension)
 {
     vector<uchar> buf;
     try {
@@ -82,7 +82,7 @@ likely_mutable likely_encode(likely_matrix image, const char *extension)
     return fromCvMat(cv::Mat(buf), true);
 }
 
-const char *likely_matrix_to_string(likely_matrix m)
+const char *likely_to_string(likely_mat m)
 {
     static string result;
 
@@ -128,21 +128,21 @@ const char *likely_matrix_to_string(likely_matrix m)
     return result.c_str();
 }
 
-likely_mutable likely_print(likely_matrix m, ...)
+likely_mut likely_print(likely_mat m, ...)
 {
     va_list ap;
     va_start(ap, m);
     stringstream buffer;
     while (m) {
-        buffer << likely_matrix_to_string(m);
-        m = va_arg(ap, likely_matrix);
+        buffer << likely_to_string(m);
+        m = va_arg(ap, likely_mat);
     }
     va_end(ap);
     const string result = buffer.str();
     return likely_new(likely_type_i8, result.length()+1, 1, 1, 1, (likely_data)result.c_str(), true);
 }
 
-likely_mutable likely_render(likely_matrix m, double *min_, double *max_)
+likely_mut likely_render(likely_mat m, double *min_, double *max_)
 {
     if (!m)
         return NULL;
@@ -188,10 +188,10 @@ likely_mutable likely_render(likely_matrix m, double *min_, double *max_)
         likely_release_ast(ast);
     }
 
-    likely_matrix min_val = likely_scalar(min);
-    likely_matrix range_val = likely_scalar(range);
-    likely_matrix args[] = { m, min_val, range_val };
-    likely_mutable n = normalize(args);
+    likely_mat min_val = likely_scalar(min);
+    likely_mat range_val = likely_scalar(range);
+    likely_mat args[] = { m, min_val, range_val };
+    likely_mut n = normalize(args);
     likely_release(min_val);
     likely_release(range_val);
 

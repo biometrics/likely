@@ -272,7 +272,7 @@ private slots:
         if (asts) {
             likely_env env = likely_new_env();
             for (size_t i=0; i<asts->num_atoms; i++) {
-                likely_matrix result = likely_eval(asts->atoms[i], env);
+                likely_mat result = likely_eval(asts->atoms[i], env);
                 emit newResult(result);
                 likely_release(result);
             }
@@ -288,7 +288,7 @@ private slots:
 signals:
     void finishedEval();
     void newFileName(QString);
-    void newResult(likely_matrix result);
+    void newResult(likely_mat result);
     void newStatus(QString);
 };
 
@@ -336,11 +336,11 @@ public:
         connect(name, SIGNAL(textChanged(QString)), this, SLOT(updateDefinition()));
     }
 
-    void show(likely_matrix mat)
+    void show(likely_mat mat)
     {
         double min, max;
         if (mat) {
-            likely_matrix rendered = likely_render(mat, &min, &max);
+            likely_mat rendered = likely_render(mat, &min, &max);
             src = QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped();
             likely_release(rendered);
         } else {
@@ -429,7 +429,7 @@ public slots:
         showIndex = 0;
     }
 
-    void print(likely_matrix mat)
+    void print(likely_mat mat)
     {
         const int i = showIndex++;
         Matrix *matrix = NULL;
@@ -552,7 +552,7 @@ public:
         connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(fileMenu(QAction*)));
         connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
         connect(source, SIGNAL(finishedEval()), printer, SLOT(finishedEval()));
-        connect(source, SIGNAL(newResult(likely_matrix)), printer, SLOT(print(likely_matrix)));
+        connect(source, SIGNAL(newResult(likely_mat)), printer, SLOT(print(likely_mat)));
         connect(source, SIGNAL(newFileName(QString)), this, SLOT(setWindowTitle(QString)));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
 
@@ -592,8 +592,8 @@ int main(int argc, char *argv[])
         likely_ast asts = likely_asts_from_string(qPrintable(source));
         likely_env env = likely_new_env();
         for (size_t i=0; i<asts->num_atoms; i++) {
-            likely_matrix m = likely_eval(asts->atoms[i], env);
-            printf("%s", likely_matrix_to_string(m));
+            likely_mat m = likely_eval(asts->atoms[i], env);
+            printf("%s", likely_to_string(m));
             likely_release(m);
         }
         likely_release_env(env);

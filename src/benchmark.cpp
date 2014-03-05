@@ -86,7 +86,7 @@ struct Test
 
                 // Generate input matrix
                 Mat srcCV = generateData(size, size, type, scaleFactor());
-                likely_mutable srcLikely = fromCvMat(srcCV);
+                likely_mut srcLikely = fromCvMat(srcCV);
 
                 for (int execution : executions()) {
                     if ((BenchmarkExecution != -1) && (BenchmarkExecution != execution))
@@ -132,9 +132,9 @@ struct Test
         for (size_t i=0; i<ast->num_atoms; i++) {
             if (BenchmarkVerbose)
                 printf("%s\n", likely_ast_to_string(ast->atoms[i]));
-            likely_matrix result = likely_eval(ast->atoms[i], env);
+            likely_mat result = likely_eval(ast->atoms[i], env);
             if (BenchmarkVerbose)
-                printf("%s\n\n", likely_matrix_to_string(result));
+                printf("%s\n\n", likely_to_string(result));
             likely_release(result);
         }
         likely_release_env(env);
@@ -220,18 +220,18 @@ private:
             : iterations(iter), Hz(double(iter) * CLOCKS_PER_SEC / (endTime-startTime)) {}
     };
 
-    static likely_mutable fromCvMat(const Mat &src)
+    static likely_mut fromCvMat(const Mat &src)
     {
-        likely_mutable m = ::fromCvMat(src, true);
+        likely_mut m = ::fromCvMat(src, true);
         if (!likely_floating(m->type) && (likely_depth(m->type) <= 16))
             likely_set_saturation(&m->type, BenchmarkSaturation);
         return m;
     }
 
-    void testCorrectness(likely_function f, const Mat &srcCV, const likely_matrix srcLikely) const
+    void testCorrectness(likely_function f, const Mat &srcCV, const likely_mat srcLikely) const
     {
         Mat dstOpenCV = computeBaseline(srcCV);
-        likely_matrix dstLikely = f(srcLikely);
+        likely_mat dstLikely = f(srcLikely);
 
         Mat errorMat = abs(toCvMat(dstLikely) - dstOpenCV);
         errorMat.convertTo(errorMat, CV_32F);
@@ -240,7 +240,7 @@ private:
         threshold(errorMat, errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
         int errors = (int) norm(errorMat, NORM_L1);
         if (errors > 0) {
-            likely_matrix cvLikely = fromCvMat(dstOpenCV);
+            likely_mat cvLikely = fromCvMat(dstOpenCV);
             stringstream errorLocations;
             errorLocations << "input\topencv\tlikely\trow\tcolumn\n";
             errors = 0;
@@ -277,13 +277,13 @@ private:
         return Test::Speed(iter, startTime, endTime);
     }
 
-    Speed testLikelySpeed(likely_function f, const likely_matrix srcLikely) const
+    Speed testLikelySpeed(likely_function f, const likely_mat srcLikely) const
     {
         clock_t startTime, endTime;
         int iter = 0;
         startTime = endTime = clock();
         while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
-            likely_matrix dstLikely = f(srcLikely);
+            likely_mat dstLikely = f(srcLikely);
             likely_release(dstLikely);
             endTime = clock();
             iter++;
