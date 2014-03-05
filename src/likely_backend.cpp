@@ -295,7 +295,8 @@ struct Builder : public IRBuilder<>
     static Immediate intMax(likely_type type) { const int bits = likely_depth(type); return constant((1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
     static Immediate intMin(likely_type type) { const int bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
     static Immediate type(likely_type type) { return constant(type, likely_depth(likely_type_type)); }
-    static Immediate nullDataPtr() { return Immediate(ConstantPointerNull::get(Type::getInt8PtrTy(C)), likely_type_native); }
+    static Immediate nullMat() { return Immediate(ConstantPointerNull::get(Matrix), likely_type_null); }
+    static Immediate nullData() { return Immediate(ConstantPointerNull::get(Type::getInt8PtrTy(C)), likely_type_native); }
 
     Immediate data    (const Expression *matrix) { return Immediate(CreatePointerCast(CreateLoad(CreateStructGEP(*matrix, 1), "data"), ty(*matrix, true)), matrix->type() & likely_type_mask); }
     Immediate channels(const Expression *matrix) { return likely_multi_channel(*matrix) ? Immediate(CreateLoad(CreateStructGEP(*matrix, 2), "channels"), likely_type_native) : one(); }
@@ -1088,7 +1089,7 @@ class newExpression : public Operator
             case 5: columns  = Builder::one();
             case 4: rows     = Builder::one();
             case 3: frames   = Builder::one();
-            case 2: data     = Builder::nullDataPtr();
+            case 2: data     = Builder::nullData();
             case 1: copy     = Builder::constant(0, 8);
             default:           break;
         }
@@ -1290,7 +1291,7 @@ private:
 
         builder.SetInsertPoint(entry);
 
-        Value *dst = newExpression::createCall(builder, Builder::type(dstType), dstChannels, dstColumns, dstRows, dstFrames, Builder::nullDataPtr(), Builder::constant(0, 8));
+        Value *dst = newExpression::createCall(builder, Builder::type(dstType), dstChannels, dstColumns, dstRows, dstFrames, Builder::nullData(), Builder::constant(0, 8));
 
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
 
@@ -1452,6 +1453,31 @@ LIKELY_REGISTER(lambda)
 
 #ifdef LIKELY_IO
 #include "likely/likely_io.h"
+
+class printExpression : public Operator
+{
+    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    {
+        static FunctionType *LikelyPrintSignature = NULL;
+        if (LikelyPrintSignature == NULL) {
+            LikelyPrintSignature = FunctionType::get(Matrix, Matrix, true);
+            // An impossible case used to ensure that `likely_print` isn't stripped when optimizing executable size
+            if (LikelyPrintSignature == NULL)
+                likely_print(NULL);
+        }
+        Function *likelyPrint = Function::Create(LikelyPrintSignature, GlobalValue::ExternalLinkage, "likely_print", builder.resources->module);
+        likelyPrint->setCallingConv(CallingConv::C);
+        likelyPrint->setDoesNotAlias(0);
+        vector<Value*> args;
+        for (size_t i=1; i<ast->num_atoms; i++) {
+            TRY_EXPR(builder, ast->atoms[i], arg);
+            args.push_back(arg);
+        }
+        args.push_back(builder.nullMat());
+        return new Immediate(builder.CreateCall(likelyPrint, args), likely_type_i8);
+    }
+};
+LIKELY_REGISTER(print)
 
 class readExpression : public Operator
 {
