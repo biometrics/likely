@@ -34,10 +34,10 @@ static likely_type depthToType(int depth)
 
 static cv::Mat toCvMat(const likely_matrix m)
 {
-    return cv::Mat((int)m->rows, (int)m->columns, CV_MAKETYPE(typeToDepth(m->type), (int)m->channels), m->data);
+    return cv::Mat((int)m->rows, (int)m->columns, CV_MAKETYPE(typeToDepth(m->type), (int)m->channels), (void*)m->data);
 }
 
-static likely_matrix fromCvMat(const cv::Mat &src, bool copy)
+static likely_mutable fromCvMat(const cv::Mat &src, bool copy)
 {
     if (!src.isContinuous() || !src.data)
         return likely_new(likely_type_null, 0, 0, 0, 0, NULL, 0);

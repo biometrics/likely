@@ -63,12 +63,12 @@ void likely_set_saturation(likely_type *type, bool saturation) { likely_set_bool
 int  likely_reserved(likely_type type) { return likely_get(type, likely_type_reserved); }
 void likely_set_reserved(likely_type *type, int reserved) { likely_set(type, reserved, likely_type_reserved); }
 
-likely_size likely_elements(const likely_matrix m)
+likely_size likely_elements(likely_matrix m)
 {
     return m->channels * m->columns * m->rows * m->frames;
 }
 
-likely_size likely_bytes(const likely_matrix m)
+likely_size likely_bytes(likely_matrix m)
 {
     return likely_depth(m->type) * likely_elements(m) / 8;
 }
@@ -76,18 +76,18 @@ likely_size likely_bytes(const likely_matrix m)
 // TODO: make this thread_local when compiler support improves
 static likely_matrix recycledBuffer = NULL;
 
-likely_matrix likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data data, int8_t copy)
+likely_mutable likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data data, int8_t copy)
 {
-    likely_matrix m;
+    likely_mutable m;
     size_t dataBytes = ((data && !copy) ? 0 : uint64_t(likely_depth(type)) * channels * columns * rows * frames / 8);
     const size_t headerBytes = sizeof(likely_matrix_struct) + sizeof(likely_matrix_private);
     if (recycledBuffer) {
         const size_t recycledDataBytes = recycledBuffer->d_ptr->data_bytes;
-        if (recycledDataBytes >= dataBytes) { m = recycledBuffer; dataBytes = recycledDataBytes; }
-        else                                m = (likely_matrix) realloc(recycledBuffer, headerBytes + dataBytes);
+        if (recycledDataBytes >= dataBytes) { m = (likely_mutable) recycledBuffer; dataBytes = recycledDataBytes; }
+        else                                  m = (likely_mutable) realloc((void*) recycledBuffer, headerBytes + dataBytes);
         recycledBuffer = NULL;
     } else {
-        m = (likely_matrix) malloc(headerBytes + dataBytes);
+        m = (likely_mutable) malloc(headerBytes + dataBytes);
     }
 
     m->type = type;
@@ -109,28 +109,28 @@ likely_matrix likely_new(likely_type type, likely_size channels, likely_size col
         m->data = data;
     } else {
         m->data = reinterpret_cast<likely_data>(m->d_ptr+1);
-        if (data && copy) memcpy(m->data, data, likely_bytes(m));
+        if (data && copy) memcpy((void*) m->data, data, likely_bytes(m));
     }
 
     return m;
 }
 
-likely_matrix likely_scalar(double value)
+likely_mutable likely_scalar(double value)
 {
-    likely_matrix m = likely_new(likely_type_from_value(value), 1, 1, 1, 1, NULL, 0);
+    likely_mutable m = likely_new(likely_type_from_value(value), 1, 1, 1, 1, NULL, 0);
     likely_set_element(m, value, 0, 0, 0, 0);
     return m;
 }
 
-likely_matrix likely_copy(const likely_matrix m, int8_t clone)
+likely_mutable likely_copy(likely_matrix m)
 {
-    return likely_new(m->type, m->channels, m->columns, m->rows, m->frames, m->data, clone);
+    return likely_new(m->type, m->channels, m->columns, m->rows, m->frames, m->data, true);
 }
 
-likely_matrix likely_retain(likely_matrix m)
+likely_mutable likely_retain(likely_matrix m)
 {
     if (m) ++m->d_ptr->ref_count;
-    return m;
+    return (likely_mutable) m;
 }
 
 void likely_release(likely_matrix m)
@@ -139,56 +139,56 @@ void likely_release(likely_matrix m)
     if (recycledBuffer) {
         if (m->d_ptr->data_bytes > recycledBuffer->d_ptr->data_bytes)
             swap(m, recycledBuffer);
-        free(m);
+        free((void*) m);
     } else {
         recycledBuffer = m;
     }
 }
 
-double likely_element(const likely_matrix m, likely_size c, likely_size x, likely_size y, likely_size t)
+double likely_element(likely_matrix m, likely_size c, likely_size x, likely_size y, likely_size t)
 {
-    assert(m);
+    if (!m) return numeric_limits<double>::quiet_NaN();
     const likely_size columnStep = m->channels;
     const likely_size rowStep = m->columns * columnStep;
     const likely_size frameStep = m->rows * rowStep;
     const likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
 
     switch (m->type & likely_type_mask) {
-      case likely_type_u8:  return (double)reinterpret_cast< uint8_t*>(m->data)[index];
-      case likely_type_u16: return (double)reinterpret_cast<uint16_t*>(m->data)[index];
-      case likely_type_u32: return (double)reinterpret_cast<uint32_t*>(m->data)[index];
-      case likely_type_u64: return (double)reinterpret_cast<uint64_t*>(m->data)[index];
-      case likely_type_i8:  return (double)reinterpret_cast<  int8_t*>(m->data)[index];
-      case likely_type_i16: return (double)reinterpret_cast< int16_t*>(m->data)[index];
-      case likely_type_i32: return (double)reinterpret_cast< int32_t*>(m->data)[index];
-      case likely_type_i64: return (double)reinterpret_cast< int64_t*>(m->data)[index];
-      case likely_type_f32: return (double)reinterpret_cast<   float*>(m->data)[index];
-      case likely_type_f64: return (double)reinterpret_cast<  double*>(m->data)[index];
-      default: assert(false && "likely_element unsupported type");
+      case likely_type_u8:  return double((( uint8_t const*)m->data)[index]);
+      case likely_type_u16: return double(((uint16_t const*)m->data)[index]);
+      case likely_type_u32: return double(((uint32_t const*)m->data)[index]);
+      case likely_type_u64: return double(((uint64_t const*)m->data)[index]);
+      case likely_type_i8:  return double(((  int8_t const*)m->data)[index]);
+      case likely_type_i16: return double((( int16_t const*)m->data)[index]);
+      case likely_type_i32: return double((( int32_t const*)m->data)[index]);
+      case likely_type_i64: return double((( int64_t const*)m->data)[index]);
+      case likely_type_f32: return double(((   float const*)m->data)[index]);
+      case likely_type_f64: return double(((  double const*)m->data)[index]);
+      default: assert(!"likely_element unsupported type");
     }
     return numeric_limits<double>::quiet_NaN();
 }
 
-void likely_set_element(likely_matrix m, double value, likely_size c, likely_size x, likely_size y, likely_size t)
+void likely_set_element(likely_mutable m, double value, likely_size c, likely_size x, likely_size y, likely_size t)
 {
-    assert(m);
+    if (!m) return;
     const likely_size columnStep = m->channels;
     const likely_size rowStep = m->columns * columnStep;
     const likely_size frameStep = m->rows * rowStep;
     const likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
 
     switch (m->type & likely_type_mask) {
-      case likely_type_u8:  reinterpret_cast< uint8_t*>(m->data)[index] = ( uint8_t)value; break;
-      case likely_type_u16: reinterpret_cast<uint16_t*>(m->data)[index] = (uint16_t)value; break;
-      case likely_type_u32: reinterpret_cast<uint32_t*>(m->data)[index] = (uint32_t)value; break;
-      case likely_type_u64: reinterpret_cast<uint64_t*>(m->data)[index] = (uint64_t)value; break;
-      case likely_type_i8:  reinterpret_cast<  int8_t*>(m->data)[index] = (  int8_t)value; break;
-      case likely_type_i16: reinterpret_cast< int16_t*>(m->data)[index] = ( int16_t)value; break;
-      case likely_type_i32: reinterpret_cast< int32_t*>(m->data)[index] = ( int32_t)value; break;
-      case likely_type_i64: reinterpret_cast< int64_t*>(m->data)[index] = ( int64_t)value; break;
-      case likely_type_f32: reinterpret_cast<   float*>(m->data)[index] = (   float)value; break;
-      case likely_type_f64: reinterpret_cast<  double*>(m->data)[index] = (  double)value; break;
-      default: assert(false && "likely_set_element unsupported type");
+      case likely_type_u8:  (( uint8_t*)m->data)[index] = ( uint8_t)value; break;
+      case likely_type_u16: ((uint16_t*)m->data)[index] = (uint16_t)value; break;
+      case likely_type_u32: ((uint32_t*)m->data)[index] = (uint32_t)value; break;
+      case likely_type_u64: ((uint64_t*)m->data)[index] = (uint64_t)value; break;
+      case likely_type_i8:  ((  int8_t*)m->data)[index] = (  int8_t)value; break;
+      case likely_type_i16: (( int16_t*)m->data)[index] = ( int16_t)value; break;
+      case likely_type_i32: (( int32_t*)m->data)[index] = ( int32_t)value; break;
+      case likely_type_i64: (( int64_t*)m->data)[index] = ( int64_t)value; break;
+      case likely_type_f32: ((   float*)m->data)[index] = (   float)value; break;
+      case likely_type_f64: ((  double*)m->data)[index] = (  double)value; break;
+      default: assert(!"likely_set_element unsupported type");
     }
 }
 

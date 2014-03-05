@@ -86,7 +86,7 @@ struct Test
 
                 // Generate input matrix
                 Mat srcCV = generateData(size, size, type, scaleFactor());
-                likely_matrix srcLikely = fromCvMat(srcCV);
+                likely_mutable srcLikely = fromCvMat(srcCV);
 
                 for (int execution : executions()) {
                     if ((BenchmarkExecution != -1) && (BenchmarkExecution != execution))
@@ -220,9 +220,9 @@ private:
             : iterations(iter), Hz(double(iter) * CLOCKS_PER_SEC / (endTime-startTime)) {}
     };
 
-    static likely_matrix fromCvMat(const Mat &src)
+    static likely_mutable fromCvMat(const Mat &src)
     {
-        likely_matrix m = ::fromCvMat(src, true);
+        likely_mutable m = ::fromCvMat(src, true);
         if (!likely_floating(m->type) && (likely_depth(m->type) <= 16))
             likely_set_saturation(&m->type, BenchmarkSaturation);
         return m;

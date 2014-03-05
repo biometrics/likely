@@ -1662,13 +1662,13 @@ void likely_compile_to_file(likely_ast ast, likely_env env, const char *symbol_n
     StaticFunction(ast, env, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
 }
 
-likely_matrix likely_eval(likely_ast ast, likely_env env)
+likely_mutable likely_eval(likely_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
     likely_ast expr = likely_ast_from_string("(lambda () (scalar <ast>))");
     expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
     StaticFunction staticFunction(expr, env, vector<likely_type>(), true);
     likely_release_ast(expr);
-    if (staticFunction.function) return reinterpret_cast<likely_matrix(*)(void)>(staticFunction.function)();
+    if (staticFunction.function) return reinterpret_cast<likely_mutable(*)(void)>(staticFunction.function)();
     else                         return NULL;
 }
