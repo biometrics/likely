@@ -48,7 +48,7 @@ using namespace std;
 namespace {
 
 static IntegerType *NativeIntegerType = NULL;
-static PointerType *Matrix = NULL;
+static PointerType *Mat = NULL;
 static LLVMContext &C = getGlobalContext();
 
 struct Builder;
@@ -163,7 +163,7 @@ struct Resources : public Object
 
     Resources(bool native, bool JIT)
     {
-        if (Matrix == NULL) {
+        if (Mat == NULL) {
             assert(sizeof(likely_size) == sizeof(void*));
             InitializeNativeTarget();
             InitializeNativeTargetAsmPrinter();
@@ -181,15 +181,15 @@ struct Resources : public Object
             initializeTarget(Registry);
 
             NativeIntegerType = Type::getIntNTy(C, likely_depth(likely_type_native));
-            Matrix = PointerType::getUnqual(StructType::create("likely_matrix_struct",
-                                                               PointerType::getUnqual(StructType::create(C, "likely_matrix_private")), // d_ptr
-                                                               Type::getInt8PtrTy(C), // data
-                                                               NativeIntegerType,     // channels
-                                                               NativeIntegerType,     // columns
-                                                               NativeIntegerType,     // rows
-                                                               NativeIntegerType,     // frames
-                                                               Type::getInt32Ty(C),   // type
-                                                               NULL));
+            Mat = PointerType::getUnqual(StructType::create("likely_matrix",
+                                                            PointerType::getUnqual(StructType::create(C, "likely_matrix_private")), // d_ptr
+                                                            Type::getInt8PtrTy(C), // data
+                                                            NativeIntegerType,     // channels
+                                                            NativeIntegerType,     // columns
+                                                            NativeIntegerType,     // rows
+                                                            NativeIntegerType,     // frames
+                                                            Type::getInt32Ty(C),   // type
+                                                            NULL));
         }
 
         module = new Module(getUniqueName("module"), C);
@@ -295,7 +295,7 @@ struct Builder : public IRBuilder<>
     static Immediate intMax(likely_type type) { const int bits = likely_depth(type); return constant((1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
     static Immediate intMin(likely_type type) { const int bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
     static Immediate type(likely_type type) { return constant(type, likely_depth(likely_type_type)); }
-    static Immediate nullMat() { return Immediate(ConstantPointerNull::get(Matrix), likely_type_null); }
+    static Immediate nullMat() { return Immediate(ConstantPointerNull::get(Mat), likely_type_null); }
     static Immediate nullData() { return Immediate(ConstantPointerNull::get(Type::getInt8PtrTy(C)), likely_type_native); }
 
     Immediate data    (const Expression *matrix) { return Immediate(CreatePointerCast(CreateLoad(CreateStructGEP(*matrix, 1), "data"), ty(*matrix, true)), matrix->type() & likely_type_mask); }
@@ -565,8 +565,8 @@ struct DynamicFunction : public Object
         if (LikelyDispatchSignature == NULL) {
             vector<Type*> dispatchParameters;
             dispatchParameters.push_back(dynamicType);
-            dispatchParameters.push_back(PointerType::getUnqual(Matrix));
-            LikelyDispatchSignature = FunctionType::get(Matrix, dispatchParameters, false);
+            dispatchParameters.push_back(PointerType::getUnqual(Mat));
+            LikelyDispatchSignature = FunctionType::get(Mat, dispatchParameters, false);
         }
         likelyDispatch = Function::Create(LikelyDispatchSignature, GlobalValue::ExternalLinkage, "likely_dispatch", resources->module);
         likelyDispatch->setCallingConv(CallingConv::C);
@@ -589,25 +589,25 @@ struct DynamicFunction : public Object
     {
         static FunctionType* functionType = NULL;
         if (functionType == NULL)
-            functionType = FunctionType::get(Matrix, Matrix, true);
+            functionType = FunctionType::get(Mat, Mat, true);
         Function *function = getFunction(functionType);
         BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         IRBuilder<> builder(entry);
 
         Value *array;
         if (n > 0) {
-            array = builder.CreateAlloca(Matrix, Constant::getIntegerValue(Type::getInt32Ty(C), APInt(32, (uint64_t)n)));
+            array = builder.CreateAlloca(Mat, Constant::getIntegerValue(Type::getInt32Ty(C), APInt(32, (uint64_t)n)));
             builder.CreateStore(function->arg_begin(), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), 0))));
             if (n > 1) {
                 Value *vaList = builder.CreateAlloca(IntegerType::getInt8PtrTy(C));
                 Value *vaListRef = builder.CreateBitCast(vaList, Type::getInt8PtrTy(C));
                 builder.CreateCall(Intrinsic::getDeclaration(resources->module, Intrinsic::vastart), vaListRef);
                 for (likely_arity i=1; i<n; i++)
-                    builder.CreateStore(builder.CreateVAArg(vaList, Matrix), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), i))));
+                    builder.CreateStore(builder.CreateVAArg(vaList, Mat), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), i))));
                 builder.CreateCall(Intrinsic::getDeclaration(resources->module, Intrinsic::vaend), vaListRef);
             }
         } else {
-            array = ConstantPointerNull::get(PointerType::getUnqual(Matrix));
+            array = ConstantPointerNull::get(PointerType::getUnqual(Mat));
         }
         builder.CreateRet(builder.CreateCall2(likelyDispatch, thisDynamicFunction(), array));
         return function;
@@ -622,7 +622,7 @@ struct DynamicFunction : public Object
     {
         static FunctionType* functionType = NULL;
         if (functionType == NULL)
-            functionType = FunctionType::get(Matrix, PointerType::getUnqual(Matrix), true);
+            functionType = FunctionType::get(Mat, PointerType::getUnqual(Mat), true);
         Function *function = getFunction(functionType);
         BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         IRBuilder<> builder(entry);
@@ -722,12 +722,12 @@ class scalarExpression : public UnaryOperator
         if (!argExpr)
             return NULL;
 
-        if (argExpr->value()->getType() == Matrix)
+        if (argExpr->value()->getType() == Mat)
             return argExpr;
 
         static FunctionType* LikelyScalarSignature = NULL;
         if (LikelyScalarSignature == NULL)
-            LikelyScalarSignature = FunctionType::get(Matrix, Type::getDoubleTy(C), false);
+            LikelyScalarSignature = FunctionType::get(Mat, Type::getDoubleTy(C), false);
 
         Function *likelyScalar = Function::Create(LikelyScalarSignature, GlobalValue::ExternalLinkage, "likely_scalar", builder.resources->module);
         likelyScalar->setCallingConv(CallingConv::C);
@@ -1110,7 +1110,7 @@ public:
             newParameters.push_back(NativeIntegerType); // frames
             newParameters.push_back(Type::getInt8PtrTy(C)); // data
             newParameters.push_back(Type::getInt8Ty(C)); // copy
-            LikelyNewSignature = FunctionType::get(Matrix, newParameters, false);
+            LikelyNewSignature = FunctionType::get(Mat, newParameters, false);
 
             // An impossible case used to ensure that `likely_new` isn't stripped when optimizing executable size
             if (LikelyNewSignature == NULL)
@@ -1195,7 +1195,7 @@ private:
                 return Immediate(dynamicFunction->generate(), likely_type_null);
             }
 
-        Function *function = getKernel(builder, name, types.size(), Matrix);
+        Function *function = getKernel(builder, name, types.size(), Mat);
         vector<Immediate> srcs = builder.getArgs(function, types);
         BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         builder.SetInsertPoint(entry);
@@ -1208,7 +1208,7 @@ private:
         Function *thunk;
         likely_type dstType;
         {
-            thunk = getKernel(builder, name + "_thunk", types.size(), Type::getVoidTy(C), Matrix, NativeIntegerType, NativeIntegerType);
+            thunk = getKernel(builder, name + "_thunk", types.size(), Type::getVoidTy(C), Mat, NativeIntegerType, NativeIntegerType);
             BasicBlock *entry = BasicBlock::Create(C, "entry", thunk);
             builder.SetInsertPoint(entry);
             vector<Immediate> srcs = builder.getArgs(thunk, types);
@@ -1302,7 +1302,7 @@ private:
                 likelyForkParameters.push_back(thunk->getType());
                 likelyForkParameters.push_back(Type::getInt8Ty(C));
                 likelyForkParameters.push_back(NativeIntegerType);
-                likelyForkParameters.push_back(Matrix);
+                likelyForkParameters.push_back(Mat);
                 Type *likelyForkReturn = Type::getVoidTy(C);
                 likelyForkType = FunctionType::get(likelyForkReturn, likelyForkParameters, true);
             }
@@ -1338,9 +1338,9 @@ private:
         Function *kernel;
         switch (argc) {
           case 0: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, dst, start, stop, NULL)); break;
-          case 1: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, Matrix, dst, start, stop, NULL)); break;
-          case 2: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, Matrix, Matrix, dst, start, stop, NULL)); break;
-          case 3: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, Matrix, Matrix, Matrix, dst, start, stop, NULL)); break;
+          case 1: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, Mat, dst, start, stop, NULL)); break;
+          case 2: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, Mat, Mat, dst, start, stop, NULL)); break;
+          case 3: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, Mat, Mat, Mat, dst, start, stop, NULL)); break;
           default: { kernel = NULL; likely_assert(false, "Kernel::getKernel invalid arity: %zu", argc); }
         }
         kernel->addFnAttr(Attribute::NoUnwind);
@@ -1460,7 +1460,7 @@ class printExpression : public Operator
     {
         static FunctionType *LikelyPrintSignature = NULL;
         if (LikelyPrintSignature == NULL) {
-            LikelyPrintSignature = FunctionType::get(Matrix, Matrix, true);
+            LikelyPrintSignature = FunctionType::get(Mat, Mat, true);
             // An impossible case used to ensure that `likely_print` isn't stripped when optimizing executable size
             if (LikelyPrintSignature == NULL)
                 likely_print(NULL);
@@ -1485,7 +1485,7 @@ class readExpression : public Operator
     {
         static FunctionType *LikelyReadSignature = NULL;
         if (LikelyReadSignature == NULL) {
-            LikelyReadSignature = FunctionType::get(Matrix, Type::getInt8PtrTy(C), false);
+            LikelyReadSignature = FunctionType::get(Mat, Type::getInt8PtrTy(C), false);
             // An impossible case used to ensure that `likely_read` isn't stripped when optimizing executable size
             if (LikelyReadSignature == NULL)
                 likely_read(NULL);
@@ -1505,9 +1505,9 @@ class writeExpression : public Operator
         static FunctionType *LikelyWriteSignature = NULL;
         if (LikelyWriteSignature == NULL) {
             vector<Type*> likelyWriteParameters;
-            likelyWriteParameters.push_back(Matrix);
+            likelyWriteParameters.push_back(Mat);
             likelyWriteParameters.push_back(Type::getInt8PtrTy(C));
-            LikelyWriteSignature = FunctionType::get(Matrix, likelyWriteParameters, false);
+            LikelyWriteSignature = FunctionType::get(Mat, likelyWriteParameters, false);
             // An impossible case used to ensure that `likely_write` isn't stripped when optimizing executable size
             if (LikelyWriteSignature == NULL)
                 likely_write(NULL, NULL);
@@ -1533,7 +1533,7 @@ class decodeExpression : public Operator
     {
         static FunctionType *LikelyDecodeSignature = NULL;
         if (LikelyDecodeSignature == NULL) {
-            LikelyDecodeSignature = FunctionType::get(Matrix, Matrix, false);
+            LikelyDecodeSignature = FunctionType::get(Mat, Mat, false);
             // An impossible case used to ensure that `likely_decode` isn't stripped when optimizing executable size
             if (LikelyDecodeSignature == NULL)
                 likely_decode(NULL);
@@ -1555,9 +1555,9 @@ class encodeExpression : public Operator
         static FunctionType *LikelyEncodeSignature = NULL;
         if (LikelyEncodeSignature == NULL) {
             vector<Type*> likelyEncodeParameters;
-            likelyEncodeParameters.push_back(Matrix);
+            likelyEncodeParameters.push_back(Mat);
             likelyEncodeParameters.push_back(Type::getInt8PtrTy(C));
-            LikelyEncodeSignature = FunctionType::get(Matrix, likelyEncodeParameters, false);
+            LikelyEncodeSignature = FunctionType::get(Mat, likelyEncodeParameters, false);
             // An impossible case used to ensure that `likely_encode` isn't stripped when optimizing executable size
             if (LikelyEncodeSignature == NULL)
                 likely_encode(NULL, NULL);
