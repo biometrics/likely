@@ -68,6 +68,12 @@ struct Expression
         delete this; // With great power comes great responsibility
         return result;
     }
+
+    static Expression *error(likely_const_ast ast, const char *message)
+    {
+        likely_throw(ast, message);
+        return NULL;
+    }
 };
 
 class ManagedExpression : public Expression
@@ -99,27 +105,6 @@ struct likely_environment : public map<string,stack<shared_ptr<Expression>>>
 likely_environment likely_environment::defaultExprs;
 
 namespace {
-
-static int numAtoms(likely_const_ast ast)
-{
-    return ast->is_list ? ast->num_atoms : -1;
-}
-
-static Expression *likelyThrow(likely_const_ast ast, const char *message)
-{
-    likely_throw(ast, message);
-    return NULL;
-}
-
-static Expression *likelyThrowArgc(likely_const_ast ast, const string &function, int args, int params, int minParams = -1)
-{
-    stringstream stream;
-    stream << function << " with: ";
-    if (minParams != -1)
-        stream << minParams << "-";
-    stream << params << " parameters passed: " << args << " arguments";
-    return likelyThrow(ast, stream.str().c_str());
-}
 
 static string getUniqueName(const string &prefix)
 {
@@ -394,7 +379,7 @@ struct Builder : public IRBuilder<>
     {
         if (ast->is_list) {
             if (ast->num_atoms == 0)
-                return likelyThrow(ast, "Empty expression");
+                return Expression::error(ast, "Empty expression");
             likely_const_ast op = ast->atoms[0];
             if (!op->is_list)
                 if (Expression *e = lookup(op->atom))
@@ -421,26 +406,54 @@ struct Builder : public IRBuilder<>
         if (type != likely_type_null)
             return new Immediate(constant(type, likely_type_u32));
 
-        return likelyThrow(ast, "unrecognized literal");
+        return Expression::error(ast, "unrecognized literal");
     }
 };
 
-class Operator : public Expression
+class StatefulExpression : public Expression
 {
     Value *value() const
     {
-        likely_assert(false, "Operator has no value!");
+        likely_assert(false, "StatefulExpression has no value!");
         return NULL;
     }
 
     likely_type type() const
     {
-        likely_assert(false, "Operator has no type!");
+        likely_assert(false, "StatefulExpression has no type!");
         return likely_type_null;
+    }
+
+protected:
+    static Expression *errorArgc(likely_const_ast ast, const string &function, int args, int minParams, int maxParams)
+    {
+        stringstream stream;
+        stream << function << " with: " << minParams;
+        if (maxParams != minParams)
+            stream << "-" << maxParams;
+        stream << " parameters passed: " << args << " arguments";
+        return error(ast, stream.str().c_str());
     }
 };
 
-struct ScopedExpression : public Operator
+class Operator : public StatefulExpression
+{
+    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    {
+        if (!ast->is_list)
+            return error(ast, "operator expected arguments");
+        const size_t args = ast->num_atoms - 1;
+        if ((args < minParameters()) || (args > maxParameters()))
+            return errorArgc(ast, "operator", args, minParameters(), maxParameters());
+        return evaluateOperator(builder, ast);
+    }
+
+    virtual Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const = 0;
+    virtual size_t maxParameters() const = 0;
+    virtual size_t minParameters() const { return maxParameters(); }
+};
+
+struct ScopedExpression : public StatefulExpression
 {
 protected:
     likely_env env;
@@ -482,7 +495,7 @@ private:
         const int parameters = argc();
         const int arguments = ast->num_atoms - 1;
         if (parameters != arguments)
-            return likelyThrowArgc(ast, "lambda", arguments, parameters);
+            return errorArgc(ast, "lambda", arguments, parameters, parameters);
 
         vector<Value*> args;
         vector<likely_type> types;
@@ -685,10 +698,11 @@ LIKELY_REGISTER_TYPE(reserved)
 
 class UnaryOperator : public Operator
 {
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    size_t maxParameters() const { return 1; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         if (!ast->is_list || (ast->num_atoms != 2))
-            return likelyThrow(ast, "expected 1 operand");
+            return error(ast, "expected 1 operand");
         return evaluateUnary(builder, ast->atoms[1]);
     }
     virtual Expression *evaluateUnary(Builder &builder, likely_const_ast arg) const = 0;
@@ -782,10 +796,9 @@ LIKELY_REGISTER_UNARY_MATH(round)
 
 class BinaryOperator : public Operator
 {
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    size_t maxParameters() const { return 2; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        if (!ast->is_list || (ast->num_atoms != 3))
-            return likelyThrow(ast, "expected 2 operands");
         return evaluateBinary(builder, ast->atoms[1], ast->atoms[2]);
     }
     virtual Expression *evaluateBinary(Builder &builder, likely_const_ast arg1, likely_const_ast arg2) const = 0;
@@ -991,10 +1004,9 @@ LIKELY_REGISTER_BINARY_MATH(copysign)
 
 class TernaryOperator : public Operator
 {
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    size_t maxParameters() const { return 3; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        if (!ast->is_list || (ast->num_atoms != 4))
-            return likelyThrow(ast, "expected 3 operands");
         return evaluateTernary(builder, ast->atoms[1], ast->atoms[2], ast->atoms[3]);
     }
     virtual Expression *evaluateTernary(Builder &builder, likely_const_ast arg1, likely_const_ast arg2, likely_const_ast arg3) const = 0;
@@ -1049,13 +1061,11 @@ private:
 
 class defineExpression : public Operator
 {
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    size_t maxParameters() const { return 3; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        const int n = numAtoms(ast);
-        if (n != 3)
-            return likelyThrowArgc(ast, "define", n, 3);
         if (ast->atoms[1]->is_list)
-            return likelyThrow(ast->atoms[1], "define expected an atom name");
+            return error(ast->atoms[1], "define expected an atom name");
         builder.define(ast->atoms[1]->atom, new Definition(builder, ast->atoms[2]));
         return NULL;
     }
@@ -1064,12 +1074,11 @@ LIKELY_REGISTER(define)
 
 class newExpression : public Operator
 {
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    size_t maxParameters() const { return 7; }
+    size_t minParameters() const { return 0; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        const int n = numAtoms(ast);
-        if ((n < 1) || (n > 8))
-            return likelyThrowArgc(ast, "new", n, 7, 0);
-
+        const int n = ast->num_atoms;
         ManagedExpression type;
         Value *channels, *columns, *rows, *frames, *data, *copy;
         switch (n-1) {
@@ -1145,7 +1154,7 @@ struct Kernel : public FunctionExpression
         : FunctionExpression(builder, ast) {}
 
 private:
-    class kernelArgument : public Operator
+    class kernelArgument : public StatefulExpression
     {
         Immediate matrix;
         likely_type kernel;
@@ -1159,7 +1168,7 @@ private:
         Expression *evaluate(Builder &builder, likely_const_ast ast) const
         {
             if (ast->is_list)
-                return likelyThrow(ast, "kernel argument does not take arguments");
+                return error(ast, "kernel argument does not take arguments");
 
             Value *i;
             if (((matrix ^ kernel) & likely_type_multi_dimension) == 0) {
@@ -1390,7 +1399,7 @@ private:
     }
 };
 
-class kernelExpression : public Operator
+class kernelExpression : public StatefulExpression
 {
     Expression *evaluate(Builder &builder, likely_const_ast ast) const
     {
@@ -1442,7 +1451,7 @@ private:
     }
 };
 
-class lambdaExpression : public Operator
+class lambdaExpression : public StatefulExpression
 {
     Expression *evaluate(Builder &builder, likely_const_ast ast) const
     {
@@ -1456,7 +1465,9 @@ LIKELY_REGISTER(lambda)
 
 class printExpression : public Operator
 {
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
+    size_t minParameters() const { return 0; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         static FunctionType *LikelyPrintSignature = NULL;
         if (LikelyPrintSignature == NULL) {
@@ -1479,9 +1490,9 @@ class printExpression : public Operator
 };
 LIKELY_REGISTER(print)
 
-class readExpression : public Operator
+class readExpression : public UnaryOperator
 {
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    Expression *evaluateUnary(Builder &builder, likely_const_ast arg) const
     {
         static FunctionType *LikelyReadSignature = NULL;
         if (LikelyReadSignature == NULL) {
@@ -1493,14 +1504,14 @@ class readExpression : public Operator
         Function *likelyRead = Function::Create(LikelyReadSignature, GlobalValue::ExternalLinkage, "likely_read", builder.resources->module);
         likelyRead->setCallingConv(CallingConv::C);
         likelyRead->setDoesNotAlias(0);
-        return new Immediate(builder.CreateCall(likelyRead, builder.expression(ast->atoms[1])->take()), likely_type_null);
+        return new Immediate(builder.CreateCall(likelyRead, builder.expression(arg)->take()), likely_type_null);
     }
 };
 LIKELY_REGISTER(read)
 
-class writeExpression : public Operator
+class writeExpression : public BinaryOperator
 {
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    Expression *evaluateBinary(Builder &builder, likely_const_ast arg1, likely_const_ast arg2) const
     {
         static FunctionType *LikelyWriteSignature = NULL;
         if (LikelyWriteSignature == NULL) {
@@ -1520,16 +1531,16 @@ class writeExpression : public Operator
         likelyWrite->setDoesNotAlias(2);
         likelyWrite->setDoesNotCapture(2);
         vector<Value*> likelyWriteArguments;
-        likelyWriteArguments.push_back(builder.expression(ast->atoms[1])->take());
-        likelyWriteArguments.push_back(builder.expression(ast->atoms[2])->take());
+        likelyWriteArguments.push_back(builder.expression(arg1)->take());
+        likelyWriteArguments.push_back(builder.expression(arg2)->take());
         return new Immediate(builder.CreateCall(likelyWrite, likelyWriteArguments), likely_type_null);
     }
 };
 LIKELY_REGISTER(write)
 
-class decodeExpression : public Operator
+class decodeExpression : public UnaryOperator
 {
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    Expression *evaluateUnary(Builder &builder, likely_const_ast arg) const
     {
         static FunctionType *LikelyDecodeSignature = NULL;
         if (LikelyDecodeSignature == NULL) {
@@ -1543,14 +1554,15 @@ class decodeExpression : public Operator
         likelyDecode->setDoesNotAlias(0);
         likelyDecode->setDoesNotAlias(1);
         likelyDecode->setDoesNotCapture(1);
-        return new Immediate(builder.CreateCall(likelyDecode, builder.expression(ast->atoms[1])->take()), likely_type_null);
+        return new Immediate(builder.CreateCall(likelyDecode, builder.expression(arg)->take()), likely_type_null);
     }
 };
 LIKELY_REGISTER(decode)
 
-class encodeExpression : public Operator
+class encodeExpression : public BinaryOperator
 {
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    size_t maxParameters() const { return 2; }
+    Expression *evaluateBinary(Builder &builder, likely_const_ast arg1, likely_const_ast arg2) const
     {
         static FunctionType *LikelyEncodeSignature = NULL;
         if (LikelyEncodeSignature == NULL) {
@@ -1570,8 +1582,8 @@ class encodeExpression : public Operator
         likelyEncode->setDoesNotAlias(2);
         likelyEncode->setDoesNotCapture(2);
         vector<Value*> likelyEncodeArguments;
-        likelyEncodeArguments.push_back(builder.expression(ast->atoms[1])->take());
-        likelyEncodeArguments.push_back(builder.expression(ast->atoms[2])->take());
+        likelyEncodeArguments.push_back(builder.expression(arg1)->take());
+        likelyEncodeArguments.push_back(builder.expression(arg2)->take());
         return new Immediate(builder.CreateCall(likelyEncode, likelyEncodeArguments), likely_type_null);
     }
 };
