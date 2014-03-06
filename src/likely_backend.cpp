@@ -1517,7 +1517,22 @@ class printExpression : public Operator
             rawArgs.push_back(arg);
         }
         rawArgs.push_back(builder.nullMat());
-        return new Immediate(builder.CreateCall(likelyPrint, rawArgs), likely_type_i8);
+
+        vector<Value*> matArgs;
+        for (Value *rawArg : rawArgs)
+            if (rawArg->getType() == Mat) {
+                matArgs.push_back(rawArg);
+            } else {
+                matArgs.push_back(stringExpression::createCall(builder, rawArg));
+            }
+
+        Value *result = builder.CreateCall(likelyPrint, matArgs);
+
+        for (size_t i=0; i<rawArgs.size(); i++)
+            if (rawArgs[i] != matArgs[i]) // TODO: release mat
+                ;
+
+        return new Immediate(result, likely_type_i8);
     }
 };
 LIKELY_REGISTER(print)
