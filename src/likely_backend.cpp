@@ -1145,6 +1145,70 @@ public:
 };
 LIKELY_REGISTER(new)
 
+class retainExpression : public SimpleUnaryOperator
+{
+    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    {
+        return new Immediate(createCall(builder, arg), arg);
+    }
+
+public:
+    static CallInst *createCall(Builder &builder, Value *m)
+    {
+        static FunctionType* LikelyRetainSignature = NULL;
+        if (LikelyRetainSignature == NULL) {
+            LikelyRetainSignature = FunctionType::get(Mat, Mat, false);
+            // An impossible case used to ensure that `likely_retain` isn't stripped when optimizing executable size
+            if (LikelyRetainSignature == NULL)
+                likely_retain(NULL);
+        }
+
+        Function *likelyRetain = builder.resources->module->getFunction("likely_retain");
+        if (!likelyRetain) {
+            likelyRetain = Function::Create(LikelyRetainSignature, GlobalValue::ExternalLinkage, "likely_retain", builder.resources->module);
+            likelyRetain->setCallingConv(CallingConv::C);
+            likelyRetain->setDoesNotAlias(0);
+            likelyRetain->setDoesNotAlias(1);
+            likelyRetain->setDoesNotCapture(1);
+        }
+
+        return builder.CreateCall(likelyRetain, m);
+    }
+};
+LIKELY_REGISTER(retain)
+
+class releaseExpression : public SimpleUnaryOperator
+{
+    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    {
+        return new Immediate(createCall(builder, arg), arg);
+    }
+
+public:
+    static CallInst *createCall(Builder &builder, Value *m)
+    {
+        static FunctionType* LikelyReleaseSignature = NULL;
+        if (LikelyReleaseSignature == NULL) {
+            LikelyReleaseSignature = FunctionType::get(Type::getVoidTy(C), Mat, false);
+            // An impossible case used to ensure that `likely_release` isn't stripped when optimizing executable size
+            if (LikelyReleaseSignature == NULL)
+                likely_release(NULL);
+        }
+
+        Function *likelyRelease = builder.resources->module->getFunction("likely_release");
+        if (!likelyRelease) {
+            likelyRelease = Function::Create(LikelyReleaseSignature, GlobalValue::ExternalLinkage, "likely_release", builder.resources->module);
+            likelyRelease->setCallingConv(CallingConv::C);
+            likelyRelease->setDoesNotAlias(0);
+            likelyRelease->setDoesNotAlias(1);
+            likelyRelease->setDoesNotCapture(1);
+        }
+
+        return builder.CreateCall(likelyRelease, m);
+    }
+};
+LIKELY_REGISTER(release)
+
 struct Kernel : public FunctionExpression
 {
     Kernel(Builder &builder, likely_const_ast ast)
