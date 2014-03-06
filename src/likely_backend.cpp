@@ -701,29 +701,36 @@ class UnaryOperator : public Operator
     size_t maxParameters() const { return 1; }
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        if (!ast->is_list || (ast->num_atoms != 2))
-            return error(ast, "expected 1 operand");
         return evaluateUnary(builder, ast->atoms[1]);
     }
     virtual Expression *evaluateUnary(Builder &builder, likely_const_ast arg) const = 0;
 };
 
-class notExpression : public UnaryOperator
+class SimpleUnaryOperator : public UnaryOperator
 {
     Expression *evaluateUnary(Builder &builder, likely_const_ast arg) const
     {
-        TRY_EXPR(builder, arg, argExpr)
-        return new Immediate(builder.CreateXor(builder.intMax(argExpr), argExpr.value()), argExpr);
+        TRY_EXPR(builder, arg, expr)
+        return evaluateSimpleUnary(builder, expr);
+    }
+    virtual Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const = 0;
+};
+
+class notExpression : public SimpleUnaryOperator
+{
+    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    {
+        return new Immediate(builder.CreateXor(Builder::intMax(arg), arg.value()), arg);
     }
 };
 LIKELY_REGISTER_EXPRESSION(not, "~")
 
-class typeExpression : public UnaryOperator
+class typeExpression : public SimpleUnaryOperator
 {
-    Expression *evaluateUnary(Builder &builder, likely_const_ast arg) const
+    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
     {
-        TRY_EXPR(builder, arg, argExpr)
-        return new Immediate(Builder::type(argExpr));
+        (void) builder;
+        return new Immediate(Builder::type(arg));
     }
 };
 LIKELY_REGISTER(type)
@@ -758,11 +765,10 @@ class scalarExpression : public UnaryOperator
 };
 LIKELY_REGISTER(scalar)
 
-class UnaryMathOperator : public UnaryOperator
+class UnaryMathOperator : public SimpleUnaryOperator
 {
-    Expression *evaluateUnary(Builder &builder, likely_const_ast arg) const
+    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &x) const
     {
-        TRY_EXPR(builder, arg, x)
         Immediate xc(builder.cast(&x, Builder::validFloatType(x)));
         vector<Type*> args;
         args.push_back(xc.value_->getType());
@@ -794,54 +800,50 @@ LIKELY_REGISTER_UNARY_MATH(rint)
 LIKELY_REGISTER_UNARY_MATH(nearbyint)
 LIKELY_REGISTER_UNARY_MATH(round)
 
-class BinaryOperator : public Operator
+class SimpleBinaryOperator : public Operator
 {
     size_t maxParameters() const { return 2; }
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        return evaluateBinary(builder, ast->atoms[1], ast->atoms[2]);
+        TRY_EXPR(builder, ast->atoms[1], expr1)
+        TRY_EXPR(builder, ast->atoms[2], expr2)
+        return evaluateSimpleBinary(builder, expr1, expr2);
     }
-    virtual Expression *evaluateBinary(Builder &builder, likely_const_ast arg1, likely_const_ast arg2) const = 0;
+    virtual Expression *evaluateSimpleBinary(Builder &builder, const ManagedExpression &arg1, const ManagedExpression &arg2) const = 0;
 };
 
-class castExpression : public BinaryOperator
+class castExpression : public SimpleBinaryOperator
 {
-    Expression *evaluateBinary(Builder &builder, likely_const_ast arg1, likely_const_ast arg2) const
+    Expression *evaluateSimpleBinary(Builder &builder, const ManagedExpression &x, const ManagedExpression &type) const
     {
-        TRY_EXPR(builder, arg1, x)
-        TRY_EXPR(builder, arg2, type)
         return new Immediate(builder.cast(&x, (likely_type)LLVM_VALUE_TO_INT(type.value())));
     }
 };
 LIKELY_REGISTER(cast)
 
-class ArithmeticOperator : public BinaryOperator
+class ArithmeticOperator : public SimpleBinaryOperator
 {
-    Expression *evaluateBinary(Builder &builder, likely_const_ast arg1, likely_const_ast arg2) const
+    Expression *evaluateSimpleBinary(Builder &builder, const ManagedExpression &lhs, const ManagedExpression &rhs) const
     {
-        TRY_EXPR(builder, arg1, lhs)
-        TRY_EXPR(builder, arg2, rhs)
         likely_type type = likely_type_from_types(lhs, rhs);
-        Immediate lhsc(builder.cast(&lhs, type));
-        Immediate rhsc(builder.cast(&rhs, type));
-        return evaluateArithmetic(builder, &lhsc, &rhsc, type);
+        return evaluateArithmetic(builder, builder.cast(&lhs, type), builder.cast(&rhs, type));
     }
-    virtual Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const = 0;
+    virtual Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const = 0;
 };
 
 class addExpression : public ArithmeticOperator
 {
-    Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const
+    Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
     {
-        if (likely_floating(type)) {
-            return new Immediate(builder.CreateFAdd(*lhs, *rhs), type);
+        if (likely_floating(lhs)) {
+            return new Immediate(builder.CreateFAdd(lhs, rhs), lhs);
         } else {
-            if (likely_saturation(type)) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.resources->module, likely_signed(type) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs->value()->getType()), *lhs, *rhs);
-                Value *overflowResult = likely_signed(type) ? builder.CreateSelect(builder.CreateICmpSGE(*lhs, Builder::zero(type)), Builder::intMax(type), Builder::intMin(type)) : Builder::intMax(type);
-                return new Immediate(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
+            if (likely_saturation(lhs)) {
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.resources->module, likely_signed(lhs) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs.value_->getType()), lhs, rhs);
+                Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, Builder::zero(lhs)), Builder::intMax(lhs), Builder::intMin(lhs)) : Builder::intMax(lhs);
+                return new Immediate(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), lhs);
             } else {
-                return new Immediate(builder.CreateAdd(*lhs, *rhs), type);
+                return new Immediate(builder.CreateAdd(lhs, rhs), lhs);
             }
         }
     }
@@ -850,17 +852,17 @@ LIKELY_REGISTER_EXPRESSION(add, "+")
 
 class subtractExpression : public ArithmeticOperator
 {
-    Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const
+    Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
     {
-        if (likely_floating(type)) {
-            return new Immediate(builder.CreateFSub(*lhs, *rhs), type);
+        if (likely_floating(lhs)) {
+            return new Immediate(builder.CreateFSub(lhs, rhs), lhs);
         } else {
-            if (likely_saturation(type)) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.resources->module, likely_signed(type) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs->value()->getType()), lhs->value(), rhs->value());
-                Value *overflowResult = likely_signed(type) ? builder.CreateSelect(builder.CreateICmpSGE(lhs->value(), Builder::zero(type)), Builder::intMax(type), Builder::intMin(type)) : Builder::intMin(type);
-                return new Immediate(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
+            if (likely_saturation(lhs)) {
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.resources->module, likely_signed(lhs) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value_->getType()), lhs, rhs);
+                Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateICmpSGE(lhs.value_, Builder::zero(lhs)), Builder::intMax(lhs), Builder::intMin(lhs)) : Builder::intMin(lhs);
+                return new Immediate(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), lhs);
             } else {
-                return new Immediate(builder.CreateSub(*lhs, *rhs), type);
+                return new Immediate(builder.CreateSub(lhs, rhs), lhs);
             }
         }
     }
@@ -869,18 +871,18 @@ LIKELY_REGISTER_EXPRESSION(subtract, "-")
 
 class multiplyExpression : public ArithmeticOperator
 {
-    Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const
+    Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
     {
-        if (likely_floating(type)) {
-            return new Immediate(builder.CreateFMul(*lhs, *rhs), type);
+        if (likely_floating(lhs)) {
+            return new Immediate(builder.CreateFMul(lhs, rhs), lhs);
         } else {
-            if (likely_saturation(type)) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.resources->module, likely_signed(type) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs->value()->getType()), lhs->value(), rhs->value());
-                Value *zero = Builder::zero(type);
-                Value *overflowResult = likely_signed(type) ? builder.CreateSelect(builder.CreateXor(builder.CreateICmpSGE(lhs->value(), zero), builder.CreateICmpSGE(rhs->value(), zero)), Builder::intMin(type), Builder::intMax(type)) : Builder::intMax(type);
-                return new Immediate(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
+            if (likely_saturation(lhs)) {
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.resources->module, likely_signed(lhs) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs.value_->getType()), lhs, rhs);
+                Value *zero = Builder::zero(lhs);
+                Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateXor(builder.CreateICmpSGE(lhs.value_, zero), builder.CreateICmpSGE(rhs.value_, zero)), Builder::intMin(lhs), Builder::intMax(lhs)) : Builder::intMax(lhs);
+                return new Immediate(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), lhs);
             } else {
-                return new Immediate(builder.CreateMul(*lhs, *rhs), type);
+                return new Immediate(builder.CreateMul(lhs, rhs), lhs);
             }
         }
     }
@@ -889,20 +891,20 @@ LIKELY_REGISTER_EXPRESSION(multiply, "*")
 
 class divideExpression : public ArithmeticOperator
 {
-    Expression *evaluateArithmetic(Builder &builder, const Expression *n, const Expression *d, likely_type type) const
+    Expression *evaluateArithmetic(Builder &builder, const Immediate &n, const Immediate &d) const
     {
-        if (likely_floating(type)) {
-            return new Immediate(builder.CreateFDiv(*n, *d), type);
+        if (likely_floating(n)) {
+            return new Immediate(builder.CreateFDiv(n, d), n);
         } else {
-            if (likely_signed(type)) {
-                if (likely_saturation(type)) {
-                    Value *safe_i = builder.CreateAdd(*n, builder.CreateZExt(builder.CreateICmpNE(builder.CreateOr(builder.CreateAdd(d->value(), Builder::one(type)), builder.CreateAdd(n->value(), Builder::intMin(type))), Builder::zero(type)), n->value()->getType()));
-                    return new Immediate(builder.CreateSDiv(safe_i, *d), type);
+            if (likely_signed(n)) {
+                if (likely_saturation(n)) {
+                    Value *safe_i = builder.CreateAdd(n, builder.CreateZExt(builder.CreateICmpNE(builder.CreateOr(builder.CreateAdd(d.value_, Builder::one(n)), builder.CreateAdd(n.value_, Builder::intMin(n))), Builder::zero(n)), n.value_->getType()));
+                    return new Immediate(builder.CreateSDiv(safe_i, d), n);
                 } else {
-                    return new Immediate(builder.CreateSDiv(*n, *d), type);
+                    return new Immediate(builder.CreateSDiv(n, d), n);
                 }
             } else {
-                return new Immediate(builder.CreateUDiv(*n, *d), type);
+                return new Immediate(builder.CreateUDiv(n, d), n);
             }
         }
     }
@@ -911,24 +913,24 @@ LIKELY_REGISTER_EXPRESSION(divide, "/")
 
 class remExpression : public ArithmeticOperator
 {
-    Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const
+    Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
     {
-        return new Immediate(likely_floating(type) ? builder.CreateFRem(*lhs, *rhs)
-                                                   : (likely_signed(type) ? builder.CreateSRem(*lhs, *rhs)
-                                                                          : builder.CreateURem(*lhs, *rhs)), type);
+        return new Immediate(likely_floating(lhs) ? builder.CreateFRem(lhs, rhs)
+                                                  : (likely_signed(lhs) ? builder.CreateSRem(lhs, rhs)
+                                                                        : builder.CreateURem(lhs, rhs)), lhs);
     }
 };
 LIKELY_REGISTER_EXPRESSION(rem, "%")
 
-#define LIKELY_REGISTER_LOGIC(OP, SYM)                                                                                     \
-class OP##Expression : public ArithmeticOperator                                                                           \
-{                                                                                                                          \
-    Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const \
-    {                                                                                                                      \
-        return new Immediate(builder.Create##OP(*lhs, rhs->value()), type);                                                \
-    }                                                                                                                      \
-};                                                                                                                         \
-LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                        \
+#define LIKELY_REGISTER_LOGIC(OP, SYM)                                                                 \
+class OP##Expression : public ArithmeticOperator                                                       \
+{                                                                                                      \
+    Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const \
+    {                                                                                                  \
+        return new Immediate(builder.Create##OP(lhs, rhs.value_), lhs);                                \
+    }                                                                                                  \
+};                                                                                                     \
+LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                    \
 
 LIKELY_REGISTER_LOGIC(And, "and")
 LIKELY_REGISTER_LOGIC(Or, "or")
@@ -937,44 +939,42 @@ LIKELY_REGISTER_LOGIC(Shl, "shl")
 LIKELY_REGISTER_LOGIC(LShr, "lshr")
 LIKELY_REGISTER_LOGIC(AShr, "ashr")
 
-#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                \
-class OP##Expression : public ArithmeticOperator                                                                           \
-{                                                                                                                          \
-    Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const \
-    {                                                                                                                      \
-        return new Immediate(likely_floating(type) ? builder.CreateFCmpO##OP(*lhs, *rhs)                                   \
-                                                   : (likely_signed(type) ? builder.CreateICmpS##OP(*lhs, *rhs)            \
-                                                                          : builder.CreateICmpU##OP(*lhs, *rhs)), type);   \
-    }                                                                                                                      \
-};                                                                                                                         \
-LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                        \
+#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                         \
+class OP##Expression : public ArithmeticOperator                                                                    \
+{                                                                                                                   \
+    Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const              \
+    {                                                                                                               \
+        return new Immediate(likely_floating(lhs) ? builder.CreateFCmpO##OP(lhs, rhs)                               \
+                                                  : (likely_signed(lhs) ? builder.CreateICmpS##OP(lhs, rhs)         \
+                                                                        : builder.CreateICmpU##OP(lhs, rhs)), lhs); \
+    }                                                                                                               \
+};                                                                                                                  \
+LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                 \
 
 LIKELY_REGISTER_COMPARISON(LT, "<")
 LIKELY_REGISTER_COMPARISON(LE, "<=")
 LIKELY_REGISTER_COMPARISON(GT, ">")
 LIKELY_REGISTER_COMPARISON(GE, ">=")
 
-#define LIKELY_REGISTER_EQUALITY(OP, SYM)                                                                                  \
-class OP##Expression : public ArithmeticOperator                                                                           \
-{                                                                                                                          \
-    Expression *evaluateArithmetic(Builder &builder, const Expression *lhs, const Expression *rhs, likely_type type) const \
-    {                                                                                                                      \
-        return new Immediate(likely_floating(type) ? builder.CreateFCmpO##OP(*lhs, *rhs)                                   \
-                                                   : builder.CreateICmp##OP(*lhs, *rhs), type);                            \
-    }                                                                                                                      \
-};                                                                                                                         \
-LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                        \
+#define LIKELY_REGISTER_EQUALITY(OP, SYM)                                                              \
+class OP##Expression : public ArithmeticOperator                                                       \
+{                                                                                                      \
+    Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const \
+    {                                                                                                  \
+        return new Immediate(likely_floating(lhs) ? builder.CreateFCmpO##OP(lhs, rhs)                  \
+                                                  : builder.CreateICmp##OP(lhs, rhs), lhs);            \
+    }                                                                                                  \
+};                                                                                                     \
+LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                    \
 
 LIKELY_REGISTER_EQUALITY(EQ, "==")
 LIKELY_REGISTER_EQUALITY(NE, "!=")
 
-class BinaryMathOperator : public BinaryOperator
+class BinaryMathOperator : public SimpleBinaryOperator
 {
-    Expression *evaluateBinary(Builder &builder, likely_const_ast arg1, likely_const_ast arg2) const
+    Expression *evaluateSimpleBinary(Builder &builder, const ManagedExpression &x, const ManagedExpression &n) const
     {
-        TRY_EXPR(builder, arg1, x)
-        TRY_EXPR(builder, arg2, n)
-        const likely_type type = nIsInteger() ? x : likely_type_from_types(x, n);
+        const likely_type type = nIsInteger() ? x.type() : likely_type_from_types(x, n);
         Immediate xc(builder.cast(&x, Builder::validFloatType(type)));
         Immediate nc(builder.cast(&n, nIsInteger() ? likely_type_i32 : xc));
         vector<Type*> args;
@@ -1002,23 +1002,23 @@ LIKELY_REGISTER(OP)                                    \
 LIKELY_REGISTER_BINARY_MATH(pow)
 LIKELY_REGISTER_BINARY_MATH(copysign)
 
-class TernaryOperator : public Operator
+class SimpleTernaryOperator : public Operator
 {
     size_t maxParameters() const { return 3; }
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        return evaluateTernary(builder, ast->atoms[1], ast->atoms[2], ast->atoms[3]);
+        TRY_EXPR(builder, ast->atoms[1], a)
+        TRY_EXPR(builder, ast->atoms[2], b)
+        TRY_EXPR(builder, ast->atoms[3], c)
+        return evaluateSimpleTernary(builder, a, b, c);
     }
-    virtual Expression *evaluateTernary(Builder &builder, likely_const_ast arg1, likely_const_ast arg2, likely_const_ast arg3) const = 0;
+    virtual Expression *evaluateSimpleTernary(Builder &builder, const ManagedExpression &arg1, const ManagedExpression &arg2, const ManagedExpression &arg3) const = 0;
 };
 
-class fmaExpression : public TernaryOperator
+class fmaExpression : public SimpleTernaryOperator
 {
-    Expression *evaluateTernary(Builder &builder, likely_const_ast arg1, likely_const_ast arg2, likely_const_ast arg3) const
+    Expression *evaluateSimpleTernary(Builder &builder, const ManagedExpression &a, const ManagedExpression &b, const ManagedExpression &c) const
     {
-        TRY_EXPR(builder, arg1, a)
-        TRY_EXPR(builder, arg2, b)
-        TRY_EXPR(builder, arg3, c)
         const likely_type type = likely_type_from_types(likely_type_from_types(a, b), c);
         Immediate ac(builder.cast(&a, Builder::validFloatType(type)));
         Immediate bc(builder.cast(&b, ac));
@@ -1030,13 +1030,10 @@ class fmaExpression : public TernaryOperator
 };
 LIKELY_REGISTER(fma)
 
-class selectExpression : public TernaryOperator
+class selectExpression : public SimpleTernaryOperator
 {
-    Expression *evaluateTernary(Builder &builder, likely_const_ast arg1, likely_const_ast arg2, likely_const_ast arg3) const
+    Expression *evaluateSimpleTernary(Builder &builder, const ManagedExpression &c, const ManagedExpression &t, const ManagedExpression &f) const
     {
-        TRY_EXPR(builder, arg1, c)
-        TRY_EXPR(builder, arg2, t)
-        TRY_EXPR(builder, arg3, f)
         const likely_type type = likely_type_from_types(t, f);
         return new Immediate(builder.CreateSelect(c, builder.cast(&t, type), builder.cast(&f, type)), type);
     }
@@ -1490,9 +1487,9 @@ class printExpression : public Operator
 };
 LIKELY_REGISTER(print)
 
-class readExpression : public UnaryOperator
+class readExpression : public SimpleUnaryOperator
 {
-    Expression *evaluateUnary(Builder &builder, likely_const_ast arg) const
+    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
     {
         static FunctionType *LikelyReadSignature = NULL;
         if (LikelyReadSignature == NULL) {
@@ -1504,14 +1501,14 @@ class readExpression : public UnaryOperator
         Function *likelyRead = Function::Create(LikelyReadSignature, GlobalValue::ExternalLinkage, "likely_read", builder.resources->module);
         likelyRead->setCallingConv(CallingConv::C);
         likelyRead->setDoesNotAlias(0);
-        return new Immediate(builder.CreateCall(likelyRead, builder.expression(arg)->take()), likely_type_null);
+        return new Immediate(builder.CreateCall(likelyRead, arg), likely_type_null);
     }
 };
 LIKELY_REGISTER(read)
 
-class writeExpression : public BinaryOperator
+class writeExpression : public SimpleBinaryOperator
 {
-    Expression *evaluateBinary(Builder &builder, likely_const_ast arg1, likely_const_ast arg2) const
+    Expression *evaluateSimpleBinary(Builder &builder, const ManagedExpression &arg1, const ManagedExpression &arg2) const
     {
         static FunctionType *LikelyWriteSignature = NULL;
         if (LikelyWriteSignature == NULL) {
@@ -1531,16 +1528,16 @@ class writeExpression : public BinaryOperator
         likelyWrite->setDoesNotAlias(2);
         likelyWrite->setDoesNotCapture(2);
         vector<Value*> likelyWriteArguments;
-        likelyWriteArguments.push_back(builder.expression(arg1)->take());
-        likelyWriteArguments.push_back(builder.expression(arg2)->take());
+        likelyWriteArguments.push_back(arg1);
+        likelyWriteArguments.push_back(arg2);
         return new Immediate(builder.CreateCall(likelyWrite, likelyWriteArguments), likely_type_null);
     }
 };
 LIKELY_REGISTER(write)
 
-class decodeExpression : public UnaryOperator
+class decodeExpression : public SimpleUnaryOperator
 {
-    Expression *evaluateUnary(Builder &builder, likely_const_ast arg) const
+    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
     {
         static FunctionType *LikelyDecodeSignature = NULL;
         if (LikelyDecodeSignature == NULL) {
@@ -1554,15 +1551,14 @@ class decodeExpression : public UnaryOperator
         likelyDecode->setDoesNotAlias(0);
         likelyDecode->setDoesNotAlias(1);
         likelyDecode->setDoesNotCapture(1);
-        return new Immediate(builder.CreateCall(likelyDecode, builder.expression(arg)->take()), likely_type_null);
+        return new Immediate(builder.CreateCall(likelyDecode, arg), likely_type_null);
     }
 };
 LIKELY_REGISTER(decode)
 
-class encodeExpression : public BinaryOperator
+class encodeExpression : public SimpleBinaryOperator
 {
-    size_t maxParameters() const { return 2; }
-    Expression *evaluateBinary(Builder &builder, likely_const_ast arg1, likely_const_ast arg2) const
+    Expression *evaluateSimpleBinary(Builder &builder, const ManagedExpression &arg1, const ManagedExpression &arg2) const
     {
         static FunctionType *LikelyEncodeSignature = NULL;
         if (LikelyEncodeSignature == NULL) {
@@ -1582,8 +1578,8 @@ class encodeExpression : public BinaryOperator
         likelyEncode->setDoesNotAlias(2);
         likelyEncode->setDoesNotCapture(2);
         vector<Value*> likelyEncodeArguments;
-        likelyEncodeArguments.push_back(builder.expression(arg1)->take());
-        likelyEncodeArguments.push_back(builder.expression(arg2)->take());
+        likelyEncodeArguments.push_back(arg1);
+        likelyEncodeArguments.push_back(arg2);
         return new Immediate(builder.CreateCall(likelyEncode, likelyEncodeArguments), likely_type_null);
     }
 };
