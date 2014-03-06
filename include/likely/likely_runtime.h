@@ -48,7 +48,7 @@ enum likely_type_field
     likely_type_depth    = 0x000000FF,
     likely_type_signed   = 0x00000100,
     likely_type_floating = 0x00000200,
-    likely_type_mask     = likely_type_depth | likely_type_signed | likely_type_floating,
+    likely_type_data     = likely_type_depth | likely_type_signed | likely_type_floating,
     likely_type_u8  = 8,
     likely_type_u16 = 16,
     likely_type_u32 = 32,
@@ -94,6 +94,8 @@ LIKELY_EXPORT bool likely_signed(likely_type type);
 LIKELY_EXPORT void likely_set_signed(likely_type *type, bool signed_);
 LIKELY_EXPORT bool likely_floating(likely_type type);
 LIKELY_EXPORT void likely_set_floating(likely_type *type, bool floating);
+LIKELY_EXPORT likely_type likely_data(likely_type type);
+LIKELY_EXPORT void likely_set_data(likely_type *type, likely_type data);
 LIKELY_EXPORT bool likely_parallel(likely_type type);
 LIKELY_EXPORT void likely_set_parallel(likely_type *type, bool parallel);
 LIKELY_EXPORT bool likely_heterogeneous(likely_type type);

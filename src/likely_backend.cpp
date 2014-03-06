@@ -283,7 +283,7 @@ struct Builder : public IRBuilder<>
     static Immediate nullMat() { return Immediate(ConstantPointerNull::get(Mat), likely_type_null); }
     static Immediate nullData() { return Immediate(ConstantPointerNull::get(Type::getInt8PtrTy(C)), likely_type_native); }
 
-    Immediate data    (const Expression *matrix) { return Immediate(CreatePointerCast(CreateLoad(CreateStructGEP(*matrix, 1), "data"), ty(*matrix, true)), matrix->type() & likely_type_mask); }
+    Immediate data    (const Expression *matrix) { return Immediate(CreatePointerCast(CreateLoad(CreateStructGEP(*matrix, 1), "data"), ty(*matrix, true)), likely_data(*matrix)); }
     Immediate channels(const Expression *matrix) { return likely_multi_channel(*matrix) ? Immediate(CreateLoad(CreateStructGEP(*matrix, 2), "channels"), likely_type_native) : one(); }
     Immediate columns (const Expression *matrix) { return likely_multi_column (*matrix) ? Immediate(CreateLoad(CreateStructGEP(*matrix, 3), "columns" ), likely_type_native) : one(); }
     Immediate rows    (const Expression *matrix) { return likely_multi_row    (*matrix) ? Immediate(CreateLoad(CreateStructGEP(*matrix, 4), "rows"    ), likely_type_native) : one(); }
@@ -298,7 +298,7 @@ struct Builder : public IRBuilder<>
 
     Immediate cast(const Expression *x, likely_type type)
     {
-        if ((x->type() & likely_type_mask) == (type & likely_type_mask))
+        if (likely_data(*x) == likely_data(type))
             return Immediate(*x, type);
         Type *dstType = ty(type);
         return Immediate(CreateCast(CastInst::getCastOpcode(*x, likely_signed(*x), dstType, likely_signed(type)), *x, dstType), type);
@@ -685,7 +685,7 @@ LIKELY_REGISTER_TYPE(null)
 LIKELY_REGISTER_TYPE(depth)
 LIKELY_REGISTER_TYPE(signed)
 LIKELY_REGISTER_TYPE(floating)
-LIKELY_REGISTER_TYPE(mask)
+LIKELY_REGISTER_TYPE(data)
 LIKELY_REGISTER_TYPE(parallel)
 LIKELY_REGISTER_TYPE(heterogeneous)
 LIKELY_REGISTER_TYPE(multi_channel)

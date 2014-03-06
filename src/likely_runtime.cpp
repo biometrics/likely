@@ -46,6 +46,8 @@ bool likely_signed(likely_type type) { return likely_get_bool(type, likely_type_
 void likely_set_signed(likely_type *type, bool signed_) { likely_set_bool(type, signed_, likely_type_signed); }
 bool likely_floating(likely_type type) { return likely_get_bool(type, likely_type_floating); }
 void likely_set_floating(likely_type *type, bool floating) { likely_set_bool(type, floating, likely_type_floating); }
+likely_type likely_data(likely_type type) { return likely_get(type, likely_type_data); }
+void likely_set_data(likely_type *type, likely_type data) { likely_set(type, data, likely_type_data); }
 bool likely_parallel(likely_type type) { return likely_get_bool(type, likely_type_parallel); }
 void likely_set_parallel(likely_type *type, bool parallel) { likely_set_bool(type, parallel, likely_type_parallel); }
 bool likely_heterogeneous(likely_type type) { return likely_get_bool(type, likely_type_heterogeneous); }
@@ -153,7 +155,7 @@ double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_s
     const likely_size frameStep = m->rows * rowStep;
     const likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
 
-    switch (m->type & likely_type_mask) {
+    switch (likely_data(m->type)) {
       case likely_type_u8:  return double((( uint8_t const*)m->data)[index]);
       case likely_type_u16: return double(((uint16_t const*)m->data)[index]);
       case likely_type_u32: return double(((uint32_t const*)m->data)[index]);
@@ -177,7 +179,7 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
     const likely_size frameStep = m->rows * rowStep;
     const likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
 
-    switch (m->type & likely_type_mask) {
+    switch (likely_data(m->type)) {
       case likely_type_u8:  (( uint8_t*)m->data)[index] = ( uint8_t)value; break;
       case likely_type_u16: ((uint16_t*)m->data)[index] = (uint16_t)value; break;
       case likely_type_u32: ((uint32_t*)m->data)[index] = (uint32_t)value; break;
