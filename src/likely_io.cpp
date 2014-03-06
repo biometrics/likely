@@ -91,8 +91,12 @@ const char *likely_to_string(likely_const_mat m)
 {
     static string result;
 
-    stringstream stream;
-    if (m) {
+    if (!m) return NULL;
+    if ((likely_data(m->type) == likely_type_i8) && !m->data[likely_elements(m)-1]) {
+        // Special case where matrix encodes a string
+        result = string((const char*) m->data);
+    } else {
+        stringstream stream;
         stream << "{ type=" << likely_type_to_string(m->type);
         if (m->channels > 1) stream << ", channels=" << m->channels;
         if (m->columns  > 1) stream << ", columns="  << m->columns;
@@ -127,9 +131,9 @@ const char *likely_to_string(likely_const_mat m)
         stream << (m->frames > 1 ? "}" : "");
         if (likely_elements(m) > 1) stream << "\n}";
         stream << " }";
+        result = stream.str();
     }
 
-    result = stream.str();
     return result.c_str();
 }
 
