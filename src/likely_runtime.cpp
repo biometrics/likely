@@ -76,7 +76,7 @@ likely_size likely_bytes(likely_const_mat m)
 // TODO: make this thread_local when compiler support improves
 static likely_const_mat recycledBuffer = NULL;
 
-likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_data data, int8_t copy)
+likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_buffer data, int8_t copy)
 {
     likely_mat m;
     size_t dataBytes = ((data && !copy) ? 0 : uint64_t(likely_depth(type)) * channels * columns * rows * frames / 8);
@@ -108,7 +108,7 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     if (data && !copy) {
         m->data = data;
     } else {
-        m->data = reinterpret_cast<likely_data>(m->d_ptr+1);
+        m->data = reinterpret_cast<likely_buffer>(m->d_ptr+1);
         if (data && copy) memcpy((void*) m->data, data, likely_bytes(m));
     }
 

@@ -84,7 +84,7 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
 
 likely_mat likely_string(const char *string)
 {
-    return likely_new(likely_type_i8, strlen(string)+1, 1, 1, 1, (likely_data) string, true);
+    return likely_new(likely_type_i8, strlen(string)+1, 1, 1, 1, (likely_buffer) string, true);
 }
 
 const char *likely_to_string(likely_const_mat m)
@@ -144,7 +144,7 @@ likely_mat likely_print(likely_const_mat m, ...)
     }
     va_end(ap);
     const string result = buffer.str();
-    return likely_new(likely_type_i8, result.length()+1, 1, 1, 1, (likely_data)result.c_str(), true);
+    return likely_new(likely_type_i8, result.length()+1, 1, 1, 1, (likely_buffer)result.c_str(), true);
 }
 
 likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
