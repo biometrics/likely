@@ -82,6 +82,11 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
     return fromCvMat(cv::Mat(buf), true);
 }
 
+likely_mat likely_string(const char *string)
+{
+    return likely_new(likely_type_i8, strlen(string)+1, 1, 1, 1, (likely_data) string, true);
+}
+
 const char *likely_to_string(likely_const_mat m)
 {
     static string result;
