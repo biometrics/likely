@@ -148,7 +148,7 @@ struct Resources : public Object
 
     Resources(bool native, bool JIT)
     {
-        if (Mat == NULL) {
+        if (!Mat) {
             assert(sizeof(likely_size) == sizeof(void*));
             InitializeNativeTarget();
             InitializeNativeTargetAsmPrinter();
@@ -167,13 +167,14 @@ struct Resources : public Object
 
             NativeIntegerType = Type::getIntNTy(C, likely_depth(likely_type_native));
             Mat = PointerType::getUnqual(StructType::create("likely_matrix",
-                                                            PointerType::getUnqual(StructType::create(C, "likely_matrix_private")), // d_ptr
-                                                            Type::getInt8PtrTy(C), // data
-                                                            NativeIntegerType,     // channels
-                                                            NativeIntegerType,     // columns
-                                                            NativeIntegerType,     // rows
-                                                            NativeIntegerType,     // frames
-                                                            Type::getInt32Ty(C),   // type
+                                                            NativeIntegerType, // bytes
+                                                            NativeIntegerType, // ref_count
+                                                            NativeIntegerType, // channels
+                                                            NativeIntegerType, // columns
+                                                            NativeIntegerType, // rows
+                                                            NativeIntegerType, // frames
+                                                            Type::getInt32Ty(C), // type
+                                                            ArrayType::get(Type::getInt8Ty(C), 0), // data
                                                             NULL));
         }
 
@@ -283,11 +284,11 @@ struct Builder : public IRBuilder<>
     static Immediate nullMat() { return Immediate(ConstantPointerNull::get(Mat), likely_type_null); }
     static Immediate nullData() { return Immediate(ConstantPointerNull::get(Type::getInt8PtrTy(C)), likely_type_native); }
 
-    Immediate data    (const Expression *matrix) { return Immediate(CreatePointerCast(CreateLoad(CreateStructGEP(*matrix, 1), "data"), ty(*matrix, true)), likely_data(*matrix)); }
     Immediate channels(const Expression *matrix) { return likely_multi_channel(*matrix) ? Immediate(CreateLoad(CreateStructGEP(*matrix, 2), "channels"), likely_type_native) : one(); }
     Immediate columns (const Expression *matrix) { return likely_multi_column (*matrix) ? Immediate(CreateLoad(CreateStructGEP(*matrix, 3), "columns" ), likely_type_native) : one(); }
     Immediate rows    (const Expression *matrix) { return likely_multi_row    (*matrix) ? Immediate(CreateLoad(CreateStructGEP(*matrix, 4), "rows"    ), likely_type_native) : one(); }
     Immediate frames  (const Expression *matrix) { return likely_multi_frame  (*matrix) ? Immediate(CreateLoad(CreateStructGEP(*matrix, 5), "frames"  ), likely_type_native) : one(); }
+    Immediate data    (const Expression *matrix) { return Immediate(CreatePointerCast(CreateStructGEP(*matrix, 7), ty(*matrix, true)), likely_data(*matrix)); }
 
     void steps(const Expression *matrix, Value **columnStep, Value **rowStep, Value **frameStep)
     {
@@ -1071,15 +1072,14 @@ LIKELY_REGISTER(define)
 
 class newExpression : public Operator
 {
-    size_t maxParameters() const { return 7; }
+    size_t maxParameters() const { return 6; }
     size_t minParameters() const { return 0; }
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        const int n = ast->num_atoms;
+        const int n = ast->num_atoms - 1;
         ManagedExpression type;
-        Value *channels, *columns, *rows, *frames, *data, *copy;
-        switch (n-1) {
-            case 7: copy     = builder.expression(ast->atoms[7])->take();
+        Value *channels, *columns, *rows, *frames, *data;
+        switch (n) {
             case 6: data     = builder.expression(ast->atoms[6])->take();
             case 5: frames   = builder.expression(ast->atoms[5])->take();
             case 4: rows     = builder.expression(ast->atoms[4])->take();
@@ -1089,22 +1089,21 @@ class newExpression : public Operator
             default:           break;
         }
 
-        switch (8-n) {
-            case 7: type     = ManagedExpression(new Immediate(Builder::type(Builder::validFloatType(likely_type_native))));
-            case 6: channels = Builder::one();
-            case 5: columns  = Builder::one();
-            case 4: rows     = Builder::one();
-            case 3: frames   = Builder::one();
-            case 2: data     = Builder::nullData();
-            case 1: copy     = Builder::constant(0, 8);
+        switch (maxParameters()-n) {
+            case 6: type     = ManagedExpression(new Immediate(Builder::type(Builder::validFloatType(likely_type_native))));
+            case 5: channels = Builder::one();
+            case 4: columns  = Builder::one();
+            case 3: rows     = Builder::one();
+            case 2: frames   = Builder::one();
+            case 1: data     = Builder::nullData();
             default:           break;
         }
 
-        return new Immediate(createCall(builder, type, channels, columns, rows, frames, data, copy), type);
+        return new Immediate(createCall(builder, type, channels, columns, rows, frames, data), type);
     }
 
 public:
-    static CallInst *createCall(Builder &builder, Value *type, Value *channels, Value *columns, Value *rows, Value *frames, Value *data, Value *copy)
+    static CallInst *createCall(Builder &builder, Value *type, Value *channels, Value *columns, Value *rows, Value *frames, Value *data)
     {
         static FunctionType* LikelyNewSignature = NULL;
         if (LikelyNewSignature == NULL) {
@@ -1115,12 +1114,11 @@ public:
             newParameters.push_back(NativeIntegerType); // rows
             newParameters.push_back(NativeIntegerType); // frames
             newParameters.push_back(Type::getInt8PtrTy(C)); // data
-            newParameters.push_back(Type::getInt8Ty(C)); // copy
             LikelyNewSignature = FunctionType::get(Mat, newParameters, false);
 
             // An impossible case used to ensure that `likely_new` isn't stripped when optimizing executable size
             if (LikelyNewSignature == NULL)
-                likely_new(likely_type_null, 0, 0, 0, 0, NULL, 0);
+                likely_new(likely_type_null, 0, 0, 0, 0, NULL);
         }
 
         Function *likelyNew = builder.resources->module->getFunction("likely_new");
@@ -1139,7 +1137,6 @@ public:
         likelyNewArgs.push_back(rows);
         likelyNewArgs.push_back(frames);
         likelyNewArgs.push_back(data);
-        likelyNewArgs.push_back(copy);
         return builder.CreateCall(likelyNew, likelyNewArgs);
     }
 };
@@ -1361,7 +1358,7 @@ private:
 
         builder.SetInsertPoint(entry);
 
-        Value *dst = newExpression::createCall(builder, Builder::type(dstType), dstChannels, dstColumns, dstRows, dstFrames, Builder::nullData(), Builder::constant(0, 8));
+        Value *dst = newExpression::createCall(builder, Builder::type(dstType), dstChannels, dstColumns, dstRows, dstFrames, Builder::nullData());
 
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
 

@@ -43,7 +43,7 @@ likely_mat likely_read(const char *file_name)
         return NULL;
     }
 
-    likely_mat mat = fromCvMat(m, true);
+    likely_mat mat = fromCvMat(m);
 
     likely_release(previousMat);
     likely_retain(mat);
@@ -65,7 +65,7 @@ likely_mat likely_write(likely_const_mat image, const char *file_name)
 likely_mat likely_decode(likely_const_mat buffer)
 {
     try {
-        return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_UNCHANGED), true);
+        return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_UNCHANGED));
     } catch (...) {
         return NULL;
     }
@@ -79,12 +79,12 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
     } catch (...) {
         return NULL;
     }
-    return fromCvMat(cv::Mat(buf), true);
+    return fromCvMat(cv::Mat(buf));
 }
 
 likely_mat likely_string(const char *string)
 {
-    return likely_new(likely_type_i8, strlen(string)+1, 1, 1, 1, (likely_buffer) string, true);
+    return likely_new(likely_type_i8, strlen(string)+1, 1, 1, 1, (uint8_t const *)string);
 }
 
 const char *likely_to_string(likely_const_mat m)
@@ -148,7 +148,7 @@ likely_mat likely_print(likely_const_mat m, ...)
     }
     va_end(ap);
     const string result = buffer.str();
-    return likely_new(likely_type_i8, result.length()+1, 1, 1, 1, (likely_buffer)result.c_str(), true);
+    return likely_new(likely_type_i8, result.length()+1, 1, 1, 1, (uint8_t const *)result.c_str());
 }
 
 likely_mat likely_render(likely_const_mat m, double *min_, double *max_)

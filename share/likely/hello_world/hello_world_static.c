@@ -10,7 +10,7 @@ likely_const_mat hello_world_div2(const likely_const_mat m);
 int main()
 {
     const int elements = 1000;
-    likely_const_mat input = likely_new(likely_type_f32, 1, elements, 1, 1, NULL, 0);
+    likely_const_mat input = likely_new(likely_type_f32, 1, elements, 1, 1, NULL);
     printf("Input type: %s\n", likely_type_to_string(input->type));
 
     printf("Initializing input...\n");

@@ -18,12 +18,6 @@
 
 using namespace std;
 
-typedef struct likely_matrix_private
-{
-    size_t data_bytes;
-    int ref_count;
-} likely_matrix_private;
-
 void likely_assert(bool condition, const char *format, ...)
 {
     if (condition) return;
@@ -76,22 +70,27 @@ likely_size likely_bytes(likely_const_mat m)
 }
 
 // TODO: make this thread_local when compiler support improves
-static likely_const_mat recycledBuffer = NULL;
+static likely_mat recycled = NULL;
 
-likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, likely_buffer data, int8_t copy)
+likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, const uint8_t data[])
 {
     likely_mat m;
-    size_t dataBytes = ((data && !copy) ? 0 : uint64_t(likely_depth(type)) * channels * columns * rows * frames / 8);
-    const size_t headerBytes = sizeof(likely_matrix) + sizeof(likely_matrix_private);
-    if (recycledBuffer) {
-        const size_t recycledDataBytes = recycledBuffer->d_ptr->data_bytes;
-        if (recycledDataBytes >= dataBytes) { m = (likely_mat) recycledBuffer; dataBytes = recycledDataBytes; }
-        else                                  m = (likely_mat) realloc((void*) recycledBuffer, headerBytes + dataBytes);
-        recycledBuffer = NULL;
+    const size_t dataBytes = uint64_t(likely_depth(type)) * channels * columns * rows * frames / 8;
+    const size_t bytes = sizeof(likely_matrix) + dataBytes;
+    if (recycled) {
+        if (recycled->bytes >= bytes) {
+            m = recycled;
+        } else {
+            m = (likely_mat) realloc((void*) recycled, bytes);
+            m->bytes = bytes;
+        }
+        recycled = NULL;
     } else {
-        m = (likely_mat) malloc(headerBytes + dataBytes);
+        m = (likely_mat) malloc(bytes);
+        m->bytes = bytes;
     }
 
+    m->ref_count = 1;
     m->type = type;
     m->channels = channels;
     m->columns = columns;
@@ -103,47 +102,43 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     likely_set_multi_row(&m->type, rows > 1);
     likely_set_multi_frame(&m->type, frames > 1);
 
-    m->d_ptr = reinterpret_cast<likely_matrix_private*>(m+1);
-    m->d_ptr->ref_count = 1;
-    m->d_ptr->data_bytes = dataBytes;
-
-    if (data && !copy) {
-        m->data = data;
-    } else {
-        m->data = reinterpret_cast<likely_buffer>(m->d_ptr+1);
-        if (data && copy) memcpy((void*) m->data, data, likely_bytes(m));
-    }
+    if (data)
+        memcpy((void*) &m->data, data, dataBytes);
 
     return m;
 }
 
 likely_mat likely_scalar(double value)
 {
-    likely_mat m = likely_new(likely_type_from_value(value), 1, 1, 1, 1, NULL, 0);
+    likely_mat m = likely_new(likely_type_from_value(value), 1, 1, 1, 1, NULL);
     likely_set_element(m, value, 0, 0, 0, 0);
     return m;
 }
 
 likely_mat likely_copy(likely_const_mat m)
 {
-    return likely_new(m->type, m->channels, m->columns, m->rows, m->frames, m->data, true);
+    return likely_new(m->type, m->channels, m->columns, m->rows, m->frames, m->data);
 }
 
 likely_mat likely_retain(likely_const_mat m)
 {
-    if (m) ++m->d_ptr->ref_count;
+    if (m) ++const_cast<likely_mat>(m)->ref_count;
     return (likely_mat) m;
 }
 
 void likely_release(likely_const_mat m)
 {
-    if (!m || --m->d_ptr->ref_count) return;
-    if (recycledBuffer) {
-        if (m->d_ptr->data_bytes > recycledBuffer->d_ptr->data_bytes)
-            swap(m, recycledBuffer);
-        free((void*) m);
+    if (!m || --const_cast<likely_mat>(m)->ref_count) return;
+    if (recycled) {
+        if (m->bytes > recycled->bytes) {
+            likely_mat tmp = recycled;
+            recycled = const_cast<likely_mat>(m);
+            free(tmp);
+        } else {
+            free((void*) m);
+        }
     } else {
-        recycledBuffer = m;
+        recycled = const_cast<likely_mat>(m);
     }
 }
 
@@ -219,24 +214,25 @@ likely_type likely_type_from_string(const char *str)
     const size_t len = strlen(str);
     if (len == 0) return likely_type_null;
 
-    likely_type t = likely_type_null;
-    if      (str[0] == 'f') likely_set_floating(&t, true);
-    else if (str[0] == 's') likely_set_signed(&t, true);
-    else if (str[0] != 'u') return likely_type_null;
+    likely_type t;
+    if      (str[0] == 'f') t = likely_type_signed | likely_type_floating;
+    else if (str[0] == 'i') t = likely_type_signed;
+    else if (str[0] == 'u') t = likely_type_null;
+    else                    return likely_type_null;
 
     char *rem;
     int depth = (int)strtol(str+1, &rem, 10);
     if (depth == 0) depth = likely_type_native;
-    likely_set_depth(&t, depth);
+    t += depth;
 
     while (*rem) {
-        if      (*rem == 'P') likely_set_parallel     (&t, true);
-        else if (*rem == 'H') likely_set_heterogeneous(&t, true);
-        else if (*rem == 'C') likely_set_multi_channel(&t, true);
-        else if (*rem == 'X') likely_set_multi_column (&t, true);
-        else if (*rem == 'Y') likely_set_multi_row    (&t, true);
-        else if (*rem == 'T') likely_set_multi_frame  (&t, true);
-        else if (*rem == 'S') likely_set_saturation   (&t, true);
+        if      (*rem == 'P') t |= likely_type_parallel;
+        else if (*rem == 'H') t |= likely_type_heterogeneous;
+        else if (*rem == 'C') t |= likely_type_multi_channel;
+        else if (*rem == 'X') t |= likely_type_multi_column;
+        else if (*rem == 'Y') t |= likely_type_multi_row;
+        else if (*rem == 'T') t |= likely_type_multi_frame;
+        else if (*rem == 'S') t |= likely_type_saturation;
         else                  return likely_type_null;
         rem++;
     }

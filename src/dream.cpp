@@ -594,7 +594,7 @@ int main(int argc, char *argv[])
         for (size_t i=0; i<asts->num_atoms; i++) {
             likely_const_mat m = likely_eval(asts->atoms[i], env);
             if (m) {
-                printf("%s", likely_to_string(m));
+                printf("%s\n", likely_to_string(m));
                 likely_release(m);
             }
         }

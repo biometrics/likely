@@ -222,7 +222,7 @@ private:
 
     static likely_mat fromCvMat(const Mat &src)
     {
-        likely_mat m = ::fromCvMat(src, true);
+        likely_mat m = ::fromCvMat(src);
         if (!likely_floating(m->type) && (likely_depth(m->type) <= 16))
             likely_set_saturation(&m->type, BenchmarkSaturation);
         return m;
@@ -255,7 +255,7 @@ private:
                         errors++;
                     }
             if (errors > 0) {
-                fprintf(stderr, "Test for %s differs in %d locations:\n%s", function(), errors, errorLocations.str().c_str());
+                fprintf(stderr, "Test for: %s differs in: %d location(s):\n%s", function(), errors, errorLocations.str().c_str());
                 ExitStatus = EXIT_FAILURE;
             }
             likely_release(cvLikely);
