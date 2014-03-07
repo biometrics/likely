@@ -229,7 +229,7 @@ struct Resources : public Object
                 PM = new PassManager();
                 PM->add(createVerifierPass());
                 PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
-                PM->add(new DataLayout(module));
+                PM->add(new DataLayoutPass(module));
                 targetMachine->addAnalysisPasses(*PM);
                 PassManagerBuilder builder;
                 builder.OptLevel = 3;
@@ -534,7 +534,7 @@ struct StaticFunction : public Resources
         const string extension = fileName.substr(fileName.find_last_of(".") + 1);
 
         string errorInfo;
-        tool_output_file output(fileName.c_str(), errorInfo);
+        tool_output_file output(fileName.c_str(), errorInfo, sys::fs::F_None);
         if (extension == "ll") {
             module->print(output.os(), NULL);
         } else if (extension == "bc") {
