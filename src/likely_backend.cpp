@@ -505,7 +505,7 @@ private:
 
         vector<Value*> args;
         vector<likely_type> types;
-        for (int i=0; i<arguments; i++) {
+        for (size_t i=0; i<arguments; i++) {
             TRY_EXPR(builder, ast->atoms[i+1], arg)
             args.push_back(arg);
             types.push_back(arg);
