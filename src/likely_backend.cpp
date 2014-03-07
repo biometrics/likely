@@ -188,16 +188,24 @@ struct Resources : public Object
                      .setErrorStr(&error);
 
         if (native) {
-            string targetTriple = sys::getProcessTriple();
+            static string nativeTT, nativeJITTT;
+            if (nativeTT.empty()) {
+                nativeTT = sys::getProcessTriple();
 #ifdef _WIN32
-            if (JIT)
-                targetTriple = targetTriple + "-elf";
+                targetTripleJIT = targetTriple + "-elf";
+#else
+                nativeJITTT = nativeTT;
 #endif // _WIN32
-            module->setTargetTriple(Triple::normalize(targetTriple));
+            }
+            module->setTargetTriple(JIT ? nativeJITTT : nativeTT);
 
-            engineBuilder.setCodeModel(CodeModel::Default);
-            targetMachine = engineBuilder.selectTarget();
-            likely_assert(targetMachine, "failed to select target machine with error: %s", error.c_str());
+            static TargetMachine *nativeTM = NULL;
+            if (!nativeTM) {
+                engineBuilder.setCodeModel(CodeModel::Default);
+                nativeTM = engineBuilder.selectTarget();
+                likely_assert(nativeTM, "failed to select target machine with error: %s", error.c_str());
+            }
+            targetMachine = nativeTM;
         }
 
         if (JIT) {
