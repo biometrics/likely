@@ -32,33 +32,48 @@ using namespace std;
 
 likely_mat likely_read(const char *file_name)
 {
-    static string previousFileName;
-    static likely_mat previousMat = NULL;
-    if (previousFileName == file_name)
-        return likely_copy(previousMat);
-
-    cv::Mat m;
-    try {
-        m = cv::imread(file_name, CV_LOAD_IMAGE_UNCHANGED);
-    } catch (...) {
-        return NULL;
+    const size_t len = strlen(file_name);
+    likely_mat m = NULL;
+    if ((len < 3) || strcmp(&file_name[len-3], ".lm")) {
+        try {
+            m = fromCvMat(cv::imread(file_name, CV_LOAD_IMAGE_UNCHANGED));
+        } catch (...) { }
+    } else {
+        if (FILE *fp = fopen(file_name, "rb")) {
+            likely_size bytes;
+            fread(&bytes, sizeof(bytes), 1, fp);
+            fseek(fp, 0, SEEK_SET);
+            m = (likely_mat) malloc(bytes);
+            if (m && (fread(m, 1, bytes, fp) != bytes)) {
+                free(m);
+                m = NULL;
+            }
+            fclose(fp);
+        }
     }
-
-    likely_mat mat = fromCvMat(m);
-
-    likely_release(previousMat);
-    likely_retain(mat);
-    previousMat = mat;
-    previousFileName = file_name;
-    return mat;
+    return m;
 }
 
 likely_mat likely_write(likely_const_mat image, const char *file_name)
 {
-    try {
-        cv::imwrite(file_name, toCvMat(image));
-    } catch (...) {
-        return NULL;
+    const size_t len = strlen(file_name);
+    if ((len < 3) || strcmp(&file_name[len-3], ".lm")) {
+        try {
+            cv::imwrite(file_name, toCvMat(image));
+        } catch (...) {
+            return NULL;
+        }
+    } else {
+        if (FILE *fp = fopen(file_name, "wb")) {
+            likely_size bytes = sizeof(likely_matrix) + likely_bytes(image);
+            likely_size ref_count = 1;
+            fwrite(&bytes, sizeof(likely_size), 1, fp);
+            fwrite(&ref_count, sizeof(likely_size), 1, fp);
+            fwrite(reinterpret_cast<likely_size const*>(image)+2, bytes-2*sizeof(likely_size), 1, fp);
+            fclose(fp);
+        } else {
+            return NULL;
+        }
     }
     return (likely_mat) image;
 }

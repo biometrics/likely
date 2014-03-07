@@ -24,17 +24,16 @@
 
 // Matrix types
 typedef uintptr_t likely_size;
-typedef uint32_t likely_type; /* Depth : 8
-                                 Signed : 1
-                                 Floating : 1
-                                 Parallel : 1
-                                 Heterogeneous : 1
-                                 Single-channel : 1
-                                 Single-column : 1
-                                 Single-row : 1
-                                 Single-frame : 1
-                                 Saturation : 1
-                                 Reserved : 15 */
+typedef likely_size likely_type; /* Depth : 8
+                                    Signed : 1
+                                    Floating : 1
+                                    Parallel : 1
+                                    Heterogeneous : 1
+                                    Single-channel : 1
+                                    Single-column : 1
+                                    Single-row : 1
+                                    Single-frame : 1
+                                    Saturation : 1 */
 
 // Standard type masks and values
 enum likely_type_field
@@ -63,9 +62,8 @@ enum likely_type_field
     likely_type_multi_frame     = 0x00008000,
     likely_type_multi_dimension = 0x0000F000,
     likely_type_saturation      = 0x00010000,
-    likely_type_reserved        = 0xFFFE0000,
-    likely_type_type   = likely_type_u32,
-    likely_type_native = sizeof(likely_size)*8
+    likely_type_native = sizeof(likely_size)*8,
+    likely_type_type   = likely_type_native
 };
 
 // Disable 'nonstandard extension used : zero-sized array in struct/union' warning
@@ -77,12 +75,12 @@ enum likely_type_field
 struct likely_matrix
 {
     likely_size bytes, ref_count;
-    likely_size channels, columns, rows, frames;
-    likely_type type;
+    likely_size channels, columns, rows, frames, type;
     uint8_t data[];
 
 #ifdef __cplusplus
 private:
+    likely_matrix();
     likely_matrix(struct likely_matrix const &);
     likely_matrix &operator=(struct likely_matrix const &);
 #endif // __cplusplus

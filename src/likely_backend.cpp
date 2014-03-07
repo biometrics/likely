@@ -171,7 +171,7 @@ struct Resources : public Object
                                                             NativeIntegerType, // columns
                                                             NativeIntegerType, // rows
                                                             NativeIntegerType, // frames
-                                                            Type::getInt32Ty(C), // type
+                                                            NativeIntegerType, // type
                                                             ArrayType::get(Type::getInt8Ty(C), 0), // data
                                                             NULL));
         }
@@ -700,7 +700,6 @@ LIKELY_REGISTER_TYPE(multi_row)
 LIKELY_REGISTER_TYPE(multi_frame)
 LIKELY_REGISTER_TYPE(multi_dimension)
 LIKELY_REGISTER_TYPE(saturation)
-LIKELY_REGISTER_TYPE(reserved)
 
 class UnaryOperator : public Operator
 {
@@ -1112,7 +1111,7 @@ public:
         static FunctionType* LikelyNewSignature = NULL;
         if (LikelyNewSignature == NULL) {
             vector<Type*> newParameters;
-            newParameters.push_back(Type::getInt32Ty(C)); // type
+            newParameters.push_back(NativeIntegerType); // type
             newParameters.push_back(NativeIntegerType); // channels
             newParameters.push_back(NativeIntegerType); // columns
             newParameters.push_back(NativeIntegerType); // rows

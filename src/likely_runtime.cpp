@@ -56,8 +56,6 @@ bool likely_multi_frame(likely_type type) { return likely_get_bool(type, likely_
 void likely_set_multi_frame(likely_type *type, bool multi_frame) { likely_set_bool(type, multi_frame, likely_type_multi_frame); }
 bool likely_saturation(likely_type type) { return likely_get_bool(type, likely_type_saturation); }
 void likely_set_saturation(likely_type *type, bool saturation) { likely_set_bool(type, saturation, likely_type_saturation); }
-int  likely_reserved(likely_type type) { return likely_get(type, likely_type_reserved); }
-void likely_set_reserved(likely_type *type, int reserved) { likely_set(type, reserved, likely_type_reserved); }
 
 likely_size likely_elements(likely_const_mat m)
 {
