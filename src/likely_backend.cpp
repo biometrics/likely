@@ -179,7 +179,13 @@ struct Resources : public Object
         }
 
         module = new Module(getUniqueName("module"), C);
-        likely_assert(module != NULL, "failed to create module");
+        likely_assert(module, "failed to create module");
+
+        string error;
+        EngineBuilder engineBuilder(module);
+        engineBuilder.setMCPU(sys::getHostCPUName())
+                     .setOptLevel(CodeGenOpt::Aggressive)
+                     .setErrorStr(&error);
 
         if (native) {
             string targetTriple = sys::getProcessTriple();
@@ -188,25 +194,18 @@ struct Resources : public Object
                 targetTriple = targetTriple + "-elf";
 #endif // _WIN32
             module->setTargetTriple(Triple::normalize(targetTriple));
-        }
 
-        string error;
-        EngineBuilder engineBuilder(module);
-        engineBuilder.setMCPU(sys::getHostCPUName())
-                     .setEngineKind(EngineKind::JIT)
-                     .setOptLevel(CodeGenOpt::Aggressive)
-                     .setErrorStr(&error)
-                     .setUseMCJIT(true);
-
-        if (JIT) {
-            executionEngine = engineBuilder.create();
-            likely_assert(executionEngine != NULL, "failed to create execution engine with error: %s", error.c_str());
-        }
-
-        if (native) {
             engineBuilder.setCodeModel(CodeModel::Default);
             targetMachine = engineBuilder.selectTarget();
-            likely_assert(targetMachine != NULL, "failed to select target machine with error: %s", error.c_str());
+            likely_assert(targetMachine, "failed to select target machine with error: %s", error.c_str());
+        }
+
+        if (JIT) {
+            engineBuilder.setCodeModel(CodeModel::JITDefault)
+                         .setEngineKind(EngineKind::JIT)
+                         .setUseMCJIT(true);
+            executionEngine = engineBuilder.create();
+            likely_assert(executionEngine != NULL, "failed to create execution engine with error: %s", error.c_str());
         }
     }
 
@@ -229,7 +228,7 @@ struct Resources : public Object
                 PM = new PassManager();
                 PM->add(createVerifierPass());
                 PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
-                PM->add(new DataLayoutPass(module));
+                PM->add(new DataLayoutPass(*targetMachine->getDataLayout()));
                 targetMachine->addAnalysisPasses(*PM);
                 PassManagerBuilder builder;
                 builder.OptLevel = 3;
