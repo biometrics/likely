@@ -984,7 +984,7 @@ class BinaryMathOperator : public SimpleBinaryOperator
     {
         const likely_type type = nIsInteger() ? x.type() : likely_type_from_types(x, n);
         Immediate xc(builder.cast(&x, Builder::validFloatType(type)));
-        Immediate nc(builder.cast(&n, nIsInteger() ? likely_type_i32 : xc));
+        Immediate nc(builder.cast(&n, nIsInteger() ? likely_type_i32 : xc.type_));
         vector<Type*> args;
         args.push_back(xc.value_->getType());
         return new Immediate(builder.CreateCall2(Intrinsic::getDeclaration(builder.resources->module, id(), args), xc, nc), xc);
@@ -1597,8 +1597,7 @@ class printExpression : public Operator
         Value *result = builder.CreateCall(likelyPrint, matArgs);
 
         for (size_t i=0; i<rawArgs.size(); i++)
-            if (rawArgs[i] != matArgs[i]) // TODO: release mat
-                ;
+            if (rawArgs[i] != matArgs[i]) {} // TODO: release mat
 
         return new Immediate(result, likely_type_i8);
     }

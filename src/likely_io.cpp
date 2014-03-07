@@ -18,6 +18,7 @@
 #  define NOMINMAX
 #endif
 
+#include <cstdarg>
 #include <iostream>
 #include <string>
 #include <opencv2/highgui/highgui.hpp>
