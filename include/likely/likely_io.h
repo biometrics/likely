@@ -21,7 +21,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif // __cplusplus
 
 // Matrix I/O
 LIKELY_EXPORT likely_mat likely_read(const char *file_name);
@@ -37,6 +37,6 @@ LIKELY_EXPORT likely_mat likely_render(likely_const_mat m, double *min, double *
 
 #ifdef __cplusplus
 }
-#endif
+#endif // __cplusplus
 
 #endif // LIKELY_IO_H

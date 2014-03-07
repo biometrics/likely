@@ -18,18 +18,18 @@
 #define LIKELY_EXPORT_H
 
 // Export symbols, don't worry about this
-#if defined _WIN32
-#  if defined LIKELY_LIBRARY
+#ifdef _WIN32
+#  ifdef LIKELY_LIBRARY
 #    define LIKELY_EXPORT __declspec(dllexport)
-#  else
+#  else // !LIKELY_LIBRARY
 #    define LIKELY_EXPORT __declspec(dllimport)
-#  endif
-#else
-#  if defined LIKELY_LIBRARY
+#  endif // LIKELY_LIBRARY
+#else // !_WIN32
+#  ifdef LIKELY_LIBRARY
 #    define LIKELY_EXPORT __attribute__((visibility("default")))
-#  else
+#  else // !LIKELY_LIBRARY
 #    define LIKELY_EXPORT
-#  endif
-#endif
+#  endif // LIKELY_LIBRARY
+#endif // _WIN32
 
 #endif // LIKELY_EXPORT_H

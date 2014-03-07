@@ -22,10 +22,6 @@
 #include <stdint.h>
 #include <likely/likely_export.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Matrix types
 typedef uintptr_t likely_size;
 typedef uint32_t likely_type; /* Depth : 8
@@ -72,6 +68,11 @@ enum likely_type_field
     likely_type_native = sizeof(likely_size)*8
 };
 
+// Disable 'nonstandard extension used : zero-sized array in struct/union' warning
+#ifdef _MSC_VER
+#  pragma warning(disable: 4200)
+#endif // __MSC_VER
+
 // The main datatype in Likely
 struct likely_matrix
 {
@@ -79,9 +80,19 @@ struct likely_matrix
     likely_size channels, columns, rows, frames;
     likely_type type;
     uint8_t data[];
+
+#ifdef __cplusplus
+private:
+    likely_matrix(struct likely_matrix const &);
+    likely_matrix &operator=(struct likely_matrix const &);
+#endif // __cplusplus
 };
 typedef struct likely_matrix const *likely_const_mat;
 typedef struct likely_matrix *likely_mat;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
 
 // Abort-style error handling
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
@@ -137,6 +148,6 @@ typedef uint8_t likely_arity;
 
 #ifdef __cplusplus
 }
-#endif
+#endif // __cplusplus
 
 #endif // LIKELY_RUNTIME_H

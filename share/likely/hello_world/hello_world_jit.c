@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     printf("Reading input image...\n");
     likely_const_mat lenna = likely_read(input_image);
     if (lenna) {
-        printf("Width: %zu\nHeight: %zu\n", lenna->columns, lenna->rows);
+        printf("Width: %d\nHeight: %d\n", (int) lenna->columns, (int) lenna->rows);
     } else {
         printf("Failed to read!\n");
         return -1;

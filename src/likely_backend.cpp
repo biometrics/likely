@@ -99,7 +99,7 @@ struct likely_environment : public map<string,stack<shared_ptr<Expression>>>
 {
     static likely_environment defaultExprs;
     mutable int ref_count = 1;
-    likely_environment(const likely_environment &exprs = defaultExprs)
+    likely_environment(const map<string,stack<shared_ptr<Expression>>> &exprs = defaultExprs)
         : map<string,stack<shared_ptr<Expression>>>(exprs) {}
 };
 likely_environment likely_environment::defaultExprs;
@@ -125,10 +125,8 @@ struct Immediate : public Expression
 private:
     Value *value() const { return value_; }
     likely_type type() const { return type_; }
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    Expression *evaluate(Builder &, likely_const_ast) const
     {
-        (void) builder;
-        (void) ast;
         return new Immediate(value(), type());
     }
 };
@@ -179,7 +177,7 @@ struct Resources : public Object
         }
 
         module = new Module(getUniqueName("module"), C);
-        likely_assert(module, "failed to create module");
+        likely_assert(module != NULL, "failed to create module");
 
         string error;
         EngineBuilder engineBuilder(module);
@@ -192,7 +190,7 @@ struct Resources : public Object
             if (nativeTT.empty()) {
                 nativeTT = sys::getProcessTriple();
 #ifdef _WIN32
-                targetTripleJIT = targetTriple + "-elf";
+                nativeJITTT = nativeTT + "-elf";
 #else
                 nativeJITTT = nativeTT;
 #endif // _WIN32
@@ -203,7 +201,7 @@ struct Resources : public Object
             if (!nativeTM) {
                 engineBuilder.setCodeModel(CodeModel::Default);
                 nativeTM = engineBuilder.selectTarget();
-                likely_assert(nativeTM, "failed to select target machine with error: %s", error.c_str());
+                likely_assert(nativeTM != NULL, "failed to select target machine with error: %s", error.c_str());
             }
             targetMachine = nativeTM;
         }
@@ -433,7 +431,7 @@ class StatefulExpression : public Expression
     }
 
 protected:
-    static Expression *errorArgc(likely_const_ast ast, const string &function, int args, int minParams, int maxParams)
+    static Expression *errorArgc(likely_const_ast ast, const string &function, size_t args, size_t minParams, size_t maxParams)
     {
         stringstream stream;
         stream << function << " with: " << minParams;
@@ -500,8 +498,8 @@ private:
     Expression *evaluate(Builder &builder, likely_const_ast ast) const
     {
         assert(ast->is_list);
-        const int parameters = argc();
-        const int arguments = ast->num_atoms - 1;
+        const size_t parameters = argc();
+        const size_t arguments = ast->num_atoms - 1;
         if (parameters != arguments)
             return errorArgc(ast, "lambda", arguments, parameters, parameters);
 
@@ -575,7 +573,7 @@ struct DynamicFunction : public Object
 
         // Try to compute arity
         if (ast->is_list && (ast->num_atoms > 1))
-            if (ast->atoms[1]->is_list) n = ast->atoms[1]->num_atoms;
+            if (ast->atoms[1]->is_list) n = (likely_arity) ast->atoms[1]->num_atoms;
             else                        n = 1;
         else                            n = 0;
 
@@ -735,9 +733,8 @@ LIKELY_REGISTER_EXPRESSION(not, "~")
 
 class typeExpression : public SimpleUnaryOperator
 {
-    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    Expression *evaluateSimpleUnary(Builder &, const ManagedExpression &arg) const
     {
-        (void) builder;
         return new Immediate(Builder::type(arg));
     }
 };
@@ -1083,7 +1080,7 @@ class newExpression : public Operator
     size_t minParameters() const { return 0; }
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        const int n = ast->num_atoms - 1;
+        const size_t n = ast->num_atoms - 1;
         ManagedExpression type;
         Value *channels, *columns, *rows, *frames, *data;
         switch (n) {
@@ -1415,7 +1412,7 @@ private:
           case 1: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, Mat, dst, start, stop, NULL)); break;
           case 2: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, Mat, Mat, dst, start, stop, NULL)); break;
           case 3: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, Mat, Mat, Mat, dst, start, stop, NULL)); break;
-          default: { kernel = NULL; likely_assert(false, "Kernel::getKernel invalid arity: %zu", argc); }
+          default: { kernel = NULL; likely_assert(false, "Kernel::getKernel invalid arity: %d", (int) argc); }
         }
         kernel->addFnAttr(Attribute::NoUnwind);
         kernel->setCallingConv(CallingConv::C);
