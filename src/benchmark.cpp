@@ -94,7 +94,9 @@ struct Test
 
                     likely_set_parallel(&srcLikely->type, execution != 0);
 
-                    printf("%s \t%s \t%d \t%s\t", function(), likely_type_to_string(type), size, execution ? "Parallel" : "Serial  ");
+                    likely_mat typeString = likely_type_to_string(type);
+                    printf("%s \t%s \t%d \t%s\t", function(), (const char*) typeString->data, size, execution ? "Parallel" : "Serial  ");
+                    likely_release(typeString);
                     testCorrectness(f, srcCV, srcLikely);
 
                     if (!BenchmarkSpeed) {
@@ -130,11 +132,17 @@ struct Test
         if (BenchmarkVerbose)
             printf("\n");
         for (size_t i=0; i<ast->num_atoms; i++) {
-            if (BenchmarkVerbose)
-                printf("%s\n", likely_ast_to_string(ast->atoms[i]));
+            if (BenchmarkVerbose) {
+                likely_mat str = likely_ast_to_string(ast->atoms[i]);
+                printf("%s\n", (const char*) str->data);
+                likely_release(str);
+            }
             likely_const_mat result = likely_eval(ast->atoms[i], env);
-            if (BenchmarkVerbose)
-                printf("%s\n\n", likely_to_string(result));
+            if (BenchmarkVerbose) {
+                likely_mat str = likely_to_string(result);
+                printf("%s\n\n", (const char*) str->data);
+                likely_release(str);
+            }
             likely_release(result);
         }
         likely_release_env(env);

@@ -348,13 +348,15 @@ public:
             src = QImage();
         }
 
+        likely_mat typeString = likely_type_to_string(mat == NULL ? likely_type_null : mat->type);
         type->setText(QString("%1x%2x%3x%4 %5 [%6,%7]").arg(QString::number(mat == NULL ? 0 : mat->channels),
                                                             QString::number(mat == NULL ? 0 : mat->columns),
                                                             QString::number(mat == NULL ? 0 : mat->rows),
                                                             QString::number(mat == NULL ? 0 : mat->frames),
-                                                            likely_type_to_string(mat == NULL ? likely_type_null : mat->type),
+                                                            (const char*) typeString->data,
                                                             QString::number(min),
                                                             QString::number(max)));
+        likely_release(typeString);
         updatePixmap();
     }
 
@@ -594,7 +596,9 @@ int main(int argc, char *argv[])
         for (size_t i=0; i<asts->num_atoms; i++) {
             likely_const_mat m = likely_eval(asts->atoms[i], env);
             if (m) {
-                printf("%s\n", likely_to_string(m));
+                likely_mat str = likely_to_string(m);
+                printf("%s\n", (const char*) str->data);
+                likely_release(str);
                 likely_release(m);
             }
         }

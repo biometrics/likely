@@ -187,10 +187,8 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
     }
 }
 
-const char *likely_type_to_string(likely_type type)
+likely_mat likely_type_to_string(likely_type type)
 {
-    static string typeString;
-
     stringstream typeStream;
     typeStream << (likely_floating(type) ? "f" : (likely_signed(type) ? "i" : "u"));
     typeStream << likely_depth(type);
@@ -203,8 +201,8 @@ const char *likely_type_to_string(likely_type type)
     if (likely_multi_frame(type))    typeStream << "T";
     if (likely_saturation(type))     typeStream << "S";
 
-    typeString = typeStream.str();
-    return typeString.c_str();
+    const string typeString = typeStream.str();
+    return likely_new(likely_type_i8, typeString.length() + 1, 1, 1, 1, (const uint8_t*) typeString.c_str());
 }
 
 likely_type likely_type_from_string(const char *str)

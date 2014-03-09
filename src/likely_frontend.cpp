@@ -240,13 +240,12 @@ static void print(const likely_const_ast ast, stringstream &stream)
     }
 }
 
-const char *likely_ast_to_string(const likely_const_ast ast)
+likely_mat likely_ast_to_string(likely_const_ast ast)
 {
-    static string result;
     stringstream stream;
     print(ast, stream);
-    result = stream.str();
-    return result.c_str();
+    const string result = stream.str();
+    return likely_new(likely_type_i8, result.length() + 1, 1, 1, 1, (const uint8_t*) result.data());
 }
 
 static likely_error_callback ErrorCallback = NULL;
