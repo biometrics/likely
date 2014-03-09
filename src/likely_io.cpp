@@ -98,11 +98,6 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
     return fromCvMat(cv::Mat(buf));
 }
 
-likely_mat likely_string(const char *string)
-{
-    return likely_new(likely_type_i8, strlen(string)+1, 1, 1, 1, (uint8_t const *)string);
-}
-
 likely_mat likely_to_string(likely_const_mat m)
 {
     if (!m) return NULL;
@@ -145,8 +140,7 @@ likely_mat likely_to_string(likely_const_mat m)
     if (likely_elements(m) > 1) stream << "\n}";
     stream << " }";
 
-    const string result = stream.str();
-    return likely_new(likely_type_i8, result.length() + 1, 1, 1, 1, (const uint8_t*) result.data());
+    return likely_string(stream.str().c_str());
 }
 
 likely_mat likely_print(likely_const_mat m, ...)
@@ -159,8 +153,7 @@ likely_mat likely_print(likely_const_mat m, ...)
         m = va_arg(ap, likely_const_mat);
     }
     va_end(ap);
-    const string result = buffer.str();
-    return likely_new(likely_type_i8, result.length()+1, 1, 1, 1, (uint8_t const *)result.c_str());
+    return likely_string(buffer.str().c_str());
 }
 
 likely_mat likely_render(likely_const_mat m, double *min_, double *max_)

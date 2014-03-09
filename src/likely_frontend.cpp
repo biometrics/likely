@@ -244,8 +244,7 @@ likely_mat likely_ast_to_string(likely_const_ast ast)
 {
     stringstream stream;
     print(ast, stream);
-    const string result = stream.str();
-    return likely_new(likely_type_i8, result.length() + 1, 1, 1, 1, (const uint8_t*) result.data());
+    return likely_string(stream.str().c_str());
 }
 
 static likely_error_callback ErrorCallback = NULL;

@@ -70,7 +70,7 @@ likely_size likely_bytes(likely_const_mat m)
 // TODO: make this thread_local when compiler support improves
 static likely_mat recycled = NULL;
 
-likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, const uint8_t data[])
+likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, uint8_t const *data)
 {
     likely_mat m;
     const size_t dataBytes = uint64_t(likely_depth(type)) * channels * columns * rows * frames / 8;
@@ -111,6 +111,11 @@ likely_mat likely_scalar(double value)
     likely_mat m = likely_new(likely_type_from_value(value), 1, 1, 1, 1, NULL);
     likely_set_element(m, value, 0, 0, 0, 0);
     return m;
+}
+
+likely_mat likely_string(const char *str)
+{
+    return likely_new(likely_type_i8, strlen(str)+1, 1, 1, 1, (uint8_t const*) str);
 }
 
 likely_mat likely_copy(likely_const_mat m)
@@ -192,7 +197,6 @@ likely_mat likely_type_to_string(likely_type type)
     stringstream typeStream;
     typeStream << (likely_floating(type) ? "f" : (likely_signed(type) ? "i" : "u"));
     typeStream << likely_depth(type);
-
     if (likely_parallel(type))       typeStream << "P";
     if (likely_heterogeneous(type))  typeStream << "H";
     if (likely_multi_channel(type))  typeStream << "C";
@@ -200,9 +204,7 @@ likely_mat likely_type_to_string(likely_type type)
     if (likely_multi_row(type))      typeStream << "Y";
     if (likely_multi_frame(type))    typeStream << "T";
     if (likely_saturation(type))     typeStream << "S";
-
-    const string typeString = typeStream.str();
-    return likely_new(likely_type_i8, typeString.length() + 1, 1, 1, 1, (const uint8_t*) typeString.c_str());
+    return likely_string(typeStream.str().c_str());
 }
 
 likely_type likely_type_from_string(const char *str)
