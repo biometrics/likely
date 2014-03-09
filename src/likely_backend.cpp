@@ -1199,7 +1199,6 @@ public:
         if (!likelyRelease) {
             likelyRelease = Function::Create(LikelyReleaseSignature, GlobalValue::ExternalLinkage, "likely_release", builder.resources->module);
             likelyRelease->setCallingConv(CallingConv::C);
-            likelyRelease->setDoesNotAlias(0);
             likelyRelease->setDoesNotAlias(1);
             likelyRelease->setDoesNotCapture(1);
         }
@@ -1593,7 +1592,8 @@ class printExpression : public Operator
         Value *result = builder.CreateCall(likelyPrint, matArgs);
 
         for (size_t i=0; i<rawArgs.size(); i++)
-            if (rawArgs[i] != matArgs[i]) {} // TODO: release mat
+            if (rawArgs[i] != matArgs[i])
+                releaseExpression::createCall(builder, matArgs[i]);
 
         return new Immediate(result, likely_type_i8);
     }
