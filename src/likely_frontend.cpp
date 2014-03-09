@@ -24,22 +24,16 @@
 
 using namespace std;
 
-typedef struct likely_abstract_syntax_tree_private
-{
-    int ref_count;
-} likely_abstract_syntax_tree_private;
-
 likely_ast likely_new_atom(const char *str, size_t begin, size_t end)
 {
     const size_t atom_len = end - begin;
-    likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + sizeof(likely_abstract_syntax_tree_private) + atom_len + 1);
-    ast->d_ptr = (likely_abstract_syntax_tree_private*) (ast + 1);
-    ast->d_ptr->ref_count = 1;
-    ast->atom = (const char*) (ast->d_ptr + 1);
+    likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + atom_len + 1);
+    ast->atom = (const char*) (ast + 1);
     memcpy((void*) ast->atom, &str[begin], atom_len);
     ((char*) ast->atom)[atom_len] = '\0';
     ast->atom_len = atom_len;
     ast->is_list = false;
+    ast->ref_count = 1;
     ast->begin = begin;
     ast->end = end;
     return ast;
@@ -47,13 +41,12 @@ likely_ast likely_new_atom(const char *str, size_t begin, size_t end)
 
 likely_ast likely_new_list(likely_const_ast *atoms, size_t num_atoms)
 {
-    likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + sizeof(likely_abstract_syntax_tree_private) + num_atoms * sizeof(likely_const_ast));
-    ast->d_ptr = (likely_abstract_syntax_tree_private*) (ast + 1);
-    ast->d_ptr->ref_count = 1;
-    ast->atoms = (likely_const_ast*) (ast->d_ptr+1);
+    likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + num_atoms * sizeof(likely_const_ast));
+    ast->atoms = (likely_const_ast*) (ast+1);
     memcpy(ast->atoms, atoms, num_atoms * sizeof(likely_const_ast));
     ast->num_atoms = num_atoms;
     ast->is_list = true;
+    ast->ref_count = 1;
     ast->begin = num_atoms == 0 ? 0 : atoms[0]->begin;
     ast->end = num_atoms == 0 ? 0 : atoms[num_atoms-1]->end;
     return ast;
@@ -61,13 +54,13 @@ likely_ast likely_new_list(likely_const_ast *atoms, size_t num_atoms)
 
 likely_ast likely_retain_ast(likely_const_ast ast)
 {
-    if (ast) ++ast->d_ptr->ref_count;
+    if (ast) ++const_cast<likely_ast>(ast)->ref_count;
     return (likely_ast) ast;
 }
 
 void likely_release_ast(likely_const_ast ast)
 {
-    if (!ast || --ast->d_ptr->ref_count) return;
+    if (!ast || --const_cast<likely_ast>(ast)->ref_count) return;
     if (ast->is_list)
         for (size_t i=0; i<ast->num_atoms; i++)
             likely_release_ast(ast->atoms[i]);

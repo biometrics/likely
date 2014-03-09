@@ -22,7 +22,6 @@
 
 struct likely_abstract_syntax_tree
 {
-    struct likely_abstract_syntax_tree_private *d_ptr;
     union {
         struct {
             struct likely_abstract_syntax_tree const **atoms;
@@ -34,6 +33,7 @@ struct likely_abstract_syntax_tree
         };
     };
 
+    size_t ref_count;
     size_t begin, end; // indicies into the source string
     bool is_list;
 };
