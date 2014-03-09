@@ -1177,6 +1177,38 @@ public:
 };
 LIKELY_REGISTER(string)
 
+class copyExpression : public SimpleUnaryOperator
+{
+    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    {
+        return new Immediate(createCall(builder, arg), arg);
+    }
+
+public:
+    static CallInst *createCall(Builder &builder, Value *m)
+    {
+        static FunctionType* LikelyCopySignature = NULL;
+        if (LikelyCopySignature == NULL) {
+            LikelyCopySignature = FunctionType::get(Mat, Mat, false);
+            // An impossible case used to ensure that `likely_copy` isn't stripped when optimizing executable size
+            if (LikelyCopySignature == NULL)
+                likely_copy(NULL);
+        }
+
+        Function *likelyCopy = builder.resources->module->getFunction("likely_copy");
+        if (!likelyCopy) {
+            likelyCopy = Function::Create(LikelyCopySignature, GlobalValue::ExternalLinkage, "likely_copy", builder.resources->module);
+            likelyCopy->setCallingConv(CallingConv::C);
+            likelyCopy->setDoesNotAlias(0);
+            likelyCopy->setDoesNotAlias(1);
+            likelyCopy->setDoesNotCapture(1);
+        }
+
+        return builder.CreateCall(likelyCopy, m);
+    }
+};
+LIKELY_REGISTER(copy)
+
 class retainExpression : public SimpleUnaryOperator
 {
     Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
