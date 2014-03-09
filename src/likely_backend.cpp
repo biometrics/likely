@@ -1043,7 +1043,12 @@ class defineExpression : public Operator
 };
 LIKELY_REGISTER(define)
 
-class newExpression : public Operator
+class LibraryFunction
+{
+    virtual void *symbol() const = 0; // Idiom to ensure that the library symbol isn't stripped when optimizing executable size
+};
+
+class newExpression : public Operator, public LibraryFunction
 {
     size_t maxParameters() const { return 6; }
     size_t minParameters() const { return 0; }
@@ -1075,6 +1080,8 @@ class newExpression : public Operator
         return new Immediate(createCall(builder, type, channels, columns, rows, frames, data), type);
     }
 
+    void *symbol() const { return (void*) likely_new; }
+
 public:
     static CallInst *createCall(Builder &builder, Value *type, Value *channels, Value *columns, Value *rows, Value *frames, Value *data)
     {
@@ -1088,8 +1095,6 @@ public:
             params.push_back(NativeIntegerType); // frames
             params.push_back(Type::getInt8PtrTy(C)); // data
             functionType = FunctionType::get(Mat, params, false);
-            if (!functionType) // An impossible case used to ensure that `likely_new` isn't stripped when optimizing executable size
-                likely_new(likely_type_null, 0, 0, 0, 0, NULL);
         }
 
         Function *likelyNew = builder.resources->module->getFunction("likely_new");
@@ -1113,7 +1118,7 @@ public:
 };
 LIKELY_REGISTER(new)
 
-class scalarExpression : public UnaryOperator
+class scalarExpression : public UnaryOperator, public LibraryFunction
 {
     Expression *evaluateUnary(Builder &builder, likely_const_ast arg) const
     {
@@ -1124,13 +1129,7 @@ class scalarExpression : public UnaryOperator
         if (argExpr->value()->getType() == Mat)
             return argExpr;
 
-        static FunctionType *functionType = NULL;
-        if (functionType == NULL) {
-            functionType = FunctionType::get(Mat, Type::getDoubleTy(C), false);
-            if (!functionType) // An impossible case used to ensure that `likely_scalar` isn't stripped when optimizing executable size
-                likely_scalar(0);
-        }
-
+        static FunctionType *functionType = FunctionType::get(Mat, Type::getDoubleTy(C), false);
         Function *likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar", builder.resources->module);
         likelyScalar->setCallingConv(CallingConv::C);
         likelyScalar->setDoesNotAlias(0);
@@ -1139,26 +1138,24 @@ class scalarExpression : public UnaryOperator
         delete argExpr;
         return new Immediate(result);
     }
+
+    void *symbol() const { return (void*) likely_scalar; }
 };
 LIKELY_REGISTER(scalar)
 
-class stringExpression : public SimpleUnaryOperator
+class stringExpression : public SimpleUnaryOperator, public LibraryFunction
 {
     Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
     {
         return new Immediate(createCall(builder, arg), likely_type_i8);
     }
 
+    void *symbol() const { return (void*) likely_string; }
+
 public:
     static CallInst *createCall(Builder &builder, Value *string)
     {
-        static FunctionType *functionType = NULL;
-        if (functionType == NULL) {
-            functionType = FunctionType::get(Mat, Type::getInt8PtrTy(C), false);
-            if (!functionType) // An impossible case used to ensure that `likely_string` isn't stripped when optimizing executable size
-                likely_string(NULL);
-        }
-
+        static FunctionType *functionType = FunctionType::get(Mat, Type::getInt8PtrTy(C), false);
         Function *likelyString = builder.resources->module->getFunction("likely_string");
         if (!likelyString) {
             likelyString = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_string", builder.resources->module);
@@ -1167,29 +1164,24 @@ public:
             likelyString->setDoesNotAlias(1);
             likelyString->setDoesNotCapture(1);
         }
-
         return builder.CreateCall(likelyString, string);
     }
 };
 LIKELY_REGISTER(string)
 
-class copyExpression : public SimpleUnaryOperator
+class copyExpression : public SimpleUnaryOperator, public LibraryFunction
 {
     Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
     {
         return new Immediate(createCall(builder, arg), arg);
     }
 
+    void *symbol() const { return (void*) likely_copy; }
+
 public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
-        static FunctionType *functionType = NULL;
-        if (functionType == NULL) {
-            functionType = FunctionType::get(Mat, Mat, false);
-            if (!functionType) // An impossible case used to ensure that `likely_copy` isn't stripped when optimizing executable size
-                likely_copy(NULL);
-        }
-
+        static FunctionType *functionType = FunctionType::get(Mat, Mat, false);
         Function *likelyCopy = builder.resources->module->getFunction("likely_copy");
         if (!likelyCopy) {
             likelyCopy = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_copy", builder.resources->module);
@@ -1198,29 +1190,24 @@ public:
             likelyCopy->setDoesNotAlias(1);
             likelyCopy->setDoesNotCapture(1);
         }
-
         return builder.CreateCall(likelyCopy, m);
     }
 };
 LIKELY_REGISTER(copy)
 
-class retainExpression : public SimpleUnaryOperator
+class retainExpression : public SimpleUnaryOperator, public LibraryFunction
 {
     Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
     {
         return new Immediate(createCall(builder, arg), arg);
     }
 
+    void *symbol() const { return (void*) likely_retain; }
+
 public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
-        static FunctionType *functionType = NULL;
-        if (functionType == NULL) {
-            functionType = FunctionType::get(Mat, Mat, false);
-            if (!functionType) // An impossible case used to ensure that `likely_retain` isn't stripped when optimizing executable size
-                likely_retain(NULL);
-        }
-
+        static FunctionType *functionType = FunctionType::get(Mat, Mat, false);
         Function *likelyRetain = builder.resources->module->getFunction("likely_retain");
         if (!likelyRetain) {
             likelyRetain = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_retain", builder.resources->module);
@@ -1229,29 +1216,24 @@ public:
             likelyRetain->setDoesNotAlias(1);
             likelyRetain->setDoesNotCapture(1);
         }
-
         return builder.CreateCall(likelyRetain, m);
     }
 };
 LIKELY_REGISTER(retain)
 
-class releaseExpression : public SimpleUnaryOperator
+class releaseExpression : public SimpleUnaryOperator, public LibraryFunction
 {
     Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
     {
         return new Immediate(createCall(builder, arg), arg);
     }
 
+    void *symbol() const { return (void*) likely_release; }
+
 public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
-        static FunctionType *functionType = NULL;
-        if (functionType == NULL) {
-            functionType = FunctionType::get(Type::getVoidTy(C), Mat, false);
-            if (!functionType) // An impossible case used to ensure that `likely_release` isn't stripped when optimizing executable size
-                likely_release(NULL);
-        }
-
+        static FunctionType *functionType = FunctionType::get(Type::getVoidTy(C), Mat, false);
         Function *likelyRelease = builder.resources->module->getFunction("likely_release");
         if (!likelyRelease) {
             likelyRelease = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_release", builder.resources->module);
@@ -1259,7 +1241,6 @@ public:
             likelyRelease->setDoesNotAlias(1);
             likelyRelease->setDoesNotCapture(1);
         }
-
         return builder.CreateCall(likelyRelease, m);
     }
 };
@@ -1580,20 +1561,14 @@ LIKELY_REGISTER(lambda)
 #ifdef LIKELY_IO
 #include "likely/likely_io.h"
 
-class printExpression : public Operator
+class printExpression : public Operator, public LibraryFunction
 {
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
     size_t minParameters() const { return 0; }
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        static FunctionType *LikelyPrintSignature = NULL;
-        if (LikelyPrintSignature == NULL) {
-            LikelyPrintSignature = FunctionType::get(Mat, Mat, true);
-            // An impossible case used to ensure that `likely_print` isn't stripped when optimizing executable size
-            if (LikelyPrintSignature == NULL)
-                likely_print(NULL);
-        }
-        Function *likelyPrint = Function::Create(LikelyPrintSignature, GlobalValue::ExternalLinkage, "likely_print", builder.resources->module);
+        static FunctionType *functionType = FunctionType::get(Mat, Mat, true);
+        Function *likelyPrint = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_print", builder.resources->module);
         likelyPrint->setCallingConv(CallingConv::C);
         likelyPrint->setDoesNotAlias(0);
         likelyPrint->setDoesNotAlias(1);
@@ -1622,43 +1597,38 @@ class printExpression : public Operator
 
         return new Immediate(result, likely_type_i8);
     }
+
+    void *symbol() const { return (void*) likely_print; }
 };
 LIKELY_REGISTER(print)
 
-class readExpression : public SimpleUnaryOperator
+class readExpression : public SimpleUnaryOperator, public LibraryFunction
 {
     Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
     {
-        static FunctionType *LikelyReadSignature = NULL;
-        if (LikelyReadSignature == NULL) {
-            LikelyReadSignature = FunctionType::get(Mat, Type::getInt8PtrTy(C), false);
-            // An impossible case used to ensure that `likely_read` isn't stripped when optimizing executable size
-            if (LikelyReadSignature == NULL)
-                likely_read(NULL);
-        }
-        Function *likelyRead = Function::Create(LikelyReadSignature, GlobalValue::ExternalLinkage, "likely_read", builder.resources->module);
+        static FunctionType *functionType = FunctionType::get(Mat, Type::getInt8PtrTy(C), false);
+        Function *likelyRead = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_read", builder.resources->module);
         likelyRead->setCallingConv(CallingConv::C);
         likelyRead->setDoesNotAlias(0);
         return new Immediate(builder.CreateCall(likelyRead, arg), likely_type_null);
     }
+
+    void *symbol() const { return (void*) likely_read; }
 };
 LIKELY_REGISTER(read)
 
-class writeExpression : public SimpleBinaryOperator
+class writeExpression : public SimpleBinaryOperator, public LibraryFunction
 {
     Expression *evaluateSimpleBinary(Builder &builder, const ManagedExpression &arg1, const ManagedExpression &arg2) const
     {
-        static FunctionType *LikelyWriteSignature = NULL;
-        if (LikelyWriteSignature == NULL) {
+        static FunctionType *functionType = NULL;
+        if (functionType == NULL) {
             vector<Type*> likelyWriteParameters;
             likelyWriteParameters.push_back(Mat);
             likelyWriteParameters.push_back(Type::getInt8PtrTy(C));
-            LikelyWriteSignature = FunctionType::get(Mat, likelyWriteParameters, false);
-            // An impossible case used to ensure that `likely_write` isn't stripped when optimizing executable size
-            if (LikelyWriteSignature == NULL)
-                likely_write(NULL, NULL);
+            functionType = FunctionType::get(Mat, likelyWriteParameters, false);
         }
-        Function *likelyWrite = Function::Create(LikelyWriteSignature, GlobalValue::ExternalLinkage, "likely_write", builder.resources->module);
+        Function *likelyWrite = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_write", builder.resources->module);
         likelyWrite->setCallingConv(CallingConv::C);
         likelyWrite->setDoesNotAlias(0);
         likelyWrite->setDoesNotAlias(1);
@@ -1670,45 +1640,40 @@ class writeExpression : public SimpleBinaryOperator
         likelyWriteArguments.push_back(arg2);
         return new Immediate(builder.CreateCall(likelyWrite, likelyWriteArguments), likely_type_null);
     }
+
+    void *symbol() const { return (void*) likely_write; }
 };
 LIKELY_REGISTER(write)
 
-class decodeExpression : public SimpleUnaryOperator
+class decodeExpression : public SimpleUnaryOperator, public LibraryFunction
 {
     Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
     {
-        static FunctionType *LikelyDecodeSignature = NULL;
-        if (LikelyDecodeSignature == NULL) {
-            LikelyDecodeSignature = FunctionType::get(Mat, Mat, false);
-            // An impossible case used to ensure that `likely_decode` isn't stripped when optimizing executable size
-            if (LikelyDecodeSignature == NULL)
-                likely_decode(NULL);
-        }
-        Function *likelyDecode = Function::Create(LikelyDecodeSignature, GlobalValue::ExternalLinkage, "likely_decode", builder.resources->module);
+        static FunctionType *functionType = FunctionType::get(Mat, Mat, false);
+        Function *likelyDecode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_decode", builder.resources->module);
         likelyDecode->setCallingConv(CallingConv::C);
         likelyDecode->setDoesNotAlias(0);
         likelyDecode->setDoesNotAlias(1);
         likelyDecode->setDoesNotCapture(1);
         return new Immediate(builder.CreateCall(likelyDecode, arg), likely_type_null);
     }
+
+    void *symbol() const { return (void*) likely_decode; }
 };
 LIKELY_REGISTER(decode)
 
-class encodeExpression : public SimpleBinaryOperator
+class encodeExpression : public SimpleBinaryOperator, public LibraryFunction
 {
     Expression *evaluateSimpleBinary(Builder &builder, const ManagedExpression &arg1, const ManagedExpression &arg2) const
     {
-        static FunctionType *LikelyEncodeSignature = NULL;
-        if (LikelyEncodeSignature == NULL) {
-            vector<Type*> likelyEncodeParameters;
-            likelyEncodeParameters.push_back(Mat);
-            likelyEncodeParameters.push_back(Type::getInt8PtrTy(C));
-            LikelyEncodeSignature = FunctionType::get(Mat, likelyEncodeParameters, false);
-            // An impossible case used to ensure that `likely_encode` isn't stripped when optimizing executable size
-            if (LikelyEncodeSignature == NULL)
-                likely_encode(NULL, NULL);
+        static FunctionType *functionType = NULL;
+        if (functionType == NULL) {
+            vector<Type*> parameters;
+            parameters.push_back(Mat);
+            parameters.push_back(Type::getInt8PtrTy(C));
+            functionType = FunctionType::get(Mat, parameters, false);
         }
-        Function *likelyEncode = Function::Create(LikelyEncodeSignature, GlobalValue::ExternalLinkage, "likely_encode", builder.resources->module);
+        Function *likelyEncode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_encode", builder.resources->module);
         likelyEncode->setCallingConv(CallingConv::C);
         likelyEncode->setDoesNotAlias(0);
         likelyEncode->setDoesNotAlias(1);
@@ -1720,6 +1685,8 @@ class encodeExpression : public SimpleBinaryOperator
         likelyEncodeArguments.push_back(arg2);
         return new Immediate(builder.CreateCall(likelyEncode, likelyEncodeArguments), likely_type_null);
     }
+
+    void *symbol() const { return (void*) likely_encode; }
 };
 LIKELY_REGISTER(encode)
 #endif // LIKELY_IO
