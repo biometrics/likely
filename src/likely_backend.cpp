@@ -1078,39 +1078,37 @@ class newExpression : public Operator
 public:
     static CallInst *createCall(Builder &builder, Value *type, Value *channels, Value *columns, Value *rows, Value *frames, Value *data)
     {
-        static FunctionType* LikelyNewSignature = NULL;
-        if (LikelyNewSignature == NULL) {
-            vector<Type*> newParameters;
-            newParameters.push_back(NativeIntegerType); // type
-            newParameters.push_back(NativeIntegerType); // channels
-            newParameters.push_back(NativeIntegerType); // columns
-            newParameters.push_back(NativeIntegerType); // rows
-            newParameters.push_back(NativeIntegerType); // frames
-            newParameters.push_back(Type::getInt8PtrTy(C)); // data
-            LikelyNewSignature = FunctionType::get(Mat, newParameters, false);
-
-            // An impossible case used to ensure that `likely_new` isn't stripped when optimizing executable size
-            if (LikelyNewSignature == NULL)
+        static FunctionType *functionType = NULL;
+        if (functionType == NULL) {
+            vector<Type*> params;
+            params.push_back(NativeIntegerType); // type
+            params.push_back(NativeIntegerType); // channels
+            params.push_back(NativeIntegerType); // columns
+            params.push_back(NativeIntegerType); // rows
+            params.push_back(NativeIntegerType); // frames
+            params.push_back(Type::getInt8PtrTy(C)); // data
+            functionType = FunctionType::get(Mat, params, false);
+            if (!functionType) // An impossible case used to ensure that `likely_new` isn't stripped when optimizing executable size
                 likely_new(likely_type_null, 0, 0, 0, 0, NULL);
         }
 
         Function *likelyNew = builder.resources->module->getFunction("likely_new");
         if (!likelyNew) {
-            likelyNew = Function::Create(LikelyNewSignature, GlobalValue::ExternalLinkage, "likely_new", builder.resources->module);
+            likelyNew = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_new", builder.resources->module);
             likelyNew->setCallingConv(CallingConv::C);
             likelyNew->setDoesNotAlias(0);
             likelyNew->setDoesNotAlias(6);
             likelyNew->setDoesNotCapture(6);
         }
 
-        vector<Value*> likelyNewArgs;
-        likelyNewArgs.push_back(type);
-        likelyNewArgs.push_back(channels);
-        likelyNewArgs.push_back(columns);
-        likelyNewArgs.push_back(rows);
-        likelyNewArgs.push_back(frames);
-        likelyNewArgs.push_back(data);
-        return builder.CreateCall(likelyNew, likelyNewArgs);
+        vector<Value*> args;
+        args.push_back(type);
+        args.push_back(channels);
+        args.push_back(columns);
+        args.push_back(rows);
+        args.push_back(frames);
+        args.push_back(data);
+        return builder.CreateCall(likelyNew, args);
     }
 };
 LIKELY_REGISTER(new)
@@ -1126,17 +1124,16 @@ class scalarExpression : public UnaryOperator
         if (argExpr->value()->getType() == Mat)
             return argExpr;
 
-        static FunctionType* LikelyScalarSignature = NULL;
-        if (LikelyScalarSignature == NULL)
-            LikelyScalarSignature = FunctionType::get(Mat, Type::getDoubleTy(C), false);
+        static FunctionType *functionType = NULL;
+        if (functionType == NULL) {
+            functionType = FunctionType::get(Mat, Type::getDoubleTy(C), false);
+            if (!functionType) // An impossible case used to ensure that `likely_scalar` isn't stripped when optimizing executable size
+                likely_scalar(0);
+        }
 
-        Function *likelyScalar = Function::Create(LikelyScalarSignature, GlobalValue::ExternalLinkage, "likely_scalar", builder.resources->module);
+        Function *likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar", builder.resources->module);
         likelyScalar->setCallingConv(CallingConv::C);
         likelyScalar->setDoesNotAlias(0);
-
-         // An impossible case used to ensure that `likely_scalar` isn't stripped when optimizing executable size
-        if (likelyScalar == NULL)
-            likely_scalar(0);
 
         Immediate result(builder.CreateCall(likelyScalar, builder.cast(argExpr, likely_type_f64)), argExpr->type());
         delete argExpr;
@@ -1155,17 +1152,16 @@ class stringExpression : public SimpleUnaryOperator
 public:
     static CallInst *createCall(Builder &builder, Value *string)
     {
-        static FunctionType* LikelyStringSignature = NULL;
-        if (LikelyStringSignature == NULL) {
-            LikelyStringSignature = FunctionType::get(Mat, Type::getInt8PtrTy(C), false);
-            // An impossible case used to ensure that `likely_string` isn't stripped when optimizing executable size
-            if (LikelyStringSignature == NULL)
+        static FunctionType *functionType = NULL;
+        if (functionType == NULL) {
+            functionType = FunctionType::get(Mat, Type::getInt8PtrTy(C), false);
+            if (!functionType) // An impossible case used to ensure that `likely_string` isn't stripped when optimizing executable size
                 likely_string(NULL);
         }
 
         Function *likelyString = builder.resources->module->getFunction("likely_string");
         if (!likelyString) {
-            likelyString = Function::Create(LikelyStringSignature, GlobalValue::ExternalLinkage, "likely_string", builder.resources->module);
+            likelyString = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_string", builder.resources->module);
             likelyString->setCallingConv(CallingConv::C);
             likelyString->setDoesNotAlias(0);
             likelyString->setDoesNotAlias(1);
@@ -1187,17 +1183,16 @@ class copyExpression : public SimpleUnaryOperator
 public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
-        static FunctionType* LikelyCopySignature = NULL;
-        if (LikelyCopySignature == NULL) {
-            LikelyCopySignature = FunctionType::get(Mat, Mat, false);
-            // An impossible case used to ensure that `likely_copy` isn't stripped when optimizing executable size
-            if (LikelyCopySignature == NULL)
+        static FunctionType *functionType = NULL;
+        if (functionType == NULL) {
+            functionType = FunctionType::get(Mat, Mat, false);
+            if (!functionType) // An impossible case used to ensure that `likely_copy` isn't stripped when optimizing executable size
                 likely_copy(NULL);
         }
 
         Function *likelyCopy = builder.resources->module->getFunction("likely_copy");
         if (!likelyCopy) {
-            likelyCopy = Function::Create(LikelyCopySignature, GlobalValue::ExternalLinkage, "likely_copy", builder.resources->module);
+            likelyCopy = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_copy", builder.resources->module);
             likelyCopy->setCallingConv(CallingConv::C);
             likelyCopy->setDoesNotAlias(0);
             likelyCopy->setDoesNotAlias(1);
@@ -1219,17 +1214,16 @@ class retainExpression : public SimpleUnaryOperator
 public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
-        static FunctionType* LikelyRetainSignature = NULL;
-        if (LikelyRetainSignature == NULL) {
-            LikelyRetainSignature = FunctionType::get(Mat, Mat, false);
-            // An impossible case used to ensure that `likely_retain` isn't stripped when optimizing executable size
-            if (LikelyRetainSignature == NULL)
+        static FunctionType *functionType = NULL;
+        if (functionType == NULL) {
+            functionType = FunctionType::get(Mat, Mat, false);
+            if (!functionType) // An impossible case used to ensure that `likely_retain` isn't stripped when optimizing executable size
                 likely_retain(NULL);
         }
 
         Function *likelyRetain = builder.resources->module->getFunction("likely_retain");
         if (!likelyRetain) {
-            likelyRetain = Function::Create(LikelyRetainSignature, GlobalValue::ExternalLinkage, "likely_retain", builder.resources->module);
+            likelyRetain = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_retain", builder.resources->module);
             likelyRetain->setCallingConv(CallingConv::C);
             likelyRetain->setDoesNotAlias(0);
             likelyRetain->setDoesNotAlias(1);
@@ -1251,17 +1245,16 @@ class releaseExpression : public SimpleUnaryOperator
 public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
-        static FunctionType* LikelyReleaseSignature = NULL;
-        if (LikelyReleaseSignature == NULL) {
-            LikelyReleaseSignature = FunctionType::get(Type::getVoidTy(C), Mat, false);
-            // An impossible case used to ensure that `likely_release` isn't stripped when optimizing executable size
-            if (LikelyReleaseSignature == NULL)
+        static FunctionType *functionType = NULL;
+        if (functionType == NULL) {
+            functionType = FunctionType::get(Type::getVoidTy(C), Mat, false);
+            if (!functionType) // An impossible case used to ensure that `likely_release` isn't stripped when optimizing executable size
                 likely_release(NULL);
         }
 
         Function *likelyRelease = builder.resources->module->getFunction("likely_release");
         if (!likelyRelease) {
-            likelyRelease = Function::Create(LikelyReleaseSignature, GlobalValue::ExternalLinkage, "likely_release", builder.resources->module);
+            likelyRelease = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_release", builder.resources->module);
             likelyRelease->setCallingConv(CallingConv::C);
             likelyRelease->setDoesNotAlias(1);
             likelyRelease->setDoesNotCapture(1);
