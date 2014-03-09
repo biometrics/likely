@@ -739,36 +739,6 @@ class typeExpression : public SimpleUnaryOperator
 };
 LIKELY_REGISTER(type)
 
-class scalarExpression : public UnaryOperator
-{
-    Expression *evaluateUnary(Builder &builder, likely_const_ast arg) const
-    {
-        Expression *argExpr = builder.expression(arg);
-        if (!argExpr)
-            return NULL;
-
-        if (argExpr->value()->getType() == Mat)
-            return argExpr;
-
-        static FunctionType* LikelyScalarSignature = NULL;
-        if (LikelyScalarSignature == NULL)
-            LikelyScalarSignature = FunctionType::get(Mat, Type::getDoubleTy(C), false);
-
-        Function *likelyScalar = Function::Create(LikelyScalarSignature, GlobalValue::ExternalLinkage, "likely_scalar", builder.resources->module);
-        likelyScalar->setCallingConv(CallingConv::C);
-        likelyScalar->setDoesNotAlias(0);
-
-         // An impossible case used to ensure that `likely_scalar` isn't stripped when optimizing executable size
-        if (likelyScalar == NULL)
-            likely_scalar(0);
-
-        Immediate result(builder.CreateCall(likelyScalar, builder.cast(argExpr, likely_type_f64)), argExpr->type());
-        delete argExpr;
-        return new Immediate(result);
-    }
-};
-LIKELY_REGISTER(scalar)
-
 class UnaryMathOperator : public SimpleUnaryOperator
 {
     Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &x) const
@@ -1144,6 +1114,68 @@ public:
     }
 };
 LIKELY_REGISTER(new)
+
+class scalarExpression : public UnaryOperator
+{
+    Expression *evaluateUnary(Builder &builder, likely_const_ast arg) const
+    {
+        Expression *argExpr = builder.expression(arg);
+        if (!argExpr)
+            return NULL;
+
+        if (argExpr->value()->getType() == Mat)
+            return argExpr;
+
+        static FunctionType* LikelyScalarSignature = NULL;
+        if (LikelyScalarSignature == NULL)
+            LikelyScalarSignature = FunctionType::get(Mat, Type::getDoubleTy(C), false);
+
+        Function *likelyScalar = Function::Create(LikelyScalarSignature, GlobalValue::ExternalLinkage, "likely_scalar", builder.resources->module);
+        likelyScalar->setCallingConv(CallingConv::C);
+        likelyScalar->setDoesNotAlias(0);
+
+         // An impossible case used to ensure that `likely_scalar` isn't stripped when optimizing executable size
+        if (likelyScalar == NULL)
+            likely_scalar(0);
+
+        Immediate result(builder.CreateCall(likelyScalar, builder.cast(argExpr, likely_type_f64)), argExpr->type());
+        delete argExpr;
+        return new Immediate(result);
+    }
+};
+LIKELY_REGISTER(scalar)
+
+class stringExpression : public SimpleUnaryOperator
+{
+    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    {
+        return new Immediate(createCall(builder, arg), likely_type_i8);
+    }
+
+public:
+    static CallInst *createCall(Builder &builder, Value *string)
+    {
+        static FunctionType* LikelyStringSignature = NULL;
+        if (LikelyStringSignature == NULL) {
+            LikelyStringSignature = FunctionType::get(Mat, Type::getInt8PtrTy(C), false);
+            // An impossible case used to ensure that `likely_string` isn't stripped when optimizing executable size
+            if (LikelyStringSignature == NULL)
+                likely_string(NULL);
+        }
+
+        Function *likelyString = builder.resources->module->getFunction("likely_string");
+        if (!likelyString) {
+            likelyString = Function::Create(LikelyStringSignature, GlobalValue::ExternalLinkage, "likely_string", builder.resources->module);
+            likelyString->setCallingConv(CallingConv::C);
+            likelyString->setDoesNotAlias(0);
+            likelyString->setDoesNotAlias(1);
+            likelyString->setDoesNotCapture(1);
+        }
+
+        return builder.CreateCall(likelyString, string);
+    }
+};
+LIKELY_REGISTER(string)
 
 class retainExpression : public SimpleUnaryOperator
 {
@@ -1522,38 +1554,6 @@ LIKELY_REGISTER(lambda)
 
 #ifdef LIKELY_IO
 #include "likely/likely_io.h"
-
-class stringExpression : public SimpleUnaryOperator
-{
-    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
-    {
-        return new Immediate(createCall(builder, arg), likely_type_i8);
-    }
-
-public:
-    static CallInst *createCall(Builder &builder, Value *string)
-    {
-        static FunctionType* LikelyStringSignature = NULL;
-        if (LikelyStringSignature == NULL) {
-            LikelyStringSignature = FunctionType::get(Mat, Type::getInt8PtrTy(C), false);
-            // An impossible case used to ensure that `likely_string` isn't stripped when optimizing executable size
-            if (LikelyStringSignature == NULL)
-                likely_string(NULL);
-        }
-
-        Function *likelyString = builder.resources->module->getFunction("likely_string");
-        if (!likelyString) {
-            likelyString = Function::Create(LikelyStringSignature, GlobalValue::ExternalLinkage, "likely_string", builder.resources->module);
-            likelyString->setCallingConv(CallingConv::C);
-            likelyString->setDoesNotAlias(0);
-            likelyString->setDoesNotAlias(1);
-            likelyString->setDoesNotCapture(1);
-        }
-
-        return builder.CreateCall(likelyString, string);
-    }
-};
-LIKELY_REGISTER(string)
 
 class printExpression : public Operator
 {
