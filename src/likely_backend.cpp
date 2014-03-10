@@ -1309,11 +1309,8 @@ private:
             name = getUniqueName("kernel");
 
         for (likely_type type : types)
-            if (type == likely_type_null) {
-                // Dynamic dispatch
-                DynamicFunction *dynamicFunction = new DynamicFunction(builder, ast);
-                return Immediate(dynamicFunction->generate(builder), likely_type_null);
-            }
+            if (type == likely_type_null)
+                return Immediate(unique_ptr<DynamicFunction>(new DynamicFunction(builder, ast))->generate(builder), likely_type_null);
 
         Function *function = getKernel(builder, name, types.size(), Mat);
         vector<Immediate> srcs = builder.getArgs(function, types);
