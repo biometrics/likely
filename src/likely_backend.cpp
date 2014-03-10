@@ -416,7 +416,7 @@ struct Builder : public IRBuilder<>
     }
 };
 
-class StatefulExpression : public Expression
+class Operator : public Expression
 {
     Value *value() const
     {
@@ -430,20 +430,6 @@ class StatefulExpression : public Expression
         return likely_type_null;
     }
 
-protected:
-    static Expression *errorArgc(likely_const_ast ast, const string &function, size_t args, size_t minParams, size_t maxParams)
-    {
-        stringstream stream;
-        stream << function << " with: " << minParams;
-        if (maxParams != minParams)
-            stream << "-" << maxParams;
-        stream << " parameters passed: " << args << " arguments";
-        return error(ast, stream.str().c_str());
-    }
-};
-
-class Operator : public StatefulExpression
-{
     Expression *evaluate(Builder &builder, likely_const_ast ast) const
     {
         if (!ast->is_list && (minParameters() > 0))
@@ -457,15 +443,21 @@ class Operator : public StatefulExpression
     virtual Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const = 0;
     virtual size_t maxParameters() const = 0;
     virtual size_t minParameters() const { return maxParameters(); }
+
+protected:
+    static Expression *errorArgc(likely_const_ast ast, const string &function, size_t args, size_t minParams, size_t maxParams)
+    {
+        stringstream stream;
+        stream << function << " with: " << minParams;
+        if (maxParams != minParams)
+            stream << "-" << maxParams;
+        stream << " parameters passed: " << args << " arguments";
+        return error(ast, stream.str().c_str());
+    }
 };
 
-struct ScopedExpression : public StatefulExpression
+struct ScopedExpression : public Operator
 {
-protected:
-    likely_env env;
-    likely_const_ast ast;
-
-public:
     ScopedExpression(Builder &builder, likely_const_ast ast)
         : env(builder.snapshot()), ast(likely_retain_ast(ast)) {}
 
@@ -474,6 +466,14 @@ public:
         likely_release_ast(ast);
         likely_release_env(env);
     }
+
+protected:
+    likely_env env;
+    likely_const_ast ast;
+
+private:
+    size_t minParameters() const { return 0; }
+    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
 };
 
 struct FunctionExpression : public ScopedExpression
@@ -495,7 +495,7 @@ private:
         return ast->atoms[1]->num_atoms;
     }
 
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         assert(ast->is_list);
         const size_t parameters = argc();
@@ -1035,7 +1035,7 @@ struct Definition : public ScopedExpression
         : ScopedExpression(builder, ast) {}
 
 private:
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         likely_env restored = builder.env;
         builder.env = this->env;
