@@ -131,11 +131,13 @@ private:
     }
 };
 
-struct Resources
+class Resources
 {
+    ExecutionEngine *EE = NULL;
+    TargetMachine *TM = NULL;
+
+public:
     Module *module;
-    ExecutionEngine *executionEngine = NULL;
-    TargetMachine *targetMachine = NULL;
     void *function = NULL;
     const vector<likely_type> type;
     vector<Expression*> expressions;
@@ -146,8 +148,8 @@ struct Resources
     {
         for (Expression *e : expressions)
             delete e;
-        if (executionEngine) delete executionEngine; // owns module
-        else                 delete module;
+        if (EE) delete EE; // owns module
+        else    delete module;
     }
 
     void write(const string &fileName) const
@@ -163,8 +165,8 @@ struct Resources
         } else {
             PassManager pm;
             formatted_raw_ostream fos(output.os());
-            likely_assert(targetMachine, "missing target machine for object file output");
-            targetMachine->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
+            likely_assert(TM != NULL, "missing target machine for object file output");
+            TM->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
             pm.run(*module);
         }
 
@@ -493,15 +495,15 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
             nativeTM = engineBuilder.selectTarget();
             likely_assert(nativeTM != NULL, "failed to select target machine with error: %s", error.c_str());
         }
-        targetMachine = nativeTM;
+        TM = nativeTM;
     }
 
     if (JIT) {
         engineBuilder.setCodeModel(CodeModel::JITDefault)
                      .setEngineKind(EngineKind::JIT)
                      .setUseMCJIT(true);
-        executionEngine = engineBuilder.create();
-        likely_assert(executionEngine != NULL, "failed to create execution engine with error: %s", error.c_str());
+        EE = engineBuilder.create();
+        likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
     }
 
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
@@ -511,14 +513,14 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
     unique_ptr<Expression> result(builder.expression(ast));
     Function *F = dyn_cast_or_null<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, type, name).value_);
 
-    if (F && targetMachine) {
+    if (F && TM) {
         static PassManager *PM = NULL;
         if (!PM) {
             PM = new PassManager();
             PM->add(createVerifierPass());
             PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
-            PM->add(new DataLayoutPass(*targetMachine->getDataLayout()));
-            targetMachine->addAnalysisPasses(*PM);
+            PM->add(new DataLayoutPass(*TM->getDataLayout()));
+            TM->addAnalysisPasses(*PM);
             PassManagerBuilder builder;
             builder.OptLevel = 3;
             builder.SizeLevel = 0;
@@ -533,9 +535,9 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
 //        module->dump();
     }
 
-    if (F && executionEngine) {
-        executionEngine->finalizeObject();
-        function = executionEngine->getPointerToFunction(F);
+    if (F && EE) {
+        EE->finalizeObject();
+        function = EE->getPointerToFunction(F);
     }
 }
 
