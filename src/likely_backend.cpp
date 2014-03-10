@@ -1512,9 +1512,10 @@ private:
     }
 };
 
-class kernelExpression : public StatefulExpression
+class kernelExpression : public Operator
 {
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    size_t maxParameters() const { return 2; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         return new Kernel(builder, ast);
     }
@@ -1564,9 +1565,10 @@ private:
     }
 };
 
-class lambdaExpression : public StatefulExpression
+class lambdaExpression : public Operator
 {
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+    size_t maxParameters() const { return 2; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         return new Lambda(builder, ast);
     }
