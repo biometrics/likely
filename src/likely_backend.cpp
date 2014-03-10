@@ -573,29 +573,41 @@ struct RegisterExpression
 
 } // namespace (anonymous)
 
-struct DynamicFunction;
-extern "C" LIKELY_EXPORT likely_const_mat likely_dynamic(struct DynamicFunction *dynamicFunction, likely_const_mat *m);
-
-struct DynamicFunction : public ScopedExpression, public LibraryFunction, public Object
+struct VTable : public ScopedExpression, public Object
 {
     likely_arity n;
     vector<StaticFunction*> functions;
 
-    DynamicFunction(Builder &builder, likely_const_ast ast)
+    VTable(Builder &builder, likely_const_ast ast)
         : ScopedExpression(builder, ast)
     {
-        // Try to compute arity
         if (ast->is_list && (ast->num_atoms > 1))
             if (ast->atoms[1]->is_list) n = (likely_arity) ast->atoms[1]->num_atoms;
             else                        n = 1;
         else                            n = 0;
     }
 
-    ~DynamicFunction()
+    ~VTable()
     {
         for (StaticFunction *function : functions)
             delete function;
     }
+
+    Expression *evaluateOperator(Builder &, likely_const_ast) const
+    {
+        return NULL;
+    }
+};
+
+extern "C" LIKELY_EXPORT likely_const_mat likely_dynamic(struct VTable *vtable, likely_const_mat *m);
+
+namespace {
+
+struct DynamicFunction : public ScopedExpression, public LibraryFunction
+{
+    DynamicFunction(Builder &builder, likely_const_ast ast)
+        : ScopedExpression(builder, ast)
+    {}
 
     void *symbol() const { return (void*) likely_dynamic; }
 
@@ -606,8 +618,10 @@ struct DynamicFunction : public ScopedExpression, public LibraryFunction, public
 
     Function *generate(Builder &builder)
     {
+        VTable *vTable = new VTable(builder, ast);
+        builder.resources->children.push_back(vTable);
+
         static FunctionType* functionType = FunctionType::get(Mat, Mat, true);
-        builder.resources->children.push_back(this);
 
         Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(getUniqueName("dynamic"), functionType));
         function->addFnAttr(Attribute::NoUnwind);
@@ -618,14 +632,14 @@ struct DynamicFunction : public ScopedExpression, public LibraryFunction, public
         builder.SetInsertPoint(BasicBlock::Create(C, "entry", function));
 
         Value *array;
-        if (n > 0) {
-            array = builder.CreateAlloca(Mat, Constant::getIntegerValue(Type::getInt32Ty(C), APInt(32, (uint64_t)n)));
+        if (vTable->n > 0) {
+            array = builder.CreateAlloca(Mat, Constant::getIntegerValue(Type::getInt32Ty(C), APInt(32, (uint64_t)vTable->n)));
             builder.CreateStore(function->arg_begin(), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), 0))));
-            if (n > 1) {
+            if (vTable->n > 1) {
                 Value *vaList = builder.CreateAlloca(IntegerType::getInt8PtrTy(C));
                 Value *vaListRef = builder.CreateBitCast(vaList, Type::getInt8PtrTy(C));
                 builder.CreateCall(Intrinsic::getDeclaration(builder.resources->module, Intrinsic::vastart), vaListRef);
-                for (likely_arity i=1; i<n; i++)
+                for (likely_arity i=1; i<vTable->n; i++)
                     builder.CreateStore(builder.CreateVAArg(vaList, Mat), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), i))));
                 builder.CreateCall(Intrinsic::getDeclaration(builder.resources->module, Intrinsic::vaend), vaListRef);
             }
@@ -633,11 +647,11 @@ struct DynamicFunction : public ScopedExpression, public LibraryFunction, public
             array = ConstantPointerNull::get(PointerType::getUnqual(Mat));
         }
 
-        static PointerType *dynamicType = PointerType::getUnqual(StructType::create(C, "DynamicFunction"));
+        static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
         static FunctionType *likelyDynamicType = NULL;
         if (likelyDynamicType == NULL) {
             vector<Type*> params;
-            params.push_back(dynamicType);
+            params.push_back(vTableType);
             params.push_back(PointerType::getUnqual(Mat));
             likelyDynamicType = FunctionType::get(Mat, params, false);
         }
@@ -653,13 +667,11 @@ struct DynamicFunction : public ScopedExpression, public LibraryFunction, public
             likelyDynamic->setDoesNotCapture(2);
         }
 
-        Constant *thisDynamicFunction = ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(this)), uintptr_t(this)), dynamicType);
-        builder.CreateRet(builder.CreateCall2(likelyDynamic, thisDynamicFunction, array));
+        Constant *thisVTableFunction = ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vTable)), uintptr_t(vTable)), vTableType);
+        builder.CreateRet(builder.CreateCall2(likelyDynamic, thisVTableFunction, array));
         return function;
     }
 };
-
-namespace {
 
 class dynamicExpression : public Operator
 {
@@ -1713,12 +1725,12 @@ void likely_release_env(likely_const_env env)
     delete env;
 }
 
-likely_const_mat likely_dynamic(struct DynamicFunction *dynamicFunction, likely_const_mat *m)
+likely_const_mat likely_dynamic(struct VTable *vTable, likely_const_mat *m)
 {
     void *function = NULL;
-    for (size_t i=0; i<dynamicFunction->functions.size(); i++) {
-        const StaticFunction *staticFunction = dynamicFunction->functions[i];
-        for (likely_arity j=0; j<dynamicFunction->n; j++)
+    for (size_t i=0; i<vTable->functions.size(); i++) {
+        const StaticFunction *staticFunction = vTable->functions[i];
+        for (likely_arity j=0; j<vTable->n; j++)
             if (m[j]->type != staticFunction->type[j])
                 goto Next;
         function = staticFunction->function;
@@ -1731,11 +1743,11 @@ likely_const_mat likely_dynamic(struct DynamicFunction *dynamicFunction, likely_
 
     if (function == NULL) {
         vector<likely_type> types;
-        for (int i=0; i<dynamicFunction->n; i++)
+        for (int i=0; i<vTable->n; i++)
             types.push_back(m[i]->type);
-        StaticFunction *staticFunction = new StaticFunction(dynamicFunction->ast, dynamicFunction->env, types, true);
-        dynamicFunction->functions.push_back(staticFunction);
-        function = dynamicFunction->functions.back()->function;
+        StaticFunction *staticFunction = new StaticFunction(vTable->ast, vTable->env, types, true);
+        vTable->functions.push_back(staticFunction);
+        function = vTable->functions.back()->function;
     }
 
     typedef likely_const_mat (*f0)(void);
@@ -1744,12 +1756,12 @@ likely_const_mat likely_dynamic(struct DynamicFunction *dynamicFunction, likely_
     typedef likely_const_mat (*f3)(const likely_const_mat, const likely_const_mat, const likely_const_mat);
 
     likely_const_mat dst;
-    switch (dynamicFunction->n) {
+    switch (vTable->n) {
       case 0: dst = reinterpret_cast<f0>(function)(); break;
       case 1: dst = reinterpret_cast<f1>(function)(m[0]); break;
       case 2: dst = reinterpret_cast<f2>(function)(m[0], m[1]); break;
       case 3: dst = reinterpret_cast<f3>(function)(m[0], m[1], m[2]); break;
-      default: dst = NULL; likely_assert(false, "likely_dynamic invalid arity: %d", dynamicFunction->n);
+      default: dst = NULL; likely_assert(false, "likely_dynamic invalid arity: %d", vTable->n);
     }
 
     return dst;
