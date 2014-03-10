@@ -578,7 +578,6 @@ extern "C" LIKELY_EXPORT likely_const_mat likely_dynamic(struct DynamicFunction 
 
 struct DynamicFunction : public ScopedExpression, public LibraryFunction, public Object
 {
-    static PointerType *dynamicType;
     likely_arity n;
     vector<StaticFunction*> functions;
 
@@ -590,9 +589,6 @@ struct DynamicFunction : public ScopedExpression, public LibraryFunction, public
             if (ast->atoms[1]->is_list) n = (likely_arity) ast->atoms[1]->num_atoms;
             else                        n = 1;
         else                            n = 0;
-
-        if (dynamicType == NULL)
-            dynamicType = PointerType::getUnqual(StructType::create(C, "DynamicFunction"));
     }
 
     ~DynamicFunction()
@@ -612,7 +608,13 @@ struct DynamicFunction : public ScopedExpression, public LibraryFunction, public
     {
         static FunctionType* functionType = FunctionType::get(Mat, Mat, true);
         builder.resources->children.push_back(this);
-        Function *function = getFunction(builder, functionType);
+
+        Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(getUniqueName("dynamic"), functionType));
+        function->addFnAttr(Attribute::NoUnwind);
+        function->setCallingConv(CallingConv::C);
+        function->setDoesNotAlias(0);
+        function->setDoesNotAlias(1);
+        function->setDoesNotCapture(1);
         builder.SetInsertPoint(BasicBlock::Create(C, "entry", function));
 
         Value *array;
@@ -630,51 +632,32 @@ struct DynamicFunction : public ScopedExpression, public LibraryFunction, public
         } else {
             array = ConstantPointerNull::get(PointerType::getUnqual(Mat));
         }
-        builder.CreateRet(builder.CreateCall2(likelyDynamic(builder.resources->module), thisDynamicFunction(), array));
-        return function;
-    }
 
-private:
-    Function *getFunction(Builder &builder, FunctionType *functionType) const
-    {
-        Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(getUniqueName("dynamic"), functionType));
-        function->addFnAttr(Attribute::NoUnwind);
-        function->setCallingConv(CallingConv::C);
-        function->setDoesNotAlias(0);
-        function->setDoesNotAlias(1);
-        function->setDoesNotCapture(1);
-        return function;
-    }
-
-    static Function *likelyDynamic(Module *module)
-    {
-        static FunctionType *functionType = NULL;
-        if (functionType == NULL) {
+        static PointerType *dynamicType = PointerType::getUnqual(StructType::create(C, "DynamicFunction"));
+        static FunctionType *likelyDynamicType = NULL;
+        if (likelyDynamicType == NULL) {
             vector<Type*> params;
             params.push_back(dynamicType);
             params.push_back(PointerType::getUnqual(Mat));
-            functionType = FunctionType::get(Mat, params, false);
+            likelyDynamicType = FunctionType::get(Mat, params, false);
         }
 
-        Function *function = module->getFunction("likely_dynamic");
-        if (!function) {
-            function = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_dynamic", module);
-            function->setCallingConv(CallingConv::C);
-            function->setDoesNotAlias(0);
-            function->setDoesNotAlias(1);
-            function->setDoesNotAlias(2);
-            function->setDoesNotCapture(1);
-            function->setDoesNotCapture(2);
+        Function *likelyDynamic = builder.resources->module->getFunction("likely_dynamic");
+        if (!likelyDynamic) {
+            likelyDynamic = Function::Create(likelyDynamicType, GlobalValue::ExternalLinkage, "likely_dynamic", builder.resources->module);
+            likelyDynamic->setCallingConv(CallingConv::C);
+            likelyDynamic->setDoesNotAlias(0);
+            likelyDynamic->setDoesNotAlias(1);
+            likelyDynamic->setDoesNotAlias(2);
+            likelyDynamic->setDoesNotCapture(1);
+            likelyDynamic->setDoesNotCapture(2);
         }
+
+        Constant *thisDynamicFunction = ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(this)), uintptr_t(this)), dynamicType);
+        builder.CreateRet(builder.CreateCall2(likelyDynamic, thisDynamicFunction, array));
         return function;
     }
-
-    Constant *thisDynamicFunction() const
-    {
-        return ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(this)), uintptr_t(this)), dynamicType);
-    }
 };
-PointerType *DynamicFunction::dynamicType = NULL;
 
 namespace {
 
