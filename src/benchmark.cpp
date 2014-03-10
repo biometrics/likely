@@ -112,7 +112,7 @@ struct Test
             }
         }
 
-        likely_release_function((void*)f);
+        likely_release_function(f);
     }
 
     static void runFile(const string &fileName)

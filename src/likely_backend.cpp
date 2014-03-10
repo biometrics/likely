@@ -1767,30 +1767,30 @@ likely_const_mat likely_dynamic(struct VTable *vTable, likely_const_mat *m)
     return dst;
 }
 
-static map<void*,pair<Resources*,int>> ResourcesLUT;
+static map<likely_function, pair<StaticFunction*,int>> CompiledFunctionsLUT;
 
 likely_function likely_compile(likely_const_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
     StaticFunction *sf = new StaticFunction(ast, env, vector<likely_type>(), true);
     likely_function f = reinterpret_cast<likely_function>(sf->function);
-    if (f) ResourcesLUT[(void*)f] = pair<Resources*,int>(sf, 1);
+    if (f) CompiledFunctionsLUT[f] = pair<StaticFunction*,int>(sf, 1);
     else   delete sf;
     return f;
 }
 
-void *likely_retain_function(void *function)
+likely_function likely_retain_function(likely_function function)
 {
-    if (function) ResourcesLUT[function].second++;
+    if (function) CompiledFunctionsLUT[function].second++;
     return function;
 }
 
-void likely_release_function(void *function)
+void likely_release_function(likely_function function)
 {
     if (!function) return;
-    pair<Resources*,int> &df = ResourcesLUT[function];
+    pair<StaticFunction*,int> &df = CompiledFunctionsLUT[function];
     if (--df.second) return;
-    ResourcesLUT.erase(function);
+    CompiledFunctionsLUT.erase(function);
     delete df.first;
 }
 
