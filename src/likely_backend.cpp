@@ -458,6 +458,9 @@ protected:
 
 struct ScopedExpression : public Operator
 {
+    likely_env env;
+    likely_const_ast ast;
+
     ScopedExpression(Builder &builder, likely_const_ast ast)
         : env(builder.snapshot()), ast(likely_retain_ast(ast)) {}
 
@@ -466,10 +469,6 @@ struct ScopedExpression : public Operator
         likely_release_ast(ast);
         likely_release_env(env);
     }
-
-protected:
-    likely_env env;
-    likely_const_ast ast;
 
 private:
     size_t minParameters() const { return 0; }
@@ -556,20 +555,29 @@ struct StaticFunction : public Resources
     }
 };
 
-struct DynamicFunction : public Object
+template <class T>
+struct RegisterExpression
+{
+    RegisterExpression(const string &symbol)
+    {
+        likely_environment::defaultExprs[symbol].push(shared_ptr<Expression>(new T()));
+    }
+};
+#define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
+#define LIKELY_REGISTER(EXP) LIKELY_REGISTER_EXPRESSION(EXP, #EXP)
+
+struct DynamicFunction : public ScopedExpression, public Object
 {
     static PointerType *dynamicType;
     Resources *resources;
-    likely_const_ast ast;
-    likely_env env;
     likely_arity n;
     vector<StaticFunction*> functions;
     Function *likelyDispatch;
 
-    DynamicFunction(Resources *parent, likely_const_ast ast, likely_env env)
-        : resources(parent), ast(likely_retain_ast(ast)), env(likely_retain_env(env))
+    DynamicFunction(Builder &builder, likely_const_ast ast)
+        : ScopedExpression(builder, ast), resources(builder.resources)
     {
-        parent->children.push_back(this);
+        resources->children.push_back(this);
 
         // Try to compute arity
         if (ast->is_list && (ast->num_atoms > 1))
@@ -598,10 +606,13 @@ struct DynamicFunction : public Object
 
     ~DynamicFunction()
     {
-        likely_release_ast(ast);
-        likely_release_env(env);
         for (StaticFunction *function : functions)
             delete function;
+    }
+
+    Expression *evaluateOperator(Builder &, likely_const_ast) const
+    {
+        return NULL;
     }
 
     Function *generate()
@@ -668,16 +679,15 @@ private:
 };
 PointerType *DynamicFunction::dynamicType = NULL;
 
-template <class T>
-struct RegisterExpression
+class dynamicExpression : public Operator
 {
-    RegisterExpression(const string &symbol)
+    size_t maxParameters() const { return 2; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        likely_environment::defaultExprs[symbol].push(shared_ptr<Expression>(new T()));
+        return new DynamicFunction(builder, ast);
     }
 };
-#define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
-#define LIKELY_REGISTER(EXP) LIKELY_REGISTER_EXPRESSION(EXP, #EXP)
+LIKELY_REGISTER(dynamic)
 
 #define LIKELY_REGISTER_TYPE(TYPE)                                             \
 struct TYPE##Expression : public Immediate                                     \
@@ -1312,9 +1322,7 @@ private:
         for (likely_type type : types)
             if (type == likely_type_null) {
                 // Dynamic dispatch
-                likely_env env = builder.snapshot();
-                DynamicFunction *dynamicFunction = new DynamicFunction(builder.resources, ast, env);
-                likely_release_env(env);
+                DynamicFunction *dynamicFunction = new DynamicFunction(builder, ast);
                 return Immediate(dynamicFunction->generate(), likely_type_null);
             }
 
@@ -1780,7 +1788,8 @@ likely_function likely_compile(likely_const_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
     Resources *r = new Resources(true, true);
-    DynamicFunction *df = new DynamicFunction(r, ast, env);
+    Builder builder(r, env);
+    DynamicFunction *df = new DynamicFunction(builder, ast);
     likely_function f = df->compile();
     if (f) DynamicFunctionLUT[(void*)f] = pair<Object*,int>(r, 1);
     else   delete r;
@@ -1791,7 +1800,8 @@ likely_function_n likely_compile_n(likely_const_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
     Resources *r = new Resources(true, true);
-    DynamicFunction *df = new DynamicFunction(r, ast, env);
+    Builder builder(r, env);
+    DynamicFunction *df = new DynamicFunction(builder, ast);
     likely_function_n f = df->compileN();
     if (f) DynamicFunctionLUT[(void*)f] = pair<Object*,int>(r, 1);
     else   delete r;
