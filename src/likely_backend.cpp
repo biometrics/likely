@@ -526,8 +526,8 @@ struct StaticFunction : public Resources
         : Resources(native, name.empty()), type(type)
     {
         likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
-                      (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel")),
-                      "expected a lambda/kernel expression");
+                      (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel") || !strcmp(ast->atoms[0]->atom, "dynamic")),
+                      "expected a function expression");
         Builder builder(this, env);
         unique_ptr<Expression> result(builder.expression(ast));
         function = finalize(dyn_cast_or_null<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, type, name).value_));
@@ -1772,12 +1772,10 @@ static map<void*,pair<Resources*,int>> ResourcesLUT;
 likely_function likely_compile(likely_const_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    Resources *r = new Resources(true, true);
-    Builder builder(r, env);
-    FunctionExpression *fe = static_cast<FunctionExpression*>(builder.expression(ast));
-    likely_function f = fe ? reinterpret_cast<likely_function>(r->finalize(cast<Function>(fe->generate(builder, vector<likely_type>()).value_))) : NULL;
-    if (f) ResourcesLUT[(void*)f] = pair<Resources*,int>(r, 1);
-    else   delete r;
+    StaticFunction *sf = new StaticFunction(ast, env, vector<likely_type>(), true);
+    likely_function f = reinterpret_cast<likely_function>(sf->function);
+    if (f) ResourcesLUT[(void*)f] = pair<Resources*,int>(sf, 1);
+    else   delete sf;
     return f;
 }
 
