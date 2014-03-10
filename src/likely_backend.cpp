@@ -420,13 +420,13 @@ class Operator : public Expression
 {
     Value *value() const
     {
-        likely_assert(false, "StatefulExpression has no value!");
+        likely_assert(false, "Operator has no value!");
         return NULL;
     }
 
     likely_type type() const
     {
-        likely_assert(false, "StatefulExpression has no type!");
+        likely_assert(false, "Operator has no type!");
         return likely_type_null;
     }
 
