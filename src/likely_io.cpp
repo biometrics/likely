@@ -198,19 +198,18 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
         }
     }
 
-    static likely_function_n normalize = NULL;
+    static likely_function normalize = NULL;
     if (normalize == NULL) {
         likely_const_ast ast = likely_ast_from_string("(kernel (img min range) (cast (/ (- img min) range) u8) (channels 3))");
         likely_env env = likely_new_env();
-        normalize = likely_compile_n(ast, env);
+        normalize = likely_compile(ast, env);
         likely_release_env(env);
         likely_release_ast(ast);
     }
 
     likely_const_mat min_val = likely_scalar(min);
     likely_const_mat range_val = likely_scalar(range);
-    likely_const_mat args[] = { m, min_val, range_val };
-    likely_mat n = normalize(args);
+    likely_mat n = normalize(m, min_val, range_val);
     likely_release(min_val);
     likely_release(range_val);
 

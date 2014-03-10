@@ -24,7 +24,6 @@ typedef struct likely_environment *likely_env;
 typedef struct likely_environment const *likely_const_env;
 
 typedef likely_mat (*likely_function)(likely_const_mat, ...);
-typedef likely_mat (*likely_function_n)(likely_const_mat*);
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,7 +36,6 @@ LIKELY_EXPORT void likely_release_env(likely_const_env env);
 
 // Compilation
 LIKELY_EXPORT likely_function likely_compile(likely_const_ast ast, likely_env env);
-LIKELY_EXPORT likely_function_n likely_compile_n(likely_const_ast ast, likely_env env);
 LIKELY_EXPORT void likely_compile_to_file(likely_const_ast ast, likely_env env, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native);
 LIKELY_EXPORT void *likely_retain_function(void *function);
 LIKELY_EXPORT void likely_release_function(void *function);

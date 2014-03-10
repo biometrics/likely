@@ -634,16 +634,6 @@ struct DynamicFunction : public ScopedExpression, public LibraryFunction, public
         return function;
     }
 
-    Function *generateN(Builder &builder)
-    {
-        static FunctionType* functionType = FunctionType::get(Mat, PointerType::getUnqual(Mat), true);
-        builder.resources->children.push_back(this);
-        Function *function = getFunction(builder, functionType);
-        builder.SetInsertPoint(BasicBlock::Create(C, "entry", function));
-        builder.CreateRet(builder.CreateCall2(likelyDynamic(builder.resources->module), thisDynamicFunction(), function->arg_begin()));
-        return function;
-    }
-
 private:
     Function *getFunction(Builder &builder, FunctionType *functionType) const
     {
@@ -1791,18 +1781,6 @@ likely_function likely_compile(likely_const_ast ast, likely_env env)
     Builder builder(r, env);
     DynamicFunction *df = static_cast<DynamicFunction*>(builder.expression(ast));
     likely_function f = df ? reinterpret_cast<likely_function>(r->finalize(df->generate(builder))) : NULL;
-    if (f) ResourcesLUT[(void*)f] = pair<Resources*,int>(r, 1);
-    else   delete r;
-    return f;
-}
-
-likely_function_n likely_compile_n(likely_const_ast ast, likely_env env)
-{
-    if (!ast || !env) return NULL;
-    Resources *r = new Resources(true, true);
-    Builder builder(r, env);
-    DynamicFunction *df = static_cast<DynamicFunction*>(builder.expression(ast));
-    likely_function_n f = df ? reinterpret_cast<likely_function_n>(r->finalize(df->generate(builder))) : NULL;
     if (f) ResourcesLUT[(void*)f] = pair<Resources*,int>(r, 1);
     else   delete r;
     return f;
