@@ -168,6 +168,7 @@ struct Resources : public Object
         } else {
             PassManager pm;
             formatted_raw_ostream fos(output.os());
+            likely_assert(targetMachine, "missing target machine for object file output");
             targetMachine->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
             pm.run(*module);
         }
@@ -475,8 +476,8 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
     string error;
     EngineBuilder engineBuilder(module);
     engineBuilder.setMCPU(sys::getHostCPUName())
-            .setOptLevel(CodeGenOpt::Aggressive)
-            .setErrorStr(&error);
+                 .setOptLevel(CodeGenOpt::Aggressive)
+                 .setErrorStr(&error);
 
     const bool JIT = name.empty();
     if (native) {
@@ -502,8 +503,8 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
 
     if (JIT) {
         engineBuilder.setCodeModel(CodeModel::JITDefault)
-                .setEngineKind(EngineKind::JIT)
-                .setUseMCJIT(true);
+                     .setEngineKind(EngineKind::JIT)
+                     .setUseMCJIT(true);
         executionEngine = engineBuilder.create();
         likely_assert(executionEngine != NULL, "failed to create execution engine with error: %s", error.c_str());
     }
@@ -540,8 +541,6 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
     if (F && executionEngine) {
         executionEngine->finalizeObject();
         function = executionEngine->getPointerToFunction(F);
-    } else {
-        function = NULL;
     }
 }
 
