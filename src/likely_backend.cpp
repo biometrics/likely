@@ -131,26 +131,21 @@ private:
     }
 };
 
-struct Object
-{
-    virtual ~Object() {}
-};
-
-struct Resources : public Object
+struct Resources
 {
     Module *module;
     ExecutionEngine *executionEngine = NULL;
     TargetMachine *targetMachine = NULL;
     void *function = NULL;
-    vector<Object*> children;
     const vector<likely_type> type;
+    vector<Expression*> expressions;
 
     Resources(likely_const_ast ast, likely_env env, const vector<likely_type> &type, string name = string(), bool native = true);
 
     ~Resources()
     {
-        for (Object *child : children)
-            delete child;
+        for (Expression *e : expressions)
+            delete e;
         if (executionEngine) delete executionEngine; // owns module
         else                 delete module;
     }
@@ -562,7 +557,7 @@ struct RegisterExpression
 
 } // namespace (anonymous)
 
-struct VTable : public ScopedExpression, public Object
+struct VTable : public ScopedExpression
 {
     likely_arity n;
     vector<Resources*> functions;
@@ -611,7 +606,7 @@ struct DynamicFunction : public FunctionExpression, public LibraryFunction
             name = getUniqueName("dynamic");
 
         VTable *vTable = new VTable(builder, ast);
-        builder.resources->children.push_back(vTable);
+        builder.resources->expressions.push_back(vTable);
 
         static FunctionType* functionType = FunctionType::get(Mat, Mat, true);
 
