@@ -152,7 +152,9 @@ likely_mat likely_print(likely_const_mat m, ...)
     va_start(ap, m);
     stringstream buffer;
     while (m) {
-        buffer << likely_to_string(m);
+        likely_mat str = likely_to_string(m);
+        buffer << (const char*) str->data;
+        likely_release(str);
         m = va_arg(ap, likely_const_mat);
     }
     va_end(ap);
