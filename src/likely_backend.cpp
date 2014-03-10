@@ -145,7 +145,7 @@ struct Resources : public Object
     vector<Object*> children;
     const vector<likely_type> type;
 
-    Resources(likely_const_ast ast, likely_env env, const vector<likely_type> &type, bool native, string name = string());
+    Resources(likely_const_ast ast, likely_env env, const vector<likely_type> &type, string name = string(), bool native = true);
 
     ~Resources()
     {
@@ -153,41 +153,6 @@ struct Resources : public Object
             delete child;
         if (executionEngine) delete executionEngine; // owns module
         else                 delete module;
-    }
-
-    void *finalize(Function *F)
-    {
-        if (!F)
-            return NULL;
-
-        if (targetMachine) {
-            static PassManager *PM = NULL;
-            if (!PM) {
-                PM = new PassManager();
-                PM->add(createVerifierPass());
-                PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
-                PM->add(new DataLayoutPass(*targetMachine->getDataLayout()));
-                targetMachine->addAnalysisPasses(*PM);
-                PassManagerBuilder builder;
-                builder.OptLevel = 3;
-                builder.SizeLevel = 0;
-                builder.LoopVectorize = true;
-                builder.populateModulePassManager(*PM);
-                PM->add(createVerifierPass());
-            }
-
-//            DebugFlag = true;
-//            module->dump();
-            PM->run(*module);
-//            module->dump();
-        }
-
-        if (executionEngine) {
-            executionEngine->finalizeObject();
-            function = executionEngine->getPointerToFunction(F);
-        }
-
-        return function;
     }
 
     void write(const string &fileName) const
@@ -471,7 +436,7 @@ private:
     }
 };
 
-Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_type> &type, bool native, string name)
+Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_type> &type, string name, bool native)
     : type(type)
 {
     if (!Mat) {
@@ -544,11 +509,40 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
     }
 
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
-            (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel") || !strcmp(ast->atoms[0]->atom, "dynamic")),
-            "expected a function expression");
+                  (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel") || !strcmp(ast->atoms[0]->atom, "dynamic")),
+                  "expected a function expression");
     Builder builder(this, env);
     unique_ptr<Expression> result(builder.expression(ast));
-    function = finalize(dyn_cast_or_null<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, type, name).value_));
+    Function *F = dyn_cast_or_null<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, type, name).value_);
+
+    if (F && targetMachine) {
+        static PassManager *PM = NULL;
+        if (!PM) {
+            PM = new PassManager();
+            PM->add(createVerifierPass());
+            PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
+            PM->add(new DataLayoutPass(*targetMachine->getDataLayout()));
+            targetMachine->addAnalysisPasses(*PM);
+            PassManagerBuilder builder;
+            builder.OptLevel = 3;
+            builder.SizeLevel = 0;
+            builder.LoopVectorize = true;
+            builder.populateModulePassManager(*PM);
+            PM->add(createVerifierPass());
+        }
+
+//        DebugFlag = true;
+//        module->dump();
+        PM->run(*module);
+//        module->dump();
+    }
+
+    if (F && executionEngine) {
+        executionEngine->finalizeObject();
+        function = executionEngine->getPointerToFunction(F);
+    } else {
+        function = NULL;
+    }
 }
 
 class LibraryFunction
@@ -1741,7 +1735,7 @@ likely_const_mat likely_dynamic(struct VTable *vTable, likely_const_mat *m)
         vector<likely_type> types;
         for (int i=0; i<vTable->n; i++)
             types.push_back(m[i]->type);
-        Resources *resources = new Resources(vTable->ast, vTable->env, types, true);
+        Resources *resources = new Resources(vTable->ast, vTable->env, types);
         vTable->functions.push_back(resources);
         function = vTable->functions.back()->function;
     }
@@ -1768,7 +1762,7 @@ static map<likely_function, pair<Resources*,int>> ResourcesLUT;
 likely_function likely_compile(likely_const_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    Resources *r = new Resources(ast, env, vector<likely_type>(), true);
+    Resources *r = new Resources(ast, env, vector<likely_type>());
     likely_function f = reinterpret_cast<likely_function>(r->function);
     if (f) ResourcesLUT[f] = pair<Resources*,int>(r, 1);
     else   delete r;
@@ -1793,7 +1787,7 @@ void likely_release_function(likely_function function)
 void likely_compile_to_file(likely_const_ast ast, likely_env env, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
 {
     if (!ast || !env) return;
-    Resources(ast, env, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
+    Resources(ast, env, vector<likely_type>(types, types+n), symbol_name, native).write(file_name);
 }
 
 likely_mat likely_eval(likely_const_ast ast, likely_env env)
@@ -1801,7 +1795,7 @@ likely_mat likely_eval(likely_const_ast ast, likely_env env)
     if (!ast || !env) return NULL;
     likely_const_ast expr = likely_ast_from_string("(lambda () (scalar <ast>))");
     expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
-    Resources resources(expr, env, vector<likely_type>(), true);
+    Resources resources(expr, env, vector<likely_type>());
     likely_release_ast(expr);
     if (resources.function) return reinterpret_cast<likely_mat(*)(void)>(resources.function)();
     else                         return NULL;
