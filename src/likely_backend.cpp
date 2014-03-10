@@ -446,7 +446,7 @@ class Operator : public StatefulExpression
 {
     Expression *evaluate(Builder &builder, likely_const_ast ast) const
     {
-        if (!ast->is_list)
+        if (!ast->is_list && (minParameters() > 0))
             return error(ast, "operator expected arguments");
         const size_t args = ast->num_atoms - 1;
         if ((args < minParameters()) || (args > maxParameters()))
@@ -1267,7 +1267,7 @@ struct Kernel : public FunctionExpression
         : FunctionExpression(builder, ast) {}
 
 private:
-    class kernelArgument : public StatefulExpression
+    class kernelArgument : public Operator
     {
         Immediate matrix;
         likely_type kernel;
@@ -1278,10 +1278,11 @@ private:
             : matrix(matrix), kernel(kernel), node(node) {}
 
     private:
-        Expression *evaluate(Builder &builder, likely_const_ast ast) const
+        size_t maxParameters() const { return 0; }
+        Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
         {
             if (ast->is_list)
-                return error(ast, "kernel argument does not take arguments");
+                return error(ast, "kernel operator does not take arguments");
 
             Value *i;
             if (((matrix ^ kernel) & likely_type_multi_dimension) == 0) {
