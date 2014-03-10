@@ -555,6 +555,11 @@ struct StaticFunction : public Resources
     }
 };
 
+class LibraryFunction
+{
+    virtual void *symbol() const = 0; // Idiom to ensure that the library symbol isn't stripped when optimizing executable size
+};
+
 template <class T>
 struct RegisterExpression
 {
@@ -566,7 +571,12 @@ struct RegisterExpression
 #define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
 #define LIKELY_REGISTER(EXP) LIKELY_REGISTER_EXPRESSION(EXP, #EXP)
 
-struct DynamicFunction : public ScopedExpression, public Object
+} // namespace (anonymous)
+
+struct DynamicFunction;
+extern "C" LIKELY_EXPORT likely_const_mat likely_dynamic(struct DynamicFunction *dynamicFunction, likely_const_mat *m);
+
+struct DynamicFunction : public ScopedExpression, public LibraryFunction, public Object
 {
     static PointerType *dynamicType;
     Resources *resources;
@@ -595,7 +605,7 @@ struct DynamicFunction : public ScopedExpression, public Object
             dispatchParameters.push_back(PointerType::getUnqual(Mat));
             LikelyDispatchSignature = FunctionType::get(Mat, dispatchParameters, false);
         }
-        likelyDispatch = Function::Create(LikelyDispatchSignature, GlobalValue::ExternalLinkage, "likely_dispatch", resources->module);
+        likelyDispatch = Function::Create(LikelyDispatchSignature, GlobalValue::ExternalLinkage, "likely_dynamic", resources->module);
         likelyDispatch->setCallingConv(CallingConv::C);
         likelyDispatch->setDoesNotAlias(0);
         likelyDispatch->setDoesNotAlias(1);
@@ -609,6 +619,8 @@ struct DynamicFunction : public ScopedExpression, public Object
         for (StaticFunction *function : functions)
             delete function;
     }
+
+    void *symbol() const { return (void*) likely_dynamic; }
 
     Expression *evaluateOperator(Builder &, likely_const_ast) const
     {
@@ -678,6 +690,8 @@ private:
     }
 };
 PointerType *DynamicFunction::dynamicType = NULL;
+
+namespace {
 
 class dynamicExpression : public Operator
 {
@@ -1067,11 +1081,6 @@ class defineExpression : public Operator
     }
 };
 LIKELY_REGISTER(define)
-
-class LibraryFunction
-{
-    virtual void *symbol() const = 0; // Idiom to ensure that the library symbol isn't stripped when optimizing executable size
-};
 
 class newExpression : public Operator, public LibraryFunction
 {
@@ -1736,7 +1745,7 @@ void likely_release_env(likely_const_env env)
     delete env;
 }
 
-extern "C" LIKELY_EXPORT likely_const_mat likely_dispatch(struct DynamicFunction *dynamicFunction, likely_const_mat *m)
+likely_const_mat likely_dynamic(struct DynamicFunction *dynamicFunction, likely_const_mat *m)
 {
     void *function = NULL;
     for (size_t i=0; i<dynamicFunction->functions.size(); i++) {
@@ -1759,10 +1768,6 @@ extern "C" LIKELY_EXPORT likely_const_mat likely_dispatch(struct DynamicFunction
         StaticFunction *staticFunction = new StaticFunction(dynamicFunction->ast, dynamicFunction->env, types, true);
         dynamicFunction->functions.push_back(staticFunction);
         function = dynamicFunction->functions.back()->function;
-
-        // An impossible case used to ensure that `likely_dispatch` isn't stripped when optimizing executable size
-        if (function == NULL)
-            likely_dispatch(NULL, NULL);
     }
 
     typedef likely_const_mat (*f0)(void);
@@ -1776,7 +1781,7 @@ extern "C" LIKELY_EXPORT likely_const_mat likely_dispatch(struct DynamicFunction
       case 1: dst = reinterpret_cast<f1>(function)(m[0]); break;
       case 2: dst = reinterpret_cast<f2>(function)(m[0], m[1]); break;
       case 3: dst = reinterpret_cast<f3>(function)(m[0], m[1], m[2]); break;
-      default: dst = NULL; likely_assert(false, "likely_dispatch invalid arity: %d", dynamicFunction->n);
+      default: dst = NULL; likely_assert(false, "likely_dynamic invalid arity: %d", dynamicFunction->n);
     }
 
     return dst;
