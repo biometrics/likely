@@ -610,13 +610,10 @@ struct DynamicFunction : public ScopedExpression, public LibraryFunction, public
 
     Function *generate(Builder &builder)
     {
+        static FunctionType* functionType = FunctionType::get(Mat, Mat, true);
         builder.resources->children.push_back(this);
-        static FunctionType* functionType = NULL;
-        if (functionType == NULL)
-            functionType = FunctionType::get(Mat, Mat, true);
         Function *function = getFunction(builder, functionType);
-        BasicBlock *entry = BasicBlock::Create(C, "entry", function);
-        builder.SetInsertPoint(entry);
+        builder.SetInsertPoint(BasicBlock::Create(C, "entry", function));
 
         Value *array;
         if (n > 0) {
@@ -637,16 +634,14 @@ struct DynamicFunction : public ScopedExpression, public LibraryFunction, public
         return function;
     }
 
-    likely_function_n compileN(Builder &builder)
+    Function *generateN(Builder &builder)
     {
-        static FunctionType* functionType = NULL;
-        if (functionType == NULL)
-            functionType = FunctionType::get(Mat, PointerType::getUnqual(Mat), true);
+        static FunctionType* functionType = FunctionType::get(Mat, PointerType::getUnqual(Mat), true);
+        builder.resources->children.push_back(this);
         Function *function = getFunction(builder, functionType);
-        BasicBlock *entry = BasicBlock::Create(C, "entry", function);
-        builder.SetInsertPoint(entry);
+        builder.SetInsertPoint(BasicBlock::Create(C, "entry", function));
         builder.CreateRet(builder.CreateCall2(likelyDynamic(builder.resources->module), thisDynamicFunction(), function->arg_begin()));
-        return reinterpret_cast<likely_function_n>(builder.resources->finalize(function));
+        return function;
     }
 
 private:
@@ -1807,7 +1802,7 @@ likely_function_n likely_compile_n(likely_const_ast ast, likely_env env)
     Resources *r = new Resources(true, true);
     Builder builder(r, env);
     DynamicFunction *df = static_cast<DynamicFunction*>(builder.expression(ast));
-    likely_function_n f = df ? df->compileN(builder) : NULL;
+    likely_function_n f = df ? reinterpret_cast<likely_function_n>(r->finalize(df->generate(builder))) : NULL;
     if (f) ResourcesLUT[(void*)f] = pair<Resources*,int>(r, 1);
     else   delete r;
     return f;
