@@ -681,10 +681,10 @@ PointerType *DynamicFunction::dynamicType = NULL;
 
 class dynamicExpression : public Operator
 {
-    size_t maxParameters() const { return 2; }
+    size_t maxParameters() const { return 1; }
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        return new DynamicFunction(builder, ast);
+        return new DynamicFunction(builder, ast->atoms[1]);
     }
 };
 LIKELY_REGISTER(dynamic)
@@ -1789,8 +1789,8 @@ likely_function likely_compile(likely_const_ast ast, likely_env env)
     if (!ast || !env) return NULL;
     Resources *r = new Resources(true, true);
     Builder builder(r, env);
-    DynamicFunction *df = new DynamicFunction(builder, ast);
-    likely_function f = df->compile();
+    DynamicFunction *df = static_cast<DynamicFunction*>(builder.expression(ast));
+    likely_function f = df ? df->compile() : NULL;
     if (f) DynamicFunctionLUT[(void*)f] = pair<Object*,int>(r, 1);
     else   delete r;
     return f;
@@ -1801,8 +1801,8 @@ likely_function_n likely_compile_n(likely_const_ast ast, likely_env env)
     if (!ast || !env) return NULL;
     Resources *r = new Resources(true, true);
     Builder builder(r, env);
-    DynamicFunction *df = new DynamicFunction(builder, ast);
-    likely_function_n f = df->compileN();
+    DynamicFunction *df = static_cast<DynamicFunction*>(builder.expression(ast));
+    likely_function_n f = df ? df->compileN() : NULL;
     if (f) DynamicFunctionLUT[(void*)f] = pair<Object*,int>(r, 1);
     else   delete r;
     return f;

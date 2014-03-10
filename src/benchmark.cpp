@@ -70,7 +70,8 @@ struct Test
         if (!BenchmarkFunction.empty() && string(function()).compare(0, BenchmarkFunction.size(), BenchmarkFunction))
             return;
 
-        likely_const_ast ast = likely_ast_from_string(function());
+        const string source = "(dynamic " + string(function()) + ")";
+        likely_const_ast ast = likely_ast_from_string(source.c_str());
         likely_env env = likely_new_env();
         likely_function f = likely_compile(ast, env);
         likely_release_env(env);
