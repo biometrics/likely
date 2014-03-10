@@ -143,77 +143,9 @@ struct Resources : public Object
     TargetMachine *targetMachine = NULL;
     void *function = NULL;
     vector<Object*> children;
+    const vector<likely_type> type;
 
-    Resources(bool native, bool JIT)
-    {
-        if (!Mat) {
-            assert(sizeof(likely_size) == sizeof(void*));
-            InitializeNativeTarget();
-            InitializeNativeTargetAsmPrinter();
-            InitializeNativeTargetAsmParser();
-
-            PassRegistry &Registry = *PassRegistry::getPassRegistry();
-            initializeCore(Registry);
-            initializeScalarOpts(Registry);
-            initializeVectorization(Registry);
-            initializeIPO(Registry);
-            initializeAnalysis(Registry);
-            initializeIPA(Registry);
-            initializeTransformUtils(Registry);
-            initializeInstCombine(Registry);
-            initializeTarget(Registry);
-
-            NativeIntegerType = Type::getIntNTy(C, likely_depth(likely_type_native));
-            Mat = PointerType::getUnqual(StructType::create("likely_matrix",
-                                                            NativeIntegerType, // bytes
-                                                            NativeIntegerType, // ref_count
-                                                            NativeIntegerType, // channels
-                                                            NativeIntegerType, // columns
-                                                            NativeIntegerType, // rows
-                                                            NativeIntegerType, // frames
-                                                            NativeIntegerType, // type
-                                                            ArrayType::get(Type::getInt8Ty(C), 0), // data
-                                                            NULL));
-        }
-
-        module = new Module(getUniqueName("module"), C);
-        likely_assert(module != NULL, "failed to create module");
-
-        string error;
-        EngineBuilder engineBuilder(module);
-        engineBuilder.setMCPU(sys::getHostCPUName())
-                     .setOptLevel(CodeGenOpt::Aggressive)
-                     .setErrorStr(&error);
-
-        if (native) {
-            static string nativeTT, nativeJITTT;
-            if (nativeTT.empty()) {
-                nativeTT = sys::getProcessTriple();
-#ifdef _WIN32
-                nativeJITTT = nativeTT + "-elf";
-#else
-                nativeJITTT = nativeTT;
-#endif // _WIN32
-            }
-            module->setTargetTriple(JIT ? nativeJITTT : nativeTT);
-
-            static TargetMachine *nativeTM = NULL;
-            if (!nativeTM) {
-                engineBuilder.setCodeModel(CodeModel::Default);
-                nativeTM = engineBuilder.selectTarget();
-                likely_assert(nativeTM != NULL, "failed to select target machine with error: %s", error.c_str());
-            }
-            targetMachine = nativeTM;
-        }
-
-        if (JIT) {
-            engineBuilder.setCodeModel(CodeModel::JITDefault)
-                         .setEngineKind(EngineKind::JIT)
-                         .setUseMCJIT(true);
-            executionEngine = engineBuilder.create();
-            likely_assert(executionEngine != NULL, "failed to create execution engine with error: %s", error.c_str());
-        }
-    }
+    Resources(likely_const_ast ast, likely_env env, const vector<likely_type> &type, bool native, string name = string());
 
     ~Resources()
     {
@@ -256,6 +188,27 @@ struct Resources : public Object
         }
 
         return function;
+    }
+
+    void write(const string &fileName) const
+    {
+        const string extension = fileName.substr(fileName.find_last_of(".") + 1);
+
+        string errorInfo;
+        tool_output_file output(fileName.c_str(), errorInfo, sys::fs::F_None);
+        if (extension == "ll") {
+            module->print(output.os(), NULL);
+        } else if (extension == "bc") {
+            WriteBitcodeToFile(module, output.os());
+        } else {
+            PassManager pm;
+            formatted_raw_ostream fos(output.os());
+            targetMachine->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
+            pm.run(*module);
+        }
+
+        likely_assert(errorInfo.empty(), "failed to write to: %s with error: %s", fileName.c_str(), errorInfo.c_str());
+        output.keep();
     }
 };
 
@@ -518,42 +471,85 @@ private:
     }
 };
 
-struct StaticFunction : public Resources
+Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_type> &type, bool native, string name)
+    : type(type)
 {
-    const vector<likely_type> type;
+    if (!Mat) {
+        assert(sizeof(likely_size) == sizeof(void*));
+        InitializeNativeTarget();
+        InitializeNativeTargetAsmPrinter();
+        InitializeNativeTargetAsmParser();
 
-    StaticFunction(likely_const_ast ast, likely_env env, const vector<likely_type> &type, bool native, string name = string())
-        : Resources(native, name.empty()), type(type)
-    {
-        likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
-                      (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel") || !strcmp(ast->atoms[0]->atom, "dynamic")),
-                      "expected a function expression");
-        Builder builder(this, env);
-        unique_ptr<Expression> result(builder.expression(ast));
-        function = finalize(dyn_cast_or_null<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, type, name).value_));
+        PassRegistry &Registry = *PassRegistry::getPassRegistry();
+        initializeCore(Registry);
+        initializeScalarOpts(Registry);
+        initializeVectorization(Registry);
+        initializeIPO(Registry);
+        initializeAnalysis(Registry);
+        initializeIPA(Registry);
+        initializeTransformUtils(Registry);
+        initializeInstCombine(Registry);
+        initializeTarget(Registry);
+
+        NativeIntegerType = Type::getIntNTy(C, likely_depth(likely_type_native));
+        Mat = PointerType::getUnqual(StructType::create("likely_matrix",
+                                                        NativeIntegerType, // bytes
+                                                        NativeIntegerType, // ref_count
+                                                        NativeIntegerType, // channels
+                                                        NativeIntegerType, // columns
+                                                        NativeIntegerType, // rows
+                                                        NativeIntegerType, // frames
+                                                        NativeIntegerType, // type
+                                                        ArrayType::get(Type::getInt8Ty(C), 0), // data
+                                                        NULL));
     }
 
-    void write(const string &fileName) const
-    {
-        const string extension = fileName.substr(fileName.find_last_of(".") + 1);
+    module = new Module(getUniqueName("module"), C);
+    likely_assert(module != NULL, "failed to create module");
 
-        string errorInfo;
-        tool_output_file output(fileName.c_str(), errorInfo, sys::fs::F_None);
-        if (extension == "ll") {
-            module->print(output.os(), NULL);
-        } else if (extension == "bc") {
-            WriteBitcodeToFile(module, output.os());
-        } else {
-            PassManager pm;
-            formatted_raw_ostream fos(output.os());
-            targetMachine->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
-            pm.run(*module);
+    string error;
+    EngineBuilder engineBuilder(module);
+    engineBuilder.setMCPU(sys::getHostCPUName())
+            .setOptLevel(CodeGenOpt::Aggressive)
+            .setErrorStr(&error);
+
+    const bool JIT = name.empty();
+    if (native) {
+        static string nativeTT, nativeJITTT;
+        if (nativeTT.empty()) {
+            nativeTT = sys::getProcessTriple();
+#ifdef _WIN32
+            nativeJITTT = nativeTT + "-elf";
+#else
+            nativeJITTT = nativeTT;
+#endif // _WIN32
         }
+        module->setTargetTriple(JIT ? nativeJITTT : nativeTT);
 
-        likely_assert(errorInfo.empty(), "failed to write to: %s with error: %s", fileName.c_str(), errorInfo.c_str());
-        output.keep();
+        static TargetMachine *nativeTM = NULL;
+        if (!nativeTM) {
+            engineBuilder.setCodeModel(CodeModel::Default);
+            nativeTM = engineBuilder.selectTarget();
+            likely_assert(nativeTM != NULL, "failed to select target machine with error: %s", error.c_str());
+        }
+        targetMachine = nativeTM;
     }
-};
+
+    if (JIT) {
+        engineBuilder.setCodeModel(CodeModel::JITDefault)
+                .setEngineKind(EngineKind::JIT)
+                .setUseMCJIT(true);
+        executionEngine = engineBuilder.create();
+        likely_assert(executionEngine != NULL, "failed to create execution engine with error: %s", error.c_str());
+    }
+
+    likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
+            (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel") || !strcmp(ast->atoms[0]->atom, "dynamic")),
+            "expected a function expression");
+    Builder builder(this, env);
+    unique_ptr<Expression> result(builder.expression(ast));
+    function = finalize(dyn_cast_or_null<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, type, name).value_));
+}
 
 class LibraryFunction
 {
@@ -576,7 +572,7 @@ struct RegisterExpression
 struct VTable : public ScopedExpression, public Object
 {
     likely_arity n;
-    vector<StaticFunction*> functions;
+    vector<Resources*> functions;
 
     VTable(Builder &builder, likely_const_ast ast)
         : ScopedExpression(builder, ast)
@@ -589,7 +585,7 @@ struct VTable : public ScopedExpression, public Object
 
     ~VTable()
     {
-        for (StaticFunction *function : functions)
+        for (Resources *function : functions)
             delete function;
     }
 
@@ -1729,11 +1725,11 @@ likely_const_mat likely_dynamic(struct VTable *vTable, likely_const_mat *m)
 {
     void *function = NULL;
     for (size_t i=0; i<vTable->functions.size(); i++) {
-        const StaticFunction *staticFunction = vTable->functions[i];
+        const Resources *resources = vTable->functions[i];
         for (likely_arity j=0; j<vTable->n; j++)
-            if (m[j]->type != staticFunction->type[j])
+            if (m[j]->type != resources->type[j])
                 goto Next;
-        function = staticFunction->function;
+        function = resources->function;
         if (function == NULL)
             return NULL;
         break;
@@ -1745,8 +1741,8 @@ likely_const_mat likely_dynamic(struct VTable *vTable, likely_const_mat *m)
         vector<likely_type> types;
         for (int i=0; i<vTable->n; i++)
             types.push_back(m[i]->type);
-        StaticFunction *staticFunction = new StaticFunction(vTable->ast, vTable->env, types, true);
-        vTable->functions.push_back(staticFunction);
+        Resources *resources = new Resources(vTable->ast, vTable->env, types, true);
+        vTable->functions.push_back(resources);
         function = vTable->functions.back()->function;
     }
 
@@ -1767,37 +1763,37 @@ likely_const_mat likely_dynamic(struct VTable *vTable, likely_const_mat *m)
     return dst;
 }
 
-static map<likely_function, pair<StaticFunction*,int>> CompiledFunctionsLUT;
+static map<likely_function, pair<Resources*,int>> ResourcesLUT;
 
 likely_function likely_compile(likely_const_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    StaticFunction *sf = new StaticFunction(ast, env, vector<likely_type>(), true);
-    likely_function f = reinterpret_cast<likely_function>(sf->function);
-    if (f) CompiledFunctionsLUT[f] = pair<StaticFunction*,int>(sf, 1);
-    else   delete sf;
+    Resources *r = new Resources(ast, env, vector<likely_type>(), true);
+    likely_function f = reinterpret_cast<likely_function>(r->function);
+    if (f) ResourcesLUT[f] = pair<Resources*,int>(r, 1);
+    else   delete r;
     return f;
 }
 
 likely_function likely_retain_function(likely_function function)
 {
-    if (function) CompiledFunctionsLUT[function].second++;
+    if (function) ResourcesLUT[function].second++;
     return function;
 }
 
 void likely_release_function(likely_function function)
 {
     if (!function) return;
-    pair<StaticFunction*,int> &df = CompiledFunctionsLUT[function];
+    pair<Resources*,int> &df = ResourcesLUT[function];
     if (--df.second) return;
-    CompiledFunctionsLUT.erase(function);
+    ResourcesLUT.erase(function);
     delete df.first;
 }
 
 void likely_compile_to_file(likely_const_ast ast, likely_env env, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
 {
     if (!ast || !env) return;
-    StaticFunction(ast, env, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
+    Resources(ast, env, vector<likely_type>(types, types+n), native, symbol_name).write(file_name);
 }
 
 likely_mat likely_eval(likely_const_ast ast, likely_env env)
@@ -1805,8 +1801,8 @@ likely_mat likely_eval(likely_const_ast ast, likely_env env)
     if (!ast || !env) return NULL;
     likely_const_ast expr = likely_ast_from_string("(lambda () (scalar <ast>))");
     expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
-    StaticFunction staticFunction(expr, env, vector<likely_type>(), true);
+    Resources resources(expr, env, vector<likely_type>(), true);
     likely_release_ast(expr);
-    if (staticFunction.function) return reinterpret_cast<likely_mat(*)(void)>(staticFunction.function)();
+    if (resources.function) return reinterpret_cast<likely_mat(*)(void)>(resources.function)();
     else                         return NULL;
 }
