@@ -637,11 +637,6 @@ struct DynamicFunction : public ScopedExpression, public LibraryFunction, public
         return function;
     }
 
-    likely_function compile(Builder &builder)
-    {
-        return reinterpret_cast<likely_function>(builder.resources->finalize(generate(builder)));
-    }
-
     likely_function_n compileN(Builder &builder)
     {
         static FunctionType* functionType = NULL;
@@ -1800,7 +1795,7 @@ likely_function likely_compile(likely_const_ast ast, likely_env env)
     Resources *r = new Resources(true, true);
     Builder builder(r, env);
     DynamicFunction *df = static_cast<DynamicFunction*>(builder.expression(ast));
-    likely_function f = df ? df->compile(builder) : NULL;
+    likely_function f = df ? reinterpret_cast<likely_function>(r->finalize(df->generate(builder))) : NULL;
     if (f) ResourcesLUT[(void*)f] = pair<Resources*,int>(r, 1);
     else   delete r;
     return f;
