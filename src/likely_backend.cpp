@@ -603,10 +603,10 @@ extern "C" LIKELY_EXPORT likely_const_mat likely_dynamic(struct VTable *vtable, 
 
 namespace {
 
-struct DynamicFunction : public ScopedExpression, public LibraryFunction
+struct DynamicFunction : public FunctionExpression, public LibraryFunction
 {
     DynamicFunction(Builder &builder, likely_const_ast ast)
-        : ScopedExpression(builder, ast)
+        : FunctionExpression(builder, ast)
     {}
 
     void *symbol() const { return (void*) likely_dynamic; }
@@ -616,14 +616,17 @@ struct DynamicFunction : public ScopedExpression, public LibraryFunction
         return NULL;
     }
 
-    Function *generate(Builder &builder)
+    Immediate generate(Builder &builder, const vector<likely_type> &, string name) const
     {
+        if (name.empty())
+            name = getUniqueName("dynamic");
+
         VTable *vTable = new VTable(builder, ast);
         builder.resources->children.push_back(vTable);
 
         static FunctionType* functionType = FunctionType::get(Mat, Mat, true);
 
-        Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(getUniqueName("dynamic"), functionType));
+        Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(name, functionType));
         function->addFnAttr(Attribute::NoUnwind);
         function->setCallingConv(CallingConv::C);
         function->setDoesNotAlias(0);
@@ -669,7 +672,7 @@ struct DynamicFunction : public ScopedExpression, public LibraryFunction
 
         Constant *thisVTableFunction = ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vTable)), uintptr_t(vTable)), vTableType);
         builder.CreateRet(builder.CreateCall2(likelyDynamic, thisVTableFunction, array));
-        return function;
+        return Immediate(function, likely_type_null);
     }
 };
 
@@ -1310,7 +1313,7 @@ private:
 
         for (likely_type type : types)
             if (type == likely_type_null)
-                return Immediate(unique_ptr<DynamicFunction>(new DynamicFunction(builder, ast))->generate(builder), likely_type_null);
+                return Immediate(unique_ptr<FunctionExpression>(new DynamicFunction(builder, ast))->generate(builder, types), likely_type_null);
 
         Function *function = getKernel(builder, name, types.size(), Mat);
         vector<Immediate> srcs = builder.getArgs(function, types);
@@ -1771,8 +1774,8 @@ likely_function likely_compile(likely_const_ast ast, likely_env env)
     if (!ast || !env) return NULL;
     Resources *r = new Resources(true, true);
     Builder builder(r, env);
-    DynamicFunction *df = static_cast<DynamicFunction*>(builder.expression(ast));
-    likely_function f = df ? reinterpret_cast<likely_function>(r->finalize(df->generate(builder))) : NULL;
+    FunctionExpression *fe = static_cast<FunctionExpression*>(builder.expression(ast));
+    likely_function f = fe ? reinterpret_cast<likely_function>(r->finalize(cast<Function>(fe->generate(builder, vector<likely_type>()).value_))) : NULL;
     if (f) ResourcesLUT[(void*)f] = pair<Resources*,int>(r, 1);
     else   delete r;
     return f;
