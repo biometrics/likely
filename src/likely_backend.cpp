@@ -721,6 +721,21 @@ class SimpleUnaryOperator : public UnaryOperator
     virtual Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const = 0;
 };
 
+#define LIKELY_REGISTER_FIELD(FIELD)                                                      \
+class FIELD##Expression : public SimpleUnaryOperator                                      \
+{                                                                                         \
+    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const \
+    {                                                                                     \
+        return new Immediate(builder.FIELD(&arg));                                        \
+    }                                                                                     \
+};                                                                                        \
+LIKELY_REGISTER(FIELD)                                                                    \
+
+LIKELY_REGISTER_FIELD(channels)
+LIKELY_REGISTER_FIELD(columns)
+LIKELY_REGISTER_FIELD(rows)
+LIKELY_REGISTER_FIELD(frames)
+
 class notExpression : public SimpleUnaryOperator
 {
     Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const

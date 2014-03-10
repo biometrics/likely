@@ -105,7 +105,10 @@ likely_mat likely_to_string(likely_const_mat m)
         return likely_retain(m); // Special case where matrix encodes a string
 
     stringstream stream;
-    stream << "{ type=" << likely_type_to_string(m->type);
+    stream << "{ type=";
+    likely_mat str = likely_type_to_string(m->type);
+    stream << (const char*) str->data;
+    likely_release(str);
     if (m->channels > 1) stream << ", channels=" << m->channels;
     if (m->columns  > 1) stream << ", columns="  << m->columns;
     if (m->rows     > 1) stream << ", rows="     << m->rows;
