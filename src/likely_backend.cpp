@@ -1782,7 +1782,7 @@ extern "C" LIKELY_EXPORT likely_const_mat likely_dispatch(struct DynamicFunction
     return dst;
 }
 
-static map<void*,pair<Object*,int>> DynamicFunctionLUT;
+static map<void*,pair<Resources*,int>> ResourcesLUT;
 
 likely_function likely_compile(likely_const_ast ast, likely_env env)
 {
@@ -1791,7 +1791,7 @@ likely_function likely_compile(likely_const_ast ast, likely_env env)
     Builder builder(r, env);
     DynamicFunction *df = static_cast<DynamicFunction*>(builder.expression(ast));
     likely_function f = df ? df->compile() : NULL;
-    if (f) DynamicFunctionLUT[(void*)f] = pair<Object*,int>(r, 1);
+    if (f) ResourcesLUT[(void*)f] = pair<Resources*,int>(r, 1);
     else   delete r;
     return f;
 }
@@ -1803,23 +1803,23 @@ likely_function_n likely_compile_n(likely_const_ast ast, likely_env env)
     Builder builder(r, env);
     DynamicFunction *df = static_cast<DynamicFunction*>(builder.expression(ast));
     likely_function_n f = df ? df->compileN() : NULL;
-    if (f) DynamicFunctionLUT[(void*)f] = pair<Object*,int>(r, 1);
+    if (f) ResourcesLUT[(void*)f] = pair<Resources*,int>(r, 1);
     else   delete r;
     return f;
 }
 
 void *likely_retain_function(void *function)
 {
-    if (function) DynamicFunctionLUT[function].second++;
+    if (function) ResourcesLUT[function].second++;
     return function;
 }
 
 void likely_release_function(void *function)
 {
     if (!function) return;
-    pair<Object*,int> &df = DynamicFunctionLUT[function];
+    pair<Resources*,int> &df = ResourcesLUT[function];
     if (--df.second) return;
-    DynamicFunctionLUT.erase(function);
+    ResourcesLUT.erase(function);
     delete df.first;
 }
 
