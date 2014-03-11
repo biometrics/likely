@@ -1,10 +1,10 @@
 #ifndef LIKELY_H
 #define LIKELY_H
 
-#include <likely/likely_backend.h>
-#include <likely/likely_export.h>
-#include <likely/likely_frontend.h>
-#include <likely/likely_io.h>
-#include <likely/likely_runtime.h>
+#include <likely/backend.h>
+#include <likely/export.h>
+#include <likely/frontend.h>
+#include <likely/io.h>
+#include <likely/runtime.h>
 
 #endif // LIKELY_H

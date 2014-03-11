@@ -20,7 +20,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <likely/likely_export.h>
+#include <likely/export.h>
 
 // Matrix types
 typedef uintptr_t likely_size;

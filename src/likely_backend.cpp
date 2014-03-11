@@ -37,7 +37,7 @@
 #include <memory>
 #include <sstream>
 
-#include "likely/likely_backend.h"
+#include "likely/backend.h"
 
 #define LLVM_VALUE_IS_INT(VALUE) (llvm::isa<Constant>(VALUE))
 #define LLVM_VALUE_TO_INT(VALUE) (llvm::cast<Constant>(VALUE)->getUniqueInteger().getZExtValue())
@@ -1598,7 +1598,7 @@ class lambdaExpression : public Operator
 LIKELY_REGISTER(lambda)
 
 #ifdef LIKELY_IO
-#include "likely/likely_io.h"
+#include "likely/io.h"
 
 class printExpression : public Operator, public LibraryFunction
 {

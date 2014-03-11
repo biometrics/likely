@@ -19,8 +19,8 @@
 #include <sstream>
 #include <vector>
 
-#include "likely/likely_frontend.h"
-#include "likely/likely_runtime.h"
+#include "likely/frontend.h"
+#include "likely/runtime.h"
 
 using namespace std;
 

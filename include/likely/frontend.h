@@ -18,7 +18,7 @@
 #define LIKELY_FRONTEND_H
 
 #include <stddef.h>
-#include <likely/likely_runtime.h>
+#include <likely/runtime.h>
 
 struct likely_abstract_syntax_tree
 {

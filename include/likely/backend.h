@@ -14,28 +14,40 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef LIKELY_IO_H
-#define LIKELY_IO_H
+#ifndef LIKELY_BACKEND_H
+#define LIKELY_BACKEND_H
 
-#include <likely/likely_runtime.h>
+#include <likely/runtime.h>
+#include <likely/frontend.h>
+
+typedef struct likely_environment *likely_env;
+typedef struct likely_environment const *likely_const_env;
+
+typedef likely_mat (*likely_function)(likely_const_mat, ...);
 
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-// Matrix I/O
-LIKELY_EXPORT likely_mat likely_read(const char *file_name);
-LIKELY_EXPORT likely_mat likely_write(likely_const_mat image, const char *file_name);
-LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
-LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
+// Environments
+LIKELY_EXPORT likely_env likely_new_env();
+LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
+LIKELY_EXPORT void likely_release_env(likely_const_env env);
 
-// Matrix Visualization
-LIKELY_EXPORT likely_mat likely_to_string(likely_const_mat m, bool include_header);
-LIKELY_EXPORT likely_mat likely_print(likely_const_mat m, ...);
-LIKELY_EXPORT likely_mat likely_render(likely_const_mat m, double *min, double *max); // Return an 888 matrix for visualization
+// Compilation
+LIKELY_EXPORT likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type type, ...);
+LIKELY_EXPORT void likely_compile_to_file(likely_const_ast ast, likely_env env, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native);
+LIKELY_EXPORT likely_function likely_retain_function(likely_function function);
+LIKELY_EXPORT void likely_release_function(likely_function function);
+
+// Evaluation
+LIKELY_EXPORT likely_mat likely_eval(likely_const_ast ast, likely_env env);
+
+// Contents of library/standard.like
+LIKELY_EXPORT extern const char likely_standard_library[];
 
 #ifdef __cplusplus
 }
 #endif // __cplusplus
 
-#endif // LIKELY_IO_H
+#endif // LIKELY_BACKEND_H

@@ -12,7 +12,7 @@
 #include <sstream>
 #include <thread>
 
-#include "likely/likely_runtime.h"
+#include "likely/runtime.h"
 
 #define LIKELY_NUM_ARITIES 4
 
