@@ -116,9 +116,9 @@ struct Test
 
     static void runFile(const string &fileName)
     {
-        ifstream file(fileName.compare(fileName.length()-5, 5, ".like") == 0
+        ifstream file(fileName.compare(fileName.length()-2, 2, ".l") == 0
                       ? fileName
-                      : "../library/" + fileName + ".like");
+                      : "../library/" + fileName + ".l");
         const string source((istreambuf_iterator<char>(file)),
                              istreambuf_iterator<char>());
         if (source.empty()) {
@@ -489,14 +489,14 @@ int main(int argc, char *argv[])
 
     if (BenchmarkTutorial || BenchmarkAll) {
         printf("File     \tSpeed (Hz)\n");
-        ifstream file("../library/tutorial.like");
+        ifstream file("../library/tutorial.l");
         string line;
         // Skip header
         getline(file, line);
         getline(file, line);
         while (getline(file, line)) {
-//            string::size_type index = line.find("=", 0);
-//            Test::runFile(line.substr(index+1, line.size()-index-2));
+            string::size_type index = line.find("=", 0);
+            Test::runFile(line.substr(index+1, line.size()-index-2));
         }
     }
 

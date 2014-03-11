@@ -4,4 +4,3 @@ Tutorial
 2. [Comments](?show=comments)
 3. [Matix I/O](?show=matrix_io)
 4. [C API](?show=c_api)
-5. [Arithmetic](?show=arithmetic)
