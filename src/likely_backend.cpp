@@ -1646,12 +1646,16 @@ class readExpression : public SimpleUnaryOperator, public LibraryFunction
     Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
     {
         static FunctionType *functionType = FunctionType::get(Mat, Type::getInt8PtrTy(C), false);
-        Function *likelyRead = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_read", builder.resources->module);
-        likelyRead->setCallingConv(CallingConv::C);
-        likelyRead->setDoesNotAlias(0);
+        Function *likelyRead = builder.resources->module->getFunction("likely_read");
+        if (!likelyRead) {
+            likelyRead = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_read", builder.resources->module);
+            likelyRead->setCallingConv(CallingConv::C);
+            likelyRead->setDoesNotAlias(0);
+            likelyRead->setDoesNotAlias(1);
+            likelyRead->setDoesNotCapture(1);
+        }
         return new Immediate(builder.CreateCall(likelyRead, arg), likely_type_null);
     }
-
     void *symbol() const { return (void*) likely_read; }
 };
 LIKELY_REGISTER(read)
@@ -1667,19 +1671,21 @@ class writeExpression : public SimpleBinaryOperator, public LibraryFunction
             likelyWriteParameters.push_back(Type::getInt8PtrTy(C));
             functionType = FunctionType::get(Mat, likelyWriteParameters, false);
         }
-        Function *likelyWrite = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_write", builder.resources->module);
-        likelyWrite->setCallingConv(CallingConv::C);
-        likelyWrite->setDoesNotAlias(0);
-        likelyWrite->setDoesNotAlias(1);
-        likelyWrite->setDoesNotCapture(1);
-        likelyWrite->setDoesNotAlias(2);
-        likelyWrite->setDoesNotCapture(2);
+        Function *likelyWrite = builder.resources->module->getFunction("likely_write");
+        if (!likelyWrite) {
+            likelyWrite = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_write", builder.resources->module);
+            likelyWrite->setCallingConv(CallingConv::C);
+            likelyWrite->setDoesNotAlias(0);
+            likelyWrite->setDoesNotAlias(1);
+            likelyWrite->setDoesNotCapture(1);
+            likelyWrite->setDoesNotAlias(2);
+            likelyWrite->setDoesNotCapture(2);
+        }
         vector<Value*> likelyWriteArguments;
         likelyWriteArguments.push_back(arg1);
         likelyWriteArguments.push_back(arg2);
         return new Immediate(builder.CreateCall(likelyWrite, likelyWriteArguments), likely_type_null);
     }
-
     void *symbol() const { return (void*) likely_write; }
 };
 LIKELY_REGISTER(write)
@@ -1689,14 +1695,16 @@ class decodeExpression : public SimpleUnaryOperator, public LibraryFunction
     Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
     {
         static FunctionType *functionType = FunctionType::get(Mat, Mat, false);
-        Function *likelyDecode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_decode", builder.resources->module);
-        likelyDecode->setCallingConv(CallingConv::C);
-        likelyDecode->setDoesNotAlias(0);
-        likelyDecode->setDoesNotAlias(1);
-        likelyDecode->setDoesNotCapture(1);
+        Function *likelyDecode = builder.resources->module->getFunction("likely_decode");
+        if (!likelyDecode) {
+            likelyDecode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_decode", builder.resources->module);
+            likelyDecode->setCallingConv(CallingConv::C);
+            likelyDecode->setDoesNotAlias(0);
+            likelyDecode->setDoesNotAlias(1);
+            likelyDecode->setDoesNotCapture(1);
+        }
         return new Immediate(builder.CreateCall(likelyDecode, arg), likely_type_null);
     }
-
     void *symbol() const { return (void*) likely_decode; }
 };
 LIKELY_REGISTER(decode)
@@ -1712,19 +1720,21 @@ class encodeExpression : public SimpleBinaryOperator, public LibraryFunction
             parameters.push_back(Type::getInt8PtrTy(C));
             functionType = FunctionType::get(Mat, parameters, false);
         }
-        Function *likelyEncode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_encode", builder.resources->module);
-        likelyEncode->setCallingConv(CallingConv::C);
-        likelyEncode->setDoesNotAlias(0);
-        likelyEncode->setDoesNotAlias(1);
-        likelyEncode->setDoesNotCapture(1);
-        likelyEncode->setDoesNotAlias(2);
-        likelyEncode->setDoesNotCapture(2);
+        Function *likelyEncode = builder.resources->module->getFunction("likely_encode");
+        if (!likelyEncode) {
+            likelyEncode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_encode", builder.resources->module);
+            likelyEncode->setCallingConv(CallingConv::C);
+            likelyEncode->setDoesNotAlias(0);
+            likelyEncode->setDoesNotAlias(1);
+            likelyEncode->setDoesNotCapture(1);
+            likelyEncode->setDoesNotAlias(2);
+            likelyEncode->setDoesNotCapture(2);
+        }
         vector<Value*> likelyEncodeArguments;
         likelyEncodeArguments.push_back(arg1);
         likelyEncodeArguments.push_back(arg2);
         return new Immediate(builder.CreateCall(likelyEncode, likelyEncodeArguments), likely_type_null);
     }
-
     void *symbol() const { return (void*) likely_encode; }
 };
 LIKELY_REGISTER(encode)
