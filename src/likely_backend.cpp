@@ -47,7 +47,7 @@ using namespace std;
 
 namespace {
 
-static IntegerType *NativeIntegerType = NULL;
+static IntegerType *NativeInt = NULL;
 static PointerType *Mat = NULL;
 static LLVMContext &C = getGlobalContext();
 
@@ -454,15 +454,15 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
         initializeInstCombine(Registry);
         initializeTarget(Registry);
 
-        NativeIntegerType = Type::getIntNTy(C, likely_depth(likely_type_native));
+        NativeInt = Type::getIntNTy(C, likely_depth(likely_type_native));
         Mat = PointerType::getUnqual(StructType::create("likely_matrix",
-                                                        NativeIntegerType, // bytes
-                                                        NativeIntegerType, // ref_count
-                                                        NativeIntegerType, // channels
-                                                        NativeIntegerType, // columns
-                                                        NativeIntegerType, // rows
-                                                        NativeIntegerType, // frames
-                                                        NativeIntegerType, // type
+                                                        NativeInt, // bytes
+                                                        NativeInt, // ref_count
+                                                        NativeInt, // channels
+                                                        NativeInt, // columns
+                                                        NativeInt, // rows
+                                                        NativeInt, // frames
+                                                        NativeInt, // type
                                                         ArrayType::get(Type::getInt8Ty(C), 0), // data
                                                         NULL));
     }
@@ -623,13 +623,13 @@ struct DynamicFunction : public FunctionExpression, public LibraryFunction
         Value *array;
         if (vTable->n > 0) {
             array = builder.CreateAlloca(Mat, Constant::getIntegerValue(Type::getInt32Ty(C), APInt(32, (uint64_t)vTable->n)));
-            builder.CreateStore(function->arg_begin(), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), 0))));
+            builder.CreateStore(function->arg_begin(), builder.CreateGEP(array, Constant::getIntegerValue(NativeInt, APInt(8*sizeof(void*), 0))));
             if (vTable->n > 1) {
                 Value *vaList = builder.CreateAlloca(IntegerType::getInt8PtrTy(C));
                 Value *vaListRef = builder.CreateBitCast(vaList, Type::getInt8PtrTy(C));
                 builder.CreateCall(Intrinsic::getDeclaration(builder.resources->module, Intrinsic::vastart), vaListRef);
                 for (likely_arity i=1; i<vTable->n; i++)
-                    builder.CreateStore(builder.CreateVAArg(vaList, Mat), builder.CreateGEP(array, Constant::getIntegerValue(NativeIntegerType, APInt(8*sizeof(void*), i))));
+                    builder.CreateStore(builder.CreateVAArg(vaList, Mat), builder.CreateGEP(array, Constant::getIntegerValue(NativeInt, APInt(8*sizeof(void*), i))));
                 builder.CreateCall(Intrinsic::getDeclaration(builder.resources->module, Intrinsic::vaend), vaListRef);
             }
         } else {
@@ -1091,11 +1091,11 @@ public:
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
             vector<Type*> params;
-            params.push_back(NativeIntegerType); // type
-            params.push_back(NativeIntegerType); // channels
-            params.push_back(NativeIntegerType); // columns
-            params.push_back(NativeIntegerType); // rows
-            params.push_back(NativeIntegerType); // frames
+            params.push_back(NativeInt); // type
+            params.push_back(NativeInt); // channels
+            params.push_back(NativeInt); // columns
+            params.push_back(NativeInt); // rows
+            params.push_back(NativeInt); // frames
             params.push_back(Type::getInt8PtrTy(C)); // data
             functionType = FunctionType::get(Mat, params, false);
         }
@@ -1314,7 +1314,7 @@ private:
         Function *thunk;
         likely_type dstType;
         {
-            thunk = getKernel(builder, name + "_thunk", types.size(), Type::getVoidTy(C), Mat, NativeIntegerType, NativeIntegerType);
+            thunk = getKernel(builder, name + "_thunk", types.size(), Type::getVoidTy(C), Mat, NativeInt, NativeInt);
             BasicBlock *entry = BasicBlock::Create(C, "entry", thunk);
             builder.SetInsertPoint(entry);
             vector<Immediate> srcs = builder.getArgs(thunk, types);
@@ -1346,7 +1346,7 @@ private:
             BasicBlock *body = BasicBlock::Create(C, "kernel_body", thunk);
             builder.CreateBr(body);
             builder.SetInsertPoint(body);
-            PHINode *i = builder.CreatePHI(NativeIntegerType, 2, "i");
+            PHINode *i = builder.CreatePHI(NativeInt, 2, "i");
             i->addIncoming(start, entry);
 
             Value *columnStep, *rowStep, *frameStep;
@@ -1407,7 +1407,7 @@ private:
                 vector<Type*> likelyForkParameters;
                 likelyForkParameters.push_back(thunk->getType());
                 likelyForkParameters.push_back(Type::getInt8Ty(C));
-                likelyForkParameters.push_back(NativeIntegerType);
+                likelyForkParameters.push_back(NativeInt);
                 likelyForkParameters.push_back(Mat);
                 Type *likelyForkReturn = Type::getVoidTy(C);
                 likelyForkType = FunctionType::get(likelyForkReturn, likelyForkParameters, true);
