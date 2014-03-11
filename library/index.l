@@ -1,13 +1,11 @@
 Likely
 ======
 
- > A Lisp for image recognition and heterogenous architectures.
+ > A just-in-time Lisp for image recognition and heterogenous architectures.
  > -- [@jklontz](https://github.com/jklontz)
 
 ## Introduction
-Welcome to the documentation and source code for _Likely_, the image recognition programming language!
-
-**Skip to the good stuff: [tutorial](?show=tutorial), [demos](?show=demos).**
+Skip to the good stuff: **[hello world](?show=share/likely/hello_world/README.l)**, **[tutorial](?show=tutorial)**, **[demos](?show=demos)**.
 
 ### Principles
  - Heterogeneous hardware architecture support
@@ -17,21 +15,20 @@ Welcome to the documentation and source code for _Likely_, the image recognition
  - Free open source software
 
 ### Help
-We try to keep this document complete and correct. However, should you run into trouble, please feel free to ask questions on our [mailing list](https://groups.google.com/forum/#!forum/likely-dev) or report bugs on our [issue tracker](https://github.com/biometrics/likely/issues). Consider starting with **hello world in [Likely](?show=hello_world) and [C](?show=share/likely/hello_world/README.md)**.
+We try to keep this document complete and correct. However, should you run into trouble, please reach out on our [mailing list](https://groups.google.com/forum/#!forum/likely-dev) and report bugs on our [issue tracker](https://github.com/biometrics/likely/issues).
 
-#### This Document
-**Likely is a [literate programming](http://en.wikipedia.org/wiki/Literate_programming) language.** In addition to documenting the project, this file is also the [source code](library/standard.like) for the standard library. Likely uses [Github Flavored Markdown](https://help.github.com/articles/github-flavored-markdown) (GFM) syntax, and the Likely runtime will automatically extract and execute _code blocks_ found in GFM source files.
+### About
+Likely is designed for **[literate programming](http://en.wikipedia.org/wiki/Literate_programming)**, including the [standard library](?show=standard). Likely uses [Github Flavored Markdown](https://help.github.com/articles/github-flavored-markdown) (GFM) syntax, and the Likely runtime will automatically extract and execute _code blocks_ found in GFM source files.
 
-#### License
-Likely is licensed under [Apache 2.0](LICENSE.txt), meaning it is *free for academic and commercial use*.
+Likely is **licensed under [Apache 2.0](LICENSE.txt)**, meaning it's *free for academic and commercial use*.
 
 ### Background
-The software engineering of a complex system is often facilitated by a _Domain Specific Language_ (DSL) whose syntax is designed to concisely and efficiently solve problems frequently encountered in the domain. While many technical communities rely on DSLs, there currently exists no DSL designed for image recognition. As a consequence, most libraries and applications are written in either [_C++_ or _MATLAB_](?show=motivation), neither of which respect both the engineer's time and the hardware's compute capability.
+The software engineering of a complex system is often facilitated by a _Domain Specific Language_ (DSL) whose syntax is designed to efficiently solve problems encountered in the domain. While many technical communities rely on DSLs, there currently exists no DSL designed for image recognition. As a consequence, most libraries and applications are written in either [_C++_ or _MATLAB_](?show=motivation), neither of which respects both the engineer's time and the hardware's compute capability.
 
 > A just-in-time compiled DSL for image recognition is essential to express algorithms that are currently too complex to implement in native languages and too inefficient to execute in scripting languages.
 
 ### Portability
-Likely is built on top of the _Low Level Virtual Machine_ (LLVM) compiler infrastructure using a portable subset of ISO C++11, which means it can **[run everywhere](http://llvm.org/docs/GettingStarted.html#hardware)** LLVM does. Algorithms execute natively on single CPU threads via the LLVM _Machine Code Just-In-Time_ (MCJIT) compiler, multi-core CPUs via a custom _OpenMP_-like backend, and GPUs and coprocessors via _CUDA_ or _OpenCL_.
+Likely is built on top of the _Low Level Virtual Machine_ (LLVM) compiler infrastructure using a portable subset of _ISO C++11_, which means it can **[run everywhere](http://llvm.org/docs/GettingStarted.html#hardware)** LLVM does. Algorithms execute natively on single CPU threads via the LLVM _Machine Code Just-In-Time_ (MCJIT) compiler, multi-core CPUs via a custom _OpenMP_-like backend, and GPUs and coprocessors via _CUDA_ or _OpenCL_.
 
 | Backend     | Status |
 |-------------|--------|
@@ -40,7 +37,7 @@ Likely is built on top of the _Low Level Virtual Machine_ (LLVM) compiler infras
 | CUDA        | [#24](https://github.com/biometrics/likely/issues/24) |
 | OpenCL      | [#25](https://github.com/biometrics/likely/issues/25) |
 
-Algorithms written in Likely should **deploy everywhere**, including minimalist native libraries, dynamic just-in-time applications, light-weight scripts, high-level language integration, web services, and pure JavaScript.
+Algorithms expressed in Likely **deploy everywhere**, including minimalist native libraries, dynamic just-in-time applications, light-weight scripts, high-level language integration, web services, and pure _C_ and _JavaScript_.
 
 | Frontend        | Status |
 |-----------------|--------|
@@ -49,14 +46,17 @@ Algorithms written in Likely should **deploy everywhere**, including minimalist 
 | REPL shell      | Done   |
 | SWIG            | [#46](https://github.com/biometrics/likely/issues/46) |
 | Web services    | [#44](https://github.com/biometrics/likely/issues/44) |
+| C               | [#51](https://github.com/biometrics/likely/issues/51) |
 | JavaScript      | [#45](https://github.com/biometrics/likely/issues/45) |
 
 ### Speed
-Likely relies on the powerful and well established LLVM compiler infrastructure to make function execution as fast as possible. Since compilation is held off until runtime, functions automatically leverage all instruction set extensions and co-processors available on the host. Delaying compilation until runtime also enables optimization opportunities that are impossible in conventional languages and libraries. In fact, the entire premise of Likely is hinged on the observation that for image processing applications
+Likely relies on the LLVM compiler infrastructure to optimize function execution. Algorithms automatically leverage all instruction set extensions and co-processors available at run time. Just-in-time (JIT) compilation also enables optimizations traditionally impossible in statically compiled languages. In fact, the entire premise of Likely is hinged on the observation that for image recognition applications
 
-> while funtions must be written generically to handle any matrix type, at runtime they tend to be executed repeatedly on the same type.
+> while algorithms must be written generically to handle any matrix type, at runtime they tend to be executed repeatedly on the same type.
 
-The repeated execution of a function with the same matrix type means that branching to handle different data types is unnecessary, entire loops and code blocks can be eliminated, and many values that would be runtime parameters can instead become compile time constants. For these reasons, we expect Likely to be faster than equally-generic statically-compiled native code.
+The repeated execution of an algorithm with the same matrix type means that branching to handle different types is unnecessary, entire loops and code blocks can be eliminated, and many values that would be runtime parameters instead become compile-time constants. Most importantly,
+
+> statistical learning changes from an offline process to a compile-time simplification.
 
 ## C API
 C/C++ projects should **#include <likely.h>** and link against the **likely** library. **LikelyConfig.cmake** is provided in **share/likely/** as a convenience to CMake developers. Likely definitions are prefixed with **likely_** and use a **lowercase_underscore** naming convention. Consider taking a moment to skim the header files: [likely_runtime.h](include/likely/likely_runtime.h), [likely_compiler.h](include/likely/likely_compiler.h), [likely_script.h](include/likely/likely_script.h), [likely_io.h](include/likely/likely_io.h).
