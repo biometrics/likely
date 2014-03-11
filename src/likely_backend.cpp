@@ -1051,6 +1051,42 @@ class defineExpression : public Operator
 };
 LIKELY_REGISTER(define)
 
+class elementsExpression : public SimpleUnaryOperator, public LibraryFunction
+{
+    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    {
+        static FunctionType *functionType = FunctionType::get(NativeInt, Mat, false);
+        Function *likelyElements = builder.resources->module->getFunction("likely_elements");
+        if (!likelyElements) {
+            likelyElements = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_elements", builder.resources->module);
+            likelyElements->setCallingConv(CallingConv::C);
+            likelyElements->setDoesNotAlias(1);
+            likelyElements->setDoesNotCapture(1);
+        }
+        return new Immediate(builder.CreateCall(likelyElements, arg), likely_type_native);
+    }
+    void *symbol() const { return (void*) likely_elements; }
+};
+LIKELY_REGISTER(elements)
+
+class bytesExpression : public SimpleUnaryOperator, public LibraryFunction
+{
+    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    {
+        static FunctionType *functionType = FunctionType::get(NativeInt, Mat, false);
+        Function *likelyBytes = builder.resources->module->getFunction("likely_bytes");
+        if (!likelyBytes) {
+            likelyBytes = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_bytes", builder.resources->module);
+            likelyBytes->setCallingConv(CallingConv::C);
+            likelyBytes->setDoesNotAlias(1);
+            likelyBytes->setDoesNotCapture(1);
+        }
+        return new Immediate(builder.CreateCall(likelyBytes, arg), likely_type_native);
+    }
+    void *symbol() const { return (void*) likely_bytes; }
+};
+LIKELY_REGISTER(bytes)
+
 class newExpression : public Operator, public LibraryFunction
 {
     size_t maxParameters() const { return 6; }
