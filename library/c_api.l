@@ -1,9 +1,14 @@
 C API
 -----
-So you've developed an algorithm in Likely, how do you integrate it into your application? Once again, let's consider our *[Hello World](?show=hello_world)* example:
+So you've developed an algorithm in Likely, how do you integrate it into your native application? Once again, let's consider our *[Hello World](?show=hello_world)* example:
 
-    lenna = read("../data/misc/lenna.tiff")
-    dark_lenna = lenna / 2
+    (define lenna (read "../data/misc/lenna.tiff"))
+
+    (define hello_world
+      (kernel (a)
+        (/ a (cast 2 (type a)))))
+
+    (hello_world lenna)
 
 The **C translation** of this is:
 
@@ -12,14 +17,23 @@ The **C translation** of this is:
 
 int main()
 {
+    // Do work
     likely_const_mat lenna = likely_read("../data/misc/lenna.tiff");
-    likely_ir ir = likely_ir_from_expression("arg(0) / 2");
-    likely_function darken = likely_compile(ir);
+    likely_const_ast ast = likely_ast_from_string("(kernel (a) (/ a (cast 2 (type a))))");
+    likely_env env = likely_new_env();
+    likely_function darken = likely_compile(ast, env, likely_type_null);
     likely_const_mat dark_lenna = darken(lenna);
+
+    // Clean up
+    likely_release(dark_lenna);
+    likely_release_function(darken);
+    likely_release_env(env);
+    likely_release_ast(ast);
+    likely_release(lenna);
     return 0;
 }
 ```
 
-**[Here](src/hello_world.c)** is the source code for *Hello World* in *C*.
+**[Here](?show=hello_world)** is the complete source code for *Hello World* in *C*.
 
 [Previous](?show=matrix_io) | [Next](?show=arithmetic)
