@@ -139,7 +139,7 @@ struct Test
             }
             likely_const_mat result = likely_eval(ast->atoms[i], env);
             if (BenchmarkVerbose) {
-                likely_mat str = likely_to_string(result);
+                likely_mat str = likely_to_string(result, true);
                 printf("%s\n\n", (const char*) str->data);
                 likely_release(str);
             }

@@ -12,7 +12,7 @@ There are 5 functions covering matrix creation, input, and output:
 
     (define image (read "../data/misc/lenna.tiff"))
     (define encoded (encode image "jpg"))
-    (print "Compression Ratio: " (scalar (/ (cast (bytes image) f32) (bytes encoded))))
+    (print "Compression Ratio: " (scalar (/ (cast (bytes image) f64) (bytes encoded))))
     (define decoded (decode encoded))
 
 Supported file formats are:

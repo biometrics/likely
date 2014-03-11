@@ -98,22 +98,24 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
     return fromCvMat(cv::Mat(buf));
 }
 
-likely_mat likely_to_string(likely_const_mat m)
+likely_mat likely_to_string(likely_const_mat m, bool include_header)
 {
     if (!m) return NULL;
     if ((likely_data(m->type) == likely_type_i8) && !m->data[likely_elements(m)-1])
         return likely_retain(m); // Special case where matrix encodes a string
 
     stringstream stream;
-    stream << "{ type=";
-    likely_mat str = likely_type_to_string(m->type);
-    stream << (const char*) str->data;
-    likely_release(str);
-    if (m->channels > 1) stream << ", channels=" << m->channels;
-    if (m->columns  > 1) stream << ", columns="  << m->columns;
-    if (m->rows     > 1) stream << ", rows="     << m->rows;
-    if (m->frames   > 1) stream << ", frames="   << m->frames;
-    stream << ", data=";
+    if (include_header) {
+        stream << "{ type=";
+        likely_mat str = likely_type_to_string(m->type);
+        stream << (const char*) str->data;
+        likely_release(str);
+        if (m->channels > 1) stream << ", channels=" << m->channels;
+        if (m->columns  > 1) stream << ", columns="  << m->columns;
+        if (m->rows     > 1) stream << ", rows="     << m->rows;
+        if (m->frames   > 1) stream << ", frames="   << m->frames;
+        stream << ", data=";
+    }
     if (likely_elements(m) > 1) stream << "{\n";
     stream << (m->frames > 1 ? "{" : "");
     for (likely_size t=0; t<m->frames; t++) {
@@ -141,7 +143,7 @@ likely_mat likely_to_string(likely_const_mat m)
     }
     stream << (m->frames > 1 ? "}" : "");
     if (likely_elements(m) > 1) stream << "\n}";
-    stream << " }";
+    if (include_header) stream << " }";
 
     return likely_string(stream.str().c_str());
 }
@@ -152,7 +154,7 @@ likely_mat likely_print(likely_const_mat m, ...)
     va_start(ap, m);
     stringstream buffer;
     while (m) {
-        likely_mat str = likely_to_string(m);
+        likely_mat str = likely_to_string(m, false);
         buffer << (const char*) str->data;
         likely_release(str);
         m = va_arg(ap, likely_const_mat);
