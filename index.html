@@ -106,7 +106,7 @@ String.prototype.endsWith = function(suffix) {
 if (show.endsWith("/"))
     show = show.substring(0, show.length-1);
 if (show.indexOf(".") == -1)
-    show = "library/" + show + ".like";
+    show = "library/" + show + ".l";
 $("#raw").attr("href","http://raw.github.com/biometrics/likely/gh-pages/"+show);
 
 marked.setOptions({

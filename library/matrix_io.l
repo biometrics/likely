@@ -13,7 +13,6 @@ There are 5 functions covering matrix creation, input, and output:
     (define image (read "../data/misc/lenna.tiff"))
     (define encoded (encode image "jpg"))
     (define decoded (decode encoded))
-    (print "blah " (scalar 5))
 
 Supported file formats are:
 
