@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
     if (argc == 1) {
         input_image = "../data/misc/lenna.tiff"; // Assume we are run from a hypothetical /bin folder
         output_image = "dark_lenna.png";
-        filter = "(dynamic (kernel (a) (/ a (cast 2 (type a)))))";
+        filter = "(kernel (a) (/ a (cast 2 (type a))))";
     } else if (argc == 4) {
         input_image = argv[1];
         output_image = argv[3];
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     likely_env env = likely_new_env();
 
     printf("Compiling source code...\n");
-    likely_function darken = likely_compile(ast, env);
+    likely_function darken = likely_compile(ast, env, likely_type_null);
     if (!darken) {
         printf("Failed to compile!\n");
         return -1;

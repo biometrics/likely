@@ -1294,22 +1294,25 @@ private:
 
     Immediate generate(Builder &builder, const vector<likely_type> &types, string name) const
     {
-        if (name.empty())
-            name = getUniqueName("kernel");
-
         for (likely_type type : types)
             if (type == likely_type_null)
                 return Immediate(unique_ptr<FunctionExpression>(new DynamicFunction(builder, ast))->generate(builder, types), likely_type_null);
 
-        Function *function = getKernel(builder, name, types.size(), Mat);
+        if (types.size() < ast->atoms[1]->num_atoms)
+            return Immediate(unique_ptr<FunctionExpression>(new DynamicFunction(builder, ast))->generate(builder, types), likely_type_null);
+
+        if (name.empty())
+            name = getUniqueName("kernel");
+
+        Function *function = getKernel(builder, name, ast->atoms[1]->num_atoms, Mat);
         vector<Immediate> srcs = builder.getArgs(function, types);
         BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         builder.SetInsertPoint(entry);
 
         Immediate dstChannels = getDimensions(builder, ast, "channels", srcs);
-        Immediate dstColumns  = getDimensions(builder, ast, "columns", srcs);
-        Immediate dstRows     = getDimensions(builder, ast, "rows", srcs);
-        Immediate dstFrames   = getDimensions(builder, ast, "frames", srcs);
+        Immediate dstColumns  = getDimensions(builder, ast, "columns" , srcs);
+        Immediate dstRows     = getDimensions(builder, ast, "rows"    , srcs);
+        Immediate dstFrames   = getDimensions(builder, ast, "frames"  , srcs);
 
         Function *thunk;
         likely_type dstType;
@@ -1366,7 +1369,6 @@ private:
             builder.define("t", t, likely_type_native);
 
             const likely_const_ast args = ast->atoms[1];
-            assert(args->num_atoms == srcs.size());
             for (size_t j=0; j<args->num_atoms; j++)
                 builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, node));
 
@@ -1755,10 +1757,18 @@ likely_const_mat likely_dynamic(struct VTable *vTable, likely_const_mat *m)
 
 static map<likely_function, pair<Resources*,int>> ResourcesLUT;
 
-likely_function likely_compile(likely_const_ast ast, likely_env env)
+likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type type, ...)
 {
     if (!ast || !env) return NULL;
-    Resources *r = new Resources(ast, env, vector<likely_type>());
+    vector<likely_type> types;
+    va_list ap;
+    va_start(ap, type);
+    while (type != likely_type_null) {
+        types.push_back(type);
+        type = va_arg(ap, likely_type);
+    }
+    va_end(ap);
+    Resources *r = new Resources(ast, env, types);
     likely_function f = reinterpret_cast<likely_function>(r->function);
     if (f) ResourcesLUT[f] = pair<Resources*,int>(r, 1);
     else   delete r;

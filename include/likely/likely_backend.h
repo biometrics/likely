@@ -35,7 +35,7 @@ LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
 LIKELY_EXPORT void likely_release_env(likely_const_env env);
 
 // Compilation
-LIKELY_EXPORT likely_function likely_compile(likely_const_ast ast, likely_env env);
+LIKELY_EXPORT likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type type, ...);
 LIKELY_EXPORT void likely_compile_to_file(likely_const_ast ast, likely_env env, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native);
 LIKELY_EXPORT likely_function likely_retain_function(likely_function function);
 LIKELY_EXPORT void likely_release_function(likely_function function);
