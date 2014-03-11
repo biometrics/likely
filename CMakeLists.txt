@@ -118,6 +118,6 @@ if(UNIX)
   execute_process(COMMAND cmake -E create_symlink ${CMAKE_SOURCE_DIR}/data ${CMAKE_BINARY_DIR}/data)
 endif()
 
-install(DIRECTORY include share DESTINATION .)
-install(FILES ${CMAKE_SOURCE_DIR}/LICENSE.txt DESTINATION share/likely)
+install(DIRECTORY include share DESTINATION ${CMAKE_INSTALL_PREFIX} PATTERN "*.DS_Store" EXCLUDE)
+install(FILES ${CMAKE_SOURCE_DIR}/LICENSE.txt ${CMAKE_SOURCE_DIR}/README.md DESTINATION share/likely)
 include(CPack)
