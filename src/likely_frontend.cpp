@@ -69,17 +69,25 @@ void likely_release_ast(likely_const_ast ast)
 
 static void tokenize(const char *str, const size_t len, vector<likely_const_ast> &tokens)
 {
-    const char ignored = ' '; // Skip whitespace and control characters
     size_t i = 0;
     while (true) {
+        // Skip whitespace and control characters
+        const char ignored = ' ';
         while ((i < len) && (str[i] <= ignored))
             i++;
-        if (i == len)
-            break;
+        if (i == len) break;
+
+        // Skip comments
+        if (str[i] == ';') {
+            while ((i < len) && (str[i] != '\n'))
+                i++;
+            i++;
+            if (i >= len) break;
+        }
 
         size_t begin = i;
         bool inString = false;
-        while ((i < len) && (inString || ((str[i] > ignored) && (str[i] != '(') && (str[i] != ')')))) {
+        while ((i < len) && (inString || ((str[i] > ignored) && (str[i] != '(') && (str[i] != ')') && (str[i] != ';')))) {
             if      (str[i] == '"')  inString = !inString;
             else if (str[i] == '\\') i++;
             i++;

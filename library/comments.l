@@ -3,6 +3,7 @@ Comments
 Likely uses **[Github Flavored Markdown](https://help.github.com/articles/github-flavored-markdown)** syntax. Code is specified in blocks like:
 
     (define x 9)
+    ; This is an inline comment that goes to the end of the line
 
 or
 

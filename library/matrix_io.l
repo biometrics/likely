@@ -4,7 +4,7 @@ There are 5 functions covering matrix creation, input, and output:
 
 | Function                         | C API                                        |
 |----------------------------------|----------------------------------------------|
-| (**new** type channels columns rows frames data copy) | [likely_new](include/likely/likely_runtime.h) |
+| (**new** type channels columns rows frames data) | [likely_new](include/likely/likely_runtime.h) |
 | (**read** file_name)          | [likely_read](include/likely/likely_io.h)   |
 | (**write** matrix file_name)  | [likely_write](include/likely/likely_io.h)  |
 | (**encode** matrix extension) | [likely_encode](include/likely/likely_io.h) |
@@ -14,6 +14,7 @@ There are 5 functions covering matrix creation, input, and output:
     (define encoded (encode image "jpg"))
     (print "Compression Ratio: " (scalar (/ (cast (bytes image) f64) (bytes encoded))))
     (define decoded (decode encoded))
+    ; (write decoded "lenna.png")
 
 Supported file formats are:
 
