@@ -1,13 +1,13 @@
-set(LIKELY_SRC likely_backend.cpp likely_frontend.cpp)
+set(LIKELY_SRC backend.cpp frontend.cpp)
 file(GLOB LIKELY_LIBRARY ${CMAKE_SOURCE_DIR}/library/*.l)
 set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/LICENSE.txt
                 ${CMAKE_SOURCE_DIR}/README.md
                 ${CMAKE_SOURCE_DIR}/include/likely.h
-                ${CMAKE_SOURCE_DIR}/include/likely/likely_backend.h
-                ${CMAKE_SOURCE_DIR}/include/likely/likely_export.h
-                ${CMAKE_SOURCE_DIR}/include/likely/likely_frontend.h
-                ${CMAKE_SOURCE_DIR}/include/likely/likely_runtime.h
+                ${CMAKE_SOURCE_DIR}/include/likely/backend.h
+                ${CMAKE_SOURCE_DIR}/include/likely/export.h
+                ${CMAKE_SOURCE_DIR}/include/likely/frontend.h
+                ${CMAKE_SOURCE_DIR}/include/likely/runtime.h
                 ${CMAKE_SOURCE_DIR}/index.html
                 ${CMAKE_SOURCE_DIR}/share/likely/LikelyConfig.cmake
                 ${CMAKE_SOURCE_DIR}/share/likely/hello_world/README.l)
@@ -22,14 +22,14 @@ set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
 
 if(${LIKELY_IO})
   add_definitions(-DLIKELY_IO)
-  set(LIKELY_SRC ${LIKELY_SRC} likely_io.cpp)
-  set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely/likely_io.h
+  set(LIKELY_SRC ${LIKELY_SRC} io.cpp)
+  set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely/io.h
                                  opencv.shim)
 endif()
 
 # Build runtime-only library
 add_definitions(-DLIKELY_LIBRARY)
-add_library(likely_runtime STATIC likely_runtime.cpp)
+add_library(likely_runtime STATIC runtime.cpp)
 
 # Build common object files
 add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
