@@ -46,7 +46,7 @@ void likely_assert(bool condition, const char *format, ...)
 }
 
 static int likely_get(likely_type type, likely_type_field mask) { return type & mask; }
-static void likely_set(likely_type *type, int i, likely_type_field mask) { *type &= ~mask; *type |= i & mask; }
+static void likely_set(likely_type *type, likely_type i, likely_type_field mask) { *type &= ~mask; *type |= i & mask; }
 static bool likely_get_bool(likely_type type, likely_type_field mask) { return (type & mask) != 0; }
 static void likely_set_bool(likely_type *type, bool b, likely_type_field mask) { b ? *type |= mask : *type &= ~mask; }
 

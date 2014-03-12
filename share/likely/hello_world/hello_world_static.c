@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <likely/likely_runtime.h>
+#include <likely/runtime.h>
 
 // Provided by a call to the static compiler:
 // $ like '(kernel (a) (/ a (cast 2 (type a))))' hello_world_div2 f32 hello_world_div2.o

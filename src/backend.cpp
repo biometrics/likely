@@ -33,6 +33,7 @@
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Vectorize.h>
+#include <cstdarg>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -201,7 +202,7 @@ struct Builder : public IRBuilder<>
     static Immediate one (likely_type type = likely_type_native) { return constant(1, type); }
     static Immediate intMax(likely_type type) { const int bits = likely_depth(type); return constant((1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
     static Immediate intMin(likely_type type) { const int bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
-    static Immediate type(likely_type type) { return constant(type, likely_depth(likely_type_type)); }
+    static Immediate type(likely_type type) { return constant((double)type, likely_depth(likely_type_type)); }
     static Immediate nullMat() { return Immediate(ConstantPointerNull::get(Mat), likely_type_null); }
     static Immediate nullData() { return Immediate(ConstantPointerNull::get(Type::getInt8PtrTy(C)), likely_type_native); }
 
@@ -326,7 +327,7 @@ struct Builder : public IRBuilder<>
 
         likely_type type = likely_type_from_string(op.c_str());
         if (type != likely_type_null)
-            return new Immediate(constant(type, likely_type_u32));
+            return new Immediate(constant((double)type, likely_type_u32));
 
         return Expression::error(ast, "unrecognized literal");
     }
