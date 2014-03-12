@@ -578,37 +578,6 @@ private:
 
 int main(int argc, char *argv[])
 {
-    for (int i=1; i<argc; i++) {
-        QString source;
-        if (QFileInfo(argv[i]).exists()) {
-            QFile file(argv[i]);
-            file.open(QFile::ReadOnly | QFile::Text);
-            source = file.readAll();
-            file.close();
-            if (source.startsWith("#!"))
-                source = source.mid(source.indexOf('\n')+1);
-        } else {
-            source = argv[i];
-        }
-
-        likely_const_ast asts = likely_asts_from_string(qPrintable(source));
-        likely_env env = likely_new_env();
-        for (size_t i=0; i<asts->num_atoms; i++) {
-            likely_const_mat m = likely_eval(asts->atoms[i], env);
-            if (m) {
-                likely_mat str = likely_to_string(m, true);
-                printf("%s\n", (const char*) str->data);
-                likely_release(str);
-                likely_release(m);
-            }
-        }
-        likely_release_env(env);
-        likely_release_ast(asts);
-    }
-
-    if (argc > 1)
-        return 0;
-
     QApplication::setApplicationName("Dream");
     QApplication::setOrganizationName("Likely");
     QApplication::setOrganizationDomain("liblikely.org");
