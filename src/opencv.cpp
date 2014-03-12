@@ -1,8 +1,9 @@
-// This is actually just C++, but we use this file in a weird way
+#include "likely/opencv.hpp"
 
-#include <opencv2/core/core.hpp>
+namespace likely
+{
 
-static int typeToDepth(likely_type type)
+int typeToDepth(likely_type type)
 {
     switch (likely_data(type)) {
       case likely_type_u8:  return CV_8U;
@@ -17,7 +18,7 @@ static int typeToDepth(likely_type type)
     return 0;
 }
 
-static likely_type depthToType(int depth)
+likely_type depthToType(int depth)
 {
     switch (depth) {
       case CV_8U:  return likely_type_u8;
@@ -32,14 +33,16 @@ static likely_type depthToType(int depth)
     return likely_type_null;
 }
 
-static cv::Mat toCvMat(likely_const_mat m)
+cv::Mat toCvMat(likely_const_mat m)
 {
     return cv::Mat((int)m->rows, (int)m->columns, CV_MAKETYPE(typeToDepth(m->type), (int)m->channels), (void*)m->data);
 }
 
-static likely_mat fromCvMat(const cv::Mat &src)
+likely_mat fromCvMat(const cv::Mat &src)
 {
     if (!src.isContinuous() || !src.data)
         return likely_new(likely_type_null, 0, 0, 0, 0, NULL);
     return likely_new(depthToType(src.depth()), src.channels(), src.cols, src.rows, 1, src.data);
 }
+
+} // namespace likely

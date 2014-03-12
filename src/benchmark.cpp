@@ -25,8 +25,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <likely.h>
-
-#include "opencv.shim"
+#include <likely/opencv.hpp>
 
 using namespace cv;
 using namespace std;
@@ -59,7 +58,7 @@ static Mat generateData(int rows, int columns, likely_type type, double scaleFac
 
     Mat n;
     resize(m, n, Size(columns, rows), 0, 0, INTER_NEAREST);
-    n.convertTo(n, typeToDepth(type), scaleFactor);
+    n.convertTo(n, likely::typeToDepth(type), scaleFactor);
     return n;
 }
 
@@ -230,7 +229,7 @@ private:
 
     static likely_mat fromCvMat(const Mat &src)
     {
-        likely_mat m = ::fromCvMat(src);
+        likely_mat m = likely::fromCvMat(src);
         if (!likely_floating(m->type) && (likely_depth(m->type) <= 16))
             likely_set_saturation(&m->type, BenchmarkSaturation);
         return m;
@@ -241,7 +240,7 @@ private:
         Mat dstOpenCV = computeBaseline(srcCV);
         likely_const_mat dstLikely = f(srcLikely);
 
-        Mat errorMat = abs(toCvMat(dstLikely) - dstOpenCV);
+        Mat errorMat = abs(likely::toCvMat(dstLikely) - dstOpenCV);
         errorMat.convertTo(errorMat, CV_32F);
         dstOpenCV.convertTo(dstOpenCV, CV_32F);
         errorMat = errorMat / (dstOpenCV + LIKELY_ERROR_TOLERANCE); // Normalize errors

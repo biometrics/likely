@@ -26,7 +26,7 @@
 #include "likely/backend.h"
 #include "likely/frontend.h"
 #include "likely/io.h"
-#include "opencv.shim"
+#include "likely/opencv.hpp"
 
 using namespace std;
 
@@ -36,7 +36,7 @@ likely_mat likely_read(const char *file_name)
     likely_mat m = NULL;
     if ((len < 3) || strcmp(&file_name[len-3], ".lm")) {
         try {
-            m = fromCvMat(cv::imread(file_name, CV_LOAD_IMAGE_UNCHANGED));
+            m = likely::fromCvMat(cv::imread(file_name, CV_LOAD_IMAGE_UNCHANGED));
         } catch (...) { }
     } else {
         if (FILE *fp = fopen(file_name, "rb")) {
@@ -59,7 +59,7 @@ likely_mat likely_write(likely_const_mat image, const char *file_name)
     const size_t len = strlen(file_name);
     if ((len < 3) || strcmp(&file_name[len-3], ".lm")) {
         try {
-            cv::imwrite(file_name, toCvMat(image));
+            cv::imwrite(file_name, likely::toCvMat(image));
         } catch (...) {
             return NULL;
         }
@@ -81,7 +81,7 @@ likely_mat likely_write(likely_const_mat image, const char *file_name)
 likely_mat likely_decode(likely_const_mat buffer)
 {
     try {
-        return fromCvMat(cv::imdecode(toCvMat(buffer), CV_LOAD_IMAGE_UNCHANGED));
+        return likely::fromCvMat(cv::imdecode(likely::toCvMat(buffer), CV_LOAD_IMAGE_UNCHANGED));
     } catch (...) {
         return NULL;
     }
@@ -91,11 +91,11 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
 {
     vector<uchar> buf;
     try {
-        cv::imencode(string(".") + extension, toCvMat(image), buf);
+        cv::imencode(string(".") + extension, likely::toCvMat(image), buf);
     } catch (...) {
         return NULL;
     }
-    return fromCvMat(cv::Mat(buf));
+    return likely::fromCvMat(cv::Mat(buf));
 }
 
 likely_mat likely_to_string(likely_const_mat m, bool include_header)
