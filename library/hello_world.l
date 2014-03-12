@@ -1,6 +1,6 @@
 Hello World
 -----------
-Click **View Source** and copy this source code into _dream_. **CTRL+scroll** to edit numerical constants, note that it is re-executed as you edit:
+Click **View Source** and _copy+paste_ this file into **dream**, Likely's IDE. Note that you can **CTRL+scroll** to increment/decrement numerical constants, and that source code is re-executed as you edit.
 
     (define lenna (read "../data/misc/lenna.tiff"))
 
@@ -10,4 +10,4 @@ Click **View Source** and copy this source code into _dream_. **CTRL+scroll** to
 
     (hello_world lenna)
 
-[Next](?show=comments)
+[Next](?show=like)

@@ -39,11 +39,11 @@ Likely is built on top of the _Low Level Virtual Machine_ (LLVM) compiler infras
 
 Algorithms expressed in Likely **deploy everywhere**, including minimalist native libraries, dynamic just-in-time applications, light-weight scripts, high-level language integration, web services, and pure _C_ and _JavaScript_.
 
-| Frontend        | Status |
-|-----------------|--------|
-| Static compiler | Done   |
-| JIT compiler    | Done   |
-| REPL shell      | Done   |
+| Frontend        | Status                                                |
+|-----------------|-------------------------------------------------------|
+| Static compiler | [Done](share/likely/hello_world/hello_world_static.c) |
+| JIT compiler    | [Done](share/likely/hello_world/hello_world_jit.c)    |
+| REPL shell      | [Done](?show=like)                                    |
 | SWIG            | [#46](https://github.com/biometrics/likely/issues/46) |
 | Web services    | [#44](https://github.com/biometrics/likely/issues/44) |
 | C               | [#51](https://github.com/biometrics/likely/issues/51) |
