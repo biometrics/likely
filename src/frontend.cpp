@@ -264,16 +264,24 @@ void likely_set_error_callback(likely_error_callback callback, void *context)
     ErrorContext = context;
 }
 
-void likely_throw(likely_const_ast ast, const char *message)
+void likely_throw(likely_const_ast where, const char *what)
 {
     if (ErrorCallback) {
         likely_error error;
-        error.ast = ast;
-        error.message = message;
+        error.where = where;
+        error.what = what;
         ErrorCallback(error, ErrorContext);
     } else {
-        stringstream msg;
-        msg << message << ": " << likely_ast_to_string(ast) << " at position: " << ast->begin;
-        likely_assert(false, msg.str().c_str());
+        likely_mat str = likely_ast_to_string(where);
+        likely_assert(false, (const char*) str->data);
+        likely_release(str);
     }
+}
+
+likely_mat likely_error_to_string(likely_error error)
+{
+    stringstream stream;
+    stream << error.what << " at: ";
+    print(error.where, stream);
+    return likely_string(stream.str().c_str());
 }

@@ -579,7 +579,9 @@ private slots:
 private:
     static void error_callback(likely_error error, void *context)
     {
-        reinterpret_cast<QStatusBar*>(context)->showMessage(error.message);
+        likely_mat str = likely_error_to_string(error);
+        reinterpret_cast<QStatusBar*>(context)->showMessage((const char*) str->data);
+        likely_release(str);
     }
 };
 

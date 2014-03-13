@@ -42,8 +42,8 @@ typedef struct likely_abstract_syntax_tree const *likely_const_ast;
 
 typedef struct likely_error
 {
-    likely_const_ast ast; // where
-    const char *message; //what
+    likely_const_ast where;
+    const char *what;
 } likely_error;
 typedef void (*likely_error_callback)(likely_error error, void *context);
 
@@ -67,7 +67,8 @@ LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);
 
 // Callback-style error handling
 LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, void *context);
-LIKELY_EXPORT void likely_throw(likely_const_ast token, const char *message);
+LIKELY_EXPORT void likely_throw(likely_const_ast where, const char *what);
+LIKELY_EXPORT likely_mat likely_error_to_string(likely_error error);
 
 #ifdef __cplusplus
 }

@@ -41,7 +41,7 @@ static void execute(const char *source, likely_env env)
 
 static void error_callback(likely_error error, void *)
 {
-    cerr << error.message << endl;
+    cerr << error.what << endl;
 }
 
 int main(int argc, char *argv[])
