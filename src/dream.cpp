@@ -16,6 +16,7 @@
 
 #include <QtCore>
 #include <QtWidgets>
+#include <assert.h>
 #include <likely.h>
 
 class SyntaxHighlighter : public QSyntaxHighlighter
@@ -273,8 +274,10 @@ private slots:
             likely_env env = likely_new_env();
             for (size_t i=0; i<asts->num_atoms; i++) {
                 likely_const_mat result = likely_eval(asts->atoms[i], env);
-                emit newResult(result);
-                likely_release(result);
+                if (result) {
+                    emit newResult(result);
+                    likely_release(result);
+                }
             }
             likely_release_env(env);
             likely_release_ast(asts);
@@ -336,23 +339,19 @@ public:
         connect(name, SIGNAL(textChanged(QString)), this, SLOT(updateDefinition()));
     }
 
-    void show(likely_const_mat mat)
+    void show(likely_const_mat m)
     {
+        assert(m);
         double min, max;
-        if (mat) {
-            likely_const_mat rendered = likely_render(mat, &min, &max);
-            src = QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped();
-            likely_release(rendered);
-        } else {
-            min = max = 0;
-            src = QImage();
-        }
+        likely_const_mat rendered = likely_render(m, &min, &max);
+        src = QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped();
+        likely_release(rendered);
 
-        likely_mat typeString = likely_type_to_string(mat == NULL ? likely_type_null : mat->type);
-        type->setText(QString("%1x%2x%3x%4 %5 [%6,%7]").arg(QString::number(mat == NULL ? 0 : mat->channels),
-                                                            QString::number(mat == NULL ? 0 : mat->columns),
-                                                            QString::number(mat == NULL ? 0 : mat->rows),
-                                                            QString::number(mat == NULL ? 0 : mat->frames),
+        likely_mat typeString = likely_type_to_string(m->type);
+        type->setText(QString("%1x%2x%3x%4 %5 [%6,%7]").arg(QString::number(m->channels),
+                                                            QString::number(m->columns),
+                                                            QString::number(m->rows),
+                                                            QString::number(m->frames),
                                                             (const char*) typeString->data,
                                                             QString::number(min),
                                                             QString::number(max)));

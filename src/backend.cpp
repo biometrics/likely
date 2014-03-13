@@ -1851,5 +1851,5 @@ likely_mat likely_eval(likely_const_ast ast, likely_env env)
     Resources resources(expr, env, vector<likely_type>());
     likely_release_ast(expr);
     if (resources.function) return reinterpret_cast<likely_mat(*)(void)>(resources.function)();
-    else                         return NULL;
+    else                    return NULL;
 }

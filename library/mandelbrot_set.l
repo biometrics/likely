@@ -9,7 +9,7 @@ Control parameters
     (define y_min -1)
     (define y_max 1)
     (define resolution 128)
-    (iterations 3)
+    (define iterations 3)
 
 Derived values
 
