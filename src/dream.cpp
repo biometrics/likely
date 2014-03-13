@@ -341,21 +341,29 @@ public:
 
     void show(likely_const_mat m)
     {
-        assert(m);
-        double min, max;
-        likely_const_mat rendered = likely_render(m, &min, &max);
-        src = QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped();
-        likely_release(rendered);
+        if (likely_elements(m) <= 16) {
+            src = QImage();
 
-        likely_mat typeString = likely_type_to_string(m->type);
-        type->setText(QString("%1x%2x%3x%4 %5 [%6,%7]").arg(QString::number(m->channels),
-                                                            QString::number(m->columns),
-                                                            QString::number(m->rows),
-                                                            QString::number(m->frames),
-                                                            (const char*) typeString->data,
-                                                            QString::number(min),
-                                                            QString::number(max)));
-        likely_release(typeString);
+            likely_mat str = likely_to_string(m, true);
+            type->setText((const char*) str->data);
+            likely_release(str);
+        } else {
+            double min, max;
+            likely_const_mat rendered = likely_render(m, &min, &max);
+            src = QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped();
+            likely_release(rendered);
+
+            likely_mat str = likely_type_to_string(m->type);
+            type->setText(QString("%1x%2x%3x%4 %5 [%6,%7]").arg(QString::number(m->channels),
+                                                                QString::number(m->columns),
+                                                                QString::number(m->rows),
+                                                                QString::number(m->frames),
+                                                                (const char*) str->data,
+                                                                QString::number(min),
+                                                                QString::number(max)));
+            likely_release(str);
+        }
+
         updatePixmap();
     }
 
