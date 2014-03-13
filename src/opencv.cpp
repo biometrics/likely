@@ -46,7 +46,7 @@ likely_type depthToType(int depth)
       case CV_64F: return likely_type_f64;
     }
     assert(!"Unsupported matrix depth.");
-    return likely_type_null;
+    return likely_type_void;
 }
 
 cv::Mat toCvMat(likely_const_mat m)
@@ -57,7 +57,7 @@ cv::Mat toCvMat(likely_const_mat m)
 likely_mat fromCvMat(const cv::Mat &src)
 {
     if (!src.isContinuous() || !src.data)
-        return likely_new(likely_type_null, 0, 0, 0, 0, NULL);
+        return likely_new(likely_type_void, 0, 0, 0, 0, NULL);
     return likely_new(depthToType(src.depth()), src.channels(), src.cols, src.rows, 1, src.data);
 }
 

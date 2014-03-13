@@ -44,7 +44,7 @@ static bool        BenchmarkSaturation = true;
 static int         BenchmarkSize       = 0;
 static bool        BenchmarkSpeed      = true;
 static bool        BenchmarkTutorial   = false;
-static likely_type BenchmarkType       = likely_type_null;
+static likely_type BenchmarkType       = likely_type_void;
 static bool        BenchmarkVerbose    = false;
 
 static Mat generateData(int rows, int columns, likely_type type, double scaleFactor)
@@ -71,12 +71,12 @@ struct Test
 
         likely_const_ast ast = likely_ast_from_string(function());
         likely_env env = likely_new_env();
-        likely_function f = likely_compile(ast, env, likely_type_null);
+        likely_function f = likely_compile(ast, env, likely_type_void);
         likely_release_env(env);
         likely_release_ast(ast);
 
         for (likely_type type : types()) {
-            if ((BenchmarkType != likely_type_null) && (BenchmarkType != type))
+            if ((BenchmarkType != likely_type_void) && (BenchmarkType != type))
                 continue;
 
             for (int size : sizes()) {

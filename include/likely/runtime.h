@@ -38,7 +38,7 @@ typedef likely_size likely_type; /* Depth : 8
 // Standard type masks and values
 enum likely_type_field
 {
-    likely_type_null     = 0x00000000,
+    likely_type_void     = 0x00000000,
     likely_type_depth    = 0x000000FF,
     likely_type_signed   = 0x00000100,
     likely_type_floating = 0x00000200,

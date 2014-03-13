@@ -192,7 +192,7 @@ struct Builder : public IRBuilder<>
             if (value == 0) value = -0; // IEEE/LLVM optimization quirk
             if      (depth == 64) return Immediate(ConstantFP::get(Type::getDoubleTy(C), value), type);
             else if (depth == 32) return Immediate(ConstantFP::get(Type::getFloatTy(C), value), type);
-            else                  { likely_assert(false, "invalid floating point constant depth: %d", depth); return Immediate(NULL, likely_type_null); }
+            else                  { likely_assert(false, "invalid floating point constant depth: %d", depth); return Immediate(NULL, likely_type_void); }
         } else {
             return Immediate(Constant::getIntegerValue(Type::getIntNTy(C, depth), APInt(depth, uint64_t(value))), type);
         }
@@ -203,7 +203,7 @@ struct Builder : public IRBuilder<>
     static Immediate intMax(likely_type type) { const int bits = likely_depth(type); return constant((1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
     static Immediate intMin(likely_type type) { const int bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
     static Immediate type(likely_type type) { return constant((double)type, likely_depth(likely_type_type)); }
-    static Immediate nullMat() { return Immediate(ConstantPointerNull::get(VoidMat), likely_type_null); }
+    static Immediate nullMat() { return Immediate(ConstantPointerNull::get(VoidMat), likely_type_void); }
     static Immediate nullData() { return Immediate(ConstantPointerNull::get(Type::getInt8PtrTy(C)), likely_type_native); }
 
     Immediate channels(const Expression *matrix) { return likely_multi_channel(*matrix) ? Immediate(CreateLoad(CreateStructGEP(*matrix, 2), "channels"), likely_type_native) : one(); }
@@ -263,7 +263,7 @@ struct Builder : public IRBuilder<>
             Value *src = args++;
             stringstream name; name << "arg_" << int(n);
             src->setName(name.str());
-            result.push_back(Immediate(src, n < types.size() ? types[n] : likely_type_null));
+            result.push_back(Immediate(src, n < types.size() ? types[n] : likely_type_void));
             n++;
         }
         return result;
@@ -326,7 +326,7 @@ struct Builder : public IRBuilder<>
         }
 
         likely_type type = likely_type_from_string(op.c_str());
-        if (type != likely_type_null)
+        if (type != likely_type_void)
             return new Immediate(constant((double)type, likely_type_u32));
 
         return Expression::error(ast, "unrecognized literal");
@@ -380,7 +380,7 @@ class Operator : public Expression
     likely_type type() const
     {
         likely_assert(false, "Operator has no type!");
-        return likely_type_null;
+        return likely_type_void;
     }
 
     Expression *evaluate(Builder &builder, likely_const_ast ast) const
@@ -477,7 +477,7 @@ struct FunctionExpression : public ScopedExpression, public LibraryFunction
         // Do dynamic dispatch if the type isn't fully specified
         bool dynamic = false;
         for (likely_type type : types)
-            dynamic = dynamic || (type == likely_type_null);
+            dynamic = dynamic || (type == likely_type_void);
         dynamic = dynamic || (types.size() < ast->atoms[1]->num_atoms);
 
         if (dynamic) {
@@ -535,7 +535,7 @@ struct FunctionExpression : public ScopedExpression, public LibraryFunction
 
             Constant *thisVTableFunction = ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vTable)), uintptr_t(vTable)), vTableType);
             builder.CreateRet(builder.CreateCall2(likelyDynamic, thisVTableFunction, array));
-            return Immediate(function, likely_type_null);
+            return Immediate(function, likely_type_void);
         }
 
         if (name.empty())
@@ -602,7 +602,7 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
         initializeTarget(Registry);
 
         NativeInt = Type::getIntNTy(C, likely_depth(likely_type_native));
-        VoidMat = Builder::getMat(likely_type_null);
+        VoidMat = Builder::getMat(likely_type_void);
     }
 
     module = new Module(getUniqueName("module"), C);
@@ -698,7 +698,7 @@ struct TYPE##Expression : public Immediate                                     \
 };                                                                             \
 LIKELY_REGISTER(TYPE)                                                          \
 
-LIKELY_REGISTER_TYPE(null)
+LIKELY_REGISTER_TYPE(void)
 LIKELY_REGISTER_TYPE(depth)
 LIKELY_REGISTER_TYPE(signed)
 LIKELY_REGISTER_TYPE(floating)
@@ -1572,7 +1572,7 @@ private:
             builder.define(ast->atoms[1]->atoms[i]->atom, tmpArgs[i]);
         ManagedExpression result(builder.expression(ast->atoms[2]));
         if (result.isNull())
-            return Immediate(NULL, likely_type_null);
+            return Immediate(NULL, likely_type_void);
         for (size_t i=0; i<tmpArgs.size(); i++)
             builder.undefine(ast->atoms[1]->atoms[i]->atom);
         builder.CreateRet(result);
@@ -1658,7 +1658,7 @@ class readExpression : public SimpleUnaryOperator, public LibraryFunction
             likelyRead->setDoesNotAlias(1);
             likelyRead->setDoesNotCapture(1);
         }
-        return new Immediate(builder.CreateCall(likelyRead, arg), likely_type_null);
+        return new Immediate(builder.CreateCall(likelyRead, arg), likely_type_void);
     }
     void *symbol() const { return (void*) likely_read; }
 };
@@ -1688,7 +1688,7 @@ class writeExpression : public SimpleBinaryOperator, public LibraryFunction
         vector<Value*> likelyWriteArguments;
         likelyWriteArguments.push_back(arg1);
         likelyWriteArguments.push_back(arg2);
-        return new Immediate(builder.CreateCall(likelyWrite, likelyWriteArguments), likely_type_null);
+        return new Immediate(builder.CreateCall(likelyWrite, likelyWriteArguments), likely_type_void);
     }
     void *symbol() const { return (void*) likely_write; }
 };
@@ -1707,7 +1707,7 @@ class decodeExpression : public SimpleUnaryOperator, public LibraryFunction
             likelyDecode->setDoesNotAlias(1);
             likelyDecode->setDoesNotCapture(1);
         }
-        return new Immediate(builder.CreateCall(likelyDecode, arg), likely_type_null);
+        return new Immediate(builder.CreateCall(likelyDecode, arg), likely_type_void);
     }
     void *symbol() const { return (void*) likely_decode; }
 };
@@ -1737,7 +1737,7 @@ class encodeExpression : public SimpleBinaryOperator, public LibraryFunction
         vector<Value*> likelyEncodeArguments;
         likelyEncodeArguments.push_back(arg1);
         likelyEncodeArguments.push_back(arg2);
-        return new Immediate(builder.CreateCall(likelyEncode, likelyEncodeArguments), likely_type_null);
+        return new Immediate(builder.CreateCall(likelyEncode, likelyEncodeArguments), likely_type_void);
     }
     void *symbol() const { return (void*) likely_encode; }
 };
@@ -1813,7 +1813,7 @@ likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type
     vector<likely_type> types;
     va_list ap;
     va_start(ap, type);
-    while (type != likely_type_null) {
+    while (type != likely_type_void) {
         types.push_back(type);
         type = va_arg(ap, likely_type);
     }

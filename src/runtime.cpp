@@ -226,13 +226,13 @@ likely_mat likely_type_to_string(likely_type type)
 likely_type likely_type_from_string(const char *str)
 {
     const size_t len = strlen(str);
-    if (len == 0) return likely_type_null;
+    if (len == 0) return likely_type_void;
 
     likely_type t;
     if      (str[0] == 'f') t = likely_type_signed | likely_type_floating;
     else if (str[0] == 'i') t = likely_type_signed;
-    else if (str[0] == 'u') t = likely_type_null;
-    else                    return likely_type_null;
+    else if (str[0] == 'u') t = likely_type_void;
+    else                    return likely_type_void;
 
     char *rem;
     int depth = (int)strtol(str+1, &rem, 10);
@@ -247,7 +247,7 @@ likely_type likely_type_from_string(const char *str)
         else if (*rem == 'Y') t |= likely_type_multi_row;
         else if (*rem == 'T') t |= likely_type_multi_frame;
         else if (*rem == 'S') t |= likely_type_saturation;
-        else                  return likely_type_null;
+        else                  return likely_type_void;
         rem++;
     }
 
