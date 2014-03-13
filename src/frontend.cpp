@@ -255,7 +255,14 @@ likely_mat likely_ast_to_string(likely_const_ast ast)
     return likely_string(stream.str().c_str());
 }
 
-static likely_error_callback ErrorCallback = NULL;
+static void default_error_callback(likely_error error, void *)
+{
+    likely_mat str = likely_error_to_string(error);
+    cerr << (const char*) str->data << endl;
+    likely_release(str);
+}
+
+static likely_error_callback ErrorCallback = default_error_callback;
 static void *ErrorContext = NULL;
 
 void likely_set_error_callback(likely_error_callback callback, void *context)
@@ -266,16 +273,10 @@ void likely_set_error_callback(likely_error_callback callback, void *context)
 
 void likely_throw(likely_const_ast where, const char *what)
 {
-    if (ErrorCallback) {
-        likely_error error;
-        error.where = where;
-        error.what = what;
-        ErrorCallback(error, ErrorContext);
-    } else {
-        likely_mat str = likely_ast_to_string(where);
-        likely_assert(false, (const char*) str->data);
-        likely_release(str);
-    }
+    likely_error error;
+    error.where = where;
+    error.what = what;
+    ErrorCallback(error, ErrorContext);
 }
 
 likely_mat likely_error_to_string(likely_error error)

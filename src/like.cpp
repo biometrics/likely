@@ -39,15 +39,8 @@ static void execute(const char *source, likely_env env)
     likely_release_ast(asts);
 }
 
-static void error_callback(likely_error error, void *)
-{
-    cerr << error.what << endl;
-}
-
 int main(int argc, char *argv[])
 {
-    likely_set_error_callback(error_callback, NULL);
-
     if (argc == 1) {
         // Enter a REPL
         likely_env env = likely_new_env();
