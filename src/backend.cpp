@@ -331,7 +331,43 @@ struct Builder : public IRBuilder<>
 
         return Expression::error(ast, "unrecognized literal");
     }
+
+    static map<likely_type, PointerType*> matLUT;
+    static map<PointerType*, likely_type> typeLUT;
+
+    static PointerType *getMat(likely_type type)
+    {
+        auto result = matLUT.find(type);
+        if (result != matLUT.end())
+            return result->second;
+
+        likely_mat str = likely_type_to_string(type);
+        const string name = string("mat_") + (const char*) str->data;
+        PointerType *mat = PointerType::getUnqual(StructType::create(name,
+                                                                     NativeInt, // bytes
+                                                                     NativeInt, // ref_count
+                                                                     NativeInt, // channels
+                                                                     NativeInt, // columns
+                                                                     NativeInt, // rows
+                                                                     NativeInt, // frames
+                                                                     NativeInt, // type
+                                                                     ArrayType::get(Type::getInt8Ty(C), 0), // data
+                                                                     NULL));
+        likely_release(str);
+        matLUT[type] = mat;
+        typeLUT[mat] = type;
+        return mat;
+    }
+
+    static likely_type getType(PointerType *mat)
+    {
+        auto result = typeLUT.find(mat);
+        likely_assert(result != typeLUT.end(), "invalid pointer for type lookup");
+        return result->second;
+    }
 };
+map<likely_type, PointerType*> Builder::matLUT;
+map<PointerType*, likely_type> Builder::typeLUT;
 
 class Operator : public Expression
 {
@@ -566,16 +602,7 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
         initializeTarget(Registry);
 
         NativeInt = Type::getIntNTy(C, likely_depth(likely_type_native));
-        Mat = PointerType::getUnqual(StructType::create("likely_matrix",
-                                                        NativeInt, // bytes
-                                                        NativeInt, // ref_count
-                                                        NativeInt, // channels
-                                                        NativeInt, // columns
-                                                        NativeInt, // rows
-                                                        NativeInt, // frames
-                                                        NativeInt, // type
-                                                        ArrayType::get(Type::getInt8Ty(C), 0), // data
-                                                        NULL));
+        Mat = Builder::getMat(likely_type_null);
     }
 
     module = new Module(getUniqueName("module"), C);
