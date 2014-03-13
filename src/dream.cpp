@@ -358,7 +358,7 @@ public:
                                                                 QString::number(m->columns),
                                                                 QString::number(m->rows),
                                                                 QString::number(m->frames),
-                                                                (const char*) str->data,
+                                                                (const char*)str->data,
                                                                 QString::number(min),
                                                                 QString::number(max)));
             likely_release(str);

@@ -32,7 +32,7 @@ static void execute(const char *source, likely_env env)
         likely_const_mat m = likely_eval(asts->atoms[i], env);
         if (!m) continue;
         likely_mat str = likely_to_string(m, true);
-        printf("%s\n", (const char*) str->data);
+        printf("%s\n", str->data);
         likely_release(str);
         likely_release(m);
     }

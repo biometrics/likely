@@ -258,7 +258,7 @@ likely_mat likely_ast_to_string(likely_const_ast ast)
 static void default_error_callback(likely_error error, void *)
 {
     likely_mat str = likely_error_to_string(error);
-    cerr << (const char*) str->data << endl;
+    cerr << str->data << endl;
     likely_release(str);
 }
 

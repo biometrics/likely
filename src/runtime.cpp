@@ -86,7 +86,7 @@ likely_size likely_bytes(likely_const_mat m)
 // TODO: make this thread_local when compiler support improves
 static likely_mat recycled = NULL;
 
-likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, uint8_t const *data)
+likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data)
 {
     likely_mat m;
     const size_t dataBytes = uint64_t(likely_depth(type)) * channels * columns * rows * frames / 8;
@@ -131,7 +131,7 @@ likely_mat likely_scalar(double value)
 
 likely_mat likely_string(const char *str)
 {
-    return likely_new(likely_type_i8, strlen(str)+1, 1, 1, 1, (uint8_t const*) str);
+    return likely_new(likely_type_i8, strlen(str)+1, 1, 1, 1, str);
 }
 
 likely_mat likely_copy(likely_const_mat m)

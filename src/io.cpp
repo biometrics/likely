@@ -109,7 +109,7 @@ likely_mat likely_to_string(likely_const_mat m, bool include_header)
     if (include_header) {
         stream << "{ type=";
         likely_mat str = likely_type_to_string(m->type);
-        stream << (const char*) str->data;
+        stream << str->data;
         likely_release(str);
         if (m->channels > 1) stream << ", channels=" << m->channels;
         if (m->columns  > 1) stream << ", columns="  << m->columns;
@@ -156,7 +156,7 @@ likely_mat likely_print(likely_const_mat m, ...)
     stringstream buffer;
     while (m) {
         likely_mat str = likely_to_string(m, false);
-        buffer << (const char*) str->data;
+        buffer << str->data;
         likely_release(str);
         m = va_arg(ap, likely_const_mat);
     }
