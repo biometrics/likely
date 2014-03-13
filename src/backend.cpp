@@ -49,7 +49,7 @@ using namespace std;
 namespace {
 
 static IntegerType *NativeInt = NULL;
-static PointerType *Mat = NULL;
+static PointerType *VoidMat = NULL;
 static LLVMContext &C = getGlobalContext();
 
 struct Builder;
@@ -203,7 +203,7 @@ struct Builder : public IRBuilder<>
     static Immediate intMax(likely_type type) { const int bits = likely_depth(type); return constant((1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
     static Immediate intMin(likely_type type) { const int bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
     static Immediate type(likely_type type) { return constant((double)type, likely_depth(likely_type_type)); }
-    static Immediate nullMat() { return Immediate(ConstantPointerNull::get(Mat), likely_type_null); }
+    static Immediate nullMat() { return Immediate(ConstantPointerNull::get(VoidMat), likely_type_null); }
     static Immediate nullData() { return Immediate(ConstantPointerNull::get(Type::getInt8PtrTy(C)), likely_type_native); }
 
     Immediate channels(const Expression *matrix) { return likely_multi_channel(*matrix) ? Immediate(CreateLoad(CreateStructGEP(*matrix, 2), "channels"), likely_type_native) : one(); }
@@ -487,7 +487,7 @@ struct FunctionExpression : public ScopedExpression, public LibraryFunction
             VTable *vTable = new VTable(builder, ast);
             builder.resources->expressions.push_back(vTable);
 
-            static FunctionType* functionType = FunctionType::get(Mat, Mat, true);
+            static FunctionType* functionType = FunctionType::get(VoidMat, VoidMat, true);
 
             Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(name, functionType));
             function->addFnAttr(Attribute::NoUnwind);
@@ -499,18 +499,18 @@ struct FunctionExpression : public ScopedExpression, public LibraryFunction
 
             Value *array;
             if (vTable->n > 0) {
-                array = builder.CreateAlloca(Mat, Constant::getIntegerValue(Type::getInt32Ty(C), APInt(32, (uint64_t)vTable->n)));
+                array = builder.CreateAlloca(VoidMat, Constant::getIntegerValue(Type::getInt32Ty(C), APInt(32, (uint64_t)vTable->n)));
                 builder.CreateStore(function->arg_begin(), builder.CreateGEP(array, Constant::getIntegerValue(NativeInt, APInt(8*sizeof(void*), 0))));
                 if (vTable->n > 1) {
                     Value *vaList = builder.CreateAlloca(IntegerType::getInt8PtrTy(C));
                     Value *vaListRef = builder.CreateBitCast(vaList, Type::getInt8PtrTy(C));
                     builder.CreateCall(Intrinsic::getDeclaration(builder.resources->module, Intrinsic::vastart), vaListRef);
                     for (likely_arity i=1; i<vTable->n; i++)
-                        builder.CreateStore(builder.CreateVAArg(vaList, Mat), builder.CreateGEP(array, Constant::getIntegerValue(NativeInt, APInt(8*sizeof(void*), i))));
+                        builder.CreateStore(builder.CreateVAArg(vaList, VoidMat), builder.CreateGEP(array, Constant::getIntegerValue(NativeInt, APInt(8*sizeof(void*), i))));
                     builder.CreateCall(Intrinsic::getDeclaration(builder.resources->module, Intrinsic::vaend), vaListRef);
                 }
             } else {
-                array = ConstantPointerNull::get(PointerType::getUnqual(Mat));
+                array = ConstantPointerNull::get(PointerType::getUnqual(VoidMat));
             }
 
             static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
@@ -518,8 +518,8 @@ struct FunctionExpression : public ScopedExpression, public LibraryFunction
             if (likelyDynamicType == NULL) {
                 vector<Type*> params;
                 params.push_back(vTableType);
-                params.push_back(PointerType::getUnqual(Mat));
-                likelyDynamicType = FunctionType::get(Mat, params, false);
+                params.push_back(PointerType::getUnqual(VoidMat));
+                likelyDynamicType = FunctionType::get(VoidMat, params, false);
             }
 
             Function *likelyDynamic = builder.resources->module->getFunction("likely_dynamic");
@@ -584,7 +584,7 @@ private:
 Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_type> &type, string name, bool native)
     : type(type)
 {
-    if (!Mat) {
+    if (!VoidMat) {
         assert(sizeof(likely_size) == sizeof(void*));
         InitializeNativeTarget();
         InitializeNativeTargetAsmPrinter();
@@ -602,7 +602,7 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
         initializeTarget(Registry);
 
         NativeInt = Type::getIntNTy(C, likely_depth(likely_type_native));
-        Mat = Builder::getMat(likely_type_null);
+        VoidMat = Builder::getMat(likely_type_null);
     }
 
     module = new Module(getUniqueName("module"), C);
@@ -1073,7 +1073,7 @@ class elementsExpression : public SimpleUnaryOperator, public LibraryFunction
 {
     Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
     {
-        static FunctionType *functionType = FunctionType::get(NativeInt, Mat, false);
+        static FunctionType *functionType = FunctionType::get(NativeInt, VoidMat, false);
         Function *likelyElements = builder.resources->module->getFunction("likely_elements");
         if (!likelyElements) {
             likelyElements = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_elements", builder.resources->module);
@@ -1091,7 +1091,7 @@ class bytesExpression : public SimpleUnaryOperator, public LibraryFunction
 {
     Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
     {
-        static FunctionType *functionType = FunctionType::get(NativeInt, Mat, false);
+        static FunctionType *functionType = FunctionType::get(NativeInt, VoidMat, false);
         Function *likelyBytes = builder.resources->module->getFunction("likely_bytes");
         if (!likelyBytes) {
             likelyBytes = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_bytes", builder.resources->module);
@@ -1151,7 +1151,7 @@ public:
             params.push_back(NativeInt); // rows
             params.push_back(NativeInt); // frames
             params.push_back(Type::getInt8PtrTy(C)); // data
-            functionType = FunctionType::get(Mat, params, false);
+            functionType = FunctionType::get(VoidMat, params, false);
         }
 
         Function *likelyNew = builder.resources->module->getFunction("likely_new");
@@ -1183,10 +1183,10 @@ class scalarExpression : public UnaryOperator, public LibraryFunction
         if (!argExpr)
             return NULL;
 
-        if (argExpr->value()->getType() == Mat)
+        if (argExpr->value()->getType() == VoidMat)
             return argExpr;
 
-        static FunctionType *functionType = FunctionType::get(Mat, Type::getDoubleTy(C), false);
+        static FunctionType *functionType = FunctionType::get(VoidMat, Type::getDoubleTy(C), false);
         Function *likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar", builder.resources->module);
         likelyScalar->setCallingConv(CallingConv::C);
         likelyScalar->setDoesNotAlias(0);
@@ -1212,7 +1212,7 @@ class stringExpression : public SimpleUnaryOperator, public LibraryFunction
 public:
     static CallInst *createCall(Builder &builder, Value *string)
     {
-        static FunctionType *functionType = FunctionType::get(Mat, Type::getInt8PtrTy(C), false);
+        static FunctionType *functionType = FunctionType::get(VoidMat, Type::getInt8PtrTy(C), false);
         Function *likelyString = builder.resources->module->getFunction("likely_string");
         if (!likelyString) {
             likelyString = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_string", builder.resources->module);
@@ -1238,7 +1238,7 @@ class copyExpression : public SimpleUnaryOperator, public LibraryFunction
 public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
-        static FunctionType *functionType = FunctionType::get(Mat, Mat, false);
+        static FunctionType *functionType = FunctionType::get(VoidMat, VoidMat, false);
         Function *likelyCopy = builder.resources->module->getFunction("likely_copy");
         if (!likelyCopy) {
             likelyCopy = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_copy", builder.resources->module);
@@ -1264,7 +1264,7 @@ class retainExpression : public SimpleUnaryOperator, public LibraryFunction
 public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
-        static FunctionType *functionType = FunctionType::get(Mat, Mat, false);
+        static FunctionType *functionType = FunctionType::get(VoidMat, VoidMat, false);
         Function *likelyRetain = builder.resources->module->getFunction("likely_retain");
         if (!likelyRetain) {
             likelyRetain = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_retain", builder.resources->module);
@@ -1290,7 +1290,7 @@ class releaseExpression : public SimpleUnaryOperator, public LibraryFunction
 public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
-        static FunctionType *functionType = FunctionType::get(Type::getVoidTy(C), Mat, false);
+        static FunctionType *functionType = FunctionType::get(Type::getVoidTy(C), VoidMat, false);
         Function *likelyRelease = builder.resources->module->getFunction("likely_release");
         if (!likelyRelease) {
             likelyRelease = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_release", builder.resources->module);
@@ -1348,7 +1348,7 @@ private:
 
     Immediate generateSafe(Builder &builder, const vector<likely_type> &types, const string &name) const
     {
-        Function *function = getKernel(builder, name, ast->atoms[1]->num_atoms, Mat);
+        Function *function = getKernel(builder, name, ast->atoms[1]->num_atoms, VoidMat);
         vector<Immediate> srcs = builder.getArgs(function, types);
         BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         builder.SetInsertPoint(entry);
@@ -1361,7 +1361,7 @@ private:
         Function *thunk;
         likely_type dstType;
         {
-            thunk = getKernel(builder, name + "_thunk", types.size(), Type::getVoidTy(C), Mat, NativeInt, NativeInt);
+            thunk = getKernel(builder, name + "_thunk", types.size(), Type::getVoidTy(C), VoidMat, NativeInt, NativeInt);
             BasicBlock *entry = BasicBlock::Create(C, "entry", thunk);
             builder.SetInsertPoint(entry);
             vector<Immediate> srcs = builder.getArgs(thunk, types);
@@ -1454,7 +1454,7 @@ private:
                 likelyForkParameters.push_back(thunk->getType());
                 likelyForkParameters.push_back(Type::getInt8Ty(C));
                 likelyForkParameters.push_back(NativeInt);
-                likelyForkParameters.push_back(Mat);
+                likelyForkParameters.push_back(VoidMat);
                 Type *likelyForkReturn = Type::getVoidTy(C);
                 likelyForkType = FunctionType::get(likelyForkReturn, likelyForkParameters, true);
             }
@@ -1490,9 +1490,9 @@ private:
         Function *kernel;
         switch (argc) {
           case 0: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, dst, start, stop, NULL)); break;
-          case 1: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, Mat, dst, start, stop, NULL)); break;
-          case 2: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, Mat, Mat, dst, start, stop, NULL)); break;
-          case 3: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, Mat, Mat, Mat, dst, start, stop, NULL)); break;
+          case 1: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, VoidMat, dst, start, stop, NULL)); break;
+          case 2: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, VoidMat, VoidMat, dst, start, stop, NULL)); break;
+          case 3: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, VoidMat, VoidMat, VoidMat, dst, start, stop, NULL)); break;
           default: { kernel = NULL; likely_assert(false, "Kernel::getKernel invalid arity: %d", (int) argc); }
         }
         kernel->addFnAttr(Attribute::NoUnwind);
@@ -1610,7 +1610,7 @@ class printExpression : public Operator, public LibraryFunction
     size_t minParameters() const { return 0; }
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        static FunctionType *functionType = FunctionType::get(Mat, Mat, true);
+        static FunctionType *functionType = FunctionType::get(VoidMat, VoidMat, true);
         Function *likelyPrint = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_print", builder.resources->module);
         likelyPrint->setCallingConv(CallingConv::C);
         likelyPrint->setDoesNotAlias(0);
@@ -1626,7 +1626,7 @@ class printExpression : public Operator, public LibraryFunction
 
         vector<Value*> matArgs;
         for (Value *rawArg : rawArgs)
-            if (rawArg->getType() == Mat) {
+            if (rawArg->getType() == VoidMat) {
                 matArgs.push_back(rawArg);
             } else {
                 matArgs.push_back(stringExpression::createCall(builder, rawArg));
@@ -1649,7 +1649,7 @@ class readExpression : public SimpleUnaryOperator, public LibraryFunction
 {
     Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
     {
-        static FunctionType *functionType = FunctionType::get(Mat, Type::getInt8PtrTy(C), false);
+        static FunctionType *functionType = FunctionType::get(VoidMat, Type::getInt8PtrTy(C), false);
         Function *likelyRead = builder.resources->module->getFunction("likely_read");
         if (!likelyRead) {
             likelyRead = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_read", builder.resources->module);
@@ -1671,9 +1671,9 @@ class writeExpression : public SimpleBinaryOperator, public LibraryFunction
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
             vector<Type*> likelyWriteParameters;
-            likelyWriteParameters.push_back(Mat);
+            likelyWriteParameters.push_back(VoidMat);
             likelyWriteParameters.push_back(Type::getInt8PtrTy(C));
-            functionType = FunctionType::get(Mat, likelyWriteParameters, false);
+            functionType = FunctionType::get(VoidMat, likelyWriteParameters, false);
         }
         Function *likelyWrite = builder.resources->module->getFunction("likely_write");
         if (!likelyWrite) {
@@ -1698,7 +1698,7 @@ class decodeExpression : public SimpleUnaryOperator, public LibraryFunction
 {
     Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
     {
-        static FunctionType *functionType = FunctionType::get(Mat, Mat, false);
+        static FunctionType *functionType = FunctionType::get(VoidMat, VoidMat, false);
         Function *likelyDecode = builder.resources->module->getFunction("likely_decode");
         if (!likelyDecode) {
             likelyDecode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_decode", builder.resources->module);
@@ -1720,9 +1720,9 @@ class encodeExpression : public SimpleBinaryOperator, public LibraryFunction
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
             vector<Type*> parameters;
-            parameters.push_back(Mat);
+            parameters.push_back(VoidMat);
             parameters.push_back(Type::getInt8PtrTy(C));
-            functionType = FunctionType::get(Mat, parameters, false);
+            functionType = FunctionType::get(VoidMat, parameters, false);
         }
         Function *likelyEncode = builder.resources->module->getFunction("likely_encode");
         if (!likelyEncode) {
