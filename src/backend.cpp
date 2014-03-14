@@ -136,17 +136,15 @@ struct Expression
     }
 };
 
-class ManagedExpression : public Expression
+struct ManagedExpression : public Expression
 {
-    Expression *e;
-
-public:
-    ManagedExpression(Expression *e = NULL) : e(e) {}
-    ~ManagedExpression() { delete e; }
-    bool isNull() const { return !e; }
-    Value* value() const { return e->value(); }
-    likely_type type() const { return e->type(); }
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const { return e->evaluate(builder, ast); }
+    Expression *expression;
+    ManagedExpression(Expression *expression = NULL) : expression(expression) {}
+    ~ManagedExpression() { delete expression; }
+    bool isNull() const { return !expression; }
+    Value* value() const { return expression->value(); }
+    likely_type type() const { return expression->type(); }
+    Expression *evaluate(Builder &builder, likely_const_ast ast) const { return expression->evaluate(builder, ast); }
 };
 
 #define TRY_EXPR(BUILDER, AST, EXPR)                     \
@@ -1095,6 +1093,35 @@ class defineExpression : public Operator
     }
 };
 LIKELY_REGISTER(define)
+
+class exportExpression : public Operator
+{
+    size_t maxParameters() const { return 3; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        TRY_EXPR(builder, ast->atoms[1], expr);
+        FunctionExpression *function = static_cast<FunctionExpression*>(expr.expression);
+
+        if (ast->atoms[2]->is_list)
+            return error(ast->atoms[2], "export expected an atom name");
+        const char *name = ast->atoms[2]->atom;
+
+        vector<T> types;
+        if (ast->atoms[3]->is_list) {
+            for (size_t i=0; i<ast->atoms[3]->num_atoms; i++) {
+                if (ast->atoms[3]->atoms[i]->is_list)
+                    return error(ast->atoms[2], "export expected an atom name");
+                types.push_back(T::get(likely_type_from_string(ast->atoms[3]->atoms[i]->atom)));
+            }
+        } else {
+            types.push_back(T::get(likely_type_from_string(ast->atoms[3]->atom)));
+        }
+
+        function->generate(builder, types, name);
+        return NULL;
+    }
+};
+LIKELY_REGISTER(export)
 
 class elementsExpression : public SimpleUnaryOperator, public LibraryFunction
 {
