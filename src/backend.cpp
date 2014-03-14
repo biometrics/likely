@@ -560,7 +560,7 @@ struct FunctionExpression : public ScopedExpression, public LibraryFunction
         }
 
         if (name.empty())
-            name = getUniqueName("function");
+            name = getUniqueName("lambda");
         return generateSafe(builder, types, name);
     }
 
@@ -586,19 +586,28 @@ private:
         if (parameters != arguments)
             return errorArgc(ast, "lambda", arguments, parameters, parameters);
 
-        vector<Value*> args;
-        vector<T> types;
+        vector<Immediate> args;
         for (size_t i=0; i<arguments; i++) {
             TRY_EXPR(builder, ast->atoms[i+1], arg)
-            args.push_back(arg);
-            types.push_back(T(args.back()->getType(), arg.type()));
+            args.push_back(Immediate(arg.value(), arg.type()));
         }
+        return evaluateFunction(builder, args, getUniqueName("lambda"));
+    }
 
+    virtual Expression *evaluateFunction(Builder &builder, const vector<Immediate> &args, const string &name) const
+    {
         Builder lambdaBuilder(builder.resources, env);
-        Immediate i = generate(lambdaBuilder, types);
-        Function *f = cast<Function>(i.value_);
-        if (f) return new Immediate(builder.CreateCall(f, args), i.type_);
-        else   return NULL;
+
+        vector<T> types;
+        for (const Immediate &arg : args)
+            types.push_back(T(arg.value_->getType(), arg.type_));
+        Immediate i = generate(lambdaBuilder, types, name);
+        if (!i.value_) return NULL;
+
+        vector<Value*> values;
+        for (const Immediate &arg : args)
+            values.push_back(arg);
+        return new Immediate(builder.CreateCall(cast<Function>(i.value_), values), i.type_);
     }
 };
 
@@ -1398,13 +1407,19 @@ private:
         }
     };
 
-    Immediate generateSafe(Builder &builder, const vector<T> &types, const string &name) const
+    Immediate generateSafe(Builder &, const vector<T> &, const string &) const
     {
-        Function *function = getKernel(builder, name, types, T::Void);
-        vector<Immediate> srcs = builder.getArgs(function, types);
-        BasicBlock *entry = BasicBlock::Create(C, "entry", function);
-        builder.SetInsertPoint(entry);
+        likely_assert(false, "logic error");
+        return Immediate(NULL, likely_type_void);
+    }
 
+    Expression *evaluateFunction(Builder &builder, const vector<Immediate> &srcs, const string &name) const
+    {
+        vector<T> types;
+        for (const Immediate &src : srcs)
+            types.push_back(T(src.value_->getType(), src.type_));
+
+        BasicBlock *entry = builder.GetInsertBlock();
         Immediate dstChannels = getDimensions(builder, ast, "channels", srcs);
         Immediate dstColumns  = getDimensions(builder, ast, "columns" , srcs);
         Immediate dstRows     = getDimensions(builder, ast, "rows"    , srcs);
@@ -1531,8 +1546,7 @@ private:
             builder.CreateCall(thunk, thunkArgs);
         }
 
-        builder.CreateRet(dst);
-        return Immediate(function, dstType);
+        return new Immediate(dst, dstType);
     }
 
     static Function *getKernel(Builder &builder, const string &name, const vector<T> &types, Type *result, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
