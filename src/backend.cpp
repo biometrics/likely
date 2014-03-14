@@ -63,9 +63,13 @@ struct T
     operator likely_type() const { return likely; }
     bool isVoid() const { return likely == likely_type_void; }
 
-    static T get(likely_type type)
+    static T get(likely_type likely)
     {
-        likely_mat str = likely_type_to_string(type);
+        auto result = likelyLUT.find(likely);
+        if (result != likelyLUT.end())
+            return result->second;
+
+        likely_mat str = likely_type_to_string(likely);
         const string name = string("mat_") + (const char*) str->data;
         PointerType *mat = PointerType::getUnqual(StructType::create(name,
                                                                      NativeInt, // bytes
@@ -80,13 +84,27 @@ struct T
         likely_release(str);
 
         T t;
-        t.likely = type;
+        t.likely = likely;
         t.llvm = mat;
+
+        likelyLUT[t.likely] = t;
+        llvmLUT[t.llvm] = t;
         return t;
     }
 
-    static T getVoid() { return get(likely_type_void); }
+    static T get(Type *llvm)
+    {
+        auto result = llvmLUT.find(llvm);
+        likely_assert(result != llvmLUT.end(), "invalid pointer for type lookup");
+        return result->second;
+    }
+
+private:
+    static map<likely_type, T> likelyLUT;
+    static map<Type*, T> llvmLUT;
 };
+map<likely_type, T> T::likelyLUT;
+map<Type*, T> T::llvmLUT;
 
 struct TL : public vector<T>
 {
@@ -100,7 +118,7 @@ struct TL : public vector<T>
     }
 };
 
-class Builder;
+struct Builder;
 struct Expression
 {
     virtual ~Expression() {}
@@ -224,12 +242,8 @@ public:
     }
 };
 
-class Builder : public IRBuilder<>
+struct Builder : public IRBuilder<>
 {
-    static map<likely_type, T> likelyLUT;
-    static map<Type*, T> llvmLUT;
-
-public:
     likely_env env;
     Resources *resources;
 
@@ -316,7 +330,7 @@ public:
             stringstream name; name << "arg_" << int(n);
             src->setName(name.str());
             PointerType *m = cast_or_null<PointerType>(n < types.size() ? types[n] : NULL);
-            result.push_back(Immediate(src, m ? Builder::getType(m) : likely_type_void));
+            result.push_back(Immediate(src, m ? T::get(m) : likely_type_void));
             n++;
         }
         return result;
@@ -384,27 +398,7 @@ public:
 
         return Expression::error(ast, "unrecognized literal");
     }
-
-    static T getType(likely_type likely)
-    {
-        auto result = likelyLUT.find(likely);
-        if (result != likelyLUT.end())
-            return result->second;
-        T t = T::get(likely);
-        likelyLUT[t.likely] = t;
-        llvmLUT[t.llvm] = t;
-        return t;
-    }
-
-    static T getType(Type *llvm)
-    {
-        auto result = llvmLUT.find(llvm);
-        likely_assert(result != llvmLUT.end(), "invalid pointer for type lookup");
-        return result->second;
-    }
 };
-map<likely_type, T> Builder::likelyLUT;
-map<Type*, T> Builder::llvmLUT;
 
 class Operator : public Expression
 {
@@ -639,7 +633,7 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
         initializeTarget(Registry);
 
         NativeInt = Type::getIntNTy(C, likely_depth(likely_type_native));
-        VoidMat = Builder::getType(likely_type_void);
+        VoidMat = T::get(likely_type_void);
     }
 
     module = new Module(getUniqueName("module"), C);
@@ -689,7 +683,7 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
 
     vector<Type*> types;
     for (likely_type t : type)
-        types.push_back(Builder::getType(t));
+        types.push_back(T::get(t));
     Function *F = dyn_cast_or_null<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, types, name).value_);
 
     if (F && TM) {
