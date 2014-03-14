@@ -1402,7 +1402,7 @@ private:
 
     Immediate generateSafe(Builder &builder, const vector<T> &types, const string &name) const
     {
-        Function *function = getKernel(builder, name, ast->atoms[1]->num_atoms, T::Void);
+        Function *function = getKernel(builder, name, types, T::Void);
         vector<Immediate> srcs = builder.getArgs(function, types);
         BasicBlock *entry = BasicBlock::Create(C, "entry", function);
         builder.SetInsertPoint(entry);
@@ -1415,7 +1415,7 @@ private:
         Function *thunk;
         likely_type dstType;
         {
-            thunk = getKernel(builder, name + "_thunk", types.size(), Type::getVoidTy(C), T::Void, NativeInt, NativeInt);
+            thunk = getKernel(builder, name + "_thunk", types, Type::getVoidTy(C), T::Void, NativeInt, NativeInt);
             BasicBlock *entry = BasicBlock::Create(C, "entry", thunk);
             builder.SetInsertPoint(entry);
             vector<Immediate> srcs = builder.getArgs(thunk, types);
@@ -1502,16 +1502,14 @@ private:
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
 
         if (!srcs.empty() && likely_parallel(srcs[0])) {
-            static FunctionType *likelyForkType = NULL;
-            if (likelyForkType == NULL) {
-                vector<Type*> likelyForkParameters;
-                likelyForkParameters.push_back(thunk->getType());
-                likelyForkParameters.push_back(Type::getInt8Ty(C));
-                likelyForkParameters.push_back(NativeInt);
-                likelyForkParameters.push_back(T::Void);
-                Type *likelyForkReturn = Type::getVoidTy(C);
-                likelyForkType = FunctionType::get(likelyForkReturn, likelyForkParameters, true);
-            }
+            vector<Type*> likelyForkParameters;
+            likelyForkParameters.push_back(thunk->getType());
+            likelyForkParameters.push_back(Type::getInt8Ty(C));
+            likelyForkParameters.push_back(NativeInt);
+            likelyForkParameters.push_back(T::Void);
+            Type *likelyForkReturn = Type::getVoidTy(C);
+            FunctionType *likelyForkType = FunctionType::get(likelyForkReturn, likelyForkParameters, true);
+
             Function *likelyFork = Function::Create(likelyForkType, GlobalValue::ExternalLinkage, "likely_fork", builder.resources->module);
             likelyFork->setCallingConv(CallingConv::C);
             likelyFork->setDoesNotCapture(4);
@@ -1522,7 +1520,7 @@ private:
             likelyForkArgs.push_back(Builder::constant((double)srcs.size(), 8));
             likelyForkArgs.push_back(kernelSize);
             for (const Immediate &src : srcs)
-                likelyForkArgs.push_back(src);
+                likelyForkArgs.push_back(builder.CreatePointerCast(src, T::Void));
             likelyForkArgs.push_back(dst);
             builder.CreateCall(likelyFork, likelyForkArgs);
         } else {
@@ -1539,20 +1537,18 @@ private:
         return Immediate(function, dstType);
     }
 
-    static Function *getKernel(Builder &builder, const string &name, size_t argc, Type *ret, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
+    static Function *getKernel(Builder &builder, const string &name, const vector<T> &types, Type *result, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
     {
-        Function *kernel;
-        switch (argc) {
-          case 0: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, dst, start, stop, NULL)); break;
-          case 1: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, T::Void, dst, start, stop, NULL)); break;
-          case 2: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, T::Void, T::Void, dst, start, stop, NULL)); break;
-          case 3: kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, ret, T::Void, T::Void, T::Void, dst, start, stop, NULL)); break;
-          default: { kernel = NULL; likely_assert(false, "Kernel::getKernel invalid arity: %d", (int) argc); }
-        }
+        vector<Type*> params = T::toLLVM(types);
+        if (dst)   params.push_back(dst);
+        if (start) params.push_back(start);
+        if (stop)  params.push_back(stop);
+        Function *kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, FunctionType::get(result, params, false)));
         kernel->addFnAttr(Attribute::NoUnwind);
         kernel->setCallingConv(CallingConv::C);
-        if (ret->isPointerTy())
+        if (result->isPointerTy())
             kernel->setDoesNotAlias(0);
+        size_t argc = types.size();
         if (dst) argc++;
         for (size_t i=0; i<argc; i++) {
             kernel->setDoesNotAlias((unsigned int) i+1);
