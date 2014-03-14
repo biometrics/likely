@@ -52,7 +52,7 @@ static IntegerType *NativeInt = NULL;
 static PointerType *VoidMat = NULL;
 static LLVMContext &C = getGlobalContext();
 
-struct Builder;
+class Builder;
 struct Expression
 {
     virtual ~Expression() {}
@@ -176,8 +176,12 @@ public:
     }
 };
 
-struct Builder : public IRBuilder<>
+class Builder : public IRBuilder<>
 {
+    static map<likely_type, PointerType*> matLUT;
+    static map<PointerType*, likely_type> typeLUT;
+
+public:
     likely_env env;
     Resources *resources;
 
@@ -254,7 +258,7 @@ struct Builder : public IRBuilder<>
         return type;
     }
 
-    vector<Immediate> getArgs(Function *function, const vector<likely_type> &types)
+    vector<Immediate> getArgs(Function *function, const vector<Type*> &types)
     {
         vector<Immediate> result;
         Function::arg_iterator args = function->arg_begin();
@@ -263,7 +267,8 @@ struct Builder : public IRBuilder<>
             Value *src = args++;
             stringstream name; name << "arg_" << int(n);
             src->setName(name.str());
-            result.push_back(Immediate(src, n < types.size() ? types[n] : likely_type_void));
+            PointerType *m = cast_or_null<PointerType>(n < types.size() ? types[n] : NULL);
+            result.push_back(Immediate(src, m ? Builder::getType(m) : likely_type_void));
             n++;
         }
         return result;
@@ -331,9 +336,6 @@ struct Builder : public IRBuilder<>
 
         return Expression::error(ast, "unrecognized literal");
     }
-
-    static map<likely_type, PointerType*> matLUT;
-    static map<PointerType*, likely_type> typeLUT;
 
     static PointerType *getMat(likely_type type)
     {
@@ -472,12 +474,12 @@ struct FunctionExpression : public ScopedExpression, public LibraryFunction
 
     void *symbol() const { return (void*) likely_dynamic; }
 
-    Immediate generate(Builder &builder, const vector<likely_type> &types, string name = string()) const
+    Immediate generate(Builder &builder, const vector<Type*> &types, string name = string()) const
     {
         // Do dynamic dispatch if the type isn't fully specified
         bool dynamic = false;
-        for (likely_type type : types)
-            dynamic = dynamic || (type == likely_type_void);
+        for (Type *type : types)
+            dynamic = dynamic || (type == VoidMat);
         dynamic = dynamic || (types.size() < ast->atoms[1]->num_atoms);
 
         if (dynamic) {
@@ -543,7 +545,7 @@ struct FunctionExpression : public ScopedExpression, public LibraryFunction
         return generateSafe(builder, types, name);
     }
 
-    virtual Immediate generateSafe(Builder &builder, const vector<likely_type> &types, const string &name) const = 0;
+    virtual Immediate generateSafe(Builder &builder, const vector<Type*> &types, const string &name) const = 0;
 
 private:
     size_t argc() const
@@ -566,11 +568,11 @@ private:
             return errorArgc(ast, "lambda", arguments, parameters, parameters);
 
         vector<Value*> args;
-        vector<likely_type> types;
+        vector<Type*> types;
         for (size_t i=0; i<arguments; i++) {
             TRY_EXPR(builder, ast->atoms[i+1], arg)
             args.push_back(arg);
-            types.push_back(arg);
+            types.push_back(args.back()->getType());
         }
 
         Builder lambdaBuilder(builder.resources, env);
@@ -649,7 +651,11 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
                   "expected a function expression");
     Builder builder(this, env);
     unique_ptr<Expression> result(builder.expression(ast));
-    Function *F = dyn_cast_or_null<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, type, name).value_);
+
+    vector<Type*> types;
+    for (likely_type t : type)
+        types.push_back(Builder::getMat(t));
+    Function *F = dyn_cast_or_null<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, types, name).value_);
 
     if (F && TM) {
         static PassManager *PM = NULL;
@@ -1346,7 +1352,7 @@ private:
         }
     };
 
-    Immediate generateSafe(Builder &builder, const vector<likely_type> &types, const string &name) const
+    Immediate generateSafe(Builder &builder, const vector<Type*> &types, const string &name) const
     {
         Function *function = getKernel(builder, name, ast->atoms[1]->num_atoms, VoidMat);
         vector<Immediate> srcs = builder.getArgs(function, types);
@@ -1558,12 +1564,9 @@ struct Lambda : public FunctionExpression
         : FunctionExpression(builder, ast) {}
 
 private:
-    Immediate generateSafe(Builder &builder, const vector<likely_type> &types, const string &name) const
+    Immediate generateSafe(Builder &builder, const vector<Type*> &types, const string &name) const
     {
-        vector<Type*> tys;
-        for (likely_type type : types)
-            tys.push_back(Builder::ty(type));
-        Function *tmpFunction = cast<Function>(builder.resources->module->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), tys, false)));
+        Function *tmpFunction = cast<Function>(builder.resources->module->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), types, false)));
         vector<Immediate> tmpArgs = builder.getArgs(tmpFunction, types);
         BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
         builder.SetInsertPoint(entry);
@@ -1577,7 +1580,7 @@ private:
             builder.undefine(ast->atoms[1]->atoms[i]->atom);
         builder.CreateRet(result);
 
-        Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(name, FunctionType::get(result.value()->getType(), tys, false)));
+        Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(name, FunctionType::get(result.value()->getType(), types, false)));
         vector<Immediate> args = builder.getArgs(function, types);
 
         ValueToValueMapTy VMap;
