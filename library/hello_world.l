@@ -5,8 +5,8 @@ Click **View Source** and _copy+paste_ this file into **dream**, Likely's IDE. N
     (define lenna (read "../data/misc/lenna.tiff"))
 
     (define hello_world
-      (kernel (a)
-        (/ a (cast 2 (type a)))))
+      (lambda (x) ((kernel (a)
+        (/ a (cast 2 (type a)))) x)))
 
     (hello_world lenna)
 

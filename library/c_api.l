@@ -5,8 +5,8 @@ So you've developed an algorithm in Likely, how do you integrate it into your na
     (define lenna (read "../data/misc/lenna.tiff"))
 
     (define hello_world
-      (kernel (a)
-        (/ a (cast 2 (type a)))))
+      (lambda (x) ((kernel (a)
+        (/ a (cast 2 (type a)))) x)))
 
     (hello_world lenna)
 

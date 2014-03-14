@@ -665,9 +665,7 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
         likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
     }
 
-    likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
-                  (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel") || !strcmp(ast->atoms[0]->atom, "dynamic")),
-                  "expected a function expression");
+    likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list && !strcmp(ast->atoms[0]->atom, "lambda"), "expected a lambda expression");
     Builder builder(this, env);
     unique_ptr<Expression> result(builder.expression(ast));
 

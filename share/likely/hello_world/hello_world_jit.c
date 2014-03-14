@@ -11,9 +11,9 @@ int main(int argc, char *argv[])
     char *input_image, *filter, *output_image;
 
     if (argc == 1) {
-        input_image = "../data/misc/lenna.tiff"; // Assume we are run from a hypothetical /bin folder
+        input_image = "../data/misc/lenna.tiff"; // Assume we are run from a hypothetical <root>/bin folder
         output_image = "dark_lenna.png";
-        filter = "(kernel (a) (/ a (cast 2 (type a))))";
+        filter = "(lambda (x) ((kernel (a) (/ a (cast 2 (type a)))) x))";
     } else if (argc == 4) {
         input_image = argv[1];
         output_image = argv[3];
