@@ -328,43 +328,43 @@ class ScalarFloatingTest : public FloatingTest
     virtual void compute64f(const double *src, double *dst, int n) const = 0;
 };
 
-#define MATH_TEST(FUNC)                                                                     \
-class FUNC##Test : public ScalarFloatingTest {                                              \
-    const char *function() const { return "(lambda x ((kernel (a) (" #FUNC " a)) x))" ; } \
-    void compute32f(const float *src, float *dst, int n) const                              \
-        { for (int i=0; i<n; i++) dst[i] = FUNC##f(src[i]); }                               \
-    void compute64f(const double *src, double *dst, int n) const                            \
-        { for (int i=0; i<n; i++) dst[i] = FUNC(src[i]); }                                  \
-};                                                                                          \
+#define MATH_TEST(FUNC)                                                                 \
+class FUNC##Test : public ScalarFloatingTest {                                          \
+    const char *function() const { return "(lambda x ((kernel a (" #FUNC " a)) x))" ; } \
+    void compute32f(const float *src, float *dst, int n) const                          \
+        { for (int i=0; i<n; i++) dst[i] = FUNC##f(src[i]); }                           \
+    void compute64f(const double *src, double *dst, int n) const                        \
+        { for (int i=0; i<n; i++) dst[i] = FUNC(src[i]); }                              \
+};                                                                                      \
 
 class addTest : public Test {
-    const char *function() const { return "(lambda x ((kernel (a) (+ a (cast 32 (type a)))) x))"; }
+    const char *function() const { return "(lambda x ((kernel a (+ a (cast 32 (type a)))) x))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; add(src, 32, dst); return dst; }
 };
 
 class subtractTest : public Test {
-    const char *function() const { return "(lambda x ((kernel (a) (- a (cast 32 (type a)))) x))"; }
+    const char *function() const { return "(lambda x ((kernel a (- a (cast 32 (type a)))) x))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; subtract(src, 32, dst); return dst; }
 };
 
 class multiplyTest : public Test {
-    const char *function() const { return "(lambda x ((kernel (a) (* a (cast 2 (type a)))) x))"; }
+    const char *function() const { return "(lambda x ((kernel a (* a (cast 2 (type a)))) x))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; multiply(src, 2, dst); return dst; }
 };
 
 class divideTest : public Test {
-    const char *function() const { return "(lambda x ((kernel (a) (/ a (cast 2 (type a)))) x))"; }
+    const char *function() const { return "(lambda x ((kernel a (/ a (cast 2 (type a)))) x))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; divide(src, 2, dst); return dst; }
     bool ignoreOffByOne() const { return true; }
 };
 
 class sqrtTest : public FloatingTest {
-    const char *function() const { return "(lambda x ((kernel (a) (sqrt a)) x))"; }
+    const char *function() const { return "(lambda x ((kernel a (sqrt a)) x))"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; sqrt(src, dst); return dst; }
 };
 
 class powiTest : public FloatingTest {
-    const char *function() const { return "(lambda x ((kernel (a) (powi a 3)) x))"; }
+    const char *function() const { return "(lambda x ((kernel a (powi a 3)) x))"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 3, dst); return dst; }
 };
 
@@ -372,7 +372,7 @@ MATH_TEST(sin)
 MATH_TEST(cos)
 
 class powTest : public FloatingTest {
-    const char *function() const { return "(lambda x ((kernel (a) (pow a 1.5)) x))"; }
+    const char *function() const { return "(lambda x ((kernel a (pow a 1.5)) x))"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 1.5, dst); return dst; }
 };
 
@@ -380,7 +380,7 @@ MATH_TEST(exp)
 MATH_TEST(exp2)
 
 class logTest : public FloatingTest {
-    const char *function() const { return "(lambda x ((kernel (a) (log a)) x))"; }
+    const char *function() const { return "(lambda x ((kernel a (log a)) x))"; }
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; log(src, dst); return dst; }
 };
 
@@ -388,12 +388,12 @@ MATH_TEST(log10)
 MATH_TEST(log2)
 
 class fmaTest : public Test {
-    const char *function() const { return "(lambda x ((kernel (a) (fma a (cast 2 (type a)) (cast 3 (type a)))) x))"; }
+    const char *function() const { return "(lambda x ((kernel a (fma a (cast 2 (type a)) (cast 3 (type a)))) x))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3); return dst; }
 };
 
 class fabsTest : public FloatingTest {
-    const char *function() const { return "(lambda x ((kernel (a) (fabs a)) x))"; }
+    const char *function() const { return "(lambda x ((kernel a (fabs a)) x))"; }
     Mat computeFloatingBaseline(const Mat &src) const { return abs(src); }
 };
 
@@ -405,7 +405,7 @@ class copysignTest : public Test {
         types.push_back(likely_type_f64);
         return types;
     }
-    const char *function() const { return "(lambda x ((kernel (a) (cast (copysign a -1) (type a))) x))"; }
+    const char *function() const { return "(lambda x ((kernel a (cast (copysign a -1) (type a))) x))"; }
     Mat computeBaseline(const Mat &src) const
     {
         Mat dst(src.rows, src.cols, src.depth());
@@ -426,12 +426,12 @@ MATH_TEST(nearbyint)
 MATH_TEST(round)
 
 class castTest : public Test {
-    const char *function() const { return "(lambda x ((kernel (a) (cast a 800)) x))"; }
+    const char *function() const { return "(lambda x ((kernel a (cast a 800)) x))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, CV_32F); return dst; }
 };
 
 class thresholdTest : public Test {
-    const char *function() const { return "(lambda x ((kernel (a) (cast (select (> a 127) 1 0) (type a))) x))"; }
+    const char *function() const { return "(lambda x ((kernel a (cast (select (> a 127) 1 0) (type a))) x))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 1, THRESH_BINARY); return dst; }
     vector<likely_type> types() const { vector<likely_type> types; types.push_back(likely_type_u8); types.push_back(likely_type_f32); return types; }
 };

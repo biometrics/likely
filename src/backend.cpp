@@ -1262,8 +1262,14 @@ private:
             builder.define("t", t, likely_type_native);
 
             const likely_const_ast args = ast->atoms[1];
-            for (size_t j=0; j<args->num_atoms; j++)
-                builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, node));
+            if (args->is_list) {
+                assert(srcs.size() == args->num_atoms);
+                for (size_t j=0; j<args->num_atoms; j++)
+                    builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, node));
+            } else {
+                assert(srcs.size() == 1);
+                builder.define(args->atom, new kernelArgument(srcs[0], dst, node));
+            }
 
             ManagedExpression result(builder.expression(ast->atoms[2]));
             dstType = dst.type_ = result;
@@ -1281,8 +1287,13 @@ private:
             builder.SetInsertPoint(loopExit);
             builder.CreateRetVoid();
 
-            for (size_t i=0; i<args->num_atoms; i++)
-                builder.undefine(args->atoms[i]->atom);
+            if (args->is_list) {
+                for (size_t i=0; i<args->num_atoms; i++)
+                    builder.undefine(args->atoms[i]->atom);
+            } else {
+                builder.undefine(args->atom);
+            }
+
             builder.undefine("i");
             builder.undefine("c");
             builder.undefine("x");
