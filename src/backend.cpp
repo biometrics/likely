@@ -1475,13 +1475,24 @@ struct Lambda : public FunctionExpression, public LibraryFunction
         BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
         builder.SetInsertPoint(entry);
 
-        for (size_t i=0; i<tmpArgs.size(); i++)
-            builder.define(ast->atoms[1]->atoms[i]->atom, tmpArgs[i]);
+        if (ast->atoms[1]->is_list) {
+            for (size_t i=0; i<tmpArgs.size(); i++)
+                builder.define(ast->atoms[1]->atoms[i]->atom, tmpArgs[i]);
+        } else {
+            builder.define(ast->atoms[1]->atom, tmpArgs[0]);
+        }
+
         ManagedExpression result(builder.expression(ast->atoms[2]));
         if (result.isNull())
             return Immediate(NULL, likely_type_void);
-        for (size_t i=0; i<tmpArgs.size(); i++)
-            builder.undefine(ast->atoms[1]->atoms[i]->atom);
+
+        if (ast->atoms[1]->is_list) {
+            for (size_t i=0; i<tmpArgs.size(); i++)
+                builder.undefine(ast->atoms[1]->atoms[i]->atom);
+        } else {
+            builder.undefine(ast->atoms[1]->atom);
+        }
+
         builder.CreateRet(result);
 
         Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(name, FunctionType::get(result.value()->getType(), T::toLLVM(types), false)));
