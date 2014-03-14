@@ -486,85 +486,10 @@ class LibraryFunction
     virtual void *symbol() const = 0; // Idiom to ensure that the library symbol isn't stripped when optimizing executable size
 };
 
-struct FunctionExpression : public ScopedExpression, public LibraryFunction
+struct FunctionExpression : public ScopedExpression
 {
     FunctionExpression(Builder &builder, likely_const_ast ast)
         : ScopedExpression(builder, ast) {}
-
-    void *symbol() const { return (void*) likely_dynamic; }
-
-    Immediate generate(Builder &builder, const vector<T> &types, string name = string()) const
-    {
-        // Do dynamic dispatch if the type isn't fully specified
-        bool dynamic = false;
-        for (const T &type : types)
-            dynamic = dynamic || (type.likely == likely_type_void);
-        dynamic = dynamic || (types.size() < ast->atoms[1]->num_atoms);
-
-        if (dynamic) {
-            if (name.empty())
-                name = getUniqueName("dynamic");
-
-            VTable *vTable = new VTable(builder, ast);
-            builder.resources->expressions.push_back(vTable);
-
-            static FunctionType* functionType = FunctionType::get(T::Void, T::Void, true);
-
-            Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(name, functionType));
-            function->addFnAttr(Attribute::NoUnwind);
-            function->setCallingConv(CallingConv::C);
-            function->setDoesNotAlias(0);
-            function->setDoesNotAlias(1);
-            function->setDoesNotCapture(1);
-            builder.SetInsertPoint(BasicBlock::Create(C, "entry", function));
-
-            Value *array;
-            if (vTable->n > 0) {
-                array = builder.CreateAlloca(T::Void, Constant::getIntegerValue(Type::getInt32Ty(C), APInt(32, (uint64_t)vTable->n)));
-                builder.CreateStore(function->arg_begin(), builder.CreateGEP(array, Constant::getIntegerValue(NativeInt, APInt(8*sizeof(void*), 0))));
-                if (vTable->n > 1) {
-                    Value *vaList = builder.CreateAlloca(IntegerType::getInt8PtrTy(C));
-                    Value *vaListRef = builder.CreateBitCast(vaList, Type::getInt8PtrTy(C));
-                    builder.CreateCall(Intrinsic::getDeclaration(builder.resources->module, Intrinsic::vastart), vaListRef);
-                    for (likely_arity i=1; i<vTable->n; i++)
-                        builder.CreateStore(builder.CreateVAArg(vaList, T::Void), builder.CreateGEP(array, Constant::getIntegerValue(NativeInt, APInt(8*sizeof(void*), i))));
-                    builder.CreateCall(Intrinsic::getDeclaration(builder.resources->module, Intrinsic::vaend), vaListRef);
-                }
-            } else {
-                array = ConstantPointerNull::get(PointerType::getUnqual(T::Void));
-            }
-
-            static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
-            static FunctionType *likelyDynamicType = NULL;
-            if (likelyDynamicType == NULL) {
-                vector<Type*> params;
-                params.push_back(vTableType);
-                params.push_back(PointerType::getUnqual(T::Void));
-                likelyDynamicType = FunctionType::get(T::Void, params, false);
-            }
-
-            Function *likelyDynamic = builder.resources->module->getFunction("likely_dynamic");
-            if (!likelyDynamic) {
-                likelyDynamic = Function::Create(likelyDynamicType, GlobalValue::ExternalLinkage, "likely_dynamic", builder.resources->module);
-                likelyDynamic->setCallingConv(CallingConv::C);
-                likelyDynamic->setDoesNotAlias(0);
-                likelyDynamic->setDoesNotAlias(1);
-                likelyDynamic->setDoesNotAlias(2);
-                likelyDynamic->setDoesNotCapture(1);
-                likelyDynamic->setDoesNotCapture(2);
-            }
-
-            Constant *thisVTableFunction = ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vTable)), uintptr_t(vTable)), vTableType);
-            builder.CreateRet(builder.CreateCall2(likelyDynamic, thisVTableFunction, array));
-            return Immediate(function, likely_type_void);
-        }
-
-        if (name.empty())
-            name = getUniqueName("lambda");
-        return generateSafe(builder, types, name);
-    }
-
-    virtual Immediate generateSafe(Builder &builder, const vector<T> &types, const string &name) const = 0;
 
 private:
     size_t argc() const
@@ -594,122 +519,8 @@ private:
         return evaluateFunction(builder, args, getUniqueName("lambda"));
     }
 
-    virtual Expression *evaluateFunction(Builder &builder, const vector<Immediate> &args, const string &name) const
-    {
-        Builder lambdaBuilder(builder.resources, env);
-
-        vector<T> types;
-        for (const Immediate &arg : args)
-            types.push_back(T(arg.value_->getType(), arg.type_));
-        Immediate i = generate(lambdaBuilder, types, name);
-        if (!i.value_) return NULL;
-
-        vector<Value*> values;
-        for (const Immediate &arg : args)
-            values.push_back(arg);
-        return new Immediate(builder.CreateCall(cast<Function>(i.value_), values), i.type_);
-    }
+    virtual Expression *evaluateFunction(Builder &builder, const vector<Immediate> &args, const string &name) const = 0;
 };
-
-Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_type> &type, string name, bool native)
-    : type(type)
-{
-    if (!NativeInt) {
-        likely_assert(sizeof(likely_size) == sizeof(void*), "insane type system");
-        InitializeNativeTarget();
-        InitializeNativeTargetAsmPrinter();
-        InitializeNativeTargetAsmParser();
-
-        PassRegistry &Registry = *PassRegistry::getPassRegistry();
-        initializeCore(Registry);
-        initializeScalarOpts(Registry);
-        initializeVectorization(Registry);
-        initializeIPO(Registry);
-        initializeAnalysis(Registry);
-        initializeIPA(Registry);
-        initializeTransformUtils(Registry);
-        initializeInstCombine(Registry);
-        initializeTarget(Registry);
-
-        NativeInt = Type::getIntNTy(C, likely_depth(likely_type_native));
-        T::Void = cast<PointerType>(T::get(likely_type_void).llvm);
-    }
-
-    module = new Module(getUniqueName("module"), C);
-    likely_assert(module != NULL, "failed to create module");
-
-    string error;
-    EngineBuilder engineBuilder(module);
-    engineBuilder.setMCPU(sys::getHostCPUName())
-                 .setOptLevel(CodeGenOpt::Aggressive)
-                 .setErrorStr(&error);
-
-    const bool JIT = name.empty();
-    if (native) {
-        static string nativeTT, nativeJITTT;
-        if (nativeTT.empty()) {
-            nativeTT = sys::getProcessTriple();
-#ifdef _WIN32
-            nativeJITTT = nativeTT + "-elf";
-#else
-            nativeJITTT = nativeTT;
-#endif // _WIN32
-        }
-        module->setTargetTriple(JIT ? nativeJITTT : nativeTT);
-
-        static TargetMachine *nativeTM = NULL;
-        if (!nativeTM) {
-            engineBuilder.setCodeModel(CodeModel::Default);
-            nativeTM = engineBuilder.selectTarget();
-            likely_assert(nativeTM != NULL, "failed to select target machine with error: %s", error.c_str());
-        }
-        TM = nativeTM;
-    }
-
-    if (JIT) {
-        engineBuilder.setCodeModel(CodeModel::JITDefault)
-                     .setEngineKind(EngineKind::JIT)
-                     .setUseMCJIT(true);
-        EE = engineBuilder.create();
-        likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
-    }
-
-    likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list && !strcmp(ast->atoms[0]->atom, "lambda"), "expected a lambda expression");
-    Builder builder(this, env);
-    unique_ptr<Expression> result(builder.expression(ast));
-
-    vector<T> types;
-    for (likely_type t : type)
-        types.push_back(T::get(t));
-    Function *F = dyn_cast_or_null<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, types, name).value_);
-
-    if (F && TM) {
-        static PassManager *PM = NULL;
-        if (!PM) {
-            PM = new PassManager();
-            PM->add(createVerifierPass());
-            PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
-            PM->add(new DataLayoutPass(*TM->getDataLayout()));
-            TM->addAnalysisPasses(*PM);
-            PassManagerBuilder builder;
-            builder.OptLevel = 3;
-            builder.SizeLevel = 0;
-            builder.LoopVectorize = true;
-            builder.populateModulePassManager(*PM);
-            PM->add(createVerifierPass());
-        }
-
-//        DebugFlag = true;
-//        module->dump();
-        PM->run(*module);
-//        module->dump();
-    }
-
-    if (F && EE) {
-        EE->finalizeObject();
-        function = EE->getPointerToFunction(F);
-    }
-}
 
 template <class T>
 struct RegisterExpression
@@ -1100,35 +911,6 @@ class defineExpression : public Operator
     }
 };
 LIKELY_REGISTER(define)
-
-class exportExpression : public Operator
-{
-    size_t maxParameters() const { return 3; }
-    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        TRY_EXPR(builder, ast->atoms[1], expr);
-        FunctionExpression *function = static_cast<FunctionExpression*>(expr.expression);
-
-        if (ast->atoms[2]->is_list)
-            return error(ast->atoms[2], "export expected an atom name");
-        const char *name = ast->atoms[2]->atom;
-
-        vector<T> types;
-        if (ast->atoms[3]->is_list) {
-            for (size_t i=0; i<ast->atoms[3]->num_atoms; i++) {
-                if (ast->atoms[3]->atoms[i]->is_list)
-                    return error(ast->atoms[2], "export expected an atom name");
-                types.push_back(T::get(likely_type_from_string(ast->atoms[3]->atoms[i]->atom)));
-            }
-        } else {
-            types.push_back(T::get(likely_type_from_string(ast->atoms[3]->atom)));
-        }
-
-        function->generate(builder, types, name);
-        return NULL;
-    }
-};
-LIKELY_REGISTER(export)
 
 class elementsExpression : public SimpleUnaryOperator, public LibraryFunction
 {
@@ -1614,14 +1396,80 @@ class kernelExpression : public Operator
 };
 LIKELY_REGISTER(kernel)
 
-struct Lambda : public FunctionExpression
+struct Lambda : public FunctionExpression, public LibraryFunction
 {
     Lambda(Builder &builder, likely_const_ast ast)
         : FunctionExpression(builder, ast) {}
 
-private:
-    Immediate generateSafe(Builder &builder, const vector<T> &types, const string &name) const
+    Immediate generate(Builder &builder, const vector<T> &types, string name = string()) const
     {
+        // Do dynamic dispatch if the type isn't fully specified
+        bool dynamic = false;
+        for (const T &type : types)
+            dynamic = dynamic || (type.likely == likely_type_void);
+        dynamic = dynamic || (types.size() < ast->atoms[1]->num_atoms);
+
+        if (dynamic) {
+            if (name.empty())
+                name = getUniqueName("dynamic");
+
+            VTable *vTable = new VTable(builder, ast);
+            builder.resources->expressions.push_back(vTable);
+
+            static FunctionType* functionType = FunctionType::get(T::Void, T::Void, true);
+
+            Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(name, functionType));
+            function->addFnAttr(Attribute::NoUnwind);
+            function->setCallingConv(CallingConv::C);
+            function->setDoesNotAlias(0);
+            function->setDoesNotAlias(1);
+            function->setDoesNotCapture(1);
+            builder.SetInsertPoint(BasicBlock::Create(C, "entry", function));
+
+            Value *array;
+            if (vTable->n > 0) {
+                array = builder.CreateAlloca(T::Void, Constant::getIntegerValue(Type::getInt32Ty(C), APInt(32, (uint64_t)vTable->n)));
+                builder.CreateStore(function->arg_begin(), builder.CreateGEP(array, Constant::getIntegerValue(NativeInt, APInt(8*sizeof(void*), 0))));
+                if (vTable->n > 1) {
+                    Value *vaList = builder.CreateAlloca(IntegerType::getInt8PtrTy(C));
+                    Value *vaListRef = builder.CreateBitCast(vaList, Type::getInt8PtrTy(C));
+                    builder.CreateCall(Intrinsic::getDeclaration(builder.resources->module, Intrinsic::vastart), vaListRef);
+                    for (likely_arity i=1; i<vTable->n; i++)
+                        builder.CreateStore(builder.CreateVAArg(vaList, T::Void), builder.CreateGEP(array, Constant::getIntegerValue(NativeInt, APInt(8*sizeof(void*), i))));
+                    builder.CreateCall(Intrinsic::getDeclaration(builder.resources->module, Intrinsic::vaend), vaListRef);
+                }
+            } else {
+                array = ConstantPointerNull::get(PointerType::getUnqual(T::Void));
+            }
+
+            static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
+            static FunctionType *likelyDynamicType = NULL;
+            if (likelyDynamicType == NULL) {
+                vector<Type*> params;
+                params.push_back(vTableType);
+                params.push_back(PointerType::getUnqual(T::Void));
+                likelyDynamicType = FunctionType::get(T::Void, params, false);
+            }
+
+            Function *likelyDynamic = builder.resources->module->getFunction("likely_dynamic");
+            if (!likelyDynamic) {
+                likelyDynamic = Function::Create(likelyDynamicType, GlobalValue::ExternalLinkage, "likely_dynamic", builder.resources->module);
+                likelyDynamic->setCallingConv(CallingConv::C);
+                likelyDynamic->setDoesNotAlias(0);
+                likelyDynamic->setDoesNotAlias(1);
+                likelyDynamic->setDoesNotAlias(2);
+                likelyDynamic->setDoesNotCapture(1);
+                likelyDynamic->setDoesNotCapture(2);
+            }
+
+            Constant *thisVTableFunction = ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vTable)), uintptr_t(vTable)), vTableType);
+            builder.CreateRet(builder.CreateCall2(likelyDynamic, thisVTableFunction, array));
+            return Immediate(function, likely_type_void);
+        }
+
+        if (name.empty())
+            name = getUniqueName("lambda");
+
         Function *tmpFunction = cast<Function>(builder.resources->module->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), T::toLLVM(types), false)));
         vector<Immediate> tmpArgs = builder.getArgs(tmpFunction, types);
         BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
@@ -1648,6 +1496,25 @@ private:
         tmpFunction->eraseFromParent();
         return Immediate(function, result.type());
     }
+
+private:
+    void *symbol() const { return (void*) likely_dynamic; }
+
+    virtual Expression *evaluateFunction(Builder &builder, const vector<Immediate> &args, const string &name) const
+    {
+        Builder lambdaBuilder(builder.resources, env);
+
+        vector<T> types;
+        for (const Immediate &arg : args)
+            types.push_back(T(arg.value_->getType(), arg.type_));
+        Immediate i = generate(lambdaBuilder, types, name);
+        if (!i.value_) return NULL;
+
+        vector<Value*> values;
+        for (const Immediate &arg : args)
+            values.push_back(arg);
+        return new Immediate(builder.CreateCall(cast<Function>(i.value_), values), i.type_);
+    }
 };
 
 class lambdaExpression : public Operator
@@ -1659,6 +1526,135 @@ class lambdaExpression : public Operator
     }
 };
 LIKELY_REGISTER(lambda)
+
+class exportExpression : public Operator
+{
+    size_t maxParameters() const { return 3; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        TRY_EXPR(builder, ast->atoms[1], expr);
+        Lambda *lambda = static_cast<Lambda*>(expr.expression);
+
+        if (ast->atoms[2]->is_list)
+            return error(ast->atoms[2], "export expected an atom name");
+        const char *name = ast->atoms[2]->atom;
+
+        vector<T> types;
+        if (ast->atoms[3]->is_list) {
+            for (size_t i=0; i<ast->atoms[3]->num_atoms; i++) {
+                if (ast->atoms[3]->atoms[i]->is_list)
+                    return error(ast->atoms[2], "export expected an atom name");
+                types.push_back(T::get(likely_type_from_string(ast->atoms[3]->atoms[i]->atom)));
+            }
+        } else {
+            types.push_back(T::get(likely_type_from_string(ast->atoms[3]->atom)));
+        }
+
+        lambda->generate(builder, types, name);
+        return NULL;
+    }
+};
+LIKELY_REGISTER(export)
+
+Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_type> &type, string name, bool native)
+    : type(type)
+{
+    if (!NativeInt) {
+        likely_assert(sizeof(likely_size) == sizeof(void*), "insane type system");
+        InitializeNativeTarget();
+        InitializeNativeTargetAsmPrinter();
+        InitializeNativeTargetAsmParser();
+
+        PassRegistry &Registry = *PassRegistry::getPassRegistry();
+        initializeCore(Registry);
+        initializeScalarOpts(Registry);
+        initializeVectorization(Registry);
+        initializeIPO(Registry);
+        initializeAnalysis(Registry);
+        initializeIPA(Registry);
+        initializeTransformUtils(Registry);
+        initializeInstCombine(Registry);
+        initializeTarget(Registry);
+
+        NativeInt = Type::getIntNTy(C, likely_depth(likely_type_native));
+        T::Void = cast<PointerType>(T::get(likely_type_void).llvm);
+    }
+
+    module = new Module(getUniqueName("module"), C);
+    likely_assert(module != NULL, "failed to create module");
+
+    string error;
+    EngineBuilder engineBuilder(module);
+    engineBuilder.setMCPU(sys::getHostCPUName())
+                 .setOptLevel(CodeGenOpt::Aggressive)
+                 .setErrorStr(&error);
+
+    const bool JIT = name.empty();
+    if (native) {
+        static string nativeTT, nativeJITTT;
+        if (nativeTT.empty()) {
+            nativeTT = sys::getProcessTriple();
+#ifdef _WIN32
+            nativeJITTT = nativeTT + "-elf";
+#else
+            nativeJITTT = nativeTT;
+#endif // _WIN32
+        }
+        module->setTargetTriple(JIT ? nativeJITTT : nativeTT);
+
+        static TargetMachine *nativeTM = NULL;
+        if (!nativeTM) {
+            engineBuilder.setCodeModel(CodeModel::Default);
+            nativeTM = engineBuilder.selectTarget();
+            likely_assert(nativeTM != NULL, "failed to select target machine with error: %s", error.c_str());
+        }
+        TM = nativeTM;
+    }
+
+    if (JIT) {
+        engineBuilder.setCodeModel(CodeModel::JITDefault)
+                     .setEngineKind(EngineKind::JIT)
+                     .setUseMCJIT(true);
+        EE = engineBuilder.create();
+        likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
+    }
+
+    likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list && !strcmp(ast->atoms[0]->atom, "lambda"), "expected a lambda expression");
+    Builder builder(this, env);
+    unique_ptr<Expression> result(builder.expression(ast));
+
+    vector<T> types;
+    for (likely_type t : type)
+        types.push_back(T::get(t));
+    Function *F = dyn_cast_or_null<Function>(static_cast<Lambda*>(result.get())->generate(builder, types, name).value_);
+
+    if (F && TM) {
+        static PassManager *PM = NULL;
+        if (!PM) {
+            PM = new PassManager();
+            PM->add(createVerifierPass());
+            PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
+            PM->add(new DataLayoutPass(*TM->getDataLayout()));
+            TM->addAnalysisPasses(*PM);
+            PassManagerBuilder builder;
+            builder.OptLevel = 3;
+            builder.SizeLevel = 0;
+            builder.LoopVectorize = true;
+            builder.populateModulePassManager(*PM);
+            PM->add(createVerifierPass());
+        }
+
+//        DebugFlag = true;
+//        module->dump();
+        PM->run(*module);
+//        module->dump();
+    }
+
+    if (F && EE) {
+        EE->finalizeObject();
+        function = EE->getPointerToFunction(F);
+    }
+}
 
 #ifdef LIKELY_IO
 #include "likely/io.h"
