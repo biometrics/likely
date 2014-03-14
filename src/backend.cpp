@@ -53,15 +53,9 @@ static LLVMContext &C = getGlobalContext();
 
 struct T
 {
-    Type *llvm;
+    PointerType *llvm;
     likely_type likely;
     static PointerType *Void;
-
-    operator Type*() const { return llvm; }
-    operator ArrayRef<Type*>() const { return llvm; }
-    operator PointerType*() const { return cast_or_null<PointerType>(llvm); }
-    operator likely_type() const { return likely; }
-    bool isVoid() const { return likely == likely_type_void; }
 
     static T get(likely_type likely)
     {
@@ -331,7 +325,7 @@ struct Builder : public IRBuilder<>
             stringstream name; name << "arg_" << int(n);
             src->setName(name.str());
             PointerType *m = cast_or_null<PointerType>(n < types.size() ? types[n] : NULL);
-            result.push_back(Immediate(src, m ? T::get(m) : likely_type_void));
+            result.push_back(Immediate(src, m ? T::get(m).likely : likely_type_void));
             n++;
         }
         return result;
@@ -634,7 +628,7 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
         initializeTarget(Registry);
 
         NativeInt = Type::getIntNTy(C, likely_depth(likely_type_native));
-        T::Void = T::get(likely_type_void);
+        T::Void = T::get(likely_type_void).llvm;
     }
 
     module = new Module(getUniqueName("module"), C);
@@ -684,7 +678,7 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
 
     vector<Type*> types;
     for (likely_type t : type)
-        types.push_back(T::get(t));
+        types.push_back(T::get(t).llvm);
     Function *F = dyn_cast_or_null<Function>(static_cast<FunctionExpression*>(result.get())->generate(builder, types, name).value_);
 
     if (F && TM) {
