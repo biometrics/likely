@@ -418,7 +418,7 @@ struct Builder : public IRBuilder<>
             Value *src = args++;
             stringstream name; name << "arg_" << int(n);
             src->setName(name.str());
-            result.push_back(Immediate(src, n < types.size() ? types[n].likely : likely_type_void));
+            result.push_back(Immediate(src, n < types.size() ? types[n].likely : likely_type(likely_type_void)));
             n++;
         }
         return result;
@@ -917,7 +917,7 @@ class BinaryMathOperator : public SimpleBinaryOperator
     {
         const likely_type type = nIsInteger() ? x.type() : likely_type_from_types(x, n);
         Immediate xc(builder.cast(&x, Builder::validFloatType(type)));
-        Immediate nc(builder.cast(&n, nIsInteger() ? likely_type_i32 : xc.type_));
+        Immediate nc(builder.cast(&n, nIsInteger() ? likely_type(likely_type_i32) : xc.type_));
         vector<Type*> args;
         args.push_back(xc.value_->getType());
         return new Immediate(builder.CreateCall2(Intrinsic::getDeclaration(builder.resources->module, id(), args), xc, nc), xc);
