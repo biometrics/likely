@@ -42,8 +42,8 @@ static void execute(const char *source, likely_env env)
 int main(int argc, char *argv[])
 {
     if (argc == 1) {
-        // Enter a REPL
-        likely_env env = likely_new_env();
+        // REPL shell
+        likely_env env = likely_new_jit();
         cout << "Likely\n";
         while (true) {
             cout << "> ";
@@ -52,35 +52,24 @@ int main(int argc, char *argv[])
             execute(line.c_str(), env);
         }
         likely_release_env(env);
-    } else if (argc == 2) {
-        if (!strcmp(argv[1], "--help")) {
-            // Print usage
+    } else {
+        ifstream file(argv[1]);
+        const string source((istreambuf_iterator<char>(file)),
+                            istreambuf_iterator<char>());
+
+        if (source.empty()) {
             printf("Usage:\n"
                    "  like\n"
                    "  like <source_file>\n"
-                   "  like <likely_expression> <symbol_name> <likely_type> ... <likely_type> <object_file>\n");
-        } else {
-            // Execute a source file
-            ifstream file(argv[1]);
-            const string source((istreambuf_iterator<char>(file)),
-                                 istreambuf_iterator<char>());
-            likely_env env = likely_new_env();
-            execute(source.c_str(), env);
-            likely_release_env(env);
+                   "  like <source_file> <object_file>\n");
+            return EXIT_FAILURE;
         }
-    } else {
-        // Static compiler
-        likely_const_ast ast = likely_ast_from_string(argv[1], true);
-        likely_arity n = (likely_arity) argc-4;
-        likely_type *types = (likely_type*) malloc(n * sizeof(likely_type));
-        for (likely_arity i=0; i<n; i++)
-            types[i] = likely_type_from_string(argv[i+3]);
 
-        likely_env env = likely_new_env();
-        likely_compile_to_file(ast, env, argv[2], types, n, argv[argc-1], true);
+        likely_env env;
+        if (argc == 2) env = likely_new_jit(); // Interpreter
+        else           env = likely_new_offline(argv[2], true); // Static compiler
+        execute(source.c_str(), env);
         likely_release_env(env);
-        likely_release_ast(ast);
-        free(types);
     }
 
     return EXIT_SUCCESS;

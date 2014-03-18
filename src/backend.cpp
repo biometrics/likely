@@ -151,19 +151,6 @@ struct ManagedExpression : public Expression
 const ManagedExpression EXPR((BUILDER).expression(AST)); \
 if (EXPR.isNull()) return NULL;                          \
 
-} // namespace (anonymous)
-
-struct likely_environment : public map<string,stack<shared_ptr<Expression>>>
-{
-    static likely_environment defaultExprs;
-    mutable int ref_count = 1;
-    likely_environment(const map<string,stack<shared_ptr<Expression>>> &exprs = defaultExprs)
-        : map<string,stack<shared_ptr<Expression>>>(exprs) {}
-};
-likely_environment likely_environment::defaultExprs;
-
-namespace {
-
 static string getUniqueName(const string &prefix)
 {
     static map<string, int> uidLUT;
@@ -172,45 +159,116 @@ static string getUniqueName(const string &prefix)
     return stream.str();
 }
 
-struct Immediate : public Expression
+struct Resources
 {
-    Value *value_;
-    likely_type type_;
-
-    Immediate(Value *value, likely_type type)
-        : value_(value), type_(type) {}
-
-private:
-    Value *value() const { return value_; }
-    likely_type type() const { return type_; }
-    Expression *evaluate(Builder &, likely_const_ast) const
-    {
-        return new Immediate(value(), type());
-    }
-};
-
-class Resources
-{
-    ExecutionEngine *EE = NULL;
     TargetMachine *TM = NULL;
-
-public:
     Module *module;
-    void *function = NULL;
-    const vector<likely_type> type;
     vector<Expression*> expressions;
 
-    Resources(likely_const_ast ast, likely_env env, const vector<likely_type> &type, string name = string(), bool native = true);
+    Resources(bool native)
+    {
+        if (!NativeInt) {
+            likely_assert(sizeof(likely_size) == sizeof(void*), "insane type system");
+            InitializeNativeTarget();
+            InitializeNativeTargetAsmPrinter();
+            InitializeNativeTargetAsmParser();
+
+            PassRegistry &Registry = *PassRegistry::getPassRegistry();
+            initializeCore(Registry);
+            initializeScalarOpts(Registry);
+            initializeVectorization(Registry);
+            initializeIPO(Registry);
+            initializeAnalysis(Registry);
+            initializeIPA(Registry);
+            initializeTransformUtils(Registry);
+            initializeInstCombine(Registry);
+            initializeTarget(Registry);
+
+            NativeInt = Type::getIntNTy(C, likely_depth(likely_type_native));
+            T::Void = cast<PointerType>(T::get(likely_type_void).llvm);
+        }
+
+        module = new Module(getUniqueName("module"), C);
+        likely_assert(module != NULL, "failed to create module");
+
+        if (native) {
+            module->setTargetTriple(sys::getProcessTriple());
+
+            static TargetMachine *nativeTM = NULL;
+            if (!nativeTM) {
+                string error;
+                EngineBuilder engineBuilder(module);
+                engineBuilder.setMCPU(sys::getHostCPUName())
+                             .setCodeModel(CodeModel::Default)
+                             .setErrorStr(&error);
+                nativeTM = engineBuilder.selectTarget();
+                likely_assert(nativeTM != NULL, "failed to select target machine with error: %s", error.c_str());
+            }
+            TM = nativeTM;
+        }
+    }
+
+    void optimize()
+    {
+        if (!TM)
+            return;
+
+        static PassManager *PM = NULL;
+        if (!PM) {
+            PM = new PassManager();
+            PM->add(createVerifierPass());
+            PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
+            PM->add(new DataLayoutPass(*TM->getDataLayout()));
+            TM->addAnalysisPasses(*PM);
+            PassManagerBuilder builder;
+            builder.OptLevel = 3;
+            builder.SizeLevel = 0;
+            builder.LoopVectorize = true;
+            builder.populateModulePassManager(*PM);
+            PM->add(createVerifierPass());
+        }
+
+//        DebugFlag = true;
+//        module->dump();
+        PM->run(*module);
+//        module->dump();
+    }
 
     ~Resources()
     {
         for (Expression *e : expressions)
             delete e;
-        if (EE) delete EE; // owns module
-        else    delete module;
+        delete module;
     }
+};
 
-    void write(const string &fileName) const
+class JITResources : public Resources
+{
+    ExecutionEngine *EE = NULL;
+
+public:
+    void *function = NULL;
+    const vector<likely_type> type;
+
+    JITResources(likely_const_ast ast, likely_env env, const vector<likely_type> &type);
+
+    ~JITResources()
+    {
+        module = NULL;
+        delete EE; // owns module
+    }
+};
+
+class OfflineResources : public Resources
+{
+    const string fileName;
+
+public:
+    OfflineResources(const string &fileName, bool native)
+        : Resources(native), fileName(fileName)
+    {}
+
+    ~OfflineResources()
     {
         const string extension = fileName.substr(fileName.find_last_of(".") + 1);
 
@@ -230,6 +288,46 @@ public:
 
         likely_assert(errorInfo.empty(), "failed to write to: %s with error: %s", fileName.c_str(), errorInfo.c_str());
         output.keep();
+    }
+};
+
+} // namespace (anonymous)
+
+struct likely_environment : public map<string,stack<shared_ptr<Expression>>>
+{
+    static map<string,stack<shared_ptr<Expression>>> defaultExprs;
+    mutable int ref_count = 1;
+    likely_environment(const map<string,stack<shared_ptr<Expression>>> &exprs = defaultExprs)
+        : map<string,stack<shared_ptr<Expression>>>(exprs) {}
+    virtual ~likely_environment() {}
+    virtual likely_mat evaluate(likely_const_ast ast)
+    {
+        likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
+        expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
+        JITResources resources(expr, this, vector<likely_type>());
+        likely_release_ast(expr);
+        if (resources.function) return reinterpret_cast<likely_mat(*)(void)>(resources.function)();
+        else                    return NULL;
+    }
+};
+map<string,stack<shared_ptr<Expression>>> likely_environment::defaultExprs;
+
+namespace {
+
+struct Immediate : public Expression
+{
+    Value *value_;
+    likely_type type_;
+
+    Immediate(Value *value, likely_type type)
+        : value_(value), type_(type) {}
+
+private:
+    Value *value() const { return value_; }
+    likely_type type() const { return type_; }
+    Expression *evaluate(Builder &, likely_const_ast) const
+    {
+        return new Immediate(value(), type());
     }
 };
 
@@ -454,7 +552,7 @@ private:
 struct VTable : public ScopedExpression
 {
     likely_arity n;
-    vector<Resources*> functions;
+    vector<JITResources*> functions;
 
     VTable(Builder &builder, likely_const_ast ast)
         : ScopedExpression(builder, ast)
@@ -1578,68 +1676,18 @@ class exportExpression : public Operator
 };
 LIKELY_REGISTER(export)
 
-Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_type> &type, string name, bool native)
-    : type(type)
+JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<likely_type> &type)
+    : Resources(true), type(type)
 {
-    if (!NativeInt) {
-        likely_assert(sizeof(likely_size) == sizeof(void*), "insane type system");
-        InitializeNativeTarget();
-        InitializeNativeTargetAsmPrinter();
-        InitializeNativeTargetAsmParser();
-
-        PassRegistry &Registry = *PassRegistry::getPassRegistry();
-        initializeCore(Registry);
-        initializeScalarOpts(Registry);
-        initializeVectorization(Registry);
-        initializeIPO(Registry);
-        initializeAnalysis(Registry);
-        initializeIPA(Registry);
-        initializeTransformUtils(Registry);
-        initializeInstCombine(Registry);
-        initializeTarget(Registry);
-
-        NativeInt = Type::getIntNTy(C, likely_depth(likely_type_native));
-        T::Void = cast<PointerType>(T::get(likely_type_void).llvm);
-    }
-
-    module = new Module(getUniqueName("module"), C);
-    likely_assert(module != NULL, "failed to create module");
-
     string error;
     EngineBuilder engineBuilder(module);
     engineBuilder.setMCPU(sys::getHostCPUName())
                  .setOptLevel(CodeGenOpt::Aggressive)
-                 .setErrorStr(&error);
-
-    const bool JIT = name.empty();
-    if (native) {
-        static string nativeTT, nativeJITTT;
-        if (nativeTT.empty()) {
-            nativeTT = sys::getProcessTriple();
-#ifdef _WIN32
-            nativeJITTT = nativeTT + "-elf";
-#else
-            nativeJITTT = nativeTT;
-#endif // _WIN32
-        }
-        module->setTargetTriple(JIT ? nativeJITTT : nativeTT);
-
-        static TargetMachine *nativeTM = NULL;
-        if (!nativeTM) {
-            engineBuilder.setCodeModel(CodeModel::Default);
-            nativeTM = engineBuilder.selectTarget();
-            likely_assert(nativeTM != NULL, "failed to select target machine with error: %s", error.c_str());
-        }
-        TM = nativeTM;
-    }
-
-    if (JIT) {
-        engineBuilder.setCodeModel(CodeModel::JITDefault)
-                     .setEngineKind(EngineKind::JIT)
-                     .setUseMCJIT(true);
-        EE = engineBuilder.create();
-        likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
-    }
+                 .setErrorStr(&error)
+                 .setEngineKind(EngineKind::JIT)
+                 .setUseMCJIT(true);
+    EE = engineBuilder.create();
+    likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
 
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list && !strcmp(ast->atoms[0]->atom, "lambda"), "expected a lambda expression");
     Builder builder(this, env);
@@ -1648,35 +1696,31 @@ Resources::Resources(likely_const_ast ast, likely_env env, const vector<likely_t
     vector<T> types;
     for (likely_type t : type)
         types.push_back(T::get(t));
-    Function *F = dyn_cast_or_null<Function>(static_cast<Lambda*>(result.get())->generate(builder, types, name).value_);
+    Function *F = dyn_cast_or_null<Function>(static_cast<Lambda*>(result.get())->generate(builder, types, getUniqueName("jit")).value_);
 
-    if (F && TM) {
-        static PassManager *PM = NULL;
-        if (!PM) {
-            PM = new PassManager();
-            PM->add(createVerifierPass());
-            PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
-            PM->add(new DataLayoutPass(*TM->getDataLayout()));
-            TM->addAnalysisPasses(*PM);
-            PassManagerBuilder builder;
-            builder.OptLevel = 3;
-            builder.SizeLevel = 0;
-            builder.LoopVectorize = true;
-            builder.populateModulePassManager(*PM);
-            PM->add(createVerifierPass());
-        }
-
-//        DebugFlag = true;
-//        module->dump();
-        PM->run(*module);
-//        module->dump();
-    }
-
-    if (F && EE) {
+    if (F) {
+        optimize();
         EE->finalizeObject();
         function = EE->getPointerToFunction(F);
     }
 }
+
+struct OfflineEnvironment : public likely_environment
+{
+    unique_ptr<OfflineResources> resources;
+
+    OfflineEnvironment(const string &fileName, bool native)
+        : resources(new OfflineResources(fileName, native))
+    {}
+
+private:
+    likely_mat evaluate(likely_const_ast ast)
+    {
+        Builder builder(resources.get(), this);
+        delete builder.expression(ast);
+        return NULL;
+    }
+};
 
 #ifdef LIKELY_IO
 #include "likely/io.h"
@@ -1823,9 +1867,14 @@ LIKELY_REGISTER(encode)
 
 } // namespace (anonymous)
 
-likely_env likely_new_env()
+likely_env likely_new_jit()
 {
     return new likely_environment();
+}
+
+likely_env likely_new_offline(const char *file_name, bool native)
+{
+    return new OfflineEnvironment(file_name, native);
 }
 
 likely_env likely_retain_env(likely_const_env env)
@@ -1844,7 +1893,7 @@ likely_const_mat likely_dynamic(struct VTable *vTable, likely_const_mat *m)
 {
     void *function = NULL;
     for (size_t i=0; i<vTable->functions.size(); i++) {
-        const Resources *resources = vTable->functions[i];
+        const JITResources *resources = vTable->functions[i];
         for (likely_arity j=0; j<vTable->n; j++)
             if (m[j]->type != resources->type[j])
                 goto Next;
@@ -1860,7 +1909,7 @@ likely_const_mat likely_dynamic(struct VTable *vTable, likely_const_mat *m)
         vector<likely_type> types;
         for (int i=0; i<vTable->n; i++)
             types.push_back(m[i]->type);
-        Resources *resources = new Resources(vTable->ast, vTable->env, types);
+        JITResources *resources = new JITResources(vTable->ast, vTable->env, types);
         vTable->functions.push_back(resources);
         function = vTable->functions.back()->function;
     }
@@ -1882,7 +1931,7 @@ likely_const_mat likely_dynamic(struct VTable *vTable, likely_const_mat *m)
     return dst;
 }
 
-static map<likely_function, pair<Resources*,int>> ResourcesLUT;
+static map<likely_function, pair<JITResources*,int>> ResourcesLUT;
 
 likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type type, ...)
 {
@@ -1895,9 +1944,9 @@ likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type
         type = va_arg(ap, likely_type);
     }
     va_end(ap);
-    Resources *r = new Resources(ast, env, types);
+    JITResources *r = new JITResources(ast, env, types);
     likely_function f = reinterpret_cast<likely_function>(r->function);
-    if (f) ResourcesLUT[f] = pair<Resources*,int>(r, 1);
+    if (f) ResourcesLUT[f] = pair<JITResources*,int>(r, 1);
     else   delete r;
     return f;
 }
@@ -1911,25 +1960,14 @@ likely_function likely_retain_function(likely_function function)
 void likely_release_function(likely_function function)
 {
     if (!function) return;
-    pair<Resources*,int> &df = ResourcesLUT[function];
+    pair<JITResources*,int> &df = ResourcesLUT[function];
     if (--df.second) return;
     ResourcesLUT.erase(function);
     delete df.first;
 }
 
-void likely_compile_to_file(likely_const_ast ast, likely_env env, const char *symbol_name, likely_type *types, likely_arity n, const char *file_name, bool native)
-{
-    if (!ast || !env) return;
-    Resources(ast, env, vector<likely_type>(types, types+n), symbol_name, native).write(file_name);
-}
-
 likely_mat likely_eval(likely_const_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
-    expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
-    Resources resources(expr, env, vector<likely_type>());
-    likely_release_ast(expr);
-    if (resources.function) return reinterpret_cast<likely_mat(*)(void)>(resources.function)();
-    else                    return NULL;
+    return env->evaluate(ast);
 }

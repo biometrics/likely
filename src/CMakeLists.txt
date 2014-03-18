@@ -10,7 +10,8 @@ set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/include/likely/runtime.h
                 ${CMAKE_SOURCE_DIR}/index.html
                 ${CMAKE_SOURCE_DIR}/share/likely/LikelyConfig.cmake
-                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/README.l)
+                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/README.l
+                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello_world_div2.l)
 
 # Build standard library
 add_executable(embedfile embedfile.c)

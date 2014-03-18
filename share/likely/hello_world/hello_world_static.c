@@ -4,7 +4,7 @@
 #include <likely/runtime.h>
 
 // Provided by a call to the static compiler:
-// $ like 'x -> (a => (/ a (cast 2 (type a))) x)' hello_world_div2 f32 hello_world_div2.o
+// $ like hello_world_div2.l hello_world_div2.o
 likely_const_mat hello_world_div2(const likely_const_mat m);
 
 int main()

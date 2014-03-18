@@ -271,7 +271,7 @@ private slots:
         elapsedTimer.start();
         likely_const_ast asts = likely_asts_from_string(qPrintable(source), true);
         if (asts) {
-            likely_env env = likely_new_env();
+            likely_env env = likely_new_jit();
             for (size_t i=0; i<asts->num_atoms; i++) {
                 likely_const_mat result = likely_eval(asts->atoms[i], env);
                 if (result) {
