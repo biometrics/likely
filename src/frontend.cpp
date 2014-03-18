@@ -17,9 +17,7 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
-#include <queue>
 #include <sstream>
-#include <stack>
 #include <vector>
 
 #include "likely/frontend.h"
@@ -171,6 +169,9 @@ likely_ast likely_tokens_from_string(const char *str)
 
 static bool shiftReduce(likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence = 0)
 {
+    if (!tokens->is_list || (*offset >= tokens->num_atoms))
+        return false;
+
     likely_const_ast token = tokens->atoms[(*offset)++];
     if (token->is_list) {
         output.push_back(likely_retain_ast(token));
@@ -179,6 +180,27 @@ static bool shiftReduce(likely_const_ast tokens, size_t *offset, vector<likely_c
 
     switch (precedence) {
       case 0:
+        if (!strcmp(token->atom, "=>")) {
+            if (output.empty()) {
+                likely_throw(token, "missing kernel declaration");
+                return false;
+            }
+            if (*offset >= tokens->num_atoms) {
+                likely_throw(token, "missing kernel definition");
+                return false;
+            }
+            if (!shiftReduce(tokens, offset, output))
+                return false;
+            likely_ast kernel = likely_new_atom("kernel", 0, 6);
+            kernel->begin = output[output.size()-2]->begin;
+            kernel->end = output[output.size()-1]->end;
+            output.insert(output.end()-2, kernel);
+            likely_const_ast ast = likely_new_list(&output[output.size()-3], 3);
+            output.erase(output.end()-3, output.end());
+            output.push_back(ast);
+            return true;
+        }
+      case 1:
         if (!strcmp(token->atom, "(")) {
             vector<likely_const_ast> atoms;
             while (true) {
