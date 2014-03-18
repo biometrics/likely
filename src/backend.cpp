@@ -1679,6 +1679,10 @@ LIKELY_REGISTER(export)
 JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<likely_type> &type)
     : Resources(true), type(type)
 {
+#ifdef _WIN32
+    module->setTargetTriple(module->getTargetTriple() + "-elf");
+#endif
+
     string error;
     EngineBuilder engineBuilder(module);
     engineBuilder.setMCPU(sys::getHostCPUName())
