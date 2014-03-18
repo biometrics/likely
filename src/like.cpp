@@ -26,7 +26,7 @@ using namespace std;
 
 static void execute(const char *source, likely_env env)
 {
-    likely_const_ast asts = likely_asts_from_string(source);
+    likely_const_ast asts = likely_asts_from_string(source, true);
     if (!asts) return;
     for (size_t i=0; i<asts->num_atoms; i++) {
         likely_const_mat m = likely_eval(asts->atoms[i], env);
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
         }
     } else {
         // Static compiler
-        likely_const_ast ast = likely_ast_from_string(argv[1]);
+        likely_const_ast ast = likely_ast_from_string(argv[1], true);
         likely_arity n = (likely_arity) argc-4;
         likely_type *types = (likely_type*) malloc(n * sizeof(likely_type));
         for (likely_arity i=0; i<n; i++)

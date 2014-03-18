@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
     if (argc == 1) {
         input_image = "../data/misc/lenna.tiff"; // Assume we are run from a hypothetical <root>/bin folder
         output_image = "dark_lenna.png";
-        filter = "(lambda x ((kernel a (/ a (cast 2 (type a)))) x))";
+        filter = "x -> (a => (/ a (cast 2 (type a))) x)";
     } else if (argc == 4) {
         input_image = argv[1];
         output_image = argv[3];
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
     }
 
     printf("Parsing abstract syntax tree...\n");
-    likely_const_ast ast = likely_ast_from_string(filter);
+    likely_const_ast ast = likely_ast_from_string(filter, false);
 
     printf("Creating a compiler environment...\n");
     likely_env env = likely_new_env();

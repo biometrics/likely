@@ -157,13 +157,13 @@ static bool cleanup(vector<likely_const_ast> &atoms)
     return false;
 }
 
-likely_ast likely_tokens_from_string(const char *str)
+likely_ast likely_tokens_from_string(const char *str, bool GFM)
 {
     if (!str) return NULL;
     vector<likely_const_ast> tokens;
     const size_t len = strlen(str);
-    if (str[0] == '(') tokenize(str, len, tokens);
-    else               tokenizeGFM(str, len, tokens);
+    if (GFM) tokenizeGFM(str, len, tokens);
+    else     tokenize(str, len, tokens);
     return likely_new_list(tokens.data(), tokens.size());
 }
 
@@ -180,26 +180,27 @@ static bool shiftReduce(likely_const_ast tokens, size_t *offset, vector<likely_c
 
     switch (precedence) {
       case 0:
-        if (!strcmp(token->atom, "=>")) {
+        if (!strcmp(token->atom, "->") || !strcmp(token->atom, "=>")) {
+            const bool lambda = !strcmp(token->atom, "->");
             if (output.empty()) {
-                likely_throw(token, "missing kernel declaration");
+                likely_throw(token, lambda ? "missing lambda declaration" : "missing kernel declaration");
                 return false;
             }
             if (*offset >= tokens->num_atoms) {
-                likely_throw(token, "missing kernel definition");
+                likely_throw(token, lambda ? "missing lambda definition" : "missing kernel definition");
                 return false;
             }
-            if (!shiftReduce(tokens, offset, output))
+            if (!shiftReduce(tokens, offset, output, 0))
                 return false;
-            likely_ast kernel = likely_new_atom("kernel", 0, 6);
-            kernel->begin = output[output.size()-2]->begin;
-            kernel->end = output[output.size()-1]->end;
-            output.insert(output.end()-2, kernel);
-            likely_const_ast ast = likely_new_list(&output[output.size()-3], 3);
-            output.erase(output.end()-3, output.end());
-            output.push_back(ast);
+            likely_ast function = likely_new_atom(lambda ? "lambda" : "kernel", 0, 6);
+            function->begin = output[output.size()-2]->begin;
+            function->end = output[output.size()-1]->end;
+            output.insert(output.end()-2, function);
+            output.push_back(likely_new_list(&output[output.size()-3], 3));
+            output.erase(output.end()-4, output.end()-1);
             return true;
         }
+
       case 1:
         if (!strcmp(token->atom, "(")) {
             vector<likely_const_ast> atoms;
@@ -235,29 +236,16 @@ static bool shiftReduce(likely_const_ast tokens, size_t *offset, vector<likely_c
 
 likely_ast likely_ast_from_tokens(likely_const_ast tokens)
 {
-    size_t offset = 0;
-    vector<likely_const_ast> ast;
-    if (!shiftReduce(tokens, &offset, ast))
-        return NULL;
-    if (offset < tokens->num_atoms) {
-        likely_throw(tokens->atoms[offset], "tokens leftover after parsing");
-        likely_release_ast(ast[0]);
-        return NULL;
-    }
-    return (likely_ast) ast[0];
-}
-
-likely_ast likely_ast_from_string(const char *str)
-{
-    likely_const_ast tokens = likely_tokens_from_string(str);
-    likely_ast ast = likely_ast_from_tokens(tokens);
-    likely_release_ast(tokens);
+    likely_const_ast asts = likely_asts_from_tokens(tokens);
+    likely_ast ast = asts->num_atoms == 1 ? likely_retain_ast(asts->atoms[0]) : NULL;
+    if (asts->num_atoms > 1)
+        likely_throw(asts->atoms[1], "tokens leftover after parsing");
+    likely_release_ast(asts);
     return ast;
 }
 
-likely_ast likely_asts_from_string(const char *str)
+likely_ast likely_asts_from_tokens(likely_const_ast tokens)
 {
-    likely_const_ast tokens = likely_tokens_from_string(str);
     size_t offset = 0;
     vector<likely_const_ast> expressions;
     while (offset < tokens->num_atoms)
@@ -265,8 +253,23 @@ likely_ast likely_asts_from_string(const char *str)
             cleanup(expressions);
             return NULL;
         }
-    likely_release_ast(tokens);
     return likely_new_list(expressions.data(), expressions.size());
+}
+
+likely_ast likely_ast_from_string(const char *str, bool GFM)
+{
+    likely_const_ast tokens = likely_tokens_from_string(str, GFM);
+    likely_ast ast = likely_ast_from_tokens(tokens);
+    likely_release_ast(tokens);
+    return ast;
+}
+
+likely_ast likely_asts_from_string(const char *str, bool GFM)
+{
+    likely_const_ast tokens = likely_tokens_from_string(str, GFM);
+    likely_ast asts = likely_asts_from_tokens(tokens);
+    likely_release_ast(tokens);
+    return asts;
 }
 
 static void print(const likely_const_ast ast, stringstream &stream)

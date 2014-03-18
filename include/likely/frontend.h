@@ -56,12 +56,11 @@ LIKELY_EXPORT likely_ast likely_new_list(likely_const_ast *atoms, size_t num_ato
 LIKELY_EXPORT likely_ast likely_retain_ast(likely_const_ast ast);
 LIKELY_EXPORT void likely_release_ast(likely_const_ast ast);
 
-// If 'str' starts with '(' the string is assumed to contain s-expressions,
-// otherwise 'str' is assumed to be Github Flavored Markdown (GFM) with s-expression(s) in the code blocks
-LIKELY_EXPORT likely_ast likely_tokens_from_string(const char *str);
+LIKELY_EXPORT likely_ast likely_tokens_from_string(const char *str, bool GFM);
 LIKELY_EXPORT likely_ast likely_ast_from_tokens(likely_const_ast tokens);
-LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str);
-LIKELY_EXPORT likely_ast likely_asts_from_string(const char *str); // Top level is a list of expressions
+LIKELY_EXPORT likely_ast likely_asts_from_tokens(likely_const_ast tokens); // Top level is a list of expressions
+LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str, bool GFM);
+LIKELY_EXPORT likely_ast likely_asts_from_string(const char *str, bool GFM); // Top level is a list of expressions
 LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);
 
 // Callback-style error handling

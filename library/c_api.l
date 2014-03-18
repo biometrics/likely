@@ -3,11 +3,7 @@ C API
 So you've developed an algorithm in Likely, how do you integrate it into your native application? Once again, let's consider our *[Hello World](?show=hello_world)* example:
 
     (define lenna (read "../data/misc/lenna.tiff"))
-
-    (define hello_world
-      (lambda x ((kernel a
-        (/ a (cast 2 (type a)))) x)))
-
+    (define hello_world x -> (a => (/ a (cast 2 (type a))) x))
     (hello_world lenna)
 
 The **C translation** of this is:

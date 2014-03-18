@@ -10,7 +10,7 @@ if(${LIKELY_HELLOWORLD})
 
   # hello_world_static
   add_custom_command(OUTPUT hello_world_div2.o
-                     COMMAND like "(lambda x ((kernel a (/ a (cast 2 (type a)))) x))" hello_world_div2 f32X hello_world_div2.o
+                     COMMAND like "x -> (a => (/ a (cast 2 (type a))) x)" hello_world_div2 f32X hello_world_div2.o
                      DEPENDS like
                      VERBATIM)
   add_definitions(-DLIKELY_LIBRARY)

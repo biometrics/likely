@@ -1926,7 +1926,7 @@ void likely_compile_to_file(likely_const_ast ast, likely_env env, const char *sy
 likely_mat likely_eval(likely_const_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
-    likely_const_ast expr = likely_ast_from_string("(lambda () (scalar <ast>))");
+    likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
     expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
     Resources resources(expr, env, vector<likely_type>());
     likely_release_ast(expr);
