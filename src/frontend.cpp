@@ -167,83 +167,61 @@ likely_ast likely_tokens_from_string(const char *str, bool GFM)
     return likely_new_list(tokens.data(), tokens.size());
 }
 
-static bool shiftReduce(likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence = 0);
-
-static bool tryShiftReduceBinaryOperator(likely_const_ast token, const char *op, likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence)
+static bool shift(likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence = 0)
 {
-    if (output.empty()) {
-        stringstream error;
-        error << "missing " << op << " left hand side";
-        likely_throw(token, error.str().c_str());
-        return false;
-    }
-
+    assert(tokens->is_list);
     if (*offset >= tokens->num_atoms) {
-        stringstream error;
-        error << "missing " << op << " right hand side";
-        likely_throw(token, error.str().c_str());
+        likely_throw(tokens->atoms[tokens->num_atoms-1], "unexpected end of expression");
         return false;
     }
-
-    if (!shiftReduce(tokens, offset, output, precedence))
-        return false;
-
-    likely_ast function = likely_new_atom(op, 0, strlen(op));
-    function->begin = output[output.size()-2]->begin;
-    function->end = output[output.size()-1]->end;
-    output.insert(output.end()-2, function);
-    output.push_back(likely_new_list(&output[output.size()-3], 3));
-    output.erase(output.end()-4, output.end()-1);
-    return true;
-}
-
-static bool shiftReduce(likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence)
-{
-    if (!tokens->is_list || (*offset >= tokens->num_atoms))
-        return false;
 
     likely_const_ast token = tokens->atoms[(*offset)++];
-    if (token->is_list) {
-        output.push_back(likely_retain_ast(token));
-        return true;
-    }
-
-    switch (precedence) {
-      case 0:
-        if (!strcmp(token->atom, "->")) return tryShiftReduceBinaryOperator(token, "->", tokens, offset, output, 0);
-        if (!strcmp(token->atom, "=>")) return tryShiftReduceBinaryOperator(token, "=>", tokens, offset, output, 0);
-
-      case 1:
-        if (!strcmp(token->atom, "(")) {
-            vector<likely_const_ast> atoms;
-            while (true) {
-                if (*offset >= tokens->num_atoms) {
-                    likely_throw(tokens->atoms[tokens->num_atoms-1], "missing ')'");
-                    return cleanup(atoms);
-                }
-                likely_const_ast atom = tokens->atoms[*offset];
-                if (!atom->is_list && !strcmp(atom->atom, ")")) {
-                    likely_ast list = likely_new_list(atoms.data(), atoms.size());
-                    list->begin = token->begin;
-                    list->end = atom->end;
-                    output.push_back(list);
-                    (*offset)++;
-                    return true;
-                }
-                if (!shiftReduce(tokens, offset, atoms, 0))
-                    return cleanup(atoms);
+    if (!token->is_list && !strcmp(token->atom, "(")) {
+        vector<likely_const_ast> atoms;
+        likely_const_ast end;
+        while (true) {
+            end = tokens->atoms[*offset];
+            if (!end->is_list && !strcmp(end->atom, ")")) {
+                (*offset)++;
+                break;
             }
+            if (!shift(tokens, offset, atoms, 0))
+                return cleanup(atoms);
         }
-
-        if (!strcmp(token->atom, ")")) {
-            likely_throw(token, "unexpected ')'");
-            return false;
-        }
-
-      default:
+        likely_ast list = likely_new_list(atoms.data(), atoms.size());
+        list->begin = token->begin;
+        list->end = end->end;
+        output.push_back(list);
+    } else {
         output.push_back(likely_retain_ast(token));
-        return true;
     }
+
+    if (*offset < tokens->num_atoms) {
+        // Look ahead and try to reduce
+        static vector<pair<int, const char*>> Ops;
+        if (Ops.empty()) {
+            Ops.push_back(pair<int, const char*>(0, "->"));
+            Ops.push_back(pair<int, const char*>(0, "=>"));
+            Ops.push_back(pair<int, const char*>(1, "+"));
+            Ops.push_back(pair<int, const char*>(1, "-"));
+            Ops.push_back(pair<int, const char*>(2, "*"));
+            Ops.push_back(pair<int, const char*>(2, "/"));
+        }
+
+        likely_const_ast nextToken = tokens->atoms[(*offset)++];
+        for (const pair<int, const char*> &op : Ops)
+            if ((op.first >= precedence) && !nextToken->is_list && !strcmp(nextToken->atom, op.second)) {
+                output.insert(output.end()-1, likely_retain_ast(nextToken));
+                if (!shift(tokens, offset, output, precedence))
+                    return false;
+                output.push_back(likely_new_list(&output[output.size()-3], 3));
+                output.erase(output.end()-4, output.end()-1);
+                return true;
+            }
+
+        (*offset)--; // Unwind look ahead
+    }
+    return true;
 }
 
 likely_ast likely_ast_from_tokens(likely_const_ast tokens)
@@ -261,7 +239,7 @@ likely_ast likely_asts_from_tokens(likely_const_ast tokens)
     size_t offset = 0;
     vector<likely_const_ast> expressions;
     while (offset < tokens->num_atoms)
-        if (!shiftReduce(tokens, &offset, expressions)) {
+        if (!shift(tokens, &offset, expressions)) {
             cleanup(expressions);
             return NULL;
         }

@@ -338,22 +338,22 @@ class FUNC##Test : public ScalarFloatingTest {                     \
 };                                                                 \
 
 class addTest : public Test {
-    const char *function() const { return "a => (+ a (cast 32 (type a)))"; }
+    const char *function() const { return "a => a + (cast 32 (type a))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; add(src, 32, dst); return dst; }
 };
 
 class subtractTest : public Test {
-    const char *function() const { return "a => (- a (cast 32 (type a)))"; }
+    const char *function() const { return "a => a - (cast 32 (type a))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; subtract(src, 32, dst); return dst; }
 };
 
 class multiplyTest : public Test {
-    const char *function() const { return "a => (* a (cast 2 (type a)))"; }
+    const char *function() const { return "a => a * (cast 2 (type a))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; multiply(src, 2, dst); return dst; }
 };
 
 class divideTest : public Test {
-    const char *function() const { return "a => (/ a (cast 2 (type a)))"; }
+    const char *function() const { return "a => a / (cast 2 (type a))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; divide(src, 2, dst); return dst; }
     bool ignoreOffByOne() const { return true; }
 };
