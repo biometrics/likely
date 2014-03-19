@@ -609,10 +609,15 @@ private:
             TRY_EXPR(builder, ast->atoms[i+1], arg)
             args.push_back(Immediate(arg.value(), arg.type()));
         }
-        return evaluateFunction(builder, args, getUniqueName("lambda"));
+
+        likely_env this_env = env;
+        swap(builder.env, this_env);
+        Expression *result = evaluateFunction(builder, args);
+        swap(builder.env, this_env);
+        return result;
     }
 
-    virtual Expression *evaluateFunction(Builder &builder, const vector<Immediate> &args, const string &name) const = 0;
+    virtual Expression *evaluateFunction(Builder &builder, const vector<Immediate> &args) const = 0;
 };
 
 template <class T>
@@ -1282,7 +1287,7 @@ private:
         }
     };
 
-    Expression *evaluateFunction(Builder &builder, const vector<Immediate> &srcs, const string &name) const
+    Expression *evaluateFunction(Builder &builder, const vector<Immediate> &srcs) const
     {
         vector<T> types;
         for (const Immediate &src : srcs)
@@ -1297,7 +1302,7 @@ private:
         Function *thunk;
         likely_type dstType;
         {
-            thunk = getKernel(builder, name + "_thunk", types, Type::getVoidTy(C), T::Void, NativeInt, NativeInt);
+            thunk = getKernel(builder, getUniqueName("thunk"), types, Type::getVoidTy(C), T::Void, NativeInt, NativeInt);
             BasicBlock *entry = BasicBlock::Create(C, "entry", thunk);
             builder.SetInsertPoint(entry);
             vector<Immediate> srcs = builder.getArgs(thunk, types);
@@ -1499,11 +1504,8 @@ struct Lambda : public FunctionExpression, public LibraryFunction
     Lambda(Builder &builder, likely_const_ast ast)
         : FunctionExpression(builder, ast) {}
 
-    Immediate generate(Builder &builder, vector<T> types, string name = string()) const
+    Immediate generate(Builder &builder, vector<T> types, string name) const
     {
-        if (name.empty())
-            name = getUniqueName("lambda");
-
         size_t n;
         if (ast->is_list && (ast->num_atoms > 1))
             if (ast->atoms[1]->is_list) n = ast->atoms[1]->num_atoms;
@@ -1518,7 +1520,7 @@ struct Lambda : public FunctionExpression, public LibraryFunction
         BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
         builder.SetInsertPoint(entry);
 
-        Expression *result = generate(builder, tmpArgs);
+        Expression *result = evaluateFunction(builder, tmpArgs);
 
         if (!result)
             return Immediate(NULL, likely_type_void);
@@ -1542,7 +1544,7 @@ struct Lambda : public FunctionExpression, public LibraryFunction
 private:
     void *symbol() const { return (void*) likely_dynamic; }
 
-    Expression *generate(Builder &builder, const vector<Immediate> &args) const
+    Expression *evaluateFunction(Builder &builder, const vector<Immediate> &args) const
     {
         // Do dynamic dispatch if the type isn't fully specified
         bool dynamic = false;
@@ -1599,22 +1601,6 @@ private:
         }
 
         return result;
-    }
-
-    virtual Expression *evaluateFunction(Builder &builder, const vector<Immediate> &args, const string &name) const
-    {
-        Builder lambdaBuilder(builder.resources, env);
-
-        vector<T> types;
-        for (const Immediate &arg : args)
-            types.push_back(T(arg.value_->getType(), arg.type_));
-        Immediate i = generate(lambdaBuilder, types, name);
-        if (!i.value_) return NULL;
-
-        vector<Value*> values;
-        for (const Immediate &arg : args)
-            values.push_back(arg);
-        return new Immediate(builder.CreateCall(cast<Function>(i.value_), values), i.type_);
     }
 };
 
