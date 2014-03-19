@@ -1244,10 +1244,130 @@ public:
 };
 LIKELY_REGISTER(release)
 
-struct Kernel : public FunctionExpression
+struct Lambda : public FunctionExpression, public LibraryFunction
+{
+    Lambda(Builder &builder, likely_const_ast ast)
+        : FunctionExpression(builder, ast) {}
+
+    Immediate generate(Builder &builder, vector<T> types, string name) const
+    {
+        size_t n;
+        if (ast->is_list && (ast->num_atoms > 1))
+            if (ast->atoms[1]->is_list) n = ast->atoms[1]->num_atoms;
+            else                        n = 1;
+        else                            n = 0;
+
+        while (types.size() < n)
+            types.push_back(T::get(likely_type_void));
+
+        Function *tmpFunction = cast<Function>(builder.resources->module->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), T::toLLVM(types), false)));
+        vector<Immediate> tmpArgs = builder.getArgs(tmpFunction, types);
+        BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
+        builder.SetInsertPoint(entry);
+
+        Expression *result = evaluateFunction(builder, tmpArgs);
+
+        if (!result)
+            return Immediate(NULL, likely_type_void);
+        builder.CreateRet(*result);
+        likely_type return_type = result->type();
+
+        Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(name, FunctionType::get(result->value()->getType(), T::toLLVM(types), false)));
+        vector<Immediate> args = builder.getArgs(function, types);
+
+        ValueToValueMapTy VMap;
+        for (size_t i=0; i<args.size(); i++)
+            VMap[tmpArgs[i]] = args[i];
+
+        SmallVector<ReturnInst*, 1> returns;
+        CloneFunctionInto(function, tmpFunction, VMap, false, returns);
+        tmpFunction->eraseFromParent();
+        delete result;
+        return Immediate(function, return_type);
+    }
+
+private:
+    void *symbol() const { return (void*) likely_dynamic; }
+
+    Expression *evaluateFunction(Builder &builder, const vector<Immediate> &args) const
+    {
+        // Do dynamic dispatch if the type isn't fully specified
+        bool dynamic = false;
+        for (const Immediate &arg : args)
+            dynamic = dynamic || (arg.type_ == likely_type_void);
+        dynamic = dynamic || (args.size() < ast->atoms[1]->num_atoms);
+
+        if (dynamic) {
+            VTable *vTable = new VTable(builder, ast, args.size());
+            builder.resources->expressions.push_back(vTable);
+
+            static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
+            static FunctionType *likelyDynamicType = NULL;
+            if (likelyDynamicType == NULL) {
+                vector<Type*> params;
+                params.push_back(vTableType);
+                params.push_back(T::Void);
+                likelyDynamicType = FunctionType::get(T::Void, params, true);
+            }
+
+            Function *likelyDynamic = builder.resources->module->getFunction("likely_dynamic");
+            if (!likelyDynamic) {
+                likelyDynamic = Function::Create(likelyDynamicType, GlobalValue::ExternalLinkage, "likely_dynamic", builder.resources->module);
+                likelyDynamic->setCallingConv(CallingConv::C);
+                likelyDynamic->setDoesNotAlias(0);
+                likelyDynamic->setDoesNotAlias(1);
+                likelyDynamic->setDoesNotCapture(1);
+                likelyDynamic->setDoesNotAlias(2);
+                likelyDynamic->setDoesNotCapture(2);
+            }
+
+            vector<Value*> dynamicArgs;
+            dynamicArgs.push_back(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vTable)), uintptr_t(vTable)), vTableType));
+            for (const Immediate &arg : args)
+                dynamicArgs.push_back(arg);
+            dynamicArgs.push_back(Builder::nullMat());
+            return new Immediate(builder.CreateCall(likelyDynamic, dynamicArgs), likely_type_void);
+        }
+
+        return evaluateLambda(builder, args);
+    }
+
+    virtual Expression *evaluateLambda(Builder &builder, const vector<Immediate> &args) const
+    {
+        if (ast->atoms[1]->is_list) {
+            for (size_t i=0; i<args.size(); i++)
+                builder.define(ast->atoms[1]->atoms[i]->atom, args[i]);
+        } else {
+            builder.define(ast->atoms[1]->atom, args[0]);
+        }
+
+        Expression *result = builder.expression(ast->atoms[2]);
+
+        if (ast->atoms[1]->is_list) {
+            for (size_t i=0; i<args.size(); i++)
+                builder.undefine(ast->atoms[1]->atoms[i]->atom);
+        } else {
+            builder.undefine(ast->atoms[1]->atom);
+        }
+
+        return result;
+    }
+};
+
+class lambdaExpression : public Operator
+{
+    size_t maxParameters() const { return 2; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        return new Lambda(builder, ast);
+    }
+};
+LIKELY_REGISTER(lambda)
+
+struct Kernel : public Lambda
 {
     Kernel(Builder &builder, likely_const_ast ast)
-        : FunctionExpression(builder, ast) {}
+        : Lambda(builder, ast) {}
 
 private:
     class kernelArgument : public Operator
@@ -1287,7 +1407,7 @@ private:
         }
     };
 
-    Expression *evaluateFunction(Builder &builder, const vector<Immediate> &srcs) const
+    Expression *evaluateLambda(Builder &builder, const vector<Immediate> &srcs) const
     {
         vector<T> types;
         for (const Immediate &src : srcs)
@@ -1499,121 +1619,6 @@ class kernelExpression : public Operator
 };
 LIKELY_REGISTER(kernel)
 
-struct Lambda : public FunctionExpression, public LibraryFunction
-{
-    Lambda(Builder &builder, likely_const_ast ast)
-        : FunctionExpression(builder, ast) {}
-
-    Immediate generate(Builder &builder, vector<T> types, string name) const
-    {
-        size_t n;
-        if (ast->is_list && (ast->num_atoms > 1))
-            if (ast->atoms[1]->is_list) n = ast->atoms[1]->num_atoms;
-            else                        n = 1;
-        else                            n = 0;
-
-        while (types.size() < n)
-            types.push_back(T::get(likely_type_void));
-
-        Function *tmpFunction = cast<Function>(builder.resources->module->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), T::toLLVM(types), false)));
-        vector<Immediate> tmpArgs = builder.getArgs(tmpFunction, types);
-        BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
-        builder.SetInsertPoint(entry);
-
-        Expression *result = evaluateFunction(builder, tmpArgs);
-
-        if (!result)
-            return Immediate(NULL, likely_type_void);
-        builder.CreateRet(*result);
-        likely_type return_type = result->type();
-
-        Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(name, FunctionType::get(result->value()->getType(), T::toLLVM(types), false)));
-        vector<Immediate> args = builder.getArgs(function, types);
-
-        ValueToValueMapTy VMap;
-        for (size_t i=0; i<args.size(); i++)
-            VMap[tmpArgs[i]] = args[i];
-
-        SmallVector<ReturnInst*, 1> returns;
-        CloneFunctionInto(function, tmpFunction, VMap, false, returns);
-        tmpFunction->eraseFromParent();
-        delete result;
-        return Immediate(function, return_type);
-    }
-
-private:
-    void *symbol() const { return (void*) likely_dynamic; }
-
-    Expression *evaluateFunction(Builder &builder, const vector<Immediate> &args) const
-    {
-        // Do dynamic dispatch if the type isn't fully specified
-        bool dynamic = false;
-        for (const Immediate &arg : args)
-            dynamic = dynamic || (arg.type_ == likely_type_void);
-        dynamic = dynamic || (args.size() < ast->atoms[1]->num_atoms);
-
-        if (dynamic) {
-            VTable *vTable = new VTable(builder, ast, args.size());
-            builder.resources->expressions.push_back(vTable);
-
-            static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
-            static FunctionType *likelyDynamicType = NULL;
-            if (likelyDynamicType == NULL) {
-                vector<Type*> params;
-                params.push_back(vTableType);
-                params.push_back(T::Void);
-                likelyDynamicType = FunctionType::get(T::Void, params, true);
-            }
-
-            Function *likelyDynamic = builder.resources->module->getFunction("likely_dynamic");
-            if (!likelyDynamic) {
-                likelyDynamic = Function::Create(likelyDynamicType, GlobalValue::ExternalLinkage, "likely_dynamic", builder.resources->module);
-                likelyDynamic->setCallingConv(CallingConv::C);
-                likelyDynamic->setDoesNotAlias(0);
-                likelyDynamic->setDoesNotAlias(1);
-                likelyDynamic->setDoesNotCapture(1);
-                likelyDynamic->setDoesNotAlias(2);
-                likelyDynamic->setDoesNotCapture(2);
-            }
-
-            vector<Value*> dynamicArgs;
-            dynamicArgs.push_back(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vTable)), uintptr_t(vTable)), vTableType));
-            for (const Immediate &arg : args)
-                dynamicArgs.push_back(arg);
-            dynamicArgs.push_back(Builder::nullMat());
-            return new Immediate(builder.CreateCall(likelyDynamic, dynamicArgs), likely_type_void);
-        }
-
-        if (ast->atoms[1]->is_list) {
-            for (size_t i=0; i<args.size(); i++)
-                builder.define(ast->atoms[1]->atoms[i]->atom, args[i]);
-        } else {
-            builder.define(ast->atoms[1]->atom, args[0]);
-        }
-
-        Expression *result = builder.expression(ast->atoms[2]);
-
-        if (ast->atoms[1]->is_list) {
-            for (size_t i=0; i<args.size(); i++)
-                builder.undefine(ast->atoms[1]->atoms[i]->atom);
-        } else {
-            builder.undefine(ast->atoms[1]->atom);
-        }
-
-        return result;
-    }
-};
-
-class lambdaExpression : public Operator
-{
-    size_t maxParameters() const { return 2; }
-    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        return new Lambda(builder, ast);
-    }
-};
-LIKELY_REGISTER(lambda)
-
 class exportExpression : public Operator
 {
     size_t maxParameters() const { return 3; }
@@ -1660,7 +1665,9 @@ JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<li
     EE = engineBuilder.create();
     likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
 
-    likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list && !strcmp(ast->atoms[0]->atom, "lambda"), "expected a lambda expression");
+    likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
+                  (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel")),
+                  "expected a lambda expression");
     Builder builder(this, env);
     unique_ptr<Expression> result(builder.expression(ast));
 
