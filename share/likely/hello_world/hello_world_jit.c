@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     likely_env env = likely_new_jit();
 
     printf("Compiling source code...\n");
-    likely_function darken = likely_compile(ast, env, likely_type_void);
+    likely_function_1 darken = (likely_function_1) likely_compile(ast, env, likely_type_void);
     if (!darken) {
         printf("Failed to compile!\n");
         return -1;

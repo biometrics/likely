@@ -551,17 +551,12 @@ private:
 
 struct VTable : public ScopedExpression
 {
-    likely_arity n;
+    size_t n;
     vector<JITResources*> functions;
 
-    VTable(Builder &builder, likely_const_ast ast)
-        : ScopedExpression(builder, ast)
-    {
-        if (ast->is_list && (ast->num_atoms > 1))
-            if (ast->atoms[1]->is_list) n = (likely_arity) ast->atoms[1]->num_atoms;
-            else                        n = 1;
-        else                            n = 0;
-    }
+    VTable(Builder &builder, likely_const_ast ast, size_t n)
+        : ScopedExpression(builder, ast), n(n)
+    {}
 
     ~VTable()
     {
@@ -575,7 +570,7 @@ struct VTable : public ScopedExpression
     }
 };
 
-extern "C" LIKELY_EXPORT likely_const_mat likely_dynamic(struct VTable *vtable, likely_const_mat *m);
+extern "C" LIKELY_EXPORT likely_mat likely_dynamic(struct VTable *vtable, likely_const_mat m, ...);
 
 namespace {
 
@@ -1504,54 +1499,43 @@ struct Lambda : public FunctionExpression, public LibraryFunction
     Lambda(Builder &builder, likely_const_ast ast)
         : FunctionExpression(builder, ast) {}
 
-    Immediate generate(Builder &builder, const vector<T> &types, string name = string()) const
+    Immediate generate(Builder &builder, vector<T> types, string name = string()) const
     {
+        if (name.empty())
+            name = getUniqueName("lambda");
+
+        size_t n;
+        if (ast->is_list && (ast->num_atoms > 1))
+            if (ast->atoms[1]->is_list) n = ast->atoms[1]->num_atoms;
+            else                        n = 1;
+        else                            n = 0;
+
+        while (types.size() < n)
+            types.push_back(T::get(likely_type_void));
+
+        Function *tmpFunction = cast<Function>(builder.resources->module->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), T::toLLVM(types), false)));
+        vector<Immediate> tmpArgs = builder.getArgs(tmpFunction, types);
+        BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
+        builder.SetInsertPoint(entry);
+
         // Do dynamic dispatch if the type isn't fully specified
         bool dynamic = false;
         for (const T &type : types)
             dynamic = dynamic || (type.likely == likely_type_void);
         dynamic = dynamic || (types.size() < ast->atoms[1]->num_atoms);
 
+        Expression *result;
         if (dynamic) {
-            if (name.empty())
-                name = getUniqueName("dynamic");
-
-            VTable *vTable = new VTable(builder, ast);
+            VTable *vTable = new VTable(builder, ast, n);
             builder.resources->expressions.push_back(vTable);
-
-            static FunctionType* functionType = FunctionType::get(T::Void, T::Void, true);
-
-            Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(name, functionType));
-            function->addFnAttr(Attribute::NoUnwind);
-            function->setCallingConv(CallingConv::C);
-            function->setDoesNotAlias(0);
-            function->setDoesNotAlias(1);
-            function->setDoesNotCapture(1);
-            builder.SetInsertPoint(BasicBlock::Create(C, "entry", function));
-
-            Value *array;
-            if (vTable->n > 0) {
-                array = builder.CreateAlloca(T::Void, Constant::getIntegerValue(Type::getInt32Ty(C), APInt(32, (uint64_t)vTable->n)));
-                builder.CreateStore(function->arg_begin(), builder.CreateGEP(array, Constant::getIntegerValue(NativeInt, APInt(8*sizeof(void*), 0))));
-                if (vTable->n > 1) {
-                    Value *vaList = builder.CreateAlloca(IntegerType::getInt8PtrTy(C));
-                    Value *vaListRef = builder.CreateBitCast(vaList, Type::getInt8PtrTy(C));
-                    builder.CreateCall(Intrinsic::getDeclaration(builder.resources->module, Intrinsic::vastart), vaListRef);
-                    for (likely_arity i=1; i<vTable->n; i++)
-                        builder.CreateStore(builder.CreateVAArg(vaList, T::Void), builder.CreateGEP(array, Constant::getIntegerValue(NativeInt, APInt(8*sizeof(void*), i))));
-                    builder.CreateCall(Intrinsic::getDeclaration(builder.resources->module, Intrinsic::vaend), vaListRef);
-                }
-            } else {
-                array = ConstantPointerNull::get(PointerType::getUnqual(T::Void));
-            }
 
             static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
             static FunctionType *likelyDynamicType = NULL;
             if (likelyDynamicType == NULL) {
                 vector<Type*> params;
                 params.push_back(vTableType);
-                params.push_back(PointerType::getUnqual(T::Void));
-                likelyDynamicType = FunctionType::get(T::Void, params, false);
+                params.push_back(T::Void);
+                likelyDynamicType = FunctionType::get(T::Void, params, true);
             }
 
             Function *likelyDynamic = builder.resources->module->getFunction("likely_dynamic");
@@ -1560,45 +1544,41 @@ struct Lambda : public FunctionExpression, public LibraryFunction
                 likelyDynamic->setCallingConv(CallingConv::C);
                 likelyDynamic->setDoesNotAlias(0);
                 likelyDynamic->setDoesNotAlias(1);
-                likelyDynamic->setDoesNotAlias(2);
                 likelyDynamic->setDoesNotCapture(1);
+                likelyDynamic->setDoesNotAlias(2);
                 likelyDynamic->setDoesNotCapture(2);
             }
 
-            Constant *thisVTableFunction = ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vTable)), uintptr_t(vTable)), vTableType);
-            builder.CreateRet(builder.CreateCall2(likelyDynamic, thisVTableFunction, array));
-            return Immediate(function, likely_type_void);
-        }
-
-        if (name.empty())
-            name = getUniqueName("lambda");
-
-        Function *tmpFunction = cast<Function>(builder.resources->module->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), T::toLLVM(types), false)));
-        vector<Immediate> tmpArgs = builder.getArgs(tmpFunction, types);
-        BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
-        builder.SetInsertPoint(entry);
-
-        if (ast->atoms[1]->is_list) {
-            for (size_t i=0; i<tmpArgs.size(); i++)
-                builder.define(ast->atoms[1]->atoms[i]->atom, tmpArgs[i]);
+            vector<Value*> args;
+            args.push_back(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vTable)), uintptr_t(vTable)), vTableType));
+            for (const Immediate &arg : tmpArgs)
+                args.push_back(arg);
+            args.push_back(Builder::nullMat());
+            result = new Immediate(builder.CreateCall(likelyDynamic, args), likely_type_void);
         } else {
-            builder.define(ast->atoms[1]->atom, tmpArgs[0]);
+            if (ast->atoms[1]->is_list) {
+                for (size_t i=0; i<tmpArgs.size(); i++)
+                    builder.define(ast->atoms[1]->atoms[i]->atom, tmpArgs[i]);
+            } else {
+                builder.define(ast->atoms[1]->atom, tmpArgs[0]);
+            }
+
+            result = builder.expression(ast->atoms[2]);
+
+            if (ast->atoms[1]->is_list) {
+                for (size_t i=0; i<tmpArgs.size(); i++)
+                    builder.undefine(ast->atoms[1]->atoms[i]->atom);
+            } else {
+                builder.undefine(ast->atoms[1]->atom);
+            }
         }
 
-        ManagedExpression result(builder.expression(ast->atoms[2]));
-        if (result.isNull())
+        if (!result)
             return Immediate(NULL, likely_type_void);
+        builder.CreateRet(*result);
+        likely_type return_type = result->type();
 
-        if (ast->atoms[1]->is_list) {
-            for (size_t i=0; i<tmpArgs.size(); i++)
-                builder.undefine(ast->atoms[1]->atoms[i]->atom);
-        } else {
-            builder.undefine(ast->atoms[1]->atom);
-        }
-
-        builder.CreateRet(result);
-
-        Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(name, FunctionType::get(result.value()->getType(), T::toLLVM(types), false)));
+        Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(name, FunctionType::get(result->value()->getType(), T::toLLVM(types), false)));
         vector<Immediate> args = builder.getArgs(function, types);
 
         ValueToValueMapTy VMap;
@@ -1608,7 +1588,8 @@ struct Lambda : public FunctionExpression, public LibraryFunction
         SmallVector<ReturnInst*, 1> returns;
         CloneFunctionInto(function, tmpFunction, VMap, false, returns);
         tmpFunction->eraseFromParent();
-        return Immediate(function, result.type());
+        delete result;
+        return Immediate(function, return_type);
     }
 
 private:
@@ -1887,13 +1868,23 @@ void likely_release_env(likely_const_env env)
     delete env;
 }
 
-likely_const_mat likely_dynamic(struct VTable *vTable, likely_const_mat *m)
+likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat m, ...)
 {
+    vector<likely_const_mat> mv(vTable->n);
+    va_list ap;
+    va_start(ap, m);
+    for (size_t i=0; i<vTable->n; i++) {
+        mv[i] = m;
+        m = va_arg(ap, likely_const_mat);
+    }
+    va_end(ap);
+    assert(m == NULL);
+
     void *function = NULL;
     for (size_t i=0; i<vTable->functions.size(); i++) {
         const JITResources *resources = vTable->functions[i];
         for (likely_arity j=0; j<vTable->n; j++)
-            if (m[j]->type != resources->type[j])
+            if (mv[j]->type != resources->type[j])
                 goto Next;
         function = resources->function;
         if (function == NULL)
@@ -1905,24 +1896,19 @@ likely_const_mat likely_dynamic(struct VTable *vTable, likely_const_mat *m)
 
     if (function == NULL) {
         vector<likely_type> types;
-        for (int i=0; i<vTable->n; i++)
-            types.push_back(m[i]->type);
+        for (size_t i=0; i<vTable->n; i++)
+            types.push_back(mv[i]->type);
         JITResources *resources = new JITResources(vTable->ast, vTable->env, types);
         vTable->functions.push_back(resources);
         function = vTable->functions.back()->function;
     }
 
-    typedef likely_const_mat (*f0)(void);
-    typedef likely_const_mat (*f1)(const likely_const_mat);
-    typedef likely_const_mat (*f2)(const likely_const_mat, const likely_const_mat);
-    typedef likely_const_mat (*f3)(const likely_const_mat, const likely_const_mat, const likely_const_mat);
-
-    likely_const_mat dst;
+    likely_mat dst;
     switch (vTable->n) {
-      case 0: dst = reinterpret_cast<f0>(function)(); break;
-      case 1: dst = reinterpret_cast<f1>(function)(m[0]); break;
-      case 2: dst = reinterpret_cast<f2>(function)(m[0], m[1]); break;
-      case 3: dst = reinterpret_cast<f3>(function)(m[0], m[1], m[2]); break;
+      case 0: dst = reinterpret_cast<likely_function_0>(function)(); break;
+      case 1: dst = reinterpret_cast<likely_function_1>(function)(mv[0]); break;
+      case 2: dst = reinterpret_cast<likely_function_2>(function)(mv[0], mv[1]); break;
+      case 3: dst = reinterpret_cast<likely_function_3>(function)(mv[0], mv[1], mv[2]); break;
       default: dst = NULL; likely_assert(false, "likely_dynamic invalid arity: %d", vTable->n);
     }
 

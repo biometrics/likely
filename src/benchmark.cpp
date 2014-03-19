@@ -71,7 +71,7 @@ struct Test
 
         likely_const_ast ast = likely_ast_from_string(function(), false);
         likely_env env = likely_new_jit();
-        likely_function f = likely_compile(ast, env, likely_type_void);
+        likely_function_1 f = reinterpret_cast<likely_function_1>(likely_compile(ast, env, likely_type_void));
         likely_release_env(env);
         likely_release_ast(ast);
 
@@ -110,7 +110,7 @@ struct Test
             }
         }
 
-        likely_release_function(f);
+        likely_release_function((likely_function) f);
     }
 
     static void runFile(const string &fileName)
@@ -235,7 +235,7 @@ private:
         return m;
     }
 
-    void testCorrectness(likely_function f, const Mat &srcCV, const likely_const_mat srcLikely) const
+    void testCorrectness(likely_function_1 f, const Mat &srcCV, const likely_const_mat srcLikely) const
     {
         Mat dstOpenCV = computeBaseline(srcCV);
         likely_const_mat dstLikely = f(srcLikely);
@@ -284,7 +284,7 @@ private:
         return Test::Speed(iter, startTime, endTime);
     }
 
-    Speed testLikelySpeed(likely_function f, const likely_const_mat srcLikely) const
+    Speed testLikelySpeed(likely_function_1 f, const likely_const_mat srcLikely) const
     {
         clock_t startTime, endTime;
         int iter = 0;

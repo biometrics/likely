@@ -23,7 +23,11 @@
 typedef struct likely_environment *likely_env;
 typedef struct likely_environment const *likely_const_env;
 
-typedef likely_mat (*likely_function)(likely_const_mat, ...);
+typedef void *likely_function;
+typedef likely_mat (*likely_function_0)();
+typedef likely_mat (*likely_function_1)(likely_const_mat);
+typedef likely_mat (*likely_function_2)(likely_const_mat, likely_const_mat);
+typedef likely_mat (*likely_function_3)(likely_const_mat, likely_const_mat, likely_const_mat);
 
 #ifdef __cplusplus
 extern "C" {
