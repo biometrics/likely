@@ -1287,12 +1287,6 @@ private:
         }
     };
 
-    Immediate generateSafe(Builder &, const vector<T> &, const string &) const
-    {
-        likely_assert(false, "logic error");
-        return Immediate(NULL, likely_type_void);
-    }
-
     Expression *evaluateFunction(Builder &builder, const vector<Immediate> &srcs, const string &name) const
     {
         vector<T> types;
