@@ -167,7 +167,37 @@ likely_ast likely_tokens_from_string(const char *str, bool GFM)
     return likely_new_list(tokens.data(), tokens.size());
 }
 
-static bool shiftReduce(likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence = 0)
+static bool shiftReduce(likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence = 0);
+
+static bool tryShiftReduceBinaryOperator(likely_const_ast token, const char *op, likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence)
+{
+    if (output.empty()) {
+        stringstream error;
+        error << "missing " << op << " left hand side";
+        likely_throw(token, error.str().c_str());
+        return false;
+    }
+
+    if (*offset >= tokens->num_atoms) {
+        stringstream error;
+        error << "missing " << op << " right hand side";
+        likely_throw(token, error.str().c_str());
+        return false;
+    }
+
+    if (!shiftReduce(tokens, offset, output, precedence))
+        return false;
+
+    likely_ast function = likely_new_atom(op, 0, strlen(op));
+    function->begin = output[output.size()-2]->begin;
+    function->end = output[output.size()-1]->end;
+    output.insert(output.end()-2, function);
+    output.push_back(likely_new_list(&output[output.size()-3], 3));
+    output.erase(output.end()-4, output.end()-1);
+    return true;
+}
+
+static bool shiftReduce(likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence)
 {
     if (!tokens->is_list || (*offset >= tokens->num_atoms))
         return false;
@@ -180,26 +210,8 @@ static bool shiftReduce(likely_const_ast tokens, size_t *offset, vector<likely_c
 
     switch (precedence) {
       case 0:
-        if (!strcmp(token->atom, "->") || !strcmp(token->atom, "=>")) {
-            const bool lambda = !strcmp(token->atom, "->");
-            if (output.empty()) {
-                likely_throw(token, lambda ? "missing lambda declaration" : "missing kernel declaration");
-                return false;
-            }
-            if (*offset >= tokens->num_atoms) {
-                likely_throw(token, lambda ? "missing lambda definition" : "missing kernel definition");
-                return false;
-            }
-            if (!shiftReduce(tokens, offset, output, 0))
-                return false;
-            likely_ast function = likely_new_atom(lambda ? "lambda" : "kernel", 0, 6);
-            function->begin = output[output.size()-2]->begin;
-            function->end = output[output.size()-1]->end;
-            output.insert(output.end()-2, function);
-            output.push_back(likely_new_list(&output[output.size()-3], 3));
-            output.erase(output.end()-4, output.end()-1);
-            return true;
-        }
+        if (!strcmp(token->atom, "->")) return tryShiftReduceBinaryOperator(token, "->", tokens, offset, output, 0);
+        if (!strcmp(token->atom, "=>")) return tryShiftReduceBinaryOperator(token, "=>", tokens, offset, output, 0);
 
       case 1:
         if (!strcmp(token->atom, "(")) {

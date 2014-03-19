@@ -1362,7 +1362,7 @@ class lambdaExpression : public Operator
         return new Lambda(builder, ast);
     }
 };
-LIKELY_REGISTER(lambda)
+LIKELY_REGISTER_EXPRESSION(lambda, "->")
 
 struct Kernel : public Lambda
 {
@@ -1617,7 +1617,7 @@ class kernelExpression : public Operator
         return new Kernel(builder, ast);
     }
 };
-LIKELY_REGISTER(kernel)
+LIKELY_REGISTER_EXPRESSION(kernel, "=>")
 
 class exportExpression : public Operator
 {
@@ -1666,7 +1666,7 @@ JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<li
     likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
 
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
-                  (!strcmp(ast->atoms[0]->atom, "lambda") || !strcmp(ast->atoms[0]->atom, "kernel")),
+                  (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
                   "expected a lambda expression");
     Builder builder(this, env);
     unique_ptr<Expression> result(builder.expression(ast));
