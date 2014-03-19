@@ -1518,60 +1518,7 @@ struct Lambda : public FunctionExpression, public LibraryFunction
         BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
         builder.SetInsertPoint(entry);
 
-        // Do dynamic dispatch if the type isn't fully specified
-        bool dynamic = false;
-        for (const T &type : types)
-            dynamic = dynamic || (type.likely == likely_type_void);
-        dynamic = dynamic || (types.size() < ast->atoms[1]->num_atoms);
-
-        Expression *result;
-        if (dynamic) {
-            VTable *vTable = new VTable(builder, ast, n);
-            builder.resources->expressions.push_back(vTable);
-
-            static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
-            static FunctionType *likelyDynamicType = NULL;
-            if (likelyDynamicType == NULL) {
-                vector<Type*> params;
-                params.push_back(vTableType);
-                params.push_back(T::Void);
-                likelyDynamicType = FunctionType::get(T::Void, params, true);
-            }
-
-            Function *likelyDynamic = builder.resources->module->getFunction("likely_dynamic");
-            if (!likelyDynamic) {
-                likelyDynamic = Function::Create(likelyDynamicType, GlobalValue::ExternalLinkage, "likely_dynamic", builder.resources->module);
-                likelyDynamic->setCallingConv(CallingConv::C);
-                likelyDynamic->setDoesNotAlias(0);
-                likelyDynamic->setDoesNotAlias(1);
-                likelyDynamic->setDoesNotCapture(1);
-                likelyDynamic->setDoesNotAlias(2);
-                likelyDynamic->setDoesNotCapture(2);
-            }
-
-            vector<Value*> args;
-            args.push_back(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vTable)), uintptr_t(vTable)), vTableType));
-            for (const Immediate &arg : tmpArgs)
-                args.push_back(arg);
-            args.push_back(Builder::nullMat());
-            result = new Immediate(builder.CreateCall(likelyDynamic, args), likely_type_void);
-        } else {
-            if (ast->atoms[1]->is_list) {
-                for (size_t i=0; i<tmpArgs.size(); i++)
-                    builder.define(ast->atoms[1]->atoms[i]->atom, tmpArgs[i]);
-            } else {
-                builder.define(ast->atoms[1]->atom, tmpArgs[0]);
-            }
-
-            result = builder.expression(ast->atoms[2]);
-
-            if (ast->atoms[1]->is_list) {
-                for (size_t i=0; i<tmpArgs.size(); i++)
-                    builder.undefine(ast->atoms[1]->atoms[i]->atom);
-            } else {
-                builder.undefine(ast->atoms[1]->atom);
-            }
-        }
+        Expression *result = generate(builder, tmpArgs);
 
         if (!result)
             return Immediate(NULL, likely_type_void);
@@ -1594,6 +1541,65 @@ struct Lambda : public FunctionExpression, public LibraryFunction
 
 private:
     void *symbol() const { return (void*) likely_dynamic; }
+
+    Expression *generate(Builder &builder, const vector<Immediate> &args) const
+    {
+        // Do dynamic dispatch if the type isn't fully specified
+        bool dynamic = false;
+        for (const Immediate &arg : args)
+            dynamic = dynamic || (arg.type_ == likely_type_void);
+        dynamic = dynamic || (args.size() < ast->atoms[1]->num_atoms);
+
+        if (dynamic) {
+            VTable *vTable = new VTable(builder, ast, args.size());
+            builder.resources->expressions.push_back(vTable);
+
+            static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
+            static FunctionType *likelyDynamicType = NULL;
+            if (likelyDynamicType == NULL) {
+                vector<Type*> params;
+                params.push_back(vTableType);
+                params.push_back(T::Void);
+                likelyDynamicType = FunctionType::get(T::Void, params, true);
+            }
+
+            Function *likelyDynamic = builder.resources->module->getFunction("likely_dynamic");
+            if (!likelyDynamic) {
+                likelyDynamic = Function::Create(likelyDynamicType, GlobalValue::ExternalLinkage, "likely_dynamic", builder.resources->module);
+                likelyDynamic->setCallingConv(CallingConv::C);
+                likelyDynamic->setDoesNotAlias(0);
+                likelyDynamic->setDoesNotAlias(1);
+                likelyDynamic->setDoesNotCapture(1);
+                likelyDynamic->setDoesNotAlias(2);
+                likelyDynamic->setDoesNotCapture(2);
+            }
+
+            vector<Value*> dynamicArgs;
+            dynamicArgs.push_back(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vTable)), uintptr_t(vTable)), vTableType));
+            for (const Immediate &arg : args)
+                dynamicArgs.push_back(arg);
+            dynamicArgs.push_back(Builder::nullMat());
+            return new Immediate(builder.CreateCall(likelyDynamic, dynamicArgs), likely_type_void);
+        }
+
+        if (ast->atoms[1]->is_list) {
+            for (size_t i=0; i<args.size(); i++)
+                builder.define(ast->atoms[1]->atoms[i]->atom, args[i]);
+        } else {
+            builder.define(ast->atoms[1]->atom, args[0]);
+        }
+
+        Expression *result = builder.expression(ast->atoms[2]);
+
+        if (ast->atoms[1]->is_list) {
+            for (size_t i=0; i<args.size(); i++)
+                builder.undefine(ast->atoms[1]->atoms[i]->atom);
+        } else {
+            builder.undefine(ast->atoms[1]->atom);
+        }
+
+        return result;
+    }
 
     virtual Expression *evaluateFunction(Builder &builder, const vector<Immediate> &args, const string &name) const
     {
