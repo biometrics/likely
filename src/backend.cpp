@@ -340,7 +340,18 @@ struct Builder : public IRBuilder<>
         : IRBuilder<>(C), env(env), resources(resources)
     {}
 
-    static Immediate constant(double value, likely_type type = likely_type_native)
+    static Immediate constant(uint64_t value, likely_type type = likely_type_native)
+    {
+        const int depth = likely_depth(type);
+        return Immediate(Constant::getIntegerValue(Type::getIntNTy(C, depth), APInt(depth, value)), type);
+    }
+
+    static Immediate constant(int value, likely_type type)
+    {
+        return constant(uint64_t(value), type);
+    }
+
+    static Immediate constant(double value, likely_type type)
     {
         const int depth = likely_depth(type);
         if (likely_floating(type)) {
@@ -349,7 +360,7 @@ struct Builder : public IRBuilder<>
             else if (depth == 32) return Immediate(ConstantFP::get(Type::getFloatTy(C), value), type);
             else                  { likely_assert(false, "invalid floating point constant depth: %d", depth); return Immediate(NULL, likely_type_void); }
         } else {
-            return Immediate(Constant::getIntegerValue(Type::getIntNTy(C, depth), APInt(depth, uint64_t(value))), type);
+            return constant(uint64_t(value), type);
         }
     }
 
@@ -357,7 +368,7 @@ struct Builder : public IRBuilder<>
     static Immediate one (likely_type type = likely_type_native) { return constant(1, type); }
     static Immediate intMax(likely_type type) { const int bits = likely_depth(type); return constant((1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
     static Immediate intMin(likely_type type) { const int bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
-    static Immediate type(likely_type type) { return constant((double)type, likely_depth(likely_type_type)); }
+    static Immediate type(likely_type type) { return constant(uint64_t(type), likely_type_type); }
     static Immediate nullMat() { return Immediate(ConstantPointerNull::get(T::Void), likely_type_void); }
     static Immediate nullData() { return Immediate(ConstantPointerNull::get(Type::getInt8PtrTy(C)), likely_type_native); }
 
@@ -482,7 +493,7 @@ struct Builder : public IRBuilder<>
 
         likely_type type = likely_type_from_string(op.c_str());
         if (type != likely_type_void)
-            return new Immediate(constant((double)type, likely_type_type));
+            return new Immediate(Builder::type(type));
 
         return Expression::error(ast, "unrecognized literal");
     }
@@ -631,13 +642,13 @@ struct RegisterExpression
 #define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
 #define LIKELY_REGISTER(EXP) LIKELY_REGISTER_EXPRESSION(EXP, #EXP)
 
-#define LIKELY_REGISTER_TYPE(TYPE)                                             \
-struct TYPE##Expression : public Immediate                                     \
-{                                                                              \
-    TYPE##Expression()                                                         \
-        : Immediate(Builder::constant(likely_type_##TYPE, likely_type_u32)) {} \
-};                                                                             \
-LIKELY_REGISTER(TYPE)                                                          \
+#define LIKELY_REGISTER_TYPE(TYPE)                        \
+struct TYPE##Expression : public Immediate                \
+{                                                         \
+    TYPE##Expression()                                    \
+        : Immediate(Builder::type(likely_type_##TYPE)) {} \
+};                                                        \
+LIKELY_REGISTER(TYPE)                                     \
 
 LIKELY_REGISTER_TYPE(void)
 LIKELY_REGISTER_TYPE(depth)
@@ -1570,7 +1581,7 @@ private:
 
             vector<Value*> likelyForkArgs;
             likelyForkArgs.push_back(builder.resources->module->getFunction(thunk->getName()));
-            likelyForkArgs.push_back(Builder::constant((double)srcs.size(), 8));
+            likelyForkArgs.push_back(Builder::constant(uint64_t(srcs.size()), likely_type_u8));
             likelyForkArgs.push_back(kernelSize);
             for (const Immediate &src : srcs)
                 likelyForkArgs.push_back(builder.CreatePointerCast(src, T::Void));
