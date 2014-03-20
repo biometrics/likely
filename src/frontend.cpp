@@ -167,7 +167,35 @@ likely_ast likely_tokens_from_string(const char *str, bool GFM)
     return likely_new_list(tokens.data(), tokens.size());
 }
 
-static bool shift(likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence = 0)
+static bool shift(likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence = 0);
+
+static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence)
+{
+    // Look ahead and try to reduce
+    static vector<pair<int, const char*>> Ops;
+    if (Ops.empty()) {
+        Ops.push_back(pair<int, const char*>(0, "->"));
+        Ops.push_back(pair<int, const char*>(0, "=>"));
+        Ops.push_back(pair<int, const char*>(1, "+"));
+        Ops.push_back(pair<int, const char*>(1, "-"));
+        Ops.push_back(pair<int, const char*>(2, "*"));
+        Ops.push_back(pair<int, const char*>(2, "/"));
+    }
+
+    for (const pair<int, const char*> &op : Ops)
+        if ((op.first >= precedence) && !token->is_list && !strcmp(token->atom, op.second)) {
+            output.insert(output.end()-1, likely_retain_ast(token));
+            if (!shift(tokens, offset, output, op.first))
+                return 0;
+            output.push_back(likely_new_list(&output[output.size()-3], 3));
+            output.erase(output.end()-4, output.end()-1);
+            return 1;
+        }
+
+   return -1;
+}
+
+static bool shift(likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence)
 {
     assert(tokens->is_list);
     if (*offset >= tokens->num_atoms) {
@@ -185,7 +213,7 @@ static bool shift(likely_const_ast tokens, size_t *offset, vector<likely_const_a
                 (*offset)++;
                 break;
             }
-            if (!shift(tokens, offset, atoms, 0))
+            if (!shift(tokens, offset, atoms, atoms.empty() ? INT_MAX : 0))
                 return cleanup(atoms);
         }
         likely_ast list = likely_new_list(atoms.data(), atoms.size());
@@ -193,33 +221,17 @@ static bool shift(likely_const_ast tokens, size_t *offset, vector<likely_const_a
         list->end = end->end;
         output.push_back(list);
     } else {
-        output.push_back(likely_retain_ast(token));
+        const int result = tryReduce(token, tokens, offset, output, precedence);
+        if      (result == 0) return false;
+        else if (result == -1) output.push_back(likely_retain_ast(token));
     }
 
+    // Look ahead
     if (*offset < tokens->num_atoms) {
-        // Look ahead and try to reduce
-        static vector<pair<int, const char*>> Ops;
-        if (Ops.empty()) {
-            Ops.push_back(pair<int, const char*>(0, "->"));
-            Ops.push_back(pair<int, const char*>(0, "=>"));
-            Ops.push_back(pair<int, const char*>(1, "+"));
-            Ops.push_back(pair<int, const char*>(1, "-"));
-            Ops.push_back(pair<int, const char*>(2, "*"));
-            Ops.push_back(pair<int, const char*>(2, "/"));
-        }
-
-        likely_const_ast nextToken = tokens->atoms[(*offset)++];
-        for (const pair<int, const char*> &op : Ops)
-            if ((op.first >= precedence) && !nextToken->is_list && !strcmp(nextToken->atom, op.second)) {
-                output.insert(output.end()-1, likely_retain_ast(nextToken));
-                if (!shift(tokens, offset, output, precedence))
-                    return false;
-                output.push_back(likely_new_list(&output[output.size()-3], 3));
-                output.erase(output.end()-4, output.end()-1);
-                return true;
-            }
-
-        (*offset)--; // Unwind look ahead
+        int result = tryReduce(tokens->atoms[(*offset)++], tokens, offset, output, precedence);
+        if (result != -1)
+            return result != 0;
+        (*offset)--;
     }
     return true;
 }

@@ -13,8 +13,8 @@ Control parameters
 
 Derived values
 
-    (define cols (+ (* (- x_max x_min) resolution) 1))
-    (define rows (+ (* (- y_max y_min) resolution) 1))
+    (define cols (x_max - x_min) * resolution + 1)
+    (define rows (y_max - y_min) * resolution + 1)
 
 Initialization
 
