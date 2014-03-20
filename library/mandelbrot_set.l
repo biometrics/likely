@@ -18,8 +18,6 @@ Derived values
 
 Initialization
 
-    (new f32 1 512 512)
-
 ;    complex = loop({ dzr = f32(x) / resolution - x_min,
 ;                     dzi = f32(y) / resolution - y_min,
 ;                     zr = f32(0),

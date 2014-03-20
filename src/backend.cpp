@@ -1080,7 +1080,7 @@ class newExpression : public Operator, public LibraryFunction
             default:           break;
         }
 
-        return new Immediate(createCall(builder, *type, channels, columns, rows, frames, data), *type);
+        return new Immediate(createCall(builder, *type, channels, columns, rows, frames, data), likely_type_void);
     }
 
     void *symbol() const { return (void*) likely_new; }
