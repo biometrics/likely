@@ -988,7 +988,7 @@ class defineExpression : public Operator
 };
 LIKELY_REGISTER_EXPRESSION(define, "=")
 
-class compositionExpression : public Operator
+class periodExpression : public Operator
 {
     size_t maxParameters() const { return 2; }
 
@@ -1021,7 +1021,10 @@ class compositionExpression : public Operator
         return result;
     }
 };
-LIKELY_REGISTER_EXPRESSION(composition, ".")
+LIKELY_REGISTER_EXPRESSION(period, ".")
+
+class semicolonExpression : public periodExpression {};
+LIKELY_REGISTER_EXPRESSION(semicolon, ":")
 
 class elementsExpression : public SimpleUnaryOperator, public LibraryFunction
 {
