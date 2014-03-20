@@ -174,12 +174,13 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
     // Look ahead and try to reduce
     static vector<pair<int, const char*>> Ops;
     if (Ops.empty()) {
-        Ops.push_back(pair<int, const char*>(0, "->"));
-        Ops.push_back(pair<int, const char*>(0, "=>"));
-        Ops.push_back(pair<int, const char*>(1, "+"));
-        Ops.push_back(pair<int, const char*>(1, "-"));
-        Ops.push_back(pair<int, const char*>(2, "*"));
-        Ops.push_back(pair<int, const char*>(2, "/"));
+        Ops.push_back(pair<int, const char*>(0, "="));
+        Ops.push_back(pair<int, const char*>(1, "->"));
+        Ops.push_back(pair<int, const char*>(1, "=>"));
+        Ops.push_back(pair<int, const char*>(2, "+"));
+        Ops.push_back(pair<int, const char*>(2, "-"));
+        Ops.push_back(pair<int, const char*>(3, "*"));
+        Ops.push_back(pair<int, const char*>(3, "/"));
     }
 
     for (const pair<int, const char*> &op : Ops)

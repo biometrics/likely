@@ -1008,7 +1008,7 @@ class defineExpression : public Operator
         return NULL;
     }
 };
-LIKELY_REGISTER(define)
+LIKELY_REGISTER_EXPRESSION(define, "=")
 
 class elementsExpression : public SimpleUnaryOperator, public LibraryFunction
 {
