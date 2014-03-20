@@ -88,7 +88,10 @@ static void tokenize(const char *str, const size_t len, vector<likely_const_ast>
 
         size_t begin = i;
         bool inString = false;
-        while ((i < len) && (inString || ((str[i] > ignored) && (str[i] != '(') && (str[i] != ')') && (str[i] != ';')))) {
+        while ((i < len) && (inString || ((str[i] > ignored) && (str[i] != '(')
+                                                             && (str[i] != ')')
+                                                             && (str[i] != '.')
+                                                             && (str[i] != ';')))) {
             if      (str[i] == '"')  inString = !inString;
             else if (str[i] == '\\') i++;
             i++;
@@ -181,6 +184,7 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
         Ops.push_back(pair<int, const char*>(2, "-"));
         Ops.push_back(pair<int, const char*>(3, "*"));
         Ops.push_back(pair<int, const char*>(3, "/"));
+        Ops.push_back(pair<int, const char*>(4, "."));
     }
 
     for (const pair<int, const char*> &op : Ops)
