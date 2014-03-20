@@ -18,16 +18,16 @@ Derived values
 
 Initialization
 
-;    complex = loop({ dzr = f32(x) / resolution - x_min,
-;                     dzi = f32(y) / resolution - y_min,
-;                     zr = f32(0),
-;                     zi = f32(0),
-;                     j  = u32(0),
-;                     it = u32(0) },
-;                   lt(j, iterations),
-;                   { j = j + 1,
-;                     zr = zr*zr - zi*zi + dzr,
-;                     zi = zr*zi*2 + dzi },
-;                   zr + zi
-;                  ){ columns = cols, rows = rows }
-;    show(complex)
+;   complex => (let (dzr = (cast x f32) / resolution - x_min
+;                    dzi = (cast y f32) / resolution - y_min
+;                    zr = (cast 0 f32)
+;                    zi = (cast 0 f32)
+;                    j  = (cast 0 u32)
+;                    it = (cast 0 u32))
+;                   (while (< j iterations)
+;                          (j = j + 1
+;                           zr = zr * zr - zi * zi + dzr
+;                           zi = zr * zi * 2 + dzi
+;                           zr + zi)))
+;
+; (complex (new f32 1 512 512))
