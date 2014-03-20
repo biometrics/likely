@@ -136,15 +136,15 @@ struct Expression
     }
 };
 
-struct ManagedExpression : public Expression
+struct ManagedExpression : public Expression, public unique_ptr<Expression>
 {
-    Expression *expression;
-    ManagedExpression(Expression *expression = NULL) : expression(expression) {}
-    ~ManagedExpression() { delete expression; }
-    bool isNull() const { return !expression; }
-    Value* value() const { return expression->value(); }
-    likely_type type() const { return expression->type(); }
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const { return expression->evaluate(builder, ast); }
+    ManagedExpression(Expression *e = NULL)
+        : unique_ptr<Expression>(e) {}
+    bool isNull() const { return !get(); }
+    Value* value() const { return get()->value(); }
+    likely_type type() const { return get()->type(); }
+    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+        { return get()->evaluate(builder, ast); }
 };
 
 #define TRY_EXPR(BUILDER, AST, EXPR)                     \
@@ -482,7 +482,7 @@ struct Builder : public IRBuilder<>
 
         likely_type type = likely_type_from_string(op.c_str());
         if (type != likely_type_void)
-            return new Immediate(constant((double)type, likely_type_u32));
+            return new Immediate(constant((double)type, likely_type_type));
 
         return Expression::error(ast, "unrecognized literal");
     }
@@ -1096,12 +1096,12 @@ class newExpression : public Operator, public LibraryFunction
             case 4: rows     = builder.expression(ast->atoms[4])->take();
             case 3: columns  = builder.expression(ast->atoms[3])->take();
             case 2: channels = builder.expression(ast->atoms[2])->take();
-            case 1: type     = ManagedExpression(builder.expression(ast->atoms[1]));
+            case 1: type     = builder.expression(ast->atoms[1]);
             default:           break;
         }
 
         switch (maxParameters()-n) {
-            case 6: type     = ManagedExpression(new Immediate(Builder::type(Builder::validFloatType(likely_type_native))));
+            case 6: type     = new Immediate(Builder::type(Builder::validFloatType(likely_type_native)));
             case 5: channels = Builder::one();
             case 4: columns  = Builder::one();
             case 3: rows     = Builder::one();
@@ -1110,7 +1110,7 @@ class newExpression : public Operator, public LibraryFunction
             default:           break;
         }
 
-        return new Immediate(createCall(builder, type, channels, columns, rows, frames, data), type);
+        return new Immediate(createCall(builder, *type, channels, columns, rows, frames, data), *type);
     }
 
     void *symbol() const { return (void*) likely_new; }
@@ -1660,7 +1660,7 @@ class exportExpression : public Operator
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         TRY_EXPR(builder, ast->atoms[1], expr);
-        Lambda *lambda = static_cast<Lambda*>(expr.expression);
+        Lambda *lambda = static_cast<Lambda*>(expr.get());
 
         if (ast->atoms[2]->is_list)
             return error(ast->atoms[2], "export expected an atom name");
