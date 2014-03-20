@@ -590,47 +590,6 @@ class LibraryFunction
     virtual void *symbol() const = 0; // Idiom to ensure that the library symbol isn't stripped when optimizing executable size
 };
 
-struct FunctionExpression : public ScopedExpression
-{
-    FunctionExpression(Builder &builder, likely_const_ast ast)
-        : ScopedExpression(builder, ast) {}
-
-private:
-    size_t argc() const
-    {
-        // Where 'ast' is of the form:
-        //     (lambda/kernel (arg0 arg1 ... argN) (expression))
-        if (!ast->is_list || (ast->num_atoms < 2))
-            return 0;
-        if (!ast->atoms[1]->is_list)
-            return 1;
-        return ast->atoms[1]->num_atoms;
-    }
-
-    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        assert(ast->is_list);
-        const size_t parameters = argc();
-        const size_t arguments = ast->num_atoms - 1;
-        if (parameters != arguments)
-            return errorArgc(ast, "lambda", arguments, parameters, parameters);
-
-        vector<Immediate> args;
-        for (size_t i=0; i<arguments; i++) {
-            TRY_EXPR(builder, ast->atoms[i+1], arg)
-            args.push_back(Immediate(arg.value(), arg.type()));
-        }
-
-        likely_env this_env = env;
-        swap(builder.env, this_env);
-        Expression *result = evaluateFunction(builder, args);
-        swap(builder.env, this_env);
-        return result;
-    }
-
-    virtual Expression *evaluateFunction(Builder &builder, const vector<Immediate> &args) const = 0;
-};
-
 template <class T>
 struct RegisterExpression
 {
@@ -1290,10 +1249,10 @@ public:
 };
 LIKELY_REGISTER(release)
 
-struct Lambda : public FunctionExpression, public LibraryFunction
+struct Lambda : public ScopedExpression, public LibraryFunction
 {
     Lambda(Builder &builder, likely_const_ast ast)
-        : FunctionExpression(builder, ast) {}
+        : ScopedExpression(builder, ast) {}
 
     Immediate generate(Builder &builder, vector<T> types, string name) const
     {
@@ -1334,6 +1293,31 @@ struct Lambda : public FunctionExpression, public LibraryFunction
 
 private:
     void *symbol() const { return (void*) likely_dynamic; }
+
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        assert(ast->is_list);
+        size_t parameters;
+        if (!ast->is_list || (ast->num_atoms < 2)) parameters = 0;
+        else if (!ast->atoms[1]->is_list)          parameters = 1;
+        else                                       parameters = ast->atoms[1]->num_atoms;
+
+        const size_t arguments = ast->num_atoms - 1;
+        if (parameters != arguments)
+            return errorArgc(ast, "lambda", arguments, parameters, parameters);
+
+        vector<Immediate> args;
+        for (size_t i=0; i<arguments; i++) {
+            TRY_EXPR(builder, ast->atoms[i+1], arg)
+            args.push_back(Immediate(arg.value(), arg.type()));
+        }
+
+        likely_env this_env = env;
+        swap(builder.env, this_env);
+        Expression *result = evaluateFunction(builder, args);
+        swap(builder.env, this_env);
+        return result;
+    }
 
     Expression *evaluateFunction(Builder &builder, const vector<Immediate> &args) const
     {
