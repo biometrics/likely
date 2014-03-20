@@ -221,10 +221,14 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_a
             if (!shift(tokens, offset, atoms, atoms.empty() ? INT_MAX : 0))
                 return cleanup(atoms);
         }
-        likely_ast list = likely_new_list(atoms.data(), atoms.size());
-        list->begin = token->begin;
-        list->end = end->end;
-        output.push_back(list);
+        if (atoms.size() == 1) {
+            output.push_back(atoms[0]);
+        } else {
+            likely_ast list = likely_new_list(atoms.data(), atoms.size());
+            list->begin = token->begin;
+            list->end = end->end;
+            output.push_back(list);
+        }
     } else {
         const int result = tryReduce(token, tokens, offset, output, precedence);
         if      (result == 0) return false;
