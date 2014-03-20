@@ -177,18 +177,18 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
     // Look ahead and try to reduce
     static vector<pair<int, const char*>> Ops;
     if (Ops.empty()) {
-        Ops.push_back(pair<int, const char*>(0, "="));
-        Ops.push_back(pair<int, const char*>(1, "->"));
-        Ops.push_back(pair<int, const char*>(1, "=>"));
-        Ops.push_back(pair<int, const char*>(2, "+"));
-        Ops.push_back(pair<int, const char*>(2, "-"));
-        Ops.push_back(pair<int, const char*>(3, "*"));
-        Ops.push_back(pair<int, const char*>(3, "/"));
-        Ops.push_back(pair<int, const char*>(4, "."));
+        Ops.push_back(pair<int, const char*>(1, "="));
+        Ops.push_back(pair<int, const char*>(2, "->"));
+        Ops.push_back(pair<int, const char*>(2, "=>"));
+        Ops.push_back(pair<int, const char*>(3, "+"));
+        Ops.push_back(pair<int, const char*>(3, "-"));
+        Ops.push_back(pair<int, const char*>(4, "*"));
+        Ops.push_back(pair<int, const char*>(4, "/"));
+        Ops.push_back(pair<int, const char*>(5, "."));
     }
 
     for (const pair<int, const char*> &op : Ops)
-        if ((op.first >= precedence) && !token->is_list && !strcmp(token->atom, op.second)) {
+        if ((op.first > precedence) && !token->is_list && !strcmp(token->atom, op.second)) {
             output.insert(output.end()-1, likely_retain_ast(token));
             if (!shift(tokens, offset, output, op.first))
                 return 0;
