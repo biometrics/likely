@@ -1296,13 +1296,8 @@ private:
 
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        assert(ast->is_list);
-        size_t parameters;
-        if (!ast->is_list || (ast->num_atoms < 2)) parameters = 0;
-        else if (!ast->atoms[1]->is_list)          parameters = 1;
-        else                                       parameters = ast->atoms[1]->num_atoms;
-
-        const size_t arguments = ast->num_atoms - 1;
+        const size_t parameters = this->ast->atoms[1]->is_list ? this->ast->atoms[1]->num_atoms : 1;
+        const size_t arguments = ast->is_list ? ast->num_atoms - 1 : 0;
         if (parameters != arguments)
             return errorArgc(ast, "lambda", arguments, parameters, parameters);
 
