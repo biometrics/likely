@@ -580,7 +580,9 @@ private:
     static void error_callback(likely_error error, void *context)
     {
         likely_mat str = likely_error_to_string(error);
-        reinterpret_cast<QStatusBar*>(context)->showMessage((const char*) str->data);
+        const char *message = (const char*) str->data;
+        qDebug() << message;
+        reinterpret_cast<QStatusBar*>(context)->showMessage(message);
         likely_release(str);
     }
 };

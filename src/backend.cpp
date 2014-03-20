@@ -517,7 +517,7 @@ class Operator : public Expression
     {
         if (!ast->is_list && (minParameters() > 0))
             return error(ast, "operator expected arguments");
-        const size_t args = ast->num_atoms - 1;
+        const size_t args = ast->is_list ? ast->num_atoms - 1 : 0;
         if ((args < minParameters()) || (args > maxParameters()))
             return errorArgc(ast, "operator", args, minParameters(), maxParameters());
         return evaluateOperator(builder, ast);
@@ -1641,7 +1641,8 @@ private:
 
 class kernelExpression : public Operator
 {
-    size_t maxParameters() const { return 2; }
+    size_t minParameters() const { return 2; }
+    size_t maxParameters() const { return 3; }
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         return new Kernel(builder, ast);
