@@ -181,12 +181,18 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
         Ops.push_back(pair<int, const char*>(1, "="));
         Ops.push_back(pair<int, const char*>(2, "->"));
         Ops.push_back(pair<int, const char*>(2, "=>"));
-        Ops.push_back(pair<int, const char*>(3, "+"));
-        Ops.push_back(pair<int, const char*>(3, "-"));
-        Ops.push_back(pair<int, const char*>(4, "*"));
-        Ops.push_back(pair<int, const char*>(4, "/"));
-        Ops.push_back(pair<int, const char*>(5, ":"));
-        Ops.push_back(pair<int, const char*>(6, "."));
+        Ops.push_back(pair<int, const char*>(3, "<"));
+        Ops.push_back(pair<int, const char*>(3, "<="));
+        Ops.push_back(pair<int, const char*>(3, ">"));
+        Ops.push_back(pair<int, const char*>(3, ">="));
+        Ops.push_back(pair<int, const char*>(3, "=="));
+        Ops.push_back(pair<int, const char*>(3, "!="));
+        Ops.push_back(pair<int, const char*>(4, "+"));
+        Ops.push_back(pair<int, const char*>(4, "-"));
+        Ops.push_back(pair<int, const char*>(5, "*"));
+        Ops.push_back(pair<int, const char*>(5, "/"));
+        Ops.push_back(pair<int, const char*>(6, ":"));
+        Ops.push_back(pair<int, const char*>(7, "."));
     }
 
     for (const pair<int, const char*> &op : Ops)
