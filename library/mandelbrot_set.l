@@ -18,16 +18,16 @@ Derived values
 
 Initialization
 
-;   complex => (let (dzr = (cast x f32) / resolution - x_min
-;                    dzi = (cast y f32) / resolution - y_min
-;                    zr = (cast 0 f32)
-;                    zi = (cast 0 f32)
-;                    j  = (cast 0 u32)
-;                    it = (cast 0 u32))
-;                   (while (< j iterations)
-;                          (j = j + 1
-;                           zr = zr * zr - zi * zi + dzr
-;                           zi = zr * zi * 2 + dzi
-;                           zr + zi)))
+;   (=> mandelbrot_set (let (dzr = x.f32 / resolution - x_min
+;                            dzi = y.f32 / resolution - y_min
+;                            zr = 0.f32
+;                            zi = 0.f32
+;                            j  = 0.u32
+;                            it = 0.u32)
+;                           (while (< j iterations)
+;                                  (j = j + 1
+;                                   zr = zr * zr - zi * zi + dzr
+;                                   zi = zr * zi * 2 + dzi
+;                                   zr + zi))) ((columns cols) (rows rows)))
 ;
-; (complex (new f32 1 512 512))
+;   mandelbrot_set

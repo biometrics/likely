@@ -12,7 +12,7 @@ There are 5 functions covering matrix creation, input, and output:
 
     image = (read "../data/misc/lenna.tiff")
     encoded = (encode image "jpg")
-    (print "Compression Ratio: " (scalar (cast image.bytes f64) / encoded.bytes))
+    (print "Compression Ratio: " (scalar (f64 image.bytes) / encoded.bytes))
     decoded = (decode encoded)
     ; (write decoded "lenna.png")
 

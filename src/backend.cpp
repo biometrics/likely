@@ -464,39 +464,7 @@ struct Builder : public IRBuilder<>
 
     likely_env snapshot() const { return new likely_environment(*env); }
 
-    Expression *expression(likely_const_ast ast)
-    {
-        if (ast->is_list) {
-            if (ast->num_atoms == 0)
-                return Expression::error(ast, "Empty expression");
-            likely_const_ast op = ast->atoms[0];
-            if (!op->is_list)
-                if (Expression *e = lookup(op->atom))
-                    return e->evaluate(*this, ast);
-            TRY_EXPR(*this, op, e);
-            return e.evaluate(*this, ast);
-        }
-        const string op = ast->atom;
-
-        if (Expression *e = lookup(op))
-            return e->evaluate(*this, ast);
-
-        if ((op.front() == '"') && (op.back() == '"'))
-            return new Immediate(CreateGlobalStringPtr(op.substr(1, op.length()-2)), likely_type_u8);
-
-        { // Is it a number?
-            char *p;
-            const double value = strtod(op.c_str(), &p);
-            if (*p == 0)
-                return new Immediate(constant(value, likely_type_from_value(value)));
-        }
-
-        likely_type type = likely_type_from_string(op.c_str());
-        if (type != likely_type_void)
-            return new Immediate(Builder::type(type));
-
-        return Expression::error(ast, "unrecognized literal");
-    }
+    Expression *expression(likely_const_ast ast);
 };
 
 class Operator : public Expression
@@ -643,6 +611,55 @@ class SimpleUnaryOperator : public UnaryOperator
     virtual Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const = 0;
 };
 
+struct MatrixType : public SimpleUnaryOperator
+{
+    likely_type t;
+    MatrixType(likely_type t)
+        : t(t) {}
+
+    Value *value() const { return Builder::type(t); }
+    likely_type type() const { return likely_type_type; }
+
+    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &x) const
+    {
+        return new Immediate(builder.cast(&x, t));
+    }
+};
+
+Expression *Builder::expression(likely_const_ast ast)
+{
+    if (ast->is_list) {
+        if (ast->num_atoms == 0)
+            return Expression::error(ast, "Empty expression");
+        likely_const_ast op = ast->atoms[0];
+        if (!op->is_list)
+            if (Expression *e = lookup(op->atom))
+                return e->evaluate(*this, ast);
+        TRY_EXPR(*this, op, e);
+        return e.evaluate(*this, ast);
+    }
+    const string op = ast->atom;
+
+    if (Expression *e = lookup(op))
+        return e->evaluate(*this, ast);
+
+    if ((op.front() == '"') && (op.back() == '"'))
+        return new Immediate(CreateGlobalStringPtr(op.substr(1, op.length()-2)), likely_type_u8);
+
+    { // Is it a number?
+        char *p;
+        const double value = strtod(op.c_str(), &p);
+        if (*p == 0)
+            return new Immediate(constant(value, likely_type_from_value(value)));
+    }
+
+    likely_type type = likely_type_from_string(op.c_str());
+    if (type != likely_type_void)
+        return new MatrixType(type);
+
+    return Expression::error(ast, "unrecognized literal");
+}
+
 #define LIKELY_REGISTER_FIELD(FIELD)                                                      \
 class FIELD##Expression : public SimpleUnaryOperator                                      \
 {                                                                                         \
@@ -671,7 +688,7 @@ class typeExpression : public SimpleUnaryOperator
 {
     Expression *evaluateSimpleUnary(Builder &, const ManagedExpression &arg) const
     {
-        return new Immediate(Builder::type(arg));
+        return new MatrixType(arg);
     }
 };
 LIKELY_REGISTER(type)
@@ -722,15 +739,6 @@ class SimpleBinaryOperator : public Operator
     }
     virtual Expression *evaluateSimpleBinary(Builder &builder, const ManagedExpression &arg1, const ManagedExpression &arg2) const = 0;
 };
-
-class castExpression : public SimpleBinaryOperator
-{
-    Expression *evaluateSimpleBinary(Builder &builder, const ManagedExpression &x, const ManagedExpression &type) const
-    {
-        return new Immediate(builder.cast(&x, (likely_type)LLVM_VALUE_TO_INT(type.value())));
-    }
-};
-LIKELY_REGISTER(cast)
 
 class ArithmeticOperator : public SimpleBinaryOperator
 {
