@@ -167,9 +167,9 @@ likely_ast likely_tokens_from_string(const char *str, bool GFM)
     return likely_new_list(tokens.data(), tokens.size());
 }
 
-static bool shift(likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence = 0);
+static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence = 0);
 
-static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence)
+static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence)
 {
     // Look ahead and try to reduce
     static vector<pair<int, const char*>> Ops;
@@ -195,22 +195,22 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t *of
    return -1;
 }
 
-static bool shift(likely_const_ast tokens, size_t *offset, vector<likely_const_ast> &output, int precedence)
+static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence)
 {
     assert(tokens->is_list);
-    if (*offset >= tokens->num_atoms) {
+    if (offset >= tokens->num_atoms) {
         likely_throw(tokens->atoms[tokens->num_atoms-1], "unexpected end of expression");
         return false;
     }
 
-    likely_const_ast token = tokens->atoms[(*offset)++];
+    likely_const_ast token = tokens->atoms[offset++];
     if (!token->is_list && !strcmp(token->atom, "(")) {
         vector<likely_const_ast> atoms;
         likely_const_ast end;
         while (true) {
-            end = tokens->atoms[*offset];
+            end = tokens->atoms[offset];
             if (!end->is_list && !strcmp(end->atom, ")")) {
-                (*offset)++;
+                offset++;
                 break;
             }
             if (!shift(tokens, offset, atoms, atoms.empty() ? INT_MAX : 0))
@@ -227,11 +227,11 @@ static bool shift(likely_const_ast tokens, size_t *offset, vector<likely_const_a
     }
 
     // Look ahead
-    if (*offset < tokens->num_atoms) {
-        int result = tryReduce(tokens->atoms[(*offset)++], tokens, offset, output, precedence);
+    if (offset < tokens->num_atoms) {
+        int result = tryReduce(tokens->atoms[offset++], tokens, offset, output, precedence);
         if (result != -1)
             return result != 0;
-        (*offset)--;
+        offset--;
     }
     return true;
 }
@@ -251,7 +251,7 @@ likely_ast likely_asts_from_tokens(likely_const_ast tokens)
     size_t offset = 0;
     vector<likely_const_ast> expressions;
     while (offset < tokens->num_atoms)
-        if (!shift(tokens, &offset, expressions)) {
+        if (!shift(tokens, offset, expressions)) {
             cleanup(expressions);
             return NULL;
         }
