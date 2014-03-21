@@ -1489,6 +1489,20 @@ class letExpression : public Operator
 };
 LIKELY_REGISTER(let)
 
+class beginExpression : public Operator
+{
+    size_t maxParameters() const { return std::numeric_limits<size_t>::max(); }
+
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        for (size_t i=1; i<ast->num_atoms-1; i++) {
+            TRY_EXPR(builder, ast->atoms[i], expr)
+        }
+        return builder.expression(ast->atoms[ast->num_atoms-1]);
+    }
+};
+LIKELY_REGISTER(begin)
+
 struct Kernel : public Lambda
 {
     Kernel(Builder &builder, likely_const_ast ast)
