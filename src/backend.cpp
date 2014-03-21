@@ -136,6 +136,31 @@ struct Expression
     }
 };
 
+struct UniqueAST : public unique_ptr<const likely_abstract_syntax_tree, function<void(likely_const_ast)>>
+{
+    UniqueAST(likely_const_ast ast = NULL)
+        : unique_ptr<const likely_abstract_syntax_tree, function<void(likely_const_ast)>>(ast, likely_release_ast) {}
+};
+
+struct UniqueASTL : public vector<likely_const_ast>
+{
+    ~UniqueASTL()
+    {
+        for (likely_const_ast ast : *this)
+            likely_release_ast(ast);
+    }
+
+    UniqueAST ast() const
+    {
+        for (likely_const_ast ast : *this)
+            likely_retain_ast(ast);
+        return likely_new_list(data(), size());
+    }
+
+    void retain(likely_const_ast ast) { push_back(likely_retain_ast(ast)); }
+    void push_back(const UniqueAST &ast) { retain(ast.get()); }
+};
+
 struct UniqueExpression : public Expression, public unique_ptr<Expression>
 {
     UniqueExpression(Expression *e = NULL)
@@ -1003,7 +1028,7 @@ class compositionExpression : public Operator
 
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        likely_ast composed;
+        UniqueAST composed;
         if (isInt(ast->atoms[1]) && isInt(ast->atoms[2])) {
             stringstream stream;
             stream << ast->atoms[1]->atom << "." << ast->atoms[2]->atom;
@@ -1014,10 +1039,7 @@ class compositionExpression : public Operator
             atoms[1] = likely_retain_ast(ast->atoms[1]);
             composed = likely_new_list(atoms.data(), 2);
         }
-
-        Expression *result = builder.expression(composed);
-        likely_release_ast(composed);
-        return result;
+        return builder.expression(composed.get());
     }
 };
 LIKELY_REGISTER_EXPRESSION(composition, ".")
@@ -1395,38 +1417,6 @@ class lambdaExpression : public Operator
     }
 };
 LIKELY_REGISTER_EXPRESSION(lambda, "->")
-
-struct UniqueAST : public unique_ptr<const likely_abstract_syntax_tree, function<void(likely_const_ast)>>
-{
-    UniqueAST(likely_const_ast ast)
-        : unique_ptr<const likely_abstract_syntax_tree, function<void(likely_const_ast)>>(ast, likely_release_ast) {}
-};
-
-struct UniqueASTL : public vector<likely_const_ast>
-{
-    ~UniqueASTL()
-    {
-        for (likely_const_ast ast : *this)
-            likely_release_ast(ast);
-    }
-
-    UniqueAST ast()
-    {
-        for (likely_const_ast ast : *this)
-            likely_retain_ast(ast);
-        return likely_new_list(data(), size());
-    }
-
-    void retain(likely_const_ast ast)
-    {
-        push_back(likely_retain_ast(ast));
-    }
-
-    void push_back(const UniqueAST &ast)
-    {
-        retain(ast.get());
-    }
-};
 
 class letExpression : public Operator
 {

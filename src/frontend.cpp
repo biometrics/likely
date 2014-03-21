@@ -45,7 +45,7 @@ likely_ast likely_new_atom_at(const char *str, size_t begin, size_t end)
     return ast;
 }
 
-likely_ast likely_new_list(likely_const_ast *atoms, size_t num_atoms)
+likely_ast likely_new_list(const likely_const_ast *atoms, size_t num_atoms)
 {
     likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + num_atoms * sizeof(likely_const_ast));
     ast->atoms = (likely_const_ast*) (ast+1);
