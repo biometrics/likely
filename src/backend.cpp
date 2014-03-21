@@ -136,9 +136,9 @@ struct Expression
     }
 };
 
-struct ManagedExpression : public Expression, public unique_ptr<Expression>
+struct UniqueExpression : public Expression, public unique_ptr<Expression>
 {
-    ManagedExpression(Expression *e = NULL)
+    UniqueExpression(Expression *e = NULL)
         : unique_ptr<Expression>(e) {}
     bool isNull() const { return !get(); }
     Value* value() const { return get()->value(); }
@@ -147,9 +147,9 @@ struct ManagedExpression : public Expression, public unique_ptr<Expression>
         { return get()->evaluate(builder, ast); }
 };
 
-#define TRY_EXPR(BUILDER, AST, EXPR)                     \
-const ManagedExpression EXPR((BUILDER).expression(AST)); \
-if (EXPR.isNull()) return NULL;                          \
+#define TRY_EXPR(BUILDER, AST, EXPR)                    \
+const UniqueExpression EXPR((BUILDER).expression(AST)); \
+if (EXPR.isNull()) return NULL;                         \
 
 static string getUniqueName(const string &prefix)
 {
@@ -608,7 +608,7 @@ class SimpleUnaryOperator : public UnaryOperator
         TRY_EXPR(builder, arg, expr)
         return evaluateSimpleUnary(builder, expr);
     }
-    virtual Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const = 0;
+    virtual Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const = 0;
 };
 
 struct MatrixType : public SimpleUnaryOperator
@@ -620,7 +620,7 @@ struct MatrixType : public SimpleUnaryOperator
     Value *value() const { return Builder::type(t); }
     likely_type type() const { return likely_type_type; }
 
-    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &x) const
+    Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &x) const
     {
         return new Immediate(builder.cast(&x, t));
     }
@@ -660,15 +660,15 @@ Expression *Builder::expression(likely_const_ast ast)
     return Expression::error(ast, "unrecognized literal");
 }
 
-#define LIKELY_REGISTER_FIELD(FIELD)                                                      \
-class FIELD##Expression : public SimpleUnaryOperator                                      \
-{                                                                                         \
-    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const \
-    {                                                                                     \
-        return new Immediate(builder.FIELD(&arg));                                        \
-    }                                                                                     \
-};                                                                                        \
-LIKELY_REGISTER(FIELD)                                                                    \
+#define LIKELY_REGISTER_FIELD(FIELD)                                                     \
+class FIELD##Expression : public SimpleUnaryOperator                                     \
+{                                                                                        \
+    Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const \
+    {                                                                                    \
+        return new Immediate(builder.FIELD(&arg));                                       \
+    }                                                                                    \
+};                                                                                       \
+LIKELY_REGISTER(FIELD)                                                                   \
 
 LIKELY_REGISTER_FIELD(channels)
 LIKELY_REGISTER_FIELD(columns)
@@ -677,7 +677,7 @@ LIKELY_REGISTER_FIELD(frames)
 
 class notExpression : public SimpleUnaryOperator
 {
-    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
     {
         return new Immediate(builder.CreateXor(Builder::intMax(arg), arg.value()), arg);
     }
@@ -686,7 +686,7 @@ LIKELY_REGISTER_EXPRESSION(not, "~")
 
 class typeExpression : public SimpleUnaryOperator
 {
-    Expression *evaluateSimpleUnary(Builder &, const ManagedExpression &arg) const
+    Expression *evaluateSimpleUnary(Builder &, const UniqueExpression &arg) const
     {
         return new MatrixType(arg);
     }
@@ -695,7 +695,7 @@ LIKELY_REGISTER(type)
 
 class UnaryMathOperator : public SimpleUnaryOperator
 {
-    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &x) const
+    Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &x) const
     {
         Immediate xc(builder.cast(&x, Builder::validFloatType(x)));
         vector<Type*> args;
@@ -737,12 +737,12 @@ class SimpleBinaryOperator : public Operator
         TRY_EXPR(builder, ast->atoms[2], expr2)
         return evaluateSimpleBinary(builder, expr1, expr2);
     }
-    virtual Expression *evaluateSimpleBinary(Builder &builder, const ManagedExpression &arg1, const ManagedExpression &arg2) const = 0;
+    virtual Expression *evaluateSimpleBinary(Builder &builder, const UniqueExpression &arg1, const UniqueExpression &arg2) const = 0;
 };
 
 class ArithmeticOperator : public SimpleBinaryOperator
 {
-    Expression *evaluateSimpleBinary(Builder &builder, const ManagedExpression &lhs, const ManagedExpression &rhs) const
+    Expression *evaluateSimpleBinary(Builder &builder, const UniqueExpression &lhs, const UniqueExpression &rhs) const
     {
         likely_type type = likely_type_from_types(lhs, rhs);
         return evaluateArithmetic(builder, builder.cast(&lhs, type), builder.cast(&rhs, type));
@@ -891,7 +891,7 @@ LIKELY_REGISTER_EQUALITY(NE, "!=")
 
 class BinaryMathOperator : public SimpleBinaryOperator
 {
-    Expression *evaluateSimpleBinary(Builder &builder, const ManagedExpression &x, const ManagedExpression &n) const
+    Expression *evaluateSimpleBinary(Builder &builder, const UniqueExpression &x, const UniqueExpression &n) const
     {
         const likely_type type = nIsInteger() ? x.type() : likely_type_from_types(x, n);
         Immediate xc(builder.cast(&x, Builder::validFloatType(type)));
@@ -931,12 +931,12 @@ class SimpleTernaryOperator : public Operator
         TRY_EXPR(builder, ast->atoms[3], c)
         return evaluateSimpleTernary(builder, a, b, c);
     }
-    virtual Expression *evaluateSimpleTernary(Builder &builder, const ManagedExpression &arg1, const ManagedExpression &arg2, const ManagedExpression &arg3) const = 0;
+    virtual Expression *evaluateSimpleTernary(Builder &builder, const UniqueExpression &arg1, const UniqueExpression &arg2, const UniqueExpression &arg3) const = 0;
 };
 
 class fmaExpression : public SimpleTernaryOperator
 {
-    Expression *evaluateSimpleTernary(Builder &builder, const ManagedExpression &a, const ManagedExpression &b, const ManagedExpression &c) const
+    Expression *evaluateSimpleTernary(Builder &builder, const UniqueExpression &a, const UniqueExpression &b, const UniqueExpression &c) const
     {
         const likely_type type = likely_type_from_types(likely_type_from_types(a, b), c);
         Immediate ac(builder.cast(&a, Builder::validFloatType(type)));
@@ -951,7 +951,7 @@ LIKELY_REGISTER(fma)
 
 class selectExpression : public SimpleTernaryOperator
 {
-    Expression *evaluateSimpleTernary(Builder &builder, const ManagedExpression &c, const ManagedExpression &t, const ManagedExpression &f) const
+    Expression *evaluateSimpleTernary(Builder &builder, const UniqueExpression &c, const UniqueExpression &t, const UniqueExpression &f) const
     {
         const likely_type type = likely_type_from_types(t, f);
         return new Immediate(builder.CreateSelect(c, builder.cast(&t, type), builder.cast(&f, type)), type);
@@ -1024,7 +1024,7 @@ LIKELY_REGISTER_EXPRESSION(composition, ".")
 
 class elementsExpression : public SimpleUnaryOperator, public LibraryFunction
 {
-    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
     {
         static FunctionType *functionType = FunctionType::get(NativeInt, T::Void, false);
         Function *likelyElements = builder.resources->module->getFunction("likely_elements");
@@ -1042,7 +1042,7 @@ LIKELY_REGISTER(elements)
 
 class bytesExpression : public SimpleUnaryOperator, public LibraryFunction
 {
-    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
     {
         static FunctionType *functionType = FunctionType::get(NativeInt, T::Void, false);
         Function *likelyBytes = builder.resources->module->getFunction("likely_bytes");
@@ -1065,7 +1065,7 @@ class newExpression : public Operator, public LibraryFunction
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         const size_t n = ast->num_atoms - 1;
-        ManagedExpression type;
+        UniqueExpression type;
         Value *channels, *columns, *rows, *frames, *data;
         switch (n) {
             case 6: data     = builder.expression(ast->atoms[6])->take();
@@ -1155,7 +1155,7 @@ LIKELY_REGISTER(scalar)
 
 class stringExpression : public SimpleUnaryOperator, public LibraryFunction
 {
-    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
     {
         return new Immediate(createCall(builder, arg), likely_type_i8);
     }
@@ -1181,7 +1181,7 @@ LIKELY_REGISTER(string)
 
 class copyExpression : public SimpleUnaryOperator, public LibraryFunction
 {
-    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
     {
         return new Immediate(createCall(builder, arg), arg);
     }
@@ -1207,7 +1207,7 @@ LIKELY_REGISTER(copy)
 
 class retainExpression : public SimpleUnaryOperator, public LibraryFunction
 {
-    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
     {
         return new Immediate(createCall(builder, arg), arg);
     }
@@ -1233,7 +1233,7 @@ LIKELY_REGISTER(retain)
 
 class releaseExpression : public SimpleUnaryOperator, public LibraryFunction
 {
-    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
     {
         return new Immediate(createCall(builder, arg), arg);
     }
@@ -1396,21 +1396,21 @@ class lambdaExpression : public Operator
 };
 LIKELY_REGISTER_EXPRESSION(lambda, "->")
 
-struct OwningAST : public unique_ptr<const likely_abstract_syntax_tree, function<void(likely_const_ast)>>
+struct UniqueAST : public unique_ptr<const likely_abstract_syntax_tree, function<void(likely_const_ast)>>
 {
-    OwningAST(likely_const_ast ast)
+    UniqueAST(likely_const_ast ast)
         : unique_ptr<const likely_abstract_syntax_tree, function<void(likely_const_ast)>>(ast, likely_release_ast) {}
 };
 
-struct OwningASTL : public vector<likely_const_ast>
+struct UniqueASTL : public vector<likely_const_ast>
 {
-    ~OwningASTL()
+    ~UniqueASTL()
     {
         for (likely_const_ast ast : *this)
             likely_release_ast(ast);
     }
 
-    OwningAST ast()
+    UniqueAST ast()
     {
         for (likely_const_ast ast : *this)
             likely_retain_ast(ast);
@@ -1422,7 +1422,7 @@ struct OwningASTL : public vector<likely_const_ast>
         push_back(likely_retain_ast(ast));
     }
 
-    void push_back(const OwningAST &ast)
+    void push_back(const UniqueAST &ast)
     {
         retain(ast.get());
     }
@@ -1439,7 +1439,7 @@ class letExpression : public Operator
             return NULL;
         }
 
-        OwningASTL vars, exps;
+        UniqueASTL vars, exps;
         if (defs->atoms[0]->is_list) {
             for (size_t i=0; i<defs->num_atoms; i++) {
                 likely_const_ast def = defs->atoms[i];
@@ -1455,7 +1455,7 @@ class letExpression : public Operator
             exps.retain(defs->atoms[1]);
         }
 
-        OwningASTL lambda;
+        UniqueASTL lambda;
         lambda.push_back(likely_new_atom("=>"));
         lambda.push_back(vars.ast());
         lambda.retain(ast->atoms[2]);
@@ -1584,7 +1584,7 @@ private:
                 builder.define(args->atom, new kernelArgument(srcs[0], dst, node));
             }
 
-            ManagedExpression result(builder.expression(ast->atoms[2]));
+            UniqueExpression result(builder.expression(ast->atoms[2]));
             dstType = dst.type_ = result;
             StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), i));
             store->setMetadata("llvm.mem.parallel_loop_access", node);
@@ -1848,7 +1848,7 @@ LIKELY_REGISTER(print)
 
 class readExpression : public SimpleUnaryOperator, public LibraryFunction
 {
-    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
     {
         static FunctionType *functionType = FunctionType::get(T::Void, Type::getInt8PtrTy(C), false);
         Function *likelyRead = builder.resources->module->getFunction("likely_read");
@@ -1867,7 +1867,7 @@ LIKELY_REGISTER(read)
 
 class writeExpression : public SimpleBinaryOperator, public LibraryFunction
 {
-    Expression *evaluateSimpleBinary(Builder &builder, const ManagedExpression &arg1, const ManagedExpression &arg2) const
+    Expression *evaluateSimpleBinary(Builder &builder, const UniqueExpression &arg1, const UniqueExpression &arg2) const
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
@@ -1897,7 +1897,7 @@ LIKELY_REGISTER(write)
 
 class decodeExpression : public SimpleUnaryOperator, public LibraryFunction
 {
-    Expression *evaluateSimpleUnary(Builder &builder, const ManagedExpression &arg) const
+    Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
     {
         static FunctionType *functionType = FunctionType::get(T::Void, T::Void, false);
         Function *likelyDecode = builder.resources->module->getFunction("likely_decode");
@@ -1916,7 +1916,7 @@ LIKELY_REGISTER(decode)
 
 class encodeExpression : public SimpleBinaryOperator, public LibraryFunction
 {
-    Expression *evaluateSimpleBinary(Builder &builder, const ManagedExpression &arg1, const ManagedExpression &arg2) const
+    Expression *evaluateSimpleBinary(Builder &builder, const UniqueExpression &arg1, const UniqueExpression &arg2) const
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
