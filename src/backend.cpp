@@ -1029,13 +1029,13 @@ class setExpression : public Operator
         if (ast->atoms[1]->is_list)
             return error(ast->atoms[1], "expected an atom");
         const string name = ast->atoms[1]->atom;
-        TRY_EXPR(builder, ast, expr);
+        TRY_EXPR(builder, ast->atoms[2], expr);
 
         Immediate &variable = builder.locals[name];
         if (variable.isNull())
             variable = Immediate(builder.CreateAlloca(expr.value()->getType(), 0, name), expr);
         builder.CreateStore(expr, variable);
-        return NULL;
+        return new Immediate(variable);
     }
 };
 LIKELY_REGISTER(set)
