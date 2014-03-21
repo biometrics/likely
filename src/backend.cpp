@@ -343,8 +343,10 @@ struct Immediate : public Expression
     Value *value_;
     likely_type type_;
 
+    Immediate() : value_(NULL), type_(likely_type_void) {}
     Immediate(Value *value, likely_type type)
         : value_(value), type_(type) {}
+    bool isNull() { return !value_; }
 
 private:
     Value *value() const { return value_; }
@@ -359,6 +361,7 @@ struct Builder : public IRBuilder<>
 {
     likely_env env;
     Resources *resources;
+    map<string, Immediate> localVariables;
 
     Builder(Resources *resources, likely_env env)
         : IRBuilder<>(C), env(env), resources(resources)
@@ -663,6 +666,12 @@ Expression *Builder::expression(likely_const_ast ast)
         return e.evaluate(*this, ast);
     }
     const string op = ast->atom;
+
+    { // Is it a local variable?
+        auto var = localVariables.find(op);
+        if (var != localVariables.end())
+            return new Immediate(CreateLoad(var->second, op), var->second);
+    }
 
     if (Expression *e = lookup(op))
         return e->evaluate(*this, ast);
@@ -1005,12 +1014,31 @@ class defineExpression : public Operator
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         if (ast->atoms[1]->is_list)
-            return error(ast->atoms[1], "define expected an atom name");
+            return error(ast->atoms[1], "expected an atom");
         builder.define(ast->atoms[1]->atom, new Definition(builder, ast->atoms[2]));
         return NULL;
     }
 };
 LIKELY_REGISTER_EXPRESSION(define, "=")
+
+class setExpression : public Operator
+{
+    size_t maxParameters() const { return 2; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        if (ast->atoms[1]->is_list)
+            return error(ast->atoms[1], "expected an atom");
+        const string name = ast->atoms[1]->atom;
+        TRY_EXPR(builder, ast, expr);
+
+        Immediate &variable = builder.localVariables[name];
+        if (variable.isNull())
+            variable = Immediate(builder.CreateAlloca(expr.value()->getType(), 0, name), expr);
+        builder.CreateStore(expr, variable);
+        return NULL;
+    }
+};
+LIKELY_REGISTER(set)
 
 class compositionExpression : public Operator
 {
@@ -1452,7 +1480,7 @@ class letExpression : public Operator
         }
 
         UniqueASTL lambda;
-        lambda.push_back(likely_new_atom("=>"));
+        lambda.push_back(likely_new_atom("->"));
         lambda.retain(names.ast().get());
         lambda.retain(ast->atoms[2]);
         values[0] = likely_retain_ast(lambda.ast().get());

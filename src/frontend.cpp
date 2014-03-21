@@ -245,11 +245,14 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_a
     }
 
     // Look ahead
-    if (offset < tokens->num_atoms) {
-        int result = tryReduce(tokens->atoms[offset++], tokens, offset, output, precedence);
-        if (result != -1)
-            return result != 0;
-        offset--;
+    while (offset < tokens->num_atoms) {
+        const int result = tryReduce(tokens->atoms[offset++], tokens, offset, output, precedence);
+        if (result == -1) {
+            offset--;
+            break;
+        } else if (result == 0) {
+            return false;
+        }
     }
     return true;
 }
