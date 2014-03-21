@@ -1397,6 +1397,75 @@ class lambdaExpression : public Operator
 };
 LIKELY_REGISTER_EXPRESSION(lambda, "->")
 
+struct OwningAST : public unique_ptr<const likely_abstract_syntax_tree, function<void(likely_const_ast)>>
+{
+    OwningAST(likely_const_ast ast)
+        : unique_ptr<const likely_abstract_syntax_tree, function<void(likely_const_ast)>>(ast, likely_release_ast) {}
+};
+
+struct OwningASTL : public vector<likely_const_ast>
+{
+    ~OwningASTL()
+    {
+        for (likely_const_ast ast : *this)
+            likely_release_ast(ast);
+    }
+
+    OwningAST ast()
+    {
+        for (likely_const_ast ast : *this)
+            likely_retain_ast(ast);
+        return likely_new_list(data(), size());
+    }
+
+    void retain(likely_const_ast ast)
+    {
+        push_back(likely_retain_ast(ast));
+    }
+
+    void push_back(const OwningAST &ast)
+    {
+        retain(ast.get());
+    }
+};
+
+class letExpression : public Operator
+{
+    size_t maxParameters() const { return 2; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        likely_const_ast defs = ast->atoms[1];
+        if (!defs->is_list || (defs->num_atoms == 0)) {
+            likely_throw(ast->atoms[1], "expected a definition list");
+            return NULL;
+        }
+
+        OwningASTL vars, exps;
+        if (defs->atoms[0]->is_list) {
+            for (size_t i=0; i<defs->num_atoms; i++) {
+                likely_const_ast def = defs->atoms[i];
+                if (def->num_atoms != 2)
+                    return error(def, "expected a tuple");
+                vars.retain(defs->atoms[0]);
+                exps.retain(defs->atoms[1]);
+            }
+        } else {
+            if (defs->num_atoms != 2)
+                return error(defs, "expected a tuple");
+            vars.retain(defs->atoms[0]);
+            exps.retain(defs->atoms[1]);
+        }
+
+        OwningASTL lambda;
+        lambda.push_back(likely_new_atom("=>", 0, 2));
+        lambda.push_back(vars.ast());
+        lambda.retain(ast->atoms[2]);
+        TRY_EXPR(builder, lambda.ast().get(), let)
+        return let.evaluate(builder, exps.ast().get());
+    }
+};
+LIKELY_REGISTER(let)
+
 struct Kernel : public Lambda
 {
     Kernel(Builder &builder, likely_const_ast ast)

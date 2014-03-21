@@ -195,9 +195,9 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
 
     for (const pair<int, const char*> &op : Ops)
         if ((op.first > precedence) && !token->is_list && !strcmp(token->atom, op.second)) {
-            output.insert(output.end()-1, likely_retain_ast(token));
             if (!shift(tokens, offset, output, op.first))
                 return 0;
+            output.insert(output.end()-2, likely_retain_ast(token));
             output.push_back(likely_new_list(&output[output.size()-3], 3));
             output.erase(output.end()-4, output.end()-1);
             return 1;
