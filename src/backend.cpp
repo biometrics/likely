@@ -1423,15 +1423,11 @@ class letExpression : public Operator
 
     static bool addDefinition(likely_const_ast def, UniqueASTL &names, UniqueASTL &values)
     {
-        if (!def->is_list || (def->num_atoms != 2)) {
-            likely_throw(def, "expected a tuple");
-            return false;
-        }
+        if (!def->is_list || (def->num_atoms != 2))
+            return likely_throw(def, "expected a tuple");
 
-        if (def->atoms[0]->is_list) {
-            likely_throw(def->atoms[0], "expected an atom");
-            return false;
-        }
+        if (def->atoms[0]->is_list)
+            return likely_throw(def->atoms[0], "expected an atom");
 
         names.retain(def->atoms[0]);
         values.retain(def->atoms[1]);
@@ -1441,10 +1437,8 @@ class letExpression : public Operator
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         likely_const_ast defs = ast->atoms[1];
-        if (!defs->is_list || (defs->num_atoms == 0)) {
-            likely_throw(ast->atoms[1], "expected a definition list");
-            return NULL;
-        }
+        if (!defs->is_list || (defs->num_atoms == 0))
+            return error(ast->atoms[1], "expected a definition list");
 
         UniqueASTL names, values;
         values.push_back(NULL); // The lambda function will be placed here

@@ -66,7 +66,7 @@ LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);
 
 // Callback-style error handling
 LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, void *context);
-LIKELY_EXPORT void likely_throw(likely_const_ast where, const char *what);
+LIKELY_EXPORT bool likely_throw(likely_const_ast where, const char *what);
 LIKELY_EXPORT likely_mat likely_error_to_string(likely_error error);
 
 #ifdef __cplusplus

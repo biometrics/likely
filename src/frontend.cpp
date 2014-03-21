@@ -214,10 +214,8 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
 static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence)
 {
     assert(tokens->is_list);
-    if (offset >= tokens->num_atoms) {
-        likely_throw(tokens->atoms[tokens->num_atoms-1], "unexpected end of expression");
-        return false;
-    }
+    if (offset >= tokens->num_atoms)
+        return likely_throw(tokens->atoms[tokens->num_atoms-1], "unexpected end of expression");
 
     likely_const_ast token = tokens->atoms[offset++];
     if (!token->is_list && !strcmp(token->atom, "(")) {
@@ -332,12 +330,13 @@ void likely_set_error_callback(likely_error_callback callback, void *context)
     ErrorContext = context;
 }
 
-void likely_throw(likely_const_ast where, const char *what)
+bool likely_throw(likely_const_ast where, const char *what)
 {
     likely_error error;
     error.where = where;
     error.what = what;
     ErrorCallback(error, ErrorContext);
+    return false;
 }
 
 likely_mat likely_error_to_string(likely_error error)
