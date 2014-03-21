@@ -158,7 +158,6 @@ struct UniqueASTL : public vector<likely_const_ast>
     }
 
     void retain(likely_const_ast ast) { push_back(likely_retain_ast(ast)); }
-    void push_back(const UniqueAST &ast) { retain(ast.get()); }
 };
 
 struct UniqueExpression : public Expression, public unique_ptr<Expression>
@@ -1421,6 +1420,24 @@ LIKELY_REGISTER_EXPRESSION(lambda, "->")
 class letExpression : public Operator
 {
     size_t maxParameters() const { return 2; }
+
+    static bool addDefinition(likely_const_ast def, UniqueASTL &names, UniqueASTL &values)
+    {
+        if (!def->is_list || (def->num_atoms != 2)) {
+            likely_throw(def, "expected a tuple");
+            return false;
+        }
+
+        if (def->atoms[0]->is_list) {
+            likely_throw(def->atoms[0], "expected an atom");
+            return false;
+        }
+
+        names.retain(def->atoms[0]);
+        values.retain(def->atoms[1]);
+        return true;
+    }
+
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         likely_const_ast defs = ast->atoms[1];
@@ -1429,28 +1446,23 @@ class letExpression : public Operator
             return NULL;
         }
 
-        UniqueASTL vars, exps;
+        UniqueASTL names, values;
+        values.push_back(NULL); // The lambda function will be placed here
         if (defs->atoms[0]->is_list) {
-            for (size_t i=0; i<defs->num_atoms; i++) {
-                likely_const_ast def = defs->atoms[i];
-                if (def->num_atoms != 2)
-                    return error(def, "expected a tuple");
-                vars.retain(defs->atoms[0]);
-                exps.retain(defs->atoms[1]);
-            }
+            for (size_t i=0; i<defs->num_atoms; i++)
+                if (!addDefinition(defs->atoms[i], names, values))
+                    return NULL;
         } else {
-            if (defs->num_atoms != 2)
-                return error(defs, "expected a tuple");
-            vars.retain(defs->atoms[0]);
-            exps.retain(defs->atoms[1]);
+            if (!addDefinition(defs, names, values))
+                return NULL;
         }
 
         UniqueASTL lambda;
         lambda.push_back(likely_new_atom("=>"));
-        lambda.push_back(vars.ast());
+        lambda.retain(names.ast().get());
         lambda.retain(ast->atoms[2]);
-        TRY_EXPR(builder, lambda.ast().get(), let)
-        return let.evaluate(builder, exps.ast().get());
+        values[0] = likely_retain_ast(lambda.ast().get());
+        return builder.expression(values.ast().get());
     }
 };
 LIKELY_REGISTER(let)
