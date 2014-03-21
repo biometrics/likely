@@ -51,7 +51,8 @@ typedef void (*likely_error_callback)(likely_error error, void *context);
 extern "C" {
 #endif // __cplusplus
 
-LIKELY_EXPORT likely_ast likely_new_atom(const char *str, size_t begin, size_t end);
+LIKELY_EXPORT likely_ast likely_new_atom(const char *str);
+LIKELY_EXPORT likely_ast likely_new_atom_at(const char *str, size_t begin, size_t end);
 LIKELY_EXPORT likely_ast likely_new_list(likely_const_ast *atoms, size_t num_atoms);
 LIKELY_EXPORT likely_ast likely_retain_ast(likely_const_ast ast);
 LIKELY_EXPORT void likely_release_ast(likely_const_ast ast);

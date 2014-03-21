@@ -1007,8 +1007,7 @@ class compositionExpression : public Operator
         if (isInt(ast->atoms[1]) && isInt(ast->atoms[2])) {
             stringstream stream;
             stream << ast->atoms[1]->atom << "." << ast->atoms[2]->atom;
-            const string str = stream.str();
-            composed = likely_new_atom(str.data(), 0, str.length());
+            composed = likely_new_atom(stream.str().data());
         } else {
             vector<likely_const_ast> atoms(2);
             atoms[0] = likely_retain_ast(ast->atoms[2]);
@@ -1457,7 +1456,7 @@ class letExpression : public Operator
         }
 
         OwningASTL lambda;
-        lambda.push_back(likely_new_atom("=>", 0, 2));
+        lambda.push_back(likely_new_atom("=>"));
         lambda.push_back(vars.ast());
         lambda.retain(ast->atoms[2]);
         TRY_EXPR(builder, lambda.ast().get(), let)

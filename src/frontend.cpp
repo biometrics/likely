@@ -25,7 +25,12 @@
 
 using namespace std;
 
-likely_ast likely_new_atom(const char *str, size_t begin, size_t end)
+likely_ast likely_new_atom(const char *str)
+{
+    return likely_new_atom_at(str, 0, strlen(str));
+}
+
+likely_ast likely_new_atom_at(const char *str, size_t begin, size_t end)
 {
     const size_t atom_len = end - begin;
     likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + atom_len + 1);
@@ -99,7 +104,7 @@ static void tokenize(const char *str, const size_t len, vector<likely_const_ast>
         if (i == begin)
             i++;
 
-        tokens.push_back(likely_new_atom(str, begin, i));
+        tokens.push_back(likely_new_atom_at(str, begin, i));
     }
 }
 
