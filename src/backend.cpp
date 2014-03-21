@@ -1534,6 +1534,35 @@ class gotoExpression : public Operator
 };
 LIKELY_REGISTER(goto)
 
+class ifExpression : public Operator
+{
+    size_t maxParameters() const { return 3; }
+
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        TRY_EXPR(builder, ast->atoms[1], Cond)
+        BasicBlock *True = BasicBlock::Create(C, "then");
+        BasicBlock *False = BasicBlock::Create(C, "else");
+        builder.CreateCondBr(Cond, True, False);
+
+        builder.SetInsertPoint(True);
+        TRY_EXPR(builder, ast->atoms[2], t)
+        BasicBlock *End = BasicBlock::Create(C, "end");
+        builder.CreateBr(End);
+
+        builder.SetInsertPoint(False);
+        TRY_EXPR(builder, ast->atoms[3], f)
+        builder.CreateBr(End);
+
+        builder.SetInsertPoint(End);
+        PHINode *phi = builder.CreatePHI(t.value()->getType(), 2);
+        phi->addIncoming(t, True);
+        phi->addIncoming(f, False);
+        return new Immediate(phi, t);
+    }
+};
+LIKELY_REGISTER(if)
+
 struct Kernel : public Lambda
 {
     Kernel(Builder &builder, likely_const_ast ast)
