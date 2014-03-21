@@ -1,4 +1,4 @@
 Hello World Kernel
 ==================
 
-    (export a => a / 2:a.type hello_world_div2 f32X)
+    (export a => a / (a.type 2) hello_world_div2 f32X)
