@@ -43,6 +43,7 @@ enum likely_type_field
     likely_type_signed   = 0x00000100,
     likely_type_floating = 0x00000200,
     likely_type_data     = likely_type_depth | likely_type_signed | likely_type_floating,
+    likely_type_u1  = 1,
     likely_type_u8  = 8,
     likely_type_u16 = 16,
     likely_type_u32 = 32,

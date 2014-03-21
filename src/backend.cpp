@@ -891,17 +891,17 @@ LIKELY_REGISTER_LOGIC(Shl, "shl")
 LIKELY_REGISTER_LOGIC(LShr, "lshr")
 LIKELY_REGISTER_LOGIC(AShr, "ashr")
 
-#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                         \
-class OP##Expression : public ArithmeticOperator                                                                    \
-{                                                                                                                   \
-    Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const              \
-    {                                                                                                               \
-        return new Immediate(likely_floating(lhs) ? builder.CreateFCmpO##OP(lhs, rhs)                               \
-                                                  : (likely_signed(lhs) ? builder.CreateICmpS##OP(lhs, rhs)         \
-                                                                        : builder.CreateICmpU##OP(lhs, rhs)), lhs); \
-    }                                                                                                               \
-};                                                                                                                  \
-LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                 \
+#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                    \
+class OP##Expression : public ArithmeticOperator                                                                               \
+{                                                                                                                              \
+    Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const                         \
+    {                                                                                                                          \
+        return new Immediate(likely_floating(lhs) ? builder.CreateFCmpO##OP(lhs, rhs)                                          \
+                                                  : (likely_signed(lhs) ? builder.CreateICmpS##OP(lhs, rhs)                    \
+                                                                        : builder.CreateICmpU##OP(lhs, rhs)), likely_type_u1); \
+    }                                                                                                                          \
+};                                                                                                                             \
+LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                            \
 
 LIKELY_REGISTER_COMPARISON(LT, "<")
 LIKELY_REGISTER_COMPARISON(LE, "<=")
@@ -914,7 +914,7 @@ class OP##Expression : public ArithmeticOperator                                
     Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const \
     {                                                                                                  \
         return new Immediate(likely_floating(lhs) ? builder.CreateFCmpO##OP(lhs, rhs)                  \
-                                                  : builder.CreateICmp##OP(lhs, rhs), lhs);            \
+                                                  : builder.CreateICmp##OP(lhs, rhs), likely_type_u1); \
     }                                                                                                  \
 };                                                                                                     \
 LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                    \
