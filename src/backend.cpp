@@ -1491,6 +1491,7 @@ LIKELY_REGISTER(let)
 
 class beginExpression : public Operator
 {
+    size_t minParameters() const { return 0; }
     size_t maxParameters() const { return std::numeric_limits<size_t>::max(); }
 
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
