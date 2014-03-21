@@ -361,7 +361,7 @@ struct Builder : public IRBuilder<>
 {
     likely_env env;
     Resources *resources;
-    map<string, Immediate> localVariables;
+    map<string, Immediate> locals;
 
     Builder(Resources *resources, likely_env env)
         : IRBuilder<>(C), env(env), resources(resources)
@@ -668,8 +668,8 @@ Expression *Builder::expression(likely_const_ast ast)
     const string op = ast->atom;
 
     { // Is it a local variable?
-        auto var = localVariables.find(op);
-        if (var != localVariables.end())
+        auto var = locals.find(op);
+        if (var != locals.end())
             return new Immediate(CreateLoad(var->second, op), var->second);
     }
 
@@ -1031,7 +1031,7 @@ class setExpression : public Operator
         const string name = ast->atoms[1]->atom;
         TRY_EXPR(builder, ast, expr);
 
-        Immediate &variable = builder.localVariables[name];
+        Immediate &variable = builder.locals[name];
         if (variable.isNull())
             variable = Immediate(builder.CreateAlloca(expr.value()->getType(), 0, name), expr);
         builder.CreateStore(expr, variable);
@@ -1502,6 +1502,37 @@ class beginExpression : public Operator
     }
 };
 LIKELY_REGISTER(begin)
+
+class labelExpression : public Operator
+{
+    size_t maxParameters() const { return 1; }
+
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        const string name = ast->atoms[1]->atom;
+        BasicBlock *label = BasicBlock::Create(C, name);
+        builder.CreateBr(label);
+        builder.SetInsertPoint(label);
+        builder.locals.insert(pair<string,Immediate>(name, Immediate(label, likely_type_void)));
+        return NULL;
+    }
+};
+LIKELY_REGISTER(label)
+
+class gotoExpression : public Operator
+{
+    size_t maxParameters() const { return 1; }
+
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        auto it = builder.locals.find(ast->atoms[1]->atom);
+        if (it == builder.locals.end())
+            return error(ast->atoms[1], "unrecognized label");
+        builder.CreateBr(cast<BasicBlock>(it->second.value_));
+        return NULL;
+    }
+};
+LIKELY_REGISTER(goto)
 
 struct Kernel : public Lambda
 {
