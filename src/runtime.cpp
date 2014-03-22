@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 #include <mutex>
 #include <string>
 #include <sstream>
@@ -80,7 +81,7 @@ likely_size likely_elements(likely_const_mat m)
 
 likely_size likely_bytes(likely_const_mat m)
 {
-    return likely_depth(m->type) * likely_elements(m) / 8;
+    return (likely_depth(m->type) * likely_elements(m) + 7) / 8;
 }
 
 // TODO: make this thread_local when compiler support improves
@@ -89,7 +90,7 @@ static likely_mat recycled = NULL;
 likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data)
 {
     likely_mat m;
-    const size_t dataBytes = uint64_t(likely_depth(type)) * channels * columns * rows * frames / 8;
+    const size_t dataBytes = (uint64_t(likely_depth(type)) * channels * columns * rows * frames + 7) / 8;
     const size_t bytes = sizeof(likely_matrix) + dataBytes;
     if (recycled) {
         if (recycled->bytes >= bytes) {
@@ -122,9 +123,9 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     return m;
 }
 
-likely_mat likely_scalar(double value)
+likely_mat likely_scalar(double value, likely_type type)
 {
-    likely_mat m = likely_new(likely_type_from_value(value), 1, 1, 1, 1, NULL);
+    likely_mat m = likely_new(type != likely_type_void ? type : likely_type_from_value(value), 1, 1, 1, 1, NULL);
     likely_set_element(m, value, 0, 0, 0, 0);
     return m;
 }
@@ -205,10 +206,8 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
       case likely_type_i64: (( int64_t*)m->data)[index] = ( int64_t)value; break;
       case likely_type_f32: ((   float*)m->data)[index] = (   float)value; break;
       case likely_type_f64: ((  double*)m->data)[index] = (  double)value; break;
-      case likely_type_u1:  (( uint8_t*)m->data)[index/8] |=
-                                (value == 0)
-                                    ? (((uint8_t*)m->data)[index/8] & ~(1 << index%8))
-                                    : (((uint8_t*)m->data)[index/8] |  (1 << index%8)); break;
+      case likely_type_u1:  if (value == 0) (((uint8_t*)m->data)[index/8] &= ~(1 << index%8));
+                            else            (((uint8_t*)m->data)[index/8] |=  (1 << index%8)); break;
       default: assert(!"likely_set_element unsupported type");
     }
 }
