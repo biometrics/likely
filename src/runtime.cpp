@@ -180,6 +180,7 @@ double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_s
       case likely_type_i64: return double((( int64_t const*)m->data)[index]);
       case likely_type_f32: return double(((   float const*)m->data)[index]);
       case likely_type_f64: return double(((  double const*)m->data)[index]);
+      case likely_type_u1:  return double((((uint8_t const*)m->data)[index/8] & (1 << index%8)) != 0);
       default: assert(!"likely_element unsupported type");
     }
     return numeric_limits<double>::quiet_NaN();
@@ -204,6 +205,10 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
       case likely_type_i64: (( int64_t*)m->data)[index] = ( int64_t)value; break;
       case likely_type_f32: ((   float*)m->data)[index] = (   float)value; break;
       case likely_type_f64: ((  double*)m->data)[index] = (  double)value; break;
+      case likely_type_u1:  (( uint8_t*)m->data)[index/8] |=
+                                (value == 0)
+                                    ? (((uint8_t*)m->data)[index/8] & ~(1 << index%8))
+                                    : (((uint8_t*)m->data)[index/8] |  (1 << index%8)); break;
       default: assert(!"likely_set_element unsupported type");
     }
 }
