@@ -178,8 +178,9 @@ likely_ast likely_tokens_from_string(const char *str, bool GFM)
 
 struct Operator
 {
-    int precedence, leftHandAtoms, rightHandAtoms;
-    Operator(int precedence, int rightHandAtoms, int leftHandAtoms)
+    int precedence;
+    size_t leftHandAtoms, rightHandAtoms;
+    Operator(int precedence, size_t rightHandAtoms, size_t leftHandAtoms)
         : precedence(precedence), leftHandAtoms(leftHandAtoms), rightHandAtoms(rightHandAtoms)
     {}
 };
@@ -203,11 +204,15 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
     if (!token->is_list) {
         const auto &op = ops().find(token->atom);
         if (op != ops().end() && (op->second.precedence > precedence)) {
-            if (!shift(tokens, offset, output, op->second.precedence))
-                return 0;
-            output.insert(output.end()-2, likely_retain_ast(token));
-            output.push_back(likely_new_list(&output[output.size()-3], 3));
-            output.erase(output.end()-4, output.end()-1);
+            if (output.size() < op->second.leftHandAtoms)
+                return likely_throw(token, "missing left hand side operands");
+            for (size_t i=0; i<op->second.rightHandAtoms; i++)
+                if (!shift(tokens, offset, output, op->second.precedence))
+                    return 0;
+            const int operands = op->second.leftHandAtoms + op->second.rightHandAtoms;
+            output.insert(output.end()-operands, likely_retain_ast(token));
+            output.push_back(likely_new_list(&output[output.size()-3], operands+1));
+            output.erase(output.end()-operands-2, output.end()-1);
             return 1;
         }
     }
