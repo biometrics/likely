@@ -1548,14 +1548,16 @@ class ifExpression : public Operator
 
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
+        Function *function = builder.GetInsertBlock()->getParent();
+
         TRY_EXPR(builder, ast->atoms[1], Cond)
-        BasicBlock *True = BasicBlock::Create(C, "then");
-        BasicBlock *False = BasicBlock::Create(C, "else");
+        BasicBlock *True = BasicBlock::Create(C, "then", function);
+        BasicBlock *False = BasicBlock::Create(C, "else", function);
         builder.CreateCondBr(Cond, True, False);
 
         builder.SetInsertPoint(True);
         TRY_EXPR(builder, ast->atoms[2], t)
-        BasicBlock *End = BasicBlock::Create(C, "end");
+        BasicBlock *End = BasicBlock::Create(C, "end", function);
         builder.CreateBr(End);
 
         builder.SetInsertPoint(False);
