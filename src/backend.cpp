@@ -1518,11 +1518,12 @@ class labelExpression : public Operator
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         const string name = ast->atoms[1]->atom;
-        BasicBlock *label = BasicBlock::Create(C, name);
+        BasicBlock *label = BasicBlock::Create(C, name, builder.GetInsertBlock()->getParent());
         builder.CreateBr(label);
         builder.SetInsertPoint(label);
-        builder.locals.insert(pair<string,Immediate>(name, Immediate(label, likely_type_void)));
-        return NULL;
+        Immediate result(label, likely_type_void);
+        builder.locals.insert(pair<string,Immediate>(name, result));
+        return new Immediate(result);
     }
 };
 LIKELY_REGISTER(label)
@@ -1537,38 +1538,47 @@ class gotoExpression : public Operator
         if (it == builder.locals.end())
             return error(ast->atoms[1], "unrecognized label");
         builder.CreateBr(cast<BasicBlock>(it->second.value_));
-        return NULL;
+        return new Immediate(it->second);
     }
 };
 LIKELY_REGISTER(goto)
 
 class ifExpression : public Operator
 {
+    size_t minParameters() const { return 2; }
     size_t maxParameters() const { return 3; }
 
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         Function *function = builder.GetInsertBlock()->getParent();
+        const bool hasElse = ast->num_atoms == 4;
 
         TRY_EXPR(builder, ast->atoms[1], Cond)
         BasicBlock *True = BasicBlock::Create(C, "then", function);
-        BasicBlock *False = BasicBlock::Create(C, "else", function);
-        builder.CreateCondBr(Cond, True, False);
+        BasicBlock *False = hasElse ? BasicBlock::Create(C, "else", function) : NULL;
+        BasicBlock *End = BasicBlock::Create(C, "end", function);
+        builder.CreateCondBr(Cond, True, hasElse ? False : End);
 
         builder.SetInsertPoint(True);
         TRY_EXPR(builder, ast->atoms[2], t)
-        BasicBlock *End = BasicBlock::Create(C, "end", function);
-        builder.CreateBr(End);
+        if (!True->back().isTerminator())
+            builder.CreateBr(End);
 
-        builder.SetInsertPoint(False);
-        TRY_EXPR(builder, ast->atoms[3], f)
-        builder.CreateBr(End);
+        if (hasElse) {
+            builder.SetInsertPoint(False);
+            TRY_EXPR(builder, ast->atoms[3], f)
+            if (!False->back().isTerminator())
+                builder.CreateBr(End);
 
-        builder.SetInsertPoint(End);
-        PHINode *phi = builder.CreatePHI(t.value()->getType(), 2);
-        phi->addIncoming(t, True);
-        phi->addIncoming(f, False);
-        return new Immediate(phi, t);
+            builder.SetInsertPoint(End);
+            PHINode *phi = builder.CreatePHI(t.value()->getType(), 2);
+            phi->addIncoming(t, True);
+            if (hasElse) phi->addIncoming(f, False);
+            return new Immediate(phi, t);
+        } else {
+            builder.SetInsertPoint(End);
+            return new Immediate(NULL, likely_type_void);
+        }
     }
 };
 LIKELY_REGISTER(if)
