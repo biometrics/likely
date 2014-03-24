@@ -385,7 +385,7 @@ struct Builder : public IRBuilder<>
 {
     likely_env env;
     Resources *resources;
-    map<string, Immediate> locals;
+    map<string, UniqueExpression> locals;
 
     Builder(Resources *resources, likely_env env)
         : IRBuilder<>(C), env(env), resources(resources)
@@ -1055,10 +1055,10 @@ class setExpression : public Operator
         const string name = ast->atoms[1]->atom;
         Expression *expr = builder.expression(ast->atoms[2]);
         if (expr) {
-            Immediate &variable = builder.locals[name];
+            UniqueExpression &variable = builder.locals[name];
             if (variable.isNull())
-                variable = Immediate(builder.CreateAlloca(expr->value()->getType(), 0, name), *expr);
-            builder.CreateStore(builder.cast(expr, variable.type_), variable);
+                variable = new Immediate(builder.CreateAlloca(expr->value()->getType(), 0, name), *expr);
+            builder.CreateStore(builder.cast(expr, variable.type()), variable);
         }
         return expr;
     }
@@ -1545,9 +1545,8 @@ class labelExpression : public Operator
         BasicBlock *label = BasicBlock::Create(C, name, builder.GetInsertBlock()->getParent());
         builder.CreateBr(label);
         builder.SetInsertPoint(label);
-        Immediate result(label, likely_type_void);
-        builder.locals.insert(pair<string,Immediate>(name, result));
-        return new Immediate(result);
+        builder.locals.insert(pair<string,UniqueExpression>(name, new Immediate(label, likely_type_void)));
+        return new Immediate(label, likely_type_void);
     }
 };
 LIKELY_REGISTER(label)
@@ -1561,8 +1560,8 @@ class gotoExpression : public Operator
         auto it = builder.locals.find(ast->atoms[1]->atom);
         if (it == builder.locals.end())
             return error(ast->atoms[1], "unrecognized label");
-        builder.CreateBr(cast<BasicBlock>(it->second.value_));
-        return new Immediate(it->second);
+        builder.CreateBr(cast<BasicBlock>(it->second.value()));
+        return new Immediate(*it->second.get(), *it->second.get());
     }
 };
 LIKELY_REGISTER(goto)
