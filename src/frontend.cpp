@@ -17,6 +17,7 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <vector>
 
@@ -175,38 +176,53 @@ likely_ast likely_tokens_from_string(const char *str, bool GFM)
     return likely_new_list(tokens.data(), tokens.size());
 }
 
+struct Operator
+{
+    int precedence, leftHandAtoms, rightHandAtoms;
+    Operator(int precedence, int rightHandAtoms, int leftHandAtoms)
+        : precedence(precedence), leftHandAtoms(leftHandAtoms), rightHandAtoms(rightHandAtoms)
+    {}
+};
+static map<string, Operator> Ops;
+
+void likely_insert_operator(const char *symbol, int precedence, int left_hand_atoms, int right_hand_atoms)
+{
+    Ops.insert(pair<string,Operator>(symbol, Operator(precedence, left_hand_atoms, right_hand_atoms)));
+}
+
 static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence = 0);
 
 static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence)
 {
     // Look ahead and try to reduce
-    static vector<pair<int, const char*>> Ops;
     if (Ops.empty()) {
-        Ops.push_back(pair<int, const char*>(1, "="));
-        Ops.push_back(pair<int, const char*>(2, "->"));
-        Ops.push_back(pair<int, const char*>(2, "=>"));
-        Ops.push_back(pair<int, const char*>(3, "<"));
-        Ops.push_back(pair<int, const char*>(3, "<="));
-        Ops.push_back(pair<int, const char*>(3, ">"));
-        Ops.push_back(pair<int, const char*>(3, ">="));
-        Ops.push_back(pair<int, const char*>(3, "=="));
-        Ops.push_back(pair<int, const char*>(3, "!="));
-        Ops.push_back(pair<int, const char*>(4, "+"));
-        Ops.push_back(pair<int, const char*>(4, "-"));
-        Ops.push_back(pair<int, const char*>(5, "*"));
-        Ops.push_back(pair<int, const char*>(5, "/"));
-        Ops.push_back(pair<int, const char*>(6, "."));
+        likely_insert_operator("=" , 1, 1, 1);
+        likely_insert_operator("->", 2, 1, 1);
+        likely_insert_operator("=>", 2, 1, 1);
+        likely_insert_operator("<" , 3, 1, 1);
+        likely_insert_operator("<=", 3, 1, 1);
+        likely_insert_operator(">" , 3, 1, 1);
+        likely_insert_operator(">=", 3, 1, 1);
+        likely_insert_operator("==", 3, 1, 1);
+        likely_insert_operator("!=", 3, 1, 1);
+        likely_insert_operator("+" , 4, 1, 1);
+        likely_insert_operator("-" , 4, 1, 1);
+        likely_insert_operator("*" , 5, 1, 1);
+        likely_insert_operator("/" , 5, 1, 1);
+        likely_insert_operator("." , 6, 1, 1);
     }
 
-    for (const pair<int, const char*> &op : Ops)
-        if ((op.first > precedence) && !token->is_list && !strcmp(token->atom, op.second)) {
-            if (!shift(tokens, offset, output, op.first))
+    if (!token->is_list) {
+        const auto &op = Ops.find(token->atom);
+        if (op != Ops.end() && (op->second.precedence > precedence)) {
+            if (!shift(tokens, offset, output, op->second.precedence))
                 return 0;
             output.insert(output.end()-2, likely_retain_ast(token));
             output.push_back(likely_new_list(&output[output.size()-3], 3));
             output.erase(output.end()-4, output.end()-1);
             return 1;
         }
+    }
 
    return -1;
 }
