@@ -431,7 +431,7 @@ class castTest : public Test {
 };
 
 class thresholdTest : public Test {
-    const char *function() const { return "a => (a.type (select (a > 127) 1 0))"; }
+    const char *function() const { return "a => (a.type a > 127)"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 1, THRESH_BINARY); return dst; }
     vector<likely_type> types() const { vector<likely_type> types; types.push_back(likely_type_u8); types.push_back(likely_type_f32); return types; }
 };

@@ -205,7 +205,7 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
         const auto &op = ops().find(token->atom);
         if (op != ops().end() && (op->second.precedence > precedence)) {
             if (output.size() < op->second.leftHandAtoms)
-                return likely_throw(token, "missing left hand side operands");
+                return likely_throw(token, "missing left hand side operand(s)");
             for (size_t i=0; i<op->second.rightHandAtoms; i++)
                 if (!shift(tokens, offset, output, op->second.precedence))
                     return 0;
