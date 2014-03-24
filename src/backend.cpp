@@ -118,6 +118,9 @@ struct Expression
     virtual Value *value() const = 0;
     virtual likely_type type() const = 0;
     virtual Expression *evaluate(Builder &builder, likely_const_ast ast) const = 0;
+    virtual int precedence() const { return 0; }
+    virtual int leftHandAtoms() const { return 1; }
+    virtual int rightHandAtoms() const { return 1; }
 
     operator Value*() const { return value(); }
     operator likely_type() const { return type(); }
@@ -609,12 +612,15 @@ class LibraryFunction
     virtual void *symbol() const = 0; // Idiom to ensure that the library symbol isn't stripped when optimizing executable size
 };
 
-template <class T>
+template <class E>
 struct RegisterExpression
 {
-    RegisterExpression(const string &symbol)
+    RegisterExpression(const char *symbol)
     {
-        likely_environment::defaultExprs[symbol].push(shared_ptr<Expression>(new T()));
+        Expression *e = new E();
+        likely_environment::defaultExprs[symbol].push(shared_ptr<Expression>(e));
+        if (e->precedence())
+            likely_insert_operator(symbol, e->precedence(), e->leftHandAtoms(), e->rightHandAtoms());
     }
 };
 #define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
@@ -809,6 +815,7 @@ class ArithmeticOperator : public SimpleBinaryOperator
 
 class addExpression : public ArithmeticOperator
 {
+    int precedence() const { return 4; }
     Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
     {
         if (likely_floating(lhs)) {
@@ -828,6 +835,7 @@ LIKELY_REGISTER_EXPRESSION(add, "+")
 
 class subtractExpression : public ArithmeticOperator
 {
+    int precedence() const { return 4; }
     Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
     {
         if (likely_floating(lhs)) {
@@ -847,6 +855,7 @@ LIKELY_REGISTER_EXPRESSION(subtract, "-")
 
 class multiplyExpression : public ArithmeticOperator
 {
+    int precedence() const { return 5; }
     Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
     {
         if (likely_floating(lhs)) {
@@ -867,6 +876,7 @@ LIKELY_REGISTER_EXPRESSION(multiply, "*")
 
 class divideExpression : public ArithmeticOperator
 {
+    int precedence() const { return 5; }
     Expression *evaluateArithmetic(Builder &builder, const Immediate &n, const Immediate &d) const
     {
         if (likely_floating(n)) {
@@ -918,6 +928,7 @@ LIKELY_REGISTER_LOGIC(AShr, "ashr")
 #define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                    \
 class OP##Expression : public ArithmeticOperator                                                                               \
 {                                                                                                                              \
+    int precedence() const { return 3; }                                                                                       \
     Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const                         \
     {                                                                                                                          \
         return new Immediate(likely_floating(lhs) ? builder.CreateFCmpO##OP(lhs, rhs)                                          \
@@ -935,6 +946,7 @@ LIKELY_REGISTER_COMPARISON(GE, ">=")
 #define LIKELY_REGISTER_EQUALITY(OP, SYM)                                                              \
 class OP##Expression : public ArithmeticOperator                                                       \
 {                                                                                                      \
+    int precedence() const { return 3; }                                                               \
     Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const \
     {                                                                                                  \
         return new Immediate(likely_floating(lhs) ? builder.CreateFCmpO##OP(lhs, rhs)                  \
@@ -1035,6 +1047,7 @@ private:
 class defineExpression : public Operator
 {
     size_t maxParameters() const { return 2; }
+    int precedence() const { return 1; }
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         if (ast->atoms[1]->is_list)
@@ -1074,6 +1087,7 @@ private:
 class setExpression : public Operator
 {
     size_t maxParameters() const { return 2; }
+    int precedence() const { return 1; }
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         if (ast->atoms[1]->is_list)
@@ -1093,6 +1107,7 @@ LIKELY_REGISTER(set)
 class compositionExpression : public Operator
 {
     size_t maxParameters() const { return 2; }
+    int precedence() const { return 6; }
 
     static bool isInt(likely_const_ast atom)
     {
@@ -1494,6 +1509,7 @@ private:
 class lambdaExpression : public Operator
 {
     size_t maxParameters() const { return 2; }
+    int precedence() const { return 2; }
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         return new Lambda(builder, ast);
@@ -1891,6 +1907,7 @@ class kernelExpression : public Operator
 {
     size_t minParameters() const { return 2; }
     size_t maxParameters() const { return 3; }
+    int precedence() const { return 2; }
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         return new Kernel(builder, ast);

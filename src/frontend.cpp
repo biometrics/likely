@@ -183,38 +183,26 @@ struct Operator
         : precedence(precedence), leftHandAtoms(leftHandAtoms), rightHandAtoms(rightHandAtoms)
     {}
 };
-static map<string, Operator> Ops;
+
+// Construct on first use idiom avoids static initialization order fiasco
+static map<string, Operator> &ops()
+{
+    static map<string, Operator> Ops;
+    return Ops;
+}
 
 void likely_insert_operator(const char *symbol, int precedence, int left_hand_atoms, int right_hand_atoms)
 {
-    Ops.insert(pair<string,Operator>(symbol, Operator(precedence, left_hand_atoms, right_hand_atoms)));
+    ops().insert(pair<string,Operator>(symbol, Operator(precedence, left_hand_atoms, right_hand_atoms)));
 }
 
 static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence = 0);
 
 static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence)
 {
-    // Look ahead and try to reduce
-    if (Ops.empty()) {
-        likely_insert_operator("=" , 1, 1, 1);
-        likely_insert_operator("->", 2, 1, 1);
-        likely_insert_operator("=>", 2, 1, 1);
-        likely_insert_operator("<" , 3, 1, 1);
-        likely_insert_operator("<=", 3, 1, 1);
-        likely_insert_operator(">" , 3, 1, 1);
-        likely_insert_operator(">=", 3, 1, 1);
-        likely_insert_operator("==", 3, 1, 1);
-        likely_insert_operator("!=", 3, 1, 1);
-        likely_insert_operator("+" , 4, 1, 1);
-        likely_insert_operator("-" , 4, 1, 1);
-        likely_insert_operator("*" , 5, 1, 1);
-        likely_insert_operator("/" , 5, 1, 1);
-        likely_insert_operator("." , 6, 1, 1);
-    }
-
     if (!token->is_list) {
-        const auto &op = Ops.find(token->atom);
-        if (op != Ops.end() && (op->second.precedence > precedence)) {
+        const auto &op = ops().find(token->atom);
+        if (op != ops().end() && (op->second.precedence > precedence)) {
             if (!shift(tokens, offset, output, op->second.precedence))
                 return 0;
             output.insert(output.end()-2, likely_retain_ast(token));
