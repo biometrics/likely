@@ -29,7 +29,7 @@ Initialization
         (set zr (zr * zr - zi * zi + dzr))
         (set zi (zr * zi * 2 + dzi))
         (set j (+ j 1))
-        (if (j < iterations) (goto loop))
+        (if (j < iterations) loop)
         (+ zr zi))
       ((columns cols) (rows rows))
         )

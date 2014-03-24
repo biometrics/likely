@@ -694,7 +694,7 @@ Expression *Builder::expression(likely_const_ast ast)
     { // Is it a local variable?
         auto var = locals.find(op);
         if (var != locals.end())
-            return new Immediate(CreateLoad(var->second, op), var->second);
+            return var->second.evaluate(*this, ast);
     }
 
     if (Expression *e = lookup(op))
@@ -1045,6 +1045,32 @@ class defineExpression : public Operator
 };
 LIKELY_REGISTER_EXPRESSION(define, "=")
 
+class Variable : public Operator
+{
+    likely_type type_;
+    AllocaInst *allocaInst;
+
+public:
+    Variable(Builder &builder, Expression *expr, const string &name)
+    {
+        type_ = *expr;
+        allocaInst = builder.CreateAlloca(expr->value()->getType(), 0, name);
+        set(builder, expr);
+    }
+
+    void set(Builder &builder, Expression *expr)
+    {
+        builder.CreateStore(builder.cast(expr, type_), allocaInst);
+    }
+
+private:
+    size_t maxParameters() const { return 0; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast) const
+    {
+        return new Immediate(builder.CreateLoad(allocaInst), type_);
+    }
+};
+
 class setExpression : public Operator
 {
     size_t maxParameters() const { return 2; }
@@ -1056,9 +1082,8 @@ class setExpression : public Operator
         Expression *expr = builder.expression(ast->atoms[2]);
         if (expr) {
             UniqueExpression &variable = builder.locals[name];
-            if (variable.isNull())
-                variable = new Immediate(builder.CreateAlloca(expr->value()->getType(), 0, name), *expr);
-            builder.CreateStore(builder.cast(expr, variable.type()), variable);
+            if (variable.isNull()) variable = new Variable(builder, expr, name);
+            else                   static_cast<Variable*>(variable.get())->set(builder, expr);
         }
         return expr;
     }
@@ -1535,36 +1560,45 @@ class beginExpression : public Operator
 };
 LIKELY_REGISTER(begin)
 
+struct Label : public Expression
+{
+    BasicBlock *basicBlock;
+
+public:
+    Label(BasicBlock *basicBlock) : basicBlock(basicBlock) {}
+
+private:
+    Value *value() const
+    {
+        return basicBlock;
+    }
+
+    likely_type type() const
+    {
+        return likely_type_void;
+    }
+
+    Expression *evaluate(Builder &builder, likely_const_ast) const
+    {
+        builder.CreateBr(basicBlock);
+        return new Label(basicBlock);
+    }
+};
+
 class labelExpression : public Operator
 {
     size_t maxParameters() const { return 1; }
-
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         const string name = ast->atoms[1]->atom;
         BasicBlock *label = BasicBlock::Create(C, name, builder.GetInsertBlock()->getParent());
         builder.CreateBr(label);
         builder.SetInsertPoint(label);
-        builder.locals.insert(pair<string,UniqueExpression>(name, new Immediate(label, likely_type_void)));
-        return new Immediate(label, likely_type_void);
+        builder.locals.insert(pair<string,UniqueExpression>(name, new Label(label)));
+        return new Label(label);
     }
 };
 LIKELY_REGISTER(label)
-
-class gotoExpression : public Operator
-{
-    size_t maxParameters() const { return 1; }
-
-    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        auto it = builder.locals.find(ast->atoms[1]->atom);
-        if (it == builder.locals.end())
-            return error(ast->atoms[1], "unrecognized label");
-        builder.CreateBr(cast<BasicBlock>(it->second.value()));
-        return new Immediate(*it->second.get(), *it->second.get());
-    }
-};
-LIKELY_REGISTER(goto)
 
 class ifExpression : public Operator
 {
