@@ -1796,12 +1796,21 @@ private:
     static Immediate getDimensions(Builder &builder, likely_const_ast ast, const char *axis, const vector<Immediate> &srcs)
     {
         Value *result = NULL;
-
         // Look for a dimensionality expression
-        for (size_t i=3; i<ast->num_atoms; i++) {
-            if (ast->atoms[i]->is_list && (ast->atoms[i]->num_atoms == 2) && (!ast->atoms[i]->atoms[0]->is_list) && !strcmp(axis, ast->atoms[i]->atoms[0]->atom)) {
-                result = builder.cast(unique_ptr<Expression>(builder.expression(ast->atoms[i]->atoms[1])).get(), likely_type_native);
-                break;
+        if (ast->num_atoms == 4) {
+            likely_const_ast dims = ast->atoms[3];
+            if (dims->is_list && (dims->num_atoms > 0)) {
+                if (dims->atoms[0]->is_list) {
+                    for (size_t i=0; i<dims->num_atoms; i++) {
+                        if (!strcmp(axis, dims->atoms[i]->atoms[0]->atom)) {
+                            result = builder.cast(unique_ptr<Expression>(builder.expression(dims->atoms[i]->atoms[1])).get(), likely_type_native);
+                            break;
+                        }
+                    }
+                } else {
+                    if (!strcmp(axis, dims->atoms[0]->atom))
+                        result = builder.cast(unique_ptr<Expression>(builder.expression(dims->atoms[1])).get(), likely_type_native);
+                }
             }
         }
 
