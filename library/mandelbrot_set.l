@@ -18,17 +18,20 @@ Derived values
 
 Initialization
 
-;   (=> mandelbrot_set (let ((dzr x.f32 / resolution - x_min)
-;                            (dzi y.f32 / resolution - y_min))
-;                           (prog
-;                            (set zr 0.f32)
-;                            (set zi 0.f32)
-;                            (set j  0.u32)
-;                            (set it 0.u32)
-;                           (while (< j iterations)
-;                                  (j = j + 1
-;                                   zr = zr * zr - zi * zi + dzr
-;                                   zi = zr * zi * 2 + dzi
-;                                   zr + zi))) ((columns cols) (rows rows)))
-;
-;   mandelbrot_set
+    mandelbrot_set = (=> ()
+      (begin
+        (set dzr (x.f32 / resolution - x_min))
+        (set dzi (y.f32 / resolution - y_min))
+        (set zr 0.f32)
+        (set zi 0.f32)
+        (set j  0)
+        (label loop)
+        (set zr (zr * zr - zi * zi + dzr))
+        (set zi (zr * zi * 2 + dzi))
+        (set j (+ j 1))
+        (if (j < iterations) (goto loop))
+        (+ zr zi))
+      ((columns cols) (rows rows))
+        )
+
+    (mandelbrot_set)

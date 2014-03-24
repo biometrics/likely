@@ -1058,7 +1058,7 @@ class setExpression : public Operator
             Immediate &variable = builder.locals[name];
             if (variable.isNull())
                 variable = Immediate(builder.CreateAlloca(expr->value()->getType(), 0, name), *expr);
-            builder.CreateStore(*expr, variable);
+            builder.CreateStore(builder.cast(expr, variable.type_), variable);
         }
         return expr;
     }
