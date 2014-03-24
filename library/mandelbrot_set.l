@@ -19,7 +19,7 @@ Derived values
 Initialization
 
     mandelbrot_set = (=> ()
-      (begin
+    {
         (set dzr (x.f32 / resolution - x_min))
         (set dzi (y.f32 / resolution - y_min))
         (set zr 0.f32)
@@ -28,10 +28,9 @@ Initialization
         (label loop)
         (set zr (zr * zr - zi * zi + dzr))
         (set zi (zr * zi * 2 + dzi))
-        (set j (+ j 1))
+        (set j (j + 1))
         (if (j < iterations) loop)
-        (+ zr zi))
-      ((columns cols) (rows rows))
-        )
+        zr + zi
+    } ((columns cols) (rows rows)) )
 
     (mandelbrot_set)

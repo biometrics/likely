@@ -218,12 +218,19 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_a
         return likely_throw(tokens->atoms[tokens->num_atoms-1], "unexpected end of expression");
 
     likely_const_ast token = tokens->atoms[offset++];
-    if (!token->is_list && !strcmp(token->atom, "(")) {
+    if (!token->is_list && (!strcmp(token->atom, "(") || !strcmp(token->atom, "{"))) {
         vector<likely_const_ast> atoms;
+        const char *close;
+        if (!strcmp(token->atom, "(")) {
+            close = ")";
+        } else {
+            atoms.push_back(likely_retain_ast(token));
+            close = "}";
+        }
         likely_const_ast end;
         while (true) {
             end = tokens->atoms[offset];
-            if (!end->is_list && !strcmp(end->atom, ")")) {
+            if (!end->is_list && !strcmp(end->atom, close)) {
                 offset++;
                 break;
             }

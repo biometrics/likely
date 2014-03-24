@@ -1558,7 +1558,7 @@ class beginExpression : public Operator
         return builder.expression(ast->atoms[ast->num_atoms-1]);
     }
 };
-LIKELY_REGISTER(begin)
+LIKELY_REGISTER_EXPRESSION(begin, "{")
 
 struct Label : public Expression
 {
