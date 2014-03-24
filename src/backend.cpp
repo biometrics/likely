@@ -1594,6 +1594,8 @@ private:
 class labelExpression : public Operator
 {
     size_t maxParameters() const { return 1; }
+    int precedence() const { return 3; }
+    int rightHandAtoms() const { return 0; }
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         const string name = ast->atoms[1]->atom;
@@ -1604,7 +1606,7 @@ class labelExpression : public Operator
         return new Label(label);
     }
 };
-LIKELY_REGISTER(label)
+LIKELY_REGISTER_EXPRESSION(label, ":")
 
 class ifExpression : public Operator
 {

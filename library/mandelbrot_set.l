@@ -20,17 +20,17 @@ Initialization
 
     mandelbrot_set = (=> ()
     {
-        (set dzr (x.f32 / resolution - x_min))
-        (set dzi (y.f32 / resolution - y_min))
-        (set zr 0.f32)
-        (set zi 0.f32)
-        (set j  0)
-        (label loop)
-        (set zr (zr * zr - zi * zi + dzr))
-        (set zi (zr * zi * 2 + dzi))
-        (set j (j + 1))
-        (? (j < iterations) loop)
-        zr + zi
+      (set dzr (x.f32 / resolution - x_min))
+      (set dzi (y.f32 / resolution - y_min))
+      (set zr 0.f32)
+      (set zi 0.f32)
+      (set j  0)
+    (: loop)
+      (set zr (zr * zr - zi * zi + dzr))
+      (set zi (zr * zi * 2 + dzi))
+      (set j (j + 1))
+      (? (j < iterations) loop)
+      zr + zi
     } ((columns cols) (rows rows)) )
 
     (mandelbrot_set)
