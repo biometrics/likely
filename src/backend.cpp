@@ -183,6 +183,30 @@ static string getUniqueName(const string &prefix)
     return stream.str();
 }
 
+static bool getPairs(likely_const_ast ast, vector<pair<likely_const_ast,likely_const_ast>> &pairs)
+{
+    pairs.clear();
+    if (!ast->is_list)       return false;
+    if (ast->num_atoms == 0) return true;
+
+    if (ast->atoms[0]->is_list) {
+        for (size_t i=0; i<ast->num_atoms; i++) {
+            if (ast->atoms[i]->num_atoms != 2) {
+                pairs.clear();
+                return false;
+            }
+            pairs.push_back(pair<likely_const_ast,likely_const_ast>(ast->atoms[i]->atoms[0], ast->atoms[i]->atoms[1]));
+        }
+    } else {
+        if (ast->num_atoms != 2) {
+            pairs.clear();
+            return false;
+        }
+        pairs.push_back(pair<likely_const_ast,likely_const_ast>(ast->atoms[0], ast->atoms[1]));
+    }
+    return true;
+}
+
 struct Resources
 {
     TargetMachine *TM = NULL;
@@ -1798,20 +1822,13 @@ private:
         Value *result = NULL;
         // Look for a dimensionality expression
         if (ast->num_atoms == 4) {
-            likely_const_ast dims = ast->atoms[3];
-            if (dims->is_list && (dims->num_atoms > 0)) {
-                if (dims->atoms[0]->is_list) {
-                    for (size_t i=0; i<dims->num_atoms; i++) {
-                        if (!strcmp(axis, dims->atoms[i]->atoms[0]->atom)) {
-                            result = builder.cast(unique_ptr<Expression>(builder.expression(dims->atoms[i]->atoms[1])).get(), likely_type_native);
-                            break;
-                        }
-                    }
-                } else {
-                    if (!strcmp(axis, dims->atoms[0]->atom))
-                        result = builder.cast(unique_ptr<Expression>(builder.expression(dims->atoms[1])).get(), likely_type_native);
+            vector<pair<likely_const_ast,likely_const_ast>> pairs;
+            getPairs(ast->atoms[3], pairs);
+            for (const auto &pair : pairs)
+                if (!strcmp(axis, pair.first->atom)) {
+                    result = builder.cast(unique_ptr<Expression>(builder.expression(pair.second)).get(), likely_type_native);
+                    break;
                 }
-            }
         }
 
         // Use default dimensionality
