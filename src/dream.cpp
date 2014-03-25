@@ -414,7 +414,7 @@ class Printer : public QScrollArea
 {
     Q_OBJECT
     QVBoxLayout *layout;
-    int showIndex = 0;
+    int offset = 0;
 
 public:
     Printer(QWidget *parent = 0)
@@ -431,21 +431,19 @@ public:
     }
 
 public slots:
-    void finishedEval()
+    void finishedPrinting()
     {
-        for (int i=showIndex; i<layout->count(); i++)
+        for (int i=offset; i<layout->count(); i++)
             layout->itemAt(i)->widget()->deleteLater();
-        showIndex = 0;
+        offset = 0;
     }
 
     void print(likely_const_mat mat)
     {
-        const int i = showIndex++;
-        Matrix *matrix = NULL;
-        QLayoutItem *item = layout->itemAt(i);
-        if (item != NULL)
+        const int i = offset++;
+        if (QLayoutItem *item = layout->itemAt(i)) // Try to recycle the widget
             return static_cast<Matrix*>(item->widget())->show(mat);
-        matrix = new Matrix();
+        Matrix *matrix = new Matrix();
         layout->insertWidget(i, matrix);
         connect(matrix, SIGNAL(definitionChanged()), this, SLOT(definitionChanged()));
         matrix->show(mat);
@@ -560,7 +558,7 @@ public:
         connect(printer, SIGNAL(newDefinitions(QString)), source, SLOT(setHeader(QString)));
         connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(fileMenu(QAction*)));
         connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
-        connect(source, SIGNAL(finishedEval()), printer, SLOT(finishedEval()));
+        connect(source, SIGNAL(finishedEval()), printer, SLOT(finishedPrinting()));
         connect(source, SIGNAL(newResult(likely_const_mat)), printer, SLOT(print(likely_const_mat)));
         connect(source, SIGNAL(newFileName(QString)), this, SLOT(setWindowTitle(QString)));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
