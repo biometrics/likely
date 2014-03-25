@@ -2222,5 +2222,12 @@ void likely_release_function(likely_function function)
 likely_mat likely_eval(likely_const_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
+
+    // Shortcut for global variable definitions
+    if (ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=")) {
+        delete Builder(NULL, env).expression(ast);
+        return NULL;
+    }
+
     return env->evaluate(ast);
 }
