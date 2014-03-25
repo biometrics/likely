@@ -25,7 +25,7 @@ Initialization
       zr = 0.f32
       zi = 0.f32
       j = 0
-    (: loop)
+    loop :
       zr = zr * zr - zi * zi + dzr
       zi = zr * zi * 2 + dzi
       j = j + 1

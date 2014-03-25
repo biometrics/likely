@@ -180,7 +180,7 @@ struct Operator
 {
     int precedence;
     size_t leftHandAtoms, rightHandAtoms;
-    Operator(int precedence, size_t rightHandAtoms, size_t leftHandAtoms)
+    Operator(int precedence, size_t leftHandAtoms, size_t rightHandAtoms)
         : precedence(precedence), leftHandAtoms(leftHandAtoms), rightHandAtoms(rightHandAtoms)
     {}
 };
@@ -209,10 +209,10 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
             for (size_t i=0; i<op->second.rightHandAtoms; i++)
                 if (!shift(tokens, offset, output, op->second.precedence))
                     return 0;
-            const int operands = op->second.leftHandAtoms + op->second.rightHandAtoms;
-            output.insert(output.end()-operands, likely_retain_ast(token));
-            output.push_back(likely_new_list(&output[output.size()-3], operands+1));
-            output.erase(output.end()-operands-2, output.end()-1);
+            int length = op->second.leftHandAtoms + op->second.rightHandAtoms;
+            output.insert(output.end()-length++, likely_retain_ast(token));
+            output.push_back(likely_new_list(&output[output.size()-length], length));
+            output.erase(output.end()-length-1, output.end()-1);
             return 1;
         }
     }
