@@ -566,6 +566,7 @@ public:
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
 
         likely_set_error_callback(error_callback, statusBar);
+        likely_set_show_callback(show_callback, printer);
         source->restore();
     }
 
@@ -584,6 +585,11 @@ private:
         qDebug() << message;
         reinterpret_cast<QStatusBar*>(context)->showMessage(message);
         likely_release(str);
+    }
+
+    static void show_callback(likely_const_mat m, void *context)
+    {
+        reinterpret_cast<Printer*>(context)->print(m);
     }
 };
 

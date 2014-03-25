@@ -33,4 +33,4 @@ Initialization
       zr + zi
     } ((columns cols) (rows rows)) )
 
-    mandelbrot_set
+    mandelbrot_set.render.show

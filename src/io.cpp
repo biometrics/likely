@@ -224,6 +224,7 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
 
 static void default_show_callback(likely_const_mat m, void *)
 {
+    if (!m) return;
     cv::imshow("Likely", likely::toCvMat(m));
     cv::waitKey();
 }
