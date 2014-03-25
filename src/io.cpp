@@ -222,8 +222,22 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
     return n;
 }
 
-void likely_show(likely_const_mat m)
+static void default_show_callback(likely_const_mat m, void *)
 {
     cv::imshow("Likely", likely::toCvMat(m));
     cv::waitKey();
+}
+
+static likely_show_callback ShowCallback = default_show_callback;
+static void *ShowContext = NULL;
+
+void likely_set_show_callback(likely_show_callback callback, void *context)
+{
+    ShowCallback = callback;
+    ShowContext = context;
+}
+
+void likely_show(likely_const_mat m)
+{
+    ShowCallback(m, ShowContext);
 }
