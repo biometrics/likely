@@ -626,28 +626,6 @@ struct RegisterExpression
 #define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
 #define LIKELY_REGISTER(EXP) LIKELY_REGISTER_EXPRESSION(EXP, #EXP)
 
-#define LIKELY_REGISTER_TYPE(TYPE)                        \
-struct TYPE##Expression : public Immediate                \
-{                                                         \
-    TYPE##Expression()                                    \
-        : Immediate(Builder::type(likely_type_##TYPE)) {} \
-};                                                        \
-LIKELY_REGISTER(TYPE)                                     \
-
-LIKELY_REGISTER_TYPE(void)
-LIKELY_REGISTER_TYPE(depth)
-LIKELY_REGISTER_TYPE(signed)
-LIKELY_REGISTER_TYPE(floating)
-LIKELY_REGISTER_TYPE(data)
-LIKELY_REGISTER_TYPE(parallel)
-LIKELY_REGISTER_TYPE(heterogeneous)
-LIKELY_REGISTER_TYPE(multi_channel)
-LIKELY_REGISTER_TYPE(multi_column)
-LIKELY_REGISTER_TYPE(multi_row)
-LIKELY_REGISTER_TYPE(multi_frame)
-LIKELY_REGISTER_TYPE(multi_dimension)
-LIKELY_REGISTER_TYPE(saturation)
-
 class UnaryOperator : public Operator
 {
     size_t maxParameters() const { return 1; }
@@ -716,9 +694,11 @@ Expression *Builder::expression(likely_const_ast ast)
             return new Immediate(constant(value, likely_type_from_value(value)));
     }
 
-    likely_type type = likely_type_from_string(op.c_str());
-    if (type != likely_type_void)
-        return new MatrixType(type);
+    { // Is it a type?
+        bool ok;
+        likely_type type = likely_type_field_from_string(op.c_str(), &ok);
+        if (ok) return new MatrixType(type);
+    }
 
     return Expression::error(ast, "unrecognized literal");
 }

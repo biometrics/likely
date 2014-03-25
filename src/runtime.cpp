@@ -227,6 +227,23 @@ likely_mat likely_type_to_string(likely_type type)
     return likely_string(typeStream.str().c_str());
 }
 
+likely_mat likely_type_field_to_string(likely_type type)
+{
+    if (type == likely_type_void         ) return likely_string("void");
+    if (type == likely_type_depth        ) return likely_string("depth");
+    if (type == likely_type_signed       ) return likely_string("signed");
+    if (type == likely_type_floating     ) return likely_string("floating");
+    if (type == likely_type_data         ) return likely_string("data");
+    if (type == likely_type_parallel     ) return likely_string("parallel");
+    if (type == likely_type_heterogeneous) return likely_string("heterogeneous");
+    if (type == likely_type_multi_channel) return likely_string("multi_channel");
+    if (type == likely_type_multi_column ) return likely_string("multi_column");
+    if (type == likely_type_multi_row    ) return likely_string("multi_row");
+    if (type == likely_type_multi_frame  ) return likely_string("multi_frame");
+    if (type == likely_type_saturation   ) return likely_string("saturation");
+    return likely_type_to_string(type);
+}
+
 likely_type likely_type_from_string(const char *str)
 {
     const size_t len = strlen(str);
@@ -256,6 +273,26 @@ likely_type likely_type_from_string(const char *str)
     }
 
     return t;
+}
+
+likely_type likely_type_field_from_string(const char *str, bool *ok)
+{
+    if (ok) *ok = true;
+    if (!strcmp(str, "void"         )) return likely_type_void;
+    if (!strcmp(str, "depth"        )) return likely_type_depth;
+    if (!strcmp(str, "signed"       )) return likely_type_signed;
+    if (!strcmp(str, "floating"     )) return likely_type_floating;
+    if (!strcmp(str, "data"         )) return likely_type_data;
+    if (!strcmp(str, "parallel"     )) return likely_type_parallel;
+    if (!strcmp(str, "heterogeneous")) return likely_type_heterogeneous;
+    if (!strcmp(str, "multi_channel")) return likely_type_multi_channel;
+    if (!strcmp(str, "multi_column" )) return likely_type_multi_column;
+    if (!strcmp(str, "multi_row"    )) return likely_type_multi_row;
+    if (!strcmp(str, "multi_frame"  )) return likely_type_multi_frame;
+    if (!strcmp(str, "saturation"   )) return likely_type_saturation;
+    likely_type type = likely_type_from_string(str);
+    if (ok) *ok = (type != likely_type_void);
+    return type;
 }
 
 likely_type likely_type_from_value(double value)
