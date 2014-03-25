@@ -1014,20 +1014,6 @@ private:
     }
 };
 
-class defineExpression : public Operator
-{
-    size_t maxParameters() const { return 2; }
-    int precedence() const { return 1; }
-    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        if (ast->atoms[1]->is_list)
-            return error(ast->atoms[1], "expected an atom");
-        builder.define(ast->atoms[1]->atom, new Definition(builder, ast->atoms[2]));
-        return NULL;
-    }
-};
-LIKELY_REGISTER_EXPRESSION(define, "=")
-
 class Variable : public Operator
 {
     likely_type type_;
@@ -1054,7 +1040,7 @@ private:
     }
 };
 
-class setExpression : public Operator
+class defineExpression : public Operator
 {
     size_t maxParameters() const { return 2; }
     int precedence() const { return 1; }
@@ -1063,16 +1049,24 @@ class setExpression : public Operator
         if (ast->atoms[1]->is_list)
             return error(ast->atoms[1], "expected an atom");
         const string name = ast->atoms[1]->atom;
-        Expression *expr = builder.expression(ast->atoms[2]);
-        if (expr) {
-            UniqueExpression &variable = builder.locals[name];
-            if (variable.isNull()) variable = new Variable(builder, expr, name);
-            else                   static_cast<Variable*>(variable.get())->set(builder, expr);
+
+        if (builder.resources) {
+            // Local variable
+            Expression *expr = builder.expression(ast->atoms[2]);
+            if (expr) {
+                UniqueExpression &variable = builder.locals[name];
+                if (variable.isNull()) variable = new Variable(builder, expr, name);
+                else                   static_cast<Variable*>(variable.get())->set(builder, expr);
+            }
+            return expr;
+        } else {
+            // Global variable
+            builder.define(name, new Definition(builder, ast->atoms[2]));
+            return NULL;
         }
-        return expr;
     }
 };
-LIKELY_REGISTER(set)
+LIKELY_REGISTER_EXPRESSION(define, "=")
 
 class compositionExpression : public Operator
 {
