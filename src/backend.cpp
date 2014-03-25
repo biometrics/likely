@@ -2104,6 +2104,40 @@ class encodeExpression : public SimpleBinaryOperator, public LibraryFunction
     void *symbol() const { return (void*) likely_encode; }
 };
 LIKELY_REGISTER(encode)
+
+class renderExpression : public SimpleUnaryOperator, public LibraryFunction
+{
+    Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
+    {
+        static FunctionType *functionType = NULL;
+        if (functionType == NULL) {
+            vector<Type*> parameters;
+            parameters.push_back(T::Void);
+            parameters.push_back(Type::getDoublePtrTy(C));
+            parameters.push_back(Type::getDoublePtrTy(C));
+            functionType = FunctionType::get(T::Void, parameters, false);
+        }
+        Function *likelyRender = builder.resources->module->getFunction("likely_render");
+        if (!likelyRender) {
+            likelyRender = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_render", builder.resources->module);
+            likelyRender->setCallingConv(CallingConv::C);
+            likelyRender->setDoesNotAlias(0);
+            likelyRender->setDoesNotAlias(1);
+            likelyRender->setDoesNotCapture(1);
+            likelyRender->setDoesNotAlias(2);
+            likelyRender->setDoesNotCapture(2);
+            likelyRender->setDoesNotAlias(3);
+            likelyRender->setDoesNotCapture(3);
+        }
+        vector<Value*> likelyRenderArguments;
+        likelyRenderArguments.push_back(arg);
+        likelyRenderArguments.push_back(ConstantPointerNull::get(Type::getDoublePtrTy(C)));
+        likelyRenderArguments.push_back(ConstantPointerNull::get(Type::getDoublePtrTy(C)));
+        return new Immediate(builder.CreateCall(likelyRender, likelyRenderArguments), likely_type_void);
+    }
+    void *symbol() const { return (void*) likely_render; }
+};
+LIKELY_REGISTER(render)
 #endif // LIKELY_IO
 
 } // namespace (anonymous)
