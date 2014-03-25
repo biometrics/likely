@@ -119,7 +119,6 @@ struct Expression
     virtual likely_type type() const = 0;
     virtual Expression *evaluate(Builder &builder, likely_const_ast ast) const = 0;
     virtual int precedence() const { return 0; }
-    virtual int leftHandAtoms() const { return 1; }
     virtual int rightHandAtoms() const { return 1; }
 
     operator Value*() const { return value(); }
@@ -620,7 +619,7 @@ struct RegisterExpression
         Expression *e = new E();
         likely_environment::defaultExprs[symbol].push(shared_ptr<Expression>(e));
         if (e->precedence())
-            likely_insert_operator(symbol, e->precedence(), e->leftHandAtoms(), e->rightHandAtoms());
+            likely_insert_operator(symbol, e->precedence(), e->rightHandAtoms());
     }
 };
 #define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);

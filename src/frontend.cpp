@@ -179,9 +179,9 @@ likely_ast likely_tokens_from_string(const char *str, bool GFM)
 struct Operator
 {
     int precedence;
-    size_t leftHandAtoms, rightHandAtoms;
-    Operator(int precedence, size_t leftHandAtoms, size_t rightHandAtoms)
-        : precedence(precedence), leftHandAtoms(leftHandAtoms), rightHandAtoms(rightHandAtoms)
+    size_t rightHandAtoms;
+    Operator(int precedence, size_t rightHandAtoms)
+        : precedence(precedence), rightHandAtoms(rightHandAtoms)
     {}
 };
 
@@ -192,9 +192,9 @@ static map<string, Operator> &ops()
     return Ops;
 }
 
-void likely_insert_operator(const char *symbol, int precedence, int left_hand_atoms, int right_hand_atoms)
+void likely_insert_operator(const char *symbol, int precedence, int right_hand_atoms)
 {
-    ops().insert(pair<string,Operator>(symbol, Operator(precedence, left_hand_atoms, right_hand_atoms)));
+    ops().insert(pair<string,Operator>(symbol, Operator(precedence, right_hand_atoms)));
 }
 
 static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence = 0);
@@ -204,15 +204,15 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
     if (!token->is_list) {
         const auto &op = ops().find(token->atom);
         if (op != ops().end() && (op->second.precedence > precedence)) {
-            if (output.size() < op->second.leftHandAtoms)
-                return likely_throw(token, "missing left hand side operand(s)");
+            if (output.empty())
+                return likely_throw(token, "missing left-hand operand");
             for (size_t i=0; i<op->second.rightHandAtoms; i++)
                 if (!shift(tokens, offset, output, op->second.precedence))
                     return 0;
-            int length = op->second.leftHandAtoms + op->second.rightHandAtoms;
-            output.insert(output.end()-length++, likely_retain_ast(token));
-            output.push_back(likely_new_list(&output[output.size()-length], length));
-            output.erase(output.end()-length-1, output.end()-1);
+            int atoms = 1 + op->second.rightHandAtoms;
+            output.insert(output.end()-atoms++, likely_retain_ast(token));
+            output.push_back(likely_new_list(&output[output.size()-atoms], atoms));
+            output.erase(output.end()-atoms-1, output.end()-1);
             return 1;
         }
     }
