@@ -1213,6 +1213,9 @@ class scalarExpression : public UnaryOperator, public LibraryFunction
         if (!argExpr)
             return NULL;
 
+        if (argExpr->value()->getType() == Type::getVoidTy(C))
+            return new Immediate(builder.nullMat());
+
         if (argExpr->value()->getType() == T::Void)
             return argExpr;
 
@@ -2138,6 +2141,24 @@ class renderExpression : public SimpleUnaryOperator, public LibraryFunction
     void *symbol() const { return (void*) likely_render; }
 };
 LIKELY_REGISTER(render)
+
+class showExpression : public SimpleUnaryOperator, public LibraryFunction
+{
+    Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
+    {
+        static FunctionType *functionType = FunctionType::get(Type::getVoidTy(C), T::Void, false);
+        Function *likelyShow = builder.resources->module->getFunction("likely_show");
+        if (!likelyShow) {
+            likelyShow = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_show", builder.resources->module);
+            likelyShow->setCallingConv(CallingConv::C);
+            likelyShow->setDoesNotAlias(1);
+            likelyShow->setDoesNotCapture(1);
+        }
+        return new Immediate(builder.CreateCall(likelyShow, arg), likely_type_void);
+    }
+    void *symbol() const { return (void*) likely_decode; }
+};
+LIKELY_REGISTER(show)
 #endif // LIKELY_IO
 
 } // namespace (anonymous)

@@ -221,3 +221,9 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
     if (max_) *max_ = max;
     return n;
 }
+
+void likely_show(likely_const_mat m)
+{
+    cv::imshow("Likely", likely::toCvMat(m));
+    cv::waitKey();
+}
