@@ -2,18 +2,15 @@ Mandelbrot Set
 --------------
 [Wikipedia Explanation](http://en.wikipedia.org/wiki/Mandelbrot_set)
 
-Control parameters
+Reactive location and resoution
 
     x_min = -2
     x_max = 1
     y_min = -1
     y_max = 1
-    iterations = 35
-
-Reactive resolution maintaining aspect ratio
-
     width = mandelbrot_set_width ?? 600
     height = width / (x_max - x_min) * (y_max - y_min)
+    iterations = 35
 
 Definition
 

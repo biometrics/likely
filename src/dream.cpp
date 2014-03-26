@@ -302,6 +302,7 @@ class Matrix : public QFrame
     QImage src;
     QString name;
     int width = 0, height = 0;
+    float x = 0, y = 0;
     QLabel *type, *image, *definition;
     QVBoxLayout *layout;
 
@@ -364,10 +365,21 @@ private:
     void resizeEvent(QResizeEvent *e)
     {
         QWidget::resizeEvent(e);
+        e->accept();
         updateMatrix(name);
     }
 
-    void updateMatrix(const QString &newName)
+    void wheelEvent(QWheelEvent *e)
+    {
+        QWidget::wheelEvent(e);
+        e->accept();
+        const float delta = float(e->delta()) / (360 * 8);
+        if (e->orientation() == Qt::Horizontal) x += delta;
+        else                                    y += delta;
+        updateMatrix(name, true);
+    }
+
+    void updateMatrix(const QString &newName, bool forceUpdate = false)
     {
         // Update image
         const bool visible = !src.isNull();
@@ -388,6 +400,7 @@ private:
         bool same = ((name == newName) && (width == newWidth) && (height == newHeight));
         same = same || (name.isEmpty() && newName.isEmpty());
         same = same || (((width == 0) || (height == 0)) && ((newWidth == 0) || (newHeight == 0)));
+        same = same && !forceUpdate;
 
         // Update the definition
         name = newName;
@@ -401,8 +414,14 @@ private:
             definition->clear();
             definition->setVisible(false);
         } else {
-            definition->setText(QString("    %1_width  = %2\n"
-                                        "    %1_height = %3").arg(name, QString::number(width), QString::number(height)));
+            definition->setText(QString("    %1_x      = %2\n"
+                                        "    %1_y      = %3\n"
+                                        "    %1_width  = %4\n"
+                                        "    %1_height = %5").arg(name,
+                                                                  QString::number(x),
+                                                                  QString::number(y),
+                                                                  QString::number(width),
+                                                                  QString::number(height)));
             definition->setVisible(true);
         }
 

@@ -1044,7 +1044,7 @@ private:
     {
         likely_env restored = builder.env;
         builder.env = this->env;
-        unique_ptr<Expression> op(builder.expression(this->ast));
+        UniqueExpression op(builder.expression(this->ast));
         builder.env = restored;
         return op->evaluate(builder, ast);
     }
