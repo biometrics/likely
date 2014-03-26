@@ -4,13 +4,16 @@ Mandelbrot Set
 
 Control parameters
 
-    width = mandelbrot_set_width ?? 600
-    height = mandelbrot_set_height ?? 400
     x_min = -2
     x_max = 1
     y_min = -1
     y_max = 1
     iterations = 35
+
+Reactive resolution maintaining aspect ratio
+
+    width = mandelbrot_set_width ?? 600
+    height = width / (x_max - x_min) * (y_max - y_min)
 
 Definition
 

@@ -374,9 +374,11 @@ private:
         image->setVisible(visible);
         int newWidth, newHeight;
         if (visible) {
-            newWidth = qMin(image->size().width(), src.width());
-            newHeight = src.height() * width / src.width();
-            image->setPixmap(QPixmap::fromImage(src.scaled(QSize(newWidth, newHeight))));
+            int renderWidth = qMin(image->size().width(), src.width());
+            int renderHeight = src.height() * renderWidth / src.width();
+            image->setPixmap(QPixmap::fromImage(src.scaled(QSize(renderWidth, renderHeight))));
+            newWidth = image->size().width();
+            newHeight = image->size().height();
         } else {
             newWidth = 0;
             newHeight = 0;
