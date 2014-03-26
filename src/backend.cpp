@@ -630,7 +630,7 @@ static int getPrecedence(const char *op)
     if (!strcmp(op, "<<")) return 5;
     if (!strcmp(op, "+" )) return 6;
     if (!strcmp(op, "-" )) return 6;
-    if (!strcmp(op, "*" )) return 6;
+    if (!strcmp(op, "*" )) return 7;
     if (!strcmp(op, "/" )) return 7;
     if (!strcmp(op, "%" )) return 7;
     if (!strcmp(op, "." )) return 8;
