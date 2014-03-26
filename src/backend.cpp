@@ -161,15 +161,23 @@ struct UniqueASTL : public vector<likely_const_ast>
     void retain(likely_const_ast ast) { push_back(likely_retain_ast(ast)); }
 };
 
-struct UniqueExpression : public Expression, public unique_ptr<Expression>
+class ShadowExpression : public Expression
+{
+    Expression *e;
+
+public:
+    ShadowExpression(Expression *e = NULL) : e(e) {}
+    bool isNull() const { return e == NULL; }
+    Value* value() const { return e->value(); }
+    likely_type type() const { return e->type(); }
+    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+        { return e->evaluate(builder, ast); }
+};
+
+struct UniqueExpression : public ShadowExpression, public unique_ptr<Expression>
 {
     UniqueExpression(Expression *e = NULL)
-        : unique_ptr<Expression>(e) {}
-    bool isNull() const { return !get(); }
-    Value* value() const { return get()->value(); }
-    likely_type type() const { return get()->type(); }
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
-        { return get()->evaluate(builder, ast); }
+        : ShadowExpression(e), unique_ptr<Expression>(e) {}
 };
 
 #define TRY_EXPR(BUILDER, AST, EXPR)                    \
@@ -1107,7 +1115,7 @@ class definedExpression : public DefinitionOperator
 {
     Expression *evaluateDefinition(Builder &builder, const string &name, likely_const_ast value) const
     {
-        if (Expression *e = builder.lookup(name)) return e;
+        if (Expression *e = builder.lookup(name)) return new ShadowExpression(e);
         else                                      return builder.expression(value);
     }
 };

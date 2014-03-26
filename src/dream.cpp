@@ -382,18 +382,20 @@ private:
             newHeight = 0;
         }
 
-        // Update definition if it has changed
-        if ((name == newName) && (width == newWidth) && (height == newHeight))
-            return;
+        // Determine if the definition has changed
+        bool same = ((name == newName) && (width == newWidth) && (height == newHeight));
+        same = same || (name.isEmpty() && newName.isEmpty());
+        same = same || (((width == 0) || (height == 0)) && ((newWidth == 0) || (newHeight == 0)));
 
-        if (name.isEmpty() && newName.isEmpty())
-            return;
-
+        // Update the definition
         name = newName;
         width = newWidth;
         height = newHeight;
 
-        if (name.isEmpty()) {
+        if (same)
+            return;
+
+        if (name.isEmpty() || (width == 0) || (height == 0)) {
             definition->clear();
             definition->setVisible(false);
         } else {

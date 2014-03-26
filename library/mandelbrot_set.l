@@ -4,24 +4,20 @@ Mandelbrot Set
 
 Control parameters
 
+    width = mandelbrot_set_width ?? 600
+    height = mandelbrot_set_height ?? 400
     x_min = -2
     x_max = 1
     y_min = -1
     y_max = 1
-    resolution = 128
     iterations = 35
 
-Derived values
-
-    cols = (x_max - x_min) * resolution + 1
-    rows = (y_max - y_min) * resolution + 1
-
-Initialization
+Definition
 
     mandelbrot_set = (=> ()
     {
-      dzr = x.f32 / resolution + x_min
-      dzi = y.f32 / resolution + y_min
+      dzr = x.f32 / width * (x_max - x_min) + x_min
+      dzi = y.f32 / height * (y_max - y_min) + y_min
       zr = 0.f32
       zi = 0.f32
       j = 0
@@ -32,6 +28,8 @@ Initialization
       j = j + 1
       (? (zr * zr + zi * zi < 2 * 2) & (j < iterations) loop)
       j
-    } ((columns cols) (rows rows)) )
+    } ((columns width) (rows height)) )
+
+Execution
 
     mandelbrot_set
