@@ -273,9 +273,10 @@ private slots:
         if (asts) {
             likely_env env = likely_new_jit();
             for (size_t i=0; i<asts->num_atoms; i++) {
-                likely_const_mat result = likely_eval(asts->atoms[i], env);
+                likely_const_ast atom = asts->atoms[i];
+                likely_const_mat result = likely_eval(atom, env);
                 if (result) {
-                    emit newResult(result);
+                    emit newResult(result, !atom->is_list ? atom->atom : "");
                     likely_release(result);
                 }
             }
@@ -291,55 +292,42 @@ private slots:
 signals:
     void finishedEval();
     void newFileName(QString);
-    void newResult(likely_const_mat result);
+    void newResult(likely_const_mat result, QString);
     void newStatus(QString);
 };
 
 class Matrix : public QFrame
 {
     Q_OBJECT
-
     QImage src;
-    QLabel *image;
-    QWidget *caption;
-    QLabel *type;
-    QLineEdit *name;
-    QLabel *definition;
-    QHBoxLayout *captionLayout;
+    QString name;
+    int width = 0, height = 0;
+    QLabel *type, *image, *definition;
     QVBoxLayout *layout;
 
 public:
     Matrix()
+        : type(new QLabel(this))
+        , image(new QLabel(this))
+        , definition(new QLabel(this))
+        , layout(new QVBoxLayout(this))
     {
-        setFrameStyle(QFrame::Panel | QFrame::Raised);
-        setLineWidth(2);
-        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        image = new QLabel(this);
         image->setAlignment(Qt::AlignCenter);
         image->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
-        caption = new QWidget(this);
-        type = new QLabel(this);
-        name = new QLineEdit(this);
-        definition = new QLabel(this);
         definition->setWordWrap(true);
         definition->setVisible(false);
-        captionLayout = new QHBoxLayout(caption);
-        captionLayout->addWidget(type);
-        captionLayout->addWidget(name);
-        captionLayout->setContentsMargins(0, 0, 0, 0);
-        captionLayout->setSpacing(3);
-        layout = new QVBoxLayout(this);
+        layout->addWidget(type);
         layout->addWidget(image);
-        layout->addWidget(caption);
-        layout->addWidget(name);
         layout->addWidget(definition);
         layout->setContentsMargins(3, 3, 3, 3);
         layout->setSpacing(3);
+        setFrameStyle(QFrame::Panel | QFrame::Raised);
         setLayout(layout);
-        connect(name, SIGNAL(textChanged(QString)), this, SLOT(updateDefinition()));
+        setLineWidth(2);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     }
 
-    void show(likely_const_mat m)
+    void show(likely_const_mat m, const QString &name)
     {
         if (likely_elements(m) <= 16) {
             src = QImage();
@@ -364,7 +352,7 @@ public:
             likely_release(str);
         }
 
-        updatePixmap();
+        updateMatrix(name);
     }
 
     QString getDefinition() const
@@ -376,33 +364,44 @@ private:
     void resizeEvent(QResizeEvent *e)
     {
         QWidget::resizeEvent(e);
-        updatePixmap();
+        updateMatrix(name);
     }
 
-    void updatePixmap()
+    void updateMatrix(const QString &newName)
     {
+        // Update image
         const bool visible = !src.isNull();
         image->setVisible(visible);
+        int newWidth, newHeight;
         if (visible) {
-            const int width = qMin(image->size().width(), src.width());
-            const int height = src.height() * width / src.width();
-            image->setPixmap(QPixmap::fromImage(src.scaled(QSize(width, height))));
+            newWidth = qMin(image->size().width(), src.width());
+            newHeight = src.height() * width / src.width();
+            image->setPixmap(QPixmap::fromImage(src.scaled(QSize(newWidth, newHeight))));
+        } else {
+            newWidth = 0;
+            newHeight = 0;
         }
-        updateDefinition();
-    }
 
-private slots:
-    void updateDefinition()
-    {
-        name->setVisible(!src.isNull());
-        if (!name->isVisible() || name->text().isEmpty()) {
+        // Update definition if it has changed
+        if ((name == newName) && (width == newWidth) && (height == newHeight))
+            return;
+
+        if (name.isEmpty() && newName.isEmpty())
+            return;
+
+        name = newName;
+        width = newWidth;
+        height = newHeight;
+
+        if (name.isEmpty()) {
             definition->clear();
             definition->setVisible(false);
         } else {
-            definition->setText(QString("    %1_width = %2\n"
-                                        "    %1_height = %3").arg(name->text(), QString::number(image->size().width()), QString::number(image->size().height())));
+            definition->setText(QString("    %1_width  = %2\n"
+                                        "    %1_height = %3").arg(name, QString::number(width), QString::number(height)));
             definition->setVisible(true);
         }
+
         emit definitionChanged();
     }
 
@@ -415,6 +414,7 @@ class Printer : public QScrollArea
     Q_OBJECT
     QVBoxLayout *layout;
     int offset = 0;
+    bool dirty = false;
 
 public:
     Printer(QWidget *parent = 0)
@@ -436,27 +436,36 @@ public slots:
         for (int i=offset; i<layout->count(); i++)
             layout->itemAt(i)->widget()->deleteLater();
         offset = 0;
+        if (dirty) {
+            definitionChanged();
+            dirty = false;
+        }
     }
 
-    void print(likely_const_mat mat)
+    void print(likely_const_mat mat, const QString &name)
     {
         const int i = offset++;
         if (QLayoutItem *item = layout->itemAt(i)) // Try to recycle the widget
-            return static_cast<Matrix*>(item->widget())->show(mat);
+            return static_cast<Matrix*>(item->widget())->show(mat, name);
         Matrix *matrix = new Matrix();
         layout->insertWidget(i, matrix);
         connect(matrix, SIGNAL(definitionChanged()), this, SLOT(definitionChanged()));
-        matrix->show(mat);
+        matrix->show(mat, name);
     }
 
 private slots:
     void definitionChanged()
     {
-        QStringList definitions;
-        for (int i=0; i<layout->count(); i++)
-            definitions.append(static_cast<Matrix*>(layout->itemAt(i)->widget())->getDefinition());
-        definitions.removeAll(QString());
-        emit newDefinitions(definitions.join("\n") + (definitions.isEmpty() ? "" : "\n"));
+        if (offset > 0) {
+            // Wait until printing is done to emit new definitions
+            dirty = true;
+        } else {
+            QStringList definitions;
+            for (int i=0; i<layout->count(); i++)
+                definitions.append(static_cast<Matrix*>(layout->itemAt(i)->widget())->getDefinition());
+            definitions.removeAll(QString());
+            emit newDefinitions(definitions.join("\n") + (definitions.isEmpty() ? "" : "\n"));
+        }
     }
 
 signals:
@@ -559,7 +568,7 @@ public:
         connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(fileMenu(QAction*)));
         connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
         connect(source, SIGNAL(finishedEval()), printer, SLOT(finishedPrinting()));
-        connect(source, SIGNAL(newResult(likely_const_mat)), printer, SLOT(print(likely_const_mat)));
+        connect(source, SIGNAL(newResult(likely_const_mat, QString)), printer, SLOT(print(likely_const_mat, QString)));
         connect(source, SIGNAL(newFileName(QString)), this, SLOT(setWindowTitle(QString)));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
 
@@ -587,7 +596,7 @@ private:
 
     static void show_callback(likely_const_mat m, void *context)
     {
-        reinterpret_cast<Printer*>(context)->print(m);
+        reinterpret_cast<Printer*>(context)->print(m, "");
     }
 };
 
