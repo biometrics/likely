@@ -792,115 +792,124 @@ class ArithmeticOperator : public SimpleBinaryOperator
     virtual Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const = 0;
 };
 
-class addExpression : public ArithmeticOperator
+class SimpleArithmeticOperator : public ArithmeticOperator
 {
-    int precedence() const { return 5; }
     Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
     {
+        return new Immediate(evaluateSimpleArithmetic(builder, lhs, rhs), lhs);
+    }
+    virtual Value *evaluateSimpleArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const = 0;
+};
+
+class addExpression : public SimpleArithmeticOperator
+{
+    int precedence() const { return 5; }
+    Value *evaluateSimpleArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
+    {
         if (likely_floating(lhs)) {
-            return new Immediate(builder.CreateFAdd(lhs, rhs), lhs);
+            return builder.CreateFAdd(lhs, rhs);
         } else {
             if (likely_saturation(lhs)) {
                 CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.resources->module, likely_signed(lhs) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs.value_->getType()), lhs, rhs);
                 Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, Builder::zero(lhs)), Builder::intMax(lhs), Builder::intMin(lhs)) : Builder::intMax(lhs);
-                return new Immediate(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), lhs);
+                return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
             } else {
-                return new Immediate(builder.CreateAdd(lhs, rhs), lhs);
+                return builder.CreateAdd(lhs, rhs);
             }
         }
     }
 };
 LIKELY_REGISTER_EXPRESSION(add, "+")
 
-class subtractExpression : public ArithmeticOperator
+class subtractExpression : public SimpleArithmeticOperator
 {
     int precedence() const { return 5; }
-    Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
+    Value *evaluateSimpleArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
     {
         if (likely_floating(lhs)) {
-            return new Immediate(builder.CreateFSub(lhs, rhs), lhs);
+            return builder.CreateFSub(lhs, rhs);
         } else {
             if (likely_saturation(lhs)) {
                 CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.resources->module, likely_signed(lhs) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value_->getType()), lhs, rhs);
                 Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateICmpSGE(lhs.value_, Builder::zero(lhs)), Builder::intMax(lhs), Builder::intMin(lhs)) : Builder::intMin(lhs);
-                return new Immediate(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), lhs);
+                return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
             } else {
-                return new Immediate(builder.CreateSub(lhs, rhs), lhs);
+                return builder.CreateSub(lhs, rhs);
             }
         }
     }
 };
 LIKELY_REGISTER_EXPRESSION(subtract, "-")
 
-class multiplyExpression : public ArithmeticOperator
+class multiplyExpression : public SimpleArithmeticOperator
 {
     int precedence() const { return 6; }
-    Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
+    Value *evaluateSimpleArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
     {
         if (likely_floating(lhs)) {
-            return new Immediate(builder.CreateFMul(lhs, rhs), lhs);
+            return builder.CreateFMul(lhs, rhs);
         } else {
             if (likely_saturation(lhs)) {
                 CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.resources->module, likely_signed(lhs) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs.value_->getType()), lhs, rhs);
                 Value *zero = Builder::zero(lhs);
                 Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateXor(builder.CreateICmpSGE(lhs.value_, zero), builder.CreateICmpSGE(rhs.value_, zero)), Builder::intMin(lhs), Builder::intMax(lhs)) : Builder::intMax(lhs);
-                return new Immediate(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), lhs);
+                return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
             } else {
-                return new Immediate(builder.CreateMul(lhs, rhs), lhs);
+                return builder.CreateMul(lhs, rhs);
             }
         }
     }
 };
 LIKELY_REGISTER_EXPRESSION(multiply, "*")
 
-class divideExpression : public ArithmeticOperator
+class divideExpression : public SimpleArithmeticOperator
 {
     int precedence() const { return 6; }
-    Expression *evaluateArithmetic(Builder &builder, const Immediate &n, const Immediate &d) const
+    Value *evaluateSimpleArithmetic(Builder &builder, const Immediate &n, const Immediate &d) const
     {
         if (likely_floating(n)) {
-            return new Immediate(builder.CreateFDiv(n, d), n);
+            return builder.CreateFDiv(n, d);
         } else {
             if (likely_signed(n)) {
                 if (likely_saturation(n)) {
                     Value *safe_i = builder.CreateAdd(n, builder.CreateZExt(builder.CreateICmpNE(builder.CreateOr(builder.CreateAdd(d.value_, Builder::one(n)), builder.CreateAdd(n.value_, Builder::intMin(n))), Builder::zero(n)), n.value_->getType()));
-                    return new Immediate(builder.CreateSDiv(safe_i, d), n);
+                    return builder.CreateSDiv(safe_i, d);
                 } else {
-                    return new Immediate(builder.CreateSDiv(n, d), n);
+                    return builder.CreateSDiv(n, d);
                 }
             } else {
-                return new Immediate(builder.CreateUDiv(n, d), n);
+                return builder.CreateUDiv(n, d);
             }
         }
     }
 };
 LIKELY_REGISTER_EXPRESSION(divide, "/")
 
-class remExpression : public ArithmeticOperator
+class remExpression : public SimpleArithmeticOperator
 {
-    Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
+    Value *evaluateSimpleArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
     {
-        return new Immediate(likely_floating(lhs) ? builder.CreateFRem(lhs, rhs)
-                                                  : (likely_signed(lhs) ? builder.CreateSRem(lhs, rhs)
-                                                                        : builder.CreateURem(lhs, rhs)), lhs);
+        return likely_floating(lhs) ? builder.CreateFRem(lhs, rhs)
+                                    : (likely_signed(lhs) ? builder.CreateSRem(lhs, rhs)
+                                                          : builder.CreateURem(lhs, rhs));
     }
 };
 LIKELY_REGISTER_EXPRESSION(rem, "%")
 
-#define LIKELY_REGISTER_LOGIC(OP, SYM)                                                                 \
-class OP##Expression : public ArithmeticOperator                                                       \
-{                                                                                                      \
-    Expression *evaluateArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const \
-    {                                                                                                  \
-        return new Immediate(builder.Create##OP(lhs, rhs.value_), lhs);                                \
-    }                                                                                                  \
-};                                                                                                     \
-LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                    \
+#define LIKELY_REGISTER_LOGIC(OP, SYM)                                                                  \
+class OP##Expression : public SimpleArithmeticOperator                                                  \
+{                                                                                                       \
+    Value *evaluateSimpleArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const \
+    {                                                                                                   \
+        return builder.Create##OP(lhs, rhs.value_);                                                     \
+    }                                                                                                   \
+};                                                                                                      \
+LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                     \
 
-LIKELY_REGISTER_LOGIC(And, "and")
-LIKELY_REGISTER_LOGIC(Or, "or")
-LIKELY_REGISTER_LOGIC(Xor, "xor")
-LIKELY_REGISTER_LOGIC(Shl, "shl")
+LIKELY_REGISTER_LOGIC(And, "&")
+LIKELY_REGISTER_LOGIC(Or, "|")
+LIKELY_REGISTER_LOGIC(Xor, "^")
+LIKELY_REGISTER_LOGIC(Shl, "<<")
 LIKELY_REGISTER_LOGIC(LShr, "lshr")
 LIKELY_REGISTER_LOGIC(AShr, "ashr")
 
