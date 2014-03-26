@@ -330,8 +330,8 @@ public:
         captionLayout->setSpacing(3);
         layout = new QVBoxLayout(this);
         layout->addWidget(image);
-        layout->addWidget(name);
         layout->addWidget(caption);
+        layout->addWidget(name);
         layout->addWidget(definition);
         layout->setContentsMargins(3, 3, 3, 3);
         layout->setSpacing(3);
@@ -399,8 +399,8 @@ private slots:
             definition->clear();
             definition->setVisible(false);
         } else {
-            definition->setText(QString("(define %1.width %2)\n"
-                                        "(define %1.height %3)").arg(name->text(), QString::number(image->size().width()), QString::number(image->size().height())));
+            definition->setText(QString("    %1_width = %2\n"
+                                        "    %1_height = %3").arg(name->text(), QString::number(image->size().width()), QString::number(image->size().height())));
             definition->setVisible(true);
         }
         emit definitionChanged();
