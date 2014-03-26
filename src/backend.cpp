@@ -803,7 +803,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
 
 class addExpression : public SimpleArithmeticOperator
 {
-    int precedence() const { return 5; }
+    int precedence() const { return 6; }
     Value *evaluateSimpleArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
     {
         if (likely_floating(lhs)) {
@@ -823,7 +823,7 @@ LIKELY_REGISTER_EXPRESSION(add, "+")
 
 class subtractExpression : public SimpleArithmeticOperator
 {
-    int precedence() const { return 5; }
+    int precedence() const { return 6; }
     Value *evaluateSimpleArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
     {
         if (likely_floating(lhs)) {
@@ -843,7 +843,7 @@ LIKELY_REGISTER_EXPRESSION(subtract, "-")
 
 class multiplyExpression : public SimpleArithmeticOperator
 {
-    int precedence() const { return 6; }
+    int precedence() const { return 7; }
     Value *evaluateSimpleArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
     {
         if (likely_floating(lhs)) {
@@ -864,7 +864,7 @@ LIKELY_REGISTER_EXPRESSION(multiply, "*")
 
 class divideExpression : public SimpleArithmeticOperator
 {
-    int precedence() const { return 6; }
+    int precedence() const { return 7; }
     Value *evaluateSimpleArithmetic(Builder &builder, const Immediate &n, const Immediate &d) const
     {
         if (likely_floating(n)) {
@@ -887,6 +887,7 @@ LIKELY_REGISTER_EXPRESSION(divide, "/")
 
 class remExpression : public SimpleArithmeticOperator
 {
+    int precedence() const { return 7; }
     Value *evaluateSimpleArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const
     {
         return likely_floating(lhs) ? builder.CreateFRem(lhs, rhs)
@@ -896,9 +897,10 @@ class remExpression : public SimpleArithmeticOperator
 };
 LIKELY_REGISTER_EXPRESSION(rem, "%")
 
-#define LIKELY_REGISTER_LOGIC(OP, SYM)                                                                  \
+#define LIKELY_REGISTER_LOGIC(OP, SYM, PRE)                                                             \
 class OP##Expression : public SimpleArithmeticOperator                                                  \
 {                                                                                                       \
+    int precedence() const { return PRE; }                                                              \
     Value *evaluateSimpleArithmetic(Builder &builder, const Immediate &lhs, const Immediate &rhs) const \
     {                                                                                                   \
         return builder.Create##OP(lhs, rhs.value_);                                                     \
@@ -906,12 +908,12 @@ class OP##Expression : public SimpleArithmeticOperator                          
 };                                                                                                      \
 LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                     \
 
-LIKELY_REGISTER_LOGIC(And, "&")
-LIKELY_REGISTER_LOGIC(Or, "|")
-LIKELY_REGISTER_LOGIC(Xor, "^")
-LIKELY_REGISTER_LOGIC(Shl, "<<")
-LIKELY_REGISTER_LOGIC(LShr, "lshr")
-LIKELY_REGISTER_LOGIC(AShr, "ashr")
+LIKELY_REGISTER_LOGIC(And , "&"   , 5)
+LIKELY_REGISTER_LOGIC(Or  , "|"   , 5)
+LIKELY_REGISTER_LOGIC(Xor , "^"   , 5)
+LIKELY_REGISTER_LOGIC(Shl , "<<"  , 5)
+LIKELY_REGISTER_LOGIC(LShr, "lshr", 0)
+LIKELY_REGISTER_LOGIC(AShr, "ashr", 0)
 
 #define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                    \
 class OP##Expression : public ArithmeticOperator                                                                               \
@@ -1079,7 +1081,7 @@ LIKELY_REGISTER_EXPRESSION(define, "=")
 class compositionExpression : public Operator
 {
     size_t maxParameters() const { return 2; }
-    int precedence() const { return 7; }
+    int precedence() const { return 8; }
 
     static bool isInt(likely_const_ast atom)
     {
