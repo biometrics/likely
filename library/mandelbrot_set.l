@@ -4,9 +4,9 @@ Mandelbrot Set
 
 Reactive location and resoution
 
-    x_min   = -2 + (mandelbrot_set_x ?? 0)
+    x_min   = -2 + mandelbrot_set_x ?? 0
     x_range = 3
-    y_min   = -1
+    y_min   = -1 + mandelbrot_set_y ?? 0
     y_range = 2
     width   = mandelbrot_set_width ?? 600
     height  = width / x_range * y_range

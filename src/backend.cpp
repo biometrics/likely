@@ -624,7 +624,6 @@ static int getPrecedence(const char *op)
     if (!strcmp(op, "=>")) return 2;
     if (!strcmp(op, ":" )) return 3;
     if (!strcmp(op, "?" )) return 3;
-    if (!strcmp(op, "??")) return 3;
     if (!strcmp(op, "<" )) return 4;
     if (!strcmp(op, "<=")) return 4;
     if (!strcmp(op, ">" )) return 4;
@@ -640,6 +639,7 @@ static int getPrecedence(const char *op)
     if (!strcmp(op, "*" )) return 7;
     if (!strcmp(op, "/" )) return 7;
     if (!strcmp(op, "%" )) return 7;
+    if (!strcmp(op, "??")) return 8;
     if (!strcmp(op, "." )) return 8;
     return 0;
 }
@@ -1082,28 +1082,27 @@ class DefinitionOperator : public Operator
     {
         if (ast->atoms[1]->is_list)
             return error(ast->atoms[1], "expected an atom");
-        const string name = ast->atoms[1]->atom;
-        return evaluateDefinition(builder, name, ast->atoms[2]);
+        return evaluateDefinition(builder, ast->atoms[1], ast->atoms[2]);
     }
-    virtual Expression *evaluateDefinition(Builder &builder, const string &name, likely_const_ast value) const = 0;
+    virtual Expression *evaluateDefinition(Builder &builder, likely_const_ast name, likely_const_ast value) const = 0;
 };
 
 class defineExpression : public DefinitionOperator
 {
-    Expression *evaluateDefinition(Builder &builder, const string &name, likely_const_ast value) const
+    Expression *evaluateDefinition(Builder &builder, likely_const_ast name, likely_const_ast value) const
     {
         if (builder.resources) {
             // Local variable
             Expression *expr = builder.expression(value);
             if (expr) {
-                UniqueExpression &variable = builder.locals[name];
-                if (variable.isNull()) variable = new Variable(builder, expr, name);
+                UniqueExpression &variable = builder.locals[name->atom];
+                if (variable.isNull()) variable = new Variable(builder, expr, name->atom);
                 else                   static_cast<Variable*>(variable.get())->set(builder, expr);
             }
             return expr;
         } else {
             // Global variable
-            builder.define(name, new Definition(builder, value));
+            builder.define(name->atom, new Definition(builder, value));
             return NULL;
         }
     }
@@ -1112,10 +1111,10 @@ LIKELY_REGISTER_EXPRESSION(define, "=")
 
 class definedExpression : public DefinitionOperator
 {
-    Expression *evaluateDefinition(Builder &builder, const string &name, likely_const_ast value) const
+    Expression *evaluateDefinition(Builder &builder, likely_const_ast name, likely_const_ast value) const
     {
-        if (Expression *e = builder.lookup(name)) return new ShadowExpression(e);
-        else                                      return builder.expression(value);
+        if (builder.lookup(name->atom)) return builder.expression(name);
+        else                            return builder.expression(value);
     }
 };
 LIKELY_REGISTER_EXPRESSION(defined, "??")
