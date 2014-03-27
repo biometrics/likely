@@ -302,7 +302,7 @@ class Matrix : public QFrame
     QImage src;
     QString name;
     int width = 0, height = 0;
-    float x = 0, y = 0, scale = 1;
+    double x = 0, y = 0, scale = 1;
     QLabel *type, *image, *definition;
     QVBoxLayout *layout;
 
@@ -379,9 +379,9 @@ private:
     void wheelEvent(QWheelEvent *e)
     {
         e->accept();
-        const float delta = float(e->delta()) / (360 * 8);
-        if (e->orientation() == Qt::Horizontal) x += delta;
-        else                                    y += delta;
+        const double delta = double(e->delta()) / (360 * 8);
+        if (e->orientation() == Qt::Horizontal) x += delta * scale;
+        else                                    y += delta * scale;
         updateMatrix(name, true);
     }
 
