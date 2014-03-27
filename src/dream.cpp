@@ -365,6 +365,13 @@ private:
     void mouseDoubleClickEvent(QMouseEvent *e)
     {
         e->accept();
+        QPoint point = image->mapFromParent(e->pos());
+        if (!image->rect().contains(point))
+            return;
+
+        const double resolution = qMax(image->size().width(), image->size().height()) / 2.0;
+        x += (point.x() - resolution) / resolution * scale;
+        y += (point.y() - resolution) / resolution * scale;
         scale /= 1.5;
         updateMatrix(name, true);
     }

@@ -2,13 +2,14 @@ Mandelbrot Set
 --------------
 [Wikipedia Explanation](http://en.wikipedia.org/wiki/Mandelbrot_set)
 
-Reactive location and resoution
+Reactive location and resolution
 
-    x_min   = -2 + mandelbrot_set_x     ?? 0
-    y_min   = -1 + mandelbrot_set_y     ?? 0
-    x_range = 3  * mandelbrot_set_scale ?? 1
-    y_range = 2  * mandelbrot_set_scale ?? 1
-    width   =      mandelbrot_set_width ?? 600
+    scale   = 3 * mandelbrot_set_scale ?? 1
+    x_range = scale
+    y_range = 2 * scale / 3
+    x_min   = -2 + mandelbrot_set_x ?? 0
+    y_min   = -1 + mandelbrot_set_y ?? 0
+    width   = mandelbrot_set_width ?? 600
     height  = width / x_range * y_range
     iter    = 35
 
