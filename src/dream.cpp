@@ -369,9 +369,9 @@ private:
         if (!image->rect().contains(point))
             return;
 
-        const double resolution = qMax(image->size().width(), image->size().height()) / 2.0;
-        x += (point.x() - resolution) / resolution * scale;
-        y += (point.y() - resolution) / resolution * scale;
+        const double resolution = qMax(image->size().width(), image->size().height());
+        x += (point.x() - image->size().width()  / 2.0) / resolution * scale;
+        y += (point.y() - image->size().height() / 2.0) / resolution * scale;
         scale /= 1.5;
         updateMatrix(name, true);
     }

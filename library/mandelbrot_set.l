@@ -4,14 +4,15 @@ Mandelbrot Set
 
 Reactive location and resolution
 
-    scale   = 3 * mandelbrot_set_scale ?? 1
-    x_range = scale
-    y_range = 2 * scale / 3
-    x_min   = -2 + mandelbrot_set_x ?? 0
-    y_min   = -1 + mandelbrot_set_y ?? 0
-    width   = mandelbrot_set_width ?? 600
-    height  = width / x_range * y_range
-    iter    = 35
+    x_scale  = 3
+    y_scale  = 2
+    x_range  = x_scale * (mandelbrot_set_scale ?? 1).f32
+    y_range  = y_scale * (mandelbrot_set_scale ?? 1).f32
+    x_min    = x_scale * (mandelbrot_set_x ?? 0) - x_range / 2 - 0.5
+    y_min    = y_scale * (mandelbrot_set_y ?? 0) - y_range / 2
+    width    = mandelbrot_set_width ?? 600
+    height   = width / x_scale * y_scale
+    iter     = 35
 
 Definition
 
