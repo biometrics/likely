@@ -302,7 +302,7 @@ class Matrix : public QFrame
     QImage src;
     QString name;
     int width = 0, height = 0;
-    float x = 0, y = 0;
+    float x = 0, y = 0, scale = 1;
     QLabel *type, *image, *definition;
     QVBoxLayout *layout;
 
@@ -362,6 +362,13 @@ public:
     }
 
 private:
+    void mouseDoubleClickEvent(QMouseEvent *e)
+    {
+        e->accept();
+        scale /= 1.5;
+        updateMatrix(name, true);
+    }
+
     void resizeEvent(QResizeEvent *e)
     {
         QWidget::resizeEvent(e);
@@ -371,7 +378,6 @@ private:
 
     void wheelEvent(QWheelEvent *e)
     {
-        QWidget::wheelEvent(e);
         e->accept();
         const float delta = float(e->delta()) / (360 * 8);
         if (e->orientation() == Qt::Horizontal) x += delta;
@@ -417,11 +423,13 @@ private:
             definition->setText(QString("    %1_x      = %2\n"
                                         "    %1_y      = %3\n"
                                         "    %1_width  = %4\n"
-                                        "    %1_height = %5").arg(name,
+                                        "    %1_height = %5\n"
+                                        "    %1_scale  = %6").arg(name,
                                                                   QString::number(x),
                                                                   QString::number(y),
                                                                   QString::number(width),
-                                                                  QString::number(height)));
+                                                                  QString::number(height),
+                                                                  QString::number(scale)));
             definition->setVisible(true);
         }
 
