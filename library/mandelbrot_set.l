@@ -4,20 +4,20 @@ Mandelbrot Set
 
 Reactive location and resoution
 
-    x_min = -2
-    x_max = 1
-    y_min = -1
-    y_max = 1
-    width = mandelbrot_set_width ?? 600
-    height = width / (x_max - x_min) * (y_max - y_min)
+    x_min   = -2 + (mandelbrot_set_x ?? 0)
+    x_range = 3
+    y_min   = -1
+    y_range = 2
+    width   = mandelbrot_set_width ?? 600
+    height  = width / x_range * y_range
     iterations = 35
 
 Definition
 
     mandelbrot_set = (=> ()
     {
-      dzr = x.f32 / width * (x_max - x_min) + x_min
-      dzi = y.f32 / height * (y_max - y_min) + y_min
+      dzr = x.f32 / width * x_range + x_min
+      dzi = y.f32 / height * y_range + y_min
       zr = 0.f32
       zi = 0.f32
       j = 0
