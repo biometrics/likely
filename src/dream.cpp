@@ -301,6 +301,7 @@ class Matrix : public QFrame
     Q_OBJECT
     QImage src;
     QString name;
+    QPoint prevMousePos;
     int width = 0, height = 0;
     double x = 0, y = 0, scale = 1;
     QLabel *type, *image, *definition;
@@ -373,6 +374,26 @@ private:
         x += (point.x() - image->size().width()  / 2.0) / resolution * scale;
         y += (point.y() - image->size().height() / 2.0) / resolution * scale;
         scale /= 1.5;
+        updateMatrix(name, true);
+    }
+
+    void mousePressEvent(QMouseEvent *e)
+    {
+        e->accept();
+        if (image->rect().contains(image->mapFromParent(e->pos()))) prevMousePos = e->pos();
+        else                                                        prevMousePos = QPoint();
+    }
+
+    void mouseMoveEvent(QMouseEvent *e)
+    {
+        e->accept();
+        QPoint mousePos = e->pos();
+        if (!prevMousePos.isNull()) {
+            const double resolution = qMax(image->size().width(), image->size().height());
+            x -= (mousePos.x() - prevMousePos.x()) / resolution * scale;
+            y -= (mousePos.y() - prevMousePos.y()) / resolution * scale;
+        }
+        prevMousePos = mousePos;
         updateMatrix(name, true);
     }
 
