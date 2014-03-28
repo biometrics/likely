@@ -21,6 +21,7 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
+#include <llvm/Support/CommandLine.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -28,24 +29,17 @@
 #include <likely/opencv.hpp>
 
 using namespace cv;
+using namespace llvm;
 using namespace std;
 
 #define LIKELY_ERROR_TOLERANCE 0.000001
 #define LIKELY_TEST_SECONDS 1
 
-static int ExitStatus = EXIT_SUCCESS;
-
-// Optional arguments to run only a subset of the benchmarks
-static bool        BenchmarkAll        = false;
-static int         BenchmarkExecution  = -1;
-static string      BenchmarkFile       = "";
-static string      BenchmarkFunction   = "";
-static bool        BenchmarkSaturation = true;
-static int         BenchmarkSize       = 0;
-static bool        BenchmarkSpeed      = true;
-static bool        BenchmarkTutorial   = false;
-static likely_type BenchmarkType       = likely_type_void;
-static bool        BenchmarkVerbose    = false;
+cl::opt<bool> BenchmarkTest    ("test"     , cl::desc("Run tutorials and unit tests for correctness only"));
+cl::opt<bool> BenchmarkTutorial("tutorial" , cl::desc("Run tutorials instead of unit tests"              ));
+cl::opt<bool> BenchmarkVerbose ("verbose"  , cl::desc("Verbose benchmark output"                         ));
+cl::opt<string> BenchmarkFile    ("file"    , cl::desc("Benchmark the specified file only"    ), cl::value_desc("filename"));
+cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"  ));
 
 static Mat generateData(int rows, int columns, likely_type type, double scaleFactor)
 {
@@ -76,29 +70,24 @@ struct Test
         likely_release_ast(ast);
 
         for (likely_type type : types()) {
-            if ((BenchmarkType != likely_type_void) && (BenchmarkType != type))
-                continue;
-
             for (int size : sizes()) {
-                if ((BenchmarkSize != 0) && (BenchmarkSize != size))
-                    continue;
+                if (BenchmarkTest && (size != 256)) continue;
 
                 // Generate input matrix
                 Mat srcCV = generateData(size, size, type, scaleFactor());
                 likely_mat srcLikely = fromCvMat(srcCV);
 
-                for (int execution : executions()) {
-                    if ((BenchmarkExecution != -1) && (BenchmarkExecution != execution))
-                        continue;
-
-                    likely_set_parallel(&srcLikely->type, execution != 0);
-
+                vector<string> executions;
+                executions.push_back("Serial");
+                executions.push_back("Parallel");
+                for (const string &execution : executions) {
+                    likely_set_parallel(&srcLikely->type, execution == "Parallel");
                     likely_mat typeString = likely_type_to_string(type);
-                    printf("%s \t%s \t%d \t%s\t", function(), typeString->data, size, execution ? "Parallel" : "Serial  ");
+                    printf("%s \t%s \t%d \t%s\t", function(), typeString->data, size, execution.c_str());
                     likely_release(typeString);
                     testCorrectness(f, srcCV, srcLikely);
 
-                    if (!BenchmarkSpeed) {
+                    if (BenchmarkTest) {
                         printf("\n");
                         continue;
                     }
@@ -146,7 +135,7 @@ struct Test
         }
         likely_release_env(env);
 
-        if (!BenchmarkSpeed) {
+        if (BenchmarkTest) {
             printf("\n");
             return;
         }
@@ -202,20 +191,10 @@ protected:
         return sizes;
     }
 
-    virtual vector<bool> executions() const
-    {
-        static vector<bool> executions;
-        if (executions.empty()) {
-            executions.push_back(false);
-            executions.push_back(true);
-        }
-        return executions;
-    }
-
+    virtual bool serial() const { return true; }
+    virtual bool parallel() const { return true; }
     virtual double scaleFactor() const { return 1.0; }
-
-    // OpenCV rounds integer division, Likely floors it.
-    virtual bool ignoreOffByOne() const { return false; }
+    virtual bool ignoreOffByOne() const { return false; } // OpenCV rounds integer division, Likely floors it.
 
 private:
     struct Speed
@@ -231,7 +210,7 @@ private:
     {
         likely_mat m = likely::fromCvMat(src);
         if (!likely_floating(m->type) && (likely_depth(m->type) <= 16))
-            likely_set_saturation(&m->type, BenchmarkSaturation);
+            likely_set_saturation(&m->type, true);
         return m;
     }
 
@@ -263,7 +242,7 @@ private:
                     }
             if (errors > 0) {
                 fprintf(stderr, "Test for: %s differs in: %d location(s):\n%s", function(), errors, errorLocations.str().c_str());
-                ExitStatus = EXIT_FAILURE;
+                exit(EXIT_FAILURE);
             }
             likely_release(cvLikely);
         }
@@ -436,47 +415,9 @@ class thresholdTest : public Test {
     vector<likely_type> types() const { vector<likely_type> types; types.push_back(likely_type_u8); types.push_back(likely_type_f32); return types; }
 };
 
-static void help()
-{
-    printf("Usage:\n"
-           "  benchmark [arguments]\n"
-           "\n"
-           "Arguments:\n"
-           "  --all           Run tutorial and benchmark\n"
-           "  --help          Print benchmark usage\n"
-           "  -file <str>     Benchmark the specified file only\n"
-           "  -function <str> Benchmark the specified function only\n"
-           "  --no-sat        Test without saturated arithmetic\n"
-           "  --no-speed      Test correctness only\n"
-           "  --parallel      Benchmark multi-threaded only\n"
-           "  --serial        Benchmark single-threaded only\n"
-           "  -size <int>     Benchmark the specified size only\n"
-           "  --test          --all -size 256 --no-speed\n"
-           "  --tutorial      Run Likely tutorial instead of benchmarking\n"
-           "  -type <type>    Benchmark the specified type only\n"
-           "  --verbose       Verbose benchmark output\n");
-    exit(ExitStatus);
-}
-
 int main(int argc, char *argv[])
 {
-    // Parse arguments
-    for (int i=1; i<argc; i++) {
-        if      (!strcmp("--all"     , argv[i])) BenchmarkAll = true;
-        else if (!strcmp("--help"    , argv[i]) || !strcmp("-h", argv[i])) help();
-        else if (!strcmp("-file"     , argv[i])) BenchmarkFile = argv[++i];
-        else if (!strcmp("-function" , argv[i])) BenchmarkFunction = argv[++i];
-        else if (!strcmp("--no-sat"  , argv[i])) BenchmarkSaturation = false;
-        else if (!strcmp("--no-speed", argv[i])) BenchmarkSpeed = false;
-        else if (!strcmp("--parallel", argv[i])) BenchmarkExecution = true;
-        else if (!strcmp("--serial"  , argv[i])) BenchmarkExecution = false;
-        else if (!strcmp("-size"     , argv[i])) BenchmarkSize = atoi(argv[++i]);
-        else if (!strcmp("--test"    , argv[i])) { BenchmarkAll = true; BenchmarkSize = 256, BenchmarkSpeed = false; }
-        else if (!strcmp("--tutorial", argv[i])) BenchmarkTutorial = true;
-        else if (!strcmp("-type"     , argv[i])) BenchmarkType = likely_type_from_string(argv[++i]);
-        else if (!strcmp("--verbose" , argv[i])) BenchmarkVerbose = true;
-        else    { printf("Unrecognized argument: %s\nTry running 'benchmark --help' for help", argv[i]); return 1; }
-    }
+    cl::ParseCommandLineOptions(argc, argv);
 
     // Print to console immediately
     setbuf(stdout, NULL);
@@ -486,7 +427,7 @@ int main(int argc, char *argv[])
         return EXIT_SUCCESS;
     }
 
-    if (BenchmarkTutorial || BenchmarkAll) {
+    if (BenchmarkTutorial || BenchmarkTest) {
         printf("File     \tSpeed (Hz)\n");
         ifstream file("../library/tutorial.l");
         string line;
@@ -499,7 +440,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (!BenchmarkTutorial || BenchmarkAll) {
+    if (!BenchmarkTutorial || BenchmarkTest) {
         printf("Function \tType \tSize \tExecution \tSpeedup\n");
         addTest().run();
         subtractTest().run();
@@ -528,6 +469,6 @@ int main(int argc, char *argv[])
         thresholdTest().run();
     }
 
-    return ExitStatus;
+    return EXIT_SUCCESS;
 }
 
