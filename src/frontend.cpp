@@ -201,7 +201,38 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_a
 
 static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence)
 {
-    if (!token->is_list) {
+    if (!token->is_list && (precedence < std::numeric_limits<int>::max())) {
+        if (!strcmp(token->atom, ".")) {
+            if (output.empty())
+                return likely_throw(token, "missing operand");
+            if (!shift(tokens, offset, output, std::numeric_limits<int>::max()))
+                return 0;
+
+            // See if the combined token is a number
+            if (!output[output.size()-2]->is_list && !output[output.size()-1]->is_list) {
+                stringstream stream;
+                stream << output[output.size()-2]->atom << "." << output[output.size()-1]->atom;
+                char *p;
+                strtod(stream.str().c_str(), &p);
+                if (*p == 0) {
+                    // It's a number
+                    likely_ast number = likely_new_atom(stream.str().c_str());
+                    number->begin = output[output.size()-2]->begin;
+                    number->end   = output[output.size()-1]->end;
+                    output.erase(output.end()-2, output.end());
+                    output.push_back(number);
+                    return 1;
+                }
+            }
+
+            // It's a composition
+            vector<likely_const_ast> atoms;
+            atoms.push_back(output.back()); output.pop_back();
+            atoms.push_back(output.back()); output.pop_back();
+            output.push_back(likely_new_list(atoms.data(), atoms.size()));
+            return 1;
+        }
+
         const auto &op = ops().find(token->atom);
         if (op != ops().end() && (op->second.precedence > precedence)) {
             if (output.empty())
@@ -217,7 +248,7 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
         }
     }
 
-   return -1;
+    return -1;
 }
 
 static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence)

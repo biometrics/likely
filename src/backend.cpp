@@ -640,7 +640,6 @@ static int getPrecedence(const char *op)
     if (!strcmp(op, "/" )) return 7;
     if (!strcmp(op, "%" )) return 7;
     if (!strcmp(op, "??")) return 8;
-    if (!strcmp(op, "." )) return 8;
     return 0;
 }
 
@@ -1118,37 +1117,6 @@ class definedExpression : public DefinitionOperator
     }
 };
 LIKELY_REGISTER_EXPRESSION(defined, "??")
-
-class compositionExpression : public Operator
-{
-    size_t maxParameters() const { return 2; }
-
-    static bool isInt(likely_const_ast atom)
-    {
-        if (atom->is_list)
-            return false;
-        char *p;
-        strtol(atom->atom, &p, 10);
-        return *p == 0;
-    }
-
-    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        UniqueAST composed;
-        if (isInt(ast->atoms[1]) && isInt(ast->atoms[2])) {
-            stringstream stream;
-            stream << ast->atoms[1]->atom << "." << ast->atoms[2]->atom;
-            composed = likely_new_atom(stream.str().data());
-        } else {
-            vector<likely_const_ast> atoms(2);
-            atoms[0] = likely_retain_ast(ast->atoms[2]);
-            atoms[1] = likely_retain_ast(ast->atoms[1]);
-            composed = likely_new_list(atoms.data(), 2);
-        }
-        return builder.expression(composed.get());
-    }
-};
-LIKELY_REGISTER_EXPRESSION(composition, ".")
 
 class elementsExpression : public SimpleUnaryOperator, public LibraryFunction
 {
