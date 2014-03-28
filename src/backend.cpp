@@ -622,7 +622,7 @@ static int getPrecedence(const char *op)
     if (!strcmp(op, "=" )) return 1;
     if (!strcmp(op, "->")) return 2;
     if (!strcmp(op, "=>")) return 2;
-    if (!strcmp(op, ":" )) return 3;
+    if (!strcmp(op, "#" )) return 3;
     if (!strcmp(op, "?" )) return 3;
     if (!strcmp(op, "<" )) return 4;
     if (!strcmp(op, "<=")) return 4;
@@ -1599,7 +1599,7 @@ class labelExpression : public Operator
         return new Label(label);
     }
 };
-LIKELY_REGISTER_EXPRESSION(label, ":")
+LIKELY_REGISTER_EXPRESSION(label, "#")
 
 class ifExpression : public Operator
 {

@@ -23,7 +23,7 @@ Definition
       zr  = 0.f32
       zi  = 0.f32
       j   = 0
-    loop :
+    loop #
       tmp = zr * zr - zi * zi + zr0
       zi  = 2 * zr * zi       + zi0
       zr  = tmp
