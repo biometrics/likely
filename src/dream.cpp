@@ -363,6 +363,15 @@ public:
         return definition->text();
     }
 
+    void reset()
+    {
+        if ((x == 0) && (y == 0) && (angle == 0) && (scale == 1))
+            return;
+        x = y = angle = 0;
+        scale = 1;
+        updateMatrix(name, true);
+    }
+
 private:
     bool event(QEvent *e)
     {
@@ -530,6 +539,14 @@ public slots:
         matrix->show(mat, name);
     }
 
+    void reset()
+    {
+        assert(offset == 0);
+        while (QLayoutItem *item = layout->itemAt(offset++))
+            static_cast<Matrix*>(item->widget())->reset();
+        finishedPrinting();
+    }
+
 private slots:
     void definitionChanged()
     {
@@ -601,14 +618,17 @@ public:
         fileMenu->addAction(saveSourceAs);
 
         QMenu *commandsMenu = new QMenu("Commands");
+        QAction *reset = new QAction("Reset", commandsMenu);
         QAction *increment = new QAction("Increment", commandsMenu);
         QAction *decrement = new QAction("Decrement", commandsMenu);
         QAction *increment10x = new QAction("Increment 10x", commandsMenu);
         QAction *decrement10x = new QAction("Decrement 10x", commandsMenu);
+        reset->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_R));
         increment->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_Equal));
         decrement->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_Minus));
         increment10x->setShortcut(QKeySequence(Qt::CTRL+Qt::SHIFT+Qt::Key_Equal));
         decrement10x->setShortcut(QKeySequence(Qt::CTRL+Qt::SHIFT+Qt::Key_Minus));
+        commandsMenu->addAction(reset);
         commandsMenu->addAction(increment);
         commandsMenu->addAction(decrement);
         commandsMenu->addAction(increment10x);
@@ -648,6 +668,7 @@ public:
         connect(source, SIGNAL(newResult(likely_const_mat, QString)), printer, SLOT(print(likely_const_mat, QString)));
         connect(source, SIGNAL(newFileName(QString)), this, SLOT(setWindowTitle(QString)));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
+        connect(reset, SIGNAL(triggered()), printer, SLOT(reset()));
 
         likely_set_error_callback(error_callback, statusBar);
         likely_set_show_callback(show_callback, printer);
