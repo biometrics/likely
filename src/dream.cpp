@@ -303,7 +303,7 @@ class Matrix : public QFrame
     QString name;
     QPoint prevMousePos;
     int width = 0, height = 0;
-    double x = 0, y = 0, scale = 1;
+    double x = 0, y = 0, angle = 0, scale = 1;
     QLabel *type, *image, *definition;
     QVBoxLayout *layout;
 
@@ -323,6 +323,7 @@ public:
         layout->addWidget(definition);
         layout->setContentsMargins(3, 3, 3, 3);
         layout->setSpacing(3);
+        grabGesture(Qt::PinchGesture);
         setFrameStyle(QFrame::Panel | QFrame::Raised);
         setLayout(layout);
         setLineWidth(2);
@@ -363,6 +364,21 @@ public:
     }
 
 private:
+    bool event(QEvent *e)
+    {
+        if (e->type() == QEvent::Gesture) {
+            QGestureEvent *ge = static_cast<QGestureEvent*>(e);
+            if (QPinchGesture *pinch = static_cast<QPinchGesture*>(ge->gesture(Qt::PinchGesture))) {
+                scale = scale / pinch->scaleFactor() * pinch->lastScaleFactor();
+                angle += pinch->rotationAngle() - pinch->lastRotationAngle();
+                updateMatrix(name, true);
+            }
+            return true;
+        }
+
+        return QWidget::event(e);
+    }
+
     void mouseDoubleClickEvent(QMouseEvent *e)
     {
         e->accept();
@@ -452,11 +468,13 @@ private:
                                         "    %1_y      = %3\n"
                                         "    %1_width  = %4\n"
                                         "    %1_height = %5\n"
-                                        "    %1_scale  = %6").arg(name,
+                                        "    %1_angle  = %6\n"
+                                        "    %1_scale  = %7").arg(name,
                                                                   QString::number(x),
                                                                   QString::number(y),
                                                                   QString::number(width),
                                                                   QString::number(height),
+                                                                  QString::number(angle),
                                                                   QString::number(scale)));
             definition->setVisible(true);
         }
