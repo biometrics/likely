@@ -1605,7 +1605,7 @@ class ifExpression : public Operator
 {
     size_t minParameters() const { return 2; }
     size_t maxParameters() const { return 3; }
-    int rightHandAtoms() const { return 2; }
+    int rightHandAtoms() const { return 1; }
 
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {

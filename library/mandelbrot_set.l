@@ -16,7 +16,7 @@ Reactive location and resolution
 
 Definition
 
-    mandelbrot_set = (=> ()
+    mandelbrot_set = () =>
     {
       zr0 = x.f32 / width  * x_range + x_min
       zi0 = y.f32 / height * y_range + y_min
@@ -28,9 +28,9 @@ Definition
       zi  = 2 * zr * zi       + zi0
       zr  = tmp
       j   = j + 1
-      (? (zr * zr + zi * zi < 2 * 2) & (j < iter) loop)
+      ((zr * zr + zi * zi < 2 * 2) & (j < iter)) ? loop
       j
-    } ((columns width) (rows height)) )
+    } : ((columns width) (rows height))
 
 Execution
 

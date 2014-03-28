@@ -97,6 +97,7 @@ static void tokenize(const char *str, const size_t len, vector<likely_const_ast>
         while ((i < len) && (inString || ((str[i] > ignored) && (str[i] != '(')
                                                              && (str[i] != ')')
                                                              && (str[i] != '.')
+                                                             && (str[i] != ':')
                                                              && (str[i] != ';')))) {
             if      (str[i] == '"')  inString = !inString;
             else if (str[i] == '\\') i++;
@@ -237,10 +238,11 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
         if (op != ops().end() && (op->second.precedence > precedence)) {
             if (output.empty())
                 return likely_throw(token, "missing left-hand operand");
+            const size_t before = output.size();
             for (size_t i=0; i<op->second.rightHandAtoms; i++)
                 if (!shift(tokens, offset, output, op->second.precedence))
                     return 0;
-            int atoms = 1 + op->second.rightHandAtoms;
+            int atoms = 1 + output.size() - before;
             output.insert(output.end()-atoms++, likely_retain_ast(token));
             output.push_back(likely_new_list(&output[output.size()-atoms], atoms));
             output.erase(output.end()-atoms-1, output.end()-1);
@@ -291,7 +293,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_a
         else if (result == -1) output.push_back(likely_retain_ast(token));
     }
 
-    // Look ahead
+    // Conventional look ahead
     while (offset < tokens->num_atoms) {
         const int result = tryReduce(tokens->atoms[offset++], tokens, offset, output, precedence);
         if (result == -1) {
@@ -301,6 +303,13 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_a
             return false;
         }
     }
+
+    // Special case additional shift(s)
+    if (precedence < std::numeric_limits<int>::max())
+        while ((offset < tokens->num_atoms) && !tokens->atoms[offset]->is_list && !strcmp(tokens->atoms[offset]->atom, ":"))
+            if (!shift(tokens, ++offset, output, 0))
+                return false;
+
     return true;
 }
 
