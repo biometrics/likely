@@ -184,11 +184,7 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
                 }
             }
         }
-        range = (max - min)/255;
-        if ((range >= 0.25) && (range < 1)) {
-            max = min + 255;
-            range = 1;
-        }
+        range = (max - min) / 255.0;
     } else {
         min = 0;
         max = 255;
