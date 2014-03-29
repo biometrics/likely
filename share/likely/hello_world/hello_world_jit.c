@@ -5,6 +5,7 @@
 #include <likely.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 int main(int argc, char *argv[])
 {
@@ -12,7 +13,7 @@ int main(int argc, char *argv[])
 
     if (argc == 1) {
         input_image = "../data/misc/lenna.tiff"; // Assume we are run from a hypothetical <root>/bin folder
-        output_image = "dark_lenna.png";
+        output_image = "";
         filter = "a => a / (a.type 2)";
     } else if (argc == 4) {
         input_image = argv[1];
@@ -75,8 +76,10 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    printf("Writing output image...\n");
-    likely_write(dark_lenna, output_image);
+    if (strcmp(output_image, "")) {
+        printf("Writing output image...\n");
+        likely_write(dark_lenna, output_image);
+    }
 
     printf("Cleaning up...\n");
     likely_release(dark_lenna);

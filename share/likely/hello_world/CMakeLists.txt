@@ -6,6 +6,7 @@ if(${LIKELY_HELLOWORLD})
   if(${LIKELY_IO})
     add_executable(hello_world_jit hello_world_jit.c)
     target_link_libraries(hello_world_jit likely)
+    likely_add_test(hello_world_jit)
   endif()
 
   # hello_world_static
@@ -17,4 +18,5 @@ if(${LIKELY_HELLOWORLD})
   add_executable(hello_world_static hello_world_static.c hello_world_div2.o)
   set_source_files_properties(hello_world_div2.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
   target_link_libraries(hello_world_static likely_runtime)
+  likely_add_test(hello_world_static)
 endif()

@@ -62,10 +62,7 @@ if(${LIKELY_IO})
   add_executable(benchmark benchmark.cpp)
   target_link_libraries(benchmark likely opencv_imgproc)
   install(TARGETS benchmark RUNTIME DESTINATION bin)
-
-  add_custom_target(test
-                    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/data
-                    COMMAND benchmark -test)
+  likely_add_test(benchmark -test)
 
   # Dream
   find_package(Qt5Quick QUIET)
