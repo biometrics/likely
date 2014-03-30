@@ -40,15 +40,13 @@ int main(int argc, char *argv[])
 
     if (input.empty()) {
         // REPL shell
-        likely_env env = likely_new_jit();
         cout << "Likely\n";
         while (true) {
             cout << "> ";
             string line;
             getline(cin, line);
-            likely_repl(line.c_str(), gfm, env);
+            likely_repl(line.c_str(), gfm, NULL);
         }
-        likely_release_env(env);
     } else {
         ifstream file(input.c_str());
         const string source((istreambuf_iterator<char>(file)),

@@ -269,19 +269,7 @@ private slots:
 
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
-        likely_const_ast asts = likely_asts_from_string(qPrintable(source), true);
-        if (asts) {
-            likely_env env = likely_new_jit();
-            for (size_t i=0; i<asts->num_atoms; i++) {
-                likely_const_ast atom = asts->atoms[i];
-                likely_const_mat result = likely_eval(atom, env);
-                if (result) {
-                    emit newResult(result, !atom->is_list ? atom->atom : "");
-                    likely_release(result);
-                }
-            }
-            likely_release_env(env);
-            likely_release_ast(asts);
+        if (likely_repl(qPrintable(source), true, NULL)) {
             const qint64 nsec = elapsedTimer.nsecsElapsed();
             emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
         }
