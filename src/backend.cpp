@@ -2304,10 +2304,12 @@ likely_env likely_repl(likely_const_ast asts)
 {
     if (!asts || !asts->is_list) return NULL;
     likely_env env = likely_new_jit();
-    for (size_t i=0; i<asts->num_atoms; i++)
-        if (likely_const_mat m = likely_eval(asts->atoms[i], env)) {
-            likely_show(m);
+    for (size_t i=0; i<asts->num_atoms; i++) {
+        likely_const_ast ast = asts->atoms[i];
+        if (likely_const_mat m = likely_eval(ast, env)) {
+            likely_show(m, ast->is_list ? NULL : ast->atom);
             likely_release(m);
         }
+    }
     return env;
 }

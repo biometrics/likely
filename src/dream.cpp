@@ -692,9 +692,9 @@ private:
         likely_release(str);
     }
 
-    static void show_callback(likely_const_mat m, void *context)
+    static void show_callback(likely_const_mat m, const char *name, void *context)
     {
-        reinterpret_cast<Printer*>(context)->print(m, "");
+        reinterpret_cast<Printer*>(context)->print(m, name);
     }
 };
 
