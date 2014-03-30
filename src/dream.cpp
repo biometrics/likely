@@ -16,8 +16,15 @@
 
 #include <QtCore>
 #include <QtWidgets>
-#include <assert.h>
+#include <llvm/Support/CommandLine.h>
+#include <cassert>
+#include <string>
 #include <likely.h>
+
+using namespace llvm;
+using namespace std;
+
+static cl::opt<string> input(cl::Positional, cl::desc("<input file>"), cl::init(""));
 
 class SyntaxHighlighter : public QSyntaxHighlighter
 {
@@ -116,6 +123,11 @@ public:
 
     void restore()
     {
+        if (!input.empty()) {
+            settings.setValue("sourceFileName", QString::fromStdString(input));
+            settings.sync();
+        }
+
         // Try to open the previous file
         if (fileMenu("Open Quiet"))
             return;
@@ -688,6 +700,8 @@ private:
 
 int main(int argc, char *argv[])
 {
+    cl::ParseCommandLineOptions(argc, argv);
+
     QApplication::setApplicationName("Dream");
     QApplication::setOrganizationName("Likely");
     QApplication::setOrganizationDomain("liblikely.org");
