@@ -28,25 +28,15 @@ using namespace std;
 
 static cl::opt<string> input (cl::Positional, cl::desc("<input file>" ), cl::init(""));
 static cl::opt<string> output(cl::Positional, cl::desc("<output file>"), cl::init(""));
-
-static void execute(const char *source, likely_env env)
-{
-    likely_const_ast asts = likely_asts_from_string(source, true);
-    if (!asts) return;
-    for (size_t i=0; i<asts->num_atoms; i++) {
-        likely_const_mat m = likely_eval(asts->atoms[i], env);
-        if (!m) continue;
-        likely_mat str = likely_to_string(m, true);
-        printf("%s\n", str->data);
-        likely_release(str);
-        likely_release(m);
-    }
-    likely_release_ast(asts);
-}
+static cl::opt<bool> gfm("gfm", cl::desc("Tokenize source using Github Flavored Markdown"));
+static cl::opt<bool> gui("gui", cl::desc("Show matrix output in a window"));
 
 int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
+
+    if (!gui)
+        likely_set_show_callback(NULL, NULL); // Print to terminal
 
     if (input.empty()) {
         // REPL shell
@@ -56,7 +46,7 @@ int main(int argc, char *argv[])
             cout << "> ";
             string line;
             getline(cin, line);
-            execute(line.c_str(), env);
+            likely_repl(line.c_str(), gfm, env);
         }
         likely_release_env(env);
     } else {
@@ -68,7 +58,7 @@ int main(int argc, char *argv[])
         likely_env env;
         if (output.empty()) env = likely_new_jit(); // Interpreter
         else                env = likely_new_offline(output.c_str(), true); // Static compiler
-        execute(source.c_str(), env);
+        likely_repl(source.c_str(), gfm, env);
         likely_release_env(env);
     }
 

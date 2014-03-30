@@ -2308,10 +2308,10 @@ likely_mat likely_eval(likely_const_ast ast, likely_env env)
     return env->evaluate(ast);
 }
 
-likely_env likely_repl(likely_const_ast asts)
+void likely_repl(const char *source, bool GFM, likely_env env)
 {
-    if (!asts || !asts->is_list) return NULL;
-    likely_env env = likely_new_jit();
+    likely_const_ast asts = likely_asts_from_string(source, GFM);
+    if (!asts) return;
     for (size_t i=0; i<asts->num_atoms; i++) {
         likely_const_ast ast = asts->atoms[i];
         if (likely_const_mat m = likely_eval(ast, env)) {
@@ -2319,5 +2319,5 @@ likely_env likely_repl(likely_const_ast asts)
             likely_release(m);
         }
     }
-    return env;
+    likely_release_ast(asts);
 }

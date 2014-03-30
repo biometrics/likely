@@ -221,8 +221,10 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
 static void default_show_callback(likely_const_mat m, const char *name, void *)
 {
     if (!m) return;
-    cv::imshow(strlen(name) > 0 ? name : "Likely", likely::toCvMat(m));
+    likely_mat n = likely_render(m, NULL, NULL);
+    cv::imshow(strlen(name) > 0 ? name : "Likely", likely::toCvMat(n));
     cv::waitKey();
+    likely_release(n);
 }
 
 static likely_show_callback ShowCallback = default_show_callback;
@@ -236,5 +238,11 @@ void likely_set_show_callback(likely_show_callback callback, void *context)
 
 void likely_show(likely_const_mat m, const char *name)
 {
-    ShowCallback(m, name, ShowContext);
+    if (ShowCallback) {
+        ShowCallback(m, name, ShowContext);
+    } else {
+        likely_mat str = likely_to_string(m, true);
+        printf("%s\n", str->data);
+        likely_release(str);
+    }
 }
