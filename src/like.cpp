@@ -20,9 +20,14 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <llvm/Support/CommandLine.h>
 #include <likely.h>
 
+using namespace llvm;
 using namespace std;
+
+static cl::opt<string> input (cl::Positional, cl::desc("<input file>" ), cl::init(""));
+static cl::opt<string> output(cl::Positional, cl::desc("<output file>"), cl::init(""));
 
 static void execute(const char *source, likely_env env)
 {
@@ -41,7 +46,9 @@ static void execute(const char *source, likely_env env)
 
 int main(int argc, char *argv[])
 {
-    if (argc == 1) {
+    cl::ParseCommandLineOptions(argc, argv);
+
+    if (input.empty()) {
         // REPL shell
         likely_env env = likely_new_jit();
         cout << "Likely\n";
@@ -53,21 +60,14 @@ int main(int argc, char *argv[])
         }
         likely_release_env(env);
     } else {
-        ifstream file(argv[1]);
+        ifstream file(input.c_str());
         const string source((istreambuf_iterator<char>(file)),
-                            istreambuf_iterator<char>());
-
-        if (source.empty()) {
-            printf("Usage:\n"
-                   "  like\n"
-                   "  like <source_file>\n"
-                   "  like <source_file> <object_file>\n");
-            return EXIT_FAILURE;
-        }
+                             istreambuf_iterator<char>());
+        likely_assert(!source.empty(), "failed to read input file");
 
         likely_env env;
-        if (argc == 2) env = likely_new_jit(); // Interpreter
-        else           env = likely_new_offline(argv[2], true); // Static compiler
+        if (output.empty()) env = likely_new_jit(); // Interpreter
+        else                env = likely_new_offline(output.c_str(), true); // Static compiler
         execute(source.c_str(), env);
         likely_release_env(env);
     }

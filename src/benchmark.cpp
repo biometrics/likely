@@ -35,11 +35,11 @@ using namespace std;
 #define LIKELY_ERROR_TOLERANCE 0.000001
 #define LIKELY_TEST_SECONDS 1
 
-cl::opt<bool> BenchmarkTest    ("test"     , cl::desc("Run tutorials and unit tests for correctness only"));
-cl::opt<bool> BenchmarkTutorial("tutorial" , cl::desc("Run tutorials instead of unit tests"              ));
-cl::opt<bool> BenchmarkVerbose ("verbose"  , cl::desc("Verbose benchmark output"                         ));
-cl::opt<string> BenchmarkFile    ("file"    , cl::desc("Benchmark the specified file only"    ), cl::value_desc("filename"));
-cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"  ));
+static cl::opt<bool> BenchmarkTest    ("test"     , cl::desc("Run tutorials and unit tests for correctness only"));
+static cl::opt<bool> BenchmarkTutorial("tutorial" , cl::desc("Run tutorials instead of unit tests"              ));
+static cl::opt<bool> BenchmarkVerbose ("verbose"  , cl::desc("Verbose benchmark output"                         ));
+static cl::opt<string> BenchmarkFile    ("file"    , cl::desc("Benchmark the specified file only"    ), cl::value_desc("filename"));
+static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"  ));
 
 static Mat generateData(int rows, int columns, likely_type type, double scaleFactor)
 {
