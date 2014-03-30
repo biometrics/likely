@@ -2166,15 +2166,23 @@ class showExpression : public SimpleUnaryOperator, public LibraryFunction
 {
     Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
     {
-        static FunctionType *functionType = FunctionType::get(Type::getVoidTy(C), T::Void, false);
+        static FunctionType *functionType = NULL;
+        if (functionType == NULL) {
+            vector<Type*> parameters;
+            parameters.push_back(T::Void);
+            parameters.push_back(Type::getInt8PtrTy(C));
+            FunctionType::get(Type::getVoidTy(C), parameters, false);
+        }
         Function *likelyShow = builder.resources->module->getFunction("likely_show");
         if (!likelyShow) {
             likelyShow = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_show", builder.resources->module);
             likelyShow->setCallingConv(CallingConv::C);
             likelyShow->setDoesNotAlias(1);
             likelyShow->setDoesNotCapture(1);
+            likelyShow->setDoesNotAlias(2);
+            likelyShow->setDoesNotCapture(2);
         }
-        return new Expression(builder.CreateCall(likelyShow, arg), likely_type_void);
+        return new Expression(builder.CreateCall2(likelyShow, arg, ConstantPointerNull::get(Type::getInt8PtrTy(C))), likely_type_void);
     }
     void *symbol() const { return (void*) likely_decode; }
 };
