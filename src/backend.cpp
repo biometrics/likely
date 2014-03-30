@@ -2299,3 +2299,15 @@ likely_mat likely_eval(likely_const_ast ast, likely_env env)
 
     return env->evaluate(ast);
 }
+
+likely_env likely_repl(likely_const_ast asts)
+{
+    if (!asts || !asts->is_list) return NULL;
+    likely_env env = likely_new_jit();
+    for (size_t i=0; i<asts->num_atoms; i++)
+        if (likely_const_mat m = likely_eval(asts->atoms[i], env)) {
+            likely_show(m);
+            likely_release(m);
+        }
+    return env;
+}
