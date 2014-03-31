@@ -277,7 +277,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_a
                 offset++;
                 break;
             }
-            if (!shift(tokens, offset, atoms, atoms.empty() ? INT_MAX : 0))
+            if (!shift(tokens, offset, atoms, atoms.empty() ? std::numeric_limits<int>::max() : 0))
                 return cleanup(atoms);
         }
         if (atoms.size() == 1) {
