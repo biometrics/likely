@@ -9,7 +9,6 @@ set(CPACK_PACKAGE_VERSION_MAJOR 0)
 set(CPACK_PACKAGE_VERSION_MINOR 1)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-option(LIKELY_IO "Build Likely with matrix I/O" ON)
 
 # Build configuration
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
@@ -57,6 +56,7 @@ endif()
 llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES bitwriter ipo mcjit native vectorize)
 set(LIKELY_LIBS ${LIKELY_LIBS} ${REQ_LLVM_LIBRARIES})
 
+option(LIKELY_IO "Build Likely with matrix I/O" ON)
 if(${LIKELY_IO})
   # Find or build OpenCV
   option(LIKELY_SYSTEM_OPENCV "Use system OpenCV" OFF)

@@ -28,6 +28,15 @@ if(${LIKELY_IO})
                                  ${CMAKE_SOURCE_DIR}/include/likely/opencv.hpp)
 endif()
 
+# CPU Profiling
+option(LIKELY_PROFILING "Build Likely for code profiling" OFF)
+if(${LIKELY_PROFILING})
+  if(NOT VS)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-omit-frame-pointer")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer")
+  endif()
+endif()
+
 # Build runtime-only library
 add_definitions(-DLIKELY_LIBRARY)
 add_library(likely_runtime STATIC runtime.cpp)
