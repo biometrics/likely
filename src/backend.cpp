@@ -222,30 +222,6 @@ static string getUniqueName(const string &prefix)
     return stream.str();
 }
 
-static bool getPairs(likely_const_ast ast, vector<pair<likely_const_ast,likely_const_ast>> &pairs)
-{
-    pairs.clear();
-    if (!ast->is_list)       return false;
-    if (ast->num_atoms == 0) return true;
-
-    if (ast->atoms[0]->is_list) {
-        for (size_t i=0; i<ast->num_atoms; i++) {
-            if (ast->atoms[i]->num_atoms != 2) {
-                pairs.clear();
-                return false;
-            }
-            pairs.push_back(pair<likely_const_ast,likely_const_ast>(ast->atoms[i]->atoms[0], ast->atoms[i]->atoms[1]));
-        }
-    } else {
-        if (ast->num_atoms != 2) {
-            pairs.clear();
-            return false;
-        }
-        pairs.push_back(pair<likely_const_ast,likely_const_ast>(ast->atoms[0], ast->atoms[1]));
-    }
-    return true;
-}
-
 struct Resources
 {
     TargetMachine *TM = NULL;
@@ -1691,11 +1667,15 @@ private:
         for (const Expression &src : srcs)
             types.push_back(T(src.value()->getType(), src.type()));
 
+        vector<pair<likely_const_ast,likely_const_ast>> pairs;
+        if (ast->num_atoms == 4)
+            getPairs(ast->atoms[3], pairs);
+
         BasicBlock *entry = builder.GetInsertBlock();
-        Expression dstChannels = getDimensions(builder, ast, "channels", srcs);
-        Expression dstColumns  = getDimensions(builder, ast, "columns" , srcs);
-        Expression dstRows     = getDimensions(builder, ast, "rows"    , srcs);
-        Expression dstFrames   = getDimensions(builder, ast, "frames"  , srcs);
+        Expression dstChannels = getDimensions(builder, pairs, "channels", srcs);
+        Expression dstColumns  = getDimensions(builder, pairs, "columns" , srcs);
+        Expression dstRows     = getDimensions(builder, pairs, "rows"    , srcs);
+        Expression dstFrames   = getDimensions(builder, pairs, "frames"  , srcs);
 
         Function *thunk;
         likely_type dstType;
@@ -1797,12 +1777,19 @@ private:
         }
 
         builder.SetInsertPoint(entry);
-
         Value *dst = newExpression::createCall(builder, Builder::type(dstType), dstChannels, dstColumns, dstRows, dstFrames, Builder::nullData());
-
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
 
-        if (!srcs.empty() && likely_parallel(srcs[0])) {
+        likely_type kernelType = likely_type_void;
+        for (const auto &pair : pairs)
+            if (!strcmp("type", pair.first->atom) && !pair.second->is_list) {
+                kernelType = likely_type_field_from_string(pair.second->atom, NULL);
+                break;
+            }
+        if ((kernelType == likely_type_void) && !srcs.empty())
+            kernelType = srcs[0];
+
+        if (likely_parallel(kernelType)) {
             vector<Type*> likelyForkParameters;
             likelyForkParameters.push_back(thunk->getType());
             likelyForkParameters.push_back(Type::getInt8Ty(C));
@@ -1857,19 +1844,38 @@ private:
         return kernel;
     }
 
-    static Expression getDimensions(Builder &builder, likely_const_ast ast, const char *axis, const vector<Expression> &srcs)
+    static bool getPairs(likely_const_ast ast, vector<pair<likely_const_ast,likely_const_ast>> &pairs)
+    {
+        pairs.clear();
+        if (!ast->is_list)       return false;
+        if (ast->num_atoms == 0) return true;
+
+        if (ast->atoms[0]->is_list) {
+            for (size_t i=0; i<ast->num_atoms; i++) {
+                if (ast->atoms[i]->num_atoms != 2) {
+                    pairs.clear();
+                    return false;
+                }
+                pairs.push_back(pair<likely_const_ast,likely_const_ast>(ast->atoms[i]->atoms[0], ast->atoms[i]->atoms[1]));
+            }
+        } else {
+            if (ast->num_atoms != 2) {
+                pairs.clear();
+                return false;
+            }
+            pairs.push_back(pair<likely_const_ast,likely_const_ast>(ast->atoms[0], ast->atoms[1]));
+        }
+        return true;
+    }
+
+    static Expression getDimensions(Builder &builder, const vector<pair<likely_const_ast,likely_const_ast>> &pairs, const char *axis, const vector<Expression> &srcs)
     {
         Value *result = NULL;
-        // Look for a dimensionality expression
-        if (ast->num_atoms == 4) {
-            vector<pair<likely_const_ast,likely_const_ast>> pairs;
-            getPairs(ast->atoms[3], pairs);
-            for (const auto &pair : pairs)
-                if (!strcmp(axis, pair.first->atom)) {
-                    result = builder.cast(unique_ptr<Expression>(builder.expression(pair.second)).get(), likely_type_native);
-                    break;
-                }
-        }
+        for (const auto &pair : pairs) // Look for a dimensionality expression
+            if (!strcmp(axis, pair.first->atom)) {
+                result = builder.cast(unique_ptr<Expression>(builder.expression(pair.second)).get(), likely_type_native);
+                break;
+            }
 
         // Use default dimensionality
         if (result == NULL) {

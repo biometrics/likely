@@ -30,7 +30,7 @@ Definition
       j   = j + 1
       ((zr * zr + zi * zi < 2 * 2) & (j < iter)) ? loop
       j
-    } : ((columns width) (rows height))
+    } : ((columns width) (rows height) (type parallel))
 
 Execution
 
