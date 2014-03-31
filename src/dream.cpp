@@ -297,25 +297,59 @@ signals:
     void newStatus(QString);
 };
 
+struct Image : public QWidget
+{
+    QImage image;
+
+    Image(QWidget* parent)
+        : QWidget(parent) {}
+
+    void setImage(const QImage &image)
+    {
+        this->image = image;
+        setVisible(!image.isNull());
+        update();
+    }
+
+private:
+    QSize sizeHint() const
+    {
+        return image.size();
+    }
+
+    void paintEvent(QPaintEvent* e)
+    {
+        e->accept();
+        QPainter painter(this);
+        painter.drawImage(rect(), image);
+    }
+
+    void resizeEvent(QResizeEvent *e)
+    {
+        e->accept();
+        setFixedHeight(image.height() * width() / image.width());
+    }
+};
+
+
 class Matrix : public QFrame
 {
     Q_OBJECT
-    QImage src;
     QString name;
     QPoint prevMousePos;
     int width = 0, height = 0;
     double x = 0, y = 0, angle = 0, scale = 1;
-    QLabel *type, *image, *definition;
+    QLabel *type, *definition;
+    Image *image;
     QVBoxLayout *layout;
 
 public:
     Matrix()
         : type(new QLabel(this))
-        , image(new QLabel(this))
         , definition(new QLabel(this))
+        , image(new Image(this))
         , layout(new QVBoxLayout(this))
     {
-        image->setAlignment(Qt::AlignCenter);
         image->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
         definition->setWordWrap(true);
         definition->setVisible(false);
@@ -333,7 +367,7 @@ public:
     void show(likely_const_mat m, const QString &name)
     {
         if (likely_elements(m) <= 16) {
-            src = QImage();
+            image->setImage(QImage());
 
             likely_mat str = likely_to_string(m, true);
             type->setText((const char*) str->data);
@@ -341,7 +375,7 @@ public:
         } else {
             double min, max;
             likely_const_mat rendered = likely_render(m, &min, &max);
-            src = QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped();
+            image->setImage(QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped());
             likely_release(rendered);
 
             likely_mat str = likely_type_to_string(m->type);
@@ -454,18 +488,10 @@ private:
     void updateMatrix(const QString &newName, bool forceUpdate = false)
     {
         // Update image
-        const bool visible = !src.isNull();
-        image->setVisible(visible);
-        int newWidth, newHeight;
-        if (visible) {
-            int renderWidth = qMin(image->size().width(), src.width());
-            int renderHeight = src.height() * renderWidth / src.width();
-            image->setPixmap(QPixmap::fromImage(src.scaled(QSize(renderWidth, renderHeight))));
+        int newWidth = 0, newHeight = 0;
+        if (!image->image.isNull()) {
             newWidth = image->size().width();
             newHeight = image->size().height();
-        } else {
-            newWidth = 0;
-            newHeight = 0;
         }
 
         // Determine if the definition has changed
