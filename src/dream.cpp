@@ -24,7 +24,8 @@
 using namespace llvm;
 using namespace std;
 
-static cl::opt<string> input(cl::Positional, cl::desc("<input file>"), cl::init(""));
+static cl::opt<string> Input(cl::Positional, cl::desc("<input file>"), cl::init(""));
+static cl::opt<bool> Spartan("spartan", cl::desc("Hide the source code, only show the output"));
 
 class SyntaxHighlighter : public QSyntaxHighlighter
 {
@@ -123,8 +124,8 @@ public:
 
     void restore()
     {
-        if (!input.empty()) {
-            settings.setValue("sourceFileName", QString::fromStdString(input));
+        if (!Input.empty()) {
+            settings.setValue("sourceFileName", QString::fromStdString(Input));
             settings.sync();
         }
 
@@ -699,6 +700,7 @@ public:
         likely_set_error_callback(error_callback, statusBar);
         likely_set_show_callback(show_callback, printer);
         source->restore();
+        this->spartan(Spartan);
     }
 
 private slots:
