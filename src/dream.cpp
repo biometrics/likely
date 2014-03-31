@@ -321,13 +321,12 @@ public:
         layout->addWidget(type);
         layout->addWidget(image);
         layout->addWidget(definition);
-        layout->setContentsMargins(3, 3, 3, 3);
         layout->setSpacing(3);
         grabGesture(Qt::PinchGesture);
-        setFrameStyle(QFrame::Panel | QFrame::Raised);
         setLayout(layout);
         setLineWidth(2);
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        spartan(false);
     }
 
     void show(likely_const_mat m, const QString &name)
@@ -361,6 +360,19 @@ public:
     QString getDefinition() const
     {
         return definition->text();
+    }
+
+    void spartan(bool enabled)
+    {
+        type->setVisible(!enabled);
+        definition->setVisible(!enabled);
+        if (enabled) {
+            layout->setContentsMargins(0, 0, 0, 0);
+            setFrameStyle(QFrame::NoFrame);
+        } else {
+            layout->setContentsMargins(3, 3, 3, 3);
+            setFrameStyle(QFrame::Panel | QFrame::Raised);
+        }
     }
 
     void reset()
@@ -471,7 +483,6 @@ private:
 
         if (name.isEmpty() || (width == 0) || (height == 0)) {
             definition->clear();
-            definition->setVisible(false);
         } else {
             definition->setText(QString("    %1_x      = %2\n"
                                         "    %1_y      = %3\n"
@@ -485,7 +496,6 @@ private:
                                                                   QString::number(height),
                                                                   QString::number(angle),
                                                                   QString::number(scale)));
-            definition->setVisible(true);
         }
 
         emit definitionChanged();
@@ -511,9 +521,17 @@ public:
         setWidgetResizable(true);
         layout = new QVBoxLayout(this);
         layout->setAlignment(Qt::AlignTop);
-        layout->setContentsMargins(0, 6, 6, 6);
+        layout->setContentsMargins(0, 0, 0, 0);
         layout->setSpacing(6);
         widget()->setLayout(layout);
+    }
+
+    void spartan(bool enabled)
+    {
+        assert(offset == 0);
+        while (QLayoutItem *item = layout->itemAt(offset++))
+            static_cast<Matrix*>(item->widget())->spartan(enabled);
+        finishedPrinting();
     }
 
 public slots:
@@ -599,9 +617,13 @@ signals:
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
+    Source *source;
+    Printer *printer;
 
 public:
     MainWindow(QApplication &application)
+        : source(new Source())
+        , printer(new Printer())
     {
         QMenu *fileMenu = new QMenu("File");
         QAction *newSource = new QAction("New...", fileMenu);
@@ -618,17 +640,22 @@ public:
         fileMenu->addAction(saveSourceAs);
 
         QMenu *commandsMenu = new QMenu("Commands");
+        QAction *spartan = new QAction("Spartan", commandsMenu);
         QAction *reset = new QAction("Reset", commandsMenu);
         QAction *increment = new QAction("Increment", commandsMenu);
         QAction *decrement = new QAction("Decrement", commandsMenu);
         QAction *increment10x = new QAction("Increment 10x", commandsMenu);
         QAction *decrement10x = new QAction("Decrement 10x", commandsMenu);
+        spartan->setCheckable(true);
+        spartan->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_T));
         reset->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_R));
         increment->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_Equal));
         decrement->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_Minus));
         increment10x->setShortcut(QKeySequence(Qt::CTRL+Qt::SHIFT+Qt::Key_Equal));
         decrement10x->setShortcut(QKeySequence(Qt::CTRL+Qt::SHIFT+Qt::Key_Minus));
+        commandsMenu->addAction(spartan);
         commandsMenu->addAction(reset);
+        commandsMenu->addSeparator();
         commandsMenu->addAction(increment);
         commandsMenu->addAction(decrement);
         commandsMenu->addAction(increment10x);
@@ -644,9 +671,7 @@ public:
         CommandMode *commandMode = new CommandMode();
         application.installEventFilter(commandMode);
 
-        Source *source = new Source();
         SyntaxHighlighter *syntaxHighlighter = new SyntaxHighlighter(source->document());
-        Printer *printer = new Printer();
 
         const int WindowWidth = 600;
         QSplitter *splitter = new QSplitter(Qt::Horizontal);
@@ -668,6 +693,7 @@ public:
         connect(source, SIGNAL(newResult(likely_const_mat, QString)), printer, SLOT(print(likely_const_mat, QString)));
         connect(source, SIGNAL(newFileName(QString)), this, SLOT(setWindowTitle(QString)));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
+        connect(spartan, SIGNAL(toggled(bool)), this, SLOT(spartan(bool)));
         connect(reset, SIGNAL(triggered()), printer, SLOT(reset()));
 
         likely_set_error_callback(error_callback, statusBar);
@@ -676,6 +702,12 @@ public:
     }
 
 private slots:
+    void spartan(bool enabled)
+    {
+        source->setVisible(!enabled);
+        printer->spartan(enabled);
+    }
+
     void stateChanged()
     {
         if ((windowTitle() != "Likely") && !windowTitle().endsWith("*"))
