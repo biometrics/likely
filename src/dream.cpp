@@ -293,7 +293,6 @@ private slots:
 signals:
     void finishedEval();
     void newFileName(QString);
-    void newResult(likely_const_mat result, QString);
     void newStatus(QString);
 };
 
@@ -389,7 +388,7 @@ public:
             likely_release(str);
         }
 
-        updateMatrix(name);
+        updateDefinition(name);
     }
 
     QString getDefinition() const
@@ -416,7 +415,7 @@ public:
             return;
         x = y = angle = 0;
         scale = 1;
-        updateMatrix(name, true);
+        updateDefinition(name, true);
     }
 
 private:
@@ -427,7 +426,7 @@ private:
             if (QPinchGesture *pinch = static_cast<QPinchGesture*>(ge->gesture(Qt::PinchGesture))) {
                 scale = scale / pinch->scaleFactor() * pinch->lastScaleFactor();
                 angle += pinch->rotationAngle() - pinch->lastRotationAngle();
-                updateMatrix(name, true);
+                updateDefinition(name, true);
             }
             return true;
         }
@@ -446,7 +445,7 @@ private:
         x += (point.x() - image->size().width()  / 2.0) / resolution * scale;
         y += (point.y() - image->size().height() / 2.0) / resolution * scale;
         scale /= 1.5;
-        updateMatrix(name, true);
+        updateDefinition(name, true);
     }
 
     void mousePressEvent(QMouseEvent *e)
@@ -466,14 +465,14 @@ private:
             y -= (mousePos.y() - prevMousePos.y()) / resolution * scale;
         }
         prevMousePos = mousePos;
-        updateMatrix(name, true);
+        updateDefinition(name, true);
     }
 
     void resizeEvent(QResizeEvent *e)
     {
         QWidget::resizeEvent(e);
         e->accept();
-        updateMatrix(name);
+        updateDefinition(name);
     }
 
     void wheelEvent(QWheelEvent *e)
@@ -482,17 +481,13 @@ private:
         const double delta = double(e->delta()) / (360 * 8);
         if (e->orientation() == Qt::Horizontal) x += delta * scale;
         else                                    y += delta * scale;
-        updateMatrix(name, true);
+        updateDefinition(name, true);
     }
 
-    void updateMatrix(const QString &newName, bool forceUpdate = false)
+    void updateDefinition(const QString &newName, bool forceUpdate = false)
     {
-        // Update image
-        int newWidth = 0, newHeight = 0;
-        if (!image->image.isNull()) {
-            newWidth = image->size().width();
-            newHeight = image->size().height();
-        }
+        const int newWidth = image->size().width();
+        const int newHeight = image->size().height();
 
         // Determine if the definition has changed
         bool same = ((name == newName) && (width == newWidth) && (height == newHeight));
@@ -717,7 +712,6 @@ public:
         connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(fileMenu(QAction*)));
         connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
         connect(source, SIGNAL(finishedEval()), printer, SLOT(finishedPrinting()));
-        connect(source, SIGNAL(newResult(likely_const_mat, QString)), printer, SLOT(print(likely_const_mat, QString)));
         connect(source, SIGNAL(newFileName(QString)), this, SLOT(setWindowTitle(QString)));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
         connect(spartan, SIGNAL(toggled(bool)), this, SLOT(spartan(bool)));
