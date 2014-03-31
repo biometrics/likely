@@ -29,8 +29,8 @@ Definition
       zr  = tmp
       j   = j + 1
       ((zr * zr + zi * zi < 2 * 2) & (j < iter)) ? loop
-      j
-    } : ((columns width) (rows height) (type parallel))
+      (j.f32 / iter * 255).u8
+    } : ((channels 3) (columns width) (rows height) (type parallel))
 
 Execution
 
