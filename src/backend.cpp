@@ -436,6 +436,8 @@ struct Builder : public IRBuilder<>
     {
         if (likely_data(*x) == likely_data(type))
             return Expression(*x, type);
+        if (likely_depth(type) == 0)
+            likely_set_depth(&type, likely_depth(*x));
         Type *dstType = ty(type);
         return Expression(CreateCast(CastInst::getCastOpcode(*x, likely_signed(*x), dstType, likely_signed(type)), *x, dstType), type);
     }

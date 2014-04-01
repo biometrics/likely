@@ -257,7 +257,6 @@ likely_type likely_type_from_string(const char *str)
 
     char *rem;
     int depth = (int)strtol(str+1, &rem, 10);
-    if (depth == 0) depth = likely_type_native;
     t += depth;
 
     while (*rem) {

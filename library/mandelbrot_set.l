@@ -18,8 +18,8 @@ Definition
 
     mandelbrot_set = () =>
     {
-      zr0 = (f32 x * x_range / width  + x_min)
-      zi0 = (f32 y * y_range / height + y_min)
+      zr0 = x.f32 * x_range / width  + x_min
+      zi0 = y.f32 * y_range / height + y_min
       zr  = 0.f32
       zi  = 0.f32
       j   = 0
