@@ -485,7 +485,7 @@ private:
 
     void updateDefinition(const QString &newName, bool forceUpdate = false)
     {
-        const int newWidth = image->image.isNull() ? 0 : image->size().width();
+        const int newWidth  = image->image.isNull() ? 0 : image->size().width();
         const int newHeight = image->image.isNull() ? 0 : image->size().height();
 
         // Determine if the definition has changed

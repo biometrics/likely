@@ -256,8 +256,7 @@ likely_type likely_type_from_string(const char *str)
     else                    return likely_type_void;
 
     char *rem;
-    int depth = (int)strtol(str+1, &rem, 10);
-    t += depth;
+    t += (int)strtol(str+1, &rem, 10);
 
     while (*rem) {
         if      (*rem == 'P') t |= likely_type_parallel;
