@@ -296,21 +296,14 @@ likely_type likely_type_field_from_string(const char *str, bool *ok)
 likely_type likely_type_from_value(double value)
 {
     if (value >= 0) {
-        if (static_cast<uint32_t>(value) == value)
-            return likely_type_u32;
-        if (static_cast<uint64_t>(value) == value)
-            return likely_type_u64;
+        if (uint32_t(value) == value) return likely_type_u32;
+        if (uint64_t(value) == value) return likely_type_u64;
     } else {
-        if (static_cast<int32_t>(value) == value)
-            return likely_type_i32;
-        if (static_cast<int64_t>(value) == value)
-            return likely_type_i64;
+        if (int32_t(value) == value) return likely_type_i32;
+        if (int64_t(value) == value) return likely_type_i64;
     }
-
-    if (static_cast<float>(value) == value)
-        return likely_type_f32;
-    else
-        return likely_type_f64;
+    if (float(value) == value) return likely_type_f32;
+    else                       return likely_type_f64;
 }
 
 likely_type likely_type_from_types(likely_type lhs, likely_type rhs)
