@@ -367,7 +367,7 @@ MATH_TEST(log10)
 MATH_TEST(log2)
 
 class fmaTest : public Test {
-    const char *function() const { return "a => (fma a (a.type 2) (a.type 3))"; }
+    const char *function() const { return "a => a.f * (a.type 2) + (a.type 3)"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3); return dst; }
 };
 

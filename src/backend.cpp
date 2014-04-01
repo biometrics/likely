@@ -259,10 +259,17 @@ struct Resources
 
             static TargetMachine *nativeTM = NULL;
             if (!nativeTM) {
+                TargetOptions TO;
+                TO.UnsafeFPMath = true;
+                TO.NoInfsFPMath = true;
+                TO.NoNaNsFPMath = true;
+                TO.AllowFPOpFusion = FPOpFusion::Fast;
+
                 string error;
                 EngineBuilder engineBuilder(module);
                 engineBuilder.setMCPU(sys::getHostCPUName())
                              .setCodeModel(CodeModel::Default)
+                             .setTargetOptions(TO)
                              .setErrorStr(&error);
                 nativeTM = engineBuilder.selectTarget();
                 likely_assert(nativeTM != NULL, "failed to select target machine with error: %s", error.c_str());
@@ -436,8 +443,11 @@ struct Builder : public IRBuilder<>
     {
         if (likely_data(*x) == likely_data(type))
             return Expression(*x, type);
-        if (likely_depth(type) == 0)
+        if (likely_depth(type) == 0) {
             likely_set_depth(&type, likely_depth(*x));
+            if (likely_floating(type))
+                type = validFloatType(type);
+        }
         Type *dstType = ty(type);
         return Expression(CreateCast(CastInst::getCastOpcode(*x, likely_signed(*x), dstType, likely_signed(type)), *x, dstType), type);
     }
@@ -981,34 +991,6 @@ LIKELY_REGISTER(OP)                                    \
 
 LIKELY_REGISTER_BINARY_MATH(pow)
 LIKELY_REGISTER_BINARY_MATH(copysign)
-
-class SimpleTernaryOperator : public Operator
-{
-    size_t maxParameters() const { return 3; }
-    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        TRY_EXPR(builder, ast->atoms[1], a)
-        TRY_EXPR(builder, ast->atoms[2], b)
-        TRY_EXPR(builder, ast->atoms[3], c)
-        return evaluateSimpleTernary(builder, a, b, c);
-    }
-    virtual Expression *evaluateSimpleTernary(Builder &builder, const UniqueExpression &arg1, const UniqueExpression &arg2, const UniqueExpression &arg3) const = 0;
-};
-
-class fmaExpression : public SimpleTernaryOperator
-{
-    Expression *evaluateSimpleTernary(Builder &builder, const UniqueExpression &a, const UniqueExpression &b, const UniqueExpression &c) const
-    {
-        const likely_type type = likely_type_from_types(likely_type_from_types(a, b), c);
-        Expression ac(builder.cast(&a, Builder::validFloatType(type)));
-        Expression bc(builder.cast(&b, ac));
-        Expression cc(builder.cast(&c, ac));
-        vector<Type*> args;
-        args.push_back(ac.value()->getType());
-        return new Expression(builder.CreateCall3(Intrinsic::getDeclaration(builder.resources->module, Intrinsic::fma, args), ac, bc, cc), ac);
-    }
-};
-LIKELY_REGISTER(fma)
 
 struct Definition : public ScopedExpression
 {
