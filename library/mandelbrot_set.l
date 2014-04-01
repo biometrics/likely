@@ -12,7 +12,7 @@ Reactive location and resolution
     y_min    = y_scale * (mandelbrot_set_y ?? 0) - y_range / 2
     width    = mandelbrot_set_width ?? 600
     height   = width / x_scale * y_scale
-    iter     = 20 * (1 + (mandelbrot_set_angle ?? 0).f32 / 90)
+    iter     = 20 + (mandelbrot_set_angle ?? 0).i / 4
 
 Definition
 
@@ -29,7 +29,7 @@ Definition
       zr  = tmp
       j   = j + 1
       ((zr * zr + zi * zi < 2 * 2) & (j < iter)) ? loop
-      (j.f32 / iter * 255).u8
+      (255 * j / iter).u8
     } : ((channels 3) (columns width) (rows height) (type parallel))
 
 Execution
