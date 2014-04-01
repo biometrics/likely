@@ -511,13 +511,12 @@ private:
                                         "    %1_height = %5\n"
                                         "    %1_angle  = %6\n"
                                         "    %1_scale  = %7").arg(name,
-                                                                  // Cast to guarantee 32-bit numbers
-                                                                  QString::number(float(x)),
-                                                                  QString::number(float(y)),
-                                                                  QString::number(qint32(width)),
-                                                                  QString::number(qint32(height)),
-                                                                  QString::number(float(angle)),
-                                                                  QString::number(float(scale))));
+                                                                  QString::number(x),
+                                                                  QString::number(y),
+                                                                  QString::number(width),
+                                                                  QString::number(height),
+                                                                  QString::number(angle),
+                                                                  QString::number(scale)));
         }
 
         emit definitionChanged();
