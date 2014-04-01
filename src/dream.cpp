@@ -351,7 +351,6 @@ public:
     {
         image->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
         definition->setWordWrap(true);
-        definition->setVisible(false);
         layout->addWidget(type);
         layout->addWidget(image);
         layout->addWidget(definition);
@@ -399,7 +398,7 @@ public:
     void spartan(bool enabled)
     {
         type->setVisible(!enabled);
-        definition->setVisible(!enabled);
+        definition->setVisible(!enabled && !image->image.isNull());
         if (enabled) {
             layout->setContentsMargins(0, 0, 0, 0);
             setFrameStyle(QFrame::NoFrame);
@@ -486,8 +485,8 @@ private:
 
     void updateDefinition(const QString &newName, bool forceUpdate = false)
     {
-        const int newWidth = image->size().width();
-        const int newHeight = image->size().height();
+        const int newWidth = image->image.isNull() ? 0 : image->size().width();
+        const int newHeight = image->image.isNull() ? 0 : image->size().height();
 
         // Determine if the definition has changed
         bool same = ((name == newName) && (width == newWidth) && (height == newHeight));
