@@ -225,7 +225,6 @@ static string getUniqueName(const string &prefix)
 
 struct Resources
 {
-    static TargetMachine *NativeTM;
     Module *module;
     vector<Expression*> expressions;
 
@@ -252,14 +251,6 @@ struct Resources
             T::Void = cast<PointerType>(T::get(likely_type_void).llvm);
         }
 
-        if (!NativeTM) {
-            string error;
-            const Target *TheTarget = TargetRegistry::lookupTarget(sys::getProcessTriple(), error);
-            likely_assert(TheTarget != NULL, "target lookup failed with error: %s", error.c_str());
-            NativeTM = TheTarget->createTargetMachine(sys::getProcessTriple(), sys::getHostCPUName(), "", targetOptions());
-            likely_assert(NativeTM != NULL, "failed to create native target machine");
-        }
-
         module = new Module(getUniqueName("module"), C);
         likely_assert(module != NULL, "failed to create module");
         if (native) module->setTargetTriple(sys::getProcessTriple());
@@ -270,13 +261,14 @@ struct Resources
         if (module->getTargetTriple().empty())
             return;
 
+        static TargetMachine *TM = getTargetMachine(false);
         static PassManager *PM = NULL;
         if (!PM) {
             PM = new PassManager();
             PM->add(createVerifierPass());
             PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
-            PM->add(new DataLayoutPass(*NativeTM->getDataLayout()));
-            NativeTM->addAnalysisPasses(*PM);
+            PM->add(new DataLayoutPass(*TM->getDataLayout()));
+            TM->addAnalysisPasses(*PM);
             PassManagerBuilder builder;
             builder.OptLevel = 3;
             builder.SizeLevel = 0;
@@ -291,15 +283,32 @@ struct Resources
 //        module->dump();
     }
 
-    static TargetOptions targetOptions()
+    static TargetMachine *getTargetMachine(bool JIT)
     {
+        static const string processTriple = sys::getProcessTriple();
+        static const Target *TheTarget = NULL;
+        if (TheTarget == NULL) {
+            string error;
+            TheTarget = TargetRegistry::lookupTarget(processTriple, error);
+            likely_assert(TheTarget != NULL, "target lookup failed with error: %s", error.c_str());
+        }
+
         TargetOptions TO;
         TO.LessPreciseFPMADOption = true;
         TO.UnsafeFPMath = true;
         TO.NoInfsFPMath = true;
         TO.NoNaNsFPMath = true;
         TO.AllowFPOpFusion = FPOpFusion::Fast;
-        return TO;
+
+        TargetMachine *TM = TheTarget->createTargetMachine(sys::getProcessTriple(),
+                                                           sys::getHostCPUName(),
+                                                           "",
+                                                           TO,
+                                                           Reloc::Default,
+                                                           JIT ? CodeModel::JITDefault : CodeModel::Default,
+                                                           CodeGenOpt::Aggressive);
+        likely_assert(TM != NULL, "failed to create target machine");
+        return TM;
     }
 
     ~Resources()
@@ -309,7 +318,6 @@ struct Resources
         delete module;
     }
 };
-TargetMachine *Resources::NativeTM = NULL;
 
 class JITResources : public Resources
 {
@@ -350,8 +358,8 @@ public:
         } else {
             PassManager pm;
             formatted_raw_ostream fos(output.os());
-            likely_assert(!module->getTargetTriple().empty(), "module missing target triple");
-            NativeTM->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
+            static TargetMachine *TM = getTargetMachine(false);
+            TM->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
             pm.run(*module);
         }
 
@@ -1932,13 +1940,10 @@ JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<li
 
     string error;
     EngineBuilder engineBuilder(module);
-    engineBuilder.setMCPU(sys::getHostCPUName())
-                 .setOptLevel(CodeGenOpt::Aggressive)
-                 .setTargetOptions(targetOptions())
+    engineBuilder.setEngineKind(EngineKind::JIT)
                  .setErrorStr(&error)
-                 .setEngineKind(EngineKind::JIT)
                  .setUseMCJIT(true);
-    EE = engineBuilder.create();
+    EE = engineBuilder.create(getTargetMachine(true));
     likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
 
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
