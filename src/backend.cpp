@@ -26,6 +26,7 @@
 #include <llvm/Support/Debug.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/FormattedStream.h>
+#include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/ToolOutputFile.h>
 #include <llvm/Target/TargetLibraryInfo.h>
@@ -251,23 +252,17 @@ struct Resources
             T::Void = cast<PointerType>(T::get(likely_type_void).llvm);
         }
 
+        if (!NativeTM) {
+            string error;
+            const Target *TheTarget = TargetRegistry::lookupTarget(sys::getProcessTriple(), error);
+            likely_assert(TheTarget != NULL, "target lookup failed with error: %s", error.c_str());
+            NativeTM = TheTarget->createTargetMachine(sys::getProcessTriple(), sys::getHostCPUName(), "", targetOptions());
+            likely_assert(NativeTM != NULL, "failed to create native target machine");
+        }
+
         module = new Module(getUniqueName("module"), C);
         likely_assert(module != NULL, "failed to create module");
-
-        if (native) {
-            module->setTargetTriple(sys::getProcessTriple());
-
-            if (!NativeTM) {
-                string error;
-                EngineBuilder engineBuilder(module);
-                engineBuilder.setMCPU(sys::getHostCPUName())
-                             .setCodeModel(CodeModel::Default)
-                             .setTargetOptions(targetOptions())
-                             .setErrorStr(&error);
-                NativeTM = engineBuilder.selectTarget();
-                likely_assert(NativeTM != NULL, "failed to select target machine with error: %s", error.c_str());
-            }
-        }
+        if (native) module->setTargetTriple(sys::getProcessTriple());
     }
 
     void optimize()
