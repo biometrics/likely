@@ -259,17 +259,11 @@ struct Resources
 
             static TargetMachine *nativeTM = NULL;
             if (!nativeTM) {
-                TargetOptions TO;
-                TO.UnsafeFPMath = true;
-                TO.NoInfsFPMath = true;
-                TO.NoNaNsFPMath = true;
-                TO.AllowFPOpFusion = FPOpFusion::Fast;
-
                 string error;
                 EngineBuilder engineBuilder(module);
                 engineBuilder.setMCPU(sys::getHostCPUName())
                              .setCodeModel(CodeModel::Default)
-                             .setTargetOptions(TO)
+                             .setTargetOptions(targetOptions())
                              .setErrorStr(&error);
                 nativeTM = engineBuilder.selectTarget();
                 likely_assert(nativeTM != NULL, "failed to select target machine with error: %s", error.c_str());
@@ -302,6 +296,17 @@ struct Resources
 //        module->dump();
         PM->run(*module);
 //        module->dump();
+    }
+
+    static TargetOptions targetOptions()
+    {
+        TargetOptions TO;
+        TO.LessPreciseFPMADOption = true;
+        TO.UnsafeFPMath = true;
+        TO.NoInfsFPMath = true;
+        TO.NoNaNsFPMath = true;
+        TO.AllowFPOpFusion = FPOpFusion::Fast;
+        return TO;
     }
 
     ~Resources()
@@ -1935,6 +1940,7 @@ JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<li
     EngineBuilder engineBuilder(module);
     engineBuilder.setMCPU(sys::getHostCPUName())
                  .setOptLevel(CodeGenOpt::Aggressive)
+                 .setTargetOptions(targetOptions())
                  .setErrorStr(&error)
                  .setEngineKind(EngineKind::JIT)
                  .setUseMCJIT(true);
