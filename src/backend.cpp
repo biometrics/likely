@@ -224,7 +224,7 @@ static string getUniqueName(const string &prefix)
 
 struct Resources
 {
-    TargetMachine *TM = NULL;
+    static TargetMachine *NativeTM;
     Module *module;
     vector<Expression*> expressions;
 
@@ -257,24 +257,22 @@ struct Resources
         if (native) {
             module->setTargetTriple(sys::getProcessTriple());
 
-            static TargetMachine *nativeTM = NULL;
-            if (!nativeTM) {
+            if (!NativeTM) {
                 string error;
                 EngineBuilder engineBuilder(module);
                 engineBuilder.setMCPU(sys::getHostCPUName())
                              .setCodeModel(CodeModel::Default)
                              .setTargetOptions(targetOptions())
                              .setErrorStr(&error);
-                nativeTM = engineBuilder.selectTarget();
-                likely_assert(nativeTM != NULL, "failed to select target machine with error: %s", error.c_str());
+                NativeTM = engineBuilder.selectTarget();
+                likely_assert(NativeTM != NULL, "failed to select target machine with error: %s", error.c_str());
             }
-            TM = nativeTM;
         }
     }
 
     void optimize()
     {
-        if (!TM)
+        if (module->getTargetTriple().empty())
             return;
 
         static PassManager *PM = NULL;
@@ -282,8 +280,8 @@ struct Resources
             PM = new PassManager();
             PM->add(createVerifierPass());
             PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
-            PM->add(new DataLayoutPass(*TM->getDataLayout()));
-            TM->addAnalysisPasses(*PM);
+            PM->add(new DataLayoutPass(*NativeTM->getDataLayout()));
+            NativeTM->addAnalysisPasses(*PM);
             PassManagerBuilder builder;
             builder.OptLevel = 3;
             builder.SizeLevel = 0;
@@ -316,6 +314,7 @@ struct Resources
         delete module;
     }
 };
+TargetMachine *Resources::NativeTM = NULL;
 
 class JITResources : public Resources
 {
@@ -356,8 +355,8 @@ public:
         } else {
             PassManager pm;
             formatted_raw_ostream fos(output.os());
-            likely_assert(TM != NULL, "missing target machine for object file output");
-            TM->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
+            likely_assert(!module->getTargetTriple().empty(), "module missing target triple");
+            NativeTM->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
             pm.run(*module);
         }
 
