@@ -16,6 +16,7 @@
 
 #include <QtCore>
 #include <QtWidgets>
+#include <QtOpenGL>
 #include <llvm/Support/CommandLine.h>
 #include <cassert>
 #include <string>
@@ -282,10 +283,8 @@ private slots:
 
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
-        if (likely_repl(qPrintable(source), true, NULL)) {
-            const qint64 nsec = elapsedTimer.nsecsElapsed();
-            emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
-        }
+        if (likely_repl(qPrintable(source), true, NULL))
+            emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/elapsedTimer.nsecsElapsed(), 'g', 3)));
         emit finishedEval();
         settings.setValue("source", toPlainText());
     }
@@ -296,12 +295,12 @@ signals:
     void newStatus(QString);
 };
 
-struct Image : public QWidget
+struct Image : public QGLWidget
 {
     QImage image;
 
-    Image(QWidget* parent)
-        : QWidget(parent) {}
+    Image(QWidget *parent)
+        : QGLWidget(parent) {}
 
     void setImage(const QImage &image)
     {
@@ -329,7 +328,6 @@ private:
         setFixedHeight(image.height() * width() / image.width());
     }
 };
-
 
 class Matrix : public QFrame
 {
