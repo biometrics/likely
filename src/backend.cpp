@@ -1652,6 +1652,68 @@ private:
         }
     };
 
+    struct Loop
+    {
+        string name;
+        Value *start, *stop;
+        MDNode *node;
+        BasicBlock *loop;
+        PHINode *index;
+
+        Loop(Builder &builder, const string &name, Value *start, Value *stop)
+            : name(name), start(start), stop(stop)
+        {
+            { // Create self-referencing loop node
+                vector<Value*> metadata;
+                MDNode *tmp = MDNode::getTemporary(C, metadata);
+                metadata.push_back(tmp);
+                node = MDNode::get(C, metadata);
+                tmp->replaceAllUsesWith(node);
+                MDNode::deleteTemporary(tmp);
+            }
+
+            // Loops assume at least one iteration
+            BasicBlock *entry = builder.GetInsertBlock();
+            loop = BasicBlock::Create(C, "loop_" + name, entry->getParent());
+            builder.CreateBr(loop);
+            builder.SetInsertPoint(loop);
+            index = builder.CreatePHI(NativeInt, 2, name);
+            index->addIncoming(start, entry);
+        }
+
+        void close(Builder &builder) const
+        {
+            Value *increment = builder.CreateAdd(index, builder.one(), name + "_increment");
+            BasicBlock *exit = BasicBlock::Create(C, name + "_exit", loop->getParent());
+            builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_test"), exit, loop)->setMetadata("llvm.loop", node);
+            index->addIncoming(increment, builder.GetInsertBlock());
+            builder.SetInsertPoint(exit);
+        }
+    };
+
+    class kernelIndex : public Expression
+    {
+        mutable bool referenced = false;
+        Loop loop;
+
+    public:
+        kernelIndex(const Loop &loop)
+            : Expression(loop.index, likely_type_native), loop(loop) {}
+
+    private:
+        ~kernelIndex()
+        {
+            if (referenced) return;
+            // TODO: collapse loop
+        }
+
+        Value *value() const
+        {
+            referenced = true;
+            return Expression::value();
+        }
+    };
+
     Expression *evaluateLambda(Builder &builder, const vector<Expression> &srcs) const
     {
         vector<T> types;
@@ -1744,7 +1806,7 @@ private:
                 if (multiElement || ((axis == 3) && loops.empty())) {
                     if (loops.empty()) loops.push_back(Loop(builder, name, start, stop));
                     else               loops.push_back(Loop(builder, name, builder.zero(), elements));
-                    builder.define(name, loops.back().index, likely_type_native);
+                    builder.define(name, new kernelIndex(loops.back()));
                     index = builder.CreateAdd(index, builder.CreateMul(step, loops.back().index));
                 } else {
                     builder.define(name, builder.zero(), likely_type_native);
@@ -1880,45 +1942,6 @@ private:
         else                                likely_set_multi_frame  (type, multiElement);
         return result;
     }
-
-    struct Loop
-    {
-        string name;
-        Value *start, *stop;
-        MDNode *node;
-        BasicBlock *loop;
-        PHINode *index;
-
-        Loop(Builder &builder, const string &name, Value *start, Value *stop)
-            : name(name), start(start), stop(stop)
-        {
-            { // Create self-referencing loop node
-                vector<Value*> metadata;
-                MDNode *tmp = MDNode::getTemporary(C, metadata);
-                metadata.push_back(tmp);
-                node = MDNode::get(C, metadata);
-                tmp->replaceAllUsesWith(node);
-                MDNode::deleteTemporary(tmp);
-            }
-
-            // Loops assume at least one iteration
-            BasicBlock *entry = builder.GetInsertBlock();
-            loop = BasicBlock::Create(C, "loop_" + name, entry->getParent());
-            builder.CreateBr(loop);
-            builder.SetInsertPoint(loop);
-            index = builder.CreatePHI(NativeInt, 2, name);
-            index->addIncoming(start, entry);
-        }
-
-        void close(Builder &builder) const
-        {
-            Value *increment = builder.CreateAdd(index, builder.one(), name + "_increment");
-            BasicBlock *exit = BasicBlock::Create(C, name + "_exit", loop->getParent());
-            builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_test"), exit, loop)->setMetadata("llvm.loop", node);
-            index->addIncoming(increment, builder.GetInsertBlock());
-            builder.SetInsertPoint(exit);
-        }
-    };
 };
 
 class kernelExpression : public Operator
