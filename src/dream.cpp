@@ -661,12 +661,15 @@ public:
         fileMenu->addAction(saveSourceAs);
 
         QMenu *commandsMenu = new QMenu("Commands");
+        QAction *fullScreen = new QAction("Full Screen", commandsMenu);
         QAction *spartan = new QAction("Spartan", commandsMenu);
         QAction *reset = new QAction("Reset", commandsMenu);
         QAction *increment = new QAction("Increment", commandsMenu);
         QAction *decrement = new QAction("Decrement", commandsMenu);
         QAction *increment10x = new QAction("Increment 10x", commandsMenu);
         QAction *decrement10x = new QAction("Decrement 10x", commandsMenu);
+        fullScreen->setCheckable(true);
+        fullScreen->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_Y));
         spartan->setCheckable(true);
         spartan->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_T));
         reset->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_R));
@@ -674,6 +677,7 @@ public:
         decrement->setShortcut(QKeySequence(Qt::CTRL+Qt::Key_Minus));
         increment10x->setShortcut(QKeySequence(Qt::CTRL+Qt::SHIFT+Qt::Key_Equal));
         decrement10x->setShortcut(QKeySequence(Qt::CTRL+Qt::SHIFT+Qt::Key_Minus));
+        commandsMenu->addAction(fullScreen);
         commandsMenu->addAction(spartan);
         commandsMenu->addAction(reset);
         commandsMenu->addSeparator();
@@ -713,6 +717,7 @@ public:
         connect(source, SIGNAL(finishedEval()), printer, SLOT(finishedPrinting()));
         connect(source, SIGNAL(newFileName(QString)), this, SLOT(setWindowTitle(QString)));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
+        connect(fullScreen, SIGNAL(toggled(bool)), this, SLOT(fullScreen(bool)));
         connect(spartan, SIGNAL(toggled(bool)), this, SLOT(spartan(bool)));
         connect(reset, SIGNAL(triggered()), printer, SLOT(reset()));
 
@@ -723,6 +728,12 @@ public:
     }
 
 private slots:
+    void fullScreen(bool enabled)
+    {
+        if (enabled) showFullScreen();
+        else         showNormal();
+    }
+
     void spartan(bool enabled)
     {
         source->setVisible(!enabled);
