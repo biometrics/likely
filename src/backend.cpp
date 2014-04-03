@@ -1662,18 +1662,34 @@ private:
         if (ast->num_atoms == 4)
             getPairs(ast->atoms[3], pairs);
 
+        likely_type kernelType = likely_type_void;
+        for (const auto &pair : pairs)
+            if (!strcmp("type", pair.first->atom) && !pair.second->is_list)
+                kernelType |= likely_type_field_from_string(pair.second->atom, NULL);
+
         BasicBlock *entry = builder.GetInsertBlock();
-        Expression dstChannels = getDimensions(builder, pairs, "channels", srcs);
-        Expression dstColumns  = getDimensions(builder, pairs, "columns" , srcs);
-        Expression dstRows     = getDimensions(builder, pairs, "rows"    , srcs);
-        Expression dstFrames   = getDimensions(builder, pairs, "frames"  , srcs);
+        Value *dstChannels = getDimensions(builder, pairs, "channels", srcs, &kernelType);
+        Value *dstColumns  = getDimensions(builder, pairs, "columns" , srcs, &kernelType);
+        Value *dstRows     = getDimensions(builder, pairs, "rows"    , srcs, &kernelType);
+        Value *dstFrames   = getDimensions(builder, pairs, "frames"  , srcs, &kernelType);
 
         Function *thunk;
-        likely_type dstType;
         {
-            thunk = getKernel(builder, getUniqueName("thunk"), types, Type::getVoidTy(C), T::Void, NativeInt, NativeInt);
-            BasicBlock *entry = BasicBlock::Create(C, "entry", thunk);
-            builder.SetInsertPoint(entry);
+            { // declare thunk
+                vector<Type*> params = T::toLLVM(types);
+                params.push_back(T::Void);
+                params.push_back(NativeInt);
+                params.push_back(NativeInt);
+                thunk = ::cast<Function>(builder.resources->module->getOrInsertFunction(getUniqueName("thunk"), FunctionType::get(Type::getVoidTy(C), params, false)));
+                thunk->addFnAttr(Attribute::NoUnwind);
+                thunk->setCallingConv(CallingConv::C);
+                for (int i=1; i<int(types.size()+2); i++) {
+                    thunk->setDoesNotAlias(i);
+                    thunk->setDoesNotCapture(i);
+                }
+            }
+
+            builder.SetInsertPoint(BasicBlock::Create(C, "entry", thunk));
             vector<Expression> srcs = builder.getArgs(thunk, types);
             Expression stop = srcs.back(); srcs.pop_back();
             stop.setType(likely_type_native);
@@ -1683,34 +1699,55 @@ private:
             start.value()->setName("start");
             Expression dst = srcs.back(); srcs.pop_back();
             dst.value()->setName("dst");
+            dst.setType(kernelType);
 
-            {
-                likely_type dst_type = dst.type();
-                likely_set_multi_channel(&dst_type, likely_multi_channel(dstChannels));
-                likely_set_multi_column (&dst_type, likely_multi_column (dstColumns));
-                likely_set_multi_row    (&dst_type, likely_multi_row    (dstRows));
-                likely_set_multi_frame  (&dst_type, likely_multi_frame  (dstFrames));
-                dst.setType(dst_type);
-            }
-
-            vector<Loop> loops;
-            loops.push_back(Loop(builder, "i", start, stop));
-
-            Value *columnStep, *rowStep, *frameStep;
+            Value *channelStep = builder.one(), *columnStep, *rowStep, *frameStep;
             builder.steps(&dst, &columnStep, &rowStep, &frameStep);
-            Value *frameRemainder = builder.CreateURem(loops.back().index, frameStep, "t_rem");
-            Expression t(builder.CreateUDiv(loops.back().index, frameStep, "t"), likely_type_native);
-            Value *rowRemainder = builder.CreateURem(frameRemainder, rowStep, "y_rem");
-            Expression y(builder.CreateUDiv(frameRemainder, rowStep, "y"), likely_type_native);
-            Value *columnRemainder = builder.CreateURem(rowRemainder, columnStep, "c");
-            Expression x(builder.CreateUDiv(rowRemainder, columnStep, "x"), likely_type_native);
-            Expression c(columnRemainder, likely_type_native);
 
-            builder.define("i", loops.back().index, likely_type_native);
-            builder.define("c", c, likely_type_native);
-            builder.define("x", x, likely_type_native);
-            builder.define("y", y, likely_type_native);
-            builder.define("t", t, likely_type_native);
+            Value *index = builder.zero();
+            vector<Loop> loops;
+            for (int axis=0; axis<4; axis++) {
+                string name;
+                bool multiElement;
+                Value *elements, *step;
+
+                switch (axis) {
+                  case 0:
+                    name = "t";
+                    multiElement = likely_multi_frame(dst);
+                    elements = builder.frames(&dst);
+                    step = frameStep;
+                    break;
+                  case 1:
+                    name = "y";
+                    multiElement = likely_multi_row(dst);
+                    elements = builder.rows(&dst);
+                    step = rowStep;
+                    break;
+                  case 2:
+                    name = "x";
+                    multiElement = likely_multi_column(dst);
+                    elements = builder.columns(&dst);
+                    step = columnStep;
+                    break;
+                  default:
+                    name = "c";
+                    multiElement = likely_multi_channel(dst);
+                    elements = builder.channels(&dst);
+                    step = channelStep;
+                    break;
+                }
+
+                if (multiElement || ((axis == 3) && loops.empty())) {
+                    if (loops.empty()) loops.push_back(Loop(builder, name, start, stop));
+                    else               loops.push_back(Loop(builder, name, builder.zero(), elements));
+                    builder.define(name, loops.back().index, likely_type_native);
+                    index = builder.CreateAdd(index, builder.CreateMul(step, loops.back().index));
+                } else {
+                    builder.define(name, builder.zero(), likely_type_native);
+                }
+            }
+            builder.define("i", index, likely_type_native);
 
             const likely_const_ast args = ast->atoms[1];
             if (args->is_list) {
@@ -1723,15 +1760,18 @@ private:
             }
 
             UniqueExpression result(builder.expression(ast->atoms[2]));
-            dstType = result;
-            dst.setType(dstType);
-            StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), loops.back().index));
+            kernelType |= likely_data(result);
+            dst.setType(kernelType);
+            StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), index));
             store->setMetadata("llvm.mem.parallel_loop_access", loops.back().node);
 
+            builder.undefine("i");
             reverse(loops.begin(), loops.end());
-            for (const Loop &loop : loops)
+            for (const Loop &loop : loops) {
                 loop.close(builder);
-            builder.CreateRetVoid();
+                builder.undefine(loop.name);
+            }
+            loops.clear();
 
             if (args->is_list) {
                 for (size_t i=0; i<args->num_atoms; i++)
@@ -1740,25 +1780,15 @@ private:
                 builder.undefine(args->atom);
             }
 
-            builder.undefine("i");
-            builder.undefine("c");
-            builder.undefine("x");
-            builder.undefine("y");
-            builder.undefine("t");
+            builder.CreateRetVoid();
         }
 
         builder.SetInsertPoint(entry);
-        Value *dst = newExpression::createCall(builder, Builder::type(dstType), dstChannels, dstColumns, dstRows, dstFrames, Builder::nullData());
-        Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(dstChannels, dstColumns), dstRows), dstFrames);
-
-        likely_type kernelType = likely_type_void;
-        for (const auto &pair : pairs)
-            if (!strcmp("type", pair.first->atom) && !pair.second->is_list) {
-                kernelType = likely_type_field_from_string(pair.second->atom, NULL);
-                break;
-            }
-        if ((kernelType == likely_type_void) && !srcs.empty())
-            kernelType = srcs[0];
+        Value *dst = newExpression::createCall(builder, Builder::type(kernelType), dstChannels, dstColumns, dstRows, dstFrames, Builder::nullData());
+        Value *kernelSize = likely_multi_frame (kernelType) ? dstFrames  :
+                            likely_multi_row   (kernelType) ? dstRows    :
+                            likely_multi_column(kernelType) ? dstColumns :
+                                                              dstChannels;
 
         if (likely_parallel(kernelType)) {
             vector<Type*> likelyForkParameters;
@@ -1792,27 +1822,7 @@ private:
             builder.CreateCall(thunk, thunkArgs);
         }
 
-        return new Expression(dst, dstType);
-    }
-
-    static Function *getKernel(Builder &builder, const string &name, const vector<T> &types, Type *result, Type *dst = NULL, Type *start = NULL, Type *stop = NULL)
-    {
-        vector<Type*> params = T::toLLVM(types);
-        if (dst)   params.push_back(dst);
-        if (start) params.push_back(start);
-        if (stop)  params.push_back(stop);
-        Function *kernel = ::cast<Function>(builder.resources->module->getOrInsertFunction(name, FunctionType::get(result, params, false)));
-        kernel->addFnAttr(Attribute::NoUnwind);
-        kernel->setCallingConv(CallingConv::C);
-        if (result->isPointerTy())
-            kernel->setDoesNotAlias(0);
-        size_t argc = types.size();
-        if (dst) argc++;
-        for (size_t i=0; i<argc; i++) {
-            kernel->setDoesNotAlias((unsigned int) i+1);
-            kernel->setDoesNotCapture((unsigned int) i+1);
-        }
-        return kernel;
+        return new Expression(dst, kernelType);
     }
 
     static bool getPairs(likely_const_ast ast, vector<pair<likely_const_ast,likely_const_ast>> &pairs)
@@ -1839,7 +1849,7 @@ private:
         return true;
     }
 
-    static Expression getDimensions(Builder &builder, const vector<pair<likely_const_ast,likely_const_ast>> &pairs, const char *axis, const vector<Expression> &srcs)
+    static Value *getDimensions(Builder &builder, const vector<pair<likely_const_ast,likely_const_ast>> &pairs, const char *axis, const vector<Expression> &srcs, likely_type *type)
     {
         Value *result = NULL;
         for (const auto &pair : pairs) // Look for a dimensionality expression
@@ -1860,14 +1870,12 @@ private:
             }
         }
 
-        likely_type type = likely_type_native;
-        const bool isMulti = (!LLVM_VALUE_IS_INT(result)) || (LLVM_VALUE_TO_INT(result) > 1);
-        if      (!strcmp(axis, "channels")) likely_set_multi_channel(&type, isMulti);
-        else if (!strcmp(axis, "columns"))  likely_set_multi_column (&type, isMulti);
-        else if (!strcmp(axis, "rows"))     likely_set_multi_row    (&type, isMulti);
-        else                                likely_set_multi_frame  (&type, isMulti);
-
-        return Expression(result, type);
+        const bool multiElement = (!LLVM_VALUE_IS_INT(result)) || (LLVM_VALUE_TO_INT(result) > 1);
+        if      (!strcmp(axis, "channels")) likely_set_multi_channel(type, multiElement);
+        else if (!strcmp(axis, "columns"))  likely_set_multi_column (type, multiElement);
+        else if (!strcmp(axis, "rows"))     likely_set_multi_row    (type, multiElement);
+        else                                likely_set_multi_frame  (type, multiElement);
+        return result;
     }
 
     struct Loop
