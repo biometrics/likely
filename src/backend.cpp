@@ -1703,24 +1703,19 @@ private:
                 MDNode::deleteTemporary(tmp);
             }
 
-            // The kernel assumes there is at least one iteration
-            BasicBlock *body = BasicBlock::Create(C, "kernel_body", thunk);
-            builder.CreateBr(body);
-            builder.SetInsertPoint(body);
-            PHINode *i = builder.CreatePHI(NativeInt, 2, "i");
-            i->addIncoming(start, entry);
+            Loop loop(builder, "i", start, stop, node);
 
             Value *columnStep, *rowStep, *frameStep;
             builder.steps(&dst, &columnStep, &rowStep, &frameStep);
-            Value *frameRemainder = builder.CreateURem(i, frameStep, "t_rem");
-            Expression t(builder.CreateUDiv(i, frameStep, "t"), likely_type_native);
+            Value *frameRemainder = builder.CreateURem(loop.index, frameStep, "t_rem");
+            Expression t(builder.CreateUDiv(loop.index, frameStep, "t"), likely_type_native);
             Value *rowRemainder = builder.CreateURem(frameRemainder, rowStep, "y_rem");
             Expression y(builder.CreateUDiv(frameRemainder, rowStep, "y"), likely_type_native);
             Value *columnRemainder = builder.CreateURem(rowRemainder, columnStep, "c");
             Expression x(builder.CreateUDiv(rowRemainder, columnStep, "x"), likely_type_native);
             Expression c(columnRemainder, likely_type_native);
 
-            builder.define("i", i, likely_type_native);
+            builder.define("i", loop.index, likely_type_native);
             builder.define("c", c, likely_type_native);
             builder.define("x", x, likely_type_native);
             builder.define("y", y, likely_type_native);
@@ -1739,18 +1734,10 @@ private:
             UniqueExpression result(builder.expression(ast->atoms[2]));
             dstType = result;
             dst.setType(dstType);
-            StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), i));
+            StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), loop.index));
             store->setMetadata("llvm.mem.parallel_loop_access", node);
 
-            Value *increment = builder.CreateAdd(i, builder.one(), "kernel_increment");
-            BasicBlock *loopLatch = BasicBlock::Create(C, "kernel_latch", thunk);
-            builder.CreateBr(loopLatch);
-            builder.SetInsertPoint(loopLatch);
-            BasicBlock *loopExit = BasicBlock::Create(C, "kernel_exit", thunk);
-            BranchInst *latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, "kernel_test"), loopExit, body);
-            latch->setMetadata("llvm.loop", node);
-            i->addIncoming(increment, loopLatch);
-            builder.SetInsertPoint(loopExit);
+            loop.close(builder);
             builder.CreateRetVoid();
 
             if (args->is_list) {
@@ -1889,6 +1876,40 @@ private:
 
         return Expression(result, type);
     }
+
+    struct Loop
+    {
+        string name;
+        Value *start, *stop;
+        MDNode *node;
+
+        BasicBlock *loop = NULL;
+        PHINode *index = NULL;
+
+        Loop(Builder &builder, const string &name, Value *start, Value *stop, MDNode *node)
+            : name(name), start(start), stop(stop), node(node)
+        {
+            // Loops assume at least one iteration
+            BasicBlock *entry = builder.GetInsertBlock();
+            loop = BasicBlock::Create(C, "loop_" + name, entry->getParent());
+            builder.CreateBr(loop);
+            builder.SetInsertPoint(loop);
+            index = builder.CreatePHI(NativeInt, 2, name);
+            index->addIncoming(start, entry);
+        }
+
+        void close(Builder &builder) const
+        {
+            Value *increment = builder.CreateAdd(index, builder.one(), name + "_increment");
+            BasicBlock *latch = BasicBlock::Create(C, name + "_latch", loop->getParent());
+            builder.CreateBr(latch);
+            builder.SetInsertPoint(latch);
+            BasicBlock *exit = BasicBlock::Create(C, name + "_exit", loop->getParent());
+            builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_test"), exit, loop)->setMetadata("llvm.loop", node);
+            index->addIncoming(increment, latch);
+            builder.SetInsertPoint(exit);
+        }
+    };
 };
 
 class kernelExpression : public Operator
