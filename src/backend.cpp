@@ -1663,6 +1663,9 @@ private:
             getPairs(ast->atoms[3], pairs);
 
         likely_type kernelType = likely_type_void;
+        if (!srcs.empty())
+            likely_set_execution(&kernelType, likely_execution(srcs.front()));
+
         for (const auto &pair : pairs)
             if (!strcmp("type", pair.first->atom) && !pair.second->is_list)
                 kernelType |= likely_type_field_from_string(pair.second->atom, NULL);
@@ -1760,7 +1763,7 @@ private:
             }
 
             UniqueExpression result(builder.expression(ast->atoms[2]));
-            kernelType |= likely_data(result);
+            likely_set_data(&kernelType, likely_data(result));
             dst.setType(kernelType);
             StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), index));
             store->setMetadata("llvm.mem.parallel_loop_access", loops.back().node);

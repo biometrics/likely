@@ -57,11 +57,12 @@ enum likely_type_field
     likely_type_f64 = 64 | likely_type_floating | likely_type_signed,
     likely_type_parallel        = 0x00000400,
     likely_type_heterogeneous   = 0x00000800,
+    likely_type_execution       = likely_type_parallel | likely_type_heterogeneous,
     likely_type_multi_channel   = 0x00001000,
     likely_type_multi_column    = 0x00002000,
     likely_type_multi_row       = 0x00004000,
     likely_type_multi_frame     = 0x00008000,
-    likely_type_multi_dimension = 0x0000F000,
+    likely_type_multi_dimension = likely_type_multi_channel | likely_type_multi_column | likely_type_multi_row | likely_type_multi_frame,
     likely_type_saturation      = 0x00010000,
     likely_type_native = sizeof(likely_size)*8,
     likely_type_type   = likely_type_native
@@ -109,6 +110,8 @@ LIKELY_EXPORT bool likely_parallel(likely_type type);
 LIKELY_EXPORT void likely_set_parallel(likely_type *type, bool parallel);
 LIKELY_EXPORT bool likely_heterogeneous(likely_type type);
 LIKELY_EXPORT void likely_set_heterogeneous(likely_type *type, bool heterogeneous);
+LIKELY_EXPORT likely_type likely_execution(likely_type type);
+LIKELY_EXPORT void likely_set_execution(likely_type *type, likely_type execution);
 LIKELY_EXPORT bool likely_multi_channel(likely_type type);
 LIKELY_EXPORT void likely_set_multi_channel(likely_type *type, bool multi_channel);
 LIKELY_EXPORT bool likely_multi_column(likely_type type);
@@ -117,6 +120,8 @@ LIKELY_EXPORT bool likely_multi_row(likely_type type);
 LIKELY_EXPORT void likely_set_multi_row(likely_type *type, bool multi_row);
 LIKELY_EXPORT bool likely_multi_frame(likely_type type);
 LIKELY_EXPORT void likely_set_multi_frame(likely_type *type, bool multi_frame);
+LIKELY_EXPORT likely_type likely_multi_dimension(likely_type type);
+LIKELY_EXPORT void likely_set_multi_dimension(likely_type *type, likely_type multi_dimension);
 LIKELY_EXPORT bool likely_saturation(likely_type type);
 LIKELY_EXPORT void likely_set_saturation(likely_type *type, bool saturation);
 LIKELY_EXPORT int  likely_reserved(likely_type type);
