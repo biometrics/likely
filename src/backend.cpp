@@ -1693,19 +1693,20 @@ private:
                 dst.setType(dst_type);
             }
 
-            Loop loop(builder, "i", start, stop);
+            vector<Loop> loops;
+            loops.push_back(Loop(builder, "i", start, stop));
 
             Value *columnStep, *rowStep, *frameStep;
             builder.steps(&dst, &columnStep, &rowStep, &frameStep);
-            Value *frameRemainder = builder.CreateURem(loop.index, frameStep, "t_rem");
-            Expression t(builder.CreateUDiv(loop.index, frameStep, "t"), likely_type_native);
+            Value *frameRemainder = builder.CreateURem(loops.back().index, frameStep, "t_rem");
+            Expression t(builder.CreateUDiv(loops.back().index, frameStep, "t"), likely_type_native);
             Value *rowRemainder = builder.CreateURem(frameRemainder, rowStep, "y_rem");
             Expression y(builder.CreateUDiv(frameRemainder, rowStep, "y"), likely_type_native);
             Value *columnRemainder = builder.CreateURem(rowRemainder, columnStep, "c");
             Expression x(builder.CreateUDiv(rowRemainder, columnStep, "x"), likely_type_native);
             Expression c(columnRemainder, likely_type_native);
 
-            builder.define("i", loop.index, likely_type_native);
+            builder.define("i", loops.back().index, likely_type_native);
             builder.define("c", c, likely_type_native);
             builder.define("x", x, likely_type_native);
             builder.define("y", y, likely_type_native);
@@ -1715,19 +1716,21 @@ private:
             if (args->is_list) {
                 assert(srcs.size() == args->num_atoms);
                 for (size_t j=0; j<args->num_atoms; j++)
-                    builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, loop.node));
+                    builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, loops.back().node));
             } else {
                 assert(srcs.size() == 1);
-                builder.define(args->atom, new kernelArgument(srcs[0], dst, loop.node));
+                builder.define(args->atom, new kernelArgument(srcs[0], dst, loops.back().node));
             }
 
             UniqueExpression result(builder.expression(ast->atoms[2]));
             dstType = result;
             dst.setType(dstType);
-            StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), loop.index));
-            store->setMetadata("llvm.mem.parallel_loop_access", loop.node);
+            StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), loops.back().index));
+            store->setMetadata("llvm.mem.parallel_loop_access", loops.back().node);
 
-            loop.close(builder);
+            reverse(loops.begin(), loops.end());
+            for (const Loop &loop : loops)
+                loop.close(builder);
             builder.CreateRetVoid();
 
             if (args->is_list) {
