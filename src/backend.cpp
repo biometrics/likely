@@ -1693,17 +1693,7 @@ private:
                 dst.setType(dst_type);
             }
 
-            // Create self-referencing loop node
-            MDNode *node; {
-                vector<Value*> metadata;
-                MDNode *tmp = MDNode::getTemporary(C, metadata);
-                metadata.push_back(tmp);
-                node = MDNode::get(C, metadata);
-                tmp->replaceAllUsesWith(node);
-                MDNode::deleteTemporary(tmp);
-            }
-
-            Loop loop(builder, "i", start, stop, node);
+            Loop loop(builder, "i", start, stop);
 
             Value *columnStep, *rowStep, *frameStep;
             builder.steps(&dst, &columnStep, &rowStep, &frameStep);
@@ -1725,17 +1715,17 @@ private:
             if (args->is_list) {
                 assert(srcs.size() == args->num_atoms);
                 for (size_t j=0; j<args->num_atoms; j++)
-                    builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, node));
+                    builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, loop.node));
             } else {
                 assert(srcs.size() == 1);
-                builder.define(args->atom, new kernelArgument(srcs[0], dst, node));
+                builder.define(args->atom, new kernelArgument(srcs[0], dst, loop.node));
             }
 
             UniqueExpression result(builder.expression(ast->atoms[2]));
             dstType = result;
             dst.setType(dstType);
             StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), loop.index));
-            store->setMetadata("llvm.mem.parallel_loop_access", node);
+            store->setMetadata("llvm.mem.parallel_loop_access", loop.node);
 
             loop.close(builder);
             builder.CreateRetVoid();
@@ -1882,13 +1872,21 @@ private:
         string name;
         Value *start, *stop;
         MDNode *node;
+        BasicBlock *loop;
+        PHINode *index;
 
-        BasicBlock *loop = NULL;
-        PHINode *index = NULL;
-
-        Loop(Builder &builder, const string &name, Value *start, Value *stop, MDNode *node)
-            : name(name), start(start), stop(stop), node(node)
+        Loop(Builder &builder, const string &name, Value *start, Value *stop)
+            : name(name), start(start), stop(stop)
         {
+            { // Create self-referencing loop node
+                vector<Value*> metadata;
+                MDNode *tmp = MDNode::getTemporary(C, metadata);
+                metadata.push_back(tmp);
+                node = MDNode::get(C, metadata);
+                tmp->replaceAllUsesWith(node);
+                MDNode::deleteTemporary(tmp);
+            }
+
             // Loops assume at least one iteration
             BasicBlock *entry = builder.GetInsertBlock();
             loop = BasicBlock::Create(C, "loop_" + name, entry->getParent());
@@ -1901,12 +1899,9 @@ private:
         void close(Builder &builder) const
         {
             Value *increment = builder.CreateAdd(index, builder.one(), name + "_increment");
-            BasicBlock *latch = BasicBlock::Create(C, name + "_latch", loop->getParent());
-            builder.CreateBr(latch);
-            builder.SetInsertPoint(latch);
             BasicBlock *exit = BasicBlock::Create(C, name + "_exit", loop->getParent());
             builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_test"), exit, loop)->setMetadata("llvm.loop", node);
-            index->addIncoming(increment, latch);
+            index->addIncoming(increment, builder.GetInsertBlock());
             builder.SetInsertPoint(exit);
         }
     };
