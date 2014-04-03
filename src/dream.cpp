@@ -302,19 +302,23 @@ struct Image : public QGLWidget
     QImage image;
 
     Image(QWidget *parent)
-        : QGLWidget(parent) {}
+        : QGLWidget(parent)
+    {
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    }
 
     void setImage(const QImage &image)
     {
         this->image = image;
         setVisible(!image.isNull());
+        updateGeometry();
         update();
     }
 
 private:
     QSize sizeHint() const
     {
-        return image.size();
+        return QSize(width(), image.height() * width() / image.width());
     }
 
     void paintEvent(QPaintEvent* e)
@@ -322,12 +326,6 @@ private:
         e->accept();
         QPainter painter(this);
         painter.drawImage(rect(), image);
-    }
-
-    void resizeEvent(QResizeEvent *e)
-    {
-        e->accept();
-        setFixedHeight(image.height() * width() / image.width());
     }
 };
 
@@ -349,7 +347,6 @@ public:
         , image(new Image(this))
         , layout(new QVBoxLayout(this))
     {
-        image->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Minimum);
         definition->setWordWrap(true);
         layout->addWidget(type);
         layout->addWidget(image);
@@ -358,7 +355,7 @@ public:
         grabGesture(Qt::PinchGesture);
         setLayout(layout);
         setLineWidth(2);
-        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         spartan(false);
     }
 
