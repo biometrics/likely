@@ -33,6 +33,7 @@
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Utils/Cloning.h>
+#include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <llvm/Transforms/Vectorize.h>
 #include <cstdarg>
 #include <iostream>
@@ -1656,13 +1657,16 @@ private:
     {
         string name;
         Value *start, *stop;
+        kernelAxis *parent, *child;
         MDNode *node;
-        BasicBlock *loop;
+        BasicBlock *loop, *exit;
         PHINode *index;
+        Value *offset;
+        BranchInst *latch = NULL;
         mutable bool referenced = false;
 
-        kernelAxis(Builder &builder, const string &name, Value *start, Value *stop)
-            : name(name), start(start), stop(stop)
+        kernelAxis(Builder &builder, const string &name, Value *start, Value *stop, Value *step, kernelAxis *parent)
+            : name(name), start(start), stop(stop), parent(parent), child(NULL)
         {
             { // Create self-referencing loop node
                 vector<Value*> metadata;
@@ -1680,21 +1684,39 @@ private:
             builder.SetInsertPoint(loop);
             index = builder.CreatePHI(NativeInt, 2, name);
             index->addIncoming(start, entry);
+
+            if (parent)
+                parent->child = this;
+            offset = builder.CreateAdd(parent ? parent->offset : Builder::zero(), builder.CreateMul(step, index), name + "_offset");
         }
 
-        void close(Builder &builder) const
+        void close(Builder &builder)
         {
             Value *increment = builder.CreateAdd(index, builder.one(), name + "_increment");
-            BasicBlock *exit = BasicBlock::Create(C, name + "_exit", loop->getParent());
-            builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_test"), exit, loop)->setMetadata("llvm.loop", node);
+            exit = BasicBlock::Create(C, name + "_exit", loop->getParent());
+            latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_test"), exit, loop);
+            latch->setMetadata("llvm.loop", node);
             index->addIncoming(increment, builder.GetInsertBlock());
             builder.SetInsertPoint(exit);
+            if (parent) parent->close(builder);
         }
 
-        ~kernelAxis()
+        void tryCollapse()
         {
-            if (referenced) return;
-            // TODO: collapse loop
+            if (parent || referenced)
+                return;
+
+            while (child && !child->referenced) {
+                // Collapse the child loop into us
+                /*
+                child->offset->replaceAllUsesWith(index);
+                child->latch->setCondition(ConstantInt::getTrue(C));
+                DeleteDeadPHIs(child->loop);
+                MergeBlockIntoPredecessor(child->loop);
+                MergeBlockIntoPredecessor(child->exit);
+                */
+                child = child->child;
+            }
         }
 
         Value *value() const
@@ -1764,7 +1786,6 @@ private:
             Value *channelStep = builder.one(), *columnStep, *rowStep, *frameStep;
             builder.steps(&dst, &columnStep, &rowStep, &frameStep);
 
-            Value *index = builder.zero();
             vector<kernelAxis*> axis;
             for (int axis_index=0; axis_index<4; axis_index++) {
                 string name;
@@ -1799,15 +1820,14 @@ private:
                 }
 
                 if (multiElement || ((axis_index == 3) && axis.empty())) {
-                    if (axis.empty()) axis.push_back(new kernelAxis(builder, name, start, stop));
-                    else              axis.push_back(new kernelAxis(builder, name, builder.zero(), elements));
-                    builder.define(name, axis.back());
-                    index = builder.CreateAdd(index, builder.CreateMul(step, axis.back()->index));
+                    if (axis.empty()) axis.push_back(new kernelAxis(builder, name, start, stop, step, NULL));
+                    else              axis.push_back(new kernelAxis(builder, name, builder.zero(), elements, step, axis.back()));
+                    builder.define(name, axis.back()); // takes ownership of axis
                 } else {
                     builder.define(name, builder.zero(), likely_type_native);
                 }
             }
-            builder.define("i", index, likely_type_native);
+            builder.define("i", axis.back()->offset, likely_type_native);
 
             const likely_const_ast args = ast->atoms[1];
             if (args->is_list) {
@@ -1822,15 +1842,14 @@ private:
             UniqueExpression result(builder.expression(ast->atoms[2]));
             likely_set_data(&kernelType, likely_data(result));
             dst.setType(kernelType);
-            StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), index));
+            StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), axis.back()->offset));
             store->setMetadata("llvm.mem.parallel_loop_access", axis.back()->node);
 
             builder.undefine("i");
-            reverse(axis.begin(), axis.end());
-            for (kernelAxis *a : axis) {
-                a->close(builder);
-                builder.undefine(a->name); // Tiggers deletion
-            }
+            axis.back()->close(builder); // Closes all axis
+            axis.front()->tryCollapse();
+            for (kernelAxis *a : axis)
+                builder.undefine(a->name); // Tiggers deletion of axis
             axis.clear();
 
             if (args->is_list) {
