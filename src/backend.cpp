@@ -1652,15 +1652,16 @@ private:
         }
     };
 
-    struct Loop
+    struct kernelAxis : public Expression
     {
         string name;
         Value *start, *stop;
         MDNode *node;
         BasicBlock *loop;
         PHINode *index;
+        mutable bool referenced = false;
 
-        Loop(Builder &builder, const string &name, Value *start, Value *stop)
+        kernelAxis(Builder &builder, const string &name, Value *start, Value *stop)
             : name(name), start(start), stop(stop)
         {
             { // Create self-referencing loop node
@@ -1689,19 +1690,8 @@ private:
             index->addIncoming(increment, builder.GetInsertBlock());
             builder.SetInsertPoint(exit);
         }
-    };
 
-    class kernelIndex : public Expression
-    {
-        mutable bool referenced = false;
-        Loop loop;
-
-    public:
-        kernelIndex(const Loop &loop)
-            : Expression(loop.index, likely_type_native), loop(loop) {}
-
-    private:
-        ~kernelIndex()
+        ~kernelAxis()
         {
             if (referenced) return;
             // TODO: collapse loop
@@ -1710,7 +1700,12 @@ private:
         Value *value() const
         {
             referenced = true;
-            return Expression::value();
+            return index;
+        }
+
+        likely_type type() const
+        {
+            return likely_type_native;
         }
     };
 
@@ -1770,13 +1765,13 @@ private:
             builder.steps(&dst, &columnStep, &rowStep, &frameStep);
 
             Value *index = builder.zero();
-            vector<Loop> loops;
-            for (int axis=0; axis<4; axis++) {
+            vector<kernelAxis*> axis;
+            for (int axis_index=0; axis_index<4; axis_index++) {
                 string name;
                 bool multiElement;
                 Value *elements, *step;
 
-                switch (axis) {
+                switch (axis_index) {
                   case 0:
                     name = "t";
                     multiElement = likely_multi_frame(dst);
@@ -1803,11 +1798,11 @@ private:
                     break;
                 }
 
-                if (multiElement || ((axis == 3) && loops.empty())) {
-                    if (loops.empty()) loops.push_back(Loop(builder, name, start, stop));
-                    else               loops.push_back(Loop(builder, name, builder.zero(), elements));
-                    builder.define(name, new kernelIndex(loops.back()));
-                    index = builder.CreateAdd(index, builder.CreateMul(step, loops.back().index));
+                if (multiElement || ((axis_index == 3) && axis.empty())) {
+                    if (axis.empty()) axis.push_back(new kernelAxis(builder, name, start, stop));
+                    else              axis.push_back(new kernelAxis(builder, name, builder.zero(), elements));
+                    builder.define(name, axis.back());
+                    index = builder.CreateAdd(index, builder.CreateMul(step, axis.back()->index));
                 } else {
                     builder.define(name, builder.zero(), likely_type_native);
                 }
@@ -1818,25 +1813,25 @@ private:
             if (args->is_list) {
                 assert(srcs.size() == args->num_atoms);
                 for (size_t j=0; j<args->num_atoms; j++)
-                    builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, loops.back().node));
+                    builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, axis.back()->node));
             } else {
                 assert(srcs.size() == 1);
-                builder.define(args->atom, new kernelArgument(srcs[0], dst, loops.back().node));
+                builder.define(args->atom, new kernelArgument(srcs[0], dst, axis.back()->node));
             }
 
             UniqueExpression result(builder.expression(ast->atoms[2]));
             likely_set_data(&kernelType, likely_data(result));
             dst.setType(kernelType);
             StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), index));
-            store->setMetadata("llvm.mem.parallel_loop_access", loops.back().node);
+            store->setMetadata("llvm.mem.parallel_loop_access", axis.back()->node);
 
             builder.undefine("i");
-            reverse(loops.begin(), loops.end());
-            for (const Loop &loop : loops) {
-                loop.close(builder);
-                builder.undefine(loop.name);
+            reverse(axis.begin(), axis.end());
+            for (kernelAxis *a : axis) {
+                a->close(builder);
+                builder.undefine(a->name); // Tiggers deletion
             }
-            loops.clear();
+            axis.clear();
 
             if (args->is_list) {
                 for (size_t i=0; i<args->num_atoms; i++)
