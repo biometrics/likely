@@ -36,6 +36,7 @@
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <llvm/Transforms/Vectorize.h>
 #include <cstdarg>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -193,23 +194,15 @@ struct UniqueASTL : public vector<likely_const_ast>
     void retain(likely_const_ast ast) { push_back(likely_retain_ast(ast)); }
 };
 
-class ShadowExpression : public Expression
-{
-    Expression *e;
-
-public:
-    ShadowExpression(Expression *e = NULL) : e(e) {}
-    bool isNull() const { return e == NULL; }
-    Value* value() const { return e->value(); }
-    likely_type type() const { return e->type(); }
-    Expression *evaluate(Builder &builder, likely_const_ast ast) const
-        { return e->evaluate(builder, ast); }
-};
-
-struct UniqueExpression : public ShadowExpression, public unique_ptr<Expression>
+struct UniqueExpression : public Expression, public unique_ptr<Expression>
 {
     UniqueExpression(Expression *e = NULL)
-        : ShadowExpression(e), unique_ptr<Expression>(e) {}
+        : unique_ptr<Expression>(e) {}
+    bool isNull() const { return get() == NULL; }
+    Value* value() const { return get()->value(); }
+    likely_type type() const { return get()->type(); }
+    Expression *evaluate(Builder &builder, likely_const_ast ast) const
+        { return get()->evaluate(builder, ast); }
 };
 
 #define TRY_EXPR(BUILDER, AST, EXPR)                    \
@@ -396,7 +389,7 @@ struct Builder : public IRBuilder<>
 {
     likely_env env;
     Resources *resources;
-    map<string, UniqueExpression> locals;
+    map<string, shared_ptr<Expression>> locals;
 
     Builder(Resources *resources, likely_env env)
         : IRBuilder<>(C), env(env), resources(resources)
@@ -705,7 +698,7 @@ Expression *Builder::expression(likely_const_ast ast)
     { // Is it a local variable?
         auto var = locals.find(op);
         if (var != locals.end())
-            return var->second.evaluate(*this, ast);
+            return var->second->evaluate(*this, ast);
     }
 
     if (Expression *e = lookup(op))
@@ -1062,9 +1055,9 @@ class defineExpression : public DefinitionOperator
             // Local variable
             Expression *expr = builder.expression(value);
             if (expr) {
-                UniqueExpression &variable = builder.locals[name->atom];
-                if (variable.isNull()) variable = new Variable(builder, expr, name->atom);
-                else                   static_cast<Variable*>(variable.get())->set(builder, expr);
+                shared_ptr<Expression> &variable = builder.locals[name->atom];
+                if (variable->isNull()) variable.reset(new Variable(builder, expr, name->atom));
+                else                    static_cast<Variable*>(variable.get())->set(builder, expr);
             }
             return expr;
         } else {
@@ -1137,12 +1130,12 @@ class newExpression : public Operator, public LibraryFunction
             case 4: rows     = builder.expression(ast->atoms[4])->take();
             case 3: columns  = builder.expression(ast->atoms[3])->take();
             case 2: channels = builder.expression(ast->atoms[2])->take();
-            case 1: type     = builder.expression(ast->atoms[1]);
+            case 1: type.reset(builder.expression(ast->atoms[1]));
             default:           break;
         }
 
         switch (maxParameters()-n) {
-            case 6: type     = new Expression(Builder::type(Builder::validFloatType(likely_type_native)));
+            case 6: type.reset(new Expression(Builder::type(Builder::validFloatType(likely_type_native))));
             case 5: channels = Builder::one();
             case 4: columns  = Builder::one();
             case 3: rows     = Builder::one();
@@ -1563,7 +1556,7 @@ class labelExpression : public Operator
         BasicBlock *label = BasicBlock::Create(C, name, builder.GetInsertBlock()->getParent());
         builder.CreateBr(label);
         builder.SetInsertPoint(label);
-        builder.locals.insert(pair<string,UniqueExpression>(name, new Label(label)));
+        builder.locals.insert(pair<string,shared_ptr<Expression>>(name, shared_ptr<Expression>(new Label(label))));
         return new Label(label);
     }
 };
