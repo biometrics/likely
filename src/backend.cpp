@@ -126,23 +126,20 @@ public:
         : value_(value), type_(type) {}
     virtual ~Expression() {}
 
-    bool isNull() const { return !value_; }
-
     virtual Value *value() const
     {
-        likely_assert(!isNull(), "Expression has no value!");
+        likely_assert(value_ != NULL, "Expression has no value!");
         return value_;
     }
 
     virtual likely_type type() const
     {
-        likely_assert(!isNull(), "Expression has no type!");
+        likely_assert(value_ != NULL, "Expression has no type!");
         return type_;
     }
 
     void setType(likely_type type)
     {
-        likely_assert(!isNull(), "Expression has no type!");
         type_ = type;
     }
 
@@ -198,7 +195,6 @@ struct UniqueExpression : public Expression, public unique_ptr<Expression>
 {
     UniqueExpression(Expression *e = NULL)
         : unique_ptr<Expression>(e) {}
-    bool isNull() const { return get() == NULL; }
     Value* value() const { return get()->value(); }
     likely_type type() const { return get()->type(); }
     Expression *evaluate(Builder &builder, likely_const_ast ast) const
@@ -207,7 +203,7 @@ struct UniqueExpression : public Expression, public unique_ptr<Expression>
 
 #define TRY_EXPR(BUILDER, AST, EXPR)                    \
 const UniqueExpression EXPR((BUILDER).expression(AST)); \
-if (EXPR.isNull()) return NULL;                         \
+if (!EXPR.get()) return NULL;                           \
 
 static string getUniqueName(const string &prefix)
 {
@@ -1061,8 +1057,8 @@ class defineExpression : public DefinitionOperator
             Expression *expr = builder.expression(value);
             if (expr) {
                 shared_ptr<Expression> &variable = builder.locals[name->atom];
-                if (variable->isNull()) variable.reset(new Variable(builder, expr, name->atom));
-                else                    static_cast<Variable*>(variable.get())->set(builder, expr);
+                if (variable.get()) static_cast<Variable*>(variable.get())->set(builder, expr);
+                else                variable.reset(new Variable(builder, expr, name->atom));
             }
             return expr;
         } else {

@@ -213,7 +213,8 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
             // See if the combined token is a number
             if (!output[output.size()-2]->is_list &&
                 !output[output.size()-1]->is_list &&
-                isdigit(output[output.size()-2]->atom[0])) {
+                isdigit(output[output.size()-2]->atom[0]) &&
+                isdigit(output[output.size()-1]->atom[0])) {
                 // It's a number
                 stringstream stream;
                 stream << output[output.size()-2]->atom << "." << output[output.size()-1]->atom;
