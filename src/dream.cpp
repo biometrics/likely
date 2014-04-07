@@ -395,7 +395,6 @@ public:
     void spartan(bool enabled)
     {
         type->setVisible(!enabled);
-        definition->setVisible(!enabled && !image->image.isNull());
         if (enabled) {
             layout->setContentsMargins(0, 0, 0, 0);
             setFrameStyle(QFrame::NoFrame);
@@ -403,6 +402,7 @@ public:
             layout->setContentsMargins(3, 3, 3, 3);
             setFrameStyle(QFrame::Panel | QFrame::Raised);
         }
+        updateDefinitionVisibility();
     }
 
     void reset()
@@ -516,7 +516,14 @@ private:
                                                                   QString::number(scale)));
         }
 
+        updateDefinitionVisibility();
         emit definitionChanged();
+    }
+
+    void updateDefinitionVisibility()
+    {
+        definition->setVisible(!definition->text().isEmpty() &&
+                               (frameStyle() != QFrame::NoFrame)); // don't show in spartan mode
     }
 
 signals:
