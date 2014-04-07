@@ -1130,7 +1130,7 @@ class newExpression : public Operator, public LibraryFunction
     {
         const size_t n = ast->num_atoms - 1;
         UniqueExpression type;
-        Value *channels, *columns, *rows, *frames, *data;
+        Value *channels = NULL, *columns = NULL, *rows = NULL, *frames = NULL, *data = NULL;
         switch (n) {
             case 6: data     = builder.expression(ast->atoms[6])->take();
             case 5: frames   = builder.expression(ast->atoms[5])->take();

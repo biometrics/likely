@@ -42,12 +42,13 @@ likely_mat likely_read(const char *file_name)
     } else {
         if (FILE *fp = fopen(file_name, "rb")) {
             likely_size bytes;
-            fread(&bytes, sizeof(bytes), 1, fp);
-            fseek(fp, 0, SEEK_SET);
-            m = (likely_mat) malloc(bytes);
-            if (m && (fread(m, 1, bytes, fp) != bytes)) {
-                free(m);
-                m = NULL;
+            if (fread(&bytes, sizeof(bytes), 1, fp) == 1) {
+                fseek(fp, 0, SEEK_SET);
+                m = (likely_mat) malloc(bytes);
+                if (m && (fread(m, 1, bytes, fp) != bytes)) {
+                    free(m);
+                    m = NULL;
+                }
             }
             fclose(fp);
         }
