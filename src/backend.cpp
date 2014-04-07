@@ -294,7 +294,12 @@ struct Resources
         TO.NoNaNsFPMath = true;
         TO.AllowFPOpFusion = FPOpFusion::Fast;
 
-        TargetMachine *TM = TheTarget->createTargetMachine(sys::getProcessTriple(),
+        string targetTriple = sys::getProcessTriple();
+#ifdef _WIN32
+        if (JIT) targetTriple += "-elf";
+#endif // _WIN32
+
+        TargetMachine *TM = TheTarget->createTargetMachine(targetTriple,
                                                            sys::getHostCPUName(),
                                                            "",
                                                            TO,
@@ -1994,10 +1999,6 @@ LIKELY_REGISTER(export)
 JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<likely_type> &type)
     : Resources(true), type(type)
 {
-#ifdef _WIN32
-    module->setTargetTriple(module->getTargetTriple() + "-elf");
-#endif
-
     string error;
     EngineBuilder engineBuilder(module);
     engineBuilder.setEngineKind(EngineKind::JIT)

@@ -211,20 +211,18 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
                 return 0;
 
             // See if the combined token is a number
-            if (!output[output.size()-2]->is_list && !output[output.size()-1]->is_list) {
+            if (!output[output.size()-2]->is_list &&
+                !output[output.size()-1]->is_list &&
+                isdigit(output[output.size()-2]->atom[0])) {
+                // It's a number
                 stringstream stream;
                 stream << output[output.size()-2]->atom << "." << output[output.size()-1]->atom;
-                char *p;
-                strtod(stream.str().c_str(), &p);
-                if (*p == 0) {
-                    // It's a number
-                    likely_ast number = likely_new_atom(stream.str().c_str());
-                    number->begin = output[output.size()-2]->begin;
-                    number->end   = output[output.size()-1]->end;
-                    output.erase(output.end()-2, output.end());
-                    output.push_back(number);
-                    return 1;
-                }
+                likely_ast number = likely_new_atom(stream.str().c_str());
+                number->begin = output[output.size()-2]->begin;
+                number->end   = output[output.size()-1]->end;
+                output.erase(output.end()-2, output.end());
+                output.push_back(number);
+                return 1;
             }
 
             // It's a composition
@@ -243,7 +241,7 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
             for (size_t i=0; i<op->second.rightHandAtoms; i++)
                 if (!shift(tokens, offset, output, op->second.precedence))
                     return 0;
-            int atoms = 1 + output.size() - before;
+            size_t atoms = 1 + output.size() - before;
             output.insert(output.end()-atoms++, likely_retain_ast(token));
             output.push_back(likely_new_list(&output[output.size()-atoms], atoms));
             output.erase(output.end()-atoms-1, output.end()-1);
