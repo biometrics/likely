@@ -1,8 +1,8 @@
 Mandelbrot Set
 --------------
-[Wikipedia Explanation](http://en.wikipedia.org/wiki/Mandelbrot_set)
+[Video Walkthrough](https://www.youtube.com/watch?v=a_hz8wFACVM)
 
-Reactive location and resolution
+Responsive location and resolution
 
     x_scale  = 3
     y_scale  = 2
