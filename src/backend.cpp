@@ -127,6 +127,11 @@ public:
         : value_(value), type_(type) {}
     virtual ~Expression() {}
 
+    virtual bool isNull() const
+    {
+        return !value_;
+    }
+
     virtual Value *value() const
     {
         likely_assert(value_ != NULL, "Expression has no value!");
@@ -1329,7 +1334,7 @@ struct Lambda : public ScopedExpression, public LibraryFunction
     Lambda(Builder &builder, likely_const_ast ast)
         : ScopedExpression(builder, ast) {}
 
-    Expression generate(Builder &builder, vector<T> types, string name) const
+    Expression *generate(Builder &builder, vector<T> types, string name) const
     {
         size_t n;
         if (ast->is_list && (ast->num_atoms > 1))
@@ -1346,9 +1351,8 @@ struct Lambda : public ScopedExpression, public LibraryFunction
         builder.SetInsertPoint(entry);
 
         Expression *result = evaluateFunction(builder, tmpArgs);
+        if (!result || result->isNull()) return result;
 
-        if (!result)
-            return Expression(NULL, likely_type_void);
         builder.CreateRet(*result);
         likely_type return_type = result->type();
 
@@ -1363,7 +1367,7 @@ struct Lambda : public ScopedExpression, public LibraryFunction
         CloneFunctionInto(function, tmpFunction, VMap, false, returns);
         tmpFunction->eraseFromParent();
         delete result;
-        return Expression(function, return_type);
+        return new Expression(function, return_type);
     }
 
 private:
@@ -2013,7 +2017,7 @@ JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<li
     vector<T> types;
     for (likely_type t : type)
         types.push_back(T::get(t));
-    Function *F = dyn_cast_or_null<Function>(static_cast<Lambda*>(result.get())->generate(builder, types, getUniqueName("jit")).value());
+    Function *F = dyn_cast_or_null<Function>(static_cast<Lambda*>(result.get())->generate(builder, types, getUniqueName("jit"))->take());
 
     if (F) {
         optimize();
