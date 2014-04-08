@@ -100,52 +100,63 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
     return likely::fromCvMat(cv::Mat(buf));
 }
 
-likely_mat likely_to_string(likely_const_mat m, bool include_header)
+likely_mat likely_to_string(likely_const_mat m, int header)
 {
     if (!m) return NULL;
     if ((likely_data(m->type) == likely_type_i8) && !m->data[likely_elements(m)-1])
         return likely_retain(m); // Special case where matrix encodes a string
 
     stringstream stream;
-    if (include_header) {
-        stream << "{ type=";
+    if (header) {
+        stream << "(";
         likely_mat str = likely_type_to_string(m->type);
         stream << str->data;
         likely_release(str);
-        if (m->channels > 1) stream << ", channels=" << m->channels;
-        if (m->columns  > 1) stream << ", columns="  << m->columns;
-        if (m->rows     > 1) stream << ", rows="     << m->rows;
-        if (m->frames   > 1) stream << ", frames="   << m->frames;
-        stream << ", data=";
     }
-    if (likely_elements(m) > 1) stream << "{\n";
-    stream << (m->frames > 1 ? "{" : "");
-    for (likely_size t=0; t<m->frames; t++) {
-        stream << (m->rows > 1 ? "{" : "");
-        for (likely_size y=0; y<m->rows; y++) {
-            stream << (m->columns > 1 ? "{" : "");
-            for (likely_size x=0; x<m->columns; x++) {
-                stream << (m->channels > 1 ? "{" : "");
-                for (likely_size c=0; c<m->channels; c++) {
-                    stream << likely_element(m, c, x, y, t);
-                    if (c != m->channels-1)
-                        stream << ", ";
+    if (header >= 0) {
+        stream << " ";
+        if (likely_elements(m) > 1)
+            stream << "(\n";
+        stream << (m->frames > 1 ? "(" : "");
+        for (likely_size t=0; t<m->frames; t++) {
+            stream << (m->rows > 1 ? "(" : "");
+            for (likely_size y=0; y<m->rows; y++) {
+                stream << (m->columns > 1 ? "(" : "");
+                for (likely_size x=0; x<m->columns; x++) {
+                    stream << (m->channels > 1 ? "(" : "");
+                    for (likely_size c=0; c<m->channels; c++) {
+                        stream << likely_element(m, c, x, y, t);
+                        if (c != m->channels-1)
+                            stream << " ";
+                    }
+                    stream << (m->channels > 1 ? ")" : "");
+                    if (x != m->columns-1)
+                        stream << " ";
                 }
-                stream << (m->channels > 1 ? "}" : "");
-                if (x != m->columns-1)
-                    stream << ", ";
+                stream << (m->columns > 1 ? ")" : "");
+                if (y != m->rows-1)
+                    stream << "\n";
             }
-            stream << (m->columns > 1 ? "}" : "");
-            if (y != m->rows-1)
-                stream << ",\n";
+            stream << (m->rows > 1 ? ")" : "");
+            if (t != m->frames-1)
+                stream << "\n\n";
         }
-        stream << (m->rows > 1 ? "}" : "");
-        if (t != m->frames-1)
-            stream << ",\n\n";
+        stream << (m->frames > 1 ? ")" : "");
+        if (likely_elements(m) > 1)
+            stream << "\n)";
     }
-    stream << (m->frames > 1 ? "}" : "");
-    if (likely_elements(m) > 1) stream << "\n}";
-    if (include_header) stream << " }";
+    if (header) {
+        const bool frames   =            (m->frames   > 1);
+        const bool rows     = frames  || (m->rows     > 1);
+        const bool columns  = rows    || (m->columns  > 1);
+        const bool channels = columns || (m->channels > 1);
+        if (channels) stream << " (" << m->channels;
+        if (columns ) stream << " "  << m->columns;
+        if (rows    ) stream << " "  << m->rows;
+        if (frames  ) stream << " "  << m->frames;
+        if (channels) stream << ")";
+        stream << ")";
+    }
 
     return likely_string(stream.str().c_str());
 }

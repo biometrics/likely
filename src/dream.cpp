@@ -373,14 +373,10 @@ public:
             image->setImage(QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped());
             likely_release(rendered);
 
-            likely_mat str = likely_type_to_string(m->type);
-            type->setText(QString("%1x%2x%3x%4 %5 [%6,%7]").arg(QString::number(m->channels),
-                                                                QString::number(m->columns),
-                                                                QString::number(m->rows),
-                                                                QString::number(m->frames),
-                                                                (const char*)str->data,
-                                                                QString::number(min),
-                                                                QString::number(max)));
+            likely_mat str = likely_to_string(m, -1);
+            type->setText(QString("%1 [%2,%3]").arg((const char*)str->data,
+                                                    QString::number(min),
+                                                    QString::number(max)));
             likely_release(str);
         }
 
