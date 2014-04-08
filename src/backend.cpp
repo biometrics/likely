@@ -1203,10 +1203,7 @@ class scalarExpression : public UnaryOperator, public LibraryFunction
         if (!argExpr)
             return NULL;
 
-        if (argExpr->value()->getType() == Type::getVoidTy(C))
-            return new Expression(builder.nullMat());
-
-        if (argExpr->value()->getType() == T::Void)
+        if (argExpr->isNull() || (argExpr->value()->getType() == T::Void))
             return argExpr;
 
         static FunctionType *functionType = NULL;
