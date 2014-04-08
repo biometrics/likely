@@ -201,6 +201,7 @@ struct UniqueExpression : public Expression, public unique_ptr<Expression>
 {
     UniqueExpression(Expression *e = NULL)
         : unique_ptr<Expression>(e) {}
+    bool isNull() const { return get()->isNull(); }
     Value* value() const { return get()->value(); }
     likely_type type() const { return get()->type(); }
     Expression *evaluate(Builder &builder, likely_const_ast ast) const
@@ -326,6 +327,7 @@ class JITResources : public Resources
 
 public:
     void *function = NULL;
+    bool error = false;
     const vector<likely_type> type;
 
     JITResources(likely_const_ast ast, likely_env env, const vector<likely_type> &type);
@@ -384,8 +386,9 @@ struct likely_environment : public map<string,stack<shared_ptr<Expression>>>
         expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
         JITResources resources(expr, this, vector<likely_type>());
         likely_release_ast(expr);
-        if (resources.function) return reinterpret_cast<likely_mat(*)(void)>(resources.function)();
-        else                    return NULL;
+        if      (resources.function) return reinterpret_cast<likely_mat(*)(void)>(resources.function)();
+        else if (!resources.error)   return likely_void();
+        else                         return NULL;
     }
 };
 map<string,stack<shared_ptr<Expression>>> likely_environment::defaultExprs;
@@ -2000,14 +2003,6 @@ LIKELY_REGISTER(export)
 JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<likely_type> &type)
     : Resources(true), type(type)
 {
-    string error;
-    EngineBuilder engineBuilder(module);
-    engineBuilder.setEngineKind(EngineKind::JIT)
-                 .setErrorStr(&error)
-                 .setUseMCJIT(true);
-    EE = engineBuilder.create(getTargetMachine(true));
-    likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
-
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
                   (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
                   "expected a lambda expression");
@@ -2017,9 +2012,19 @@ JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<li
     vector<T> types;
     for (likely_type t : type)
         types.push_back(T::get(t));
-    Function *F = dyn_cast_or_null<Function>(static_cast<Lambda*>(result.get())->generate(builder, types, getUniqueName("jit"))->take());
+    UniqueExpression expr(static_cast<Lambda*>(result.get())->generate(builder, types, getUniqueName("jit")));
+    error = !expr.get();
 
-    if (F) {
+    if (!error && !expr.isNull()) {
+        string error;
+        EngineBuilder engineBuilder(module);
+        engineBuilder.setEngineKind(EngineKind::JIT)
+                     .setErrorStr(&error)
+                     .setUseMCJIT(true);
+        EE = engineBuilder.create(getTargetMachine(true));
+        likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
+
+        Function *F = dyn_cast<Function>(expr.value());
         optimize();
         EE->finalizeObject();
         function = EE->getPointerToFunction(F);
@@ -2038,8 +2043,8 @@ private:
     likely_mat evaluate(likely_const_ast ast)
     {
         Builder builder(resources.get(), this);
-        delete builder.expression(ast);
-        return NULL;
+        UniqueExpression e(builder.expression(ast));
+        return e.get() ? likely_void() : NULL;
     }
 };
 
@@ -2359,7 +2364,7 @@ likely_mat likely_eval(likely_const_ast ast, likely_env env)
     // Shortcut for global variable definitions
     if (ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=")) {
         delete Builder(NULL, env).expression(ast);
-        return NULL;
+        return likely_void();
     }
 
     return env->evaluate(ast);
@@ -2375,18 +2380,23 @@ bool likely_repl(const char *source, bool GFM, likely_env env)
     if (owns_env)
         env = likely_new_jit();
 
+    bool success = true;
     for (size_t i=0; i<asts->num_atoms; i++) {
         likely_const_ast ast = asts->atoms[i];
         if (likely_const_mat m = likely_eval(ast, env)) {
-            likely_show(m, ast->is_list ? NULL : ast->atom);
+            if (likely_elements(m) > 0)
+                likely_show(m, ast->is_list ? NULL : ast->atom);
             likely_release(m);
+        } else {
+            success = false;
+            break;
         }
     }
 
     if (owns_env)
         likely_release_env(env);
     likely_release_ast(asts);
-    return true;
+    return success;
 }
 
 namespace {
