@@ -37,6 +37,7 @@
 #include <llvm/Transforms/Vectorize.h>
 #include <cstdarg>
 #include <functional>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -2383,3 +2384,30 @@ bool likely_repl(const char *source, bool GFM, likely_env env)
     likely_release_ast(asts);
     return true;
 }
+
+namespace {
+
+class importExpression : public Operator
+{
+    size_t maxParameters() const { return 1; }
+    Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        likely_const_ast file = ast->atoms[1];
+        if (file->is_list)
+            return error(file, "expected a file name");
+
+        const string fileName = string(file->atom) + ".l";
+        ifstream stream(fileName);
+        const string source((istreambuf_iterator<char>(stream)),
+                             istreambuf_iterator<char>());
+        if (source.empty())
+            return error(file, "unable to open file");
+
+        const bool success = likely_repl(source.c_str(), true, builder.env);
+        if (success) return new Expression();
+        else         return NULL;
+    }
+};
+LIKELY_REGISTER(import)
+
+} // namespace (anonymous)
