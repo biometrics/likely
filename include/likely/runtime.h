@@ -135,6 +135,7 @@ LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
 LIKELY_EXPORT likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data);
 LIKELY_EXPORT likely_mat likely_scalar(double value, likely_type type);
 LIKELY_EXPORT likely_mat likely_string(const char *str);
+LIKELY_EXPORT likely_mat likely_void();
 LIKELY_EXPORT likely_mat likely_copy(likely_const_mat m);
 LIKELY_EXPORT likely_mat likely_retain(likely_const_mat m);
 LIKELY_EXPORT void likely_release(likely_const_mat m);

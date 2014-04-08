@@ -139,6 +139,11 @@ likely_mat likely_string(const char *str)
     return likely_new(likely_type_i8, strlen(str)+1, 1, 1, 1, str);
 }
 
+likely_mat likely_void()
+{
+    return likely_new(likely_type_void, 0, 0, 0, 0, NULL);
+}
+
 likely_mat likely_copy(likely_const_mat m)
 {
     return likely_new(m->type, m->channels, m->columns, m->rows, m->frames, m->data);
