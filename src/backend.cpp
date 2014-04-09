@@ -171,10 +171,6 @@ public:
         likely_throw(ast, message);
         return NULL;
     }
-
-    // When used as an environment variable
-    string name;
-    Expression *previous = NULL;
 };
 
 struct UniqueAST : public unique_ptr<const likely_abstract_syntax_tree, function<void(likely_const_ast)>>
@@ -377,47 +373,40 @@ public:
 
 } // namespace (anonymous)
 
-typedef vector<unique_ptr<Expression>> Scope;
-
 struct likely_environment
 {
-    static shared_ptr<Scope> baseScope;
+    static shared_ptr<likely_environment> RootEnvironment;
     mutable int ref_count = 1;
 
-    likely_environment()
+    likely_environment(const shared_ptr<likely_environment> &base = RootEnvironment)
+        : base(base)
     {
-        scopes.push(baseScope);
-        for (const unique_ptr<Expression> &e : *baseScope)
-            LUT[e->name] = e.get();
+        if (base.get())
+            LUT = base->LUT;
     }
 
     virtual ~likely_environment() {}
 
     void pushScope()
     {
-        scopes.push(shared_ptr<Scope>(new Scope()));
+        base = shared_ptr<likely_environment>(new likely_environment(*this));
     }
 
     void popScope()
     {
-        for (const unique_ptr<Expression> &e : *scopes.top())
-            LUT[e->name] = e->previous;
-        scopes.pop();
+        LUT = base->LUT;
+        base = base->base;
     }
 
     void define(const string &name, Expression *e)
     {
-        e->name = name;
-        Expression *&current = LUT[e->name];
-        e->previous = current;
-        current = e;
-        scopes.top()->push_back(unique_ptr<Expression>(e));
+        LUT[name] = shared_ptr<Expression>(e);
     }
 
     Expression *lookup(const string &name)
     {
         auto it = LUT.find(name);
-        if (it != LUT.end()) return it->second;
+        if (it != LUT.end()) return it->second.get();
         else                 return NULL;
     }
 
@@ -433,10 +422,10 @@ struct likely_environment
     }
 
 private:
-    stack<shared_ptr<Scope>> scopes;
-    map<string,Expression*> LUT;
+    map<string,shared_ptr<Expression>> LUT;
+    shared_ptr<likely_environment> base;
 };
-shared_ptr<Scope> likely_environment::baseScope(new Scope());
+shared_ptr<likely_environment> likely_environment::RootEnvironment(new likely_environment(shared_ptr<likely_environment>(NULL)));
 
 namespace {
 
@@ -666,8 +655,7 @@ struct RegisterExpression
     RegisterExpression(const char *symbol)
     {
         Expression *e = new E();
-        e->name = symbol;
-        likely_environment::baseScope->push_back(unique_ptr<Expression>(e));
+        likely_environment::RootEnvironment->define(symbol, e);
         if (int precedence = getPrecedence(symbol))
             likely_insert_operator(symbol, precedence, e->rightHandAtoms());
     }
