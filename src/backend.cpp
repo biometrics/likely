@@ -378,11 +378,11 @@ struct likely_environment
     static likely_env RootEnvironment;
     mutable int ref_count = 1;
 
-    likely_environment(likely_env base = RootEnvironment)
-        : base(likely_retain_env(base))
+    likely_environment(likely_env parent = RootEnvironment)
+        : parent(likely_retain_env(parent))
     {
-        if (base)
-            LUT = base->LUT;
+        if (parent)
+            LUT = parent->LUT;
     }
 
     likely_environment(const likely_environment &) = delete;
@@ -390,20 +390,20 @@ struct likely_environment
 
     virtual ~likely_environment()
     {
-        likely_release_env(base);
+        likely_release_env(parent);
     }
 
     void pushScope()
     {
-        base = new likely_environment(this);
+        parent = new likely_environment(this);
     }
 
     void popScope()
     {
-        likely_env oldBase = base;
-        LUT = base->LUT;
-        base = base->base;
-        likely_release_env(oldBase);
+        likely_env oldParent = parent;
+        LUT = parent->LUT;
+        parent = parent->parent;
+        likely_release_env(oldParent);
     }
 
     void define(const string &name, Expression *e)
@@ -431,7 +431,7 @@ struct likely_environment
 
 private:
     map<string,shared_ptr<Expression>> LUT;
-    likely_env base;
+    likely_env parent;
 };
 likely_env likely_environment::RootEnvironment = new likely_environment(NULL);
 
