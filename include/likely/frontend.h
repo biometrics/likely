@@ -64,6 +64,7 @@ LIKELY_EXPORT likely_ast likely_asts_from_tokens(likely_const_ast tokens); // To
 LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str, bool GFM);
 LIKELY_EXPORT likely_ast likely_asts_from_string(const char *str, bool GFM); // Top level is a list of expressions
 LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);
+LIKELY_EXPORT int likely_ast_compare(likely_const_ast a, likely_const_ast b);
 
 // Callback-style error handling
 LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, void *context);

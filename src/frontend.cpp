@@ -373,6 +373,26 @@ likely_mat likely_ast_to_string(likely_const_ast ast)
     return likely_string(stream.str().c_str());
 }
 
+int likely_ast_compare(likely_const_ast a, likely_const_ast b)
+{
+    if (a->is_list == b->is_list) {
+        if (a->is_list) {
+            if (a->num_atoms == b->num_atoms) {
+                for (size_t i = 0; i<a->num_atoms; i++)
+                    if (int compare = likely_ast_compare(a->atoms[i], b->atoms[i]))
+                        return compare;
+                return 0;
+            } else {
+                return (a->num_atoms > b->num_atoms) ? 1 : -1;
+            }
+        } else {
+            return strcmp(a->atom, b->atom);
+        }
+    } else {
+        return a->is_list ? 1 : -1;
+    }
+}
+
 static void default_error_callback(likely_error error, void *)
 {
     likely_mat str = likely_error_to_string(error);
