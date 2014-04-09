@@ -375,27 +375,35 @@ public:
 
 struct likely_environment
 {
-    static shared_ptr<likely_environment> RootEnvironment;
+    static likely_env RootEnvironment;
     mutable int ref_count = 1;
 
-    likely_environment(const shared_ptr<likely_environment> &base = RootEnvironment)
-        : base(base)
+    likely_environment(likely_env base = RootEnvironment)
+        : base(likely_retain_env(base))
     {
-        if (base.get())
+        if (base)
             LUT = base->LUT;
     }
 
-    virtual ~likely_environment() {}
+    likely_environment(const likely_environment &) = delete;
+    likely_environment &operator=(const likely_environment &) = delete;
+
+    virtual ~likely_environment()
+    {
+        likely_release_env(base);
+    }
 
     void pushScope()
     {
-        base = shared_ptr<likely_environment>(new likely_environment(*this));
+        base = new likely_environment(this);
     }
 
     void popScope()
     {
+        likely_env oldBase = base;
         LUT = base->LUT;
         base = base->base;
+        likely_release_env(oldBase);
     }
 
     void define(const string &name, Expression *e)
@@ -423,9 +431,9 @@ struct likely_environment
 
 private:
     map<string,shared_ptr<Expression>> LUT;
-    shared_ptr<likely_environment> base;
+    likely_env base;
 };
-shared_ptr<likely_environment> likely_environment::RootEnvironment(new likely_environment(shared_ptr<likely_environment>(NULL)));
+likely_env likely_environment::RootEnvironment = new likely_environment(NULL);
 
 namespace {
 
@@ -539,8 +547,6 @@ struct Builder : public IRBuilder<>
         return result;
     }
 
-    likely_env snapshot() const { return new likely_environment(*env); }
-
     Expression *expression(likely_const_ast ast);
 };
 
@@ -578,7 +584,7 @@ struct ScopedExpression : public Operator
     likely_const_ast ast;
 
     ScopedExpression(Builder &builder, likely_const_ast ast)
-        : env(builder.snapshot()), ast(likely_retain_ast(ast)) {}
+        : env(likely_retain_env(builder.env)), ast(likely_retain_ast(ast)) {}
 
     ~ScopedExpression()
     {
