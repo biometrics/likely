@@ -171,6 +171,10 @@ public:
         likely_throw(ast, message);
         return NULL;
     }
+
+    // When used as an environment variable
+    string name;
+    Expression *previous = NULL;
 };
 
 struct UniqueAST : public unique_ptr<const likely_abstract_syntax_tree, function<void(likely_const_ast)>>
@@ -373,13 +377,50 @@ public:
 
 } // namespace (anonymous)
 
-struct likely_environment : public map<string,stack<shared_ptr<Expression>>>
+typedef vector<unique_ptr<Expression>> Scope;
+
+struct likely_environment
 {
-    static map<string,stack<shared_ptr<Expression>>> defaultExprs;
+    static shared_ptr<Scope> baseScope;
     mutable int ref_count = 1;
-    likely_environment(const map<string,stack<shared_ptr<Expression>>> &exprs = defaultExprs)
-        : map<string,stack<shared_ptr<Expression>>>(exprs) {}
+
+    likely_environment()
+    {
+        scopes.push(baseScope);
+        for (const unique_ptr<Expression> &e : *baseScope)
+            LUT[e->name] = e.get();
+    }
+
     virtual ~likely_environment() {}
+
+    void pushScope()
+    {
+        scopes.push(shared_ptr<Scope>(new Scope()));
+    }
+
+    void popScope()
+    {
+        for (const unique_ptr<Expression> &e : *scopes.top())
+            LUT[e->name] = e->previous;
+        scopes.pop();
+    }
+
+    void define(const string &name, Expression *e)
+    {
+        e->name = name;
+        Expression *&current = LUT[e->name];
+        e->previous = current;
+        current = e;
+        scopes.top()->push_back(unique_ptr<Expression>(e));
+    }
+
+    Expression *lookup(const string &name)
+    {
+        auto it = LUT.find(name);
+        if (it != LUT.end()) return it->second;
+        else                 return NULL;
+    }
+
     virtual likely_mat evaluate(likely_const_ast ast)
     {
         likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
@@ -390,8 +431,12 @@ struct likely_environment : public map<string,stack<shared_ptr<Expression>>>
         else if (!resources.error)   return likely_void();
         else                         return NULL;
     }
+
+private:
+    stack<shared_ptr<Scope>> scopes;
+    map<string,Expression*> LUT;
 };
-map<string,stack<shared_ptr<Expression>>> likely_environment::defaultExprs;
+shared_ptr<Scope> likely_environment::baseScope(new Scope());
 
 namespace {
 
@@ -503,33 +548,6 @@ struct Builder : public IRBuilder<>
             n++;
         }
         return result;
-    }
-
-    void define(const string &name, Expression *e)
-    {
-        (*env)[name].push(shared_ptr<Expression>(e));
-    }
-
-    void define(const string &name, const Expression &i)
-    {
-        define(name, new Expression(i));
-    }
-
-    void define(const string &name, Value *value, likely_type type)
-    {
-        define(name, Expression(value, type));
-    }
-
-    void undefine(const string &name)
-    {
-        (*env)[name].pop();
-    }
-
-    Expression *lookup(const string &name)
-    {
-        auto it = env->find(name);
-        if (it != env->end()) return it->second.top().get();
-        else                  return NULL;
     }
 
     likely_env snapshot() const { return new likely_environment(*env); }
@@ -648,7 +666,8 @@ struct RegisterExpression
     RegisterExpression(const char *symbol)
     {
         Expression *e = new E();
-        likely_environment::defaultExprs[symbol].push(shared_ptr<Expression>(e));
+        e->name = symbol;
+        likely_environment::baseScope->push_back(unique_ptr<Expression>(e));
         if (int precedence = getPrecedence(symbol))
             likely_insert_operator(symbol, precedence, e->rightHandAtoms());
     }
@@ -698,7 +717,7 @@ Expression *Builder::expression(likely_const_ast ast)
             return Expression::error(ast, "Empty expression");
         likely_const_ast op = ast->atoms[0];
         if (!op->is_list)
-            if (Expression *e = lookup(op->atom))
+            if (Expression *e = env->lookup(op->atom))
                 return e->evaluate(*this, ast);
         TRY_EXPR(*this, op, e);
         return e.evaluate(*this, ast);
@@ -711,7 +730,7 @@ Expression *Builder::expression(likely_const_ast ast)
             return var->second->evaluate(*this, ast);
     }
 
-    if (Expression *e = lookup(op))
+    if (Expression *e = env->lookup(op))
         return e->evaluate(*this, ast);
 
     if ((op.front() == '"') && (op.back() == '"'))
@@ -1072,7 +1091,7 @@ class defineExpression : public DefinitionOperator
             return expr;
         } else {
             // Global variable
-            builder.define(name->atom, new Definition(builder, value));
+            builder.env->define(name->atom, new Definition(builder, value));
             return NULL;
         }
     }
@@ -1083,8 +1102,8 @@ class definedExpression : public DefinitionOperator
 {
     Expression *evaluateDefinition(Builder &builder, likely_const_ast name, likely_const_ast value) const
     {
-        if (builder.lookup(name->atom)) return builder.expression(name);
-        else                            return builder.expression(value);
+        if (builder.env->lookup(name->atom)) return builder.expression(name);
+        else                                 return builder.expression(value);
     }
 };
 LIKELY_REGISTER_EXPRESSION(defined, "??")
@@ -1438,22 +1457,16 @@ private:
 
     virtual Expression *evaluateLambda(Builder &builder, const vector<Expression> &args) const
     {
+        builder.env->pushScope();
         if (ast->atoms[1]->is_list) {
             for (size_t i=0; i<args.size(); i++)
-                builder.define(ast->atoms[1]->atoms[i]->atom, args[i]);
+                builder.env->define(ast->atoms[1]->atoms[i]->atom, new Expression(args[i]));
         } else {
-            builder.define(ast->atoms[1]->atom, args[0]);
+            builder.env->define(ast->atoms[1]->atom, new Expression(args[0]));
         }
 
         Expression *result = builder.expression(ast->atoms[2]);
-
-        if (ast->atoms[1]->is_list) {
-            for (size_t i=0; i<args.size(); i++)
-                builder.undefine(ast->atoms[1]->atoms[i]->atom);
-        } else {
-            builder.undefine(ast->atoms[1]->atom);
-        }
-
+        builder.env->popScope();
         return result;
     }
 };
@@ -1635,15 +1648,15 @@ private:
             Value *i;
             if (((matrix ^ kernel) & likely_type_multi_dimension) == 0) {
                 // This matrix has the same dimensionality as the kernel
-                i = *builder.lookup("i");
+                i = *builder.env->lookup("i");
             } else {
                 Value *columnStep, *rowStep, *frameStep;
                 builder.steps(&matrix, &columnStep, &rowStep, &frameStep);
                 i = Builder::zero();
-                if (likely_multi_channel(matrix)) i = *builder.lookup("c");
-                if (likely_multi_column (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), columnStep), i);
-                if (likely_multi_row    (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep   ), i);
-                if (likely_multi_frame  (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep ), i);
+                if (likely_multi_channel(matrix)) i = *builder.env->lookup("c");
+                if (likely_multi_column (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.env->lookup("x"), columnStep), i);
+                if (likely_multi_row    (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.env->lookup("y"), rowStep   ), i);
+                if (likely_multi_frame  (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.env->lookup("t"), frameStep ), i);
             }
 
             LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(&matrix), i));
@@ -1784,6 +1797,7 @@ private:
 
             Value *channelStep = builder.one(), *columnStep, *rowStep, *frameStep;
             builder.steps(&dst, &columnStep, &rowStep, &frameStep);
+            builder.env->pushScope();
 
             vector<kernelAxis*> axis;
             for (int axis_index=0; axis_index<4; axis_index++) {
@@ -1821,21 +1835,21 @@ private:
                 if (multiElement || ((axis_index == 3) && axis.empty())) {
                     if (axis.empty()) axis.push_back(new kernelAxis(builder, name, start, stop, step, NULL));
                     else              axis.push_back(new kernelAxis(builder, name, builder.zero(), elements, step, axis.back()));
-                    builder.define(name, axis.back()); // takes ownership of axis
+                    builder.env->define(name, axis.back()); // takes ownership of axis
                 } else {
-                    builder.define(name, builder.zero(), likely_type_native);
+                    builder.env->define(name, new Expression(builder.zero(), likely_type_native));
                 }
             }
-            builder.define("i", axis.back()->offset, likely_type_native);
+            builder.env->define("i", new Expression(axis.back()->offset, likely_type_native));
 
             const likely_const_ast args = ast->atoms[1];
             if (args->is_list) {
                 assert(srcs.size() == args->num_atoms);
                 for (size_t j=0; j<args->num_atoms; j++)
-                    builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, axis.back()->node));
+                    builder.env->define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, axis.back()->node));
             } else {
                 assert(srcs.size() == 1);
-                builder.define(args->atom, new kernelArgument(srcs[0], dst, axis.back()->node));
+                builder.env->define(args->atom, new kernelArgument(srcs[0], dst, axis.back()->node));
             }
 
             UniqueExpression result(builder.expression(ast->atoms[2]));
@@ -1844,20 +1858,10 @@ private:
             StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), axis.back()->offset));
             store->setMetadata("llvm.mem.parallel_loop_access", axis.back()->node);
 
-            builder.undefine("i");
             axis.back()->close(builder); // Closes all axis
             axis.front()->tryCollapse();
-            for (kernelAxis *a : axis)
-                builder.undefine(a->name); // Tiggers deletion of axis
             axis.clear();
-
-            if (args->is_list) {
-                for (size_t i=0; i<args->num_atoms; i++)
-                    builder.undefine(args->atoms[i]->atom);
-            } else {
-                builder.undefine(args->atom);
-            }
-
+            builder.env->popScope(); // Tiggers deletion of axis
             builder.CreateRetVoid();
         }
 
