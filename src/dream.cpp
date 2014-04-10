@@ -115,12 +115,18 @@ class Source : public QPlainTextEdit
     QString header, previousSource;
     QSettings settings;
     int wheelRemainderX = 0, wheelRemainderY = 0;
+    likely_env prev = NULL;
 
 public:
     Source()
     {
         setLineWrapMode(QPlainTextEdit::NoWrap);
         connect(this, SIGNAL(textChanged()), this, SLOT(eval()));
+    }
+
+    ~Source()
+    {
+        likely_release_env(prev);
     }
 
     void restore()
@@ -283,10 +289,13 @@ private slots:
 
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
-        if (likely_repl(qPrintable(source), true, NULL)) {
+        likely_env env = likely_new_jit();
+        if (likely_repl(qPrintable(source), true, env, prev)) {
             const qint64 nsec = elapsedTimer.nsecsElapsed();
             emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
         }
+        likely_release_env(prev);
+        prev = env;
         emit finishedEval();
         settings.setValue("source", toPlainText());
     }

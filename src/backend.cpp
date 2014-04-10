@@ -379,7 +379,7 @@ struct likely_environment
     mutable int ref_count = 1;
 
     likely_environment(likely_env parent = RootEnvironment)
-        : parent(likely_retain_env(parent))
+        : parent_(likely_retain_env(parent))
     {
         if (parent)
             LUT = parent->LUT;
@@ -390,21 +390,10 @@ struct likely_environment
 
     virtual ~likely_environment()
     {
-        likely_release_env(parent);
+        likely_release_env(parent_);
     }
 
-    void pushScope()
-    {
-        parent = new likely_environment(this);
-    }
-
-    void popScope()
-    {
-        likely_env oldParent = parent;
-        LUT = parent->LUT;
-        parent = parent->parent;
-        likely_release_env(oldParent);
-    }
+    likely_env parent() const { return parent_; }
 
     void define(const string &name, Expression *e)
     {
@@ -431,7 +420,7 @@ struct likely_environment
 
 private:
     map<string,shared_ptr<Expression>> LUT;
-    likely_env parent;
+    likely_env parent_;
 };
 likely_env likely_environment::RootEnvironment = new likely_environment(NULL);
 
@@ -545,6 +534,18 @@ struct Builder : public IRBuilder<>
             n++;
         }
         return result;
+    }
+
+    void pushScope()
+    {
+        env = new likely_environment(env);
+    }
+
+    void popScope()
+    {
+        likely_env parent = env->parent();
+        likely_release_env(env);
+        env = parent;
     }
 
     Expression *expression(likely_const_ast ast);
@@ -1451,7 +1452,7 @@ private:
 
     virtual Expression *evaluateLambda(Builder &builder, const vector<Expression> &args) const
     {
-        builder.env->pushScope();
+        builder.pushScope();
         if (ast->atoms[1]->is_list) {
             for (size_t i=0; i<args.size(); i++)
                 builder.env->define(ast->atoms[1]->atoms[i]->atom, new Expression(args[i]));
@@ -1460,7 +1461,7 @@ private:
         }
 
         Expression *result = builder.expression(ast->atoms[2]);
-        builder.env->popScope();
+        builder.popScope();
         return result;
     }
 };
@@ -1791,7 +1792,7 @@ private:
 
             Value *channelStep = builder.one(), *columnStep, *rowStep, *frameStep;
             builder.steps(&dst, &columnStep, &rowStep, &frameStep);
-            builder.env->pushScope();
+            builder.pushScope();
 
             vector<kernelAxis*> axis;
             for (int axis_index=0; axis_index<4; axis_index++) {
@@ -1855,7 +1856,7 @@ private:
             axis.back()->close(builder); // Closes all axis
             axis.front()->tryCollapse();
             axis.clear();
-            builder.env->popScope(); // Tiggers deletion of axis
+            builder.popScope(); // Tiggers deletion of axis
             builder.CreateRetVoid();
         }
 
@@ -2365,7 +2366,7 @@ likely_mat likely_eval(likely_const_ast ast, likely_env env)
     return env->evaluate(ast);
 }
 
-bool likely_repl(const char *source, bool GFM, likely_env env)
+bool likely_repl(const char *source, bool GFM, likely_env env, likely_env prev)
 {
     likely_const_ast asts = likely_asts_from_string(source, GFM);
     if (!asts)
@@ -2374,6 +2375,17 @@ bool likely_repl(const char *source, bool GFM, likely_env env)
     bool owns_env = !env;
     if (owns_env)
         env = likely_new_jit();
+
+    int prevDepth = 0;
+    {
+        likely_env tmp = prev;
+        while (tmp && (tmp->parent() != env->parent())) {
+            tmp = tmp->parent();
+            prevDepth++;
+        }
+        if (!tmp)
+            prevDepth = -1;
+    }
 
     bool success = true;
     for (size_t i=0; i<asts->num_atoms; i++) {
@@ -2412,7 +2424,7 @@ class importExpression : public Operator
         if (source.empty())
             return error(file, "unable to open file");
 
-        const bool success = likely_repl(source.c_str(), true, builder.env);
+        const bool success = likely_repl(source.c_str(), true, builder.env, NULL);
         if (success) return new Expression();
         else         return NULL;
     }
