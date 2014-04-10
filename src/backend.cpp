@@ -376,11 +376,10 @@ public:
 struct likely_environment
 {
     static likely_env RootEnvironment;
-    Resources *resources = NULL;
     mutable int ref_count = 1;
 
-    likely_environment(likely_env parent = RootEnvironment)
-        : parent_(likely_retain_env(parent))
+    likely_environment(likely_env parent = RootEnvironment, Resources *resources = NULL)
+        : parent_(likely_retain_env(parent)), resources_(resources)
     {
         if (parent)
             LUT = parent->LUT;
@@ -408,6 +407,21 @@ struct likely_environment
         else                 return NULL;
     }
 
+    Resources *resources()
+    {
+        return resources_;
+    }
+
+    void setResources(Resources *resources)
+    {
+        resources_ = resources;
+    }
+
+    bool hasResources() const
+    {
+        return !!resources_;
+    }
+
     virtual likely_mat evaluate(likely_const_ast ast)
     {
         likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
@@ -419,9 +433,10 @@ struct likely_environment
         else                         return NULL;
     }
 
-private:
+protected:
     map<string,shared_ptr<Expression>> LUT;
     likely_env parent_;
+    Resources *resources_;
 };
 likely_env likely_environment::RootEnvironment = new likely_environment(NULL);
 
@@ -539,8 +554,7 @@ struct Builder : public IRBuilder<>
 
     void pushScope()
     {
-        env = new likely_environment(env);
-        env->resources = env->parent()->resources;
+        env = new likely_environment(env, env->resources());
     }
 
     void popScope()
@@ -550,7 +564,7 @@ struct Builder : public IRBuilder<>
         env = parent;
     }
 
-    Module *module() { return env->resources->module; }
+    Module *module() { return env->resources()->module; }
 
     Expression *expression(likely_const_ast ast);
 };
@@ -1079,7 +1093,7 @@ class defineExpression : public DefinitionOperator
 {
     Expression *evaluateDefinition(Builder &builder, likely_const_ast name, likely_const_ast value) const
     {
-        if (builder.env->resources) {
+        if (builder.env->hasResources()) {
             // Local variable
             Expression *expr = builder.expression(value);
             if (expr) {
@@ -1421,7 +1435,7 @@ private:
 
         if (dynamic) {
             VTable *vTable = new VTable(builder, ast, args.size());
-            builder.env->resources->expressions.push_back(vTable);
+            builder.env->resources()->expressions.push_back(vTable);
 
             static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
             static FunctionType *likelyDynamicType = NULL;
@@ -2006,8 +2020,8 @@ JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<li
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
                   (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
                   "expected a lambda expression");
-    assert(env->resources == NULL);
-    env->resources = this;
+    assert(!env->hasResources());
+    env->setResources(this);
     Builder builder(env);
     unique_ptr<Expression> result(builder.expression(ast));
 
@@ -2016,7 +2030,7 @@ JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<li
         types.push_back(T::get(t));
     UniqueExpression expr(static_cast<Lambda*>(result.get())->generate(builder, types, getUniqueName("jit")));
     error = !expr.get();
-    env->resources = NULL;
+    env->setResources(NULL);
 
     if (!error && !expr.isNull()) {
         string error;
@@ -2038,12 +2052,12 @@ struct OfflineEnvironment : public likely_environment
 {
     OfflineEnvironment(const string &fileName, bool native)
     {
-        resources = new OfflineResources(fileName, native);
+        resources_ = new OfflineResources(fileName, native);
     }
 
     ~OfflineEnvironment()
     {
-        delete resources;
+        delete resources_;
     }
 
 private:
