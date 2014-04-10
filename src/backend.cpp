@@ -321,7 +321,7 @@ struct Resources
     }
 };
 
-class JITResources : public Resources
+class JITFunction : public Resources
 {
     ExecutionEngine *EE = NULL;
 
@@ -330,9 +330,9 @@ public:
     bool error = false;
     const vector<likely_type> type;
 
-    JITResources(likely_const_ast ast, likely_env env, const vector<likely_type> &type);
+    JITFunction(likely_const_ast ast, likely_env env, const vector<likely_type> &type);
 
-    ~JITResources()
+    ~JITFunction()
     {
         module = NULL;
         delete EE; // owns module
@@ -427,7 +427,7 @@ struct likely_environment
     {
         likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
         expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
-        JITResources resources(expr, this, vector<likely_type>());
+        JITFunction resources(expr, this, vector<likely_type>());
         likely_release_ast(expr);
         if      (resources.function) return reinterpret_cast<likely_mat(*)(void)>(resources.function)();
         else if (!resources.error)   return likely_void();
@@ -622,7 +622,7 @@ private:
 struct VTable : public ScopedExpression
 {
     size_t n;
-    vector<unique_ptr<JITResources>> functions;
+    vector<unique_ptr<JITFunction>> functions;
 
     VTable(Builder &builder, likely_const_ast ast, size_t n)
         : ScopedExpression(builder, ast), n(n) {}
@@ -2005,7 +2005,7 @@ class exportExpression : public Operator
 };
 LIKELY_REGISTER(export)
 
-JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<likely_type> &type)
+JITFunction::JITFunction(likely_const_ast ast, likely_env env, const vector<likely_type> &type)
     : Resources(true), type(type)
 {
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
@@ -2296,7 +2296,7 @@ likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat m, ...)
 
     void *function = NULL;
     for (size_t i=0; i<vTable->functions.size(); i++) {
-        const unique_ptr<JITResources> &resources = vTable->functions[i];
+        const unique_ptr<JITFunction> &resources = vTable->functions[i];
         for (likely_arity j=0; j<vTable->n; j++)
             if (mv[j]->type != resources->type[j])
                 goto Next;
@@ -2312,7 +2312,7 @@ likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat m, ...)
         vector<likely_type> types;
         for (size_t i=0; i<vTable->n; i++)
             types.push_back(mv[i]->type);
-        vTable->functions.push_back(unique_ptr<JITResources>(new JITResources(vTable->ast, vTable->env, types)));
+        vTable->functions.push_back(unique_ptr<JITFunction>(new JITFunction(vTable->ast, vTable->env, types)));
         function = vTable->functions.back()->function;
     }
 
@@ -2328,7 +2328,7 @@ likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat m, ...)
     return dst;
 }
 
-static map<likely_function, pair<JITResources*,int>> ResourcesLUT;
+static map<likely_function, pair<JITFunction*,int>> ResourcesLUT;
 
 likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type type, ...)
 {
@@ -2341,9 +2341,9 @@ likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type
         type = va_arg(ap, likely_type);
     }
     va_end(ap);
-    JITResources *r = new JITResources(ast, env, types);
+    JITFunction *r = new JITFunction(ast, env, types);
     likely_function f = reinterpret_cast<likely_function>(r->function);
-    if (f) ResourcesLUT[f] = pair<JITResources*,int>(r, 1);
+    if (f) ResourcesLUT[f] = pair<JITFunction*,int>(r, 1);
     else   delete r;
     return f;
 }
@@ -2357,7 +2357,7 @@ likely_function likely_retain_function(likely_function function)
 void likely_release_function(likely_function function)
 {
     if (!function) return;
-    pair<JITResources*,int> &df = ResourcesLUT[function];
+    pair<JITFunction*,int> &df = ResourcesLUT[function];
     if (--df.second) return;
     ResourcesLUT.erase(function);
     delete df.first;
