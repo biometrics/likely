@@ -382,10 +382,8 @@ struct likely_environment
     likely_environment(likely_env parent = RootEnvironment)
         : parent_(likely_retain_env(parent))
     {
-        if (parent) {
-            resources = parent->resources;
+        if (parent)
             LUT = parent->LUT;
-        }
     }
 
     likely_environment(const likely_environment &) = delete;
@@ -542,6 +540,7 @@ struct Builder : public IRBuilder<>
     void pushScope()
     {
         env = new likely_environment(env);
+        env->resources = env->parent()->resources;
     }
 
     void popScope()
