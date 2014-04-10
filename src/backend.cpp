@@ -376,13 +376,16 @@ public:
 struct likely_environment
 {
     static likely_env RootEnvironment;
+    Resources *resources = NULL;
     mutable int ref_count = 1;
 
     likely_environment(likely_env parent = RootEnvironment)
         : parent_(likely_retain_env(parent))
     {
-        if (parent)
+        if (parent) {
+            resources = parent->resources;
             LUT = parent->LUT;
+        }
     }
 
     likely_environment(const likely_environment &) = delete;
@@ -429,12 +432,12 @@ namespace {
 struct Builder : public IRBuilder<>
 {
     likely_env env;
-    Resources *resources;
     map<string, shared_ptr<Expression>> locals;
 
-    Builder(Resources *resources, likely_env env)
-        : IRBuilder<>(C), env(env), resources(resources)
-    {}
+    Builder(likely_env env)
+        : IRBuilder<>(C), env(likely_retain_env(env)) {}
+
+    ~Builder() { likely_release_env(env); }
 
     static Expression constant(uint64_t value, likely_type type = likely_type_native)
     {
@@ -787,7 +790,7 @@ class UnaryMathOperator : public SimpleUnaryOperator
         Expression xc(builder.cast(&x, Builder::validFloatType(x)));
         vector<Type*> args;
         args.push_back(xc.value()->getType());
-        return new Expression(builder.CreateCall(Intrinsic::getDeclaration(builder.resources->module, id(), args), xc), xc);
+        return new Expression(builder.CreateCall(Intrinsic::getDeclaration(builder.env->resources->module, id(), args), xc), xc);
     }
     virtual Intrinsic::ID id() const = 0;
 };
@@ -854,7 +857,7 @@ class addExpression : public SimpleArithmeticOperator
             return builder.CreateFAdd(lhs, rhs);
         } else {
             if (likely_saturation(lhs)) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.resources->module, likely_signed(lhs) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs.value()->getType()), lhs, rhs);
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.env->resources->module, likely_signed(lhs) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs.value()->getType()), lhs, rhs);
                 Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, Builder::zero(lhs)), Builder::intMax(lhs), Builder::intMin(lhs)) : Builder::intMax(lhs);
                 return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
             } else {
@@ -873,7 +876,7 @@ class subtractExpression : public SimpleArithmeticOperator
             return builder.CreateFSub(lhs, rhs);
         } else {
             if (likely_saturation(lhs)) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.resources->module, likely_signed(lhs) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value()->getType()), lhs, rhs);
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.env->resources->module, likely_signed(lhs) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value()->getType()), lhs, rhs);
                 Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateICmpSGE(lhs.value(), Builder::zero(lhs)), Builder::intMax(lhs), Builder::intMin(lhs)) : Builder::intMin(lhs);
                 return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
             } else {
@@ -892,7 +895,7 @@ class multiplyExpression : public SimpleArithmeticOperator
             return builder.CreateFMul(lhs, rhs);
         } else {
             if (likely_saturation(lhs)) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.resources->module, likely_signed(lhs) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs.value()->getType()), lhs, rhs);
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.env->resources->module, likely_signed(lhs) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs.value()->getType()), lhs, rhs);
                 Value *zero = Builder::zero(lhs);
                 Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateXor(builder.CreateICmpSGE(lhs.value(), zero), builder.CreateICmpSGE(rhs.value(), zero)), Builder::intMin(lhs), Builder::intMax(lhs)) : Builder::intMax(lhs);
                 return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
@@ -994,7 +997,7 @@ class BinaryMathOperator : public SimpleBinaryOperator
         Expression nc(builder.cast(&n, nIsInteger() ? likely_type(likely_type_i32) : xc.type()));
         vector<Type*> args;
         args.push_back(xc.value()->getType());
-        return new Expression(builder.CreateCall2(Intrinsic::getDeclaration(builder.resources->module, id(), args), xc, nc), xc);
+        return new Expression(builder.CreateCall2(Intrinsic::getDeclaration(builder.env->resources->module, id(), args), xc, nc), xc);
     }
     virtual Intrinsic::ID id() const = 0;
     virtual bool nIsInteger() const { return false; }
@@ -1075,7 +1078,7 @@ class defineExpression : public DefinitionOperator
 {
     Expression *evaluateDefinition(Builder &builder, likely_const_ast name, likely_const_ast value) const
     {
-        if (builder.resources) {
+        if (builder.env->resources) {
             // Local variable
             Expression *expr = builder.expression(value);
             if (expr) {
@@ -1108,9 +1111,9 @@ class elementsExpression : public SimpleUnaryOperator, public LibraryFunction
     Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
     {
         static FunctionType *functionType = FunctionType::get(NativeInt, T::Void, false);
-        Function *likelyElements = builder.resources->module->getFunction("likely_elements");
+        Function *likelyElements = builder.env->resources->module->getFunction("likely_elements");
         if (!likelyElements) {
-            likelyElements = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_elements", builder.resources->module);
+            likelyElements = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_elements", builder.env->resources->module);
             likelyElements->setCallingConv(CallingConv::C);
             likelyElements->setDoesNotAlias(1);
             likelyElements->setDoesNotCapture(1);
@@ -1126,9 +1129,9 @@ class bytesExpression : public SimpleUnaryOperator, public LibraryFunction
     Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
     {
         static FunctionType *functionType = FunctionType::get(NativeInt, T::Void, false);
-        Function *likelyBytes = builder.resources->module->getFunction("likely_bytes");
+        Function *likelyBytes = builder.env->resources->module->getFunction("likely_bytes");
         if (!likelyBytes) {
-            likelyBytes = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_bytes", builder.resources->module);
+            likelyBytes = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_bytes", builder.env->resources->module);
             likelyBytes->setCallingConv(CallingConv::C);
             likelyBytes->setDoesNotAlias(1);
             likelyBytes->setDoesNotCapture(1);
@@ -1188,9 +1191,9 @@ public:
             functionType = FunctionType::get(T::Void, params, false);
         }
 
-        Function *likelyNew = builder.resources->module->getFunction("likely_new");
+        Function *likelyNew = builder.env->resources->module->getFunction("likely_new");
         if (!likelyNew) {
-            likelyNew = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_new", builder.resources->module);
+            likelyNew = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_new", builder.env->resources->module);
             likelyNew->setCallingConv(CallingConv::C);
             likelyNew->setDoesNotAlias(0);
             likelyNew->setDoesNotAlias(6);
@@ -1227,7 +1230,7 @@ class scalarExpression : public UnaryOperator, public LibraryFunction
             params.push_back(NativeInt);
             functionType = FunctionType::get(T::Void, params, false);
         }
-        Function *likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar", builder.resources->module);
+        Function *likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar", builder.env->resources->module);
         likelyScalar->setCallingConv(CallingConv::C);
         likelyScalar->setDoesNotAlias(0);
 
@@ -1253,9 +1256,9 @@ public:
     static CallInst *createCall(Builder &builder, Value *string)
     {
         static FunctionType *functionType = FunctionType::get(T::Void, Type::getInt8PtrTy(C), false);
-        Function *likelyString = builder.resources->module->getFunction("likely_string");
+        Function *likelyString = builder.env->resources->module->getFunction("likely_string");
         if (!likelyString) {
-            likelyString = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_string", builder.resources->module);
+            likelyString = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_string", builder.env->resources->module);
             likelyString->setCallingConv(CallingConv::C);
             likelyString->setDoesNotAlias(0);
             likelyString->setDoesNotAlias(1);
@@ -1279,9 +1282,9 @@ public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
         static FunctionType *functionType = FunctionType::get(T::Void, T::Void, false);
-        Function *likelyCopy = builder.resources->module->getFunction("likely_copy");
+        Function *likelyCopy = builder.env->resources->module->getFunction("likely_copy");
         if (!likelyCopy) {
-            likelyCopy = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_copy", builder.resources->module);
+            likelyCopy = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_copy", builder.env->resources->module);
             likelyCopy->setCallingConv(CallingConv::C);
             likelyCopy->setDoesNotAlias(0);
             likelyCopy->setDoesNotAlias(1);
@@ -1305,9 +1308,9 @@ public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
         static FunctionType *functionType = FunctionType::get(T::Void, T::Void, false);
-        Function *likelyRetain = builder.resources->module->getFunction("likely_retain");
+        Function *likelyRetain = builder.env->resources->module->getFunction("likely_retain");
         if (!likelyRetain) {
-            likelyRetain = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_retain", builder.resources->module);
+            likelyRetain = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_retain", builder.env->resources->module);
             likelyRetain->setCallingConv(CallingConv::C);
             likelyRetain->setDoesNotAlias(0);
             likelyRetain->setDoesNotAlias(1);
@@ -1331,9 +1334,9 @@ public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
         static FunctionType *functionType = FunctionType::get(Type::getVoidTy(C), T::Void, false);
-        Function *likelyRelease = builder.resources->module->getFunction("likely_release");
+        Function *likelyRelease = builder.env->resources->module->getFunction("likely_release");
         if (!likelyRelease) {
-            likelyRelease = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_release", builder.resources->module);
+            likelyRelease = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_release", builder.env->resources->module);
             likelyRelease->setCallingConv(CallingConv::C);
             likelyRelease->setDoesNotAlias(1);
             likelyRelease->setDoesNotCapture(1);
@@ -1359,7 +1362,7 @@ struct Lambda : public ScopedExpression, public LibraryFunction
         while (types.size() < n)
             types.push_back(T::get(likely_type_void));
 
-        Function *tmpFunction = cast<Function>(builder.resources->module->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), T::toLLVM(types), false)));
+        Function *tmpFunction = cast<Function>(builder.env->resources->module->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), T::toLLVM(types), false)));
         vector<Expression> tmpArgs = builder.getArgs(tmpFunction, types);
         BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
         builder.SetInsertPoint(entry);
@@ -1370,7 +1373,7 @@ struct Lambda : public ScopedExpression, public LibraryFunction
         builder.CreateRet(*result);
         likely_type return_type = result->type();
 
-        Function *function = cast<Function>(builder.resources->module->getOrInsertFunction(name, FunctionType::get(result->value()->getType(), T::toLLVM(types), false)));
+        Function *function = cast<Function>(builder.env->resources->module->getOrInsertFunction(name, FunctionType::get(result->value()->getType(), T::toLLVM(types), false)));
         vector<Expression> args = builder.getArgs(function, types);
 
         ValueToValueMapTy VMap;
@@ -1417,7 +1420,7 @@ private:
 
         if (dynamic) {
             VTable *vTable = new VTable(builder, ast, args.size());
-            builder.resources->expressions.push_back(vTable);
+            builder.env->resources->expressions.push_back(vTable);
 
             static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
             static FunctionType *likelyDynamicType = NULL;
@@ -1428,9 +1431,9 @@ private:
                 likelyDynamicType = FunctionType::get(T::Void, params, true);
             }
 
-            Function *likelyDynamic = builder.resources->module->getFunction("likely_dynamic");
+            Function *likelyDynamic = builder.env->resources->module->getFunction("likely_dynamic");
             if (!likelyDynamic) {
-                likelyDynamic = Function::Create(likelyDynamicType, GlobalValue::ExternalLinkage, "likely_dynamic", builder.resources->module);
+                likelyDynamic = Function::Create(likelyDynamicType, GlobalValue::ExternalLinkage, "likely_dynamic", builder.env->resources->module);
                 likelyDynamic->setCallingConv(CallingConv::C);
                 likelyDynamic->setDoesNotAlias(0);
                 likelyDynamic->setDoesNotAlias(1);
@@ -1769,7 +1772,7 @@ private:
                 params.push_back(T::Void);
                 params.push_back(NativeInt);
                 params.push_back(NativeInt);
-                thunk = ::cast<Function>(builder.resources->module->getOrInsertFunction(getUniqueName("thunk"), FunctionType::get(Type::getVoidTy(C), params, false)));
+                thunk = ::cast<Function>(builder.env->resources->module->getOrInsertFunction(getUniqueName("thunk"), FunctionType::get(Type::getVoidTy(C), params, false)));
                 thunk->addFnAttr(Attribute::NoUnwind);
                 thunk->setCallingConv(CallingConv::C);
                 for (int i=1; i<int(types.size()+2); i++) {
@@ -1876,13 +1879,13 @@ private:
             Type *likelyForkReturn = Type::getVoidTy(C);
             FunctionType *likelyForkType = FunctionType::get(likelyForkReturn, likelyForkParameters, true);
 
-            Function *likelyFork = Function::Create(likelyForkType, GlobalValue::ExternalLinkage, "likely_fork", builder.resources->module);
+            Function *likelyFork = Function::Create(likelyForkType, GlobalValue::ExternalLinkage, "likely_fork", builder.env->resources->module);
             likelyFork->setCallingConv(CallingConv::C);
             likelyFork->setDoesNotCapture(4);
             likelyFork->setDoesNotAlias(4);
 
             vector<Value*> likelyForkArgs;
-            likelyForkArgs.push_back(builder.resources->module->getFunction(thunk->getName()));
+            likelyForkArgs.push_back(builder.env->resources->module->getFunction(thunk->getName()));
             likelyForkArgs.push_back(Builder::constant(uint64_t(srcs.size()), likely_type_u8));
             likelyForkArgs.push_back(kernelSize);
             for (const Expression &src : srcs)
@@ -2002,7 +2005,9 @@ JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<li
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
                   (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
                   "expected a lambda expression");
-    Builder builder(this, env);
+    assert(env->resources == NULL);
+    env->resources = this;
+    Builder builder(env);
     unique_ptr<Expression> result(builder.expression(ast));
 
     vector<T> types;
@@ -2010,6 +2015,7 @@ JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<li
         types.push_back(T::get(t));
     UniqueExpression expr(static_cast<Lambda*>(result.get())->generate(builder, types, getUniqueName("jit")));
     error = !expr.get();
+    env->resources = NULL;
 
     if (!error && !expr.isNull()) {
         string error;
@@ -2029,16 +2035,20 @@ JITResources::JITResources(likely_const_ast ast, likely_env env, const vector<li
 
 struct OfflineEnvironment : public likely_environment
 {
-    unique_ptr<OfflineResources> resources;
-
     OfflineEnvironment(const string &fileName, bool native)
-        : resources(new OfflineResources(fileName, native))
-    {}
+    {
+        resources = new OfflineResources(fileName, native);
+    }
+
+    ~OfflineEnvironment()
+    {
+        delete resources;
+    }
 
 private:
     likely_mat evaluate(likely_const_ast ast)
     {
-        Builder builder(resources.get(), this);
+        Builder builder(this);
         UniqueExpression e(builder.expression(ast));
         return e.get() ? likely_void() : NULL;
     }
@@ -2054,7 +2064,7 @@ class printExpression : public Operator, public LibraryFunction
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         static FunctionType *functionType = FunctionType::get(T::Void, T::Void, true);
-        Function *likelyPrint = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_print", builder.resources->module);
+        Function *likelyPrint = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_print", builder.env->resources->module);
         likelyPrint->setCallingConv(CallingConv::C);
         likelyPrint->setDoesNotAlias(0);
         likelyPrint->setDoesNotAlias(1);
@@ -2093,9 +2103,9 @@ class readExpression : public SimpleUnaryOperator, public LibraryFunction
     Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
     {
         static FunctionType *functionType = FunctionType::get(T::Void, Type::getInt8PtrTy(C), false);
-        Function *likelyRead = builder.resources->module->getFunction("likely_read");
+        Function *likelyRead = builder.env->resources->module->getFunction("likely_read");
         if (!likelyRead) {
-            likelyRead = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_read", builder.resources->module);
+            likelyRead = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_read", builder.env->resources->module);
             likelyRead->setCallingConv(CallingConv::C);
             likelyRead->setDoesNotAlias(0);
             likelyRead->setDoesNotAlias(1);
@@ -2118,9 +2128,9 @@ class writeExpression : public SimpleBinaryOperator, public LibraryFunction
             likelyWriteParameters.push_back(Type::getInt8PtrTy(C));
             functionType = FunctionType::get(T::Void, likelyWriteParameters, false);
         }
-        Function *likelyWrite = builder.resources->module->getFunction("likely_write");
+        Function *likelyWrite = builder.env->resources->module->getFunction("likely_write");
         if (!likelyWrite) {
-            likelyWrite = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_write", builder.resources->module);
+            likelyWrite = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_write", builder.env->resources->module);
             likelyWrite->setCallingConv(CallingConv::C);
             likelyWrite->setDoesNotAlias(0);
             likelyWrite->setDoesNotAlias(1);
@@ -2142,9 +2152,9 @@ class decodeExpression : public SimpleUnaryOperator, public LibraryFunction
     Expression *evaluateSimpleUnary(Builder &builder, const UniqueExpression &arg) const
     {
         static FunctionType *functionType = FunctionType::get(T::Void, T::Void, false);
-        Function *likelyDecode = builder.resources->module->getFunction("likely_decode");
+        Function *likelyDecode = builder.env->resources->module->getFunction("likely_decode");
         if (!likelyDecode) {
-            likelyDecode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_decode", builder.resources->module);
+            likelyDecode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_decode", builder.env->resources->module);
             likelyDecode->setCallingConv(CallingConv::C);
             likelyDecode->setDoesNotAlias(0);
             likelyDecode->setDoesNotAlias(1);
@@ -2167,9 +2177,9 @@ class encodeExpression : public SimpleBinaryOperator, public LibraryFunction
             parameters.push_back(Type::getInt8PtrTy(C));
             functionType = FunctionType::get(T::Void, parameters, false);
         }
-        Function *likelyEncode = builder.resources->module->getFunction("likely_encode");
+        Function *likelyEncode = builder.env->resources->module->getFunction("likely_encode");
         if (!likelyEncode) {
-            likelyEncode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_encode", builder.resources->module);
+            likelyEncode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_encode", builder.env->resources->module);
             likelyEncode->setCallingConv(CallingConv::C);
             likelyEncode->setDoesNotAlias(0);
             likelyEncode->setDoesNotAlias(1);
@@ -2198,9 +2208,9 @@ class renderExpression : public SimpleUnaryOperator, public LibraryFunction
             parameters.push_back(Type::getDoublePtrTy(C));
             functionType = FunctionType::get(T::Void, parameters, false);
         }
-        Function *likelyRender = builder.resources->module->getFunction("likely_render");
+        Function *likelyRender = builder.env->resources->module->getFunction("likely_render");
         if (!likelyRender) {
-            likelyRender = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_render", builder.resources->module);
+            likelyRender = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_render", builder.env->resources->module);
             likelyRender->setCallingConv(CallingConv::C);
             likelyRender->setDoesNotAlias(0);
             likelyRender->setDoesNotAlias(1);
@@ -2231,9 +2241,9 @@ class showExpression : public SimpleUnaryOperator, public LibraryFunction
             parameters.push_back(Type::getInt8PtrTy(C));
             FunctionType::get(Type::getVoidTy(C), parameters, false);
         }
-        Function *likelyShow = builder.resources->module->getFunction("likely_show");
+        Function *likelyShow = builder.env->resources->module->getFunction("likely_show");
         if (!likelyShow) {
-            likelyShow = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_show", builder.resources->module);
+            likelyShow = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_show", builder.env->resources->module);
             likelyShow->setCallingConv(CallingConv::C);
             likelyShow->setDoesNotAlias(1);
             likelyShow->setDoesNotCapture(1);
@@ -2359,7 +2369,7 @@ likely_mat likely_eval(likely_const_ast ast, likely_env env)
 
     // Shortcut for global variable definitions
     if (ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=")) {
-        delete Builder(NULL, env).expression(ast);
+        delete Builder(env).expression(ast);
         return likely_void();
     }
 
