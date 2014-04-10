@@ -379,10 +379,11 @@ struct likely_environment
     mutable int ref_count = 1;
 
     likely_environment(likely_env parent = RootEnvironment, Resources *resources = NULL)
-        : parent_(likely_retain_env(parent)), resources_(resources)
+        : parent_(likely_retain_env(parent))
     {
         if (parent)
             LUT = parent->LUT;
+        resources_ = shared_ptr<Resources>(resources, [=](Resources *resources){});
     }
 
     likely_environment(const likely_environment &) = delete;
@@ -409,17 +410,17 @@ struct likely_environment
 
     Resources *resources()
     {
-        return resources_;
+        return resources_.get();
     }
 
     void setResources(Resources *resources)
     {
-        resources_ = resources;
+        resources_ = shared_ptr<Resources>(resources, [=](Resources *resources){});
     }
 
     bool hasResources() const
     {
-        return !!resources_;
+        return !!resources_.get();
     }
 
     virtual likely_mat evaluate(likely_const_ast ast)
@@ -436,7 +437,7 @@ struct likely_environment
 protected:
     map<string,shared_ptr<Expression>> LUT;
     likely_env parent_;
-    Resources *resources_;
+    shared_ptr<Resources> resources_;
 };
 likely_env likely_environment::RootEnvironment = new likely_environment(NULL);
 
@@ -2052,12 +2053,7 @@ struct OfflineEnvironment : public likely_environment
 {
     OfflineEnvironment(const string &fileName, bool native)
     {
-        resources_ = new OfflineResources(fileName, native);
-    }
-
-    ~OfflineEnvironment()
-    {
-        delete resources_;
+        resources_ = shared_ptr<Resources>(new OfflineResources(fileName, native));
     }
 
 private:
