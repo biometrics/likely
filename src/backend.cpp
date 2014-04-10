@@ -622,22 +622,12 @@ private:
 struct VTable : public ScopedExpression
 {
     size_t n;
-    vector<JITResources*> functions;
+    vector<unique_ptr<JITResources>> functions;
 
     VTable(Builder &builder, likely_const_ast ast, size_t n)
-        : ScopedExpression(builder, ast), n(n)
-    {}
+        : ScopedExpression(builder, ast), n(n) {}
 
-    ~VTable()
-    {
-        for (Resources *function : functions)
-            delete function;
-    }
-
-    Expression *evaluateOperator(Builder &, likely_const_ast) const
-    {
-        return NULL;
-    }
+    Expression *evaluateOperator(Builder &, likely_const_ast) const { return NULL; }
 };
 
 extern "C" LIKELY_EXPORT likely_mat likely_dynamic(struct VTable *vtable, likely_const_mat m, ...);
@@ -2306,7 +2296,7 @@ likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat m, ...)
 
     void *function = NULL;
     for (size_t i=0; i<vTable->functions.size(); i++) {
-        const JITResources *resources = vTable->functions[i];
+        const unique_ptr<JITResources> &resources = vTable->functions[i];
         for (likely_arity j=0; j<vTable->n; j++)
             if (mv[j]->type != resources->type[j])
                 goto Next;
@@ -2322,8 +2312,7 @@ likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat m, ...)
         vector<likely_type> types;
         for (size_t i=0; i<vTable->n; i++)
             types.push_back(mv[i]->type);
-        JITResources *resources = new JITResources(vTable->ast, vTable->env, types);
-        vTable->functions.push_back(resources);
+        vTable->functions.push_back(unique_ptr<JITResources>(new JITResources(vTable->ast, vTable->env, types)));
         function = vTable->functions.back()->function;
     }
 
