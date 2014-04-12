@@ -23,6 +23,7 @@
 #include <iostream>
 #include <string>
 #include <opencv2/highgui/highgui.hpp>
+#include <archive.h>
 
 #include "likely/backend.h"
 #include "likely/frontend.h"
@@ -39,6 +40,23 @@ likely_mat likely_read(const char *file_name)
         try {
             m = likely::fromCvMat(cv::imread(file_name, CV_LOAD_IMAGE_UNCHANGED));
         } catch (...) { }
+
+        if (m == NULL) {
+            archive *a = archive_read_new();
+            archive_read_support_format_all(a);
+            archive_read_support_filter_all(a);
+            int r = archive_read_open_filename(a, file_name, 10240);
+            if (!r) {
+                while (true) {
+                    struct archive_entry *entry;
+                    r = archive_read_next_header(a, &entry);
+                    if ((r == ARCHIVE_EOF) || (r != ARCHIVE_OK) || (r < ARCHIVE_WARN))
+                        break;
+                }
+            }
+            archive_read_close(a);
+            archive_read_free(a);
+        }
     } else {
         if (FILE *fp = fopen(file_name, "rb")) {
             likely_size bytes;

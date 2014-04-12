@@ -72,12 +72,16 @@ if(${LIKELY_IO})
                         ${CMAKE_SOURCE_DIR}/opencv/modules/highgui/include
                         ${CMAKE_SOURCE_DIR}/opencv/modules/imgproc/include)
     set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui)
-
-    # option(CURL_STATICLIB "CURL static library" ON)
-    # add_subdirectory(curl EXCLUDE_FROM_ALL)
-    # include_directories(${CMAKE_SOURCE_DIR}/curl/include
-    #                     ${CMAKE_BINARY_DIR}/curl/include/curl)
   endif()
+
+  add_subdirectory(libarchive EXCLUDE_FROM_ALL)
+  include_directories(${CMAKE_SOURCE_DIR}/libarchive/libarchive)
+  set(LIKELY_LIBS ${LIKELY_LIBS} archive_static ${LIBARCHIVE_ADDITIONAL_LIBS})
+
+  # option(CURL_STATICLIB "CURL static library" ON)
+  # add_subdirectory(curl EXCLUDE_FROM_ALL)
+  # include_directories(${CMAKE_SOURCE_DIR}/curl/include
+  #                     ${CMAKE_BINARY_DIR}/curl/include/curl)
 endif()
 
 # Compiler configuration
