@@ -24,6 +24,7 @@
 #include <string>
 #include <opencv2/highgui/highgui.hpp>
 #include <archive.h>
+#include <archive_entry.h>
 
 #include "likely/backend.h"
 #include "likely/frontend.h"
@@ -34,31 +35,16 @@ using namespace std;
 
 likely_mat likely_read(const char *file_name)
 {
-    const size_t len = strlen(file_name);
-    likely_mat m = NULL;
-    if ((len < 3) || strcmp(&file_name[len-3], ".lm")) {
-        try {
-            m = likely::fromCvMat(cv::imread(file_name, CV_LOAD_IMAGE_UNCHANGED));
-        } catch (...) { }
+    // Interpret ~ as $HOME
+    string fileName = file_name;
+    if (fileName[0] == '~')
+        fileName = getenv("HOME") + fileName.substr(1);
 
-        if (m == NULL) {
-            archive *a = archive_read_new();
-            archive_read_support_format_all(a);
-            archive_read_support_filter_all(a);
-            int r = archive_read_open_filename(a, file_name, 10240);
-            if (!r) {
-                while (true) {
-                    struct archive_entry *entry;
-                    r = archive_read_next_header(a, &entry);
-                    if ((r == ARCHIVE_EOF) || (r != ARCHIVE_OK) || (r < ARCHIVE_WARN))
-                        break;
-                }
-            }
-            archive_read_close(a);
-            archive_read_free(a);
-        }
-    } else {
-        if (FILE *fp = fopen(file_name, "rb")) {
+    likely_mat m = NULL;
+
+    // Is it a matrix?
+    if (fileName.substr(fileName.size()-3) == ".lm") {
+        if (FILE *fp = fopen(fileName.c_str(), "rb")) {
             likely_size bytes;
             if (fread(&bytes, sizeof(bytes), 1, fp) == 1) {
                 fseek(fp, 0, SEEK_SET);
@@ -70,6 +56,55 @@ likely_mat likely_read(const char *file_name)
             }
             fclose(fp);
         }
+    }
+
+    // Is it an image?
+    try {
+        m = likely::fromCvMat(cv::imread(fileName.c_str(), CV_LOAD_IMAGE_UNCHANGED));
+    } catch (...) { }
+
+    // Is it an archive?
+    if (m == NULL) {
+        vector<likely_const_mat> images;
+        { // unarchive and decode
+            archive *a = archive_read_new();
+            archive_read_support_format_all(a);
+            archive_read_support_filter_all(a);
+            int r = archive_read_open_filename(a, fileName.c_str(), 10240);
+            while (r == ARCHIVE_OK) {
+                struct archive_entry *entry;
+                r = archive_read_next_header(a, &entry);
+                if (r == ARCHIVE_OK) {
+                    likely_mat encodedImage = likely_new(likely_type_u8, 1, archive_entry_size(entry), 1, 1, NULL);
+                    archive_read_data(a, encodedImage->data, encodedImage->columns);
+                    images.push_back(likely_decode(encodedImage));
+                    likely_release(encodedImage);
+                }
+            }
+            archive_read_close(a);
+            archive_read_free(a);
+        }
+
+        // combine
+        likely_const_mat first = images.empty() ? NULL : images.front();
+        bool valid = first;
+        for (size_t i=0; i<images.size(); i++)
+            valid = valid && images[i]
+                    && (images[i]->type     == first->type)
+                    && (images[i]->channels == first->channels)
+                    && (images[i]->columns  == first->columns)
+                    && (images[i]->rows     == first->rows)
+                    && (images[i]->frames   == first->frames);
+
+        if (valid) {
+            m = likely_new(first->type, first->channels, first->columns, first->rows, first->frames * images.size(), NULL);
+            const size_t step = likely_bytes(first);
+            for (size_t i=0; i<images.size(); i++)
+                memcpy(m->data + i*step, images[i]->data, step);
+        }
+
+        for (likely_const_mat n : images)
+            likely_release(n);
     }
     return m;
 }
