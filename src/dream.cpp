@@ -330,11 +330,18 @@ private:
         return QSize(width(), image.height() * width() / image.width());
     }
 
-    void paintEvent(QPaintEvent* e)
+    void paintEvent(QPaintEvent *e)
     {
         e->accept();
         QPainter painter(this);
         painter.drawImage(rect(), image);
+    }
+
+    void resizeEvent(QResizeEvent *event)
+    {
+        QGLWidget::resizeEvent(event);
+        event->accept();
+        updateGeometry();
     }
 };
 
