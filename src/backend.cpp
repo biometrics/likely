@@ -391,6 +391,7 @@ struct likely_environment
 
     virtual ~likely_environment()
     {
+        setResult(NULL);
         likely_release_env(parent_);
     }
 
@@ -423,6 +424,12 @@ struct likely_environment
         return !!resources_.get();
     }
 
+    void setResult(likely_const_mat result)
+    {
+        likely_release(result_);
+        result_ = likely_retain(result);
+    }
+
     virtual likely_mat evaluate(likely_const_ast ast)
     {
         likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
@@ -437,6 +444,7 @@ struct likely_environment
 protected:
     map<string,shared_ptr<Expression>> LUT;
     likely_env parent_;
+    likely_const_mat result_ = NULL;
     shared_ptr<Resources> resources_;
 };
 likely_env likely_environment::RootEnvironment = new likely_environment(NULL);
@@ -2367,13 +2375,17 @@ likely_mat likely_eval(likely_const_ast ast, likely_env env)
 {
     if (!ast || !env) return NULL;
 
-    // Shortcut for global variable definitions
+    likely_mat result;
     if (ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=")) {
+        // Shortcut for global variable definitions
         delete Builder(env).expression(ast);
-        return likely_void();
+        result = likely_void();
+    } else {
+        result = env->evaluate(ast);
     }
 
-    return env->evaluate(ast);
+    env->setResult(result);
+    return result;
 }
 
 bool likely_repl(const char *source, bool GFM, likely_env env, likely_env prev)
