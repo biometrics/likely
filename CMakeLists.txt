@@ -77,6 +77,7 @@ if(${LIKELY_IO})
   add_subdirectory(libarchive EXCLUDE_FROM_ALL)
   include_directories(${CMAKE_SOURCE_DIR}/libarchive/libarchive)
   set(LIKELY_LIBS ${LIKELY_LIBS} archive_static)
+  add_definitions(-DLIBARCHIVE_STATIC)
 
   # option(CURL_STATICLIB "CURL static library" ON)
   # add_subdirectory(curl EXCLUDE_FROM_ALL)

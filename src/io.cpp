@@ -87,7 +87,7 @@ likely_mat likely_read(const char *file_name)
 
         // combine
         likely_const_mat first = images.empty() ? NULL : images.front();
-        bool valid = first;
+        bool valid = !!first;
         for (size_t i=0; i<images.size(); i++)
             valid = valid && images[i]
                     && (images[i]->type     == first->type)
