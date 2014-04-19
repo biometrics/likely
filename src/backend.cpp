@@ -2373,37 +2373,41 @@ void likely_release_function(likely_function function)
     delete df.first;
 }
 
-likely_mat likely_eval(likely_const_ast ast, likely_env env)
+likely_mat likely_eval(likely_const_ast ast, likely_env *env)
 {
-    if (!ast || !env) return NULL;
+    if (!ast || !env || !*env) return NULL;
 
     likely_mat result;
     if (ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=")) {
         // Shortcut for global variable definitions
-        delete Builder(env).expression(ast);
+        delete Builder(*env).expression(ast);
         result = likely_void();
     } else {
-        result = env->evaluate(ast);
+        result = (*env)->evaluate(ast);
     }
 
-    env->setResult(result);
+    (*env)->setResult(result);
     return result;
 }
 
-bool likely_repl(const char *source, bool GFM, likely_env env, likely_env prev)
+bool likely_repl(const char *source, bool GFM, likely_env *env, likely_env prev)
 {
     likely_const_ast asts = likely_asts_from_string(source, GFM);
     if (!asts)
         return false;
 
     bool owns_env = !env;
-    if (owns_env)
-        env = likely_new_jit();
+    if (owns_env) {
+        env = (likely_env*) alloca(sizeof(likely_env*));
+        *env = NULL;
+    }
+    if (*env == NULL)
+        *env = likely_new_jit();
 
     int prevDepth = 0;
     {
         likely_env tmp = prev;
-        while (tmp && (tmp->parent() != env->parent())) {
+        while (tmp && (tmp->parent() != (*env)->parent())) {
             tmp = tmp->parent();
             prevDepth++;
         }
@@ -2425,7 +2429,7 @@ bool likely_repl(const char *source, bool GFM, likely_env env, likely_env prev)
     }
 
     if (owns_env)
-        likely_release_env(env);
+        likely_release_env(*env);
     likely_release_ast(asts);
     return success;
 }
@@ -2448,7 +2452,7 @@ class importExpression : public Operator
         if (source.empty())
             return error(file, "unable to open file");
 
-        const bool success = likely_repl(source.c_str(), true, builder.env, NULL);
+        const bool success = likely_repl(source.c_str(), true, &builder.env, NULL);
         if (success) return new Expression();
         else         return NULL;
     }

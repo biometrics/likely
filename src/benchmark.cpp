@@ -125,7 +125,7 @@ struct Test
                 printf("%s\n", str->data);
                 likely_release(str);
             }
-            likely_const_mat result = likely_eval(ast->atoms[i], env);
+            likely_const_mat result = likely_eval(ast->atoms[i], &env);
             if (BenchmarkVerbose) {
                 likely_mat str = likely_to_string(result, true);
                 printf("%s\n\n", str->data);
@@ -146,7 +146,7 @@ struct Test
         while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
             likely_env env = likely_new_jit();
             for (size_t i=0; i<ast->num_atoms; i++)
-                likely_release(likely_eval(ast->atoms[i], env));
+                likely_release(likely_eval(ast->atoms[i], &env));
             likely_release_env(env);
             endTime = clock();
             iter++;

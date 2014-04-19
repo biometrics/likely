@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
         likely_env env;
         if (output.empty()) env = likely_new_jit(); // Interpreter
         else                env = likely_new_offline(output.c_str(), true); // Static compiler
-        likely_repl(source.c_str(), gfm, env, NULL);
+        likely_repl(source.c_str(), gfm, &env, NULL);
         likely_release_env(env);
     }
 

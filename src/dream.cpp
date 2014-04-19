@@ -290,7 +290,7 @@ private slots:
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
         likely_env env = likely_new_jit();
-        if (likely_repl(qPrintable(source), true, env, prev)) {
+        if (likely_repl(qPrintable(source), true, &env, prev)) {
             const qint64 nsec = elapsedTimer.nsecsElapsed();
             emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
         }
