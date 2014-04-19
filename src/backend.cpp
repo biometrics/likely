@@ -379,12 +379,7 @@ struct likely_environment
     mutable int ref_count = 1;
 
     likely_environment(likely_env parent = RootEnvironment, Resources *resources = NULL)
-        : parent_(likely_retain_env(parent)), resources_(resources)
-    {
-        if (parent)
-            LUT = parent->LUT;
-    }
-
+        : parent_(likely_retain_env(parent)), resources_(resources) {}
     likely_environment(const likely_environment &) = delete;
     likely_environment &operator=(const likely_environment &) = delete;
 
@@ -404,8 +399,9 @@ struct likely_environment
     Expression *lookup(const string &name)
     {
         auto it = LUT.find(name);
-        if (it != LUT.end()) return it->second.get();
-        else                 return NULL;
+        if      (it != LUT.end()) return it->second.get();
+        else if (parent_)         return parent_->lookup(name);
+        else                      return NULL;
     }
 
     Resources *resources()
