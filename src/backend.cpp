@@ -427,16 +427,7 @@ struct likely_environment
         result_ = likely_retain(result);
     }
 
-    virtual likely_mat evaluate(likely_const_ast ast)
-    {
-        likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
-        expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
-        JITFunction resources(expr, this, vector<likely_type>());
-        likely_release_ast(expr);
-        if      (resources.function) return reinterpret_cast<likely_mat(*)(void)>(resources.function)();
-        else if (!resources.error)   return likely_void();
-        else                         return NULL;
-    }
+    virtual likely_mat evaluate(likely_const_ast ast);
 
 protected:
     map<string,shared_ptr<Expression>> LUT;
@@ -2272,6 +2263,23 @@ LIKELY_REGISTER(show)
 
 } // namespace (anonymous)
 
+likely_mat likely_environment::evaluate(likely_const_ast ast)
+{
+    if (ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=")) {
+        // Shortcut for global variable definitions
+        delete Builder(this).expression(ast);
+        return likely_void();
+    }
+
+    likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
+    expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
+    JITFunction resources(expr, this, vector<likely_type>());
+    likely_release_ast(expr);
+    if      (resources.function) return reinterpret_cast<likely_mat(*)(void)>(resources.function)();
+    else if (!resources.error)   return likely_void();
+    else                         return NULL;
+}
+
 likely_env likely_new_jit()
 {
     return new likely_environment(likely_environment::RootEnvironment);
@@ -2378,16 +2386,7 @@ void likely_release_function(likely_function function)
 likely_mat likely_eval(likely_const_ast ast, likely_env *env)
 {
     if (!ast || !env || !*env) return NULL;
-
-    likely_mat result;
-    if (ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=")) {
-        // Shortcut for global variable definitions
-        delete Builder(*env).expression(ast);
-        result = likely_void();
-    } else {
-        result = (*env)->evaluate(ast);
-    }
-
+    likely_mat result = (*env)->evaluate(ast);
     (*env)->setResult(result);
     return result;
 }
