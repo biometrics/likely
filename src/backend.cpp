@@ -385,7 +385,7 @@ struct likely_environment
 
     virtual ~likely_environment()
     {
-        setResult(NULL);
+        resetResult(NULL);
         likely_release_env(parent_);
     }
 
@@ -421,13 +421,15 @@ struct likely_environment
         return !!resources_;
     }
 
-    void setResult(likely_const_mat result)
+    likely_const_mat result() const { return result_; }
+
+    void resetResult(likely_const_mat result)
     {
         likely_release(result_);
-        result_ = likely_retain(result);
+        result_ = result;
     }
 
-    virtual likely_mat evaluate(likely_const_ast ast);
+    virtual likely_env evaluate(likely_const_ast ast);
 
 protected:
     map<string,shared_ptr<Expression>> LUT;
@@ -1032,8 +1034,10 @@ private:
     Expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         likely_env restored = builder.env;
-        builder.env = this->env;
+        builder.env = new likely_environment(env);
+        builder.env->setResources(restored->resources());
         UniqueExpression op(builder.expression(this->ast));
+        likely_release_env(builder.env);
         builder.env = restored;
         return op->evaluate(builder, ast);
     }
@@ -1406,10 +1410,12 @@ private:
             args.push_back(Expression(arg.value(), arg.type()));
         }
 
-        likely_env this_env = env;
-        swap(builder.env, this_env);
+        likely_env restored = builder.env;
+        builder.env = new likely_environment(env);
+        builder.env->setResources(restored->resources());
         Expression *result = evaluateFunction(builder, args);
-        swap(builder.env, this_env);
+        likely_release_env(builder.env);
+        builder.env = restored;
         return result;
     }
 
@@ -2002,13 +2008,13 @@ class exportExpression : public Operator
 };
 LIKELY_REGISTER(export)
 
-JITFunction::JITFunction(likely_const_ast ast, likely_env env, const vector<likely_type> &type)
+JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<likely_type> &type)
     : Resources(true), type(type)
 {
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
                   (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
                   "expected a lambda expression");
-    assert(!env->hasResources());
+    likely_env env = new likely_environment(parent);
     env->setResources(this);
     Builder builder(env);
     unique_ptr<Expression> result(builder.expression(ast));
@@ -2018,7 +2024,7 @@ JITFunction::JITFunction(likely_const_ast ast, likely_env env, const vector<like
         types.push_back(T::get(t));
     UniqueExpression expr(static_cast<Lambda*>(result.get())->generate(builder, types, getUniqueName("jit")));
     error = !expr.get();
-    env->setResources(NULL);
+    likely_release_env(env);
 
     if (!error && !expr.isNull()) {
         string error;
@@ -2044,17 +2050,23 @@ struct OfflineEnvironment : public likely_environment
         resources_ = new OfflineResources(fileName, native);
     }
 
+    OfflineEnvironment(OfflineEnvironment *parent)
+        : likely_environment(parent)
+    {}
+
     ~OfflineEnvironment()
     {
         delete resources_;
     }
 
 private:
-    likely_mat evaluate(likely_const_ast ast)
+    likely_env evaluate(likely_const_ast ast)
     {
-        Builder builder(this);
+        likely_env env = new OfflineEnvironment(this);
+        Builder builder(env);
         UniqueExpression e(builder.expression(ast));
-        return e.get() ? likely_void() : NULL;
+        env->resetResult(e.get() ? likely_void() : NULL);
+        return env;
     }
 };
 
@@ -2263,21 +2275,23 @@ LIKELY_REGISTER(show)
 
 } // namespace (anonymous)
 
-likely_mat likely_environment::evaluate(likely_const_ast ast)
+likely_env likely_environment::evaluate(likely_const_ast ast)
 {
+    likely_env env = new likely_environment(this);
     if (ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=")) {
         // Shortcut for global variable definitions
-        delete Builder(this).expression(ast);
-        return likely_void();
+        delete Builder(env).expression(ast);
+        env->resetResult(likely_void());
+    } else {
+        likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
+        expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
+        JITFunction resources(expr, env, vector<likely_type>());
+        likely_release_ast(expr);
+        if      (resources.function) env->resetResult(reinterpret_cast<likely_mat(*)(void)>(resources.function)());
+        else if (!resources.error)   env->resetResult(likely_void());
+        else                         env->resetResult(NULL);
     }
-
-    likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
-    expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
-    JITFunction resources(expr, this, vector<likely_type>());
-    likely_release_ast(expr);
-    if      (resources.function) return reinterpret_cast<likely_mat(*)(void)>(resources.function)();
-    else if (!resources.error)   return likely_void();
-    else                         return NULL;
+    return env;
 }
 
 likely_env likely_new_jit()
@@ -2386,8 +2400,10 @@ void likely_release_function(likely_function function)
 likely_mat likely_eval(likely_const_ast ast, likely_env *env)
 {
     if (!ast || !env || !*env) return NULL;
-    likely_mat result = (*env)->evaluate(ast);
-    (*env)->setResult(result);
+    likely_env new_env = (*env)->evaluate(ast);
+    likely_mat result = likely_retain(new_env->result());
+    likely_release_env(*env);
+    *env = new_env;
     return result;
 }
 
