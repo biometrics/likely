@@ -378,8 +378,8 @@ struct likely_environment
     static likely_env RootEnvironment;
     mutable int ref_count = 1;
 
-    likely_environment(likely_env parent = RootEnvironment, Resources *resources = NULL)
-        : parent_(likely_retain_env(parent)), resources_(resources) {}
+    likely_environment(likely_env parent)
+        : parent_(likely_retain_env(parent)) {}
     likely_environment(const likely_environment &) = delete;
     likely_environment &operator=(const likely_environment &) = delete;
 
@@ -442,7 +442,7 @@ protected:
     map<string,shared_ptr<Expression>> LUT;
     likely_env parent_;
     likely_const_mat result_ = NULL;
-    Resources *resources_;
+    Resources *resources_ = NULL;
 };
 likely_env likely_environment::RootEnvironment = new likely_environment(NULL);
 
@@ -560,7 +560,8 @@ struct Builder : public IRBuilder<>
 
     void pushScope()
     {
-        env = new likely_environment(env, env->resources());
+        env = new likely_environment(env);
+        env->setResources(env->parent()->resources());
     }
 
     void popScope()
@@ -2047,6 +2048,7 @@ JITFunction::JITFunction(likely_const_ast ast, likely_env env, const vector<like
 struct OfflineEnvironment : public likely_environment
 {
     OfflineEnvironment(const string &fileName, bool native)
+        : likely_environment(RootEnvironment)
     {
         resources_ = new OfflineResources(fileName, native);
     }
@@ -2272,7 +2274,7 @@ LIKELY_REGISTER(show)
 
 likely_env likely_new_jit()
 {
-    return new likely_environment();
+    return new likely_environment(likely_environment::RootEnvironment);
 }
 
 likely_env likely_new_offline(const char *file_name, bool native)
