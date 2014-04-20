@@ -377,7 +377,8 @@ struct likely_environment
 {
     static likely_env RootEnvironment;
     mutable int ref_count = 1;
-    map<string,shared_ptr<Expression>> LUT;
+    string name_;
+    shared_ptr<Expression> value_;
 
     likely_environment(likely_env parent)
         : parent_(likely_retain_env(parent)) {}
@@ -396,27 +397,24 @@ struct likely_environment
     {
         env = new likely_environment(env);
         likely_release_env(env->parent());
-        env->LUT[name] = shared_ptr<Expression>(e);
+        env->name_ = name;
+        env->value_ = shared_ptr<Expression>(e);
         env->setResources(env->parent()->resources());
     }
 
     static void undefine(likely_env &env, const string &name)
     {
-        likely_assert(env->LUT.find(name) != env->LUT.end(), "undefine variable mismatch");
-        env->LUT.erase(name);
-        assert(env->LUT.empty());
-        likely_env deleteMe = env;
-        env = env->parent();
-        likely_retain_env(env);
-        likely_release_env(deleteMe);
+        likely_assert(env->name_ == name, "undefine variable mismatch");
+        likely_env old = env;
+        env = likely_retain_env(env->parent());
+        likely_release_env(old);
     }
 
     Expression *lookup(const string &name)
     {
-        auto it = LUT.find(name);
-        if      (it != LUT.end()) return it->second.get();
-        else if (parent_)         return parent_->lookup(name);
-        else                      return NULL;
+        if      (name_ == name) return value_.get();
+        else if (parent_)       return parent_->lookup(name);
+        else                    return NULL;
     }
 
     Resources *resources()
@@ -1107,7 +1105,8 @@ class defineExpression : public DefinitionOperator
             return expr;
         } else {
             // Global variable
-            builder.env->LUT[name->atom] = shared_ptr<Expression>(new Definition(builder, value));
+            builder.env->name_ = name->atom;
+            builder.env->value_ = shared_ptr<Expression>(new Definition(builder, value));
             return NULL;
         }
     }
