@@ -378,7 +378,7 @@ struct likely_environment
     static likely_env RootEnvironment;
     mutable int ref_count = 1;
     string name_;
-    shared_ptr<Expression> value_;
+    Expression *value_ = NULL;
 
     likely_environment(likely_env parent)
         : parent_(likely_retain_env(parent)) {}
@@ -387,6 +387,7 @@ struct likely_environment
 
     virtual ~likely_environment()
     {
+        delete value_;
         resetResult(NULL);
         likely_release_env(parent_);
     }
@@ -398,7 +399,7 @@ struct likely_environment
         env = new likely_environment(env);
         likely_release_env(env->parent());
         env->name_ = name;
-        env->value_ = shared_ptr<Expression>(e);
+        env->value_ = e;
         env->setResources(env->parent()->resources());
     }
 
@@ -412,7 +413,7 @@ struct likely_environment
 
     Expression *lookup(const string &name)
     {
-        if      (name_ == name) return value_.get();
+        if      (name_ == name) return value_;
         else if (parent_)       return parent_->lookup(name);
         else                    return NULL;
     }
@@ -1106,7 +1107,7 @@ class defineExpression : public DefinitionOperator
         } else {
             // Global variable
             builder.env->name_ = name->atom;
-            builder.env->value_ = shared_ptr<Expression>(new Definition(builder, value));
+            builder.env->value_ = new Definition(builder, value);
             return NULL;
         }
     }
