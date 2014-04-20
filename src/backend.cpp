@@ -377,6 +377,7 @@ struct likely_environment
 {
     static likely_env RootEnvironment;
     mutable int ref_count = 1;
+    map<string,shared_ptr<Expression>> LUT;
 
     likely_environment(likely_env parent)
         : parent_(likely_retain_env(parent)) {}
@@ -391,15 +392,23 @@ struct likely_environment
 
     likely_env parent() const { return parent_; }
 
-    static void define(likely_env env, const string &name, Expression *e)
+    static void define(likely_env &env, const string &name, Expression *e)
     {
+        env = new likely_environment(env);
+        likely_release_env(env->parent());
         env->LUT[name] = shared_ptr<Expression>(e);
+        env->setResources(env->parent()->resources());
     }
 
-    static void undefine(likely_env env, const string &name)
+    static void undefine(likely_env &env, const string &name)
     {
         likely_assert(env->LUT.find(name) != env->LUT.end(), "undefine variable mismatch");
         env->LUT.erase(name);
+        assert(env->LUT.empty());
+        likely_env deleteMe = env;
+        env = env->parent();
+        likely_retain_env(env);
+        likely_release_env(deleteMe);
     }
 
     Expression *lookup(const string &name)
@@ -438,7 +447,6 @@ struct likely_environment
     virtual likely_env evaluate(likely_const_ast ast);
 
 protected:
-    map<string,shared_ptr<Expression>> LUT;
     likely_env parent_;
     likely_const_mat result_ = NULL;
     Resources *resources_ = NULL;
@@ -555,19 +563,6 @@ struct Builder : public IRBuilder<>
             n++;
         }
         return result;
-    }
-
-    void pushScope()
-    {
-        env = new likely_environment(env);
-        env->setResources(env->parent()->resources());
-    }
-
-    void popScope()
-    {
-        likely_env parent = env->parent();
-        likely_release_env(env);
-        env = parent;
     }
 
     void define(const string &name, Expression *e)
@@ -1112,7 +1107,7 @@ class defineExpression : public DefinitionOperator
             return expr;
         } else {
             // Global variable
-            builder.define(name->atom, new Definition(builder, value));
+            builder.env->LUT[name->atom] = shared_ptr<Expression>(new Definition(builder, value));
             return NULL;
         }
     }
@@ -1480,7 +1475,6 @@ private:
 
     virtual Expression *evaluateLambda(Builder &builder, const vector<Expression> &args) const
     {
-        builder.pushScope();
         if (ast->atoms[1]->is_list) {
             for (size_t i=0; i<args.size(); i++)
                 builder.define(ast->atoms[1]->atoms[i]->atom, new Expression(args[i]));
@@ -1496,7 +1490,6 @@ private:
         } else {
             builder.undefine(ast->atoms[1]->atom);
         }
-        builder.popScope();
         return result;
     }
 };
@@ -1827,7 +1820,6 @@ private:
 
             Value *channelStep = builder.one(), *columnStep, *rowStep, *frameStep;
             builder.steps(&dst, &columnStep, &rowStep, &frameStep);
-            builder.pushScope();
 
             vector<kernelAxis*> axis;
             for (int axis_index=0; axis_index<4; axis_index++) {
@@ -1903,8 +1895,6 @@ private:
             builder.undefine("x");
             builder.undefine("y");
             builder.undefine("t");
-
-            builder.popScope();
             builder.CreateRetVoid();
         }
 
