@@ -391,9 +391,15 @@ struct likely_environment
 
     likely_env parent() const { return parent_; }
 
-    void define(const string &name, Expression *e)
+    static void define(likely_env env, const string &name, Expression *e)
     {
-        LUT[name] = shared_ptr<Expression>(e);
+        env->LUT[name] = shared_ptr<Expression>(e);
+    }
+
+    static void undefine(likely_env env, const string &name)
+    {
+        likely_assert(env->LUT.find(name) != env->LUT.end(), "undefine variable mismatch");
+        env->LUT.erase(name);
     }
 
     Expression *lookup(const string &name)
@@ -564,6 +570,16 @@ struct Builder : public IRBuilder<>
         env = parent;
     }
 
+    void define(const string &name, Expression *e)
+    {
+        likely_environment::define(env, name, e);
+    }
+
+    void undefine(const string &name)
+    {
+        likely_environment::undefine(env, name);
+    }
+
     Module *module() { return env->resources()->module; }
 
     Expression *expression(likely_const_ast ast);
@@ -670,7 +686,7 @@ struct RegisterExpression
     RegisterExpression(const char *symbol)
     {
         Expression *e = new E();
-        likely_environment::RootEnvironment->define(symbol, e);
+        likely_environment::define(likely_environment::RootEnvironment, symbol, e);
         if (int precedence = getPrecedence(symbol))
             likely_insert_operator(symbol, precedence, e->rightHandAtoms());
     }
@@ -1096,7 +1112,7 @@ class defineExpression : public DefinitionOperator
             return expr;
         } else {
             // Global variable
-            builder.env->define(name->atom, new Definition(builder, value));
+            builder.define(name->atom, new Definition(builder, value));
             return NULL;
         }
     }
@@ -1467,12 +1483,19 @@ private:
         builder.pushScope();
         if (ast->atoms[1]->is_list) {
             for (size_t i=0; i<args.size(); i++)
-                builder.env->define(ast->atoms[1]->atoms[i]->atom, new Expression(args[i]));
+                builder.define(ast->atoms[1]->atoms[i]->atom, new Expression(args[i]));
         } else {
-            builder.env->define(ast->atoms[1]->atom, new Expression(args[0]));
+            builder.define(ast->atoms[1]->atom, new Expression(args[0]));
         }
 
         Expression *result = builder.expression(ast->atoms[2]);
+
+        if (ast->atoms[1]->is_list) {
+            for (size_t i=0; i<args.size(); i++)
+                builder.undefine(ast->atoms[1]->atoms[args.size()-i-1]->atom);
+        } else {
+            builder.undefine(ast->atoms[1]->atom);
+        }
         builder.popScope();
         return result;
     }
@@ -1842,21 +1865,21 @@ private:
                 if (multiElement || ((axis_index == 3) && axis.empty())) {
                     if (axis.empty()) axis.push_back(new kernelAxis(builder, name, start, stop, step, NULL));
                     else              axis.push_back(new kernelAxis(builder, name, builder.zero(), elements, step, axis.back()));
-                    builder.env->define(name, axis.back()); // takes ownership of axis
+                    builder.define(name, axis.back()); // takes ownership of axis
                 } else {
-                    builder.env->define(name, new Expression(builder.zero(), likely_type_native));
+                    builder.define(name, new Expression(builder.zero(), likely_type_native));
                 }
             }
-            builder.env->define("i", new Expression(axis.back()->offset, likely_type_native));
+            builder.define("i", new Expression(axis.back()->offset, likely_type_native));
 
             const likely_const_ast args = ast->atoms[1];
             if (args->is_list) {
                 assert(srcs.size() == args->num_atoms);
                 for (size_t j=0; j<args->num_atoms; j++)
-                    builder.env->define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, axis.back()->node));
+                    builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, axis.back()->node));
             } else {
                 assert(srcs.size() == 1);
-                builder.env->define(args->atom, new kernelArgument(srcs[0], dst, axis.back()->node));
+                builder.define(args->atom, new kernelArgument(srcs[0], dst, axis.back()->node));
             }
 
             UniqueExpression result(builder.expression(ast->atoms[2]));
@@ -1868,7 +1891,20 @@ private:
             axis.back()->close(builder); // Closes all axis
             axis.front()->tryCollapse();
             axis.clear();
-            builder.popScope(); // Tiggers deletion of axis
+
+            if (args->is_list) {
+                for (size_t j=0; j<args->num_atoms; j++)
+                    builder.undefine(args->atoms[args->num_atoms-j-1]->atom);
+            } else {
+                builder.undefine(args->atom);
+            }
+            builder.undefine("i");
+            builder.undefine("c");
+            builder.undefine("x");
+            builder.undefine("y");
+            builder.undefine("t");
+
+            builder.popScope();
             builder.CreateRetVoid();
         }
 
