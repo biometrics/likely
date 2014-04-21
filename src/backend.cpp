@@ -377,7 +377,7 @@ struct likely_environment
 {
     static likely_env RootEnvironment;
     mutable int ref_count = 1;
-    string name_;
+    const char *name_ = NULL;
     Expression *value_ = NULL;
 
     likely_environment(likely_env parent)
@@ -387,6 +387,7 @@ struct likely_environment
 
     virtual ~likely_environment()
     {
+        delete[] name_;
         delete value_;
         resetResult(NULL);
         likely_release_env(parent_);
@@ -394,28 +395,29 @@ struct likely_environment
 
     likely_env parent() const { return parent_; }
 
-    static void define(likely_env &env, const string &name, Expression *e)
+    static void define(likely_env &env, const char *name, Expression *e)
     {
         env = new likely_environment(env);
         likely_release_env(env->parent());
-        env->name_ = name;
+        env->name_ = new char[strlen(name)+1];
+        strcpy((char*) env->name_, name);
         env->value_ = e;
         env->setResources(env->parent()->resources());
     }
 
-    static void undefine(likely_env &env, const string &name)
+    static void undefine(likely_env &env, const char *name)
     {
-        likely_assert(env->name_ == name, "undefine variable mismatch");
+        likely_assert(!strcmp(env->name_, name), "undefine variable mismatch");
         likely_env old = env;
         env = likely_retain_env(env->parent());
         likely_release_env(old);
     }
 
-    Expression *lookup(const string &name)
+    Expression *lookup(const char *name)
     {
-        if      (name_ == name) return value_;
-        else if (parent_)       return parent_->lookup(name);
-        else                    return NULL;
+        if      (name_ && !strcmp(name_, name)) return value_;
+        else if (parent_)                       return parent_->lookup(name);
+        else                                    return NULL;
     }
 
     Resources *resources()
@@ -564,12 +566,12 @@ struct Builder : public IRBuilder<>
         return result;
     }
 
-    void define(const string &name, Expression *e)
+    void define(const char *name, Expression *e)
     {
         likely_environment::define(env, name, e);
     }
 
-    void undefine(const string &name)
+    void undefine(const char *name)
     {
         likely_environment::undefine(env, name);
     }
@@ -743,7 +745,7 @@ Expression *Builder::expression(likely_const_ast ast)
             return var->second->evaluate(*this, ast);
     }
 
-    if (Expression *e = env->lookup(op))
+    if (Expression *e = env->lookup(op.c_str()))
         return e->evaluate(*this, ast);
 
     if ((op.front() == '"') && (op.back() == '"'))
@@ -1106,7 +1108,8 @@ class defineExpression : public DefinitionOperator
             return expr;
         } else {
             // Global variable
-            builder.env->name_ = name->atom;
+            builder.env->name_ = new char[strlen(name->atom)+1];
+            strcpy((char*) builder.env->name_, name->atom);
             builder.env->value_ = new Definition(builder, value);
             return NULL;
         }
@@ -1857,9 +1860,9 @@ private:
                 if (multiElement || ((axis_index == 3) && axis.empty())) {
                     if (axis.empty()) axis.push_back(new kernelAxis(builder, name, start, stop, step, NULL));
                     else              axis.push_back(new kernelAxis(builder, name, builder.zero(), elements, step, axis.back()));
-                    builder.define(name, axis.back()); // takes ownership of axis
+                    builder.define(name.c_str(), axis.back()); // takes ownership of axis
                 } else {
-                    builder.define(name, new Expression(builder.zero(), likely_type_native));
+                    builder.define(name.c_str(), new Expression(builder.zero(), likely_type_native));
                 }
             }
             builder.define("i", new Expression(axis.back()->offset, likely_type_native));
