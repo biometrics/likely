@@ -2369,23 +2369,21 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
     if (!ast || !parent) return NULL;
     likely_env env = likely_new_env(parent);
     if (likely_offline(parent->type)) {
-        likely_set_offline(&env->type, true);
         Builder builder(env);
         UniqueExpression e(builder.expression(ast));
-        env->result = e.get() ? likely_void() : NULL;
+        likely_set_erratum(&env->type, e.get() == NULL);
     } else {
         if (ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=")) {
             // Shortcut for global variable definitions
             delete Builder(env).expression(ast);
-            env->result = likely_void();
         } else {
             likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
             expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
             JITFunction resources(expr, env, vector<likely_type>());
             likely_release_ast(expr);
-            if      (resources.function) env->result = reinterpret_cast<likely_mat(*)(void)>(resources.function)();
-            else if (!resources.error)   env->result = likely_void();
-            else                         env->result = NULL;
+            likely_set_erratum(&env->type, resources.error);
+            if (resources.function)
+                env->result = reinterpret_cast<likely_mat(*)(void)>(resources.function)();
         }
     }
     return env;
@@ -2417,13 +2415,10 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, li
         likely_env new_env = likely_eval(ast, env);
         likely_release_env(env);
         env = new_env;
-        if (env->result) {
-            if (likely_elements(env->result) > 0)
-                likely_show(env->result, ast->is_list ? NULL : ast->atom);
-        } else {
-            likely_set_erratum(&env->type, true);
+        if (env->result && (likely_elements(env->result) > 0))
+            likely_show(env->result, ast->is_list ? NULL : ast->atom);
+        if (likely_erratum(env->type))
             break;
-        }
     }
 
     likely_release_ast(asts);
