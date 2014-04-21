@@ -375,86 +375,70 @@ public:
 
 struct likely_environment
 {
-    static likely_env RootEnvironment;
-    mutable int ref_count = 1;
-    const char *name_ = NULL;
-    likely_expression *value_ = NULL;
+    likely_env parent;
+    const char *name = NULL;
+    likely_expression *value = NULL;
+    likely_const_mat result = NULL;
+    likely_resources *resources = NULL;
+    size_t ref_count = 1;
 
     likely_environment(likely_env parent)
-        : parent_(likely_retain_env(parent)) {}
+        : parent(likely_retain_env(parent)) {}
     likely_environment(const likely_environment &) = delete;
     likely_environment &operator=(const likely_environment &) = delete;
 
     virtual ~likely_environment()
     {
-        delete[] name_;
-        delete value_;
+        delete[] name;
+        delete value;
         resetResult(NULL);
-        likely_release_env(parent_);
+        likely_release_env(parent);
     }
-
-    likely_env parent() const { return parent_; }
 
     static void define(likely_env &env, const char *name, likely_expression *e)
     {
         env = new likely_environment(env);
-        likely_release_env(env->parent());
-        env->name_ = new char[strlen(name)+1];
-        strcpy((char*) env->name_, name);
-        env->value_ = e;
-        env->setResources(env->parent()->resources());
+        likely_release_env(env->parent);
+        env->name = new char[strlen(name)+1];
+        strcpy((char*) env->name, name);
+        env->value = e;
+        env->resources = env->parent->lookupResources();
     }
 
     static void undefine(likely_env &env, const char *name)
     {
-        likely_assert(!strcmp(env->name_, name), "undefine variable mismatch");
+        likely_assert(!strcmp(env->name, name), "undefine variable mismatch");
         likely_env old = env;
-        env = likely_retain_env(env->parent());
+        env = likely_retain_env(env->parent);
         likely_release_env(old);
     }
 
     likely_expression *lookup(const char *name)
     {
-        if      (name_ && !strcmp(name_, name)) return value_;
-        else if (parent_)                       return parent_->lookup(name);
-        else                                    return NULL;
+        if      (this->name && !strcmp(this->name, name)) return value;
+        else if (parent)                                  return parent->lookup(name);
+        else                                              return NULL;
     }
 
-    likely_resources *resources()
+    likely_resources *lookupResources()
     {
-        if      (resources_) return resources_;
-        else if (parent_)    return parent_->resources();
+        if      (resources) return resources;
+        else if (parent)     return parent->lookupResources();
         else                 return NULL;
     }
 
-    void setResources(likely_resources *resources)
-    {
-        resources_ = resources;
-    }
-
-    bool hasResources() const
-    {
-        return !!resources_;
-    }
-
-    likely_const_mat result() const { return result_; }
-
     void resetResult(likely_const_mat result)
     {
-        likely_release(result_);
-        result_ = result;
+        likely_release(this->result);
+        this->result = result;
     }
 
-    virtual likely_env evaluate(likely_const_ast ast);
-
-protected:
-    likely_env parent_;
-    likely_const_mat result_ = NULL;
-    likely_resources *resources_ = NULL;
+    virtual likely_env evaluate(likely_const_ast ast);    
 };
-likely_env likely_environment::RootEnvironment = new likely_environment(NULL);
 
 namespace {
+
+static likely_env RootEnvironment = new likely_environment(NULL);
 
 struct Builder : public IRBuilder<>
 {
@@ -576,7 +560,7 @@ struct Builder : public IRBuilder<>
         likely_environment::undefine(env, name);
     }
 
-    Module *module() { return env->resources()->module; }
+    Module *module() { return env->lookupResources()->module; }
 
     likely_expression *expression(likely_const_ast ast);
 };
@@ -682,7 +666,7 @@ struct RegisterExpression
     RegisterExpression(const char *symbol)
     {
         likely_expression *e = new E();
-        likely_environment::define(likely_environment::RootEnvironment, symbol, e);
+        likely_environment::define(RootEnvironment, symbol, e);
         if (int precedence = getPrecedence(symbol))
             likely_insert_operator(symbol, precedence, e->rightHandAtoms());
     }
@@ -1047,7 +1031,7 @@ private:
     {
         likely_env restored = builder.env;
         builder.env = new likely_environment(env);
-        builder.env->setResources(restored->resources());
+        builder.env->resources = restored->lookupResources();
         UniqueExpression op(builder.expression(this->ast));
         likely_release_env(builder.env);
         builder.env = restored;
@@ -1097,7 +1081,7 @@ class defineExpression : public DefinitionOperator
 {
     likely_expression *evaluateDefinition(Builder &builder, likely_const_ast name, likely_const_ast value) const
     {
-        if (builder.env->hasResources()) {
+        if (builder.env->resources) {
             // Local variable
             likely_expression *expr = builder.expression(value);
             if (expr) {
@@ -1108,9 +1092,9 @@ class defineExpression : public DefinitionOperator
             return expr;
         } else {
             // Global variable
-            builder.env->name_ = new char[strlen(name->atom)+1];
-            strcpy((char*) builder.env->name_, name->atom);
-            builder.env->value_ = new Definition(builder, value);
+            builder.env->name = new char[strlen(name->atom)+1];
+            strcpy((char*) builder.env->name, name->atom);
+            builder.env->value = new Definition(builder, value);
             return NULL;
         }
     }
@@ -1426,7 +1410,7 @@ private:
 
         likely_env restored = builder.env;
         builder.env = new likely_environment(env);
-        builder.env->setResources(restored->resources());
+        builder.env->resources = restored->lookupResources();
         likely_expression *result = evaluateFunction(builder, args);
         likely_release_env(builder.env);
         builder.env = restored;
@@ -1443,7 +1427,7 @@ private:
 
         if (dynamic) {
             VTable *vTable = new VTable(builder, ast, args.size());
-            builder.env->resources()->expressions.push_back(vTable);
+            builder.env->lookupResources()->expressions.push_back(vTable);
 
             static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
             static FunctionType *likelyDynamicType = NULL;
@@ -2044,7 +2028,7 @@ JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<l
                   (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
                   "expected a lambda expression");
     likely_env env = new likely_environment(parent);
-    env->setResources(this);
+    env->resources = this;
     Builder builder(env);
     unique_ptr<likely_expression> result(builder.expression(ast));
 
@@ -2076,7 +2060,7 @@ struct OfflineEnvironment : public likely_environment
     OfflineEnvironment(const string &fileName, bool native)
         : likely_environment(RootEnvironment)
     {
-        resources_ = new OfflineResources(fileName, native);
+        resources = new OfflineResources(fileName, native);
     }
 
     OfflineEnvironment(OfflineEnvironment *parent)
@@ -2085,7 +2069,7 @@ struct OfflineEnvironment : public likely_environment
 
     ~OfflineEnvironment()
     {
-        delete resources_;
+        delete resources;
     }
 
 private:
@@ -2325,7 +2309,7 @@ likely_env likely_environment::evaluate(likely_const_ast ast)
 
 likely_env likely_new_jit()
 {
-    return new likely_environment(likely_environment::RootEnvironment);
+    return new likely_environment(RootEnvironment);
 }
 
 likely_env likely_new_offline(const char *file_name, bool native)
@@ -2335,13 +2319,13 @@ likely_env likely_new_offline(const char *file_name, bool native)
 
 likely_env likely_retain_env(likely_const_env env)
 {
-    if (env) env->ref_count++;
+    if (env) const_cast<likely_env>(env)->ref_count++;
     return (likely_env) env;
 }
 
 void likely_release_env(likely_const_env env)
 {
-    if (!env || --env->ref_count) return;
+    if (!env || --const_cast<likely_env>(env)->ref_count) return;
     delete env;
 }
 
@@ -2430,7 +2414,7 @@ likely_mat likely_eval(likely_const_ast ast, likely_env *env)
 {
     if (!ast || !env || !*env) return NULL;
     likely_env new_env = (*env)->evaluate(ast);
-    likely_mat result = likely_retain(new_env->result());
+    likely_mat result = likely_retain(new_env->result);
     likely_release_env(*env);
     *env = new_env;
     return result;
@@ -2453,8 +2437,8 @@ bool likely_repl(const char *source, bool GFM, likely_env *env, likely_env prev)
     int prevDepth = 0;
     {
         likely_env tmp = prev;
-        while (tmp && (tmp->parent() != (*env)->parent())) {
-            tmp = tmp->parent();
+        while (tmp && (tmp->parent != (*env)->parent)) {
+            tmp = tmp->parent;
             prevDepth++;
         }
         if (!tmp)
