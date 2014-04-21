@@ -2234,7 +2234,7 @@ LIKELY_REGISTER(show)
 
 } // namespace (anonymous)
 
-likely_env likely_new_env(likely_env parent)
+likely_env likely_new_env(likely_const_env parent)
 {
     likely_env env = (likely_env) malloc(sizeof(likely_environment));
     env->parent = likely_retain_env(parent);
@@ -2364,38 +2364,36 @@ void likely_release_function(likely_function function)
     delete df.first;
 }
 
-likely_env likely_eval(likely_const_ast ast, likely_env env)
+likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
 {
-    if (!ast || !env) return NULL;
-
-    likely_env new_env = likely_new_env(env);
-    if (likely_offline(env->type)) {
-        likely_set_offline(&new_env->type, true);
-        Builder builder(new_env);
+    if (!ast || !parent) return NULL;
+    likely_env env = likely_new_env(parent);
+    if (likely_offline(parent->type)) {
+        likely_set_offline(&env->type, true);
+        Builder builder(env);
         UniqueExpression e(builder.expression(ast));
-        new_env->result = e.get() ? likely_void() : NULL;
+        env->result = e.get() ? likely_void() : NULL;
     } else {
         if (ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=")) {
             // Shortcut for global variable definitions
-            delete Builder(new_env).expression(ast);
-            new_env->result = likely_void();
+            delete Builder(env).expression(ast);
+            env->result = likely_void();
         } else {
             likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
             expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
-            JITFunction resources(expr, new_env, vector<likely_type>());
+            JITFunction resources(expr, env, vector<likely_type>());
             likely_release_ast(expr);
-            if      (resources.function) new_env->result = reinterpret_cast<likely_mat(*)(void)>(resources.function)();
-            else if (!resources.error)   new_env->result = likely_void();
-            else                         new_env->result = NULL;
+            if      (resources.function) env->result = reinterpret_cast<likely_mat(*)(void)>(resources.function)();
+            else if (!resources.error)   env->result = likely_void();
+            else                         env->result = NULL;
         }
     }
-
-    return new_env;
+    return env;
 }
 
-likely_env likely_repl(const char *source, bool GFM, likely_env env, likely_env prev)
+likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, likely_const_env prev)
 {
-    env = likely_new_env(env);
+    likely_env env = likely_new_env(parent);
 
     likely_const_ast asts = likely_asts_from_string(source, GFM);
     if (!asts) {
@@ -2405,7 +2403,7 @@ likely_env likely_repl(const char *source, bool GFM, likely_env env, likely_env 
 
     int prevDepth = 0;
     {
-        likely_env tmp = prev;
+        likely_const_env tmp = prev;
         while (tmp && (tmp->parent != env->parent)) {
             tmp = tmp->parent;
             prevDepth++;

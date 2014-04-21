@@ -34,7 +34,7 @@ enum likely_environment_type_field
 
 struct likely_environment
 {
-    struct likely_environment *parent;
+    struct likely_environment const *parent;
     const char *name;
     struct likely_expression *value;
     struct likely_resources *resources;
@@ -64,7 +64,7 @@ extern "C" {
 #endif // __cplusplus
 
 // Environments
-LIKELY_EXPORT likely_env likely_new_env(likely_env parent);
+LIKELY_EXPORT likely_env likely_new_env(likely_const_env parent);
 LIKELY_EXPORT likely_env likely_new_env_jit();
 LIKELY_EXPORT likely_env likely_new_env_offline(const char *file_name, bool native);
 LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
@@ -81,8 +81,8 @@ LIKELY_EXPORT likely_function likely_retain_function(likely_function function);
 LIKELY_EXPORT void likely_release_function(likely_function function);
 
 // Evaluation
-LIKELY_EXPORT likely_env likely_eval(likely_const_ast ast, likely_env env);
-LIKELY_EXPORT likely_env likely_repl(const char *source, bool GFM, likely_env env, likely_env prev);
+LIKELY_EXPORT likely_env likely_eval(likely_const_ast ast, likely_const_env parent);
+LIKELY_EXPORT likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, likely_const_env prev);
 
 // Contents of library/standard.l
 LIKELY_EXPORT extern const char likely_standard_library[];
