@@ -391,46 +391,8 @@ struct likely_environment
     {
         delete[] name;
         delete value;
-        resetResult(NULL);
+        likely_release(result);
         likely_release_env(parent);
-    }
-
-    static void define(likely_env &env, const char *name, likely_expression *e)
-    {
-        env = new likely_environment(env);
-        likely_release_env(env->parent);
-        env->name = new char[strlen(name)+1];
-        strcpy((char*) env->name, name);
-        env->value = e;
-        env->resources = env->parent->lookupResources();
-    }
-
-    static void undefine(likely_env &env, const char *name)
-    {
-        likely_assert(!strcmp(env->name, name), "undefine variable mismatch");
-        likely_env old = env;
-        env = likely_retain_env(env->parent);
-        likely_release_env(old);
-    }
-
-    likely_expression *lookup(const char *name)
-    {
-        if      (this->name && !strcmp(this->name, name)) return value;
-        else if (parent)                                  return parent->lookup(name);
-        else                                              return NULL;
-    }
-
-    likely_resources *lookupResources()
-    {
-        if      (resources) return resources;
-        else if (parent)     return parent->lookupResources();
-        else                 return NULL;
-    }
-
-    void resetResult(likely_const_mat result)
-    {
-        likely_release(this->result);
-        this->result = result;
     }
 
     virtual likely_env evaluate(likely_const_ast ast);    
@@ -550,17 +512,46 @@ struct Builder : public IRBuilder<>
         return result;
     }
 
-    void define(const char *name, likely_expression *e)
+    static likely_expression *lookup(likely_const_env env, const char *name)
     {
-        likely_environment::define(env, name, e);
+        if      (!env)                                  return NULL;
+        else if (env->name && !strcmp(env->name, name)) return env->value;
+        else                                            return lookup(env->parent, name);
     }
 
-    void undefine(const char *name)
+    likely_expression *lookup(const char *name) const { return lookup(env, name); }
+
+    static likely_resources *lookupResources(likely_const_env env)
     {
-        likely_environment::undefine(env, name);
+        if      (!env)           return NULL;
+        else if (env->resources) return env->resources;
+        else                     return lookupResources(env->parent);
     }
 
-    Module *module() { return env->lookupResources()->module; }
+    likely_resources *lookupResources() const { return lookupResources(env); }
+
+    static void define(likely_env &env, const char *name, likely_expression *e)
+    {
+        env = new likely_environment(env);
+        likely_release_env(env->parent);
+        env->name = new char[strlen(name)+1];
+        strcpy((char*) env->name, name);
+        env->value = e;
+        env->resources = lookupResources(env->parent);
+    }
+
+    static void undefine(likely_env &env, const char *name)
+    {
+        likely_assert(!strcmp(env->name, name), "undefine variable mismatch");
+        likely_env old = env;
+        env = likely_retain_env(env->parent);
+        likely_release_env(old);
+    }
+
+    void   define(const char *name, likely_expression *e) {   define(env, name, e); }
+    void undefine(const char *name)                       { undefine(env, name); }
+
+    Module *module() { return lookupResources()->module; }
 
     likely_expression *expression(likely_const_ast ast);
 };
@@ -666,7 +657,7 @@ struct RegisterExpression
     RegisterExpression(const char *symbol)
     {
         likely_expression *e = new E();
-        likely_environment::define(RootEnvironment, symbol, e);
+        Builder::define(RootEnvironment, symbol, e);
         if (int precedence = getPrecedence(symbol))
             likely_insert_operator(symbol, precedence, e->rightHandAtoms());
     }
@@ -716,7 +707,7 @@ likely_expression *Builder::expression(likely_const_ast ast)
             return likely_expression::error(ast, "Empty expression");
         likely_const_ast op = ast->atoms[0];
         if (!op->is_list)
-            if (likely_expression *e = env->lookup(op->atom))
+            if (likely_expression *e = lookup(op->atom))
                 return e->evaluate(*this, ast);
         TRY_EXPR(*this, op, e);
         return e.evaluate(*this, ast);
@@ -729,7 +720,7 @@ likely_expression *Builder::expression(likely_const_ast ast)
             return var->second->evaluate(*this, ast);
     }
 
-    if (likely_expression *e = env->lookup(op.c_str()))
+    if (likely_expression *e = lookup(op.c_str()))
         return e->evaluate(*this, ast);
 
     if ((op.front() == '"') && (op.back() == '"'))
@@ -1031,7 +1022,7 @@ private:
     {
         likely_env restored = builder.env;
         builder.env = new likely_environment(env);
-        builder.env->resources = restored->lookupResources();
+        builder.env->resources = Builder::lookupResources(restored);
         UniqueExpression op(builder.expression(this->ast));
         likely_release_env(builder.env);
         builder.env = restored;
@@ -1105,8 +1096,8 @@ class definedExpression : public DefinitionOperator
 {
     likely_expression *evaluateDefinition(Builder &builder, likely_const_ast name, likely_const_ast value) const
     {
-        if (builder.env->lookup(name->atom)) return builder.expression(name);
-        else                                 return builder.expression(value);
+        if (builder.lookup(name->atom)) return builder.expression(name);
+        else                            return builder.expression(value);
     }
 };
 LIKELY_REGISTER_EXPRESSION(defined, "??")
@@ -1410,7 +1401,7 @@ private:
 
         likely_env restored = builder.env;
         builder.env = new likely_environment(env);
-        builder.env->resources = restored->lookupResources();
+        builder.env->resources = Builder::lookupResources(restored);
         likely_expression *result = evaluateFunction(builder, args);
         likely_release_env(builder.env);
         builder.env = restored;
@@ -1427,7 +1418,7 @@ private:
 
         if (dynamic) {
             VTable *vTable = new VTable(builder, ast, args.size());
-            builder.env->lookupResources()->expressions.push_back(vTable);
+            builder.lookupResources()->expressions.push_back(vTable);
 
             static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
             static FunctionType *likelyDynamicType = NULL;
@@ -1658,15 +1649,15 @@ private:
             Value *i;
             if (((matrix ^ kernel) & likely_type_multi_dimension) == 0) {
                 // This matrix has the same dimensionality as the kernel
-                i = *builder.env->lookup("i");
+                i = *builder.lookup("i");
             } else {
                 Value *columnStep, *rowStep, *frameStep;
                 builder.steps(&matrix, &columnStep, &rowStep, &frameStep);
                 i = Builder::zero();
-                if (likely_multi_channel(matrix)) i = *builder.env->lookup("c");
-                if (likely_multi_column (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.env->lookup("x"), columnStep), i);
-                if (likely_multi_row    (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.env->lookup("y"), rowStep   ), i);
-                if (likely_multi_frame  (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.env->lookup("t"), frameStep ), i);
+                if (likely_multi_channel(matrix)) i = *builder.lookup("c");
+                if (likely_multi_column (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), columnStep), i);
+                if (likely_multi_row    (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep   ), i);
+                if (likely_multi_frame  (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep ), i);
             }
 
             LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(&matrix), i));
@@ -2078,7 +2069,7 @@ private:
         likely_env env = new OfflineEnvironment(this);
         Builder builder(env);
         UniqueExpression e(builder.expression(ast));
-        env->resetResult(e.get() ? likely_void() : NULL);
+        env->result = e.get() ? likely_void() : NULL;
         return env;
     }
 };
@@ -2294,15 +2285,15 @@ likely_env likely_environment::evaluate(likely_const_ast ast)
     if (ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=")) {
         // Shortcut for global variable definitions
         delete Builder(env).expression(ast);
-        env->resetResult(likely_void());
+        env->result = likely_void();
     } else {
         likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
         expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
         JITFunction resources(expr, env, vector<likely_type>());
         likely_release_ast(expr);
-        if      (resources.function) env->resetResult(reinterpret_cast<likely_mat(*)(void)>(resources.function)());
-        else if (!resources.error)   env->resetResult(likely_void());
-        else                         env->resetResult(NULL);
+        if      (resources.function) env->result = reinterpret_cast<likely_mat(*)(void)>(resources.function)();
+        else if (!resources.error)   env->result = likely_void();
+        else                         env->result = NULL;
     }
     return env;
 }
