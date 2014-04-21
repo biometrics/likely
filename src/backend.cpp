@@ -515,7 +515,10 @@ struct Builder : public IRBuilder<>
         env->name = new char[strlen(name)+1];
         strcpy((char*) env->name, name);
         env->value = e;
+
+        // TODO: these lines should not be necessary
         env->resources = lookupResources(env->parent);
+        likely_set_offline(&env->type, false);
     }
 
     static void undefine(likely_env &env, const char *name)
@@ -2240,7 +2243,7 @@ likely_env likely_new_env(likely_env parent)
     env->resources = NULL;
     env->result = NULL;
     env->ref_count = 1;
-    env->type = likely_environment_void;
+    env->type = parent ? parent->type : likely_environment_void;
     return env;
 }
 
@@ -2251,9 +2254,9 @@ likely_env likely_new_env_jit()
 
 likely_env likely_new_env_offline(const char *file_name, bool native)
 {
-    likely_env env = likely_new_env_jit();
+    likely_env env = likely_new_env(RootEnvironment);
     env->resources = new OfflineResources(file_name, native);
-    env->type = likely_environment_offline;
+    likely_set_offline(&env->type, true);
     return env;
 }
 
@@ -2390,24 +2393,20 @@ likely_env likely_eval(likely_const_ast ast, likely_env env)
     return new_env;
 }
 
-bool likely_repl(const char *source, bool GFM, likely_env *env, likely_env prev)
+likely_env likely_repl(const char *source, bool GFM, likely_env env, likely_env prev)
 {
-    likely_const_ast asts = likely_asts_from_string(source, GFM);
-    if (!asts)
-        return false;
+    env = likely_new_env(env);
 
-    bool owns_env = !env;
-    if (owns_env) {
-        env = (likely_env*) alloca(sizeof(likely_env*));
-        *env = NULL;
+    likely_const_ast asts = likely_asts_from_string(source, GFM);
+    if (!asts) {
+        likely_set_erratum(&env->type, true);
+        return env;
     }
-    if (*env == NULL)
-        *env = likely_new_env_jit();
 
     int prevDepth = 0;
     {
         likely_env tmp = prev;
-        while (tmp && (tmp->parent != (*env)->parent)) {
+        while (tmp && (tmp->parent != env->parent)) {
             tmp = tmp->parent;
             prevDepth++;
         }
@@ -2415,25 +2414,22 @@ bool likely_repl(const char *source, bool GFM, likely_env *env, likely_env prev)
             prevDepth = -1;
     }
 
-    bool success = true;
     for (size_t i=0; i<asts->num_atoms; i++) {
         likely_const_ast ast = asts->atoms[i];
-        likely_env new_env = likely_eval(ast, *env);
-        likely_release_env(*env);
-        *env = new_env;
-        if ((*env)->result) {
-            if (likely_elements((*env)->result) > 0)
-                likely_show((*env)->result, ast->is_list ? NULL : ast->atom);
+        likely_env new_env = likely_eval(ast, env);
+        likely_release_env(env);
+        env = new_env;
+        if (env->result) {
+            if (likely_elements(env->result) > 0)
+                likely_show(env->result, ast->is_list ? NULL : ast->atom);
         } else {
-            success = false;
+            likely_set_erratum(&env->type, true);
             break;
         }
     }
 
-    if (owns_env)
-        likely_release_env(*env);
     likely_release_ast(asts);
-    return success;
+    return env;
 }
 
 namespace {
@@ -2454,9 +2450,9 @@ class importExpression : public Operator
         if (source.empty())
             return error(file, "unable to open file");
 
-        const bool success = likely_repl(source.c_str(), true, &builder.env, NULL);
-        if (success) return new likely_expression();
-        else         return NULL;
+        builder.env = likely_repl(source.c_str(), true, builder.env, NULL);
+        if (likely_erratum(builder.env->type)) return NULL;
+        else                                   return new likely_expression();
     }
 };
 LIKELY_REGISTER(import)

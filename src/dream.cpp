@@ -290,12 +290,14 @@ private slots:
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
         likely_env env = likely_new_env_jit();
-        if (likely_repl(qPrintable(source), true, &env, prev)) {
+        likely_env new_env = likely_repl(qPrintable(source), true, env, prev);
+        likely_release_env(env);
+        if (!likely_erratum(new_env->type)) {
             const qint64 nsec = elapsedTimer.nsecsElapsed();
             emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
         }
         likely_release_env(prev);
-        prev = env;
+        prev = new_env;
         emit finishedEval();
         settings.setValue("source", toPlainText());
     }
