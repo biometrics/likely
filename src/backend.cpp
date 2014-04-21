@@ -2282,6 +2282,8 @@ bool likely_offline(likely_environment_type type) { return likely_get_bool(type,
 void likely_set_offline(likely_environment_type *type, bool offline) { likely_set_bool(type, offline, likely_environment_offline); }
 bool likely_erratum(likely_environment_type type) { return likely_get_bool(type, likely_environment_erratum); }
 void likely_set_erratum(likely_environment_type *type, bool erratum) { likely_set_bool(type, erratum, likely_environment_erratum); }
+bool likely_definition(likely_environment_type type) { return likely_get_bool(type, likely_environment_definition); }
+void likely_set_definition(likely_environment_type *type, bool definition) { likely_set_bool(type, definition, likely_environment_definition); }
 
 likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat m, ...)
 {
