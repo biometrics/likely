@@ -373,6 +373,12 @@ public:
 
 } // namespace (anonymous)
 
+enum likely_environment_type
+{
+    likely_environment_void    = 0x00000000,
+    likely_environment_offline = 0x00000001
+};
+
 struct likely_environment
 {
     likely_env parent;
@@ -380,14 +386,13 @@ struct likely_environment
     likely_expression *value;
     likely_const_mat result;
     likely_resources *resources;
-    size_t ref_count;
+    size_t ref_count, type;
 
     virtual ~likely_environment() {}
-    virtual likely_env evaluate(likely_const_ast ast);
 
 #ifdef __cplusplus
     likely_environment(likely_env parent)
-        : parent(likely_retain_env(parent)), name(NULL), value(NULL), result(NULL), resources(NULL), ref_count(1) {}
+        : parent(likely_retain_env(parent)), name(NULL), value(NULL), result(NULL), resources(NULL), ref_count(1), type(likely_environment_void) {}
 
 private:
     likely_environment(const likely_environment &);
@@ -2049,25 +2054,16 @@ struct OfflineEnvironment : public likely_environment
         : likely_environment(RootEnvironment)
     {
         resources = new OfflineResources(fileName, native);
+        type = likely_environment_offline;
     }
 
-    OfflineEnvironment(OfflineEnvironment *parent)
+    OfflineEnvironment(likely_env parent)
         : likely_environment(parent)
     {}
 
     ~OfflineEnvironment()
     {
         delete resources;
-    }
-
-private:
-    likely_env evaluate(likely_const_ast ast)
-    {
-        likely_env env = new OfflineEnvironment(this);
-        Builder builder(env);
-        UniqueExpression e(builder.expression(ast));
-        env->result = e.get() ? likely_void() : NULL;
-        return env;
     }
 };
 
@@ -2276,25 +2272,6 @@ LIKELY_REGISTER(show)
 
 } // namespace (anonymous)
 
-likely_env likely_environment::evaluate(likely_const_ast ast)
-{
-    likely_env env = new likely_environment(this);
-    if (ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=")) {
-        // Shortcut for global variable definitions
-        delete Builder(env).expression(ast);
-        env->result = likely_void();
-    } else {
-        likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
-        expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
-        JITFunction resources(expr, env, vector<likely_type>());
-        likely_release_ast(expr);
-        if      (resources.function) env->result = reinterpret_cast<likely_mat(*)(void)>(resources.function)();
-        else if (!resources.error)   env->result = likely_void();
-        else                         env->result = NULL;
-    }
-    return env;
-}
-
 likely_env likely_new_jit()
 {
     return new likely_environment(RootEnvironment);
@@ -2405,7 +2382,30 @@ void likely_release_function(likely_function function)
 likely_mat likely_eval(likely_const_ast ast, likely_env *env)
 {
     if (!ast || !env || !*env) return NULL;
-    likely_env new_env = (*env)->evaluate(ast);
+
+    likely_env new_env;
+    if ((*env)->type & likely_environment_offline) {
+        new_env = new OfflineEnvironment(*env);
+        Builder builder(new_env);
+        UniqueExpression e(builder.expression(ast));
+        new_env->result = e.get() ? likely_void() : NULL;
+    } else {
+        new_env = new likely_environment(*env);
+        if (ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=")) {
+            // Shortcut for global variable definitions
+            delete Builder(new_env).expression(ast);
+            new_env->result = likely_void();
+        } else {
+            likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
+            expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
+            JITFunction resources(expr, new_env, vector<likely_type>());
+            likely_release_ast(expr);
+            if      (resources.function) new_env->result = reinterpret_cast<likely_mat(*)(void)>(resources.function)();
+            else if (!resources.error)   new_env->result = likely_void();
+            else                         new_env->result = NULL;
+        }
+    }
+
     likely_mat result = likely_retain(new_env->result);
     likely_release_env(*env);
     *env = new_env;
