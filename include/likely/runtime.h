@@ -97,7 +97,13 @@ extern "C" {
 // Abort-style error handling
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
 
-// Query and edit the type
+// Type manipulation helper functions
+LIKELY_EXPORT int  likely_get(size_t type, size_t mask);
+LIKELY_EXPORT void likely_set(size_t *type, size_t value, size_t mask);
+LIKELY_EXPORT bool likely_get_bool(size_t type, size_t mask);
+LIKELY_EXPORT void likely_set_bool(size_t *type, bool value, size_t mask);
+
+// Query and edit the matrix type
 LIKELY_EXPORT int  likely_depth(likely_type type);
 LIKELY_EXPORT void likely_set_depth(likely_type *type, int depth);
 LIKELY_EXPORT bool likely_signed(likely_type type);

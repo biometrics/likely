@@ -46,10 +46,10 @@ void likely_assert(bool condition, const char *format, ...)
     abort();
 }
 
-static int likely_get(likely_type type, likely_matrix_type mask) { return type & mask; }
-static void likely_set(likely_type *type, likely_type i, likely_matrix_type mask) { *type &= ~mask; *type |= i & mask; }
-static bool likely_get_bool(likely_type type, likely_matrix_type mask) { return (type & mask) != 0; }
-static void likely_set_bool(likely_type *type, bool b, likely_matrix_type mask) { b ? *type |= mask : *type &= ~mask; }
+int likely_get(likely_type type, likely_matrix_type mask) { return type & mask; }
+void likely_set(likely_type *type, likely_type value, likely_matrix_type mask) { *type &= ~mask; *type |= value & mask; }
+bool likely_get_bool(likely_type type, likely_matrix_type mask) { return (type & mask) != 0; }
+void likely_set_bool(likely_type *type, bool value, likely_matrix_type mask) { value ? *type |= mask : *type &= ~mask; }
 
 int  likely_depth(likely_type type) { return likely_get(type, likely_matrix_depth); }
 void likely_set_depth(likely_type *type, int depth) { likely_set(type, depth, likely_matrix_depth); }
@@ -216,7 +216,7 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
       case likely_matrix_f32: ((   float*)m->data)[index] = (   float)value; break;
       case likely_matrix_f64: ((  double*)m->data)[index] = (  double)value; break;
       case likely_matrix_u1:  if (value == 0) (((uint8_t*)m->data)[index/8] &= ~(1 << index%8));
-                            else            (((uint8_t*)m->data)[index/8] |=  (1 << index%8)); break;
+                            else              (((uint8_t*)m->data)[index/8] |=  (1 << index%8)); break;
       default: assert(!"likely_set_element unsupported type");
     }
 }
