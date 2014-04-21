@@ -2359,12 +2359,12 @@ void likely_release_function(likely_function function)
     delete df.first;
 }
 
-likely_mat likely_eval(likely_const_ast ast, likely_env *env)
+likely_env likely_eval(likely_const_ast ast, likely_env env)
 {
-    if (!ast || !env || !*env) return NULL;
+    if (!ast || !env) return NULL;
 
-    likely_env new_env = likely_new_env(*env);
-    if (likely_offline((*env)->type)) {
+    likely_env new_env = likely_new_env(env);
+    if (likely_offline(env->type)) {
         likely_set_offline(&new_env->type, true);
         Builder builder(new_env);
         UniqueExpression e(builder.expression(ast));
@@ -2385,10 +2385,7 @@ likely_mat likely_eval(likely_const_ast ast, likely_env *env)
         }
     }
 
-    likely_mat result = likely_retain(new_env->result);
-    likely_release_env(*env);
-    *env = new_env;
-    return result;
+    return new_env;
 }
 
 bool likely_repl(const char *source, bool GFM, likely_env *env, likely_env prev)
@@ -2419,10 +2416,12 @@ bool likely_repl(const char *source, bool GFM, likely_env *env, likely_env prev)
     bool success = true;
     for (size_t i=0; i<asts->num_atoms; i++) {
         likely_const_ast ast = asts->atoms[i];
-        if (likely_const_mat m = likely_eval(ast, env)) {
-            if (likely_elements(m) > 0)
-                likely_show(m, ast->is_list ? NULL : ast->atom);
-            likely_release(m);
+        likely_env new_env = likely_eval(ast, *env);
+        likely_release_env(*env);
+        *env = new_env;
+        if ((*env)->result) {
+            if (likely_elements((*env)->result) > 0)
+                likely_show((*env)->result, ast->is_list ? NULL : ast->atom);
         } else {
             success = false;
             break;
