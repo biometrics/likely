@@ -2251,14 +2251,14 @@ LIKELY_REGISTER(show)
 
 } // namespace (anonymous)
 
-likely_env likely_new_jit()
+likely_env likely_new_env()
 {
     return new likely_environment(RootEnvironment);
 }
 
-likely_env likely_new_offline(const char *file_name, bool native)
+likely_env likely_new_env_offline(const char *file_name, bool native)
 {
-    likely_env env = likely_new_jit();
+    likely_env env = likely_new_env();
     env->resources = new OfflineResources(file_name, native);
     env->type = likely_environment_offline;
     return env;
@@ -2407,7 +2407,7 @@ bool likely_repl(const char *source, bool GFM, likely_env *env, likely_env prev)
         *env = NULL;
     }
     if (*env == NULL)
-        *env = likely_new_jit();
+        *env = likely_new_env();
 
     int prevDepth = 0;
     {

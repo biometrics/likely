@@ -64,7 +64,7 @@ struct Test
             return;
 
         likely_const_ast ast = likely_ast_from_string(function(), false);
-        likely_env env = likely_new_jit();
+        likely_env env = likely_new_env();
         likely_function_1 f = reinterpret_cast<likely_function_1>(likely_compile(ast, env, likely_type_void));
         likely_release_env(env);
         likely_release_ast(ast);
@@ -116,7 +116,7 @@ struct Test
 
         printf("%s \t", fileName.c_str());
         likely_const_ast ast = likely_asts_from_string(source.c_str(), true);
-        likely_env env = likely_new_jit();
+        likely_env env = likely_new_env();
         if (BenchmarkVerbose)
             printf("\n");
         for (size_t i=0; i<ast->num_atoms; i++) {
@@ -144,7 +144,7 @@ struct Test
         int iter = 0;
         startTime = endTime = clock();
         while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
-            likely_env env = likely_new_jit();
+            likely_env env = likely_new_env();
             for (size_t i=0; i<ast->num_atoms; i++)
                 likely_release(likely_eval(ast->atoms[i], &env));
             likely_release_env(env);

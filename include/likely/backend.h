@@ -34,8 +34,8 @@ extern "C" {
 #endif // __cplusplus
 
 // Environments
-LIKELY_EXPORT likely_env likely_new_jit();
-LIKELY_EXPORT likely_env likely_new_offline(const char *file_name, bool native);
+LIKELY_EXPORT likely_env likely_new_env();
+LIKELY_EXPORT likely_env likely_new_env_offline(const char *file_name, bool native);
 LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
 LIKELY_EXPORT void likely_release_env(likely_const_env env);
 
