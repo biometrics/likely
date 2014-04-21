@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
     likely_const_ast ast = likely_ast_from_string(filter, false);
 
     printf("Creating a compiler environment...\n");
-    likely_env env = likely_new_env();
+    likely_env env = likely_new_env_jit();
 
     printf("Compiling source code...\n");
     likely_function_1 darken = (likely_function_1) likely_compile(ast, env, likely_type_void);

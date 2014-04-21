@@ -16,7 +16,7 @@ int main()
     // Do work
     likely_const_mat lenna = likely_read("../data/misc/lenna.tiff");
     likely_const_ast ast = likely_ast_from_string("a => a / (a.type 2)");
-    likely_env env = likely_new_env();
+    likely_env env = likely_new_env_jit();
     likely_function darken = likely_compile(ast, env, likely_type_void);
     likely_const_mat dark_lenna = darken(lenna);
 

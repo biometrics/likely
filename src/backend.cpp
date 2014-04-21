@@ -389,12 +389,10 @@ struct likely_environment
     size_t ref_count, type;
 
 #ifdef __cplusplus
-    likely_environment(likely_env parent)
-        : parent(likely_retain_env(parent)), name(NULL), value(NULL), result(NULL), resources(NULL), ref_count(1), type(likely_environment_void) {}
-
 private:
-    likely_environment(const likely_environment &);
-    likely_environment &operator=(const likely_environment &);
+    likely_environment();
+    likely_environment(struct likely_environment const &);
+    likely_environment &operator=(struct likely_environment const &);
 #endif // __cplusplus
 };
 
@@ -530,7 +528,7 @@ struct Builder : public IRBuilder<>
 
     static void define(likely_env &env, const char *name, likely_expression *e)
     {
-        env = new likely_environment(env);
+        env = likely_new_env(env);
         likely_release_env(env->parent);
         env->name = new char[strlen(name)+1];
         strcpy((char*) env->name, name);
@@ -649,7 +647,7 @@ static int getPrecedence(const char *op)
     return 0;
 }
 
-static likely_env RootEnvironment = new likely_environment(NULL);
+static likely_env RootEnvironment = likely_new_env(NULL);
 
 template <class E>
 struct RegisterExpression
@@ -1021,7 +1019,7 @@ private:
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         likely_env restored = builder.env;
-        builder.env = new likely_environment(env);
+        builder.env = likely_new_env(env);
         builder.env->resources = Builder::lookupResources(restored);
         UniqueExpression op(builder.expression(this->ast));
         likely_release_env(builder.env);
@@ -1400,7 +1398,7 @@ private:
         }
 
         likely_env restored = builder.env;
-        builder.env = new likely_environment(env);
+        builder.env = likely_new_env(env);
         builder.env->resources = Builder::lookupResources(restored);
         likely_expression *result = evaluateFunction(builder, args);
         likely_release_env(builder.env);
@@ -2018,7 +2016,7 @@ JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<l
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
                   (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
                   "expected a lambda expression");
-    likely_env env = new likely_environment(parent);
+    likely_env env = likely_new_env(parent);
     env->resources = this;
     Builder builder(env);
     unique_ptr<likely_expression> result(builder.expression(ast));
@@ -2251,14 +2249,27 @@ LIKELY_REGISTER(show)
 
 } // namespace (anonymous)
 
-likely_env likely_new_env()
+likely_env likely_new_env(likely_env parent)
 {
-    return new likely_environment(RootEnvironment);
+    likely_env env = (likely_env) malloc(sizeof(likely_environment));
+    env->parent = likely_retain_env(parent);
+    env->name = NULL;
+    env->value = NULL;
+    env->result = NULL;
+    env->resources = NULL;
+    env->ref_count = 1;
+    env->type = likely_environment_void;
+    return env;
+}
+
+likely_env likely_new_env_jit()
+{
+    return likely_new_env(RootEnvironment);
 }
 
 likely_env likely_new_env_offline(const char *file_name, bool native)
 {
-    likely_env env = likely_new_env();
+    likely_env env = likely_new_env_jit();
     env->resources = new OfflineResources(file_name, native);
     env->type = likely_environment_offline;
     return env;
@@ -2279,7 +2290,7 @@ void likely_release_env(likely_const_env env)
     likely_release(env->result);
     if (env->type & likely_environment_offline)
         delete env->resources;
-    delete env;
+    free((void*) env);
 }
 
 likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat m, ...)
@@ -2367,7 +2378,7 @@ likely_mat likely_eval(likely_const_ast ast, likely_env *env)
 {
     if (!ast || !env || !*env) return NULL;
 
-    likely_env new_env = new likely_environment(*env);
+    likely_env new_env = likely_new_env(*env);
     if ((*env)->type & likely_environment_offline) {
         new_env->type = likely_environment_offline;
         Builder builder(new_env);
@@ -2407,7 +2418,7 @@ bool likely_repl(const char *source, bool GFM, likely_env *env, likely_env prev)
         *env = NULL;
     }
     if (*env == NULL)
-        *env = likely_new_env();
+        *env = likely_new_env_jit();
 
     int prevDepth = 0;
     {
