@@ -2277,6 +2277,8 @@ void likely_release_env(likely_const_env env)
 
 bool likely_offline(likely_environment_type type) { return likely_get_bool(type, likely_environment_offline); }
 void likely_set_offline(likely_environment_type *type, bool offline) { likely_set_bool(type, offline, likely_environment_offline); }
+bool likely_erratum(likely_environment_type type) { return likely_get_bool(type, likely_environment_erratum); }
+void likely_set_erratum(likely_environment_type *type, bool erratum) { likely_set_bool(type, erratum, likely_environment_erratum); }
 
 likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat m, ...)
 {

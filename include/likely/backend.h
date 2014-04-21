@@ -28,7 +28,8 @@ typedef likely_size likely_environment_type; /* Offline : 1 */
 enum likely_environment_type_field
 {
     likely_environment_void    = 0x00000000,
-    likely_environment_offline = 0x00000001
+    likely_environment_offline = 0x00000001,
+    likely_environment_erratum = 0x00000002
 };
 
 struct likely_environment
@@ -71,6 +72,8 @@ LIKELY_EXPORT void likely_release_env(likely_const_env env);
 
 LIKELY_EXPORT bool likely_offline(likely_environment_type type);
 LIKELY_EXPORT void likely_set_offline(likely_environment_type *type, bool offline);
+LIKELY_EXPORT bool likely_erratum(likely_environment_type type);
+LIKELY_EXPORT void likely_set_erratum(likely_environment_type *type, bool error);
 
 // Compilation
 LIKELY_EXPORT likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type type, ...);
