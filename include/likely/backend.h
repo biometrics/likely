@@ -20,6 +20,32 @@
 #include <likely/runtime.h>
 #include <likely/frontend.h>
 
+struct likely_expression;
+struct likely_resources;
+
+enum likely_environment_type
+{
+    likely_environment_void    = 0x00000000,
+    likely_environment_offline = 0x00000001
+};
+
+struct likely_environment
+{
+    struct likely_environment *parent;
+    const char *name;
+    struct likely_expression *value;
+    struct likely_resources *resources;
+    likely_const_mat result;
+    size_t ref_count, type;
+
+#ifdef __cplusplus
+private:
+    likely_environment();
+    likely_environment(struct likely_environment const &);
+    likely_environment &operator=(struct likely_environment const &);
+#endif // __cplusplus
+};
+
 typedef struct likely_environment *likely_env;
 typedef struct likely_environment const *likely_const_env;
 

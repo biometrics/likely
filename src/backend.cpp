@@ -116,6 +116,9 @@ map<likely_type, T> T::likelyLUT;
 map<Type*, T> T::llvmLUT;
 
 struct Builder;
+
+} // namespace (anonymous)
+
 struct likely_expression
 {
     likely_expression() : value_(NULL), type_(likely_type_void) {}
@@ -173,6 +176,8 @@ private:
     likely_type type_;
 };
 
+namespace {
+
 struct UniqueAST : public unique_ptr<const likely_abstract_syntax_tree, function<void(likely_const_ast)>>
 {
     UniqueAST(likely_const_ast ast = NULL)
@@ -219,6 +224,8 @@ static string getUniqueName(const string &prefix)
     stream << "likely_" << prefix << "_" << uidLUT[prefix]++;
     return stream.str();
 }
+
+} // namespace (anonymous)
 
 struct likely_resources
 {
@@ -321,6 +328,8 @@ struct likely_resources
     }
 };
 
+namespace {
+
 class JITFunction : public likely_resources
 {
     ExecutionEngine *EE = NULL;
@@ -370,33 +379,6 @@ public:
         output.keep();
     }
 };
-
-} // namespace (anonymous)
-
-enum likely_environment_type
-{
-    likely_environment_void    = 0x00000000,
-    likely_environment_offline = 0x00000001
-};
-
-struct likely_environment
-{
-    likely_env parent;
-    const char *name;
-    likely_expression *value;
-    likely_const_mat result;
-    likely_resources *resources;
-    size_t ref_count, type;
-
-#ifdef __cplusplus
-private:
-    likely_environment();
-    likely_environment(struct likely_environment const &);
-    likely_environment &operator=(struct likely_environment const &);
-#endif // __cplusplus
-};
-
-namespace {
 
 struct Builder : public IRBuilder<>
 {
@@ -2255,8 +2237,8 @@ likely_env likely_new_env(likely_env parent)
     env->parent = likely_retain_env(parent);
     env->name = NULL;
     env->value = NULL;
-    env->result = NULL;
     env->resources = NULL;
+    env->result = NULL;
     env->ref_count = 1;
     env->type = likely_environment_void;
     return env;
