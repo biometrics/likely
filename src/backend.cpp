@@ -2046,19 +2046,6 @@ JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<l
     }
 }
 
-struct OfflineEnvironment : public likely_environment
-{
-    OfflineEnvironment(const string &fileName, bool native)
-        : likely_environment(RootEnvironment)
-    {
-        resources = new OfflineResources(fileName, native);
-        type = likely_environment_offline;
-    }
-
-    OfflineEnvironment(likely_env parent)
-        : likely_environment(parent) {}
-};
-
 #ifdef LIKELY_IO
 #include "likely/io.h"
 
@@ -2271,7 +2258,10 @@ likely_env likely_new_jit()
 
 likely_env likely_new_offline(const char *file_name, bool native)
 {
-    return new OfflineEnvironment(file_name, native);
+    likely_env env = likely_new_jit();
+    env->resources = new OfflineResources(file_name, native);
+    env->type = likely_environment_offline;
+    return env;
 }
 
 likely_env likely_retain_env(likely_const_env env)
@@ -2377,14 +2367,13 @@ likely_mat likely_eval(likely_const_ast ast, likely_env *env)
 {
     if (!ast || !env || !*env) return NULL;
 
-    likely_env new_env;
+    likely_env new_env = new likely_environment(*env);
     if ((*env)->type & likely_environment_offline) {
-        new_env = new OfflineEnvironment(*env);
+        new_env->type = likely_environment_offline;
         Builder builder(new_env);
         UniqueExpression e(builder.expression(ast));
         new_env->result = e.get() ? likely_void() : NULL;
     } else {
-        new_env = new likely_environment(*env);
         if (ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=")) {
             // Shortcut for global variable definitions
             delete Builder(new_env).expression(ast);
