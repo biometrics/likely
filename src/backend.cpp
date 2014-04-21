@@ -388,8 +388,6 @@ struct likely_environment
     likely_resources *resources;
     size_t ref_count, type;
 
-    virtual ~likely_environment() {}
-
 #ifdef __cplusplus
     likely_environment(likely_env parent)
         : parent(likely_retain_env(parent)), name(NULL), value(NULL), result(NULL), resources(NULL), ref_count(1), type(likely_environment_void) {}
@@ -401,8 +399,6 @@ private:
 };
 
 namespace {
-
-static likely_env RootEnvironment = new likely_environment(NULL);
 
 struct Builder : public IRBuilder<>
 {
@@ -652,6 +648,8 @@ static int getPrecedence(const char *op)
     if (!strcmp(op, "??")) return 8;
     return 0;
 }
+
+static likely_env RootEnvironment = new likely_environment(NULL);
 
 template <class E>
 struct RegisterExpression
@@ -2058,13 +2056,7 @@ struct OfflineEnvironment : public likely_environment
     }
 
     OfflineEnvironment(likely_env parent)
-        : likely_environment(parent)
-    {}
-
-    ~OfflineEnvironment()
-    {
-        delete resources;
-    }
+        : likely_environment(parent) {}
 };
 
 #ifdef LIKELY_IO
@@ -2295,6 +2287,8 @@ void likely_release_env(likely_const_env env)
     delete[] env->name;
     delete   env->value;
     likely_release(env->result);
+    if (env->type & likely_environment_offline)
+        delete env->resources;
     delete env;
 }
 
