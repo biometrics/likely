@@ -376,26 +376,23 @@ public:
 struct likely_environment
 {
     likely_env parent;
-    const char *name = NULL;
-    likely_expression *value = NULL;
-    likely_const_mat result = NULL;
-    likely_resources *resources = NULL;
-    size_t ref_count = 1;
+    const char *name;
+    likely_expression *value;
+    likely_const_mat result;
+    likely_resources *resources;
+    size_t ref_count;
 
+    virtual ~likely_environment() {}
+    virtual likely_env evaluate(likely_const_ast ast);
+
+#ifdef __cplusplus
     likely_environment(likely_env parent)
-        : parent(likely_retain_env(parent)) {}
-    likely_environment(const likely_environment &) = delete;
-    likely_environment &operator=(const likely_environment &) = delete;
+        : parent(likely_retain_env(parent)), name(NULL), value(NULL), result(NULL), resources(NULL), ref_count(1) {}
 
-    virtual ~likely_environment()
-    {
-        delete[] name;
-        delete value;
-        likely_release(result);
-        likely_release_env(parent);
-    }
-
-    virtual likely_env evaluate(likely_const_ast ast);    
+private:
+    likely_environment(const likely_environment &);
+    likely_environment &operator=(const likely_environment &);
+#endif // __cplusplus
 };
 
 namespace {
@@ -2317,6 +2314,10 @@ likely_env likely_retain_env(likely_const_env env)
 void likely_release_env(likely_const_env env)
 {
     if (!env || --const_cast<likely_env>(env)->ref_count) return;
+    likely_release_env(env->parent);
+    delete[] env->name;
+    delete   env->value;
+    likely_release(env->result);
     delete env;
 }
 
