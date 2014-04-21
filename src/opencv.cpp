@@ -22,13 +22,13 @@ namespace likely
 int typeToDepth(likely_type type)
 {
     switch (likely_data(type)) {
-      case likely_type_u8:  return CV_8U;
-      case likely_type_i8:  return CV_8S;
-      case likely_type_u16: return CV_16U;
-      case likely_type_i16: return CV_16S;
-      case likely_type_i32: return CV_32S;
-      case likely_type_f32: return CV_32F;
-      case likely_type_f64: return CV_64F;
+      case likely_matrix_u8:  return CV_8U;
+      case likely_matrix_i8:  return CV_8S;
+      case likely_matrix_u16: return CV_16U;
+      case likely_matrix_i16: return CV_16S;
+      case likely_matrix_i32: return CV_32S;
+      case likely_matrix_f32: return CV_32F;
+      case likely_matrix_f64: return CV_64F;
     }
     assert(!"Unsupported matrix depth.");
     return 0;
@@ -37,16 +37,16 @@ int typeToDepth(likely_type type)
 likely_type depthToType(int depth)
 {
     switch (depth) {
-      case CV_8U:  return likely_type_u8;
-      case CV_8S:  return likely_type_i8;
-      case CV_16U: return likely_type_u16;
-      case CV_16S: return likely_type_i16;
-      case CV_32S: return likely_type_i32;
-      case CV_32F: return likely_type_f32;
-      case CV_64F: return likely_type_f64;
+      case CV_8U:  return likely_matrix_u8;
+      case CV_8S:  return likely_matrix_i8;
+      case CV_16U: return likely_matrix_u16;
+      case CV_16S: return likely_matrix_i16;
+      case CV_32S: return likely_matrix_i32;
+      case CV_32F: return likely_matrix_f32;
+      case CV_64F: return likely_matrix_f64;
     }
     assert(!"Unsupported matrix depth.");
-    return likely_type_void;
+    return likely_matrix_void;
 }
 
 cv::Mat toCvMat(likely_const_mat m)

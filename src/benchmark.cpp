@@ -65,7 +65,7 @@ struct Test
 
         likely_const_ast ast = likely_ast_from_string(function(), false);
         likely_env env = likely_new_env_jit();
-        likely_function_1 f = reinterpret_cast<likely_function_1>(likely_compile(ast, env, likely_type_void));
+        likely_function_1 f = reinterpret_cast<likely_function_1>(likely_compile(ast, env, likely_matrix_void));
         likely_release_env(env);
         likely_release_ast(ast);
 
@@ -163,11 +163,11 @@ protected:
     {
         static vector<likely_type> types;
         if (types.empty()) {
-            types.push_back(likely_type_u8);
-            types.push_back(likely_type_u16);
-            types.push_back(likely_type_i32);
-            types.push_back(likely_type_f32);
-            types.push_back(likely_type_f64);
+            types.push_back(likely_matrix_u8);
+            types.push_back(likely_matrix_u16);
+            types.push_back(likely_matrix_i32);
+            types.push_back(likely_matrix_f32);
+            types.push_back(likely_matrix_f64);
         }
         return types;
     }
@@ -380,8 +380,8 @@ class copysignTest : public Test {
     vector<likely_type> types() const
     {
         vector<likely_type> types;
-        types.push_back(likely_type_f32);
-        types.push_back(likely_type_f64);
+        types.push_back(likely_matrix_f32);
+        types.push_back(likely_matrix_f64);
         return types;
     }
     const char *function() const { return "a => (a.type (copysign a -1))"; }
@@ -412,7 +412,7 @@ class castTest : public Test {
 class thresholdTest : public Test {
     const char *function() const { return "a => (a.type a > 127)"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 1, THRESH_BINARY); return dst; }
-    vector<likely_type> types() const { vector<likely_type> types; types.push_back(likely_type_u8); types.push_back(likely_type_f32); return types; }
+    vector<likely_type> types() const { vector<likely_type> types; types.push_back(likely_matrix_u8); types.push_back(likely_matrix_f32); return types; }
 };
 
 int main(int argc, char *argv[])

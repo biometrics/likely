@@ -75,7 +75,7 @@ likely_mat likely_read(const char *file_name)
                 struct archive_entry *entry;
                 r = archive_read_next_header(a, &entry);
                 if (r == ARCHIVE_OK) {
-                    likely_mat encodedImage = likely_new(likely_type_u8, 1, archive_entry_size(entry), 1, 1, NULL);
+                    likely_mat encodedImage = likely_new(likely_matrix_u8, 1, archive_entry_size(entry), 1, 1, NULL);
                     archive_read_data(a, encodedImage->data, encodedImage->columns);
                     images.push_back(likely_decode(encodedImage));
                     likely_release(encodedImage);
@@ -156,7 +156,7 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
 likely_mat likely_to_string(likely_const_mat m, int header)
 {
     if (!m) return NULL;
-    if ((likely_data(m->type) == likely_type_i8) && !m->data[likely_elements(m)-1])
+    if ((likely_data(m->type) == likely_matrix_i8) && !m->data[likely_elements(m)-1])
         return likely_retain(m); // Special case where matrix encodes a string
 
     stringstream stream;
@@ -235,7 +235,7 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
         return NULL;
 
     double min, max, range;
-    if (likely_data(m->type) != likely_type_u8) {
+    if (likely_data(m->type) != likely_matrix_u8) {
         min = numeric_limits<double>::max();
         max = -numeric_limits<double>::max();
         for (likely_size t=0; t<m->frames; t++) {
@@ -266,14 +266,14 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
     if (normalize == NULL) {
         likely_const_ast ast = likely_ast_from_string("(=> (img min range) (u8 (img - min) / range) (channels 3))", false);
         likely_env env = likely_new_env_jit();
-        normalize = reinterpret_cast<likely_function_3>(likely_compile(ast, env, likely_type_void));
+        normalize = reinterpret_cast<likely_function_3>(likely_compile(ast, env, likely_matrix_void));
         assert(normalize);
         likely_release_env(env);
         likely_release_ast(ast);
     }
 
-    likely_const_mat min_val = likely_scalar(min, likely_type_f32);
-    likely_const_mat range_val = likely_scalar(range, likely_type_f32);
+    likely_const_mat min_val = likely_scalar(min, likely_matrix_f32);
+    likely_const_mat range_val = likely_scalar(range, likely_matrix_f32);
     likely_mat n = normalize(m, min_val, range_val);
     likely_release(min_val);
     likely_release(range_val);

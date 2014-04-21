@@ -35,37 +35,36 @@ typedef likely_size likely_type; /* Depth : 8
                                     Single-frame : 1
                                     Saturation : 1 */
 
-// Standard type masks and values
 enum likely_matrix_type
 {
-    likely_type_void     = 0x00000000,
-    likely_type_depth    = 0x000000FF,
-    likely_type_signed   = 0x00000100,
-    likely_type_floating = 0x00000200,
-    likely_type_data     = likely_type_depth | likely_type_signed | likely_type_floating,
-    likely_type_u1  = 1,
-    likely_type_u8  = 8,
-    likely_type_u16 = 16,
-    likely_type_u32 = 32,
-    likely_type_u64 = 64,
-    likely_type_i8  = 8  | likely_type_signed,
-    likely_type_i16 = 16 | likely_type_signed,
-    likely_type_i32 = 32 | likely_type_signed,
-    likely_type_i64 = 64 | likely_type_signed,
-    likely_type_f16 = 16 | likely_type_floating | likely_type_signed,
-    likely_type_f32 = 32 | likely_type_floating | likely_type_signed,
-    likely_type_f64 = 64 | likely_type_floating | likely_type_signed,
-    likely_type_parallel        = 0x00000400,
-    likely_type_heterogeneous   = 0x00000800,
-    likely_type_execution       = likely_type_parallel | likely_type_heterogeneous,
-    likely_type_multi_channel   = 0x00001000,
-    likely_type_multi_column    = 0x00002000,
-    likely_type_multi_row       = 0x00004000,
-    likely_type_multi_frame     = 0x00008000,
-    likely_type_multi_dimension = likely_type_multi_channel | likely_type_multi_column | likely_type_multi_row | likely_type_multi_frame,
-    likely_type_saturation      = 0x00010000,
-    likely_type_native = sizeof(likely_size)*8,
-    likely_type_type   = likely_type_native
+    likely_matrix_void     = 0x00000000,
+    likely_matrix_depth    = 0x000000FF,
+    likely_matrix_signed   = 0x00000100,
+    likely_matrix_floating = 0x00000200,
+    likely_matrix_data     = likely_matrix_depth | likely_matrix_signed | likely_matrix_floating,
+    likely_matrix_u1  = 1,
+    likely_matrix_u8  = 8,
+    likely_matrix_u16 = 16,
+    likely_matrix_u32 = 32,
+    likely_matrix_u64 = 64,
+    likely_matrix_i8  = 8  | likely_matrix_signed,
+    likely_matrix_i16 = 16 | likely_matrix_signed,
+    likely_matrix_i32 = 32 | likely_matrix_signed,
+    likely_matrix_i64 = 64 | likely_matrix_signed,
+    likely_matrix_f16 = 16 | likely_matrix_floating | likely_matrix_signed,
+    likely_matrix_f32 = 32 | likely_matrix_floating | likely_matrix_signed,
+    likely_matrix_f64 = 64 | likely_matrix_floating | likely_matrix_signed,
+    likely_matrix_parallel        = 0x00000400,
+    likely_matrix_heterogeneous   = 0x00000800,
+    likely_matrix_execution       = likely_matrix_parallel | likely_matrix_heterogeneous,
+    likely_matrix_multi_channel   = 0x00001000,
+    likely_matrix_multi_column    = 0x00002000,
+    likely_matrix_multi_row       = 0x00004000,
+    likely_matrix_multi_frame     = 0x00008000,
+    likely_matrix_multi_dimension = likely_matrix_multi_channel | likely_matrix_multi_column | likely_matrix_multi_row | likely_matrix_multi_frame,
+    likely_matrix_saturation      = 0x00010000,
+    likely_matrix_native    = sizeof(likely_size)*8,
+    likely_matrix_type_type = likely_matrix_native
 };
 
 // Disable 'nonstandard extension used : zero-sized array in struct/union' warning
@@ -77,7 +76,8 @@ enum likely_matrix_type
 struct likely_matrix
 {
     likely_size bytes, ref_count;
-    likely_size channels, columns, rows, frames, type;
+    likely_size channels, columns, rows, frames;
+    likely_type type;
     unsigned char data[];
 
 #ifdef __cplusplus

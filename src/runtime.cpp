@@ -51,32 +51,32 @@ static void likely_set(likely_type *type, likely_type i, likely_matrix_type mask
 static bool likely_get_bool(likely_type type, likely_matrix_type mask) { return (type & mask) != 0; }
 static void likely_set_bool(likely_type *type, bool b, likely_matrix_type mask) { b ? *type |= mask : *type &= ~mask; }
 
-int  likely_depth(likely_type type) { return likely_get(type, likely_type_depth); }
-void likely_set_depth(likely_type *type, int depth) { likely_set(type, depth, likely_type_depth); }
-bool likely_signed(likely_type type) { return likely_get_bool(type, likely_type_signed); }
-void likely_set_signed(likely_type *type, bool signed_) { likely_set_bool(type, signed_, likely_type_signed); }
-bool likely_floating(likely_type type) { return likely_get_bool(type, likely_type_floating); }
-void likely_set_floating(likely_type *type, bool floating) { likely_set_bool(type, floating, likely_type_floating); }
-likely_type likely_data(likely_type type) { return likely_get(type, likely_type_data); }
-void likely_set_data(likely_type *type, likely_type data) { likely_set(type, data, likely_type_data); }
-bool likely_parallel(likely_type type) { return likely_get_bool(type, likely_type_parallel); }
-void likely_set_parallel(likely_type *type, bool parallel) { likely_set_bool(type, parallel, likely_type_parallel); }
-bool likely_heterogeneous(likely_type type) { return likely_get_bool(type, likely_type_heterogeneous); }
-void likely_set_heterogeneous(likely_type *type, bool heterogeneous) { likely_set_bool(type, heterogeneous, likely_type_heterogeneous); }
-likely_type likely_execution(likely_type type) { return likely_get(type, likely_type_execution); }
-void likely_set_execution(likely_type *type, likely_type execution) { likely_set(type, execution, likely_type_execution); }
-bool likely_multi_channel(likely_type type) { return likely_get_bool(type, likely_type_multi_channel); }
-void likely_set_multi_channel(likely_type *type, bool multi_channel) { likely_set_bool(type, multi_channel, likely_type_multi_channel); }
-bool likely_multi_column(likely_type type) { return likely_get_bool(type, likely_type_multi_column); }
-void likely_set_multi_column(likely_type *type, bool multi_column) { likely_set_bool(type, multi_column, likely_type_multi_column); }
-bool likely_multi_row(likely_type type) { return likely_get_bool(type, likely_type_multi_row); }
-void likely_set_multi_row(likely_type *type, bool multi_row) { likely_set_bool(type, multi_row, likely_type_multi_row); }
-bool likely_multi_frame(likely_type type) { return likely_get_bool(type, likely_type_multi_frame); }
-void likely_set_multi_frame(likely_type *type, bool multi_frame) { likely_set_bool(type, multi_frame, likely_type_multi_frame); }
-likely_type likely_multi_dimension(likely_type type) { return likely_get(type, likely_type_multi_dimension); }
-void likely_set_multi_dimension(likely_type *type, likely_type multi_dimension) { likely_set(type, multi_dimension, likely_type_multi_dimension); }
-bool likely_saturation(likely_type type) { return likely_get_bool(type, likely_type_saturation); }
-void likely_set_saturation(likely_type *type, bool saturation) { likely_set_bool(type, saturation, likely_type_saturation); }
+int  likely_depth(likely_type type) { return likely_get(type, likely_matrix_depth); }
+void likely_set_depth(likely_type *type, int depth) { likely_set(type, depth, likely_matrix_depth); }
+bool likely_signed(likely_type type) { return likely_get_bool(type, likely_matrix_signed); }
+void likely_set_signed(likely_type *type, bool signed_) { likely_set_bool(type, signed_, likely_matrix_signed); }
+bool likely_floating(likely_type type) { return likely_get_bool(type, likely_matrix_floating); }
+void likely_set_floating(likely_type *type, bool floating) { likely_set_bool(type, floating, likely_matrix_floating); }
+likely_type likely_data(likely_type type) { return likely_get(type, likely_matrix_data); }
+void likely_set_data(likely_type *type, likely_type data) { likely_set(type, data, likely_matrix_data); }
+bool likely_parallel(likely_type type) { return likely_get_bool(type, likely_matrix_parallel); }
+void likely_set_parallel(likely_type *type, bool parallel) { likely_set_bool(type, parallel, likely_matrix_parallel); }
+bool likely_heterogeneous(likely_type type) { return likely_get_bool(type, likely_matrix_heterogeneous); }
+void likely_set_heterogeneous(likely_type *type, bool heterogeneous) { likely_set_bool(type, heterogeneous, likely_matrix_heterogeneous); }
+likely_type likely_execution(likely_type type) { return likely_get(type, likely_matrix_execution); }
+void likely_set_execution(likely_type *type, likely_type execution) { likely_set(type, execution, likely_matrix_execution); }
+bool likely_multi_channel(likely_type type) { return likely_get_bool(type, likely_matrix_multi_channel); }
+void likely_set_multi_channel(likely_type *type, bool multi_channel) { likely_set_bool(type, multi_channel, likely_matrix_multi_channel); }
+bool likely_multi_column(likely_type type) { return likely_get_bool(type, likely_matrix_multi_column); }
+void likely_set_multi_column(likely_type *type, bool multi_column) { likely_set_bool(type, multi_column, likely_matrix_multi_column); }
+bool likely_multi_row(likely_type type) { return likely_get_bool(type, likely_matrix_multi_row); }
+void likely_set_multi_row(likely_type *type, bool multi_row) { likely_set_bool(type, multi_row, likely_matrix_multi_row); }
+bool likely_multi_frame(likely_type type) { return likely_get_bool(type, likely_matrix_multi_frame); }
+void likely_set_multi_frame(likely_type *type, bool multi_frame) { likely_set_bool(type, multi_frame, likely_matrix_multi_frame); }
+likely_type likely_multi_dimension(likely_type type) { return likely_get(type, likely_matrix_multi_dimension); }
+void likely_set_multi_dimension(likely_type *type, likely_type multi_dimension) { likely_set(type, multi_dimension, likely_matrix_multi_dimension); }
+bool likely_saturation(likely_type type) { return likely_get_bool(type, likely_matrix_saturation); }
+void likely_set_saturation(likely_type *type, bool saturation) { likely_set_bool(type, saturation, likely_matrix_saturation); }
 
 likely_size likely_elements(likely_const_mat m)
 {
@@ -129,19 +129,19 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
 
 likely_mat likely_scalar(double value, likely_type type)
 {
-    likely_mat m = likely_new(type != likely_type_void ? type : likely_type_from_value(value), 1, 1, 1, 1, NULL);
+    likely_mat m = likely_new(type != likely_matrix_void ? type : likely_type_from_value(value), 1, 1, 1, 1, NULL);
     likely_set_element(m, value, 0, 0, 0, 0);
     return m;
 }
 
 likely_mat likely_string(const char *str)
 {
-    return likely_new(likely_type_i8, strlen(str)+1, 1, 1, 1, str);
+    return likely_new(likely_matrix_i8, strlen(str)+1, 1, 1, 1, str);
 }
 
 likely_mat likely_void()
 {
-    return likely_new(likely_type_void, 0, 0, 0, 0, NULL);
+    return likely_new(likely_matrix_void, 0, 0, 0, 0, NULL);
 }
 
 likely_mat likely_copy(likely_const_mat m)
@@ -180,17 +180,17 @@ double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_s
     const likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
 
     switch (likely_data(m->type)) {
-      case likely_type_u8:  return double((( uint8_t const*)m->data)[index]);
-      case likely_type_u16: return double(((uint16_t const*)m->data)[index]);
-      case likely_type_u32: return double(((uint32_t const*)m->data)[index]);
-      case likely_type_u64: return double(((uint64_t const*)m->data)[index]);
-      case likely_type_i8:  return double(((  int8_t const*)m->data)[index]);
-      case likely_type_i16: return double((( int16_t const*)m->data)[index]);
-      case likely_type_i32: return double((( int32_t const*)m->data)[index]);
-      case likely_type_i64: return double((( int64_t const*)m->data)[index]);
-      case likely_type_f32: return double(((   float const*)m->data)[index]);
-      case likely_type_f64: return double(((  double const*)m->data)[index]);
-      case likely_type_u1:  return double((((uint8_t const*)m->data)[index/8] & (1 << index%8)) != 0);
+      case likely_matrix_u8:  return double((( uint8_t const*)m->data)[index]);
+      case likely_matrix_u16: return double(((uint16_t const*)m->data)[index]);
+      case likely_matrix_u32: return double(((uint32_t const*)m->data)[index]);
+      case likely_matrix_u64: return double(((uint64_t const*)m->data)[index]);
+      case likely_matrix_i8:  return double(((  int8_t const*)m->data)[index]);
+      case likely_matrix_i16: return double((( int16_t const*)m->data)[index]);
+      case likely_matrix_i32: return double((( int32_t const*)m->data)[index]);
+      case likely_matrix_i64: return double((( int64_t const*)m->data)[index]);
+      case likely_matrix_f32: return double(((   float const*)m->data)[index]);
+      case likely_matrix_f64: return double(((  double const*)m->data)[index]);
+      case likely_matrix_u1:  return double((((uint8_t const*)m->data)[index/8] & (1 << index%8)) != 0);
       default: assert(!"likely_element unsupported type");
     }
     return numeric_limits<double>::quiet_NaN();
@@ -205,17 +205,17 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
     const likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
 
     switch (likely_data(m->type)) {
-      case likely_type_u8:  (( uint8_t*)m->data)[index] = ( uint8_t)value; break;
-      case likely_type_u16: ((uint16_t*)m->data)[index] = (uint16_t)value; break;
-      case likely_type_u32: ((uint32_t*)m->data)[index] = (uint32_t)value; break;
-      case likely_type_u64: ((uint64_t*)m->data)[index] = (uint64_t)value; break;
-      case likely_type_i8:  ((  int8_t*)m->data)[index] = (  int8_t)value; break;
-      case likely_type_i16: (( int16_t*)m->data)[index] = ( int16_t)value; break;
-      case likely_type_i32: (( int32_t*)m->data)[index] = ( int32_t)value; break;
-      case likely_type_i64: (( int64_t*)m->data)[index] = ( int64_t)value; break;
-      case likely_type_f32: ((   float*)m->data)[index] = (   float)value; break;
-      case likely_type_f64: ((  double*)m->data)[index] = (  double)value; break;
-      case likely_type_u1:  if (value == 0) (((uint8_t*)m->data)[index/8] &= ~(1 << index%8));
+      case likely_matrix_u8:  (( uint8_t*)m->data)[index] = ( uint8_t)value; break;
+      case likely_matrix_u16: ((uint16_t*)m->data)[index] = (uint16_t)value; break;
+      case likely_matrix_u32: ((uint32_t*)m->data)[index] = (uint32_t)value; break;
+      case likely_matrix_u64: ((uint64_t*)m->data)[index] = (uint64_t)value; break;
+      case likely_matrix_i8:  ((  int8_t*)m->data)[index] = (  int8_t)value; break;
+      case likely_matrix_i16: (( int16_t*)m->data)[index] = ( int16_t)value; break;
+      case likely_matrix_i32: (( int32_t*)m->data)[index] = ( int32_t)value; break;
+      case likely_matrix_i64: (( int64_t*)m->data)[index] = ( int64_t)value; break;
+      case likely_matrix_f32: ((   float*)m->data)[index] = (   float)value; break;
+      case likely_matrix_f64: ((  double*)m->data)[index] = (  double)value; break;
+      case likely_matrix_u1:  if (value == 0) (((uint8_t*)m->data)[index/8] &= ~(1 << index%8));
                             else            (((uint8_t*)m->data)[index/8] |=  (1 << index%8)); break;
       default: assert(!"likely_set_element unsupported type");
     }
@@ -238,46 +238,46 @@ likely_mat likely_type_to_string(likely_type type)
 
 likely_mat likely_type_field_to_string(likely_type type)
 {
-    if (type == likely_type_void           ) return likely_string("void");
-    if (type == likely_type_depth          ) return likely_string("depth");
-    if (type == likely_type_signed         ) return likely_string("signed");
-    if (type == likely_type_floating       ) return likely_string("floating");
-    if (type == likely_type_data           ) return likely_string("data");
-    if (type == likely_type_parallel       ) return likely_string("parallel");
-    if (type == likely_type_heterogeneous  ) return likely_string("heterogeneous");
-    if (type == likely_type_execution      ) return likely_string("exeuction");
-    if (type == likely_type_multi_channel  ) return likely_string("multi_channel");
-    if (type == likely_type_multi_column   ) return likely_string("multi_column");
-    if (type == likely_type_multi_row      ) return likely_string("multi_row");
-    if (type == likely_type_multi_frame    ) return likely_string("multi_frame");
-    if (type == likely_type_multi_dimension) return likely_string("multi_dimension");
-    if (type == likely_type_saturation     ) return likely_string("saturation");
+    if (type == likely_matrix_void           ) return likely_string("void");
+    if (type == likely_matrix_depth          ) return likely_string("depth");
+    if (type == likely_matrix_signed         ) return likely_string("signed");
+    if (type == likely_matrix_floating       ) return likely_string("floating");
+    if (type == likely_matrix_data           ) return likely_string("data");
+    if (type == likely_matrix_parallel       ) return likely_string("parallel");
+    if (type == likely_matrix_heterogeneous  ) return likely_string("heterogeneous");
+    if (type == likely_matrix_execution      ) return likely_string("exeuction");
+    if (type == likely_matrix_multi_channel  ) return likely_string("multi_channel");
+    if (type == likely_matrix_multi_column   ) return likely_string("multi_column");
+    if (type == likely_matrix_multi_row      ) return likely_string("multi_row");
+    if (type == likely_matrix_multi_frame    ) return likely_string("multi_frame");
+    if (type == likely_matrix_multi_dimension) return likely_string("multi_dimension");
+    if (type == likely_matrix_saturation     ) return likely_string("saturation");
     return likely_type_to_string(type);
 }
 
 likely_type likely_type_from_string(const char *str)
 {
     const size_t len = strlen(str);
-    if (len == 0) return likely_type_void;
+    if (len == 0) return likely_matrix_void;
 
     likely_type t;
-    if      (str[0] == 'f') t = likely_type_signed | likely_type_floating;
-    else if (str[0] == 'i') t = likely_type_signed;
-    else if (str[0] == 'u') t = likely_type_void;
-    else                    return likely_type_void;
+    if      (str[0] == 'f') t = likely_matrix_signed | likely_matrix_floating;
+    else if (str[0] == 'i') t = likely_matrix_signed;
+    else if (str[0] == 'u') t = likely_matrix_void;
+    else                    return likely_matrix_void;
 
     char *rem;
     t += (int)strtol(str+1, &rem, 10);
 
     while (*rem) {
-        if      (*rem == 'P') t |= likely_type_parallel;
-        else if (*rem == 'H') t |= likely_type_heterogeneous;
-        else if (*rem == 'C') t |= likely_type_multi_channel;
-        else if (*rem == 'X') t |= likely_type_multi_column;
-        else if (*rem == 'Y') t |= likely_type_multi_row;
-        else if (*rem == 'T') t |= likely_type_multi_frame;
-        else if (*rem == 'S') t |= likely_type_saturation;
-        else                  return likely_type_void;
+        if      (*rem == 'P') t |= likely_matrix_parallel;
+        else if (*rem == 'H') t |= likely_matrix_heterogeneous;
+        else if (*rem == 'C') t |= likely_matrix_multi_channel;
+        else if (*rem == 'X') t |= likely_matrix_multi_column;
+        else if (*rem == 'Y') t |= likely_matrix_multi_row;
+        else if (*rem == 'T') t |= likely_matrix_multi_frame;
+        else if (*rem == 'S') t |= likely_matrix_saturation;
+        else                  return likely_matrix_void;
         rem++;
     }
 
@@ -287,36 +287,36 @@ likely_type likely_type_from_string(const char *str)
 likely_type likely_type_field_from_string(const char *str, bool *ok)
 {
     if (ok) *ok = true;
-    if (!strcmp(str, "void"           )) return likely_type_void;
-    if (!strcmp(str, "depth"          )) return likely_type_depth;
-    if (!strcmp(str, "signed"         )) return likely_type_signed;
-    if (!strcmp(str, "floating"       )) return likely_type_floating;
-    if (!strcmp(str, "data"           )) return likely_type_data;
-    if (!strcmp(str, "parallel"       )) return likely_type_parallel;
-    if (!strcmp(str, "heterogeneous"  )) return likely_type_heterogeneous;
-    if (!strcmp(str, "execution"      )) return likely_type_execution;
-    if (!strcmp(str, "multi_channel"  )) return likely_type_multi_channel;
-    if (!strcmp(str, "multi_column"   )) return likely_type_multi_column;
-    if (!strcmp(str, "multi_row"      )) return likely_type_multi_row;
-    if (!strcmp(str, "multi_frame"    )) return likely_type_multi_frame;
-    if (!strcmp(str, "multi_dimension")) return likely_type_multi_dimension;
-    if (!strcmp(str, "saturation"     )) return likely_type_saturation;
+    if (!strcmp(str, "void"           )) return likely_matrix_void;
+    if (!strcmp(str, "depth"          )) return likely_matrix_depth;
+    if (!strcmp(str, "signed"         )) return likely_matrix_signed;
+    if (!strcmp(str, "floating"       )) return likely_matrix_floating;
+    if (!strcmp(str, "data"           )) return likely_matrix_data;
+    if (!strcmp(str, "parallel"       )) return likely_matrix_parallel;
+    if (!strcmp(str, "heterogeneous"  )) return likely_matrix_heterogeneous;
+    if (!strcmp(str, "execution"      )) return likely_matrix_execution;
+    if (!strcmp(str, "multi_channel"  )) return likely_matrix_multi_channel;
+    if (!strcmp(str, "multi_column"   )) return likely_matrix_multi_column;
+    if (!strcmp(str, "multi_row"      )) return likely_matrix_multi_row;
+    if (!strcmp(str, "multi_frame"    )) return likely_matrix_multi_frame;
+    if (!strcmp(str, "multi_dimension")) return likely_matrix_multi_dimension;
+    if (!strcmp(str, "saturation"     )) return likely_matrix_saturation;
     likely_type type = likely_type_from_string(str);
-    if (ok) *ok = (type != likely_type_void);
+    if (ok) *ok = (type != likely_matrix_void);
     return type;
 }
 
 likely_type likely_type_from_value(double value)
 {
     if (value >= 0) {
-        if (uint32_t(value) == value) return likely_type_u32;
-        if (uint64_t(value) == value) return likely_type_u64;
+        if (uint32_t(value) == value) return likely_matrix_u32;
+        if (uint64_t(value) == value) return likely_matrix_u64;
     } else {
-        if (int32_t(value) == value) return likely_type_i32;
-        if (int64_t(value) == value) return likely_type_i64;
+        if (int32_t(value) == value) return likely_matrix_i32;
+        if (int64_t(value) == value) return likely_matrix_i64;
     }
-    if (float(value) == value) return likely_type_f32;
-    else                       return likely_type_f64;
+    if (float(value) == value) return likely_matrix_f32;
+    else                       return likely_matrix_f64;
 }
 
 likely_type likely_type_from_types(likely_type lhs, likely_type rhs)
