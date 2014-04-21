@@ -128,7 +128,7 @@ struct Test
             likely_env new_env = likely_eval(ast->atoms[i], env);
             likely_release_env(env);
             env = new_env;
-            if (BenchmarkVerbose) {
+            if (BenchmarkVerbose && !likely_definition(env->type)) {
                 likely_mat str = likely_to_string(env->result, true);
                 printf("%s\n\n", str->data);
                 likely_release(str);

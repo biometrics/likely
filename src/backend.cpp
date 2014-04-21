@@ -492,18 +492,18 @@ struct Builder : public IRBuilder<>
 
     static likely_expression *lookup(likely_const_env env, const char *name)
     {
-        if      (!env)                                  return NULL;
-        else if (env->name && !strcmp(env->name, name)) return env->value;
-        else                                            return lookup(env->parent, name);
+        if (!env) return NULL;
+        if (likely_definition(env->type) && env->name && !strcmp(env->name, name)) return env->value;
+        return lookup(env->parent, name);
     }
 
     likely_expression *lookup(const char *name) const { return lookup(env, name); }
 
     static likely_resources *lookupResources(likely_const_env env)
     {
-        if      (!env)           return NULL;
-        else if (env->resources) return env->resources;
-        else                     return lookupResources(env->parent);
+        if (!env) return NULL;
+        if (env->resources) return env->resources;
+        return lookupResources(env->parent);
     }
 
     likely_resources *lookupResources() const { return lookupResources(env); }
@@ -512,6 +512,7 @@ struct Builder : public IRBuilder<>
     {
         env = likely_new_env(env);
         likely_release_env(env->parent);
+        likely_set_definition(&env->type, true);
         env->name = new char[strlen(name)+1];
         strcpy((char*) env->name, name);
         env->value = e;
@@ -2271,8 +2272,8 @@ void likely_release_env(likely_const_env env)
     if (!env || --const_cast<likely_env>(env)->ref_count) return;
     likely_release_env(env->parent);
     delete[] env->name;
-    delete   env->value;
-    likely_release(env->result);
+    if (likely_definition(env->type)) delete env->value;
+    else                              likely_release(env->result);
     if (likely_offline(env->type))
         delete env->resources;
     free((void*) env);
@@ -2370,12 +2371,13 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
 {
     if (!ast || !parent) return NULL;
     likely_env env = likely_new_env(parent);
+    likely_set_definition(&env->type, ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="));
     if (likely_offline(parent->type)) {
         Builder builder(env);
         UniqueExpression e(builder.expression(ast));
         likely_set_erratum(&env->type, e.get() == NULL);
     } else {
-        if (ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=")) {
+        if (likely_definition(env->type)) {
             // Shortcut for global variable definitions
             delete Builder(env).expression(ast);
         } else {
@@ -2417,7 +2419,7 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, li
         likely_env new_env = likely_eval(ast, env);
         likely_release_env(env);
         env = new_env;
-        if (env->result && (likely_elements(env->result) > 0))
+        if (!likely_definition(env->type) && env->result && (likely_elements(env->result) > 0))
             likely_show(env->result, ast->is_list ? NULL : ast->atom);
         if (likely_erratum(env->type))
             break;
