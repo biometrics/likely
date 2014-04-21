@@ -36,7 +36,7 @@ typedef likely_size likely_type; /* Depth : 8
                                     Saturation : 1 */
 
 // Standard type masks and values
-enum likely_type_field
+enum likely_matrix_type
 {
     likely_type_void     = 0x00000000,
     likely_type_depth    = 0x000000FF,
