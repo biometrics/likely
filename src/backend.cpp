@@ -220,12 +220,12 @@ static string getUniqueName(const string &prefix)
     return stream.str();
 }
 
-struct Resources
+struct likely_resources
 {
     Module *module;
     vector<likely_expression*> expressions;
 
-    Resources(bool native)
+    likely_resources(bool native)
     {
         if (!NativeInt) {
             likely_assert(sizeof(likely_size) == sizeof(void*), "insane type system");
@@ -313,7 +313,7 @@ struct Resources
         return TM;
     }
 
-    virtual ~Resources()
+    virtual ~likely_resources()
     {
         for (likely_expression *e : expressions)
             delete e;
@@ -321,7 +321,7 @@ struct Resources
     }
 };
 
-class JITFunction : public Resources
+class JITFunction : public likely_resources
 {
     ExecutionEngine *EE = NULL;
 
@@ -339,13 +339,13 @@ public:
     }
 };
 
-class OfflineResources : public Resources
+class OfflineResources : public likely_resources
 {
     const string fileName;
 
 public:
     OfflineResources(const string &fileName, bool native)
-        : Resources(native), fileName(fileName)
+        : likely_resources(native), fileName(fileName)
     {}
 
     ~OfflineResources()
@@ -420,14 +420,14 @@ struct likely_environment
         else                                    return NULL;
     }
 
-    Resources *resources()
+    likely_resources *resources()
     {
         if      (resources_) return resources_;
         else if (parent_)    return parent_->resources();
         else                 return NULL;
     }
 
-    void setResources(Resources *resources)
+    void setResources(likely_resources *resources)
     {
         resources_ = resources;
     }
@@ -450,7 +450,7 @@ struct likely_environment
 protected:
     likely_env parent_;
     likely_const_mat result_ = NULL;
-    Resources *resources_ = NULL;
+    likely_resources *resources_ = NULL;
 };
 likely_env likely_environment::RootEnvironment = new likely_environment(NULL);
 
@@ -2038,7 +2038,7 @@ class exportExpression : public Operator
 LIKELY_REGISTER(export)
 
 JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<likely_type> &type)
-    : Resources(true), type(type)
+    : likely_resources(true), type(type)
 {
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
                   (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
