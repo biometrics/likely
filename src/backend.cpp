@@ -2270,10 +2270,13 @@ void likely_release_env(likely_const_env env)
     delete[] env->name;
     delete   env->value;
     likely_release(env->result);
-    if (env->type & likely_environment_offline)
+    if (likely_offline(env->type))
         delete env->resources;
     free((void*) env);
 }
+
+bool likely_offline(likely_environment_type type) { return likely_get_bool(type, likely_environment_offline); }
+void likely_set_offline(likely_environment_type *type, bool offline) { likely_set_bool(type, offline, likely_environment_offline); }
 
 likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat m, ...)
 {
@@ -2361,8 +2364,8 @@ likely_mat likely_eval(likely_const_ast ast, likely_env *env)
     if (!ast || !env || !*env) return NULL;
 
     likely_env new_env = likely_new_env(*env);
-    if ((*env)->type & likely_environment_offline) {
-        new_env->type = likely_environment_offline;
+    if (likely_offline((*env)->type)) {
+        likely_set_offline(&new_env->type, true);
         Builder builder(new_env);
         UniqueExpression e(builder.expression(ast));
         new_env->result = e.get() ? likely_void() : NULL;

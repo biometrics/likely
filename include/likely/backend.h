@@ -23,7 +23,9 @@
 struct likely_expression;
 struct likely_resources;
 
-enum likely_environment_type
+typedef likely_size likely_environment_type; /* Offline : 1 */
+
+enum likely_environment_type_field
 {
     likely_environment_void    = 0x00000000,
     likely_environment_offline = 0x00000001
@@ -36,7 +38,8 @@ struct likely_environment
     struct likely_expression *value;
     struct likely_resources *resources;
     likely_const_mat result;
-    size_t ref_count, type;
+    size_t ref_count;
+    likely_environment_type type;
 
 #ifdef __cplusplus
 private:
@@ -65,6 +68,9 @@ LIKELY_EXPORT likely_env likely_new_env_jit();
 LIKELY_EXPORT likely_env likely_new_env_offline(const char *file_name, bool native);
 LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
 LIKELY_EXPORT void likely_release_env(likely_const_env env);
+
+LIKELY_EXPORT bool likely_offline(likely_environment_type type);
+LIKELY_EXPORT void likely_set_offline(likely_environment_type *type, bool offline);
 
 // Compilation
 LIKELY_EXPORT likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type type, ...);

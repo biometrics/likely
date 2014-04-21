@@ -35,7 +35,7 @@ typedef likely_size likely_type; /* Depth : 8
                                     Single-frame : 1
                                     Saturation : 1 */
 
-enum likely_matrix_type
+enum likely_type_field
 {
     likely_matrix_void     = 0x00000000,
     likely_matrix_depth    = 0x000000FF,
