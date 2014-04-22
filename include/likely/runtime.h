@@ -63,6 +63,8 @@ enum likely_type_field
     likely_matrix_multi_frame     = 0x00008000,
     likely_matrix_multi_dimension = likely_matrix_multi_channel | likely_matrix_multi_column | likely_matrix_multi_row | likely_matrix_multi_frame,
     likely_matrix_saturation      = 0x00010000,
+    likely_matrix_magic           = 0xFF000000,
+    likely_matrix_matrix          = 0x66000000,
     likely_matrix_native    = sizeof(likely_size)*8,
     likely_matrix_type_type = likely_matrix_native
 };
@@ -130,6 +132,8 @@ LIKELY_EXPORT likely_type likely_multi_dimension(likely_type type);
 LIKELY_EXPORT void likely_set_multi_dimension(likely_type *type, likely_type multi_dimension);
 LIKELY_EXPORT bool likely_saturation(likely_type type);
 LIKELY_EXPORT void likely_set_saturation(likely_type *type, bool saturation);
+LIKELY_EXPORT size_t likely_magic(likely_type type);
+LIKELY_EXPORT void likely_set_magic(likely_type *type, size_t magic);
 
 // Matrix size
 LIKELY_EXPORT likely_size likely_elements(likely_const_mat m);

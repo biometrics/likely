@@ -54,19 +54,25 @@ likely_mat likely_read(const char *file_name)
     // Is it a file?
     if (FILE *fp = fopen(fileName.c_str(), "rb")) {
         fseek(fp, 0, SEEK_END);
-        const long size = ftell(fp);
+        const size_t size = ftell(fp);
         fseek(fp, 0, SEEK_SET);
         void *data = malloc(size);
-        if (data && (fread(data, 1, size, fp) != size_t(size))) {
+        if (data && (fread(data, 1, size, fp) != size)) {
             free(data);
             data = NULL;
         }
 
         if (data) {
             // Is it a matrix?
-            if (fileName.substr(fileName.size()-3) == ".lm") {
-                m = likely_mat(data);
-            } else { // Otherwise, try to decode it
+            if (size >= sizeof(likely_matrix)) {
+                likely_mat test = likely_mat(data);
+                if ((likely_magic(test->type) == likely_matrix_matrix) &&
+                    (sizeof(likely_matrix) + likely_bytes(test) == size))
+                    m = test;
+            }
+
+            // Otherwise, try to decode it
+            if (m == NULL) {
                 likely_mat encoded = likely_new(likely_matrix_u8, 1, size, 1, 1, data);
                 free(data);
                 if (likely_mat decoded = likely_decode(encoded)) {

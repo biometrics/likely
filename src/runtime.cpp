@@ -77,6 +77,8 @@ likely_type likely_multi_dimension(likely_type type) { return likely_get(type, l
 void likely_set_multi_dimension(likely_type *type, likely_type multi_dimension) { likely_set(type, multi_dimension, likely_matrix_multi_dimension); }
 bool likely_saturation(likely_type type) { return likely_get_bool(type, likely_matrix_saturation); }
 void likely_set_saturation(likely_type *type, bool saturation) { likely_set_bool(type, saturation, likely_matrix_saturation); }
+size_t likely_magic(likely_type type) { return likely_get(type, likely_matrix_magic); }
+void likely_set_magic(likely_type *type, size_t magic) { likely_set(type, magic, likely_matrix_magic); }
 
 likely_size likely_elements(likely_const_mat m)
 {
@@ -110,7 +112,7 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     }
 
     m->ref_count = 1;
-    m->type = type;
+    m->type = type | likely_matrix_matrix;
     m->channels = channels;
     m->columns = columns;
     m->rows = rows;
