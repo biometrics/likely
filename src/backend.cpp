@@ -354,8 +354,7 @@ class OfflineResources : public likely_resources
 
 public:
     OfflineResources(const string &fileName, bool native)
-        : likely_resources(native), fileName(fileName)
-    {}
+        : likely_resources(native), fileName(fileName) {}
 
     ~OfflineResources()
     {
@@ -516,10 +515,6 @@ struct Builder : public IRBuilder<>
         env->name = new char[strlen(name)+1];
         strcpy((char*) env->name, name);
         env->value = e;
-
-        // TODO: these lines should not be necessary
-        env->resources = lookupResources(env->parent);
-        likely_set_offline(&env->type, false);
     }
 
     static void undefine(likely_env &env, const char *name)
@@ -1056,7 +1051,7 @@ class defineExpression : public DefinitionOperator
 {
     likely_expression *evaluateDefinition(Builder &builder, likely_const_ast name, likely_const_ast value) const
     {
-        if (builder.env->resources) {
+        if (!likely_definition(builder.env->type)) {
             // Local variable
             likely_expression *expr = builder.expression(value);
             if (expr) {
@@ -1514,13 +1509,22 @@ class beginExpression : public Operator
 {
     size_t minParameters() const { return 0; }
     size_t maxParameters() const { return std::numeric_limits<size_t>::max(); }
-
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
+        likely_env parent = builder.env;
+        builder.env = likely_new_env(builder.env);
+        bool success = true;
         for (size_t i=1; i<ast->num_atoms-1; i++) {
-            TRY_EXPR(builder, ast->atoms[i], expr)
+            UniqueExpression expr(builder.expression(ast->atoms[i]));
+            if (!expr.get()) {
+                success = false;
+                break;
+            }
         }
-        return builder.expression(ast->atoms[ast->num_atoms-1]);
+        likely_expression *result = success ? builder.expression(ast->atoms[ast->num_atoms-1]) : NULL;
+        likely_release_env(builder.env);
+        builder.env = parent;
+        return result;
     }
 };
 LIKELY_REGISTER_EXPRESSION(begin, "{")
@@ -2244,7 +2248,7 @@ likely_env likely_new_env(likely_const_env parent)
     env->resources = NULL;
     env->result = NULL;
     env->ref_count = 1;
-    env->type = parent ? parent->type : likely_environment_void;
+    env->type = likely_environment_void;
     return env;
 }
 
@@ -2371,8 +2375,9 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
 {
     if (!ast || !parent) return NULL;
     likely_env env = likely_new_env(parent);
+    likely_set_offline(&env->type, likely_offline(parent->type));
     likely_set_definition(&env->type, ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="));
-    if (likely_offline(parent->type)) {
+    if (likely_offline(env->type)) {
         Builder builder(env);
         UniqueExpression e(builder.expression(ast));
         likely_set_erratum(&env->type, e.get() == NULL);
@@ -2395,18 +2400,14 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
 
 likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, likely_const_env prev)
 {
-    likely_env env = likely_new_env(parent);
-
     likely_const_ast asts = likely_asts_from_string(source, GFM);
-    if (!asts) {
-        likely_set_erratum(&env->type, true);
-        return env;
-    }
+    if (!asts)
+        return NULL;
 
     int prevDepth = 0;
     {
         likely_const_env tmp = prev;
-        while (tmp && (tmp->parent != env->parent)) {
+        while (tmp && (tmp->parent != parent)) {
             tmp = tmp->parent;
             prevDepth++;
         }
@@ -2414,11 +2415,12 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, li
             prevDepth = -1;
     }
 
+    likely_env env = likely_retain_env(parent);
     for (size_t i=0; i<asts->num_atoms; i++) {
         likely_const_ast ast = asts->atoms[i];
-        likely_env new_env = likely_eval(ast, env);
-        likely_release_env(env);
-        env = new_env;
+        env = likely_eval(ast, parent);
+        likely_release_env(parent);
+        parent = env;
         if (!likely_definition(env->type) && env->result && (likely_elements(env->result) > 0))
             likely_show(env->result, ast->is_list ? NULL : ast->atom);
         if (likely_erratum(env->type))
