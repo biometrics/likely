@@ -23,9 +23,9 @@
 #include <iostream>
 #include <string>
 #include <opencv2/highgui/highgui.hpp>
+#include <curl/curl.h> // include before <archive.h> to avoid issues on Windows
 #include <archive.h>
 #include <archive_entry.h>
-#include <curl/curl.h>
 
 #include "likely/backend.h"
 #include "likely/frontend.h"

@@ -46,13 +46,13 @@ void likely_assert(bool condition, const char *format, ...)
     abort();
 }
 
-int likely_get(size_t type, size_t mask) { return type & mask; }
+size_t likely_get(size_t type, size_t mask) { return type & mask; }
 void likely_set(size_t *type, size_t value, size_t mask) { *type &= ~mask; *type |= value & mask; }
 bool likely_get_bool(size_t type, size_t mask) { return (type & mask) != 0; }
 void likely_set_bool(size_t *type, bool value, size_t mask) { value ? *type |= mask : *type &= ~mask; }
 
-int  likely_depth(likely_type type) { return likely_get(type, likely_matrix_depth); }
-void likely_set_depth(likely_type *type, int depth) { likely_set(type, depth, likely_matrix_depth); }
+size_t likely_depth(likely_type type) { return likely_get(type, likely_matrix_depth); }
+void likely_set_depth(likely_type *type, size_t depth) { likely_set(type, depth, likely_matrix_depth); }
 bool likely_signed(likely_type type) { return likely_get_bool(type, likely_matrix_signed); }
 void likely_set_signed(likely_type *type, bool signed_) { likely_set_bool(type, signed_, likely_matrix_signed); }
 bool likely_floating(likely_type type) { return likely_get_bool(type, likely_matrix_floating); }

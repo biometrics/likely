@@ -14,6 +14,10 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#ifdef _MSC_VER
+#  define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include <llvm/PassManager.h>
 #include <llvm/ADT/Triple.h>
 #include <llvm/Analysis/Passes.h>
@@ -251,7 +255,7 @@ struct likely_resources
             initializeInstCombine(Registry);
             initializeTarget(Registry);
 
-            NativeInt = Type::getIntNTy(C, likely_depth(likely_matrix_native));
+            NativeInt = Type::getIntNTy(C, unsigned(likely_depth(likely_matrix_native)));
             T::Void = cast<PointerType>(T::get(likely_matrix_void).llvm);
         }
 
@@ -391,7 +395,7 @@ struct Builder : public IRBuilder<>
 
     static likely_expression constant(uint64_t value, likely_type type = likely_matrix_native)
     {
-        const int depth = likely_depth(type);
+        const unsigned depth = unsigned(likely_depth(type));
         return likely_expression(Constant::getIntegerValue(Type::getIntNTy(C, depth), APInt(depth, value)), type);
     }
 
@@ -402,7 +406,7 @@ struct Builder : public IRBuilder<>
 
     static likely_expression constant(double value, likely_type type)
     {
-        const int depth = likely_depth(type);
+        const size_t depth = likely_depth(type);
         if (likely_floating(type)) {
             if (value == 0) value = -0; // IEEE/LLVM optimization quirk
             if      (depth == 64) return likely_expression(ConstantFP::get(Type::getDoubleTy(C), value), type);
@@ -415,8 +419,8 @@ struct Builder : public IRBuilder<>
 
     static likely_expression zero(likely_type type = likely_matrix_native) { return constant(0, type); }
     static likely_expression one (likely_type type = likely_matrix_native) { return constant(1, type); }
-    static likely_expression intMax(likely_type type) { const int bits = likely_depth(type); return constant((1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
-    static likely_expression intMin(likely_type type) { const int bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
+    static likely_expression intMax(likely_type type) { const size_t bits = likely_depth(type); return constant((1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
+    static likely_expression intMin(likely_type type) { const size_t bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
     static likely_expression type(likely_type type) { return constant(uint64_t(type), likely_matrix_type_type); }
     static likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(T::Void), likely_matrix_void); }
     static likely_expression nullData() { return likely_expression(ConstantPointerNull::get(Type::getInt8PtrTy(C)), likely_matrix_native); }
@@ -449,7 +453,7 @@ struct Builder : public IRBuilder<>
 
     static Type *ty(likely_type type, bool pointer = false)
     {
-        const int bits = likely_depth(type);
+        const size_t bits = likely_depth(type);
         const bool floating = likely_floating(type);
         if (floating) {
             if      (bits == 16) return pointer ? Type::getHalfPtrTy(C)   : Type::getHalfTy(C);
