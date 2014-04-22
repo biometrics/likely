@@ -594,6 +594,7 @@ struct ScopedEnvironment
 
     ~ScopedEnvironment()
     {
+        builder.env->resources = NULL;
         likely_release_env(builder.env);
         builder.env = prev;
     }
@@ -2010,17 +2011,19 @@ JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<l
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
                   (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
                   "expected a lambda expression");
-    likely_env env = likely_new_env(parent);
-    env->resources = this;
-    Builder builder(env);
-    unique_ptr<likely_expression> result(builder.expression(ast));
 
-    vector<T> types;
-    for (likely_type t : type)
-        types.push_back(T::get(t));
-    UniqueExpression expr(static_cast<Lambda*>(result.get())->generate(builder, types, getUniqueName("jit")));
-    error = !expr.get();
-    likely_release_env(env);
+    UniqueExpression expr;
+    {
+        Builder builder(NULL);
+        ScopedEnvironment se(builder, parent, this);
+        unique_ptr<likely_expression> result(builder.expression(ast));
+
+        vector<T> types;
+        for (likely_type t : type)
+            types.push_back(T::get(t));
+        expr.reset(static_cast<Lambda*>(result.get())->generate(builder, types, getUniqueName("jit")));
+        error = !expr.get();
+    }
 
     if (!error && !expr.isNull()) {
         string error;
@@ -2282,8 +2285,7 @@ void likely_release_env(likely_const_env env)
     delete[] env->name;
     if (likely_definition(env->type)) delete env->value;
     else                              likely_release(env->result);
-    if (likely_offline(env->type))
-        delete env->resources;
+    delete env->resources;
     free((void*) env);
 }
 
