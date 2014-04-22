@@ -25,6 +25,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <archive.h>
 #include <archive_entry.h>
+#include <curl/curl.h>
 
 #include "likely/backend.h"
 #include "likely/frontend.h"
@@ -32,6 +33,14 @@
 #include "likely/opencv.hpp"
 
 using namespace std;
+
+static size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp)
+{
+    vector<char> *userpc = static_cast<vector<char>*>(userp);
+    char *bufferc = static_cast<char*>(buffer);
+    userpc->insert(userpc->end(), bufferc, bufferc+(size*nmemb));
+    return size*nmemb;
+}
 
 likely_mat likely_read(const char *file_name)
 {
@@ -106,6 +115,33 @@ likely_mat likely_read(const char *file_name)
         for (likely_const_mat n : images)
             likely_release(n);
     }
+
+    // Is it a URL?
+    if (m == NULL) {
+        static bool init = false;
+        if (!init) {
+            curl_global_init(CURL_GLOBAL_ALL);
+            init = true;
+        }
+
+        vector<char> buffer;
+        if (CURL *curl = curl_easy_init()) {
+            curl_easy_setopt(curl, CURLOPT_URL, file_name);
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
+            CURLcode result = curl_easy_perform(curl);
+            curl_easy_cleanup(curl);
+            if (result != CURLE_OK)
+                buffer.clear();
+        }
+
+        if (!buffer.empty()) {
+            likely_mat encodedImage = likely_new(likely_matrix_u8, 1, buffer.size(), 1, 1, buffer.data());
+            m = likely_decode(encodedImage);
+            likely_release(encodedImage);
+        }
+    }
+
     return m;
 }
 
