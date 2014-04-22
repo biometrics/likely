@@ -580,6 +580,25 @@ private:
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
 };
 
+struct ScopedEnvironment
+{
+    Builder &builder;
+    likely_env prev;
+
+    ScopedEnvironment(Builder &builder, likely_env env = NULL, likely_resources *resources = NULL)
+        : builder(builder), prev(builder.env)
+    {
+        builder.env = likely_new_env(env ? env : builder.env);
+        if (resources) builder.env->resources = resources;
+    }
+
+    ~ScopedEnvironment()
+    {
+        likely_release_env(builder.env);
+        builder.env = prev;
+    }
+};
+
 } // namespace (anonymous)
 
 struct VTable : public ScopedExpression
@@ -999,13 +1018,12 @@ struct Definition : public ScopedExpression
 private:
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        likely_env restored = builder.env;
-        builder.env = likely_new_env(env);
-        builder.env->resources = Builder::lookupResources(restored);
-        UniqueExpression op(builder.expression(this->ast));
-        likely_release_env(builder.env);
-        builder.env = restored;
-        return op->evaluate(builder, ast);
+        UniqueExpression op;
+        {
+            ScopedEnvironment se(builder, env, builder.lookupResources());
+            op.reset(builder.expression(this->ast));
+        }
+        return op.get() ? op->evaluate(builder, ast) : NULL;
     }
 };
 
@@ -1378,13 +1396,8 @@ private:
             args.push_back(likely_expression(arg.value(), arg.type()));
         }
 
-        likely_env restored = builder.env;
-        builder.env = likely_new_env(env);
-        builder.env->resources = Builder::lookupResources(restored);
-        likely_expression *result = evaluateFunction(builder, args);
-        likely_release_env(builder.env);
-        builder.env = restored;
-        return result;
+        ScopedEnvironment se(builder, env, builder.lookupResources());
+        return evaluateFunction(builder, args);
     }
 
     likely_expression *evaluateFunction(Builder &builder, const vector<likely_expression> &args) const
@@ -1511,20 +1524,11 @@ class beginExpression : public Operator
     size_t maxParameters() const { return std::numeric_limits<size_t>::max(); }
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        likely_env parent = builder.env;
-        builder.env = likely_new_env(builder.env);
-        bool success = true;
+        ScopedEnvironment se(builder);
         for (size_t i=1; i<ast->num_atoms-1; i++) {
-            UniqueExpression expr(builder.expression(ast->atoms[i]));
-            if (!expr.get()) {
-                success = false;
-                break;
-            }
+            TRY_EXPR(builder, ast->atoms[i], expr);
         }
-        likely_expression *result = success ? builder.expression(ast->atoms[ast->num_atoms-1]) : NULL;
-        likely_release_env(builder.env);
-        builder.env = parent;
-        return result;
+        return builder.expression(ast->atoms[ast->num_atoms-1]);
     }
 };
 LIKELY_REGISTER_EXPRESSION(begin, "{")
@@ -2449,7 +2453,9 @@ class importExpression : public Operator
         if (source.empty())
             return error(file, "unable to open file");
 
-        builder.env = likely_repl(source.c_str(), true, builder.env, NULL);
+        likely_env parent = builder.env;
+        builder.env = likely_repl(source.c_str(), true, parent, NULL);
+        likely_release_env(parent);
         if (likely_erratum(builder.env->type)) return NULL;
         else                                   return new likely_expression();
     }

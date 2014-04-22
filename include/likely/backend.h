@@ -39,10 +39,10 @@ struct likely_environment
 {
     struct likely_environment const *parent;
     const char *name;
-//    union {
+    union {
         struct likely_expression *value; // definition
         likely_const_mat result;         // !definition
-//    };
+    };
     struct likely_resources *resources;
     size_t ref_count;
     likely_environment_type type;
