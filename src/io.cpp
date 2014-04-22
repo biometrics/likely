@@ -51,69 +51,32 @@ likely_mat likely_read(const char *file_name)
 
     likely_mat m = NULL;
 
-    // Is it a matrix?
-    if (fileName.substr(fileName.size()-3) == ".lm") {
-        if (FILE *fp = fopen(fileName.c_str(), "rb")) {
-            likely_size bytes;
-            if (fread(&bytes, sizeof(bytes), 1, fp) == 1) {
-                fseek(fp, 0, SEEK_SET);
-                m = (likely_mat) malloc(bytes);
-                if (m && (fread(m, 1, bytes, fp) != bytes)) {
-                    free(m);
-                    m = NULL;
+    // Is it a file?
+    if (FILE *fp = fopen(fileName.c_str(), "rb")) {
+        fseek(fp, 0, SEEK_END);
+        const long size = ftell(fp);
+        fseek(fp, 0, SEEK_SET);
+        void *data = malloc(size);
+        if (data && (fread(data, 1, size, fp) != size_t(size))) {
+            free(data);
+            data = NULL;
+        }
+
+        if (data) {
+            // Is it a matrix?
+            if (fileName.substr(fileName.size()-3) == ".lm") {
+                m = likely_mat(data);
+            } else { // Otherwise, try to decode it
+                likely_mat encoded = likely_new(likely_matrix_u8, 1, size, 1, 1, data);
+                free(data);
+                if (likely_mat decoded = likely_decode(encoded)) {
+                    m = decoded;
+                    likely_release(encoded);
+                } else {
+                    m = encoded;
                 }
             }
-            fclose(fp);
         }
-    }
-
-    // Is it an image?
-    try {
-        m = likely::fromCvMat(cv::imread(fileName.c_str(), CV_LOAD_IMAGE_UNCHANGED));
-    } catch (...) { }
-
-    // Is it an archive?
-    if (m == NULL) {
-        vector<likely_const_mat> images;
-        { // unarchive and decode
-            archive *a = archive_read_new();
-            archive_read_support_format_all(a);
-            archive_read_support_filter_all(a);
-            int r = archive_read_open_filename(a, fileName.c_str(), 10240);
-            while (r == ARCHIVE_OK) {
-                struct archive_entry *entry;
-                r = archive_read_next_header(a, &entry);
-                if (r == ARCHIVE_OK) {
-                    likely_mat encodedImage = likely_new(likely_matrix_u8, 1, archive_entry_size(entry), 1, 1, NULL);
-                    archive_read_data(a, encodedImage->data, encodedImage->columns);
-                    images.push_back(likely_decode(encodedImage));
-                    likely_release(encodedImage);
-                }
-            }
-            archive_read_close(a);
-            archive_read_free(a);
-        }
-
-        // combine
-        likely_const_mat first = images.empty() ? NULL : images.front();
-        bool valid = !!first;
-        for (size_t i=0; i<images.size(); i++)
-            valid = valid && images[i]
-                    && (images[i]->type     == first->type)
-                    && (images[i]->channels == first->channels)
-                    && (images[i]->columns  == first->columns)
-                    && (images[i]->rows     == first->rows)
-                    && (images[i]->frames   == first->frames);
-
-        if (valid) {
-            m = likely_new(first->type, first->channels, first->columns, first->rows, first->frames * images.size(), NULL);
-            const size_t step = likely_bytes(first);
-            for (size_t i=0; i<images.size(); i++)
-                memcpy(m->data + i*step, images[i]->data, step);
-        }
-
-        for (likely_const_mat n : images)
-            likely_release(n);
     }
 
     // Is it a URL?
@@ -171,11 +134,57 @@ likely_mat likely_write(likely_const_mat image, const char *file_name)
 
 likely_mat likely_decode(likely_const_mat buffer)
 {
+    likely_mat m = NULL;
+
     try {
-        return likely::fromCvMat(cv::imdecode(likely::toCvMat(buffer), CV_LOAD_IMAGE_UNCHANGED));
-    } catch (...) {
-        return NULL;
+        m = likely::fromCvMat(cv::imdecode(likely::toCvMat(buffer), CV_LOAD_IMAGE_UNCHANGED));
+    } catch (...) {}
+
+    // Is it an archive?
+    if (m == NULL) {
+        vector<likely_const_mat> images;
+        { // unarchive and decode
+            archive *a = archive_read_new();
+            archive_read_support_format_all(a);
+            archive_read_support_filter_all(a);
+            int r = archive_read_open_memory(a, (void*) buffer->data, likely_bytes(buffer));
+            while (r == ARCHIVE_OK) {
+                struct archive_entry *entry;
+                r = archive_read_next_header(a, &entry);
+                if (r == ARCHIVE_OK) {
+                    likely_mat encodedImage = likely_new(likely_matrix_u8, 1, archive_entry_size(entry), 1, 1, NULL);
+                    archive_read_data(a, encodedImage->data, encodedImage->columns);
+                    images.push_back(likely_decode(encodedImage));
+                    likely_release(encodedImage);
+                }
+            }
+            archive_read_close(a);
+            archive_read_free(a);
+        }
+
+        // combine
+        likely_const_mat first = images.empty() ? NULL : images.front();
+        bool valid = !!first;
+        for (size_t i=0; i<images.size(); i++)
+            valid = valid && images[i]
+                    && (images[i]->type     == first->type)
+                    && (images[i]->channels == first->channels)
+                    && (images[i]->columns  == first->columns)
+                    && (images[i]->rows     == first->rows)
+                    && (images[i]->frames   == first->frames);
+
+        if (valid) {
+            m = likely_new(first->type, first->channels, first->columns, first->rows, first->frames * images.size(), NULL);
+            const size_t step = likely_bytes(first);
+            for (size_t i=0; i<images.size(); i++)
+                memcpy(m->data + i*step, images[i]->data, step);
+        }
+
+        for (likely_const_mat n : images)
+            likely_release(n);
     }
+
+    return m;
 }
 
 likely_mat likely_encode(likely_const_mat image, const char *extension)
