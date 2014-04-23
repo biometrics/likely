@@ -126,31 +126,37 @@ struct Builder;
 
 struct likely_expression
 {
-    likely_expression() : value_(NULL), type_(likely_matrix_void) {}
+    likely_expression() {}
     likely_expression(Value *value, likely_type type)
-        : value_(value), type_(type) {}
+    {
+        values.push_back(value);
+        types.push_back(type);
+    }
+
     virtual ~likely_expression() {}
 
-    virtual bool isNull() const
+    virtual bool isNull() const { return isNullAt(0); }
+    bool isNullAt(int i) const { return !values[i]; }
+
+    virtual Value *value() const { return valueAt(0); }
+    Value *valueAt(size_t i) const
     {
-        return !value_;
+        likely_assert(i < values.size(), "Expression value out of range!");
+        return values[i];
     }
 
-    virtual Value *value() const
+    virtual likely_type type() const { return typeAt(0); }
+    likely_type typeAt(size_t i) const
     {
-        likely_assert(value_ != NULL, "Expression has no value!");
-        return value_;
+        likely_assert(i < types.size(), "Expression type out of range!");
+        return types[i];
     }
 
-    virtual likely_type type() const
+    void setType(likely_type type) { setTypeAt(type, 0); }
+    void setTypeAt(likely_type type, size_t i)
     {
-        likely_assert(value_ != NULL, "Expression has no type!");
-        return type_;
-    }
-
-    void setType(likely_type type)
-    {
-        type_ = type;
+        likely_assert(i < types.size(), "Expression set type out of range!");
+        types[i] = type;
     }
 
     virtual likely_expression *evaluate(Builder &, likely_const_ast) const
@@ -163,9 +169,10 @@ struct likely_expression
     operator Value*() const { return value(); }
     operator likely_type() const { return type(); }
 
-    Value *take()
+    Value *take() { return takeAt(0); }
+    Value *takeAt(int i)
     {
-        Value *result = value();
+        Value *result = valueAt(i);
         delete this; // With great power comes great responsibility
         return result;
     }
@@ -177,8 +184,8 @@ struct likely_expression
     }
 
 private:
-    Value *value_;
-    likely_type type_;
+    vector<Value*> values;
+    vector<likely_type> types;
 };
 
 namespace {
@@ -1036,27 +1043,27 @@ private:
 
 class Variable : public Operator
 {
-    likely_type type_;
+    likely_type types;
     AllocaInst *allocaInst;
 
 public:
     Variable(Builder &builder, likely_expression *expr, const string &name)
     {
-        type_ = *expr;
+        types = *expr;
         allocaInst = builder.CreateAlloca(expr->value()->getType(), 0, name);
         set(builder, expr);
     }
 
     void set(Builder &builder, likely_expression *expr)
     {
-        builder.CreateStore(builder.cast(expr, type_), allocaInst);
+        builder.CreateStore(builder.cast(expr, types), allocaInst);
     }
 
 private:
     size_t maxParameters() const { return 0; }
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast) const
     {
-        return new likely_expression(builder.CreateLoad(allocaInst), type_);
+        return new likely_expression(builder.CreateLoad(allocaInst), types);
     }
 };
 
