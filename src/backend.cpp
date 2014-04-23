@@ -1711,22 +1711,24 @@ private:
             if (parent) parent->close(builder);
         }
 
-        void tryCollapse()
+        vector<string> tryCollapse()
         {
+            vector<string> axis;
+            axis.push_back(name);
             if (parent || referenced)
-                return;
+                return axis;
 
             while (child && !child->referenced) {
                 // Collapse the child loop into us
-                /*
                 child->offset->replaceAllUsesWith(index);
                 child->latch->setCondition(ConstantInt::getTrue(C));
                 DeleteDeadPHIs(child->loop);
                 MergeBlockIntoPredecessor(child->loop);
                 MergeBlockIntoPredecessor(child->exit);
-                */
+                axis.push_back(child->name);
                 child = child->child;
             }
+            return axis;
         }
 
         Value *value() const
@@ -1766,6 +1768,7 @@ private:
         Value *dstFrames   = getDimensions(builder, pairs, "frames"  , srcs, &kernelType);
 
         Function *thunk;
+        vector<string> thunkAxis;
         {
             { // declare thunk
                 vector<Type*> params = T::toLLVM(types);
@@ -1856,7 +1859,7 @@ private:
             store->setMetadata("llvm.mem.parallel_loop_access", axis.back()->node);
 
             axis.back()->close(builder); // Closes all axis
-            axis.front()->tryCollapse();
+            thunkAxis = axis.front()->tryCollapse();
             axis.clear();
 
             if (args->is_list) {
@@ -1875,10 +1878,14 @@ private:
 
         builder.SetInsertPoint(entry);
         Value *dst = newExpression::createCall(builder, Builder::type(kernelType), dstChannels, dstColumns, dstRows, dstFrames, Builder::nullData());
-        Value *kernelSize = likely_multi_frame (kernelType) ? dstFrames  :
-                            likely_multi_row   (kernelType) ? dstRows    :
-                            likely_multi_column(kernelType) ? dstColumns :
-                                                              dstChannels;
+        Value *kernelSize = builder.one();
+        for (const string &str : thunkAxis) {
+            if      (str == "c") kernelSize = builder.CreateMul(kernelSize, dstChannels);
+            else if (str == "x") kernelSize = builder.CreateMul(kernelSize, dstColumns);
+            else if (str == "y") kernelSize = builder.CreateMul(kernelSize, dstRows);
+            else if (str == "t") kernelSize = builder.CreateMul(kernelSize, dstFrames);
+            else                 assert(!"invalid axis");
+       }
 
         if (likely_parallel(kernelType)) {
             vector<Type*> likelyForkParameters;
