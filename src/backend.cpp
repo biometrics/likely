@@ -126,41 +126,22 @@ struct Builder;
 
 struct likely_expression
 {
-    likely_expression() {}
+    likely_expression()
+        : value_(NULL), type_(likely_matrix_void) {}
+
     likely_expression(Value *value, likely_type type)
+        : value_(value), type_(type) {}
+
+    virtual ~likely_expression()
     {
-        values.push_back(value);
-        types.push_back(type);
-    }
-    likely_expression(const vector<Value*> &values, const vector<likely_type> &types)
-        : values(values), types(types) {}
-
-    virtual ~likely_expression() {}
-
-    size_t size() const { return values.size(); }
-    virtual bool isNull() const { return isNullAt(0); }
-    bool isNullAt(int i) const { return !values[i]; }
-
-    virtual Value *value() const { return valueAt(0); }
-    Value *valueAt(size_t i) const
-    {
-        likely_assert(i < values.size(), "Expression value out of range!");
-        return values[i];
+        for (likely_expression *e : expressions_)
+            delete e;
     }
 
-    virtual likely_type type() const { return typeAt(0); }
-    likely_type typeAt(size_t i) const
-    {
-        likely_assert(i < types.size(), "Expression type out of range!");
-        return types[i];
-    }
-
-    void setType(likely_type type) { setTypeAt(type, 0); }
-    void setTypeAt(likely_type type, size_t i)
-    {
-        likely_assert(i < types.size(), "Expression set type out of range!");
-        types[i] = type;
-    }
+    virtual bool isNull() const { return !value_; }
+    virtual Value *value() const { return value_; }
+    virtual likely_type type() const { return type_; }
+    void setType(likely_type type) { type_ = type; }
 
     virtual likely_expression *evaluate(Builder &builder, likely_const_ast ast) const;
 
@@ -169,12 +150,24 @@ struct likely_expression
     operator Value*() const { return value(); }
     operator likely_type() const { return type(); }
 
-    Value *take() { return takeAt(0); }
-    Value *takeAt(int i)
+    Value *take()
     {
-        Value *result = valueAt(i);
+        Value *result = value_;
         delete this; // With great power comes great responsibility
         return result;
+    }
+
+    void append(likely_expression *e) { expressions_.push_back(e); }
+
+    vector<likely_expression*> expressions()
+    {
+        if (expressions_.empty()) {
+            vector<likely_expression*> expressions;
+            expressions.push_back(this);
+            return expressions;
+        } else {
+            return expressions_;
+        }
     }
 
     static likely_expression *error(likely_const_ast ast, const char *message)
@@ -184,8 +177,9 @@ struct likely_expression
     }
 
 private:
-    vector<Value*> values;
-    vector<likely_type> types;
+    Value* value_;
+    likely_type type_;
+    vector<likely_expression*> expressions_;
 };
 
 namespace {
@@ -618,14 +612,16 @@ struct ScopedEnvironment
 likely_expression *likely_expression::evaluate(Builder &builder, likely_const_ast ast) const
 {
     if (ast->is_list) {
-        vector<Value*> values;
-        vector<likely_type> types;
+        likely_expression *expression = new likely_expression();
         for (size_t i=0; i<ast->num_atoms; i++) {
-            TRY_EXPR(builder, ast->atoms[i], expr)
-            values.push_back(expr.value());
-            types.push_back(expr.type());
+            if (likely_expression *e = builder.expression(ast->atoms[i])) {
+                expression->append(e);
+            } else {
+                delete expression;
+                return NULL;
+            }
         }
-        return new likely_expression(values, types);
+        return expression;
     } else {
         return new likely_expression(value(), type());
     }
@@ -1259,9 +1255,9 @@ class scalarExpression : public UnaryOperator, public LibraryFunction
 
         vector<Value*> args;
         likely_type type = likely_matrix_void;
-        for (size_t i=0; i<argExpr->size(); i++) {
-            args.push_back(builder.CreateCast(CastInst::getCastOpcode(argExpr->valueAt(i), likely_signed(argExpr->typeAt(i)), Type::getDoubleTy(C), true), argExpr->valueAt(i), Type::getDoubleTy(C)));
-            type = likely_type_from_types(type, argExpr->typeAt(i));
+        for (likely_expression *e : argExpr->expressions()) {
+            args.push_back(builder.CreateCast(CastInst::getCastOpcode(e->value(), likely_signed(e->type()), Type::getDoubleTy(C), true), e->value(), Type::getDoubleTy(C)));
+            type = likely_type_from_types(type, e->type());
         }
         args.push_back(ConstantFP::get(C, APFloat::getNaN(APFloat::IEEEdouble)));
         args.insert(args.begin(), Builder::type(type));
