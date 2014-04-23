@@ -132,6 +132,8 @@ struct likely_expression
         values.push_back(value);
         types.push_back(type);
     }
+    likely_expression(const vector<Value*> &values, const vector<likely_type> &types)
+        : values(values), types(types) {}
 
     virtual ~likely_expression() {}
 
@@ -159,10 +161,7 @@ struct likely_expression
         types[i] = type;
     }
 
-    virtual likely_expression *evaluate(Builder &, likely_const_ast) const
-    {
-        return new likely_expression(value(), type());
-    }
+    virtual likely_expression *evaluate(Builder &builder, likely_const_ast ast) const;
 
     virtual int rightHandAtoms() const { return 1; }
 
@@ -614,6 +613,22 @@ struct ScopedEnvironment
 };
 
 } // namespace (anonymous)
+
+likely_expression *likely_expression::evaluate(Builder &builder, likely_const_ast ast) const
+{
+    if (ast->is_list) {
+        vector<Value*> values;
+        vector<likely_type> types;
+        for (size_t i=0; i<ast->num_atoms; i++) {
+            TRY_EXPR(builder, ast->atoms[i], expr)
+            values.push_back(expr.value());
+            types.push_back(expr.type());
+        }
+        return new likely_expression(values, types);
+    } else {
+        return new likely_expression(value(), type());
+    }
+}
 
 struct VTable : public ScopedExpression
 {
