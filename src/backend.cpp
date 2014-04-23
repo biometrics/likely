@@ -138,7 +138,6 @@ struct likely_expression
             delete e;
     }
 
-    virtual bool isNull() const { return !value_; }
     virtual Value *value() const { return value_; }
     virtual likely_type type() const { return type_; }
     void setType(likely_type type) { type_ = type; }
@@ -212,7 +211,6 @@ struct UniqueExpression : public likely_expression, public unique_ptr<likely_exp
 {
     UniqueExpression(likely_expression *e = NULL)
         : unique_ptr<likely_expression>(e) {}
-    bool isNull() const { return get()->isNull(); }
     Value* value() const { return get()->value(); }
     likely_type type() const { return get()->type(); }
     likely_expression *evaluate(Builder &builder, likely_const_ast ast) const
@@ -1239,7 +1237,7 @@ class scalarExpression : public UnaryOperator, public LibraryFunction
         if (!argExpr)
             return NULL;
 
-        if (argExpr->isNull() || (argExpr->value()->getType() == T::Void))
+        if (argExpr->value() && (argExpr->value()->getType() == T::Void))
             return argExpr;
 
         static FunctionType *functionType = NULL;
@@ -1256,7 +1254,7 @@ class scalarExpression : public UnaryOperator, public LibraryFunction
         vector<Value*> args;
         likely_type type = likely_matrix_void;
         for (likely_expression *e : argExpr->expressions()) {
-            args.push_back(builder.CreateCast(CastInst::getCastOpcode(e->value(), likely_signed(e->type()), Type::getDoubleTy(C), true), e->value(), Type::getDoubleTy(C)));
+            args.push_back(builder.cast(e, likely_matrix_f64));
             type = likely_type_from_types(type, e->type());
         }
         args.push_back(ConstantFP::get(C, APFloat::getNaN(APFloat::IEEEdouble)));
@@ -1396,7 +1394,7 @@ struct Lambda : public ScopedExpression, public LibraryFunction
         builder.SetInsertPoint(entry);
 
         likely_expression *result = evaluateFunction(builder, tmpArgs);
-        if (!result || result->isNull()) return result;
+        if (!result) return result;
 
         builder.CreateRet(*result);
         likely_type return_type = result->type();
@@ -2068,7 +2066,7 @@ JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<l
         error = !expr.get();
     }
 
-    if (!error && !expr.isNull()) {
+    if (!error && expr.value()) {
         string error;
         EngineBuilder engineBuilder(module);
         engineBuilder.setEngineKind(EngineKind::JIT)
