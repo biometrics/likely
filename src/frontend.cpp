@@ -235,13 +235,23 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
         }
 
         const auto &op = ops().find(token->atom);
-        if (op != ops().end() && (op->second.precedence > precedence)) {
+        if ((op != ops().end() && (op->second.precedence > precedence)) || !strcmp(token->atom, "[")) {
             if (output.empty())
                 return likely_throw(token, "missing left-hand operand");
             const size_t before = output.size();
-            for (size_t i=0; i<op->second.rightHandAtoms; i++)
-                if (!shift(tokens, offset, output, op->second.precedence))
-                    return 0;
+
+            if (!strcmp(token->atom, "[")) {
+                static likely_const_ast rightBracket = likely_new_atom("]");
+                do {
+                    if (!shift(tokens, offset, output, op->second.precedence))
+                        return 0;
+                } while (likely_ast_compare(output.back(), rightBracket));
+                output.pop_back();
+            } else {
+                for (size_t i=0; i<op->second.rightHandAtoms; i++)
+                    if (!shift(tokens, offset, output, op->second.precedence))
+                        return 0;
+            }
             size_t atoms = 1 + output.size() - before;
             output.insert(output.end()-atoms++, likely_retain_ast(token));
             output.push_back(likely_new_list(&output[output.size()-atoms], atoms));

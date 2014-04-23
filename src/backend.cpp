@@ -134,7 +134,7 @@ struct likely_expression
 
     virtual ~likely_expression()
     {
-        for (likely_expression *e : expressions_)
+        for (const likely_expression *e : expressions_)
             delete e;
     }
 
@@ -156,12 +156,20 @@ struct likely_expression
         return result;
     }
 
-    void append(likely_expression *e) { expressions_.push_back(e); }
+    const likely_expression *takeExpression(size_t index)
+    {
+        const likely_expression *result = NULL;
+        if (index < expressions_.size())
+            swap(expressions_[index], result);
+        return result;
+    }
 
-    vector<likely_expression*> expressions()
+    void append(const likely_expression *e) { expressions_.push_back(e); }
+
+    vector<const likely_expression*> expressions() const
     {
         if (expressions_.empty()) {
-            vector<likely_expression*> expressions;
+            vector<const likely_expression*> expressions;
             expressions.push_back(this);
             return expressions;
         } else {
@@ -178,7 +186,7 @@ struct likely_expression
 private:
     Value* value_;
     likely_type type_;
-    vector<likely_expression*> expressions_;
+    vector<const likely_expression*> expressions_;
 };
 
 namespace {
@@ -564,6 +572,12 @@ protected:
         stream << " parameters passed: " << args << " arguments";
         return error(ast, stream.str().c_str());
     }
+};
+
+class VAOperator : public Operator
+{
+    size_t minParameters() const { return 2; }
+    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
 };
 
 struct ScopedExpression : public Operator
@@ -1253,7 +1267,7 @@ class scalarExpression : public UnaryOperator, public LibraryFunction
 
         vector<Value*> args;
         likely_type type = likely_matrix_void;
-        for (likely_expression *e : argExpr->expressions()) {
+        for (const likely_expression *e : argExpr->expressions()) {
             args.push_back(builder.cast(e, likely_matrix_f64));
             type = likely_type_from_types(type, e->type());
         }
@@ -1551,10 +1565,8 @@ class letExpression : public Operator
 };
 LIKELY_REGISTER(let)
 
-class beginExpression : public Operator
+class beginExpression : public VAOperator
 {
-    size_t minParameters() const { return 0; }
-    size_t maxParameters() const { return std::numeric_limits<size_t>::max(); }
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         ScopedEnvironment se(builder);
@@ -1565,6 +1577,27 @@ class beginExpression : public Operator
     }
 };
 LIKELY_REGISTER_EXPRESSION(begin, "{")
+
+class indexExpression : public VAOperator
+{
+    likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        TRY_EXPR(builder, ast->atoms[1], expr)
+        likely_expression *result = new likely_expression();
+        for (size_t i=2; i<ast->num_atoms; i++) {
+            const size_t index = atoi(ast->atoms[i]->atom);
+            const likely_expression *e = expr->takeExpression(index);
+            if (e) {
+                result->append(e);
+            } else {
+                delete result;
+                return error(ast->atoms[i], "index out of range");
+            }
+        }
+        return result;
+    }
+};
+LIKELY_REGISTER_EXPRESSION(index, "[")
 
 struct Label : public likely_expression
 {
@@ -2085,10 +2118,8 @@ JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<l
 #ifdef LIKELY_IO
 #include "likely/io.h"
 
-class printExpression : public Operator, public LibraryFunction
+class printExpression : public VAOperator, public LibraryFunction
 {
-    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
-    size_t minParameters() const { return 0; }
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         static FunctionType *functionType = FunctionType::get(T::Void, T::Void, true);
