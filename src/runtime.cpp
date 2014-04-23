@@ -147,11 +147,9 @@ likely_mat likely_scalars(likely_type type, double value, ...)
     }
     va_end(ap);
 
-    if ((type == likely_matrix_void) && !values.empty()) {
-        type = likely_type_from_value(values[0]);
-        for (size_t i=1; i<values.size(); i++)
+    if (type == likely_matrix_void)
+        for (size_t i=0; i<values.size(); i++)
             type = likely_type_from_types(type, likely_type_from_value(values[i]));
-    }
 
     likely_mat m = likely_new(type, values.size(), 1, 1, 1, NULL);
     for (size_t i=0; i<values.size(); i++)

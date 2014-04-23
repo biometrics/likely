@@ -137,6 +137,7 @@ struct likely_expression
 
     virtual ~likely_expression() {}
 
+    size_t size() const { return values.size(); }
     virtual bool isNull() const { return isNullAt(0); }
     bool isNullAt(int i) const { return !values[i]; }
 
@@ -1250,18 +1251,27 @@ class scalarExpression : public UnaryOperator, public LibraryFunction
             vector<Type*> params;
             params.push_back(NativeInt);
             params.push_back(Type::getDoubleTy(C));
-            functionType = FunctionType::get(T::Void, params, false);
+            functionType = FunctionType::get(T::Void, params, true);
         }
-        Function *likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar", builder.module());
-        likelyScalar->setCallingConv(CallingConv::C);
-        likelyScalar->setDoesNotAlias(0);
+        Function *likelyScalars = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalars", builder.module());
+        likelyScalars->setCallingConv(CallingConv::C);
+        likelyScalars->setDoesNotAlias(0);
 
-        likely_expression result(builder.CreateCall2(likelyScalar, Builder::type(argExpr->type()), builder.cast(argExpr, likely_matrix_f64)), argExpr->type());
+        vector<Value*> args;
+        likely_type type = likely_matrix_void;
+        for (size_t i=0; i<argExpr->size(); i++) {
+            args.push_back(builder.CreateCast(CastInst::getCastOpcode(argExpr->valueAt(i), likely_signed(argExpr->typeAt(i)), Type::getDoubleTy(C), true), argExpr->valueAt(i), Type::getDoubleTy(C)));
+            type = likely_type_from_types(type, argExpr->typeAt(i));
+        }
+        args.push_back(ConstantFP::get(C, APFloat::getNaN(APFloat::IEEEdouble)));
+        args.insert(args.begin(), Builder::type(type));
+
+        likely_expression result(builder.CreateCall(likelyScalars, args), argExpr->type());
         delete argExpr;
         return new likely_expression(result);
     }
 
-    void *symbol() const { return (void*) likely_scalar; }
+    void *symbol() const { return (void*) likely_scalars; }
 };
 LIKELY_REGISTER(scalar)
 
