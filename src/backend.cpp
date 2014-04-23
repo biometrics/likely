@@ -1248,15 +1248,15 @@ class scalarExpression : public UnaryOperator, public LibraryFunction
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
             vector<Type*> params;
-            params.push_back(Type::getDoubleTy(C));
             params.push_back(NativeInt);
+            params.push_back(Type::getDoubleTy(C));
             functionType = FunctionType::get(T::Void, params, false);
         }
         Function *likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar", builder.module());
         likelyScalar->setCallingConv(CallingConv::C);
         likelyScalar->setDoesNotAlias(0);
 
-        likely_expression result(builder.CreateCall2(likelyScalar, builder.cast(argExpr, likely_matrix_f64), Builder::type(argExpr->type())), argExpr->type());
+        likely_expression result(builder.CreateCall2(likelyScalar, Builder::type(argExpr->type()), builder.cast(argExpr, likely_matrix_f64)), argExpr->type());
         delete argExpr;
         return new likely_expression(result);
     }

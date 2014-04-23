@@ -129,7 +129,7 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     return m;
 }
 
-likely_mat likely_scalar(double value, likely_type type)
+likely_mat likely_scalar(likely_type type, double value)
 {
     likely_mat m = likely_new(type != likely_matrix_void ? type : likely_type_from_value(value), 1, 1, 1, 1, NULL);
     likely_set_element(m, value, 0, 0, 0, 0);
