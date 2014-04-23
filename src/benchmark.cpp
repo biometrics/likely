@@ -38,6 +38,8 @@ using namespace std;
 static cl::opt<bool> BenchmarkTest    ("test"     , cl::desc("Run tutorials and unit tests for correctness only"));
 static cl::opt<bool> BenchmarkTutorial("tutorial" , cl::desc("Run tutorials instead of unit tests"              ));
 static cl::opt<bool> BenchmarkVerbose ("verbose"  , cl::desc("Verbose benchmark output"                         ));
+static cl::opt<bool> BenchmarkSerial  ("serial"   , cl::desc("Run serial kernels only"));
+static cl::opt<bool> BenchmarkParallel("parallel" , cl::desc("Run parallel kernels only"));
 static cl::opt<string> BenchmarkFile    ("file"    , cl::desc("Benchmark the specified file only"    ), cl::value_desc("filename"));
 static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"  ));
 
@@ -82,6 +84,8 @@ struct Test
                 executions.push_back("Parallel");
                 for (const string &execution : executions) {
                     likely_set_parallel(&srcLikely->type, execution == "Parallel");
+                    if (BenchmarkSerial && likely_parallel(srcLikely->type)) continue;
+                    if (BenchmarkParallel && !likely_parallel(srcLikely->type)) continue;
                     likely_mat typeString = likely_type_to_string(type);
                     printf("%s \t%s \t%d \t%s\t", function(), typeString->data, size, execution.c_str());
                     likely_release(typeString);
