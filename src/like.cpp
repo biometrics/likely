@@ -28,6 +28,7 @@ using namespace std;
 
 static cl::opt<string> input (cl::Positional, cl::desc("<input file>" ), cl::init(""));
 static cl::opt<string> output(cl::Positional, cl::desc("<output file>"), cl::init(""));
+static cl::opt<bool> source("source", cl::desc("Treat input as a source code string instead of a file"));
 static cl::opt<bool> gfm("gfm", cl::desc("Tokenize source using Github Flavored Markdown"));
 static cl::opt<bool> gui("gui", cl::desc("Show matrix output in a window"));
 
@@ -48,15 +49,17 @@ int main(int argc, char *argv[])
             likely_repl(line.c_str(), gfm, NULL, NULL);
         }
     } else {
-        ifstream file(input.c_str());
-        const string source((istreambuf_iterator<char>(file)),
-                             istreambuf_iterator<char>());
-        likely_assert(!source.empty(), "failed to read input file");
+        if (!source) {
+            ifstream file(input.c_str());
+            input = string((istreambuf_iterator<char>(file)),
+                           istreambuf_iterator<char>());
+            likely_assert(!input.empty(), "failed to read input file");
+        }
 
         likely_env env;
         if (output.empty()) env = likely_new_env_jit(); // Interpreter
         else                env = likely_new_env_offline(output.c_str(), true); // Static compiler
-        likely_release_env(likely_repl(source.c_str(), gfm, env, NULL));
+        likely_release_env(likely_repl(input.c_str(), gfm, env, NULL));
         likely_release_env(env);
     }
 
