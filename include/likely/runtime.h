@@ -142,6 +142,7 @@ LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
 // Matrix creation
 LIKELY_EXPORT likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data);
 LIKELY_EXPORT likely_mat likely_scalar(likely_type type, double value);
+LIKELY_EXPORT likely_mat likely_scalars(likely_type type, double value, ...);
 LIKELY_EXPORT likely_mat likely_string(const char *str);
 LIKELY_EXPORT likely_mat likely_void();
 LIKELY_EXPORT likely_mat likely_copy(likely_const_mat m);

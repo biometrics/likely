@@ -24,10 +24,12 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <mutex>
 #include <string>
 #include <sstream>
 #include <thread>
+#include <vector>
 
 #include "likely/runtime.h"
 
@@ -131,8 +133,29 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
 
 likely_mat likely_scalar(likely_type type, double value)
 {
-    likely_mat m = likely_new(type != likely_matrix_void ? type : likely_type_from_value(value), 1, 1, 1, 1, NULL);
-    likely_set_element(m, value, 0, 0, 0, 0);
+    return likely_scalars(type, value, numeric_limits<double>::quiet_NaN());
+}
+
+likely_mat likely_scalars(likely_type type, double value, ...)
+{
+    vector<double> values;
+    va_list ap;
+    va_start(ap, value);
+    while (!isnan(value)) {
+        values.push_back(value);
+        value = va_arg(ap, double);
+    }
+    va_end(ap);
+
+    if ((type == likely_matrix_void) && !values.empty()) {
+        type = likely_type_from_value(values[0]);
+        for (size_t i=1; i<values.size(); i++)
+            type = likely_type_from_types(type, likely_type_from_value(values[i]));
+    }
+
+    likely_mat m = likely_new(type, values.size(), 1, 1, 1, NULL);
+    for (size_t i=0; i<values.size(); i++)
+        likely_set_element(m, values[i], i, 0, 0, 0);
     return m;
 }
 
