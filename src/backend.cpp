@@ -34,6 +34,7 @@
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/ToolOutputFile.h>
 #include <llvm/Target/TargetLibraryInfo.h>
+#include <llvm/Transforms/IPO.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Utils/Cloning.h>
@@ -281,6 +282,7 @@ struct likely_resources
             builder.OptLevel = 3;
             builder.SizeLevel = 0;
             builder.LoopVectorize = true;
+            builder.Inliner = createAlwaysInlinerPass();
             builder.populateModulePassManager(*PM);
             PM->add(createVerifierPass());
         }
@@ -1776,8 +1778,10 @@ private:
                 params.push_back(NativeInt);
                 params.push_back(NativeInt);
                 thunk = ::cast<Function>(builder.module()->getOrInsertFunction(getUniqueName("thunk"), FunctionType::get(Type::getVoidTy(C), params, false)));
+                thunk->addFnAttr(Attribute::AlwaysInline);
                 thunk->addFnAttr(Attribute::NoUnwind);
                 thunk->setCallingConv(CallingConv::C);
+                thunk->setLinkage(GlobalValue::PrivateLinkage);
                 for (int i=1; i<int(types.size()+2); i++) {
                     thunk->setDoesNotAlias(i);
                     thunk->setDoesNotCapture(i);
