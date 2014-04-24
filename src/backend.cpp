@@ -183,6 +183,9 @@ struct likely_expression
         return NULL;
     }
 
+    // Idiom to ensure that specified library symbols aren't stripped when optimizing executable size
+    virtual void *symbol() const { return NULL; }
+
 private:
     Value* value_;
     likely_type type_;
@@ -643,11 +646,6 @@ struct VTable : public ScopedExpression
 extern "C" LIKELY_EXPORT likely_mat likely_dynamic(struct VTable *vtable, likely_const_mat m, ...);
 
 namespace {
-
-class LibraryFunction
-{
-    virtual void *symbol() const = 0; // Idiom to ensure that the library symbol isn't stripped when optimizing executable size
-};
 
 static int getPrecedence(const char *op)
 {
@@ -1126,7 +1124,7 @@ class definedExpression : public DefinitionOperator
 };
 LIKELY_REGISTER_EXPRESSION(defined, "??")
 
-class elementsExpression : public SimpleUnaryOperator, public LibraryFunction
+class elementsExpression : public SimpleUnaryOperator
 {
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &arg) const
     {
@@ -1144,7 +1142,7 @@ class elementsExpression : public SimpleUnaryOperator, public LibraryFunction
 };
 LIKELY_REGISTER(elements)
 
-class bytesExpression : public SimpleUnaryOperator, public LibraryFunction
+class bytesExpression : public SimpleUnaryOperator
 {
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &arg) const
     {
@@ -1162,7 +1160,7 @@ class bytesExpression : public SimpleUnaryOperator, public LibraryFunction
 };
 LIKELY_REGISTER(bytes)
 
-class newExpression : public Operator, public LibraryFunction
+class newExpression : public Operator
 {
     size_t maxParameters() const { return 6; }
     size_t minParameters() const { return 0; }
@@ -1232,7 +1230,7 @@ public:
 };
 LIKELY_REGISTER(new)
 
-class scalarExpression : public UnaryOperator, public LibraryFunction
+class scalarExpression : public UnaryOperator
 {
     likely_expression *evaluateUnary(Builder &builder, likely_const_ast arg) const
     {
@@ -1272,7 +1270,7 @@ class scalarExpression : public UnaryOperator, public LibraryFunction
 };
 LIKELY_REGISTER(scalar)
 
-class stringExpression : public SimpleUnaryOperator, public LibraryFunction
+class stringExpression : public SimpleUnaryOperator
 {
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &arg) const
     {
@@ -1298,7 +1296,7 @@ public:
 };
 LIKELY_REGISTER(string)
 
-class copyExpression : public SimpleUnaryOperator, public LibraryFunction
+class copyExpression : public SimpleUnaryOperator
 {
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &arg) const
     {
@@ -1324,7 +1322,7 @@ public:
 };
 LIKELY_REGISTER(copy)
 
-class retainExpression : public SimpleUnaryOperator, public LibraryFunction
+class retainExpression : public SimpleUnaryOperator
 {
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &arg) const
     {
@@ -1350,7 +1348,7 @@ public:
 };
 LIKELY_REGISTER(retain)
 
-class releaseExpression : public SimpleUnaryOperator, public LibraryFunction
+class releaseExpression : public SimpleUnaryOperator
 {
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &arg) const
     {
@@ -1375,7 +1373,7 @@ public:
 };
 LIKELY_REGISTER(release)
 
-struct Lambda : public ScopedExpression, public LibraryFunction
+struct Lambda : public ScopedExpression
 {
     Lambda(Builder &builder, likely_const_ast ast)
         : ScopedExpression(builder, ast) {}
@@ -1670,7 +1668,7 @@ class ifExpression : public Operator
 };
 LIKELY_REGISTER_EXPRESSION(if, "?")
 
-struct Kernel : public Lambda, public LibraryFunction
+struct Kernel : public Lambda
 {
     Kernel(Builder &builder, likely_const_ast ast)
         : Lambda(builder, ast) {}
@@ -2126,7 +2124,7 @@ JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<l
 #ifdef LIKELY_IO
 #include "likely/io.h"
 
-class printExpression : public VAOperator, public LibraryFunction
+class printExpression : public VAOperator
 {
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
@@ -2165,7 +2163,7 @@ class printExpression : public VAOperator, public LibraryFunction
 };
 LIKELY_REGISTER(print)
 
-class readExpression : public SimpleUnaryOperator, public LibraryFunction
+class readExpression : public SimpleUnaryOperator
 {
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &arg) const
     {
@@ -2184,7 +2182,7 @@ class readExpression : public SimpleUnaryOperator, public LibraryFunction
 };
 LIKELY_REGISTER(read)
 
-class writeExpression : public SimpleBinaryOperator, public LibraryFunction
+class writeExpression : public SimpleBinaryOperator
 {
     likely_expression *evaluateSimpleBinary(Builder &builder, const unique_ptr<likely_expression> &arg1, const unique_ptr<likely_expression> &arg2) const
     {
@@ -2214,7 +2212,7 @@ class writeExpression : public SimpleBinaryOperator, public LibraryFunction
 };
 LIKELY_REGISTER(write)
 
-class decodeExpression : public SimpleUnaryOperator, public LibraryFunction
+class decodeExpression : public SimpleUnaryOperator
 {
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &arg) const
     {
@@ -2233,7 +2231,7 @@ class decodeExpression : public SimpleUnaryOperator, public LibraryFunction
 };
 LIKELY_REGISTER(decode)
 
-class encodeExpression : public SimpleBinaryOperator, public LibraryFunction
+class encodeExpression : public SimpleBinaryOperator
 {
     likely_expression *evaluateSimpleBinary(Builder &builder, const unique_ptr<likely_expression> &arg1, const unique_ptr<likely_expression> &arg2) const
     {
@@ -2263,7 +2261,7 @@ class encodeExpression : public SimpleBinaryOperator, public LibraryFunction
 };
 LIKELY_REGISTER(encode)
 
-class renderExpression : public SimpleUnaryOperator, public LibraryFunction
+class renderExpression : public SimpleUnaryOperator
 {
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &arg) const
     {
@@ -2297,7 +2295,7 @@ class renderExpression : public SimpleUnaryOperator, public LibraryFunction
 };
 LIKELY_REGISTER(render)
 
-class showExpression : public SimpleUnaryOperator, public LibraryFunction
+class showExpression : public SimpleUnaryOperator
 {
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &arg) const
     {

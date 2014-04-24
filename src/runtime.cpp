@@ -141,7 +141,7 @@ likely_mat likely_scalars(likely_type type, double value, ...)
     vector<double> values;
     va_list ap;
     va_start(ap, value);
-    while (!isnan(value)) {
+    while (!std::isnan(value)) {
         values.push_back(value);
         value = va_arg(ap, double);
     }
