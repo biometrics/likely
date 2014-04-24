@@ -161,7 +161,9 @@ LIKELY_EXPORT likely_type likely_type_field_from_string(const char *str, bool *o
 LIKELY_EXPORT likely_type likely_type_from_value(double value);
 LIKELY_EXPORT likely_type likely_type_from_types(likely_type lhs, likely_type rhs);
 
+// Parallelization
 typedef uint8_t likely_arity;
+LIKELY_EXPORT void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...);
 
 #ifdef __cplusplus
 }

@@ -1670,7 +1670,7 @@ class ifExpression : public Operator
 };
 LIKELY_REGISTER_EXPRESSION(if, "?")
 
-struct Kernel : public Lambda
+struct Kernel : public Lambda, public LibraryFunction
 {
     Kernel(Builder &builder, likely_const_ast ast)
         : Lambda(builder, ast) {}
@@ -1793,6 +1793,8 @@ private:
             return likely_matrix_native;
         }
     };
+
+    void *symbol() const { return (void*) likely_fork; }
 
     likely_expression *evaluateLambda(Builder &builder, const vector<likely_expression> &srcs) const
     {

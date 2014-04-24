@@ -398,7 +398,7 @@ static void workerThread(size_t id)
     }
 }
 
-extern "C" LIKELY_EXPORT void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...)
+void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...)
 {
     static mutex forkLock;
     lock_guard<mutex> lockFork(forkLock);
