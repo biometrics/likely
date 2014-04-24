@@ -1,5 +1,5 @@
 set(LIKELY_SRC backend.cpp frontend.cpp)
-file(GLOB LIKELY_LIBRARY ${CMAKE_SOURCE_DIR}/library/*.l)
+file(GLOB LIKELY_LIBRARY ${CMAKE_SOURCE_DIR}/library/*)
 set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/LICENSE.txt
                 ${CMAKE_SOURCE_DIR}/README.md
@@ -10,14 +10,14 @@ set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/include/likely/runtime.h
                 ${CMAKE_SOURCE_DIR}/index.html
                 ${CMAKE_SOURCE_DIR}/share/likely/LikelyConfig.cmake
-                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/README.l
-                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello_world_div2.l)
+                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/README.ll
+                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello_world_div2.ll)
 
 # Build standard library
 add_executable(embedfile embedfile.c)
 add_custom_command(OUTPUT likely_standard_library.c
-                   COMMAND embedfile likely_standard_library ${CMAKE_SOURCE_DIR}/library/standard.l
-                   DEPENDS embedfile ${CMAKE_SOURCE_DIR}/library/standard.l)
+                   COMMAND embedfile likely_standard_library ${CMAKE_SOURCE_DIR}/library/standard.ll
+                   DEPENDS embedfile ${CMAKE_SOURCE_DIR}/library/standard.ll)
 set(LIKELY_SRC ${LIKELY_SRC} ${CMAKE_CURRENT_BINARY_DIR}/likely_standard_library.c)
 set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
 

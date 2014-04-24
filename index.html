@@ -83,7 +83,7 @@ _gaq.push(['_trackPageview']);
 </style>
 
 <div class="container"> <div class="row"> <div class="span12">
-<div id="content"><br>Loading...</div>
+<div id="content"><br>Loading...<br><br>Did you disable JavaScript?</div>
 <script>
 function getQueryVariable(variable) {
   var query = window.location.search.substring(1);
@@ -106,7 +106,7 @@ String.prototype.endsWith = function(suffix) {
 if (show.endsWith("/"))
     show = show.substring(0, show.length-1);
 if (show.indexOf(".") == -1)
-    show = "library/" + show + ".l";
+    show = "library/" + show + ".ll";
 $("#raw").attr("href","http://raw.github.com/biometrics/likely/gh-pages/"+show);
 
 marked.setOptions({
