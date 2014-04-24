@@ -1065,7 +1065,7 @@ private:
     }
 };
 
-class Variable : public Operator
+class Variable : public likely_expression
 {
     likely_type types;
     AllocaInst *allocaInst;
@@ -1084,8 +1084,7 @@ public:
     }
 
 private:
-    size_t maxParameters() const { return 0; }
-    likely_expression *evaluateOperator(Builder &builder, likely_const_ast) const
+    likely_expression *evaluate(Builder &builder, likely_const_ast) const
     {
         return new likely_expression(builder.CreateLoad(allocaInst), types);
     }
@@ -1924,14 +1923,17 @@ private:
             }
 
             UniqueExpression result(builder.expression(ast->atoms[2]));
-            likely_set_data(&kernelType, likely_data(result));
+            const vector<const likely_expression*> expressions = result.expressions();
+            likely_type kernelDataType = likely_matrix_void;
+            for (const likely_expression *e : expressions)
+                kernelDataType = likely_type_from_types(kernelDataType, *e);
+            likely_set_data(&kernelType, likely_data(kernelDataType));
             dst.setType(kernelType);
 
-            const vector<const likely_expression*> expressions = result.expressions();
             thunkResults = expressions.size();
             channelStep->addIncoming(builder.constant(thunkResults), thunkEntry);
             for (size_t i=0; i<thunkResults; i++) {
-                StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis.back()->offset, builder.constant(i))));
+                StoreInst *store = builder.CreateStore(builder.cast(expressions[i], kernelDataType), builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis.back()->offset, builder.constant(i))));
                 store->setMetadata("llvm.mem.parallel_loop_access", axis.back()->node);
             }
 
