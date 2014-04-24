@@ -48,20 +48,23 @@ int main(int argc, char *argv[])
             likely_repl(line.c_str(), false, NULL, NULL);
         }
     } else {
-        bool gfm = false;
-        if (!source) {
+        bool gfm;
+        likely_mat code;
+        if (source) {
+            gfm = false;
+            code = likely_string(input.c_str());
+        } else {
             gfm = (input.getValue().substr(input.getValue().size()-3) != ".lk");
-            ifstream file(input.c_str());
-            input = string((istreambuf_iterator<char>(file)),
-                           istreambuf_iterator<char>());
-            likely_assert(!input.empty(), "failed to read input file");
+            code = likely_read(input.c_str(), false);
+            likely_assert(code != NULL, "failed to read input file");
         }
 
         likely_env env;
         if (output.empty()) env = likely_new_env_jit(); // Interpreter
         else                env = likely_new_env_offline(output.c_str(), true); // Static compiler
-        likely_release_env(likely_repl(input.c_str(), gfm, env, NULL));
+        likely_release_env(likely_repl((const char*)code->data, gfm, env, NULL));
         likely_release_env(env);
+        likely_release(code);
     }
 
     return EXIT_SUCCESS;
