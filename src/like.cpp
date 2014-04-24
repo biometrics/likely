@@ -29,7 +29,6 @@ using namespace std;
 static cl::opt<string> input (cl::Positional, cl::desc("<input file>" ), cl::init(""));
 static cl::opt<string> output(cl::Positional, cl::desc("<output file>"), cl::init(""));
 static cl::opt<bool> source("source", cl::desc("Treat input as a source code string instead of a file"));
-static cl::opt<bool> gfm("gfm", cl::desc("Tokenize source using Github Flavored Markdown"));
 static cl::opt<bool> gui("gui", cl::desc("Show matrix output in a window"));
 
 int main(int argc, char *argv[])
@@ -46,10 +45,12 @@ int main(int argc, char *argv[])
             cout << "> ";
             string line;
             getline(cin, line);
-            likely_repl(line.c_str(), gfm, NULL, NULL);
+            likely_repl(line.c_str(), false, NULL, NULL);
         }
     } else {
+        bool gfm = false;
         if (!source) {
+            gfm = (input.getValue().substr(input.getValue().size()-3) != ".lk");
             ifstream file(input.c_str());
             input = string((istreambuf_iterator<char>(file)),
                            istreambuf_iterator<char>());

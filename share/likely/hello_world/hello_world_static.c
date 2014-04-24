@@ -4,7 +4,7 @@
 #include <likely/runtime.h>
 
 // Provided by a call to the static compiler:
-// $ like -gfm hello_world_div2.l hello_world_div2.o
+// $ like hello_world_div2.ll hello_world_div2.o
 likely_const_mat hello_world_div2(const likely_const_mat m);
 
 int main()
