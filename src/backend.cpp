@@ -440,9 +440,9 @@ struct Builder : public IRBuilder<>
     likely_expression frames  (const likely_expression *matrix) { return likely_multi_frame  (*matrix) ? likely_expression(CreateLoad(CreateStructGEP(*matrix, 5), "frames"  ), likely_matrix_native) : one(); }
     likely_expression data    (const likely_expression *matrix) { return likely_expression(CreatePointerCast(CreateStructGEP(*matrix, 7), ty(*matrix, true)), likely_data(*matrix)); }
 
-    void steps(const likely_expression *matrix, Value **columnStep, Value **rowStep, Value **frameStep)
+    void steps(const likely_expression *matrix, Value *channelStep, Value **columnStep, Value **rowStep, Value **frameStep)
     {
-        *columnStep = channels(matrix);
+        *columnStep = CreateMul(channels(matrix), channelStep, "x_step");
         *rowStep    = CreateMul(columns(matrix), *columnStep, "y_step");
         *frameStep  = CreateMul(rows(matrix), *rowStep, "t_step");
     }
@@ -1691,11 +1691,12 @@ private:
     {
         likely_expression matrix;
         likely_type kernel;
+        Value *channelStep;
         MDNode *node;
 
     public:
-        kernelArgument(const likely_expression &matrix, likely_type kernel, MDNode *node)
-            : matrix(matrix), kernel(kernel), node(node) {}
+        kernelArgument(const likely_expression &matrix, likely_type kernel, Value *channelStep, MDNode *node)
+            : matrix(matrix), kernel(kernel), channelStep(channelStep), node(node) {}
 
     private:
         size_t maxParameters() const { return 0; }
@@ -1710,9 +1711,9 @@ private:
                 i = *builder.lookup("i");
             } else {
                 Value *columnStep, *rowStep, *frameStep;
-                builder.steps(&matrix, &columnStep, &rowStep, &frameStep);
+                builder.steps(&matrix, channelStep, &columnStep, &rowStep, &frameStep);
                 i = Builder::zero();
-                if (likely_multi_channel(matrix)) i = *builder.lookup("c");
+                if (likely_multi_channel(matrix)) i = builder.CreateMul(*builder.lookup("c"), channelStep);
                 if (likely_multi_column (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), columnStep), i);
                 if (likely_multi_row    (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep   ), i);
                 if (likely_multi_frame  (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep ), i);
@@ -1830,6 +1831,7 @@ private:
 
         Function *thunk;
         vector<string> thunkAxis;
+        size_t thunkResults;
         {
             { // declare thunk
                 vector<Type*> params = T::toLLVM(types);
@@ -1847,7 +1849,8 @@ private:
                 }
             }
 
-            builder.SetInsertPoint(BasicBlock::Create(C, "entry", thunk));
+            BasicBlock *thunkEntry = BasicBlock::Create(C, "entry", thunk);
+            builder.SetInsertPoint(thunkEntry);
             vector<likely_expression> srcs = builder.getArgs(thunk, types);
             likely_expression stop = srcs.back(); srcs.pop_back();
             stop.setType(likely_matrix_native);
@@ -1859,8 +1862,13 @@ private:
             dst.value()->setName("dst");
             dst.setType(kernelType);
 
-            Value *channelStep = builder.one(), *columnStep, *rowStep, *frameStep;
-            builder.steps(&dst, &columnStep, &rowStep, &frameStep);
+            BasicBlock *steps = BasicBlock::Create(C, "steps", thunk);
+            builder.CreateBr(steps);
+            builder.SetInsertPoint(steps);
+            PHINode *channelStep;
+            channelStep = builder.CreatePHI(NativeInt, 1); // Defined after we know the number or results
+            Value *columnStep, *rowStep, *frameStep;
+            builder.steps(&dst, channelStep, &columnStep, &rowStep, &frameStep);
 
             vector<kernelAxis*> axis;
             for (int axis_index=0; axis_index<4; axis_index++) {
@@ -1909,17 +1917,23 @@ private:
             if (args->is_list) {
                 assert(srcs.size() == args->num_atoms);
                 for (size_t j=0; j<args->num_atoms; j++)
-                    builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, axis.back()->node));
+                    builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, channelStep, axis.back()->node));
             } else {
                 assert(srcs.size() == 1);
-                builder.define(args->atom, new kernelArgument(srcs[0], dst, axis.back()->node));
+                builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis.back()->node));
             }
 
             UniqueExpression result(builder.expression(ast->atoms[2]));
             likely_set_data(&kernelType, likely_data(result));
             dst.setType(kernelType);
-            StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), axis.back()->offset));
-            store->setMetadata("llvm.mem.parallel_loop_access", axis.back()->node);
+
+            const vector<const likely_expression*> expressions = result.expressions();
+            thunkResults = expressions.size();
+            channelStep->addIncoming(builder.constant(thunkResults), thunkEntry);
+            for (size_t i=0; i<thunkResults; i++) {
+                StoreInst *store = builder.CreateStore(result, builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis.back()->offset, builder.constant(i))));
+                store->setMetadata("llvm.mem.parallel_loop_access", axis.back()->node);
+            }
 
             axis.back()->close(builder); // Closes all axis
             thunkAxis = axis.front()->tryCollapse();
@@ -1940,7 +1954,7 @@ private:
         }
 
         builder.SetInsertPoint(entry);
-        Value *dst = newExpression::createCall(builder, Builder::type(kernelType), dstChannels, dstColumns, dstRows, dstFrames, Builder::nullData());
+        Value *dst = newExpression::createCall(builder, Builder::type(kernelType), builder.CreateMul(dstChannels, builder.constant(thunkResults)), dstColumns, dstRows, dstFrames, Builder::nullData());
         Value *kernelSize = builder.one();
         for (const string &str : thunkAxis) {
             if      (str == "c") kernelSize = builder.CreateMul(kernelSize, dstChannels);
