@@ -42,14 +42,21 @@ static size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp)
     return size*nmemb;
 }
 
-likely_mat likely_read(const char *file_name)
+static likely_mat tryDecode(likely_mat encoded)
+{
+    if (likely_mat decoded = likely_decode(encoded)) {
+        likely_release(encoded);
+        return decoded;
+    }
+    return encoded;
+}
+
+likely_mat likely_read(const char *file_name, bool decode)
 {
     // Interpret ~ as $HOME
     string fileName = file_name;
     if (fileName[0] == '~')
         fileName = getenv("HOME") + fileName.substr(1);
-
-    likely_mat m = NULL;
 
     // Is it a file?
     if (FILE *fp = fopen(fileName.c_str(), "rb")) {
@@ -65,53 +72,43 @@ likely_mat likely_read(const char *file_name)
         if (data) {
             // Is it a matrix?
             if (size >= sizeof(likely_matrix)) {
-                likely_mat test = likely_mat(data);
-                if ((likely_magic(test->type) == likely_matrix_matrix) &&
-                    (sizeof(likely_matrix) + likely_bytes(test) == size))
-                    m = test;
+                likely_mat m = likely_mat(data);
+                if ((likely_magic(m->type) == likely_matrix_matrix) &&
+                    (sizeof(likely_matrix) + likely_bytes(m) == size))
+                    return m;
             }
 
             // Otherwise, try to decode it
-            if (m == NULL) {
-                likely_mat encoded = likely_new(likely_matrix_u8, 1, size, 1, 1, data);
-                free(data);
-                if (likely_mat decoded = likely_decode(encoded)) {
-                    m = decoded;
-                    likely_release(encoded);
-                } else {
-                    m = encoded;
-                }
-            }
+            likely_mat encoded = likely_new(likely_matrix_u8, 1, size, 1, 1, data);
+            free(data);
+            return decode ? tryDecode(encoded) : encoded;
         }
     }
 
     // Is it a URL?
-    if (m == NULL) {
-        static bool init = false;
-        if (!init) {
-            curl_global_init(CURL_GLOBAL_ALL);
-            init = true;
-        }
-
-        vector<char> buffer;
-        if (CURL *curl = curl_easy_init()) {
-            curl_easy_setopt(curl, CURLOPT_URL, file_name);
-            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
-            CURLcode result = curl_easy_perform(curl);
-            curl_easy_cleanup(curl);
-            if (result != CURLE_OK)
-                buffer.clear();
-        }
-
-        if (!buffer.empty()) {
-            likely_mat encodedImage = likely_new(likely_matrix_u8, 1, buffer.size(), 1, 1, buffer.data());
-            m = likely_decode(encodedImage);
-            likely_release(encodedImage);
-        }
+    static bool init = false;
+    if (!init) {
+        curl_global_init(CURL_GLOBAL_ALL);
+        init = true;
     }
 
-    return m;
+    vector<char> buffer;
+    if (CURL *curl = curl_easy_init()) {
+        curl_easy_setopt(curl, CURLOPT_URL, file_name);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
+        CURLcode result = curl_easy_perform(curl);
+        curl_easy_cleanup(curl);
+        if (result != CURLE_OK)
+            buffer.clear();
+    }
+
+    if (!buffer.empty()) {
+        likely_mat encoded = likely_new(likely_matrix_u8, 1, buffer.size(), 1, 1, buffer.data());
+        return decode ? tryDecode(encoded) : encoded;
+    }
+
+    return NULL;
 }
 
 likely_mat likely_write(likely_const_mat image, const char *file_name)

@@ -2168,7 +2168,14 @@ class readExpression : public SimpleUnaryOperator
 {
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &arg) const
     {
-        static FunctionType *functionType = FunctionType::get(T::Void, Type::getInt8PtrTy(C), false);
+        static FunctionType *functionType = NULL;
+        if (functionType == NULL) {
+            vector<Type*> params;
+            params.push_back(Type::getInt8PtrTy(C));
+            params.push_back(Type::getInt1Ty(C));
+            functionType = FunctionType::get(T::Void, params, false);
+        }
+
         Function *likelyRead = builder.module()->getFunction("likely_read");
         if (!likelyRead) {
             likelyRead = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_read", builder.module());
@@ -2177,7 +2184,7 @@ class readExpression : public SimpleUnaryOperator
             likelyRead->setDoesNotAlias(1);
             likelyRead->setDoesNotCapture(1);
         }
-        return new likely_expression(builder.CreateCall(likelyRead, *arg), likely_matrix_void);
+        return new likely_expression(builder.CreateCall2(likelyRead, *arg, ConstantInt::getTrue(C)), likely_matrix_void);
     }
     void *symbol() const { return (void*) likely_read; }
 };

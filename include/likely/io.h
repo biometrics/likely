@@ -26,7 +26,7 @@ extern "C" {
 #endif // __cplusplus
 
 // Matrix I/O
-LIKELY_EXPORT likely_mat likely_read(const char *file_name);
+LIKELY_EXPORT likely_mat likely_read(const char *file_name, bool decode);
 LIKELY_EXPORT likely_mat likely_write(likely_const_mat image, const char *file_name);
 LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
 LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
