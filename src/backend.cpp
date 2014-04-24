@@ -341,9 +341,10 @@ class JITFunction : public likely_resources
     ExecutionEngine *EE = NULL;
 
 public:
-    void *function = NULL;
+    likely_function function = NULL;
     bool error = false;
     const vector<likely_type> type;
+    size_t ref_count = 1;
 
     JITFunction(likely_const_ast ast, likely_env env, const vector<likely_type> &type);
 
@@ -2420,7 +2421,7 @@ likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat m, ...)
     return dst;
 }
 
-static map<likely_function, pair<JITFunction*,int>> ResourcesLUT;
+static map<likely_function, JITFunction*> JITFunctionLUT;
 
 likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type type, ...)
 {
@@ -2433,26 +2434,26 @@ likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type
         type = va_arg(ap, likely_type);
     }
     va_end(ap);
-    JITFunction *r = new JITFunction(ast, env, types);
-    likely_function f = reinterpret_cast<likely_function>(r->function);
-    if (f) ResourcesLUT[f] = pair<JITFunction*,int>(r, 1);
-    else   delete r;
+    JITFunction *jit = new JITFunction(ast, env, types);
+    likely_function f = reinterpret_cast<likely_function>(jit->function);
+    if (f) JITFunctionLUT[f] = jit;
+    else   delete jit;
     return f;
 }
 
 likely_function likely_retain_function(likely_function function)
 {
-    if (function) ResourcesLUT[function].second++;
+    if (function) JITFunctionLUT[function]->ref_count++;
     return function;
 }
 
 void likely_release_function(likely_function function)
 {
     if (!function) return;
-    pair<JITFunction*,int> &df = ResourcesLUT[function];
-    if (--df.second) return;
-    ResourcesLUT.erase(function);
-    delete df.first;
+    JITFunction*& jit = JITFunctionLUT[function];
+    if (--jit->ref_count) return;
+    JITFunctionLUT.erase(function);
+    delete jit;
 }
 
 likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
