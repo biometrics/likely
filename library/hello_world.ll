@@ -6,4 +6,4 @@ Click **View Source** and _copy+paste_ this file into **dream**, Likely's IDE. N
     hello_world = a => a / (a.type 2)
     (hello_world lenna)
 
-[Next](?show=like)
+[Next](?show=likely)

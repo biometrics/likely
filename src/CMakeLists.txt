@@ -63,6 +63,7 @@ install(TARGETS likely_static ARCHIVE DESTINATION lib)
 
 # Build static compiler
 add_executable(like like.cpp)
+set_target_properties(like PROPERTIES OUTPUT_NAME likely)
 target_link_libraries(like likely)
 install(TARGETS like RUNTIME DESTINATION bin)
 

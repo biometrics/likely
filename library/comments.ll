@@ -15,4 +15,4 @@ or `z = y + 6` `(z)`. Everything outside a code block is a comment!
 
 As an *exception* to this rule, Likely will treat the *entire file* as code if it starts with an opening parenthesis: **(**.
 
-[Previous](?show=like) | [Next](?show=matrix_io)
+[Previous](?show=likely) | [Next](?show=matrix_io)
