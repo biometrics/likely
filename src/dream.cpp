@@ -113,7 +113,6 @@ class Source : public QPlainTextEdit
 {
     Q_OBJECT
     QString header, previousSource;
-    QSettings settings;
     int wheelRemainderX = 0, wheelRemainderY = 0;
     likely_env prev = NULL;
 
@@ -129,75 +128,11 @@ public:
         likely_release_env(prev);
     }
 
-    void restore()
-    {
-        if (!Input.empty()) {
-            settings.setValue("sourceFileName", QString::fromStdString(Input));
-            settings.sync();
-        }
-
-        // Try to open the previous file
-        if (fileMenu("Open Quiet"))
-            return;
-
-        const QString source = settings.value("source").toString();
-        settings.setValue("source", QString()); // Start empty the next time if this source code crashes
-        settings.sync();
-        setPlainText(source);
-    }
-
 public slots:
     void setHeader(const QString &header)
     {
         this->header = header;
         eval();
-    }
-
-    bool fileMenu(const QString &action)
-    {
-        QString sourceFileName = settings.value("sourceFileName").toString();
-        QString sourceFilePath = settings.value("sourceFilePath").toString();
-
-        // Start empty the next time if this source code crashes
-        settings.setValue("sourceFileName", QString());
-        settings.sync();
-
-        if (action.startsWith("New")) {
-            sourceFileName.clear();
-            setPlainText("");
-        } else if (action.startsWith("Open")) {
-            if (!action.endsWith("Quiet"))
-                sourceFileName = QFileDialog::getOpenFileName(this, "Open Source File", sourceFilePath);
-            if (!sourceFileName.isEmpty()) {
-                QFile file(sourceFileName);
-                if (file.open(QFile::ReadOnly | QFile::Text))
-                    setPlainText(QString::fromLocal8Bit(file.readAll()));
-                else
-                    sourceFileName.clear();
-            }
-        } else {
-            if (sourceFileName.isEmpty() || action.startsWith("Save As"))
-                sourceFileName = QFileDialog::getSaveFileName(this, "Save Source File", sourceFilePath);
-            if (!sourceFileName.isEmpty()) {
-                QFile file(sourceFileName);
-                file.open(QFile::WriteOnly | QFile::Text);
-                file.write(toPlainText().toLocal8Bit());
-            }
-        }
-
-        if (!sourceFileName.isEmpty())
-            sourceFilePath = QFileInfo(sourceFileName).filePath();
-
-        settings.setValue("sourceFileName", sourceFileName);
-        settings.setValue("sourceFilePath", sourceFilePath);
-        settings.sync();
-        emit newFileName(sourceFileName.isEmpty() ? "Likely" : QFileInfo(sourceFileName).fileName());
-        return !sourceFileName.isEmpty();
-    }
-
-    void fileMenu(QAction *a)
-    {
-        fileMenu(a->text());
     }
 
     void commandsMenu(QAction *a)
@@ -298,13 +233,11 @@ private slots:
         }
         likely_release_env(prev);
         prev = new_env;
-        emit finishedEval();
-        settings.setValue("source", toPlainText());
+        emit finishedEval(toPlainText());
     }
 
 signals:
-    void finishedEval();
-    void newFileName(QString);
+    void finishedEval(QString);
     void newStatus(QString);
 };
 
@@ -659,6 +592,7 @@ signals:
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
+    QSettings settings;
     Source *source;
     Printer *printer;
 
@@ -733,10 +667,10 @@ public:
 
         connect(commandMode, SIGNAL(commandMode(bool)), syntaxHighlighter, SLOT(setCommandMode(bool)));
         connect(printer, SIGNAL(newDefinitions(QString)), source, SLOT(setHeader(QString)));
-        connect(fileMenu, SIGNAL(triggered(QAction*)), source, SLOT(fileMenu(QAction*)));
+        connect(fileMenu, SIGNAL(triggered(QAction*)), this, SLOT(fileMenu(QAction*)));
         connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
-        connect(source, SIGNAL(finishedEval()), printer, SLOT(finishedPrinting()));
-        connect(source, SIGNAL(newFileName(QString)), this, SLOT(setWindowTitle(QString)));
+        connect(source, SIGNAL(finishedEval(QString)), this, SLOT(finishedEval(QString)));
+        connect(source, SIGNAL(finishedEval(QString)), printer, SLOT(finishedPrinting()));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
         connect(fullScreen, SIGNAL(toggled(bool)), this, SLOT(fullScreen(bool)));
         connect(spartan, SIGNAL(toggled(bool)), this, SLOT(spartan(bool)));
@@ -744,7 +678,7 @@ public:
 
         likely_set_error_callback(error_callback, statusBar);
         likely_set_show_callback(show_callback, printer);
-        source->restore();
+        restore();
         this->spartan(Spartan);
     }
 
@@ -765,6 +699,75 @@ private slots:
     {
         if ((windowTitle() != "Likely") && !windowTitle().endsWith("*"))
             setWindowTitle(windowTitle() + "*");
+    }
+
+    void restore()
+    {
+        if (!Input.empty()) {
+            settings.setValue("sourceFileName", QString::fromStdString(Input));
+            settings.sync();
+        }
+
+        // Try to open the previous file
+        if (fileMenu("Open Quiet"))
+            return;
+
+        const QString code = settings.value("source").toString();
+        settings.setValue("source", QString()); // Start empty the next time if this source code crashes
+        settings.sync();
+        source->setPlainText(code);
+    }
+
+    bool fileMenu(const QString &action)
+    {
+        QString sourceFileName = settings.value("sourceFileName").toString();
+        QString sourceFilePath = settings.value("sourceFilePath").toString();
+
+        // Start empty the next time if this source code crashes
+        settings.setValue("sourceFileName", QString());
+        settings.sync();
+
+        if (action.startsWith("New")) {
+            sourceFileName.clear();
+            source->setPlainText("");
+        } else if (action.startsWith("Open")) {
+            if (!action.endsWith("Quiet"))
+                sourceFileName = QFileDialog::getOpenFileName(this, "Open Source File", sourceFilePath);
+            if (!sourceFileName.isEmpty()) {
+                QFile file(sourceFileName);
+                if (file.open(QFile::ReadOnly | QFile::Text))
+                    source->setPlainText(QString::fromLocal8Bit(file.readAll()));
+                else
+                    sourceFileName.clear();
+            }
+        } else {
+            if (sourceFileName.isEmpty() || action.startsWith("Save As"))
+                sourceFileName = QFileDialog::getSaveFileName(this, "Save Source File", sourceFilePath);
+            if (!sourceFileName.isEmpty()) {
+                QFile file(sourceFileName);
+                file.open(QFile::WriteOnly | QFile::Text);
+                file.write(source->toPlainText().toLocal8Bit());
+            }
+        }
+
+        if (!sourceFileName.isEmpty())
+            sourceFilePath = QFileInfo(sourceFileName).filePath();
+
+        settings.setValue("sourceFileName", sourceFileName);
+        settings.setValue("sourceFilePath", sourceFilePath);
+        settings.sync();
+        setWindowTitle(sourceFileName.isEmpty() ? "Likely" : QFileInfo(sourceFileName).fileName());
+        return !sourceFileName.isEmpty();
+    }
+
+    void fileMenu(QAction *a)
+    {
+        fileMenu(a->text());
+    }
+
+    void finishedEval(const QString &source)
+    {
+        settings.setValue("source", source);
     }
 
 private:
