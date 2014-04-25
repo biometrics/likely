@@ -2478,15 +2478,15 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
             // Shortcut for global variable definitions
             delete Builder(env).expression(ast);
         } else {
-            likely_const_ast expr = likely_asts_from_string("() -> (scalar <ast>)", false);
-            expr->atoms[0]->atoms[2]->atoms[1] = likely_retain_ast(ast);
-            if (likely_function function = likely_compile(expr->atoms[0], env, likely_matrix_void)) {
+            likely_const_ast lambda = likely_ast_from_string("() -> (scalar <ast>)", false);
+            lambda->atoms[0]->atoms[2]->atoms[1] = likely_retain_ast(ast);
+            if (likely_function function = likely_compile(lambda->atoms[0], env, likely_matrix_void)) {
                 env->result = reinterpret_cast<likely_function_0>(function)();
                 likely_release_function(function);
             } else {
                 likely_set_erratum(&env->type, true);
             }
-            likely_release_ast(expr);
+            likely_release_ast(lambda);
         }
     }
     return env;
@@ -2494,8 +2494,8 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
 
 likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, likely_const_env prev)
 {
-    likely_const_ast asts = likely_asts_from_string(source, GFM);
-    if (!asts)
+    likely_const_ast ast = likely_ast_from_string(source, GFM);
+    if (!ast)
         return NULL;
 
     int prevDepth = 0;
@@ -2510,18 +2510,18 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, li
     }
 
     likely_env env = likely_retain_env(parent);
-    for (size_t i=0; i<asts->num_atoms; i++) {
-        likely_const_ast ast = asts->atoms[i];
-        env = likely_eval(ast, parent);
+    for (size_t i=0; i<ast->num_atoms; i++) {
+        likely_const_ast atom = ast->atoms[i];
+        env = likely_eval(atom, parent);
         likely_release_env(parent);
         parent = env;
         if (!likely_definition(env->type) && env->result && (likely_elements(env->result) > 0))
-            likely_show(env->result, ast->is_list ? NULL : ast->atom);
+            likely_show(env->result, atom->is_list ? NULL : atom->atom);
         if (likely_erratum(env->type))
             break;
     }
 
-    likely_release_ast(asts);
+    likely_release_ast(ast);
     return env;
 }
 

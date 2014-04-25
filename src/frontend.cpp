@@ -323,7 +323,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_a
     return true;
 }
 
-likely_ast likely_asts_from_tokens(likely_const_ast tokens)
+likely_ast likely_ast_from_tokens(likely_const_ast tokens)
 {
     size_t offset = 0;
     vector<likely_const_ast> expressions;
@@ -335,12 +335,12 @@ likely_ast likely_asts_from_tokens(likely_const_ast tokens)
     return likely_new_list(expressions.data(), expressions.size());
 }
 
-likely_ast likely_asts_from_string(const char *str, bool GFM)
+likely_ast likely_ast_from_string(const char *str, bool GFM)
 {
     likely_const_ast tokens = likely_tokens_from_string(str, GFM);
-    likely_ast asts = likely_asts_from_tokens(tokens);
+    likely_ast ast = likely_ast_from_tokens(tokens);
     likely_release_ast(tokens);
-    return asts;
+    return ast;
 }
 
 static void print(const likely_const_ast ast, stringstream &stream)
