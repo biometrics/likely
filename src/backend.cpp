@@ -2478,9 +2478,9 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
             // Shortcut for global variable definitions
             delete Builder(env).expression(ast);
         } else {
-            likely_const_ast expr = likely_ast_from_string("() -> (scalar <ast>)", false);
-            expr->atoms[2]->atoms[1] = likely_retain_ast(ast);
-            if (likely_function function = likely_compile(expr, env, likely_matrix_void)) {
+            likely_const_ast expr = likely_asts_from_string("() -> (scalar <ast>)", false);
+            expr->atoms[0]->atoms[2]->atoms[1] = likely_retain_ast(ast);
+            if (likely_function function = likely_compile(expr->atoms[0], env, likely_matrix_void)) {
                 env->result = reinterpret_cast<likely_function_0>(function)();
                 likely_release_function(function);
             } else {

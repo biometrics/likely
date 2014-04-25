@@ -323,16 +323,6 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_a
     return true;
 }
 
-likely_ast likely_ast_from_tokens(likely_const_ast tokens)
-{
-    likely_const_ast asts = likely_asts_from_tokens(tokens);
-    likely_ast ast = asts->num_atoms == 1 ? likely_retain_ast(asts->atoms[0]) : NULL;
-    if (asts->num_atoms > 1)
-        likely_throw(asts->atoms[1], "tokens leftover after parsing");
-    likely_release_ast(asts);
-    return ast;
-}
-
 likely_ast likely_asts_from_tokens(likely_const_ast tokens)
 {
     size_t offset = 0;
@@ -343,14 +333,6 @@ likely_ast likely_asts_from_tokens(likely_const_ast tokens)
             return NULL;
         }
     return likely_new_list(expressions.data(), expressions.size());
-}
-
-likely_ast likely_ast_from_string(const char *str, bool GFM)
-{
-    likely_const_ast tokens = likely_tokens_from_string(str, GFM);
-    likely_ast ast = likely_ast_from_tokens(tokens);
-    likely_release_ast(tokens);
-    return ast;
 }
 
 likely_ast likely_asts_from_string(const char *str, bool GFM)

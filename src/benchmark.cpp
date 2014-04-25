@@ -65,9 +65,9 @@ struct Test
         if (!BenchmarkFunction.empty() && string(function()).compare(0, BenchmarkFunction.size(), BenchmarkFunction))
             return;
 
-        likely_const_ast ast = likely_ast_from_string(function(), false);
+        likely_const_ast ast = likely_asts_from_string(function(), false);
         likely_env env = likely_new_env_jit();
-        likely_function_1 f = reinterpret_cast<likely_function_1>(likely_compile(ast, env, likely_matrix_void));
+        likely_function_1 f = reinterpret_cast<likely_function_1>(likely_compile(ast->atoms[0], env, likely_matrix_void));
         likely_release_env(env);
         likely_release_ast(ast);
 

@@ -14,10 +14,10 @@ The **C translation** of this is:
 int main()
 {
     // Do work
-    likely_const_mat lenna = likely_read("../data/misc/lenna.tiff");
+    likely_const_mat lenna = likely_read("../data/misc/lenna.tiff", true);
     likely_const_ast ast = likely_ast_from_string("a => a / (a.type 2)");
     likely_env env = likely_new_env_jit();
-    likely_function darken = likely_compile(ast, env, likely_matrix_void);
+    likely_function darken = likely_compile(ast->atoms[0], env, likely_matrix_void);
     likely_const_mat dark_lenna = darken(lenna);
 
     // Clean up

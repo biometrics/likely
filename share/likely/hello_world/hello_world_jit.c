@@ -57,13 +57,13 @@ int main(int argc, char *argv[])
     }
 
     printf("Parsing abstract syntax tree...\n");
-    likely_const_ast ast = likely_ast_from_string(filter, false);
+    likely_const_ast ast = likely_asts_from_string(filter, false);
 
     printf("Creating a compiler environment...\n");
     likely_env env = likely_new_env_jit();
 
     printf("Compiling source code...\n");
-    likely_function_1 darken = (likely_function_1) likely_compile(ast, env, likely_matrix_void);
+    likely_function_1 darken = (likely_function_1) likely_compile(ast->atoms[0], env, likely_matrix_void);
     if (!darken) {
         printf("Failed to compile!\n");
         return -1;
