@@ -224,14 +224,6 @@ struct UniqueASTL : public vector<likely_const_ast>
 const unique_ptr<likely_expression> EXPR((BUILDER).expression(AST)); \
 if (!EXPR.get()) return NULL;                                        \
 
-static string getUniqueName(const string &prefix)
-{
-    static map<string, int> uidLUT;
-    stringstream stream;
-    stream << "likely_" << prefix << "_" << uidLUT[prefix]++;
-    return stream.str();
-}
-
 } // namespace (anonymous)
 
 struct likely_resources
@@ -262,7 +254,7 @@ struct likely_resources
             T::Void = cast<PointerType>(T::get(likely_matrix_void).llvm);
         }
 
-        module = new Module(getUniqueName("module"), C);
+        module = new Module("likely_module", C);
         likely_assert(module != NULL, "failed to create module");
         if (native) module->setTargetTriple(sys::getProcessTriple());
     }
@@ -1848,7 +1840,7 @@ private:
                 params.push_back(T::Void);
                 params.push_back(NativeInt);
                 params.push_back(NativeInt);
-                thunk = ::cast<Function>(builder.module()->getOrInsertFunction(getUniqueName("thunk"), FunctionType::get(Type::getVoidTy(C), params, false)));
+                thunk = ::cast<Function>(builder.module()->getOrInsertFunction(builder.GetInsertBlock()->getParent()->getName().str() + "_thunk", FunctionType::get(Type::getVoidTy(C), params, false)));
                 thunk->addFnAttr(Attribute::AlwaysInline);
                 thunk->addFnAttr(Attribute::NoUnwind);
                 thunk->setCallingConv(CallingConv::C);
@@ -2122,7 +2114,7 @@ JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<l
         vector<T> types;
         for (likely_type t : type)
             types.push_back(T::get(t));
-        expr.reset(static_cast<Lambda*>(result.get())->generate(builder, types, getUniqueName("jit")));
+        expr.reset(static_cast<Lambda*>(result.get())->generate(builder, types, "likely_jit_function"));
         error = !expr.get();
     }
 
