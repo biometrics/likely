@@ -19,10 +19,12 @@
 #endif
 
 #include <llvm/PassManager.h>
+#include <llvm/ADT/Hashing.h>
 #include <llvm/ADT/Triple.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
 #include <llvm/Bitcode/ReaderWriter.h>
+#include <llvm/ExecutionEngine/ObjectCache.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
@@ -335,6 +337,24 @@ struct likely_resources
 };
 
 namespace {
+
+class JITFunctionCache : public ObjectCache
+{
+    map<hash_code, unique_ptr<MemoryBuffer>> cache;
+
+    void notifyObjectCompiled(const Module *M, const MemoryBuffer *Obj)
+    {
+        cache[hash_value(M)].reset(MemoryBuffer::getMemBufferCopy(Obj->getBuffer()));
+    }
+
+    MemoryBuffer *getObject(const Module *M)
+    {
+        if (MemoryBuffer *buffer = cache[hash_value(M)].get())
+            return MemoryBuffer::getMemBufferCopy(buffer->getBuffer());
+        return NULL;
+    }
+};
+static JITFunctionCache TheJITFunctionCache;
 
 class JITFunction : public likely_resources
 {
@@ -2113,12 +2133,11 @@ JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<l
                      .setErrorStr(&error)
                      .setUseMCJIT(true);
         EE = engineBuilder.create(getTargetMachine(true));
+//        EE->setObjectCache(&TheJITFunctionCache);
         likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
-
-        Function *F = dyn_cast<Function>(expr->value());
         optimize();
         EE->finalizeObject();
-        function = EE->getPointerToFunction(F);
+        function = EE->getPointerToFunction(dyn_cast<Function>(expr->value()));
     }
 }
 
