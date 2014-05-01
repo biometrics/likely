@@ -528,14 +528,14 @@ struct Builder : public IRBuilder<>
         return result;
     }
 
-    static likely_expression *lookup(likely_const_env env, const char *name)
+    static const likely_expression *lookup(likely_const_env env, const char *name)
     {
         if (!env) return NULL;
         if (likely_definition(env->type) && env->name && !strcmp(env->name, name)) return env->value;
         return lookup(env->parent, name);
     }
 
-    likely_expression *lookup(const char *name) const { return lookup(env, name); }
+    const likely_expression *lookup(const char *name) const { return lookup(env, name); }
 
     static likely_resources *lookupResources(likely_const_env env)
     {
@@ -546,7 +546,7 @@ struct Builder : public IRBuilder<>
 
     likely_resources *lookupResources() const { return lookupResources(env); }
 
-    static void define(likely_env &env, const char *name, likely_expression *value)
+    static void define(likely_env &env, const char *name, const likely_expression *value)
     {
         env = likely_new_env(env);
         likely_release_env(env->parent);
@@ -556,19 +556,19 @@ struct Builder : public IRBuilder<>
         env->value = value;
     }
 
-    static likely_expression *undefine(likely_env &env, const char *name)
+    static const likely_expression *undefine(likely_env &env, const char *name)
     {
         assert(likely_definition(env->type));
         likely_assert(!strcmp(env->name, name), "undefine variable mismatch");
-        likely_expression *value = env->value;
+        const likely_expression *value = env->value;
         likely_env old = env;
         env = likely_retain_env(env->parent);
         likely_release_env(old);
         return value;
     }
 
-    void   define(const char *name, likely_expression *e) { define(env, name, e); }
-    likely_expression *undefine(const char *name)         { return undefine(env, name); }
+    void   define(const char *name, const likely_expression *e) { define(env, name, e); }
+    const likely_expression *undefine(const char *name)         { return undefine(env, name); }
 
     Module *module() { return lookupResources()->module; }
 
@@ -767,7 +767,7 @@ likely_expression *Builder::expression(likely_const_ast ast)
             return likely_expression::error(ast, "Empty expression");
         likely_const_ast op = ast->atoms[0];
         if (!op->is_list)
-            if (likely_expression *e = lookup(op->atom))
+            if (const likely_expression *e = lookup(op->atom))
                 return e->evaluate(*this, ast);
         TRY_EXPR(*this, op, e);
         return e->evaluate(*this, ast);
@@ -780,7 +780,7 @@ likely_expression *Builder::expression(likely_const_ast ast)
             return var->second->evaluate(*this, ast);
     }
 
-    if (likely_expression *e = lookup(op.c_str()))
+    if (const likely_expression *e = lookup(op.c_str()))
         return e->evaluate(*this, ast);
 
     if ((op.front() == '"') && (op.back() == '"'))
@@ -1854,10 +1854,27 @@ private:
                 kernelType |= likely_type_field_from_string(pair.second->atom, NULL);
 
         BasicBlock *entry = builder.GetInsertBlock();
+        const likely_const_ast args = ast->atoms[1];
+        if (args->is_list) {
+            assert(srcs.size() == args->num_atoms);
+            for (size_t j=0; j<args->num_atoms; j++)
+                builder.define(args->atoms[j]->atom, &srcs[j]);
+        } else {
+            assert(srcs.size() == 1);
+            builder.define(args->atom, &srcs[0]);
+        }
+
         Value *dstChannels = getDimensions(builder, pairs, "channels", srcs, &kernelType);
         Value *dstColumns  = getDimensions(builder, pairs, "columns" , srcs, &kernelType);
         Value *dstRows     = getDimensions(builder, pairs, "rows"    , srcs, &kernelType);
         Value *dstFrames   = getDimensions(builder, pairs, "frames"  , srcs, &kernelType);
+
+        if (args->is_list) {
+            for (size_t j=0; j<args->num_atoms; j++)
+                builder.undefine(args->atoms[args->num_atoms-j-1]->atom);
+        } else {
+            builder.undefine(args->atom);
+        }
 
         Function *thunk;
         vector<string> thunkAxis;
@@ -1943,13 +1960,10 @@ private:
             }
             builder.define("i", new likely_expression(axis.back()->offset, likely_matrix_native));
 
-            const likely_const_ast args = ast->atoms[1];
             if (args->is_list) {
-                assert(srcs.size() == args->num_atoms);
                 for (size_t j=0; j<args->num_atoms; j++)
                     builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, channelStep, axis.back()->node));
             } else {
-                assert(srcs.size() == 1);
                 builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis.back()->node));
             }
 
