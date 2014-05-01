@@ -412,10 +412,6 @@ void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const
             thread(workerThread, i).detach();
             while (workers[i]) {} // Wait for the worker to initialize
         }
-
-        // An impossible case used to ensure that `likely_fork` isn't stripped when optimizing executable size
-        if (workers == NULL)
-            likely_fork(NULL, 0, 0, NULL);
     }
 
     currentThunk = thunk;
