@@ -546,26 +546,29 @@ struct Builder : public IRBuilder<>
 
     likely_resources *lookupResources() const { return lookupResources(env); }
 
-    static void define(likely_env &env, const char *name, likely_expression *e)
+    static void define(likely_env &env, const char *name, likely_expression *value)
     {
         env = likely_new_env(env);
         likely_release_env(env->parent);
         likely_set_definition(&env->type, true);
         env->name = new char[strlen(name)+1];
         strcpy((char*) env->name, name);
-        env->value = e;
+        env->value = value;
     }
 
-    static void undefine(likely_env &env, const char *name)
+    static likely_expression *undefine(likely_env &env, const char *name)
     {
+        assert(likely_definition(env->type));
         likely_assert(!strcmp(env->name, name), "undefine variable mismatch");
+        likely_expression *value = env->value;
         likely_env old = env;
         env = likely_retain_env(env->parent);
         likely_release_env(old);
+        return value;
     }
 
-    void   define(const char *name, likely_expression *e) {   define(env, name, e); }
-    void undefine(const char *name)                       { undefine(env, name); }
+    void   define(const char *name, likely_expression *e) { define(env, name, e); }
+    likely_expression *undefine(const char *name)         { return undefine(env, name); }
 
     Module *module() { return lookupResources()->module; }
 
@@ -1523,9 +1526,9 @@ private:
 
         if (ast->atoms[1]->is_list) {
             for (size_t i=0; i<args.size(); i++)
-                builder.undefine(ast->atoms[1]->atoms[args.size()-i-1]->atom);
+                delete builder.undefine(ast->atoms[1]->atoms[args.size()-i-1]->atom);
         } else {
-            builder.undefine(ast->atoms[1]->atom);
+            delete builder.undefine(ast->atoms[1]->atom);
         }
         return result;
     }
@@ -1971,15 +1974,15 @@ private:
 
             if (args->is_list) {
                 for (size_t j=0; j<args->num_atoms; j++)
-                    builder.undefine(args->atoms[args->num_atoms-j-1]->atom);
+                    delete builder.undefine(args->atoms[args->num_atoms-j-1]->atom);
             } else {
-                builder.undefine(args->atom);
+                delete builder.undefine(args->atom);
             }
-            builder.undefine("i");
-            builder.undefine("c");
-            builder.undefine("x");
-            builder.undefine("y");
-            builder.undefine("t");
+            delete builder.undefine("i");
+            delete builder.undefine("c");
+            delete builder.undefine("x");
+            delete builder.undefine("y");
+            delete builder.undefine("t");
             builder.CreateRetVoid();
         }
 
@@ -2412,8 +2415,8 @@ void likely_release_env(likely_const_env env)
     if (!env || --const_cast<likely_env>(env)->ref_count) return;
     likely_release_env(env->parent);
     delete[] env->name;
-    if (likely_definition(env->type)) delete env->value;
-    else                              likely_release(env->result);
+    if (!likely_definition(env->type))
+        likely_release(env->result);
     delete env->resources;
     free((void*) env);
 }
