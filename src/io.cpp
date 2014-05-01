@@ -331,11 +331,12 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
     return n;
 }
 
-static void default_show_callback(likely_const_mat m, const char *name, void *)
+static void default_show_callback(likely_const_mat m, likely_const_ast ast, void *)
 {
     if (!m) return;
     likely_mat n = likely_render(m, NULL, NULL);
-    cv::imshow(strlen(name) > 0 ? name : "Likely", likely::toCvMat(n));
+    const char *name = ast->is_list ? NULL : ast->atom;
+    cv::imshow((name && (strlen(name) > 0)) ? name : "Likely", likely::toCvMat(n));
     cv::waitKey();
     likely_release(n);
 }
@@ -349,10 +350,10 @@ void likely_set_show_callback(likely_show_callback callback, void *context)
     ShowContext = context;
 }
 
-void likely_show(likely_const_mat m, const char *name)
+void likely_show(likely_const_mat m, likely_const_ast ast)
 {
     if (ShowCallback) {
-        ShowCallback(m, name, ShowContext);
+        ShowCallback(m, ast, ShowContext);
     } else {
         likely_mat str = likely_to_string(m, true);
         printf("%s\n", str->data);

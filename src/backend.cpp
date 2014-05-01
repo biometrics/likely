@@ -2560,7 +2560,7 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, li
         likely_release_env(parent);
         parent = env;
         if (!likely_definition(env->type) && env->result && (likely_elements(env->result) > 0))
-            likely_show(env->result, atom->is_list ? NULL : atom->atom);
+            likely_show(env->result, atom);
         if (likely_erratum(env->type))
             break;
     }

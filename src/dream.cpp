@@ -780,8 +780,11 @@ private:
         likely_release(str);
     }
 
-    static void show_callback(likely_const_mat m, const char *name, void *context)
+    static void show_callback(likely_const_mat m, likely_const_ast ast, void *context)
     {
+        while (ast->is_list && (ast->num_atoms > 0))
+            ast = ast->atoms[0];
+        const QString name = ast->is_list ? "" : ast->atom;
         reinterpret_cast<Printer*>(context)->print(m, name);
     }
 };
