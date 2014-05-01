@@ -333,17 +333,32 @@ namespace {
 class JITFunctionCache : public ObjectCache
 {
     map<hash_code, unique_ptr<MemoryBuffer>> cache;
+    hash_code current_hash = 0;
 
-    void notifyObjectCompiled(const Module *M, const MemoryBuffer *Obj)
+    void notifyObjectCompiled(const Module *, const MemoryBuffer *Obj)
     {
-        cache[hash_value(M)].reset(MemoryBuffer::getMemBufferCopy(Obj->getBuffer()));
+        assert(size_t(current_hash) != 0);
+        cache[current_hash].reset(MemoryBuffer::getMemBufferCopy(Obj->getBuffer()));
+        current_hash = 0;
     }
 
     MemoryBuffer *getObject(const Module *M)
     {
-        if (MemoryBuffer *buffer = cache[hash_value(M)].get())
+        assert(size_t(current_hash) == 0);
+        current_hash = hash(M);
+        if (MemoryBuffer *buffer = cache[current_hash].get()) {
+            current_hash = 0;
             return MemoryBuffer::getMemBufferCopy(buffer->getBuffer());
+        }
         return NULL;
+    }
+
+    static hash_code hash(const Module *M)
+    {
+        string O;
+        raw_string_ostream ostream(O);
+        M->print(ostream, NULL);
+        return hash_value(ostream.str());
     }
 };
 static JITFunctionCache TheJITFunctionCache;
@@ -2125,7 +2140,7 @@ JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<l
                      .setErrorStr(&error)
                      .setUseMCJIT(true);
         EE = engineBuilder.create(getTargetMachine(true));
-//        EE->setObjectCache(&TheJITFunctionCache);
+        EE->setObjectCache(&TheJITFunctionCache);
         likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
         optimize();
         EE->finalizeObject();
