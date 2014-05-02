@@ -1870,10 +1870,17 @@ private:
             builder.define(args->atom, &srcs[0]);
         }
 
+        BasicBlock *allocation = BasicBlock::Create(C, "allocation", builder.GetInsertBlock()->getParent());
+        builder.CreateBr(allocation);
+        builder.SetInsertPoint(allocation);
+
+        PHINode *results   = builder.CreatePHI(NativeInt, 1);
+        PHINode *dstType   = builder.CreatePHI(NativeInt, 1);
         Value *dstChannels = getDimensions(builder, pairs, "channels", srcs, &kernelType);
         Value *dstColumns  = getDimensions(builder, pairs, "columns" , srcs, &kernelType);
         Value *dstRows     = getDimensions(builder, pairs, "rows"    , srcs, &kernelType);
         Value *dstFrames   = getDimensions(builder, pairs, "frames"  , srcs, &kernelType);
+        Value *dst = newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, Builder::nullData());
 
         builder.undefineAll(args, false);
 
@@ -1996,8 +2003,9 @@ private:
             builder.CreateRetVoid();
         }
 
-        builder.SetInsertPoint(entry);
-        Value *dst = newExpression::createCall(builder, Builder::type(kernelType), builder.CreateMul(dstChannels, builder.constant(thunkResults)), dstColumns, dstRows, dstFrames, Builder::nullData());
+        results->addIncoming(Builder::constant(thunkResults), entry);
+        dstType->addIncoming(Builder::type(kernelType), entry);
+        builder.SetInsertPoint(allocation);
         Value *kernelSize = builder.one();
         for (const string &str : thunkAxis) {
             if      (str == "c") kernelSize = builder.CreateMul(kernelSize, dstChannels);
