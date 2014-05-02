@@ -570,6 +570,19 @@ struct Builder : public IRBuilder<>
     void   define(const char *name, const likely_expression *e) { define(env, name, e); }
     const likely_expression *undefine(const char *name)         { return undefine(env, name); }
 
+    void undefineAll(likely_const_ast args, bool deleteExpression)
+    {
+        if (args->is_list) {
+            for (size_t i=0; i<args->num_atoms; i++) {
+                const likely_expression *expression = undefine(args->atoms[args->num_atoms-i-1]->atom);
+                if (deleteExpression) delete expression;
+            }
+        } else {
+            const likely_expression *expression = undefine(args->atom);
+            if (deleteExpression) delete expression;
+        }
+    }
+
     Module *module() { return lookupResources()->module; }
 
     likely_expression *expression(likely_const_ast ast);
@@ -1521,15 +1534,8 @@ private:
         } else {
             builder.define(ast->atoms[1]->atom, new likely_expression(args[0]));
         }
-
         likely_expression *result = builder.expression(ast->atoms[2]);
-
-        if (ast->atoms[1]->is_list) {
-            for (size_t i=0; i<args.size(); i++)
-                delete builder.undefine(ast->atoms[1]->atoms[args.size()-i-1]->atom);
-        } else {
-            delete builder.undefine(ast->atoms[1]->atom);
-        }
+        builder.undefineAll(ast->atoms[1], true);
         return result;
     }
 };
@@ -1869,12 +1875,7 @@ private:
         Value *dstRows     = getDimensions(builder, pairs, "rows"    , srcs, &kernelType);
         Value *dstFrames   = getDimensions(builder, pairs, "frames"  , srcs, &kernelType);
 
-        if (args->is_list) {
-            for (size_t j=0; j<args->num_atoms; j++)
-                builder.undefine(args->atoms[args->num_atoms-j-1]->atom);
-        } else {
-            builder.undefine(args->atom);
-        }
+        builder.undefineAll(args, false);
 
         Function *thunk;
         vector<string> thunkAxis;
@@ -1986,12 +1987,7 @@ private:
             thunkAxis = axis.front()->tryCollapse();
             axis.clear();
 
-            if (args->is_list) {
-                for (size_t j=0; j<args->num_atoms; j++)
-                    delete builder.undefine(args->atoms[args->num_atoms-j-1]->atom);
-            } else {
-                delete builder.undefine(args->atom);
-            }
+            builder.undefineAll(args, true);
             delete builder.undefine("i");
             delete builder.undefine("c");
             delete builder.undefine("x");
