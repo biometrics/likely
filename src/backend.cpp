@@ -1883,9 +1883,10 @@ private:
         likely_expression dst(newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, Builder::nullData()), kernelType);
 
         vector<string> axis;
-        if (likely_parallel(kernelType)) axis = generateParallel(builder, args, srcs, kernelType, dst, kernelSize, results, dstType);
-        else                             axis = generateSerial  (builder, args, srcs, kernelType, dst, kernelSize, results, dstType);
+        if (likely_parallel(kernelType)) axis = generateParallel(builder, args, srcs, kernelType, dst, kernelSize, results);
+        else                             axis = generateSerial  (builder, args, srcs, kernelType, dst, kernelSize, results);
 
+        dstType->addIncoming(Builder::type(kernelType), allocation->getPrevNode());
         kernelChannels->addIncoming(find(axis.begin(), axis.end(), "c") != axis.end() ? dstChannels : Builder::one(), entry);
         kernelColumns->addIncoming (find(axis.begin(), axis.end(), "x") != axis.end() ? dstColumns  : Builder::one(), entry);
         kernelRows->addIncoming    (find(axis.begin(), axis.end(), "y") != axis.end() ? dstRows     : Builder::one(), entry);
@@ -1895,18 +1896,17 @@ private:
         return new likely_expression(dst);
     }
 
-    vector<string> generateSerial(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type kernelType, likely_expression &dst, Value *kernelSize, PHINode *results, PHINode *dstType) const
+    vector<string> generateSerial(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type &kernelType, likely_expression &dst, Value *kernelSize, PHINode *results) const
     {
         BasicBlock *allocation = builder.GetInsertBlock();
         vector<string> thunkAxis;
         size_t thunkResults;
         generateKernel(builder, args, srcs, dst, Builder::zero(), kernelSize, kernelType, thunkAxis, thunkResults);
         results->addIncoming(Builder::constant(thunkResults), allocation->getPrevNode());
-        dstType->addIncoming(Builder::type(kernelType), allocation->getPrevNode());
         return thunkAxis;
     }
 
-    vector<string> generateParallel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type kernelType, likely_expression &dst, Value *kernelSize, PHINode *results, PHINode *dstType) const
+    vector<string> generateParallel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type &kernelType, likely_expression &dst, Value *kernelSize, PHINode *results) const
     {
         BasicBlock *allocation = builder.GetInsertBlock();
         Function *thunk;
@@ -1951,7 +1951,6 @@ private:
         }
 
         results->addIncoming(Builder::constant(thunkResults), allocation->getPrevNode());
-        dstType->addIncoming(Builder::type(kernelType), allocation->getPrevNode());
         builder.SetInsertPoint(allocation);
 
         vector<Type*> likelyForkParameters;
