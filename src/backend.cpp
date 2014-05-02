@@ -1841,6 +1841,12 @@ private:
 
     void *symbol() const { return (void*) likely_fork; }
 
+    struct Metadata
+    {
+        vector<string> axis;
+        size_t results;
+    };
+
     likely_expression *evaluateLambda(Builder &builder, const vector<likely_expression> &srcs) const
     {
         likely_type kernelType = likely_matrix_void;
@@ -1882,36 +1888,31 @@ private:
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(kernelChannels, kernelColumns), kernelRows), kernelFrames);
         likely_expression dst(newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, Builder::nullData()), kernelType);
 
-        vector<string> axis;
-        if (likely_parallel(kernelType)) axis = generateParallel(builder, args, srcs, kernelType, dst, kernelSize, results);
-        else                             axis = generateSerial  (builder, args, srcs, kernelType, dst, kernelSize, results);
+        Metadata metadata;
+        if (likely_parallel(kernelType)) metadata = generateParallel(builder, args, srcs, kernelType, dst, kernelSize);
+        else                             metadata = generateSerial  (builder, args, srcs, kernelType, dst, kernelSize);
 
-        dstType->addIncoming(Builder::type(kernelType), allocation->getPrevNode());
-        kernelChannels->addIncoming(find(axis.begin(), axis.end(), "c") != axis.end() ? dstChannels : Builder::one(), entry);
-        kernelColumns->addIncoming (find(axis.begin(), axis.end(), "x") != axis.end() ? dstColumns  : Builder::one(), entry);
-        kernelRows->addIncoming    (find(axis.begin(), axis.end(), "y") != axis.end() ? dstRows     : Builder::one(), entry);
-        kernelFrames->addIncoming  (find(axis.begin(), axis.end(), "t") != axis.end() ? dstFrames   : Builder::one(), entry);
+        results->addIncoming(Builder::constant(metadata.results), entry);
+        dstType->addIncoming(Builder::type(kernelType), entry);
+        kernelChannels->addIncoming(find(metadata.axis.begin(), metadata.axis.end(), "c") != metadata.axis.end() ? dstChannels : Builder::one(), entry);
+        kernelColumns->addIncoming (find(metadata.axis.begin(), metadata.axis.end(), "x") != metadata.axis.end() ? dstColumns  : Builder::one(), entry);
+        kernelRows->addIncoming    (find(metadata.axis.begin(), metadata.axis.end(), "y") != metadata.axis.end() ? dstRows     : Builder::one(), entry);
+        kernelFrames->addIncoming  (find(metadata.axis.begin(), metadata.axis.end(), "t") != metadata.axis.end() ? dstFrames   : Builder::one(), entry);
 
         builder.undefineAll(args, false);
         return new likely_expression(dst);
     }
 
-    vector<string> generateSerial(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type &kernelType, likely_expression &dst, Value *kernelSize, PHINode *results) const
+    Metadata generateSerial(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type &kernelType, likely_expression &dst, Value *kernelSize) const
     {
-        BasicBlock *allocation = builder.GetInsertBlock();
-        vector<string> thunkAxis;
-        size_t thunkResults;
-        generateKernel(builder, args, srcs, dst, Builder::zero(), kernelSize, kernelType, thunkAxis, thunkResults);
-        results->addIncoming(Builder::constant(thunkResults), allocation->getPrevNode());
-        return thunkAxis;
+        return generateKernel(builder, args, srcs, dst, Builder::zero(), kernelSize, kernelType);
     }
 
-    vector<string> generateParallel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type &kernelType, likely_expression &dst, Value *kernelSize, PHINode *results) const
+    Metadata generateParallel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type &kernelType, likely_expression &dst, Value *kernelSize) const
     {
         BasicBlock *allocation = builder.GetInsertBlock();
         Function *thunk;
-        vector<string> thunkAxis;
-        size_t thunkResults;
+        Metadata metadata;
         {
             vector<MatType> types;
             for (const likely_expression &src : srcs)
@@ -1945,12 +1946,11 @@ private:
             dst.value()->setName("dst");
             dst.setType(kernelType);
 
-            generateKernel(builder, args, srcs, dst, start, stop, kernelType, thunkAxis, thunkResults);
+            metadata = generateKernel(builder, args, srcs, dst, start, stop, kernelType);
 
             builder.CreateRetVoid();
         }
 
-        results->addIncoming(Builder::constant(thunkResults), allocation->getPrevNode());
         builder.SetInsertPoint(allocation);
 
         vector<Type*> likelyForkParameters;
@@ -1981,11 +1981,12 @@ private:
         }
         likelyForkArgs.push_back(dst);
         builder.CreateCall(likelyFork, likelyForkArgs);
-        return thunkAxis;
+        return metadata;
     }
 
-    void generateKernel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop, likely_type &kernelType, vector<string> &thunkAxis, size_t &thunkResults) const
+    Metadata generateKernel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop, likely_type &kernelType) const
     {
+        Metadata metadata;
         BasicBlock *thunkEntry = builder.GetInsertBlock();
         BasicBlock *steps = BasicBlock::Create(C, "steps", builder.GetInsertBlock()->getParent());
         builder.CreateBr(steps);
@@ -2053,15 +2054,15 @@ private:
         likely_set_data(&kernelType, likely_data(kernelDataType));
         dst.setType(kernelType);
 
-        thunkResults = expressions.size();
-        channelStep->addIncoming(builder.constant(thunkResults), thunkEntry);
-        for (size_t i=0; i<thunkResults; i++) {
+        metadata.results = expressions.size();
+        channelStep->addIncoming(builder.constant(metadata.results), thunkEntry);
+        for (size_t i=0; i<metadata.results; i++) {
             StoreInst *store = builder.CreateStore(builder.cast(expressions[i], kernelDataType), builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis.back()->offset, builder.constant(i))));
             store->setMetadata("llvm.mem.parallel_loop_access", axis.back()->node);
         }
 
         axis.back()->close(builder); // Closes all axis
-        thunkAxis = axis.front()->tryCollapse();
+        metadata.axis = axis.front()->tryCollapse();
         axis.clear();
 
         builder.undefineAll(args, true);
@@ -2070,6 +2071,7 @@ private:
         delete builder.undefine("x");
         delete builder.undefine("y");
         delete builder.undefine("t");
+        return metadata;
     }
 
     static bool getPairs(likely_const_ast ast, vector<pair<likely_const_ast,likely_const_ast>> &pairs)
