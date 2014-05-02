@@ -1880,7 +1880,7 @@ private:
         PHINode *kernelRows     = builder.CreatePHI(NativeInt, 1);
         PHINode *kernelFrames   = builder.CreatePHI(NativeInt, 1);
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(kernelChannels, kernelColumns), kernelRows), kernelFrames);
-        Value *dst = newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, Builder::nullData());
+        likely_expression dst(newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, Builder::nullData()), kernelType);
 
         vector<string> axis;
         if (likely_parallel(kernelType)) axis = generateParallel(builder, args, srcs, kernelType, entry, allocation, dst, dstChannels, dstColumns, dstRows, dstFrames, kernelSize, results, dstType);
@@ -1892,10 +1892,10 @@ private:
         kernelFrames->addIncoming  (find(axis.begin(), axis.end(), "t") != axis.end() ? dstFrames   : Builder::one(), entry);
 
         builder.undefineAll(args, false);
-        return new likely_expression(dst, kernelType);
+        return new likely_expression(dst);
     }
 
-    vector<string> generateSerial(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type kernelType, BasicBlock *entry, BasicBlock *allocation, Value *dst, Value *dstChannels, Value *dstColumns, Value *dstRows, Value *dstFrames, Value *kernelSize, PHINode *results, PHINode *dstType) const
+    vector<string> generateSerial(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type kernelType, BasicBlock *entry, BasicBlock *allocation, likely_expression &dst, Value *dstChannels, Value *dstColumns, Value *dstRows, Value *dstFrames, Value *kernelSize, PHINode *results, PHINode *dstType) const
     {
         Function *thunk;
         vector<string> thunkAxis;
@@ -1953,7 +1953,7 @@ private:
         return thunkAxis;
     }
 
-    vector<string> generateParallel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type kernelType, BasicBlock *entry, BasicBlock *allocation, Value *dst, Value *dstChannels, Value *dstColumns, Value *dstRows, Value *dstFrames, Value *kernelSize, PHINode *results, PHINode *dstType) const
+    vector<string> generateParallel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type kernelType, BasicBlock *entry, BasicBlock *allocation, likely_expression &dst, Value *dstChannels, Value *dstColumns, Value *dstRows, Value *dstFrames, Value *kernelSize, PHINode *results, PHINode *dstType) const
     {
         Function *thunk;
         vector<string> thunkAxis;
@@ -2049,25 +2049,25 @@ private:
             Value *elements, *step;
 
             switch (axis_index) {
-            case 0:
+              case 0:
                 name = "t";
                 multiElement = likely_multi_frame(dst);
                 elements = builder.frames(&dst);
                 step = frameStep;
                 break;
-            case 1:
+              case 1:
                 name = "y";
                 multiElement = likely_multi_row(dst);
                 elements = builder.rows(&dst);
                 step = rowStep;
                 break;
-            case 2:
+              case 2:
                 name = "x";
                 multiElement = likely_multi_column(dst);
                 elements = builder.columns(&dst);
                 step = columnStep;
                 break;
-            default:
+              default:
                 name = "c";
                 multiElement = likely_multi_channel(dst);
                 elements = builder.channels(&dst);
