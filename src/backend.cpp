@@ -1877,11 +1877,14 @@ private:
         Value *dstFrames   = getDimensions(builder, pairs, "frames"  , srcs, &kernelType);
         Value *dst = newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, Builder::nullData());
 
-        if (likely_parallel(kernelType)) return evaluateParallel(builder, args, srcs, kernelType, entry, allocation, dst, dstChannels, dstColumns, dstRows, dstFrames, results, dstType);
-        else                             return evaluateSerial(builder, args, srcs, kernelType, entry, allocation, dst, dstChannels, dstColumns, dstRows, dstFrames, results, dstType);
+        if (likely_parallel(kernelType)) generateParallel(builder, args, srcs, kernelType, entry, allocation, dst, dstChannels, dstColumns, dstRows, dstFrames, results, dstType);
+        else                             generateSerial(builder, args, srcs, kernelType, entry, allocation, dst, dstChannels, dstColumns, dstRows, dstFrames, results, dstType);
+
+        builder.undefineAll(args, false);
+        return new likely_expression(dst, kernelType);
     }
 
-    likely_expression *evaluateSerial(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type kernelType, BasicBlock *entry, BasicBlock *allocation, Value *dst, Value *dstChannels, Value *dstColumns, Value *dstRows, Value *dstFrames, PHINode *results, PHINode *dstType) const
+    void generateSerial(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type kernelType, BasicBlock *entry, BasicBlock *allocation, Value *dst, Value *dstChannels, Value *dstColumns, Value *dstRows, Value *dstFrames, PHINode *results, PHINode *dstType) const
     {
         Function *thunk;
         vector<string> thunkAxis;
@@ -1920,12 +1923,10 @@ private:
             dst.value()->setName("dst");
             dst.setType(kernelType);
 
-            generateKernel(builder, args, srcs, dst, start, stop, thunk, thunkEntry, kernelType, thunkAxis, thunkResults);
+            generateKernel(builder, args, srcs, dst, start, stop, thunkEntry, kernelType, thunkAxis, thunkResults);
 
             builder.CreateRetVoid();
         }
-
-        builder.undefineAll(args, false);
 
         results->addIncoming(Builder::constant(thunkResults), entry);
         dstType->addIncoming(Builder::type(kernelType), entry);
@@ -1946,11 +1947,9 @@ private:
         thunkArgs.push_back(Builder::zero());
         thunkArgs.push_back(kernelSize);
         builder.CreateCall(thunk, thunkArgs);
-
-        return new likely_expression(dst, kernelType);
     }
 
-    likely_expression *evaluateParallel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type kernelType, BasicBlock *entry, BasicBlock *allocation, Value *dst, Value *dstChannels, Value *dstColumns, Value *dstRows, Value *dstFrames, PHINode *results, PHINode *dstType) const
+    void generateParallel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type kernelType, BasicBlock *entry, BasicBlock *allocation, Value *dst, Value *dstChannels, Value *dstColumns, Value *dstRows, Value *dstFrames, PHINode *results, PHINode *dstType) const
     {
         Function *thunk;
         vector<string> thunkAxis;
@@ -1989,12 +1988,10 @@ private:
             dst.value()->setName("dst");
             dst.setType(kernelType);
 
-            generateKernel(builder, args, srcs, dst, start, stop, thunk, thunkEntry, kernelType, thunkAxis, thunkResults);
+            generateKernel(builder, args, srcs, dst, start, stop, thunkEntry, kernelType, thunkAxis, thunkResults);
 
             builder.CreateRetVoid();
         }
-
-        builder.undefineAll(args, false);
 
         results->addIncoming(Builder::constant(thunkResults), entry);
         dstType->addIncoming(Builder::type(kernelType), entry);
@@ -2036,13 +2033,11 @@ private:
         }
         likelyForkArgs.push_back(dst);
         builder.CreateCall(likelyFork, likelyForkArgs);
-
-        return new likely_expression(dst, kernelType);
     }
 
-    void generateKernel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, const likely_expression &start, const likely_expression &stop, Function *thunk, BasicBlock *thunkEntry, likely_type &kernelType, vector<string> &thunkAxis, size_t &thunkResults) const
+    void generateKernel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, const likely_expression &start, const likely_expression &stop, BasicBlock *thunkEntry, likely_type &kernelType, vector<string> &thunkAxis, size_t &thunkResults) const
     {
-        BasicBlock *steps = BasicBlock::Create(C, "steps", thunk);
+        BasicBlock *steps = BasicBlock::Create(C, "steps", builder.GetInsertBlock()->getParent());
         builder.CreateBr(steps);
         builder.SetInsertPoint(steps);
         PHINode *channelStep;
