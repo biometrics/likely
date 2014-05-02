@@ -1921,8 +1921,7 @@ private:
                 }
             }
 
-            BasicBlock *thunkEntry = BasicBlock::Create(C, "entry", thunk);
-            builder.SetInsertPoint(thunkEntry);
+            builder.SetInsertPoint(BasicBlock::Create(C, "entry", thunk));
             vector<likely_expression> srcs = builder.getArgs(thunk, types);
             likely_expression stop = srcs.back(); srcs.pop_back();
             stop.setType(likely_matrix_native);
@@ -1934,7 +1933,7 @@ private:
             dst.value()->setName("dst");
             dst.setType(kernelType);
 
-            generateKernel(builder, args, srcs, dst, start, stop, thunkEntry, kernelType, thunkAxis, thunkResults);
+            generateKernel(builder, args, srcs, dst, start, stop, kernelType, thunkAxis, thunkResults);
 
             builder.CreateRetVoid();
         }
@@ -1980,8 +1979,7 @@ private:
                 }
             }
 
-            BasicBlock *thunkEntry = BasicBlock::Create(C, "entry", thunk);
-            builder.SetInsertPoint(thunkEntry);
+            builder.SetInsertPoint(BasicBlock::Create(C, "entry", thunk));
             vector<likely_expression> srcs = builder.getArgs(thunk, types);
             likely_expression stop = srcs.back(); srcs.pop_back();
             stop.setType(likely_matrix_native);
@@ -1993,7 +1991,7 @@ private:
             dst.value()->setName("dst");
             dst.setType(kernelType);
 
-            generateKernel(builder, args, srcs, dst, start, stop, thunkEntry, kernelType, thunkAxis, thunkResults);
+            generateKernel(builder, args, srcs, dst, start, stop, kernelType, thunkAxis, thunkResults);
 
             builder.CreateRetVoid();
         }
@@ -2033,8 +2031,9 @@ private:
         return thunkAxis;
     }
 
-    void generateKernel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, const likely_expression &start, const likely_expression &stop, BasicBlock *thunkEntry, likely_type &kernelType, vector<string> &thunkAxis, size_t &thunkResults) const
+    void generateKernel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, const likely_expression &start, const likely_expression &stop, likely_type &kernelType, vector<string> &thunkAxis, size_t &thunkResults) const
     {
+        BasicBlock *thunkEntry = builder.GetInsertBlock();
         BasicBlock *steps = BasicBlock::Create(C, "steps", builder.GetInsertBlock()->getParent());
         builder.CreateBr(steps);
         builder.SetInsertPoint(steps);
