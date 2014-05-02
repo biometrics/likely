@@ -1877,6 +1877,12 @@ private:
         Value *dstFrames   = getDimensions(builder, pairs, "frames"  , srcs, &kernelType);
         Value *dst = newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, Builder::nullData());
 
+        if (likely_parallel(kernelType)) return evaluateParallel(builder, args, srcs, kernelType, entry, allocation, dst, dstChannels, dstColumns, dstRows, dstFrames, results, dstType);
+        else                             return evaluateSerial(builder, args, srcs, kernelType, entry, allocation, dst, dstChannels, dstColumns, dstRows, dstFrames, results, dstType);
+    }
+
+    likely_expression *evaluateSerial(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type kernelType, BasicBlock *entry, BasicBlock *allocation, Value *dst, Value *dstChannels, Value *dstColumns, Value *dstRows, Value *dstFrames, PHINode *results, PHINode *dstType) const
+    {
         Function *thunk;
         vector<string> thunkAxis;
         size_t thunkResults;
@@ -1914,89 +1920,8 @@ private:
             dst.value()->setName("dst");
             dst.setType(kernelType);
 
-            BasicBlock *steps = BasicBlock::Create(C, "steps", thunk);
-            builder.CreateBr(steps);
-            builder.SetInsertPoint(steps);
-            PHINode *channelStep;
-            channelStep = builder.CreatePHI(NativeInt, 1); // Defined after we know the number or results
-            Value *columnStep, *rowStep, *frameStep;
-            builder.steps(&dst, channelStep, &columnStep, &rowStep, &frameStep);
+            generateKernel(builder, args, srcs, dst, start, stop, thunk, thunkEntry, kernelType, thunkAxis, thunkResults);
 
-            vector<kernelAxis*> axis;
-            for (int axis_index=0; axis_index<4; axis_index++) {
-                string name;
-                bool multiElement;
-                Value *elements, *step;
-
-                switch (axis_index) {
-                  case 0:
-                    name = "t";
-                    multiElement = likely_multi_frame(dst);
-                    elements = builder.frames(&dst);
-                    step = frameStep;
-                    break;
-                  case 1:
-                    name = "y";
-                    multiElement = likely_multi_row(dst);
-                    elements = builder.rows(&dst);
-                    step = rowStep;
-                    break;
-                  case 2:
-                    name = "x";
-                    multiElement = likely_multi_column(dst);
-                    elements = builder.columns(&dst);
-                    step = columnStep;
-                    break;
-                  default:
-                    name = "c";
-                    multiElement = likely_multi_channel(dst);
-                    elements = builder.channels(&dst);
-                    step = channelStep;
-                    break;
-                }
-
-                if (multiElement || ((axis_index == 3) && axis.empty())) {
-                    if (axis.empty()) axis.push_back(new kernelAxis(builder, name, start, stop, step, NULL));
-                    else              axis.push_back(new kernelAxis(builder, name, builder.zero(), elements, step, axis.back()));
-                    builder.define(name.c_str(), axis.back()); // takes ownership of axis
-                } else {
-                    builder.define(name.c_str(), new likely_expression(builder.zero(), likely_matrix_native));
-                }
-            }
-            builder.define("i", new likely_expression(axis.back()->offset, likely_matrix_native));
-
-            if (args->is_list) {
-                for (size_t j=0; j<args->num_atoms; j++)
-                    builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, channelStep, axis.back()->node));
-            } else {
-                builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis.back()->node));
-            }
-
-            unique_ptr<likely_expression> result(builder.expression(ast->atoms[2]));
-            const vector<const likely_expression*> expressions = result->expressions();
-            likely_type kernelDataType = likely_matrix_void;
-            for (const likely_expression *e : expressions)
-                kernelDataType = likely_type_from_types(kernelDataType, *e);
-            likely_set_data(&kernelType, likely_data(kernelDataType));
-            dst.setType(kernelType);
-
-            thunkResults = expressions.size();
-            channelStep->addIncoming(builder.constant(thunkResults), thunkEntry);
-            for (size_t i=0; i<thunkResults; i++) {
-                StoreInst *store = builder.CreateStore(builder.cast(expressions[i], kernelDataType), builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis.back()->offset, builder.constant(i))));
-                store->setMetadata("llvm.mem.parallel_loop_access", axis.back()->node);
-            }
-
-            axis.back()->close(builder); // Closes all axis
-            thunkAxis = axis.front()->tryCollapse();
-            axis.clear();
-
-            builder.undefineAll(args, true);
-            delete builder.undefine("i");
-            delete builder.undefine("c");
-            delete builder.undefine("x");
-            delete builder.undefine("y");
-            delete builder.undefine("t");
             builder.CreateRetVoid();
         }
 
@@ -2014,46 +1939,192 @@ private:
             else                 assert(!"invalid axis");
         }
 
-        if (likely_parallel(kernelType)) {
-            vector<Type*> likelyForkParameters;
-            likelyForkParameters.push_back(thunk->getType());
-            likelyForkParameters.push_back(Type::getInt8Ty(C));
-            likelyForkParameters.push_back(NativeInt);
-            likelyForkParameters.push_back(MatType::Void);
-            Type *likelyForkReturn = Type::getVoidTy(C);
-            FunctionType *likelyForkType = FunctionType::get(likelyForkReturn, likelyForkParameters, true);
-
-            Function *likelyFork = Function::Create(likelyForkType, GlobalValue::ExternalLinkage, "likely_fork", builder.module());
-            likelyFork->setCallingConv(CallingConv::C);
-            likelyFork->setDoesNotCapture(4);
-            likelyFork->setDoesNotAlias(4);
-
-            vector<Value*> likelyForkArgs;
-            likelyForkArgs.push_back(builder.module()->getFunction(thunk->getName()));
-            likelyForkArgs.push_back(Builder::constant(uint64_t(srcs.size()), likely_matrix_u8));
-            likelyForkArgs.push_back(kernelSize);
-            for (const likely_expression &src : srcs) {
-                if (likely_multi_dimension(src)) {
-                    likelyForkArgs.push_back(builder.CreatePointerCast(src, MatType::Void));
-                } else {
-                    AllocaInst *ptr = builder.CreateAlloca(src.value()->getType());
-                    builder.CreateStore(src, ptr);
-                    likelyForkArgs.push_back(builder.CreatePointerCast(ptr, MatType::Void));
-                }
-            }
-            likelyForkArgs.push_back(dst);
-            builder.CreateCall(likelyFork, likelyForkArgs);
-        } else {
-            vector<Value*> thunkArgs;
-            for (const likely_expression &src : srcs)
-                thunkArgs.push_back(src);
-            thunkArgs.push_back(dst);
-            thunkArgs.push_back(Builder::zero());
-            thunkArgs.push_back(kernelSize);
-            builder.CreateCall(thunk, thunkArgs);
-        }
+        vector<Value*> thunkArgs;
+        for (const likely_expression &src : srcs)
+            thunkArgs.push_back(src);
+        thunkArgs.push_back(dst);
+        thunkArgs.push_back(Builder::zero());
+        thunkArgs.push_back(kernelSize);
+        builder.CreateCall(thunk, thunkArgs);
 
         return new likely_expression(dst, kernelType);
+    }
+
+    likely_expression *evaluateParallel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type kernelType, BasicBlock *entry, BasicBlock *allocation, Value *dst, Value *dstChannels, Value *dstColumns, Value *dstRows, Value *dstFrames, PHINode *results, PHINode *dstType) const
+    {
+        Function *thunk;
+        vector<string> thunkAxis;
+        size_t thunkResults;
+        {
+            vector<MatType> types;
+            for (const likely_expression &src : srcs)
+                types.push_back(MatType::get(src.type()));
+
+            { // declare thunk
+                vector<Type*> params = MatType::toLLVM(types);
+                params.push_back(MatType::Void);
+                params.push_back(NativeInt);
+                params.push_back(NativeInt);
+                thunk = ::cast<Function>(builder.module()->getOrInsertFunction(builder.GetInsertBlock()->getParent()->getName().str() + "_thunk", FunctionType::get(Type::getVoidTy(C), params, false)));
+                thunk->addFnAttr(Attribute::AlwaysInline);
+                thunk->addFnAttr(Attribute::NoUnwind);
+                thunk->setCallingConv(CallingConv::C);
+                thunk->setLinkage(GlobalValue::PrivateLinkage);
+                for (int i=1; i<int(types.size()+2); i++) {
+                    thunk->setDoesNotAlias(i);
+                    thunk->setDoesNotCapture(i);
+                }
+            }
+
+            BasicBlock *thunkEntry = BasicBlock::Create(C, "entry", thunk);
+            builder.SetInsertPoint(thunkEntry);
+            vector<likely_expression> srcs = builder.getArgs(thunk, types);
+            likely_expression stop = srcs.back(); srcs.pop_back();
+            stop.setType(likely_matrix_native);
+            stop.value()->setName("stop");
+            likely_expression start = srcs.back(); srcs.pop_back();
+            start.setType(likely_matrix_native);
+            start.value()->setName("start");
+            likely_expression dst = srcs.back(); srcs.pop_back();
+            dst.value()->setName("dst");
+            dst.setType(kernelType);
+
+            generateKernel(builder, args, srcs, dst, start, stop, thunk, thunkEntry, kernelType, thunkAxis, thunkResults);
+
+            builder.CreateRetVoid();
+        }
+
+        builder.undefineAll(args, false);
+
+        results->addIncoming(Builder::constant(thunkResults), entry);
+        dstType->addIncoming(Builder::type(kernelType), entry);
+        builder.SetInsertPoint(allocation);
+        Value *kernelSize = builder.one();
+        for (const string &str : thunkAxis) {
+            if      (str == "c") kernelSize = builder.CreateMul(kernelSize, dstChannels);
+            else if (str == "x") kernelSize = builder.CreateMul(kernelSize, dstColumns);
+            else if (str == "y") kernelSize = builder.CreateMul(kernelSize, dstRows);
+            else if (str == "t") kernelSize = builder.CreateMul(kernelSize, dstFrames);
+            else                 assert(!"invalid axis");
+        }
+
+        vector<Type*> likelyForkParameters;
+        likelyForkParameters.push_back(thunk->getType());
+        likelyForkParameters.push_back(Type::getInt8Ty(C));
+        likelyForkParameters.push_back(NativeInt);
+        likelyForkParameters.push_back(MatType::Void);
+        Type *likelyForkReturn = Type::getVoidTy(C);
+        FunctionType *likelyForkType = FunctionType::get(likelyForkReturn, likelyForkParameters, true);
+
+        Function *likelyFork = Function::Create(likelyForkType, GlobalValue::ExternalLinkage, "likely_fork", builder.module());
+        likelyFork->setCallingConv(CallingConv::C);
+        likelyFork->setDoesNotCapture(4);
+        likelyFork->setDoesNotAlias(4);
+
+        vector<Value*> likelyForkArgs;
+        likelyForkArgs.push_back(builder.module()->getFunction(thunk->getName()));
+        likelyForkArgs.push_back(Builder::constant(uint64_t(srcs.size()), likely_matrix_u8));
+        likelyForkArgs.push_back(kernelSize);
+        for (const likely_expression &src : srcs) {
+            if (likely_multi_dimension(src)) {
+                likelyForkArgs.push_back(builder.CreatePointerCast(src, MatType::Void));
+            } else {
+                AllocaInst *ptr = builder.CreateAlloca(src.value()->getType());
+                builder.CreateStore(src, ptr);
+                likelyForkArgs.push_back(builder.CreatePointerCast(ptr, MatType::Void));
+            }
+        }
+        likelyForkArgs.push_back(dst);
+        builder.CreateCall(likelyFork, likelyForkArgs);
+
+        return new likely_expression(dst, kernelType);
+    }
+
+    void generateKernel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, const likely_expression &start, const likely_expression &stop, Function *thunk, BasicBlock *thunkEntry, likely_type &kernelType, vector<string> &thunkAxis, size_t &thunkResults) const
+    {
+        BasicBlock *steps = BasicBlock::Create(C, "steps", thunk);
+        builder.CreateBr(steps);
+        builder.SetInsertPoint(steps);
+        PHINode *channelStep;
+        channelStep = builder.CreatePHI(NativeInt, 1); // Defined after we know the number or results
+        Value *columnStep, *rowStep, *frameStep;
+        builder.steps(&dst, channelStep, &columnStep, &rowStep, &frameStep);
+
+        vector<kernelAxis*> axis;
+        for (int axis_index=0; axis_index<4; axis_index++) {
+            string name;
+            bool multiElement;
+            Value *elements, *step;
+
+            switch (axis_index) {
+            case 0:
+                name = "t";
+                multiElement = likely_multi_frame(dst);
+                elements = builder.frames(&dst);
+                step = frameStep;
+                break;
+            case 1:
+                name = "y";
+                multiElement = likely_multi_row(dst);
+                elements = builder.rows(&dst);
+                step = rowStep;
+                break;
+            case 2:
+                name = "x";
+                multiElement = likely_multi_column(dst);
+                elements = builder.columns(&dst);
+                step = columnStep;
+                break;
+            default:
+                name = "c";
+                multiElement = likely_multi_channel(dst);
+                elements = builder.channels(&dst);
+                step = channelStep;
+                break;
+            }
+
+            if (multiElement || ((axis_index == 3) && axis.empty())) {
+                if (axis.empty()) axis.push_back(new kernelAxis(builder, name, start, stop, step, NULL));
+                else              axis.push_back(new kernelAxis(builder, name, builder.zero(), elements, step, axis.back()));
+                builder.define(name.c_str(), axis.back()); // takes ownership of axis
+            } else {
+                builder.define(name.c_str(), new likely_expression(builder.zero(), likely_matrix_native));
+            }
+        }
+        builder.define("i", new likely_expression(axis.back()->offset, likely_matrix_native));
+
+        if (args->is_list) {
+            for (size_t j=0; j<args->num_atoms; j++)
+                builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, channelStep, axis.back()->node));
+        } else {
+            builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis.back()->node));
+        }
+
+        unique_ptr<likely_expression> result(builder.expression(ast->atoms[2]));
+        const vector<const likely_expression*> expressions = result->expressions();
+        likely_type kernelDataType = likely_matrix_void;
+        for (const likely_expression *e : expressions)
+            kernelDataType = likely_type_from_types(kernelDataType, *e);
+        likely_set_data(&kernelType, likely_data(kernelDataType));
+        dst.setType(kernelType);
+
+        thunkResults = expressions.size();
+        channelStep->addIncoming(builder.constant(thunkResults), thunkEntry);
+        for (size_t i=0; i<thunkResults; i++) {
+            StoreInst *store = builder.CreateStore(builder.cast(expressions[i], kernelDataType), builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis.back()->offset, builder.constant(i))));
+            store->setMetadata("llvm.mem.parallel_loop_access", axis.back()->node);
+        }
+
+        axis.back()->close(builder); // Closes all axis
+        thunkAxis = axis.front()->tryCollapse();
+        axis.clear();
+
+        builder.undefineAll(args, true);
+        delete builder.undefine("i");
+        delete builder.undefine("c");
+        delete builder.undefine("x");
+        delete builder.undefine("y");
+        delete builder.undefine("t");
     }
 
     static bool getPairs(likely_const_ast ast, vector<pair<likely_const_ast,likely_const_ast>> &pairs)
