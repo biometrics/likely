@@ -1898,59 +1898,11 @@ private:
     vector<string> generateSerial(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type kernelType, likely_expression &dst, Value *kernelSize, PHINode *results, PHINode *dstType) const
     {
         BasicBlock *allocation = builder.GetInsertBlock();
-        Function *thunk;
         vector<string> thunkAxis;
         size_t thunkResults;
-        {
-            vector<MatType> types;
-            for (const likely_expression &src : srcs)
-                types.push_back(MatType::get(src.type()));
-
-            { // declare thunk
-                vector<Type*> params = MatType::toLLVM(types);
-                params.push_back(MatType::Void);
-                params.push_back(NativeInt);
-                params.push_back(NativeInt);
-                thunk = ::cast<Function>(builder.module()->getOrInsertFunction(builder.GetInsertBlock()->getParent()->getName().str() + "_thunk", FunctionType::get(Type::getVoidTy(C), params, false)));
-                thunk->addFnAttr(Attribute::AlwaysInline);
-                thunk->addFnAttr(Attribute::NoUnwind);
-                thunk->setCallingConv(CallingConv::C);
-                thunk->setLinkage(GlobalValue::PrivateLinkage);
-                for (int i=1; i<int(types.size()+2); i++) {
-                    thunk->setDoesNotAlias(i);
-                    thunk->setDoesNotCapture(i);
-                }
-            }
-
-            builder.SetInsertPoint(BasicBlock::Create(C, "entry", thunk));
-            vector<likely_expression> srcs = builder.getArgs(thunk, types);
-            likely_expression stop = srcs.back(); srcs.pop_back();
-            stop.setType(likely_matrix_native);
-            stop.value()->setName("stop");
-            likely_expression start = srcs.back(); srcs.pop_back();
-            start.setType(likely_matrix_native);
-            start.value()->setName("start");
-            likely_expression dst = srcs.back(); srcs.pop_back();
-            dst.value()->setName("dst");
-            dst.setType(kernelType);
-
-            generateKernel(builder, args, srcs, dst, start, stop, kernelType, thunkAxis, thunkResults);
-
-            builder.CreateRetVoid();
-        }
-
+        generateKernel(builder, args, srcs, dst, Builder::zero(), kernelSize, kernelType, thunkAxis, thunkResults);
         results->addIncoming(Builder::constant(thunkResults), allocation->getPrevNode());
         dstType->addIncoming(Builder::type(kernelType), allocation->getPrevNode());
-        builder.SetInsertPoint(allocation);
-
-        vector<Value*> thunkArgs;
-        for (const likely_expression &src : srcs)
-            thunkArgs.push_back(src);
-        thunkArgs.push_back(dst);
-        thunkArgs.push_back(Builder::zero());
-        thunkArgs.push_back(kernelSize);
-        builder.CreateCall(thunk, thunkArgs);
-
         return thunkAxis;
     }
 
