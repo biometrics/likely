@@ -1843,33 +1843,28 @@ private:
 
     likely_expression *evaluateLambda(Builder &builder, const vector<likely_expression> &srcs) const
     {
-        vector<MatType> types;
-        for (const likely_expression &src : srcs)
-            types.push_back(MatType::get(src.type()));
+        likely_type kernelType = likely_matrix_void;
+        if (!srcs.empty())
+            likely_set_execution(&kernelType, likely_execution(srcs.front()));
 
         vector<pair<likely_const_ast,likely_const_ast>> pairs;
         if (ast->num_atoms == 4)
             getPairs(ast->atoms[3], pairs);
 
-        likely_type kernelType = likely_matrix_void;
-        if (!srcs.empty())
-            likely_set_execution(&kernelType, likely_execution(srcs.front()));
-
         for (const auto &pair : pairs)
             if (!strcmp("type", pair.first->atom) && !pair.second->is_list)
                 kernelType |= likely_type_field_from_string(pair.second->atom, NULL);
 
-        BasicBlock *entry = builder.GetInsertBlock();
         const likely_const_ast args = ast->atoms[1];
+        assert(srcs.size() == args->is_list ? args->num_atoms : 1);
         if (args->is_list) {
-            assert(srcs.size() == args->num_atoms);
             for (size_t j=0; j<args->num_atoms; j++)
                 builder.define(args->atoms[j]->atom, &srcs[j]);
         } else {
-            assert(srcs.size() == 1);
             builder.define(args->atom, &srcs[0]);
         }
 
+        BasicBlock *entry = builder.GetInsertBlock();
         BasicBlock *allocation = BasicBlock::Create(C, "allocation", builder.GetInsertBlock()->getParent());
         builder.CreateBr(allocation);
         builder.SetInsertPoint(allocation);
@@ -1882,12 +1877,14 @@ private:
         Value *dstFrames   = getDimensions(builder, pairs, "frames"  , srcs, &kernelType);
         Value *dst = newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, Builder::nullData());
 
-        builder.undefineAll(args, false);
-
         Function *thunk;
         vector<string> thunkAxis;
         size_t thunkResults;
         {
+            vector<MatType> types;
+            for (const likely_expression &src : srcs)
+                types.push_back(MatType::get(src.type()));
+
             { // declare thunk
                 vector<Type*> params = MatType::toLLVM(types);
                 params.push_back(MatType::Void);
@@ -2002,6 +1999,8 @@ private:
             delete builder.undefine("t");
             builder.CreateRetVoid();
         }
+
+        builder.undefineAll(args, false);
 
         results->addIncoming(Builder::constant(thunkResults), entry);
         dstType->addIncoming(Builder::type(kernelType), entry);
