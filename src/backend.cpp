@@ -1845,6 +1845,7 @@ private:
     {
         vector<string> axis;
         size_t results;
+        likely_type kernelData;
     };
 
     likely_expression *evaluateLambda(Builder &builder, const vector<likely_expression> &srcs) const
@@ -1887,28 +1888,26 @@ private:
         PHINode *kernelFrames   = builder.CreatePHI(NativeInt, 1);
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(kernelChannels, kernelColumns), kernelRows), kernelFrames);
         likely_expression dst(newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, Builder::nullData()), kernelType);
+        builder.undefineAll(args, false);
 
-        Metadata metadata;
-        if (likely_parallel(kernelType)) metadata = generateParallel(builder, args, srcs, kernelType, dst, kernelSize);
-        else                             metadata = generateSerial  (builder, args, srcs, kernelType, dst, kernelSize);
+        const Metadata metadata = likely_parallel(kernelType) ? generateParallel(builder, args, srcs, dst, kernelSize)
+                                                              : generateSerial  (builder, args, srcs, dst, kernelSize);
 
         results->addIncoming(Builder::constant(metadata.results), entry);
-        dstType->addIncoming(Builder::type(kernelType), entry);
+        dstType->addIncoming(Builder::type(metadata.kernelData | kernelType), entry);
         kernelChannels->addIncoming(find(metadata.axis.begin(), metadata.axis.end(), "c") != metadata.axis.end() ? dstChannels : Builder::one(), entry);
         kernelColumns->addIncoming (find(metadata.axis.begin(), metadata.axis.end(), "x") != metadata.axis.end() ? dstColumns  : Builder::one(), entry);
         kernelRows->addIncoming    (find(metadata.axis.begin(), metadata.axis.end(), "y") != metadata.axis.end() ? dstRows     : Builder::one(), entry);
         kernelFrames->addIncoming  (find(metadata.axis.begin(), metadata.axis.end(), "t") != metadata.axis.end() ? dstFrames   : Builder::one(), entry);
-
-        builder.undefineAll(args, false);
         return new likely_expression(dst);
     }
 
-    Metadata generateSerial(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type &kernelType, likely_expression &dst, Value *kernelSize) const
+    Metadata generateSerial(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *kernelSize) const
     {
-        return generateKernel(builder, args, srcs, dst, Builder::zero(), kernelSize, kernelType);
+        return generateKernel(builder, args, srcs, dst, Builder::zero(), kernelSize);
     }
 
-    Metadata generateParallel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_type &kernelType, likely_expression &dst, Value *kernelSize) const
+    Metadata generateParallel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *kernelSize) const
     {
         BasicBlock *allocation = builder.GetInsertBlock();
         Function *thunk;
@@ -1942,11 +1941,11 @@ private:
             likely_expression start = srcs.back(); srcs.pop_back();
             start.setType(likely_matrix_native);
             start.value()->setName("start");
-            likely_expression dst = srcs.back(); srcs.pop_back();
-            dst.value()->setName("dst");
-            dst.setType(kernelType);
+            likely_expression kernelDst = srcs.back(); srcs.pop_back();
+            kernelDst.value()->setName("dst");
+            kernelDst.setType(dst.type());
 
-            metadata = generateKernel(builder, args, srcs, dst, start, stop, kernelType);
+            metadata = generateKernel(builder, args, srcs, kernelDst, start, stop);
 
             builder.CreateRetVoid();
         }
@@ -1984,7 +1983,7 @@ private:
         return metadata;
     }
 
-    Metadata generateKernel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop, likely_type &kernelType) const
+    Metadata generateKernel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop) const
     {
         Metadata metadata;
         BasicBlock *thunkEntry = builder.GetInsertBlock();
@@ -2048,16 +2047,16 @@ private:
 
         unique_ptr<likely_expression> result(builder.expression(ast->atoms[2]));
         const vector<const likely_expression*> expressions = result->expressions();
-        likely_type kernelDataType = likely_matrix_void;
+        metadata.kernelData = likely_matrix_void;
         for (const likely_expression *e : expressions)
-            kernelDataType = likely_type_from_types(kernelDataType, *e);
-        likely_set_data(&kernelType, likely_data(kernelDataType));
-        dst.setType(kernelType);
+            metadata.kernelData = likely_type_from_types(metadata.kernelData, *e);
+        likely_set_data(&metadata.kernelData, likely_data(metadata.kernelData));
+        dst.setType(metadata.kernelData);
 
         metadata.results = expressions.size();
         channelStep->addIncoming(builder.constant(metadata.results), thunkEntry);
         for (size_t i=0; i<metadata.results; i++) {
-            StoreInst *store = builder.CreateStore(builder.cast(expressions[i], kernelDataType), builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis.back()->offset, builder.constant(i))));
+            StoreInst *store = builder.CreateStore(builder.cast(expressions[i], metadata.kernelData), builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis.back()->offset, builder.constant(i))));
             store->setMetadata("llvm.mem.parallel_loop_access", axis.back()->node);
         }
 
