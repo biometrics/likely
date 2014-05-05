@@ -1845,7 +1845,6 @@ private:
     {
         vector<string> axis;
         size_t results;
-        likely_type kernelData;
     };
 
     likely_expression *evaluateLambda(Builder &builder, const vector<likely_expression> &srcs) const
@@ -1894,7 +1893,7 @@ private:
                                                               : generateSerial  (builder, args, srcs, dst, kernelSize);
 
         results->addIncoming(Builder::constant(metadata.results), entry);
-        dstType->addIncoming(Builder::type(metadata.kernelData | kernelType), entry);
+        dstType->addIncoming(Builder::type(dst), entry);
         kernelChannels->addIncoming(find(metadata.axis.begin(), metadata.axis.end(), "c") != metadata.axis.end() ? dstChannels : Builder::one(), entry);
         kernelColumns->addIncoming (find(metadata.axis.begin(), metadata.axis.end(), "x") != metadata.axis.end() ? dstColumns  : Builder::one(), entry);
         kernelRows->addIncoming    (find(metadata.axis.begin(), metadata.axis.end(), "y") != metadata.axis.end() ? dstRows     : Builder::one(), entry);
@@ -1947,6 +1946,7 @@ private:
 
             metadata = generateKernel(builder, args, srcs, kernelDst, start, stop);
 
+            dst.setType(kernelDst.type());
             builder.CreateRetVoid();
         }
 
@@ -2047,16 +2047,13 @@ private:
 
         unique_ptr<likely_expression> result(builder.expression(ast->atoms[2]));
         const vector<const likely_expression*> expressions = result->expressions();
-        metadata.kernelData = likely_matrix_void;
         for (const likely_expression *e : expressions)
-            metadata.kernelData = likely_type_from_types(metadata.kernelData, *e);
-        likely_set_data(&metadata.kernelData, likely_data(metadata.kernelData));
-        dst.setType(metadata.kernelData);
+            dst.setType(likely_type_from_types(dst.type(), *e));
 
         metadata.results = expressions.size();
         channelStep->addIncoming(builder.constant(metadata.results), thunkEntry);
         for (size_t i=0; i<metadata.results; i++) {
-            StoreInst *store = builder.CreateStore(builder.cast(expressions[i], metadata.kernelData), builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis.back()->offset, builder.constant(i))));
+            StoreInst *store = builder.CreateStore(builder.cast(expressions[i], dst), builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis.back()->offset, builder.constant(i))));
             store->setMetadata("llvm.mem.parallel_loop_access", axis.back()->node);
         }
 
