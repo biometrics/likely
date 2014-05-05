@@ -1953,8 +1953,8 @@ private:
 
         builder.SetInsertPoint(allocation);
 
-        Type *likelyForkReturn = Type::getVoidTy(C);
-        FunctionType *likelyForkType = FunctionType::get(likelyForkReturn, { thunk->getType(), Type::getInt8Ty(C), NativeInt, MatType::Void }, true);
+        Type *likelyForkParameters[] = { thunk->getType(), Type::getInt8Ty(C), NativeInt, MatType::Void };
+        FunctionType *likelyForkType = FunctionType::get(Type::getVoidTy(C), likelyForkParameters, true);
 
         Function *likelyFork = Function::Create(likelyForkType, GlobalValue::ExternalLinkage, "likely_fork", builder.module());
         likelyFork->setCallingConv(CallingConv::C);
