@@ -1794,9 +1794,12 @@ private:
 
         set<string> tryCollapse()
         {
+            if (parent)
+                return parent->tryCollapse();
+
             set<string> collapsedAxis;
             collapsedAxis.insert(name);
-            if (parent || referenced)
+            if (referenced)
                 return collapsedAxis;
 
             while (child && !child->referenced) {
@@ -1890,7 +1893,7 @@ private:
 
     Metadata generateSerial(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *kernelSize) const
     {
-        return generateKernel(builder, args, srcs, dst, Builder::zero(), kernelSize);
+        return generateCommon(builder, args, srcs, dst, Builder::zero(), kernelSize);
     }
 
     Metadata generateParallel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *kernelSize) const
@@ -1931,7 +1934,7 @@ private:
             kernelDst.value()->setName("dst");
             kernelDst.setType(dst.type());
 
-            metadata = generateKernel(builder, args, srcs, kernelDst, start, stop);
+            metadata = generateCommon(builder, args, srcs, kernelDst, start, stop);
 
             dst.setType(kernelDst.type());
             builder.CreateRetVoid();
@@ -1974,19 +1977,19 @@ private:
         return Metadata();
     }
 
-    Metadata generateKernel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop) const
+    Metadata generateCommon(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop) const
     {
         Metadata metadata;
-        BasicBlock *thunkEntry = builder.GetInsertBlock();
-        BasicBlock *steps = BasicBlock::Create(C, "steps", builder.GetInsertBlock()->getParent());
+        BasicBlock *entry = builder.GetInsertBlock();
+        BasicBlock *steps = BasicBlock::Create(C, "steps", entry->getParent());
         builder.CreateBr(steps);
         builder.SetInsertPoint(steps);
         PHINode *channelStep;
-        channelStep = builder.CreatePHI(NativeInt, 1); // Defined after we know the number or results
+        channelStep = builder.CreatePHI(NativeInt, 1); // Defined after we know the number of results
         Value *columnStep, *rowStep, *frameStep;
         builder.steps(&dst, channelStep, &columnStep, &rowStep, &frameStep);
 
-        vector<kernelAxis*> axis;
+        kernelAxis *axis = NULL;
         for (int axis_index=0; axis_index<4; axis_index++) {
             string name;
             bool multiElement;
@@ -2019,21 +2022,21 @@ private:
                 break;
             }
 
-            if (multiElement || ((axis_index == 3) && axis.empty())) {
-                if (axis.empty()) axis.push_back(new kernelAxis(builder, name, start, stop, step, NULL));
-                else              axis.push_back(new kernelAxis(builder, name, builder.zero(), elements, step, axis.back()));
-                builder.define(name.c_str(), axis.back()); // takes ownership of axis
+            if (multiElement || ((axis_index == 3) && !axis)) {
+                if (!axis) axis = new kernelAxis(builder, name, start, stop, step, NULL);
+                else       axis = new kernelAxis(builder, name, builder.zero(), elements, step, axis);
+                builder.define(name.c_str(), axis); // takes ownership of axis
             } else {
                 builder.define(name.c_str(), new likely_expression(builder.zero(), likely_matrix_native));
             }
         }
-        builder.define("i", new likely_expression(axis.back()->offset, likely_matrix_native));
+        builder.define("i", new likely_expression(axis->offset, likely_matrix_native));
 
         if (args->is_list) {
             for (size_t j=0; j<args->num_atoms; j++)
-                builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, channelStep, axis.back()->node));
+                builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, channelStep, axis->node));
         } else {
-            builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis.back()->node));
+            builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis->node));
         }
 
         unique_ptr<likely_expression> result(builder.expression(ast->atoms[2]));
@@ -2042,15 +2045,14 @@ private:
             dst.setType(likely_type_from_types(dst.type(), *e));
 
         metadata.results = expressions.size();
-        channelStep->addIncoming(builder.constant(metadata.results), thunkEntry);
+        channelStep->addIncoming(builder.constant(metadata.results), entry);
         for (size_t i=0; i<metadata.results; i++) {
-            StoreInst *store = builder.CreateStore(builder.cast(expressions[i], dst), builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis.back()->offset, builder.constant(i))));
-            store->setMetadata("llvm.mem.parallel_loop_access", axis.back()->node);
+            StoreInst *store = builder.CreateStore(builder.cast(expressions[i], dst), builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis->offset, builder.constant(i))));
+            store->setMetadata("llvm.mem.parallel_loop_access", axis->node);
         }
 
-        axis.back()->close(builder); // Closes all axis
-        metadata.collapsedAxis = axis.front()->tryCollapse();
-        axis.clear();
+        axis->close(builder);
+        metadata.collapsedAxis = axis->tryCollapse();
 
         builder.undefineAll(args, true);
         delete builder.undefine("i");
