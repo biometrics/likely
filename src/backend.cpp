@@ -47,6 +47,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <sstream>
 
 #include "likely/backend.h"
@@ -1807,12 +1808,12 @@ private:
             if (parent) parent->close(builder);
         }
 
-        vector<string> tryCollapse()
+        set<string> tryCollapse()
         {
-            vector<string> axis;
-            axis.push_back(name);
+            set<string> collapsedAxis;
+            collapsedAxis.insert(name);
             if (parent || referenced)
-                return axis;
+                return collapsedAxis;
 
             while (child && !child->referenced) {
                 // Collapse the child loop into us
@@ -1821,10 +1822,10 @@ private:
                 DeleteDeadPHIs(child->loop);
                 MergeBlockIntoPredecessor(child->loop);
                 MergeBlockIntoPredecessor(child->exit);
-                axis.push_back(child->name);
+                collapsedAxis.insert(child->name);
                 child = child->child;
             }
-            return axis;
+            return collapsedAxis;
         }
 
         Value *value() const
@@ -1843,7 +1844,7 @@ private:
 
     struct Metadata
     {
-        vector<string> axis;
+        set<string> collapsedAxis;
         size_t results;
     };
 
@@ -1894,10 +1895,10 @@ private:
 
         results->addIncoming(Builder::constant(metadata.results), entry);
         dstType->addIncoming(Builder::type(dst), entry);
-        kernelChannels->addIncoming(find(metadata.axis.begin(), metadata.axis.end(), "c") != metadata.axis.end() ? dstChannels : Builder::one(), entry);
-        kernelColumns->addIncoming (find(metadata.axis.begin(), metadata.axis.end(), "x") != metadata.axis.end() ? dstColumns  : Builder::one(), entry);
-        kernelRows->addIncoming    (find(metadata.axis.begin(), metadata.axis.end(), "y") != metadata.axis.end() ? dstRows     : Builder::one(), entry);
-        kernelFrames->addIncoming  (find(metadata.axis.begin(), metadata.axis.end(), "t") != metadata.axis.end() ? dstFrames   : Builder::one(), entry);
+        kernelChannels->addIncoming(metadata.collapsedAxis.find("c") != metadata.collapsedAxis.end() ? dstChannels : Builder::one(), entry);
+        kernelColumns->addIncoming (metadata.collapsedAxis.find("x") != metadata.collapsedAxis.end() ? dstColumns  : Builder::one(), entry);
+        kernelRows->addIncoming    (metadata.collapsedAxis.find("y") != metadata.collapsedAxis.end() ? dstRows     : Builder::one(), entry);
+        kernelFrames->addIncoming  (metadata.collapsedAxis.find("t") != metadata.collapsedAxis.end() ? dstFrames   : Builder::one(), entry);
         return new likely_expression(dst);
     }
 
@@ -2058,7 +2059,7 @@ private:
         }
 
         axis.back()->close(builder); // Closes all axis
-        metadata.axis = axis.front()->tryCollapse();
+        metadata.collapsedAxis = axis.front()->tryCollapse();
         axis.clear();
 
         builder.undefineAll(args, true);
