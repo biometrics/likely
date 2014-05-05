@@ -1940,10 +1940,13 @@ private:
         Type *likelyForkParameters[] = { thunk->getType(), Type::getInt8Ty(C), NativeInt, MatType::Void };
         FunctionType *likelyForkType = FunctionType::get(Type::getVoidTy(C), likelyForkParameters, true);
 
-        Function *likelyFork = Function::Create(likelyForkType, GlobalValue::ExternalLinkage, "likely_fork", builder.module());
-        likelyFork->setCallingConv(CallingConv::C);
-        likelyFork->setDoesNotCapture(4);
-        likelyFork->setDoesNotAlias(4);
+        Function *likelyFork = builder.module()->getFunction("likely_fork");
+        if (!likelyFork) {
+            likelyFork = Function::Create(likelyForkType, GlobalValue::ExternalLinkage, "likely_fork", builder.module());
+            likelyFork->setCallingConv(CallingConv::C);
+            likelyFork->setDoesNotCapture(4);
+            likelyFork->setDoesNotAlias(4);
+        }
 
         vector<Value*> likelyForkArgs;
         likelyForkArgs.push_back(builder.module()->getFunction(thunk->getName()));
@@ -2187,11 +2190,14 @@ class printExpression : public VAOperator
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         static FunctionType *functionType = FunctionType::get(MatType::Void, MatType::Void, true);
-        Function *likelyPrint = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_print", builder.module());
-        likelyPrint->setCallingConv(CallingConv::C);
-        likelyPrint->setDoesNotAlias(0);
-        likelyPrint->setDoesNotAlias(1);
-        likelyPrint->setDoesNotCapture(1);
+        Function *likelyPrint = builder.module()->getFunction("likely_print");
+        if (!likelyPrint) {
+            likelyPrint = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_print", builder.module());
+            likelyPrint->setCallingConv(CallingConv::C);
+            likelyPrint->setDoesNotAlias(0);
+            likelyPrint->setDoesNotAlias(1);
+            likelyPrint->setDoesNotCapture(1);
+        }
 
         vector<Value*> rawArgs;
         for (size_t i=1; i<ast->num_atoms; i++) {
