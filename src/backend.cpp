@@ -854,9 +854,7 @@ class UnaryMathOperator : public SimpleUnaryOperator
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &x) const
     {
         likely_expression xc(builder.cast(x.get(), Builder::validFloatType(*x)));
-        vector<Type*> args;
-        args.push_back(xc.value()->getType());
-        return new likely_expression(builder.CreateCall(Intrinsic::getDeclaration(builder.module(), id(), args), xc), xc);
+        return new likely_expression(builder.CreateCall(Intrinsic::getDeclaration(builder.module(), id(), xc.value()->getType()), xc), xc);
     }
     virtual Intrinsic::ID id() const = 0;
 };
@@ -1061,9 +1059,7 @@ class BinaryMathOperator : public SimpleBinaryOperator
         const likely_type type = nIsInteger() ? x->type() : likely_type_from_types(*x, *n);
         likely_expression xc(builder.cast(x.get(), Builder::validFloatType(type)));
         likely_expression nc(builder.cast(n.get(), nIsInteger() ? likely_type(likely_matrix_i32) : xc.type()));
-        vector<Type*> args;
-        args.push_back(xc.value()->getType());
-        return new likely_expression(builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), id(), args), xc, nc), xc);
+        return new likely_expression(builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), id(), xc.value()->getType()), xc, nc), xc);
     }
     virtual Intrinsic::ID id() const = 0;
     virtual bool nIsInteger() const { return false; }
@@ -1249,13 +1245,7 @@ public:
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            vector<Type*> params;
-            params.push_back(NativeInt); // type
-            params.push_back(NativeInt); // channels
-            params.push_back(NativeInt); // columns
-            params.push_back(NativeInt); // rows
-            params.push_back(NativeInt); // frames
-            params.push_back(Type::getInt8PtrTy(C)); // data
+            Type* params[] = { NativeInt, NativeInt, NativeInt, NativeInt, NativeInt, Type::getInt8PtrTy(C) };
             functionType = FunctionType::get(MatType::Void, params, false);
         }
 
@@ -1268,13 +1258,7 @@ public:
             likelyNew->setDoesNotCapture(6);
         }
 
-        vector<Value*> args;
-        args.push_back(type);
-        args.push_back(channels);
-        args.push_back(columns);
-        args.push_back(rows);
-        args.push_back(frames);
-        args.push_back(data);
+        Value* args[] = { type, channels, columns, rows, frames, data };
         return builder.CreateCall(likelyNew, args);
     }
 };
@@ -1293,14 +1277,16 @@ class scalarExpression : public UnaryOperator
 
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            vector<Type*> params;
-            params.push_back(NativeInt);
-            params.push_back(Type::getDoubleTy(C));
+            Type* params[] = { NativeInt, Type::getDoubleTy(C) };
             functionType = FunctionType::get(MatType::Void, params, true);
         }
-        Function *likelyScalars = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalars", builder.module());
-        likelyScalars->setCallingConv(CallingConv::C);
-        likelyScalars->setDoesNotAlias(0);
+
+        Function *likelyScalars = builder.module()->getFunction("likely_scalars");
+        if (!likelyScalars) {
+            likelyScalars = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalars", builder.module());
+            likelyScalars->setCallingConv(CallingConv::C);
+            likelyScalars->setDoesNotAlias(0);
+        }
 
         vector<Value*> args;
         likely_type type = likely_matrix_void;
@@ -1499,9 +1485,7 @@ private:
             static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
             static FunctionType *likelyDynamicType = NULL;
             if (likelyDynamicType == NULL) {
-                vector<Type*> params;
-                params.push_back(vTableType);
-                params.push_back(MatType::Void);
+                Type* params[] = { vTableType, MatType::Void };
                 likelyDynamicType = FunctionType::get(MatType::Void, params, true);
             }
 
@@ -2243,9 +2227,7 @@ class readExpression : public SimpleUnaryOperator
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            vector<Type*> params;
-            params.push_back(Type::getInt8PtrTy(C));
-            params.push_back(Type::getInt1Ty(C));
+            Type* params[] = { Type::getInt8PtrTy(C), Type::getInt1Ty(C) };
             functionType = FunctionType::get(MatType::Void, params, false);
         }
 
@@ -2269,10 +2251,8 @@ class writeExpression : public SimpleBinaryOperator
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            vector<Type*> likelyWriteParameters;
-            likelyWriteParameters.push_back(MatType::Void);
-            likelyWriteParameters.push_back(Type::getInt8PtrTy(C));
-            functionType = FunctionType::get(MatType::Void, likelyWriteParameters, false);
+            Type* params[] = { MatType::Void, Type::getInt8PtrTy(C) };
+            functionType = FunctionType::get(MatType::Void, params, false);
         }
         Function *likelyWrite = builder.module()->getFunction("likely_write");
         if (!likelyWrite) {
@@ -2284,10 +2264,7 @@ class writeExpression : public SimpleBinaryOperator
             likelyWrite->setDoesNotAlias(2);
             likelyWrite->setDoesNotCapture(2);
         }
-        vector<Value*> likelyWriteArguments;
-        likelyWriteArguments.push_back(*arg1);
-        likelyWriteArguments.push_back(*arg2);
-        return new likely_expression(builder.CreateCall(likelyWrite, likelyWriteArguments), likely_matrix_void);
+        return new likely_expression(builder.CreateCall2(likelyWrite, *arg1, *arg2), likely_matrix_void);
     }
     void *symbol() const { return (void*) likely_write; }
 };
@@ -2318,10 +2295,8 @@ class encodeExpression : public SimpleBinaryOperator
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            vector<Type*> parameters;
-            parameters.push_back(MatType::Void);
-            parameters.push_back(Type::getInt8PtrTy(C));
-            functionType = FunctionType::get(MatType::Void, parameters, false);
+            Type* params[] = { MatType::Void, Type::getInt8PtrTy(C) };
+            functionType = FunctionType::get(MatType::Void, params, false);
         }
         Function *likelyEncode = builder.module()->getFunction("likely_encode");
         if (!likelyEncode) {
@@ -2333,10 +2308,7 @@ class encodeExpression : public SimpleBinaryOperator
             likelyEncode->setDoesNotAlias(2);
             likelyEncode->setDoesNotCapture(2);
         }
-        vector<Value*> likelyEncodeArguments;
-        likelyEncodeArguments.push_back(*arg1);
-        likelyEncodeArguments.push_back(*arg2);
-        return new likely_expression(builder.CreateCall(likelyEncode, likelyEncodeArguments), likely_matrix_void);
+        return new likely_expression(builder.CreateCall2(likelyEncode, *arg1, *arg2), likely_matrix_void);
     }
     void *symbol() const { return (void*) likely_encode; }
 };
@@ -2348,11 +2320,8 @@ class renderExpression : public SimpleUnaryOperator
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            vector<Type*> parameters;
-            parameters.push_back(MatType::Void);
-            parameters.push_back(Type::getDoublePtrTy(C));
-            parameters.push_back(Type::getDoublePtrTy(C));
-            functionType = FunctionType::get(MatType::Void, parameters, false);
+            Type* params[] = { MatType::Void, Type::getDoublePtrTy(C), Type::getDoublePtrTy(C) };
+            functionType = FunctionType::get(MatType::Void, params, false);
         }
         Function *likelyRender = builder.module()->getFunction("likely_render");
         if (!likelyRender) {
@@ -2366,11 +2335,7 @@ class renderExpression : public SimpleUnaryOperator
             likelyRender->setDoesNotAlias(3);
             likelyRender->setDoesNotCapture(3);
         }
-        vector<Value*> likelyRenderArguments;
-        likelyRenderArguments.push_back(*arg);
-        likelyRenderArguments.push_back(ConstantPointerNull::get(Type::getDoublePtrTy(C)));
-        likelyRenderArguments.push_back(ConstantPointerNull::get(Type::getDoublePtrTy(C)));
-        return new likely_expression(builder.CreateCall(likelyRender, likelyRenderArguments), likely_matrix_void);
+        return new likely_expression(builder.CreateCall3(likelyRender, *arg, ConstantPointerNull::get(Type::getDoublePtrTy(C)), ConstantPointerNull::get(Type::getDoublePtrTy(C))), likely_matrix_void);
     }
     void *symbol() const { return (void*) likely_render; }
 };
@@ -2382,10 +2347,8 @@ class showExpression : public SimpleUnaryOperator
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            vector<Type*> parameters;
-            parameters.push_back(MatType::Void);
-            parameters.push_back(Type::getInt8PtrTy(C));
-            FunctionType::get(Type::getVoidTy(C), parameters, false);
+            Type* params[] = { MatType::Void, Type::getInt8PtrTy(C) };
+            FunctionType::get(Type::getVoidTy(C), params, false);
         }
         Function *likelyShow = builder.module()->getFunction("likely_show");
         if (!likelyShow) {
