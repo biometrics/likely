@@ -1874,8 +1874,10 @@ private:
         likely_expression dst(newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, Builder::nullData()), kernelType);
         builder.undefineAll(args, false);
 
-        const Metadata metadata = likely_parallel(kernelType) ? generateParallel(builder, args, srcs, dst, kernelSize)
-                                                              : generateSerial  (builder, args, srcs, dst, kernelSize);
+        Metadata metadata;
+        if      (likely_heterogeneous(kernelType)) metadata = generateHeterogeneous(builder, args, srcs, dst, kernelSize);
+        else if (likely_parallel(kernelType))      metadata = generateParallel     (builder, args, srcs, dst, kernelSize);
+        else                                       metadata = generateSerial       (builder, args, srcs, dst, kernelSize);
 
         results->addIncoming(Builder::constant(metadata.results), entry);
         dstType->addIncoming(Builder::type(dst), entry);
@@ -1964,6 +1966,12 @@ private:
         likelyForkArgs.push_back(dst);
         builder.CreateCall(likelyFork, likelyForkArgs);
         return metadata;
+    }
+
+    Metadata generateHeterogeneous(Builder &, likely_const_ast, const vector<likely_expression> &, likely_expression &, Value *) const
+    {
+        assert(!"Not implemented");
+        return Metadata();
     }
 
     Metadata generateKernel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop) const
