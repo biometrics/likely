@@ -518,7 +518,7 @@ struct Builder : public IRBuilder<>
     {
         vector<likely_expression> result;
         Function::arg_iterator args = function->arg_begin();
-        likely_arity n = 0;
+        size_t n = 0;
         while (args != function->arg_end()) {
             Value *src = args++;
             stringstream name; name << "arg_" << int(n);
@@ -1901,42 +1901,38 @@ private:
     Metadata generateParallel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *kernelSize) const
     {
         BasicBlock *allocation = builder.GetInsertBlock();
+
         Function *thunk;
         Metadata metadata;
         {
-            vector<MatType> types;
-            for (const likely_expression &src : srcs)
-                types.push_back(MatType::get(src.type()));
-
-            { // declare thunk
-                vector<Type*> params = MatType::toLLVM(types);
-                params.push_back(MatType::Void);
-                params.push_back(NativeInt);
-                params.push_back(NativeInt);
-                thunk = ::cast<Function>(builder.module()->getOrInsertFunction(builder.GetInsertBlock()->getParent()->getName().str() + "_thunk", FunctionType::get(Type::getVoidTy(C), params, false)));
-                thunk->addFnAttr(Attribute::AlwaysInline);
-                thunk->addFnAttr(Attribute::NoUnwind);
-                thunk->setCallingConv(CallingConv::C);
-                thunk->setLinkage(GlobalValue::PrivateLinkage);
-                for (int i=1; i<int(types.size()+2); i++) {
-                    thunk->setDoesNotAlias(i);
-                    thunk->setDoesNotCapture(i);
-                }
+            static FunctionType *thunkType = NULL;
+            if (!thunkType) {
+                Type* params[] = { PointerType::get(MatType::Void, 0), NativeInt, NativeInt };
+                thunkType = FunctionType::get(Type::getVoidTy(C), params, false);
             }
 
-            builder.SetInsertPoint(BasicBlock::Create(C, "entry", thunk));
-            vector<likely_expression> srcs = builder.getArgs(thunk, types);
-            likely_expression stop = srcs.back(); srcs.pop_back();
-            stop.setType(likely_matrix_native);
-            stop.value()->setName("stop");
-            likely_expression start = srcs.back(); srcs.pop_back();
-            start.setType(likely_matrix_native);
-            start.value()->setName("start");
-            likely_expression kernelDst = srcs.back(); srcs.pop_back();
-            kernelDst.value()->setName("dst");
-            kernelDst.setType(dst.type());
+            thunk = ::cast<Function>(builder.module()->getOrInsertFunction(builder.GetInsertBlock()->getParent()->getName().str() + "_thunk", thunkType));
+            thunk->addFnAttr(Attribute::NoUnwind);
+            thunk->setCallingConv(CallingConv::C);
+            thunk->setLinkage(GlobalValue::PrivateLinkage);
+            thunk->setDoesNotAlias(1);
+            thunk->setDoesNotCapture(1);
 
-            metadata = generateCommon(builder, args, srcs, kernelDst, start, stop);
+            Function::arg_iterator it = thunk->arg_begin();
+            Value *thunkMatrixArray = it++;
+            Value *start = it++;
+            Value *stop = it++;
+
+            builder.SetInsertPoint(BasicBlock::Create(C, "entry", thunk));
+            vector<likely_expression> thunkSrcs;
+            for (size_t i=0; i<srcs.size()+1; i++) {
+                const likely_type type = i < srcs.size() ? srcs[i].type() : dst.type();
+                thunkSrcs.push_back(likely_expression(builder.CreatePointerCast(builder.CreateLoad(builder.CreateGEP(thunkMatrixArray, Builder::constant(i))), MatType::get(type).llvm), type));
+            }
+            likely_expression kernelDst = thunkSrcs.back(); thunkSrcs.pop_back();
+            kernelDst.value()->setName("dst");
+
+            metadata = generateCommon(builder, args, thunkSrcs, kernelDst, start, stop);
 
             dst.setType(kernelDst.type());
             builder.CreateRetVoid();
@@ -1944,32 +1940,36 @@ private:
 
         builder.SetInsertPoint(allocation);
 
-        Type *likelyForkParameters[] = { thunk->getType(), Type::getInt8Ty(C), NativeInt, MatType::Void };
-        FunctionType *likelyForkType = FunctionType::get(Type::getVoidTy(C), likelyForkParameters, true);
+        static FunctionType *likelyForkType = NULL;
+        if (!likelyForkType) {
+            Type *params[] = { thunk->getType(), PointerType::get(MatType::Void, 0), NativeInt };
+            likelyForkType = FunctionType::get(Type::getVoidTy(C), params, false);
+        }
 
         Function *likelyFork = builder.module()->getFunction("likely_fork");
         if (!likelyFork) {
             likelyFork = Function::Create(likelyForkType, GlobalValue::ExternalLinkage, "likely_fork", builder.module());
             likelyFork->setCallingConv(CallingConv::C);
-            likelyFork->setDoesNotCapture(4);
-            likelyFork->setDoesNotAlias(4);
+            likelyFork->setDoesNotCapture(1);
+            likelyFork->setDoesNotAlias(1);
+            likelyFork->setDoesNotCapture(2);
+            likelyFork->setDoesNotAlias(2);
         }
 
-        vector<Value*> likelyForkArgs;
-        likelyForkArgs.push_back(builder.module()->getFunction(thunk->getName()));
-        likelyForkArgs.push_back(Builder::constant(uint64_t(srcs.size()), likely_matrix_u8));
-        likelyForkArgs.push_back(kernelSize);
-        for (const likely_expression &src : srcs) {
+        Value *thunkMatrixArray = builder.CreateAlloca(MatType::Void, Builder::constant(srcs.size()+1));
+        for (size_t i=0; i<srcs.size()+1; i++) {
+            const likely_expression &src = i < srcs.size() ? srcs[i] : dst;
+            Value *val;
             if (likely_multi_dimension(src)) {
-                likelyForkArgs.push_back(builder.CreatePointerCast(src, MatType::Void));
+               val = src;
             } else {
-                AllocaInst *ptr = builder.CreateAlloca(src.value()->getType());
-                builder.CreateStore(src, ptr);
-                likelyForkArgs.push_back(builder.CreatePointerCast(ptr, MatType::Void));
+                val = builder.CreateAlloca(src.value()->getType());
+                builder.CreateStore(src, val);
             }
+            builder.CreateStore(builder.CreatePointerCast(val, MatType::Void), builder.CreateGEP(thunkMatrixArray, Builder::constant(i)));
         }
-        likelyForkArgs.push_back(dst);
-        builder.CreateCall(likelyFork, likelyForkArgs);
+
+        builder.CreateCall3(likelyFork, builder.module()->getFunction(thunk->getName()), thunkMatrixArray, kernelSize);
         return metadata;
     }
 
@@ -2451,7 +2451,7 @@ likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat m, ...)
     void *function = NULL;
     for (size_t i=0; i<vTable->functions.size(); i++) {
         const unique_ptr<JITFunction> &resources = vTable->functions[i];
-        for (likely_arity j=0; j<vTable->n; j++)
+        for (size_t j=0; j<vTable->n; j++)
             if (mv[j]->type != resources->type[j])
                 goto Next;
         function = resources->function;

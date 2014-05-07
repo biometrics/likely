@@ -356,10 +356,9 @@ static atomic<bool> *workers = NULL;
 static size_t numWorkers = 0;
 
 // Parallel data
-static void *currentThunk = NULL;
-static likely_arity thunkArity = 0;
+static likely_thunk currentThunk = NULL;
+static likely_mat *thunkArgs = NULL;
 static likely_size thunkSize = 0;
-static likely_const_mat thunkMatricies[LIKELY_NUM_ARITIES+1];
 
 static void executeWorker(size_t id)
 {
@@ -368,20 +367,7 @@ static void executeWorker(size_t id)
     const likely_size start = id * step;
     const likely_size stop = std::min((id+1)*step, thunkSize);
     if (start >= stop) return;
-
-    // Final three parameters are: dst, start, stop
-    typedef void (*likely_kernel_0)(likely_const_mat, likely_size, likely_size);
-    typedef void (*likely_kernel_1)(const likely_const_mat, likely_const_mat, likely_size, likely_size);
-    typedef void (*likely_kernel_2)(const likely_const_mat, const likely_const_mat, likely_const_mat, likely_size, likely_size);
-    typedef void (*likely_kernel_3)(const likely_const_mat, const likely_const_mat, const likely_const_mat, likely_const_mat, likely_size, likely_size);
-
-    switch (thunkArity) {
-      case 0: reinterpret_cast<likely_kernel_0>(currentThunk)((likely_const_mat)thunkMatricies[0], start, stop); break;
-      case 1: reinterpret_cast<likely_kernel_1>(currentThunk)(thunkMatricies[0], (likely_const_mat)thunkMatricies[1], start, stop); break;
-      case 2: reinterpret_cast<likely_kernel_2>(currentThunk)(thunkMatricies[0], thunkMatricies[1], (likely_const_mat)thunkMatricies[2], start, stop); break;
-      case 3: reinterpret_cast<likely_kernel_3>(currentThunk)(thunkMatricies[0], thunkMatricies[1], thunkMatricies[2], (likely_const_mat)thunkMatricies[3], start, stop); break;
-      default: likely_assert(false, "executeWorker invalid arity: %d", thunkArity);
-    }
+    currentThunk(thunkArgs, start, stop);
 }
 
 static void workerThread(size_t id)
@@ -398,7 +384,7 @@ static void workerThread(size_t id)
     }
 }
 
-void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const_mat src, ...)
+void likely_fork(likely_thunk thunk, likely_mat *args, likely_size size)
 {
     static mutex forkLock;
     lock_guard<mutex> lockFork(forkLock);
@@ -415,16 +401,8 @@ void likely_fork(void *thunk, likely_arity arity, likely_size size, likely_const
     }
 
     currentThunk = thunk;
-    thunkArity = arity;
+    thunkArgs = args;
     thunkSize = size;
-
-    va_list ap;
-    va_start(ap, src);
-    for (int i=0; i<arity+1; i++) {
-        thunkMatricies[i] = src;
-        src = va_arg(ap, likely_const_mat);
-    }
-    va_end(ap);
 
     {
         unique_lock<mutex> lock(work);
