@@ -16,7 +16,7 @@ Responsive location and resolution
 
 Definition
 
-    mandelbrot_set = (x_range y_range iter) =>
+    mandelbrot_set = (width height x_min y_min x_range y_range iter) =>
     {
       zr0 = x.f32 * x_range / width  + x_min
       zi0 = y.f32 * y_range / height + y_min
@@ -35,4 +35,4 @@ Definition
 
 Execution
 
-    (mandelbrot_set x_range y_range iter)
+    (mandelbrot_set width height x_min y_min x_range y_range iter)
