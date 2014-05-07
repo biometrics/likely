@@ -1719,27 +1719,23 @@ private:
             if (ast->is_list)
                 return error(ast, "kernel operator does not take arguments");
 
-            LoadInst *load;
-            if (!likely_multi_dimension(matrix)) {
-                if (!isa<PointerType>(matrix.value()->getType()))
-                    return new likely_expression(matrix);
-                load = builder.CreateLoad(matrix);
+            if (!likely_multi_dimension(matrix))
+                return new likely_expression(matrix);
+
+            Value *i;
+            if (((matrix ^ kernel) & likely_matrix_multi_dimension) == 0) {
+                // This matrix has the same dimensionality as the kernel
+                i = *builder.lookup("i");
             } else {
-                Value *i;
-                if (((matrix ^ kernel) & likely_matrix_multi_dimension) == 0) {
-                    // This matrix has the same dimensionality as the kernel
-                    i = *builder.lookup("i");
-                } else {
-                    Value *columnStep, *rowStep, *frameStep;
-                    builder.steps(&matrix, channelStep, &columnStep, &rowStep, &frameStep);
-                    i = Builder::zero();
-                    if (likely_multi_channel(matrix)) i = builder.CreateMul(*builder.lookup("c"), channelStep);
-                    if (likely_multi_column (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), columnStep), i);
-                    if (likely_multi_row    (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep   ), i);
-                    if (likely_multi_frame  (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep ), i);
-                }
-                load = builder.CreateLoad(builder.CreateGEP(builder.data(&matrix), i));
+                Value *columnStep, *rowStep, *frameStep;
+                builder.steps(&matrix, channelStep, &columnStep, &rowStep, &frameStep);
+                i = Builder::zero();
+                if (likely_multi_channel(matrix)) i = builder.CreateMul(*builder.lookup("c"), channelStep);
+                if (likely_multi_column (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), columnStep), i);
+                if (likely_multi_row    (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep   ), i);
+                if (likely_multi_frame  (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep ), i);
             }
+            LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(&matrix), i));
 
             load->setMetadata("llvm.mem.parallel_loop_access", node);
             return new likely_expression(load, matrix);
@@ -1927,7 +1923,10 @@ private:
             vector<likely_expression> thunkSrcs;
             for (size_t i=0; i<srcs.size()+1; i++) {
                 const likely_type type = i < srcs.size() ? srcs[i].type() : dst.type();
-                thunkSrcs.push_back(likely_expression(builder.CreatePointerCast(builder.CreateLoad(builder.CreateGEP(thunkMatrixArray, Builder::constant(i))), MatType::get(type).llvm), type));
+                Value *val = builder.CreatePointerCast(builder.CreateLoad(builder.CreateGEP(thunkMatrixArray, Builder::constant(i))), MatType::get(type).llvm);
+                if (!likely_multi_dimension(type))
+                    val = builder.CreateLoad(val);
+                thunkSrcs.push_back(likely_expression(val, type));
             }
             likely_expression kernelDst = thunkSrcs.back(); thunkSrcs.pop_back();
             kernelDst.value()->setName("dst");
