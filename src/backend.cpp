@@ -1721,6 +1721,8 @@ private:
 
             LoadInst *load;
             if (!likely_multi_dimension(matrix)) {
+                if (!isa<PointerType>(matrix.value()->getType()))
+                    return new likely_expression(matrix);
                 load = builder.CreateLoad(matrix);
             } else {
                 Value *i;
