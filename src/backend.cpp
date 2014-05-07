@@ -1409,6 +1409,22 @@ public:
 };
 LIKELY_REGISTER(release)
 
+struct Symbol : public likely_expression
+{
+    vector<MatType> types;
+    likely_env env;
+
+    Symbol(Function *function, likely_type type, const vector<MatType> &types, likely_env env)
+        : likely_expression(function, type), types(types), env(likely_retain_env(env)) {}
+    ~Symbol() { likely_release_env(env); }
+
+    likely_expression *evaluate(Builder &, likely_const_ast) const
+    {
+        assert(!"Not Implemented");
+        return NULL;
+    }
+};
+
 struct Lambda : public ScopedExpression
 {
     Lambda(Builder &builder, likely_const_ast ast)
@@ -1447,7 +1463,7 @@ struct Lambda : public ScopedExpression
         CloneFunctionInto(function, tmpFunction, VMap, false, returns);
         tmpFunction->eraseFromParent();
         delete result;
-        return new likely_expression(function, return_type);
+        return new Symbol(function, return_type, types, builder.env);
     }
 
 private:
@@ -2152,8 +2168,7 @@ class exportExpression : public Operator
             types.push_back(MatType::get(likely_type_from_string(ast->atoms[3]->atom)));
         }
 
-        lambda->generate(builder, types, name);
-        return NULL;
+        return lambda->generate(builder, types, name);
     }
 };
 LIKELY_REGISTER(export)
