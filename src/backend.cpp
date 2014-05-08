@@ -378,12 +378,15 @@ class JITFunctionCache : public ObjectCache
         return NULL;
     }
 
-    static hash_code hash(const Module *M)
+public:
+    template <typename T>
+    static hash_code hash(const T *val)
     {
-        string O;
-        raw_string_ostream ostream(O);
-        M->print(ostream, NULL);
-        return hash_value(ostream.str());
+        string str;
+        raw_string_ostream ostream(str);
+        val->print(ostream, NULL);
+        ostream.flush();
+        return hash_value(str);
     }
 };
 static JITFunctionCache TheJITFunctionCache;
@@ -1411,17 +1414,20 @@ LIKELY_REGISTER(release)
 
 struct Symbol : public likely_expression
 {
-    vector<MatType> types;
-    likely_env env;
+    Symbol(Function *function, likely_type type)
+        : likely_expression(function, type) {}
 
-    Symbol(Function *function, likely_type type, const vector<MatType> &types, likely_env env)
-        : likely_expression(function, type), types(types), env(likely_retain_env(env)) {}
-    ~Symbol() { likely_release_env(env); }
-
-    likely_expression *evaluate(Builder &, likely_const_ast) const
+    likely_expression *evaluate(Builder &builder, likely_const_ast ast) const
     {
-        assert(!"Not Implemented");
-        return NULL;
+        vector<Value*> args;
+        if (ast->is_list) {
+            for (size_t i=1; i<ast->num_atoms; i++) {
+                TRY_EXPR(builder, ast->atoms[i], arg)
+                args.push_back(arg->value());
+            }
+        }
+
+        return new likely_expression(builder.CreateCall(value(), args), type());
     }
 };
 
@@ -1463,7 +1469,12 @@ struct Lambda : public ScopedExpression
         CloneFunctionInto(function, tmpFunction, VMap, false, returns);
         tmpFunction->eraseFromParent();
         delete result;
-        return new Symbol(function, return_type, types, builder.env);
+
+        static map<hash_code, likely_env> cache;
+        hash_code hash = JITFunctionCache::hash(function);
+        cache.insert(pair<hash_code,likely_env>(hash, likely_retain_env(builder.env)));
+
+        return new Symbol(function, return_type);
     }
 
 private:
@@ -2147,6 +2158,7 @@ LIKELY_REGISTER_EXPRESSION(kernel, "=>")
 
 class exportExpression : public Operator
 {
+    size_t minParameters() const { return 2; }
     size_t maxParameters() const { return 3; }
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
@@ -2158,14 +2170,16 @@ class exportExpression : public Operator
         const char *name = ast->atoms[2]->atom;
 
         vector<MatType> types;
-        if (ast->atoms[3]->is_list) {
-            for (size_t i=0; i<ast->atoms[3]->num_atoms; i++) {
-                if (ast->atoms[3]->atoms[i]->is_list)
-                    return error(ast->atoms[2], "export expected an atom name");
-                types.push_back(MatType::get(likely_type_from_string(ast->atoms[3]->atoms[i]->atom)));
+        if (ast->num_atoms >= 4) {
+            if (ast->atoms[3]->is_list) {
+                for (size_t i=0; i<ast->atoms[3]->num_atoms; i++) {
+                    if (ast->atoms[3]->atoms[i]->is_list)
+                        return error(ast->atoms[2], "export expected an atom name");
+                    types.push_back(MatType::get(likely_type_from_string(ast->atoms[3]->atoms[i]->atom)));
+                }
+            } else {
+                types.push_back(MatType::get(likely_type_from_string(ast->atoms[3]->atom)));
             }
-        } else {
-            types.push_back(MatType::get(likely_type_from_string(ast->atoms[3]->atom)));
         }
 
         return lambda->generate(builder, types, name);
