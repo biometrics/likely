@@ -95,6 +95,10 @@ LIKELY_EXPORT likely_env likely_repl(const char *source, bool GFM, likely_const_
 // Contents of library/standard.l
 LIKELY_EXPORT extern const char likely_standard_library[];
 
+// Dynamic dispatch
+typedef struct likely_virtual_table *likely_vtable;
+LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *m);
+
 #ifdef __cplusplus
 }
 #endif // __cplusplus

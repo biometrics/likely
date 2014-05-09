@@ -652,18 +652,16 @@ likely_expression *likely_expression::evaluate(Builder &builder, likely_const_as
     }
 }
 
-struct VTable : public ScopedExpression
+struct likely_virtual_table : public ScopedExpression
 {
     size_t n;
     vector<unique_ptr<JITFunction>> functions;
 
-    VTable(Builder &builder, likely_const_ast ast, size_t n)
+    likely_virtual_table(Builder &builder, likely_const_ast ast, size_t n)
         : ScopedExpression(builder, ast), n(n) {}
 
     likely_expression *evaluateOperator(Builder &, likely_const_ast) const { return NULL; }
 };
-
-extern "C" LIKELY_EXPORT likely_mat likely_dynamic(struct VTable *vtable, likely_const_mat *m);
 
 namespace {
 
@@ -1499,8 +1497,8 @@ private:
         dynamic = dynamic || (args.size() < ast->atoms[1]->num_atoms);
 
         if (dynamic) {
-            VTable *vTable = new VTable(builder, ast, args.size());
-            builder.lookupResources()->expressions.push_back(vTable);
+            likely_vtable vtable = new likely_virtual_table(builder, ast, args.size());
+            builder.lookupResources()->expressions.push_back(vtable);
 
             static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
             static FunctionType *likelyDynamicType = NULL;
@@ -1523,7 +1521,7 @@ private:
             Value *matricies = builder.CreateAlloca(MatType::Void, constant(args.size()));
             for (size_t i=0; i<args.size(); i++)
                 builder.CreateStore(args[i].value(), builder.CreateGEP(matricies, constant(i)));
-            Value* args[] = { ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vTable)), uintptr_t(vTable)), vTableType), matricies };
+            Value* args[] = { ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vtable)), uintptr_t(vtable)), vTableType), matricies };
             return new likely_expression(builder.CreateCall(likelyDynamic, args), likely_matrix_void);
         }
 
@@ -2456,12 +2454,12 @@ void likely_set_erratum(likely_environment_type *type, bool erratum) { likely_se
 bool likely_definition(likely_environment_type type) { return likely_get_bool(type, likely_environment_definition); }
 void likely_set_definition(likely_environment_type *type, bool definition) { likely_set_bool(type, definition, likely_environment_definition); }
 
-likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat *mv)
+likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
 {
     void *function = NULL;
-    for (size_t i=0; i<vTable->functions.size(); i++) {
-        const unique_ptr<JITFunction> &resources = vTable->functions[i];
-        for (size_t j=0; j<vTable->n; j++)
+    for (size_t i=0; i<vtable->functions.size(); i++) {
+        const unique_ptr<JITFunction> &resources = vtable->functions[i];
+        for (size_t j=0; j<vtable->n; j++)
             if (mv[j]->type != resources->type[j])
                 goto Next;
         function = resources->function;
@@ -2474,10 +2472,10 @@ likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat *mv)
 
     if (function == NULL) {
         vector<likely_type> types;
-        for (size_t i=0; i<vTable->n; i++)
+        for (size_t i=0; i<vtable->n; i++)
             types.push_back(mv[i]->type);
-        vTable->functions.push_back(unique_ptr<JITFunction>(new JITFunction(vTable->ast, vTable->env, types, true)));
-        function = vTable->functions.back()->function;
+        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction(vtable->ast, vtable->env, types, true)));
+        function = vtable->functions.back()->function;
         if (function == NULL)
             return NULL;
     }
