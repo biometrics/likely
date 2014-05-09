@@ -131,14 +131,6 @@ struct MatType
         return NULL;
     }
 
-    vector<Type*> static toLLVM(const vector<MatType> &tl)
-    {
-        vector<Type*> result;
-        for (const MatType &t : tl)
-            result.push_back(t.llvm);
-        return result;
-    }
-
 private:
     static map<likely_type, MatType> likelyLUT;
     static map<Type*, MatType> llvmLUT;
@@ -515,21 +507,6 @@ struct Builder : public IRBuilder<>
         likely_set_signed(&type, true);
         likely_set_depth(&type, likely_depth(type) > 32 ? 64 : 32);
         return type;
-    }
-
-    vector<likely_expression> getArgs(Function *function, const vector<MatType> &types)
-    {
-        vector<likely_expression> result;
-        Function::arg_iterator args = function->arg_begin();
-        size_t n = 0;
-        while (args != function->arg_end()) {
-            Value *src = args++;
-            stringstream name; name << "arg_" << int(n);
-            src->setName(name.str());
-            result.push_back(likely_expression(src, n < types.size() ? types[n].likely : likely_type(likely_matrix_void)));
-            n++;
-        }
-        return result;
     }
 
     static const likely_expression *lookup(likely_const_env env, const char *name)
@@ -1447,8 +1424,8 @@ struct Lambda : public ScopedExpression
         while (types.size() < n)
             types.push_back(MatType::get(likely_matrix_void));
 
-        Function *tmpFunction = cast<Function>(builder.module()->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), MatType::toLLVM(types), false)));
-        vector<likely_expression> tmpArgs = builder.getArgs(tmpFunction, types);
+        Function *tmpFunction = cast<Function>(builder.module()->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), toLLVM(types), false)));
+        vector<likely_expression> tmpArgs = getArgs(tmpFunction, types);
         BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
         builder.SetInsertPoint(entry);
 
@@ -1458,8 +1435,8 @@ struct Lambda : public ScopedExpression
         builder.CreateRet(*result);
         likely_type return_type = result->type();
 
-        Function *function = cast<Function>(builder.module()->getOrInsertFunction(name, FunctionType::get(result->value()->getType(), MatType::toLLVM(types), false)));
-        vector<likely_expression> args = builder.getArgs(function, types);
+        Function *function = cast<Function>(builder.module()->getOrInsertFunction(name, FunctionType::get(result->value()->getType(), toLLVM(types), false)));
+        vector<likely_expression> args = getArgs(function, types);
 
         ValueToValueMapTy VMap;
         for (size_t i=0; i<args.size(); i++)
@@ -1478,6 +1455,29 @@ struct Lambda : public ScopedExpression
     }
 
 private:
+    static vector<Type*> toLLVM(const vector<MatType> &tl)
+    {
+        vector<Type*> result;
+        for (const MatType &t : tl)
+            result.push_back(t.llvm);
+        return result;
+    }
+
+    static vector<likely_expression> getArgs(Function *function, const vector<MatType> &types)
+    {
+        vector<likely_expression> result;
+        Function::arg_iterator args = function->arg_begin();
+        size_t n = 0;
+        while (args != function->arg_end()) {
+            Value *src = args++;
+            stringstream name; name << "arg_" << int(n);
+            src->setName(name.str());
+            result.push_back(likely_expression(src, types[n].likely));
+            n++;
+        }
+        return result;
+    }
+
     void *symbol() const { return (void*) likely_dynamic; }
 
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
