@@ -789,15 +789,15 @@ likely_expression *Builder::expression(likely_const_ast ast)
     return likely_expression::error(ast, "unrecognized literal");
 }
 
-#define LIKELY_REGISTER_FIELD(FIELD)                                                            \
-class FIELD##Expression : public SimpleUnaryOperator                                            \
-{                                                                                               \
+#define LIKELY_REGISTER_FIELD(FIELD)                                                                         \
+class FIELD##Expression : public SimpleUnaryOperator                                                         \
+{                                                                                                            \
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &arg) const \
-    {                                                                                           \
-        return new likely_expression(builder.FIELD(arg.get()));                                 \
-    }                                                                                           \
-};                                                                                              \
-LIKELY_REGISTER(FIELD)                                                                          \
+    {                                                                                                        \
+        return new likely_expression(builder.FIELD(arg.get()));                                              \
+    }                                                                                                        \
+};                                                                                                           \
+LIKELY_REGISTER(FIELD)                                                                                       \
 
 LIKELY_REGISTER_FIELD(channels)
 LIKELY_REGISTER_FIELD(columns)
