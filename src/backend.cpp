@@ -1425,22 +1425,22 @@ struct Lambda : public ScopedExpression
             types.push_back(MatType::get(likely_matrix_void));
 
         Function *tmpFunction = cast<Function>(builder.module()->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), toLLVM(types), false)));
-        vector<likely_expression> tmpArgs = getArgs(tmpFunction, types);
         BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
         builder.SetInsertPoint(entry);
 
-        likely_expression *result = evaluateFunction(builder, tmpArgs);
+        likely_expression *result = evaluateFunction(builder, getArgs(tmpFunction, types));
         if (!result) return result;
 
         builder.CreateRet(*result);
-        likely_type return_type = result->type();
+        const likely_type return_type = result->type();
 
         Function *function = cast<Function>(builder.module()->getOrInsertFunction(name, FunctionType::get(result->value()->getType(), toLLVM(types), false)));
-        vector<likely_expression> args = getArgs(function, types);
 
         ValueToValueMapTy VMap;
-        for (size_t i=0; i<args.size(); i++)
-            VMap[tmpArgs[i]] = args[i];
+        Function::arg_iterator tmpArgs = tmpFunction->arg_begin();
+        Function::arg_iterator args = function->arg_begin();
+        while (args != function->arg_end())
+            VMap[tmpArgs++] = args++;
 
         SmallVector<ReturnInst*, 1> returns;
         CloneFunctionInto(function, tmpFunction, VMap, false, returns);
