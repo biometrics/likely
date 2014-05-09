@@ -63,6 +63,7 @@ typedef likely_mat (*likely_function_0)();
 typedef likely_mat (*likely_function_1)(likely_const_mat);
 typedef likely_mat (*likely_function_2)(likely_const_mat, likely_const_mat);
 typedef likely_mat (*likely_function_3)(likely_const_mat, likely_const_mat, likely_const_mat);
+typedef likely_mat (*likely_function_n)(likely_const_mat*);
 
 #ifdef __cplusplus
 extern "C" {

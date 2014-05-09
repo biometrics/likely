@@ -2486,20 +2486,13 @@ likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat *mv)
         vector<likely_type> types;
         for (size_t i=0; i<vTable->n; i++)
             types.push_back(mv[i]->type);
-        vTable->functions.push_back(unique_ptr<JITFunction>(new JITFunction(vTable->ast, vTable->env, types, false)));
+        vTable->functions.push_back(unique_ptr<JITFunction>(new JITFunction(vTable->ast, vTable->env, types, true)));
         function = vTable->functions.back()->function;
+        if (function == NULL)
+            return NULL;
     }
 
-    likely_mat dst;
-    switch (vTable->n) {
-      case 0: dst = reinterpret_cast<likely_function_0>(function)(); break;
-      case 1: dst = reinterpret_cast<likely_function_1>(function)(mv[0]); break;
-      case 2: dst = reinterpret_cast<likely_function_2>(function)(mv[0], mv[1]); break;
-      case 3: dst = reinterpret_cast<likely_function_3>(function)(mv[0], mv[1], mv[2]); break;
-      default: dst = NULL; likely_assert(false, "likely_dynamic invalid arity: %d", vTable->n);
-    }
-
-    return dst;
+    return reinterpret_cast<likely_function_n>(function)(mv);
 }
 
 static map<likely_function, JITFunction*> JITFunctionLUT;
