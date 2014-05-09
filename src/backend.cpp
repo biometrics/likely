@@ -211,11 +211,6 @@ struct likely_expression
         return likely_expression(Constant::getIntegerValue(Type::getIntNTy(C, depth), APInt(depth, value)), type);
     }
 
-    static likely_expression constant(int value, likely_type type)
-    {
-        return constant(uint64_t(value), type);
-    }
-
     static likely_expression constant(double value, likely_type type)
     {
         const size_t depth = likely_depth(type);
@@ -229,11 +224,11 @@ struct likely_expression
         }
     }
 
-    static likely_expression zero(likely_type type = likely_matrix_native) { return constant(0, type); }
-    static likely_expression one (likely_type type = likely_matrix_native) { return constant(1, type); }
-    static likely_expression intMax(likely_type type) { const size_t bits = likely_depth(type); return constant((1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
-    static likely_expression intMin(likely_type type) { const size_t bits = likely_depth(type); return constant(likely_signed(type) ? (1 << (bits - 1)) : 0, bits); }
-    static likely_expression type(likely_type type) { return constant(uint64_t(type), likely_matrix_type_type); }
+    static likely_expression zero(likely_type type = likely_matrix_native) { return constant((uint64_t) 0, type); }
+    static likely_expression one (likely_type type = likely_matrix_native) { return constant((uint64_t) 1, type); }
+    static likely_expression intMax(likely_type type) { const size_t bits = likely_depth(type); return constant((uint64_t) (1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
+    static likely_expression intMin(likely_type type) { const size_t bits = likely_depth(type); return constant((uint64_t) (likely_signed(type) ? (1 << (bits - 1)) : 0), bits); }
+    static likely_expression type(likely_type type) { return constant((uint64_t) type, likely_matrix_type_type); }
     static likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(MatType::Void), likely_matrix_void); }
     static likely_expression nullData() { return likely_expression(ConstantPointerNull::get(Type::getInt8PtrTy(C)), likely_matrix_native); }
 
