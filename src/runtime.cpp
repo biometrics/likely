@@ -33,8 +33,6 @@
 
 #include "likely/runtime.h"
 
-#define LIKELY_NUM_ARITIES 4
-
 using namespace std;
 
 void likely_assert(bool condition, const char *format, ...)
