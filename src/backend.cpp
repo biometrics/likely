@@ -696,7 +696,7 @@ struct VTable : public ScopedExpression
     likely_expression *evaluateOperator(Builder &, likely_const_ast) const { return NULL; }
 };
 
-extern "C" LIKELY_EXPORT likely_mat likely_dynamic(struct VTable *vtable, likely_const_mat m, ...);
+extern "C" LIKELY_EXPORT likely_mat likely_dynamic(struct VTable *vtable, likely_const_mat *m);
 
 namespace {
 
@@ -1512,8 +1512,8 @@ private:
             static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
             static FunctionType *likelyDynamicType = NULL;
             if (likelyDynamicType == NULL) {
-                Type* params[] = { vTableType, MatType::Void };
-                likelyDynamicType = FunctionType::get(MatType::Void, params, true);
+                Type* params[] = { vTableType, PointerType::get(MatType::Void, 0) };
+                likelyDynamicType = FunctionType::get(MatType::Void, params, false);
             }
 
             Function *likelyDynamic = builder.module()->getFunction("likely_dynamic");
@@ -1527,12 +1527,11 @@ private:
                 likelyDynamic->setDoesNotCapture(2);
             }
 
-            vector<Value*> dynamicArgs;
-            dynamicArgs.push_back(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vTable)), uintptr_t(vTable)), vTableType));
-            for (const likely_expression &arg : args)
-                dynamicArgs.push_back(arg);
-            dynamicArgs.push_back(Builder::nullMat());
-            return new likely_expression(builder.CreateCall(likelyDynamic, dynamicArgs), likely_matrix_void);
+            Value *matricies = builder.CreateAlloca(MatType::Void, Builder::constant(args.size()));
+            for (size_t i=0; i<args.size(); i++)
+                builder.CreateStore(args[i].value(), builder.CreateGEP(matricies, Builder::constant(i)));
+            Value* args[] = { ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vTable)), uintptr_t(vTable)), vTableType), matricies };
+            return new likely_expression(builder.CreateCall(likelyDynamic, args), likely_matrix_void);
         }
 
         return evaluateLambda(builder, args);
@@ -2464,18 +2463,8 @@ void likely_set_erratum(likely_environment_type *type, bool erratum) { likely_se
 bool likely_definition(likely_environment_type type) { return likely_get_bool(type, likely_environment_definition); }
 void likely_set_definition(likely_environment_type *type, bool definition) { likely_set_bool(type, definition, likely_environment_definition); }
 
-likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat m, ...)
+likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat *mv)
 {
-    vector<likely_const_mat> mv(vTable->n);
-    va_list ap;
-    va_start(ap, m);
-    for (size_t i=0; i<vTable->n; i++) {
-        mv[i] = m;
-        m = va_arg(ap, likely_const_mat);
-    }
-    va_end(ap);
-    assert(m == NULL);
-
     void *function = NULL;
     for (size_t i=0; i<vTable->functions.size(); i++) {
         const unique_ptr<JITFunction> &resources = vTable->functions[i];
