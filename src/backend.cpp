@@ -52,9 +52,6 @@
 
 #include "likely/backend.h"
 
-#define LLVM_VALUE_IS_INT(VALUE) (llvm::isa<Constant>(VALUE))
-#define LLVM_VALUE_TO_INT(VALUE) (llvm::cast<Constant>(VALUE)->getUniqueInteger().getZExtValue())
-
 using namespace llvm;
 using namespace std;
 
@@ -2131,7 +2128,7 @@ private:
             }
         }
 
-        const bool multiElement = (!LLVM_VALUE_IS_INT(result)) || (LLVM_VALUE_TO_INT(result) > 1);
+        const bool multiElement = !llvm::isa<Constant>(result) || (llvm::cast<Constant>(result)->getUniqueInteger().getZExtValue() > 1);
         if      (!strcmp(axis, "channels")) likely_set_multi_channel(type, multiElement);
         else if (!strcmp(axis, "columns"))  likely_set_multi_column (type, multiElement);
         else if (!strcmp(axis, "rows"))     likely_set_multi_row    (type, multiElement);
