@@ -1424,17 +1424,34 @@ struct Lambda : public ScopedExpression
         while (types.size() < n)
             types.push_back(MatType::get(likely_matrix_void));
 
-        Function *tmpFunction = cast<Function>(builder.module()->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), toLLVM(types), false)));
+        vector<Type*> llvmTypes;
+        for (const MatType &t : types)
+            llvmTypes.push_back(t.llvm);
+
+        Function *tmpFunction = cast<Function>(builder.module()->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), llvmTypes, false)));
         BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
         builder.SetInsertPoint(entry);
 
-        likely_expression *result = evaluateFunction(builder, getArgs(tmpFunction, types));
+        vector<likely_expression> arguments;
+        {
+            Function::arg_iterator args = tmpFunction->arg_begin();
+            size_t n = 0;
+            while (args != tmpFunction->arg_end()) {
+                Value *src = args++;
+                stringstream name; name << "arg_" << int(n);
+                src->setName(name.str());
+                arguments.push_back(likely_expression(src, types[n].likely));
+                n++;
+            }
+        }
+
+        likely_expression *result = evaluateFunction(builder, arguments);
         if (!result) return result;
 
         builder.CreateRet(*result);
         const likely_type return_type = result->type();
 
-        Function *function = cast<Function>(builder.module()->getOrInsertFunction(name, FunctionType::get(result->value()->getType(), toLLVM(types), false)));
+        Function *function = cast<Function>(builder.module()->getOrInsertFunction(name, FunctionType::get(result->value()->getType(), llvmTypes, false)));
 
         ValueToValueMapTy VMap;
         Function::arg_iterator tmpArgs = tmpFunction->arg_begin();
@@ -1455,29 +1472,6 @@ struct Lambda : public ScopedExpression
     }
 
 private:
-    static vector<Type*> toLLVM(const vector<MatType> &tl)
-    {
-        vector<Type*> result;
-        for (const MatType &t : tl)
-            result.push_back(t.llvm);
-        return result;
-    }
-
-    static vector<likely_expression> getArgs(Function *function, const vector<MatType> &types)
-    {
-        vector<likely_expression> result;
-        Function::arg_iterator args = function->arg_begin();
-        size_t n = 0;
-        while (args != function->arg_end()) {
-            Value *src = args++;
-            stringstream name; name << "arg_" << int(n);
-            src->setName(name.str());
-            result.push_back(likely_expression(src, types[n].likely));
-            n++;
-        }
-        return result;
-    }
-
     void *symbol() const { return (void*) likely_dynamic; }
 
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
