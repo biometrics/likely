@@ -393,7 +393,7 @@ public:
     const vector<likely_type> type;
     size_t ref_count = 1;
 
-    JITFunction(likely_const_ast ast, likely_env env, const vector<likely_type> &type);
+    JITFunction(likely_const_ast ast, likely_env env, const vector<likely_type> &type, bool arrayCC);
 
     ~JITFunction()
     {
@@ -1413,7 +1413,7 @@ struct Lambda : public ScopedExpression
     Lambda(Builder &builder, likely_const_ast ast)
         : ScopedExpression(builder, ast) {}
 
-    likely_expression *generate(Builder &builder, vector<MatType> types, string name) const
+    likely_expression *generate(Builder &builder, vector<MatType> types, string name, bool arrayCC) const
     {
         size_t n;
         if (ast->is_list && (ast->num_atoms > 1))
@@ -1425,24 +1425,33 @@ struct Lambda : public ScopedExpression
             types.push_back(MatType::get(likely_matrix_void));
 
         vector<Type*> llvmTypes;
-        for (const MatType &t : types)
-            llvmTypes.push_back(t.llvm);
+        if (arrayCC) {
+            // Array calling convention
+            llvmTypes.push_back(PointerType::get(MatType::Void, 0));
+        } else {
+            for (const MatType &t : types)
+                llvmTypes.push_back(t.llvm);
+        }
 
         Function *tmpFunction = cast<Function>(builder.module()->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), llvmTypes, false)));
         BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
         builder.SetInsertPoint(entry);
 
         vector<likely_expression> arguments;
-        {
-            Function::arg_iterator args = tmpFunction->arg_begin();
+        if (arrayCC) {
+            Value *argumentArray = tmpFunction->arg_begin();
+            for (size_t i=0; i<types.size(); i++)
+                arguments.push_back(likely_expression(builder.CreateLoad(builder.CreateGEP(argumentArray, Builder::constant(i))), types[i].likely));
+        } else {
+            Function::arg_iterator it = tmpFunction->arg_begin();
             size_t n = 0;
-            while (args != tmpFunction->arg_end()) {
-                Value *src = args++;
-                stringstream name; name << "arg_" << int(n);
-                src->setName(name.str());
-                arguments.push_back(likely_expression(src, types[n].likely));
-                n++;
-            }
+            while (it != tmpFunction->arg_end())
+                arguments.push_back(likely_expression(it++, types[n++].likely));
+        }
+
+        for (size_t i=0; i<arguments.size(); i++) {
+            stringstream name; name << "arg_" << i;
+            arguments[i].value()->setName(name.str());
         }
 
         likely_expression *result = evaluateFunction(builder, arguments);
@@ -2175,12 +2184,12 @@ class exportExpression : public Operator
             }
         }
 
-        return lambda->generate(builder, types, name);
+        return lambda->generate(builder, types, name, false);
     }
 };
 LIKELY_REGISTER(export)
 
-JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<likely_type> &type)
+JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<likely_type> &type, bool arrayCC)
     : likely_resources(true), type(type)
 {
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
@@ -2196,7 +2205,7 @@ JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<l
         vector<MatType> types;
         for (likely_type t : type)
             types.push_back(MatType::get(t));
-        expr.reset(static_cast<Lambda*>(result.get())->generate(builder, types, "likely_jit_function"));
+        expr.reset(static_cast<Lambda*>(result.get())->generate(builder, types, "likely_jit_function", arrayCC));
         error = !expr.get();
     }
 
@@ -2477,7 +2486,7 @@ likely_mat likely_dynamic(struct VTable *vTable, likely_const_mat *mv)
         vector<likely_type> types;
         for (size_t i=0; i<vTable->n; i++)
             types.push_back(mv[i]->type);
-        vTable->functions.push_back(unique_ptr<JITFunction>(new JITFunction(vTable->ast, vTable->env, types)));
+        vTable->functions.push_back(unique_ptr<JITFunction>(new JITFunction(vTable->ast, vTable->env, types, false)));
         function = vTable->functions.back()->function;
     }
 
@@ -2506,7 +2515,7 @@ likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type
         type = va_arg(ap, likely_type);
     }
     va_end(ap);
-    JITFunction *jit = new JITFunction(ast, env, types);
+    JITFunction *jit = new JITFunction(ast, env, types, false);
     likely_function f = reinterpret_cast<likely_function>(jit->function);
     if (f) JITFunctionLUT[f] = jit;
     else   delete jit;
