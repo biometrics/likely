@@ -62,7 +62,7 @@ static LLVMContext &C = getGlobalContext();
 
 struct MatType
 {
-    static MatType Void;
+    static MatType MultiDimension;
 
     MatType() : llvm(NULL), likely(likely_matrix_void) {}
     MatType(PointerType *llvm, likely_type likely)
@@ -83,7 +83,7 @@ struct MatType
             ptr = cast<PointerType>(scalar(likely, true));
         } else {
             likely_mat str = likely_type_to_string(likely);
-            const string name = string("mat_") + (const char*) str->data;
+            const string name = (const char*) str->data;
             ptr = PointerType::getUnqual(StructType::create(name,
                                                             NativeInt, // bytes
                                                             NativeInt, // ref_count
@@ -135,7 +135,7 @@ private:
     PointerType *llvm;
     likely_type likely;
 };
-MatType MatType::Void;
+MatType MatType::MultiDimension;
 map<likely_type, MatType> MatType::likelyLUT;
 map<Type*, MatType> MatType::llvmLUT;
 
@@ -229,7 +229,7 @@ struct likely_expression
     static likely_expression intMax(likely_type type) { const size_t bits = likely_depth(type); return constant((uint64_t) (1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
     static likely_expression intMin(likely_type type) { const size_t bits = likely_depth(type); return constant((uint64_t) (likely_signed(type) ? (1 << (bits - 1)) : 0), bits); }
     static likely_expression type(likely_type type) { return constant((uint64_t) type, likely_matrix_type_type); }
-    static likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(MatType::Void), likely_matrix_void); }
+    static likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(MatType::MultiDimension), likely_matrix_void); }
     static likely_expression nullData() { return likely_expression(ConstantPointerNull::get(Type::getInt8PtrTy(C)), likely_matrix_native); }
 
     static likely_type validFloatType(likely_type type)
@@ -338,7 +338,7 @@ struct likely_resources
             initializeTarget(Registry);
 
             NativeInt = Type::getIntNTy(C, unsigned(likely_depth(likely_matrix_native)));
-            MatType::Void = MatType::get(likely_matrix_void);
+            MatType::MultiDimension = MatType::get(likely_matrix_multi_dimension);
         }
 
         module = new Module("likely_module", C);
@@ -1145,7 +1145,7 @@ class elementsExpression : public SimpleUnaryOperator
 {
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &arg) const
     {
-        static FunctionType *functionType = FunctionType::get(NativeInt, MatType::Void, false);
+        static FunctionType *functionType = FunctionType::get(NativeInt, MatType::MultiDimension, false);
         Function *likelyElements = builder.module()->getFunction("likely_elements");
         if (!likelyElements) {
             likelyElements = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_elements", builder.module());
@@ -1163,7 +1163,7 @@ class bytesExpression : public SimpleUnaryOperator
 {
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &arg) const
     {
-        static FunctionType *functionType = FunctionType::get(NativeInt, MatType::Void, false);
+        static FunctionType *functionType = FunctionType::get(NativeInt, MatType::MultiDimension, false);
         Function *likelyBytes = builder.module()->getFunction("likely_bytes");
         if (!likelyBytes) {
             likelyBytes = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_bytes", builder.module());
@@ -1206,7 +1206,7 @@ class newExpression : public Operator
             default:           break;
         }
 
-        return new likely_expression(createCall(builder, *type, channels, columns, rows, frames, data), likely_matrix_void);
+        return new likely_expression(createCall(builder, *type, channels, columns, rows, frames, data), MatType::MultiDimension);
     }
 
     void *symbol() const { return (void*) likely_new; }
@@ -1217,7 +1217,7 @@ public:
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
             Type* params[] = { NativeInt, NativeInt, NativeInt, NativeInt, NativeInt, Type::getInt8PtrTy(C) };
-            functionType = FunctionType::get(MatType::Void, params, false);
+            functionType = FunctionType::get(MatType::MultiDimension, params, false);
         }
 
         Function *likelyNew = builder.module()->getFunction("likely_new");
@@ -1243,13 +1243,13 @@ class scalarExpression : public UnaryOperator
         if (!argExpr)
             return NULL;
 
-        if (argExpr->value() && (argExpr->value()->getType() == MatType::Void))
+        if (argExpr->value() && (argExpr->value()->getType() == MatType::MultiDimension))
             return argExpr;
 
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
             Type* params[] = { NativeInt, Type::getDoubleTy(C) };
-            functionType = FunctionType::get(MatType::Void, params, true);
+            functionType = FunctionType::get(MatType::MultiDimension, params, true);
         }
 
         Function *likelyScalars = builder.module()->getFunction("likely_scalars");
@@ -1289,7 +1289,7 @@ class stringExpression : public SimpleUnaryOperator
 public:
     static CallInst *createCall(Builder &builder, Value *string)
     {
-        static FunctionType *functionType = FunctionType::get(MatType::Void, Type::getInt8PtrTy(C), false);
+        static FunctionType *functionType = FunctionType::get(MatType::MultiDimension, Type::getInt8PtrTy(C), false);
         Function *likelyString = builder.module()->getFunction("likely_string");
         if (!likelyString) {
             likelyString = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_string", builder.module());
@@ -1315,7 +1315,7 @@ class copyExpression : public SimpleUnaryOperator
 public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
-        static FunctionType *functionType = FunctionType::get(MatType::Void, MatType::Void, false);
+        static FunctionType *functionType = FunctionType::get(MatType::MultiDimension, MatType::MultiDimension, false);
         Function *likelyCopy = builder.module()->getFunction("likely_copy");
         if (!likelyCopy) {
             likelyCopy = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_copy", builder.module());
@@ -1341,7 +1341,7 @@ class retainExpression : public SimpleUnaryOperator
 public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
-        static FunctionType *functionType = FunctionType::get(MatType::Void, MatType::Void, false);
+        static FunctionType *functionType = FunctionType::get(MatType::MultiDimension, MatType::MultiDimension, false);
         Function *likelyRetain = builder.module()->getFunction("likely_retain");
         if (!likelyRetain) {
             likelyRetain = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_retain", builder.module());
@@ -1367,7 +1367,7 @@ class releaseExpression : public SimpleUnaryOperator
 public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
-        static FunctionType *functionType = FunctionType::get(Type::getVoidTy(C), MatType::Void, false);
+        static FunctionType *functionType = FunctionType::get(Type::getVoidTy(C), MatType::MultiDimension, false);
         Function *likelyRelease = builder.module()->getFunction("likely_release");
         if (!likelyRelease) {
             likelyRelease = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_release", builder.module());
@@ -1418,12 +1418,12 @@ struct Lambda : public ScopedExpression
         else                            n = 0;
 
         while (types.size() < n)
-            types.push_back(MatType::get(likely_matrix_void));
+            types.push_back(MatType::MultiDimension);
 
         vector<Type*> llvmTypes;
         if (arrayCC) {
             // Array calling convention
-            llvmTypes.push_back(PointerType::get(MatType::Void, 0));
+            llvmTypes.push_back(PointerType::get(MatType::MultiDimension, 0));
         } else {
             for (const MatType &t : types)
                 llvmTypes.push_back(t);
@@ -1501,7 +1501,7 @@ private:
         // Do dynamic dispatch if the type isn't fully specified
         bool dynamic = false;
         for (const likely_expression &arg : args)
-            dynamic = dynamic || (arg.type() == likely_matrix_void);
+            dynamic = dynamic || (arg.type() == MatType::MultiDimension);
         dynamic = dynamic || (args.size() < ast->atoms[1]->num_atoms);
 
         if (dynamic) {
@@ -1511,8 +1511,8 @@ private:
             static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
             static FunctionType *likelyDynamicType = NULL;
             if (likelyDynamicType == NULL) {
-                Type* params[] = { vTableType, PointerType::get(MatType::Void, 0) };
-                likelyDynamicType = FunctionType::get(MatType::Void, params, false);
+                Type* params[] = { vTableType, PointerType::get(MatType::MultiDimension, 0) };
+                likelyDynamicType = FunctionType::get(MatType::MultiDimension, params, false);
             }
 
             Function *likelyDynamic = builder.module()->getFunction("likely_dynamic");
@@ -1526,11 +1526,11 @@ private:
                 likelyDynamic->setDoesNotCapture(2);
             }
 
-            Value *matricies = builder.CreateAlloca(MatType::Void, constant(args.size()));
+            Value *matricies = builder.CreateAlloca(MatType::MultiDimension, constant(args.size()));
             for (size_t i=0; i<args.size(); i++)
                 builder.CreateStore(args[i].value(), builder.CreateGEP(matricies, constant(i)));
             Value* args[] = { ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vtable)), uintptr_t(vtable)), vTableType), matricies };
-            return new likely_expression(builder.CreateCall(likelyDynamic, args), likely_matrix_void);
+            return new likely_expression(builder.CreateCall(likelyDynamic, args), MatType::MultiDimension);
         }
 
         return evaluateLambda(builder, args);
@@ -1928,7 +1928,7 @@ private:
         {
             static FunctionType *thunkType = NULL;
             if (!thunkType) {
-                Type* params[] = { PointerType::get(MatType::Void, 0), NativeInt, NativeInt };
+                Type* params[] = { PointerType::get(MatType::MultiDimension, 0), NativeInt, NativeInt };
                 thunkType = FunctionType::get(Type::getVoidTy(C), params, false);
             }
 
@@ -1966,7 +1966,7 @@ private:
 
         static FunctionType *likelyForkType = NULL;
         if (!likelyForkType) {
-            Type *params[] = { thunk->getType(), PointerType::get(MatType::Void, 0), NativeInt };
+            Type *params[] = { thunk->getType(), PointerType::get(MatType::MultiDimension, 0), NativeInt };
             likelyForkType = FunctionType::get(Type::getVoidTy(C), params, false);
         }
 
@@ -1980,7 +1980,7 @@ private:
             likelyFork->setDoesNotAlias(2);
         }
 
-        Value *thunkMatrixArray = builder.CreateAlloca(MatType::Void, constant(srcs.size()+1));
+        Value *thunkMatrixArray = builder.CreateAlloca(MatType::MultiDimension, constant(srcs.size()+1));
         for (size_t i=0; i<srcs.size()+1; i++) {
             const likely_expression &src = i < srcs.size() ? srcs[i] : dst;
             Value *val;
@@ -1990,7 +1990,7 @@ private:
                 val = builder.CreateAlloca(src.value()->getType());
                 builder.CreateStore(src, val);
             }
-            builder.CreateStore(builder.CreatePointerCast(val, MatType::Void), builder.CreateGEP(thunkMatrixArray, constant(i)));
+            builder.CreateStore(builder.CreatePointerCast(val, MatType::MultiDimension), builder.CreateGEP(thunkMatrixArray, constant(i)));
         }
 
         builder.CreateCall3(likelyFork, builder.module()->getFunction(thunk->getName()), thunkMatrixArray, kernelSize);
@@ -2227,7 +2227,7 @@ class printExpression : public VAOperator
 {
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        static FunctionType *functionType = FunctionType::get(MatType::Void, MatType::Void, true);
+        static FunctionType *functionType = FunctionType::get(MatType::MultiDimension, MatType::MultiDimension, true);
         Function *likelyPrint = builder.module()->getFunction("likely_print");
         if (!likelyPrint) {
             likelyPrint = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_print", builder.module());
@@ -2246,7 +2246,7 @@ class printExpression : public VAOperator
 
         vector<Value*> matArgs;
         for (Value *rawArg : rawArgs)
-            if (rawArg->getType() == MatType::Void) {
+            if (rawArg->getType() == MatType::MultiDimension) {
                 matArgs.push_back(rawArg);
             } else {
                 matArgs.push_back(stringExpression::createCall(builder, rawArg));
@@ -2272,7 +2272,7 @@ class readExpression : public SimpleUnaryOperator
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
             Type* params[] = { Type::getInt8PtrTy(C), Type::getInt1Ty(C) };
-            functionType = FunctionType::get(MatType::Void, params, false);
+            functionType = FunctionType::get(MatType::MultiDimension, params, false);
         }
 
         Function *likelyRead = builder.module()->getFunction("likely_read");
@@ -2283,7 +2283,7 @@ class readExpression : public SimpleUnaryOperator
             likelyRead->setDoesNotAlias(1);
             likelyRead->setDoesNotCapture(1);
         }
-        return new likely_expression(builder.CreateCall2(likelyRead, *arg, ConstantInt::getTrue(C)), likely_matrix_void);
+        return new likely_expression(builder.CreateCall2(likelyRead, *arg, ConstantInt::getTrue(C)), MatType::MultiDimension);
     }
     void *symbol() const { return (void*) likely_read; }
 };
@@ -2295,8 +2295,8 @@ class writeExpression : public SimpleBinaryOperator
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            Type* params[] = { MatType::Void, Type::getInt8PtrTy(C) };
-            functionType = FunctionType::get(MatType::Void, params, false);
+            Type* params[] = { MatType::MultiDimension, Type::getInt8PtrTy(C) };
+            functionType = FunctionType::get(MatType::MultiDimension, params, false);
         }
         Function *likelyWrite = builder.module()->getFunction("likely_write");
         if (!likelyWrite) {
@@ -2308,7 +2308,7 @@ class writeExpression : public SimpleBinaryOperator
             likelyWrite->setDoesNotAlias(2);
             likelyWrite->setDoesNotCapture(2);
         }
-        return new likely_expression(builder.CreateCall2(likelyWrite, *arg1, *arg2), likely_matrix_void);
+        return new likely_expression(builder.CreateCall2(likelyWrite, *arg1, *arg2), MatType::MultiDimension);
     }
     void *symbol() const { return (void*) likely_write; }
 };
@@ -2318,7 +2318,7 @@ class decodeExpression : public SimpleUnaryOperator
 {
     likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<likely_expression> &arg) const
     {
-        static FunctionType *functionType = FunctionType::get(MatType::Void, MatType::Void, false);
+        static FunctionType *functionType = FunctionType::get(MatType::MultiDimension, MatType::MultiDimension, false);
         Function *likelyDecode = builder.module()->getFunction("likely_decode");
         if (!likelyDecode) {
             likelyDecode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_decode", builder.module());
@@ -2327,7 +2327,7 @@ class decodeExpression : public SimpleUnaryOperator
             likelyDecode->setDoesNotAlias(1);
             likelyDecode->setDoesNotCapture(1);
         }
-        return new likely_expression(builder.CreateCall(likelyDecode, *arg), likely_matrix_void);
+        return new likely_expression(builder.CreateCall(likelyDecode, *arg), MatType::MultiDimension);
     }
     void *symbol() const { return (void*) likely_decode; }
 };
@@ -2339,8 +2339,8 @@ class encodeExpression : public SimpleBinaryOperator
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            Type* params[] = { MatType::Void, Type::getInt8PtrTy(C) };
-            functionType = FunctionType::get(MatType::Void, params, false);
+            Type* params[] = { MatType::MultiDimension, Type::getInt8PtrTy(C) };
+            functionType = FunctionType::get(MatType::MultiDimension, params, false);
         }
         Function *likelyEncode = builder.module()->getFunction("likely_encode");
         if (!likelyEncode) {
@@ -2352,7 +2352,7 @@ class encodeExpression : public SimpleBinaryOperator
             likelyEncode->setDoesNotAlias(2);
             likelyEncode->setDoesNotCapture(2);
         }
-        return new likely_expression(builder.CreateCall2(likelyEncode, *arg1, *arg2), likely_matrix_void);
+        return new likely_expression(builder.CreateCall2(likelyEncode, *arg1, *arg2), MatType::MultiDimension);
     }
     void *symbol() const { return (void*) likely_encode; }
 };
@@ -2364,8 +2364,8 @@ class renderExpression : public SimpleUnaryOperator
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            Type* params[] = { MatType::Void, Type::getDoublePtrTy(C), Type::getDoublePtrTy(C) };
-            functionType = FunctionType::get(MatType::Void, params, false);
+            Type* params[] = { MatType::MultiDimension, Type::getDoublePtrTy(C), Type::getDoublePtrTy(C) };
+            functionType = FunctionType::get(MatType::MultiDimension, params, false);
         }
         Function *likelyRender = builder.module()->getFunction("likely_render");
         if (!likelyRender) {
@@ -2379,7 +2379,7 @@ class renderExpression : public SimpleUnaryOperator
             likelyRender->setDoesNotAlias(3);
             likelyRender->setDoesNotCapture(3);
         }
-        return new likely_expression(builder.CreateCall3(likelyRender, *arg, ConstantPointerNull::get(Type::getDoublePtrTy(C)), ConstantPointerNull::get(Type::getDoublePtrTy(C))), likely_matrix_void);
+        return new likely_expression(builder.CreateCall3(likelyRender, *arg, ConstantPointerNull::get(Type::getDoublePtrTy(C)), ConstantPointerNull::get(Type::getDoublePtrTy(C))), MatType::MultiDimension);
     }
     void *symbol() const { return (void*) likely_render; }
 };
@@ -2391,7 +2391,7 @@ class showExpression : public SimpleUnaryOperator
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            Type* params[] = { MatType::Void, Type::getInt8PtrTy(C) };
+            Type* params[] = { MatType::MultiDimension, Type::getInt8PtrTy(C) };
             FunctionType::get(Type::getVoidTy(C), params, false);
         }
         Function *likelyShow = builder.module()->getFunction("likely_show");
@@ -2403,7 +2403,7 @@ class showExpression : public SimpleUnaryOperator
             likelyShow->setDoesNotAlias(2);
             likelyShow->setDoesNotCapture(2);
         }
-        return new likely_expression(builder.CreateCall2(likelyShow, *arg, ConstantPointerNull::get(Type::getInt8PtrTy(C))), likely_matrix_void);
+        return new likely_expression(builder.CreateCall2(likelyShow, *arg, ConstantPointerNull::get(Type::getInt8PtrTy(C))), MatType::MultiDimension);
     }
     void *symbol() const { return (void*) likely_decode; }
 };
