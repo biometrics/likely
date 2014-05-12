@@ -72,7 +72,7 @@ struct MatType
     operator ArrayRef<Type*>() const { return ArrayRef<Type*>((Type**)&llvm, 1); }
     operator likely_type() const { return likely; }
 
-    static MatType get(likely_type likely)
+    static MatType get(likely_type likely, bool pointer = false)
     {
         auto result = likelyLUT.find(likely);
         if (result != likelyLUT.end())
@@ -80,7 +80,7 @@ struct MatType
 
         Type *llvm;
         if (!likely_multi_dimension(likely) && likely_depth(likely)) {
-            llvm = scalar(likely, true);
+            llvm = scalar(likely, pointer);
         } else {
             likely_mat str = likely_type_to_string(likely);
             const string name = (const char*) str->data;
@@ -1440,9 +1440,9 @@ struct Lambda : public ScopedExpression
                 arguments.push_back(likely_expression(builder.CreateLoad(builder.CreateGEP(argumentArray, constant(i))), types[i]));
         } else {
             Function::arg_iterator it = tmpFunction->arg_begin();
-            size_t n = 0;
+            size_t i = 0;
             while (it != tmpFunction->arg_end())
-                arguments.push_back(likely_expression(it++, types[n++]));
+                arguments.push_back(likely_expression(it++, types[i++]));
         }
 
         for (size_t i=0; i<arguments.size(); i++) {
@@ -1948,7 +1948,7 @@ private:
             vector<likely_expression> thunkSrcs;
             for (size_t i=0; i<srcs.size()+1; i++) {
                 const likely_type type = i < srcs.size() ? srcs[i].type() : dst.type();
-                Value *val = builder.CreatePointerCast(builder.CreateLoad(builder.CreateGEP(thunkMatrixArray, constant(i))), MatType::get(type));
+                Value *val = builder.CreatePointerCast(builder.CreateLoad(builder.CreateGEP(thunkMatrixArray, constant(i))), MatType::get(type, true));
                 if (!likely_multi_dimension(type))
                     val = builder.CreateLoad(val);
                 thunkSrcs.push_back(likely_expression(val, type));
