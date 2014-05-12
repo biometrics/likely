@@ -62,14 +62,15 @@ static LLVMContext &C = getGlobalContext();
 
 struct MatType
 {
-    static PointerType *Void;
-    PointerType *llvm;
-    likely_type likely;
+    static MatType Void;
 
     MatType() : llvm(NULL), likely(likely_matrix_void) {}
-
     MatType(PointerType *llvm, likely_type likely)
         : llvm(llvm), likely(likely) {}
+
+    operator PointerType*() const { return llvm; }
+    operator ArrayRef<Type*>() const { return ArrayRef<Type*>((Type**)&llvm, 1); }
+    operator likely_type() const { return likely; }
 
     static MatType get(likely_type likely)
     {
@@ -131,8 +132,10 @@ struct MatType
 private:
     static map<likely_type, MatType> likelyLUT;
     static map<Type*, MatType> llvmLUT;
+    PointerType *llvm;
+    likely_type likely;
 };
-PointerType *MatType::Void = NULL;
+MatType MatType::Void;
 map<likely_type, MatType> MatType::likelyLUT;
 map<Type*, MatType> MatType::llvmLUT;
 
@@ -335,7 +338,7 @@ struct likely_resources
             initializeTarget(Registry);
 
             NativeInt = Type::getIntNTy(C, unsigned(likely_depth(likely_matrix_native)));
-            MatType::Void = cast<PointerType>(MatType::get(likely_matrix_void).llvm);
+            MatType::Void = MatType::get(likely_matrix_void);
         }
 
         module = new Module("likely_module", C);
@@ -1393,7 +1396,7 @@ struct Symbol : public likely_expression
             Function::arg_iterator it = function->arg_begin();
             for (size_t i=1; i<ast->num_atoms; i++, it++) {
                 TRY_EXPR(builder, ast->atoms[i], arg)
-                args.push_back(builder.cast(arg.get(), MatType::get(it->getType()).likely));
+                args.push_back(builder.cast(arg.get(), MatType::get(it->getType())));
             }
         }
 
@@ -1423,7 +1426,7 @@ struct Lambda : public ScopedExpression
             llvmTypes.push_back(PointerType::get(MatType::Void, 0));
         } else {
             for (const MatType &t : types)
-                llvmTypes.push_back(t.llvm);
+                llvmTypes.push_back(t);
         }
 
         Function *tmpFunction = cast<Function>(builder.module()->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), llvmTypes, false)));
@@ -1434,12 +1437,12 @@ struct Lambda : public ScopedExpression
         if (arrayCC) {
             Value *argumentArray = tmpFunction->arg_begin();
             for (size_t i=0; i<types.size(); i++)
-                arguments.push_back(likely_expression(builder.CreateLoad(builder.CreateGEP(argumentArray, constant(i))), types[i].likely));
+                arguments.push_back(likely_expression(builder.CreateLoad(builder.CreateGEP(argumentArray, constant(i))), types[i]));
         } else {
             Function::arg_iterator it = tmpFunction->arg_begin();
             size_t n = 0;
             while (it != tmpFunction->arg_end())
-                arguments.push_back(likely_expression(it++, types[n++].likely));
+                arguments.push_back(likely_expression(it++, types[n++]));
         }
 
         for (size_t i=0; i<arguments.size(); i++) {
@@ -1945,7 +1948,7 @@ private:
             vector<likely_expression> thunkSrcs;
             for (size_t i=0; i<srcs.size()+1; i++) {
                 const likely_type type = i < srcs.size() ? srcs[i].type() : dst.type();
-                Value *val = builder.CreatePointerCast(builder.CreateLoad(builder.CreateGEP(thunkMatrixArray, constant(i))), MatType::get(type).llvm);
+                Value *val = builder.CreatePointerCast(builder.CreateLoad(builder.CreateGEP(thunkMatrixArray, constant(i))), MatType::get(type));
                 if (!likely_multi_dimension(type))
                     val = builder.CreateLoad(val);
                 thunkSrcs.push_back(likely_expression(val, type));
