@@ -65,10 +65,10 @@ struct MatType
     static MatType MultiDimension;
 
     MatType() : llvm(NULL), likely(likely_matrix_void) {}
-    MatType(PointerType *llvm, likely_type likely)
+    MatType(Type *llvm, likely_type likely)
         : llvm(llvm), likely(likely) {}
 
-    operator PointerType*() const { return llvm; }
+    operator Type*() const { return llvm; }
     operator ArrayRef<Type*>() const { return ArrayRef<Type*>((Type**)&llvm, 1); }
     operator likely_type() const { return likely; }
 
@@ -78,26 +78,26 @@ struct MatType
         if (result != likelyLUT.end())
             return result->second;
 
-        PointerType *ptr;
+        Type *llvm;
         if (!likely_multi_dimension(likely) && likely_depth(likely)) {
-            ptr = cast<PointerType>(scalar(likely, true));
+            llvm = scalar(likely, true);
         } else {
             likely_mat str = likely_type_to_string(likely);
             const string name = (const char*) str->data;
-            ptr = PointerType::getUnqual(StructType::create(name,
-                                                            NativeInt, // bytes
-                                                            NativeInt, // ref_count
-                                                            NativeInt, // channels
-                                                            NativeInt, // columns
-                                                            NativeInt, // rows
-                                                            NativeInt, // frames
-                                                            NativeInt, // type
-                                                            ArrayType::get(Type::getInt8Ty(C), 0), // data
-                                                            NULL));
+            llvm = PointerType::getUnqual(StructType::create(name,
+                                                             NativeInt, // bytes
+                                                             NativeInt, // ref_count
+                                                             NativeInt, // channels
+                                                             NativeInt, // columns
+                                                             NativeInt, // rows
+                                                             NativeInt, // frames
+                                                             NativeInt, // type
+                                                             ArrayType::get(Type::getInt8Ty(C), 0), // data
+                                                             NULL));
             likely_release(str);
         }
 
-        MatType t(ptr, likely);
+        MatType t(llvm, likely);
         likelyLUT[t.likely] = t;
         llvmLUT[t.llvm] = t;
         return t;
@@ -132,7 +132,7 @@ struct MatType
 private:
     static map<likely_type, MatType> likelyLUT;
     static map<Type*, MatType> llvmLUT;
-    PointerType *llvm;
+    Type *llvm;
     likely_type likely;
 };
 MatType MatType::MultiDimension;
@@ -229,7 +229,7 @@ struct likely_expression
     static likely_expression intMax(likely_type type) { const size_t bits = likely_depth(type); return constant((uint64_t) (1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
     static likely_expression intMin(likely_type type) { const size_t bits = likely_depth(type); return constant((uint64_t) (likely_signed(type) ? (1 << (bits - 1)) : 0), bits); }
     static likely_expression type(likely_type type) { return constant((uint64_t) type, likely_matrix_type_type); }
-    static likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(MatType::MultiDimension), likely_matrix_void); }
+    static likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(cast<PointerType>((Type*)MatType::MultiDimension)), likely_matrix_void); }
     static likely_expression nullData() { return likely_expression(ConstantPointerNull::get(Type::getInt8PtrTy(C)), likely_matrix_native); }
 
     static likely_type validFloatType(likely_type type)
