@@ -1384,15 +1384,20 @@ struct Symbol : public likely_expression
 
     likely_expression *evaluate(Builder &builder, likely_const_ast ast) const
     {
+        Function *function = cast<Function>(value());
+        if (function->arg_size() != (ast->is_list ? ast->num_atoms-1 : 0))
+            return error(ast, "incorrect argument count");
+
         vector<Value*> args;
         if (ast->is_list) {
-            for (size_t i=1; i<ast->num_atoms; i++) {
+            Function::arg_iterator it = function->arg_begin();
+            for (size_t i=1; i<ast->num_atoms; i++, it++) {
                 TRY_EXPR(builder, ast->atoms[i], arg)
-                args.push_back(arg->value());
+                args.push_back(builder.cast(arg.get(), MatType::get(it->getType()).likely));
             }
         }
 
-        return new likely_expression(builder.CreateCall(value(), args), type());
+        return new likely_expression(builder.CreateCall(function, args), type());
     }
 };
 
