@@ -458,8 +458,8 @@ class JITFunction : public likely_resources
     ExecutionEngine *EE = NULL;
 
 public:
+    unique_ptr<likely_expression> expr;
     likely_function function = NULL;
-    bool error = false;
     const vector<likely_type> type;
     size_t ref_count = 1;
 
@@ -1420,7 +1420,7 @@ struct Lambda : public ScopedExpression
         }
 
         likely_expression *result = evaluateFunction(builder, arguments);
-        if (!result) return result;
+        if (!result) return NULL;
 
         builder.CreateRet(*result);
         const likely_type return_type = result->type();
@@ -1437,10 +1437,6 @@ struct Lambda : public ScopedExpression
         CloneFunctionInto(function, tmpFunction, VMap, false, returns);
         tmpFunction->eraseFromParent();
         delete result;
-
-//        static map<hash_code, likely_env> cache;
-//        hash_code hash = JITFunctionCache::hash(function);
-//        cache.insert(pair<hash_code,likely_env>(hash, likely_retain_env(builder.env)));
 
         if (originalInsertBlock)
             builder.SetInsertPoint(originalInsertBlock);
@@ -2180,20 +2176,16 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env pa
                   (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
                   "expected a lambda expression");
 
-    unique_ptr<likely_expression> expr;
-    {
-        Builder builder(NULL);
-        ScopedEnvironment se(builder, parent, this);
-        unique_ptr<likely_expression> result(builder.expression(ast));
+    Builder builder(NULL);
+    ScopedEnvironment se(builder, parent, this);
+    unique_ptr<likely_expression> result(builder.expression(ast));
 
-        vector<MatType> types;
-        for (likely_type t : type)
-            types.push_back(MatType::get(t));
-        expr.reset(static_cast<Lambda*>(result.get())->generate(builder, types, name, arrayCC));
-        error = !expr.get();
-    }
+    vector<MatType> types;
+    for (likely_type t : type)
+        types.push_back(MatType::get(t));
+    expr.reset(static_cast<Lambda*>(result.get())->generate(builder, types, name, arrayCC));
 
-    if (!error && expr->value()) {
+    if (expr.get() && expr->value()) {
         string error;
         EngineBuilder engineBuilder(module);
         engineBuilder.setEngineKind(EngineKind::JIT)
