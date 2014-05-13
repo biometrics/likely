@@ -463,7 +463,7 @@ public:
     const vector<likely_type> type;
     size_t ref_count = 1;
 
-    JITFunction(likely_const_ast ast, likely_env env, const vector<likely_type> &type, bool arrayCC);
+    JITFunction(const string &name, likely_const_ast ast, likely_env env, const vector<likely_type> &type, bool arrayCC);
 
     ~JITFunction()
     {
@@ -2173,7 +2173,7 @@ class defineExpression : public Operator
 };
 LIKELY_REGISTER_EXPRESSION(define, "=")
 
-JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<likely_type> &type, bool arrayCC)
+JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env parent, const vector<likely_type> &type, bool arrayCC)
     : likely_resources(true), type(type)
 {
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
@@ -2189,7 +2189,7 @@ JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<l
         vector<MatType> types;
         for (likely_type t : type)
             types.push_back(MatType::get(t));
-        expr.reset(static_cast<Lambda*>(result.get())->generate(builder, types, "likely_jit_function", arrayCC));
+        expr.reset(static_cast<Lambda*>(result.get())->generate(builder, types, name, arrayCC));
         error = !expr.get();
     }
 
@@ -2470,7 +2470,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
         vector<likely_type> types;
         for (size_t i=0; i<vtable->n; i++)
             types.push_back(mv[i]->type);
-        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction(vtable->ast, vtable->env, types, true)));
+        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", vtable->ast, vtable->env, types, true)));
         function = vtable->functions.back()->function;
         if (function == NULL)
             return NULL;
@@ -2492,7 +2492,7 @@ likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type
         type = va_arg(ap, likely_type);
     }
     va_end(ap);
-    JITFunction *jit = new JITFunction(ast, env, types, false);
+    JITFunction *jit = new JITFunction("likely_jit_function", ast, env, types, false);
     likely_function f = reinterpret_cast<likely_function>(jit->function);
     if (f) JITFunctionLUT[f] = jit;
     else   delete jit;
