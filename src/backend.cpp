@@ -425,13 +425,12 @@ public:
 };
 static JITFunctionCache TheJITFunctionCache;
 
-class JITFunction
+class JITFunction : public likely_expression
 {
     ExecutionEngine *EE = NULL;
 
 public:
     likely_resources resources;
-    unique_ptr<likely_expression> expr;
     likely_function function = NULL;
     const vector<likely_type> type;
     size_t ref_count = 1;
@@ -2121,8 +2120,7 @@ class defineExpression : public Operator
                     value = lambda->generate(builder, types, name, false);
                 } else {
                     // JIT
-                    JITFunction *jit = new JITFunction(name, rhs, builder.env, types, false);
-                    value = jit->expr.release();
+                    value = new JITFunction(name, rhs, builder.env, types, false);
                 }
             } else {
                 // Global variable
@@ -2157,7 +2155,8 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env pa
     Builder builder(NULL);
     ScopedEnvironment se(builder, parent, &resources);
     unique_ptr<likely_expression> result(builder.expression(ast));
-    expr.reset(static_cast<Lambda*>(result.get())->generate(builder, type, name, arrayCC));
+    unique_ptr<likely_expression> expr(static_cast<Lambda*>(result.get())->generate(builder, type, name, arrayCC));
+    likely_expression(expr->value(), expr->type());
 
     if (expr.get() && expr->value()) {
         string error;
