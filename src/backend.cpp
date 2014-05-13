@@ -1438,9 +1438,9 @@ struct Lambda : public ScopedExpression
         tmpFunction->eraseFromParent();
         delete result;
 
-        static map<hash_code, likely_env> cache;
-        hash_code hash = JITFunctionCache::hash(function);
-        cache.insert(pair<hash_code,likely_env>(hash, likely_retain_env(builder.env)));
+//        static map<hash_code, likely_env> cache;
+//        hash_code hash = JITFunctionCache::hash(function);
+//        cache.insert(pair<hash_code,likely_env>(hash, likely_retain_env(builder.env)));
 
         if (originalInsertBlock)
             builder.SetInsertPoint(originalInsertBlock);
@@ -2125,62 +2125,49 @@ class kernelExpression : public Operator
 };
 LIKELY_REGISTER_EXPRESSION(kernel, "=>")
 
-class exportExpression : public Operator
-{
-    size_t minParameters() const { return 2; }
-    size_t maxParameters() const { return 3; }
-    likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        TRY_EXPR(builder, ast->atoms[1], expr);
-        Lambda *lambda = static_cast<Lambda*>(expr.get());
-
-        if (ast->atoms[2]->is_list)
-            return error(ast->atoms[2], "export expected an atom name");
-        const char *name = ast->atoms[2]->atom;
-
-        vector<MatType> types;
-        if (ast->num_atoms >= 4) {
-            if (ast->atoms[3]->is_list) {
-                for (size_t i=0; i<ast->atoms[3]->num_atoms; i++) {
-                    if (ast->atoms[3]->atoms[i]->is_list)
-                        return error(ast->atoms[2], "export expected an atom name");
-                    types.push_back(MatType::get(likely_type_from_string(ast->atoms[3]->atoms[i]->atom)));
-                }
-            } else {
-                types.push_back(MatType::get(likely_type_from_string(ast->atoms[3]->atom)));
-            }
-        }
-
-        return lambda->generate(builder, types, name, false);
-    }
-};
-LIKELY_REGISTER(export)
-
 class defineExpression : public Operator
 {
     size_t maxParameters() const { return 2; }
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        likely_const_ast name = ast->atoms[1];
-        if (name->is_list)
-            return error(name, "expected an atom");
-        likely_const_ast value = ast->atoms[2];
+        likely_const_ast lhs = ast->atoms[1];
+        likely_const_ast rhs = ast->atoms[2];
+        const char *name = lhs->is_list ? lhs->atoms[0]->atom : lhs->atom;
 
-        if (!likely_definition(builder.env->type)) {
-            // Local variable
-            likely_expression *expr = builder.expression(value);
-            if (expr) {
-                shared_ptr<likely_expression> &variable = builder.locals[name->atom];
-                if (variable.get()) static_cast<Variable*>(variable.get())->set(builder, expr);
-                else                variable.reset(new Variable(builder, expr, name->atom));
+        if (likely_definition(builder.env->type))
+        {
+            likely_expression *value;
+            if (lhs->is_list) {
+                // Export symbol
+                TRY_EXPR(builder, rhs, expr);
+                Lambda *lambda = static_cast<Lambda*>(expr.get());
+
+                vector<MatType> types;
+                for (size_t i=1; i<lhs->num_atoms; i++) {
+                    if (lhs->atoms[i]->is_list)
+                        return error(lhs->atoms[i], "expected an atom name parameter type");
+                    types.push_back(MatType::get(likely_type_from_string(lhs->atoms[i]->atom)));
+                }
+
+                value = lambda->generate(builder, types, name, false);
+            } else {
+                // Global variable
+                value = new Definition(builder, rhs);
             }
-            return expr;
-        } else {
-            // Global variable
-            builder.env->name = new char[strlen(name->atom)+1];
-            strcpy((char*) builder.env->name, name->atom);
-            builder.env->value = new Definition(builder, value);
+
+            builder.env->name = new char[strlen(name)+1];
+            strcpy((char*) builder.env->name, name);
+            builder.env->value = value;
             return NULL;
+        } else {
+            // Local variable
+            likely_expression *expr = builder.expression(rhs);
+            if (expr) {
+                shared_ptr<likely_expression> &variable = builder.locals[name];
+                if (variable.get()) static_cast<Variable*>(variable.get())->set(builder, expr);
+                else                variable.reset(new Variable(builder, expr, name));
+             }
+             return expr;
         }
     }
 };
