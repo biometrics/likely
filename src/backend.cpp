@@ -425,25 +425,6 @@ public:
 };
 static JITFunctionCache TheJITFunctionCache;
 
-class JITFunction : public likely_expression
-{
-    ExecutionEngine *EE = NULL;
-
-public:
-    likely_resources resources;
-    likely_function function = NULL;
-    const vector<likely_type> type;
-    size_t ref_count = 1;
-
-    JITFunction(const string &name, likely_const_ast ast, likely_env env, const vector<likely_type> &type, bool arrayCC);
-
-    ~JITFunction()
-    {
-        resources.module = NULL;
-        delete EE; // owns module
-    }
-};
-
 class OfflineResources : public likely_resources
 {
     const string fileName;
@@ -532,6 +513,49 @@ struct Builder : public IRBuilder<>
     Module *module() { return lookupResources()->module; }
 
     likely_expression *expression(likely_const_ast ast);
+};
+
+struct Symbol : public likely_expression
+{
+    Symbol(Value *value, likely_type type)
+        : likely_expression(value, type) {}
+
+    likely_expression *evaluate(Builder &builder, likely_const_ast ast) const
+    {
+        Function *function = cast<Function>(value());
+        if (function->arg_size() != (ast->is_list ? ast->num_atoms-1 : 0))
+            return error(ast, "incorrect argument count");
+
+        vector<Value*> args;
+        if (ast->is_list) {
+            Function::arg_iterator it = function->arg_begin();
+            for (size_t i=1; i<ast->num_atoms; i++, it++) {
+                TRY_EXPR(builder, ast->atoms[i], arg)
+                args.push_back(builder.cast(arg.get(), MatType::get(it->getType())));
+            }
+        }
+
+        return new likely_expression(builder.CreateCall(function, args), type());
+    }
+};
+
+class JITFunction : public Symbol
+{
+    ExecutionEngine *EE = NULL;
+
+public:
+    likely_resources resources;
+    likely_function function = NULL;
+    const vector<likely_type> type;
+    size_t ref_count = 1;
+
+    JITFunction(const string &name, likely_const_ast ast, likely_env env, const vector<likely_type> &type, bool arrayCC);
+
+    ~JITFunction()
+    {
+        resources.module = NULL;
+        delete EE; // owns module
+    }
 };
 
 class Operator : public likely_expression
@@ -1320,36 +1344,12 @@ public:
 };
 LIKELY_REGISTER(release)
 
-struct Symbol : public likely_expression
-{
-    Symbol(Function *function, likely_type type)
-        : likely_expression(function, type) {}
-
-    likely_expression *evaluate(Builder &builder, likely_const_ast ast) const
-    {
-        Function *function = cast<Function>(value());
-        if (function->arg_size() != (ast->is_list ? ast->num_atoms-1 : 0))
-            return error(ast, "incorrect argument count");
-
-        vector<Value*> args;
-        if (ast->is_list) {
-            Function::arg_iterator it = function->arg_begin();
-            for (size_t i=1; i<ast->num_atoms; i++, it++) {
-                TRY_EXPR(builder, ast->atoms[i], arg)
-                args.push_back(builder.cast(arg.get(), MatType::get(it->getType())));
-            }
-        }
-
-        return new likely_expression(builder.CreateCall(function, args), type());
-    }
-};
-
 struct Lambda : public ScopedExpression
 {
     Lambda(Builder &builder, likely_const_ast ast)
         : ScopedExpression(builder, ast) {}
 
-    likely_expression *generate(Builder &builder, vector<likely_type> types, string name, bool arrayCC) const
+    Symbol *generate(Builder &builder, vector<likely_type> types, string name, bool arrayCC) const
     {
         size_t n;
         if (ast->is_list && (ast->num_atoms > 1))
@@ -2146,7 +2146,7 @@ class defineExpression : public Operator
 LIKELY_REGISTER_EXPRESSION(define, "=")
 
 JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env parent, const vector<likely_type> &type, bool arrayCC)
-    : resources(true), type(type)
+    : Symbol(NULL, likely_matrix_void), resources(true), type(type)
 {
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
                   (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
@@ -2155,8 +2155,8 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env pa
     Builder builder(NULL);
     ScopedEnvironment se(builder, parent, &resources);
     unique_ptr<likely_expression> result(builder.expression(ast));
-    unique_ptr<likely_expression> expr(static_cast<Lambda*>(result.get())->generate(builder, type, name, arrayCC));
-    likely_expression(expr->value(), expr->type());
+    unique_ptr<Symbol> expr(static_cast<Lambda*>(result.get())->generate(builder, type, name, arrayCC));
+    Symbol(*expr.get());
 
     if (expr.get() && expr->value()) {
         string error;
