@@ -2130,27 +2130,26 @@ class defineExpression : public Operator
         likely_const_ast rhs = ast->atoms[2];
         const char *name = lhs->is_list ? lhs->atoms[0]->atom : lhs->atom;
 
-        if (likely_definition(builder.env->type))
-        {
+        if (likely_definition(builder.env->type)) {
             likely_expression *value;
             if (lhs->is_list) {
                 // Export symbol
+                vector<likely_type> types;
+                for (size_t i=1; i<lhs->num_atoms; i++) {
+                    if (lhs->atoms[i]->is_list)
+                        return error(lhs->atoms[i], "expected an atom name parameter type");
+                    types.push_back(likely_type_from_string(lhs->atoms[i]->atom));
+                }
+
                 if (builder.lookupResources()) {
                     // Offline
                     TRY_EXPR(builder, rhs, expr);
                     Lambda *lambda = static_cast<Lambda*>(expr.get());
-
-                    vector<likely_type> types;
-                    for (size_t i=1; i<lhs->num_atoms; i++) {
-                        if (lhs->atoms[i]->is_list)
-                            return error(lhs->atoms[i], "expected an atom name parameter type");
-                        types.push_back(likely_type_from_string(lhs->atoms[i]->atom));
-                    }
-
                     value = lambda->generate(builder, types, name, false);
                 } else {
                     // JIT
-                    assert(!"Not implemented");
+                    JITFunction *jit = new JITFunction(name, rhs, builder.env, types, false);
+                    value = jit->expr.release();
                 }
             } else {
                 // Global variable
