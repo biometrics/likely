@@ -1429,6 +1429,7 @@ struct Lambda : public ScopedExpression
                 llvmTypes.push_back(t);
         }
 
+        BasicBlock *originalInsertBlock = builder.GetInsertBlock();
         Function *tmpFunction = cast<Function>(builder.module()->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(C), llvmTypes, false)));
         BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
         builder.SetInsertPoint(entry);
@@ -1473,6 +1474,8 @@ struct Lambda : public ScopedExpression
         hash_code hash = JITFunctionCache::hash(function);
         cache.insert(pair<hash_code,likely_env>(hash, likely_retain_env(builder.env)));
 
+        if (originalInsertBlock)
+            builder.SetInsertPoint(originalInsertBlock);
         return new Symbol(function, return_type);
     }
 
