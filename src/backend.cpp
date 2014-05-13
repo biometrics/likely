@@ -346,34 +346,6 @@ struct likely_resources
         if (native) module->setTargetTriple(sys::getProcessTriple());
     }
 
-    void optimize()
-    {
-        if (module->getTargetTriple().empty())
-            return;
-
-        static TargetMachine *TM = getTargetMachine(false);
-        static PassManager *PM = NULL;
-        if (!PM) {
-            PM = new PassManager();
-            PM->add(createVerifierPass());
-            PM->add(new TargetLibraryInfo(Triple(module->getTargetTriple())));
-            PM->add(new DataLayoutPass(*TM->getDataLayout()));
-            TM->addAnalysisPasses(*PM);
-            PassManagerBuilder builder;
-            builder.OptLevel = 3;
-            builder.SizeLevel = 0;
-            builder.LoopVectorize = true;
-            builder.Inliner = createAlwaysInlinerPass();
-            builder.populateModulePassManager(*PM);
-            PM->add(createVerifierPass());
-        }
-
-//        DebugFlag = true;
-//        module->dump();
-        PM->run(*module);
-//        module->dump();
-    }
-
     static TargetMachine *getTargetMachine(bool JIT)
     {
         static const string processTriple = sys::getProcessTriple();
@@ -453,11 +425,12 @@ public:
 };
 static JITFunctionCache TheJITFunctionCache;
 
-class JITFunction : public likely_resources
+class JITFunction
 {
     ExecutionEngine *EE = NULL;
 
 public:
+    likely_resources resources;
     unique_ptr<likely_expression> expr;
     likely_function function = NULL;
     const vector<likely_type> type;
@@ -467,7 +440,7 @@ public:
 
     ~JITFunction()
     {
-        module = NULL;
+        resources.module = NULL;
         delete EE; // owns module
     }
 };
@@ -2175,27 +2148,49 @@ class defineExpression : public Operator
 LIKELY_REGISTER_EXPRESSION(define, "=")
 
 JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env parent, const vector<likely_type> &type, bool arrayCC)
-    : likely_resources(true), type(type)
+    : resources(true), type(type)
 {
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
                   (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
                   "expected a lambda expression");
 
     Builder builder(NULL);
-    ScopedEnvironment se(builder, parent, this);
+    ScopedEnvironment se(builder, parent, &resources);
     unique_ptr<likely_expression> result(builder.expression(ast));
     expr.reset(static_cast<Lambda*>(result.get())->generate(builder, type, name, arrayCC));
 
     if (expr.get() && expr->value()) {
         string error;
-        EngineBuilder engineBuilder(module);
+        EngineBuilder engineBuilder(resources.module);
         engineBuilder.setEngineKind(EngineKind::JIT)
                      .setErrorStr(&error)
                      .setUseMCJIT(true);
-        EE = engineBuilder.create(getTargetMachine(true));
+        EE = engineBuilder.create(likely_resources::getTargetMachine(true));
         EE->setObjectCache(&TheJITFunctionCache);
         likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
-        optimize();
+
+        static PassManager *PM = NULL;
+        if (!PM) {
+            static TargetMachine *TM = likely_resources::getTargetMachine(false);
+            PM = new PassManager();
+            PM->add(createVerifierPass());
+            PM->add(new TargetLibraryInfo(Triple(resources.module->getTargetTriple())));
+            PM->add(new DataLayoutPass(*TM->getDataLayout()));
+            TM->addAnalysisPasses(*PM);
+            PassManagerBuilder builder;
+            builder.OptLevel = 3;
+            builder.SizeLevel = 0;
+            builder.LoopVectorize = true;
+            builder.Inliner = createAlwaysInlinerPass();
+            builder.populateModulePassManager(*PM);
+            PM->add(createVerifierPass());
+        }
+
+//        DebugFlag = true;
+//        module->dump();
+        PM->run(*resources.module);
+//        module->dump();
+
         EE->finalizeObject();
         function = EE->getPointerToFunction(dyn_cast<Function>(expr->value()));
     }
