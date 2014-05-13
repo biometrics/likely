@@ -1377,7 +1377,7 @@ struct Lambda : public ScopedExpression
     Lambda(Builder &builder, likely_const_ast ast)
         : ScopedExpression(builder, ast) {}
 
-    likely_expression *generate(Builder &builder, vector<MatType> types, string name, bool arrayCC) const
+    likely_expression *generate(Builder &builder, vector<likely_type> types, string name, bool arrayCC) const
     {
         size_t n;
         if (ast->is_list && (ast->num_atoms > 1))
@@ -1393,8 +1393,8 @@ struct Lambda : public ScopedExpression
             // Array calling convention
             llvmTypes.push_back(PointerType::get(MatType::MultiDimension, 0));
         } else {
-            for (const MatType &t : types)
-                llvmTypes.push_back(t);
+            for (const likely_type &t : types)
+                llvmTypes.push_back(MatType::get(t));
         }
 
         BasicBlock *originalInsertBlock = builder.GetInsertBlock();
@@ -2140,11 +2140,11 @@ class defineExpression : public Operator
                     TRY_EXPR(builder, rhs, expr);
                     Lambda *lambda = static_cast<Lambda*>(expr.get());
 
-                    vector<MatType> types;
+                    vector<likely_type> types;
                     for (size_t i=1; i<lhs->num_atoms; i++) {
                         if (lhs->atoms[i]->is_list)
                             return error(lhs->atoms[i], "expected an atom name parameter type");
-                        types.push_back(MatType::get(likely_type_from_string(lhs->atoms[i]->atom)));
+                        types.push_back(likely_type_from_string(lhs->atoms[i]->atom));
                     }
 
                     value = lambda->generate(builder, types, name, false);
@@ -2185,11 +2185,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env pa
     Builder builder(NULL);
     ScopedEnvironment se(builder, parent, this);
     unique_ptr<likely_expression> result(builder.expression(ast));
-
-    vector<MatType> types;
-    for (likely_type t : type)
-        types.push_back(MatType::get(t));
-    expr.reset(static_cast<Lambda*>(result.get())->generate(builder, types, name, arrayCC));
+    expr.reset(static_cast<Lambda*>(result.get())->generate(builder, type, name, arrayCC));
 
     if (expr.get() && expr->value()) {
         string error;
