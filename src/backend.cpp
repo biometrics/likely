@@ -2135,17 +2135,23 @@ class defineExpression : public Operator
             likely_expression *value;
             if (lhs->is_list) {
                 // Export symbol
-                TRY_EXPR(builder, rhs, expr);
-                Lambda *lambda = static_cast<Lambda*>(expr.get());
+                if (builder.lookupResources()) {
+                    // Offline
+                    TRY_EXPR(builder, rhs, expr);
+                    Lambda *lambda = static_cast<Lambda*>(expr.get());
 
-                vector<MatType> types;
-                for (size_t i=1; i<lhs->num_atoms; i++) {
-                    if (lhs->atoms[i]->is_list)
-                        return error(lhs->atoms[i], "expected an atom name parameter type");
-                    types.push_back(MatType::get(likely_type_from_string(lhs->atoms[i]->atom)));
+                    vector<MatType> types;
+                    for (size_t i=1; i<lhs->num_atoms; i++) {
+                        if (lhs->atoms[i]->is_list)
+                            return error(lhs->atoms[i], "expected an atom name parameter type");
+                        types.push_back(MatType::get(likely_type_from_string(lhs->atoms[i]->atom)));
+                    }
+
+                    value = lambda->generate(builder, types, name, false);
+                } else {
+                    // JIT
+                    assert(!"Not implemented");
                 }
-
-                value = lambda->generate(builder, types, name, false);
             } else {
                 // Global variable
                 value = new Definition(builder, rhs);
@@ -2162,8 +2168,8 @@ class defineExpression : public Operator
                 shared_ptr<likely_expression> &variable = builder.locals[name];
                 if (variable.get()) static_cast<Variable*>(variable.get())->set(builder, expr);
                 else                variable.reset(new Variable(builder, expr, name));
-             }
-             return expr;
+            }
+            return expr;
         }
     }
 };
