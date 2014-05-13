@@ -1095,48 +1095,16 @@ private:
     }
 };
 
-class DefinitionOperator : public Operator
+class definedExpression : public Operator
 {
     size_t maxParameters() const { return 2; }
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        if (ast->atoms[1]->is_list)
-            return error(ast->atoms[1], "expected an atom");
-        return evaluateDefinition(builder, ast->atoms[1], ast->atoms[2]);
-    }
-    virtual likely_expression *evaluateDefinition(Builder &builder, likely_const_ast name, likely_const_ast value) const = 0;
-};
-
-class defineExpression : public DefinitionOperator
-{
-    likely_expression *evaluateDefinition(Builder &builder, likely_const_ast name, likely_const_ast value) const
-    {
-        if (!likely_definition(builder.env->type)) {
-            // Local variable
-            likely_expression *expr = builder.expression(value);
-            if (expr) {
-                shared_ptr<likely_expression> &variable = builder.locals[name->atom];
-                if (variable.get()) static_cast<Variable*>(variable.get())->set(builder, expr);
-                else                variable.reset(new Variable(builder, expr, name->atom));
-            }
-            return expr;
-        } else {
-            // Global variable
-            builder.env->name = new char[strlen(name->atom)+1];
-            strcpy((char*) builder.env->name, name->atom);
-            builder.env->value = new Definition(builder, value);
-            return NULL;
-        }
-    }
-};
-LIKELY_REGISTER_EXPRESSION(define, "=")
-
-class definedExpression : public DefinitionOperator
-{
-    likely_expression *evaluateDefinition(Builder &builder, likely_const_ast name, likely_const_ast value) const
-    {
+        likely_const_ast name = ast->atoms[1];
+        if (name->is_list)
+            return error(name, "expected an atom");
         if (builder.lookup(name->atom)) return builder.expression(name);
-        else                            return builder.expression(value);
+        else                            return builder.expression(ast->atoms[2]);
     }
 };
 LIKELY_REGISTER_EXPRESSION(defined, "??")
@@ -2187,6 +2155,36 @@ class exportExpression : public Operator
     }
 };
 LIKELY_REGISTER(export)
+
+class defineExpression : public Operator
+{
+    size_t maxParameters() const { return 2; }
+    likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        likely_const_ast name = ast->atoms[1];
+        if (name->is_list)
+            return error(name, "expected an atom");
+        likely_const_ast value = ast->atoms[2];
+
+        if (!likely_definition(builder.env->type)) {
+            // Local variable
+            likely_expression *expr = builder.expression(value);
+            if (expr) {
+                shared_ptr<likely_expression> &variable = builder.locals[name->atom];
+                if (variable.get()) static_cast<Variable*>(variable.get())->set(builder, expr);
+                else                variable.reset(new Variable(builder, expr, name->atom));
+            }
+            return expr;
+        } else {
+            // Global variable
+            builder.env->name = new char[strlen(name->atom)+1];
+            strcpy((char*) builder.env->name, name->atom);
+            builder.env->value = new Definition(builder, value);
+            return NULL;
+        }
+    }
+};
+LIKELY_REGISTER_EXPRESSION(define, "=")
 
 JITFunction::JITFunction(likely_const_ast ast, likely_env parent, const vector<likely_type> &type, bool arrayCC)
     : likely_resources(true), type(type)
