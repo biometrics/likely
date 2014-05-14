@@ -6,13 +6,13 @@ Responsive location and resolution
 
     x_scale  = 3
     y_scale  = 2
-    x_range  = x_scale * (mandelbrot_set_scale ?? 1).f32
-    y_range  = y_scale * (mandelbrot_set_scale ?? 1).f32
-    x_min    = x_scale * (mandelbrot_set_x ?? 0).f32 - x_range / 2 - 0.5
-    y_min    = y_scale * (mandelbrot_set_y ?? 0).f32 - y_range / 2
+    x_range  = x_scale * mandelbrot_set_scale ?? 1
+    y_range  = y_scale * mandelbrot_set_scale ?? 1
+    x_min    = x_scale * mandelbrot_set_x ?? 0 - x_range / 2.f - 0.5
+    y_min    = y_scale * mandelbrot_set_y ?? 0 - y_range / 2.f
     width    = mandelbrot_set_width ?? 600
-    height   = width / x_scale * y_scale
-    iter     = 20 + (mandelbrot_set_angle ?? 0).i32 / 4
+    height   = width * y_scale / x_scale
+    iter     = 20 + mandelbrot_set_angle ?? 0 / 4
 
 Definition
 
