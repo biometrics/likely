@@ -73,7 +73,7 @@ struct MatType
     operator ArrayRef<Type*>() const { return ArrayRef<Type*>((Type**)&llvm, 1); }
     operator likely_type() const { return likely; }
 
-    static MatType get(likely_type likely, bool pointer = false)
+    static MatType get(likely_type likely)
     {
         auto result = likelyLUT.find(likely);
         if (result != likelyLUT.end())
@@ -81,7 +81,7 @@ struct MatType
 
         Type *llvm;
         if (!likely_multi_dimension(likely) && likely_depth(likely)) {
-            llvm = scalar(likely, pointer);
+            llvm = scalar(likely);
         } else {
             likely_mat str = likely_type_to_string(likely);
             const string name = (const char*) str->data;
@@ -1865,7 +1865,10 @@ private:
             vector<likely_expression> thunkSrcs;
             for (size_t i=0; i<srcs.size()+1; i++) {
                 const likely_type type = i < srcs.size() ? srcs[i].type : dst.type;
-                Value *val = builder.CreatePointerCast(builder.CreateLoad(builder.CreateGEP(thunkMatrixArray, constant(i))), MatType::get(type, true));
+                Type *llvmType = MatType::get(type);
+                if (!likely_multi_dimension(type))
+                    llvmType = llvmType->getPointerTo();
+                Value *val = builder.CreatePointerCast(builder.CreateLoad(builder.CreateGEP(thunkMatrixArray, constant(i))), llvmType);
                 if (!likely_multi_dimension(type))
                     val = builder.CreateLoad(val);
                 thunkSrcs.push_back(likely_expression(val, type));
