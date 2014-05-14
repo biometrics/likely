@@ -30,6 +30,7 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/Debug.h>
+#include <llvm/Support/DynamicLibrary.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/FormattedStream.h>
 #include <llvm/Support/TargetRegistry.h>
@@ -2097,7 +2098,9 @@ class defineExpression : public Operator
                     value = lambda->generate(builder, types, name, false);
                 } else {
                     // JIT
-                    value = new JITFunction(name, rhs, builder.env, types, false);
+                    JITFunction *function = new JITFunction(name, rhs, builder.env, types, false);
+                    sys::DynamicLibrary::AddSymbol(name, function->function);
+                    value = function;
                 }
             } else {
                 // Global variable
