@@ -1668,7 +1668,7 @@ private:
             if (ast->is_list)
                 return error(ast, "kernel operator does not take arguments");
 
-            if (!likely_multi_dimension(matrix))
+            if (!isa<PointerType>(matrix.value->getType()))
                 return new likely_expression(matrix);
 
             Value *i;
