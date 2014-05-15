@@ -2074,6 +2074,33 @@ class kernelExpression : public Operator
 };
 LIKELY_REGISTER_EXPRESSION(kernel, "=>")
 
+class reduceExpression : public Operator
+{
+    size_t minParameters() const { return 2; }
+    size_t maxParameters() const { return 3; }
+    likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        TRY_EXPR(builder, ast->atoms[1], m);
+        bool reduceC, reduceX, reduceY, reduceT;
+        if (ast->num_atoms >= 4) {
+            likely_const_ast axis = ast->atoms[3];
+            reduceC = reduceX = reduceY = reduceT = false;
+            size_t atoms = axis->is_list ? axis->num_atoms : 1;
+            for (size_t i=0; i<atoms; i++) {
+                const char *atom = axis->is_list ? axis->atoms[i]->atom : axis->atom;
+                if      (!strcmp(atom, "C")) reduceC = true;
+                else if (!strcmp(atom, "X")) reduceX = true;
+                else if (!strcmp(atom, "Y")) reduceY = true;
+                else if (!strcmp(atom, "T")) reduceT = true;
+            }
+        } else {
+            reduceC = reduceX = reduceY = reduceT = true;
+        }
+        return NULL;
+    }
+};
+LIKELY_REGISTER_EXPRESSION(reduce, "|>")
+
 class defineExpression : public Operator
 {
     size_t maxParameters() const { return 2; }
