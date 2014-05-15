@@ -387,35 +387,34 @@ namespace {
 class JITFunctionCache : public ObjectCache
 {
     map<hash_code, unique_ptr<MemoryBuffer>> cache;
-    hash_code current_hash = 0;
+    const Module *currentModule = NULL;
 
-    void notifyObjectCompiled(const Module *, const MemoryBuffer *Obj)
+    void notifyObjectCompiled(const Module *M, const MemoryBuffer *Obj)
     {
-        assert(size_t(current_hash) != 0);
-        cache[current_hash].reset(MemoryBuffer::getMemBufferCopy(Obj->getBuffer()));
-        current_hash = 0;
+        if (M == currentModule)
+            cache[currentHash].reset(MemoryBuffer::getMemBufferCopy(Obj->getBuffer()));
     }
 
     MemoryBuffer *getObject(const Module *M)
     {
-        assert(size_t(current_hash) == 0);
-        current_hash = hash(M);
-        if (MemoryBuffer *buffer = cache[current_hash].get()) {
-            current_hash = 0;
-            return MemoryBuffer::getMemBufferCopy(buffer->getBuffer());
-        }
+        if (M == currentModule)
+            if (MemoryBuffer *buffer = cache[currentHash].get())
+                return MemoryBuffer::getMemBufferCopy(buffer->getBuffer());
         return NULL;
     }
 
 public:
-    template <typename T>
-    static hash_code hash(const T *val)
+    hash_code currentHash = 0;
+
+    bool alert(const Module *M)
     {
         string str;
         raw_string_ostream ostream(str);
-        val->print(ostream, NULL);
+        M->print(ostream, NULL);
         ostream.flush();
-        return hash_value(str);
+        currentModule = M;
+        currentHash = hash_value(str);
+        return cache[currentHash].get();
     }
 };
 static JITFunctionCache TheJITFunctionCache;
@@ -542,6 +541,7 @@ class JITFunction : public Symbol
 public:
     likely_resources resources;
     likely_function function = NULL;
+    hash_code hash = 0;
     const vector<likely_type> parameters;
     size_t ref_count = 1;
 
@@ -2169,16 +2169,19 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env pa
     value = expr->value;
     type = expr->type;
 
-    if (value) {
-        string error;
-        EngineBuilder engineBuilder(resources.module);
-        engineBuilder.setEngineKind(EngineKind::JIT)
-                     .setErrorStr(&error)
-                     .setUseMCJIT(true);
-        EE = engineBuilder.create(likely_resources::getTargetMachine(true));
-        EE->setObjectCache(&TheJITFunctionCache);
-        likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
+    if (!value)
+        return;
 
+    string error;
+    EngineBuilder engineBuilder(resources.module);
+    engineBuilder.setEngineKind(EngineKind::JIT)
+            .setErrorStr(&error)
+            .setUseMCJIT(true);
+    EE = engineBuilder.create(likely_resources::getTargetMachine(true));
+    EE->setObjectCache(&TheJITFunctionCache);
+    likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
+
+    if (!TheJITFunctionCache.alert(resources.module)) {
         static PassManager *PM = NULL;
         if (!PM) {
             static TargetMachine *TM = likely_resources::getTargetMachine(false);
@@ -2200,10 +2203,11 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env pa
 //        module->dump();
         PM->run(*resources.module);
 //        module->dump();
-
-        EE->finalizeObject();
-        function = EE->getPointerToFunction(dyn_cast<Function>(expr->value));
     }
+    hash = TheJITFunctionCache.currentHash;
+
+    EE->finalizeObject();
+    function = EE->getPointerToFunction(dyn_cast<Function>(expr->value));
 }
 
 #ifdef LIKELY_IO
