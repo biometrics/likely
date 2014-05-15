@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
             cout << "> ";
             string line;
             getline(cin, line);
-            likely_repl(line.c_str(), false, NULL, NULL);
+            likely_repl(line.c_str(), false, NULL);
         }
     } else {
         bool gfm;
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
         likely_env env;
         if (output.empty()) env = likely_new_env_jit(); // Interpreter
         else                env = likely_new_env_offline(output.c_str(), true); // Static compiler
-        likely_release_env(likely_repl((const char*)code->data, gfm, env, NULL));
+        likely_release_env(likely_repl((const char*)code->data, gfm, env));
         likely_release_env(env);
         likely_release(code);
     }
