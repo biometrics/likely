@@ -1644,6 +1644,36 @@ class ifExpression : public Operator
 };
 LIKELY_REGISTER_EXPRESSION(if, "?")
 
+struct Loop : public likely_expression
+{
+    string name;
+    Value *start, *stop;
+    BasicBlock *loop, *exit;
+    BranchInst *latch;
+
+    Loop(Builder &builder, const string &name, Value *start, Value *stop)
+        : name(name), start(start), stop(stop), exit(NULL), latch(NULL)
+    {
+        // Loops assume at least one iteration
+        BasicBlock *entry = builder.GetInsertBlock();
+        loop = BasicBlock::Create(C, "loop_" + name, entry->getParent());
+        builder.CreateBr(loop);
+        builder.SetInsertPoint(loop);
+        value = builder.CreatePHI(NativeInt, 2, name);
+        cast<PHINode>(value)->addIncoming(start, entry);
+        type = likely_matrix_native;
+    }
+
+    virtual void close(Builder &builder)
+    {
+        Value *increment = builder.CreateAdd(value, one(), name + "_increment");
+        exit = BasicBlock::Create(C, name + "_exit", loop->getParent());
+        latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_test"), exit, loop);
+        cast<PHINode>(value)->addIncoming(increment, builder.GetInsertBlock());
+        builder.SetInsertPoint(exit);
+    }
+};
+
 struct Kernel : public Lambda
 {
     Kernel(Builder &builder, likely_const_ast ast)
@@ -1691,19 +1721,14 @@ private:
         }
     };
 
-    struct kernelAxis : public likely_expression
+    struct kernelAxis : public Loop
     {
-        string name;
-        Value *start, *stop;
         kernelAxis *parent, *child;
         MDNode *node;
-        BasicBlock *loop, *exit;
-        PHINode *index;
         Value *offset;
-        BranchInst *latch = NULL;
 
         kernelAxis(Builder &builder, const string &name, Value *start, Value *stop, Value *step, kernelAxis *parent)
-            : name(name), start(start), stop(stop), parent(parent), child(NULL)
+            : Loop(builder, name, start, stop), parent(parent), child(NULL)
         {
             { // Create self-referencing loop node
                 vector<Value*> metadata;
@@ -1714,34 +1739,19 @@ private:
                 MDNode::deleteTemporary(tmp);
             }
 
-            // Loops assume at least one iteration
-            BasicBlock *entry = builder.GetInsertBlock();
-            loop = BasicBlock::Create(C, "loop_" + name, entry->getParent());
-            builder.CreateBr(loop);
-            builder.SetInsertPoint(loop);
-            index = builder.CreatePHI(NativeInt, 2, name);
-            index->addIncoming(start, entry);
-
             if (parent)
                 parent->child = this;
-            offset = builder.CreateAdd(parent ? parent->offset : zero().value, builder.CreateMul(step, index), name + "_offset");
-
-            value = index;
-            type = likely_matrix_native;
+            offset = builder.CreateAdd(parent ? parent->offset : zero().value, builder.CreateMul(step, value), name + "_offset");
         }
 
         void close(Builder &builder)
         {
-            Value *increment = builder.CreateAdd(index, one(), name + "_increment");
-            exit = BasicBlock::Create(C, name + "_exit", loop->getParent());
-            latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_test"), exit, loop);
+            Loop::close(builder);
             latch->setMetadata("llvm.loop", node);
-            index->addIncoming(increment, builder.GetInsertBlock());
-            builder.SetInsertPoint(exit);
             if (parent) parent->close(builder);
         }
 
-        bool referenced() const { return index->getNumUses() > 2; }
+        bool referenced() const { return value->getNumUses() > 2; }
 
         set<string> tryCollapse()
         {
@@ -1755,7 +1765,7 @@ private:
 
             while (child && !child->referenced()) {
                 // Collapse the child loop into us
-                child->offset->replaceAllUsesWith(index);
+                child->offset->replaceAllUsesWith(value);
                 child->latch->setCondition(ConstantInt::getTrue(C));
                 DeleteDeadPHIs(child->loop);
                 MergeBlockIntoPredecessor(child->loop);
