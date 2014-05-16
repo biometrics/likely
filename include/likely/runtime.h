@@ -81,13 +81,6 @@ struct likely_matrix
     likely_size channels, columns, rows, frames;
     likely_type type;
     unsigned char data[];
-
-#ifdef __cplusplus
-private:
-    likely_matrix();
-    likely_matrix(struct likely_matrix const &);
-    likely_matrix &operator=(struct likely_matrix const &);
-#endif // __cplusplus
 };
 typedef struct likely_matrix const *likely_const_mat;
 typedef struct likely_matrix *likely_mat;

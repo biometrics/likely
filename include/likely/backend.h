@@ -46,13 +46,6 @@ struct likely_environment
     struct likely_resources *resources;
     size_t ref_count, hash;
     likely_environment_type type;
-
-#ifdef __cplusplus
-private:
-    likely_environment();
-    likely_environment(struct likely_environment const &);
-    likely_environment &operator=(struct likely_environment const &);
-#endif // __cplusplus
 };
 
 typedef struct likely_environment *likely_env;
