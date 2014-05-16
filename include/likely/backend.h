@@ -44,7 +44,7 @@ struct likely_environment
         likely_const_mat result;               // !definition
     };
     struct likely_resources *resources;
-    size_t ref_count;
+    size_t ref_count, hash;
     likely_environment_type type;
 
 #ifdef __cplusplus
