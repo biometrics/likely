@@ -21,6 +21,7 @@
 
 #include <cstdarg>
 #include <iostream>
+#include <future>
 #include <string>
 #include <opencv2/highgui/highgui.hpp>
 #include <curl/curl.h> // include before <archive.h> to avoid issues on Windows
@@ -135,6 +136,13 @@ likely_mat likely_write(likely_const_mat image, const char *file_name)
     return (likely_mat) image;
 }
 
+static likely_mat decodeAndRelease(likely_const_mat buffer)
+{
+    likely_mat result = likely_decode(buffer);
+    likely_release(buffer);
+    return result;
+}
+
 likely_mat likely_decode(likely_const_mat buffer)
 {
     likely_mat m = NULL;
@@ -145,7 +153,7 @@ likely_mat likely_decode(likely_const_mat buffer)
 
     // Is it an archive?
     if (m == NULL) {
-        vector<likely_const_mat> images;
+        vector<future<likely_mat>> futures;
         { // unarchive and decode
             archive *a = archive_read_new();
             archive_read_support_format_all(a);
@@ -157,13 +165,16 @@ likely_mat likely_decode(likely_const_mat buffer)
                 if (r == ARCHIVE_OK) {
                     likely_mat encodedImage = likely_new(likely_matrix_u8, 1, archive_entry_size(entry), 1, 1, NULL);
                     archive_read_data(a, encodedImage->data, encodedImage->columns);
-                    images.push_back(likely_decode(encodedImage));
-                    likely_release(encodedImage);
+                    futures.push_back(async(decodeAndRelease, encodedImage));
                 }
             }
             archive_read_close(a);
             archive_read_free(a);
         }
+
+        vector<likely_const_mat> images;
+        for (future<likely_mat> &future : futures)
+            images.push_back(future.get());
 
         // combine
         likely_const_mat first = images.empty() ? NULL : images.front();

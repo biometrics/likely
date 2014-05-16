@@ -91,26 +91,13 @@ likely_size likely_bytes(likely_const_mat m)
 }
 
 // TODO: make this thread_local when compiler support improves
-static likely_mat recycled = NULL;
-
 likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data)
 {
     likely_mat m;
     const size_t dataBytes = (uint64_t(likely_depth(type)) * channels * columns * rows * frames + 7) / 8;
     const size_t bytes = sizeof(likely_matrix) + dataBytes;
-    if (recycled) {
-        if (recycled->bytes >= bytes) {
-            m = recycled;
-        } else {
-            m = (likely_mat) realloc((void*) recycled, bytes);
-            m->bytes = bytes;
-        }
-        recycled = NULL;
-    } else {
-        m = (likely_mat) malloc(bytes);
-        m->bytes = bytes;
-    }
-
+    m = (likely_mat) malloc(bytes);
+    m->bytes = bytes;
     m->ref_count = 1;
     m->type = type | likely_matrix_matrix;
     m->channels = channels;
@@ -179,17 +166,7 @@ likely_mat likely_retain(likely_const_mat m)
 void likely_release(likely_const_mat m)
 {
     if (!m || --const_cast<likely_mat>(m)->ref_count) return;
-    if (recycled) {
-        if (m->bytes > recycled->bytes) {
-            likely_mat tmp = recycled;
-            recycled = const_cast<likely_mat>(m);
-            free(tmp);
-        } else {
-            free((void*) m);
-        }
-    } else {
-        recycled = const_cast<likely_mat>(m);
-    }
+    free((void*) m);
 }
 
 double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
