@@ -2536,9 +2536,18 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
             likely_release_ast(lambda->atoms[0]->atoms[2]->atoms[1]); // <ast>
             lambda->atoms[0]->atoms[2]->atoms[1] = likely_retain_ast(ast);
             JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), false);
-            env->hash = jit.hash;
             if (likely_function function = jit.function) {
-                env->result = reinterpret_cast<likely_function_0>(function)();
+                env->hash = jit.hash;
+                likely_const_env it = previous;
+                while (it) {
+                    if (it->hash == env->hash) {
+                        env->result = likely_retain(it->result);
+                        break;
+                    }
+                    it = it->parent;
+                }
+                if (!env->result)
+                    env->result = reinterpret_cast<likely_function_0>(function)();
             } else {
                 likely_set_erratum(&env->type, true);
             }
