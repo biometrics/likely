@@ -2517,7 +2517,7 @@ void likely_release_function(likely_function function)
     delete jit;
 }
 
-likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
+likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_const_env previous)
 {
     if (!ast || !parent) return NULL;
     likely_env env = likely_new_env(parent);
@@ -2548,7 +2548,7 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
     return env;
 }
 
-likely_env likely_repl(const char *source, bool GFM, likely_const_env parent)
+likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, likely_const_env previous)
 {
     likely_const_ast ast = likely_ast_from_string(source, GFM);
     if (!ast)
@@ -2557,7 +2557,7 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent)
     likely_env env = likely_retain_env(parent);
     for (size_t i=0; i<ast->num_atoms; i++) {
         likely_const_ast atom = ast->atoms[i];
-        env = likely_eval(atom, parent);
+        env = likely_eval(atom, parent, previous);
         likely_release_env(parent);
         parent = env;
         if (!likely_definition(env->type) && env->result && (likely_elements(env->result) > 0))
@@ -2589,7 +2589,7 @@ class importExpression : public Operator
             return error(file, "unable to open file");
 
         likely_env parent = builder.env;
-        builder.env = likely_repl(source.c_str(), true, parent);
+        builder.env = likely_repl(source.c_str(), true, parent, NULL);
         likely_release_env(parent);
         if (likely_erratum(builder.env->type)) return NULL;
         else                                   return new likely_expression();

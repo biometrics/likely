@@ -129,7 +129,7 @@ struct Test
                 printf("%s\n", str->data);
                 likely_release(str);
             }
-            likely_env new_env = likely_eval(ast->atoms[i], env);
+            likely_env new_env = likely_eval(ast->atoms[i], env, NULL);
             likely_release_env(env);
             env = new_env;
             if (BenchmarkVerbose && !likely_definition(env->type)) {
@@ -151,7 +151,7 @@ struct Test
         while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
             likely_env env = likely_new_env_jit();
             for (size_t i=0; i<ast->num_atoms; i++) {
-                likely_env new_env = likely_eval(ast->atoms[i], env);
+                likely_env new_env = likely_eval(ast->atoms[i], env, NULL);
                 likely_release_env(env);
                 env = new_env;
             }

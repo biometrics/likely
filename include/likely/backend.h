@@ -89,8 +89,8 @@ LIKELY_EXPORT likely_function likely_retain_function(likely_function function);
 LIKELY_EXPORT void likely_release_function(likely_function function);
 
 // Evaluation
-LIKELY_EXPORT likely_env likely_eval(likely_const_ast ast, likely_const_env parent);
-LIKELY_EXPORT likely_env likely_repl(const char *source, bool GFM, likely_const_env parent);
+LIKELY_EXPORT likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_const_env previous);
+LIKELY_EXPORT likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, likely_const_env previous);
 
 // Contents of library/standard.l
 LIKELY_EXPORT extern const char likely_standard_library[];
