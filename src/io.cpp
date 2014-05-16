@@ -177,25 +177,36 @@ likely_mat likely_decode(likely_const_mat buffer)
             images.push_back(future.get());
 
         // combine
-        likely_const_mat first = images.empty() ? NULL : images.front();
-        bool valid = !!first;
-        for (size_t i=0; i<images.size(); i++)
-            valid = valid && images[i]
-                    && (images[i]->type     == first->type)
-                    && (images[i]->channels == first->channels)
-                    && (images[i]->columns  == first->columns)
-                    && (images[i]->rows     == first->rows)
-                    && (images[i]->frames   == first->frames);
+        likely_const_mat first;
+        size_t step;
+        bool valid = true;
+        for (size_t i=0; i<images.size(); i++) {
+            likely_const_mat image = images[i];
+            if (i == 0) {
+                first = image;
+                step = likely_bytes(first);
+                m = likely_new(first->type, first->channels, first->columns, first->rows, first->frames * images.size(), NULL);
+            }
 
-        if (valid) {
-            m = likely_new(first->type, first->channels, first->columns, first->rows, first->frames * images.size(), NULL);
-            const size_t step = likely_bytes(first);
-            for (size_t i=0; i<images.size(); i++)
-                memcpy(m->data + i*step, images[i]->data, step);
+            valid = valid
+                    && image
+                    && (image->type     == first->type)
+                    && (image->channels == first->channels)
+                    && (image->columns  == first->columns)
+                    && (image->rows     == first->rows)
+                    && (image->frames   == first->frames);
+
+            if (valid) {
+                memcpy(m->data + i*step, image->data, step);
+            } else if (m) {
+                free(m);
+                m = NULL;
+            }
+
+            if (i > 0)
+                likely_release(image);
         }
-
-        for (likely_const_mat n : images)
-            likely_release(n);
+        likely_release(images[0]);
     }
 
     return m;
