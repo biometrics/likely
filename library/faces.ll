@@ -4,4 +4,4 @@ Faces
     lfwa = (read "../data/lfwa.tar.gz")
     lfwa
 
-x +> (dst + x) : (frames 1)
+x +> (o + x) : (frames 1)

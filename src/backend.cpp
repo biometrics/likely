@@ -1994,6 +1994,7 @@ private:
         } else {
             builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis->node));
         }
+        builder.define("o", new kernelArgument(dst, dst, channelStep, axis->node));
 
         unique_ptr<likely_expression> result(builder.expression(ast->atoms[2]));
         const vector<const likely_expression*> expressions = result->expressions();
@@ -2010,6 +2011,7 @@ private:
         axis->close(builder);
         metadata.collapsedAxis = axis->tryCollapse();
 
+        builder.undefine("o");
         builder.undefineAll(args, true);
         delete builder.undefine("i");
         delete builder.undefine("c");
