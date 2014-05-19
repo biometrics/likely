@@ -261,7 +261,7 @@ struct Image : public QGLWidget
 private:
     QSize sizeHint() const
     {
-        return QSize(width(), image.height() * width() / image.width());
+        return QSize(width(), (image.height() * width() + /* round up */ image.width() - 1) / image.width());
     }
 
     void paintEvent(QPaintEvent *e)
