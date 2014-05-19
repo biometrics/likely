@@ -665,6 +665,7 @@ static int getPrecedence(const char *op)
     if (!strcmp(op, "=" )) return 1;
     if (!strcmp(op, "->")) return 2;
     if (!strcmp(op, "=>")) return 2;
+    if (!strcmp(op, "+>")) return 2;
     if (!strcmp(op, "#" )) return 3;
     if (!strcmp(op, "?" )) return 3;
     if (!strcmp(op, "<" )) return 4;
@@ -2161,7 +2162,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env pa
     : resources(true), parameters(parameters)
 {
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
-                  (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
+                  (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>") || !strcmp(ast->atoms[0]->atom, "+>")),
                   "expected a lambda expression");
 
     Builder builder(NULL);

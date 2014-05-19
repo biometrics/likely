@@ -1,7 +1,9 @@
 Faces
 -----
 
-    lfwa = (read "../data/lfwa.tar.gz")
-    lfwa
+lfwa = (read "../data/lfwa.tar.gz")
+lfwa
 
-x +> (o + x) : (frames 1)
+    i = "../data/misc/lenna.tiff".read
+    x = x +> (1 + x) : (frames 1)
+    (x i)
