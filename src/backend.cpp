@@ -159,8 +159,8 @@ struct likely_expression
     }
 
     virtual likely_expression *evaluate(Builder &builder, likely_const_ast ast) const;
-
-    virtual int rightHandAtoms() const { return 1; }
+    virtual size_t maxParameters() const { return 0; }
+    virtual size_t minParameters() const { return maxParameters(); }
 
     operator Value*() const { return value; }
     operator likely_type() const { return type; }
@@ -567,8 +567,6 @@ class Operator : public likely_expression
     }
 
     virtual likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const = 0;
-    virtual size_t maxParameters() const = 0;
-    virtual size_t minParameters() const { return maxParameters(); }
 
 protected:
     static likely_expression *errorArgc(likely_const_ast ast, const string &function, size_t args, size_t minParams, size_t maxParams)
@@ -697,7 +695,7 @@ struct RegisterExpression
         likely_expression *e = new E();
         likely_expression::define(RootEnvironment, symbol, e);
         if (int precedence = getPrecedence(symbol))
-            likely_insert_operator(symbol, precedence, e->rightHandAtoms());
+            likely_insert_operator(symbol, precedence, e->minParameters()-1);
     }
 };
 #define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
@@ -1591,7 +1589,6 @@ private:
 class labelExpression : public Operator
 {
     size_t maxParameters() const { return 1; }
-    int rightHandAtoms() const { return 0; }
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         const string name = ast->atoms[1]->atom;
@@ -1608,7 +1605,6 @@ class ifExpression : public Operator
 {
     size_t minParameters() const { return 2; }
     size_t maxParameters() const { return 3; }
-    int rightHandAtoms() const { return 1; }
 
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
