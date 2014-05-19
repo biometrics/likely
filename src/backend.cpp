@@ -2101,12 +2101,14 @@ struct Reduction : public Kernel
 
         for (size_t i=0; i<loops.size(); i++)
             builder.define(loops[i].name.c_str(), &loops[i]);
-        Metadata metadata = Kernel::generateCommon(builder, args, srcs, dst, start, stop);
-        for (size_t i=0; i<loops.size(); i++)
-            builder.undefine(loops[loops.size()-i-1].name.c_str());
 
-        for (Loop loop : loops)
-            loop.close(builder);
+        Metadata metadata = Kernel::generateCommon(builder, args, srcs, dst, start, stop);
+
+        for (vector<Loop>::reverse_iterator it = loops.rbegin(); it != loops.rend(); it++) {
+            builder.undefine(it->name.c_str());
+            it->close(builder);
+        }
+
         return metadata;
     }
 };
