@@ -1645,40 +1645,133 @@ class ifExpression : public Operator
 };
 LIKELY_REGISTER_EXPRESSION(if, "?")
 
-struct Loop : public likely_expression
-{
-    string name;
-    Value *start, *stop;
-    BasicBlock *loop, *exit;
-    BranchInst *latch;
-
-    Loop(Builder &builder, const string &name, Value *start, Value *stop)
-        : name(name), start(start), stop(stop), exit(NULL), latch(NULL)
-    {
-        // Loops assume at least one iteration
-        BasicBlock *entry = builder.GetInsertBlock();
-        loop = BasicBlock::Create(C, "loop_" + name, entry->getParent());
-        builder.CreateBr(loop);
-        builder.SetInsertPoint(loop);
-        value = builder.CreatePHI(NativeInt, 2, name);
-        cast<PHINode>(value)->addIncoming(start, entry);
-        type = likely_matrix_native;
-    }
-
-    virtual void close(Builder &builder)
-    {
-        Value *increment = builder.CreateAdd(value, one(), name + "_increment");
-        exit = BasicBlock::Create(C, name + "_exit", loop->getParent());
-        latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_test"), exit, loop);
-        cast<PHINode>(value)->addIncoming(increment, builder.GetInsertBlock());
-        builder.SetInsertPoint(exit);
-    }
-};
-
 struct Kernel : public Lambda
 {
     Kernel(Builder &builder, likely_const_ast ast)
         : Lambda(builder, ast) {}
+
+protected:
+    struct Loop : public likely_expression
+    {
+        string name;
+        Value *start, *stop;
+        BasicBlock *loop, *exit;
+        BranchInst *latch;
+
+        Loop(Builder &builder, const string &name, Value *start, Value *stop)
+            : name(name), start(start), stop(stop), exit(NULL), latch(NULL)
+        {
+            // Loops assume at least one iteration
+            BasicBlock *entry = builder.GetInsertBlock();
+            loop = BasicBlock::Create(C, "loop_" + name, entry->getParent());
+            builder.CreateBr(loop);
+            builder.SetInsertPoint(loop);
+            value = builder.CreatePHI(NativeInt, 2, name);
+            cast<PHINode>(value)->addIncoming(start, entry);
+            type = likely_matrix_native;
+        }
+
+        virtual void close(Builder &builder)
+        {
+            Value *increment = builder.CreateAdd(value, one(), name + "_increment");
+            exit = BasicBlock::Create(C, name + "_exit", loop->getParent());
+            latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_test"), exit, loop);
+            cast<PHINode>(value)->addIncoming(increment, builder.GetInsertBlock());
+            builder.SetInsertPoint(exit);
+        }
+    };
+
+    struct Metadata
+    {
+        set<string> collapsedAxis;
+        size_t results;
+    };
+
+    virtual Metadata generateCommon(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop) const
+    {
+        Metadata metadata;
+        BasicBlock *entry = builder.GetInsertBlock();
+        BasicBlock *steps = BasicBlock::Create(C, "steps", entry->getParent());
+        builder.CreateBr(steps);
+        builder.SetInsertPoint(steps);
+        PHINode *channelStep;
+        channelStep = builder.CreatePHI(NativeInt, 1); // Defined after we know the number of results
+        Value *columnStep, *rowStep, *frameStep;
+        builder.steps(&dst, channelStep, &columnStep, &rowStep, &frameStep);
+
+        kernelAxis *axis = NULL;
+        for (int axis_index=0; axis_index<4; axis_index++) {
+            string name;
+            bool multiElement;
+            Value *elements, *step;
+
+            switch (axis_index) {
+              case 0:
+                name = "t";
+                multiElement = likely_multi_frame(dst);
+                elements = builder.frames(&dst);
+                step = frameStep;
+                break;
+              case 1:
+                name = "y";
+                multiElement = likely_multi_row(dst);
+                elements = builder.rows(&dst);
+                step = rowStep;
+                break;
+              case 2:
+                name = "x";
+                multiElement = likely_multi_column(dst);
+                elements = builder.columns(&dst);
+                step = columnStep;
+                break;
+              default:
+                name = "c";
+                multiElement = likely_multi_channel(dst);
+                elements = builder.channels(&dst);
+                step = channelStep;
+                break;
+            }
+
+            if (multiElement || ((axis_index == 3) && !axis)) {
+                if (!axis) axis = new kernelAxis(builder, name, start, stop, step, NULL);
+                else       axis = new kernelAxis(builder, name, zero(), elements, step, axis);
+                builder.define(name.c_str(), axis); // takes ownership of axis
+            } else {
+                builder.define(name.c_str(), new likely_expression(zero(), likely_matrix_native));
+            }
+        }
+        builder.define("i", new likely_expression(axis->offset, likely_matrix_native));
+
+        if (args->is_list) {
+            for (size_t j=0; j<args->num_atoms; j++)
+                builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, channelStep, axis->node));
+        } else {
+            builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis->node));
+        }
+
+        unique_ptr<likely_expression> result(builder.expression(ast->atoms[2]));
+        const vector<const likely_expression*> expressions = result->expressions();
+        for (const likely_expression *e : expressions)
+            dst.type = likely_type_from_types(dst, *e);
+
+        metadata.results = expressions.size();
+        channelStep->addIncoming(constant(metadata.results), entry);
+        for (size_t i=0; i<metadata.results; i++) {
+            StoreInst *store = builder.CreateStore(builder.cast(expressions[i], dst), builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis->offset, constant(i))));
+            store->setMetadata("llvm.mem.parallel_loop_access", axis->node);
+        }
+
+        axis->close(builder);
+        metadata.collapsedAxis = axis->tryCollapse();
+
+        builder.undefineAll(args, true);
+        delete builder.undefine("i");
+        delete builder.undefine("c");
+        delete builder.undefine("x");
+        delete builder.undefine("y");
+        delete builder.undefine("t");
+        return metadata;
+    }
 
 private:
     class kernelArgument : public Operator
@@ -1779,12 +1872,6 @@ private:
     };
 
     void *symbol() const { return (void*) likely_fork; }
-
-    struct Metadata
-    {
-        set<string> collapsedAxis;
-        size_t results;
-    };
 
     likely_expression *evaluateLambda(Builder &builder, const vector<likely_expression> &srcs) const
     {
@@ -1934,92 +2021,6 @@ private:
         return Metadata();
     }
 
-    Metadata generateCommon(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop) const
-    {
-        Metadata metadata;
-        BasicBlock *entry = builder.GetInsertBlock();
-        BasicBlock *steps = BasicBlock::Create(C, "steps", entry->getParent());
-        builder.CreateBr(steps);
-        builder.SetInsertPoint(steps);
-        PHINode *channelStep;
-        channelStep = builder.CreatePHI(NativeInt, 1); // Defined after we know the number of results
-        Value *columnStep, *rowStep, *frameStep;
-        builder.steps(&dst, channelStep, &columnStep, &rowStep, &frameStep);
-
-        kernelAxis *axis = NULL;
-        for (int axis_index=0; axis_index<4; axis_index++) {
-            string name;
-            bool multiElement;
-            Value *elements, *step;
-
-            switch (axis_index) {
-              case 0:
-                name = "t";
-                multiElement = likely_multi_frame(dst);
-                elements = builder.frames(&dst);
-                step = frameStep;
-                break;
-              case 1:
-                name = "y";
-                multiElement = likely_multi_row(dst);
-                elements = builder.rows(&dst);
-                step = rowStep;
-                break;
-              case 2:
-                name = "x";
-                multiElement = likely_multi_column(dst);
-                elements = builder.columns(&dst);
-                step = columnStep;
-                break;
-              default:
-                name = "c";
-                multiElement = likely_multi_channel(dst);
-                elements = builder.channels(&dst);
-                step = channelStep;
-                break;
-            }
-
-            if (multiElement || ((axis_index == 3) && !axis)) {
-                if (!axis) axis = new kernelAxis(builder, name, start, stop, step, NULL);
-                else       axis = new kernelAxis(builder, name, zero(), elements, step, axis);
-                builder.define(name.c_str(), axis); // takes ownership of axis
-            } else {
-                builder.define(name.c_str(), new likely_expression(zero(), likely_matrix_native));
-            }
-        }
-        builder.define("i", new likely_expression(axis->offset, likely_matrix_native));
-
-        if (args->is_list) {
-            for (size_t j=0; j<args->num_atoms; j++)
-                builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, channelStep, axis->node));
-        } else {
-            builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis->node));
-        }
-
-        unique_ptr<likely_expression> result(builder.expression(ast->atoms[2]));
-        const vector<const likely_expression*> expressions = result->expressions();
-        for (const likely_expression *e : expressions)
-            dst.type = likely_type_from_types(dst, *e);
-
-        metadata.results = expressions.size();
-        channelStep->addIncoming(constant(metadata.results), entry);
-        for (size_t i=0; i<metadata.results; i++) {
-            StoreInst *store = builder.CreateStore(builder.cast(expressions[i], dst), builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis->offset, constant(i))));
-            store->setMetadata("llvm.mem.parallel_loop_access", axis->node);
-        }
-
-        axis->close(builder);
-        metadata.collapsedAxis = axis->tryCollapse();
-
-        builder.undefineAll(args, true);
-        delete builder.undefine("i");
-        delete builder.undefine("c");
-        delete builder.undefine("x");
-        delete builder.undefine("y");
-        delete builder.undefine("t");
-        return metadata;
-    }
-
     static bool getPairs(likely_const_ast ast, vector<pair<likely_const_ast,likely_const_ast>> &pairs)
     {
         pairs.clear();
@@ -2089,6 +2090,25 @@ struct Reduction : public Kernel
 {
     Reduction(Builder &builder, likely_const_ast ast)
         : Kernel(builder, ast) {}
+
+    virtual Metadata generateCommon(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop) const
+    {
+        vector<Loop> loops;
+        if (likely_multi_frame  (srcs[0]) && !likely_multi_frame  (dst)) loops.push_back(Loop(builder, "t", zero(), builder.frames  (&srcs[0])));
+        if (likely_multi_row    (srcs[0]) && !likely_multi_row    (dst)) loops.push_back(Loop(builder, "y", zero(), builder.rows    (&srcs[0])));
+        if (likely_multi_column (srcs[0]) && !likely_multi_column (dst)) loops.push_back(Loop(builder, "x", zero(), builder.columns (&srcs[0])));
+        if (likely_multi_channel(srcs[0]) && !likely_multi_channel(dst)) loops.push_back(Loop(builder, "c", zero(), builder.channels(&srcs[0])));
+
+        for (size_t i=0; i<loops.size(); i++)
+            builder.define(loops[i].name.c_str(), &loops[i]);
+        Metadata metadata = Kernel::generateCommon(builder, args, srcs, dst, start, stop);
+        for (size_t i=0; i<loops.size(); i++)
+            builder.undefine(loops[loops.size()-i-1].name.c_str());
+
+        for (Loop loop : loops)
+            loop.close(builder);
+        return metadata;
+    }
 };
 
 class reductionExpression : public Operator
