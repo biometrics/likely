@@ -1411,6 +1411,9 @@ struct Lambda : public ScopedExpression
         return new Symbol(function, return_type);
     }
 
+protected:
+    virtual likely_const_ast getBody() const { return ast->atoms[2]; }
+
 private:
     void *symbol() const { return (void*) likely_dynamic; }
 
@@ -1479,7 +1482,7 @@ private:
         } else {
             builder.define(ast->atoms[1]->atom, new likely_expression(args[0]));
         }
-        likely_expression *result = builder.expression(ast->atoms[2]);
+        likely_expression *result = builder.expression(getBody());
         builder.undefineAll(ast->atoms[1], true);
         return result;
     }
@@ -1745,7 +1748,7 @@ protected:
             builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis->node));
         }
 
-        unique_ptr<likely_expression> result(builder.expression(ast->atoms[2 + (hasInitialCondition() ? 1 : 0)]));
+        unique_ptr<likely_expression> result(builder.expression(getBody()));
         const vector<const likely_expression*> expressions = result->expressions();
         for (const likely_expression *e : expressions)
             dst.type = likely_type_from_types(dst, *e);
@@ -1869,7 +1872,7 @@ private:
 
     void *symbol() const { return (void*) likely_fork; }
 
-    virtual bool hasInitialCondition() const { return false; }
+    virtual likely_const_ast getMetadata() const { return (ast->num_atoms == 4) ? ast->atoms[3] : NULL; }
 
     likely_expression *evaluateLambda(Builder &builder, const vector<likely_expression> &srcs) const
     {
@@ -1878,8 +1881,7 @@ private:
             likely_set_execution(&kernelType, likely_execution(srcs.front()));
 
         vector<pair<likely_const_ast,likely_const_ast>> pairs;
-        if (ast->num_atoms == 4 + (hasInitialCondition() ? 1 : 0))
-            getPairs(ast->atoms[3 + (hasInitialCondition() ? 1 : 0)], pairs);
+        getPairs(getMetadata(), pairs);
 
         for (const auto &pair : pairs)
             if (!strcmp("type", pair.first->atom) && !pair.second->is_list)
@@ -2022,7 +2024,8 @@ private:
     static bool getPairs(likely_const_ast ast, vector<pair<likely_const_ast,likely_const_ast>> &pairs)
     {
         pairs.clear();
-        if (!ast->is_list)       return false;
+        if (!ast) return true;
+        if (!ast->is_list) return false;
         if (ast->num_atoms == 0) return true;
 
         if (ast->atoms[0]->is_list) {
@@ -2089,7 +2092,8 @@ struct Reduction : public Kernel
     Reduction(Builder &builder, likely_const_ast ast)
         : Kernel(builder, ast) {}
 
-    bool hasInitialCondition() const { return true; }
+    likely_const_ast getBody() const { return ast->atoms[3]; }
+    likely_const_ast getMetadata() const { return (ast->num_atoms == 5) ? ast->atoms[4] : NULL; }
 
     virtual Metadata generateCommon(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop) const
     {
