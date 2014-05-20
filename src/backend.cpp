@@ -1995,7 +1995,11 @@ private:
             builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis->node));
         }
 
-        unique_ptr<likely_expression> result(generateCore(builder, srcs, dst));
+        unique_ptr<likely_expression> result; {
+            ScopedEnvironment se(builder);
+            result.reset(generateCore(builder, srcs, dst));
+        }
+
         const vector<const likely_expression*> expressions = result->expressions();
         for (const likely_expression *e : expressions)
             dst.type = likely_type_from_types(dst, *e);
@@ -2090,12 +2094,12 @@ struct Reduction : public Kernel
     Reduction(Builder &builder, likely_const_ast ast)
         : Kernel(builder, ast) {}
 
+private:
     likely_const_ast getMetadata() const { return (ast->num_atoms == 5) ? ast->atoms[4] : NULL; }
 
     likely_expression *generateCore(Builder &builder, const vector<likely_expression> &srcs, const likely_expression &dst) const
     {
-//        ScopedEnvironment se(builder);
-//        unique_ptr<likely_expression> initialCondition(builder.expression(ast->atoms[2]));
+        unique_ptr<likely_expression> initialCondition(builder.expression(ast->atoms[2]));
 
         vector<Loop> loops;
         if (likely_multi_frame  (srcs[0]) && !likely_multi_frame  (dst)) loops.push_back(Loop(builder, "t", zero(), builder.frames  (&srcs[0])));
@@ -2106,7 +2110,10 @@ struct Reduction : public Kernel
         for (size_t i=0; i<loops.size(); i++)
             builder.define(loops[i].name.c_str(), &loops[i]);
 
-        likely_expression *expression = builder.expression(ast->atoms[3]);
+        likely_expression *expression; {
+            ScopedEnvironment se(builder);
+            expression = builder.expression(ast->atoms[3]);
+        }
 
         for (vector<Loop>::reverse_iterator it = loops.rbegin(); it != loops.rend(); it++) {
             builder.undefine(it->name.c_str());
