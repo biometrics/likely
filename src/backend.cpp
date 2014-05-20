@@ -1411,9 +1411,6 @@ struct Lambda : public ScopedExpression
         return new Symbol(function, return_type);
     }
 
-protected:
-    virtual likely_const_ast getBody() const { return ast->atoms[2]; }
-
 private:
     void *symbol() const { return (void*) likely_dynamic; }
 
@@ -1482,7 +1479,7 @@ private:
         } else {
             builder.define(ast->atoms[1]->atom, new likely_expression(args[0]));
         }
-        likely_expression *result = builder.expression(getBody());
+        likely_expression *result = builder.expression(ast->atoms[2]);
         builder.undefineAll(ast->atoms[1], true);
         return result;
     }
@@ -1680,98 +1677,6 @@ protected:
         }
     };
 
-    struct Metadata
-    {
-        set<string> collapsedAxis;
-        size_t results;
-    };
-
-    virtual Metadata generateCommon(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop) const
-    {
-        Metadata metadata;
-        BasicBlock *entry = builder.GetInsertBlock();
-        BasicBlock *steps = BasicBlock::Create(C, "steps", entry->getParent());
-        builder.CreateBr(steps);
-        builder.SetInsertPoint(steps);
-        PHINode *channelStep;
-        channelStep = builder.CreatePHI(NativeInt, 1); // Defined after we know the number of results
-        Value *columnStep, *rowStep, *frameStep;
-        builder.steps(&dst, channelStep, &columnStep, &rowStep, &frameStep);
-
-        kernelAxis *axis = NULL;
-        for (int axis_index=0; axis_index<4; axis_index++) {
-            string name;
-            bool multiElement;
-            Value *elements, *step;
-
-            switch (axis_index) {
-              case 0:
-                name = "t";
-                multiElement = likely_multi_frame(dst);
-                elements = builder.frames(&dst);
-                step = frameStep;
-                break;
-              case 1:
-                name = "y";
-                multiElement = likely_multi_row(dst);
-                elements = builder.rows(&dst);
-                step = rowStep;
-                break;
-              case 2:
-                name = "x";
-                multiElement = likely_multi_column(dst);
-                elements = builder.columns(&dst);
-                step = columnStep;
-                break;
-              default:
-                name = "c";
-                multiElement = likely_multi_channel(dst);
-                elements = builder.channels(&dst);
-                step = channelStep;
-                break;
-            }
-
-            if (multiElement || ((axis_index == 3) && !axis)) {
-                if (!axis) axis = new kernelAxis(builder, name, start, stop, step, NULL);
-                else       axis = new kernelAxis(builder, name, zero(), elements, step, axis);
-                builder.define(name.c_str(), axis); // takes ownership of axis
-            } else {
-                builder.define(name.c_str(), new likely_expression(zero(), likely_matrix_native));
-            }
-        }
-        builder.define("i", new likely_expression(axis->offset, likely_matrix_native));
-
-        if (args->is_list) {
-            for (size_t j=0; j<args->num_atoms; j++)
-                builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, channelStep, axis->node));
-        } else {
-            builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis->node));
-        }
-
-        unique_ptr<likely_expression> result(builder.expression(getBody()));
-        const vector<const likely_expression*> expressions = result->expressions();
-        for (const likely_expression *e : expressions)
-            dst.type = likely_type_from_types(dst, *e);
-
-        metadata.results = expressions.size();
-        channelStep->addIncoming(constant(metadata.results), entry);
-        for (size_t i=0; i<metadata.results; i++) {
-            StoreInst *store = builder.CreateStore(builder.cast(expressions[i], dst), builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis->offset, constant(i))));
-            store->setMetadata("llvm.mem.parallel_loop_access", axis->node);
-        }
-
-        axis->close(builder);
-        metadata.collapsedAxis = axis->tryCollapse();
-
-        builder.undefineAll(args, true);
-        delete builder.undefine("i");
-        delete builder.undefine("c");
-        delete builder.undefine("x");
-        delete builder.undefine("y");
-        delete builder.undefine("t");
-        return metadata;
-    }
-
 private:
     class kernelArgument : public Operator
     {
@@ -1870,9 +1775,16 @@ private:
         }
     };
 
+    struct Metadata
+    {
+        set<string> collapsedAxis;
+        size_t results;
+    };
+
     void *symbol() const { return (void*) likely_fork; }
 
     virtual likely_const_ast getMetadata() const { return (ast->num_atoms == 4) ? ast->atoms[3] : NULL; }
+    virtual likely_expression *generateCore(Builder &builder, const vector<likely_expression> &, const likely_expression &) const { return builder.expression(ast->atoms[2]); }
 
     likely_expression *evaluateLambda(Builder &builder, const vector<likely_expression> &srcs) const
     {
@@ -2021,6 +1933,92 @@ private:
         return Metadata();
     }
 
+    Metadata generateCommon(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop) const
+    {
+        Metadata metadata;
+        BasicBlock *entry = builder.GetInsertBlock();
+        BasicBlock *steps = BasicBlock::Create(C, "steps", entry->getParent());
+        builder.CreateBr(steps);
+        builder.SetInsertPoint(steps);
+        PHINode *channelStep;
+        channelStep = builder.CreatePHI(NativeInt, 1); // Defined after we know the number of results
+        Value *columnStep, *rowStep, *frameStep;
+        builder.steps(&dst, channelStep, &columnStep, &rowStep, &frameStep);
+
+        kernelAxis *axis = NULL;
+        for (int axis_index=0; axis_index<4; axis_index++) {
+            string name;
+            bool multiElement;
+            Value *elements, *step;
+
+            switch (axis_index) {
+              case 0:
+                name = "t";
+                multiElement = likely_multi_frame(dst);
+                elements = builder.frames(&dst);
+                step = frameStep;
+                break;
+              case 1:
+                name = "y";
+                multiElement = likely_multi_row(dst);
+                elements = builder.rows(&dst);
+                step = rowStep;
+                break;
+              case 2:
+                name = "x";
+                multiElement = likely_multi_column(dst);
+                elements = builder.columns(&dst);
+                step = columnStep;
+                break;
+              default:
+                name = "c";
+                multiElement = likely_multi_channel(dst);
+                elements = builder.channels(&dst);
+                step = channelStep;
+                break;
+            }
+
+            if (multiElement || ((axis_index == 3) && !axis)) {
+                if (!axis) axis = new kernelAxis(builder, name, start, stop, step, NULL);
+                else       axis = new kernelAxis(builder, name, zero(), elements, step, axis);
+                builder.define(name.c_str(), axis); // takes ownership of axis
+            } else {
+                builder.define(name.c_str(), new likely_expression(zero(), likely_matrix_native));
+            }
+        }
+        builder.define("i", new likely_expression(axis->offset, likely_matrix_native));
+
+        if (args->is_list) {
+            for (size_t j=0; j<args->num_atoms; j++)
+                builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, channelStep, axis->node));
+        } else {
+            builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis->node));
+        }
+
+        unique_ptr<likely_expression> result(generateCore(builder, srcs, dst));
+        const vector<const likely_expression*> expressions = result->expressions();
+        for (const likely_expression *e : expressions)
+            dst.type = likely_type_from_types(dst, *e);
+
+        metadata.results = expressions.size();
+        channelStep->addIncoming(constant(metadata.results), entry);
+        for (size_t i=0; i<metadata.results; i++) {
+            StoreInst *store = builder.CreateStore(builder.cast(expressions[i], dst), builder.CreateGEP(builder.data(&dst), builder.CreateAdd(axis->offset, constant(i))));
+            store->setMetadata("llvm.mem.parallel_loop_access", axis->node);
+        }
+
+        axis->close(builder);
+        metadata.collapsedAxis = axis->tryCollapse();
+
+        builder.undefineAll(args, true);
+        delete builder.undefine("i");
+        delete builder.undefine("c");
+        delete builder.undefine("x");
+        delete builder.undefine("y");
+        delete builder.undefine("t");
+        return metadata;
+    }
+
     static bool getPairs(likely_const_ast ast, vector<pair<likely_const_ast,likely_const_ast>> &pairs)
     {
         pairs.clear();
@@ -2092,11 +2090,13 @@ struct Reduction : public Kernel
     Reduction(Builder &builder, likely_const_ast ast)
         : Kernel(builder, ast) {}
 
-    likely_const_ast getBody() const { return ast->atoms[3]; }
     likely_const_ast getMetadata() const { return (ast->num_atoms == 5) ? ast->atoms[4] : NULL; }
 
-    virtual Metadata generateCommon(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop) const
+    likely_expression *generateCore(Builder &builder, const vector<likely_expression> &srcs, const likely_expression &dst) const
     {
+//        ScopedEnvironment se(builder);
+//        unique_ptr<likely_expression> initialCondition(builder.expression(ast->atoms[2]));
+
         vector<Loop> loops;
         if (likely_multi_frame  (srcs[0]) && !likely_multi_frame  (dst)) loops.push_back(Loop(builder, "t", zero(), builder.frames  (&srcs[0])));
         if (likely_multi_row    (srcs[0]) && !likely_multi_row    (dst)) loops.push_back(Loop(builder, "y", zero(), builder.rows    (&srcs[0])));
@@ -2106,14 +2106,14 @@ struct Reduction : public Kernel
         for (size_t i=0; i<loops.size(); i++)
             builder.define(loops[i].name.c_str(), &loops[i]);
 
-        Metadata metadata = Kernel::generateCommon(builder, args, srcs, dst, start, stop);
+        likely_expression *expression = builder.expression(ast->atoms[3]);
 
         for (vector<Loop>::reverse_iterator it = loops.rbegin(); it != loops.rend(); it++) {
             builder.undefine(it->name.c_str());
             it->close(builder);
         }
 
-        return metadata;
+        return expression;
     }
 };
 
