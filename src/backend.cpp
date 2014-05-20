@@ -1745,7 +1745,7 @@ protected:
             builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis->node));
         }
 
-        unique_ptr<likely_expression> result(builder.expression(ast->atoms[2]));
+        unique_ptr<likely_expression> result(builder.expression(ast->atoms[2 + (hasInitialCondition() ? 1 : 0)]));
         const vector<const likely_expression*> expressions = result->expressions();
         for (const likely_expression *e : expressions)
             dst.type = likely_type_from_types(dst, *e);
@@ -1869,6 +1869,8 @@ private:
 
     void *symbol() const { return (void*) likely_fork; }
 
+    virtual bool hasInitialCondition() const { return false; }
+
     likely_expression *evaluateLambda(Builder &builder, const vector<likely_expression> &srcs) const
     {
         likely_type kernelType = likely_matrix_void;
@@ -1876,8 +1878,8 @@ private:
             likely_set_execution(&kernelType, likely_execution(srcs.front()));
 
         vector<pair<likely_const_ast,likely_const_ast>> pairs;
-        if (ast->num_atoms == 4)
-            getPairs(ast->atoms[3], pairs);
+        if (ast->num_atoms == 4 + (hasInitialCondition() ? 1 : 0))
+            getPairs(ast->atoms[3 + (hasInitialCondition() ? 1 : 0)], pairs);
 
         for (const auto &pair : pairs)
             if (!strcmp("type", pair.first->atom) && !pair.second->is_list)
@@ -2087,6 +2089,8 @@ struct Reduction : public Kernel
     Reduction(Builder &builder, likely_const_ast ast)
         : Kernel(builder, ast) {}
 
+    bool hasInitialCondition() const { return true; }
+
     virtual Metadata generateCommon(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop) const
     {
         vector<Loop> loops;
@@ -2111,8 +2115,8 @@ struct Reduction : public Kernel
 
 class reductionExpression : public Operator
 {
-    size_t minParameters() const { return 2; }
-    size_t maxParameters() const { return 3; }
+    size_t minParameters() const { return 3; }
+    size_t maxParameters() const { return 4; }
     likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         return new Reduction(builder, ast);
