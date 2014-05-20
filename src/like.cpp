@@ -30,13 +30,20 @@ static cl::opt<string> input (cl::Positional, cl::desc("<input file>" ), cl::ini
 static cl::opt<string> output(cl::Positional, cl::desc("<output file>"), cl::init(""));
 static cl::opt<bool> source("source", cl::desc("Treat input as a source code string instead of a file"));
 static cl::opt<bool> gui("gui", cl::desc("Show matrix output in a window"));
+static cl::opt<bool> quiet("quiet", cl::desc("Don't show matrix output"));
+
+static void quietShowCallback(likely_const_mat, likely_const_ast, void *)
+{
+    return;
+}
 
 int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
 
-    if (!gui)
-        likely_set_show_callback(NULL, NULL); // Print to terminal
+    if      (gui); // No configuration needed, this is the default
+    else if (quiet) likely_set_show_callback(quietShowCallback, NULL);
+    else            likely_set_show_callback(NULL, NULL); // Print to terminal
 
     if (input.empty()) {
         // REPL shell
