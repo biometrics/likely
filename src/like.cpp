@@ -23,11 +23,17 @@
 #include <llvm/Support/CommandLine.h>
 #include <likely.h>
 
+// Until Microsoft implements snprintf
+#if _MSC_VER
+#define snprintf _snprintf
+#endif
+
 using namespace llvm;
 using namespace std;
 
 static cl::opt<string> input (cl::Positional, cl::desc("<input file>" ), cl::init(""));
 static cl::opt<string> output(cl::Positional, cl::desc("<output file>"), cl::init(""));
+static cl::opt<string> record("record", cl::desc("%d-formatted file to render matrix output to"));
 static cl::opt<bool> source("source", cl::desc("Treat input as a source code string instead of a file"));
 static cl::opt<bool> gui("gui", cl::desc("Show matrix output in a window"));
 static cl::opt<bool> quiet("quiet", cl::desc("Don't show matrix output"));
@@ -37,11 +43,23 @@ static void quietShowCallback(likely_const_mat, likely_const_ast, void *)
     return;
 }
 
+static void recordShowCallback(likely_const_mat m, likely_const_ast, void *)
+{
+    static int index = 0;
+    const int bufferSize = 128;
+    char fileName[bufferSize];
+    snprintf(fileName, bufferSize, record.getValue().c_str(), index++);
+    likely_mat rendered = likely_render(m, NULL, NULL);
+    likely_write(rendered, fileName);
+    likely_release(rendered);
+}
+
 int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
 
-    if      (gui); // No configuration needed, this is the default
+    if (!record.getValue().empty()) likely_set_show_callback(recordShowCallback, NULL);
+    else if (gui); // No configuration needed, this is the default
     else if (quiet) likely_set_show_callback(quietShowCallback, NULL);
     else            likely_set_show_callback(NULL, NULL); // Print to terminal
 
