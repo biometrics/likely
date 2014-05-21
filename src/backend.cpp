@@ -271,7 +271,11 @@ struct ShadowExpression : public likely_expression
     const likely_expression *e;
 
     ShadowExpression(const likely_expression *e)
-        : likely_expression(e->value, e->type), e(e) {}
+        : likely_expression(e->value, e->type), e(e)
+    {
+        for (const likely_expression *f : e->subexpressions)
+            subexpressions.push_back(new ShadowExpression(f));
+    }
 
     const likely_expression *evaluate(Builder &builder, likely_const_ast ast) const { return e->evaluate(builder, ast); }
     size_t maxParameters() const { return e->maxParameters(); }
