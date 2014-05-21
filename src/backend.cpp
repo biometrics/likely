@@ -148,13 +148,14 @@ struct likely_expression
 {
     Value *value;
     likely_type type;
+    vector<const likely_expression*> subexpressions;
 
     likely_expression(Value *value = NULL, likely_type type = likely_matrix_void)
         : value(value), type(type) {}
 
     virtual ~likely_expression()
     {
-        for (const likely_expression *e : expressions_)
+        for (const likely_expression *e : subexpressions)
             delete e;
     }
 
@@ -172,24 +173,14 @@ struct likely_expression
         return result;
     }
 
-    const likely_expression *takeExpression(size_t index)
+    vector<const likely_expression*> subexpressionsOrSelf() const
     {
-        const likely_expression *result = NULL;
-        if (index < expressions_.size())
-            swap(expressions_[index], result);
-        return result;
-    }
-
-    void append(const likely_expression *e) { expressions_.push_back(e); }
-
-    vector<const likely_expression*> expressions() const
-    {
-        if (expressions_.empty()) {
+        if (subexpressions.empty()) {
             vector<const likely_expression*> expressions;
             expressions.push_back(this);
             return expressions;
         } else {
-            return expressions_;
+            return subexpressions;
         }
     }
 
@@ -271,9 +262,6 @@ struct likely_expression
         likely_release_env(old);
         return value;
     }
-
-private:
-    vector<const likely_expression*> expressions_;
 };
 
 namespace {
@@ -646,7 +634,7 @@ const likely_expression *likely_expression::evaluate(Builder &builder, likely_co
         likely_expression *expression = new likely_expression();
         for (size_t i=0; i<ast->num_atoms; i++) {
             if (const likely_expression *e = builder.expression(ast->atoms[i])) {
-                expression->append(e);
+                expression->subexpressions.push_back(e);
             } else {
                 delete expression;
                 return NULL;
@@ -1235,7 +1223,7 @@ class scalarExpression : public UnaryOperator
 
         vector<Value*> args;
         likely_type type = likely_matrix_void;
-        for (const likely_expression *e : argExpr->expressions()) {
+        for (const likely_expression *e : argExpr->subexpressionsOrSelf()) {
             args.push_back(builder.cast(e, likely_matrix_f64));
             type = likely_type_from_types(type, e->type);
         }
@@ -1574,9 +1562,10 @@ class indexExpression : public VAOperator
         likely_expression *result = new likely_expression();
         for (size_t i=2; i<ast->num_atoms; i++) {
             const size_t index = atoi(ast->atoms[i]->atom);
-            const likely_expression *e = const_cast<likely_expression*>(expr.get())->takeExpression(index); // TODO: make this safe
-            if (e) {
-                result->append(e);
+            if (index < expr->subexpressions.size()) {
+                const likely_expression *e = NULL;
+                swap(e, const_cast<likely_expression*>(expr.get())->subexpressions[index]);
+                result->subexpressions.push_back(e);
             } else {
                 delete result;
                 return error(ast->atoms[i], "index out of range");
@@ -2015,7 +2004,7 @@ private:
             result.reset(generateCore(builder, srcs, dst));
         }
 
-        const vector<const likely_expression*> expressions = result->expressions();
+        const vector<const likely_expression*> expressions = result->subexpressionsOrSelf();
         for (const likely_expression *e : expressions)
             dst.type = likely_type_from_types(dst, *e);
 
