@@ -441,7 +441,7 @@ public:
 struct Builder : public IRBuilder<>
 {
     likely_env env;
-    map<string, shared_ptr<likely_expression>> locals;
+    map<string, shared_ptr<const likely_expression>> locals;
 
     Builder(likely_env env)
         : IRBuilder<>(C), env(likely_retain_env(env)) {}
@@ -1064,7 +1064,7 @@ public:
         set(builder, expr);
     }
 
-    void set(Builder &builder, const likely_expression *expr)
+    void set(Builder &builder, const likely_expression *expr) const
     {
         builder.CreateStore(builder.cast(expr, types), allocaInst);
     }
@@ -2189,8 +2189,8 @@ class defineExpression : public Operator
             // Local variable
             const likely_expression *expr = builder.expression(rhs);
             if (expr) {
-                shared_ptr<likely_expression> &variable = builder.locals[name];
-                if (variable.get()) static_cast<Variable*>(variable.get())->set(builder, expr);
+                shared_ptr<const likely_expression> &variable = builder.locals[name];
+                if (variable.get()) static_cast<const Variable*>(variable.get())->set(builder, expr);
                 else                variable.reset(new Variable(builder, expr, name));
             }
             return expr;
@@ -2496,6 +2496,8 @@ bool likely_erratum(likely_environment_type type) { return likely_get_bool(type,
 void likely_set_erratum(likely_environment_type *type, bool erratum) { likely_set_bool(type, erratum, likely_environment_erratum); }
 bool likely_definition(likely_environment_type type) { return likely_get_bool(type, likely_environment_definition); }
 void likely_set_definition(likely_environment_type *type, bool definition) { likely_set_bool(type, definition, likely_environment_definition); }
+bool likely_local(likely_environment_type type) { return likely_get_bool(type, likely_environment_local); }
+void likely_set_local(likely_environment_type *type, bool local) { likely_set_bool(type, local, likely_environment_local); }
 
 likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
 {
