@@ -1585,7 +1585,7 @@ class labelExpression : public Operator
         BasicBlock *label = BasicBlock::Create(C, name, builder.GetInsertBlock()->getParent());
         builder.CreateBr(label);
         builder.SetInsertPoint(label);
-        builder.locals.insert(pair<string,shared_ptr<likely_expression>>(name, shared_ptr<likely_expression>(new Label(label))));
+        builder.define(name.c_str(), new Label(label));
         return new Label(label);
     }
 };
@@ -2154,7 +2154,7 @@ class defineExpression : public Operator
         likely_const_ast rhs = ast->atoms[2];
         const char *name = lhs->is_list ? lhs->atoms[0]->atom : lhs->atom;
 
-        if (likely_definition(builder.env->type)) {
+        if (likely_definition(builder.env->type) && (builder.env->name == NULL)) {
             const likely_expression *value;
             if (lhs->is_list) {
                 // Export symbol
