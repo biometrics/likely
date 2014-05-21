@@ -278,6 +278,19 @@ private:
 
 namespace {
 
+struct ShadowExpression : public likely_expression
+{
+    const likely_expression *e;
+
+    ShadowExpression(const likely_expression *e)
+        : likely_expression(e->value, e->type), e(e) {}
+
+    const likely_expression *evaluate(Builder &builder, likely_const_ast ast) const { return e->evaluate(builder, ast); }
+    size_t maxParameters() const { return e->maxParameters(); }
+    size_t minParameters() const { return e->minParameters(); }
+    void *symbol() const { return e->symbol(); }
+};
+
 struct UniqueAST : public unique_ptr<const likely_abstract_syntax_tree, function<void(likely_const_ast)>>
 {
     UniqueAST(likely_const_ast ast = NULL)
