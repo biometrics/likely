@@ -414,7 +414,7 @@ public:
         ostream.flush();
         currentModule = M;
         currentHash = hash_value(str);
-        return cache[currentHash].get();
+        return cache[currentHash].get() != NULL;
     }
 };
 static JITFunctionCache TheJITFunctionCache;
@@ -696,7 +696,7 @@ struct RegisterExpression
         likely_expression *e = new E();
         likely_expression::define(RootEnvironment, symbol, e);
         if (int precedence = getPrecedence(symbol))
-            likely_insert_operator(symbol, precedence, e->minParameters()-1);
+            likely_insert_operator(symbol, precedence, int(e->minParameters())-1);
     }
 };
 #define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
