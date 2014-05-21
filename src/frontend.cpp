@@ -183,8 +183,7 @@ struct Operator
     int precedence;
     size_t rightHandAtoms;
     Operator(int precedence, size_t rightHandAtoms)
-        : precedence(precedence), rightHandAtoms(rightHandAtoms)
-    {}
+        : precedence(precedence), rightHandAtoms(rightHandAtoms) {}
 };
 
 // Construct on first use idiom avoids static initialization order fiasco

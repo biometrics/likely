@@ -666,6 +666,7 @@ static int getPrecedence(const char *op)
     if (!strcmp(op, "+>")) return 2;
     if (!strcmp(op, "#" )) return 3;
     if (!strcmp(op, "?" )) return 3;
+    if (!strcmp(op, "$" )) return 3;
     if (!strcmp(op, "<" )) return 4;
     if (!strcmp(op, "<=")) return 4;
     if (!strcmp(op, ">" )) return 4;
@@ -1641,53 +1642,55 @@ class ifExpression : public Operator
 };
 LIKELY_REGISTER_EXPRESSION(if, "?")
 
+struct Loop : public likely_expression
+{
+    string name;
+    Value *start, *stop;
+    BasicBlock *loop, *exit;
+    BranchInst *latch;
+
+    Loop(Builder &builder, const string &name, Value *start, Value *stop)
+        : name(name), start(start), stop(stop), exit(NULL), latch(NULL)
+    {
+        // Loops assume at least one iteration
+        BasicBlock *entry = builder.GetInsertBlock();
+        loop = BasicBlock::Create(C, "loop_" + name, entry->getParent());
+        builder.CreateBr(loop);
+        builder.SetInsertPoint(loop);
+        value = builder.CreatePHI(NativeInt, 2, name);
+        cast<PHINode>(value)->addIncoming(start, entry);
+        type = likely_matrix_native;
+    }
+
+    virtual void close(Builder &builder)
+    {
+        Value *increment = builder.CreateAdd(value, one(), name + "_increment");
+        exit = BasicBlock::Create(C, name + "_exit", loop->getParent());
+        latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_test"), exit, loop);
+        cast<PHINode>(value)->addIncoming(increment, builder.GetInsertBlock());
+        builder.SetInsertPoint(exit);
+    }
+};
+
 struct Kernel : public Lambda
 {
     Kernel(Builder &builder, likely_const_ast ast)
         : Lambda(builder, ast) {}
 
-protected:
-    struct Loop : public likely_expression
-    {
-        string name;
-        Value *start, *stop;
-        BasicBlock *loop, *exit;
-        BranchInst *latch;
-
-        Loop(Builder &builder, const string &name, Value *start, Value *stop)
-            : name(name), start(start), stop(stop), exit(NULL), latch(NULL)
-        {
-            // Loops assume at least one iteration
-            BasicBlock *entry = builder.GetInsertBlock();
-            loop = BasicBlock::Create(C, "loop_" + name, entry->getParent());
-            builder.CreateBr(loop);
-            builder.SetInsertPoint(loop);
-            value = builder.CreatePHI(NativeInt, 2, name);
-            cast<PHINode>(value)->addIncoming(start, entry);
-            type = likely_matrix_native;
-        }
-
-        virtual void close(Builder &builder)
-        {
-            Value *increment = builder.CreateAdd(value, one(), name + "_increment");
-            exit = BasicBlock::Create(C, name + "_exit", loop->getParent());
-            latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_test"), exit, loop);
-            cast<PHINode>(value)->addIncoming(increment, builder.GetInsertBlock());
-            builder.SetInsertPoint(exit);
-        }
-    };
-
 private:
     class kernelArgument : public Operator
     {
-        likely_expression matrix;
         likely_type kernel;
         Value *channelStep;
         MDNode *node;
 
     public:
         kernelArgument(const likely_expression &matrix, likely_type kernel, Value *channelStep, MDNode *node)
-            : matrix(matrix), kernel(kernel), channelStep(channelStep), node(node) {}
+            : kernel(kernel), channelStep(channelStep), node(node)
+        {
+            value = matrix.value;
+            type = matrix.type;
+        }
 
     private:
         size_t maxParameters() const { return 0; }
@@ -1696,26 +1699,26 @@ private:
             if (ast->is_list)
                 return error(ast, "kernel operator does not take arguments");
 
-            if (!isa<PointerType>(matrix.value->getType()))
-                return new likely_expression(matrix);
+            if (!isa<PointerType>(value->getType()))
+                return new likely_expression(*this);
 
             Value *i;
-            if (((matrix ^ kernel) & likely_matrix_multi_dimension) == 0) {
+            if (((type ^ kernel) & likely_matrix_multi_dimension) == 0) {
                 // This matrix has the same dimensionality as the kernel
                 i = *builder.lookup("i");
             } else {
                 Value *columnStep, *rowStep, *frameStep;
-                builder.steps(&matrix, channelStep, &columnStep, &rowStep, &frameStep);
+                builder.steps(this, channelStep, &columnStep, &rowStep, &frameStep);
                 i = zero();
-                if (likely_multi_channel(matrix)) i = builder.CreateMul(*builder.lookup("c"), channelStep);
-                if (likely_multi_column (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), columnStep), i);
-                if (likely_multi_row    (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep   ), i);
-                if (likely_multi_frame  (matrix)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep ), i);
+                if (likely_multi_channel(type)) i = builder.CreateMul(*builder.lookup("c"), channelStep);
+                if (likely_multi_column (type)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), columnStep), i);
+                if (likely_multi_row    (type)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep   ), i);
+                if (likely_multi_frame  (type)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep ), i);
             }
-            LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(&matrix), i));
+            LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(this), i));
 
             load->setMetadata("llvm.mem.parallel_loop_access", node);
-            return new likely_expression(load, matrix);
+            return new likely_expression(load, type);
         }
     };
 
@@ -2134,6 +2137,25 @@ class reductionExpression : public Operator
     }
 };
 LIKELY_REGISTER_EXPRESSION(reduction, "+>")
+
+class loopExpression : public Operator
+{
+    size_t maxParameters() const { return 3; }
+    likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        TRY_EXPR(builder, ast->atoms[3], end)
+        Loop loop(builder, ast->atoms[2]->atom, zero(), *end);
+        builder.define(ast->atoms[2]->atom, &loop);
+        likely_expression *expression; {
+            ScopedEnvironment se(builder);
+            expression = builder.expression(ast->atoms[1]);
+        }
+        builder.undefine(ast->atoms[2]->atom);
+        loop.close(builder);
+        return expression;
+    }
+};
+LIKELY_REGISTER_EXPRESSION(loop, "$")
 
 class defineExpression : public Operator
 {
