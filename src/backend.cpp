@@ -442,7 +442,6 @@ public:
 struct Builder : public IRBuilder<>
 {
     likely_env env;
-    map<string, shared_ptr<const likely_expression>> locals;
 
     Builder(likely_env env)
         : IRBuilder<>(C), env(likely_retain_env(env)) {}
@@ -734,12 +733,6 @@ const likely_expression *Builder::expression(likely_const_ast ast)
         return e->evaluate(*this, ast);
     }
     const string op = ast->atom;
-
-    { // Is it a local variable?
-        auto var = locals.find(op);
-        if (var != locals.end())
-            return var->second->evaluate(*this, ast);
-    }
 
     if (const likely_expression *e = lookup(op.c_str()))
         return e->evaluate(*this, ast);
@@ -2188,12 +2181,9 @@ class defineExpression : public Operator
             // Local variable
             const likely_expression *expr = builder.expression(rhs);
             if (expr) {
-                shared_ptr<const likely_expression> &variable = builder.locals[name];
-                if (variable.get()) static_cast<const Variable*>(variable.get())->set(builder, expr);
-                else                variable.reset(new Variable(builder, expr, name));
-//                const Variable *variable = static_cast<const Variable*>(builder.lookup(name, true));
-//                if (variable) variable->set(builder, expr);
-//                else          builder.define(name, new Variable(builder, expr, name), true);
+                const Variable *variable = static_cast<const Variable*>(builder.lookup(name, true));
+                if (variable) variable->set(builder, expr);
+                else          builder.define(name, new Variable(builder, expr, name), true);
             }
             return expr;
         }
