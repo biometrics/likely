@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
     }
 
     printf("Reading input image...\n");
-    likely_const_mat lenna = likely_read(input_image, true);
+    likely_const_mat lenna = likely_read(input_image, likely_file_binary);
     if (lenna) {
         printf("Width: %d\nHeight: %d\n", (int) lenna->columns, (int) lenna->rows);
     } else {

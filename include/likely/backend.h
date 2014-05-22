@@ -23,9 +23,10 @@
 struct likely_expression;
 struct likely_resources;
 
-typedef likely_size likely_environment_type; /* Offline : 1
-                                                Erratum : 1
-                                                Definition : 1 */
+typedef likely_size likely_environment_type; /* Offline    : 1
+                                                Erratum    : 1
+                                                Definition : 1
+                                                Local      : 1 */
 
 enum likely_environment_type_field
 {

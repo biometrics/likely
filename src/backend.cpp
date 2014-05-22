@@ -2309,7 +2309,7 @@ class readExpression : public SimpleUnaryOperator
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            Type* params[] = { Type::getInt8PtrTy(C), Type::getInt1Ty(C) };
+            Type* params[] = { Type::getInt8PtrTy(C), NativeInt };
             functionType = FunctionType::get(MatType::MultiDimension, params, false);
         }
 
@@ -2321,7 +2321,7 @@ class readExpression : public SimpleUnaryOperator
             likelyRead->setDoesNotAlias(1);
             likelyRead->setDoesNotCapture(1);
         }
-        return new likely_expression(builder.CreateCall2(likelyRead, *arg, ConstantInt::getTrue(C)), MatType::MultiDimension);
+        return new likely_expression(builder.CreateCall2(likelyRead, *arg, constant(likely_file_binary)), MatType::MultiDimension);
     }
     void *symbol() const { return (void*) likely_read; }
 };

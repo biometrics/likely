@@ -35,6 +35,13 @@
 
 using namespace std;
 
+bool likely_decoded(likely_file_type type) { return likely_get_bool(type, likely_file_decoded); }
+void likely_set_decoded(likely_file_type *type, bool decoded) { likely_set_bool(type, decoded, likely_file_decoded); }
+bool likely_encoded(likely_file_type type) { return likely_get_bool(type, likely_file_encoded); }
+void likely_set_encoded(likely_file_type *type, bool encoded) { likely_set_bool(type, encoded, likely_file_encoded); }
+bool likely_text(likely_file_type type) { return likely_get_bool(type, likely_file_text); }
+void likely_set_text(likely_file_type *type, bool text) { likely_set_bool(type, text, likely_file_text); }
+
 static size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp)
 {
     vector<char> *userpc = static_cast<vector<char>*>(userp);
@@ -43,16 +50,7 @@ static size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp)
     return size*nmemb;
 }
 
-static likely_mat tryDecode(likely_mat encoded)
-{
-    if (likely_mat decoded = likely_decode(encoded)) {
-        likely_release(encoded);
-        return decoded;
-    }
-    return encoded;
-}
-
-likely_mat likely_read(const char *file_name, bool decode)
+likely_mat likely_read(const char *file_name, likely_file_type type)
 {
     // Interpret ~ as $HOME
     string fileName = file_name;
@@ -64,26 +62,33 @@ likely_mat likely_read(const char *file_name, bool decode)
         fseek(fp, 0, SEEK_END);
         const size_t size = ftell(fp);
         fseek(fp, 0, SEEK_SET);
-        void *data = malloc(size);
+        void *data = malloc(size + (likely_text(type) ? 1 : 0));
         if (data && (fread(data, 1, size, fp) != size)) {
             free(data);
-            data = NULL;
+            likely_assert(false, "failed to read: %s", file_name);
         }
 
-        if (data) {
-            // Is it a matrix?
-            if (size >= sizeof(likely_matrix)) {
-                likely_mat m = likely_mat(data);
-                if ((likely_magic(m->type) == likely_matrix_matrix) &&
-                    (sizeof(likely_matrix) + likely_bytes(m) == size))
-                    return m;
-            }
-
-            // Otherwise, try to decode it
-            likely_mat encoded = likely_new(likely_matrix_u8, 1, size, 1, 1, data);
-            free(data);
-            return decode ? tryDecode(encoded) : encoded;
+        if (likely_decoded(type) && (size >= sizeof(likely_matrix))) {
+            // It may already be decoded
+            likely_mat m = likely_mat(data);
+            if ((likely_magic(m->type) == likely_matrix_matrix) && (sizeof(likely_matrix) + likely_bytes(m) == size))
+                return m;
         }
+
+        likely_mat m = NULL;
+        if (likely_encoded(type)) {
+            likely_mat buffer = likely_new(likely_matrix_u8, 1, size, 1, 1, data);
+            m = likely_decode(buffer);
+            likely_release(buffer);
+        } else if (likely_text(type)) {
+            char *str = (char *)data;
+            str[size] = 0;
+            m = likely_string(str);
+        }
+
+        free(data);
+        likely_assert(m != NULL, "failed to parse: %s", file_name);
+        return m;
     }
 
     // Is it a URL?
@@ -106,7 +111,9 @@ likely_mat likely_read(const char *file_name, bool decode)
 
     if (!buffer.empty()) {
         likely_mat encoded = likely_new(likely_matrix_u8, 1, buffer.size(), 1, 1, buffer.data());
-        return decode ? tryDecode(encoded) : encoded;
+        likely_mat m = likely_decode(encoded);
+        likely_release(encoded);
+        return m;
     }
 
     return NULL;

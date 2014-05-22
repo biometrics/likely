@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
             code = likely_string(input.c_str());
         } else {
             gfm = (input.getValue().substr(input.getValue().size()-3) != ".lk");
-            code = likely_read(input.c_str(), false);
+            code = likely_read(input.c_str(), likely_file_text);
             likely_assert(code != NULL, "failed to read input file");
         }
 
