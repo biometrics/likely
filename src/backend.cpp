@@ -228,11 +228,11 @@ struct likely_expression
         return type;
     }
 
-    static const likely_expression *lookup(likely_const_env env, const char *name)
+    static const likely_expression *lookup(likely_const_env env, const char *name, bool local)
     {
         if (!env) return NULL;
-        if (likely_definition(env->type) && env->name && !strcmp(env->name, name)) return env->value;
-        return lookup(env->parent, name);
+        if (likely_definition(env->type) && (!local || likely_local(env->type)) && env->name && !strcmp(env->name, name)) return env->value;
+        return lookup(env->parent, name, local);
     }
 
     static likely_resources *lookupResources(likely_const_env env)
@@ -242,11 +242,12 @@ struct likely_expression
         return lookupResources(env->parent);
     }
 
-    static void define(likely_env &env, const char *name, const likely_expression *value)
+    static void define(likely_env &env, const char *name, const likely_expression *value, bool local)
     {
         env = likely_new_env(env);
         likely_release_env(env->parent);
         likely_set_definition(&env->type, true);
+        likely_set_local(&env->type, local);
         env->name = new char[strlen(name)+1];
         strcpy((char*) env->name, name);
         env->value = value;
@@ -474,9 +475,9 @@ struct Builder : public IRBuilder<>
         return likely_expression(CreateCast(CastInst::getCastOpcode(*x, likely_signed(*x), dstType, likely_signed(type)), *x, dstType), type);
     }
 
-    const likely_expression *lookup(const char *name) const { return likely_expression::lookup(env, name); }
+    const likely_expression *lookup(const char *name, bool local = false) const { return likely_expression::lookup(env, name, local); }
     likely_resources *lookupResources() const { return likely_expression::lookupResources(env); }
-    void   define(const char *name, const likely_expression *e) { likely_expression::define(env, name, e); }
+    void   define(const char *name, const likely_expression *e, bool local = false) { likely_expression::define(env, name, e, local); }
     const likely_expression *undefine(const char *name)         { return likely_expression::undefine(env, name); }
 
     void undefineAll(likely_const_ast args, bool deleteExpression)
@@ -566,12 +567,6 @@ protected:
         stream << " parameters passed: " << args << " arguments";
         return error(ast, stream.str().c_str());
     }
-};
-
-class VAOperator : public Operator
-{
-    size_t minParameters() const { return 2; }
-    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
 };
 
 struct ScopedExpression : public Operator
@@ -682,7 +677,7 @@ struct RegisterExpression
     RegisterExpression(const char *symbol)
     {
         likely_expression *e = new E();
-        likely_expression::define(RootEnvironment, symbol, e);
+        likely_expression::define(RootEnvironment, symbol, e, false);
         if (int precedence = getPrecedence(symbol))
             likely_insert_operator(symbol, precedence, int(e->minParameters())-1);
     }
@@ -1528,8 +1523,10 @@ class letExpression : public Operator
 };
 LIKELY_REGISTER(let)
 
-class beginExpression : public VAOperator
+class beginExpression : public Operator
 {
+    size_t minParameters() const { return 1; }
+    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         ScopedEnvironment se(builder);
@@ -1541,8 +1538,10 @@ class beginExpression : public VAOperator
 };
 LIKELY_REGISTER_EXPRESSION(begin, "{")
 
-class indexExpression : public VAOperator
+class indexExpression : public Operator
 {
+    size_t minParameters() const { return 1; }
+    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         TRY_EXPR(builder, ast->atoms[1], expr)
@@ -2192,6 +2191,9 @@ class defineExpression : public Operator
                 shared_ptr<const likely_expression> &variable = builder.locals[name];
                 if (variable.get()) static_cast<const Variable*>(variable.get())->set(builder, expr);
                 else                variable.reset(new Variable(builder, expr, name));
+//                const Variable *variable = static_cast<const Variable*>(builder.lookup(name, true));
+//                if (variable) variable->set(builder, expr);
+//                else          builder.define(name, new Variable(builder, expr, name), true);
             }
             return expr;
         }
@@ -2244,9 +2246,9 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env pa
         }
 
 //        DebugFlag = true;
-//        module->dump();
+//        resources.module->dump();
         PM->run(*resources.module);
-//        module->dump();
+//        resources.module->dump();
     }
     hash = TheJITFunctionCache.currentHash;
 
@@ -2257,8 +2259,10 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env pa
 #ifdef LIKELY_IO
 #include "likely/io.h"
 
-class printExpression : public VAOperator
+class printExpression : public Operator
 {
+    size_t minParameters() const { return 1; }
+    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         static FunctionType *functionType = FunctionType::get(MatType::MultiDimension, MatType::MultiDimension, true);
