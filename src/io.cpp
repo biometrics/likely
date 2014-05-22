@@ -42,6 +42,33 @@ void likely_set_encoded(likely_file_type *type, bool encoded) { likely_set_bool(
 bool likely_text(likely_file_type type) { return likely_get_bool(type, likely_file_text); }
 void likely_set_text(likely_file_type *type, bool text) { likely_set_bool(type, text, likely_file_text); }
 
+static likely_mat takeAndInterpret(likely_mat buffer, likely_type type)
+{
+    likely_mat result = NULL;
+    if (!result && likely_decoded(type)) {
+        if (likely_bytes(buffer) >= sizeof(likely_matrix)) {
+            likely_mat header = (likely_mat) buffer->data;
+            if ((likely_magic(header->type) == likely_matrix_matrix) && (sizeof(likely_matrix) + likely_bytes(header) == likely_bytes(buffer)))
+                result = likely_copy(header);
+        }
+    }
+
+    if (!result && likely_encoded(type))
+        result = likely_decode(buffer);
+
+    if (!result && likely_text(type)) {
+        buffer->data[likely_bytes(buffer)-1] = 0;
+        likely_set_data(&buffer->type, likely_matrix_i8);
+        result = likely_retain(buffer);
+    }
+
+    if (!result)
+        result = likely_retain(buffer);
+
+    likely_release(buffer);
+    return result;
+}
+
 static size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp)
 {
     vector<char> *userpc = static_cast<vector<char>*>(userp);
@@ -62,33 +89,28 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
         fseek(fp, 0, SEEK_END);
         const size_t size = ftell(fp);
         fseek(fp, 0, SEEK_SET);
-        void *data = malloc(size + (likely_text(type) ? 1 : 0));
-        if (data && (fread(data, 1, size, fp) != size)) {
-            free(data);
-            likely_assert(false, "failed to read: %s", file_name);
-        }
 
+        // Special case, it may already be decoded
         if (likely_decoded(type) && (size >= sizeof(likely_matrix))) {
-            // It may already be decoded
-            likely_mat m = likely_mat(data);
-            if ((likely_magic(m->type) == likely_matrix_matrix) && (sizeof(likely_matrix) + likely_bytes(m) == size))
-                return m;
+            likely_matrix header;
+            if (fread(&header, 1, sizeof(likely_matrix), fp) == sizeof(likely_matrix)) {
+                const size_t bytes = likely_bytes(&header);
+                if ((likely_magic(header.type) == likely_matrix_matrix) && (sizeof(likely_matrix) + bytes == size)) {
+                    likely_mat m = likely_new(header.type, header.channels, header.columns, header.rows, header.frames, NULL);
+                    if (fread(m->data, 1, bytes, fp) == bytes) return m;
+                    else                                       likely_release(m);
+                }
+            }
         }
 
-        likely_mat m = NULL;
-        if (likely_encoded(type)) {
-            likely_mat buffer = likely_new(likely_matrix_u8, 1, size, 1, 1, data);
-            m = likely_decode(buffer);
+        fseek(fp, 0, SEEK_SET);
+        likely_mat buffer = likely_new(likely_matrix_u8, 1, size + (likely_text(type) ? 1 : 0), 1, 1, NULL);
+        if (fread(buffer->data, 1, size, fp) == size) {
+            return takeAndInterpret(buffer, type);
+        } else {
             likely_release(buffer);
-        } else if (likely_text(type)) {
-            char *str = (char *)data;
-            str[size] = 0;
-            m = likely_string(str);
+            buffer = NULL;
         }
-
-        free(data);
-        likely_assert(m != NULL, "failed to parse: %s", file_name);
-        return m;
     }
 
     // Is it a URL?
@@ -109,12 +131,8 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
             buffer.clear();
     }
 
-    if (!buffer.empty()) {
-        likely_mat encoded = likely_new(likely_matrix_u8, 1, buffer.size(), 1, 1, buffer.data());
-        likely_mat m = likely_decode(encoded);
-        likely_release(encoded);
-        return m;
-    }
+    if (!buffer.empty())
+        return takeAndInterpret(likely_new(likely_matrix_u8, 1, buffer.size(), 1, 1, buffer.data()), type);
 
     return NULL;
 }

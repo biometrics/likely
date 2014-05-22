@@ -32,6 +32,7 @@ typedef likely_size likely_file_type; /* Decoded : 1
 
 enum likely_file_type_field
 {
+    likely_file_void    = 0x00000000,
     likely_file_decoded = 0x00000001,
     likely_file_encoded = 0x00000002,
     likely_file_binary  = likely_file_decoded | likely_file_encoded,
