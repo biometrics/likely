@@ -37,3 +37,5 @@ Definition
 Execution
 
     (mandelbrot_set width height x_min y_min x_range y_range iter)
+
+[Next](?show=average_face)
