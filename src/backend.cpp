@@ -264,6 +264,11 @@ struct likely_expression
         likely_release_env(old);
         return value;
     }
+
+    static size_t length(likely_const_ast ast)
+    {
+        return ast->is_list ? ast->num_atoms : 1;
+    }
 };
 
 namespace {
@@ -643,8 +648,8 @@ struct likely_virtual_table : public ScopedExpression
     size_t n;
     vector<unique_ptr<JITFunction>> functions;
 
-    likely_virtual_table(likely_env env, likely_const_ast ast, size_t n)
-        : ScopedExpression(env, ast), n(n) {}
+    likely_virtual_table(likely_env env, likely_const_ast ast)
+        : ScopedExpression(env, ast), n(length(ast->atoms[1])) {}
 
     const likely_expression *evaluateOperator(Builder &, likely_const_ast) const { return NULL; }
 };
@@ -1412,8 +1417,8 @@ private:
 
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        const size_t parameters = this->ast->atoms[1]->is_list ? this->ast->atoms[1]->num_atoms : 1;
-        const size_t arguments = ast->is_list ? ast->num_atoms - 1 : 0;
+        const size_t parameters = length(this->ast->atoms[1]);
+        const size_t arguments = length(ast)-1;
         if (parameters != arguments)
             return errorArgc(ast, "lambda", arguments, parameters, parameters);
 
@@ -1429,14 +1434,15 @@ private:
 
     const likely_expression *evaluateFunction(Builder &builder, const vector<likely_expression> &args) const
     {
+        assert(args.size() == length(ast->atoms[1]));
+
         // Do dynamic dispatch if the type isn't fully specified
         bool dynamic = false;
         for (const likely_expression &arg : args)
-            dynamic = dynamic || (arg.type == MatType::MultiDimension);
-        dynamic = dynamic || (args.size() < ast->atoms[1]->num_atoms);
+            dynamic |= (arg.type == MatType::MultiDimension);
 
         if (dynamic) {
-            likely_vtable vtable = new likely_virtual_table(builder.env, ast, args.size());
+            likely_vtable vtable = new likely_virtual_table(builder.env, ast);
             builder.lookupResources()->expressions.push_back(vtable);
 
             static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
