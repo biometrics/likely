@@ -1377,6 +1377,15 @@ struct Lambda : public ScopedExpression
         const likely_expression *result = evaluateFunction(builder, arguments);
         if (!result) return NULL;
 
+        { // Insert likely_release statements
+            for (Function::iterator BB = tmpFunction->begin(), BBE = tmpFunction->end(); BB != BBE; ++BB)
+                for (BasicBlock::iterator I = BB->begin(), IE = BB->end(); I != IE; ++I)
+                    if (CallInst *call = dyn_cast<CallInst>(I))
+                        if (Function *function = call->getCalledFunction())
+                            if (!function->getName().compare("likely_read"))
+                                releaseExpression::createCall(builder, call);
+        }
+
         builder.CreateRet(*result);
         const likely_type return_type = result->type;
 
