@@ -564,24 +564,23 @@ class Operator : public likely_expression
     {
         if (!ast->is_list && (minParameters() > 0))
             return error(ast, "operator expected arguments");
-        const size_t args = ast->is_list ? ast->num_atoms - 1 : 0;
-        if ((args < minParameters()) || (args > maxParameters()))
-            return errorArgc(ast, "operator", args, minParameters(), maxParameters());
+
+        const size_t args = length(ast)-1;
+        const size_t min = minParameters();
+        const size_t max = maxParameters();
+        if ((args < min) || (args > max)) {
+            stringstream stream;
+            stream << "operator with: " << min;
+            if (max != min)
+                stream << "-" << max;
+            stream << " parameters passed: " << args << " arguments";
+            return error(ast, stream.str().c_str());
+        }
+
         return evaluateOperator(builder, ast);
     }
 
     virtual const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const = 0;
-
-protected:
-    static likely_expression *errorArgc(likely_const_ast ast, const string &function, size_t args, size_t minParams, size_t maxParams)
-    {
-        stringstream stream;
-        stream << function << " with: " << minParams;
-        if (maxParams != minParams)
-            stream << "-" << maxParams;
-        stream << " parameters passed: " << args << " arguments";
-        return error(ast, stream.str().c_str());
-    }
 };
 
 struct ScopedExpression : public Operator
@@ -597,10 +596,6 @@ struct ScopedExpression : public Operator
         likely_release_ast(ast);
         likely_release_env(env);
     }
-
-private:
-    size_t minParameters() const { return 0; }
-    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
 };
 
 struct ScopedEnvironment
@@ -1052,6 +1047,9 @@ private:
         }
         return op.get() ? op->evaluate(builder, ast) : NULL;
     }
+
+    size_t minParameters() const { return 0; }
+    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
 };
 
 class Variable : public likely_expression
@@ -1413,16 +1411,13 @@ struct Lambda : public ScopedExpression
     }
 
 private:
+    size_t maxParameters() const { return length(ast->atoms[1]); }
     void *symbol() const { return (void*) likely_dynamic; }
 
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        const size_t parameters = length(this->ast->atoms[1]);
-        const size_t arguments = length(ast)-1;
-        if (parameters != arguments)
-            return errorArgc(ast, "lambda", arguments, parameters, parameters);
-
         vector<likely_expression> args;
+        const size_t arguments = length(ast)-1;
         for (size_t i=0; i<arguments; i++) {
             TRY_EXPR(builder, ast->atoms[i+1], arg)
             args.push_back(likely_expression(arg->value, arg->type));
