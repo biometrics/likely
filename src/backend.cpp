@@ -584,8 +584,8 @@ struct ScopedExpression : public Operator
     likely_env env;
     likely_const_ast ast;
 
-    ScopedExpression(Builder &builder, likely_const_ast ast)
-        : env(likely_retain_env(builder.env)), ast(likely_retain_ast(ast)) {}
+    ScopedExpression(likely_env env, likely_const_ast ast)
+        : env(likely_retain_env(env)), ast(likely_retain_ast(ast)) {}
 
     ~ScopedExpression()
     {
@@ -643,8 +643,8 @@ struct likely_virtual_table : public ScopedExpression
     size_t n;
     vector<unique_ptr<JITFunction>> functions;
 
-    likely_virtual_table(Builder &builder, likely_const_ast ast, size_t n)
-        : ScopedExpression(builder, ast), n(n) {}
+    likely_virtual_table(likely_env env, likely_const_ast ast, size_t n)
+        : ScopedExpression(env, ast), n(n) {}
 
     const likely_expression *evaluateOperator(Builder &, likely_const_ast) const { return NULL; }
 };
@@ -1034,8 +1034,8 @@ LIKELY_REGISTER_BINARY_MATH(copysign)
 
 struct Definition : public ScopedExpression
 {
-    Definition(Builder &builder, likely_const_ast ast)
-        : ScopedExpression(builder, ast) {}
+    Definition(likely_env env, likely_const_ast ast)
+        : ScopedExpression(env, ast) {}
 
 private:
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -1329,8 +1329,8 @@ LIKELY_REGISTER(release)
 
 struct Lambda : public ScopedExpression
 {
-    Lambda(Builder &builder, likely_const_ast ast)
-        : ScopedExpression(builder, ast) {}
+    Lambda(likely_env env, likely_const_ast ast)
+        : ScopedExpression(env, ast) {}
 
     const Symbol *generate(Builder &builder, vector<likely_type> types, string name, bool arrayCC) const
     {
@@ -1436,7 +1436,7 @@ private:
         dynamic = dynamic || (args.size() < ast->atoms[1]->num_atoms);
 
         if (dynamic) {
-            likely_vtable vtable = new likely_virtual_table(builder, ast, args.size());
+            likely_vtable vtable = new likely_virtual_table(builder.env, ast, args.size());
             builder.lookupResources()->expressions.push_back(vtable);
 
             static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
@@ -1486,7 +1486,7 @@ class lambdaExpression : public Operator
     size_t maxParameters() const { return 2; }
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        return new Lambda(builder, ast);
+        return new Lambda(builder.env, ast);
     }
 };
 LIKELY_REGISTER_EXPRESSION(lambda, "->")
@@ -1673,8 +1673,8 @@ struct Loop : public likely_expression
 
 struct Kernel : public Lambda
 {
-    Kernel(Builder &builder, likely_const_ast ast)
-        : Lambda(builder, ast) {}
+    Kernel(likely_env env, likely_const_ast ast)
+        : Lambda(env, ast) {}
 
 private:
     class kernelArgument : public Operator
@@ -2086,7 +2086,7 @@ class kernelExpression : public Operator
     size_t maxParameters() const { return 3; }
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        return new Kernel(builder, ast);
+        return new Kernel(builder.env, ast);
     }
 };
 LIKELY_REGISTER_EXPRESSION(kernel, "=>")
@@ -2143,7 +2143,7 @@ class defineExpression : public Operator
                 }
             } else {
                 // Global variable
-                value = new Definition(builder, rhs);
+                value = new Definition(builder.env, rhs);
             }
 
             builder.env->name = new char[strlen(name)+1];
