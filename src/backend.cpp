@@ -148,10 +148,11 @@ struct likely_expression
 {
     Value *value;
     likely_type type;
+    const likely_expression *parent;
     vector<const likely_expression*> subexpressions;
 
-    likely_expression(Value *value = NULL, likely_type type = likely_matrix_void)
-        : value(value), type(type) {}
+    likely_expression(Value *value = NULL, likely_type type = likely_matrix_void, const likely_expression *parent = NULL)
+        : value(value), type(type), parent(parent) {}
 
     virtual ~likely_expression()
     {
@@ -448,11 +449,21 @@ struct Builder : public IRBuilder<>
 
     ~Builder() { likely_release_env(env); }
 
-    likely_expression channels(const likely_expression *matrix) { return likely_multi_channel(*matrix) ? likely_expression(CreateLoad(CreateStructGEP(*matrix, 2), "channels"), likely_matrix_native) : likely_expression::one(); }
-    likely_expression columns (const likely_expression *matrix) { return likely_multi_column (*matrix) ? likely_expression(CreateLoad(CreateStructGEP(*matrix, 3), "columns" ), likely_matrix_native) : likely_expression::one(); }
-    likely_expression rows    (const likely_expression *matrix) { return likely_multi_row    (*matrix) ? likely_expression(CreateLoad(CreateStructGEP(*matrix, 4), "rows"    ), likely_matrix_native) : likely_expression::one(); }
-    likely_expression frames  (const likely_expression *matrix) { return likely_multi_frame  (*matrix) ? likely_expression(CreateLoad(CreateStructGEP(*matrix, 5), "frames"  ), likely_matrix_native) : likely_expression::one(); }
-    likely_expression data    (const likely_expression *matrix) { return likely_expression(CreatePointerCast(CreateStructGEP(*matrix, 7), MatType::scalar(*matrix, true)), likely_data(*matrix)); }
+    static const likely_expression *getMat(const likely_expression *e)
+    {
+        if (!e) return NULL;
+        if (e->value)
+            if (PointerType *type = dyn_cast<PointerType>(e->value->getType()))
+                if (isa<StructType>(type->getElementType()))
+                    return e;
+        return getMat(e->parent);
+    }
+
+    likely_expression channels(const likely_expression *e) { const likely_expression *m = getMat(e); return (m && likely_multi_channel(*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 2), "channels"), likely_matrix_native) : likely_expression::one(); }
+    likely_expression columns (const likely_expression *e) { const likely_expression *m = getMat(e); return (m && likely_multi_column (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 3), "columns" ), likely_matrix_native) : likely_expression::one(); }
+    likely_expression rows    (const likely_expression *e) { const likely_expression *m = getMat(e); return (m && likely_multi_row    (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 4), "rows"    ), likely_matrix_native) : likely_expression::one(); }
+    likely_expression frames  (const likely_expression *e) { const likely_expression *m = getMat(e); return (m && likely_multi_frame  (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 5), "frames"  ), likely_matrix_native) : likely_expression::one(); }
+    likely_expression data    (const likely_expression *e) { const likely_expression *m = getMat(e); return likely_expression(CreatePointerCast(CreateStructGEP(*m, 7), MatType::scalar(*m, true)), likely_data(*m)); }
 
     void steps(const likely_expression *matrix, Value *channelStep, Value **columnStep, Value **rowStep, Value **frameStep)
     {
@@ -1698,7 +1709,7 @@ private:
             LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(this), i));
 
             load->setMetadata("llvm.mem.parallel_loop_access", node);
-            return new likely_expression(load, type);
+            return new likely_expression(load, type, this);
         }
     };
 
