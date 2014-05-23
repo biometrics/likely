@@ -656,7 +656,6 @@ static int getPrecedence(const char *op)
     if (!strcmp(op, "=" )) return 1;
     if (!strcmp(op, "->")) return 2;
     if (!strcmp(op, "=>")) return 2;
-    if (!strcmp(op, "+>")) return 2;
     if (!strcmp(op, "#" )) return 3;
     if (!strcmp(op, "?" )) return 3;
     if (!strcmp(op, "$" )) return 3;
@@ -2083,52 +2082,6 @@ class kernelExpression : public Operator
 };
 LIKELY_REGISTER_EXPRESSION(kernel, "=>")
 
-struct Reduction : public Kernel
-{
-    Reduction(Builder &builder, likely_const_ast ast)
-        : Kernel(builder, ast) {}
-
-private:
-    likely_const_ast getMetadata() const { return (ast->num_atoms == 5) ? ast->atoms[4] : NULL; }
-
-    const likely_expression *generateCore(Builder &builder, const vector<likely_expression> &srcs, const likely_expression &dst) const
-    {
-        unique_ptr<const likely_expression> initialCondition(builder.expression(ast->atoms[2]));
-
-        vector<Loop> loops;
-        if (likely_multi_frame  (srcs[0]) && !likely_multi_frame  (dst)) loops.push_back(Loop(builder, "t", zero(), builder.frames  (&srcs[0])));
-        if (likely_multi_row    (srcs[0]) && !likely_multi_row    (dst)) loops.push_back(Loop(builder, "y", zero(), builder.rows    (&srcs[0])));
-        if (likely_multi_column (srcs[0]) && !likely_multi_column (dst)) loops.push_back(Loop(builder, "x", zero(), builder.columns (&srcs[0])));
-        if (likely_multi_channel(srcs[0]) && !likely_multi_channel(dst)) loops.push_back(Loop(builder, "c", zero(), builder.channels(&srcs[0])));
-
-        for (size_t i=0; i<loops.size(); i++)
-            builder.define(loops[i].name.c_str(), &loops[i]);
-
-        const likely_expression *expression; {
-            ScopedEnvironment se(builder);
-            expression = builder.expression(ast->atoms[3]);
-        }
-
-        for (vector<Loop>::reverse_iterator it = loops.rbegin(); it != loops.rend(); it++) {
-            builder.undefine(it->name.c_str());
-            it->close(builder);
-        }
-
-        return expression;
-    }
-};
-
-class reductionExpression : public Operator
-{
-    size_t minParameters() const { return 3; }
-    size_t maxParameters() const { return 4; }
-    const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        return new Reduction(builder, ast);
-    }
-};
-LIKELY_REGISTER_EXPRESSION(reduction, "+>")
-
 class loopExpression : public Operator
 {
     size_t maxParameters() const { return 3; }
@@ -2206,7 +2159,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env pa
     : resources(true), parameters(parameters)
 {
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
-                  (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>") || !strcmp(ast->atoms[0]->atom, "+>")),
+                  (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
                   "expected a lambda expression");
 
     Builder builder(NULL);
