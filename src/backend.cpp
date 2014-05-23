@@ -1491,50 +1491,6 @@ class lambdaExpression : public Operator
 };
 LIKELY_REGISTER_EXPRESSION(lambda, "->")
 
-class letExpression : public Operator
-{
-    size_t maxParameters() const { return 2; }
-
-    static bool addDefinition(likely_const_ast def, UniqueASTL &names, UniqueASTL &values)
-    {
-        if (!def->is_list || (def->num_atoms != 2))
-            return likely_throw(def, "expected a tuple");
-
-        if (def->atoms[0]->is_list)
-            return likely_throw(def->atoms[0], "expected an atom");
-
-        names.retain(def->atoms[0]);
-        values.retain(def->atoms[1]);
-        return true;
-    }
-
-    const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        likely_const_ast defs = ast->atoms[1];
-        if (!defs->is_list || (defs->num_atoms == 0))
-            return error(ast->atoms[1], "expected a definition list");
-
-        UniqueASTL names, values;
-        values.push_back(NULL); // The lambda function will be placed here
-        if (defs->atoms[0]->is_list) {
-            for (size_t i=0; i<defs->num_atoms; i++)
-                if (!addDefinition(defs->atoms[i], names, values))
-                    return NULL;
-        } else {
-            if (!addDefinition(defs, names, values))
-                return NULL;
-        }
-
-        UniqueASTL lambda;
-        lambda.push_back(likely_new_atom("->"));
-        lambda.retain(names.ast().get());
-        lambda.retain(ast->atoms[2]);
-        values[0] = likely_retain_ast(lambda.ast().get());
-        return builder.expression(values.ast().get());
-    }
-};
-LIKELY_REGISTER(let)
-
 class beginExpression : public Operator
 {
     size_t minParameters() const { return 1; }
