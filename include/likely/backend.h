@@ -48,6 +48,9 @@ struct likely_environment
     struct likely_resources *resources;
     size_t ref_count, hash;
     likely_environment_type type;
+
+    size_t num_children;
+    struct likely_environment const **children;
 };
 
 typedef struct likely_environment *likely_env;

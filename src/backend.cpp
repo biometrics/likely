@@ -163,6 +163,7 @@ struct likely_expression
     virtual const likely_expression *evaluate(Builder &builder, likely_const_ast ast) const;
     virtual size_t maxParameters() const { return 0; }
     virtual size_t minParameters() const { return maxParameters(); }
+    virtual bool equals(const likely_expression *) const { return false; }
 
     operator Value*() const { return value; }
     operator likely_type() const { return type; }
@@ -245,13 +246,29 @@ struct likely_expression
 
     static void define(likely_env &env, const char *name, const likely_expression *value, bool local)
     {
-        env = likely_new_env(env);
-        likely_release_env(env->parent);
+        likely_env parent = env;
+
+        // See if the proposed environment already exists
+        for (size_t i=0; i<parent->num_children; i++) {
+            likely_const_env child = env->children[i];
+            if (likely_definition(child->type) && (likely_local(child->type) == local) && value->equals(child->value)) {
+                env = likely_retain_env(child);
+                return;
+            }
+        }
+
+        // Otherwise, construct a new environment
+        env = likely_new_env(parent);
         likely_set_definition(&env->type, true);
         likely_set_local(&env->type, local);
         env->name = new char[strlen(name)+1];
         strcpy((char*) env->name, name);
         env->value = value;
+
+        // We reallocate space for more children when our power-of-two sized buffer is full
+        if ((parent->num_children == 0) || !(parent->num_children & (parent->num_children - 1)))
+            parent->children = (likely_const_env *) realloc(parent->children, parent->num_children == 0 ? 1 : 2 * parent->num_children);
+        parent->children[parent->num_children++] = env;
     }
 
     static const likely_expression *undefine(likely_env &env, const char *name)
@@ -260,7 +277,7 @@ struct likely_expression
         likely_assert(!strcmp(env->name, name), "undefine variable mismatch");
         const likely_expression *value = env->value;
         likely_env old = env;
-        env = likely_retain_env(env->parent);
+        env = const_cast<likely_env>(env->parent);
         likely_release_env(old);
         return value;
     }
@@ -2381,6 +2398,8 @@ likely_env likely_new_env(likely_const_env parent)
     env->ref_count = 1;
     env->hash = 0;
     env->type = likely_environment_void;
+    env->num_children = 0;
+    env->children = NULL;
     return env;
 }
 
@@ -2403,15 +2422,20 @@ likely_env likely_retain_env(likely_const_env env)
     return (likely_env) env;
 }
 
+// likely_env are guaranteed to be unique pointers, so we never delete them.
+// Instead we only deallocate some of their internals, which can be recomputed if needed.
 void likely_release_env(likely_const_env env)
 {
     if (!env || --const_cast<likely_env>(env)->ref_count) return;
-    likely_release_env(env->parent);
-    delete[] env->name;
-    if (!likely_definition(env->type))
+
+    if (!likely_definition(env->type)) {
         likely_release(env->result);
+        const_cast<likely_env>(env)->result = NULL;
+    }
     delete env->resources;
-    free((void*) env);
+    const_cast<likely_env>(env)->resources = NULL;
+
+    likely_release_env(env->parent);
 }
 
 bool likely_offline(likely_environment_type type) { return likely_get_bool(type, likely_environment_offline); }
