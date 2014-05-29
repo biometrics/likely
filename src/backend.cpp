@@ -168,7 +168,22 @@ struct likely_expression
     virtual size_t maxParameters() const { return 0; }
     virtual size_t minParameters() const { return maxParameters(); }
     virtual void *symbol() const { return NULL; } // Idiom to ensure that specified library symbols aren't stripped when optimizing executable size
-    virtual bool equals(likely_const_expr) const { return false; }
+
+    bool equals(likely_const_expr other) const
+    {
+        return this
+               && other
+               && (!parent == !other->parent)
+               && (!parent || parent->equals(other->parent))
+               && (uid() == other->uid())
+               && safeEquals(other);
+    }
+
+    virtual bool safeEquals(likely_const_expr other) const
+    {
+        return value == other->value;
+    }
+
     virtual likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const;
 
     operator Value*() const { return value; }
