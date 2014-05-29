@@ -171,12 +171,13 @@ struct likely_expression
 
     bool equals(likely_const_expr other) const
     {
-        return this
-               && other
-               && (!parent == !other->parent)
-               && (!parent || parent->equals(other->parent))
-               && (uid() == other->uid())
-               && safeEquals(other);
+        return (this == other)
+               || (this
+                   && other
+                   && (!parent == !other->parent)
+                   && (!parent || parent->equals(other->parent))
+                   && (uid() == other->uid())
+                   && safeEquals(other));
     }
 
     virtual bool safeEquals(likely_const_expr other) const
@@ -550,11 +551,18 @@ struct Builder : public IRBuilder<>
 
 struct Symbol : public likely_expression
 {
-    Symbol(Value *value = NULL, likely_type type = likely_matrix_void)
-        : likely_expression(value, type) {}
+    Symbol(Function *function = NULL, likely_type type = likely_matrix_void)
+        : likely_expression(function, type) {}
 
 private:
     int uid() const { return __LINE__; }
+
+    bool safeEquals(likely_const_expr other) const
+    {
+        Function *function = dyn_cast_or_null<Function>(value);
+        Function *otherFunction = dyn_cast_or_null<Function>(other->value);
+        return function && otherFunction && (function->getName() == otherFunction->getName());
+    }
 
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
@@ -597,6 +605,11 @@ public:
 
 private:
     int uid() const { return __LINE__; }
+
+    bool safeEquals(likely_const_expr other) const
+    {
+        return EE == static_cast<const JITFunction*>(other)->EE;
+    }
 };
 
 class Operator : public likely_expression
@@ -636,6 +649,13 @@ struct ScopedExpression : public Operator
     {
         likely_release_ast(ast);
         likely_release_env(env);
+    }
+
+private:
+    bool safeEquals(likely_const_expr other) const
+    {
+        return (env == static_cast<const ScopedExpression*>(other)->env) &&
+               !likely_ast_compare(ast, static_cast<const ScopedExpression*>(other)->ast);
     }
 };
 
@@ -689,6 +709,7 @@ struct likely_virtual_table : public ScopedExpression
 
 private:
     int uid() const { return __LINE__; }
+    bool safeEquals(likely_const_expr other) const { return this == other; }
     likely_const_expr evaluateOperator(Builder &, likely_const_ast) const { return NULL; }
 };
 
@@ -769,6 +790,7 @@ struct MatrixType : public SimpleUnaryOperator
 
 private:
     int uid() const { return __LINE__; }
+    bool safeEquals(likely_const_expr other) const { return t == static_cast<const MatrixType*>(other)->t; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &x) const
     {
@@ -865,7 +887,6 @@ class UnaryMathOperator : public SimpleUnaryOperator
 class OP##Expression : public UnaryMathOperator        \
 {                                                      \
     int uid() const { return UID; }                    \
-                                                       \
     Intrinsic::ID id() const { return Intrinsic::OP; } \
 };                                                     \
 LIKELY_REGISTER(OP)                                    \
@@ -1103,55 +1124,6 @@ LIKELY_REGISTER(OP)                                    \
 
 LIKELY_REGISTER_BINARY_MATH(pow     , __LINE__)
 LIKELY_REGISTER_BINARY_MATH(copysign, __LINE__)
-
-struct Definition : public ScopedExpression
-{
-    Definition(likely_env env, likely_const_ast ast)
-        : ScopedExpression(env, ast) {}
-
-private:
-    int uid() const { return __LINE__; }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        unique_ptr<const likely_expression> op;
-        {
-            ScopedEnvironment se(builder, env, builder.lookupResources());
-            op.reset(builder.expression(this->ast));
-        }
-        return op.get() ? op->evaluate(builder, ast) : NULL;
-    }
-
-    size_t minParameters() const { return 0; }
-    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
-};
-
-class Variable : public likely_expression
-{
-    likely_type types;
-    AllocaInst *allocaInst;
-
-public:
-    Variable(Builder &builder, likely_const_expr expr, const string &name)
-    {
-        types = *expr;
-        allocaInst = builder.CreateAlloca(expr->value->getType(), 0, name);
-        set(builder, expr);
-    }
-
-    void set(Builder &builder, likely_const_expr expr) const
-    {
-        builder.CreateStore(builder.cast(expr, types), allocaInst);
-    }
-
-private:
-    int uid() const { return __LINE__; }
-
-    likely_const_expr evaluate(Builder &builder, likely_const_ast) const
-    {
-        return new likely_expression(builder.CreateLoad(allocaInst), types);
-    }
-};
 
 class definedExpression : public Operator
 {
@@ -2172,6 +2144,51 @@ class kernelExpression : public Operator
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const { return new Kernel(builder.env, ast); }
 };
 LIKELY_REGISTER_EXPRESSION(kernel, "=>")
+
+struct Definition : public ScopedExpression
+{
+    Definition(likely_env env, likely_const_ast ast)
+        : ScopedExpression(env, ast) {}
+
+private:
+    int uid() const { return __LINE__; }
+
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        unique_ptr<const likely_expression> op;
+        {
+            ScopedEnvironment se(builder, env, builder.lookupResources());
+            op.reset(builder.expression(this->ast));
+        }
+        return op.get() ? op->evaluate(builder, ast) : NULL;
+    }
+
+    size_t minParameters() const { return 0; }
+    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
+};
+
+struct Variable : public likely_expression
+{
+    Variable(Builder &builder, likely_const_expr expr, const string &name)
+    {
+        type = *expr;
+        value = builder.CreateAlloca(expr->value->getType(), 0, name);
+        set(builder, expr);
+    }
+
+    void set(Builder &builder, likely_const_expr expr) const
+    {
+        builder.CreateStore(builder.cast(expr, type), value);
+    }
+
+private:
+    int uid() const { return __LINE__; }
+
+    likely_const_expr evaluate(Builder &builder, likely_const_ast) const
+    {
+        return new likely_expression(builder.CreateLoad(value), type);
+    }
+};
 
 class defineExpression : public Operator
 {
