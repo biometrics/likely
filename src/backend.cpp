@@ -160,10 +160,12 @@ struct likely_expression
             delete e;
     }
 
-    virtual const likely_expression *evaluate(Builder &builder, likely_const_ast ast) const;
+    virtual int uid() const { return __LINE__; }
     virtual size_t maxParameters() const { return 0; }
     virtual size_t minParameters() const { return maxParameters(); }
+    virtual void *symbol() const { return NULL; } // Idiom to ensure that specified library symbols aren't stripped when optimizing executable size
     virtual bool equals(const likely_expression *) const { return false; }
+    virtual const likely_expression *evaluate(Builder &builder, likely_const_ast ast) const;
 
     operator Value*() const { return value; }
     operator likely_type() const { return type; }
@@ -191,9 +193,6 @@ struct likely_expression
         likely_throw(ast, message);
         return NULL;
     }
-
-    // Idiom to ensure that specified library symbols aren't stripped when optimizing executable size
-    virtual void *symbol() const { return NULL; }
 
     static likely_expression constant(uint64_t value, likely_type type = likely_matrix_native)
     {
@@ -535,6 +534,9 @@ struct Symbol : public likely_expression
     Symbol(Value *value = NULL, likely_type type = likely_matrix_void)
         : likely_expression(value, type) {}
 
+private:
+    int uid() const { return __LINE__; }
+
     const likely_expression *evaluate(Builder &builder, likely_const_ast ast) const
     {
         Function *definition = cast<Function>(value);
@@ -573,6 +575,9 @@ public:
         resources.module = NULL;
         delete EE; // owns module
     }
+
+private:
+    int uid() const { return __LINE__; }
 };
 
 class Operator : public likely_expression
@@ -663,6 +668,8 @@ struct likely_virtual_table : public ScopedExpression
     likely_virtual_table(likely_env env, likely_const_ast ast)
         : ScopedExpression(env, ast), n(length(ast->atoms[1])) {}
 
+private:
+    int uid() const { return __LINE__; }
     const likely_expression *evaluateOperator(Builder &, likely_const_ast) const { return NULL; }
 };
 
@@ -741,6 +748,9 @@ struct MatrixType : public SimpleUnaryOperator
         type = likely_matrix_type_type;
     }
 
+private:
+    int uid() const { return __LINE__; }
+
     const likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &x) const
     {
         return new likely_expression(builder.cast(x.get(), t));
@@ -783,9 +793,11 @@ const likely_expression *Builder::expression(likely_const_ast ast)
     return likely_expression::error(ast, "unrecognized literal");
 }
 
-#define LIKELY_REGISTER_FIELD(FIELD)                                                                                     \
+#define LIKELY_REGISTER_FIELD(FIELD, UID)                                                                                \
 class FIELD##Expression : public SimpleUnaryOperator                                                                     \
 {                                                                                                                        \
+    int uid() const { return UID; }                                                                                      \
+                                                                                                                         \
     const likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const \
     {                                                                                                                    \
         return new likely_expression(builder.FIELD(arg.get()));                                                          \
@@ -793,13 +805,15 @@ class FIELD##Expression : public SimpleUnaryOperator                            
 };                                                                                                                       \
 LIKELY_REGISTER(FIELD)                                                                                                   \
 
-LIKELY_REGISTER_FIELD(channels)
-LIKELY_REGISTER_FIELD(columns)
-LIKELY_REGISTER_FIELD(rows)
-LIKELY_REGISTER_FIELD(frames)
+LIKELY_REGISTER_FIELD(channels, __LINE__)
+LIKELY_REGISTER_FIELD(columns , __LINE__)
+LIKELY_REGISTER_FIELD(rows    , __LINE__)
+LIKELY_REGISTER_FIELD(frames  , __LINE__)
 
 class notExpression : public SimpleUnaryOperator
 {
+    int uid() const { return __LINE__; }
+
     const likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         return new likely_expression(builder.CreateXor(intMax(*arg), arg->value), *arg);
@@ -809,6 +823,8 @@ LIKELY_REGISTER_EXPRESSION(not, "~")
 
 class typeExpression : public SimpleUnaryOperator
 {
+    int uid() const { return __LINE__; }
+
     const likely_expression *evaluateSimpleUnary(Builder &, const unique_ptr<const likely_expression> &arg) const
     {
         return new MatrixType(*arg);
@@ -826,28 +842,30 @@ class UnaryMathOperator : public SimpleUnaryOperator
     virtual Intrinsic::ID id() const = 0;
 };
 
-#define LIKELY_REGISTER_UNARY_MATH(OP)                 \
+#define LIKELY_REGISTER_UNARY_MATH(OP, UID)            \
 class OP##Expression : public UnaryMathOperator        \
 {                                                      \
+    int uid() const { return UID; }                    \
+                                                       \
     Intrinsic::ID id() const { return Intrinsic::OP; } \
 };                                                     \
 LIKELY_REGISTER(OP)                                    \
 
-LIKELY_REGISTER_UNARY_MATH(sqrt)
-LIKELY_REGISTER_UNARY_MATH(sin)
-LIKELY_REGISTER_UNARY_MATH(cos)
-LIKELY_REGISTER_UNARY_MATH(exp)
-LIKELY_REGISTER_UNARY_MATH(exp2)
-LIKELY_REGISTER_UNARY_MATH(log)
-LIKELY_REGISTER_UNARY_MATH(log10)
-LIKELY_REGISTER_UNARY_MATH(log2)
-LIKELY_REGISTER_UNARY_MATH(fabs)
-LIKELY_REGISTER_UNARY_MATH(floor)
-LIKELY_REGISTER_UNARY_MATH(ceil)
-LIKELY_REGISTER_UNARY_MATH(trunc)
-LIKELY_REGISTER_UNARY_MATH(rint)
-LIKELY_REGISTER_UNARY_MATH(nearbyint)
-LIKELY_REGISTER_UNARY_MATH(round)
+LIKELY_REGISTER_UNARY_MATH(sqrt     , __LINE__)
+LIKELY_REGISTER_UNARY_MATH(sin      , __LINE__)
+LIKELY_REGISTER_UNARY_MATH(cos      , __LINE__)
+LIKELY_REGISTER_UNARY_MATH(exp      , __LINE__)
+LIKELY_REGISTER_UNARY_MATH(exp2     , __LINE__)
+LIKELY_REGISTER_UNARY_MATH(log      , __LINE__)
+LIKELY_REGISTER_UNARY_MATH(log10    , __LINE__)
+LIKELY_REGISTER_UNARY_MATH(log2     , __LINE__)
+LIKELY_REGISTER_UNARY_MATH(fabs     , __LINE__)
+LIKELY_REGISTER_UNARY_MATH(floor    , __LINE__)
+LIKELY_REGISTER_UNARY_MATH(ceil     , __LINE__)
+LIKELY_REGISTER_UNARY_MATH(trunc    , __LINE__)
+LIKELY_REGISTER_UNARY_MATH(rint     , __LINE__)
+LIKELY_REGISTER_UNARY_MATH(nearbyint, __LINE__)
+LIKELY_REGISTER_UNARY_MATH(round    , __LINE__)
 
 class SimpleBinaryOperator : public Operator
 {
@@ -882,6 +900,8 @@ class SimpleArithmeticOperator : public ArithmeticOperator
 
 class addExpression : public SimpleArithmeticOperator
 {
+    int uid() const { return __LINE__; }
+
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
         if (likely_floating(lhs)) {
@@ -901,6 +921,8 @@ LIKELY_REGISTER_EXPRESSION(add, "+")
 
 class subtractExpression : public SimpleArithmeticOperator
 {
+    int uid() const { return __LINE__; }
+
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
         if (likely_floating(lhs)) {
@@ -920,6 +942,8 @@ LIKELY_REGISTER_EXPRESSION(subtract, "-")
 
 class multiplyExpression : public SimpleArithmeticOperator
 {
+    int uid() const { return __LINE__; }
+
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
         if (likely_floating(lhs)) {
@@ -940,6 +964,8 @@ LIKELY_REGISTER_EXPRESSION(multiply, "*")
 
 class divideExpression : public SimpleArithmeticOperator
 {
+    int uid() const { return __LINE__; }
+
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &n, const likely_expression &d) const
     {
         if (likely_floating(n)) {
@@ -960,8 +986,10 @@ class divideExpression : public SimpleArithmeticOperator
 };
 LIKELY_REGISTER_EXPRESSION(divide, "/")
 
-class remExpression : public SimpleArithmeticOperator
+class remainderExpression : public SimpleArithmeticOperator
 {
+    int uid() const { return __LINE__; }
+
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
         return likely_floating(lhs) ? builder.CreateFRem(lhs, rhs)
@@ -969,11 +997,13 @@ class remExpression : public SimpleArithmeticOperator
                                                           : builder.CreateURem(lhs, rhs));
     }
 };
-LIKELY_REGISTER_EXPRESSION(rem, "%")
+LIKELY_REGISTER_EXPRESSION(remainder, "%")
 
-#define LIKELY_REGISTER_LOGIC(OP, SYM)                                                                                  \
+#define LIKELY_REGISTER_LOGIC(OP, SYM, UID)                                                                             \
 class OP##Expression : public SimpleArithmeticOperator                                                                  \
 {                                                                                                                       \
+    int uid() const { return UID; }                                                                                     \
+                                                                                                                        \
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const \
     {                                                                                                                   \
         return builder.Create##OP(lhs, rhs.value);                                                                      \
@@ -981,16 +1011,18 @@ class OP##Expression : public SimpleArithmeticOperator                          
 };                                                                                                                      \
 LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                     \
 
-LIKELY_REGISTER_LOGIC(And , "&"   )
-LIKELY_REGISTER_LOGIC(Or  , "|"   )
-LIKELY_REGISTER_LOGIC(Xor , "^"   )
-LIKELY_REGISTER_LOGIC(Shl , "<<"  )
-LIKELY_REGISTER_LOGIC(LShr, "lshr")
-LIKELY_REGISTER_LOGIC(AShr, "ashr")
+LIKELY_REGISTER_LOGIC(And , "&"   , __LINE__)
+LIKELY_REGISTER_LOGIC(Or  , "|"   , __LINE__)
+LIKELY_REGISTER_LOGIC(Xor , "^"   , __LINE__)
+LIKELY_REGISTER_LOGIC(Shl , "<<"  , __LINE__)
+LIKELY_REGISTER_LOGIC(LShr, "lshr", __LINE__)
+LIKELY_REGISTER_LOGIC(AShr, "ashr", __LINE__)
 
-#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                              \
+#define LIKELY_REGISTER_COMPARISON(OP, SYM, UID)                                                                                         \
 class OP##Expression : public ArithmeticOperator                                                                                         \
 {                                                                                                                                        \
+    int uid() const { return UID; }                                                                                                      \
+                                                                                                                                         \
     const likely_expression *evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const      \
     {                                                                                                                                    \
         return new likely_expression(likely_floating(lhs) ? builder.CreateFCmpO##OP(lhs, rhs)                                            \
@@ -1000,14 +1032,16 @@ class OP##Expression : public ArithmeticOperator                                
 };                                                                                                                                       \
 LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                                      \
 
-LIKELY_REGISTER_COMPARISON(LT, "<")
-LIKELY_REGISTER_COMPARISON(LE, "<=")
-LIKELY_REGISTER_COMPARISON(GT, ">")
-LIKELY_REGISTER_COMPARISON(GE, ">=")
+LIKELY_REGISTER_COMPARISON(LT, "<" , __LINE__)
+LIKELY_REGISTER_COMPARISON(LE, "<=", __LINE__)
+LIKELY_REGISTER_COMPARISON(GT, ">" , __LINE__)
+LIKELY_REGISTER_COMPARISON(GE, ">=", __LINE__)
 
-#define LIKELY_REGISTER_EQUALITY(OP, SYM)                                                                                           \
+#define LIKELY_REGISTER_EQUALITY(OP, SYM, UID)                                                                                      \
 class OP##Expression : public ArithmeticOperator                                                                                    \
 {                                                                                                                                   \
+    int uid() const { return UID; }                                                                                                 \
+                                                                                                                                    \
     const likely_expression *evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const \
     {                                                                                                                               \
         return new likely_expression(likely_floating(lhs) ? builder.CreateFCmpO##OP(lhs, rhs)                                       \
@@ -1016,8 +1050,8 @@ class OP##Expression : public ArithmeticOperator                                
 };                                                                                                                                  \
 LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                                 \
 
-LIKELY_REGISTER_EQUALITY(EQ, "==")
-LIKELY_REGISTER_EQUALITY(NE, "!=")
+LIKELY_REGISTER_EQUALITY(EQ, "==", __LINE__)
+LIKELY_REGISTER_EQUALITY(NE, "!=", __LINE__)
 
 class BinaryMathOperator : public SimpleBinaryOperator
 {
@@ -1034,20 +1068,22 @@ class BinaryMathOperator : public SimpleBinaryOperator
 
 class powiExpression : public BinaryMathOperator
 {
+    int uid() const { return __LINE__; }
     Intrinsic::ID id() const { return Intrinsic::powi; }
     bool nIsInteger() const { return true; }
 };
 LIKELY_REGISTER(powi)
 
-#define LIKELY_REGISTER_BINARY_MATH(OP)                \
+#define LIKELY_REGISTER_BINARY_MATH(OP, UID)           \
 class OP##Expression : public BinaryMathOperator       \
 {                                                      \
+    int uid() const { return UID; }                    \
     Intrinsic::ID id() const { return Intrinsic::OP; } \
 };                                                     \
 LIKELY_REGISTER(OP)                                    \
 
-LIKELY_REGISTER_BINARY_MATH(pow)
-LIKELY_REGISTER_BINARY_MATH(copysign)
+LIKELY_REGISTER_BINARY_MATH(pow     , __LINE__)
+LIKELY_REGISTER_BINARY_MATH(copysign, __LINE__)
 
 struct Definition : public ScopedExpression
 {
@@ -1055,6 +1091,8 @@ struct Definition : public ScopedExpression
         : ScopedExpression(env, ast) {}
 
 private:
+    int uid() const { return __LINE__; }
+
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         unique_ptr<const likely_expression> op;
@@ -1088,6 +1126,8 @@ public:
     }
 
 private:
+    int uid() const { return __LINE__; }
+
     const likely_expression *evaluate(Builder &builder, likely_const_ast) const
     {
         return new likely_expression(builder.CreateLoad(allocaInst), types);
@@ -1096,7 +1136,9 @@ private:
 
 class definedExpression : public Operator
 {
+    int uid() const { return __LINE__; }
     size_t maxParameters() const { return 2; }
+
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         likely_const_ast name = ast->atoms[1];
@@ -1110,6 +1152,9 @@ LIKELY_REGISTER_EXPRESSION(defined, "??")
 
 class elementsExpression : public SimpleUnaryOperator
 {
+    int uid() const { return __LINE__; }
+    void *symbol() const { return (void*) likely_elements; }
+
     const likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         static FunctionType *functionType = FunctionType::get(NativeInt, MatType::MultiDimension, false);
@@ -1122,12 +1167,14 @@ class elementsExpression : public SimpleUnaryOperator
         }
         return new likely_expression(builder.CreateCall(likelyElements, *arg), likely_matrix_native);
     }
-    void *symbol() const { return (void*) likely_elements; }
 };
 LIKELY_REGISTER(elements)
 
 class bytesExpression : public SimpleUnaryOperator
 {
+    int uid() const { return __LINE__; }
+    void *symbol() const { return (void*) likely_bytes; }
+
     const likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         static FunctionType *functionType = FunctionType::get(NativeInt, MatType::MultiDimension, false);
@@ -1140,14 +1187,16 @@ class bytesExpression : public SimpleUnaryOperator
         }
         return new likely_expression(builder.CreateCall(likelyBytes, *arg), likely_matrix_native);
     }
-    void *symbol() const { return (void*) likely_bytes; }
 };
 LIKELY_REGISTER(bytes)
 
 class newExpression : public Operator
 {
+    int uid() const { return __LINE__; }
     size_t maxParameters() const { return 6; }
     size_t minParameters() const { return 0; }
+    void *symbol() const { return (void*) likely_new; }
+
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         const size_t n = ast->num_atoms - 1;
@@ -1176,8 +1225,6 @@ class newExpression : public Operator
         return new likely_expression(createCall(builder, *type, channels, columns, rows, frames, data), MatType::MultiDimension);
     }
 
-    void *symbol() const { return (void*) likely_new; }
-
 public:
     static CallInst *createCall(Builder &builder, Value *type, Value *channels, Value *columns, Value *rows, Value *frames, Value *data)
     {
@@ -1204,6 +1251,9 @@ LIKELY_REGISTER(new)
 
 class scalarExpression : public UnaryOperator
 {
+    int uid() const { return __LINE__; }
+    void *symbol() const { return (void*) likely_scalars; }
+
     const likely_expression *evaluateUnary(Builder &builder, likely_const_ast arg) const
     {
         const likely_expression *argExpr = builder.expression(arg);
@@ -1239,19 +1289,18 @@ class scalarExpression : public UnaryOperator
         delete argExpr;
         return new likely_expression(result);
     }
-
-    void *symbol() const { return (void*) likely_scalars; }
 };
 LIKELY_REGISTER(scalar)
 
 class stringExpression : public SimpleUnaryOperator
 {
+    int uid() const { return __LINE__; }
+    void *symbol() const { return (void*) likely_string; }
+
     const likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         return new likely_expression(createCall(builder, *arg), likely_matrix_i8);
     }
-
-    void *symbol() const { return (void*) likely_string; }
 
 public:
     static CallInst *createCall(Builder &builder, Value *string)
@@ -1272,12 +1321,13 @@ LIKELY_REGISTER(string)
 
 class copyExpression : public SimpleUnaryOperator
 {
+    int uid() const { return __LINE__; }
+    void *symbol() const { return (void*) likely_copy; }
+
     const likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         return new likely_expression(createCall(builder, *arg), *arg);
     }
-
-    void *symbol() const { return (void*) likely_copy; }
 
 public:
     static CallInst *createCall(Builder &builder, Value *m)
@@ -1298,12 +1348,13 @@ LIKELY_REGISTER(copy)
 
 class retainExpression : public SimpleUnaryOperator
 {
+    int uid() const { return __LINE__; }
+    void *symbol() const { return (void*) likely_retain; }
+
     const likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         return new likely_expression(createCall(builder, *arg), *arg);
     }
-
-    void *symbol() const { return (void*) likely_retain; }
 
 public:
     static CallInst *createCall(Builder &builder, Value *m)
@@ -1324,12 +1375,13 @@ LIKELY_REGISTER(retain)
 
 class releaseExpression : public SimpleUnaryOperator
 {
+    int uid() const { return __LINE__; }
+    void *symbol() const { return (void*) likely_release; }
+
     const likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         return new likely_expression(createCall(builder, *arg), *arg);
     }
-
-    void *symbol() const { return (void*) likely_release; }
 
 public:
     static CallInst *createCall(Builder &builder, Value *m)
@@ -1428,6 +1480,7 @@ struct Lambda : public ScopedExpression
     }
 
 private:
+    int uid() const { return __LINE__; }
     size_t maxParameters() const { return length(ast->atoms[1]); }
     void *symbol() const { return (void*) likely_dynamic; }
 
@@ -1501,18 +1554,18 @@ private:
 
 class lambdaExpression : public Operator
 {
+    int uid() const { return __LINE__; }
     size_t maxParameters() const { return 2; }
-    const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        return new Lambda(builder.env, ast);
-    }
+    const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const { return new Lambda(builder.env, ast); }
 };
 LIKELY_REGISTER_EXPRESSION(lambda, "->")
 
 class beginExpression : public Operator
 {
+    int uid() const { return __LINE__; }
     size_t minParameters() const { return 1; }
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
+
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         ScopedEnvironment se(builder);
@@ -1526,8 +1579,10 @@ LIKELY_REGISTER_EXPRESSION(begin, "{")
 
 class indexExpression : public Operator
 {
+    int uid() const { return __LINE__; }
     size_t minParameters() const { return 1; }
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
+
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         TRY_EXPR(builder, ast->atoms[1], expr)
@@ -1553,6 +1608,8 @@ struct Label : public likely_expression
     Label(BasicBlock *basicBlock) : likely_expression(basicBlock) {}
 
 private:
+    int uid() const { return __LINE__; }
+
     const likely_expression *evaluate(Builder &builder, likely_const_ast) const
     {
         BasicBlock *basicBlock = cast<BasicBlock>(value);
@@ -1563,7 +1620,9 @@ private:
 
 class labelExpression : public Operator
 {
+    int uid() const { return __LINE__; }
     size_t maxParameters() const { return 1; }
+
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         const string name = ast->atoms[1]->atom;
@@ -1578,8 +1637,10 @@ LIKELY_REGISTER_EXPRESSION(label, "#")
 
 class ifExpression : public Operator
 {
+    int uid() const { return __LINE__; }
     size_t minParameters() const { return 2; }
     size_t maxParameters() const { return 3; }
+
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         Function *function = builder.GetInsertBlock()->getParent();
@@ -1643,7 +1704,31 @@ struct Loop : public likely_expression
         cast<PHINode>(value)->addIncoming(increment, builder.GetInsertBlock());
         builder.SetInsertPoint(exit);
     }
+
+private:
+    int uid() const { return __LINE__; }
 };
+
+class loopExpression : public Operator
+{
+    int uid() const { return __LINE__; }
+    size_t maxParameters() const { return 3; }
+
+    const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        TRY_EXPR(builder, ast->atoms[3], end)
+        Loop loop(builder, ast->atoms[2]->atom, zero(), *end);
+        builder.define(ast->atoms[2]->atom, &loop);
+        const likely_expression *expression; {
+            ScopedEnvironment se(builder);
+            expression = builder.expression(ast->atoms[1]);
+        }
+        builder.undefine(ast->atoms[2]->atom);
+        loop.close(builder);
+        return expression;
+    }
+};
+LIKELY_REGISTER_EXPRESSION(loop, "$")
 
 struct Kernel : public Lambda
 {
@@ -1666,7 +1751,9 @@ private:
         }
 
     private:
+        int uid() const { return __LINE__; }
         size_t maxParameters() const { return 0; }
+
         const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
         {
             if (ast->is_list)
@@ -1749,6 +1836,9 @@ private:
             }
             return collapsedAxis;
         }
+
+    private:
+        int uid() const { return __LINE__; }
     };
 
     struct Metadata
@@ -1757,6 +1847,7 @@ private:
         size_t results;
     };
 
+    int uid() const { return __LINE__; }
     void *symbol() const { return (void*) likely_fork; }
 
     virtual likely_const_ast getMetadata() const { return (ast->num_atoms == 4) ? ast->atoms[3] : NULL; }
@@ -2056,37 +2147,18 @@ private:
 
 class kernelExpression : public Operator
 {
+    int uid() const { return __LINE__; }
     size_t minParameters() const { return 2; }
     size_t maxParameters() const { return 3; }
-    const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        return new Kernel(builder.env, ast);
-    }
+    const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const { return new Kernel(builder.env, ast); }
 };
 LIKELY_REGISTER_EXPRESSION(kernel, "=>")
 
-class loopExpression : public Operator
-{
-    size_t maxParameters() const { return 3; }
-    const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        TRY_EXPR(builder, ast->atoms[3], end)
-        Loop loop(builder, ast->atoms[2]->atom, zero(), *end);
-        builder.define(ast->atoms[2]->atom, &loop);
-        const likely_expression *expression; {
-            ScopedEnvironment se(builder);
-            expression = builder.expression(ast->atoms[1]);
-        }
-        builder.undefine(ast->atoms[2]->atom);
-        loop.close(builder);
-        return expression;
-    }
-};
-LIKELY_REGISTER_EXPRESSION(loop, "$")
-
 class defineExpression : public Operator
 {
+    int uid() const { return __LINE__; }
     size_t maxParameters() const { return 2; }
+
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         likely_const_ast lhs = ast->atoms[1];
@@ -2137,6 +2209,33 @@ class defineExpression : public Operator
     }
 };
 LIKELY_REGISTER_EXPRESSION(define, "=")
+
+class importExpression : public Operator
+{
+    int uid() const { return __LINE__; }
+    size_t maxParameters() const { return 1; }
+
+    const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        likely_const_ast file = ast->atoms[1];
+        if (file->is_list)
+            return error(file, "expected a file name");
+
+        const string fileName = string(file->atom) + ".l";
+        ifstream stream(fileName);
+        const string source((istreambuf_iterator<char>(stream)),
+                             istreambuf_iterator<char>());
+        if (source.empty())
+            return error(file, "unable to open file");
+
+        likely_env parent = builder.env;
+        builder.env = likely_repl(source.c_str(), true, parent, NULL);
+        likely_release_env(parent);
+        if (likely_erratum(builder.env->type)) return NULL;
+        else                                   return new likely_expression();
+    }
+};
+LIKELY_REGISTER(import)
 
 JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env parent, const vector<likely_type> &parameters, bool arrayCC)
     : resources(true), parameters(parameters)
@@ -2198,8 +2297,11 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env pa
 
 class printExpression : public Operator
 {
+    int uid() const { return __LINE__; }
     size_t minParameters() const { return 1; }
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
+    void *symbol() const { return (void*) likely_print; }
+
     const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         static FunctionType *functionType = FunctionType::get(MatType::MultiDimension, MatType::MultiDimension, true);
@@ -2235,13 +2337,14 @@ class printExpression : public Operator
 
         return new likely_expression(result, likely_matrix_i8);
     }
-
-    void *symbol() const { return (void*) likely_print; }
 };
 LIKELY_REGISTER(print)
 
 class readExpression : public SimpleUnaryOperator
 {
+    int uid() const { return __LINE__; }
+    void *symbol() const { return (void*) likely_read; }
+
     const likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         static FunctionType *functionType = NULL;
@@ -2260,12 +2363,14 @@ class readExpression : public SimpleUnaryOperator
         }
         return new likely_expression(builder.CreateCall2(likelyRead, *arg, constant(likely_file_binary)), MatType::MultiDimension);
     }
-    void *symbol() const { return (void*) likely_read; }
 };
 LIKELY_REGISTER(read)
 
 class writeExpression : public SimpleBinaryOperator
 {
+    int uid() const { return __LINE__; }
+    void *symbol() const { return (void*) likely_write; }
+
     const likely_expression *evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const
     {
         static FunctionType *functionType = NULL;
@@ -2285,12 +2390,14 @@ class writeExpression : public SimpleBinaryOperator
         }
         return new likely_expression(builder.CreateCall2(likelyWrite, *arg1, *arg2), MatType::MultiDimension);
     }
-    void *symbol() const { return (void*) likely_write; }
 };
 LIKELY_REGISTER(write)
 
 class decodeExpression : public SimpleUnaryOperator
 {
+    int uid() const { return __LINE__; }
+    void *symbol() const { return (void*) likely_decode; }
+
     const likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         static FunctionType *functionType = FunctionType::get(MatType::MultiDimension, MatType::MultiDimension, false);
@@ -2304,12 +2411,14 @@ class decodeExpression : public SimpleUnaryOperator
         }
         return new likely_expression(builder.CreateCall(likelyDecode, *arg), MatType::MultiDimension);
     }
-    void *symbol() const { return (void*) likely_decode; }
 };
 LIKELY_REGISTER(decode)
 
 class encodeExpression : public SimpleBinaryOperator
 {
+    int uid() const { return __LINE__; }
+    void *symbol() const { return (void*) likely_encode; }
+
     const likely_expression *evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const
     {
         static FunctionType *functionType = NULL;
@@ -2329,12 +2438,14 @@ class encodeExpression : public SimpleBinaryOperator
         }
         return new likely_expression(builder.CreateCall2(likelyEncode, *arg1, *arg2), MatType::MultiDimension);
     }
-    void *symbol() const { return (void*) likely_encode; }
 };
 LIKELY_REGISTER(encode)
 
 class renderExpression : public SimpleUnaryOperator
 {
+    int uid() const { return __LINE__; }
+    void *symbol() const { return (void*) likely_render; }
+
     const likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         static FunctionType *functionType = NULL;
@@ -2356,12 +2467,14 @@ class renderExpression : public SimpleUnaryOperator
         }
         return new likely_expression(builder.CreateCall3(likelyRender, *arg, ConstantPointerNull::get(Type::getDoublePtrTy(C)), ConstantPointerNull::get(Type::getDoublePtrTy(C))), MatType::MultiDimension);
     }
-    void *symbol() const { return (void*) likely_render; }
 };
 LIKELY_REGISTER(render)
 
 class showExpression : public SimpleUnaryOperator
 {
+    int uid() const { return __LINE__; }
+    void *symbol() const { return (void*) likely_decode; }
+
     const likely_expression *evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         static FunctionType *functionType = NULL;
@@ -2380,7 +2493,6 @@ class showExpression : public SimpleUnaryOperator
         }
         return new likely_expression(builder.CreateCall2(likelyShow, *arg, ConstantPointerNull::get(Type::getInt8PtrTy(C))), MatType::MultiDimension);
     }
-    void *symbol() const { return (void*) likely_decode; }
 };
 LIKELY_REGISTER(show)
 #endif // LIKELY_IO
@@ -2572,32 +2684,3 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, li
     likely_release_ast(ast);
     return env;
 }
-
-namespace {
-
-class importExpression : public Operator
-{
-    size_t maxParameters() const { return 1; }
-    const likely_expression *evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        likely_const_ast file = ast->atoms[1];
-        if (file->is_list)
-            return error(file, "expected a file name");
-
-        const string fileName = string(file->atom) + ".l";
-        ifstream stream(fileName);
-        const string source((istreambuf_iterator<char>(stream)),
-                             istreambuf_iterator<char>());
-        if (source.empty())
-            return error(file, "unable to open file");
-
-        likely_env parent = builder.env;
-        builder.env = likely_repl(source.c_str(), true, parent, NULL);
-        likely_release_env(parent);
-        if (likely_erratum(builder.env->type)) return NULL;
-        else                                   return new likely_expression();
-    }
-};
-LIKELY_REGISTER(import)
-
-} // namespace (anonymous)
