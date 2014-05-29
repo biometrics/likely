@@ -595,7 +595,7 @@ public:
     const vector<likely_type> parameters;
     size_t ref_count = 1;
 
-    JITFunction(const string &name, likely_const_ast ast, likely_env env, const vector<likely_type> &parameters, bool arrayCC);
+    JITFunction(const string &name, likely_const_ast ast, likely_const_env env, const vector<likely_type> &parameters, bool arrayCC);
 
     ~JITFunction()
     {
@@ -664,7 +664,7 @@ struct ScopedEnvironment
     Builder &builder;
     likely_env prev;
 
-    ScopedEnvironment(Builder &builder, likely_env env = NULL, likely_resources *resources = NULL)
+    ScopedEnvironment(Builder &builder, likely_const_env env = NULL, likely_resources *resources = NULL)
         : builder(builder), prev(builder.env)
     {
         builder.env = likely_new_env(env ? env : builder.env);
@@ -2273,7 +2273,7 @@ class importExpression : public Operator
 };
 LIKELY_REGISTER(import)
 
-JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_env parent, const vector<likely_type> &parameters, bool arrayCC)
+JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool arrayCC)
     : resources(true), parameters(parameters)
 {
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
@@ -2626,7 +2626,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
 
 static map<likely_function, JITFunction*> JITFunctionLUT;
 
-likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type type, ...)
+likely_function likely_compile(likely_const_ast ast, likely_const_env env, likely_type type, ...)
 {
     if (!ast || !env) return NULL;
     vector<likely_type> types;

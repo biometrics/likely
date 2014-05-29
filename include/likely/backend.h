@@ -84,7 +84,7 @@ LIKELY_EXPORT bool likely_local(likely_environment_type type);
 LIKELY_EXPORT void likely_set_local(likely_environment_type *type, bool local);
 
 // Compilation
-LIKELY_EXPORT likely_function likely_compile(likely_const_ast ast, likely_env env, likely_type type, ...);
+LIKELY_EXPORT likely_function likely_compile(likely_const_ast ast, likely_const_env env, likely_type type, ...);
 LIKELY_EXPORT likely_function likely_retain_function(likely_function function);
 LIKELY_EXPORT void likely_release_function(likely_function function);
 
