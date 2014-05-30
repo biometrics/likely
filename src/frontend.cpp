@@ -63,7 +63,7 @@ likely_ast likely_new_list(const likely_const_ast *atoms, size_t num_atoms)
 likely_ast likely_retain_ast(likely_const_ast ast)
 {
     if (ast) ++const_cast<likely_ast>(ast)->ref_count;
-    return (likely_ast) ast;
+    return const_cast<likely_ast>(ast);
 }
 
 void likely_release_ast(likely_const_ast ast)

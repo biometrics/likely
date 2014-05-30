@@ -160,7 +160,7 @@ likely_mat likely_copy(likely_const_mat m)
 likely_mat likely_retain(likely_const_mat m)
 {
     if (m) ++const_cast<likely_mat>(m)->ref_count;
-    return (likely_mat) m;
+    return const_cast<likely_mat>(m);
 }
 
 void likely_release(likely_const_mat m)

@@ -584,16 +584,14 @@ private:
     }
 };
 
-class JITFunction : public Symbol
+class JITFunction : public likely_function, public Symbol
 {
     ExecutionEngine *EE = NULL;
 
 public:
     likely_resources resources;
-    likely_function function = NULL;
     hash_code hash = 0;
     const vector<likely_type> parameters;
-    size_t ref_count = 1;
 
     JITFunction(const string &name, likely_const_ast ast, likely_const_env env, const vector<likely_type> &parameters, bool arrayCC);
 
@@ -2276,6 +2274,9 @@ LIKELY_REGISTER(import)
 JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool arrayCC)
     : resources(true), parameters(parameters)
 {
+    function = NULL;
+    ref_count = 1;
+
     likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
                   (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
                   "expected a lambda expression");
@@ -2567,7 +2568,7 @@ likely_env likely_new_env_offline(const char *file_name, bool native)
 likely_env likely_retain_env(likely_const_env env)
 {
     if (env) const_cast<likely_env>(env)->ref_count++;
-    return (likely_env) env;
+    return const_cast<likely_env>(env);
 }
 
 // likely_env are guaranteed to be unique pointers, so we never delete them.
@@ -2624,9 +2625,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
     return reinterpret_cast<likely_function_n>(function)(mv);
 }
 
-static map<likely_function, JITFunction*> JITFunctionLUT;
-
-likely_function likely_compile(likely_const_ast ast, likely_const_env env, likely_type type, ...)
+likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_type type, ...)
 {
     if (!ast || !env) return NULL;
     vector<likely_type> types;
@@ -2637,26 +2636,19 @@ likely_function likely_compile(likely_const_ast ast, likely_const_env env, likel
         type = va_arg(ap, likely_type);
     }
     va_end(ap);
-    JITFunction *jit = new JITFunction("likely_jit_function", ast, env, types, false);
-    likely_function f = reinterpret_cast<likely_function>(jit->function);
-    if (f) JITFunctionLUT[f] = jit;
-    else   delete jit;
-    return f;
+    return static_cast<likely_fun>(new JITFunction("likely_jit_function", ast, env, types, false));
 }
 
-likely_function likely_retain_function(likely_function function)
+likely_fun likely_retain_function(likely_const_fun f)
 {
-    if (function) JITFunctionLUT[function]->ref_count++;
-    return function;
+    if (f) const_cast<likely_fun>(f)->ref_count++;
+    return const_cast<likely_fun>(f);
 }
 
-void likely_release_function(likely_function function)
+void likely_release_function(likely_const_fun f)
 {
-    if (!function) return;
-    JITFunction*& jit = JITFunctionLUT[function];
-    if (--jit->ref_count) return;
-    JITFunctionLUT.erase(function);
-    delete jit;
+    if (!f || --const_cast<likely_fun>(f)->ref_count) return;
+    delete static_cast<const JITFunction*>(f);
 }
 
 likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_const_env previous)
@@ -2678,7 +2670,7 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
             likely_release_ast(lambda->atoms[0]->atoms[2]->atoms[1]); // <ast>
             lambda->atoms[0]->atoms[2]->atoms[1] = likely_retain_ast(ast);
             JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), false);
-            if (likely_function function = jit.function) {
+            if (void *function = jit.function) {
                 env->hash = jit.hash;
                 likely_const_env it = previous;
                 while (it) {

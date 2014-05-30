@@ -56,12 +56,20 @@ struct likely_environment
 typedef struct likely_environment *likely_env;
 typedef struct likely_environment const *likely_const_env;
 
-typedef void *likely_function;
 typedef likely_mat (*likely_function_0)();
 typedef likely_mat (*likely_function_1)(likely_const_mat);
 typedef likely_mat (*likely_function_2)(likely_const_mat, likely_const_mat);
 typedef likely_mat (*likely_function_3)(likely_const_mat, likely_const_mat, likely_const_mat);
 typedef likely_mat (*likely_function_n)(likely_const_mat*);
+
+struct likely_function
+{
+    void *function;
+    size_t ref_count;
+};
+
+typedef struct likely_function *likely_fun;
+typedef struct likely_function const *likely_const_fun;
 
 #ifdef __cplusplus
 extern "C" {
@@ -84,9 +92,9 @@ LIKELY_EXPORT bool likely_local(likely_environment_type type);
 LIKELY_EXPORT void likely_set_local(likely_environment_type *type, bool local);
 
 // Compilation
-LIKELY_EXPORT likely_function likely_compile(likely_const_ast ast, likely_const_env env, likely_type type, ...);
-LIKELY_EXPORT likely_function likely_retain_function(likely_function function);
-LIKELY_EXPORT void likely_release_function(likely_function function);
+LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_type type, ...);
+LIKELY_EXPORT likely_fun likely_retain_function(likely_const_fun f);
+LIKELY_EXPORT void likely_release_function(likely_const_fun f);
 
 // Evaluation
 LIKELY_EXPORT likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_const_env previous);

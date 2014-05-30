@@ -351,11 +351,11 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
         }
     }
 
-    static likely_function_3 normalize = NULL;
+    static likely_const_fun normalize = NULL;
     if (normalize == NULL) {
         likely_const_ast ast = likely_ast_from_string("(img min range) => (u8 (img - min) / range) : (channels 3)", false);
         likely_env env = likely_new_env_jit();
-        normalize = reinterpret_cast<likely_function_3>(likely_compile(ast->atoms[0], env, likely_matrix_void));
+        normalize = likely_compile(ast->atoms[0], env, likely_matrix_void);
         assert(normalize);
         likely_release_env(env);
         likely_release_ast(ast);
@@ -363,7 +363,7 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
 
     likely_const_mat min_val = likely_scalar(likely_matrix_f32, min);
     likely_const_mat range_val = likely_scalar(likely_matrix_f32, range);
-    likely_mat n = normalize(m, min_val, range_val);
+    likely_mat n = reinterpret_cast<likely_function_3>(normalize->function)(m, min_val, range_val);
     likely_release(min_val);
     likely_release(range_val);
 

@@ -60,17 +60,17 @@ int main(int argc, char *argv[])
     likely_const_ast ast = likely_ast_from_string(filter, false);
 
     printf("Creating a compiler environment...\n");
-    likely_env env = likely_new_env_jit();
+    likely_const_env env = likely_new_env_jit();
 
     printf("Compiling source code...\n");
-    likely_function_1 darken = (likely_function_1) likely_compile(ast->atoms[0], env, likely_matrix_void);
-    if (!darken) {
+    likely_const_fun darken = likely_compile(ast->atoms[0], env, likely_matrix_void);
+    if (!darken->function) {
         printf("Failed to compile!\n");
         return -1;
     }
 
     printf("Calling compiled function...\n");
-    likely_const_mat dark_lenna = darken(lenna);
+    likely_const_mat dark_lenna = ((likely_function_1)darken->function)(lenna);
     if (!dark_lenna) {
         printf("Failed to execute!\n");
         return -1;

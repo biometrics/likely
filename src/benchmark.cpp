@@ -66,8 +66,8 @@ struct Test
             return;
 
         likely_const_ast ast = likely_ast_from_string(function(), false);
-        likely_env env = likely_new_env_jit();
-        likely_function_1 f = reinterpret_cast<likely_function_1>(likely_compile(ast->atoms[0], env, likely_matrix_void));
+        likely_const_env env = likely_new_env_jit();
+        likely_const_fun f = likely_compile(ast->atoms[0], env, likely_matrix_void);
         likely_release_env(env);
         likely_release_ast(ast);
 
@@ -89,7 +89,7 @@ struct Test
                     likely_mat typeString = likely_type_to_string(type);
                     printf("%s \t%s \t%d \t%s\t", function(), typeString->data, size, execution.c_str());
                     likely_release(typeString);
-                    testCorrectness(f, srcCV, srcLikely);
+                    testCorrectness(reinterpret_cast<likely_function_1>(f->function), srcCV, srcLikely);
 
                     if (BenchmarkTest) {
                         printf("\n");
@@ -97,13 +97,13 @@ struct Test
                     }
 
                     Speed baseline = testBaselineSpeed(srcCV);
-                    Speed likely = testLikelySpeed(f, srcLikely);
+                    Speed likely = testLikelySpeed(reinterpret_cast<likely_function_1>(f->function), srcLikely);
                     printf("%.2e\n", likely.Hz/baseline.Hz);
                 }
             }
         }
 
-        likely_release_function((likely_function) f);
+        likely_release_function(f);
     }
 
     static void runFile(const string &fileName)
