@@ -2142,6 +2142,18 @@ private:
         else                                likely_set_multi_frame  (type, multiElement);
         return result;
     }
+
+    static bool isScalarMat(const likely_expression &expr)
+    {
+        if (likely_multi_dimension(expr))
+            return false;
+
+        if (PointerType *ptr = dyn_cast<PointerType>(expr.value->getType()))
+            if (dyn_cast<StructType>(ptr->getElementType()))
+                return true;
+
+        return false;
+    }
 };
 
 class kernelExpression : public Operator
