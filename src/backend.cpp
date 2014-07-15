@@ -1884,6 +1884,15 @@ private:
         likely_expression dst(newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, nullData()), kernelType);
         builder.undefineAll(args, false);
 
+        // Load scalar values
+        BasicBlock *scalarPromotion = BasicBlock::Create(C, "scalar_promotion", builder.GetInsertBlock()->getParent());
+        builder.CreateBr(scalarPromotion);
+        builder.SetInsertPoint(scalarPromotion);
+
+        BasicBlock *computation = BasicBlock::Create(C, "computation", builder.GetInsertBlock()->getParent());
+        builder.CreateBr(computation);
+        builder.SetInsertPoint(computation);
+
         Metadata metadata;
         if      (likely_heterogeneous(kernelType)) metadata = generateHeterogeneous(builder, args, srcs, dst, kernelSize);
         else if (likely_parallel(kernelType))      metadata = generateParallel     (builder, args, srcs, dst, kernelSize);
