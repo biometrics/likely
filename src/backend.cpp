@@ -31,6 +31,7 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/Debug.h>
 #include <llvm/Support/DynamicLibrary.h>
+#include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/FormattedStream.h>
 #include <llvm/Support/TargetRegistry.h>
