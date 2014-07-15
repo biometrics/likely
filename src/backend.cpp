@@ -1407,7 +1407,7 @@ struct Lambda : public ScopedExpression
 
         vector<Type*> llvmTypes;
         if (arrayCC) {
-            // Array calling convention
+            // Array calling convention - All arguments, which must be matrix pointers, come stored in an array for the convenience of likely_dynamic.
             llvmTypes.push_back(PointerType::get(MatType::MultiDimension, 0));
         } else {
             for (const likely_type &t : types)
