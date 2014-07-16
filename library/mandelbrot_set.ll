@@ -38,4 +38,12 @@ Execution
 
     (mandelbrot_set width height x_min y_min x_range y_range iter)
 
+Command Line
+
+```bash
+$ likely ../library/mandelbrot_set.ll -gui
+$ likely ../library/mandelbrot_set.ll -record mandelbrot_set.png
+$ dream ../library/mandelbrot_set.ll
+```
+
 [Next](?show=average_face)
