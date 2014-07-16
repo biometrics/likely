@@ -321,7 +321,6 @@ public:
             likely_mat show = (m->frames == 1) ? likely_retain(m)
                                                : likely_new(m->type, m->channels, m->columns, m->rows, 1, m->data);
             double min, max;
-            likely_set_parallel(&show->type, false);
             likely_const_mat rendered = likely_render(show, &min, &max);
             likely_release(show);
             image->setImage(QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped());

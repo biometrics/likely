@@ -1871,6 +1871,7 @@ private:
         Value *dstRows     = getDimensions(builder, pairs, "rows"    , srcs, &kernelType);
         Value *dstFrames   = getDimensions(builder, pairs, "frames"  , srcs, &kernelType);
 
+        // Allocate and initialize memory for the destination matrix
         BasicBlock *allocation = BasicBlock::Create(C, "allocation", builder.GetInsertBlock()->getParent());
         builder.CreateBr(allocation);
         builder.SetInsertPoint(allocation);
@@ -1885,18 +1886,23 @@ private:
         builder.undefineAll(args, false);
 
         // Load scalar values
-        BasicBlock *scalarPromotion = BasicBlock::Create(C, "scalar_promotion", builder.GetInsertBlock()->getParent());
-        builder.CreateBr(scalarPromotion);
-        builder.SetInsertPoint(scalarPromotion);
+        BasicBlock *scalarMatrixPromotion = BasicBlock::Create(C, "scalar_matrix_promotion", builder.GetInsertBlock()->getParent());
+        builder.CreateBr(scalarMatrixPromotion);
+        builder.SetInsertPoint(scalarMatrixPromotion);
+        vector<likely_expression> thunkSrcs = srcs;
+        for (likely_expression &thunkSrc : thunkSrcs)
+            if (!likely_multi_dimension(thunkSrc) && isMat(thunkSrc))
+                thunkSrc = likely_expression(builder.CreateLoad(builder.CreateGEP(builder.data(&thunkSrc), zero())), thunkSrc);
 
+        // Finally, do the computation
         BasicBlock *computation = BasicBlock::Create(C, "computation", builder.GetInsertBlock()->getParent());
         builder.CreateBr(computation);
         builder.SetInsertPoint(computation);
 
         Metadata metadata;
-        if      (likely_heterogeneous(kernelType)) metadata = generateHeterogeneous(builder, args, srcs, dst, kernelSize);
-        else if (likely_parallel(kernelType))      metadata = generateParallel     (builder, args, srcs, dst, kernelSize);
-        else                                       metadata = generateSerial       (builder, args, srcs, dst, kernelSize);
+        if      (likely_heterogeneous(kernelType)) metadata = generateHeterogeneous(builder, args, thunkSrcs, dst, kernelSize);
+        else if (likely_parallel(kernelType))      metadata = generateParallel     (builder, args, thunkSrcs, dst, kernelSize);
+        else                                       metadata = generateSerial       (builder, args, thunkSrcs, dst, kernelSize);
 
         results->addIncoming(constant(metadata.results), entry);
         dstType->addIncoming(typeType(dst), entry);
@@ -1914,16 +1920,19 @@ private:
 
     Metadata generateParallel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *kernelSize) const
     {
-        BasicBlock *allocation = builder.GetInsertBlock();
+        BasicBlock *entry = builder.GetInsertBlock();
+
+        vector<Type*> parameterTypes;
+        for (const likely_expression &src : srcs)
+            parameterTypes.push_back(src.value->getType());
+        parameterTypes.push_back(dst.value->getType());
+        StructType *parameterStructType = StructType::get(C, parameterTypes);
 
         Function *thunk;
         Metadata metadata;
         {
-            static FunctionType *thunkType = NULL;
-            if (!thunkType) {
-                Type* params[] = { PointerType::get(MatType::MultiDimension, 0), NativeInt, NativeInt };
-                thunkType = FunctionType::get(Type::getVoidTy(C), params, false);
-            }
+            Type *params[] = { PointerType::getUnqual(parameterStructType), NativeInt, NativeInt };
+            FunctionType *thunkType = FunctionType::get(Type::getVoidTy(C), params, false);
 
             thunk = ::cast<Function>(builder.module()->getOrInsertFunction(builder.GetInsertBlock()->getParent()->getName().str() + "_thunk", thunkType));
             thunk->addFnAttr(Attribute::NoUnwind);
@@ -1933,21 +1942,15 @@ private:
             thunk->setDoesNotCapture(1);
 
             Function::arg_iterator it = thunk->arg_begin();
-            Value *thunkMatrixArray = it++;
+            Value *parameterStruct = it++;
             Value *start = it++;
             Value *stop = it++;
 
             builder.SetInsertPoint(BasicBlock::Create(C, "entry", thunk));
             vector<likely_expression> thunkSrcs;
             for (size_t i=0; i<srcs.size()+1; i++) {
-                const likely_type type = i < srcs.size() ? srcs[i].type : dst.type;
-                Type *llvmType = MatType::get(type);
-                if (!likely_multi_dimension(type))
-                    llvmType = llvmType->getPointerTo();
-                Value *val = builder.CreatePointerCast(builder.CreateLoad(builder.CreateGEP(thunkMatrixArray, constant(i))), llvmType);
-                if (!likely_multi_dimension(type))
-                    val = builder.CreateLoad(val);
-                thunkSrcs.push_back(likely_expression(val, type));
+                const likely_type &type = i < srcs.size() ? srcs[i].type : dst.type;
+                thunkSrcs.push_back(likely_expression(builder.CreateLoad(builder.CreateStructGEP(parameterStruct, i)), type));
             }
             likely_expression kernelDst = thunkSrcs.back(); thunkSrcs.pop_back();
             kernelDst.value->setName("dst");
@@ -1958,14 +1961,10 @@ private:
             builder.CreateRetVoid();
         }
 
-        builder.SetInsertPoint(allocation);
+        builder.SetInsertPoint(entry);
 
-        static FunctionType *likelyForkType = NULL;
-        if (!likelyForkType) {
-            Type *params[] = { thunk->getType(), PointerType::get(MatType::MultiDimension, 0), NativeInt };
-            likelyForkType = FunctionType::get(Type::getVoidTy(C), params, false);
-        }
-
+        Type *params[] = { thunk->getType(), PointerType::getUnqual(parameterStructType), NativeInt };
+        FunctionType *likelyForkType = FunctionType::get(Type::getVoidTy(C), params, false);
         Function *likelyFork = builder.module()->getFunction("likely_fork");
         if (!likelyFork) {
             likelyFork = Function::Create(likelyForkType, GlobalValue::ExternalLinkage, "likely_fork", builder.module());
@@ -1976,20 +1975,13 @@ private:
             likelyFork->setDoesNotAlias(2);
         }
 
-        Value *thunkMatrixArray = builder.CreateAlloca(MatType::MultiDimension, constant(srcs.size()+1));
+        Value *parameterStruct = builder.CreateAlloca(parameterStructType);
         for (size_t i=0; i<srcs.size()+1; i++) {
             const likely_expression &src = i < srcs.size() ? srcs[i] : dst;
-            Value *val;
-            if (likely_multi_dimension(src)) {
-               val = src;
-            } else {
-                val = builder.CreateAlloca(src.value->getType());
-                builder.CreateStore(src, val);
-            }
-            builder.CreateStore(builder.CreatePointerCast(val, MatType::MultiDimension), builder.CreateGEP(thunkMatrixArray, constant(i)));
+            builder.CreateStore(src, builder.CreateStructGEP(parameterStruct, i));
         }
 
-        builder.CreateCall3(likelyFork, builder.module()->getFunction(thunk->getName()), thunkMatrixArray, kernelSize);
+        builder.CreateCall3(likelyFork, builder.module()->getFunction(thunk->getName()), parameterStruct, kernelSize);
         return metadata;
     }
 
@@ -2143,15 +2135,12 @@ private:
         return result;
     }
 
-    static bool isScalarMat(const likely_expression &expr)
+    static bool isMat(const likely_expression &expr)
     {
-        if (likely_multi_dimension(expr))
-            return false;
-
+        // This is safe because matricies are the only struct types created by the backend
         if (PointerType *ptr = dyn_cast<PointerType>(expr.value->getType()))
             if (dyn_cast<StructType>(ptr->getElementType()))
                 return true;
-
         return false;
     }
 };

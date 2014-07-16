@@ -107,6 +107,8 @@ LIKELY_EXPORT extern const char likely_standard_library[];
 //   Since dynamic dispatch does code generation based on runtime argument types,
 //   it follows that dynamic dispatch can only work on functions where all parameter types can be inspected at runtime.
 //   In other words, functions that have only likely_mat parameters.
+//   This is in contrast to likely_fork where parameters are known at compile time
+//   and may therefore take an arbitrary internally-defined structure.
 typedef struct likely_virtual_table *likely_vtable;
 LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *m);
 

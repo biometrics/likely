@@ -332,7 +332,7 @@ static size_t numWorkers = 0;
 
 // Parallel data
 static likely_thunk currentThunk = NULL;
-static likely_mat *thunkArgs = NULL;
+static void *thunkArgs = NULL;
 static likely_size thunkSize = 0;
 
 static void executeWorker(size_t id)
@@ -359,7 +359,7 @@ static void workerThread(size_t id)
     }
 }
 
-void likely_fork(likely_thunk thunk, likely_mat *args, likely_size size)
+void likely_fork(likely_thunk thunk, void *args, likely_size size)
 {
     static mutex forkLock;
     lock_guard<mutex> lockFork(forkLock);
