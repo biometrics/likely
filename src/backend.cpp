@@ -2529,7 +2529,7 @@ class showExpression : public SimpleUnaryOperator
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
             Type* params[] = { MatType::MultiDimension, Type::getInt8PtrTy(C) };
-            FunctionType::get(Type::getVoidTy(C), params, false);
+            functionType = FunctionType::get(Type::getVoidTy(C), params, false);
         }
         Function *likelyShow = builder.module()->getFunction("likely_show");
         if (!likelyShow) {
