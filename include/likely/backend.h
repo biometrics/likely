@@ -112,6 +112,9 @@ LIKELY_EXPORT extern const char likely_standard_library[];
 typedef struct likely_virtual_table *likely_vtable;
 LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *m);
 
+// Miscellaneous
+LIKELY_EXPORT likely_mat likely_md5(likely_const_mat buffer);
+
 #ifdef __cplusplus
 }
 #endif // __cplusplus

@@ -34,6 +34,7 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/FormattedStream.h>
+#include <llvm/Support/MD5.h>
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/ToolOutputFile.h>
@@ -2545,6 +2546,29 @@ class showExpression : public SimpleUnaryOperator
 LIKELY_REGISTER(show)
 #endif // LIKELY_IO
 
+class md5Expression : public SimpleUnaryOperator
+{
+    int uid() const { return __LINE__; }
+    void *symbol() const { return (void*) likely_md5; }
+
+    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
+    {
+        static FunctionType *functionType = NULL;
+        if (functionType == NULL)
+            functionType = FunctionType::get(MatType::MultiDimension, MatType::MultiDimension, false);
+        Function *likelyMd5 = builder.module()->getFunction("likely_md5");
+        if (!likelyMd5) {
+            likelyMd5 = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_md5", builder.module());
+            likelyMd5->setCallingConv(CallingConv::C);
+            likelyMd5->setDoesNotAlias(0);
+            likelyMd5->setDoesNotAlias(1);
+            likelyMd5->setDoesNotCapture(1);
+        }
+        return new likely_expression(builder.CreateCall(likelyMd5, *arg), MatType::MultiDimension);
+    }
+};
+LIKELY_REGISTER(md5)
+
 } // namespace (anonymous)
 
 likely_env likely_new_env(likely_const_env parent)
@@ -2722,4 +2746,13 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, li
 
     likely_release_ast(ast);
     return env;
+}
+
+likely_mat likely_md5(likely_const_mat buffer)
+{
+    MD5 md5;
+    md5.update(ArrayRef<uint8_t>(buffer->data, likely_bytes(buffer)));
+    MD5::MD5Result md5Result;
+    md5.final(md5Result);
+    return likely_new(likely_matrix_u8, 16, 1, 1, 1, md5Result);
 }
