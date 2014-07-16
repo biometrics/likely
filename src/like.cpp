@@ -36,6 +36,7 @@ static cl::opt<string> output(cl::Positional, cl::desc("<output file>"), cl::ini
 static cl::opt<string> record("record", cl::desc("%d-formatted file to render matrix output to"));
 static cl::opt<bool> source("source", cl::desc("Treat input as a source code string instead of a file"));
 static cl::opt<bool> gui("gui", cl::desc("Show matrix output in a window"));
+static cl::opt<bool> md5("md5", cl::desc("Print matrix output MD5 hash to terminal"));
 static cl::opt<bool> quiet("quiet", cl::desc("Don't show matrix output"));
 
 static void quietShowCallback(likely_const_mat, likely_const_ast, void *)
@@ -54,12 +55,22 @@ static void recordShowCallback(likely_const_mat m, likely_const_ast, void *)
     likely_release(rendered);
 }
 
+static void md5ShowCallback(likely_const_mat m, likely_const_ast, void *)
+{
+    likely_mat md5 = likely_md5(m);
+    likely_mat hex = likely_to_hex(md5);
+    likely_release(md5);
+    printf("%s\n", reinterpret_cast<const char*>(&hex->data));
+    likely_release(hex);
+}
+
 int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
 
     if (!record.getValue().empty()) likely_set_show_callback(recordShowCallback, NULL);
     else if (gui); // No configuration needed, this is the default
+    else if (md5)   likely_set_show_callback(md5ShowCallback, NULL);
     else if (quiet) likely_set_show_callback(quietShowCallback, NULL);
     else            likely_set_show_callback(NULL, NULL); // Print to terminal
 
