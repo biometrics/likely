@@ -13,7 +13,7 @@ $ likely <input file> <output file> # to compile a likely source file to assembl
 Try running [hello world](?show=hello_world) through it:
 
 ```bash
-$ like library/hello_world.ll
+$ likely ../library/hello_world.ll
 ```
 
 [Previous](?show=hello_world) | [Next](?show=comments)

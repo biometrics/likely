@@ -5,7 +5,7 @@ Likely
  > -- [@jklontz](https://github.com/jklontz)
 
 ## Introduction
-Skip to the good stuff: **[hello world](?show=share/likely/hello_world/README.ll)**, **[tutorial](?show=tutorial)**, **[demos](?show=demos)**.
+Skip to the good stuff: **[installation](?show=README.md)**, **[hello world](?show=share/likely/hello_world/README.ll)**, **[tutorial](?show=tutorial)**, **[demos](?show=demos)**.
 
 ### Principles
  - Heterogeneous hardware architecture support
