@@ -1221,7 +1221,7 @@ public:
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            Type* params[] = { NativeInt, NativeInt, NativeInt, NativeInt, NativeInt, Type::getInt8PtrTy(C) };
+            Type *params[] = { NativeInt, NativeInt, NativeInt, NativeInt, NativeInt, Type::getInt8PtrTy(C) };
             functionType = FunctionType::get(MatType::MultiDimension, params, false);
         }
 
@@ -1256,7 +1256,7 @@ class scalarExpression : public UnaryOperator
 
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            Type* params[] = { NativeInt, Type::getDoubleTy(C) };
+            Type *params[] = { NativeInt, Type::getDoubleTy(C) };
             functionType = FunctionType::get(MatType::MultiDimension, params, true);
         }
 
@@ -1504,7 +1504,7 @@ private:
             static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
             static FunctionType *likelyDynamicType = NULL;
             if (likelyDynamicType == NULL) {
-                Type* params[] = { vTableType, PointerType::get(MatType::MultiDimension, 0) };
+                Type *params[] = { vTableType, PointerType::get(MatType::MultiDimension, 0) };
                 likelyDynamicType = FunctionType::get(MatType::MultiDimension, params, false);
             }
 
@@ -2398,7 +2398,7 @@ class readExpression : public SimpleUnaryOperator
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            Type* params[] = { Type::getInt8PtrTy(C), NativeInt };
+            Type *params[] = { Type::getInt8PtrTy(C), NativeInt };
             functionType = FunctionType::get(MatType::MultiDimension, params, false);
         }
 
@@ -2424,7 +2424,7 @@ class writeExpression : public SimpleBinaryOperator
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            Type* params[] = { MatType::MultiDimension, Type::getInt8PtrTy(C) };
+            Type *params[] = { MatType::MultiDimension, Type::getInt8PtrTy(C) };
             functionType = FunctionType::get(MatType::MultiDimension, params, false);
         }
         Function *likelyWrite = builder.module()->getFunction("likely_write");
@@ -2472,7 +2472,7 @@ class encodeExpression : public SimpleBinaryOperator
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            Type* params[] = { MatType::MultiDimension, Type::getInt8PtrTy(C) };
+            Type *params[] = { MatType::MultiDimension, Type::getInt8PtrTy(C) };
             functionType = FunctionType::get(MatType::MultiDimension, params, false);
         }
         Function *likelyEncode = builder.module()->getFunction("likely_encode");
@@ -2499,7 +2499,7 @@ class renderExpression : public SimpleUnaryOperator
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            Type* params[] = { MatType::MultiDimension, Type::getDoublePtrTy(C), Type::getDoublePtrTy(C) };
+            Type *params[] = { MatType::MultiDimension, Type::getDoublePtrTy(C), Type::getDoublePtrTy(C) };
             functionType = FunctionType::get(MatType::MultiDimension, params, false);
         }
         Function *likelyRender = builder.module()->getFunction("likely_render");
@@ -2528,7 +2528,7 @@ class showExpression : public SimpleUnaryOperator
     {
         static FunctionType *functionType = NULL;
         if (functionType == NULL) {
-            Type* params[] = { MatType::MultiDimension, Type::getInt8PtrTy(C) };
+            Type *params[] = { MatType::MultiDimension, Type::getInt8PtrTy(C) };
             functionType = FunctionType::get(Type::getVoidTy(C), params, false);
         }
         Function *likelyShow = builder.module()->getFunction("likely_show");
