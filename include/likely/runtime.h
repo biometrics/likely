@@ -80,7 +80,7 @@ struct likely_matrix
     likely_size bytes, ref_count;
     likely_size channels, columns, rows, frames;
     likely_type type;
-    unsigned char data[];
+    char data[];
 };
 typedef struct likely_matrix const *likely_const_mat;
 typedef struct likely_matrix *likely_mat;

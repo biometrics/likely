@@ -61,10 +61,9 @@ static void md5ShowCallback(likely_const_mat m, likely_const_ast, void *)
     likely_mat md5 = likely_md5(m);
     likely_mat hex = likely_to_hex(md5);
     likely_release(md5);
-    const char *hexString = reinterpret_cast<const char*>(&hex->data);
-    printf("%s\n", hexString);
+    printf("%s\n", hex->data);
     const string assertValue = assert_;
-    likely_assert(assertValue.empty() || !strcmp(hexString, assertValue.c_str()), "expected value: %s", assertValue.c_str());
+    likely_assert(assertValue.empty() || !strcmp(hex->data, assertValue.c_str()), "expected value: %s", assertValue.c_str());
     likely_release(hex);
 }
 
@@ -102,7 +101,7 @@ int main(int argc, char *argv[])
         likely_env env;
         if (output.empty()) env = likely_new_env_jit(); // Interpreter
         else                env = likely_new_env_offline(output.c_str(), true); // Static compiler
-        likely_release_env(likely_repl((const char*)code->data, gfm, env, NULL));
+        likely_release_env(likely_repl(code->data, gfm, env, NULL));
         likely_release_env(env);
         likely_release(code);
     }

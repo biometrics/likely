@@ -111,7 +111,7 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     likely_set_multi_frame(&m->type, frames > 1);
 
     if (data)
-        memcpy((void*) &m->data, data, dataBytes);
+        memcpy((void*)m->data, data, dataBytes);
 
     return m;
 }

@@ -315,7 +315,7 @@ public:
             image->setImage(QImage());
 
             likely_mat str = likely_to_string(m, true);
-            type->setText((const char*) str->data);
+            type->setText(str->data);
             likely_release(str);
         } else {
             likely_mat show = (m->frames == 1) ? likely_retain(m)
@@ -323,11 +323,11 @@ public:
             double min, max;
             likely_const_mat rendered = likely_render(show, &min, &max);
             likely_release(show);
-            image->setImage(QImage(rendered->data, rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped());
+            image->setImage(QImage(reinterpret_cast<const uchar*>(rendered->data), rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped());
             likely_release(rendered);
 
             likely_mat str = likely_to_string(m, -1);
-            type->setText(QString("%1 [%2,%3]").arg((const char*)str->data,
+            type->setText(QString("%1 [%2,%3]").arg(str->data,
                                                     QString::number(min),
                                                     QString::number(max)));
             likely_release(str);
@@ -773,9 +773,8 @@ private:
     static void error_callback(likely_error error, void *context)
     {
         likely_mat str = likely_error_to_string(error);
-        const char *message = (const char*) str->data;
-        qDebug() << message;
-        reinterpret_cast<QStatusBar*>(context)->showMessage(message);
+        qDebug() << str->data;
+        reinterpret_cast<QStatusBar*>(context)->showMessage(str->data);
         likely_release(str);
     }
 

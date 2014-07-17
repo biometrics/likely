@@ -86,8 +86,7 @@ struct MatType
             llvm = scalar(likely);
         } else {
             likely_mat str = likely_type_to_string(likely);
-            const string name = (const char*) str->data;
-            llvm = PointerType::getUnqual(StructType::create(name,
+            llvm = PointerType::getUnqual(StructType::create(str->data,
                                                              NativeInt, // bytes
                                                              NativeInt, // ref_count
                                                              NativeInt, // channels
@@ -2765,7 +2764,7 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, li
 likely_mat likely_md5(likely_const_mat buffer)
 {
     MD5 md5;
-    md5.update(ArrayRef<uint8_t>(buffer->data, likely_bytes(buffer)));
+    md5.update(ArrayRef<uint8_t>(reinterpret_cast<const uint8_t*>(buffer->data), likely_bytes(buffer)));
     MD5::MD5Result md5Result;
     md5.final(md5Result);
     return likely_new(likely_matrix_u8, 16, 1, 1, 1, md5Result);
