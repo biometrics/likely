@@ -9,7 +9,7 @@ As image recognition engineers, we desire a curated set of image processing and 
 
 Despite the multi-paradigm virtues of C++, it is extraordinarily difficult to provide library routines that are both truly generic and efficient. To illustrate this point, consider the following library function for adding two vectors:
 
-```C++
+```cpp
 void add(const float *a, const float *b, float *c, unsigned int n) {
     for (unsigned int i = 0; i < n; i++)
         c[i] = a[i] + b[i];
@@ -19,7 +19,7 @@ void add(const float *a, const float *b, float *c, unsigned int n) {
 ##### Aliasing
 While this function is simple, it is neither particularly fast nor generic. A popular assumption made in numerical libraries is that pointers never _alias_. In other words, variables _a_, _b_ and _c_ point to distinct non-overlapping regions in memory. The C++ language specification states that pointers of the same type may alias, so the compiler must insert a runtime check when vectorizing loops. While C has since introduced the _restrict_ keyword to specify pointers that do not alias, this keyword is not supported in the C++ standard and is implemented instead through compiler-specific annotations:
 
-```C++
+```cpp
 void add(const float * __restrict a, const float * __restrict b, float * __restrict c, unsigned int n) {
     for (unsigned int i = 0; i < n; i++)
         c[i] = a[i] + b[i];
@@ -31,7 +31,7 @@ Similar to [Fortran and pure functional langauges](http://en.wikipedia.org/wiki/
 ##### Generics
 Most image processing operations make sense to express for a variety of data types, so we might try to generalize our function using templates:
 
-```C++
+```cpp
 template <typename T>
 void add(const T *a, const T *b, T *c, unsigned int n) {
     for (unsigned int i = 0; i < n; i++)
@@ -44,7 +44,7 @@ However, what if we would like _a_ or _b_ to be a numerical constant? Or _c_ to 
 ##### Saturation
 Arithmetic overflow is a common problem encoutered in image processing. So common in fact that OpenCV [always](http://docs.opencv.org/modules/core/doc/intro.html#saturation-arithmetics) uses it for 8- and 16-bit integer arithmetic.
 
-```C++
+```cpp
 template<> inline uchar saturate_cast<uchar>(int v)
 { return (uchar)((unsigned)v <= UCHAR_MAX ? v : v > 0 ? UCHAR_MAX : 0); }
 ```

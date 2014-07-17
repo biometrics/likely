@@ -21,6 +21,8 @@
 
 <!-- Markdown and GFM Syntax Highlighting -->
 <script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/marked/0.2.9/marked.min.js"></script>
+<link href="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.1/styles/default.min.css" rel="stylesheet">
+<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.1/highlight.min.js"></script>
 
 <script type="text/javascript">
 var _gaq = _gaq || [];
@@ -76,6 +78,9 @@ _gaq.push(['_trackPageview']);
   .table-nonfluid {
     width: auto;
   }
+  .hljs {
+    background: transparent;
+  }
 </style>
 
 <div class="container"> <div class="row"> <div class="span12" id="content">
@@ -119,6 +124,10 @@ marked.setOptions({
 
 $.get(show).done(function(md) {
   $("#content").html(marked(md));
+  hljs.configure({ languages: [] });
+  $('pre code').each(function(i, block) {
+      hljs.highlightBlock(block);
+    });
   $('table').addClass("table table-condensed table-nonfluid");
 })
 </script>

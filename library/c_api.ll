@@ -8,7 +8,7 @@ So you've developed an algorithm in Likely, how do you integrate it into your na
 
 The **C translation** of this is:
 
-```C
+```c
 #include <likely.h>
 
 int main()
@@ -32,4 +32,4 @@ int main()
 
 **[Here](?show=hello_world)** is the complete source code for *Hello World* in *C*.
 
-[Previous](?show=matrix_io) | [Next](?show=export.ll)
+[Previous](?show=matrix_io) | [Next](?show=export)

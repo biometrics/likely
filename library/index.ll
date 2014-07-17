@@ -78,7 +78,7 @@ The last five fields (_channels_, _columns_, _rows_, _frames_, and _type_) are c
 
 #### Element Access
 By convention, element layout in the data buffer with resepect to decreasing spatial locality is _channel_, _column_, _row_, _frame_. Thus an element at channel _c_, column _x_, row _y_, and frame _t_, can be retrieved like:
-```C++
+```cpp
 float likely_get_element(likely_matrix m, likely_size c, likely_size x, likely_size y, likely_size t)
 {
     likely_size columnStep = m->channels;
@@ -111,4 +111,4 @@ Here is the layout of the bits in **likey_type**:
 | saturation    | 1    | 0x00010000 |
 | reserved      | 15   | 0xFFFE0000 |
 
-Convenience functions **likely_<field>** and **likely_set_<field>** are provided for querying and editing the type.
+Convenience functions **likely__field_** and **likely\_set__field_** are provided for querying and editing the type.

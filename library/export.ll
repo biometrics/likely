@@ -7,7 +7,7 @@ You can also export symbols with C linkage.
 
 The above function is equivalent to the C code:
 
-```C
+```c
 uint32_t foo(uint32_t x)
 {
     return x + 1;
