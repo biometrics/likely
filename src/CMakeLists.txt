@@ -94,3 +94,13 @@ if(${LIKELY_IO})
     install(TARGETS dream RUNTIME DESTINATION bin)
   endif()
 endif()
+
+# Test demos
+function(test_demo FILE VALUE)
+  add_test(NAME ${FILE}
+           WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+           COMMAND like -md5 ../library/${FILE}.ll -assert ${VALUE})
+endfunction()
+
+test_demo(mandelbrot_set 7c3756d7bb81d8aeb6e4451adc8ca7bf)
+test_demo(average_face 876f3f7204335a0d6da1a42cbb3f3789)
