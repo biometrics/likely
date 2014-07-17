@@ -82,8 +82,10 @@ _gaq.push(['_trackPageview']);
   }
 </style>
 
-<div class="container"> <div class="row"> <div class="span12">
-<div id="content"><br>Loading...<br><br>Did you disable JavaScript?</div>
+<div class="container"> <div class="row"> <div class="span12" id="content">
+  <br>Loading...<br><br>Did you disable JavaScript?
+</div> </div> </div>
+
 <script>
 function getQueryVariable(variable) {
   var query = window.location.search.substring(1);
@@ -112,9 +114,9 @@ $("#raw").attr("href","http://raw.github.com/biometrics/likely/gh-pages/"+show);
 marked.setOptions({
   gfm: true,
   tables: true,
-  breaks: true,
+  breaks: false,
   pedantic: false,
-  sanitize: true,
+  sanitize: false,
   smartLists: true,
   smartypants: true,
 });
@@ -124,8 +126,6 @@ $.get(show).done(function(md) {
   $('table').addClass("table table-condensed table-nonfluid");
 })
 </script>
-<br>
-</div> </div> </div>
 
 </body>
 </html>
