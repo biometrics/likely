@@ -34,6 +34,7 @@ using namespace std;
 static cl::opt<string> input (cl::Positional, cl::desc("<input file>" ), cl::init(""));
 static cl::opt<string> output(cl::Positional, cl::desc("<output file>"), cl::init(""));
 static cl::opt<string> record("record", cl::desc("%d-formatted file to render matrix output to"));
+static cl::opt<string> assert_("assert", cl::desc("Confirm the output equals the specified value"));
 static cl::opt<bool> source("source", cl::desc("Treat input as a source code string instead of a file"));
 static cl::opt<bool> gui("gui", cl::desc("Show matrix output in a window"));
 static cl::opt<bool> md5("md5", cl::desc("Print matrix output MD5 hash to terminal"));
@@ -60,7 +61,10 @@ static void md5ShowCallback(likely_const_mat m, likely_const_ast, void *)
     likely_mat md5 = likely_md5(m);
     likely_mat hex = likely_to_hex(md5);
     likely_release(md5);
-    printf("%s\n", reinterpret_cast<const char*>(&hex->data));
+    const char *hexString = reinterpret_cast<const char*>(&hex->data);
+    printf("%s\n", hexString);
+    const string assertValue = assert_;
+    likely_assert(assertValue.empty() || !strcmp(hexString, assertValue.c_str()), "expected value: %s", assertValue.c_str());
     likely_release(hex);
 }
 
