@@ -72,7 +72,7 @@ enum likely_type_field
 // Disable 'nonstandard extension used : zero-sized array in struct/union' warning
 #ifdef _MSC_VER
 #  pragma warning(disable: 4200)
-#endif // __MSC_VER
+#endif // _MSC_VER
 
 // The main datatype in Likely
 struct likely_matrix
