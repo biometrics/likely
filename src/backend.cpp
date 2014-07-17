@@ -2230,17 +2230,26 @@ class defineExpression : public Operator
                 } else {
                     // JIT
                     JITFunction *function = new JITFunction(name, rhs, builder.env, types, false);
-                    sys::DynamicLibrary::AddSymbol(name, function->function);
-                    value = function;
+                    if (function->function) {
+                        sys::DynamicLibrary::AddSymbol(name, function->function);
+                        value = function;
+                    } else {
+                        delete function;
+                        value = NULL;
+                    }
                 }
             } else {
                 // Global variable
                 value = new Definition(builder.env, rhs);
             }
 
-            builder.env->name = new char[strlen(name)+1];
-            strcpy((char*) builder.env->name, name);
-            builder.env->value = value;
+            if (value) {
+                builder.env->name = new char[strlen(name)+1];
+                strcpy((char*) builder.env->name, name);
+                builder.env->value = value;
+            } else {
+                likely_set_erratum(&builder.env->type, true);
+            }
             return NULL;
         } else {
             // Local variable
@@ -2289,9 +2298,14 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     function = NULL;
     ref_count = 1;
 
-    likely_assert(ast->is_list && (ast->num_atoms > 0) && !ast->atoms[0]->is_list &&
-                  (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>")),
-                  "expected a lambda expression");
+    const bool validAST = ast->is_list
+                          && (ast->num_atoms > 0)
+                          && !ast->atoms[0]->is_list
+                          && (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>"));
+    if (!validAST) {
+        likely_expression::error(ast, "expected a lambda expression");
+        return;
+    }
 
     Builder builder(NULL);
     ScopedEnvironment se(builder, parent, &resources);
