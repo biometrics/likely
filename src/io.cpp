@@ -245,19 +245,23 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
 likely_mat likely_to_string(likely_const_mat m, int header)
 {
     if (!m) return NULL;
-    if ((likely_data(m->type) == likely_matrix_i8) && !m->data[likely_elements(m)-1])
+    const size_t elements = likely_elements(m);
+    if ((likely_data(m->type) == likely_matrix_i8) && !m->data[elements-1])
         return likely_retain(m); // Special case where matrix encodes a string
+
+    // Don't include type for scalars
+    if ((header > 0) && (elements == 1))
+        header = 0;
 
     stringstream stream;
     if (header) {
         stream << "(";
         likely_mat str = likely_type_to_string(m->type);
-        stream << str->data;
+        stream << str->data << " ";
         likely_release(str);
     }
     if (header >= 0) {
-        stream << " ";
-        if (likely_elements(m) > 1)
+        if (elements > 1)
             stream << "(\n";
         stream << (m->frames > 1 ? "(" : "");
         for (likely_size t=0; t<m->frames; t++) {
