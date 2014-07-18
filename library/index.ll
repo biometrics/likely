@@ -1,7 +1,7 @@
 Likely
 ======
 
- > An embeddable just-in-time Lisp for image recognition, live coding, and heterogenous architectures.
+ > An embeddable just-in-time Lisp for image recognition and heterogenous architectures.
  > -- [@jklontz](https://github.com/jklontz)
 
 Skip to the good stuff: **[installation](?show=README.md)**, **[hello world](?show=share/likely/hello_world/README.ll)**, **[tutorial](?show=tutorial)**, **[demos](?show=demos)**, **[language reference](?show=standard)**, **[releases](https://github.com/biometrics/likely/releases)**.
@@ -18,9 +18,12 @@ The software engineering of a complex system is often facilitated by a _Domain S
 While many technical communities rely on DSLs, **there exists no language specialized for image recognition**.
 As a consequence, current algorithm development practices fail to simultaneously respect human time and creativity, and hardware capacity and diversity.
 
-> A just-in-time DSL for image recognition is necessary for algorithms that are currently too complex, inefficient, or otherwise impossible to express in today's native and scripting languages.
+> A just-in-time DSL for image recognition is necessary to invent algorithms currently too complex, inefficient, or otherwise impossible to express in today's static and dynamic languages.
 
 ### License
 Likely is offered under **[Apache 2.0](LICENSE.txt)**, meaning it's *free for academic and commercial use*.
+
+### Help
+We strive to keep this software and documentation clear, correct, and complete. Should you find otherwise, please reach out on our [mailing list](https://groups.google.com/forum/#!forum/likely-dev) or [issue tracker](https://github.com/biometrics/likely/issues).
 
 **[Continue Reading](?show=standard)**

@@ -7,42 +7,65 @@ The Likely Programming Language
 Introduction
 ------------
 
-### Literate Programming
-Likely is designed for **[literate programming](http://en.wikipedia.org/wiki/Literate_programming)**, including this document. Likely uses [Github Flavored Markdown](https://help.github.com/articles/github-flavored-markdown) (GFM) syntax, and the Likely runtime will automatically extract and execute _code blocks_ found in GFM source files.
+_Likely_ is a programming language for developing image processing and statistical learning algorithms.
+The goal of Likely is concise yet ambitious,
+
+> to revolutionize computer vision algorithm design and deployment.
+
+### Governing Principles
+The following sections on just-in-time compilation, portability, live coding, and literate programming introduce the guiding design decisions in Likely.
+
+#### Just-In-Time Compilation
+Likely relies on the _[Low Level Virtual Machine](http://llvm.org/)_ (LLVM) just-in-time (JIT) compiler infrastructure for optimizations traditionally impossible in statically compiled languages.
+Algorithms automatically leverage all instruction set extensions and coprocessors available at runtime.
+Furthermore, the entire premise of Likely is hinged on the observation that for image recognition applications,
+
+> while algorithms must be generic to handle any matrix data type, at runtime they tend to be repeatedly executed on the same type.
+
+Since images generally pass through the same pipeline at runtime, branching to handle different types is unnecessary and entire code blocks can be eliminated (or never compiled in the first place).
+Most importantly however,
+
+> statistical learning moves from an offline model generation step to a compile-time simplification of a function (the learning algorithm) with constant arguments (the training set).
+
+Compile-time knowledge of the statistical model opens the door to [unexplored optimization opportunities](https://github.com/biometrics/likely/issues/20).
 
 ### Portability
-Likely is built on top of the _Low Level Virtual Machine_ (LLVM) compiler infrastructure using a portable subset of _ISO C++11_, which means it can **[run everywhere](http://llvm.org/docs/GettingStarted.html#hardware)** LLVM does. Algorithms execute natively on single CPU threads via the LLVM _Machine Code Just-In-Time_ (MCJIT) compiler, multi-core CPUs via a custom _OpenMP_-like backend, and GPUs and coprocessors via _CUDA_ or _OpenCL_.
+Likely is written using a portable subset of _ISO C++11_, which means it can [run everywhere LLVM does](http://llvm.org/docs/GettingStarted.html#hardware).
+Algorithms execute natively on single CPU threads via the LLVM _Machine Code Just-In-Time_ (MCJIT) compiler, multi-core CPUs via a custom _OpenMP_-like backend, and GPUs and coprocessors via _CUDA_ or _OpenCL_.
 
-| Backend     | Status |
-|-------------|--------|
-| Single-core | Done   |
-| Multi-core  | Done   |
-| CUDA        | [#24](https://github.com/biometrics/likely/issues/24) |
-| OpenCL      | [#25](https://github.com/biometrics/likely/issues/25) |
+| Parallelization | Status |
+|-----------------|--------|
+| Single-thread   | Done   |
+| Multi-thread    | Done   |
+| CUDA            | [#24](https://github.com/biometrics/likely/issues/24) |
+| OpenCL          | [#25](https://github.com/biometrics/likely/issues/25) |
 
-Algorithms expressed in Likely **deploy everywhere**, including minimalist native libraries, dynamic just-in-time applications, light-weight scripts, high-level language integration, web services, and pure _C_ and _JavaScript_.
+Likely algorithms can be shipped as minimalist native libraries, written for dynamic just-in-time applications and scripts, integrate into other languages, published as web services, and transcompiled into single _C_ or _JavaScript_ source files.
 
-| Frontend        | Status                                                |
-|-----------------|-------------------------------------------------------|
-| Static compiler | [Done](share/likely/hello_world/hello_world_static.c) |
-| JIT compiler    | [Done](share/likely/hello_world/hello_world_jit.c)    |
-| REPL shell      | [Done](?show=like)                                    |
-| SWIG            | [#46](https://github.com/biometrics/likely/issues/46) |
-| Web services    | [#44](https://github.com/biometrics/likely/issues/44) |
-| C               | [#51](https://github.com/biometrics/likely/issues/51) |
-| JavaScript      | [#45](https://github.com/biometrics/likely/issues/45) |
+| Deployment               | Status                                                |
+|--------------------------|-------------------------------------------------------|
+| Static compiler          | [Done](share/likely/hello_world/hello_world_static.c) |
+| JIT compiler             | [Done](share/likely/hello_world/hello_world_jit.c)    |
+| REPL shell               | [Done](?show=like)                                    |
+| SWIG                     | [#46](https://github.com/biometrics/likely/issues/46) |
+| Web services             | [#44](https://github.com/biometrics/likely/issues/44) |
+| C transcompiler          | [#51](https://github.com/biometrics/likely/issues/51) |
+| JavaScript transcompiler | [#45](https://github.com/biometrics/likely/issues/45) |
 
-### Speed
-Likely relies on the LLVM compiler infrastructure to optimize function execution. Algorithms automatically leverage all instruction set extensions and co-processors available at run time. Just-in-time (JIT) compilation also enables optimizations traditionally impossible in statically compiled languages. In fact, the entire premise of Likely is hinged on the observation that for image recognition applications
+### Live Coding
+Developing image recognition algorithms is a creative process, and like all creative processes it relies on immediate viceral feedback while interacting with the creative medium.
+Image recognition algorithms have parameters, and visualizing their effect is critical for building intuition.
+This problem domain and Likely's JIT approach seem well suited for the concept of _live coding_ popularized by [Bret Victor](http://worrydream.com/).
+In fact, Likely's accompanying IDE called _Dream_, is [designed from the ground up to support interactive algorithm development](https://www.youtube.com/watch?v=a_hz8wFACVM).
 
-> while algorithms must be written generically to handle any matrix type, at runtime they tend to be executed repeatedly on the same type.
+### Literate Programming
+Likely is a [literate programming](http://www.literateprogramming.com/) language.
+This document, in addition to being the reference manual for the Likely programming language, is also the source code for the Likely standard library.
+If you are reading this text on [liblikely.org](http://www.liblikely.org/?show=standard), try clicking the _[View Source](http://raw.github.com/biometrics/likely/gh-pages/library/standard.ll)_ button in the top right corner.
 
-The repeated execution of an algorithm with the same matrix type means that branching to handle different types is unnecessary, entire loops and code blocks can be eliminated, and many values that would be runtime parameters instead become compile-time constants. Most importantly,
+Likely uses [Github Flavored Markdown](https://help.github.com/articles/github-flavored-markdown) (GFM) syntax, and the Likely runtime will automatically extract and execute _code blocks_ found in GFM source files.
 
-> statistical learning changes from an offline process to a compile-time simplification.
-
-### Help
-We try to keep this document complete and correct. However, should you run into trouble, please reach out on our [mailing list](https://groups.google.com/forum/#!forum/likely-dev) and report bugs on our [issue tracker](https://github.com/biometrics/likely/issues).
+**TODO: Cleanup and complete the rest of this document.**
 
 Intrinsics
 ----------
