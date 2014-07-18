@@ -741,15 +741,36 @@ static int getPrecedence(const char *op)
     return 0;
 }
 
-static likely_env RootEnvironment = likely_new_env(NULL);
+struct RootEnvironment
+{
+    // Provide public access to an environment that includes the standard library.
+    static likely_env get()
+    {
+        static bool init = false;
+        if (!init) {
+            builtins() = likely_repl(likely_standard_library, true, builtins(), NULL);
+            init = true;
+        }
+
+        return builtins();
+    }
+
+protected:
+    // Provide protected access for registering builtins.
+    static likely_env &builtins()
+    {
+        static likely_env root = likely_new_env(NULL);
+        return root;
+    }
+};
 
 template <class E>
-struct RegisterExpression
+struct RegisterExpression : public RootEnvironment
 {
     RegisterExpression(const char *symbol)
     {
         likely_expr e = new E();
-        likely_expression::define(RootEnvironment, symbol, e, false);
+        likely_expression::define(builtins(), symbol, e, false);
         if (int precedence = getPrecedence(symbol))
             likely_insert_operator(symbol, precedence, int(e->minParameters())-1);
     }
@@ -2602,12 +2623,12 @@ likely_env likely_new_env(likely_const_env parent)
 
 likely_env likely_new_env_jit()
 {
-    return likely_new_env(RootEnvironment);
+    return likely_new_env(RootEnvironment::get());
 }
 
 likely_env likely_new_env_offline(const char *file_name, bool native)
 {
-    likely_env env = likely_new_env(RootEnvironment);
+    likely_env env = likely_new_env(RootEnvironment::get());
     env->resources = new OfflineResources(file_name, native);
     likely_set_offline(&env->type, true);
     return env;
