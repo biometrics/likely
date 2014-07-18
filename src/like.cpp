@@ -31,11 +31,10 @@
 using namespace llvm;
 using namespace std;
 
-static cl::opt<string> input (cl::Positional, cl::desc("<input file>" ), cl::init(""));
+static cl::opt<string> input (cl::Positional, cl::desc("<input file or string>" ), cl::init(""));
 static cl::opt<string> output(cl::Positional, cl::desc("<output file>"), cl::init(""));
 static cl::opt<string> record("record", cl::desc("%d-formatted file to render matrix output to"));
 static cl::opt<string> assert_("assert", cl::desc("Confirm the output equals the specified value"));
-static cl::opt<bool> source("source", cl::desc("Treat input as a source code string instead of a file"));
 static cl::opt<bool> gui("gui", cl::desc("Show matrix output in a window"));
 static cl::opt<bool> md5("md5", cl::desc("Print matrix output MD5 hash to terminal"));
 static cl::opt<bool> quiet("quiet", cl::desc("Don't show matrix output"));
@@ -87,15 +86,11 @@ int main(int argc, char *argv[])
             likely_repl(line.c_str(), false, NULL, NULL);
         }
     } else {
-        bool gfm;
-        likely_mat code;
-        if (source) {
+        bool gfm = (input.getValue().substr(input.getValue().size()-3) != ".lk");
+        likely_mat code = likely_read(input.c_str(), likely_file_text);
+        if (!code) {
             gfm = false;
             code = likely_string(input.c_str());
-        } else {
-            gfm = (input.getValue().substr(input.getValue().size()-3) != ".lk");
-            code = likely_read(input.c_str(), likely_file_text);
-            likely_assert(code != NULL, "failed to read input file");
         }
 
         likely_env env;
