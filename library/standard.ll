@@ -145,3 +145,21 @@ Here is the layout of the bits in **likey_type**:
 | reserved      | 15   | 0xFFFE0000 |
 
 Convenience functions **likely__field_** and **likely\_set__field_** are provided for querying and editing the type.
+
+Mathematical Constants
+----------------------
+
+    pi = 3.14159265359 ; The ratio of a circle's circumference to its diameter
+    e  = 2.71828182845 ; Euler's number
+    c  = 2.99792458 ; Speed of light in a vacuum
+
+Unary Functions
+---------------
+
+    abs = (a) -> a < 0 ? (-1 * a) : a
+
+Binary Functions
+----------------
+
+    max = (a b) -> a > b ? a : b
+    min = (a b) -> a < b ? a : b
