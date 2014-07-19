@@ -81,12 +81,14 @@ $ likely "(+ 1 2)"
 3
 ```
 
+An important property of s-expressions is that they are equivalent to the compiler's abstract syntax tree.
+
 ### Infix Notation
-
-
-| Symbol | Description |
+While everything in Likely can be expressed using prefix notation, as a convenience to developers Likely also offers infix extensions
 
 **TODO: Cleanup and complete the rest of this document.**
+
+| Symbol | Description |
 
 C API
 -----
