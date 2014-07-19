@@ -13,7 +13,7 @@ The goal of Likely is concise yet ambitious,
 > to revolutionize computer vision algorithm design and deployment.
 
 ### Governing Principles
-The following sections on just-in-time compilation, portability, live coding, and literate programming introduce the guiding design decisions in Likely.
+The following sections on just-in-time compilation, portability, live coding, and literate programming introduce the guiding design decisions behind Likely.
 
 #### Just-In-Time Compilation
 Likely relies on the _[Low Level Virtual Machine](http://llvm.org/)_ (LLVM) just-in-time (JIT) compiler infrastructure for optimizations traditionally impossible in statically compiled languages.
@@ -65,10 +65,28 @@ If you are reading this text on [liblikely.org](http://www.liblikely.org/?show=s
 
 Likely uses [Github Flavored Markdown](https://help.github.com/articles/github-flavored-markdown) (GFM) syntax, and the Likely runtime will automatically extract and execute _code blocks_ found in GFM source files.
 
-**TODO: Cleanup and complete the rest of this document.**
+Language Reference
+------------------
 
-Intrinsics
-----------
+### Prefix Notation
+Likely is a Lisp-like language operating on fully-parenthesized Polish prefix notation, or _s-expressions_:
+
+```lisp
+(operator operand_1 operand_2 ... operand_N)
+```
+
+For example:
+```bash
+$ likely "(+ 1 2)"
+3
+```
+
+### Infix Notation
+
+
+| Symbol | Description |
+
+**TODO: Cleanup and complete the rest of this document.**
 
 C API
 -----
