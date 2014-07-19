@@ -100,15 +100,14 @@ int main(int argc, char *argv[])
             likely_release_ast(parsed);
             printf("%s\n", printed->data);
             likely_release(printed);
-            return;
+        } else {
+            likely_env env;
+            if (output.empty()) env = likely_new_env_jit(); // Interpreter
+            else                env = likely_new_env_offline(output.c_str(), true); // Static compiler
+            likely_release_env(likely_repl(code->data, gfm, env, NULL));
+            likely_release_env(env);
+            likely_release(code);
         }
-
-        likely_env env;
-        if (output.empty()) env = likely_new_env_jit(); // Interpreter
-        else                env = likely_new_env_offline(output.c_str(), true); // Static compiler
-        likely_release_env(likely_repl(code->data, gfm, env, NULL));
-        likely_release_env(env);
-        likely_release(code);
     }
 
     return EXIT_SUCCESS;
