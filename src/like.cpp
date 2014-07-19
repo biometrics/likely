@@ -35,6 +35,7 @@ static cl::opt<string> input (cl::Positional, cl::desc("<input file or string>" 
 static cl::opt<string> output(cl::Positional, cl::desc("<output file>"), cl::init(""));
 static cl::opt<string> record("record", cl::desc("%d-formatted file to render matrix output to"));
 static cl::opt<string> assert_("assert", cl::desc("Confirm the output equals the specified value"));
+static cl::opt<bool> ast("ast", cl::desc("Print abstract syntax tree"));
 static cl::opt<bool> gui("gui", cl::desc("Show matrix output in a window"));
 static cl::opt<bool> md5("md5", cl::desc("Print matrix output MD5 hash to terminal"));
 static cl::opt<bool> quiet("quiet", cl::desc("Don't show matrix output"));
@@ -91,6 +92,15 @@ int main(int argc, char *argv[])
         if (!code) {
             gfm = false;
             code = likely_string(input.c_str());
+        }
+
+        if (ast) {
+            likely_ast parsed = likely_ast_from_string(code->data, gfm);
+            likely_mat printed = likely_ast_to_string(parsed);
+            likely_release_ast(parsed);
+            printf("%s\n", printed->data);
+            likely_release(printed);
+            return;
         }
 
         likely_env env;
