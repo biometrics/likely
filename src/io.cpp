@@ -414,11 +414,6 @@ void likely_set_show_callback(likely_show_callback callback, void *context)
 
 void likely_show(likely_const_mat m, likely_const_ast ast)
 {
-    if (ShowCallback) {
+    if (ShowCallback)
         ShowCallback(m, ast, ShowContext);
-    } else {
-        likely_mat str = likely_to_string(m, true);
-        printf("%s\n", str->data);
-        likely_release(str);
-    }
 }

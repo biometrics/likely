@@ -56,15 +56,28 @@ static void recordShowCallback(likely_const_mat m, likely_const_ast, void *)
     likely_release(rendered);
 }
 
+static void check(likely_const_mat input)
+{
+    const string assertValue = assert_;
+    likely_assert(assertValue.empty() || !strcmp(input->data, assertValue.c_str()), "expected value: %s", assertValue.c_str());
+}
+
 static void md5ShowCallback(likely_const_mat m, likely_const_ast, void *)
 {
     likely_mat md5 = likely_md5(m);
     likely_mat hex = likely_to_hex(md5);
     likely_release(md5);
     printf("%s\n", hex->data);
-    const string assertValue = assert_;
-    likely_assert(assertValue.empty() || !strcmp(hex->data, assertValue.c_str()), "expected value: %s", assertValue.c_str());
+    check(hex);
     likely_release(hex);
+}
+
+static void printShowCallback(likely_const_mat m, likely_const_ast, void *)
+{
+    likely_mat str = likely_to_string(m, true);
+    printf("%s\n", str->data);
+    check(str);
+    likely_release(str);
 }
 
 int main(int argc, char *argv[])
@@ -75,7 +88,7 @@ int main(int argc, char *argv[])
     else if (gui); // No configuration needed, this is the default
     else if (md5)   likely_set_show_callback(md5ShowCallback, NULL);
     else if (quiet) likely_set_show_callback(quietShowCallback, NULL);
-    else            likely_set_show_callback(NULL, NULL); // Print to terminal
+    else            likely_set_show_callback(printShowCallback, NULL); // Print to terminal
 
     if (input.empty()) {
         // REPL shell
