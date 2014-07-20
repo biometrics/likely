@@ -1652,6 +1652,45 @@ class ifExpression : public Operator
     size_t minParameters() const { return 2; }
     size_t maxParameters() const { return 3; }
 
+    struct ConditionalValue : public likely_expression
+    {
+        likely_const_expr t, f;
+
+        ConditionalValue(Builder &builder, likely_const_expr t, likely_const_expr f, BasicBlock *True, BasicBlock *False, BasicBlock *End)
+            : t(t), f(f)
+        {
+            builder.SetInsertPoint(End);
+            PHINode *phi = builder.CreatePHI(t->value->getType(), 2);
+            phi->addIncoming(*t, True);
+            phi->addIncoming(*f, False);
+
+            value = phi;
+            this->type = type;
+        }
+
+        ConditionalValue(Builder &builder, BasicBlock *End)
+            : t(NULL), f(NULL)
+        {
+            builder.SetInsertPoint(End);
+        }
+
+        ~ConditionalValue()
+        {
+            delete t;
+            delete f;
+        }
+
+        virtual bool safeEquals(likely_const_expr other) const
+        {
+            const ConditionalValue *otherConditionalValue = reinterpret_cast<const ConditionalValue*>(other);
+            return t->equals(otherConditionalValue->t) &&
+                   f->equals(otherConditionalValue->f);
+        }
+
+        private:
+            int uid() const { return __LINE__; }
+    };
+
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         Function *function = builder.GetInsertBlock()->getParent();
@@ -1674,14 +1713,11 @@ class ifExpression : public Operator
             if (False->empty() || !False->back().isTerminator())
                 builder.CreateBr(End);
 
-            builder.SetInsertPoint(End);
-            PHINode *phi = builder.CreatePHI(t->value->getType(), 2);
-            phi->addIncoming(*t, True);
-            if (hasElse) phi->addIncoming(*f, False);
-            return new likely_expression(phi, *t);
+            return new ConditionalValue(builder, const_cast< unique_ptr<const likely_expression> &>(t).release(),
+                                                 const_cast< unique_ptr<const likely_expression> &>(f).release(),
+                                                 True, False, End);
         } else {
-            builder.SetInsertPoint(End);
-            return new likely_expression(NULL, likely_matrix_void);
+            return new ConditionalValue(builder, End);
         }
     }
 };
