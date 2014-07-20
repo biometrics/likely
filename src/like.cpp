@@ -96,10 +96,12 @@ int main(int argc, char *argv[])
 
         if (ast) {
             likely_ast parsed = likely_ast_from_string(code->data, gfm);
-            likely_mat printed = likely_ast_to_string(parsed);
+            for (size_t i=0; i<parsed->num_atoms; i++) {
+                likely_mat printed = likely_ast_to_string(parsed->atoms[i]);
+                printf("%s\n", printed->data);
+                likely_release(printed);
+            }
             likely_release_ast(parsed);
-            printf("%s\n", printed->data);
-            likely_release(printed);
         } else {
             likely_env env;
             if (output.empty()) env = likely_new_env_jit(); // Interpreter
