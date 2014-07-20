@@ -36,7 +36,8 @@ enum likely_file_type_field
     likely_file_decoded = 0x00000001,
     likely_file_encoded = 0x00000002,
     likely_file_binary  = likely_file_decoded | likely_file_encoded,
-    likely_file_text    = 0x00000004
+    likely_file_text    = 0x00000004,
+    likely_file_url     = 0x00000008
 };
 
 LIKELY_EXPORT bool likely_decoded(likely_file_type type);
@@ -45,6 +46,8 @@ LIKELY_EXPORT bool likely_encoded(likely_file_type type);
 LIKELY_EXPORT void likely_set_encoded(likely_file_type *type, bool encoded);
 LIKELY_EXPORT bool likely_text(likely_file_type type);
 LIKELY_EXPORT void likely_set_text(likely_file_type *type, bool text);
+LIKELY_EXPORT bool likely_url(likely_file_type type);
+LIKELY_EXPORT void likely_set_url(likely_file_type *type, bool url);
 
 LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_file_type type);
 LIKELY_EXPORT likely_mat likely_write(likely_const_mat image, const char *file_name);

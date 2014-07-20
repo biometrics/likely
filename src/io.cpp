@@ -41,6 +41,8 @@ bool likely_encoded(likely_file_type type) { return likely_get_bool(type, likely
 void likely_set_encoded(likely_file_type *type, bool encoded) { likely_set_bool(type, encoded, likely_file_encoded); }
 bool likely_text(likely_file_type type) { return likely_get_bool(type, likely_file_text); }
 void likely_set_text(likely_file_type *type, bool text) { likely_set_bool(type, text, likely_file_text); }
+bool likely_url(likely_file_type type) { return likely_get_bool(type, likely_file_url); }
+void likely_set_url(likely_file_type *type, bool url) { likely_set_bool(type, url, likely_file_url); }
 
 static likely_mat takeAndInterpret(likely_mat buffer, likely_type type)
 {
@@ -114,25 +116,27 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
     }
 
     // Is it a URL?
-    static bool init = false;
-    if (!init) {
-        curl_global_init(CURL_GLOBAL_ALL);
-        init = true;
-    }
+    if (likely_url(type)) {
+        static bool init = false;
+        if (!init) {
+            curl_global_init(CURL_GLOBAL_ALL);
+            init = true;
+        }
 
-    vector<char> buffer;
-    if (CURL *curl = curl_easy_init()) {
-        curl_easy_setopt(curl, CURLOPT_URL, file_name);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
-        CURLcode result = curl_easy_perform(curl);
-        curl_easy_cleanup(curl);
-        if (result != CURLE_OK)
-            buffer.clear();
-    }
+        vector<char> buffer;
+        if (CURL *curl = curl_easy_init()) {
+            curl_easy_setopt(curl, CURLOPT_URL, file_name);
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
+            CURLcode result = curl_easy_perform(curl);
+            curl_easy_cleanup(curl);
+            if (result != CURLE_OK)
+                buffer.clear();
+        }
 
-    if (!buffer.empty())
-        return takeAndInterpret(likely_new(likely_matrix_u8, 1, buffer.size(), 1, 1, buffer.data()), type);
+        if (!buffer.empty())
+            return takeAndInterpret(likely_new(likely_matrix_u8, 1, buffer.size(), 1, 1, buffer.data()), type);
+    }
 
     return NULL;
 }
