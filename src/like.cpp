@@ -100,9 +100,12 @@ int main(int argc, char *argv[])
             likely_repl(line.c_str(), false, NULL, NULL);
         }
     } else {
-        bool gfm = (input.getValue().substr(input.getValue().size()-3) != ".lk");
         likely_mat code = likely_read(input.c_str(), likely_file_text);
-        if (!code) {
+        bool gfm;
+        if (code) {
+            gfm = (input.size() >= 3) &&
+                  (input.substr(input.size()-3) != ".lk");
+        } else {
             gfm = false;
             code = likely_string(input.c_str());
         }
