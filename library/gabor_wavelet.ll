@@ -11,11 +11,11 @@ Gabor Wavelet
     sigma_y = sigma / gamma
 
     n_stddev = 3
-    x_max = (max (max (fabs n_stddev * sigma_x * theta.cos)
-                      (fabs n_stddev * sigma_y * gamma * theta.sin))
+    x_max = (max (max (n_stddev * sigma_x * theta.cos).abs
+                      (n_stddev * sigma_y * gamma * theta.sin).abs)
                  1).ceil
-    y_max = (max (max (fabs n_stddev * sigma_x * theta.cos)
-                      (fabs n_stddev * sigma_y * gamma * theta.sin))
+    y_max = (max (max (n_stddev * sigma_x * theta.cos).abs
+                      (n_stddev * sigma_y * gamma * theta.sin).abs)
                  1).ceil
 
     (gabor f32 f32 f32 f32 f32 f32 f32) =
