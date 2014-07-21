@@ -149,9 +149,9 @@ Convenience functions **likely__field_** and **likely\_set__field_** are provide
 Mathematical Constants
 ----------------------
 
-    pi = 3.14159265359 ; The ratio of a circle's circumference to its diameter
-    e  = 2.71828182845 ; Euler's number
-    c  = 2.99792458 ; Speed of light in a vacuum
+    c  = 299792000 ; Speed of light in a vacuum
+    e  = 2.71828 ; Euler's number
+    pi = 3.14159 ; The ratio of a circle's circumference to its diameter
 
 Unary Functions
 ---------------

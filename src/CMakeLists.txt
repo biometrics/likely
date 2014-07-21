@@ -103,6 +103,9 @@ function(test_standard NAME EXPR VALUE)
 endfunction()
 
 # List in the order they occur in standard.ll
+test_standard(c "c" 2.99792e+08)
+test_standard(e "e" 2.71828)
+test_standard(pi "pi" 3.14159)
 test_standard(min "(min -1 1.3)" -1)
 test_standard(max "(max 1 -1.3)" 1)
 
