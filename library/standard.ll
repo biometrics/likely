@@ -157,6 +157,7 @@ Unary Functions
 ---------------
 
     abs = a -> a < 0 ? (-1 * a) : a
+    sq  = a -> a * a
 
 Binary Functions
 ----------------

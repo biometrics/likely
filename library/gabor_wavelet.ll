@@ -25,7 +25,7 @@ Gabor Wavelet
       dy = y.f32 - y_max
       xp = dx * theta.cos + dy * theta.sin
       yp = -1 * dx * theta.sin + dy * theta.cos
-      (exp -0.5 * ((xp * xp) / (sigma_x * sigma_x) + (yp * yp) / (sigma_y * sigma_y))) * (cos 2 * pi / lambda * xp + psi)
+      (exp -0.5 * ((xp / sigma_x).sq + (yp / sigma_y).sq)) * (cos 2 * pi / lambda * xp + psi)
     } : ((columns 2 * x_max + 1) (rows 2 * y_max + 1) (type parallel))
 
     (gabor x_max y_max sigma_x sigma_y theta lambda psi)
