@@ -1,6 +1,3 @@
-www.liblikely.org
------------------
-
 ### Build Instructions
 
     $ git clone https://github.com/biometrics/likely.git
