@@ -2379,7 +2379,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     hash = TheJITFunctionCache.currentHash;
 
     EE->finalizeObject();
-    function = EE->getPointerToFunction(dyn_cast<Function>(expr->value));
+    function = (void*) EE->getFunctionAddress(name);
 }
 
 #ifdef LIKELY_IO
