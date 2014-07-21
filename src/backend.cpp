@@ -1654,10 +1654,12 @@ class ifExpression : public Operator
 
     struct ConditionalValue : public likely_expression
     {
+        Builder &builder;
         likely_const_expr t, f;
+        BasicBlock *True, *False, *End;
 
         ConditionalValue(Builder &builder, likely_const_expr t, likely_const_expr f, BasicBlock *True, BasicBlock *False, BasicBlock *End)
-            : t(t), f(f)
+            : builder(builder), t(t), f(f), True(True), False(False), End(End)
         {
             builder.SetInsertPoint(End);
             PHINode *phi = builder.CreatePHI(t->value->getType(), 2);
@@ -1668,17 +1670,33 @@ class ifExpression : public Operator
             this->type = type;
         }
 
-        ConditionalValue(Builder &builder, BasicBlock *End)
-            : t(NULL), f(NULL)
+        ConditionalValue(Builder &builder, BasicBlock *True, BasicBlock *End)
+            : builder(builder), t(NULL), f(NULL), True(True), False(NULL), End(End)
         {
             builder.SetInsertPoint(End);
         }
 
         ~ConditionalValue()
         {
+            BasicBlock *restore = builder.GetInsertBlock();
+
+            if (True && (True->empty() || !True->back().isTerminator())) {
+                builder.SetInsertPoint(True);
+                builder.CreateBr(End);
+            }
+
+            if (False && (False->empty() || !False->back().isTerminator())) {
+                builder.SetInsertPoint(False);
+                builder.CreateBr(End);
+            }
+
+            builder.SetInsertPoint(restore);
             delete t;
             delete f;
         }
+
+    private:
+        int uid() const { return __LINE__; }
 
         virtual bool safeEquals(likely_const_expr other) const
         {
@@ -1686,9 +1704,6 @@ class ifExpression : public Operator
             return t->equals(otherConditionalValue->t) &&
                    f->equals(otherConditionalValue->f);
         }
-
-        private:
-            int uid() const { return __LINE__; }
     };
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -1704,20 +1719,16 @@ class ifExpression : public Operator
 
         builder.SetInsertPoint(True);
         TRY_EXPR(builder, ast->atoms[2], t)
-        if (True->empty() || !True->back().isTerminator())
-            builder.CreateBr(End);
 
         if (hasElse) {
             builder.SetInsertPoint(False);
             TRY_EXPR(builder, ast->atoms[3], f)
-            if (False->empty() || !False->back().isTerminator())
-                builder.CreateBr(End);
 
             return new ConditionalValue(builder, const_cast< unique_ptr<const likely_expression> &>(t).release(),
                                                  const_cast< unique_ptr<const likely_expression> &>(f).release(),
                                                  True, False, End);
         } else {
-            return new ConditionalValue(builder, End);
+            return new ConditionalValue(builder, True, End);
         }
     }
 };
