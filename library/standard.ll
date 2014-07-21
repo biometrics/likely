@@ -156,7 +156,7 @@ Mathematical Constants
 Unary Functions
 ---------------
 
-    abs = (a) -> a < 0 ? (-1 * a) : a
+    abs = a -> a < 0 ? (-1 * a) : a
 
 Binary Functions
 ----------------
