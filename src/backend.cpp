@@ -1665,21 +1665,29 @@ class ifExpression : public Operator
 
         builder.SetInsertPoint(True);
         TRY_EXPR(builder, ast->atoms[2], t)
-        if (True->empty() || !True->back().isTerminator())
-            builder.CreateBr(End);
 
         if (hasElse) {
             builder.SetInsertPoint(False);
             TRY_EXPR(builder, ast->atoms[3], f)
-            if (False->empty() || !False->back().isTerminator())
-                builder.CreateBr(End);
+
+            const likely_type resolved = likely_type_from_types(*t, *f);
+
+            builder.SetInsertPoint(True);
+            likely_expression tc = builder.cast(t.get(), resolved);
+            builder.CreateBr(End);
+
+            builder.SetInsertPoint(False);
+            likely_expression fc = builder.cast(f.get(), resolved);
+            builder.CreateBr(End);
 
             builder.SetInsertPoint(End);
-            PHINode *phi = builder.CreatePHI(t->value->getType(), 2);
-            phi->addIncoming(*t, True);
-            if (hasElse) phi->addIncoming(*f, False);
-            return new likely_expression(phi, *t);
+            PHINode *phi = builder.CreatePHI(tc.value->getType(), 2);
+            phi->addIncoming(tc, True);
+            if (hasElse) phi->addIncoming(fc, False);
+            return new likely_expression(phi, resolved);
         } else {
+            if (True->empty() || !True->back().isTerminator())
+                builder.CreateBr(End);
             builder.SetInsertPoint(End);
             return new likely_expression(NULL, likely_matrix_void);
         }
