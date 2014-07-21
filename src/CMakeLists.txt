@@ -95,6 +95,17 @@ if(${LIKELY_IO})
   endif()
 endif()
 
+# Test standard library
+function(test_standard NAME EXPR VALUE)
+  add_test(NAME ${NAME}
+           WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+           COMMAND like ${EXPR} -assert ${VALUE})
+endfunction()
+
+# List in the order they occur in standard.ll
+test_standard(min "(min -1 1.3)" -1)
+test_standard(max "(max 1 -1.3)" 1)
+
 # Test demos
 function(test_demo FILE VALUE)
   add_test(NAME ${FILE}
@@ -102,5 +113,6 @@ function(test_demo FILE VALUE)
            COMMAND like -md5 ../library/${FILE}.ll -assert ${VALUE})
 endfunction()
 
-test_demo(mandelbrot_set 7c3756d7bb81d8aeb6e4451adc8ca7bf)
+# List alphabetically
 test_demo(average_face 876f3f7204335a0d6da1a42cbb3f3789)
+test_demo(mandelbrot_set 7c3756d7bb81d8aeb6e4451adc8ca7bf)

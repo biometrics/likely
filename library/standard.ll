@@ -161,5 +161,5 @@ Unary Functions
 Binary Functions
 ----------------
 
-    max = (a b) -> a > b ? a : b
     min = (a b) -> a < b ? a : b
+    max = (a b) -> a > b ? a : b
