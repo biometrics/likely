@@ -1593,6 +1593,15 @@ class lambdaExpression : public Operator
     int uid() const { return __LINE__; }
     size_t maxParameters() const { return 2; }
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const { return new Lambda(builder.env, ast); }
+
+public:
+    static bool isLambda(likely_const_ast ast)
+    {
+        return ast->is_list
+               && (ast->num_atoms > 0)
+               && !ast->atoms[0]->is_list
+               && (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>"));
+    }
 };
 LIKELY_REGISTER_EXPRESSION(lambda, "->")
 
@@ -2254,9 +2263,11 @@ class defineExpression : public Operator
         likely_const_ast lhs = ast->atoms[1];
         likely_const_ast rhs = ast->atoms[2];
         const char *name = lhs->is_list ? lhs->atoms[0]->atom : lhs->atom;
+        likely_env env = builder.env;
 
-        if (likely_definition(builder.env->type) && (builder.env->name == NULL)) {
-            likely_const_expr value;
+        if (likely_definition(env->type) && (env->name == NULL)) {
+            assert(!env->value);
+
             if (lhs->is_list) {
                 // Export symbol
                 vector<likely_type> types;
@@ -2270,30 +2281,31 @@ class defineExpression : public Operator
                     // Offline
                     TRY_EXPR(builder, rhs, expr);
                     const Lambda *lambda = static_cast<const Lambda*>(expr.get());
-                    value = lambda->generate(builder, types, name, false);
+                    env->value = lambda->generate(builder, types, name, false);
                 } else {
                     // JIT
                     JITFunction *function = new JITFunction(name, rhs, builder.env, types, false, false);
                     if (function->function) {
                         sys::DynamicLibrary::AddSymbol(name, function->function);
-                        value = function;
+                        env->value = function;
                     } else {
                         delete function;
-                        value = NULL;
                     }
                 }
             } else {
-                // Global variable
-                value = new Definition(builder.env, rhs);
+                if (lambdaExpression::isLambda(rhs)) {
+                    // Global variable
+                    env->value = new Definition(env, rhs);
+                } else {
+                    // Global value
+                    // TODO: evaluate RHS
+                    env->value = new Definition(env, rhs);
+                }
             }
 
-            if (value) {
-                builder.env->name = new char[strlen(name)+1];
-                strcpy((char*) builder.env->name, name);
-                builder.env->value = value;
-            } else {
-                likely_set_erratum(&builder.env->type, true);
-            }
+            env->name = new char[strlen(name)+1];
+            strcpy((char*) env->name, name);
+            likely_set_erratum(&env->type, !env->value);
             return NULL;
         } else {
             // Local variable
@@ -2342,11 +2354,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     function = NULL;
     ref_count = 1;
 
-    const bool validAST = ast->is_list
-                          && (ast->num_atoms > 0)
-                          && !ast->atoms[0]->is_list
-                          && (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>"));
-    if (!validAST) {
+    if (!lambdaExpression::isLambda(ast)) {
         likely_expression::error(ast, "expected a lambda expression");
         return;
     }
