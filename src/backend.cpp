@@ -2784,7 +2784,8 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
             likely_release_ast(lambda->atoms[0]->atoms[2]->atoms[1]); // <ast>
             lambda->atoms[0]->atoms[2]->atoms[1] = likely_retain_ast(ast);
 
-            JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), true, false);
+            // TODO: Re-enable interpreter for OS X and Ubuntu when intrinsic lowering patch lands
+            JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), false, false);
             if (jit.function) {
                 env->result = reinterpret_cast<likely_function_0>(jit.function)();
             } else if (jit.EE) {
