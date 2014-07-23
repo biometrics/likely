@@ -324,19 +324,32 @@ likely_mat likely_to_hex(likely_const_mat m)
     return n;
 }
 
-likely_mat likely_print(likely_const_mat m, ...)
+likely_mat likely_print(likely_const_mat m)
+{
+    return likely_print_n(&m, 1);
+}
+
+likely_mat likely_print_n(likely_const_mat *mv, size_t n)
+{
+    stringstream buffer;
+    for (size_t i=0; i<n; i++) {
+        likely_mat str = likely_to_string(mv[i], false);
+        buffer << str->data;
+        likely_release(str);
+    }
+    return likely_string(buffer.str().c_str());
+}
+
+likely_mat likely_print_va(likely_const_mat m, ...)
 {
     va_list ap;
     va_start(ap, m);
-    stringstream buffer;
+    vector<likely_const_mat> mv;
     while (m) {
-        likely_mat str = likely_to_string(m, false);
-        buffer << str->data;
-        likely_release(str);
+        mv.push_back(m);
         m = va_arg(ap, likely_const_mat);
     }
-    va_end(ap);
-    return likely_string(buffer.str().c_str());
+    return likely_print_n(mv.data(), mv.size());
 }
 
 likely_mat likely_render(likely_const_mat m, double *min_, double *max_)

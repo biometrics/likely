@@ -57,7 +57,9 @@ LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *exten
 // Matrix Visualization
 LIKELY_EXPORT likely_mat likely_to_string(likely_const_mat m, int header);
 LIKELY_EXPORT likely_mat likely_to_hex(likely_const_mat m);
-LIKELY_EXPORT likely_mat likely_print(likely_const_mat m, ...);
+LIKELY_EXPORT likely_mat likely_print(likely_const_mat m);
+LIKELY_EXPORT likely_mat likely_print_n(likely_const_mat *mv, size_t n);
+LIKELY_EXPORT likely_mat likely_print_va(likely_const_mat m, ...);
 LIKELY_EXPORT likely_mat likely_render(likely_const_mat m, double *min, double *max); // Return an 888 matrix for visualization
 LIKELY_EXPORT void likely_set_show_callback(likely_show_callback callback, void *context);
 LIKELY_EXPORT void likely_show(likely_const_mat m, likely_const_ast ast);

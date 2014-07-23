@@ -24,6 +24,8 @@
 #include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
 #include <llvm/Bitcode/ReaderWriter.h>
+#include <llvm/ExecutionEngine/GenericValue.h>
+#include <llvm/ExecutionEngine/Interpreter.h>
 #include <llvm/ExecutionEngine/ObjectCache.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/IR/IRBuilder.h>
@@ -585,16 +587,14 @@ private:
     }
 };
 
-class JITFunction : public likely_function, public Symbol
+struct JITFunction : public likely_function, public Symbol
 {
     ExecutionEngine *EE = NULL;
-
-public:
     likely_resources resources;
     hash_code hash = 0;
     const vector<likely_type> parameters;
 
-    JITFunction(const string &name, likely_const_ast ast, likely_const_env env, const vector<likely_type> &parameters, bool arrayCC);
+    JITFunction(const string &name, likely_const_ast ast, likely_const_env env, const vector<likely_type> &parameters, bool interpreter, bool arrayCC);
 
     ~JITFunction()
     {
@@ -1262,7 +1262,7 @@ LIKELY_REGISTER(new)
 class scalarExpression : public UnaryOperator
 {
     int uid() const { return __LINE__; }
-    void *symbol() const { return (void*) likely_scalars; }
+    void *symbol() const { return (void*) likely_scalar_va; }
 
     likely_const_expr evaluateUnary(Builder &builder, likely_const_ast arg) const
     {
@@ -1277,13 +1277,14 @@ class scalarExpression : public UnaryOperator
         if (functionType == NULL) {
             Type *params[] = { NativeInt, Type::getDoubleTy(C) };
             functionType = FunctionType::get(MatType::MultiDimension, params, true);
+            sys::DynamicLibrary::AddSymbol("lle_X_likely_scalar_va", (void*) lle_X_likely_scalar_va);
         }
 
-        Function *likelyScalars = builder.module()->getFunction("likely_scalars");
-        if (!likelyScalars) {
-            likelyScalars = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalars", builder.module());
-            likelyScalars->setCallingConv(CallingConv::C);
-            likelyScalars->setDoesNotAlias(0);
+        Function *likelyScalar = builder.module()->getFunction("likely_scalar_va");
+        if (!likelyScalar) {
+            likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar_va", builder.module());
+            likelyScalar->setCallingConv(CallingConv::C);
+            likelyScalar->setDoesNotAlias(0);
         }
 
         vector<Value*> args;
@@ -1295,9 +1296,17 @@ class scalarExpression : public UnaryOperator
         args.push_back(ConstantFP::get(C, APFloat::getNaN(APFloat::IEEEdouble)));
         args.insert(args.begin(), typeType(type));
 
-        likely_expression result(builder.CreateCall(likelyScalars, args), *argExpr);
+        likely_expression result(builder.CreateCall(likelyScalar, args), *argExpr);
         delete argExpr;
         return new likely_expression(result);
+    }
+
+    static GenericValue lle_X_likely_scalar_va(FunctionType *, const vector<GenericValue> &Args)
+    {
+        vector<double> values;
+        for (size_t i=1; i<Args.size()-1; i++)
+            values.push_back(Args[i].DoubleVal);
+        return GenericValue(likely_scalar_n(Args[0].IntVal.getZExtValue(), values.data(), values.size()));
     }
 };
 LIKELY_REGISTER(scalar)
@@ -2256,7 +2265,7 @@ class defineExpression : public Operator
                     value = lambda->generate(builder, types, name, false);
                 } else {
                     // JIT
-                    JITFunction *function = new JITFunction(name, rhs, builder.env, types, false);
+                    JITFunction *function = new JITFunction(name, rhs, builder.env, types, false, false);
                     if (function->function) {
                         sys::DynamicLibrary::AddSymbol(name, function->function);
                         value = function;
@@ -2319,7 +2328,7 @@ class importExpression : public Operator
 };
 LIKELY_REGISTER(import)
 
-JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool arrayCC)
+JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool interpreter, bool arrayCC)
     : resources(true), parameters(parameters)
 {
     function = NULL;
@@ -2344,15 +2353,27 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     if (!value)
         return;
 
+    TargetMachine *targetMachine = likely_resources::getTargetMachine(true);
+    resources.module->setDataLayout(targetMachine->getDataLayout());
+
     string error;
     EngineBuilder engineBuilder(resources.module);
-    engineBuilder.setEngineKind(EngineKind::JIT)
-            .setErrorStr(&error)
-            .setUseMCJIT(true);
-    EE = engineBuilder.create(likely_resources::getTargetMachine(true));
-    EE->setObjectCache(&TheJITFunctionCache);
+    engineBuilder.setErrorStr(&error);
+
+    if (interpreter) {
+        engineBuilder.setEngineKind(EngineKind::Interpreter);
+    } else {
+        engineBuilder.setEngineKind(EngineKind::JIT)
+                     .setUseMCJIT(true);
+    }
+
+    EE = engineBuilder.create(targetMachine);
     likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
 
+    if (interpreter)
+        return;
+
+    EE->setObjectCache(&TheJITFunctionCache);
     if (!TheJITFunctionCache.alert(resources.module)) {
         static PassManager *PM = NULL;
         if (!PM) {
@@ -2376,8 +2397,8 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         PM->run(*resources.module);
 //        resources.module->dump();
     }
-    hash = TheJITFunctionCache.currentHash;
 
+    hash = TheJITFunctionCache.currentHash;
     EE->finalizeObject();
     function = (void*) EE->getFunctionAddress(name);
 }
@@ -2390,14 +2411,19 @@ class printExpression : public Operator
     int uid() const { return __LINE__; }
     size_t minParameters() const { return 1; }
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
-    void *symbol() const { return (void*) likely_print; }
+    void *symbol() const { return (void*) likely_print_va; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        static FunctionType *functionType = FunctionType::get(MatType::MultiDimension, MatType::MultiDimension, true);
-        Function *likelyPrint = builder.module()->getFunction("likely_print");
+        static FunctionType *functionType = NULL;
+        if (functionType == NULL) {
+            functionType = FunctionType::get(MatType::MultiDimension, MatType::MultiDimension, true);
+            sys::DynamicLibrary::AddSymbol("lle_X_likely_print_va", (void*) lle_X_likely_print_va);
+        }
+
+        Function *likelyPrint = builder.module()->getFunction("likely_print_va");
         if (!likelyPrint) {
-            likelyPrint = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_print", builder.module());
+            likelyPrint = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_print_va", builder.module());
             likelyPrint->setCallingConv(CallingConv::C);
             likelyPrint->setDoesNotAlias(0);
             likelyPrint->setDoesNotAlias(1);
@@ -2426,6 +2452,15 @@ class printExpression : public Operator
                 releaseExpression::createCall(builder, matArgs[i]);
 
         return new likely_expression(result, likely_matrix_i8);
+    }
+
+    static GenericValue lle_X_likely_print_va(FunctionType *, const vector<GenericValue> &Args)
+    {
+        vector<likely_const_mat> mv;
+        for (size_t i=1; i<Args.size()-1; i++)
+            mv.push_back((likely_const_mat) Args[i].PointerVal);
+        likely_print_n(mv.data(), mv.size());
+        return GenericValue(0);
     }
 };
 LIKELY_REGISTER(print)
@@ -2692,7 +2727,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
         vector<likely_type> types;
         for (size_t i=0; i<vtable->n; i++)
             types.push_back(mv[i]->type);
-        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", vtable->ast, vtable->env, types, true)));
+        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", vtable->ast, vtable->env, types, false, true)));
         function = vtable->functions.back()->function;
         if (function == NULL)
             return NULL;
@@ -2712,7 +2747,7 @@ likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_typ
         type = va_arg(ap, likely_type);
     }
     va_end(ap);
-    return static_cast<likely_fun>(new JITFunction("likely_jit_function", ast, env, types, false));
+    return static_cast<likely_fun>(new JITFunction("likely_jit_function", ast, env, types, false, false));
 }
 
 likely_fun likely_retain_function(likely_const_fun f)
@@ -2745,22 +2780,16 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
             likely_const_ast lambda = likely_ast_from_string("() -> (scalar <ast>)", false);
             likely_release_ast(lambda->atoms[0]->atoms[2]->atoms[1]); // <ast>
             lambda->atoms[0]->atoms[2]->atoms[1] = likely_retain_ast(ast);
-            JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), false);
-            if (void *function = jit.function) {
-                env->hash = jit.hash;
-                likely_const_env it = previous;
-                while (it) {
-                    if (it->hash == env->hash) {
-                        env->result = likely_retain(it->result);
-                        break;
-                    }
-                    it = it->parent;
-                }
-                if (!env->result)
-                    env->result = reinterpret_cast<likely_function_0>(function)();
+
+            JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), true, false);
+            if (jit.function) {
+                env->result = reinterpret_cast<likely_function_0>(jit.function)();
+            } else if (jit.EE) {
+                env->result = (likely_mat) jit.EE->runFunction(cast<Function>(jit.value), vector<GenericValue>()).PointerVal;
             } else {
                 likely_set_erratum(&env->type, true);
             }
+
             likely_release_ast(lambda);
         }
     }

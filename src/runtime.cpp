@@ -118,10 +118,22 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
 
 likely_mat likely_scalar(likely_type type, double value)
 {
-    return likely_scalars(type, value, numeric_limits<double>::quiet_NaN());
+    return likely_scalar_n(type, &value, 1);
 }
 
-likely_mat likely_scalars(likely_type type, double value, ...)
+likely_mat likely_scalar_n(likely_type type, double *values, size_t n)
+{
+    if (type == likely_matrix_void)
+        for (size_t i=0; i<n; i++)
+            type = likely_type_from_types(type, likely_type_from_value(values[i]));
+
+    likely_mat m = likely_new(type, n, 1, 1, 1, NULL);
+    for (size_t i=0; i<n; i++)
+        likely_set_element(m, values[i], i, 0, 0, 0);
+    return m;
+}
+
+likely_mat likely_scalar_va(likely_type type, double value, ...)
 {
     vector<double> values;
     va_list ap;
@@ -132,14 +144,7 @@ likely_mat likely_scalars(likely_type type, double value, ...)
     }
     va_end(ap);
 
-    if (type == likely_matrix_void)
-        for (size_t i=0; i<values.size(); i++)
-            type = likely_type_from_types(type, likely_type_from_value(values[i]));
-
-    likely_mat m = likely_new(type, values.size(), 1, 1, 1, NULL);
-    for (size_t i=0; i<values.size(); i++)
-        likely_set_element(m, values[i], i, 0, 0, 0);
-    return m;
+    return likely_scalar_n(type, values.data(), values.size());
 }
 
 likely_mat likely_string(const char *str)
