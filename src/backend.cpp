@@ -133,6 +133,15 @@ struct MatType
         return NULL;
     }
 
+    static bool isMat(Type *type)
+    {
+        // This is safe because matricies are the only struct types created by the backend
+        if (PointerType *ptr = dyn_cast<PointerType>(type))
+            if (dyn_cast<StructType>(ptr->getElementType()))
+                return true;
+        return false;
+    }
+
 private:
     static map<likely_type, MatType> likelyLUT;
     static map<Type*, MatType> llvmLUT;
@@ -1402,7 +1411,7 @@ class releaseExpression : public SimpleUnaryOperator
         return new likely_expression(createCall(builder, *arg), *arg);
     }
 
-public:
+    // This is not publicly accessible because cleanup() is the only time release statements should be inserted
     static CallInst *createCall(Builder &builder, Value *m)
     {
         static FunctionType *functionType = FunctionType::get(Type::getVoidTy(C), MatType::MultiDimension, false);
@@ -1414,6 +1423,21 @@ public:
             likelyRelease->setDoesNotCapture(1);
         }
         return builder.CreateCall(likelyRelease, m);
+    }
+
+public:
+    // Release intermediate matricies allocated to avoid memory leaks
+    static void cleanup(Builder &builder, Value *ret)
+    {
+        // Looking for matricies that were created through function calls
+        // but not returned by this function.
+        Function *function = builder.GetInsertBlock()->getParent();
+        for (Function::iterator BB = function->begin(), BBE = function->end(); BB != BBE; ++BB)
+            for (BasicBlock::iterator I = BB->begin(), IE = BB->end(); I != IE; ++I)
+               if (CallInst *call = dyn_cast<CallInst>(I))
+                   if (Function *function = call->getCalledFunction())
+                       if (MatType::isMat(function->getReturnType()) && (call != ret))
+                           releaseExpression::createCall(builder, call);
     }
 };
 LIKELY_REGISTER(release)
@@ -1468,14 +1492,7 @@ struct Lambda : public ScopedExpression
         likely_const_expr result = evaluateFunction(builder, arguments);
         if (!result) return NULL;
 
-        { // Insert likely_release statements
-            for (Function::iterator BB = tmpFunction->begin(), BBE = tmpFunction->end(); BB != BBE; ++BB)
-                for (BasicBlock::iterator I = BB->begin(), IE = BB->end(); I != IE; ++I)
-                    if (CallInst *call = dyn_cast<CallInst>(I))
-                        if (Function *function = call->getCalledFunction())
-                            if (!function->getName().compare("likely_read"))
-                                releaseExpression::createCall(builder, call);
-        }
+        releaseExpression::cleanup(builder, result->value);
 
         builder.CreateRet(*result);
         const likely_type return_type = result->type;
@@ -1928,7 +1945,7 @@ private:
         builder.SetInsertPoint(scalarMatrixPromotion);
         vector<likely_expression> thunkSrcs = srcs;
         for (likely_expression &thunkSrc : thunkSrcs)
-            if (!likely_multi_dimension(thunkSrc) && isMat(thunkSrc))
+            if (!likely_multi_dimension(thunkSrc) && MatType::isMat(thunkSrc.value->getType()))
                 thunkSrc = likely_expression(builder.CreateLoad(builder.CreateGEP(builder.data(&thunkSrc), zero())), thunkSrc);
 
         // Finally, do the computation
@@ -2170,15 +2187,6 @@ private:
         else if (!strcmp(axis, "rows"))     likely_set_multi_row    (type, multiElement);
         else                                likely_set_multi_frame  (type, multiElement);
         return result;
-    }
-
-    static bool isMat(const likely_expression &expr)
-    {
-        // This is safe because matricies are the only struct types created by the backend
-        if (PointerType *ptr = dyn_cast<PointerType>(expr.value->getType()))
-            if (dyn_cast<StructType>(ptr->getElementType()))
-                return true;
-        return false;
     }
 };
 
@@ -2442,14 +2450,11 @@ class printExpression : public Operator
             if (rawArg->getType() == MatType::MultiDimension) {
                 matArgs.push_back(rawArg);
             } else {
+                // Intermediate matricies will be released when this function returns
                 matArgs.push_back(stringExpression::createCall(builder, rawArg));
             }
 
         Value *result = builder.CreateCall(likelyPrint, matArgs);
-
-        for (size_t i=0; i<rawArgs.size(); i++)
-            if (rawArgs[i] != matArgs[i])
-                releaseExpression::createCall(builder, matArgs[i]);
 
         return new likely_expression(result, likely_matrix_i8);
     }
