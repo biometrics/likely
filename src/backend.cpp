@@ -2230,6 +2230,28 @@ private:
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
 };
 
+struct EvaluatedExpression : public ScopedExpression
+{
+    EvaluatedExpression(likely_env env, likely_const_ast ast)
+        : ScopedExpression(env, ast) {}
+
+private:
+    int uid() const { return __LINE__; }
+
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        unique_ptr<const likely_expression> op;
+        {
+            ScopedEnvironment se(builder, env, builder.lookupResources());
+            op.reset(builder.expression(this->ast));
+        }
+        return op.get() ? op->evaluate(builder, ast) : NULL;
+    }
+
+    size_t minParameters() const { return 0; }
+    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
+};
+
 struct Variable : public likely_expression
 {
     Variable(Builder &builder, likely_const_expr expr, const string &name)
@@ -2298,8 +2320,7 @@ class defineExpression : public Operator
                     env->value = new Definition(env, rhs);
                 } else {
                     // Global value
-                    // TODO: evaluate RHS
-                    env->value = new Definition(env, rhs);
+                    env->value = new EvaluatedExpression(env, rhs);
                 }
             }
 
