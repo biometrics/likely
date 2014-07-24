@@ -269,7 +269,7 @@ struct likely_expression
         return lookup(env->parent, name, local);
     }
 
-    static likely_resources *lookupResources(likely_const_env env)
+    static likely_res lookupResources(likely_const_env env)
     {
         if (!env) return NULL;
         if (env->resources) return env->resources;
@@ -540,7 +540,7 @@ struct Builder : public IRBuilder<>
     }
 
     likely_const_expr lookup(const char *name, bool local = false) const { return likely_expression::lookup(env, name, local); }
-    likely_resources *lookupResources() const { return likely_expression::lookupResources(env); }
+    likely_res lookupResources() const { return likely_expression::lookupResources(env); }
     void   define(const char *name, likely_const_expr e, bool local = false) { likely_expression::define(env, name, e, local); }
     likely_const_expr undefine(const char *name)         { return likely_expression::undefine(env, name); }
 
@@ -673,7 +673,7 @@ struct ScopedEnvironment
     Builder &builder;
     likely_env prev;
 
-    ScopedEnvironment(Builder &builder, likely_const_env env = NULL, likely_resources *resources = NULL)
+    ScopedEnvironment(Builder &builder, likely_const_env env = NULL, likely_res resources = NULL)
         : builder(builder), prev(builder.env)
     {
         builder.env = likely_new_env(env ? env : builder.env);

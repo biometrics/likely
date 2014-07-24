@@ -43,6 +43,7 @@ typedef struct likely_environment *likely_env;
 typedef struct likely_environment const *likely_const_env;
 
 struct likely_resources;
+typedef struct likely_resources *likely_res;
 
 struct likely_environment
 {
@@ -52,7 +53,7 @@ struct likely_environment
         likely_const_expr value; // definition
         likely_const_mat result; // !definition
     };
-    struct likely_resources *resources;
+    likely_res resources;
     size_t ref_count, hash;
     likely_environment_type type;
 
