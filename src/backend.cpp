@@ -181,6 +181,11 @@ struct likely_expression
     virtual size_t minParameters() const { return maxParameters(); }
     virtual void *symbol() const { return NULL; } // Idiom to ensure that specified library symbols aren't stripped when optimizing executable size
 
+    // Environments never get deleted,
+    // but we may wish to temporarily reduce their memory footprint when possible.
+    virtual void compress() {}
+    virtual void decompress() {}
+
     bool equals(likely_const_expr other) const
     {
         return (this == other)
@@ -2250,6 +2255,16 @@ struct EvaluatedExpression : public ScopedExpression
 private:
     int uid() const { return __LINE__; }
 
+    void compress()
+    {
+        likely_release_env(result);
+    }
+
+    void decompress()
+    {
+        likely_retain_env(result);
+    }
+
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         // TODO: implement indexing into this matrix by checking ast.
@@ -2741,7 +2756,9 @@ void likely_release_env(likely_const_env env)
 {
     if (!env || --const_cast<likely_env>(env)->ref_count) return;
 
-    if (!likely_definition(env->type)) {
+    if (likely_definition(env->type)) {
+        const_cast<likely_expr>(env->value)->compress();
+    } else {
         likely_release(env->result);
         const_cast<likely_env>(env)->result = NULL;
     }
