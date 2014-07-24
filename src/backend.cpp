@@ -325,13 +325,11 @@ struct likely_expression
     {
         assert(likely_definition(env->type));
         likely_assert(isSymbol(env->ast, name), "undefine variable mismatch");
-        env->resources = NULL;
         likely_const_expr value = env->value;
         env->value = NULL;
         likely_env old = env;
         env = const_cast<likely_env>(env->parent);
         likely_release_env(old);
-        delete old; // Local variables aren't given the persistence guarantee
         return value;
     }
 
@@ -704,7 +702,6 @@ struct ScopedEnvironment
 
     ~ScopedEnvironment()
     {
-        builder.env->resources = NULL;
         likely_release_env(builder.env);
         builder.env = prevEnv;
     }
@@ -1637,10 +1634,17 @@ class beginExpression : public Operator
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         ScopedEnvironment se(builder);
+        likely_const_env root = builder.env;
         for (size_t i=1; i<ast->num_atoms-1; i++) {
             TRY_EXPR(builder, ast->atoms[i], expr);
         }
-        return builder.expression(ast->atoms[ast->num_atoms-1]);
+        likely_const_expr result = builder.expression(ast->atoms[ast->num_atoms-1]);
+        while (builder.env != root) {
+            likely_const_env old = builder.env;
+            builder.env = const_cast<likely_env>(builder.env->parent);
+            likely_release_env(old);
+        }
+        return result;
     }
 };
 LIKELY_REGISTER_EXPRESSION(begin, "{")
@@ -2767,23 +2771,30 @@ likely_env likely_retain_env(likely_const_env env)
     return const_cast<likely_env>(env);
 }
 
-// likely_env are guaranteed to be unique pointers, so we never delete them.
-// Instead we only deallocate some of their internals, which can be recomputed if needed.
 void likely_release_env(likely_const_env env)
 {
     if (!env || --const_cast<likely_env>(env)->ref_count) return;
 
-    if (likely_definition(env->type)) {
-        if (env->value)
-            const_cast<likely_expr>(env->value)->compress();
-    } else {
-        likely_release(env->result);
-        const_cast<likely_env>(env)->result = NULL;
-    }
-    delete env->resources;
-    const_cast<likely_env>(env)->resources = NULL;
-
     likely_release_env(env->parent);
+
+    if (likely_global(env->type)) {
+        // Global environment variables are guaranteed to be unique, so we never delete them.
+        // Instead we only deallocate some of their internals, which can be recomputed if needed.
+        if (likely_definition(env->type)) {
+            if (env->value)
+                const_cast<likely_expr>(env->value)->compress();
+        } else {
+            likely_release(env->result);
+            const_cast<likely_env>(env)->result = NULL;
+        }
+    } else {
+        if (env->value) {
+            assert(likely_definition(env->type));
+            delete env->value;
+        }
+        assert(!env->children);
+        delete env;
+    }
 }
 
 bool likely_offline(likely_environment_type type) { return likely_get_bool(type, likely_environment_offline); }
@@ -2792,6 +2803,8 @@ bool likely_erratum(likely_environment_type type) { return likely_get_bool(type,
 void likely_set_erratum(likely_environment_type *type, bool erratum) { likely_set_bool(type, erratum, likely_environment_erratum); }
 bool likely_definition(likely_environment_type type) { return likely_get_bool(type, likely_environment_definition); }
 void likely_set_definition(likely_environment_type *type, bool definition) { likely_set_bool(type, definition, likely_environment_definition); }
+bool likely_global(likely_environment_type type) { return likely_get_bool(type, likely_environment_global); }
+void likely_set_global(likely_environment_type *type, bool global) { likely_set_bool(type, global, likely_environment_global); }
 
 likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
 {
@@ -2856,6 +2869,7 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
     likely_env env = likely_new_env(parent);
     likely_set_offline(&env->type, likely_offline(parent->type));
     likely_set_definition(&env->type, ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="));
+    likely_set_global(&env->type, true);
     env->ast = likely_retain_ast(ast);
 
     if (likely_offline(env->type)) {
