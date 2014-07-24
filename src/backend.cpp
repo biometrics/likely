@@ -2844,7 +2844,14 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
     if (likely_offline(env->type)) {
         likely_set_erratum(&env->type, !unique_ptr<const likely_expression>(Builder(env).expression(ast)).get());
     } else {
-        (void) previous; // TODO: check against previous environment for precomputed result
+        {   // Check against previous environment for precomputed result
+            while ((previous != NULL) && (previous != parent))
+                previous = previous->parent;
+
+            if (previous) {
+                // TODO: check iter->children
+            }
+        }
 
         if (likely_definition(env->type)) {
             // Shortcut for global variable definitions
