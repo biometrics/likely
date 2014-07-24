@@ -156,10 +156,6 @@ struct Builder;
 
 } // namespace (anonymous)
 
-struct likely_expression;
-typedef likely_expression *likely_expr;
-typedef likely_expression const *likely_const_expr;
-
 struct likely_expression
 {
     Value *value;

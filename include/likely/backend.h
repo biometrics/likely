@@ -20,9 +20,6 @@
 #include <likely/runtime.h>
 #include <likely/frontend.h>
 
-struct likely_expression;
-struct likely_resources;
-
 typedef likely_size likely_environment_type; /* Offline    : 1
                                                 Erratum    : 1
                                                 Definition : 1
@@ -37,24 +34,31 @@ enum likely_environment_type_field
     likely_environment_local      = 0x00000008
 };
 
+struct likely_expression;
+typedef struct likely_expression *likely_expr;
+typedef struct likely_expression const *likely_const_expr;
+
+struct likely_environment;
+typedef struct likely_environment *likely_env;
+typedef struct likely_environment const *likely_const_env;
+
+struct likely_resources;
+
 struct likely_environment
 {
-    struct likely_environment const *parent;
+    likely_const_env parent;
     const char *name;
     union {
-        const struct likely_expression *value; // definition
-        likely_const_mat result;               // !definition
+        likely_const_expr value; // definition
+        likely_const_mat result; // !definition
     };
     struct likely_resources *resources;
     size_t ref_count, hash;
     likely_environment_type type;
 
     size_t num_children;
-    struct likely_environment const **children;
+    likely_const_env *children;
 };
-
-typedef struct likely_environment *likely_env;
-typedef struct likely_environment const *likely_const_env;
 
 typedef likely_mat (*likely_function_0)();
 typedef likely_mat (*likely_function_1)(likely_const_mat);
