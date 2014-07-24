@@ -1204,7 +1204,7 @@ class bytesExpression : public SimpleUnaryOperator
             likelyBytes->setDoesNotAlias(1);
             likelyBytes->setDoesNotCapture(1);
         }
-        return new likely_expression(builder.CreateCall(likelyBytes, *arg), likely_matrix_native);
+        return new likely_expression(builder.CreateCall(likelyBytes, builder.CreatePointerCast(*arg, MatType::MultiDimension)), likely_matrix_native);
     }
 };
 LIKELY_REGISTER(bytes)
@@ -2232,24 +2232,43 @@ private:
 
 struct EvaluatedExpression : public ScopedExpression
 {
+    likely_env result;
+
     EvaluatedExpression(likely_env env, likely_const_ast ast)
-        : ScopedExpression(env, ast) {}
+        : ScopedExpression(env, ast)
+
+    {
+        result = likely_eval(ast, env, NULL);
+        assert(!likely_definition(result->type) && result->result);
+    }
+
+    ~EvaluatedExpression()
+    {
+        likely_release_env(result);
+    }
 
 private:
     int uid() const { return __LINE__; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        unique_ptr<const likely_expression> op;
-        {
-            ScopedEnvironment se(builder, env, builder.lookupResources());
-            op.reset(builder.expression(this->ast));
+        // TODO: implement indexing into this matrix by checking ast.
+        // Consider sharing implementation with kernelArgument.
+        (void) builder;
+        (void) ast;
+
+        likely_const_mat m = result->result;
+        if (likely_elements(m) == 1) {
+            // Promote to scalar
+            return new likely_expression(constant(likely_element(m, 0, 0, 0, 0), m->type));
+        } else {
+            // Return the matrix
+            return new likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(m)), uintptr_t(m)), MatType::get(m->type)), m->type);
         }
-        return op.get() ? op->evaluate(builder, ast) : NULL;
     }
 
     size_t minParameters() const { return 0; }
-    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
+    size_t maxParameters() const { return 4; }
 };
 
 struct Variable : public likely_expression
@@ -2568,7 +2587,7 @@ class decodeExpression : public SimpleUnaryOperator
             likelyDecode->setDoesNotAlias(1);
             likelyDecode->setDoesNotCapture(1);
         }
-        return new likely_expression(builder.CreateCall(likelyDecode, *arg), MatType::MultiDimension);
+        return new likely_expression(builder.CreateCall(likelyDecode, builder.CreatePointerCast(*arg, MatType::MultiDimension)), MatType::MultiDimension);
     }
 };
 LIKELY_REGISTER(decode)
@@ -2595,7 +2614,7 @@ class encodeExpression : public SimpleBinaryOperator
             likelyEncode->setDoesNotAlias(2);
             likelyEncode->setDoesNotCapture(2);
         }
-        return new likely_expression(builder.CreateCall2(likelyEncode, *arg1, *arg2), MatType::MultiDimension);
+        return new likely_expression(builder.CreateCall2(likelyEncode, builder.CreatePointerCast(*arg1, MatType::MultiDimension), *arg2), MatType::MultiDimension);
     }
 };
 LIKELY_REGISTER(encode)
