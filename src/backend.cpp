@@ -262,11 +262,47 @@ struct likely_expression
         return type;
     }
 
-    static likely_const_expr lookup(likely_const_env env, const char *name, bool local)
+    static bool isSymbol(likely_const_ast ast, const char *name)
     {
-        if (!env) return NULL;
-        if (likely_definition(env->type) && (!local || likely_local(env->type)) && env->name && !strcmp(env->name, name)) return env->value;
-        return lookup(env->parent, name, local);
+        if (!ast || !name)
+            return false;
+
+        if (ast->is_list) {
+            // Global variable
+            if (ast->num_atoms < 2)
+                return false;
+
+            likely_const_ast def = ast->atoms[0];
+            if (!def || def->is_list || strcmp(def->atom, "="))
+                return false;
+
+            likely_const_ast lhs = ast->atoms[1];
+            if (!lhs)
+                return false;
+
+            if (lhs->is_list) {
+                // Exported function
+                if (lhs->num_atoms == 0)
+                    return false;
+                likely_const_ast fun = lhs->atoms[0];
+                return !fun->is_list && !strcmp(fun->atom, name);
+            } else {
+                // Evaluate expression
+                return !strcmp(lhs->atom, name);
+            }
+        } else {
+            // Local variable
+            return !strcmp(ast->atom, name);
+        }
+    }
+
+    static likely_const_expr lookup(likely_const_env env, const char *name)
+    {
+        if (!env)
+            return NULL;
+        if (likely_definition(env->type) && isSymbol(env->ast, name))
+            return env->value;
+        return lookup(env->parent, name);
     }
 
     static likely_res lookupResources(likely_const_env env)
@@ -276,41 +312,26 @@ struct likely_expression
         return lookupResources(env->parent);
     }
 
-    static void define(likely_env &env, const char *name, likely_const_expr value, bool local)
+    static void define(likely_env &env, const char *name, likely_const_expr value)
     {
-        likely_env parent = env;
-
-        // See if the proposed environment already exists
-        for (size_t i=0; i<parent->num_children; i++) {
-            likely_const_env child = env->children[i];
-            if (likely_definition(child->type) && (likely_local(child->type) == local) && value->equals(child->value)) {
-                env = likely_retain_env(child);
-                return;
-            }
-        }
-
-        // Otherwise, construct a new environment
-        env = likely_new_env(parent);
+        env = likely_new_env(env);
         likely_set_definition(&env->type, true);
-        likely_set_local(&env->type, local);
-        env->name = new char[strlen(name)+1];
-        strcpy((char*) env->name, name);
+        env->ast = likely_new_atom(name);
+        env->resources = env->parent->resources;
         env->value = value;
-
-        // We reallocate space for more children when our power-of-two sized buffer is full
-        if ((parent->num_children == 0) || !(parent->num_children & (parent->num_children - 1)))
-            parent->children = (likely_const_env *) realloc(parent->children, parent->num_children == 0 ? 1 : 2 * parent->num_children);
-        parent->children[parent->num_children++] = env;
     }
 
     static likely_const_expr undefine(likely_env &env, const char *name)
     {
         assert(likely_definition(env->type));
-        likely_assert(!strcmp(env->name, name), "undefine variable mismatch");
+        likely_assert(isSymbol(env->ast, name), "undefine variable mismatch");
+        env->resources = NULL;
         likely_const_expr value = env->value;
+        env->value = NULL;
         likely_env old = env;
         env = const_cast<likely_env>(env->parent);
         likely_release_env(old);
+        delete old; // Local variables aren't given the persistence guarantee
         return value;
     }
 
@@ -539,10 +560,10 @@ struct Builder : public IRBuilder<>
         return likely_expression(CreateCast(CastInst::getCastOpcode(*x, likely_signed(*x), dstType, likely_signed(type)), *x, dstType), type);
     }
 
-    likely_const_expr lookup(const char *name, bool local = false) const { return likely_expression::lookup(env, name, local); }
+    likely_const_expr lookup(const char *name) const { return likely_expression::lookup(env, name); }
     likely_res lookupResources() const { return likely_expression::lookupResources(env); }
-    void   define(const char *name, likely_const_expr e, bool local = false) { likely_expression::define(env, name, e, local); }
-    likely_const_expr undefine(const char *name)         { return likely_expression::undefine(env, name); }
+    void define(const char *name, likely_const_expr e) { likely_expression::define(env, name, e); }
+    likely_const_expr undefine(const char *name) { return likely_expression::undefine(env, name); }
 
     void undefineAll(likely_const_ast args, bool deleteExpression)
     {
@@ -671,20 +692,21 @@ private:
 struct ScopedEnvironment
 {
     Builder &builder;
-    likely_env prev;
+    likely_env prevEnv;
 
     ScopedEnvironment(Builder &builder, likely_const_env env = NULL, likely_res resources = NULL)
-        : builder(builder), prev(builder.env)
+        : builder(builder), prevEnv(builder.env)
     {
         builder.env = likely_new_env(env ? env : builder.env);
         if (resources) builder.env->resources = resources;
+        else           builder.env->resources = builder.env->parent->resources;
     }
 
     ~ScopedEnvironment()
     {
         builder.env->resources = NULL;
         likely_release_env(builder.env);
-        builder.env = prev;
+        builder.env = prevEnv;
     }
 };
 
@@ -780,7 +802,7 @@ struct RegisterExpression : public RootEnvironment
     RegisterExpression(const char *symbol)
     {
         likely_expr e = new E();
-        likely_expression::define(builtins(), symbol, e, false);
+        likely_expression::define(builtins(), symbol, e);
         if (int precedence = getPrecedence(symbol))
             likely_insert_operator(symbol, precedence, int(e->minParameters())-1);
     }
@@ -1905,7 +1927,6 @@ private:
     void *symbol() const { return (void*) likely_fork; }
 
     virtual likely_const_ast getMetadata() const { return (ast->num_atoms == 4) ? ast->atoms[3] : NULL; }
-    virtual likely_const_expr generateCore(Builder &builder, const vector<likely_expression> &, const likely_expression &) const { return builder.expression(ast->atoms[2]); }
 
     likely_const_expr evaluateLambda(Builder &builder, const vector<likely_expression> &srcs) const
     {
@@ -2117,10 +2138,7 @@ private:
             builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis->node));
         }
 
-        unique_ptr<const likely_expression> result; {
-            ScopedEnvironment se(builder);
-            result.reset(generateCore(builder, srcs, dst));
-        }
+        unique_ptr<const likely_expression> result(builder.expression(ast->atoms[2]));
 
         const vector<likely_const_expr> expressions = result->subexpressionsOrSelf();
         for (likely_const_expr e : expressions)
@@ -2296,8 +2314,14 @@ struct Variable : public likely_expression
         builder.CreateStore(builder.cast(expr, type), value);
     }
 
+    static const Variable *dynamicCast(likely_const_expr expr)
+    {
+        return (expr && (expr->uid() == UID())) ? static_cast<const Variable*>(expr) : NULL;
+    }
+
 private:
-    int uid() const { return __LINE__; }
+    static int UID() { return __LINE__; }
+    int uid() const { return UID(); }
 
     likely_const_expr evaluate(Builder &builder, likely_const_ast) const
     {
@@ -2317,9 +2341,18 @@ class defineExpression : public Operator
         const char *name = lhs->is_list ? lhs->atoms[0]->atom : lhs->atom;
         likely_env env = builder.env;
 
-        if (likely_definition(env->type) && (env->name == NULL)) {
+        if (builder.env->resources) {
+            // Local variable
+            likely_const_expr expr = builder.expression(rhs);
+            if (expr) {
+                const Variable *variable = Variable::dynamicCast(builder.lookup(name));
+                if (variable) variable->set(builder, expr);
+                else          builder.define(name, new Variable(builder, expr, name));
+            }
+            return expr;
+        } else {
+            // Global expression
             assert(!env->value);
-
             if (lhs->is_list) {
                 // Export symbol
                 vector<likely_type> types;
@@ -2354,19 +2387,8 @@ class defineExpression : public Operator
                 }
             }
 
-            env->name = new char[strlen(name)+1];
-            strcpy((char*) env->name, name);
             likely_set_erratum(&env->type, !env->value);
             return NULL;
-        } else {
-            // Local variable
-            likely_const_expr expr = builder.expression(rhs);
-            if (expr) {
-                const Variable *variable = static_cast<const Variable*>(builder.lookup(name, true));
-                if (variable) variable->set(builder, expr);
-                else          builder.define(name, new Variable(builder, expr, name), true);
-            }
-            return expr;
         }
     }
 };
@@ -2714,13 +2736,13 @@ LIKELY_REGISTER(md5)
 likely_env likely_new_env(likely_const_env parent)
 {
     likely_env env = new likely_environment();
+    env->type = likely_environment_void;
     env->parent = likely_retain_env(parent);
-    env->name = NULL;
-    env->value = NULL;
+    env->ast = NULL;
     env->resources = NULL;
+    env->value = NULL;
     env->result = NULL;
     env->ref_count = 1;
-    env->type = likely_environment_void;
     env->num_children = 0;
     env->children = NULL;
     return env;
@@ -2752,7 +2774,8 @@ void likely_release_env(likely_const_env env)
     if (!env || --const_cast<likely_env>(env)->ref_count) return;
 
     if (likely_definition(env->type)) {
-        const_cast<likely_expr>(env->value)->compress();
+        if (env->value)
+            const_cast<likely_expr>(env->value)->compress();
     } else {
         likely_release(env->result);
         const_cast<likely_env>(env)->result = NULL;
@@ -2769,8 +2792,6 @@ bool likely_erratum(likely_environment_type type) { return likely_get_bool(type,
 void likely_set_erratum(likely_environment_type *type, bool erratum) { likely_set_bool(type, erratum, likely_environment_erratum); }
 bool likely_definition(likely_environment_type type) { return likely_get_bool(type, likely_environment_definition); }
 void likely_set_definition(likely_environment_type *type, bool definition) { likely_set_bool(type, definition, likely_environment_definition); }
-bool likely_local(likely_environment_type type) { return likely_get_bool(type, likely_environment_local); }
-void likely_set_local(likely_environment_type *type, bool local) { likely_set_bool(type, local, likely_environment_local); }
 
 likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
 {
@@ -2835,6 +2856,7 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
     likely_env env = likely_new_env(parent);
     likely_set_offline(&env->type, likely_offline(parent->type));
     likely_set_definition(&env->type, ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="));
+    env->ast = likely_retain_ast(ast);
 
     if (likely_offline(env->type)) {
         likely_set_erratum(&env->type, !unique_ptr<const likely_expression>(Builder(env).expression(ast)).get());
@@ -2846,6 +2868,11 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
             if (previous) {
                 // TODO: check iter->children
             }
+
+            // We reallocate space for more children when our power-of-two sized buffer is full
+//            if ((parent->num_children == 0) || !(parent->num_children & (parent->num_children - 1)))
+//                parent->children = (likely_const_env *) realloc(parent->children, parent->num_children == 0 ? 1 : 2 * parent->num_children);
+//            parent->children[parent->num_children++] = env;
         }
 
         if (likely_definition(env->type)) {
