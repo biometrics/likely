@@ -2834,22 +2834,22 @@ void likely_release_function(likely_const_fun f)
 
 likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_const_env previous)
 {
-    if (!ast || !parent) return NULL;
+    if (!ast || !parent)
+        return NULL;
+
     likely_env env = likely_new_env(parent);
     likely_set_offline(&env->type, likely_offline(parent->type));
     likely_set_definition(&env->type, ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="));
+
     if (likely_offline(env->type)) {
-        Builder builder(env);
-        unique_ptr<const likely_expression> e(builder.expression(ast));
-        likely_set_erratum(&env->type, e.get() == NULL);
+        likely_set_erratum(&env->type, !unique_ptr<const likely_expression>(Builder(env).expression(ast)).get());
     } else {
+        (void) previous; // TODO: check against previous environment for precomputed result
+
         if (likely_definition(env->type)) {
             // Shortcut for global variable definitions
             delete Builder(env).expression(ast);
         } else {
-            (void) previous;
-            // TODO: check against previous environment for precomputed result
-
             likely_const_ast lambda = likely_ast_from_string("() -> (scalar <ast>)", false);
             likely_release_ast(lambda->atoms[0]->atoms[2]->atoms[1]); // <ast>
             lambda->atoms[0]->atoms[2]->atoms[1] = likely_retain_ast(ast);
@@ -2867,6 +2867,7 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
             likely_release_ast(lambda);
         }
     }
+
     return env;
 }
 
