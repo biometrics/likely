@@ -2713,14 +2713,13 @@ LIKELY_REGISTER(md5)
 
 likely_env likely_new_env(likely_const_env parent)
 {
-    likely_env env = (likely_env) malloc(sizeof(likely_environment));
+    likely_env env = new likely_environment();
     env->parent = likely_retain_env(parent);
     env->name = NULL;
     env->value = NULL;
     env->resources = NULL;
     env->result = NULL;
     env->ref_count = 1;
-    env->hash = 0;
     env->type = likely_environment_void;
     env->num_children = 0;
     env->children = NULL;

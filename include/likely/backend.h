@@ -54,7 +54,7 @@ struct likely_environment
         likely_const_mat result; // !definition
     };
     likely_res resources;
-    size_t ref_count, hash;
+    size_t ref_count;
     likely_environment_type type;
 
     size_t num_children;
