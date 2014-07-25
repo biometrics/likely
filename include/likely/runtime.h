@@ -22,6 +22,10 @@
 #include <stdint.h>
 #include <likely/export.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 // Matrix types
 typedef uintptr_t likely_size;
 typedef likely_size likely_type; /* Depth : 8
@@ -84,10 +88,6 @@ struct likely_matrix
 };
 typedef struct likely_matrix const *likely_const_mat;
 typedef struct likely_matrix *likely_mat;
-
-#ifdef __cplusplus
-extern "C" {
-#endif // __cplusplus
 
 // Abort-style error handling
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);

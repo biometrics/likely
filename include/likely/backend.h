@@ -20,6 +20,10 @@
 #include <likely/runtime.h>
 #include <likely/frontend.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 typedef likely_size likely_environment_type; /* Offline    : 1
                                                 Erratum    : 1
                                                 Definition : 1
@@ -74,10 +78,6 @@ struct likely_function
 
 typedef struct likely_function *likely_fun;
 typedef struct likely_function const *likely_const_fun;
-
-#ifdef __cplusplus
-extern "C" {
-#endif // __cplusplus
 
 // Environments
 LIKELY_EXPORT likely_env likely_new_env(likely_const_env parent);

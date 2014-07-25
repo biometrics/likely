@@ -20,11 +20,19 @@
 #include <stddef.h>
 #include <likely/runtime.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+struct likely_abstract_syntax_tree;
+typedef struct likely_abstract_syntax_tree *likely_ast;
+typedef struct likely_abstract_syntax_tree const *likely_const_ast;
+
 struct likely_abstract_syntax_tree
 {
     union {
         struct {
-            struct likely_abstract_syntax_tree const **atoms;
+            likely_const_ast *atoms;
             size_t num_atoms;
         };
         struct {
@@ -37,8 +45,6 @@ struct likely_abstract_syntax_tree
     size_t begin, end; // indicies into the source string
     bool is_list;
 };
-typedef struct likely_abstract_syntax_tree *likely_ast;
-typedef struct likely_abstract_syntax_tree const *likely_const_ast;
 
 typedef struct likely_error
 {
@@ -46,10 +52,6 @@ typedef struct likely_error
     const char *what;
 } likely_error;
 typedef void (*likely_error_callback)(likely_error error, void *context);
-
-#ifdef __cplusplus
-extern "C" {
-#endif // __cplusplus
 
 LIKELY_EXPORT likely_ast likely_new_atom(const char *str);
 LIKELY_EXPORT likely_ast likely_new_atom_at(const char *str, size_t begin, size_t end);
