@@ -520,15 +520,19 @@ public slots:
         }
     }
 
-    void print(likely_const_mat mat, const QString &name)
+    void print(likely_const_env env)
     {
+        if (likely_definition(env->type) || !env->result || (likely_elements(env->result) == 0))
+            return;
+
+        const QString name = likely_get_symbol_name(env->ast);
         const int i = offset++;
         if (QLayoutItem *item = layout->itemAt(i)) // Try to recycle the widget
-            return static_cast<Matrix*>(item->widget())->show(mat, name);
+            return static_cast<Matrix*>(item->widget())->show(env->result, name);
         Matrix *matrix = new Matrix();
         layout->insertWidget(i, matrix);
         connect(matrix, SIGNAL(definitionChanged()), this, SLOT(definitionChanged()));
-        matrix->show(mat, name);
+        matrix->show(env->result, name);
     }
 
     void reset()
@@ -780,8 +784,7 @@ private:
 
     static void repl_callback(likely_const_env env, void *context)
     {
-        if (!likely_definition(env->type) && env->result && (likely_elements(env->result) > 0))
-            reinterpret_cast<Printer*>(context)->print(env->result, likely_get_symbol_name(env->ast));
+        reinterpret_cast<Printer*>(context)->print(env);
     }
 };
 
