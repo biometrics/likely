@@ -317,7 +317,6 @@ struct likely_expression
         env = likely_new_env(env);
         likely_set_definition(&env->type, true);
         env->ast = likely_new_atom(name);
-        env->resources = env->parent->resources;
         env->value = value;
     }
 
@@ -375,6 +374,7 @@ struct likely_resources
 {
     Module *module;
     vector<likely_const_expr> expressions;
+    size_t ref_count = 1;
 
     likely_resources(bool native)
     {
@@ -444,6 +444,18 @@ struct likely_resources
         delete module;
     }
 };
+
+static likely_res likely_retain_resources(likely_const_res resources)
+{
+    if (resources) const_cast<likely_res>(resources)->ref_count++;
+    return const_cast<likely_res>(resources);
+}
+
+static void likely_release_resources(likely_const_res resources)
+{
+    if (!resources || --const_cast<likely_res>(resources)->ref_count) return;
+    delete resources;
+}
 
 namespace {
 
@@ -619,7 +631,7 @@ private:
 struct JITFunction : public likely_function, public Symbol
 {
     ExecutionEngine *EE = NULL;
-    likely_resources resources;
+    likely_res resources;
     hash_code hash = 0;
     const vector<likely_type> parameters;
 
@@ -627,7 +639,8 @@ struct JITFunction : public likely_function, public Symbol
 
     ~JITFunction()
     {
-        resources.module = NULL;
+        resources->module = NULL;
+        likely_release_resources(resources);
         delete EE; // owns module
     }
 
@@ -2397,7 +2410,7 @@ class importExpression : public Operator
 LIKELY_REGISTER(import)
 
 JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool interpreter, bool arrayCC)
-    : resources(true), parameters(parameters)
+    : resources(new likely_resources(true)), parameters(parameters)
 {
     function = NULL;
     ref_count = 1;
@@ -2409,9 +2422,10 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
 
     {
         Builder builder(likely_new_env(parent));
-        builder.env->resources = &resources;
+        swap(builder.env->resources, resources);
         unique_ptr<const likely_expression> result(builder.expression(ast));
         unique_ptr<const Symbol> expr(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC));
+        swap(builder.env->resources, resources);
         likely_release_env(builder.env);
         value = expr->value;
         type = expr->type;
@@ -2421,10 +2435,10 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         return;
 
     TargetMachine *targetMachine = likely_resources::getTargetMachine(true);
-    resources.module->setDataLayout(targetMachine->getDataLayout());
+    resources->module->setDataLayout(targetMachine->getDataLayout());
 
     string error;
-    EngineBuilder engineBuilder(resources.module);
+    EngineBuilder engineBuilder(resources->module);
     engineBuilder.setErrorStr(&error);
 
     if (interpreter) {
@@ -2441,13 +2455,13 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         return;
 
     EE->setObjectCache(&TheJITFunctionCache);
-    if (!TheJITFunctionCache.alert(resources.module)) {
+    if (!TheJITFunctionCache.alert(resources->module)) {
         static PassManager *PM = NULL;
         if (!PM) {
             static TargetMachine *TM = likely_resources::getTargetMachine(false);
             PM = new PassManager();
             PM->add(createVerifierPass());
-            PM->add(new TargetLibraryInfo(Triple(resources.module->getTargetTriple())));
+            PM->add(new TargetLibraryInfo(Triple(resources->module->getTargetTriple())));
             PM->add(new DataLayoutPass(*TM->getDataLayout()));
             TM->addAnalysisPasses(*PM);
             PassManagerBuilder builder;
@@ -2460,9 +2474,9 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         }
 
 //        DebugFlag = true;
-//        resources.module->dump();
-        PM->run(*resources.module);
-//        resources.module->dump();
+//        resources->module->dump();
+        PM->run(*resources->module);
+//        resources->module->dump();
     }
 
     hash = TheJITFunctionCache.currentHash;
@@ -2715,9 +2729,10 @@ likely_env likely_new_env(likely_const_env parent)
 {
     likely_env env = new likely_environment();
     env->type = likely_environment_void;
+    likely_set_offline(&env->type, parent ? likely_offline(parent->type) : false);
     env->parent = likely_retain_env(parent);
     env->ast = NULL;
-    env->resources = NULL;
+    env->resources = likely_retain_resources(parent ? parent->resources : NULL);
     env->value = NULL;
     env->result = NULL;
     env->ref_count = 1;
@@ -2734,6 +2749,7 @@ likely_env likely_new_env_jit()
 likely_env likely_new_env_offline(const char *file_name, bool native)
 {
     likely_env env = likely_new_env(RootEnvironment::get());
+    assert(!env->resources);
     env->resources = new OfflineResources(file_name, native);
     likely_set_offline(&env->type, true);
     return env;
@@ -2750,6 +2766,8 @@ void likely_release_env(likely_const_env env)
     if (!env || --const_cast<likely_env>(env)->ref_count) return;
 
     likely_release_env(env->parent);
+    likely_release_ast(env->ast);
+    likely_release_resources(env->resources);
 
     if (likely_global(env->type)) {
         // Global environment variables are guaranteed to be unique, so we never delete them.
@@ -2841,7 +2859,6 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
         return NULL;
 
     likely_env env = likely_new_env(parent);
-    likely_set_offline(&env->type, likely_offline(parent->type));
     likely_set_definition(&env->type, ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="));
     likely_set_global(&env->type, true);
     env->ast = likely_retain_ast(ast);

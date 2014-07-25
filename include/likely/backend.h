@@ -44,6 +44,7 @@ typedef struct likely_environment const *likely_const_env;
 
 struct likely_resources;
 typedef struct likely_resources *likely_res;
+typedef struct likely_resources const *likely_const_res;
 
 struct likely_environment
 {
