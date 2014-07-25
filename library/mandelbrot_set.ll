@@ -41,7 +41,7 @@ Execution
 Command Line
 
 ```bash
-$ likely ../library/mandelbrot_set.ll -gui
+$ likely ../library/mandelbrot_set.ll -show
 $ likely ../library/mandelbrot_set.ll -record mandelbrot_set.png
 $ dream ../library/mandelbrot_set.ll
 ```

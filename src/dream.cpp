@@ -676,7 +676,7 @@ public:
         connect(reset, SIGNAL(triggered()), printer, SLOT(reset()));
 
         likely_set_error_callback(error_callback, statusBar);
-        likely_set_show_callback(show_callback, printer);
+        likely_set_repl_callback(show_callback, printer);
         restore();
         this->spartan(Spartan);
     }

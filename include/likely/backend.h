@@ -104,6 +104,10 @@ LIKELY_EXPORT void likely_release_function(likely_const_fun f);
 LIKELY_EXPORT likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_const_env previous);
 LIKELY_EXPORT likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, likely_const_env previous);
 
+typedef void (*likely_repl_callback)(likely_const_mat m, likely_const_ast, void *context);
+LIKELY_EXPORT void likely_set_repl_callback(likely_repl_callback callback, void *context);
+LIKELY_EXPORT void likely_repl_print(likely_const_mat m, likely_const_ast ast);
+
 // Contents of library/standard.l
 LIKELY_EXPORT extern const char likely_standard_library[];
 

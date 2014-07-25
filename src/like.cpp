@@ -36,16 +36,17 @@ static cl::opt<string> output(cl::Positional, cl::desc("<output file>"), cl::ini
 static cl::opt<string> record("record", cl::desc("%d-formatted file to render matrix output to"));
 static cl::opt<string> assert_("assert", cl::desc("Confirm the output equals the specified value"));
 static cl::opt<bool> ast("ast", cl::desc("Print abstract syntax tree"));
-static cl::opt<bool> gui("gui", cl::desc("Show matrix output in a window"));
 static cl::opt<bool> md5("md5", cl::desc("Print matrix output MD5 hash to terminal"));
+static cl::opt<bool> show("show", cl::desc("Show matrix output in a window"));
 static cl::opt<bool> quiet("quiet", cl::desc("Don't show matrix output"));
 
-static void quietShowCallback(likely_const_mat, likely_const_ast, void *)
+static void check(likely_const_mat input)
 {
-    return;
+    const string assertValue = assert_;
+    likely_assert(assertValue.empty() || !strcmp(input->data, assertValue.c_str()), "expected value: %s", assertValue.c_str());
 }
 
-static void recordShowCallback(likely_const_mat m, likely_const_ast, void *)
+static void replRecord(likely_const_mat m, likely_const_ast, void *)
 {
     static int index = 0;
     const int bufferSize = 128;
@@ -56,13 +57,7 @@ static void recordShowCallback(likely_const_mat m, likely_const_ast, void *)
     likely_release(rendered);
 }
 
-static void check(likely_const_mat input)
-{
-    const string assertValue = assert_;
-    likely_assert(assertValue.empty() || !strcmp(input->data, assertValue.c_str()), "expected value: %s", assertValue.c_str());
-}
-
-static void md5ShowCallback(likely_const_mat m, likely_const_ast, void *)
+static void replMD5(likely_const_mat m, likely_const_ast, void *)
 {
     likely_mat md5 = likely_md5(m);
     likely_mat hex = likely_to_hex(md5);
@@ -72,7 +67,12 @@ static void md5ShowCallback(likely_const_mat m, likely_const_ast, void *)
     likely_release(hex);
 }
 
-static void printShowCallback(likely_const_mat m, likely_const_ast, void *)
+static void replQuiet(likely_const_mat, likely_const_ast, void *)
+{
+    return;
+}
+
+static void replPrint(likely_const_mat m, likely_const_ast, void *)
 {
     likely_mat str = likely_to_string(m, true);
     printf("%s\n", str->data);
@@ -84,11 +84,11 @@ int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
 
-    if (!record.getValue().empty()) likely_set_show_callback(recordShowCallback, NULL);
-    else if (gui); // No configuration needed, this is the default
-    else if (md5)   likely_set_show_callback(md5ShowCallback, NULL);
-    else if (quiet) likely_set_show_callback(quietShowCallback, NULL);
-    else            likely_set_show_callback(printShowCallback, NULL); // Print to terminal
+    if (!record.getValue().empty()) likely_set_repl_callback(replRecord, NULL);
+    else if (show)  likely_set_repl_callback(likely_show, NULL);
+    else if (md5)   likely_set_repl_callback(replMD5, NULL);
+    else if (quiet) likely_set_repl_callback(replQuiet, NULL);
+    else            likely_set_repl_callback(replPrint, NULL);
 
     if (input.empty()) {
         // REPL shell

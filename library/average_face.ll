@@ -14,7 +14,7 @@ Compute the average face from a set of aligned faces [1].
 Command Line
 
 ```bash
-$ likely ../library/average_face.ll -gui
+$ likely ../library/average_face.ll -show
 $ likely ../library/average_face.ll -record average_face.png
 $ dream ../library/average_face.ll
 ```

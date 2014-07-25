@@ -19,8 +19,6 @@
 
 #include <likely/runtime.h>
 
-typedef void (*likely_show_callback)(likely_const_mat m, likely_const_ast, void *context);
-
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -61,8 +59,7 @@ LIKELY_EXPORT likely_mat likely_print(likely_const_mat m);
 LIKELY_EXPORT likely_mat likely_print_n(likely_const_mat *mv, size_t n);
 LIKELY_EXPORT likely_mat likely_print_va(likely_const_mat m, ...);
 LIKELY_EXPORT likely_mat likely_render(likely_const_mat m, double *min, double *max); // Return an 888 matrix for visualization
-LIKELY_EXPORT void likely_set_show_callback(likely_show_callback callback, void *context);
-LIKELY_EXPORT void likely_show(likely_const_mat m, likely_const_ast ast);
+LIKELY_EXPORT void likely_show(likely_const_mat m, likely_const_ast ast, void *); // Useable as a likely_repl_callback
 
 #ifdef __cplusplus
 }

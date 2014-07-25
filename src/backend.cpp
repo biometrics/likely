@@ -2893,6 +2893,9 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
     return env;
 }
 
+static likely_repl_callback ShowCallback = NULL;
+static void *ShowContext = NULL;
+
 likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, likely_const_env previous)
 {
     likely_const_ast ast = likely_ast_from_string(source, GFM);
@@ -2905,14 +2908,20 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, li
         env = likely_eval(atom, parent, previous);
         likely_release_env(parent);
         parent = env;
-        if (!likely_definition(env->type) && env->result && (likely_elements(env->result) > 0))
-            likely_show(env->result, atom);
+        if (!likely_definition(env->type) && env->result && (likely_elements(env->result) > 0) && ShowCallback)
+            ShowCallback(env->result, ast, ShowContext);
         if (likely_erratum(env->type))
             break;
     }
 
     likely_release_ast(ast);
     return env;
+}
+
+void likely_set_repl_callback(likely_repl_callback callback, void *context)
+{
+    ShowCallback = callback;
+    ShowContext = context;
 }
 
 likely_mat likely_md5(likely_const_mat buffer)
