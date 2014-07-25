@@ -2880,8 +2880,9 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, li
         env = likely_eval(atom, parent, previous);
         likely_release_env(parent);
         parent = env;
-        if (!likely_definition(env->type) && env->result && (likely_elements(env->result) > 0) && ReplCallback)
-            ReplCallback(env, ReplContext);
+        if (ReplCallback)
+            // If there is not context, we return a boolean value indicating if the environment has a valid result
+            ReplCallback(env, ReplContext ? ReplContext : (void*)(!likely_definition(env->type) && env->result && (likely_elements(env->result) > 0)));
         if (likely_erratum(env->type))
             break;
     }

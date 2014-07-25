@@ -406,9 +406,9 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
     return n;
 }
 
-void likely_show(likely_const_env env, void *)
+void likely_show(likely_const_env env, void *context)
 {
-    if (!env) return;
+    if (!env || !context) return;
     likely_mat m = likely_render(env->result, NULL, NULL);
     cv::imshow(likely_get_symbol_name(env->ast), likely::toCvMat(m));
     cv::waitKey();

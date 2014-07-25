@@ -780,7 +780,8 @@ private:
 
     static void repl_callback(likely_const_env env, void *context)
     {
-        reinterpret_cast<Printer*>(context)->print(env->result, likely_get_symbol_name(env->ast));
+        if (!likely_definition(env->type) && env->result && (likely_elements(env->result) > 0))
+            reinterpret_cast<Printer*>(context)->print(env->result, likely_get_symbol_name(env->ast));
     }
 };
 
