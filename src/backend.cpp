@@ -2320,17 +2320,7 @@ class defineExpression : public Operator
         const char *name = lhs->is_list ? lhs->atoms[0]->atom : lhs->atom;
         likely_env env = builder.env;
 
-        if (builder.env->resources) {
-            // Local variable
-            likely_const_expr expr = builder.expression(rhs);
-            if (expr) {
-                const Variable *variable = Variable::dynamicCast(builder.lookup(name));
-                if (variable) variable->set(builder, expr);
-                else          builder.define(name, new Variable(builder, expr, name));
-            }
-            return expr;
-        } else {
-            // Global expression
+        if (likely_global(env->type)) {
             assert(!env->value);
             if (lhs->is_list) {
                 // Export symbol
@@ -2341,13 +2331,11 @@ class defineExpression : public Operator
                     types.push_back(likely_type_from_string(lhs->atoms[i]->atom));
                 }
 
-                if (builder.lookupResources()) {
-                    // Offline
+                if (likely_offline(env->type)) {
                     TRY_EXPR(builder, rhs, expr);
                     const Lambda *lambda = static_cast<const Lambda*>(expr.get());
                     env->value = lambda->generate(builder, types, name, false);
                 } else {
-                    // JIT
                     JITFunction *function = new JITFunction(name, rhs, builder.env, types, false, false);
                     if (function->function) {
                         sys::DynamicLibrary::AddSymbol(name, function->function);
@@ -2368,6 +2356,14 @@ class defineExpression : public Operator
 
             likely_set_erratum(&env->type, !env->value);
             return NULL;
+        } else {
+            likely_const_expr expr = builder.expression(rhs);
+            if (expr) {
+                const Variable *variable = Variable::dynamicCast(builder.lookup(name));
+                if (variable) variable->set(builder, expr);
+                else          builder.define(name, new Variable(builder, expr, name));
+            }
+            return expr;
         }
     }
 };
