@@ -687,26 +687,6 @@ private:
     }
 };
 
-struct ScopedEnvironment
-{
-    Builder &builder;
-    likely_env prevEnv;
-
-    ScopedEnvironment(Builder &builder, likely_const_env env = NULL, likely_res resources = NULL)
-        : builder(builder), prevEnv(builder.env)
-    {
-        builder.env = likely_new_env(env ? env : builder.env);
-        if (resources) builder.env->resources = resources;
-        else           builder.env->resources = builder.env->parent->resources;
-    }
-
-    ~ScopedEnvironment()
-    {
-        likely_release_env(builder.env);
-        builder.env = prevEnv;
-    }
-};
-
 } // namespace (anonymous)
 
 likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast ast) const
@@ -1548,8 +1528,6 @@ private:
             TRY_EXPR(builder, ast->atoms[i+1], arg)
             args.push_back(likely_expression(arg->value, arg->type));
         }
-
-        ScopedEnvironment se(builder, env, builder.lookupResources());
         return evaluateFunction(builder, args);
     }
 
@@ -1633,12 +1611,16 @@ class beginExpression : public Operator
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        ScopedEnvironment se(builder);
-        likely_const_env root = builder.env;
+        likely_const_expr result = NULL;
+        likely_env root = builder.env;
         for (size_t i=1; i<ast->num_atoms-1; i++) {
-            TRY_EXPR(builder, ast->atoms[i], expr);
+            const unique_ptr<const likely_expression> expr(builder.expression(ast->atoms[i]));
+            if (!expr.get())
+                goto cleanup;
         }
-        likely_const_expr result = builder.expression(ast->atoms[ast->num_atoms-1]);
+        result = builder.expression(ast->atoms[ast->num_atoms-1]);
+
+    cleanup:
         while (builder.env != root) {
             likely_const_env old = builder.env;
             builder.env = const_cast<likely_env>(builder.env->parent);
@@ -1799,10 +1781,7 @@ class loopExpression : public Operator
         TRY_EXPR(builder, ast->atoms[3], end)
         Loop loop(builder, ast->atoms[2]->atom, zero(), *end);
         builder.define(ast->atoms[2]->atom, &loop);
-        likely_const_expr expression; {
-            ScopedEnvironment se(builder);
-            expression = builder.expression(ast->atoms[1]);
-        }
+        likely_const_expr expression = builder.expression(ast->atoms[1]);
         builder.undefine(ast->atoms[2]->atom);
         loop.close(builder);
         return expression;
@@ -2241,11 +2220,7 @@ private:
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        unique_ptr<const likely_expression> op;
-        {
-            ScopedEnvironment se(builder, env, builder.lookupResources());
-            op.reset(builder.expression(this->ast));
-        }
+        unique_ptr<const likely_expression> op(builder.expression(this->ast));
         return op.get() ? op->evaluate(builder, ast) : NULL;
     }
 
@@ -2436,8 +2411,8 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         return;
     }
 
-    Builder builder(NULL);
-    ScopedEnvironment se(builder, parent, &resources);
+    Builder builder(const_cast<likely_env>(parent));
+    builder.env->resources = &resources;
     unique_ptr<const likely_expression> result(builder.expression(ast));
     unique_ptr<const Symbol> expr(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC));
     value = expr->value;
