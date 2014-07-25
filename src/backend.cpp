@@ -2855,10 +2855,9 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
     likely_set_global(&env->type, true);
     env->ast = likely_retain_ast(ast);
 
-    if (likely_offline(env->type)) {
-        likely_set_erratum(&env->type, !unique_ptr<const likely_expression>(Builder(env).expression(ast)).get());
-    } else {
-        {   // Check against previous environment for precomputed result
+    if (likely_definition(env->type)) {
+        if (previous) {
+            // Check against previous environment for precomputed result
             while ((previous != NULL) && (previous != parent))
                 previous = previous->parent;
 
@@ -2867,31 +2866,28 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
             }
 
             // We reallocate space for more children when our power-of-two sized buffer is full
-//            if ((parent->num_children == 0) || !(parent->num_children & (parent->num_children - 1)))
-//                parent->children = (likely_const_env *) realloc(parent->children, parent->num_children == 0 ? 1 : 2 * parent->num_children);
-//            parent->children[parent->num_children++] = env;
+            //            if ((parent->num_children == 0) || !(parent->num_children & (parent->num_children - 1)))
+            //                parent->children = (likely_const_env *) realloc(parent->children, parent->num_children == 0 ? 1 : 2 * parent->num_children);
+            //            parent->children[parent->num_children++] = env;
         }
 
-        if (likely_definition(env->type)) {
-            // Shortcut for global variable definitions
-            delete Builder(env).expression(ast);
+        assert(!Builder(env).expression(ast));
+    } else {
+        likely_const_ast lambda = likely_ast_from_string("() -> (scalar <ast>)", false);
+        likely_release_ast(lambda->atoms[0]->atoms[2]->atoms[1]); // <ast>
+        lambda->atoms[0]->atoms[2]->atoms[1] = likely_retain_ast(ast);
+
+        // TODO: Re-enable interpreter for OS X and Ubuntu when intrinsic lowering patch lands
+        JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), false, false);
+        if (jit.function) {
+            env->result = reinterpret_cast<likely_function_0>(jit.function)();
+        } else if (jit.EE) {
+            env->result = (likely_mat) jit.EE->runFunction(cast<Function>(jit.value), vector<GenericValue>()).PointerVal;
         } else {
-            likely_const_ast lambda = likely_ast_from_string("() -> (scalar <ast>)", false);
-            likely_release_ast(lambda->atoms[0]->atoms[2]->atoms[1]); // <ast>
-            lambda->atoms[0]->atoms[2]->atoms[1] = likely_retain_ast(ast);
-
-            // TODO: Re-enable interpreter for OS X and Ubuntu when intrinsic lowering patch lands
-            JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), false, false);
-            if (jit.function) {
-                env->result = reinterpret_cast<likely_function_0>(jit.function)();
-            } else if (jit.EE) {
-                env->result = (likely_mat) jit.EE->runFunction(cast<Function>(jit.value), vector<GenericValue>()).PointerVal;
-            } else {
-                likely_set_erratum(&env->type, true);
-            }
-
-            likely_release_ast(lambda);
+            likely_set_erratum(&env->type, true);
         }
+
+        likely_release_ast(lambda);
     }
 
     return env;
