@@ -27,23 +27,19 @@
 
 using namespace std;
 
-likely_ast likely_new_atom(const char *str)
+likely_ast likely_new_atom(const char *str, likely_size len)
 {
-    return likely_new_atom_at(str, 0, strlen(str));
-}
-
-likely_ast likely_new_atom_at(const char *str, size_t begin, size_t end)
-{
-    const size_t atom_len = end - begin;
-    likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + atom_len + 1);
+    likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + len + 1);
     ast->atom = (const char*) (ast + 1);
-    memcpy((void*) ast->atom, &str[begin], atom_len);
-    ((char*) ast->atom)[atom_len] = '\0';
-    ast->atom_len = atom_len;
+    memcpy((void*) ast->atom, str, len);
+    ((char*) ast->atom)[len] = '\0';
+    ast->atom_len = len;
     ast->is_list = false;
     ast->ref_count = 1;
-    ast->begin = begin;
-    ast->end = end;
+    ast->begin_line = 0;
+    ast->begin_column = 0;
+    ast->end_line = 0;
+    ast->end_column = 0;
     return ast;
 }
 
@@ -55,8 +51,10 @@ likely_ast likely_new_list(const likely_const_ast *atoms, size_t num_atoms)
     ast->num_atoms = num_atoms;
     ast->is_list = true;
     ast->ref_count = 1;
-    ast->begin = num_atoms == 0 ? 0 : atoms[0]->begin;
-    ast->end = num_atoms == 0 ? 0 : atoms[num_atoms-1]->end;
+    ast->begin_line = (num_atoms == 0) ? 0 : atoms[0]->begin_line;
+    ast->begin_column = (num_atoms == 0) ? 0 : atoms[0]->begin_column;
+    ast->end_line = (num_atoms == 0) ? 0 : atoms[0]->end_line;
+    ast->end_column = (num_atoms == 0) ? 0 : atoms[0]->end_column;
     return ast;
 }
 
@@ -75,39 +73,65 @@ void likely_release_ast(likely_const_ast ast)
     free((void*) ast);
 }
 
+static void incrementCounters(char c, likely_size &line, likely_size &column)
+{
+    if (c == '\n') {
+        line++;
+        column = 0;
+    } else {
+        column++;
+    }
+}
+
 static void tokenize(const char *str, const size_t len, vector<likely_const_ast> &tokens)
 {
     size_t i = 0;
+    likely_size line = 0, column = 0;
     while (true) {
         // Skip whitespace and control characters
         const char ignored = ' ';
-        while ((i < len) && (str[i] <= ignored))
+        while ((i < len) && (str[i] <= ignored)) {
+            incrementCounters(str[i], line, column);
             i++;
+        }
         if (i == len) break;
 
         // Skip comments
         if (str[i] == ';') {
-            while ((i < len) && (str[i] != '\n'))
+            while ((i < len) && (str[i] != '\n')) {
+                column++;
                 i++;
+            }
+            line++;
             i++;
             if (i >= len) break;
         }
 
         size_t begin = i;
+        likely_size begin_line = line;
+        likely_size begin_column = column;
         bool inString = false;
         while ((i < len) && (inString || ((str[i] > ignored) && (str[i] != '(')
                                                              && (str[i] != ')')
                                                              && (str[i] != '.')
                                                              && (str[i] != ':')
                                                              && (str[i] != ';')))) {
+            incrementCounters(str[i], line, column);
             if      (str[i] == '"')  inString = !inString;
-            else if (str[i] == '\\') i++;
+            else if (str[i] == '\\') { i++; column++; }
             i++;
         }
-        if (i == begin)
+        if (i == begin) {
             i++;
+            column++;
+        }
 
-        tokens.push_back(likely_new_atom_at(str, begin, i));
+        likely_ast token = likely_new_atom(&str[begin], i-begin);
+        token->begin_line = begin_line;
+        token->begin_column = begin_column;
+        token->end_line = line;
+        token->end_column = column;
+        tokens.push_back(token);
     }
 }
 
@@ -217,9 +241,11 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
                 // It's a number
                 stringstream stream;
                 stream << output[output.size()-2]->atom << "." << output[output.size()-1]->atom;
-                likely_ast number = likely_new_atom(stream.str().c_str());
-                number->begin = output[output.size()-2]->begin;
-                number->end   = output[output.size()-1]->end;
+                likely_ast number = likely_new_atom(stream.str().c_str(), stream.str().size());
+                number->begin_line   = output[output.size()-2]->begin_line;
+                number->begin_column = output[output.size()-2]->begin_column;
+                number->end_line     = output[output.size()-1]->end_line;
+                number->end_column   = output[output.size()-1]->end_column;
                 output.erase(output.end()-2, output.end());
                 output.push_back(number);
                 return 1;
@@ -240,7 +266,7 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
             const size_t before = output.size();
 
             if (!strcmp(token->atom, "[")) {
-                static likely_const_ast rightBracket = likely_new_atom("]");
+                static likely_const_ast rightBracket = likely_new_atom("]", 1);
                 do {
                     if (!shift(tokens, offset, output, op->second.precedence))
                         return 0;
@@ -292,8 +318,10 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_a
             output.push_back(atoms[0]);
         } else {
             likely_ast list = likely_new_list(atoms.data(), atoms.size());
-            list->begin = token->begin;
-            list->end = end->end;
+            list->begin_line = token->begin_line;
+            list->begin_column = token->begin_column;
+            list->end_line = end->end_line;
+            list->end_column = end->end_column;
             output.push_back(list);
         }
     } else {

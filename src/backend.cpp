@@ -275,7 +275,7 @@ struct likely_expression
     {
         env = likely_new_env(env);
         likely_set_definition(&env->type, true);
-        env->ast = likely_new_atom(name);
+        env->ast = likely_new_atom(name, strlen(name));
         env->value = value;
     }
 

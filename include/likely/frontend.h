@@ -33,16 +33,16 @@ struct likely_abstract_syntax_tree
     union {
         struct {
             likely_const_ast *atoms;
-            size_t num_atoms;
+            likely_size num_atoms;
         };
         struct {
             const char *atom;
-            size_t atom_len;
+            likely_size atom_len;
         };
     };
 
-    size_t ref_count;
-    size_t begin, end; // indicies into the source string
+    likely_size ref_count;
+    likely_size begin_line, begin_column, end_line, end_column;
     bool is_list;
 };
 
@@ -53,8 +53,7 @@ typedef struct likely_error
 } likely_error;
 typedef void (*likely_error_callback)(likely_error error, void *context);
 
-LIKELY_EXPORT likely_ast likely_new_atom(const char *str);
-LIKELY_EXPORT likely_ast likely_new_atom_at(const char *str, size_t begin, size_t end);
+LIKELY_EXPORT likely_ast likely_new_atom(const char *str, likely_size len);
 LIKELY_EXPORT likely_ast likely_new_list(const likely_const_ast *atoms, size_t num_atoms);
 LIKELY_EXPORT likely_ast likely_retain_ast(likely_const_ast ast);
 LIKELY_EXPORT void likely_release_ast(likely_const_ast ast);
