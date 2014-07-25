@@ -305,13 +305,6 @@ struct likely_expression
         return lookup(env->parent, name);
     }
 
-    static likely_res lookupResources(likely_const_env env)
-    {
-        if (!env) return NULL;
-        if (env->resources) return env->resources;
-        return lookupResources(env->parent);
-    }
-
     static void define(likely_env &env, const char *name, likely_const_expr value)
     {
         env = likely_new_env(env);
@@ -571,7 +564,6 @@ struct Builder : public IRBuilder<>
     }
 
     likely_const_expr lookup(const char *name) const { return likely_expression::lookup(env, name); }
-    likely_res lookupResources() const { return likely_expression::lookupResources(env); }
     void define(const char *name, likely_const_expr e) { likely_expression::define(env, name, e); }
     likely_const_expr undefine(const char *name) { return likely_expression::undefine(env, name); }
 
@@ -588,7 +580,7 @@ struct Builder : public IRBuilder<>
         }
     }
 
-    Module *module() { return lookupResources()->module; }
+    Module *module() { return env->resources->module; }
 
     likely_const_expr expression(likely_const_ast ast);
 };
@@ -1555,7 +1547,7 @@ private:
 
         if (dynamic) {
             likely_vtable vtable = new likely_virtual_table(builder.env, ast);
-            builder.lookupResources()->expressions.push_back(vtable);
+            builder.env->resources->expressions.push_back(vtable);
 
             static PointerType *vTableType = PointerType::getUnqual(StructType::create(C, "VTable"));
             static FunctionType *likelyDynamicType = NULL;
