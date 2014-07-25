@@ -2909,7 +2909,7 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, li
         likely_release_env(parent);
         parent = env;
         if (!likely_definition(env->type) && env->result && (likely_elements(env->result) > 0) && ShowCallback)
-            ShowCallback(env->result, ast, ShowContext);
+            ShowCallback(env, ShowContext);
         if (likely_erratum(env->type))
             break;
     }

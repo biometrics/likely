@@ -46,20 +46,20 @@ static void check(likely_const_mat input)
     likely_assert(assertValue.empty() || !strcmp(input->data, assertValue.c_str()), "expected value: %s", assertValue.c_str());
 }
 
-static void replRecord(likely_const_mat m, likely_const_ast, void *)
+static void replRecord(likely_const_env env, void *)
 {
     static int index = 0;
     const int bufferSize = 128;
     char fileName[bufferSize];
     snprintf(fileName, bufferSize, record.getValue().c_str(), index++);
-    likely_mat rendered = likely_render(m, NULL, NULL);
+    likely_mat rendered = likely_render(env->result, NULL, NULL);
     likely_write(rendered, fileName);
     likely_release(rendered);
 }
 
-static void replMD5(likely_const_mat m, likely_const_ast, void *)
+static void replMD5(likely_const_env env, void *)
 {
-    likely_mat md5 = likely_md5(m);
+    likely_mat md5 = likely_md5(env->result);
     likely_mat hex = likely_to_hex(md5);
     likely_release(md5);
     printf("%s\n", hex->data);
@@ -67,14 +67,14 @@ static void replMD5(likely_const_mat m, likely_const_ast, void *)
     likely_release(hex);
 }
 
-static void replQuiet(likely_const_mat, likely_const_ast, void *)
+static void replQuiet(likely_const_env, void *)
 {
     return;
 }
 
-static void replPrint(likely_const_mat m, likely_const_ast, void *)
+static void replPrint(likely_const_env env, void *)
 {
-    likely_mat str = likely_to_string(m, true);
+    likely_mat str = likely_to_string(env->result, true);
     printf("%s\n", str->data);
     check(str);
     likely_release(str);

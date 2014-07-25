@@ -406,12 +406,12 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
     return n;
 }
 
-void likely_show(likely_const_mat m, likely_const_ast ast, void *)
+void likely_show(likely_const_env env, void *)
 {
-    if (!m) return;
-    likely_mat n = likely_render(m, NULL, NULL);
-    const char *name = ast->is_list ? NULL : ast->atom;
-    cv::imshow((name && (strlen(name) > 0)) ? name : "Likely", likely::toCvMat(n));
+    if (!env) return;
+    likely_mat m = likely_render(env->result, NULL, NULL);
+    const char *name = env->ast->is_list ? NULL : env->ast->atom;
+    cv::imshow((name && (strlen(name) > 0)) ? name : "Likely", likely::toCvMat(m));
     cv::waitKey();
-    likely_release(n);
+    likely_release(m);
 }

@@ -676,7 +676,7 @@ public:
         connect(reset, SIGNAL(triggered()), printer, SLOT(reset()));
 
         likely_set_error_callback(error_callback, statusBar);
-        likely_set_repl_callback(show_callback, printer);
+        likely_set_repl_callback(repl_callback, printer);
         restore();
         this->spartan(Spartan);
     }
@@ -778,12 +778,13 @@ private:
         likely_release(str);
     }
 
-    static void show_callback(likely_const_mat m, likely_const_ast ast, void *context)
+    static void repl_callback(likely_const_env env, void *context)
     {
-        while (ast->is_list && (ast->num_atoms > 0))
+        likely_const_ast ast = env->ast;
+        while (ast && ast->is_list && (ast->num_atoms > 0))
             ast = ast->atoms[0];
-        const QString name = ast->is_list ? "" : ast->atom;
-        reinterpret_cast<Printer*>(context)->print(m, name);
+        const QString name = (!ast || ast->is_list) ? "" : ast->atom;
+        reinterpret_cast<Printer*>(context)->print(env->result, name);
     }
 };
 
