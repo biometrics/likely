@@ -384,6 +384,17 @@ int likely_ast_compare(likely_const_ast a, likely_const_ast b)
     }
 }
 
+const char *likely_get_symbol_name(likely_const_ast ast)
+{
+    while (ast && ast->is_list && (ast->num_atoms > 0)) {
+        if ((ast->num_atoms > 1) && !ast->atoms[0]->is_list && !strcmp(ast->atoms[0]->atom, "="))
+            ast = ast->atoms[1];
+        else
+            ast = ast->atoms[0];
+    }
+    return (ast && !ast->is_list) ? ast->atom : "";
+}
+
 static void default_error_callback(likely_error error, void *)
 {
     likely_mat str = likely_error_to_string(error);

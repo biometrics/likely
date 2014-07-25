@@ -780,11 +780,7 @@ private:
 
     static void repl_callback(likely_const_env env, void *context)
     {
-        likely_const_ast ast = env->ast;
-        while (ast && ast->is_list && (ast->num_atoms > 0))
-            ast = ast->atoms[0];
-        const QString name = (!ast || ast->is_list) ? "" : ast->atom;
-        reinterpret_cast<Printer*>(context)->print(env->result, name);
+        reinterpret_cast<Printer*>(context)->print(env->result, likely_get_symbol_name(env->ast));
     }
 };
 

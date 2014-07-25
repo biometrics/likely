@@ -410,8 +410,7 @@ void likely_show(likely_const_env env, void *)
 {
     if (!env) return;
     likely_mat m = likely_render(env->result, NULL, NULL);
-    const char *name = env->ast->is_list ? NULL : env->ast->atom;
-    cv::imshow((name && (strlen(name) > 0)) ? name : "Likely", likely::toCvMat(m));
+    cv::imshow(likely_get_symbol_name(env->ast), likely::toCvMat(m));
     cv::waitKey();
     likely_release(m);
 }

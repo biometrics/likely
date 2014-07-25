@@ -63,6 +63,7 @@ LIKELY_EXPORT likely_ast likely_ast_from_tokens(likely_const_ast tokens);
 LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str, bool GFM);
 LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);
 LIKELY_EXPORT int likely_ast_compare(likely_const_ast a, likely_const_ast b);
+LIKELY_EXPORT const char *likely_get_symbol_name(likely_const_ast ast); // return value valid for lifetime of ast
 
 // Callback-style error handling
 LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, void *context);

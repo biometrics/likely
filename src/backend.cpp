@@ -262,45 +262,11 @@ struct likely_expression
         return type;
     }
 
-    static bool isSymbol(likely_const_ast ast, const char *name)
-    {
-        if (!ast || !name)
-            return false;
-
-        if (ast->is_list) {
-            // Global variable
-            if (ast->num_atoms < 2)
-                return false;
-
-            likely_const_ast def = ast->atoms[0];
-            if (!def || def->is_list || strcmp(def->atom, "="))
-                return false;
-
-            likely_const_ast lhs = ast->atoms[1];
-            if (!lhs)
-                return false;
-
-            if (lhs->is_list) {
-                // Exported function
-                if (lhs->num_atoms == 0)
-                    return false;
-                likely_const_ast fun = lhs->atoms[0];
-                return !fun->is_list && !strcmp(fun->atom, name);
-            } else {
-                // Evaluate expression
-                return !strcmp(lhs->atom, name);
-            }
-        } else {
-            // Local variable
-            return !strcmp(ast->atom, name);
-        }
-    }
-
     static likely_const_expr lookup(likely_const_env env, const char *name)
     {
         if (!env)
             return NULL;
-        if (likely_definition(env->type) && isSymbol(env->ast, name))
+        if (likely_definition(env->type) && !strcmp(name, likely_get_symbol_name(env->ast)))
             return env->value;
         return lookup(env->parent, name);
     }
@@ -316,7 +282,7 @@ struct likely_expression
     static likely_const_expr undefine(likely_env &env, const char *name)
     {
         assert(likely_definition(env->type));
-        likely_assert(isSymbol(env->ast, name), "undefine variable mismatch");
+        likely_assert(!strcmp(name, likely_get_symbol_name(env->ast)), "undefine variable mismatch");
         likely_const_expr value = env->value;
         env->value = NULL;
         likely_env old = env;
