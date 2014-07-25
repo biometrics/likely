@@ -2407,12 +2407,15 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         return;
     }
 
-    Builder builder(const_cast<likely_env>(parent));
-    builder.env->resources = &resources;
-    unique_ptr<const likely_expression> result(builder.expression(ast));
-    unique_ptr<const Symbol> expr(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC));
-    value = expr->value;
-    type = expr->type;
+    {
+        Builder builder(likely_new_env(parent));
+        builder.env->resources = &resources;
+        unique_ptr<const likely_expression> result(builder.expression(ast));
+        unique_ptr<const Symbol> expr(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC));
+        likely_release_env(builder.env);
+        value = expr->value;
+        type = expr->type;
+    }
 
     if (!value)
         return;
