@@ -76,17 +76,16 @@ void likely_release_ast(likely_const_ast ast)
 static void incrementCounters(char c, likely_size &line, likely_size &column)
 {
     if (c == '\n') {
-        line++;
+        line = line + 1;
         column = 0;
     } else {
         column++;
     }
 }
 
-static void tokenize(const char *str, const size_t len, vector<likely_const_ast> &tokens)
+static void tokenize(const char *str, const size_t len, vector<likely_const_ast> &tokens, likely_size &line, likely_size &column)
 {
     size_t i = 0;
-    likely_size line = 0, column = 0;
     while (true) {
         // Skip whitespace and control characters
         const char ignored = ' ';
@@ -108,8 +107,8 @@ static void tokenize(const char *str, const size_t len, vector<likely_const_ast>
         }
 
         size_t begin = i;
-        likely_size begin_line = line;
-        likely_size begin_column = column;
+        const likely_size begin_line = line;
+        const likely_size begin_column = column;
         bool inString = false;
         while ((i < len) && (inString || ((str[i] > ignored) && (str[i] != '(')
                                                              && (str[i] != ')')
@@ -138,6 +137,7 @@ static void tokenize(const char *str, const size_t len, vector<likely_const_ast>
 // GFM = Github Flavored Markdown
 static void tokenizeGFM(const char *str, const size_t len, vector<likely_const_ast> &tokens)
 {
+    likely_size line = 0, column = 0;
     bool inBlock = false, skipBlock = false;
     size_t lineStart = 0;
     while (lineStart < len) {
@@ -161,7 +161,7 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_const_a
         } else if (!skipBlock) {
             if (inBlock || ((lineLen > 4) && !strncmp(&str[lineStart], "    ", 4))) {
                 // It's a code block
-                tokenize(&str[lineStart], lineLen, tokens);
+                tokenize(&str[lineStart], lineLen, tokens, line, column);
             } else {
                 // Look for `inline code`
                 size_t inlineStart = lineStart+1;
@@ -173,7 +173,7 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_const_a
                         inlineEnd++;
 
                     if ((inlineStart < lineEnd) && (inlineEnd < lineEnd))
-                        tokenize(&str[inlineStart], inlineEnd-inlineStart, tokens);
+                        tokenize(&str[inlineStart], inlineEnd-inlineStart, tokens, line, column);
 
                     inlineStart = inlineEnd + 1;
                 } while (inlineStart < lineEnd);
@@ -198,7 +198,7 @@ likely_ast likely_tokens_from_string(const char *str, bool GFM)
     vector<likely_const_ast> tokens;
     const size_t len = strlen(str);
     if (GFM) tokenizeGFM(str, len, tokens);
-    else     tokenize(str, len, tokens);
+    else     { likely_size line = 0, column = 0; tokenize(str, len, tokens, line, column); }
     return likely_new_list(tokens.data(), tokens.size());
 }
 

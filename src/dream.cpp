@@ -120,6 +120,7 @@ public:
     Source()
     {
         setLineWrapMode(QPlainTextEdit::NoWrap);
+        setMouseTracking(true);
         connect(this, SIGNAL(textChanged()), this, SLOT(eval()));
     }
 
@@ -154,6 +155,25 @@ public slots:
     }
 
 private:
+    void mouseMoveEvent(QMouseEvent *e)
+    {
+        if (e->modifiers() != Qt::ControlModifier)
+            return QPlainTextEdit::mouseMoveEvent(e);
+
+        e->accept();
+        if (!prev)
+            return;
+
+        QTextCursor tc = cursorForPosition(e->pos());
+        likely_const_env env = prev;
+        while (env && env->ast &&
+               ((int(env->ast->begin_line) >  tc.blockNumber()) ||
+               ((int(env->ast->begin_line) == tc.blockNumber()) && (int(env->ast->begin_column) > tc.columnNumber()))))
+               env = env->parent;
+
+        // TODO: Display env->result
+    }
+
     int selectNumber(QTextCursor &tc, bool *ok)
     {
         int n = selectValUnderCursor(tc, ok);
@@ -173,6 +193,7 @@ private:
         if (e->modifiers() != Qt::ControlModifier)
             return QPlainTextEdit::wheelEvent(e);
 
+        e->accept();
         const int deltaY =                    getIncrement(e->angleDelta().y(), wheelRemainderY, wheelRemainderX);
         const int deltaX = (deltaY != 0 ? 0 : getIncrement(e->angleDelta().x(), wheelRemainderX, wheelRemainderY));
         if ((deltaX == 0) && (deltaY == 0))
