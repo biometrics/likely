@@ -53,6 +53,7 @@ LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
 LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
 
 // Matrix Visualization
+LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
 LIKELY_EXPORT likely_mat likely_to_string(likely_const_mat m, int header);
 LIKELY_EXPORT likely_mat likely_to_hex(likely_const_mat m);
 LIKELY_EXPORT likely_mat likely_print(likely_const_mat m);

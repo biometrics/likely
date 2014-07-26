@@ -246,12 +246,17 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
     return likely::fromCvMat(cv::Mat(buf));
 }
 
+bool likely_is_string(likely_const_mat m)
+{
+    return m && (likely_data(m->type) == likely_matrix_i8) && !m->data[likely_elements(m)-1];
+}
+
 likely_mat likely_to_string(likely_const_mat m, int header)
 {
     if (!m) return NULL;
     const size_t elements = likely_elements(m);
-    if ((likely_data(m->type) == likely_matrix_i8) && !m->data[elements-1])
-        return likely_retain(m); // Special case where matrix encodes a string
+    if (likely_is_string(m))
+        return likely_retain(m);
 
     // Don't include type for scalars
     if ((header > 0) && (elements == 1))

@@ -344,7 +344,7 @@ public:
 
     void show(likely_const_mat m, const QString &name)
     {
-        if (likely_elements(m) <= 16) {
+        if ((likely_elements(m) <= 16) || likely_is_string(m)) {
             image->setImage(QImage());
 
             likely_mat str = likely_to_string(m, true);
