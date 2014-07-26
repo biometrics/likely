@@ -248,6 +248,7 @@ struct Image : public QGLWidget
         : QGLWidget(parent)
     {
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        setVisible(false);
     }
 
     void setImage(const QImage &image)
@@ -306,6 +307,7 @@ public:
         setLayout(layout);
         setLineWidth(2);
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        setVisible(false);
         spartan(false);
     }
 
@@ -334,6 +336,7 @@ public:
         }
 
         updateDefinition(name);
+        setVisible(true);
     }
 
     QString getDefinition() const
@@ -483,7 +486,8 @@ class Printer : public QScrollArea
 {
     Q_OBJECT
     QVBoxLayout *layout;
-    int offset = 0;
+    Matrix *hotSpot;
+    int offset = 1;
     bool dirty = false;
 
 public:
@@ -497,12 +501,14 @@ public:
         layout->setAlignment(Qt::AlignTop);
         layout->setContentsMargins(0, 0, 0, 0);
         layout->setSpacing(6);
+        hotSpot = new Matrix();
+        layout->addWidget(hotSpot);
         widget()->setLayout(layout);
     }
 
     void spartan(bool enabled)
     {
-        assert(offset == 0);
+        assert(offset == 1);
         while (QLayoutItem *item = layout->itemAt(offset++))
             static_cast<Matrix*>(item->widget())->spartan(enabled);
         finishedPrinting();
@@ -513,7 +519,7 @@ public slots:
     {
         for (int i=offset; i<layout->count(); i++)
             layout->itemAt(i)->widget()->deleteLater();
-        offset = 0;
+        offset = 1;
         if (dirty) {
             definitionChanged();
             dirty = false;
@@ -537,7 +543,7 @@ public slots:
 
     void reset()
     {
-        assert(offset == 0);
+        assert(offset == 1);
         while (QLayoutItem *item = layout->itemAt(offset++))
             static_cast<Matrix*>(item->widget())->reset();
         finishedPrinting();
@@ -546,12 +552,12 @@ public slots:
 private slots:
     void definitionChanged()
     {
-        if (offset > 0) {
+        if (offset > 1) {
             // Wait until printing is done to emit new definitions
             dirty = true;
         } else {
             QStringList definitions;
-            for (int i=0; i<layout->count(); i++)
+            for (int i=1; i<layout->count(); i++)
                 definitions.append(static_cast<Matrix*>(layout->itemAt(i)->widget())->getDefinition());
             definitions.removeAll(QString());
             emit newDefinitions(definitions.join("\n") + (definitions.isEmpty() ? "" : "\n"));
