@@ -83,7 +83,7 @@ static void incrementCounters(char c, likely_size &line, likely_size &column)
     }
 }
 
-static void tokenize(const char *str, const size_t len, vector<likely_const_ast> &tokens, likely_size &line, likely_size &column)
+static void tokenize(const char *str, const size_t len, vector<likely_const_ast> &tokens, likely_size line, likely_size column)
 {
     size_t i = 0;
     while (true) {
@@ -161,8 +161,7 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_const_a
         } else if (!skipBlock) {
             if (inBlock || ((lineLen > 4) && !strncmp(&str[lineStart], "    ", 4))) {
                 // It's a code block
-                likely_size column = 4;
-                tokenize(&str[lineStart], lineLen, tokens, line, column);
+                tokenize(&str[lineStart], lineLen, tokens, line, 4);
             } else {
                 // Look for `inline code`
                 size_t inlineStart = lineStart+1;
@@ -173,10 +172,8 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_const_a
                     while ((inlineEnd < lineEnd) && (str[inlineEnd] != '`'))
                         inlineEnd++;
 
-                    if ((inlineStart < lineEnd) && (inlineEnd < lineEnd)) {
-                        likely_size column = inlineStart - lineStart;
-                        tokenize(&str[inlineStart], inlineEnd-inlineStart, tokens, line, column);
-                    }
+                    if ((inlineStart < lineEnd) && (inlineEnd < lineEnd))
+                        tokenize(&str[inlineStart], inlineEnd-inlineStart, tokens, line, inlineStart-lineStart);
 
                     inlineStart = inlineEnd + 1;
                 } while (inlineStart < lineEnd);
@@ -202,7 +199,7 @@ likely_ast likely_tokens_from_string(const char *str, bool GFM)
     vector<likely_const_ast> tokens;
     const size_t len = strlen(str);
     if (GFM) tokenizeGFM(str, len, tokens);
-    else     { likely_size line = 0, column = 0; tokenize(str, len, tokens, line, column); }
+    else     tokenize(str, len, tokens, 0, 0);
     return likely_new_list(tokens.data(), tokens.size());
 }
 

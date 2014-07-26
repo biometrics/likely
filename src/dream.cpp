@@ -115,6 +115,7 @@ class Source : public QPlainTextEdit
     QString header, previousSource;
     int wheelRemainderX = 0, wheelRemainderY = 0;
     likely_env prev = NULL;
+    likely_size prevHeaderLines = 0;
 
 public:
     Source()
@@ -164,12 +165,20 @@ private:
         if (!prev)
             return;
 
-        QTextCursor tc = cursorForPosition(e->pos());
+        const QTextCursor tc = cursorForPosition(e->pos());
+        const likely_size line   = tc.blockNumber() + prevHeaderLines;
+        const likely_size column = tc.positionInBlock();
+
         likely_const_env env = prev;
         while (env && env->ast &&
-               ((int(env->ast->begin_line) >  tc.blockNumber()) ||
-               ((int(env->ast->begin_line) == tc.blockNumber()) && (int(env->ast->begin_column) > tc.columnNumber()))))
+               ((env->ast->begin_line > line) ||
+               ((env->ast->begin_line == line) && (env->ast->begin_column < column))))
                env = env->parent;
+
+        if (!env || !env->ast ||
+            (env->ast->end_line < line) ||
+            ((env->ast->end_line == line) && (env->ast->end_column < column)))
+            return;
 
         // TODO: Display env->result
     }
@@ -253,6 +262,7 @@ private slots:
         }
         likely_release_env(prev);
         prev = env;
+        prevHeaderLines = header.count('\n');
         emit finishedEval(toPlainText());
     }
 
