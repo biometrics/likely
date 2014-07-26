@@ -137,7 +137,7 @@ static void tokenize(const char *str, const size_t len, vector<likely_const_ast>
 // GFM = Github Flavored Markdown
 static void tokenizeGFM(const char *str, const size_t len, vector<likely_const_ast> &tokens)
 {
-    likely_size line = 0, column = 0;
+    likely_size line = 0;
     bool inBlock = false, skipBlock = false;
     size_t lineStart = 0;
     while (lineStart < len) {
@@ -161,6 +161,7 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_const_a
         } else if (!skipBlock) {
             if (inBlock || ((lineLen > 4) && !strncmp(&str[lineStart], "    ", 4))) {
                 // It's a code block
+                likely_size column = 4;
                 tokenize(&str[lineStart], lineLen, tokens, line, column);
             } else {
                 // Look for `inline code`
@@ -172,8 +173,10 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_const_a
                     while ((inlineEnd < lineEnd) && (str[inlineEnd] != '`'))
                         inlineEnd++;
 
-                    if ((inlineStart < lineEnd) && (inlineEnd < lineEnd))
+                    if ((inlineStart < lineEnd) && (inlineEnd < lineEnd)) {
+                        likely_size column = inlineStart - lineStart;
                         tokenize(&str[inlineStart], inlineEnd-inlineStart, tokens, line, column);
+                    }
 
                     inlineStart = inlineEnd + 1;
                 } while (inlineStart < lineEnd);
@@ -181,6 +184,7 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_const_a
         }
 
         lineStart = lineEnd + 1;
+        line++;
     }
 }
 
