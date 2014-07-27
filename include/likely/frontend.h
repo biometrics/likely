@@ -24,6 +24,16 @@
 extern "C" {
 #endif // __cplusplus
 
+typedef enum
+{
+    likely_ast_unknown,
+    likely_ast_list,
+    likely_ast_operator,
+    likely_ast_string,
+    likely_ast_number,
+    likely_ast_type
+} likely_abstract_syntax_tree_type;
+
 struct likely_abstract_syntax_tree;
 typedef struct likely_abstract_syntax_tree *likely_ast;
 typedef struct likely_abstract_syntax_tree const *likely_const_ast;
@@ -31,11 +41,11 @@ typedef struct likely_abstract_syntax_tree const *likely_const_ast;
 struct likely_abstract_syntax_tree
 {
     union {
-        struct {
+        struct { // type == likely_ast_list
             likely_const_ast *atoms;
             likely_size num_atoms;
         };
-        struct {
+        struct { // type != likely_ast_list
             const char *atom;
             likely_size atom_len;
         };
@@ -43,7 +53,7 @@ struct likely_abstract_syntax_tree
 
     likely_size ref_count;
     likely_size begin_line, begin_column, end_line, end_column;
-    bool is_list;
+    likely_abstract_syntax_tree_type type;
 };
 
 typedef struct likely_error

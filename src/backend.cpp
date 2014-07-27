@@ -293,7 +293,7 @@ struct likely_expression
 
     static size_t length(likely_const_ast ast)
     {
-        return ast->is_list ? ast->num_atoms : 1;
+        return (ast->type == likely_ast_list) ? ast->num_atoms : 1;
     }
 };
 
@@ -535,7 +535,7 @@ struct Builder : public IRBuilder<>
 
     void undefineAll(likely_const_ast args, bool deleteExpression)
     {
-        if (args->is_list) {
+        if (args->type == likely_ast_list) {
             for (size_t i=0; i<args->num_atoms; i++) {
                 likely_const_expr expression = undefine(args->atoms[args->num_atoms-i-1]->atom);
                 if (deleteExpression) delete expression;
@@ -570,11 +570,11 @@ private:
     {
         Function *definition = cast<Function>(value);
         Function *symbol = cast<Function>(builder.module()->getOrInsertFunction(definition->getName(), definition->getFunctionType()));
-        if (symbol->arg_size() != (ast->is_list ? ast->num_atoms-1 : 0))
+        if (symbol->arg_size() != ((ast->type == likely_ast_list) ? ast->num_atoms-1 : 0))
             return error(ast, "incorrect argument count");
 
         vector<Value*> args;
-        if (ast->is_list) {
+        if (ast->type == likely_ast_list) {
             Function::arg_iterator it = symbol->arg_begin();
             for (size_t i=1; i<ast->num_atoms; i++, it++) {
                 TRY_EXPR(builder, ast->atoms[i], arg)
@@ -615,7 +615,7 @@ class Operator : public likely_expression
 {
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
-        if (!ast->is_list && (minParameters() > 0))
+        if ((ast->type != likely_ast_list) && (minParameters() > 0))
             return error(ast, "operator expected arguments");
 
         const size_t args = length(ast)-1;
@@ -662,7 +662,7 @@ private:
 
 likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast ast) const
 {
-    if (ast->is_list) {
+    if (ast->type == likely_ast_list) {
         likely_expr expression = new likely_expression();
         for (size_t i=0; i<ast->num_atoms; i++) {
             if (likely_const_expr e = builder.expression(ast->atoms[i])) {
@@ -800,11 +800,11 @@ private:
 
 likely_const_expr Builder::expression(likely_const_ast ast)
 {
-    if (ast->is_list) {
+    if (ast->type == likely_ast_list) {
         if (ast->num_atoms == 0)
             return likely_expression::error(ast, "Empty expression");
         likely_const_ast op = ast->atoms[0];
-        if (!op->is_list)
+        if (op->type != likely_ast_list)
             if (likely_const_expr e = lookup(op->atom))
                 return e->evaluate(*this, ast);
         TRY_EXPR(*this, op, e);
@@ -1132,7 +1132,7 @@ class definedExpression : public Operator
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         likely_const_ast name = ast->atoms[1];
-        if (name->is_list)
+        if (name->type == likely_ast_list)
             return error(name, "expected an atom");
         if (builder.lookup(name->atom)) return builder.expression(name);
         else                            return builder.expression(ast->atoms[2]);
@@ -1421,10 +1421,10 @@ struct Lambda : public ScopedExpression
     const Symbol *generate(Builder &builder, vector<likely_type> types, string name, bool arrayCC) const
     {
         size_t n;
-        if (ast->is_list && (ast->num_atoms > 1))
-            if (ast->atoms[1]->is_list) n = ast->atoms[1]->num_atoms;
-            else                        n = 1;
-        else                            n = 0;
+        if ((ast->type == likely_ast_list) && (ast->num_atoms > 1))
+            if (ast->atoms[1]->type == likely_ast_list) n = ast->atoms[1]->num_atoms;
+            else                                        n = 1;
+        else                                            n = 0;
 
         while (types.size() < n)
             types.push_back(MatType::MultiDimension);
@@ -1545,7 +1545,7 @@ private:
 
     virtual likely_const_expr evaluateLambda(Builder &builder, const vector<likely_expression> &args) const
     {
-        if (ast->atoms[1]->is_list) {
+        if (ast->atoms[1]->type == likely_ast_list) {
             for (size_t i=0; i<args.size(); i++)
                 builder.define(ast->atoms[1]->atoms[i]->atom, new likely_expression(args[i]));
         } else {
@@ -1566,9 +1566,9 @@ class lambdaExpression : public Operator
 public:
     static bool isLambda(likely_const_ast ast)
     {
-        return ast->is_list
+        return (ast->type == likely_ast_list)
                && (ast->num_atoms > 0)
-               && !ast->atoms[0]->is_list
+               && (ast->atoms[0]->type != likely_ast_list)
                && (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>"));
     }
 };
@@ -1786,7 +1786,7 @@ private:
 
         likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
         {
-            if (ast->is_list)
+            if (ast->type == likely_ast_list)
                 return error(ast, "kernel operator does not take arguments");
 
             if (!isa<PointerType>(value->getType()))
@@ -1892,12 +1892,12 @@ private:
         getPairs(getMetadata(), pairs);
 
         for (const auto &pair : pairs)
-            if (!strcmp("type", pair.first->atom) && !pair.second->is_list)
+            if (!strcmp("type", pair.first->atom) && (pair.second->type != likely_ast_list))
                 kernelType |= likely_type_field_from_string(pair.second->atom, NULL);
 
         const likely_const_ast args = ast->atoms[1];
-        assert(srcs.size() == args->is_list ? args->num_atoms : 1);
-        if (args->is_list) {
+        assert(srcs.size() == (args->type == likely_ast_list) ? args->num_atoms : 1);
+        if (args->type == likely_ast_list) {
             for (size_t j=0; j<args->num_atoms; j++)
                 builder.define(args->atoms[j]->atom, &srcs[j]);
         } else {
@@ -2085,7 +2085,7 @@ private:
         }
         builder.define("i", new likely_expression(axis->offset, likely_matrix_native));
 
-        if (args->is_list) {
+        if (args->type == likely_ast_list) {
             for (size_t j=0; j<args->num_atoms; j++)
                 builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, channelStep, axis->node));
         } else {
@@ -2121,10 +2121,10 @@ private:
     {
         pairs.clear();
         if (!ast) return true;
-        if (!ast->is_list) return false;
+        if (ast->type != likely_ast_list) return false;
         if (ast->num_atoms == 0) return true;
 
-        if (ast->atoms[0]->is_list) {
+        if (ast->atoms[0]->type == likely_ast_list) {
             for (size_t i=0; i<ast->num_atoms; i++) {
                 if (ast->atoms[i]->num_atoms != 2) {
                     pairs.clear();
@@ -2296,16 +2296,16 @@ class defineExpression : public Operator
     {
         likely_const_ast lhs = ast->atoms[1];
         likely_const_ast rhs = ast->atoms[2];
-        const char *name = lhs->is_list ? lhs->atoms[0]->atom : lhs->atom;
+        const char *name = (lhs->type == likely_ast_list) ? lhs->atoms[0]->atom : lhs->atom;
         likely_env env = builder.env;
 
         if (likely_global(env->type)) {
             assert(!env->value);
-            if (lhs->is_list) {
+            if (lhs->type == likely_ast_list) {
                 // Export symbol
                 vector<likely_type> types;
                 for (size_t i=1; i<lhs->num_atoms; i++) {
-                    if (lhs->atoms[i]->is_list)
+                    if (lhs->atoms[i]->type == likely_ast_list)
                         return error(lhs->atoms[i], "expected an atom name parameter type");
                     types.push_back(likely_type_from_string(lhs->atoms[i]->atom));
                 }
@@ -2356,7 +2356,7 @@ class importExpression : public Operator
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         likely_const_ast file = ast->atoms[1];
-        if (file->is_list)
+        if (file->type == likely_ast_list)
             return error(file, "expected a file name");
 
         const string fileName = string(file->atom) + ".l";
@@ -2825,7 +2825,7 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
         return NULL;
 
     likely_env env = likely_new_env(parent);
-    likely_set_definition(&env->type, ast->is_list && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="));
+    likely_set_definition(&env->type, (ast->type == likely_ast_list) && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="));
     likely_set_global(&env->type, true);
     env->ast = likely_retain_ast(ast);
 

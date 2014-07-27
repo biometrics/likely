@@ -34,12 +34,12 @@ likely_ast likely_new_atom(const char *str, likely_size len)
     memcpy((void*) ast->atom, str, len);
     ((char*) ast->atom)[len] = '\0';
     ast->atom_len = len;
-    ast->is_list = false;
     ast->ref_count = 1;
     ast->begin_line = 0;
     ast->begin_column = 0;
     ast->end_line = 0;
     ast->end_column = 0;
+    ast->type = likely_ast_unknown;
     return ast;
 }
 
@@ -49,12 +49,12 @@ likely_ast likely_new_list(const likely_const_ast *atoms, size_t num_atoms)
     ast->atoms = (likely_const_ast*) (ast+1);
     memcpy(ast->atoms, atoms, num_atoms * sizeof(likely_const_ast));
     ast->num_atoms = num_atoms;
-    ast->is_list = true;
     ast->ref_count = 1;
     ast->begin_line = (num_atoms == 0) ? 0 : atoms[0]->begin_line;
     ast->begin_column = (num_atoms == 0) ? 0 : atoms[0]->begin_column;
     ast->end_line = (num_atoms == 0) ? 0 : atoms[0]->end_line;
     ast->end_column = (num_atoms == 0) ? 0 : atoms[0]->end_column;
+    ast->type = likely_ast_list;
     return ast;
 }
 
@@ -67,7 +67,7 @@ likely_ast likely_retain_ast(likely_const_ast ast)
 void likely_release_ast(likely_const_ast ast)
 {
     if (!ast || --const_cast<likely_ast>(ast)->ref_count) return;
-    if (ast->is_list)
+    if (ast->type == likely_ast_list)
         for (size_t i=0; i<ast->num_atoms; i++)
             likely_release_ast(ast->atoms[i]);
     free((void*) ast);
@@ -227,7 +227,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_a
 
 static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence)
 {
-    if (!token->is_list && (precedence < std::numeric_limits<int>::max())) {
+    if ((token->type != likely_ast_list) && (precedence < std::numeric_limits<int>::max())) {
         if (!strcmp(token->atom, ".")) {
             if (output.empty())
                 return likely_throw(token, "missing operand");
@@ -235,8 +235,8 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
                 return 0;
 
             // See if the combined token is a number
-            if (!output[output.size()-2]->is_list &&
-                !output[output.size()-1]->is_list &&
+            if ((output[output.size()-2]->type != likely_ast_list) &&
+                (output[output.size()-1]->type != likely_ast_list) &&
                 (isdigit(output[output.size()-2]->atom[0]) || (output[output.size()-2]->atom[0] == '-'))  &&
                 isdigit(output[output.size()-1]->atom[0])) {
                 // It's a number
@@ -291,12 +291,12 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
 
 static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence)
 {
-    assert(tokens->is_list);
+    assert(tokens->type == likely_ast_list);
     if (offset >= tokens->num_atoms)
         return likely_throw(tokens->atoms[tokens->num_atoms-1], "unexpected end of expression");
 
     likely_const_ast token = tokens->atoms[offset++];
-    if (!token->is_list && (!strcmp(token->atom, "(") || !strcmp(token->atom, "{"))) {
+    if ((token->type != likely_ast_list) && (!strcmp(token->atom, "(") || !strcmp(token->atom, "{"))) {
         vector<likely_const_ast> atoms;
         const char *close;
         if (!strcmp(token->atom, "(")) {
@@ -308,7 +308,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_a
         likely_const_ast end;
         while (true) {
             end = tokens->atoms[offset];
-            if (!end->is_list && !strcmp(end->atom, close)) {
+            if ((end->type != likely_ast_list) && !strcmp(end->atom, close)) {
                 offset++;
                 break;
             }
@@ -344,7 +344,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_a
 
     // Special case additional shift(s)
     if (precedence < std::numeric_limits<int>::max())
-        while ((offset < tokens->num_atoms) && !tokens->atoms[offset]->is_list && !strcmp(tokens->atoms[offset]->atom, ":"))
+        while ((offset < tokens->num_atoms) && (tokens->atoms[offset]->type != likely_ast_list) && !strcmp(tokens->atoms[offset]->atom, ":"))
             if (!shift(tokens, ++offset, output, 0))
                 return false;
 
@@ -373,7 +373,7 @@ likely_ast likely_ast_from_string(const char *str, bool GFM)
 
 static void print(const likely_const_ast ast, stringstream &stream)
 {
-    if (ast->is_list) {
+    if (ast->type == likely_ast_list) {
         stream << "(";
         for (size_t i=0; i<ast->num_atoms; i++) {
             print(ast->atoms[i], stream);
@@ -395,8 +395,8 @@ likely_mat likely_ast_to_string(likely_const_ast ast)
 
 int likely_ast_compare(likely_const_ast a, likely_const_ast b)
 {
-    if (a->is_list == b->is_list) {
-        if (a->is_list) {
+    if ((a->type == likely_ast_list) == (b->type == likely_ast_list)) {
+        if (a->type == likely_ast_list) {
             if (a->num_atoms == b->num_atoms) {
                 for (size_t i = 0; i<a->num_atoms; i++)
                     if (int compare = likely_ast_compare(a->atoms[i], b->atoms[i]))
@@ -409,19 +409,19 @@ int likely_ast_compare(likely_const_ast a, likely_const_ast b)
             return strcmp(a->atom, b->atom);
         }
     } else {
-        return a->is_list ? 1 : -1;
+        return (a->type == likely_ast_list) ? 1 : -1;
     }
 }
 
 const char *likely_get_symbol_name(likely_const_ast ast)
 {
-    while (ast && ast->is_list && (ast->num_atoms > 0)) {
-        if ((ast->num_atoms > 1) && !ast->atoms[0]->is_list && !strcmp(ast->atoms[0]->atom, "="))
+    while (ast && (ast->type == likely_ast_list) && (ast->num_atoms > 0)) {
+        if ((ast->num_atoms > 1) && (ast->atoms[0]->type != likely_ast_list) && !strcmp(ast->atoms[0]->atom, "="))
             ast = ast->atoms[1];
         else
             ast = ast->atoms[0];
     }
-    return (ast && !ast->is_list) ? ast->atom : "";
+    return (ast && (ast->type != likely_ast_list)) ? ast->atom : "";
 }
 
 static void default_error_callback(likely_error error, void *)
