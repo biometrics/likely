@@ -158,29 +158,25 @@ public slots:
 private:
     void mouseMoveEvent(QMouseEvent *e)
     {
-        if (e->modifiers() != Qt::ControlModifier)
-            return QPlainTextEdit::mouseMoveEvent(e);
-
         e->accept();
-        if (!prev)
-            return;
+        likely_const_env hotSpot = NULL;
+        if ((e->modifiers() == Qt::ControlModifier) && prev) {
+            const QTextCursor tc = cursorForPosition(e->pos());
+            const likely_size line   = tc.blockNumber() + prevHeaderLines;
+            const likely_size column = tc.positionInBlock();
 
-        const QTextCursor tc = cursorForPosition(e->pos());
-        const likely_size line   = tc.blockNumber() + prevHeaderLines;
-        const likely_size column = tc.positionInBlock();
+            likely_const_env env = prev;
+            while (env && env->ast &&
+                   ((env->ast->begin_line > line) ||
+                    ((env->ast->begin_line == line) && (env->ast->begin_column < column))))
+                env = env->parent;
 
-        likely_const_env env = prev;
-        while (env && env->ast &&
-               ((env->ast->begin_line > line) ||
-               ((env->ast->begin_line == line) && (env->ast->begin_column < column))))
-               env = env->parent;
-
-        if (!env || !env->ast ||
-            (env->ast->end_line < line) ||
-            ((env->ast->end_line == line) && (env->ast->end_column < column)))
-            return;
-
-        // TODO: Display env->result
+            if (env && env->ast &&
+                ((env->ast->end_line > line) ||
+                 ((env->ast->end_line == line) && (env->ast->end_column >= column))))
+                hotSpot = env;
+        }
+        emit newHotSpot(hotSpot);
     }
 
     int selectNumber(QTextCursor &tc, bool *ok)
@@ -268,6 +264,7 @@ private slots:
 
 signals:
     void finishedEval(QString);
+    void newHotSpot(likely_const_env);
     void newStatus(QString);
 };
 
@@ -344,6 +341,9 @@ public:
 
     void show(likely_const_mat m, const QString &name)
     {
+        if (!m)
+            return hide();
+
         if ((likely_elements(m) <= 16) || likely_is_string(m)) {
             image->setImage(QImage());
 
@@ -545,21 +545,9 @@ public:
         finishedPrinting();
     }
 
-public slots:
-    void finishedPrinting()
-    {
-        for (int i=offset; i<layout->count(); i++)
-            layout->itemAt(i)->widget()->deleteLater();
-        offset = 1;
-        if (dirty) {
-            definitionChanged();
-            dirty = false;
-        }
-    }
-
     void print(likely_const_env env)
     {
-        if (likely_definition(env->type) || !env->result || (likely_elements(env->result) == 0))
+        if (!env || likely_definition(env->type) || !env->result || (likely_elements(env->result) == 0))
             return;
 
         const QString name = likely_get_symbol_name(env->ast);
@@ -570,6 +558,34 @@ public slots:
         layout->insertWidget(i, matrix);
         connect(matrix, SIGNAL(definitionChanged()), this, SLOT(definitionChanged()));
         matrix->show(env->result, name);
+    }
+
+public slots:
+    void setHotSpot(likely_const_env env)
+    {
+        if (env) {
+            const QString name = likely_get_symbol_name(env->ast);
+            if (likely_definition(env->type)) {
+                likely_const_mat result = likely_evaluated_expression(env->value);
+                hotSpot->show(result, name);
+                likely_release(result);
+            } else {
+                hotSpot->show(env->result, name);
+            }
+        } else {
+            hotSpot->hide();
+        }
+    }
+
+    void finishedPrinting()
+    {
+        for (int i=offset; i<layout->count(); i++)
+            layout->itemAt(i)->widget()->deleteLater();
+        offset = 1;
+        if (dirty) {
+            definitionChanged();
+            dirty = false;
+        }
     }
 
     void reset()
@@ -711,6 +727,7 @@ public:
         connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
         connect(source, SIGNAL(finishedEval(QString)), this, SLOT(finishedEval(QString)));
         connect(source, SIGNAL(finishedEval(QString)), printer, SLOT(finishedPrinting()));
+        connect(source, SIGNAL(newHotSpot(likely_const_env)), printer, SLOT(setHotSpot(likely_const_env)));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
         connect(fullScreen, SIGNAL(toggled(bool)), this, SLOT(fullScreen(bool)));
         connect(spartan, SIGNAL(toggled(bool)), this, SLOT(spartan(bool)));
