@@ -2827,7 +2827,7 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
     likely_env env = likely_new_env(parent);
     likely_set_definition(&env->type, (ast->type == likely_ast_list) && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="));
     likely_set_global(&env->type, true);
-    env->ast = likely_retain_ast(ast);
+    env->ast = likely_copy_ast(ast); // Copy because we will modify likely_abstract_syntax_tree::type
 
     if (likely_definition(env->type)) {
         if (previous) {

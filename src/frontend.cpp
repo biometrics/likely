@@ -58,6 +58,25 @@ likely_ast likely_new_list(const likely_const_ast *atoms, size_t num_atoms)
     return ast;
 }
 
+likely_ast likely_copy_ast(likely_const_ast ast)
+{
+    likely_ast copy;
+    if (ast->type == likely_ast_list) {
+        vector<likely_const_ast> atoms;
+        for (size_t i=0; i<ast->num_atoms; i++)
+            atoms.push_back(likely_copy_ast(ast->atoms[i]));
+        copy = likely_new_list(atoms.data(), atoms.size());
+    } else {
+        copy = likely_new_atom(ast->atom, ast->atom_len);
+    }
+    copy->begin_line = ast->begin_line;
+    copy->begin_column = ast->begin_column;
+    copy->end_line = ast->end_line;
+    copy->end_column = ast->end_column;
+    copy->type = ast->type;
+    return copy;
+}
+
 likely_ast likely_retain_ast(likely_const_ast ast)
 {
     if (ast) ++const_cast<likely_ast>(ast)->ref_count;
