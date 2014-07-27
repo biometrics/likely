@@ -26,8 +26,11 @@ extern "C" {
 
 typedef enum
 {
+    // list type
+    likely_ast_list = 0,
+
+    // atom types
     likely_ast_unknown,
-    likely_ast_list,
     likely_ast_operator,
     likely_ast_string,
     likely_ast_number,
