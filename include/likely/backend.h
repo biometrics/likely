@@ -27,7 +27,7 @@ extern "C" {
 typedef likely_size likely_environment_type; /* Offline    : 1
                                                 Erratum    : 1
                                                 Definition : 1
-                                                Local      : 1 */
+                                                Global     : 1 */
 
 enum likely_environment_type_field
 {
