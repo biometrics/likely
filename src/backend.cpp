@@ -798,6 +798,7 @@ private:
     }
 };
 
+// As a special exception, this function is allowed to set ast->type
 likely_const_expr Builder::expression(likely_const_ast ast)
 {
     if (ast->type == likely_ast_list) {
@@ -812,25 +813,35 @@ likely_const_expr Builder::expression(likely_const_ast ast)
     }
     const string op = ast->atom;
 
-    if (likely_const_expr e = lookup(op.c_str()))
+    if (likely_const_expr e = lookup(op.c_str())) {
+        const_cast<likely_ast>(ast)->type = likely_ast_operator;
         return e->evaluate(*this, ast);
+    }
 
-    if ((op.front() == '"') && (op.back() == '"'))
+    if ((op.front() == '"') && (op.back() == '"')) {
+        const_cast<likely_ast>(ast)->type = likely_ast_string;
         return new likely_expression(CreateGlobalStringPtr(op.substr(1, op.length()-2)), likely_matrix_u8);
+    }
 
     { // Is it a number?
         char *p;
         const double value = strtod(op.c_str(), &p);
-        if (*p == 0)
+        if (*p == 0) {
+            const_cast<likely_ast>(ast)->type = likely_ast_number;
             return new likely_expression(likely_expression::constant(value, likely_type_from_value(value)));
+        }
     }
 
     { // Is it a type?
         bool ok;
         likely_type type = likely_type_field_from_string(op.c_str(), &ok);
-        if (ok) return new MatrixType(type);
+        if (ok) {
+            const_cast<likely_ast>(ast)->type = likely_ast_type;
+            return new MatrixType(type);
+        }
     }
 
+    const_cast<likely_ast>(ast)->type = likely_ast_unknown;
     return likely_expression::error(ast, "unrecognized literal");
 }
 
@@ -2827,7 +2838,6 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
     likely_env env = likely_new_env(parent);
     likely_set_definition(&env->type, (ast->type == likely_ast_list) && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="));
     likely_set_global(&env->type, true);
-    env->ast = likely_copy_ast(ast); // Copy because we will modify likely_abstract_syntax_tree::type
 
     if (likely_definition(env->type)) {
         if (previous) {
@@ -2845,11 +2855,13 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
             //            parent->children[parent->num_children++] = env;
         }
 
-        assert(!Builder(env).expression(ast));
+        env->ast = likely_copy_ast(ast); // Copy because we will modify ast->type
+        Builder(env).expression(env->ast); // Returns NULL
     } else {
+        env->ast = likely_retain_ast(ast);
         likely_const_ast lambda = likely_ast_from_string("() -> (scalar <ast>)", false);
         likely_release_ast(lambda->atoms[0]->atoms[2]->atoms[1]); // <ast>
-        lambda->atoms[0]->atoms[2]->atoms[1] = likely_retain_ast(ast);
+        lambda->atoms[0]->atoms[2]->atoms[1] = likely_copy_ast(ast); // Copy because we will modify ast->type
 
         // TODO: Re-enable interpreter for OS X and Ubuntu when intrinsic lowering patch lands
         JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), false, false);
