@@ -545,21 +545,6 @@ public:
         finishedPrinting();
     }
 
-    void print(likely_const_env env)
-    {
-        if (!env || likely_definition(env->type) || !env->result || (likely_elements(env->result) == 0))
-            return;
-
-        const QString name = likely_get_symbol_name(env->ast);
-        const int i = offset++;
-        if (QLayoutItem *item = layout->itemAt(i)) // Try to recycle the widget
-            return static_cast<Matrix*>(item->widget())->show(env->result, name);
-        Matrix *matrix = new Matrix();
-        layout->insertWidget(i, matrix);
-        connect(matrix, SIGNAL(definitionChanged()), this, SLOT(definitionChanged()));
-        matrix->show(env->result, name);
-    }
-
 public slots:
     void setHotSpot(likely_const_env env)
     {
@@ -575,6 +560,21 @@ public slots:
         } else {
             hotSpot->hide();
         }
+    }
+
+    void print(likely_const_env env)
+    {
+        if (!env || likely_definition(env->type) || !env->result || (likely_elements(env->result) == 0))
+            return;
+
+        const QString name = likely_get_symbol_name(env->ast);
+        const int i = offset++;
+        if (QLayoutItem *item = layout->itemAt(i)) // Try to recycle the widget
+            return static_cast<Matrix*>(item->widget())->show(env->result, name);
+        Matrix *matrix = new Matrix();
+        layout->insertWidget(i, matrix);
+        connect(matrix, SIGNAL(definitionChanged()), this, SLOT(definitionChanged()));
+        matrix->show(env->result, name);
     }
 
     void finishedPrinting()
@@ -721,6 +721,7 @@ public:
         setWindowTitle("Likely");
         resize(800, WindowWidth);
 
+        connect(this, SIGNAL(newResult(likely_const_env)), printer, SLOT(print(likely_const_env)));
         connect(commandMode, SIGNAL(commandMode(bool)), syntaxHighlighter, SLOT(setCommandMode(bool)));
         connect(printer, SIGNAL(newDefinitions(QString)), source, SLOT(setHeader(QString)));
         connect(fileMenu, SIGNAL(triggered(QAction*)), this, SLOT(fileMenu(QAction*)));
@@ -734,7 +735,7 @@ public:
         connect(reset, SIGNAL(triggered()), printer, SLOT(reset()));
 
         likely_set_error_callback(error_callback, statusBar);
-        likely_set_repl_callback(repl_callback, printer);
+        likely_set_repl_callback(repl_callback, this);
         restore();
         this->spartan(Spartan);
     }
@@ -838,8 +839,11 @@ private:
 
     static void repl_callback(likely_const_env env, void *context)
     {
-        reinterpret_cast<Printer*>(context)->print(env);
+        reinterpret_cast<MainWindow*>(context)->newResult(env);
     }
+
+signals:
+    void newResult(likely_const_env);
 };
 
 int main(int argc, char *argv[])
