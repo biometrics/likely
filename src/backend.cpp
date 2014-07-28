@@ -728,7 +728,7 @@ struct RootEnvironment
     {
         static bool init = false;
         if (!init) {
-            builtins() = likely_repl(likely_standard_library, true, builtins(), NULL);
+            builtins() = likely_repl(likely_standard_library, true, builtins(), NULL, NULL, NULL);
             init = true;
         }
 
@@ -2378,7 +2378,7 @@ class importExpression : public Operator
             return error(file, "unable to open file");
 
         likely_env parent = builder.env;
-        builder.env = likely_repl(source.c_str(), true, parent, NULL);
+        builder.env = likely_repl(source.c_str(), true, parent, NULL, NULL, NULL);
         likely_release_env(parent);
         if (likely_erratum(builder.env->type)) return NULL;
         else                                   return new likely_expression();
@@ -2879,16 +2879,7 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
     return env;
 }
 
-static likely_repl_callback ReplCallback = NULL;
-static void *ReplContext = NULL;
-
-void likely_set_repl_callback(likely_repl_callback callback, void *context)
-{
-    ReplCallback = callback;
-    ReplContext = context;
-}
-
-likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, likely_const_env previous)
+likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, likely_const_env previous, likely_repl_callback repl_callback, void *context)
 {
     likely_const_ast ast = likely_ast_from_string(source, GFM);
     if (!ast)
@@ -2900,9 +2891,9 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, li
         env = likely_eval(atom, parent, previous);
         likely_release_env(parent);
         parent = env;
-        if (ReplCallback)
+        if (repl_callback)
             // If there is not context, we return a boolean value indicating if the environment has a valid result
-            ReplCallback(env, ReplContext ? ReplContext : (void*)(!likely_definition(env->type) && env->result && (likely_elements(env->result) > 0)));
+            repl_callback(env, context ? context : (void*)(!likely_definition(env->type) && env->result && (likely_elements(env->result) > 0)));
         if (likely_erratum(env->type))
             break;
     }

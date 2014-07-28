@@ -87,11 +87,12 @@ int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
 
-    if (!record.getValue().empty()) likely_set_repl_callback(replRecord, NULL);
-    else if (show)  likely_set_repl_callback(likely_show, NULL);
-    else if (md5)   likely_set_repl_callback(replMD5, NULL);
-    else if (quiet) likely_set_repl_callback(replQuiet, NULL);
-    else            likely_set_repl_callback(replPrint, NULL);
+    likely_repl_callback repl_callback;
+    if (!record.getValue().empty()) repl_callback = replRecord;
+    else if (show)  repl_callback = likely_show;
+    else if (md5)   repl_callback = replMD5;
+    else if (quiet) repl_callback = replQuiet;
+    else            repl_callback = replPrint;
 
     if (input.empty()) {
         // REPL shell
@@ -100,7 +101,7 @@ int main(int argc, char *argv[])
             cout << "> ";
             string line;
             getline(cin, line);
-            likely_repl(line.c_str(), false, NULL, NULL);
+            likely_repl(line.c_str(), false, NULL, NULL, NULL, NULL);
         }
     } else {
         likely_mat code = likely_read(input.c_str(), likely_file_text);
@@ -125,7 +126,7 @@ int main(int argc, char *argv[])
             likely_env env;
             if (output.empty()) env = likely_new_env_jit(); // Interpreter
             else                env = likely_new_env_offline(output.c_str(), true); // Static compiler
-            likely_release_env(likely_repl(code->data, gfm, env, NULL));
+            likely_release_env(likely_repl(code->data, gfm, env, NULL, repl_callback, NULL));
             likely_release_env(env);
             likely_release(code);
         }

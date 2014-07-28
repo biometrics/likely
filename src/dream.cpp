@@ -239,6 +239,11 @@ private:
         return val;
     }
 
+    static void replCallback(likely_const_env env, void *context)
+    {
+        reinterpret_cast<Source*>(context)->newResult(env);
+    }
+
 private slots:
     void eval()
     {
@@ -250,8 +255,8 @@ private slots:
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
         static likely_env root = likely_new_env_jit();
-        likely_env env = likely_repl(qPrintable(header), true, root, prev);
-                   env = likely_repl(qPrintable(toPlainText()), true, env, prev);
+        likely_env env = likely_repl(qPrintable(header), true, root, prev, NULL, NULL);
+                   env = likely_repl(qPrintable(toPlainText()), true, env, prev, replCallback, this);
         if (!likely_erratum(env->type)) {
             const qint64 nsec = elapsedTimer.nsecsElapsed();
             emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
@@ -264,6 +269,7 @@ private slots:
 signals:
     void finishedEval(QString);
     void newHotSpot(likely_const_env);
+    void newResult(likely_const_env);
     void newStatus(QString);
 };
 
@@ -720,7 +726,6 @@ public:
         setWindowTitle("Likely");
         resize(800, WindowWidth);
 
-        connect(this, SIGNAL(newResult(likely_const_env)), printer, SLOT(print(likely_const_env)));
         connect(commandMode, SIGNAL(commandMode(bool)), syntaxHighlighter, SLOT(setCommandMode(bool)));
         connect(printer, SIGNAL(newDefinitions(QString)), source, SLOT(setHeader(QString)));
         connect(fileMenu, SIGNAL(triggered(QAction*)), this, SLOT(fileMenu(QAction*)));
@@ -728,13 +733,13 @@ public:
         connect(source, SIGNAL(finishedEval(QString)), this, SLOT(finishedEval(QString)));
         connect(source, SIGNAL(finishedEval(QString)), printer, SLOT(finishedPrinting()));
         connect(source, SIGNAL(newHotSpot(likely_const_env)), printer, SLOT(setHotSpot(likely_const_env)));
+        connect(source, SIGNAL(newResult(likely_const_env)), printer, SLOT(print(likely_const_env)));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
         connect(fullScreen, SIGNAL(toggled(bool)), this, SLOT(fullScreen(bool)));
         connect(spartan, SIGNAL(toggled(bool)), this, SLOT(spartan(bool)));
         connect(reset, SIGNAL(triggered()), printer, SLOT(reset()));
 
         likely_set_error_callback(error_callback, statusBar);
-        likely_set_repl_callback(repl_callback, this);
         restore();
         this->spartan(Spartan);
     }
@@ -835,14 +840,6 @@ private:
         reinterpret_cast<QStatusBar*>(context)->showMessage(str->data);
         likely_release(str);
     }
-
-    static void repl_callback(likely_const_env env, void *context)
-    {
-        reinterpret_cast<MainWindow*>(context)->newResult(env);
-    }
-
-signals:
-    void newResult(likely_const_env);
 };
 
 int main(int argc, char *argv[])
