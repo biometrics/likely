@@ -115,7 +115,6 @@ class Source : public QPlainTextEdit
     QString header, previousSource;
     int wheelRemainderX = 0, wheelRemainderY = 0;
     likely_env prev = NULL;
-    likely_size prevHeaderLines = 0;
 
 public:
     Source()
@@ -162,7 +161,7 @@ private:
         likely_const_env hotSpot = NULL;
         if ((e->modifiers() == Qt::ControlModifier) && prev) {
             const QTextCursor tc = cursorForPosition(e->pos());
-            const likely_size line   = tc.blockNumber() + prevHeaderLines;
+            const likely_size line   = tc.blockNumber();
             const likely_size column = tc.positionInBlock();
 
             likely_const_env env = prev;
@@ -251,14 +250,14 @@ private slots:
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
         static likely_env root = likely_new_env_jit();
-        likely_env env = likely_repl(qPrintable(source), true, root, prev);
+        likely_env env = likely_repl(qPrintable(header), true, root, prev);
+                   env = likely_repl(qPrintable(toPlainText()), true, env, prev);
         if (!likely_erratum(env->type)) {
             const qint64 nsec = elapsedTimer.nsecsElapsed();
             emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
         }
         likely_release_env(prev);
         prev = env;
-        prevHeaderLines = header.count('\n');
         emit finishedEval(toPlainText());
     }
 
