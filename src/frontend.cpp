@@ -52,8 +52,8 @@ likely_ast likely_new_list(const likely_const_ast *atoms, size_t num_atoms)
     ast->ref_count = 1;
     ast->begin_line = (num_atoms == 0) ? 0 : atoms[0]->begin_line;
     ast->begin_column = (num_atoms == 0) ? 0 : atoms[0]->begin_column;
-    ast->end_line = (num_atoms == 0) ? 0 : atoms[0]->end_line;
-    ast->end_column = (num_atoms == 0) ? 0 : atoms[0]->end_column;
+    ast->end_line = (num_atoms == 0) ? 0 : atoms[num_atoms-1]->end_line;
+    ast->end_column = (num_atoms == 0) ? 0 : atoms[num_atoms-1]->end_column;
     ast->type = likely_ast_list;
     return ast;
 }
@@ -180,7 +180,7 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_const_a
         } else if (!skipBlock) {
             if (inBlock || ((lineLen > 4) && !strncmp(&str[lineStart], "    ", 4))) {
                 // It's a code block
-                tokenize(&str[lineStart], lineLen, tokens, line, 4);
+                tokenize(&str[lineStart], lineLen, tokens, line, 0);
             } else {
                 // Look for `inline code`
                 size_t inlineStart = lineStart+1;
@@ -268,14 +268,18 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
                 number->end_column   = output[output.size()-1]->end_column;
                 output.erase(output.end()-2, output.end());
                 output.push_back(number);
-                return 1;
+            } else {
+                // It's a composition
+                vector<likely_const_ast> atoms;
+                atoms.push_back(output.back()); output.pop_back();
+                atoms.push_back(output.back()); output.pop_back();
+                likely_ast list = likely_new_list(atoms.data(), atoms.size());
+                list->begin_line = list->atoms[1]->begin_line;
+                list->begin_column = list->atoms[1]->begin_column;
+                list->end_line = list->atoms[0]->end_line;
+                list->end_column = list->atoms[0]->end_column;
+                output.push_back(list);
             }
-
-            // It's a composition
-            vector<likely_const_ast> atoms;
-            atoms.push_back(output.back()); output.pop_back();
-            atoms.push_back(output.back()); output.pop_back();
-            output.push_back(likely_new_list(atoms.data(), atoms.size()));
             return 1;
         }
 
@@ -299,7 +303,10 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
             }
             size_t atoms = 1 + output.size() - before;
             output.insert(output.end()-atoms++, likely_retain_ast(token));
-            output.push_back(likely_new_list(&output[output.size()-atoms], atoms));
+            likely_ast list = likely_new_list(&output[output.size()-atoms], atoms);
+            list->begin_line = list->atoms[1]->begin_line; // lhs operand
+            list->begin_column = list->atoms[1]->begin_column; // lhs operand
+            output.push_back(list);
             output.erase(output.end()-atoms-1, output.end()-1);
             return 1;
         }

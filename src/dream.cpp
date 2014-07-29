@@ -31,20 +31,23 @@ static cl::opt<bool> Spartan("spartan", cl::desc("Hide the source code, only sho
 class SyntaxHighlighter : public QSyntaxHighlighter
 {
     Q_OBJECT
-    QRegularExpression numbers, strings;
-    QTextCharFormat markdownFont, numbersFont, stringsFont;
+    QTextCharFormat codeFormat, commentFormat, numberFormat, stringFormat;
     bool commandMode = false;
+    likely_env env = NULL;
 
 public:
     SyntaxHighlighter(QTextDocument *parent)
         : QSyntaxHighlighter(parent)
     {
-        numbers.setPattern("-?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?");
-        strings.setPattern("\"[^\"]*+\"");
-        markdownFont.setForeground(Qt::darkGray);
-        numbersFont.setFontUnderline(true);
-        numbersFont.setUnderlineStyle(QTextCharFormat::DotLine);
-        stringsFont.setForeground(Qt::darkGreen);
+        commentFormat.setForeground(Qt::darkGray);
+        numberFormat.setFontUnderline(true);
+        numberFormat.setUnderlineStyle(QTextCharFormat::DotLine);
+        stringFormat.setForeground(Qt::darkGreen);
+    }
+
+    ~SyntaxHighlighter()
+    {
+        likely_release_env(env);
     }
 
 public slots:
@@ -54,58 +57,48 @@ public slots:
         rehighlight();
     }
 
+    void highlight(likely_const_env env)
+    {
+        likely_release_env(this->env);
+        this->env = likely_retain_env(env);
+        for (likely_size i=env->ast->begin_line; i<=env->ast->end_line; i++)
+            rehighlightBlock(document()->findBlockByNumber(i));
+    }
+
 private:
+    void highlightAST(likely_size line, likely_const_ast ast)
+    {
+        if (ast->type == likely_ast_list) {
+            for (likely_size i=0; i<ast->num_atoms; i++)
+                highlightAST(line, ast->atoms[i]);
+        } else {
+            assert(ast->begin_line == ast->end_line);
+            if (ast->begin_line == line) {
+                if (ast->type == likely_ast_string) {
+                    setFormat(ast->begin_column, ast->end_column - ast->begin_column, stringFormat);
+                } else if (commandMode && (ast->type == likely_ast_number)) {
+                    setFormat(ast->begin_column, ast->end_column - ast->begin_column, numberFormat);
+                }
+            }
+        }
+    }
+
     void highlightBlock(const QString &text)
     {
-        if (commandMode) highlightHelp(text, numbers, numbersFont);
-        highlightHelp(text, strings, stringsFont);
-        highlightMarkdown(text, markdownFont);
-    }
-
-    void highlightHelp(const QString &text, const QRegularExpression &re, const QTextCharFormat &font)
-    {
-        if (re.pattern().isEmpty())
-            return;
-        QRegularExpressionMatch match = re.match(text);
-        int index = match.capturedStart();
-        while (index >= 0) {
-            const int length = match.capturedLength();
-            setFormat(index, match.capturedLength(), font);
-            match = re.match(text, index + length);
-            index = match.capturedStart();
+        setFormat(0, text.size(), commentFormat); // Assume it's a comment until we prove otherwise
+        const likely_size line = currentBlock().blockNumber();
+        likely_const_env it = env;
+        while (it && !likely_erratum(it->type) && it->ast && it->ast->end_line >= line) {
+            if ((line >= it->ast->begin_line) && (line <= it->ast->end_line)) {
+                // It's code
+                const likely_size begin = (line == it->ast->begin_line) ? it->ast->begin_column : 0;
+                const likely_size end = (line == it->ast->end_line) ? it->ast->end_column : text.size();
+                setFormat(begin, end-begin, codeFormat);
+                qDebug() << commandMode << likely_ast_to_string(it->ast)->data << line;
+                highlightAST(line, it->ast);
+            }
+            it = it->parent;
         }
-    }
-
-    void highlightMarkdown(const QString &text, const QTextCharFormat &font)
-    {
-        const bool codeBlockMarker = text.startsWith("```");
-        if (codeBlockMarker)
-            setCurrentBlockState(previousBlockState() == 0);
-        else
-            setCurrentBlockState(previousBlockState() == -1
-                                 ? (text.startsWith("(") ? 0 : 1)
-                                 : previousBlockState());
-
-        if (!text.startsWith("    ") && (currentBlockState() || codeBlockMarker)) {
-            int start = -1, stop = -1;
-            do {
-                start = stop;
-                stop = codeBlockMarker ? -1 : text.indexOf('`', start+1);
-                if (start == -1) start = 0;
-                if (stop == -1) stop = text.size();
-                else            stop++;
-                setFormat(start, stop - start, font);
-                if (stop == text.size())
-                    break;
-                stop = text.indexOf('`', stop);
-            } while (true);
-        }
-    }
-
-    static QString getPattern(const QSet<QString> &values)
-    {
-        if (values.isEmpty()) return "";
-        return "\\b(?:" + QStringList(values.toList()).join('|') + ")\\b";
     }
 };
 
@@ -256,7 +249,9 @@ private slots:
         elapsedTimer.start();
         static likely_env root = likely_new_env_jit();
         likely_env env = likely_repl(qPrintable(header), true, root, prev, NULL, NULL);
-                   env = likely_repl(qPrintable(toPlainText()), true, env, prev, replCallback, this);
+        env = likely_new_env(env);
+        likely_set_erratum(&env->type, true); // Used as a marker to designate the transition from header to source
+        env = likely_repl(qPrintable(toPlainText()), true, env, prev, replCallback, this);
         if (!likely_erratum(env->type)) {
             const qint64 nsec = elapsedTimer.nsecsElapsed();
             emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
@@ -733,6 +728,7 @@ public:
         connect(source, SIGNAL(finishedEval(QString)), this, SLOT(finishedEval(QString)));
         connect(source, SIGNAL(finishedEval(QString)), printer, SLOT(finishedPrinting()));
         connect(source, SIGNAL(newHotSpot(likely_const_env)), printer, SLOT(setHotSpot(likely_const_env)));
+        connect(source, SIGNAL(newResult(likely_const_env)), syntaxHighlighter, SLOT(highlight(likely_const_env)));
         connect(source, SIGNAL(newResult(likely_const_env)), printer, SLOT(print(likely_const_env)));
         connect(source, SIGNAL(newStatus(QString)), statusBar, SLOT(showMessage(QString)));
         connect(fullScreen, SIGNAL(toggled(bool)), this, SLOT(fullScreen(bool)));
