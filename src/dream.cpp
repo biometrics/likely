@@ -94,7 +94,6 @@ private:
                 const likely_size begin = (line == it->ast->begin_line) ? it->ast->begin_column : 0;
                 const likely_size end = (line == it->ast->end_line) ? it->ast->end_column : text.size();
                 setFormat(begin, end-begin, codeFormat);
-                qDebug() << commandMode << likely_ast_to_string(it->ast)->data << line;
                 highlightAST(line, it->ast);
             }
             it = it->parent;
@@ -157,16 +156,16 @@ private:
             const likely_size line   = tc.blockNumber();
             const likely_size column = tc.positionInBlock();
 
-            likely_const_env env = prev;
-            while (env && env->ast &&
-                   ((env->ast->begin_line > line) ||
-                    ((env->ast->begin_line == line) && (env->ast->begin_column < column))))
-                env = env->parent;
+            likely_const_env it = prev;
+            while (it && it->ast && !likely_erratum(it->type) &&
+                   ((it->ast->begin_line > line) ||
+                    ((it->ast->begin_line == line) && (it->ast->begin_column > column))))
+                it = it->parent;
 
-            if (env && env->ast &&
-                ((env->ast->end_line > line) ||
-                 ((env->ast->end_line == line) && (env->ast->end_column >= column))))
-                hotSpot = env;
+            if (it && it->ast && !likely_erratum(it->type) &&
+                ((it->ast->end_line > line) ||
+                 ((it->ast->end_line == line) && (it->ast->end_column >= column))))
+                hotSpot = it;
         }
         emit newHotSpot(hotSpot);
     }
@@ -551,9 +550,10 @@ public slots:
         if (env) {
             const QString name = likely_get_symbol_name(env->ast);
             if (likely_definition(env->type)) {
-                likely_const_mat result = likely_evaluated_expression(env->value);
-                hotSpot->show(result, name);
-                likely_release(result);
+                likely_const_env result = likely_evaluated_expression(env->value);
+                if (result && result->result)
+                    hotSpot->show(result->result, name);
+                likely_release_env(result);
             } else {
                 hotSpot->show(env->result, name);
             }

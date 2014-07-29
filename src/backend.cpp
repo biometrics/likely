@@ -2203,11 +2203,11 @@ struct EvaluatedExpression : public ScopedExpression
         likely_release_env(result);
     }
 
-    static likely_const_mat getResult(likely_const_expr expr)
+    static likely_const_env getResult(likely_const_expr expr)
     {
         if (!expr || (expr->uid() != UID()))
             return NULL;
-        return likely_retain(reinterpret_cast<const EvaluatedExpression*>(expr)->result->result);
+        return likely_retain_env(reinterpret_cast<const EvaluatedExpression*>(expr)->result);
     }
 
 private:
@@ -2878,7 +2878,7 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, li
     return env;
 }
 
-likely_const_mat likely_evaluated_expression(likely_const_expr expr)
+likely_const_env likely_evaluated_expression(likely_const_expr expr)
 {
     return EvaluatedExpression::getResult(expr);
 }
