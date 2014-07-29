@@ -299,30 +299,6 @@ struct likely_expression
 
 namespace {
 
-struct UniqueAST : public unique_ptr<const likely_abstract_syntax_tree, function<void(likely_const_ast)>>
-{
-    UniqueAST(likely_const_ast ast = NULL)
-        : unique_ptr<const likely_abstract_syntax_tree, function<void(likely_const_ast)>>(ast, likely_release_ast) {}
-};
-
-struct UniqueASTL : public vector<likely_const_ast>
-{
-    ~UniqueASTL()
-    {
-        for (likely_const_ast ast : *this)
-            likely_release_ast(ast);
-    }
-
-    UniqueAST ast() const
-    {
-        for (likely_const_ast ast : *this)
-            likely_retain_ast(ast);
-        return likely_new_list(data(), size());
-    }
-
-    void retain(likely_const_ast ast) { push_back(likely_retain_ast(ast)); }
-};
-
 #define TRY_EXPR(BUILDER, AST, EXPR)                                       \
 const unique_ptr<const likely_expression> EXPR((BUILDER).expression(AST)); \
 if (!EXPR.get()) return NULL;                                              \
