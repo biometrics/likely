@@ -101,10 +101,10 @@ LIKELY_EXPORT likely_fun likely_retain_function(likely_const_fun f);
 LIKELY_EXPORT void likely_release_function(likely_const_fun f);
 
 // Evaluation
-// Despite the constness, this function will modify ast->type to change atom values to their correct type.
+// Despite the constness, these functions will modify ast->type to change atom values to their correct type.
 LIKELY_EXPORT likely_env likely_eval(likely_const_ast ast, likely_const_env parent);
 typedef void (*likely_repl_callback)(likely_const_env env, void *context);
-LIKELY_EXPORT likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, likely_repl_callback repl_callback, void *context);
+LIKELY_EXPORT likely_env likely_repl(likely_const_ast ast, likely_const_env parent, likely_repl_callback repl_callback, void *context);
 LIKELY_EXPORT likely_const_env likely_evaluated_expression(likely_const_expr expr);
 
 // Contents of library/standard.l

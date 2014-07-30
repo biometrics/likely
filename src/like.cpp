@@ -101,7 +101,9 @@ int main(int argc, char *argv[])
             cout << "> ";
             string line;
             getline(cin, line);
-            likely_repl(line.c_str(), false, NULL, NULL, NULL);
+            likely_const_ast ast = likely_ast_from_string(line.c_str(), false);
+            likely_repl(ast, NULL, NULL, NULL);
+            likely_release_ast(ast);
         }
     } else {
         likely_mat code = likely_read(input.c_str(), likely_file_text);
@@ -126,7 +128,9 @@ int main(int argc, char *argv[])
             likely_env env;
             if (output.empty()) env = likely_new_env_jit(); // Interpreter
             else                env = likely_new_env_offline(output.c_str(), true); // Static compiler
-            likely_release_env(likely_repl(code->data, gfm, env, repl_callback, NULL));
+            likely_const_ast ast = likely_ast_from_string(code->data, gfm);
+            likely_release_env(likely_repl(ast, env, repl_callback, NULL));
+            likely_release_ast(ast);
             likely_release_env(env);
             likely_release(code);
         }

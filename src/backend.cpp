@@ -704,7 +704,9 @@ struct RootEnvironment
     {
         static bool init = false;
         if (!init) {
-            builtins() = likely_repl(likely_standard_library, true, builtins(), NULL, NULL);
+            likely_const_ast ast = likely_ast_from_string(likely_standard_library, true);
+            builtins() = likely_repl(ast, builtins(), NULL, NULL);
+            likely_release_ast(ast);
             init = true;
         }
 
@@ -2354,7 +2356,9 @@ class importExpression : public Operator
             return error(file, "unable to open file");
 
         likely_env parent = builder.env;
-        builder.env = likely_repl(source.c_str(), true, parent, NULL, NULL);
+        likely_const_ast source_ast = likely_ast_from_string(source.c_str(), true);
+        builder.env = likely_repl(source_ast, parent, NULL, NULL);
+        likely_release_ast(source_ast);
         likely_release_env(parent);
         if (likely_erratum(builder.env->type)) return NULL;
         else                                   return new likely_expression();
@@ -2849,9 +2853,8 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
     return env;
 }
 
-likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, likely_repl_callback repl_callback, void *context)
+likely_env likely_repl(likely_const_ast ast, likely_const_env parent, likely_repl_callback repl_callback, void *context)
 {
-    likely_const_ast ast = likely_ast_from_string(source, GFM);
     if (!ast)
         return NULL;
 
@@ -2868,7 +2871,6 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, li
             break;
     }
 
-    likely_release_ast(ast);
     return env;
 }
 
