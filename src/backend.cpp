@@ -704,7 +704,7 @@ struct RootEnvironment
     {
         static bool init = false;
         if (!init) {
-            builtins() = likely_repl(likely_standard_library, true, builtins(), NULL, NULL, NULL);
+            builtins() = likely_repl(likely_standard_library, true, builtins(), NULL, NULL);
             init = true;
         }
 
@@ -2194,7 +2194,7 @@ struct EvaluatedExpression : public ScopedExpression
         : ScopedExpression(env, ast)
 
     {
-        result = likely_eval(ast, env, NULL);
+        result = likely_eval(ast, env);
         assert(!likely_definition(result->type) && result->result);
     }
 
@@ -2354,7 +2354,7 @@ class importExpression : public Operator
             return error(file, "unable to open file");
 
         likely_env parent = builder.env;
-        builder.env = likely_repl(source.c_str(), true, parent, NULL, NULL, NULL);
+        builder.env = likely_repl(source.c_str(), true, parent, NULL, NULL);
         likely_release_env(parent);
         if (likely_erratum(builder.env->type)) return NULL;
         else                                   return new likely_expression();
@@ -2806,10 +2806,20 @@ void likely_release_function(likely_const_fun f)
     delete static_cast<const JITFunction*>(f);
 }
 
-likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_const_env previous)
+likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
 {
     if (!ast || !parent)
         return NULL;
+
+    // Check against parent environment for precomputed result
+    for (size_t i=0; i<parent->num_children; i++)
+        if (!likely_ast_compare(ast, parent->children[i]->ast))
+            return likely_retain_env(parent->children[i]);
+
+    // We reallocate space for more children when our power-of-two sized buffer is full
+    //    if ((parent->num_children == 0) || !(parent->num_children & (parent->num_children - 1)))
+    //        parent->children = (likely_const_env *) realloc(parent->children, parent->num_children == 0 ? 1 : 2 * parent->num_children);
+    //    parent->children[parent->num_children++] = env;
 
     likely_env env = likely_new_env(parent);
     likely_set_definition(&env->type, (ast->type == likely_ast_list) && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="));
@@ -2817,21 +2827,6 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
     env->ast = likely_retain_ast(ast);
 
     if (likely_definition(env->type)) {
-        if (previous) {
-            // Check against previous environment for precomputed result
-            while ((previous != NULL) && (previous != parent))
-                previous = previous->parent;
-
-            if (previous) {
-                // TODO: check iter->children
-            }
-
-            // We reallocate space for more children when our power-of-two sized buffer is full
-            //            if ((parent->num_children == 0) || !(parent->num_children & (parent->num_children - 1)))
-            //                parent->children = (likely_const_env *) realloc(parent->children, parent->num_children == 0 ? 1 : 2 * parent->num_children);
-            //            parent->children[parent->num_children++] = env;
-        }
-
         Builder(env).expression(ast); // Returns NULL
     } else {
         likely_const_ast lambda = likely_ast_from_string("() -> (scalar <ast>)", false);
@@ -2854,7 +2849,7 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
     return env;
 }
 
-likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, likely_const_env previous, likely_repl_callback repl_callback, void *context)
+likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, likely_repl_callback repl_callback, void *context)
 {
     likely_const_ast ast = likely_ast_from_string(source, GFM);
     if (!ast)
@@ -2863,7 +2858,7 @@ likely_env likely_repl(const char *source, bool GFM, likely_const_env parent, li
     likely_env env = likely_retain_env(parent);
     for (size_t i=0; i<ast->num_atoms; i++) {
         likely_const_ast atom = ast->atoms[i];
-        env = likely_eval(atom, parent, previous);
+        env = likely_eval(atom, parent);
         likely_release_env(parent);
         parent = env;
         if (repl_callback)

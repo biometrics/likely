@@ -247,10 +247,10 @@ private slots:
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
         static likely_env root = likely_new_env_jit();
-        likely_env env = likely_repl(qPrintable(header), true, root, prev, NULL, NULL);
+        likely_env env = likely_repl(qPrintable(header), true, root, NULL, NULL);
         env = likely_new_env(env);
         likely_set_erratum(&env->type, true); // Used as a marker to designate the transition from header to source
-        env = likely_repl(qPrintable(toPlainText()), true, env, prev, replCallback, this);
+        env = likely_repl(qPrintable(toPlainText()), true, env, replCallback, this);
         if (!likely_erratum(env->type)) {
             const qint64 nsec = elapsedTimer.nsecsElapsed();
             emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
