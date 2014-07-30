@@ -2814,6 +2814,7 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
     likely_env env = likely_new_env(parent);
     likely_set_definition(&env->type, (ast->type == likely_ast_list) && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="));
     likely_set_global(&env->type, true);
+    env->ast = likely_retain_ast(ast);
 
     if (likely_definition(env->type)) {
         if (previous) {
@@ -2831,13 +2832,11 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent, likely_con
             //            parent->children[parent->num_children++] = env;
         }
 
-        env->ast = likely_copy_ast(ast); // Copy because we will modify ast->type
-        Builder(env).expression(env->ast); // Returns NULL
+        Builder(env).expression(ast); // Returns NULL
     } else {
-        env->ast = likely_retain_ast(ast);
         likely_const_ast lambda = likely_ast_from_string("() -> (scalar <ast>)", false);
         likely_release_ast(lambda->atoms[0]->atoms[2]->atoms[1]); // <ast>
-        lambda->atoms[0]->atoms[2]->atoms[1] = likely_copy_ast(ast); // Copy because we will modify ast->type
+        lambda->atoms[0]->atoms[2]->atoms[1] = likely_retain_ast(ast); // Copy because we will modify ast->type
 
         // TODO: Re-enable interpreter for OS X and Ubuntu when intrinsic lowering patch lands
         JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), false, false);
