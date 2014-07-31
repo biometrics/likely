@@ -106,7 +106,8 @@ class Source : public QPlainTextEdit
     Q_OBJECT
     QString header, previousSource;
     int wheelRemainderX = 0, wheelRemainderY = 0;
-    likely_env prev = NULL;
+    likely_env root = likely_new_env_jit();
+    likely_env current = NULL;
 
 public:
     Source()
@@ -118,7 +119,8 @@ public:
 
     ~Source()
     {
-        likely_release_env(prev);
+        likely_release_env(current);
+        likely_release_env(root);
     }
 
 public slots:
@@ -151,12 +153,12 @@ private:
     {
         e->accept();
         likely_const_env hotSpot = NULL;
-        if ((e->modifiers() == Qt::ControlModifier) && prev) {
+        if ((e->modifiers() == Qt::ControlModifier) && current) {
             const QTextCursor tc = cursorForPosition(e->pos());
             const likely_size line   = tc.blockNumber();
             const likely_size column = tc.positionInBlock();
 
-            likely_const_env it = prev;
+            likely_const_env it = current;
             while (it && it->ast && !likely_erratum(it->type) &&
                    ((it->ast->begin_line > line) ||
                     ((it->ast->begin_line == line) && (it->ast->begin_column > column))))
@@ -246,7 +248,6 @@ private slots:
 
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
-        static likely_env root = likely_new_env_jit();
         likely_const_ast ast = likely_ast_from_string(qPrintable(header), true);
         likely_env env = likely_repl(ast, root, NULL, NULL);
         env = likely_new_env(env);
@@ -259,8 +260,8 @@ private slots:
             const qint64 nsec = elapsedTimer.nsecsElapsed();
             emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
         }
-        likely_release_env(prev);
-        prev = env;
+        likely_release_env(current);
+        current = env;
         emit finishedEval(toPlainText());
     }
 
