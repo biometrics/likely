@@ -248,7 +248,7 @@ private slots:
 
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
-        likely_const_ast ast = likely_ast_from_string(qPrintable(header), true);
+        likely_ast ast = likely_ast_from_string(qPrintable(header), true);
         likely_env env = likely_repl(ast, root, NULL, NULL);
         env = likely_new_env(env);
         likely_set_erratum(&env->type, true); // Used as a marker to designate the transition from header to source

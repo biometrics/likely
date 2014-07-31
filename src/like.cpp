@@ -97,13 +97,13 @@ int main(int argc, char *argv[])
     if (input.empty()) {
         // REPL shell
         cout << "Likely\n";
-        likely_const_env parent = likely_new_env_jit();
+        likely_env parent = likely_new_env_jit();
         while (true) {
             cout << "> ";
             string line;
             getline(cin, line);
-            likely_const_ast ast = likely_ast_from_string(line.c_str(), false);
-            likely_const_env env = likely_eval(ast->atoms[0], parent);
+            likely_ast ast = likely_ast_from_string(line.c_str(), false);
+            likely_env env = likely_eval(ast->atoms[0], parent);
             likely_release_ast(ast);
             if (likely_erratum(env->type)) {
                 likely_release_env(env);
@@ -133,10 +133,10 @@ int main(int argc, char *argv[])
             }
             likely_release_ast(parsed);
         } else {
-            likely_const_env env;
+            likely_env env;
             if (output.empty()) env = likely_new_env_jit(); // Interpreter
             else                env = likely_new_env_offline(output.c_str(), true); // Static compiler
-            likely_const_ast ast = likely_ast_from_string(code->data, gfm);
+            likely_ast ast = likely_ast_from_string(code->data, gfm);
             likely_release_env(likely_repl(ast, env, repl_callback, NULL));
             likely_release_ast(ast);
             likely_release_env(env);

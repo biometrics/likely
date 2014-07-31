@@ -45,11 +45,11 @@ struct likely_abstract_syntax_tree
 {
     union {
         struct { // type == likely_ast_list
-            likely_const_ast *atoms;
+            const likely_ast * const atoms;
             likely_size num_atoms;
         };
         struct { // type != likely_ast_list
-            const char *atom;
+            const char * const atom;
             likely_size atom_len;
         };
     };

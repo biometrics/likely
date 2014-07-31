@@ -704,7 +704,7 @@ struct RootEnvironment
     {
         static bool init = false;
         if (!init) {
-            likely_const_ast ast = likely_ast_from_string(likely_standard_library, true);
+            likely_ast ast = likely_ast_from_string(likely_standard_library, true);
             builtins() = likely_repl(ast, builtins(), NULL, NULL);
             likely_release_ast(ast);
             init = true;
@@ -2196,7 +2196,7 @@ struct EvaluatedExpression : public ScopedExpression
         : ScopedExpression(env, ast)
 
     {
-        result = likely_eval(ast, env);
+        result = likely_eval(const_cast<likely_ast>(ast), env);
         assert(!likely_definition(result->type) && result->result);
     }
 
@@ -2356,7 +2356,7 @@ class importExpression : public Operator
             return error(file, "unable to open file");
 
         likely_env parent = builder.env;
-        likely_const_ast source_ast = likely_ast_from_string(source.c_str(), true);
+        likely_ast source_ast = likely_ast_from_string(source.c_str(), true);
         builder.env = likely_repl(source_ast, parent, NULL, NULL);
         likely_release_ast(source_ast);
         likely_release_env(parent);
@@ -2810,7 +2810,7 @@ void likely_release_function(likely_const_fun f)
     delete static_cast<const JITFunction*>(f);
 }
 
-likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
+likely_env likely_eval(likely_ast ast, likely_env parent)
 {
     if (!ast || !parent)
         return NULL;
@@ -2835,7 +2835,7 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
     } else {
         likely_const_ast lambda = likely_ast_from_string("() -> (scalar <ast>)", false);
         likely_release_ast(lambda->atoms[0]->atoms[2]->atoms[1]); // <ast>
-        lambda->atoms[0]->atoms[2]->atoms[1] = likely_retain_ast(ast); // Copy because we will modify ast->type
+        const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]->atoms[1]) = likely_retain_ast(ast); // Copy because we will modify ast->type
 
         // TODO: Re-enable interpreter for OS X and Ubuntu when intrinsic lowering patch lands
         JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), false, false);
@@ -2853,15 +2853,14 @@ likely_env likely_eval(likely_const_ast ast, likely_const_env parent)
     return env;
 }
 
-likely_env likely_repl(likely_const_ast ast, likely_const_env parent, likely_repl_callback repl_callback, void *context)
+likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback repl_callback, void *context)
 {
     if (!ast)
         return NULL;
 
     likely_env env = likely_retain_env(parent);
     for (size_t i=0; i<ast->num_atoms; i++) {
-        likely_const_ast atom = ast->atoms[i];
-        env = likely_eval(atom, parent);
+        env = likely_eval(ast->atoms[i], parent);
         likely_release_env(parent);
         parent = env;
         if (repl_callback)
