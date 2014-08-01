@@ -2707,7 +2707,17 @@ void likely_release_env(likely_const_env env)
 {
     if (!env || --const_cast<likely_env>(env)->ref_count) return;
 
-    likely_release_env(env->parent);
+    {
+        // Remove ourself as our parent's child
+        const likely_env parent = const_cast<likely_env>(env->parent);
+        for (size_t i=0; i<parent->num_children; i++)
+            if (env == parent->children[i]) {
+                parent->children[i] = parent->children[--parent->num_children];
+                break;
+            }
+        likely_release_env(parent);
+    }
+
     likely_release_ast(env->ast);
     likely_release_resources(env->resources);
     if (likely_definition(env->type)) delete env->value;
@@ -2790,15 +2800,15 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
         if (!likely_ast_compare(ast, parent->children[i]->ast))
             return likely_retain_env(parent->children[i]);
 
-    // We reallocate space for more children when our power-of-two sized buffer is full
-    //    if ((parent->num_children == 0) || !(parent->num_children & (parent->num_children - 1)))
-    //        parent->children = (likely_const_env *) realloc(parent->children, parent->num_children == 0 ? 1 : 2 * parent->num_children);
-    //    parent->children[parent->num_children++] = env;
-
     likely_env env = likely_new_env(parent);
     likely_set_definition(&env->type, (ast->type == likely_ast_list) && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="));
     likely_set_global(&env->type, true);
     env->ast = likely_retain_ast(ast);
+
+    // We reallocate space for more children when our power-of-two sized buffer is full
+    if ((parent->num_children == 0) || !(parent->num_children & (parent->num_children - 1)))
+        parent->children = (likely_const_env*) realloc(parent->children, (parent->num_children == 0 ? 1 : 2 * parent->num_children) * sizeof(likely_const_env));
+    parent->children[parent->num_children++] = env;
 
     if (likely_definition(env->type)) {
         Builder(env).expression(ast); // Returns NULL
