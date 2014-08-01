@@ -177,11 +177,6 @@ struct likely_expression
     virtual size_t minParameters() const { return maxParameters(); }
     virtual void *symbol() const { return NULL; } // Idiom to ensure that specified library symbols aren't stripped when optimizing executable size
 
-    // Environments never get deleted,
-    // but we may wish to temporarily reduce their memory footprint when possible.
-    virtual void compress() {}
-    virtual void decompress() {}
-
     bool equals(likely_const_expr other) const
     {
         return (this == other)
@@ -2216,16 +2211,6 @@ private:
     static int UID() { return __LINE__; }
     int uid() const { return UID(); }
 
-    void compress()
-    {
-        likely_release_env(result);
-    }
-
-    void decompress()
-    {
-        likely_retain_env(result);
-    }
-
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         // TODO: implement indexing into this matrix by checking ast.
@@ -2725,25 +2710,10 @@ void likely_release_env(likely_const_env env)
     likely_release_env(env->parent);
     likely_release_ast(env->ast);
     likely_release_resources(env->resources);
-
-    if (likely_global(env->type)) {
-        // Global environment variables are guaranteed to be unique, so we never delete them.
-        // Instead we only deallocate some of their internals, which can be recomputed if needed.
-        if (likely_definition(env->type)) {
-            if (env->value)
-                const_cast<likely_expr>(env->value)->compress();
-        } else {
-            likely_release(env->result);
-            const_cast<likely_env>(env)->result = NULL;
-        }
-    } else {
-        if (env->value) {
-            assert(likely_definition(env->type));
-            delete env->value;
-        }
-        assert(!env->children);
-        delete env;
-    }
+    if (likely_definition(env->type)) delete env->value;
+    else                              likely_release(env->result);
+    delete env->children;
+    delete env;
 }
 
 bool likely_offline(likely_environment_type type) { return likely_get_bool(type, likely_environment_offline); }
