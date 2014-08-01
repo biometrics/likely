@@ -2669,7 +2669,7 @@ LIKELY_REGISTER(md5)
 
 likely_env likely_new_env(likely_const_env parent)
 {
-    likely_env env = new likely_environment();
+    likely_env env = (likely_env) malloc(sizeof(likely_environment));
     env->type = likely_environment_void;
     likely_set_offline(&env->type, parent ? likely_offline(parent->type) : false);
     env->parent = likely_retain_env(parent);
@@ -2712,8 +2712,8 @@ void likely_release_env(likely_const_env env)
     likely_release_resources(env->resources);
     if (likely_definition(env->type)) delete env->value;
     else                              likely_release(env->result);
-    delete env->children;
-    delete env;
+    free(env->children);
+    free(const_cast<likely_env>(env));
 }
 
 bool likely_offline(likely_environment_type type) { return likely_get_bool(type, likely_environment_offline); }
