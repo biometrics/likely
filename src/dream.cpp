@@ -259,16 +259,25 @@ private slots:
 
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
-        likely_ast ast = likely_ast_from_string(qPrintable(header), true);
-        likely_env env = likely_repl(ast, root, NULL, NULL);
-        likely_release_ast(ast);
 
-        ast = likely_ast_from_string(qPrintable(toPlainText()), true);
-        if (!ast)
+        likely_ast source_ast = likely_ast_from_string(qPrintable(toPlainText()), true);
+        if (!source_ast)
             return;
 
-        env = likely_repl(ast, env, replCallback, this);
-        likely_release_ast(ast);
+        likely_ast header_ast = likely_ast_from_string(qPrintable(header), true);
+        for (likely_size i=0; i<header_ast->num_atoms; i++) {
+            // Remove unused variables
+            if (!likely_ast_contains(source_ast, header_ast->atoms[i]->atoms[1])) {
+                likely_release_ast(header_ast->atoms[i]);
+                const_cast<likely_ast*>(header_ast->atoms)[i] = NULL;
+            }
+        }
+
+        likely_env env = likely_repl(header_ast, root, NULL, NULL);
+        likely_release_ast(header_ast);
+
+        env = likely_repl(source_ast, env, replCallback, this);
+        likely_release_ast(source_ast);
         if (!likely_erratum(env->type)) {
             const qint64 nsec = elapsedTimer.nsecsElapsed();
             emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));

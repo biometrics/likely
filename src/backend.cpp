@@ -2840,6 +2840,9 @@ likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback r
 
     likely_env env = likely_retain_env(parent);
     for (size_t i=0; i<ast->num_atoms; i++) {
+        if (!ast->atoms[i])
+            continue;
+
         env = likely_eval(ast->atoms[i], parent);
         likely_release_env(parent);
         parent = env;
