@@ -159,9 +159,12 @@ public slots:
 private:
     void mouseMoveEvent(QMouseEvent *e)
     {
+        if (e->modifiers() != Qt::ControlModifier)
+            return QPlainTextEdit::mouseMoveEvent(e);
+
         e->accept();
         likely_const_env hotSpot = NULL;
-        if ((e->modifiers() == Qt::ControlModifier) && current) {
+        if (current) {
             const QTextCursor tc = cursorForPosition(e->pos());
             const likely_size line   = tc.blockNumber();
             const likely_size column = tc.positionInBlock();
