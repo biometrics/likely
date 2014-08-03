@@ -262,7 +262,11 @@ private slots:
         likely_ast ast = likely_ast_from_string(qPrintable(header), true);
         likely_env env = likely_repl(ast, root, NULL, NULL);
         likely_release_ast(ast);
+
         ast = likely_ast_from_string(qPrintable(toPlainText()), true);
+        if (!ast)
+            return;
+
         env = likely_repl(ast, env, replCallback, this);
         likely_release_ast(ast);
         if (!likely_erratum(env->type)) {
