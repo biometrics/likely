@@ -28,11 +28,53 @@ using namespace std;
 static cl::opt<string> Input(cl::Positional, cl::desc("<input file>"), cl::init(""));
 static cl::opt<bool> Spartan("spartan", cl::desc("Hide the source code, only show the output"));
 
+class CommandMode : public QObject
+{
+    Q_OBJECT
+    CommandMode() = default; // It's a singleton
+
+    bool eventFilter(QObject *obj, QEvent *event)
+    {
+        if ((event->type() == QEvent::KeyPress) ||
+            (event->type() == QEvent::KeyRelease)) {
+            QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
+            if (keyEvent->key() == Qt::Key_Control) {
+                if (event->type() == QEvent::KeyPress) {
+                    if (!enabled) {
+                        QGuiApplication::setOverrideCursor(Qt::PointingHandCursor);
+                        enabled = true;
+                        emit changed(enabled);
+                    }
+                } else {
+                    if (enabled) {
+                        QGuiApplication::restoreOverrideCursor();
+                        enabled = false;
+                        emit changed(enabled);
+                    }
+                }
+            }
+        }
+        return QObject::eventFilter(obj, event);
+    }
+
+public:
+    static bool enabled;
+    static CommandMode *get()
+    {
+        static CommandMode *commandMode = new CommandMode();
+        return commandMode;
+    }
+
+signals:
+    void changed(bool);
+};
+
+bool CommandMode::enabled = false;
+
 class SyntaxHighlighter : public QSyntaxHighlighter
 {
     Q_OBJECT
     QTextCharFormat codeFormat, commentFormat, numberFormat, stringFormat;
-    bool commandMode = false;
     likely_env env = NULL;
 
 public:
@@ -43,6 +85,7 @@ public:
         numberFormat.setFontUnderline(true);
         numberFormat.setUnderlineStyle(QTextCharFormat::DotLine);
         stringFormat.setForeground(Qt::darkGreen);
+        connect(CommandMode::get(), SIGNAL(changed(bool)), this, SLOT(rehighlight()));
     }
 
     ~SyntaxHighlighter()
@@ -51,12 +94,6 @@ public:
     }
 
 public slots:
-    void setCommandMode(bool enabled)
-    {
-        commandMode = enabled;
-        rehighlight();
-    }
-
     void highlight(likely_const_env env)
     {
         likely_release_env(this->env);
@@ -76,7 +113,7 @@ private:
             if (ast->begin_line == line) {
                 if (ast->type == likely_ast_string) {
                     setFormat(ast->begin_column, ast->end_column - ast->begin_column, stringFormat);
-                } else if (commandMode && (ast->type == likely_ast_number)) {
+                } else if (CommandMode::enabled && (ast->type == likely_ast_number)) {
                     setFormat(ast->begin_column, ast->end_column - ast->begin_column, numberFormat);
                 }
             }
@@ -642,36 +679,6 @@ signals:
     void newDefinitions(QString);
 };
 
-class CommandMode : public QObject
-{
-    Q_OBJECT
-    bool enabled = false;
-
-    bool eventFilter(QObject *obj, QEvent *event)
-    {
-        if ((event->type() == QEvent::KeyPress) ||
-            (event->type() == QEvent::KeyRelease)) {
-            QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
-            if (keyEvent->key() == Qt::Key_Control) {
-                if (event->type() == QEvent::KeyPress) {
-                    if (!enabled) {
-                        QGuiApplication::setOverrideCursor(Qt::PointingHandCursor);
-                        enabled = true;
-                    }
-                } else {
-                    QGuiApplication::restoreOverrideCursor();
-                    enabled = false;
-                }
-                emit commandMode(enabled);
-            }
-        }
-        return QObject::eventFilter(obj, event);
-    }
-
-signals:
-    void commandMode(bool);
-};
-
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -731,8 +738,7 @@ public:
         QStatusBar *statusBar = new QStatusBar();
         statusBar->setSizeGripEnabled(true);
 
-        CommandMode *commandMode = new CommandMode();
-        application.installEventFilter(commandMode);
+        application.installEventFilter(CommandMode::get());
 
         SyntaxHighlighter *syntaxHighlighter = new SyntaxHighlighter(source->document());
 
@@ -748,7 +754,6 @@ public:
         setWindowTitle("Likely");
         resize(800, WindowWidth);
 
-        connect(commandMode, SIGNAL(commandMode(bool)), syntaxHighlighter, SLOT(setCommandMode(bool)));
         connect(printer, SIGNAL(newDefinitions(QString)), source, SLOT(setHeader(QString)));
         connect(fileMenu, SIGNAL(triggered(QAction*)), this, SLOT(fileMenu(QAction*)));
         connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
