@@ -2369,8 +2369,8 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         unique_ptr<const Symbol> expr(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC));
         swap(builder.env->resources, resources);
         likely_release_env(builder.env);
-        value = expr->value;
-        type = expr->type;
+        value = expr ? expr->value : NULL;
+        type = expr ? expr->type : likely_matrix_void;
     }
 
     if (!value)
