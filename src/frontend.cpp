@@ -34,6 +34,7 @@ likely_ast likely_new_atom(const char *str, likely_size len)
     memcpy((void*) ast->atom, str, len);
     ((char*) ast->atom)[len] = '\0';
     ast->atom_len = len;
+    ast->parent = NULL;
     ast->ref_count = 1;
     ast->begin_line = 0;
     ast->begin_column = 0;
@@ -43,18 +44,21 @@ likely_ast likely_new_atom(const char *str, likely_size len)
     return ast;
 }
 
-likely_ast likely_new_list(const likely_const_ast *atoms, size_t num_atoms)
+likely_ast likely_new_list(const likely_ast *atoms, likely_size num_atoms)
 {
-    likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + num_atoms * sizeof(likely_const_ast));
+    likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + num_atoms * sizeof(likely_ast));
     const_cast<const likely_ast*&>(ast->atoms) = reinterpret_cast<likely_ast*>(ast+1);
-    memcpy(const_cast<likely_ast*>(ast->atoms), atoms, num_atoms * sizeof(likely_const_ast));
+    memcpy(const_cast<likely_ast*>(ast->atoms), atoms, num_atoms * sizeof(likely_ast));
     ast->num_atoms = num_atoms;
+    ast->parent = NULL;
     ast->ref_count = 1;
     ast->begin_line = (num_atoms == 0) ? 0 : atoms[0]->begin_line;
     ast->begin_column = (num_atoms == 0) ? 0 : atoms[0]->begin_column;
     ast->end_line = (num_atoms == 0) ? 0 : atoms[num_atoms-1]->end_line;
     ast->end_column = (num_atoms == 0) ? 0 : atoms[num_atoms-1]->end_column;
     ast->type = likely_ast_list;
+    for (likely_size i=0; i<num_atoms; i++)
+        ast->atoms[i]->parent = likely_retain_ast(ast);
     return ast;
 }
 
@@ -62,13 +66,14 @@ likely_ast likely_copy_ast(likely_const_ast ast)
 {
     likely_ast copy;
     if (ast->type == likely_ast_list) {
-        vector<likely_const_ast> atoms;
+        vector<likely_ast> atoms;
         for (size_t i=0; i<ast->num_atoms; i++)
             atoms.push_back(likely_copy_ast(ast->atoms[i]));
         copy = likely_new_list(atoms.data(), atoms.size());
     } else {
         copy = likely_new_atom(ast->atom, ast->atom_len);
     }
+    copy->parent = likely_retain_ast(ast->parent);
     copy->begin_line = ast->begin_line;
     copy->begin_column = ast->begin_column;
     copy->end_line = ast->end_line;
@@ -89,6 +94,7 @@ void likely_release_ast(likely_const_ast ast)
     if (ast->type == likely_ast_list)
         for (size_t i=0; i<ast->num_atoms; i++)
             likely_release_ast(ast->atoms[i]);
+    likely_release_ast(ast->parent);
     free((void*) ast);
 }
 
@@ -102,7 +108,7 @@ static void incrementCounters(char c, likely_size &line, likely_size &column)
     }
 }
 
-static void tokenize(const char *str, const size_t len, vector<likely_const_ast> &tokens, likely_size line, likely_size column)
+static void tokenize(const char *str, const size_t len, vector<likely_ast> &tokens, likely_size line, likely_size column)
 {
     size_t i = 0;
     while (true) {
@@ -154,7 +160,7 @@ static void tokenize(const char *str, const size_t len, vector<likely_const_ast>
 }
 
 // GFM = Github Flavored Markdown
-static void tokenizeGFM(const char *str, const size_t len, vector<likely_const_ast> &tokens)
+static void tokenizeGFM(const char *str, const size_t len, vector<likely_ast> &tokens)
 {
     likely_size line = 0;
     bool inBlock = false, skipBlock = false;
@@ -204,7 +210,7 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_const_a
     }
 }
 
-static bool cleanup(vector<likely_const_ast> &atoms)
+static bool cleanup(vector<likely_ast> &atoms)
 {
     for (size_t i=0; i<atoms.size(); i++)
         likely_release_ast(atoms[i]);
@@ -215,7 +221,7 @@ static bool cleanup(vector<likely_const_ast> &atoms)
 likely_ast likely_tokens_from_string(const char *str, bool GFM)
 {
     if (!str) return NULL;
-    vector<likely_const_ast> tokens;
+    vector<likely_ast> tokens;
     const size_t len = strlen(str);
     if (GFM) tokenizeGFM(str, len, tokens);
     else     tokenize(str, len, tokens, 0, 0);
@@ -242,9 +248,9 @@ void likely_insert_operator(const char *symbol, int precedence, int right_hand_a
     ops().insert(pair<string,Operator>(symbol, Operator(precedence, right_hand_atoms)));
 }
 
-static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence = 0);
+static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, int precedence = 0);
 
-static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence)
+static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, int precedence)
 {
     if ((token->type != likely_ast_list) && (precedence < std::numeric_limits<int>::max())) {
         if (!strcmp(token->atom, ".")) {
@@ -270,7 +276,7 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
                 output.push_back(number);
             } else {
                 // It's a composition
-                vector<likely_const_ast> atoms;
+                vector<likely_ast> atoms;
                 atoms.push_back(output.back()); output.pop_back();
                 atoms.push_back(output.back()); output.pop_back();
                 likely_ast list = likely_new_list(atoms.data(), atoms.size());
@@ -315,7 +321,7 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
     return -1;
 }
 
-static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_ast> &output, int precedence)
+static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, int precedence)
 {
     assert(tokens->type == likely_ast_list);
     if (offset >= tokens->num_atoms)
@@ -323,7 +329,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_a
 
     likely_const_ast token = tokens->atoms[offset++];
     if ((token->type != likely_ast_list) && (!strcmp(token->atom, "(") || !strcmp(token->atom, "{"))) {
-        vector<likely_const_ast> atoms;
+        vector<likely_ast> atoms;
         const char *close;
         if (!strcmp(token->atom, "(")) {
             close = ")";
@@ -380,7 +386,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_const_a
 likely_ast likely_ast_from_tokens(likely_const_ast tokens)
 {
     size_t offset = 0;
-    vector<likely_const_ast> expressions;
+    vector<likely_ast> expressions;
     while (offset < tokens->num_atoms)
         if (!shift(tokens, offset, expressions)) {
             cleanup(expressions);
