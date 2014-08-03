@@ -88,7 +88,8 @@ private:
         setFormat(0, text.size(), commentFormat); // Assume it's a comment until we prove otherwise
         const likely_size line = currentBlock().blockNumber();
         likely_const_env it = env;
-        while (it && !likely_erratum(it->type) && it->ast && it->ast->end_line >= line) {
+        likely_const_ast root_ast = getRoot(env ? env->ast : NULL);
+        while (it && it->ast && (it->ast->end_line >= line) && (getRoot(it->ast) == root_ast)) {
             if ((line >= it->ast->begin_line) && (line <= it->ast->end_line)) {
                 // It's code
                 const likely_size begin = (line == it->ast->begin_line) ? it->ast->begin_column : 0;
@@ -98,6 +99,13 @@ private:
             }
             it = it->parent;
         }
+    }
+
+    static likely_const_ast getRoot(likely_const_ast ast)
+    {
+        while (ast && ast->parent)
+            ast = ast->parent;
+        return ast;
     }
 };
 
@@ -250,8 +258,6 @@ private slots:
         elapsedTimer.start();
         likely_ast ast = likely_ast_from_string(qPrintable(header), true);
         likely_env env = likely_repl(ast, root, NULL, NULL);
-        env = likely_new_env(env);
-        likely_set_erratum(&env->type, true); // Used as a marker to designate the transition from header to source
         likely_release_ast(ast);
         ast = likely_ast_from_string(qPrintable(toPlainText()), true);
         env = likely_repl(ast, env, replCallback, this);
