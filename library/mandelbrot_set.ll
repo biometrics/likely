@@ -45,5 +45,3 @@ $ likely ../library/mandelbrot_set.ll -show
 $ likely ../library/mandelbrot_set.ll -record mandelbrot_set.png
 $ dream ../library/mandelbrot_set.ll
 ```
-
-[Next](?show=average_face)

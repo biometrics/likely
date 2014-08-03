@@ -20,5 +20,3 @@ $ dream ../library/average_face.ll
 ```
 
 [1] http://www.openu.ac.il/home/hassner/data/lfwa/
-
-[Previous](?show=mandelbrot_set)
