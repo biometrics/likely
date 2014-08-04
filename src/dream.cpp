@@ -158,8 +158,8 @@ public:
     Source()
     {
         setLineWrapMode(QPlainTextEdit::NoWrap);
-        setMouseTracking(true);
         connect(this, SIGNAL(textChanged()), this, SLOT(eval()));
+        connect(CommandMode::get(), SIGNAL(changed(bool)), this, SLOT(commandMode(bool)));
     }
 
     ~Source()
@@ -194,15 +194,11 @@ public slots:
     }
 
 private:
-    void mouseMoveEvent(QMouseEvent *e)
+    void updateHotSpot(const QPoint &pos)
     {
-        if (e->modifiers() != Qt::ControlModifier)
-            return QPlainTextEdit::mouseMoveEvent(e);
-
-        e->accept();
         likely_const_env hotSpot = NULL;
-        if (current) {
-            const QTextCursor tc = cursorForPosition(e->pos());
+        if (current && !pos.isNull()) {
+            const QTextCursor tc = cursorForPosition(pos);
             const likely_size line   = tc.blockNumber();
             const likely_size column = tc.positionInBlock();
 
@@ -218,6 +214,14 @@ private:
                 hotSpot = it;
         }
         emit newHotSpot(hotSpot);
+    }
+
+    void mouseMoveEvent(QMouseEvent *e)
+    {
+        if (e->modifiers() != Qt::ControlModifier)
+            return QPlainTextEdit::mouseMoveEvent(e);
+        e->accept();
+        updateHotSpot(e->pos());
     }
 
     int selectNumber(QTextCursor &tc, bool *ok)
@@ -287,6 +291,12 @@ private:
     }
 
 private slots:
+    void commandMode(bool enabled)
+    {
+        setMouseTracking(enabled);
+        updateHotSpot(enabled ? mapFromGlobal(QCursor::pos()) : QPoint());
+    }
+
     void eval()
     {
         // This check needed because syntax highlighting triggers a textChanged() signal
