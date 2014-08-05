@@ -1435,25 +1435,28 @@ struct Lambda : public ScopedExpression
         BasicBlock *entry = BasicBlock::Create(C, "entry", tmpFunction);
         builder.SetInsertPoint(entry);
 
-        vector<likely_expression> arguments;
+        vector<likely_const_expr> arguments;
         if (arrayCC) {
             Value *argumentArray = tmpFunction->arg_begin();
             for (size_t i=0; i<types.size(); i++)
-                arguments.push_back(likely_expression(builder.CreateLoad(builder.CreateGEP(argumentArray, constant(i))), types[i]));
+                arguments.push_back(new likely_expression(builder.CreateLoad(builder.CreateGEP(argumentArray, constant(i))), types[i]));
         } else {
             Function::arg_iterator it = tmpFunction->arg_begin();
             size_t i = 0;
             while (it != tmpFunction->arg_end())
-                arguments.push_back(likely_expression(it++, types[i++]));
+                arguments.push_back(new likely_expression(it++, types[i++]));
         }
 
         for (size_t i=0; i<arguments.size(); i++) {
             stringstream name; name << "arg_" << i;
-            arguments[i].value->setName(name.str());
+            arguments[i]->value->setName(name.str());
         }
 
         likely_const_expr result = evaluateFunction(builder, arguments);
-        if (!result) return NULL;
+        for (likely_const_expr arg : arguments)
+            delete arg;
+        if (!result)
+            return NULL;
 
         releaseExpression::cleanup(builder, result->value);
 
@@ -1485,23 +1488,32 @@ private:
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        vector<likely_expression> args;
+        likely_const_expr result = NULL;
+
+        vector<likely_const_expr> args;
         const size_t arguments = length(ast)-1;
         for (size_t i=0; i<arguments; i++) {
-            TRY_EXPR(builder, ast->atoms[i+1], arg)
-            args.push_back(likely_expression(arg->value, arg->type));
+            likely_const_expr arg = builder.expression(ast->atoms[i+1]);
+            if (!arg)
+                goto cleanup;
+            args.push_back(arg);
         }
-        return evaluateFunction(builder, args);
+        result = evaluateFunction(builder, args);
+
+    cleanup:
+        for (likely_const_expr arg : args)
+            delete arg;
+        return result;
     }
 
-    likely_const_expr evaluateFunction(Builder &builder, const vector<likely_expression> &args) const
+    likely_const_expr evaluateFunction(Builder &builder, const vector<likely_const_expr> &args) const
     {
         assert(args.size() == length(ast->atoms[1]));
 
         // Do dynamic dispatch if the type isn't fully specified
         bool dynamic = false;
-        for (const likely_expression &arg : args)
-            dynamic |= (arg.type == MatType::MultiDimension);
+        for (likely_const_expr arg : args)
+            dynamic |= (arg->type == MatType::MultiDimension);
 
         if (dynamic) {
             likely_vtable vtable = new likely_virtual_table(builder.env, ast);
@@ -1527,7 +1539,7 @@ private:
 
             Value *matricies = builder.CreateAlloca(MatType::MultiDimension, constant(args.size()));
             for (size_t i=0; i<args.size(); i++)
-                builder.CreateStore(args[i], builder.CreateGEP(matricies, constant(i)));
+                builder.CreateStore(*args[i], builder.CreateGEP(matricies, constant(i)));
             Value* args[] = { ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(C, 8*sizeof(vtable)), uintptr_t(vtable)), vTableType), matricies };
             return new likely_expression(builder.CreateCall(likelyDynamic, args), MatType::MultiDimension);
         }
@@ -1535,16 +1547,16 @@ private:
         return evaluateLambda(builder, args);
     }
 
-    virtual likely_const_expr evaluateLambda(Builder &builder, const vector<likely_expression> &args) const
+    virtual likely_const_expr evaluateLambda(Builder &builder, const vector<likely_const_expr> &args) const
     {
         if (ast->atoms[1]->type == likely_ast_list) {
             for (size_t i=0; i<args.size(); i++)
-                builder.define(ast->atoms[1]->atoms[i]->atom, new likely_expression(args[i]));
+                builder.define(ast->atoms[1]->atoms[i]->atom, args[i]);
         } else {
-            builder.define(ast->atoms[1]->atom, new likely_expression(args[0]));
+            builder.define(ast->atoms[1]->atom, args[0]);
         }
         likely_const_expr result = builder.expression(ast->atoms[2]);
-        builder.undefineAll(ast->atoms[1], true);
+        builder.undefineAll(ast->atoms[1], false);
         return result;
     }
 };
@@ -1874,11 +1886,11 @@ private:
 
     virtual likely_const_ast getMetadata() const { return (ast->num_atoms == 4) ? ast->atoms[3] : NULL; }
 
-    likely_const_expr evaluateLambda(Builder &builder, const vector<likely_expression> &srcs) const
+    likely_const_expr evaluateLambda(Builder &builder, const vector<likely_const_expr> &srcs) const
     {
         likely_type kernelType = likely_matrix_void;
         if (!srcs.empty())
-            likely_set_execution(&kernelType, likely_execution(srcs.front()));
+            likely_set_execution(&kernelType, likely_execution(*srcs.front()));
 
         vector<pair<likely_const_ast,likely_const_ast>> pairs;
         getPairs(getMetadata(), pairs);
@@ -1891,9 +1903,9 @@ private:
         assert(srcs.size() == (args->type == likely_ast_list) ? args->num_atoms : 1);
         if (args->type == likely_ast_list) {
             for (size_t j=0; j<args->num_atoms; j++)
-                builder.define(args->atoms[j]->atom, &srcs[j]);
+                builder.define(args->atoms[j]->atom, srcs[j]);
         } else {
-            builder.define(args->atom, &srcs[0]);
+            builder.define(args->atom, srcs[0]);
         }
 
         BasicBlock *entry = builder.GetInsertBlock();
@@ -1920,10 +1932,13 @@ private:
         BasicBlock *scalarMatrixPromotion = BasicBlock::Create(C, "scalar_matrix_promotion", builder.GetInsertBlock()->getParent());
         builder.CreateBr(scalarMatrixPromotion);
         builder.SetInsertPoint(scalarMatrixPromotion);
-        vector<likely_expression> thunkSrcs = srcs;
-        for (likely_expression &thunkSrc : thunkSrcs)
-            if (!likely_multi_dimension(thunkSrc) && MatType::isMat(thunkSrc.value->getType()))
-                thunkSrc = likely_expression(builder.CreateLoad(builder.CreateGEP(builder.data(&thunkSrc), zero())), thunkSrc);
+        vector<likely_const_expr> thunkSrcs = srcs;
+        vector<unique_ptr<const likely_expression>> scalars;
+        for (likely_const_expr &thunkSrc : thunkSrcs)
+            if (!likely_multi_dimension(*thunkSrc) && MatType::isMat(thunkSrc->value->getType())) {
+                thunkSrc = new likely_expression(builder.CreateLoad(builder.CreateGEP(builder.data(thunkSrc), zero())), *thunkSrc);
+                scalars.push_back(unique_ptr<const likely_expression>(thunkSrc));
+            }
 
         // Finally, do the computation
         BasicBlock *computation = BasicBlock::Create(C, "computation", builder.GetInsertBlock()->getParent());
@@ -1944,18 +1959,18 @@ private:
         return new likely_expression(dst);
     }
 
-    Metadata generateSerial(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *kernelSize) const
+    Metadata generateSerial(Builder &builder, likely_const_ast args, const vector<likely_const_expr> &srcs, likely_expression &dst, Value *kernelSize) const
     {
         return generateCommon(builder, args, srcs, dst, zero(), kernelSize);
     }
 
-    Metadata generateParallel(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *kernelSize) const
+    Metadata generateParallel(Builder &builder, likely_const_ast args, const vector<likely_const_expr> &srcs, likely_expression &dst, Value *kernelSize) const
     {
         BasicBlock *entry = builder.GetInsertBlock();
 
         vector<Type*> parameterTypes;
-        for (const likely_expression &src : srcs)
-            parameterTypes.push_back(src.value->getType());
+        for (const likely_const_expr src : srcs)
+            parameterTypes.push_back(src->value->getType());
         parameterTypes.push_back(dst.value->getType());
         StructType *parameterStructType = StructType::get(C, parameterTypes);
 
@@ -1978,17 +1993,19 @@ private:
             Value *stop = it++;
 
             builder.SetInsertPoint(BasicBlock::Create(C, "entry", thunk));
-            vector<likely_expression> thunkSrcs;
+            vector<likely_const_expr> thunkSrcs;
             for (size_t i=0; i<srcs.size()+1; i++) {
-                const likely_type &type = i < srcs.size() ? srcs[i].type : dst.type;
-                thunkSrcs.push_back(likely_expression(builder.CreateLoad(builder.CreateStructGEP(parameterStruct, i)), type));
+                const likely_type &type = i < srcs.size() ? srcs[i]->type : dst.type;
+                thunkSrcs.push_back(new likely_expression(builder.CreateLoad(builder.CreateStructGEP(parameterStruct, i)), type));
             }
-            likely_expression kernelDst = thunkSrcs.back(); thunkSrcs.pop_back();
-            kernelDst.value->setName("dst");
+            likely_expr kernelDst = const_cast<likely_expr>(thunkSrcs.back()); thunkSrcs.pop_back();
+            kernelDst->value->setName("dst");
 
-            metadata = generateCommon(builder, args, thunkSrcs, kernelDst, start, stop);
+            metadata = generateCommon(builder, args, thunkSrcs, *kernelDst, start, stop);
+            for (likely_const_expr thunkSrc : thunkSrcs)
+                delete thunkSrc;
 
-            dst.type = kernelDst;
+            dst.type = *kernelDst;
             builder.CreateRetVoid();
         }
 
@@ -2008,7 +2025,7 @@ private:
 
         Value *parameterStruct = builder.CreateAlloca(parameterStructType);
         for (size_t i=0; i<srcs.size()+1; i++) {
-            const likely_expression &src = i < srcs.size() ? srcs[i] : dst;
+            const likely_expression &src = i < srcs.size() ? *srcs[i] : dst;
             builder.CreateStore(src, builder.CreateStructGEP(parameterStruct, i));
         }
 
@@ -2016,13 +2033,13 @@ private:
         return metadata;
     }
 
-    Metadata generateHeterogeneous(Builder &, likely_const_ast, const vector<likely_expression> &, likely_expression &, Value *) const
+    Metadata generateHeterogeneous(Builder &, likely_const_ast, const vector<likely_const_expr> &, likely_expression &, Value *) const
     {
         assert(!"Not implemented");
         return Metadata();
     }
 
-    Metadata generateCommon(Builder &builder, likely_const_ast args, const vector<likely_expression> &srcs, likely_expression &dst, Value *start, Value *stop) const
+    Metadata generateCommon(Builder &builder, likely_const_ast args, const vector<likely_const_expr> &srcs, likely_expression &dst, Value *start, Value *stop) const
     {
         Metadata metadata;
         BasicBlock *entry = builder.GetInsertBlock();
@@ -2079,9 +2096,9 @@ private:
 
         if (args->type == likely_ast_list) {
             for (size_t j=0; j<args->num_atoms; j++)
-                builder.define(args->atoms[j]->atom, new kernelArgument(srcs[j], dst, channelStep, axis->node));
+                builder.define(args->atoms[j]->atom, new kernelArgument(*srcs[j], dst, channelStep, axis->node));
         } else {
-            builder.define(args->atom, new kernelArgument(srcs[0], dst, channelStep, axis->node));
+            builder.define(args->atom, new kernelArgument(*srcs[0], dst, channelStep, axis->node));
         }
 
         unique_ptr<const likely_expression> result(builder.expression(ast->atoms[2]));
@@ -2134,7 +2151,7 @@ private:
         return true;
     }
 
-    static Value *getDimensions(Builder &builder, const vector<pair<likely_const_ast,likely_const_ast>> &pairs, const char *axis, const vector<likely_expression> &srcs, likely_type *type)
+    static Value *getDimensions(Builder &builder, const vector<pair<likely_const_ast,likely_const_ast>> &pairs, const char *axis, const vector<likely_const_expr> &srcs, likely_type *type)
     {
         Value *result = NULL;
         for (const auto &pair : pairs) // Look for a dimensionality expression
@@ -2148,10 +2165,10 @@ private:
             if (srcs.empty()) {
                 result = constant(1);
             } else {
-                if      (!strcmp(axis, "channels")) result = builder.channels(&srcs[0]);
-                else if (!strcmp(axis, "columns"))  result = builder.columns (&srcs[0]);
-                else if (!strcmp(axis, "rows"))     result = builder.rows    (&srcs[0]);
-                else                                result = builder.frames  (&srcs[0]);
+                if      (!strcmp(axis, "channels")) result = builder.channels(srcs[0]);
+                else if (!strcmp(axis, "columns"))  result = builder.columns (srcs[0]);
+                else if (!strcmp(axis, "rows"))     result = builder.rows    (srcs[0]);
+                else                                result = builder.frames  (srcs[0]);
             }
         }
 
