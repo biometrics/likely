@@ -2,12 +2,12 @@ Eigenfaces
 ---------
 Compute eigenvectors from a set of aligned faces.
 
-    avg = m =>
+    mean = (x axis) =>
     {
       j = 0
-      (j = j + m) $ t m.frames
-      j / m.frames
-    } : ((frames 1) (type parallel))
+      (j = j + x) $ t x.axis
+      j / x.axis
+    } : ((axis 1) (type parallel))
 
     faces = "../data/lfwa.tar.gz".read
-    average_face = faces.avg
+    average_face = (mean faces frames)

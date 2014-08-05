@@ -818,17 +818,25 @@ likely_const_expr Builder::expression(likely_const_ast ast)
     return likely_expression::error(ast, "unrecognized literal");
 }
 
-#define LIKELY_REGISTER_FIELD(FIELD, UID)                                                                         \
-class FIELD##Expression : public SimpleUnaryOperator                                                              \
-{                                                                                                                 \
-    int uid() const { return UID; }                                                                               \
-                                                                                                                  \
-    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const \
-    {                                                                                                             \
-        return new likely_expression(builder.FIELD(arg.get()));                                                   \
-    }                                                                                                             \
-};                                                                                                                \
-LIKELY_REGISTER(FIELD)                                                                                            \
+#define LIKELY_REGISTER_FIELD(FIELD, UID)                                    \
+class FIELD##Expression : public likely_expression                           \
+{                                                                            \
+    int uid() const { return UID; }                                          \
+                                                                             \
+    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const \
+    {                                                                        \
+        const size_t arguments = length(ast) - 1;                            \
+        if (arguments == 0) {                                                \
+            return new FIELD##Expression();                                  \
+        } else if (arguments == 1) {                                         \
+            TRY_EXPR(builder, ast->atoms[1], expr)                           \
+            return new likely_expression(builder.FIELD(expr.get()));         \
+        } else {                                                             \
+            return error(ast, "expected 0 or 1 operand(s)");                 \
+        }                                                                    \
+    }                                                                        \
+};                                                                           \
+LIKELY_REGISTER(FIELD)                                                       \
 
 LIKELY_REGISTER_FIELD(channels, __LINE__)
 LIKELY_REGISTER_FIELD(columns , __LINE__)
