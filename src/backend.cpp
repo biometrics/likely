@@ -21,6 +21,7 @@
 #include <llvm/PassManager.h>
 #include <llvm/ADT/Hashing.h>
 #include <llvm/ADT/Triple.h>
+#include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
 #include <llvm/Bitcode/ReaderWriter.h>
@@ -2377,6 +2378,23 @@ class importExpression : public Operator
 };
 LIKELY_REGISTER(import)
 
+struct HasLoop : public LoopInfo
+{
+    Function *F;
+    bool hasLoop = false;
+    HasLoop(Function *F)
+        : F(F) {}
+
+    bool runOnFunction(Function &F)
+    {
+        if (&F != this->F)
+            return false;
+        const bool result = LoopInfo::runOnFunction(F);
+        hasLoop = !empty();
+        return result;
+    }
+};
+
 JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool interpreter, bool arrayCC)
     : resources(new likely_resources(true)), parameters(parameters)
 {
@@ -2406,6 +2424,16 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
 
     if (!value)
         return;
+
+    // Don't run the interpreter on code with loops, better to compile and execute it instead.
+    if (interpreter) {
+        PassManager PM;
+        HasLoop *hasLoop = new HasLoop(cast<Function>(value));
+        PM.add(hasLoop);
+        PM.run(*resources->module);
+        if (hasLoop->hasLoop)
+            interpreter = false;
+    }
 
     TargetMachine *targetMachine = likely_resources::getTargetMachine(true);
     resources->module->setDataLayout(targetMachine->getSubtargetImpl()->getDataLayout());
