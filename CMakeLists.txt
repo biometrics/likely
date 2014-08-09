@@ -52,7 +52,6 @@ else()
   set(LLVM_TARGETS_TO_BUILD "host" CACHE STRING "LLVM targets")
   if(NOT WIN32)
     option(LLVM_ENABLE_FFI "Use libffi to call external functions from the interpreter" ON)
-    unset(FFI_INCLUDE_PATH CACHE) # http://llvm.org/bugs/show_bug.cgi?id=20408
   endif()
   add_subdirectory(llvm EXCLUDE_FROM_ALL)
   set(CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}/llvm/share/llvm/cmake/")

@@ -41,6 +41,7 @@
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/ToolOutputFile.h>
 #include <llvm/Target/TargetLibraryInfo.h>
+#include <llvm/Target/TargetSubtargetInfo.h>
 #include <llvm/Transforms/IPO.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Transforms/Scalar.h>
@@ -2382,6 +2383,11 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     function = NULL;
     ref_count = 1;
 
+// No libffi support for Windows
+#ifdef _WIN32
+    interpreter = false;
+#endif // _WIN32
+
     if (!lambdaExpression::isLambda(ast)) {
         likely_expression::error(ast, "expected a lambda expression");
         return;
@@ -2402,7 +2408,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         return;
 
     TargetMachine *targetMachine = likely_resources::getTargetMachine(true);
-    resources->module->setDataLayout(targetMachine->getDataLayout());
+    resources->module->setDataLayout(targetMachine->getSubtargetImpl()->getDataLayout());
 
     string error;
     EngineBuilder engineBuilder(resources->module);
@@ -2429,7 +2435,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
             PM = new PassManager();
             PM->add(createVerifierPass());
             PM->add(new TargetLibraryInfo(Triple(resources->module->getTargetTriple())));
-            PM->add(new DataLayoutPass(*TM->getDataLayout()));
+            PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
             TM->addAnalysisPasses(*PM);
             PassManagerBuilder builder;
             builder.OptLevel = 3;
@@ -2842,12 +2848,12 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
         likely_release_ast(lambda->atoms[0]->atoms[2]->atoms[1]); // <ast>
         const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]->atoms[1]) = likely_retain_ast(ast); // Copy because we will modify ast->type
 
-        // TODO: Re-enable interpreter for OS X and Ubuntu when intrinsic lowering patch lands
-        JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), false, false);
-        if (jit.function) {
-            env->result = reinterpret_cast<likely_function_0>(jit.function)();
-        } else if (jit.EE) {
+        JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), true, false);
+        if (jit.EE) {
             env->result = (likely_mat) jit.EE->runFunction(cast<Function>(jit.value), vector<GenericValue>()).PointerVal;
+        } else if (jit.function) {
+            // Fallback is a compiled function if the interpreter isn't supported
+            env->result = reinterpret_cast<likely_function_0>(jit.function)();
         } else {
             likely_set_erratum(&env->type, true);
         }
