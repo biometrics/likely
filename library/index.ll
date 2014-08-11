@@ -9,7 +9,8 @@ Skip to the good stuff: **[installation](?show=README.md)**,
                         **[tutorial](?show=tutorial)**, **[demos](?show=demos)**,
                         **[language reference](?show=standard)**,
                         **[releases](https://github.com/biometrics/likely/releases)**,
-                        **[ci](http://ci.liblikely.org/waterfall)**.
+                        **[ci](http://ci.liblikely.org/waterfall)**,
+                        **[api](https://s3.amazonaws.com/openbr/likely/index.html)**.
 
 ### Principles
  - Efficient syntax for image processing and pattern recognition.
