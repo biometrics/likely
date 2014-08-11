@@ -7,4 +7,10 @@
 #include <likely/io.h>
 #include <likely/runtime.h>
 
+/*!
+ * \mainpage Likely
+ *
+ * Welcome to the Likely API documentation!
+ */
+
 #endif // LIKELY_H

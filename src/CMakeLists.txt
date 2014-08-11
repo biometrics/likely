@@ -11,7 +11,8 @@ set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/index.html
                 ${CMAKE_SOURCE_DIR}/share/likely/LikelyConfig.cmake
                 ${CMAKE_SOURCE_DIR}/share/likely/hello_world/README.ll
-                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello_world_div2.ll)
+                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello_world_div2.ll
+                ${CMAKE_SOURCE_DIR}/src/Doxyfile.in)
 
 # Build standard library
 add_executable(embedfile embedfile.c)
@@ -93,6 +94,12 @@ if(${LIKELY_IO})
     target_link_libraries(dream likely_static)
     install(TARGETS dream RUNTIME DESTINATION bin)
   endif()
+endif()
+
+find_package(Doxygen)
+if(${DOXYGEN_FOUND})
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in Doxyfile)
+  add_custom_target(doc ${DOXYGEN_EXECUTABLE} Doxyfile)
 endif()
 
 # Test standard library
