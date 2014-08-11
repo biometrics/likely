@@ -582,6 +582,25 @@ private:
     {
         return EE == static_cast<const JITFunction*>(other)->EE;
     }
+
+    class HasLoop : public LoopInfo
+    {
+        Function *F;
+
+    public:
+        bool hasLoop = false;
+        HasLoop(Function *F)
+            : F(F) {}
+
+        bool runOnFunction(Function &F)
+        {
+            if (&F != this->F)
+                return false;
+            const bool result = LoopInfo::runOnFunction(F);
+            hasLoop = !empty();
+            return result;
+        }
+    };
 };
 
 class Operator : public likely_expression
@@ -2378,23 +2397,6 @@ class importExpression : public Operator
 };
 LIKELY_REGISTER(import)
 
-struct HasLoop : public LoopInfo
-{
-    Function *F;
-    bool hasLoop = false;
-    HasLoop(Function *F)
-        : F(F) {}
-
-    bool runOnFunction(Function &F)
-    {
-        if (&F != this->F)
-            return false;
-        const bool result = LoopInfo::runOnFunction(F);
-        hasLoop = !empty();
-        return result;
-    }
-};
-
 JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool interpreter, bool arrayCC)
     : resources(new likely_resources(true)), parameters(parameters)
 {
@@ -2431,8 +2433,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         HasLoop *hasLoop = new HasLoop(cast<Function>(value));
         PM.add(hasLoop);
         PM.run(*resources->module);
-        if (hasLoop->hasLoop)
-            interpreter = false;
+        interpreter = !hasLoop->hasLoop;
     }
 
     TargetMachine *targetMachine = likely_resources::getTargetMachine(true);
