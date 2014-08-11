@@ -4,7 +4,12 @@ Likely
  > An embeddable just-in-time Lisp for image recognition and heterogenous architectures.
  > -- [@jklontz](https://github.com/jklontz)
 
-Skip to the good stuff: **[installation](?show=README.md)**, **[hello world](?show=share/likely/hello_world/README.ll)**, **[tutorial](?show=tutorial)**, **[demos](?show=demos)**, **[language reference](?show=standard)**, **[releases](https://github.com/biometrics/likely/releases)**.
+Skip to the good stuff: **[installation](?show=README.md)**,
+                        **[hello world](?show=share/likely/hello_world/README.ll)**,
+                        **[tutorial](?show=tutorial)**, **[demos](?show=demos)**,
+                        **[language reference](?show=standard)**,
+                        **[releases](https://github.com/biometrics/likely/releases)**,
+                        **[ci](http://ci.liblikely.org/waterfall)**.
 
 ### Principles
  - Efficient syntax for image processing and pattern recognition.
