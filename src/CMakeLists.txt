@@ -105,7 +105,7 @@ endif()
 # Test standard library
 function(test_standard NAME EXPR VALUE)
   add_test(NAME ${NAME}
-           WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
            COMMAND like ${EXPR} -assert ${VALUE})
 endfunction()
 
@@ -121,8 +121,8 @@ test_standard(max "(max 1 -1.3)" 1)
 # Test demos
 function(test_demo FILE VALUE)
   add_test(NAME ${FILE}
-           WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-           COMMAND like -md5 ../library/${FILE}.ll -assert ${VALUE})
+           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+           COMMAND like -md5 library/${FILE}.ll -assert ${VALUE})
 endfunction()
 
 # List alphabetically

@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
     char *input_image, *filter, *output_image;
 
     if (argc == 1) {
-        input_image = "../data/misc/lenna.tiff"; // Assume we are run from a hypothetical <root>/bin folder
+        input_image = "data/misc/lenna.tiff"; // Assume we are run from repository root
         output_image = "";
         filter = "a => a / (a.type 2)";
     } else if (argc == 4) {

@@ -2,7 +2,7 @@ C API
 -----
 So you've developed an algorithm in Likely, how do you integrate it into your native application? Once again, let's consider our *[Hello World](?show=hello_world)* example:
 
-    lenna = (read "../data/misc/lenna.tiff")
+    lenna = (read "data/misc/lenna.tiff")
     hello_world = a => a / (a.type 2)
     (hello_world lenna)
 
@@ -14,7 +14,7 @@ The **C translation** of this is:
 int main()
 {
     // Do work
-    likely_const_mat lenna = likely_read("../data/misc/lenna.tiff", likely_file_binary);
+    likely_const_mat lenna = likely_read("data/misc/lenna.tiff", likely_file_binary);
     likely_const_ast ast = likely_ast_from_string("a => a / (a.type 2)");
     likely_const_env env = likely_new_env_jit();
     likely_const_fun darken = likely_compile(ast->atoms[0], env, likely_matrix_void);

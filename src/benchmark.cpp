@@ -47,7 +47,7 @@ static Mat generateData(int rows, int columns, likely_type type, double scaleFac
 {
     static Mat m;
     if (!m.data) {
-        m = imread("../data/misc/lenna.tiff");
+        m = imread("data/misc/lenna.tiff");
         assert(m.data);
         cvtColor(m, m, CV_BGR2GRAY);
     }
@@ -110,7 +110,7 @@ struct Test
     {
         ifstream file(fileName.compare(fileName.length()-2, 2, ".ll") == 0
                       ? fileName
-                      : "../library/" + fileName + ".ll");
+                      : "library/" + fileName + ".ll");
         const string source((istreambuf_iterator<char>(file)),
                              istreambuf_iterator<char>());
         if (source.empty()) {
@@ -432,7 +432,7 @@ int main(int argc, char *argv[])
 
     if (BenchmarkTutorial || BenchmarkTest) {
         printf("File     \tSpeed (Hz)\n");
-        ifstream file("../library/tutorial.ll");
+        ifstream file("library/tutorial.ll");
         string line;
         // Skip header
         getline(file, line);
