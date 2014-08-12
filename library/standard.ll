@@ -149,8 +149,8 @@ Convenience functions **likely__field_** and **likely\_set__field_** are provide
 Mathematical Constants
 ----------------------
 
-    e  = 2.71828 ; Euler's number
-    pi = 3.14159 ; The ratio of a circle's circumference to its diameter
+    e  = (f32 2.71828) ; Euler's number
+    pi = (f32 3.14159) ; The ratio of a circle's circumference to its diameter
 
 Unary Functions
 ---------------

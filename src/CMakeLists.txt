@@ -125,7 +125,7 @@ function(test_demo FILE VALUE)
 endfunction()
 
 # List alphabetically
-test_demo(gabor_wavelet b22d40f8bb28b4fe1c89ed5034eb2444)
+test_demo(gabor_wavelet fba9323cba821c279e45ec59bc115969)
 test_demo(mandelbrot_set 7c3756d7bb81d8aeb6e4451adc8ca7bf)
 
 # Test algorithms
