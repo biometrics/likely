@@ -58,6 +58,29 @@ static void replRecord(likely_const_env env, void *context)
     likely_release(rendered);
 }
 
+static void replShow(likely_const_env env, void *context)
+{
+    if (!context) return;
+    const string assertValue = assert_;
+    if (assertValue.empty()) {
+        likely_show(env, context);
+    } else {
+        likely_mat rendered = likely_render(env->result, NULL, NULL);
+        likely_mat baseline = likely_read(assertValue.c_str(), likely_file_binary);
+        likely_assert(rendered->channels == baseline->channels, "expected: %d channels, got: %d", baseline->channels, rendered->channels);
+        likely_assert(rendered->columns  == baseline->columns , "expected: %d columns, got: %d" , baseline->columns , rendered->columns);
+        likely_assert(rendered->rows     == baseline->rows    , "expected: %d rows, got: %d"    , baseline->rows    , rendered->rows);
+        likely_assert(rendered->frames   == baseline->frames  , "expected: %d frames, got: %d"  , baseline->frames  , rendered->frames);
+        const likely_size elements = likely_elements(rendered);
+        likely_size delta = 0;
+        for (likely_size i=0; i<elements; i++)
+            delta += abs(int(rendered->data[i]) - int(baseline->data[i]));
+        likely_release(rendered);
+        likely_release(baseline);
+        likely_assert(delta < 2*elements /* arbitrary threshold */, "average delta: %g", float(delta) / float(elements));
+    }
+}
+
 static void replMD5(likely_const_env env, void *context)
 {
     if (!context) return;
@@ -89,7 +112,7 @@ int main(int argc, char *argv[])
 
     likely_repl_callback repl_callback;
     if (!record.getValue().empty()) repl_callback = replRecord;
-    else if (show)  repl_callback = likely_show;
+    else if (show)  repl_callback = replShow;
     else if (md5)   repl_callback = replMD5;
     else if (quiet) repl_callback = replQuiet;
     else            repl_callback = replPrint;
