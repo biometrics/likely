@@ -126,6 +126,11 @@ function(test_demo FILE VALUE)
 endfunction()
 
 # List alphabetically
-test_demo(average_face 876f3f7204335a0d6da1a42cbb3f3789)
 test_demo(gabor_wavelet b22d40f8bb28b4fe1c89ed5034eb2444)
 test_demo(mandelbrot_set 7c3756d7bb81d8aeb6e4451adc8ca7bf)
+
+# Test algorithms
+option(LIKELY_TEST_ALGORITHMS "Run computationally demanding tests" ON)
+if(${LIKELY_TEST_ALGORITHMS})
+  test_demo(average_face 876f3f7204335a0d6da1a42cbb3f3789)
+endif()
