@@ -396,18 +396,18 @@ class JITFunctionCache : public ObjectCache
     map<hash_code, unique_ptr<MemoryBuffer>> cache;
     const Module *currentModule = NULL;
 
-    void notifyObjectCompiled(const Module *M, const MemoryBuffer *Obj)
+    void notifyObjectCompiled(const Module *M, MemoryBufferRef Obj)
     {
         if (M == currentModule)
-            cache[currentHash].reset(MemoryBuffer::getMemBufferCopy(Obj->getBuffer()));
+            cache[currentHash].reset(MemoryBuffer::getMemBufferCopy(Obj.getBuffer()));
     }
 
-    MemoryBuffer *getObject(const Module *M)
+    unique_ptr<MemoryBuffer> getObject(const Module *M)
     {
         if (M == currentModule)
             if (MemoryBuffer *buffer = cache[currentHash].get())
-                return MemoryBuffer::getMemBufferCopy(buffer->getBuffer());
-        return NULL;
+                return unique_ptr<MemoryBuffer>(MemoryBuffer::getMemBufferCopy(buffer->getBuffer()));
+        return unique_ptr<MemoryBuffer>();
     }
 
 public:
@@ -2440,7 +2440,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     resources->module->setDataLayout(targetMachine->getSubtargetImpl()->getDataLayout());
 
     string error;
-    EngineBuilder engineBuilder(resources->module);
+    EngineBuilder engineBuilder(unique_ptr<Module>(resources->module));
     engineBuilder.setErrorStr(&error);
 
     if (interpreter) {
