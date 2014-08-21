@@ -2017,7 +2017,7 @@ private:
             vector<likely_const_expr> thunkSrcs;
             for (size_t i=0; i<srcs.size()+1; i++) {
                 const likely_type &type = i < srcs.size() ? srcs[i]->type : dst.type;
-                thunkSrcs.push_back(new likely_expression(builder.CreateLoad(builder.CreateStructGEP(parameterStruct, i)), type));
+                thunkSrcs.push_back(new likely_expression(builder.CreateLoad(builder.CreateStructGEP(parameterStruct, unsigned(i))), type));
             }
             likely_expr kernelDst = const_cast<likely_expr>(thunkSrcs.back()); thunkSrcs.pop_back();
             kernelDst->value->setName("dst");
@@ -2047,7 +2047,7 @@ private:
         Value *parameterStruct = builder.CreateAlloca(parameterStructType);
         for (size_t i=0; i<srcs.size()+1; i++) {
             const likely_expression &src = i < srcs.size() ? *srcs[i] : dst;
-            builder.CreateStore(src, builder.CreateStructGEP(parameterStruct, i));
+            builder.CreateStore(src, builder.CreateStructGEP(parameterStruct, unsigned(i)));
         }
 
         builder.CreateCall3(likelyFork, builder.module()->getFunction(thunk->getName()), parameterStruct, kernelSize);
