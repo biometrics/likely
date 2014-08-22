@@ -53,7 +53,7 @@ Likely algorithms can be shipped as minimalist native libraries, written for dyn
 | JavaScript transcompiler | [#45](https://github.com/biometrics/likely/issues/45) |
 
 ### Live Coding
-Developing image recognition algorithms is a creative process, and like all creative processes it relies on immediate viceral feedback while interacting with the creative medium.
+Developing image recognition algorithms is a creative process, and like all creative processes it relies on immediate visceral feedback while interacting with the creative medium.
 Image recognition algorithms have parameters, and visualizing their effect is critical for building intuition.
 This problem domain and Likely's JIT approach seem well suited for the concept of _live coding_ popularized by [Bret Victor](http://worrydream.com/).
 In fact, Likely's accompanying IDE called _Dream_, is [designed from the ground up to support interactive algorithm development](https://www.youtube.com/watch?v=a_hz8wFACVM).
@@ -81,7 +81,13 @@ $ likely "(+ 1 2)"
 3
 ```
 
-An important property of s-expressions is that they are equivalent to the compiler's abstract syntax tree.
+An important property of s-expressions is that they are equivalent to the compiler's abstract syntax tree (AST).
+
+### AST Manipulation
+To improve code readability, Likely has the following special tokens that influence how source code is parsed.
+
+#### __;__ (Comment)
+The semicolon and all following characters through the end of the line are excluded from the AST during tokenization.
 
 ### Infix Notation
 While everything in Likely can be expressed using prefix notation, as a convenience to developers Likely also offers infix extensions
