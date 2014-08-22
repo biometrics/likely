@@ -89,6 +89,24 @@ To improve code readability, Likely has the following special tokens that influe
 #### __;__ (Comment)
 The semicolon and all following characters through the end of the line are excluded from the AST during tokenization.
 
+```lisp
+(this is some code) ; This is a comment
+```
+
+#### __.__ (Composition)
+The period is used for function composition, or more generally [uniform function call syntax](http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394).
+
+```lisp
+x.f       ; Equivalent to (f x)
+x.f.g     ; Equivalent to (g (f x))
+x.(f y z) ; Equivalent to (f x y z)
+7.2       ; Remains 7.2
+```
+
+We might call the first two examples _function composition_, and the third example _uniform function call syntax_.
+Either way, the left-hand-side (LHS) is inserted as the first operand of the right-hand-side (RHS).
+Note, this transformation does not apply to numbers!
+
 ### Infix Notation
 While everything in Likely can be expressed using prefix notation, as a convenience to developers Likely also offers infix extensions
 
