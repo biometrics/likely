@@ -26,18 +26,46 @@
 extern "C" {
 #endif // __cplusplus
 
-// Matrix types
+/*!
+ * \defgroup runtime Runtime
+ * \brief Symbols in \c likely/runtime.h.
+ *
+ * Statically compiled Likely algorithms will generally depend on these symbols <i>and these symbols only</i>.
+ *
+ * These functions are implemented in \c src/runtime.cpp.
+ * By design this source file has no dependencies outside of the <tt>C++ Standard Library</tt>,
+ * making it easy to drop into other projects.
+ * Alternatively, you can link against the \c likely_runtime static library, or the complete \c likely library.
+ *
+ * @{
+ */
+
+/*!
+ * \brief Size type guaranteed to be native width.
+ */
 typedef uintptr_t likely_size;
-typedef likely_size likely_type; /* Depth : 8
-                                    Signed : 1
-                                    Floating : 1
-                                    Parallel : 1
-                                    Heterogeneous : 1
-                                    Single-channel : 1
-                                    Single-column : 1
-                                    Single-row : 1
-                                    Single-frame : 1
-                                    Saturation : 1 */
+
+/*!
+ * \brief Data type of a matrix.
+ *
+ * \c likely_type plays a critical role in determining how to process matricies.
+ * Here is its bitwise layout:
+ *
+ * | Field         | Bits | Mask       | Getter               | Setter                   |
+ * |---------------|------|------------|----------------------|--------------------------|
+ * | depth         | 8    | 0x000000FF | likely_depth         | likely_set_depth         |
+ * | signed        | 1    | 0x00000100 | likely_signed        | likely_set_signed        |
+ * | floating      | 1    | 0x00000200 | likely_floating      | likely_set_floating      |
+ * | parallel      | 1    | 0x00000400 | likely_parallel      | likely_set_parallel      |
+ * | heterogeneous | 1    | 0x00000800 | likely_heterogeneous | likely_set_heterogeneous |
+ * | multi-channel | 1    | 0x00001000 | likely_multi_channel | likely_set_multi_channel |
+ * | multi-column  | 1    | 0x00002000 | likely_multi_column  | likely_set_multi_column  |
+ * | multi-row     | 1    | 0x00004000 | likely_multi_row     | likely_set_multi_row     |
+ * | multi-frame   | 1    | 0x00008000 | likely_multi_frame   | likely_set_multi_frame   |
+ * | saturation    | 1    | 0x00010000 | likely_saturation    | likely_set_saturation    |
+ * | reserved      | 15   | 0xFFFE0000 | N/A                  | N/A                      |
+ */
+typedef likely_size likely_type;
 
 enum likely_type_field
 {
@@ -78,14 +106,39 @@ enum likely_type_field
 #  pragma warning(disable: 4200)
 #endif // _MSC_VER
 
-// The main datatype in Likely
+/*!
+ * \brief The principal data type for input and output to compiled functions.
+ *
+ * The last five fields (_channels_, _columns_, _rows_, _frames_, and _type_) are collectively referred to as the matrix _header_. In contrast to most image processing libraries which tend to feature 3-dimensional matrices (channels, columns, rows), Likely includes a fourth dimension, frames, in order to facilitate processing videos or collections of images.
+ *
+ * \section Element Access
+ * By convention, element layout in the data buffer with resepect to decreasing spatial locality is _channel_, _column_, _row_, _frame_. Thus an element at channel _c_, column _x_, row _y_, and frame _t_, can be retrieved like:
+ * \code
+ * float likely_get_element(likely_matrix m, likely_size c, likely_size x, likely_size y, likely_size t)
+ * {
+ *     likely_size columnStep = m->channels;
+ *     likely_size rowStep = m->channels * columnStep;
+ *     likely_size frameStep = m->rows * rowStep;
+ *     likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
+ *     assert(likely_type(m) == likely_type_f32);
+ *     return reinterpret_cast<float*>(m->data)[index];
+ * }
+ * \endcode
+ *
+ * Convenience functions **likely_element** and **likely_set_element** are provided for individual element access. These functions are inefficient for iterating over a large numbers of elements due to the repeated index calculations, and their use is suggested only for debugging purposes or when the matrix is known to be small.
+ */
 struct likely_matrix
 {
-    likely_size bytes, ref_count;
-    likely_size channels, columns, rows, frames;
-    likely_type type;
-    char data[];
+    likely_size bytes; /*!< \brief Allocated memory. */
+    likely_size ref_count; /*!< \brief Reference count. */
+    likely_size channels; /*!< \brief Dimensionality. */
+    likely_size columns;  /*!< \brief Dimensionality. */
+    likely_size rows;     /*!< \brief Dimensionality. */
+    likely_size frames;   /*!< \brief Dimensionality. */
+    likely_type type; /*!< \brief Type of \ref data.*/
+    char data[]; /*!< \brief Buffer. */
 };
+
 typedef struct likely_matrix const *likely_const_mat;
 typedef struct likely_matrix *likely_mat;
 
@@ -160,6 +213,8 @@ LIKELY_EXPORT likely_type likely_type_from_types(likely_type lhs, likely_type rh
 // and may therefore take an arbitrary internally-defined structure.
 typedef void (*likely_thunk)(void *args, likely_size start, likely_size stop);
 LIKELY_EXPORT void likely_fork(likely_thunk thunk, void *args, likely_size size);
+
+/** @} */ // end of runtime
 
 #ifdef __cplusplus
 }

@@ -24,6 +24,12 @@
 extern "C" {
 #endif // __cplusplus
 
+/*!
+ * \defgroup backend Backend
+ * \brief Symbols in \c likely/backend.h.
+ * @{
+ */
+
 typedef likely_size likely_environment_type; /* Offline    : 1
                                                 Erratum    : 1
                                                 Definition : 1
@@ -122,6 +128,8 @@ LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *
 
 // Miscellaneous
 LIKELY_EXPORT likely_mat likely_md5(likely_const_mat buffer);
+
+/** @} */ // end of backend
 
 #ifdef __cplusplus
 }

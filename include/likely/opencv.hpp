@@ -20,6 +20,12 @@
 #include <likely/runtime.h>
 #include <opencv2/core/core.hpp>
 
+/*!
+ * \defgroup opencv OpenCV
+ * \brief Symbols in \c likely/opencv.hpp.
+ * @{
+ */
+
 namespace likely
 {
     LIKELY_EXPORT int typeToDepth(likely_type type);
@@ -27,5 +33,7 @@ namespace likely
     LIKELY_EXPORT cv::Mat toCvMat(likely_const_mat m);
     LIKELY_EXPORT likely_mat fromCvMat(const cv::Mat &src);
 } // namespace likely
+
+/** @} */ // end of opencv
 
 #endif // LIKELY_OPENCV_HPP

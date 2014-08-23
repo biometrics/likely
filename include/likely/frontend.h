@@ -24,6 +24,12 @@
 extern "C" {
 #endif // __cplusplus
 
+/*!
+ * \defgroup frontend Frontend
+ * \brief Symbols in \c likely/frontend.h.
+ * @{
+ */
+
 typedef enum
 {
     // list type
@@ -86,6 +92,8 @@ LIKELY_EXPORT const char *likely_get_symbol_name(likely_const_ast ast); // retur
 LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, void *context);
 LIKELY_EXPORT bool likely_throw(likely_const_ast where, const char *what);
 LIKELY_EXPORT likely_mat likely_error_to_string(likely_error error);
+
+/** @} */ // end of frontend
 
 #ifdef __cplusplus
 }
