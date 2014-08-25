@@ -328,25 +328,31 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
         }
     }
 
-    if ((token->type != likely_ast_list) && (!strcmp(token->atom, "(") || !strcmp(token->atom, "{"))) {
+    static likely_const_ast listOpen = likely_new_atom("(", 1);
+    static likely_const_ast listClose = likely_new_atom(")", 1);
+    static likely_const_ast beginOpen = likely_new_atom("{", 1);
+    static likely_const_ast beginClose = likely_new_atom("}", 1);
+    if (!likely_ast_compare(token, listOpen) || !likely_ast_compare(token, beginOpen)) {
         vector<likely_ast> atoms;
-        const char *close;
-        if (!strcmp(token->atom, "(")) {
-            close = ")";
+        likely_const_ast close;
+        if (!likely_ast_compare(token, listOpen)) {
+            close = listClose;
         } else {
             atoms.push_back(likely_retain_ast(token));
-            close = "}";
+            close = beginClose;
         }
+
         likely_const_ast end;
         while (true) {
             end = tokens->atoms[offset];
-            if ((end->type != likely_ast_list) && !strcmp(end->atom, close)) {
+            if (!likely_ast_compare(end, close)) {
                 offset++;
                 break;
             }
             if (!shift(tokens, offset, atoms, atoms.empty() ? std::numeric_limits<int>::max() : 0))
                 return cleanup(atoms);
         }
+
         if (atoms.size() == 1) {
             output.push_back(atoms[0]);
         } else {
