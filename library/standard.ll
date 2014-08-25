@@ -1,12 +1,10 @@
 The Likely Programming Language
 ===============================
-
 > Reference manual and standard library.
 > -- [@jklontz](https://github.com/jklontz)
 
 Introduction
 ------------
-
 _Likely_ is a programming language for developing image processing and statistical learning algorithms.
 The goal of Likely is concise yet ambitious,
 
@@ -67,7 +65,6 @@ Likely uses [Github Flavored Markdown](https://help.github.com/articles/github-f
 
 Language Reference
 ------------------
-
 ### Prefix Notation
 Likely is a Lisp-like language operating on fully-parenthesized Polish prefix notation, or _s-expressions_:
 
@@ -106,30 +103,17 @@ x.(f y z) ; Equivalent to (f x y z)
 We might call the first two examples _function composition_, and the third example _[uniform function call syntax](http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394)_.
 Note this transformation does not apply to numbers!
 
-#### List : Append
-The atom to the RHS of the colon is inserted as the last element of the list to the LHS of the colon.
-
-```lisp
-a : b     ; Equivalent to (a b)
-a : b : c ; Equivalent to (a b c)
-(a b) : c ; Equivalent to (a b c)
-a : (b c) ; Equivalent to (a (b c))
-```
-
 Mathematical Constants
 ----------------------
-
     e  = (f32 2.71828) ; Euler's number
     pi = (f32 3.14159) ; The ratio of a circle's circumference to its diameter
 
 Unary Functions
 ---------------
-
-    abs = a -> a < 0 ? (-1 * a) : a
-    sq  = a -> a * a
+    abs = a -> (? (< a 0) (* -1 a) a)
+    sq  = a -> (* a a)
 
 Binary Functions
 ----------------
-
-    min = (a b) -> a < b ? a : b
-    max = (a b) -> a > b ? a : b
+    min = (a b) -> (? (< a b) a b)
+    max = (a b) -> (? (> a b) a b)

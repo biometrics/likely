@@ -380,12 +380,6 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
         }
     }
 
-    // Special case additional shift(s)
-    if (precedence < std::numeric_limits<int>::max())
-        while ((offset < tokens->num_atoms) && (tokens->atoms[offset]->type != likely_ast_list) && !strcmp(tokens->atoms[offset]->atom, ":"))
-            if (!shift(tokens, ++offset, output, 0))
-                return false;
-
     return true;
 }
 

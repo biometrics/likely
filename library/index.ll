@@ -1,6 +1,5 @@
 Likely
 ======
-
  > An embeddable just-in-time Lisp for image recognition and heterogenous architectures.
  > -- [@jklontz](https://github.com/jklontz)
 

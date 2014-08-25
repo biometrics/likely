@@ -17,7 +17,7 @@ Interactive parameters
 Definition
 
     (mandelbrot_set u32 u32 f32 f32 f32 f32 u32) =
-      (width height x_min y_min x_range y_range iter) =>
+      (=> (width height x_min y_min x_range y_range iter)
     {
       zr0 = x.f32 * x_range / width  + x_min
       zi0 = y.f32 * y_range / height + y_min
@@ -32,7 +32,7 @@ Definition
       ((zr * zr + zi * zi < 4) & (j < iter)) ? loop
       result = (255 * j / iter).u8
       (result result result)
-    } : ((columns width) (rows height) (type parallel))
+    } ((columns width) (rows height) (type parallel)))
 
 Execution
 
