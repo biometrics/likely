@@ -12,6 +12,9 @@ Skip to the good stuff: **[installation](?show=README.md)**,
                         **[ci](http://ci.liblikely.org/waterfall)**,
                         **[api](https://s3.amazonaws.com/liblikely/doxygen/index.html)**.
 
+### Why Likely?
+<img src="/share/likely/LikelyVsConventional.svg" width="512">
+
 ### Principles
  - Efficient syntax for image processing and pattern recognition.
  - Embeddable into other projects and languages.
