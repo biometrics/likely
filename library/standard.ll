@@ -86,15 +86,15 @@ An important property of s-expressions is that they are equivalent to the compil
 ### AST Manipulation
 To improve code readability, Likely has the following special tokens that influence how source code is parsed.
 
-#### __;__ _Comment_
-The semicolon and all following tokens through the end of the line are excluded from the AST during parsing.
+#### ; Comment
+The semicolon and all following tokens through the end of the line are excluded from the AST.
 
 ```lisp
 (this is some code) ; This is a comment
 ```
 
-####_Operand_ __.__ _Operator_
-The token to the left-hand-side (LHS) of the period is inserted as the first operand of the token to the right-hand-side (RHS) of the period during parsing.
+#### Operand . Operator
+The token to the left-hand-side (LHS) of the period is inserted as the first operand of the token to the right-hand-side (RHS) of the period.
 
 ```lisp
 x.f       ; Equivalent to (f x)
@@ -105,6 +105,16 @@ x.(f y z) ; Equivalent to (f x y z)
 
 We might call the first two examples _function composition_, and the third example _[uniform function call syntax](http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394)_.
 Note this transformation does not apply to numbers!
+
+#### List : Append
+The atom to the RHS of the colon is inserted as the last element of the list to the LHS of the colon.
+
+```lisp
+a : b     ; Equivalent to (a b)
+a : b : c ; Equivalent to (a b c)
+(a b) : c ; Equivalent to (a b c)
+a : (b c) ; Equivalent to (a (b c))
+```
 
 Mathematical Constants
 ----------------------
