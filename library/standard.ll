@@ -87,7 +87,7 @@ An important property of s-expressions is that they are equivalent to the compil
 To improve code readability, Likely has the following special tokens that influence how source code is parsed.
 
 #### __;__ (Comment)
-The semicolon and all following characters through the end of the line are excluded from the AST during tokenization.
+The semicolon and all following tokens through the end of the line are excluded from the AST during parsing.
 
 ```lisp
 (this is some code) ; This is a comment

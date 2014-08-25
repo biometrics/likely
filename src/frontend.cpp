@@ -118,18 +118,8 @@ static void tokenize(const char *str, const size_t len, vector<likely_ast> &toke
             incrementCounters(str[i], line, column);
             i++;
         }
-        if (i == len) break;
-
-        // Skip comments
-        if (str[i] == ';') {
-            while ((i < len) && (str[i] != '\n')) {
-                column++;
-                i++;
-            }
-            line++;
-            i++;
-            if (i >= len) break;
-        }
+        if (i == len)
+            break;
 
         size_t begin = i;
         const likely_size begin_line = line;
@@ -248,7 +238,7 @@ void likely_insert_operator(const char *symbol, int precedence, int right_hand_a
     ops().insert(pair<string,Operator>(symbol, Operator(precedence, right_hand_atoms)));
 }
 
-static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, int precedence = 0);
+static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, int precedence, bool canFail = false);
 
 static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, int precedence)
 {
@@ -321,13 +311,22 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
     return -1;
 }
 
-static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, int precedence)
+static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, int precedence, bool canFail)
 {
     assert(tokens->type == likely_ast_list);
     if (offset >= tokens->num_atoms)
         return likely_throw(tokens->atoms[tokens->num_atoms-1], "unexpected end of expression");
-
     likely_const_ast token = tokens->atoms[offset++];
+
+    static likely_const_ast comment = likely_new_atom(";", 1);
+    if (!likely_ast_compare(token, comment)) {
+        const likely_size line = token->begin_line;
+        while (token->begin_line == line) {
+            if (offset < tokens->num_atoms) token = tokens->atoms[offset++];
+            else                            return canFail;
+        }
+    }
+
     if ((token->type != likely_ast_list) && (!strcmp(token->atom, "(") || !strcmp(token->atom, "{"))) {
         vector<likely_ast> atoms;
         const char *close;
@@ -388,7 +387,7 @@ likely_ast likely_ast_from_tokens(likely_const_ast tokens)
     size_t offset = 0;
     vector<likely_ast> expressions;
     while (offset < tokens->num_atoms)
-        if (!shift(tokens, offset, expressions)) {
+        if (!shift(tokens, offset, expressions, 0, true)) {
             cleanup(expressions);
             return NULL;
         }
