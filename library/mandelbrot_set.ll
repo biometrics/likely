@@ -2,7 +2,7 @@ Mandelbrot Set
 --------------
 [Video Walkthrough](https://www.youtube.com/watch?v=a_hz8wFACVM)
 
-Responsive location and resolution
+Interactive parameters
 
     x_scale  = 3
     y_scale  = 2
@@ -37,11 +37,3 @@ Definition
 Execution
 
     (mandelbrot_set width height x_min y_min x_range y_range iter)
-
-Command Line
-
-```bash
-$ likely library/mandelbrot_set.ll -show
-$ likely library/mandelbrot_set.ll -record mandelbrot_set.png
-$ dream library/mandelbrot_set.ll
-```

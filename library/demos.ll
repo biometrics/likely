@@ -1,13 +1,20 @@
 Demos
 -----
+Ways to run a demo from the command line:
+
+```bash
+$ dream library/<demo>.ll
+$ likely library/<demo>.ll -show
+$ likely library/<demo>.ll -record result.png
+```
 
 <dl class="dl-horizontal">
-  <dt>Average Face</dt>
+  <dt>average_face</dt>
   <dd><a href="?show=average_face"> <img src="data/demo/average_face.jpg" class="img-thumbnail" width="256"> </a></dd>
   <br>
-  <dt>Gabor Wavelet</dt>
+  <dt>gabor_wavelet</dt>
   <dd><a href="?show=gabor_wavelet"><img src="data/demo/gabor_wavelet.jpg" class="img-thumbnail" width="256"></a></dd>
   <br>
-  <dt>Mandelbrot Set</dt>
+  <dt>mandelbrot_set</dt>
   <dd><a href="?show=mandelbrot_set"><img src="data/demo/mandelbrot_set.jpg" class="img-thumbnail" width="256"></a></dd>
 </dl>
