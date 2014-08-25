@@ -2421,7 +2421,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         swap(builder.env->resources, resources);
         likely_release_env(builder.env);
         value = expr ? expr->value : NULL;
-        type = expr ? expr->type : likely_matrix_void;
+        type = expr ? expr->type : likely_type(likely_matrix_void);
     }
 
     if (!value)

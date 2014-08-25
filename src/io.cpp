@@ -203,7 +203,7 @@ likely_mat likely_decode(likely_const_mat buffer)
 
         // combine
         likely_matrix first;
-        size_t step;
+        size_t step = 0;
         bool valid = true;
         for (size_t i=0; i<futures.size(); i++) {
             likely_const_mat image = futures[i].get();
