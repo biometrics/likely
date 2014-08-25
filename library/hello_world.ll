@@ -4,6 +4,6 @@ Click **View Source** and _copy+paste_ this file into **dream**, Likely's IDE. N
 
     lenna = "data/misc/lenna.tiff".read
     hello_world = a => a / (a.type 2)
-    (hello_world lenna)
+    lenna.hello_world
 
 [Next](?show=likely)

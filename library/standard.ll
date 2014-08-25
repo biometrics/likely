@@ -86,15 +86,15 @@ An important property of s-expressions is that they are equivalent to the compil
 ### AST Manipulation
 To improve code readability, Likely has the following special tokens that influence how source code is parsed.
 
-#### __;__ (Comment)
+#### __;__ _Comment_
 The semicolon and all following tokens through the end of the line are excluded from the AST during parsing.
 
 ```lisp
 (this is some code) ; This is a comment
 ```
 
-#### __.__ (Composition)
-The period is used for function composition, or more generally [uniform function call syntax](http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394).
+####_Operand_ __.__ _Operator_
+The token to the left-hand-side (LHS) of the period is inserted as the first operand of the token to the right-hand-side (RHS) of the period during parsing.
 
 ```lisp
 x.f       ; Equivalent to (f x)
@@ -103,16 +103,8 @@ x.(f y z) ; Equivalent to (f x y z)
 7.2       ; Remains 7.2
 ```
 
-We might call the first two examples _function composition_, and the third example _uniform function call syntax_.
-Either way, the left-hand-side (LHS) is inserted as the first operand of the right-hand-side (RHS).
-Note, this transformation does not apply to numbers!
-
-### Infix Notation
-While everything in Likely can be expressed using prefix notation, as a convenience to developers Likely also offers infix extensions
-
-**TODO: Cleanup and complete the rest of this document.**
-
-| Symbol | Description |
+We might call the first two examples _function composition_, and the third example _[uniform function call syntax](http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394)_.
+Note this transformation does not apply to numbers!
 
 Mathematical Constants
 ----------------------

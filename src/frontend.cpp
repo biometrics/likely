@@ -252,8 +252,8 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
             // See if the combined token is a number
             if ((output[output.size()-2]->type != likely_ast_list) &&
                 (output[output.size()-1]->type != likely_ast_list) &&
-                (isdigit(output[output.size()-2]->atom[0]) || (output[output.size()-2]->atom[0] == '-'))  &&
-                isdigit(output[output.size()-1]->atom[0])) {
+                (isdigit(output[output.size()-2]->atom[0]) || (output[output.size()-2]->atom[0] == '-')) &&
+                 isdigit(output[output.size()-1]->atom[0])) {
                 // It's a number
                 stringstream stream;
                 stream << output[output.size()-2]->atom << "." << output[output.size()-1]->atom;
@@ -267,8 +267,19 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
             } else {
                 // It's a composition
                 vector<likely_ast> atoms;
-                atoms.push_back(output.back()); output.pop_back();
-                atoms.push_back(output.back()); output.pop_back();
+                if (output.back()->type == likely_ast_list) {
+                    // Inline it
+                    for (likely_size i=0; i<output.back()->num_atoms; i++)
+                        atoms.push_back(likely_retain_ast(output.back()->atoms[i]));
+                    likely_release_ast(output.back());
+                } else {
+                    atoms.push_back(output.back());
+                }
+                output.pop_back();
+
+                atoms.insert(atoms.begin() + 1, output.back());
+                output.pop_back();
+
                 likely_ast list = likely_new_list(atoms.data(), atoms.size());
                 list->begin_line = list->atoms[1]->begin_line;
                 list->begin_column = list->atoms[1]->begin_column;

@@ -19,12 +19,10 @@ Derived values
 
     sigma_x = sigma
     sigma_y = sigma / gamma
-    x_max = (max (max (n_stddev * sigma_x * theta_rad.cos).abs
-                      (n_stddev * sigma_y * gamma * theta_rad.sin).abs)
-                 1).ceil
-    y_max = (max (max (n_stddev * sigma_x * theta_rad.cos).abs
-                      (n_stddev * sigma_y * gamma * theta_rad.sin).abs)
-                 1).ceil
+    x_max = (max (n_stddev * sigma_x * theta_rad.cos).abs
+                 (n_stddev * sigma_y * gamma * theta_rad.sin).abs).(max 1).ceil
+    y_max = (max (n_stddev * sigma_x * theta_rad.cos).abs
+                 (n_stddev * sigma_y * gamma * theta_rad.sin).abs).(max 1).ceil
 
 Definition
 
