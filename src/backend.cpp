@@ -1627,32 +1627,6 @@ class beginExpression : public Operator
 };
 LIKELY_REGISTER_EXPRESSION(begin, "{")
 
-class indexExpression : public Operator
-{
-    int uid() const { return __LINE__; }
-    size_t minParameters() const { return 1; }
-    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        TRY_EXPR(builder, ast->atoms[1], expr)
-        likely_expr result = new likely_expression();
-        for (size_t i=2; i<ast->num_atoms; i++) {
-            const size_t index = atoi(ast->atoms[i]->atom);
-            if (index < expr->subexpressions.size()) {
-                likely_const_expr e = NULL;
-                swap(e, const_cast<likely_expr>(expr.get())->subexpressions[index]);
-                result->subexpressions.push_back(e);
-            } else {
-                delete result;
-                return error(ast->atoms[i], "index out of range");
-            }
-        }
-        return result;
-    }
-};
-LIKELY_REGISTER_EXPRESSION(index, "[")
-
 struct Label : public likely_expression
 {
     Label(BasicBlock *basicBlock) : likely_expression(basicBlock) {}
