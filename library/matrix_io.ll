@@ -10,10 +10,10 @@ There are 5 functions covering matrix creation, input, and output:
 | (**encode** matrix extension) | [likely_encode](include/likely/likely_io.h) |
 | (**decode** matrix)           | [likely_decode](include/likely/likely_io.h) |
 
-    image = "data/misc/lenna.tiff".read
-    encoded = (encode image "jpg")
-    (print "Compression Ratio: " (scalar image.bytes.f64 / encoded.bytes))
-    decoded = encoded.decode
+    (= image "data/misc/lenna.tiff".read)
+    (= encoded image.(encode "jpg"))
+    (print "Compression Ratio: " (scalar (/ image.bytes.f64 encoded.bytes)))
+    (= decoded encoded.decode)
     ; decoded.(write "lenna.png")
 
 Supported file formats are:

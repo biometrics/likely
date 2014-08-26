@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
     if (argc == 1) {
         input_image = "data/misc/lenna.tiff"; // Assume we are run from repository root
         output_image = "";
-        filter = "a => a / (a.type 2)";
+        filter = "(=> a (/ a (a.type 2)))";
     } else if (argc == 4) {
         input_image = argv[1];
         output_image = argv[3];

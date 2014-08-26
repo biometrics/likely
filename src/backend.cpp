@@ -686,33 +686,6 @@ private:
 
 namespace {
 
-static int getPrecedence(const char *op)
-{
-    if (!strcmp(op, "=" )) return 1;
-    if (!strcmp(op, "->")) return 2;
-    if (!strcmp(op, "=>")) return 2;
-    if (!strcmp(op, "#" )) return 3;
-    if (!strcmp(op, "?" )) return 3;
-    if (!strcmp(op, "$" )) return 3;
-    if (!strcmp(op, "<" )) return 4;
-    if (!strcmp(op, "<=")) return 4;
-    if (!strcmp(op, ">" )) return 4;
-    if (!strcmp(op, ">=")) return 4;
-    if (!strcmp(op, "==")) return 4;
-    if (!strcmp(op, "!=")) return 4;
-    if (!strcmp(op, "&" )) return 5;
-    if (!strcmp(op, "^" )) return 5;
-    if (!strcmp(op, "|" )) return 5;
-    if (!strcmp(op, "<<")) return 5;
-    if (!strcmp(op, "+" )) return 6;
-    if (!strcmp(op, "-" )) return 6;
-    if (!strcmp(op, "*" )) return 7;
-    if (!strcmp(op, "/" )) return 7;
-    if (!strcmp(op, "%" )) return 7;
-    if (!strcmp(op, "??")) return 8;
-    return 0;
-}
-
 struct RootEnvironment
 {
     // Provide public access to an environment that includes the standard library.
@@ -745,8 +718,6 @@ struct RegisterExpression : public RootEnvironment
     {
         likely_expr e = new E();
         likely_expression::define(builtins(), symbol, e);
-        if (int precedence = getPrecedence(symbol))
-            likely_insert_operator(symbol, precedence, int(e->minParameters())-1);
     }
 };
 #define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
@@ -2847,7 +2818,7 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
     if (likely_definition(env->type)) {
         Builder(env).expression(ast); // Returns NULL
     } else {
-        likely_const_ast lambda = likely_ast_from_string("() -> (scalar <ast>)", false);
+        likely_const_ast lambda = likely_ast_from_string("(-> () (scalar <ast>))", false);
         likely_release_ast(lambda->atoms[0]->atoms[2]->atoms[1]); // <ast>
         const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]->atoms[1]) = likely_retain_ast(ast); // Copy because we will modify ast->type
 

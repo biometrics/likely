@@ -218,26 +218,6 @@ likely_ast likely_tokens_from_string(const char *str, bool GFM)
     return likely_new_list(tokens.data(), tokens.size());
 }
 
-struct Operator
-{
-    int precedence;
-    size_t rightHandAtoms;
-    Operator(int precedence, size_t rightHandAtoms)
-        : precedence(precedence), rightHandAtoms(rightHandAtoms) {}
-};
-
-// Construct on first use idiom avoids static initialization order fiasco
-static map<string, Operator> &ops()
-{
-    static map<string, Operator> Ops;
-    return Ops;
-}
-
-void likely_insert_operator(const char *symbol, int precedence, int right_hand_atoms)
-{
-    ops().insert(pair<string,Operator>(symbol, Operator(precedence, right_hand_atoms)));
-}
-
 static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, int precedence, bool canFail = false);
 
 static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, int precedence)
@@ -287,24 +267,6 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
                 list->end_column = list->atoms[0]->end_column;
                 output.push_back(list);
             }
-            return 1;
-        }
-
-        const auto &op = ops().find(token->atom);
-        if ((op != ops().end()) && (op->second.precedence > precedence)) {
-            if (output.empty())
-                return likely_throw(token, "missing left-hand operand");
-            const size_t before = output.size();            
-            for (size_t i=0; i<op->second.rightHandAtoms; i++)
-                if (!shift(tokens, offset, output, op->second.precedence))
-                    return 0;
-            size_t atoms = 1 + output.size() - before;
-            output.insert(output.end()-atoms++, likely_retain_ast(token));
-            likely_ast list = likely_new_list(&output[output.size()-atoms], atoms);
-            list->begin_line = list->atoms[1]->begin_line; // lhs operand
-            list->begin_column = list->atoms[1]->begin_column; // lhs operand
-            output.push_back(list);
-            output.erase(output.end()-atoms-1, output.end()-1);
             return 1;
         }
     }
@@ -367,17 +329,6 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
         const int result = tryReduce(token, tokens, offset, output, precedence);
         if      (result == 0) return false;
         else if (result == -1) output.push_back(likely_retain_ast(token));
-    }
-
-    // Conventional look ahead
-    while (offset < tokens->num_atoms) {
-        const int result = tryReduce(tokens->atoms[offset++], tokens, offset, output, precedence);
-        if (result == -1) {
-            offset--;
-            break;
-        } else if (result == 0) {
-            return false;
-        }
     }
 
     return true;

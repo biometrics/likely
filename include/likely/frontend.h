@@ -80,7 +80,6 @@ LIKELY_EXPORT likely_ast likely_retain_ast(likely_const_ast ast);
 LIKELY_EXPORT void likely_release_ast(likely_const_ast ast);
 
 LIKELY_EXPORT likely_ast likely_tokens_from_string(const char *str, bool GFM);
-LIKELY_EXPORT void likely_insert_operator(const char *symbol, int precedence, int right_hand_atoms);
 LIKELY_EXPORT likely_ast likely_ast_from_tokens(likely_const_ast tokens);
 LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str, bool GFM);
 LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);

@@ -105,15 +105,15 @@ Note this transformation does not apply to numbers!
 
 Mathematical Constants
 ----------------------
-    e  = (f32 2.71828) ; Euler's number
-    pi = (f32 3.14159) ; The ratio of a circle's circumference to its diameter
+    (= e  (f32 2.71828)) ; Euler's number
+    (= pi (f32 3.14159)) ; The ratio of a circle's circumference to its diameter
 
 Unary Functions
 ---------------
-    abs = a -> (? (< a 0) (* -1 a) a)
-    sq  = a -> (* a a)
+    (= abs (-> a (? (< a 0) (* -1 a) a)))
+    (= sq  (-> a (* a a)))
 
 Binary Functions
 ----------------
-    min = (a b) -> (? (< a b) a b)
-    max = (a b) -> (? (> a b) a b)
+    (= min (-> (a b) (? (< a b) a b)))
+    (= max (-> (a b) (? (> a b) a b)))
