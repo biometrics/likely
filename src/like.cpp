@@ -35,7 +35,7 @@
 using namespace llvm;
 using namespace std;
 
-static cl::opt<string> input (cl::Positional, cl::desc("<input file or string>" ), cl::init(""));
+static cl::opt<string> input(cl::Positional, cl::desc("<input file or string>"), cl::init(""));
 static cl::opt<string> output(cl::Positional, cl::desc("<output file>"), cl::init(""));
 static cl::opt<string> record("record", cl::desc("%d-formatted file to render matrix output to"));
 static cl::opt<string> assert_("assert", cl::desc("Confirm the output equals the specified value"));
