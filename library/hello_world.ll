@@ -6,4 +6,4 @@ Click **View Source** and _copy+paste_ this file into **dream**, Likely's IDE. N
     hello_world:= (=> a (/ a (a.type 2)))
     lenna.hello_world
 
-[Next](?show=likely)
+[Next](?href=likely)

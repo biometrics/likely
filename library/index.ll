@@ -3,10 +3,10 @@ Likely
  > An embeddable just-in-time Lisp for image recognition and heterogenous architectures.
  > -- [@jklontz](https://github.com/jklontz)
 
-Skip to the good stuff: **[installation](?show=README.md)**,
-                        **[hello world](?show=share/likely/hello_world/README.ll)**,
-                        **[tutorial](?show=tutorial)**, **[demos](?show=demos)**,
-                        **[language reference](?show=standard)**,
+Skip to the good stuff: **[installation](?href=README.md)**,
+                        **[hello world](?href=share/likely/hello_world/README.ll)**,
+                        **[tutorial](?href=tutorial)**, **[demos](?href=demos)**,
+                        **[language reference](?href=standard)**,
                         **[ci](http://ci.liblikely.org/waterfall)**,
                         **[api](https://s3.amazonaws.com/liblikely/doxygen/index.html)**.
 
@@ -33,4 +33,4 @@ Likely is offered under **[Apache 2.0](LICENSE.txt)**, meaning it's *free for ac
 ### Help
 We strive to keep this software and documentation clear, correct, and complete. Should you find otherwise, please reach out on our [mailing list](https://groups.google.com/forum/#!forum/likely-dev) or [issue tracker](https://github.com/biometrics/likely/issues).
 
-**[Continue Reading](?show=standard)**
+**[Continue Reading](?href=standard)**

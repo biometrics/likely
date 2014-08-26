@@ -1,7 +1,7 @@
 C API
 -----
 So you've developed an algorithm in Likely, how do you integrate it into your native application?
-Once again, let's consider our *[Hello World](?show=hello_world)* example:
+Once again, let's consider our *[Hello World](?href=hello_world)* example:
 
     (= lenna "data/misc/lenna.tiff".read)
     hello_world:= (=> a (/ a (a.type 2)))
@@ -31,6 +31,6 @@ int main()
 }
 ```
 
-**[Here](?show=hello_world)** is the complete source code for *Hello World* in *C*.
+**[Here](?href=hello_world)** is the complete source code for *Hello World* in *C*.
 
-[Previous](?show=matrix_io) | [Next](?show=export)
+[Previous](?href=matrix_io) | [Next](?href=export)

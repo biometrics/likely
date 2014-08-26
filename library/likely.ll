@@ -9,10 +9,10 @@ $ likely <input file>               # to execute a likely source file as a scrip
 $ likely <input file> <output file> # to compile a likely source file to assembly
 ```
 
-Try running [hello world](?show=hello_world) through it:
+Try running [hello world](?href=hello_world) through it:
 
 ```bash
 $ likely ../library/hello_world.ll
 ```
 
-[Previous](?show=hello_world) | [Next](?show=comments)
+[Previous](?href=hello_world) | [Next](?href=comments)

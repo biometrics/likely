@@ -99,18 +99,18 @@ function getQueryVariable(variable) {
   }
 }
 
-show = getQueryVariable("show");
-if (!show) show = "index"
+href = getQueryVariable("href");
+if (!href) href = "index"
 
 String.prototype.endsWith = function(suffix) {
   return this.indexOf(suffix, this.length - suffix.length) !== -1;
 };
 
-if (show.endsWith("/"))
-    show = show.substring(0, show.length-1);
-if (show.indexOf(".") == -1)
-    show = "library/" + show + ".ll";
-$("#raw").attr("href","http://raw.github.com/biometrics/likely/gh-pages/"+show);
+if (href.endsWith("/"))
+    href = href.substring(0, href.length-1);
+if (href.indexOf(".") == -1)
+    href = "library/" + href + ".ll";
+$("#raw").attr("href","http://raw.github.com/biometrics/likely/gh-pages/"+href);
 
 marked.setOptions({
   gfm: true,
@@ -122,7 +122,7 @@ marked.setOptions({
   smartypants: true,
 });
 
-$.get(show).done(function(md) {
+$.get(href).done(function(md) {
   $("#content").html(marked(md));
   hljs.configure({ languages: [] });
   $('pre code').each(function(i, block) {

@@ -15,4 +15,4 @@ uint32_t foo(uint32_t x)
 
     (foo 1) ; returns 2
 
-[Previous](?show=c_api)
+[Previous](?href=c_api)

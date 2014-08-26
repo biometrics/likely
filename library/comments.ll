@@ -15,4 +15,4 @@ or
 or `(= z (+ y 6))` `z`.
 Everything outside a code block is a comment!
 
-[Previous](?show=likely) | [Next](?show=matrix_io)
+[Previous](?href=likely) | [Next](?href=matrix_io)

@@ -27,4 +27,4 @@ Supported file formats are:
 
 **Image** formats expect single-frame matricies, **Video** formats (not supported yet) expect multi-frame matricies.
 
-[Previous](?show=comments) | [Next](?show=c_api)
+[Previous](?href=comments) | [Next](?href=c_api)
