@@ -1,9 +1,10 @@
 C API
 -----
-So you've developed an algorithm in Likely, how do you integrate it into your native application? Once again, let's consider our *[Hello World](?show=hello_world)* example:
+So you've developed an algorithm in Likely, how do you integrate it into your native application?
+Once again, let's consider our *[Hello World](?show=hello_world)* example:
 
     (= lenna "data/misc/lenna.tiff".read)
-    (= hello_world (=> a (/ a (a.type 2))))
+    hello_world:= (=> a (/ a (a.type 2)))
     lenna.hello_world
 
 The **C translation** of this is:

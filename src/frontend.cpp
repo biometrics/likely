@@ -218,6 +218,39 @@ likely_ast likely_tokens_from_string(const char *str, bool GFM)
     return likely_new_list(tokens.data(), tokens.size());
 }
 
+static void compose(vector<likely_ast> &output, int arity)
+{
+    assert((arity == 1) || (arity == 2));
+
+    vector<likely_ast> atoms;
+    if ((arity == 1) && (output.back()->type == likely_ast_list)) {
+        // Inline it
+        for (likely_size i=0; i<output.back()->num_atoms; i++)
+            atoms.push_back(likely_retain_ast(output.back()->atoms[i]));
+        likely_release_ast(output.back());
+    } else {
+        atoms.push_back(output.back());
+    }
+    output.pop_back();
+    const likely_size end_line = atoms.back()->end_line;
+    const likely_size end_column = atoms.back()->end_column;
+
+    if (arity == 2) {
+        atoms.insert(atoms.begin(), output.back());
+        output.pop_back();
+    }
+
+    atoms.insert(atoms.begin() + 1, output.back());
+    output.pop_back();
+
+    likely_ast list = likely_new_list(atoms.data(), atoms.size());
+    list->begin_line = list->atoms[1]->begin_line;
+    list->begin_column = list->atoms[1]->begin_column;
+    list->end_line = end_line;
+    list->end_column = end_column;
+    output.push_back(list);
+}
+
 static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, bool canFail = false)
 {
     assert(tokens->type == likely_ast_list);
@@ -270,10 +303,11 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
             output.push_back(list);
         }
     } else {
-        static likely_const_ast period = likely_new_atom(".", 1);
-        if (!likely_ast_compare(token, period)) {
+        static likely_const_ast unaryComposition  = likely_new_atom(".", 1);
+        static likely_const_ast binaryComposition = likely_new_atom(":", 1);
+        if (!likely_ast_compare(token, unaryComposition)) {
             if (output.empty())
-                return likely_throw(token, "missing operator");
+                return likely_throw(token, "missing operand");
             if (!shift(tokens, offset, output))
                 return false;
 
@@ -293,28 +327,16 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
                 output.erase(output.end()-2, output.end());
                 output.push_back(number);
             } else {
-                // It's a composition
-                vector<likely_ast> atoms;
-                if (output.back()->type == likely_ast_list) {
-                    // Inline it
-                    for (likely_size i=0; i<output.back()->num_atoms; i++)
-                        atoms.push_back(likely_retain_ast(output.back()->atoms[i]));
-                    likely_release_ast(output.back());
-                } else {
-                    atoms.push_back(output.back());
-                }
-                output.pop_back();
-
-                atoms.insert(atoms.begin() + 1, output.back());
-                output.pop_back();
-
-                likely_ast list = likely_new_list(atoms.data(), atoms.size());
-                list->begin_line = list->atoms[1]->begin_line;
-                list->begin_column = list->atoms[1]->begin_column;
-                list->end_line = list->atoms[0]->end_line;
-                list->end_column = list->atoms[0]->end_column;
-                output.push_back(list);
+                compose(output, 1);
             }
+        } else if (!likely_ast_compare(token, binaryComposition)) {
+            if (output.empty())
+                return likely_throw(token, "missing operand");
+            if (!shift(tokens, offset, output))
+                return false;
+            if (!shift(tokens, offset, output))
+                return false;
+            compose(output, 2);
         } else {
             output.push_back(likely_retain_ast(token));
         }
