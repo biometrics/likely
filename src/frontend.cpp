@@ -218,16 +218,64 @@ likely_ast likely_tokens_from_string(const char *str, bool GFM)
     return likely_new_list(tokens.data(), tokens.size());
 }
 
-static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, int precedence, bool canFail = false);
-
-static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, int precedence)
+static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, bool canFail = false)
 {
-    if ((token->type != likely_ast_list) && (precedence < std::numeric_limits<int>::max())) {
-        if (!strcmp(token->atom, ".")) {
+    assert(tokens->type == likely_ast_list);
+    if (offset >= tokens->num_atoms)
+        return likely_throw(tokens->atoms[tokens->num_atoms-1], "unexpected end of expression");
+    likely_const_ast token = tokens->atoms[offset++];
+
+    static likely_const_ast comment = likely_new_atom(";", 1);
+    if (!likely_ast_compare(token, comment)) {
+        const likely_size line = token->begin_line;
+        while (token->begin_line == line) {
+            if (offset < tokens->num_atoms) token = tokens->atoms[offset++];
+            else                            return canFail;
+        }
+    }
+
+    static likely_const_ast listOpen = likely_new_atom("(", 1);
+    static likely_const_ast listClose = likely_new_atom(")", 1);
+    static likely_const_ast beginOpen = likely_new_atom("{", 1);
+    static likely_const_ast beginClose = likely_new_atom("}", 1);
+    if (!likely_ast_compare(token, listOpen) || !likely_ast_compare(token, beginOpen)) {
+        vector<likely_ast> atoms;
+        likely_const_ast close;
+        if (!likely_ast_compare(token, listOpen)) {
+            close = listClose;
+        } else {
+            atoms.push_back(likely_retain_ast(token));
+            close = beginClose;
+        }
+
+        likely_const_ast end;
+        while (true) {
+            end = tokens->atoms[offset];
+            if (!likely_ast_compare(end, close)) {
+                offset++;
+                break;
+            }
+            if (!shift(tokens, offset, atoms))
+                return cleanup(atoms);
+        }
+
+        if (atoms.size() == 1) {
+            output.push_back(atoms[0]);
+        } else {
+            likely_ast list = likely_new_list(atoms.data(), atoms.size());
+            list->begin_line = token->begin_line;
+            list->begin_column = token->begin_column;
+            list->end_line = end->end_line;
+            list->end_column = end->end_column;
+            output.push_back(list);
+        }
+    } else {
+        static likely_const_ast period = likely_new_atom(".", 1);
+        if (!likely_ast_compare(token, period)) {
             if (output.empty())
-                return likely_throw(token, "missing operand");
-            if (!shift(tokens, offset, output, std::numeric_limits<int>::max()))
-                return 0;
+                return likely_throw(token, "missing operator");
+            if (!shift(tokens, offset, output))
+                return false;
 
             // See if the combined token is a number
             if ((output[output.size()-2]->type != likely_ast_list) &&
@@ -267,68 +315,9 @@ static int tryReduce(likely_const_ast token, likely_const_ast tokens, size_t &of
                 list->end_column = list->atoms[0]->end_column;
                 output.push_back(list);
             }
-            return 1;
-        }
-    }
-
-    return -1;
-}
-
-static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, int precedence, bool canFail)
-{
-    assert(tokens->type == likely_ast_list);
-    if (offset >= tokens->num_atoms)
-        return likely_throw(tokens->atoms[tokens->num_atoms-1], "unexpected end of expression");
-    likely_const_ast token = tokens->atoms[offset++];
-
-    static likely_const_ast comment = likely_new_atom(";", 1);
-    if (!likely_ast_compare(token, comment)) {
-        const likely_size line = token->begin_line;
-        while (token->begin_line == line) {
-            if (offset < tokens->num_atoms) token = tokens->atoms[offset++];
-            else                            return canFail;
-        }
-    }
-
-    static likely_const_ast listOpen = likely_new_atom("(", 1);
-    static likely_const_ast listClose = likely_new_atom(")", 1);
-    static likely_const_ast beginOpen = likely_new_atom("{", 1);
-    static likely_const_ast beginClose = likely_new_atom("}", 1);
-    if (!likely_ast_compare(token, listOpen) || !likely_ast_compare(token, beginOpen)) {
-        vector<likely_ast> atoms;
-        likely_const_ast close;
-        if (!likely_ast_compare(token, listOpen)) {
-            close = listClose;
         } else {
-            atoms.push_back(likely_retain_ast(token));
-            close = beginClose;
+            output.push_back(likely_retain_ast(token));
         }
-
-        likely_const_ast end;
-        while (true) {
-            end = tokens->atoms[offset];
-            if (!likely_ast_compare(end, close)) {
-                offset++;
-                break;
-            }
-            if (!shift(tokens, offset, atoms, atoms.empty() ? std::numeric_limits<int>::max() : 0))
-                return cleanup(atoms);
-        }
-
-        if (atoms.size() == 1) {
-            output.push_back(atoms[0]);
-        } else {
-            likely_ast list = likely_new_list(atoms.data(), atoms.size());
-            list->begin_line = token->begin_line;
-            list->begin_column = token->begin_column;
-            list->end_line = end->end_line;
-            list->end_column = end->end_column;
-            output.push_back(list);
-        }
-    } else {
-        const int result = tryReduce(token, tokens, offset, output, precedence);
-        if      (result == 0) return false;
-        else if (result == -1) output.push_back(likely_retain_ast(token));
     }
 
     return true;
@@ -339,7 +328,7 @@ likely_ast likely_ast_from_tokens(likely_const_ast tokens)
     size_t offset = 0;
     vector<likely_ast> expressions;
     while (offset < tokens->num_atoms)
-        if (!shift(tokens, offset, expressions, 0, true)) {
+        if (!shift(tokens, offset, expressions, true)) {
             cleanup(expressions);
             return NULL;
         }
