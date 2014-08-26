@@ -29,7 +29,6 @@
 #include <archive_entry.h>
 
 #include "likely/backend.h"
-#include "likely/frontend.h"
 #include "likely/io.h"
 #include "likely/opencv.hpp"
 

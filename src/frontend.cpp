@@ -23,7 +23,6 @@
 #include <vector>
 
 #include "likely/frontend.h"
-#include "likely/runtime.h"
 
 using namespace std;
 
