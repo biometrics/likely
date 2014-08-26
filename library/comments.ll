@@ -12,7 +12,7 @@ or
 (= y (* x 4))
 ```
 
-or `(= z (+ y 6))` `(z)`.
+or `(= z (+ y 6))` `z`.
 Everything outside a code block is a comment!
 
 [Previous](?show=likely) | [Next](?show=matrix_io)

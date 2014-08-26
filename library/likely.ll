@@ -1,6 +1,6 @@
 Likely
 ======
-Likely comes with an console/interpreter/compiler called **likely**:
+Likely comes with a console/interpreter/compiler called **likely**:
 
 ```bash
 $ likely --help                     # to bring up usage help

@@ -292,16 +292,12 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
                 return cleanup(atoms);
         }
 
-        if (atoms.size() == 1) {
-            output.push_back(atoms[0]);
-        } else {
-            likely_ast list = likely_new_list(atoms.data(), atoms.size());
-            list->begin_line = token->begin_line;
-            list->begin_column = token->begin_column;
-            list->end_line = end->end_line;
-            list->end_column = end->end_column;
-            output.push_back(list);
-        }
+        likely_ast list = likely_new_list(atoms.data(), atoms.size());
+        list->begin_line = token->begin_line;
+        list->begin_column = token->begin_column;
+        list->end_line = end->end_line;
+        list->end_column = end->end_column;
+        output.push_back(list);
     } else {
         static likely_const_ast unaryComposition  = likely_new_atom(".", 1);
         static likely_const_ast binaryComposition = likely_new_atom(":", 1);

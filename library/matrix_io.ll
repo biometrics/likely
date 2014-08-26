@@ -14,7 +14,7 @@ There are 5 functions covering matrix creation, input, and output:
     (= encoded image.(encode "jpg"))
     (print "Compression Ratio: " (scalar (/ image.bytes.f64 encoded.bytes)))
     (= decoded encoded.decode)
-    ; decoded.(write "lenna.png")
+    ; decoded:write "lenna.png"
 
 Supported file formats are:
 
