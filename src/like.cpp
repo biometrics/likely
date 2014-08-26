@@ -44,10 +44,15 @@ static cl::opt<bool> md5("md5", cl::desc("Print matrix output MD5 hash to termin
 static cl::opt<bool> show("show", cl::desc("Show matrix output in a window"));
 static cl::opt<bool> quiet("quiet", cl::desc("Don't show matrix output"));
 
-static void check(likely_const_mat input)
+static void checkOrPrintAndRelease(likely_const_mat input)
 {
     const string assertValue = assert_;
-    likely_assert(assertValue.empty() || !strcmp(input->data, assertValue.c_str()), "expected value: %s", assertValue.c_str());
+    if (assertValue.empty())
+        printf("%s\n", input->data);
+    else
+        likely_assert(!strcmp(input->data, assertValue.c_str()), "expected: %s\n"
+                                                          "            got: %s", assertValue.c_str(), input->data);
+    likely_release(input);
 }
 
 static void replRecord(likely_const_env env, void *context)
@@ -89,11 +94,8 @@ static void replMD5(likely_const_env env, void *context)
 {
     if (!context) return;
     likely_mat md5 = likely_md5(env->result);
-    likely_mat hex = likely_to_hex(md5);
+    checkOrPrintAndRelease(likely_to_hex(md5));
     likely_release(md5);
-    printf("%s\n", hex->data);
-    check(hex);
-    likely_release(hex);
 }
 
 static void replQuiet(likely_const_env, void *)
@@ -104,10 +106,7 @@ static void replQuiet(likely_const_env, void *)
 static void replPrint(likely_const_env env, void *context)
 {
     if (!context) return;
-    likely_mat str = likely_to_string(env->result, true);
-    printf("%s\n", str->data);
-    check(str);
-    likely_release(str);
+    checkOrPrintAndRelease(likely_to_string(env->result, true));
 }
 
 int main(int argc, char *argv[])
@@ -153,11 +152,8 @@ int main(int argc, char *argv[])
 
         if (ast) {
             likely_ast parsed = likely_ast_from_string(code->data, gfm);
-            for (size_t i=0; i<parsed->num_atoms; i++) {
-                likely_mat printed = likely_ast_to_string(parsed->atoms[i]);
-                printf("%s\n", printed->data);
-                likely_release(printed);
-            }
+            for (size_t i=0; i<parsed->num_atoms; i++)
+                checkOrPrintAndRelease(likely_ast_to_string(parsed->atoms[i]));
             likely_release_ast(parsed);
         } else {
             likely_env env;
