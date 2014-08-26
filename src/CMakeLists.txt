@@ -103,19 +103,32 @@ if(${DOXYGEN_FOUND})
 endif()
 
 # Test standard library
-function(test_standard NAME EXPR VALUE)
-  add_test(NAME ${NAME}
+function(test_ast EXPR VALUE)
+  string(MAKE_C_IDENTIFIER "${EXPR}" NAME)
+  add_test(NAME "${NAME}"
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND like ${EXPR} -assert ${VALUE})
+           COMMAND like -ast "${EXPR}" -assert "${VALUE}")
+endfunction()
+
+function(test_standard EXPR VALUE)
+  string(MAKE_C_IDENTIFIER "${EXPR}" NAME)
+  add_test(NAME "${NAME}"
+           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+           COMMAND like "${EXPR}" -assert "${VALUE}")
 endfunction()
 
 # List in the order they occur in standard.ll
-test_standard(e "e" 2.71828)
-test_standard(pi "pi" 3.14159)
-test_standard(abs "(abs -1.3)" 1.3)
-test_standard(sq "(sq -1.3)" 1.69)
-test_standard(min "(min -1 1.3)" -1)
-test_standard(max "(max 1 -1.3)" 1)
+test_ast("(this is some code) ; This is a comment" "(this is some code)")
+test_ast("x.f" "(f x)")
+test_ast("x.f.g" "(g (f x))")
+test_ast("x.(f y z)" "(f x y z)")
+test_ast("7.2" "7.2")
+test_standard("e" 2.71828)
+test_standard("pi" 3.14159)
+test_standard("(abs -1.3)" 1.3)
+test_standard("(sq -1.3)" 1.69)
+test_standard("(min -1 1.3)" -1)
+test_standard("(max 1 -1.3)" 1)
 
 # Test demos
 function(test_demo FILE)
