@@ -95,7 +95,7 @@ $ likely -ast "1:+ 2"
 (+ 1 2)
 ```
 
-#### ; Comment
+#### ; _Comment_
 The semicolon and all following tokens through the end of the line are excluded from the AST.
 
 ```lisp
@@ -104,7 +104,7 @@ The semicolon and all following tokens through the end of the line are excluded 
 (sq 3)  ; Three squared is nine
 ```
 
-#### . Compose
+#### . _Compose_
 The expression to the left-hand-side (LHS) of the period is inserted as the first operand of the expression to the right-hand-side (RHS) of the period.
 Compose is _left-associative_.
 
@@ -122,7 +122,7 @@ x.(f y) ; Parsed as (f x y)
 We might call the third example _[uniform function call syntax](http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394)_.
 Note how this transformation does not apply to numbers!
 
-#### : Infix
+#### : _Infix_
 The expression to the RHS of the colon is the operator.
 The expression to the LHS of the colon is the first operand.
 The second expression to the RHS of the colon is the second operand.
@@ -139,6 +139,52 @@ x.f:h y.g   ; Parsed as (h (f x) (g y))
 ```
 
 Note how _infix_ has lower precedence than _compose_.
+
+### Intrinsics
+Likely has the following builtin operators.
+
+#### Arithmetic
+No surprises here, arithmetic operators have their standard meanings.
+
+##### (+ _lhs_ _rhs_)
+The addition of _lhs_ by _rhs_.
+
+```lisp
+(+ 2 2)     ; Evaluates to 4
+(+ 1.8 2)   ; Evaluates to 3.8
+(+ 1.8 2.1) ; Evaluates to 3.9
+(+ 1.8 2.2) ; Evaluates to 4
+```
+
+##### (- _lhs_ _rhs_)
+The subtraction of _lhs_ by _rhs_.
+
+```lisp
+(- 3 2)     ; Evaluates to 1
+(- 3.2 2)   ; Evaluates to 1.2
+(- 3.2 2.1) ; Evaluates to 1.1
+(- 3.2 2.2) ; Evaluates to 1
+```
+
+##### (* _lhs_ _rhs_)
+The multiplication of _lhs_ by _rhs_.
+
+```lisp
+(* 1 2)     ; Evaluates to 2
+(* 1.3 2)   ; Evaluates to 2.6
+(* 1.4 2.1) ; Evaluates to 2.94
+(* 1.5 2.0) ; Evaluates to 3
+```
+
+##### (/ _lhs_ _rhs_)
+The division of _lhs_ by _rhs_.
+
+```lisp
+(/ 4 2)     ; Evaluates to 2
+(/ 4.5 2)   ; Evaluates to 2.25
+(/ 4.5 2.5) ; Evaluates to 1.8
+(/ 4.2 2.1) ; Evaluates to 2
+```
 
 Standard Library
 ----------------
