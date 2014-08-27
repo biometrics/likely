@@ -942,21 +942,35 @@ class addExpression : public SimpleArithmeticOperator
 };
 LIKELY_REGISTER_EXPRESSION(add, "+")
 
-class subtractExpression : public SimpleArithmeticOperator
+class subtractExpression : public Operator
 {
+    size_t maxParameters() const { return 2; }
+    size_t minParameters() const { return 1; }
     int uid() const { return __LINE__; }
 
-    Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        if (likely_floating(lhs)) {
-            return builder.CreateFSub(lhs, rhs);
+        if (ast->num_atoms == 2) {
+            // TODO: Unary negation
+            return NULL;
         } else {
-            if (likely_saturation(lhs)) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), likely_signed(lhs) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value->getType()), lhs, rhs);
-                Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, zero(lhs)), intMax(lhs), intMin(lhs)) : intMin(lhs).value;
-                return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
+            // Binary subtraction
+            TRY_EXPR(builder, ast->atoms[1], expr1)
+            TRY_EXPR(builder, ast->atoms[2], expr2)
+            likely_type type = likely_type_from_types(*expr1, *expr2);
+            likely_expression lhs = builder.cast(expr1.get(), type);
+            likely_expression rhs = builder.cast(expr2.get(), type);
+
+            if (likely_floating(type)) {
+                return new likely_expression(builder.CreateFSub(lhs, rhs), type);
             } else {
-                return builder.CreateSub(lhs, rhs);
+                if (likely_saturation(type)) {
+                    CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), likely_signed(lhs) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value->getType()), lhs, rhs);
+                    Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, zero(lhs)), intMax(lhs), intMin(lhs)) : intMin(lhs).value;
+                    return new likely_expression(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
+                } else {
+                    return new likely_expression(builder.CreateSub(lhs, rhs), type);
+                }
             }
         }
     }
