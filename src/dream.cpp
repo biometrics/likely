@@ -559,12 +559,12 @@ private:
         if (name.isEmpty() || (width == 0) || (height == 0)) {
             definition->clear();
         } else {
-            definition->setText(QString("    (= %1_x      %2)\n"
-                                        "    (= %1_y      %3)\n"
-                                        "    (= %1_width  %4)\n"
-                                        "    (= %1_height %5)\n"
-                                        "    (= %1_angle  %6)\n"
-                                        "    (= %1_scale  %7)").arg(name,
+            definition->setText(QString("    %1_x     := %2\n"
+                                        "    %1_y     := %3\n"
+                                        "    %1_width := %4\n"
+                                        "    %1_height:= %5\n"
+                                        "    %1_angle := %6\n"
+                                        "    %1_scale := %7").arg(name,
                                                                   QString::number(x),
                                                                   QString::number(y),
                                                                   QString::number(width),

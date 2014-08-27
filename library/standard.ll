@@ -109,21 +109,22 @@ The token on the RHS of the colon is inserted as the operator of the second toke
 
 ```lisp
 x:f y     ; Equivalent to (f x y)
-x:f y:g z ; Equivalent to (g (f x y) z)
+z:g x:f y ; Equivalent to (g z (f x y))
 x:f (g y) ; Equivalent to (f x (g y))
+x:f y.g   ; Equivalent to (f x (g y))
 ```
 
 We might call these examples _infix notation_
 
 Mathematical Constants
 ----------------------
-    (= e  (f32 2.71828)) ; Euler's number
-    (= pi (f32 3.14159)) ; The ratio of a circle's circumference to its diameter
+    e := (f32 2.71828) ; Euler's number
+    pi:= (f32 3.14159) ; The ratio of a circle's circumference to its diameter
 
 Unary Functions
 ---------------
-    abs:= (-> a (? (< a 0) (* -1 a) a))
-    sq := (-> a (* a a))
+    abs:= a:-> (? (< a 0) (* -1 a) a)
+    sq := a:-> a:* a
 
 Binary Functions
 ----------------

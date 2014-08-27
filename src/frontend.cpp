@@ -290,7 +290,7 @@ static bool reduce(likely_const_ast tokens, size_t &offset, vector<likely_ast> &
         offset++;
         for (int i=0; i<2; i++)
             if (!shift(tokens, offset, output) ||
-                !reduceComposition(tokens, offset, output))
+                !reduce(tokens, offset, output))
                 return false;
 
         vector<likely_ast> atoms;

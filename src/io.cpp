@@ -391,7 +391,7 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
 
     static likely_const_fun normalize = NULL;
     if (normalize == NULL) {
-        likely_const_ast ast = likely_ast_from_string("(=> (img min range) (/ (- img min) range).u8 (channels 3))", false);
+        likely_const_ast ast = likely_ast_from_string("(=> (img min range) (/ (- img min) range).u8 3.channels)", false);
         likely_env env = likely_new_env_jit();
         normalize = likely_compile(ast->atoms[0], env, likely_matrix_void);
         assert(normalize);
