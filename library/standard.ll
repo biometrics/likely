@@ -94,10 +94,10 @@ The semicolon and all following tokens through the end of the line are excluded 
 The token to the left-hand-side (LHS) of the period is inserted as the first operand of the token to the right-hand-side (RHS) of the period.
 
 ```lisp
-x.f       ; Equivalent to (f x)
-x.f.g     ; Equivalent to (g (f x))
-x.(f y z) ; Equivalent to (f x y z)
-7.2       ; Remains 7.2
+x.f     ; Equivalent to (f x)
+x.f.g   ; Equivalent to (g (f x))
+x.(f y) ; Equivalent to (f x y)
+7.2     ; Remains 7.2
 ```
 
 We might call the first two examples _function composition_, and the third example _[uniform function call syntax](http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394)_.
