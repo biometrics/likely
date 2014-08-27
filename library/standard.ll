@@ -66,7 +66,7 @@ Likely uses [Github Flavored Markdown](https://help.github.com/articles/github-f
 Language Reference
 ------------------
 ### Prefix Notation
-Likely is a Lisp-like language operating on fully-parenthesized Polish prefix notation, or _s-expressions_:
+Likely is a Lisp-like language accepting fully-parenthesized Polish prefix notation, or _s-expressions_:
 
 ```lisp
 (operator operand_1 operand_2 ... operand_N)
@@ -78,19 +78,35 @@ $ likely "(+ 1 2)"
 3
 ```
 
-An important property of s-expressions is that they are equivalent to the compiler's abstract syntax tree (AST).
+An important property of s-expressions is that they are equivalent to the compiler's abstract syntax tree.
 
-### AST Manipulation
-To improve code readability, Likely has the following special tokens that influence how source code is parsed.
+### Abstract Syntax Tree (AST) Manipulation
+Likely recognizes three special tokens that influence how source code is parsed into an AST.
+These _optional_ tokens allow a developer to selectively depart from fully-parenthesized Polish prefix notation in order to improve code readability.
+These tokens and parenthesis are the _only_ symbols that need not be separated by a space.
+
+| Token | Name    |
+|-------|---------|
+| ;     | Comment |
+| .     | Compose |
+| :     | Infix   |
+
+
+Note that you can print the AST if in doubt about how code is parsed:
+```bash
+$ likely -ast "how.is.this;parsed?"
+(this (is how))
+```
 
 #### ; Comment
 The semicolon and all following tokens through the end of the line are excluded from the AST.
 
 ```lisp
 (this is some code) ; This is a comment
+(+ 1 2) ; Evaluates to 3
 ```
 
-#### . Unary Composition
+#### . Compose
 The token to the left-hand-side (LHS) of the period is inserted as the first operand of the token to the right-hand-side (RHS) of the period.
 
 ```lisp
@@ -98,23 +114,24 @@ x.f     ; Equivalent to (f x)
 x.f.g   ; Equivalent to (g (f x))
 x.(f y) ; Equivalent to (f x y)
 7.2     ; Remains 7.2
+0.cos   ; Evaluates to 1
+1.(+ 2) ; Evaluates to 3
 ```
 
-We might call the first two examples _function composition_, and the third example _[uniform function call syntax](http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394)_.
-Note this transformation does not apply to numbers!
+We might call the third example _[uniform function call syntax](http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394)_.
+Note that this transformation does not apply to numbers!
 
-#### : Binary Composition
-The token on the LHS of the colon is inserted as the first operand of the second token to the RHS of the colon.
-The token on the RHS of the colon is inserted as the operator of the second token to the RHS of the colon.
+#### : Infix
+The token to the LHS of the colon is inserted as the first operand of the second token to the RHS of the colon.
+The token to the RHS of the colon is inserted as the operator of the second token to the RHS of the colon.
 
 ```lisp
 x:f y     ; Equivalent to (f x y)
 z:g x:f y ; Equivalent to (g z (f x y))
 x:f (g y) ; Equivalent to (f x (g y))
 x:f y.g   ; Equivalent to (f x (g y))
+1:+ 2     ; Evaluates to 3
 ```
-
-We might call these examples _infix notation_
 
 Mathematical Constants
 ----------------------
