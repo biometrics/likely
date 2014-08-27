@@ -1,14 +1,12 @@
 The Likely Programming Language
 ===============================
-> Reference manual and standard library.
+> Language reference and standard library.
 > -- [@jklontz](https://github.com/jklontz)
 
 Introduction
 ------------
 _Likely_ is a programming language for developing image processing and statistical learning algorithms.
-The goal of Likely is concise yet ambitious,
-
-> to revolutionize computer vision algorithm design and deployment.
+The goal of Likely is concise yet ambitious, _to revolutionize computer vision algorithm design and deployment_.
 
 ### Governing Principles
 The following sections on just-in-time compilation, portability, live coding, and literate programming introduce the guiding design decisions behind Likely.
@@ -91,11 +89,10 @@ These tokens and parenthesis are the _only_ symbols that need not be separated b
 | .     | Compose |
 | :     | Infix   |
 
-
-Note that you can print the AST if in doubt about how code is parsed:
+Note that you can print the AST to see how source code is parsed:
 ```bash
-$ likely -ast "how.is.this;parsed?"
-(this (is how))
+$ likely -ast "1:+ 2"
+(+ 1 2)
 ```
 
 #### ; Comment
@@ -103,47 +100,56 @@ The semicolon and all following tokens through the end of the line are excluded 
 
 ```lisp
 (this is some code) ; This is a comment
-(+ 1 2) ; Evaluates to 3
+(+ 1 2) ; One plus two is three
+(sq 3)  ; Three squared is nine
 ```
 
 #### . Compose
-The token to the left-hand-side (LHS) of the period is inserted as the first operand of the token to the right-hand-side (RHS) of the period.
+The expression to the left-hand-side (LHS) of the period is inserted as the first operand of the expression to the right-hand-side (RHS) of the period.
+Compose is _left-associative_.
 
 ```lisp
-x.f     ; Equivalent to (f x)
-x.f.g   ; Equivalent to (g (f x))
-x.(f y) ; Equivalent to (f x y)
-7.2     ; Remains 7.2
-0.cos   ; Evaluates to 1
+x.f     ; Parsed as (f x)
+x.f.g   ; Parsed as (g (f x))
+x.(f y) ; Parsed as (f x y)
+(f x).g ; Parsed as (g (f x))
+(g x.f) ; Parsed as (g (f x))
+7.2     ; Parsed as 7.2
+3.sq    ; Evaluates to 9
 1.(+ 2) ; Evaluates to 3
 ```
 
 We might call the third example _[uniform function call syntax](http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394)_.
-Note that this transformation does not apply to numbers!
+Note how this transformation does not apply to numbers!
 
 #### : Infix
-The token to the LHS of the colon is inserted as the first operand of the second token to the RHS of the colon.
-The token to the RHS of the colon is inserted as the operator of the second token to the RHS of the colon.
+The expression to the RHS of the colon is the operator.
+The expression to the LHS of the colon is the first operand.
+The second expression to the RHS of the colon is the second operand.
+Infix is _right-associative_.
 
 ```lisp
-x:f y     ; Equivalent to (f x y)
-z:g x:f y ; Equivalent to (g z (f x y))
-x:f (g y) ; Equivalent to (f x (g y))
-x:f y.g   ; Equivalent to (f x (g y))
-1:+ 2     ; Evaluates to 3
+x:f y       ; Parsed as (f x y)
+z:g x:f y   ; Parsed as (g z (f x y))
+x:f (g y)   ; Parsed as (f x (g y))
+x.f:h y.g   ; Parsed as (h (f x) (g y))
+(g x:f y)   ; Parsed as (g (f x y))
+1:+ 2       ; Evaluates to 3
+3.sq:+ 4.sq ; Evaluates to 25
 ```
 
-Mathematical Constants
-----------------------
+Note how _infix_ has lower precedence than _compose_.
+
+Standard Library
+----------------
+### Mathematical Constants
     e := (f32 2.71828) ; Euler's number
     pi:= (f32 3.14159) ; The ratio of a circle's circumference to its diameter
 
-Unary Functions
----------------
-    abs:= a:-> (? (< a 0) (* -1 a) a)
-    sq := a:-> a:* a
+### Unary Functions
+    abs:= (-> a (? (< a 0) (* -1 a) a))
+    sq := (-> a (* a a))
 
-Binary Functions
-----------------
+### Binary Functions
     min:= (-> (a b) (? (< a b) a b))
     max:= (-> (a b) (? (> a b) a b))

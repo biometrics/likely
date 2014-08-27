@@ -32,8 +32,8 @@ Definition
       dy:= (- y.i32 y_max)
       xp:= (* dx theta.cos):+ (* dy theta.sin)
       yp:= (* -1:* dx theta.sin):+ (* dy theta.cos)
-      (* (* -0.5 (+ (/ xp sigma_x).sq (/ yp sigma_y).sq)).exp (+ (* (/ (* 2 pi) lambda) xp) psi).cos)
-    } ( (+ 2:* x_max 1).columns (+ 2:* y_max 1).rows parallel.type) )
+      (* -0.5 (/ xp sigma_x).sq:+ (/ yp sigma_y).sq).exp:* (+ (* (/ (* 2 pi) lambda) xp) psi).cos
+    } ((+ 2:* x_max 1).columns (+ 2:* y_max 1).rows parallel.type) )
 
 Execution
 

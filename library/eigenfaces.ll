@@ -9,5 +9,5 @@ Compute eigenvectors from a set of aligned faces.
       j:/ x.axis
     } (1.axis parallel.type))
 
-    faces = "../data/lfwa.tar.gz".read
-    average_face = faces.(mean frames)
+    faces:= "../data/lfwa.tar.gz".read
+    average_face:= faces:mean frames

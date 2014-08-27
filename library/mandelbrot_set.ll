@@ -30,9 +30,9 @@ Definition
       zr:= tmp
       j:= (+ j 1)
       (& (< (+ zr.sq zi.sq) 4) (< j iter)):? loop
-      (= result (/ (* 255 j) iter).u8)
+      result:= (/ (* 255 j) iter).u8
       (result result result)
-    } (width.columns height.rows parallel.type))
+    } (width.columns height.rows parallel.type) )
 
 Execution
 

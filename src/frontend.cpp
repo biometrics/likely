@@ -219,18 +219,29 @@ likely_ast likely_tokens_from_string(const char *str, bool GFM)
 
 static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, bool canFail = false);
 
-static bool reduceComposition(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output)
+enum ReductionStatus
+{
+    ReductionNoOp = -1,
+    ReductionFailure = 0,
+    ReductionSuccess = 1
+};
+
+static ReductionStatus reduceComposition(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output)
 {
     if (offset == tokens->num_atoms)
-        return true;
+        return ReductionNoOp;
 
     static likely_const_ast composition = likely_new_atom(".", 1);
     if (!likely_ast_compare(tokens->atoms[offset], composition)) {
-        if (output.empty())
-            return likely_throw(tokens->atoms[offset], "missing operand");
+        if (output.empty()) {
+            likely_throw(tokens->atoms[offset], "missing composition left-hand-side operand");
+            return ReductionFailure;
+        }
         offset++;
-        if (!shift(tokens, offset, output))
-            return false;
+        if (!shift(tokens, offset, output)) {
+            likely_throw(tokens->atoms[offset], "missing composition right-hand-side operator/expression");
+            return ReductionFailure;
+        }
 
         // See if the combined token is a number
         if ((output[output.size()-2]->type != likely_ast_list) &&
@@ -245,7 +256,8 @@ static bool reduceComposition(likely_const_ast tokens, size_t &offset, vector<li
             number->begin_column = output[output.size()-2]->begin_column;
             number->end_line     = output[output.size()-1]->end_line;
             number->end_column   = output[output.size()-1]->end_column;
-            output.erase(output.end()-2, output.end());
+            likely_release_ast(output.back()); output.pop_back();
+            likely_release_ast(output.back()); output.pop_back();
             output.push_back(number);
         } else {
             vector<likely_ast> atoms;
@@ -271,27 +283,37 @@ static bool reduceComposition(likely_const_ast tokens, size_t &offset, vector<li
             output.push_back(list);
         }
 
-        return reduceComposition(tokens, offset, output);
+        return reduceComposition(tokens, offset, output) ? ReductionSuccess : ReductionFailure;
     }
 
-    return true;
+    return ReductionNoOp;
 }
 
-static bool reduce(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output)
+static ReductionStatus reduce(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output)
 {
     assert(tokens->type == likely_ast_list);
     if (offset >= tokens->num_atoms)
-        return true;
+        return ReductionNoOp;
 
     static likely_const_ast infix = likely_new_atom(":", 1);
     if (!likely_ast_compare(tokens->atoms[offset], infix)) {
-        if (output.empty())
-            return likely_throw(tokens->atoms[offset], "missing left-hand-side");
+        if (output.empty()) {
+            likely_throw(tokens->atoms[offset], "missing infix left-hand-side operand");
+            return ReductionFailure;
+        }
         offset++;
-        for (int i=0; i<2; i++)
-            if (!shift(tokens, offset, output) ||
-                !reduce(tokens, offset, output))
-                return false;
+        if (!shift(tokens, offset, output)) {
+            likely_throw(tokens->atoms[offset], "missing infix operator");
+            return ReductionFailure;
+        }
+        if (!reduce(tokens, offset, output))
+            return ReductionFailure;
+        if (!shift(tokens, offset, output)) {
+            likely_throw(tokens->atoms[offset], "missing infix right-hand-size operand");
+            return ReductionFailure;
+        }
+        if (!reduce(tokens, offset, output))
+            return ReductionFailure;
 
         vector<likely_ast> atoms;
         atoms.push_back(output.back());
@@ -310,18 +332,22 @@ static bool reduce(likely_const_ast tokens, size_t &offset, vector<likely_ast> &
         list->end_line = end_line;
         list->end_column = end_column;
         output.push_back(list);
-
-        return reduce(tokens, offset, output);
+    } else {
+        const ReductionStatus status = reduceComposition(tokens, offset, output);
+        if (status != ReductionSuccess)
+            return status;
     }
 
-    return reduceComposition(tokens, offset, output);
+    return reduce(tokens, offset, output) ? ReductionSuccess : ReductionFailure;
 }
 
+// All callers should check this function's return value and likely_throw a
+// meaningful error on failure.
 static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, bool canFail)
 {
     assert(tokens->type == likely_ast_list);
     if (offset >= tokens->num_atoms)
-        return likely_throw(tokens->atoms[tokens->num_atoms-1], "unexpected end of expression");
+        return false;
     likely_const_ast token = tokens->atoms[offset++];
 
     static likely_const_ast comment = likely_new_atom(";", 1);
@@ -330,10 +356,8 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
         while (token->begin_line == line) {
             if (offset < tokens->num_atoms)
                 token = tokens->atoms[offset++];
-            else if (canFail)
-                return true;
             else
-                return likely_throw(tokens->atoms[tokens->num_atoms-1], "unexpected end of expression in comment");
+                return canFail;
         }
     }
 
@@ -358,8 +382,15 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
                 offset++;
                 break;
             }
-            if (!shift(tokens, offset, atoms) ||
-                !reduce(tokens, offset, atoms))
+
+            bool success = shift(tokens, offset, atoms);
+            if (!success) {
+                stringstream stream;
+                stream << "missing list closing token: " << close->atom;
+                likely_throw(tokens->atoms[offset], stream.str().c_str());
+            }
+            success = success && reduce(tokens, offset, atoms);
+            if (!success)
                 return cleanup(atoms);
         }
 
