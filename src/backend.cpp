@@ -1110,22 +1110,13 @@ class BinaryMathOperator : public SimpleBinaryOperator
 {
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &x, const unique_ptr<const likely_expression> &n) const
     {
-        const likely_type type = nIsInteger() ? x->type : likely_type_from_types(*x, *n);
-        likely_expression xc(builder.cast(x.get(), validFloatType(type)));
-        likely_expression nc(builder.cast(n.get(), nIsInteger() ? likely_type(likely_matrix_i32) : xc));
+        const likely_type type = validFloatType(likely_type_from_types(*x, *n));
+        const likely_expression xc(builder.cast(x.get(), type));
+        const likely_expression nc(builder.cast(n.get(), type));
         return new likely_expression(builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), id(), xc.value->getType()), xc, nc), xc);
     }
     virtual Intrinsic::ID id() const = 0;
-    virtual bool nIsInteger() const { return false; }
 };
-
-class powiExpression : public BinaryMathOperator
-{
-    int uid() const { return __LINE__; }
-    Intrinsic::ID id() const { return Intrinsic::powi; }
-    bool nIsInteger() const { return true; }
-};
-LIKELY_REGISTER(powi)
 
 #define LIKELY_REGISTER_BINARY_MATH(OP, UID)           \
 class OP##Expression : public BinaryMathOperator       \

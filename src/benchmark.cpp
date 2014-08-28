@@ -350,11 +350,6 @@ class sqrtTest : public FloatingTest {
     Mat computeFloatingBaseline(const Mat &src) const { Mat dst; sqrt(src, dst); return dst; }
 };
 
-class powiTest : public FloatingTest {
-    const char *function() const { return "(=> a a.(powi 3))"; }
-    Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 3, dst); return dst; }
-};
-
 MATH_TEST(sin)
 MATH_TEST(cos)
 
@@ -450,7 +445,6 @@ int main(int argc, char *argv[])
         multiplyTest().run();
         divideTest().run();
         sqrtTest().run();
-        powiTest().run();
         sinTest().run();
         cosTest().run();
         powTest().run();
