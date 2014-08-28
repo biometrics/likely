@@ -355,3 +355,10 @@ Standard Library
     min:= (-> (a b) (? (< a b) a b))
     max:= (-> (a b) (? (> a b) a b))
     cast:= (-> (a b) (b.type a)) ; cast a to the type of b
+
+### Thresholding
+    threshold-binary         := (-> (input threshold response) (? (> input threshold) response  0))
+    threshold-binary-inverse := (-> (input threshold response) (? (> input threshold) 0         response))
+    threshold-truncate       := (-> (input threshold)          (? (> input threshold) threshold input))
+    threshold-to-zero        := (-> (input threshold)          (? (> input threshold) input     0))
+    threshold-to-zero-inverse:= (-> (input threshold)          (? (> input threshold) 0         input))
