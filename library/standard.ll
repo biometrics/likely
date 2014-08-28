@@ -329,6 +329,18 @@ The nearest integral value that is not larger in magnitude than _x_.
 (trunc -5.5) ; Evaluates to -5
 ```
 
+##### (round _x_)
+The integral value that is nearest to _x_, with halfway cases rounded away from zero.
+
+```lisp
+(round 2.3)  ; Evaluates to 2
+(round 3.8)  ; Evaluates to 4
+(round 5.5)  ; Evaluates to 6
+(round -2.3) ; Evaluates to -2
+(round -3.8) ; Evaluates to -4
+(round -5.5) ; Evaluates to -6
+```
+
 Standard Library
 ----------------
 ### Mathematical Constants
