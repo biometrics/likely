@@ -324,51 +324,6 @@ class FUNC##Test : public ScalarFloatingTest {                     \
         { for (int i=0; i<n; i++) dst[i] = FUNC(src[i]); }         \
 };                                                                 \
 
-class addTest : public Test {
-    const char *function() const { return "(=> a (+ a (a.type 32)))"; }
-    Mat computeBaseline(const Mat &src) const { Mat dst; add(src, 32, dst); return dst; }
-};
-
-class subtractTest : public Test {
-    const char *function() const { return "(=> a (- a (a.type 32)))"; }
-    Mat computeBaseline(const Mat &src) const { Mat dst; subtract(src, 32, dst); return dst; }
-};
-
-class multiplyTest : public Test {
-    const char *function() const { return "(=> a (* a (a.type 2)))"; }
-    Mat computeBaseline(const Mat &src) const { Mat dst; multiply(src, 2, dst); return dst; }
-};
-
-class divideTest : public Test {
-    const char *function() const { return "(=> a (/ a (a.type 2)))"; }
-    Mat computeBaseline(const Mat &src) const { Mat dst; divide(src, 2, dst); return dst; }
-    bool ignoreOffByOne() const { return true; }
-};
-
-class sqrtTest : public FloatingTest {
-    const char *function() const { return "(=> a a.sqrt)"; }
-    Mat computeFloatingBaseline(const Mat &src) const { Mat dst; sqrt(src, dst); return dst; }
-};
-
-MATH_TEST(sin)
-MATH_TEST(cos)
-
-class powTest : public FloatingTest {
-    const char *function() const { return "(=> a a.(pow 1.5))"; }
-    Mat computeFloatingBaseline(const Mat &src) const { Mat dst; pow(src, 1.5, dst); return dst; }
-};
-
-MATH_TEST(exp)
-MATH_TEST(exp2)
-
-class logTest : public FloatingTest {
-    const char *function() const { return "(=> a a.log)"; }
-    Mat computeFloatingBaseline(const Mat &src) const { Mat dst; log(src, dst); return dst; }
-};
-
-MATH_TEST(log10)
-MATH_TEST(log2)
-
 class fmaTest : public Test {
     const char *function() const { return "(=> a (+ (* a.f (a.type 2)) (a.type 3)))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3); return dst; }
@@ -396,7 +351,6 @@ class copysignTest : public Test {
 };
 
 MATH_TEST(floor)
-MATH_TEST(ceil)
 MATH_TEST(trunc)
 MATH_TEST(round)
 
@@ -438,23 +392,9 @@ int main(int argc, char *argv[])
 
     if (!BenchmarkTutorial || BenchmarkTest) {
         printf("Function \tType \tSize \tExecution \tSpeedup\n");
-        addTest().run();
-        subtractTest().run();
-        multiplyTest().run();
-        divideTest().run();
-        sqrtTest().run();
-        sinTest().run();
-        cosTest().run();
-        powTest().run();
-        expTest().run();
-        exp2Test().run();
-        logTest().run();
-        log10Test().run();
-        log2Test().run();
         fmaTest().run();
         copysignTest().run();
         floorTest().run();
-        ceilTest().run();
         truncTest().run();
         roundTest().run();
         castTest().run();
