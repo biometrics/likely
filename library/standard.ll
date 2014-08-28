@@ -305,6 +305,18 @@ The largest integral value that is not greater than _x_.
 (floor -5.5) ; Evaluates to -6
 ```
 
+##### (ceil _x_)
+The smallest integral value that is not less than _x_.
+
+```lisp
+(ceil 2.3)  ; Evaluates to 3
+(ceil 3.8)  ; Evaluates to 4
+(ceil 5.5)  ; Evaluates to 6
+(ceil -2.3) ; Evaluates to -2
+(ceil -3.8) ; Evaluates to -3
+(ceil -5.5) ; Evaluates to -5
+```
+
 Standard Library
 ----------------
 ### Mathematical Constants
