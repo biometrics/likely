@@ -285,6 +285,14 @@ The binary (base-2) logarithm of _x_.
 (log2 10)  ; Evaluates to 3.32193
 ```
 
+##### (copysign _x_ _y_)
+A value with the magnitude of x and the sign of y.
+
+```lisp
+(copysign 3 -1.1) ; Evaluates to -3
+(copysign -4.3 2) ; Evaluates to 4.3
+```
+
 Standard Library
 ----------------
 ### Mathematical Constants
