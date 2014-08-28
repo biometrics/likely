@@ -286,11 +286,23 @@ The binary (base-2) logarithm of _x_.
 ```
 
 ##### (copysign _x_ _y_)
-A value with the magnitude of x and the sign of y.
+A value with the magnitude of _x_ and the sign of _y_.
 
 ```lisp
 (copysign 3 -1.1) ; Evaluates to -3
 (copysign -4.3 2) ; Evaluates to 4.3
+```
+
+##### (floor _x_)
+The largest integral value that is not greater than _x_.
+
+```lisp
+(floor 2.3)  ; Evaluates to 2
+(floor 3.8)  ; Evaluates to 3
+(floor 5.5)  ; Evaluates to 5
+(floor -2.3) ; Evaluates to -3
+(floor -3.8) ; Evaluates to -4
+(floor -5.5) ; Evaluates to -6
 ```
 
 Standard Library
