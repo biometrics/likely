@@ -204,6 +204,16 @@ The square root of _x_.
 (sqrt -1)  ; Evaluates to nan
 ```
 
+##### (sin _x_)
+The sine of _x_ in radians.
+
+```lisp
+(sin 0)         ; Evaluates to 0
+(sin 1.570796)  ; Evaluates to 1
+(sin -1.570796) ; Evaluates to -1
+(sin 0.523599)  ; Evaluates to 0.5
+```
+
 Standard Library
 ----------------
 ### Mathematical Constants
