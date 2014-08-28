@@ -264,6 +264,16 @@ The natural logarithm of _x_.
 (log 0.5)      ; Evaluates to -0.693147
 ```
 
+##### (log10 _x_)
+The common (base-10) logarithm of _x_.
+
+```lisp
+(log10 1)   ; Evaluates to 0
+(log10 10)  ; Evaluates to 1
+(log10 100) ; Evaluates to 2
+(log10 0.5) ; Evaluates to -0.30103
+```
+
 Standard Library
 ----------------
 ### Mathematical Constants
