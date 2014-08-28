@@ -201,7 +201,6 @@ The square root of _x_.
 (sqrt 2.1) ; Evaluates to 1.44914
 (sqrt 4)   ; Evaluates to 2
 (sqrt 0)   ; Evaluates to 0
-(sqrt -1)  ; Evaluates to nan
 ```
 
 ##### (sin _x_)
