@@ -222,6 +222,19 @@ The cosine of _x_ in radians.
 (cos 1.047198) ; Evaluates to 0.5
 ```
 
+##### (pow _base_ _exponent_)
+The _base_ raised to the power _exponent_.
+
+```lisp
+(pow 2 3)     ; Evaluates to 8
+(pow 2 -3)    ; Evaluates to 0.125
+(pow -2 3)    ; Evaluates to -8
+(pow 1.5 0.5) ; Evaluates to 1.22474
+(pow 2 0.5)   ; Evaluates to 1.41421
+(pow 4 0.5)   ; Evaluates to 2
+(pow 4 0)     ; Evaluates to 1
+```
+
 Standard Library
 ----------------
 ### Mathematical Constants
