@@ -274,6 +274,17 @@ The common (base-10) logarithm of _x_.
 (log10 0.5) ; Evaluates to -0.30103
 ```
 
+##### (log2 _x_)
+The binary (base-2) logarithm of _x_.
+
+```lisp
+(log2 1)   ; Evaluates to 0
+(log2 2)   ; Evaluates to 1
+(log2 4)   ; Evaluates to 2
+(log2 0.5) ; Evaluates to -1
+(log2 10)  ; Evaluates to 3.32193
+```
+
 Standard Library
 ----------------
 ### Mathematical Constants
