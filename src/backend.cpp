@@ -894,8 +894,6 @@ LIKELY_REGISTER_UNARY_MATH(log2     , __LINE__)
 LIKELY_REGISTER_UNARY_MATH(floor    , __LINE__)
 LIKELY_REGISTER_UNARY_MATH(ceil     , __LINE__)
 LIKELY_REGISTER_UNARY_MATH(trunc    , __LINE__)
-LIKELY_REGISTER_UNARY_MATH(rint     , __LINE__)
-LIKELY_REGISTER_UNARY_MATH(nearbyint, __LINE__)
 LIKELY_REGISTER_UNARY_MATH(round    , __LINE__)
 
 class SimpleBinaryOperator : public Operator

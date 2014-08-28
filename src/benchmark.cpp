@@ -398,8 +398,6 @@ class copysignTest : public Test {
 MATH_TEST(floor)
 MATH_TEST(ceil)
 MATH_TEST(trunc)
-MATH_TEST(rint)
-MATH_TEST(nearbyint)
 MATH_TEST(round)
 
 class castTest : public Test {
@@ -458,8 +456,6 @@ int main(int argc, char *argv[])
         floorTest().run();
         ceilTest().run();
         truncTest().run();
-        rintTest().run();
-        nearbyintTest().run();
         roundTest().run();
         castTest().run();
         thresholdTest().run();
