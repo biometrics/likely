@@ -190,6 +190,20 @@ The division of _lhs_ by _rhs_.
 (/ 4.2 2.1) ; Evaluates to 2
 ```
 
+#### Math
+_C_ mathematical functions.
+
+##### (sqrt _x_)
+The square root of _x_.
+
+```lisp
+(sqrt 2)   ; Evaluates to 1.41421
+(sqrt 2.1) ; Evaluates to 1.44914
+(sqrt 4)   ; Evaluates to 2
+(sqrt 0)   ; Evaluates to 0
+(sqrt -1)  ; Evaluates to nan
+```
+
 Standard Library
 ----------------
 ### Mathematical Constants
