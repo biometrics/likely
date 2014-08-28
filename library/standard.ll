@@ -156,14 +156,18 @@ The addition of _lhs_ by _rhs_.
 (+ 1.8 2.2) ; Evaluates to 4
 ```
 
-##### (- _lhs_ _rhs_)
+##### (- _lhs_ [_rhs_])
 The subtraction of _lhs_ by _rhs_.
+If _rhs_ is not provided then the negation of _lhs_.
 
 ```lisp
 (- 3 2)     ; Evaluates to 1
+(- 2 3)     ; Evaluates to -1
 (- 3.2 2)   ; Evaluates to 1.2
 (- 3.2 2.1) ; Evaluates to 1.1
 (- 3.2 2.2) ; Evaluates to 1
+(- 1)       ; Evaluates to -1
+(- -1.1)    ; Evaluates to 1.1
 ```
 
 ##### (* _lhs_ _rhs_)

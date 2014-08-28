@@ -200,6 +200,14 @@ struct likely_expression
     operator Value*() const { return value; }
     operator likely_type() const { return type; }
 
+    void dump() const
+    {
+        likely_const_mat m = likely_type_to_string(type);
+        cerr << m->data << " ";
+        value->dump();
+        likely_release(m);
+    }
+
     Value *take() const
     {
         Value *result = value;
@@ -243,8 +251,8 @@ struct likely_expression
         }
     }
 
-    static likely_expression zero(likely_type type = likely_matrix_native) { return constant((uint64_t) 0, type); }
-    static likely_expression one (likely_type type = likely_matrix_native) { return constant((uint64_t) 1, type); }
+    static likely_expression zero(likely_type type = likely_matrix_native) { return constant(0.0, type); }
+    static likely_expression one (likely_type type = likely_matrix_native) { return constant(1.0, type); }
     static likely_expression intMax(likely_type type) { const size_t bits = likely_depth(type); return constant((uint64_t) (1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
     static likely_expression intMin(likely_type type) { const size_t bits = likely_depth(type); return constant((uint64_t) (likely_signed(type) ? (1 << (bits - 1)) : 0), bits); }
     static likely_expression typeType(likely_type type) { return constant((uint64_t) type, likely_matrix_type_type); }
@@ -950,27 +958,35 @@ class subtractExpression : public Operator
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        if (ast->num_atoms == 2) {
-            // TODO: Unary negation
+        unique_ptr<const likely_expression> expr1, expr2;
+        expr1.reset(builder.expression(ast->atoms[1]));
+        if (!expr1.get())
             return NULL;
+
+        if (ast->num_atoms == 2) {
+            // Unary negation
+            expr2.reset(new likely_expression(zero(*expr1)));
+            expr2.swap(expr1);
         } else {
             // Binary subtraction
-            TRY_EXPR(builder, ast->atoms[1], expr1)
-            TRY_EXPR(builder, ast->atoms[2], expr2)
-            likely_type type = likely_type_from_types(*expr1, *expr2);
-            likely_expression lhs = builder.cast(expr1.get(), type);
-            likely_expression rhs = builder.cast(expr2.get(), type);
+            expr2.reset(builder.expression(ast->atoms[2]));
+            if (!expr2.get())
+                return NULL;
+        }
 
-            if (likely_floating(type)) {
-                return new likely_expression(builder.CreateFSub(lhs, rhs), type);
+        likely_type type = likely_type_from_types(*expr1, *expr2);
+        likely_expression lhs = builder.cast(expr1.get(), type);
+        likely_expression rhs = builder.cast(expr2.get(), type);
+
+        if (likely_floating(type)) {
+            return new likely_expression(builder.CreateFSub(lhs, rhs), type);
+        } else {
+            if (likely_saturation(type)) {
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), likely_signed(lhs) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value->getType()), lhs, rhs);
+                Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, zero(lhs)), intMax(lhs), intMin(lhs)) : intMin(lhs).value;
+                return new likely_expression(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
             } else {
-                if (likely_saturation(type)) {
-                    CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), likely_signed(lhs) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value->getType()), lhs, rhs);
-                    Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, zero(lhs)), intMax(lhs), intMin(lhs)) : intMin(lhs).value;
-                    return new likely_expression(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
-                } else {
-                    return new likely_expression(builder.CreateSub(lhs, rhs), type);
-                }
+                return new likely_expression(builder.CreateSub(lhs, rhs), type);
             }
         }
     }
