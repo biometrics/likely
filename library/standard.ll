@@ -204,7 +204,7 @@ The square root of _x_.
 ```
 
 ##### (sin _x_)
-The sine of _x_ in radians.
+The sine of an angle of _x_ radians.
 
 ```lisp
 (sin 0)         ; Evaluates to 0
@@ -214,7 +214,7 @@ The sine of _x_ in radians.
 ```
 
 ##### (cos _x_)
-The cosine of _x_ in radians.
+The cosine of an angle of _x_ radians.
 
 ```lisp
 (cos 0)        ; Evaluates to 1
@@ -233,6 +233,15 @@ The _base_ raised to the power _exponent_.
 (pow 2 0.5)   ; Evaluates to 1.41421
 (pow 4 0.5)   ; Evaluates to 2
 (pow 4 0)     ; Evaluates to 1
+```
+
+##### (exp _x_)
+The base-e exponential function of _x_, which is e raised to the power _x_.
+
+```lisp
+(exp 0)   ; Evaluates to 1
+(exp 1)   ; Evaluates to 2.71828
+(exp 1.5) ; Evaluates to 4.48169
 ```
 
 Standard Library
