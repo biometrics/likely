@@ -244,6 +244,16 @@ The base-e exponential function of _x_, which is e raised to the power _x_.
 (exp 1.5) ; Evaluates to 4.48169
 ```
 
+##### (exp2 _x_)
+The base-2 exponential function of _x_, which is 2 raised to the power _x_.
+
+```lisp
+(exp2 0)   ; Evaluates to 1
+(exp2 1)   ; Evaluates to 2
+(exp2 0.5) ; Evaluates to 1.41421
+(exp2 3)   ; Evaluates to 8
+```
+
 Standard Library
 ----------------
 ### Mathematical Constants
