@@ -214,6 +214,15 @@ The sine of _x_ in radians.
 (sin 0.523599)  ; Evaluates to 0.5
 ```
 
+##### (cos _x_)
+The cosine of _x_ in radians.
+
+```lisp
+(cos 0)        ; Evaluates to 1
+(cos 3.141593) ; Evaluates to -1
+(cos 1.047198) ; Evaluates to 0.5
+```
+
 Standard Library
 ----------------
 ### Mathematical Constants
