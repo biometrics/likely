@@ -254,11 +254,21 @@ The base-2 exponential function of _x_, which is 2 raised to the power _x_.
 (exp2 3)   ; Evaluates to 8
 ```
 
+##### (log _x_)
+The natural logarithm of _x_.
+
+```lisp
+(log 1)        ; Evaluates to 0
+(log 2.718281) ; Evaluates to 1
+(log 7.389056) ; Evaluates to 2
+(log 0.5)      ; Evaluates to -0.693147
+```
+
 Standard Library
 ----------------
 ### Mathematical Constants
-    e := (f32 2.71828) ; Euler's number
-    pi:= (f32 3.14159) ; The ratio of a circle's circumference to its diameter
+    e := (f32 2.718281) ; Euler's number
+    pi:= (f32 3.141592) ; The ratio of a circle's circumference to its diameter
 
 ### Unary Functions
     abs:= (-> a (? (< a 0) (* -1 a) a))
