@@ -317,6 +317,18 @@ The smallest integral value that is not less than _x_.
 (ceil -5.5) ; Evaluates to -5
 ```
 
+##### (trunc _x_)
+The nearest integral value that is not larger in magnitude than _x_.
+
+```lisp
+(trunc 2.3)  ; Evaluates to 2
+(trunc 3.8)  ; Evaluates to 3
+(trunc 5.5)  ; Evaluates to 5
+(trunc -2.3) ; Evaluates to -2
+(trunc -3.8) ; Evaluates to -3
+(trunc -5.5) ; Evaluates to -5
+```
+
 Standard Library
 ----------------
 ### Mathematical Constants
