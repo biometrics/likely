@@ -225,6 +225,8 @@ test_expr("(abs -1.3)" 1.3)
 test_expr("(sq -1.3)" 1.69)
 test_expr("(min -1 1.3)" -1)
 test_expr("(max 1 -1.3)" 1)
+test_expr("(cast 2.3 2)" 2)
+test_expr("(cast 2.3 2.f32)" 2.3)
 
 # Test demos
 function(test_demo FILE)

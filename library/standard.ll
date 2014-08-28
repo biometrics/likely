@@ -354,3 +354,4 @@ Standard Library
 ### Binary Functions
     min:= (-> (a b) (? (< a b) a b))
     max:= (-> (a b) (? (> a b) a b))
+    cast:= (-> (a b) (b.type a)) ; cast a to the type of b

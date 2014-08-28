@@ -354,11 +354,6 @@ MATH_TEST(floor)
 MATH_TEST(trunc)
 MATH_TEST(round)
 
-class castTest : public Test {
-    const char *function() const { return "(=> a a.f32)"; }
-    Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, CV_32F); return dst; }
-};
-
 class thresholdTest : public Test {
     const char *function() const { return "(=> a (a.type (> a 127)))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 1, THRESH_BINARY); return dst; }
@@ -397,7 +392,6 @@ int main(int argc, char *argv[])
         floorTest().run();
         truncTest().run();
         roundTest().run();
-        castTest().run();
         thresholdTest().run();
     }
 
