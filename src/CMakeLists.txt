@@ -58,7 +58,11 @@ install(TARGETS likely ARCHIVE DESTINATION lib
 
 # Build static library
 add_library(likely_static STATIC $<TARGET_OBJECTS:likely_object>)
-set_target_properties(likely_static PROPERTIES OUTPUT_NAME likely)
+if(VS)
+  set_target_properties(likely_static PROPERTIES OUTPUT_NAME liblikely) # Avoid name collision
+else()
+  set_target_properties(likely_static PROPERTIES OUTPUT_NAME likely)
+endif()
 target_link_libraries(likely_static likely_runtime ${LIKELY_LIBS})
 install(TARGETS likely_static ARCHIVE DESTINATION lib)
 
