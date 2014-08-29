@@ -168,7 +168,11 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_ast> &t
                 inBlock = false;
             } else if (lineLen > 3) {
                 // skip code blocks marked for specific languages
-                skipBlock = true;
+                for (size_t i=lineStart+3; i<lineEnd; i++)
+                    if (str[i] > ' ') {
+                        skipBlock = true;
+                        break;
+                    }
             } else {
                 inBlock = true;
             }
