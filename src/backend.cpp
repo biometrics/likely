@@ -407,7 +407,7 @@ class JITFunctionCache : public ObjectCache
     void notifyObjectCompiled(const Module *M, MemoryBufferRef Obj)
     {
         if (M == currentModule)
-            cache[currentHash].reset(MemoryBuffer::getMemBufferCopy(Obj.getBuffer()));
+            cache[currentHash] = MemoryBuffer::getMemBufferCopy(Obj.getBuffer());
     }
 
     unique_ptr<MemoryBuffer> getObject(const Module *M)
@@ -444,10 +444,11 @@ public:
 
     ~OfflineResources()
     {
-        const string extension = fileName.substr(fileName.find_last_of(".") + 1);
+        error_code errorCode;
+        tool_output_file output(fileName.c_str(), errorCode, sys::fs::F_None);
+        likely_assert(!errorCode, "%s", errorCode.message().c_str());
 
-        string errorInfo;
-        tool_output_file output(fileName.c_str(), errorInfo, sys::fs::F_None);
+        const string extension = fileName.substr(fileName.find_last_of(".") + 1);
         if (extension == "ll") {
             module->print(output.os(), NULL);
         } else if (extension == "bc") {
@@ -460,7 +461,6 @@ public:
             pm.run(*module);
         }
 
-        likely_assert(errorInfo.empty(), "failed to write to: %s with error: %s", fileName.c_str(), errorInfo.c_str());
         output.keep();
     }
 };
