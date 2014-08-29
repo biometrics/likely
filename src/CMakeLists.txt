@@ -62,16 +62,16 @@ set_target_properties(likely_static PROPERTIES OUTPUT_NAME likely)
 target_link_libraries(likely_static likely_runtime ${LIKELY_LIBS})
 install(TARGETS likely_static ARCHIVE DESTINATION lib)
 
-# Build static compiler
+# Build repl-shell/interpreter/compiler
 add_executable(like like.cpp)
 set_target_properties(like PROPERTIES OUTPUT_NAME likely)
-target_link_libraries(like likely)
+target_link_libraries(like likely_static)
 install(TARGETS like RUNTIME DESTINATION bin)
 
 if(${LIKELY_IO})
   # Benchmark
   add_executable(benchmark benchmark.cpp)
-  target_link_libraries(benchmark likely opencv_core opencv_highgui opencv_imgproc)
+  target_link_libraries(benchmark likely_static opencv_imgproc)
   install(TARGETS benchmark RUNTIME DESTINATION bin)
   likely_add_test(benchmark -test)
 
