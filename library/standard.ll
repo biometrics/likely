@@ -144,8 +144,6 @@ Note how _infix_ has lower precedence than _compose_.
 Likely has the following builtin operators.
 
 #### Arithmetic
-No surprises here, arithmetic operators have their standard meanings.
-
 ##### (+ _lhs_ _rhs_)
 The addition of _lhs_ by _rhs_.
 
@@ -190,9 +188,28 @@ The division of _lhs_ by _rhs_.
 (/ 4.2 2.1) ; Evaluates to 2
 ```
 
-#### Math
-_C_ mathematical functions.
+#### Comparison
+##### (== _lhs_ _rhs_)
+One if _lhs_ equals _rhs_, zero otherwise.
 
+```likely
+(== 2 2)   ; Evaluates to 1
+(== 2 2.0) ; Evaluates to 1
+(== 2 -2)  ; Evaluates to 0
+(== 2 2.1) ; Evaluates to 0
+```
+
+##### (!= _lhs_ _rhs_)
+One if _lhs_ does not equal _rhs_, zero otherwise.
+
+```likely
+(!= 3 3)   ; Evaluates to 0
+(!= 3 3.0) ; Evaluates to 0
+(!= 3 -3)  ; Evaluates to 1
+(!= 3 3.1) ; Evaluates to 1
+```
+
+#### Math
 ##### (sqrt _x_)
 The square root of _x_.
 
