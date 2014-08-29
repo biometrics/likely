@@ -35,13 +35,12 @@ using namespace std;
 #define LIKELY_ERROR_TOLERANCE 0.000001
 #define LIKELY_TEST_SECONDS 1
 
-static cl::opt<bool> BenchmarkTest    ("test"     , cl::desc("Run tutorials and unit tests for correctness only"));
-static cl::opt<bool> BenchmarkTutorial("tutorial" , cl::desc("Run tutorials instead of unit tests"              ));
-static cl::opt<bool> BenchmarkVerbose ("verbose"  , cl::desc("Verbose benchmark output"                         ));
+static cl::opt<bool> BenchmarkTest    ("test"     , cl::desc("Run tests for correctness only"));
+static cl::opt<bool> BenchmarkVerbose ("verbose"  , cl::desc("Verbose benchmark output"));
 static cl::opt<bool> BenchmarkSerial  ("serial"   , cl::desc("Run serial kernels only"));
 static cl::opt<bool> BenchmarkParallel("parallel" , cl::desc("Run parallel kernels only"));
-static cl::opt<string> BenchmarkFile    ("file"    , cl::desc("Benchmark the specified file only"    ), cl::value_desc("filename"));
-static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"  ));
+static cl::opt<string> BenchmarkFile    ("file"    , cl::desc("Benchmark the specified file only"), cl::value_desc("filename"));
+static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"));
 
 static Mat generateData(int rows, int columns, likely_type type, double scaleFactor)
 {
@@ -369,23 +368,7 @@ int main(int argc, char *argv[])
 
     if (!BenchmarkFile.empty()) {
         Test::runFile(BenchmarkFile);
-        return EXIT_SUCCESS;
-    }
-
-    if (BenchmarkTutorial || BenchmarkTest) {
-        printf("File     \tSpeed (Hz)\n");
-        ifstream file("library/tutorial.ll");
-        string line;
-        // Skip header
-        getline(file, line);
-        getline(file, line);
-        while (getline(file, line)) {
-            string::size_type index = line.find("=", 0);
-            Test::runFile(line.substr(index+1, line.size()-index-2));
-        }
-    }
-
-    if (!BenchmarkTutorial || BenchmarkTest) {
+    } else {
         printf("Function \tType \tSize \tExecution \tSpeedup\n");
         fmaTest().run();
         copysignTest().run();

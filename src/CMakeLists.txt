@@ -243,17 +243,30 @@ test_expr("(threshold-to-zero-inverse 0.4 0.5)" 0.4)
 test_expr("(threshold-to-zero-inverse 0.5 0.5)" 0.5)
 test_expr("(threshold-to-zero-inverse 0.6 0.5)" 0)
 
-# Test demos
+# Test other library files
 function(test_demo FILE)
   add_test(NAME ${FILE}
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
            COMMAND like library/${FILE}.ll -show -assert "data/demo/${FILE}.jpg")
 endfunction()
 
+function(test_file FILE VALUE)
+  add_test(NAME ${FILE}
+           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+           COMMAND like library/${FILE}.ll -assert "${VALUE}")
+endfunction()
+
 # List alphabetically
+test_file(c_api "")
+test_file(comments 42)
+test_file(demos "")
+test_file(export 3)
 test_demo(gabor_wavelet)
 test_demo(hello_world)
+test_file(likely "")
 test_demo(mandelbrot_set)
+test_file(matrix_io "")
+test_file(tutorial "")
 
 # Test algorithms
 option(LIKELY_TEST_ALGORITHMS "Run computationally demanding tests" ON)

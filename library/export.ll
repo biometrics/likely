@@ -13,6 +13,6 @@ uint32_t foo(uint32_t x)
 }
 ```
 
-    (foo 1) ; returns 2
+    (foo 2) ; returns 3
 
 [Previous](?href=c_api)
