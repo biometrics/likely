@@ -173,6 +173,8 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_ast> &t
                         skipBlock = true;
                         break;
                     }
+                if (!skipBlock)
+                    inBlock = true;
             } else {
                 inBlock = true;
             }
