@@ -209,6 +209,42 @@ One if _lhs_ does not equal _rhs_, zero otherwise.
 (!= 3 3.1) ; Evaluates to 1
 ```
 
+##### (< _lhs_ _rhs_)
+One if _lhs_ is less than _rhs_, zero otherwise.
+
+```likely
+(< 4 5)    ; Evaluates to 1
+(< 4 -5.0) ; Evaluates to 0
+(< 4 4.0)  ; Evaluates to 0
+```
+
+##### (<= _lhs_ _rhs_)
+One if _lhs_ is less than or equal to _rhs_, zero otherwise.
+
+```likely
+(<= 4 5)    ; Evaluates to 1
+(<= 4 -5.0) ; Evaluates to 0
+(<= 4 4.0)  ; Evaluates to 1
+```
+
+##### (> _lhs_ _rhs_)
+One if _lhs_ is greater than _rhs_, zero otherwise.
+
+```likely
+(> 6 7)    ; Evaluates to 0
+(> 6 -7.0) ; Evaluates to 1
+(> 6 6.0)  ; Evaluates to 0
+```
+
+##### (>= _lhs_ _rhs_)
+One if _lhs_ is greater than or equal to _rhs_, zero otherwise.
+
+```likely
+(>= 6 7)    ; Evaluates to 0
+(>= 6 -7.0) ; Evaluates to 1
+(>= 6 6.0)  ; Evaluates to 1
+```
+
 #### Math
 ##### (sqrt _x_)
 The square root of _x_.
