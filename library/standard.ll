@@ -188,6 +188,20 @@ The division of _lhs_ by _rhs_.
 (/ 4.2 2.1) ; Evaluates to 2
 ```
 
+##### (% _lhs_ _rhs_)
+The remainder after division of _lhs_ by _rhs_.
+
+```likely
+(% 7 3)      ; Evaluates to 1
+(% 6 3)      ; Evaluates to 0
+(% 6.5 3)    ; Evaluates to 0.5
+(% -6.5 3)   ; Evaluates to -0.5
+(% 6.5 -3)   ; Evaluates to 0.5
+(% -6.5 -3)  ; Evaluates to -0.5
+(% 6.5 7.5)  ; Evaluates to 6.5
+(% 6.5 3.25) ; Evaluates to 0
+```
+
 #### Comparison
 ##### (== _lhs_ _rhs_)
 One if _lhs_ equals _rhs_, zero otherwise.
