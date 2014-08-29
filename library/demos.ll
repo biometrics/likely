@@ -12,6 +12,9 @@ $ likely library/<demo>.ll -record result.png
   <dt>average_face</dt>
   <dd><a href="?href=average_face"> <img src="data/demo/average_face.jpg" class="img-thumbnail" width="256"> </a></dd>
   <br>
+  <dt>hello_world</dt>
+  <dd><a href="?href=hello_world"><img src="data/demo/hello_world.jpg" class="img-thumbnail" width="256"></a></dd>
+  <br>
   <dt>gabor_wavelet</dt>
   <dd><a href="?href=gabor_wavelet"><img src="data/demo/gabor_wavelet.jpg" class="img-thumbnail" width="256"></a></dd>
   <br>

@@ -252,6 +252,7 @@ endfunction()
 
 # List alphabetically
 test_demo(gabor_wavelet)
+test_demo(hello_world)
 test_demo(mandelbrot_set)
 
 # Test algorithms
