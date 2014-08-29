@@ -51,7 +51,7 @@ add_dependencies(likely_object likely_runtime ${LIKELY_LIBS} ${LIKELY_DEPENDS})
 add_library(likely SHARED $<TARGET_OBJECTS:likely_object> ${LIKELY_MISC})
 set_target_properties(likely PROPERTIES VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
                                         SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR})
-target_link_libraries(likely likely_runtime ${LIKELY_LIBS})
+target_link_libraries(likely PRIVATE likely_runtime ${LIKELY_LIBS})
 install(TARGETS likely ARCHIVE DESTINATION lib
                        LIBRARY DESTINATION lib
                        RUNTIME DESTINATION bin)
@@ -71,7 +71,7 @@ install(TARGETS like RUNTIME DESTINATION bin)
 if(${LIKELY_IO})
   # Benchmark
   add_executable(benchmark benchmark.cpp)
-  target_link_libraries(benchmark likely opencv_imgproc)
+  target_link_libraries(benchmark likely opencv_core opencv_highgui opencv_imgproc)
   install(TARGETS benchmark RUNTIME DESTINATION bin)
   likely_add_test(benchmark -test)
 

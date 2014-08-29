@@ -61,7 +61,7 @@ else()
   link_directories(${LLVM_LIBRARY_DIRS})
   add_definitions(${LLVM_DEFINITIONS})
 endif()
-llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES bitwriter ipo interpreter mcjit native vectorize)
+llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES bitwriter ipo interpreter mcjit native support vectorize)
 set(LIKELY_LIBS ${LIKELY_LIBS} ${REQ_LLVM_LIBRARIES})
 
 option(LIKELY_IO "Build Likely with matrix I/O" ON)
