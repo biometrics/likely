@@ -66,7 +66,7 @@ Language Reference
 ### Prefix Notation
 Likely is a Lisp-like language accepting fully-parenthesized Polish prefix notation, or _s-expressions_:
 
-```lisp
+```likely
 (operator operand_1 operand_2 ... operand_N)
 ```
 
@@ -98,7 +98,7 @@ $ likely -ast "1:+ 2"
 #### ; _Comment_
 The semicolon and all following tokens through the end of the line are excluded from the AST.
 
-```lisp
+```likely
 (this is some code) ; This is a comment
 (+ 1 2) ; One plus two is three
 (sq 3)  ; Three squared is nine
@@ -108,7 +108,7 @@ The semicolon and all following tokens through the end of the line are excluded 
 The expression to the left-hand-side (LHS) of the period is inserted as the first operand of the expression to the right-hand-side (RHS) of the period.
 Compose is _left-associative_.
 
-```lisp
+```likely
 x.f     ; Parsed as (f x)
 x.f.g   ; Parsed as (g (f x))
 x.(f y) ; Parsed as (f x y)
@@ -128,7 +128,7 @@ The expression to the LHS of the colon is the first operand.
 The second expression to the RHS of the colon is the second operand.
 Infix is _right-associative_.
 
-```lisp
+```likely
 x:f y       ; Parsed as (f x y)
 z:g x:f y   ; Parsed as (g z (f x y))
 x:f (g y)   ; Parsed as (f x (g y))
@@ -149,7 +149,7 @@ No surprises here, arithmetic operators have their standard meanings.
 ##### (+ _lhs_ _rhs_)
 The addition of _lhs_ by _rhs_.
 
-```lisp
+```likely
 (+ 2 2)     ; Evaluates to 4
 (+ 1.8 2)   ; Evaluates to 3.8
 (+ 1.8 2.1) ; Evaluates to 3.9
@@ -160,7 +160,7 @@ The addition of _lhs_ by _rhs_.
 The subtraction of _lhs_ by _rhs_.
 If _rhs_ is not provided then the negation of _lhs_.
 
-```lisp
+```likely
 (- 3 2)     ; Evaluates to 1
 (- 2 3)     ; Evaluates to -1
 (- 3.2 2)   ; Evaluates to 1.2
@@ -173,7 +173,7 @@ If _rhs_ is not provided then the negation of _lhs_.
 ##### (* _lhs_ _rhs_)
 The multiplication of _lhs_ by _rhs_.
 
-```lisp
+```likely
 (* 1 2)     ; Evaluates to 2
 (* 1.3 2)   ; Evaluates to 2.6
 (* 1.4 2.1) ; Evaluates to 2.94
@@ -183,7 +183,7 @@ The multiplication of _lhs_ by _rhs_.
 ##### (/ _lhs_ _rhs_)
 The division of _lhs_ by _rhs_.
 
-```lisp
+```likely
 (/ 4 2)     ; Evaluates to 2
 (/ 4.5 2)   ; Evaluates to 2.25
 (/ 4.5 2.5) ; Evaluates to 1.8
@@ -196,7 +196,7 @@ _C_ mathematical functions.
 ##### (sqrt _x_)
 The square root of _x_.
 
-```lisp
+```likely
 (sqrt 2)   ; Evaluates to 1.41421
 (sqrt 2.1) ; Evaluates to 1.44914
 (sqrt 4)   ; Evaluates to 2
@@ -206,7 +206,7 @@ The square root of _x_.
 ##### (sin _x_)
 The sine of an angle of _x_ radians.
 
-```lisp
+```likely
 (sin 0)         ; Evaluates to 0
 (sin 1.570796)  ; Evaluates to 1
 (sin -1.570796) ; Evaluates to -1
@@ -216,7 +216,7 @@ The sine of an angle of _x_ radians.
 ##### (cos _x_)
 The cosine of an angle of _x_ radians.
 
-```lisp
+```likely
 (cos 0)        ; Evaluates to 1
 (cos 3.141593) ; Evaluates to -1
 (cos 1.047198) ; Evaluates to 0.5
@@ -225,7 +225,7 @@ The cosine of an angle of _x_ radians.
 ##### (pow _base_ _exponent_)
 The _base_ raised to the power _exponent_.
 
-```lisp
+```likely
 (pow 2 3)     ; Evaluates to 8
 (pow 2 -3)    ; Evaluates to 0.125
 (pow -2 3)    ; Evaluates to -8
@@ -238,7 +238,7 @@ The _base_ raised to the power _exponent_.
 ##### (exp _x_)
 The base-e exponential function of _x_, which is e raised to the power _x_.
 
-```lisp
+```likely
 (exp 0)   ; Evaluates to 1
 (exp 1)   ; Evaluates to 2.71828
 (exp 1.5) ; Evaluates to 4.48169
@@ -247,7 +247,7 @@ The base-e exponential function of _x_, which is e raised to the power _x_.
 ##### (exp2 _x_)
 The base-2 exponential function of _x_, which is 2 raised to the power _x_.
 
-```lisp
+```likely
 (exp2 0)   ; Evaluates to 1
 (exp2 1)   ; Evaluates to 2
 (exp2 0.5) ; Evaluates to 1.41421
@@ -257,7 +257,7 @@ The base-2 exponential function of _x_, which is 2 raised to the power _x_.
 ##### (log _x_)
 The natural logarithm of _x_.
 
-```lisp
+```likely
 (log 1)        ; Evaluates to 0
 (log 2.718281) ; Evaluates to 1
 (log 7.389056) ; Evaluates to 2
@@ -267,7 +267,7 @@ The natural logarithm of _x_.
 ##### (log10 _x_)
 The common (base-10) logarithm of _x_.
 
-```lisp
+```likely
 (log10 1)   ; Evaluates to 0
 (log10 10)  ; Evaluates to 1
 (log10 100) ; Evaluates to 2
@@ -277,7 +277,7 @@ The common (base-10) logarithm of _x_.
 ##### (log2 _x_)
 The binary (base-2) logarithm of _x_.
 
-```lisp
+```likely
 (log2 1)   ; Evaluates to 0
 (log2 2)   ; Evaluates to 1
 (log2 4)   ; Evaluates to 2
@@ -288,7 +288,7 @@ The binary (base-2) logarithm of _x_.
 ##### (copysign _x_ _y_)
 A value with the magnitude of _x_ and the sign of _y_.
 
-```lisp
+```likely
 (copysign 3 -1.1) ; Evaluates to -3
 (copysign -4.3 2) ; Evaluates to 4.3
 ```
@@ -296,7 +296,7 @@ A value with the magnitude of _x_ and the sign of _y_.
 ##### (floor _x_)
 The largest integral value that is not greater than _x_.
 
-```lisp
+```likely
 (floor 2.3)  ; Evaluates to 2
 (floor 3.8)  ; Evaluates to 3
 (floor 5.5)  ; Evaluates to 5
@@ -308,7 +308,7 @@ The largest integral value that is not greater than _x_.
 ##### (ceil _x_)
 The smallest integral value that is not less than _x_.
 
-```lisp
+```likely
 (ceil 2.3)  ; Evaluates to 3
 (ceil 3.8)  ; Evaluates to 4
 (ceil 5.5)  ; Evaluates to 6
@@ -320,7 +320,7 @@ The smallest integral value that is not less than _x_.
 ##### (trunc _x_)
 The nearest integral value that is not larger in magnitude than _x_.
 
-```lisp
+```likely
 (trunc 2.3)  ; Evaluates to 2
 (trunc 3.8)  ; Evaluates to 3
 (trunc 5.5)  ; Evaluates to 5
@@ -332,7 +332,7 @@ The nearest integral value that is not larger in magnitude than _x_.
 ##### (round _x_)
 The integral value that is nearest to _x_, with halfway cases rounded away from zero.
 
-```lisp
+```likely
 (round 2.3)  ; Evaluates to 2
 (round 3.8)  ; Evaluates to 4
 (round 5.5)  ; Evaluates to 6
