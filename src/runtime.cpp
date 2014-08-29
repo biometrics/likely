@@ -37,13 +37,15 @@ using namespace std;
 
 void likely_assert(bool condition, const char *format, ...)
 {
-    if (condition) return;
+    if (condition)
+        return;
+
     va_list ap;
     va_start(ap, format);
     fprintf(stderr, "Likely ");
     vfprintf(stderr, format, ap);
     fprintf(stderr, "\n");
-    abort();
+    exit(EXIT_FAILURE);
 }
 
 size_t likely_get(size_t type, size_t mask) { return type & mask; }
