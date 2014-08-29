@@ -265,7 +265,7 @@ test_demo(gabor_wavelet)
 test_demo(hello_world)
 test_file(likely "")
 test_demo(mandelbrot_set)
-test_file(matrix_io "")
+test_file(matrix_io "Compression Ratio: 7.31714")
 test_file(tutorial "")
 
 # Test algorithms

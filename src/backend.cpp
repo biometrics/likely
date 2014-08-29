@@ -2501,10 +2501,9 @@ class printExpression : public Operator
     static GenericValue lle_X_likely_print_va(FunctionType *, const vector<GenericValue> &Args)
     {
         vector<likely_const_mat> mv;
-        for (size_t i=1; i<Args.size()-1; i++)
+        for (size_t i=0; i<Args.size()-1; i++)
             mv.push_back((likely_const_mat) Args[i].PointerVal);
-        likely_print_n(mv.data(), mv.size());
-        return GenericValue(0);
+        return GenericValue(likely_print_n(mv.data(), mv.size()));
     }
 };
 LIKELY_REGISTER(print)
