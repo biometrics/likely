@@ -11,9 +11,6 @@ int main()
 {
     const int elements = 1000;
     likely_const_mat input = likely_new(likely_matrix_f32, 1, elements, 1, 1, NULL);
-    likely_const_mat str = likely_type_to_string(input->type);
-    printf("Input type: %s\n", str->data);
-    likely_release(str);
 
     printf("Initializing input...\n");
     srand((unsigned int) time(NULL));

@@ -92,6 +92,14 @@ LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, voi
 LIKELY_EXPORT bool likely_throw(likely_const_ast where, const char *what);
 LIKELY_EXPORT likely_mat likely_error_to_string(likely_error error);
 
+// Type conversion
+LIKELY_EXPORT likely_mat likely_type_to_string(likely_type type);
+LIKELY_EXPORT likely_mat likely_type_field_to_string(likely_type type);
+LIKELY_EXPORT likely_type likely_type_from_string(const char *str);
+LIKELY_EXPORT likely_type likely_type_field_from_string(const char *str, bool *ok);
+LIKELY_EXPORT likely_type likely_type_from_value(double value);
+LIKELY_EXPORT likely_type likely_type_from_types(likely_type lhs, likely_type rhs);
+
 /** @} */ // end of frontend
 
 #ifdef __cplusplus
