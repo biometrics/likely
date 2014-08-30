@@ -14,16 +14,19 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include <algorithm>
-#include <cassert>
-#include <cmath>
-#include <limits>
-#include <sstream>
-#include <vector>
+#include <assert.h>
+#include <math.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "likely/runtime.h"
 
-using namespace std;
+// Until Microsoft implements isnan
+#if _MSC_VER
+#define isnan _isnan
+#endif
 
 void likely_assert(bool condition, const char *format, ...)
 {
@@ -41,7 +44,7 @@ void likely_assert(bool condition, const char *format, ...)
 size_t likely_get(size_t type, size_t mask) { return type & mask; }
 void likely_set(size_t *type, size_t value, size_t mask) { *type &= ~mask; *type |= value & mask; }
 bool likely_get_bool(size_t type, size_t mask) { return (type & mask) != 0; }
-void likely_set_bool(size_t *type, bool value, size_t mask) { value ? *type |= mask : *type &= ~mask; }
+void likely_set_bool(size_t *type, bool value, size_t mask) { if (value) *type |= mask; else *type &= ~mask; }
 
 size_t likely_depth(likely_type type) { return likely_get(type, likely_matrix_depth); }
 void likely_set_depth(likely_type *type, size_t depth) { likely_set(type, depth, likely_matrix_depth); }
@@ -86,8 +89,8 @@ likely_size likely_bytes(likely_const_mat m)
 likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data)
 {
     likely_mat m;
-    const size_t dataBytes = (uint64_t(likely_depth(type)) * channels * columns * rows * frames + 7) / 8;
-    const size_t bytes = sizeof(likely_matrix) + dataBytes;
+    const size_t dataBytes = (((uint64_t)likely_depth(type)) * channels * columns * rows * frames + 7) / 8;
+    const size_t bytes = sizeof(struct likely_matrix) + dataBytes;
     m = (likely_mat) malloc(bytes);
     m->bytes = bytes;
     m->ref_count = 1;
@@ -123,16 +126,27 @@ likely_mat likely_scalar_n(likely_type type, double *values, size_t n)
 
 likely_mat likely_scalar_va(likely_type type, double value, ...)
 {
-    vector<double> values;
+    int count = 0;
+    double *values;
+    {
+        va_list ap;
+        va_start(ap, value);
+        while (!isnan(value))
+            count++;
+        va_end(ap);
+        values = (double*) alloca(count * sizeof(double));
+    }
+
+    int i = 0;
     va_list ap;
     va_start(ap, value);
-    while (!std::isnan(value)) {
-        values.push_back(value);
+    while (!isnan(value)) {
+        values[i++] = value;
         value = va_arg(ap, double);
     }
     va_end(ap);
 
-    return likely_scalar_n(type, values.data(), values.size());
+    return likely_scalar_n(type, values, count);
 }
 
 likely_mat likely_string(const char *str)
@@ -152,39 +166,39 @@ likely_mat likely_copy(likely_const_mat m)
 
 likely_mat likely_retain(likely_const_mat m)
 {
-    if (m) ++const_cast<likely_mat>(m)->ref_count;
-    return const_cast<likely_mat>(m);
+    if (m) ++((likely_mat) m)->ref_count;
+    return (likely_mat) m;
 }
 
 void likely_release(likely_const_mat m)
 {
-    if (!m || --const_cast<likely_mat>(m)->ref_count) return;
+    if (!m || --((likely_mat) m)->ref_count) return;
     free((void*) m);
 }
 
 double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
 {
-    if (!m) return numeric_limits<double>::quiet_NaN();
+    if (!m) return NAN;
     const likely_size columnStep = m->channels;
     const likely_size rowStep = m->columns * columnStep;
     const likely_size frameStep = m->rows * rowStep;
     const likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
 
     switch (likely_data(m->type)) {
-      case likely_matrix_u8:  return double((( uint8_t const*)m->data)[index]);
-      case likely_matrix_u16: return double(((uint16_t const*)m->data)[index]);
-      case likely_matrix_u32: return double(((uint32_t const*)m->data)[index]);
-      case likely_matrix_u64: return double(((uint64_t const*)m->data)[index]);
-      case likely_matrix_i8:  return double(((  int8_t const*)m->data)[index]);
-      case likely_matrix_i16: return double((( int16_t const*)m->data)[index]);
-      case likely_matrix_i32: return double((( int32_t const*)m->data)[index]);
-      case likely_matrix_i64: return double((( int64_t const*)m->data)[index]);
-      case likely_matrix_f32: return double(((   float const*)m->data)[index]);
-      case likely_matrix_f64: return double(((  double const*)m->data)[index]);
-      case likely_matrix_u1:  return double((((uint8_t const*)m->data)[index/8] & (1 << index%8)) != 0);
+      case likely_matrix_u8:  return (double) (( uint8_t const*) m->data)[index];
+      case likely_matrix_u16: return (double) ((uint16_t const*)m->data)[index];
+      case likely_matrix_u32: return (double) ((uint32_t const*)m->data)[index];
+      case likely_matrix_u64: return (double) ((uint64_t const*)m->data)[index];
+      case likely_matrix_i8:  return (double) ((  int8_t const*)m->data)[index];
+      case likely_matrix_i16: return (double) (( int16_t const*)m->data)[index];
+      case likely_matrix_i32: return (double) (( int32_t const*)m->data)[index];
+      case likely_matrix_i64: return (double) (( int64_t const*)m->data)[index];
+      case likely_matrix_f32: return (double) ((   float const*)m->data)[index];
+      case likely_matrix_f64: return (double) ((  double const*)m->data)[index];
+      case likely_matrix_u1:  return (double) ((((uint8_t const*)m->data)[index/8] & (1 << index%8)) != 0);
       default: assert(!"likely_element unsupported type");
     }
-    return numeric_limits<double>::quiet_NaN();
+    return NAN;
 }
 
 void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t)
@@ -207,7 +221,7 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
       case likely_matrix_f32: ((   float*)m->data)[index] = (   float)value; break;
       case likely_matrix_f64: ((  double*)m->data)[index] = (  double)value; break;
       case likely_matrix_u1:  if (value == 0) (((uint8_t*)m->data)[index/8] &= ~(1 << index%8));
-                            else              (((uint8_t*)m->data)[index/8] |=  (1 << index%8)); break;
+                              else            (((uint8_t*)m->data)[index/8] |=  (1 << index%8)); break;
       default: assert(!"likely_set_element unsupported type");
     }
 }

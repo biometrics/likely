@@ -40,7 +40,7 @@ endif()
 
 # Build runtime-only library
 add_definitions(-DLIKELY_LIBRARY)
-add_library(likely_runtime STATIC runtime_common.cpp runtime_stdthread.cpp)
+add_library(likely_runtime STATIC runtime_common.c runtime_stdthread.cpp)
 
 # Build common object files
 add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
