@@ -15,20 +15,10 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <algorithm>
-#include <atomic>
 #include <cassert>
 #include <cmath>
-#include <condition_variable>
-#include <cstdarg>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
 #include <limits>
-#include <mutex>
-#include <string>
 #include <sstream>
-#include <thread>
 #include <vector>
 
 #include "likely/runtime.h"
@@ -324,74 +314,4 @@ likely_type likely_type_from_types(likely_type lhs, likely_type rhs)
     likely_type result = lhs | rhs;
     likely_set_depth(&result, max(likely_depth(lhs), likely_depth(rhs)));
     return result;
-}
-
-// Parallel synchronization
-static condition_variable worker;
-static mutex work;
-static atomic<bool> *workers = NULL;
-static size_t numWorkers = 0;
-
-// Parallel data
-static likely_thunk currentThunk = NULL;
-static void *thunkArgs = NULL;
-static likely_size thunkSize = 0;
-
-static void executeWorker(size_t id)
-{
-    // There are hardware_concurrency-1 helper threads and the main thread with id = 0
-    const likely_size step = (thunkSize+numWorkers-1)/numWorkers;
-    const likely_size start = id * step;
-    const likely_size stop = std::min((id+1)*step, thunkSize);
-    if (start >= stop) return;
-    currentThunk(thunkArgs, start, stop);
-}
-
-static void workerThread(size_t id)
-{
-    while (true) {
-        {
-            unique_lock<mutex> lock(work);
-            workers[id] = false;
-            while (!workers[id])
-                worker.wait(lock);
-        }
-
-        executeWorker(id);
-    }
-}
-
-void likely_fork(likely_thunk thunk, void *args, likely_size size)
-{
-    static mutex forkLock;
-    lock_guard<mutex> lockFork(forkLock);
-
-    // Spin up the worker threads
-    if (workers == NULL) {
-        numWorkers = std::max((int)thread::hardware_concurrency(), 1);
-        workers = new atomic<bool>[numWorkers];
-        for (size_t i = 1; i < numWorkers; i++) {
-            workers[i] = true;
-            thread(workerThread, i).detach();
-            while (workers[i]) {} // Wait for the worker to initialize
-        }
-    }
-
-    currentThunk = thunk;
-    thunkArgs = args;
-    thunkSize = size;
-
-    {
-        unique_lock<mutex> lock(work);
-        for (size_t i = 1; i < numWorkers; i++) {
-            assert(!workers[i]);
-            workers[i] = true;
-        }
-    }
-
-    worker.notify_all();
-    executeWorker(0);
-
-    for (size_t i = 1; i < numWorkers; i++)
-        while (workers[i]) {} // Wait for the worker to finish
 }
