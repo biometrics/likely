@@ -285,73 +285,10 @@ private:
     }
 };
 
-class FloatingTest : public Test
-{
-    Mat computeBaseline(const Mat &src) const
-    {
-        if ((src.depth() == CV_32F) || (src.depth() == CV_64F))
-            return computeFloatingBaseline(src);
-        Mat floating;
-        src.convertTo(floating, CV_32F);
-        return computeFloatingBaseline(floating);
-    }
-
-    virtual Mat computeFloatingBaseline(const Mat &src) const = 0;
-};
-
-class ScalarFloatingTest : public FloatingTest
-{
-    Mat computeFloatingBaseline(const Mat &src) const
-    {
-        Mat dst(src.rows, src.cols, src.depth());
-        const int elements = src.rows * src.cols;
-        if (src.depth() == CV_32F) compute32f(reinterpret_cast<const float*>(src.data), reinterpret_cast<float*>(dst.data), elements);
-        else                       compute64f(reinterpret_cast<const double*>(src.data), reinterpret_cast<double*>(dst.data), elements);
-        return dst;
-    }
-
-    virtual void compute32f(const float *src, float *dst, int n) const = 0;
-    virtual void compute64f(const double *src, double *dst, int n) const = 0;
-};
-
-#define MATH_TEST(FUNC)                                            \
-class FUNC##Test : public ScalarFloatingTest {                     \
-    const char *function() const { return "(=> a a." #FUNC ")" ; } \
-    void compute32f(const float *src, float *dst, int n) const     \
-        { for (int i=0; i<n; i++) dst[i] = FUNC##f(src[i]); }      \
-    void compute64f(const double *src, double *dst, int n) const   \
-        { for (int i=0; i<n; i++) dst[i] = FUNC(src[i]); }         \
-};                                                                 \
-
 class fmaTest : public Test {
     const char *function() const { return "(=> a (+ (* a.f (a.type 2)) (a.type 3)))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3); return dst; }
 };
-
-class copysignTest : public Test {
-    vector<likely_type> types() const
-    {
-        vector<likely_type> types;
-        types.push_back(likely_matrix_f32);
-        types.push_back(likely_matrix_f64);
-        return types;
-    }
-    const char *function() const { return "(=> a (a.type a.(copysign -1)))"; }
-    Mat computeBaseline(const Mat &src) const
-    {
-        Mat dst(src.rows, src.cols, src.depth());
-        const int elements = src.rows * src.cols;
-        if (src.depth() == CV_32F) compute32f(reinterpret_cast<const float*>(src.data), reinterpret_cast<float*>(dst.data), elements);
-        else                       compute64f(reinterpret_cast<const double*>(src.data), reinterpret_cast<double*>(dst.data), elements);
-        return dst;
-    }
-    void compute32f(const float *src, float *dst, int n) const { for (int i=0; i<n; i++) dst[i] = copysignf(src[i], -1); }
-    void compute64f(const double *src, double *dst, int n) const { for (int i=0; i<n; i++) dst[i] = copysign(src[i], -1); }
-};
-
-MATH_TEST(floor)
-MATH_TEST(trunc)
-MATH_TEST(round)
 
 class thresholdTest : public Test {
     const char *function() const { return "(=> a (a.type (threshold-binary a 127 1)))"; }
@@ -371,10 +308,6 @@ int main(int argc, char *argv[])
     } else {
         printf("Function \tType \tSize \tExecution \tSpeedup\n");
         fmaTest().run();
-        copysignTest().run();
-        floorTest().run();
-        truncTest().run();
-        roundTest().run();
         thresholdTest().run();
     }
 
