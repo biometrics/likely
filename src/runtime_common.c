@@ -23,17 +23,17 @@
 
 #include "likely/runtime.h"
 
-// Until Microsoft implements isnan
+// Until Microsoft implements alloca
 #if _MSC_VER
-#define isnan _isnan
+#define alloca _alloca
 #endif
 
 void likely_assert(bool condition, const char *format, ...)
 {
+    va_list ap;
     if (condition)
         return;
 
-    va_list ap;
     va_start(ap, format);
     fprintf(stderr, "Likely ");
     vfprintf(stderr, format, ap);
@@ -178,11 +178,14 @@ void likely_release(likely_const_mat m)
 
 double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
 {
-    if (!m) return NAN;
-    const likely_size columnStep = m->channels;
-    const likely_size rowStep = m->columns * columnStep;
-    const likely_size frameStep = m->rows * rowStep;
-    const likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
+    likely_size columnStep, rowStep, frameStep, index;
+    if (!m)
+        return NAN;
+
+    columnStep = m->channels;
+    rowStep = m->columns * columnStep;
+    frameStep = m->rows * rowStep;
+    index = t*frameStep + y*rowStep + x*columnStep + c;
 
     switch (likely_data(m->type)) {
       case likely_matrix_u8:  return (double) (( uint8_t const*) m->data)[index];
@@ -203,11 +206,14 @@ double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_s
 
 void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t)
 {
-    if (!m) return;
-    const likely_size columnStep = m->channels;
-    const likely_size rowStep = m->columns * columnStep;
-    const likely_size frameStep = m->rows * rowStep;
-    const likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
+    likely_size columnStep, rowStep, frameStep, index;
+    if (!m)
+        return;
+
+    columnStep = m->channels;
+    rowStep = m->columns * columnStep;
+    frameStep = m->rows * rowStep;
+    index = t*frameStep + y*rowStep + x*columnStep + c;
 
     switch (likely_data(m->type)) {
       case likely_matrix_u8:  (( uint8_t*)m->data)[index] = ( uint8_t)value; break;
