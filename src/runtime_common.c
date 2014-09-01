@@ -131,11 +131,13 @@ likely_mat likely_scalar_va(likely_type type, double value, ...)
     {
         va_list ap;
         va_start(ap, value);
-        while (!isnan(value))
+        while (!isnan(value)) {
             count++;
+            value = va_arg(ap, double);
+        }
         va_end(ap);
-        values = (double*) alloca(count * sizeof(double));
     }
+    values = (double*) alloca(count * sizeof(double));
 
     int i = 0;
     va_list ap;
