@@ -2871,7 +2871,7 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
 
 likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback repl_callback, void *context)
 {
-    if (!ast)
+    if (!ast || (ast->type != likely_ast_list))
         return NULL;
 
     likely_env env = likely_retain_env(parent);
