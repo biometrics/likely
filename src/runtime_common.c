@@ -126,29 +126,20 @@ likely_mat likely_scalar_n(likely_type type, double *values, size_t n)
 
 likely_mat likely_scalar_va(likely_type type, double value, ...)
 {
-    int count = 0;
-    double *values;
-    {
-        va_list ap;
-        va_start(ap, value);
-        while (!isnan(value)) {
-            count++;
-            value = va_arg(ap, double);
-        }
-        va_end(ap);
-    }
-    values = (double*) alloca(count * sizeof(double));
-
+    double *values = NULL;
     int i = 0;
+
     va_list ap;
     va_start(ap, value);
     while (!isnan(value)) {
+        if (i % 2 == 0)
+            values = realloc(values, 2 * (i == 0 ? 1 : i) * sizeof(double));
         values[i++] = value;
         value = va_arg(ap, double);
     }
     va_end(ap);
 
-    return likely_scalar_n(type, values, count);
+    return likely_scalar_n(type, values, i);
 }
 
 likely_mat likely_string(const char *str)
