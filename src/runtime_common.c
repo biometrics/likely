@@ -23,11 +23,6 @@
 
 #include "likely/runtime.h"
 
-// Until Microsoft implements alloca
-#if _MSC_VER
-#define alloca _alloca
-#endif
-
 void likely_assert(bool condition, const char *format, ...)
 {
     va_list ap;
