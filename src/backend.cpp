@@ -2193,16 +2193,17 @@ private:
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
 };
 
-struct EvaluatedExpression : public ScopedExpression
+struct EvaluatedExpression : public Operator
 {
     likely_env result;
 
     EvaluatedExpression(likely_env env, likely_const_ast ast)
-        : ScopedExpression(env, ast)
-
     {
+        const bool offline = likely_offline(env->type);
+        likely_set_offline(&env->type, false);
         result = likely_eval(const_cast<likely_ast>(ast), env);
         assert(!likely_definition(result->type) && result->result);
+        likely_set_offline(&env->type, offline);
     }
 
     ~EvaluatedExpression()
@@ -2220,6 +2221,12 @@ struct EvaluatedExpression : public ScopedExpression
 private:
     static int UID() { return __LINE__; }
     int uid() const { return UID(); }
+
+    bool safeEquals(likely_const_expr) const
+    {
+        // TODO: compare `result`
+        return false;
+    }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
@@ -2835,6 +2842,8 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
 
     if (likely_definition(env->type)) {
         Builder(env).expression(ast); // Returns NULL
+    } else if (likely_offline(env->type)) {
+        // Do nothing, evaluating expressions in an offline environment is a no-op.
     } else {
         likely_const_ast lambda = likely_ast_from_string("(-> () (scalar <ast>))", false);
         likely_release_ast(lambda->atoms[0]->atoms[2]->atoms[1]); // <ast>
