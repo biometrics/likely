@@ -33,13 +33,12 @@ endif()
 option(LIKELY_PROFILING "Build Likely for code profiling" OFF)
 if(${LIKELY_PROFILING})
   if(NOT VS)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-omit-frame-pointer")
+    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -fno-omit-frame-pointer")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer")
   endif()
 endif()
 
 # Build runtime-only library
-add_definitions(-DLIKELY_LIBRARY)
 add_library(likely_runtime STATIC runtime_common.c runtime_stdthread.cpp)
 
 # Build common object files
@@ -48,29 +47,28 @@ add_library(likely_object OBJECT ${LIKELY_SRC})
 add_dependencies(likely_object likely_runtime ${LIKELY_LIBS} ${LIKELY_DEPENDS})
 
 # Build shared library
-add_library(likely SHARED $<TARGET_OBJECTS:likely_object> ${LIKELY_MISC})
-set_target_properties(likely PROPERTIES VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
-                                        SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR})
-target_link_libraries(likely PRIVATE likely_runtime ${LIKELY_LIBS})
-install(TARGETS likely ARCHIVE DESTINATION lib
-                       LIBRARY DESTINATION lib
-                       RUNTIME DESTINATION bin)
+add_library(likely_shared SHARED $<TARGET_OBJECTS:likely_object> ${LIKELY_MISC})
+set_target_properties(likely_shared PROPERTIES VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
+                                               SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}
+                                               OUTPUT_NAME likely)
+target_link_libraries(likely_shared PRIVATE likely_runtime ${LIKELY_LIBS})
+install(TARGETS likely_shared ARCHIVE DESTINATION lib
+                              LIBRARY DESTINATION lib
+                              RUNTIME DESTINATION bin)
 
 # Build static library
 add_library(likely_static STATIC $<TARGET_OBJECTS:likely_object>)
-if(VS)
-  set_target_properties(likely_static PROPERTIES OUTPUT_NAME liblikely) # Avoid name collision
-else()
-  set_target_properties(likely_static PROPERTIES OUTPUT_NAME likely)
-endif()
+set_target_properties(likely_static PROPERTIES OUTPUT_NAME likely)
 target_link_libraries(likely_static likely_runtime ${LIKELY_LIBS})
 install(TARGETS likely_static ARCHIVE DESTINATION lib)
 
+# Export symbols
+set_target_properties(likely_runtime likely_object likely_shared likely_static PROPERTIES COMPILE_DEFINITIONS LIKELY_LIBRARY)
+
 # Build repl-shell/interpreter/compiler
-add_executable(like like.cpp)
-set_target_properties(like PROPERTIES OUTPUT_NAME likely)
-target_link_libraries(like likely_static)
-install(TARGETS like RUNTIME DESTINATION bin)
+add_executable(likely like.cpp)
+target_link_libraries(likely likely_static)
+install(TARGETS likely RUNTIME DESTINATION bin)
 
 if(${LIKELY_IO})
   # Benchmark
@@ -111,14 +109,14 @@ function(test_ast EXPR VALUE)
   string(MAKE_C_IDENTIFIER "${EXPR}" NAME)
   add_test(NAME "${NAME}"
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND like -ast "${EXPR}" -assert "${VALUE}")
+           COMMAND likely -ast "${EXPR}" -assert "${VALUE}")
 endfunction()
 
 function(test_expr EXPR VALUE)
   string(MAKE_C_IDENTIFIER "${EXPR}" NAME)
   add_test(NAME "${NAME}"
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND like "${EXPR}" -assert "${VALUE}")
+           COMMAND likely "${EXPR}" -assert "${VALUE}")
 endfunction()
 
 # List in the order they occur in standard.ll
@@ -279,13 +277,13 @@ test_expr("(threshold-to-zero-inverse 0.6 0.5)" 0)
 function(test_demo FILE)
   add_test(NAME ${FILE}
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND like library/${FILE}.ll -show -assert "data/demo/${FILE}.jpg")
+           COMMAND likely library/${FILE}.ll -show -assert "data/demo/${FILE}.jpg")
 endfunction()
 
 function(test_file FILE VALUE)
   add_test(NAME ${FILE}
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND like library/${FILE}.ll -assert "${VALUE}")
+           COMMAND likely library/${FILE}.ll -assert "${VALUE}")
 endfunction()
 
 # List alphabetically
