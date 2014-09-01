@@ -640,14 +640,18 @@ struct ScopedExpression : public Operator
 {
     likely_env env;
     likely_const_ast ast;
+    bool manageEnv;
 
-    ScopedExpression(likely_env env, likely_const_ast ast)
-        : env(likely_retain_env(env)), ast(likely_retain_ast(ast)) {}
+    ScopedExpression(likely_env env, likely_const_ast ast, bool manageEnv = true)
+        : env(manageEnv ? likely_retain_env(env) : env),
+          ast(likely_retain_ast(ast)),
+          manageEnv(manageEnv) {}
 
     ~ScopedExpression()
     {
         likely_release_ast(ast);
-        likely_release_env(env);
+        if (manageEnv)
+            likely_release_env(env);
     }
 
 private:
@@ -2178,7 +2182,7 @@ LIKELY_REGISTER_EXPRESSION(kernel, "=>")
 struct Definition : public ScopedExpression
 {
     Definition(likely_env env, likely_const_ast ast)
-        : ScopedExpression(env, ast) {}
+        : ScopedExpression(env, ast, false) {}
 
 private:
     int uid() const { return __LINE__; }
