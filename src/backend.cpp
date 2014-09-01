@@ -2185,7 +2185,11 @@ private:
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
+        likely_env env = this->env;
+        swap(builder.env, env);
         unique_ptr<const likely_expression> op(builder.expression(this->ast));
+        swap(builder.env, env);
+
         return op.get() ? op->evaluate(builder, ast) : NULL;
     }
 
