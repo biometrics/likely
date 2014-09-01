@@ -570,16 +570,18 @@ private:
 struct JITFunction : public likely_function, public Symbol
 {
     ExecutionEngine *EE = NULL;
+    likely_env env;
     likely_res resources;
     hash_code hash = 0;
     const vector<likely_type> parameters;
 
-    JITFunction(const string &name, likely_const_ast ast, likely_const_env env, const vector<likely_type> &parameters, bool interpreter, bool arrayCC);
+    JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool interpreter, bool arrayCC);
 
     ~JITFunction()
     {
         resources->module = NULL;
         likely_release_resources(resources);
+        likely_release_env(env);
         delete EE; // owns module
     }
 
@@ -688,7 +690,7 @@ struct likely_virtual_table : public ScopedExpression
     vector<unique_ptr<JITFunction>> functions;
 
     likely_virtual_table(likely_env env, likely_const_ast ast)
-        : ScopedExpression(env, ast), n(length(ast->atoms[1])) {}
+        : ScopedExpression(env, ast, false), n(length(ast->atoms[1])) {}
 
 private:
     int uid() const { return __LINE__; }
@@ -2377,7 +2379,7 @@ class importExpression : public Operator
 LIKELY_REGISTER(import)
 
 JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool interpreter, bool arrayCC)
-    : resources(new likely_resources(true)), parameters(parameters)
+    : env(likely_new_env(parent)), resources(new likely_resources(true)), parameters(parameters)
 {
     function = NULL;
     ref_count = 1;
@@ -2393,12 +2395,10 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     }
 
     {
-        Builder builder(likely_new_env(parent));
-        swap(builder.env->resources, resources);
+        env->resources = resources;
+        Builder builder(env);
         unique_ptr<const likely_expression> result(builder.expression(ast));
         unique_ptr<const Symbol> expr(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC));
-        swap(builder.env->resources, resources);
-        likely_release_env(builder.env);
         value = expr ? expr->value : NULL;
         type = expr ? expr->type : likely_type(likely_matrix_void);
     }
