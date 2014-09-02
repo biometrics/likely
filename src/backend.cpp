@@ -1164,9 +1164,9 @@ class elementsExpression : public SimpleUnaryOperator
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
-        static FunctionType *functionType = FunctionType::get(builder.nativeInt(), builder.multiDimension(), false);
         Function *likelyElements = builder.module()->getFunction("likely_elements");
         if (!likelyElements) {
+            FunctionType *functionType = FunctionType::get(builder.nativeInt(), builder.multiDimension(), false);
             likelyElements = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_elements", builder.module());
             likelyElements->setCallingConv(CallingConv::C);
             likelyElements->setDoesNotAlias(1);
@@ -1184,9 +1184,9 @@ class bytesExpression : public SimpleUnaryOperator
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
-        static FunctionType *functionType = FunctionType::get(builder.nativeInt(), builder.multiDimension(), false);
         Function *likelyBytes = builder.module()->getFunction("likely_bytes");
         if (!likelyBytes) {
+            FunctionType *functionType = FunctionType::get(builder.nativeInt(), builder.multiDimension(), false);
             likelyBytes = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_bytes", builder.module());
             likelyBytes->setCallingConv(CallingConv::C);
             likelyBytes->setDoesNotAlias(1);
@@ -1235,14 +1235,10 @@ class newExpression : public Operator
 public:
     static CallInst *createCall(Builder &builder, Value *type, Value *channels, Value *columns, Value *rows, Value *frames, Value *data)
     {
-        static FunctionType *functionType = NULL;
-        if (functionType == NULL) {
-            Type *params[] = { builder.nativeInt(), builder.nativeInt(), builder.nativeInt(), builder.nativeInt(), builder.nativeInt(), Type::getInt8PtrTy(builder.getContext()) };
-            functionType = FunctionType::get(builder.multiDimension(), params, false);
-        }
-
         Function *likelyNew = builder.module()->getFunction("likely_new");
         if (!likelyNew) {
+            Type *params[] = { builder.nativeInt(), builder.nativeInt(), builder.nativeInt(), builder.nativeInt(), builder.nativeInt(), Type::getInt8PtrTy(builder.getContext()) };
+            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, false);
             likelyNew = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_new", builder.module());
             likelyNew->setCallingConv(CallingConv::C);
             likelyNew->setDoesNotAlias(0);
@@ -1270,18 +1266,14 @@ class scalarExpression : public UnaryOperator
         if (argExpr->value && (argExpr->value->getType() == builder.multiDimension()))
             return argExpr;
 
-        static FunctionType *functionType = NULL;
-        if (functionType == NULL) {
-            Type *params[] = { builder.nativeInt(), Type::getDoubleTy(builder.getContext()) };
-            functionType = FunctionType::get(builder.multiDimension(), params, true);
-            sys::DynamicLibrary::AddSymbol("lle_X_likely_scalar_va", (void*) lle_X_likely_scalar_va);
-        }
-
         Function *likelyScalar = builder.module()->getFunction("likely_scalar_va");
         if (!likelyScalar) {
+            Type *params[] = { builder.nativeInt(), Type::getDoubleTy(builder.getContext()) };
+            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, true);
             likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar_va", builder.module());
             likelyScalar->setCallingConv(CallingConv::C);
             likelyScalar->setDoesNotAlias(0);
+            sys::DynamicLibrary::AddSymbol("lle_X_likely_scalar_va", (void*) lle_X_likely_scalar_va);
         }
 
         vector<Value*> args;
@@ -1321,9 +1313,9 @@ class stringExpression : public SimpleUnaryOperator
 public:
     static CallInst *createCall(Builder &builder, Value *string)
     {
-        static FunctionType *functionType = FunctionType::get(builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()), false);
         Function *likelyString = builder.module()->getFunction("likely_string");
         if (!likelyString) {
+            FunctionType *functionType = FunctionType::get(builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()), false);
             likelyString = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_string", builder.module());
             likelyString->setCallingConv(CallingConv::C);
             likelyString->setDoesNotAlias(0);
@@ -1348,9 +1340,9 @@ class copyExpression : public SimpleUnaryOperator
 public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
-        static FunctionType *functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), false);
         Function *likelyCopy = builder.module()->getFunction("likely_copy");
         if (!likelyCopy) {
+            FunctionType *functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), false);
             likelyCopy = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_copy", builder.module());
             likelyCopy->setCallingConv(CallingConv::C);
             likelyCopy->setDoesNotAlias(0);
@@ -1375,9 +1367,9 @@ class retainExpression : public SimpleUnaryOperator
 public:
     static CallInst *createCall(Builder &builder, Value *m)
     {
-        static FunctionType *functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), false);
         Function *likelyRetain = builder.module()->getFunction("likely_retain");
         if (!likelyRetain) {
+            FunctionType *functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), false);
             likelyRetain = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_retain", builder.module());
             likelyRetain->setCallingConv(CallingConv::C);
             likelyRetain->setDoesNotAlias(0);
@@ -1402,9 +1394,9 @@ class releaseExpression : public SimpleUnaryOperator
     // This is not publicly accessible because cleanup() is the only time release statements should be inserted
     static CallInst *createCall(Builder &builder, Value *m)
     {
-        static FunctionType *functionType = FunctionType::get(Type::getVoidTy(builder.getContext()), builder.multiDimension(), false);
         Function *likelyRelease = builder.module()->getFunction("likely_release");
         if (!likelyRelease) {
+            FunctionType *functionType = FunctionType::get(Type::getVoidTy(builder.getContext()), builder.multiDimension(), false);
             likelyRelease = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_release", builder.module());
             likelyRelease->setCallingConv(CallingConv::C);
             likelyRelease->setDoesNotAlias(1);
@@ -1544,15 +1536,11 @@ private:
             likely_vtable vtable = new likely_virtual_table(builder.env, ast);
             builder.env->resources->expressions.push_back(vtable);
 
-            static PointerType *vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
-            static FunctionType *likelyDynamicType = NULL;
-            if (likelyDynamicType == NULL) {
-                Type *params[] = { vTableType, PointerType::get(builder.multiDimension(), 0) };
-                likelyDynamicType = FunctionType::get(builder.multiDimension(), params, false);
-            }
-
+            PointerType *vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
             Function *likelyDynamic = builder.module()->getFunction("likely_dynamic");
             if (!likelyDynamic) {
+                Type *params[] = { vTableType, PointerType::get(builder.multiDimension(), 0) };
+                FunctionType *likelyDynamicType = FunctionType::get(builder.multiDimension(), params, false);
                 likelyDynamic = Function::Create(likelyDynamicType, GlobalValue::ExternalLinkage, "likely_dynamic", builder.module());
                 likelyDynamic->setCallingConv(CallingConv::C);
                 likelyDynamic->setDoesNotAlias(0);
@@ -2492,19 +2480,15 @@ class printExpression : public Operator
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        static FunctionType *functionType = NULL;
-        if (functionType == NULL) {
-            functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), true);
-            sys::DynamicLibrary::AddSymbol("lle_X_likely_print_va", (void*) lle_X_likely_print_va);
-        }
-
         Function *likelyPrint = builder.module()->getFunction("likely_print_va");
         if (!likelyPrint) {
+            FunctionType *functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), true);
             likelyPrint = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_print_va", builder.module());
             likelyPrint->setCallingConv(CallingConv::C);
             likelyPrint->setDoesNotAlias(0);
             likelyPrint->setDoesNotAlias(1);
             likelyPrint->setDoesNotCapture(1);
+            sys::DynamicLibrary::AddSymbol("lle_X_likely_print_va", (void*) lle_X_likely_print_va);
         }
 
         vector<Value*> rawArgs;
@@ -2545,14 +2529,10 @@ class readExpression : public SimpleUnaryOperator
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
-        static FunctionType *functionType = NULL;
-        if (functionType == NULL) {
-            Type *params[] = { Type::getInt8PtrTy(builder.getContext()), builder.nativeInt() };
-            functionType = FunctionType::get(builder.multiDimension(), params, false);
-        }
-
         Function *likelyRead = builder.module()->getFunction("likely_read");
         if (!likelyRead) {
+            Type *params[] = { Type::getInt8PtrTy(builder.getContext()), builder.nativeInt() };
+            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, false);
             likelyRead = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_read", builder.module());
             likelyRead->setCallingConv(CallingConv::C);
             likelyRead->setDoesNotAlias(0);
@@ -2571,13 +2551,10 @@ class writeExpression : public SimpleBinaryOperator
 
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const
     {
-        static FunctionType *functionType = NULL;
-        if (functionType == NULL) {
-            Type *params[] = { builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()) };
-            functionType = FunctionType::get(builder.multiDimension(), params, false);
-        }
         Function *likelyWrite = builder.module()->getFunction("likely_write");
         if (!likelyWrite) {
+            Type *params[] = { builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()) };
+            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, false);
             likelyWrite = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_write", builder.module());
             likelyWrite->setCallingConv(CallingConv::C);
             likelyWrite->setDoesNotAlias(0);
@@ -2598,9 +2575,9 @@ class decodeExpression : public SimpleUnaryOperator
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
-        static FunctionType *functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), false);
         Function *likelyDecode = builder.module()->getFunction("likely_decode");
         if (!likelyDecode) {
+            FunctionType *functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), false);
             likelyDecode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_decode", builder.module());
             likelyDecode->setCallingConv(CallingConv::C);
             likelyDecode->setDoesNotAlias(0);
@@ -2619,13 +2596,10 @@ class encodeExpression : public SimpleBinaryOperator
 
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const
     {
-        static FunctionType *functionType = NULL;
-        if (functionType == NULL) {
-            Type *params[] = { builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()) };
-            functionType = FunctionType::get(builder.multiDimension(), params, false);
-        }
         Function *likelyEncode = builder.module()->getFunction("likely_encode");
         if (!likelyEncode) {
+            Type *params[] = { builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()) };
+            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, false);
             likelyEncode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_encode", builder.module());
             likelyEncode->setCallingConv(CallingConv::C);
             likelyEncode->setDoesNotAlias(0);
@@ -2646,13 +2620,10 @@ class renderExpression : public SimpleUnaryOperator
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
-        static FunctionType *functionType = NULL;
-        if (functionType == NULL) {
-            Type *params[] = { builder.multiDimension(), Type::getDoublePtrTy(builder.getContext()), Type::getDoublePtrTy(builder.getContext()) };
-            functionType = FunctionType::get(builder.multiDimension(), params, false);
-        }
         Function *likelyRender = builder.module()->getFunction("likely_render");
         if (!likelyRender) {
+            Type *params[] = { builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()) };
+            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, false);
             likelyRender = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_render", builder.module());
             likelyRender->setCallingConv(CallingConv::C);
             likelyRender->setDoesNotAlias(0);
@@ -2675,13 +2646,10 @@ class showExpression : public SimpleUnaryOperator
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
-        static FunctionType *functionType = NULL;
-        if (functionType == NULL) {
-            Type *params[] = { builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()) };
-            functionType = FunctionType::get(Type::getVoidTy(builder.getContext()), params, false);
-        }
         Function *likelyShow = builder.module()->getFunction("likely_show");
         if (!likelyShow) {
+            Type *params[] = { builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()) };
+            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, false);
             likelyShow = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_show", builder.module());
             likelyShow->setCallingConv(CallingConv::C);
             likelyShow->setDoesNotAlias(1);
@@ -2702,11 +2670,9 @@ class md5Expression : public SimpleUnaryOperator
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
-        static FunctionType *functionType = NULL;
-        if (functionType == NULL)
-            functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), false);
         Function *likelyMd5 = builder.module()->getFunction("likely_md5");
         if (!likelyMd5) {
+            FunctionType *functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), false);
             likelyMd5 = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_md5", builder.module());
             likelyMd5->setCallingConv(CallingConv::C);
             likelyMd5->setDoesNotAlias(0);
