@@ -2224,6 +2224,8 @@ struct EvaluatedExpression : public Operator
             likely_release_ast(ast);
             return evaluated;
         }).share();
+
+        result.get(); // TODO: remove when ready to test async
     }
 
     ~EvaluatedExpression()
@@ -2239,7 +2241,7 @@ struct EvaluatedExpression : public Operator
     }
 
 private:
-    mutable shared_future<likely_env> result;
+    shared_future<likely_env> result;
 
     static int UID() { return __LINE__; }
     int uid() const { return UID(); }
