@@ -54,6 +54,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <sstream>
 
@@ -81,6 +82,7 @@ struct MatType
 
     static MatType get(likely_type likely)
     {
+        lock_guard<mutex> locker(lutLock);
         auto result = likelyLUT.find(likely);
         if (result != likelyLUT.end())
             return result->second;
@@ -111,6 +113,7 @@ struct MatType
 
     static MatType get(Type *llvm)
     {
+        lock_guard<mutex> locker(lutLock);
         auto result = llvmLUT.find(llvm);
         likely_assert(result != llvmLUT.end(), "invalid pointer for type lookup");
         return result->second;
@@ -147,12 +150,14 @@ struct MatType
 private:
     static map<likely_type, MatType> likelyLUT;
     static map<Type*, MatType> llvmLUT;
+    static mutex lutLock;
     Type *llvm;
     likely_type likely;
 };
 MatType MatType::MultiDimension;
 map<likely_type, MatType> MatType::likelyLUT;
 map<Type*, MatType> MatType::llvmLUT;
+mutex MatType::lutLock;
 
 struct Builder;
 
@@ -2207,13 +2212,13 @@ struct EvaluatedExpression : public Operator
 {
     likely_env result;
 
-    EvaluatedExpression(likely_env env, likely_const_ast ast)
+    EvaluatedExpression(likely_env parent, likely_const_ast ast)
     {
-        const bool offline = likely_offline(env->type);
+        likely_env env = likely_new_env(parent);
         likely_set_offline(&env->type, false);
         result = likely_eval(const_cast<likely_ast>(ast), env);
         assert(!likely_definition(result->type) && result->result);
-        likely_set_offline(&env->type, offline);
+        likely_release_env(env);
     }
 
     ~EvaluatedExpression()
