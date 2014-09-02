@@ -51,6 +51,7 @@
 #include <llvm/Transforms/Vectorize.h>
 #include <cstdarg>
 #include <functional>
+#include <future>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -2210,30 +2211,35 @@ private:
 
 struct EvaluatedExpression : public Operator
 {
-    likely_env result;
-
     EvaluatedExpression(likely_env parent, likely_const_ast ast)
     {
         likely_env env = likely_new_env(parent);
-        likely_set_offline(&env->type, false);
-        result = likely_eval(const_cast<likely_ast>(ast), env);
-        assert(!likely_definition(result->type) && result->result);
-        likely_release_env(env);
+        likely_retain_ast(ast);
+        result = async(launch::deferred, [=] {
+            likely_set_offline(&env->type, false);
+            likely_env evaluated = likely_eval(const_cast<likely_ast>(ast), env);
+            assert(!likely_definition(evaluated->type) && evaluated->result);
+            likely_release_env(env);
+            likely_release_ast(ast);
+            return evaluated;
+        }).share();
     }
 
     ~EvaluatedExpression()
     {
-        likely_release_env(result);
+        likely_release_env(result.get());
     }
 
     static likely_const_env getResult(likely_const_expr expr)
     {
         if (!expr || (expr->uid() != UID()))
             return NULL;
-        return likely_retain_env(reinterpret_cast<const EvaluatedExpression*>(expr)->result);
+        return likely_retain_env(reinterpret_cast<const EvaluatedExpression*>(expr)->result.get());
     }
 
 private:
+    mutable shared_future<likely_env> result;
+
     static int UID() { return __LINE__; }
     int uid() const { return UID(); }
 
@@ -2250,7 +2256,7 @@ private:
         (void) builder;
         (void) ast;
 
-        likely_const_mat m = result->result;
+        likely_const_mat m = result.get()->result;
         if (likely_elements(m) == 1) {
             // Promote to scalar
             return new likely_expression(constant(likely_element(m, 0, 0, 0, 0), m->type));
