@@ -313,6 +313,7 @@ struct likely_resources
             initializeTransformUtils(Registry);
             initializeInstCombine(Registry);
             initializeTarget(Registry);
+            initialized = true;
         }
 
         nativeInt = Type::getIntNTy(context, unsigned(likely_depth(likely_matrix_native)));
