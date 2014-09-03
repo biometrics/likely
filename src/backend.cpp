@@ -1897,17 +1897,6 @@ private:
 
     likely_const_expr evaluateLambda(Builder &builder, const vector<likely_const_expr> &srcs) const
     {
-        likely_type kernelType = likely_matrix_void;
-        if (!srcs.empty())
-            likely_set_execution(&kernelType, likely_execution(*srcs.front()));
-
-        vector<pair<likely_const_ast,likely_const_ast>> pairs;
-        getPairs(getMetadata(), pairs);
-
-        for (const auto &pair : pairs)
-            if (!strcmp("type", pair.first->atom) && (pair.second->type != likely_ast_list))
-                kernelType |= likely_type_field_from_string(pair.second->atom, NULL);
-
         const likely_const_ast args = ast->atoms[1];
         assert(srcs.size() == (args->type == likely_ast_list) ? args->num_atoms : 1);
         if (args->type == likely_ast_list) {
@@ -1916,12 +1905,23 @@ private:
         } else {
             builder.define(args->atom, srcs[0]);
         }
-
         BasicBlock *entry = builder.GetInsertBlock();
-        Value *dstChannels = getDimensions(builder, pairs, "channels", srcs, &kernelType);
-        Value *dstColumns  = getDimensions(builder, pairs, "columns" , srcs, &kernelType);
-        Value *dstRows     = getDimensions(builder, pairs, "rows"    , srcs, &kernelType);
-        Value *dstFrames   = getDimensions(builder, pairs, "frames"  , srcs, &kernelType);
+
+        vector<pair<likely_const_ast,likely_const_ast>> pairs;
+        getPairs(getMetadata(), pairs);
+
+        likely_type executionType = likely_matrix_void;
+        if (!srcs.empty())
+            likely_set_execution(&executionType, likely_execution(*srcs.front()));
+        for (const auto &pair : pairs)
+            if (!strcmp("type", pair.first->atom) && (pair.second->type != likely_ast_list))
+                executionType |= likely_type_field_from_string(pair.second->atom, NULL);
+
+        likely_type dimensionsType = likely_matrix_void;
+        Value *dstChannels = getDimensions(builder, pairs, "channels", srcs, &dimensionsType);
+        Value *dstColumns  = getDimensions(builder, pairs, "columns" , srcs, &dimensionsType);
+        Value *dstRows     = getDimensions(builder, pairs, "rows"    , srcs, &dimensionsType);
+        Value *dstFrames   = getDimensions(builder, pairs, "frames"  , srcs, &dimensionsType);
 
         // Allocate and initialize memory for the destination matrix
         BasicBlock *allocation = BasicBlock::Create(builder.getContext(), "allocation", builder.GetInsertBlock()->getParent());
@@ -1934,7 +1934,7 @@ private:
         PHINode *kernelRows     = builder.CreatePHI(builder.nativeInt(), 1);
         PHINode *kernelFrames   = builder.CreatePHI(builder.nativeInt(), 1);
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(kernelChannels, kernelColumns), kernelRows), kernelFrames);
-        likely_expression dst(newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, builder.nullData()), kernelType);
+        likely_expression dst(newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, builder.nullData()), dimensionsType | executionType);
         builder.undefineAll(args, false);
 
         // Load scalar values
@@ -1955,9 +1955,9 @@ private:
         builder.SetInsertPoint(computation);
 
         Metadata metadata;
-        if      (likely_heterogeneous(kernelType)) metadata = generateHeterogeneous(builder, args, thunkSrcs, dst, kernelSize);
-        else if (likely_parallel(kernelType))      metadata = generateParallel     (builder, args, thunkSrcs, dst, kernelSize);
-        else                                       metadata = generateSerial       (builder, args, thunkSrcs, dst, kernelSize);
+        if      (likely_heterogeneous(executionType)) metadata = generateHeterogeneous(builder, args, thunkSrcs, dst, kernelSize);
+        else if (likely_parallel(executionType))      metadata = generateParallel     (builder, args, thunkSrcs, dst, kernelSize);
+        else                                          metadata = generateSerial       (builder, args, thunkSrcs, dst, kernelSize);
 
         results->addIncoming(builder.constant(metadata.results), entry);
         dstType->addIncoming(builder.typeType(dst), entry);
