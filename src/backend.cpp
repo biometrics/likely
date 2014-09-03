@@ -602,7 +602,6 @@ struct JITFunction : public likely_function, public Symbol
     ExecutionEngine *EE = NULL;
     likely_env env;
     likely_ctx ctx;
-    hash_code hash = 0;
     const vector<likely_type> parameters;
 
     JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool interpreter, bool arrayCC);
@@ -2475,7 +2474,6 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
 //        ctx->module->dump();
     }
 
-    hash = TheJITFunctionCache.currentHash;
     EE->finalizeObject();
     function = (void*) EE->getFunctionAddress(name);
 }
