@@ -49,6 +49,8 @@ bool likely_floating(likely_type type) { return likely_get_bool(type, likely_mat
 void likely_set_floating(likely_type *type, bool floating) { likely_set_bool(type, floating, likely_matrix_floating); }
 likely_type likely_data(likely_type type) { return likely_get(type, likely_matrix_data); }
 void likely_set_data(likely_type *type, likely_type data) { likely_set(type, data, likely_matrix_data); }
+bool likely_saturation(likely_type type) { return likely_get_bool(type, likely_matrix_saturation); }
+void likely_set_saturation(likely_type *type, bool saturation) { likely_set_bool(type, saturation, likely_matrix_saturation); }
 bool likely_multi_channel(likely_type type) { return likely_get_bool(type, likely_matrix_multi_channel); }
 void likely_set_multi_channel(likely_type *type, bool multi_channel) { likely_set_bool(type, multi_channel, likely_matrix_multi_channel); }
 bool likely_multi_column(likely_type type) { return likely_get_bool(type, likely_matrix_multi_column); }
@@ -59,8 +61,6 @@ bool likely_multi_frame(likely_type type) { return likely_get_bool(type, likely_
 void likely_set_multi_frame(likely_type *type, bool multi_frame) { likely_set_bool(type, multi_frame, likely_matrix_multi_frame); }
 likely_type likely_multi_dimension(likely_type type) { return likely_get(type, likely_matrix_multi_dimension); }
 void likely_set_multi_dimension(likely_type *type, likely_type multi_dimension) { likely_set(type, multi_dimension, likely_matrix_multi_dimension); }
-bool likely_saturation(likely_type type) { return likely_get_bool(type, likely_matrix_saturation); }
-void likely_set_saturation(likely_type *type, bool saturation) { likely_set_bool(type, saturation, likely_matrix_saturation); }
 size_t likely_magic(likely_type type) { return likely_get(type, likely_matrix_magic); }
 void likely_set_magic(likely_type *type, size_t magic) { likely_set(type, magic, likely_matrix_magic); }
 

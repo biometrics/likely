@@ -56,13 +56,11 @@ typedef uintptr_t likely_size;
  * | depth         | 8    | 0x000000FF | likely_depth         | likely_set_depth         |
  * | signed        | 1    | 0x00000100 | likely_signed        | likely_set_signed        |
  * | floating      | 1    | 0x00000200 | likely_floating      | likely_set_floating      |
- * | parallel      | 1    | 0x00000400 | likely_parallel      | likely_set_parallel      |
- * | heterogeneous | 1    | 0x00000800 | likely_heterogeneous | likely_set_heterogeneous |
+ * | saturation    | 1    | 0x00000400 | likely_saturation    | likely_set_saturation    |
  * | multi-channel | 1    | 0x00001000 | likely_multi_channel | likely_set_multi_channel |
  * | multi-column  | 1    | 0x00002000 | likely_multi_column  | likely_set_multi_column  |
  * | multi-row     | 1    | 0x00004000 | likely_multi_row     | likely_set_multi_row     |
  * | multi-frame   | 1    | 0x00008000 | likely_multi_frame   | likely_set_multi_frame   |
- * | saturation    | 1    | 0x00010000 | likely_saturation    | likely_set_saturation    |
  * | reserved      | 15   | 0xFFFE0000 | N/A                  | N/A                      |
  */
 typedef likely_size likely_type;
@@ -86,12 +84,12 @@ enum likely_type_field
     likely_matrix_f16 = 16 | likely_matrix_floating | likely_matrix_signed,
     likely_matrix_f32 = 32 | likely_matrix_floating | likely_matrix_signed,
     likely_matrix_f64 = 64 | likely_matrix_floating | likely_matrix_signed,
+    likely_matrix_saturation      = 0x00000400,
     likely_matrix_multi_channel   = 0x00001000,
     likely_matrix_multi_column    = 0x00002000,
     likely_matrix_multi_row       = 0x00004000,
     likely_matrix_multi_frame     = 0x00008000,
     likely_matrix_multi_dimension = likely_matrix_multi_channel | likely_matrix_multi_column | likely_matrix_multi_row | likely_matrix_multi_frame,
-    likely_matrix_saturation      = 0x00010000,
     likely_matrix_magic           = 0xFF000000,
     likely_matrix_matrix          = 0x66000000,
     likely_matrix_native    = sizeof(likely_size)*8,
@@ -157,6 +155,8 @@ LIKELY_EXPORT bool likely_floating(likely_type type);
 LIKELY_EXPORT void likely_set_floating(likely_type *type, bool floating);
 LIKELY_EXPORT likely_type likely_data(likely_type type);
 LIKELY_EXPORT void likely_set_data(likely_type *type, likely_type data);
+LIKELY_EXPORT bool likely_saturation(likely_type type);
+LIKELY_EXPORT void likely_set_saturation(likely_type *type, bool saturation);
 LIKELY_EXPORT bool likely_multi_channel(likely_type type);
 LIKELY_EXPORT void likely_set_multi_channel(likely_type *type, bool multi_channel);
 LIKELY_EXPORT bool likely_multi_column(likely_type type);
@@ -167,8 +167,6 @@ LIKELY_EXPORT bool likely_multi_frame(likely_type type);
 LIKELY_EXPORT void likely_set_multi_frame(likely_type *type, bool multi_frame);
 LIKELY_EXPORT likely_type likely_multi_dimension(likely_type type);
 LIKELY_EXPORT void likely_set_multi_dimension(likely_type *type, likely_type multi_dimension);
-LIKELY_EXPORT bool likely_saturation(likely_type type);
-LIKELY_EXPORT void likely_set_saturation(likely_type *type, bool saturation);
 LIKELY_EXPORT size_t likely_magic(likely_type type);
 LIKELY_EXPORT void likely_set_magic(likely_type *type, size_t magic);
 
