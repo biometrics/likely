@@ -2222,26 +2222,41 @@ private:
 
 struct EvaluatedExpression : public Operator
 {
-    EvaluatedExpression(likely_env parent, likely_const_ast ast)
+    class FutureExpression
     {
-        likely_env env = likely_new_env(parent);
-        likely_retain_ast(ast);
-        result = async(launch::deferred, [=] {
+        likely_env env;
+        likely_const_ast ast;
+        mutable likely_env result = NULL;
+        mutable future<likely_env> futureResult;
+
+    public:
+        FutureExpression(likely_env parent, likely_const_ast ast)
+            : env(likely_new_env(parent)), ast(likely_retain_ast(ast))
+        {
             likely_set_offline(&env->type, false);
-            likely_env evaluated = likely_eval(const_cast<likely_ast>(ast), env);
-            assert(!likely_definition(evaluated->type) && evaluated->result);
-            likely_release_env(env);
-            likely_release_ast(ast);
-            return evaluated;
-        }).share();
+            futureResult = async(launch::deferred, [=] { return likely_eval(const_cast<likely_ast>(ast), env); });
+            get(); // TODO: remove when ready to test async
+        }
 
-        result.get(); // TODO: remove when ready to test async
-    }
+        ~FutureExpression()
+        {
+            likely_release_env(get());
+        }
 
-    ~EvaluatedExpression()
-    {
-        likely_release_env(result.get());
-    }
+        likely_env get() const
+        {
+            if (futureResult.valid()) {
+                result = futureResult.get();
+                likely_release_env(env);
+                likely_release_ast(ast);
+            }
+
+            return result;
+        }
+    } result;
+
+    EvaluatedExpression(likely_env parent, likely_const_ast ast)
+        : result(parent, ast) {}
 
     static likely_const_env getResult(likely_const_expr expr)
     {
@@ -2251,8 +2266,6 @@ struct EvaluatedExpression : public Operator
     }
 
 private:
-    shared_future<likely_env> result;
-
     static int UID() { return __LINE__; }
     int uid() const { return UID(); }
 
