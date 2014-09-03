@@ -308,25 +308,29 @@ struct likely_context
 
     static TargetMachine *getTargetMachine(bool JIT)
     {
-        static const string processTriple = sys::getProcessTriple();
         static const Target *TheTarget = NULL;
+        static TargetOptions TO;
+        static string targetTriple;
+        static mutex lock;
+
+        lock_guard<mutex> locker(lock);
         if (TheTarget == NULL) {
             string error;
-            TheTarget = TargetRegistry::lookupTarget(processTriple, error);
+            TheTarget = TargetRegistry::lookupTarget(sys::getProcessTriple(), error);
             likely_assert(TheTarget != NULL, "target lookup failed with error: %s", error.c_str());
-        }
 
-        TargetOptions TO;
-        TO.LessPreciseFPMADOption = true;
-        TO.UnsafeFPMath = true;
-        TO.NoInfsFPMath = true;
-        TO.NoNaNsFPMath = true;
-        TO.AllowFPOpFusion = FPOpFusion::Fast;
+            TO.LessPreciseFPMADOption = true;
+            TO.UnsafeFPMath = true;
+            TO.NoInfsFPMath = true;
+            TO.NoNaNsFPMath = true;
+            TO.AllowFPOpFusion = FPOpFusion::Fast;
 
-        string targetTriple = sys::getProcessTriple();
+            targetTriple = sys::getProcessTriple();
 #ifdef _WIN32
-        if (JIT) targetTriple += "-elf";
+            if (JIT)
+                targetTriple += "-elf";
 #endif // _WIN32
+        }
 
         TargetMachine *TM = TheTarget->createTargetMachine(targetTriple,
                                                            sys::getHostCPUName(),
