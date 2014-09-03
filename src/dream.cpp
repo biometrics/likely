@@ -175,6 +175,15 @@ public slots:
         eval();
     }
 
+    void setExecution(const QString &execution)
+    {
+        likely_release_env(root);
+        root = likely_new_env_jit();
+        likely_set_parallel(&root->type, execution == "Parallel");
+        previousSource.clear(); // clear cache
+        eval();
+    }
+
     void commandsMenu(QAction *a)
     {
         if (a->text().startsWith("Increment") ||
@@ -696,11 +705,13 @@ class MainWindow : public QMainWindow
     QSettings settings;
     Source *source;
     Printer *printer;
+    QComboBox *execution;
 
 public:
     MainWindow(QApplication &application)
         : source(new Source())
         , printer(new Printer())
+        , execution(new QComboBox())
     {
         QMenu *fileMenu = new QMenu("File");
         QAction *newSource = new QAction("New...", fileMenu);
@@ -746,7 +757,9 @@ public:
         menuBar->addMenu(fileMenu);
         menuBar->addMenu(commandsMenu);
 
+        execution->addItems(QStringList() << "Serial" << "Parallel");
         QStatusBar *statusBar = new QStatusBar();
+        statusBar->addPermanentWidget(execution);
         statusBar->setSizeGripEnabled(true);
 
         application.installEventFilter(CommandMode::get());
@@ -765,6 +778,7 @@ public:
         setWindowTitle("Likely");
         resize(800, WindowWidth);
 
+        connect(execution, SIGNAL(activated(QString)), source, SLOT(setExecution(QString)));
         connect(printer, SIGNAL(newDefinitions(QString)), source, SLOT(setHeader(QString)));
         connect(fileMenu, SIGNAL(triggered(QAction*)), this, SLOT(fileMenu(QAction*)));
         connect(commandsMenu, SIGNAL(triggered(QAction*)), source, SLOT(commandsMenu(QAction*)));
