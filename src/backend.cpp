@@ -207,9 +207,6 @@ if (!EXPR.get()) return NULL;                                              \
 struct likely_resources
 {
     LLVMContext &context;
-    IntegerType *nativeInt;
-    Type *multiDimension;
-
     Module *module;
     vector<likely_const_expr> expressions;
     size_t ref_count = 1;
@@ -237,11 +234,14 @@ struct likely_resources
             initialized = true;
         }
 
-        nativeInt = Type::getIntNTy(context, unsigned(likely_depth(likely_matrix_native)));
-        multiDimension = get(likely_matrix_multi_dimension);
         module = new Module("likely_module", context);
         likely_assert(module != NULL, "failed to create module");
         if (native) module->setTargetTriple(sys::getProcessTriple());
+    }
+
+    IntegerType *nativeInt()
+    {
+        return Type::getIntNTy(context, unsigned(likely_matrix_native));
     }
 
     Type *get(likely_type likely)
@@ -256,13 +256,13 @@ struct likely_resources
         } else {
             likely_mat str = likely_type_to_string(likely);
             llvm = PointerType::getUnqual(StructType::create(str->data,
-                                                             nativeInt, // bytes
-                                                             nativeInt, // ref_count
-                                                             nativeInt, // channels
-                                                             nativeInt, // columns
-                                                             nativeInt, // rows
-                                                             nativeInt, // frames
-                                                             nativeInt, // type
+                                                             nativeInt(), // bytes
+                                                             nativeInt(), // ref_count
+                                                             nativeInt(), // channels
+                                                             nativeInt(), // columns
+                                                             nativeInt(), // rows
+                                                             nativeInt(), // frames
+                                                             nativeInt(), // type
                                                              ArrayType::get(Type::getInt8Ty(context), 0), // data
                                                              NULL));
             likely_release(str);
@@ -519,8 +519,8 @@ struct Builder : public IRBuilder<>
         }
     }
 
-    IntegerType *nativeInt() const { return env->resources->nativeInt; }
-    Type *multiDimension() const { return env->resources->multiDimension; }
+    IntegerType *nativeInt() { return env->resources->nativeInt(); }
+    Type *multiDimension() { return get(likely_matrix_multi_dimension); }
     Module *module() { return env->resources->module; }
     Type *get(likely_type likely) { return env->resources->get(likely); }
     likely_type get(Type *llvm) { return env->resources->get(llvm); }
@@ -575,10 +575,10 @@ struct JITFunction : public likely_function, public Symbol
 
     ~JITFunction()
     {
-        resources->module = NULL;
-        likely_release_resources(resources);
-        likely_release_env(env);
         delete EE; // owns module
+        resources->module = NULL;
+        likely_release_env(env);
+        likely_release_resources(resources); // Delete the context _after_ deleting the module
     }
 
 private:
