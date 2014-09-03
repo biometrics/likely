@@ -76,34 +76,6 @@ struct MatType
     operator ArrayRef<Type*>() const { return ArrayRef<Type*>((Type**)&llvm, 1); }
     operator likely_type() const { return likely; }
 
-    static Type *scalar(LLVMContext &context, likely_type type, bool pointer = false)
-    {
-        const size_t bits = likely_depth(type);
-        const bool floating = likely_floating(type);
-        if (floating) {
-            if      (bits == 16) return pointer ? Type::getHalfPtrTy(context)   : Type::getHalfTy(context);
-            else if (bits == 32) return pointer ? Type::getFloatPtrTy(context)  : Type::getFloatTy(context);
-            else if (bits == 64) return pointer ? Type::getDoublePtrTy(context) : Type::getDoubleTy(context);
-        } else {
-            if      (bits == 1)  return pointer ? Type::getInt1PtrTy(context)  : (Type*)Type::getInt1Ty(context);
-            else if (bits == 8)  return pointer ? Type::getInt8PtrTy(context)  : (Type*)Type::getInt8Ty(context);
-            else if (bits == 16) return pointer ? Type::getInt16PtrTy(context) : (Type*)Type::getInt16Ty(context);
-            else if (bits == 32) return pointer ? Type::getInt32PtrTy(context) : (Type*)Type::getInt32Ty(context);
-            else if (bits == 64) return pointer ? Type::getInt64PtrTy(context) : (Type*)Type::getInt64Ty(context);
-        }
-        likely_assert(false, "ty invalid matrix bits: %d and floating: %d", bits, floating);
-        return NULL;
-    }
-
-    static bool isMat(Type *type)
-    {
-        // This is safe because matricies are the only struct types created by the backend
-        if (PointerType *ptr = dyn_cast<PointerType>(type))
-            if (dyn_cast<StructType>(ptr->getElementType()))
-                return true;
-        return false;
-    }
-
 private:
     Type *llvm;
     likely_type likely;
@@ -228,6 +200,15 @@ struct likely_expression
     {
         return (ast->type == likely_ast_list) ? ast->num_atoms : 1;
     }
+
+    static bool isMat(Type *type)
+    {
+        // This is safe because matricies are the only struct types created by the backend
+        if (PointerType *ptr = dyn_cast<PointerType>(type))
+            if (dyn_cast<StructType>(ptr->getElementType()))
+                return true;
+        return false;
+    }
 };
 
 namespace {
@@ -286,7 +267,7 @@ struct likely_resources
 
         Type *llvm;
         if (!likely_multi_dimension(likely) && likely_depth(likely)) {
-            llvm = MatType::scalar(context, likely);
+            llvm = scalar(likely);
         } else {
             likely_mat str = likely_type_to_string(likely);
             llvm = PointerType::getUnqual(StructType::create(str->data,
@@ -320,6 +301,25 @@ struct likely_resources
         } else {
             return get(llvm->getIntegerBitWidth());
         }
+    }
+
+    Type *scalar(likely_type type, bool pointer = false)
+    {
+        const size_t bits = likely_depth(type);
+        const bool floating = likely_floating(type);
+        if (floating) {
+            if      (bits == 16) return pointer ? Type::getHalfPtrTy(context)   : Type::getHalfTy(context);
+            else if (bits == 32) return pointer ? Type::getFloatPtrTy(context)  : Type::getFloatTy(context);
+            else if (bits == 64) return pointer ? Type::getDoublePtrTy(context) : Type::getDoubleTy(context);
+        } else {
+            if      (bits == 1)  return pointer ? Type::getInt1PtrTy(context)  : (Type*)Type::getInt1Ty(context);
+            else if (bits == 8)  return pointer ? Type::getInt8PtrTy(context)  : (Type*)Type::getInt8Ty(context);
+            else if (bits == 16) return pointer ? Type::getInt16PtrTy(context) : (Type*)Type::getInt16Ty(context);
+            else if (bits == 32) return pointer ? Type::getInt32PtrTy(context) : (Type*)Type::getInt32Ty(context);
+            else if (bits == 64) return pointer ? Type::getInt64PtrTy(context) : (Type*)Type::getInt64Ty(context);
+        }
+        likely_assert(false, "ty invalid matrix bits: %d and floating: %d", bits, floating);
+        return NULL;
     }
 
     static TargetMachine *getTargetMachine(bool JIT)
@@ -496,7 +496,7 @@ struct Builder : public IRBuilder<>
     likely_expression columns (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_column (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 3), "columns" ), likely_matrix_native) : one(); }
     likely_expression rows    (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_row    (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 4), "rows"    ), likely_matrix_native) : one(); }
     likely_expression frames  (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_frame  (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 5), "frames"  ), likely_matrix_native) : one(); }
-    likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(CreatePointerCast(CreateStructGEP(*m, 7), MatType::scalar(getContext(), *m, true)), likely_data(*m)); }
+    likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(CreatePointerCast(CreateStructGEP(*m, 7), env->resources->scalar(*m, true)), likely_data(*m)); }
 
     void steps(likely_const_expr matrix, Value *channelStep, Value **columnStep, Value **rowStep, Value **frameStep)
     {
@@ -514,7 +514,7 @@ struct Builder : public IRBuilder<>
             if (likely_floating(type))
                 type = likely_expression::validFloatType(type);
         }
-        Type *dstType = MatType::scalar(getContext(), type);
+        Type *dstType = env->resources->scalar(type);
         return likely_expression(CreateCast(CastInst::getCastOpcode(*x, likely_signed(*x), dstType, likely_signed(type)), *x, dstType), type);
     }
 
@@ -1267,7 +1267,7 @@ class scalarExpression : public UnaryOperator
         if (!argExpr)
             return NULL;
 
-        if (argExpr->value && MatType::isMat(argExpr->value->getType()))
+        if (argExpr->value && isMat(argExpr->value->getType()))
             return argExpr;
 
         Function *likelyScalar = builder.module()->getFunction("likely_scalar_va");
@@ -1420,7 +1420,7 @@ public:
             for (BasicBlock::iterator I = BB->begin(), IE = BB->end(); I != IE; ++I)
                if (CallInst *call = dyn_cast<CallInst>(I))
                    if (Function *function = call->getCalledFunction())
-                       if (MatType::isMat(function->getReturnType()) && (call != ret))
+                       if (isMat(function->getReturnType()) && (call != ret))
                            releaseExpression::createCall(builder, call);
     }
 };
@@ -1926,7 +1926,7 @@ private:
         vector<likely_const_expr> thunkSrcs = srcs;
         vector<unique_ptr<const likely_expression>> scalars;
         for (likely_const_expr &thunkSrc : thunkSrcs)
-            if (!likely_multi_dimension(*thunkSrc) && MatType::isMat(thunkSrc->value->getType())) {
+            if (!likely_multi_dimension(*thunkSrc) && isMat(thunkSrc->value->getType())) {
                 thunkSrc = new likely_expression(builder.CreateLoad(builder.CreateGEP(builder.data(thunkSrc), builder.zero())), *thunkSrc);
                 scalars.push_back(unique_ptr<const likely_expression>(thunkSrc));
             }
