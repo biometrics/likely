@@ -311,6 +311,7 @@ int main(int argc, char *argv[])
         thresholdTest().run();
     }
 
+    likely_shutdown();
     return EXIT_SUCCESS;
 }
 

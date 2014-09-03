@@ -169,5 +169,6 @@ int main(int argc, char *argv[])
     }
 
     likely_release_env(parent);
+    likely_shutdown();
     return EXIT_SUCCESS;
 }

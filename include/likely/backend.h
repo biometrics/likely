@@ -134,6 +134,7 @@ LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *
 
 // Miscellaneous
 LIKELY_EXPORT likely_mat likely_md5(likely_const_mat buffer);
+LIKELY_EXPORT void likely_shutdown();
 
 /** @} */ // end of backend
 

@@ -908,7 +908,9 @@ int main(int argc, char *argv[])
     MainWindow mainWindow(application);
     mainWindow.show();
 
-    return application.exec();
+    const int result = application.exec();
+    likely_shutdown();
+    return result;
 }
 
 #include "dream.moc"

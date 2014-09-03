@@ -37,6 +37,7 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/FormattedStream.h>
+#include <llvm/Support/ManagedStatic.h>
 #include <llvm/Support/MD5.h>
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
@@ -2931,4 +2932,9 @@ likely_mat likely_md5(likely_const_mat buffer)
     MD5::MD5Result md5Result;
     md5.final(md5Result);
     return likely_new(likely_matrix_u8, 16, 1, 1, 1, md5Result);
+}
+
+void likely_shutdown()
+{
+    llvm_shutdown();
 }
