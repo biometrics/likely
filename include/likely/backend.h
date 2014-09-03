@@ -52,16 +52,16 @@ struct likely_environment;
 typedef struct likely_environment *likely_env;
 typedef struct likely_environment const *likely_const_env;
 
-struct likely_resources;
-typedef struct likely_resources *likely_res;
-typedef struct likely_resources const *likely_const_res;
+struct likely_context;
+typedef struct likely_context *likely_ctx;
+typedef struct likely_context const *likely_const_ctx;
 
 struct likely_environment
 {
     likely_environment_type type;
     likely_const_env parent;
     likely_const_ast ast;
-    likely_res resources;
+    likely_ctx context;
     union {
         likely_const_expr value; // definition
         likely_const_mat result; // !definition

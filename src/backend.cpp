@@ -204,15 +204,14 @@ if (!EXPR.get()) return NULL;                                              \
 
 } // namespace (anonymous)
 
-struct likely_resources
+struct likely_context
 {
-    LLVMContext &context;
+    LLVMContext context;
     Module *module;
     vector<likely_const_expr> expressions;
     size_t ref_count = 1;
 
-    likely_resources(bool native)
-        : context(getGlobalContext())
+    likely_context(bool native)
     {
         static bool initialized = false;
         if (!initialized) {
@@ -339,7 +338,7 @@ struct likely_resources
         return TM;
     }
 
-    virtual ~likely_resources()
+    virtual ~likely_context()
     {
         for (likely_const_expr e : expressions)
             delete e;
@@ -350,16 +349,16 @@ private:
     map<likely_type, Type*> typeLUT;
 };
 
-static likely_res likely_retain_resources(likely_const_res resources)
+static likely_ctx retainContext(likely_const_ctx ctx)
 {
-    if (resources) const_cast<likely_res>(resources)->ref_count++;
-    return const_cast<likely_res>(resources);
+    if (ctx) const_cast<likely_ctx>(ctx)->ref_count++;
+    return const_cast<likely_ctx>(ctx);
 }
 
-static void likely_release_resources(likely_const_res resources)
+static void releaseContext(likely_const_ctx ctx)
 {
-    if (!resources || --const_cast<likely_res>(resources)->ref_count) return;
-    delete resources;
+    if (!ctx || --const_cast<likely_ctx>(ctx)->ref_count) return;
+    delete ctx;
 }
 
 namespace {
@@ -399,15 +398,15 @@ public:
 };
 static JITFunctionCache TheJITFunctionCache;
 
-class OfflineResources : public likely_resources
+class OfflineContext : public likely_context
 {
     const string fileName;
 
 public:
-    OfflineResources(const string &fileName, bool native)
-        : likely_resources(native), fileName(fileName) {}
+    OfflineContext(const string &fileName, bool native)
+        : likely_context(native), fileName(fileName) {}
 
-    ~OfflineResources()
+    ~OfflineContext()
     {
         error_code errorCode;
         tool_output_file output(fileName.c_str(), errorCode, sys::fs::F_None);
@@ -442,8 +441,8 @@ struct Builder : public IRBuilder<>
         likely_env it = env;
         while (true) {
             if (it) {
-                if (it->resources) {
-                    context = &it->resources->context;
+                if (it->context) {
+                    context = &it->context->context;
                     break;
                 }
             } else {
@@ -498,7 +497,7 @@ struct Builder : public IRBuilder<>
     likely_expression columns (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_column (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 3), "columns" ), likely_matrix_native) : one(); }
     likely_expression rows    (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_row    (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 4), "rows"    ), likely_matrix_native) : one(); }
     likely_expression frames  (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_frame  (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 5), "frames"  ), likely_matrix_native) : one(); }
-    likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(CreatePointerCast(CreateStructGEP(*m, 7), env->resources->scalar(*m, true)), likely_data(*m)); }
+    likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(CreatePointerCast(CreateStructGEP(*m, 7), env->context->scalar(*m, true)), likely_data(*m)); }
 
     void steps(likely_const_expr matrix, Value *channelStep, Value **columnStep, Value **rowStep, Value **frameStep)
     {
@@ -516,7 +515,7 @@ struct Builder : public IRBuilder<>
             if (likely_floating(type))
                 type = likely_expression::validFloatType(type);
         }
-        Type *dstType = env->resources->scalar(type);
+        Type *dstType = env->context->scalar(type);
         return likely_expression(CreateCast(CastInst::getCastOpcode(*x, likely_signed(*x), dstType, likely_signed(type)), *x, dstType), type);
     }
 
@@ -537,11 +536,11 @@ struct Builder : public IRBuilder<>
         }
     }
 
-    IntegerType *nativeInt() { return env->resources->nativeInt(); }
+    IntegerType *nativeInt() { return env->context->nativeInt(); }
     Type *multiDimension() { return get(likely_matrix_multi_dimension); }
-    Module *module() { return env->resources->module; }
-    Type *get(likely_type likely) { return env->resources->get(likely); }
-    likely_type get(Type *llvm) { return env->resources->get(llvm); }
+    Module *module() { return env->context->module; }
+    Type *get(likely_type likely) { return env->context->get(likely); }
+    likely_type get(Type *llvm) { return env->context->get(llvm); }
     Type *translate(Type *type) { return get(get(type)); } // Translate type across contexts
 
     likely_const_expr expression(likely_const_ast ast);
@@ -602,7 +601,7 @@ struct JITFunction : public likely_function, public Symbol
 {
     ExecutionEngine *EE = NULL;
     likely_env env;
-    likely_res resources;
+    likely_ctx ctx;
     hash_code hash = 0;
     const vector<likely_type> parameters;
 
@@ -611,9 +610,9 @@ struct JITFunction : public likely_function, public Symbol
     ~JITFunction()
     {
         delete EE; // owns module
-        resources->module = NULL;
+        ctx->module = NULL;
         likely_release_env(env);
-        likely_release_resources(resources); // Delete the context _after_ deleting the module
+        releaseContext(ctx); // Delete the context _after_ deleting the module
     }
 
 private:
@@ -1557,7 +1556,7 @@ private:
 
         if (dynamic) {
             likely_vtable vtable = new likely_virtual_table(builder.env, ast);
-            builder.env->resources->expressions.push_back(vtable);
+            builder.env->context->expressions.push_back(vtable);
 
             PointerType *vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
             Function *likelyDynamic = builder.module()->getFunction("likely_dynamic");
@@ -2405,7 +2404,7 @@ class importExpression : public Operator
 LIKELY_REGISTER(import)
 
 JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool interpreter, bool arrayCC)
-    : env(likely_new_env(parent)), resources(new likely_resources(true)), parameters(parameters)
+    : env(likely_new_env(parent)), ctx(new likely_context(true)), parameters(parameters)
 {
     function = NULL;
     ref_count = 1;
@@ -2421,7 +2420,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     }
 
     {
-        env->resources = resources;
+        env->context = ctx;
         Builder builder(Builder::make(env));
         unique_ptr<const likely_expression> result(builder.expression(ast));
         unique_ptr<const Symbol> expr(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC));
@@ -2437,15 +2436,15 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         PassManager PM;
         HasLoop *hasLoop = new HasLoop(cast<Function>(value));
         PM.add(hasLoop);
-        PM.run(*resources->module);
+        PM.run(*ctx->module);
         interpreter = !hasLoop->hasLoop;
     }
 
-    TargetMachine *targetMachine = likely_resources::getTargetMachine(true);
-    resources->module->setDataLayout(targetMachine->getSubtargetImpl()->getDataLayout());
+    TargetMachine *targetMachine = likely_context::getTargetMachine(true);
+    ctx->module->setDataLayout(targetMachine->getSubtargetImpl()->getDataLayout());
 
     string error;
-    EngineBuilder engineBuilder(unique_ptr<Module>(resources->module));
+    EngineBuilder engineBuilder(unique_ptr<Module>(ctx->module));
     engineBuilder.setErrorStr(&error);
 
     if (interpreter) {
@@ -2462,13 +2461,13 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         return;
 
     EE->setObjectCache(&TheJITFunctionCache);
-    if (!TheJITFunctionCache.alert(resources->module)) {
+    if (!TheJITFunctionCache.alert(ctx->module)) {
         static PassManager *PM = NULL;
         if (!PM) {
-            static TargetMachine *TM = likely_resources::getTargetMachine(false);
+            static TargetMachine *TM = likely_context::getTargetMachine(false);
             PM = new PassManager();
             PM->add(createVerifierPass());
-            PM->add(new TargetLibraryInfo(Triple(resources->module->getTargetTriple())));
+            PM->add(new TargetLibraryInfo(Triple(ctx->module->getTargetTriple())));
             PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
             TM->addAnalysisPasses(*PM);
             PassManagerBuilder builder;
@@ -2481,9 +2480,9 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         }
 
 //        DebugFlag = true;
-//        resources->module->dump();
-        PM->run(*resources->module);
-//        resources->module->dump();
+//        ctx->module->dump();
+        PM->run(*ctx->module);
+//        ctx->module->dump();
     }
 
     hash = TheJITFunctionCache.currentHash;
@@ -2716,7 +2715,7 @@ likely_env likely_new_env(likely_const_env parent)
     likely_set_offline(&env->type, parent ? likely_offline(parent->type) : false);
     env->parent = likely_retain_env(parent);
     env->ast = NULL;
-    env->resources = likely_retain_resources(parent ? parent->resources : NULL);
+    env->context = retainContext(parent ? parent->context : NULL);
     env->value = NULL;
     env->result = NULL;
     env->ref_count = 1;
@@ -2733,8 +2732,8 @@ likely_env likely_new_env_jit()
 likely_env likely_new_env_offline(const char *file_name, bool native)
 {
     likely_env env = likely_new_env(RootEnvironment::get());
-    assert(!env->resources);
-    env->resources = new OfflineResources(file_name, native);
+    assert(!env->context);
+    env->context = new OfflineContext(file_name, native);
     likely_set_offline(&env->type, true);
     return env;
 }
@@ -2761,7 +2760,7 @@ void likely_release_env(likely_const_env env)
     }
 
     likely_release_ast(env->ast);
-    likely_release_resources(env->resources);
+    releaseContext(env->context);
     if (likely_definition(env->type)) delete env->value;
     else                              likely_release(env->result);
     free(env->children);
@@ -2781,11 +2780,11 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
 {
     void *function = NULL;
     for (size_t i=0; i<vtable->functions.size(); i++) {
-        const unique_ptr<JITFunction> &resources = vtable->functions[i];
+        const unique_ptr<JITFunction> &jitFunction = vtable->functions[i];
         for (size_t j=0; j<vtable->n; j++)
-            if (mv[j]->type != resources->parameters[j])
+            if (mv[j]->type != jitFunction->parameters[j])
                 goto Next;
-        function = resources->function;
+        function = jitFunction->function;
         if (function == NULL)
             return NULL;
         break;
