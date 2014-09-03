@@ -623,19 +623,16 @@ private:
         return EE == static_cast<const JITFunction*>(other)->EE;
     }
 
-    class HasLoop : public LoopInfo
+    struct HasLoop : public LoopInfo
     {
-        Function *F;
-
-    public:
         bool hasLoop = false;
-        HasLoop(Function *F)
-            : F(F) {}
 
+    private:
         bool runOnFunction(Function &F)
         {
-            if (&F != this->F)
+            if (hasLoop)
                 return false;
+
             const bool result = LoopInfo::runOnFunction(F);
             hasLoop = !empty();
             return result;
@@ -2424,10 +2421,10 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     if (!value)
         return;
 
-    // Don't run the interpreter on code with loops, better to compile and execute it instead.
+    // Don't run the interpreter on a module with loops, better to compile and execute it instead.
     if (interpreter) {
         PassManager PM;
-        HasLoop *hasLoop = new HasLoop(cast<Function>(value));
+        HasLoop *hasLoop = new HasLoop();
         PM.add(hasLoop);
         PM.run(*ctx->module);
         interpreter = !hasLoop->hasLoop;
