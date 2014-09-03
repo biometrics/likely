@@ -274,8 +274,8 @@ struct likely_resources
 
     likely_type get(Type *llvm)
     {
-        if (StructType *structType = dyn_cast<StructType>(llvm)) {
-            return likely_type_from_string(structType->getName().str().c_str());
+        if (llvm->isIntegerTy()) {
+            return llvm->getIntegerBitWidth();
         } else if (llvm->isHalfTy()) {
             return likely_matrix_f16;
         } else if (llvm->isFloatTy()) {
@@ -283,7 +283,7 @@ struct likely_resources
         } else if (llvm->isDoubleTy()) {
             return likely_matrix_f64;
         } else {
-            return llvm->getIntegerBitWidth();
+            return likely_type_from_string(cast<StructType>(cast<PointerType>(llvm)->getElementType())->getName().str().c_str());
         }
     }
 
@@ -542,6 +542,7 @@ struct Builder : public IRBuilder<>
     Module *module() { return env->resources->module; }
     Type *get(likely_type likely) { return env->resources->get(likely); }
     likely_type get(Type *llvm) { return env->resources->get(llvm); }
+    Type *translate(Type *type) { return get(get(type)); } // Translate type across contexts
 
     likely_const_expr expression(likely_const_ast ast);
 
@@ -568,9 +569,21 @@ private:
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
         Function *definition = cast<Function>(value);
-        Function *symbol = cast<Function>(builder.module()->getOrInsertFunction(definition->getName(), definition->getFunctionType()));
-        if (symbol->arg_size() != ((ast->type == likely_ast_list) ? ast->num_atoms-1 : 0))
+        if (definition->arg_size() != ((ast->type == likely_ast_list) ? ast->num_atoms-1 : 0))
             return error(ast, "incorrect argument count");
+
+        Function *symbol = builder.module()->getFunction(definition->getName());
+        if (!symbol) {
+            // Translate definition type across contexts
+            vector<Type*> paramTypes;
+            Function::arg_iterator it = definition->arg_begin();
+            while (it != definition->arg_end()) {
+                paramTypes.push_back(builder.translate(it->getType()));
+                it++;
+            }
+            FunctionType *functionType = FunctionType::get(builder.translate(definition->getReturnType()), paramTypes, false);
+            symbol = Function::Create(functionType, GlobalValue::ExternalLinkage, definition->getName(), builder.module());
+        }
 
         vector<Value*> args;
         if (ast->type == likely_ast_list) {
