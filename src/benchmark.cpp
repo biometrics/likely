@@ -37,8 +37,7 @@ using namespace std;
 
 static cl::opt<bool> BenchmarkTest    ("test"     , cl::desc("Run tests for correctness only"));
 static cl::opt<bool> BenchmarkVerbose ("verbose"  , cl::desc("Verbose benchmark output"));
-static cl::opt<bool> BenchmarkSerial  ("serial"   , cl::desc("Run serial kernels only"));
-static cl::opt<bool> BenchmarkParallel("parallel" , cl::desc("Run parallel kernels only"));
+static cl::opt<bool> BenchmarkParallel("parallel" , cl::desc("Compile parallel kernels"));
 static cl::opt<string> BenchmarkFile    ("file"    , cl::desc("Benchmark the specified file only"), cl::value_desc("filename"));
 static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"));
 
@@ -65,7 +64,16 @@ struct Test
             return;
 
         likely_const_ast ast = likely_ast_from_string(function(), false);
-        likely_const_env env = likely_new_env_jit();
+        likely_env env = likely_new_env_jit();
+
+        string execution;
+        if (BenchmarkParallel) {
+            execution = "Parallel";
+            likely_set_parallel(&env->type, true);
+        } else {
+            execution = "Serial";
+        }
+
         likely_const_fun f = likely_compile(ast->atoms[0], env, likely_matrix_void);
         likely_release_env(env);
         likely_release_ast(ast);
@@ -78,27 +86,19 @@ struct Test
                 Mat srcCV = generateData(size, size, type, scaleFactor());
                 likely_mat srcLikely = fromCvMat(srcCV);
 
-                vector<string> executions;
-                executions.push_back("Serial");
-                executions.push_back("Parallel");
-                for (const string &execution : executions) {
-                    likely_set_parallel(&srcLikely->type, execution == "Parallel");
-                    if (BenchmarkSerial && likely_parallel(srcLikely->type)) continue;
-                    if (BenchmarkParallel && !likely_parallel(srcLikely->type)) continue;
-                    likely_mat typeString = likely_type_to_string(type);
-                    printf("%s \t%s \t%d \t%s\t", function(), typeString->data, size, execution.c_str());
-                    likely_release(typeString);
-                    testCorrectness(reinterpret_cast<likely_function_1>(f->function), srcCV, srcLikely);
+                likely_mat typeString = likely_type_to_string(type);
+                printf("%s \t%s \t%d \t%s\t", function(), typeString->data, size, execution.c_str());
+                likely_release(typeString);
+                testCorrectness(reinterpret_cast<likely_function_1>(f->function), srcCV, srcLikely);
 
-                    if (BenchmarkTest) {
-                        printf("\n");
-                        continue;
-                    }
-
-                    Speed baseline = testBaselineSpeed(srcCV);
-                    Speed likely = testLikelySpeed(reinterpret_cast<likely_function_1>(f->function), srcLikely);
-                    printf("%.2e\n", likely.Hz/baseline.Hz);
+                if (BenchmarkTest) {
+                    printf("\n");
+                    continue;
                 }
+
+                Speed baseline = testBaselineSpeed(srcCV);
+                Speed likely = testLikelySpeed(reinterpret_cast<likely_function_1>(f->function), srcLikely);
+                printf("%.2e\n", likely.Hz/baseline.Hz);
             }
         }
 

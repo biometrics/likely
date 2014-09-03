@@ -86,9 +86,6 @@ enum likely_type_field
     likely_matrix_f16 = 16 | likely_matrix_floating | likely_matrix_signed,
     likely_matrix_f32 = 32 | likely_matrix_floating | likely_matrix_signed,
     likely_matrix_f64 = 64 | likely_matrix_floating | likely_matrix_signed,
-    likely_matrix_parallel        = 0x00000400,
-    likely_matrix_heterogeneous   = 0x00000800,
-    likely_matrix_execution       = likely_matrix_parallel | likely_matrix_heterogeneous,
     likely_matrix_multi_channel   = 0x00001000,
     likely_matrix_multi_column    = 0x00002000,
     likely_matrix_multi_row       = 0x00004000,
@@ -160,12 +157,6 @@ LIKELY_EXPORT bool likely_floating(likely_type type);
 LIKELY_EXPORT void likely_set_floating(likely_type *type, bool floating);
 LIKELY_EXPORT likely_type likely_data(likely_type type);
 LIKELY_EXPORT void likely_set_data(likely_type *type, likely_type data);
-LIKELY_EXPORT bool likely_parallel(likely_type type);
-LIKELY_EXPORT void likely_set_parallel(likely_type *type, bool parallel);
-LIKELY_EXPORT bool likely_heterogeneous(likely_type type);
-LIKELY_EXPORT void likely_set_heterogeneous(likely_type *type, bool heterogeneous);
-LIKELY_EXPORT likely_type likely_execution(likely_type type);
-LIKELY_EXPORT void likely_set_execution(likely_type *type, likely_type execution);
 LIKELY_EXPORT bool likely_multi_channel(likely_type type);
 LIKELY_EXPORT void likely_set_multi_channel(likely_type *type, bool multi_channel);
 LIKELY_EXPORT bool likely_multi_column(likely_type type);

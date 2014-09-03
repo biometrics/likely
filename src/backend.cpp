@@ -1910,13 +1910,6 @@ private:
         vector<pair<likely_const_ast,likely_const_ast>> pairs;
         getPairs(getMetadata(), pairs);
 
-        likely_type executionType = likely_matrix_void;
-        if (!srcs.empty())
-            likely_set_execution(&executionType, likely_execution(*srcs.front()));
-        for (const auto &pair : pairs)
-            if (!strcmp("type", pair.first->atom) && (pair.second->type != likely_ast_list))
-                executionType |= likely_type_field_from_string(pair.second->atom, NULL);
-
         likely_type dimensionsType = likely_matrix_void;
         Value *dstChannels = getDimensions(builder, pairs, "channels", srcs, &dimensionsType);
         Value *dstColumns  = getDimensions(builder, pairs, "columns" , srcs, &dimensionsType);
@@ -1934,7 +1927,7 @@ private:
         PHINode *kernelRows     = builder.CreatePHI(builder.nativeInt(), 1);
         PHINode *kernelFrames   = builder.CreatePHI(builder.nativeInt(), 1);
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(kernelChannels, kernelColumns), kernelRows), kernelFrames);
-        likely_expression dst(newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, builder.nullData()), dimensionsType | executionType);
+        likely_expression dst(newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, builder.nullData()), dimensionsType);
         builder.undefineAll(args, false);
 
         // Load scalar values
@@ -1955,9 +1948,9 @@ private:
         builder.SetInsertPoint(computation);
 
         Metadata metadata;
-        if      (likely_heterogeneous(executionType)) metadata = generateHeterogeneous(builder, args, thunkSrcs, dst, kernelSize);
-        else if (likely_parallel(executionType))      metadata = generateParallel     (builder, args, thunkSrcs, dst, kernelSize);
-        else                                          metadata = generateSerial       (builder, args, thunkSrcs, dst, kernelSize);
+        if      (likely_heterogeneous(builder.env->type)) metadata = generateHeterogeneous(builder, args, thunkSrcs, dst, kernelSize);
+        else if (likely_parallel(builder.env->type))      metadata = generateParallel     (builder, args, thunkSrcs, dst, kernelSize);
+        else                                              metadata = generateSerial       (builder, args, thunkSrcs, dst, kernelSize);
 
         results->addIncoming(builder.constant(metadata.results), entry);
         dstType->addIncoming(builder.typeType(dst), entry);
@@ -2712,7 +2705,10 @@ likely_env likely_new_env(likely_const_env parent)
 {
     likely_env env = (likely_env) malloc(sizeof(likely_environment));
     env->type = likely_environment_void;
-    likely_set_offline(&env->type, parent ? likely_offline(parent->type) : false);
+    if (parent) {
+        likely_set_offline(&env->type, likely_offline(parent->type));
+        likely_set_execution(&env->type, likely_execution(parent->type));
+    }
     env->parent = likely_retain_env(parent);
     env->ast = NULL;
     env->context = retainContext(parent ? parent->context : NULL);
@@ -2775,6 +2771,12 @@ bool likely_definition(likely_environment_type type) { return likely_get_bool(ty
 void likely_set_definition(likely_environment_type *type, bool definition) { likely_set_bool(type, definition, likely_environment_definition); }
 bool likely_global(likely_environment_type type) { return likely_get_bool(type, likely_environment_global); }
 void likely_set_global(likely_environment_type *type, bool global) { likely_set_bool(type, global, likely_environment_global); }
+bool likely_parallel(likely_environment_type type) { return likely_get_bool(type, likely_environment_parallel); }
+void likely_set_parallel(likely_environment_type *type, bool parallel) { likely_set_bool(type, parallel, likely_environment_parallel); }
+bool likely_heterogeneous(likely_environment_type type) { return likely_get_bool(type, likely_environment_heterogeneous); }
+void likely_set_heterogeneous(likely_environment_type *type, bool heterogeneous) { likely_set_bool(type, heterogeneous, likely_environment_heterogeneous); }
+likely_environment_type likely_execution(likely_environment_type type) { return likely_get(type, likely_environment_execution); }
+void likely_set_execution(likely_environment_type *type, likely_environment_type execution) { likely_set(type, execution, likely_environment_execution); }
 
 likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
 {

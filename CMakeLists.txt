@@ -121,11 +121,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # Set up testing
 enable_testing()
-macro(likely_add_test executable)
-  add_test(NAME ${executable}
-           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND ${executable} ${ARGV1})
-endmacro()
 
 # Build targets
 include_directories(include)

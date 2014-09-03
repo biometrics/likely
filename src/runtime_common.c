@@ -49,12 +49,6 @@ bool likely_floating(likely_type type) { return likely_get_bool(type, likely_mat
 void likely_set_floating(likely_type *type, bool floating) { likely_set_bool(type, floating, likely_matrix_floating); }
 likely_type likely_data(likely_type type) { return likely_get(type, likely_matrix_data); }
 void likely_set_data(likely_type *type, likely_type data) { likely_set(type, data, likely_matrix_data); }
-bool likely_parallel(likely_type type) { return likely_get_bool(type, likely_matrix_parallel); }
-void likely_set_parallel(likely_type *type, bool parallel) { likely_set_bool(type, parallel, likely_matrix_parallel); }
-bool likely_heterogeneous(likely_type type) { return likely_get_bool(type, likely_matrix_heterogeneous); }
-void likely_set_heterogeneous(likely_type *type, bool heterogeneous) { likely_set_bool(type, heterogeneous, likely_matrix_heterogeneous); }
-likely_type likely_execution(likely_type type) { return likely_get(type, likely_matrix_execution); }
-void likely_set_execution(likely_type *type, likely_type execution) { likely_set(type, execution, likely_matrix_execution); }
 bool likely_multi_channel(likely_type type) { return likely_get_bool(type, likely_matrix_multi_channel); }
 void likely_set_multi_channel(likely_type *type, bool multi_channel) { likely_set_bool(type, multi_channel, likely_matrix_multi_channel); }
 bool likely_multi_column(likely_type type) { return likely_get_bool(type, likely_matrix_multi_column); }

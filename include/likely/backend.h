@@ -41,7 +41,10 @@ enum likely_environment_type_field
     likely_environment_offline    = 0x00000001,
     likely_environment_erratum    = 0x00000002,
     likely_environment_definition = 0x00000004,
-    likely_environment_global     = 0x00000008
+    likely_environment_global     = 0x00000008,
+    likely_environment_parallel      = 0x00000400,
+    likely_environment_heterogeneous = 0x00000800,
+    likely_environment_execution     = likely_environment_parallel | likely_environment_heterogeneous
 };
 
 struct likely_expression;
@@ -100,6 +103,12 @@ LIKELY_EXPORT bool likely_definition(likely_environment_type type);
 LIKELY_EXPORT void likely_set_definition(likely_environment_type *type, bool definition);
 LIKELY_EXPORT bool likely_global(likely_environment_type type);
 LIKELY_EXPORT void likely_set_global(likely_environment_type *type, bool global);
+LIKELY_EXPORT bool likely_parallel(likely_environment_type type);
+LIKELY_EXPORT void likely_set_parallel(likely_environment_type *type, bool parallel);
+LIKELY_EXPORT bool likely_heterogeneous(likely_environment_type type);
+LIKELY_EXPORT void likely_set_heterogeneous(likely_environment_type *type, bool heterogeneous);
+LIKELY_EXPORT likely_environment_type likely_execution(likely_environment_type type);
+LIKELY_EXPORT void likely_set_execution(likely_environment_type *type, likely_environment_type execution);
 
 // Compilation
 LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_type type, ...);

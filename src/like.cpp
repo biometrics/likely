@@ -43,6 +43,7 @@ static cl::opt<bool> ast("ast", cl::desc("Print abstract syntax tree"));
 static cl::opt<bool> md5("md5", cl::desc("Print matrix output MD5 hash to terminal"));
 static cl::opt<bool> show("show", cl::desc("Show matrix output in a window"));
 static cl::opt<bool> quiet("quiet", cl::desc("Don't show matrix output"));
+static cl::opt<bool> parallel("parallel" , cl::desc("Compile parallel kernels"));
 
 static void checkOrPrintAndRelease(likely_const_mat input)
 {
@@ -120,10 +121,14 @@ int main(int argc, char *argv[])
     else if (quiet) repl_callback = replQuiet;
     else            repl_callback = replPrint;
 
+    likely_env parent;
+    if (output.empty()) parent = likely_new_env_jit(); // Interpreter
+    else                parent = likely_new_env_offline(output.c_str(), true); // Static compiler
+    likely_set_parallel(&parent->type, parallel);
+
     if (input.empty()) {
         // REPL shell
         cout << "Likely\n";
-        likely_env parent = likely_new_env_jit();
         while (true) {
             cout << "> ";
             string line;
@@ -156,16 +161,13 @@ int main(int argc, char *argv[])
                 checkOrPrintAndRelease(likely_ast_to_string(parsed->atoms[i]));
             likely_release_ast(parsed);
         } else {
-            likely_env env;
-            if (output.empty()) env = likely_new_env_jit(); // Interpreter
-            else                env = likely_new_env_offline(output.c_str(), true); // Static compiler
             likely_ast ast = likely_ast_from_string(code->data, gfm);
-            likely_release_env(likely_repl(ast, env, repl_callback, NULL));
+            likely_release_env(likely_repl(ast, parent, repl_callback, NULL));
             likely_release_ast(ast);
-            likely_release_env(env);
-            likely_release(code);
         }
+        likely_release(code);
     }
 
+    likely_release_env(parent);
     return EXIT_SUCCESS;
 }

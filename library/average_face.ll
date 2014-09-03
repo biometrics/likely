@@ -7,7 +7,7 @@ Compute the average face from a set of aligned faces [1].
       j:= 0
       ($ j:= j:+ m t m.frames)
       j:/ m.frames
-    } (1.frames parallel.type))
+    } (1.frames))
 
     (average_face):= ():-> "data/lfwa.tar.gz".read.avg
 

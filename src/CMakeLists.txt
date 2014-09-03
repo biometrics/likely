@@ -77,7 +77,12 @@ if(${LIKELY_IO})
   add_executable(benchmark benchmark.cpp)
   target_link_libraries(benchmark likely_static opencv_imgproc)
   install(TARGETS benchmark RUNTIME DESTINATION bin)
-  likely_add_test(benchmark -test)
+  add_test(NAME benchmark
+           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+           COMMAND benchmark -test)
+  add_test(NAME benchmark_parallel
+           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+           COMMAND benchmark -test -parallel)
 
   # Dream
   find_package(Qt5Quick QUIET)
@@ -279,7 +284,7 @@ test_expr("(threshold-to-zero-inverse 0.6 0.5)" 0)
 function(test_demo FILE)
   add_test(NAME ${FILE}
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND like library/${FILE}.ll -show -assert "data/demo/${FILE}.jpg")
+           COMMAND like library/${FILE}.ll -parallel -show -assert "data/demo/${FILE}.jpg")
 endfunction()
 
 function(test_file FILE VALUE)
@@ -294,7 +299,7 @@ test_file(comments 42)
 test_file(demos "")
 test_file(export 3)
 test_demo(gabor_wavelet)
-test_demo(hello_world)
+# test_demo(hello_world)
 test_file(likely "")
 test_demo(mandelbrot_set)
 test_file(matrix_io "Compression Ratio: 7.31714")

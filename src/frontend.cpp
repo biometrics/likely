@@ -537,8 +537,6 @@ likely_mat likely_type_to_string(likely_type type)
     stringstream typeStream;
     typeStream << (likely_floating(type) ? "f" : (likely_signed(type) ? "i" : "u"));
     typeStream << likely_depth(type);
-    if (likely_parallel(type))       typeStream << "P";
-    if (likely_heterogeneous(type))  typeStream << "H";
     if (likely_multi_channel(type))  typeStream << "C";
     if (likely_multi_column(type))   typeStream << "X";
     if (likely_multi_row(type))      typeStream << "Y";
@@ -554,9 +552,6 @@ likely_mat likely_type_field_to_string(likely_type type)
     if (type == likely_matrix_signed         ) return likely_string("signed");
     if (type == likely_matrix_floating       ) return likely_string("floating");
     if (type == likely_matrix_data           ) return likely_string("data");
-    if (type == likely_matrix_parallel       ) return likely_string("parallel");
-    if (type == likely_matrix_heterogeneous  ) return likely_string("heterogeneous");
-    if (type == likely_matrix_execution      ) return likely_string("exeuction");
     if (type == likely_matrix_multi_channel  ) return likely_string("multi_channel");
     if (type == likely_matrix_multi_column   ) return likely_string("multi_column");
     if (type == likely_matrix_multi_row      ) return likely_string("multi_row");
@@ -581,9 +576,7 @@ likely_type likely_type_from_string(const char *str)
     t += (int)strtol(str+1, &rem, 10);
 
     while (*rem) {
-        if      (*rem == 'P') t |= likely_matrix_parallel;
-        else if (*rem == 'H') t |= likely_matrix_heterogeneous;
-        else if (*rem == 'C') t |= likely_matrix_multi_channel;
+        if      (*rem == 'C') t |= likely_matrix_multi_channel;
         else if (*rem == 'X') t |= likely_matrix_multi_column;
         else if (*rem == 'Y') t |= likely_matrix_multi_row;
         else if (*rem == 'T') t |= likely_matrix_multi_frame;
@@ -603,9 +596,6 @@ likely_type likely_type_field_from_string(const char *str, bool *ok)
     if (!strcmp(str, "signed"         )) return likely_matrix_signed;
     if (!strcmp(str, "floating"       )) return likely_matrix_floating;
     if (!strcmp(str, "data"           )) return likely_matrix_data;
-    if (!strcmp(str, "parallel"       )) return likely_matrix_parallel;
-    if (!strcmp(str, "heterogeneous"  )) return likely_matrix_heterogeneous;
-    if (!strcmp(str, "execution"      )) return likely_matrix_execution;
     if (!strcmp(str, "multi_channel"  )) return likely_matrix_multi_channel;
     if (!strcmp(str, "multi_column"   )) return likely_matrix_multi_column;
     if (!strcmp(str, "multi_row"      )) return likely_matrix_multi_row;
