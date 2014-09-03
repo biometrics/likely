@@ -365,35 +365,45 @@ namespace {
 
 class JITFunctionCache : public ObjectCache
 {
-    map<hash_code, unique_ptr<MemoryBuffer>> cache;
-    const Module *currentModule = NULL;
+    map<hash_code, unique_ptr<MemoryBuffer>> cachedModules;
+    map<const Module*, hash_code> currentModules;
+    mutex editLock;
 
     void notifyObjectCompiled(const Module *M, MemoryBufferRef Obj)
     {
-        if (M == currentModule)
-            cache[currentHash] = MemoryBuffer::getMemBufferCopy(Obj.getBuffer());
+        lock_guard<mutex> lock(editLock);
+        const auto currentModule = currentModules.find(M);
+        const hash_code hash = currentModule->second;
+        currentModules.erase(currentModule);
+        cachedModules[hash] = MemoryBuffer::getMemBufferCopy(Obj.getBuffer());
     }
 
     unique_ptr<MemoryBuffer> getObject(const Module *M)
     {
-        if (M == currentModule)
-            if (MemoryBuffer *buffer = cache[currentHash].get())
-                return unique_ptr<MemoryBuffer>(MemoryBuffer::getMemBufferCopy(buffer->getBuffer()));
+        lock_guard<mutex> lock(editLock);
+        const auto currentModule = currentModules.find(M);
+        const hash_code hash = currentModule->second;
+        const auto cachedModule = cachedModules.find(hash);
+        if (cachedModule != cachedModules.end()) {
+            currentModules.erase(currentModule);
+            return unique_ptr<MemoryBuffer>(MemoryBuffer::getMemBufferCopy(cachedModule->second->getBuffer()));
+        }
         return unique_ptr<MemoryBuffer>();
     }
 
 public:
-    hash_code currentHash = 0;
-
     bool alert(const Module *M)
     {
         string str;
         raw_string_ostream ostream(str);
         M->print(ostream, NULL);
         ostream.flush();
-        currentModule = M;
-        currentHash = hash_value(str);
-        return cache[currentHash].get() != NULL;
+
+        const hash_code hash = hash_value(str);
+        const bool hit = (cachedModules.find(hash) != cachedModules.end());
+        lock_guard<mutex> lock(editLock);
+        currentModules.insert(pair<const Module*, hash_code>(M, hash));
+        return hit;
     }
 };
 static JITFunctionCache TheJITFunctionCache;
