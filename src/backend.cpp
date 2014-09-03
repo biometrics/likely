@@ -434,10 +434,28 @@ struct Builder : public IRBuilder<>
 {
     likely_env env;
 
-    Builder(LLVMContext &context, likely_env env)
-        : IRBuilder<>(context), env(likely_retain_env(env)) {}
-
     ~Builder() { likely_release_env(env); }
+
+    static Builder make(likely_env env)
+    {
+        LLVMContext *context;
+        likely_env it = env;
+        while (true) {
+            if (it) {
+                if (it->resources) {
+                    context = &it->resources->context;
+                    break;
+                }
+            } else {
+                context = &getGlobalContext();
+                break;
+            }
+
+            it = const_cast<likely_env>(it->parent);
+        }
+
+        return Builder(*context, env);
+    }
 
     static likely_const_expr getMat(likely_const_expr e)
     {
@@ -526,6 +544,10 @@ struct Builder : public IRBuilder<>
     likely_type get(Type *llvm) { return env->resources->get(llvm); }
 
     likely_const_expr expression(likely_const_ast ast);
+
+private:
+    Builder(LLVMContext &context, likely_env env)
+        : IRBuilder<>(context), env(likely_retain_env(env)) {}
 };
 
 struct Symbol : public likely_expression
@@ -2387,7 +2409,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
 
     {
         env->resources = resources;
-        Builder builder(env->resources->context, env);
+        Builder builder(Builder::make(env));
         unique_ptr<const likely_expression> result(builder.expression(ast));
         unique_ptr<const Symbol> expr(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC));
         value = expr ? expr->value : NULL;
@@ -2818,7 +2840,7 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
     parent->children[parent->num_children++] = env;
 
     if (likely_definition(env->type)) {
-        Builder(getGlobalContext(), env).expression(ast); // Returns NULL
+        Builder::make(env).expression(ast); // Returns NULL
     } else if (likely_offline(env->type)) {
         // Do nothing, evaluating expressions in an offline environment is a no-op.
     } else {
