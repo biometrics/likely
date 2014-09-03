@@ -78,7 +78,6 @@ struct MatType
 
     static MatType get(LLVMContext &context, likely_type likely, IntegerType *nativeInt)
     {
-        lock_guard<mutex> locker(lutLock);
         auto result = likelyLUT.find(likely);
         if (result != likelyLUT.end())
             return result->second;
@@ -103,16 +102,22 @@ struct MatType
 
         MatType t(llvm, likely);
         likelyLUT[t.likely] = t;
-        llvmLUT[t.llvm] = t;
         return t;
     }
 
-    static MatType get(Type *llvm)
+    static MatType get(LLVMContext &context, Type *llvm, IntegerType *nativeInt)
     {
-        lock_guard<mutex> locker(lutLock);
-        auto result = llvmLUT.find(llvm);
-        likely_assert(result != llvmLUT.end(), "invalid pointer for type lookup");
-        return result->second;
+        if (StructType *structType = dyn_cast<StructType>(llvm)) {
+            return get(context, likely_type_from_string(structType->getName().str().c_str()), nativeInt);
+        } else if (llvm->isHalfTy()) {
+            return get(context, likely_matrix_f16, nativeInt);
+        } else if (llvm->isFloatTy()) {
+            return get(context, likely_matrix_f32, nativeInt);
+        } else if (llvm->isDoubleTy()) {
+            return get(context, likely_matrix_f64, nativeInt);
+        } else {
+            return get(context, llvm->getIntegerBitWidth(), nativeInt);
+        }
     }
 
     static Type *scalar(LLVMContext &context, likely_type type, bool pointer = false)
@@ -145,14 +150,10 @@ struct MatType
 
 private:
     static map<likely_type, MatType> likelyLUT;
-    static map<Type*, MatType> llvmLUT;
-    static mutex lutLock;
     Type *llvm;
     likely_type likely;
 };
 map<likely_type, MatType> MatType::likelyLUT;
-map<Type*, MatType> MatType::llvmLUT;
-mutex MatType::lutLock;
 
 struct Builder;
 
@@ -567,7 +568,7 @@ private:
             Function::arg_iterator it = symbol->arg_begin();
             for (size_t i=1; i<ast->num_atoms; i++, it++) {
                 TRY_EXPR(builder, ast->atoms[i], arg)
-                args.push_back(builder.cast(arg.get(), MatType::get(it->getType())));
+                args.push_back(builder.cast(arg.get(), MatType::get(builder.getContext(), it->getType(), builder.nativeInt())));
             }
         }
 
