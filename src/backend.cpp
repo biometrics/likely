@@ -76,50 +76,6 @@ struct MatType
     operator ArrayRef<Type*>() const { return ArrayRef<Type*>((Type**)&llvm, 1); }
     operator likely_type() const { return likely; }
 
-    static MatType get(LLVMContext &context, likely_type likely, IntegerType *nativeInt)
-    {
-        auto result = likelyLUT.find(likely);
-        if (result != likelyLUT.end())
-            return result->second;
-
-        Type *llvm;
-        if (!likely_multi_dimension(likely) && likely_depth(likely)) {
-            llvm = scalar(context, likely);
-        } else {
-            likely_mat str = likely_type_to_string(likely);
-            llvm = PointerType::getUnqual(StructType::create(str->data,
-                                                             nativeInt, // bytes
-                                                             nativeInt, // ref_count
-                                                             nativeInt, // channels
-                                                             nativeInt, // columns
-                                                             nativeInt, // rows
-                                                             nativeInt, // frames
-                                                             nativeInt, // type
-                                                             ArrayType::get(Type::getInt8Ty(context), 0), // data
-                                                             NULL));
-            likely_release(str);
-        }
-
-        MatType t(llvm, likely);
-        likelyLUT[t.likely] = t;
-        return t;
-    }
-
-    static MatType get(LLVMContext &context, Type *llvm, IntegerType *nativeInt)
-    {
-        if (StructType *structType = dyn_cast<StructType>(llvm)) {
-            return get(context, likely_type_from_string(structType->getName().str().c_str()), nativeInt);
-        } else if (llvm->isHalfTy()) {
-            return get(context, likely_matrix_f16, nativeInt);
-        } else if (llvm->isFloatTy()) {
-            return get(context, likely_matrix_f32, nativeInt);
-        } else if (llvm->isDoubleTy()) {
-            return get(context, likely_matrix_f64, nativeInt);
-        } else {
-            return get(context, llvm->getIntegerBitWidth(), nativeInt);
-        }
-    }
-
     static Type *scalar(LLVMContext &context, likely_type type, bool pointer = false)
     {
         const size_t bits = likely_depth(type);
@@ -149,11 +105,9 @@ struct MatType
     }
 
 private:
-    static map<likely_type, MatType> likelyLUT;
     Type *llvm;
     likely_type likely;
 };
-map<likely_type, MatType> MatType::likelyLUT;
 
 struct Builder;
 
@@ -318,10 +272,54 @@ struct likely_resources
         }
 
         nativeInt = Type::getIntNTy(context, unsigned(likely_depth(likely_matrix_native)));
-        multiDimension = MatType::get(context, likely_matrix_multi_dimension, nativeInt);
+        multiDimension = get(likely_matrix_multi_dimension);
         module = new Module("likely_module", context);
         likely_assert(module != NULL, "failed to create module");
         if (native) module->setTargetTriple(sys::getProcessTriple());
+    }
+
+    MatType get(likely_type likely)
+    {
+        auto result = likelyLUT.find(likely);
+        if (result != likelyLUT.end())
+            return result->second;
+
+        Type *llvm;
+        if (!likely_multi_dimension(likely) && likely_depth(likely)) {
+            llvm = MatType::scalar(context, likely);
+        } else {
+            likely_mat str = likely_type_to_string(likely);
+            llvm = PointerType::getUnqual(StructType::create(str->data,
+                                                             nativeInt, // bytes
+                                                             nativeInt, // ref_count
+                                                             nativeInt, // channels
+                                                             nativeInt, // columns
+                                                             nativeInt, // rows
+                                                             nativeInt, // frames
+                                                             nativeInt, // type
+                                                             ArrayType::get(Type::getInt8Ty(context), 0), // data
+                                                             NULL));
+            likely_release(str);
+        }
+
+        MatType t(llvm, likely);
+        likelyLUT[likely] = t;
+        return t;
+    }
+
+    MatType get(Type *llvm)
+    {
+        if (StructType *structType = dyn_cast<StructType>(llvm)) {
+            return get(likely_type_from_string(structType->getName().str().c_str()));
+        } else if (llvm->isHalfTy()) {
+            return get(likely_matrix_f16);
+        } else if (llvm->isFloatTy()) {
+            return get(likely_matrix_f32);
+        } else if (llvm->isDoubleTy()) {
+            return get(likely_matrix_f64);
+        } else {
+            return get(llvm->getIntegerBitWidth());
+        }
     }
 
     static TargetMachine *getTargetMachine(bool JIT)
@@ -363,6 +361,9 @@ struct likely_resources
             delete e;
         delete module;
     }
+
+private:
+    map<likely_type, MatType> likelyLUT;
 };
 
 static likely_res likely_retain_resources(likely_const_res resources)
@@ -537,6 +538,8 @@ struct Builder : public IRBuilder<>
     IntegerType *nativeInt() const { return env->resources->nativeInt; }
     MatType multiDimension() const { return env->resources->multiDimension; }
     Module *module() { return env->resources->module; }
+    MatType get(likely_type likely) { return env->resources->get(likely); }
+    MatType get(Type *llvm) { return env->resources->get(llvm); }
 
     likely_const_expr expression(likely_const_ast ast);
 };
@@ -568,7 +571,7 @@ private:
             Function::arg_iterator it = symbol->arg_begin();
             for (size_t i=1; i<ast->num_atoms; i++, it++) {
                 TRY_EXPR(builder, ast->atoms[i], arg)
-                args.push_back(builder.cast(arg.get(), MatType::get(builder.getContext(), it->getType(), builder.nativeInt())));
+                args.push_back(builder.cast(arg.get(), builder.get(it->getType())));
             }
         }
 
@@ -1264,7 +1267,7 @@ class scalarExpression : public UnaryOperator
         if (!argExpr)
             return NULL;
 
-        if (argExpr->value && (argExpr->value->getType() == builder.multiDimension()))
+        if (argExpr->value && MatType::isMat(argExpr->value->getType()))
             return argExpr;
 
         Function *likelyScalar = builder.module()->getFunction("likely_scalar_va");
@@ -1445,7 +1448,7 @@ struct Lambda : public ScopedExpression
             llvmTypes.push_back(PointerType::get(builder.multiDimension(), 0));
         } else {
             for (const likely_type &t : types)
-                llvmTypes.push_back(MatType::get(builder.getContext(), t, builder.nativeInt()));
+                llvmTypes.push_back(builder.get(t));
         }
 
         BasicBlock *originalInsertBlock = builder.GetInsertBlock();
@@ -2255,7 +2258,7 @@ private:
             return new likely_expression(builder.constant(likely_element(m, 0, 0, 0, 0), m->type));
         } else {
             // Return the matrix
-            return new likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(m)), uintptr_t(m)), MatType::get(builder.getContext(), m->type, builder.nativeInt())), m->type);
+            return new likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(m)), uintptr_t(m)), builder.get(m->type)), m->type);
         }
     }
 
