@@ -66,21 +66,6 @@ using namespace std;
 
 namespace {
 
-struct MatType
-{
-    MatType() : llvm(NULL), likely(likely_matrix_void) {}
-    MatType(Type *llvm, likely_type likely)
-        : llvm(llvm), likely(likely) {}
-
-    operator Type*() const { return llvm; }
-    operator ArrayRef<Type*>() const { return ArrayRef<Type*>((Type**)&llvm, 1); }
-    operator likely_type() const { return likely; }
-
-private:
-    Type *llvm;
-    likely_type likely;
-};
-
 struct Builder;
 
 } // namespace (anonymous)
@@ -223,7 +208,7 @@ struct likely_resources
 {
     LLVMContext &context;
     IntegerType *nativeInt;
-    MatType multiDimension;
+    Type *multiDimension;
 
     Module *module;
     vector<likely_const_expr> expressions;
@@ -259,10 +244,10 @@ struct likely_resources
         if (native) module->setTargetTriple(sys::getProcessTriple());
     }
 
-    MatType get(likely_type likely)
+    Type *get(likely_type likely)
     {
-        auto result = likelyLUT.find(likely);
-        if (result != likelyLUT.end())
+        auto result = typeLUT.find(likely);
+        if (result != typeLUT.end())
             return result->second;
 
         Type *llvm;
@@ -283,23 +268,22 @@ struct likely_resources
             likely_release(str);
         }
 
-        MatType t(llvm, likely);
-        likelyLUT[likely] = t;
-        return t;
+        typeLUT[likely] = llvm;
+        return llvm;
     }
 
-    MatType get(Type *llvm)
+    likely_type get(Type *llvm)
     {
         if (StructType *structType = dyn_cast<StructType>(llvm)) {
-            return get(likely_type_from_string(structType->getName().str().c_str()));
+            return likely_type_from_string(structType->getName().str().c_str());
         } else if (llvm->isHalfTy()) {
-            return get(likely_matrix_f16);
+            return likely_matrix_f16;
         } else if (llvm->isFloatTy()) {
-            return get(likely_matrix_f32);
+            return likely_matrix_f32;
         } else if (llvm->isDoubleTy()) {
-            return get(likely_matrix_f64);
+            return likely_matrix_f64;
         } else {
-            return get(llvm->getIntegerBitWidth());
+            return llvm->getIntegerBitWidth();
         }
     }
 
@@ -363,7 +347,7 @@ struct likely_resources
     }
 
 private:
-    map<likely_type, MatType> likelyLUT;
+    map<likely_type, Type*> typeLUT;
 };
 
 static likely_res likely_retain_resources(likely_const_res resources)
@@ -536,10 +520,10 @@ struct Builder : public IRBuilder<>
     }
 
     IntegerType *nativeInt() const { return env->resources->nativeInt; }
-    MatType multiDimension() const { return env->resources->multiDimension; }
+    Type *multiDimension() const { return env->resources->multiDimension; }
     Module *module() { return env->resources->module; }
-    MatType get(likely_type likely) { return env->resources->get(likely); }
-    MatType get(Type *llvm) { return env->resources->get(llvm); }
+    Type *get(likely_type likely) { return env->resources->get(likely); }
+    likely_type get(Type *llvm) { return env->resources->get(llvm); }
 
     likely_const_expr expression(likely_const_ast ast);
 };
@@ -1233,7 +1217,7 @@ class newExpression : public Operator
             default:           break;
         }
 
-        return new likely_expression(createCall(builder, *type, channels, columns, rows, frames, data), builder.multiDimension());
+        return new likely_expression(createCall(builder, *type, channels, columns, rows, frames, data), likely_matrix_multi_dimension);
     }
 
 public:
@@ -1440,7 +1424,7 @@ struct Lambda : public ScopedExpression
         else                                            n = 0;
 
         while (types.size() < n)
-            types.push_back(builder.multiDimension());
+            types.push_back(likely_matrix_multi_dimension);
 
         vector<Type*> llvmTypes;
         if (arrayCC) {
@@ -1534,7 +1518,7 @@ private:
         // Do dynamic dispatch if the type isn't fully specified
         bool dynamic = false;
         for (likely_const_expr arg : args)
-            dynamic |= (arg->type == builder.multiDimension());
+            dynamic |= (arg->type == likely_matrix_multi_dimension);
 
         if (dynamic) {
             likely_vtable vtable = new likely_virtual_table(builder.env, ast);
@@ -1558,7 +1542,7 @@ private:
             for (size_t i=0; i<args.size(); i++)
                 builder.CreateStore(*args[i], builder.CreateGEP(matricies, builder.constant(i)));
             Value* args[] = { ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(vtable)), uintptr_t(vtable)), vTableType), matricies };
-            return new likely_expression(builder.CreateCall(likelyDynamic, args), builder.multiDimension());
+            return new likely_expression(builder.CreateCall(likelyDynamic, args), likely_matrix_multi_dimension);
         }
 
         return evaluateLambda(builder, args);
@@ -2543,7 +2527,7 @@ class readExpression : public SimpleUnaryOperator
             likelyRead->setDoesNotAlias(1);
             likelyRead->setDoesNotCapture(1);
         }
-        return new likely_expression(builder.CreateCall2(likelyRead, *arg, builder.constant(likely_file_binary)), builder.multiDimension());
+        return new likely_expression(builder.CreateCall2(likelyRead, *arg, builder.constant(likely_file_binary)), likely_matrix_multi_dimension);
     }
 };
 LIKELY_REGISTER(read)
@@ -2567,7 +2551,7 @@ class writeExpression : public SimpleBinaryOperator
             likelyWrite->setDoesNotAlias(2);
             likelyWrite->setDoesNotCapture(2);
         }
-        return new likely_expression(builder.CreateCall2(likelyWrite, *arg1, *arg2), builder.multiDimension());
+        return new likely_expression(builder.CreateCall2(likelyWrite, *arg1, *arg2), likely_matrix_multi_dimension);
     }
 };
 LIKELY_REGISTER(write)
@@ -2588,7 +2572,7 @@ class decodeExpression : public SimpleUnaryOperator
             likelyDecode->setDoesNotAlias(1);
             likelyDecode->setDoesNotCapture(1);
         }
-        return new likely_expression(builder.CreateCall(likelyDecode, builder.CreatePointerCast(*arg, builder.multiDimension())), builder.multiDimension());
+        return new likely_expression(builder.CreateCall(likelyDecode, builder.CreatePointerCast(*arg, builder.multiDimension())), likely_matrix_multi_dimension);
     }
 };
 LIKELY_REGISTER(decode)
@@ -2612,7 +2596,7 @@ class encodeExpression : public SimpleBinaryOperator
             likelyEncode->setDoesNotAlias(2);
             likelyEncode->setDoesNotCapture(2);
         }
-        return new likely_expression(builder.CreateCall2(likelyEncode, builder.CreatePointerCast(*arg1, builder.multiDimension()), *arg2), builder.multiDimension());
+        return new likely_expression(builder.CreateCall2(likelyEncode, builder.CreatePointerCast(*arg1, builder.multiDimension()), *arg2), likely_matrix_multi_dimension);
     }
 };
 LIKELY_REGISTER(encode)
@@ -2638,7 +2622,7 @@ class renderExpression : public SimpleUnaryOperator
             likelyRender->setDoesNotAlias(3);
             likelyRender->setDoesNotCapture(3);
         }
-        return new likely_expression(builder.CreateCall3(likelyRender, *arg, ConstantPointerNull::get(Type::getDoublePtrTy(builder.getContext())), ConstantPointerNull::get(Type::getDoublePtrTy(builder.getContext()))), builder.multiDimension());
+        return new likely_expression(builder.CreateCall3(likelyRender, *arg, ConstantPointerNull::get(Type::getDoublePtrTy(builder.getContext())), ConstantPointerNull::get(Type::getDoublePtrTy(builder.getContext()))), likely_matrix_multi_dimension);
     }
 };
 LIKELY_REGISTER(render)
@@ -2661,7 +2645,7 @@ class showExpression : public SimpleUnaryOperator
             likelyShow->setDoesNotAlias(2);
             likelyShow->setDoesNotCapture(2);
         }
-        return new likely_expression(builder.CreateCall2(likelyShow, *arg, ConstantPointerNull::get(Type::getInt8PtrTy(builder.getContext()))), builder.multiDimension());
+        return new likely_expression(builder.CreateCall2(likelyShow, *arg, ConstantPointerNull::get(Type::getInt8PtrTy(builder.getContext()))), likely_matrix_multi_dimension);
     }
 };
 LIKELY_REGISTER(show)
@@ -2683,7 +2667,7 @@ class md5Expression : public SimpleUnaryOperator
             likelyMd5->setDoesNotAlias(1);
             likelyMd5->setDoesNotCapture(1);
         }
-        return new likely_expression(builder.CreateCall(likelyMd5, *arg), builder.multiDimension());
+        return new likely_expression(builder.CreateCall(likelyMd5, *arg), likely_matrix_multi_dimension);
     }
 };
 LIKELY_REGISTER(md5)
