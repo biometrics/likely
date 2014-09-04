@@ -90,7 +90,9 @@ likely_ast likely_retain_ast(likely_const_ast ast)
 
 void likely_release_ast(likely_const_ast ast)
 {
-    if (!ast || --const_cast<likely_ast>(ast)->ref_count) return;
+    if (!ast) return;
+    assert(ast->ref_count > 0);
+    if (--const_cast<likely_ast>(ast)->ref_count) return;
     if (ast->type == likely_ast_list)
         for (size_t i=0; i<ast->num_atoms; i++)
             likely_release_ast(ast->atoms[i]);

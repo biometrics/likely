@@ -2771,7 +2771,9 @@ likely_env likely_retain_env(likely_const_env env)
 
 void likely_release_env(likely_const_env env)
 {
-    if (!env || --const_cast<likely_env>(env)->ref_count) return;
+    if (!env) return;
+    assert(env->ref_count > 0);
+    if (--const_cast<likely_env>(env)->ref_count) return;
 
     {
         // Remove ourself as our parent's child
@@ -2865,7 +2867,9 @@ likely_fun likely_retain_function(likely_const_fun f)
 
 void likely_release_function(likely_const_fun f)
 {
-    if (!f || --const_cast<likely_fun>(f)->ref_count) return;
+    if (!f) return;
+    assert(f->ref_count > 0);
+    if (--const_cast<likely_fun>(f)->ref_count) return;
     delete static_cast<const JITFunction*>(f);
 }
 

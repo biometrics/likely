@@ -154,7 +154,9 @@ likely_mat likely_retain(likely_const_mat m)
 
 void likely_release(likely_const_mat m)
 {
-    if (!m || --((likely_mat) m)->ref_count) return;
+    if (!m) return;
+    assert(m->ref_count > 0);
+    if (--((likely_mat) m)->ref_count) return;
     free((void*) m);
 }
 
