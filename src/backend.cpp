@@ -2898,6 +2898,7 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
         likely_release_ast(lambda);
     }
 
+    likely_assert(env->ref_count == 1, "returning an environment with: %d owners", env->ref_count);
     return env;
 }
 
