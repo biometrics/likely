@@ -683,20 +683,18 @@ struct ScopedExpression : public Operator
 {
     likely_env env;
     likely_const_ast ast;
+    bool manageEnv;
 
-    ScopedExpression(likely_env parent, likely_const_ast ast, bool abandon = false)
-        : env(likely_new_env(parent)), ast(likely_retain_ast(ast))
-    {
-        if (abandon) {
-            likely_release_env(env->parent);
-            likely_set_abandoned(&env->type, true);
-        }
-    }
+    ScopedExpression(likely_env env, likely_const_ast ast, bool manageEnv = true)
+        : env(manageEnv ? likely_retain_env(env) : env),
+          ast(likely_retain_ast(ast)),
+          manageEnv(manageEnv) {}
 
     ~ScopedExpression()
     {
         likely_release_ast(ast);
-        likely_release_env(env);
+        if (manageEnv)
+            likely_release_env(env);
     }
 
 private:
@@ -733,7 +731,7 @@ struct likely_virtual_table : public ScopedExpression
     vector<unique_ptr<JITFunction>> functions;
 
     likely_virtual_table(likely_env env, likely_const_ast ast)
-        : ScopedExpression(env, ast, true), n(length(ast->atoms[1])) {}
+        : ScopedExpression(env, ast, false), n(length(ast->atoms[1])) {}
 
 private:
     int uid() const { return __LINE__; }
@@ -2208,7 +2206,7 @@ LIKELY_REGISTER_EXPRESSION(kernel, "=>")
 struct Definition : public ScopedExpression
 {
     Definition(likely_env env, likely_const_ast ast)
-        : ScopedExpression(env, ast, true) {}
+        : ScopedExpression(env, ast, false) {}
 
 private:
     int uid() const { return __LINE__; }
@@ -2227,45 +2225,64 @@ private:
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
 };
 
-struct EvaluatedExpression : public ScopedExpression
+struct EvaluatedExpression : public Operator
 {
+    class FutureExpression
+    {
+        likely_env env;
+        likely_const_ast ast;
+        mutable likely_env result = NULL;
+        mutable future<likely_env> futureResult;
+        mutable mutex lock;
+
+    public:
+        FutureExpression(likely_env parent, likely_const_ast ast)
+            : env(likely_new_env(parent)), ast(likely_retain_ast(ast))
+        {
+            likely_set_offline(&env->type, false);
+            likely_set_abandoned(&env->type, true);
+            likely_release_env(env->parent);
+            futureResult = async(launch::deferred, [=] { return likely_eval(const_cast<likely_ast>(ast), env); });
+            get(); // TODO: remove when ready to test async
+        }
+
+        ~FutureExpression()
+        {
+            likely_release_env(get());
+        }
+
+        likely_env get() const
+        {
+            lock_guard<mutex> guard(lock);
+            if (futureResult.valid()) {
+                result = futureResult.get();
+                likely_release_env(env);
+                likely_release_ast(ast);
+            }
+            return result;
+        }
+    } result;
+
+    // Requries that `parent` stays valid through the lifetime of this class.
+    // We avoid retaining `parent` to avoid a circular dependency.
     EvaluatedExpression(likely_env parent, likely_const_ast ast)
-        : ScopedExpression(parent, ast, true)
-    {
-        likely_set_offline(&env->type, false);
-        futureResult = async(launch::deferred, [=] { return likely_eval(const_cast<likely_ast>(ast), env); });
-        get(); // TODO: remove when ready to test async
-    }
+        : result(parent, ast) {}
 
-    ~EvaluatedExpression()
-    {
-        likely_release_env(get());
-    }
-
-    static likely_const_env get(likely_const_expr expr)
+    static likely_const_env getResult(likely_const_expr expr)
     {
         if (!expr || (expr->uid() != UID()))
             return NULL;
-        return likely_retain_env(reinterpret_cast<const EvaluatedExpression*>(expr)->get());
+        return likely_retain_env(reinterpret_cast<const EvaluatedExpression*>(expr)->result.get());
     }
 
 private:
-    mutable likely_env result = NULL; // Don't access this directly, call get() instead
-    mutable future<likely_env> futureResult;
-    mutable mutex lock;
-
     static int UID() { return __LINE__; }
     int uid() const { return UID(); }
 
-    likely_env get() const
+    bool safeEquals(likely_const_expr) const
     {
-        lock_guard<mutex> guard(lock);
-        if (futureResult.valid()) {
-            result = futureResult.get();
-            likely_release_env(env);
-            likely_release_ast(ast);
-        }
-        return result;
+        // TODO: compare `result`
+        return false;
     }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -2275,7 +2292,7 @@ private:
         (void) builder;
         (void) ast;
 
-        likely_const_mat m = get()->result;
+        likely_const_mat m = result.get()->result;
         if (likely_elements(m) == 1) {
             // Promote to scalar
             return new likely_expression(builder.constant(likely_element(m, 0, 0, 0, 0), m->type));
@@ -2927,7 +2944,7 @@ likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback r
 
 likely_const_env likely_evaluated_expression(likely_const_expr expr)
 {
-    return EvaluatedExpression::get(expr);
+    return EvaluatedExpression::getResult(expr);
 }
 
 likely_mat likely_md5(likely_const_mat buffer)
