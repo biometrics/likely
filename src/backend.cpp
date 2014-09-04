@@ -2240,6 +2240,8 @@ struct EvaluatedExpression : public Operator
             : env(likely_new_env(parent)), ast(likely_retain_ast(ast))
         {
             likely_set_offline(&env->type, false);
+            likely_set_abandoned(&env->type, true);
+            likely_release_env(env->parent);
             futureResult = async(launch::deferred, [=] { return likely_eval(const_cast<likely_ast>(ast), env); });
             get(); // TODO: remove when ready to test async
         }
@@ -2261,6 +2263,8 @@ struct EvaluatedExpression : public Operator
         }
     } result;
 
+    // Requries that `parent` stays valid through the lifetime of this class.
+    // We avoid retaining `parent` to avoid a circular dependency.
     EvaluatedExpression(likely_env parent, likely_const_ast ast)
         : result(parent, ast) {}
 
@@ -2776,7 +2780,8 @@ void likely_release_env(likely_const_env env)
                 parent->children[i] = parent->children[--parent->num_children];
                 break;
             }
-        likely_release_env(parent);
+        if (!likely_abandoned(env->type))
+            likely_release_env(parent);
     }
 
     likely_release_ast(env->ast);
@@ -2801,6 +2806,8 @@ bool likely_definition(likely_environment_type type) { return likely_get_bool(ty
 void likely_set_definition(likely_environment_type *type, bool definition) { likely_set_bool(type, definition, likely_environment_definition); }
 bool likely_global(likely_environment_type type) { return likely_get_bool(type, likely_environment_global); }
 void likely_set_global(likely_environment_type *type, bool global) { likely_set_bool(type, global, likely_environment_global); }
+bool likely_abandoned(likely_environment_type type) { return likely_get_bool(type, likely_environment_abandoned); }
+void likely_set_abandoned(likely_environment_type *type, bool abandoned) { likely_set_bool(type, abandoned, likely_environment_abandoned); }
 
 likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
 {
@@ -2941,5 +2948,6 @@ likely_mat likely_md5(likely_const_mat buffer)
 
 void likely_shutdown()
 {
+    likely_release_env(RootEnvironment::get());
     llvm_shutdown();
 }
