@@ -646,19 +646,9 @@ struct ScopedExpression : public Operator
 {
     likely_env env;
     likely_const_ast ast;
-    bool manageEnv;
 
-    ScopedExpression(likely_env env, likely_const_ast ast, bool manageEnv = true)
-        : env(manageEnv ? likely_retain_env(env) : env),
-          ast(likely_retain_ast(ast)),
-          manageEnv(manageEnv) {}
-
-    ~ScopedExpression()
-    {
-        likely_release_ast(ast);
-        if (manageEnv)
-            likely_release_env(env);
-    }
+    ScopedExpression(likely_env env, likely_const_ast ast)
+        : env(env), ast(ast) {}
 
 private:
     bool safeEquals(likely_const_expr other) const
@@ -694,7 +684,7 @@ struct likely_virtual_table : public ScopedExpression
     vector<unique_ptr<JITFunction>> functions;
 
     likely_virtual_table(likely_env env, likely_const_ast ast)
-        : ScopedExpression(env, ast, false), n(length(ast->atoms[1])) {}
+        : ScopedExpression(env, ast), n(length(ast->atoms[1])) {}
 
 private:
     int uid() const { return __LINE__; }
@@ -2169,7 +2159,7 @@ LIKELY_REGISTER_EXPRESSION(kernel, "=>")
 struct Definition : public ScopedExpression
 {
     Definition(likely_env env, likely_const_ast ast)
-        : ScopedExpression(env, ast, false) {}
+        : ScopedExpression(env, ast) {}
 
 private:
     int uid() const { return __LINE__; }
