@@ -2227,57 +2227,52 @@ private:
 
 struct EvaluatedExpression : public Operator
 {
-    class FutureExpression
-    {
-        likely_env env;
-        likely_const_ast ast;
-        mutable likely_env result = NULL;
-        mutable future<likely_env> futureResult;
-        mutable mutex lock;
-
-    public:
-        FutureExpression(likely_env parent, likely_const_ast ast)
-            : env(likely_new_env(parent)), ast(likely_retain_ast(ast))
-        {
-            likely_set_offline(&env->type, false);
-            likely_set_abandoned(&env->type, true);
-            likely_release_env(env->parent);
-            futureResult = async(launch::deferred, [=] { return likely_eval(const_cast<likely_ast>(ast), env); });
-            get(); // TODO: remove when ready to test async
-        }
-
-        ~FutureExpression()
-        {
-            likely_release_env(get());
-        }
-
-        likely_env get() const
-        {
-            lock_guard<mutex> guard(lock);
-            if (futureResult.valid()) {
-                result = futureResult.get();
-                likely_release_env(env);
-                likely_release_ast(ast);
-            }
-            return result;
-        }
-    } result;
-
     // Requries that `parent` stays valid through the lifetime of this class.
     // We avoid retaining `parent` to avoid a circular dependency.
     EvaluatedExpression(likely_env parent, likely_const_ast ast)
-        : result(parent, ast) {}
+        : env(likely_new_env(parent)), ast(likely_retain_ast(ast))
+    {
+        likely_release_env(env->parent);
+        likely_set_abandoned(&env->type, true);
+        likely_set_offline(&env->type, false);
+        futureResult = async(launch::deferred, [=] { return likely_eval(const_cast<likely_ast>(ast), env); });
+        get(); // TODO: remove when ready to test async
+    }
 
-    static likely_const_env getResult(likely_const_expr expr)
+    ~EvaluatedExpression()
+    {
+        likely_release_env(get());
+    }
+
+    static likely_const_env get(likely_const_expr expr)
     {
         if (!expr || (expr->uid() != UID()))
             return NULL;
-        return likely_retain_env(reinterpret_cast<const EvaluatedExpression*>(expr)->result.get());
+        return likely_retain_env(reinterpret_cast<const EvaluatedExpression*>(expr)->get());
     }
 
 private:
+    likely_env env;
+    likely_const_ast ast;
+    mutable likely_env result = NULL; // Don't access directly, call get() instead
+    mutable future<likely_env> futureResult;
+    mutable mutex lock;
+
     static int UID() { return __LINE__; }
     int uid() const { return UID(); }
+
+    likely_env get() const
+    {
+        lock_guard<mutex> guard(lock);
+        if (futureResult.valid()) {
+            result = futureResult.get();
+            likely_release_env(env);
+            likely_release_ast(ast);
+            const_cast<likely_env&>(env) = NULL;
+            const_cast<likely_ast&>(ast) = NULL;
+        }
+        return result;
+    }
 
     bool safeEquals(likely_const_expr) const
     {
@@ -2292,7 +2287,7 @@ private:
         (void) builder;
         (void) ast;
 
-        likely_const_mat m = result.get()->result;
+        likely_const_mat m = get()->result;
         if (likely_elements(m) == 1) {
             // Promote to scalar
             return new likely_expression(builder.constant(likely_element(m, 0, 0, 0, 0), m->type));
@@ -2944,7 +2939,7 @@ likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback r
 
 likely_const_env likely_evaluated_expression(likely_const_expr expr)
 {
-    return EvaluatedExpression::getResult(expr);
+    return EvaluatedExpression::get(expr);
 }
 
 likely_mat likely_md5(likely_const_mat buffer)
