@@ -436,9 +436,7 @@ struct Builder : public IRBuilder<>
     likely_env env;
 
     Builder(likely_env env)
-        : IRBuilder<>(env->context ? env->context->context : getGlobalContext()), env(likely_retain_env(env)) {}
-
-    ~Builder() { likely_release_env(env); }
+        : IRBuilder<>(env->context ? env->context->context : getGlobalContext()), env(env) {}
 
     static likely_const_expr getMat(likely_const_expr e)
     {
