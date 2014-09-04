@@ -2233,6 +2233,7 @@ struct EvaluatedExpression : public Operator
         likely_const_ast ast;
         mutable likely_env result = NULL;
         mutable future<likely_env> futureResult;
+        mutable mutex lock;
 
     public:
         FutureExpression(likely_env parent, likely_const_ast ast)
@@ -2250,12 +2251,12 @@ struct EvaluatedExpression : public Operator
 
         likely_env get() const
         {
+            lock_guard<mutex> guard(lock);
             if (futureResult.valid()) {
                 result = futureResult.get();
                 likely_release_env(env);
                 likely_release_ast(ast);
             }
-
             return result;
         }
     } result;
