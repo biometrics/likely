@@ -218,7 +218,41 @@ class LikelyContext : public LLVMContext
 {
     map<likely_type, Type*> typeLUT;
 
+    LikelyContext() {} // use LikelyContext::acquire()
+    ~LikelyContext() {} // use LikelyContext::release()
+
 public:
+    static LikelyContext *acquire()
+    {
+        static bool initialized = false;
+        if (!initialized) {
+            likely_assert(sizeof(likely_size) == sizeof(void*), "insane type system");
+            InitializeNativeTarget();
+            InitializeNativeTargetAsmPrinter();
+            InitializeNativeTargetAsmParser();
+
+            PassRegistry &Registry = *PassRegistry::getPassRegistry();
+            initializeCore(Registry);
+            initializeScalarOpts(Registry);
+            initializeVectorization(Registry);
+            initializeIPO(Registry);
+            initializeAnalysis(Registry);
+            initializeIPA(Registry);
+            initializeTransformUtils(Registry);
+            initializeInstCombine(Registry);
+            initializeTarget(Registry);
+            initialized = true;
+        }
+
+        // TODO: context pool
+        return new LikelyContext();
+    }
+
+    static void release(LikelyContext *context)
+    {
+        delete context;
+    }
+
     IntegerType *nativeInt()
     {
         return Type::getIntNTy(*this, unsigned(likely_matrix_native));
@@ -274,35 +308,24 @@ public:
 
 struct likely_module
 {
-    LikelyContext context;
+    LikelyContext *context;
     Module *module;
     vector<likely_const_expr> expressions;
 
     likely_module(bool native)
+        : context(LikelyContext::acquire())
     {
-        static bool initialized = false;
-        if (!initialized) {
-            likely_assert(sizeof(likely_size) == sizeof(void*), "insane type system");
-            InitializeNativeTarget();
-            InitializeNativeTargetAsmPrinter();
-            InitializeNativeTargetAsmParser();
-
-            PassRegistry &Registry = *PassRegistry::getPassRegistry();
-            initializeCore(Registry);
-            initializeScalarOpts(Registry);
-            initializeVectorization(Registry);
-            initializeIPO(Registry);
-            initializeAnalysis(Registry);
-            initializeIPA(Registry);
-            initializeTransformUtils(Registry);
-            initializeInstCombine(Registry);
-            initializeTarget(Registry);
-            initialized = true;
-        }
-
-        module = new Module("likely_module", context);
+        module = new Module("likely_module", *context);
         likely_assert(module != NULL, "failed to create module");
         if (native) module->setTargetTriple(sys::getProcessTriple());
+    }
+
+    virtual ~likely_module()
+    {
+        for (likely_const_expr e : expressions)
+            delete e;
+        delete module;
+        LikelyContext::release(context);
     }
 
     static TargetMachine *getTargetMachine(bool JIT)
@@ -340,13 +363,6 @@ struct likely_module
                                                            CodeGenOpt::Aggressive);
         likely_assert(TM != NULL, "failed to create target machine");
         return TM;
-    }
-
-    virtual ~likely_module()
-    {
-        for (likely_const_expr e : expressions)
-            delete e;
-        delete module;
     }
 };
 
@@ -433,7 +449,7 @@ struct Builder : public IRBuilder<>
     likely_env env;
 
     Builder(likely_env env)
-        : IRBuilder<>(env->module ? env->module->context : getGlobalContext()), env(env) {}
+        : IRBuilder<>(env->module ? *env->module->context : getGlobalContext()), env(env) {}
 
     static likely_const_expr getMat(likely_const_expr e)
     {
@@ -476,7 +492,7 @@ struct Builder : public IRBuilder<>
     likely_expression columns (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_column (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 3), "columns" ), likely_matrix_native) : one(); }
     likely_expression rows    (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_row    (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 4), "rows"    ), likely_matrix_native) : one(); }
     likely_expression frames  (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_frame  (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 5), "frames"  ), likely_matrix_native) : one(); }
-    likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(CreatePointerCast(CreateStructGEP(*m, 7), env->module->context.scalar(*m, true)), likely_data(*m)); }
+    likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(CreatePointerCast(CreateStructGEP(*m, 7), env->module->context->scalar(*m, true)), likely_data(*m)); }
 
     void steps(likely_const_expr matrix, Value *channelStep, Value **columnStep, Value **rowStep, Value **frameStep)
     {
@@ -494,7 +510,7 @@ struct Builder : public IRBuilder<>
             if (likely_floating(type))
                 type = likely_expression::validFloatType(type);
         }
-        Type *dstType = env->module->context.scalar(type);
+        Type *dstType = env->module->context->scalar(type);
         return likely_expression(CreateCast(CastInst::getCastOpcode(*x, likely_signed(*x), dstType, likely_signed(type)), *x, dstType), type);
     }
 
@@ -515,10 +531,10 @@ struct Builder : public IRBuilder<>
         }
     }
 
-    IntegerType *nativeInt() { return env->module->context.nativeInt(); }
+    IntegerType *nativeInt() { return env->module->context->nativeInt(); }
     Type *multiDimension() { return toLLVM(likely_matrix_multi_dimension); }
     Module *module() { return env->module->module; }
-    Type *toLLVM(likely_type likely) { return env->module->context.toLLVM(likely); }
+    Type *toLLVM(likely_type likely) { return env->module->context->toLLVM(likely); }
     Type *translate(Type *type) { return toLLVM(likely_expression::toLikely(type)); } // Translate type across contexts
 
     likely_const_expr expression(likely_const_ast ast);
