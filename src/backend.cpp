@@ -210,7 +210,6 @@ struct likely_context
     LLVMContext context;
     Module *module;
     vector<likely_const_expr> expressions;
-    size_t ref_count = 1;
 
     likely_context(bool native)
     {
@@ -353,18 +352,6 @@ struct likely_context
 private:
     map<likely_type, Type*> typeLUT;
 };
-
-static likely_ctx retainContext(likely_const_ctx ctx)
-{
-    if (ctx) const_cast<likely_ctx>(ctx)->ref_count++;
-    return const_cast<likely_ctx>(ctx);
-}
-
-static void releaseContext(likely_const_ctx ctx)
-{
-    if (!ctx || --const_cast<likely_ctx>(ctx)->ref_count) return;
-    delete ctx;
-}
 
 namespace {
 
@@ -604,7 +591,7 @@ struct JITFunction : public likely_function, public Symbol
         delete EE; // owns module
         ctx->module = NULL;
         likely_release_env(env);
-        releaseContext(ctx); // Delete the context _after_ deleting the module
+        delete ctx;
     }
 
 private:
@@ -2718,7 +2705,7 @@ likely_env likely_new_env(likely_const_env parent)
     }
     env->parent = likely_retain_env(parent);
     env->ast = NULL;
-    env->context = retainContext(parent ? parent->context : NULL);
+    env->context = parent ? parent->context : NULL;
     env->value = NULL;
     env->result = NULL;
     env->ref_count = 1;
@@ -2738,6 +2725,7 @@ likely_env likely_new_env_offline(const char *file_name, bool native)
     assert(!env->context);
     env->context = new OfflineContext(file_name, native);
     likely_set_offline(&env->type, true);
+    likely_set_base(&env->type, true);
     return env;
 }
 
@@ -2768,9 +2756,9 @@ void likely_release_env(likely_const_env env)
     else                              likely_release(env->result);
 
     likely_release_ast(env->ast);
-    releaseContext(env->context);
     free(env->children);
-
+    if (likely_base(env->type))
+        delete env->context;
     if (!likely_abandoned(env->type))
         likely_release_env(env->parent);
 
@@ -2793,6 +2781,8 @@ bool likely_global(likely_environment_type type) { return likely_get_bool(type, 
 void likely_set_global(likely_environment_type *type, bool global) { likely_set_bool(type, global, likely_environment_global); }
 bool likely_abandoned(likely_environment_type type) { return likely_get_bool(type, likely_environment_abandoned); }
 void likely_set_abandoned(likely_environment_type *type, bool abandoned) { likely_set_bool(type, abandoned, likely_environment_abandoned); }
+bool likely_base(likely_environment_type type) { return likely_get_bool(type, likely_environment_base); }
+void likely_set_base(likely_environment_type *type, bool base) { likely_set_bool(type, base, likely_environment_base); }
 
 likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
 {

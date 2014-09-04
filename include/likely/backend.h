@@ -42,7 +42,8 @@ enum likely_environment_type_field
     likely_environment_erratum       = 0x00000008,
     likely_environment_definition    = 0x00000010,
     likely_environment_global        = 0x00000020,
-    likely_environment_abandoned     = 0x00000040
+    likely_environment_abandoned     = 0x00000040,
+    likely_environment_base          = 0x00000080
 };
 
 struct likely_expression;
@@ -109,6 +110,8 @@ LIKELY_EXPORT bool likely_global(likely_environment_type type);
 LIKELY_EXPORT void likely_set_global(likely_environment_type *type, bool global);
 LIKELY_EXPORT bool likely_abandoned(likely_environment_type type);
 LIKELY_EXPORT void likely_set_abandoned(likely_environment_type *type, bool abandoned);
+LIKELY_EXPORT bool likely_base(likely_environment_type type);
+LIKELY_EXPORT void likely_set_base(likely_environment_type *type, bool base);
 
 // Compilation
 LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_type type, ...);
