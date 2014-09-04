@@ -581,7 +581,6 @@ struct JITFunction : public likely_function, public Symbol
 {
     ExecutionEngine *EE = NULL;
     likely_env env;
-    likely_ctx ctx;
     const vector<likely_type> parameters;
 
     JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool abandon, bool interpreter, bool arrayCC);
@@ -589,9 +588,8 @@ struct JITFunction : public likely_function, public Symbol
     ~JITFunction()
     {
         delete EE; // owns module
-        ctx->module = NULL;
+        env->context->module = NULL;
         likely_release_env(env);
-        delete ctx;
     }
 
 private:
@@ -2386,7 +2384,7 @@ class importExpression : public Operator
 LIKELY_REGISTER(import)
 
 JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool abandon, bool interpreter, bool arrayCC)
-    : env(likely_new_env(parent)), ctx(new likely_context(true)), parameters(parameters)
+    : env(likely_new_env(parent)), parameters(parameters)
 {
     function = NULL;
     ref_count = 1;
@@ -2407,32 +2405,34 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     }
 
     {
-        env->context = ctx;
+        env->context = new likely_context(true);
+        likely_set_base(&env->type, true);
         Builder builder(env);
         unique_ptr<const likely_expression> result(builder.expression(ast));
         unique_ptr<const Symbol> expr(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC));
         value = expr ? expr->value : NULL;
         type = expr ? expr->type : likely_type(likely_matrix_void);
-        env->context = NULL;
     }
 
-    if (!value)
+    if (!value) {
+        // TODO: release module
         return;
+    }
 
     // Don't run the interpreter on a module with loops, better to compile and execute it instead.
     if (interpreter) {
         PassManager PM;
         HasLoop *hasLoop = new HasLoop();
         PM.add(hasLoop);
-        PM.run(*ctx->module);
+        PM.run(*env->context->module);
         interpreter = !hasLoop->hasLoop;
     }
 
     TargetMachine *targetMachine = likely_context::getTargetMachine(true);
-    ctx->module->setDataLayout(targetMachine->getSubtargetImpl()->getDataLayout());
+    env->context->module->setDataLayout(targetMachine->getSubtargetImpl()->getDataLayout());
 
     string error;
-    EngineBuilder engineBuilder(unique_ptr<Module>(ctx->module));
+    EngineBuilder engineBuilder(unique_ptr<Module>(env->context->module));
     engineBuilder.setErrorStr(&error);
 
     if (interpreter) {
@@ -2449,13 +2449,13 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         return;
 
     EE->setObjectCache(&TheJITFunctionCache);
-    if (!TheJITFunctionCache.alert(ctx->module)) {
+    if (!TheJITFunctionCache.alert(env->context->module)) {
         static PassManager *PM = NULL;
         if (!PM) {
             static TargetMachine *TM = likely_context::getTargetMachine(false);
             PM = new PassManager();
             PM->add(createVerifierPass());
-            PM->add(new TargetLibraryInfo(Triple(ctx->module->getTargetTriple())));
+            PM->add(new TargetLibraryInfo(Triple(env->context->module->getTargetTriple())));
             PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
             TM->addAnalysisPasses(*PM);
             PassManagerBuilder builder;
@@ -2468,9 +2468,9 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         }
 
 //        DebugFlag = true;
-//        ctx->module->dump();
-        PM->run(*ctx->module);
-//        ctx->module->dump();
+//        env->context->module->dump();
+        PM->run(*env->context->module);
+//        env->context->module->dump();
     }
 
     EE->finalizeObject();
