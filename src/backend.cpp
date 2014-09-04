@@ -2176,12 +2176,12 @@ private:
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
 };
 
-struct EvaluatedExpression : public Operator
+struct EvaluatedExpression : public ScopedExpression
 {
     // Requries that `parent` stays valid through the lifetime of this class.
     // We avoid retaining `parent` to avoid a circular dependency.
     EvaluatedExpression(likely_env parent, likely_const_ast ast)
-        : env(likely_new_env(parent)), ast(likely_retain_ast(ast))
+        : ScopedExpression(likely_new_env(parent), likely_retain_ast(ast))
     {
         likely_release_env(env->parent);
         likely_set_abandoned(&env->type, true);
@@ -2203,8 +2203,6 @@ struct EvaluatedExpression : public Operator
     }
 
 private:
-    likely_env env;
-    likely_const_ast ast;
     mutable likely_env result = NULL; // Don't access directly, call get() instead
     mutable future<likely_env> futureResult;
     mutable mutex lock;
@@ -2223,12 +2221,6 @@ private:
             const_cast<likely_ast&>(ast) = NULL;
         }
         return result;
-    }
-
-    bool safeEquals(likely_const_expr) const
-    {
-        // TODO: compare `result`
-        return false;
     }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
