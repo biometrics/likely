@@ -2264,10 +2264,6 @@ private:
             result = futureResult.get();
             likely_release_env(env);
             likely_release_ast(ast);
-
-            // Prevent double deletion in ScopedExpression destructor
-            const_cast<likely_env&>(env) = NULL;
-            const_cast<likely_ast&>(ast) = NULL;
         }
         return result;
     }
