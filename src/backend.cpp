@@ -619,7 +619,7 @@ struct JITFunction : public likely_function, public Symbol
     likely_ctx ctx;
     const vector<likely_type> parameters;
 
-    JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool interpreter, bool arrayCC);
+    JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool abandon, bool interpreter, bool arrayCC);
 
     ~JITFunction()
     {
@@ -2346,7 +2346,7 @@ class defineExpression : public Operator
                     const Lambda *lambda = static_cast<const Lambda*>(expr.get());
                     env->value = lambda->generate(builder, types, name, false);
                 } else {
-                    JITFunction *function = new JITFunction(name, rhs, builder.env, types, false, false);
+                    JITFunction *function = new JITFunction(name, rhs, env, types, true, false, false);
                     if (function->function) {
                         sys::DynamicLibrary::AddSymbol(name, function->function);
                         env->value = function;
@@ -2408,11 +2408,16 @@ class importExpression : public Operator
 };
 LIKELY_REGISTER(import)
 
-JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool interpreter, bool arrayCC)
+JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool abandon, bool interpreter, bool arrayCC)
     : env(likely_new_env(parent)), ctx(new likely_context(true)), parameters(parameters)
 {
     function = NULL;
     ref_count = 1;
+
+    if (abandon) {
+        likely_release_env(env->parent);
+        likely_set_abandoned(&env->type, true);
+    }
 
 // No libffi support for Windows
 #ifdef _WIN32
@@ -2816,7 +2821,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
         vector<likely_type> types;
         for (size_t i=0; i<vtable->n; i++)
             types.push_back(mv[i]->type);
-        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", vtable->ast, vtable->env, types, false, true)));
+        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", vtable->ast, vtable->env, types, true, false, true)));
         function = vtable->functions.back()->function;
         if (function == NULL)
             return NULL;
@@ -2836,7 +2841,7 @@ likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_typ
         type = va_arg(ap, likely_type);
     }
     va_end(ap);
-    return static_cast<likely_fun>(new JITFunction("likely_jit_function", ast, env, types, false, false));
+    return static_cast<likely_fun>(new JITFunction("likely_jit_function", ast, env, types, false, false, false));
 }
 
 likely_fun likely_retain_function(likely_const_fun f)
@@ -2880,7 +2885,7 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
         likely_release_ast(lambda->atoms[0]->atoms[2]->atoms[1]); // <ast>
         const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]->atoms[1]) = likely_retain_ast(ast); // Copy because we will modify ast->type
 
-        JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), true, false);
+        JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), false, true, false);
         if (jit.EE) {
             env->result = (likely_mat) jit.EE->runFunction(cast<Function>(jit.value), vector<GenericValue>()).PointerVal;
         } else if (jit.function) {
