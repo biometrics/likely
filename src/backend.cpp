@@ -2780,15 +2780,19 @@ void likely_release_env(likely_const_env env)
                 parent->children[i] = parent->children[--parent->num_children];
                 break;
             }
-        if (!likely_abandoned(env->type))
-            likely_release_env(parent);
     }
+
+    // Do this early to guarantee the environment for these lifetime of these classes
+    if (likely_definition(env->type)) delete env->value;
+    else                              likely_release(env->result);
 
     likely_release_ast(env->ast);
     releaseContext(env->context);
-    if (likely_definition(env->type)) delete env->value;
-    else                              likely_release(env->result);
     free(env->children);
+
+    if (!likely_abandoned(env->type))
+        likely_release_env(env->parent);
+
     free(const_cast<likely_env>(env));
 }
 
