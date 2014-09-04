@@ -214,70 +214,71 @@ if (!EXPR.get()) return NULL;                                              \
 
 } // namespace (anonymous)
 
-struct likely_context
+class LikelyContext : public LLVMContext
 {
-    class Context : public LLVMContext
+    map<likely_type, Type*> typeLUT;
+
+public:
+    IntegerType *nativeInt()
     {
-        map<likely_type, Type*> typeLUT;
+        return Type::getIntNTy(*this, unsigned(likely_matrix_native));
+    }
 
-    public:
-        IntegerType *nativeInt()
-        {
-            return Type::getIntNTy(*this, unsigned(likely_matrix_native));
+    Type *scalar(likely_type type, bool pointer = false)
+    {
+        const size_t bits = likely_depth(type);
+        const bool floating = likely_floating(type);
+        if (floating) {
+            if      (bits == 16) return pointer ? Type::getHalfPtrTy(*this)   : Type::getHalfTy(*this);
+            else if (bits == 32) return pointer ? Type::getFloatPtrTy(*this)  : Type::getFloatTy(*this);
+            else if (bits == 64) return pointer ? Type::getDoublePtrTy(*this) : Type::getDoubleTy(*this);
+        } else {
+            if      (bits == 1)  return pointer ? Type::getInt1PtrTy(*this)  : (Type*)Type::getInt1Ty(*this);
+            else if (bits == 8)  return pointer ? Type::getInt8PtrTy(*this)  : (Type*)Type::getInt8Ty(*this);
+            else if (bits == 16) return pointer ? Type::getInt16PtrTy(*this) : (Type*)Type::getInt16Ty(*this);
+            else if (bits == 32) return pointer ? Type::getInt32PtrTy(*this) : (Type*)Type::getInt32Ty(*this);
+            else if (bits == 64) return pointer ? Type::getInt64PtrTy(*this) : (Type*)Type::getInt64Ty(*this);
+        }
+        likely_assert(false, "ty invalid matrix bits: %d and floating: %d", bits, floating);
+        return NULL;
+    }
+
+    Type *toLLVM(likely_type likely)
+    {
+        auto result = typeLUT.find(likely);
+        if (result != typeLUT.end())
+            return result->second;
+
+        Type *llvm;
+        if (!likely_multi_dimension(likely) && likely_depth(likely)) {
+            llvm = scalar(likely);
+        } else {
+            likely_mat str = likely_type_to_string(likely);
+            llvm = PointerType::getUnqual(StructType::create(str->data,
+                                                             nativeInt(), // bytes
+                                                             nativeInt(), // ref_count
+                                                             nativeInt(), // channels
+                                                             nativeInt(), // columns
+                                                             nativeInt(), // rows
+                                                             nativeInt(), // frames
+                                                             nativeInt(), // type
+                                                             ArrayType::get(Type::getInt8Ty(*this), 0), // data
+                                                             NULL));
+            likely_release(str);
         }
 
-        Type *scalar(likely_type type, bool pointer = false)
-        {
-            const size_t bits = likely_depth(type);
-            const bool floating = likely_floating(type);
-            if (floating) {
-                if      (bits == 16) return pointer ? Type::getHalfPtrTy(*this)   : Type::getHalfTy(*this);
-                else if (bits == 32) return pointer ? Type::getFloatPtrTy(*this)  : Type::getFloatTy(*this);
-                else if (bits == 64) return pointer ? Type::getDoublePtrTy(*this) : Type::getDoubleTy(*this);
-            } else {
-                if      (bits == 1)  return pointer ? Type::getInt1PtrTy(*this)  : (Type*)Type::getInt1Ty(*this);
-                else if (bits == 8)  return pointer ? Type::getInt8PtrTy(*this)  : (Type*)Type::getInt8Ty(*this);
-                else if (bits == 16) return pointer ? Type::getInt16PtrTy(*this) : (Type*)Type::getInt16Ty(*this);
-                else if (bits == 32) return pointer ? Type::getInt32PtrTy(*this) : (Type*)Type::getInt32Ty(*this);
-                else if (bits == 64) return pointer ? Type::getInt64PtrTy(*this) : (Type*)Type::getInt64Ty(*this);
-            }
-            likely_assert(false, "ty invalid matrix bits: %d and floating: %d", bits, floating);
-            return NULL;
-        }
+        typeLUT[likely] = llvm;
+        return llvm;
+    }
+};
 
-        Type *toLLVM(likely_type likely)
-        {
-            auto result = typeLUT.find(likely);
-            if (result != typeLUT.end())
-                return result->second;
-
-            Type *llvm;
-            if (!likely_multi_dimension(likely) && likely_depth(likely)) {
-                llvm = scalar(likely);
-            } else {
-                likely_mat str = likely_type_to_string(likely);
-                llvm = PointerType::getUnqual(StructType::create(str->data,
-                                                                 nativeInt(), // bytes
-                                                                 nativeInt(), // ref_count
-                                                                 nativeInt(), // channels
-                                                                 nativeInt(), // columns
-                                                                 nativeInt(), // rows
-                                                                 nativeInt(), // frames
-                                                                 nativeInt(), // type
-                                                                 ArrayType::get(Type::getInt8Ty(*this), 0), // data
-                                                                 NULL));
-                likely_release(str);
-            }
-
-            typeLUT[likely] = llvm;
-            return llvm;
-        }
-    } context;
-
+struct likely_module
+{
+    LikelyContext context;
     Module *module;
     vector<likely_const_expr> expressions;
 
-    likely_context(bool native)
+    likely_module(bool native)
     {
         static bool initialized = false;
         if (!initialized) {
@@ -341,7 +342,7 @@ struct likely_context
         return TM;
     }
 
-    virtual ~likely_context()
+    virtual ~likely_module()
     {
         for (likely_const_expr e : expressions)
             delete e;
@@ -396,15 +397,15 @@ public:
 };
 static JITFunctionCache TheJITFunctionCache;
 
-class OfflineContext : public likely_context
+class OfflineModule : public likely_module
 {
     const string fileName;
 
 public:
-    OfflineContext(const string &fileName, bool native)
-        : likely_context(native), fileName(fileName) {}
+    OfflineModule(const string &fileName, bool native)
+        : likely_module(native), fileName(fileName) {}
 
-    ~OfflineContext()
+    ~OfflineModule()
     {
         error_code errorCode;
         tool_output_file output(fileName.c_str(), errorCode, sys::fs::F_None);
@@ -432,7 +433,7 @@ struct Builder : public IRBuilder<>
     likely_env env;
 
     Builder(likely_env env)
-        : IRBuilder<>(env->context ? env->context->context : getGlobalContext()), env(env) {}
+        : IRBuilder<>(env->module ? env->module->context : getGlobalContext()), env(env) {}
 
     static likely_const_expr getMat(likely_const_expr e)
     {
@@ -475,7 +476,7 @@ struct Builder : public IRBuilder<>
     likely_expression columns (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_column (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 3), "columns" ), likely_matrix_native) : one(); }
     likely_expression rows    (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_row    (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 4), "rows"    ), likely_matrix_native) : one(); }
     likely_expression frames  (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_frame  (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 5), "frames"  ), likely_matrix_native) : one(); }
-    likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(CreatePointerCast(CreateStructGEP(*m, 7), env->context->context.scalar(*m, true)), likely_data(*m)); }
+    likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(CreatePointerCast(CreateStructGEP(*m, 7), env->module->context.scalar(*m, true)), likely_data(*m)); }
 
     void steps(likely_const_expr matrix, Value *channelStep, Value **columnStep, Value **rowStep, Value **frameStep)
     {
@@ -493,7 +494,7 @@ struct Builder : public IRBuilder<>
             if (likely_floating(type))
                 type = likely_expression::validFloatType(type);
         }
-        Type *dstType = env->context->context.scalar(type);
+        Type *dstType = env->module->context.scalar(type);
         return likely_expression(CreateCast(CastInst::getCastOpcode(*x, likely_signed(*x), dstType, likely_signed(type)), *x, dstType), type);
     }
 
@@ -514,10 +515,10 @@ struct Builder : public IRBuilder<>
         }
     }
 
-    IntegerType *nativeInt() { return env->context->context.nativeInt(); }
+    IntegerType *nativeInt() { return env->module->context.nativeInt(); }
     Type *multiDimension() { return toLLVM(likely_matrix_multi_dimension); }
-    Module *module() { return env->context->module; }
-    Type *toLLVM(likely_type likely) { return env->context->context.toLLVM(likely); }
+    Module *module() { return env->module->module; }
+    Type *toLLVM(likely_type likely) { return env->module->context.toLLVM(likely); }
     Type *translate(Type *type) { return toLLVM(likely_expression::toLikely(type)); } // Translate type across contexts
 
     likely_const_expr expression(likely_const_ast ast);
@@ -581,7 +582,7 @@ struct JITFunction : public likely_function, public Symbol
     ~JITFunction()
     {
         delete EE; // owns module
-        env->context->module = NULL;
+        env->module->module = NULL;
         likely_release_env(env);
     }
 
@@ -1513,7 +1514,7 @@ private:
 
         if (dynamic) {
             likely_vtable vtable = new likely_virtual_table(builder.env, ast);
-            builder.env->context->expressions.push_back(vtable);
+            builder.env->module->expressions.push_back(vtable);
 
             PointerType *vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
             Function *likelyDynamic = builder.module()->getFunction("likely_dynamic");
@@ -2380,7 +2381,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     }
 
     {
-        env->context = new likely_context(true);
+        env->module = new likely_module(true);
         likely_set_base(&env->type, true);
         Builder builder(env);
         unique_ptr<const likely_expression> result(builder.expression(ast));
@@ -2399,15 +2400,15 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         PassManager PM;
         HasLoop *hasLoop = new HasLoop();
         PM.add(hasLoop);
-        PM.run(*env->context->module);
+        PM.run(*env->module->module);
         interpreter = !hasLoop->hasLoop;
     }
 
-    TargetMachine *targetMachine = likely_context::getTargetMachine(true);
-    env->context->module->setDataLayout(targetMachine->getSubtargetImpl()->getDataLayout());
+    TargetMachine *targetMachine = likely_module::getTargetMachine(true);
+    env->module->module->setDataLayout(targetMachine->getSubtargetImpl()->getDataLayout());
 
     string error;
-    EngineBuilder engineBuilder(unique_ptr<Module>(env->context->module));
+    EngineBuilder engineBuilder(unique_ptr<Module>(env->module->module));
     engineBuilder.setErrorStr(&error);
 
     if (interpreter) {
@@ -2424,13 +2425,13 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         return;
 
     EE->setObjectCache(&TheJITFunctionCache);
-    if (!TheJITFunctionCache.alert(env->context->module)) {
+    if (!TheJITFunctionCache.alert(env->module->module)) {
         static PassManager *PM = NULL;
         if (!PM) {
-            static TargetMachine *TM = likely_context::getTargetMachine(false);
+            static TargetMachine *TM = likely_module::getTargetMachine(false);
             PM = new PassManager();
             PM->add(createVerifierPass());
-            PM->add(new TargetLibraryInfo(Triple(env->context->module->getTargetTriple())));
+            PM->add(new TargetLibraryInfo(Triple(env->module->module->getTargetTriple())));
             PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
             TM->addAnalysisPasses(*PM);
             PassManagerBuilder builder;
@@ -2444,7 +2445,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
 
 //        DebugFlag = true;
 //        env->context->module->dump();
-        PM->run(*env->context->module);
+        PM->run(*env->module->module);
 //        env->context->module->dump();
     }
 
@@ -2680,7 +2681,7 @@ likely_env likely_new_env(likely_const_env parent)
     }
     env->parent = likely_retain_env(parent);
     env->ast = NULL;
-    env->context = parent ? parent->context : NULL;
+    env->module = parent ? parent->module : NULL;
     env->value = NULL;
     env->result = NULL;
     env->ref_count = 1;
@@ -2697,8 +2698,8 @@ likely_env likely_new_env_jit()
 likely_env likely_new_env_offline(const char *file_name, bool native)
 {
     likely_env env = likely_new_env(RootEnvironment::get());
-    assert(!env->context);
-    env->context = new OfflineContext(file_name, native);
+    assert(!env->module);
+    env->module = new OfflineModule(file_name, native);
     likely_set_offline(&env->type, true);
     likely_set_base(&env->type, true);
     return env;
@@ -2733,7 +2734,7 @@ void likely_release_env(likely_const_env env)
     likely_release_ast(env->ast);
     free(env->children);
     if (likely_base(env->type))
-        delete env->context;
+        delete env->module;
     if (!likely_abandoned(env->type))
         likely_release_env(env->parent);
 
