@@ -445,13 +445,14 @@ public:
 };
 static JITFunctionCache TheJITFunctionCache;
 
-class OfflineModule : public likely_module
+struct OfflineModule : public likely_module
 {
-    const string fileName;
-
-public:
-    OfflineModule(const string &fileName, bool native)
-        : likely_module(native), fileName(fileName) {}
+    static OfflineModule *make(const string &fileName)
+    {
+        const string extension = getExtension(fileName);
+        bool native = (extension != "ll") && (extension != "bc");
+        return new OfflineModule(fileName, native);
+    }
 
     ~OfflineModule()
     {
@@ -465,6 +466,7 @@ public:
         } else if (extension == "bc") {
             WriteBitcodeToFile(module, output.os());
         } else {
+            optimize();
             PassManager pm;
             formatted_raw_ostream fos(output.os());
             static TargetMachine *TM = LikelyContext::getTargetMachine(false);
@@ -473,6 +475,17 @@ public:
         }
 
         output.keep();
+    }
+
+private:
+    const string fileName;
+
+    OfflineModule(const string &fileName, bool native)
+        : likely_module(native), fileName(fileName) {}
+
+    static string getExtension(const string &fileName)
+    {
+        return fileName.substr(fileName.find_last_of(".") + 1);
     }
 };
 
@@ -2722,10 +2735,10 @@ likely_env likely_new_env_jit()
     return likely_new_env(RootEnvironment::get());
 }
 
-likely_env likely_new_env_offline(const char *file_name, bool native)
+likely_env likely_new_env_offline(const char *file_name)
 {
     likely_env env = likely_new_env(RootEnvironment::get());
-    env->module = new OfflineModule(file_name, native);
+    env->module = OfflineModule::make(file_name);
     likely_set_offline(&env->type, true);
     likely_set_base(&env->type, true);
     return env;

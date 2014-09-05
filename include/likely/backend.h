@@ -90,7 +90,7 @@ typedef struct likely_function const *likely_const_fun;
 // Environments
 LIKELY_EXPORT likely_env likely_new_env(likely_const_env parent);
 LIKELY_EXPORT likely_env likely_new_env_jit();
-LIKELY_EXPORT likely_env likely_new_env_offline(const char *file_name, bool native);
+LIKELY_EXPORT likely_env likely_new_env_offline(const char *file_name);
 LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
 LIKELY_EXPORT void likely_release_env(likely_const_env env);
 
