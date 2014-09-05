@@ -219,11 +219,24 @@ class LikelyContext : public LLVMContext
 {
     static queue<LikelyContext*> contextPool;
     map<likely_type, Type*> typeLUT;
-    PassManager *PM = NULL;
+    PassManager *PM;
 
     // use LikelyContext::acquire()
     LikelyContext()
-        : TM(getTargetMachine(false)) {}
+        : PM(new PassManager()), TM(getTargetMachine(false))
+    {
+        PM->add(createVerifierPass());
+        PM->add(new TargetLibraryInfo(Triple(sys::getProcessTriple())));
+        PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
+        TM->addAnalysisPasses(*PM);
+        PassManagerBuilder builder;
+        builder.OptLevel = 3;
+        builder.SizeLevel = 0;
+        builder.LoopVectorize = true;
+        builder.Inliner = createAlwaysInlinerPass();
+        builder.populateModulePassManager(*PM);
+        PM->add(createVerifierPass());
+    }
 
     // use LikelyContext::release()
     ~LikelyContext()
@@ -338,22 +351,6 @@ public:
     void optimize(Module &module)
     {
         module.setTargetTriple(sys::getProcessTriple());
-
-        if (!PM) {
-            PM = new PassManager();
-            PM->add(createVerifierPass());
-            PM->add(new TargetLibraryInfo(Triple(module.getTargetTriple())));
-            PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
-            TM->addAnalysisPasses(*PM);
-            PassManagerBuilder builder;
-            builder.OptLevel = 3;
-            builder.SizeLevel = 0;
-            builder.LoopVectorize = true;
-            builder.Inliner = createAlwaysInlinerPass();
-            builder.populateModulePassManager(*PM);
-            PM->add(createVerifierPass());
-        }
-
 //        DebugFlag = true;
         PM->run(module);
     }
