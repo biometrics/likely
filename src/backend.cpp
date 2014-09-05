@@ -312,6 +312,8 @@ public:
 
     void optimize(Module &module)
     {
+        module.setTargetTriple(sys::getProcessTriple());
+
         if (!PM) {
             static TargetMachine *TM = getTargetMachine(false);
             PM = new PassManager();
@@ -376,13 +378,9 @@ struct likely_module
     Module *module;
     vector<likely_const_expr> expressions;
 
-    likely_module(bool native)
+    likely_module()
         : context(LikelyContext::acquire())
-    {
-        module = new Module("likely_module", *context);
-        if (native)
-            module->setTargetTriple(sys::getProcessTriple());
-    }
+        , module(new Module("likely_module", *context)) {}
 
     virtual ~likely_module()
     {
@@ -445,14 +443,13 @@ public:
 };
 static JITFunctionCache TheJITFunctionCache;
 
-struct OfflineModule : public likely_module
+class OfflineModule : public likely_module
 {
-    static OfflineModule *make(const string &fileName)
-    {
-        const string extension = getExtension(fileName);
-        bool native = (extension != "ll") && (extension != "bc");
-        return new OfflineModule(fileName, native);
-    }
+    const string fileName;
+
+public:
+    OfflineModule(const string &fileName)
+        : fileName(fileName) {}
 
     ~OfflineModule()
     {
@@ -475,17 +472,6 @@ struct OfflineModule : public likely_module
         }
 
         output.keep();
-    }
-
-private:
-    const string fileName;
-
-    OfflineModule(const string &fileName, bool native)
-        : likely_module(native), fileName(fileName) {}
-
-    static string getExtension(const string &fileName)
-    {
-        return fileName.substr(fileName.find_last_of(".") + 1);
     }
 };
 
@@ -2444,7 +2430,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     }
 
     {
-        env->module = new likely_module(true);
+        env->module = new likely_module();
         likely_set_base(&env->type, true);
         Builder builder(env);
         unique_ptr<const likely_expression> result(builder.expression(ast));
@@ -2738,7 +2724,7 @@ likely_env likely_new_env_jit()
 likely_env likely_new_env_offline(const char *file_name)
 {
     likely_env env = likely_new_env(RootEnvironment::get());
-    env->module = OfflineModule::make(file_name);
+    env->module = new OfflineModule(file_name);
     likely_set_offline(&env->type, true);
     likely_set_base(&env->type, true);
     return env;
