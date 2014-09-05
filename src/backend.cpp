@@ -217,9 +217,14 @@ if (!EXPR.get()) return NULL;                                              \
 class LikelyContext : public LLVMContext
 {
     map<likely_type, Type*> typeLUT;
+    PassManager *PM = NULL;
 
     LikelyContext() {} // use LikelyContext::acquire()
-    ~LikelyContext() {} // use LikelyContext::release()
+
+    ~LikelyContext() // use LikelyContext::release()
+    {
+        delete PM;
+    }
 
 public:
     static LikelyContext *acquire()
@@ -304,28 +309,27 @@ public:
         typeLUT[likely] = llvm;
         return llvm;
     }
-};
 
-struct likely_module
-{
-    LikelyContext *context;
-    Module *module;
-    vector<likely_const_expr> expressions;
-
-    likely_module(bool native)
-        : context(LikelyContext::acquire())
+    void optimize(Module &module)
     {
-        module = new Module("likely_module", *context);
-        if (native)
-            module->setTargetTriple(sys::getProcessTriple());
-    }
+        if (!PM) {
+            static TargetMachine *TM = getTargetMachine(false);
+            PM = new PassManager();
+            PM->add(createVerifierPass());
+            PM->add(new TargetLibraryInfo(Triple(module.getTargetTriple())));
+            PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
+            TM->addAnalysisPasses(*PM);
+            PassManagerBuilder builder;
+            builder.OptLevel = 3;
+            builder.SizeLevel = 0;
+            builder.LoopVectorize = true;
+            builder.Inliner = createAlwaysInlinerPass();
+            builder.populateModulePassManager(*PM);
+            PM->add(createVerifierPass());
+        }
 
-    virtual ~likely_module()
-    {
-        for (likely_const_expr e : expressions)
-            delete e;
-        delete module;
-        LikelyContext::release(context);
+//        DebugFlag = true;
+        PM->run(module);
     }
 
     static TargetMachine *getTargetMachine(bool JIT)
@@ -363,6 +367,34 @@ struct likely_module
                                                            CodeGenOpt::Aggressive);
         likely_assert(TM != NULL, "failed to create target machine");
         return TM;
+    }
+};
+
+struct likely_module
+{
+    LikelyContext *context;
+    Module *module;
+    vector<likely_const_expr> expressions;
+
+    likely_module(bool native)
+        : context(LikelyContext::acquire())
+    {
+        module = new Module("likely_module", *context);
+        if (native)
+            module->setTargetTriple(sys::getProcessTriple());
+    }
+
+    virtual ~likely_module()
+    {
+        for (likely_const_expr e : expressions)
+            delete e;
+        delete module;
+        LikelyContext::release(context);
+    }
+
+    void optimize()
+    {
+        context->optimize(*module);
     }
 };
 
@@ -435,7 +467,7 @@ public:
         } else {
             PassManager pm;
             formatted_raw_ostream fos(output.os());
-            static TargetMachine *TM = getTargetMachine(false);
+            static TargetMachine *TM = LikelyContext::getTargetMachine(false);
             TM->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
             pm.run(*module);
         }
@@ -2420,7 +2452,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         interpreter = !hasLoop->hasLoop;
     }
 
-    TargetMachine *targetMachine = likely_module::getTargetMachine(true);
+    TargetMachine *targetMachine = LikelyContext::getTargetMachine(true);
     env->module->module->setDataLayout(targetMachine->getSubtargetImpl()->getDataLayout());
 
     string error;
@@ -2439,27 +2471,8 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
 
     if (!interpreter) {
         EE->setObjectCache(&TheJITFunctionCache);
-        if (!TheJITFunctionCache.alert(env->module->module)) {
-            static PassManager *PM = NULL;
-            if (!PM) {
-                static TargetMachine *TM = likely_module::getTargetMachine(false);
-                PM = new PassManager();
-                PM->add(createVerifierPass());
-                PM->add(new TargetLibraryInfo(Triple(env->module->module->getTargetTriple())));
-                PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
-                TM->addAnalysisPasses(*PM);
-                PassManagerBuilder builder;
-                builder.OptLevel = 3;
-                builder.SizeLevel = 0;
-                builder.LoopVectorize = true;
-                builder.Inliner = createAlwaysInlinerPass();
-                builder.populateModulePassManager(*PM);
-                PM->add(createVerifierPass());
-            }
-
-//            DebugFlag = true;
-            PM->run(*env->module->module);
-        }
+        if (!TheJITFunctionCache.alert(env->module->module))
+            env->module->optimize();
 
         EE->finalizeObject();
         function = (void*) EE->getFunctionAddress(name);
