@@ -57,6 +57,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <queue>
 #include <set>
 #include <sstream>
 
@@ -216,6 +217,7 @@ if (!EXPR.get()) return NULL;                                              \
 
 class LikelyContext : public LLVMContext
 {
+    static queue<LikelyContext*> contextPool;
     map<likely_type, Type*> typeLUT;
     PassManager *PM = NULL;
 
@@ -229,6 +231,9 @@ class LikelyContext : public LLVMContext
 public:
     static LikelyContext *acquire()
     {
+        static mutex lock;
+        lock_guard<mutex> guard(lock);
+
         static bool initialized = false;
         if (!initialized) {
             likely_assert(sizeof(likely_size) == sizeof(void*), "insane type system");
@@ -249,13 +254,27 @@ public:
             initialized = true;
         }
 
-        // TODO: context pool
-        return new LikelyContext();
+        if (contextPool.empty())
+            contextPool.push(new LikelyContext());
+
+        LikelyContext *context = contextPool.front();
+        contextPool.pop();
+        return context;
     }
 
     static void release(LikelyContext *context)
     {
-        delete context;
+        static mutex lock;
+        lock_guard<mutex> guard(lock);
+        contextPool.push(context);
+    }
+
+    static void shutdown()
+    {
+        while (!contextPool.empty()) {
+            delete contextPool.front();
+            contextPool.pop();
+        }
     }
 
     IntegerType *nativeInt()
@@ -371,6 +390,7 @@ public:
         return TM;
     }
 };
+queue<LikelyContext*> LikelyContext::contextPool;
 
 struct likely_module
 {
@@ -2928,5 +2948,6 @@ likely_mat likely_md5(likely_const_mat buffer)
 void likely_shutdown()
 {
     likely_release_env(RootEnvironment::get());
+    LikelyContext::shutdown();
     llvm_shutdown();
 }
