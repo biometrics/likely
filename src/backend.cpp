@@ -221,14 +221,20 @@ class LikelyContext : public LLVMContext
     map<likely_type, Type*> typeLUT;
     PassManager *PM = NULL;
 
-    LikelyContext() {} // use LikelyContext::acquire()
+    // use LikelyContext::acquire()
+    LikelyContext()
+        : TM(getTargetMachine(false)) {}
 
-    ~LikelyContext() // use LikelyContext::release()
+    // use LikelyContext::release()
+    ~LikelyContext()
     {
         delete PM;
+        delete TM;
     }
 
 public:
+    TargetMachine *TM;
+
     static LikelyContext *acquire()
     {
         static mutex lock;
@@ -334,7 +340,6 @@ public:
         module.setTargetTriple(sys::getProcessTriple());
 
         if (!PM) {
-            static TargetMachine *TM = getTargetMachine(false);
             PM = new PassManager();
             PM->add(createVerifierPass());
             PM->add(new TargetLibraryInfo(Triple(module.getTargetTriple())));
@@ -486,8 +491,7 @@ public:
             optimize();
             PassManager pm;
             formatted_raw_ostream fos(output.os());
-            static TargetMachine *TM = LikelyContext::getTargetMachine(false);
-            TM->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
+            context->TM->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
             pm.run(*module);
         }
 
