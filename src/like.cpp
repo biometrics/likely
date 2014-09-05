@@ -44,6 +44,7 @@ static cl::opt<bool> md5("md5", cl::desc("Print matrix output MD5 hash to termin
 static cl::opt<bool> show("show", cl::desc("Show matrix output in a window"));
 static cl::opt<bool> quiet("quiet", cl::desc("Don't show matrix output"));
 static cl::opt<bool> parallel("parallel" , cl::desc("Compile parallel kernels"));
+static cl::opt<bool> native("native", cl::desc("Optimize output for current platform"));
 
 static void checkOrPrintAndRelease(likely_const_mat input)
 {
@@ -123,7 +124,7 @@ int main(int argc, char *argv[])
 
     likely_env parent;
     if (output.empty()) parent = likely_new_env_jit(); // Interpreter
-    else                parent = likely_new_env_offline(output.c_str(), true); // Static compiler
+    else                parent = likely_new_env_offline(output.c_str(), native); // Static compiler
     likely_set_parallel(&parent->type, parallel);
 
     if (input.empty()) {

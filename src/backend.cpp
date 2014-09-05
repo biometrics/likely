@@ -2716,7 +2716,6 @@ likely_env likely_new_env_jit()
 likely_env likely_new_env_offline(const char *file_name, bool native)
 {
     likely_env env = likely_new_env(RootEnvironment::get());
-    assert(!env->module);
     env->module = new OfflineModule(file_name, native);
     likely_set_offline(&env->type, true);
     likely_set_base(&env->type, true);
