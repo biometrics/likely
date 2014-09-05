@@ -362,27 +362,25 @@ public:
     {
         static const Target *TheTarget = NULL;
         static TargetOptions TO;
-        static string targetTriple;
         static mutex lock;
-
         lock_guard<mutex> locker(lock);
+
         if (TheTarget == NULL) {
             string error;
             TheTarget = TargetRegistry::lookupTarget(sys::getProcessTriple(), error);
             likely_assert(TheTarget != NULL, "target lookup failed with error: %s", error.c_str());
-
             TO.LessPreciseFPMADOption = true;
             TO.UnsafeFPMath = true;
             TO.NoInfsFPMath = true;
             TO.NoNaNsFPMath = true;
             TO.AllowFPOpFusion = FPOpFusion::Fast;
-
-            targetTriple = sys::getProcessTriple();
-#ifdef _WIN32
-            if (JIT)
-                targetTriple += "-elf";
-#endif // _WIN32
         }
+
+        string targetTriple = sys::getProcessTriple();
+#ifdef _WIN32
+        if (JIT)
+            targetTriple += "-elf";
+#endif // _WIN32
 
         TargetMachine *TM = TheTarget->createTargetMachine(targetTriple,
                                                            sys::getHostCPUName(),
