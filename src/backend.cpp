@@ -2448,16 +2448,13 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         return;
     }
 
-    {
-        env->module = new likely_module();
-        likely_set_base(&env->type, true);
-        Builder builder(env);
-        unique_ptr<const likely_expression> result(builder.expression(ast));
-        unique_ptr<const Symbol> expr(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC));
-        value = expr ? expr->value : NULL;
-        type = expr ? expr->type : likely_type(likely_matrix_void);
-    }
-
+    env->module = new likely_module();
+    likely_set_base(&env->type, true);
+    Builder builder(env);
+    unique_ptr<const likely_expression> result(builder.expression(ast));
+    unique_ptr<const Symbol> expr(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC));
+    value = expr ? expr->value : NULL;
+    type = expr ? expr->type : likely_type(likely_matrix_void);
     if (!value)
         return;
 
