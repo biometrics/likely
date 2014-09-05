@@ -316,8 +316,8 @@ struct likely_module
         : context(LikelyContext::acquire())
     {
         module = new Module("likely_module", *context);
-        likely_assert(module != NULL, "failed to create module");
-        if (native) module->setTargetTriple(sys::getProcessTriple());
+        if (native)
+            module->setTargetTriple(sys::getProcessTriple());
     }
 
     virtual ~likely_module()
@@ -597,8 +597,10 @@ struct JITFunction : public likely_function, public Symbol
 
     ~JITFunction()
     {
-        delete EE; // owns module
-        env->module->module = NULL;
+        if (EE) {
+            EE->removeModule(env->module->module);
+            delete EE;
+        }
         likely_release_env(env);
     }
 
@@ -2406,10 +2408,8 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         type = expr ? expr->type : likely_type(likely_matrix_void);
     }
 
-    if (!value) {
-        // TODO: release module
+    if (!value)
         return;
-    }
 
     // Don't run the interpreter on a module with loops, better to compile and execute it instead.
     if (interpreter) {
@@ -2437,36 +2437,34 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     EE = engineBuilder.create(targetMachine);
     likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
 
-    if (interpreter)
-        return;
+    if (!interpreter) {
+        EE->setObjectCache(&TheJITFunctionCache);
+        if (!TheJITFunctionCache.alert(env->module->module)) {
+            static PassManager *PM = NULL;
+            if (!PM) {
+                static TargetMachine *TM = likely_module::getTargetMachine(false);
+                PM = new PassManager();
+                PM->add(createVerifierPass());
+                PM->add(new TargetLibraryInfo(Triple(env->module->module->getTargetTriple())));
+                PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
+                TM->addAnalysisPasses(*PM);
+                PassManagerBuilder builder;
+                builder.OptLevel = 3;
+                builder.SizeLevel = 0;
+                builder.LoopVectorize = true;
+                builder.Inliner = createAlwaysInlinerPass();
+                builder.populateModulePassManager(*PM);
+                PM->add(createVerifierPass());
+            }
 
-    EE->setObjectCache(&TheJITFunctionCache);
-    if (!TheJITFunctionCache.alert(env->module->module)) {
-        static PassManager *PM = NULL;
-        if (!PM) {
-            static TargetMachine *TM = likely_module::getTargetMachine(false);
-            PM = new PassManager();
-            PM->add(createVerifierPass());
-            PM->add(new TargetLibraryInfo(Triple(env->module->module->getTargetTriple())));
-            PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
-            TM->addAnalysisPasses(*PM);
-            PassManagerBuilder builder;
-            builder.OptLevel = 3;
-            builder.SizeLevel = 0;
-            builder.LoopVectorize = true;
-            builder.Inliner = createAlwaysInlinerPass();
-            builder.populateModulePassManager(*PM);
-            PM->add(createVerifierPass());
+//            DebugFlag = true;
+            PM->run(*env->module->module);
         }
 
-//        DebugFlag = true;
-//        env->context->module->dump();
-        PM->run(*env->module->module);
-//        env->context->module->dump();
+        EE->finalizeObject();
+        function = (void*) EE->getFunctionAddress(name);
     }
-
-    EE->finalizeObject();
-    function = (void*) EE->getFunctionAddress(name);
+//    env->module->module->dump();
 }
 
 #ifdef LIKELY_IO
