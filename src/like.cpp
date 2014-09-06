@@ -73,7 +73,7 @@ static void replShow(likely_const_env env, void *context)
     if (!context) return;
     const string assertValue = assert_;
     if (assertValue.empty()) {
-        likely_show(env, context);
+        likely_show_callback(env, context);
     } else {
         likely_mat rendered = likely_render(env->result, NULL, NULL);
         likely_mat baseline = likely_read(assertValue.c_str(), likely_file_binary);

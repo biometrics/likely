@@ -66,7 +66,8 @@ LIKELY_EXPORT likely_mat likely_print(likely_const_mat m);
 LIKELY_EXPORT likely_mat likely_print_n(likely_const_mat *mv, size_t n);
 LIKELY_EXPORT likely_mat likely_print_va(likely_const_mat m, ...);
 LIKELY_EXPORT likely_mat likely_render(likely_const_mat m, double *min, double *max); // Return an 888 matrix for visualization
-LIKELY_EXPORT void likely_show(likely_const_env env, void *); // Useable as a likely_repl_callback
+LIKELY_EXPORT void likely_show(likely_const_mat m, const char *title);
+LIKELY_EXPORT void likely_show_callback(likely_const_env env, void *); // Useable as a likely_repl_callback
 
 /** @} */ // end of io
 

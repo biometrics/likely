@@ -410,11 +410,16 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
     return n;
 }
 
-void likely_show(likely_const_env env, void *context)
+void likely_show(likely_const_mat m, const char *title)
+{
+    likely_mat rendered = likely_render(m, NULL, NULL);
+    cv::imshow(title, likely::toCvMat(rendered));
+    cv::waitKey();
+    likely_release(rendered);
+}
+
+void likely_show_callback(likely_const_env env, void *context)
 {
     if (!env || !context) return;
-    likely_mat m = likely_render(env->result, NULL, NULL);
-    cv::imshow(likely_get_symbol_name(env->ast), likely::toCvMat(m));
-    cv::waitKey();
-    likely_release(m);
+    likely_show(env->result, likely_get_symbol_name(env->ast));
 }
