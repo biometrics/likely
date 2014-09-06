@@ -13,15 +13,7 @@ Interaction
 
     theta_rad:= theta:+ (?? gabor_wavelet_angle 0).(* pi).(/ 180)
     lambda_norm:= lambda:* gabor_wavelet_scale:?? 1
-
-Derived values
-
-    sigma_x:= sigma
-    sigma_y:= sigma:/ gamma
-    x_max:= (max (* n_stddev:* sigma_x theta_rad.cos).abs
-                 (* n_stddev sigma_y:* gamma:* theta_rad.sin).abs).(max 1).ceil
-    y_max:= (max (* n_stddev sigma_x:* theta_rad.cos).abs
-                 (* n_stddev sigma_y:* gamma:* theta_rad.sin).abs).(max 1).ceil
+    radius:= (?? gabor_wavelet_width 385).(- 1).(/ 2)
 
 Definition
 
@@ -37,4 +29,4 @@ Definition
 
 Execution
 
-    (gabor_wavelet x_max y_max sigma_x sigma_y theta_rad lambda_norm psi)
+    (gabor_wavelet radius radius sigma (/ sigma gamma) theta_rad lambda_norm psi)
