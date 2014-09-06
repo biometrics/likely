@@ -199,7 +199,7 @@ if (!EXPR.get()) return NULL;                                              \
 
 } // namespace (anonymous)
 
-class LikelyContext : public LLVMContext
+class LikelyContext
 {
     static queue<LikelyContext*> contextPool;
     map<likely_type, Type*> typeLUT;
@@ -230,6 +230,7 @@ class LikelyContext : public LLVMContext
     }
 
 public:
+    LLVMContext context;
     TargetMachine *TM;
 
     static LikelyContext *acquire()
@@ -282,7 +283,7 @@ public:
 
     IntegerType *nativeInt()
     {
-        return Type::getIntNTy(*this, unsigned(likely_matrix_native));
+        return Type::getIntNTy(context, unsigned(likely_matrix_native));
     }
 
     Type *scalar(likely_type type, bool pointer = false)
@@ -290,15 +291,15 @@ public:
         const size_t bits = likely_depth(type);
         const bool floating = likely_floating(type);
         if (floating) {
-            if      (bits == 16) return pointer ? Type::getHalfPtrTy(*this)   : Type::getHalfTy(*this);
-            else if (bits == 32) return pointer ? Type::getFloatPtrTy(*this)  : Type::getFloatTy(*this);
-            else if (bits == 64) return pointer ? Type::getDoublePtrTy(*this) : Type::getDoubleTy(*this);
+            if      (bits == 16) return pointer ? Type::getHalfPtrTy(context)   : Type::getHalfTy(context);
+            else if (bits == 32) return pointer ? Type::getFloatPtrTy(context)  : Type::getFloatTy(context);
+            else if (bits == 64) return pointer ? Type::getDoublePtrTy(context) : Type::getDoubleTy(context);
         } else {
-            if      (bits == 1)  return pointer ? Type::getInt1PtrTy(*this)  : (Type*)Type::getInt1Ty(*this);
-            else if (bits == 8)  return pointer ? Type::getInt8PtrTy(*this)  : (Type*)Type::getInt8Ty(*this);
-            else if (bits == 16) return pointer ? Type::getInt16PtrTy(*this) : (Type*)Type::getInt16Ty(*this);
-            else if (bits == 32) return pointer ? Type::getInt32PtrTy(*this) : (Type*)Type::getInt32Ty(*this);
-            else if (bits == 64) return pointer ? Type::getInt64PtrTy(*this) : (Type*)Type::getInt64Ty(*this);
+            if      (bits == 1)  return pointer ? Type::getInt1PtrTy(context)  : (Type*)Type::getInt1Ty(context);
+            else if (bits == 8)  return pointer ? Type::getInt8PtrTy(context)  : (Type*)Type::getInt8Ty(context);
+            else if (bits == 16) return pointer ? Type::getInt16PtrTy(context) : (Type*)Type::getInt16Ty(context);
+            else if (bits == 32) return pointer ? Type::getInt32PtrTy(context) : (Type*)Type::getInt32Ty(context);
+            else if (bits == 64) return pointer ? Type::getInt64PtrTy(context) : (Type*)Type::getInt64Ty(context);
         }
         likely_assert(false, "ty invalid matrix bits: %d and floating: %d", bits, floating);
         return NULL;
@@ -323,7 +324,7 @@ public:
                                                              nativeInt(), // rows
                                                              nativeInt(), // frames
                                                              nativeInt(), // type
-                                                             ArrayType::get(Type::getInt8Ty(*this), 0), // data
+                                                             ArrayType::get(Type::getInt8Ty(context), 0), // data
                                                              NULL));
             likely_release(str);
         }
@@ -384,7 +385,7 @@ struct likely_module
 
     likely_module()
         : context(LikelyContext::acquire())
-        , module(new Module("likely_module", *context)) {}
+        , module(new Module("likely_module", context->context)) {}
 
     virtual ~likely_module()
     {
@@ -483,7 +484,7 @@ struct Builder : public IRBuilder<>
     likely_env env;
 
     Builder(likely_env env)
-        : IRBuilder<>(env->module ? *env->module->context : getGlobalContext()), env(env) {}
+        : IRBuilder<>(env->module ? env->module->context->context : getGlobalContext()), env(env) {}
 
     static likely_const_expr getMat(likely_const_expr e)
     {
