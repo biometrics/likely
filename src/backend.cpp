@@ -187,7 +187,16 @@ struct likely_expression
         else if (llvm->isHalfTy())    return likely_matrix_f16;
         else if (llvm->isFloatTy())   return likely_matrix_f32;
         else if (llvm->isDoubleTy())  return likely_matrix_f64;
-        else                          return likely_type_from_string(cast<StructType>(cast<PointerType>(llvm)->getElementType())->getName().str().c_str());
+        else {
+            Type *element = cast<PointerType>(llvm)->getElementType();
+            if (StructType *matrix = dyn_cast<StructType>(element)) {
+                return likely_type_from_string(matrix->getName().str().c_str());
+            } else {
+                likely_type type = toLikely(element);
+                likely_set_array(&type, true);
+                return type;
+            }
+        }
     }
 };
 
@@ -328,6 +337,9 @@ public:
                                                              NULL));
             likely_release(str);
         }
+
+        if (likely_array(likely))
+            llvm = PointerType::getUnqual(llvm);
 
         typeLUT[likely] = llvm;
         return llvm;

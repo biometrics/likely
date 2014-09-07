@@ -51,6 +51,8 @@ likely_type likely_data(likely_type type) { return likely_get(type, likely_matri
 void likely_set_data(likely_type *type, likely_type data) { likely_set(type, data, likely_matrix_data); }
 bool likely_saturation(likely_type type) { return likely_get_bool(type, likely_matrix_saturation); }
 void likely_set_saturation(likely_type *type, bool saturation) { likely_set_bool(type, saturation, likely_matrix_saturation); }
+bool likely_array(likely_type type) { return likely_get_bool(type, likely_matrix_array); }
+void likely_set_array(likely_type *type, bool array) { likely_set_bool(type, array, likely_matrix_array); }
 bool likely_multi_channel(likely_type type) { return likely_get_bool(type, likely_matrix_multi_channel); }
 void likely_set_multi_channel(likely_type *type, bool multi_channel) { likely_set_bool(type, multi_channel, likely_matrix_multi_channel); }
 bool likely_multi_column(likely_type type) { return likely_get_bool(type, likely_matrix_multi_column); }
