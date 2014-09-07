@@ -389,15 +389,26 @@ struct likely_module
 
     virtual ~likely_module()
     {
+        finalize();
         for (likely_const_expr e : expressions)
             delete e;
-        delete module;
-        LikelyContext::release(context);
     }
 
     void optimize()
     {
         context->optimize(*module);
+    }
+
+    void finalize()
+    {
+        if (module) {
+            delete module;
+            module = NULL;
+        }
+        if (context) {
+            LikelyContext::release(context);
+            context = NULL;
+        }
     }
 };
 
