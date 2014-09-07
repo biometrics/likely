@@ -588,8 +588,8 @@ struct Builder : public IRBuilder<>
 
 struct Symbol : public likely_expression
 {
-    Symbol(Function *function = NULL, likely_type type = likely_matrix_void)
-        : likely_expression(function, type) {}
+    Symbol(Function *function = NULL)
+        : likely_expression(function, function ? toLikely(function->getReturnType()) : likely_matrix_void) {}
 
 private:
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
@@ -1460,9 +1460,7 @@ struct Lambda : public ScopedExpression
             return NULL;
 
         releaseExpression::cleanup(builder, result->value);
-
         builder.CreateRet(*result);
-        const likely_type return_type = result->type;
 
         Function *function = cast<Function>(builder.module()->getOrInsertFunction(name, FunctionType::get(result->value->getType(), llvmTypes, false)));
 
@@ -1479,7 +1477,7 @@ struct Lambda : public ScopedExpression
 
         if (originalInsertBlock)
             builder.SetInsertPoint(originalInsertBlock);
-        return new Symbol(function, return_type);
+        return new Symbol(function);
     }
 
 private:
