@@ -606,7 +606,7 @@ struct Builder : public IRBuilder<>
 struct Symbol : public likely_expression
 {
     Symbol(Function *function = NULL)
-        : likely_expression(function, function ? toLikely(function->getReturnType()) : likely_matrix_void) {}
+        : likely_expression(function, function ? toLikely(function->getReturnType()) : likely_type(likely_matrix_void)) {}
 
 private:
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
