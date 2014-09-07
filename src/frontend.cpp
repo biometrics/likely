@@ -544,6 +544,7 @@ likely_mat likely_type_to_string(likely_type type)
     if (likely_multi_row(type))      typeStream << "Y";
     if (likely_multi_frame(type))    typeStream << "T";
     if (likely_saturation(type))     typeStream << "S";
+    if (likely_array(type))          typeStream << "A";
     return likely_string(typeStream.str().c_str());
 }
 
@@ -583,6 +584,7 @@ likely_type likely_type_from_string(const char *str)
         else if (*rem == 'Y') t |= likely_matrix_multi_row;
         else if (*rem == 'T') t |= likely_matrix_multi_frame;
         else if (*rem == 'S') t |= likely_matrix_saturation;
+        else if (*rem == 'A') t |= likely_matrix_array;
         else                  return likely_matrix_void;
         rem++;
     }
@@ -604,6 +606,7 @@ likely_type likely_type_field_from_string(const char *str, bool *ok)
     if (!strcmp(str, "multi_frame"    )) return likely_matrix_multi_frame;
     if (!strcmp(str, "multi_dimension")) return likely_matrix_multi_dimension;
     if (!strcmp(str, "saturation"     )) return likely_matrix_saturation;
+    if (!strcmp(str, "array"          )) return likely_matrix_array;
     likely_type type = likely_type_from_string(str);
     if (ok) *ok = (type != likely_matrix_void);
     return type;

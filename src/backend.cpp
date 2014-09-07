@@ -188,13 +188,17 @@ struct likely_expression
         else if (llvm->isFloatTy())   return likely_matrix_f32;
         else if (llvm->isDoubleTy())  return likely_matrix_f64;
         else {
-            Type *element = cast<PointerType>(llvm)->getElementType();
-            if (StructType *matrix = dyn_cast<StructType>(element)) {
-                return likely_type_from_string(matrix->getName().str().c_str());
+            if (FunctionType *function = dyn_cast<FunctionType>(llvm)) {
+                return toLikely(function->getReturnType());
             } else {
-                likely_type type = toLikely(element);
-                likely_set_array(&type, true);
-                return type;
+                Type *element = cast<PointerType>(llvm)->getElementType();
+                if (StructType *matrix = dyn_cast<StructType>(element)) {
+                    return likely_type_from_string(matrix->getName().str().c_str());
+                } else {
+                    likely_type type = toLikely(element);
+                    likely_set_array(&type, !isa<FunctionType>(element));
+                    return type;
+                }
             }
         }
     }
@@ -1285,7 +1289,7 @@ class scalarExpression : public UnaryOperator
         args.push_back(ConstantFP::get(builder.getContext(), APFloat::getNaN(APFloat::IEEEdouble)));
         args.insert(args.begin(), builder.typeType(type));
 
-        likely_expression result(builder.CreateCall(likelyScalar, args), *argExpr);
+        likely_expression result(builder.CreateCall(likelyScalar, args), likely_matrix_multi_dimension);
         delete argExpr;
         return new likely_expression(result);
     }
