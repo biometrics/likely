@@ -554,7 +554,8 @@ struct Builder : public IRBuilder<>
     likely_expression columns (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_column (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 3), "columns" ), likely_matrix_native) : one(); }
     likely_expression rows    (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_row    (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 4), "rows"    ), likely_matrix_native) : one(); }
     likely_expression frames  (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_frame  (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 5), "frames"  ), likely_matrix_native) : one(); }
-    likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(CreatePointerCast(CreateStructGEP(*m, 7), env->module->context->scalar(*m, true)), likely_data(*m)); }
+    Value *data    (Value *value, likely_type type) { return CreatePointerCast(CreateStructGEP(value, 7), env->module->context->scalar(type, true)); }
+    likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(data(m->value, m->type), likely_data(*m)); }
 
     void steps(likely_const_expr matrix, Value *channelStep, Value **columnStep, Value **rowStep, Value **frameStep)
     {
@@ -1455,8 +1456,14 @@ struct Lambda : public ScopedExpression
         vector<likely_const_expr> arguments;
         if (arrayCC) {
             Value *argumentArray = tmpFunction->arg_begin();
-            for (size_t i=0; i<types.size(); i++)
-                arguments.push_back(new likely_expression(builder.CreateLoad(builder.CreateGEP(argumentArray, builder.constant(i))), types[i]));
+            for (size_t i=0; i<types.size(); i++) {
+                Value *load = builder.CreateLoad(builder.CreateGEP(argumentArray, builder.constant(i)));
+                if (likely_multi_dimension(types[i]))
+                    load = builder.CreatePointerCast(load, builder.toLLVM(types[i]));
+                else
+                    load = builder.CreateLoad(builder.CreateGEP(builder.data(load, types[i]), builder.zero()));
+                arguments.push_back(new likely_expression(load, types[i]));
+            }
         } else {
             Function::arg_iterator it = tmpFunction->arg_begin();
             size_t i = 0;
