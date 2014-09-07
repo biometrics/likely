@@ -548,7 +548,7 @@ struct Builder : public IRBuilder<>
     likely_expression intMin(likely_type type) { const size_t bits = likely_depth(type); return constant((uint64_t) (likely_signed(type) ? (1 << (bits - 1)) : 0), bits); }
     likely_expression typeType(likely_type type) { return constant((uint64_t) type, likely_matrix_type_type); }
     likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(::cast<PointerType>((Type*)multiDimension())), likely_matrix_void); }
-    likely_expression nullData() { return likely_expression(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_matrix_native); }
+    likely_expression nullData() { return likely_expression(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_matrix_u8 | likely_matrix_array); }
 
     likely_expression channels(likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_channel(*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 2), "channels"), likely_matrix_native) : one(); }
     likely_expression columns (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_column (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 3), "columns" ), likely_matrix_native) : one(); }
@@ -2235,7 +2235,7 @@ private:
         likely_const_mat m = get()->result;
         if (likely_elements(m) == 1) {
             // Promote to scalar
-            return new likely_expression(builder.constant(likely_element(m, 0, 0, 0, 0), m->type));
+            return new likely_expression(builder.constant(likely_element(m, 0, 0, 0, 0), likely_data(m->type)));
         } else {
             // Return the matrix
             return new likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(m)), uintptr_t(m)), builder.toLLVM(m->type)), m->type);
