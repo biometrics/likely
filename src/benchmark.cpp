@@ -217,7 +217,7 @@ private:
     {
         likely_mat m = likely::fromCvMat(src);
         if (!likely_floating(m->type) && (likely_depth(m->type) <= 16))
-            likely_set_saturation(&m->type, true);
+            likely_set_saturated(&m->type, true);
         return m;
     }
 

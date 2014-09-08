@@ -51,28 +51,31 @@ typedef uintptr_t likely_size;
  * \c likely_type plays a critical role in determining how to process matricies.
  * Here is its bitwise layout:
  *
- * | Field         | Bits | Mask       | Getter               | Setter                   |
- * |---------------|------|------------|----------------------|--------------------------|
- * | depth         | 8    | 0x000000FF | likely_depth         | likely_set_depth         |
- * | signed        | 1    | 0x00000100 | likely_signed        | likely_set_signed        |
- * | floating      | 1    | 0x00000200 | likely_floating      | likely_set_floating      |
- * | saturation    | 1    | 0x00000400 | likely_saturation    | likely_set_saturation    |
- * | array         | 1    | 0x00000800 | likely_array         | likely_set_array         |
- * | multi-channel | 1    | 0x00001000 | likely_multi_channel | likely_set_multi_channel |
- * | multi-column  | 1    | 0x00002000 | likely_multi_column  | likely_set_multi_column  |
- * | multi-row     | 1    | 0x00004000 | likely_multi_row     | likely_set_multi_row     |
- * | multi-frame   | 1    | 0x00008000 | likely_multi_frame   | likely_set_multi_frame   |
- * | reserved      | 15   | 0xFFFE0000 | N/A                  | N/A                      |
+ * | Field         | Bits | Getter               | Setter                   |
+ * |---------------|------|----------------------|--------------------------|
+ * | depth         | 8    | likely_depth         | likely_set_depth         |
+ * | floating      | 1    | likely_floating      | likely_set_floating      |
+ * | array         | 1    | likely_array         | likely_set_array         |
+ * | signed        | 1    | likely_signed        | likely_set_signed        |
+ * | saturated     | 1    | likely_saturated     | likely_set_saturated     |
+ * | multi-channel | 1    | likely_multi_channel | likely_set_multi_channel |
+ * | multi-column  | 1    | likely_multi_column  | likely_set_multi_column  |
+ * | multi-row     | 1    | likely_multi_row     | likely_set_multi_row     |
+ * | multi-frame   | 1    | likely_multi_frame   | likely_set_multi_frame   |
+ * | reserved      | 15   | N/A                  | N/A                      |
  */
 typedef likely_size likely_type;
 
 enum likely_type_field
 {
-    likely_matrix_void     = 0x00000000,
-    likely_matrix_depth    = 0x000000FF,
-    likely_matrix_signed   = 0x00000100,
-    likely_matrix_floating = 0x00000200,
-    likely_matrix_data     = likely_matrix_depth | likely_matrix_signed | likely_matrix_floating,
+    likely_matrix_void      = 0x00000000,
+    likely_matrix_depth     = 0x000000FF,
+    likely_matrix_floating  = 0x00000100,
+    likely_matrix_array     = 0x00000200,
+    likely_matrix_llvm      = likely_matrix_depth | likely_matrix_floating | likely_matrix_array,
+    likely_matrix_signed    = 0x00000400,
+    likely_matrix_saturated = 0x00000800,
+    likely_matrix_data      = likely_matrix_llvm | likely_matrix_signed | likely_matrix_saturated,
     likely_matrix_u1  = 1,
     likely_matrix_u8  = 8,
     likely_matrix_u16 = 16,
@@ -82,11 +85,9 @@ enum likely_type_field
     likely_matrix_i16 = 16 | likely_matrix_signed,
     likely_matrix_i32 = 32 | likely_matrix_signed,
     likely_matrix_i64 = 64 | likely_matrix_signed,
-    likely_matrix_f16 = 16 | likely_matrix_floating | likely_matrix_signed,
-    likely_matrix_f32 = 32 | likely_matrix_floating | likely_matrix_signed,
-    likely_matrix_f64 = 64 | likely_matrix_floating | likely_matrix_signed,
-    likely_matrix_saturation      = 0x00000400,
-    likely_matrix_array           = 0x00000800,
+    likely_matrix_f16 = 16 | likely_matrix_floating,
+    likely_matrix_f32 = 32 | likely_matrix_floating,
+    likely_matrix_f64 = 64 | likely_matrix_floating,
     likely_matrix_multi_channel   = 0x00001000,
     likely_matrix_multi_column    = 0x00002000,
     likely_matrix_multi_row       = 0x00004000,
@@ -151,16 +152,18 @@ LIKELY_EXPORT void likely_set_bool(size_t *type, bool value, size_t mask);
 // Query and edit the matrix type
 LIKELY_EXPORT size_t likely_depth(likely_type type);
 LIKELY_EXPORT void likely_set_depth(likely_type *type, size_t depth);
-LIKELY_EXPORT bool likely_signed(likely_type type);
-LIKELY_EXPORT void likely_set_signed(likely_type *type, bool signed_);
 LIKELY_EXPORT bool likely_floating(likely_type type);
 LIKELY_EXPORT void likely_set_floating(likely_type *type, bool floating);
-LIKELY_EXPORT likely_type likely_data(likely_type type);
-LIKELY_EXPORT void likely_set_data(likely_type *type, likely_type data);
-LIKELY_EXPORT bool likely_saturation(likely_type type);
-LIKELY_EXPORT void likely_set_saturation(likely_type *type, bool saturation);
 LIKELY_EXPORT bool likely_array(likely_type type);
 LIKELY_EXPORT void likely_set_array(likely_type *type, bool array);
+LIKELY_EXPORT likely_type likely_llvm(likely_type type);
+LIKELY_EXPORT void likely_set_llvm(likely_type *type, likely_type llvm);
+LIKELY_EXPORT bool likely_signed(likely_type type);
+LIKELY_EXPORT void likely_set_signed(likely_type *type, bool signed_);
+LIKELY_EXPORT bool likely_saturated(likely_type type);
+LIKELY_EXPORT void likely_set_saturated(likely_type *type, bool saturated);
+LIKELY_EXPORT likely_type likely_data(likely_type type);
+LIKELY_EXPORT void likely_set_data(likely_type *type, likely_type data);
 LIKELY_EXPORT bool likely_multi_channel(likely_type type);
 LIKELY_EXPORT void likely_set_multi_channel(likely_type *type, bool multi_channel);
 LIKELY_EXPORT bool likely_multi_column(likely_type type);
@@ -190,6 +193,7 @@ LIKELY_EXPORT likely_mat likely_retain(likely_const_mat m);
 LIKELY_EXPORT void likely_release(likely_const_mat m);
 
 // Element access
+LIKELY_EXPORT likely_type likely_c_type(likely_type type);
 LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t);
 LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t);
 

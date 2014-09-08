@@ -974,7 +974,7 @@ class addExpression : public SimpleArithmeticOperator
         if (likely_floating(lhs)) {
             return builder.CreateFAdd(lhs, rhs);
         } else {
-            if (likely_saturation(lhs)) {
+            if (likely_saturated(lhs)) {
                 CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), likely_signed(lhs) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs.value->getType()), lhs, rhs);
                 Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, builder.zero(lhs)), builder.intMax(lhs), builder.intMin(lhs)) : builder.intMax(lhs).value;
                 return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
@@ -1016,7 +1016,7 @@ class subtractExpression : public Operator
         if (likely_floating(type)) {
             return new likely_expression(builder.CreateFSub(lhs, rhs), type);
         } else {
-            if (likely_saturation(type)) {
+            if (likely_saturated(type)) {
                 CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), likely_signed(lhs) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value->getType()), lhs, rhs);
                 Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, builder.zero(lhs)), builder.intMax(lhs), builder.intMin(lhs)) : builder.intMin(lhs).value;
                 return new likely_expression(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
@@ -1035,7 +1035,7 @@ class multiplyExpression : public SimpleArithmeticOperator
         if (likely_floating(lhs)) {
             return builder.CreateFMul(lhs, rhs);
         } else {
-            if (likely_saturation(lhs)) {
+            if (likely_saturated(lhs)) {
                 CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), likely_signed(lhs) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs.value->getType()), lhs, rhs);
                 Value *zero = builder.zero(lhs);
                 Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateXor(builder.CreateICmpSGE(lhs, zero), builder.CreateICmpSGE(rhs, zero)), builder.intMin(lhs), builder.intMax(lhs)) : builder.intMax(lhs).value;
@@ -1056,7 +1056,7 @@ class divideExpression : public SimpleArithmeticOperator
             return builder.CreateFDiv(n, d);
         } else {
             if (likely_signed(n)) {
-                if (likely_saturation(n)) {
+                if (likely_saturated(n)) {
                     Value *safe_i = builder.CreateAdd(n, builder.CreateZExt(builder.CreateICmpNE(builder.CreateOr(builder.CreateAdd(d, builder.one(n)), builder.CreateAdd(n, builder.intMin(n))), builder.zero(n)), n.value->getType()));
                     return builder.CreateSDiv(safe_i, d);
                 } else {

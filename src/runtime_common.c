@@ -43,16 +43,18 @@ void likely_set_bool(size_t *type, bool value, size_t mask) { if (value) *type |
 
 size_t likely_depth(likely_type type) { return likely_get(type, likely_matrix_depth); }
 void likely_set_depth(likely_type *type, size_t depth) { likely_set(type, depth, likely_matrix_depth); }
-bool likely_signed(likely_type type) { return likely_get_bool(type, likely_matrix_signed); }
-void likely_set_signed(likely_type *type, bool signed_) { likely_set_bool(type, signed_, likely_matrix_signed); }
 bool likely_floating(likely_type type) { return likely_get_bool(type, likely_matrix_floating); }
 void likely_set_floating(likely_type *type, bool floating) { likely_set_bool(type, floating, likely_matrix_floating); }
-likely_type likely_data(likely_type type) { return likely_get(type, likely_matrix_data); }
-void likely_set_data(likely_type *type, likely_type data) { likely_set(type, data, likely_matrix_data); }
-bool likely_saturation(likely_type type) { return likely_get_bool(type, likely_matrix_saturation); }
-void likely_set_saturation(likely_type *type, bool saturation) { likely_set_bool(type, saturation, likely_matrix_saturation); }
 bool likely_array(likely_type type) { return likely_get_bool(type, likely_matrix_array); }
 void likely_set_array(likely_type *type, bool array) { likely_set_bool(type, array, likely_matrix_array); }
+likely_type likely_llvm(likely_type type) { return likely_get(type, likely_matrix_llvm); }
+void likely_set_llvm(likely_type *type, likely_type llvm) { likely_set(type, llvm, likely_matrix_llvm); }
+bool likely_signed(likely_type type) { return likely_get_bool(type, likely_matrix_signed); }
+void likely_set_signed(likely_type *type, bool signed_) { likely_set_bool(type, signed_, likely_matrix_signed); }
+bool likely_saturated(likely_type type) { return likely_get_bool(type, likely_matrix_saturated); }
+void likely_set_saturated(likely_type *type, bool saturated) { likely_set_bool(type, saturated, likely_matrix_saturated); }
+likely_type likely_data(likely_type type) { return likely_get(type, likely_matrix_data); }
+void likely_set_data(likely_type *type, likely_type data) { likely_set(type, data, likely_matrix_data); }
 bool likely_multi_channel(likely_type type) { return likely_get_bool(type, likely_matrix_multi_channel); }
 void likely_set_multi_channel(likely_type *type, bool multi_channel) { likely_set_bool(type, multi_channel, likely_matrix_multi_channel); }
 bool likely_multi_column(likely_type type) { return likely_get_bool(type, likely_matrix_multi_column); }
@@ -162,6 +164,15 @@ void likely_release(likely_const_mat m)
     free((void*) m);
 }
 
+likely_type likely_c_type(likely_type type)
+{
+    likely_type c_type = likely_data(type);
+    c_type &= ~likely_matrix_saturated;
+    if (likely_floating(c_type))
+        c_type &= ~likely_matrix_signed;
+    return c_type;
+}
+
 double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
 {
     likely_size columnStep, rowStep, frameStep, index;
@@ -173,7 +184,7 @@ double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_s
     frameStep = m->rows * rowStep;
     index = t*frameStep + y*rowStep + x*columnStep + c;
 
-    switch (likely_data(m->type)) {
+    switch (likely_c_type(m->type)) {
       case likely_matrix_u8:  return (double) (( uint8_t const*) m->data)[index];
       case likely_matrix_u16: return (double) ((uint16_t const*)m->data)[index];
       case likely_matrix_u32: return (double) ((uint32_t const*)m->data)[index];
@@ -201,7 +212,7 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
     frameStep = m->rows * rowStep;
     index = t*frameStep + y*rowStep + x*columnStep + c;
 
-    switch (likely_data(m->type)) {
+    switch (likely_c_type(m->type)) {
       case likely_matrix_u8:  (( uint8_t*)m->data)[index] = ( uint8_t)value; break;
       case likely_matrix_u16: ((uint16_t*)m->data)[index] = (uint16_t)value; break;
       case likely_matrix_u32: ((uint32_t*)m->data)[index] = (uint32_t)value; break;

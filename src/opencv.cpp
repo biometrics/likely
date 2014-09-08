@@ -21,7 +21,7 @@ namespace likely
 
 int typeToDepth(likely_type type)
 {
-    switch (likely_data(type)) {
+    switch (likely_c_type(type)) {
       case likely_matrix_u8:  return CV_8U;
       case likely_matrix_i8:  return CV_8S;
       case likely_matrix_u16: return CV_16U;
