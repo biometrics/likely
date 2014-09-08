@@ -80,7 +80,26 @@ struct likely_expression
     vector<likely_const_expr> subexpressions;
 
     likely_expression(Value *value = NULL, likely_type type = likely_matrix_void, likely_const_expr parent = NULL)
-        : value(value), type(type), parent(parent) {}
+        : value(value), type(type), parent(parent)
+    {
+        if (value && type) {
+            // Check type correctness
+            likely_type inferred = toLikely(value->getType());
+            if (!likely_multi_dimension(inferred)) {
+                // Can't represent these flags in LLVM IR for scalar types
+                likely_set_signed(&inferred, likely_signed(type));
+                likely_set_saturated(&inferred, likely_saturated(type));
+            }
+            if (inferred != type) {
+                const likely_mat llvm = likely_type_to_string(inferred);
+                const likely_mat likely = likely_type_to_string(type);
+                value->dump();
+                likely_assert(false, "type mismatch between LLVM: %s and Likely: %s", llvm->data, likely->data);
+                likely_release(llvm);
+                likely_release(likely);
+            }
+        }
+    }
 
     virtual ~likely_expression()
     {
@@ -133,7 +152,7 @@ struct likely_expression
     static likely_type validFloatType(likely_type type)
     {
         likely_set_floating(&type, true);
-        likely_set_signed(&type, true);
+        likely_set_signed(&type, false);
         likely_set_depth(&type, likely_depth(type) > 32 ? 64 : 32);
         return type;
     }
@@ -191,13 +210,16 @@ struct likely_expression
             if (FunctionType *function = dyn_cast<FunctionType>(llvm)) {
                 return toLikely(function->getReturnType());
             } else {
-                Type *element = cast<PointerType>(llvm)->getElementType();
-                if (StructType *matrix = dyn_cast<StructType>(element)) {
-                    return likely_type_from_string(matrix->getName().str().c_str());
+                if (Type *element = dyn_cast<PointerType>(llvm)->getElementType()) {
+                    if (StructType *matrix = dyn_cast<StructType>(element)) {
+                        return likely_type_from_string(matrix->getName().str().c_str());
+                    } else {
+                        likely_type type = toLikely(element);
+                        likely_set_array(&type, !isa<FunctionType>(element));
+                        return type;
+                    }
                 } else {
-                    likely_type type = toLikely(element);
-                    likely_set_array(&type, !isa<FunctionType>(element));
-                    return type;
+                    return likely_matrix_void;
                 }
             }
         }
@@ -320,6 +342,7 @@ public:
 
     Type *toLLVM(likely_type likely)
     {
+        assert(!(likely_signed(likely) && likely_floating(likely)));
         auto result = typeLUT.find(likely);
         if (result != typeLUT.end())
             return result->second;
@@ -547,7 +570,7 @@ struct Builder : public IRBuilder<>
     likely_expression intMax(likely_type type) { const size_t bits = likely_depth(type); return constant((uint64_t) (1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
     likely_expression intMin(likely_type type) { const size_t bits = likely_depth(type); return constant((uint64_t) (likely_signed(type) ? (1 << (bits - 1)) : 0), bits); }
     likely_expression typeType(likely_type type) { return constant((uint64_t) type, likely_matrix_type_type); }
-    likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(::cast<PointerType>((Type*)multiDimension())), likely_matrix_void); }
+    likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(::cast<PointerType>((Type*)multiDimension())), likely_matrix_multi_dimension); }
     likely_expression nullData() { return likely_expression(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_matrix_u8 | likely_matrix_array); }
 
     likely_expression channels(likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_channel(*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 2), "channels"), likely_matrix_native) : one(); }
@@ -555,7 +578,7 @@ struct Builder : public IRBuilder<>
     likely_expression rows    (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_row    (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 4), "rows"    ), likely_matrix_native) : one(); }
     likely_expression frames  (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_frame  (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 5), "frames"  ), likely_matrix_native) : one(); }
     Value *data    (Value *value, likely_type type) { return CreatePointerCast(CreateStructGEP(value, 7), env->module->context->scalar(type, true)); }
-    likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(data(m->value, m->type), likely_data(*m)); }
+    likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(data(m->value, m->type), likely_data(*m) | likely_matrix_array); }
 
     void steps(likely_const_expr matrix, Value *channelStep, Value **columnStep, Value **rowStep, Value **frameStep)
     {
@@ -566,7 +589,8 @@ struct Builder : public IRBuilder<>
 
     likely_expression cast(likely_const_expr x, likely_type type)
     {
-        if (likely_data(*x) == likely_data(type))
+        type = likely_data(type);
+        if (likely_data(*x) == type)
             return likely_expression(*x, type);
         if (likely_depth(type) == 0) {
             likely_set_depth(&type, likely_depth(*x));
@@ -840,7 +864,7 @@ likely_const_expr Builder::expression(likely_const_ast ast)
 
     if ((op.front() == '"') && (op.back() == '"')) {
         const_cast<likely_ast>(ast)->type = likely_ast_string;
-        return new likely_expression(CreateGlobalStringPtr(op.substr(1, op.length()-2)), likely_matrix_u8);
+        return new likely_expression(CreateGlobalStringPtr(op.substr(1, op.length()-2)), likely_matrix_u8 | likely_matrix_array);
     }
 
     { // Is it a number?
@@ -1416,8 +1440,10 @@ public:
         for (Function::iterator BB = function->begin(), BBE = function->end(); BB != BBE; ++BB)
             for (BasicBlock::iterator I = BB->begin(), IE = BB->end(); I != IE; ++I)
                if (CallInst *call = dyn_cast<CallInst>(I))
-                   if (Function *function = call->getCalledFunction())
-                       if (isMat(function->getReturnType()) && (call != ret))
+                   if (Function *calledFunction = call->getCalledFunction())
+                       if (isMat(calledFunction->getReturnType())
+                             && (call != ret)
+                             && (find(call->user_begin(), call->user_end(), ret) == call->user_end()))
                            releaseExpression::createCall(builder, call);
     }
 };
@@ -1792,7 +1818,7 @@ private:
             LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(this), i));
 
             load->setMetadata("llvm.mem.parallel_loop_access", node);
-            return new likely_expression(load, type, this);
+            return new likely_expression(load, likely_data(type), this);
         }
     };
 
@@ -1894,7 +1920,10 @@ private:
         PHINode *kernelRows     = builder.CreatePHI(builder.nativeInt(), 1);
         PHINode *kernelFrames   = builder.CreatePHI(builder.nativeInt(), 1);
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(kernelChannels, kernelColumns), kernelRows), kernelFrames);
-        likely_expression dst(newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, builder.nullData()), dimensionsType);
+        likely_expression dst(builder.CreatePointerCast(
+                              newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, builder.nullData()),
+                              builder.toLLVM(dimensionsType)),
+                             dimensionsType);
         builder.undefineAll(args, false);
 
         // Load scalar values
@@ -2444,7 +2473,7 @@ class printExpression : public Operator
     {
         Function *likelyPrint = builder.module()->getFunction("likely_print_va");
         if (!likelyPrint) {
-            FunctionType *functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), true);
+            FunctionType *functionType = FunctionType::get(builder.toLLVM(likely_matrix_i8 | likely_matrix_multi_channel), builder.multiDimension(), true);
             likelyPrint = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_print_va", builder.module());
             likelyPrint->setCallingConv(CallingConv::C);
             likelyPrint->setDoesNotAlias(0);
@@ -2471,7 +2500,7 @@ class printExpression : public Operator
 
         Value *result = builder.CreateCall(likelyPrint, matArgs);
 
-        return new likely_expression(result, likely_matrix_i8);
+        return new likely_expression(result, likely_matrix_i8 | likely_matrix_multi_channel);
     }
 
     static GenericValue lle_X_likely_print_va(FunctionType *, const vector<GenericValue> &Args)

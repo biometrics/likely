@@ -47,8 +47,6 @@ bool likely_floating(likely_type type) { return likely_get_bool(type, likely_mat
 void likely_set_floating(likely_type *type, bool floating) { likely_set_bool(type, floating, likely_matrix_floating); }
 bool likely_array(likely_type type) { return likely_get_bool(type, likely_matrix_array); }
 void likely_set_array(likely_type *type, bool array) { likely_set_bool(type, array, likely_matrix_array); }
-likely_type likely_llvm(likely_type type) { return likely_get(type, likely_matrix_llvm); }
-void likely_set_llvm(likely_type *type, likely_type llvm) { likely_set(type, llvm, likely_matrix_llvm); }
 bool likely_signed(likely_type type) { return likely_get_bool(type, likely_matrix_signed); }
 void likely_set_signed(likely_type *type, bool signed_) { likely_set_bool(type, signed_, likely_matrix_signed); }
 bool likely_saturated(likely_type type) { return likely_get_bool(type, likely_matrix_saturated); }
@@ -65,8 +63,6 @@ bool likely_multi_frame(likely_type type) { return likely_get_bool(type, likely_
 void likely_set_multi_frame(likely_type *type, bool multi_frame) { likely_set_bool(type, multi_frame, likely_matrix_multi_frame); }
 likely_type likely_multi_dimension(likely_type type) { return likely_get(type, likely_matrix_multi_dimension); }
 void likely_set_multi_dimension(likely_type *type, likely_type multi_dimension) { likely_set(type, multi_dimension, likely_matrix_multi_dimension); }
-size_t likely_magic(likely_type type) { return likely_get(type, likely_matrix_magic); }
-void likely_set_magic(likely_type *type, size_t magic) { likely_set(type, magic, likely_matrix_magic); }
 
 likely_size likely_elements(likely_const_mat m)
 {
@@ -87,7 +83,7 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     m = (likely_mat) malloc(bytes);
     m->bytes = bytes;
     m->ref_count = 1;
-    m->type = type | likely_matrix_matrix;
+    m->type = type;
     m->channels = channels;
     m->columns = columns;
     m->rows = rows;

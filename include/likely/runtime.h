@@ -72,10 +72,9 @@ enum likely_type_field
     likely_matrix_depth     = 0x000000FF,
     likely_matrix_floating  = 0x00000100,
     likely_matrix_array     = 0x00000200,
-    likely_matrix_llvm      = likely_matrix_depth | likely_matrix_floating | likely_matrix_array,
     likely_matrix_signed    = 0x00000400,
     likely_matrix_saturated = 0x00000800,
-    likely_matrix_data      = likely_matrix_llvm | likely_matrix_signed | likely_matrix_saturated,
+    likely_matrix_data      = likely_matrix_depth | likely_matrix_floating | likely_matrix_array | likely_matrix_signed | likely_matrix_saturated,
     likely_matrix_u1  = 1,
     likely_matrix_u8  = 8,
     likely_matrix_u16 = 16,
@@ -93,8 +92,6 @@ enum likely_type_field
     likely_matrix_multi_row       = 0x00004000,
     likely_matrix_multi_frame     = 0x00008000,
     likely_matrix_multi_dimension = likely_matrix_multi_channel | likely_matrix_multi_column | likely_matrix_multi_row | likely_matrix_multi_frame,
-    likely_matrix_magic           = 0xFF000000,
-    likely_matrix_matrix          = 0x66000000,
     likely_matrix_native    = sizeof(likely_size)*8,
     likely_matrix_type_type = likely_matrix_native
 };
@@ -156,8 +153,6 @@ LIKELY_EXPORT bool likely_floating(likely_type type);
 LIKELY_EXPORT void likely_set_floating(likely_type *type, bool floating);
 LIKELY_EXPORT bool likely_array(likely_type type);
 LIKELY_EXPORT void likely_set_array(likely_type *type, bool array);
-LIKELY_EXPORT likely_type likely_llvm(likely_type type);
-LIKELY_EXPORT void likely_set_llvm(likely_type *type, likely_type llvm);
 LIKELY_EXPORT bool likely_signed(likely_type type);
 LIKELY_EXPORT void likely_set_signed(likely_type *type, bool signed_);
 LIKELY_EXPORT bool likely_saturated(likely_type type);
@@ -174,8 +169,6 @@ LIKELY_EXPORT bool likely_multi_frame(likely_type type);
 LIKELY_EXPORT void likely_set_multi_frame(likely_type *type, bool multi_frame);
 LIKELY_EXPORT likely_type likely_multi_dimension(likely_type type);
 LIKELY_EXPORT void likely_set_multi_dimension(likely_type *type, likely_type multi_dimension);
-LIKELY_EXPORT size_t likely_magic(likely_type type);
-LIKELY_EXPORT void likely_set_magic(likely_type *type, size_t magic);
 
 // Matrix size
 LIKELY_EXPORT likely_size likely_elements(likely_const_mat m);

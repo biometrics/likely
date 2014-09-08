@@ -49,7 +49,7 @@ static likely_mat takeAndInterpret(likely_mat buffer, likely_type type)
     if (!result && likely_decoded(type)) {
         if (likely_bytes(buffer) >= sizeof(likely_matrix)) {
             likely_mat header = (likely_mat) buffer->data;
-            if ((likely_magic(header->type) == likely_matrix_matrix) && (sizeof(likely_matrix) + likely_bytes(header) == likely_bytes(buffer)))
+            if (sizeof(likely_matrix) + likely_bytes(header) == likely_bytes(buffer))
                 result = likely_copy(header);
         }
     }
@@ -96,7 +96,7 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
             likely_matrix header;
             if (fread(&header, 1, sizeof(likely_matrix), fp) == sizeof(likely_matrix)) {
                 const size_t bytes = likely_bytes(&header);
-                if ((likely_magic(header.type) == likely_matrix_matrix) && (sizeof(likely_matrix) + bytes == size)) {
+                if (sizeof(likely_matrix) + bytes == size) {
                     likely_mat m = likely_new(header.type, header.channels, header.columns, header.rows, header.frames, NULL);
                     if (fread(m->data, 1, bytes, fp) == bytes) return m;
                     else                                       likely_release(m);

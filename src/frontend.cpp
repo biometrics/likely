@@ -554,7 +554,6 @@ likely_mat likely_type_field_to_string(likely_type type)
     if (type == likely_matrix_depth          ) return likely_string("depth");
     if (type == likely_matrix_floating       ) return likely_string("floating");
     if (type == likely_matrix_array          ) return likely_string("array");
-    if (type == likely_matrix_llvm           ) return likely_string("llvm");
     if (type == likely_matrix_signed         ) return likely_string("signed");
     if (type == likely_matrix_saturated      ) return likely_string("saturated");
     if (type == likely_matrix_data           ) return likely_string("data");
@@ -601,7 +600,6 @@ likely_type likely_type_field_from_string(const char *str, bool *ok)
     if (!strcmp(str, "depth"          )) return likely_matrix_depth;
     if (!strcmp(str, "floating"       )) return likely_matrix_floating;
     if (!strcmp(str, "array"          )) return likely_matrix_array;
-    if (!strcmp(str, "llvm"           )) return likely_matrix_llvm;
     if (!strcmp(str, "signed"         )) return likely_matrix_signed;
     if (!strcmp(str, "saturated"      )) return likely_matrix_saturated;
     if (!strcmp(str, "data"           )) return likely_matrix_data;
