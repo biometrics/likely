@@ -629,37 +629,45 @@ struct Builder : public IRBuilder<>
 
 struct Symbol : public likely_expression
 {
-    Symbol(Function *function = NULL)
-        : likely_expression(function, function ? toLikely(function->getReturnType()) : likely_type(likely_matrix_void)) {}
+    string name;
+    vector<likely_type> parameters;
+
+    Symbol(Function *function = NULL) { associateFunction(function); }
+
+    void associateFunction(Function *function)
+    {
+        if (function) {
+            name = function->getName();
+            parameters.clear();
+            for (const Argument &argument : function->getArgumentList())
+                parameters.push_back(toLikely(argument.getType()));
+            value = function;
+            type = toLikely(function->getReturnType());
+        }
+    }
 
 private:
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
-        Function *definition = cast<Function>(value);
-        if (definition->arg_size() != ((ast->type == likely_ast_list) ? ast->num_atoms-1 : 0))
+        if (parameters.size() != ((ast->type == likely_ast_list) ? ast->num_atoms-1 : 0))
             return error(ast, "incorrect argument count");
 
-        Function *symbol = builder.module()->getFunction(definition->getName());
+        Function *symbol = builder.module()->getFunction(name);
         if (!symbol) {
             // Translate definition type across contexts
-            vector<Type*> paramTypes;
-            Function::arg_iterator it = definition->arg_begin();
-            while (it != definition->arg_end()) {
-                paramTypes.push_back(builder.translate(it->getType()));
-                it++;
-            }
-            FunctionType *functionType = FunctionType::get(builder.translate(definition->getReturnType()), paramTypes, false);
-            symbol = Function::Create(functionType, GlobalValue::ExternalLinkage, definition->getName(), builder.module());
+            vector<Type*> llvmParameters;
+            for (likely_type parameter : parameters)
+                llvmParameters.push_back(builder.toLLVM(parameter));
+            FunctionType *functionType = FunctionType::get(builder.toLLVM(type), llvmParameters, false);
+            symbol = Function::Create(functionType, GlobalValue::ExternalLinkage, name, builder.module());
         }
 
         vector<Value*> args;
-        if (ast->type == likely_ast_list) {
-            Function::arg_iterator it = symbol->arg_begin();
-            for (size_t i=1; i<ast->num_atoms; i++, it++) {
+        if (ast->type == likely_ast_list)
+            for (size_t i=1; i<ast->num_atoms; i++) {
                 TRY_EXPR(builder, ast->atoms[i], arg)
-                args.push_back(builder.cast(arg.get(), toLikely(it->getType())));
+                args.push_back(builder.cast(arg.get(), parameters[i-1]));
             }
-        }
 
         return new likely_expression(builder.CreateCall(symbol, args), type);
     }
@@ -669,7 +677,6 @@ struct JITFunction : public likely_function, public Symbol
 {
     ExecutionEngine *EE = NULL;
     likely_env env;
-    const vector<likely_type> parameters;
 
     JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool abandon, bool interpreter, bool arrayCC);
 
@@ -1454,7 +1461,7 @@ struct Lambda : public ScopedExpression
     Lambda(likely_env env, likely_const_ast ast)
         : ScopedExpression(env, ast) {}
 
-    const Symbol *generate(Builder &builder, vector<likely_type> types, string name, bool arrayCC) const
+    Function *generate(Builder &builder, vector<likely_type> parameters, string name, bool arrayCC) const
     {
         size_t n;
         if ((ast->type == likely_ast_list) && (ast->num_atoms > 1))
@@ -1462,16 +1469,16 @@ struct Lambda : public ScopedExpression
             else                                        n = 1;
         else                                            n = 0;
 
-        while (types.size() < n)
-            types.push_back(likely_matrix_multi_dimension);
+        while (parameters.size() < n)
+            parameters.push_back(likely_matrix_multi_dimension);
 
         vector<Type*> llvmTypes;
         if (arrayCC) {
             // Array calling convention - All arguments, which must be matrix pointers, come stored in an array for the convenience of likely_dynamic.
             llvmTypes.push_back(PointerType::get(builder.multiDimension(), 0));
         } else {
-            for (const likely_type &t : types)
-                llvmTypes.push_back(builder.toLLVM(t));
+            for (const likely_type &parameter : parameters)
+                llvmTypes.push_back(builder.toLLVM(parameter));
         }
 
         BasicBlock *originalInsertBlock = builder.GetInsertBlock();
@@ -1482,19 +1489,19 @@ struct Lambda : public ScopedExpression
         vector<likely_const_expr> arguments;
         if (arrayCC) {
             Value *argumentArray = tmpFunction->arg_begin();
-            for (size_t i=0; i<types.size(); i++) {
+            for (size_t i=0; i<parameters.size(); i++) {
                 Value *load = builder.CreateLoad(builder.CreateGEP(argumentArray, builder.constant(i)));
-                if (likely_multi_dimension(types[i]))
-                    load = builder.CreatePointerCast(load, builder.toLLVM(types[i]));
+                if (likely_multi_dimension(parameters[i]))
+                    load = builder.CreatePointerCast(load, builder.toLLVM(parameters[i]));
                 else
-                    load = builder.CreateLoad(builder.CreateGEP(builder.data(load, types[i]), builder.zero()));
-                arguments.push_back(new likely_expression(load, types[i]));
+                    load = builder.CreateLoad(builder.CreateGEP(builder.data(load, parameters[i]), builder.zero()));
+                arguments.push_back(new likely_expression(load, parameters[i]));
             }
         } else {
             Function::arg_iterator it = tmpFunction->arg_begin();
             size_t i = 0;
             while (it != tmpFunction->arg_end())
-                arguments.push_back(new likely_expression(it++, types[i++]));
+                arguments.push_back(new likely_expression(it++, parameters[i++]));
         }
 
         for (size_t i=0; i<arguments.size(); i++) {
@@ -1502,7 +1509,7 @@ struct Lambda : public ScopedExpression
             arguments[i]->value->setName(name.str());
         }
 
-        likely_const_expr result = evaluateFunction(builder, arguments);
+        unique_ptr<const likely_expression> result(evaluateFunction(builder, arguments));
         for (likely_const_expr arg : arguments)
             delete arg;
         if (!result)
@@ -1522,11 +1529,10 @@ struct Lambda : public ScopedExpression
         SmallVector<ReturnInst*, 1> returns;
         CloneFunctionInto(function, tmpFunction, VMap, false, returns);
         tmpFunction->eraseFromParent();
-        delete result;
 
         if (originalInsertBlock)
             builder.SetInsertPoint(originalInsertBlock);
-        return new Symbol(function);
+        return function;
     }
 
 private:
@@ -2319,19 +2325,20 @@ class defineExpression : public Operator
             assert(!env->value);
             if (lhs->type == likely_ast_list) {
                 // Export symbol
-                vector<likely_type> types;
+                vector<likely_type> parameters;
                 for (size_t i=1; i<lhs->num_atoms; i++) {
                     if (lhs->atoms[i]->type == likely_ast_list)
                         return error(lhs->atoms[i], "expected an atom name parameter type");
-                    types.push_back(likely_type_from_string(lhs->atoms[i]->atom));
+                    parameters.push_back(likely_type_from_string(lhs->atoms[i]->atom));
                 }
 
                 if (likely_offline(env->type)) {
                     TRY_EXPR(builder, rhs, expr);
                     const Lambda *lambda = static_cast<const Lambda*>(expr.get());
-                    env->value = lambda->generate(builder, types, name, false);
+                    if (Function *function = lambda->generate(builder, parameters, name, false))
+                        env->value = new Symbol(function);
                 } else {
-                    JITFunction *function = new JITFunction(name, rhs, env, types, true, false, false);
+                    JITFunction *function = new JITFunction(name, rhs, env, parameters, true, false, false);
                     if (function->function) {
                         sys::DynamicLibrary::AddSymbol(name, function->function);
                         env->value = function;
@@ -2393,7 +2400,7 @@ class importExpression : public Operator
 LIKELY_REGISTER(import)
 
 JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_env parent, const vector<likely_type> &parameters, bool abandon, bool interpreter, bool arrayCC)
-    : env(likely_new_env(parent)), parameters(parameters)
+    : env(likely_new_env(parent))
 {
     function = NULL;
     ref_count = 1;
@@ -2417,9 +2424,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     likely_set_base(&env->type, true);
     Builder builder(env);
     unique_ptr<const likely_expression> result(builder.expression(ast));
-    unique_ptr<const Symbol> expr(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC));
-    value = expr ? expr->value : NULL;
-    type = expr ? expr->type : likely_type(likely_matrix_void);
+    associateFunction(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC));
     if (!value)
         return;
 
