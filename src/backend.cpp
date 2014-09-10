@@ -682,10 +682,9 @@ struct JITFunction : public likely_function, public Symbol
 
     ~JITFunction()
     {
-        if (EE) {
+        if (EE && env->module->module) // interpreter
             EE->removeModule(env->module->module);
-            delete EE;
-        }
+        delete EE;
         likely_release_env(env);
     }
 
@@ -2461,6 +2460,10 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
 
         EE->finalizeObject();
         function = (void*) EE->getFunctionAddress(name);
+
+        // cleanup
+        EE->removeModule(env->module->module);
+        env->module->finalize();
     }
 //    env->module->module->dump();
 }
@@ -2856,14 +2859,12 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
         const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]->atoms[1]) = likely_retain_ast(ast); // Copy because we will modify ast->type
 
         JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), false, true, false);
-        if (jit.EE) {
-            env->result = (likely_mat) jit.EE->runFunction(cast<Function>(jit.value), vector<GenericValue>()).PointerVal;
-        } else if (jit.function) {
-            // Fallback is a compiled function if the interpreter isn't supported
+        if (jit.function) // compiler
             env->result = reinterpret_cast<likely_function_0>(jit.function)();
-        } else {
+        else if (jit.EE) // interpreter
+            env->result = (likely_mat) jit.EE->runFunction(cast<Function>(jit.value), vector<GenericValue>()).PointerVal;
+        else
             likely_set_erratum(&env->type, true);
-        }
 
         likely_release_ast(lambda);
     }
