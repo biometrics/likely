@@ -79,8 +79,8 @@ struct likely_expression
     likely_const_expr parent;
     vector<likely_const_expr> subexpressions;
 
-    likely_expression(Value *value = NULL, likely_type type = likely_matrix_void, likely_const_expr parent = NULL)
-        : value(value), type(type), parent(parent)
+    likely_expression(Value *value = NULL, likely_type type = likely_matrix_void, likely_const_expr parent = NULL, likely_const_mat data = NULL)
+        : value(value), type(type), parent(parent), data(data)
     {
         if (value && type) {
             // Check type correctness
@@ -103,6 +103,7 @@ struct likely_expression
 
     virtual ~likely_expression()
     {
+        likely_release(data);
         for (likely_const_expr e : subexpressions)
             delete e;
     }
@@ -111,6 +112,7 @@ struct likely_expression
     virtual size_t maxParameters() const { return 0; }
     virtual size_t minParameters() const { return maxParameters(); }
     virtual void *symbol() const { return NULL; } // Idiom to ensure that specified library symbols aren't stripped when optimizing executable size
+    virtual likely_const_mat getData() const { return data; }
 
     virtual likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const;
 
@@ -224,6 +226,9 @@ struct likely_expression
             }
         }
     }
+
+private:
+    likely_const_mat data; // use getData()
 };
 
 namespace {
@@ -618,6 +623,11 @@ struct Builder : public IRBuilder<>
         }
     }
 
+    likely_const_expr mat(likely_const_mat data)
+    {
+        return new likely_expression(NULL, likely_matrix_void, NULL, data);
+    }
+
     IntegerType *nativeInt() { return env->module->context->nativeInt(); }
     Type *multiDimension() { return toLLVM(likely_matrix_multi_dimension); }
     Module *module() { return env->module->module; }
@@ -1001,6 +1011,27 @@ class addExpression : public SimpleArithmeticOperator
 {
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
+        // Fold constant expressions
+        if (likely_const_mat LHS = lhs.getData()) {
+            if (likely_const_mat RHS = rhs.getData()) {
+                static likely_function *function = NULL;
+                if (!function) {
+                    static mutex lock;
+                    lock_guard<mutex> guard(lock);
+                    if (!function) {
+                        likely_const_ast ast = likely_ast_from_string("(a b):=> (+ a b)", false);
+                        likely_const_env env = likely_new_env_jit();
+                        function = likely_compile(ast, env, likely_matrix_void);
+                        likely_release_env(env);
+                        likely_release_ast(ast);
+                    }
+                }
+                (void) LHS;
+                (void) RHS;
+//                return builder.mat(reinterpret_cast<likely_function_2>(function->function)(LHS, RHS));
+            }
+        }
+
         if (likely_floating(lhs)) {
             return builder.CreateFAdd(lhs, rhs);
         } else {
