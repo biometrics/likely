@@ -113,6 +113,7 @@ struct likely_expression
     virtual size_t minParameters() const { return maxParameters(); }
     virtual void *libraryDependency() const { return NULL; } // Idiom to ensure that specified library symbols aren't stripped when optimizing executable size
     virtual likely_const_mat getData() const { return data; }
+    virtual const char *symbol() const { return ""; }
 
     virtual likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const;
 
@@ -170,6 +171,7 @@ struct likely_expression
 
     static void define(likely_env &env, const char *name, likely_const_expr value)
     {
+        assert(name && strcmp(name, ""));
         env = likely_new_env(env);
         likely_set_definition(&env->type, true);
         env->ast = likely_new_atom(name, strlen(name));
@@ -812,14 +814,13 @@ protected:
 template <class E>
 struct RegisterExpression : public RootEnvironment
 {
-    RegisterExpression(const char *symbol)
+    RegisterExpression()
     {
         likely_expr e = new E();
-        likely_expression::define(builtins(), symbol, e);
+        likely_expression::define(builtins(), e->symbol(), e);
     }
 };
-#define LIKELY_REGISTER_EXPRESSION(EXP, SYM) static struct RegisterExpression<EXP##Expression> Register##EXP##Expression(SYM);
-#define LIKELY_REGISTER(EXP) LIKELY_REGISTER_EXPRESSION(EXP, #EXP)
+#define LIKELY_REGISTER(EXP) static RegisterExpression<EXP##Expression> Register##EXP##Expression;
 
 class UnaryOperator : public Operator
 {
@@ -908,6 +909,7 @@ likely_const_expr Builder::expression(likely_const_ast ast)
 #define LIKELY_REGISTER_FIELD(FIELD)                                         \
 class FIELD##Expression : public likely_expression                           \
 {                                                                            \
+    const char *symbol() const { return #FIELD; }                            \
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const \
     {                                                                        \
         const size_t arguments = length(ast) - 1;                            \
@@ -930,15 +932,17 @@ LIKELY_REGISTER_FIELD(frames)
 
 class notExpression : public SimpleUnaryOperator
 {
+    const char *symbol() const { return "~"; }
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         return new likely_expression(builder.CreateXor(builder.intMax(*arg), arg->value), *arg);
     }
 };
-LIKELY_REGISTER_EXPRESSION(not, "~")
+LIKELY_REGISTER(not)
 
 class typeExpression : public SimpleUnaryOperator
 {
+    const char *symbol() const { return "type"; }
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         return new MatrixType(builder, *arg);
@@ -959,6 +963,7 @@ class UnaryMathOperator : public SimpleUnaryOperator
 #define LIKELY_REGISTER_UNARY_MATH(OP)                 \
 class OP##Expression : public UnaryMathOperator        \
 {                                                      \
+    const char *symbol() const { return #OP; }         \
     Intrinsic::ID id() const { return Intrinsic::OP; } \
 };                                                     \
 LIKELY_REGISTER(OP)                                    \
@@ -1009,6 +1014,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
 
 class addExpression : public SimpleArithmeticOperator
 {
+    const char *symbol() const { return "+"; }
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
         // Fold constant expressions
@@ -1045,10 +1051,11 @@ class addExpression : public SimpleArithmeticOperator
         }
     }
 };
-LIKELY_REGISTER_EXPRESSION(add, "+")
+LIKELY_REGISTER(add)
 
 class subtractExpression : public Operator
 {
+    const char *symbol() const { return "-"; }
     size_t maxParameters() const { return 2; }
     size_t minParameters() const { return 1; }
 
@@ -1087,10 +1094,11 @@ class subtractExpression : public Operator
         }
     }
 };
-LIKELY_REGISTER_EXPRESSION(subtract, "-")
+LIKELY_REGISTER(subtract)
 
 class multiplyExpression : public SimpleArithmeticOperator
 {
+    const char *symbol() const { return "*"; }
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
         if (likely_floating(lhs)) {
@@ -1107,10 +1115,11 @@ class multiplyExpression : public SimpleArithmeticOperator
         }
     }
 };
-LIKELY_REGISTER_EXPRESSION(multiply, "*")
+LIKELY_REGISTER(multiply)
 
 class divideExpression : public SimpleArithmeticOperator
 {
+    const char *symbol() const { return "/"; }
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &n, const likely_expression &d) const
     {
         if (likely_floating(n)) {
@@ -1129,10 +1138,11 @@ class divideExpression : public SimpleArithmeticOperator
         }
     }
 };
-LIKELY_REGISTER_EXPRESSION(divide, "/")
+LIKELY_REGISTER(divide)
 
 class remainderExpression : public SimpleArithmeticOperator
 {
+    const char *symbol() const { return "%"; }
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
         return likely_floating(lhs) ? builder.CreateFRem(lhs, rhs)
@@ -1140,28 +1150,30 @@ class remainderExpression : public SimpleArithmeticOperator
                                                           : builder.CreateURem(lhs, rhs));
     }
 };
-LIKELY_REGISTER_EXPRESSION(remainder, "%")
+LIKELY_REGISTER(remainder)
 
 #define LIKELY_REGISTER_LOGIC(OP, SYM)                                                                                  \
 class OP##Expression : public SimpleArithmeticOperator                                                                  \
 {                                                                                                                       \
+    const char *symbol() const { return #SYM; }                                                                         \
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const \
     {                                                                                                                   \
         return builder.Create##OP(lhs, rhs.value);                                                                      \
     }                                                                                                                   \
 };                                                                                                                      \
-LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                     \
+LIKELY_REGISTER(OP)                                                                                                     \
 
-LIKELY_REGISTER_LOGIC(And , "&")
-LIKELY_REGISTER_LOGIC(Or  , "|")
-LIKELY_REGISTER_LOGIC(Xor , "^")
-LIKELY_REGISTER_LOGIC(Shl , "<<")
-LIKELY_REGISTER_LOGIC(LShr, "lshr")
-LIKELY_REGISTER_LOGIC(AShr, "ashr")
+LIKELY_REGISTER_LOGIC(And , &)
+LIKELY_REGISTER_LOGIC(Or  , |)
+LIKELY_REGISTER_LOGIC(Xor , ^)
+LIKELY_REGISTER_LOGIC(Shl , <<)
+LIKELY_REGISTER_LOGIC(LShr, lshr)
+LIKELY_REGISTER_LOGIC(AShr, ashr)
 
 #define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                              \
 class OP##Expression : public ArithmeticOperator                                                                                         \
 {                                                                                                                                        \
+    const char *symbol() const { return #SYM; }                                                                                          \
     likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const             \
     {                                                                                                                                    \
         return new likely_expression(likely_floating(lhs) ? builder.CreateFCmpO##OP(lhs, rhs)                                            \
@@ -1169,26 +1181,27 @@ class OP##Expression : public ArithmeticOperator                                
                                                                                 : builder.CreateICmpU##OP(lhs, rhs)), likely_matrix_u1); \
     }                                                                                                                                    \
 };                                                                                                                                       \
-LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                                      \
+LIKELY_REGISTER(OP)                                                                                                                      \
 
-LIKELY_REGISTER_COMPARISON(LT, "<")
-LIKELY_REGISTER_COMPARISON(LE, "<=")
-LIKELY_REGISTER_COMPARISON(GT, ">")
-LIKELY_REGISTER_COMPARISON(GE, ">=")
+LIKELY_REGISTER_COMPARISON(LT, <)
+LIKELY_REGISTER_COMPARISON(LE, <=)
+LIKELY_REGISTER_COMPARISON(GT, >)
+LIKELY_REGISTER_COMPARISON(GE, >=)
 
 #define LIKELY_REGISTER_EQUALITY(OP, SYM)                                                                                    \
 class OP##Expression : public ArithmeticOperator                                                                             \
 {                                                                                                                            \
+    const char *symbol() const { return #SYM; }                                                                              \
     likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const \
     {                                                                                                                        \
         return new likely_expression(likely_floating(lhs) ? builder.CreateFCmpO##OP(lhs, rhs)                                \
                                                           : builder.CreateICmp##OP(lhs, rhs), likely_matrix_u1);             \
     }                                                                                                                        \
 };                                                                                                                           \
-LIKELY_REGISTER_EXPRESSION(OP, SYM)                                                                                          \
+LIKELY_REGISTER(OP)                                                                                                          \
 
-LIKELY_REGISTER_EQUALITY(EQ, "==")
-LIKELY_REGISTER_EQUALITY(NE, "!=")
+LIKELY_REGISTER_EQUALITY(EQ, ==)
+LIKELY_REGISTER_EQUALITY(NE, !=)
 
 class BinaryMathOperator : public SimpleBinaryOperator
 {
@@ -1205,6 +1218,7 @@ class BinaryMathOperator : public SimpleBinaryOperator
 #define LIKELY_REGISTER_BINARY_MATH(OP)                \
 class OP##Expression : public BinaryMathOperator       \
 {                                                      \
+    const char *symbol() const { return #OP; }         \
     Intrinsic::ID id() const { return Intrinsic::OP; } \
 };                                                     \
 LIKELY_REGISTER(OP)                                    \
@@ -1214,6 +1228,7 @@ LIKELY_REGISTER_BINARY_MATH(copysign)
 
 class definedExpression : public Operator
 {
+    const char *symbol() const { return "??"; }
     size_t maxParameters() const { return 2; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -1225,10 +1240,11 @@ class definedExpression : public Operator
         else                            return builder.expression(ast->atoms[2]);
     }
 };
-LIKELY_REGISTER_EXPRESSION(defined, "??")
+LIKELY_REGISTER(defined)
 
 class elementsExpression : public SimpleUnaryOperator
 {
+    const char *symbol() const { return "elements"; }
     void *libraryDependency() const { return (void*) likely_elements; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
@@ -1248,6 +1264,7 @@ LIKELY_REGISTER(elements)
 
 class bytesExpression : public SimpleUnaryOperator
 {
+    const char *symbol() const { return "bytes"; }
     void *libraryDependency() const { return (void*) likely_bytes; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
@@ -1267,6 +1284,7 @@ LIKELY_REGISTER(bytes)
 
 class newExpression : public Operator
 {
+    const char *symbol() const { return "new"; }
     size_t maxParameters() const { return 6; }
     size_t minParameters() const { return 0; }
     void *libraryDependency() const { return (void*) likely_new; }
@@ -1321,6 +1339,7 @@ LIKELY_REGISTER(new)
 
 class scalarExpression : public UnaryOperator
 {
+    const char *symbol() const { return "scalar"; }
     void *libraryDependency() const { return (void*) likely_scalar_va; }
 
     likely_const_expr evaluateUnary(Builder &builder, likely_const_ast arg) const
@@ -1368,6 +1387,7 @@ LIKELY_REGISTER(scalar)
 
 class stringExpression : public SimpleUnaryOperator
 {
+    const char *symbol() const { return "string"; }
     void *libraryDependency() const { return (void*) likely_string; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
@@ -1394,6 +1414,7 @@ LIKELY_REGISTER(string)
 
 class copyExpression : public SimpleUnaryOperator
 {
+    const char *symbol() const { return "copy"; }
     void *libraryDependency() const { return (void*) likely_copy; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
@@ -1420,6 +1441,7 @@ LIKELY_REGISTER(copy)
 
 class retainExpression : public SimpleUnaryOperator
 {
+    const char *symbol() const { return "retain"; }
     void *libraryDependency() const { return (void*) likely_retain; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
@@ -1446,6 +1468,7 @@ LIKELY_REGISTER(retain)
 
 class releaseExpression : public SimpleUnaryOperator
 {
+    const char *symbol() const { return "release"; }
     void *libraryDependency() const { return (void*) likely_release; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
@@ -1642,6 +1665,7 @@ private:
 
 class lambdaExpression : public Operator
 {
+    const char *symbol() const { return "->"; }
     size_t maxParameters() const { return 2; }
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const { return new Lambda(builder.env, ast); }
 
@@ -1654,10 +1678,11 @@ public:
                && (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>"));
     }
 };
-LIKELY_REGISTER_EXPRESSION(lambda, "->")
+LIKELY_REGISTER(lambda)
 
 class beginExpression : public Operator
 {
+    const char *symbol() const { return "{"; }
     size_t minParameters() const { return 1; }
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
 
@@ -1681,7 +1706,7 @@ class beginExpression : public Operator
         return result;
     }
 };
-LIKELY_REGISTER_EXPRESSION(begin, "{")
+LIKELY_REGISTER(begin)
 
 struct Label : public likely_expression
 {
@@ -1698,6 +1723,7 @@ private:
 
 class labelExpression : public Operator
 {
+    const char *symbol() const { return "#"; }
     size_t maxParameters() const { return 1; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -1710,10 +1736,11 @@ class labelExpression : public Operator
         return new Label(label);
     }
 };
-LIKELY_REGISTER_EXPRESSION(label, "#")
+LIKELY_REGISTER(label)
 
 class ifExpression : public Operator
 {
+    const char *symbol() const { return "?"; }
     size_t minParameters() const { return 2; }
     size_t maxParameters() const { return 3; }
 
@@ -1758,7 +1785,7 @@ class ifExpression : public Operator
         }
     }
 };
-LIKELY_REGISTER_EXPRESSION(if, "?")
+LIKELY_REGISTER(if)
 
 struct Loop : public likely_expression
 {
@@ -1792,6 +1819,7 @@ struct Loop : public likely_expression
 
 class loopExpression : public Operator
 {
+    const char *symbol() const { return "$"; }
     size_t maxParameters() const { return 3; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -1805,7 +1833,7 @@ class loopExpression : public Operator
         return expression;
     }
 };
-LIKELY_REGISTER_EXPRESSION(loop, "$")
+LIKELY_REGISTER(loop)
 
 struct Kernel : public Lambda
 {
@@ -2217,11 +2245,12 @@ private:
 
 class kernelExpression : public Operator
 {
+    const char *symbol() const { return "=>"; }
     size_t minParameters() const { return 2; }
     size_t maxParameters() const { return 3; }
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const { return new Kernel(builder.env, ast); }
 };
-LIKELY_REGISTER_EXPRESSION(kernel, "=>")
+LIKELY_REGISTER(kernel)
 
 struct Definition : public ScopedExpression
 {
@@ -2342,6 +2371,7 @@ private:
 
 class defineExpression : public Operator
 {
+    const char *symbol() const { return "="; }
     size_t maxParameters() const { return 2; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -2399,10 +2429,11 @@ class defineExpression : public Operator
         }
     }
 };
-LIKELY_REGISTER_EXPRESSION(define, "=")
+LIKELY_REGISTER(define)
 
 class importExpression : public Operator
 {
+    const char *symbol() const { return "import"; }
     size_t maxParameters() const { return 1; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -2504,6 +2535,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
 
 class printExpression : public Operator
 {
+    const char *symbol() const { return "print"; }
     size_t minParameters() const { return 1; }
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
     void *libraryDependency() const { return (void*) likely_print_va; }
@@ -2554,6 +2586,7 @@ LIKELY_REGISTER(print)
 
 class readExpression : public SimpleUnaryOperator
 {
+    const char *symbol() const { return "read"; }
     void *libraryDependency() const { return (void*) likely_read; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
@@ -2575,6 +2608,7 @@ LIKELY_REGISTER(read)
 
 class writeExpression : public SimpleBinaryOperator
 {
+    const char *symbol() const { return "write"; }
     void *libraryDependency() const { return (void*) likely_write; }
 
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const
@@ -2598,6 +2632,7 @@ LIKELY_REGISTER(write)
 
 class decodeExpression : public SimpleUnaryOperator
 {
+    const char *symbol() const { return "decode"; }
     void *libraryDependency() const { return (void*) likely_decode; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
@@ -2618,6 +2653,7 @@ LIKELY_REGISTER(decode)
 
 class encodeExpression : public SimpleBinaryOperator
 {
+    const char *symbol() const { return "encode"; }
     void *libraryDependency() const { return (void*) likely_encode; }
 
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const
@@ -2641,6 +2677,7 @@ LIKELY_REGISTER(encode)
 
 class renderExpression : public SimpleUnaryOperator
 {
+    const char *symbol() const { return "render"; }
     void *libraryDependency() const { return (void*) likely_render; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
@@ -2666,7 +2703,8 @@ LIKELY_REGISTER(render)
 
 class showExpression : public SimpleUnaryOperator
 {
-    void *libraryDependency() const { return (void*) likely_decode; }
+    const char *symbol() const { return "show"; }
+    void *libraryDependency() const { return (void*) likely_show; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
@@ -2689,6 +2727,7 @@ LIKELY_REGISTER(show)
 
 class md5Expression : public SimpleUnaryOperator
 {
+    const char *symbol() const { return "md5"; }
     void *libraryDependency() const { return (void*) likely_md5; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
