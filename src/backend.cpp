@@ -111,7 +111,7 @@ struct likely_expression
     virtual int uid() const { return 0; }
     virtual size_t maxParameters() const { return 0; }
     virtual size_t minParameters() const { return maxParameters(); }
-    virtual void *symbol() const { return NULL; } // Idiom to ensure that specified library symbols aren't stripped when optimizing executable size
+    virtual void *libraryDependency() const { return NULL; } // Idiom to ensure that specified library symbols aren't stripped when optimizing executable size
     virtual likely_const_mat getData() const { return data; }
 
     virtual likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const;
@@ -1229,7 +1229,7 @@ LIKELY_REGISTER_EXPRESSION(defined, "??")
 
 class elementsExpression : public SimpleUnaryOperator
 {
-    void *symbol() const { return (void*) likely_elements; }
+    void *libraryDependency() const { return (void*) likely_elements; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
@@ -1248,7 +1248,7 @@ LIKELY_REGISTER(elements)
 
 class bytesExpression : public SimpleUnaryOperator
 {
-    void *symbol() const { return (void*) likely_bytes; }
+    void *libraryDependency() const { return (void*) likely_bytes; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
@@ -1269,7 +1269,7 @@ class newExpression : public Operator
 {
     size_t maxParameters() const { return 6; }
     size_t minParameters() const { return 0; }
-    void *symbol() const { return (void*) likely_new; }
+    void *libraryDependency() const { return (void*) likely_new; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
@@ -1321,7 +1321,7 @@ LIKELY_REGISTER(new)
 
 class scalarExpression : public UnaryOperator
 {
-    void *symbol() const { return (void*) likely_scalar_va; }
+    void *libraryDependency() const { return (void*) likely_scalar_va; }
 
     likely_const_expr evaluateUnary(Builder &builder, likely_const_ast arg) const
     {
@@ -1368,7 +1368,7 @@ LIKELY_REGISTER(scalar)
 
 class stringExpression : public SimpleUnaryOperator
 {
-    void *symbol() const { return (void*) likely_string; }
+    void *libraryDependency() const { return (void*) likely_string; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
@@ -1394,7 +1394,7 @@ LIKELY_REGISTER(string)
 
 class copyExpression : public SimpleUnaryOperator
 {
-    void *symbol() const { return (void*) likely_copy; }
+    void *libraryDependency() const { return (void*) likely_copy; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
@@ -1420,7 +1420,7 @@ LIKELY_REGISTER(copy)
 
 class retainExpression : public SimpleUnaryOperator
 {
-    void *symbol() const { return (void*) likely_retain; }
+    void *libraryDependency() const { return (void*) likely_retain; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
@@ -1446,7 +1446,7 @@ LIKELY_REGISTER(retain)
 
 class releaseExpression : public SimpleUnaryOperator
 {
-    void *symbol() const { return (void*) likely_release; }
+    void *libraryDependency() const { return (void*) likely_release; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
@@ -1567,7 +1567,7 @@ struct Lambda : public ScopedExpression
 
 private:
     size_t maxParameters() const { return length(ast->atoms[1]); }
-    void *symbol() const { return (void*) likely_dynamic; }
+    void *libraryDependency() const { return (void*) likely_dynamic; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
@@ -1920,7 +1920,7 @@ private:
         size_t results;
     };
 
-    void *symbol() const { return (void*) likely_fork; }
+    void *libraryDependency() const { return (void*) likely_fork; }
 
     virtual likely_const_ast getMetadata() const { return (ast->num_atoms == 4) ? ast->atoms[3] : NULL; }
 
@@ -2506,7 +2506,7 @@ class printExpression : public Operator
 {
     size_t minParameters() const { return 1; }
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
-    void *symbol() const { return (void*) likely_print_va; }
+    void *libraryDependency() const { return (void*) likely_print_va; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
@@ -2554,7 +2554,7 @@ LIKELY_REGISTER(print)
 
 class readExpression : public SimpleUnaryOperator
 {
-    void *symbol() const { return (void*) likely_read; }
+    void *libraryDependency() const { return (void*) likely_read; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
@@ -2575,7 +2575,7 @@ LIKELY_REGISTER(read)
 
 class writeExpression : public SimpleBinaryOperator
 {
-    void *symbol() const { return (void*) likely_write; }
+    void *libraryDependency() const { return (void*) likely_write; }
 
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const
     {
@@ -2598,7 +2598,7 @@ LIKELY_REGISTER(write)
 
 class decodeExpression : public SimpleUnaryOperator
 {
-    void *symbol() const { return (void*) likely_decode; }
+    void *libraryDependency() const { return (void*) likely_decode; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
@@ -2618,7 +2618,7 @@ LIKELY_REGISTER(decode)
 
 class encodeExpression : public SimpleBinaryOperator
 {
-    void *symbol() const { return (void*) likely_encode; }
+    void *libraryDependency() const { return (void*) likely_encode; }
 
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const
     {
@@ -2641,7 +2641,7 @@ LIKELY_REGISTER(encode)
 
 class renderExpression : public SimpleUnaryOperator
 {
-    void *symbol() const { return (void*) likely_render; }
+    void *libraryDependency() const { return (void*) likely_render; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
@@ -2666,7 +2666,7 @@ LIKELY_REGISTER(render)
 
 class showExpression : public SimpleUnaryOperator
 {
-    void *symbol() const { return (void*) likely_decode; }
+    void *libraryDependency() const { return (void*) likely_decode; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
@@ -2689,7 +2689,7 @@ LIKELY_REGISTER(show)
 
 class md5Expression : public SimpleUnaryOperator
 {
-    void *symbol() const { return (void*) likely_md5; }
+    void *libraryDependency() const { return (void*) likely_md5; }
 
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
