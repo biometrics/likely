@@ -1007,6 +1007,26 @@ class SimpleArithmeticOperator : public ArithmeticOperator
 {
     likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
+        // Fold constant expressions
+        if (likely_const_mat LHS = lhs.getData()) {
+            if (likely_const_mat RHS = rhs.getData()) {
+                static likely_function *function = NULL;
+                if (!function) {
+                    static mutex lock;
+                    lock_guard<mutex> guard(lock);
+                    if (!function) {
+                        const string code = string("(a b):=> (") + symbol() + string(" a b)");
+                        likely_const_ast ast = likely_ast_from_string(code.c_str(), false);
+                        likely_const_env env = likely_new_env_jit();
+                        function = likely_compile(ast, env, likely_matrix_void);
+                        likely_release_env(env);
+                        likely_release_ast(ast);
+                    }
+                }
+                return builder.mat(reinterpret_cast<likely_function_2>(function->function)(LHS, RHS));
+            }
+        }
+
         return new likely_expression(evaluateSimpleArithmetic(builder, lhs, rhs), lhs);
     }
     virtual Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const = 0;
@@ -1017,27 +1037,6 @@ class addExpression : public SimpleArithmeticOperator
     const char *symbol() const { return "+"; }
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
-        // Fold constant expressions
-        if (likely_const_mat LHS = lhs.getData()) {
-            if (likely_const_mat RHS = rhs.getData()) {
-                static likely_function *function = NULL;
-                if (!function) {
-                    static mutex lock;
-                    lock_guard<mutex> guard(lock);
-                    if (!function) {
-                        likely_const_ast ast = likely_ast_from_string("(a b):=> (+ a b)", false);
-                        likely_const_env env = likely_new_env_jit();
-                        function = likely_compile(ast, env, likely_matrix_void);
-                        likely_release_env(env);
-                        likely_release_ast(ast);
-                    }
-                }
-                (void) LHS;
-                (void) RHS;
-//                return builder.mat(reinterpret_cast<likely_function_2>(function->function)(LHS, RHS));
-            }
-        }
-
         if (likely_floating(lhs)) {
             return builder.CreateFAdd(lhs, rhs);
         } else {
