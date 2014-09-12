@@ -444,6 +444,9 @@ Standard Library
     sq := (-> a (* a a))
 
 ### Binary Functions
+    and:= (-> (a b) (& (!= a 0) (!= b 0)))
+    or := (-> (a b) (| (!= a 0) (!= b 0)))
+    xor:= (-> (a b) (^ (!= a 0) (!= b 0)))
     min:= (-> (a b) (? (< a b) a b))
     max:= (-> (a b) (? (> a b) a b))
     cast:= (-> (a b) (b.type a)) ; cast a to the type of b
