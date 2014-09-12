@@ -259,6 +259,31 @@ One if _lhs_ is greater than or equal to _rhs_, zero otherwise.
 (>= 6 6.0)  ; Evaluates to 1
 ```
 
+#### Bit Manipulation
+##### (& _lhs_ _rhs_)
+Bitwise and of _lhs_ and _rhs_.
+
+```likely
+(& 1 2) ; Evaluates to 0
+(& 1 3) ; Evaluates to 1
+```
+
+##### (| _lhs_ _rhs_)
+Bitwise or of _lhs_ and _rhs_.
+
+```likely
+(| 1 2) ; Evaluates to 3
+(| 1 3) ; Evaluates to 3
+```
+
+##### (^ _lhs_ _rhs_)
+Bitwise exclusive or of _lhs_ and _rhs_.
+
+```likely
+(^ 1 2) ; Evaluates to 3
+(^ 1 3) ; Evaluates to 2
+```
+
 #### Math
 ##### (sqrt _x_)
 The square root of _x_.
