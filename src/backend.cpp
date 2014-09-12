@@ -1377,12 +1377,12 @@ class scalarExpression : public UnaryOperator
 
     likely_const_expr evaluateUnary(Builder &builder, likely_const_ast arg) const
     {
-        likely_const_expr argExpr = builder.expression(arg);
-        if (!argExpr)
+        likely_const_expr expr = builder.expression(arg);
+        if (!expr)
             return NULL;
 
-        if (argExpr->value && isMat(argExpr->value->getType()))
-            return argExpr;
+        if (expr->value && isMat(expr->value->getType()))
+            return expr;
 
         Function *likelyScalar = builder.module()->getFunction("likely_scalar_va");
         if (!likelyScalar) {
@@ -1396,7 +1396,7 @@ class scalarExpression : public UnaryOperator
 
         vector<Value*> args;
         likely_type type = likely_matrix_void;
-        for (likely_const_expr e : argExpr->subexpressionsOrSelf()) {
+        for (likely_const_expr e : expr->subexpressionsOrSelf()) {
             args.push_back(builder.cast(e, likely_matrix_f64));
             type = likely_type_from_types(type, e->type);
         }
@@ -1404,7 +1404,7 @@ class scalarExpression : public UnaryOperator
         args.insert(args.begin(), builder.typeType(type));
 
         likely_expression result(builder.CreateCall(likelyScalar, args), likely_matrix_multi_dimension);
-        delete argExpr;
+        delete expr;
         return new likely_expression(result);
     }
 
