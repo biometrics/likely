@@ -284,6 +284,26 @@ Bitwise exclusive or of _lhs_ and _rhs_.
 (^ 1 3) ; Evaluates to 2
 ```
 
+##### (<< _lhs_ _rhs_)
+Left shift of _lhs_ by _rhs_ bits.
+
+```likely
+(<< 2 0) ; Evaluates to 2
+(<< 2 1) ; Evaluates to 4
+```
+
+##### (>> _lhs_ _rhs_)
+Right shift of _lhs_ by _rhs_ bits.
+Arithmetic right shift (sign extension) if _lhs_ is signed, logical right shift (zero extension) otherwise.
+
+```likely
+(>> 2 0)  ; Evaluates to 2
+(>> 2 1)  ; Evaluates to 1
+(>> 2 2)  ; Evaluates to 0
+(>> -2 0) ; Evaluates to -2
+(>> -2 1) ; Evaluates to -1
+```
+
 #### Math
 ##### (sqrt _x_)
 The square root of _x_.

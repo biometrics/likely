@@ -1192,8 +1192,16 @@ LIKELY_REGISTER_LOGIC(And , &)
 LIKELY_REGISTER_LOGIC(Or  , |)
 LIKELY_REGISTER_LOGIC(Xor , ^)
 LIKELY_REGISTER_LOGIC(Shl , <<)
-LIKELY_REGISTER_LOGIC(LShr, lshr)
-LIKELY_REGISTER_LOGIC(AShr, ashr)
+
+class shiftRightExpression : public SimpleArithmeticOperator
+{
+    const char *symbol() const { return ">>"; }
+    Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
+    {
+        return likely_signed(lhs) ? builder.CreateAShr(lhs, rhs.value) : builder.CreateLShr(lhs, rhs.value);
+    }
+};
+LIKELY_REGISTER(shiftRight)
 
 #define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                              \
 class OP##Expression : public ArithmeticOperator                                                                                         \
