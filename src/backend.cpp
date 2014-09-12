@@ -1377,13 +1377,26 @@ class scalarExpression : public UnaryOperator
 
     likely_const_expr evaluateUnary(Builder &builder, likely_const_ast arg) const
     {
-        likely_const_expr expr = builder.expression(arg);
+        unique_ptr<const likely_expression> expr(builder.expression(arg));
         if (!expr)
             return NULL;
-
         if (expr->value && isMat(expr->value->getType()))
-            return expr;
+            return expr.release();
 
+        return new likely_expression(createCall(builder, expr.get()));
+    }
+
+    static GenericValue lle_X_likely_scalar_va(FunctionType *, const vector<GenericValue> &Args)
+    {
+        vector<double> values;
+        for (size_t i=1; i<Args.size()-1; i++)
+            values.push_back(Args[i].DoubleVal);
+        return GenericValue(likely_scalar_n(Args[0].IntVal.getZExtValue(), values.data(), values.size()));
+    }
+
+public:
+    static likely_expression createCall(Builder &builder, likely_const_expr expr)
+    {
         Function *likelyScalar = builder.module()->getFunction("likely_scalar_va");
         if (!likelyScalar) {
             Type *params[] = { builder.nativeInt(), Type::getDoubleTy(builder.getContext()) };
@@ -1402,18 +1415,7 @@ class scalarExpression : public UnaryOperator
         }
         args.push_back(ConstantFP::get(builder.getContext(), APFloat::getNaN(APFloat::IEEEdouble)));
         args.insert(args.begin(), builder.typeType(type));
-
-        likely_expression result(builder.CreateCall(likelyScalar, args), likely_matrix_multi_dimension);
-        delete expr;
-        return new likely_expression(result);
-    }
-
-    static GenericValue lle_X_likely_scalar_va(FunctionType *, const vector<GenericValue> &Args)
-    {
-        vector<double> values;
-        for (size_t i=1; i<Args.size()-1; i++)
-            values.push_back(Args[i].DoubleVal);
-        return GenericValue(likely_scalar_n(Args[0].IntVal.getZExtValue(), values.data(), values.size()));
+        return likely_expression(builder.CreateCall(likelyScalar, args), likely_matrix_multi_dimension);
     }
 };
 LIKELY_REGISTER(scalar)
@@ -1547,7 +1549,7 @@ struct Lambda : public ScopedExpression
     Lambda(likely_env env, likely_const_ast ast)
         : ScopedExpression(env, ast) {}
 
-    Function *generate(Builder &builder, vector<likely_type> parameters, string name, bool arrayCC) const
+    Function *generate(Builder &builder, vector<likely_type> parameters, string name, bool arrayCC, bool returnConstantOrMatrix) const
     {
         size_t n;
         if ((ast->type == likely_ast_list) && (ast->num_atoms > 1))
@@ -1600,6 +1602,10 @@ struct Lambda : public ScopedExpression
             delete arg;
         if (!result)
             return NULL;
+
+        // If we are expecting a constant or a matrix and don't get one then make a matrix
+        if (returnConstantOrMatrix && !result->getData() && !isMat(result->value->getType()))
+            result.reset(new likely_expression(scalarExpression::createCall(builder, result.get())));
 
         releaseExpression::cleanup(builder, result->value);
         builder.CreateRet(*result);
@@ -2428,7 +2434,7 @@ class defineExpression : public Operator
                 if (likely_offline(env->type)) {
                     TRY_EXPR(builder, rhs, expr);
                     const Lambda *lambda = static_cast<const Lambda*>(expr.get());
-                    if (Function *function = lambda->generate(builder, parameters, name, false))
+                    if (Function *function = lambda->generate(builder, parameters, name, false, false))
                         env->value = new Symbol(function);
                 } else {
                     JITFunction *function = new JITFunction(name, rhs, env, parameters, true, false, false);
@@ -2504,11 +2510,6 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         likely_set_abandoned(&env->type, true);
     }
 
-// No libffi support for Windows
-#ifdef _WIN32
-    interpreter = false;
-#endif // _WIN32
-
     if (!lambdaExpression::isLambda(ast)) {
         likely_expression::error(ast, "expected a lambda expression");
         return;
@@ -2518,9 +2519,14 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     likely_set_base(&env->type, true);
     Builder builder(env);
     unique_ptr<const likely_expression> result(builder.expression(ast));
-    associateFunction(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC));
+    associateFunction(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC, interpreter));
     if (!value)
         return;
+
+// No libffi support for Windows
+#ifdef _WIN32
+    interpreter = false;
+#endif // _WIN32
 
     // Don't run the interpreter on a module with loops, better to compile and execute it instead.
     if (interpreter) {
