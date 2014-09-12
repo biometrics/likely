@@ -112,7 +112,26 @@ struct likely_expression
     virtual size_t maxParameters() const { return 0; }
     virtual size_t minParameters() const { return maxParameters(); }
     virtual void *libraryDependency() const { return NULL; } // Idiom to ensure that specified library symbols aren't stripped when optimizing executable size
-    virtual likely_const_mat getData() const { return data; }
+
+    virtual likely_const_mat getData() const
+    {
+        if (data || !value)
+            return data;
+
+        if (ConstantInt *constantInt = dyn_cast<ConstantInt>(value)) {
+            data = likely_new(type, 1, 1, 1, 1, NULL);
+            likely_set_element(const_cast<likely_mat>(data), likely_signed(type) ? double(constantInt->getSExtValue())
+                                                                                 : double(constantInt->getZExtValue()), 0, 0, 0, 0);
+        } else if (ConstantFP *constantFP = dyn_cast<ConstantFP>(value)) {
+            const APFloat &apFloat = constantFP->getValueAPF();
+            data = likely_new(type, 1, 1, 1, 1, NULL);
+            likely_set_element(const_cast<likely_mat>(data), &apFloat.getSemantics() == &APFloat::IEEEsingle ? double(apFloat.convertToFloat())
+                                                                                                             : apFloat.convertToDouble(), 0, 0, 0, 0);
+        }
+
+        return data;
+    }
+
     virtual const char *symbol() const { return ""; }
 
     virtual likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const;
@@ -230,7 +249,7 @@ struct likely_expression
     }
 
 private:
-    likely_const_mat data; // use getData()
+    mutable likely_const_mat data; // use getData()
 };
 
 namespace {
@@ -627,7 +646,10 @@ struct Builder : public IRBuilder<>
 
     likely_const_expr mat(likely_const_mat data)
     {
-        return new likely_expression(NULL, likely_matrix_void, NULL, data);
+        Value *value;
+        if (likely_elements(data) == 1) value = constant(likely_element(data, 0, 0, 0, 0), data->type);
+        else                            value = ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getContext(), 8*sizeof(likely_mat)), uintptr_t(data)), toLLVM(data->type));
+        return new likely_expression(value, data->type, NULL, data);
     }
 
     IntegerType *nativeInt() { return env->module->context->nativeInt(); }
@@ -1010,20 +1032,24 @@ class SimpleArithmeticOperator : public ArithmeticOperator
         // Fold constant expressions
         if (likely_const_mat LHS = lhs.getData()) {
             if (likely_const_mat RHS = rhs.getData()) {
-                static likely_function *function = NULL;
-                if (!function) {
-                    static mutex lock;
-                    lock_guard<mutex> guard(lock);
-                    if (!function) {
-                        const string code = string("(a b):=> (") + symbol() + string(" a b)");
-                        likely_const_ast ast = likely_ast_from_string(code.c_str(), false);
-                        likely_const_env env = likely_new_env_jit();
-                        function = likely_compile(ast, env, likely_matrix_void);
-                        likely_release_env(env);
-                        likely_release_ast(ast);
-                    }
+                static map<const char*, likely_function*> functionLUT;
+                static mutex lock;
+
+                lock.lock();
+                auto function = functionLUT.find(symbol());
+                if (function == functionLUT.end()) {
+                    const string code = string("(a b):=> (") + symbol() + string(" a b)");
+                    likely_const_ast ast = likely_ast_from_string(code.c_str(), false);
+                    likely_const_env env = likely_new_env_jit();
+                    likely_function *compiled = likely_compile(ast->atoms[0], env, likely_matrix_void);
+                    likely_release_env(env);
+                    likely_release_ast(ast);
+                    functionLUT.insert(pair<const char*, likely_function*>(symbol(), compiled));
+                    function = functionLUT.find(symbol());
                 }
-                return builder.mat(reinterpret_cast<likely_function_2>(function->function)(LHS, RHS));
+                lock.unlock();
+
+                return builder.mat(reinterpret_cast<likely_function_2>(function->second->function)(LHS, RHS));
             }
         }
 
