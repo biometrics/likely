@@ -429,7 +429,7 @@ public:
         if ((likely_elements(m) <= 16) || likely_is_string(m)) {
             image->setImage(QImage());
 
-            likely_mat str = likely_to_string(m, true);
+            likely_mat str = likely_to_string(m);
             type->setText(str->data);
             likely_release(str);
         } else {
@@ -442,10 +442,14 @@ public:
             image->setImage(QImage(reinterpret_cast<const uchar*>(rendered->data), rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped());
             likely_release(rendered);
 
-            likely_mat str = likely_to_string(m, -1);
-            type->setText(QString("%1 [%2,%3]").arg(str->data,
-                                                    QString::number(min),
-                                                    QString::number(max)));
+            likely_mat str = likely_type_to_string(m->type);
+            type->setText(QString("%1 (%2 %3 %4 %5) [%6, %7]").arg(str->data,
+                                                                   QString::number(m->channels),
+                                                                   QString::number(m->columns),
+                                                                   QString::number(m->rows),
+                                                                   QString::number(m->frames),
+                                                                   QString::number(min),
+                                                                   QString::number(max)));
             likely_release(str);
         }
 

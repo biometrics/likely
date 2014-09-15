@@ -250,29 +250,23 @@ bool likely_is_string(likely_const_mat m)
     return m && (likely_data(m->type) == likely_matrix_i8) && !m->data[likely_elements(m)-1];
 }
 
-likely_mat likely_to_string(likely_const_mat m, int header)
+likely_mat likely_to_string(likely_const_mat m)
 {
-    if (!m) return NULL;
-    const size_t elements = likely_elements(m);
+    if (!m)
+        return NULL;
+
     if (likely_is_string(m))
         return likely_retain(m);
 
-    // Don't include type for scalars
-    if ((header > 0) && (elements == 1))
-        header = 0;
-
     stringstream stream;
-    if (header) {
+    if (likely_elements(m) == 1) {
+        stream << likely_element(m, 0, 0, 0, 0);
+    } else {
         stream << "(";
         likely_mat str = likely_type_to_string(m->type);
-        stream << str->data;
+        stream << str->data << " ";
         likely_release(str);
-    }
-    if (header >= 0) {
-        if (header > 0)
-            stream << " ";
-        if (elements > 1)
-            stream << "(\n";
+
         stream << (m->frames > 1 ? "(" : "");
         for (likely_size t=0; t<m->frames; t++) {
             stream << (m->rows > 1 ? "(" : "");
@@ -297,11 +291,8 @@ likely_mat likely_to_string(likely_const_mat m, int header)
             if (t != m->frames-1)
                 stream << "\n\n";
         }
-        stream << (m->frames > 1 ? ")" : "");
-        if (likely_elements(m) > 1)
-            stream << "\n)";
-    }
-    if (header) {
+        stream << ((m->frames > 1) ? ")" : "");
+
         const bool frames   =            (m->frames   > 1);
         const bool rows     = frames  || (m->rows     > 1);
         const bool columns  = rows    || (m->columns  > 1);
@@ -339,7 +330,7 @@ likely_mat likely_print_n(likely_const_mat *mv, size_t n)
 {
     stringstream buffer;
     for (size_t i=0; i<n; i++) {
-        likely_mat str = likely_to_string(mv[i], false);
+        likely_mat str = likely_to_string(mv[i]);
         buffer << str->data;
         likely_release(str);
     }
