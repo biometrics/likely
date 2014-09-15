@@ -107,7 +107,7 @@ static void replQuiet(likely_const_env, void *)
 static void replPrint(likely_const_env env, void *context)
 {
     if (!context) return;
-    checkOrPrintAndRelease(likely_to_string(env->result));
+    checkOrPrintAndRelease(likely_print(env->result));
 }
 
 int main(int argc, char *argv[])

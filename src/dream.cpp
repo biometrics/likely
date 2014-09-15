@@ -429,9 +429,9 @@ public:
         if ((likely_elements(m) <= 16) || likely_is_string(m)) {
             image->setImage(QImage());
 
-            likely_mat str = likely_to_string(m);
-            type->setText(str->data);
-            likely_release(str);
+            likely_mat printed = likely_print(m);
+            type->setText(printed->data);
+            likely_release(printed);
         } else {
             likely_mat show = (m->frames == 1) ? likely_retain(m)
                                                : likely_new(m->type, m->channels, m->columns, m->rows, 1,

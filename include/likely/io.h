@@ -60,8 +60,6 @@ LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *exten
 
 // Matrix Visualization
 LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
-LIKELY_EXPORT likely_mat likely_print_header(likely_const_mat m);
-LIKELY_EXPORT likely_mat likely_to_string(likely_const_mat m);
 LIKELY_EXPORT likely_mat likely_to_hex(likely_const_mat m);
 LIKELY_EXPORT likely_mat likely_print(likely_const_mat m);
 LIKELY_EXPORT likely_mat likely_print_n(likely_const_mat *mv, size_t n);
