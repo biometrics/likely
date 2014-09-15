@@ -265,10 +265,12 @@ likely_mat likely_to_string(likely_const_mat m, int header)
     if (header) {
         stream << "(";
         likely_mat str = likely_type_to_string(m->type);
-        stream << str->data << " ";
+        stream << str->data;
         likely_release(str);
     }
     if (header >= 0) {
+        if (header > 0)
+            stream << " ";
         if (elements > 1)
             stream << "(\n";
         stream << (m->frames > 1 ? "(" : "");
