@@ -132,6 +132,12 @@ struct likely_expression
         return data;
     }
 
+    void setData(likely_const_mat data) const
+    {
+        assert(!getData());
+        this->data = data;
+    }
+
     virtual const char *symbol() const { return ""; }
 
     virtual likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const;
@@ -249,7 +255,7 @@ struct likely_expression
     }
 
 private:
-    mutable likely_const_mat data; // use getData()
+    mutable likely_const_mat data; // use getData() and setData()
 };
 
 namespace {
@@ -656,7 +662,6 @@ struct Builder : public IRBuilder<>
     Type *multiDimension() { return toLLVM(likely_matrix_multi_dimension); }
     Module *module() { return env->module->module; }
     Type *toLLVM(likely_type likely) { return env->module->context->toLLVM(likely); }
-    Type *translate(Type *type) { return toLLVM(likely_expression::toLikely(type)); } // Translate type across contexts
 
     likely_const_expr expression(likely_const_ast ast);
 };
@@ -666,18 +671,21 @@ struct Symbol : public likely_expression
     string name;
     vector<likely_type> parameters;
 
-    Symbol(Function *function = NULL) { associateFunction(function); }
+    Symbol(likely_const_expr function = NULL) { associateFunction(function); }
 
-    void associateFunction(Function *function)
+    void associateFunction(likely_const_expr expr)
     {
-        if (function) {
-            name = function->getName();
-            parameters.clear();
-            for (const Argument &argument : function->getArgumentList())
-                parameters.push_back(toLikely(argument.getType()));
-            value = function;
-            type = toLikely(function->getReturnType());
-        }
+        if (!expr)
+            return;
+
+        Function *function = cast<Function>(expr->value);
+        name = function->getName();
+        parameters.clear();
+        for (const Argument &argument : function->getArgumentList())
+            parameters.push_back(toLikely(argument.getType()));
+        value = function;
+        type = toLikely(function->getReturnType());
+        setData(likely_retain(expr->getData()));
     }
 
 private:
@@ -1549,7 +1557,7 @@ struct Lambda : public ScopedExpression
     Lambda(likely_env env, likely_const_ast ast)
         : ScopedExpression(env, ast) {}
 
-    Function *generate(Builder &builder, vector<likely_type> parameters, string name, bool arrayCC, bool returnConstantOrMatrix) const
+    likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, bool arrayCC, bool returnConstantOrMatrix) const
     {
         size_t n;
         if ((ast->type == likely_ast_list) && (ast->num_atoms > 1))
@@ -1624,7 +1632,7 @@ struct Lambda : public ScopedExpression
 
         if (originalInsertBlock)
             builder.SetInsertPoint(originalInsertBlock);
-        return function;
+        return new likely_expression(function, likely_matrix_void, NULL, likely_retain(result->getData()));
     }
 
 private:
@@ -2434,8 +2442,10 @@ class defineExpression : public Operator
                 if (likely_offline(env->type)) {
                     TRY_EXPR(builder, rhs, expr);
                     const Lambda *lambda = static_cast<const Lambda*>(expr.get());
-                    if (Function *function = lambda->generate(builder, parameters, name, false, false))
+                    if (likely_const_expr function = lambda->generate(builder, parameters, name, false, false)) {
                         env->value = new Symbol(function);
+                        delete function;
+                    }
                 } else {
                     JITFunction *function = new JITFunction(name, rhs, env, parameters, true, false, false);
                     if (function->function) {
@@ -2519,8 +2529,8 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     likely_set_base(&env->type, true);
     Builder builder(env);
     unique_ptr<const likely_expression> result(builder.expression(ast));
-    associateFunction(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC, interpreter));
-    if (!value)
+    associateFunction(unique_ptr<const likely_expression>(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC, interpreter)).get());
+    if (!value /* error */ || (interpreter && getData()) /* constant */)
         return;
 
 // No libffi support for Windows
@@ -2963,15 +2973,17 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
     } else if (likely_offline(env->type)) {
         // Do nothing, evaluating expressions in an offline environment is a no-op.
     } else {
-        likely_const_ast lambda = likely_ast_from_string("(-> () (scalar <ast>))", false);
-        likely_release_ast(lambda->atoms[0]->atoms[2]->atoms[1]); // <ast>
-        const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]->atoms[1]) = likely_retain_ast(ast); // Copy because we will modify ast->type
+        likely_const_ast lambda = likely_ast_from_string("(-> () <ast>)", false);
+        likely_release_ast(lambda->atoms[0]->atoms[2]); // <ast>
+        const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]) = likely_retain_ast(ast); // Copy because we will modify ast->type
 
         JITFunction jit("likely_jit_function", lambda->atoms[0], env, vector<likely_type>(), false, true, false);
         if (jit.function) // compiler
             env->result = reinterpret_cast<likely_function_0>(jit.function)();
         else if (jit.EE) // interpreter
             env->result = (likely_mat) jit.EE->runFunction(cast<Function>(jit.value), vector<GenericValue>()).PointerVal;
+        else if (likely_const_mat data = likely_retain(jit.getData())) // constant
+            env->result = data;
         else
             likely_set_erratum(&env->type, true);
 

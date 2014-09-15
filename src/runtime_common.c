@@ -33,7 +33,12 @@ void likely_assert(bool condition, const char *format, ...)
     fprintf(stderr, "Likely ");
     vfprintf(stderr, format, ap);
     fprintf(stderr, "\n");
-    exit(EXIT_FAILURE);
+
+#ifdef _WIN32
+    exit(EXIT_FAILURE); // We prefer not to trigger the Windows crash dialog box
+#else // !_WIN32
+    abort();
+#endif // _WIN32
 }
 
 size_t likely_get(size_t type, size_t mask) { return type & mask; }
