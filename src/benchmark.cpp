@@ -36,7 +36,6 @@ using namespace std;
 #define LIKELY_TEST_SECONDS 1
 
 static cl::opt<bool> BenchmarkTest    ("test"     , cl::desc("Run tests for correctness only"));
-static cl::opt<bool> BenchmarkVerbose ("verbose"  , cl::desc("Verbose benchmark output"));
 static cl::opt<bool> BenchmarkParallel("parallel" , cl::desc("Compile parallel kernels"));
 static cl::opt<string> BenchmarkFile    ("file"    , cl::desc("Benchmark the specified file only"), cl::value_desc("filename"));
 static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"));
@@ -120,22 +119,10 @@ struct Test
         printf("%s \t", fileName.c_str());
         likely_const_ast ast = likely_ast_from_string(source.c_str(), true);
         likely_env env = likely_new_env_jit();
-        if (BenchmarkVerbose)
-            printf("\n");
         for (size_t i=0; i<ast->num_atoms; i++) {
-            if (BenchmarkVerbose) {
-                likely_mat str = likely_ast_to_string(ast->atoms[i]);
-                printf("%s\n", str->data);
-                likely_release(str);
-            }
             likely_env new_env = likely_eval(ast->atoms[i], env);
             likely_release_env(env);
             env = new_env;
-            if (BenchmarkVerbose && !likely_definition(env->type)) {
-                likely_mat str = likely_to_string(env->result, true);
-                printf("%s\n\n", str->data);
-                likely_release(str);
-            }
         }
         likely_release_env(env);
 
