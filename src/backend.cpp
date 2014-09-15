@@ -911,7 +911,7 @@ likely_const_expr Builder::expression(likely_const_ast ast)
 
     if ((op.front() == '"') && (op.back() == '"')) {
         const_cast<likely_ast>(ast)->type = likely_ast_string;
-        return new likely_expression(CreateGlobalStringPtr(op.substr(1, op.length()-2)), likely_matrix_u8 | likely_matrix_array);
+        return new likely_expression(CreateGlobalStringPtr(op.substr(1, op.length()-2)), likely_matrix_i8 | likely_matrix_array);
     }
 
     { // Is it a number?
@@ -1405,6 +1405,22 @@ class scalarExpression : public UnaryOperator
 public:
     static likely_expression createCall(Builder &builder, likely_const_expr expr)
     {
+        if (isMat(expr->value->getType()))
+            return likely_expression(expr->value, expr->type);
+
+        if (expr->value->getType()->isPointerTy() /* assume it's a string */) {
+            Function *likelyString = builder.module()->getFunction("likely_string");
+            if (!likelyString) {
+                FunctionType *functionType = FunctionType::get(builder.toLLVM(likely_matrix_i8 | likely_matrix_multi_channel), Type::getInt8PtrTy(builder.getContext()), false);
+                likelyString = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_string", builder.module());
+                likelyString->setCallingConv(CallingConv::C);
+                likelyString->setDoesNotAlias(0);
+                likelyString->setDoesNotAlias(1);
+                likelyString->setDoesNotCapture(1);
+            }
+            return likely_expression(builder.CreateCall(likelyString, *expr), likely_matrix_i8 | likely_matrix_multi_channel);
+        }
+
         Function *likelyScalar = builder.module()->getFunction("likely_scalar_va");
         if (!likelyScalar) {
             Type *params[] = { builder.nativeInt(), Type::getDoubleTy(builder.getContext()) };
@@ -1428,87 +1444,6 @@ public:
 };
 LIKELY_REGISTER(scalar)
 
-class stringExpression : public SimpleUnaryOperator
-{
-    const char *symbol() const { return "string"; }
-    void *libraryDependency() const { return (void*) likely_string; }
-
-    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
-    {
-        return new likely_expression(createCall(builder, *arg), likely_matrix_i8);
-    }
-
-public:
-    static CallInst *createCall(Builder &builder, Value *string)
-    {
-        Function *likelyString = builder.module()->getFunction("likely_string");
-        if (!likelyString) {
-            FunctionType *functionType = FunctionType::get(builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()), false);
-            likelyString = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_string", builder.module());
-            likelyString->setCallingConv(CallingConv::C);
-            likelyString->setDoesNotAlias(0);
-            likelyString->setDoesNotAlias(1);
-            likelyString->setDoesNotCapture(1);
-        }
-        return builder.CreateCall(likelyString, string);
-    }
-};
-LIKELY_REGISTER(string)
-
-class copyExpression : public SimpleUnaryOperator
-{
-    const char *symbol() const { return "copy"; }
-    void *libraryDependency() const { return (void*) likely_copy; }
-
-    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
-    {
-        return new likely_expression(createCall(builder, *arg), *arg);
-    }
-
-public:
-    static CallInst *createCall(Builder &builder, Value *m)
-    {
-        Function *likelyCopy = builder.module()->getFunction("likely_copy");
-        if (!likelyCopy) {
-            FunctionType *functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), false);
-            likelyCopy = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_copy", builder.module());
-            likelyCopy->setCallingConv(CallingConv::C);
-            likelyCopy->setDoesNotAlias(0);
-            likelyCopy->setDoesNotAlias(1);
-            likelyCopy->setDoesNotCapture(1);
-        }
-        return builder.CreateCall(likelyCopy, m);
-    }
-};
-LIKELY_REGISTER(copy)
-
-class retainExpression : public SimpleUnaryOperator
-{
-    const char *symbol() const { return "retain"; }
-    void *libraryDependency() const { return (void*) likely_retain; }
-
-    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
-    {
-        return new likely_expression(createCall(builder, *arg), *arg);
-    }
-
-public:
-    static CallInst *createCall(Builder &builder, Value *m)
-    {
-        Function *likelyRetain = builder.module()->getFunction("likely_retain");
-        if (!likelyRetain) {
-            FunctionType *functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), false);
-            likelyRetain = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_retain", builder.module());
-            likelyRetain->setCallingConv(CallingConv::C);
-            likelyRetain->setDoesNotAlias(0);
-            likelyRetain->setDoesNotAlias(1);
-            likelyRetain->setDoesNotCapture(1);
-        }
-        return builder.CreateCall(likelyRetain, m);
-    }
-};
-LIKELY_REGISTER(retain)
-
 class releaseExpression : public SimpleUnaryOperator
 {
     const char *symbol() const { return "release"; }
@@ -1530,7 +1465,7 @@ class releaseExpression : public SimpleUnaryOperator
             likelyRelease->setDoesNotAlias(1);
             likelyRelease->setDoesNotCapture(1);
         }
-        return builder.CreateCall(likelyRelease, m);
+        return builder.CreateCall(likelyRelease, builder.CreatePointerCast(m, builder.multiDimension()));
     }
 
 public:
@@ -2602,25 +2537,15 @@ class printExpression : public Operator
             sys::DynamicLibrary::AddSymbol("lle_X_likely_print_va", (void*) lle_X_likely_print_va);
         }
 
-        vector<Value*> rawArgs;
+        vector<Value*> args;
         for (size_t i=1; i<ast->num_atoms; i++) {
             TRY_EXPR(builder, ast->atoms[i], arg);
-            rawArgs.push_back(*arg);
+            Value *value = isMat(arg->value->getType()) ? arg->value : scalarExpression::createCall(builder, arg.get()).value;
+            args.push_back(builder.CreatePointerCast(value, builder.multiDimension()));
         }
-        rawArgs.push_back(builder.nullMat());
+        args.push_back(builder.nullMat());
 
-        vector<Value*> matArgs;
-        for (Value *rawArg : rawArgs)
-            if (rawArg->getType() == builder.multiDimension()) {
-                matArgs.push_back(rawArg);
-            } else {
-                // Intermediate matricies will be released when this function returns
-                matArgs.push_back(stringExpression::createCall(builder, rawArg));
-            }
-
-        Value *result = builder.CreateCall(likelyPrint, matArgs);
-
-        return new likely_expression(result, likely_matrix_i8 | likely_matrix_multi_channel);
+        return new likely_expression(builder.CreateCall(likelyPrint, args), likely_matrix_i8 | likely_matrix_multi_channel);
     }
 
     static GenericValue lle_X_likely_print_va(FunctionType *, const vector<GenericValue> &Args)
@@ -2724,54 +2649,6 @@ class encodeExpression : public SimpleBinaryOperator
 };
 LIKELY_REGISTER(encode)
 
-class renderExpression : public SimpleUnaryOperator
-{
-    const char *symbol() const { return "render"; }
-    void *libraryDependency() const { return (void*) likely_render; }
-
-    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
-    {
-        Function *likelyRender = builder.module()->getFunction("likely_render");
-        if (!likelyRender) {
-            Type *params[] = { builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()) };
-            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, false);
-            likelyRender = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_render", builder.module());
-            likelyRender->setCallingConv(CallingConv::C);
-            likelyRender->setDoesNotAlias(0);
-            likelyRender->setDoesNotAlias(1);
-            likelyRender->setDoesNotCapture(1);
-            likelyRender->setDoesNotAlias(2);
-            likelyRender->setDoesNotCapture(2);
-            likelyRender->setDoesNotAlias(3);
-            likelyRender->setDoesNotCapture(3);
-        }
-        return new likely_expression(builder.CreateCall3(likelyRender, *arg, ConstantPointerNull::get(Type::getDoublePtrTy(builder.getContext())), ConstantPointerNull::get(Type::getDoublePtrTy(builder.getContext()))), likely_matrix_multi_dimension);
-    }
-};
-LIKELY_REGISTER(render)
-
-class showExpression : public SimpleUnaryOperator
-{
-    const char *symbol() const { return "show"; }
-    void *libraryDependency() const { return (void*) likely_show; }
-
-    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
-    {
-        Function *likelyShow = builder.module()->getFunction("likely_show");
-        if (!likelyShow) {
-            Type *params[] = { builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()) };
-            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, false);
-            likelyShow = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_show", builder.module());
-            likelyShow->setCallingConv(CallingConv::C);
-            likelyShow->setDoesNotAlias(1);
-            likelyShow->setDoesNotCapture(1);
-            likelyShow->setDoesNotAlias(2);
-            likelyShow->setDoesNotCapture(2);
-        }
-        return new likely_expression(builder.CreateCall2(likelyShow, *arg, ConstantPointerNull::get(Type::getInt8PtrTy(builder.getContext()))), likely_matrix_multi_dimension);
-    }
-};
-LIKELY_REGISTER(show)
 #endif // LIKELY_IO
 
 class md5Expression : public SimpleUnaryOperator
