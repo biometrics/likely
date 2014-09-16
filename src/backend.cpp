@@ -493,11 +493,11 @@ class JITFunctionCache : public ObjectCache
 {
     map<hash_code, unique_ptr<MemoryBuffer>> cachedModules;
     map<const Module*, hash_code> currentModules;
-    mutex editLock;
+    mutex lock;
 
     void notifyObjectCompiled(const Module *M, MemoryBufferRef Obj)
     {
-        lock_guard<mutex> lock(editLock);
+        lock_guard<mutex> guard(lock);
         const auto currentModule = currentModules.find(M);
         const hash_code hash = currentModule->second;
         currentModules.erase(currentModule);
@@ -506,7 +506,7 @@ class JITFunctionCache : public ObjectCache
 
     unique_ptr<MemoryBuffer> getObject(const Module *M)
     {
-        lock_guard<mutex> lock(editLock);
+        lock_guard<mutex> guard(lock);
         const auto currentModule = currentModules.find(M);
         const hash_code hash = currentModule->second;
         const auto cachedModule = cachedModules.find(hash);
@@ -524,10 +524,10 @@ public:
         raw_string_ostream ostream(str);
         M->print(ostream, NULL);
         ostream.flush();
-
         const hash_code hash = hash_value(str);
+
+        lock_guard<mutex> guard(lock);
         const bool hit = (cachedModules.find(hash) != cachedModules.end());
-        lock_guard<mutex> lock(editLock);
         currentModules.insert(pair<const Module*, hash_code>(M, hash));
         return hit;
     }
