@@ -111,7 +111,6 @@ struct likely_expression
     virtual int uid() const { return 0; }
     virtual size_t maxParameters() const { return 0; }
     virtual size_t minParameters() const { return maxParameters(); }
-    virtual void *libraryDependency() const { return NULL; } // Idiom to ensure that specified library symbols aren't stripped when optimizing executable size
 
     virtual likely_const_mat getData() const
     {
@@ -683,6 +682,7 @@ struct Builder : public IRBuilder<>
                 likelyString->setDoesNotAlias(0);
                 likelyString->setDoesNotAlias(1);
                 likelyString->setDoesNotCapture(1);
+                sys::DynamicLibrary::AddSymbol("likely_string", (void*) likely_string);
             }
             return likely_expression(CreateCall(likelyString, *expr), likely_matrix_i8 | likely_matrix_multi_channel);
         }
@@ -694,6 +694,7 @@ struct Builder : public IRBuilder<>
             likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar_va", module());
             likelyScalar->setCallingConv(CallingConv::C);
             likelyScalar->setDoesNotAlias(0);
+            sys::DynamicLibrary::AddSymbol("likely_scalar_va", (void*) likely_scalar_va);
             sys::DynamicLibrary::AddSymbol("lle_X_likely_scalar_va", (void*) lle_X_likely_scalar_va);
         }
 
@@ -719,6 +720,7 @@ struct Builder : public IRBuilder<>
             likelyNew->setDoesNotAlias(0);
             likelyNew->setDoesNotAlias(6);
             likelyNew->setDoesNotCapture(6);
+            sys::DynamicLibrary::AddSymbol("likely_new", (void*) likely_new);
         }
         Value* args[] = { type, channels, columns, rows, frames, data };
         return likely_expression(CreateCall(likelyNew, args), likely_matrix_multi_dimension);
@@ -733,6 +735,7 @@ struct Builder : public IRBuilder<>
             likelyRelease->setCallingConv(CallingConv::C);
             likelyRelease->setDoesNotAlias(1);
             likelyRelease->setDoesNotCapture(1);
+            sys::DynamicLibrary::AddSymbol("likely_release", (void*) likely_release);
         }
         return likely_expression(CreateCall(likelyRelease, CreatePointerCast(m, multiDimension())), likely_matrix_void);
     }
@@ -1367,8 +1370,6 @@ LIKELY_REGISTER(defined)
 class elementsExpression : public SimpleUnaryOperator
 {
     const char *symbol() const { return "elements"; }
-    void *libraryDependency() const { return (void*) likely_elements; }
-
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         Function *likelyElements = builder.module()->getFunction("likely_elements");
@@ -1378,6 +1379,7 @@ class elementsExpression : public SimpleUnaryOperator
             likelyElements->setCallingConv(CallingConv::C);
             likelyElements->setDoesNotAlias(1);
             likelyElements->setDoesNotCapture(1);
+            sys::DynamicLibrary::AddSymbol("likely_elements", (void*) likely_elements);
         }
         return new likely_expression(builder.CreateCall(likelyElements, *arg), likely_matrix_native);
     }
@@ -1387,8 +1389,6 @@ LIKELY_REGISTER(elements)
 class bytesExpression : public SimpleUnaryOperator
 {
     const char *symbol() const { return "bytes"; }
-    void *libraryDependency() const { return (void*) likely_bytes; }
-
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         Function *likelyBytes = builder.module()->getFunction("likely_bytes");
@@ -1398,6 +1398,7 @@ class bytesExpression : public SimpleUnaryOperator
             likelyBytes->setCallingConv(CallingConv::C);
             likelyBytes->setDoesNotAlias(1);
             likelyBytes->setDoesNotCapture(1);
+            sys::DynamicLibrary::AddSymbol("likely_bytes", (void*) likely_bytes);
         }
         return new likely_expression(builder.CreateCall(likelyBytes, builder.CreatePointerCast(*arg, builder.multiDimension())), likely_matrix_native);
     }
@@ -1551,6 +1552,7 @@ private:
                 likelyDynamic->setDoesNotCapture(1);
                 likelyDynamic->setDoesNotAlias(2);
                 likelyDynamic->setDoesNotCapture(2);
+                sys::DynamicLibrary::AddSymbol("likely_dynamic", (void*) likely_dynamic);
             }
 
             Value *matricies = builder.CreateAlloca(builder.multiDimension(), builder.constant(args.size()));
@@ -1997,6 +1999,7 @@ private:
             likelyFork->setDoesNotAlias(1);
             likelyFork->setDoesNotCapture(2);
             likelyFork->setDoesNotAlias(2);
+            sys::DynamicLibrary::AddSymbol("likely_fork", (void*) likely_fork);
         }
 
         Value *parameterStruct = builder.CreateAlloca(parameterStructType);
@@ -2454,7 +2457,6 @@ class printExpression : public Operator
     const char *symbol() const { return "print"; }
     size_t minParameters() const { return 1; }
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
-    void *libraryDependency() const { return (void*) likely_print_va; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
@@ -2466,6 +2468,7 @@ class printExpression : public Operator
             likelyPrint->setDoesNotAlias(0);
             likelyPrint->setDoesNotAlias(1);
             likelyPrint->setDoesNotCapture(1);
+            sys::DynamicLibrary::AddSymbol("likely_print_va", (void*) likely_print_va);
             sys::DynamicLibrary::AddSymbol("lle_X_likely_print_va", (void*) lle_X_likely_print_va);
         }
 
@@ -2493,8 +2496,6 @@ LIKELY_REGISTER(print)
 class readExpression : public SimpleUnaryOperator
 {
     const char *symbol() const { return "read"; }
-    void *libraryDependency() const { return (void*) likely_read; }
-
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         Function *likelyRead = builder.module()->getFunction("likely_read");
@@ -2506,6 +2507,7 @@ class readExpression : public SimpleUnaryOperator
             likelyRead->setDoesNotAlias(0);
             likelyRead->setDoesNotAlias(1);
             likelyRead->setDoesNotCapture(1);
+            sys::DynamicLibrary::AddSymbol("likely_read", (void*) likely_read);
         }
         return new likely_expression(builder.CreateCall2(likelyRead, *arg, builder.constant(likely_file_binary)), likely_matrix_multi_dimension);
     }
@@ -2515,8 +2517,6 @@ LIKELY_REGISTER(read)
 class writeExpression : public SimpleBinaryOperator
 {
     const char *symbol() const { return "write"; }
-    void *libraryDependency() const { return (void*) likely_write; }
-
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const
     {
         Function *likelyWrite = builder.module()->getFunction("likely_write");
@@ -2530,6 +2530,7 @@ class writeExpression : public SimpleBinaryOperator
             likelyWrite->setDoesNotCapture(1);
             likelyWrite->setDoesNotAlias(2);
             likelyWrite->setDoesNotCapture(2);
+            sys::DynamicLibrary::AddSymbol("likely_write", (void*) likely_write);
         }
         return new likely_expression(builder.CreateCall2(likelyWrite, *arg1, *arg2), likely_matrix_multi_dimension);
     }
@@ -2539,8 +2540,6 @@ LIKELY_REGISTER(write)
 class decodeExpression : public SimpleUnaryOperator
 {
     const char *symbol() const { return "decode"; }
-    void *libraryDependency() const { return (void*) likely_decode; }
-
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         Function *likelyDecode = builder.module()->getFunction("likely_decode");
@@ -2551,6 +2550,7 @@ class decodeExpression : public SimpleUnaryOperator
             likelyDecode->setDoesNotAlias(0);
             likelyDecode->setDoesNotAlias(1);
             likelyDecode->setDoesNotCapture(1);
+            sys::DynamicLibrary::AddSymbol("likely_decode", (void*) likely_decode);
         }
         return new likely_expression(builder.CreateCall(likelyDecode, builder.CreatePointerCast(*arg, builder.multiDimension())), likely_matrix_multi_dimension);
     }
@@ -2560,8 +2560,6 @@ LIKELY_REGISTER(decode)
 class encodeExpression : public SimpleBinaryOperator
 {
     const char *symbol() const { return "encode"; }
-    void *libraryDependency() const { return (void*) likely_encode; }
-
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const
     {
         Function *likelyEncode = builder.module()->getFunction("likely_encode");
@@ -2575,6 +2573,7 @@ class encodeExpression : public SimpleBinaryOperator
             likelyEncode->setDoesNotCapture(1);
             likelyEncode->setDoesNotAlias(2);
             likelyEncode->setDoesNotCapture(2);
+            sys::DynamicLibrary::AddSymbol("likely_encode", (void*) likely_encode);
         }
         return new likely_expression(builder.CreateCall2(likelyEncode, builder.CreatePointerCast(*arg1, builder.multiDimension()), *arg2), likely_matrix_multi_dimension);
     }
@@ -2586,8 +2585,6 @@ LIKELY_REGISTER(encode)
 class md5Expression : public SimpleUnaryOperator
 {
     const char *symbol() const { return "md5"; }
-    void *libraryDependency() const { return (void*) likely_md5; }
-
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         Function *likelyMd5 = builder.module()->getFunction("likely_md5");
@@ -2598,6 +2595,7 @@ class md5Expression : public SimpleUnaryOperator
             likelyMd5->setDoesNotAlias(0);
             likelyMd5->setDoesNotAlias(1);
             likelyMd5->setDoesNotCapture(1);
+            sys::DynamicLibrary::AddSymbol("likely_md5", (void*) likely_md5);
         }
         return new likely_expression(builder.CreateCall(likelyMd5, *arg), likely_matrix_multi_dimension);
     }
