@@ -1,14 +1,13 @@
 Matrix I/O
 ----------
-There are 5 functions covering matrix creation, input, and output:
+There are 4 functions for matrix input and output:
 
-| Function                         | C API                                        |
-|----------------------------------|----------------------------------------------|
-| (**new** type channels columns rows frames data) | [likely_new](include/likely/likely_runtime.h) |
-| (**read** file_name)          | [likely_read](include/likely/likely_io.h)   |
-| (**write** matrix file_name)  | [likely_write](include/likely/likely_io.h)  |
-| (**encode** matrix extension) | [likely_encode](include/likely/likely_io.h) |
-| (**decode** matrix)           | [likely_decode](include/likely/likely_io.h) |
+| Function                      |
+|-------------------------------|
+| (**read** file_name)          |
+| (**write** matrix file_name)  |
+| (**encode** matrix extension) |
+| (**decode** matrix)           |
 
     image:= "data/misc/lenna.tiff".read
     encoded:= image.(encode "jpg")

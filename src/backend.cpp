@@ -708,6 +708,22 @@ struct Builder : public IRBuilder<>
         return likely_expression(CreateCall(likelyScalar, args), likely_matrix_multi_dimension);
     }
 
+    likely_expression newMat(Value *type, Value *channels, Value *columns, Value *rows, Value *frames, Value *data)
+    {
+        Function *likelyNew = module()->getFunction("likely_new");
+        if (!likelyNew) {
+            Type *params[] = { nativeInt(), nativeInt(), nativeInt(), nativeInt(), nativeInt(), Type::getInt8PtrTy(getContext()) };
+            FunctionType *functionType = FunctionType::get(multiDimension(), params, false);
+            likelyNew = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_new", module());
+            likelyNew->setCallingConv(CallingConv::C);
+            likelyNew->setDoesNotAlias(0);
+            likelyNew->setDoesNotAlias(6);
+            likelyNew->setDoesNotCapture(6);
+        }
+        Value* args[] = { type, channels, columns, rows, frames, data };
+        return likely_expression(CreateCall(likelyNew, args), likely_matrix_multi_dimension);
+    }
+
 private:
     static GenericValue lle_X_likely_scalar_va(FunctionType *, const vector<GenericValue> &Args)
     {
@@ -1375,61 +1391,6 @@ class bytesExpression : public SimpleUnaryOperator
 };
 LIKELY_REGISTER(bytes)
 
-class newExpression : public Operator
-{
-    const char *symbol() const { return "new"; }
-    size_t maxParameters() const { return 6; }
-    size_t minParameters() const { return 0; }
-    void *libraryDependency() const { return (void*) likely_new; }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        const size_t n = ast->num_atoms - 1;
-        unique_ptr<const likely_expression> type;
-        Value *channels = NULL, *columns = NULL, *rows = NULL, *frames = NULL, *data = NULL;
-        switch (n) {
-            case 6: data     = builder.expression(ast->atoms[6])->take();
-            case 5: frames   = builder.expression(ast->atoms[5])->take();
-            case 4: rows     = builder.expression(ast->atoms[4])->take();
-            case 3: columns  = builder.expression(ast->atoms[3])->take();
-            case 2: channels = builder.expression(ast->atoms[2])->take();
-            case 1: type.reset(builder.expression(ast->atoms[1]));
-            default:           break;
-        }
-
-        switch (maxParameters()-n) {
-            case 6: type.reset(new likely_expression(builder.typeType(validFloatType(likely_matrix_native))));
-            case 5: channels = builder.one();
-            case 4: columns  = builder.one();
-            case 3: rows     = builder.one();
-            case 2: frames   = builder.one();
-            case 1: data     = builder.nullData();
-            default:           break;
-        }
-
-        return new likely_expression(createCall(builder, *type, channels, columns, rows, frames, data), likely_matrix_multi_dimension);
-    }
-
-public:
-    static CallInst *createCall(Builder &builder, Value *type, Value *channels, Value *columns, Value *rows, Value *frames, Value *data)
-    {
-        Function *likelyNew = builder.module()->getFunction("likely_new");
-        if (!likelyNew) {
-            Type *params[] = { builder.nativeInt(), builder.nativeInt(), builder.nativeInt(), builder.nativeInt(), builder.nativeInt(), Type::getInt8PtrTy(builder.getContext()) };
-            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, false);
-            likelyNew = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_new", builder.module());
-            likelyNew->setCallingConv(CallingConv::C);
-            likelyNew->setDoesNotAlias(0);
-            likelyNew->setDoesNotAlias(6);
-            likelyNew->setDoesNotCapture(6);
-        }
-
-        Value* args[] = { type, channels, columns, rows, frames, data };
-        return builder.CreateCall(likelyNew, args);
-    }
-};
-LIKELY_REGISTER(new)
-
 class releaseExpression : public SimpleUnaryOperator
 {
     const char *symbol() const { return "release"; }
@@ -1953,7 +1914,7 @@ private:
         PHINode *kernelFrames   = builder.CreatePHI(builder.nativeInt(), 1);
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(kernelChannels, kernelColumns), kernelRows), kernelFrames);
         likely_expression dst(builder.CreatePointerCast(
-                              newExpression::createCall(builder, dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, builder.nullData()),
+                              builder.newMat(dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, builder.nullData()),
                               builder.toLLVM(dimensionsType)),
                              dimensionsType);
         builder.undefineAll(args, false);
