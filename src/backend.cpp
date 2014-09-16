@@ -124,9 +124,13 @@ struct likely_expression
                                                                                  : double(constantInt->getZExtValue()), 0, 0, 0, 0);
         } else if (ConstantFP *constantFP = dyn_cast<ConstantFP>(value)) {
             const APFloat &apFloat = constantFP->getValueAPF();
-            data = likely_new(type, 1, 1, 1, 1, NULL);
-            likely_set_element(const_cast<likely_mat>(data), &apFloat.getSemantics() == &APFloat::IEEEsingle ? double(apFloat.convertToFloat())
-                                                                                                             : apFloat.convertToDouble(), 0, 0, 0, 0);
+            if ((&apFloat.getSemantics() == &APFloat::IEEEsingle) || (&apFloat.getSemantics() == &APFloat::IEEEdouble)) {
+                // This should always be the case
+                data = likely_new(type, 1, 1, 1, 1, NULL);
+                likely_set_element(const_cast<likely_mat>(data), &apFloat.getSemantics() == &APFloat::IEEEsingle ? double(apFloat.convertToFloat())
+                                                                                                                 : apFloat.convertToDouble(), 0, 0, 0, 0);
+
+            }
         }
 
         return data;
@@ -664,6 +668,54 @@ struct Builder : public IRBuilder<>
     Type *toLLVM(likely_type likely) { return env->module->context->toLLVM(likely); }
 
     likely_const_expr expression(likely_const_ast ast);
+
+    likely_expression toMat(likely_const_expr expr)
+    {
+        if (likely_expression::isMat(expr->value->getType()))
+            return likely_expression(expr->value, expr->type);
+
+        if (expr->value->getType()->isPointerTy() /* assume it's a string for now */) {
+            Function *likelyString = module()->getFunction("likely_string");
+            if (!likelyString) {
+                FunctionType *functionType = FunctionType::get(toLLVM(likely_matrix_i8 | likely_matrix_multi_channel), Type::getInt8PtrTy(getContext()), false);
+                likelyString = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_string", module());
+                likelyString->setCallingConv(CallingConv::C);
+                likelyString->setDoesNotAlias(0);
+                likelyString->setDoesNotAlias(1);
+                likelyString->setDoesNotCapture(1);
+            }
+            return likely_expression(CreateCall(likelyString, *expr), likely_matrix_i8 | likely_matrix_multi_channel);
+        }
+
+        Function *likelyScalar = module()->getFunction("likely_scalar_va");
+        if (!likelyScalar) {
+            Type *params[] = { nativeInt(), Type::getDoubleTy(getContext()) };
+            FunctionType *functionType = FunctionType::get(multiDimension(), params, true);
+            likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar_va", module());
+            likelyScalar->setCallingConv(CallingConv::C);
+            likelyScalar->setDoesNotAlias(0);
+            sys::DynamicLibrary::AddSymbol("lle_X_likely_scalar_va", (void*) lle_X_likely_scalar_va);
+        }
+
+        vector<Value*> args;
+        likely_type type = likely_matrix_void;
+        for (likely_const_expr e : expr->subexpressionsOrSelf()) {
+            args.push_back(cast(e, likely_matrix_f64));
+            type = likely_type_from_types(type, e->type);
+        }
+        args.push_back(ConstantFP::get(getContext(), APFloat::getNaN(APFloat::IEEEdouble)));
+        args.insert(args.begin(), typeType(type));
+        return likely_expression(CreateCall(likelyScalar, args), likely_matrix_multi_dimension);
+    }
+
+private:
+    static GenericValue lle_X_likely_scalar_va(FunctionType *, const vector<GenericValue> &Args)
+    {
+        vector<double> values;
+        for (size_t i=1; i<Args.size()-1; i++)
+            values.push_back(Args[i].DoubleVal);
+        return GenericValue(likely_scalar_n(Args[0].IntVal.getZExtValue(), values.data(), values.size()));
+    }
 };
 
 struct Symbol : public likely_expression
@@ -1378,72 +1430,6 @@ public:
 };
 LIKELY_REGISTER(new)
 
-class scalarExpression : public UnaryOperator
-{
-    const char *symbol() const { return "scalar"; }
-    void *libraryDependency() const { return (void*) likely_scalar_va; }
-
-    likely_const_expr evaluateUnary(Builder &builder, likely_const_ast arg) const
-    {
-        unique_ptr<const likely_expression> expr(builder.expression(arg));
-        if (!expr)
-            return NULL;
-        if (expr->value && isMat(expr->value->getType()))
-            return expr.release();
-
-        return new likely_expression(createCall(builder, expr.get()));
-    }
-
-    static GenericValue lle_X_likely_scalar_va(FunctionType *, const vector<GenericValue> &Args)
-    {
-        vector<double> values;
-        for (size_t i=1; i<Args.size()-1; i++)
-            values.push_back(Args[i].DoubleVal);
-        return GenericValue(likely_scalar_n(Args[0].IntVal.getZExtValue(), values.data(), values.size()));
-    }
-
-public:
-    static likely_expression createCall(Builder &builder, likely_const_expr expr)
-    {
-        if (isMat(expr->value->getType()))
-            return likely_expression(expr->value, expr->type);
-
-        if (expr->value->getType()->isPointerTy() /* assume it's a string */) {
-            Function *likelyString = builder.module()->getFunction("likely_string");
-            if (!likelyString) {
-                FunctionType *functionType = FunctionType::get(builder.toLLVM(likely_matrix_i8 | likely_matrix_multi_channel), Type::getInt8PtrTy(builder.getContext()), false);
-                likelyString = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_string", builder.module());
-                likelyString->setCallingConv(CallingConv::C);
-                likelyString->setDoesNotAlias(0);
-                likelyString->setDoesNotAlias(1);
-                likelyString->setDoesNotCapture(1);
-            }
-            return likely_expression(builder.CreateCall(likelyString, *expr), likely_matrix_i8 | likely_matrix_multi_channel);
-        }
-
-        Function *likelyScalar = builder.module()->getFunction("likely_scalar_va");
-        if (!likelyScalar) {
-            Type *params[] = { builder.nativeInt(), Type::getDoubleTy(builder.getContext()) };
-            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, true);
-            likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar_va", builder.module());
-            likelyScalar->setCallingConv(CallingConv::C);
-            likelyScalar->setDoesNotAlias(0);
-            sys::DynamicLibrary::AddSymbol("lle_X_likely_scalar_va", (void*) lle_X_likely_scalar_va);
-        }
-
-        vector<Value*> args;
-        likely_type type = likely_matrix_void;
-        for (likely_const_expr e : expr->subexpressionsOrSelf()) {
-            args.push_back(builder.cast(e, likely_matrix_f64));
-            type = likely_type_from_types(type, e->type);
-        }
-        args.push_back(ConstantFP::get(builder.getContext(), APFloat::getNaN(APFloat::IEEEdouble)));
-        args.insert(args.begin(), builder.typeType(type));
-        return likely_expression(builder.CreateCall(likelyScalar, args), likely_matrix_multi_dimension);
-    }
-};
-LIKELY_REGISTER(scalar)
-
 class releaseExpression : public SimpleUnaryOperator
 {
     const char *symbol() const { return "release"; }
@@ -1548,7 +1534,7 @@ struct Lambda : public ScopedExpression
 
         // If we are expecting a constant or a matrix and don't get one then make a matrix
         if (returnConstantOrMatrix && !result->getData() && !isMat(result->value->getType()))
-            result.reset(new likely_expression(scalarExpression::createCall(builder, result.get())));
+            result.reset(new likely_expression(builder.toMat(result.get())));
 
         releaseExpression::cleanup(builder, result->value);
         builder.CreateRet(*result);
@@ -2540,7 +2526,7 @@ class printExpression : public Operator
         vector<Value*> args;
         for (size_t i=1; i<ast->num_atoms; i++) {
             TRY_EXPR(builder, ast->atoms[i], arg);
-            Value *value = isMat(arg->value->getType()) ? arg->value : scalarExpression::createCall(builder, arg.get()).value;
+            Value *value = isMat(arg->value->getType()) ? arg->value : builder.toMat(arg.get()).value;
             args.push_back(builder.CreatePointerCast(value, builder.multiDimension()));
         }
         args.push_back(builder.nullMat());
