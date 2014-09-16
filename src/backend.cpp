@@ -832,7 +832,7 @@ private:
     };
 };
 
-class Operator : public likely_expression
+class LikelyOperator : public likely_expression
 {
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
@@ -857,15 +857,6 @@ class Operator : public likely_expression
     virtual likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const = 0;
 };
 
-struct ScopedExpression : public Operator
-{
-    likely_env env;
-    likely_const_ast ast;
-
-    ScopedExpression(likely_env env, likely_const_ast ast)
-        : env(env), ast(ast) {}
-};
-
 } // namespace (anonymous)
 
 likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast ast) const
@@ -886,13 +877,15 @@ likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast
     }
 }
 
-struct likely_virtual_table : public ScopedExpression
+struct likely_virtual_table : public LikelyOperator
 {
+    likely_env env;
+    likely_const_ast ast;
     size_t n;
     vector<unique_ptr<JITFunction>> functions;
 
     likely_virtual_table(likely_env env, likely_const_ast ast)
-        : ScopedExpression(env, ast), n(length(ast->atoms[1])) {}
+        : env(env), ast(ast), n(length(ast->atoms[1])) {}
 
 private:
     likely_const_expr evaluateOperator(Builder &, likely_const_ast) const { return NULL; }
@@ -936,7 +929,7 @@ struct RegisterExpression : public RootEnvironment
 };
 #define LIKELY_REGISTER(EXP) static RegisterExpression<EXP##Expression> Register##EXP##Expression;
 
-class UnaryOperator : public Operator
+class UnaryOperator : public LikelyOperator
 {
     size_t maxParameters() const { return 1; }
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -1095,7 +1088,7 @@ LIKELY_REGISTER_UNARY_MATH(ceil)
 LIKELY_REGISTER_UNARY_MATH(trunc)
 LIKELY_REGISTER_UNARY_MATH(round)
 
-class SimpleBinaryOperator : public Operator
+class SimpleBinaryOperator : public LikelyOperator
 {
     size_t maxParameters() const { return 2; }
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -1170,7 +1163,7 @@ class addExpression : public SimpleArithmeticOperator
 };
 LIKELY_REGISTER(add)
 
-class subtractExpression : public Operator
+class subtractExpression : public LikelyOperator
 {
     const char *symbol() const { return "-"; }
     size_t maxParameters() const { return 2; }
@@ -1351,7 +1344,7 @@ LIKELY_REGISTER(OP)                                    \
 LIKELY_REGISTER_BINARY_MATH(pow)
 LIKELY_REGISTER_BINARY_MATH(copysign)
 
-class definedExpression : public Operator
+class definedExpression : public LikelyOperator
 {
     const char *symbol() const { return "??"; }
     size_t maxParameters() const { return 2; }
@@ -1405,10 +1398,13 @@ class bytesExpression : public SimpleUnaryOperator
 };
 LIKELY_REGISTER(bytes)
 
-struct Lambda : public ScopedExpression
+struct Lambda : public LikelyOperator
 {
+    likely_env env;
+    likely_const_ast ast;
+
     Lambda(likely_env env, likely_const_ast ast)
-        : ScopedExpression(env, ast) {}
+        : env(env), ast(ast) {}
 
     likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, bool arrayCC, bool returnConstantOrMatrix) const
     {
@@ -1572,7 +1568,7 @@ private:
     }
 };
 
-class lambdaExpression : public Operator
+class lambdaExpression : public LikelyOperator
 {
     const char *symbol() const { return "->"; }
     size_t maxParameters() const { return 2; }
@@ -1589,7 +1585,7 @@ public:
 };
 LIKELY_REGISTER(lambda)
 
-class beginExpression : public Operator
+class beginExpression : public LikelyOperator
 {
     const char *symbol() const { return "{"; }
     size_t minParameters() const { return 1; }
@@ -1630,7 +1626,7 @@ private:
     }
 };
 
-class labelExpression : public Operator
+class labelExpression : public LikelyOperator
 {
     const char *symbol() const { return "#"; }
     size_t maxParameters() const { return 1; }
@@ -1647,7 +1643,7 @@ class labelExpression : public Operator
 };
 LIKELY_REGISTER(label)
 
-class ifExpression : public Operator
+class ifExpression : public LikelyOperator
 {
     const char *symbol() const { return "?"; }
     size_t minParameters() const { return 2; }
@@ -1726,7 +1722,7 @@ struct Loop : public likely_expression
     }
 };
 
-class loopExpression : public Operator
+class loopExpression : public LikelyOperator
 {
     const char *symbol() const { return "$"; }
     size_t maxParameters() const { return 3; }
@@ -1750,7 +1746,7 @@ struct Kernel : public Lambda
         : Lambda(env, ast) {}
 
 private:
-    class kernelArgument : public Operator
+    class kernelArgument : public LikelyOperator
     {
         likely_type kernel;
         Value *channelStep;
@@ -2151,7 +2147,7 @@ private:
     }
 };
 
-class kernelExpression : public Operator
+class kernelExpression : public LikelyOperator
 {
     const char *symbol() const { return "=>"; }
     size_t minParameters() const { return 2; }
@@ -2160,10 +2156,13 @@ class kernelExpression : public Operator
 };
 LIKELY_REGISTER(kernel)
 
-struct Definition : public ScopedExpression
+struct Definition : public LikelyOperator
 {
+    likely_env env;
+    likely_const_ast ast;
+
     Definition(likely_env env, likely_const_ast ast)
-        : ScopedExpression(env, ast) {}
+        : env(env), ast(ast) {}
 
 private:
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -2180,12 +2179,15 @@ private:
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
 };
 
-struct EvaluatedExpression : public ScopedExpression
+struct EvaluatedExpression : public LikelyOperator
 {
+    likely_env env;
+    likely_const_ast ast;
+
     // Requries that `parent` stays valid through the lifetime of this class.
     // We avoid retaining `parent` to avoid a circular dependency.
     EvaluatedExpression(likely_env parent, likely_const_ast ast)
-        : ScopedExpression(likely_new_env(parent), likely_retain_ast(ast))
+        : env(likely_new_env(parent)), ast(likely_retain_ast(ast))
     {
         likely_release_env(env->parent);
         likely_set_abandoned(&env->type, true);
@@ -2277,7 +2279,7 @@ private:
     }
 };
 
-class defineExpression : public Operator
+class defineExpression : public LikelyOperator
 {
     const char *symbol() const { return "="; }
     size_t maxParameters() const { return 2; }
@@ -2341,7 +2343,7 @@ class defineExpression : public Operator
 };
 LIKELY_REGISTER(define)
 
-class importExpression : public Operator
+class importExpression : public LikelyOperator
 {
     const char *symbol() const { return "import"; }
     size_t maxParameters() const { return 1; }
@@ -2443,7 +2445,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
 #ifdef LIKELY_IO
 #include "likely/io.h"
 
-class printExpression : public Operator
+class printExpression : public LikelyOperator
 {
     const char *symbol() const { return "print"; }
     size_t minParameters() const { return 1; }
