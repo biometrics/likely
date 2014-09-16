@@ -1412,13 +1412,7 @@ struct Lambda : public ScopedExpression
 
     likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, bool arrayCC, bool returnConstantOrMatrix) const
     {
-        size_t n;
-        if ((ast->type == likely_ast_list) && (ast->num_atoms > 1))
-            if (ast->atoms[1]->type == likely_ast_list) n = ast->atoms[1]->num_atoms;
-            else                                        n = 1;
-        else                                            n = 0;
-
-        while (parameters.size() < n)
+        while (parameters.size() < maxParameters())
             parameters.push_back(likely_matrix_multi_dimension);
 
         vector<Type*> llvmTypes;
@@ -1490,7 +1484,6 @@ struct Lambda : public ScopedExpression
 
 private:
     size_t maxParameters() const { return length(ast->atoms[1]); }
-    void *libraryDependency() const { return (void*) likely_dynamic; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
@@ -1529,7 +1522,7 @@ private:
 
     likely_const_expr evaluateFunction(Builder &builder, const vector<likely_const_expr> &args) const
     {
-        assert(args.size() == length(ast->atoms[1]));
+        assert(args.size() == maxParameters());
 
         // Do dynamic dispatch if the type isn't fully specified
         bool dynamic = false;
@@ -1863,8 +1856,6 @@ private:
         set<string> collapsedAxis;
         size_t results;
     };
-
-    void *libraryDependency() const { return (void*) likely_fork; }
 
     virtual likely_const_ast getMetadata() const { return (ast->num_atoms == 4) ? ast->atoms[3] : NULL; }
 
