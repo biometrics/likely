@@ -724,6 +724,19 @@ struct Builder : public IRBuilder<>
         return likely_expression(CreateCall(likelyNew, args), likely_matrix_multi_dimension);
     }
 
+    likely_expression releaseMat(Value *m)
+    {
+        Function *likelyRelease = module()->getFunction("likely_release");
+        if (!likelyRelease) {
+            FunctionType *functionType = FunctionType::get(Type::getVoidTy(getContext()), multiDimension(), false);
+            likelyRelease = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_release", module());
+            likelyRelease->setCallingConv(CallingConv::C);
+            likelyRelease->setDoesNotAlias(1);
+            likelyRelease->setDoesNotCapture(1);
+        }
+        return likely_expression(CreateCall(likelyRelease, CreatePointerCast(m, multiDimension())), likely_matrix_void);
+    }
+
 private:
     static GenericValue lle_X_likely_scalar_va(FunctionType *, const vector<GenericValue> &Args)
     {
@@ -1391,49 +1404,6 @@ class bytesExpression : public SimpleUnaryOperator
 };
 LIKELY_REGISTER(bytes)
 
-class releaseExpression : public SimpleUnaryOperator
-{
-    const char *symbol() const { return "release"; }
-    void *libraryDependency() const { return (void*) likely_release; }
-
-    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
-    {
-        return new likely_expression(createCall(builder, *arg), *arg);
-    }
-
-    // This is not publicly accessible because cleanup() is the only time release statements should be inserted
-    static CallInst *createCall(Builder &builder, Value *m)
-    {
-        Function *likelyRelease = builder.module()->getFunction("likely_release");
-        if (!likelyRelease) {
-            FunctionType *functionType = FunctionType::get(Type::getVoidTy(builder.getContext()), builder.multiDimension(), false);
-            likelyRelease = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_release", builder.module());
-            likelyRelease->setCallingConv(CallingConv::C);
-            likelyRelease->setDoesNotAlias(1);
-            likelyRelease->setDoesNotCapture(1);
-        }
-        return builder.CreateCall(likelyRelease, builder.CreatePointerCast(m, builder.multiDimension()));
-    }
-
-public:
-    // Release intermediate matricies allocated to avoid memory leaks
-    static void cleanup(Builder &builder, Value *ret)
-    {
-        // Looking for matricies that were created through function calls
-        // but not returned by this function.
-        Function *function = builder.GetInsertBlock()->getParent();
-        for (Function::iterator BB = function->begin(), BBE = function->end(); BB != BBE; ++BB)
-            for (BasicBlock::iterator I = BB->begin(), IE = BB->end(); I != IE; ++I)
-               if (CallInst *call = dyn_cast<CallInst>(I))
-                   if (Function *calledFunction = call->getCalledFunction())
-                       if (isMat(calledFunction->getReturnType())
-                             && (call != ret)
-                             && (find(call->user_begin(), call->user_end(), ret) == call->user_end()))
-                           releaseExpression::createCall(builder, call);
-    }
-};
-LIKELY_REGISTER(release)
-
 struct Lambda : public ScopedExpression
 {
     Lambda(likely_env env, likely_const_ast ast)
@@ -1497,7 +1467,7 @@ struct Lambda : public ScopedExpression
         if (returnConstantOrMatrix && !result->getData() && !isMat(result->value->getType()))
             result.reset(new likely_expression(builder.toMat(result.get())));
 
-        releaseExpression::cleanup(builder, result->value);
+        cleanup(builder, result->value);
         builder.CreateRet(*result);
 
         Function *function = cast<Function>(builder.module()->getOrInsertFunction(name, FunctionType::get(result->value->getType(), llvmTypes, false)));
@@ -1539,6 +1509,21 @@ private:
         for (likely_const_expr arg : args)
             delete arg;
         return result;
+    }
+
+    static void cleanup(Builder &builder, Value *ret)
+    {
+        // Looking for matricies that were created through function calls
+        // but not returned by this function.
+        Function *function = builder.GetInsertBlock()->getParent();
+        for (Function::iterator BB = function->begin(), BBE = function->end(); BB != BBE; ++BB)
+            for (BasicBlock::iterator I = BB->begin(), IE = BB->end(); I != IE; ++I)
+               if (CallInst *call = dyn_cast<CallInst>(I))
+                   if (Function *calledFunction = call->getCalledFunction())
+                       if (isMat(calledFunction->getReturnType())
+                             && (call != ret)
+                             && (find(call->user_begin(), call->user_end(), ret) == call->user_end()))
+                           builder.releaseMat(call);
     }
 
     likely_const_expr evaluateFunction(Builder &builder, const vector<likely_const_expr> &args) const
