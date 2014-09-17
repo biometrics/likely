@@ -879,12 +879,12 @@ likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast
 
 struct likely_virtual_table : public LikelyOperator
 {
-    likely_env env;
+    likely_const_env env;
     likely_const_ast ast;
     size_t n;
     vector<unique_ptr<JITFunction>> functions;
 
-    likely_virtual_table(likely_env env, likely_const_ast ast)
+    likely_virtual_table(likely_const_env env, likely_const_ast ast)
         : env(env), ast(ast), n(length(ast->atoms[1])) {}
 
 private:
@@ -1400,10 +1400,10 @@ LIKELY_REGISTER(bytes)
 
 struct Lambda : public LikelyOperator
 {
-    likely_env env;
+    likely_const_env env;
     likely_const_ast ast;
 
-    Lambda(likely_env env, likely_const_ast ast)
+    Lambda(likely_const_env env, likely_const_ast ast)
         : env(env), ast(ast) {}
 
     likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, bool arrayCC, bool returnConstantOrMatrix) const
@@ -2186,7 +2186,7 @@ struct EvaluatedExpression : public LikelyOperator
 
     // Requries that `parent` stays valid through the lifetime of this class.
     // We avoid retaining `parent` to avoid a circular dependency.
-    EvaluatedExpression(likely_env parent, likely_const_ast ast)
+    EvaluatedExpression(likely_const_env parent, likely_const_ast ast)
         : env(likely_new_env(parent)), ast(likely_retain_ast(ast))
     {
         likely_release_env(env->parent);
