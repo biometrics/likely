@@ -983,39 +983,38 @@ likely_const_expr Builder::expression(likely_const_ast ast)
                 return e->evaluate(*this, ast);
         TRY_EXPR(*this, op, e);
         return e->evaluate(*this, ast);
-    }
-    const string op = ast->atom;
-
-    if (likely_const_expr e = lookup(op.c_str())) {
-        const_cast<likely_ast>(ast)->type = likely_ast_operator;
-        return e->evaluate(*this, ast);
-    }
-
-    if ((op.front() == '"') && (op.back() == '"')) {
-        const_cast<likely_ast>(ast)->type = likely_ast_string;
-        return new likely_expression(CreateGlobalStringPtr(op.substr(1, op.length()-2)), likely_matrix_i8 | likely_matrix_array);
-    }
-
-    { // Is it a number?
-        char *p;
-        const double value = strtod(op.c_str(), &p);
-        if (*p == 0) {
-            const_cast<likely_ast>(ast)->type = likely_ast_number;
-            return new likely_expression(constant(value, likely_type_from_value(value)));
+    } else {
+        if (likely_const_expr e = lookup(ast->atom)) {
+            const_cast<likely_ast>(ast)->type = likely_ast_operator;
+            return e->evaluate(*this, ast);
         }
-    }
 
-    { // Is it a type?
-        bool ok;
-        likely_type type = likely_type_field_from_string(op.c_str(), &ok);
-        if (ok) {
-            const_cast<likely_ast>(ast)->type = likely_ast_type;
-            return new MatrixType(*this, type);
+        if ((ast->atom[0] == '"') && (ast->atom[ast->atom_len-1] == '"')) {
+            const_cast<likely_ast>(ast)->type = likely_ast_string;
+            return new likely_expression(CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_matrix_i8 | likely_matrix_array);
         }
-    }
 
-    const_cast<likely_ast>(ast)->type = likely_ast_unknown;
-    return likely_expression::error(ast, "unrecognized literal");
+        { // Is it a number?
+            char *p;
+            const double value = strtod(ast->atom, &p);
+            if (*p == 0) {
+                const_cast<likely_ast>(ast)->type = likely_ast_number;
+                return new likely_expression(constant(value, likely_type_from_value(value)));
+            }
+        }
+
+        { // Is it a type?
+            bool ok;
+            likely_type type = likely_type_field_from_string(ast->atom, &ok);
+            if (ok) {
+                const_cast<likely_ast>(ast)->type = likely_ast_type;
+                return new MatrixType(*this, type);
+            }
+        }
+
+        const_cast<likely_ast>(ast)->type = likely_ast_unknown;
+        return likely_expression::error(ast, "unrecognized literal");
+    }
 }
 
 #define LIKELY_REGISTER_FIELD(FIELD)                                         \
