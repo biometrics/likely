@@ -1400,11 +1400,10 @@ LIKELY_REGISTER(bytes)
 
 struct Lambda : public LikelyOperator
 {
-    likely_const_env env;
     likely_const_ast ast;
 
-    Lambda(likely_const_env env, likely_const_ast ast)
-        : env(env), ast(ast) {}
+    Lambda(likely_const_ast ast)
+        : ast(ast) {}
 
     likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, bool arrayCC, bool returnConstantOrMatrix) const
     {
@@ -1572,7 +1571,7 @@ class lambdaExpression : public LikelyOperator
 {
     const char *symbol() const { return "->"; }
     size_t maxParameters() const { return 2; }
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const { return new Lambda(builder.env, ast); }
+    likely_const_expr evaluateOperator(Builder &, likely_const_ast ast) const { return new Lambda(ast); }
 
 public:
     static bool isLambda(likely_const_ast ast)
@@ -1742,8 +1741,8 @@ LIKELY_REGISTER(loop)
 
 struct Kernel : public Lambda
 {
-    Kernel(likely_env env, likely_const_ast ast)
-        : Lambda(env, ast) {}
+    Kernel(likely_const_ast ast)
+        : Lambda(ast) {}
 
 private:
     class kernelArgument : public LikelyOperator
@@ -2152,7 +2151,7 @@ class kernelExpression : public LikelyOperator
     const char *symbol() const { return "=>"; }
     size_t minParameters() const { return 2; }
     size_t maxParameters() const { return 3; }
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const { return new Kernel(builder.env, ast); }
+    likely_const_expr evaluateOperator(Builder &, likely_const_ast ast) const { return new Kernel(ast); }
 };
 LIKELY_REGISTER(kernel)
 
