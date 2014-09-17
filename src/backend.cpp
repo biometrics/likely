@@ -2382,7 +2382,12 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
         likely_set_abandoned(&env->type, true);
     }
 
-    if (!lambdaExpression::isLambda(ast)) {
+    unique_ptr<const Lambda> lambda;
+    if ((ast->type == likely_ast_list) && (ast->num_atoms > 0) && (ast->atoms[0]->type != likely_ast_list)) {
+        if      (!strcmp(ast->atoms[0]->atom, "->")) lambda.reset(new Lambda(ast));
+        else if (!strcmp(ast->atoms[0]->atom, "=>")) lambda.reset(new Kernel(ast));
+    }
+    if (!lambda.get()) {
         likely_expression::error(ast, "expected a lambda expression");
         return;
     }
@@ -2390,8 +2395,7 @@ JITFunction::JITFunction(const string &name, likely_const_ast ast, likely_const_
     env->module = new likely_module();
     likely_set_base(&env->type, true);
     Builder builder(env);
-    unique_ptr<const likely_expression> result(builder.expression(ast));
-    associateFunction(unique_ptr<const likely_expression>(static_cast<const Lambda*>(result.get())->generate(builder, parameters, name, arrayCC, interpreter)).get());
+    associateFunction(unique_ptr<const likely_expression>(lambda->generate(builder, parameters, name, arrayCC, interpreter)).get());
     if (!value /* error */ || (interpreter && getData()) /* constant */)
         return;
 
