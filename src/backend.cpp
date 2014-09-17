@@ -2648,7 +2648,9 @@ likely_env likely_new_env_offline(const char *file_name)
 
 likely_env likely_retain_env(likely_const_env env)
 {
-    if (env) const_cast<likely_env>(env)->ref_count++;
+    if (!env) return NULL;
+    assert(env->ref_count > 0);
+    const_cast<likely_env>(env)->ref_count++;
     return const_cast<likely_env>(env);
 }
 
@@ -2748,7 +2750,9 @@ likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_typ
 
 likely_fun likely_retain_function(likely_const_fun f)
 {
-    if (f) const_cast<likely_fun>(f)->ref_count++;
+    if (!f) return NULL;
+    assert(f->ref_count > 0);
+    const_cast<likely_fun>(f)->ref_count++;
     return const_cast<likely_fun>(f);
 }
 

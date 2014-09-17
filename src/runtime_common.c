@@ -153,7 +153,9 @@ likely_mat likely_copy(likely_const_mat m)
 
 likely_mat likely_retain(likely_const_mat m)
 {
-    if (m) ++((likely_mat) m)->ref_count;
+    if (!m) return NULL;
+    assert(m->ref_count > 0);
+    ((likely_mat) m)->ref_count++;
     return (likely_mat) m;
 }
 
