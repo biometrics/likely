@@ -453,6 +453,54 @@ The integral value that is nearest to _x_, with halfway cases rounded away from 
 (round -5.5) ; Evaluates to -6
 ```
 
+#### Matrix I/O
+Supported matrix file formats are:
+
+| Extension                                                     | Type      |
+|---------------------------------------------------------------|-----------|
+| [bmp](http://en.wikipedia.org/wiki/BMP_file_format)           | Image     |
+| [jpg](http://en.wikipedia.org/wiki/Jpg)                       | Image     |
+| [png](http://en.wikipedia.org/wiki/Portable_Network_Graphics) | Image     |
+| [tiff](http://en.wikipedia.org/wiki/Tagged_Image_File_Format) | Image     |
+| [zip](http://en.wikipedia.org/wiki/Zip_%28file_format%29)     | Image Set |
+| [tar](http://en.wikipedia.org/wiki/Tar_%28computing%29)       | Image Set |
+| [gz](http://en.wikipedia.org/wiki/Gzip)                       | Image Set |
+| [bz2](http://en.wikipedia.org/wiki/Bzip2)                     | Image Set |
+
+*Image* formats expect single-frame matricies.
+*Image Set* formats are a collection of images with consistent dimensionality and data type.
+*Video* formats (not supported yet) expect multi-frame matricies.
+
+##### (read _file-name_)
+Reads from _file-name_ and returns the decoded matrix.
+
+```likely
+lenna:= (read "data/misc/lenna.tiff")
+```
+
+##### (write _matrix_ _file-name_)
+Encodes _matrix_ based on the extension of _file-name_ and writes the encoded matrix to _file-name_.
+Returns the input _matrix_.
+
+```likely
+(write lenna "lenna.png")
+```
+
+##### (encode _matrix_ _extension_)
+Returns the result of encoding _matrix_ using the algorithm specified by _extension_.
+
+```likely
+encoded-lenna:= (encode lenna "png")
+```
+
+##### (decode _matrix_)
+Returns the decoded _matrix_.
+Automatically determines the encoding format.
+
+```likely
+(decode encoded-lenna)
+```
+
 Standard Library
 ----------------
 ### Mathematical Constants
