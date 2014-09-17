@@ -68,6 +68,233 @@ using namespace std;
 
 namespace {
 
+class LikelyContext
+{
+    static queue<LikelyContext*> contextPool;
+    map<likely_type, Type*> typeLUT;
+    PassManager *PM;
+
+    // use LikelyContext::acquire()
+    LikelyContext()
+        : PM(new PassManager()), TM(getTargetMachine(false))
+    {
+        PM->add(createVerifierPass());
+        PM->add(new TargetLibraryInfo(Triple(sys::getProcessTriple())));
+        PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
+        TM->addAnalysisPasses(*PM);
+        PassManagerBuilder builder;
+        builder.OptLevel = 3;
+        builder.SizeLevel = 0;
+        builder.LoopVectorize = true;
+        builder.Inliner = createAlwaysInlinerPass();
+        builder.populateModulePassManager(*PM);
+        PM->add(createVerifierPass());
+    }
+
+    // use LikelyContext::release()
+    ~LikelyContext()
+    {
+        delete PM;
+        delete TM;
+    }
+
+public:
+    LLVMContext context;
+    TargetMachine *TM;
+
+    static LikelyContext *acquire()
+    {
+        static mutex lock;
+        lock_guard<mutex> guard(lock);
+
+        static bool initialized = false;
+        if (!initialized) {
+            likely_assert(sizeof(likely_size) == sizeof(void*), "insane type system");
+            InitializeNativeTarget();
+            InitializeNativeTargetAsmPrinter();
+            InitializeNativeTargetAsmParser();
+
+            PassRegistry &Registry = *PassRegistry::getPassRegistry();
+            initializeCore(Registry);
+            initializeScalarOpts(Registry);
+            initializeVectorization(Registry);
+            initializeIPO(Registry);
+            initializeAnalysis(Registry);
+            initializeIPA(Registry);
+            initializeTransformUtils(Registry);
+            initializeInstCombine(Registry);
+            initializeTarget(Registry);
+            initialized = true;
+        }
+
+        if (contextPool.empty())
+            contextPool.push(new LikelyContext());
+
+        LikelyContext *context = contextPool.front();
+        contextPool.pop();
+        return context;
+    }
+
+    static void release(LikelyContext *context)
+    {
+        static mutex lock;
+        lock_guard<mutex> guard(lock);
+        contextPool.push(context);
+    }
+
+    static void shutdown()
+    {
+        while (!contextPool.empty()) {
+            delete contextPool.front();
+            contextPool.pop();
+        }
+    }
+
+    IntegerType *nativeInt()
+    {
+        return Type::getIntNTy(context, unsigned(likely_matrix_native));
+    }
+
+    Type *scalar(likely_type type, bool pointer = false)
+    {
+        const size_t bits = likely_depth(type);
+        const bool floating = likely_floating(type);
+        if (floating) {
+            if      (bits == 16) return pointer ? Type::getHalfPtrTy(context)   : Type::getHalfTy(context);
+            else if (bits == 32) return pointer ? Type::getFloatPtrTy(context)  : Type::getFloatTy(context);
+            else if (bits == 64) return pointer ? Type::getDoublePtrTy(context) : Type::getDoubleTy(context);
+        } else {
+            if      (bits == 1)  return pointer ? Type::getInt1PtrTy(context)  : (Type*)Type::getInt1Ty(context);
+            else if (bits == 8)  return pointer ? Type::getInt8PtrTy(context)  : (Type*)Type::getInt8Ty(context);
+            else if (bits == 16) return pointer ? Type::getInt16PtrTy(context) : (Type*)Type::getInt16Ty(context);
+            else if (bits == 32) return pointer ? Type::getInt32PtrTy(context) : (Type*)Type::getInt32Ty(context);
+            else if (bits == 64) return pointer ? Type::getInt64PtrTy(context) : (Type*)Type::getInt64Ty(context);
+        }
+        likely_assert(false, "ty invalid matrix bits: %d and floating: %d", bits, floating);
+        return NULL;
+    }
+
+    Type *toLLVM(likely_type likely)
+    {
+        assert(!(likely_signed(likely) && likely_floating(likely)));
+        auto result = typeLUT.find(likely);
+        if (result != typeLUT.end())
+            return result->second;
+
+        Type *llvm;
+        if (!likely_multi_dimension(likely) && likely_depth(likely)) {
+            llvm = scalar(likely);
+        } else {
+            likely_mat str = likely_type_to_string(likely);
+            llvm = PointerType::getUnqual(StructType::create(str->data,
+                                                             nativeInt(), // bytes
+                                                             nativeInt(), // ref_count
+                                                             nativeInt(), // channels
+                                                             nativeInt(), // columns
+                                                             nativeInt(), // rows
+                                                             nativeInt(), // frames
+                                                             nativeInt(), // type
+                                                             ArrayType::get(Type::getInt8Ty(context), 0), // data
+                                                             NULL));
+            likely_release(str);
+        }
+
+        if (likely_array(likely))
+            llvm = PointerType::getUnqual(llvm);
+
+        typeLUT[likely] = llvm;
+        return llvm;
+    }
+
+    void optimize(Module &module)
+    {
+        module.setTargetTriple(sys::getProcessTriple());
+//        DebugFlag = true;
+        PM->run(module);
+    }
+
+    static TargetMachine *getTargetMachine(bool JIT)
+    {
+        static const Target *TheTarget = NULL;
+        static TargetOptions TO;
+        static mutex lock;
+        lock_guard<mutex> locker(lock);
+
+        if (TheTarget == NULL) {
+            string error;
+            TheTarget = TargetRegistry::lookupTarget(sys::getProcessTriple(), error);
+            likely_assert(TheTarget != NULL, "target lookup failed with error: %s", error.c_str());
+            TO.LessPreciseFPMADOption = true;
+            TO.UnsafeFPMath = true;
+            TO.NoInfsFPMath = true;
+            TO.NoNaNsFPMath = true;
+            TO.AllowFPOpFusion = FPOpFusion::Fast;
+        }
+
+        string targetTriple = sys::getProcessTriple();
+#ifdef _WIN32
+        if (JIT)
+            targetTriple += "-elf";
+#endif // _WIN32
+
+        TargetMachine *TM = TheTarget->createTargetMachine(targetTriple,
+                                                           sys::getHostCPUName(),
+                                                           "",
+                                                           TO,
+                                                           Reloc::Default,
+                                                           JIT ? CodeModel::JITDefault : CodeModel::Default,
+                                                           CodeGenOpt::Aggressive);
+        likely_assert(TM != NULL, "failed to create target machine");
+        return TM;
+    }
+};
+queue<LikelyContext*> LikelyContext::contextPool;
+
+class JITFunctionCache : public ObjectCache
+{
+    map<hash_code, unique_ptr<MemoryBuffer>> cachedModules;
+    map<const Module*, hash_code> currentModules;
+    mutex lock;
+
+    void notifyObjectCompiled(const Module *M, MemoryBufferRef Obj)
+    {
+        lock_guard<mutex> guard(lock);
+        const auto currentModule = currentModules.find(M);
+        const hash_code hash = currentModule->second;
+        currentModules.erase(currentModule);
+        cachedModules[hash] = MemoryBuffer::getMemBufferCopy(Obj.getBuffer());
+    }
+
+    unique_ptr<MemoryBuffer> getObject(const Module *M)
+    {
+        lock_guard<mutex> guard(lock);
+        const auto currentModule = currentModules.find(M);
+        const hash_code hash = currentModule->second;
+        const auto cachedModule = cachedModules.find(hash);
+        if (cachedModule != cachedModules.end()) {
+            currentModules.erase(currentModule);
+            return unique_ptr<MemoryBuffer>(MemoryBuffer::getMemBufferCopy(cachedModule->second->getBuffer()));
+        }
+        return unique_ptr<MemoryBuffer>();
+    }
+
+public:
+    bool alert(const Module *M)
+    {
+        string str;
+        raw_string_ostream ostream(str);
+        M->print(ostream, NULL);
+        ostream.flush();
+        const hash_code hash = hash_value(str);
+
+        lock_guard<mutex> guard(lock);
+        const bool hit = (cachedModules.find(hash) != cachedModules.end());
+        currentModules.insert(pair<const Module*, hash_code>(M, hash));
+        return hit;
+    }
+};
+static JITFunctionCache TheJITFunctionCache;
+
 struct Object
 {
     virtual ~Object() {}
@@ -271,196 +498,6 @@ private:
     mutable likely_const_mat data; // use getData() and setData()
 };
 
-namespace {
-
-#define TRY_EXPR(BUILDER, AST, EXPR)                                       \
-const unique_ptr<const likely_expression> EXPR((BUILDER).expression(AST)); \
-if (!EXPR.get()) return NULL;                                              \
-
-} // namespace (anonymous)
-
-class LikelyContext
-{
-    static queue<LikelyContext*> contextPool;
-    map<likely_type, Type*> typeLUT;
-    PassManager *PM;
-
-    // use LikelyContext::acquire()
-    LikelyContext()
-        : PM(new PassManager()), TM(getTargetMachine(false))
-    {
-        PM->add(createVerifierPass());
-        PM->add(new TargetLibraryInfo(Triple(sys::getProcessTriple())));
-        PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
-        TM->addAnalysisPasses(*PM);
-        PassManagerBuilder builder;
-        builder.OptLevel = 3;
-        builder.SizeLevel = 0;
-        builder.LoopVectorize = true;
-        builder.Inliner = createAlwaysInlinerPass();
-        builder.populateModulePassManager(*PM);
-        PM->add(createVerifierPass());
-    }
-
-    // use LikelyContext::release()
-    ~LikelyContext()
-    {
-        delete PM;
-        delete TM;
-    }
-
-public:
-    LLVMContext context;
-    TargetMachine *TM;
-
-    static LikelyContext *acquire()
-    {
-        static mutex lock;
-        lock_guard<mutex> guard(lock);
-
-        static bool initialized = false;
-        if (!initialized) {
-            likely_assert(sizeof(likely_size) == sizeof(void*), "insane type system");
-            InitializeNativeTarget();
-            InitializeNativeTargetAsmPrinter();
-            InitializeNativeTargetAsmParser();
-
-            PassRegistry &Registry = *PassRegistry::getPassRegistry();
-            initializeCore(Registry);
-            initializeScalarOpts(Registry);
-            initializeVectorization(Registry);
-            initializeIPO(Registry);
-            initializeAnalysis(Registry);
-            initializeIPA(Registry);
-            initializeTransformUtils(Registry);
-            initializeInstCombine(Registry);
-            initializeTarget(Registry);
-            initialized = true;
-        }
-
-        if (contextPool.empty())
-            contextPool.push(new LikelyContext());
-
-        LikelyContext *context = contextPool.front();
-        contextPool.pop();
-        return context;
-    }
-
-    static void release(LikelyContext *context)
-    {
-        static mutex lock;
-        lock_guard<mutex> guard(lock);
-        contextPool.push(context);
-    }
-
-    static void shutdown()
-    {
-        while (!contextPool.empty()) {
-            delete contextPool.front();
-            contextPool.pop();
-        }
-    }
-
-    IntegerType *nativeInt()
-    {
-        return Type::getIntNTy(context, unsigned(likely_matrix_native));
-    }
-
-    Type *scalar(likely_type type, bool pointer = false)
-    {
-        const size_t bits = likely_depth(type);
-        const bool floating = likely_floating(type);
-        if (floating) {
-            if      (bits == 16) return pointer ? Type::getHalfPtrTy(context)   : Type::getHalfTy(context);
-            else if (bits == 32) return pointer ? Type::getFloatPtrTy(context)  : Type::getFloatTy(context);
-            else if (bits == 64) return pointer ? Type::getDoublePtrTy(context) : Type::getDoubleTy(context);
-        } else {
-            if      (bits == 1)  return pointer ? Type::getInt1PtrTy(context)  : (Type*)Type::getInt1Ty(context);
-            else if (bits == 8)  return pointer ? Type::getInt8PtrTy(context)  : (Type*)Type::getInt8Ty(context);
-            else if (bits == 16) return pointer ? Type::getInt16PtrTy(context) : (Type*)Type::getInt16Ty(context);
-            else if (bits == 32) return pointer ? Type::getInt32PtrTy(context) : (Type*)Type::getInt32Ty(context);
-            else if (bits == 64) return pointer ? Type::getInt64PtrTy(context) : (Type*)Type::getInt64Ty(context);
-        }
-        likely_assert(false, "ty invalid matrix bits: %d and floating: %d", bits, floating);
-        return NULL;
-    }
-
-    Type *toLLVM(likely_type likely)
-    {
-        assert(!(likely_signed(likely) && likely_floating(likely)));
-        auto result = typeLUT.find(likely);
-        if (result != typeLUT.end())
-            return result->second;
-
-        Type *llvm;
-        if (!likely_multi_dimension(likely) && likely_depth(likely)) {
-            llvm = scalar(likely);
-        } else {
-            likely_mat str = likely_type_to_string(likely);
-            llvm = PointerType::getUnqual(StructType::create(str->data,
-                                                             nativeInt(), // bytes
-                                                             nativeInt(), // ref_count
-                                                             nativeInt(), // channels
-                                                             nativeInt(), // columns
-                                                             nativeInt(), // rows
-                                                             nativeInt(), // frames
-                                                             nativeInt(), // type
-                                                             ArrayType::get(Type::getInt8Ty(context), 0), // data
-                                                             NULL));
-            likely_release(str);
-        }
-
-        if (likely_array(likely))
-            llvm = PointerType::getUnqual(llvm);
-
-        typeLUT[likely] = llvm;
-        return llvm;
-    }
-
-    void optimize(Module &module)
-    {
-        module.setTargetTriple(sys::getProcessTriple());
-//        DebugFlag = true;
-        PM->run(module);
-    }
-
-    static TargetMachine *getTargetMachine(bool JIT)
-    {
-        static const Target *TheTarget = NULL;
-        static TargetOptions TO;
-        static mutex lock;
-        lock_guard<mutex> locker(lock);
-
-        if (TheTarget == NULL) {
-            string error;
-            TheTarget = TargetRegistry::lookupTarget(sys::getProcessTriple(), error);
-            likely_assert(TheTarget != NULL, "target lookup failed with error: %s", error.c_str());
-            TO.LessPreciseFPMADOption = true;
-            TO.UnsafeFPMath = true;
-            TO.NoInfsFPMath = true;
-            TO.NoNaNsFPMath = true;
-            TO.AllowFPOpFusion = FPOpFusion::Fast;
-        }
-
-        string targetTriple = sys::getProcessTriple();
-#ifdef _WIN32
-        if (JIT)
-            targetTriple += "-elf";
-#endif // _WIN32
-
-        TargetMachine *TM = TheTarget->createTargetMachine(targetTriple,
-                                                           sys::getHostCPUName(),
-                                                           "",
-                                                           TO,
-                                                           Reloc::Default,
-                                                           JIT ? CodeModel::JITDefault : CodeModel::Default,
-                                                           CodeGenOpt::Aggressive);
-        likely_assert(TM != NULL, "failed to create target machine");
-        return TM;
-    }
-};
-queue<LikelyContext*> LikelyContext::contextPool;
-
 struct likely_module
 {
     LikelyContext *context;
@@ -497,51 +534,6 @@ struct likely_module
 };
 
 namespace {
-
-class JITFunctionCache : public ObjectCache
-{
-    map<hash_code, unique_ptr<MemoryBuffer>> cachedModules;
-    map<const Module*, hash_code> currentModules;
-    mutex lock;
-
-    void notifyObjectCompiled(const Module *M, MemoryBufferRef Obj)
-    {
-        lock_guard<mutex> guard(lock);
-        const auto currentModule = currentModules.find(M);
-        const hash_code hash = currentModule->second;
-        currentModules.erase(currentModule);
-        cachedModules[hash] = MemoryBuffer::getMemBufferCopy(Obj.getBuffer());
-    }
-
-    unique_ptr<MemoryBuffer> getObject(const Module *M)
-    {
-        lock_guard<mutex> guard(lock);
-        const auto currentModule = currentModules.find(M);
-        const hash_code hash = currentModule->second;
-        const auto cachedModule = cachedModules.find(hash);
-        if (cachedModule != cachedModules.end()) {
-            currentModules.erase(currentModule);
-            return unique_ptr<MemoryBuffer>(MemoryBuffer::getMemBufferCopy(cachedModule->second->getBuffer()));
-        }
-        return unique_ptr<MemoryBuffer>();
-    }
-
-public:
-    bool alert(const Module *M)
-    {
-        string str;
-        raw_string_ostream ostream(str);
-        M->print(ostream, NULL);
-        ostream.flush();
-        const hash_code hash = hash_value(str);
-
-        lock_guard<mutex> guard(lock);
-        const bool hit = (cachedModules.find(hash) != cachedModules.end());
-        currentModules.insert(pair<const Module*, hash_code>(M, hash));
-        return hit;
-    }
-};
-static JITFunctionCache TheJITFunctionCache;
 
 class OfflineModule : public likely_module
 {
@@ -759,6 +751,10 @@ private:
         return GenericValue(likely_scalar_n(Args[0].IntVal.getZExtValue(), values.data(), values.size()));
     }
 };
+
+#define TRY_EXPR(BUILDER, AST, EXPR)                                       \
+const unique_ptr<const likely_expression> EXPR((BUILDER).expression(AST)); \
+if (!EXPR.get()) return NULL;                                              \
 
 struct Symbol : public likely_expression
 {
