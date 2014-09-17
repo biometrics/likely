@@ -68,11 +68,16 @@ using namespace std;
 
 namespace {
 
+struct Object
+{
+    virtual ~Object() {}
+};
+
 struct Builder;
 
 } // namespace (anonymous)
 
-struct likely_expression
+struct likely_expression : public Object
 {
     Value *value;
     likely_type type;
@@ -460,7 +465,7 @@ struct likely_module
 {
     LikelyContext *context;
     Module *module;
-    vector<likely_const_expr> expressions;
+    vector<Object*> objects;
 
     likely_module()
         : context(LikelyContext::acquire())
@@ -469,8 +474,8 @@ struct likely_module
     virtual ~likely_module()
     {
         finalize();
-        for (likely_const_expr e : expressions)
-            delete e;
+        for (Object *object : objects)
+            delete object;
     }
 
     void optimize()
@@ -1525,7 +1530,7 @@ private:
 
         if (dynamic) {
             likely_vtable vtable = new likely_virtual_table(builder.env, ast);
-            builder.env->module->expressions.push_back(vtable);
+            builder.env->module->objects.push_back(vtable);
 
             PointerType *vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
             Function *likelyDynamic = builder.module()->getFunction("likely_dynamic");
