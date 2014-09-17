@@ -130,6 +130,11 @@ struct likely_expression
                                                                                                                  : apFloat.convertToDouble(), 0, 0, 0, 0);
 
             }
+        } else if (GEPOperator *gepOperator = dyn_cast<GEPOperator>(value)) {
+            if (GlobalValue *globalValue = dyn_cast<GlobalValue>(gepOperator->getPointerOperand()))
+                if (ConstantDataSequential *constantDataSequential = dyn_cast<ConstantDataSequential>(globalValue->getOperand(0)))
+                    if (constantDataSequential->isCString())
+                        data = likely_string(constantDataSequential->getAsCString().data());
         }
 
         return data;
@@ -2241,7 +2246,7 @@ private:
             return new likely_expression(builder.constant(likely_element(m, 0, 0, 0, 0), likely_data(m->type)));
         } else {
             // Return the matrix
-            return new likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(m)), uintptr_t(m)), builder.toLLVM(m->type)), m->type);
+            return new likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(m)), uintptr_t(m)), builder.toLLVM(m->type)), m->type, NULL, likely_retain(m));
         }
     }
 
@@ -2494,6 +2499,9 @@ class readExpression : public SimpleUnaryOperator
     const char *symbol() const { return "read"; }
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
+        if (likely_const_mat fileName = arg->getData())
+            return builder.mat(likely_read(fileName->data, likely_file_binary));
+
         Function *likelyRead = builder.module()->getFunction("likely_read");
         if (!likelyRead) {
             Type *params[] = { Type::getInt8PtrTy(builder.getContext()), builder.nativeInt() };
@@ -2515,6 +2523,10 @@ class writeExpression : public SimpleBinaryOperator
     const char *symbol() const { return "write"; }
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const
     {
+        if (likely_const_mat image = arg1->getData())
+            if (likely_const_mat fileName = arg2->getData())
+                return builder.mat(likely_write(image, fileName->data));
+
         Function *likelyWrite = builder.module()->getFunction("likely_write");
         if (!likelyWrite) {
             Type *params[] = { builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()) };
@@ -2538,6 +2550,9 @@ class decodeExpression : public SimpleUnaryOperator
     const char *symbol() const { return "decode"; }
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
+        if (likely_const_mat buffer = arg->getData())
+            return builder.mat(likely_decode(buffer));
+
         Function *likelyDecode = builder.module()->getFunction("likely_decode");
         if (!likelyDecode) {
             FunctionType *functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), false);
@@ -2558,6 +2573,10 @@ class encodeExpression : public SimpleBinaryOperator
     const char *symbol() const { return "encode"; }
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const
     {
+        if (likely_const_mat image = arg1->getData())
+            if (likely_const_mat extension = arg2->getData())
+                return builder.mat(likely_encode(image, extension->data));
+
         Function *likelyEncode = builder.module()->getFunction("likely_encode");
         if (!likelyEncode) {
             Type *params[] = { builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()) };
