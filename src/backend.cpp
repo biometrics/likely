@@ -1461,7 +1461,17 @@ struct Lambda : public LikelyOperator
         if (returnConstantOrMatrix && !result->getData() && !isMat(result->value->getType()))
             result.reset(new likely_expression(builder.toMat(result.get())));
 
-        cleanup(builder, result->value);
+        // Looking for matricies that were created through function calls
+        // but not returned by this function.
+        for (Function::iterator BB = tmpFunction->begin(), BBE = tmpFunction->end(); BB != BBE; ++BB)
+            for (BasicBlock::iterator I = BB->begin(), IE = BB->end(); I != IE; ++I)
+               if (CallInst *call = dyn_cast<CallInst>(I))
+                   if (Function *calledFunction = call->getCalledFunction())
+                       if (isMat(calledFunction->getReturnType())
+                             && (call != result->value)
+                             && (find(call->user_begin(), call->user_end(), result->value) == call->user_end()))
+                           builder.releaseMat(call);
+
         builder.CreateRet(*result);
 
         Function *function = cast<Function>(builder.module()->getOrInsertFunction(name, FunctionType::get(result->value->getType(), llvmTypes, false)));
@@ -1502,21 +1512,6 @@ private:
         for (likely_const_expr arg : args)
             delete arg;
         return result;
-    }
-
-    static void cleanup(Builder &builder, Value *ret)
-    {
-        // Looking for matricies that were created through function calls
-        // but not returned by this function.
-        Function *function = builder.GetInsertBlock()->getParent();
-        for (Function::iterator BB = function->begin(), BBE = function->end(); BB != BBE; ++BB)
-            for (BasicBlock::iterator I = BB->begin(), IE = BB->end(); I != IE; ++I)
-               if (CallInst *call = dyn_cast<CallInst>(I))
-                   if (Function *calledFunction = call->getCalledFunction())
-                       if (isMat(calledFunction->getReturnType())
-                             && (call != ret)
-                             && (find(call->user_begin(), call->user_end(), ret) == call->user_end()))
-                           builder.releaseMat(call);
     }
 
     likely_const_expr evaluateFunction(Builder &builder, const vector<likely_const_expr> &args) const
