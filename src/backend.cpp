@@ -1501,6 +1501,17 @@ struct Lambda : public LikelyOperator
         return new likely_expression(function, likely_matrix_void, NULL, likely_retain(result->getData()));
     }
 
+    likely_mat evaluateConstantFunction(likely_env env) const
+    {
+        JITFunction jit("likely_jit_function", this, env, vector<likely_type>(), false, true, false);
+        if (jit.function) // compiler
+            return reinterpret_cast<likely_function_0>(jit.function)();
+        else if (jit.EE) // interpreter
+            return (likely_mat) jit.EE->runFunction(cast<Function>(jit.value), vector<GenericValue>()).PointerVal;
+        else // constant or error
+            return likely_retain(jit.getData());
+    }
+
 private:
     size_t maxParameters() const { return length(ast->atoms[1]); }
 
@@ -2805,18 +2816,9 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
     } else {
         likely_const_ast lambda = likely_ast_from_string("(-> () <ast>)", false);
         likely_release_ast(lambda->atoms[0]->atoms[2]); // <ast>
-        const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]) = likely_retain_ast(ast); // Copy because we will modify ast->type
-
-        JITFunction jit("likely_jit_function", unique_ptr<Lambda>(JITFunction::getLambda(lambda->atoms[0])).get(), env, vector<likely_type>(), false, true, false);
-        if (jit.function) // compiler
-            env->result = reinterpret_cast<likely_function_0>(jit.function)();
-        else if (jit.EE) // interpreter
-            env->result = (likely_mat) jit.EE->runFunction(cast<Function>(jit.value), vector<GenericValue>()).PointerVal;
-        else if (likely_const_mat data = likely_retain(jit.getData())) // constant
-            env->result = data;
-        else
-            likely_set_erratum(&env->type, true);
-
+        const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]) = likely_retain_ast(ast);
+        env->result = unique_ptr<Lambda>(new Lambda(lambda->atoms[0])).get()->evaluateConstantFunction(env);
+        likely_set_erratum(&env->type, !env->result);
         likely_release_ast(lambda);
     }
 
