@@ -92,6 +92,7 @@ enum likely_type_field
     likely_matrix_multi_row       = 0x00004000,
     likely_matrix_multi_frame     = 0x00008000,
     likely_matrix_multi_dimension = likely_matrix_multi_channel | likely_matrix_multi_column | likely_matrix_multi_row | likely_matrix_multi_frame,
+    likely_matrix_string    = likely_matrix_i8 | likely_matrix_multi_channel,
     likely_matrix_native    = sizeof(likely_size)*8,
     likely_matrix_type_type = likely_matrix_native
 };

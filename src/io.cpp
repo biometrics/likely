@@ -58,8 +58,11 @@ static likely_mat takeAndInterpret(likely_mat buffer, likely_type type)
         result = likely_decode(buffer);
 
     if (!result && likely_text(type)) {
-        buffer->data[likely_bytes(buffer)-1] = 0;
-        likely_set_data(&buffer->type, likely_matrix_i8);
+        const likely_size bytes = likely_bytes(buffer);
+        buffer->data[bytes-1] = 0;
+        buffer->channels = bytes;
+        buffer->columns = buffer->rows = buffer->frames = 1;
+        buffer->type = likely_matrix_string;
         result = likely_retain(buffer);
     }
 
@@ -247,7 +250,7 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
 
 bool likely_is_string(likely_const_mat m)
 {
-    return m && (likely_data(m->type) == likely_matrix_i8) && !m->data[likely_elements(m)-1];
+    return m && (m->type == likely_matrix_string) && !m->data[likely_elements(m)-1];
 }
 
 likely_mat likely_to_hex(likely_const_mat m)

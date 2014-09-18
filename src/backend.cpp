@@ -683,7 +683,7 @@ struct Builder : public IRBuilder<>
         if (expr->value->getType()->isPointerTy() /* assume it's a string for now */) {
             Function *likelyString = module()->getFunction("likely_string");
             if (!likelyString) {
-                FunctionType *functionType = FunctionType::get(toLLVM(likely_matrix_i8 | likely_matrix_multi_channel), Type::getInt8PtrTy(getContext()), false);
+                FunctionType *functionType = FunctionType::get(toLLVM(likely_matrix_string), Type::getInt8PtrTy(getContext()), false);
                 likelyString = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_string", module());
                 likelyString->setCallingConv(CallingConv::C);
                 likelyString->setDoesNotAlias(0);
@@ -691,7 +691,7 @@ struct Builder : public IRBuilder<>
                 likelyString->setDoesNotCapture(1);
                 sys::DynamicLibrary::AddSymbol("likely_string", (void*) likely_string);
             }
-            return likely_expression(CreateCall(likelyString, *expr), likely_matrix_i8 | likely_matrix_multi_channel);
+            return likely_expression(CreateCall(likelyString, *expr), likely_matrix_string);
         }
 
         Function *likelyScalar = module()->getFunction("likely_scalar_va");
@@ -2511,7 +2511,7 @@ class printExpression : public LikelyOperator
     {
         Function *likelyPrint = builder.module()->getFunction("likely_print_va");
         if (!likelyPrint) {
-            FunctionType *functionType = FunctionType::get(builder.toLLVM(likely_matrix_i8 | likely_matrix_multi_channel), builder.multiDimension(), true);
+            FunctionType *functionType = FunctionType::get(builder.toLLVM(likely_matrix_string), builder.multiDimension(), true);
             likelyPrint = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_print_va", builder.module());
             likelyPrint->setCallingConv(CallingConv::C);
             likelyPrint->setDoesNotAlias(0);
@@ -2529,7 +2529,7 @@ class printExpression : public LikelyOperator
         }
         args.push_back(builder.nullMat());
 
-        return new likely_expression(builder.CreateCall(likelyPrint, args), likely_matrix_i8 | likely_matrix_multi_channel);
+        return new likely_expression(builder.CreateCall(likelyPrint, args), likely_matrix_string);
     }
 
     static GenericValue lle_X_likely_print_va(FunctionType *, const vector<GenericValue> &Args)
