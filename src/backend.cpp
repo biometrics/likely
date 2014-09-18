@@ -2810,7 +2810,8 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
     }
 
     if (likely_definition(env->type)) {
-        Builder(env).expression(ast); // Returns NULL
+        likely_const_expr expr = Builder(env).expression(ast);
+        assert(!expr); (void) expr;
     } else if (likely_offline(env->type)) {
         // Do nothing, evaluating expressions in an offline environment is a no-op.
     } else {
