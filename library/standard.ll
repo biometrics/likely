@@ -501,6 +501,15 @@ Automatically determines the encoding format.
 (decode encoded-lenna)
 ```
 
+#### Macros
+##### (eval _source_)
+Returns the result of parsing, compiling, and executing a _source_ code string
+in the current environment.
+
+```likely
+(eval "(+ 1 1)") ; Evaluates to 2
+```
+
 Standard Library
 ----------------
 ### Mathematical Constants

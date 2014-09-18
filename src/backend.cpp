@@ -1388,6 +1388,29 @@ class definedExpression : public LikelyOperator
 };
 LIKELY_REGISTER(defined)
 
+class evalExpression : public UnaryOperator
+{
+    const char *symbol() const { return "eval"; }
+    size_t maxParameters() const { return 1; }
+
+    likely_const_expr evaluateUnary(Builder &builder, likely_const_ast arg) const
+    {
+        TRY_EXPR(builder, arg, expr)
+        const likely_const_mat source = expr->getData();
+        if (!likely_is_string(source))
+            return error(arg, "expected a string");
+
+        const likely_const_ast ast = likely_ast_from_string(source->data, false);
+        const likely_const_env env = likely_eval(ast->atoms[0], builder.env);
+        likely_release_ast(ast);
+        const likely_const_expr result = (env && !likely_definition(env->type)) ? builder.mat(likely_retain(env->result))
+                                                                                : NULL;
+        likely_release_env(env);
+        return result;
+    }
+};
+LIKELY_REGISTER(eval)
+
 class elementsExpression : public SimpleUnaryOperator
 {
     const char *symbol() const { return "elements"; }

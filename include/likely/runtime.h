@@ -190,6 +190,7 @@ LIKELY_EXPORT void likely_release(likely_const_mat m);
 LIKELY_EXPORT likely_type likely_c_type(likely_type type);
 LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t);
 LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t);
+LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
 
 // Parallelization
 // In contrast to likely_dynamic, thunk parameters are known at compile time

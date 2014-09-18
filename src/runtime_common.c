@@ -231,3 +231,8 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
       default: assert(!"likely_set_element unsupported type");
     }
 }
+
+bool likely_is_string(likely_const_mat m)
+{
+    return m && (m->type == likely_matrix_string) && !m->data[likely_elements(m)-1];
+}

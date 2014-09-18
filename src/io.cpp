@@ -248,11 +248,6 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
     return likely::fromCvMat(cv::Mat(buf));
 }
 
-bool likely_is_string(likely_const_mat m)
-{
-    return m && (m->type == likely_matrix_string) && !m->data[likely_elements(m)-1];
-}
-
 likely_mat likely_to_hex(likely_const_mat m)
 {
     char hex_str[] = "0123456789abcdef";
