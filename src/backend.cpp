@@ -1426,7 +1426,7 @@ struct Lambda : public LikelyOperator
 
         vector<Type*> llvmTypes;
         if (arrayCC) {
-            // Array calling convention - All arguments, which must be matrix pointers, come stored in an array for the convenience of likely_dynamic.
+            // Array calling convention - All arguments (which must be matrix pointers) come stored in an array.
             llvmTypes.push_back(PointerType::get(builder.multiDimension(), 0));
         } else {
             for (const likely_type &parameter : parameters)
@@ -1501,15 +1501,22 @@ struct Lambda : public LikelyOperator
         return new likely_expression(function, likely_matrix_void, NULL, likely_retain(result->getData()));
     }
 
-    likely_mat evaluateConstantFunction(likely_env env) const
+    likely_mat evaluateConstantFunction(likely_env env, const vector<likely_const_mat> &args) const
     {
-        JITFunction jit("likely_jit_function", this, env, vector<likely_type>(), false, true, false);
-        if (jit.function) // compiler
-            return reinterpret_cast<likely_function_0>(jit.function)();
-        else if (jit.EE) // interpreter
-            return (likely_mat) jit.EE->runFunction(cast<Function>(jit.value), vector<GenericValue>()).PointerVal;
-        else // constant or error
+        vector<likely_type> params;
+        for (likely_const_mat arg : args)
+            params.push_back(arg->type);
+
+        JITFunction jit("likely_jit_function", this, env, params, false, true, true);
+        if (jit.function) { // compiler
+            return reinterpret_cast<likely_function_n>(jit.function)(args.data());
+        } else if (jit.EE) { // interpreter
+            vector<GenericValue> gv;
+            gv.push_back(GenericValue((void*) args.data()));
+            return (likely_mat) jit.EE->runFunction(cast<Function>(jit.value), gv).PointerVal;
+        } else { // constant or error
             return likely_retain(jit.getData());
+        }
     }
 
 private:
@@ -2818,7 +2825,7 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
         likely_const_ast lambda = likely_ast_from_string("(-> () <ast>)", false);
         likely_release_ast(lambda->atoms[0]->atoms[2]); // <ast>
         const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]) = likely_retain_ast(ast);
-        env->result = unique_ptr<Lambda>(new Lambda(lambda->atoms[0])).get()->evaluateConstantFunction(env);
+        env->result = unique_ptr<Lambda>(new Lambda(lambda->atoms[0])).get()->evaluateConstantFunction(env, vector<likely_const_mat>());
         likely_set_erratum(&env->type, !env->result);
         likely_release_ast(lambda);
     }
