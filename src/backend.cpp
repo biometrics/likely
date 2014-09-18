@@ -497,7 +497,8 @@ struct likely_module
 {
     LikelyContext *context;
     Module *module;
-    vector<likely_const_expr> expressions;
+    vector<likely_const_expr> exprs;
+    vector<likely_const_mat> mats;
 
     likely_module()
         : context(LikelyContext::acquire())
@@ -506,8 +507,10 @@ struct likely_module
     virtual ~likely_module()
     {
         finalize();
-        for (likely_const_expr expression : expressions)
-            delete expression;
+        for (likely_const_expr expr : exprs)
+            delete expr;
+        for (likely_const_mat mat : mats)
+            likely_release(mat);
     }
 
     void optimize()
@@ -650,12 +653,26 @@ struct Builder : public IRBuilder<>
         }
     }
 
+    struct ConstantMat : public likely_expression
+    {
+        likely_mod mod;
+        ConstantMat(Builder &builder, likely_const_mat m)
+            : likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(likely_mat)), uintptr_t(m)), builder.toLLVM(m->type)), m->type, NULL, m)
+            , mod(builder.env->module) {}
+
+        ~ConstantMat()
+        {
+            if (value->getNumUses() > 0)
+                mod->mats.push_back(likely_retain(getData()));
+        }
+    };
+
     likely_const_expr mat(likely_const_mat data)
     {
-        Value *value;
-        if (likely_elements(data) == 1) value = constant(likely_element(data, 0, 0, 0, 0), data->type);
-        else                            value = ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(getContext(), 8*sizeof(likely_mat)), uintptr_t(data)), toLLVM(data->type));
-        return new likely_expression(value, data->type, NULL, data);
+        if (likely_elements(data) == 1)
+            return new likely_expression(constant(likely_element(data, 0, 0, 0, 0), data->type), data->type, NULL, data);
+        else
+            return new ConstantMat(*this, data);
     }
 
     IntegerType *nativeInt() { return env->module->context->nativeInt(); }
@@ -1521,7 +1538,7 @@ private:
 
         if (dynamic) {
             likely_vtable vtable = new likely_virtual_table(builder.env, ast);
-            builder.env->module->expressions.push_back(vtable);
+            builder.env->module->exprs.push_back(vtable);
 
             PointerType *vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
             Function *likelyDynamic = builder.module()->getFunction("likely_dynamic");
