@@ -733,6 +733,20 @@ struct Builder : public IRBuilder<>
         return likely_expression(CreateCall(likelyNew, args), likely_matrix_multi_dimension);
     }
 
+    likely_expression retainMat(Value *m)
+    {
+        Function *likelyRetain = module()->getFunction("likely_retain");
+        if (!likelyRetain) {
+            FunctionType *functionType = FunctionType::get(multiDimension(), multiDimension(), false);
+            likelyRetain = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_retain", module());
+            likelyRetain->setCallingConv(CallingConv::C);
+            likelyRetain->setDoesNotAlias(1);
+            likelyRetain->setDoesNotCapture(1);
+            sys::DynamicLibrary::AddSymbol("likely_retain", (void*) likely_retain);
+        }
+        return likely_expression(CreateCall(likelyRetain, CreatePointerCast(m, multiDimension())), likely_matrix_multi_dimension);
+    }
+
     likely_expression releaseMat(Value *m)
     {
         Function *likelyRelease = module()->getFunction("likely_release");
@@ -1471,6 +1485,10 @@ struct Lambda : public LikelyOperator
         if (returnConstantOrMatrix && !result->getData() && !isMat(result->value->getType()))
             result.reset(new likely_expression(builder.toMat(result.get())));
 
+        // If we are returning a constant matrix, make sure to retain a copy
+        if (isa<ConstantExpr>(result->value) && isMat(result->value->getType()))
+            result.reset(new likely_expression(builder.CreatePointerCast(builder.retainMat(result->value), builder.toLLVM(result->type)), result->type, NULL, likely_retain(result->getData())));
+
         // Looking for matricies that were created through function calls
         // but not returned by this function.
         for (Function::iterator BB = tmpFunction->begin(), BBE = tmpFunction->end(); BB != BBE; ++BB)
@@ -1527,14 +1545,22 @@ private:
         likely_const_expr result = NULL;
 
         vector<likely_const_expr> args;
+        vector<likely_const_mat> constantArgs;
         const size_t arguments = length(ast)-1;
         for (size_t i=0; i<arguments; i++) {
             likely_const_expr arg = builder.expression(ast->atoms[i+1]);
             if (!arg)
                 goto cleanup;
+
+            if (constantArgs.size() == args.size())
+                if (likely_const_mat constantArg = arg->getData())
+                    constantArgs.push_back(constantArg);
+
             args.push_back(arg);
         }
-        result = evaluateFunction(builder, args);
+
+        result = (constantArgs.size() == args.size()) ? builder.mat(evaluateConstantFunction(builder.env, constantArgs))
+                                                      : evaluateFunction(builder, args);
 
     cleanup:
         for (likely_const_expr arg : args)
