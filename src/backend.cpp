@@ -388,13 +388,6 @@ struct likely_expression
         likely_release(m);
     }
 
-    Value *take() const
-    {
-        Value *result = value;
-        delete this; // With great power comes great responsibility
-        return result;
-    }
-
     vector<likely_const_expr> subexpressionsOrSelf() const
     {
         if (subexpressions.empty()) {
