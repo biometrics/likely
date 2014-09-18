@@ -295,16 +295,11 @@ public:
 };
 static JITFunctionCache TheJITFunctionCache;
 
-struct Object
-{
-    virtual ~Object() {}
-};
-
 struct Builder;
 
 } // namespace (anonymous)
 
-struct likely_expression : public Object
+struct likely_expression
 {
     Value *value;
     likely_type type;
@@ -502,7 +497,7 @@ struct likely_module
 {
     LikelyContext *context;
     Module *module;
-    vector<Object*> objects;
+    vector<likely_const_expr> expressions;
 
     likely_module()
         : context(LikelyContext::acquire())
@@ -511,8 +506,8 @@ struct likely_module
     virtual ~likely_module()
     {
         finalize();
-        for (Object *object : objects)
-            delete object;
+        for (likely_const_expr expression : expressions)
+            delete expression;
     }
 
     void optimize()
@@ -1526,7 +1521,7 @@ private:
 
         if (dynamic) {
             likely_vtable vtable = new likely_virtual_table(builder.env, ast);
-            builder.env->module->objects.push_back(vtable);
+            builder.env->module->expressions.push_back(vtable);
 
             PointerType *vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
             Function *likelyDynamic = builder.module()->getFunction("likely_dynamic");
