@@ -457,6 +457,8 @@ static void print(const likely_const_ast ast, stringstream &stream)
 
 likely_mat likely_ast_to_string(likely_const_ast ast)
 {
+    if (!ast)
+        return NULL;
     stringstream stream;
     print(ast, stream);
     return likely_string(stream.str().c_str());

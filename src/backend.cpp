@@ -2925,6 +2925,20 @@ likely_mat likely_md5(likely_const_mat buffer)
     return likely_new(likely_matrix_u8, 16, 1, 1, 1, md5Result);
 }
 
+void likely_dump(likely_const_env env)
+{
+    if (!env)
+        return;
+
+    likely_const_mat ast = likely_ast_to_string(env->ast);
+    if (ast) {
+        cerr << ast->data << endl;
+        likely_release(ast);
+    }
+
+    likely_dump(env->parent);
+}
+
 void likely_shutdown()
 {
     likely_release_env(RootEnvironment::get());

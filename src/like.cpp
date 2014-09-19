@@ -44,6 +44,7 @@ static cl::opt<bool> md5("md5", cl::desc("Print matrix output MD5 hash to termin
 static cl::opt<bool> show("show", cl::desc("Show matrix output in a window"));
 static cl::opt<bool> quiet("quiet", cl::desc("Don't show matrix output"));
 static cl::opt<bool> parallel("parallel" , cl::desc("Compile parallel kernels"));
+static cl::opt<bool> dump("dump" , cl::desc("Dump environment to terminal"));
 
 static void checkOrPrintAndRelease(likely_const_mat input)
 {
@@ -136,6 +137,8 @@ int main(int argc, char *argv[])
             likely_ast ast = likely_ast_from_string(line.c_str(), false);
             likely_env env = likely_eval(ast->atoms[0], parent);
             likely_release_ast(ast);
+            if (dump)
+                likely_dump(env);
             if (likely_erratum(env->type)) {
                 likely_release_env(env);
             } else {
@@ -162,8 +165,11 @@ int main(int argc, char *argv[])
             likely_release_ast(parsed);
         } else {
             likely_ast ast = likely_ast_from_string(code->data, gfm);
-            likely_release_env(likely_repl(ast, parent, repl_callback, NULL));
+            likely_const_env env = likely_repl(ast, parent, repl_callback, NULL);
             likely_release_ast(ast);
+            if (dump)
+                likely_dump(env);
+            likely_release_env(env);
         }
         likely_release(code);
     }
