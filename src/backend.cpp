@@ -1037,8 +1037,8 @@ likely_const_expr Builder::expression(likely_const_ast ast)
             }
         }
 
-        const_cast<likely_ast>(ast)->type = likely_ast_unknown;
-        return likely_expression::error(ast, "unrecognized literal");
+        const_cast<likely_ast>(ast)->type = likely_ast_invalid;
+        return likely_expression::error(ast, "invalid literal");
     }
 }
 

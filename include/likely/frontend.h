@@ -40,7 +40,8 @@ typedef enum
     likely_ast_operator,
     likely_ast_string,
     likely_ast_number,
-    likely_ast_type
+    likely_ast_type,
+    likely_ast_invalid
 } likely_abstract_syntax_tree_type;
 
 struct likely_abstract_syntax_tree;
