@@ -502,13 +502,16 @@ Automatically determines the encoding format.
 ```
 
 #### Macros
-##### (eval _source_)
-Returns the result of parsing, compiling, and executing a _source_ code string
-in the current environment.
+##### (eval _source_ [_fallback_])
+Returns the result of evaluating a _source_ code string in the current
+environment.
+An optional _fallback_ expression may be provided to return in the event of an
+evaluation error.
 
 ```likely
 (eval "(+ 1 1)") ; Evaluates to 2
 (eval "(+ 1)")   ; Evaluation error
+(eval "(+ 1)" 3) ; Evaluates to 3
 ```
 
 Standard Library

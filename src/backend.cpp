@@ -338,6 +338,7 @@ struct likely_expression
     virtual int uid() const { return 0; }
     virtual size_t maxParameters() const { return 0; }
     virtual size_t minParameters() const { return maxParameters(); }
+    virtual const char *symbol() const { return ""; }
 
     virtual likely_const_mat getData() const
     {
@@ -372,8 +373,6 @@ struct likely_expression
         assert(!getData());
         this->data = data;
     }
-
-    virtual const char *symbol() const { return ""; }
 
     virtual likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const;
 
@@ -1390,24 +1389,28 @@ class definedExpression : public LikelyOperator
 };
 LIKELY_REGISTER(defined)
 
-class evalExpression : public UnaryOperator
+class evalExpression : public LikelyOperator
 {
     const char *symbol() const { return "eval"; }
-    size_t maxParameters() const { return 1; }
+    size_t maxParameters() const { return 2; }
+    size_t minParameters() const { return 1; }
 
-    likely_const_expr evaluateUnary(Builder &builder, likely_const_ast arg) const
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        TRY_EXPR(builder, arg, expr)
+        TRY_EXPR(builder, ast->atoms[1], expr)
         const likely_const_mat source = expr->getData();
         if (!likely_is_string(source))
-            return error(arg, "expected a string");
+            return error(ast->atoms[1], "expected a string");
 
-        const likely_const_ast ast = likely_ast_from_string(source->data, false);
-        const likely_const_env env = likely_eval(ast->atoms[0], builder.env);
-        likely_release_ast(ast);
-        const likely_const_expr result = (env && !likely_definition(env->type)) ? builder.mat(likely_retain(env->result))
-                                                                                : NULL;
+        const likely_const_ast sourceAST = likely_ast_from_string(source->data, false);
+        const likely_const_env env = likely_eval(sourceAST->atoms[0], builder.env);
+        likely_release_ast(sourceAST);
+        likely_const_expr result = (env && !likely_definition(env->type)) ? builder.mat(likely_retain(env->result))
+                                                                          : NULL;
         likely_release_env(env);
+
+        if (!result && (ast->num_atoms > 2))
+            result = builder.expression(ast->atoms[2]);
         return result;
     }
 };
