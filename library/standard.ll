@@ -518,14 +518,15 @@ Standard Library
     pi:= (f32 3.141592) ; The ratio of a circle's circumference to its diameter
 
 ### Unary Functions
-    not:= (-> a (== a 0))
-    abs:= (-> a (? (< a 0) (* -1 a) a))
-    sq := (-> a (* a a))
+    not :=(-> a (== a 0))
+    bool:=(-> a (!= a 0))
+    sq :=(-> a (* a a))
+    abs:=(-> a (? (< a 0) (* -1 a) a))
 
 ### Binary Functions
-    and:= (-> (a b) (& (!= a 0) (!= b 0)))
-    or := (-> (a b) (| (!= a 0) (!= b 0)))
-    xor:= (-> (a b) (^ (!= a 0) (!= b 0)))
+    and:= (-> (a b) (& a.bool b.bool))
+    or := (-> (a b) (| a.bool b.bool))
+    xor:= (-> (a b) (^ a.bool b.bool))
     min:= (-> (a b) (? (< a b) a b))
     max:= (-> (a b) (? (> a b) a b))
     cast:= (-> (a b) (b.type a)) ; cast a to the type of b
