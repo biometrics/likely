@@ -662,7 +662,9 @@ struct Builder : public IRBuilder<>
 
     likely_const_expr mat(likely_const_mat data)
     {
-        if (likely_elements(data) == 1)
+        if (!data)
+            return NULL;
+        else if (likely_elements(data) == 1)
             return new likely_expression(constant(likely_element(data, 0, 0, 0, 0), data->type), data->type, NULL, data);
         else
             return new ConstantMat(*this, data);
