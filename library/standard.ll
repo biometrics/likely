@@ -518,6 +518,7 @@ Standard Library
     pi:= (f32 3.141592) ; The ratio of a circle's circumference to its diameter
 
 ### Unary Functions
+    not:= (-> a (== a 0))
     abs:= (-> a (? (< a 0) (* -1 a) a))
     sq := (-> a (* a a))
 
