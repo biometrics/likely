@@ -1373,22 +1373,6 @@ LIKELY_REGISTER(OP)                                    \
 LIKELY_REGISTER_BINARY_MATH(pow)
 LIKELY_REGISTER_BINARY_MATH(copysign)
 
-class definedExpression : public LikelyOperator
-{
-    const char *symbol() const { return "??"; }
-    size_t maxParameters() const { return 2; }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        likely_const_ast name = ast->atoms[1];
-        if (name->type == likely_ast_list)
-            return error(name, "expected an atom");
-        if (builder.lookup(name->atom)) return builder.expression(name);
-        else                            return builder.expression(ast->atoms[2]);
-    }
-};
-LIKELY_REGISTER(defined)
-
 class tryExpression : public LikelyOperator
 {
     const char *symbol() const { return "try"; }
