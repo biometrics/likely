@@ -386,21 +386,21 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
             close = beginClose;
         }
 
-        likely_const_ast end;
-        while (true) {
-            end = tokens->atoms[offset];
-            if (!likely_ast_compare(end, close)) {
-                offset++;
-                break;
-            }
-
+        likely_const_ast end = NULL;
+        while (!end) {
             bool success = shift(tokens, offset, atoms);
-            if (!success) {
+            if (success) {
+                if (!likely_ast_compare(atoms.back(), close)) {
+                    end = atoms.back();
+                    atoms.pop_back();
+                } else {
+                    success = success && reduce(tokens, offset, atoms);
+                }
+            } else {
                 stringstream stream;
                 stream << "missing list closing token: " << close->atom;
-                likely_throw(tokens->atoms[offset], stream.str().c_str());
+                likely_throw(atoms.back(), stream.str().c_str());
             }
-            success = success && reduce(tokens, offset, atoms);
             if (!success)
                 return cleanup(atoms);
         }
@@ -411,6 +411,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
         list->end_line = end->end_line;
         list->end_column = end->end_column;
         output.push_back(list);
+        likely_release_ast(end);
     } else {
         output.push_back(likely_retain_ast(token));
     }
@@ -463,6 +464,12 @@ likely_mat likely_ast_to_string(likely_const_ast ast)
 
 int likely_ast_compare(likely_const_ast a, likely_const_ast b)
 {
+    if (!a || !b) {
+        if (!a && !b) return 0;
+        else if (!a)  return -1;
+        else /* !b */ return 1;
+    }
+
     if ((a->type == likely_ast_list) == (b->type == likely_ast_list)) {
         if (a->type == likely_ast_list) {
             if (a->num_atoms == b->num_atoms) {
