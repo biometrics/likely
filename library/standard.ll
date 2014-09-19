@@ -508,6 +508,7 @@ in the current environment.
 
 ```likely
 (eval "(+ 1 1)") ; Evaluates to 2
+(eval "(+ 1)")   ; Evaluation error
 ```
 
 Standard Library

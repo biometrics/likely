@@ -878,7 +878,7 @@ class LikelyOperator : public likely_expression
             stream << "operator with: " << min;
             if (max != min)
                 stream << "-" << max;
-            stream << " parameters passed: " << args << " arguments";
+            stream << " parameters passed: " << args << " argument" << (args == 1 ? "" : "s");
             return error(ast, stream.str().c_str());
         }
 
