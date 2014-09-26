@@ -11,7 +11,15 @@ Skip to the good stuff: **[installation](?href=README.md)**,
                         **[api](https://s3.amazonaws.com/liblikely/doxygen/index.html)**.
 
 ### Why Likely?
-<img src="/share/likely/LikelyVsConventional.svg" width="512">
+> **A compiler framework,**
+
+<img src="/share/likely/CompilerFramework.svg" width="768">
+
+> **and code model,**
+
+<img src="/share/likely/CodeModel.svg" width="768">
+
+> **designed for image recognition algorithms!**
 
 ### Principles
  - Efficient syntax for image processing and pattern recognition.
@@ -24,8 +32,7 @@ Skip to the good stuff: **[installation](?href=README.md)**,
 The software engineering of a complex system is often facilitated by a _Domain Specific Language_ (DSL) whose syntax is designed to efficiently solve problems encountered in the domain.
 While many technical communities rely on DSLs, **there exists no language specialized for image recognition**.
 As a consequence, current algorithm development practices fail to simultaneously respect human time and creativity, and hardware capacity and diversity.
-
-> A just-in-time DSL for image recognition is necessary to invent algorithms currently too complex, inefficient, or otherwise impossible to express in today's static and dynamic languages.
+We believe **a just-in-time DSL for image recognition is necessary to invent algorithms currently too complex, inefficient, or otherwise impossible to express in today's static and dynamic languages.**
 
 ### License
 Likely is offered under **[Apache 2.0](LICENSE.txt)**, meaning it's *free for academic and commercial use*.
