@@ -2501,6 +2501,41 @@ Lambda *JITFunction::getLambda(likely_const_ast ast)
     return NULL;
 }
 
+class newExpression : public LikelyOperator
+{
+    const char *symbol() const { return "new"; }
+    size_t maxParameters() const { return 6; }
+    size_t minParameters() const { return 0; }
+
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        const size_t n = ast->num_atoms - 1;
+        Value *type = NULL, *channels = NULL, *columns = NULL, *rows = NULL, *frames = NULL, *data = NULL;
+        switch (n) {
+            case 6: data     = unique_ptr<const likely_expression>(builder.expression(ast->atoms[6]))->value;
+            case 5: frames   = unique_ptr<const likely_expression>(builder.expression(ast->atoms[5]))->value;
+            case 4: rows     = unique_ptr<const likely_expression>(builder.expression(ast->atoms[4]))->value;
+            case 3: columns  = unique_ptr<const likely_expression>(builder.expression(ast->atoms[3]))->value;
+            case 2: channels = unique_ptr<const likely_expression>(builder.expression(ast->atoms[2]))->value;
+            case 1: type     = unique_ptr<const likely_expression>(builder.expression(ast->atoms[1]))->value;
+            default:           break;
+        }
+
+        switch (maxParameters()-n) {
+            case 6: type     = builder.typeType(likely_matrix_f32);
+            case 5: channels = builder.one();
+            case 4: columns  = builder.one();
+            case 3: rows     = builder.one();
+            case 2: frames   = builder.one();
+            case 1: data     = builder.nullData();
+            default:           break;
+        }
+
+        return new likely_expression(builder.newMat(type, channels, columns, rows, frames, data));
+    }
+};
+LIKELY_REGISTER(new)
+
 #ifdef LIKELY_IO
 #include "likely/io.h"
 

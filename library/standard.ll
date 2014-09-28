@@ -453,6 +453,22 @@ The integral value that is nearest to _x_, with halfway cases rounded away from 
 (round -5.5) ; Evaluates to -6
 ```
 
+#### Matricies
+The fundamental data structure in Likely is a four-dimensional _matrix_.
+In decreasing memory spatial locality order, its dimensions are: _channels_, _columns_, _rows_ and _frames_.
+These dimensions are often abbreviated _c_, _x_, _y_ and _t_, respectively.
+Ownership of matricies is managed automatically using reference counting.
+
+##### (new [_type_ [_channels_ [_columns_ [_rows_ [_frames_ [_data_]]]]]])
+Returns a newly allocated matrix with element type _type_, dimensions _channels_, _columns_, _rows_ and _frames_, initialized to _data_.
+If _data_ is not specified then the elements will be uninitialized.
+If _frames_, _rows_, _columns_ or _channels_ are not specified then they will assume a value of _1_.
+If _type_ is not specified then it will assume a value of _f32_ (32-bit floating point).
+
+```likely
+uninitialized-color-image:= (new u8 3 512 512)
+```
+
 #### Matrix I/O
 Supported matrix file formats are:
 
