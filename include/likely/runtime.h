@@ -135,8 +135,14 @@ struct likely_matrix
     char data[]; /*!< \brief Buffer. */
 };
 
-typedef struct likely_matrix const *likely_const_mat;
-typedef struct likely_matrix *likely_mat;
+typedef struct likely_matrix const *likely_const_mat; /*!< \brief Pointer to a constant \ref likely_matrix. */
+typedef struct likely_matrix *likely_mat; /*!< \brief Pointer to a \ref likely_matrix. */
+
+/*!
+ * \defgroup error_handling Error Handling
+ * \brief Respond to unexpected conditions.
+ * @{
+ */
 
 /*!
  * \brief Conditional abort-style error handling with an error message.
@@ -144,6 +150,7 @@ typedef struct likely_matrix *likely_mat;
  * \param format <tt>printf</tt>-style error message.
  */
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
+/** @} */ // end of error_handling
 
 /*!
  * \defgroup bit_masking Bit Masking
@@ -224,11 +231,18 @@ LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c,
 LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
 /** @} */ // end of element_access
 
-// Parallelization
+/*!
+ * \defgroup parallelization Parallelization
+ * \brief Distribute work in parallel.
+ *
+ * These functions are used internally and should not be called directly.
+ * @{
+ */
 // In contrast to likely_dynamic, thunk parameters are known at compile time
 // and may therefore take an arbitrary internally-defined structure.
 typedef void (*likely_thunk)(void *args, likely_size start, likely_size stop);
 LIKELY_EXPORT void likely_fork(likely_thunk thunk, void *args, likely_size size);
+/** @} */ // end of parallelization
 
 /** @} */ // end of runtime
 
