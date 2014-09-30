@@ -138,16 +138,32 @@ struct likely_matrix
 typedef struct likely_matrix const *likely_const_mat;
 typedef struct likely_matrix *likely_mat;
 
-// Abort-style error handling
+/*!
+ * \brief Conditional abort-style error handling with an error message.
+ * \param condition If \c false, print \a format and abort.
+ * \param format <tt>printf</tt>-style error message.
+ */
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
 
-// Type manipulation helper functions
+/*!
+ * \defgroup bit_masking Bit Masking
+ * \brief Low-level helper functions to query and edit bits in an integer.
+ *
+ * You should not need to call these functions directly.
+ * They are used to implement \ref type_manipulation.
+ * @{
+ */
 LIKELY_EXPORT size_t likely_get(size_t type, size_t mask);
 LIKELY_EXPORT void likely_set(size_t *type, size_t value, size_t mask);
 LIKELY_EXPORT bool likely_get_bool(size_t type, size_t mask);
 LIKELY_EXPORT void likely_set_bool(size_t *type, bool value, size_t mask);
+/** @} */ // end of bit_masking
 
-// Query and edit the matrix type
+/*!
+ * \defgroup type_manipulation Type Manipulation
+ * \brief Query and edit portions of \ref likely_type.
+ * @{
+ */
 LIKELY_EXPORT size_t likely_depth(likely_type type);
 LIKELY_EXPORT void likely_set_depth(likely_type *type, size_t depth);
 LIKELY_EXPORT bool likely_floating(likely_type type);
@@ -170,12 +186,22 @@ LIKELY_EXPORT bool likely_multi_frame(likely_type type);
 LIKELY_EXPORT void likely_set_multi_frame(likely_type *type, bool multi_frame);
 LIKELY_EXPORT likely_type likely_multi_dimension(likely_type type);
 LIKELY_EXPORT void likely_set_multi_dimension(likely_type *type, likely_type multi_dimension);
+/** @} */ // end of type_manipulation
 
-// Matrix size
+/*!
+ * \defgroup matrix_size Matrix Size
+ * \brief Determine the size of a \ref likely_matrix.
+ * @{
+ */
 LIKELY_EXPORT likely_size likely_elements(likely_const_mat m);
 LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
+/** @} */ // end of matrix_size
 
-// Matrix creation
+/*!
+ * \defgroup matrix_creation Matrix Creation
+ * \brief Create a \ref likely_matrix.
+ * @{
+ */
 LIKELY_EXPORT likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data);
 LIKELY_EXPORT likely_mat likely_scalar(likely_type type, double value);
 LIKELY_EXPORT likely_mat likely_scalar_n(likely_type type, double *values, size_t n);
@@ -185,12 +211,18 @@ LIKELY_EXPORT likely_mat likely_void();
 LIKELY_EXPORT likely_mat likely_copy(likely_const_mat m);
 LIKELY_EXPORT likely_mat likely_retain(likely_const_mat m);
 LIKELY_EXPORT void likely_release(likely_const_mat m);
+/** @} */ // end of matrix_creation
 
-// Element access
+/*!
+ * \defgroup element_access Element Access
+ * \brief Access elements in a \ref likely_matrix.
+ * @{
+ */
 LIKELY_EXPORT likely_type likely_c_type(likely_type type);
 LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t);
 LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t);
 LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
+/** @} */ // end of element_access
 
 // Parallelization
 // In contrast to likely_dynamic, thunk parameters are known at compile time
