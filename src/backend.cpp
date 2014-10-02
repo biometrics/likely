@@ -2383,7 +2383,7 @@ class defineExpression : public LikelyOperator
                 }
             }
 
-            env->erratum = !env->value;
+            env->error = !env->value;
             return NULL;
         } else {
             likely_const_expr expr = builder.expression(rhs);
@@ -2421,7 +2421,7 @@ class importExpression : public LikelyOperator
         builder.env = likely_repl(source_ast, parent, NULL, NULL);
         likely_release_ast(source_ast);
         likely_release_env(parent);
-        return (builder.env->erratum) ? NULL : new likely_expression();
+        return (builder.env->error) ? NULL : new likely_expression();
     }
 };
 LIKELY_REGISTER(import)
@@ -2871,7 +2871,7 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
         likely_release_ast(lambda->atoms[0]->atoms[2]); // <ast>
         const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]) = likely_retain_ast(ast);
         env->result = unique_ptr<Lambda>(new Lambda(lambda->atoms[0])).get()->evaluateConstantFunction(env, vector<likely_const_mat>());
-        env->erratum = !env->result;
+        env->error = !env->result;
         likely_release_ast(lambda);
     }
 
@@ -2895,7 +2895,7 @@ likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback r
         if (repl_callback)
             // If there is not context, we return a boolean value indicating if the environment has a valid result
             repl_callback(env, context ? context : (void*)(!env->definition && env->result && (likely_elements(env->result) > 0)));
-        if (env->erratum)
+        if (env->error)
             break;
     }
 
