@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
             likely_ast ast = likely_ast_from_string(line.c_str(), false);
             likely_env env = likely_eval(ast->atoms[0], parent);
             likely_release_ast(ast);
-            if (env->error) {
+            if (env->erratum) {
                 likely_release_env(env);
             } else {
                 likely_release_env(parent);

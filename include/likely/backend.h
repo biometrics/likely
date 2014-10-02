@@ -50,7 +50,7 @@ struct likely_environment
             unsigned int offline       : 1;
             unsigned int parallel      : 1;
             unsigned int heterogeneous : 1;
-            unsigned int error         : 1;
+            unsigned int erratum       : 1;
             unsigned int definition    : 1;
             unsigned int global        : 1;
             unsigned int abandoned     : 1;
