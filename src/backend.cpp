@@ -158,7 +158,7 @@ public:
     Type *scalar(likely_type type, bool pointer = false)
     {
         const size_t bits = likely_depth(type);
-        const bool floating = bool(type & likely_matrix_floating);
+        const bool floating = (type & likely_matrix_floating) != 0;
         if (floating) {
             if      (bits == 16) return pointer ? Type::getHalfPtrTy(context)   : Type::getHalfTy(context);
             else if (bits == 32) return pointer ? Type::getFloatPtrTy(context)  : Type::getFloatTy(context);
@@ -628,7 +628,7 @@ struct Builder : public IRBuilder<>
                 type = likely_expression::validFloatType(type);
         }
         Type *dstType = env->module->context->scalar(type);
-        return likely_expression(CreateCast(CastInst::getCastOpcode(*x, bool(*x & likely_matrix_signed), dstType, bool(type & likely_matrix_signed)), *x, dstType), type);
+        return likely_expression(CreateCast(CastInst::getCastOpcode(*x, (*x & likely_matrix_signed) != 0, dstType, (type & likely_matrix_signed) != 0), *x, dstType), type);
     }
 
     likely_const_expr lookup(const char *name) const { return likely_expression::lookup(env, name); }
@@ -2084,25 +2084,25 @@ private:
             switch (axis_index) {
               case 0:
                 name = "t";
-                multiElement = bool(dst.type & likely_matrix_multi_frame);
+                multiElement = (dst.type & likely_matrix_multi_frame) != 0;
                 elements = builder.frames(&dst);
                 step = frameStep;
                 break;
               case 1:
                 name = "y";
-                multiElement = bool(dst.type & likely_matrix_multi_row);
+                multiElement = (dst.type & likely_matrix_multi_row) != 0;
                 elements = builder.rows(&dst);
                 step = rowStep;
                 break;
               case 2:
                 name = "x";
-                multiElement = bool(dst.type & likely_matrix_multi_column);
+                multiElement = (dst.type & likely_matrix_multi_column) != 0;
                 elements = builder.columns(&dst);
                 step = columnStep;
                 break;
               default:
                 name = "c";
-                multiElement = bool(dst.type & likely_matrix_multi_channel);
+                multiElement = (dst.type & likely_matrix_multi_channel) != 0;
                 elements = builder.channels(&dst);
                 step = channelStep;
                 break;
