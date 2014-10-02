@@ -565,7 +565,7 @@ likely_mat likely_type_field_to_string(likely_type type)
     if (type == likely_matrix_array          ) return likely_string("array");
     if (type == likely_matrix_signed         ) return likely_string("signed");
     if (type == likely_matrix_saturated      ) return likely_string("saturated");
-    if (type == likely_matrix_data           ) return likely_string("data");
+    if (type == likely_matrix_element        ) return likely_string("element");
     if (type == likely_matrix_multi_channel  ) return likely_string("multi_channel");
     if (type == likely_matrix_multi_column   ) return likely_string("multi_column");
     if (type == likely_matrix_multi_row      ) return likely_string("multi_row");
@@ -611,7 +611,7 @@ likely_type likely_type_field_from_string(const char *str, bool *ok)
     if (!strcmp(str, "array"          )) return likely_matrix_array;
     if (!strcmp(str, "signed"         )) return likely_matrix_signed;
     if (!strcmp(str, "saturated"      )) return likely_matrix_saturated;
-    if (!strcmp(str, "data"           )) return likely_matrix_data;
+    if (!strcmp(str, "element"        )) return likely_matrix_element;
     if (!strcmp(str, "multi_channel"  )) return likely_matrix_multi_channel;
     if (!strcmp(str, "multi_column"   )) return likely_matrix_multi_column;
     if (!strcmp(str, "multi_row"      )) return likely_matrix_multi_row;

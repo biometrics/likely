@@ -343,7 +343,7 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
         return NULL;
 
     double min, max, range;
-    if (likely_data(m->type) != likely_matrix_u8) {
+    if ((m->type & likely_matrix_element) != likely_matrix_u8) {
         min = numeric_limits<double>::max();
         max = -numeric_limits<double>::max();
         for (likely_size t=0; t<m->frames; t++) {

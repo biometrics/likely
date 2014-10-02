@@ -73,8 +73,6 @@ void likely_set_bit(size_t *value, const bool new_value, const size_t mask)
 
 size_t likely_depth(likely_type type) { return likely_bits(type, likely_matrix_depth); }
 void likely_set_depth(likely_type *type, size_t depth) { likely_set_bits(type, depth, likely_matrix_depth); }
-likely_type likely_data(likely_type type) { return likely_bits(type, likely_matrix_data); }
-void likely_set_data(likely_type *type, likely_type data) { likely_set_bits(type, data, likely_matrix_data); }
 
 likely_size likely_elements(likely_const_mat m)
 {
@@ -175,7 +173,7 @@ void likely_release(likely_const_mat m)
 
 likely_type likely_c_type(likely_type type)
 {
-    likely_type c_type = likely_data(type);
+    likely_type c_type = type & likely_matrix_element;
     c_type &= ~likely_matrix_saturated;
     if (c_type & likely_matrix_floating)
         c_type &= ~likely_matrix_signed;

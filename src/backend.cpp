@@ -608,7 +608,7 @@ struct Builder : public IRBuilder<>
     likely_expression rows    (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_row    )) ? likely_expression(CreateLoad(CreateStructGEP(*m, 4), "rows"    ), likely_matrix_native) : one(); }
     likely_expression frames  (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_frame  )) ? likely_expression(CreateLoad(CreateStructGEP(*m, 5), "frames"  ), likely_matrix_native) : one(); }
     Value *data    (Value *value, likely_type type) { return CreatePointerCast(CreateStructGEP(value, 7), env->module->context->scalar(type, true)); }
-    likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(data(m->value, m->type), likely_data(*m) | likely_matrix_array); }
+    likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(data(m->value, m->type), (*m & likely_matrix_element) | likely_matrix_array); }
 
     void steps(likely_const_expr matrix, Value *channelStep, Value **columnStep, Value **rowStep, Value **frameStep)
     {
@@ -619,8 +619,8 @@ struct Builder : public IRBuilder<>
 
     likely_expression cast(likely_const_expr x, likely_type type)
     {
-        type = likely_data(type);
-        if (likely_data(*x) == type)
+        type &= likely_matrix_element;
+        if ((x->type & likely_matrix_element) == type)
             return likely_expression(*x, type);
         if (likely_depth(type) == 0) {
             likely_set_depth(&type, likely_depth(*x));
@@ -1845,7 +1845,7 @@ private:
             LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(this), i));
 
             load->setMetadata("llvm.mem.parallel_loop_access", node);
-            return new likely_expression(load, likely_data(type), this);
+            return new likely_expression(load, type & likely_matrix_element, this);
         }
     };
 
@@ -2298,7 +2298,7 @@ private:
         likely_const_mat m = get()->result;
         if (likely_elements(m) == 1) {
             // Promote to scalar
-            return new likely_expression(builder.constant(likely_element(m, 0, 0, 0, 0), likely_data(m->type)));
+            return new likely_expression(builder.constant(likely_element(m, 0, 0, 0, 0), m->type & likely_matrix_element));
         } else {
             // Return the matrix
             return new likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(m)), uintptr_t(m)), builder.toLLVM(m->type)), m->type, NULL, likely_retain(m));

@@ -74,7 +74,7 @@ enum likely_matrix_type
     likely_matrix_array     = 0x00000200,
     likely_matrix_signed    = 0x00000400,
     likely_matrix_saturated = 0x00000800,
-    likely_matrix_data      = likely_matrix_depth | likely_matrix_floating | likely_matrix_array | likely_matrix_signed | likely_matrix_saturated,
+    likely_matrix_element   = likely_matrix_depth | likely_matrix_floating | likely_matrix_array | likely_matrix_signed | likely_matrix_saturated,
     likely_matrix_u1  = 1,
     likely_matrix_u8  = 8,
     likely_matrix_u16 = 16,
@@ -205,8 +205,6 @@ LIKELY_EXPORT void likely_set_bit(size_t *value, const bool new_value, const siz
  */
 LIKELY_EXPORT size_t likely_depth(likely_type type);
 LIKELY_EXPORT void likely_set_depth(likely_type *type, size_t depth);
-LIKELY_EXPORT likely_type likely_data(likely_type type);
-LIKELY_EXPORT void likely_set_data(likely_type *type, likely_type data);
 /** @} */ // end of type_manipulation
 
 /*!
