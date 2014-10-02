@@ -41,38 +41,16 @@ void likely_assert(bool condition, const char *format, ...)
 #endif // _WIN32
 }
 
-size_t likely_bits(const size_t value, const size_t mask)
+size_t likely_depth(likely_type type)
 {
-//! [likely_bits implementation.]
-    return value & mask;
-//! [likely_bits implementation.]
+    return type & likely_matrix_depth;
 }
 
-void likely_set_bits(size_t *value, const size_t new_value, const size_t mask)
+void likely_set_depth(likely_type *type, size_t depth)
 {
-//! [likely_set_bits implementation.]
-    *value &= ~mask;
-    *value |= new_value & mask;
-//! [likely_set_bits implementation.]
+    *type &= ~likely_matrix_depth;
+    *type |= depth & likely_matrix_depth;
 }
-
-bool likely_bit(const size_t value, const size_t mask)
-{
-//! [likely_bit implementation.]
-    return (value & mask) != 0;
-//! [likely_bit implementation.]
-}
-
-void likely_set_bit(size_t *value, const bool new_value, const size_t mask)
-{
-//! [likely_set_bit implementation.]
-    if (new_value) *value |= mask;
-    else           *value &= ~mask;
-//! [likely_set_bit implementation.]
-}
-
-size_t likely_depth(likely_type type) { return likely_bits(type, likely_matrix_depth); }
-void likely_set_depth(likely_type *type, size_t depth) { likely_set_bits(type, depth, likely_matrix_depth); }
 
 likely_size likely_elements(likely_const_mat m)
 {
