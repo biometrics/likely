@@ -68,7 +68,7 @@ struct Test
         string execution;
         if (BenchmarkParallel) {
             execution = "Parallel";
-            env->parallel = true;
+            likely_set_parallel(&env->type, true);
         } else {
             execution = "Serial";
         }
