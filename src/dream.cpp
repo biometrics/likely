@@ -179,7 +179,8 @@ public slots:
     {
         likely_release_env(root);
         root = likely_new_env_jit();
-        likely_set_parallel(&root->type, execution == "Parallel");
+        if (execution == "Parallel")
+            root->type |= likely_environment_parallel;
         previousSource.clear(); // clear cache
         eval();
     }
@@ -212,12 +213,12 @@ private:
             const likely_size column = tc.positionInBlock();
 
             likely_const_env it = current;
-            while (it && it->ast && !likely_erratum(it->type) &&
+            while (it && it->ast && !(it->type & likely_environment_erratum) &&
                    ((it->ast->begin_line > line) ||
                     ((it->ast->begin_line == line) && (it->ast->begin_column > column))))
                 it = it->parent;
 
-            if (it && it->ast && !likely_erratum(it->type) &&
+            if (it && it->ast && !(it->type & likely_environment_erratum) &&
                 ((it->ast->end_line > line) ||
                  ((it->ast->end_line == line) && (it->ast->end_column >= column))))
                 hotSpot = it;
@@ -334,7 +335,7 @@ private slots:
 
         env = likely_repl(source_ast, env, replCallback, this);
         likely_release_ast(source_ast);
-        if (!likely_erratum(env->type)) {
+        if (!(env->type & likely_environment_erratum)) {
             const qint64 nsec = elapsedTimer.nsecsElapsed();
             emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
         }
@@ -637,7 +638,7 @@ public slots:
     {
         if (env) {
             const QString name = likely_get_symbol_name(env->ast);
-            if (likely_definition(env->type)) {
+            if (env->type & likely_environment_definition) {
                 likely_const_env result = likely_evaluated_expression(env->value);
                 if (result && result->result)
                     hotSpot->show(result->result, name);
@@ -652,7 +653,7 @@ public slots:
 
     void print(likely_const_env env)
     {
-        if (!env || likely_definition(env->type) || !env->result || (likely_elements(env->result) == 0))
+        if (!env || (env->type & likely_environment_definition) || !env->result || (likely_elements(env->result) == 0))
             return;
 
         const QString name = likely_get_symbol_name(env->ast);

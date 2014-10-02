@@ -124,7 +124,8 @@ int main(int argc, char *argv[])
     likely_env parent;
     if (output.empty()) parent = likely_new_env_jit(); // Interpreter
     else                parent = likely_new_env_offline(output.c_str()); // Static compiler
-    likely_set_parallel(&parent->type, parallel);
+    if (parallel)
+        parent->type |= likely_environment_parallel;
 
     if (input.empty()) {
         // REPL shell
@@ -136,7 +137,7 @@ int main(int argc, char *argv[])
             likely_ast ast = likely_ast_from_string(line.c_str(), false);
             likely_env env = likely_eval(ast->atoms[0], parent);
             likely_release_ast(ast);
-            if (likely_erratum(env->type)) {
+            if (env->type & likely_environment_erratum) {
                 likely_release_env(env);
             } else {
                 likely_release_env(parent);
