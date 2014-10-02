@@ -30,19 +30,16 @@ extern "C" {
  * @{
  */
 
-typedef enum
+enum likely_abstract_syntax_tree_type
 {
-    // list type
-    likely_ast_list = 0,
-
-    // atom types
-    likely_ast_unknown,
-    likely_ast_operator,
-    likely_ast_string,
-    likely_ast_number,
-    likely_ast_type,
-    likely_ast_invalid
-} likely_abstract_syntax_tree_type;
+    likely_ast_list     = 0,
+    likely_ast_atom     = 1,
+    likely_ast_operator = 2,
+    likely_ast_string   = 3,
+    likely_ast_number   = 4,
+    likely_ast_type     = 5,
+    likely_ast_invalid  = 6
+};
 
 struct likely_abstract_syntax_tree;
 typedef struct likely_abstract_syntax_tree *likely_ast;
@@ -64,7 +61,7 @@ struct likely_abstract_syntax_tree
     likely_const_ast parent;
     likely_size ref_count;
     likely_size begin_line, begin_column, end_line, end_column;
-    likely_abstract_syntax_tree_type type;
+    likely_type type;
 };
 
 typedef struct likely_error

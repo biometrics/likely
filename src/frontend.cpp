@@ -40,7 +40,7 @@ likely_ast likely_new_atom(const char *str, likely_size len)
     ast->begin_column = 0;
     ast->end_line = 0;
     ast->end_column = 0;
-    ast->type = likely_ast_unknown;
+    ast->type = likely_ast_atom;
     return ast;
 }
 
