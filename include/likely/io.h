@@ -39,15 +39,6 @@ enum likely_file_type
     likely_file_url     = 0x00000008
 };
 
-LIKELY_EXPORT bool likely_decoded(likely_type type);
-LIKELY_EXPORT void likely_set_decoded(likely_type *type, bool decoded);
-LIKELY_EXPORT bool likely_encoded(likely_type type);
-LIKELY_EXPORT void likely_set_encoded(likely_type *type, bool encoded);
-LIKELY_EXPORT bool likely_text(likely_type type);
-LIKELY_EXPORT void likely_set_text(likely_type *type, bool text);
-LIKELY_EXPORT bool likely_url(likely_type type);
-LIKELY_EXPORT void likely_set_url(likely_type *type, bool url);
-
 LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_type type);
 LIKELY_EXPORT likely_mat likely_write(likely_const_mat image, const char *file_name);
 LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);

@@ -34,19 +34,10 @@
 
 using namespace std;
 
-bool likely_decoded(likely_type type) { return likely_bit(type, likely_file_decoded); }
-void likely_set_decoded(likely_type *type, bool decoded) { likely_set_bit(type, decoded, likely_file_decoded); }
-bool likely_encoded(likely_type type) { return likely_bit(type, likely_file_encoded); }
-void likely_set_encoded(likely_type *type, bool encoded) { likely_set_bit(type, encoded, likely_file_encoded); }
-bool likely_text(likely_type type) { return likely_bit(type, likely_file_text); }
-void likely_set_text(likely_type *type, bool text) { likely_set_bit(type, text, likely_file_text); }
-bool likely_url(likely_type type) { return likely_bit(type, likely_file_url); }
-void likely_set_url(likely_type *type, bool url) { likely_set_bit(type, url, likely_file_url); }
-
 static likely_mat takeAndInterpret(likely_mat buffer, likely_type type)
 {
     likely_mat result = NULL;
-    if (!result && likely_decoded(type)) {
+    if (!result && (type & likely_file_decoded)) {
         if (likely_bytes(buffer) >= sizeof(likely_matrix)) {
             likely_mat header = (likely_mat) buffer->data;
             if (sizeof(likely_matrix) + likely_bytes(header) == likely_bytes(buffer))
@@ -54,10 +45,10 @@ static likely_mat takeAndInterpret(likely_mat buffer, likely_type type)
         }
     }
 
-    if (!result && likely_encoded(type))
+    if (!result && (type & likely_file_encoded))
         result = likely_decode(buffer);
 
-    if (!result && likely_text(type)) {
+    if (!result && (type & likely_file_text)) {
         const likely_size bytes = likely_bytes(buffer);
         buffer->data[bytes-1] = 0;
         buffer->channels = bytes;
@@ -95,7 +86,7 @@ likely_mat likely_read(const char *file_name, likely_type type)
         fseek(fp, 0, SEEK_SET);
 
         // Special case, it may already be decoded
-        if (likely_decoded(type) && (size >= sizeof(likely_matrix))) {
+        if ((type & likely_file_decoded) && (size >= sizeof(likely_matrix))) {
             likely_matrix header;
             if (fread(&header, 1, sizeof(likely_matrix), fp) == sizeof(likely_matrix)) {
                 const size_t bytes = likely_bytes(&header);
@@ -108,7 +99,7 @@ likely_mat likely_read(const char *file_name, likely_type type)
         }
 
         fseek(fp, 0, SEEK_SET);
-        likely_mat buffer = likely_new(likely_matrix_u8, 1, size + (likely_text(type) ? 1 : 0), 1, 1, NULL);
+        likely_mat buffer = likely_new(likely_matrix_u8, 1, size + ((type & likely_file_text) ? 1 : 0), 1, 1, NULL);
         if (fread(buffer->data, 1, size, fp) == size) {
             return takeAndInterpret(buffer, type);
         } else {
@@ -118,7 +109,7 @@ likely_mat likely_read(const char *file_name, likely_type type)
     }
 
     // Is it a URL?
-    if (likely_url(type)) {
+    if ((type & likely_file_url)) {
         static bool init = false;
         if (!init) {
             curl_global_init(CURL_GLOBAL_ALL);
