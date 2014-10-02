@@ -416,7 +416,7 @@ struct likely_expression
     {
         if (!env)
             return NULL;
-        if (likely_definition(env->type) && !strcmp(name, likely_get_symbol_name(env->ast)))
+        if (env->definition && !strcmp(name, likely_get_symbol_name(env->ast)))
             return env->value;
         return lookup(env->parent, name);
     }
@@ -425,14 +425,14 @@ struct likely_expression
     {
         assert(name && strcmp(name, ""));
         env = likely_new_env(env);
-        likely_set_definition(&env->type, true);
+        env->definition = true;
         env->ast = likely_new_atom(name, strlen(name));
         env->value = value;
     }
 
     static likely_const_expr undefine(likely_env &env, const char *name)
     {
-        assert(likely_definition(env->type));
+        assert(env->definition);
         likely_assert(!strcmp(name, likely_get_symbol_name(env->ast)), "undefine variable mismatch");
         likely_const_expr value = env->value;
         env->value = NULL;
@@ -1381,8 +1381,8 @@ class tryExpression : public LikelyOperator
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         const likely_const_env env = likely_eval(ast->atoms[1], builder.env);
-        likely_const_expr result = (env && !likely_definition(env->type)) ? builder.mat(likely_retain(env->result))
-                                                                          : NULL;
+        likely_const_expr result = (env && !env->definition) ? builder.mat(likely_retain(env->result))
+                                                             : NULL;
         likely_release_env(env);
         if (!result)
             result = builder.expression(ast->atoms[2]);
@@ -1966,9 +1966,9 @@ private:
         builder.SetInsertPoint(computation);
 
         Metadata metadata;
-        if      (likely_heterogeneous(builder.env->type)) metadata = generateHeterogeneous(builder, args, thunkSrcs, dst, kernelSize);
-        else if (likely_parallel(builder.env->type))      metadata = generateParallel     (builder, args, thunkSrcs, dst, kernelSize);
-        else                                              metadata = generateSerial       (builder, args, thunkSrcs, dst, kernelSize);
+        if      (builder.env->heterogeneous) metadata = generateHeterogeneous(builder, args, thunkSrcs, dst, kernelSize);
+        else if (builder.env->parallel)      metadata = generateParallel     (builder, args, thunkSrcs, dst, kernelSize);
+        else                                 metadata = generateSerial       (builder, args, thunkSrcs, dst, kernelSize);
 
         results->addIncoming(builder.constant(metadata.results), entry);
         dstType->addIncoming(builder.typeType(dst), entry);
@@ -2245,8 +2245,8 @@ struct EvaluatedExpression : public LikelyOperator
         : env(likely_new_env(parent)), ast(likely_retain_ast(ast))
     {
         likely_release_env(env->parent);
-        likely_set_abandoned(&env->type, true);
-        likely_set_offline(&env->type, false);
+        env->abandoned = true;
+        env->offline = false;
         futureResult = async(launch::deferred, [=] { return likely_eval(const_cast<likely_ast>(ast), env); });
         get(); // TODO: remove when ready to test async
     }
@@ -2346,7 +2346,7 @@ class defineExpression : public LikelyOperator
         const char *name = (lhs->type == likely_ast_list) ? lhs->atoms[0]->atom : lhs->atom;
         likely_env env = builder.env;
 
-        if (likely_global(env->type)) {
+        if (env->global) {
             assert(!env->value);
             if (lhs->type == likely_ast_list) {
                 // Export symbol
@@ -2357,7 +2357,7 @@ class defineExpression : public LikelyOperator
                     parameters.push_back(likely_type_from_string(lhs->atoms[i]->atom));
                 }
 
-                if (likely_offline(env->type)) {
+                if (env->offline) {
                     TRY_EXPR(builder, rhs, expr);
                     const Lambda *lambda = static_cast<const Lambda*>(expr.get());
                     if (likely_const_expr function = lambda->generate(builder, parameters, name, false, false)) {
@@ -2383,7 +2383,7 @@ class defineExpression : public LikelyOperator
                 }
             }
 
-            likely_set_erratum(&env->type, !env->value);
+            env->erratum = !env->value;
             return NULL;
         } else {
             likely_const_expr expr = builder.expression(rhs);
@@ -2421,8 +2421,7 @@ class importExpression : public LikelyOperator
         builder.env = likely_repl(source_ast, parent, NULL, NULL);
         likely_release_ast(source_ast);
         likely_release_env(parent);
-        if (likely_erratum(builder.env->type)) return NULL;
-        else                                   return new likely_expression();
+        return (builder.env->erratum) ? NULL : new likely_expression();
     }
 };
 LIKELY_REGISTER(import)
@@ -2435,11 +2434,11 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_
 
     if (abandon) {
         likely_release_env(env->parent);
-        likely_set_abandoned(&env->type, true);
+        env->abandoned = true;
     }
 
     env->module = new likely_module();
-    likely_set_base(&env->type, true);
+    env->base = true;
     Builder builder(env);
     associateFunction(unique_ptr<const likely_expression>(lambda->generate(builder, parameters, name, arrayCC, interpreter)).get());
     if (!value /* error */ || (interpreter && getData()) /* constant */)
@@ -2708,10 +2707,11 @@ LIKELY_REGISTER(md5)
 likely_env likely_new_env(likely_const_env parent)
 {
     likely_env env = (likely_env) malloc(sizeof(likely_environment));
-    env->type = likely_environment_void;
+    env->type = 0;
     if (parent) {
-        likely_set_offline(&env->type, likely_offline(parent->type));
-        likely_set_execution(&env->type, likely_execution(parent->type));
+        env->offline = parent->offline;
+        env->parallel = parent->parallel;
+        env->heterogeneous = parent->heterogeneous;
     }
     env->parent = likely_retain_env(parent);
     env->ast = NULL;
@@ -2733,8 +2733,8 @@ likely_env likely_new_env_offline(const char *file_name)
 {
     likely_env env = likely_new_env(RootEnvironment::get());
     env->module = new OfflineModule(file_name);
-    likely_set_offline(&env->type, true);
-    likely_set_base(&env->type, true);
+    env->offline = true;
+    env->base = true;
     return env;
 }
 
@@ -2765,37 +2765,18 @@ void likely_release_env(likely_const_env env)
     }
 
     // Do this early to guarantee the environment for these lifetime of these classes
-    if (likely_definition(env->type)) delete env->value;
-    else                              likely_release(env->result);
+    if (env->definition) delete env->value;
+    else                 likely_release(env->result);
 
     likely_release_ast(env->ast);
     free(env->children);
-    if (likely_base(env->type))
+    if (env->base)
         delete env->module;
-    if (!likely_abandoned(env->type))
+    if (!env->abandoned)
         likely_release_env(env->parent);
 
     free(const_cast<likely_env>(env));
 }
-
-bool likely_offline(likely_environment_type type) { return likely_bit(type, likely_environment_offline); }
-void likely_set_offline(likely_environment_type *type, bool offline) { likely_set_bit(type, offline, likely_environment_offline); }
-bool likely_parallel(likely_environment_type type) { return likely_bit(type, likely_environment_parallel); }
-void likely_set_parallel(likely_environment_type *type, bool parallel) { likely_set_bit(type, parallel, likely_environment_parallel); }
-bool likely_heterogeneous(likely_environment_type type) { return likely_bit(type, likely_environment_heterogeneous); }
-void likely_set_heterogeneous(likely_environment_type *type, bool heterogeneous) { likely_set_bit(type, heterogeneous, likely_environment_heterogeneous); }
-likely_environment_type likely_execution(likely_environment_type type) { return likely_bits(type, likely_environment_execution); }
-void likely_set_execution(likely_environment_type *type, likely_environment_type execution) { likely_set_bits(type, execution, likely_environment_execution); }
-bool likely_erratum(likely_environment_type type) { return likely_bit(type, likely_environment_erratum); }
-void likely_set_erratum(likely_environment_type *type, bool erratum) { likely_set_bit(type, erratum, likely_environment_erratum); }
-bool likely_definition(likely_environment_type type) { return likely_bit(type, likely_environment_definition); }
-void likely_set_definition(likely_environment_type *type, bool definition) { likely_set_bit(type, definition, likely_environment_definition); }
-bool likely_global(likely_environment_type type) { return likely_bit(type, likely_environment_global); }
-void likely_set_global(likely_environment_type *type, bool global) { likely_set_bit(type, global, likely_environment_global); }
-bool likely_abandoned(likely_environment_type type) { return likely_bit(type, likely_environment_abandoned); }
-void likely_set_abandoned(likely_environment_type *type, bool abandoned) { likely_set_bit(type, abandoned, likely_environment_abandoned); }
-bool likely_base(likely_environment_type type) { return likely_bit(type, likely_environment_base); }
-void likely_set_base(likely_environment_type *type, bool base) { likely_set_bit(type, base, likely_environment_base); }
 
 likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
 {
@@ -2869,8 +2850,8 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
     }
 
     likely_env env = likely_new_env(parent);
-    likely_set_definition(&env->type, (ast->type == likely_ast_list) && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="));
-    likely_set_global(&env->type, true);
+    env->definition = (ast->type == likely_ast_list) && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=");
+    env->global = true;
     env->ast = likely_retain_ast(ast);
 
     { // We reallocate space for more children when our power-of-two sized buffer is full
@@ -2880,17 +2861,17 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
         parent->children[parent->num_children++] = env;
     }
 
-    if (likely_definition(env->type)) {
+    if (env->definition) {
         likely_const_expr expr = Builder(env).expression(ast);
         assert(!expr); (void) expr;
-    } else if (likely_offline(env->type)) {
+    } else if (env->offline) {
         // Do nothing, evaluating expressions in an offline environment is a no-op.
     } else {
         likely_const_ast lambda = likely_ast_from_string("(-> () <ast>)", false);
         likely_release_ast(lambda->atoms[0]->atoms[2]); // <ast>
         const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]) = likely_retain_ast(ast);
         env->result = unique_ptr<Lambda>(new Lambda(lambda->atoms[0])).get()->evaluateConstantFunction(env, vector<likely_const_mat>());
-        likely_set_erratum(&env->type, !env->result);
+        env->erratum = !env->result;
         likely_release_ast(lambda);
     }
 
@@ -2913,8 +2894,8 @@ likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback r
         parent = env;
         if (repl_callback)
             // If there is not context, we return a boolean value indicating if the environment has a valid result
-            repl_callback(env, context ? context : (void*)(!likely_definition(env->type) && env->result && (likely_elements(env->result) > 0)));
-        if (likely_erratum(env->type))
+            repl_callback(env, context ? context : (void*)(!env->definition && env->result && (likely_elements(env->result) > 0)));
+        if (env->erratum)
             break;
     }
 

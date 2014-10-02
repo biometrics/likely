@@ -30,22 +30,6 @@ extern "C" {
  * @{
  */
 
-typedef likely_size likely_environment_type;
-
-enum likely_environment_type_field
-{
-    likely_environment_void          = 0x00000000,
-    likely_environment_offline       = 0x00000001,
-    likely_environment_parallel      = 0x00000002,
-    likely_environment_heterogeneous = 0x00000004,
-    likely_environment_execution     = likely_environment_parallel | likely_environment_heterogeneous,
-    likely_environment_erratum       = 0x00000008,
-    likely_environment_definition    = 0x00000010,
-    likely_environment_global        = 0x00000020,
-    likely_environment_abandoned     = 0x00000040,
-    likely_environment_base          = 0x00000080
-};
-
 struct likely_expression;
 typedef struct likely_expression *likely_expr;
 typedef struct likely_expression const *likely_const_expr;
@@ -60,7 +44,19 @@ typedef struct likely_module const *likely_const_mod;
 
 struct likely_environment
 {
-    likely_environment_type type;
+    union {
+        likely_type type;
+        struct {
+            unsigned int offline       : 1;
+            unsigned int parallel      : 1;
+            unsigned int heterogeneous : 1;
+            unsigned int erratum       : 1;
+            unsigned int definition    : 1;
+            unsigned int global        : 1;
+            unsigned int abandoned     : 1;
+            unsigned int base          : 1;
+        };
+    };
     likely_const_env parent;
     likely_const_ast ast;
     likely_mod module;
@@ -93,25 +89,6 @@ LIKELY_EXPORT likely_env likely_new_env_jit();
 LIKELY_EXPORT likely_env likely_new_env_offline(const char *file_name);
 LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
 LIKELY_EXPORT void likely_release_env(likely_const_env env);
-
-LIKELY_EXPORT bool likely_offline(likely_environment_type type);
-LIKELY_EXPORT void likely_set_offline(likely_environment_type *type, bool offline);
-LIKELY_EXPORT bool likely_parallel(likely_environment_type type);
-LIKELY_EXPORT void likely_set_parallel(likely_environment_type *type, bool parallel);
-LIKELY_EXPORT bool likely_heterogeneous(likely_environment_type type);
-LIKELY_EXPORT void likely_set_heterogeneous(likely_environment_type *type, bool heterogeneous);
-LIKELY_EXPORT likely_environment_type likely_execution(likely_environment_type type);
-LIKELY_EXPORT void likely_set_execution(likely_environment_type *type, likely_environment_type execution);
-LIKELY_EXPORT bool likely_erratum(likely_environment_type type);
-LIKELY_EXPORT void likely_set_erratum(likely_environment_type *type, bool error);
-LIKELY_EXPORT bool likely_definition(likely_environment_type type);
-LIKELY_EXPORT void likely_set_definition(likely_environment_type *type, bool definition);
-LIKELY_EXPORT bool likely_global(likely_environment_type type);
-LIKELY_EXPORT void likely_set_global(likely_environment_type *type, bool global);
-LIKELY_EXPORT bool likely_abandoned(likely_environment_type type);
-LIKELY_EXPORT void likely_set_abandoned(likely_environment_type *type, bool abandoned);
-LIKELY_EXPORT bool likely_base(likely_environment_type type);
-LIKELY_EXPORT void likely_set_base(likely_environment_type *type, bool base);
 
 // Compilation
 LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_type type, ...);
