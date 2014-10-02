@@ -550,10 +550,10 @@ likely_mat likely_type_to_string(likely_type type)
     typeStream << likely_depth(type);
     if (likely_array(type))          typeStream << "A";
     if (likely_saturated(type))      typeStream << "S";
-    if (likely_multi_channel(type))  typeStream << "C";
-    if (likely_multi_column(type))   typeStream << "X";
-    if (likely_multi_row(type))      typeStream << "Y";
-    if (likely_multi_frame(type))    typeStream << "T";
+    if (type & likely_matrix_multi_channel) typeStream << "C";
+    if (type & likely_matrix_multi_column)  typeStream << "X";
+    if (type & likely_matrix_multi_row)     typeStream << "Y";
+    if (type & likely_matrix_multi_frame)   typeStream << "T";
     return likely_string(typeStream.str().c_str());
 }
 

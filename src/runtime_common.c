@@ -83,16 +83,6 @@ bool likely_saturated(likely_type type) { return likely_bit(type, likely_matrix_
 void likely_set_saturated(likely_type *type, bool saturated) { likely_set_bit(type, saturated, likely_matrix_saturated); }
 likely_type likely_data(likely_type type) { return likely_bits(type, likely_matrix_data); }
 void likely_set_data(likely_type *type, likely_type data) { likely_set_bits(type, data, likely_matrix_data); }
-bool likely_multi_channel(likely_type type) { return likely_bit(type, likely_matrix_multi_channel); }
-void likely_set_multi_channel(likely_type *type, bool multi_channel) { likely_set_bit(type, multi_channel, likely_matrix_multi_channel); }
-bool likely_multi_column(likely_type type) { return likely_bit(type, likely_matrix_multi_column); }
-void likely_set_multi_column(likely_type *type, bool multi_column) { likely_set_bit(type, multi_column, likely_matrix_multi_column); }
-bool likely_multi_row(likely_type type) { return likely_bit(type, likely_matrix_multi_row); }
-void likely_set_multi_row(likely_type *type, bool multi_row) { likely_set_bit(type, multi_row, likely_matrix_multi_row); }
-bool likely_multi_frame(likely_type type) { return likely_bit(type, likely_matrix_multi_frame); }
-void likely_set_multi_frame(likely_type *type, bool multi_frame) { likely_set_bit(type, multi_frame, likely_matrix_multi_frame); }
-likely_type likely_multi_dimension(likely_type type) { return likely_bits(type, likely_matrix_multi_dimension); }
-void likely_set_multi_dimension(likely_type *type, likely_type multi_dimension) { likely_set_bits(type, multi_dimension, likely_matrix_multi_dimension); }
 
 likely_size likely_elements(likely_const_mat m)
 {
@@ -119,10 +109,10 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     m->rows = rows;
     m->frames = frames;
 
-    likely_set_multi_channel(&m->type, channels > 1);
-    likely_set_multi_column(&m->type, columns > 1);
-    likely_set_multi_row(&m->type, rows > 1);
-    likely_set_multi_frame(&m->type, frames > 1);
+    if (channels > 1) m->type |= likely_matrix_multi_channel;
+    if (columns  > 1) m->type |= likely_matrix_multi_column;
+    if (rows     > 1) m->type |= likely_matrix_multi_row;
+    if (frames   > 1) m->type |= likely_matrix_multi_frame;
 
     if (data)
         memcpy((void*)m->data, data, dataBytes);

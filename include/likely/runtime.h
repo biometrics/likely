@@ -66,7 +66,7 @@ typedef uintptr_t likely_size;
  */
 typedef likely_size likely_type;
 
-enum likely_type_field
+enum likely_matrix_type
 {
     likely_matrix_void      = 0x00000000,
     likely_matrix_depth     = 0x000000FF,
@@ -215,16 +215,6 @@ LIKELY_EXPORT bool likely_saturated(likely_type type);
 LIKELY_EXPORT void likely_set_saturated(likely_type *type, bool saturated);
 LIKELY_EXPORT likely_type likely_data(likely_type type);
 LIKELY_EXPORT void likely_set_data(likely_type *type, likely_type data);
-LIKELY_EXPORT bool likely_multi_channel(likely_type type);
-LIKELY_EXPORT void likely_set_multi_channel(likely_type *type, bool multi_channel);
-LIKELY_EXPORT bool likely_multi_column(likely_type type);
-LIKELY_EXPORT void likely_set_multi_column(likely_type *type, bool multi_column);
-LIKELY_EXPORT bool likely_multi_row(likely_type type);
-LIKELY_EXPORT void likely_set_multi_row(likely_type *type, bool multi_row);
-LIKELY_EXPORT bool likely_multi_frame(likely_type type);
-LIKELY_EXPORT void likely_set_multi_frame(likely_type *type, bool multi_frame);
-LIKELY_EXPORT likely_type likely_multi_dimension(likely_type type);
-LIKELY_EXPORT void likely_set_multi_dimension(likely_type *type, likely_type multi_dimension);
 /** @} */ // end of type_manipulation
 
 /*!

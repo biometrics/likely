@@ -182,7 +182,7 @@ public:
             return result->second;
 
         Type *llvm;
-        if (!likely_multi_dimension(likely) && likely_depth(likely)) {
+        if (!(likely & likely_matrix_multi_dimension) && likely_depth(likely)) {
             llvm = scalar(likely);
         } else {
             likely_mat str = likely_type_to_string(likely);
@@ -312,7 +312,7 @@ struct likely_expression
         if (value && type) {
             // Check type correctness
             likely_type inferred = toLikely(value->getType());
-            if (!likely_multi_dimension(inferred)) {
+            if (!(inferred & likely_matrix_multi_dimension)) {
                 // Can't represent these flags in LLVM IR for scalar types
                 likely_set_signed(&inferred, likely_signed(type));
                 likely_set_saturated(&inferred, likely_saturated(type));
@@ -600,10 +600,10 @@ struct Builder : public IRBuilder<>
     likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(::cast<PointerType>((Type*)multiDimension())), likely_matrix_multi_dimension); }
     likely_expression nullData() { return likely_expression(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_matrix_u8 | likely_matrix_array); }
 
-    likely_expression channels(likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_channel(*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 2), "channels"), likely_matrix_native) : one(); }
-    likely_expression columns (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_column (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 3), "columns" ), likely_matrix_native) : one(); }
-    likely_expression rows    (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_row    (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 4), "rows"    ), likely_matrix_native) : one(); }
-    likely_expression frames  (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && likely_multi_frame  (*m)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 5), "frames"  ), likely_matrix_native) : one(); }
+    likely_expression channels(likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_channel)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 2), "channels"), likely_matrix_native) : one(); }
+    likely_expression columns (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_column )) ? likely_expression(CreateLoad(CreateStructGEP(*m, 3), "columns" ), likely_matrix_native) : one(); }
+    likely_expression rows    (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_row    )) ? likely_expression(CreateLoad(CreateStructGEP(*m, 4), "rows"    ), likely_matrix_native) : one(); }
+    likely_expression frames  (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_frame  )) ? likely_expression(CreateLoad(CreateStructGEP(*m, 5), "frames"  ), likely_matrix_native) : one(); }
     Value *data    (Value *value, likely_type type) { return CreatePointerCast(CreateStructGEP(value, 7), env->module->context->scalar(type, true)); }
     likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(data(m->value, m->type), likely_data(*m) | likely_matrix_array); }
 
@@ -1460,7 +1460,7 @@ struct Lambda : public LikelyOperator
             Value *argumentArray = tmpFunction->arg_begin();
             for (size_t i=0; i<parameters.size(); i++) {
                 Value *load = builder.CreateLoad(builder.CreateGEP(argumentArray, builder.constant(i)));
-                if (likely_multi_dimension(parameters[i]))
+                if (parameters[i] & likely_matrix_multi_dimension)
                     load = builder.CreatePointerCast(load, builder.toLLVM(parameters[i]));
                 else
                     load = builder.CreateLoad(builder.CreateGEP(builder.data(load, parameters[i]), builder.zero()));
@@ -1834,10 +1834,10 @@ private:
                 Value *columnStep, *rowStep, *frameStep;
                 builder.steps(this, channelStep, &columnStep, &rowStep, &frameStep);
                 i = builder.zero();
-                if (likely_multi_channel(type)) i = builder.CreateMul(*builder.lookup("c"), channelStep);
-                if (likely_multi_column (type)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), columnStep), i);
-                if (likely_multi_row    (type)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep   ), i);
-                if (likely_multi_frame  (type)) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep ), i);
+                if (type & likely_matrix_multi_channel) i = builder.CreateMul(*builder.lookup("c"), channelStep);
+                if (type & likely_matrix_multi_column ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), columnStep), i);
+                if (type & likely_matrix_multi_row    ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep   ), i);
+                if (type & likely_matrix_multi_frame  ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep ), i);
             }
             LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(this), i));
 
@@ -1955,7 +1955,7 @@ private:
         vector<likely_const_expr> thunkSrcs = srcs;
         vector<unique_ptr<const likely_expression>> scalars;
         for (likely_const_expr &thunkSrc : thunkSrcs)
-            if (!likely_multi_dimension(*thunkSrc) && isMat(thunkSrc->value->getType())) {
+            if (!(*thunkSrc & likely_matrix_multi_dimension) && isMat(thunkSrc->value->getType())) {
                 thunkSrc = new likely_expression(builder.CreateLoad(builder.CreateGEP(builder.data(thunkSrc), builder.zero())), *thunkSrc);
                 scalars.push_back(unique_ptr<const likely_expression>(thunkSrc));
             }
@@ -2081,25 +2081,25 @@ private:
             switch (axis_index) {
               case 0:
                 name = "t";
-                multiElement = likely_multi_frame(dst);
+                multiElement = dst.type & likely_matrix_multi_frame;
                 elements = builder.frames(&dst);
                 step = frameStep;
                 break;
               case 1:
                 name = "y";
-                multiElement = likely_multi_row(dst);
+                multiElement = dst.type & likely_matrix_multi_row;
                 elements = builder.rows(&dst);
                 step = rowStep;
                 break;
               case 2:
                 name = "x";
-                multiElement = likely_multi_column(dst);
+                multiElement = dst.type & likely_matrix_multi_column;
                 elements = builder.columns(&dst);
                 step = columnStep;
                 break;
               default:
                 name = "c";
-                multiElement = likely_multi_channel(dst);
+                multiElement = dst.type & likely_matrix_multi_channel;
                 elements = builder.channels(&dst);
                 step = channelStep;
                 break;
@@ -2193,11 +2193,12 @@ private:
             }
         }
 
-        const bool multiElement = !llvm::isa<Constant>(result) || (llvm::cast<Constant>(result)->getUniqueInteger().getZExtValue() > 1);
-        if      (!strcmp(axis, "channels")) likely_set_multi_channel(type, multiElement);
-        else if (!strcmp(axis, "columns"))  likely_set_multi_column (type, multiElement);
-        else if (!strcmp(axis, "rows"))     likely_set_multi_row    (type, multiElement);
-        else                                likely_set_multi_frame  (type, multiElement);
+        if (!llvm::isa<Constant>(result) || (llvm::cast<Constant>(result)->getUniqueInteger().getZExtValue() > 1)) {
+            if      (!strcmp(axis, "channels")) *type |= likely_matrix_multi_channel;
+            else if (!strcmp(axis, "columns"))  *type |= likely_matrix_multi_column;
+            else if (!strcmp(axis, "rows"))     *type |= likely_matrix_multi_row;
+            else                                *type |= likely_matrix_multi_frame;
+        }
         return result;
     }
 };
