@@ -34,14 +34,14 @@
 
 using namespace std;
 
-bool likely_decoded(likely_file_type type) { return likely_get_bool(type, likely_file_decoded); }
-void likely_set_decoded(likely_file_type *type, bool decoded) { likely_set_bool(type, decoded, likely_file_decoded); }
-bool likely_encoded(likely_file_type type) { return likely_get_bool(type, likely_file_encoded); }
-void likely_set_encoded(likely_file_type *type, bool encoded) { likely_set_bool(type, encoded, likely_file_encoded); }
-bool likely_text(likely_file_type type) { return likely_get_bool(type, likely_file_text); }
-void likely_set_text(likely_file_type *type, bool text) { likely_set_bool(type, text, likely_file_text); }
-bool likely_url(likely_file_type type) { return likely_get_bool(type, likely_file_url); }
-void likely_set_url(likely_file_type *type, bool url) { likely_set_bool(type, url, likely_file_url); }
+bool likely_decoded(likely_file_type type) { return likely_bit(type, likely_file_decoded); }
+void likely_set_decoded(likely_file_type *type, bool decoded) { likely_set_bit(type, decoded, likely_file_decoded); }
+bool likely_encoded(likely_file_type type) { return likely_bit(type, likely_file_encoded); }
+void likely_set_encoded(likely_file_type *type, bool encoded) { likely_set_bit(type, encoded, likely_file_encoded); }
+bool likely_text(likely_file_type type) { return likely_bit(type, likely_file_text); }
+void likely_set_text(likely_file_type *type, bool text) { likely_set_bit(type, text, likely_file_text); }
+bool likely_url(likely_file_type type) { return likely_bit(type, likely_file_url); }
+void likely_set_url(likely_file_type *type, bool url) { likely_set_bit(type, url, likely_file_url); }
 
 static likely_mat takeAndInterpret(likely_mat buffer, likely_type type)
 {

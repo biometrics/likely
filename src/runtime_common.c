@@ -41,33 +41,58 @@ void likely_assert(bool condition, const char *format, ...)
 #endif // _WIN32
 }
 
-size_t likely_get(size_t type, size_t mask) { return type & mask; }
-void likely_set(size_t *type, size_t value, size_t mask) { *type &= ~mask; *type |= value & mask; }
-bool likely_get_bool(size_t type, size_t mask) { return (type & mask) != 0; }
-void likely_set_bool(size_t *type, bool value, size_t mask) { if (value) *type |= mask; else *type &= ~mask; }
+size_t likely_bits(const size_t value, const size_t mask)
+{
+//! [likely_bits implementation.]
+    return value & mask;
+//! [likely_bits implementation.]
+}
 
-size_t likely_depth(likely_type type) { return likely_get(type, likely_matrix_depth); }
-void likely_set_depth(likely_type *type, size_t depth) { likely_set(type, depth, likely_matrix_depth); }
-bool likely_floating(likely_type type) { return likely_get_bool(type, likely_matrix_floating); }
-void likely_set_floating(likely_type *type, bool floating) { likely_set_bool(type, floating, likely_matrix_floating); }
-bool likely_array(likely_type type) { return likely_get_bool(type, likely_matrix_array); }
-void likely_set_array(likely_type *type, bool array) { likely_set_bool(type, array, likely_matrix_array); }
-bool likely_signed(likely_type type) { return likely_get_bool(type, likely_matrix_signed); }
-void likely_set_signed(likely_type *type, bool signed_) { likely_set_bool(type, signed_, likely_matrix_signed); }
-bool likely_saturated(likely_type type) { return likely_get_bool(type, likely_matrix_saturated); }
-void likely_set_saturated(likely_type *type, bool saturated) { likely_set_bool(type, saturated, likely_matrix_saturated); }
-likely_type likely_data(likely_type type) { return likely_get(type, likely_matrix_data); }
-void likely_set_data(likely_type *type, likely_type data) { likely_set(type, data, likely_matrix_data); }
-bool likely_multi_channel(likely_type type) { return likely_get_bool(type, likely_matrix_multi_channel); }
-void likely_set_multi_channel(likely_type *type, bool multi_channel) { likely_set_bool(type, multi_channel, likely_matrix_multi_channel); }
-bool likely_multi_column(likely_type type) { return likely_get_bool(type, likely_matrix_multi_column); }
-void likely_set_multi_column(likely_type *type, bool multi_column) { likely_set_bool(type, multi_column, likely_matrix_multi_column); }
-bool likely_multi_row(likely_type type) { return likely_get_bool(type, likely_matrix_multi_row); }
-void likely_set_multi_row(likely_type *type, bool multi_row) { likely_set_bool(type, multi_row, likely_matrix_multi_row); }
-bool likely_multi_frame(likely_type type) { return likely_get_bool(type, likely_matrix_multi_frame); }
-void likely_set_multi_frame(likely_type *type, bool multi_frame) { likely_set_bool(type, multi_frame, likely_matrix_multi_frame); }
-likely_type likely_multi_dimension(likely_type type) { return likely_get(type, likely_matrix_multi_dimension); }
-void likely_set_multi_dimension(likely_type *type, likely_type multi_dimension) { likely_set(type, multi_dimension, likely_matrix_multi_dimension); }
+void likely_set_bits(size_t *value, const size_t new_value, const size_t mask)
+{
+//! [likely_set_bits implementation.]
+    *value &= ~mask;
+    *value |= new_value & mask;
+//! [likely_set_bits implementation.]
+}
+
+bool likely_bit(const size_t value, const size_t mask)
+{
+//! [likely_bit implementation.]
+    return (value & mask) != 0;
+//! [likely_bit implementation.]
+}
+
+void likely_set_bit(size_t *value, const bool new_value, const size_t mask)
+{
+//! [likely_set_bit implementation.]
+    if (new_value) *value |= mask;
+    else           *value &= ~mask;
+//! [likely_set_bit implementation.]
+}
+
+size_t likely_depth(likely_type type) { return likely_bits(type, likely_matrix_depth); }
+void likely_set_depth(likely_type *type, size_t depth) { likely_set_bits(type, depth, likely_matrix_depth); }
+bool likely_floating(likely_type type) { return likely_bit(type, likely_matrix_floating); }
+void likely_set_floating(likely_type *type, bool floating) { likely_set_bit(type, floating, likely_matrix_floating); }
+bool likely_array(likely_type type) { return likely_bit(type, likely_matrix_array); }
+void likely_set_array(likely_type *type, bool array) { likely_set_bit(type, array, likely_matrix_array); }
+bool likely_signed(likely_type type) { return likely_bit(type, likely_matrix_signed); }
+void likely_set_signed(likely_type *type, bool signed_) { likely_set_bit(type, signed_, likely_matrix_signed); }
+bool likely_saturated(likely_type type) { return likely_bit(type, likely_matrix_saturated); }
+void likely_set_saturated(likely_type *type, bool saturated) { likely_set_bit(type, saturated, likely_matrix_saturated); }
+likely_type likely_data(likely_type type) { return likely_bits(type, likely_matrix_data); }
+void likely_set_data(likely_type *type, likely_type data) { likely_set_bits(type, data, likely_matrix_data); }
+bool likely_multi_channel(likely_type type) { return likely_bit(type, likely_matrix_multi_channel); }
+void likely_set_multi_channel(likely_type *type, bool multi_channel) { likely_set_bit(type, multi_channel, likely_matrix_multi_channel); }
+bool likely_multi_column(likely_type type) { return likely_bit(type, likely_matrix_multi_column); }
+void likely_set_multi_column(likely_type *type, bool multi_column) { likely_set_bit(type, multi_column, likely_matrix_multi_column); }
+bool likely_multi_row(likely_type type) { return likely_bit(type, likely_matrix_multi_row); }
+void likely_set_multi_row(likely_type *type, bool multi_row) { likely_set_bit(type, multi_row, likely_matrix_multi_row); }
+bool likely_multi_frame(likely_type type) { return likely_bit(type, likely_matrix_multi_frame); }
+void likely_set_multi_frame(likely_type *type, bool multi_frame) { likely_set_bit(type, multi_frame, likely_matrix_multi_frame); }
+likely_type likely_multi_dimension(likely_type type) { return likely_bits(type, likely_matrix_multi_dimension); }
+void likely_set_multi_dimension(likely_type *type, likely_type multi_dimension) { likely_set_bits(type, multi_dimension, likely_matrix_multi_dimension); }
 
 likely_size likely_elements(likely_const_mat m)
 {

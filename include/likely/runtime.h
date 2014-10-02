@@ -154,16 +154,48 @@ LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
 
 /*!
  * \defgroup bit_masking Bit Masking
- * \brief Low-level helper functions to query and edit bits in an integer.
+ * \brief Low-level helper functions for querying and editing bits in an integer.
  *
+ * Used to implement \ref type_manipulation.
  * You should not need to call these functions directly.
- * They are used to implement \ref type_manipulation.
  * @{
  */
-LIKELY_EXPORT size_t likely_get(size_t type, size_t mask);
-LIKELY_EXPORT void likely_set(size_t *type, size_t value, size_t mask);
-LIKELY_EXPORT bool likely_get_bool(size_t type, size_t mask);
-LIKELY_EXPORT void likely_set_bool(size_t *type, bool value, size_t mask);
+
+/*!
+ * \brief Return the bits of \p value specified by \p mask.
+ *
+ * \snippet src/runtime_common.c likely_bits implementation.
+ * \param[in] value, mask What and where to extract from.
+ */
+LIKELY_EXPORT size_t likely_bits(const size_t value, const size_t mask);
+
+/*!
+ * \brief Set the bits of \p value to \p new_value specified by \p mask.
+ *
+ * \snippet src/runtime_common.c likely_set_bits implementation.
+ * \param[in,out] value Value to change.
+ * \param[in] new_value Value to change to.
+ * \param[in] mask Which bits in \p value should be overwritten with the corresponding bits in \p new_value.
+ */
+LIKELY_EXPORT void likely_set_bits(size_t *value, const size_t new_value, const size_t mask);
+
+/*!
+ * \brief Return the bit of \p value specified by \p mask.
+ *
+ * \snippet src/runtime_common.c likely_bit implementation.
+ * \param[in] value, mask What and where to extract from.
+ */
+LIKELY_EXPORT bool likely_bit(const size_t value, const size_t mask);
+
+/*!
+ * \brief Set the bit of \p value to \p new_value specified by \p mask.
+ *
+ * \snippet src/runtime_common.c likely_set_bit implementation.
+ * \param[in,out] value Value to change.
+ * \param[in] new_value Value to change to.
+ * \param[in] mask Which bit in \p value should be overwritten with the corresponding bits in \p new_value.
+ */
+LIKELY_EXPORT void likely_set_bit(size_t *value, const bool new_value, const size_t mask);
 /** @} */ // end of bit_masking
 
 /*!

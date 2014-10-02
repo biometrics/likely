@@ -2778,24 +2778,24 @@ void likely_release_env(likely_const_env env)
     free(const_cast<likely_env>(env));
 }
 
-bool likely_offline(likely_environment_type type) { return likely_get_bool(type, likely_environment_offline); }
-void likely_set_offline(likely_environment_type *type, bool offline) { likely_set_bool(type, offline, likely_environment_offline); }
-bool likely_parallel(likely_environment_type type) { return likely_get_bool(type, likely_environment_parallel); }
-void likely_set_parallel(likely_environment_type *type, bool parallel) { likely_set_bool(type, parallel, likely_environment_parallel); }
-bool likely_heterogeneous(likely_environment_type type) { return likely_get_bool(type, likely_environment_heterogeneous); }
-void likely_set_heterogeneous(likely_environment_type *type, bool heterogeneous) { likely_set_bool(type, heterogeneous, likely_environment_heterogeneous); }
-likely_environment_type likely_execution(likely_environment_type type) { return likely_get(type, likely_environment_execution); }
-void likely_set_execution(likely_environment_type *type, likely_environment_type execution) { likely_set(type, execution, likely_environment_execution); }
-bool likely_erratum(likely_environment_type type) { return likely_get_bool(type, likely_environment_erratum); }
-void likely_set_erratum(likely_environment_type *type, bool erratum) { likely_set_bool(type, erratum, likely_environment_erratum); }
-bool likely_definition(likely_environment_type type) { return likely_get_bool(type, likely_environment_definition); }
-void likely_set_definition(likely_environment_type *type, bool definition) { likely_set_bool(type, definition, likely_environment_definition); }
-bool likely_global(likely_environment_type type) { return likely_get_bool(type, likely_environment_global); }
-void likely_set_global(likely_environment_type *type, bool global) { likely_set_bool(type, global, likely_environment_global); }
-bool likely_abandoned(likely_environment_type type) { return likely_get_bool(type, likely_environment_abandoned); }
-void likely_set_abandoned(likely_environment_type *type, bool abandoned) { likely_set_bool(type, abandoned, likely_environment_abandoned); }
-bool likely_base(likely_environment_type type) { return likely_get_bool(type, likely_environment_base); }
-void likely_set_base(likely_environment_type *type, bool base) { likely_set_bool(type, base, likely_environment_base); }
+bool likely_offline(likely_environment_type type) { return likely_bit(type, likely_environment_offline); }
+void likely_set_offline(likely_environment_type *type, bool offline) { likely_set_bit(type, offline, likely_environment_offline); }
+bool likely_parallel(likely_environment_type type) { return likely_bit(type, likely_environment_parallel); }
+void likely_set_parallel(likely_environment_type *type, bool parallel) { likely_set_bit(type, parallel, likely_environment_parallel); }
+bool likely_heterogeneous(likely_environment_type type) { return likely_bit(type, likely_environment_heterogeneous); }
+void likely_set_heterogeneous(likely_environment_type *type, bool heterogeneous) { likely_set_bit(type, heterogeneous, likely_environment_heterogeneous); }
+likely_environment_type likely_execution(likely_environment_type type) { return likely_bits(type, likely_environment_execution); }
+void likely_set_execution(likely_environment_type *type, likely_environment_type execution) { likely_set_bits(type, execution, likely_environment_execution); }
+bool likely_erratum(likely_environment_type type) { return likely_bit(type, likely_environment_erratum); }
+void likely_set_erratum(likely_environment_type *type, bool erratum) { likely_set_bit(type, erratum, likely_environment_erratum); }
+bool likely_definition(likely_environment_type type) { return likely_bit(type, likely_environment_definition); }
+void likely_set_definition(likely_environment_type *type, bool definition) { likely_set_bit(type, definition, likely_environment_definition); }
+bool likely_global(likely_environment_type type) { return likely_bit(type, likely_environment_global); }
+void likely_set_global(likely_environment_type *type, bool global) { likely_set_bit(type, global, likely_environment_global); }
+bool likely_abandoned(likely_environment_type type) { return likely_bit(type, likely_environment_abandoned); }
+void likely_set_abandoned(likely_environment_type *type, bool abandoned) { likely_set_bit(type, abandoned, likely_environment_abandoned); }
+bool likely_base(likely_environment_type type) { return likely_bit(type, likely_environment_base); }
+void likely_set_base(likely_environment_type *type, bool base) { likely_set_bit(type, base, likely_environment_base); }
 
 likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
 {
