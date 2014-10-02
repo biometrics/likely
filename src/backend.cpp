@@ -158,7 +158,7 @@ public:
     Type *scalar(likely_type type, bool pointer = false)
     {
         const size_t bits = likely_depth(type);
-        const bool floating = likely_floating(type);
+        const bool floating = type & likely_matrix_floating;
         if (floating) {
             if      (bits == 16) return pointer ? Type::getHalfPtrTy(context)   : Type::getHalfTy(context);
             else if (bits == 32) return pointer ? Type::getFloatPtrTy(context)  : Type::getFloatTy(context);
@@ -176,7 +176,7 @@ public:
 
     Type *toLLVM(likely_type likely)
     {
-        assert(!(likely_signed(likely) && likely_floating(likely)));
+        assert(!((likely & likely_matrix_signed) && (likely & likely_matrix_floating)));
         auto result = typeLUT.find(likely);
         if (result != typeLUT.end())
             return result->second;
@@ -199,7 +199,7 @@ public:
             likely_release(str);
         }
 
-        if (likely_array(likely))
+        if (likely & likely_matrix_array)
             llvm = PointerType::getUnqual(llvm);
 
         typeLUT[likely] = llvm;
@@ -314,8 +314,10 @@ struct likely_expression
             likely_type inferred = toLikely(value->getType());
             if (!(inferred & likely_matrix_multi_dimension)) {
                 // Can't represent these flags in LLVM IR for scalar types
-                likely_set_signed(&inferred, likely_signed(type));
-                likely_set_saturated(&inferred, likely_saturated(type));
+                if (type & likely_matrix_signed)
+                    inferred |= likely_matrix_signed;
+                if (type & likely_matrix_saturated)
+                    inferred |= likely_matrix_saturated;
             }
             if (inferred != type) {
                 const likely_mat llvm = likely_type_to_string(inferred);
@@ -347,8 +349,8 @@ struct likely_expression
 
         if (ConstantInt *constantInt = dyn_cast<ConstantInt>(value)) {
             data = likely_new(type, 1, 1, 1, 1, NULL);
-            likely_set_element(const_cast<likely_mat>(data), likely_signed(type) ? double(constantInt->getSExtValue())
-                                                                                 : double(constantInt->getZExtValue()), 0, 0, 0, 0);
+            likely_set_element(const_cast<likely_mat>(data), (type & likely_matrix_signed) ? double(constantInt->getSExtValue())
+                                                                                           : double(constantInt->getZExtValue()), 0, 0, 0, 0);
         } else if (ConstantFP *constantFP = dyn_cast<ConstantFP>(value)) {
             const APFloat &apFloat = constantFP->getValueAPF();
             if ((&apFloat.getSemantics() == &APFloat::IEEEsingle) || (&apFloat.getSemantics() == &APFloat::IEEEdouble)) {
@@ -406,8 +408,8 @@ struct likely_expression
 
     static likely_type validFloatType(likely_type type)
     {
-        likely_set_floating(&type, true);
-        likely_set_signed(&type, false);
+        type |= likely_matrix_floating;
+        type &= ~likely_matrix_signed;
         likely_set_depth(&type, likely_depth(type) > 32 ? 64 : 32);
         return type;
     }
@@ -471,7 +473,8 @@ struct likely_expression
                         return likely_type_from_string(matrix->getName().str().c_str());
                     } else {
                         likely_type type = toLikely(element);
-                        likely_set_array(&type, !isa<FunctionType>(element));
+                        if (!isa<FunctionType>(element))
+                            type |= likely_matrix_array;
                         return type;
                     }
                 } else {
@@ -582,7 +585,7 @@ struct Builder : public IRBuilder<>
     likely_expression constant(double value, likely_type type)
     {
         const size_t depth = likely_depth(type);
-        if (likely_floating(type)) {
+        if (type & likely_matrix_floating) {
             if (value == 0) value = -0; // IEEE/LLVM optimization quirk
             if      (depth == 64) return likely_expression(ConstantFP::get(Type::getDoubleTy(getContext()), value), type);
             else if (depth == 32) return likely_expression(ConstantFP::get(Type::getFloatTy(getContext()), value), type);
@@ -594,8 +597,8 @@ struct Builder : public IRBuilder<>
 
     likely_expression zero(likely_type type = likely_matrix_native) { return constant(0.0, type); }
     likely_expression one (likely_type type = likely_matrix_native) { return constant(1.0, type); }
-    likely_expression intMax(likely_type type) { const size_t bits = likely_depth(type); return constant((uint64_t) (1 << (bits - (likely_signed(type) ? 1 : 0)))-1, bits); }
-    likely_expression intMin(likely_type type) { const size_t bits = likely_depth(type); return constant((uint64_t) (likely_signed(type) ? (1 << (bits - 1)) : 0), bits); }
+    likely_expression intMax(likely_type type) { const size_t bits = likely_depth(type); return constant((uint64_t) (1 << (bits - ((type & likely_matrix_signed) ? 1 : 0)))-1, bits); }
+    likely_expression intMin(likely_type type) { const size_t bits = likely_depth(type); return constant((uint64_t) ((type & likely_matrix_signed) ? (1 << (bits - 1)) : 0), bits); }
     likely_expression typeType(likely_type type) { return constant((uint64_t) type, likely_matrix_type_type); }
     likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(::cast<PointerType>((Type*)multiDimension())), likely_matrix_multi_dimension); }
     likely_expression nullData() { return likely_expression(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_matrix_u8 | likely_matrix_array); }
@@ -621,11 +624,11 @@ struct Builder : public IRBuilder<>
             return likely_expression(*x, type);
         if (likely_depth(type) == 0) {
             likely_set_depth(&type, likely_depth(*x));
-            if (likely_floating(type))
+            if (type & likely_matrix_floating)
                 type = likely_expression::validFloatType(type);
         }
         Type *dstType = env->module->context->scalar(type);
-        return likely_expression(CreateCast(CastInst::getCastOpcode(*x, likely_signed(*x), dstType, likely_signed(type)), *x, dstType), type);
+        return likely_expression(CreateCast(CastInst::getCastOpcode(*x, (*x & likely_matrix_signed), dstType, (type & likely_matrix_signed)), *x, dstType), type);
     }
 
     likely_const_expr lookup(const char *name) const { return likely_expression::lookup(env, name); }
@@ -1177,12 +1180,12 @@ class addExpression : public SimpleArithmeticOperator
     const char *symbol() const { return "+"; }
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
-        if (likely_floating(lhs)) {
+        if (lhs.type & likely_matrix_floating) {
             return builder.CreateFAdd(lhs, rhs);
         } else {
-            if (likely_saturated(lhs)) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), likely_signed(lhs) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs.value->getType()), lhs, rhs);
-                Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, builder.zero(lhs)), builder.intMax(lhs), builder.intMin(lhs)) : builder.intMax(lhs).value;
+            if (lhs.type & likely_matrix_saturated) {
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), (lhs.type & likely_matrix_signed) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs.value->getType()), lhs, rhs);
+                Value *overflowResult = (lhs.type & likely_matrix_signed) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, builder.zero(lhs)), builder.intMax(lhs), builder.intMin(lhs)) : builder.intMax(lhs).value;
                 return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
             } else {
                 return builder.CreateAdd(lhs, rhs);
@@ -1220,12 +1223,12 @@ class subtractExpression : public LikelyOperator
         likely_expression lhs = builder.cast(expr1.get(), type);
         likely_expression rhs = builder.cast(expr2.get(), type);
 
-        if (likely_floating(type)) {
+        if (type & likely_matrix_floating) {
             return new likely_expression(builder.CreateFSub(lhs, rhs), type);
         } else {
-            if (likely_saturated(type)) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), likely_signed(lhs) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value->getType()), lhs, rhs);
-                Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, builder.zero(lhs)), builder.intMax(lhs), builder.intMin(lhs)) : builder.intMin(lhs).value;
+            if (type & likely_matrix_saturated) {
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), (lhs.type & likely_matrix_signed) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value->getType()), lhs, rhs);
+                Value *overflowResult = (lhs.type & likely_matrix_signed) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, builder.zero(lhs)), builder.intMax(lhs), builder.intMin(lhs)) : builder.intMin(lhs).value;
                 return new likely_expression(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
             } else {
                 return new likely_expression(builder.CreateSub(lhs, rhs), type);
@@ -1240,13 +1243,13 @@ class multiplyExpression : public SimpleArithmeticOperator
     const char *symbol() const { return "*"; }
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
-        if (likely_floating(lhs)) {
+        if (lhs & likely_matrix_floating) {
             return builder.CreateFMul(lhs, rhs);
         } else {
-            if (likely_saturated(lhs)) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), likely_signed(lhs) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs.value->getType()), lhs, rhs);
+            if (lhs.type & likely_matrix_saturated) {
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), (lhs.type & likely_matrix_signed) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs.value->getType()), lhs, rhs);
                 Value *zero = builder.zero(lhs);
-                Value *overflowResult = likely_signed(lhs) ? builder.CreateSelect(builder.CreateXor(builder.CreateICmpSGE(lhs, zero), builder.CreateICmpSGE(rhs, zero)), builder.intMin(lhs), builder.intMax(lhs)) : builder.intMax(lhs).value;
+                Value *overflowResult = (lhs.type & likely_matrix_signed) ? builder.CreateSelect(builder.CreateXor(builder.CreateICmpSGE(lhs, zero), builder.CreateICmpSGE(rhs, zero)), builder.intMin(lhs), builder.intMax(lhs)) : builder.intMax(lhs).value;
                 return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
             } else {
                 return builder.CreateMul(lhs, rhs);
@@ -1261,11 +1264,11 @@ class divideExpression : public SimpleArithmeticOperator
     const char *symbol() const { return "/"; }
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &n, const likely_expression &d) const
     {
-        if (likely_floating(n)) {
+        if (n.type & likely_matrix_floating) {
             return builder.CreateFDiv(n, d);
         } else {
-            if (likely_signed(n)) {
-                if (likely_saturated(n)) {
+            if (n.type & likely_matrix_signed) {
+                if (n.type & likely_matrix_saturated) {
                     Value *safe_i = builder.CreateAdd(n, builder.CreateZExt(builder.CreateICmpNE(builder.CreateOr(builder.CreateAdd(d, builder.one(n)), builder.CreateAdd(n, builder.intMin(n))), builder.zero(n)), n.value->getType()));
                     return builder.CreateSDiv(safe_i, d);
                 } else {
@@ -1284,9 +1287,9 @@ class remainderExpression : public SimpleArithmeticOperator
     const char *symbol() const { return "%"; }
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
-        return likely_floating(lhs) ? builder.CreateFRem(lhs, rhs)
-                                    : (likely_signed(lhs) ? builder.CreateSRem(lhs, rhs)
-                                                          : builder.CreateURem(lhs, rhs));
+        return (lhs.type & likely_matrix_floating) ? builder.CreateFRem(lhs, rhs)
+                                                   : ((lhs.type & likely_matrix_signed) ? builder.CreateSRem(lhs, rhs)
+                                                                                        : builder.CreateURem(lhs, rhs));
     }
 };
 LIKELY_REGISTER(remainder)
@@ -1312,40 +1315,40 @@ class shiftRightExpression : public SimpleArithmeticOperator
     const char *symbol() const { return ">>"; }
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
-        return likely_signed(lhs) ? builder.CreateAShr(lhs, rhs.value) : builder.CreateLShr(lhs, rhs.value);
+        return (lhs.type & likely_matrix_signed) ? builder.CreateAShr(lhs, rhs.value) : builder.CreateLShr(lhs, rhs.value);
     }
 };
 LIKELY_REGISTER(shiftRight)
 
-#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                              \
-class OP##Expression : public ArithmeticOperator                                                                                         \
-{                                                                                                                                        \
-    const char *symbol() const { return #SYM; }                                                                                          \
-    likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const             \
-    {                                                                                                                                    \
-        return new likely_expression(likely_floating(lhs) ? builder.CreateFCmpO##OP(lhs, rhs)                                            \
-                                                          : (likely_signed(lhs) ? builder.CreateICmpS##OP(lhs, rhs)                      \
-                                                                                : builder.CreateICmpU##OP(lhs, rhs)), likely_matrix_u1); \
-    }                                                                                                                                    \
-};                                                                                                                                       \
-LIKELY_REGISTER(OP)                                                                                                                      \
+#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                                                            \
+class OP##Expression : public ArithmeticOperator                                                                                                                       \
+{                                                                                                                                                                      \
+    const char *symbol() const { return #SYM; }                                                                                                                        \
+    likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const                                           \
+    {                                                                                                                                                                  \
+        return new likely_expression((lhs.type & likely_matrix_floating) ? builder.CreateFCmpO##OP(lhs, rhs)                                                           \
+                                                                         : ((lhs.type & likely_matrix_signed) ? builder.CreateICmpS##OP(lhs, rhs)                      \
+                                                                                                              : builder.CreateICmpU##OP(lhs, rhs)), likely_matrix_u1); \
+    }                                                                                                                                                                  \
+};                                                                                                                                                                     \
+LIKELY_REGISTER(OP)                                                                                                                                                    \
 
 LIKELY_REGISTER_COMPARISON(LT, <)
 LIKELY_REGISTER_COMPARISON(LE, <=)
 LIKELY_REGISTER_COMPARISON(GT, >)
 LIKELY_REGISTER_COMPARISON(GE, >=)
 
-#define LIKELY_REGISTER_EQUALITY(OP, SYM)                                                                                    \
-class OP##Expression : public ArithmeticOperator                                                                             \
-{                                                                                                                            \
-    const char *symbol() const { return #SYM; }                                                                              \
-    likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const \
-    {                                                                                                                        \
-        return new likely_expression(likely_floating(lhs) ? builder.CreateFCmpO##OP(lhs, rhs)                                \
-                                                          : builder.CreateICmp##OP(lhs, rhs), likely_matrix_u1);             \
-    }                                                                                                                        \
-};                                                                                                                           \
-LIKELY_REGISTER(OP)                                                                                                          \
+#define LIKELY_REGISTER_EQUALITY(OP, SYM)                                                                                       \
+class OP##Expression : public ArithmeticOperator                                                                                \
+{                                                                                                                               \
+    const char *symbol() const { return #SYM; }                                                                                 \
+    likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const    \
+    {                                                                                                                           \
+        return new likely_expression((lhs.type & likely_matrix_floating) ? builder.CreateFCmpO##OP(lhs, rhs)                    \
+                                                                         : builder.CreateICmp##OP(lhs, rhs), likely_matrix_u1); \
+    }                                                                                                                           \
+};                                                                                                                              \
+LIKELY_REGISTER(OP)                                                                                                             \
 
 LIKELY_REGISTER_EQUALITY(EQ, ==)
 LIKELY_REGISTER_EQUALITY(NE, !=)

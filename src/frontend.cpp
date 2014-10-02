@@ -546,10 +546,10 @@ likely_mat likely_error_to_string(likely_error error)
 likely_mat likely_type_to_string(likely_type type)
 {
     stringstream typeStream;
-    typeStream << (likely_floating(type) ? "f" : (likely_signed(type) ? "i" : "u"));
+    typeStream << ((type & likely_matrix_floating) ? "f" : ((type & likely_matrix_signed) ? "i" : "u"));
     typeStream << likely_depth(type);
-    if (likely_array(type))          typeStream << "A";
-    if (likely_saturated(type))      typeStream << "S";
+    if (type & likely_matrix_array)         typeStream << "A";
+    if (type & likely_matrix_saturated)     typeStream << "S";
     if (type & likely_matrix_multi_channel) typeStream << "C";
     if (type & likely_matrix_multi_column)  typeStream << "X";
     if (type & likely_matrix_multi_row)     typeStream << "Y";

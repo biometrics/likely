@@ -205,14 +205,6 @@ LIKELY_EXPORT void likely_set_bit(size_t *value, const bool new_value, const siz
  */
 LIKELY_EXPORT size_t likely_depth(likely_type type);
 LIKELY_EXPORT void likely_set_depth(likely_type *type, size_t depth);
-LIKELY_EXPORT bool likely_floating(likely_type type);
-LIKELY_EXPORT void likely_set_floating(likely_type *type, bool floating);
-LIKELY_EXPORT bool likely_array(likely_type type);
-LIKELY_EXPORT void likely_set_array(likely_type *type, bool array);
-LIKELY_EXPORT bool likely_signed(likely_type type);
-LIKELY_EXPORT void likely_set_signed(likely_type *type, bool signed_);
-LIKELY_EXPORT bool likely_saturated(likely_type type);
-LIKELY_EXPORT void likely_set_saturated(likely_type *type, bool saturated);
 LIKELY_EXPORT likely_type likely_data(likely_type type);
 LIKELY_EXPORT void likely_set_data(likely_type *type, likely_type data);
 /** @} */ // end of type_manipulation

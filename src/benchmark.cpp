@@ -203,8 +203,8 @@ private:
     static likely_mat fromCvMat(const Mat &src)
     {
         likely_mat m = likely::fromCvMat(src);
-        if (!likely_floating(m->type) && (likely_depth(m->type) <= 16))
-            likely_set_saturated(&m->type, true);
+        if (!(m->type & likely_matrix_floating) && (likely_depth(m->type) <= 16))
+            m->type |= likely_matrix_saturated;
         return m;
     }
 
