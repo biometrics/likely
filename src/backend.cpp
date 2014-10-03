@@ -2518,10 +2518,10 @@ class newExpression : public LikelyOperator
         Value *type = NULL, *channels = NULL, *columns = NULL, *rows = NULL, *frames = NULL, *data = NULL;
         switch (n) {
             case 6: data     = unique_ptr<const likely_expression>(builder.expression(ast->atoms[6]))->value;
-            case 5: frames   = unique_ptr<const likely_expression>(builder.expression(ast->atoms[5]))->value;
-            case 4: rows     = unique_ptr<const likely_expression>(builder.expression(ast->atoms[4]))->value;
-            case 3: columns  = unique_ptr<const likely_expression>(builder.expression(ast->atoms[3]))->value;
-            case 2: channels = unique_ptr<const likely_expression>(builder.expression(ast->atoms[2]))->value;
+            case 5: frames   = builder.cast(unique_ptr<const likely_expression>(builder.expression(ast->atoms[5])).get(), likely_matrix_native);
+            case 4: rows     = builder.cast(unique_ptr<const likely_expression>(builder.expression(ast->atoms[4])).get(), likely_matrix_native);
+            case 3: columns  = builder.cast(unique_ptr<const likely_expression>(builder.expression(ast->atoms[3])).get(), likely_matrix_native);
+            case 2: channels = builder.cast(unique_ptr<const likely_expression>(builder.expression(ast->atoms[2])).get(), likely_matrix_native);
             case 1: type     = unique_ptr<const likely_expression>(builder.expression(ast->atoms[1]))->value;
             default:           break;
         }
