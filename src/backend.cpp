@@ -2300,7 +2300,7 @@ private:
     size_t maxParameters() const { return 4; }
 };
 
-struct Variable : public likely_expression
+struct Variable : public LikelyOperator
 {
     Variable(Builder &builder, likely_const_expr expr, const string &name)
     {
@@ -2322,10 +2322,34 @@ struct Variable : public likely_expression
 private:
     static int UID() { return __LINE__; }
     int uid() const { return UID(); }
+    size_t maxParameters() const { return 4; }
+    size_t minParameters() const { return 0; }
 
-    likely_const_expr evaluate(Builder &builder, likely_const_ast) const
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        return new likely_expression(builder.CreateLoad(value), type);
+        if ((ast->type != likely_ast_list) || !isMat(cast<AllocaInst>(value)->getAllocatedType()))
+            return new likely_expression(builder.CreateLoad(value), type);
+
+        Value *c = (ast->num_atoms >= 2) ? builder.cast(unique_ptr<const likely_expression>(builder.expression(ast->atoms[1])).get(), likely_matrix_native)
+                                         : builder.zero();
+        Value *x = (ast->num_atoms >= 3) ? builder.cast(unique_ptr<const likely_expression>(builder.expression(ast->atoms[2])).get(), likely_matrix_native)
+                                         : builder.zero();
+        Value *y = (ast->num_atoms >= 4) ? builder.cast(unique_ptr<const likely_expression>(builder.expression(ast->atoms[3])).get(), likely_matrix_native)
+                                         : builder.zero();
+        Value *t = (ast->num_atoms >= 5) ? builder.cast(unique_ptr<const likely_expression>(builder.expression(ast->atoms[4])).get(), likely_matrix_native)
+                                         : builder.zero();
+
+        Value *channelStep = builder.one();
+        Value *columnStep, *rowStep, *frameStep;
+        builder.steps(this, channelStep, &columnStep, &rowStep, &frameStep);
+        Value *i = builder.zero();
+        i = builder.CreateMul(c, channelStep);
+        i = builder.CreateAdd(builder.CreateMul(x, columnStep), i);
+        i = builder.CreateAdd(builder.CreateMul(y, rowStep   ), i);
+        i = builder.CreateAdd(builder.CreateMul(t, frameStep ), i);
+        LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(builder.CreateLoad(value), type), i));
+
+        return new likely_expression(load, type & likely_matrix_element);
     }
 };
 
