@@ -1924,27 +1924,15 @@ class kernelExpression : public LikelyOperator
                                   builder.toLLVM(dimensionsType)),
                               dimensionsType);
 
-        // Load scalar values
-        BasicBlock *scalarMatrixPromotion = BasicBlock::Create(builder.getContext(), "scalar_matrix_promotion", builder.GetInsertBlock()->getParent());
-        builder.CreateBr(scalarMatrixPromotion);
-        builder.SetInsertPoint(scalarMatrixPromotion);
-        vector<likely_const_expr> thunkSrcs = srcs;
-        vector<unique_ptr<const likely_expression>> scalars;
-        for (likely_const_expr &thunkSrc : thunkSrcs)
-            if (!(*thunkSrc & likely_matrix_multi_dimension) && isMat(thunkSrc->value->getType())) {
-                thunkSrc = new likely_expression(builder.CreateLoad(builder.CreateGEP(builder.data(thunkSrc), builder.zero())), *thunkSrc);
-                scalars.push_back(unique_ptr<const likely_expression>(thunkSrc));
-            }
-
         // Finally, do the computation
         BasicBlock *computation = BasicBlock::Create(builder.getContext(), "computation", builder.GetInsertBlock()->getParent());
         builder.CreateBr(computation);
         builder.SetInsertPoint(computation);
 
         Metadata metadata;
-        if      (builder.env->type & likely_environment_heterogeneous) metadata = generateHeterogeneous(builder, ast, thunkSrcs, dst, kernelSize);
-        else if (builder.env->type & likely_environment_parallel)      metadata = generateParallel     (builder, ast, thunkSrcs, dst, kernelSize);
-        else                                                           metadata = generateSerial       (builder, ast, thunkSrcs, dst, kernelSize);
+        if      (builder.env->type & likely_environment_heterogeneous) metadata = generateHeterogeneous(builder, ast, srcs, dst, kernelSize);
+        else if (builder.env->type & likely_environment_parallel)      metadata = generateParallel     (builder, ast, srcs, dst, kernelSize);
+        else                                                           metadata = generateSerial       (builder, ast, srcs, dst, kernelSize);
 
         results->addIncoming(builder.constant(metadata.results), entry);
         dstType->addIncoming(builder.typeType(dst), entry);
