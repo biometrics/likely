@@ -2311,7 +2311,8 @@ struct Variable : public LikelyOperator
 
     void set(Builder &builder, likely_const_expr expr) const
     {
-        builder.CreateStore(builder.cast(expr, type), value);
+        builder.CreateStore((type & likely_matrix_multi_dimension) ? expr->value
+                                                                   : builder.cast(expr, type).value, value);
     }
 
     static const Variable *dynamicCast(likely_const_expr expr)
@@ -2551,7 +2552,19 @@ class newExpression : public LikelyOperator
             default:           break;
         }
 
-        return new likely_expression(builder.newMat(type, channels, columns, rows, frames, data));
+        likely_type inferredType = cast<ConstantInt>(type)->getZExtValue() | likely_matrix_multi_dimension;
+        checkDimension(inferredType, channels, likely_matrix_multi_channel);
+        checkDimension(inferredType, columns , likely_matrix_multi_column);
+        checkDimension(inferredType, rows    , likely_matrix_multi_row);
+        checkDimension(inferredType, frames  , likely_matrix_multi_frame);
+        return new likely_expression(builder.CreatePointerCast(builder.newMat(type, channels, columns, rows, frames, data), builder.toLLVM(inferredType)), inferredType);
+    }
+
+    static void checkDimension(likely_type &type, Value *dimension, likely_type mask)
+    {
+        if (ConstantInt *dim = dyn_cast<ConstantInt>(dimension))
+            if (dim->getZExtValue() == 1)
+                type &= ~mask;
     }
 };
 LIKELY_REGISTER(new)
