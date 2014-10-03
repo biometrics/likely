@@ -18,7 +18,8 @@ Interaction
 Definition
 
     (gabor_wavelet i32 i32 f32 f32 f32 f32 f32):=
-      (=> (x_max y_max sigma_x sigma_y theta lambda psi)
+      (x_max y_max sigma_x sigma_y theta lambda psi):->
+        (=> (x_max y_max sigma_x sigma_y theta lambda psi)
     {
       dx:= (- x.i32 x_max)
       dy:= (- y.i32 y_max)

@@ -1,7 +1,7 @@
 Likely
 ======
- > An embeddable just-in-time Lisp for image recognition and heterogenous architectures.
- > -- [@jklontz](https://github.com/jklontz)
+> An embeddable just-in-time Lisp for image recognition and heterogenous architectures.
+> -- [@jklontz](https://github.com/jklontz)
 
 Skip to the good stuff: **[installation](?href=README.md)**,
                         **[hello world](?href=share/likely/hello_world/README.ll)**,

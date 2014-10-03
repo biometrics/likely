@@ -845,8 +845,6 @@ struct JITFunction : public likely_function, public Symbol
         likely_release_env(env);
     }
 
-    static Lambda *getLambda(likely_const_ast ast);
-
 private:
     struct HasLoop : public LoopInfo
     {
@@ -1155,7 +1153,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                 lock.lock();
                 auto function = functionLUT.find(symbol());
                 if (function == functionLUT.end()) {
-                    const string code = string("(a b):=> (") + symbol() + string(" a b)");
+                    const string code = string("(a b):-> (a b):=> (") + symbol() + string(" a b))");
                     likely_const_ast ast = likely_ast_from_string(code.c_str(), false);
                     likely_const_env env = likely_new_env_jit();
                     likely_function *compiled = likely_compile(ast->atoms[0], env, likely_matrix_void);
@@ -1600,11 +1598,6 @@ private:
             return new likely_expression(builder.CreateCall(likelyDynamic, args), likely_matrix_multi_dimension);
         }
 
-        return evaluateLambda(builder, args);
-    }
-
-    virtual likely_const_expr evaluateLambda(Builder &builder, const vector<likely_const_expr> &args) const
-    {
         if (ast->atoms[1]->type == likely_ast_list) {
             for (size_t i=0; i<args.size(); i++)
                 builder.define(ast->atoms[1]->atoms[i]->atom, args[i]);
@@ -1622,15 +1615,6 @@ class lambdaExpression : public LikelyOperator
     const char *symbol() const { return "->"; }
     size_t maxParameters() const { return 2; }
     likely_const_expr evaluateOperator(Builder &, likely_const_ast ast) const { return new Lambda(ast); }
-
-public:
-    static bool isLambda(likely_const_ast ast)
-    {
-        return (ast->type == likely_ast_list)
-               && (ast->num_atoms > 0)
-               && (ast->atoms[0]->type != likely_ast_list)
-               && (!strcmp(ast->atoms[0]->atom, "->") || !strcmp(ast->atoms[0]->atom, "=>"));
-    }
 };
 LIKELY_REGISTER(lambda)
 
@@ -1789,12 +1773,8 @@ class loopExpression : public LikelyOperator
 };
 LIKELY_REGISTER(loop)
 
-struct Kernel : public Lambda
+class kernelExpression : public LikelyOperator
 {
-    Kernel(likely_const_ast ast)
-        : Lambda(ast) {}
-
-private:
     class kernelArgument : public LikelyOperator
     {
         likely_type kernel;
@@ -1902,22 +1882,25 @@ private:
         size_t results;
     };
 
-    virtual likely_const_ast getMetadata() const { return (ast->num_atoms == 4) ? ast->atoms[3] : NULL; }
+    const char *symbol() const { return "=>"; }
+    size_t minParameters() const { return 2; }
+    size_t maxParameters() const { return 3; }
 
-    likely_const_expr evaluateLambda(Builder &builder, const vector<likely_const_expr> &srcs) const
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
+        vector<likely_const_expr> srcs;
         const likely_const_ast args = ast->atoms[1];
-        assert(srcs.size() == (args->type == likely_ast_list) ? args->num_atoms : 1);
         if (args->type == likely_ast_list) {
             for (size_t j=0; j<args->num_atoms; j++)
-                builder.define(args->atoms[j]->atom, srcs[j]);
+                srcs.push_back(builder.lookup(args->atoms[j]->atom));
         } else {
-            builder.define(args->atom, srcs[0]);
+            srcs.push_back(builder.lookup(args->atom));
         }
+
         BasicBlock *entry = builder.GetInsertBlock();
 
         vector<pair<likely_const_ast,likely_const_ast>> pairs;
-        getPairs(getMetadata(), pairs);
+        getPairs((ast->num_atoms == 4) ? ast->atoms[3] : NULL, pairs);
 
         likely_type dimensionsType = likely_matrix_void;
         Value *dstChannels = getDimensions(builder, pairs, "channels", srcs, &dimensionsType);
@@ -1937,10 +1920,9 @@ private:
         PHINode *kernelFrames   = builder.CreatePHI(builder.nativeInt(), 1);
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(kernelChannels, kernelColumns), kernelRows), kernelFrames);
         likely_expression dst(builder.CreatePointerCast(
-                              builder.newMat(dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, builder.nullData()),
-                              builder.toLLVM(dimensionsType)),
-                             dimensionsType);
-        builder.undefineAll(args, false);
+                                  builder.newMat(dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, builder.nullData()),
+                                  builder.toLLVM(dimensionsType)),
+                              dimensionsType);
 
         // Load scalar values
         BasicBlock *scalarMatrixPromotion = BasicBlock::Create(builder.getContext(), "scalar_matrix_promotion", builder.GetInsertBlock()->getParent());
@@ -1960,9 +1942,9 @@ private:
         builder.SetInsertPoint(computation);
 
         Metadata metadata;
-        if      (builder.env->type & likely_environment_heterogeneous) metadata = generateHeterogeneous(builder, args, thunkSrcs, dst, kernelSize);
-        else if (builder.env->type & likely_environment_parallel)      metadata = generateParallel     (builder, args, thunkSrcs, dst, kernelSize);
-        else                                                           metadata = generateSerial       (builder, args, thunkSrcs, dst, kernelSize);
+        if      (builder.env->type & likely_environment_heterogeneous) metadata = generateHeterogeneous(builder, ast, thunkSrcs, dst, kernelSize);
+        else if (builder.env->type & likely_environment_parallel)      metadata = generateParallel     (builder, ast, thunkSrcs, dst, kernelSize);
+        else                                                           metadata = generateSerial       (builder, ast, thunkSrcs, dst, kernelSize);
 
         results->addIncoming(builder.constant(metadata.results), entry);
         dstType->addIncoming(builder.typeType(dst), entry);
@@ -1973,12 +1955,12 @@ private:
         return new likely_expression(dst);
     }
 
-    Metadata generateSerial(Builder &builder, likely_const_ast args, const vector<likely_const_expr> &srcs, likely_expression &dst, Value *kernelSize) const
+    Metadata generateSerial(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, likely_expression &dst, Value *kernelSize) const
     {
-        return generateCommon(builder, args, srcs, dst, builder.zero(), kernelSize);
+        return generateCommon(builder, ast, srcs, dst, builder.zero(), kernelSize);
     }
 
-    Metadata generateParallel(Builder &builder, likely_const_ast args, const vector<likely_const_expr> &srcs, likely_expression &dst, Value *kernelSize) const
+    Metadata generateParallel(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, likely_expression &dst, Value *kernelSize) const
     {
         BasicBlock *entry = builder.GetInsertBlock();
 
@@ -2015,7 +1997,7 @@ private:
             likely_expr kernelDst = const_cast<likely_expr>(thunkSrcs.back()); thunkSrcs.pop_back();
             kernelDst->value->setName("dst");
 
-            metadata = generateCommon(builder, args, thunkSrcs, *kernelDst, start, stop);
+            metadata = generateCommon(builder, ast, thunkSrcs, *kernelDst, start, stop);
             for (likely_const_expr thunkSrc : thunkSrcs)
                 delete thunkSrc;
 
@@ -2054,7 +2036,7 @@ private:
         return Metadata();
     }
 
-    Metadata generateCommon(Builder &builder, likely_const_ast args, const vector<likely_const_expr> &srcs, likely_expression &dst, Value *start, Value *stop) const
+    Metadata generateCommon(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, likely_expression &dst, Value *start, Value *stop) const
     {
         Metadata metadata;
         BasicBlock *entry = builder.GetInsertBlock();
@@ -2109,6 +2091,7 @@ private:
         }
         builder.define("i", new likely_expression(axis->offset, likely_matrix_native));
 
+        const likely_const_ast args = ast->atoms[1];
         if (args->type == likely_ast_list) {
             for (size_t j=0; j<args->num_atoms; j++)
                 builder.define(args->atoms[j]->atom, new kernelArgument(*srcs[j], dst, channelStep, axis->node));
@@ -2195,14 +2178,6 @@ private:
         }
         return result;
     }
-};
-
-class kernelExpression : public LikelyOperator
-{
-    const char *symbol() const { return "=>"; }
-    size_t minParameters() const { return 2; }
-    size_t maxParameters() const { return 3; }
-    likely_const_expr evaluateOperator(Builder &, likely_const_ast ast) const { return new Kernel(ast); }
 };
 LIKELY_REGISTER(kernel)
 
@@ -2392,7 +2367,7 @@ class defineExpression : public LikelyOperator
                         delete function;
                     }
                 } else {
-                    JITFunction *function = new JITFunction(name, unique_ptr<Lambda>(JITFunction::getLambda(rhs)).get(), env, parameters, true, false, false);
+                    JITFunction *function = new JITFunction(name, unique_ptr<Lambda>(new Lambda(rhs)).get(), env, parameters, true, false, false);
                     if (function->function) {
                         sys::DynamicLibrary::AddSymbol(name, function->function);
                         env->value = function;
@@ -2401,7 +2376,7 @@ class defineExpression : public LikelyOperator
                     }
                 }
             } else {
-                if (lambdaExpression::isLambda(rhs)) {
+                if (!strcmp(likely_get_symbol_name(rhs), "->")) {
                     // Global variable
                     env->value = new Definition(env, rhs);
                 } else {
@@ -2517,16 +2492,6 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_
         env->module->finalize();
     }
 //    env->module->module->dump();
-}
-
-Lambda *JITFunction::getLambda(likely_const_ast ast)
-{
-    if ((ast->type == likely_ast_list) && (ast->num_atoms > 0) && (ast->atoms[0]->type != likely_ast_list)) {
-        if      (!strcmp(ast->atoms[0]->atom, "->")) return new Lambda(ast);
-        else if (!strcmp(ast->atoms[0]->atom, "=>")) return new Kernel(ast);
-    }
-    likely_expression::error(ast, "expected a lambda expression");
-    return NULL;
 }
 
 class newExpression : public LikelyOperator
@@ -2839,7 +2804,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
         vector<likely_type> types;
         for (size_t i=0; i<vtable->n; i++)
             types.push_back(mv[i]->type);
-        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(JITFunction::getLambda(vtable->ast)).get(), vtable->env, types, true, false, true)));
+        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->ast)).get(), vtable->env, types, true, false, true)));
         function = vtable->functions.back()->function;
         if (function == NULL)
             return NULL;
@@ -2859,7 +2824,7 @@ likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_typ
         type = va_arg(ap, likely_type);
     }
     va_end(ap);
-    return static_cast<likely_fun>(new JITFunction("likely_jit_function", unique_ptr<Lambda>(JITFunction::getLambda(ast)).get(), env, types, false, false, false));
+    return static_cast<likely_fun>(new JITFunction("likely_jit_function", unique_ptr<Lambda>(new Lambda(ast)).get(), env, types, false, false, false));
 }
 
 likely_fun likely_retain_function(likely_const_fun f)
