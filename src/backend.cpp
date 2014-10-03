@@ -1495,17 +1495,6 @@ struct Lambda : public LikelyOperator
         if (isa<ConstantExpr>(result->value) && isMat(result->value->getType()))
             result.reset(new likely_expression(builder.CreatePointerCast(builder.retainMat(result->value), builder.toLLVM(result->type)), result->type, NULL, likely_retain(result->getData())));
 
-        // Looking for matricies that were created through function calls
-        // but not returned by this function.
-        for (Function::iterator BB = tmpFunction->begin(), BBE = tmpFunction->end(); BB != BBE; ++BB)
-            for (BasicBlock::iterator I = BB->begin(), IE = BB->end(); I != IE; ++I)
-               if (CallInst *call = dyn_cast<CallInst>(I))
-                   if (Function *calledFunction = call->getCalledFunction())
-                       if (isMat(calledFunction->getReturnType())
-                             && (call != result->value)
-                             && (find(call->user_begin(), call->user_end(), result->value) == call->user_end()))
-                           builder.releaseMat(call);
-
         builder.CreateRet(*result);
 
         Function *function = cast<Function>(builder.module()->getOrInsertFunction(name, FunctionType::get(result->value->getType(), llvmTypes, false)));
