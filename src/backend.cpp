@@ -2309,10 +2309,15 @@ struct Variable : public LikelyOperator
         set(builder, expr);
     }
 
-    void set(Builder &builder, likely_const_expr expr) const
+    void set(Builder &builder, likely_const_expr expr, likely_const_ast ast = NULL) const
     {
-        builder.CreateStore((type & likely_matrix_multi_dimension) ? expr->value
-                                                                   : builder.cast(expr, type).value, value);
+        if (!ast || (ast->type != likely_ast_list)) {
+            builder.CreateStore((type & likely_matrix_multi_dimension) ? expr->value
+                                                                       : builder.cast(expr, type).value, value);
+            return;
+        }
+
+        builder.CreateStore(builder.cast(expr, type), gep(builder, ast));
     }
 
     static const Variable *dynamicCast(likely_const_expr expr)
@@ -2326,11 +2331,8 @@ private:
     size_t maxParameters() const { return 4; }
     size_t minParameters() const { return 0; }
 
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    Value *gep(Builder &builder, likely_const_ast ast) const
     {
-        if ((ast->type != likely_ast_list) || !isMat(cast<AllocaInst>(value)->getAllocatedType()))
-            return new likely_expression(builder.CreateLoad(value), type);
-
         Value *c = (ast->num_atoms >= 2) ? builder.cast(unique_ptr<const likely_expression>(builder.expression(ast->atoms[1])).get(), likely_matrix_native)
                                          : builder.zero();
         Value *x = (ast->num_atoms >= 3) ? builder.cast(unique_ptr<const likely_expression>(builder.expression(ast->atoms[2])).get(), likely_matrix_native)
@@ -2348,9 +2350,14 @@ private:
         i = builder.CreateAdd(builder.CreateMul(x, columnStep), i);
         i = builder.CreateAdd(builder.CreateMul(y, rowStep   ), i);
         i = builder.CreateAdd(builder.CreateMul(t, frameStep ), i);
-        LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(builder.CreateLoad(value), type), i));
+        return builder.CreateGEP(builder.data(builder.CreateLoad(value), type), i);
+    }
 
-        return new likely_expression(load, type & likely_matrix_element);
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        if ((ast->type != likely_ast_list) || !isMat(cast<AllocaInst>(value)->getAllocatedType()))
+            return new likely_expression(builder.CreateLoad(value), type);
+        return new likely_expression(builder.CreateLoad(gep(builder, ast)), type & likely_matrix_element);
     }
 };
 
@@ -2410,7 +2417,7 @@ class defineExpression : public LikelyOperator
             likely_const_expr expr = builder.expression(rhs);
             if (expr) {
                 const Variable *variable = Variable::dynamicCast(builder.lookup(name));
-                if (variable) variable->set(builder, expr);
+                if (variable) variable->set(builder, expr, lhs);
                 else          builder.define(name, new Variable(builder, expr, name));
             }
             return expr;
