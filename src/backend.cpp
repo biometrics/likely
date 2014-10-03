@@ -1520,12 +1520,14 @@ struct Lambda : public LikelyOperator
         for (likely_const_mat arg : args)
             params.push_back(arg->type);
 
-        JITFunction jit("likely_jit_function", this, env, params, false, true, true);
+        JITFunction jit("likely_jit_function", this, env, params, false, true, !args.empty());
         if (jit.function) { // compiler
-            return reinterpret_cast<likely_function_n>(jit.function)(args.data());
+            return args.empty() ? reinterpret_cast<likely_function_0>(jit.function)()
+                                : reinterpret_cast<likely_function_n>(jit.function)(args.data());
         } else if (jit.EE) { // interpreter
             vector<GenericValue> gv;
-            gv.push_back(GenericValue((void*) args.data()));
+            if (!args.empty())
+                gv.push_back(GenericValue((void*) args.data()));
             return (likely_mat) jit.EE->runFunction(cast<Function>(jit.value), gv).PointerVal;
         } else { // constant or error
             return likely_retain(jit.getData());
