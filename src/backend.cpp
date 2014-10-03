@@ -2363,7 +2363,7 @@ class defineExpression : public LikelyOperator
     {
         likely_const_ast lhs = ast->atoms[1];
         likely_const_ast rhs = ast->atoms[2];
-        const char *name = (lhs->type == likely_ast_list) ? lhs->atoms[0]->atom : lhs->atom;
+        const char *name = likely_get_symbol_name(lhs);
         likely_env env = builder.env;
 
         if (env->type & likely_environment_global) {
