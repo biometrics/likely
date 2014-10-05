@@ -48,21 +48,7 @@ typedef uintptr_t likely_size;
 /*!
  * \brief Data type of a matrix.
  *
- * \c likely_type plays a critical role in determining how to process matricies.
- * Here is its bitwise layout:
- *
- * | Field         | Bits | Getter               | Setter                   |
- * |---------------|------|----------------------|--------------------------|
- * | depth         | 8    | likely_depth         | likely_set_depth         |
- * | floating      | 1    | likely_floating      | likely_set_floating      |
- * | array         | 1    | likely_array         | likely_set_array         |
- * | signed        | 1    | likely_signed        | likely_set_signed        |
- * | saturated     | 1    | likely_saturated     | likely_set_saturated     |
- * | multi-channel | 1    | likely_multi_channel | likely_set_multi_channel |
- * | multi-column  | 1    | likely_multi_column  | likely_set_multi_column  |
- * | multi-row     | 1    | likely_multi_row     | likely_set_multi_row     |
- * | multi-frame   | 1    | likely_multi_frame   | likely_set_multi_frame   |
- * | reserved      | 15   | N/A                  | N/A                      |
+ * Plays a critical role in determining how to process matricies.
  */
 typedef likely_size likely_type;
 
