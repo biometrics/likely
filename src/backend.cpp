@@ -109,7 +109,8 @@ public:
 
         static bool initialized = false;
         if (!initialized) {
-            likely_assert(sizeof(likely_size) == sizeof(void*), "insane type system");
+            static_assert(sizeof(likely_size) == sizeof(void*), "insane type system");
+            static_assert(sizeof(likely_matrix::type) <= sizeof(likely_matrix::set_type), "insane enum size");
             InitializeNativeTarget();
             InitializeNativeTargetAsmPrinter();
             InitializeNativeTargetAsmParser();
@@ -192,7 +193,7 @@ public:
                                                              nativeInt(), // columns
                                                              nativeInt(), // rows
                                                              nativeInt(), // frames
-                                                             nativeInt(), // type
+                                                             Type::getInt32Ty(context), // type
                                                              ArrayType::get(Type::getInt8Ty(context), 0), // data
                                                              NULL));
             likely_release(str);

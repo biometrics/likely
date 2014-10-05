@@ -116,7 +116,10 @@ struct likely_matrix
     likely_size columns;  /*!< \brief Dimensionality. */
     likely_size rows;     /*!< \brief Dimensionality. */
     likely_size frames;   /*!< \brief Dimensionality. */
-    likely_type type; /*!< \brief Type of \ref data.*/
+    union {
+        enum likely_matrix_type type; /*!< \brief Type of \ref data.*/
+        uint32_t set_type; /*!< \brief Type of \ref data.*/
+    };
     char data[]; /*!< \brief Buffer. */
 };
 
