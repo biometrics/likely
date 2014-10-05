@@ -111,15 +111,17 @@ enum likely_matrix_type
  */
 struct likely_matrix
 {
-    likely_size ref_count; /*!< \brief Reference count. */
-    likely_size channels; /*!< \brief Dimensionality. */
-    likely_size columns;  /*!< \brief Dimensionality. */
-    likely_size rows;     /*!< \brief Dimensionality. */
-    likely_size frames;   /*!< \brief Dimensionality. */
+    uint32_t ref_count; /*!< \brief Reference count. */
     union {
         enum likely_matrix_type type; /*!< \brief Type of \ref data.*/
         uint32_t set_type; /*!< \brief Type of \ref data.*/
     };
+
+    likely_size channels; /*!< \brief Dimensionality. */
+    likely_size columns;  /*!< \brief Dimensionality. */
+    likely_size rows;     /*!< \brief Dimensionality. */
+    likely_size frames;   /*!< \brief Dimensionality. */
+
     char data[]; /*!< \brief Buffer. */
 };
 
