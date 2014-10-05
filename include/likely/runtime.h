@@ -111,7 +111,6 @@ enum likely_matrix_type
  */
 struct likely_matrix
 {
-    likely_size bytes; /*!< \brief Allocated memory. */
     likely_size ref_count; /*!< \brief Reference count. */
     likely_size channels; /*!< \brief Dimensionality. */
     likely_size columns;  /*!< \brief Dimensionality. */
