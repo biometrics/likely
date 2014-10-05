@@ -110,7 +110,7 @@ public:
         static bool initialized = false;
         if (!initialized) {
             static_assert(sizeof(likely_size) == sizeof(void*), "insane type system");
-            static_assert(sizeof(likely_matrix::type) <= sizeof(likely_matrix::set_type), "insane enum size");
+            static_assert(sizeof(likely_matrix_type) <= sizeof(uint32_t), "insane enum size");
             InitializeNativeTarget();
             InitializeNativeTargetAsmPrinter();
             InitializeNativeTargetAsmParser();
