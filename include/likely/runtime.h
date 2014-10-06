@@ -30,12 +30,14 @@ extern "C" {
  * \defgroup runtime Runtime
  * \brief Symbols in \c likely/runtime.h.
  *
- * Statically compiled Likely algorithms will generally depend on these symbols <i>and these symbols only</i>.
+ * Statically compiled Likely algorithms will generally depend on these symbols
+ * <i>and these symbols only</i>.
  *
- * These functions are implemented in \c src/runtime.cpp.
- * By design this source file has no dependencies outside of the <tt>C++ Standard Library</tt>,
- * making it easy to drop into other projects.
- * Alternatively, you can link against the \c likely_runtime static library, or the complete \c likely library.
+ * These functions are implemented in \c src/runtime_*, and are designed to have
+ * absolutely minimal dependencies.
+ * Use these symbols by linking against the \c likely_runtime static library,
+ * the complete \c likely library, or by compiling the relevant source files
+ * directly into your project.
  *
  * @{
  */
