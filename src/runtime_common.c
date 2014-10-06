@@ -157,6 +157,7 @@ likely_size likely_c_type(likely_size type)
     return c_type;
 }
 
+//! [likely_element implementation.]
 double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
 {
     likely_size columnStep, rowStep, frameStep, index;
@@ -170,20 +171,21 @@ double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_s
 
     switch (likely_c_type(m->type)) {
       case likely_matrix_u8:  return (double) (( uint8_t const*) m->data)[index];
-      case likely_matrix_u16: return (double) ((uint16_t const*)m->data)[index];
-      case likely_matrix_u32: return (double) ((uint32_t const*)m->data)[index];
-      case likely_matrix_u64: return (double) ((uint64_t const*)m->data)[index];
-      case likely_matrix_i8:  return (double) ((  int8_t const*)m->data)[index];
-      case likely_matrix_i16: return (double) (( int16_t const*)m->data)[index];
-      case likely_matrix_i32: return (double) (( int32_t const*)m->data)[index];
-      case likely_matrix_i64: return (double) (( int64_t const*)m->data)[index];
-      case likely_matrix_f32: return (double) ((   float const*)m->data)[index];
-      case likely_matrix_f64: return (double) ((  double const*)m->data)[index];
+      case likely_matrix_u16: return (double) ((uint16_t const*) m->data)[index];
+      case likely_matrix_u32: return (double) ((uint32_t const*) m->data)[index];
+      case likely_matrix_u64: return (double) ((uint64_t const*) m->data)[index];
+      case likely_matrix_i8:  return (double) ((  int8_t const*) m->data)[index];
+      case likely_matrix_i16: return (double) (( int16_t const*) m->data)[index];
+      case likely_matrix_i32: return (double) (( int32_t const*) m->data)[index];
+      case likely_matrix_i64: return (double) (( int64_t const*) m->data)[index];
+      case likely_matrix_f32: return (double) ((   float const*) m->data)[index];
+      case likely_matrix_f64: return (double) ((  double const*) m->data)[index];
       case likely_matrix_u1:  return (double) ((((uint8_t const*)m->data)[index/8] & (1 << index%8)) != 0);
       default: assert(!"likely_element unsupported type");
     }
     return NAN;
 }
+//! [likely_element implementation.]
 
 void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t)
 {

@@ -85,8 +85,8 @@ enum likely_matrix_type
                                   | likely_matrix_multi_column
                                   | likely_matrix_multi_row
                                   | likely_matrix_multi_frame, /*!< \brief The portion of \ref likely_matrix_type indicating matrix dimensionality. */
-    likely_matrix_string    = likely_matrix_i8 | likely_matrix_multi_channel, /*!< \brief likely_matrix::data is a C-style string. */
-    likely_matrix_native    = sizeof(likely_size)*8, /*!< \brief Native integer size. */
+    likely_matrix_string = likely_matrix_i8 | likely_matrix_multi_channel, /*!< \brief likely_matrix::data is a C-style string. */
+    likely_matrix_native = sizeof(likely_size)*8, /*!< \brief Native integer size. */
 };
 
 // Disable 'nonstandard extension used : zero-sized array in struct/union' warning
@@ -95,39 +95,31 @@ enum likely_matrix_type
 #endif // _MSC_VER
 
 /*!
- * \brief The principal data type for input and output to compiled functions.
+ * \brief The principal data structure in Likely.
  *
- * The last five fields (_channels_, _columns_, _rows_, _frames_, and _type_) are collectively referred to as the matrix _header_. In contrast to most image processing libraries which tend to feature 3-dimensional matrices (channels, columns, rows), Likely includes a fourth dimension, frames, in order to facilitate processing videos or collections of images.
+ * The fields excluding \ref data are collectively referred to as the matrix _header_.
+ * In contrast to most image processing libraries which tend to feature 3-dimensional matrices (_channels_, _columns_ and _rows_), Likely includes a fourth dimension, _frames_, in order to facilitate processing videos and image collections.
  *
- * \section Element Access
- * By convention, element layout in the data buffer with resepect to decreasing spatial locality is _channel_, _column_, _row_, _frame_. Thus an element at channel _c_, column _x_, row _y_, and frame _t_, can be retrieved like:
- * \code
- * float likely_get_element(likely_matrix m, likely_size c, likely_size x, likely_size y, likely_size t)
- * {
- *     likely_size columnStep = m->channels;
- *     likely_size rowStep = m->channels * columnStep;
- *     likely_size frameStep = m->rows * rowStep;
- *     likely_size index = t*frameStep + y*rowStep + x*columnStep + c;
- *     assert(likely_type(m) == likely_type_f32);
- *     return reinterpret_cast<float*>(m->data)[index];
- * }
- * \endcode
+ * \section element_access Element Access
+ * By convention, element layout in \ref data with respect to decreasing spatial locality is: channel, column, row, frame.
+ * Thus an element at channel _c_, column _x_, row _y_, and frame _t_, can be retrieved like:
  *
- * Convenience functions **likely_element** and **likely_set_element** are provided for individual element access. These functions are inefficient for iterating over a large numbers of elements due to the repeated index calculations, and their use is suggested only for debugging purposes or when the matrix is known to be small.
+ * \snippet src/runtime_common.c likely_element implementation.
+ *
+ * Convenience functions \ref likely_element and \ref likely_set_element are provided for individual element access.
+ * These functions should be used sparingly as they are inefficient for iterating over a large numbers of elements due to the repeated index calculations.
  */
 struct likely_matrix
 {
     uint32_t ref_count; /*!< \brief Reference count. */
     union {
-        enum likely_matrix_type type; /*!< \brief Type of \ref data.*/
-        uint32_t set_type; /*!< \brief Type of \ref data.*/
+        enum likely_matrix_type type; /*!< \brief Interpretation of \ref data. */
+        uint32_t set_type; /*!< \brief Idiom to easily edit \ref type and ensure that it is 4 bytes. */
     };
-
-    uint32_t channels; /*!< \brief Dimensionality. */
-    uint32_t columns;  /*!< \brief Dimensionality. */
-    uint32_t rows;     /*!< \brief Dimensionality. */
-    uint32_t frames;   /*!< \brief Dimensionality. */
-
+    uint32_t channels; /*!< \brief Sub-spatial dimensionality. */
+    uint32_t columns;  /*!< \brief Horizontal dimensionality. */
+    uint32_t rows;     /*!< \brief Vertical dimensionality. */
+    uint32_t frames;   /*!< \brief Super-spatial (temporal) dimensionality. */
     uint64_t _reserved; /*!< \brief Used to ensure \ref data is 32-byte aligned: <tt>sizeof(likely_matrix) == 32</tt>. */
     char data[]; /*!< \brief Buffer. */
 };
