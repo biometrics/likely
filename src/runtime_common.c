@@ -41,12 +41,12 @@ void likely_assert(bool condition, const char *format, ...)
 #endif // _WIN32
 }
 
-size_t likely_depth(likely_type type)
+size_t likely_depth(likely_size type)
 {
     return type & likely_matrix_depth;
 }
 
-void likely_set_depth(likely_type *type, size_t depth)
+void likely_set_depth(likely_size *type, size_t depth)
 {
     *type &= ~likely_matrix_depth;
     *type |= depth & likely_matrix_depth;
@@ -62,7 +62,7 @@ likely_size likely_bytes(likely_const_mat m)
     return (likely_depth(m->type) * likely_elements(m) + 7) / 8;
 }
 
-likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data)
+likely_mat likely_new(likely_size type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data)
 {
     likely_mat m;
     const size_t dataBytes = (((uint64_t)likely_depth(type)) * channels * columns * rows * frames + 7) / 8;
@@ -86,12 +86,12 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     return m;
 }
 
-likely_mat likely_scalar(likely_type type, double value)
+likely_mat likely_scalar(likely_size type, double value)
 {
     return likely_scalar_n(type, &value, 1);
 }
 
-likely_mat likely_scalar_n(likely_type type, double *values, size_t n)
+likely_mat likely_scalar_n(likely_size type, double *values, size_t n)
 {
     likely_mat m = likely_new(type, n, 1, 1, 1, NULL);
     for (size_t i=0; i<n; i++)
@@ -99,7 +99,7 @@ likely_mat likely_scalar_n(likely_type type, double *values, size_t n)
     return m;
 }
 
-likely_mat likely_scalar_va(likely_type type, double value, ...)
+likely_mat likely_scalar_va(likely_size type, double value, ...)
 {
     double *values = NULL;
     int i = 0;
@@ -148,9 +148,9 @@ void likely_release(likely_const_mat m)
     free((void*) m);
 }
 
-likely_type likely_c_type(likely_type type)
+likely_size likely_c_type(likely_size type)
 {
-    likely_type c_type = type & likely_matrix_element;
+    likely_size c_type = type & likely_matrix_element;
     c_type &= ~likely_matrix_saturated;
     if (c_type & likely_matrix_floating)
         c_type &= ~likely_matrix_signed;

@@ -40,7 +40,7 @@ static cl::opt<bool> BenchmarkParallel("parallel" , cl::desc("Compile parallel k
 static cl::opt<string> BenchmarkFile    ("file"    , cl::desc("Benchmark the specified file only"), cl::value_desc("filename"));
 static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"));
 
-static Mat generateData(int rows, int columns, likely_type type, double scaleFactor)
+static Mat generateData(int rows, int columns, likely_size type, double scaleFactor)
 {
     static Mat m;
     if (!m.data) {
@@ -77,7 +77,7 @@ struct Test
         likely_release_env(env);
         likely_release_ast(ast);
 
-        for (likely_type type : types()) {
+        for (likely_size type : types()) {
             for (int size : sizes()) {
                 if (BenchmarkTest && (size != 256)) continue;
 
@@ -153,9 +153,9 @@ struct Test
 protected:
     virtual const char *function() const = 0;
     virtual Mat computeBaseline(const Mat &src) const = 0;
-    virtual vector<likely_type> types() const
+    virtual vector<likely_size> types() const
     {
-        static vector<likely_type> types;
+        static vector<likely_size> types;
         if (types.empty()) {
             types.push_back(likely_matrix_u8);
             types.push_back(likely_matrix_u16);
@@ -280,7 +280,7 @@ class fmaTest : public Test {
 class thresholdTest : public Test {
     const char *function() const { return "a:-> (=> a (a.type (threshold-binary a 127 1)))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 1, THRESH_BINARY); return dst; }
-    vector<likely_type> types() const { vector<likely_type> types; types.push_back(likely_matrix_u8); types.push_back(likely_matrix_f32); return types; }
+    vector<likely_size> types() const { vector<likely_size> types; types.push_back(likely_matrix_u8); types.push_back(likely_matrix_f32); return types; }
 };
 
 int main(int argc, char *argv[])

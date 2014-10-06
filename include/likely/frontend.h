@@ -61,7 +61,7 @@ struct likely_abstract_syntax_tree
     likely_const_ast parent;
     likely_size ref_count;
     likely_size begin_line, begin_column, end_line, end_column;
-    likely_type type;
+    likely_size type;
 };
 
 typedef struct likely_error
@@ -91,12 +91,12 @@ LIKELY_EXPORT bool likely_throw(likely_const_ast where, const char *what);
 LIKELY_EXPORT likely_mat likely_error_to_string(likely_error error);
 
 // Type conversion
-LIKELY_EXPORT likely_mat likely_type_to_string(likely_type type);
-LIKELY_EXPORT likely_mat likely_type_field_to_string(likely_type type);
-LIKELY_EXPORT likely_type likely_type_from_string(const char *str);
-LIKELY_EXPORT likely_type likely_type_field_from_string(const char *str, bool *ok);
-LIKELY_EXPORT likely_type likely_type_from_value(double value);
-LIKELY_EXPORT likely_type likely_type_from_types(likely_type lhs, likely_type rhs);
+LIKELY_EXPORT likely_mat likely_type_to_string(likely_size type);
+LIKELY_EXPORT likely_mat likely_type_field_to_string(likely_size type);
+LIKELY_EXPORT likely_size likely_type_from_string(const char *str);
+LIKELY_EXPORT likely_size likely_type_field_from_string(const char *str, bool *ok);
+LIKELY_EXPORT likely_size likely_type_from_value(double value);
+LIKELY_EXPORT likely_size likely_type_from_types(likely_size lhs, likely_size rhs);
 
 /** @} */ // end of frontend
 

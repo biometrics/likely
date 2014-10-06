@@ -57,7 +57,7 @@ typedef struct likely_module const *likely_const_mod;
 
 struct likely_environment
 {
-    likely_type type;
+    likely_size type;
     likely_const_env parent;
     likely_const_ast ast;
     likely_mod module;
@@ -92,7 +92,7 @@ LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
 LIKELY_EXPORT void likely_release_env(likely_const_env env);
 
 // Compilation
-LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_type type, ...);
+LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_size type, ...);
 LIKELY_EXPORT likely_fun likely_retain_function(likely_const_fun f);
 LIKELY_EXPORT void likely_release_function(likely_const_fun f);
 

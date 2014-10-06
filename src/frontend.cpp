@@ -543,7 +543,7 @@ likely_mat likely_error_to_string(likely_error error)
     return likely_string(stream.str().c_str());
 }
 
-likely_mat likely_type_to_string(likely_type type)
+likely_mat likely_type_to_string(likely_size type)
 {
     stringstream typeStream;
     typeStream << ((type & likely_matrix_floating) ? "f" : ((type & likely_matrix_signed) ? "i" : "u"));
@@ -557,7 +557,7 @@ likely_mat likely_type_to_string(likely_type type)
     return likely_string(typeStream.str().c_str());
 }
 
-likely_mat likely_type_field_to_string(likely_type type)
+likely_mat likely_type_field_to_string(likely_size type)
 {
     if (type == likely_matrix_void           ) return likely_string("void");
     if (type == likely_matrix_depth          ) return likely_string("depth");
@@ -574,12 +574,12 @@ likely_mat likely_type_field_to_string(likely_type type)
     return likely_type_to_string(type);
 }
 
-likely_type likely_type_from_string(const char *str)
+likely_size likely_type_from_string(const char *str)
 {
     const size_t len = strlen(str);
     if (len == 0) return likely_matrix_void;
 
-    likely_type t;
+    likely_size t;
     if      (str[0] == 'f') t = likely_matrix_floating;
     else if (str[0] == 'i') t = likely_matrix_signed;
     else if (str[0] == 'u') t = likely_matrix_void;
@@ -602,7 +602,7 @@ likely_type likely_type_from_string(const char *str)
     return t;
 }
 
-likely_type likely_type_field_from_string(const char *str, bool *ok)
+likely_size likely_type_field_from_string(const char *str, bool *ok)
 {
     if (ok) *ok = true;
     if (!strcmp(str, "void"           )) return likely_matrix_void;
@@ -617,12 +617,12 @@ likely_type likely_type_field_from_string(const char *str, bool *ok)
     if (!strcmp(str, "multi_row"      )) return likely_matrix_multi_row;
     if (!strcmp(str, "multi_frame"    )) return likely_matrix_multi_frame;
     if (!strcmp(str, "multi_dimension")) return likely_matrix_multi_dimension;
-    likely_type type = likely_type_from_string(str);
+    likely_size type = likely_type_from_string(str);
     if (ok) *ok = (type != likely_matrix_void);
     return type;
 }
 
-likely_type likely_type_from_value(double value)
+likely_size likely_type_from_value(double value)
 {
     if      (int32_t(value) == value) return likely_matrix_i32;
     else if (int64_t(value) == value) return likely_matrix_i64;
@@ -630,9 +630,9 @@ likely_type likely_type_from_value(double value)
     else                              return likely_matrix_f64;
 }
 
-likely_type likely_type_from_types(likely_type lhs, likely_type rhs)
+likely_size likely_type_from_types(likely_size lhs, likely_size rhs)
 {
-    likely_type result = lhs | rhs;
+    likely_size result = lhs | rhs;
     likely_set_depth(&result, max(likely_depth(lhs), likely_depth(rhs)));
     return result;
 }

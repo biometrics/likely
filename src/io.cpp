@@ -34,7 +34,7 @@
 
 using namespace std;
 
-static likely_mat takeAndInterpret(likely_mat buffer, likely_type type)
+static likely_mat takeAndInterpret(likely_mat buffer, likely_size type)
 {
     likely_mat result = NULL;
     if (!result && (type & likely_file_decoded)) {
@@ -72,7 +72,7 @@ static size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp)
     return size*nmemb;
 }
 
-likely_mat likely_read(const char *file_name, likely_type type)
+likely_mat likely_read(const char *file_name, likely_size type)
 {
     // Interpret ~ as $HOME
     string fileName = file_name;

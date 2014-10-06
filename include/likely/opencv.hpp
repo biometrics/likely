@@ -28,8 +28,8 @@
 
 namespace likely
 {
-    LIKELY_EXPORT int typeToDepth(likely_type type);
-    LIKELY_EXPORT likely_type depthToType(int depth);
+    LIKELY_EXPORT int typeToDepth(likely_size type);
+    LIKELY_EXPORT likely_size depthToType(int depth);
     LIKELY_EXPORT cv::Mat toCvMat(likely_const_mat m);
     LIKELY_EXPORT likely_mat fromCvMat(const cv::Mat &src);
 } // namespace likely

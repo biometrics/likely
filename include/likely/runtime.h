@@ -47,8 +47,6 @@ extern "C" {
  */
 typedef uintptr_t likely_size;
 
-typedef likely_size likely_type;
-
 /*!
  * \brief Data type of a matrix.
  *
@@ -156,8 +154,8 @@ LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
  * \brief Determine the size of a \ref likely_matrix.
  * @{
  */
-LIKELY_EXPORT size_t likely_depth(likely_type type);
-LIKELY_EXPORT void likely_set_depth(likely_type *type, size_t depth);
+LIKELY_EXPORT size_t likely_depth(likely_size type);
+LIKELY_EXPORT void likely_set_depth(likely_size *type, size_t depth);
 LIKELY_EXPORT likely_size likely_elements(likely_const_mat m);
 LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
 /** @} */ // end of matrix_size
@@ -167,10 +165,10 @@ LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
  * \brief Create a \ref likely_matrix.
  * @{
  */
-LIKELY_EXPORT likely_mat likely_new(likely_type type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data);
-LIKELY_EXPORT likely_mat likely_scalar(likely_type type, double value);
-LIKELY_EXPORT likely_mat likely_scalar_n(likely_type type, double *values, size_t n);
-LIKELY_EXPORT likely_mat likely_scalar_va(likely_type type, double value, ...);
+LIKELY_EXPORT likely_mat likely_new(likely_size type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data);
+LIKELY_EXPORT likely_mat likely_scalar(likely_size type, double value);
+LIKELY_EXPORT likely_mat likely_scalar_n(likely_size type, double *values, size_t n);
+LIKELY_EXPORT likely_mat likely_scalar_va(likely_size type, double value, ...);
 LIKELY_EXPORT likely_mat likely_string(const char *str);
 LIKELY_EXPORT likely_mat likely_void();
 LIKELY_EXPORT likely_mat likely_copy(likely_const_mat m);
@@ -183,7 +181,7 @@ LIKELY_EXPORT void likely_release(likely_const_mat m);
  * \brief Access elements in a \ref likely_matrix.
  * @{
  */
-LIKELY_EXPORT likely_type likely_c_type(likely_type type);
+LIKELY_EXPORT likely_size likely_c_type(likely_size type);
 LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t);
 LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t);
 LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
