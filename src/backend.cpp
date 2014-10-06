@@ -190,10 +190,10 @@ public:
             llvm = PointerType::getUnqual(StructType::create(str->data,
                                                              Type::getInt32Ty(context), // ref_count
                                                              Type::getInt32Ty(context), // type
-                                                             nativeInt(), // channels
-                                                             nativeInt(), // columns
-                                                             nativeInt(), // rows
-                                                             nativeInt(), // frames
+                                                             Type::getInt32Ty(context), // channels
+                                                             Type::getInt32Ty(context), // columns
+                                                             Type::getInt32Ty(context), // rows
+                                                             Type::getInt32Ty(context), // frames
                                                              ArrayType::get(Type::getInt8Ty(context), 0), // data
                                                              NULL));
             likely_release(str);
@@ -603,10 +603,10 @@ struct Builder : public IRBuilder<>
     likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(::cast<PointerType>((Type*)multiDimension())), likely_matrix_multi_dimension); }
     likely_expression nullData() { return likely_expression(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_matrix_u8 | likely_matrix_array); }
 
-    likely_expression channels(likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_channel)) ? likely_expression(CreateLoad(CreateStructGEP(*m, 2), "channels"), likely_matrix_native) : one(); }
-    likely_expression columns (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_column )) ? likely_expression(CreateLoad(CreateStructGEP(*m, 3), "columns" ), likely_matrix_native) : one(); }
-    likely_expression rows    (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_row    )) ? likely_expression(CreateLoad(CreateStructGEP(*m, 4), "rows"    ), likely_matrix_native) : one(); }
-    likely_expression frames  (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_frame  )) ? likely_expression(CreateLoad(CreateStructGEP(*m, 5), "frames"  ), likely_matrix_native) : one(); }
+    likely_expression channels(likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_channel)) ? cast(likely_expression(CreateLoad(CreateStructGEP(*m, 2), "channels"), likely_matrix_u32), likely_matrix_native) : one(); }
+    likely_expression columns (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_column )) ? cast(likely_expression(CreateLoad(CreateStructGEP(*m, 3), "columns" ), likely_matrix_u32), likely_matrix_native) : one(); }
+    likely_expression rows    (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_row    )) ? cast(likely_expression(CreateLoad(CreateStructGEP(*m, 4), "rows"    ), likely_matrix_u32), likely_matrix_native) : one(); }
+    likely_expression frames  (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_frame  )) ? cast(likely_expression(CreateLoad(CreateStructGEP(*m, 5), "frames"  ), likely_matrix_u32), likely_matrix_native) : one(); }
     Value *data    (Value *value, likely_type type) { return CreatePointerCast(CreateStructGEP(value, 6), env->module->context->scalar(type, true)); }
     likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(data(m->value, m->type), (*m & likely_matrix_element) | likely_matrix_array); }
 
