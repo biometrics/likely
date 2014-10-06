@@ -111,7 +111,6 @@ public:
         if (!initialized) {
             static_assert(sizeof(likely_size) == sizeof(void*), "likely_size is not the native pointer size!");
             static_assert(sizeof(likely_matrix_type) <= 4, "likely_matrix_type is not less than or equal to 4 bytes!");
-            static_assert(sizeof(likely_matrix) == 32, "likely_matrix is not 32 bytes!");
             InitializeNativeTarget();
             InitializeNativeTargetAsmPrinter();
             InitializeNativeTargetAsmParser();
@@ -609,7 +608,7 @@ struct Builder : public IRBuilder<>
     likely_expression columns (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_column )) ? cast(likely_expression(CreateLoad(CreateStructGEP(*m, 3), "columns" ), likely_matrix_u32), likely_matrix_native) : one(); }
     likely_expression rows    (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_row    )) ? cast(likely_expression(CreateLoad(CreateStructGEP(*m, 4), "rows"    ), likely_matrix_u32), likely_matrix_native) : one(); }
     likely_expression frames  (likely_const_expr e) { likely_const_expr m = getMat(e); return (m && (*m & likely_matrix_multi_frame  )) ? cast(likely_expression(CreateLoad(CreateStructGEP(*m, 5), "frames"  ), likely_matrix_u32), likely_matrix_native) : one(); }
-    Value *data    (Value *value, likely_size type) { return CreatePointerCast(CreateStructGEP(value, 7), env->module->context->scalar(type, true)); }
+    Value *data    (Value *value, likely_size type) { return CreatePointerCast(CreateStructGEP(value, 6), env->module->context->scalar(type, true)); }
     likely_expression data    (likely_const_expr e) { likely_const_expr m = getMat(e); return likely_expression(data(m->value, m->type), (*m & likely_matrix_element) | likely_matrix_array); }
 
     void steps(likely_const_expr matrix, Value *channelStep, Value **columnStep, Value **rowStep, Value **frameStep)
