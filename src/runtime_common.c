@@ -70,10 +70,10 @@ likely_mat likely_new(likely_type type, likely_size channels, likely_size column
     m = (likely_mat) malloc(bytes);
     m->ref_count = 1;
     m->type = type;
-    m->channels = channels;
-    m->columns = columns;
-    m->rows = rows;
-    m->frames = frames;
+    m->channels = (uint32_t) channels;
+    m->columns = (uint32_t) columns;
+    m->rows = (uint32_t) rows;
+    m->frames = (uint32_t) frames;
 
     if (channels > 1) m->type |= likely_matrix_multi_channel;
     if (columns  > 1) m->type |= likely_matrix_multi_column;
