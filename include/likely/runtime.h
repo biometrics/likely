@@ -47,41 +47,48 @@ extern "C" {
  */
 typedef uintptr_t likely_size;
 
+typedef likely_size likely_type;
+
 /*!
  * \brief Data type of a matrix.
  *
- * Plays a critical role in determining how to process matricies.
+ * How to interpret \ref likely_matrix::data.
  */
-typedef likely_size likely_type;
-
 enum likely_matrix_type
 {
-    likely_matrix_void      = 0x00000000,
-    likely_matrix_depth     = 0x000000FF,
-    likely_matrix_floating  = 0x00000100,
-    likely_matrix_array     = 0x00000200,
-    likely_matrix_signed    = 0x00000400,
-    likely_matrix_saturated = 0x00000800,
-    likely_matrix_element   = likely_matrix_depth | likely_matrix_floating | likely_matrix_array | likely_matrix_signed | likely_matrix_saturated,
-    likely_matrix_u1  = 1,
-    likely_matrix_u8  = 8,
-    likely_matrix_u16 = 16,
-    likely_matrix_u32 = 32,
-    likely_matrix_u64 = 64,
-    likely_matrix_i8  = 8  | likely_matrix_signed,
-    likely_matrix_i16 = 16 | likely_matrix_signed,
-    likely_matrix_i32 = 32 | likely_matrix_signed,
-    likely_matrix_i64 = 64 | likely_matrix_signed,
-    likely_matrix_f16 = 16 | likely_matrix_floating,
-    likely_matrix_f32 = 32 | likely_matrix_floating,
-    likely_matrix_f64 = 64 | likely_matrix_floating,
-    likely_matrix_multi_channel   = 0x00001000,
-    likely_matrix_multi_column    = 0x00002000,
-    likely_matrix_multi_row       = 0x00004000,
-    likely_matrix_multi_frame     = 0x00008000,
-    likely_matrix_multi_dimension = likely_matrix_multi_channel | likely_matrix_multi_column | likely_matrix_multi_row | likely_matrix_multi_frame,
-    likely_matrix_string    = likely_matrix_i8 | likely_matrix_multi_channel,
-    likely_matrix_native    = sizeof(likely_size)*8,
+    likely_matrix_void      = 0x00000000, /*!< \brief Unknown type. */
+    likely_matrix_depth     = 0x000000FF, /*!< \brief Bits per element. */
+    likely_matrix_floating  = 0x00000100, /*!< \brief Elements are floating-point. */
+    likely_matrix_array     = 0x00000200, /*!< \brief Interpret as a pointer to an array of matricies (used internally only). */
+    likely_matrix_signed    = 0x00000400, /*!< \brief Elements are signed (integers). */
+    likely_matrix_saturated = 0x00000800, /*!< \brief Use saturated arithmetic with computations involving these elements. */
+    likely_matrix_element   = likely_matrix_depth
+                            | likely_matrix_floating
+                            | likely_matrix_array
+                            | likely_matrix_signed
+                            | likely_matrix_saturated, /*!< \brief The portion of \ref likely_matrix_type indicating how to interpret elements. */
+    likely_matrix_u1  = 1, /*!< \brief 1-bit unsigned integer elements. */
+    likely_matrix_u8  = 8, /*!< \brief 8-bit unsigned integer elements. */
+    likely_matrix_u16 = 16, /*!< \brief 16-bit unsigned integer elements. */
+    likely_matrix_u32 = 32, /*!< \brief 32-bit unsigned integer elements. */
+    likely_matrix_u64 = 64, /*!< \brief 64-bit unsigned integer elements. */
+    likely_matrix_i8  = 8  | likely_matrix_signed, /*!< \brief 8-bit signed integer elements. */
+    likely_matrix_i16 = 16 | likely_matrix_signed, /*!< \brief 16-bit signed integer elements. */
+    likely_matrix_i32 = 32 | likely_matrix_signed, /*!< \brief 32-bit signed integer elements. */
+    likely_matrix_i64 = 64 | likely_matrix_signed, /*!< \brief 64-bit signed integer elements. */
+    likely_matrix_f16 = 16 | likely_matrix_floating, /*!< \brief 16-bit floating-point elements. */
+    likely_matrix_f32 = 32 | likely_matrix_floating, /*!< \brief 32-bit floating-point elements. */
+    likely_matrix_f64 = 64 | likely_matrix_floating, /*!< \brief 64-bit floating-point elements. */
+    likely_matrix_multi_channel   = 0x00001000, /*!< \brief \ref likely_matrix::channels > 1. */
+    likely_matrix_multi_column    = 0x00002000, /*!< \brief \ref likely_matrix::columns > 1. */
+    likely_matrix_multi_row       = 0x00004000, /*!< \brief \ref likely_matrix::rows > 1. */
+    likely_matrix_multi_frame     = 0x00008000, /*!< \brief \ref likely_matrix::frames > 1. */
+    likely_matrix_multi_dimension = likely_matrix_multi_channel
+                                  | likely_matrix_multi_column
+                                  | likely_matrix_multi_row
+                                  | likely_matrix_multi_frame, /*!< \brief The portion of \ref likely_matrix_type indicating matrix dimensionality. */
+    likely_matrix_string    = likely_matrix_i8 | likely_matrix_multi_channel, /*!< \brief likely_matrix::data is a C-style string. */
+    likely_matrix_native    = sizeof(likely_size)*8, /*!< \brief Native integer size. */
 };
 
 // Disable 'nonstandard extension used : zero-sized array in struct/union' warning
