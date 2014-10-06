@@ -80,7 +80,6 @@ enum likely_matrix_type
     likely_matrix_multi_dimension = likely_matrix_multi_channel | likely_matrix_multi_column | likely_matrix_multi_row | likely_matrix_multi_frame,
     likely_matrix_string    = likely_matrix_i8 | likely_matrix_multi_channel,
     likely_matrix_native    = sizeof(likely_size)*8,
-    likely_matrix_type_type = likely_matrix_native
 };
 
 // Disable 'nonstandard extension used : zero-sized array in struct/union' warning
