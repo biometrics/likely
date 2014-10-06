@@ -121,6 +121,7 @@ struct likely_matrix
     uint32_t rows;     /*!< \brief Dimensionality. */
     uint32_t frames;   /*!< \brief Dimensionality. */
 
+    uint64_t _reserved; /*!< \brief Used to ensure \ref data is 32-byte aligned: <tt>sizeof(likely_matrix) == 32</tt>. */
     char data[]; /*!< \brief Buffer. */
 };
 
