@@ -411,7 +411,8 @@ struct likely_expression
     {
         type |= likely_matrix_floating;
         type &= ~likely_matrix_signed;
-        likely_set_depth(&type, (type & likely_matrix_depth) > 32 ? 64 : 32);
+        type &= ~likely_matrix_depth;
+        type |= (type & likely_matrix_depth) > 32 ? 64 : 32;
         return type;
     }
 
@@ -624,7 +625,7 @@ struct Builder : public IRBuilder<>
         if ((x.type & likely_matrix_element) == type)
             return likely_expression(x, type);
         if ((type & likely_matrix_depth) == 0) {
-            likely_set_depth(&type, x & likely_matrix_depth);
+            type |= x.type & likely_matrix_depth;
             if (type & likely_matrix_floating)
                 type = likely_expression::validFloatType(type);
         }

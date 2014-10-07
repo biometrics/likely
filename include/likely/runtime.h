@@ -145,7 +145,6 @@ LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
  * \brief Determine the size of a \ref likely_matrix.
  * @{
  */
-LIKELY_EXPORT void likely_set_depth(likely_size *type, size_t depth);
 LIKELY_EXPORT likely_size likely_elements(likely_const_mat m);
 LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
 /** @} */ // end of matrix_size

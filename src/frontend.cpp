@@ -632,7 +632,7 @@ likely_size likely_type_from_value(double value)
 
 likely_size likely_type_from_types(likely_size lhs, likely_size rhs)
 {
-    likely_size result = lhs | rhs;
-    likely_set_depth(&result, max(lhs & likely_matrix_depth, rhs & likely_matrix_depth));
+    likely_size result = (lhs | rhs) & ~likely_matrix_depth;
+    result |= max(lhs & likely_matrix_depth, rhs & likely_matrix_depth);
     return result;
 }

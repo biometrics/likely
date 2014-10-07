@@ -41,12 +41,6 @@ void likely_assert(bool condition, const char *format, ...)
 #endif // _WIN32
 }
 
-void likely_set_depth(likely_size *type, size_t depth)
-{
-    *type &= ~likely_matrix_depth;
-    *type |= depth & likely_matrix_depth;
-}
-
 likely_size likely_elements(likely_const_mat m)
 {
     return m->channels * m->columns * m->rows * m->frames;
