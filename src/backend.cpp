@@ -158,7 +158,7 @@ public:
 
     Type *scalar(likely_size type, bool pointer = false)
     {
-        const size_t bits = likely_depth(type);
+        const size_t bits = type & likely_matrix_depth;
         const bool floating = (type & likely_matrix_floating) != 0;
         if (floating) {
             if      (bits == 16) return pointer ? Type::getHalfPtrTy(context)   : Type::getHalfTy(context);
@@ -183,7 +183,7 @@ public:
             return result->second;
 
         Type *llvm;
-        if (!(likely & likely_matrix_multi_dimension) && likely_depth(likely)) {
+        if (!(likely & likely_matrix_multi_dimension) && (likely & likely_matrix_depth)) {
             llvm = scalar(likely);
         } else {
             likely_mat str = likely_type_to_string(likely);
@@ -411,7 +411,7 @@ struct likely_expression
     {
         type |= likely_matrix_floating;
         type &= ~likely_matrix_signed;
-        likely_set_depth(&type, likely_depth(type) > 32 ? 64 : 32);
+        likely_set_depth(&type, (type & likely_matrix_depth) > 32 ? 64 : 32);
         return type;
     }
 
@@ -579,13 +579,13 @@ struct Builder : public IRBuilder<>
 
     likely_expression constant(uint64_t value, likely_size type = likely_matrix_native)
     {
-        const unsigned depth = unsigned(likely_depth(type));
+        const unsigned depth = unsigned(type & likely_matrix_depth);
         return likely_expression(Constant::getIntegerValue(Type::getIntNTy(getContext(), depth), APInt(depth, value)), type);
     }
 
     likely_expression constant(double value, likely_size type)
     {
-        const size_t depth = likely_depth(type);
+        const size_t depth = type & likely_matrix_depth;
         if (type & likely_matrix_floating) {
             if (value == 0) value = -0; // IEEE/LLVM optimization quirk
             if      (depth == 64) return likely_expression(ConstantFP::get(Type::getDoubleTy(getContext()), value), type);
@@ -598,8 +598,8 @@ struct Builder : public IRBuilder<>
 
     likely_expression zero(likely_size type = likely_matrix_native) { return constant(0.0, type); }
     likely_expression one (likely_size type = likely_matrix_native) { return constant(1.0, type); }
-    likely_expression intMax(likely_size type) { const size_t bits = likely_depth(type); return constant((uint64_t) (1 << (bits - ((type & likely_matrix_signed) ? 1 : 0)))-1, bits); }
-    likely_expression intMin(likely_size type) { const size_t bits = likely_depth(type); return constant((uint64_t) ((type & likely_matrix_signed) ? (1 << (bits - 1)) : 0), bits); }
+    likely_expression intMax(likely_size type) { const size_t bits = type & likely_matrix_depth; return constant((uint64_t) (1 << (bits - ((type & likely_matrix_signed) ? 1 : 0)))-1, bits); }
+    likely_expression intMin(likely_size type) { const size_t bits = type & likely_matrix_depth; return constant((uint64_t) ((type & likely_matrix_signed) ? (1 << (bits - 1)) : 0), bits); }
     likely_expression matrixType(likely_size type) { return constant((uint64_t) type, likely_matrix_u32); }
     likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(::cast<PointerType>((Type*)multiDimension())), likely_matrix_multi_dimension); }
     likely_expression nullData() { return likely_expression(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_matrix_u8 | likely_matrix_array); }
@@ -623,8 +623,8 @@ struct Builder : public IRBuilder<>
         type &= likely_matrix_element;
         if ((x.type & likely_matrix_element) == type)
             return likely_expression(x, type);
-        if (likely_depth(type) == 0) {
-            likely_set_depth(&type, likely_depth(x));
+        if ((type & likely_matrix_depth) == 0) {
+            likely_set_depth(&type, x & likely_matrix_depth);
             if (type & likely_matrix_floating)
                 type = likely_expression::validFloatType(type);
         }

@@ -41,11 +41,6 @@ void likely_assert(bool condition, const char *format, ...)
 #endif // _WIN32
 }
 
-size_t likely_depth(likely_size type)
-{
-    return type & likely_matrix_depth;
-}
-
 void likely_set_depth(likely_size *type, size_t depth)
 {
     *type &= ~likely_matrix_depth;
@@ -59,13 +54,13 @@ likely_size likely_elements(likely_const_mat m)
 
 likely_size likely_bytes(likely_const_mat m)
 {
-    return (likely_depth(m->type) * likely_elements(m) + 7) / 8;
+    return ((m->type & likely_matrix_depth) * likely_elements(m) + 7) / 8;
 }
 
 likely_mat likely_new(likely_size type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data)
 {
     likely_mat m;
-    const size_t dataBytes = (((uint64_t)likely_depth(type)) * channels * columns * rows * frames + 7) / 8;
+    const size_t dataBytes = ((uint64_t)(type & likely_matrix_depth) * channels * columns * rows * frames + 7) / 8;
     const size_t bytes = sizeof(struct likely_matrix) + dataBytes;
     m = (likely_mat) malloc(bytes);
     m->ref_count = 1;

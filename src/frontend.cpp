@@ -547,7 +547,7 @@ likely_mat likely_type_to_string(likely_size type)
 {
     stringstream typeStream;
     typeStream << ((type & likely_matrix_floating) ? "f" : ((type & likely_matrix_signed) ? "i" : "u"));
-    typeStream << likely_depth(type);
+    typeStream << (type & likely_matrix_depth);
     if (type & likely_matrix_array)         typeStream << "A";
     if (type & likely_matrix_saturated)     typeStream << "S";
     if (type & likely_matrix_multi_channel) typeStream << "C";
@@ -633,6 +633,6 @@ likely_size likely_type_from_value(double value)
 likely_size likely_type_from_types(likely_size lhs, likely_size rhs)
 {
     likely_size result = lhs | rhs;
-    likely_set_depth(&result, max(likely_depth(lhs), likely_depth(rhs)));
+    likely_set_depth(&result, max(lhs & likely_matrix_depth, rhs & likely_matrix_depth));
     return result;
 }
