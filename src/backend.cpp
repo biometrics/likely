@@ -668,7 +668,7 @@ struct Builder : public IRBuilder<>
     {
         if (!data)
             return NULL;
-        else if (likely_elements(data) == 1)
+        else if (!(data->type & likely_matrix_multi_dimension))
             return new likely_expression(constant(likely_element(data, 0, 0, 0, 0), data->type), data->type, NULL, data);
         else
             return new ConstantMat(*this, data);
@@ -1393,25 +1393,6 @@ class tryExpression : public LikelyOperator
     }
 };
 LIKELY_REGISTER(try)
-
-class elementsExpression : public SimpleUnaryOperator
-{
-    const char *symbol() const { return "elements"; }
-    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
-    {
-        Function *likelyElements = builder.module()->getFunction("likely_elements");
-        if (!likelyElements) {
-            FunctionType *functionType = FunctionType::get(builder.nativeInt(), builder.multiDimension(), false);
-            likelyElements = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_elements", builder.module());
-            likelyElements->setCallingConv(CallingConv::C);
-            likelyElements->setDoesNotAlias(1);
-            likelyElements->setDoesNotCapture(1);
-            sys::DynamicLibrary::AddSymbol("likely_elements", (void*) likely_elements);
-        }
-        return new likely_expression(builder.CreateCall(likelyElements, *arg), likely_matrix_native);
-    }
-};
-LIKELY_REGISTER(elements)
 
 class bytesExpression : public SimpleUnaryOperator
 {
@@ -2252,7 +2233,7 @@ private:
         (void) ast;
 
         likely_const_mat m = get()->result;
-        if (likely_elements(m) == 1) {
+        if (!(m->type & likely_matrix_multi_dimension)) {
             // Promote to scalar
             return new likely_expression(builder.constant(likely_element(m, 0, 0, 0, 0), m->type & likely_matrix_element));
         } else {
@@ -2892,7 +2873,7 @@ likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback r
         parent = env;
         if (repl_callback)
             // If there is not context, we return a boolean value indicating if the environment has a valid result
-            repl_callback(env, context ? context : (void*)(!(env->type & likely_environment_definition) && env->result && (likely_elements(env->result) > 0)));
+            repl_callback(env, context ? context : (void*)(!(env->type & likely_environment_definition) && env->result));
         if (env->type & likely_environment_erratum)
             break;
     }

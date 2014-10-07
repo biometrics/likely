@@ -266,7 +266,7 @@ likely_mat likely_print_n(likely_const_mat *mv, size_t n)
             // skip it
         } else if (likely_is_string(m)) {
             buffer << m->data;
-        } else if (likely_elements(m) == 1) {
+        } else if (!(m->type & likely_matrix_multi_dimension)) {
             buffer << likely_element(m, 0, 0, 0, 0);
         } else {
             buffer << "(";

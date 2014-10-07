@@ -427,7 +427,7 @@ public:
         if (!m)
             return hide();
 
-        if ((likely_elements(m) <= 16) || likely_is_string(m)) {
+        if ((m->channels * m->columns * m->rows * m->frames <= 16) || likely_is_string(m)) {
             image->setImage(QImage());
 
             likely_mat printed = likely_print(m);
@@ -653,7 +653,7 @@ public slots:
 
     void print(likely_const_env env)
     {
-        if (!env || (env->type & likely_environment_definition) || !env->result || (likely_elements(env->result) == 0))
+        if (!env || (env->type & likely_environment_definition) || !env->result)
             return;
 
         const QString name = likely_get_symbol_name(env->ast);

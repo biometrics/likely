@@ -41,14 +41,11 @@ void likely_assert(bool condition, const char *format, ...)
 #endif // _WIN32
 }
 
-likely_size likely_elements(likely_const_mat m)
-{
-    return m->channels * m->columns * m->rows * m->frames;
-}
-
 likely_size likely_bytes(likely_const_mat m)
 {
-    return ((m->type & likely_matrix_depth) * likely_elements(m) + 7) / 8;
+    if (!m)
+        return 0;
+    return ((m->type & likely_matrix_depth) * m->channels * m->columns * m->rows * m->frames + 7) / 8;
 }
 
 likely_mat likely_new(likely_size type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data)
@@ -206,5 +203,5 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
 
 bool likely_is_string(likely_const_mat m)
 {
-    return m && (m->type == likely_matrix_string) && !m->data[likely_elements(m)-1];
+    return m && (m->type == likely_matrix_string) && !m->data[m->channels * m->columns * m->rows * m->frames - 1];
 }

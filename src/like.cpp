@@ -81,7 +81,7 @@ static void replShow(likely_const_env env, void *context)
         likely_assert(rendered->columns  == baseline->columns , "expected: %d columns, got: %d" , baseline->columns , rendered->columns);
         likely_assert(rendered->rows     == baseline->rows    , "expected: %d rows, got: %d"    , baseline->rows    , rendered->rows);
         likely_assert(rendered->frames   == baseline->frames  , "expected: %d frames, got: %d"  , baseline->frames  , rendered->frames);
-        const likely_size elements = likely_elements(rendered);
+        const likely_size elements = rendered->channels * rendered->columns * rendered->rows * rendered->frames;
         likely_size delta = 0;
         for (likely_size i=0; i<elements; i++)
             delta += abs(int(rendered->data[i]) - int(baseline->data[i]));
