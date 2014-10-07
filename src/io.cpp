@@ -51,7 +51,7 @@ static likely_mat takeAndInterpret(likely_mat buffer, likely_size type)
     if (!result && (type & likely_file_text)) {
         const likely_size bytes = likely_bytes(buffer);
         buffer->data[bytes-1] = 0;
-        buffer->channels = bytes;
+        buffer->channels = uint32_t(bytes);
         buffer->columns = buffer->rows = buffer->frames = 1;
         buffer->type = likely_matrix_string;
         result = likely_retain(buffer);
