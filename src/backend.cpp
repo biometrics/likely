@@ -1045,24 +1045,24 @@ likely_const_expr Builder::expression(likely_const_ast ast)
     }
 }
 
-#define LIKELY_REGISTER_AXIS(AXIS)                                           \
-class AXIS##Expression : public likely_expression                            \
-{                                                                            \
-    const char *symbol() const { return #AXIS; }                             \
-    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const \
-    {                                                                        \
-        const size_t arguments = length(ast) - 1;                            \
-        if (arguments == 0) {                                                \
-            return new AXIS##Expression();                                   \
-        } else if (arguments == 1) {                                         \
-            TRY_EXPR(builder, ast->atoms[1], expr)                           \
-            return new likely_expression(builder.AXIS(expr.get()));          \
-        } else {                                                             \
-            return error(ast, "expected 0 or 1 operand(s)");                 \
-        }                                                                    \
-    }                                                                        \
-};                                                                           \
-LIKELY_REGISTER(AXIS)                                                        \
+#define LIKELY_REGISTER_AXIS(AXIS)                                                   \
+class AXIS##Expression : public LikelyOperator                                       \
+{                                                                                    \
+    const char *symbol() const { return #AXIS; }                                     \
+    size_t maxParameters() const { return 1; }                                       \
+    size_t minParameters() const { return 0; }                                       \
+                                                                                     \
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const \
+    {                                                                                \
+        if (length(ast) < 2) {                                                       \
+            return new AXIS##Expression();                                           \
+        } else {                                                                     \
+            TRY_EXPR(builder, ast->atoms[1], expr)                                   \
+            return new likely_expression(builder.AXIS(expr.get()));                  \
+        }                                                                            \
+    }                                                                                \
+};                                                                                   \
+LIKELY_REGISTER(AXIS)                                                                \
 
 LIKELY_REGISTER_AXIS(channels)
 LIKELY_REGISTER_AXIS(columns)
