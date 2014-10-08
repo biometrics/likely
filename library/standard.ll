@@ -561,25 +561,30 @@ Returns _fallback_ expression in the event of an error.
 
 Standard Library
 ----------------
-### Mathematical Constants
+### Basic mathematical constants
     true  := 1
     false := 0
     e  := (f32 2.718281) ; Euler's number
     pi := (f32 3.141592) ; The ratio of a circle's circumference to its diameter
 
-### Unary Functions
+### Basic Unary Functions
     not  := (-> a (== a false))
     bool := (-> a (!= a false))
     sq  := (-> a (* a a))
     abs := (-> a (? (< a 0) (* -1 a) a))
 
-### Binary Functions
+### Basic binary functions
     and := (-> (a b) (& a.bool b.bool))
     or  := (-> (a b) (| a.bool b.bool))
     xor := (-> (a b) (^ a.bool b.bool))
     min := (-> (a b) (? (< a b) a b))
     max := (-> (a b) (? (> a b) a b))
-    cast := (-> (a b) (b.type a)) ; cast a to the type of b
+
+### Matrix information
+    elements := (-> m m.channels :* m.columns :* m.rows :* m.frames)
+
+### Type conversion
+    cast := (-> (a b) (b.type a)) ; convert a to the type of b
 
 ### Thresholding
     threshold-binary          := (-> (input threshold response) (? (> input threshold) response  0))
