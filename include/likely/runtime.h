@@ -127,26 +127,19 @@ typedef struct likely_matrix const *likely_const_mat; /*!< \brief Pointer to a c
 typedef struct likely_matrix *likely_mat; /*!< \brief Pointer to a \ref likely_matrix. */
 
 /*!
- * \defgroup error_handling Error Handling
- * \brief Respond to unexpected conditions.
- * @{
- */
-
-/*!
  * \brief Conditional abort-style error handling with an error message.
- * \param condition If \c false, print \a format and abort.
- * \param format <tt>printf</tt>-style error message.
+ * \param[in] condition If \c false, print \a format and abort.
+ * \param[in] format <tt>printf</tt>-style error message.
  */
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
-/** @} */ // end of error_handling
 
 /*!
- * \defgroup matrix_size Matrix Size
- * \brief Determine the size of a \ref likely_matrix.
- * @{
+ * \brief The size of \ref likely_matrix::data in bytes.
+ *
+ * \snippet src/runtime_common.c likely_bytes implementation.
+ * \param[in] mat The matrix from which to calculate the data buffer size.
  */
-LIKELY_EXPORT likely_size likely_bytes(likely_const_mat m);
-/** @} */ // end of matrix_size
+LIKELY_EXPORT size_t likely_bytes(likely_const_mat mat);
 
 /*!
  * \defgroup matrix_creation Matrix Creation

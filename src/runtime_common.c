@@ -41,12 +41,14 @@ void likely_assert(bool condition, const char *format, ...)
 #endif // _WIN32
 }
 
-likely_size likely_bytes(likely_const_mat m)
+//! [likely_bytes implementation.]
+size_t likely_bytes(likely_const_mat mat)
 {
-    if (!m)
+    if (mat->type & likely_matrix_array)
         return 0;
-    return ((m->type & likely_matrix_depth) * m->channels * m->columns * m->rows * m->frames + 7) / 8;
+    return ((mat->type & likely_matrix_depth) * (size_t) mat->channels * (size_t) mat->columns * (size_t) mat->rows * (size_t) mat->frames + 7) / 8;
 }
+//! [likely_bytes implementation.]
 
 likely_mat likely_new(likely_size type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data)
 {
