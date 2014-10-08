@@ -1045,29 +1045,29 @@ likely_const_expr Builder::expression(likely_const_ast ast)
     }
 }
 
-#define LIKELY_REGISTER_FIELD(FIELD)                                         \
-class FIELD##Expression : public likely_expression                           \
+#define LIKELY_REGISTER_AXIS(AXIS)                                           \
+class AXIS##Expression : public likely_expression                            \
 {                                                                            \
-    const char *symbol() const { return #FIELD; }                            \
+    const char *symbol() const { return #AXIS; }                             \
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const \
     {                                                                        \
         const size_t arguments = length(ast) - 1;                            \
         if (arguments == 0) {                                                \
-            return new FIELD##Expression();                                  \
+            return new AXIS##Expression();                                   \
         } else if (arguments == 1) {                                         \
             TRY_EXPR(builder, ast->atoms[1], expr)                           \
-            return new likely_expression(builder.FIELD(expr.get()));         \
+            return new likely_expression(builder.AXIS(expr.get()));          \
         } else {                                                             \
             return error(ast, "expected 0 or 1 operand(s)");                 \
         }                                                                    \
     }                                                                        \
 };                                                                           \
-LIKELY_REGISTER(FIELD)                                                       \
+LIKELY_REGISTER(AXIS)                                                        \
 
-LIKELY_REGISTER_FIELD(channels)
-LIKELY_REGISTER_FIELD(columns)
-LIKELY_REGISTER_FIELD(rows)
-LIKELY_REGISTER_FIELD(frames)
+LIKELY_REGISTER_AXIS(channels)
+LIKELY_REGISTER_AXIS(columns)
+LIKELY_REGISTER_AXIS(rows)
+LIKELY_REGISTER_AXIS(frames)
 
 class notExpression : public SimpleUnaryOperator
 {

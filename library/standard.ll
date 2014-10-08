@@ -466,7 +466,39 @@ If _frames_, _rows_, _columns_ or _channels_ are not specified then they will as
 If _type_ is not specified then it will assume a value of _f32_ (32-bit floating point).
 
 ```likely
-uninitialized-color-image:= (new u8 3 512 512)
+uninitialized-color-image := (new u8 3 512 512)
+```
+
+##### (channels [_matrix_])
+Returns the number of channels in _matrix_ as a native integer.
+If _matrix_ is not specified, returns a function which when given a matrix returns the number of channels in the matrix.
+
+```likely
+(channels uninitialized-color-image) ; Evaluates to 3
+```
+
+##### (columns [_matrix_])
+Returns the number of columns in _matrix_ as a native integer.
+If _matrix_ is not specified, returns a function which when given a matrix returns the number of columns in the matrix.
+
+```likely
+(columns uninitialized-color-image) ; Evaluates to 512
+```
+
+##### (rows [_matrix_])
+Returns the number of rows in _matrix_ as type a native integer.
+If _matrix_ is not specified, returns a function which when given a matrix returns the number of rows in the matrix.
+
+```likely
+(rows uninitialized-color-image) ; Evaluates to 512
+```
+
+##### (frames [_matrix_])
+Returns the number of frames in _matrix_ as type a native integer.
+If _matrix_ is not specified, returns a function which when given a matrix returns the number of frames in the matrix.
+
+```likely
+(frames uninitialized-color-image) ; Evaluates to 1
 ```
 
 #### Matrix I/O
