@@ -110,7 +110,6 @@ public:
         static bool initialized = false;
         if (!initialized) {
             static_assert(sizeof(likely_size) == sizeof(void*), "likely_size is not the native pointer size!");
-            static_assert(sizeof(likely_matrix_type) <= 4, "likely_matrix_type is not less than or equal to 4 bytes!");
             InitializeNativeTarget();
             InitializeNativeTargetAsmPrinter();
             InitializeNativeTargetAsmParser();
