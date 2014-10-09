@@ -93,8 +93,7 @@ LIKELY_EXPORT likely_mat likely_error_to_string(likely_error error);
 // Type conversion
 LIKELY_EXPORT likely_mat likely_type_to_string(likely_size type);
 LIKELY_EXPORT likely_mat likely_type_field_to_string(likely_size type);
-LIKELY_EXPORT likely_size likely_type_from_string(const char *str);
-LIKELY_EXPORT likely_size likely_type_field_from_string(const char *str, bool *ok);
+LIKELY_EXPORT likely_matrix_type likely_type_from_string(const char *str, bool *ok);
 LIKELY_EXPORT likely_size likely_type_from_value(double value);
 LIKELY_EXPORT likely_size likely_type_from_types(likely_size lhs, likely_size rhs);
 

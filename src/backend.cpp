@@ -472,7 +472,7 @@ struct likely_expression
             } else {
                 if (Type *element = dyn_cast<PointerType>(llvm)->getElementType()) {
                     if (StructType *matrix = dyn_cast<StructType>(element)) {
-                        return likely_type_from_string(matrix->getName().str().c_str());
+                        return likely_type_from_string(matrix->getName().str().c_str(), NULL);
                     } else {
                         likely_size type = toLikely(element);
                         if (!isa<FunctionType>(element))
@@ -1033,7 +1033,7 @@ likely_const_expr Builder::expression(likely_const_ast ast)
 
         { // Is it a type?
             bool ok;
-            likely_size type = likely_type_field_from_string(ast->atom, &ok);
+            likely_size type = likely_type_from_string(ast->atom, &ok);
             if (ok) {
                 const_cast<likely_ast>(ast)->type = likely_ast_type;
                 return new MatrixType(*this, type);
@@ -2327,7 +2327,7 @@ class defineExpression : public LikelyOperator
                 for (size_t i=1; i<lhs->num_atoms; i++) {
                     if (lhs->atoms[i]->type == likely_ast_list)
                         return error(lhs->atoms[i], "expected an atom name parameter type");
-                    parameters.push_back(likely_type_from_string(lhs->atoms[i]->atom));
+                    parameters.push_back(likely_type_from_string(lhs->atoms[i]->atom, NULL));
                 }
 
                 if (env->type & likely_environment_offline) {

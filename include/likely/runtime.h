@@ -52,7 +52,7 @@ typedef uintptr_t likely_size;
  *
  * How to interpret \ref likely_matrix::data.
  */
-enum likely_matrix_type
+typedef enum
 {
     likely_matrix_void      = 0x00000000, /*!< \brief Unknown type. */
     likely_matrix_depth     = 0x000000FF, /*!< \brief Bits per element. */
@@ -87,7 +87,7 @@ enum likely_matrix_type
                                   | likely_matrix_multi_frame, /*!< \brief The portion of \ref likely_matrix_type indicating matrix dimensionality. */
     likely_matrix_string = likely_matrix_i8 | likely_matrix_multi_channel, /*!< \brief likely_matrix::data is a C-style string. */
     likely_matrix_native = sizeof(likely_size)*8, /*!< \brief Native integer size. */
-};
+} likely_matrix_type;
 
 // Disable 'nonstandard extension used : zero-sized array in struct/union' warning
 #ifdef _MSC_VER
@@ -113,7 +113,7 @@ struct likely_matrix
 {
     uint32_t ref_count; /*!< \brief Reference count. */
     union {
-        enum likely_matrix_type type; /*!< \brief Interpretation of \ref data. */
+        likely_matrix_type type; /*!< \brief Interpretation of \ref data. */
         uint32_t set_type; /*!< \brief Idiom to easily edit \ref type and ensure that it is 4 bytes. */
     };
     uint32_t channels; /*!< \brief Sub-spatial dimensionality. */

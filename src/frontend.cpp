@@ -574,37 +574,19 @@ likely_mat likely_type_field_to_string(likely_size type)
     return likely_type_to_string(type);
 }
 
-likely_size likely_type_from_string(const char *str)
+likely_matrix_type likely_type_from_string(const char *str, bool *ok)
 {
-    const size_t len = strlen(str);
-    if (len == 0) return likely_matrix_void;
+    size_t length;
+    uint32_t type;
+    char *remainder;
 
-    likely_size t;
-    if      (str[0] == 'f') t = likely_matrix_floating;
-    else if (str[0] == 'i') t = likely_matrix_signed;
-    else if (str[0] == 'u') t = likely_matrix_void;
-    else                    return likely_matrix_void;
+    if (!str)
+        goto error;
 
-    char *rem;
-    t += (int)strtol(str+1, &rem, 10);
+    if (ok)
+        *ok = true;
 
-    while (*rem) {
-        if      (*rem == 'A') t |= likely_matrix_array;
-        else if (*rem == 'S') t |= likely_matrix_saturated;
-        else if (*rem == 'C') t |= likely_matrix_multi_channel;
-        else if (*rem == 'X') t |= likely_matrix_multi_column;
-        else if (*rem == 'Y') t |= likely_matrix_multi_row;
-        else if (*rem == 'T') t |= likely_matrix_multi_frame;
-        else                  return likely_matrix_void;
-        rem++;
-    }
-
-    return t;
-}
-
-likely_size likely_type_field_from_string(const char *str, bool *ok)
-{
-    if (ok) *ok = true;
+    // Special cases
     if (!strcmp(str, "void"           )) return likely_matrix_void;
     if (!strcmp(str, "depth"          )) return likely_matrix_depth;
     if (!strcmp(str, "floating"       )) return likely_matrix_floating;
@@ -617,9 +599,38 @@ likely_size likely_type_field_from_string(const char *str, bool *ok)
     if (!strcmp(str, "multi_row"      )) return likely_matrix_multi_row;
     if (!strcmp(str, "multi_frame"    )) return likely_matrix_multi_frame;
     if (!strcmp(str, "multi_dimension")) return likely_matrix_multi_dimension;
-    likely_size type = likely_type_from_string(str);
-    if (ok) *ok = (type != likely_matrix_void);
-    return type;
+    if (!strcmp(str, "string"         )) return likely_matrix_string;
+    if (!strcmp(str, "native"         )) return likely_matrix_native;
+
+    // General case
+    length = strlen(str);
+    if (length == 0)
+        goto error;
+
+    if      (str[0] == 'f') type = likely_matrix_floating;
+    else if (str[0] == 'i') type = likely_matrix_signed;
+    else if (str[0] == 'u') type = likely_matrix_void;
+    else                    goto error;
+
+    type += (int)strtol(str+1, &remainder, 10);
+
+    while (*remainder) {
+        if      (*remainder == 'A') type |= likely_matrix_array;
+        else if (*remainder == 'S') type |= likely_matrix_saturated;
+        else if (*remainder == 'C') type |= likely_matrix_multi_channel;
+        else if (*remainder == 'X') type |= likely_matrix_multi_column;
+        else if (*remainder == 'Y') type |= likely_matrix_multi_row;
+        else if (*remainder == 'T') type |= likely_matrix_multi_frame;
+        else                        goto error;
+        remainder++;
+    }
+
+    return (likely_matrix_type) type;
+
+error:
+    if (ok)
+        *ok = false;
+    return likely_matrix_void;
 }
 
 likely_size likely_type_from_value(double value)
