@@ -2,92 +2,56 @@
 #  define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#include <likely.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+//! [hello_world_jit implementation.]
+#include <likely.h>
+
 int main(int argc, char *argv[])
 {
-    char *input_image, *filter, *output_image;
-
-    if (argc == 1) {
-        input_image = "data/misc/lenna.tiff"; // Assume we are run from repository root
-        output_image = "";
-        filter = "a:-> (=> a (/ a (a.type 2)))";
-    } else if (argc == 4) {
-        input_image = argv[1];
-        output_image = argv[3];
-
-        FILE* fp = fopen(argv[2], "rb");
-        if (!fp) {
-            printf("Failed to open filter!\n");
-            return -1;
-        }
-
-        fseek(fp, 0, SEEK_END);
-        long size = ftell(fp);
-        fseek(fp, 0, SEEK_SET);
-        filter = malloc(size);
-        long size_read = (long)fread(filter, 1, size, fp);
-        if (size_read != size) {
-            printf("Failed to read filter!\n");
-            return -1;
-        }
-        filter[size] = 0;
-    } else {
-        printf("Usage:\n");
-        printf("\thello_world_jit\n");
-        printf("\thello_world_jit <input_image> <filter_file> <output_image>\n");
-        return -1;
+    if ((argc < 3) || (argc > 4)) {
+        puts("Usage:\n\t"
+                 "hello_world_jit <input_image> <function> [<output_image>]\n"
+             "\n"
+             "Example:\n\t"
+                 "hello_world_jit data/misc/lenna.tiff 'a :-> (=> a (/ a (a.type 2)))' dark_lenna.png\n");
+        return EXIT_FAILURE;
     }
 
-    printf("Reading input image...\n");
-    likely_const_mat lenna = likely_read(input_image, likely_file_binary);
-    if (lenna) {
-        printf("Width: %d\nHeight: %d\n", (int) lenna->columns, (int) lenna->rows);
-    } else {
-        printf("Failed to read!\n");
-        return -1;
-    }
+    puts("Reading input image...");
+    likely_const_mat input = likely_read(argv[1], likely_file_binary);
+    likely_assert(input, "failed to read: %s", argv[1]);
+    printf("Width: %u\nHeight: %u\n", input->columns, input->rows);
 
-    if (lenna->rows == 0 || lenna->columns == 0) {
-        printf("Image width or height is zero!\n");
-        return -1;
-    }
+    puts("Parsing function...");
+    likely_const_ast ast = likely_ast_from_string(argv[2], false);
 
-    printf("Parsing abstract syntax tree...\n");
-    likely_const_ast ast = likely_ast_from_string(filter, false);
-
-    printf("Creating a compiler environment...\n");
+    puts("Creating a compiler environment...");
     likely_const_env env = likely_new_env_jit();
 
-    printf("Compiling source code...\n");
-    likely_const_fun darken = likely_compile(ast->atoms[0], env, likely_matrix_void);
-    if (!darken->function) {
-        printf("Failed to compile!\n");
-        return -1;
+    puts("Compiling source code...");
+    likely_const_fun f = likely_compile(ast->atoms[0], env, likely_matrix_void);
+    likely_assert(f->function, "failed to compile: %s", argv[2]);
+
+    puts("Calling compiled function...");
+    likely_const_mat output = ((likely_function_1)f->function)(input);
+    likely_assert(output, "failed to execute compiled function");
+
+    if (argc >= 4) {
+        puts("Writing output image...");
+        likely_write(output, argv[3]);
     }
 
-    printf("Calling compiled function...\n");
-    likely_const_mat dark_lenna = ((likely_function_1)darken->function)(lenna);
-    if (!dark_lenna) {
-        printf("Failed to execute!\n");
-        return -1;
-    }
-
-    if (strcmp(output_image, "")) {
-        printf("Writing output image...\n");
-        likely_write(dark_lenna, output_image);
-    }
-
-    printf("Cleaning up...\n");
-    likely_release(dark_lenna);
-    likely_release(lenna);
-    likely_release_ast(ast);
+    puts("Cleaning up...");
+    likely_release(output);
+    likely_release_function(f);
     likely_release_env(env);
-    likely_release_function(darken);
+    likely_release_ast(ast);
+    likely_release(input);
 
-    printf("Done!\n");
-    return 0;
+    puts("Done!");
+    return EXIT_SUCCESS;
 }
+//! [hello_world_jit implementation.]

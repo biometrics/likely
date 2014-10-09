@@ -8,7 +8,7 @@ if(${LIKELY_HELLOWORLD})
     target_link_libraries(hello_world_jit likely)
     add_test(NAME hello_world_jit
              WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-             COMMAND hello_world_jit)
+             COMMAND hello_world_jit data/misc/lenna.tiff "a :-> (=> a (/ a (a.type 2)))")
   endif()
 
   # hello_world_static
