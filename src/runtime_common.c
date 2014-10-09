@@ -75,20 +75,22 @@ likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t colum
 }
 //! [likely_new implementation.]
 
-likely_mat likely_scalar(likely_size type, double value)
+likely_mat likely_scalar(likely_matrix_type type, double value)
 {
     return likely_scalar_n(type, &value, 1);
 }
 
-likely_mat likely_scalar_n(likely_size type, double *values, size_t n)
+//! [likely_scalar_n implementation.]
+likely_mat likely_scalar_n(likely_matrix_type type, double *values, size_t n)
 {
     likely_mat m = likely_new(type, n, 1, 1, 1, NULL);
     for (size_t i=0; i<n; i++)
         likely_set_element(m, values[i], i, 0, 0, 0);
     return m;
 }
+//! [likely_scalar_n implementation.]
 
-likely_mat likely_scalar_va(likely_size type, double value, ...)
+likely_mat likely_scalar_va(likely_matrix_type type, double value, ...)
 {
     double *values = NULL;
     int i = 0;

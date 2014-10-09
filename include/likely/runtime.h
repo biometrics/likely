@@ -157,12 +157,41 @@ LIKELY_EXPORT size_t likely_bytes(likely_const_mat mat);
  * \param[in] rows \ref likely_matrix::rows.
  * \param[in] frames \ref likely_matrix::frames.
  * \param[in] data \ref likely_matrix::data.
+ * \see likely_scalar_n
  */
 LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data);
 
-LIKELY_EXPORT likely_mat likely_scalar(likely_size type, double value);
-LIKELY_EXPORT likely_mat likely_scalar_n(likely_size type, double *values, size_t n);
-LIKELY_EXPORT likely_mat likely_scalar_va(likely_size type, double value, ...);
+/*!
+ * \brief Construct a new single-element matrix.
+ *
+ * Convenient alternative to \ref likely_scalar_n.
+ * \param[in] type \ref likely_matrix::type.
+ * \param[in] value Element value.
+ */
+LIKELY_EXPORT likely_mat likely_scalar(likely_matrix_type type, double value);
+
+/*!
+ * \brief Construct a new multi-element matrix.
+ *
+ * Convenient alternative to \ref likely_new.
+ * \par Implementation
+ * \snippet src/runtime_common.c likely_scalar_n implementation.
+ * \param[in] type \ref likely_matrix::type.
+ * \param[in] values Array of element values.
+ * \param[in] n Length of \p values.
+ * \see likely_scalar likely_scalar_va
+ */
+LIKELY_EXPORT likely_mat likely_scalar_n(likely_matrix_type type, double *values, size_t n);
+
+/*!
+ * \brief Construct a new multi-element matrix.
+ *
+ * Convenient alternative to \ref likely_scalar_n.
+ * \param[in] type \ref likely_matrix::type.
+ * \param[in] value <tt>NaN</tt>-terminated list of element values.
+ */
+LIKELY_EXPORT likely_mat likely_scalar_va(likely_matrix_type type, double value, ...);
+
 LIKELY_EXPORT likely_mat likely_string(const char *str);
 LIKELY_EXPORT likely_mat likely_void();
 LIKELY_EXPORT likely_mat likely_copy(likely_const_mat m);

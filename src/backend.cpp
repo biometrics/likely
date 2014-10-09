@@ -701,7 +701,7 @@ struct Builder : public IRBuilder<>
 
         Function *likelyScalar = module()->getFunction("likely_scalar_va");
         if (!likelyScalar) {
-            Type *params[] = { nativeInt(), Type::getDoubleTy(getContext()) };
+            Type *params[] = { Type::getInt32Ty(getContext()), Type::getDoubleTy(getContext()) };
             FunctionType *functionType = FunctionType::get(multiDimension(), params, true);
             likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar_va", module());
             likelyScalar->setCallingConv(CallingConv::C);
@@ -717,7 +717,7 @@ struct Builder : public IRBuilder<>
             type = likely_type_from_types(type, e->type);
         }
         args.push_back(ConstantFP::get(getContext(), APFloat::getNaN(APFloat::IEEEdouble)));
-        args.insert(args.begin(), cast(matrixType(type), likely_matrix_u64));
+        args.insert(args.begin(), matrixType(type));
         return likely_expression(CreateCall(likelyScalar, args), likely_matrix_multi_dimension);
     }
 
