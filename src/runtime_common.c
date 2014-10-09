@@ -138,15 +138,6 @@ void likely_release(likely_const_mat mat)
 }
 //! [likely_release implementation.]
 
-likely_size likely_c_type(likely_size type)
-{
-    likely_size c_type = type & likely_matrix_element;
-    c_type &= ~likely_matrix_saturated;
-    if (c_type & likely_matrix_floating)
-        c_type &= ~likely_matrix_signed;
-    return c_type;
-}
-
 //! [likely_element implementation.]
 double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
 {
@@ -159,7 +150,7 @@ double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_s
     frameStep = m->rows * rowStep;
     index = t*frameStep + y*rowStep + x*columnStep + c;
 
-    switch (likely_c_type(m->type)) {
+    switch (m->type & likely_matrix_c_type) {
       case likely_matrix_u8:  return (double) (( uint8_t const*) m->data)[index];
       case likely_matrix_u16: return (double) ((uint16_t const*) m->data)[index];
       case likely_matrix_u32: return (double) ((uint32_t const*) m->data)[index];
@@ -188,7 +179,7 @@ void likely_set_element(likely_mat m, double value, likely_size c, likely_size x
     frameStep = m->rows * rowStep;
     index = t*frameStep + y*rowStep + x*columnStep + c;
 
-    switch (likely_c_type(m->type)) {
+    switch (m->type & likely_matrix_c_type) {
       case likely_matrix_u8:  (( uint8_t*)m->data)[index] = ( uint8_t)value; break;
       case likely_matrix_u16: ((uint16_t*)m->data)[index] = (uint16_t)value; break;
       case likely_matrix_u32: ((uint32_t*)m->data)[index] = (uint32_t)value; break;

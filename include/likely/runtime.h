@@ -65,8 +65,9 @@ enum likely_matrix_type_mask
     likely_matrix_floating  = 0x00000100, /*!< \brief Elements are floating-point. */
     likely_matrix_array     = 0x00000200, /*!< \brief Interpret as a pointer to an array of matricies (used internally only). */
     likely_matrix_signed    = 0x00000400, /*!< \brief Elements are signed (integers). */
+    likely_matrix_c_type    = likely_matrix_depth | likely_matrix_floating | likely_matrix_array | likely_matrix_signed, /*!< \brief The portion of the \ref likely_matrix_type representable in \c C. */
     likely_matrix_saturated = 0x00000800, /*!< \brief Use saturated arithmetic with computations involving these elements. */
-    likely_matrix_element   = likely_matrix_depth | likely_matrix_floating | likely_matrix_array | likely_matrix_signed | likely_matrix_saturated, /*!< \brief The portion of \ref likely_matrix_type indicating how to interpret elements. */
+    likely_matrix_element   = likely_matrix_c_type | likely_matrix_saturated, /*!< \brief The portion of \ref likely_matrix_type indicating how to interpret elements. */
     likely_matrix_u1  = 1, /*!< \brief 1-bit unsigned integer elements. */
     likely_matrix_u8  = 8, /*!< \brief 8-bit unsigned integer elements. */
     likely_matrix_u16 = 16, /*!< \brief 16-bit unsigned integer elements. */
@@ -239,7 +240,6 @@ LIKELY_EXPORT void likely_release(likely_const_mat mat);
  * \brief Access elements in a \ref likely_matrix.
  * @{
  */
-LIKELY_EXPORT likely_size likely_c_type(likely_size type);
 LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t);
 LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t);
 LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
