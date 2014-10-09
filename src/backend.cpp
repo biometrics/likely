@@ -725,7 +725,7 @@ struct Builder : public IRBuilder<>
     {
         Function *likelyNew = module()->getFunction("likely_new");
         if (!likelyNew) {
-            Type *params[] = { nativeInt(), nativeInt(), nativeInt(), nativeInt(), nativeInt(), Type::getInt8PtrTy(getContext()) };
+            Type *params[] = { Type::getInt32Ty(getContext()), Type::getInt32Ty(getContext()), Type::getInt32Ty(getContext()), Type::getInt32Ty(getContext()), Type::getInt32Ty(getContext()), Type::getInt8PtrTy(getContext()) };
             FunctionType *functionType = FunctionType::get(multiDimension(), params, false);
             likelyNew = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_new", module());
             likelyNew->setCallingConv(CallingConv::C);
@@ -1866,10 +1866,10 @@ class kernelExpression : public LikelyOperator
         getPairs((ast->num_atoms == 4) ? ast->atoms[3] : NULL, pairs);
 
         likely_size dimensionsType = likely_matrix_void;
-        Value *dstChannels = getDimensions(builder, pairs, "channels", srcs, &dimensionsType);
-        Value *dstColumns  = getDimensions(builder, pairs, "columns" , srcs, &dimensionsType);
-        Value *dstRows     = getDimensions(builder, pairs, "rows"    , srcs, &dimensionsType);
-        Value *dstFrames   = getDimensions(builder, pairs, "frames"  , srcs, &dimensionsType);
+        likely_expression dstChannels(getDimensions(builder, pairs, "channels", srcs, &dimensionsType), likely_matrix_native);
+        likely_expression dstColumns (getDimensions(builder, pairs, "columns" , srcs, &dimensionsType), likely_matrix_native);
+        likely_expression dstRows    (getDimensions(builder, pairs, "rows"    , srcs, &dimensionsType), likely_matrix_native);
+        likely_expression dstFrames  (getDimensions(builder, pairs, "frames"  , srcs, &dimensionsType), likely_matrix_native);
 
         // Allocate and initialize memory for the destination matrix
         BasicBlock *allocation = BasicBlock::Create(builder.getContext(), "allocation", builder.GetInsertBlock()->getParent());
@@ -1883,7 +1883,12 @@ class kernelExpression : public LikelyOperator
         PHINode *kernelFrames   = builder.CreatePHI(builder.nativeInt(), 1);
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(kernelChannels, kernelColumns), kernelRows), kernelFrames);
         likely_expression dst(builder.CreatePointerCast(
-                                  builder.newMat(dstType, builder.CreateMul(dstChannels, results), dstColumns, dstRows, dstFrames, builder.nullData()),
+                                  builder.newMat(builder.cast(dstType, likely_matrix_u32),
+                                                 builder.cast(builder.CreateMul(dstChannels, results), likely_matrix_u32),
+                                                 builder.cast(dstColumns, likely_matrix_u32),
+                                                 builder.cast(dstRows, likely_matrix_u32),
+                                                 builder.cast(dstFrames, likely_matrix_u32),
+                                                 builder.nullData()),
                                   builder.toLLVM(dimensionsType)),
                               dimensionsType);
 
@@ -1899,10 +1904,10 @@ class kernelExpression : public LikelyOperator
 
         results->addIncoming(builder.constant(metadata.results), entry);
         dstType->addIncoming(builder.cast(builder.matrixType(dst), likely_matrix_u64), entry);
-        kernelChannels->addIncoming(metadata.collapsedAxis.find("c") != metadata.collapsedAxis.end() ? dstChannels : builder.one().value, entry);
-        kernelColumns->addIncoming (metadata.collapsedAxis.find("x") != metadata.collapsedAxis.end() ? dstColumns  : builder.one().value, entry);
-        kernelRows->addIncoming    (metadata.collapsedAxis.find("y") != metadata.collapsedAxis.end() ? dstRows     : builder.one().value, entry);
-        kernelFrames->addIncoming  (metadata.collapsedAxis.find("t") != metadata.collapsedAxis.end() ? dstFrames   : builder.one().value, entry);
+        kernelChannels->addIncoming(metadata.collapsedAxis.find("c") != metadata.collapsedAxis.end() ? dstChannels : builder.one(), entry);
+        kernelColumns->addIncoming (metadata.collapsedAxis.find("x") != metadata.collapsedAxis.end() ? dstColumns  : builder.one(), entry);
+        kernelRows->addIncoming    (metadata.collapsedAxis.find("y") != metadata.collapsedAxis.end() ? dstRows     : builder.one(), entry);
+        kernelFrames->addIncoming  (metadata.collapsedAxis.find("t") != metadata.collapsedAxis.end() ? dstFrames   : builder.one(), entry);
         return new likely_expression(dst);
     }
 
@@ -2457,20 +2462,20 @@ class newExpression : public LikelyOperator
         Value *type = NULL, *channels = NULL, *columns = NULL, *rows = NULL, *frames = NULL, *data = NULL;
         switch (n) {
             case 6: data     = unique_ptr<const likely_expression>(builder.expression(ast->atoms[6]))->value;
-            case 5: frames   = builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[5])).get(), likely_matrix_native);
-            case 4: rows     = builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[4])).get(), likely_matrix_native);
-            case 3: columns  = builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[3])).get(), likely_matrix_native);
-            case 2: channels = builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[2])).get(), likely_matrix_native);
-            case 1: type     = unique_ptr<const likely_expression>(builder.expression(ast->atoms[1]))->value;
+            case 5: frames   = builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[5])).get(), likely_matrix_u32);
+            case 4: rows     = builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[4])).get(), likely_matrix_u32);
+            case 3: columns  = builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[3])).get(), likely_matrix_u32);
+            case 2: channels = builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[2])).get(), likely_matrix_u32);
+            case 1: type     = builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[1])).get(), likely_matrix_u32);
             default:           break;
         }
 
         switch (maxParameters()-n) {
             case 6: type     = builder.matrixType(likely_matrix_f32);
-            case 5: channels = builder.one();
-            case 4: columns  = builder.one();
-            case 3: rows     = builder.one();
-            case 2: frames   = builder.one();
+            case 5: channels = builder.one(likely_matrix_u32);
+            case 4: columns  = builder.one(likely_matrix_u32);
+            case 3: rows     = builder.one(likely_matrix_u32);
+            case 2: frames   = builder.one(likely_matrix_u32);
             case 1: data     = builder.nullData();
             default:           break;
         }

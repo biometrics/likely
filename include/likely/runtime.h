@@ -66,11 +66,7 @@ enum likely_matrix_type_mask
     likely_matrix_array     = 0x00000200, /*!< \brief Interpret as a pointer to an array of matricies (used internally only). */
     likely_matrix_signed    = 0x00000400, /*!< \brief Elements are signed (integers). */
     likely_matrix_saturated = 0x00000800, /*!< \brief Use saturated arithmetic with computations involving these elements. */
-    likely_matrix_element   = likely_matrix_depth
-                            | likely_matrix_floating
-                            | likely_matrix_array
-                            | likely_matrix_signed
-                            | likely_matrix_saturated, /*!< \brief The portion of \ref likely_matrix_type indicating how to interpret elements. */
+    likely_matrix_element   = likely_matrix_depth | likely_matrix_floating | likely_matrix_array | likely_matrix_signed | likely_matrix_saturated, /*!< \brief The portion of \ref likely_matrix_type indicating how to interpret elements. */
     likely_matrix_u1  = 1, /*!< \brief 1-bit unsigned integer elements. */
     likely_matrix_u8  = 8, /*!< \brief 8-bit unsigned integer elements. */
     likely_matrix_u16 = 16, /*!< \brief 16-bit unsigned integer elements. */
@@ -87,10 +83,7 @@ enum likely_matrix_type_mask
     likely_matrix_multi_column    = 0x00002000, /*!< \brief \ref likely_matrix::columns > 1. */
     likely_matrix_multi_row       = 0x00004000, /*!< \brief \ref likely_matrix::rows > 1. */
     likely_matrix_multi_frame     = 0x00008000, /*!< \brief \ref likely_matrix::frames > 1. */
-    likely_matrix_multi_dimension = likely_matrix_multi_channel
-                                  | likely_matrix_multi_column
-                                  | likely_matrix_multi_row
-                                  | likely_matrix_multi_frame, /*!< \brief The portion of \ref likely_matrix_type indicating matrix dimensionality. */
+    likely_matrix_multi_dimension = likely_matrix_multi_channel | likely_matrix_multi_column | likely_matrix_multi_row | likely_matrix_multi_frame, /*!< \brief The portion of \ref likely_matrix_type indicating matrix dimensionality. Used for loop optimizations. */
     likely_matrix_string = likely_matrix_i8 | likely_matrix_multi_channel, /*!< \brief likely_matrix::data is a C-style string. */
     likely_matrix_native = sizeof(likely_size)*8, /*!< \brief Native integer size. */
 };
@@ -139,17 +132,34 @@ LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
 /*!
  * \brief The size of \ref likely_matrix::data in bytes.
  *
+ * \par Implementation
  * \snippet src/runtime_common.c likely_bytes implementation.
  * \param[in] mat The matrix from which to calculate the data buffer size.
  */
 LIKELY_EXPORT size_t likely_bytes(likely_const_mat mat);
 
 /*!
- * \defgroup matrix_creation Matrix Creation
- * \brief Create a \ref likely_matrix.
- * @{
+ * \brief Allocate, initialize, and return a pointer to a new \ref likely_matrix.
+ *
+ * In the case that \p data is NULL then the returned \ref likely_matrix::data is uninitialized.
+ * Otherwise, the returned \ref likely_matrix::data is initialized by copying the contents of \p data.
+ * In the latter case, \p data should be at least size \ref likely_bytes.
+ *
+ * The \ref likely_matrix_multi_dimension component of \ref likely_matrix::type is set automatically for \p channels, \p columns, \p rows and \p frames greater than one.
+ *
+ * Release the returned matrix with \ref likely_release.
+ *
+ * \par Implementation
+ * \snippet src/runtime_common.c likely_new implementation.
+ * \param[in] type \ref likely_matrix::type.
+ * \param[in] channels \ref likely_matrix::channels.
+ * \param[in] columns \ref likely_matrix::columns.
+ * \param[in] rows \ref likely_matrix::rows.
+ * \param[in] frames \ref likely_matrix::frames.
+ * \param[in] data \ref likely_matrix::data.
  */
-LIKELY_EXPORT likely_mat likely_new(likely_size type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data);
+LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data);
+
 LIKELY_EXPORT likely_mat likely_scalar(likely_size type, double value);
 LIKELY_EXPORT likely_mat likely_scalar_n(likely_size type, double *values, size_t n);
 LIKELY_EXPORT likely_mat likely_scalar_va(likely_size type, double value, ...);
@@ -158,7 +168,6 @@ LIKELY_EXPORT likely_mat likely_void();
 LIKELY_EXPORT likely_mat likely_copy(likely_const_mat m);
 LIKELY_EXPORT likely_mat likely_retain(likely_const_mat m);
 LIKELY_EXPORT void likely_release(likely_const_mat m);
-/** @} */ // end of matrix_creation
 
 /*!
  * \defgroup element_access Element Access

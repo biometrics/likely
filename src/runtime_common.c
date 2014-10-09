@@ -50,18 +50,18 @@ size_t likely_bytes(likely_const_mat mat)
 }
 //! [likely_bytes implementation.]
 
-likely_mat likely_new(likely_size type, likely_size channels, likely_size columns, likely_size rows, likely_size frames, void const *data)
+//! [likely_new implementation.]
+likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data)
 {
     likely_mat m;
-    const size_t dataBytes = ((uint64_t)(type & likely_matrix_depth) * channels * columns * rows * frames + 7) / 8;
-    const size_t bytes = sizeof(struct likely_matrix) + dataBytes;
-    m = (likely_mat) malloc(bytes);
+    const size_t bytes = ((uint64_t)(type & likely_matrix_depth) * channels * columns * rows * frames + 7) / 8;
+    m = (likely_mat) malloc(sizeof(struct likely_matrix) + bytes);
     m->ref_count = 1;
     m->type = type;
-    m->channels = (uint32_t) channels;
-    m->columns = (uint32_t) columns;
-    m->rows = (uint32_t) rows;
-    m->frames = (uint32_t) frames;
+    m->channels = channels;
+    m->columns = columns;
+    m->rows = rows;
+    m->frames = frames;
 
     if (channels > 1) m->type |= likely_matrix_multi_channel;
     if (columns  > 1) m->type |= likely_matrix_multi_column;
@@ -69,10 +69,11 @@ likely_mat likely_new(likely_size type, likely_size channels, likely_size column
     if (frames   > 1) m->type |= likely_matrix_multi_frame;
 
     if (data)
-        memcpy((void*)m->data, data, dataBytes);
+        memcpy((void*)m->data, data, bytes);
 
     return m;
 }
+//! [likely_new implementation.]
 
 likely_mat likely_scalar(likely_size type, double value)
 {
