@@ -645,5 +645,7 @@ likely_size likely_type_from_types(likely_size lhs, likely_size rhs)
 {
     likely_size result = (lhs | rhs) & ~likely_matrix_depth;
     result |= max(lhs & likely_matrix_depth, rhs & likely_matrix_depth);
+    if (result & likely_matrix_floating)
+        result &= ~likely_matrix_signed;
     return result;
 }

@@ -311,6 +311,7 @@ struct likely_expression
     {
         if (value && type) {
             // Check type correctness
+            likely_assert(!(type & likely_matrix_floating) || !(type & likely_matrix_signed), "type can't be both floating and signed (integer)");
             likely_size inferred = toLikely(value->getType());
             if (!(inferred & likely_matrix_multi_dimension)) {
                 // Can't represent these flags in LLVM IR for scalar types
