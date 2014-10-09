@@ -162,7 +162,7 @@ LIKELY_EXPORT size_t likely_bytes(likely_const_mat mat);
 LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data);
 
 /*!
- * \brief Construct a new single-element matrix.
+ * \brief Construct a new single-element \ref likely_matrix.
  *
  * Convenient alternative to \ref likely_scalar_n.
  * \param[in] type \ref likely_matrix::type.
@@ -171,7 +171,7 @@ LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, 
 LIKELY_EXPORT likely_mat likely_scalar(likely_matrix_type type, double value);
 
 /*!
- * \brief Construct a new multi-element matrix.
+ * \brief Construct a new multi-element \ref likely_matrix.
  *
  * Convenient alternative to \ref likely_new.
  * \par Implementation
@@ -184,7 +184,7 @@ LIKELY_EXPORT likely_mat likely_scalar(likely_matrix_type type, double value);
 LIKELY_EXPORT likely_mat likely_scalar_n(likely_matrix_type type, double *values, size_t n);
 
 /*!
- * \brief Construct a new multi-element matrix.
+ * \brief Construct a new multi-element \ref likely_matrix.
  *
  * Convenient alternative to \ref likely_scalar_n.
  * \param[in] type \ref likely_matrix::type.
@@ -192,7 +192,16 @@ LIKELY_EXPORT likely_mat likely_scalar_n(likely_matrix_type type, double *values
  */
 LIKELY_EXPORT likely_mat likely_scalar_va(likely_matrix_type type, double value, ...);
 
+/*!
+ * \brief Construct a new \ref likely_matrix from a string.
+ *
+ * Convenient alternative to \ref likely_new.
+ * \par Implementation
+ * \snippet src/runtime_common.c likely_string implementation.
+ * \param[in] str String used to initialized \ref likely_matrix::data.
+ */
 LIKELY_EXPORT likely_mat likely_string(const char *str);
+
 LIKELY_EXPORT likely_mat likely_void();
 LIKELY_EXPORT likely_mat likely_copy(likely_const_mat m);
 LIKELY_EXPORT likely_mat likely_retain(likely_const_mat m);

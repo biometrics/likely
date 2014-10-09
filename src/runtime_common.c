@@ -108,10 +108,12 @@ likely_mat likely_scalar_va(likely_matrix_type type, double value, ...)
     return likely_scalar_n(type, values, i);
 }
 
+//! [likely_string implementation.]
 likely_mat likely_string(const char *str)
 {
-    return likely_new(likely_matrix_i8, strlen(str)+1, 1, 1, 1, str);
+    return likely_new(likely_matrix_string, strlen(str) + 1 /* include the null-terminator */, 1, 1, 1, str);
 }
+//! [likely_string implementation.]
 
 likely_mat likely_void()
 {
