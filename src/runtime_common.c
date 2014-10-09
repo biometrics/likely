@@ -115,21 +115,28 @@ likely_mat likely_string(const char *str)
 }
 //! [likely_string implementation.]
 
-likely_mat likely_retain(likely_const_mat m)
+//! [likely_retain implementation.]
+likely_mat likely_retain(likely_const_mat mat)
 {
-    if (!m) return NULL;
-    assert(m->ref_count > 0);
-    ((likely_mat) m)->ref_count++;
-    return (likely_mat) m;
+    if (!mat)
+        return NULL;
+    assert(mat->ref_count > 0);
+    ((likely_mat) mat)->ref_count++;
+    return (likely_mat) mat;
 }
+//! [likely_retain implementation.]
 
-void likely_release(likely_const_mat m)
+//! [likely_release implementation.]
+void likely_release(likely_const_mat mat)
 {
-    if (!m) return;
-    assert(m->ref_count > 0);
-    if (--((likely_mat) m)->ref_count) return;
-    free((void*) m);
+    if (!mat)
+        return;
+    assert(mat->ref_count > 0);
+    if (--((likely_mat) mat)->ref_count)
+        return;
+    free((void*) mat);
 }
+//! [likely_release implementation.]
 
 likely_size likely_c_type(likely_size type)
 {

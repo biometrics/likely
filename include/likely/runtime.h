@@ -99,6 +99,12 @@ enum likely_matrix_type_mask
  * The fields excluding \ref data are collectively referred to as the matrix _header_.
  * In contrast to most image processing libraries which tend to feature 3-dimensional matrices (_channels_, _columns_ and _rows_), Likely includes a fourth dimension, _frames_, in order to facilitate processing videos and image collections.
  *
+ * \section memory_management
+ * Matricies are designed for heap allocation using \ref likely_new, and are passed around by pointer using \ref likely_mat and \ref likely_const_mat.
+ * A matrix keeps track of its reference count in \ref likely_matrix::ref_count.
+ * References are incremented and decremented using \ref likely_retain and \ref likely_release respectively.
+ * A matrix is automatically freed by \ref likely_release when its reference count goes to zero.
+ *
  * \section element_access Element Access
  * By convention, element layout in \ref data with respect to decreasing spatial locality is: channel, column, row, frame.
  * Thus an element at channel _c_, column _x_, row _y_, and frame _t_, can be retrieved like:
@@ -110,7 +116,10 @@ enum likely_matrix_type_mask
  */
 struct likely_matrix
 {
-    uint32_t ref_count; /*!< \brief Reference count. */
+    uint32_t ref_count; /*!< \brief Reference count.
+                         *
+                         * Used by \ref likely_retain and \ref likely_release to track ownership.
+                         */
     likely_matrix_type type; /*!< \brief Interpretation of \ref data. */
     uint32_t channels; /*!< \brief Sub-spatial dimensionality. */
     uint32_t columns;  /*!< \brief Horizontal dimensionality. */
@@ -157,7 +166,7 @@ LIKELY_EXPORT size_t likely_bytes(likely_const_mat mat);
  * \param[in] rows \ref likely_matrix::rows.
  * \param[in] frames \ref likely_matrix::frames.
  * \param[in] data \ref likely_matrix::data.
- * \see likely_scalar_n
+ * \see likely_scalar_n likely_string
  */
 LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data);
 
@@ -202,8 +211,28 @@ LIKELY_EXPORT likely_mat likely_scalar_va(likely_matrix_type type, double value,
  */
 LIKELY_EXPORT likely_mat likely_string(const char *str);
 
-LIKELY_EXPORT likely_mat likely_retain(likely_const_mat m);
-LIKELY_EXPORT void likely_release(likely_const_mat m);
+/*!
+ * \brief Retain a reference to a matrix.
+ *
+ * Increments \ref likely_matrix::ref_count.
+ * \par Implementation
+ * \snippet src/runtime_common.c likely_retain implementation.
+ * \param[in] mat Matrix to add an additional reference. May be NULL.
+ * \see likely_release
+ */
+LIKELY_EXPORT likely_mat likely_retain(likely_const_mat mat);
+
+/*!
+ * \brief Release a reference to a matrix.
+ *
+ * Decrements \ref likely_matrix::ref_count.
+ * Frees the matrix memory when the reference count is decremented to zero.
+ * \par Implementation
+ * \snippet src/runtime_common.c likely_release implementation.
+ * \param[in] mat Matrix to add an additional reference. May be NULL.
+ * \see likely_retain
+ */
+LIKELY_EXPORT void likely_release(likely_const_mat mat);
 
 /*!
  * \defgroup element_access Element Access
