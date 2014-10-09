@@ -1394,25 +1394,6 @@ class tryExpression : public LikelyOperator
 };
 LIKELY_REGISTER(try)
 
-class bytesExpression : public SimpleUnaryOperator
-{
-    const char *symbol() const { return "bytes"; }
-    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
-    {
-        Function *likelyBytes = builder.module()->getFunction("likely_bytes");
-        if (!likelyBytes) {
-            FunctionType *functionType = FunctionType::get(builder.nativeInt(), builder.multiDimension(), false);
-            likelyBytes = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_bytes", builder.module());
-            likelyBytes->setCallingConv(CallingConv::C);
-            likelyBytes->setDoesNotAlias(1);
-            likelyBytes->setDoesNotCapture(1);
-            sys::DynamicLibrary::AddSymbol("likely_bytes", (void*) likely_bytes);
-        }
-        return new likely_expression(builder.CreateCall(likelyBytes, builder.CreatePointerCast(*arg, builder.multiDimension())), likely_matrix_native);
-    }
-};
-LIKELY_REGISTER(bytes)
-
 struct Lambda : public LikelyOperator
 {
     likely_const_ast ast;
