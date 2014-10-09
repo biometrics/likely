@@ -202,8 +202,6 @@ LIKELY_EXPORT likely_mat likely_scalar_va(likely_matrix_type type, double value,
  */
 LIKELY_EXPORT likely_mat likely_string(const char *str);
 
-LIKELY_EXPORT likely_mat likely_void();
-LIKELY_EXPORT likely_mat likely_copy(likely_const_mat m);
 LIKELY_EXPORT likely_mat likely_retain(likely_const_mat m);
 LIKELY_EXPORT void likely_release(likely_const_mat m);
 

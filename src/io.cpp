@@ -41,7 +41,7 @@ static likely_mat takeAndInterpret(likely_mat buffer, likely_size type)
         if (likely_bytes(buffer) >= sizeof(likely_matrix)) {
             likely_mat header = (likely_mat) buffer->data;
             if (sizeof(likely_matrix) + likely_bytes(header) == likely_bytes(buffer))
-                result = likely_copy(header);
+                result = likely_new(header->type, header->channels, header->columns, header->rows, header->frames, header->data);
         }
     }
 

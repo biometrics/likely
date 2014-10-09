@@ -115,16 +115,6 @@ likely_mat likely_string(const char *str)
 }
 //! [likely_string implementation.]
 
-likely_mat likely_void()
-{
-    return likely_new(likely_matrix_void, 0, 0, 0, 0, NULL);
-}
-
-likely_mat likely_copy(likely_const_mat m)
-{
-    return likely_new(m->type, m->channels, m->columns, m->rows, m->frames, m->data);
-}
-
 likely_mat likely_retain(likely_const_mat m)
 {
     if (!m) return NULL;
