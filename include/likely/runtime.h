@@ -139,26 +139,28 @@ typedef struct likely_matrix *likely_mat; /*!< \brief Pointer to a \ref likely_m
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
 
 /*!
- * \brief The size of \ref likely_matrix::data in bytes.
+ * \brief Get the size of \ref likely_matrix::data in bytes.
  *
  * \par Implementation
  * \snippet src/runtime_common.c likely_bytes implementation.
  * \param[in] mat The matrix from which to calculate the data buffer size.
+ * \return The length of \ref likely_matrix::data in bytes.
  */
 LIKELY_EXPORT size_t likely_bytes(likely_const_mat mat);
 
 /*!
- * \brief Returns \c true if \ref likely_matrix::data is a string.
+ * \brief Check if a \ref likely_matrix represents a string.
  *
  * \par Implementation
  * \snippet src/runtime_common.c likely_is_string implementation.
  * \param[in] m The matrix to test.
+ * \return \c true if \ref likely_matrix::data is a string, \c false otherwise.
  * \see likely_string
  */
 LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
 
 /*!
- * \brief Allocate, initialize, and return a pointer to a new \ref likely_matrix.
+ * \brief Allocate and initialize a new \ref likely_matrix.
  *
  * In the case that \p data is NULL then the returned \ref likely_matrix::data is uninitialized.
  * Otherwise, the returned \ref likely_matrix::data is initialized by copying the contents of \p data.
@@ -176,21 +178,23 @@ LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
  * \param[in] rows \ref likely_matrix::rows.
  * \param[in] frames \ref likely_matrix::frames.
  * \param[in] data \ref likely_matrix::data.
+ * \return A pointer to the new \ref likely_matrix.
  * \see likely_scalar_n likely_string
  */
 LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data);
 
 /*!
- * \brief Construct a new single-element \ref likely_matrix.
+ * \brief Allocate and initialize a new single-element \ref likely_matrix.
  *
  * Convenient alternative to \ref likely_scalar_n.
  * \param[in] type \ref likely_matrix::type.
  * \param[in] value Element value.
+ * \return A pointer to the new single-element \ref likely_matrix.
  */
 LIKELY_EXPORT likely_mat likely_scalar(likely_matrix_type type, double value);
 
 /*!
- * \brief Construct a new multi-element \ref likely_matrix.
+ * \brief Allocate and initialize a new multi-element \ref likely_matrix.
  *
  * Convenient alternative to \ref likely_new.
  * \par Implementation
@@ -198,26 +202,29 @@ LIKELY_EXPORT likely_mat likely_scalar(likely_matrix_type type, double value);
  * \param[in] type \ref likely_matrix::type.
  * \param[in] values Array of element values.
  * \param[in] n Length of \p values.
+ * \return A pointer to the new multi-element \ref likely_matrix.
  * \see likely_scalar likely_scalar_va
  */
 LIKELY_EXPORT likely_mat likely_scalar_n(likely_matrix_type type, double *values, size_t n);
 
 /*!
- * \brief Construct a new multi-element \ref likely_matrix.
+ * \brief Allocate and initialize a new multi-element \ref likely_matrix.
  *
  * Convenient alternative to \ref likely_scalar_n.
  * \param[in] type \ref likely_matrix::type.
  * \param[in] value <tt>NaN</tt>-terminated list of element values.
+ * \return A pointer to the new multi-element \ref likely_matrix.
  */
 LIKELY_EXPORT likely_mat likely_scalar_va(likely_matrix_type type, double value, ...);
 
 /*!
- * \brief Construct a new \ref likely_matrix from a string.
+ * \brief Allocate and initialize a new \ref likely_matrix from a string.
  *
  * Convenient alternative to \ref likely_new.
  * \par Implementation
  * \snippet src/runtime_common.c likely_string implementation.
  * \param[in] str String used to initialized \ref likely_matrix::data.
+ * \return A pointer to the new \ref likely_matrix holding a string.
  * \see likely_is_string
  */
 LIKELY_EXPORT likely_mat likely_string(const char *str);
@@ -229,6 +236,7 @@ LIKELY_EXPORT likely_mat likely_string(const char *str);
  * \par Implementation
  * \snippet src/runtime_common.c likely_retain implementation.
  * \param[in] mat Matrix to add an additional reference. May be NULL.
+ * \return \p mat.
  * \see likely_release
  */
 LIKELY_EXPORT likely_mat likely_retain(likely_const_mat mat);
@@ -246,7 +254,7 @@ LIKELY_EXPORT likely_mat likely_retain(likely_const_mat mat);
 LIKELY_EXPORT void likely_release(likely_const_mat mat);
 
 /*!
- * \brief Return a matrix value at the specified location.
+ * \brief Get the value of a \ref likely_matrix at a specified location.
  *
  * A \c NULL \p m or out-of-bounds \p c, \p x, \p y or \p t will return \p NAN.
  * \ref likely_assert is called if the matrix does not have a type convertible to \c C.
@@ -257,12 +265,13 @@ LIKELY_EXPORT void likely_release(likely_const_mat mat);
  * \param[in] x Column.
  * \param[in] y Row.
  * \param[in] t Frame.
+ * \return The value of the matrix at the specified location.
  * \see likely_set_element
  */
 LIKELY_EXPORT double likely_element(likely_const_mat m, uint32_t c, uint32_t x, uint32_t y, uint32_t t);
 
 /*!
- * \brief Set a matrix value at the specified location.
+ * \brief Set the value of a \ref likely_matrix at a specified location.
  *
  * A \c NULL \p m or out-of-bounds \p c, \p x, \p y or \p t will return without setting \p value.
  * \ref likely_assert is called if the matrix does not have a type convertible to \c C.
