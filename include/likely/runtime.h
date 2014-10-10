@@ -33,8 +33,7 @@ extern "C" {
  * Statically compiled Likely algorithms will generally depend on these symbols
  * <i>and these symbols only</i>.
  *
- * These functions are implemented in \c src/runtime_*, and are designed to have
- * absolutely minimal dependencies.
+ * Unless otherwise noted, these functions are implemented in \c src/runtime_common.c and designed to have no dependencies outside of the \c C Standard Library.
  * Use these symbols by linking against the \c likely_runtime static library,
  * the complete \c likely library, or by compiling the relevant source files
  * directly into your project.
@@ -278,17 +277,25 @@ LIKELY_EXPORT double likely_element(likely_const_mat m, uint32_t c, uint32_t x, 
 LIKELY_EXPORT void likely_set_element(likely_mat m, double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t);
 
 /*!
- * \defgroup parallelization Parallelization
- * \brief Distribute work in parallel.
- *
- * These functions are used internally and should not be called directly.
- * @{
+ * \brief A special kind of function designed to be run in parallel.
+ * \see likely_fork
  */
-// In contrast to likely_dynamic, thunk parameters are known at compile time
-// and may therefore take an arbitrary internally-defined structure.
-typedef void (*likely_thunk)(void *args, likely_size start, likely_size stop);
-LIKELY_EXPORT void likely_fork(likely_thunk thunk, void *args, likely_size size);
-/** @} */ // end of parallelization
+typedef void (*likely_thunk)(void *args, size_t start, size_t stop);
+
+/*!
+ * \brief Execute work in parallel.
+ *
+ * In contrast to likely_dynamic, thunk parameters are known at compile time and may therefore take an arbitrary internally-defined structure.
+ * The implementation is very similar to how \a OpenMP works.
+ * [Here](https://software.intel.com/en-us/blogs/2010/07/23/thunk-you-very-much-or-how-do-openmp-compilers-work-part-2) is a good introductory article on the subject.
+ *
+ * This function is implemented in \c src/runtime_stdthread.cpp and depends on the presence of a <tt>C++11</tt>-compatible standard library.
+ * \note This function is used internally and should not be called directly.
+ * \param[in] thunk The function to run.
+ * \param[in] args The arguments to propogate to \p thunk.
+ * \param[in] size The range [0, \p size) over which to execute \p thunk.
+ */
+LIKELY_EXPORT void likely_fork(likely_thunk thunk, void *args, size_t size);
 
 /** @} */ // end of runtime
 

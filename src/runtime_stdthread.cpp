@@ -60,7 +60,7 @@ static void workerThread(size_t id)
     }
 }
 
-void likely_fork(likely_thunk thunk, void *args, likely_size size)
+void likely_fork(likely_thunk thunk, void *args, size_t size)
 {
     static mutex forkLock;
     lock_guard<mutex> lockFork(forkLock);
