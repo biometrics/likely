@@ -2552,7 +2552,7 @@ class readExpression : public SimpleUnaryOperator
 
         Function *likelyRead = builder.module()->getFunction("likely_read");
         if (!likelyRead) {
-            Type *params[] = { Type::getInt8PtrTy(builder.getContext()), builder.nativeInt() };
+            Type *params[] = { Type::getInt8PtrTy(builder.getContext()), Type::getInt32Ty(builder.getContext()) };
             FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, false);
             likelyRead = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_read", builder.module());
             likelyRead->setCallingConv(CallingConv::C);
@@ -2561,7 +2561,7 @@ class readExpression : public SimpleUnaryOperator
             likelyRead->setDoesNotCapture(1);
             sys::DynamicLibrary::AddSymbol("likely_read", (void*) likely_read);
         }
-        return new likely_expression(builder.CreateCall2(likelyRead, *arg, builder.constant(likely_file_binary)), likely_matrix_multi_dimension);
+        return new likely_expression(builder.CreateCall2(likelyRead, *arg, builder.constant(uint64_t(likely_file_binary), likely_matrix_u32)), likely_matrix_multi_dimension);
     }
 };
 LIKELY_REGISTER(read)

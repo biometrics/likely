@@ -31,7 +31,9 @@ extern "C" {
 
 /*!
  * \brief How to read a file from disk.
- * \see likely_file_type_mask
+ *
+ * Available options are listed in \ref likely_file_type_mask.
+ * \see likely_read
  */
 typedef uint32_t likely_file_type;
 
@@ -44,10 +46,17 @@ enum likely_file_type_mask
     likely_file_encoded = 0x00000002, /*!< \brief The file is an image, image set or video, decode it. */
     likely_file_binary  = likely_file_decoded | likely_file_encoded, /*!< \brief The file is either \ref likely_file_decoded or \ref likely_file_encoded. */
     likely_file_text    = 0x00000004, /*!< \brief The file is text, do not decode it. */
-    likely_file_url     = 0x00000008 /*!< \brief The file is not on the local file system, download it instead. */
+    likely_file_url     = 0x00000008, /*!< \brief The file is not on the local file system, download it instead. */
 };
 
-LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_size type);
+/*!
+ * \brief Read a \ref likely_matrix from a file.
+ * \param[in] file_name The name of the file to open and read.
+ * \param[in] type How to process the file after reading.
+ * \return Pointer to the new \ref likely_matrix constructed from the file, or \c NULL if the file could not be processed.
+ */
+LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_file_type type);
+
 LIKELY_EXPORT likely_mat likely_write(likely_const_mat image, const char *file_name);
 LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
 LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);

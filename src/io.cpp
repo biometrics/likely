@@ -72,7 +72,7 @@ static size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp)
     return size*nmemb;
 }
 
-likely_mat likely_read(const char *file_name, likely_size type)
+likely_mat likely_read(const char *file_name, likely_file_type type)
 {
     // Interpret ~ as $HOME
     string fileName = file_name;

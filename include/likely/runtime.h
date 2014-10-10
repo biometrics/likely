@@ -47,10 +47,9 @@ extern "C" {
 typedef uintptr_t likely_size;
 
 /*!
- * \brief \ref likely_matrix data type.
+ * \brief how to interpret \ref likely_matrix::data.
  *
- * Indicates how to interpret \ref likely_matrix::data.
- * \see likely_matrix_type_mask
+ * Available options are listed in \ref likely_matrix_type_mask.
  */
 typedef uint32_t likely_matrix_type;
 
