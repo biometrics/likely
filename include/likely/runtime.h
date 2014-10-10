@@ -236,12 +236,36 @@ LIKELY_EXPORT likely_mat likely_retain(likely_const_mat mat);
 LIKELY_EXPORT void likely_release(likely_const_mat mat);
 
 /*!
- * \defgroup element_access Element Access
- * \brief Access elements in a \ref likely_matrix.
- * @{
+ * \brief Return a matrix value at the specified location.
+ *
+ * A \c NULL \p m or out-of-bounds \p c, \p x, \p y or \p t will return \p NAN.
+ * \ref likely_assert is called if the matrix does not have a type convertible to \c C.
+ * \par Implementation
+ * \snippet src/runtime_common.c likely_element implementation.
+ * \param[in] m The matrix to index into.
+ * \param[in] c Channel.
+ * \param[in] x Column.
+ * \param[in] y Row.
+ * \param[in] t Frame.
+ * \see likely_set_element
  */
-LIKELY_EXPORT double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t);
-LIKELY_EXPORT void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t);
+LIKELY_EXPORT double likely_element(likely_const_mat m, uint32_t c, uint32_t x, uint32_t y, uint32_t t);
+
+/*!
+ * \brief Set a matrix value at the specified location.
+ *
+ * A \c NULL \p m or out-of-bounds \p c, \p x, \p y or \p t will return without setting \p value.
+ * \ref likely_assert is called if the matrix does not have a type convertible to \c C.
+ * \param[in] m The matrix to index into.
+ * \param[in] value The value to set the element to.
+ * \param[in] c Channel.
+ * \param[in] x Column.
+ * \param[in] y Row.
+ * \param[in] t Frame.
+ * \see likely_element
+ */
+LIKELY_EXPORT void likely_set_element(likely_mat m, double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t);
+
 LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
 /** @} */ // end of element_access
 

@@ -139,10 +139,10 @@ void likely_release(likely_const_mat mat)
 //! [likely_release implementation.]
 
 //! [likely_element implementation.]
-double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_size y, likely_size t)
+double likely_element(likely_const_mat m, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
 {
-    likely_size columnStep, rowStep, frameStep, index;
-    if (!m)
+    size_t columnStep, rowStep, frameStep, index;
+    if (!m || (c >= m->channels) || (x >= m->columns) || (y >= m->rows) || (t >= m->frames))
         return NAN;
 
     columnStep = m->channels;
@@ -162,16 +162,16 @@ double likely_element(likely_const_mat m, likely_size c, likely_size x, likely_s
       case likely_matrix_f32: return (double) ((   float const*) m->data)[index];
       case likely_matrix_f64: return (double) ((  double const*) m->data)[index];
       case likely_matrix_u1:  return (double) ((((uint8_t const*)m->data)[index/8] & (1 << index%8)) != 0);
-      default: assert(!"likely_element unsupported type");
+      default: likely_assert(false, "likely_element unsupported type");
     }
     return NAN;
 }
 //! [likely_element implementation.]
 
-void likely_set_element(likely_mat m, double value, likely_size c, likely_size x, likely_size y, likely_size t)
+void likely_set_element(likely_mat m, double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t)
 {
-    likely_size columnStep, rowStep, frameStep, index;
-    if (!m)
+    size_t columnStep, rowStep, frameStep, index;
+    if (!m || (c >= m->channels) || (x >= m->columns) || (y >= m->rows) || (t >= m->frames))
         return;
 
     columnStep = m->channels;
