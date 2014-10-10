@@ -2573,7 +2573,7 @@ class writeExpression : public SimpleBinaryOperator
     {
         if (likely_const_mat image = arg1->getData())
             if (likely_const_mat fileName = arg2->getData())
-                return builder.mat(likely_write(image, fileName->data));
+                return builder.mat(likely_retain(likely_write(image, fileName->data)));
 
         Function *likelyWrite = builder.module()->getFunction("likely_write");
         if (!likelyWrite) {
@@ -2588,7 +2588,7 @@ class writeExpression : public SimpleBinaryOperator
             likelyWrite->setDoesNotCapture(2);
             sys::DynamicLibrary::AddSymbol("likely_write", (void*) likely_write);
         }
-        return new likely_expression(builder.CreateCall2(likelyWrite, *arg1, *arg2), likely_matrix_multi_dimension);
+        return new likely_expression(builder.retainMat(builder.CreateCall2(likelyWrite, *arg1, *arg2)), likely_matrix_multi_dimension);
     }
 };
 LIKELY_REGISTER(write)

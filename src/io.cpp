@@ -155,7 +155,7 @@ likely_mat likely_write(likely_const_mat image, const char *file_name)
             return NULL;
         }
     }
-    return likely_retain(image);
+    return const_cast<likely_mat>(image);
 }
 
 static likely_mat decodeAndRelease(likely_const_mat buffer)

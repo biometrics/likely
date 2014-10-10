@@ -54,9 +54,19 @@ enum likely_file_type_mask
  * \param[in] file_name The name of the file to open and read.
  * \param[in] type How to process the file after reading.
  * \return Pointer to the new \ref likely_matrix constructed from the file, or \c NULL if the file could not be processed.
+ * \see likely_write
  */
 LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_file_type type);
 
+/*!
+ * \brief Write a \ref likely_matrix to a file.
+ *
+ * The file extension in \p file_name is used to determine the desired file format.
+ * \param[in] image The matrix to write.
+ * \param[in] file_name The file to write the matrix to.
+ * \return \p image if successful, \c NULL otherwise.
+ * \see likely_read
+ */
 LIKELY_EXPORT likely_mat likely_write(likely_const_mat image, const char *file_name);
 LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
 LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);

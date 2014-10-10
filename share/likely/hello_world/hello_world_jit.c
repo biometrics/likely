@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 
     if (argc >= 4) {
         puts("Writing output image...");
-        likely_write(output, argv[3]);
+        likely_assert(likely_write(output, argv[3]), "failed to write: %s", argv[3]);
     }
 
     puts("Cleaning up...");
