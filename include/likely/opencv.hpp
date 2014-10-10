@@ -26,7 +26,7 @@
  *
  * [OpenCV](http://opencv.org/) compatibility functions.
  * Unlike the rest of the Likely API, these are \c C++ functions and they depend on OpenCV.
- * As a result, they follow a \c camelCase naming convention and you must explicitly <tt>#include <likely/opencv.hpp></tt>.
+ * As a result, they follow a \c camelCase naming convention and you must explicitly <tt>\#include \<likely/opencv.hpp\></tt>.
  *
  * All functions are provided inline for easy integration into projects needing to bridge between Likely and OpenCV.
  * @{
