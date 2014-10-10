@@ -29,14 +29,22 @@ extern "C" {
  * @{
  */
 
-enum likely_file_type
+/*!
+ * \brief How to read a file from disk.
+ * \see likely_file_type_mask
+ */
+typedef uint32_t likely_file_type;
+
+/*!
+ * \brief \ref likely_file_type bit format.
+ */
+enum likely_file_type_mask
 {
-    likely_file_void    = 0x00000000,
-    likely_file_decoded = 0x00000001,
-    likely_file_encoded = 0x00000002,
-    likely_file_binary  = likely_file_decoded | likely_file_encoded,
-    likely_file_text    = 0x00000004,
-    likely_file_url     = 0x00000008
+    likely_file_decoded = 0x00000001, /*!< \brief The file is a \ref likely_matrix, do not decode it. */
+    likely_file_encoded = 0x00000002, /*!< \brief The file is an image, image set or video, decode it. */
+    likely_file_binary  = likely_file_decoded | likely_file_encoded, /*!< \brief The file is either \ref likely_file_decoded or \ref likely_file_encoded. */
+    likely_file_text    = 0x00000004, /*!< \brief The file is text, do not decode it. */
+    likely_file_url     = 0x00000008 /*!< \brief The file is not on the local file system, download it instead. */
 };
 
 LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_size type);
