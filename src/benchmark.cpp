@@ -51,7 +51,7 @@ static Mat generateData(int rows, int columns, likely_size type, double scaleFac
 
     Mat n;
     resize(m, n, Size(columns, rows), 0, 0, INTER_NEAREST);
-    n.convertTo(n, likely::typeToDepth(type), scaleFactor);
+    n.convertTo(n, likelyToOpenCVDepth(type), scaleFactor);
     return n;
 }
 
@@ -202,7 +202,7 @@ private:
 
     static likely_mat fromCvMat(const Mat &src)
     {
-        likely_mat m = likely::fromCvMat(src);
+        likely_mat m = likelyFromOpenCVMat(src);
         if (!(m->type & likely_matrix_floating) && ((m->type & likely_matrix_depth) <= 16))
             m->type |= likely_matrix_saturated;
         return m;
@@ -213,7 +213,7 @@ private:
         Mat dstOpenCV = computeBaseline(srcCV);
         likely_const_mat dstLikely = f(srcLikely);
 
-        Mat errorMat = abs(likely::toCvMat(dstLikely) - dstOpenCV);
+        Mat errorMat = abs(likelyToOpenCVMat(dstLikely) - dstOpenCV);
         errorMat.convertTo(errorMat, CV_32F);
         dstOpenCV.convertTo(dstOpenCV, CV_32F);
         errorMat = errorMat / (dstOpenCV + LIKELY_ERROR_TOLERANCE); // Normalize errors

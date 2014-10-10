@@ -24,7 +24,7 @@ set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
 
 if(${LIKELY_IO})
   add_definitions(-DLIKELY_IO)
-  set(LIKELY_SRC ${LIKELY_SRC} io.cpp opencv.cpp)
+  set(LIKELY_SRC ${LIKELY_SRC} io.cpp)
   set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely/io.h
                                  ${CMAKE_SOURCE_DIR}/include/likely/opencv.hpp)
 endif()

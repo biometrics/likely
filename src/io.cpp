@@ -139,7 +139,7 @@ likely_mat likely_write(likely_const_mat image, const char *file_name)
     const size_t len = strlen(file_name);
     if ((len < 3) || strcmp(&file_name[len-3], ".lm")) {
         try {
-            cv::imwrite(file_name, likely::toCvMat(image));
+            cv::imwrite(file_name, likelyToOpenCVMat(image));
         } catch (...) {
             return NULL;
         }
@@ -170,7 +170,7 @@ likely_mat likely_decode(likely_const_mat buffer)
     likely_mat m = NULL;
 
     try {
-        m = likely::fromCvMat(cv::imdecode(likely::toCvMat(buffer), CV_LOAD_IMAGE_UNCHANGED));
+        m = likelyFromOpenCVMat(cv::imdecode(likelyToOpenCVMat(buffer), CV_LOAD_IMAGE_UNCHANGED));
     } catch (...) {}
 
     // Is it an archive?
@@ -232,11 +232,11 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
 {
     vector<uchar> buf;
     try {
-        cv::imencode(string(".") + extension, likely::toCvMat(image), buf);
+        cv::imencode(string(".") + extension, likelyToOpenCVMat(image), buf);
     } catch (...) {
         return NULL;
     }
-    return likely::fromCvMat(cv::Mat(buf));
+    return likelyFromOpenCVMat(cv::Mat(buf));
 }
 
 likely_mat likely_to_hex(likely_const_mat m)
@@ -385,7 +385,7 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
 void likely_show(likely_const_mat m, const char *title)
 {
     likely_mat rendered = likely_render(m, NULL, NULL);
-    cv::imshow(title, likely::toCvMat(rendered));
+    cv::imshow(title, likelyToOpenCVMat(rendered));
     cv::waitKey();
     likely_release(rendered);
 }
