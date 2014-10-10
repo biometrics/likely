@@ -25,7 +25,7 @@ extern "C" {
 
 /*!
  * \defgroup io I/O
- * \brief Symbols in \c likely/io.h.
+ * \brief Read, write and render matricies (\c likely/io.h).
  * @{
  */
 

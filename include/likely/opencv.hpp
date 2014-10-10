@@ -22,10 +22,9 @@
 
 /*!
  * \defgroup opencv OpenCV
- * \brief Symbols in \c likely/opencv.hpp.
+ * \brief OpenCV compatibility module (\c likely/opencv.hpp).
  *
- * [OpenCV](http://opencv.org/) compatibility functions.
- * Unlike the rest of the Likely API, these are \c C++ functions and they depend on OpenCV.
+ * Unlike the rest of the Likely API, these are \c C++ functions and they depend on [OpenCV](http://opencv.org/).
  * As a result, they follow a \c camelCase naming convention and you must explicitly <tt>\#include \<likely/opencv.hpp\></tt>.
  *
  * All functions are provided inline for easy integration into projects needing to bridge between Likely and OpenCV.

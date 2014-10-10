@@ -28,7 +28,7 @@ extern "C" {
 
 /*!
  * \defgroup runtime Runtime
- * \brief Symbols in \c likely/runtime.h.
+ * \brief Symbols required by a compiled function (\c likely/runtime.h).
  *
  * Statically compiled Likely algorithms will generally depend on these symbols
  * <i>and these symbols only</i>.

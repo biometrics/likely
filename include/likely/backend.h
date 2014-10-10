@@ -26,7 +26,7 @@ extern "C" {
 
 /*!
  * \defgroup backend Backend
- * \brief Symbols in \c likely/backend.h.
+ * \brief Compile an abstract syntax tree into a function (\c likely/backend.h).
  * @{
  */
 

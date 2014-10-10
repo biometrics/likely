@@ -26,7 +26,7 @@ extern "C" {
 
 /*!
  * \defgroup frontend Frontend
- * \brief Symbols in \c likely/frontend.h.
+ * \brief Parse source code into an abstract syntax tree (\c likely/frontend.h).
  * @{
  */
 
