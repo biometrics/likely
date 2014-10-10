@@ -50,6 +50,13 @@ size_t likely_bytes(likely_const_mat mat)
 }
 //! [likely_bytes implementation.]
 
+//! [likely_is_string implementation.]
+bool likely_is_string(likely_const_mat m)
+{
+    return m && (m->type == likely_matrix_string) && !m->data[likely_bytes(m) - 1] /* test for NULL-terminator */;
+}
+//! [likely_is_string implementation.]
+
 //! [likely_new implementation.]
 likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data)
 {
@@ -194,9 +201,4 @@ void likely_set_element(likely_mat m, double value, uint32_t c, uint32_t x, uint
                               else            (((uint8_t*)m->data)[index/8] |=  (1 << index%8)); break;
       default: assert(!"likely_set_element unsupported type");
     }
-}
-
-bool likely_is_string(likely_const_mat m)
-{
-    return m && (m->type == likely_matrix_string) && !m->data[m->channels * m->columns * m->rows * m->frames - 1];
 }

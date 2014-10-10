@@ -149,6 +149,16 @@ LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
 LIKELY_EXPORT size_t likely_bytes(likely_const_mat mat);
 
 /*!
+ * \brief Returns \c true if \ref likely_matrix::data is a string.
+ *
+ * \par Implementation
+ * \snippet src/runtime_common.c likely_is_string implementation.
+ * \param[in] m The matrix to test.
+ * \see likely_string
+ */
+LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
+
+/*!
  * \brief Allocate, initialize, and return a pointer to a new \ref likely_matrix.
  *
  * In the case that \p data is NULL then the returned \ref likely_matrix::data is uninitialized.
@@ -209,6 +219,7 @@ LIKELY_EXPORT likely_mat likely_scalar_va(likely_matrix_type type, double value,
  * \par Implementation
  * \snippet src/runtime_common.c likely_string implementation.
  * \param[in] str String used to initialized \ref likely_matrix::data.
+ * \see likely_is_string
  */
 LIKELY_EXPORT likely_mat likely_string(const char *str);
 
@@ -265,9 +276,6 @@ LIKELY_EXPORT double likely_element(likely_const_mat m, uint32_t c, uint32_t x, 
  * \see likely_element
  */
 LIKELY_EXPORT void likely_set_element(likely_mat m, double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t);
-
-LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
-/** @} */ // end of element_access
 
 /*!
  * \defgroup parallelization Parallelization
