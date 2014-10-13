@@ -85,11 +85,10 @@ if(${LIKELY_IO})
            COMMAND benchmark -test -parallel)
 
   # Dream
-  find_package(Qt5Quick QUIET)
   find_package(Qt5Widgets QUIET)
   find_package(Qt5PrintSupport QUIET)
   find_package(Qt5OpenGL QUIET)
-  if(${Qt5Quick_FOUND} AND ${Qt5Widgets_FOUND} AND ${Qt5PrintSupport_FOUND} AND ${Qt5OpenGL_FOUND})
+  if(${Qt5Widgets_FOUND} AND ${Qt5PrintSupport_FOUND} AND ${Qt5OpenGL_FOUND})
     # Get QCustomPlot source
     # aux_source_directory(qcustomplot/src QCUSTOMPLOT_SRC)
     # aux_source_directory(qcustomplot/src/plottables QCUSTOMPLOT_SRC_PLOTTABLES)
@@ -99,7 +98,7 @@ if(${LIKELY_IO})
 
     set(CMAKE_AUTOMOC ON)
     add_executable(dream dream.cpp ${QCUSTOMPLOT_SRC})
-    qt5_use_modules(dream Quick Widgets PrintSupport OpenGL)
+    qt5_use_modules(dream Widgets PrintSupport OpenGL)
     target_link_libraries(dream likely_static)
     install(TARGETS dream RUNTIME DESTINATION bin)
   endif()
