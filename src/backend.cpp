@@ -2501,47 +2501,6 @@ LIKELY_REGISTER(new)
 #ifdef LIKELY_IO
 #include "likely/io.h"
 
-class stringExpression : public LikelyOperator
-{
-    const char *symbol() const { return "string"; }
-    size_t minParameters() const { return 1; }
-    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        Function *likelyToString = builder.module()->getFunction("likely_to_string_va");
-        if (!likelyToString) {
-            FunctionType *functionType = FunctionType::get(builder.toLLVM(likely_matrix_string), builder.multiDimension(), true);
-            likelyToString = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_to_string_va", builder.module());
-            likelyToString->setCallingConv(CallingConv::C);
-            likelyToString->setDoesNotAlias(0);
-            likelyToString->setDoesNotAlias(1);
-            likelyToString->setDoesNotCapture(1);
-            sys::DynamicLibrary::AddSymbol("likely_to_string_va", (void*) likely_to_string_va);
-            sys::DynamicLibrary::AddSymbol("lle_X_likely_to_string_va", (void*) lle_X_likely_to_string_va);
-        }
-
-        vector<Value*> args;
-        for (size_t i=1; i<ast->num_atoms; i++) {
-            TRY_EXPR(builder, ast->atoms[i], arg);
-            Value *value = isMat(arg->value->getType()) ? arg->value : builder.toMat(arg.get()).value;
-            args.push_back(builder.CreatePointerCast(value, builder.multiDimension()));
-        }
-        args.push_back(builder.nullMat());
-
-        return new likely_expression(builder.CreateCall(likelyToString, args), likely_matrix_string);
-    }
-
-    static GenericValue lle_X_likely_to_string_va(FunctionType *, const vector<GenericValue> &Args)
-    {
-        vector<likely_const_mat> mv;
-        for (size_t i=0; i<Args.size()-1; i++)
-            mv.push_back((likely_const_mat) Args[i].PointerVal);
-        return GenericValue(likely_to_string_n(mv.data(), mv.size()));
-    }
-};
-LIKELY_REGISTER(string)
-
 class readExpression : public SimpleUnaryOperator
 {
     const char *symbol() const { return "read"; }
