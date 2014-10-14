@@ -107,14 +107,22 @@ if(${LIKELY_IO})
     target_link_libraries(dream likely_static ${QT_STATIC_DEPENDENCIES})
     install(TARGETS dream RUNTIME DESTINATION bin)
   else()
-    if(UNIX)
+    if(WIN32)
+      # TODO: https://bugreports.qt-project.org/browse/QTBUG-33450
+      ExternalProject_Add(Qt5.3.2
+          URL http://download.qt-project.org/official_releases/qt/5.3/5.3.2/submodules/qtbase-opensource-src-5.3.2.zip
+          URL_MD5 1a81aafd9d63168e9d0d1056ae0cc5d2
+          CONFIGURE_COMMAND ../Qt5.3.2/configure.exe -prefix ${QT5_INSTALL_DIR} -opensource -confirm-license -static -release -no-compile-examples
+          BUILD_COMMAND nmake
+          INSTALL_COMMAND nmake install)
+    else() # UNIX
       if(NOT APPLE)
         set(QT_CONFIGURE_FLAGS "-qt-xcb")
       endif()
       ExternalProject_Add(Qt5.3.2
           URL http://download.qt-project.org/official_releases/qt/5.3/5.3.2/submodules/qtbase-opensource-src-5.3.2.tar.gz
           URL_MD5 2a692eed83c4f7e48e1db65ed1a2ae9f
-          CONFIGURE_COMMAND ../Qt5.3.2/configure -prefix ${QT5_INSTALL_DIR} -opensource -confirm-license -static -no-compile-examples ${QT_CONFIGURE_FLAGS})
+          CONFIGURE_COMMAND ../Qt5.3.2/configure -prefix ${QT5_INSTALL_DIR} -opensource -confirm-license -static -release -no-compile-examples ${QT_CONFIGURE_FLAGS})
       if(APPLE)
         find_package(OpenGL REQUIRED)
         find_library(CARBON_LIBRARY Carbon)
