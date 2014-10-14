@@ -68,12 +68,18 @@ static void replRecord(likely_const_env env, void *context)
     likely_release(rendered);
 }
 
+static void showCallback(likely_const_env env, void *context)
+{
+    if (!env || !context) return;
+    likely_show(env->result, likely_get_symbol_name(env->ast));
+}
+
 static void replShow(likely_const_env env, void *context)
 {
     if (!context) return;
     const string assertValue = assert_;
     if (assertValue.empty()) {
-        likely_show_callback(env, context);
+        showCallback(env, context);
     } else {
         likely_mat rendered = likely_render(env->result, NULL, NULL);
         likely_mat baseline = likely_read(assertValue.c_str(), likely_file_binary);

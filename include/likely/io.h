@@ -133,7 +133,6 @@ LIKELY_EXPORT likely_mat likely_render(likely_const_mat mat, double *min, double
  * \param[in] title Window title.
  */
 LIKELY_EXPORT void likely_show(likely_const_mat mat, const char *title);
-LIKELY_EXPORT void likely_show_callback(likely_const_env env, void *); // Useable as a likely_repl_callback
 
 /** @} */ // end of io
 

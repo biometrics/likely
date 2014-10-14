@@ -376,9 +376,3 @@ void likely_show(likely_const_mat mat, const char *title)
     cv::waitKey();
     likely_release(rendered);
 }
-
-void likely_show_callback(likely_const_env env, void *context)
-{
-    if (!env || !context) return;
-    likely_show(env->result, likely_get_symbol_name(env->ast));
-}
