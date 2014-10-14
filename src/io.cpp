@@ -369,9 +369,9 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
     return n;
 }
 
-void likely_show(likely_const_mat m, const char *title)
+void likely_show(likely_const_mat mat, const char *title)
 {
-    likely_mat rendered = likely_render(m, NULL, NULL);
+    likely_mat rendered = likely_render(mat, NULL, NULL);
     cv::imshow(title, likelyToOpenCVMat(rendered));
     cv::waitKey();
     likely_release(rendered);

@@ -120,10 +120,19 @@ LIKELY_EXPORT likely_mat likely_to_string_va(likely_const_mat mat, ...);
  * \param[out] min The minimum value in \p mat. May be \c NULL.
  * \param[out] max The maximum value in \p mat. May be \c NULL.
  * \return A three-channel 8-bit matrix suitable for displaying.
+ * \see likely_show
  */
 LIKELY_EXPORT likely_mat likely_render(likely_const_mat mat, double *min, double *max);
 
-LIKELY_EXPORT void likely_show(likely_const_mat m, const char *title);
+/*!
+ * \brief Displays a \ref likely_matrix in a window.
+ *
+ * Calls \ref likely_render on \p mat automatically.
+ * Pauses execution until a key is pressed, then hides the window.
+ * \param[in] mat Matrix to display.
+ * \param[in] title Window title.
+ */
+LIKELY_EXPORT void likely_show(likely_const_mat mat, const char *title);
 LIKELY_EXPORT void likely_show_callback(likely_const_env env, void *); // Useable as a likely_repl_callback
 
 /** @} */ // end of io
