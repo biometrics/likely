@@ -430,7 +430,7 @@ public:
         if ((m->channels * m->columns * m->rows * m->frames <= 16) || likely_is_string(m)) {
             image->setImage(QImage());
 
-            likely_mat printed = likely_print(m);
+            likely_mat printed = likely_to_string(m);
             type->setText(printed->data);
             likely_release(printed);
         } else {

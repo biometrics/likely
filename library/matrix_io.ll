@@ -3,7 +3,7 @@ Matrix I/O
 
     lenna:= "data/misc/lenna.tiff".read
     encoded-lenna:= lenna.(encode "jpg")
-    (print "Compression Ratio: " lenna.bytes.f64:/ encoded-lenna.bytes)
+    (string "Compression Ratio: " lenna.bytes.f64:/ encoded-lenna.bytes)
     decoded-lenna:= encoded-lenna.decode
     ; decoded-lenna.(write "lenna.png")
 

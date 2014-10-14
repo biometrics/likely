@@ -239,16 +239,16 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
     return likelyFromOpenCVMat(cv::Mat(buf));
 }
 
-likely_mat likely_print(likely_const_mat m)
+likely_mat likely_to_string(likely_const_mat mat)
 {
-    return likely_print_n(&m, 1);
+    return likely_to_string_n(&mat, 1);
 }
 
-likely_mat likely_print_n(likely_const_mat *mv, size_t n)
+likely_mat likely_to_string_n(likely_const_mat *mats, size_t n)
 {
     stringstream buffer;
     for (size_t i=0; i<n; i++) {
-        likely_const_mat m = mv[i];
+        likely_const_mat m = mats[i];
         if (!m) {
             // skip it
         } else if (likely_is_string(m)) {
@@ -303,16 +303,16 @@ likely_mat likely_print_n(likely_const_mat *mv, size_t n)
     return likely_string(buffer.str().c_str());
 }
 
-likely_mat likely_print_va(likely_const_mat m, ...)
+likely_mat likely_to_string_va(likely_const_mat mat, ...)
 {
     va_list ap;
-    va_start(ap, m);
+    va_start(ap, mat);
     vector<likely_const_mat> mv;
-    while (m) {
-        mv.push_back(m);
-        m = va_arg(ap, likely_const_mat);
+    while (mat) {
+        mv.push_back(mat);
+        mat = va_arg(ap, likely_const_mat);
     }
-    return likely_print_n(mv.data(), mv.size());
+    return likely_to_string_n(mv.data(), mv.size());
 }
 
 likely_mat likely_render(likely_const_mat m, double *min_, double *max_)

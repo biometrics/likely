@@ -89,9 +89,31 @@ LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
  */
 LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
 
-LIKELY_EXPORT likely_mat likely_print(likely_const_mat m);
-LIKELY_EXPORT likely_mat likely_print_n(likely_const_mat *mv, size_t n);
-LIKELY_EXPORT likely_mat likely_print_va(likely_const_mat m, ...);
+/*!
+ * \brief Convert a \ref likely_matrix to a string suitable for printing.
+ * \param[in] mat Matrix to stringify.
+ * \return Stringified matrix.
+ * \see likely_to_string_n
+ */
+LIKELY_EXPORT likely_mat likely_to_string(likely_const_mat mat);
+
+/*!
+ * \brief Convert an array of \ref likely_matrix to a string suitable for printing.
+ * \param[in] mats Vector of matricies to stringify.
+ * \param[in] n Length of \p mats.
+ * \return Stringified matrix.
+ * \see likely_to_string likely_to_string_va
+ */
+LIKELY_EXPORT likely_mat likely_to_string_n(likely_const_mat *mats, size_t n);
+
+/*!
+ * \brief Convert a list of \ref likely_matrix to a string suitable for printing.
+ * \param[in] mat <tt>NULL</tt>-terminated list of matricies to stringify.
+ * \return Stringified matrix.
+ * \see likely_to_string_n
+ */
+LIKELY_EXPORT likely_mat likely_to_string_va(likely_const_mat mat, ...);
+
 LIKELY_EXPORT likely_mat likely_render(likely_const_mat m, double *min, double *max); // Return an 888 matrix for visualization
 LIKELY_EXPORT void likely_show(likely_const_mat m, const char *title);
 LIKELY_EXPORT void likely_show_callback(likely_const_env env, void *); // Useable as a likely_repl_callback
