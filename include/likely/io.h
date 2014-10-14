@@ -68,7 +68,25 @@ LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_file_type typ
  * \see likely_read
  */
 LIKELY_EXPORT likely_mat likely_write(likely_const_mat image, const char *file_name);
+
+/*!
+ * \brief Decode a \ref likely_matrix.
+ *
+ * The format of \p buffer is determined automatically.
+ * \param[in] buffer The buffer to decode.
+ * \return Decoded image if successful, \c NULL otherwise.
+ * \see likely_encode
+ */
 LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
+
+/*!
+ * \brief Encode a \ref likely_matrix.
+ *
+ * \param[in] image The image to encode.
+ * \param[in] extension The desired encoding format.
+ * \return Encoded buffer if successful, \c NULL otherwise.
+ * \see likely_decode
+ */
 LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
 
 // Matrix Visualization
