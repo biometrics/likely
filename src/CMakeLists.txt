@@ -109,12 +109,12 @@ if(${LIKELY_IO})
   else()
     if(WIN32)
       # TODO: https://bugreports.qt-project.org/browse/QTBUG-33450
-      ExternalProject_Add(Qt5.3.2
-          URL http://download.qt-project.org/official_releases/qt/5.3/5.3.2/submodules/qtbase-opensource-src-5.3.2.zip
-          URL_MD5 1a81aafd9d63168e9d0d1056ae0cc5d2
-          CONFIGURE_COMMAND ../Qt5.3.2/configure.exe -prefix ${QT5_INSTALL_DIR} -opensource -confirm-license -static -release -no-compile-examples
-          BUILD_COMMAND nmake
-          INSTALL_COMMAND nmake install)
+      # ExternalProject_Add(Qt5.3.2
+      #     URL http://download.qt-project.org/official_releases/qt/5.3/5.3.2/submodules/qtbase-opensource-src-5.3.2.zip
+      #     URL_MD5 1a81aafd9d63168e9d0d1056ae0cc5d2
+      #     CONFIGURE_COMMAND ../Qt5.3.2/configure.exe -prefix ${QT5_INSTALL_DIR} -opensource -confirm-license -static -release -no-compile-examples
+      #     BUILD_COMMAND nmake
+      #     INSTALL_COMMAND nmake install)
     else() # UNIX
       if(NOT APPLE)
         set(QT_CONFIGURE_FLAGS "-qt-xcb")
