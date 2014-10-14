@@ -922,6 +922,9 @@ int main(int argc, char *argv[])
 #  ifdef Q_OS_OSX
 Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)
 #  endif // Q_OS_OSX
+#  ifdef Q_OS_LINUX
+Q_IMPORT_PLUGIN(QXcbIntegrationPlugin)
+#  endif // Q_OS_LINUX
 #endif // LIKELY_STATIC_QT
 
 #include "dream.moc"

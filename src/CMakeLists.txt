@@ -107,24 +107,43 @@ if(${LIKELY_IO})
     target_link_libraries(dream likely_static ${QT_STATIC_DEPENDENCIES})
     install(TARGETS dream RUNTIME DESTINATION bin)
   else()
-    if(APPLE)
+    if(UNIX)
+      if(NOT APPLE)
+        set(QT_CONFIGURE_FLAGS "-qt-xcb")
+      endif()
       ExternalProject_Add(Qt5.3.2
           URL http://download.qt-project.org/official_releases/qt/5.3/5.3.2/submodules/qtbase-opensource-src-5.3.2.tar.gz
           URL_MD5 2a692eed83c4f7e48e1db65ed1a2ae9f
-          CONFIGURE_COMMAND ../Qt5.3.2/configure -prefix ${QT5_INSTALL_DIR} -opensource -confirm-license -static -no-compile-examples)
-      find_package(OpenGL REQUIRED)
-      find_library(CARBON_LIBRARY Carbon)
-      find_library(CUPS_LIBRARY cups)
-      find_library(IOKIT_LIBRARY IOKit)
-      set(QT_STATIC_DEPENDENCIES ${OPENGL_LIBRARIES}
-                                 ${COCOA_LIBRARY}
-                                 ${CARBON_LIBRARY}
-                                 ${CUPS_LIBRARY}
-                                 ${IOKIT_LIBRARY}
-                                 ${QT5_INSTALL_DIR}/lib/libqtharfbuzzng.a
-                                 ${QT5_INSTALL_DIR}/lib/libQt5PlatformSupport.a
-                                 ${QT5_INSTALL_DIR}/plugins/platforms/libqcocoa.a
-          CACHE INTERNAL "Qt static dependencies")
+          CONFIGURE_COMMAND ../Qt5.3.2/configure -prefix ${QT5_INSTALL_DIR} -opensource -confirm-license -static -no-compile-examples ${QT_CONFIGURE_FLAGS})
+      if(APPLE)
+        find_package(OpenGL REQUIRED)
+        find_library(CARBON_LIBRARY Carbon)
+        find_library(CUPS_LIBRARY cups)
+        find_library(IOKIT_LIBRARY IOKit)
+        set(QT_STATIC_DEPENDENCIES ${OPENGL_LIBRARIES}
+                                   ${COCOA_LIBRARY}
+                                   ${CARBON_LIBRARY}
+                                   ${CUPS_LIBRARY}
+                                   ${IOKIT_LIBRARY}
+                                   ${QT5_INSTALL_DIR}/lib/libQt5PlatformSupport.a
+                                   ${QT5_INSTALL_DIR}/lib/libqtharfbuzzng.a
+                                   ${QT5_INSTALL_DIR}/plugins/platforms/libqcocoa.a
+            CACHE INTERNAL "Qt static dependencies")
+      else()
+        find_package(OpenGL REQUIRED)
+        find_library(XCB_LIBRARY xcb)
+        find_library(X11_LIBRARY X11)
+        find_library(X11XCB_LIBRARY X11-xcb)
+        set(QT_STATIC_DEPENDENCIES ${OPENGL_LIBRARIES}
+                                   ${QT5_INSTALL_DIR}/lib/libQt5PlatformSupport.a
+                                   ${QT5_INSTALL_DIR}/plugins/platforms/libqxcb.a
+                                   ${QT5_INSTALL_DIR}/lib/libxcb-static.a
+                                   ${QT5_INSTALL_DIR}/lib/libQt5Gui.a # Referenced by Qt5PlatformSupport
+                                   ${XCB_LIBRARY}
+                                   ${X11_LIBRARY}
+                                   ${X11XCB_LIBRARY}
+            CACHE INTERNAL "Qt static dependencies")
+      endif()
     endif()
   endif()
 endif()
