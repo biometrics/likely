@@ -315,20 +315,20 @@ likely_mat likely_to_string_va(likely_const_mat mat, ...)
     return likely_to_string_n(mv.data(), mv.size());
 }
 
-likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
+likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
 {
-    if (!m)
+    if (!mat)
         return NULL;
 
     double min, max, range;
-    if ((m->type & likely_matrix_element) != likely_matrix_u8) {
+    if ((mat->type & likely_matrix_element) != likely_matrix_u8) {
         min = numeric_limits<double>::max();
         max = -numeric_limits<double>::max();
-        for (likely_size t=0; t<m->frames; t++) {
-            for (likely_size y=0; y<m->rows; y++) {
-                for (likely_size x=0; x<m->columns; x++) {
-                    for (likely_size c=0; c<m->channels; c++) {
-                        const double value = likely_element(m, c, x, y, t);
+        for (likely_size t=0; t<mat->frames; t++) {
+            for (likely_size y=0; y<mat->rows; y++) {
+                for (likely_size x=0; x<mat->columns; x++) {
+                    for (likely_size c=0; c<mat->channels; c++) {
+                        const double value = likely_element(mat, c, x, y, t);
                         min = ::min(min, value);
                         max = ::max(max, value);
                     }
@@ -341,10 +341,10 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
         max = 255;
         range = 1;
         // Special case, return the original image
-        if (m->channels == 3) {
+        if (mat->channels == 3) {
             if (min_) *min_ = min;
             if (max_) *max_ = max;
-            return likely_retain(m);
+            return likely_retain(mat);
         }
     }
 
@@ -360,7 +360,7 @@ likely_mat likely_render(likely_const_mat m, double *min_, double *max_)
 
     likely_const_mat min_val = likely_scalar(likely_matrix_f32, min);
     likely_const_mat range_val = likely_scalar(likely_matrix_f32, range);
-    likely_mat n = reinterpret_cast<likely_function_3>(normalize->function)(m, min_val, range_val);
+    likely_mat n = reinterpret_cast<likely_function_3>(normalize->function)(mat, min_val, range_val);
     likely_release(min_val);
     likely_release(range_val);
 
