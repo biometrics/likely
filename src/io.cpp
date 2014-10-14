@@ -239,19 +239,6 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
     return likelyFromOpenCVMat(cv::Mat(buf));
 }
 
-likely_mat likely_to_hex(likely_const_mat m)
-{
-    char hex_str[] = "0123456789abcdef";
-    const likely_size bytes = likely_bytes(m);
-    likely_mat n = likely_new(likely_matrix_i8, 2*likely_bytes(m)+1, 1, 1, 1, NULL);
-    for (likely_size i=0; i<bytes; i++) {
-        n->data[2*i+0] = hex_str[(m->data[i] >> 4) & 0x0F];
-        n->data[2*i+1] = hex_str[(m->data[i] >> 0) & 0x0F];
-    }
-    n->data[2*bytes] = 0;
-    return n;
-}
-
 likely_mat likely_print(likely_const_mat m)
 {
     return likely_print_n(&m, 1);

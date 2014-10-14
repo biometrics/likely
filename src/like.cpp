@@ -95,7 +95,17 @@ static void replMD5(likely_const_env env, void *context)
 {
     if (!context) return;
     likely_mat md5 = likely_md5(env->result);
-    checkOrPrintAndRelease(likely_to_hex(md5));
+
+    char hex_str[] = "0123456789abcdef";
+    const likely_size bytes = likely_bytes(md5);
+    likely_mat hex = likely_new(likely_matrix_string, 2*likely_bytes(md5)+1, 1, 1, 1, NULL);
+    for (likely_size i=0; i<bytes; i++) {
+        hex->data[2*i+0] = hex_str[(md5->data[i] >> 4) & 0x0F];
+        hex->data[2*i+1] = hex_str[(md5->data[i] >> 0) & 0x0F];
+    }
+    hex->data[2*bytes] = 0;
+
+    checkOrPrintAndRelease(hex);
     likely_release(md5);
 }
 
