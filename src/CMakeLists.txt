@@ -85,10 +85,13 @@ if(${LIKELY_IO})
            COMMAND benchmark -test -parallel)
 
   # Dream
-  find_package(Qt5Widgets QUIET)
-  find_package(Qt5PrintSupport QUIET)
+  set(QT5_INSTALL_DIR "${CMAKE_BINARY_DIR}/Qt5.3.2")
+  set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${QT5_INSTALL_DIR})
   find_package(Qt5OpenGL QUIET)
-  if(${Qt5Widgets_FOUND} AND ${Qt5PrintSupport_FOUND} AND ${Qt5OpenGL_FOUND})
+  find_package(Qt5PrintSupport QUIET)
+  find_package(Qt5Widgets QUIET)
+  set(CMAKE_AUTOMOC ON)
+  if(${Qt5OpenGL_FOUND} AND ${Qt5PrintSupport_FOUND} AND ${Qt5Widgets_FOUND})
     # Get QCustomPlot source
     # aux_source_directory(qcustomplot/src QCUSTOMPLOT_SRC)
     # aux_source_directory(qcustomplot/src/plottables QCUSTOMPLOT_SRC_PLOTTABLES)
@@ -96,11 +99,33 @@ if(${LIKELY_IO})
     # aux_source_directory(qcustomplot/src/layoutelements QCUSTOMPLOT_SRC_LAYOUTELEMENTS)
     # set(QCUSTOMPLOT_SRC ${QCUSTOMPLOT_SRC} ${QCUSTOMPLOT_SRC_PLOTTABLES} ${QCUSTOMPLOT_SRC_ITEMS} ${QCUSTOMPLOT_SRC_LAYOUTELEMENTS})
 
-    set(CMAKE_AUTOMOC ON)
+    if(QT_STATIC_DEPENDENCIES)
+      add_definitions(-DLIKELY_STATIC_QT)
+    endif()
     add_executable(dream dream.cpp ${QCUSTOMPLOT_SRC})
-    qt5_use_modules(dream Widgets PrintSupport OpenGL)
-    target_link_libraries(dream likely_static)
+    qt5_use_modules(dream OpenGL PrintSupport Widgets)
+    target_link_libraries(dream likely_static ${QT_STATIC_DEPENDENCIES})
     install(TARGETS dream RUNTIME DESTINATION bin)
+  else()
+    if(APPLE)
+      ExternalProject_Add(Qt5.3.2
+          URL http://download.qt-project.org/official_releases/qt/5.3/5.3.2/submodules/qtbase-opensource-src-5.3.2.tar.gz
+          URL_MD5 2a692eed83c4f7e48e1db65ed1a2ae9f
+          CONFIGURE_COMMAND ../Qt5.3.2/configure -prefix ${QT5_INSTALL_DIR} -opensource -confirm-license -static -no-compile-examples)
+      find_package(OpenGL REQUIRED)
+      find_library(CARBON_LIBRARY Carbon)
+      find_library(CUPS_LIBRARY cups)
+      find_library(IOKIT_LIBRARY IOKit)
+      set(QT_STATIC_DEPENDENCIES ${OPENGL_LIBRARIES}
+                                 ${COCOA_LIBRARY}
+                                 ${CARBON_LIBRARY}
+                                 ${CUPS_LIBRARY}
+                                 ${IOKIT_LIBRARY}
+                                 ${QT5_INSTALL_DIR}/lib/libqtharfbuzzng.a
+                                 ${QT5_INSTALL_DIR}/lib/libQt5PlatformSupport.a
+                                 ${QT5_INSTALL_DIR}/plugins/platforms/libqcocoa.a
+          CACHE INTERNAL "Qt static dependencies")
+    endif()
   endif()
 endif()
 

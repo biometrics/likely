@@ -15,8 +15,8 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <QtCore>
-#include <QtWidgets>
 #include <QtOpenGL>
+#include <QtWidgets>
 #include <llvm/Support/CommandLine.h>
 #include <cassert>
 #include <string>
@@ -917,5 +917,11 @@ int main(int argc, char *argv[])
     likely_shutdown();
     return result;
 }
+
+#ifdef LIKELY_STATIC_QT
+#  ifdef Q_OS_OSX
+Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)
+#  endif // Q_OS_OSX
+#endif // LIKELY_STATIC_QT
 
 #include "dream.moc"

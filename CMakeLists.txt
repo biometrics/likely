@@ -1,6 +1,7 @@
 project(likely)
 cmake_minimum_required(VERSION 2.8.12)
 cmake_policy(SET CMP0020 NEW)
+include(ExternalProject)
 
 # Configure
 set(CPACK_PACKAGE_NAME "Likely")
