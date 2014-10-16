@@ -17,29 +17,10 @@
 #include <assert.h>
 #include <math.h>
 #include <stdarg.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "likely/runtime.h"
-
-void likely_assert(bool condition, const char *format, ...)
-{
-    va_list ap;
-    if (condition)
-        return;
-
-    va_start(ap, format);
-    fprintf(stderr, "Likely ");
-    vfprintf(stderr, format, ap);
-    fprintf(stderr, "\n");
-
-#ifdef _WIN32
-    exit(EXIT_FAILURE); // We prefer not to trigger the Windows crash dialog box
-#else // !_WIN32
-    abort();
-#endif // _WIN32
-}
 
 //! [likely_bytes implementation.]
 size_t likely_bytes(likely_const_mat mat)
@@ -169,7 +150,7 @@ double likely_element(likely_const_mat m, uint32_t c, uint32_t x, uint32_t y, ui
       case likely_matrix_f32: return (double) ((   float const*) m->data)[index];
       case likely_matrix_f64: return (double) ((  double const*) m->data)[index];
       case likely_matrix_u1:  return (double) ((((uint8_t const*)m->data)[index/8] & (1 << index%8)) != 0);
-      default: likely_assert(false, "likely_element unsupported type");
+      default: assert(!"likely_element unsupported type");
     }
     return NAN;
 }

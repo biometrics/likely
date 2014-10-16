@@ -131,13 +131,6 @@ struct likely_matrix
 };
 
 /*!
- * \brief Conditional abort-style error handling with an error message.
- * \param[in] condition If \c false, print \a format and abort.
- * \param[in] format <tt>printf</tt>-style error message.
- */
-LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
-
-/*!
  * \brief Get the size of \ref likely_matrix::data in bytes.
  *
  * \par Implementation

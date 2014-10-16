@@ -108,6 +108,13 @@ typedef struct likely_error
 } likely_error;
 typedef void (*likely_error_callback)(likely_error error, void *context);
 
+/*!
+ * \brief Conditional abort-style error handling with an error message.
+ * \param[in] condition If \c false, print \a format and abort.
+ * \param[in] format <tt>printf</tt>-style error message.
+ */
+LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
+
 LIKELY_EXPORT likely_ast likely_new_atom(const char *str, likely_size len);
 LIKELY_EXPORT likely_ast likely_new_list(const likely_ast *atoms, likely_size num_atoms); // Assumes ownership of atoms
 LIKELY_EXPORT likely_ast likely_copy_ast(likely_const_ast ast);

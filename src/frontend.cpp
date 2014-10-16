@@ -27,6 +27,24 @@
 
 using namespace std;
 
+void likely_assert(bool condition, const char *format, ...)
+{
+    va_list ap;
+    if (condition)
+        return;
+
+    va_start(ap, format);
+    fprintf(stderr, "Likely ");
+    vfprintf(stderr, format, ap);
+    fprintf(stderr, "\n");
+
+#ifdef _WIN32
+    exit(EXIT_FAILURE); // We prefer not to trigger the Windows crash dialog box
+#else // !_WIN32
+    abort();
+#endif // _WIN32
+}
+
 likely_ast likely_new_atom(const char *str, likely_size len)
 {
     likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + len + 1);
