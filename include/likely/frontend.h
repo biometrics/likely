@@ -52,26 +52,62 @@ enum likely_abstract_syntax_tree_types
 };
 
 struct likely_abstract_syntax_tree;
+
+/*!
+ * \brief Pointer to a \ref likely_abstract_syntax_tree.
+ */
 typedef struct likely_abstract_syntax_tree *likely_ast;
+
+/*!
+ * \brief Pointer to a constant \ref likely_abstract_syntax_tree.
+ */
 typedef struct likely_abstract_syntax_tree const *likely_const_ast;
 
+/*!
+ * \brief An abstract syntax tree.
+ *
+ * The \ref likely_abstract_syntax_tree represents the final state of source code after tokenization and parsing.
+ * This structure is provided to the backend for code generation.
+ *
+ * The \ref likely_abstract_syntax_tree is designed as a node in a \a tree, where each node is either a list or an atom.
+ * A \a list is an array of \ref likely_ast which themselves are lists or atoms.
+ * An \a atom is a single-word string, also called a \a token.
+ * In tree-terminology a list is a \a branch, and an atom is a \a leaf.
+ *
+ * In Likely source code, parenthesis, periods and colons are used to construct lists, and everything else is an atom.
+ */
 struct likely_abstract_syntax_tree
 {
+    /*!
+     * \brief A list or an atom.
+     */
     union {
-        struct { // type == likely_ast_list
-            const likely_ast * const atoms;
-            likely_size num_atoms;
+        /*!
+         * \brief Accessible when <tt>\ref type == \ref likely_ast_list</tt>.
+         */
+        struct
+        {
+            const likely_ast * const atoms; /*!< \brief List elements. */
+            uint32_t num_atoms; /*!< \brief Length of \ref atoms. */
         };
-        struct { // type != likely_ast_list
-            const char * const atom;
-            likely_size atom_len;
+
+        /*!
+         * \brief Accessible when <tt>\ref type != \ref likely_ast_list</tt>.
+         */
+        struct
+        {
+            const char * const atom; /*!< \brief <tt>NULL</tt>-terminated single-word token. */
+            uint32_t atom_len; /*!< \brief Length of \ref atom, excluding the <tt>NULL</tt>-terminator. */
         };
     };
 
-    likely_const_ast parent;
-    likely_size ref_count;
-    likely_size begin_line, begin_column, end_line, end_column;
-    likely_abstract_syntax_tree_type type;
+    likely_const_ast parent; /*!< \brief This node's predecessor, or \c NULL if this node is the root. */
+    uint32_t ref_count; /*!< \brief Reference count. */
+    likely_abstract_syntax_tree_type type; /*!< \brief Interpretation of \ref likely_abstract_syntax_tree. */
+    uint32_t begin_line; /*!< \brief Source code beginning line number. */
+    uint32_t begin_column; /*!< \brief Source code beginning column number. */
+    uint32_t end_line; /*!< \brief Source code ending line number. */
+    uint32_t end_column; /*!< \brief Source code ending column number (inclusive). */
 };
 
 typedef struct likely_error
