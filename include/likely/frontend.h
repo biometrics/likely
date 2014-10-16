@@ -51,17 +51,8 @@ enum likely_abstract_syntax_tree_types
     likely_ast_invalid  = 6, /*!< A \ref likely_ast_atom that could not be identified during evaluation. */
 };
 
-struct likely_abstract_syntax_tree;
-
-/*!
- * \brief Pointer to a \ref likely_abstract_syntax_tree.
- */
-typedef struct likely_abstract_syntax_tree *likely_ast;
-
-/*!
- * \brief Pointer to a constant \ref likely_abstract_syntax_tree.
- */
-typedef struct likely_abstract_syntax_tree const *likely_const_ast;
+typedef struct likely_abstract_syntax_tree *likely_ast; /*!< \brief Pointer to a \ref likely_abstract_syntax_tree. */
+typedef struct likely_abstract_syntax_tree const *likely_const_ast; /*!< \brief Pointer to a constant \ref likely_abstract_syntax_tree. */
 
 /*!
  * \brief An abstract syntax tree.

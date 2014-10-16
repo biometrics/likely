@@ -92,6 +92,9 @@ enum likely_matrix_type_mask
 #  pragma warning(disable: 4200)
 #endif // _MSC_VER
 
+typedef struct likely_matrix const *likely_const_mat; /*!< \brief Pointer to a constant \ref likely_matrix. */
+typedef struct likely_matrix *likely_mat; /*!< \brief Pointer to a \ref likely_matrix. */
+
 /*!
  * \brief The principal data structure in Likely.
  *
@@ -126,9 +129,6 @@ struct likely_matrix
     uint32_t frames;   /*!< \brief Super-spatial (temporal) dimensionality. */
     char data[]; /*!< \brief Buffer. */
 };
-
-typedef struct likely_matrix const *likely_const_mat; /*!< \brief Pointer to a constant \ref likely_matrix. */
-typedef struct likely_matrix *likely_mat; /*!< \brief Pointer to a \ref likely_matrix. */
 
 /*!
  * \brief Conditional abort-style error handling with an error message.

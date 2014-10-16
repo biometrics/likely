@@ -43,15 +43,12 @@ enum likely_environment_type
     likely_environment_base          = 0x00000080
 };
 
-struct likely_expression;
 typedef struct likely_expression *likely_expr;
 typedef struct likely_expression const *likely_const_expr;
 
-struct likely_environment;
 typedef struct likely_environment *likely_env;
 typedef struct likely_environment const *likely_const_env;
 
-struct likely_module;
 typedef struct likely_module *likely_mod;
 typedef struct likely_module const *likely_const_mod;
 
@@ -75,14 +72,14 @@ typedef likely_mat (*likely_function_2)(likely_const_mat, likely_const_mat);
 typedef likely_mat (*likely_function_3)(likely_const_mat, likely_const_mat, likely_const_mat);
 typedef likely_mat (*likely_function_n)(likely_const_mat const*);
 
+typedef struct likely_function *likely_fun;
+typedef struct likely_function const *likely_const_fun;
+
 struct likely_function
 {
     void *function;
     size_t ref_count;
 };
-
-typedef struct likely_function *likely_fun;
-typedef struct likely_function const *likely_const_fun;
 
 // Environments
 LIKELY_EXPORT likely_env likely_new_env(likely_const_env parent);
