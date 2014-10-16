@@ -415,7 +415,9 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
                     success = success && reduce(tokens, offset, atoms);
                 }
             } else {
-                likely_throw(atoms.back(), "missing list closing token");
+                stringstream stream;
+                stream << "missing list closing token: " << close->atom;
+                likely_throw(atoms.back(), stream.str().c_str());
             }
             if (!success)
                 return cleanup(atoms);
