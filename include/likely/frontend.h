@@ -105,14 +105,17 @@ typedef struct likely_error *likely_err; /*!< \brief Pointer to a \ref likely_er
 typedef struct likely_error const *likely_const_err; /*!< \brief Pointer to a constant \ref likely_error. */
 
 /*!
- * \brief An error.
+ * \brief A compilation error.
  */
 struct likely_error
 {
-    likely_const_err parent; /*!< \bried Predecessor error, or \c NULL if this error is the root. */
-    uint32_t ref_count; /*!< Reference count. */
-    likely_const_ast where; /*!< Location of the error. */
-    char what[]; /*!< Error message. */
+    likely_const_err parent; /*!< \brief Predecessor error, or \c NULL if this error is the root. */
+    uint32_t ref_count; /*!< \brief Reference count.
+                         *
+                         * Used by \ref likely_retain_err and \ref likely_release_err to track ownership.
+                         */
+    likely_const_ast where; /*!< \brief Location of the error. */
+    char what[]; /*!< \brief Error message. */
 };
 typedef void (*likely_error_callback)(likely_err err, void *context);
 
@@ -120,8 +123,9 @@ typedef void (*likely_error_callback)(likely_err err, void *context);
  * \brief Construct a new error.
  * \param[in] where \ref likely_error::where.
  * \param[in] format <tt>printf</tt>-style string to populate \ref likely_error::what.
+ * \return Pointer to a new \ref likely_error, or \c NULL if \c malloc failed.
  */
-LIKELY_EXPORT likely_err likely_new_error(likely_const_err parent, likely_const_ast where, const char *format, ...);
+LIKELY_EXPORT likely_err likely_new_err(likely_const_err parent, likely_const_ast where, const char *format, ...);
 
 /*!
  * \brief Retain a reference to an error.

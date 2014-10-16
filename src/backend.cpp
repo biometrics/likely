@@ -2629,6 +2629,9 @@ LIKELY_REGISTER(md5)
 likely_env likely_new_env(likely_const_env parent)
 {
     likely_env env = (likely_env) malloc(sizeof(likely_environment));
+    if (!env)
+        return NULL;
+
     env->type = likely_environment_void;
     if (parent) {
         if (parent->type & likely_environment_offline      ) env->type |= likely_environment_offline;
@@ -2654,6 +2657,9 @@ likely_env likely_new_env_jit()
 likely_env likely_new_env_offline(const char *file_name)
 {
     likely_env env = likely_new_env(RootEnvironment::get());
+    if (!env)
+        return NULL;
+
     env->module = new OfflineModule(file_name);
     env->type |= likely_environment_offline;
     env->type |= likely_environment_base;

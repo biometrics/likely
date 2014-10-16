@@ -28,10 +28,13 @@
 
 using namespace std;
 
-likely_err likely_new_error(likely_const_err parent, likely_const_ast where, const char *format, ...)
+likely_err likely_new_err(likely_const_err parent, likely_const_ast where, const char *format, ...)
 {
     const unsigned MaxErrorLength = 256;
     likely_err err = (likely_err) malloc(sizeof(likely_error) + MaxErrorLength);
+    if (!err)
+        return NULL;
+
     err->parent = likely_retain_err(parent);
     err->ref_count = 1;
     err->where = likely_retain_ast(where);
@@ -80,6 +83,9 @@ void likely_assert(bool condition, const char *format, ...)
 likely_ast likely_new_atom(const char *str, likely_size len)
 {
     likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + len + 1);
+    if (!ast)
+        return NULL;
+
     const_cast<const char*&>(ast->atom) = reinterpret_cast<const char*>(ast + 1);
     memcpy((void*) ast->atom, str, len);
     ((char*) ast->atom)[len] = '\0';
@@ -97,6 +103,9 @@ likely_ast likely_new_atom(const char *str, likely_size len)
 likely_ast likely_new_list(const likely_ast *atoms, likely_size num_atoms)
 {
     likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + num_atoms * sizeof(likely_ast));
+    if (!ast)
+        return NULL;
+
     const_cast<const likely_ast*&>(ast->atoms) = reinterpret_cast<likely_ast*>(ast+1);
     memcpy(const_cast<likely_ast*>(ast->atoms), atoms, num_atoms * sizeof(likely_ast));
     ast->num_atoms = num_atoms;
@@ -579,7 +588,7 @@ void likely_set_error_callback(likely_error_callback callback, void *context)
 
 bool likely_throw(likely_const_ast where, const char *what)
 {
-    ErrorCallback(likely_new_error(NULL, where, what), ErrorContext);
+    ErrorCallback(likely_new_err(NULL, where, what), ErrorContext);
     return false;
 }
 

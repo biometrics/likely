@@ -44,6 +44,9 @@ likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t colum
     likely_mat m;
     const size_t bytes = ((uint64_t)(type & likely_matrix_depth) * channels * columns * rows * frames + 7) / 8;
     m = (likely_mat) malloc(sizeof(struct likely_matrix) + bytes);
+    if (!m)
+        return NULL;
+
     m->ref_count = 1;
     m->type = type;
     m->channels = channels;

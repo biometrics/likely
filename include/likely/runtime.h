@@ -170,7 +170,7 @@ LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
  * \param[in] rows \ref likely_matrix::rows.
  * \param[in] frames \ref likely_matrix::frames.
  * \param[in] data \ref likely_matrix::data.
- * \return A pointer to the new \ref likely_matrix.
+ * \return A pointer to the new \ref likely_matrix, or \c NULL if \c malloc failed.
  * \see likely_scalar_n likely_string
  */
 LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data);
@@ -181,7 +181,7 @@ LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, 
  * Convenient alternative to \ref likely_scalar_n.
  * \param[in] type \ref likely_matrix::type.
  * \param[in] value Element value.
- * \return A pointer to the new single-element \ref likely_matrix.
+ * \return A pointer to the new single-element \ref likely_matrix, or \c NULL if \c malloc failed.
  */
 LIKELY_EXPORT likely_mat likely_scalar(likely_matrix_type type, double value);
 
@@ -194,7 +194,7 @@ LIKELY_EXPORT likely_mat likely_scalar(likely_matrix_type type, double value);
  * \param[in] type \ref likely_matrix::type.
  * \param[in] values Array of element values.
  * \param[in] n Length of \p values.
- * \return A pointer to the new multi-element \ref likely_matrix.
+ * \return A pointer to the new multi-element \ref likely_matrix, or \c NULL if \c malloc failed.
  * \see likely_scalar likely_scalar_va
  */
 LIKELY_EXPORT likely_mat likely_scalar_n(likely_matrix_type type, double *values, size_t n);
@@ -205,7 +205,7 @@ LIKELY_EXPORT likely_mat likely_scalar_n(likely_matrix_type type, double *values
  * Convenient alternative to \ref likely_scalar_n.
  * \param[in] type \ref likely_matrix::type.
  * \param[in] value <tt>NaN</tt>-terminated list of element values.
- * \return A pointer to the new multi-element \ref likely_matrix.
+ * \return A pointer to the new multi-element \ref likely_matrix, or \c NULL if \c malloc failed.
  */
 LIKELY_EXPORT likely_mat likely_scalar_va(likely_matrix_type type, double value, ...);
 
@@ -216,7 +216,7 @@ LIKELY_EXPORT likely_mat likely_scalar_va(likely_matrix_type type, double value,
  * \par Implementation
  * \snippet src/runtime_common.c likely_string implementation.
  * \param[in] str String used to initialized \ref likely_matrix::data.
- * \return A pointer to the new \ref likely_matrix holding a string.
+ * \return A pointer to the new \ref likely_matrix holding a string, or \c NULL if \c malloc failed.
  * \see likely_is_string
  */
 LIKELY_EXPORT likely_mat likely_string(const char *str);
