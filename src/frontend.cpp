@@ -28,6 +28,37 @@
 
 using namespace std;
 
+likely_err likely_new_error(likely_const_err parent, likely_const_ast where, const char *format, ...)
+{
+    const unsigned MaxErrorLength = 256;
+    likely_err err = (likely_err) malloc(sizeof(likely_error) + MaxErrorLength);
+    err->parent = likely_retain_err(parent);
+    err->ref_count = 1;
+    err->where = likely_retain_ast(where);
+    va_list args;
+    va_start(args, format);
+    vsnprintf(err->what, MaxErrorLength, format, args);
+    return err;
+}
+
+likely_err likely_retain_err(likely_const_err err)
+{
+    if (!err) return NULL;
+    assert(err->ref_count > 0);
+    const_cast<likely_err>(err)->ref_count++;
+    return const_cast<likely_err>(err);
+}
+
+void likely_release_err(likely_const_err err)
+{
+    if (!err) return;
+    assert(err->ref_count > 0);
+    if (--const_cast<likely_err>(err)->ref_count) return;
+    likely_release_ast(err->where);
+    likely_release_err(err->parent);
+    free((void*) err);
+}
+
 void likely_assert(bool condition, const char *format, ...)
 {
     va_list ap;
@@ -529,14 +560,15 @@ const char *likely_get_symbol_name(likely_const_ast ast)
     return (ast && (ast->type != likely_ast_list)) ? ast->atom : "";
 }
 
-static void default_error_callback(likely_error error, void *)
+static void defaultErrorCallback(likely_err err, void *)
 {
-    likely_mat str = likely_error_to_string(error);
+    likely_mat str = likely_error_to_string(err);
     cerr << str->data << endl;
     likely_release(str);
+    likely_release_err(err);
 }
 
-static likely_error_callback ErrorCallback = default_error_callback;
+static likely_error_callback ErrorCallback = defaultErrorCallback;
 static void *ErrorContext = NULL;
 
 void likely_set_error_callback(likely_error_callback callback, void *context)
@@ -547,18 +579,15 @@ void likely_set_error_callback(likely_error_callback callback, void *context)
 
 bool likely_throw(likely_const_ast where, const char *what)
 {
-    likely_error error;
-    error.where = where;
-    error.what = what;
-    ErrorCallback(error, ErrorContext);
+    ErrorCallback(likely_new_error(NULL, where, what), ErrorContext);
     return false;
 }
 
-likely_mat likely_error_to_string(likely_error error)
+likely_mat likely_error_to_string(likely_err err)
 {
     stringstream stream;
-    stream << error.what << " at: ";
-    print(error.where, stream);
+    stream << err->what << " at: ";
+    print(err->where, stream);
     return likely_string(stream.str().c_str());
 }
 

@@ -101,12 +101,46 @@ struct likely_abstract_syntax_tree
     uint32_t end_column; /*!< \brief Source code ending column number (inclusive). */
 };
 
-typedef struct likely_error
+typedef struct likely_error *likely_err; /*!< \brief Pointer to a \ref likely_error. */
+typedef struct likely_error const *likely_const_err; /*!< \brief Pointer to a constant \ref likely_error. */
+
+/*!
+ * \brief An error.
+ */
+struct likely_error
 {
-    likely_const_ast where;
-    const char *what;
-} likely_error;
-typedef void (*likely_error_callback)(likely_error error, void *context);
+    likely_const_err parent; /*!< \bried Predecessor error, or \c NULL if this error is the root. */
+    uint32_t ref_count; /*!< Reference count. */
+    likely_const_ast where; /*!< Location of the error. */
+    char what[]; /*!< Error message. */
+};
+typedef void (*likely_error_callback)(likely_err err, void *context);
+
+/*!
+ * \brief Construct a new error.
+ * \param[in] where \ref likely_error::where.
+ * \param[in] format <tt>printf</tt>-style string to populate \ref likely_error::what.
+ */
+LIKELY_EXPORT likely_err likely_new_error(likely_const_err parent, likely_const_ast where, const char *format, ...);
+
+/*!
+ * \brief Retain a reference to an error.
+ *
+ * Increments \ref likely_error::ref_count.
+ * \param[in] err Error to add a reference. May be \c NULL.
+ * \return \p err.
+ * \see likely_release_err
+ */
+LIKELY_EXPORT likely_err likely_retain_err(likely_const_err err);
+
+/*!
+ * \brief Release a reference to an error.
+ *
+ * Decrements \ref likely_error::ref_count.
+ * \param[in] err Error to subtract a reference. May be \c NULL.
+ * \see likely_retain_err
+ */
+LIKELY_EXPORT void likely_release_err(likely_const_err err);
 
 /*!
  * \brief Conditional abort-style error handling with an error message.
@@ -132,7 +166,7 @@ LIKELY_EXPORT const char *likely_get_symbol_name(likely_const_ast ast); // retur
 // Callback-style error handling
 LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, void *context);
 LIKELY_EXPORT bool likely_throw(likely_const_ast where, const char *what);
-LIKELY_EXPORT likely_mat likely_error_to_string(likely_error error);
+LIKELY_EXPORT likely_mat likely_error_to_string(likely_err error);
 
 // Type conversion
 LIKELY_EXPORT likely_mat likely_type_to_string(likely_size type);

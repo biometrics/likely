@@ -227,7 +227,7 @@ LIKELY_EXPORT likely_mat likely_string(const char *str);
  * Increments \ref likely_matrix::ref_count.
  * \par Implementation
  * \snippet src/runtime_common.c likely_retain implementation.
- * \param[in] mat Matrix to add an additional reference. May be NULL.
+ * \param[in] mat Matrix to add a reference. May be \c NULL.
  * \return \p mat.
  * \see likely_release
  */
@@ -240,7 +240,7 @@ LIKELY_EXPORT likely_mat likely_retain(likely_const_mat mat);
  * Frees the matrix memory when the reference count is decremented to zero.
  * \par Implementation
  * \snippet src/runtime_common.c likely_release implementation.
- * \param[in] mat Matrix to add an additional reference. May be NULL.
+ * \param[in] mat Matrix to subtract a reference. May be \c NULL.
  * \see likely_retain
  */
 LIKELY_EXPORT void likely_release(likely_const_mat mat);
