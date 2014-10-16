@@ -30,15 +30,25 @@ extern "C" {
  * @{
  */
 
-enum likely_abstract_syntax_tree_type
+/*!
+ * \brief How to interpret a \ref likely_abstract_syntax_tree.
+ *
+ * Available options are listed in \ref likely_abstract_syntax_tree_types.
+ */
+typedef uint32_t likely_abstract_syntax_tree_type;
+
+/*!
+ * \brief \ref likely_abstract_syntax_tree_type options.
+ */
+enum likely_abstract_syntax_tree_types
 {
-    likely_ast_list     = 0,
-    likely_ast_atom     = 1,
-    likely_ast_operator = 2,
-    likely_ast_string   = 3,
-    likely_ast_number   = 4,
-    likely_ast_type     = 5,
-    likely_ast_invalid  = 6
+    likely_ast_list     = 0, /*!< likely_abstract_syntax_tree::atoms and likely_abstract_syntax_tree::num_atoms are accessible. */
+    likely_ast_atom     = 1, /*!< likely_abstract_syntax_tree::atom and likely_abstract_syntax_tree::atom_len are accessible. */
+    likely_ast_operator = 2, /*!< A \ref likely_ast_atom identified as a operator during evaluation. */
+    likely_ast_string   = 3, /*!< A \ref likely_ast_atom identified as a string during evaluation. */
+    likely_ast_number   = 4, /*!< A \ref likely_ast_atom identified as a number during evaluation. */
+    likely_ast_type     = 5, /*!< A \ref likely_ast_atom identified as a type during evaluation. */
+    likely_ast_invalid  = 6, /*!< A \ref likely_ast_atom that could not be identified during evaluation. */
 };
 
 struct likely_abstract_syntax_tree;
@@ -61,7 +71,7 @@ struct likely_abstract_syntax_tree
     likely_const_ast parent;
     likely_size ref_count;
     likely_size begin_line, begin_column, end_line, end_column;
-    likely_size type;
+    likely_abstract_syntax_tree_type type;
 };
 
 typedef struct likely_error
