@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdarg>
 #include <cstring>
 #include <iostream>
 #include <limits>
