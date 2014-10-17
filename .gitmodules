@@ -7,9 +7,6 @@
 [submodule "qcustomplot"]
 	path = qcustomplot
 	url = https://git.gitorious.org/qcustomplot/qcustomplot.git
-[submodule "curl"]
-	path = curl
-	url = https://github.com/bagder/curl.git
 [submodule "libarchive"]
 	path = libarchive
 	url = https://github.com/biometrics/libarchive.git

@@ -46,7 +46,6 @@ enum likely_file_type_mask
     likely_file_encoded = 0x00000002, /*!< \brief The file is an image, image set or video, decode it. */
     likely_file_binary  = likely_file_decoded | likely_file_encoded, /*!< \brief The file is either \ref likely_file_decoded or \ref likely_file_encoded. */
     likely_file_text    = 0x00000004, /*!< \brief The file is text, do not decode it. */
-    likely_file_url     = 0x00000008, /*!< \brief The file is not on the local file system, download it instead. */
 };
 
 /*!

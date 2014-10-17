@@ -88,13 +88,6 @@ if(${LIKELY_IO})
   include_directories(${CMAKE_SOURCE_DIR}/libarchive/libarchive)
   set(LIKELY_LIBS ${LIKELY_LIBS} archive_static)
   add_definitions(-DLIBARCHIVE_STATIC)
-
-  option(CURL_STATICLIB "CURL static library" ON)
-  add_subdirectory(curl EXCLUDE_FROM_ALL)
-  include_directories(${CMAKE_SOURCE_DIR}/curl/include
-                      ${CMAKE_BINARY_DIR}/curl/include/curl)
-  set(LIKELY_LIBS ${LIKELY_LIBS} libcurl)
-  add_definitions(-DCURL_STATICLIB)
 endif()
 
 # Compiler configuration

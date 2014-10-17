@@ -24,7 +24,6 @@
 #include <future>
 #include <string>
 #include <opencv2/highgui/highgui.hpp>
-#include <curl/curl.h> // include before <archive.h> to avoid issues on Windows
 #include <archive.h>
 #include <archive_entry.h>
 
@@ -64,14 +63,6 @@ static likely_mat takeAndInterpret(likely_mat buffer, likely_size type)
     return result;
 }
 
-static size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp)
-{
-    vector<char> *userpc = static_cast<vector<char>*>(userp);
-    char *bufferc = static_cast<char*>(buffer);
-    userpc->insert(userpc->end(), bufferc, bufferc+(size*nmemb));
-    return size*nmemb;
-}
-
 likely_mat likely_read(const char *file_name, likely_file_type type)
 {
     // Interpret ~ as $HOME
@@ -106,29 +97,6 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
             likely_release(buffer);
             buffer = NULL;
         }
-    }
-
-    // Is it a URL?
-    if ((type & likely_file_url)) {
-        static bool init = false;
-        if (!init) {
-            curl_global_init(CURL_GLOBAL_ALL);
-            init = true;
-        }
-
-        vector<char> buffer;
-        if (CURL *curl = curl_easy_init()) {
-            curl_easy_setopt(curl, CURLOPT_URL, file_name);
-            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
-            CURLcode result = curl_easy_perform(curl);
-            curl_easy_cleanup(curl);
-            if (result != CURLE_OK)
-                buffer.clear();
-        }
-
-        if (!buffer.empty())
-            return takeAndInterpret(likely_new(likely_matrix_u8, 1, buffer.size(), 1, 1, buffer.data()), type);
     }
 
     return NULL;
