@@ -120,6 +120,35 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
+# Add dataset targets
+file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/average_face.jpg
+              data/demo/average_face.jpg
+              EXPECTED_MD5 1c4eda72fd695402ab7188d8bfdcaee0)
+
+file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/gabor_wavelet.jpg
+              data/demo/gabor_wavelet.jpg
+              EXPECTED_MD5 cf0c27b391516783f7973c83f3fd68f7)
+
+file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/hello_world.jpg
+              data/demo/hello_world.jpg
+              EXPECTED_MD5 87f9409a6c28428565835413a41cc9e3)
+
+file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/mandelbrot_set.jpg
+              data/demo/mandelbrot_set.jpg
+              EXPECTED_MD5 544dd8db0eaa75a2da846fa33445b5c9)
+
+file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/lfwa.tar.gz
+              data/lfwa.tar.gz
+              EXPECTED_MD5 5d1d409b3b7217ec931facd89a542c89)
+
+ExternalProject_Add(misc
+                    URL https://github.com/biometrics/likely/releases/download/v0.1/misc.tar.gz
+                    URL_MD5 c69b1a52908da7b105667b2d4180651b
+                    SOURCE_DIR ${CMAKE_SOURCE_DIR}/data/misc
+                    CONFIGURE_COMMAND ""
+                    BUILD_COMMAND ""
+                    INSTALL_COMMAND "")
+
 # Set up testing
 enable_testing()
 

@@ -1,3 +1,8 @@
+# data/
+data/demo
+data/lfwa.tar.gz
+data/misc
+
 # gedit
 *~
 
@@ -9,4 +14,3 @@ CMakeLists.txt.user*
 
 # Repository specific
 build*
-test.likely

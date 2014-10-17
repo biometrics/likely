@@ -1,18 +1,12 @@
 [submodule "llvm"]
 	path = llvm
 	url = https://github.com/llvm-mirror/llvm.git
-[submodule "lua"]
-	path = lua
-	url = https://github.com/LuaDist/lua.git
 [submodule "opencv"]
 	path = opencv
 	url = https://github.com/Itseez/opencv.git
 [submodule "qcustomplot"]
 	path = qcustomplot
 	url = https://git.gitorious.org/qcustomplot/qcustomplot.git
-[submodule "data"]
-	path = data
-	url = https://github.com/biometrics/likely-data.git
 [submodule "curl"]
 	path = curl
 	url = https://github.com/bagder/curl.git
