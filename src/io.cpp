@@ -24,8 +24,6 @@
 #include <future>
 #include <string>
 #include <opencv2/highgui/highgui.hpp>
-#include <archive.h>
-#include <archive_entry.h>
 
 #ifdef _WIN32
 #include "dirent_windows.h"
@@ -204,74 +202,13 @@ likely_mat likely_write(likely_const_mat image, const char *file_name)
     return const_cast<likely_mat>(image);
 }
 
-static likely_mat decodeAndRelease(likely_const_mat buffer)
-{
-    likely_mat result = likely_decode(buffer);
-    likely_release(buffer);
-    return result;
-}
-
 likely_mat likely_decode(likely_const_mat buffer)
 {
-    likely_mat m = NULL;
-
     try {
-        m = likelyFromOpenCVMat(cv::imdecode(likelyToOpenCVMat(buffer), CV_LOAD_IMAGE_UNCHANGED));
+        return likelyFromOpenCVMat(cv::imdecode(likelyToOpenCVMat(buffer), CV_LOAD_IMAGE_UNCHANGED));
     } catch (...) {}
 
-    // Is it an archive?
-    if (m == NULL) {
-        vector<future<likely_mat>> futures;
-        { // unarchive and decode
-            archive *a = archive_read_new();
-            archive_read_support_format_all(a);
-            archive_read_support_filter_all(a);
-            int r = archive_read_open_memory(a, (void*) buffer->data, likely_bytes(buffer));
-            while (r == ARCHIVE_OK) {
-                struct archive_entry *entry;
-                r = archive_read_next_header(a, &entry);
-                if (r == ARCHIVE_OK) {
-                    likely_mat encodedImage = likely_new(likely_matrix_u8, 1, archive_entry_size(entry), 1, 1, NULL);
-                    archive_read_data(a, encodedImage->data, encodedImage->columns);
-                    futures.push_back(async(decodeAndRelease, encodedImage));
-                }
-            }
-            archive_read_close(a);
-            archive_read_free(a);
-        }
-
-        // combine
-        likely_matrix first;
-        size_t step = 0;
-        bool valid = true;
-        for (size_t i=0; i<futures.size(); i++) {
-            likely_const_mat image = futures[i].get();
-            if ((i == 0) && image) {
-                first = *image;
-                step = likely_bytes(&first);
-                m = likely_new(first.type, first.channels, first.columns, first.rows, first.frames * futures.size(), NULL);
-            }
-
-            valid = valid
-                    && image
-                    && (image->type     == first.type)
-                    && (image->channels == first.channels)
-                    && (image->columns  == first.columns)
-                    && (image->rows     == first.rows)
-                    && (image->frames   == first.frames);
-
-            if (valid) {
-                memcpy(m->data + i*step, image->data, step);
-            } else if (m) {
-                free(m);
-                m = NULL;
-            }
-
-            likely_release(image);
-        }
-    }
-
-    return m;
+    return NULL;
 }
 
 likely_mat likely_encode(likely_const_mat image, const char *extension)

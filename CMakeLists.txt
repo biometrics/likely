@@ -82,12 +82,6 @@ if(${LIKELY_IO})
                         ${CMAKE_SOURCE_DIR}/opencv/modules/imgproc/include)
     set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui)
   endif()
-
-  option(ENABLE_TEST "Enable unit and regression tests" OFF)
-  add_subdirectory(libarchive EXCLUDE_FROM_ALL)
-  include_directories(${CMAKE_SOURCE_DIR}/libarchive/libarchive)
-  set(LIKELY_LIBS ${LIKELY_LIBS} archive_static)
-  add_definitions(-DLIBARCHIVE_STATIC)
 endif()
 
 # Compiler configuration
