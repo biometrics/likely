@@ -27,6 +27,12 @@
 #include <archive.h>
 #include <archive_entry.h>
 
+#ifdef _MSC_VER
+#include "dirent_windows.h"
+#else // !_MSC_VER
+#include <dirent.h>
+#endif // _MSC_VER
+
 #include "likely/backend.h"
 #include "likely/io.h"
 #include "likely/opencv.hpp"
