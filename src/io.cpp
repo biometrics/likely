@@ -69,38 +69,36 @@ static likely_mat takeAndInterpret(likely_mat buffer, likely_size type)
     return result;
 }
 
-static void readRecursive(const char *directory, vector<future<likely_mat>> &futures)
+static likely_mat readAsync(const string &fileName, likely_file_type type)
 {
-    DIR *dir = opendir(directory);
+    return likely_read(fileName.c_str(), type);
+}
+
+static void readRecursive(const string &directory, likely_file_type type, vector<future<likely_mat>> &futures)
+{
+    DIR *dir = opendir(directory.c_str());
     if (!dir)
         return;
 
     while (dirent *ent = readdir(dir)) {
+        // Skip hidden files and folders
+        if (ent->d_name[0] == '.')
+            continue;
+
         stringstream stream;
         stream << directory;
-        #ifdef _WIN32
-            stream << "\\";
-        #else // !_WIN32
-            stream << "/";
-        #endif // _WIN32
+    #ifdef _WIN32
+        stream << "\\";
+    #else // !_WIN32
+        stream << "/";
+    #endif // _WIN32
         stream << ent->d_name;
-        const string file_name = stream.str();
-        cerr << file_name << endl;
+        const string fileName = stream.str();
 
-        switch (ent->d_type) {
-          case DT_REG:
-            (void) futures;
-            break;
-
-          case DT_DIR:
-            break;
-
-          case DT_LNK:
-            break;
-
-          default:
-            break;
-        }
+        if (ent->d_type == DT_REG)
+            futures.push_back(async(readAsync, fileName, type));
+        else if ((ent->d_type == DT_DIR) || (ent->d_type == DT_LNK))
+            readRecursive(fileName, type, futures);
     }
 
     closedir(dir);
@@ -134,7 +132,9 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
 
         fseek(fp, 0, SEEK_SET);
         likely_mat buffer = likely_new(likely_matrix_u8, 1, size + ((type & likely_file_text) ? 1 : 0), 1, 1, NULL);
-        if (fread(buffer->data, 1, size, fp) == size) {
+        const bool success = (fread(buffer->data, 1, size, fp) == size);
+        fclose(fp);
+        if (success) {
             return takeAndInterpret(buffer, type);
         } else {
             likely_release(buffer);
@@ -143,12 +143,41 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
     }
 
     // Is it a folder?
-    {
-        vector<future<likely_mat>> futures;
-        readRecursive(file_name, futures);
+    vector<future<likely_mat>> futures;
+    readRecursive(fileName.c_str(), type, futures);
+
+    // combine
+    likely_matrix firstHeader;
+    likely_mat result = NULL;
+    size_t step = 0;
+    bool valid = true;
+    for (size_t i=0; i<futures.size(); i++) {
+        likely_const_mat image = futures[i].get();
+        if ((i == 0) && image) {
+            firstHeader = *image;
+            step = likely_bytes(&firstHeader);
+            result = likely_new(firstHeader.type, firstHeader.channels, firstHeader.columns, firstHeader.rows, firstHeader.frames * futures.size(), NULL);
+        }
+
+        valid = valid
+                && image
+                && (image->type     == firstHeader.type)
+                && (image->channels == firstHeader.channels)
+                && (image->columns  == firstHeader.columns)
+                && (image->rows     == firstHeader.rows)
+                && (image->frames   == firstHeader.frames);
+
+        if (valid) {
+            memcpy(result->data + i*step, image->data, step);
+        } else if (result) {
+            free(result);
+            result = NULL;
+        }
+
+        likely_release(image);
     }
 
-    return NULL;
+    return result;
 }
 
 likely_mat likely_write(likely_const_mat image, const char *file_name)
