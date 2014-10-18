@@ -27,11 +27,11 @@
 #include <archive.h>
 #include <archive_entry.h>
 
-#ifdef _MSC_VER
+#ifdef _WIN32
 #include "dirent_windows.h"
-#else // !_MSC_VER
+#else // !_WIN32
 #include <dirent.h>
-#endif // _MSC_VER
+#endif // _WIN32
 
 #include "likely/backend.h"
 #include "likely/io.h"
@@ -69,6 +69,43 @@ static likely_mat takeAndInterpret(likely_mat buffer, likely_size type)
     return result;
 }
 
+static void readRecursive(const char *directory, vector<future<likely_mat>> &futures)
+{
+    DIR *dir = opendir(directory);
+    if (!dir)
+        return;
+
+    while (dirent *ent = readdir(dir)) {
+        stringstream stream;
+        stream << directory;
+        #ifdef _WIN32
+            stream << "\\";
+        #else // !_WIN32
+            stream << "/";
+        #endif // _WIN32
+        stream << ent->d_name;
+        const string file_name = stream.str();
+        cerr << file_name << endl;
+
+        switch (ent->d_type) {
+          case DT_REG:
+            (void) futures;
+            break;
+
+          case DT_DIR:
+            break;
+
+          case DT_LNK:
+            break;
+
+          default:
+            break;
+        }
+    }
+
+    closedir(dir);
+}
+
 likely_mat likely_read(const char *file_name, likely_file_type type)
 {
     // Interpret ~ as $HOME
@@ -103,6 +140,12 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
             likely_release(buffer);
             buffer = NULL;
         }
+    }
+
+    // Is it a folder?
+    {
+        vector<future<likely_mat>> futures;
+        readRecursive(file_name, futures);
     }
 
     return NULL;
