@@ -130,9 +130,13 @@ file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/mandel
               data/demo/mandelbrot_set.jpg
               EXPECTED_MD5 544dd8db0eaa75a2da846fa33445b5c9)
 
-file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/lfwa.tar.gz
-              data/lfwa.tar.gz
-              EXPECTED_MD5 5d1d409b3b7217ec931facd89a542c89)
+ExternalProject_Add(lfwa
+                    URL https://github.com/biometrics/likely/releases/download/v0.1/lfwa.tar.gz
+                    URL_MD5 5d1d409b3b7217ec931facd89a542c89
+                    SOURCE_DIR ${CMAKE_SOURCE_DIR}/data/lfw2
+                    CONFIGURE_COMMAND ""
+                    BUILD_COMMAND ""
+                    INSTALL_COMMAND "")
 
 ExternalProject_Add(misc
                     URL https://github.com/biometrics/likely/releases/download/v0.1/misc.tar.gz
