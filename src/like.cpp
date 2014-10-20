@@ -150,7 +150,7 @@ int main(int argc, char *argv[])
             cout << "> ";
             string line;
             getline(cin, line);
-            likely_ast ast = likely_ast_from_string(line.c_str(), likely_source_lisp);
+            likely_ast ast = likely_lex_and_parse(line.c_str(), likely_source_lisp);
             likely_env env = likely_eval(ast->atoms[0], parent);
             likely_release_ast(ast);
             if (env->type & likely_environment_erratum) {
@@ -173,12 +173,12 @@ int main(int argc, char *argv[])
         }
 
         if (ast) {
-            likely_ast parsed = likely_ast_from_string(code->data, type);
+            likely_ast parsed = likely_lex_and_parse(code->data, type);
             for (size_t i=0; i<parsed->num_atoms; i++)
                 checkOrPrintAndRelease(likely_ast_to_string(parsed->atoms[i]));
             likely_release_ast(parsed);
         } else {
-            likely_ast ast = likely_ast_from_string(code->data, type);
+            likely_ast ast = likely_lex_and_parse(code->data, type);
             likely_release_env(likely_repl(ast, parent, repl_callback, NULL));
             likely_release_ast(ast);
         }

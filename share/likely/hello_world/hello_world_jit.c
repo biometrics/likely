@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
     printf("Width: %u\nHeight: %u\n", input->columns, input->rows);
 
     puts("Parsing function...");
-    likely_const_ast ast = likely_ast_from_string(argv[2], likely_source_lisp);
+    likely_const_ast ast = likely_lex_and_parse(argv[2], likely_source_lisp);
 
     puts("Creating a compiler environment...");
     likely_const_env env = likely_new_env_jit();

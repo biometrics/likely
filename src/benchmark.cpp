@@ -62,7 +62,7 @@ struct Test
         if (!BenchmarkFunction.empty() && string(function()).compare(0, BenchmarkFunction.size(), BenchmarkFunction))
             return;
 
-        likely_const_ast ast = likely_ast_from_string(function(), likely_source_lisp);
+        likely_const_ast ast = likely_lex_and_parse(function(), likely_source_lisp);
         likely_env env = likely_new_env_jit();
 
         string execution;
@@ -117,7 +117,7 @@ struct Test
         }
 
         printf("%s \t", fileName.c_str());
-        likely_const_ast ast = likely_ast_from_string(source.c_str(), likely_source_gfm);
+        likely_const_ast ast = likely_lex_and_parse(source.c_str(), likely_source_gfm);
         likely_env env = likely_new_env_jit();
         for (size_t i=0; i<ast->num_atoms; i++) {
             likely_env new_env = likely_eval(ast->atoms[i], env);

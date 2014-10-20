@@ -482,13 +482,15 @@ likely_ast likely_parse(likely_const_ast tokens)
     return likely_new_list(expressions.data(), expressions.size());
 }
 
-likely_ast likely_ast_from_string(const char *str, likely_source_type type)
+//! [likely_lex_and_parse implementation.]
+likely_ast likely_lex_and_parse(const char *source, likely_source_type type)
 {
-    likely_const_ast tokens = likely_lex(str, type);
+    likely_const_ast tokens = likely_lex(source, type);
     likely_ast ast = likely_parse(tokens);
     likely_release_ast(tokens);
     return ast;
 }
+//! [likely_lex_and_parse implementation.]
 
 static void print(const likely_const_ast ast, stringstream &stream)
 {
