@@ -167,6 +167,7 @@ typedef void (*likely_error_callback)(likely_err err, void *context);
 
 /*!
  * \brief Construct a new error.
+ * \param[in] parent A previous error that caused this error. May be \c NULL.
  * \param[in] where \ref likely_error::where.
  * \param[in] format <tt>printf</tt>-style string to populate \ref likely_error::what.
  * \return Pointer to a new \ref likely_error, or \c NULL if \c malloc failed.
@@ -195,7 +196,7 @@ LIKELY_EXPORT void likely_release_err(likely_const_err err);
 /*!
  * \brief Assign the function to call when a compilation error occurs.
  *
- * By default, the error is converted to a string using \ref likely_error_to_string and printed to \c stderr.
+ * By default, the error is converted to a string using \ref likely_err_to_string and printed to \c stderr.
  * \param[in] callback The function to call when a compilation error occurs.
  * \param[in] context User-defined data to pass to \p callback.
  */
@@ -317,7 +318,7 @@ LIKELY_EXPORT likely_mat likely_type_to_string(likely_matrix_type type);
  *
  * The opposite of \ref likely_type_to_string.
  * \param[in] str String to convert to a \ref likely_matrix_type.
- * \param[out] ok Successful conversion. May be \ref NULL.
+ * \param[out] ok Successful conversion. May be \c NULL.
  * \return A \ref likely_matrix_type from \p str on success, \ref likely_matrix_void otherwise.
  */
 LIKELY_EXPORT likely_matrix_type likely_type_from_string(const char *str, bool *ok);
