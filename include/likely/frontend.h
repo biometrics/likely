@@ -251,6 +251,13 @@ LIKELY_EXPORT likely_ast likely_lex_and_parse(const char *source, likely_source_
  * \return A \ref likely_string.
  */
 LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);
+
+/*!
+ * \brief Compare two abstract syntax trees.
+ * \param[in] a Abstract syntax tree to be compared.
+ * \param[in] b Abstract syntax tree to be compared.
+ * \return <tt>-1 if (a < b), 0 if (a == b), 1 if (a > b)</tt>.
+ */
 LIKELY_EXPORT int likely_ast_compare(likely_const_ast a, likely_const_ast b);
 LIKELY_EXPORT bool likely_ast_contains(likely_const_ast ast, likely_const_ast sub_ast);
 LIKELY_EXPORT const char *likely_get_symbol_name(likely_const_ast ast); // return value valid for lifetime of ast
