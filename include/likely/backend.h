@@ -56,18 +56,22 @@ enum likely_environment_type_mask
 typedef struct likely_environment *likely_env; /*!< \brief Pointer to a \ref likely_environment. */
 typedef struct likely_environment const *likely_const_env; /*!< \brief Pointer to a constant \ref likely_environment. */
 
+/*!
+ * \brief The context in which the semantics of an abstract syntax tree is determined.
+ */
 struct likely_environment
 {
-    likely_size type;
-    likely_const_env parent;
-    likely_const_ast ast;
-    struct likely_module *module;
+    likely_const_env parent; /*!< \brief Additional context, or \c NULL if root. */
+    likely_const_ast ast; /*!< \brief Associated source code. */
+    struct likely_module *module; /*!< \brief Used internally as a container to store the generated instructions. */
     union {
-        struct likely_expression const *value; // definition
-        likely_const_mat result; // !definition
-    };
-    size_t ref_count, num_children;
-    likely_const_env *children;
+        struct likely_expression const *value; /*!< \brief If <tt>\ref type & \ref likely_environment_definition</tt>, the environment is a \a definition and \ref value is its right-hand-side. */
+        likely_const_mat result; /*!< \brief If not <tt>\ref type & \ref likely_environment_definition</tt>, the environment is an \a expression and \ref result is its value. */
+    }; /*!< \brief A definition or an expression. */
+    likely_environment_type type; /*!< Interpretation of \ref likely_environment. */
+    uint32_t ref_count; /*!< \brief Reference count. */
+    uint32_t num_children; /*!< \brief Length of \ref children. */
+    likely_const_env *children; /*!< \brief Environments where this is the parent. */
 };
 
 typedef likely_mat (*likely_function_0)();
