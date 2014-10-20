@@ -207,7 +207,7 @@ typedef uint32_t likely_source_type;
 enum likely_source_types
 {
     likely_source_lisp = 0, /*!< Plain source code. */
-    likely_source_gfm  = 1, /*!< Source is in [GitHub Flavored Markdown](https://help.github.com/articles/github-flavored-markdown/) code blocks. */
+    likely_source_gfm  = 1, /*!< Source code is in [GitHub Flavored Markdown](https://help.github.com/articles/github-flavored-markdown/) code blocks. */
 };
 
 /*!
@@ -238,9 +238,18 @@ LIKELY_EXPORT likely_ast likely_parse(likely_const_ast tokens);
  * \param[in] source Code from which to extract tokens and build the abstract syntax tree.
  * \param[in] type How to interpret \p source when extracting tokens.
  * \return An abstract syntax tree built from \p source.
+ * \see likely_ast_to_string
  */
 LIKELY_EXPORT likely_ast likely_lex_and_parse(const char *source, likely_source_type type);
 
+/*!
+ * \brief Convert an abstract syntax tree into a string.
+ *
+ * The opposite of \ref likely_lex_and_parse.
+ * The returned \ref likely_matrix::data is valid \ref likely_source_lisp code.
+ * \param[in] ast The abstract syntax tree to convert into a string.
+ * \return A \ref likely_string.
+ */
 LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);
 LIKELY_EXPORT int likely_ast_compare(likely_const_ast a, likely_const_ast b);
 LIKELY_EXPORT bool likely_ast_contains(likely_const_ast ast, likely_const_ast sub_ast);

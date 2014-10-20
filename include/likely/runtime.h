@@ -213,6 +213,7 @@ LIKELY_EXPORT likely_mat likely_scalar_va(likely_matrix_type type, double value,
  * \brief Allocate and initialize a new \ref likely_matrix from a string.
  *
  * Convenient alternative to \ref likely_new.
+ * The returned \ref likely_matrix::data is a valid \c C string of length <tt>\ref likely_matrix::channels - 1</tt>.
  * \par Implementation
  * \snippet src/runtime_common.c likely_string implementation.
  * \param[in] str String used to initialized \ref likely_matrix::data.
