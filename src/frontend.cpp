@@ -540,17 +540,6 @@ int likely_ast_compare(likely_const_ast a, likely_const_ast b)
     }
 }
 
-bool likely_ast_contains(likely_const_ast ast, likely_const_ast sub_ast)
-{
-    if (!likely_ast_compare(ast, sub_ast))
-        return true;
-    if (ast->type == likely_ast_list)
-        for (likely_size i=0; i<ast->num_atoms; i++)
-            if (likely_ast_contains(ast->atoms[i], sub_ast))
-                return true;
-    return false;
-}
-
 const char *likely_get_symbol_name(likely_const_ast ast)
 {
     while (ast && (ast->type == likely_ast_list) && (ast->num_atoms > 0)) {

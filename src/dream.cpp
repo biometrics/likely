@@ -300,6 +300,17 @@ private:
         reinterpret_cast<Source*>(context)->newResult(env);
     }
 
+    static bool contains(likely_const_ast ast, likely_const_ast sub_ast)
+    {
+        if (!likely_ast_compare(ast, sub_ast))
+            return true;
+        if (ast->type == likely_ast_list)
+            for (likely_size i=0; i<ast->num_atoms; i++)
+                if (contains(ast->atoms[i], sub_ast))
+                    return true;
+        return false;
+    }
+
 private slots:
     void commandMode(bool enabled)
     {
@@ -324,7 +335,7 @@ private slots:
         likely_ast header_ast = likely_lex_and_parse(qPrintable(header), likely_source_gfm);
         for (likely_size i=0; i<header_ast->num_atoms; i++) {
             // Remove unused variables
-            if (!likely_ast_contains(source_ast, header_ast->atoms[i]->atoms[1])) {
+            if (!contains(source_ast, header_ast->atoms[i]->atoms[1])) {
                 likely_release_ast(header_ast->atoms[i]);
                 const_cast<likely_ast*>(header_ast->atoms)[i] = NULL;
             }
