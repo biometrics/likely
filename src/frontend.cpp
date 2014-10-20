@@ -123,6 +123,53 @@ void likely_release_err(likely_const_err err)
     free((void*) err);
 }
 
+static void defaultErrorCallback(likely_err err, void *)
+{
+    likely_mat str = likely_error_to_string(err);
+    cerr << str->data << endl;
+    likely_release(str);
+}
+
+static likely_error_callback ErrorCallback = defaultErrorCallback;
+static void *ErrorContext = NULL;
+
+void likely_set_error_callback(likely_error_callback callback, void *context)
+{
+    ErrorCallback = callback;
+    ErrorContext = context;
+}
+
+bool likely_throw(likely_const_ast where, const char *what)
+{
+    likely_err err = likely_new_err(NULL, where, what);
+    ErrorCallback(err, ErrorContext);
+    likely_release_err(err);
+    return false;
+}
+
+static void print(const likely_const_ast ast, stringstream &stream)
+{
+    if (ast->type == likely_ast_list) {
+        stream << "(";
+        for (size_t i=0; i<ast->num_atoms; i++) {
+            print(ast->atoms[i], stream);
+            if (i != ast->num_atoms - 1)
+                stream << " ";
+        }
+        stream << ")";
+    } else {
+        stream.write(ast->atom, ast->atom_len);
+    }
+}
+
+likely_mat likely_error_to_string(likely_err err)
+{
+    stringstream stream;
+    stream << err->what << " at: ";
+    print(err->where, stream);
+    return likely_string(stream.str().c_str());
+}
+
 void likely_assert(bool condition, const char *format, ...)
 {
     va_list ap;
@@ -492,21 +539,6 @@ likely_ast likely_lex_and_parse(const char *source, likely_source_type type)
 }
 //! [likely_lex_and_parse implementation.]
 
-static void print(const likely_const_ast ast, stringstream &stream)
-{
-    if (ast->type == likely_ast_list) {
-        stream << "(";
-        for (size_t i=0; i<ast->num_atoms; i++) {
-            print(ast->atoms[i], stream);
-            if (i != ast->num_atoms - 1)
-                stream << " ";
-        }
-        stream << ")";
-    } else {
-        stream.write(ast->atom, ast->atom_len);
-    }
-}
-
 likely_mat likely_ast_to_string(likely_const_ast ast)
 {
     stringstream stream;
@@ -549,37 +581,6 @@ const char *likely_symbol(likely_const_ast ast)
             ast = ast->atoms[0];
     }
     return (ast && (ast->type != likely_ast_list)) ? ast->atom : "";
-}
-
-static void defaultErrorCallback(likely_err err, void *)
-{
-    likely_mat str = likely_error_to_string(err);
-    cerr << str->data << endl;
-    likely_release(str);
-    likely_release_err(err);
-}
-
-static likely_error_callback ErrorCallback = defaultErrorCallback;
-static void *ErrorContext = NULL;
-
-void likely_set_error_callback(likely_error_callback callback, void *context)
-{
-    ErrorCallback = callback;
-    ErrorContext = context;
-}
-
-bool likely_throw(likely_const_ast where, const char *what)
-{
-    ErrorCallback(likely_new_err(NULL, where, what), ErrorContext);
-    return false;
-}
-
-likely_mat likely_error_to_string(likely_err err)
-{
-    stringstream stream;
-    stream << err->what << " at: ";
-    print(err->where, stream);
-    return likely_string(stream.str().c_str());
 }
 
 likely_mat likely_type_to_string(likely_size type)

@@ -908,7 +908,6 @@ private:
         qDebug() << str->data;
         reinterpret_cast<QStatusBar*>(context)->showMessage(str->data);
         likely_release(str);
-        likely_release_err(err);
     }
 };
 

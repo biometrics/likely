@@ -158,6 +158,11 @@ struct likely_error
     likely_const_ast where; /*!< \brief Location of the error. */
     char what[]; /*!< \brief Error message. */
 };
+
+/*!
+ * \brief Signature of a function to call when a compilation error occurs.
+ * \see likely_set_error_callback
+ */
 typedef void (*likely_error_callback)(likely_err err, void *context);
 
 /*!
@@ -186,6 +191,17 @@ LIKELY_EXPORT likely_err likely_retain_err(likely_const_err err);
  * \see likely_retain_err
  */
 LIKELY_EXPORT void likely_release_err(likely_const_err err);
+
+/*!
+ * \brief Assign the function to call when a compilation error occurs.
+ *
+ * By default, the error is printed to \c stderr.
+ * \param[in] callback The function to call when a compilation error occurs.
+ * \param[in] context User-defined data to pass to \p callback.
+ */
+LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, void *context);
+LIKELY_EXPORT bool likely_throw(likely_const_ast where, const char *what);
+LIKELY_EXPORT likely_mat likely_error_to_string(likely_err error);
 
 /*!
  * \brief Conditional abort-style error handling with an error message.
@@ -268,11 +284,6 @@ LIKELY_EXPORT int likely_ast_compare(likely_const_ast a, likely_const_ast b);
  * \return The first \ref likely_abstract_syntax_tree::atom that isn't an assignment (=) operator.
  */
 LIKELY_EXPORT const char *likely_symbol(likely_const_ast ast);
-
-// Callback-style error handling
-LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, void *context);
-LIKELY_EXPORT bool likely_throw(likely_const_ast where, const char *what);
-LIKELY_EXPORT likely_mat likely_error_to_string(likely_err error);
 
 // Type conversion
 LIKELY_EXPORT likely_mat likely_type_to_string(likely_size type);
