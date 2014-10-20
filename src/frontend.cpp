@@ -540,7 +540,7 @@ int likely_ast_compare(likely_const_ast a, likely_const_ast b)
     }
 }
 
-const char *likely_get_symbol_name(likely_const_ast ast)
+const char *likely_symbol(likely_const_ast ast)
 {
     while (ast && (ast->type == likely_ast_list) && (ast->num_atoms > 0)) {
         if ((ast->num_atoms > 1) && (ast->atoms[0]->type != likely_ast_list) && !strcmp(ast->atoms[0]->atom, "="))

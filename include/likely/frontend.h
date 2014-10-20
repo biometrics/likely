@@ -259,7 +259,15 @@ LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);
  * \return <tt>-1 if (a < b), 0 if (a == b), 1 if (a > b)</tt>.
  */
 LIKELY_EXPORT int likely_ast_compare(likely_const_ast a, likely_const_ast b);
-LIKELY_EXPORT const char *likely_get_symbol_name(likely_const_ast ast); // return value valid for lifetime of ast
+
+/*!
+ * \brief Find the first \ref likely_abstract_syntax_tree::atom that isn't an assignment (=) operator.
+ *
+ * Searches using an in order traversal of \p ast.
+ * \param[in] ast The abstract syntax tree to traverse.
+ * \return The first \ref likely_abstract_syntax_tree::atom that isn't an assignment (=) operator.
+ */
+LIKELY_EXPORT const char *likely_symbol(likely_const_ast ast);
 
 // Callback-style error handling
 LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, void *context);

@@ -71,7 +71,7 @@ static void replRecord(likely_const_env env, void *context)
 static void showCallback(likely_const_env env, void *context)
 {
     if (!env || !context) return;
-    likely_show(env->result, likely_get_symbol_name(env->ast));
+    likely_show(env->result, likely_symbol(env->ast));
 }
 
 static void replShow(likely_const_env env, void *context)

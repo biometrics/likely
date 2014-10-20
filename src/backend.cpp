@@ -420,7 +420,7 @@ struct likely_expression
     {
         if (!env)
             return NULL;
-        if ((env->type & likely_environment_definition) && !strcmp(name, likely_get_symbol_name(env->ast)))
+        if ((env->type & likely_environment_definition) && !strcmp(name, likely_symbol(env->ast)))
             return env->value;
         return lookup(env->parent, name);
     }
@@ -437,7 +437,7 @@ struct likely_expression
     static likely_const_expr undefine(likely_env &env, const char *name)
     {
         assert(env->type & likely_environment_definition);
-        likely_assert(!strcmp(name, likely_get_symbol_name(env->ast)), "undefine variable mismatch");
+        likely_assert(!strcmp(name, likely_symbol(env->ast)), "undefine variable mismatch");
         likely_const_expr value = env->value;
         env->value = NULL;
         likely_env old = env;
@@ -2302,7 +2302,7 @@ class defineExpression : public LikelyOperator
     {
         likely_const_ast lhs = ast->atoms[1];
         likely_const_ast rhs = ast->atoms[2];
-        const char *name = likely_get_symbol_name(lhs);
+        const char *name = likely_symbol(ast);
         likely_env env = builder.env;
 
         if (env->type & likely_environment_global) {
@@ -2333,7 +2333,7 @@ class defineExpression : public LikelyOperator
                     }
                 }
             } else {
-                if (!strcmp(likely_get_symbol_name(rhs), "->")) {
+                if (!strcmp(likely_symbol(rhs), "->")) {
                     // Global variable
                     env->value = new Definition(env, rhs);
                 } else {
