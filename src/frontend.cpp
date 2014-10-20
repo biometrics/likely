@@ -28,6 +28,67 @@
 
 using namespace std;
 
+likely_ast likely_new_atom(const char *atom, uint32_t atom_len)
+{
+    likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + atom_len + 1);
+    if (!ast)
+        return NULL;
+
+    const_cast<const char*&>(ast->atom) = reinterpret_cast<const char*>(ast + 1);
+    memcpy((void*) ast->atom, atom, atom_len);
+    ((char*) ast->atom)[atom_len] = '\0';
+    ast->atom_len = atom_len;
+    ast->parent = NULL;
+    ast->ref_count = 1;
+    ast->begin_line = 0;
+    ast->begin_column = 0;
+    ast->end_line = 0;
+    ast->end_column = 0;
+    ast->type = likely_ast_atom;
+    return ast;
+}
+
+likely_ast likely_new_list(const likely_ast *atoms, likely_size num_atoms)
+{
+    likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + num_atoms * sizeof(likely_ast));
+    if (!ast)
+        return NULL;
+
+    const_cast<const likely_ast*&>(ast->atoms) = reinterpret_cast<likely_ast*>(ast+1);
+    memcpy(const_cast<likely_ast*>(ast->atoms), atoms, num_atoms * sizeof(likely_ast));
+    ast->num_atoms = num_atoms;
+    ast->parent = NULL;
+    ast->ref_count = 1;
+    ast->begin_line = (num_atoms == 0) ? 0 : atoms[0]->begin_line;
+    ast->begin_column = (num_atoms == 0) ? 0 : atoms[0]->begin_column;
+    ast->end_line = (num_atoms == 0) ? 0 : atoms[num_atoms-1]->end_line;
+    ast->end_column = (num_atoms == 0) ? 0 : atoms[num_atoms-1]->end_column;
+    ast->type = likely_ast_list;
+    for (likely_size i=0; i<num_atoms; i++)
+        ast->atoms[i]->parent = likely_retain_ast(ast);
+    return ast;
+}
+
+likely_ast likely_retain_ast(likely_const_ast ast)
+{
+    if (!ast) return NULL;
+    assert(ast->ref_count > 0);
+    const_cast<likely_ast>(ast)->ref_count++;
+    return const_cast<likely_ast>(ast);
+}
+
+void likely_release_ast(likely_const_ast ast)
+{
+    if (!ast) return;
+    assert(ast->ref_count > 0);
+    if (--const_cast<likely_ast>(ast)->ref_count) return;
+    if (ast->type == likely_ast_list)
+        for (size_t i=0; i<ast->num_atoms; i++)
+            likely_release_ast(ast->atoms[i]);
+    likely_release_ast(ast->parent);
+    free((void*) ast);
+}
+
 likely_err likely_new_err(likely_const_err parent, likely_const_ast where, const char *format, ...)
 {
     const unsigned MaxErrorLength = 256;
@@ -78,87 +139,6 @@ void likely_assert(bool condition, const char *format, ...)
 #else // !_WIN32
     abort();
 #endif // _WIN32
-}
-
-likely_ast likely_new_atom(const char *str, likely_size len)
-{
-    likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + len + 1);
-    if (!ast)
-        return NULL;
-
-    const_cast<const char*&>(ast->atom) = reinterpret_cast<const char*>(ast + 1);
-    memcpy((void*) ast->atom, str, len);
-    ((char*) ast->atom)[len] = '\0';
-    ast->atom_len = len;
-    ast->parent = NULL;
-    ast->ref_count = 1;
-    ast->begin_line = 0;
-    ast->begin_column = 0;
-    ast->end_line = 0;
-    ast->end_column = 0;
-    ast->type = likely_ast_atom;
-    return ast;
-}
-
-likely_ast likely_new_list(const likely_ast *atoms, likely_size num_atoms)
-{
-    likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + num_atoms * sizeof(likely_ast));
-    if (!ast)
-        return NULL;
-
-    const_cast<const likely_ast*&>(ast->atoms) = reinterpret_cast<likely_ast*>(ast+1);
-    memcpy(const_cast<likely_ast*>(ast->atoms), atoms, num_atoms * sizeof(likely_ast));
-    ast->num_atoms = num_atoms;
-    ast->parent = NULL;
-    ast->ref_count = 1;
-    ast->begin_line = (num_atoms == 0) ? 0 : atoms[0]->begin_line;
-    ast->begin_column = (num_atoms == 0) ? 0 : atoms[0]->begin_column;
-    ast->end_line = (num_atoms == 0) ? 0 : atoms[num_atoms-1]->end_line;
-    ast->end_column = (num_atoms == 0) ? 0 : atoms[num_atoms-1]->end_column;
-    ast->type = likely_ast_list;
-    for (likely_size i=0; i<num_atoms; i++)
-        ast->atoms[i]->parent = likely_retain_ast(ast);
-    return ast;
-}
-
-likely_ast likely_copy_ast(likely_const_ast ast)
-{
-    likely_ast copy;
-    if (ast->type == likely_ast_list) {
-        vector<likely_ast> atoms;
-        for (size_t i=0; i<ast->num_atoms; i++)
-            atoms.push_back(likely_copy_ast(ast->atoms[i]));
-        copy = likely_new_list(atoms.data(), atoms.size());
-    } else {
-        copy = likely_new_atom(ast->atom, ast->atom_len);
-    }
-    copy->parent = likely_retain_ast(ast->parent);
-    copy->begin_line = ast->begin_line;
-    copy->begin_column = ast->begin_column;
-    copy->end_line = ast->end_line;
-    copy->end_column = ast->end_column;
-    copy->type = ast->type;
-    return copy;
-}
-
-likely_ast likely_retain_ast(likely_const_ast ast)
-{
-    if (!ast) return NULL;
-    assert(ast->ref_count > 0);
-    const_cast<likely_ast>(ast)->ref_count++;
-    return const_cast<likely_ast>(ast);
-}
-
-void likely_release_ast(likely_const_ast ast)
-{
-    if (!ast) return;
-    assert(ast->ref_count > 0);
-    if (--const_cast<likely_ast>(ast)->ref_count) return;
-    if (ast->type == likely_ast_list)
-        for (size_t i=0; i<ast->num_atoms; i++)
-            likely_release_ast(ast->atoms[i]);
-    likely_release_ast(ast->parent);
-    free((void*) ast);
 }
 
 static void incrementCounters(char c, likely_size &line, likely_size &column)

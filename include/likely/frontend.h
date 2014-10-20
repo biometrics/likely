@@ -93,13 +93,54 @@ struct likely_abstract_syntax_tree
     };
 
     likely_const_ast parent; /*!< \brief This node's predecessor, or \c NULL if this node is the root. */
-    uint32_t ref_count; /*!< \brief Reference count. */
+    uint32_t ref_count; /*!< \brief Reference count.
+                         *
+                         * Used by \ref likely_retain_ast and \ref likely_release_ast to track ownership.
+                         */
     likely_abstract_syntax_tree_type type; /*!< \brief Interpretation of \ref likely_abstract_syntax_tree. */
     uint32_t begin_line; /*!< \brief Source code beginning line number. */
     uint32_t begin_column; /*!< \brief Source code beginning column number. */
     uint32_t end_line; /*!< \brief Source code ending line number. */
     uint32_t end_column; /*!< \brief Source code ending column number (inclusive). */
 };
+
+/*!
+ * \brief Construct a new atom from a string.
+ * \param[in] atom The string to copy for \ref likely_abstract_syntax_tree::atom.
+ * \param[in] atom_len The length of \p atom to copy, and the value for \ref likely_abstract_syntax_tree::atom_len.
+ * \return A pointer to the new \ref likely_abstract_syntax_tree, or \c NULL if \c malloc failed.
+ * \see likely_new_list
+ */
+LIKELY_EXPORT likely_ast likely_new_atom(const char *atom, uint32_t atom_len);
+
+/*!
+ * \brief Construct a new list from an array of atoms.
+ * \note This function takes ownership of \p atoms. Call \ref likely_retain_ast for elements in \p atoms where you wish to retain a copy.
+ * \param[in] atoms The atoms to take for \ref likely_abstract_syntax_tree::atoms.
+ * \param[in] num_atoms The length of \p atoms, and the value for \ref likely_abstract_syntax_tree::num_atoms.
+ * \return A pointer to the new \ref likely_abstract_syntax_tree, or \c NULL if \c malloc failed.
+ * \see likely_new_atom
+ */
+LIKELY_EXPORT likely_ast likely_new_list(const likely_ast *atoms, likely_size num_atoms);
+
+/*!
+ * \brief Retain a reference to an abstract syntax tree.
+ *
+ * Increments \ref likely_abstract_syntax_tree::ref_count.
+ * \param[in] ast Abstract syntax tree to add a reference. May be \c NULL.
+ * \return \p ast.
+ * \see likely_release_ast
+ */
+LIKELY_EXPORT likely_ast likely_retain_ast(likely_const_ast ast);
+
+/*!
+ * \brief Release a reference to an abstract syntax tree.
+ *
+ * Decrements \ref likely_abstract_syntax_tree::ref_count.
+ * \param[in] ast Abstract syntax tree to subtract a reference. May be \c NULL.
+ * \see likely_retain_ast
+ */
+LIKELY_EXPORT void likely_release_ast(likely_const_ast ast);
 
 typedef struct likely_error *likely_err; /*!< \brief Pointer to a \ref likely_error. */
 typedef struct likely_error const *likely_const_err; /*!< \brief Pointer to a constant \ref likely_error. */
@@ -152,12 +193,6 @@ LIKELY_EXPORT void likely_release_err(likely_const_err err);
  * \param[in] format <tt>printf</tt>-style error message.
  */
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
-
-LIKELY_EXPORT likely_ast likely_new_atom(const char *str, likely_size len);
-LIKELY_EXPORT likely_ast likely_new_list(const likely_ast *atoms, likely_size num_atoms); // Assumes ownership of atoms
-LIKELY_EXPORT likely_ast likely_copy_ast(likely_const_ast ast);
-LIKELY_EXPORT likely_ast likely_retain_ast(likely_const_ast ast);
-LIKELY_EXPORT void likely_release_ast(likely_const_ast ast);
 
 LIKELY_EXPORT likely_ast likely_tokens_from_string(const char *str, bool GFM);
 LIKELY_EXPORT likely_ast likely_ast_from_tokens(likely_const_ast tokens);
