@@ -257,13 +257,24 @@ static bool cleanup(vector<likely_ast> &atoms)
     return false;
 }
 
-likely_ast likely_tokens_from_string(const char *str, bool GFM)
+likely_ast likely_tokens_from_string(const char *str, likely_source_type type)
 {
-    if (!str) return NULL;
+    if (!str)
+        return NULL;
+
     vector<likely_ast> tokens;
     const size_t len = strlen(str);
-    if (GFM) tokenizeGFM(str, len, tokens);
-    else     tokenize(str, len, tokens, 0, 0);
+    switch (type) {
+      case likely_source_lisp:
+        tokenize(str, len, tokens, 0, 0);
+        break;
+      case likely_source_gfm:
+        tokenizeGFM(str, len, tokens);
+        break;
+      default:
+        return NULL;
+    }
+
     return likely_new_list(tokens.data(), tokens.size());
 }
 
@@ -471,9 +482,9 @@ likely_ast likely_ast_from_tokens(likely_const_ast tokens)
     return likely_new_list(expressions.data(), expressions.size());
 }
 
-likely_ast likely_ast_from_string(const char *str, bool GFM)
+likely_ast likely_ast_from_string(const char *str, likely_source_type type)
 {
-    likely_const_ast tokens = likely_tokens_from_string(str, GFM);
+    likely_const_ast tokens = likely_tokens_from_string(str, type);
     likely_ast ast = likely_ast_from_tokens(tokens);
     likely_release_ast(tokens);
     return ast;

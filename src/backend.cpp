@@ -933,7 +933,7 @@ struct RootEnvironment
     {
         static bool init = false;
         if (!init) {
-            likely_ast ast = likely_ast_from_string(likely_standard_library, true);
+            likely_ast ast = likely_ast_from_string(likely_standard_library, likely_source_gfm);
             builtins() = likely_repl(ast, builtins(), NULL, NULL);
             likely_release_ast(ast);
             init = true;
@@ -1156,7 +1156,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                 auto function = functionLUT.find(symbol());
                 if (function == functionLUT.end()) {
                     const string code = string("(a b):-> (a b):=> (") + symbol() + string(" a b))");
-                    likely_const_ast ast = likely_ast_from_string(code.c_str(), false);
+                    likely_const_ast ast = likely_ast_from_string(code.c_str(), likely_source_lisp);
                     likely_const_env env = likely_new_env_jit();
                     likely_function *compiled = likely_compile(ast->atoms[0], env, likely_matrix_void);
                     likely_release_env(env);
@@ -2377,7 +2377,7 @@ class importExpression : public LikelyOperator
             return error(file, "unable to open file");
 
         likely_env parent = builder.env;
-        likely_ast source_ast = likely_ast_from_string(source.c_str(), true);
+        likely_ast source_ast = likely_ast_from_string(source.c_str(), likely_source_gfm);
         builder.env = likely_repl(source_ast, parent, NULL, NULL);
         likely_release_ast(source_ast);
         likely_release_env(parent);
@@ -2796,7 +2796,7 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
     } else if (env->type & likely_environment_offline) {
         // Do nothing, evaluating expressions in an offline environment is a no-op.
     } else {
-        likely_const_ast lambda = likely_ast_from_string("(-> () <ast>)", false);
+        likely_const_ast lambda = likely_ast_from_string("(-> () <ast>)", likely_source_lisp);
         likely_release_ast(lambda->atoms[0]->atoms[2]); // <ast>
         const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]) = likely_retain_ast(ast);
         env->result = unique_ptr<Lambda>(new Lambda(lambda->atoms[0])).get()->evaluateConstantFunction(env, vector<likely_const_mat>());

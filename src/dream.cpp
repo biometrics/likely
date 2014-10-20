@@ -317,11 +317,11 @@ private slots:
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
 
-        likely_ast source_ast = likely_ast_from_string(qPrintable(toPlainText()), true);
+        likely_ast source_ast = likely_ast_from_string(qPrintable(toPlainText()), likely_source_gfm);
         if (!source_ast)
             return;
 
-        likely_ast header_ast = likely_ast_from_string(qPrintable(header), true);
+        likely_ast header_ast = likely_ast_from_string(qPrintable(header), likely_source_gfm);
         for (likely_size i=0; i<header_ast->num_atoms; i++) {
             // Remove unused variables
             if (!likely_ast_contains(source_ast, header_ast->atoms[i]->atoms[1])) {

@@ -194,9 +194,25 @@ LIKELY_EXPORT void likely_release_err(likely_const_err err);
  */
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
 
-LIKELY_EXPORT likely_ast likely_tokens_from_string(const char *str, bool GFM);
+/*!
+ * \brief How to interpret source code.
+ *
+ * Available options are listed in \ref likely_source_types.
+ */
+typedef uint32_t likely_source_type;
+
+/*!
+ * \brief \ref likely_source_type options.
+ */
+enum likely_source_types
+{
+    likely_source_lisp = 0, /*!< Plain source code. */
+    likely_source_gfm  = 1, /*!< Source is in [GitHub Flavored Markdown](https://help.github.com/articles/github-flavored-markdown/) code blocks. */
+};
+
+LIKELY_EXPORT likely_ast likely_tokens_from_string(const char *str, likely_source_type type);
 LIKELY_EXPORT likely_ast likely_ast_from_tokens(likely_const_ast tokens);
-LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str, bool GFM);
+LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str, likely_source_type type);
 LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);
 LIKELY_EXPORT int likely_ast_compare(likely_const_ast a, likely_const_ast b);
 LIKELY_EXPORT bool likely_ast_contains(likely_const_ast ast, likely_const_ast sub_ast);

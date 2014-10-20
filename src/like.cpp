@@ -150,7 +150,7 @@ int main(int argc, char *argv[])
             cout << "> ";
             string line;
             getline(cin, line);
-            likely_ast ast = likely_ast_from_string(line.c_str(), false);
+            likely_ast ast = likely_ast_from_string(line.c_str(), likely_source_lisp);
             likely_env env = likely_eval(ast->atoms[0], parent);
             likely_release_ast(ast);
             if (env->type & likely_environment_erratum) {
@@ -163,22 +163,22 @@ int main(int argc, char *argv[])
         }
     } else {
         likely_mat code = likely_read(input.c_str(), likely_file_text);
-        bool gfm;
+        likely_source_type type;
         if (code) {
-            gfm = (input.size() >= 3) &&
-                  (input.substr(input.size()-3) != ".lk");
+            type = ((input.size() >= 3) && (input.substr(input.size()-3) != ".lk")) ? likely_source_gfm
+                                                                                    : likely_source_lisp;
         } else {
-            gfm = false;
+            type = likely_source_lisp;
             code = likely_string(input.c_str());
         }
 
         if (ast) {
-            likely_ast parsed = likely_ast_from_string(code->data, gfm);
+            likely_ast parsed = likely_ast_from_string(code->data, type);
             for (size_t i=0; i<parsed->num_atoms; i++)
                 checkOrPrintAndRelease(likely_ast_to_string(parsed->atoms[i]));
             likely_release_ast(parsed);
         } else {
-            likely_ast ast = likely_ast_from_string(code->data, gfm);
+            likely_ast ast = likely_ast_from_string(code->data, type);
             likely_release_env(likely_repl(ast, parent, repl_callback, NULL));
             likely_release_ast(ast);
         }
