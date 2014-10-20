@@ -195,13 +195,28 @@ LIKELY_EXPORT void likely_release_err(likely_const_err err);
 /*!
  * \brief Assign the function to call when a compilation error occurs.
  *
- * By default, the error is printed to \c stderr.
+ * By default, the error is converted to a string using \ref likely_error_to_string and printed to \c stderr.
  * \param[in] callback The function to call when a compilation error occurs.
  * \param[in] context User-defined data to pass to \p callback.
  */
 LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, void *context);
+
+/*!
+ * \brief Trigger a recoverable error.
+ *
+ * Calls the \ref likely_error_callback set by \ref likely_set_error_callback.
+ * \param[in] where Location of the error.
+ * \param[in] what Description of the error.
+ * \return \c false.
+ */
 LIKELY_EXPORT bool likely_throw(likely_const_ast where, const char *what);
-LIKELY_EXPORT likely_mat likely_error_to_string(likely_err error);
+
+/*!
+ * \brief Convert the error to a string suitable for printing.
+ * \param[in] err The error to convert to a string.
+ * \return A \ref likely_string.
+ */
+LIKELY_EXPORT likely_mat likely_error_to_string(likely_err err);
 
 /*!
  * \brief Conditional abort-style error handling with an error message.
