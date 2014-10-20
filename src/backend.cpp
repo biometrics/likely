@@ -652,7 +652,7 @@ struct Builder : public IRBuilder<>
 
     struct ConstantMat : public likely_expression
     {
-        likely_mod mod;
+        likely_module *mod;
         ConstantMat(Builder &builder, likely_const_mat m)
             : likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(likely_mat)), uintptr_t(m)), builder.toLLVM(m->type)), m->type, NULL, m)
             , mod(builder.env->module) {}
