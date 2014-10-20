@@ -328,10 +328,19 @@ LIKELY_EXPORT likely_matrix_type likely_type_from_string(const char *str, bool *
  * \snippet src/frontend.cpp likely_type_from_value implementation.
  * \param[in] value The value from which to determine the appropriate type.
  * \return The appropriate \ref likely_matrix_type for \p value.
+ * \see likely_type_from_types
  */
 LIKELY_EXPORT likely_matrix_type likely_type_from_value(double value);
 
-LIKELY_EXPORT likely_size likely_type_from_types(likely_size lhs, likely_size rhs);
+/*!
+ * \brief Determine the appropriate \ref likely_matrix_type for a binary operation.
+ * \par Implementation
+ * \snippet src/frontend.cpp likely_type_from_types implementation.
+ * \param[in] a Type to be consolidated.
+ * \param[in] b Type to be consolidated.
+ * \return The appropriate \ref likely_matrix_type for an operation involving \p a and \p b.
+ */
+LIKELY_EXPORT likely_matrix_type likely_type_from_types(likely_matrix_type a, likely_matrix_type b);
 
 /** @} */ // end of frontend
 

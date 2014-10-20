@@ -679,11 +679,13 @@ likely_matrix_type likely_type_from_value(double value)
 }
 //! [likely_type_from_value implementation.]
 
-likely_size likely_type_from_types(likely_size lhs, likely_size rhs)
+//! [likely_type_from_types implementation.]
+likely_matrix_type likely_type_from_types(likely_matrix_type a, likely_matrix_type b)
 {
-    likely_size result = (lhs | rhs) & ~likely_matrix_depth;
-    result |= max(lhs & likely_matrix_depth, rhs & likely_matrix_depth);
-    if (result & likely_matrix_floating)
-        result &= ~likely_matrix_signed;
-    return result;
+    uint32_t type = (a | b) & ~likely_matrix_depth;
+    type |= max(a & likely_matrix_depth, b & likely_matrix_depth);
+    if (type & likely_matrix_floating)
+        type &= ~likely_matrix_signed;
+    return type;
 }
+//! [likely_type_from_types implementation.]
