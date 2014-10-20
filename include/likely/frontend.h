@@ -208,6 +208,7 @@ LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, voi
  * \param[in] where Location of the error.
  * \param[in] what Description of the error.
  * \return \c false.
+ * \see likely_assert
  */
 LIKELY_EXPORT bool likely_throw(likely_const_ast where, const char *what);
 
@@ -216,12 +217,13 @@ LIKELY_EXPORT bool likely_throw(likely_const_ast where, const char *what);
  * \param[in] err The error to convert to a string.
  * \return A \ref likely_string.
  */
-LIKELY_EXPORT likely_mat likely_error_to_string(likely_err err);
+LIKELY_EXPORT likely_mat likely_err_to_string(likely_err err);
 
 /*!
  * \brief Conditional abort-style error handling with an error message.
  * \param[in] condition If \c false, print \a format and abort.
  * \param[in] format <tt>printf</tt>-style error message.
+ * \see likely_throw
  */
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
 
@@ -300,9 +302,15 @@ LIKELY_EXPORT int likely_ast_compare(likely_const_ast a, likely_const_ast b);
  */
 LIKELY_EXPORT const char *likely_symbol(likely_const_ast ast);
 
-// Type conversion
-LIKELY_EXPORT likely_mat likely_type_to_string(likely_size type);
-LIKELY_EXPORT likely_mat likely_type_field_to_string(likely_size type);
+/*!
+ * \brief Convert a \ref likely_matrix_type to a string.
+ *
+ * The returned \ref likely_matrix::data is valid \ref likely_source_lisp code.
+ * \param[in] type The type to convert to a string.
+ * \return A \ref likely_string.
+ */
+LIKELY_EXPORT likely_mat likely_type_to_string(likely_matrix_type type);
+
 LIKELY_EXPORT likely_matrix_type likely_type_from_string(const char *str, bool *ok);
 LIKELY_EXPORT likely_size likely_type_from_value(double value);
 LIKELY_EXPORT likely_size likely_type_from_types(likely_size lhs, likely_size rhs);

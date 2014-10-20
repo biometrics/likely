@@ -125,7 +125,7 @@ void likely_release_err(likely_const_err err)
 
 static void defaultErrorCallback(likely_err err, void *)
 {
-    likely_mat str = likely_error_to_string(err);
+    likely_mat str = likely_err_to_string(err);
     cerr << str->data << endl;
     likely_release(str);
 }
@@ -162,7 +162,7 @@ static void print(const likely_const_ast ast, stringstream &stream)
     }
 }
 
-likely_mat likely_error_to_string(likely_err err)
+likely_mat likely_err_to_string(likely_err err)
 {
     stringstream stream;
     stream << err->what << " at: ";
@@ -583,21 +583,7 @@ const char *likely_symbol(likely_const_ast ast)
     return (ast && (ast->type != likely_ast_list)) ? ast->atom : "";
 }
 
-likely_mat likely_type_to_string(likely_size type)
-{
-    stringstream typeStream;
-    typeStream << ((type & likely_matrix_floating) ? "f" : ((type & likely_matrix_signed) ? "i" : "u"));
-    typeStream << (type & likely_matrix_depth);
-    if (type & likely_matrix_array)         typeStream << "A";
-    if (type & likely_matrix_saturated)     typeStream << "S";
-    if (type & likely_matrix_multi_channel) typeStream << "C";
-    if (type & likely_matrix_multi_column)  typeStream << "X";
-    if (type & likely_matrix_multi_row)     typeStream << "Y";
-    if (type & likely_matrix_multi_frame)   typeStream << "T";
-    return likely_string(typeStream.str().c_str());
-}
-
-likely_mat likely_type_field_to_string(likely_size type)
+likely_mat likely_type_to_string(likely_matrix_type type)
 {
     if (type == likely_matrix_void           ) return likely_string("void");
     if (type == likely_matrix_depth          ) return likely_string("depth");
@@ -611,7 +597,17 @@ likely_mat likely_type_field_to_string(likely_size type)
     if (type == likely_matrix_multi_row      ) return likely_string("multi_row");
     if (type == likely_matrix_multi_frame    ) return likely_string("multi_frame");
     if (type == likely_matrix_multi_dimension) return likely_string("multi_dimension");
-    return likely_type_to_string(type);
+
+    stringstream typeStream;
+    typeStream << ((type & likely_matrix_floating) ? "f" : ((type & likely_matrix_signed) ? "i" : "u"));
+    typeStream << (type & likely_matrix_depth);
+    if (type & likely_matrix_array)         typeStream << "A";
+    if (type & likely_matrix_saturated)     typeStream << "S";
+    if (type & likely_matrix_multi_channel) typeStream << "C";
+    if (type & likely_matrix_multi_column)  typeStream << "X";
+    if (type & likely_matrix_multi_row)     typeStream << "Y";
+    if (type & likely_matrix_multi_frame)   typeStream << "T";
+    return likely_string(typeStream.str().c_str());
 }
 
 likely_matrix_type likely_type_from_string(const char *str, bool *ok)

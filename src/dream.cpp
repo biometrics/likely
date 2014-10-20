@@ -904,7 +904,7 @@ private slots:
 private:
     static void error_callback(likely_err err, void *context)
     {
-        likely_mat str = likely_error_to_string(err);
+        likely_mat str = likely_err_to_string(err);
         qDebug() << str->data;
         reinterpret_cast<QStatusBar*>(context)->showMessage(str->data);
         likely_release(str);
