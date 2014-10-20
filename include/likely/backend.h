@@ -30,17 +30,27 @@ extern "C" {
  * @{
  */
 
-enum likely_environment_type
+/*!
+ * \brief How to interpret \ref likely_environment.
+ *
+ * Available options are listed in \ref likely_environment_type_mask.
+ */
+typedef uint32_t likely_environment_type;
+
+/*!
+ * \brief \ref likely_environment_type bit format.
+ */
+enum likely_environment_type_mask
 {
-    likely_environment_void          = 0x00000000,
-    likely_environment_offline       = 0x00000001,
-    likely_environment_parallel      = 0x00000002,
-    likely_environment_heterogeneous = 0x00000004,
-    likely_environment_erratum       = 0x00000008,
-    likely_environment_definition    = 0x00000010,
-    likely_environment_global        = 0x00000020,
-    likely_environment_abandoned     = 0x00000040,
-    likely_environment_base          = 0x00000080
+    likely_environment_void          = 0x00000000, /*!< \brief An invalid environment. */
+    likely_environment_offline       = 0x00000001, /*!< \brief Static compilation. */
+    likely_environment_parallel      = 0x00000002, /*!< \brief Generate parallel code. */
+    likely_environment_heterogeneous = 0x00000004, /*!< \brief Generate heterogeneous code. */
+    likely_environment_erratum       = 0x00000008, /*!< \brief Error indicator. */
+    likely_environment_definition    = 0x00000010, /*!< \brief Defines a variable. */
+    likely_environment_global        = 0x00000020, /*!< \brief Global scope. */
+    likely_environment_abandoned     = 0x00000040, /*!< \brief Does not maintain a reference to \ref likely_environment::parent. */
+    likely_environment_base          = 0x00000080, /*!< \brief Owns \ref likely_environment::module. */
 };
 
 typedef struct likely_expression *likely_expr;
