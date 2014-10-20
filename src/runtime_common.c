@@ -34,7 +34,13 @@ size_t likely_bytes(likely_const_mat mat)
 //! [likely_is_string implementation.]
 bool likely_is_string(likely_const_mat m)
 {
-    return m && (m->type == likely_matrix_string) && !m->data[likely_bytes(m) - 1] /* test for NULL-terminator */;
+    return m
+            && (m->type == likely_matrix_string)
+            && (m->channels >= 1)
+            && (m->columns  == 1)
+            && (m->rows     == 1)
+            && (m->frames   == 1)
+            && !m->data[m->channels - 1] /* test for NULL-terminator */;
 }
 //! [likely_is_string implementation.]
 
