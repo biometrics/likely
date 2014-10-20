@@ -305,13 +305,23 @@ LIKELY_EXPORT const char *likely_symbol(likely_const_ast ast);
 /*!
  * \brief Convert a \ref likely_matrix_type to a string.
  *
+ * The opposite of \ref likely_type_from_string.
  * The returned \ref likely_matrix::data is valid \ref likely_source_lisp code.
  * \param[in] type The type to convert to a string.
  * \return A \ref likely_string.
  */
 LIKELY_EXPORT likely_mat likely_type_to_string(likely_matrix_type type);
 
+/*!
+ * \brief Convert a string to a \ref likely_matrix_type.
+ *
+ * The opposite of \ref likely_type_to_string.
+ * \param[in] str String to convert to a \ref likely_matrix_type.
+ * \param[out] ok Successful conversion. May be \ref NULL.
+ * \return A \ref likely_matrix_type from \p str on success, \ref likely_matrix_void otherwise.
+ */
 LIKELY_EXPORT likely_matrix_type likely_type_from_string(const char *str, bool *ok);
+
 LIKELY_EXPORT likely_size likely_type_from_value(double value);
 LIKELY_EXPORT likely_size likely_type_from_types(likely_size lhs, likely_size rhs);
 
