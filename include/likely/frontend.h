@@ -212,13 +212,23 @@ enum likely_source_types
 
 /*!
  * \brief Performs lexical analysis, converting source code into a list of tokens.
+ *
+ * The output from this function is usually the input to \ref likely_parse.
  * \param[in] source Code from which to extract tokens.
  * \param[in] type How to interpret \p source.
  * \return A list of tokens extracted from \p source.
  */
 LIKELY_EXPORT likely_ast likely_lex(const char *source, likely_source_type type);
 
-LIKELY_EXPORT likely_ast likely_ast_from_tokens(likely_const_ast tokens);
+/*!
+ * \brief Performs syntactic analysis, converting a list of tokens into an abstract syntax tree.
+ *
+ * The input to this function is usually the output from \ref likely_lex.
+ * \param[in] tokens List of tokens from which build the abstract syntax tree.
+ * \return An abstract syntax tree built from \p tokens.
+ */
+LIKELY_EXPORT likely_ast likely_parse(likely_const_ast tokens);
+
 LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str, likely_source_type type);
 LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);
 LIKELY_EXPORT int likely_ast_compare(likely_const_ast a, likely_const_ast b);

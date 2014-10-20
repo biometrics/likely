@@ -469,7 +469,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
     return true;
 }
 
-likely_ast likely_ast_from_tokens(likely_const_ast tokens)
+likely_ast likely_parse(likely_const_ast tokens)
 {
     size_t offset = 0;
     vector<likely_ast> expressions;
@@ -485,7 +485,7 @@ likely_ast likely_ast_from_tokens(likely_const_ast tokens)
 likely_ast likely_ast_from_string(const char *str, likely_source_type type)
 {
     likely_const_ast tokens = likely_lex(str, type);
-    likely_ast ast = likely_ast_from_tokens(tokens);
+    likely_ast ast = likely_parse(tokens);
     likely_release_ast(tokens);
     return ast;
 }
