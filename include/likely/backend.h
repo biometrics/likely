@@ -53,9 +53,6 @@ enum likely_environment_type_mask
     likely_environment_base          = 0x00000080, /*!< \brief Owns \ref likely_environment::module. */
 };
 
-typedef struct likely_expression *likely_expr; /*!< \brief Pointer to an expression (defined internally). */
-typedef struct likely_expression const *likely_const_expr; /*!< \brief Pointer to a constant expression (defined internally). */
-
 typedef struct likely_environment *likely_env; /*!< \brief Pointer to a \ref likely_environment. */
 typedef struct likely_environment const *likely_const_env; /*!< \brief Pointer to a constant \ref likely_environment. */
 
@@ -66,7 +63,7 @@ struct likely_environment
     likely_const_ast ast;
     struct likely_module *module;
     union {
-        likely_const_expr value; // definition
+        struct likely_expression const *value; // definition
         likely_const_mat result; // !definition
     };
     size_t ref_count, num_children;
@@ -106,7 +103,7 @@ LIKELY_EXPORT void likely_release_function(likely_const_fun f);
 LIKELY_EXPORT likely_env likely_eval(likely_ast ast, likely_env parent);
 typedef void (*likely_repl_callback)(likely_const_env env, void *context);
 LIKELY_EXPORT likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback repl_callback, void *context);
-LIKELY_EXPORT likely_const_env likely_evaluated_expression(likely_const_expr expr);
+LIKELY_EXPORT likely_const_env likely_evaluated_expression(struct likely_expression const *expr);
 
 // Contents of library/standard.l
 LIKELY_EXPORT extern const char likely_standard_library[];
