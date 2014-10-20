@@ -210,7 +210,14 @@ enum likely_source_types
     likely_source_gfm  = 1, /*!< Source is in [GitHub Flavored Markdown](https://help.github.com/articles/github-flavored-markdown/) code blocks. */
 };
 
-LIKELY_EXPORT likely_ast likely_tokens_from_string(const char *str, likely_source_type type);
+/*!
+ * \brief Performs lexical analysis, converting source code into a list of tokens.
+ * \param[in] source Code from which to extract tokens.
+ * \param[in] type How to interpret \p source.
+ * \return A list of tokens extracted from \p source.
+ */
+LIKELY_EXPORT likely_ast likely_lex(const char *source, likely_source_type type);
+
 LIKELY_EXPORT likely_ast likely_ast_from_tokens(likely_const_ast tokens);
 LIKELY_EXPORT likely_ast likely_ast_from_string(const char *str, likely_source_type type);
 LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);

@@ -257,19 +257,19 @@ static bool cleanup(vector<likely_ast> &atoms)
     return false;
 }
 
-likely_ast likely_tokens_from_string(const char *str, likely_source_type type)
+likely_ast likely_lex(const char *source, likely_source_type type)
 {
-    if (!str)
+    if (!source)
         return NULL;
 
     vector<likely_ast> tokens;
-    const size_t len = strlen(str);
+    const size_t len = strlen(source);
     switch (type) {
       case likely_source_lisp:
-        tokenize(str, len, tokens, 0, 0);
+        tokenize(source, len, tokens, 0, 0);
         break;
       case likely_source_gfm:
-        tokenizeGFM(str, len, tokens);
+        tokenizeGFM(source, len, tokens);
         break;
       default:
         return NULL;
@@ -484,7 +484,7 @@ likely_ast likely_ast_from_tokens(likely_const_ast tokens)
 
 likely_ast likely_ast_from_string(const char *str, likely_source_type type)
 {
-    likely_const_ast tokens = likely_tokens_from_string(str, type);
+    likely_const_ast tokens = likely_lex(str, type);
     likely_ast ast = likely_ast_from_tokens(tokens);
     likely_release_ast(tokens);
     return ast;
