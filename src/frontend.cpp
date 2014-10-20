@@ -669,13 +669,15 @@ error:
     return likely_matrix_void;
 }
 
-likely_size likely_type_from_value(double value)
+//! [likely_type_from_value implementation.]
+likely_matrix_type likely_type_from_value(double value)
 {
     if      (int32_t(value) == value) return likely_matrix_i32;
     else if (int64_t(value) == value) return likely_matrix_i64;
     else if (float(value)   == value) return likely_matrix_f32;
     else                              return likely_matrix_f64;
 }
+//! [likely_type_from_value implementation.]
 
 likely_size likely_type_from_types(likely_size lhs, likely_size rhs)
 {

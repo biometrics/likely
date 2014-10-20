@@ -322,7 +322,15 @@ LIKELY_EXPORT likely_mat likely_type_to_string(likely_matrix_type type);
  */
 LIKELY_EXPORT likely_matrix_type likely_type_from_string(const char *str, bool *ok);
 
-LIKELY_EXPORT likely_size likely_type_from_value(double value);
+/*!
+ * \brief Determine the appropritate \ref likely_matrix_type for a scalar value.
+ * \par Implementation
+ * \snippet src/frontend.cpp likely_type_from_value implementation.
+ * \param[in] value The value from which to determine the appropriate type.
+ * \return The appropriate \ref likely_matrix_type for \p value.
+ */
+LIKELY_EXPORT likely_matrix_type likely_type_from_value(double value);
+
 LIKELY_EXPORT likely_size likely_type_from_types(likely_size lhs, likely_size rhs);
 
 /** @} */ // end of frontend
