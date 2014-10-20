@@ -53,11 +53,11 @@ enum likely_environment_type_mask
     likely_environment_base          = 0x00000080, /*!< \brief Owns \ref likely_environment::module. */
 };
 
-typedef struct likely_expression *likely_expr;
-typedef struct likely_expression const *likely_const_expr;
+typedef struct likely_expression *likely_expr; /*!< \brief Pointer to an expression (defined internally). */
+typedef struct likely_expression const *likely_const_expr; /*!< \brief Pointer to a constant expression (defined internally). */
 
-typedef struct likely_environment *likely_env;
-typedef struct likely_environment const *likely_const_env;
+typedef struct likely_environment *likely_env; /*!< \brief Pointer to a \ref likely_environment. */
+typedef struct likely_environment const *likely_const_env; /*!< \brief Pointer to a constant \ref likely_environment. */
 
 struct likely_environment
 {
