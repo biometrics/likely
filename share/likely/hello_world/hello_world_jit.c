@@ -32,11 +32,14 @@ int main(int argc, char *argv[])
     likely_const_env env = likely_new_env_jit();
 
     puts("Compiling source code...");
-    likely_const_fun f = likely_compile(ast->atoms[0], env, likely_matrix_void);
-    likely_assert(f->function, "failed to compile: %s", argv[2]);
+    likely_const_fun fun = likely_compile(ast->atoms[0], env, likely_matrix_void);
+    likely_assert(fun->function, "failed to compile: %s", argv[2]);
 
     puts("Calling compiled function...");
-    likely_const_mat output = ((likely_function_1)f->function)(input);
+    // We expect fun->function to be a function that takes one constant matrix as input
+    // and returns a new matrix as output.
+    likely_mat (*f)(likely_const_mat) = fun->function;
+    likely_const_mat output = f(input);
     likely_assert(output, "failed to execute compiled function");
 
     if (argc >= 4) {
@@ -46,12 +49,14 @@ int main(int argc, char *argv[])
 
     puts("Cleaning up...");
     likely_release(output);
-    likely_release_function(f);
+    likely_release_function(fun);
     likely_release_env(env);
     likely_release_ast(ast);
     likely_release(input);
 
     puts("Done!");
+    likely_shutdown();
+
     return EXIT_SUCCESS;
 }
 //! [hello_world_jit implementation.]

@@ -1169,7 +1169,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                 }
                 lock.unlock();
 
-                return builder.mat(reinterpret_cast<likely_function_2>(function->second->function)(LHS, RHS));
+                return builder.mat(reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat)>(function->second->function)(LHS, RHS));
             }
         }
 
@@ -1487,8 +1487,8 @@ struct Lambda : public LikelyOperator
 
         JITFunction jit("likely_jit_function", this, env, params, false, true, !args.empty());
         if (jit.function) { // compiler
-            return args.empty() ? reinterpret_cast<likely_function_0>(jit.function)()
-                                : reinterpret_cast<likely_function_n>(jit.function)(args.data());
+            return args.empty() ? reinterpret_cast<likely_mat (*)()>(jit.function)()
+                                : reinterpret_cast<likely_mat (*)(likely_const_mat const*)>(jit.function)(args.data());
         } else if (jit.EE) { // interpreter
             vector<GenericValue> gv;
             if (!args.empty())
@@ -2735,7 +2735,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
             return NULL;
     }
 
-    return reinterpret_cast<likely_function_n>(function)(mv);
+    return reinterpret_cast<likely_mat (*)(likely_const_mat const*)>(function)(mv);
 }
 
 likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_size type, ...)

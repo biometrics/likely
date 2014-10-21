@@ -74,12 +74,6 @@ struct likely_environment
     likely_const_env *children; /*!< \brief Environments where this is the parent. */
 };
 
-typedef likely_mat (*likely_function_0)();
-typedef likely_mat (*likely_function_1)(likely_const_mat);
-typedef likely_mat (*likely_function_2)(likely_const_mat, likely_const_mat);
-typedef likely_mat (*likely_function_3)(likely_const_mat, likely_const_mat, likely_const_mat);
-typedef likely_mat (*likely_function_n)(likely_const_mat const*);
-
 typedef struct likely_function *likely_fun;
 typedef struct likely_function const *likely_const_fun;
 

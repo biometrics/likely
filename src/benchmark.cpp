@@ -88,7 +88,7 @@ struct Test
                 likely_mat typeString = likely_type_to_string(type);
                 printf("%s \t%s \t%d \t%s\t", function(), typeString->data, size, execution.c_str());
                 likely_release(typeString);
-                testCorrectness(reinterpret_cast<likely_function_1>(f->function), srcCV, srcLikely);
+                testCorrectness(reinterpret_cast<likely_mat (*)(likely_const_mat)>(f->function), srcCV, srcLikely);
 
                 if (BenchmarkTest) {
                     printf("\n");
@@ -96,7 +96,7 @@ struct Test
                 }
 
                 Speed baseline = testBaselineSpeed(srcCV);
-                Speed likely = testLikelySpeed(reinterpret_cast<likely_function_1>(f->function), srcLikely);
+                Speed likely = testLikelySpeed(reinterpret_cast<likely_mat (*)(likely_const_mat)>(f->function), srcLikely);
                 printf("%.2e\n", likely.Hz/baseline.Hz);
             }
         }
@@ -208,7 +208,7 @@ private:
         return m;
     }
 
-    void testCorrectness(likely_function_1 f, const Mat &srcCV, const likely_const_mat srcLikely) const
+    void testCorrectness(likely_mat (*f)(likely_const_mat), const Mat &srcCV, const likely_const_mat srcLikely) const
     {
         Mat dstOpenCV = computeBaseline(srcCV);
         likely_const_mat dstLikely = f(srcLikely);
@@ -257,7 +257,7 @@ private:
         return Test::Speed(iter, startTime, endTime);
     }
 
-    Speed testLikelySpeed(likely_function_1 f, const likely_const_mat srcLikely) const
+    Speed testLikelySpeed(likely_mat (*f)(likely_const_mat), const likely_const_mat srcLikely) const
     {
         clock_t startTime, endTime;
         int iter = 0;
