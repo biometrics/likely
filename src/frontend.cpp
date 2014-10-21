@@ -284,7 +284,7 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_ast> &t
                         inlineEnd++;
 
                     if ((inlineStart < lineEnd) && (inlineEnd < lineEnd))
-                        tokenize(&str[inlineStart], inlineEnd-inlineStart, tokens, line, inlineStart-lineStart);
+                        tokenize(&str[inlineStart], inlineEnd-inlineStart, tokens, line, uint32_t(inlineStart-lineStart));
 
                     inlineStart = inlineEnd + 1;
                 } while (inlineStart < lineEnd);
@@ -322,7 +322,7 @@ likely_ast likely_lex(const char *source, likely_source_type type)
         return NULL;
     }
 
-    return likely_new_list(tokens.data(), tokens.size());
+    return likely_new_list(tokens.data(), uint32_t(tokens.size()));
 }
 
 static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, bool canFail = false);
@@ -359,7 +359,7 @@ static ReductionStatus reduceComposition(likely_const_ast tokens, size_t &offset
             // It's a number
             stringstream stream;
             stream << output[output.size()-2]->atom << "." << output[output.size()-1]->atom;
-            likely_ast number = likely_new_atom(stream.str().c_str(), stream.str().size());
+            likely_ast number = likely_new_atom(stream.str().c_str(), uint32_t(stream.str().size()));
             number->begin_line   = output[output.size()-2]->begin_line;
             number->begin_column = output[output.size()-2]->begin_column;
             number->end_line     = output[output.size()-1]->end_line;
@@ -383,7 +383,7 @@ static ReductionStatus reduceComposition(likely_const_ast tokens, size_t &offset
             atoms.insert(atoms.begin() + 1, output.back());
             output.pop_back();
 
-            likely_ast list = likely_new_list(atoms.data(), atoms.size());
+            likely_ast list = likely_new_list(atoms.data(), uint32_t(atoms.size()));
             list->begin_line = list->atoms[1]->begin_line;
             list->begin_column = list->atoms[1]->begin_column;
             list->end_line = end_line;
@@ -434,7 +434,7 @@ static ReductionStatus reduce(likely_const_ast tokens, size_t &offset, vector<li
         atoms.insert(atoms.begin() + 1, output.back());
         output.pop_back();
 
-        likely_ast list = likely_new_list(atoms.data(), atoms.size());
+        likely_ast list = likely_new_list(atoms.data(), uint32_t(atoms.size()));
         list->begin_line = list->atoms[1]->begin_line;
         list->begin_column = list->atoms[1]->begin_column;
         list->end_line = end_line;
@@ -502,7 +502,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
                 return cleanup(atoms);
         }
 
-        likely_ast list = likely_new_list(atoms.data(), atoms.size());
+        likely_ast list = likely_new_list(atoms.data(), uint32_t(atoms.size()));
         list->begin_line = token->begin_line;
         list->begin_column = token->begin_column;
         list->end_line = end->end_line;
@@ -526,7 +526,7 @@ likely_ast likely_parse(likely_const_ast tokens)
             cleanup(expressions);
             return NULL;
         }
-    return likely_new_list(expressions.data(), expressions.size());
+    return likely_new_list(expressions.data(), uint32_t(expressions.size()));
 }
 
 //! [likely_lex_and_parse implementation.]
