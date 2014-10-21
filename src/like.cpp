@@ -104,7 +104,7 @@ static void replMD5(likely_const_env env, void *context)
 
     char hex_str[] = "0123456789abcdef";
     const size_t bytes = likely_bytes(md5);
-    likely_mat hex = likely_new(likely_matrix_string, 2*likely_bytes(md5)+1, 1, 1, 1, NULL);
+    likely_mat hex = likely_new(likely_matrix_string, uint32_t(2*likely_bytes(md5)+1), 1, 1, 1, NULL);
     for (size_t i=0; i<bytes; i++) {
         hex->data[2*i+0] = hex_str[(md5->data[i] >> 4) & 0x0F];
         hex->data[2*i+1] = hex_str[(md5->data[i] >> 0) & 0x0F];
