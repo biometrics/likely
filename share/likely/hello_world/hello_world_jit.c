@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 
     puts("Cleaning up...");
     likely_release(output);
-    likely_release_function(fun);
+    likely_release_fun(fun);
     likely_release_env(env);
     likely_release_ast(ast);
     likely_release(input);

@@ -142,8 +142,25 @@ LIKELY_EXPORT void likely_release_env(likely_const_env env);
  * \return The compiled \ref likely_function.
  */
 LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_matrix_type type, ...);
-LIKELY_EXPORT likely_fun likely_retain_function(likely_const_fun f);
-LIKELY_EXPORT void likely_release_function(likely_const_fun f);
+
+/*!
+ * \brief Retain a reference to a function.
+ *
+ * Increments \ref likely_function::ref_count.
+ * \param[in] fun Function to add a reference. May be \c NULL.
+ * \return \p fun.
+ * \see likely_release_fun
+ */
+LIKELY_EXPORT likely_fun likely_retain_fun(likely_const_fun fun);
+
+/*!
+ * \brief Release a reference to a function.
+ *
+ * Decrements \ref likely_function::ref_count.
+ * \param[in] env Environment to subtract a reference. May be \c NULL.
+ * \see likely_release_fun
+ */
+LIKELY_EXPORT void likely_release_fun(likely_const_fun fun);
 
 // Evaluation
 // These functions will modify ast->type to change atom values to their correct type,

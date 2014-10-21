@@ -2752,20 +2752,20 @@ likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_mat
     return static_cast<likely_fun>(new JITFunction("likely_jit_function", unique_ptr<Lambda>(new Lambda(ast)).get(), env, types, false, false, false));
 }
 
-likely_fun likely_retain_function(likely_const_fun f)
+likely_fun likely_retain_fun(likely_const_fun fun)
 {
-    if (!f) return NULL;
-    assert(f->ref_count > 0);
-    const_cast<likely_fun>(f)->ref_count++;
-    return const_cast<likely_fun>(f);
+    if (!fun) return NULL;
+    assert(fun->ref_count > 0);
+    const_cast<likely_fun>(fun)->ref_count++;
+    return const_cast<likely_fun>(fun);
 }
 
-void likely_release_function(likely_const_fun f)
+void likely_release_fun(likely_const_fun fun)
 {
-    if (!f) return;
-    assert(f->ref_count > 0);
-    if (--const_cast<likely_fun>(f)->ref_count) return;
-    delete static_cast<const JITFunction*>(f);
+    if (!fun) return;
+    assert(fun->ref_count > 0);
+    if (--const_cast<likely_fun>(fun)->ref_count) return;
+    delete static_cast<const JITFunction*>(fun);
 }
 
 likely_env likely_eval(likely_ast ast, likely_env parent)

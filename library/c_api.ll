@@ -25,7 +25,7 @@ int main()
 
     // Clean up
     likely_release(dark_lenna);
-    likely_release_function(darken);
+    likely_release_fun(darken);
     likely_release_env(env);
     likely_release_ast(ast);
     likely_release(lenna);
