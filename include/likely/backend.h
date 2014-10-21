@@ -74,13 +74,16 @@ struct likely_environment
     likely_const_env *children; /*!< \brief Environments where this is the parent. */
 };
 
-typedef struct likely_function *likely_fun;
-typedef struct likely_function const *likely_const_fun;
+typedef struct likely_function *likely_fun; /*!< \brief Pointer to a \ref likely_function. */
+typedef struct likely_function const *likely_const_fun; /*!< \brief Pointer to a constant \ref likely_function. */
 
+/*!
+ * \brief The output of compilation.
+ */
 struct likely_function
 {
-    void *function;
-    size_t ref_count;
+    void *function; /*!< \brief Pointer to the resulting executable function with a \c C ABI. */
+    uint32_t ref_count; /*!< \brief Reference count. */
 };
 
 // Environments
