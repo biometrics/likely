@@ -69,7 +69,7 @@ struct likely_environment
         likely_const_mat result; /*!< \brief If not <tt>\ref type & \ref likely_environment_definition</tt>, the environment is an \a expression and \ref result is its value. */
     }; /*!< \brief A definition or an expression. */
     likely_environment_type type; /*!< Interpretation of \ref likely_environment. */
-    uint32_t ref_count; /*!< \brief Reference count. */
+    uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain_env and \ref likely_release_env to track ownership. */
     uint32_t num_children; /*!< \brief Length of \ref children. */
     likely_const_env *children; /*!< \brief Environments where this is the parent. */
 };
@@ -86,9 +86,46 @@ struct likely_function
     uint32_t ref_count; /*!< \brief Reference count. */
 };
 
+/*!
+ * \brief Construct a new environment for just-in-time compilation.
+ * \return A new just-in-time compilation environment.
+ */
 LIKELY_EXPORT likely_env likely_new_env_jit();
+
+/*!
+ * \brief Construct a new environment for static compilation.
+ *
+ * The extension of \p file_name dictates the type of output.
+ * Recognized file extensions are:
+ * - \c ll - LLVM IR (unoptimized)
+ * - \c bc - LLVM bit code (unoptimized)
+ * - \c s - Assembly (optimized for native machine)
+ * - \c o - Object file (optimized for native machine)
+ *
+ * Code is written to \p file_name when the returned \ref likely_environment is deleted by \ref likely_release_env.
+ *
+ * \param[in] file_name Where to save the compilation output.
+ * \return A new static compilation environment.
+ */
 LIKELY_EXPORT likely_env likely_new_env_offline(const char *file_name);
+
+/*!
+ * \brief Retain a reference to an environment.
+ *
+ * Increments \ref likely_environment::ref_count.
+ * \param[in] env Environment to add a reference. May be \c NULL.
+ * \return \p env.
+ * \see likely_release_env
+ */
 LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
+
+/*!
+ * \brief Release a reference to an environment.
+ *
+ * Decrements \ref likely_environment::ref_count.
+ * \param[in] env Environment to subtract a reference. May be \c NULL.
+ * \see likely_retain_env
+ */
 LIKELY_EXPORT void likely_release_env(likely_const_env env);
 
 // Compilation

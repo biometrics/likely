@@ -93,10 +93,7 @@ struct likely_abstract_syntax_tree
     };
 
     likely_const_ast parent; /*!< \brief This node's predecessor, or \c NULL if this node is the root. */
-    uint32_t ref_count; /*!< \brief Reference count.
-                         *
-                         * Used by \ref likely_retain_ast and \ref likely_release_ast to track ownership.
-                         */
+    uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain_ast and \ref likely_release_ast to track ownership. */
     likely_abstract_syntax_tree_type type; /*!< \brief Interpretation of \ref likely_abstract_syntax_tree. */
     uint32_t begin_line; /*!< \brief Source code beginning line number. */
     uint32_t begin_column; /*!< \brief Source code beginning column number. */
@@ -151,10 +148,7 @@ typedef struct likely_error const *likely_const_err; /*!< \brief Pointer to a co
 struct likely_error
 {
     likely_const_err parent; /*!< \brief Predecessor error, or \c NULL if this error is the root. */
-    uint32_t ref_count; /*!< \brief Reference count.
-                         *
-                         * Used by \ref likely_retain_err and \ref likely_release_err to track ownership.
-                         */
+    uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain_err and \ref likely_release_err to track ownership. */
     likely_const_ast where; /*!< \brief Location of the error. */
     char what[]; /*!< \brief Error message. */
 };
