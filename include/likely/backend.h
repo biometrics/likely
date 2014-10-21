@@ -86,8 +86,6 @@ struct likely_function
     uint32_t ref_count; /*!< \brief Reference count. */
 };
 
-// Environments
-LIKELY_EXPORT likely_env likely_new_env(likely_const_env parent);
 LIKELY_EXPORT likely_env likely_new_env_jit();
 LIKELY_EXPORT likely_env likely_new_env_offline(const char *file_name);
 LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);

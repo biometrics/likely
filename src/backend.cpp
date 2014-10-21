@@ -295,6 +295,29 @@ public:
 };
 static JITFunctionCache TheJITFunctionCache;
 
+static likely_env newEnv(likely_const_env parent)
+{
+    likely_env env = (likely_env) malloc(sizeof(likely_environment));
+    if (!env)
+        return NULL;
+
+    env->type = likely_environment_void;
+    if (parent) {
+        if (parent->type & likely_environment_offline      ) env->type |= likely_environment_offline;
+        if (parent->type & likely_environment_parallel     ) env->type |= likely_environment_parallel;
+        if (parent->type & likely_environment_heterogeneous) env->type |= likely_environment_heterogeneous;
+    }
+    env->parent = likely_retain_env(parent);
+    env->ast = NULL;
+    env->module = parent ? parent->module : NULL;
+    env->value = NULL;
+    env->result = NULL;
+    env->ref_count = 1;
+    env->num_children = 0;
+    env->children = NULL;
+    return env;
+}
+
 struct Builder;
 
 } // namespace (anonymous)
@@ -431,7 +454,7 @@ struct likely_expression
     static void define(likely_env &env, const char *name, likely_const_expr value)
     {
         assert(name && strcmp(name, ""));
-        env = likely_new_env(env);
+        env = newEnv(env);
         env->type |= likely_environment_definition;
         env->ast = likely_new_atom(name, strlen(name));
         env->value = value;
@@ -949,7 +972,7 @@ protected:
     // Provide protected access for registering builtins.
     static likely_env &builtins()
     {
-        static likely_env root = likely_new_env(NULL);
+        static likely_env root = newEnv(NULL);
         return root;
     }
 };
@@ -2172,7 +2195,7 @@ struct EvaluatedExpression : public LikelyOperator
     // Requries that `parent` stays valid through the lifetime of this class.
     // We avoid retaining `parent` to avoid a circular dependency.
     EvaluatedExpression(likely_const_env parent, likely_const_ast ast)
-        : env(likely_new_env(parent)), ast(likely_retain_ast(ast))
+        : env(newEnv(parent)), ast(likely_retain_ast(ast))
     {
         likely_release_env(env->parent);
         env->type |= likely_environment_abandoned;
@@ -2391,7 +2414,7 @@ class importExpression : public LikelyOperator
 LIKELY_REGISTER(import)
 
 JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_env parent, const vector<likely_size> &parameters, bool abandon, bool interpreter, bool arrayCC)
-    : env(likely_new_env(parent))
+    : env(newEnv(parent))
 {
     function = NULL;
     ref_count = 1;
@@ -2629,37 +2652,14 @@ LIKELY_REGISTER(md5)
 
 } // namespace (anonymous)
 
-likely_env likely_new_env(likely_const_env parent)
-{
-    likely_env env = (likely_env) malloc(sizeof(likely_environment));
-    if (!env)
-        return NULL;
-
-    env->type = likely_environment_void;
-    if (parent) {
-        if (parent->type & likely_environment_offline      ) env->type |= likely_environment_offline;
-        if (parent->type & likely_environment_parallel     ) env->type |= likely_environment_parallel;
-        if (parent->type & likely_environment_heterogeneous) env->type |= likely_environment_heterogeneous;
-    }
-    env->parent = likely_retain_env(parent);
-    env->ast = NULL;
-    env->module = parent ? parent->module : NULL;
-    env->value = NULL;
-    env->result = NULL;
-    env->ref_count = 1;
-    env->num_children = 0;
-    env->children = NULL;
-    return env;
-}
-
 likely_env likely_new_env_jit()
 {
-    return likely_new_env(RootEnvironment::get());
+    return newEnv(RootEnvironment::get());
 }
 
 likely_env likely_new_env_offline(const char *file_name)
 {
-    likely_env env = likely_new_env(RootEnvironment::get());
+    likely_env env = newEnv(RootEnvironment::get());
     if (!env)
         return NULL;
 
@@ -2780,7 +2780,7 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
                 return likely_retain_env(parent->children[i]);
     }
 
-    likely_env env = likely_new_env(parent);
+    likely_env env = newEnv(parent);
     if ((ast->type == likely_ast_list) && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="))
         env->type |= likely_environment_definition;
     env->type |= likely_environment_global;
