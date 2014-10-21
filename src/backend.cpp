@@ -455,7 +455,7 @@ struct likely_expression
         assert(name && strcmp(name, ""));
         env = newEnv(env);
         env->type |= likely_environment_definition;
-        env->ast = likely_new_atom(name, strlen(name));
+        env->ast = likely_new_atom(name, uint32_t(strlen(name)));
         env->value = value;
     }
 
@@ -624,8 +624,8 @@ struct Builder : public IRBuilder<>
 
     likely_expression zero(likely_matrix_type type = likely_matrix_native) { return constant(0.0, type); }
     likely_expression one (likely_matrix_type type = likely_matrix_native) { return constant(1.0, type); }
-    likely_expression intMax(likely_matrix_type type) { const size_t bits = type & likely_matrix_depth; return constant((uint64_t) (1 << (bits - ((type & likely_matrix_signed) ? 1 : 0)))-1, bits); }
-    likely_expression intMin(likely_matrix_type type) { const size_t bits = type & likely_matrix_depth; return constant((uint64_t) ((type & likely_matrix_signed) ? (1 << (bits - 1)) : 0), bits); }
+    likely_expression intMax(likely_matrix_type type) { const likely_matrix_type bits = type & likely_matrix_depth; return constant((uint64_t) (1 << (bits - ((type & likely_matrix_signed) ? 1 : 0)))-1, bits); }
+    likely_expression intMin(likely_matrix_type type) { const likely_matrix_type bits = type & likely_matrix_depth; return constant((uint64_t) ((type & likely_matrix_signed) ? (1 << (bits - 1)) : 0), bits); }
     likely_expression matrixType(likely_matrix_type type) { return constant((uint64_t) type, likely_matrix_u32); }
     likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(::cast<PointerType>((Type*)multiDimension())), likely_matrix_multi_dimension); }
     likely_expression nullData() { return likely_expression(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_matrix_u8 | likely_matrix_array); }
@@ -2506,7 +2506,7 @@ class newExpression : public LikelyOperator
             default:           break;
         }
 
-        likely_matrix_type inferredType = cast<ConstantInt>(type)->getZExtValue() | likely_matrix_multi_dimension;
+        likely_matrix_type inferredType = uint32_t(cast<ConstantInt>(type)->getZExtValue()) | likely_matrix_multi_dimension;
         checkDimension(inferredType, channels, likely_matrix_multi_channel);
         checkDimension(inferredType, columns , likely_matrix_multi_column);
         checkDimension(inferredType, rows    , likely_matrix_multi_row);
