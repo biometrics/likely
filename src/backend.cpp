@@ -2738,7 +2738,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
     return reinterpret_cast<likely_mat (*)(likely_const_mat const*)>(function)(mv);
 }
 
-likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_size type, ...)
+likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_matrix_type type, ...)
 {
     if (!ast || !env) return NULL;
     vector<likely_size> types;
@@ -2746,7 +2746,7 @@ likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_siz
     va_start(ap, type);
     while (type != likely_matrix_void) {
         types.push_back(type);
-        type = va_arg(ap, likely_size);
+        type = va_arg(ap, likely_matrix_type);
     }
     va_end(ap);
     return static_cast<likely_fun>(new JITFunction("likely_jit_function", unique_ptr<Lambda>(new Lambda(ast)).get(), env, types, false, false, false));

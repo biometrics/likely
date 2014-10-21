@@ -79,6 +79,7 @@ typedef struct likely_function const *likely_const_fun; /*!< \brief Pointer to a
 
 /*!
  * \brief The output of compilation.
+ * \see likely_compile
  */
 struct likely_function
 {
@@ -89,6 +90,7 @@ struct likely_function
 /*!
  * \brief Construct a new environment for just-in-time compilation.
  * \return A new just-in-time compilation environment.
+ * \see likely_new_env_offline
  */
 LIKELY_EXPORT likely_env likely_new_env_jit();
 
@@ -106,6 +108,7 @@ LIKELY_EXPORT likely_env likely_new_env_jit();
  *
  * \param[in] file_name Where to save the compilation output.
  * \return A new static compilation environment.
+ * \see likely_new_env_jit
  */
 LIKELY_EXPORT likely_env likely_new_env_offline(const char *file_name);
 
@@ -128,8 +131,17 @@ LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
  */
 LIKELY_EXPORT void likely_release_env(likely_const_env env);
 
-// Compilation
-LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_size type, ...);
+/*!
+ * \brief Compile a function.
+ *
+ * If an incomplete \p type is specified, dynamic dispatch will occur at runtime
+ * based on the types of the \ref likely_matrix arguments.
+ * \param[in] ast Function abstract syntax tree.
+ * \param[in] env Function environment.
+ * \param[in] type Function type terminated by \ref likely_matrix_void.
+ * \return The compiled \ref likely_function.
+ */
+LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_matrix_type type, ...);
 LIKELY_EXPORT likely_fun likely_retain_function(likely_const_fun f);
 LIKELY_EXPORT void likely_release_function(likely_const_fun f);
 
