@@ -84,7 +84,7 @@ enum likely_matrix_type_mask
     likely_matrix_multi_frame     = 0x00008000, /*!< \brief \ref likely_matrix::frames > 1. */
     likely_matrix_multi_dimension = likely_matrix_multi_channel | likely_matrix_multi_column | likely_matrix_multi_row | likely_matrix_multi_frame, /*!< \brief The portion of \ref likely_matrix_type indicating matrix dimensionality. Used for loop optimizations. */
     likely_matrix_string = likely_matrix_i8 | likely_matrix_multi_channel, /*!< \brief likely_matrix::data is a C-style string. */
-    likely_matrix_native = sizeof(likely_size)*8, /*!< \brief Native integer size. */
+    likely_matrix_native = sizeof(uintptr_t)*8, /*!< \brief Native integer size. */
 };
 
 // Disable 'nonstandard extension used : zero-sized array in struct/union' warning

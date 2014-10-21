@@ -118,7 +118,7 @@ LIKELY_EXPORT likely_ast likely_new_atom(const char *atom, uint32_t atom_len);
  * \return A pointer to the new \ref likely_abstract_syntax_tree, or \c NULL if \c malloc failed.
  * \see likely_new_atom
  */
-LIKELY_EXPORT likely_ast likely_new_list(const likely_ast *atoms, likely_size num_atoms);
+LIKELY_EXPORT likely_ast likely_new_list(const likely_ast *atoms, uint32_t num_atoms);
 
 /*!
  * \brief Retain a reference to an abstract syntax tree.

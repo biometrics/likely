@@ -34,14 +34,14 @@ static size_t numWorkers = 0;
 // Parallel data
 static likely_thunk currentThunk = NULL;
 static void *thunkArgs = NULL;
-static likely_size thunkSize = 0;
+static size_t thunkSize = 0;
 
 static void executeWorker(size_t id)
 {
     // There are hardware_concurrency-1 helper threads and the main thread with id = 0
-    const likely_size step = (thunkSize+numWorkers-1)/numWorkers;
-    const likely_size start = id * step;
-    const likely_size stop = min((id+1)*step, thunkSize);
+    const size_t step = (thunkSize+numWorkers-1)/numWorkers;
+    const size_t start = id * step;
+    const size_t stop = min((id+1)*step, thunkSize);
     if (start >= stop) return;
     currentThunk(thunkArgs, start, stop);
 }

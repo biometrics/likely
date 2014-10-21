@@ -48,7 +48,7 @@ likely_ast likely_new_atom(const char *atom, uint32_t atom_len)
     return ast;
 }
 
-likely_ast likely_new_list(const likely_ast *atoms, likely_size num_atoms)
+likely_ast likely_new_list(const likely_ast *atoms, uint32_t num_atoms)
 {
     likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + num_atoms * sizeof(likely_ast));
     if (!ast)
@@ -64,7 +64,7 @@ likely_ast likely_new_list(const likely_ast *atoms, likely_size num_atoms)
     ast->end_line = (num_atoms == 0) ? 0 : atoms[num_atoms-1]->end_line;
     ast->end_column = (num_atoms == 0) ? 0 : atoms[num_atoms-1]->end_column;
     ast->type = likely_ast_list;
-    for (likely_size i=0; i<num_atoms; i++)
+    for (uint32_t i=0; i<num_atoms; i++)
         ast->atoms[i]->parent = likely_retain_ast(ast);
     return ast;
 }

@@ -37,7 +37,7 @@
 
 using namespace std;
 
-static likely_mat takeAndInterpret(likely_mat buffer, likely_size type)
+static likely_mat takeAndInterpret(likely_mat buffer, size_t type)
 {
     likely_mat result = NULL;
     if (!result && (type & likely_file_decoded)) {
@@ -52,7 +52,7 @@ static likely_mat takeAndInterpret(likely_mat buffer, likely_size type)
         result = likely_decode(buffer);
 
     if (!result && (type & likely_file_text)) {
-        const likely_size bytes = likely_bytes(buffer);
+        const size_t bytes = likely_bytes(buffer);
         buffer->data[bytes-1] = 0;
         buffer->channels = uint32_t(bytes);
         buffer->columns = buffer->rows = buffer->frames = 1;
@@ -189,11 +189,9 @@ likely_mat likely_write(likely_const_mat image, const char *file_name)
         }
     } else {
         if (FILE *fp = fopen(file_name, "wb")) {
-            likely_size bytes = sizeof(likely_matrix) + likely_bytes(image);
-            likely_size ref_count = 1;
-            fwrite(&bytes, sizeof(likely_size), 1, fp);
-            fwrite(&ref_count, sizeof(likely_size), 1, fp);
-            fwrite(reinterpret_cast<likely_size const*>(image)+2, bytes-2*sizeof(likely_size), 1, fp);
+            const uint32_t ref_count = 1;
+            fwrite(&ref_count, sizeof(uint32_t), 1, fp);
+            fwrite(reinterpret_cast<uint32_t const*>(image)+1, likely_bytes(image)-sizeof(uint32_t), 1, fp);
             fclose(fp);
         } else {
             return NULL;
@@ -245,13 +243,13 @@ likely_mat likely_to_string_n(likely_const_mat *mats, size_t n)
             likely_release(str);
 
             buffer << (m->frames > 1 ? "(" : "");
-            for (likely_size t=0; t<m->frames; t++) {
+            for (uint32_t t=0; t<m->frames; t++) {
                 buffer << (m->rows > 1 ? "(" : "");
-                for (likely_size y=0; y<m->rows; y++) {
+                for (uint32_t y=0; y<m->rows; y++) {
                     buffer << (m->columns > 1 ? "(" : "");
-                    for (likely_size x=0; x<m->columns; x++) {
+                    for (uint32_t x=0; x<m->columns; x++) {
                         buffer << (m->channels > 1 ? "(" : "");
-                        for (likely_size c=0; c<m->channels; c++) {
+                        for (uint32_t c=0; c<m->channels; c++) {
                             buffer << likely_element(m, c, x, y, t);
                             if (c != m->channels-1)
                                 buffer << " ";
@@ -307,10 +305,10 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
     if ((mat->type & likely_matrix_element) != likely_matrix_u8) {
         min = numeric_limits<double>::max();
         max = -numeric_limits<double>::max();
-        for (likely_size t=0; t<mat->frames; t++) {
-            for (likely_size y=0; y<mat->rows; y++) {
-                for (likely_size x=0; x<mat->columns; x++) {
-                    for (likely_size c=0; c<mat->channels; c++) {
+        for (uint32_t t=0; t<mat->frames; t++) {
+            for (uint32_t y=0; y<mat->rows; y++) {
+                for (uint32_t x=0; x<mat->columns; x++) {
+                    for (uint32_t c=0; c<mat->channels; c++) {
                         const double value = likely_element(mat, c, x, y, t);
                         min = ::min(min, value);
                         max = ::max(max, value);

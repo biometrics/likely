@@ -87,9 +87,9 @@ static void replShow(likely_const_env env, void *context)
         likely_assert(rendered->columns  == baseline->columns , "expected: %d columns, got: %d" , baseline->columns , rendered->columns);
         likely_assert(rendered->rows     == baseline->rows    , "expected: %d rows, got: %d"    , baseline->rows    , rendered->rows);
         likely_assert(rendered->frames   == baseline->frames  , "expected: %d frames, got: %d"  , baseline->frames  , rendered->frames);
-        const likely_size elements = rendered->channels * rendered->columns * rendered->rows * rendered->frames;
-        likely_size delta = 0;
-        for (likely_size i=0; i<elements; i++)
+        const size_t elements = size_t(rendered->channels) * size_t(rendered->columns) * size_t(rendered->rows) * size_t(rendered->frames);
+        size_t delta = 0;
+        for (size_t i=0; i<elements; i++)
             delta += abs(int(rendered->data[i]) - int(baseline->data[i]));
         likely_release(rendered);
         likely_release(baseline);
@@ -103,9 +103,9 @@ static void replMD5(likely_const_env env, void *context)
     likely_mat md5 = likely_md5(env->result);
 
     char hex_str[] = "0123456789abcdef";
-    const likely_size bytes = likely_bytes(md5);
+    const size_t bytes = likely_bytes(md5);
     likely_mat hex = likely_new(likely_matrix_string, 2*likely_bytes(md5)+1, 1, 1, 1, NULL);
-    for (likely_size i=0; i<bytes; i++) {
+    for (size_t i=0; i<bytes; i++) {
         hex->data[2*i+0] = hex_str[(md5->data[i] >> 4) & 0x0F];
         hex->data[2*i+1] = hex_str[(md5->data[i] >> 0) & 0x0F];
     }
