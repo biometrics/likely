@@ -188,7 +188,7 @@ void likely_assert(bool condition, const char *format, ...)
 #endif // _WIN32
 }
 
-static void incrementCounters(char c, likely_size &line, likely_size &column)
+static void incrementCounters(char c, uint32_t &line, uint32_t &column)
 {
     if (c == '\n') {
         line = line + 1;
@@ -198,9 +198,9 @@ static void incrementCounters(char c, likely_size &line, likely_size &column)
     }
 }
 
-static void tokenize(const char *str, const size_t len, vector<likely_ast> &tokens, likely_size line, likely_size column)
+static void tokenize(const char *str, const size_t len, vector<likely_ast> &tokens, uint32_t line, uint32_t column)
 {
-    size_t i = 0;
+    uint32_t i = 0;
     while (true) {
         // Skip whitespace and control characters
         const char ignored = ' ';
@@ -211,9 +211,9 @@ static void tokenize(const char *str, const size_t len, vector<likely_ast> &toke
         if (i == len)
             break;
 
-        size_t begin = i;
-        const likely_size begin_line = line;
-        const likely_size begin_column = column;
+        uint32_t begin = i;
+        const uint32_t begin_line = line;
+        const uint32_t begin_column = column;
         bool inString = false;
         while ((i < len) && (inString || ((str[i] > ignored) && (str[i] != '(')
                                                              && (str[i] != ')')
@@ -242,7 +242,7 @@ static void tokenize(const char *str, const size_t len, vector<likely_ast> &toke
 // GFM = Github Flavored Markdown
 static void tokenizeGFM(const char *str, const size_t len, vector<likely_ast> &tokens)
 {
-    likely_size line = 0;
+    uint32_t line = 0;
     bool inBlock = false, skipBlock = false;
     size_t lineStart = 0;
     while (lineStart < len) {
@@ -371,15 +371,15 @@ static ReductionStatus reduceComposition(likely_const_ast tokens, size_t &offset
             vector<likely_ast> atoms;
             if (output.back()->type == likely_ast_list) {
                 // Inline it
-                for (likely_size i=0; i<output.back()->num_atoms; i++)
+                for (uint32_t i=0; i<output.back()->num_atoms; i++)
                     atoms.push_back(likely_retain_ast(output.back()->atoms[i]));
                 likely_release_ast(output.back());
             } else {
                 atoms.push_back(output.back());
             }
             output.pop_back();
-            const likely_size end_line = atoms.back()->end_line;
-            const likely_size end_column = atoms.back()->end_column;
+            const uint32_t end_line = atoms.back()->end_line;
+            const uint32_t end_column = atoms.back()->end_column;
             atoms.insert(atoms.begin() + 1, output.back());
             output.pop_back();
 
@@ -426,8 +426,8 @@ static ReductionStatus reduce(likely_const_ast tokens, size_t &offset, vector<li
         vector<likely_ast> atoms;
         atoms.push_back(output.back());
         output.pop_back();
-        const likely_size end_line = atoms.back()->end_line;
-        const likely_size end_column = atoms.back()->end_column;
+        const uint32_t end_line = atoms.back()->end_line;
+        const uint32_t end_column = atoms.back()->end_column;
 
         atoms.insert(atoms.begin(), output.back());
         output.pop_back();
@@ -460,7 +460,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
 
     static likely_const_ast comment = likely_new_atom(";", 1);
     if (!likely_ast_compare(token, comment)) {
-        const likely_size line = token->begin_line;
+        const uint32_t line = token->begin_line;
         while (token->begin_line == line) {
             if (offset < tokens->num_atoms)
                 token = tokens->atoms[offset++];
