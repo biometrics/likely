@@ -42,11 +42,6 @@ extern "C" {
  */
 
 /*!
- * \brief Size type guaranteed to be native width.
- */
-typedef uintptr_t likely_size;
-
-/*!
  * \brief How to interpret \ref likely_matrix::data.
  *
  * Available options are listed in \ref likely_matrix_type_mask.
