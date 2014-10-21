@@ -798,7 +798,7 @@ private:
         vector<double> values;
         for (size_t i=1; i<Args.size()-1; i++)
             values.push_back(Args[i].DoubleVal);
-        return GenericValue(likely_scalar_n(Args[0].IntVal.getZExtValue(), values.data(), values.size()));
+        return GenericValue(likely_scalar_n(Args[0].IntVal.getZExtValue(), values.data(), uint32_t(values.size())));
     }
 };
 

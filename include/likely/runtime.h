@@ -192,7 +192,7 @@ LIKELY_EXPORT likely_mat likely_scalar(likely_matrix_type type, double value);
  * \return A pointer to the new multi-element \ref likely_matrix, or \c NULL if \c malloc failed.
  * \see likely_scalar likely_scalar_va
  */
-LIKELY_EXPORT likely_mat likely_scalar_n(likely_matrix_type type, double *values, size_t n);
+LIKELY_EXPORT likely_mat likely_scalar_n(likely_matrix_type type, double *values, uint32_t n);
 
 /*!
  * \brief Allocate and initialize a new multi-element \ref likely_matrix.

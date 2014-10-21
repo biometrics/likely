@@ -78,10 +78,10 @@ likely_mat likely_scalar(likely_matrix_type type, double value)
 }
 
 //! [likely_scalar_n implementation.]
-likely_mat likely_scalar_n(likely_matrix_type type, double *values, size_t n)
+likely_mat likely_scalar_n(likely_matrix_type type, double *values, uint32_t n)
 {
     likely_mat m = likely_new(type, n, 1, 1, 1, NULL);
-    for (size_t i=0; i<n; i++)
+    for (uint32_t i=0; i<n; i++)
         likely_set_element(m, values[i], i, 0, 0, 0);
     return m;
 }
@@ -90,7 +90,7 @@ likely_mat likely_scalar_n(likely_matrix_type type, double *values, size_t n)
 likely_mat likely_scalar_va(likely_matrix_type type, double value, ...)
 {
     double *values = NULL;
-    int i = 0;
+    uint32_t i = 0;
 
     va_list ap;
     va_start(ap, value);
@@ -108,7 +108,7 @@ likely_mat likely_scalar_va(likely_matrix_type type, double value, ...)
 //! [likely_string implementation.]
 likely_mat likely_string(const char *str)
 {
-    return likely_new(likely_matrix_string, strlen(str) + 1 /* include the null-terminator */, 1, 1, 1, str);
+    return likely_new(likely_matrix_string, (uint32_t)strlen(str) + 1 /* include the null-terminator */, 1, 1, 1, str);
 }
 //! [likely_string implementation.]
 
