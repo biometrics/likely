@@ -159,7 +159,7 @@ LIKELY_EXPORT likely_fun likely_retain_fun(likely_const_fun fun);
  * \brief Release a reference to a function.
  *
  * Decrements \ref likely_function::ref_count.
- * \param[in] env Environment to subtract a reference. May be \c NULL.
+ * \param[in] fun Function to subtract a reference. May be \c NULL.
  * \see likely_release_fun
  */
 LIKELY_EXPORT void likely_release_fun(likely_const_fun fun);
