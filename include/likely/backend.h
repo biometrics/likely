@@ -162,15 +162,47 @@ LIKELY_EXPORT likely_fun likely_retain_fun(likely_const_fun fun);
  */
 LIKELY_EXPORT void likely_release_fun(likely_const_fun fun);
 
-// Evaluation
-// These functions will modify ast->type to change atom values to their correct type,
-// and parent->children / parent->num_children to add the newly constructed environment.
+/*!
+ * \brief Evaluate an expression in the context of an environment.
+ *
+ * This function will modify \p ast->type to change atom values to their correct type,
+ * and \p parent->children / \p parent->num_children to add the newly constructed environment.
+ * \param[in] ast Statement to evaluate.
+ * \param[in] parent Environment in which to evaluate \p ast.
+ * \return A new \ref likely_environment holding the evaluation result.
+ * \see likely_repl
+ */
 LIKELY_EXPORT likely_env likely_eval(likely_ast ast, likely_env parent);
+
+/*!
+ * \brief Signature of a function to call after a statement is completed.
+ * \see likely_repl
+ */
 typedef void (*likely_repl_callback)(likely_const_env env, void *context);
+
+/*!
+ * \brief Read-evaluate-print-loop.
+ *
+ * Evaluate a series of statements.
+ * \param[in] ast Statements to evaluate.
+ * \param[in] parent Environment in which to evaluate \p ast.
+ * \param[in] repl_callback Function to call with the output of each completed statement.
+ * \param[in] context User-defined data to pass to \p repl_callback.
+ * \return A new \ref likely_environment holding the final evaluation result.
+ * \see likely_eval
+ */
 LIKELY_EXPORT likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback repl_callback, void *context);
+
+/*!
+ * \brief Get the result of an evaluated expression.
+ * \param[in] expr The expression that was evaluated.
+ * \return Reference to the result.
+ */
 LIKELY_EXPORT likely_const_env likely_evaluated_expression(struct likely_expression const *expr);
 
-// Contents of library/standard.l
+/*!
+ * \brief Contents of the Likely Standard Library: <tt>library/standard.ll</tt>.
+ */
 LIKELY_EXPORT extern const char likely_standard_library[];
 
 // Dynamic dispatch

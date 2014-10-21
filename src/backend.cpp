@@ -2835,7 +2835,7 @@ likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback r
     return env;
 }
 
-likely_const_env likely_evaluated_expression(likely_const_expr expr)
+likely_const_env likely_evaluated_expression(struct likely_expression const *expr)
 {
     return EvaluatedExpression::get(expr);
 }
