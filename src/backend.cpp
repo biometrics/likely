@@ -2840,10 +2840,10 @@ likely_const_env likely_evaluated_expression(struct likely_expression const *exp
     return EvaluatedExpression::get(expr);
 }
 
-likely_mat likely_md5(likely_const_mat buffer)
+likely_mat likely_md5(likely_const_mat mat)
 {
     MD5 md5;
-    md5.update(ArrayRef<uint8_t>(reinterpret_cast<const uint8_t*>(buffer->data), likely_bytes(buffer)));
+    md5.update(ArrayRef<uint8_t>(reinterpret_cast<const uint8_t*>(mat->data), likely_bytes(mat)));
     MD5::MD5Result md5Result;
     md5.final(md5Result);
     return likely_new(likely_matrix_u8, 16, 1, 1, 1, md5Result);
