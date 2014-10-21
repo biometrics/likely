@@ -287,7 +287,7 @@ typedef void (*likely_thunk)(void *args, size_t start, size_t stop);
 /*!
  * \brief Execute work in parallel.
  *
- * In contrast to likely_dynamic, thunk parameters are known at compile time and may therefore take an arbitrary internally-defined structure.
+ * In contrast to \ref likely_dynamic, thunk parameters are known at compile time and may therefore take an arbitrary internally-defined structure.
  * The implementation is very similar to how \a OpenMP works.
  * [Here](https://software.intel.com/en-us/blogs/2010/07/23/thunk-you-very-much-or-how-do-openmp-compilers-work-part-2) is a good introductory article on the subject.
  *

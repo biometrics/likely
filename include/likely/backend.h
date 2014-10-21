@@ -136,6 +136,8 @@ LIKELY_EXPORT void likely_release_env(likely_const_env env);
  *
  * If an incomplete \p type is specified, dynamic dispatch will occur at runtime
  * based on the types of the \ref likely_matrix arguments.
+ * See \ref likely_dynamic for details.
+ *
  * \param[in] ast Function abstract syntax tree.
  * \param[in] env Function environment.
  * \param[in] type Function type terminated by \ref likely_matrix_void.
@@ -205,14 +207,24 @@ LIKELY_EXPORT likely_const_env likely_evaluated_expression(struct likely_express
  */
 LIKELY_EXPORT extern const char likely_standard_library[];
 
-// Dynamic dispatch
-//   Since dynamic dispatch does code generation based on runtime argument types,
-//   it follows that dynamic dispatch can only work on functions where all parameter types can be inspected at runtime.
-//   In other words, functions that have only likely_mat parameters.
-//   This is in contrast to likely_fork where parameters are known at compile time
-//   and may therefore take an arbitrary internally-defined structure.
+/*!
+ * \brief Used internally to hold data structures required for dynamic dispatch.
+ * \see likely_dynamic
+ */
 typedef struct likely_virtual_table *likely_vtable;
-LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *m);
+
+/*!
+ * \brief Used internally for dynamic dispatch.
+ *
+ * Since dynamic dispatch does code generation based on runtime argument types,
+ * it follows that dynamic dispatch can only work on functions where all parameter types can be inspected at runtime.
+ * In other words, functions that have only likely_mat parameters.
+ * This is in contrast to \ref likely_fork where parameters are known at compile time and may therefore take an arbitrary internally-defined structure.
+ * \note This function is used internally and should not be called directly.
+ * \param[in] vtable Virtual function table for retrieving or compiling the appropriate function based on the types of \p m.
+ * \param[in] mats Array of arguments to pass to the function. The length of \p mats is known by \p vtable.
+ */
+LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats);
 
 // Miscellaneous
 LIKELY_EXPORT likely_mat likely_md5(likely_const_mat buffer);

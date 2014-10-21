@@ -2709,13 +2709,13 @@ void likely_release_env(likely_const_env env)
     free(const_cast<likely_env>(env));
 }
 
-likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
+likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats)
 {
     void *function = NULL;
     for (size_t i=0; i<vtable->functions.size(); i++) {
         const unique_ptr<JITFunction> &jitFunction = vtable->functions[i];
         for (size_t j=0; j<vtable->n; j++)
-            if (mv[j]->type != jitFunction->parameters[j])
+            if (mats[j]->type != jitFunction->parameters[j])
                 goto Next;
         function = jitFunction->function;
         if (function == NULL)
@@ -2728,14 +2728,14 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mv)
     if (function == NULL) {
         vector<likely_size> types;
         for (size_t i=0; i<vtable->n; i++)
-            types.push_back(mv[i]->type);
+            types.push_back(mats[i]->type);
         vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->ast)).get(), vtable->env, types, true, false, true)));
         function = vtable->functions.back()->function;
         if (function == NULL)
             return NULL;
     }
 
-    return reinterpret_cast<likely_mat (*)(likely_const_mat const*)>(function)(mv);
+    return reinterpret_cast<likely_mat (*)(likely_const_mat const*)>(function)(mats);
 }
 
 likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_matrix_type type, ...)
