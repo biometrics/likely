@@ -129,7 +129,7 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
         }
 
         fseek(fp, 0, SEEK_SET);
-        likely_mat buffer = likely_new(likely_matrix_u8, 1, size + ((type & likely_file_text) ? 1 : 0), 1, 1, NULL);
+        likely_mat buffer = likely_new(likely_matrix_u8, 1, uint32_t(size + ((type & likely_file_text) ? 1 : 0)), 1, 1, NULL);
         const bool success = (fread(buffer->data, 1, size, fp) == size);
         fclose(fp);
         if (success) {
@@ -154,7 +154,7 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
         if ((i == 0) && image) {
             firstHeader = *image;
             step = likely_bytes(&firstHeader);
-            result = likely_new(firstHeader.type, firstHeader.channels, firstHeader.columns, firstHeader.rows, firstHeader.frames * futures.size(), NULL);
+            result = likely_new(firstHeader.type, firstHeader.channels, firstHeader.columns, firstHeader.rows, uint32_t(firstHeader.frames * futures.size()), NULL);
         }
 
         valid = valid
