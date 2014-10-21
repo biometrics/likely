@@ -66,31 +66,23 @@ typedef struct likely_abstract_syntax_tree const *likely_const_ast; /*!< \brief 
  * In tree-terminology a list is a \a branch, and an atom is a \a leaf.
  *
  * In Likely source code, parenthesis, periods and colons are used to construct lists, and everything else is an atom.
+ * \see \ref reference_counting
  */
 struct likely_abstract_syntax_tree
 {
-    /*!
-     * \brief A list or an atom.
-     */
     union {
-        /*!
-         * \brief Accessible when <tt>\ref type == \ref likely_ast_list</tt>.
-         */
         struct
         {
             const likely_ast * const atoms; /*!< \brief List elements. */
             uint32_t num_atoms; /*!< \brief Length of \ref atoms. */
-        };
+        }; /*!< \brief Accessible when <tt>\ref type == \ref likely_ast_list</tt>. */
 
-        /*!
-         * \brief Accessible when <tt>\ref type != \ref likely_ast_list</tt>.
-         */
         struct
         {
             const char * const atom; /*!< \brief <tt>NULL</tt>-terminated single-word token. */
             uint32_t atom_len; /*!< \brief Length of \ref atom, excluding the <tt>NULL</tt>-terminator. */
-        };
-    };
+        }; /*!< \brief Accessible when <tt>\ref type != \ref likely_ast_list</tt>. */
+    }; /*!< \brief A list or an atom. */
 
     likely_const_ast parent; /*!< \brief This node's predecessor, or \c NULL if this node is the root. */
     uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain_ast and \ref likely_release_ast to track ownership. */
@@ -144,6 +136,7 @@ typedef struct likely_error const *likely_const_err; /*!< \brief Pointer to a co
 
 /*!
  * \brief A compilation error.
+ * \see \ref reference_counting
  */
 struct likely_error
 {

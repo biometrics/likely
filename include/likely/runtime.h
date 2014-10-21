@@ -28,7 +28,7 @@ extern "C" {
 
 /*!
  * \defgroup runtime Runtime
- * \brief Symbols required by a compiled function (\c likely/runtime.h).
+ * \brief Symbols required by compiled functions (\c likely/runtime.h).
  *
  * Statically compiled Likely algorithms will generally depend on these symbols
  * <i>and these symbols only</i>.
@@ -91,32 +91,23 @@ typedef struct likely_matrix const *likely_const_mat; /*!< \brief Pointer to a c
 typedef struct likely_matrix *likely_mat; /*!< \brief Pointer to a \ref likely_matrix. */
 
 /*!
- * \brief The principal data structure in Likely.
+ * \brief Multi-dimensional data for input and output to functions.
  *
  * The fields excluding \ref data are collectively referred to as the matrix _header_.
  * In contrast to most image processing libraries which tend to feature 3-dimensional matrices (_channels_, _columns_ and _rows_), Likely includes a fourth dimension, _frames_, in order to facilitate processing videos and image collections.
  *
- * \section memory_management
- * Matricies are designed for heap allocation using \ref likely_new, and are passed around by pointer using \ref likely_mat and \ref likely_const_mat.
- * A matrix keeps track of its reference count in \ref likely_matrix::ref_count.
- * References are incremented and decremented using \ref likely_retain and \ref likely_release respectively.
- * A matrix is automatically freed by \ref likely_release when its reference count goes to zero.
- *
  * \section element_access Element Access
  * By convention, element layout in \ref data with respect to decreasing spatial locality is: channel, column, row, frame.
  * Thus an element at channel _c_, column _x_, row _y_, and frame _t_, can be retrieved like:
- *
  * \snippet src/runtime_common.c likely_element implementation.
  *
  * Convenience functions \ref likely_element and \ref likely_set_element are provided for individual element access.
  * These functions should be used sparingly as they are inefficient for iterating over a large numbers of elements due to the repeated index calculations.
+ * \see \ref reference_counting
  */
 struct likely_matrix
 {
-    uint32_t ref_count; /*!< \brief Reference count.
-                         *
-                         * Used by \ref likely_retain and \ref likely_release to track ownership.
-                         */
+    uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain and \ref likely_release to track ownership. */
     likely_matrix_type type; /*!< \brief Interpretation of \ref data. */
     uint32_t channels; /*!< \brief Sub-spatial dimensionality. */
     uint32_t columns;  /*!< \brief Horizontal dimensionality. */

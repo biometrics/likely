@@ -5,7 +5,7 @@ include(ExternalProject)
 
 # Configure
 set(CPACK_PACKAGE_NAME "Likely")
-set(CPACK_PACKAGE_DESCRIPTION "Likely Image Recognition Runtime")
+set(CPACK_PACKAGE_DESCRIPTION "The Likely Programming Language")
 set(CPACK_PACKAGE_VERSION_MAJOR 0)
 set(CPACK_PACKAGE_VERSION_MINOR 2)
 set(CPACK_PACKAGE_VERSION_PATCH 0)

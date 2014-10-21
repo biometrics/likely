@@ -58,6 +58,7 @@ typedef struct likely_environment const *likely_const_env; /*!< \brief Pointer t
 
 /*!
  * \brief The context in which the semantics of an abstract syntax tree is determined.
+ * \see \ref reference_counting
  */
 struct likely_environment
 {
@@ -79,12 +80,12 @@ typedef struct likely_function const *likely_const_fun; /*!< \brief Pointer to a
 
 /*!
  * \brief The output of compilation.
- * \see likely_compile
+ * \see \ref reference_counting
  */
 struct likely_function
 {
     void *function; /*!< \brief Pointer to the resulting executable function with a \c C ABI. */
-    uint32_t ref_count; /*!< \brief Reference count. */
+    uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain_fun and \ref likely_release_fun to track ownership. */
 };
 
 /*!
