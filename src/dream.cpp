@@ -98,15 +98,15 @@ public slots:
     {
         likely_release_env(this->env);
         this->env = likely_retain_env(env);
-        for (likely_size i=env->ast->begin_line; i<=env->ast->end_line; i++)
+        for (uint32_t i=env->ast->begin_line; i<=env->ast->end_line; i++)
             rehighlightBlock(document()->findBlockByNumber(i));
     }
 
 private:
-    void highlightAST(likely_size line, likely_const_ast ast)
+    void highlightAST(uint32_t line, likely_const_ast ast)
     {
         if (ast->type == likely_ast_list) {
-            for (likely_size i=0; i<ast->num_atoms; i++)
+            for (uint32_t i=0; i<ast->num_atoms; i++)
                 highlightAST(line, ast->atoms[i]);
         } else {
             assert(ast->begin_line == ast->end_line);
@@ -123,14 +123,14 @@ private:
     void highlightBlock(const QString &text)
     {
         setFormat(0, text.size(), commentFormat); // Assume it's a comment until we prove otherwise
-        const likely_size line = currentBlock().blockNumber();
+        const uint32_t line = uint32_t(currentBlock().blockNumber());
         likely_const_env it = env;
         likely_const_ast root_ast = getRoot(env ? env->ast : NULL);
         while (it && it->ast && (it->ast->end_line >= line) && (getRoot(it->ast) == root_ast)) {
             if ((line >= it->ast->begin_line) && (line <= it->ast->end_line)) {
                 // It's code
-                const likely_size begin = (line == it->ast->begin_line) ? it->ast->begin_column : 0;
-                const likely_size end = (line == it->ast->end_line) ? it->ast->end_column : text.size();
+                const uint32_t begin = (line == it->ast->begin_line) ? it->ast->begin_column : 0;
+                const uint32_t end = (line == it->ast->end_line) ? it->ast->end_column : text.size();
                 setFormat(begin, end-begin, codeFormat);
                 highlightAST(line, it->ast);
             }
@@ -209,8 +209,8 @@ private:
         likely_const_env hotSpot = NULL;
         if (current && !pos.isNull()) {
             const QTextCursor tc = cursorForPosition(pos);
-            const likely_size line   = tc.blockNumber();
-            const likely_size column = tc.positionInBlock();
+            const uint32_t line   = uint32_t(tc.blockNumber());
+            const uint32_t column = uint32_t(tc.positionInBlock());
 
             likely_const_env it = current;
             while (it && it->ast && !(it->type & likely_environment_erratum) &&
@@ -305,7 +305,7 @@ private:
         if (!likely_ast_compare(ast, sub_ast))
             return true;
         if (ast->type == likely_ast_list)
-            for (likely_size i=0; i<ast->num_atoms; i++)
+            for (uint32_t i=0; i<ast->num_atoms; i++)
                 if (contains(ast->atoms[i], sub_ast))
                     return true;
         return false;
@@ -333,7 +333,7 @@ private slots:
             return;
 
         likely_ast header_ast = likely_lex_and_parse(qPrintable(header), likely_source_gfm);
-        for (likely_size i=0; i<header_ast->num_atoms; i++) {
+        for (uint32_t i=0; i<header_ast->num_atoms; i++) {
             // Remove unused variables
             if (!contains(source_ast, header_ast->atoms[i]->atoms[1])) {
                 likely_release_ast(header_ast->atoms[i]);
@@ -447,7 +447,7 @@ public:
         } else {
             likely_mat show = (m->frames == 1) ? likely_retain(m)
                                                : likely_new(m->type, m->channels, m->columns, m->rows, 1,
-                                                            m->data + likely_size(min(fabs(x), 1.0) * (m->frames-1)) * (((m->type & likely_matrix_depth) * m->channels * m->columns * m->rows + 7) / 8));
+                                                            m->data + size_t(min(fabs(x), 1.0) * (m->frames-1)) * (((m->type & likely_matrix_depth) * size_t(m->channels) * size_t(m->columns) * size_t(m->rows) + 7) / 8));
             double min, max;
             likely_const_mat rendered = likely_render(show, &min, &max);
             likely_release(show);
