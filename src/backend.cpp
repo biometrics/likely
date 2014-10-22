@@ -766,28 +766,28 @@ struct Builder : public IRBuilder<>
 
     likely_expression retainMat(Value *m)
     {
-        Function *likelyRetain = module()->getFunction("likely_retain");
+        Function *likelyRetain = module()->getFunction("likely_retain_mat");
         if (!likelyRetain) {
             FunctionType *functionType = FunctionType::get(multiDimension(), multiDimension(), false);
-            likelyRetain = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_retain", module());
+            likelyRetain = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_retain_mat", module());
             likelyRetain->setCallingConv(CallingConv::C);
             likelyRetain->setDoesNotAlias(1);
             likelyRetain->setDoesNotCapture(1);
-            sys::DynamicLibrary::AddSymbol("likely_retain", (void*) likely_retain_mat);
+            sys::DynamicLibrary::AddSymbol("likely_retain_mat", (void*) likely_retain_mat);
         }
         return likely_expression(CreateCall(likelyRetain, CreatePointerCast(m, multiDimension())), likely_matrix_multi_dimension);
     }
 
     likely_expression releaseMat(Value *m)
     {
-        Function *likelyRelease = module()->getFunction("likely_release");
+        Function *likelyRelease = module()->getFunction("likely_release_mat");
         if (!likelyRelease) {
             FunctionType *functionType = FunctionType::get(Type::getVoidTy(getContext()), multiDimension(), false);
-            likelyRelease = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_release", module());
+            likelyRelease = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_release_mat", module());
             likelyRelease->setCallingConv(CallingConv::C);
             likelyRelease->setDoesNotAlias(1);
             likelyRelease->setDoesNotCapture(1);
-            sys::DynamicLibrary::AddSymbol("likely_release", (void*) likely_release_mat);
+            sys::DynamicLibrary::AddSymbol("likely_release_mat", (void*) likely_release_mat);
         }
         return likely_expression(CreateCall(likelyRelease, CreatePointerCast(m, multiDimension())), likely_matrix_void);
     }
