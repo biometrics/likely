@@ -65,12 +65,15 @@ static cl::opt<bool> parallel("parallel" , cl::desc("Compile parallel kernels"))
 
 static void checkOrPrintAndRelease(likely_const_mat input)
 {
-    const string assertValue = assert_;
-    if (assertValue.empty())
+    assert(likely_is_string(input));
+    if (assert_.getValue().empty()) {
         printf("%s\n", input->data);
-    else
-        likely_assert(!strcmp(input->data, assertValue.c_str()), "expected: %s\n"
-                                                          "            got: %s", assertValue.c_str(), input->data);
+    } else {
+        const size_t len = input->channels - 1;
+        likely_assert((len <= assert_.getValue().size()) && !strncmp(input->data, assert_.getValue().c_str(), len),
+                      "expected: %s\n        but got: %s", assert_.getValue().c_str(), input->data);
+        assert_.setValue(assert_.getValue().substr(len));
+    }
     likely_release_mat(input);
 }
 
@@ -95,12 +98,11 @@ static void showCallback(likely_const_env env, void *context)
 static void replShow(likely_const_env env, void *context)
 {
     if (!context) return;
-    const string assertValue = assert_;
-    if (assertValue.empty()) {
+    if (assert_.getValue().empty()) {
         showCallback(env, context);
     } else {
         likely_mat rendered = likely_render(env->result, NULL, NULL);
-        likely_mat baseline = likely_read(assertValue.c_str(), likely_file_binary);
+        likely_mat baseline = likely_read(assert_.getValue().c_str(), likely_file_binary);
         likely_assert(rendered->channels == baseline->channels, "expected: %d channels, got: %d", baseline->channels, rendered->channels);
         likely_assert(rendered->columns  == baseline->columns , "expected: %d columns, got: %d" , baseline->columns , rendered->columns);
         likely_assert(rendered->rows     == baseline->rows    , "expected: %d rows, got: %d"    , baseline->rows    , rendered->rows);
@@ -112,6 +114,7 @@ static void replShow(likely_const_env env, void *context)
         likely_release_mat(rendered);
         likely_release_mat(baseline);
         likely_assert(delta < 2*elements /* arbitrary threshold */, "average delta: %g", float(delta) / float(elements));
+        assert_.setValue(string());
     }
 }
 
@@ -204,6 +207,7 @@ int main(int argc, char *argv[])
         likely_release_mat(code);
     }
 
+    likely_assert(assert_.getValue().empty(), "unreached assertion: %s", assert_.getValue().data());
     likely_release_env(parent);
     likely_shutdown();
     return EXIT_SUCCESS;
