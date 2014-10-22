@@ -725,26 +725,27 @@ struct Builder : public IRBuilder<>
             return likely_expression(CreateCall(likelyString, *expr), likely_matrix_string);
         }
 
-        Function *likelyScalar = module()->getFunction("likely_scalar_va");
+        Function *likelyScalar = module()->getFunction("likely_scalar_n");
         if (!likelyScalar) {
-            Type *params[] = { Type::getInt32Ty(getContext()), Type::getDoubleTy(getContext()) };
-            FunctionType *functionType = FunctionType::get(multiDimension(), params, true);
-            likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar_va", module());
+            Type *params[] = { Type::getInt32Ty(getContext()), Type::getDoublePtrTy(getContext()), Type::getInt32Ty(getContext()) };
+            FunctionType *functionType = FunctionType::get(multiDimension(), params, false);
+            likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar_n", module());
             likelyScalar->setCallingConv(CallingConv::C);
             likelyScalar->setDoesNotAlias(0);
-            sys::DynamicLibrary::AddSymbol("likely_scalar_va", (void*) likely_scalar_va);
-            sys::DynamicLibrary::AddSymbol("lle_X_likely_scalar_va", (void*) lle_X_likely_scalar_va);
+            likelyScalar->setDoesNotAlias(2);
+            likelyScalar->setDoesNotCapture(2);
+            sys::DynamicLibrary::AddSymbol("likely_scalar_n", (void*) likely_scalar_n);
         }
 
-        vector<Value*> args;
+        const vector<likely_const_expr> exprs(expr->subexpressionsOrSelf());
+        Value *n = constant(uint64_t(exprs.size()), likely_matrix_u32);
+        AllocaInst *values = CreateAlloca(Type::getDoubleTy(getContext()), n);
         likely_matrix_type type = likely_matrix_void;
-        for (likely_const_expr e : expr->subexpressionsOrSelf()) {
-            args.push_back(cast(*e, likely_matrix_f64));
-            type = likely_type_from_types(type, e->type);
+        for (size_t i=0; i<exprs.size(); i++) {
+            CreateStore(cast(*exprs[i], likely_matrix_f64), CreateGEP(values, constant(i)));
+            type = likely_type_from_types(type, exprs[i]->type);
         }
-        args.push_back(ConstantFP::get(getContext(), APFloat::getNaN(APFloat::IEEEdouble)));
-        args.insert(args.begin(), matrixType(type));
-        return likely_expression(CreateCall(likelyScalar, args), likely_matrix_multi_dimension);
+        return likely_expression(CreateCall3(likelyScalar, constant(uint64_t(type), likely_matrix_u32), values, n), likely_matrix_multi_dimension);
     }
 
     likely_expression newMat(Value *type, Value *channels, Value *columns, Value *rows, Value *frames, Value *data)
@@ -790,15 +791,6 @@ struct Builder : public IRBuilder<>
             sys::DynamicLibrary::AddSymbol("likely_release_mat", (void*) likely_release_mat);
         }
         return likely_expression(CreateCall(likelyRelease, CreatePointerCast(m, multiDimension())), likely_matrix_void);
-    }
-
-private:
-    static GenericValue lle_X_likely_scalar_va(FunctionType *, const vector<GenericValue> &Args)
-    {
-        vector<double> values;
-        for (size_t i=1; i<Args.size()-1; i++)
-            values.push_back(Args[i].DoubleVal);
-        return GenericValue(likely_scalar_n(likely_matrix_type(Args[0].IntVal.getZExtValue()), values.data(), uint32_t(values.size())));
     }
 };
 
