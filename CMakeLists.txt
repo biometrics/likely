@@ -109,25 +109,25 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # Add dataset targets
 file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/average_face.jpg
-              data/demo/average_face.jpg
+              "${CMAKE_SOURCE_DIR}/data/demo/average_face.jpg"
               EXPECTED_MD5 1c4eda72fd695402ab7188d8bfdcaee0)
 
 file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/gabor_wavelet.jpg
-              data/demo/gabor_wavelet.jpg
+              "${CMAKE_SOURCE_DIR}/data/demo/gabor_wavelet.jpg"
               EXPECTED_MD5 cf0c27b391516783f7973c83f3fd68f7)
 
 file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/hello_world.jpg
-              data/demo/hello_world.jpg
+              "${CMAKE_SOURCE_DIR}/data/demo/hello_world.jpg"
               EXPECTED_MD5 87f9409a6c28428565835413a41cc9e3)
 
 file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/mandelbrot_set.jpg
-              data/demo/mandelbrot_set.jpg
+              "${CMAKE_SOURCE_DIR}/data/demo/mandelbrot_set.jpg"
               EXPECTED_MD5 544dd8db0eaa75a2da846fa33445b5c9)
 
 ExternalProject_Add(lfwa
                     URL https://github.com/biometrics/likely/releases/download/v0.1/lfwa.tar.gz
                     URL_MD5 5d1d409b3b7217ec931facd89a542c89
-                    SOURCE_DIR ${CMAKE_SOURCE_DIR}/data/lfw2
+                    SOURCE_DIR "${CMAKE_SOURCE_DIR}/data/lfw2"
                     CONFIGURE_COMMAND ""
                     BUILD_COMMAND ""
                     INSTALL_COMMAND "")
@@ -135,7 +135,7 @@ ExternalProject_Add(lfwa
 ExternalProject_Add(misc
                     URL https://github.com/biometrics/likely/releases/download/v0.1/misc.tar.gz
                     URL_MD5 c69b1a52908da7b105667b2d4180651b
-                    SOURCE_DIR ${CMAKE_SOURCE_DIR}/data/misc
+                    SOURCE_DIR "${CMAKE_SOURCE_DIR}/data/misc"
                     CONFIGURE_COMMAND ""
                     BUILD_COMMAND ""
                     INSTALL_COMMAND "")
@@ -147,10 +147,6 @@ enable_testing()
 include_directories(include)
 add_subdirectory(src)
 add_subdirectory(share/likely/hello_world)
-
-if(UNIX)
-  execute_process(COMMAND cmake -E create_symlink ${CMAKE_SOURCE_DIR}/data ${CMAKE_BINARY_DIR}/data)
-endif()
 
 install(DIRECTORY include share DESTINATION ${CMAKE_INSTALL_PREFIX} PATTERN "*.DS_Store" EXCLUDE)
 install(FILES ${CMAKE_SOURCE_DIR}/LICENSE.txt ${CMAKE_SOURCE_DIR}/README.md DESTINATION share/likely)
