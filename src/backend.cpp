@@ -195,7 +195,7 @@ public:
                                                              Type::getInt64Ty(context), // _reserved
                                                              ArrayType::get(Type::getInt8Ty(context), 0), // data
                                                              NULL));
-            likely_release(str);
+            likely_release_mat(str);
         }
 
         if (likely & likely_matrix_array)
@@ -350,15 +350,15 @@ struct likely_expression
                 const likely_mat likely = likely_type_to_string(type);
                 value->dump();
                 likely_assert(false, "type mismatch between LLVM: %s and Likely: %s", llvm->data, likely->data);
-                likely_release(llvm);
-                likely_release(likely);
+                likely_release_mat(llvm);
+                likely_release_mat(likely);
             }
         }
     }
 
     virtual ~likely_expression()
     {
-        likely_release(data);
+        likely_release_mat(data);
         for (likely_const_expr e : subexpressions)
             delete e;
     }
@@ -412,7 +412,7 @@ struct likely_expression
         likely_const_mat m = likely_type_to_string(type);
         cerr << m->data << " ";
         value->dump();
-        likely_release(m);
+        likely_release_mat(m);
     }
 
     vector<likely_const_expr> subexpressionsOrSelf() const
@@ -532,7 +532,7 @@ struct likely_module
         for (likely_const_expr expr : exprs)
             delete expr;
         for (likely_const_mat mat : mats)
-            likely_release(mat);
+            likely_release_mat(mat);
     }
 
     void optimize()
@@ -685,7 +685,7 @@ struct Builder : public IRBuilder<>
         ~ConstantMat()
         {
             if (value->getNumUses() > 0)
-                mod->mats.push_back(likely_retain(getData()));
+                mod->mats.push_back(likely_retain_mat(getData()));
         }
     };
 
@@ -773,7 +773,7 @@ struct Builder : public IRBuilder<>
             likelyRetain->setCallingConv(CallingConv::C);
             likelyRetain->setDoesNotAlias(1);
             likelyRetain->setDoesNotCapture(1);
-            sys::DynamicLibrary::AddSymbol("likely_retain", (void*) likely_retain);
+            sys::DynamicLibrary::AddSymbol("likely_retain", (void*) likely_retain_mat);
         }
         return likely_expression(CreateCall(likelyRetain, CreatePointerCast(m, multiDimension())), likely_matrix_multi_dimension);
     }
@@ -787,7 +787,7 @@ struct Builder : public IRBuilder<>
             likelyRelease->setCallingConv(CallingConv::C);
             likelyRelease->setDoesNotAlias(1);
             likelyRelease->setDoesNotCapture(1);
-            sys::DynamicLibrary::AddSymbol("likely_release", (void*) likely_release);
+            sys::DynamicLibrary::AddSymbol("likely_release", (void*) likely_release_mat);
         }
         return likely_expression(CreateCall(likelyRelease, CreatePointerCast(m, multiDimension())), likely_matrix_void);
     }
@@ -825,7 +825,7 @@ struct Symbol : public likely_expression
             parameters.push_back(toLikely(argument.getType()));
         value = function;
         type = toLikely(function->getReturnType());
-        setData(likely_retain(expr->getData()));
+        setData(likely_retain_mat(expr->getData()));
     }
 
 private:
@@ -1409,7 +1409,7 @@ class tryExpression : public LikelyOperator
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         const likely_const_env env = likely_eval(ast->atoms[1], builder.env);
-        likely_const_expr result = (env && !(env->type & likely_environment_definition)) ? builder.mat(likely_retain(env->result))
+        likely_const_expr result = (env && !(env->type & likely_environment_definition)) ? builder.mat(likely_retain_mat(env->result))
                                                                                          : NULL;
         likely_release_env(env);
         if (!result)
@@ -1480,7 +1480,7 @@ struct Lambda : public LikelyOperator
 
         // If we are returning a constant matrix, make sure to retain a copy
         if (isa<ConstantExpr>(result->value) && isMat(result->value->getType()))
-            result.reset(new likely_expression(builder.CreatePointerCast(builder.retainMat(result->value), builder.toLLVM(result->type)), result->type, NULL, likely_retain(result->getData())));
+            result.reset(new likely_expression(builder.CreatePointerCast(builder.retainMat(result->value), builder.toLLVM(result->type)), result->type, NULL, likely_retain_mat(result->getData())));
 
         builder.CreateRet(*result);
 
@@ -1498,7 +1498,7 @@ struct Lambda : public LikelyOperator
 
         if (originalInsertBlock)
             builder.SetInsertPoint(originalInsertBlock);
-        return new likely_expression(function, likely_matrix_void, NULL, likely_retain(result->getData()));
+        return new likely_expression(function, likely_matrix_void, NULL, likely_retain_mat(result->getData()));
     }
 
     likely_mat evaluateConstantFunction(likely_env env, const vector<likely_const_mat> &args) const
@@ -1517,7 +1517,7 @@ struct Lambda : public LikelyOperator
                 gv.push_back(GenericValue((void*) args.data()));
             return (likely_mat) jit.EE->runFunction(cast<Function>(jit.value), gv).PointerVal;
         } else { // constant or error
-            return likely_retain(jit.getData());
+            return likely_retain_mat(jit.getData());
         }
     }
 
@@ -2249,7 +2249,7 @@ private:
             return new likely_expression(builder.constant(likely_element(m, 0, 0, 0, 0), m->type & likely_matrix_element));
         } else {
             // Return the matrix
-            return new likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(m)), uintptr_t(m)), builder.toLLVM(m->type)), m->type, NULL, likely_retain(m));
+            return new likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(m)), uintptr_t(m)), builder.toLLVM(m->type)), m->type, NULL, likely_retain_mat(m));
         }
     }
 
@@ -2557,7 +2557,7 @@ class writeExpression : public SimpleBinaryOperator
     {
         if (likely_const_mat image = arg1->getData())
             if (likely_const_mat fileName = arg2->getData())
-                return builder.mat(likely_retain(likely_write(image, fileName->data)));
+                return builder.mat(likely_retain_mat(likely_write(image, fileName->data)));
 
         Function *likelyWrite = builder.module()->getFunction("likely_write");
         if (!likelyWrite) {
@@ -2696,7 +2696,7 @@ void likely_release_env(likely_const_env env)
 
     // Do this early to guarantee the environment for these lifetime of these classes
     if (env->type & likely_environment_definition) delete env->value;
-    else                                           likely_release(env->result);
+    else                                           likely_release_mat(env->result);
 
     likely_release_ast(env->ast);
     free(env->children);

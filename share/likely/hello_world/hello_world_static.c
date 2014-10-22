@@ -29,8 +29,8 @@ int main()
         }
 
     printf("Releasing data...\n");
-    likely_release(input);
-    likely_release(output);
+    likely_release_mat(input);
+    likely_release_mat(output);
 
     printf("Done!\n");
     return 0;

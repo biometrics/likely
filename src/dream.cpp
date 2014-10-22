@@ -443,16 +443,16 @@ public:
 
             likely_mat printed = likely_to_string(m);
             type->setText(printed->data);
-            likely_release(printed);
+            likely_release_mat(printed);
         } else {
-            likely_mat show = (m->frames == 1) ? likely_retain(m)
+            likely_mat show = (m->frames == 1) ? likely_retain_mat(m)
                                                : likely_new(m->type, m->channels, m->columns, m->rows, 1,
                                                             m->data + size_t(min(fabs(x), 1.0) * (m->frames-1)) * (((m->type & likely_matrix_depth) * size_t(m->channels) * size_t(m->columns) * size_t(m->rows) + 7) / 8));
             double min, max;
             likely_const_mat rendered = likely_render(show, &min, &max);
-            likely_release(show);
+            likely_release_mat(show);
             image->setImage(QImage(reinterpret_cast<const uchar*>(rendered->data), rendered->columns, rendered->rows, 3*rendered->columns, QImage::Format_RGB888).rgbSwapped());
-            likely_release(rendered);
+            likely_release_mat(rendered);
 
             likely_mat str = likely_type_to_string(m->type);
             type->setText(QString("%1 (%2 %3 %4 %5) [%6, %7]").arg(str->data,
@@ -462,7 +462,7 @@ public:
                                                                    QString::number(m->frames),
                                                                    QString::number(min),
                                                                    QString::number(max)));
-            likely_release(str);
+            likely_release_mat(str);
         }
 
         updateDefinition(name);
@@ -907,7 +907,7 @@ private:
         likely_mat str = likely_err_to_string(err);
         qDebug() << str->data;
         reinterpret_cast<QStatusBar*>(context)->showMessage(str->data);
-        likely_release(str);
+        likely_release_mat(str);
     }
 };
 

@@ -57,13 +57,13 @@ static likely_mat takeAndInterpret(likely_mat buffer, size_t type)
         buffer->channels = uint32_t(bytes);
         buffer->columns = buffer->rows = buffer->frames = 1;
         buffer->type = likely_matrix_string;
-        result = likely_retain(buffer);
+        result = likely_retain_mat(buffer);
     }
 
     if (!result)
-        result = likely_retain(buffer);
+        result = likely_retain_mat(buffer);
 
-    likely_release(buffer);
+    likely_release_mat(buffer);
     return result;
 }
 
@@ -123,7 +123,7 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
                 if (sizeof(likely_matrix) + bytes == size) {
                     likely_mat m = likely_new(header.type, header.channels, header.columns, header.rows, header.frames, NULL);
                     if (fread(m->data, 1, bytes, fp) == bytes) return m;
-                    else                                       likely_release(m);
+                    else                                       likely_release_mat(m);
                 }
             }
         }
@@ -135,7 +135,7 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
         if (success) {
             return takeAndInterpret(buffer, type);
         } else {
-            likely_release(buffer);
+            likely_release_mat(buffer);
             buffer = NULL;
         }
     }
@@ -172,7 +172,7 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
             result = NULL;
         }
 
-        likely_release(image);
+        likely_release_mat(image);
     }
 
     return result;
@@ -240,7 +240,7 @@ likely_mat likely_to_string_n(likely_const_mat *mats, size_t n)
             buffer << "(";
             likely_mat str = likely_type_to_string(m->type);
             buffer << str->data << " ";
-            likely_release(str);
+            likely_release_mat(str);
 
             buffer << (m->frames > 1 ? "(" : "");
             for (uint32_t t=0; t<m->frames; t++) {
@@ -325,7 +325,7 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
         if (mat->channels == 3) {
             if (min_) *min_ = min;
             if (max_) *max_ = max;
-            return likely_retain(mat);
+            return likely_retain_mat(mat);
         }
     }
 
@@ -342,8 +342,8 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
     likely_const_mat min_val = likely_scalar(likely_matrix_f32, min);
     likely_const_mat range_val = likely_scalar(likely_matrix_f32, range);
     likely_mat n = reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat, likely_const_mat)>(normalize->function)(mat, min_val, range_val);
-    likely_release(min_val);
-    likely_release(range_val);
+    likely_release_mat(min_val);
+    likely_release_mat(range_val);
 
     if (min_) *min_ = min;
     if (max_) *max_ = max;
@@ -355,5 +355,5 @@ void likely_show(likely_const_mat mat, const char *title)
     likely_mat rendered = likely_render(mat, NULL, NULL);
     cv::imshow(title, likelyToOpenCVMat(rendered));
     cv::waitKey();
-    likely_release(rendered);
+    likely_release_mat(rendered);
 }

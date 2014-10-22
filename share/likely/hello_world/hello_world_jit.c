@@ -48,11 +48,11 @@ int main(int argc, char *argv[])
     }
 
     puts("Cleaning up...");
-    likely_release(output);
+    likely_release_mat(output);
     likely_release_fun(fun);
     likely_release_env(env);
     likely_release_ast(ast);
-    likely_release(input);
+    likely_release_mat(input);
 
     puts("Done!");
     likely_shutdown();

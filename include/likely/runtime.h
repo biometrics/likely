@@ -107,7 +107,7 @@ typedef struct likely_matrix *likely_mat; /*!< \brief Pointer to a \ref likely_m
  */
 struct likely_matrix
 {
-    uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain and \ref likely_release to track ownership. */
+    uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain_mat and \ref likely_release_mat to track ownership. */
     likely_matrix_type type; /*!< \brief Interpretation of \ref data. */
     uint32_t channels; /*!< \brief Sub-spatial dimensionality. */
     uint32_t columns;  /*!< \brief Horizontal dimensionality. */
@@ -145,8 +145,6 @@ LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
  * In the latter case, \p data should be at least size \ref likely_bytes.
  *
  * The \ref likely_matrix_multi_dimension component of \ref likely_matrix::type is set automatically for \p channels, \p columns, \p rows and \p frames greater than one.
- *
- * Release the returned matrix with \ref likely_release.
  *
  * \par Implementation
  * \snippet src/runtime_common.c likely_new implementation.
@@ -213,12 +211,12 @@ LIKELY_EXPORT likely_mat likely_string(const char *str);
  *
  * Increments \ref likely_matrix::ref_count.
  * \par Implementation
- * \snippet src/runtime_common.c likely_retain implementation.
+ * \snippet src/runtime_common.c likely_retain_mat implementation.
  * \param[in] mat Matrix to add a reference. May be \c NULL.
  * \return \p mat.
- * \see likely_release
+ * \see likely_release_mat
  */
-LIKELY_EXPORT likely_mat likely_retain(likely_const_mat mat);
+LIKELY_EXPORT likely_mat likely_retain_mat(likely_const_mat mat);
 
 /*!
  * \brief Release a reference to a matrix.
@@ -226,11 +224,11 @@ LIKELY_EXPORT likely_mat likely_retain(likely_const_mat mat);
  * Decrements \ref likely_matrix::ref_count.
  * Frees the matrix memory when the reference count is decremented to zero.
  * \par Implementation
- * \snippet src/runtime_common.c likely_release implementation.
+ * \snippet src/runtime_common.c likely_release_mat implementation.
  * \param[in] mat Matrix to subtract a reference. May be \c NULL.
- * \see likely_retain
+ * \see likely_retain_mat
  */
-LIKELY_EXPORT void likely_release(likely_const_mat mat);
+LIKELY_EXPORT void likely_release_mat(likely_const_mat mat);
 
 /*!
  * \brief Get the value of a \ref likely_matrix at a specified location.

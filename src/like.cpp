@@ -53,7 +53,7 @@ static void checkOrPrintAndRelease(likely_const_mat input)
     else
         likely_assert(!strcmp(input->data, assertValue.c_str()), "expected: %s\n"
                                                           "            got: %s", assertValue.c_str(), input->data);
-    likely_release(input);
+    likely_release_mat(input);
 }
 
 static void replRecord(likely_const_env env, void *context)
@@ -65,7 +65,7 @@ static void replRecord(likely_const_env env, void *context)
     snprintf(fileName, bufferSize, record.getValue().c_str(), index++);
     likely_mat rendered = likely_render(env->result, NULL, NULL);
     likely_write(rendered, fileName);
-    likely_release(rendered);
+    likely_release_mat(rendered);
 }
 
 static void showCallback(likely_const_env env, void *context)
@@ -91,8 +91,8 @@ static void replShow(likely_const_env env, void *context)
         size_t delta = 0;
         for (size_t i=0; i<elements; i++)
             delta += abs(int(rendered->data[i]) - int(baseline->data[i]));
-        likely_release(rendered);
-        likely_release(baseline);
+        likely_release_mat(rendered);
+        likely_release_mat(baseline);
         likely_assert(delta < 2*elements /* arbitrary threshold */, "average delta: %g", float(delta) / float(elements));
     }
 }
@@ -112,7 +112,7 @@ static void replMD5(likely_const_env env, void *context)
     hex->data[2*bytes] = 0;
 
     checkOrPrintAndRelease(hex);
-    likely_release(md5);
+    likely_release_mat(md5);
 }
 
 static void replQuiet(likely_const_env, void *)
@@ -182,7 +182,7 @@ int main(int argc, char *argv[])
             likely_release_env(likely_repl(ast, parent, repl_callback, NULL));
             likely_release_ast(ast);
         }
-        likely_release(code);
+        likely_release_mat(code);
     }
 
     likely_release_env(parent);

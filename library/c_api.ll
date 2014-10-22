@@ -24,11 +24,11 @@ int main()
     likely_const_mat dark_lenna = ((likely_mat (*)(likely_const_mat))darken->function)(lenna);
 
     // Clean up
-    likely_release(dark_lenna);
+    likely_release_mat(dark_lenna);
     likely_release_fun(darken);
     likely_release_env(env);
     likely_release_ast(ast);
-    likely_release(lenna);
+    likely_release_mat(lenna);
     return 0;
 }
 ```

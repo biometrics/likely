@@ -33,7 +33,7 @@
  *
  * | Structure                        | Reference                                | Retain / Release                                  |
  * |----------------------------------|------------------------------------------|---------------------------------------------------|
- * | \ref likely_matrix               | \ref likely_mat \n \ref likely_const_mat | \ref likely_retain \n \ref likely_release         |
+ * | \ref likely_matrix               | \ref likely_mat \n \ref likely_const_mat | \ref likely_retain_mat \n \ref likely_release_mat |
  * | \ref likely_abstract_syntax_tree | \ref likely_ast \n \ref likely_const_ast | \ref likely_retain_ast \n \ref likely_release_ast |
  * | \ref likely_error                | \ref likely_err \n \ref likely_const_err | \ref likely_retain_err \n \ref likely_release_err |
  * | \ref likely_environment          | \ref likely_env \n \ref likely_const_env | \ref likely_retain_env \n \ref likely_release_env |

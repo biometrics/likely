@@ -112,8 +112,8 @@ likely_mat likely_string(const char *str)
 }
 //! [likely_string implementation.]
 
-//! [likely_retain implementation.]
-likely_mat likely_retain(likely_const_mat mat)
+//! [likely_retain_mat implementation.]
+likely_mat likely_retain_mat(likely_const_mat mat)
 {
     if (!mat)
         return NULL;
@@ -121,10 +121,10 @@ likely_mat likely_retain(likely_const_mat mat)
     ((likely_mat) mat)->ref_count++;
     return (likely_mat) mat;
 }
-//! [likely_retain implementation.]
+//! [likely_retain_mat implementation.]
 
-//! [likely_release implementation.]
-void likely_release(likely_const_mat mat)
+//! [likely_release_mat implementation.]
+void likely_release_mat(likely_const_mat mat)
 {
     if (!mat)
         return;
@@ -133,7 +133,7 @@ void likely_release(likely_const_mat mat)
         return;
     free((void*) mat);
 }
-//! [likely_release implementation.]
+//! [likely_release_mat implementation.]
 
 //! [likely_element implementation.]
 double likely_element(likely_const_mat m, uint32_t c, uint32_t x, uint32_t y, uint32_t t)

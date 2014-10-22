@@ -131,7 +131,7 @@ static void defaultErrorCallback(likely_err err, void *)
 {
     likely_mat str = likely_err_to_string(err);
     cerr << str->data << endl;
-    likely_release(str);
+    likely_release_mat(str);
 }
 
 static likely_error_callback ErrorCallback = defaultErrorCallback;

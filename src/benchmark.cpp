@@ -87,7 +87,7 @@ struct Test
 
                 likely_mat typeString = likely_type_to_string(type);
                 printf("%s \t%s \t%d \t%s\t", function(), typeString->data, size, execution.c_str());
-                likely_release(typeString);
+                likely_release_mat(typeString);
                 testCorrectness(reinterpret_cast<likely_mat (*)(likely_const_mat)>(f->function), srcCV, srcLikely);
 
                 if (BenchmarkTest) {
@@ -238,10 +238,10 @@ private:
                 fprintf(stderr, "Test for: %s differs in: %d location(s):\n%s", function(), errors, errorLocations.str().c_str());
                 exit(EXIT_FAILURE);
             }
-            likely_release(cvLikely);
+            likely_release_mat(cvLikely);
         }
 
-        likely_release(dstLikely);
+        likely_release_mat(dstLikely);
     }
 
     Speed testBaselineSpeed(const Mat &src) const
@@ -264,7 +264,7 @@ private:
         startTime = endTime = clock();
         while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
             likely_const_mat dstLikely = f(srcLikely);
-            likely_release(dstLikely);
+            likely_release_mat(dstLikely);
             endTime = clock();
             iter++;
         }
