@@ -155,7 +155,7 @@ LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
  * \param[in] frames \ref likely_matrix::frames.
  * \param[in] data \ref likely_matrix::data.
  * \return A pointer to the new \ref likely_matrix, or \c NULL if \c malloc failed.
- * \see likely_scalar_n likely_string
+ * \see likely_scalar likely_string
  */
 LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data);
 
@@ -164,13 +164,13 @@ LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, 
  *
  * Convenient alternative to \ref likely_new for low-dimensional matricies.
  * \par Implementation
- * \snippet src/runtime_common.c likely_scalar_n implementation.
+ * \snippet src/runtime_common.c likely_scalar implementation.
  * \param[in] type \ref likely_matrix::type.
  * \param[in] values Array of element values.
  * \param[in] n Length of \p values.
  * \return A pointer to the new multi-element \ref likely_matrix, or \c NULL if \c malloc failed.
  */
-LIKELY_EXPORT likely_mat likely_scalar_n(likely_matrix_type type, double *values, uint32_t n);
+LIKELY_EXPORT likely_mat likely_scalar(likely_matrix_type type, double *values, uint32_t n);
 
 /*!
  * \brief Allocate and initialize a new \ref likely_matrix from a string.

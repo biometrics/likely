@@ -725,16 +725,16 @@ struct Builder : public IRBuilder<>
             return likely_expression(CreateCall(likelyString, *expr), likely_matrix_string);
         }
 
-        Function *likelyScalar = module()->getFunction("likely_scalar_n");
+        Function *likelyScalar = module()->getFunction("likely_scalar");
         if (!likelyScalar) {
             Type *params[] = { Type::getInt32Ty(getContext()), Type::getDoublePtrTy(getContext()), Type::getInt32Ty(getContext()) };
             FunctionType *functionType = FunctionType::get(multiDimension(), params, false);
-            likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar_n", module());
+            likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar", module());
             likelyScalar->setCallingConv(CallingConv::C);
             likelyScalar->setDoesNotAlias(0);
             likelyScalar->setDoesNotAlias(2);
             likelyScalar->setDoesNotCapture(2);
-            sys::DynamicLibrary::AddSymbol("likely_scalar_n", (void*) likely_scalar_n);
+            sys::DynamicLibrary::AddSymbol("likely_scalar", (void*) likely_scalar);
         }
 
         const vector<likely_const_expr> exprs(expr->subexpressionsOrSelf());
