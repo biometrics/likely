@@ -224,6 +224,7 @@ typedef struct likely_virtual_table *likely_vtable;
  * \note This function is used internally and should not be called directly.
  * \param[in] vtable Virtual function table for retrieving or compiling the appropriate function based on the types of \p m.
  * \param[in] mats Array of arguments to pass to the function. The length of \p mats is known by \p vtable.
+ * \return The result from calling the dynamically dispatch function.
  */
 LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats);
 
