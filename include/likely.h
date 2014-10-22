@@ -11,12 +11,12 @@
  * \mainpage Likely API
  *
  * Welcome to the Likely API documentation!
- * Both the \c likely and \c dream exectuables are written on top of this interface, so anything they can do you can do too!
+ * Both the \ref console_interpreter_compiler and the IDE are written on top of this interface, so anything they can do you can do too!
  *
  * \section getting_started Getting Started
  * Likely has a \c C API.
  * Your project should <b><tt>\#include \<likely.h\></tt></b> and link against <b><tt>likely</tt></b>.
- * Note that all Likely symbols are prefixed with \c likely_ and follow a \c lowercase_underscore naming convention.
+ * Note that all symbols are prefixed with \c likely_ and follow a \c lowercase_underscore naming convention.
  * <i>[CMake](http://www.cmake.org/)</i> users may appreciate \c LikelyConfig.cmake provided in \c share/likely/.
  *
  * Start reading \ref hello_world_jit.

@@ -8,19 +8,20 @@
 
 /*!
  * \page hello_world_jit Hello World JIT
- * \brief Source code for the \c hello_world_jit application.
+ * \brief Documentation and source code for the \c hello_world_jit application.
  *
- * The \c hello_world_jit application takes three parameters:
- * - Path to an input image.
- * - Source code for a function.
- * - Path to an output image.
+ * This application takes three parameters:
+\verbatim
+$ hello_world_jit <input_image> <function> <output_image>
+\endverbatim
  *
- * The application applies the function to the input and saves the result as output.
- * Note that the provided function should only take one parameter (the input image).
+ * \c hello_world_jit calls \c \<function\> on \c \<input_image\> and saves the result to \c \<output_image\>.
+ * Note that the provided \c \<function\> should only take one parameter, the \c \<input_image\>.
  *
  * This application is a good entry point for learning about the Likely API.
  * Its source code in <tt>share/likely/hello_world/hello_world_jit.c</tt> is reproduced below:
  * \snippet share/likely/hello_world/hello_world_jit.c hello_world_jit implementation.
+ * Your next reading assignment is \ref console_interpreter_compiler.
  */
 
 //! [hello_world_jit implementation.]
