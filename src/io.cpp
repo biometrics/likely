@@ -339,8 +339,8 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
         likely_release_ast(ast);
     }
 
-    likely_const_mat min_val = likely_scalar(likely_matrix_f32, &min, 1);
-    likely_const_mat range_val = likely_scalar(likely_matrix_f32, &range, 1);
+    likely_const_mat min_val = likely_scalar_n(likely_matrix_f32, &min, 1);
+    likely_const_mat range_val = likely_scalar_n(likely_matrix_f32, &range, 1);
     likely_mat n = reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat, likely_const_mat)>(normalize->function)(mat, min_val, range_val);
     likely_release_mat(min_val);
     likely_release_mat(range_val);
