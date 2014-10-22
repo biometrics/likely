@@ -11,7 +11,7 @@
  * \mainpage Likely API
  *
  * Welcome to the Likely API documentation!
- * Both the \ref console_interpreter_compiler and the IDE are written on top of this interface, so anything they can do you can do too!
+ * Both the \ref console_interpreter_compiler and the \ref integrated_development_environment are written on top of this interface, so anything they can do you can do too!
  *
  * \section getting_started Getting Started
  * Likely has a \c C API.

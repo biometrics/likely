@@ -14,18 +14,33 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include <cassert>
+#include <string>
 #include <QtCore>
 #include <QtOpenGL>
 #include <QtWidgets>
 #include <llvm/Support/CommandLine.h>
-#include <cassert>
-#include <string>
+
+/*!
+ * \page integrated_development_environment Integrated Development Environment
+ * \brief Documentation for the \c dream Integrated Development Environment (IDE).
+ *
+ * This application takes one optional parameter:
+\verbatim
+$ dream [<source_file>]
+\endverbatim
+ *
+ * \c dream offers an interactive editor for Likely source code.
+ * It is our playground for experimenting with [live coding](http://www.worrydream.com) ideas.
+ */
+
+/// \cond IDE
 #include <likely.h>
 
 using namespace llvm;
 using namespace std;
 
-static cl::opt<string> Input(cl::Positional, cl::desc("<input file>"), cl::init(""));
+static cl::opt<string> Input(cl::Positional, cl::desc("<source_file>"), cl::init(""));
 static cl::opt<bool> Spartan("spartan", cl::desc("Hide the source code, only show the output"));
 
 class CommandMode : public QObject
@@ -939,3 +954,5 @@ Q_IMPORT_PLUGIN(QXcbIntegrationPlugin)
 #endif // LIKELY_STATIC_QT
 
 #include "dream.moc"
+
+/// \endcond
