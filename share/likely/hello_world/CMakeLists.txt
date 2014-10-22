@@ -7,8 +7,7 @@ if(${LIKELY_HELLOWORLD})
     add_executable(hello_world_jit hello_world_jit.c)
     target_link_libraries(hello_world_jit likely)
     add_test(NAME hello_world_jit
-             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-             COMMAND hello_world_jit data/misc/lenna.tiff "a :-> (=> a (/ a (a.type 2)))")
+             COMMAND hello_world_jit ${CMAKE_SOURCE_DIR}/data/misc/lenna.tiff "a :-> (=> a (/ a (a.type 2)))" dark_lenna.png)
   endif()
 
   # hello_world_static

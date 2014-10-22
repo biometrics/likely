@@ -19,7 +19,7 @@
  * Note that all Likely symbols are prefixed with \c likely_ and follow a \c lowercase_underscore naming convention.
  * <i>[CMake](http://www.cmake.org/)</i> users may appreciate \c LikelyConfig.cmake provided in \c share/likely/.
  *
- * Start reading \ref hello_world.
+ * Start reading \ref hello_world_jit.
  *
  * \section reference_counting Reference Counting
  * All [data structures](annotated.html) in the Likely API are passed by pointer-to-reference-counted structs.
@@ -44,15 +44,6 @@
  * The reference count is kept in a variable named \c ref_count which is incremented and decremented by calls to \a retain and \a release respectively.
  * When the reference count is decremented to zero, any memory associated with the structure will be freed.
  * End users should _not_ modify the \c ref_count variable directly.
- */
-
-/*!
- * \page hello_world Hello World
- * \brief Source code for the \c hello_world_jit application.
- *
- * A good entry point for learning about the Likely API.
- * Source code in <tt>share/likely/hello_world/hello_world_jit.c</tt> reproduced below.
- * \snippet share/likely/hello_world/hello_world_jit.c hello_world_jit implementation.
  */
 
 #endif // LIKELY_H

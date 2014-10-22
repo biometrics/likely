@@ -6,14 +6,31 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*!
+ * \page hello_world_jit Hello World JIT
+ * \brief Source code for the \c hello_world_jit application.
+ *
+ * The \c hello_world_jit application takes three parameters:
+ * - Path to an input image.
+ * - Source code for a function.
+ * - Path to an output image.
+ *
+ * The application applies the function to the input and saves the result as output.
+ * Note that the provided function should only take one parameter (the input image).
+ *
+ * This application is a good entry point for learning about the Likely API.
+ * Its source code in <tt>share/likely/hello_world/hello_world_jit.c</tt> is reproduced below:
+ * \snippet share/likely/hello_world/hello_world_jit.c hello_world_jit implementation.
+ */
+
 //! [hello_world_jit implementation.]
 #include <likely.h>
 
 int main(int argc, char *argv[])
 {
-    if ((argc < 3) || (argc > 4)) {
+    if (argc != 4) {
         puts("Usage:\n\t"
-                 "hello_world_jit <input_image> <function> [<output_image>]\n"
+                 "hello_world_jit <input_image> <function> <output_image>\n"
              "\n"
              "Example:\n\t"
                  "hello_world_jit data/misc/lenna.tiff 'a :-> (=> a (/ a (a.type 2)))' dark_lenna.png\n");
@@ -40,12 +57,10 @@ int main(int argc, char *argv[])
     // and returns a new matrix as output.
     likely_mat (*f)(likely_const_mat) = fun->function;
     likely_const_mat output = f(input);
-    likely_assert(output, "failed to execute compiled function");
+    likely_assert(output, "failed to execute the compiled function");
 
-    if (argc >= 4) {
-        puts("Writing output image...");
-        likely_assert(likely_write(output, argv[3]), "failed to write: %s", argv[3]);
-    }
+    puts("Writing output image...");
+    likely_assert(likely_write(output, argv[3]), "failed to write: %s", argv[3]);
 
     puts("Cleaning up...");
     likely_release_mat(output);
