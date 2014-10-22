@@ -72,11 +72,6 @@ likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t colum
 }
 //! [likely_new implementation.]
 
-likely_mat likely_scalar(likely_matrix_type type, double value)
-{
-    return likely_scalar_n(type, &value, 1);
-}
-
 //! [likely_scalar_n implementation.]
 likely_mat likely_scalar_n(likely_matrix_type type, double *values, uint32_t n)
 {

@@ -160,16 +160,6 @@ LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
 LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data);
 
 /*!
- * \brief Allocate and initialize a new single-element \ref likely_matrix.
- *
- * Convenient alternative to \ref likely_scalar_n.
- * \param[in] type \ref likely_matrix::type.
- * \param[in] value Element value.
- * \return A pointer to the new single-element \ref likely_matrix, or \c NULL if \c malloc failed.
- */
-LIKELY_EXPORT likely_mat likely_scalar(likely_matrix_type type, double value);
-
-/*!
  * \brief Allocate and initialize a new multi-element \ref likely_matrix.
  *
  * Convenient alternative to \ref likely_new.
