@@ -65,23 +65,20 @@ endif()
 llvm_map_components_to_libnames(LIKELY_LLVM_LIBRARIES bitwriter ipo interpreter mcjit native support vectorize)
 set(LIKELY_LIBS ${LIKELY_LIBS} ${LIKELY_LLVM_LIBRARIES})
 
-option(LIKELY_IO "Build Likely with matrix I/O" ON)
-if(${LIKELY_IO})
   # Find or build OpenCV
-  option(LIKELY_SYSTEM_OPENCV "Use system OpenCV" OFF)
-  if(${LIKELY_SYSTEM_OPENCV})
-    find_package(OpenCV REQUIRED)
-    set(LIKELY_LIBS ${LIKELY_LIBS} ${OpenCV_LIBS})
-  else()
-    option(BUILD_WITH_STATIC_CRT "OpenCV static MSVC CRT" OFF)
-    option(WITH_CUDA "OpenCV CUDA support" OFF)
-    option(WITH_OPENEXR "OpenCV OpenEXR support" OFF)
-    add_subdirectory(opencv EXCLUDE_FROM_ALL)
-    include_directories(${CMAKE_SOURCE_DIR}/opencv/modules/core/include
-                        ${CMAKE_SOURCE_DIR}/opencv/modules/highgui/include
-                        ${CMAKE_SOURCE_DIR}/opencv/modules/imgproc/include)
-    set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui)
-  endif()
+option(LIKELY_SYSTEM_OPENCV "Use system OpenCV" OFF)
+if(${LIKELY_SYSTEM_OPENCV})
+  find_package(OpenCV REQUIRED)
+  set(LIKELY_LIBS ${LIKELY_LIBS} ${OpenCV_LIBS})
+else()
+  option(BUILD_WITH_STATIC_CRT "OpenCV static MSVC CRT" OFF)
+  option(WITH_CUDA "OpenCV CUDA support" OFF)
+  option(WITH_OPENEXR "OpenCV OpenEXR support" OFF)
+  add_subdirectory(opencv EXCLUDE_FROM_ALL)
+  include_directories(${CMAKE_SOURCE_DIR}/opencv/modules/core/include
+                      ${CMAKE_SOURCE_DIR}/opencv/modules/highgui/include
+                      ${CMAKE_SOURCE_DIR}/opencv/modules/imgproc/include)
+  set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui)
 endif()
 
 # Compiler configuration

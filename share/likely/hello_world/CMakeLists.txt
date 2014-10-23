@@ -3,12 +3,10 @@ option(LIKELY_HELLOWORLD "Build Likely Hello World examples" ON)
 
 if(${LIKELY_HELLOWORLD})
   # hello_world_jit
-  if(${LIKELY_IO})
-    add_executable(hello_world_jit hello_world_jit.c)
-    target_link_libraries(hello_world_jit likely)
-    add_test(NAME hello_world_jit
-             COMMAND hello_world_jit ${CMAKE_SOURCE_DIR}/data/misc/lenna.tiff "a :-> (=> a (/ a (a.type 2)))" dark_lenna.png)
-  endif()
+  add_executable(hello_world_jit hello_world_jit.c)
+  target_link_libraries(hello_world_jit likely)
+  add_test(NAME hello_world_jit
+           COMMAND hello_world_jit ${CMAKE_SOURCE_DIR}/data/misc/lenna.tiff "a :-> (=> a (/ a (a.type 2)))" dark_lenna.png)
 
   # hello_world_static
   add_custom_command(OUTPUT hello_world_div2.o

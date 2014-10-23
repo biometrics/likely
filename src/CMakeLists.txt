@@ -1,4 +1,4 @@
-set(LIKELY_SRC backend.cpp frontend.cpp)
+set(LIKELY_SRC backend.cpp frontend.cpp io.cpp)
 file(GLOB LIKELY_LIBRARY ${CMAKE_SOURCE_DIR}/library/*)
 set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/LICENSE.txt
@@ -7,6 +7,8 @@ set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/include/likely/backend.h
                 ${CMAKE_SOURCE_DIR}/include/likely/export.h
                 ${CMAKE_SOURCE_DIR}/include/likely/frontend.h
+                ${CMAKE_SOURCE_DIR}/include/likely/io.h
+                ${CMAKE_SOURCE_DIR}/include/likely/opencv.hpp
                 ${CMAKE_SOURCE_DIR}/include/likely/runtime.h
                 ${CMAKE_SOURCE_DIR}/index.html
                 ${CMAKE_SOURCE_DIR}/share/likely/LikelyConfig.cmake
@@ -21,13 +23,6 @@ add_custom_command(OUTPUT likely_standard_library.c
                    DEPENDS embedfile ${CMAKE_SOURCE_DIR}/library/standard.ll)
 set(LIKELY_SRC ${LIKELY_SRC} ${CMAKE_CURRENT_BINARY_DIR}/likely_standard_library.c)
 set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
-
-if(${LIKELY_IO})
-  add_definitions(-DLIKELY_IO)
-  set(LIKELY_SRC ${LIKELY_SRC} io.cpp)
-  set(LIKELY_MISC ${LIKELY_MISC} ${CMAKE_SOURCE_DIR}/include/likely/io.h
-                                 ${CMAKE_SOURCE_DIR}/include/likely/opencv.hpp)
-endif()
 
 # CPU Profiling
 option(LIKELY_PROFILING "Build Likely for code profiling" OFF)
@@ -66,92 +61,90 @@ endif()
 target_link_libraries(likely_static likely_runtime ${LIKELY_LIBS})
 install(TARGETS likely_static ARCHIVE DESTINATION lib)
 
-# Build repl-shell/interpreter/compiler
+# Build console-interpreter-compiler
 add_executable(like like.cpp)
 set_target_properties(like PROPERTIES OUTPUT_NAME likely)
 target_link_libraries(like likely_static)
 install(TARGETS like RUNTIME DESTINATION bin)
 
-if(${LIKELY_IO})
-  # Benchmark
-  add_executable(benchmark benchmark.cpp)
-  target_link_libraries(benchmark likely_static opencv_imgproc)
-  install(TARGETS benchmark RUNTIME DESTINATION bin)
-  add_test(NAME benchmark
-           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND benchmark -test)
-  add_test(NAME benchmark_parallel
-           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND benchmark -test -parallel)
+# Benchmark
+add_executable(benchmark benchmark.cpp)
+target_link_libraries(benchmark likely_static opencv_imgproc)
+install(TARGETS benchmark RUNTIME DESTINATION bin)
+add_test(NAME benchmark
+         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+         COMMAND benchmark -test)
+add_test(NAME benchmark_parallel
+         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+         COMMAND benchmark -test -parallel)
 
-  # Dream
-  set(QT5_INSTALL_DIR "${CMAKE_BINARY_DIR}/Qt5.3.2")
-  set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${QT5_INSTALL_DIR})
-  find_package(Qt5OpenGL QUIET)
-  find_package(Qt5PrintSupport QUIET)
-  find_package(Qt5Widgets QUIET)
-  set(CMAKE_AUTOMOC ON)
-  if(${Qt5OpenGL_FOUND} AND ${Qt5PrintSupport_FOUND} AND ${Qt5Widgets_FOUND})
-    # Get QCustomPlot source
-    # aux_source_directory(qcustomplot/src QCUSTOMPLOT_SRC)
-    # aux_source_directory(qcustomplot/src/plottables QCUSTOMPLOT_SRC_PLOTTABLES)
-    # aux_source_directory(qcustomplot/src/items QCUSTOMPLOT_SRC_ITEMS)
-    # aux_source_directory(qcustomplot/src/layoutelements QCUSTOMPLOT_SRC_LAYOUTELEMENTS)
-    # set(QCUSTOMPLOT_SRC ${QCUSTOMPLOT_SRC} ${QCUSTOMPLOT_SRC_PLOTTABLES} ${QCUSTOMPLOT_SRC_ITEMS} ${QCUSTOMPLOT_SRC_LAYOUTELEMENTS})
+# Dream
+set(QT5_INSTALL_DIR "${CMAKE_BINARY_DIR}/Qt5.3.2")
+set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${QT5_INSTALL_DIR})
+find_package(Qt5OpenGL QUIET)
+find_package(Qt5PrintSupport QUIET)
+find_package(Qt5Widgets QUIET)
+set(CMAKE_AUTOMOC ON)
+if(${Qt5OpenGL_FOUND} AND ${Qt5PrintSupport_FOUND} AND ${Qt5Widgets_FOUND})
+  # Get QCustomPlot source
+  # aux_source_directory(qcustomplot/src QCUSTOMPLOT_SRC)
+  # aux_source_directory(qcustomplot/src/plottables QCUSTOMPLOT_SRC_PLOTTABLES)
+  # aux_source_directory(qcustomplot/src/items QCUSTOMPLOT_SRC_ITEMS)
+  # aux_source_directory(qcustomplot/src/layoutelements QCUSTOMPLOT_SRC_LAYOUTELEMENTS)
+  # set(QCUSTOMPLOT_SRC ${QCUSTOMPLOT_SRC} ${QCUSTOMPLOT_SRC_PLOTTABLES} ${QCUSTOMPLOT_SRC_ITEMS} ${QCUSTOMPLOT_SRC_LAYOUTELEMENTS})
 
-    if(QT_STATIC_DEPENDENCIES)
-      add_definitions(-DLIKELY_STATIC_QT)
+  if(QT_STATIC_DEPENDENCIES)
+    add_definitions(-DLIKELY_STATIC_QT)
+  endif()
+  add_executable(dream dream.cpp ${QCUSTOMPLOT_SRC})
+  qt5_use_modules(dream OpenGL PrintSupport Widgets)
+  target_link_libraries(dream likely_static ${QT_STATIC_DEPENDENCIES})
+  install(TARGETS dream RUNTIME DESTINATION bin)
+else()
+  if(WIN32)
+    # TODO: https://bugreports.qt-project.org/browse/QTBUG-33450
+    # ExternalProject_Add(Qt5.3.2
+    #     URL http://download.qt-project.org/official_releases/qt/5.3/5.3.2/submodules/qtbase-opensource-src-5.3.2.zip
+    #     URL_MD5 1a81aafd9d63168e9d0d1056ae0cc5d2
+    #     CONFIGURE_COMMAND ../Qt5.3.2/configure.exe -prefix ${QT5_INSTALL_DIR} -opensource -confirm-license -static -release -no-compile-examples
+    #     BUILD_COMMAND nmake
+    #     INSTALL_COMMAND nmake install)
+  else() # UNIX
+    if(NOT APPLE)
+      set(QT_CONFIGURE_FLAGS "-qt-xcb")
     endif()
-    add_executable(dream dream.cpp ${QCUSTOMPLOT_SRC})
-    qt5_use_modules(dream OpenGL PrintSupport Widgets)
-    target_link_libraries(dream likely_static ${QT_STATIC_DEPENDENCIES})
-    install(TARGETS dream RUNTIME DESTINATION bin)
-  else()
-    if(WIN32)
-      # TODO: https://bugreports.qt-project.org/browse/QTBUG-33450
-      # ExternalProject_Add(Qt5.3.2
-      #     URL http://download.qt-project.org/official_releases/qt/5.3/5.3.2/submodules/qtbase-opensource-src-5.3.2.zip
-      #     URL_MD5 1a81aafd9d63168e9d0d1056ae0cc5d2
-      #     CONFIGURE_COMMAND ../Qt5.3.2/configure.exe -prefix ${QT5_INSTALL_DIR} -opensource -confirm-license -static -release -no-compile-examples
-      #     BUILD_COMMAND nmake
-      #     INSTALL_COMMAND nmake install)
-    else() # UNIX
-      if(NOT APPLE)
-        set(QT_CONFIGURE_FLAGS "-qt-xcb")
-      endif()
-      ExternalProject_Add(Qt5.3.2
-          URL http://download.qt-project.org/official_releases/qt/5.3/5.3.2/submodules/qtbase-opensource-src-5.3.2.tar.gz
-          URL_MD5 2a692eed83c4f7e48e1db65ed1a2ae9f
-          CONFIGURE_COMMAND ../Qt5.3.2/configure -prefix ${QT5_INSTALL_DIR} -opensource -confirm-license -static -release -no-compile-examples ${QT_CONFIGURE_FLAGS})
-      if(APPLE)
-        find_package(OpenGL REQUIRED)
-        find_library(CARBON_LIBRARY Carbon)
-        find_library(CUPS_LIBRARY cups)
-        find_library(IOKIT_LIBRARY IOKit)
-        set(QT_STATIC_DEPENDENCIES ${OPENGL_LIBRARIES}
-                                   ${COCOA_LIBRARY}
-                                   ${CARBON_LIBRARY}
-                                   ${CUPS_LIBRARY}
-                                   ${IOKIT_LIBRARY}
-                                   ${QT5_INSTALL_DIR}/lib/libQt5PlatformSupport.a
-                                   ${QT5_INSTALL_DIR}/lib/libqtharfbuzzng.a
-                                   ${QT5_INSTALL_DIR}/plugins/platforms/libqcocoa.a
-            CACHE INTERNAL "Qt static dependencies")
-      else()
-        find_package(OpenGL REQUIRED)
-        find_library(XCB_LIBRARY xcb)
-        find_library(X11_LIBRARY X11)
-        find_library(X11XCB_LIBRARY X11-xcb)
-        set(QT_STATIC_DEPENDENCIES ${OPENGL_LIBRARIES}
-                                   ${QT5_INSTALL_DIR}/lib/libQt5PlatformSupport.a
-                                   ${QT5_INSTALL_DIR}/plugins/platforms/libqxcb.a
-                                   ${QT5_INSTALL_DIR}/lib/libxcb-static.a
-                                   ${QT5_INSTALL_DIR}/lib/libQt5Gui.a # Referenced by Qt5PlatformSupport
-                                   ${XCB_LIBRARY}
-                                   ${X11_LIBRARY}
-                                   ${X11XCB_LIBRARY}
-            CACHE INTERNAL "Qt static dependencies")
-      endif()
+    ExternalProject_Add(Qt5.3.2
+        URL http://download.qt-project.org/official_releases/qt/5.3/5.3.2/submodules/qtbase-opensource-src-5.3.2.tar.gz
+        URL_MD5 2a692eed83c4f7e48e1db65ed1a2ae9f
+        CONFIGURE_COMMAND ../Qt5.3.2/configure -prefix ${QT5_INSTALL_DIR} -opensource -confirm-license -static -release -no-compile-examples ${QT_CONFIGURE_FLAGS})
+    if(APPLE)
+      find_package(OpenGL REQUIRED)
+      find_library(CARBON_LIBRARY Carbon)
+      find_library(CUPS_LIBRARY cups)
+      find_library(IOKIT_LIBRARY IOKit)
+      set(QT_STATIC_DEPENDENCIES ${OPENGL_LIBRARIES}
+                                 ${COCOA_LIBRARY}
+                                 ${CARBON_LIBRARY}
+                                 ${CUPS_LIBRARY}
+                                 ${IOKIT_LIBRARY}
+                                 ${QT5_INSTALL_DIR}/lib/libQt5PlatformSupport.a
+                                 ${QT5_INSTALL_DIR}/lib/libqtharfbuzzng.a
+                                 ${QT5_INSTALL_DIR}/plugins/platforms/libqcocoa.a
+          CACHE INTERNAL "Qt static dependencies")
+    else()
+      find_package(OpenGL REQUIRED)
+      find_library(XCB_LIBRARY xcb)
+      find_library(X11_LIBRARY X11)
+      find_library(X11XCB_LIBRARY X11-xcb)
+      set(QT_STATIC_DEPENDENCIES ${OPENGL_LIBRARIES}
+                                 ${QT5_INSTALL_DIR}/lib/libQt5PlatformSupport.a
+                                 ${QT5_INSTALL_DIR}/plugins/platforms/libqxcb.a
+                                 ${QT5_INSTALL_DIR}/lib/libxcb-static.a
+                                 ${QT5_INSTALL_DIR}/lib/libQt5Gui.a # Referenced by Qt5PlatformSupport
+                                 ${XCB_LIBRARY}
+                                 ${X11_LIBRARY}
+                                 ${X11XCB_LIBRARY}
+          CACHE INTERNAL "Qt static dependencies")
     endif()
   endif()
 endif()

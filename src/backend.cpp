@@ -62,6 +62,7 @@
 #include <sstream>
 
 #include "likely/backend.h"
+#include "likely/io.h"
 
 using namespace llvm;
 using namespace std;
@@ -2523,9 +2524,6 @@ class newExpression : public LikelyOperator
 };
 LIKELY_REGISTER(new)
 
-#ifdef LIKELY_IO
-#include "likely/io.h"
-
 class readExpression : public SimpleUnaryOperator
 {
     const char *symbol() const { return "read"; }
@@ -2626,8 +2624,6 @@ class encodeExpression : public SimpleBinaryOperator
     }
 };
 LIKELY_REGISTER(encode)
-
-#endif // LIKELY_IO
 
 class md5Expression : public SimpleUnaryOperator
 {
