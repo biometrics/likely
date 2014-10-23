@@ -2213,7 +2213,7 @@ struct EvaluatedExpression : public LikelyOperator
     {
         if (!expr || (expr->uid() != UID()))
             return NULL;
-        return likely_retain_env(reinterpret_cast<const EvaluatedExpression*>(expr)->get());
+        return reinterpret_cast<const EvaluatedExpression*>(expr)->get();
     }
 
 private:
@@ -2747,6 +2747,17 @@ likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_mat
     return static_cast<likely_fun>(new JITFunction("likely_jit_function", unique_ptr<Lambda>(new Lambda(ast)).get(), env, types, false, false, false));
 }
 
+likely_const_mat likely_result(likely_const_env env)
+{
+    if (!env)
+        return NULL;
+
+    if (env->type & likely_environment_definition)
+        return likely_result(EvaluatedExpression::get(env->value));
+    else
+        return env->result;
+}
+
 likely_fun likely_retain_fun(likely_const_fun fun)
 {
     if (!fun) return NULL;
@@ -2828,11 +2839,6 @@ likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback r
     }
 
     return env;
-}
-
-likely_const_env likely_evaluated_expression(struct likely_expression const *expr)
-{
-    return EvaluatedExpression::get(expr);
 }
 
 likely_mat likely_md5(likely_const_mat mat)

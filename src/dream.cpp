@@ -662,19 +662,10 @@ public:
 public slots:
     void setHotSpot(likely_const_env env)
     {
-        if (env) {
-            const QString name = likely_symbol(env->ast);
-            if (env->type & likely_environment_definition) {
-                likely_const_env result = likely_evaluated_expression(env->value);
-                if (result && result->result)
-                    hotSpot->show(result->result, name);
-                likely_release_env(result);
-            } else {
-                hotSpot->show(env->result, name);
-            }
-        } else {
+        if (env)
+            hotSpot->show(likely_result(env), likely_symbol(env->ast));
+        else
             hotSpot->hide();
-        }
     }
 
     void print(likely_const_env env)

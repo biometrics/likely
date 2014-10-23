@@ -160,6 +160,15 @@ LIKELY_EXPORT void likely_release_env(likely_const_env env);
 LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_matrix_type type, ...);
 
 /*!
+ * \brief Obtain the result of a computation.
+ *
+ * The returned \ref likely_matrix is owned by \p env.
+ * \param[in] env Where the computation was performed.
+ * \return The result of the computation, or \c NULL if no computation was performed.
+ */
+LIKELY_EXPORT likely_const_mat likely_result(likely_const_env env);
+
+/*!
  * \brief Retain a reference to a function.
  *
  * Increments \ref likely_function::ref_count.
@@ -208,13 +217,6 @@ typedef void (*likely_repl_callback)(likely_const_env env, void *context);
  * \see \ref likely_eval
  */
 LIKELY_EXPORT likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback repl_callback, void *context);
-
-/*!
- * \brief Get the result of an evaluated expression.
- * \param[in] expr The expression that was evaluated.
- * \return Reference to the result.
- */
-LIKELY_EXPORT likely_const_env likely_evaluated_expression(struct likely_expression const *expr);
 
 /*!
  * \brief Contents of the Likely Standard Library: <tt>library/standard.ll</tt>.
