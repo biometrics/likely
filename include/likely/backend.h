@@ -88,6 +88,11 @@ typedef struct likely_function const *likely_const_fun; /*!< \brief Pointer to a
 
 /*!
  * \brief The output of compilation.
+ * \par Function Construction
+ * | Function            | Documentation             |
+ * |---------------------|---------------------------|
+ * | \ref likely_compile | \copybrief likely_compile |
+ *
  * \see \ref reference_counting
  */
 struct likely_function
