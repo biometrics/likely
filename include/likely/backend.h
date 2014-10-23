@@ -104,6 +104,7 @@ struct likely_function
 /*!
  * \brief Construct a new environment for just-in-time compilation.
  * \return A new just-in-time compilation environment.
+ * \remark This function is \ref thread-unsafe.
  * \see \ref likely_static
  */
 LIKELY_EXPORT likely_env likely_jit();
@@ -122,6 +123,7 @@ LIKELY_EXPORT likely_env likely_jit();
  *
  * \param[in] file_name Where to save the compilation output.
  * \return A new static compilation environment.
+ * \remark This function is \ref thread-unsafe.
  * \see \ref likely_jit
  */
 LIKELY_EXPORT likely_env likely_static(const char *file_name);
@@ -132,6 +134,7 @@ LIKELY_EXPORT likely_env likely_static(const char *file_name);
  * Increments \ref likely_environment::ref_count.
  * \param[in] env Environment to add a reference. May be \c NULL.
  * \return \p env.
+ * \remark This function is \ref reentrant.
  * \see \ref likely_release_env
  */
 LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
@@ -141,6 +144,7 @@ LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
  *
  * Decrements \ref likely_environment::ref_count.
  * \param[in] env Environment to subtract a reference. May be \c NULL.
+ * \remark This function is \ref reentrant.
  * \see \ref likely_retain_env
  */
 LIKELY_EXPORT void likely_release_env(likely_const_env env);
@@ -156,6 +160,7 @@ LIKELY_EXPORT void likely_release_env(likely_const_env env);
  * \param[in] env Function environment.
  * \param[in] type Function type terminated by \ref likely_matrix_void.
  * \return The compiled \ref likely_function.
+ * \remark This function is \ref reentrant.
  */
 LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_matrix_type type, ...);
 
@@ -163,6 +168,7 @@ LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env e
  * \brief Obtain the result of a computation.
  * \param[in] env Where the computation was performed.
  * \return The result of the computation, or \c NULL if no computation was performed. \ref owned_by \p env.
+ * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT likely_const_mat likely_result(likely_const_env env);
 
@@ -172,6 +178,7 @@ LIKELY_EXPORT likely_const_mat likely_result(likely_const_env env);
  * Increments \ref likely_function::ref_count.
  * \param[in] fun Function to add a reference. May be \c NULL.
  * \return \p fun.
+ * \remark This function is \ref reentrant.
  * \see \ref likely_release_fun
  */
 LIKELY_EXPORT likely_fun likely_retain_fun(likely_const_fun fun);
@@ -181,6 +188,7 @@ LIKELY_EXPORT likely_fun likely_retain_fun(likely_const_fun fun);
  *
  * Decrements \ref likely_function::ref_count.
  * \param[in] fun Function to subtract a reference. May be \c NULL.
+ * \remark This function is \ref reentrant.
  * \see \ref likely_release_fun
  */
 LIKELY_EXPORT void likely_release_fun(likely_const_fun fun);
@@ -193,6 +201,7 @@ LIKELY_EXPORT void likely_release_fun(likely_const_fun fun);
  * \param[in] ast Statement to evaluate.
  * \param[in] parent Environment in which to evaluate \p ast.
  * \return A new \ref likely_environment holding the evaluation result.
+ * \remark This function is \ref reentrant.
  * \see \ref likely_repl
  */
 LIKELY_EXPORT likely_env likely_eval(likely_ast ast, likely_env parent);
@@ -212,6 +221,7 @@ typedef void (*likely_repl_callback)(likely_const_env env, void *context);
  * \param[in] repl_callback Function to call with the output of each completed statement.
  * \param[in] context User-defined data to pass to \p repl_callback.
  * \return A new \ref likely_environment holding the final evaluation result.
+ * \remark This function is \ref reentrant.
  * \see \ref likely_eval
  */
 LIKELY_EXPORT likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback repl_callback, void *context);
@@ -238,6 +248,7 @@ typedef struct likely_virtual_table *likely_vtable;
  * \param[in] vtable Virtual function table for retrieving or compiling the appropriate function based on the types of \p m.
  * \param[in] mats Array of arguments to pass to the function. The length of \p mats is known by \p vtable.
  * \return The result from calling the dynamically dispatch function.
+ * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats);
 
@@ -245,6 +256,7 @@ LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *
  * \brief Compute the MD5 hash of \ref likely_matrix::data.
  * \param[in] mat \ref likely_matrix::data to compute the MD5 hash of.
  * \return A new matrix where containing the 16-byte MD5 hash.
+ * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT likely_mat likely_md5(likely_const_mat mat);
 
@@ -252,6 +264,7 @@ LIKELY_EXPORT likely_mat likely_md5(likely_const_mat mat);
  * \brief Deallocate objects created to perform compilation.
  *
  * Call _once_ after the program is done using functionality provided in \ref backend.
+ * \remark This function is \ref thread-unsafe.
  */
 LIKELY_EXPORT void likely_shutdown();
 

@@ -106,6 +106,7 @@ struct likely_abstract_syntax_tree
  * \param[in] atom The string to copy for \ref likely_abstract_syntax_tree::atom.
  * \param[in] atom_len The length of \p atom to copy, and the value for \ref likely_abstract_syntax_tree::atom_len.
  * \return A pointer to the new \ref likely_abstract_syntax_tree, or \c NULL if \c malloc failed.
+ * \remark This function is \ref thread-safe.
  * \see \ref likely_list
  */
 LIKELY_EXPORT likely_ast likely_atom(const char *atom, uint32_t atom_len);
@@ -116,6 +117,7 @@ LIKELY_EXPORT likely_ast likely_atom(const char *atom, uint32_t atom_len);
  * \param[in] atoms The atoms to take for \ref likely_abstract_syntax_tree::atoms.
  * \param[in] num_atoms The length of \p atoms, and the value for \ref likely_abstract_syntax_tree::num_atoms.
  * \return A pointer to the new \ref likely_abstract_syntax_tree, or \c NULL if \c malloc failed.
+ * \remark This function is \ref thread-safe.
  * \see \ref likely_atom
  */
 LIKELY_EXPORT likely_ast likely_list(const likely_ast *atoms, uint32_t num_atoms);
@@ -126,6 +128,7 @@ LIKELY_EXPORT likely_ast likely_list(const likely_ast *atoms, uint32_t num_atoms
  * Increments \ref likely_abstract_syntax_tree::ref_count.
  * \param[in] ast Abstract syntax tree to add a reference. May be \c NULL.
  * \return \p ast.
+ * \remark This function is \ref reentrant.
  * \see \ref likely_release_ast
  */
 LIKELY_EXPORT likely_ast likely_retain_ast(likely_const_ast ast);
@@ -135,6 +138,7 @@ LIKELY_EXPORT likely_ast likely_retain_ast(likely_const_ast ast);
  *
  * Decrements \ref likely_abstract_syntax_tree::ref_count.
  * \param[in] ast Abstract syntax tree to subtract a reference. May be \c NULL.
+ * \remark This function is \ref reentrant.
  * \see \ref likely_retain_ast
  */
 LIKELY_EXPORT void likely_release_ast(likely_const_ast ast);
@@ -171,6 +175,7 @@ typedef void (*likely_error_callback)(likely_err err, void *context);
  * \param[in] where \ref likely_error::where.
  * \param[in] format <tt>printf</tt>-style string to populate \ref likely_error::what.
  * \return Pointer to a new \ref likely_error, or \c NULL if \c malloc failed.
+ * \remark This function is \ref reentrant.
  */
 LIKELY_EXPORT likely_err likely_erratum(likely_const_err parent, likely_const_ast where, const char *format, ...);
 
@@ -180,6 +185,7 @@ LIKELY_EXPORT likely_err likely_erratum(likely_const_err parent, likely_const_as
  * Increments \ref likely_error::ref_count.
  * \param[in] err Error to add a reference. May be \c NULL.
  * \return \p err.
+ * \remark This function is \ref reentrant.
  * \see \ref likely_release_err
  */
 LIKELY_EXPORT likely_err likely_retain_err(likely_const_err err);
@@ -189,6 +195,7 @@ LIKELY_EXPORT likely_err likely_retain_err(likely_const_err err);
  *
  * Decrements \ref likely_error::ref_count.
  * \param[in] err Error to subtract a reference. May be \c NULL.
+ * \remark This function is \ref reentrant.
  * \see \ref likely_retain_err
  */
 LIKELY_EXPORT void likely_release_err(likely_const_err err);
@@ -199,6 +206,7 @@ LIKELY_EXPORT void likely_release_err(likely_const_err err);
  * By default, the error is converted to a string using \ref likely_err_to_string and printed to \c stderr.
  * \param[in] callback The function to call when a compilation error occurs.
  * \param[in] context User-defined data to pass to \p callback.
+ * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, void *context);
 
@@ -209,6 +217,7 @@ LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, voi
  * \param[in] where Location of the error.
  * \param[in] what Description of the error.
  * \return \c false.
+ * \remark This function is \ref thread-safe.
  * \see \ref likely_assert
  */
 LIKELY_EXPORT bool likely_throw(likely_const_ast where, const char *what);
@@ -217,6 +226,7 @@ LIKELY_EXPORT bool likely_throw(likely_const_ast where, const char *what);
  * \brief Convert the error to a string suitable for printing.
  * \param[in] err The error to convert to a string.
  * \return A \ref likely_string.
+ * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT likely_mat likely_err_to_string(likely_err err);
 
@@ -224,6 +234,7 @@ LIKELY_EXPORT likely_mat likely_err_to_string(likely_err err);
  * \brief Conditional abort-style error handling with an error message.
  * \param[in] condition If \c false, print \a format and abort.
  * \param[in] format <tt>printf</tt>-style error message.
+ * \remark This function is \ref thread-safe.
  * \see \ref likely_throw
  */
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
@@ -251,6 +262,7 @@ enum likely_source_types
  * \param[in] source Code from which to extract tokens.
  * \param[in] type How to interpret \p source.
  * \return A list of tokens extracted from \p source.
+ * \remark This function is \ref thread-safe.
  * \see \ref likely_lex_and_parse
  */
 LIKELY_EXPORT likely_ast likely_lex(const char *source, likely_source_type type);
@@ -261,6 +273,7 @@ LIKELY_EXPORT likely_ast likely_lex(const char *source, likely_source_type type)
  * The input to this function is usually the output from \ref likely_lex.
  * \param[in] tokens List of tokens from which build the abstract syntax tree.
  * \return An abstract syntax tree built from \p tokens.
+ * \remark This function is \ref thread-safe.
  * \see \ref likely_lex_and_parse
  */
 LIKELY_EXPORT likely_ast likely_parse(likely_const_ast tokens);
@@ -272,6 +285,7 @@ LIKELY_EXPORT likely_ast likely_parse(likely_const_ast tokens);
  * \param[in] source Code from which to extract tokens and build the abstract syntax tree.
  * \param[in] type How to interpret \p source when extracting tokens.
  * \return An abstract syntax tree built from \p source.
+ * \remark This function is \ref thread-safe.
  * \see \ref likely_ast_to_string
  */
 LIKELY_EXPORT likely_ast likely_lex_and_parse(const char *source, likely_source_type type);
@@ -283,6 +297,7 @@ LIKELY_EXPORT likely_ast likely_lex_and_parse(const char *source, likely_source_
  * The returned \ref likely_matrix::data is valid \ref likely_source_lisp code.
  * \param[in] ast The abstract syntax tree to convert into a string.
  * \return A \ref likely_string.
+ * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);
 
@@ -291,6 +306,7 @@ LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);
  * \param[in] a Abstract syntax tree to be compared.
  * \param[in] b Abstract syntax tree to be compared.
  * \return <tt>-1 if (a < b), 0 if (a == b), 1 if (a > b)</tt>.
+ * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT int likely_ast_compare(likely_const_ast a, likely_const_ast b);
 
@@ -300,6 +316,7 @@ LIKELY_EXPORT int likely_ast_compare(likely_const_ast a, likely_const_ast b);
  * Searches using an in order traversal of \p ast.
  * \param[in] ast The abstract syntax tree to traverse.
  * \return The first \ref likely_abstract_syntax_tree::atom that isn't an assignment (=) operator.
+ * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT const char *likely_symbol(likely_const_ast ast);
 
@@ -310,6 +327,7 @@ LIKELY_EXPORT const char *likely_symbol(likely_const_ast ast);
  * The returned \ref likely_matrix::data is valid \ref likely_source_lisp code.
  * \param[in] type The type to convert to a string.
  * \return A \ref likely_string.
+ * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT likely_mat likely_type_to_string(likely_matrix_type type);
 
@@ -320,6 +338,7 @@ LIKELY_EXPORT likely_mat likely_type_to_string(likely_matrix_type type);
  * \param[in] str String to convert to a \ref likely_matrix_type.
  * \param[out] ok Successful conversion. May be \c NULL.
  * \return A \ref likely_matrix_type from \p str on success, \ref likely_matrix_void otherwise.
+ * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT likely_matrix_type likely_type_from_string(const char *str, bool *ok);
 
@@ -329,6 +348,7 @@ LIKELY_EXPORT likely_matrix_type likely_type_from_string(const char *str, bool *
  * \snippet src/frontend.cpp likely_type_from_value implementation.
  * \param[in] value The value from which to determine the appropriate type.
  * \return The appropriate \ref likely_matrix_type for \p value.
+ * \remark This function is \ref thread-safe.
  * \see \ref likely_type_from_types
  */
 LIKELY_EXPORT likely_matrix_type likely_type_from_value(double value);
@@ -340,6 +360,7 @@ LIKELY_EXPORT likely_matrix_type likely_type_from_value(double value);
  * \param[in] a Type to be consolidated.
  * \param[in] b Type to be consolidated.
  * \return The appropriate \ref likely_matrix_type for an operation involving \p a and \p b.
+ * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT likely_matrix_type likely_type_from_types(likely_matrix_type a, likely_matrix_type b);
 

@@ -51,6 +51,12 @@
  * In this case, the return value is guaranteed for the lifetime of the _owning parameter_.
  * The calling application may explicitly retain an additional reference to the return value to extend its lifetime beyond that of the owning parameter.
  * \note In the case of \ref owned_by, the calling application should not explicitly release the return value unless the calling application explicitly retained it earlier.
+ *
+ * \section thread_safety Thread Safety
+ * All functions are marked one of:
+ * - \anchor thread-safe \b thread-safe: Can be called simultaneously from multiple threads, even when the invocations use shared data.
+ * - \anchor reentrant \b reentrant: Can be called simultaneously from multiple threads, but only if each invocation uses its own data.
+ * - \anchor thread-unsafe \b thread-unsafe: Can not be called simultaneously from multiple threads.
  */
 
 #endif // LIKELY_H

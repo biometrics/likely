@@ -35,6 +35,7 @@
  * \brief Convert from a \ref likely_matrix_type to an OpenCV matrix depth.
  * \param[in] type The \ref likely_matrix::type to convert from.
  * \return The corresponding OpenCV matrix depth, or -1 if \p type is unrepresentable in OpenCV.
+ * \remark This function is \ref thread-safe.
  * \see \ref likelyFromOpenCVDepth
  */
 inline int likelyToOpenCVDepth(likely_matrix_type type)
@@ -55,6 +56,7 @@ inline int likelyToOpenCVDepth(likely_matrix_type type)
  * \brief Convert from an OpenCV matrix depth to a \ref likely_matrix_type.
  * \param[in] depth The \c cv::Mat::depth() to convert from.
  * \return The corresponding \ref likely_matrix_type, or \ref likely_matrix_void if \p depth is not representable in Likely.
+ * \remark This function is \ref thread-safe.
  * \see \ref likelyToOpenCVDepth
  */
 inline likely_matrix_type likelyFromOpenCVDepth(int depth)
@@ -76,6 +78,7 @@ inline likely_matrix_type likelyFromOpenCVDepth(int depth)
  * \note This function performs a \em shallow copy. If you want a deep copy, call \c cv::Mat::clone() afterwards.
  * \param[in] mat The \ref likely_mat to convert from.
  * \return An OpenCV matrix referencing \ref likely_matrix::data;
+ * \remark This function is \ref thread-safe.
  * \see \ref likelyFromOpenCVMat
  */
 inline cv::Mat likelyToOpenCVMat(likely_const_mat mat)
@@ -91,6 +94,7 @@ inline cv::Mat likelyToOpenCVMat(likely_const_mat mat)
  * This function performs a \em deep copy by necessity.
  * \param[in] mat The OpenCV matrix to convert from.
  * \return A \ref likely_mat initialized to \c cv::Mat::data.
+ * \remark This function is \ref thread-safe.
  * \see \ref likelyToOpenCVMat
  */
 inline likely_mat likelyFromOpenCVMat(const cv::Mat &mat)
