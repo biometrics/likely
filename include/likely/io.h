@@ -33,7 +33,7 @@ extern "C" {
  * \brief How to read a file from disk.
  *
  * Available options are listed in \ref likely_file_type_mask.
- * \see likely_read
+ * \see \ref likely_read
  */
 typedef uint32_t likely_file_type;
 
@@ -53,7 +53,7 @@ enum likely_file_type_mask
  * \param[in] file_name The name of the file to open and read.
  * \param[in] type How to process the file after reading.
  * \return Pointer to the new \ref likely_matrix constructed from the file, or \c NULL if the file could not be processed.
- * \see likely_write
+ * \see \ref likely_write
  */
 LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_file_type type);
 
@@ -64,7 +64,7 @@ LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_file_type typ
  * \param[in] image The matrix to write.
  * \param[in] file_name The file to write the matrix to.
  * \return \p image if successful, \c NULL otherwise.
- * \see likely_read
+ * \see \ref likely_read
  */
 LIKELY_EXPORT likely_mat likely_write(likely_const_mat image, const char *file_name);
 
@@ -74,7 +74,7 @@ LIKELY_EXPORT likely_mat likely_write(likely_const_mat image, const char *file_n
  * The format of \p buffer is determined automatically.
  * \param[in] buffer The buffer to decode.
  * \return Decoded image if successful, \c NULL otherwise.
- * \see likely_encode
+ * \see \ref likely_encode
  */
 LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
 
@@ -84,7 +84,7 @@ LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
  * \param[in] image The image to encode.
  * \param[in] extension The desired encoding format.
  * \return Encoded buffer if successful, \c NULL otherwise.
- * \see likely_decode
+ * \see \ref likely_decode
  */
 LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
 
@@ -92,7 +92,7 @@ LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *exten
  * \brief Convert a \ref likely_matrix to a \ref likely_string suitable for printing.
  * \param[in] mat Matrix to stringify.
  * \return Stringified matrix.
- * \see likely_to_string_n
+ * \see \ref likely_to_string_n
  */
 LIKELY_EXPORT likely_mat likely_to_string(likely_const_mat mat);
 
@@ -101,7 +101,7 @@ LIKELY_EXPORT likely_mat likely_to_string(likely_const_mat mat);
  * \param[in] mats Vector of matricies to stringify.
  * \param[in] n Length of \p mats.
  * \return Stringified matrix.
- * \see likely_to_string likely_to_string_va
+ * \see \ref likely_to_string likely_to_string_va
  */
 LIKELY_EXPORT likely_mat likely_to_string_n(likely_const_mat *mats, size_t n);
 
@@ -109,7 +109,7 @@ LIKELY_EXPORT likely_mat likely_to_string_n(likely_const_mat *mats, size_t n);
  * \brief Convert a list of \ref likely_matrix to a \ref likely_string suitable for printing.
  * \param[in] mat <tt>NULL</tt>-terminated list of matricies to stringify.
  * \return Stringified matrix.
- * \see likely_to_string_n
+ * \see \ref likely_to_string_n
  */
 LIKELY_EXPORT likely_mat likely_to_string_va(likely_const_mat mat, ...);
 
@@ -119,7 +119,7 @@ LIKELY_EXPORT likely_mat likely_to_string_va(likely_const_mat mat, ...);
  * \param[out] min The minimum value in \p mat. May be \c NULL.
  * \param[out] max The maximum value in \p mat. May be \c NULL.
  * \return A three-channel \ref likely_matrix_u8 matrix suitable for displaying.
- * \see likely_show
+ * \see \ref likely_show
  */
 LIKELY_EXPORT likely_mat likely_render(likely_const_mat mat, double *min, double *max);
 

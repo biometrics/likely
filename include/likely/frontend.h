@@ -98,7 +98,7 @@ struct likely_abstract_syntax_tree
  * \param[in] atom The string to copy for \ref likely_abstract_syntax_tree::atom.
  * \param[in] atom_len The length of \p atom to copy, and the value for \ref likely_abstract_syntax_tree::atom_len.
  * \return A pointer to the new \ref likely_abstract_syntax_tree, or \c NULL if \c malloc failed.
- * \see likely_list
+ * \see \ref likely_list
  */
 LIKELY_EXPORT likely_ast likely_atom(const char *atom, uint32_t atom_len);
 
@@ -108,7 +108,7 @@ LIKELY_EXPORT likely_ast likely_atom(const char *atom, uint32_t atom_len);
  * \param[in] atoms The atoms to take for \ref likely_abstract_syntax_tree::atoms.
  * \param[in] num_atoms The length of \p atoms, and the value for \ref likely_abstract_syntax_tree::num_atoms.
  * \return A pointer to the new \ref likely_abstract_syntax_tree, or \c NULL if \c malloc failed.
- * \see likely_atom
+ * \see \ref likely_atom
  */
 LIKELY_EXPORT likely_ast likely_list(const likely_ast *atoms, uint32_t num_atoms);
 
@@ -118,7 +118,7 @@ LIKELY_EXPORT likely_ast likely_list(const likely_ast *atoms, uint32_t num_atoms
  * Increments \ref likely_abstract_syntax_tree::ref_count.
  * \param[in] ast Abstract syntax tree to add a reference. May be \c NULL.
  * \return \p ast.
- * \see likely_release_ast
+ * \see \ref likely_release_ast
  */
 LIKELY_EXPORT likely_ast likely_retain_ast(likely_const_ast ast);
 
@@ -127,7 +127,7 @@ LIKELY_EXPORT likely_ast likely_retain_ast(likely_const_ast ast);
  *
  * Decrements \ref likely_abstract_syntax_tree::ref_count.
  * \param[in] ast Abstract syntax tree to subtract a reference. May be \c NULL.
- * \see likely_retain_ast
+ * \see \ref likely_retain_ast
  */
 LIKELY_EXPORT void likely_release_ast(likely_const_ast ast);
 
@@ -148,7 +148,7 @@ struct likely_error
 
 /*!
  * \brief Signature of a function to call when a compilation error occurs.
- * \see likely_set_error_callback
+ * \see \ref likely_set_error_callback
  */
 typedef void (*likely_error_callback)(likely_err err, void *context);
 
@@ -167,7 +167,7 @@ LIKELY_EXPORT likely_err likely_new_err(likely_const_err parent, likely_const_as
  * Increments \ref likely_error::ref_count.
  * \param[in] err Error to add a reference. May be \c NULL.
  * \return \p err.
- * \see likely_release_err
+ * \see \ref likely_release_err
  */
 LIKELY_EXPORT likely_err likely_retain_err(likely_const_err err);
 
@@ -176,7 +176,7 @@ LIKELY_EXPORT likely_err likely_retain_err(likely_const_err err);
  *
  * Decrements \ref likely_error::ref_count.
  * \param[in] err Error to subtract a reference. May be \c NULL.
- * \see likely_retain_err
+ * \see \ref likely_retain_err
  */
 LIKELY_EXPORT void likely_release_err(likely_const_err err);
 
@@ -196,7 +196,7 @@ LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, voi
  * \param[in] where Location of the error.
  * \param[in] what Description of the error.
  * \return \c false.
- * \see likely_assert
+ * \see \ref likely_assert
  */
 LIKELY_EXPORT bool likely_throw(likely_const_ast where, const char *what);
 
@@ -211,7 +211,7 @@ LIKELY_EXPORT likely_mat likely_err_to_string(likely_err err);
  * \brief Conditional abort-style error handling with an error message.
  * \param[in] condition If \c false, print \a format and abort.
  * \param[in] format <tt>printf</tt>-style error message.
- * \see likely_throw
+ * \see \ref likely_throw
  */
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
 
@@ -238,7 +238,7 @@ enum likely_source_types
  * \param[in] source Code from which to extract tokens.
  * \param[in] type How to interpret \p source.
  * \return A list of tokens extracted from \p source.
- * \see likely_lex_and_parse
+ * \see \ref likely_lex_and_parse
  */
 LIKELY_EXPORT likely_ast likely_lex(const char *source, likely_source_type type);
 
@@ -248,7 +248,7 @@ LIKELY_EXPORT likely_ast likely_lex(const char *source, likely_source_type type)
  * The input to this function is usually the output from \ref likely_lex.
  * \param[in] tokens List of tokens from which build the abstract syntax tree.
  * \return An abstract syntax tree built from \p tokens.
- * \see likely_lex_and_parse
+ * \see \ref likely_lex_and_parse
  */
 LIKELY_EXPORT likely_ast likely_parse(likely_const_ast tokens);
 
@@ -259,7 +259,7 @@ LIKELY_EXPORT likely_ast likely_parse(likely_const_ast tokens);
  * \param[in] source Code from which to extract tokens and build the abstract syntax tree.
  * \param[in] type How to interpret \p source when extracting tokens.
  * \return An abstract syntax tree built from \p source.
- * \see likely_ast_to_string
+ * \see \ref likely_ast_to_string
  */
 LIKELY_EXPORT likely_ast likely_lex_and_parse(const char *source, likely_source_type type);
 
@@ -316,7 +316,7 @@ LIKELY_EXPORT likely_matrix_type likely_type_from_string(const char *str, bool *
  * \snippet src/frontend.cpp likely_type_from_value implementation.
  * \param[in] value The value from which to determine the appropriate type.
  * \return The appropriate \ref likely_matrix_type for \p value.
- * \see likely_type_from_types
+ * \see \ref likely_type_from_types
  */
 LIKELY_EXPORT likely_matrix_type likely_type_from_value(double value);
 

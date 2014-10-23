@@ -144,7 +144,7 @@ LIKELY_EXPORT size_t likely_bytes(likely_const_mat mat);
  * \snippet src/runtime_common.c likely_is_string implementation.
  * \param[in] m The matrix to test.
  * \return \c true if \ref likely_matrix::data is a string, \c false otherwise.
- * \see likely_string
+ * \see \ref likely_string
  */
 LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
 
@@ -166,7 +166,7 @@ LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
  * \param[in] frames \ref likely_matrix::frames.
  * \param[in] data \ref likely_matrix::data.
  * \return A pointer to the new \ref likely_matrix, or \c NULL if \c malloc failed.
- * \see likely_scalar_n likely_string
+ * \see \ref likely_scalar likely_string
  */
 LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data);
 
@@ -180,7 +180,7 @@ LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, 
  * \param[in] values Array of element values.
  * \param[in] n Length of \p values.
  * \return A pointer to the new multi-element \ref likely_matrix, or \c NULL if \c malloc failed.
- * \see likely_scalar_va
+ * \see \ref likely_scalar_va
  */
 LIKELY_EXPORT likely_mat likely_scalar(likely_matrix_type type, double *values, uint32_t n);
 
@@ -203,7 +203,7 @@ LIKELY_EXPORT likely_mat likely_scalar_va(likely_matrix_type type, double value,
  * \snippet src/runtime_common.c likely_string implementation.
  * \param[in] str String used to initialized \ref likely_matrix::data.
  * \return A pointer to the new \ref likely_matrix holding a string, or \c NULL if \c malloc failed.
- * \see likely_is_string
+ * \see \ref likely_is_string
  */
 LIKELY_EXPORT likely_mat likely_string(const char *str);
 
@@ -215,7 +215,7 @@ LIKELY_EXPORT likely_mat likely_string(const char *str);
  * \snippet src/runtime_common.c likely_retain_mat implementation.
  * \param[in] mat Matrix to add a reference. May be \c NULL.
  * \return \p mat.
- * \see likely_release_mat
+ * \see \ref likely_release_mat
  */
 LIKELY_EXPORT likely_mat likely_retain_mat(likely_const_mat mat);
 
@@ -227,7 +227,7 @@ LIKELY_EXPORT likely_mat likely_retain_mat(likely_const_mat mat);
  * \par Implementation
  * \snippet src/runtime_common.c likely_release_mat implementation.
  * \param[in] mat Matrix to subtract a reference. May be \c NULL.
- * \see likely_retain_mat
+ * \see \ref likely_retain_mat
  */
 LIKELY_EXPORT void likely_release_mat(likely_const_mat mat);
 
@@ -244,7 +244,7 @@ LIKELY_EXPORT void likely_release_mat(likely_const_mat mat);
  * \param[in] y Row.
  * \param[in] t Frame.
  * \return The value of the matrix at the specified location.
- * \see likely_set_element
+ * \see \ref likely_set_element
  */
 LIKELY_EXPORT double likely_element(likely_const_mat m, uint32_t c, uint32_t x, uint32_t y, uint32_t t);
 
@@ -259,13 +259,13 @@ LIKELY_EXPORT double likely_element(likely_const_mat m, uint32_t c, uint32_t x, 
  * \param[in] x Column.
  * \param[in] y Row.
  * \param[in] t Frame.
- * \see likely_element
+ * \see \ref likely_element
  */
 LIKELY_EXPORT void likely_set_element(likely_mat m, double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t);
 
 /*!
  * \brief A special kind of function designed to be run in parallel.
- * \see likely_fork
+ * \see \ref likely_fork
  */
 typedef void (*likely_thunk)(void *args, size_t start, size_t stop);
 

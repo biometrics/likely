@@ -91,7 +91,7 @@ struct likely_function
 /*!
  * \brief Construct a new environment for just-in-time compilation.
  * \return A new just-in-time compilation environment.
- * \see likely_new_env_offline
+ * \see \ref likely_new_env_offline
  */
 LIKELY_EXPORT likely_env likely_new_env_jit();
 
@@ -109,7 +109,7 @@ LIKELY_EXPORT likely_env likely_new_env_jit();
  *
  * \param[in] file_name Where to save the compilation output.
  * \return A new static compilation environment.
- * \see likely_new_env_jit
+ * \see \ref likely_new_env_jit
  */
 LIKELY_EXPORT likely_env likely_new_env_offline(const char *file_name);
 
@@ -119,7 +119,7 @@ LIKELY_EXPORT likely_env likely_new_env_offline(const char *file_name);
  * Increments \ref likely_environment::ref_count.
  * \param[in] env Environment to add a reference. May be \c NULL.
  * \return \p env.
- * \see likely_release_env
+ * \see \ref likely_release_env
  */
 LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
 
@@ -128,7 +128,7 @@ LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
  *
  * Decrements \ref likely_environment::ref_count.
  * \param[in] env Environment to subtract a reference. May be \c NULL.
- * \see likely_retain_env
+ * \see \ref likely_retain_env
  */
 LIKELY_EXPORT void likely_release_env(likely_const_env env);
 
@@ -152,7 +152,7 @@ LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env e
  * Increments \ref likely_function::ref_count.
  * \param[in] fun Function to add a reference. May be \c NULL.
  * \return \p fun.
- * \see likely_release_fun
+ * \see \ref likely_release_fun
  */
 LIKELY_EXPORT likely_fun likely_retain_fun(likely_const_fun fun);
 
@@ -161,7 +161,7 @@ LIKELY_EXPORT likely_fun likely_retain_fun(likely_const_fun fun);
  *
  * Decrements \ref likely_function::ref_count.
  * \param[in] fun Function to subtract a reference. May be \c NULL.
- * \see likely_release_fun
+ * \see \ref likely_release_fun
  */
 LIKELY_EXPORT void likely_release_fun(likely_const_fun fun);
 
@@ -173,13 +173,13 @@ LIKELY_EXPORT void likely_release_fun(likely_const_fun fun);
  * \param[in] ast Statement to evaluate.
  * \param[in] parent Environment in which to evaluate \p ast.
  * \return A new \ref likely_environment holding the evaluation result.
- * \see likely_repl
+ * \see \ref likely_repl
  */
 LIKELY_EXPORT likely_env likely_eval(likely_ast ast, likely_env parent);
 
 /*!
  * \brief Signature of a function to call after a statement is completed.
- * \see likely_repl
+ * \see \ref likely_repl
  */
 typedef void (*likely_repl_callback)(likely_const_env env, void *context);
 
@@ -192,7 +192,7 @@ typedef void (*likely_repl_callback)(likely_const_env env, void *context);
  * \param[in] repl_callback Function to call with the output of each completed statement.
  * \param[in] context User-defined data to pass to \p repl_callback.
  * \return A new \ref likely_environment holding the final evaluation result.
- * \see likely_eval
+ * \see \ref likely_eval
  */
 LIKELY_EXPORT likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback repl_callback, void *context);
 
@@ -210,7 +210,7 @@ LIKELY_EXPORT extern const char likely_standard_library[];
 
 /*!
  * \brief Used internally to hold data structures required for dynamic dispatch.
- * \see likely_dynamic
+ * \see \ref likely_dynamic
  */
 typedef struct likely_virtual_table *likely_vtable;
 
