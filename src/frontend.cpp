@@ -32,7 +32,7 @@
 
 using namespace std;
 
-likely_ast likely_new_atom(const char *atom, uint32_t atom_len)
+likely_ast likely_atom(const char *atom, uint32_t atom_len)
 {
     likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + atom_len + 1);
     if (!ast)
@@ -52,7 +52,7 @@ likely_ast likely_new_atom(const char *atom, uint32_t atom_len)
     return ast;
 }
 
-likely_ast likely_new_list(const likely_ast *atoms, uint32_t num_atoms)
+likely_ast likely_list(const likely_ast *atoms, uint32_t num_atoms)
 {
     likely_ast ast = (likely_ast) malloc(sizeof(likely_abstract_syntax_tree) + num_atoms * sizeof(likely_ast));
     if (!ast)
@@ -234,7 +234,7 @@ static void tokenize(const char *str, const size_t len, vector<likely_ast> &toke
             column++;
         }
 
-        likely_ast token = likely_new_atom(&str[begin], i-begin);
+        likely_ast token = likely_atom(&str[begin], i-begin);
         token->begin_line = begin_line;
         token->begin_column = begin_column;
         token->end_line = line;
@@ -326,7 +326,7 @@ likely_ast likely_lex(const char *source, likely_source_type type)
         return NULL;
     }
 
-    return likely_new_list(tokens.data(), uint32_t(tokens.size()));
+    return likely_list(tokens.data(), uint32_t(tokens.size()));
 }
 
 static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &output, bool canFail = false);
@@ -343,7 +343,7 @@ static ReductionStatus reduceComposition(likely_const_ast tokens, size_t &offset
     if (offset == tokens->num_atoms)
         return ReductionNoOp;
 
-    static likely_const_ast composition = likely_new_atom(".", 1);
+    static likely_const_ast composition = likely_atom(".", 1);
     if (!likely_ast_compare(tokens->atoms[offset], composition)) {
         if (output.empty()) {
             likely_throw(tokens->atoms[offset], "missing composition left-hand-side operand");
@@ -363,7 +363,7 @@ static ReductionStatus reduceComposition(likely_const_ast tokens, size_t &offset
             // It's a number
             stringstream stream;
             stream << output[output.size()-2]->atom << "." << output[output.size()-1]->atom;
-            likely_ast number = likely_new_atom(stream.str().c_str(), uint32_t(stream.str().size()));
+            likely_ast number = likely_atom(stream.str().c_str(), uint32_t(stream.str().size()));
             number->begin_line   = output[output.size()-2]->begin_line;
             number->begin_column = output[output.size()-2]->begin_column;
             number->end_line     = output[output.size()-1]->end_line;
@@ -387,7 +387,7 @@ static ReductionStatus reduceComposition(likely_const_ast tokens, size_t &offset
             atoms.insert(atoms.begin() + 1, output.back());
             output.pop_back();
 
-            likely_ast list = likely_new_list(atoms.data(), uint32_t(atoms.size()));
+            likely_ast list = likely_list(atoms.data(), uint32_t(atoms.size()));
             list->begin_line = list->atoms[1]->begin_line;
             list->begin_column = list->atoms[1]->begin_column;
             list->end_line = end_line;
@@ -407,7 +407,7 @@ static ReductionStatus reduce(likely_const_ast tokens, size_t &offset, vector<li
     if (offset >= tokens->num_atoms)
         return ReductionNoOp;
 
-    static likely_const_ast infix = likely_new_atom(":", 1);
+    static likely_const_ast infix = likely_atom(":", 1);
     if (!likely_ast_compare(tokens->atoms[offset], infix)) {
         if (output.empty()) {
             likely_throw(tokens->atoms[offset], "missing infix left-hand-side operand");
@@ -438,7 +438,7 @@ static ReductionStatus reduce(likely_const_ast tokens, size_t &offset, vector<li
         atoms.insert(atoms.begin() + 1, output.back());
         output.pop_back();
 
-        likely_ast list = likely_new_list(atoms.data(), uint32_t(atoms.size()));
+        likely_ast list = likely_list(atoms.data(), uint32_t(atoms.size()));
         list->begin_line = list->atoms[1]->begin_line;
         list->begin_column = list->atoms[1]->begin_column;
         list->end_line = end_line;
@@ -462,7 +462,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
         return false;
     likely_const_ast token = tokens->atoms[offset++];
 
-    static likely_const_ast comment = likely_new_atom(";", 1);
+    static likely_const_ast comment = likely_atom(";", 1);
     if (!likely_ast_compare(token, comment)) {
         const uint32_t line = token->begin_line;
         while (token->begin_line == line) {
@@ -473,10 +473,10 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
         }
     }
 
-    static likely_const_ast listOpen = likely_new_atom("(", 1);
-    static likely_const_ast listClose = likely_new_atom(")", 1);
-    static likely_const_ast beginOpen = likely_new_atom("{", 1);
-    static likely_const_ast beginClose = likely_new_atom("}", 1);
+    static likely_const_ast listOpen = likely_atom("(", 1);
+    static likely_const_ast listClose = likely_atom(")", 1);
+    static likely_const_ast beginOpen = likely_atom("{", 1);
+    static likely_const_ast beginClose = likely_atom("}", 1);
     if (!likely_ast_compare(token, listOpen) || !likely_ast_compare(token, beginOpen)) {
         vector<likely_ast> atoms;
         likely_const_ast close;
@@ -506,7 +506,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
                 return cleanup(atoms);
         }
 
-        likely_ast list = likely_new_list(atoms.data(), uint32_t(atoms.size()));
+        likely_ast list = likely_list(atoms.data(), uint32_t(atoms.size()));
         list->begin_line = token->begin_line;
         list->begin_column = token->begin_column;
         list->end_line = end->end_line;
@@ -530,7 +530,7 @@ likely_ast likely_parse(likely_const_ast tokens)
             cleanup(expressions);
             return NULL;
         }
-    return likely_new_list(expressions.data(), uint32_t(expressions.size()));
+    return likely_list(expressions.data(), uint32_t(expressions.size()));
 }
 
 //! [likely_lex_and_parse implementation.]

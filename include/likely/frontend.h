@@ -98,9 +98,9 @@ struct likely_abstract_syntax_tree
  * \param[in] atom The string to copy for \ref likely_abstract_syntax_tree::atom.
  * \param[in] atom_len The length of \p atom to copy, and the value for \ref likely_abstract_syntax_tree::atom_len.
  * \return A pointer to the new \ref likely_abstract_syntax_tree, or \c NULL if \c malloc failed.
- * \see likely_new_list
+ * \see likely_list
  */
-LIKELY_EXPORT likely_ast likely_new_atom(const char *atom, uint32_t atom_len);
+LIKELY_EXPORT likely_ast likely_atom(const char *atom, uint32_t atom_len);
 
 /*!
  * \brief Construct a new list from an array of atoms.
@@ -108,9 +108,9 @@ LIKELY_EXPORT likely_ast likely_new_atom(const char *atom, uint32_t atom_len);
  * \param[in] atoms The atoms to take for \ref likely_abstract_syntax_tree::atoms.
  * \param[in] num_atoms The length of \p atoms, and the value for \ref likely_abstract_syntax_tree::num_atoms.
  * \return A pointer to the new \ref likely_abstract_syntax_tree, or \c NULL if \c malloc failed.
- * \see likely_new_atom
+ * \see likely_atom
  */
-LIKELY_EXPORT likely_ast likely_new_list(const likely_ast *atoms, uint32_t num_atoms);
+LIKELY_EXPORT likely_ast likely_list(const likely_ast *atoms, uint32_t num_atoms);
 
 /*!
  * \brief Retain a reference to an abstract syntax tree.

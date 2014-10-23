@@ -456,7 +456,7 @@ struct likely_expression
         assert(name && strcmp(name, ""));
         env = newEnv(env);
         env->type |= likely_environment_definition;
-        env->ast = likely_new_atom(name, uint32_t(strlen(name)));
+        env->ast = likely_atom(name, uint32_t(strlen(name)));
         env->value = value;
     }
 
