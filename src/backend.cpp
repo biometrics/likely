@@ -1409,13 +1409,16 @@ class tryExpression : public LikelyOperator
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        const likely_const_env env = likely_eval(ast->atoms[1], builder.env);
-        likely_const_expr result = (env && !(env->type & likely_environment_definition)) ? builder.mat(likely_retain_mat(env->result))
-                                                                                         : NULL;
-        likely_release_env(env);
-        if (!result)
-            result = builder.expression(ast->atoms[2]);
-        return result;
+        likely_const_expr value = NULL;
+        if (likely_env env = likely_eval(ast->atoms[1], builder.env)) {
+            if (env->type & likely_environment_definition) swap(env->value, value);
+            else                                           value = builder.mat(likely_retain_mat(env->result));
+            likely_release_env(env);
+        }
+
+        if (!value)
+            value = builder.expression(ast->atoms[2]);
+        return value;
     }
 };
 LIKELY_REGISTER(try)
