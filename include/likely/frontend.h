@@ -66,6 +66,16 @@ typedef struct likely_abstract_syntax_tree const *likely_const_ast; /*!< \brief 
  * In tree-terminology a list is a \a branch, and an atom is a \a leaf.
  *
  * In Likely source code, parenthesis, periods and colons are used to construct lists, and everything else is an atom.
+ *
+ * \par Abstract Syntax Tree Construction
+ * | Function                  | Description                     |
+ * |---------------------------|---------------------------------|
+ * | \ref likely_atom          | \copybrief likely_atom          |
+ * | \ref likely_list          | \copybrief likely_list          |
+ * | \ref likely_lex           | \copybrief likely_lex           |
+ * | \ref likely_parse         | \copybrief likely_parse         |
+ * | \ref likely_lex_and_parse | \copybrief likely_lex_and_parse |
+ *
  * \see \ref reference_counting
  */
 struct likely_abstract_syntax_tree
@@ -232,7 +242,7 @@ enum likely_source_types
 };
 
 /*!
- * \brief Performs lexical analysis, converting source code into a list of tokens.
+ * \brief Perform lexical analysis, converting source code into a list of tokens.
  *
  * The output from this function is usually the input to \ref likely_parse.
  * \param[in] source Code from which to extract tokens.
@@ -243,7 +253,7 @@ enum likely_source_types
 LIKELY_EXPORT likely_ast likely_lex(const char *source, likely_source_type type);
 
 /*!
- * \brief Performs syntactic analysis, converting a list of tokens into an abstract syntax tree.
+ * \brief Perform syntactic analysis, converting a list of tokens into an abstract syntax tree.
  *
  * The input to this function is usually the output from \ref likely_lex.
  * \param[in] tokens List of tokens from which build the abstract syntax tree.

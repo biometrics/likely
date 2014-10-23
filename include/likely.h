@@ -31,7 +31,7 @@
  *
  * As a result, end users should make use of the provided functions for _retaining_ (shallow copying), and _releasing_ (deleting) objects:
  *
- * | Structure                        | Reference                                | Retain / Release                                  |
+ * | Struct                           | Pointer                                  | Retain / Release                                  |
  * |----------------------------------|------------------------------------------|---------------------------------------------------|
  * | \ref likely_matrix               | \ref likely_mat \n \ref likely_const_mat | \ref likely_retain_mat \n \ref likely_release_mat |
  * | \ref likely_abstract_syntax_tree | \ref likely_ast \n \ref likely_const_ast | \ref likely_retain_ast \n \ref likely_release_ast |
