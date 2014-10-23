@@ -670,17 +670,19 @@ public slots:
 
     void print(likely_const_env env)
     {
-        if (!env || (env->type & likely_environment_definition) || !env->result)
+        if (env->type & likely_environment_definition)
             return;
 
-        const QString name = likely_symbol(env->ast);
-        const int i = offset++;
-        if (QLayoutItem *item = layout->itemAt(i)) // Try to recycle the widget
-            return static_cast<Matrix*>(item->widget())->show(env->result, name);
-        Matrix *matrix = new Matrix();
-        layout->insertWidget(i, matrix);
-        connect(matrix, SIGNAL(definitionChanged()), this, SLOT(definitionChanged()));
-        matrix->show(env->result, name);
+        if (likely_const_mat m = likely_result(env)) {
+            const QString name = likely_symbol(env->ast);
+            const int i = offset++;
+            if (QLayoutItem *item = layout->itemAt(i)) // Try to recycle the widget
+                return static_cast<Matrix*>(item->widget())->show(m, name);
+            Matrix *matrix = new Matrix();
+            layout->insertWidget(i, matrix);
+            connect(matrix, SIGNAL(definitionChanged()), this, SLOT(definitionChanged()));
+            matrix->show(m, name);
+        }
     }
 
     void finishedPrinting()

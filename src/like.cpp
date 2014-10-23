@@ -84,7 +84,7 @@ static void replRecord(likely_const_env env, void *context)
     const int bufferSize = 128;
     char fileName[bufferSize];
     snprintf(fileName, bufferSize, record.getValue().c_str(), index++);
-    likely_mat rendered = likely_render(env->result, NULL, NULL);
+    likely_mat rendered = likely_render(likely_result(env), NULL, NULL);
     likely_write(rendered, fileName);
     likely_release_mat(rendered);
 }
@@ -92,7 +92,7 @@ static void replRecord(likely_const_env env, void *context)
 static void showCallback(likely_const_env env, void *context)
 {
     if (!env || !context) return;
-    likely_show(env->result, likely_symbol(env->ast));
+    likely_show(likely_result(env), likely_symbol(env->ast));
 }
 
 static void replShow(likely_const_env env, void *context)
@@ -101,7 +101,7 @@ static void replShow(likely_const_env env, void *context)
     if (assert_.getValue().empty()) {
         showCallback(env, context);
     } else {
-        likely_mat rendered = likely_render(env->result, NULL, NULL);
+        likely_mat rendered = likely_render(likely_result(env), NULL, NULL);
         likely_mat baseline = likely_read(assert_.getValue().c_str(), likely_file_binary);
         likely_assert(rendered->channels == baseline->channels, "expected: %d channels, got: %d", baseline->channels, rendered->channels);
         likely_assert(rendered->columns  == baseline->columns , "expected: %d columns, got: %d" , baseline->columns , rendered->columns);
@@ -121,7 +121,7 @@ static void replShow(likely_const_env env, void *context)
 static void replMD5(likely_const_env env, void *context)
 {
     if (!context) return;
-    likely_mat md5 = likely_md5(env->result);
+    likely_mat md5 = likely_md5(likely_result(env));
 
     char hex_str[] = "0123456789abcdef";
     const size_t bytes = likely_bytes(md5);
@@ -144,7 +144,7 @@ static void replQuiet(likely_const_env, void *)
 static void replPrint(likely_const_env env, void *context)
 {
     if (!context) return;
-    checkOrPrintAndRelease(likely_to_string(env->result));
+    checkOrPrintAndRelease(likely_to_string(likely_result(env)));
 }
 
 int main(int argc, char *argv[])
