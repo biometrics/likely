@@ -93,7 +93,7 @@ void likely_release_ast(likely_const_ast ast)
     free((void*) ast);
 }
 
-likely_err likely_new_err(likely_const_err parent, likely_const_ast where, const char *format, ...)
+likely_err likely_erratum(likely_const_err parent, likely_const_ast where, const char *format, ...)
 {
     const unsigned MaxErrorLength = 256;
     likely_err err = (likely_err) malloc(sizeof(likely_error) + MaxErrorLength);
@@ -145,7 +145,7 @@ void likely_set_error_callback(likely_error_callback callback, void *context)
 
 bool likely_throw(likely_const_ast where, const char *what)
 {
-    likely_err err = likely_new_err(NULL, where, what);
+    likely_err err = likely_erratum(NULL, where, what);
     ErrorCallback(err, ErrorContext);
     likely_release_err(err);
     return false;

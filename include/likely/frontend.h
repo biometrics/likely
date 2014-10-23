@@ -146,6 +146,11 @@ typedef struct likely_error const *likely_const_err; /*!< \brief Pointer to a co
 
 /*!
  * \brief A compilation error.
+ * \par Error Construction
+ * | Function            | Description               |
+ * |---------------------|---------------------------|
+ * | \ref likely_erratum | \copybrief likely_erratum |
+ *
  * \see \ref reference_counting
  */
 struct likely_error
@@ -169,7 +174,7 @@ typedef void (*likely_error_callback)(likely_err err, void *context);
  * \param[in] format <tt>printf</tt>-style string to populate \ref likely_error::what.
  * \return Pointer to a new \ref likely_error, or \c NULL if \c malloc failed.
  */
-LIKELY_EXPORT likely_err likely_new_err(likely_const_err parent, likely_const_ast where, const char *format, ...);
+LIKELY_EXPORT likely_err likely_erratum(likely_const_err parent, likely_const_ast where, const char *format, ...);
 
 /*!
  * \brief Retain a reference to an error.
