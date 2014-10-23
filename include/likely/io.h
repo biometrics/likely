@@ -69,7 +69,7 @@ LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_file_type typ
 LIKELY_EXPORT likely_mat likely_write(likely_const_mat image, const char *file_name);
 
 /*!
- * \brief Decode a \ref likely_matrix.
+ * \brief Decode a \ref likely_matrix from a buffer.
  *
  * The format of \p buffer is determined automatically.
  * \param[in] buffer The buffer to decode.
@@ -79,7 +79,7 @@ LIKELY_EXPORT likely_mat likely_write(likely_const_mat image, const char *file_n
 LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
 
 /*!
- * \brief Encode a \ref likely_matrix.
+ * \brief Encode a \ref likely_matrix to a buffer.
  *
  * \param[in] image The image to encode.
  * \param[in] extension The desired encoding format.
@@ -89,7 +89,7 @@ LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
 LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *extension);
 
 /*!
- * \brief Convert a \ref likely_matrix to a string suitable for printing.
+ * \brief Convert a \ref likely_matrix to a \ref likely_string suitable for printing.
  * \param[in] mat Matrix to stringify.
  * \return Stringified matrix.
  * \see likely_to_string_n
@@ -97,7 +97,7 @@ LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *exten
 LIKELY_EXPORT likely_mat likely_to_string(likely_const_mat mat);
 
 /*!
- * \brief Convert an array of \ref likely_matrix to a string suitable for printing.
+ * \brief Convert an array of \ref likely_matrix to a \ref likely_string suitable for printing.
  * \param[in] mats Vector of matricies to stringify.
  * \param[in] n Length of \p mats.
  * \return Stringified matrix.
@@ -106,7 +106,7 @@ LIKELY_EXPORT likely_mat likely_to_string(likely_const_mat mat);
 LIKELY_EXPORT likely_mat likely_to_string_n(likely_const_mat *mats, size_t n);
 
 /*!
- * \brief Convert a list of \ref likely_matrix to a string suitable for printing.
+ * \brief Convert a list of \ref likely_matrix to a \ref likely_string suitable for printing.
  * \param[in] mat <tt>NULL</tt>-terminated list of matricies to stringify.
  * \return Stringified matrix.
  * \see likely_to_string_n
@@ -114,11 +114,11 @@ LIKELY_EXPORT likely_mat likely_to_string_n(likely_const_mat *mats, size_t n);
 LIKELY_EXPORT likely_mat likely_to_string_va(likely_const_mat mat, ...);
 
 /*!
- * \brief Convert a \ref likely_matrix to three channels with 8-bit depth suitable for displaying.
+ * \brief Convert to three-channel \ref likely_matrix_u8 \ref likely_matrix suitable for displaying.
  * \param[in] mat Matrix to convert.
  * \param[out] min The minimum value in \p mat. May be \c NULL.
  * \param[out] max The maximum value in \p mat. May be \c NULL.
- * \return A three-channel 8-bit matrix suitable for displaying.
+ * \return A three-channel \ref likely_matrix_u8 matrix suitable for displaying.
  * \see likely_show
  */
 LIKELY_EXPORT likely_mat likely_render(likely_const_mat mat, double *min, double *max);

@@ -96,13 +96,24 @@ typedef struct likely_matrix *likely_mat; /*!< \brief Pointer to a \ref likely_m
  * The fields excluding \ref data are collectively referred to as the matrix _header_.
  * In contrast to most image processing libraries which tend to feature 3-dimensional matrices (_channels_, _columns_ and _rows_), Likely includes a fourth dimension, _frames_, in order to facilitate processing videos and image collections.
  *
+ * \section matrix_construction Martrix Construction
+ * | Function              | Description                 |
+ * |-----------------------|-----------------------------|
+ * | \ref likely_new       | \copybrief likely_new       |
+ * | \ref likely_scalar    | \copybrief likely_scalar    |
+ * | \ref likely_string    | \copybrief likely_string    |
+ * | \ref likely_read      | \copybrief likely_read      |
+ * | \ref likely_decode    | \copybrief likely_decode    |
+ * | \ref likely_to_string | \copybrief likely_to_string |
+ * | \ref likely_render    | \copybrief likely_render    |
+ *
  * \section element_access Element Access
- * By convention, element layout in \ref data with respect to decreasing spatial locality is: channel, column, row, frame.
- * Thus an element at channel _c_, column _x_, row _y_, and frame _t_, can be retrieved like:
+ * By convention, element layout in \ref likely_matrix::data with respect to decreasing spatial locality is: channel, column, row, frame.
+ * Thus an element at channel _c_, column _x_, row _y_ and frame _t_, can be retrieved like:
  * \snippet src/runtime_common.c likely_element implementation.
  *
  * Convenience functions \ref likely_element and \ref likely_set_element are provided for individual element access.
- * These functions should be used sparingly as they are inefficient for iterating over a large numbers of elements due to the repeated index calculations.
+ * However, these functions should be used sparingly as they are inefficient for iterating over a large numbers of elements due to the repeated index calculations.
  * \see \ref reference_counting
  */
 struct likely_matrix
@@ -160,7 +171,7 @@ LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
 LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data);
 
 /*!
- * \brief Allocate and initialize a new multi-element \ref likely_matrix.
+ * \brief Allocate and initialize a new low-dimensional \ref likely_matrix.
  *
  * Convenient alternative to \ref likely_new for low-dimensional vectors.
  * \par Implementation
