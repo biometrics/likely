@@ -39,11 +39,18 @@
  * | \ref likely_environment          | \ref likely_env \n \ref likely_const_env | \ref likely_retain_env \n \ref likely_release_env |
  * | \ref likely_function             | \ref likely_fun \n \ref likely_const_fun | \ref likely_retain_fun \n \ref likely_release_fun |
  *
- * \note All functions that return a reference to one of these structures assume that the user takes ownership of the reference and should release it when no longer needed.
+ * \note With the exception of \ref owned_by, the calling application is assumed to take ownership of a funciton's return value and should release it when no longer needed.
  *
  * The reference count is kept in a variable named \c ref_count which is incremented and decremented by calls to \a retain and \a release respectively.
  * When the reference count is decremented to zero, any memory associated with the structure will be freed.
- * End users should _not_ modify the \c ref_count variable directly.
+ * Applications should _not_ modify the \c ref_count variable directly.
+ *
+ * \section owned_by Owned By
+ * There are certain functions in the API which always return references to existing data.
+ * These functions will indicate which parameter the return value is \ref owned_by in the documentation of the return value itself.
+ * In this case, the return value is guaranteed for the lifetime of the _owning parameter_.
+ * The calling application may explicitly retain an additional reference to the return value to extend its lifetime beyond that of the owning parameter.
+ * \note In the case of \ref owned_by, the calling application should not explicitly release the return value unless the calling application explicitly retained it earlier.
  */
 
 #endif // LIKELY_H

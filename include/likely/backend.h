@@ -161,10 +161,8 @@ LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env e
 
 /*!
  * \brief Obtain the result of a computation.
- *
- * The returned \ref likely_matrix is owned by \p env.
  * \param[in] env Where the computation was performed.
- * \return The result of the computation, or \c NULL if no computation was performed.
+ * \return The result of the computation, or \c NULL if no computation was performed. \ref owned_by \p env.
  */
 LIKELY_EXPORT likely_const_mat likely_result(likely_const_env env);
 
