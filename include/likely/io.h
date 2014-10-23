@@ -101,7 +101,7 @@ LIKELY_EXPORT likely_mat likely_to_string(likely_const_mat mat);
  * \param[in] mats Vector of matricies to stringify.
  * \param[in] n Length of \p mats.
  * \return Stringified matrix.
- * \see \ref likely_to_string likely_to_string_va
+ * \see \ref likely_to_string \ref likely_to_string_va
  */
 LIKELY_EXPORT likely_mat likely_to_string_n(likely_const_mat *mats, size_t n);
 

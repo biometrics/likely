@@ -166,7 +166,7 @@ LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
  * \param[in] frames \ref likely_matrix::frames.
  * \param[in] data \ref likely_matrix::data.
  * \return A pointer to the new \ref likely_matrix, or \c NULL if \c malloc failed.
- * \see \ref likely_scalar likely_string
+ * \see \ref likely_scalar \ref likely_string
  */
 LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data);
 
