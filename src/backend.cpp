@@ -2244,7 +2244,7 @@ private:
         (void) builder;
         (void) ast;
 
-        likely_const_mat m = get()->result;
+        likely_const_mat m = likely_result(get());
         if (!(m->type & likely_matrix_multi_dimension)) {
             // Promote to scalar
             return new likely_expression(builder.constant(likely_element(m, 0, 0, 0, 0), m->type & likely_matrix_element));
@@ -2833,7 +2833,7 @@ likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback r
         parent = env;
         if (repl_callback)
             // If there is not context, we return a boolean value indicating if the environment has a valid result
-            repl_callback(env, context ? context : (void*)(!(env->type & likely_environment_definition) && env->result));
+            repl_callback(env, context ? context : (void*)(!(env->type & likely_environment_definition)));
         if (env->type & likely_environment_erratum)
             break;
     }
