@@ -1183,7 +1183,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                 if (function == functionLUT.end()) {
                     const string code = string("(a b):-> (a b):=> (") + symbol() + string(" a b))");
                     likely_const_ast ast = likely_lex_and_parse(code.c_str(), likely_source_lisp);
-                    likely_const_env env = likely_new_env_jit();
+                    likely_const_env env = likely_jit();
                     likely_function *compiled = likely_compile(ast->atoms[0], env, likely_matrix_void);
                     likely_release_env(env);
                     likely_release_ast(ast);
@@ -2647,12 +2647,12 @@ LIKELY_REGISTER(md5)
 
 } // namespace (anonymous)
 
-likely_env likely_new_env_jit()
+likely_env likely_jit()
 {
     return newEnv(RootEnvironment::get());
 }
 
-likely_env likely_new_env_offline(const char *file_name)
+likely_env likely_static(const char *file_name)
 {
     likely_env env = newEnv(RootEnvironment::get());
     if (!env)

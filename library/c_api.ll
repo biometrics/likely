@@ -19,7 +19,7 @@ int main()
     // Do work
     likely_const_mat lenna = likely_read("data/misc/lenna.tiff", likely_file_binary);
     likely_const_ast ast = likely_lex_and_parse("a:-> (=> a (/ a (a.type 2)))", likely_source_lisp);
-    likely_const_env env = likely_new_env_jit();
+    likely_const_env env = likely_jit();
     likely_const_fun darken = likely_compile(ast->atoms[0], env, likely_matrix_void);
     likely_const_mat dark_lenna = ((likely_mat (*)(likely_const_mat))darken->function)(lenna);
 

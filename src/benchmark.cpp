@@ -63,7 +63,7 @@ struct Test
             return;
 
         likely_const_ast ast = likely_lex_and_parse(function(), likely_source_lisp);
-        likely_env env = likely_new_env_jit();
+        likely_env env = likely_jit();
 
         string execution;
         if (BenchmarkParallel) {
@@ -118,7 +118,7 @@ struct Test
 
         printf("%s \t", fileName.c_str());
         likely_const_ast ast = likely_lex_and_parse(source.c_str(), likely_source_gfm);
-        likely_env env = likely_new_env_jit();
+        likely_env env = likely_jit();
         for (size_t i=0; i<ast->num_atoms; i++) {
             likely_env new_env = likely_eval(ast->atoms[i], env);
             likely_release_env(env);
@@ -135,7 +135,7 @@ struct Test
         int iter = 0;
         startTime = endTime = clock();
         while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
-            likely_env env = likely_new_env_jit();
+            likely_env env = likely_jit();
             for (size_t i=0; i<ast->num_atoms; i++) {
                 likely_env new_env = likely_eval(ast->atoms[i], env);
                 likely_release_env(env);

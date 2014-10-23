@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
     likely_const_ast ast = likely_lex_and_parse(argv[2], likely_source_lisp);
 
     puts("Creating a compiler environment...");
-    likely_const_env env = likely_new_env_jit();
+    likely_const_env env = likely_jit();
 
     puts("Compiling source code...");
     likely_const_fun fun = likely_compile(ast->atoms[0], env, likely_matrix_void);

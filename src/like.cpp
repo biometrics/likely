@@ -159,8 +159,8 @@ int main(int argc, char *argv[])
     else            repl_callback = replPrint;
 
     likely_env parent;
-    if (output.empty()) parent = likely_new_env_jit(); // console or interpreter
-    else                parent = likely_new_env_offline(output.c_str()); // compiler
+    if (output.empty()) parent = likely_jit(); // console or interpreter
+    else                parent = likely_static(output.c_str()); // compiler
     if (parallel)
         parent->type |= likely_environment_parallel;
 

@@ -58,6 +58,14 @@ typedef struct likely_environment const *likely_const_env; /*!< \brief Pointer t
 
 /*!
  * \brief The context in which the semantics of an abstract syntax tree is determined.
+ * \par Environment Construction
+ * | Function           | Description              |
+ * |--------------------|--------------------------|
+ * | \ref likely_jit    | \copybrief likely_jit    |
+ * | \ref likely_static | \copybrief likely_static |
+ * | \ref likely_eval   | \copybrief likely_eval   |
+ * | \ref likely_repl   | \copybrief likely_repl   |
+ *
  * \see \ref reference_counting
  */
 struct likely_environment
@@ -91,9 +99,9 @@ struct likely_function
 /*!
  * \brief Construct a new environment for just-in-time compilation.
  * \return A new just-in-time compilation environment.
- * \see \ref likely_new_env_offline
+ * \see \ref likely_static
  */
-LIKELY_EXPORT likely_env likely_new_env_jit();
+LIKELY_EXPORT likely_env likely_jit();
 
 /*!
  * \brief Construct a new environment for static compilation.
@@ -109,9 +117,9 @@ LIKELY_EXPORT likely_env likely_new_env_jit();
  *
  * \param[in] file_name Where to save the compilation output.
  * \return A new static compilation environment.
- * \see \ref likely_new_env_jit
+ * \see \ref likely_jit
  */
-LIKELY_EXPORT likely_env likely_new_env_offline(const char *file_name);
+LIKELY_EXPORT likely_env likely_static(const char *file_name);
 
 /*!
  * \brief Retain a reference to an environment.
@@ -229,7 +237,7 @@ typedef struct likely_virtual_table *likely_vtable;
 LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats);
 
 /*!
- * \brief Compute the MD5 hash of matrix data.
+ * \brief Compute the MD5 hash of \ref likely_matrix::data.
  * \param[in] mat \ref likely_matrix::data to compute the MD5 hash of.
  * \return A new matrix where containing the 16-byte MD5 hash.
  */

@@ -166,7 +166,7 @@ class Source : public QPlainTextEdit
     Q_OBJECT
     QString header, previousSource;
     int wheelRemainderX = 0, wheelRemainderY = 0;
-    likely_env root = likely_new_env_jit();
+    likely_env root = likely_jit();
     likely_env current = NULL;
 
 public:
@@ -193,7 +193,7 @@ public slots:
     void setExecution(const QString &execution)
     {
         likely_release_env(root);
-        root = likely_new_env_jit();
+        root = likely_jit();
         if (execution == "Parallel")
             root->type |= likely_environment_parallel;
         previousSource.clear(); // clear cache
