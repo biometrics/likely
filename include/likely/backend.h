@@ -73,10 +73,7 @@ struct likely_environment
     likely_const_env parent; /*!< \brief Additional context, or \c NULL if root. */
     likely_const_ast ast; /*!< \brief Associated source code. */
     struct likely_module *module; /*!< \brief Used internally as a container to store the generated instructions. */
-    union {
-        struct likely_expression const *value; /*!< \brief If <tt>\ref type & \ref likely_environment_definition</tt>, the environment is a \a definition and \ref value is its right-hand-side. */
-        likely_const_mat result; /*!< \brief If not <tt>\ref type & \ref likely_environment_definition</tt>, the environment is an \a expression and \ref result is its value. */
-    }; /*!< \brief A definition or an expression. */
+    struct likely_expression const *value; /*!< \brief If <tt>\ref type & \ref likely_environment_definition</tt>, the environment is a \a definition and \ref value is its right-hand-side. */
     likely_environment_type type; /*!< Interpretation of \ref likely_environment. */
     uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain_env and \ref likely_release_env to track ownership. */
     uint32_t num_children; /*!< \brief Length of \ref children. */

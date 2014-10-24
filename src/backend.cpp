@@ -311,7 +311,6 @@ static likely_env newEnv(likely_const_env parent)
     env->ast = NULL;
     env->module = parent ? parent->module : NULL;
     env->value = NULL;
-    env->result = NULL;
     env->ref_count = 1;
     env->num_children = 0;
     env->children = NULL;
@@ -2712,9 +2711,7 @@ void likely_release_env(likely_const_env env)
             }
     }
 
-    // Do this early to guarantee the environment for these lifetime of these classes
-    if (env->type & likely_environment_definition) delete env->value;
-    else                                           likely_release_mat(env->result);
+    delete env->value; // Do this early to guarantee the environment for these lifetime of these classes
 
     likely_release_ast(env->ast);
     free(env->children);
@@ -2773,10 +2770,9 @@ likely_const_mat likely_result(likely_const_env env)
 {
     if (!env)
         return NULL;
-    if (env->type & likely_environment_definition)
-        return likely_result(EvaluatedExpression::get(env->value));
-    else
-        return env->result;
+    if (likely_const_env rhs = EvaluatedExpression::get(env->value))
+        return likely_result(rhs);
+    return Lambda::getResult(env);
 }
 
 likely_fun likely_retain_fun(likely_const_fun fun)
@@ -2829,9 +2825,7 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
         likely_const_ast lambda = likely_lex_and_parse("(-> () <ast>)", likely_source_lisp);
         likely_release_ast(lambda->atoms[0]->atoms[2]); // <ast>
         const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]) = likely_retain_ast(ast);
-        env->result = unique_ptr<Lambda>(new Lambda(lambda->atoms[0])).get()->evaluateConstantFunction(env, vector<likely_const_mat>());
-        if (!env->result)
-            env->type |= likely_environment_erratum;
+        env->value = new Lambda(lambda->atoms[0]);
         likely_release_ast(lambda);
     }
 
