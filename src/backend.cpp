@@ -857,8 +857,9 @@ private:
 
 struct Lambda;
 
-struct JITFunction : public likely_function, public Symbol
+struct JITFunction : public Symbol
 {
+    void *function = NULL;
     ExecutionEngine *EE = NULL;
     likely_env env;
 
@@ -1174,7 +1175,8 @@ class SimpleArithmeticOperator : public ArithmeticOperator
         // Fold constant expressions
         if (likely_const_mat LHS = lhs.getData()) {
             if (likely_const_mat RHS = rhs.getData()) {
-                static map<const char*, likely_function*> functionLUT;
+                static map<const char*, likely_const_env> envLUT;
+                static map<const char*, void*> functionLUT;
                 static mutex lock;
 
                 lock.lock();
@@ -1182,16 +1184,18 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                 if (function == functionLUT.end()) {
                     const string code = string("(a b):-> (a b):=> (") + symbol() + string(" a b))");
                     likely_const_ast ast = likely_lex_and_parse(code.c_str(), likely_source_lisp);
-                    likely_const_env env = likely_jit();
-                    likely_function *compiled = likely_compile(ast->atoms[0], env, likely_matrix_void);
-                    likely_release_env(env);
+                    likely_env parent = likely_jit();
+                    likely_env env = likely_eval(ast->atoms[0], parent);
+                    void *f = likely_compile(env, NULL, 0);
+                    likely_release_env(parent);
                     likely_release_ast(ast);
-                    functionLUT.insert(pair<const char*, likely_function*>(symbol(), compiled));
+                    envLUT.insert(pair<const char*, likely_const_env>(symbol(), env));
+                    functionLUT.insert(pair<const char*, void*>(symbol(), f));
                     function = functionLUT.find(symbol());
                 }
                 lock.unlock();
 
-                return builder.mat(reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat)>(function->second->function)(LHS, RHS));
+                return builder.mat(reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat)>(function->second)(LHS, RHS));
             }
         }
 
@@ -1429,6 +1433,12 @@ struct Lambda : public LikelyOperator
     Lambda(likely_const_ast ast)
         : ast(ast) {}
 
+    ~Lambda()
+    {
+        for (JITFunction *jitFunction : jitFunctions)
+            delete jitFunction;
+    }
+
     likely_const_expr generate(Builder &builder, vector<likely_matrix_type> parameters, string name, bool arrayCC, bool returnConstantOrMatrix) const
     {
         while (parameters.size() < maxParameters())
@@ -1541,7 +1551,19 @@ struct Lambda : public LikelyOperator
         return NULL;
     }
 
+    static void *getFunction(likely_const_env env, const vector<likely_matrix_type> &types)
+    {
+        if (!env || !env->value || (env->value->uid() != UID()))
+            return NULL;
+        const Lambda *lambda = static_cast<const Lambda*>(env->value);
+        JITFunction *jitFunction = new JITFunction("likely_jit_function", lambda, env, types, true, false, false);
+        lambda->jitFunctions.push_back(jitFunction);
+        return jitFunction->function;
+    }
+
 private:
+    mutable vector<JITFunction*> jitFunctions;
+
     static int UID() { return __LINE__; }
     int uid() const { return UID(); }
     size_t maxParameters() const { return length(ast->atoms[1]); }
@@ -2437,9 +2459,6 @@ LIKELY_REGISTER(import)
 JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_env parent, const vector<likely_matrix_type> &parameters, bool abandon, bool interpreter, bool arrayCC)
     : env(newEnv(parent))
 {
-    function = NULL;
-    ref_count = 1;
-
     if (abandon) {
         likely_release_env(env->parent);
         env->type |= likely_environment_abandoned;
@@ -2752,18 +2771,9 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats)
     return reinterpret_cast<likely_mat (*)(likely_const_mat const*)>(function)(mats);
 }
 
-likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_matrix_type type, ...)
+void *likely_compile(likely_const_env env, likely_matrix_type const *type, uint32_t n)
 {
-    if (!ast || !env) return NULL;
-    vector<likely_matrix_type> types;
-    va_list ap;
-    va_start(ap, type);
-    while (type != likely_matrix_void) {
-        types.push_back(type);
-        type = va_arg(ap, likely_matrix_type);
-    }
-    va_end(ap);
-    return static_cast<likely_fun>(new JITFunction("likely_jit_function", unique_ptr<Lambda>(new Lambda(ast)).get(), env, types, false, false, false));
+    return Lambda::getFunction(env, vector<likely_matrix_type>(type, type + n));
 }
 
 likely_const_mat likely_result(likely_const_env env)
@@ -2773,22 +2783,6 @@ likely_const_mat likely_result(likely_const_env env)
     if (likely_const_env rhs = EvaluatedExpression::get(env->value))
         return likely_result(rhs);
     return Lambda::getResult(env);
-}
-
-likely_fun likely_retain_fun(likely_const_fun fun)
-{
-    if (!fun) return NULL;
-    assert(fun->ref_count > 0);
-    const_cast<likely_fun>(fun)->ref_count++;
-    return const_cast<likely_fun>(fun);
-}
-
-void likely_release_fun(likely_const_fun fun)
-{
-    if (!fun) return;
-    assert(fun->ref_count > 0);
-    if (--const_cast<likely_fun>(fun)->ref_count) return;
-    delete static_cast<const JITFunction*>(fun);
 }
 
 likely_env likely_eval(likely_ast ast, likely_env parent)
@@ -2822,11 +2816,15 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
     } else if (env->type & likely_environment_offline) {
         // Do nothing, evaluating expressions in an offline environment is a no-op.
     } else {
-        likely_const_ast lambda = likely_lex_and_parse("(-> () <ast>)", likely_source_lisp);
-        likely_release_ast(lambda->atoms[0]->atoms[2]); // <ast>
-        const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]) = likely_retain_ast(ast);
-        env->value = new Lambda(lambda->atoms[0]);
-        likely_release_ast(lambda);
+        if (!strcmp(likely_symbol(ast), "->")) {
+            env->value = Builder(env).expression(ast);
+        } else {
+            likely_const_ast lambda = likely_lex_and_parse("(-> () <ast>)", likely_source_lisp);
+            likely_release_ast(lambda->atoms[0]->atoms[2]); // <ast>
+            const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]) = likely_retain_ast(ast);
+            env->value = new Lambda(lambda->atoms[0]);
+            likely_release_ast(lambda);
+        }
     }
 
     likely_assert(env->ref_count == 1, "returning an environment with: %d owners", env->ref_count);

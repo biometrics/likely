@@ -80,24 +80,6 @@ struct likely_environment
     likely_const_env *children; /*!< \brief Environments where this is the parent. */
 };
 
-typedef struct likely_function *likely_fun; /*!< \brief Pointer to a \ref likely_function. */
-typedef struct likely_function const *likely_const_fun; /*!< \brief Pointer to a constant \ref likely_function. */
-
-/*!
- * \brief The output of compilation.
- * \par Function Construction
- * | Function            | Documentation             |
- * |---------------------|---------------------------|
- * | \ref likely_compile | \copybrief likely_compile |
- *
- * \see \ref reference_counting
- */
-struct likely_function
-{
-    void *function; /*!< \brief Pointer to the resulting executable function with a \c C ABI. */
-    uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain_fun and \ref likely_release_fun to track ownership. */
-};
-
 /*!
  * \brief Construct a new environment for just-in-time compilation.
  * \return A new just-in-time compilation environment.
@@ -147,19 +129,18 @@ LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
 LIKELY_EXPORT void likely_release_env(likely_const_env env);
 
 /*!
- * \brief Compile a function.
+ * \brief Compile a function with the specific parameter types.
  *
- * If an incomplete \p type is specified, dynamic dispatch will occur at runtime
- * based on the types of the \ref likely_matrix arguments.
+ * If an incomplete \p type is specified, the returned function will perform dynamic dispatch at runtime based on the argument types.
  * See \ref likely_dynamic for details.
  *
- * \param[in] ast Function abstract syntax tree.
  * \param[in] env Function environment.
- * \param[in] type Function type terminated by \ref likely_matrix_void.
- * \return The compiled \ref likely_function.
+ * \param[in] type Function type.
+ * \param[in] n Length of \p type.
+ * \return Function pointer with a \c C ABI. \ref owned_by env.
  * \remark This function is \ref reentrant.
  */
-LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env env, likely_matrix_type type, ...);
+LIKELY_EXPORT void *likely_compile(likely_const_env env, likely_matrix_type const *type, uint32_t n);
 
 /*!
  * \brief Obtain the result of a computation.
@@ -168,27 +149,6 @@ LIKELY_EXPORT likely_fun likely_compile(likely_const_ast ast, likely_const_env e
  * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT likely_const_mat likely_result(likely_const_env env);
-
-/*!
- * \brief Retain a reference to a function.
- *
- * Increments \ref likely_function::ref_count.
- * \param[in] fun Function to add a reference. May be \c NULL.
- * \return \p fun.
- * \remark This function is \ref reentrant.
- * \see \ref likely_release_fun
- */
-LIKELY_EXPORT likely_fun likely_retain_fun(likely_const_fun fun);
-
-/*!
- * \brief Release a reference to a function.
- *
- * Decrements \ref likely_function::ref_count.
- * \param[in] fun Function to subtract a reference. May be \c NULL.
- * \remark This function is \ref reentrant.
- * \see \ref likely_release_fun
- */
-LIKELY_EXPORT void likely_release_fun(likely_const_fun fun);
 
 /*!
  * \brief Evaluate an expression in the context of an environment.

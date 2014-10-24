@@ -47,26 +47,24 @@ int main(int argc, char *argv[])
     likely_const_ast ast = likely_lex_and_parse(argv[2], likely_source_lisp);
 
     puts("Creating a compiler environment...");
-    likely_const_env env = likely_jit();
+    likely_env parent = likely_jit();
 
     puts("Compiling source code...");
-    likely_const_fun fun = likely_compile(ast->atoms[0], env, likely_matrix_void);
-    likely_assert(fun->function, "failed to compile: %s", argv[2]);
+    likely_const_env env = likely_eval(ast->atoms[0], parent);
+    likely_assert(env, "failed to evaluate: %s", argv[2]);
+    likely_mat (*function)(likely_const_mat) = likely_compile(env, &input->type, 1);
+    likely_assert(function, "failed to compile: %s", argv[2]);
 
     puts("Calling compiled function...");
-    // We expect fun->function to be a function that takes one constant matrix as input
-    // and returns a new matrix as output.
-    likely_mat (*f)(likely_const_mat) = fun->function;
-    likely_const_mat output = f(input);
-    likely_assert(output, "failed to execute the compiled function");
+    likely_const_mat output = function(input);
 
     puts("Writing output image...");
     likely_assert(likely_write(output, argv[3]), "failed to write: %s", argv[3]);
 
     puts("Cleaning up...");
     likely_release_mat(output);
-    likely_release_fun(fun);
     likely_release_env(env);
+    likely_release_env(parent);
     likely_release_ast(ast);
     likely_release_mat(input);
 

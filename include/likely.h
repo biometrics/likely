@@ -37,7 +37,6 @@
  * | \ref likely_abstract_syntax_tree | \ref likely_ast \n \ref likely_const_ast | \ref likely_retain_ast \n \ref likely_release_ast |
  * | \ref likely_error                | \ref likely_err \n \ref likely_const_err | \ref likely_retain_err \n \ref likely_release_err |
  * | \ref likely_environment          | \ref likely_env \n \ref likely_const_env | \ref likely_retain_env \n \ref likely_release_env |
- * | \ref likely_function             | \ref likely_fun \n \ref likely_const_fun | \ref likely_retain_fun \n \ref likely_release_fun |
  *
  * \note With the exception of \ref owned_by, the calling application is assumed to take ownership of a funciton's return value and should release it when no longer needed.
  *

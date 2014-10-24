@@ -63,18 +63,19 @@ struct Test
             return;
 
         likely_const_ast ast = likely_lex_and_parse(function(), likely_source_lisp);
-        likely_env env = likely_jit();
+        likely_env parent = likely_jit();
 
         string execution;
         if (BenchmarkParallel) {
             execution = "Parallel";
-            env->type |= likely_environment_parallel;
+            parent->type |= likely_environment_parallel;
         } else {
             execution = "Serial";
         }
 
-        likely_const_fun f = likely_compile(ast->atoms[0], env, likely_matrix_void);
-        likely_release_env(env);
+        likely_env env = likely_eval(ast->atoms[0], parent);
+        void *f = likely_compile(env, NULL, 0);
+        likely_release_env(parent);
         likely_release_ast(ast);
 
         for (likely_matrix_type type : types()) {
@@ -88,7 +89,7 @@ struct Test
                 likely_mat typeString = likely_type_to_string(type);
                 printf("%s \t%s \t%d \t%s\t", function(), typeString->data, size, execution.c_str());
                 likely_release_mat(typeString);
-                testCorrectness(reinterpret_cast<likely_mat (*)(likely_const_mat)>(f->function), srcCV, srcLikely);
+                testCorrectness(reinterpret_cast<likely_mat (*)(likely_const_mat)>(f), srcCV, srcLikely);
 
                 if (BenchmarkTest) {
                     printf("\n");
@@ -96,12 +97,12 @@ struct Test
                 }
 
                 Speed baseline = testBaselineSpeed(srcCV);
-                Speed likely = testLikelySpeed(reinterpret_cast<likely_mat (*)(likely_const_mat)>(f->function), srcLikely);
+                Speed likely = testLikelySpeed(reinterpret_cast<likely_mat (*)(likely_const_mat)>(f), srcLikely);
                 printf("%.2e\n", likely.Hz/baseline.Hz);
             }
         }
 
-        likely_release_fun(f);
+        likely_release_env(env);
     }
 
     static void runFile(const string &fileName)

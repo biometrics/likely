@@ -329,19 +329,21 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
         }
     }
 
-    static likely_const_fun normalize = NULL;
+    static likely_const_env env = NULL;
+    static void *normalize = NULL;
     if (normalize == NULL) {
         likely_const_ast ast = likely_lex_and_parse("(img min range):-> (=> (img min range) (/ (- img min) range).u8 3.channels)", likely_source_lisp);
-        likely_env env = likely_jit();
-        normalize = likely_compile(ast->atoms[0], env, likely_matrix_void);
+        likely_env parent = likely_jit();
+        env = likely_eval(ast->atoms[0], parent);
+        normalize = likely_compile(env, NULL, 0);
         assert(normalize);
-        likely_release_env(env);
+        likely_release_env(parent);
         likely_release_ast(ast);
     }
 
     likely_const_mat min_val = likely_scalar(likely_matrix_f32, &min, 1);
     likely_const_mat range_val = likely_scalar(likely_matrix_f32, &range, 1);
-    likely_mat n = reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat, likely_const_mat)>(normalize->function)(mat, min_val, range_val);
+    likely_mat n = reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat, likely_const_mat)>(normalize)(mat, min_val, range_val);
     likely_release_mat(min_val);
     likely_release_mat(range_val);
 
