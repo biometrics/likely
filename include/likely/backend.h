@@ -76,8 +76,6 @@ struct likely_environment
     struct likely_expression const *value; /*!< \brief If <tt>\ref type & \ref likely_environment_definition</tt>, the environment is a \a definition and \ref value is its right-hand-side. */
     likely_environment_type type; /*!< Interpretation of \ref likely_environment. */
     uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain_env and \ref likely_release_env to track ownership. */
-    uint32_t num_children; /*!< \brief Length of \ref children. */
-    likely_const_env *children; /*!< \brief Environments where this is the parent. */
 };
 
 /*!

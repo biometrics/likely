@@ -312,8 +312,6 @@ static likely_env newEnv(likely_const_env parent)
     env->module = parent ? parent->module : NULL;
     env->value = NULL;
     env->ref_count = 1;
-    env->num_children = 0;
-    env->children = NULL;
     return env;
 }
 
@@ -2712,33 +2710,18 @@ likely_env likely_retain_env(likely_const_env env)
     return const_cast<likely_env>(env);
 }
 
-static mutex ChildLock; // For modifying likely_environment::children
-
 void likely_release_env(likely_const_env env)
 {
     if (!env) return;
     assert(env->ref_count > 0);
     if (--const_cast<likely_env>(env)->ref_count) return;
 
-    { // Remove ourself as our parent's child
-        lock_guard<mutex> guard(ChildLock);
-        const likely_env parent = const_cast<likely_env>(env->parent);
-        for (size_t i=0; i<parent->num_children; i++)
-            if (env == parent->children[i]) {
-                parent->children[i] = parent->children[--parent->num_children];
-                break;
-            }
-    }
-
     delete env->value; // Do this early to guarantee the environment for these lifetime of these classes
-
     likely_release_ast(env->ast);
-    free(env->children);
     if (env->type & likely_environment_base)
         delete env->module;
     if (!(env->type & likely_environment_abandoned))
         likely_release_env(env->parent);
-
     free(const_cast<likely_env>(env));
 }
 
@@ -2790,25 +2773,11 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
     if (!ast || !parent)
         return NULL;
 
-    { // Check against parent environment for precomputed result
-        lock_guard<mutex> guard(ChildLock);
-        for (size_t i=0; i<parent->num_children; i++)
-            if (!likely_ast_compare(ast, parent->children[i]->ast))
-                return likely_retain_env(parent->children[i]);
-    }
-
     likely_env env = newEnv(parent);
     if ((ast->type == likely_ast_list) && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="))
         env->type |= likely_environment_definition;
     env->type |= likely_environment_global;
     env->ast = likely_retain_ast(ast);
-
-    { // We reallocate space for more children when our power-of-two sized buffer is full
-        lock_guard<mutex> guard(ChildLock);
-        if ((parent->num_children == 0) || !(parent->num_children & (parent->num_children - 1)))
-            parent->children = (likely_const_env*) realloc(parent->children, (parent->num_children == 0 ? 1 : 2 * parent->num_children) * sizeof(likely_const_env));
-        parent->children[parent->num_children++] = env;
-    }
 
     if (env->type & likely_environment_definition) {
         likely_const_expr expr = Builder(env).expression(ast);
