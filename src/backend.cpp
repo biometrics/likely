@@ -1412,7 +1412,7 @@ class tryExpression : public LikelyOperator
         likely_const_expr value = NULL;
         if (likely_env env = likely_eval(ast->atoms[1], builder.env)) {
             if (env->type & likely_environment_definition) swap(env->value, value);
-            else                                           value = builder.mat(likely_retain_mat(env->result));
+            else                                           value = builder.mat(likely_retain_mat(likely_result(env)));
             likely_release_env(env);
         }
 
@@ -1505,7 +1505,7 @@ struct Lambda : public LikelyOperator
         return new likely_expression(function, likely_matrix_void, NULL, likely_retain_mat(result->getData()));
     }
 
-    likely_mat evaluateConstantFunction(likely_env env, const vector<likely_const_mat> &args) const
+    likely_mat evaluateConstantFunction(likely_const_env env, const vector<likely_const_mat> &args) const
     {
         vector<likely_matrix_type> params;
         for (likely_const_mat arg : args)
@@ -1525,7 +1525,26 @@ struct Lambda : public LikelyOperator
         }
     }
 
+    static likely_const_mat getResult(likely_const_env env)
+    {
+        if (!env || !env->value)
+            return NULL;
+        if (likely_const_mat m = env->value->getData())
+            return m;
+        if (env->value->uid() == UID()) {
+            const Lambda *lambda = static_cast<const Lambda*>(env->value);
+            if (lambda->maxParameters() == 0) {
+                likely_const_mat m = lambda->evaluateConstantFunction(env, vector<likely_const_mat>());
+                lambda->setData(m);
+                return m;
+            }
+        }
+        return NULL;
+    }
+
 private:
+    static int UID() { return __LINE__; }
+    int uid() const { return UID(); }
     size_t maxParameters() const { return length(ast->atoms[1]); }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -2754,7 +2773,6 @@ likely_const_mat likely_result(likely_const_env env)
 {
     if (!env)
         return NULL;
-
     if (env->type & likely_environment_definition)
         return likely_result(EvaluatedExpression::get(env->value));
     else
