@@ -471,7 +471,7 @@ struct likely_expression
 
     static size_t length(likely_const_ast ast)
     {
-        return (ast->type == likely_ast_list) ? ast->num_atoms : 1;
+        return ast ? ((ast->type == likely_ast_list) ? ast->num_atoms : 1) : 0;
     }
 
     static bool isMat(Type *type)
@@ -662,6 +662,9 @@ struct Builder : public IRBuilder<>
 
     void undefineAll(likely_const_ast args, bool deleteExpression)
     {
+        if (!args)
+            return;
+
         if (args->type == likely_ast_list) {
             for (size_t i=0; i<args->num_atoms; i++) {
                 likely_const_expr expression = undefine(args->atoms[args->num_atoms-i-1]->atom);
@@ -936,13 +939,13 @@ likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast
 
 struct likely_virtual_table : public LikelyOperator
 {
-    likely_const_env env;
-    likely_const_ast ast;
-    size_t n;
+    const likely_const_env env;
+    const likely_const_ast body, parameters;
+    const size_t n;
     vector<unique_ptr<JITFunction>> functions;
 
-    likely_virtual_table(likely_const_env env, likely_const_ast ast)
-        : env(env), ast(ast), n(length(ast->atoms[1])) {}
+    likely_virtual_table(likely_const_env env, likely_const_ast body, likely_const_ast parameters)
+        : env(env), body(body), parameters(parameters), n(length(parameters)) {}
 
 private:
     likely_const_expr evaluateOperator(Builder &, likely_const_ast) const { return NULL; }
@@ -1426,10 +1429,10 @@ LIKELY_REGISTER(try)
 
 struct Lambda : public LikelyOperator
 {
-    likely_const_ast ast;
+    likely_const_ast body, parameters;
 
-    Lambda(likely_const_ast ast)
-        : ast(ast) {}
+    Lambda(likely_const_ast body, likely_const_ast parameters = NULL)
+        : body(body), parameters(parameters) {}
 
     ~Lambda()
     {
@@ -1564,7 +1567,7 @@ private:
 
     static int UID() { return __LINE__; }
     int uid() const { return UID(); }
-    size_t maxParameters() const { return length(ast->atoms[1]); }
+    size_t maxParameters() const { return length(parameters); }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
@@ -1604,7 +1607,7 @@ private:
             dynamic |= (arg->type == likely_matrix_multi_dimension);
 
         if (dynamic) {
-            likely_vtable vtable = new likely_virtual_table(builder.env, ast);
+            likely_vtable vtable = new likely_virtual_table(builder.env, body, parameters);
             builder.env->module->exprs.push_back(vtable);
 
             PointerType *vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
@@ -1629,14 +1632,16 @@ private:
             return new likely_expression(builder.CreateCall(likelyDynamic, args), likely_matrix_multi_dimension);
         }
 
-        if (ast->atoms[1]->type == likely_ast_list) {
-            for (size_t i=0; i<args.size(); i++)
-                builder.define(ast->atoms[1]->atoms[i]->atom, args[i]);
-        } else {
-            builder.define(ast->atoms[1]->atom, args[0]);
+        if (parameters) {
+            if (parameters->type == likely_ast_list) {
+                for (size_t i=0; i<args.size(); i++)
+                    builder.define(parameters->atoms[i]->atom, args[i]);
+            } else {
+                builder.define(parameters->atom, args[0]);
+            }
         }
-        likely_const_expr result = builder.expression(ast->atoms[2]);
-        builder.undefineAll(ast->atoms[1], false);
+        likely_const_expr result = builder.expression(body);
+        builder.undefineAll(parameters, false);
         return result;
     }
 };
@@ -1645,7 +1650,7 @@ class lambdaExpression : public LikelyOperator
 {
     const char *symbol() const { return "->"; }
     size_t maxParameters() const { return 2; }
-    likely_const_expr evaluateOperator(Builder &, likely_const_ast ast) const { return new Lambda(ast); }
+    likely_const_expr evaluateOperator(Builder &, likely_const_ast ast) const { return new Lambda(ast->atoms[2], ast->atoms[1]); }
 };
 LIKELY_REGISTER(lambda)
 
@@ -2391,7 +2396,7 @@ class defineExpression : public LikelyOperator
                         delete function;
                     }
                 } else {
-                    JITFunction *function = new JITFunction(name, unique_ptr<Lambda>(new Lambda(rhs)).get(), env, parameters, true, false, false);
+                    JITFunction *function = new JITFunction(name, unique_ptr<Lambda>(new Lambda(rhs->atoms[2], rhs->atoms[1])).get(), env, parameters, true, false, false);
                     if (function->function) {
                         sys::DynamicLibrary::AddSymbol(name, function->function);
                         env->value = function;
@@ -2745,7 +2750,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats)
         vector<likely_matrix_type> types;
         for (size_t i=0; i<vtable->n; i++)
             types.push_back(mats[i]->type);
-        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->ast)).get(), vtable->env, types, true, false, true)));
+        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->body, vtable->parameters)).get(), vtable->env, types, true, false, true)));
         function = vtable->functions.back()->function;
         if (function == NULL)
             return NULL;
@@ -2770,7 +2775,7 @@ likely_const_mat likely_result(likely_const_env env)
 
 likely_env likely_eval(likely_ast ast, likely_env parent)
 {
-    if (!ast || !parent)
+    if (!ast)
         return NULL;
 
     likely_env env = newEnv(parent);
@@ -2785,15 +2790,9 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
     } else if (env->type & likely_environment_offline) {
         // Do nothing, evaluating expressions in an offline environment is a no-op.
     } else {
-        if (!strcmp(likely_symbol(ast), "->")) {
-            env->value = Builder(env).expression(ast);
-        } else {
-            likely_const_ast lambda = likely_lex_and_parse("(-> () <ast>)", likely_source_lisp);
-            likely_release_ast(lambda->atoms[0]->atoms[2]); // <ast>
-            const_cast<likely_ast&>(lambda->atoms[0]->atoms[2]) = likely_retain_ast(ast);
-            env->value = new Lambda(lambda->atoms[0]);
-            likely_release_ast(lambda);
-        }
+        // If `ast` is not a lambda then it is a computation and we want to represent it as a parameterless lambda.
+        if (!strcmp(likely_symbol(ast), "->")) env->value = Builder(env).expression(ast);
+        else                                   env->value = new Lambda(ast);
     }
 
     likely_assert(env->ref_count == 1, "returning an environment with: %d owners", env->ref_count);
