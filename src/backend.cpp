@@ -2113,11 +2113,10 @@ class kernelExpression : public LikelyOperator
 
         const likely_const_ast args = ast->atoms[1];
         if (args->type == likely_ast_list) {
-            builder.define(args->atoms[0]->atom, NULL);
-            for (size_t j=1; j<args->num_atoms; j++)
+            for (size_t j=0; j<args->num_atoms; j++)
                 builder.define(args->atoms[j]->atom, new kernelArgument(*srcs[j], srcs[0]->type, channelStep, axis->node));
         } else {
-            builder.define(args->atom, NULL);
+            builder.define(args->atom, new kernelArgument(*srcs[0], srcs[0]->type, channelStep, axis->node));
         }
 
         unique_ptr<const likely_expression> result(builder.expression(ast->atoms[2]));
