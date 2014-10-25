@@ -1817,43 +1817,11 @@ struct Assignable : public LikelyOperator
         this->type = type;
     }
 
-    void set(Builder &builder, likely_const_expr expr, likely_const_ast ast = NULL) const
-    {
-        if (!ast || (ast->type != likely_ast_list)) {
-            builder.CreateStore((type & likely_matrix_multi_dimension) ? expr->value
-                                                                       : builder.cast(*expr, type).value, value);
-            return;
-        }
-
-        builder.CreateStore(builder.cast(*expr, type), gep(builder, ast));
-    }
+    virtual void set(Builder &builder, likely_const_expr expr, likely_const_ast ast) const = 0;
 
     static const Assignable *dynamicCast(likely_const_expr expr)
     {
         return (expr && (expr->uid() == UID())) ? static_cast<const Assignable*>(expr) : NULL;
-    }
-
-protected:
-    Value *gep(Builder &builder, likely_const_ast ast) const
-    {
-        Value *c = (ast->num_atoms >= 2) ? builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[1])).get(), likely_matrix_native)
-                                         : builder.zero();
-        Value *x = (ast->num_atoms >= 3) ? builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[2])).get(), likely_matrix_native)
-                                         : builder.zero();
-        Value *y = (ast->num_atoms >= 4) ? builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[3])).get(), likely_matrix_native)
-                                         : builder.zero();
-        Value *t = (ast->num_atoms >= 5) ? builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[4])).get(), likely_matrix_native)
-                                         : builder.zero();
-
-        Value *channelStep = builder.one();
-        Value *columnStep, *rowStep, *frameStep;
-        builder.steps(this, channelStep, &columnStep, &rowStep, &frameStep);
-        Value *i = builder.zero();
-        i = builder.CreateMul(c, channelStep);
-        i = builder.CreateAdd(builder.CreateMul(x, columnStep), i);
-        i = builder.CreateAdd(builder.CreateMul(y, rowStep   ), i);
-        i = builder.CreateAdd(builder.CreateMul(t, frameStep ), i);
-        return builder.CreateGEP(builder.data(builder.CreateLoad(value), type), i);
     }
 
 private:
@@ -1876,6 +1844,14 @@ class kernelExpression : public LikelyOperator
             : Assignable(matrix.value, matrix.type), kernel(kernel), channelStep(channelStep), node(node) {}
 
     private:
+        void set(Builder &builder, likely_const_expr expr, likely_const_ast ast) const
+        {
+            (void) builder;
+            (void) expr;
+            (void) ast;
+            // TODO: implement
+        }
+
         likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
         {
             if (ast->type == likely_ast_list)
@@ -2348,10 +2324,43 @@ struct Variable : public Assignable
     Variable(Builder &builder, likely_const_expr expr, const string &name)
         : Assignable(builder.CreateAlloca(expr->value->getType(), 0, name), *expr)
     {
-        set(builder, expr);
+        set(builder, expr, NULL);
     }
 
 private:
+    Value *gep(Builder &builder, likely_const_ast ast) const
+    {
+        Value *c = (ast->num_atoms >= 2) ? builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[1])).get(), likely_matrix_native)
+                                         : builder.zero();
+        Value *x = (ast->num_atoms >= 3) ? builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[2])).get(), likely_matrix_native)
+                                         : builder.zero();
+        Value *y = (ast->num_atoms >= 4) ? builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[3])).get(), likely_matrix_native)
+                                         : builder.zero();
+        Value *t = (ast->num_atoms >= 5) ? builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[4])).get(), likely_matrix_native)
+                                         : builder.zero();
+
+        Value *channelStep = builder.one();
+        Value *columnStep, *rowStep, *frameStep;
+        builder.steps(this, channelStep, &columnStep, &rowStep, &frameStep);
+        Value *i = builder.zero();
+        i = builder.CreateMul(c, channelStep);
+        i = builder.CreateAdd(builder.CreateMul(x, columnStep), i);
+        i = builder.CreateAdd(builder.CreateMul(y, rowStep   ), i);
+        i = builder.CreateAdd(builder.CreateMul(t, frameStep ), i);
+        return builder.CreateGEP(builder.data(builder.CreateLoad(value), type), i);
+    }
+
+    void set(Builder &builder, likely_const_expr expr, likely_const_ast ast) const
+    {
+        if (!ast || (ast->type != likely_ast_list)) {
+            builder.CreateStore((type & likely_matrix_multi_dimension) ? expr->value
+                                                                       : builder.cast(*expr, type).value, value);
+            return;
+        }
+
+        builder.CreateStore(builder.cast(*expr, type), gep(builder, ast));
+    }
+
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         if ((ast->type != likely_ast_list) || !isMat(cast<AllocaInst>(value)->getAllocatedType()))
