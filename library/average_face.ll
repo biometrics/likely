@@ -2,7 +2,7 @@ Average Face
 ------------
 Compute the average face from a set of aligned faces [1].
 
-    avg:= m:-> (=> m
+    avg:= m:-> (=> (dst m)
     {
       j:= 0
       ($ j:= j:+ m t m.frames)

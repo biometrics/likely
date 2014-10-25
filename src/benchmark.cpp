@@ -274,12 +274,12 @@ private:
 };
 
 class fmaTest : public Test {
-    const char *function() const { return "a:-> (=> a (+ (* a.f (a.type 2)) (a.type 3)))"; }
+    const char *function() const { return "a:-> (=> (dst a) (+ (* a.f (a.type 2)) (a.type 3)))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3); return dst; }
 };
 
 class thresholdTest : public Test {
-    const char *function() const { return "a:-> (=> a (a.type (threshold-binary a 127 1)))"; }
+    const char *function() const { return "a:-> (=> (dst a) (a.type (threshold-binary a 127 1)))"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 1, THRESH_BINARY); return dst; }
     vector<likely_matrix_type> types() const { vector<likely_matrix_type> types; types.push_back(likely_matrix_u8); types.push_back(likely_matrix_f32); return types; }
 };

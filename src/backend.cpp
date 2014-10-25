@@ -1183,7 +1183,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                 lock.lock();
                 auto function = functionLUT.find(symbol());
                 if (function == functionLUT.end()) {
-                    const string code = string("(a b):-> (a b):=> (") + symbol() + string(" a b))");
+                    const string code = string("(a b):-> (dst a b):=> (") + symbol() + string(" a b))");
                     likely_const_ast ast = likely_lex_and_parse(code.c_str(), likely_source_lisp);
                     likely_env parent = likely_jit();
                     likely_env env = likely_eval(ast->atoms[0], parent);
@@ -1927,10 +1927,8 @@ class kernelExpression : public LikelyOperator
         vector<likely_const_expr> srcs;
         const likely_const_ast args = ast->atoms[1];
         if (args->type == likely_ast_list) {
-            for (size_t j=0; j<args->num_atoms; j++)
+            for (size_t j=1; j<args->num_atoms; j++)
                 srcs.push_back(builder.lookup(args->atoms[j]->atom));
-        } else {
-            srcs.push_back(builder.lookup(args->atom));
         }
 
         BasicBlock *entry = builder.GetInsertBlock();
@@ -2115,10 +2113,11 @@ class kernelExpression : public LikelyOperator
 
         const likely_const_ast args = ast->atoms[1];
         if (args->type == likely_ast_list) {
-            for (size_t j=0; j<args->num_atoms; j++)
-                builder.define(args->atoms[j]->atom, new kernelArgument(*srcs[j+1], srcs[0]->type, channelStep, axis->node));
+            builder.define(args->atoms[0]->atom, NULL);
+            for (size_t j=1; j<args->num_atoms; j++)
+                builder.define(args->atoms[j]->atom, new kernelArgument(*srcs[j], srcs[0]->type, channelStep, axis->node));
         } else {
-            builder.define(args->atom, new kernelArgument(*srcs[1], srcs[0]->type, channelStep, axis->node));
+            builder.define(args->atom, NULL);
         }
 
         unique_ptr<const likely_expression> result(builder.expression(ast->atoms[2]));
