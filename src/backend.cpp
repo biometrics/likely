@@ -1835,21 +1835,30 @@ class kernelExpression : public LikelyOperator
 {
     class kernelArgument : public Assignable
     {
-        likely_matrix_type kernel;
         Value *channelStep;
         MDNode *node;
 
     public:
-        kernelArgument(const likely_expression &matrix, likely_matrix_type kernel, Value *channelStep, MDNode *node)
-            : Assignable(matrix.value, matrix.type), kernel(kernel), channelStep(channelStep), node(node) {}
+        kernelArgument(const likely_expression &matrix, Value *channelStep, MDNode *node)
+            : Assignable(matrix.value, matrix.type), channelStep(channelStep), node(node) {}
 
     private:
+        Value *gep(Builder &builder, likely_const_ast ast) const
+        {
+            (void) ast;
+            Value *columnStep, *rowStep, *frameStep;
+            builder.steps(this, channelStep, &columnStep, &rowStep, &frameStep);
+            Value *i = builder.zero();
+            if (type & likely_matrix_multi_channel) i = builder.CreateMul(*builder.lookup("c"), channelStep);
+            if (type & likely_matrix_multi_column ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), columnStep), i);
+            if (type & likely_matrix_multi_row    ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep   ), i);
+            if (type & likely_matrix_multi_frame  ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep ), i);
+            return builder.CreateGEP(builder.data(this), i);
+        }
+
         void set(Builder &builder, likely_const_expr expr, likely_const_ast ast) const
         {
-            (void) builder;
-            (void) expr;
-            (void) ast;
-            // TODO: implement
+            builder.CreateStore(builder.cast(*expr, type), gep(builder, ast));
         }
 
         likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -1860,21 +1869,7 @@ class kernelExpression : public LikelyOperator
             if (!isa<PointerType>(value->getType()))
                 return new likely_expression(*this);
 
-            Value *i;
-            if (((type ^ kernel) & likely_matrix_multi_dimension) == 0) {
-                // This matrix has the same dimensionality as the kernel
-                i = *builder.lookup("i");
-            } else {
-                Value *columnStep, *rowStep, *frameStep;
-                builder.steps(this, channelStep, &columnStep, &rowStep, &frameStep);
-                i = builder.zero();
-                if (type & likely_matrix_multi_channel) i = builder.CreateMul(*builder.lookup("c"), channelStep);
-                if (type & likely_matrix_multi_column ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), columnStep), i);
-                if (type & likely_matrix_multi_row    ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep   ), i);
-                if (type & likely_matrix_multi_frame  ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep ), i);
-            }
-            LoadInst *load = builder.CreateLoad(builder.CreateGEP(builder.data(this), i));
-
+            LoadInst *load = builder.CreateLoad(gep(builder, ast));
             load->setMetadata("llvm.mem.parallel_loop_access", node);
             return new likely_expression(load, type & likely_matrix_element, this);
         }
@@ -2138,9 +2133,9 @@ class kernelExpression : public LikelyOperator
         const likely_const_ast args = ast->atoms[1];
         if (args->type == likely_ast_list) {
             for (size_t j=0; j<args->num_atoms; j++)
-                builder.define(args->atoms[j]->atom, new kernelArgument(*srcs[j], srcs[0]->type, channelStep, axis->node));
+                builder.define(args->atoms[j]->atom, new kernelArgument(*srcs[j], channelStep, axis->node));
         } else {
-            builder.define(args->atom, new kernelArgument(*srcs[0], srcs[0]->type, channelStep, axis->node));
+            builder.define(args->atom, new kernelArgument(*srcs[0], channelStep, axis->node));
         }
 
         unique_ptr<const likely_expression> result(builder.expression(ast->atoms[2]));
