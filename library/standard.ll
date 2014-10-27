@@ -582,7 +582,8 @@ Standard Library
 
 ### Matrix information
     elements := (-> m m.channels :* m.columns :* m.rows :* m.frames)
-    bytes := (-> m (/ (+ (* (& m.type depth) m.elements) 7) 8))
+    bytes    := (-> m (/ (+ (* (& m.type depth) m.elements) 7) 8))
+    imitate := (-> m (new m.type m.channels m.columns m.rows m.frames))
 
 ### Type conversion
     cast := (-> (a b) (b.type a)) ; convert a to the type of b

@@ -2,7 +2,7 @@ Export
 ------
 You can also export symbols with C linkage.
 
-    (foo u32):= (-> x (+ x 1))
+    (foo u32) := (-> x (+ x 1))
 
 The above function is equivalent to the C code:
 
