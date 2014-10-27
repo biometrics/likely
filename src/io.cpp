@@ -37,36 +37,6 @@
 
 using namespace std;
 
-static likely_mat takeAndInterpret(likely_mat buffer, size_t type)
-{
-    likely_mat result = NULL;
-    if (!result && (type & likely_file_decoded)) {
-        if (likely_bytes(buffer) >= sizeof(likely_matrix)) {
-            likely_mat header = (likely_mat) buffer->data;
-            if (sizeof(likely_matrix) + likely_bytes(header) == likely_bytes(buffer))
-                result = likely_new(header->type, header->channels, header->columns, header->rows, header->frames, header->data);
-        }
-    }
-
-    if (!result && (type & likely_file_encoded))
-        result = likely_decode(buffer);
-
-    if (!result && (type & likely_file_text)) {
-        const size_t bytes = likely_bytes(buffer);
-        buffer->data[bytes-1] = 0;
-        buffer->channels = uint32_t(bytes);
-        buffer->columns = buffer->rows = buffer->frames = 1;
-        buffer->type = likely_matrix_string;
-        result = likely_retain_mat(buffer);
-    }
-
-    if (!result)
-        result = likely_retain_mat(buffer);
-
-    likely_release_mat(buffer);
-    return result;
-}
-
 static likely_mat readAsync(const string &fileName, likely_file_type type)
 {
     return likely_read(fileName.c_str(), type);
@@ -135,7 +105,32 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
         const bool success = (fread(buffer->data, 1, size, fp) == size);
         fclose(fp);
         if (success) {
-            return takeAndInterpret(buffer, type);
+            likely_mat result = NULL;
+            if (!result && (type & likely_file_decoded)) {
+                if (likely_bytes(buffer) >= sizeof(likely_matrix)) {
+                    likely_mat header = (likely_mat) buffer->data;
+                    if (sizeof(likely_matrix) + likely_bytes(header) == likely_bytes(buffer))
+                        result = likely_new(header->type, header->channels, header->columns, header->rows, header->frames, header->data);
+                }
+            }
+
+            if (!result && (type & likely_file_encoded))
+                result = likely_decode(buffer);
+
+            if (!result && (type & likely_file_text)) {
+                const size_t bytes = likely_bytes(buffer);
+                buffer->data[bytes-1] = 0;
+                buffer->channels = uint32_t(bytes);
+                buffer->columns = buffer->rows = buffer->frames = 1;
+                buffer->type = likely_matrix_string;
+                result = likely_retain_mat(buffer);
+            }
+
+            if (!result)
+                result = likely_retain_mat(buffer);
+
+            likely_release_mat(buffer);
+            return result;
         } else {
             likely_release_mat(buffer);
             buffer = NULL;
