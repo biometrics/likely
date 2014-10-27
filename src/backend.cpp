@@ -1908,11 +1908,11 @@ class kernelExpression : public LikelyOperator
         }
 
         BasicBlock *entry = builder.GetInsertBlock();
-        likely_matrix_type dimensionsType = likely_matrix_void;
-        likely_expression dstChannels(getDimensions(builder, "channels", srcs, &dimensionsType), likely_matrix_native);
-        likely_expression dstColumns (getDimensions(builder, "columns" , srcs, &dimensionsType), likely_matrix_native);
-        likely_expression dstRows    (getDimensions(builder, "rows"    , srcs, &dimensionsType), likely_matrix_native);
-        likely_expression dstFrames  (getDimensions(builder, "frames"  , srcs, &dimensionsType), likely_matrix_native);
+        likely_matrix_type dimensionsType = srcs[0]->type;
+        likely_expression dstChannels = builder.channels(srcs[0]);
+        likely_expression dstColumns  = builder.columns(srcs[0]);
+        likely_expression dstRows     = builder.rows(srcs[0]);
+        likely_expression dstFrames   = builder.frames(srcs[0]);
 
         // Allocate and initialize memory for the destination matrix
         BasicBlock *allocation = BasicBlock::Create(builder.getContext(), "allocation", builder.GetInsertBlock()->getParent());
@@ -2107,23 +2107,6 @@ class kernelExpression : public LikelyOperator
         delete builder.undefine("y");
         delete builder.undefine("t");
         return metadata;
-    }
-
-    static Value *getDimensions(Builder &builder, const char *axis, const vector<likely_const_expr> &srcs, likely_matrix_type *type)
-    {
-        Value *result;
-        if      (!strcmp(axis, "channels")) result = builder.channels(srcs[0]);
-        else if (!strcmp(axis, "columns"))  result = builder.columns (srcs[0]);
-        else if (!strcmp(axis, "rows"))     result = builder.rows    (srcs[0]);
-        else                                result = builder.frames  (srcs[0]);
-
-        if (!llvm::isa<Constant>(result) || (llvm::cast<Constant>(result)->getUniqueInteger().getZExtValue() > 1)) {
-            if      (!strcmp(axis, "channels")) *type |= likely_matrix_multi_channel;
-            else if (!strcmp(axis, "columns"))  *type |= likely_matrix_multi_column;
-            else if (!strcmp(axis, "rows"))     *type |= likely_matrix_multi_row;
-            else                                *type |= likely_matrix_multi_frame;
-        }
-        return result;
     }
 };
 LIKELY_REGISTER(kernel)
