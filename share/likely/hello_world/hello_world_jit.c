@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
                  "hello_world_jit <input_image> <function> <output_image>\n"
              "\n"
              "Example:\n\t"
-                 "hello_world_jit data/misc/lenna.tiff 'a :-> (=> (dst a) (/ a (a.type 2)))' dark_lenna.png\n");
+                 "hello_world_jit data/misc/lenna.tiff 'a :-> { dst := a.imitate (=> (dst a) (/ a (a.type 2))) }' dark_lenna.png\n");
         return EXIT_FAILURE;
     }
 
