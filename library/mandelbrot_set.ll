@@ -19,7 +19,7 @@ Definition
     (mandelbrot_set u32 u32 f32 f32 f32 f32 u32) :=
       (width height x_min y_min x_range y_range iter) :->
       {
-        dst := (new u8 3 width height)
+        dst := (new u8 1 width height)
         (=> (dst width height x_min y_min x_range y_range iter)
         {
           zr0 := (/ (* x.f32 x_range) width)  :+ x_min
@@ -34,7 +34,6 @@ Definition
           j := (+ j 1)
           (& (< (+ zr.sq zi.sq) 4) (< j iter)) :? loop
           result := (/ (* 255 j) iter).u8
-          (result result result)
         } (width.columns height.rows) )
       }
 
