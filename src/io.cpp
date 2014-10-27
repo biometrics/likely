@@ -106,8 +106,10 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
 {
     // Interpret ~ as $HOME
     string fileName = file_name;
-    if (fileName[0] == '~')
-        fileName = getenv("HOME") + fileName.substr(1);
+    if (fileName[0] == '~') {
+        static string HOME = getenv("HOME");
+        fileName = HOME + fileName.substr(1);
+    }
 
     // Is it a file?
     if (FILE *fp = fopen(fileName.c_str(), "rb")) {
