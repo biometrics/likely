@@ -1152,7 +1152,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                 lock.lock();
                 auto function = functionLUT.find(symbol());
                 if (function == functionLUT.end()) {
-                    const string code = string("(a b):-> (dst a b):=> (") + symbol() + string(" a b))");
+                    const string code = string("(a b) :-> { dst := a.imitate (=> (dst a b) (") + symbol() + string(" a b)) }");
                     likely_const_ast ast = likely_lex_and_parse(code.c_str(), likely_source_lisp);
                     likely_env parent = likely_jit();
                     likely_env env = likely_eval(ast->atoms[0], parent);
@@ -2510,6 +2510,11 @@ class newExpression : public LikelyOperator
         checkDimension(inferredType, columns , likely_matrix_multi_column);
         checkDimension(inferredType, rows    , likely_matrix_multi_row);
         checkDimension(inferredType, frames  , likely_matrix_multi_frame);
+
+        // TODO: stack allocate scalars
+        if (!(inferredType & likely_matrix_multi_dimension))
+            inferredType |= likely_matrix_multi_dimension;
+
         return new likely_expression(builder.CreatePointerCast(builder.newMat(type, channels, columns, rows, frames, data), builder.toLLVM(inferredType)), inferredType);
     }
 
