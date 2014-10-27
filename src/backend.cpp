@@ -1835,21 +1835,20 @@ class kernelExpression : public LikelyOperator
 {
     class kernelArgument : public Assignable
     {
-        Value *channelStep;
         MDNode *node;
 
     public:
-        kernelArgument(const likely_expression &matrix, Value *channelStep, MDNode *node)
-            : Assignable(matrix.value, matrix.type), channelStep(channelStep), node(node) {}
+        kernelArgument(const likely_expression &matrix, MDNode *node)
+            : Assignable(matrix.value, matrix.type), node(node) {}
 
     private:
         Value *gep(Builder &builder, likely_const_ast ast) const
         {
             (void) ast;
             Value *columnStep, *rowStep, *frameStep;
-            builder.steps(this, channelStep, &columnStep, &rowStep, &frameStep);
+            builder.steps(this, builder.constant(1), &columnStep, &rowStep, &frameStep);
             Value *i = builder.zero();
-            if (type & likely_matrix_multi_channel) i = builder.CreateMul(*builder.lookup("c"), channelStep);
+            if (type & likely_matrix_multi_channel) i = *builder.lookup("c");
             if (type & likely_matrix_multi_column ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), columnStep), i);
             if (type & likely_matrix_multi_row    ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep   ), i);
             if (type & likely_matrix_multi_frame  ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep ), i);
@@ -1934,7 +1933,6 @@ class kernelExpression : public LikelyOperator
     struct Metadata
     {
         set<string> collapsedAxis;
-        size_t results;
     };
 
     const char *symbol() const { return "=>"; }
@@ -1965,7 +1963,6 @@ class kernelExpression : public LikelyOperator
         BasicBlock *allocation = BasicBlock::Create(builder.getContext(), "allocation", builder.GetInsertBlock()->getParent());
         builder.CreateBr(allocation);
         builder.SetInsertPoint(allocation);
-        PHINode *results   = builder.CreatePHI(builder.nativeInt(), 1);
         PHINode *dstType   = builder.CreatePHI(builder.nativeInt(), 1);
         PHINode *kernelChannels = builder.CreatePHI(builder.nativeInt(), 1);
         PHINode *kernelColumns  = builder.CreatePHI(builder.nativeInt(), 1);
@@ -1974,7 +1971,7 @@ class kernelExpression : public LikelyOperator
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(kernelChannels, kernelColumns), kernelRows), kernelFrames);
         likely_const_expr dst = new likely_expression(builder.CreatePointerCast(
                                                           builder.newMat(builder.cast(dstType, likely_matrix_u32),
-                                                                         builder.cast(builder.CreateMul(dstChannels, results), likely_matrix_u32),
+                                                                         builder.cast(dstChannels, likely_matrix_u32),
                                                                          builder.cast(dstColumns, likely_matrix_u32),
                                                                          builder.cast(dstRows, likely_matrix_u32),
                                                                          builder.cast(dstFrames, likely_matrix_u32),
@@ -1993,7 +1990,6 @@ class kernelExpression : public LikelyOperator
         else if (builder.env->type & likely_environment_parallel)      metadata = generateParallel     (builder, ast, srcs, kernelSize);
         else                                                           metadata = generateSerial       (builder, ast, srcs, kernelSize);
 
-        results->addIncoming(builder.constant(metadata.results), entry);
         dstType->addIncoming(builder.cast(builder.matrixType(*dst), likely_matrix_u64), entry);
         kernelChannels->addIncoming(metadata.collapsedAxis.find("c") != metadata.collapsedAxis.end() ? dstChannels : builder.one(), entry);
         kernelColumns->addIncoming (metadata.collapsedAxis.find("x") != metadata.collapsedAxis.end() ? dstColumns  : builder.one(), entry);
@@ -2082,10 +2078,8 @@ class kernelExpression : public LikelyOperator
         BasicBlock *steps = BasicBlock::Create(builder.getContext(), "steps", entry->getParent());
         builder.CreateBr(steps);
         builder.SetInsertPoint(steps);
-        PHINode *channelStep;
-        channelStep = builder.CreatePHI(builder.nativeInt(), 1); // Defined after we know the number of results
         Value *columnStep, *rowStep, *frameStep;
-        builder.steps(srcs[0], channelStep, &columnStep, &rowStep, &frameStep);
+        builder.steps(srcs[0], builder.constant(1), &columnStep, &rowStep, &frameStep);
 
         kernelAxis *axis = NULL;
         for (int axis_index=0; axis_index<4; axis_index++) {
@@ -2116,7 +2110,7 @@ class kernelExpression : public LikelyOperator
                 name = "c";
                 multiElement = (srcs[0]->type & likely_matrix_multi_channel) != 0;
                 elements = builder.channels(srcs[0]);
-                step = channelStep;
+                step = builder.constant(1);
                 break;
             }
 
@@ -2133,23 +2127,16 @@ class kernelExpression : public LikelyOperator
         const likely_const_ast args = ast->atoms[1];
         if (args->type == likely_ast_list) {
             for (size_t j=0; j<args->num_atoms; j++)
-                builder.define(args->atoms[j]->atom, new kernelArgument(*srcs[j], channelStep, axis->node));
+                builder.define(args->atoms[j]->atom, new kernelArgument(*srcs[j], axis->node));
         } else {
-            builder.define(args->atom, new kernelArgument(*srcs[0], channelStep, axis->node));
+            builder.define(args->atom, new kernelArgument(*srcs[0], axis->node));
         }
 
         unique_ptr<const likely_expression> result(builder.expression(ast->atoms[2]));
 
-        const vector<likely_const_expr> expressions = result->subexpressionsOrSelf();
-        for (likely_const_expr e : expressions)
-            const_cast<likely_expr>(srcs[0])->type = likely_type_from_types(*srcs[0], *e);
-
-        metadata.results = expressions.size();
-        channelStep->addIncoming(builder.constant(metadata.results), entry);
-        for (size_t i=0; i<metadata.results; i++) {
-            StoreInst *store = builder.CreateStore(builder.cast(*expressions[i], *srcs[0]), builder.CreateGEP(builder.data(srcs[0]), builder.CreateAdd(axis->offset, builder.constant(i))));
-            store->setMetadata("llvm.mem.parallel_loop_access", axis->node);
-        }
+        const_cast<likely_expr>(srcs[0])->type = result->type;
+        StoreInst *store = builder.CreateStore(builder.cast(*result, *srcs[0]), builder.CreateGEP(builder.data(srcs[0]), axis->offset));
+        store->setMetadata("llvm.mem.parallel_loop_access", axis->node);
 
         axis->close(builder);
         metadata.collapsedAxis = axis->tryCollapse(builder);
