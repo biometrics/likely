@@ -7,12 +7,12 @@ Compute the average face from a set of aligned faces [1].
       {
         dst := (new m.type m.channels m.columns m.rows 1)
         len := m.frames
-        (=> (dst m len)
+        (dst m len) :=>
         {
           j := 0
           ($ j := j :+ m t len)
           j :/ len
-        } (1.frames))
+        }
       }
 
     (average_face) := () :-> "data/lfw2".read.avg

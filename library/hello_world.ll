@@ -7,7 +7,7 @@ Click **View Source** and _copy+paste_ this file into **dream**, Likely's IDE. N
       a :->
       {
         dst := a.imitate
-        (=> (dst a) (/ a (a.type 2)))
+        (dst a) :=> (/ a (a.type 2))
       }
     lenna.hello_world
 

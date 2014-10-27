@@ -6,13 +6,13 @@ Interactive parameters
 
     x_scale := 3
     y_scale := 2
-    x_range := x_scale:* (try mandelbrot_set_scale 1)
-    y_range := y_scale:* (try mandelbrot_set_scale 1)
-    x_min   := (- (* x_scale (try mandelbrot_set_x 0)) (/ x_range 2.f)):- 0.5
+    x_range := x_scale :* (try mandelbrot_set_scale 1)
+    y_range := y_scale :* (try mandelbrot_set_scale 1)
+    x_min   := (- (* x_scale (try mandelbrot_set_x 0)) (/ x_range 2.f)) :- 0.5
     y_min   := (- (* y_scale (try mandelbrot_set_y 0)) (/ y_range 2.f))
     width   := (try mandelbrot_set_width 600)
-    height  := (* width y_scale):/ x_scale
-    iter    := (/ (try mandelbrot_set_angle 0) 4):+ 20
+    height  := (* width y_scale) :/ x_scale
+    iter    := (/ (try mandelbrot_set_angle 0) 4) :+ 20
 
 Definition
 
@@ -20,7 +20,7 @@ Definition
       (width height x_min y_min x_range y_range iter) :->
       {
         dst := (new u8 1 width height)
-        (=> (dst width height x_min y_min x_range y_range iter)
+        (dst width height x_min y_min x_range y_range iter) :=>
         {
           zr0 := (/ (* x.f32 x_range) width)  :+ x_min
           zi0 := (/ (* y.f32 y_range) height) :+ y_min
@@ -34,7 +34,7 @@ Definition
           j := (+ j 1)
           (& (< (+ zr.sq zi.sq) 4) (< j iter)) :? loop
           result := (/ (* 255 j) iter).u8
-        } (width.columns height.rows) )
+        }
       }
 
 Execution

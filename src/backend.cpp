@@ -1141,7 +1141,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                 lock.lock();
                 auto function = functionLUT.find(symbol());
                 if (function == functionLUT.end()) {
-                    const string code = string("(a b) :-> { dst := a.imitate (=> (dst a b) (") + symbol() + string(" a b)) }");
+                    const string code = string("(a b) :-> { dst := a.imitate (dst a b) :=> (") + symbol() + string(" a b) }");
                     likely_const_ast ast = likely_lex_and_parse(code.c_str(), likely_source_lisp);
                     likely_env parent = likely_jit();
                     likely_env env = likely_eval(ast->atoms[0], parent);
@@ -1894,8 +1894,7 @@ class kernelExpression : public LikelyOperator
     };
 
     const char *symbol() const { return "=>"; }
-    size_t minParameters() const { return 2; }
-    size_t maxParameters() const { return 3; }
+    size_t maxParameters() const { return 2; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
@@ -1909,15 +1908,11 @@ class kernelExpression : public LikelyOperator
         }
 
         BasicBlock *entry = builder.GetInsertBlock();
-
-        vector<pair<likely_const_ast,likely_const_ast>> pairs;
-        getPairs((ast->num_atoms == 4) ? ast->atoms[3] : NULL, pairs);
-
         likely_matrix_type dimensionsType = likely_matrix_void;
-        likely_expression dstChannels(getDimensions(builder, pairs, "channels", srcs, &dimensionsType), likely_matrix_native);
-        likely_expression dstColumns (getDimensions(builder, pairs, "columns" , srcs, &dimensionsType), likely_matrix_native);
-        likely_expression dstRows    (getDimensions(builder, pairs, "rows"    , srcs, &dimensionsType), likely_matrix_native);
-        likely_expression dstFrames  (getDimensions(builder, pairs, "frames"  , srcs, &dimensionsType), likely_matrix_native);
+        likely_expression dstChannels(getDimensions(builder, "channels", srcs, &dimensionsType), likely_matrix_native);
+        likely_expression dstColumns (getDimensions(builder, "columns" , srcs, &dimensionsType), likely_matrix_native);
+        likely_expression dstRows    (getDimensions(builder, "rows"    , srcs, &dimensionsType), likely_matrix_native);
+        likely_expression dstFrames  (getDimensions(builder, "frames"  , srcs, &dimensionsType), likely_matrix_native);
 
         // Allocate and initialize memory for the destination matrix
         BasicBlock *allocation = BasicBlock::Create(builder.getContext(), "allocation", builder.GetInsertBlock()->getParent());
@@ -2114,51 +2109,13 @@ class kernelExpression : public LikelyOperator
         return metadata;
     }
 
-    static bool getPairs(likely_const_ast ast, vector<pair<likely_const_ast,likely_const_ast>> &pairs)
+    static Value *getDimensions(Builder &builder, const char *axis, const vector<likely_const_expr> &srcs, likely_matrix_type *type)
     {
-        pairs.clear();
-        if (!ast) return true;
-        if (ast->type != likely_ast_list) return false;
-        if (ast->num_atoms == 0) return true;
-
-        if (ast->atoms[0]->type == likely_ast_list) {
-            for (size_t i=0; i<ast->num_atoms; i++) {
-                if (ast->atoms[i]->num_atoms != 2) {
-                    pairs.clear();
-                    return false;
-                }
-                pairs.push_back(pair<likely_const_ast,likely_const_ast>(ast->atoms[i]->atoms[0], ast->atoms[i]->atoms[1]));
-            }
-        } else {
-            if (ast->num_atoms != 2) {
-                pairs.clear();
-                return false;
-            }
-            pairs.push_back(pair<likely_const_ast,likely_const_ast>(ast->atoms[0], ast->atoms[1]));
-        }
-        return true;
-    }
-
-    static Value *getDimensions(Builder &builder, const vector<pair<likely_const_ast,likely_const_ast>> &pairs, const char *axis, const vector<likely_const_expr> &srcs, likely_matrix_type *type)
-    {
-        Value *result = NULL;
-        for (const auto &pair : pairs) // Look for a dimensionality expression
-            if (!strcmp(axis, pair.first->atom)) {
-                result = builder.cast(*unique_ptr<const likely_expression>(builder.expression(pair.second)).get(), likely_matrix_native);
-                break;
-            }
-
-        // Use default dimensionality
-        if (result == NULL) {
-            if (srcs.empty()) {
-                result = builder.constant(1);
-            } else {
-                if      (!strcmp(axis, "channels")) result = builder.channels(srcs[1]);
-                else if (!strcmp(axis, "columns"))  result = builder.columns (srcs[1]);
-                else if (!strcmp(axis, "rows"))     result = builder.rows    (srcs[1]);
-                else                                result = builder.frames  (srcs[1]);
-            }
-        }
+        Value *result;
+        if      (!strcmp(axis, "channels")) result = builder.channels(srcs[0]);
+        else if (!strcmp(axis, "columns"))  result = builder.columns (srcs[0]);
+        else if (!strcmp(axis, "rows"))     result = builder.rows    (srcs[0]);
+        else                                result = builder.frames  (srcs[0]);
 
         if (!llvm::isa<Constant>(result) || (llvm::cast<Constant>(result)->getUniqueInteger().getZExtValue() > 1)) {
             if      (!strcmp(axis, "channels")) *type |= likely_matrix_multi_channel;
