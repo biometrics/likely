@@ -1913,8 +1913,10 @@ class kernelExpression : public LikelyOperator
         vector<likely_const_expr> srcs;
         const likely_const_ast args = ast->atoms[1];
         if (args->type == likely_ast_list) {
-            for (size_t j=1; j<args->num_atoms; j++)
+            for (size_t j=0; j<args->num_atoms; j++)
                 srcs.push_back(builder.lookup(args->atoms[j]->atom));
+        } else {
+            srcs.push_back(builder.lookup(args->atom));
         }
 
         BasicBlock *entry = builder.GetInsertBlock();
@@ -1947,7 +1949,7 @@ class kernelExpression : public LikelyOperator
                                                                          builder.nullData()),
                                                           builder.toLLVM(dimensionsType)),
                                                       dimensionsType);
-        srcs.insert(srcs.begin(), dst);
+        srcs[0] = dst;
 
         // Finally, do the computation
         BasicBlock *computation = BasicBlock::Create(builder.getContext(), "computation", builder.GetInsertBlock()->getParent());
@@ -2158,10 +2160,10 @@ class kernelExpression : public LikelyOperator
             if (srcs.empty()) {
                 result = builder.constant(1);
             } else {
-                if      (!strcmp(axis, "channels")) result = builder.channels(srcs[0]);
-                else if (!strcmp(axis, "columns"))  result = builder.columns (srcs[0]);
-                else if (!strcmp(axis, "rows"))     result = builder.rows    (srcs[0]);
-                else                                result = builder.frames  (srcs[0]);
+                if      (!strcmp(axis, "channels")) result = builder.channels(srcs[1]);
+                else if (!strcmp(axis, "columns"))  result = builder.columns (srcs[1]);
+                else if (!strcmp(axis, "rows"))     result = builder.rows    (srcs[1]);
+                else                                result = builder.frames  (srcs[1]);
             }
         }
 
