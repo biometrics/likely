@@ -326,10 +326,9 @@ struct likely_expression
 {
     Value *value;
     likely_matrix_type type;
-    likely_const_expr parent;
 
-    likely_expression(Value *value = NULL, likely_matrix_type type = likely_matrix_void, likely_const_expr parent = NULL, likely_const_mat data = NULL)
-        : value(value), type(type), parent(parent), data(data)
+    likely_expression(Value *value = NULL, likely_matrix_type type = likely_matrix_void, likely_const_mat data = NULL)
+        : value(value), type(type), data(data)
     {
         if (value && type) {
             // Check type correctness
@@ -656,7 +655,7 @@ struct Builder : public IRBuilder<>
     {
         likely_module *mod;
         ConstantMat(Builder &builder, likely_const_mat m)
-            : likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(likely_mat)), uintptr_t(m)), builder.toLLVM(m->type)), m->type, NULL, m)
+            : likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(likely_mat)), uintptr_t(m)), builder.toLLVM(m->type)), m->type, m)
             , mod(builder.env->module) {}
 
         ~ConstantMat()
@@ -671,7 +670,7 @@ struct Builder : public IRBuilder<>
         if (!data)
             return NULL;
         else if (!(data->type & likely_matrix_multi_dimension))
-            return new likely_expression(constant(likely_element(data, 0, 0, 0, 0), data->type), data->type, NULL, data);
+            return new likely_expression(constant(likely_element(data, 0, 0, 0, 0), data->type), data->type, data);
         else
             return new ConstantMat(*this, data);
     }
@@ -1453,7 +1452,7 @@ struct Lambda : public LikelyOperator
 
         // If we are returning a constant matrix, make sure to retain a copy
         if (isa<ConstantExpr>(result->value) && isMat(result->value->getType()))
-            result.reset(new likely_expression(builder.CreatePointerCast(builder.retainMat(result->value), builder.toLLVM(result->type)), result->type, NULL, likely_retain_mat(result->getData())));
+            result.reset(new likely_expression(builder.CreatePointerCast(builder.retainMat(result->value), builder.toLLVM(result->type)), result->type, likely_retain_mat(result->getData())));
 
         builder.CreateRet(*result);
 
@@ -1471,7 +1470,7 @@ struct Lambda : public LikelyOperator
 
         if (originalInsertBlock)
             builder.SetInsertPoint(originalInsertBlock);
-        return new likely_expression(function, likely_matrix_void, NULL, likely_retain_mat(result->getData()));
+        return new likely_expression(function, likely_matrix_void, likely_retain_mat(result->getData()));
     }
 
     likely_mat evaluateConstantFunction(likely_const_env env, const vector<likely_const_mat> &args) const
@@ -1829,7 +1828,7 @@ class kernelExpression : public LikelyOperator
 
             LoadInst *load = builder.CreateLoad(gep(builder, ast));
             load->setMetadata("llvm.mem.parallel_loop_access", node);
-            return new likely_expression(load, type & likely_matrix_element, this);
+            return new likely_expression(load, type & likely_matrix_element);
         }
     };
 
@@ -2258,7 +2257,7 @@ private:
             return new likely_expression(builder.constant(likely_element(m, 0, 0, 0, 0), m->type & likely_matrix_element));
         } else {
             // Return the matrix
-            return new likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(m)), uintptr_t(m)), builder.toLLVM(m->type)), m->type, NULL, likely_retain_mat(m));
+            return new likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(m)), uintptr_t(m)), builder.toLLVM(m->type)), m->type, likely_retain_mat(m));
         }
     }
 
