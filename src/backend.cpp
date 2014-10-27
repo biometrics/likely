@@ -327,7 +327,6 @@ struct likely_expression
     Value *value;
     likely_matrix_type type;
     likely_const_expr parent;
-    vector<likely_const_expr> subexpressions;
 
     likely_expression(Value *value = NULL, likely_matrix_type type = likely_matrix_void, likely_const_expr parent = NULL, likely_const_mat data = NULL)
         : value(value), type(type), parent(parent), data(data)
@@ -357,8 +356,6 @@ struct likely_expression
     virtual ~likely_expression()
     {
         likely_release_mat(data);
-        for (likely_const_expr e : subexpressions)
-            delete e;
     }
 
     virtual int uid() const { return 0; }
@@ -411,17 +408,6 @@ struct likely_expression
         cerr << m->data << " ";
         value->dump();
         likely_release_mat(m);
-    }
-
-    vector<likely_const_expr> subexpressionsOrSelf() const
-    {
-        if (subexpressions.empty()) {
-            vector<likely_const_expr> expressions;
-            expressions.push_back(this);
-            return expressions;
-        } else {
-            return subexpressions;
-        }
     }
 
     static likely_const_expr error(likely_const_ast ast, const char *message)
@@ -738,13 +724,9 @@ struct Builder : public IRBuilder<>
         }
 
         vector<Value*> args;
-        likely_matrix_type type = likely_matrix_void;
-        for (likely_const_expr e : expr->subexpressionsOrSelf()) {
-            args.push_back(cast(*e, likely_matrix_f64));
-            type = likely_type_from_types(type, e->type);
-        }
+        args.push_back(matrixType(expr->type));
+        args.push_back(cast(*expr, likely_matrix_f64));
         args.push_back(ConstantFP::get(getContext(), APFloat::getNaN(APFloat::IEEEdouble)));
-        args.insert(args.begin(), matrixType(type));
         return likely_expression(CreateCall(likelyScalar, args), likely_matrix_multi_dimension);
     }
 
@@ -919,22 +901,9 @@ class LikelyOperator : public likely_expression
 
 } // namespace (anonymous)
 
-likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast ast) const
+likely_const_expr likely_expression::evaluate(Builder &, likely_const_ast) const
 {
-    if (ast->type == likely_ast_list) {
-        likely_expr expression = new likely_expression();
-        for (size_t i=0; i<ast->num_atoms; i++) {
-            if (likely_const_expr e = builder.expression(ast->atoms[i])) {
-                expression->subexpressions.push_back(e);
-            } else {
-                delete expression;
-                return NULL;
-            }
-        }
-        return expression;
-    } else {
-        return new likely_expression(value, type);
-    }
+    return new likely_expression(value, type);
 }
 
 struct likely_virtual_table : public LikelyOperator
