@@ -967,7 +967,7 @@ class SimpleUnaryOperator : public UnaryOperator
     virtual likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const = 0;
 };
 
-struct MatrixType : public SimpleUnaryOperator
+struct MatrixType : public LikelyOperator
 {
     likely_matrix_type t;
     MatrixType(Builder &builder, likely_matrix_type t)
@@ -978,9 +978,16 @@ struct MatrixType : public SimpleUnaryOperator
     }
 
 private:
-    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &x) const
+    size_t minParameters() const { return 0; }
+    size_t maxParameters() const { return 1; }
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        return new likely_expression(builder.cast(*x.get(), t));
+        if ((ast->type == likely_ast_list) && (ast->num_atoms > 1)) {
+            TRY_EXPR(builder, ast->atoms[1], expr)
+            return new likely_expression(builder.cast(*expr, t));
+        } else {
+            return new likely_expression(builder.matrixType(t));
+        }
     }
 };
 
