@@ -1914,9 +1914,9 @@ class kernelExpression : public LikelyOperator
         const likely_const_ast args = ast->atoms[1];
         if (args->type == likely_ast_list) {
             for (size_t j=0; j<args->num_atoms; j++)
-                srcs.push_back(builder.lookup(args->atoms[j]->atom));
+                srcs.push_back(builder.expression(args->atoms[j]));
         } else {
-            srcs.push_back(builder.lookup(args->atom));
+            srcs.push_back(builder.expression(args));
         }
 
         BasicBlock *entry = builder.GetInsertBlock();
@@ -1949,6 +1949,7 @@ class kernelExpression : public LikelyOperator
                                                                          builder.nullData()),
                                                           builder.toLLVM(dimensionsType)),
                                                       dimensionsType);
+        delete srcs[0];
         srcs[0] = dst;
 
         // Finally, do the computation
@@ -1966,7 +1967,10 @@ class kernelExpression : public LikelyOperator
         kernelColumns->addIncoming (metadata.collapsedAxis.find("x") != metadata.collapsedAxis.end() ? dstColumns  : builder.one(), entry);
         kernelRows->addIncoming    (metadata.collapsedAxis.find("y") != metadata.collapsedAxis.end() ? dstRows     : builder.one(), entry);
         kernelFrames->addIncoming  (metadata.collapsedAxis.find("t") != metadata.collapsedAxis.end() ? dstFrames   : builder.one(), entry);
-        return dst;
+
+        for (size_t i=1; i<srcs.size(); i++)
+            delete srcs[i];
+        return srcs[0];
     }
 
     Metadata generateSerial(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, Value *kernelSize) const
