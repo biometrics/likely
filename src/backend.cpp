@@ -2116,29 +2116,6 @@ class kernelExpression : public LikelyOperator
 };
 LIKELY_REGISTER(kernel)
 
-struct Definition : public LikelyOperator
-{
-    likely_env env;
-    likely_const_ast ast;
-
-    Definition(likely_env env, likely_const_ast ast)
-        : env(env), ast(ast) {}
-
-private:
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        likely_env env = this->env;
-        swap(builder.env, env);
-        unique_ptr<const likely_expression> op(builder.expression(this->ast));
-        swap(builder.env, env);
-
-        return op.get() ? op->evaluate(builder, ast) : NULL;
-    }
-
-    size_t minParameters() const { return 0; }
-    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
-};
-
 struct EvaluatedExpression : public LikelyOperator
 {
     likely_env env;
@@ -2302,7 +2279,7 @@ class defineExpression : public LikelyOperator
             } else {
                 if (!strcmp(likely_symbol(rhs), "->")) {
                     // Global variable
-                    env->value = new Definition(env, rhs);
+                    env->value = builder.expression(rhs);
                 } else {
                     // Global value
                     env->value = new EvaluatedExpression(env, rhs);
@@ -2314,16 +2291,35 @@ class defineExpression : public LikelyOperator
             return NULL;
         } else {
             likely_const_expr expr = builder.expression(rhs);
-            if (expr) {
-                const Assignable *assignable = Assignable::dynamicCast(builder.lookup(name));
-                if (assignable) assignable->set(builder, expr, lhs);
-                else            builder.define(name, new Variable(builder, expr, name));
-            }
-            return expr;
+            builder.define(name, expr);
+            return new likely_expression(*expr);
         }
     }
 };
 LIKELY_REGISTER(define)
+
+class setExpression : public LikelyOperator
+{
+    const char *symbol() const { return "<-"; }
+    size_t maxParameters() const { return 2; }
+
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        likely_const_ast lhs = ast->atoms[1];
+        likely_const_ast rhs = ast->atoms[2];
+        const char *name = likely_symbol(ast);
+        likely_env env = builder.env;
+        assert(!(env->type & likely_environment_global));
+        likely_const_expr expr = builder.expression(rhs);
+        if (expr) {
+            const Assignable *assignable = Assignable::dynamicCast(builder.lookup(name));
+            if (assignable) assignable->set(builder, expr, lhs);
+            else            builder.define(name, new Variable(builder, expr, name));
+        }
+        return expr;
+    }
+};
+LIKELY_REGISTER(set)
 
 JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_env parent, const vector<likely_matrix_type> &parameters, bool abandon, bool interpreter, bool arrayCC)
     : env(newEnv(parent))
