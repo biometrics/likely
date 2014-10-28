@@ -415,15 +415,6 @@ struct likely_expression
         return NULL;
     }
 
-    static likely_matrix_type validFloatType(likely_matrix_type type)
-    {
-        type |= likely_matrix_floating;
-        type &= ~likely_matrix_signed;
-        type &= ~likely_matrix_depth;
-        type |= (type & likely_matrix_depth) > 32 ? 64 : 32;
-        return type;
-    }
-
     static likely_const_expr lookup(likely_const_env env, const char *name)
     {
         if (!env)
@@ -625,7 +616,7 @@ struct Builder : public IRBuilder<>
         if ((type & likely_matrix_depth) == 0) {
             type |= x.type & likely_matrix_depth;
             if (type & likely_matrix_floating)
-                type = likely_expression::validFloatType(type);
+                type = likely_type_from_types(type, likely_matrix_floating);
         }
         Type *dstType = env->module->context->scalar(type);
         return likely_expression(CreateCast(CastInst::getCastOpcode(x, (x & likely_matrix_signed) != 0, dstType, (type & likely_matrix_signed) != 0), x, dstType), type);
@@ -1093,7 +1084,7 @@ class UnaryMathOperator : public SimpleUnaryOperator
 {
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &x) const
     {
-        likely_expression xc(builder.cast(*x.get(), validFloatType(*x)));
+        likely_expression xc(builder.cast(*x.get(), likely_type_from_types(*x, likely_matrix_floating)));
         return new likely_expression(builder.CreateCall(Intrinsic::getDeclaration(builder.module(), id(), xc.value->getType()), xc), xc);
     }
     virtual Intrinsic::ID id() const = 0;
@@ -1360,7 +1351,7 @@ class BinaryMathOperator : public SimpleBinaryOperator
 {
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &x, const unique_ptr<const likely_expression> &n) const
     {
-        const likely_matrix_type type = validFloatType(likely_type_from_types(*x, *n));
+        const likely_matrix_type type = likely_type_from_types(likely_type_from_types(*x, *n), likely_matrix_floating);
         const likely_expression xc(builder.cast(*x.get(), type));
         const likely_expression nc(builder.cast(*n.get(), type));
         return new likely_expression(builder.CreateCall2(Intrinsic::getDeclaration(builder.module(), id(), xc.value->getType()), xc, nc), xc);

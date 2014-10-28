@@ -687,9 +687,12 @@ likely_matrix_type likely_type_from_value(double value)
 likely_matrix_type likely_type_from_types(likely_matrix_type a, likely_matrix_type b)
 {
     uint32_t type = (a | b) & ~likely_matrix_depth;
-    type |= max(a & likely_matrix_depth, b & likely_matrix_depth);
-    if (type & likely_matrix_floating)
+    uint32_t depth = max(a & likely_matrix_depth, b & likely_matrix_depth);
+    if (type & likely_matrix_floating) {
         type &= ~likely_matrix_signed;
+        depth = depth > 32 ? 64 : 32;
+    }
+    type |= depth;
     return type;
 }
 //! [likely_type_from_types implementation.]
