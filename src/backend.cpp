@@ -1913,7 +1913,6 @@ class kernelExpression : public LikelyOperator
         }
 
         BasicBlock *entry = builder.GetInsertBlock();
-        likely_matrix_type dimensionsType = srcs[0]->type;
         likely_expression dstChannels = builder.channels(srcs[0]);
         likely_expression dstColumns  = builder.columns(srcs[0]);
         likely_expression dstRows     = builder.rows(srcs[0]);
@@ -1923,23 +1922,11 @@ class kernelExpression : public LikelyOperator
         BasicBlock *allocation = BasicBlock::Create(builder.getContext(), "allocation", builder.GetInsertBlock()->getParent());
         builder.CreateBr(allocation);
         builder.SetInsertPoint(allocation);
-        PHINode *dstType   = builder.CreatePHI(Type::getInt32Ty(builder.getContext()), 1);
         PHINode *kernelChannels = builder.CreatePHI(builder.nativeInt(), 1);
         PHINode *kernelColumns  = builder.CreatePHI(builder.nativeInt(), 1);
         PHINode *kernelRows     = builder.CreatePHI(builder.nativeInt(), 1);
         PHINode *kernelFrames   = builder.CreatePHI(builder.nativeInt(), 1);
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(kernelChannels, kernelColumns), kernelRows), kernelFrames);
-        likely_const_expr dst = new likely_expression(builder.CreatePointerCast(
-                                                          builder.newMat(dstType,
-                                                                         builder.cast(dstChannels, likely_matrix_u32),
-                                                                         builder.cast(dstColumns, likely_matrix_u32),
-                                                                         builder.cast(dstRows, likely_matrix_u32),
-                                                                         builder.cast(dstFrames, likely_matrix_u32),
-                                                                         builder.nullData()),
-                                                          builder.toLLVM(dimensionsType)),
-                                                      dimensionsType);
-        delete srcs[0];
-        srcs[0] = dst;
 
         // Finally, do the computation
         BasicBlock *computation = BasicBlock::Create(builder.getContext(), "computation", builder.GetInsertBlock()->getParent());
@@ -1951,7 +1938,6 @@ class kernelExpression : public LikelyOperator
         else if (builder.env->type & likely_environment_parallel)      metadata = generateParallel     (builder, ast, srcs, kernelSize);
         else                                                           metadata = generateSerial       (builder, ast, srcs, kernelSize);
 
-        dstType->addIncoming(MatrixType(builder, *dst), entry);
         kernelChannels->addIncoming(metadata.collapsedAxis.find("c") != metadata.collapsedAxis.end() ? dstChannels : builder.one(), entry);
         kernelColumns->addIncoming (metadata.collapsedAxis.find("x") != metadata.collapsedAxis.end() ? dstColumns  : builder.one(), entry);
         kernelRows->addIncoming    (metadata.collapsedAxis.find("y") != metadata.collapsedAxis.end() ? dstRows     : builder.one(), entry);
