@@ -1893,14 +1893,10 @@ class kernelExpression : public LikelyOperator
         }
     };
 
-    struct Metadata
-    {
-        set<string> collapsedAxis;
-    };
-
     const char *symbol() const { return "=>"; }
     size_t maxParameters() const { return 2; }
 
+    typedef set<string> Metadata;
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         vector<likely_const_expr> srcs;
@@ -1938,10 +1934,10 @@ class kernelExpression : public LikelyOperator
         else if (builder.env->type & likely_environment_parallel)      metadata = generateParallel     (builder, ast, srcs, kernelSize);
         else                                                           metadata = generateSerial       (builder, ast, srcs, kernelSize);
 
-        kernelChannels->addIncoming(metadata.collapsedAxis.find("c") != metadata.collapsedAxis.end() ? dstChannels : builder.one(), entry);
-        kernelColumns->addIncoming (metadata.collapsedAxis.find("x") != metadata.collapsedAxis.end() ? dstColumns  : builder.one(), entry);
-        kernelRows->addIncoming    (metadata.collapsedAxis.find("y") != metadata.collapsedAxis.end() ? dstRows     : builder.one(), entry);
-        kernelFrames->addIncoming  (metadata.collapsedAxis.find("t") != metadata.collapsedAxis.end() ? dstFrames   : builder.one(), entry);
+        kernelChannels->addIncoming(metadata.find("c") != metadata.end() ? dstChannels : builder.one(), entry);
+        kernelColumns->addIncoming (metadata.find("x") != metadata.end() ? dstColumns  : builder.one(), entry);
+        kernelRows->addIncoming    (metadata.find("y") != metadata.end() ? dstRows     : builder.one(), entry);
+        kernelFrames->addIncoming  (metadata.find("t") != metadata.end() ? dstFrames   : builder.one(), entry);
 
         for (size_t i=1; i<srcs.size(); i++)
             delete srcs[i];
@@ -2089,7 +2085,7 @@ class kernelExpression : public LikelyOperator
         store->setMetadata("llvm.mem.parallel_loop_access", axis->node);
 
         axis->close(builder);
-        metadata.collapsedAxis = axis->tryCollapse(builder);
+        metadata = axis->tryCollapse(builder);
 
         builder.undefineAll(args, true);
         delete builder.undefine("i");
