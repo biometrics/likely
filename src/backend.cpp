@@ -590,7 +590,6 @@ struct Builder : public IRBuilder<>
     likely_expression one (likely_matrix_type type = likely_matrix_native) { return constant(1.0, type); }
     likely_expression intMax(likely_matrix_type type) { const likely_matrix_type bits = type & likely_matrix_depth; return constant((uint64_t) (1 << (bits - ((type & likely_matrix_signed) ? 1 : 0)))-1, bits); }
     likely_expression intMin(likely_matrix_type type) { const likely_matrix_type bits = type & likely_matrix_depth; return constant((uint64_t) ((type & likely_matrix_signed) ? (1 << (bits - 1)) : 0), bits); }
-    likely_expression matrixType(likely_matrix_type type) { return constant((uint64_t) type, likely_matrix_u32); }
     likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(::cast<PointerType>((Type*)multiDimension())), likely_matrix_multi_dimension); }
     likely_expression nullData() { return likely_expression(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_matrix_u8 | likely_matrix_array); }
 
@@ -704,7 +703,7 @@ struct Builder : public IRBuilder<>
         }
 
         vector<Value*> args;
-        args.push_back(matrixType(expr->type));
+        args.push_back(constant(uint64_t(expr->type), likely_matrix_u32));
         args.push_back(cast(*expr, likely_matrix_f64));
         args.push_back(ConstantFP::get(getContext(), APFloat::getNaN(APFloat::IEEEdouble)));
         return likely_expression(CreateCall(likelyScalar, args), likely_matrix_multi_dimension);
@@ -964,7 +963,7 @@ struct MatrixType : public LikelyOperator
     MatrixType(Builder &builder, likely_matrix_type t)
         : t(t)
     {
-        value = builder.matrixType(t);
+        value = builder.constant(uint64_t(t), likely_matrix_u32);
         type = likely_matrix_u32;
     }
 
@@ -985,7 +984,7 @@ private:
                 return new likely_expression(builder.cast(*expr, t));
             }
         } else {
-            return new likely_expression(builder.matrixType(t));
+            return new likely_expression(*this);
         }
     }
 };
@@ -1952,7 +1951,7 @@ class kernelExpression : public LikelyOperator
         else if (builder.env->type & likely_environment_parallel)      metadata = generateParallel     (builder, ast, srcs, kernelSize);
         else                                                           metadata = generateSerial       (builder, ast, srcs, kernelSize);
 
-        dstType->addIncoming(builder.matrixType(*dst), entry);
+        dstType->addIncoming(MatrixType(builder, *dst), entry);
         kernelChannels->addIncoming(metadata.collapsedAxis.find("c") != metadata.collapsedAxis.end() ? dstChannels : builder.one(), entry);
         kernelColumns->addIncoming (metadata.collapsedAxis.find("x") != metadata.collapsedAxis.end() ? dstColumns  : builder.one(), entry);
         kernelRows->addIncoming    (metadata.collapsedAxis.find("y") != metadata.collapsedAxis.end() ? dstRows     : builder.one(), entry);
@@ -2408,7 +2407,7 @@ class newExpression : public LikelyOperator
         }
 
         switch (maxParameters()-n) {
-            case 6: type     = builder.matrixType(likely_matrix_f32);
+            case 6: type     = MatrixType(builder, likely_matrix_f32);
             case 5: channels = builder.one(likely_matrix_u32);
             case 4: columns  = builder.one(likely_matrix_u32);
             case 3: rows     = builder.one(likely_matrix_u32);
