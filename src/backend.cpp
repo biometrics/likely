@@ -2326,35 +2326,6 @@ class defineExpression : public LikelyOperator
 };
 LIKELY_REGISTER(define)
 
-class importExpression : public LikelyOperator
-{
-    const char *symbol() const { return "import"; }
-    size_t maxParameters() const { return 1; }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        likely_const_ast file = ast->atoms[1];
-        if (file->type == likely_ast_list)
-            return error(file, "expected a file name");
-
-        const string fileName = string(file->atom) + ".l";
-        ifstream stream(fileName);
-        const string source((istreambuf_iterator<char>(stream)),
-                             istreambuf_iterator<char>());
-        if (source.empty())
-            return error(file, "unable to open file");
-
-        likely_env parent = builder.env;
-        likely_ast source_ast = likely_lex_and_parse(source.c_str(), likely_source_gfm);
-        builder.env = likely_repl(source_ast, parent, NULL, NULL);
-        likely_release_ast(source_ast);
-        likely_release_env(parent);
-        if (builder.env->type & likely_environment_erratum) return NULL;
-        else                                                return new likely_expression();
-    }
-};
-LIKELY_REGISTER(import)
-
 JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_env parent, const vector<likely_matrix_type> &parameters, bool abandon, bool interpreter, bool arrayCC)
     : env(newEnv(parent))
 {
