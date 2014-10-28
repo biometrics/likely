@@ -1866,37 +1866,11 @@ class kernelExpression : public LikelyOperator
             latch->setMetadata("llvm.loop", node);
             if (parent) parent->close(builder);
         }
-
-        bool referenced() const { return value->getNumUses() > 2; }
-
-        set<string> tryCollapse(Builder &builder)
-        {
-            if (parent)
-                return parent->tryCollapse(builder);
-
-            set<string> collapsedAxis;
-            collapsedAxis.insert(name);
-            if (referenced())
-                return collapsedAxis;
-
-            while (child && !child->referenced()) {
-                // Collapse the child loop into us
-                child->offset->replaceAllUsesWith(value);
-                child->latch->setCondition(ConstantInt::getTrue(builder.getContext()));
-                DeleteDeadPHIs(child->loop);
-                MergeBlockIntoPredecessor(child->loop);
-                MergeBlockIntoPredecessor(child->exit);
-                collapsedAxis.insert(child->name);
-                child = child->child;
-            }
-            return collapsedAxis;
-        }
     };
 
     const char *symbol() const { return "=>"; }
     size_t maxParameters() const { return 2; }
 
-    typedef set<string> Metadata;
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         vector<likely_const_expr> srcs;
@@ -1908,48 +1882,28 @@ class kernelExpression : public LikelyOperator
             srcs.push_back(builder.expression(args));
         }
 
-        BasicBlock *entry = builder.GetInsertBlock();
-        likely_expression dstChannels = builder.channels(srcs[0]);
-        likely_expression dstColumns  = builder.columns(srcs[0]);
-        likely_expression dstRows     = builder.rows(srcs[0]);
-        likely_expression dstFrames   = builder.frames(srcs[0]);
+        Value *kernelSize;
+        if      (srcs[0]->type & likely_matrix_multi_frame)   kernelSize = builder.cast(builder.frames  (srcs[0]), likely_matrix_native);
+        else if (srcs[0]->type & likely_matrix_multi_row)     kernelSize = builder.cast(builder.rows    (srcs[0]), likely_matrix_native);
+        else if (srcs[0]->type & likely_matrix_multi_column)  kernelSize = builder.cast(builder.columns (srcs[0]), likely_matrix_native);
+        else if (srcs[0]->type & likely_matrix_multi_channel) kernelSize = builder.cast(builder.channels(srcs[0]), likely_matrix_native);
+        else                                                  kernelSize = builder.one();
 
-        // Allocate and initialize memory for the destination matrix
-        BasicBlock *allocation = BasicBlock::Create(builder.getContext(), "allocation", builder.GetInsertBlock()->getParent());
-        builder.CreateBr(allocation);
-        builder.SetInsertPoint(allocation);
-        PHINode *kernelChannels = builder.CreatePHI(builder.nativeInt(), 1);
-        PHINode *kernelColumns  = builder.CreatePHI(builder.nativeInt(), 1);
-        PHINode *kernelRows     = builder.CreatePHI(builder.nativeInt(), 1);
-        PHINode *kernelFrames   = builder.CreatePHI(builder.nativeInt(), 1);
-        Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(kernelChannels, kernelColumns), kernelRows), kernelFrames);
-
-        // Finally, do the computation
-        BasicBlock *computation = BasicBlock::Create(builder.getContext(), "computation", builder.GetInsertBlock()->getParent());
-        builder.CreateBr(computation);
-        builder.SetInsertPoint(computation);
-
-        Metadata metadata;
-        if      (builder.env->type & likely_environment_heterogeneous) metadata = generateHeterogeneous(builder, ast, srcs, kernelSize);
-        else if (builder.env->type & likely_environment_parallel)      metadata = generateParallel     (builder, ast, srcs, kernelSize);
-        else                                                           metadata = generateSerial       (builder, ast, srcs, kernelSize);
-
-        kernelChannels->addIncoming(metadata.find("c") != metadata.end() ? dstChannels : builder.one(), entry);
-        kernelColumns->addIncoming (metadata.find("x") != metadata.end() ? dstColumns  : builder.one(), entry);
-        kernelRows->addIncoming    (metadata.find("y") != metadata.end() ? dstRows     : builder.one(), entry);
-        kernelFrames->addIncoming  (metadata.find("t") != metadata.end() ? dstFrames   : builder.one(), entry);
+        if      (builder.env->type & likely_environment_heterogeneous) generateHeterogeneous(builder, ast, srcs, kernelSize);
+        else if (builder.env->type & likely_environment_parallel)      generateParallel     (builder, ast, srcs, kernelSize);
+        else                                                           generateSerial       (builder, ast, srcs, kernelSize);
 
         for (size_t i=1; i<srcs.size(); i++)
             delete srcs[i];
         return srcs[0];
     }
 
-    Metadata generateSerial(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, Value *kernelSize) const
+    void generateSerial(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, Value *kernelSize) const
     {
-        return generateCommon(builder, ast, srcs, builder.zero(), kernelSize);
+        generateCommon(builder, ast, srcs, builder.zero(), kernelSize);
     }
 
-    Metadata generateParallel(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, Value *kernelSize) const
+    void generateParallel(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, Value *kernelSize) const
     {
         BasicBlock *entry = builder.GetInsertBlock();
 
@@ -1959,7 +1913,6 @@ class kernelExpression : public LikelyOperator
         StructType *parameterStructType = StructType::get(builder.getContext(), parameterTypes);
 
         Function *thunk;
-        Metadata metadata;
         {
             Type *params[] = { PointerType::getUnqual(parameterStructType), builder.nativeInt(), builder.nativeInt() };
             FunctionType *thunkType = FunctionType::get(Type::getVoidTy(builder.getContext()), params, false);
@@ -1981,7 +1934,7 @@ class kernelExpression : public LikelyOperator
             for (size_t i=0; i<srcs.size(); i++)
                 thunkSrcs.push_back(new likely_expression(builder.CreateLoad(builder.CreateStructGEP(parameterStruct, unsigned(i))), srcs[i]->type));
 
-            metadata = generateCommon(builder, ast, thunkSrcs, start, stop);
+            generateCommon(builder, ast, thunkSrcs, start, stop);
             const_cast<likely_expr>(srcs[0])->type = thunkSrcs[0]->type;
             for (likely_const_expr thunkSrc : thunkSrcs)
                 delete thunkSrc;
@@ -2008,18 +1961,15 @@ class kernelExpression : public LikelyOperator
             builder.CreateStore(*srcs[i], builder.CreateStructGEP(parameterStruct, unsigned(i)));
 
         builder.CreateCall3(likelyFork, builder.module()->getFunction(thunk->getName()), parameterStruct, kernelSize);
-        return metadata;
     }
 
-    Metadata generateHeterogeneous(Builder &, likely_const_ast, const vector<likely_const_expr> &, Value *) const
+    void generateHeterogeneous(Builder &, likely_const_ast, const vector<likely_const_expr> &, Value *) const
     {
         assert(!"Not implemented");
-        return Metadata();
     }
 
-    Metadata generateCommon(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, Value *start, Value *stop) const
+    void generateCommon(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, Value *start, Value *stop) const
     {
-        Metadata metadata;
         BasicBlock *entry = builder.GetInsertBlock();
         BasicBlock *steps = BasicBlock::Create(builder.getContext(), "steps", entry->getParent());
         builder.CreateBr(steps);
@@ -2085,7 +2035,6 @@ class kernelExpression : public LikelyOperator
         store->setMetadata("llvm.mem.parallel_loop_access", axis->node);
 
         axis->close(builder);
-        metadata = axis->tryCollapse(builder);
 
         builder.undefineAll(args, true);
         delete builder.undefine("i");
@@ -2093,7 +2042,6 @@ class kernelExpression : public LikelyOperator
         delete builder.undefine("x");
         delete builder.undefine("y");
         delete builder.undefine("t");
-        return metadata;
     }
 };
 LIKELY_REGISTER(kernel)
