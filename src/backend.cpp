@@ -2294,8 +2294,7 @@ class setExpression : public LikelyOperator
         likely_const_ast lhs = ast->atoms[1];
         likely_const_ast rhs = ast->atoms[2];
         const char *name = likely_symbol(ast);
-        likely_env env = builder.env;
-        assert(!(env->type & likely_environment_global));
+        assert(!(builder.env->type & likely_environment_global));
         likely_const_expr expr = builder.expression(rhs);
         if (expr) {
             const Assignable *assignable = Assignable::dynamicCast(builder.lookup(name));
