@@ -964,8 +964,8 @@ struct MatrixType : public LikelyOperator
     MatrixType(Builder &builder, likely_matrix_type t)
         : t(t)
     {
-        value = builder.cast(builder.matrixType(t), likely_matrix_u64);
-        type = likely_matrix_u64;
+        value = builder.matrixType(t);
+        type = likely_matrix_u32;
     }
 
 private:
@@ -1924,14 +1924,14 @@ class kernelExpression : public LikelyOperator
         BasicBlock *allocation = BasicBlock::Create(builder.getContext(), "allocation", builder.GetInsertBlock()->getParent());
         builder.CreateBr(allocation);
         builder.SetInsertPoint(allocation);
-        PHINode *dstType   = builder.CreatePHI(builder.nativeInt(), 1);
+        PHINode *dstType   = builder.CreatePHI(Type::getInt32Ty(builder.getContext()), 1);
         PHINode *kernelChannels = builder.CreatePHI(builder.nativeInt(), 1);
         PHINode *kernelColumns  = builder.CreatePHI(builder.nativeInt(), 1);
         PHINode *kernelRows     = builder.CreatePHI(builder.nativeInt(), 1);
         PHINode *kernelFrames   = builder.CreatePHI(builder.nativeInt(), 1);
         Value *kernelSize = builder.CreateMul(builder.CreateMul(builder.CreateMul(kernelChannels, kernelColumns), kernelRows), kernelFrames);
         likely_const_expr dst = new likely_expression(builder.CreatePointerCast(
-                                                          builder.newMat(builder.cast(dstType, likely_matrix_u32),
+                                                          builder.newMat(dstType,
                                                                          builder.cast(dstChannels, likely_matrix_u32),
                                                                          builder.cast(dstColumns, likely_matrix_u32),
                                                                          builder.cast(dstRows, likely_matrix_u32),
@@ -1952,7 +1952,7 @@ class kernelExpression : public LikelyOperator
         else if (builder.env->type & likely_environment_parallel)      metadata = generateParallel     (builder, ast, srcs, kernelSize);
         else                                                           metadata = generateSerial       (builder, ast, srcs, kernelSize);
 
-        dstType->addIncoming(builder.cast(builder.matrixType(*dst), likely_matrix_u64), entry);
+        dstType->addIncoming(builder.matrixType(*dst), entry);
         kernelChannels->addIncoming(metadata.collapsedAxis.find("c") != metadata.collapsedAxis.end() ? dstChannels : builder.one(), entry);
         kernelColumns->addIncoming (metadata.collapsedAxis.find("x") != metadata.collapsedAxis.end() ? dstColumns  : builder.one(), entry);
         kernelRows->addIncoming    (metadata.collapsedAxis.find("y") != metadata.collapsedAxis.end() ? dstRows     : builder.one(), entry);
