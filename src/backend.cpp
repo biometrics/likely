@@ -980,11 +980,19 @@ struct MatrixType : public LikelyOperator
 private:
     size_t minParameters() const { return 0; }
     size_t maxParameters() const { return 1; }
+    static int UID() { return __LINE__; }
+    int uid() const { return UID(); }
+
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         if ((ast->type == likely_ast_list) && (ast->num_atoms > 1)) {
             TRY_EXPR(builder, ast->atoms[1], expr)
-            return new likely_expression(builder.cast(*expr, t));
+            if (expr->uid() == UID()) {
+                const MatrixType *matrixType = static_cast<const MatrixType*>(expr.get());
+                return new MatrixType(builder, likely_type_from_types(matrixType->t, t));
+            } else {
+                return new likely_expression(builder.cast(*expr, t));
+            }
         } else {
             return new likely_expression(builder.matrixType(t));
         }
