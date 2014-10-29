@@ -140,7 +140,35 @@ x.f:h y.g   ; Parsed as (h (f x) (g y))
 
 Note how _infix_ has lower precedence than _compose_.
 
-### Intrinsics
+### Literals
+At the lowest level of interpretation, every atom is either a _number_, _string_, _type_, or _intrinsic operator_.
+
+#### Number
+A number is a series of digits with an optional leading negative sign (-) and optional containing decimal point (.).
+
+```likely
+42    ; Number
+-0.42 ; Number
+.42   ; Not a number
+0.42- ; Not a number
+```
+
+#### String
+A string is a series of characters enclosed in quotation marks (").
+
+```likely
+"hello world" ; this is a string
+'hello world' ; this is not a string
+```
+
+#### Type
+Types are special keywords indicating data structure.
+
+#### Intrinsic Operator
+An intrinsic operator is the basic construct for higher order expressions on numbers, strings and types.
+The following section details all available intrinsic operators.
+
+### Intrinsic Operators
 Likely has the following builtin operators.
 
 #### Arithmetic
