@@ -2120,50 +2120,21 @@ private:
 struct Variable : public Assignable
 {
     Variable(Builder &builder, likely_const_expr expr, const string &name)
-        : Assignable(builder.CreateAlloca(expr->value->getType(), 0, name), *expr)
+        : Assignable(builder.CreateAlloca(builder.toLLVM(expr->type), 0, name), *expr)
     {
-        set(builder, expr, NULL);
+        set(builder, expr);
     }
 
 private:
-    Value *gep(Builder &builder, likely_const_ast ast) const
+    void set(Builder &builder, likely_const_expr expr, likely_const_ast = NULL) const
     {
-        Value *c = (ast->num_atoms >= 2) ? builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[1])).get(), likely_matrix_native)
-                                         : builder.zero();
-        Value *x = (ast->num_atoms >= 3) ? builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[2])).get(), likely_matrix_native)
-                                         : builder.zero();
-        Value *y = (ast->num_atoms >= 4) ? builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[3])).get(), likely_matrix_native)
-                                         : builder.zero();
-        Value *t = (ast->num_atoms >= 5) ? builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[4])).get(), likely_matrix_native)
-                                         : builder.zero();
-
-        Value *channelStep = builder.one();
-        Value *columnStep, *rowStep, *frameStep;
-        builder.steps(this, channelStep, &columnStep, &rowStep, &frameStep);
-        Value *i = builder.zero();
-        i = builder.CreateMul(c, channelStep);
-        i = builder.CreateAdd(builder.CreateMul(x, columnStep), i);
-        i = builder.CreateAdd(builder.CreateMul(y, rowStep   ), i);
-        i = builder.CreateAdd(builder.CreateMul(t, frameStep ), i);
-        return builder.CreateGEP(builder.data(builder.CreateLoad(value), type), i);
+        builder.CreateStore((type & likely_matrix_multi_dimension) ? expr->value
+                                                                   : builder.cast(*expr, type).value, value);
     }
 
-    void set(Builder &builder, likely_const_expr expr, likely_const_ast ast) const
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
     {
-        if (!ast || (ast->type != likely_ast_list)) {
-            builder.CreateStore((type & likely_matrix_multi_dimension) ? expr->value
-                                                                       : builder.cast(*expr, type).value, value);
-            return;
-        }
-
-        builder.CreateStore(builder.cast(*expr, type), gep(builder, ast));
-    }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        if ((ast->type != likely_ast_list) || !isMat(cast<AllocaInst>(value)->getAllocatedType()))
-            return new likely_expression(builder.CreateLoad(value), type);
-        return new likely_expression(builder.CreateLoad(gep(builder, ast)), type & likely_matrix_element);
+        return new likely_expression(builder.CreateLoad(value), type);
     }
 };
 
