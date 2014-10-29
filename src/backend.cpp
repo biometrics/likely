@@ -1805,9 +1805,8 @@ class kernelExpression : public LikelyOperator
             : Assignable(matrix.value, matrix.type), node(node) {}
 
     private:
-        Value *gep(Builder &builder, likely_const_ast ast) const
+        Value *gep(Builder &builder, likely_const_ast) const
         {
-            (void) ast;
             Value *columnStep, *rowStep, *frameStep;
             builder.steps(this, builder.constant(1), &columnStep, &rowStep, &frameStep);
             Value *i = builder.zero();
@@ -1820,7 +1819,8 @@ class kernelExpression : public LikelyOperator
 
         void set(Builder &builder, likely_const_expr expr, likely_const_ast ast) const
         {
-            builder.CreateStore(builder.cast(*expr, type), gep(builder, ast));
+            StoreInst *store = builder.CreateStore(builder.cast(*expr, type), gep(builder, ast));
+            store->setMetadata("llvm.mem.parallel_loop_access", node);
         }
 
         likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -2030,7 +2030,6 @@ class kernelExpression : public LikelyOperator
 
         unique_ptr<const likely_expression> result(builder.expression(ast->atoms[2]));
 
-        const_cast<likely_expr>(srcs[0])->type = result->type;
         StoreInst *store = builder.CreateStore(builder.cast(*result, *srcs[0]), builder.CreateGEP(builder.data(srcs[0]), axis->offset));
         store->setMetadata("llvm.mem.parallel_loop_access", axis->node);
 
