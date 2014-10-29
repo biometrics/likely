@@ -2234,7 +2234,7 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_
 
 // No libffi support for Windows
 #ifdef _WIN32
-    interpreter = false;
+    evaluate = false;
 #endif // _WIN32
 
     // Don't run the interpreter on a module with loops, better to compile and execute it instead.
