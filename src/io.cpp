@@ -87,15 +87,21 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
         const size_t size = ftell(fp);
         fseek(fp, 0, SEEK_SET);
 
-        // Special case, it may already be decoded
+        // Special case for likely_matrix
         if ((type & likely_file_decoded) && (size >= sizeof(likely_matrix))) {
             likely_matrix header;
-            if (fread(&header, 1, sizeof(likely_matrix), fp) == sizeof(likely_matrix)) {
+            if (fread(&header, sizeof(likely_matrix), 1, fp)) {
                 const size_t bytes = likely_bytes(&header);
                 if (sizeof(likely_matrix) + bytes == size) {
-                    likely_mat m = likely_new(header.type, header.channels, header.columns, header.rows, header.frames, NULL);
-                    if (fread(m->data, 1, bytes, fp) == bytes) return m;
-                    else                                       likely_release_mat(m);
+                    likely_mat mat = likely_new(header.type, header.channels, header.columns, header.rows, header.frames, NULL);
+                    const bool success = fread(mat->data, bytes, 1, fp);
+                    assert(success);
+                    fclose(fp);
+                    if (!success) {
+                        likely_release_mat(mat);
+                        mat = NULL;
+                    }
+                    return mat;
                 }
             }
         }
@@ -141,7 +147,7 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
     vector<future<likely_mat>> futures;
     readRecursive(fileName.c_str(), type, futures);
 
-    // combine
+    // Combine into one matrix with multiple frames
     likely_matrix firstHeader;
     likely_mat result = NULL;
     size_t step = 0;
@@ -165,6 +171,7 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
         if (valid) {
             memcpy(result->data + i*step, image->data, step);
         } else if (result) {
+            assert(!valid);
             free(result);
             result = NULL;
         }
