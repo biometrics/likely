@@ -5,7 +5,7 @@ Ways to run a demo from the command line:
 ```bash
 $ dream library/<demo>.ll
 $ likely library/<demo>.ll -show
-$ likely library/<demo>.ll -record result.png
+$ likely library/<demo>.ll -render result.png
 ```
 
 <dl class="dl-horizontal">

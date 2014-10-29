@@ -55,7 +55,7 @@ using namespace std;
 
 static cl::opt<string> input(cl::Positional, cl::desc("<source_file_or_string>"), cl::init(""));
 static cl::opt<string> output(cl::Positional, cl::desc("<object_file>"), cl::init(""));
-static cl::opt<string> record("record", cl::desc("%d-formatted file to render matrix output to"));
+static cl::opt<string> render("render", cl::desc("%d-formatted file to render matrix output to"));
 static cl::opt<string> assert_("assert", cl::desc("Confirm the output equals the specified value"));
 static cl::opt<bool> ast("ast", cl::desc("Print abstract syntax tree"));
 static cl::opt<bool> md5("md5", cl::desc("Print matrix output MD5 hash to terminal"));
@@ -77,13 +77,13 @@ static void checkOrPrintAndRelease(likely_const_mat input)
     likely_release_mat(input);
 }
 
-static void replRecord(likely_const_env env, void *context)
+static void replRender(likely_const_env env, void *context)
 {
     if (!context) return;
     static int index = 0;
     const int bufferSize = 128;
     char fileName[bufferSize];
-    snprintf(fileName, bufferSize, record.getValue().c_str(), index++);
+    snprintf(fileName, bufferSize, render.getValue().c_str(), index++);
     likely_mat rendered = likely_render(likely_result(env), NULL, NULL);
     likely_write(rendered, fileName);
     likely_release_mat(rendered);
@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
     cl::ParseCommandLineOptions(argc, argv);
 
     likely_repl_callback repl_callback;
-    if (!record.getValue().empty()) repl_callback = replRecord;
+    if (!render.getValue().empty()) repl_callback = replRender;
     else if (show)  repl_callback = replShow;
     else if (md5)   repl_callback = replMD5;
     else if (quiet) repl_callback = replQuiet;
