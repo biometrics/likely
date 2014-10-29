@@ -209,14 +209,6 @@ typedef struct likely_virtual_table *likely_vtable;
 LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats);
 
 /*!
- * \brief Compute the MD5 hash of \ref likely_matrix::data.
- * \param[in] mat \ref likely_matrix::data to compute the MD5 hash of.
- * \return A new matrix where containing the 16-byte MD5 hash.
- * \remark This function is \ref thread-safe.
- */
-LIKELY_EXPORT likely_mat likely_md5(likely_const_mat mat);
-
-/*!
  * \brief Deallocate objects created to perform compilation.
  *
  * Call _once_ after the program is done using functionality provided in \ref backend.

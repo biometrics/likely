@@ -142,6 +142,14 @@ LIKELY_EXPORT likely_mat likely_render(likely_const_mat mat, double *min, double
  */
 LIKELY_EXPORT void likely_show(likely_const_mat mat, const char *title);
 
+/*!
+ * \brief Compute the MD5 hash of \ref likely_matrix::data.
+ * \param[in] mat \ref likely_matrix::data to compute the MD5 hash of.
+ * \return A new matrix where containing the 16-byte MD5 hash.
+ * \remark This function is \ref thread-safe.
+ */
+LIKELY_EXPORT likely_mat likely_md5(likely_const_mat mat);
+
 /** @} */ // end of io
 
 #ifdef __cplusplus
