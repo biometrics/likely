@@ -5,5 +5,5 @@ Hello World Kernel
       a :->
       {
         dst := a.imitate
-        (=> (dst a) (/ a (a.type 2)))
+        (dst a) :=> (<- dst (/ a (a.type 2)))
       }

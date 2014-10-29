@@ -33,7 +33,7 @@ Definition
           zr :<- tmp
           j :<- (+ j 1)
           (& (< (+ zr.sq zi.sq) 4) (< j iter)) :? loop
-          (/ (* 255 j) iter).u8
+          dst :<- (* 255 j).(/ iter).u8
         }
       }
 

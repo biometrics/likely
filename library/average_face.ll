@@ -11,7 +11,7 @@ Compute the average face from a set of aligned faces [1].
         {
           (<- j (m.type.native 0))
           ($ (<- j (+ j m)) t len)
-          (dst.type (/ j len))
+          (<- dst (dst.type (/ j len)))
         }
       }
 

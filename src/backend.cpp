@@ -1146,7 +1146,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                 lock.lock();
                 auto function = functionLUT.find(symbol());
                 if (function == functionLUT.end()) {
-                    const string code = string("(a b) :-> { dst := a.imitate (dst a b) :=> (") + symbol() + string(" a b) }");
+                    const string code = string("(a b) :-> { dst := a.imitate (dst a b) :=> (<- dst (") + symbol() + string(" a b)) }");
                     likely_const_ast ast = likely_lex_and_parse(code.c_str(), likely_source_lisp);
                     likely_env parent = likely_jit();
                     likely_env env = likely_eval(ast->atoms[0], parent);
@@ -2029,9 +2029,6 @@ class kernelExpression : public LikelyOperator
         }
 
         unique_ptr<const likely_expression> result(builder.expression(ast->atoms[2]));
-
-        StoreInst *store = builder.CreateStore(builder.cast(*result, *srcs[0]), builder.CreateGEP(builder.data(srcs[0]), axis->offset));
-        store->setMetadata("llvm.mem.parallel_loop_access", axis->node);
 
         axis->close(builder);
 

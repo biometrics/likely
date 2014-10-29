@@ -274,12 +274,12 @@ private:
 };
 
 class fmaTest : public Test {
-    const char *function() const { return "src :-> { dst-type := src.type.floating dst := src.(imitate-size dst-type) (dst src) :=> (+ (* src.dst-type 2.dst-type) 3.dst-type) }"; }
+    const char *function() const { return "src :-> { dst-type := src.type.floating dst := src.(imitate-size dst-type) (dst src) :=> (<- dst (+ (* src.dst-type 2.dst-type) 3.dst-type)) }"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3); return dst; }
 };
 
 class thresholdTest : public Test {
-    const char *function() const { return "src :-> { dst := src.imitate (dst src) :=> (src.type (threshold-binary src 127 1)) }"; }
+    const char *function() const { return "src :-> { dst := src.imitate (dst src) :=> (<- dst (src.type (threshold-binary src 127 1))) }"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 1, THRESH_BINARY); return dst; }
     vector<likely_matrix_type> types() const { vector<likely_matrix_type> types; types.push_back(likely_matrix_u8); types.push_back(likely_matrix_f32); return types; }
 };
