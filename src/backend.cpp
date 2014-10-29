@@ -2028,12 +2028,12 @@ class kernelExpression : public LikelyOperator
             builder.define(args->atom, new kernelArgument(*srcs[0], axis->node));
         }
 
-        unique_ptr<const likely_expression> result(builder.expression(ast->atoms[2]));
-
-        axis->close(builder);
+        delete builder.expression(ast->atoms[2]);
 
         builder.undefineAll(args, true);
         delete builder.undefine("i");
+
+        axis->close(builder);
         delete builder.undefine("c");
         delete builder.undefine("x");
         delete builder.undefine("y");
