@@ -773,18 +773,19 @@ struct Symbol : public likely_expression
     string name;
     vector<likely_matrix_type> parameters;
 
-    Symbol(likely_const_expr function = NULL) { associateFunction(function); }
+    Symbol(likely_const_expr function = NULL, vector<likely_matrix_type> parameters = vector<likely_matrix_type>())
+    {
+        init(function, parameters);
+    }
 
-    void associateFunction(likely_const_expr expr)
+    void init(likely_const_expr expr, vector<likely_matrix_type> parameters)
     {
         if (!expr)
             return;
 
         Function *function = cast<Function>(expr->value);
         name = function->getName();
-        parameters.clear();
-        for (const Argument &argument : function->getArgumentList())
-            parameters.push_back(toLikely(argument.getType()));
+        this->parameters = parameters;
         value = function;
         type = toLikely(function->getReturnType());
         setData(likely_retain_mat(expr->getData()));
@@ -2161,7 +2162,7 @@ class defineExpression : public LikelyOperator
                     TRY_EXPR(builder, rhs, expr);
                     const Lambda *lambda = static_cast<const Lambda*>(expr.get());
                     if (likely_const_expr function = lambda->generate(builder, parameters, name, false, false)) {
-                        env->value = new Symbol(function);
+                        env->value = new Symbol(function, parameters);
                         delete function;
                     }
                 } else {
@@ -2228,7 +2229,7 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_
     env->module = new likely_module();
     env->type |= likely_environment_base;
     Builder builder(env);
-    associateFunction(unique_ptr<const likely_expression>(lambda->generate(builder, parameters, name, arrayCC, interpreter)).get());
+    init(unique_ptr<const likely_expression>(lambda->generate(builder, parameters, name, arrayCC, interpreter)).get(), parameters);
     if (!value /* error */ || (interpreter && getData()) /* constant */)
         return;
 
