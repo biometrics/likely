@@ -89,17 +89,12 @@ static void replRender(likely_const_env env, void *context)
     likely_release_mat(rendered);
 }
 
-static void showCallback(likely_const_env env, void *context)
-{
-    if (!env || !context) return;
-    likely_show(likely_result(env), likely_symbol(env->ast));
-}
-
 static void replShow(likely_const_env env, void *context)
 {
     if (!context) return;
     if (assert_.getValue().empty()) {
-        showCallback(env, context);
+        if (!env) return;
+        likely_show(likely_result(env), likely_symbol(env->ast));
     } else {
         likely_mat rendered = likely_render(likely_result(env), NULL, NULL);
         likely_mat baseline = likely_read(assert_.getValue().c_str(), likely_file_binary);
