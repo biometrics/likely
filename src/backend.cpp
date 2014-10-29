@@ -70,13 +70,14 @@ namespace {
 
 class LikelyContext
 {
+    static TargetMachine *TM;
     static queue<LikelyContext*> contextPool;
     map<likely_matrix_type, Type*> typeLUT;
     PassManager *PM;
 
     // use LikelyContext::acquire()
     LikelyContext()
-        : PM(new PassManager()), TM(getTargetMachine(false))
+        : PM(new PassManager())
     {
         PM->add(createVerifierPass());
         PM->add(new TargetLibraryInfo(Triple(sys::getProcessTriple())));
@@ -95,12 +96,10 @@ class LikelyContext
     ~LikelyContext()
     {
         delete PM;
-        delete TM;
     }
 
 public:
     LLVMContext context;
-    TargetMachine *TM;
 
     static LikelyContext *acquire()
     {
@@ -123,6 +122,8 @@ public:
             initializeTransformUtils(Registry);
             initializeInstCombine(Registry);
             initializeTarget(Registry);
+
+            TM = getTargetMachine(false);
             initialized = true;
         }
 
@@ -246,6 +247,7 @@ public:
         return TM;
     }
 };
+TargetMachine *LikelyContext::TM = NULL;
 queue<LikelyContext*> LikelyContext::contextPool;
 
 class JITFunctionCache : public ObjectCache
@@ -551,7 +553,8 @@ public:
             optimize();
             PassManager pm;
             formatted_raw_ostream fos(output.os());
-            context->TM->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
+            static TargetMachine *TM = LikelyContext::getTargetMachine(false);
+            TM->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
             pm.run(*module);
         }
 
