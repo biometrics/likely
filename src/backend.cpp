@@ -306,6 +306,7 @@ static likely_env newEnv(likely_const_env parent)
         if (parent->type & likely_environment_offline      ) env->type |= likely_environment_offline;
         if (parent->type & likely_environment_parallel     ) env->type |= likely_environment_parallel;
         if (parent->type & likely_environment_heterogeneous) env->type |= likely_environment_heterogeneous;
+        if (parent->type & likely_environment_ctfe         ) env->type |= likely_environment_ctfe;
     }
     env->parent = likely_retain_env(parent);
     env->ast = NULL;
@@ -816,7 +817,7 @@ struct JITFunction : public Symbol
     ExecutionEngine *EE = NULL;
     likely_env env;
 
-    JITFunction(const string &name, const Lambda *lambda, likely_const_env parent, const vector<likely_matrix_type> &parameters, bool abandon, bool interpreter, bool arrayCC);
+    JITFunction(const string &name, const Lambda *lambda, likely_const_env parent, const vector<likely_matrix_type> &parameters, bool abandon, bool evaluate, bool arrayCC);
 
     ~JITFunction()
     {
@@ -912,7 +913,11 @@ protected:
     // Provide protected access for registering builtins.
     static likely_env &builtins()
     {
-        static likely_env root = newEnv(NULL);
+        static likely_env root = NULL;
+        if (!root) {
+            root = newEnv(NULL);
+            root->type |= likely_environment_ctfe;
+        }
         return root;
     }
 };
@@ -1475,7 +1480,7 @@ struct Lambda : public LikelyOperator
         for (likely_const_mat arg : args)
             params.push_back(arg->type);
 
-        JITFunction jit("likely_jit_function", this, env, params, false, true, !args.empty());
+        JITFunction jit("likely_ctfe", this, env, params, false, true, !args.empty());
         if (jit.function) { // compiler
             return args.empty() ? reinterpret_cast<likely_mat (*)()>(jit.function)()
                                 : reinterpret_cast<likely_mat (*)(likely_const_mat const*)>(jit.function)(args.data());
@@ -1535,7 +1540,7 @@ private:
             if (!arg)
                 goto cleanup;
 
-            if (constantArgs.size() == args.size())
+            if ((builder.env->type & likely_environment_ctfe) && (constantArgs.size() == args.size()))
                 if (likely_const_mat constantArg = arg->getData())
                     constantArgs.push_back(constantArg);
 
@@ -2207,7 +2212,7 @@ class setExpression : public LikelyOperator
 };
 LIKELY_REGISTER(set)
 
-JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_env parent, const vector<likely_matrix_type> &parameters, bool abandon, bool interpreter, bool arrayCC)
+JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_env parent, const vector<likely_matrix_type> &parameters, bool abandon, bool evaluate, bool arrayCC)
     : env(newEnv(parent))
 {
     if (abandon) {
@@ -2217,9 +2222,14 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_
 
     env->module = new likely_module();
     env->type |= likely_environment_base;
+
+    // Don't do compile time function evaluation when we're only interested in the result.
+    if (evaluate)
+        env->type &= ~likely_environment_ctfe;
+
     Builder builder(env);
-    init(unique_ptr<const likely_expression>(lambda->generate(builder, parameters, name, arrayCC, interpreter)).get(), parameters);
-    if (!value /* error */ || (interpreter && getData()) /* constant */)
+    init(unique_ptr<const likely_expression>(lambda->generate(builder, parameters, name, arrayCC, evaluate)).get(), parameters);
+    if (!value /* error */ || (evaluate && getData()) /* constant */)
         return;
 
 // No libffi support for Windows
@@ -2228,12 +2238,12 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_
 #endif // _WIN32
 
     // Don't run the interpreter on a module with loops, better to compile and execute it instead.
-    if (interpreter) {
+    if (evaluate) {
         PassManager PM;
         HasLoop *hasLoop = new HasLoop();
         PM.add(hasLoop);
         PM.run(*env->module->module);
-        interpreter = !hasLoop->hasLoop;
+        evaluate = !hasLoop->hasLoop;
     }
 
     TargetMachine *targetMachine = LikelyContext::getTargetMachine(true);
@@ -2243,7 +2253,7 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_
     EngineBuilder engineBuilder(unique_ptr<Module>(env->module->module));
     engineBuilder.setErrorStr(&error);
 
-    if (interpreter) {
+    if (evaluate) {
         engineBuilder.setEngineKind(EngineKind::Interpreter);
     } else {
         engineBuilder.setEngineKind(EngineKind::JIT)
@@ -2253,7 +2263,7 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_
     EE = engineBuilder.create(targetMachine);
     likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
 
-    if (!interpreter) {
+    if (!evaluate) {
         EE->setObjectCache(&TheJITFunctionCache);
         if (!TheJITFunctionCache.alert(env->module->module))
             env->module->optimize();

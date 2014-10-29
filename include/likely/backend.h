@@ -51,6 +51,7 @@ enum likely_environment_type_mask
     likely_environment_global        = 0x00000020, /*!< \brief Global scope. */
     likely_environment_abandoned     = 0x00000040, /*!< \brief Does not maintain a reference to \ref likely_environment::parent. */
     likely_environment_base          = 0x00000080, /*!< \brief Owns \ref likely_environment::module. */
+    likely_environment_ctfe          = 0x00000100, /*!< \brief Perform compile-time function evaluation to simplify code. */
 };
 
 typedef struct likely_environment *likely_env; /*!< \brief Pointer to a \ref likely_environment. */
