@@ -147,8 +147,8 @@ At the lowest level of interpretation, every atom is either a _number_, _string_
 A number is a series of digits with an optional leading negative sign (-) and optional containing decimal point (.).
 
 ```likely
-42    ; Number
--0.42 ; Number
+42    ; A number
+-0.42 ; A number
 .42   ; Not a number
 0.42- ; Not a number
 ```
@@ -157,12 +157,47 @@ A number is a series of digits with an optional leading negative sign (-) and op
 A string is a series of characters enclosed in quotation marks (").
 
 ```likely
-"hello world" ; this is a string
-'hello world' ; this is not a string
+"hello world" ; A string
+'hello world' ; Not a string
 ```
 
 #### Type
-Types are special keywords indicating data structure.
+Types are special keywords indicating how data is represented.
+Let's start with a few examples:
+
+```likely
+i16 ; 16-bit signed integer scalar
+u32 ; 32-bit unsigned integer scalar
+f64 ; 64-bit floating-point real scalar
+f32C ; 32-bit floating-point real multi-channel matrix
+u8XY ; 8-bit unsigned integer multi-column multi-row matrix
+```
+
+The general, types are recognized by the following regular expression:
+
+```regex
+[uif]\d+A?S?C?X?Y?T?
+```
+
+The first character indicates the element type, and is one of:
+
+- **u** - Unsigned integer
+- **i** - Signed integer
+- **f** - Floating-point real
+
+The next one-or-more decimal characters indicate the element depth, and should generally be a power of two.
+
+The remaining capitalized characters indicate:
+
+- **A** - Type is a pointer (used internally).
+- **S** - Perform saturated arithmetic when using this type.
+- **C** - Multi-channel matrix.
+- **X** - Multi-column matrix.
+- **Y** - Multi-row matrix.
+- **T** - Multi-frame matrix.
+
+Additionally, the following special cases are recognized as types: **void**, **depth**, **floating**, **array**, **signed**, **saturated**, **element**, **multi-channel**, **multi-column**, **multi-row**, **multi-frame**, **multi-dimension**, **string**, **native**.
+These special cases correspond to values of *likely_matrix_type_mask* in the C API.
 
 #### Intrinsic Operator
 An intrinsic operator is the basic construct for higher order expressions on numbers, strings and types.

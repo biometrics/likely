@@ -325,6 +325,8 @@ LIKELY_EXPORT const char *likely_symbol(likely_const_ast ast);
  *
  * The opposite of \ref likely_type_from_string.
  * The returned \ref likely_matrix::data is valid \ref likely_source_lisp code.
+ * \par Implementation
+ * \snippet src/frontend.cpp likely_type_to_string implementation.
  * \param[in] type The type to convert to a string.
  * \return A \ref likely_string.
  * \remark This function is \ref thread-safe.
@@ -335,6 +337,8 @@ LIKELY_EXPORT likely_mat likely_type_to_string(likely_matrix_type type);
  * \brief Convert a string to a \ref likely_matrix_type.
  *
  * The opposite of \ref likely_type_to_string.
+ * \par Implementation
+ * \snippet src/frontend.cpp likely_type_from_string implementation.
  * \param[in] str String to convert to a \ref likely_matrix_type.
  * \param[out] ok Successful conversion. May be \c NULL.
  * \return A \ref likely_matrix_type from \p str on success, \ref likely_matrix_void otherwise.

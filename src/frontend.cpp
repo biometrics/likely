@@ -589,8 +589,10 @@ const char *likely_symbol(likely_const_ast ast)
     return (ast && (ast->type != likely_ast_list)) ? ast->atom : "";
 }
 
+//! [likely_type_to_string implementation.]
 likely_mat likely_type_to_string(likely_matrix_type type)
 {
+    // Special cases
     if (type == likely_matrix_void           ) return likely_string("void");
     if (type == likely_matrix_depth          ) return likely_string("depth");
     if (type == likely_matrix_floating       ) return likely_string("floating");
@@ -598,24 +600,32 @@ likely_mat likely_type_to_string(likely_matrix_type type)
     if (type == likely_matrix_signed         ) return likely_string("signed");
     if (type == likely_matrix_saturated      ) return likely_string("saturated");
     if (type == likely_matrix_element        ) return likely_string("element");
-    if (type == likely_matrix_multi_channel  ) return likely_string("multi_channel");
-    if (type == likely_matrix_multi_column   ) return likely_string("multi_column");
-    if (type == likely_matrix_multi_row      ) return likely_string("multi_row");
-    if (type == likely_matrix_multi_frame    ) return likely_string("multi_frame");
-    if (type == likely_matrix_multi_dimension) return likely_string("multi_dimension");
+    if (type == likely_matrix_multi_channel  ) return likely_string("multi-channel");
+    if (type == likely_matrix_multi_column   ) return likely_string("multi-column");
+    if (type == likely_matrix_multi_row      ) return likely_string("multi-row");
+    if (type == likely_matrix_multi_frame    ) return likely_string("multi-frame");
+    if (type == likely_matrix_multi_dimension) return likely_string("multi-dimension");
+    if (type == likely_matrix_string         ) return likely_string("string");
+    if (type == likely_matrix_native         ) return likely_string("native");
 
-    stringstream typeStream;
-    typeStream << ((type & likely_matrix_floating) ? "f" : ((type & likely_matrix_signed) ? "i" : "u"));
-    typeStream << (type & likely_matrix_depth);
-    if (type & likely_matrix_array)         typeStream << "A";
-    if (type & likely_matrix_saturated)     typeStream << "S";
-    if (type & likely_matrix_multi_channel) typeStream << "C";
-    if (type & likely_matrix_multi_column)  typeStream << "X";
-    if (type & likely_matrix_multi_row)     typeStream << "Y";
-    if (type & likely_matrix_multi_frame)   typeStream << "T";
-    return likely_string(typeStream.str().c_str());
+    // General case
+    stringstream stream;
+    if      (type & likely_matrix_floating) stream << 'f';
+    else if (type & likely_matrix_signed)   stream << 'i';
+    else                                    stream << 'u';
+
+    stream << (type & likely_matrix_depth);
+    if (type & likely_matrix_array)         stream << 'A';
+    if (type & likely_matrix_saturated)     stream << 'S';
+    if (type & likely_matrix_multi_channel) stream << 'C';
+    if (type & likely_matrix_multi_column)  stream << 'X';
+    if (type & likely_matrix_multi_row)     stream << 'Y';
+    if (type & likely_matrix_multi_frame)   stream << 'T';
+    return likely_string(stream.str().c_str());
 }
+//! [likely_type_to_string implementation.]
 
+//! [likely_type_from_string implementation.]
 likely_matrix_type likely_type_from_string(const char *str, bool *ok)
 {
     size_t length;
@@ -636,11 +646,11 @@ likely_matrix_type likely_type_from_string(const char *str, bool *ok)
     if (!strcmp(str, "signed"         )) return likely_matrix_signed;
     if (!strcmp(str, "saturated"      )) return likely_matrix_saturated;
     if (!strcmp(str, "element"        )) return likely_matrix_element;
-    if (!strcmp(str, "multi_channel"  )) return likely_matrix_multi_channel;
-    if (!strcmp(str, "multi_column"   )) return likely_matrix_multi_column;
-    if (!strcmp(str, "multi_row"      )) return likely_matrix_multi_row;
-    if (!strcmp(str, "multi_frame"    )) return likely_matrix_multi_frame;
-    if (!strcmp(str, "multi_dimension")) return likely_matrix_multi_dimension;
+    if (!strcmp(str, "multi-channel"  )) return likely_matrix_multi_channel;
+    if (!strcmp(str, "multi-column"   )) return likely_matrix_multi_column;
+    if (!strcmp(str, "multi-row"      )) return likely_matrix_multi_row;
+    if (!strcmp(str, "multi-frame"    )) return likely_matrix_multi_frame;
+    if (!strcmp(str, "multi-dimension")) return likely_matrix_multi_dimension;
     if (!strcmp(str, "string"         )) return likely_matrix_string;
     if (!strcmp(str, "native"         )) return likely_matrix_native;
 
@@ -656,16 +666,13 @@ likely_matrix_type likely_type_from_string(const char *str, bool *ok)
 
     type += (int)strtol(str+1, &remainder, 10);
 
-    while (*remainder) {
-        if      (*remainder == 'A') type |= likely_matrix_array;
-        else if (*remainder == 'S') type |= likely_matrix_saturated;
-        else if (*remainder == 'C') type |= likely_matrix_multi_channel;
-        else if (*remainder == 'X') type |= likely_matrix_multi_column;
-        else if (*remainder == 'Y') type |= likely_matrix_multi_row;
-        else if (*remainder == 'T') type |= likely_matrix_multi_frame;
-        else                        goto error;
-        remainder++;
-    }
+    if (*remainder == 'A') { type |= likely_matrix_array;         remainder++; }
+    if (*remainder == 'S') { type |= likely_matrix_saturated;     remainder++; }
+    if (*remainder == 'C') { type |= likely_matrix_multi_channel; remainder++; }
+    if (*remainder == 'X') { type |= likely_matrix_multi_column;  remainder++; }
+    if (*remainder == 'Y') { type |= likely_matrix_multi_row;     remainder++; }
+    if (*remainder == 'T') { type |= likely_matrix_multi_frame;   remainder++; }
+    if (*remainder != '\0') goto error;
 
     return (likely_matrix_type) type;
 
@@ -674,6 +681,7 @@ error:
         *ok = false;
     return likely_matrix_void;
 }
+//! [likely_type_from_string implementation.]
 
 //! [likely_type_from_value implementation.]
 likely_matrix_type likely_type_from_value(double value)
