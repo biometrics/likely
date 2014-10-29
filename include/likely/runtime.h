@@ -190,17 +190,6 @@ LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, 
 LIKELY_EXPORT likely_mat likely_scalar(likely_matrix_type type, double *values, uint32_t n);
 
 /*!
- * \brief Allocate and initialize a new multi-element \ref likely_matrix.
- *
- * Convenient alternative to \ref likely_scalar.
- * \param[in] type \ref likely_matrix::type.
- * \param[in] value <tt>NaN</tt>-terminated list of element values.
- * \return A pointer to the new multi-element \ref likely_matrix, or \c NULL if \c malloc failed.
- * \remark This function is \ref thread-safe.
- */
-LIKELY_EXPORT likely_mat likely_scalar_va(likely_matrix_type type, double value, ...);
-
-/*!
  * \brief Allocate and initialize a new \ref likely_matrix from a string.
  *
  * Convenient alternative to \ref likely_new.
