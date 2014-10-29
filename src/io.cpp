@@ -23,53 +23,19 @@
 #include <iostream>
 #include <future>
 #include <string>
+#include <llvm/Support/FileSystem.h>
 #include <opencv2/highgui/highgui.hpp>
-
-#ifdef _WIN32
-#include "dirent_windows.h"
-#else // !_WIN32
-#include <dirent.h>
-#endif // _WIN32
 
 #include "likely/backend.h"
 #include "likely/io.h"
 #include "likely/opencv.hpp"
 
+using namespace llvm;
 using namespace std;
 
 static likely_mat readAsync(const string &fileName, likely_file_type type)
 {
     return likely_read(fileName.c_str(), type);
-}
-
-static void readRecursive(const string &directory, likely_file_type type, vector<future<likely_mat>> &futures)
-{
-    DIR *dir = opendir(directory.c_str());
-    if (!dir)
-        return;
-
-    while (dirent *ent = readdir(dir)) {
-        // Skip hidden files and folders
-        if (ent->d_name[0] == '.')
-            continue;
-
-        stringstream stream;
-        stream << directory;
-    #ifdef _WIN32
-        stream << "\\";
-    #else // !_WIN32
-        stream << "/";
-    #endif // _WIN32
-        stream << ent->d_name;
-        const string fileName = stream.str();
-
-        if (ent->d_type == DT_REG)
-            futures.push_back(async(readAsync, fileName, type));
-        else if ((ent->d_type == DT_DIR) || (ent->d_type == DT_LNK))
-            readRecursive(fileName, type, futures);
-    }
-
-    closedir(dir);
 }
 
 likely_mat likely_read(const char *file_name, likely_file_type type)
@@ -143,9 +109,12 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
         }
     }
 
-    // Is it a folder?
+    // Assume it's a folder
+    error_code ec;
     vector<future<likely_mat>> futures;
-    readRecursive(fileName.c_str(), type, futures);
+    for (sys::fs::recursive_directory_iterator i(fileName, ec), e; i != e; i.increment(ec))
+        if (sys::fs::is_regular_file(i->path()))
+            futures.push_back(async(readAsync, i->path(), type));
 
     // Combine into one matrix with multiple frames
     likely_matrix firstHeader;
