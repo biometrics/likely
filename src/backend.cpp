@@ -192,7 +192,6 @@ public:
                                                              Type::getInt32Ty(context), // columns
                                                              Type::getInt32Ty(context), // rows
                                                              Type::getInt32Ty(context), // frames
-                                                             Type::getInt64Ty(context), // _reserved
                                                              ArrayType::get(Type::getInt8Ty(context), 0), // data
                                                              NULL));
             likely_release_mat(str);
