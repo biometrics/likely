@@ -94,7 +94,7 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
                 const size_t bytes = likely_bytes(&header);
                 if (sizeof(likely_matrix) + bytes == size) {
                     likely_mat mat = likely_new(header.type, header.channels, header.columns, header.rows, header.frames, NULL);
-                    const bool success = fread(mat->data, bytes, 1, fp);
+                    const bool success = (fread(mat->data, bytes, 1, fp) == 1);
                     assert(success);
                     fclose(fp);
                     if (!success) {
