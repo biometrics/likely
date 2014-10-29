@@ -1689,21 +1689,20 @@ class ifExpression : public LikelyOperator
         if (hasElse) {
             builder.SetInsertPoint(False);
             TRY_EXPR(builder, ast->atoms[3], f)
-
             const likely_matrix_type resolved = likely_type_from_types(*t, *f);
 
             builder.SetInsertPoint(True);
-            likely_expression tc = builder.cast(*t.get(), resolved);
+            const likely_expression tc = builder.cast(*t, resolved);
             builder.CreateBr(End);
 
             builder.SetInsertPoint(False);
-            likely_expression fc = builder.cast(*f.get(), resolved);
+            const likely_expression fc = builder.cast(*f, resolved);
             builder.CreateBr(End);
 
             builder.SetInsertPoint(End);
-            PHINode *phi = builder.CreatePHI(tc.value->getType(), 2);
+            PHINode *phi = builder.CreatePHI(builder.toLLVM(resolved), 2);
             phi->addIncoming(tc, True);
-            if (hasElse) phi->addIncoming(fc, False);
+            phi->addIncoming(fc, False);
             return new likely_expression(phi, resolved);
         } else {
             if (True->empty() || !True->back().isTerminator())
