@@ -214,7 +214,13 @@ int main(int argc, char *argv[])
             likely_release_ast(parsed);
         } else {
             likely_ast ast = likely_lex_and_parse(code->data, type);
-            likely_release_env(likely_repl(ast, parent, repl_callback, NULL));
+            likely_const_env env = likely_repl(ast, parent, repl_callback, NULL);
+            if (env->type & likely_environment_erratum) {
+                likely_const_mat statement = likely_ast_to_string(env->ast);
+                likely_assert(false, "error evaluating: %s", statement->data);
+                likely_release_mat(statement);
+            }
+            likely_release_env(env);
             likely_release_ast(ast);
         }
         likely_release_mat(code);
