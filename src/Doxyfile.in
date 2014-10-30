@@ -44,7 +44,7 @@ PROJECT_NUMBER         = "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION
 # for a project that appears at the top of each page and should give viewer a
 # quick idea about the purpose of the project. Keep the description short.
 
-PROJECT_BRIEF          = "Image recognition programming language"
+PROJECT_BRIEF          = "An embeddable just-in-time Lisp for image recognition and heterogeneous computing."
 
 # With the PROJECT_LOGO tag one can specify an logo or icon that is included in
 # the documentation. The maximum height of the logo should not exceed 55 pixels
