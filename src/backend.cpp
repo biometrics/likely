@@ -664,7 +664,8 @@ struct Builder : public IRBuilder<>
 
     likely_const_expr mat(likely_const_mat data)
     {
-        if (!data)
+        assert(data); // We want to be warned of this in debug mode...
+        if (!data)    // ... but handle it gracefully in release mode.
             return NULL;
         else if (!(data->type & likely_matrix_multi_dimension))
             return new likely_expression(constant(likely_element(data, 0, 0, 0, 0), data->type), data->type, data);
