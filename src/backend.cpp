@@ -1383,9 +1383,7 @@ class tryExpression : public LikelyOperator
     {
         likely_const_expr value = NULL;
         if (likely_env env = likely_eval(ast->atoms[1], builder.env)) {
-            if (env->type & likely_environment_definition)
-                swap(env->value, value);
-            else if (likely_const_mat mat = likely_result(env))
+            if (likely_const_mat mat = likely_result(env))
                 value = builder.mat(likely_retain_mat(mat));
             likely_release_env(env);
         }
