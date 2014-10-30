@@ -66,6 +66,32 @@
 using namespace llvm;
 using namespace std;
 
+static int OptLevel = 0;
+static int SizeLevel = 0;
+static bool LoopVectorize = false;
+
+void likely_initialize(int opt_level, int size_level, bool loop_vectorize)
+{
+    OptLevel = max(min(opt_level, 3), 0);
+    SizeLevel = max(min(size_level, 2), 0);
+    LoopVectorize = loop_vectorize;
+
+    InitializeNativeTarget();
+    InitializeNativeTargetAsmPrinter();
+    InitializeNativeTargetAsmParser();
+
+    PassRegistry &Registry = *PassRegistry::getPassRegistry();
+    initializeCore(Registry);
+    initializeScalarOpts(Registry);
+    initializeVectorization(Registry);
+    initializeIPO(Registry);
+    initializeAnalysis(Registry);
+    initializeIPA(Registry);
+    initializeTransformUtils(Registry);
+    initializeInstCombine(Registry);
+    initializeTarget(Registry);
+}
+
 namespace {
 
 class LikelyContext
@@ -78,18 +104,22 @@ class LikelyContext
     LikelyContext()
         : PM(new PassManager())
     {
-        static TargetMachine *TM = getTargetMachine(false);
-        PM->add(createVerifierPass());
-        PM->add(new TargetLibraryInfo(Triple(sys::getProcessTriple())));
-        PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
-        TM->addAnalysisPasses(*PM);
-        PassManagerBuilder builder;
-        builder.OptLevel = 3;
-        builder.SizeLevel = 0;
-        builder.LoopVectorize = true;
-        builder.Inliner = createAlwaysInlinerPass();
-        builder.populateModulePassManager(*PM);
-        PM->add(createVerifierPass());
+        if (OptLevel > 0) {
+            PM->add(createVerifierPass());
+            static TargetMachine *TM = getTargetMachine(false);
+            PM->add(new TargetLibraryInfo(Triple(sys::getProcessTriple())));
+            PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
+            TM->addAnalysisPasses(*PM);
+            PassManagerBuilder builder;
+            builder.OptLevel = OptLevel;
+            builder.SizeLevel = SizeLevel;
+            builder.LoopVectorize = LoopVectorize;
+            builder.Inliner = createAlwaysInlinerPass();
+            builder.populateModulePassManager(*PM);
+            PM->add(createVerifierPass());
+        } else {
+            PM = NULL;
+        }
     }
 
     // use LikelyContext::release()
@@ -105,25 +135,6 @@ public:
     {
         static mutex lock;
         lock_guard<mutex> guard(lock);
-
-        static bool initialized = false;
-        if (!initialized) {
-            InitializeNativeTarget();
-            InitializeNativeTargetAsmPrinter();
-            InitializeNativeTargetAsmParser();
-
-            PassRegistry &Registry = *PassRegistry::getPassRegistry();
-            initializeCore(Registry);
-            initializeScalarOpts(Registry);
-            initializeVectorization(Registry);
-            initializeIPO(Registry);
-            initializeAnalysis(Registry);
-            initializeIPA(Registry);
-            initializeTransformUtils(Registry);
-            initializeInstCombine(Registry);
-            initializeTarget(Registry);
-            initialized = true;
-        }
 
         if (contextPool.empty())
             contextPool.push(new LikelyContext());
@@ -205,6 +216,9 @@ public:
 
     void optimize(Module &module)
     {
+        if (!PM)
+            return;
+
         module.setTargetTriple(sys::getProcessTriple());
 //        DebugFlag = true;
         PM->run(module);
@@ -537,6 +551,8 @@ public:
 
     ~OfflineModule()
     {
+        optimize();
+
         error_code errorCode;
         tool_output_file output(fileName.c_str(), errorCode, sys::fs::F_None);
         likely_assert(!errorCode, "%s", errorCode.message().c_str());
@@ -547,7 +563,6 @@ public:
         } else if (extension == "bc") {
             WriteBitcodeToFile(module, output.os());
         } else {
-            optimize();
             PassManager pm;
             formatted_raw_ostream fos(output.os());
             static TargetMachine *TM = LikelyContext::getTargetMachine(false);

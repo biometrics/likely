@@ -63,6 +63,14 @@ static cl::opt<bool> show("show", cl::desc("Show matrix output in a window"));
 static cl::opt<bool> quiet("quiet", cl::desc("Don't show matrix output"));
 static cl::opt<bool> parallel("parallel" , cl::desc("Compile parallel kernels"));
 
+// These variables mirror LLVM's `opt`
+static cl::opt<bool> OptLevelO1("O1", cl::desc("Optimization level 1. Similar to clang -O1"));
+static cl::opt<bool> OptLevelO2("O2", cl::desc("Optimization level 2. Similar to clang -O2"));
+static cl::opt<bool> OptLevelOs("Os", cl::desc("Like -O2 with extra optimizations for size. Similar to clang -Os"));
+static cl::opt<bool> OptLevelOz("Oz", cl::desc("Like -Os but reduces code size further. Similar to clang -Oz"));
+static cl::opt<bool> OptLevelO3("O3", cl::desc("Optimization level 3. Similar to clang -O3"));
+static cl::opt<bool> DisableLoopVectorization("disable-loop-vectorization", cl::desc("Disable the loop vectorization pass"), cl::init(false));
+
 static void checkOrPrintAndRelease(likely_const_mat input)
 {
     assert(likely_is_string(input));
@@ -152,6 +160,10 @@ int main(int argc, char *argv[])
     else if (md5)   repl_callback = replMD5;
     else if (quiet) repl_callback = replQuiet;
     else            repl_callback = replPrint;
+
+    likely_initialize(OptLevelO3 ? 3 : ((OptLevelO2 || OptLevelOs || OptLevelOz) ? 2 : (OptLevelO1 ? 1 : (output.empty() ? 3 : 0))),
+                      OptLevelOz ? 2 : (OptLevelOs ? 1 : 0),
+                      !DisableLoopVectorization);
 
     likely_env parent;
     if (output.empty()) parent = likely_jit(); // console or interpreter

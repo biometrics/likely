@@ -287,6 +287,7 @@ class thresholdTest : public Test {
 int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
+    likely_initialize(3, 0, true);
 
     // Print to console immediately
     setbuf(stdout, NULL);

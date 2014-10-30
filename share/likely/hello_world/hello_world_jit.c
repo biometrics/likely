@@ -38,6 +38,9 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    puts("Initializing compiler...");
+    likely_initialize(3, 0, true);
+
     puts("Reading input image...");
     likely_const_mat input = likely_read(argv[1], likely_file_binary);
     likely_assert(input, "failed to read: %s", argv[1]);
