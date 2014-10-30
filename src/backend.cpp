@@ -607,6 +607,28 @@ struct Builder : public IRBuilder<>
     likely_expression nullMat() { return likely_expression(ConstantPointerNull::get(::cast<PointerType>((Type*)multiDimension())), likely_matrix_multi_dimension); }
     likely_expression nullData() { return likely_expression(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_matrix_u8 | likely_matrix_array); }
 
+    Value *addInts(Value *lhs, Value *rhs)
+    {
+        if (Constant *c = dyn_cast<Constant>(lhs))
+            if (c->isZeroValue())
+                return rhs;
+        if (Constant *c = dyn_cast<Constant>(rhs))
+            if (c->isZeroValue())
+                return lhs;
+        return CreateAdd(lhs, rhs);
+    }
+
+    Value *multiplyInts(Value *lhs, Value *rhs)
+    {
+        if (Constant *c = dyn_cast<Constant>(lhs))
+            if (c->isOneValue())
+                return rhs;
+        if (Constant *c = dyn_cast<Constant>(rhs))
+            if (c->isOneValue())
+                return lhs;
+        return CreateMul(lhs, rhs);
+    }
+
     // channels(), columns(), rows() and frames() return native integers by design
     likely_expression channels(likely_const_expr m) { return (*m & likely_matrix_multi_channel) ? cast(likely_expression(CreateLoad(CreateStructGEP(*m, 2), "channels"), likely_matrix_u32), likely_matrix_native) : one(); }
     likely_expression columns (likely_const_expr m) { return (*m & likely_matrix_multi_column ) ? cast(likely_expression(CreateLoad(CreateStructGEP(*m, 3), "columns" ), likely_matrix_u32), likely_matrix_native) : one(); }
@@ -1812,9 +1834,9 @@ class kernelExpression : public LikelyOperator
         {
             channels   = builder.channels(this);
             columns    = builder.columns(this);
-            rowStep    = builder.CreateMul(columns, channels);
+            rowStep    = builder.multiplyInts(columns, channels);
             rows       = builder.rows(this);
-            frameStep  = builder.CreateMul(rows, rowStep);
+            frameStep  = builder.multiplyInts(rows, rowStep);
             frames     = builder.frames(this);
             channels ->setName(name + "_c");
             columns  ->setName(name + "_x");
@@ -1829,9 +1851,9 @@ class kernelExpression : public LikelyOperator
         {
             Value *i = builder.zero();
             if (type & likely_matrix_multi_channel) i = *builder.lookup("c");
-            if (type & likely_matrix_multi_column ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), channels ), i);
-            if (type & likely_matrix_multi_row    ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep  ), i);
-            if (type & likely_matrix_multi_frame  ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep), i);
+            if (type & likely_matrix_multi_column ) i = builder.addInts(builder.multiplyInts(*builder.lookup("x"), channels ), i);
+            if (type & likely_matrix_multi_row    ) i = builder.addInts(builder.multiplyInts(*builder.lookup("y"), rowStep  ), i);
+            if (type & likely_matrix_multi_frame  ) i = builder.addInts(builder.multiplyInts(*builder.lookup("t"), frameStep), i);
             return builder.CreateGEP(builder.data(this), i);
         }
 
@@ -2000,10 +2022,6 @@ class kernelExpression : public LikelyOperator
         } else {
             kernelArguments.push_back(new KernelArgument(builder, *srcs[0], args->atom));
         }
-
-        BasicBlock *kernelBody = BasicBlock::Create(builder.getContext(), "kernel_body", builder.GetInsertBlock()->getParent());
-        builder.CreateBr(kernelBody);
-        builder.SetInsertPoint(kernelBody);
 
         KernelAxis *axis = NULL;
         for (int axis_index=0; axis_index<4; axis_index++) {
