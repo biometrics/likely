@@ -85,9 +85,11 @@ static void checkOrPrintAndRelease(likely_const_mat input)
     likely_release_mat(input);
 }
 
-static void replRender(likely_const_env env, void *context)
+static void replRender(likely_const_env env, void *)
 {
-    if (!context) return;
+    if (env->type & likely_environment_definition)
+        return;
+
     static int index = 0;
     const int bufferSize = 128;
     char fileName[bufferSize];
@@ -97,11 +99,12 @@ static void replRender(likely_const_env env, void *context)
     likely_release_mat(rendered);
 }
 
-static void replShow(likely_const_env env, void *context)
+static void replShow(likely_const_env env, void *)
 {
-    if (!context) return;
+    if (env->type & likely_environment_definition)
+        return;
+
     if (assert_.getValue().empty()) {
-        if (!env) return;
         likely_show(likely_result(env), likely_symbol(env->ast));
     } else {
         likely_mat rendered = likely_render(likely_result(env), NULL, NULL);
@@ -121,9 +124,11 @@ static void replShow(likely_const_env env, void *context)
     }
 }
 
-static void replMD5(likely_const_env env, void *context)
+static void replMD5(likely_const_env env, void *)
 {
-    if (!context) return;
+    if (env->type & likely_environment_definition)
+        return;
+
     likely_mat md5 = likely_md5(likely_result(env));
 
     char hex_str[] = "0123456789abcdef";
@@ -144,9 +149,10 @@ static void replQuiet(likely_const_env, void *)
     return;
 }
 
-static void replPrint(likely_const_env env, void *context)
+static void replPrint(likely_const_env env, void *)
 {
-    if (!context) return;
+    if (env->type & likely_environment_definition)
+        return;
     checkOrPrintAndRelease(likely_to_string(likely_result(env)));
 }
 

@@ -2603,8 +2603,7 @@ likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback r
         likely_release_env(parent);
         parent = env;
         if (repl_callback)
-            // If there is not context, we return a boolean value indicating if the environment has a valid result
-            repl_callback(env, context ? context : (void*)(!(env->type & likely_environment_definition)));
+            repl_callback(env, context);
         if (env->type & likely_environment_erratum)
             break;
     }
