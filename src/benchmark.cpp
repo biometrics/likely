@@ -59,19 +59,13 @@ struct Test
 {
     void run() const
     {
-        if (!BenchmarkFunction.empty() && string(function()).compare(0, BenchmarkFunction.size(), BenchmarkFunction))
+        if (!BenchmarkFunction.empty() && (name() != BenchmarkFunction))
             return;
 
         likely_const_ast ast = likely_lex_and_parse(function(), likely_source_lisp);
         likely_env parent = likely_jit();
-
-        string execution;
-        if (BenchmarkParallel) {
-            execution = "Parallel";
+        if (BenchmarkParallel)
             parent->type |= likely_environment_parallel;
-        } else {
-            execution = "Serial";
-        }
 
         likely_env env = likely_eval(ast->atoms[0], parent);
         void *f = likely_compile(env, NULL, 0);
@@ -87,7 +81,7 @@ struct Test
                 likely_mat srcLikely = fromCvMat(srcCV);
 
                 likely_mat typeString = likely_type_to_string(type);
-                printf("%s \t%s \t%d \t%s\t", function(), typeString->data, size, execution.c_str());
+                printf("%s \t%s \t%d \t%s\t", name(), typeString->data, size, BenchmarkParallel ? "P" : "S");
                 likely_release_mat(typeString);
                 testCorrectness(reinterpret_cast<likely_mat (*)(likely_const_mat)>(f), srcCV, srcLikely);
 
@@ -98,7 +92,7 @@ struct Test
 
                 Speed baseline = testBaselineSpeed(srcCV);
                 Speed likely = testLikelySpeed(reinterpret_cast<likely_mat (*)(likely_const_mat)>(f), srcLikely);
-                printf("%.2e\n", likely.Hz/baseline.Hz);
+                printf("%-8.3g \t%.3gx\n", double(likely.iterations), likely.Hz/baseline.Hz);
             }
         }
 
@@ -152,6 +146,7 @@ struct Test
     }
 
 protected:
+    virtual const char *name() const = 0;
     virtual const char *function() const = 0;
     virtual Mat computeBaseline(const Mat &src) const = 0;
     virtual vector<likely_matrix_type> types() const
@@ -274,11 +269,13 @@ private:
 };
 
 class fmaTest : public Test {
+    const char *name() const { return "fused-multiply-add"; }
     const char *function() const { return "src :-> { dst-type := src.type.floating dst := src.(imitate-size dst-type) (dst src) :=> (<- dst (+ (* src.dst-type 2.dst-type) 3.dst-type)) }"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3); return dst; }
 };
 
 class thresholdTest : public Test {
+    const char *name() const { return "binary-threshold"; }
     const char *function() const { return "src :-> { dst := src.imitate (dst src) :=> (<- dst (src.type (threshold-binary src 127 1))) }"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 1, THRESH_BINARY); return dst; }
     vector<likely_matrix_type> types() const { vector<likely_matrix_type> types; types.push_back(likely_matrix_u8); types.push_back(likely_matrix_f32); return types; }
@@ -295,7 +292,18 @@ int main(int argc, char *argv[])
     if (!BenchmarkFile.empty()) {
         Test::runFile(BenchmarkFile);
     } else {
-        printf("Function \tType \tSize \tExecution \tSpeedup\n");
+        puts("Likely vs. OpenCV Benchmark Results");
+        puts("-----------------------------------");
+        puts("Function: benchmarked function name");
+        puts("    Type: matrix element data type");
+        puts("    Size: matrix rows and columns");
+        puts("    Exec: (S)erial or (P)arallel");
+        puts("    Iter: times Likely function was run in one second");
+        puts(" Speedup: Likely / OpenCV");
+        puts("");
+        puts("To reproduce the following results, run the `benchmark` application included in a build of Likely.");
+        puts("");
+        puts("Function \t\tType \tSize \tExec \tIter \t\tSpeedup");
         fmaTest().run();
         thresholdTest().run();
     }
