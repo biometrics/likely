@@ -45,7 +45,7 @@ static Mat generateData(int rows, int columns, likely_matrix_type type, double s
     static Mat m;
     if (!m.data) {
         m = imread("data/misc/lenna.tiff");
-        assert(m.data);
+        likely_assert(m.data, "failed to read \"data/misc/lenna.tiff\", did you forget to run 'benchmark' from the root of the repository?");
         cvtColor(m, m, CV_BGR2GRAY);
     }
 
@@ -166,7 +166,6 @@ protected:
     {
         static vector<int> sizes;
         if (sizes.empty()) {
-            sizes.push_back(4);
             sizes.push_back(8);
             sizes.push_back(16);
             sizes.push_back(32);
@@ -176,7 +175,6 @@ protected:
             sizes.push_back(512);
             sizes.push_back(1024);
             sizes.push_back(2048);
-            sizes.push_back(4096);
         }
         return sizes;
     }
@@ -292,13 +290,18 @@ int main(int argc, char *argv[])
     if (!BenchmarkFile.empty()) {
         Test::runFile(BenchmarkFile);
     } else {
+        const time_t now = time(0);
+        char dateTime[80];
+        strftime(dateTime, sizeof(dateTime), "%Y-%m-%d.%X", localtime(&now));
+        puts(dateTime);
+        puts("");
         puts("Likely vs. OpenCV Benchmark Results");
         puts("-----------------------------------");
-        puts("Function: benchmarked function name");
-        puts("    Type: matrix element data type");
-        puts("    Size: matrix rows and columns");
+        puts("Function: Benchmarked function name");
+        puts("    Type: Matrix element data type");
+        puts("    Size: Matrix rows and columns");
         puts("    Exec: (S)erial or (P)arallel");
-        puts("    Iter: times Likely function was run in one second");
+        puts("    Iter: Times Likely function was run in one second");
         puts(" Speedup: Likely / OpenCV");
         puts("");
         puts("To reproduce the following results, run the `benchmark` application included in a build of Likely.");
