@@ -8,6 +8,7 @@ Skip to the good stuff: **[installation](?href=README.md)**,
                         **[tutorial](?href=tutorial)**, **[demos](?href=demos)**,
                         **[language reference](?href=standard)**,
                         **[api](https://s3.amazonaws.com/liblikely/doxygen/index.html)**,
+                        **[benchmark](https://s3.amazonaws.com/liblikely/benchmark.txt)**,
                         **[ci](http://ci.liblikely.org/waterfall)**.
 
 ### Why Likely?
