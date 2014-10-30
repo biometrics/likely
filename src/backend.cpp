@@ -614,13 +614,6 @@ struct Builder : public IRBuilder<>
     Value *data    (Value *value, likely_matrix_type type) { return CreatePointerCast(CreateStructGEP(value, 6), env->module->context->scalar(type, true)); }
     likely_expression data    (likely_const_expr m) { return likely_expression(data(m->value, m->type), (*m & likely_matrix_element) | likely_matrix_array); }
 
-    void steps(likely_const_expr matrix, Value *channelStep, Value **columnStep, Value **rowStep, Value **frameStep)
-    {
-        *columnStep = CreateMul(channels(matrix), channelStep, "x_step");
-        *rowStep    = CreateMul(columns(matrix), *columnStep, "y_step");
-        *frameStep  = CreateMul(rows(matrix), *rowStep, "t_step");
-    }
-
     likely_expression cast(const likely_expression &x, likely_matrix_type type)
     {
         type &= likely_matrix_element;
@@ -1804,24 +1797,38 @@ private:
 
 class kernelExpression : public LikelyOperator
 {
-    class kernelArgument : public Assignable
+    struct KernelArgument : public Assignable
     {
-        MDNode *node;
+        const string name;
+        MDNode *node = NULL;
+        Value *channels, *columns, *rows, *frames;
+        Value *rowStep, *frameStep;
 
-    public:
-        kernelArgument(const likely_expression &matrix, MDNode *node)
-            : Assignable(matrix.value, matrix.type), node(node) {}
+        KernelArgument(Builder &builder, const likely_expression &matrix, const string &name)
+            : Assignable(matrix.value, matrix.type), name(name)
+        {
+            channels   = builder.channels(this);
+            columns    = builder.columns(this);
+            rowStep    = builder.CreateMul(columns, channels);
+            rows       = builder.rows(this);
+            frameStep  = builder.CreateMul(rows, rowStep);
+            frames     = builder.frames(this);
+            channels ->setName(name + "_c");
+            columns  ->setName(name + "_x");
+            rows     ->setName(name + "_y");
+            frames   ->setName(name + "_t");
+            rowStep  ->setName(name + "_y_step");
+            frameStep->setName(name + "_t_step");
+        }
 
     private:
         Value *gep(Builder &builder, likely_const_ast) const
         {
-            Value *columnStep, *rowStep, *frameStep;
-            builder.steps(this, builder.constant(1), &columnStep, &rowStep, &frameStep);
             Value *i = builder.zero();
             if (type & likely_matrix_multi_channel) i = *builder.lookup("c");
-            if (type & likely_matrix_multi_column ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), columnStep), i);
-            if (type & likely_matrix_multi_row    ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep   ), i);
-            if (type & likely_matrix_multi_frame  ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep ), i);
+            if (type & likely_matrix_multi_column ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("x"), channels ), i);
+            if (type & likely_matrix_multi_row    ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("y"), rowStep  ), i);
+            if (type & likely_matrix_multi_frame  ) i = builder.CreateAdd(builder.CreateMul(*builder.lookup("t"), frameStep), i);
             return builder.CreateGEP(builder.data(this), i);
         }
 
@@ -1845,13 +1852,13 @@ class kernelExpression : public LikelyOperator
         }
     };
 
-    struct kernelAxis : public Loop
+    struct KernelAxis : public Loop
     {
-        kernelAxis *parent, *child;
+        KernelAxis *parent, *child;
         MDNode *node;
         Value *offset;
 
-        kernelAxis(Builder &builder, const string &name, Value *start, Value *stop, Value *step, kernelAxis *parent)
+        KernelAxis(Builder &builder, const string &name, Value *start, Value *stop, Value *step, KernelAxis *parent)
             : Loop(builder, name, start, stop), parent(parent), child(NULL)
         {
             { // Create self-referencing loop node
@@ -1978,14 +1985,24 @@ class kernelExpression : public LikelyOperator
 
     void generateCommon(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, Value *start, Value *stop) const
     {
-        BasicBlock *entry = builder.GetInsertBlock();
-        BasicBlock *steps = BasicBlock::Create(builder.getContext(), "steps", entry->getParent());
-        builder.CreateBr(steps);
-        builder.SetInsertPoint(steps);
-        Value *columnStep, *rowStep, *frameStep;
-        builder.steps(srcs[0], builder.constant(1), &columnStep, &rowStep, &frameStep);
+        BasicBlock *kernelHead = BasicBlock::Create(builder.getContext(), "kernel_head", builder.GetInsertBlock()->getParent());
+        builder.CreateBr(kernelHead);
+        builder.SetInsertPoint(kernelHead);
 
-        kernelAxis *axis = NULL;
+        vector<KernelArgument*> kernelArguments;
+        const likely_const_ast args = ast->atoms[1];
+        if (args->type == likely_ast_list) {
+            for (size_t i=0; i<args->num_atoms; i++)
+                kernelArguments.push_back(new KernelArgument(builder, *srcs[i], args->atoms[i]->atom));
+        } else {
+            kernelArguments.push_back(new KernelArgument(builder, *srcs[0], args->atom));
+        }
+
+        BasicBlock *kernelBody = BasicBlock::Create(builder.getContext(), "kernel_body", builder.GetInsertBlock()->getParent());
+        builder.CreateBr(kernelBody);
+        builder.SetInsertPoint(kernelBody);
+
+        KernelAxis *axis = NULL;
         for (int axis_index=0; axis_index<4; axis_index++) {
             string name;
             bool multiElement;
@@ -1994,52 +2011,48 @@ class kernelExpression : public LikelyOperator
             switch (axis_index) {
               case 0:
                 name = "t";
-                multiElement = (srcs[0]->type & likely_matrix_multi_frame) != 0;
-                elements = builder.frames(srcs[0]);
-                step = frameStep;
+                multiElement = (kernelArguments[0]->type & likely_matrix_multi_frame) != 0;
+                elements = kernelArguments[0]->frames;
+                step = kernelArguments[0]->frameStep;
                 break;
               case 1:
                 name = "y";
-                multiElement = (srcs[0]->type & likely_matrix_multi_row) != 0;
-                elements = builder.rows(srcs[0]);
-                step = rowStep;
+                multiElement = (kernelArguments[0]->type & likely_matrix_multi_row) != 0;
+                elements = kernelArguments[0]->rows;
+                step = kernelArguments[0]->rowStep;
                 break;
               case 2:
                 name = "x";
-                multiElement = (srcs[0]->type & likely_matrix_multi_column) != 0;
-                elements = builder.columns(srcs[0]);
-                step = columnStep;
+                multiElement = (kernelArguments[0]->type & likely_matrix_multi_column) != 0;
+                elements = kernelArguments[0]->columns;
+                step = kernelArguments[0]->channels;
                 break;
               default:
                 name = "c";
-                multiElement = (srcs[0]->type & likely_matrix_multi_channel) != 0;
-                elements = builder.channels(srcs[0]);
+                multiElement = (kernelArguments[0]->type & likely_matrix_multi_channel) != 0;
+                elements = kernelArguments[0]->channels;
                 step = builder.constant(1);
                 break;
             }
 
             if (multiElement || ((axis_index == 3) && !axis)) {
-                if (!axis) axis = new kernelAxis(builder, name, start, stop, step, NULL);
-                else       axis = new kernelAxis(builder, name, builder.zero(), elements, step, axis);
+                if (!axis) axis = new KernelAxis(builder, name, start, stop, step, NULL);
+                else       axis = new KernelAxis(builder, name, builder.zero(), elements, step, axis);
                 builder.define(name.c_str(), axis); // takes ownership of axis
             } else {
                 builder.define(name.c_str(), new likely_expression(builder.zero(), likely_matrix_native));
             }
         }
-        builder.define("i", new likely_expression(axis->offset, likely_matrix_native));
 
-        const likely_const_ast args = ast->atoms[1];
-        if (args->type == likely_ast_list) {
-            for (size_t j=0; j<args->num_atoms; j++)
-                builder.define(args->atoms[j]->atom, new kernelArgument(*srcs[j], axis->node));
-        } else {
-            builder.define(args->atom, new kernelArgument(*srcs[0], axis->node));
+        for (KernelArgument *kernelArgument : kernelArguments) {
+            kernelArgument->node = axis->node;
+            builder.define(kernelArgument->name.c_str(), kernelArgument);
         }
 
         delete builder.expression(ast->atoms[2]);
 
         builder.undefineAll(args, true);
-        delete builder.undefine("i");
+        kernelArguments.clear();
 
         axis->close(builder);
         delete builder.undefine("c");
