@@ -32,8 +32,8 @@ using namespace cv;
 using namespace llvm;
 using namespace std;
 
-#define LIKELY_ERROR_TOLERANCE 0.000001
-#define LIKELY_TEST_SECONDS 1
+const double ErrorTolerance = 0.000001;
+const int TestSeconds = 1;
 
 static cl::opt<bool> BenchmarkTest    ("test"     , cl::desc("Run tests for correctness only"));
 static cl::opt<bool> BenchmarkParallel("parallel" , cl::desc("Compile parallel kernels"));
@@ -45,7 +45,7 @@ static Mat generateData(int rows, int columns, likely_matrix_type type, double s
     static Mat m;
     if (!m.data) {
         m = imread("data/misc/lenna.tiff");
-        likely_assert(m.data, "failed to read \"data/misc/lenna.tiff\", did you forget to run 'benchmark' from the root of the repository?");
+        likely_assert(m.data != NULL, "failed to read \"data/misc/lenna.tiff\", did you forget to run 'benchmark' from the root of the repository?");
         cvtColor(m, m, CV_BGR2GRAY);
     }
 
@@ -129,7 +129,7 @@ struct Test
         clock_t startTime, endTime;
         int iter = 0;
         startTime = endTime = clock();
-        while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
+        while ((endTime-startTime) / CLOCKS_PER_SEC < TestSeconds) {
             likely_env env = likely_jit();
             for (size_t i=0; i<ast->num_atoms; i++) {
                 likely_env new_env = likely_eval(ast->atoms[i], env);
@@ -210,8 +210,8 @@ private:
         Mat errorMat = abs(likelyToOpenCVMat(dstLikely) - dstOpenCV);
         errorMat.convertTo(errorMat, CV_32F);
         dstOpenCV.convertTo(dstOpenCV, CV_32F);
-        errorMat = errorMat / (dstOpenCV + LIKELY_ERROR_TOLERANCE); // Normalize errors
-        threshold(errorMat, errorMat, LIKELY_ERROR_TOLERANCE, 1, THRESH_BINARY);
+        errorMat = errorMat / (dstOpenCV + ErrorTolerance); // Normalize errors
+        threshold(errorMat, errorMat, ErrorTolerance, 1, THRESH_BINARY);
         int errors = (int) norm(errorMat, NORM_L1);
         if (errors > 0) {
             likely_const_mat cvLikely = fromCvMat(dstOpenCV);
@@ -243,7 +243,7 @@ private:
         clock_t startTime, endTime;
         int iter = 0;
         startTime = endTime = clock();
-        while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
+        while ((endTime-startTime) / CLOCKS_PER_SEC < TestSeconds) {
             computeBaseline(src);
             endTime = clock();
             iter++;
@@ -256,7 +256,7 @@ private:
         clock_t startTime, endTime;
         int iter = 0;
         startTime = endTime = clock();
-        while ((endTime-startTime) / CLOCKS_PER_SEC < LIKELY_TEST_SECONDS) {
+        while ((endTime-startTime) / CLOCKS_PER_SEC < TestSeconds) {
             likely_const_mat dstLikely = f(srcLikely);
             likely_release_mat(dstLikely);
             endTime = clock();
@@ -302,7 +302,7 @@ int main(int argc, char *argv[])
         puts("    Size: Matrix rows and columns");
         puts("    Exec: (S)erial or (P)arallel");
         puts("    Iter: Times Likely function was run in one second");
-        puts(" Speedup: Likely / OpenCV");
+        puts(" Speedup: Execution speed of Likely relative to OpenCV");
         puts("");
         puts("To reproduce the following results, run the `benchmark` application included in a build of Likely.");
         puts("");
