@@ -70,7 +70,6 @@ namespace {
 
 class LikelyContext
 {
-    static TargetMachine *TM;
     static queue<LikelyContext*> contextPool;
     map<likely_matrix_type, Type*> typeLUT;
     PassManager *PM;
@@ -79,6 +78,7 @@ class LikelyContext
     LikelyContext()
         : PM(new PassManager())
     {
+        static TargetMachine *TM = getTargetMachine(false);
         PM->add(createVerifierPass());
         PM->add(new TargetLibraryInfo(Triple(sys::getProcessTriple())));
         PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
@@ -122,8 +122,6 @@ public:
             initializeTransformUtils(Registry);
             initializeInstCombine(Registry);
             initializeTarget(Registry);
-
-            TM = getTargetMachine(false);
             initialized = true;
         }
 
@@ -247,7 +245,6 @@ public:
         return TM;
     }
 };
-TargetMachine *LikelyContext::TM = NULL;
 queue<LikelyContext*> LikelyContext::contextPool;
 
 class JITFunctionCache : public ObjectCache
