@@ -40,18 +40,23 @@ static cl::opt<bool> BenchmarkParallel("parallel" , cl::desc("Compile parallel k
 static cl::opt<string> BenchmarkFile    ("file"    , cl::desc("Benchmark the specified file only"), cl::value_desc("filename"));
 static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"));
 
-static Mat generateData(int rows, int columns, likely_matrix_type type, double scaleFactor)
+static void checkRead(const void *data, const char *fileName)
+{
+    likely_assert(data != NULL, "failed to read \"%s\", did you forget to run 'benchmark' from the root of the repository?", fileName);
+}
+
+static Mat generateData(int rows, int columns, likely_matrix_type type)
 {
     static Mat m;
     if (!m.data) {
         m = imread("data/misc/lenna.tiff");
-        likely_assert(m.data != NULL, "failed to read \"data/misc/lenna.tiff\", did you forget to run 'benchmark' from the root of the repository?");
+        checkRead(m.data, "data/misc/lenna.tiff");
         cvtColor(m, m, CV_BGR2GRAY);
     }
 
     Mat n;
     resize(m, n, Size(columns, rows), 0, 0, INTER_NEAREST);
-    n.convertTo(n, likelyToOpenCVDepth(type), scaleFactor);
+    n.convertTo(n, likelyToOpenCVDepth(type));
     return n;
 }
 
@@ -77,7 +82,7 @@ struct Test
                 if (BenchmarkTest && (size != 256)) continue;
 
                 // Generate input matrix
-                Mat srcCV = generateData(size, size, type, scaleFactor());
+                Mat srcCV = generateData(size, size, type);
                 likely_mat srcLikely = fromCvMat(srcCV);
 
                 likely_mat typeString = likely_type_to_string(type);
@@ -99,49 +104,33 @@ struct Test
         likely_release_env(env);
     }
 
-    static void runFile(const string &fileName)
+    static void runFile(const char *fileName)
     {
-        ifstream file(fileName.compare(fileName.length()-2, 2, ".ll") == 0
-                      ? fileName
-                      : "library/" + fileName + ".ll");
-        const string source((istreambuf_iterator<char>(file)),
-                             istreambuf_iterator<char>());
-        if (source.empty()) {
-            printf("Failed to read from: %s\n", fileName.c_str());
-            return;
-        }
+        likely_const_mat source = likely_read(fileName, likely_file_text);
+        checkRead(source, fileName);
 
-        printf("%s \t", fileName.c_str());
-        likely_const_ast ast = likely_lex_and_parse(source.c_str(), likely_source_gfm);
-        likely_env env = likely_jit();
-        for (size_t i=0; i<ast->num_atoms; i++) {
-            likely_env new_env = likely_eval(ast->atoms[i], env);
-            likely_release_env(env);
-            env = new_env;
-        }
-        likely_release_env(env);
+        printf("%s \t", fileName);
+        likely_ast ast = likely_lex_and_parse(source->data, likely_source_gfm);
+        likely_release_mat(source);
+        likely_env parent = likely_jit();
+        likely_release_env(likely_repl(ast, parent, NULL, NULL));
 
         if (BenchmarkTest) {
             printf("\n");
-            return;
+        } else {
+            clock_t startTime, endTime;
+            int iter = 0;
+            startTime = endTime = clock();
+            while ((endTime-startTime) / CLOCKS_PER_SEC < TestSeconds) {
+                likely_release_env(likely_repl(ast, parent, NULL, NULL));
+                endTime = clock();
+                iter++;
+            }
+            Speed speed(iter, startTime, endTime);
+            printf("%.2e\n", speed.Hz);
         }
 
-        clock_t startTime, endTime;
-        int iter = 0;
-        startTime = endTime = clock();
-        while ((endTime-startTime) / CLOCKS_PER_SEC < TestSeconds) {
-            likely_env env = likely_jit();
-            for (size_t i=0; i<ast->num_atoms; i++) {
-                likely_env new_env = likely_eval(ast->atoms[i], env);
-                likely_release_env(env);
-                env = new_env;
-            }
-            likely_release_env(env);
-            endTime = clock();
-            iter++;
-        }
-        Speed speed(iter, startTime, endTime);
-        printf("%.2e\n", speed.Hz);
+        likely_release_env(parent);
         likely_release_ast(ast);
     }
 
@@ -181,8 +170,6 @@ protected:
 
     virtual bool serial() const { return true; }
     virtual bool parallel() const { return true; }
-    virtual double scaleFactor() const { return 1.0; }
-    virtual bool ignoreOffByOne() const { return false; } // OpenCV rounds integer division, Likely floors it.
 
 private:
     struct Speed
@@ -224,12 +211,11 @@ private:
                         const double src = likely_element(srcLikely, 0, j, i, 0);
                         const double cv  = likely_element(cvLikely,  0, j, i, 0);
                         const double dst = likely_element(dstLikely, 0, j, i, 0);
-                        if (ignoreOffByOne() && (cv-dst == 1)) continue;
                         if (errors < 100) errorLocations << src << "\t" << cv << "\t" << dst << "\t" << i << "\t" << j << "\n";
                         errors++;
                     }
             if (errors > 0) {
-                fprintf(stderr, "Test for: %s differs in: %d location(s):\n%s", function(), errors, errorLocations.str().c_str());
+                fprintf(stderr, "Test for: %s differs in: %d location(s):\n%s", name(), errors, errorLocations.str().c_str());
                 exit(EXIT_FAILURE);
             }
             likely_release_mat(cvLikely);
@@ -288,7 +274,7 @@ int main(int argc, char *argv[])
     setbuf(stdout, NULL);
 
     if (!BenchmarkFile.empty()) {
-        Test::runFile(BenchmarkFile);
+        Test::runFile(BenchmarkFile.getValue().c_str());
     } else {
         const time_t now = time(0);
         char dateTime[80];
