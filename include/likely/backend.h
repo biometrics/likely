@@ -171,7 +171,7 @@ LIKELY_EXPORT likely_const_mat likely_result(likely_const_env env);
  * \remark This function is \ref reentrant.
  * \see \ref likely_repl
  */
-LIKELY_EXPORT likely_env likely_eval(likely_ast ast, likely_env parent);
+LIKELY_EXPORT likely_env likely_eval(likely_ast ast, likely_const_env parent);
 
 /*!
  * \brief Signature of a function to call after a statement is completed.
@@ -191,7 +191,7 @@ typedef void (*likely_repl_callback)(likely_const_env env, void *context);
  * \remark This function is \ref reentrant.
  * \see \ref likely_eval
  */
-LIKELY_EXPORT likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback repl_callback, void *context);
+LIKELY_EXPORT likely_env likely_repl(likely_ast ast, likely_const_env parent, likely_repl_callback repl_callback, void *context);
 
 /*!
  * \brief Contents of the Likely Standard Library: <tt>library/standard.ll</tt>.

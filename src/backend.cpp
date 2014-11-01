@@ -436,23 +436,24 @@ struct likely_expression
         return lookup(env->parent, name);
     }
 
-    static void define(likely_env &env, const char *name, likely_const_expr value)
+    static void define(likely_const_env &env, const char *name, likely_const_expr value)
     {
         assert(name && strcmp(name, ""));
-        env = newEnv(env);
-        env->type |= likely_environment_definition;
-        env->ast = likely_atom(name, uint32_t(strlen(name)));
-        env->value = value;
+        likely_env child = newEnv(env);
+        child->type |= likely_environment_definition;
+        child->ast = likely_atom(name, uint32_t(strlen(name)));
+        child->value = value;
+        env = child;
     }
 
-    static likely_const_expr undefine(likely_env &env, const char *name)
+    static likely_const_expr undefine(likely_const_env &env, const char *name)
     {
         assert(env->type & likely_environment_definition);
         likely_assert(!strcmp(name, likely_symbol(env->ast)), "undefine variable mismatch");
-        likely_const_expr value = env->value;
-        env->value = NULL;
-        likely_env old = env;
-        env = const_cast<likely_env>(env->parent);
+        likely_env old = const_cast<likely_env>(env);
+        likely_const_expr value = NULL;
+        swap(value, old->value);
+        env = old->parent;
         likely_release_env(old);
         return value;
     }
@@ -576,9 +577,9 @@ public:
 
 struct Builder : public IRBuilder<>
 {
-    likely_env env;
+    likely_const_env env;
 
-    Builder(likely_env env)
+    Builder(likely_const_env env)
         : IRBuilder<>(env->module ? env->module->context->context : getGlobalContext()), env(env) {}
 
     likely_expression constant(uint64_t value, likely_matrix_type type = likely_matrix_native)
@@ -927,7 +928,7 @@ namespace {
 struct RootEnvironment
 {
     // Provide public access to an environment that includes the standard library.
-    static likely_env get()
+    static likely_const_env get()
     {
         static bool init = false;
         if (!init) {
@@ -942,13 +943,13 @@ struct RootEnvironment
 
 protected:
     // Provide protected access for registering builtins.
-    static likely_env &builtins()
+    static likely_const_env &builtins()
     {
-        static likely_env root = NULL;
+        static likely_const_env root = NULL;
         if (!root) {
             root = newEnv(NULL);
-            root->type |= likely_environment_global;
-            root->type |= likely_environment_ctfe;
+            const_cast<likely_env>(root)->type |= likely_environment_global;
+            const_cast<likely_env>(root)->type |= likely_environment_ctfe;
         }
         return root;
     }
@@ -961,7 +962,7 @@ struct RegisterExpression : public RootEnvironment
     {
         likely_expr e = new E();
         likely_expression::define(builtins(), e->symbol(), e);
-        builtins()->type |= likely_environment_global;
+        const_cast<likely_env>(builtins())->type |= likely_environment_global;
     }
 };
 #define LIKELY_REGISTER(EXP) static RegisterExpression<EXP##Expression> Register##EXP##Expression;
@@ -1655,7 +1656,7 @@ class beginExpression : public LikelyOperator
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         likely_const_expr result = NULL;
-        likely_env root = builder.env;
+        likely_const_env root = builder.env;
         for (size_t i=1; i<ast->num_atoms-1; i++) {
             const unique_ptr<const likely_expression> expr(builder.expression(ast->atoms[i]));
             if (!expr.get())
@@ -1666,7 +1667,7 @@ class beginExpression : public LikelyOperator
     cleanup:
         while (builder.env != root) {
             likely_const_env old = builder.env;
-            builder.env = const_cast<likely_env>(builder.env->parent);
+            builder.env = builder.env->parent;
             likely_release_env(old);
         }
         return result;
@@ -2581,7 +2582,7 @@ likely_const_mat likely_result(likely_const_env env)
     return Lambda::getResult(env);
 }
 
-likely_env likely_eval(likely_ast ast, likely_env parent)
+likely_env likely_eval(likely_ast ast, likely_const_env parent)
 {
     if (!ast)
         return NULL;
@@ -2606,7 +2607,7 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
     return env;
 }
 
-likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback repl_callback, void *context)
+likely_env likely_repl(likely_ast ast, likely_const_env parent, likely_repl_callback repl_callback, void *context)
 {
     if (!ast || (ast->type != likely_ast_list))
         return NULL;
