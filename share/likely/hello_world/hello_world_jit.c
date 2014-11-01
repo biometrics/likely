@@ -49,8 +49,8 @@ int main(int argc, char *argv[])
     puts("Parsing function...");
     likely_const_ast ast = likely_lex_and_parse(argv[2], likely_source_lisp);
 
-    puts("Creating a compiler environment...");
-    likely_env parent = likely_jit();
+    puts("Creating a JIT compiler environment...");
+    likely_env parent = likely_standard(NULL);
 
     puts("Compiling source code...");
     likely_const_env env = likely_eval(ast->atoms[0], parent);

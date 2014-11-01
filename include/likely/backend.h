@@ -45,7 +45,7 @@ enum likely_environment_type_mask
     likely_environment_parallel      = 0x00000001, /*!< \brief Generate parallel code. */
     likely_environment_heterogeneous = 0x00000002, /*!< \brief Generate heterogeneous code. */
     likely_environment_definition    = 0x00000004, /*!< \brief Defines a variable. */
-    likely_environment_ctfe          = 0x00000020, /*!< \brief Perform compile-time function evaluation to simplify code. */
+    likely_environment_ctfe          = 0x00000008, /*!< \brief Perform compile-time function evaluation to simplify code. */
 };
 
 typedef struct likely_environment *likely_env; /*!< \brief Pointer to a \ref likely_environment. */
@@ -54,12 +54,11 @@ typedef struct likely_environment const *likely_const_env; /*!< \brief Pointer t
 /*!
  * \brief The context in which the semantics of an abstract syntax tree is determined.
  * \par Environment Construction
- * | Function           | Description              |
- * |--------------------|--------------------------|
- * | \ref likely_jit    | \copybrief likely_jit    |
- * | \ref likely_static | \copybrief likely_static |
- * | \ref likely_eval   | \copybrief likely_eval   |
- * | \ref likely_repl   | \copybrief likely_repl   |
+ * | Function             | Description                |
+ * |----------------------|----------------------------|
+ * | \ref likely_standard | \copybrief likely_standard |
+ * | \ref likely_eval     | \copybrief likely_eval     |
+ * | \ref likely_repl     | \copybrief likely_repl     |
  *
  * \see \ref reference_counting
  */
@@ -67,7 +66,7 @@ struct likely_environment
 {
     likely_const_env parent; /*!< \brief Additional context, or \c NULL if root. */
     likely_const_ast ast; /*!< \brief Associated source code. */
-    struct likely_module *module; /*!< \brief Used internally as a container to store generated instructions during \ref likely_static compilation. */
+    struct likely_module *module; /*!< \brief Used internally as a container to store generated instructions during static compilation. */
     struct likely_expression const *expr; /*!< The result of interpreting \ref ast in the context of \ref parent. \c NULL if an error occured. */
     likely_environment_type type; /*!< Interpretation of \ref likely_environment. */
     uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain_env and \ref likely_release_env to track ownership. */
@@ -86,15 +85,7 @@ struct likely_environment
 LIKELY_EXPORT void likely_initialize(int opt_level, int size_level, bool loop_vectorize);
 
 /*!
- * \brief Construct a new environment for just-in-time compilation.
- * \return A new just-in-time compilation environment.
- * \remark This function is \ref thread-unsafe.
- * \see \ref likely_static
- */
-LIKELY_EXPORT likely_env likely_jit();
-
-/*!
- * \brief Construct a new environment for static compilation.
+ * \brief Construct a compilation environment with \ref likely_standard_library symbols.
  *
  * The extension of \p file_name dictates the type of output.
  * Recognized file extensions are:
@@ -104,13 +95,13 @@ LIKELY_EXPORT likely_env likely_jit();
  * - \c o - Object file (optimized for native machine)
  *
  * Code is written to \p file_name when the returned \ref likely_environment is deleted by \ref likely_release_env.
+ * If \p file_name is \c NULL, just-in-time compilation will be performed instead.
  *
- * \param[in] file_name Where to save the compilation output.
- * \return A new static compilation environment.
+ * \param[in] file_name Where to save the compilation output for static compilation, or \c NULL for just-in-time compilation.
+ * \return A new compilation environment.
  * \remark This function is \ref thread-unsafe.
- * \see \ref likely_jit
  */
-LIKELY_EXPORT likely_env likely_static(const char *file_name);
+LIKELY_EXPORT likely_env likely_standard(const char *file_name);
 
 /*!
  * \brief Retain a reference to an environment.

@@ -307,7 +307,7 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
     static void *normalize = NULL;
     if (normalize == NULL) {
         likely_const_ast ast = likely_lex_and_parse("(img min range) :-> { dst := (new u8 3 img.columns img.rows) (dst img min range) :=> (<- dst (- img min).(/ range).u8) }", likely_source_lisp);
-        likely_env parent = likely_jit();
+        likely_env parent = likely_standard(NULL);
         env = likely_eval(ast->atoms[0], parent);
         normalize = likely_compile(env, NULL, 0);
         assert(normalize);

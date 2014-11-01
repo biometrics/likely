@@ -171,9 +171,7 @@ int main(int argc, char *argv[])
                       OptLevelOz ? 2 : (OptLevelOs ? 1 : 0),
                       !DisableLoopVectorization);
 
-    likely_env parent;
-    if (output.empty()) parent = likely_jit(); // console or interpreter
-    else                parent = likely_static(output.c_str()); // compiler
+    likely_env parent = likely_standard(output.empty() ? NULL /* JIT */ : output.c_str() /* Offline */);
     if (parallel)
         parent->type |= likely_environment_parallel;
 

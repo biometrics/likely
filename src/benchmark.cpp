@@ -68,7 +68,7 @@ struct Test
             return;
 
         likely_const_ast ast = likely_lex_and_parse(function(), likely_source_lisp);
-        likely_env parent = likely_jit();
+        likely_env parent = likely_standard(NULL);
         if (BenchmarkParallel)
             parent->type |= likely_environment_parallel;
 
@@ -112,7 +112,7 @@ struct Test
         printf("%s \t", fileName);
         likely_ast ast = likely_lex_and_parse(source->data, likely_source_gfm);
         likely_release_mat(source);
-        likely_env parent = likely_jit();
+        likely_env parent = likely_standard(NULL);
         likely_release_env(likely_repl(ast, parent, NULL, NULL));
 
         if (BenchmarkTest) {
