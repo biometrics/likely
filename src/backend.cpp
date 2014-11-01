@@ -314,7 +314,6 @@ static likely_env newEnv(likely_const_env parent)
 
     env->type = 0;
     if (parent) {
-        if (parent->type & likely_environment_offline      ) env->type |= likely_environment_offline;
         if (parent->type & likely_environment_parallel     ) env->type |= likely_environment_parallel;
         if (parent->type & likely_environment_heterogeneous) env->type |= likely_environment_heterogeneous;
         if (parent->type & likely_environment_ctfe         ) env->type |= likely_environment_ctfe;
@@ -2136,7 +2135,7 @@ class defineExpression : public LikelyOperator
                     parameters.push_back(likely_type_from_string(lhs->atoms[i]->atom, NULL));
                 }
 
-                if (builder.env->type & likely_environment_offline) {
+                if (builder.env->module) {
                     TRY_EXPR(builder, rhs, expr);
                     const Lambda *lambda = static_cast<const Lambda*>(expr.get());
                     if (likely_const_expr function = lambda->generate(builder, parameters, name, false, false)) {
@@ -2441,8 +2440,6 @@ likely_env likely_static(const char *file_name)
 {
     likely_env env = newEnv(RootEnvironment::get());
     env->type |= likely_environment_global;
-    env->type |= likely_environment_offline;
-    env->type |= likely_environment_base;
     env->module = new OfflineModule(file_name);
     return env;
 }
@@ -2461,9 +2458,9 @@ void likely_release_env(likely_const_env env)
     assert(env->ref_count > 0);
     if (--const_cast<likely_env>(env)->ref_count) return;
 
-    delete env->value; // Do this early to guarantee the environment for these lifetime of these classes
+    delete env->value;
     likely_release_ast(env->ast);
-    if (env->type & likely_environment_base)
+    if (env->module && !env->parent->module)
         delete env->module;
     likely_release_env(env->parent);
     free(const_cast<likely_env>(env));
@@ -2523,7 +2520,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent)
 
     if (env->type & likely_environment_definition) {
         env->value = Builder(parent, parent->module).expression(ast);
-    } else if (env->type & likely_environment_offline) {
+    } else if (env->module) {
         // Do nothing, evaluating expressions in an offline environment is a no-op.
     } else {
         // If `ast` is not a lambda then it is a computation and we want to represent it as a parameterless lambda.
