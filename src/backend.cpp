@@ -637,7 +637,7 @@ struct Builder : public IRBuilder<>
     likely_expression rows    (likely_const_expr m) { return (*m & likely_matrix_multi_row    ) ? cast(likely_expression(CreateLoad(CreateStructGEP(*m, 4), "rows"    ), likely_matrix_u32), likely_matrix_native) : one(); }
     likely_expression frames  (likely_const_expr m) { return (*m & likely_matrix_multi_frame  ) ? cast(likely_expression(CreateLoad(CreateStructGEP(*m, 5), "frames"  ), likely_matrix_u32), likely_matrix_native) : one(); }
 
-    Value *data    (Value *value, likely_matrix_type type) { return CreatePointerCast(CreateStructGEP(value, 6), env->module->context->scalar(type, true)); }
+    Value *data    (Value *value, likely_matrix_type type) { return CreatePointerCast(CreateStructGEP(value, 6), module->context->scalar(type, true)); }
     likely_expression data    (likely_const_expr m) { return likely_expression(data(m->value, m->type), (*m & likely_matrix_element) | likely_matrix_array); }
 
     likely_expression cast(const likely_expression &x, likely_matrix_type type)
@@ -650,7 +650,7 @@ struct Builder : public IRBuilder<>
             if (type & likely_matrix_floating)
                 type = likely_type_from_types(type, likely_matrix_floating);
         }
-        Type *dstType = env->module->context->scalar(type);
+        Type *dstType = module->context->scalar(type);
         return likely_expression(CreateCast(CastInst::getCastOpcode(x, (x & likely_matrix_signed) != 0, dstType, (type & likely_matrix_signed) != 0), x, dstType), type);
     }
 
@@ -679,7 +679,7 @@ struct Builder : public IRBuilder<>
         likely_module *mod;
         ConstantMat(Builder &builder, likely_const_mat m)
             : likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(likely_mat)), uintptr_t(m)), builder.toLLVM(m->type)), m->type, m)
-            , mod(builder.env->module) {}
+            , mod(builder.module) {}
 
         ~ConstantMat()
         {
@@ -699,9 +699,9 @@ struct Builder : public IRBuilder<>
             return new ConstantMat(*this, data);
     }
 
-    IntegerType *nativeInt() { return env->module->context->nativeInt(); }
+    IntegerType *nativeInt() { return module->context->nativeInt(); }
     Type *multiDimension() { return toLLVM(likely_matrix_multi_dimension); }
-    Type *toLLVM(likely_matrix_type likely) { return env->module->context->toLLVM(likely); }
+    Type *toLLVM(likely_matrix_type likely) { return module->context->toLLVM(likely); }
 
     likely_const_expr expression(likely_const_ast ast);
 
@@ -1601,7 +1601,7 @@ private:
 
         if (dynamic) {
             likely_vtable vtable = new likely_virtual_table(builder.env, body, parameters);
-            builder.env->module->exprs.push_back(vtable);
+            builder.module->exprs.push_back(vtable);
 
             PointerType *vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
             Function *likelyDynamic = builder.module->module->getFunction("likely_dynamic");
@@ -2288,15 +2288,15 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_
         PassManager PM;
         HasLoop *hasLoop = new HasLoop();
         PM.add(hasLoop);
-        PM.run(*env->module->module);
+        PM.run(*builder.module->module);
         evaluate = !hasLoop->hasLoop;
     }
 
     TargetMachine *targetMachine = LikelyContext::getTargetMachine(true);
-    env->module->module->setDataLayout(targetMachine->getSubtargetImpl()->getDataLayout());
+    builder.module->module->setDataLayout(targetMachine->getSubtargetImpl()->getDataLayout());
 
     string error;
-    EngineBuilder engineBuilder(unique_ptr<Module>(env->module->module));
+    EngineBuilder engineBuilder(unique_ptr<Module>(builder.module->module));
     engineBuilder.setErrorStr(&error);
 
     if (evaluate) {
@@ -2311,17 +2311,17 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_
 
     if (!evaluate) {
         EE->setObjectCache(&TheJITFunctionCache);
-        if (!TheJITFunctionCache.alert(env->module->module))
-            env->module->optimize();
+        if (!TheJITFunctionCache.alert(builder.module->module))
+            builder.module->optimize();
 
         EE->finalizeObject();
         function = (void*) EE->getFunctionAddress(name);
 
         // cleanup
-        EE->removeModule(env->module->module);
-        env->module->finalize();
+        EE->removeModule(builder.module->module);
+        builder.module->finalize();
     }
-//    env->module->module->dump();
+//    builder.module->module->dump();
 }
 
 class newExpression : public LikelyOperator
