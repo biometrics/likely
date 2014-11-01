@@ -2094,69 +2094,6 @@ class kernelExpression : public LikelyOperator
 };
 LIKELY_REGISTER(kernel)
 
-struct LazyEvaluatedExpression : public LikelyOperator
-{
-    const likely_const_env env;
-    const likely_const_ast ast;
-
-    LazyEvaluatedExpression(likely_const_env parent, likely_const_ast ast)
-        : env(newEnv(parent)), ast(likely_retain_ast(ast))
-    {
-        const_cast<likely_env>(env)->type &= ~likely_environment_offline;
-    }
-
-    ~LazyEvaluatedExpression()
-    {
-        likely_release_ast(ast);
-        likely_release_env(env);
-        likely_release_env(result);
-    }
-
-    static likely_const_env get(likely_const_expr expr)
-    {
-        if (!expr || (expr->uid() != UID()))
-            return NULL;
-        return reinterpret_cast<const LazyEvaluatedExpression*>(expr)->get();
-    }
-
-private:
-    mutable likely_env result = NULL; // Don't access directly, call get() instead
-    mutable mutex lock;
-
-    static int UID() { return __LINE__; }
-    int uid() const { return UID(); }
-
-    likely_env get() const
-    {
-        if (!result) {
-            lock_guard<mutex> guard(lock);
-            if (!result)
-                result = likely_eval(const_cast<likely_ast>(ast), env);
-        }
-        return result;
-    }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        // TODO: implement indexing into this matrix by checking ast.
-        // Consider sharing implementation with ConstantMat.
-        (void) builder;
-        (void) ast;
-
-        likely_const_mat m = likely_result(get());
-        if (!(m->type & likely_matrix_multi_dimension)) {
-            // Promote to scalar
-            return new likely_expression(builder.constant(likely_element(m, 0, 0, 0, 0), m->type & likely_matrix_element));
-        } else {
-            // Return the matrix
-            return new likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(m)), uintptr_t(m)), builder.toLLVM(m->type)), m->type, likely_retain_mat(m));
-        }
-    }
-
-    size_t minParameters() const { return 0; }
-    size_t maxParameters() const { return 4; }
-};
-
 struct Variable : public Assignable
 {
     Variable(Builder &builder, likely_const_expr expr, const string &name)
@@ -2221,8 +2158,8 @@ class defineExpression : public LikelyOperator
                     // Global variable
                     return builder.expression(rhs);
                 } else {
-                    // Global value
-                    return new LazyEvaluatedExpression(builder.env, rhs);
+                    // Lazy global value
+                    return new Lambda(rhs);
                 }
             }
         } else {
@@ -2570,8 +2507,6 @@ likely_const_mat likely_result(likely_const_env env)
 {
     if (!env)
         return NULL;
-    if (likely_const_env rhs = LazyEvaluatedExpression::get(env->value))
-        return likely_result(rhs);
     return Lambda::getResult(env);
 }
 
