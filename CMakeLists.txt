@@ -7,7 +7,7 @@ include(ExternalProject)
 set(CPACK_PACKAGE_NAME "Likely")
 set(CPACK_PACKAGE_DESCRIPTION "An embeddable just-in-time Lisp for image recognition and heterogeneous computing.")
 set(CPACK_PACKAGE_VERSION_MAJOR 0)
-set(CPACK_PACKAGE_VERSION_MINOR 2)
+set(CPACK_PACKAGE_VERSION_MINOR 3)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
