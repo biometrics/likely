@@ -846,7 +846,7 @@ struct JITFunction : public Symbol
     ExecutionEngine *EE = NULL;
     likely_module *module;
 
-    JITFunction(const string &name, const Lambda *lambda, likely_const_env parent, const vector<likely_matrix_type> &parameters, bool evaluate, bool arrayCC);
+    JITFunction(const string &name, const Lambda *lambda, const vector<likely_matrix_type> &parameters, bool evaluate, bool arrayCC);
 
     ~JITFunction()
     {
@@ -1426,10 +1426,11 @@ LIKELY_REGISTER(try)
 
 struct Lambda : public LikelyOperator
 {
+    likely_const_env env;
     likely_const_ast body, parameters;
 
-    Lambda(likely_const_ast body, likely_const_ast parameters = NULL)
-        : body(body), parameters(parameters) {}
+    Lambda(likely_const_env env, likely_const_ast body, likely_const_ast parameters = NULL)
+        : env(env), body(body), parameters(parameters) {}
 
     ~Lambda()
     {
@@ -1439,6 +1440,9 @@ struct Lambda : public LikelyOperator
 
     likely_const_expr generate(Builder &builder, vector<likely_matrix_type> parameters, string name, bool arrayCC, bool returnConstantOrMatrix) const
     {
+        likely_const_env restore = builder.env;
+        builder.env = env;
+
         while (parameters.size() < maxParameters())
             parameters.push_back(likely_matrix_multi_dimension);
 
@@ -1509,16 +1513,18 @@ struct Lambda : public LikelyOperator
 
         if (originalInsertBlock)
             builder.SetInsertPoint(originalInsertBlock);
+
+        builder.env = restore;
         return new likely_expression(function, likely_matrix_void, likely_retain_mat(result->getData()));
     }
 
-    likely_mat evaluateConstantFunction(likely_const_env env, const vector<likely_const_mat> &args) const
+    likely_mat evaluateConstantFunction(const vector<likely_const_mat> &args) const
     {
         vector<likely_matrix_type> params;
         for (likely_const_mat arg : args)
             params.push_back(arg->type);
 
-        JITFunction jit("likely_ctfe", this, env, params, true, !args.empty());
+        JITFunction jit("likely_ctfe", this, params, true, !args.empty());
         if (jit.function) { // compiler
             return args.empty() ? reinterpret_cast<likely_mat (*)()>(jit.function)()
                                 : reinterpret_cast<likely_mat (*)(likely_const_mat const*)>(jit.function)(args.data());
@@ -1541,7 +1547,7 @@ struct Lambda : public LikelyOperator
         if (env->expr->uid() == UID()) {
             const Lambda *lambda = static_cast<const Lambda*>(env->expr);
             if (lambda->maxParameters() == 0) {
-                likely_const_mat m = lambda->evaluateConstantFunction(env, vector<likely_const_mat>());
+                likely_const_mat m = lambda->evaluateConstantFunction(vector<likely_const_mat>());
                 lambda->setData(m);
                 return m;
             }
@@ -1554,7 +1560,7 @@ struct Lambda : public LikelyOperator
         if (!env || !env->expr || (env->expr->uid() != UID()))
             return NULL;
         const Lambda *lambda = static_cast<const Lambda*>(env->expr);
-        JITFunction *jitFunction = new JITFunction("likely_jit_function", lambda, env, types, false, false);
+        JITFunction *jitFunction = new JITFunction("likely_jit_function", lambda, types, false, false);
         lambda->jitFunctions.push_back(jitFunction);
         return jitFunction->function;
     }
@@ -1585,7 +1591,7 @@ private:
             args.push_back(arg);
         }
 
-        result = (constantArgs.size() == args.size()) ? builder.mat(evaluateConstantFunction(builder.env, constantArgs))
+        result = (constantArgs.size() == args.size()) ? builder.mat(evaluateConstantFunction(constantArgs))
                                                       : evaluateFunction(builder, args);
 
     cleanup:
@@ -1647,7 +1653,7 @@ class lambdaExpression : public LikelyOperator
 {
     const char *symbol() const { return "->"; }
     size_t maxParameters() const { return 2; }
-    likely_const_expr evaluateOperator(Builder &, likely_const_ast ast) const { return new Lambda(ast->atoms[2], ast->atoms[1]); }
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const { return new Lambda(builder.env, ast->atoms[2], ast->atoms[1]); }
 };
 LIKELY_REGISTER(lambda)
 
@@ -2142,7 +2148,7 @@ class defineExpression : public LikelyOperator
                         return expr;
                     }
                 } else {
-                    JITFunction *function = new JITFunction(name, unique_ptr<Lambda>(new Lambda(rhs->atoms[2], rhs->atoms[1])).get(), builder.env, parameters, false, false);
+                    JITFunction *function = new JITFunction(name, unique_ptr<Lambda>(new Lambda(builder.env, rhs->atoms[2], rhs->atoms[1])).get(), parameters, false, false);
                     if (function->function) {
                         sys::DynamicLibrary::AddSymbol(name, function->function);
                         return function;
@@ -2156,7 +2162,7 @@ class defineExpression : public LikelyOperator
                     return builder.expression(rhs);
                 } else {
                     // Lazy global value
-                    return new Lambda(rhs);
+                    return new Lambda(builder.env, rhs);
                 }
             }
         } else {
@@ -2191,10 +2197,10 @@ class setExpression : public LikelyOperator
 };
 LIKELY_REGISTER(set)
 
-JITFunction::JITFunction(const string &name, const Lambda *lambda, likely_const_env parent, const vector<likely_matrix_type> &parameters, bool evaluate, bool arrayCC)
+JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_matrix_type> &parameters, bool evaluate, bool arrayCC)
     : module(new likely_module())
 {
-    likely_env env = newEnv(parent);
+    likely_env env = newEnv(lambda->env);
 
     // Don't do compile time function evaluation when we're only interested in the result.
     if (evaluate)
@@ -2484,7 +2490,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats)
         vector<likely_matrix_type> types;
         for (size_t i=0; i<vtable->n; i++)
             types.push_back(mats[i]->type);
-        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->body, vtable->parameters)).get(), vtable->env, types, false, true)));
+        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->env, vtable->body, vtable->parameters)).get(), types, false, true)));
         function = vtable->functions.back()->function;
         if (function == NULL)
             return NULL;
@@ -2523,7 +2529,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent)
     } else {
         // If `ast` is not a lambda then it is a computation and we want to represent it as a parameterless lambda.
         if (!strcmp(likely_symbol(ast), "->")) env->expr = Builder(parent, parent->module).expression(ast);
-        else                                   env->expr = new Lambda(ast);
+        else                                   env->expr = new Lambda(parent, ast);
     }
     return env;
 }
