@@ -42,7 +42,6 @@ typedef uint32_t likely_environment_type;
  */
 enum likely_environment_type_mask
 {
-    likely_environment_void          = 0x00000000, /*!< \brief An invalid environment. */
     likely_environment_offline       = 0x00000001, /*!< \brief Static compilation. */
     likely_environment_parallel      = 0x00000002, /*!< \brief Generate parallel code. */
     likely_environment_heterogeneous = 0x00000004, /*!< \brief Generate heterogeneous code. */

@@ -312,7 +312,7 @@ static likely_env newEnv(likely_const_env parent)
     if (!env)
         return NULL;
 
-    env->type = likely_environment_void;
+    env->type = 0;
     if (parent) {
         if (parent->type & likely_environment_offline      ) env->type |= likely_environment_offline;
         if (parent->type & likely_environment_parallel     ) env->type |= likely_environment_parallel;
