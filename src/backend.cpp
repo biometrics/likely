@@ -952,7 +952,6 @@ protected:
         static likely_const_env root = NULL;
         if (!root) {
             root = newEnv(NULL);
-            const_cast<likely_env>(root)->type |= likely_environment_global;
             const_cast<likely_env>(root)->type |= likely_environment_ctfe;
         }
         return root;
@@ -966,7 +965,6 @@ struct RegisterExpression : public RootEnvironment
     {
         likely_expr e = new E();
         likely_expression::define(builtins(), e->symbol(), e);
-        const_cast<likely_env>(builtins())->type |= likely_environment_global;
     }
 };
 #define LIKELY_REGISTER(EXP) static RegisterExpression<EXP##Expression> Register##EXP##Expression;
@@ -2129,7 +2127,8 @@ class defineExpression : public LikelyOperator
         likely_const_ast rhs = ast->atoms[2];
         const char *name = likely_symbol(ast);
 
-        if (builder.env->type & likely_environment_global) {
+        if (!builder.module /* global variable */) {
+            builder.module = builder.env->module;
             if (lhs->type == likely_ast_list) {
                 // Export symbol
                 vector<likely_matrix_type> parameters;
@@ -2139,7 +2138,7 @@ class defineExpression : public LikelyOperator
                     parameters.push_back(likely_type_from_string(lhs->atoms[i]->atom, NULL));
                 }
 
-                if (builder.env->module) {
+                if (builder.env->module /* static compilation */) {
                     TRY_EXPR(builder, rhs, expr);
                     const Lambda *lambda = static_cast<const Lambda*>(expr.get());
                     if (likely_const_expr function = lambda->generate(builder, parameters, name, false, false)) {
@@ -2185,7 +2184,7 @@ class setExpression : public LikelyOperator
         likely_const_ast lhs = ast->atoms[1];
         likely_const_ast rhs = ast->atoms[2];
         const char *name = likely_symbol(ast);
-        assert(!(builder.env->type & likely_environment_global));
+        assert(builder.module);
         likely_const_expr expr = builder.expression(rhs);
         if (expr) {
             const Assignable *assignable = Assignable::dynamicCast(builder.lookup(name));
@@ -2435,15 +2434,12 @@ LIKELY_REGISTER(md5)
 
 likely_env likely_jit()
 {
-    likely_env env = newEnv(RootEnvironment::get());
-    env->type |= likely_environment_global;
-    return env;
+    return newEnv(RootEnvironment::get());
 }
 
 likely_env likely_static(const char *file_name)
 {
     likely_env env = newEnv(RootEnvironment::get());
-    env->type |= likely_environment_global;
     env->module = new OfflineModule(file_name);
     return env;
 }
@@ -2519,11 +2515,12 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent)
     likely_env env = newEnv(parent);
     if ((ast->type == likely_ast_list) && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="))
         env->type |= likely_environment_definition;
-    env->type |= likely_environment_global;
     env->ast = likely_retain_ast(ast);
 
     if (env->type & likely_environment_definition) {
-        env->expr = Builder(parent, parent->module).expression(ast);
+        Builder builder(parent, parent->module);
+        builder.module = NULL; // signify global scope
+        env->expr = builder.expression(ast);
     } else if (env->module) {
         // Do nothing, evaluating expressions in an offline environment is a no-op.
     } else {

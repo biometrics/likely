@@ -45,7 +45,6 @@ enum likely_environment_type_mask
     likely_environment_parallel      = 0x00000001, /*!< \brief Generate parallel code. */
     likely_environment_heterogeneous = 0x00000002, /*!< \brief Generate heterogeneous code. */
     likely_environment_definition    = 0x00000004, /*!< \brief Defines a variable. */
-    likely_environment_global        = 0x00000008, /*!< \brief Global scope. */
     likely_environment_ctfe          = 0x00000020, /*!< \brief Perform compile-time function evaluation to simplify code. */
 };
 
