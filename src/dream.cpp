@@ -228,12 +228,12 @@ private:
             const uint32_t column = uint32_t(tc.positionInBlock());
 
             likely_const_env it = current;
-            while (it && it->ast && !(it->type & likely_environment_erratum) &&
+            while (it && it->ast &&
                    ((it->ast->begin_line > line) ||
                     ((it->ast->begin_line == line) && (it->ast->begin_column > column))))
                 it = it->parent;
 
-            if (it && it->ast && !(it->type & likely_environment_erratum) &&
+            if (it && it->ast &&
                 ((it->ast->end_line > line) ||
                  ((it->ast->end_line == line) && (it->ast->end_column >= column))))
                 hotSpot = it;
@@ -361,7 +361,7 @@ private slots:
 
         env = likely_repl(source_ast, env, replCallback, this);
         likely_release_ast(source_ast);
-        if (!(env->type & likely_environment_erratum)) {
+        if (env->value) {
             const qint64 nsec = elapsedTimer.nsecsElapsed();
             emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
         }

@@ -46,12 +46,11 @@ enum likely_environment_type_mask
     likely_environment_offline       = 0x00000001, /*!< \brief Static compilation. */
     likely_environment_parallel      = 0x00000002, /*!< \brief Generate parallel code. */
     likely_environment_heterogeneous = 0x00000004, /*!< \brief Generate heterogeneous code. */
-    likely_environment_erratum       = 0x00000008, /*!< \brief Error indicator. */
-    likely_environment_definition    = 0x00000010, /*!< \brief Defines a variable. */
-    likely_environment_global        = 0x00000020, /*!< \brief Global scope. */
-    likely_environment_abandoned     = 0x00000040, /*!< \brief Does not maintain a reference to \ref likely_environment::parent. */
-    likely_environment_base          = 0x00000080, /*!< \brief Owns \ref likely_environment::module. */
-    likely_environment_ctfe          = 0x00000100, /*!< \brief Perform compile-time function evaluation to simplify code. */
+    likely_environment_definition    = 0x00000008, /*!< \brief Defines a variable. */
+    likely_environment_global        = 0x00000010, /*!< \brief Global scope. */
+    likely_environment_abandoned     = 0x00000020, /*!< \brief Does not maintain a reference to \ref likely_environment::parent. */
+    likely_environment_base          = 0x00000040, /*!< \brief Owns \ref likely_environment::module. */
+    likely_environment_ctfe          = 0x00000080, /*!< \brief Perform compile-time function evaluation to simplify code. */
 };
 
 typedef struct likely_environment *likely_env; /*!< \brief Pointer to a \ref likely_environment. */
@@ -74,7 +73,7 @@ struct likely_environment
     likely_const_env parent; /*!< \brief Additional context, or \c NULL if root. */
     likely_const_ast ast; /*!< \brief Associated source code. */
     struct likely_module *module; /*!< \brief Used internally as a container to store the generated instructions. */
-    struct likely_expression const *value; /*!< \brief If <tt>\ref type & \ref likely_environment_definition</tt>, the environment is a \a definition and \ref value is its right-hand-side. */
+    struct likely_expression const *value; /*!< The result of interpreting \ref ast in the context of \ref parent. \c NULL if an error occured. */
     likely_environment_type type; /*!< Interpretation of \ref likely_environment. */
     uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain_env and \ref likely_release_env to track ownership. */
 };

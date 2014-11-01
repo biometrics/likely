@@ -2225,14 +2225,12 @@ class defineExpression : public LikelyOperator
                     return new EvaluatedExpression(builder.env, rhs);
                 }
             }
-
-            builder.env->type |= likely_environment_erratum;
-            return NULL;
         } else {
             likely_const_expr expr = builder.expression(rhs);
             builder.define(name, expr);
             return new likely_expression(*expr);
         }
+        return NULL;
     }
 };
 LIKELY_REGISTER(define)
@@ -2623,7 +2621,7 @@ likely_env likely_repl(likely_ast ast, likely_env parent, likely_repl_callback r
         parent = env;
         if (repl_callback)
             repl_callback(env, context);
-        if (env->type & likely_environment_erratum)
+        if (!env->value)
             break;
     }
 
