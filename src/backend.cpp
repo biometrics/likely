@@ -947,6 +947,7 @@ protected:
         static likely_env root = NULL;
         if (!root) {
             root = newEnv(NULL);
+            root->type |= likely_environment_global;
             root->type |= likely_environment_ctfe;
         }
         return root;
@@ -960,6 +961,7 @@ struct RegisterExpression : public RootEnvironment
     {
         likely_expr e = new E();
         likely_expression::define(builtins(), e->symbol(), e);
+        builtins()->type |= likely_environment_global;
     }
 };
 #define LIKELY_REGISTER(EXP) static RegisterExpression<EXP##Expression> Register##EXP##Expression;
@@ -2186,10 +2188,8 @@ class defineExpression : public LikelyOperator
         likely_const_ast lhs = ast->atoms[1];
         likely_const_ast rhs = ast->atoms[2];
         const char *name = likely_symbol(ast);
-        likely_env env = builder.env;
 
-        if (env->type & likely_environment_global) {
-            assert(!env->value);
+        if (builder.env->type & likely_environment_global) {
             if (lhs->type == likely_ast_list) {
                 // Export symbol
                 vector<likely_matrix_type> parameters;
@@ -2199,18 +2199,19 @@ class defineExpression : public LikelyOperator
                     parameters.push_back(likely_type_from_string(lhs->atoms[i]->atom, NULL));
                 }
 
-                if (env->type & likely_environment_offline) {
+                if (builder.env->type & likely_environment_offline) {
                     TRY_EXPR(builder, rhs, expr);
                     const Lambda *lambda = static_cast<const Lambda*>(expr.get());
                     if (likely_const_expr function = lambda->generate(builder, parameters, name, false, false)) {
-                        env->value = new Symbol(function, parameters);
+                        likely_const_expr expr = new Symbol(function, parameters);
                         delete function;
+                        return expr;
                     }
                 } else {
-                    JITFunction *function = new JITFunction(name, unique_ptr<Lambda>(new Lambda(rhs->atoms[2], rhs->atoms[1])).get(), env, parameters, true, false, false);
+                    JITFunction *function = new JITFunction(name, unique_ptr<Lambda>(new Lambda(rhs->atoms[2], rhs->atoms[1])).get(), builder.env, parameters, true, false, false);
                     if (function->function) {
                         sys::DynamicLibrary::AddSymbol(name, function->function);
-                        env->value = function;
+                        return function;
                     } else {
                         delete function;
                     }
@@ -2218,15 +2219,14 @@ class defineExpression : public LikelyOperator
             } else {
                 if (!strcmp(likely_symbol(rhs), "->")) {
                     // Global variable
-                    env->value = builder.expression(rhs);
+                    return builder.expression(rhs);
                 } else {
                     // Global value
-                    env->value = new EvaluatedExpression(env, rhs);
+                    return new EvaluatedExpression(builder.env, rhs);
                 }
             }
 
-            if (!env->value)
-                env->type |= likely_environment_erratum;
+            builder.env->type |= likely_environment_erratum;
             return NULL;
         } else {
             likely_const_expr expr = builder.expression(rhs);
@@ -2502,18 +2502,18 @@ LIKELY_REGISTER(md5)
 
 likely_env likely_jit()
 {
-    return newEnv(RootEnvironment::get());
+    likely_env env = newEnv(RootEnvironment::get());
+    env->type |= likely_environment_global;
+    return env;
 }
 
 likely_env likely_static(const char *file_name)
 {
     likely_env env = newEnv(RootEnvironment::get());
-    if (!env)
-        return NULL;
-
-    env->module = new OfflineModule(file_name);
+    env->type |= likely_environment_global;
     env->type |= likely_environment_offline;
     env->type |= likely_environment_base;
+    env->module = new OfflineModule(file_name);
     return env;
 }
 
@@ -2594,18 +2594,17 @@ likely_env likely_eval(likely_ast ast, likely_env parent)
     env->type |= likely_environment_global;
     env->ast = likely_retain_ast(ast);
 
+    const uint32_t originalParentRefCount = parent->ref_count;
     if (env->type & likely_environment_definition) {
-        likely_const_expr expr = Builder(env).expression(ast);
-        assert(!expr); (void) expr;
+        env->value = Builder(parent).expression(ast);
     } else if (env->type & likely_environment_offline) {
         // Do nothing, evaluating expressions in an offline environment is a no-op.
     } else {
         // If `ast` is not a lambda then it is a computation and we want to represent it as a parameterless lambda.
-        if (!strcmp(likely_symbol(ast), "->")) env->value = Builder(env).expression(ast);
+        if (!strcmp(likely_symbol(ast), "->")) env->value = Builder(parent).expression(ast);
         else                                   env->value = new Lambda(ast);
     }
-
-    likely_assert(env->ref_count == 1, "returning an environment with: %d owners", env->ref_count);
+    assert(originalParentRefCount == parent->ref_count); (void) originalParentRefCount;
     return env;
 }
 
