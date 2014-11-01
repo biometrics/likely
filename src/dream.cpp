@@ -361,7 +361,7 @@ private slots:
 
         env = likely_repl(source_ast, env, replCallback, this);
         likely_release_ast(source_ast);
-        if (env->value) {
+        if (env->expr) {
             const qint64 nsec = elapsedTimer.nsecsElapsed();
             emit newStatus(QString("Evaluation Speed: %1 Hz").arg(nsec == 0 ? QString("infinity") : QString::number(double(1E9)/nsec, 'g', 3)));
         }

@@ -187,7 +187,7 @@ int main(int argc, char *argv[])
             likely_ast ast = likely_lex_and_parse(line.c_str(), likely_source_lisp);
             likely_env env = likely_eval(ast->atoms[0], parent);
             likely_release_ast(ast);
-            if (!env->value) {
+            if (!env->expr) {
                 likely_release_env(env);
             } else {
                 likely_release_env(parent);
@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
         } else {
             likely_ast ast = likely_lex_and_parse(code->data, type);
             likely_const_env env = likely_repl(ast, parent, repl_callback, NULL);
-            if (!env->value && env->ast) {
+            if (!env->expr && env->ast) {
                 likely_const_mat statement = likely_ast_to_string(env->ast);
                 likely_assert(false, "error evaluating: %s", statement->data);
                 likely_release_mat(statement);

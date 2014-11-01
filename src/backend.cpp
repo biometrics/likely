@@ -50,8 +50,6 @@
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <llvm/Transforms/Vectorize.h>
 #include <cstdarg>
-#include <functional>
-#include <future>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -321,7 +319,7 @@ static likely_env newEnv(likely_const_env parent)
     env->parent = likely_retain_env(parent);
     env->ast = NULL;
     env->module = parent ? parent->module : NULL;
-    env->value = NULL;
+    env->expr = NULL;
     env->ref_count = 1;
     return env;
 }
@@ -431,7 +429,7 @@ struct likely_expression
         if (!env)
             return NULL;
         if ((env->type & likely_environment_definition) && !strcmp(name, likely_symbol(env->ast)))
-            return env->value;
+            return env->expr;
         return lookup(env->parent, name);
     }
 
@@ -441,7 +439,7 @@ struct likely_expression
         likely_env child = newEnv(env);
         child->type |= likely_environment_definition;
         child->ast = likely_atom(name, uint32_t(strlen(name)));
-        child->value = value;
+        child->expr = value;
         env = child;
     }
 
@@ -451,7 +449,7 @@ struct likely_expression
         likely_assert(!strcmp(name, likely_symbol(env->ast)), "undefine variable mismatch");
         likely_env old = const_cast<likely_env>(env);
         likely_const_expr value = NULL;
-        swap(value, old->value);
+        swap(value, old->expr);
         env = old->parent;
         likely_release_env(old);
         return value;
@@ -1536,12 +1534,12 @@ struct Lambda : public LikelyOperator
 
     static likely_const_mat getResult(likely_const_env env)
     {
-        if (!env || !env->value)
+        if (!env || !env->expr)
             return NULL;
-        if (likely_const_mat m = env->value->getData())
+        if (likely_const_mat m = env->expr->getData())
             return m;
-        if (env->value->uid() == UID()) {
-            const Lambda *lambda = static_cast<const Lambda*>(env->value);
+        if (env->expr->uid() == UID()) {
+            const Lambda *lambda = static_cast<const Lambda*>(env->expr);
             if (lambda->maxParameters() == 0) {
                 likely_const_mat m = lambda->evaluateConstantFunction(env, vector<likely_const_mat>());
                 lambda->setData(m);
@@ -1553,9 +1551,9 @@ struct Lambda : public LikelyOperator
 
     static void *getFunction(likely_const_env env, const vector<likely_matrix_type> &types)
     {
-        if (!env || !env->value || (env->value->uid() != UID()))
+        if (!env || !env->expr || (env->expr->uid() != UID()))
             return NULL;
-        const Lambda *lambda = static_cast<const Lambda*>(env->value);
+        const Lambda *lambda = static_cast<const Lambda*>(env->expr);
         JITFunction *jitFunction = new JITFunction("likely_jit_function", lambda, env, types, false, false);
         lambda->jitFunctions.push_back(jitFunction);
         return jitFunction->function;
@@ -2458,7 +2456,7 @@ void likely_release_env(likely_const_env env)
     assert(env->ref_count > 0);
     if (--const_cast<likely_env>(env)->ref_count) return;
 
-    delete env->value;
+    delete env->expr;
     likely_release_ast(env->ast);
     if (env->module && !env->parent->module)
         delete env->module;
@@ -2519,13 +2517,13 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent)
     env->ast = likely_retain_ast(ast);
 
     if (env->type & likely_environment_definition) {
-        env->value = Builder(parent, parent->module).expression(ast);
+        env->expr = Builder(parent, parent->module).expression(ast);
     } else if (env->module) {
         // Do nothing, evaluating expressions in an offline environment is a no-op.
     } else {
         // If `ast` is not a lambda then it is a computation and we want to represent it as a parameterless lambda.
-        if (!strcmp(likely_symbol(ast), "->")) env->value = Builder(parent, parent->module).expression(ast);
-        else                                   env->value = new Lambda(ast);
+        if (!strcmp(likely_symbol(ast), "->")) env->expr = Builder(parent, parent->module).expression(ast);
+        else                                   env->expr = new Lambda(ast);
     }
     return env;
 }
@@ -2545,7 +2543,7 @@ likely_env likely_repl(likely_ast ast, likely_const_env parent, likely_repl_call
         parent = env;
         if (repl_callback)
             repl_callback(env, context);
-        if (!env->value)
+        if (!env->expr)
             break;
     }
 
