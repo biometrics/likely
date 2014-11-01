@@ -48,9 +48,8 @@ enum likely_environment_type_mask
     likely_environment_heterogeneous = 0x00000004, /*!< \brief Generate heterogeneous code. */
     likely_environment_definition    = 0x00000008, /*!< \brief Defines a variable. */
     likely_environment_global        = 0x00000010, /*!< \brief Global scope. */
-    likely_environment_abandoned     = 0x00000020, /*!< \brief Does not maintain a reference to \ref likely_environment::parent. */
-    likely_environment_base          = 0x00000040, /*!< \brief Owns \ref likely_environment::module. */
-    likely_environment_ctfe          = 0x00000080, /*!< \brief Perform compile-time function evaluation to simplify code. */
+    likely_environment_base          = 0x00000020, /*!< \brief Owns \ref likely_environment::module. */
+    likely_environment_ctfe          = 0x00000040, /*!< \brief Perform compile-time function evaluation to simplify code. */
 };
 
 typedef struct likely_environment *likely_env; /*!< \brief Pointer to a \ref likely_environment. */

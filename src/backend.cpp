@@ -2094,38 +2094,33 @@ class kernelExpression : public LikelyOperator
 };
 LIKELY_REGISTER(kernel)
 
-struct EvaluatedExpression : public LikelyOperator
+struct LazyEvaluatedExpression : public LikelyOperator
 {
-    likely_env env;
-    likely_const_ast ast;
+    const likely_const_env env;
+    const likely_const_ast ast;
 
-    // Requries that `parent` stays valid through the lifetime of this class.
-    // We avoid retaining `parent` to avoid a circular dependency.
-    EvaluatedExpression(likely_const_env parent, likely_const_ast ast)
+    LazyEvaluatedExpression(likely_const_env parent, likely_const_ast ast)
         : env(newEnv(parent)), ast(likely_retain_ast(ast))
     {
-        likely_release_env(env->parent);
-        env->type |= likely_environment_abandoned;
-        env->type &= ~likely_environment_offline;
-        futureResult = async(launch::deferred, [=] { return likely_eval(const_cast<likely_ast>(ast), env); });
-        get(); // TODO: remove when ready to test async
+        const_cast<likely_env>(env)->type &= ~likely_environment_offline;
     }
 
-    ~EvaluatedExpression()
+    ~LazyEvaluatedExpression()
     {
-        likely_release_env(get());
+        likely_release_ast(ast);
+        likely_release_env(env);
+        likely_release_env(result);
     }
 
     static likely_const_env get(likely_const_expr expr)
     {
         if (!expr || (expr->uid() != UID()))
             return NULL;
-        return reinterpret_cast<const EvaluatedExpression*>(expr)->get();
+        return reinterpret_cast<const LazyEvaluatedExpression*>(expr)->get();
     }
 
 private:
     mutable likely_env result = NULL; // Don't access directly, call get() instead
-    mutable future<likely_env> futureResult;
     mutable mutex lock;
 
     static int UID() { return __LINE__; }
@@ -2133,13 +2128,10 @@ private:
 
     likely_env get() const
     {
-        lock_guard<mutex> guard(lock);
-        if (futureResult.valid()) {
-            result = futureResult.get();
-            likely_release_env(env);
-            likely_release_ast(ast);
-            const_cast<likely_env&>(env) = NULL;
-            const_cast<likely_ast&>(ast) = NULL;
+        if (!result) {
+            lock_guard<mutex> guard(lock);
+            if (!result)
+                result = likely_eval(const_cast<likely_ast>(ast), env);
         }
         return result;
     }
@@ -2147,7 +2139,7 @@ private:
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         // TODO: implement indexing into this matrix by checking ast.
-        // Consider sharing implementation with kernelArgument.
+        // Consider sharing implementation with ConstantMat.
         (void) builder;
         (void) ast;
 
@@ -2230,7 +2222,7 @@ class defineExpression : public LikelyOperator
                     return builder.expression(rhs);
                 } else {
                     // Global value
-                    return new EvaluatedExpression(builder.env, rhs);
+                    return new LazyEvaluatedExpression(builder.env, rhs);
                 }
             }
         } else {
@@ -2536,8 +2528,7 @@ void likely_release_env(likely_const_env env)
     likely_release_ast(env->ast);
     if (env->type & likely_environment_base)
         delete env->module;
-    if (!(env->type & likely_environment_abandoned))
-        likely_release_env(env->parent);
+    likely_release_env(env->parent);
     free(const_cast<likely_env>(env));
 }
 
@@ -2579,7 +2570,7 @@ likely_const_mat likely_result(likely_const_env env)
 {
     if (!env)
         return NULL;
-    if (likely_const_env rhs = EvaluatedExpression::get(env->value))
+    if (likely_const_env rhs = LazyEvaluatedExpression::get(env->value))
         return likely_result(rhs);
     return Lambda::getResult(env);
 }
@@ -2595,7 +2586,6 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent)
     env->type |= likely_environment_global;
     env->ast = likely_retain_ast(ast);
 
-    const uint32_t originalParentRefCount = parent->ref_count;
     if (env->type & likely_environment_definition) {
         env->value = Builder(parent, parent->module).expression(ast);
     } else if (env->type & likely_environment_offline) {
@@ -2605,7 +2595,6 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent)
         if (!strcmp(likely_symbol(ast), "->")) env->value = Builder(parent, parent->module).expression(ast);
         else                                   env->value = new Lambda(ast);
     }
-    assert(originalParentRefCount == parent->ref_count); (void) originalParentRefCount;
     return env;
 }
 
