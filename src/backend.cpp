@@ -357,6 +357,14 @@ struct LikelyValue
     operator Value*() const { return value; }
     operator likely_matrix_type() const { return type; }
 
+    void dump() const
+    {
+        likely_const_mat m = likely_type_to_string(type);
+        cerr << m->data << " ";
+        value->dump();
+        likely_release_mat(m);
+    }
+
     static likely_matrix_type toLikely(Type *llvm)
     {
         if      (llvm->isIntegerTy()) return llvm->getIntegerBitWidth();
@@ -449,14 +457,9 @@ struct likely_expression : public LikelyValue
         this->data = data;
     }
 
-    virtual likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const;
-
-    void dump() const
+    virtual likely_const_expr evaluate(Builder &, likely_const_ast) const
     {
-        likely_const_mat m = likely_type_to_string(type);
-        cerr << m->data << " ";
-        value->dump();
-        likely_release_mat(m);
+        return new likely_expression(LikelyValue(value, type));
     }
 
     static likely_const_expr get(Builder &builder, likely_const_ast ast);
@@ -903,11 +906,6 @@ protected:
 };
 
 } // namespace (anonymous)
-
-likely_const_expr likely_expression::evaluate(Builder &, likely_const_ast) const
-{
-    return new likely_expression(LikelyValue(value, type));
-}
 
 struct likely_virtual_table : public LikelyOperator
 {
