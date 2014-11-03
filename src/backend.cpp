@@ -402,11 +402,8 @@ typedef struct likely_expression const *likely_const_expr;
 
 struct likely_expression : public LikelyValue
 {
-    likely_expression(Value *value = NULL, likely_matrix_type type = likely_matrix_void, likely_const_mat data = NULL)
-        : LikelyValue(value, type), data(data) {}
-
-    likely_expression(const LikelyValue &value)
-        : LikelyValue(value), data(NULL) {}
+    likely_expression(const LikelyValue &value, likely_const_mat data = NULL)
+        : LikelyValue(value), data(data) {}
 
     virtual ~likely_expression()
     {
@@ -763,7 +760,7 @@ class ConstantMat : public likely_expression
 {
     likely_module *module;
     ConstantMat(Builder &builder, likely_const_mat m)
-        : likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(likely_mat)), uintptr_t(m)), builder.toLLVM(m->type)), m->type, m)
+        : likely_expression(LikelyValue(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(likely_mat)), uintptr_t(m)), builder.toLLVM(m->type)), m->type), m)
         , module(builder.module) {}
 
     ~ConstantMat()
@@ -779,7 +776,7 @@ public:
         if (!data)    // ... but handle it gracefully in release mode.
             return NULL;
         else if (!(data->type & likely_matrix_multi_dimension))
-            return new likely_expression(builder.constant(likely_element(data, 0, 0, 0, 0), data->type), data->type, data);
+            return new likely_expression(LikelyValue(builder.constant(likely_element(data, 0, 0, 0, 0), data->type), data->type), data);
         else
             return new ConstantMat(builder, data);
     }
@@ -795,6 +792,7 @@ struct Symbol : public likely_expression
     vector<likely_matrix_type> parameters;
 
     Symbol(likely_const_expr function = NULL, vector<likely_matrix_type> parameters = vector<likely_matrix_type>())
+        : likely_expression(LikelyValue(NULL, likely_matrix_void))
     {
         init(function, parameters);
     }
@@ -835,7 +833,7 @@ private:
                 args.push_back(builder.cast(*arg.get(), parameters[i-1]));
             }
 
-        return new likely_expression(builder.CreateCall(symbol, args), type);
+        return new likely_expression(LikelyValue(builder.CreateCall(symbol, args), type));
     }
 };
 
@@ -898,13 +896,17 @@ class LikelyOperator : public likely_expression
     }
 
     virtual likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const = 0;
+
+protected:
+    LikelyOperator()
+        : likely_expression(LikelyValue(NULL, likely_matrix_void)) {}
 };
 
 } // namespace (anonymous)
 
 likely_const_expr likely_expression::evaluate(Builder &, likely_const_ast) const
 {
-    return new likely_expression(value, type);
+    return new likely_expression(LikelyValue(value, type));
 }
 
 struct likely_virtual_table : public LikelyOperator
@@ -1051,7 +1053,7 @@ class notExpression : public SimpleUnaryOperator
     const char *symbol() const { return "~"; }
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
-        return new likely_expression(builder.CreateXor(builder.intMax(*arg), arg->value), *arg);
+        return new likely_expression(LikelyValue(builder.CreateXor(builder.intMax(*arg), arg->value), *arg));
     }
 };
 LIKELY_REGISTER(not)
@@ -1071,7 +1073,7 @@ class UnaryMathOperator : public SimpleUnaryOperator
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &x) const
     {
         likely_expression xc(builder.cast(*x.get(), likely_type_from_types(*x, likely_matrix_floating)));
-        return new likely_expression(builder.CreateCall(Intrinsic::getDeclaration(builder.module->module, id(), xc.value->getType()), xc), xc);
+        return new likely_expression(LikelyValue(builder.CreateCall(Intrinsic::getDeclaration(builder.module->module, id(), xc.value->getType()), xc), xc));
     }
     virtual Intrinsic::ID id() const = 0;
 };
@@ -1152,7 +1154,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
             }
         }
 
-        return new likely_expression(evaluateSimpleArithmetic(builder, lhs, rhs), lhs);
+        return new likely_expression(LikelyValue(evaluateSimpleArithmetic(builder, lhs, rhs), lhs));
     }
     virtual Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const = 0;
 };
@@ -1206,14 +1208,14 @@ class subtractExpression : public LikelyOperator
         likely_expression rhs = builder.cast(*expr2.get(), type);
 
         if (type & likely_matrix_floating) {
-            return new likely_expression(builder.CreateFSub(lhs, rhs), type);
+            return new likely_expression(LikelyValue(builder.CreateFSub(lhs, rhs), type));
         } else {
             if (type & likely_matrix_saturated) {
                 CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module->module, (lhs.type & likely_matrix_signed) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value->getType()), lhs, rhs);
                 Value *overflowResult = (lhs.type & likely_matrix_signed) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, builder.zero(lhs)), builder.intMax(lhs), builder.intMin(lhs)) : builder.intMin(lhs).value;
-                return new likely_expression(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type);
+                return new likely_expression(LikelyValue(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type));
             } else {
-                return new likely_expression(builder.CreateSub(lhs, rhs), type);
+                return new likely_expression(LikelyValue(builder.CreateSub(lhs, rhs), type));
             }
         }
     }
@@ -1302,35 +1304,35 @@ class shiftRightExpression : public SimpleArithmeticOperator
 };
 LIKELY_REGISTER(shiftRight)
 
-#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                                                            \
-class OP##Expression : public ArithmeticOperator                                                                                                                       \
-{                                                                                                                                                                      \
-    const char *symbol() const { return #SYM; }                                                                                                                        \
-    likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const                                           \
-    {                                                                                                                                                                  \
-        return new likely_expression((lhs.type & likely_matrix_floating) ? builder.CreateFCmpO##OP(lhs, rhs)                                                           \
-                                                                         : ((lhs.type & likely_matrix_signed) ? builder.CreateICmpS##OP(lhs, rhs)                      \
-                                                                                                              : builder.CreateICmpU##OP(lhs, rhs)), likely_matrix_u1); \
-    }                                                                                                                                                                  \
-};                                                                                                                                                                     \
-LIKELY_REGISTER(OP)                                                                                                                                                    \
+#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                                                                         \
+class OP##Expression : public ArithmeticOperator                                                                                                                                    \
+{                                                                                                                                                                                   \
+    const char *symbol() const { return #SYM; }                                                                                                                                     \
+    likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const                                                        \
+    {                                                                                                                                                                               \
+        return new likely_expression(LikelyValue((lhs.type & likely_matrix_floating) ? builder.CreateFCmpO##OP(lhs, rhs)                                                            \
+                                                                                     : ((lhs.type & likely_matrix_signed) ? builder.CreateICmpS##OP(lhs, rhs)                       \
+                                                                                                                          : builder.CreateICmpU##OP(lhs, rhs)), likely_matrix_u1)); \
+    }                                                                                                                                                                               \
+};                                                                                                                                                                                  \
+LIKELY_REGISTER(OP)                                                                                                                                                                 \
 
 LIKELY_REGISTER_COMPARISON(LT, <)
 LIKELY_REGISTER_COMPARISON(LE, <=)
 LIKELY_REGISTER_COMPARISON(GT, >)
 LIKELY_REGISTER_COMPARISON(GE, >=)
 
-#define LIKELY_REGISTER_EQUALITY(OP, SYM)                                                                                       \
-class OP##Expression : public ArithmeticOperator                                                                                \
-{                                                                                                                               \
-    const char *symbol() const { return #SYM; }                                                                                 \
-    likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const    \
-    {                                                                                                                           \
-        return new likely_expression((lhs.type & likely_matrix_floating) ? builder.CreateFCmpO##OP(lhs, rhs)                    \
-                                                                         : builder.CreateICmp##OP(lhs, rhs), likely_matrix_u1); \
-    }                                                                                                                           \
-};                                                                                                                              \
-LIKELY_REGISTER(OP)                                                                                                             \
+#define LIKELY_REGISTER_EQUALITY(OP, SYM)                                                                                        \
+class OP##Expression : public ArithmeticOperator                                                                                 \
+{                                                                                                                                \
+    const char *symbol() const { return #SYM; }                                                                                  \
+    likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const     \
+    {                                                                                                                            \
+        return new likely_expression(LikelyValue((lhs.type & likely_matrix_floating) ? builder.CreateFCmpO##OP(lhs, rhs)         \
+                                                                         : builder.CreateICmp##OP(lhs, rhs), likely_matrix_u1)); \
+    }                                                                                                                            \
+};                                                                                                                               \
+LIKELY_REGISTER(OP)                                                                                                              \
 
 LIKELY_REGISTER_EQUALITY(EQ, ==)
 LIKELY_REGISTER_EQUALITY(NE, !=)
@@ -1342,7 +1344,7 @@ class BinaryMathOperator : public SimpleBinaryOperator
         const likely_matrix_type type = likely_type_from_types(likely_type_from_types(*x, *n), likely_matrix_floating);
         const likely_expression xc(builder.cast(*x.get(), type));
         const likely_expression nc(builder.cast(*n.get(), type));
-        return new likely_expression(builder.CreateCall2(Intrinsic::getDeclaration(builder.module->module, id(), xc.value->getType()), xc, nc), xc);
+        return new likely_expression(LikelyValue(builder.CreateCall2(Intrinsic::getDeclaration(builder.module->module, id(), xc.value->getType()), xc, nc), xc));
     }
     virtual Intrinsic::ID id() const = 0;
 };
@@ -1428,13 +1430,13 @@ struct Lambda : public LikelyOperator
                     const LikelyValue tmpValue(builder.CreatePointerCast(load, builder.toLLVM(tmpType)), tmpType);
                     load = builder.CreateLoad(builder.CreateGEP(builder.data(tmpValue), builder.zero()));
                 }
-                arguments.push_back(new likely_expression(load, parameters[i]));
+                arguments.push_back(new likely_expression(LikelyValue(load, parameters[i])));
             }
         } else {
             Function::arg_iterator it = tmpFunction->arg_begin();
             size_t i = 0;
             while (it != tmpFunction->arg_end())
-                arguments.push_back(new likely_expression(it++, parameters[i++]));
+                arguments.push_back(new likely_expression(LikelyValue(it++, parameters[i++])));
         }
 
         for (size_t i=0; i<arguments.size(); i++) {
@@ -1454,7 +1456,7 @@ struct Lambda : public LikelyOperator
 
         // If we are returning a constant matrix, make sure to retain a copy
         if (isa<ConstantExpr>(result->value) && isMat(result->value->getType()))
-            result.reset(new likely_expression(builder.CreatePointerCast(builder.retainMat(result->value), builder.toLLVM(result->type)), result->type, likely_retain_mat(result->getData())));
+            result.reset(new likely_expression(LikelyValue(builder.CreatePointerCast(builder.retainMat(result->value), builder.toLLVM(result->type)), result->type), likely_retain_mat(result->getData())));
 
         builder.CreateRet(*result);
 
@@ -1475,7 +1477,7 @@ struct Lambda : public LikelyOperator
 
         likely_release_env(builder.env);
         builder.env = restore;
-        return new likely_expression(function, likely_matrix_void, likely_retain_mat(result->getData()));
+        return new likely_expression(LikelyValue(function, likely_matrix_void), likely_retain_mat(result->getData()));
     }
 
     likely_mat evaluateConstantFunction(const vector<likely_const_mat> &args) const
@@ -1593,7 +1595,7 @@ private:
             for (size_t i=0; i<args.size(); i++)
                 builder.CreateStore(*args[i], builder.CreateGEP(matricies, builder.constant(i)));
             Value* args[] = { ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(vtable)), uintptr_t(vtable)), vTableType), matricies };
-            return new likely_expression(builder.CreateCall(likelyDynamic, args), likely_matrix_multi_dimension);
+            return new likely_expression(LikelyValue(builder.CreateCall(likelyDynamic, args), likely_matrix_multi_dimension));
         }
 
         if (parameters) {
@@ -1649,7 +1651,8 @@ LIKELY_REGISTER(begin)
 
 struct Label : public likely_expression
 {
-    Label(BasicBlock *basicBlock) : likely_expression(basicBlock) {}
+    Label(BasicBlock *basicBlock)
+        : likely_expression(LikelyValue(basicBlock, likely_matrix_void)) {}
 
 private:
     likely_const_expr evaluate(Builder &builder, likely_const_ast) const
@@ -1714,12 +1717,12 @@ class ifExpression : public LikelyOperator
             PHINode *phi = builder.CreatePHI(builder.toLLVM(resolved), 2);
             phi->addIncoming(tc, True);
             phi->addIncoming(fc, False);
-            return new likely_expression(phi, resolved);
+            return new likely_expression(LikelyValue(phi, resolved));
         } else {
             if (True->empty() || !True->back().isTerminator())
                 builder.CreateBr(End);
             builder.SetInsertPoint(End);
-            return new likely_expression(NULL, likely_matrix_void);
+            return new likely_expression(LikelyValue(NULL, likely_matrix_void));
         }
     }
 };
@@ -1733,7 +1736,7 @@ struct Loop : public likely_expression
     BranchInst *latch;
 
     Loop(Builder &builder, const string &name, Value *start, Value *stop)
-        : name(name), start(start), stop(stop), exit(NULL), latch(NULL)
+        : likely_expression(LikelyValue(NULL, likely_matrix_void)), name(name), start(start), stop(stop), exit(NULL), latch(NULL)
     {
         // Loops assume at least one iteration
         BasicBlock *entry = builder.GetInsertBlock();
@@ -1848,7 +1851,7 @@ class kernelExpression : public LikelyOperator
 
             LoadInst *load = builder.CreateLoad(gep(builder, ast));
             load->setMetadata("llvm.mem.parallel_loop_access", node);
-            return new likely_expression(load, type & likely_matrix_element);
+            return new likely_expression(LikelyValue(load, type & likely_matrix_element));
         }
     };
 
@@ -1947,7 +1950,7 @@ class kernelExpression : public LikelyOperator
             builder.SetInsertPoint(BasicBlock::Create(builder.getContext(), "entry", thunk));
             vector<likely_const_expr> thunkSrcs;
             for (size_t i=0; i<srcs.size(); i++)
-                thunkSrcs.push_back(new likely_expression(builder.CreateLoad(builder.CreateStructGEP(parameterStruct, unsigned(i))), srcs[i]->type));
+                thunkSrcs.push_back(new likely_expression(LikelyValue(builder.CreateLoad(builder.CreateStructGEP(parameterStruct, unsigned(i))), srcs[i]->type)));
 
             generateCommon(builder, ast, thunkSrcs, start, stop);
             const_cast<likely_expr>(srcs[0])->type = thunkSrcs[0]->type;
@@ -2036,7 +2039,7 @@ class kernelExpression : public LikelyOperator
                 else       axis = new KernelAxis(builder, name, builder.zero(), elements, step, axis);
                 define(builder.env, name.c_str(), axis); // takes ownership of axis
             } else {
-                define(builder.env, name.c_str(), new likely_expression(builder.zero(), likely_matrix_native));
+                define(builder.env, name.c_str(), new likely_expression(LikelyValue(builder.zero(), likely_matrix_native)));
             }
         }
 
@@ -2076,7 +2079,7 @@ private:
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
     {
-        return new likely_expression(builder.CreateLoad(value), type);
+        return new likely_expression(LikelyValue(builder.CreateLoad(value), type));
     }
 };
 
@@ -2261,7 +2264,7 @@ class newExpression : public LikelyOperator
         if (!(inferredType & likely_matrix_multi_dimension))
             inferredType |= likely_matrix_multi_dimension;
 
-        return new likely_expression(builder.CreatePointerCast(builder.newMat(type, channels, columns, rows, frames, data), builder.toLLVM(inferredType)), inferredType);
+        return new likely_expression(LikelyValue(builder.CreatePointerCast(builder.newMat(type, channels, columns, rows, frames, data), builder.toLLVM(inferredType)), inferredType));
     }
 
     static void checkDimension(likely_matrix_type &type, Value *dimension, likely_matrix_type mask)
@@ -2292,7 +2295,7 @@ class readExpression : public SimpleUnaryOperator
             likelyRead->setDoesNotCapture(1);
             sys::DynamicLibrary::AddSymbol("likely_read", (void*) likely_read);
         }
-        return new likely_expression(builder.CreateCall2(likelyRead, *arg, builder.constant(uint64_t(likely_file_binary), likely_matrix_u32)), likely_matrix_multi_dimension);
+        return new likely_expression(LikelyValue(builder.CreateCall2(likelyRead, *arg, builder.constant(uint64_t(likely_file_binary), likely_matrix_u32)), likely_matrix_multi_dimension));
     }
 };
 LIKELY_REGISTER(read)
@@ -2319,7 +2322,7 @@ class writeExpression : public SimpleBinaryOperator
             likelyWrite->setDoesNotCapture(2);
             sys::DynamicLibrary::AddSymbol("likely_write", (void*) likely_write);
         }
-        return new likely_expression(builder.retainMat(builder.CreateCall2(likelyWrite, *arg1, *arg2)), likely_matrix_multi_dimension);
+        return new likely_expression(LikelyValue(builder.retainMat(builder.CreateCall2(likelyWrite, *arg1, *arg2)), likely_matrix_multi_dimension));
     }
 };
 LIKELY_REGISTER(write)
@@ -2342,7 +2345,7 @@ class decodeExpression : public SimpleUnaryOperator
             likelyDecode->setDoesNotCapture(1);
             sys::DynamicLibrary::AddSymbol("likely_decode", (void*) likely_decode);
         }
-        return new likely_expression(builder.CreateCall(likelyDecode, builder.CreatePointerCast(*arg, builder.multiDimension())), likely_matrix_multi_dimension);
+        return new likely_expression(LikelyValue(builder.CreateCall(likelyDecode, builder.CreatePointerCast(*arg, builder.multiDimension())), likely_matrix_multi_dimension));
     }
 };
 LIKELY_REGISTER(decode)
@@ -2369,7 +2372,7 @@ class encodeExpression : public SimpleBinaryOperator
             likelyEncode->setDoesNotCapture(2);
             sys::DynamicLibrary::AddSymbol("likely_encode", (void*) likely_encode);
         }
-        return new likely_expression(builder.CreateCall2(likelyEncode, builder.CreatePointerCast(*arg1, builder.multiDimension()), *arg2), likely_matrix_multi_dimension);
+        return new likely_expression(LikelyValue(builder.CreateCall2(likelyEncode, builder.CreatePointerCast(*arg1, builder.multiDimension()), *arg2), likely_matrix_multi_dimension));
     }
 };
 LIKELY_REGISTER(encode)
@@ -2389,7 +2392,7 @@ class md5Expression : public SimpleUnaryOperator
             likelyMd5->setDoesNotCapture(1);
             sys::DynamicLibrary::AddSymbol("likely_md5", (void*) likely_md5);
         }
-        return new likely_expression(builder.CreateCall(likelyMd5, *arg), likely_matrix_multi_dimension);
+        return new likely_expression(LikelyValue(builder.CreateCall(likelyMd5, *arg), likely_matrix_multi_dimension));
     }
 };
 LIKELY_REGISTER(md5)
@@ -2416,7 +2419,7 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
 
         if ((ast->atom[0] == '"') && (ast->atom[ast->atom_len-1] == '"')) {
             const_cast<likely_ast>(ast)->type = likely_ast_string;
-            return new likely_expression(builder.CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_matrix_i8 | likely_matrix_array);
+            return new likely_expression(LikelyValue(builder.CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_matrix_i8 | likely_matrix_array));
         }
 
         { // Is it a number?
