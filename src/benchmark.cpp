@@ -62,21 +62,14 @@ static Mat generateData(int rows, int columns, likely_matrix_type type)
 
 struct Test
 {
-    void run() const
+    void run(likely_const_env env) const
     {
         if (!BenchmarkFunction.empty() && (name() != BenchmarkFunction))
             return;
 
-        likely_const_ast ast = likely_lex_and_parse(function(), likely_source_lisp);
-        likely_env parent = likely_standard(NULL);
-        if (BenchmarkParallel)
-            parent->type |= likely_environment_parallel;
-
-        likely_env env = likely_eval(ast->atoms[0], parent);
-        assert(env->expr);
-        void *f = likely_compile(env->expr, NULL, 0);
-        likely_release_env(parent);
-        likely_release_ast(ast);
+        const likely_const_env lookup = likely_lookup(env, name());
+        assert(lookup && lookup->expr);
+        void * const f = likely_compile(lookup->expr, NULL, 0);
 
         for (likely_matrix_type type : types()) {
             for (int size : sizes()) {
@@ -101,8 +94,6 @@ struct Test
                 printf("%-8.3g \t%.3gx\n", double(likely.iterations), likely.Hz/baseline.Hz);
             }
         }
-
-        likely_release_env(env);
     }
 
     static void runFile(const char *fileName)
@@ -137,7 +128,6 @@ struct Test
 
 protected:
     virtual const char *name() const = 0;
-    virtual const char *function() const = 0;
     virtual Mat computeBaseline(const Mat &src) const = 0;
     virtual vector<likely_matrix_type> types() const
     {
@@ -255,13 +245,11 @@ private:
 
 class fmaTest : public Test {
     const char *name() const { return "fused-multiply-add"; }
-    const char *function() const { return "src :-> { dst-type := src.type.floating dst := src.(imitate-size dst-type) (dst src) :=> (<- dst (+ (* src.dst-type 2.dst-type) 3.dst-type)) }"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3); return dst; }
 };
 
 class thresholdTest : public Test {
     const char *name() const { return "binary-threshold"; }
-    const char *function() const { return "src :-> { dst := src.imitate (dst src) :=> (<- dst (src.type (threshold-binary src 127 1))) }"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 1, THRESH_BINARY); return dst; }
     vector<likely_matrix_type> types() const { vector<likely_matrix_type> types; types.push_back(likely_matrix_u8); types.push_back(likely_matrix_f32); return types; }
 };
@@ -291,11 +279,24 @@ int main(int argc, char *argv[])
         puts("    Iter: Times Likely function was run in one second");
         puts(" Speedup: Execution speed of Likely relative to OpenCV");
         puts("");
-        puts("To reproduce the following results, run the `benchmark` application included in a build of Likely.");
+        puts("To reproduce the following results, run the `benchmark` application, included in a build of Likely, from the root of the Likely repository.");
         puts("");
         puts("Function \t\tType \tSize \tExec \tIter \t\tSpeedup");
-        fmaTest().run();
-        thresholdTest().run();
+
+        const likely_const_mat source = likely_read("library/benchmark.ll", likely_file_text);
+        checkRead(source, "library/benchmark.ll");
+        const likely_ast ast = likely_lex_and_parse(source->data, likely_source_gfm);
+        likely_release_mat(source);
+        const likely_env parent = likely_standard(NULL);
+        if (BenchmarkParallel)
+            parent->type |= likely_environment_parallel;
+        const likely_const_env env = likely_repl(ast, parent, NULL, NULL);
+        assert(env->expr);
+        likely_release_env(parent);
+        likely_release_ast(ast);
+
+        fmaTest().run(env);
+        thresholdTest().run(env);
     }
 
     likely_shutdown();
