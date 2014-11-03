@@ -476,15 +476,6 @@ struct likely_expression : public LikelyValue
         return NULL;
     }
 
-    static likely_const_expr lookup(likely_const_env env, const char *name)
-    {
-        if (!env)
-            return NULL;
-        if ((env->type & likely_environment_definition) && !strcmp(name, likely_symbol(env->ast)))
-            return env->expr;
-        return lookup(env->parent, name);
-    }
-
     static void define(likely_const_env &env, const char *name, likely_const_expr value)
     {
         assert(name && strcmp(name, ""));
@@ -1850,10 +1841,10 @@ class kernelExpression : public LikelyOperator
         Value *gep(Builder &builder, likely_const_ast) const
         {
             Value *i = builder.zero();
-            if (type & likely_matrix_multi_channel) i = *lookup(builder.env, "c");
-            if (type & likely_matrix_multi_column ) i = builder.addInts(builder.multiplyInts(*lookup(builder.env, "x"), channels ), i);
-            if (type & likely_matrix_multi_row    ) i = builder.addInts(builder.multiplyInts(*lookup(builder.env, "y"), rowStep  ), i);
-            if (type & likely_matrix_multi_frame  ) i = builder.addInts(builder.multiplyInts(*lookup(builder.env, "t"), frameStep), i);
+            if (type & likely_matrix_multi_channel) i = likely_lookup(builder.env, "c")->expr->value;
+            if (type & likely_matrix_multi_column ) i = builder.addInts(builder.multiplyInts(likely_lookup(builder.env, "x")->expr->value, channels ), i);
+            if (type & likely_matrix_multi_row    ) i = builder.addInts(builder.multiplyInts(likely_lookup(builder.env, "y")->expr->value, rowStep  ), i);
+            if (type & likely_matrix_multi_frame  ) i = builder.addInts(builder.multiplyInts(likely_lookup(builder.env, "t")->expr->value, frameStep), i);
             return builder.CreateGEP(builder.data(*this), i);
         }
 
@@ -2176,7 +2167,8 @@ class setExpression : public LikelyOperator
         assert(builder.module);
         likely_const_expr expr = get(builder, rhs);
         if (expr) {
-            const Assignable *assignable = Assignable::dynamicCast(lookup(builder.env, name));
+            const likely_const_env env = likely_lookup(builder.env, name);
+            const Assignable *assignable = env ? Assignable::dynamicCast(env->expr) : NULL;
             if (assignable) assignable->set(builder, expr, lhs);
             else            define(builder.env, name, new Variable(builder, expr, name));
         }
@@ -2429,14 +2421,14 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
             return likely_expression::error(ast, "Empty expression");
         likely_const_ast op = ast->atoms[0];
         if (op->type != likely_ast_list)
-            if (likely_const_expr e = lookup(builder.env, op->atom))
-                return e->evaluate(builder, ast);
+            if (const likely_const_env e = likely_lookup(builder.env, op->atom))
+                return e->expr->evaluate(builder, ast);
         TRY_EXPR(builder, op, e);
         return e->evaluate(builder, ast);
     } else {
-        if (likely_const_expr e = lookup(builder.env, ast->atom)) {
+        if (const likely_const_env e = likely_lookup(builder.env, ast->atom)) {
             const_cast<likely_ast>(ast)->type = likely_ast_operator;
-            return e->evaluate(builder, ast);
+            return e->expr->evaluate(builder, ast);
         }
 
         if ((ast->atom[0] == '"') && (ast->atom[ast->atom_len-1] == '"')) {
@@ -2587,6 +2579,18 @@ likely_env likely_repl(likely_ast ast, likely_const_env parent, likely_repl_call
 
     return env;
 }
+
+//! [likely_lookup implementation.]
+likely_const_env likely_lookup(likely_const_env env, const char *name)
+{
+    while (env) {
+        if ((env->type & likely_environment_definition) && !strcmp(name, likely_symbol(env->ast)))
+            return env;
+        env = env->parent;
+    }
+    return NULL;
+}
+//! [likely_lookup implementation.]
 
 void likely_shutdown()
 {

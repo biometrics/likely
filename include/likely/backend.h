@@ -180,6 +180,18 @@ typedef void (*likely_repl_callback)(likely_const_env env, void *context);
 LIKELY_EXPORT likely_env likely_repl(likely_ast ast, likely_const_env parent, likely_repl_callback repl_callback, void *context);
 
 /*!
+ * \brief Lookup an environment variable by name.
+ *
+ * \par Implementation
+ * \snippet src/backend.cpp likely_lookup implementation.
+ * \param[in] env Environment to search.
+ * \param[in] name Variable to look for.
+ * \return Environment containing the variable, or \c NULL if the variable was not found. \ref owned_by \p env.
+ * \remark This function is \ref thread-safe.
+ */
+LIKELY_EXPORT likely_const_env likely_lookup(likely_const_env env, const char *name);
+
+/*!
  * \brief Contents of the Likely Standard Library: <tt>library/standard.ll</tt>.
  */
 LIKELY_EXPORT extern const char likely_standard_library[];
