@@ -126,6 +126,9 @@ class LikelyContext
         delete PM;
     }
 
+    LikelyContext(const LikelyContext &) = delete;
+    LikelyContext &operator=(const LikelyContext &) = delete;
+
 public:
     LLVMContext context;
 
@@ -546,6 +549,9 @@ struct likely_module
             likely_release_mat(mat);
     }
 
+    likely_module(const likely_module &) = delete;
+    likely_module &operator=(const likely_module &) = delete;
+
     void optimize()
     {
         context->optimize(*module);
@@ -597,6 +603,9 @@ public:
 
         output.keep();
     }
+
+    OfflineModule(const OfflineModule &) = delete;
+    OfflineModule &operator=(const OfflineModule &) = delete;
 };
 
 struct Builder : public IRBuilder<>
@@ -775,6 +784,9 @@ class ConstantMat : public likely_expression
             module->mats.push_back(likely_retain_mat(getData()));
     }
 
+    ConstantMat(const ConstantMat &) = delete;
+    ConstantMat &operator=(const ConstantMat &) = delete;
+
 public:
     static likely_expression *get(Builder &builder, likely_const_mat data)
     {
@@ -861,6 +873,9 @@ struct JITFunction : public Symbol
         delete module;
     }
 
+    JITFunction(const JITFunction &) = delete;
+    JITFunction &operator=(const JITFunction &) = delete;
+
 private:
     struct HasLoop : public LoopInfo
     {
@@ -926,6 +941,9 @@ struct likely_virtual_table : public LikelyOperator
         likely_release_ast(body);
         likely_release_env(env);
     }
+
+    likely_virtual_table(const likely_virtual_table &) = delete;
+    likely_virtual_table &operator=(const likely_virtual_table &) = delete;
 
 private:
     likely_const_expr evaluateOperator(Builder &, likely_const_ast) const { return NULL; }
@@ -1395,6 +1413,9 @@ struct Lambda : public LikelyOperator
         for (JITFunction *jitFunction : jitFunctions)
             delete jitFunction;
     }
+
+    Lambda(const Lambda &) = delete;
+    Lambda &operator=(const Lambda &) = delete;
 
     likely_const_expr generate(Builder &builder, vector<likely_matrix_type> parameters, string name, bool arrayCC, bool returnConstantOrMatrix) const
     {
