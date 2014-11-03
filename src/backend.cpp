@@ -671,31 +671,6 @@ struct Builder : public IRBuilder<>
         return LikelyValue(CreateCast(CastInst::getCastOpcode(x, (x & likely_matrix_signed) != 0, dstType, (type & likely_matrix_signed) != 0), x, dstType), type);
     }
 
-    struct ConstantMat : public likely_expression
-    {
-        likely_module *mod;
-        ConstantMat(Builder &builder, likely_const_mat m)
-            : likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(likely_mat)), uintptr_t(m)), builder.toLLVM(m->type)), m->type, m)
-            , mod(builder.module) {}
-
-        ~ConstantMat()
-        {
-            if (value->getNumUses() > 0)
-                mod->mats.push_back(likely_retain_mat(getData()));
-        }
-    };
-
-    likely_const_expr mat(likely_const_mat data)
-    {
-        assert(data); // We want to be warned of this in debug mode...
-        if (!data)    // ... but handle it gracefully in release mode.
-            return NULL;
-        else if (!(data->type & likely_matrix_multi_dimension))
-            return new likely_expression(constant(likely_element(data, 0, 0, 0, 0), data->type), data->type, data);
-        else
-            return new ConstantMat(*this, data);
-    }
-
     IntegerType *nativeInt() { return module->context->nativeInt(); }
     Type *multiDimension() { return toLLVM(likely_matrix_multi_dimension); }
     Type *toLLVM(likely_matrix_type likely) { return module->context->toLLVM(likely); }
@@ -781,6 +756,32 @@ struct Builder : public IRBuilder<>
             sys::DynamicLibrary::AddSymbol("likely_release_mat", (void*) likely_release_mat);
         }
         return likely_expression(CreateCall(likelyRelease, CreatePointerCast(m, multiDimension())), likely_matrix_void);
+    }
+};
+
+class ConstantMat : public likely_expression
+{
+    likely_module *module;
+    ConstantMat(Builder &builder, likely_const_mat m)
+        : likely_expression(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(likely_mat)), uintptr_t(m)), builder.toLLVM(m->type)), m->type, m)
+        , module(builder.module) {}
+
+    ~ConstantMat()
+    {
+        if (value->getNumUses() > 0)
+            module->mats.push_back(likely_retain_mat(getData()));
+    }
+
+public:
+    static likely_expression *get(Builder &builder, likely_const_mat data)
+    {
+        assert(data); // We want to be warned of this in debug mode...
+        if (!data)    // ... but handle it gracefully in release mode.
+            return NULL;
+        else if (!(data->type & likely_matrix_multi_dimension))
+            return new likely_expression(builder.constant(likely_element(data, 0, 0, 0, 0), data->type), data->type, data);
+        else
+            return new ConstantMat(builder, data);
     }
 };
 
@@ -1192,7 +1193,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                     }
                     lock.unlock();
 
-                    return builder.mat(reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat)>(function->second)(LHS, RHS));
+                    return ConstantMat::get(builder, reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat)>(function->second)(LHS, RHS));
                 }
             }
         }
@@ -1413,7 +1414,7 @@ class tryExpression : public LikelyOperator
         likely_const_expr value = NULL;
         if (likely_env env = likely_eval(ast->atoms[1], builder.env)) {
             if (likely_const_mat mat = likely_result(env))
-                value = builder.mat(likely_retain_mat(mat));
+                value = ConstantMat::get(builder, likely_retain_mat(mat));
             likely_release_env(env);
         }
 
@@ -1597,7 +1598,7 @@ private:
         }
 
         result = ((builder.env->type & likely_environment_ctfe)
-                  && (constantArgs.size() == args.size())) ? builder.mat(evaluateConstantFunction(constantArgs))
+                  && (constantArgs.size() == args.size())) ? ConstantMat::get(builder, evaluateConstantFunction(constantArgs))
                                                            : evaluateFunction(builder, args);
 
     cleanup:
@@ -2324,7 +2325,7 @@ class readExpression : public SimpleUnaryOperator
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         if (likely_const_mat fileName = arg->getData())
-            return builder.mat(likely_read(fileName->data, likely_file_binary));
+            return ConstantMat::get(builder, likely_read(fileName->data, likely_file_binary));
 
         Function *likelyRead = builder.module->module->getFunction("likely_read");
         if (!likelyRead) {
@@ -2349,7 +2350,7 @@ class writeExpression : public SimpleBinaryOperator
     {
         if (likely_const_mat image = arg1->getData())
             if (likely_const_mat fileName = arg2->getData())
-                return builder.mat(likely_retain_mat(likely_write(image, fileName->data)));
+                return ConstantMat::get(builder, likely_retain_mat(likely_write(image, fileName->data)));
 
         Function *likelyWrite = builder.module->module->getFunction("likely_write");
         if (!likelyWrite) {
@@ -2375,7 +2376,7 @@ class decodeExpression : public SimpleUnaryOperator
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         if (likely_const_mat buffer = arg->getData())
-            return builder.mat(likely_decode(buffer));
+            return ConstantMat::get(builder, likely_decode(buffer));
 
         Function *likelyDecode = builder.module->module->getFunction("likely_decode");
         if (!likelyDecode) {
@@ -2399,7 +2400,7 @@ class encodeExpression : public SimpleBinaryOperator
     {
         if (likely_const_mat image = arg1->getData())
             if (likely_const_mat extension = arg2->getData())
-                return builder.mat(likely_encode(image, extension->data));
+                return ConstantMat::get(builder, likely_encode(image, extension->data));
 
         Function *likelyEncode = builder.module->module->getFunction("likely_encode");
         if (!likelyEncode) {
