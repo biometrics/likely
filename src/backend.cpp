@@ -418,6 +418,9 @@ struct likely_expression : public LikelyValue
         likely_release_mat(data);
     }
 
+    likely_expression(const likely_expression &) = delete;
+    likely_expression &operator=(const likely_expression &) = delete;
+
     virtual int uid() const { return 0; }
     virtual size_t maxParameters() const { return 0; }
     virtual size_t minParameters() const { return maxParameters(); }
@@ -1017,7 +1020,7 @@ private:
                 return new likely_expression(builder.cast(*expr, t));
             }
         } else {
-            return new likely_expression(*this);
+            return new likely_expression((LikelyValue) *this);
         }
     }
 };
@@ -1201,9 +1204,9 @@ class subtractExpression : public LikelyOperator
                 return NULL;
         }
 
-        likely_matrix_type type = likely_type_from_types(*expr1, *expr2);
-        likely_expression lhs = builder.cast(*expr1.get(), type);
-        likely_expression rhs = builder.cast(*expr2.get(), type);
+        const likely_matrix_type type = likely_type_from_types(*expr1, *expr2);
+        const likely_expression lhs(builder.cast(*expr1.get(), type));
+        const likely_expression rhs(builder.cast(*expr2.get(), type));
 
         if (type & likely_matrix_floating) {
             return new likely_expression(LikelyValue(builder.CreateFSub(lhs, rhs), type));
@@ -1704,11 +1707,11 @@ class ifExpression : public LikelyOperator
             const likely_matrix_type resolved = likely_type_from_types(*t, *f);
 
             builder.SetInsertPoint(True);
-            const likely_expression tc = builder.cast(*t, resolved);
+            const likely_expression tc(builder.cast(*t, resolved));
             builder.CreateBr(End);
 
             builder.SetInsertPoint(False);
-            const likely_expression fc = builder.cast(*f, resolved);
+            const likely_expression fc(builder.cast(*f, resolved));
             builder.CreateBr(End);
 
             builder.SetInsertPoint(End);
@@ -1845,7 +1848,7 @@ class kernelExpression : public LikelyOperator
                 return error(ast, "kernel operator does not take arguments");
 
             if (!isa<PointerType>(value->getType()))
-                return new likely_expression(*this);
+                return new likely_expression((LikelyValue) *this);
 
             LoadInst *load = builder.CreateLoad(gep(builder, ast));
             load->setMetadata("llvm.mem.parallel_loop_access", node);
@@ -2132,7 +2135,7 @@ class defineExpression : public LikelyOperator
         } else {
             likely_const_expr expr = get(builder, rhs);
             define(builder.env, name, expr);
-            return new likely_expression(*expr);
+            return new likely_expression((LikelyValue) *expr);
         }
         return NULL;
     }
