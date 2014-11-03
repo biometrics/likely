@@ -382,6 +382,15 @@ struct LikelyValue
             }
         }
     }
+
+    static bool isMat(Type *type)
+    {
+        // This is safe because matricies are the only struct types created by the backend
+        if (PointerType *ptr = dyn_cast<PointerType>(type))
+            if (dyn_cast<StructType>(ptr->getElementType()))
+                return true;
+        return false;
+    }
 };
 
 struct Builder;
@@ -508,15 +517,6 @@ struct likely_expression : public LikelyValue
     static size_t length(likely_const_ast ast)
     {
         return ast ? ((ast->type == likely_ast_list) ? ast->num_atoms : 1) : 0;
-    }
-
-    static bool isMat(Type *type)
-    {
-        // This is safe because matricies are the only struct types created by the backend
-        if (PointerType *ptr = dyn_cast<PointerType>(type))
-            if (dyn_cast<StructType>(ptr->getElementType()))
-                return true;
-        return false;
     }
 
 private:
@@ -677,12 +677,12 @@ struct Builder : public IRBuilder<>
     Type *multiDimension() { return toLLVM(likely_matrix_multi_dimension); }
     Type *toLLVM(likely_matrix_type likely) { return module->context->toLLVM(likely); }
 
-    likely_expression toMat(likely_const_expr expr)
+    LikelyValue toMat(const LikelyValue &expr)
     {
-        if (likely_expression::isMat(expr->value->getType()))
-            return likely_expression(expr->value, expr->type);
+        if (LikelyValue::isMat(expr.value->getType()))
+            return expr;
 
-        if (expr->value->getType()->isPointerTy() /* assume it's a string for now */) {
+        if (expr.value->getType()->isPointerTy() /* assume it's a string for now */) {
             Function *likelyString = module->module->getFunction("likely_string");
             if (!likelyString) {
                 FunctionType *functionType = FunctionType::get(toLLVM(likely_matrix_string), Type::getInt8PtrTy(getContext()), false);
@@ -693,7 +693,7 @@ struct Builder : public IRBuilder<>
                 likelyString->setDoesNotCapture(1);
                 sys::DynamicLibrary::AddSymbol("likely_string", (void*) likely_string);
             }
-            return likely_expression(CreateCall(likelyString, *expr), likely_matrix_string);
+            return LikelyValue(CreateCall(likelyString, expr), likely_matrix_string);
         }
 
         Function *likelyScalar = module->module->getFunction("likely_scalar");
@@ -709,11 +709,11 @@ struct Builder : public IRBuilder<>
         }
 
         AllocaInst *allocaInst = CreateAlloca(Type::getDoubleTy(getContext()), one());
-        CreateStore(cast(*expr, likely_matrix_f64), allocaInst);
-        return likely_expression(CreateCall3(likelyScalar, constant(uint64_t(expr->type), likely_matrix_u32), allocaInst, one(likely_matrix_u32)), likely_matrix_multi_dimension);
+        CreateStore(cast(expr, likely_matrix_f64), allocaInst);
+        return LikelyValue(CreateCall3(likelyScalar, constant(uint64_t(expr.type), likely_matrix_u32), allocaInst, one(likely_matrix_u32)), likely_matrix_multi_dimension);
     }
 
-    likely_expression newMat(Value *type, Value *channels, Value *columns, Value *rows, Value *frames, Value *data)
+    LikelyValue newMat(Value *type, Value *channels, Value *columns, Value *rows, Value *frames, Value *data)
     {
         Function *likelyNew = module->module->getFunction("likely_new");
         if (!likelyNew) {
@@ -727,10 +727,10 @@ struct Builder : public IRBuilder<>
             sys::DynamicLibrary::AddSymbol("likely_new", (void*) likely_new);
         }
         Value* args[] = { type, channels, columns, rows, frames, data };
-        return likely_expression(CreateCall(likelyNew, args), likely_matrix_multi_dimension);
+        return LikelyValue(CreateCall(likelyNew, args), likely_matrix_multi_dimension);
     }
 
-    likely_expression retainMat(Value *m)
+    LikelyValue retainMat(Value *m)
     {
         Function *likelyRetain = module->module->getFunction("likely_retain_mat");
         if (!likelyRetain) {
@@ -741,10 +741,10 @@ struct Builder : public IRBuilder<>
             likelyRetain->setDoesNotCapture(1);
             sys::DynamicLibrary::AddSymbol("likely_retain_mat", (void*) likely_retain_mat);
         }
-        return likely_expression(CreateCall(likelyRetain, CreatePointerCast(m, multiDimension())), likely_matrix_multi_dimension);
+        return LikelyValue(CreateCall(likelyRetain, CreatePointerCast(m, multiDimension())), likely_matrix_multi_dimension);
     }
 
-    likely_expression releaseMat(Value *m)
+    LikelyValue releaseMat(Value *m)
     {
         Function *likelyRelease = module->module->getFunction("likely_release_mat");
         if (!likelyRelease) {
@@ -755,7 +755,7 @@ struct Builder : public IRBuilder<>
             likelyRelease->setDoesNotCapture(1);
             sys::DynamicLibrary::AddSymbol("likely_release_mat", (void*) likely_release_mat);
         }
-        return likely_expression(CreateCall(likelyRelease, CreatePointerCast(m, multiDimension())), likely_matrix_void);
+        return LikelyValue(CreateCall(likelyRelease, CreatePointerCast(m, multiDimension())), likely_matrix_void);
     }
 };
 
@@ -1450,7 +1450,7 @@ struct Lambda : public LikelyOperator
 
         // If we are expecting a constant or a matrix and don't get one then make a matrix
         if (returnConstantOrMatrix && !result->getData() && !isMat(result->value->getType()))
-            result.reset(new likely_expression(builder.toMat(result.get())));
+            result.reset(new likely_expression(builder.toMat(*result)));
 
         // If we are returning a constant matrix, make sure to retain a copy
         if (isa<ConstantExpr>(result->value) && isMat(result->value->getType()))
