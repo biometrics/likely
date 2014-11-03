@@ -1169,29 +1169,31 @@ class SimpleArithmeticOperator : public ArithmeticOperator
     likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
         // Fold constant expressions
-        if (likely_const_mat LHS = lhs.getData()) {
-            if (likely_const_mat RHS = rhs.getData()) {
-                static map<const char*, likely_const_env> envLUT;
-                static map<const char*, void*> functionLUT;
-                static mutex lock;
+        if (builder.env->type & likely_environment_ctfe) {
+            if (likely_const_mat LHS = lhs.getData()) {
+                if (likely_const_mat RHS = rhs.getData()) {
+                    static map<const char*, likely_const_env> envLUT;
+                    static map<const char*, void*> functionLUT;
+                    static mutex lock;
 
-                lock.lock();
-                auto function = functionLUT.find(symbol());
-                if (function == functionLUT.end()) {
-                    const string code = string("(a b) :-> { dst := a.imitate (dst a b) :=> (<- dst (") + symbol() + string(" a b)) }");
-                    likely_const_ast ast = likely_lex_and_parse(code.c_str(), likely_source_lisp);
-                    likely_env parent = likely_standard(NULL);
-                    likely_env env = likely_eval(ast->atoms[0], parent);
-                    void *f = likely_compile(env, NULL, 0);
-                    likely_release_env(parent);
-                    likely_release_ast(ast);
-                    envLUT.insert(pair<const char*, likely_const_env>(symbol(), env));
-                    functionLUT.insert(pair<const char*, void*>(symbol(), f));
-                    function = functionLUT.find(symbol());
+                    lock.lock();
+                    auto function = functionLUT.find(symbol());
+                    if (function == functionLUT.end()) {
+                        const string code = string("(a b) :-> { dst := a.imitate (dst a b) :=> (<- dst (") + symbol() + string(" a b)) }");
+                        likely_const_ast ast = likely_lex_and_parse(code.c_str(), likely_source_lisp);
+                        likely_env parent = likely_standard(NULL);
+                        likely_env env = likely_eval(ast->atoms[0], parent);
+                        void *f = likely_compile(env, NULL, 0);
+                        likely_release_env(parent);
+                        likely_release_ast(ast);
+                        envLUT.insert(pair<const char*, likely_const_env>(symbol(), env));
+                        functionLUT.insert(pair<const char*, void*>(symbol(), f));
+                        function = functionLUT.find(symbol());
+                    }
+                    lock.unlock();
+
+                    return builder.mat(reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat)>(function->second)(LHS, RHS));
                 }
-                lock.unlock();
-
-                return builder.mat(reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat)>(function->second)(LHS, RHS));
             }
         }
 
@@ -1439,7 +1441,8 @@ struct Lambda : public LikelyOperator
     likely_const_expr generate(Builder &builder, vector<likely_matrix_type> parameters, string name, bool arrayCC, bool returnConstantOrMatrix) const
     {
         likely_const_env restore = builder.env;
-        builder.env = env;
+        builder.env = newEnv(env);
+        const_cast<likely_env>(builder.env)->type = restore->type;
 
         while (parameters.size() < maxParameters())
             parameters.push_back(likely_matrix_multi_dimension);
@@ -1512,6 +1515,7 @@ struct Lambda : public LikelyOperator
         if (originalInsertBlock)
             builder.SetInsertPoint(originalInsertBlock);
 
+        likely_release_env(builder.env);
         builder.env = restore;
         return new likely_expression(function, likely_matrix_void, likely_retain_mat(result->getData()));
     }
@@ -1589,8 +1593,9 @@ private:
             args.push_back(arg);
         }
 
-        result = (constantArgs.size() == args.size()) ? builder.mat(evaluateConstantFunction(constantArgs))
-                                                      : evaluateFunction(builder, args);
+        result = ((builder.env->type & likely_environment_ctfe)
+                  && (constantArgs.size() == args.size())) ? builder.mat(evaluateConstantFunction(constantArgs))
+                                                           : evaluateFunction(builder, args);
 
     cleanup:
         for (likely_const_expr arg : args)
