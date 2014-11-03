@@ -453,6 +453,8 @@ struct likely_expression : public LikelyValue
         likely_release_mat(m);
     }
 
+    static likely_const_expr get(Builder &builder, likely_const_ast ast);
+
     static likely_const_expr error(likely_const_ast ast, const char *message)
     {
         likely_throw(ast, message);
@@ -675,8 +677,6 @@ struct Builder : public IRBuilder<>
     Type *multiDimension() { return toLLVM(likely_matrix_multi_dimension); }
     Type *toLLVM(likely_matrix_type likely) { return module->context->toLLVM(likely); }
 
-    likely_const_expr expression(likely_const_ast ast);
-
     likely_expression toMat(likely_const_expr expr)
     {
         if (likely_expression::isMat(expr->value->getType()))
@@ -785,9 +785,9 @@ public:
     }
 };
 
-#define TRY_EXPR(BUILDER, AST, EXPR)                                       \
-const unique_ptr<const likely_expression> EXPR((BUILDER).expression(AST)); \
-if (!EXPR.get()) return NULL;                                              \
+#define TRY_EXPR(BUILDER, AST, EXPR)                               \
+const unique_ptr<const likely_expression> EXPR(get(BUILDER, AST)); \
+if (!EXPR.get()) return NULL;                                      \
 
 struct Symbol : public likely_expression
 {
@@ -1022,52 +1022,6 @@ private:
     }
 };
 
-// As a special exception, this function is allowed to set ast->type
-likely_const_expr Builder::expression(likely_const_ast ast)
-{
-    if (ast->type == likely_ast_list) {
-        if (ast->num_atoms == 0)
-            return likely_expression::error(ast, "Empty expression");
-        likely_const_ast op = ast->atoms[0];
-        if (op->type != likely_ast_list)
-            if (likely_const_expr e = likely_expression::lookup(env, op->atom))
-                return e->evaluate(*this, ast);
-        TRY_EXPR(*this, op, e);
-        return e->evaluate(*this, ast);
-    } else {
-        if (likely_const_expr e = likely_expression::lookup(env, ast->atom)) {
-            const_cast<likely_ast>(ast)->type = likely_ast_operator;
-            return e->evaluate(*this, ast);
-        }
-
-        if ((ast->atom[0] == '"') && (ast->atom[ast->atom_len-1] == '"')) {
-            const_cast<likely_ast>(ast)->type = likely_ast_string;
-            return new likely_expression(CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_matrix_i8 | likely_matrix_array);
-        }
-
-        { // Is it a number?
-            char *p;
-            const double value = strtod(ast->atom, &p);
-            if (*p == 0) {
-                const_cast<likely_ast>(ast)->type = likely_ast_number;
-                return new likely_expression(constant(value, likely_type_from_value(value)));
-            }
-        }
-
-        { // Is it a type?
-            bool ok;
-            likely_matrix_type type = likely_type_from_string(ast->atom, &ok);
-            if (ok) {
-                const_cast<likely_ast>(ast)->type = likely_ast_type;
-                return new MatrixType(*this, type);
-            }
-        }
-
-        const_cast<likely_ast>(ast)->type = likely_ast_invalid;
-        return likely_expression::error(ast, "invalid literal");
-    }
-}
-
 #define LIKELY_REGISTER_AXIS(AXIS)                                                   \
 class AXIS##Expression : public LikelyOperator                                       \
 {                                                                                    \
@@ -1232,7 +1186,7 @@ class subtractExpression : public LikelyOperator
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         unique_ptr<const likely_expression> expr1, expr2;
-        expr1.reset(builder.expression(ast->atoms[1]));
+        expr1.reset(get(builder, ast->atoms[1]));
         if (!expr1.get())
             return NULL;
 
@@ -1242,7 +1196,7 @@ class subtractExpression : public LikelyOperator
             expr2.swap(expr1);
         } else {
             // Binary subtraction
-            expr2.reset(builder.expression(ast->atoms[2]));
+            expr2.reset(get(builder, ast->atoms[2]));
             if (!expr2.get())
                 return NULL;
         }
@@ -1419,7 +1373,7 @@ class tryExpression : public LikelyOperator
         }
 
         if (!value)
-            value = builder.expression(ast->atoms[2]);
+            value = get(builder, ast->atoms[2]);
         return value;
     }
 };
@@ -1586,7 +1540,7 @@ private:
         vector<likely_const_mat> constantArgs;
         const size_t arguments = length(ast)-1;
         for (size_t i=0; i<arguments; i++) {
-            likely_const_expr arg = builder.expression(ast->atoms[i+1]);
+            likely_const_expr arg = get(builder, ast->atoms[i+1]);
             if (!arg)
                 goto cleanup;
 
@@ -1650,7 +1604,7 @@ private:
                 define(builder.env, parameters->atom, args[0]);
             }
         }
-        likely_const_expr result = builder.expression(body);
+        likely_const_expr result = get(builder, body);
         if (parameters)
             undefineAll(builder.env, parameters, false);
         return result;
@@ -1676,11 +1630,11 @@ class beginExpression : public LikelyOperator
         likely_const_expr result = NULL;
         likely_const_env root = builder.env;
         for (size_t i=1; i<ast->num_atoms-1; i++) {
-            const unique_ptr<const likely_expression> expr(builder.expression(ast->atoms[i]));
+            const unique_ptr<const likely_expression> expr(get(builder, ast->atoms[i]));
             if (!expr.get())
                 goto cleanup;
         }
-        result = builder.expression(ast->atoms[ast->num_atoms-1]);
+        result = get(builder, ast->atoms[ast->num_atoms-1]);
 
     cleanup:
         while (builder.env != root) {
@@ -1811,7 +1765,7 @@ class loopExpression : public LikelyOperator
         TRY_EXPR(builder, ast->atoms[3], end)
         Loop loop(builder, ast->atoms[2]->atom, builder.zero(), *end);
         define(builder.env, ast->atoms[2]->atom, &loop);
-        likely_const_expr expression = builder.expression(ast->atoms[1]);
+        likely_const_expr expression = get(builder, ast->atoms[1]);
         undefine(builder.env, ast->atoms[2]->atom);
         loop.close(builder);
         return expression;
@@ -1938,9 +1892,9 @@ class kernelExpression : public LikelyOperator
         const likely_const_ast args = ast->atoms[1];
         if (args->type == likely_ast_list) {
             for (size_t j=0; j<args->num_atoms; j++)
-                srcs.push_back(builder.expression(args->atoms[j]));
+                srcs.push_back(get(builder, args->atoms[j]));
         } else {
-            srcs.push_back(builder.expression(args));
+            srcs.push_back(get(builder, args));
         }
 
         Value *kernelSize;
@@ -2091,7 +2045,7 @@ class kernelExpression : public LikelyOperator
             define(builder.env, kernelArgument->name.c_str(), kernelArgument);
         }
 
-        delete builder.expression(ast->atoms[2]);
+        delete get(builder, ast->atoms[2]);
 
         undefineAll(builder.env, args, true);
         kernelArguments.clear();
@@ -2168,14 +2122,14 @@ class defineExpression : public LikelyOperator
             } else {
                 if (!strcmp(likely_symbol(rhs), "->")) {
                     // Global variable
-                    return builder.expression(rhs);
+                    return get(builder, rhs);
                 } else {
                     // Lazy global value
                     return new Lambda(builder.env, rhs);
                 }
             }
         } else {
-            likely_const_expr expr = builder.expression(rhs);
+            likely_const_expr expr = get(builder, rhs);
             define(builder.env, name, expr);
             return new likely_expression(*expr);
         }
@@ -2195,7 +2149,7 @@ class setExpression : public LikelyOperator
         likely_const_ast rhs = ast->atoms[2];
         const char *name = likely_symbol(ast);
         assert(builder.module);
-        likely_const_expr expr = builder.expression(rhs);
+        likely_const_expr expr = get(builder, rhs);
         if (expr) {
             const Assignable *assignable = Assignable::dynamicCast(lookup(builder.env, name));
             if (assignable) assignable->set(builder, expr, lhs);
@@ -2278,12 +2232,12 @@ class newExpression : public LikelyOperator
         const size_t n = ast->num_atoms - 1;
         Value *type = NULL, *channels = NULL, *columns = NULL, *rows = NULL, *frames = NULL, *data = NULL;
         switch (n) {
-            case 6: data     = unique_ptr<const likely_expression>(builder.expression(ast->atoms[6]))->value;
-            case 5: frames   = builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[5])).get(), likely_matrix_u32);
-            case 4: rows     = builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[4])).get(), likely_matrix_u32);
-            case 3: columns  = builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[3])).get(), likely_matrix_u32);
-            case 2: channels = builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[2])).get(), likely_matrix_u32);
-            case 1: type     = builder.cast(*unique_ptr<const likely_expression>(builder.expression(ast->atoms[1])).get(), likely_matrix_u32);
+            case 6: data     = unique_ptr<const likely_expression>(get(builder, ast->atoms[6]))->value;
+            case 5: frames   = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[5])).get(), likely_matrix_u32);
+            case 4: rows     = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[4])).get(), likely_matrix_u32);
+            case 3: columns  = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[3])).get(), likely_matrix_u32);
+            case 2: channels = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[2])).get(), likely_matrix_u32);
+            case 1: type     = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[1])).get(), likely_matrix_u32);
             default:           break;
         }
 
@@ -2442,6 +2396,52 @@ LIKELY_REGISTER(md5)
 
 } // namespace (anonymous)
 
+// As a special exception, this function is allowed to set ast->type
+likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
+{
+    if (ast->type == likely_ast_list) {
+        if (ast->num_atoms == 0)
+            return likely_expression::error(ast, "Empty expression");
+        likely_const_ast op = ast->atoms[0];
+        if (op->type != likely_ast_list)
+            if (likely_const_expr e = lookup(builder.env, op->atom))
+                return e->evaluate(builder, ast);
+        TRY_EXPR(builder, op, e);
+        return e->evaluate(builder, ast);
+    } else {
+        if (likely_const_expr e = lookup(builder.env, ast->atom)) {
+            const_cast<likely_ast>(ast)->type = likely_ast_operator;
+            return e->evaluate(builder, ast);
+        }
+
+        if ((ast->atom[0] == '"') && (ast->atom[ast->atom_len-1] == '"')) {
+            const_cast<likely_ast>(ast)->type = likely_ast_string;
+            return new likely_expression(builder.CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_matrix_i8 | likely_matrix_array);
+        }
+
+        { // Is it a number?
+            char *p;
+            const double value = strtod(ast->atom, &p);
+            if (*p == 0) {
+                const_cast<likely_ast>(ast)->type = likely_ast_number;
+                return new likely_expression(builder.constant(value, likely_type_from_value(value)));
+            }
+        }
+
+        { // Is it a type?
+            bool ok;
+            likely_matrix_type type = likely_type_from_string(ast->atom, &ok);
+            if (ok) {
+                const_cast<likely_ast>(ast)->type = likely_ast_type;
+                return new MatrixType(builder, type);
+            }
+        }
+
+        const_cast<likely_ast>(ast)->type = likely_ast_invalid;
+        return likely_expression::error(ast, "invalid literal");
+    }
+}
+
 likely_env likely_standard(const char *file_name)
 {
     likely_env env = newEnv(RootEnvironment::get());
@@ -2526,13 +2526,17 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent)
     if (env->type & likely_environment_definition) {
         Builder builder(parent, parent->module);
         builder.module = NULL; // signify global scope
-        env->expr = builder.expression(ast);
+        env->expr = likely_expression::get(builder, ast);
     } else if (env->module) {
         // Do nothing, evaluating expressions in an offline environment is a no-op.
     } else {
         // If `ast` is not a lambda then it is a computation and we want to represent it as a parameterless lambda.
-        if (!strcmp(likely_symbol(ast), "->")) env->expr = Builder(parent, parent->module).expression(ast);
-        else                                   env->expr = new Lambda(parent, ast);
+        if (!strcmp(likely_symbol(ast), "->")) {
+            Builder builder(parent, parent->module);
+            env->expr = likely_expression::get(builder, ast);
+        } else {
+            env->expr = new Lambda(parent, ast);
+        }
     }
     return env;
 }
