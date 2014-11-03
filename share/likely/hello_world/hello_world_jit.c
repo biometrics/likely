@@ -54,8 +54,8 @@ int main(int argc, char *argv[])
 
     puts("Compiling source code...");
     likely_const_env env = likely_eval(ast->atoms[0], parent);
-    likely_assert(env, "failed to evaluate: %s", argv[2]);
-    likely_mat (*function)(likely_const_mat) = likely_compile(env, &input->type, 1);
+    likely_assert(env->expr, "failed to evaluate: %s", argv[2]);
+    likely_mat (*function)(likely_const_mat) = likely_compile(env->expr, &input->type, 1);
     likely_assert(function, "failed to compile: %s", argv[2]);
 
     puts("Calling compiled function...");

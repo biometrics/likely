@@ -73,7 +73,8 @@ struct Test
             parent->type |= likely_environment_parallel;
 
         likely_env env = likely_eval(ast->atoms[0], parent);
-        void *f = likely_compile(env, NULL, 0);
+        assert(env->expr);
+        void *f = likely_compile(env->expr, NULL, 0);
         likely_release_env(parent);
         likely_release_ast(ast);
 

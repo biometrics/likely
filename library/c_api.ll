@@ -26,7 +26,7 @@ int main()
     likely_const_ast ast = likely_lex_and_parse("a:-> { dst := a.imitate (dst a) :=> (<- dst (/ a (a.type 2))) }", likely_source_lisp);
     likely_env parent = likely_jit();
     likely_env env = likely_eval(ast->atoms[0], parent);
-    (likely_mat (*darken)(likely_const_mat)) = likely_compile(env, NULL, 0);
+    (likely_mat (*darken)(likely_const_mat)) = likely_compile(env->expr, NULL, 0);
     likely_const_mat dark_lenna = darken(lenna);
 
     // Clean up

@@ -1150,7 +1150,8 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                         likely_const_ast ast = likely_lex_and_parse(code.c_str(), likely_source_lisp);
                         likely_env parent = likely_standard(NULL);
                         likely_env env = likely_eval(ast->atoms[0], parent);
-                        void *f = likely_compile(env, NULL, 0);
+                        assert(env->expr);
+                        void *f = likely_compile(env->expr, NULL, 0);
                         likely_release_env(parent);
                         likely_release_ast(ast);
                         envLUT.insert(pair<const char*, likely_const_env>(symbol(), env));
@@ -1530,11 +1531,11 @@ struct Lambda : public LikelyOperator
         return NULL;
     }
 
-    static void *getFunction(likely_const_env env, const vector<likely_matrix_type> &types)
+    static void *getFunction(likely_const_expr expr, const vector<likely_matrix_type> &types)
     {
-        if (!env || !env->expr || (env->expr->uid() != UID()))
+        if (!expr || (expr->uid() != UID()))
             return NULL;
-        const Lambda *lambda = static_cast<const Lambda*>(env->expr);
+        const Lambda *lambda = static_cast<const Lambda*>(expr);
         JITFunction *jitFunction = new JITFunction("likely_jit_function", lambda, types, false, false);
         lambda->jitFunctions.push_back(jitFunction);
         return jitFunction->function;
@@ -2518,9 +2519,9 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats)
     return reinterpret_cast<likely_mat (*)(likely_const_mat const*)>(function)(mats);
 }
 
-void *likely_compile(likely_const_env env, likely_matrix_type const *type, uint32_t n)
+void *likely_compile(likely_const_expr expr, likely_matrix_type const *type, uint32_t n)
 {
-    return Lambda::getFunction(env, vector<likely_matrix_type>(type, type + n));
+    return Lambda::getFunction(expr, vector<likely_matrix_type>(type, type + n));
 }
 
 likely_const_mat likely_result(likely_const_env env)

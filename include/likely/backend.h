@@ -130,13 +130,13 @@ LIKELY_EXPORT void likely_release_env(likely_const_env env);
  * If an incomplete \p type is specified, the returned function will perform dynamic dispatch at runtime based on the argument types.
  * See \ref likely_dynamic for details.
  *
- * \param[in] env Function environment.
+ * \param[in] expr Function expression.
  * \param[in] type Function type.
  * \param[in] n Length of \p type.
- * \return Function pointer with a \c C ABI. \ref owned_by env.
+ * \return Function pointer with a \c C ABI. \ref owned_by expr.
  * \remark This function is \ref reentrant.
  */
-LIKELY_EXPORT void *likely_compile(likely_const_env env, likely_matrix_type const *type, uint32_t n);
+LIKELY_EXPORT void *likely_compile(struct likely_expression const *expr, likely_matrix_type const *type, uint32_t n);
 
 /*!
  * \brief Obtain the result of a computation.
