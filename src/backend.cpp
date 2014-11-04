@@ -2565,8 +2565,6 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent)
     if (definition) {
         builder.module = NULL; // signify global scope
         expr = likely_expression::get(builder, ast);
-    } else if (parent->module) {
-        // Do nothing, evaluating expressions in an offline environment is a no-op.
     } else {
         // If `ast` is not a lambda or an eval then it is a computation and we choose to represent it lazily as a parameterless lambda.
         const char * const symbol = likely_symbol(ast);
