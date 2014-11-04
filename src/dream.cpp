@@ -343,11 +343,11 @@ private slots:
         QElapsedTimer elapsedTimer;
         elapsedTimer.start();
 
-        likely_ast source_ast = likely_lex_and_parse(qPrintable(toPlainText()), likely_source_gfm);
+        const likely_ast source_ast = likely_lex_and_parse(qPrintable(toPlainText()), likely_file_gfm);
         if (!source_ast)
             return;
 
-        likely_ast header_ast = likely_lex_and_parse(qPrintable(header), likely_source_gfm);
+        const likely_ast header_ast = likely_lex_and_parse(qPrintable(header), likely_file_gfm);
         for (uint32_t i=0; i<header_ast->num_atoms; i++) {
             // Remove unused variables
             if (!contains(source_ast, header_ast->atoms[i]->atoms[1])) {

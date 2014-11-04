@@ -949,7 +949,7 @@ struct RootEnvironment
     {
         static bool init = false;
         if (!init) {
-            likely_ast ast = likely_lex_and_parse(likely_standard_library, likely_source_gfm);
+            likely_ast ast = likely_lex_and_parse(likely_standard_library, likely_file_gfm);
             builtins() = likely_repl(ast, builtins(), NULL, NULL);
             likely_release_ast(ast);
             init = true;
@@ -1147,7 +1147,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                     auto function = functionLUT.find(symbol());
                     if (function == functionLUT.end()) {
                         const string code = string("(a b) :-> { dst := a.imitate (dst a b) :=> (<- dst (") + symbol() + string(" a b)) }");
-                        likely_const_ast ast = likely_lex_and_parse(code.c_str(), likely_source_lisp);
+                        likely_const_ast ast = likely_lex_and_parse(code.c_str(), likely_file_lisp);
                         likely_env parent = likely_standard(NULL);
                         likely_env env = likely_eval(ast->atoms[0], parent);
                         assert(env->expr);
@@ -2191,7 +2191,7 @@ class evalExpression : public LikelyOperator
             return error(ast->atoms[1], "expected source code");
 
         const likely_const_env parent = builder.env;
-        const likely_ast source_ast = likely_lex_and_parse(source->data, likely_source_gfm);
+        const likely_ast source_ast = likely_lex_and_parse(source->data, likely_file_gfm);
         builder.env = likely_repl(source_ast, parent, NULL, NULL);
         likely_release_ast(source_ast);
         likely_release_env(parent);

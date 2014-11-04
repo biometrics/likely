@@ -47,8 +47,8 @@ enum likely_file_type_mask
     likely_file_encoded   = 0x00000002, /*!< \brief The file is an image, image set or video, decode it. */
     likely_file_binary    = likely_file_decoded | likely_file_encoded, /*!< \brief The file is either \ref likely_file_decoded or \ref likely_file_encoded. */
     likely_file_text      = 0x00000004, /*!< \brief The file is text, do not decode it. */
-    likely_file_lisp      = 0x00000010 + likely_file_text, /*!< \brief The text file is unannotated source code. */
-    likely_file_gfm       = 0x00000020 + likely_file_text, /*!< \brief The text file is GitHub flavored markdown source code. */
+    likely_file_lisp      = 0x00000010 + likely_file_text, /*!< \brief The text file has plain source code. */
+    likely_file_gfm       = 0x00000020 + likely_file_text, /*!< \brief The text file has source code is in [GitHub Flavored Markdown](https://help.github.com/articles/github-flavored-markdown/) code blocks. */
 };
 
 /*!

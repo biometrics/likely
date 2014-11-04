@@ -98,11 +98,12 @@ struct Test
 
     static void runFile(const char *fileName)
     {
-        likely_const_mat source = likely_read(fileName, likely_guess_file_type(fileName));
+        const likely_file_type type = likely_guess_file_type(fileName);
+        likely_const_mat source = likely_read(fileName, type);
         checkRead(source, fileName);
 
         printf("%s \t", fileName);
-        likely_ast ast = likely_lex_and_parse(source->data, likely_source_gfm);
+        likely_ast ast = likely_lex_and_parse(source->data, type);
         likely_release_mat(source);
         likely_env parent = likely_standard(NULL);
         likely_release_env(likely_repl(ast, parent, NULL, NULL));
@@ -283,9 +284,9 @@ int main(int argc, char *argv[])
         puts("");
         puts("Function \t\tType \tSize \tExec \tIter \t\tSpeedup");
 
-        const likely_const_mat source = likely_read("library/benchmark.ll", likely_file_text);
+        const likely_const_mat source = likely_read("library/benchmark.ll", likely_file_gfm);
         checkRead(source, "library/benchmark.ll");
-        const likely_ast ast = likely_lex_and_parse(source->data, likely_source_gfm);
+        const likely_ast ast = likely_lex_and_parse(source->data, likely_file_gfm);
         likely_release_mat(source);
         const likely_env parent = likely_standard(NULL);
         if (BenchmarkParallel)

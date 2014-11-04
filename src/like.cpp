@@ -182,7 +182,7 @@ int main(int argc, char *argv[])
             cout << "> ";
             string line;
             getline(cin, line);
-            likely_ast ast = likely_lex_and_parse(line.c_str(), likely_source_lisp);
+            likely_ast ast = likely_lex_and_parse(line.c_str(), likely_file_lisp);
             likely_env env = likely_eval(ast->atoms[0], parent);
             likely_release_ast(ast);
             if (!env->expr) {
@@ -195,13 +195,10 @@ int main(int argc, char *argv[])
         }
     } else {
         // interpreter or compiler
-        likely_mat code = likely_read(input.c_str(), likely_guess_file_type(input.c_str()));
-        likely_source_type type;
-        if (code) {
-            type = ((input.size() >= 3) && (input.substr(input.size()-3) != ".lk")) ? likely_source_gfm
-                                                                                    : likely_source_lisp;
-        } else {
-            type = likely_source_lisp;
+        likely_file_type type = likely_guess_file_type(input.c_str());
+        likely_mat code = likely_read(input.c_str(), type);
+        if (!code) {
+            type = likely_file_lisp;
             code = likely_string(input.c_str());
         }
 

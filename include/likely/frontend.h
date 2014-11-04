@@ -19,6 +19,7 @@
 
 #include <stddef.h>
 #include <likely/runtime.h>
+#include <likely/io.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -240,22 +241,6 @@ LIKELY_EXPORT likely_mat likely_err_to_string(likely_err err);
 LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
 
 /*!
- * \brief How to interpret source code.
- *
- * Available options are listed in \ref likely_source_types.
- */
-typedef uint32_t likely_source_type;
-
-/*!
- * \brief \ref likely_source_type options.
- */
-enum likely_source_types
-{
-    likely_source_lisp = 0, /*!< Plain source code. */
-    likely_source_gfm  = 1, /*!< Source code is in [GitHub Flavored Markdown](https://help.github.com/articles/github-flavored-markdown/) code blocks. */
-};
-
-/*!
  * \brief Perform lexical analysis, converting source code into a list of tokens.
  *
  * The output from this function is usually the input to \ref likely_parse.
@@ -265,7 +250,7 @@ enum likely_source_types
  * \remark This function is \ref thread-safe.
  * \see \ref likely_lex_and_parse
  */
-LIKELY_EXPORT likely_ast likely_lex(const char *source, likely_source_type type);
+LIKELY_EXPORT likely_ast likely_lex(const char *source, likely_file_type type);
 
 /*!
  * \brief Perform syntactic analysis, converting a list of tokens into an abstract syntax tree.
@@ -288,13 +273,13 @@ LIKELY_EXPORT likely_ast likely_parse(likely_const_ast tokens);
  * \remark This function is \ref thread-safe.
  * \see \ref likely_ast_to_string
  */
-LIKELY_EXPORT likely_ast likely_lex_and_parse(const char *source, likely_source_type type);
+LIKELY_EXPORT likely_ast likely_lex_and_parse(const char *source, likely_file_type type);
 
 /*!
  * \brief Convert an abstract syntax tree into a string.
  *
  * The opposite of \ref likely_lex_and_parse.
- * The returned \ref likely_matrix::data is valid \ref likely_source_lisp code.
+ * The returned \ref likely_matrix::data is valid \ref likely_file_lisp code.
  * \param[in] ast The abstract syntax tree to convert into a string.
  * \return A \ref likely_string.
  * \remark This function is \ref thread-safe.
@@ -324,7 +309,7 @@ LIKELY_EXPORT const char *likely_symbol(likely_const_ast ast);
  * \brief Convert a \ref likely_matrix_type to a string.
  *
  * The opposite of \ref likely_type_from_string.
- * The returned \ref likely_matrix::data is valid \ref likely_source_lisp code.
+ * The returned \ref likely_matrix::data is valid \ref likely_file_lisp code.
  * \par Implementation
  * \snippet src/frontend.cpp likely_type_to_string implementation.
  * \param[in] type The type to convert to a string.
