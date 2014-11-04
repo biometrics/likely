@@ -2559,26 +2559,30 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent)
     if (!ast)
         return NULL;
 
-    likely_env env = newEnv(parent);
-    if ((ast->type == likely_ast_list) && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "="))
-        env->type |= likely_environment_definition;
-    env->ast = likely_retain_ast(ast);
-
-    if (env->type & likely_environment_definition) {
-        Builder builder(parent, parent->module);
+    Builder builder(parent, parent->module);
+    const bool definition = (ast->type == likely_ast_list) && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=");
+    likely_const_expr expr = NULL;
+    if (definition) {
         builder.module = NULL; // signify global scope
-        env->expr = likely_expression::get(builder, ast);
-    } else if (env->module) {
+        expr = likely_expression::get(builder, ast);
+    } else if (parent->module) {
         // Do nothing, evaluating expressions in an offline environment is a no-op.
     } else {
-        // If `ast` is not a lambda then it is a computation and we want to represent it as a parameterless lambda.
-        if (!strcmp(likely_symbol(ast), "->")) {
-            Builder builder(parent, parent->module);
-            env->expr = likely_expression::get(builder, ast);
-        } else {
-            env->expr = new Lambda(parent, ast);
-        }
+        // If `ast` is not a lambda or an eval then it is a computation and we choose to represent it lazily as a parameterless lambda.
+        const char * const symbol = likely_symbol(ast);
+        if (!strcmp(symbol, "->") || !strcmp(symbol, "eval"))
+            expr = likely_expression::get(builder, ast);
+        else
+            expr = new Lambda(parent, ast);
     }
+
+    // Certain operators like `eval` introduce additional to variables to the environment,
+    // therefore, `builer.env` is not necessarily equal to `parent`.
+    likely_env env = newEnv(builder.env);
+    if (definition)
+        env->type |= likely_environment_definition;
+    env->ast = likely_retain_ast(ast);
+    env->expr = expr;
     return env;
 }
 
