@@ -4,7 +4,7 @@ Likely
 > -- [@jklontz](https://github.com/jklontz)
 
 Skip to the good stuff: **[installation](?href=README.md)**,
-                        **[hello world](?href=share/likely/hello_world/README.ll)**,
+                        **[hello world](?href=share/likely/hello_world/README.md)**,
                         **[tutorial](?href=tutorial)**, **[demos](?href=demos)**,
                         **[language reference](?href=standard)**,
                         **[api](https://s3.amazonaws.com/liblikely/doxygen/index.html)**,

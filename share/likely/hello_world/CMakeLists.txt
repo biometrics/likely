@@ -1,5 +1,5 @@
 project(hello_world)
-option(LIKELY_HELLOWORLD "Build Likely Hello World examples" ON)
+option(LIKELY_HELLOWORLD "Build Hello World examples" ON)
 
 if(${LIKELY_HELLOWORLD})
   # hello_world_jit
@@ -10,7 +10,7 @@ if(${LIKELY_HELLOWORLD})
 
   # hello_world_static
   add_custom_command(OUTPUT hello_world_div2.o
-                     COMMAND like ${CMAKE_CURRENT_SOURCE_DIR}/hello_world_div2.ll hello_world_div2.o
+                     COMMAND like ${CMAKE_CURRENT_SOURCE_DIR}/hello_world_div2.md hello_world_div2.o
                      DEPENDS like
                      VERBATIM)
   add_definitions(-DLIKELY_LIBRARY)

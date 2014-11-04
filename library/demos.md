@@ -3,9 +3,9 @@ Demos
 Ways to run a demo from the command line:
 
 ```bash
-$ dream library/<demo>.ll
-$ likely library/<demo>.ll -show
-$ likely library/<demo>.ll -render result.png
+$ dream library/<demo>.md
+$ likely library/<demo>.md -show
+$ likely library/<demo>.md -render result.png
 ```
 
 <dl class="dl-horizontal">

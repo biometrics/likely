@@ -12,15 +12,15 @@ set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/include/likely/runtime.h
                 ${CMAKE_SOURCE_DIR}/index.html
                 ${CMAKE_SOURCE_DIR}/share/likely/LikelyConfig.cmake
-                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/README.ll
-                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello_world_div2.ll
+                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/README.md
+                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello_world_div2.md
                 ${CMAKE_SOURCE_DIR}/src/Doxyfile.in)
 
 # Build standard library
 add_executable(embedfile embedfile.c)
 add_custom_command(OUTPUT likely_standard_library.c
-                   COMMAND embedfile likely_standard_library ${CMAKE_SOURCE_DIR}/library/standard.ll
-                   DEPENDS embedfile ${CMAKE_SOURCE_DIR}/library/standard.ll)
+                   COMMAND embedfile likely_standard_library ${CMAKE_SOURCE_DIR}/library/standard.md
+                   DEPENDS embedfile ${CMAKE_SOURCE_DIR}/library/standard.md)
 set(LIKELY_SRC ${LIKELY_SRC} ${CMAKE_CURRENT_BINARY_DIR}/likely_standard_library.c)
 set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
 
@@ -170,7 +170,7 @@ function(test_expr EXPR VALUE)
            COMMAND like "${EXPR}" -assert "${VALUE}")
 endfunction()
 
-# List in the order they occur in standard.ll
+# List in the order they occur in standard.md
 test_ast("(this is some code) ; This is a comment" "(this is some code)")
 test_expr("(+ 1 2) ; One plus two is three" 3)
 test_expr("(sq 3)  ; Three squared is nine" 9)
@@ -361,13 +361,13 @@ test_expr("(threshold-to-zero-inverse 0.6 0.5)" 0)
 function(test_demo FILE)
   add_test(NAME ${FILE}
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND like library/${FILE}.ll -parallel -show -assert "data/demo/${FILE}.jpg")
+           COMMAND like library/${FILE}.md -parallel -show -assert "data/demo/${FILE}.jpg")
 endfunction()
 
 function(test_file FILE VALUE)
   add_test(NAME ${FILE}
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND like library/${FILE}.ll -assert "${VALUE}")
+           COMMAND like library/${FILE}.md -assert "${VALUE}")
 endfunction()
 
 # List alphabetically

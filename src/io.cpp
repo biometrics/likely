@@ -41,7 +41,7 @@ likely_file_type likely_guess_file_type(const char *file_name)
     if (!extension)
         return likely_file_directory;
     extension++; // remove the leading '.'
-    if (!strcmp(extension, "ll")) return likely_file_gfm;
+    if (!strcmp(extension, "md")) return likely_file_gfm;
     else                          return likely_file_media;
 }
 //! [likely_guess_file_type implementation.]

@@ -57,7 +57,7 @@ In fact, Likely's accompanying IDE called _Dream_, is [designed from the ground 
 ### Literate Programming
 Likely is a [literate programming](http://www.literateprogramming.com/) language.
 This document, in addition to being the reference manual for the Likely programming language, is also the source code for the Likely standard library.
-If you are reading this text on [liblikely.org](http://www.liblikely.org/?href=standard), try clicking the _[View Source](http://raw.github.com/biometrics/likely/gh-pages/library/standard.ll)_ button in the top right corner.
+If you are reading this text on [liblikely.org](http://www.liblikely.org/?href=standard), try clicking the _[View Source](http://raw.github.com/biometrics/likely/gh-pages/library/standard.md)_ button in the top right corner.
 
 Likely uses [Github Flavored Markdown](https://help.github.com/articles/github-flavored-markdown) (GFM) syntax, and the Likely runtime will automatically extract and execute _code blocks_ found in GFM source files.
 

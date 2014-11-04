@@ -12,7 +12,7 @@ $ likely <input file> <output file> # to compile a likely source file to assembl
 Try running [hello world](?href=hello_world) through it:
 
 ```bash
-$ likely ../library/hello_world.ll
+$ likely ../library/hello_world.md
 ```
 
 [Previous](?href=hello_world) | [Next](?href=comments)
