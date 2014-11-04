@@ -42,7 +42,7 @@ likely_file_type likely_guess_file_type(const char *file_name)
         return likely_file_directory;
     extension++; // remove the leading '.'
     if (!strcmp(extension, "ll")) return likely_file_gfm;
-    else                          return likely_file_binary;
+    else                          return likely_file_media;
 }
 //! [likely_guess_file_type implementation.]
 
@@ -60,6 +60,7 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
         fileName = HOME + fileName.substr(1);
     }
 
+    likely_mat result = NULL;
     if (type == likely_file_directory) {
         error_code ec;
         vector<future<likely_mat>> futures;
@@ -69,7 +70,6 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
 
         // Combine into one matrix with multiple frames
         likely_matrix firstHeader;
-        likely_mat result = NULL;
         size_t step = 0;
         bool valid = true;
         for (size_t i=0; i<futures.size(); i++) {
@@ -95,70 +95,49 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
                 free(result);
                 result = NULL;
             }
-
             likely_release_mat(image);
         }
-        return result;
     } else {
         if (FILE *fp = fopen(fileName.c_str(), "rb")) {
             fseek(fp, 0, SEEK_END);
             const size_t size = ftell(fp);
             fseek(fp, 0, SEEK_SET);
 
-            // Special case for likely_matrix
-            if ((type & likely_file_decoded) && (size >= sizeof(likely_matrix))) {
+            if (type & likely_file_matrix) {
                 likely_matrix header;
                 if (fread(&header, sizeof(likely_matrix), 1, fp)) {
                     const size_t bytes = likely_bytes(&header);
                     if (sizeof(likely_matrix) + bytes == size) {
-                        likely_mat mat = likely_new(header.type, header.channels, header.columns, header.rows, header.frames, NULL);
-                        const bool success = (fread(mat->data, bytes, 1, fp) == 1);
+                        result = likely_new(header.type, header.channels, header.columns, header.rows, header.frames, NULL);
+                        const bool success = (fread(result->data, bytes, 1, fp) == 1);
                         assert(success);
-                        fclose(fp);
                         if (!success) {
-                            likely_release_mat(mat);
-                            mat = NULL;
+                            likely_release_mat(result);
+                            result = NULL;
                         }
-                        return mat;
                     }
                 }
+            } else {
+                likely_mat buffer = likely_new(likely_matrix_u8, uint32_t(size + ((type & likely_file_text) ? 1 : 0)), 1, 1, 1, NULL);
+                const bool success = (fread(buffer->data, 1, size, fp) == size);
+                if (success) {
+                    if (type & likely_file_binary) {
+                        result = likely_retain_mat(buffer);
+                    } else if (type & likely_file_text) {
+                        buffer->data[size] = 0;
+                        buffer->type = likely_matrix_string;
+                        result = likely_retain_mat(buffer);
+                    } else if (type == likely_file_media) {
+                        swap(buffer->channels, buffer->columns);
+                        result = likely_decode(buffer);
+                    }
+                }
+                likely_release_mat(buffer);
             }
-
-            fseek(fp, 0, SEEK_SET);
-            likely_mat buffer = likely_new(likely_matrix_u8, 1, uint32_t(size + ((type & likely_file_text) ? 1 : 0)), 1, 1, NULL);
-            const bool success = (fread(buffer->data, 1, size, fp) == size);
             fclose(fp);
-            likely_mat result = NULL;
-            if (success) {
-                if (!result && (type & likely_file_decoded)) {
-                    if (likely_bytes(buffer) >= sizeof(likely_matrix)) {
-                        likely_mat header = (likely_mat) buffer->data;
-                        if (sizeof(likely_matrix) + likely_bytes(header) == likely_bytes(buffer))
-                            result = likely_new(header->type, header->channels, header->columns, header->rows, header->frames, header->data);
-                    }
-                }
-
-                if (!result && (type & likely_file_encoded))
-                    result = likely_decode(buffer);
-
-                if (!result && (type & likely_file_text)) {
-                    const size_t bytes = likely_bytes(buffer);
-                    buffer->data[bytes-1] = 0;
-                    buffer->channels = uint32_t(bytes);
-                    buffer->columns = buffer->rows = buffer->frames = 1;
-                    buffer->type = likely_matrix_string;
-                    result = likely_retain_mat(buffer);
-                }
-
-                if (!result)
-                    result = likely_retain_mat(buffer);
-            }
-            likely_release_mat(buffer);
-            return result;
         }
     }
-
-    return NULL;
+    return result;
 }
 
 likely_mat likely_write(likely_const_mat image, const char *file_name)

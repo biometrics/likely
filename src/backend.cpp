@@ -2333,7 +2333,7 @@ class readExpression : public SimpleUnaryOperator
             likelyRead->setDoesNotCapture(1);
             sys::DynamicLibrary::AddSymbol("likely_read", (void*) likely_read);
         }
-        return new likely_expression(LikelyValue(builder.CreateCall2(likelyRead, *arg, builder.constant(uint64_t(likely_file_binary), likely_matrix_u32)), likely_matrix_multi_dimension));
+        return new likely_expression(LikelyValue(builder.CreateCall2(likelyRead, *arg, builder.constant(uint64_t(likely_file_media), likely_matrix_u32)), likely_matrix_multi_dimension));
     }
 };
 LIKELY_REGISTER(read)

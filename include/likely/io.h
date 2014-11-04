@@ -42,13 +42,13 @@ typedef uint32_t likely_file_type;
  */
 enum likely_file_type_mask
 {
-    likely_file_directory = 0x00000000, /*!< \brief The file is a directory, recursively read all the files. */
-    likely_file_decoded   = 0x00000001, /*!< \brief The file is a \ref likely_matrix, do not decode it. */
-    likely_file_encoded   = 0x00000002, /*!< \brief The file is an image, image set or video, decode it. */
-    likely_file_binary    = likely_file_decoded | likely_file_encoded, /*!< \brief The file is either \ref likely_file_decoded or \ref likely_file_encoded. */
-    likely_file_text      = 0x00000004, /*!< \brief The file is text, do not decode it. */
-    likely_file_lisp      = 0x00000010 + likely_file_text, /*!< \brief The text file has plain source code. */
-    likely_file_gfm       = 0x00000020 + likely_file_text, /*!< \brief The text file has source code is in [GitHub Flavored Markdown](https://help.github.com/articles/github-flavored-markdown/) code blocks. */
+    likely_file_directory = 0x00000000, /*!< \brief It's a directory, recursively read all the files. */
+    likely_file_binary    = 0x00000001, /*!< \brief It's binary data, just read it. */
+    likely_file_media     = 0x00000002, /*!< \brief It's an image or video, read and decode it. */
+    likely_file_matrix    = 0x00000004, /*!< \brief It's a \ref likely_matrix, memory map it. */
+    likely_file_text      = 0x00000008, /*!< \brief It's text, read it and append a \c NULL terminator. */
+    likely_file_lisp      = 0x00000010 | likely_file_text, /*!< \brief The text file has plain source code. */
+    likely_file_gfm       = 0x00000020 | likely_file_text, /*!< \brief The text file has source code is in [GitHub Flavored Markdown](https://help.github.com/articles/github-flavored-markdown/) code blocks. */
 };
 
 /*!
