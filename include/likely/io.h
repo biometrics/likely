@@ -33,7 +33,7 @@ extern "C" {
  * \brief How to read a file from disk.
  *
  * Available options are listed in \ref likely_file_type_mask.
- * \see \ref likely_read
+ * \see \ref likely_guess_file_type \ref likely_read
  */
 typedef uint32_t likely_file_type;
 
@@ -42,11 +42,25 @@ typedef uint32_t likely_file_type;
  */
 enum likely_file_type_mask
 {
-    likely_file_decoded = 0x00000001, /*!< \brief The file is a \ref likely_matrix, do not decode it. */
-    likely_file_encoded = 0x00000002, /*!< \brief The file is an image, image set or video, decode it. */
-    likely_file_binary  = likely_file_decoded | likely_file_encoded, /*!< \brief The file is either \ref likely_file_decoded or \ref likely_file_encoded. */
-    likely_file_text    = 0x00000004, /*!< \brief The file is text, do not decode it. */
+    likely_file_directory = 0x00000000, /*!< \brief The file is a directory, recursively read all the files. */
+    likely_file_decoded   = 0x00000001, /*!< \brief The file is a \ref likely_matrix, do not decode it. */
+    likely_file_encoded   = 0x00000002, /*!< \brief The file is an image, image set or video, decode it. */
+    likely_file_binary    = likely_file_decoded | likely_file_encoded, /*!< \brief The file is either \ref likely_file_decoded or \ref likely_file_encoded. */
+    likely_file_text      = 0x00000004, /*!< \brief The file is text, do not decode it. */
+    likely_file_lisp      = 0x00000010 + likely_file_text, /*!< \brief The text file is unannotated source code. */
+    likely_file_gfm       = 0x00000020 + likely_file_text, /*!< \brief The text file is GitHub flavored markdown source code. */
 };
+
+/*!
+ * \brief Guess the \ref likely_file_type from a file extension.
+ *
+ * \par Implementation
+ * \snippet src/io.cpp likely_guess_file_type implementation.
+ * \param[in] file_name The file name whose extension to interpret.
+ * \return Guess of the \ref likely_file_type based on the extension of \p file_name.
+ * \see likely_read
+ */
+LIKELY_EXPORT likely_file_type likely_guess_file_type(const char *file_name);
 
 /*!
  * \brief Read a \ref likely_matrix from a file.

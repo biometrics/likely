@@ -98,7 +98,7 @@ struct Test
 
     static void runFile(const char *fileName)
     {
-        likely_const_mat source = likely_read(fileName, likely_file_text);
+        likely_const_mat source = likely_read(fileName, likely_guess_file_type(fileName));
         checkRead(source, fileName);
 
         printf("%s \t", fileName);

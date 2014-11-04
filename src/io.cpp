@@ -34,9 +34,21 @@
 using namespace llvm;
 using namespace std;
 
-static likely_mat readAsync(const string &fileName, likely_file_type type)
+//! [likely_guess_file_type implementation.]
+likely_file_type likely_guess_file_type(const char *file_name)
 {
-    return likely_read(fileName.c_str(), type);
+    const char *extension = strrchr(file_name, '.');
+    if (!extension)
+        return likely_file_directory;
+    extension++; // remove the leading '.'
+    if (!strcmp(extension, "ll")) return likely_file_gfm;
+    else                          return likely_file_binary;
+}
+//! [likely_guess_file_type implementation.]
+
+static likely_mat readAsync(const string &fileName)
+{
+    return likely_read(fileName.c_str(), likely_guess_file_type(fileName.c_str()));
 }
 
 likely_mat likely_read(const char *file_name, likely_file_type type)
@@ -48,108 +60,105 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
         fileName = HOME + fileName.substr(1);
     }
 
-    // Is it a file?
-    if (FILE *fp = fopen(fileName.c_str(), "rb")) {
-        fseek(fp, 0, SEEK_END);
-        const size_t size = ftell(fp);
-        fseek(fp, 0, SEEK_SET);
+    if (type == likely_file_directory) {
+        error_code ec;
+        vector<future<likely_mat>> futures;
+        for (sys::fs::recursive_directory_iterator i(fileName, ec), e; i != e; i.increment(ec))
+            if (sys::fs::is_regular_file(i->path()))
+                futures.push_back(async(readAsync, i->path()));
 
-        // Special case for likely_matrix
-        if ((type & likely_file_decoded) && (size >= sizeof(likely_matrix))) {
-            likely_matrix header;
-            if (fread(&header, sizeof(likely_matrix), 1, fp)) {
-                const size_t bytes = likely_bytes(&header);
-                if (sizeof(likely_matrix) + bytes == size) {
-                    likely_mat mat = likely_new(header.type, header.channels, header.columns, header.rows, header.frames, NULL);
-                    const bool success = (fread(mat->data, bytes, 1, fp) == 1);
-                    assert(success);
-                    fclose(fp);
-                    if (!success) {
-                        likely_release_mat(mat);
-                        mat = NULL;
-                    }
-                    return mat;
-                }
+        // Combine into one matrix with multiple frames
+        likely_matrix firstHeader;
+        likely_mat result = NULL;
+        size_t step = 0;
+        bool valid = true;
+        for (size_t i=0; i<futures.size(); i++) {
+            likely_const_mat image = futures[i].get();
+            if ((i == 0) && image) {
+                firstHeader = *image;
+                step = likely_bytes(&firstHeader);
+                result = likely_new(firstHeader.type, firstHeader.channels, firstHeader.columns, firstHeader.rows, uint32_t(firstHeader.frames * futures.size()), NULL);
             }
+
+            valid = valid
+                    && image
+                    && (image->type     == firstHeader.type)
+                    && (image->channels == firstHeader.channels)
+                    && (image->columns  == firstHeader.columns)
+                    && (image->rows     == firstHeader.rows)
+                    && (image->frames   == firstHeader.frames);
+
+            if (valid) {
+                memcpy(result->data + i*step, image->data, step);
+            } else if (result) {
+                assert(!valid);
+                free(result);
+                result = NULL;
+            }
+
+            likely_release_mat(image);
         }
+        return result;
+    } else {
+        if (FILE *fp = fopen(fileName.c_str(), "rb")) {
+            fseek(fp, 0, SEEK_END);
+            const size_t size = ftell(fp);
+            fseek(fp, 0, SEEK_SET);
 
-        fseek(fp, 0, SEEK_SET);
-        likely_mat buffer = likely_new(likely_matrix_u8, 1, uint32_t(size + ((type & likely_file_text) ? 1 : 0)), 1, 1, NULL);
-        const bool success = (fread(buffer->data, 1, size, fp) == size);
-        fclose(fp);
-        if (success) {
-            likely_mat result = NULL;
-            if (!result && (type & likely_file_decoded)) {
-                if (likely_bytes(buffer) >= sizeof(likely_matrix)) {
-                    likely_mat header = (likely_mat) buffer->data;
-                    if (sizeof(likely_matrix) + likely_bytes(header) == likely_bytes(buffer))
-                        result = likely_new(header->type, header->channels, header->columns, header->rows, header->frames, header->data);
+            // Special case for likely_matrix
+            if ((type & likely_file_decoded) && (size >= sizeof(likely_matrix))) {
+                likely_matrix header;
+                if (fread(&header, sizeof(likely_matrix), 1, fp)) {
+                    const size_t bytes = likely_bytes(&header);
+                    if (sizeof(likely_matrix) + bytes == size) {
+                        likely_mat mat = likely_new(header.type, header.channels, header.columns, header.rows, header.frames, NULL);
+                        const bool success = (fread(mat->data, bytes, 1, fp) == 1);
+                        assert(success);
+                        fclose(fp);
+                        if (!success) {
+                            likely_release_mat(mat);
+                            mat = NULL;
+                        }
+                        return mat;
+                    }
                 }
             }
 
-            if (!result && (type & likely_file_encoded))
-                result = likely_decode(buffer);
+            fseek(fp, 0, SEEK_SET);
+            likely_mat buffer = likely_new(likely_matrix_u8, 1, uint32_t(size + ((type & likely_file_text) ? 1 : 0)), 1, 1, NULL);
+            const bool success = (fread(buffer->data, 1, size, fp) == size);
+            fclose(fp);
+            likely_mat result = NULL;
+            if (success) {
+                if (!result && (type & likely_file_decoded)) {
+                    if (likely_bytes(buffer) >= sizeof(likely_matrix)) {
+                        likely_mat header = (likely_mat) buffer->data;
+                        if (sizeof(likely_matrix) + likely_bytes(header) == likely_bytes(buffer))
+                            result = likely_new(header->type, header->channels, header->columns, header->rows, header->frames, header->data);
+                    }
+                }
 
-            if (!result && (type & likely_file_text)) {
-                const size_t bytes = likely_bytes(buffer);
-                buffer->data[bytes-1] = 0;
-                buffer->channels = uint32_t(bytes);
-                buffer->columns = buffer->rows = buffer->frames = 1;
-                buffer->type = likely_matrix_string;
-                result = likely_retain_mat(buffer);
+                if (!result && (type & likely_file_encoded))
+                    result = likely_decode(buffer);
+
+                if (!result && (type & likely_file_text)) {
+                    const size_t bytes = likely_bytes(buffer);
+                    buffer->data[bytes-1] = 0;
+                    buffer->channels = uint32_t(bytes);
+                    buffer->columns = buffer->rows = buffer->frames = 1;
+                    buffer->type = likely_matrix_string;
+                    result = likely_retain_mat(buffer);
+                }
+
+                if (!result)
+                    result = likely_retain_mat(buffer);
             }
-
-            if (!result)
-                result = likely_retain_mat(buffer);
-
             likely_release_mat(buffer);
             return result;
-        } else {
-            likely_release_mat(buffer);
-            buffer = NULL;
         }
     }
 
-    // Assume it's a folder
-    error_code ec;
-    vector<future<likely_mat>> futures;
-    for (sys::fs::recursive_directory_iterator i(fileName, ec), e; i != e; i.increment(ec))
-        if (sys::fs::is_regular_file(i->path()))
-            futures.push_back(async(readAsync, i->path(), type));
-
-    // Combine into one matrix with multiple frames
-    likely_matrix firstHeader;
-    likely_mat result = NULL;
-    size_t step = 0;
-    bool valid = true;
-    for (size_t i=0; i<futures.size(); i++) {
-        likely_const_mat image = futures[i].get();
-        if ((i == 0) && image) {
-            firstHeader = *image;
-            step = likely_bytes(&firstHeader);
-            result = likely_new(firstHeader.type, firstHeader.channels, firstHeader.columns, firstHeader.rows, uint32_t(firstHeader.frames * futures.size()), NULL);
-        }
-
-        valid = valid
-                && image
-                && (image->type     == firstHeader.type)
-                && (image->channels == firstHeader.channels)
-                && (image->columns  == firstHeader.columns)
-                && (image->rows     == firstHeader.rows)
-                && (image->frames   == firstHeader.frames);
-
-        if (valid) {
-            memcpy(result->data + i*step, image->data, step);
-        } else if (result) {
-            assert(!valid);
-            free(result);
-            result = NULL;
-        }
-
-        likely_release_mat(image);
-    }
-
-    return result;
+    return NULL;
 }
 
 likely_mat likely_write(likely_const_mat image, const char *file_name)

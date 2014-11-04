@@ -2320,7 +2320,7 @@ class readExpression : public SimpleUnaryOperator
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         if (likely_const_mat fileName = arg->getData())
-            return ConstantMat::get(builder, likely_read(fileName->data, likely_file_binary));
+            return ConstantMat::get(builder, likely_read(fileName->data, likely_guess_file_type(fileName->data)));
 
         Function *likelyRead = builder.module->module->getFunction("likely_read");
         if (!likelyRead) {
