@@ -106,7 +106,6 @@ typedef struct likely_matrix *likely_mat; /*!< \brief Pointer to a \ref likely_m
  * | \ref likely_decode    | \copybrief likely_decode    |
  * | \ref likely_to_string | \copybrief likely_to_string |
  * | \ref likely_render    | \copybrief likely_render    |
- * | \ref likely_md5       | \copybrief likely_md5       |
  *
  * \par Element Access
  * By convention, element layout in \ref likely_matrix::data with respect to decreasing spatial locality is: channel, column, row, frame.
