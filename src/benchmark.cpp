@@ -290,7 +290,7 @@ int main(int argc, char *argv[])
         likely_release_mat(source);
         const likely_env parent = likely_standard(NULL);
         if (BenchmarkParallel)
-            parent->env_type |= likely_environment_parallel;
+            parent->type |= likely_environment_parallel;
         const likely_const_env env = likely_repl(ast, parent, NULL, NULL);
         assert(env->expr);
         likely_release_env(parent);

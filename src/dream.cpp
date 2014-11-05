@@ -195,7 +195,7 @@ public slots:
         likely_release_env(root);
         root = likely_standard(NULL);
         if (execution == "Parallel")
-            root->env_type |= likely_environment_parallel;
+            root->type |= likely_environment_parallel;
         previousSource.clear(); // clear cache
         eval();
     }
@@ -670,7 +670,7 @@ public slots:
 
     void print(likely_const_env env)
     {
-        if (env->env_type & likely_environment_definition)
+        if (env->type & likely_environment_definition)
             return;
 
         if (likely_const_mat m = likely_result(env)) {
