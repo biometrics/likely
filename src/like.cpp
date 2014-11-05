@@ -87,7 +87,7 @@ static void checkOrPrintAndRelease(likely_const_mat input)
 
 static void replRender(likely_const_env env, void *)
 {
-    if (env->type & likely_environment_definition)
+    if (env->env_type & likely_environment_definition)
         return;
 
     static int index = 0;
@@ -101,7 +101,7 @@ static void replRender(likely_const_env env, void *)
 
 static void replShow(likely_const_env env, void *)
 {
-    if (env->type & likely_environment_definition)
+    if (env->env_type & likely_environment_definition)
         return;
 
     if (assert_.getValue().empty()) {
@@ -126,7 +126,7 @@ static void replShow(likely_const_env env, void *)
 
 static void replMD5(likely_const_env env, void *)
 {
-    if (env->type & likely_environment_definition)
+    if (env->env_type & likely_environment_definition)
         return;
 
     likely_mat md5 = likely_md5(likely_result(env));
@@ -151,7 +151,7 @@ static void replQuiet(likely_const_env, void *)
 
 static void replPrint(likely_const_env env, void *)
 {
-    if (env->type & likely_environment_definition)
+    if (env->env_type & likely_environment_definition)
         return;
     checkOrPrintAndRelease(likely_to_string(likely_result(env)));
 }
@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
 
     likely_env parent = likely_standard(output.empty() ? NULL /* JIT */ : output.c_str() /* Offline */);
     if (parallel)
-        parent->type |= likely_environment_parallel;
+        parent->env_type |= likely_environment_parallel;
 
     if (input.empty()) {
         // console
