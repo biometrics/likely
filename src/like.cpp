@@ -58,7 +58,6 @@ static cl::opt<string> output(cl::Positional, cl::desc("<object_file>"), cl::ini
 static cl::opt<string> render("render", cl::desc("%d-formatted file to render matrix output to"));
 static cl::opt<string> assert_("assert", cl::desc("Confirm the output equals the specified value"));
 static cl::opt<bool> ast("ast", cl::desc("Print abstract syntax tree"));
-static cl::opt<bool> md5("md5", cl::desc("Print matrix output MD5 hash to terminal"));
 static cl::opt<bool> show("show", cl::desc("Show matrix output in a window"));
 static cl::opt<bool> quiet("quiet", cl::desc("Don't show matrix output"));
 static cl::opt<bool> parallel("parallel" , cl::desc("Compile parallel kernels"));
@@ -124,26 +123,6 @@ static void replShow(likely_const_env env, void *)
     }
 }
 
-static void replMD5(likely_const_env env, void *)
-{
-    if (env->env_type & likely_environment_definition)
-        return;
-
-    likely_mat md5 = likely_md5(likely_result(env));
-
-    char hex_str[] = "0123456789abcdef";
-    const size_t bytes = likely_bytes(md5);
-    likely_mat hex = likely_new(likely_matrix_string, uint32_t(2*likely_bytes(md5)+1), 1, 1, 1, NULL);
-    for (size_t i=0; i<bytes; i++) {
-        hex->data[2*i+0] = hex_str[(md5->data[i] >> 4) & 0x0F];
-        hex->data[2*i+1] = hex_str[(md5->data[i] >> 0) & 0x0F];
-    }
-    hex->data[2*bytes] = 0;
-
-    checkOrPrintAndRelease(hex);
-    likely_release_mat(md5);
-}
-
 static void replQuiet(likely_const_env, void *)
 {
     return;
@@ -163,7 +142,6 @@ int main(int argc, char *argv[])
     likely_repl_callback repl_callback;
     if (!render.getValue().empty()) repl_callback = replRender;
     else if (show)  repl_callback = replShow;
-    else if (md5)   repl_callback = replMD5;
     else if (quiet) repl_callback = replQuiet;
     else            repl_callback = replPrint;
 

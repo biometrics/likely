@@ -24,7 +24,6 @@
 #include <future>
 #include <string>
 #include <llvm/Support/FileSystem.h>
-#include <llvm/Support/MD5.h>
 #include <opencv2/highgui/highgui.hpp>
 
 #include "likely/backend.h"
@@ -325,13 +324,4 @@ void likely_show(likely_const_mat mat, const char *title)
     cv::imshow(title, likelyToOpenCVMat(rendered));
     cv::waitKey();
     likely_release_mat(rendered);
-}
-
-likely_mat likely_md5(likely_const_mat mat)
-{
-    MD5 md5;
-    md5.update(ArrayRef<uint8_t>(reinterpret_cast<const uint8_t*>(mat->data), likely_bytes(mat)));
-    MD5::MD5Result md5Result;
-    md5.final(md5Result);
-    return likely_new(likely_matrix_u8, 16, 1, 1, 1, md5Result);
 }

@@ -2572,30 +2572,6 @@ private:
 };
 LIKELY_REGISTER(encode)
 
-struct md5Expression : public SimpleUnaryOperator
-{
-    md5Expression(likely_const_env parent)
-        : SimpleUnaryOperator(parent) {}
-
-private:
-    const char *symbol() const { return "md5"; }
-    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
-    {
-        Function *likelyMd5 = builder.module->module->getFunction("likely_md5");
-        if (!likelyMd5) {
-            FunctionType *functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), false);
-            likelyMd5 = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_md5", builder.module->module);
-            likelyMd5->setCallingConv(CallingConv::C);
-            likelyMd5->setDoesNotAlias(0);
-            likelyMd5->setDoesNotAlias(1);
-            likelyMd5->setDoesNotCapture(1);
-            sys::DynamicLibrary::AddSymbol("likely_md5", (void*) likely_md5);
-        }
-        return new likely_expression(LikelyValue(builder.CreateCall(likelyMd5, *arg), likely_matrix_multi_dimension), builder.env);
-    }
-};
-LIKELY_REGISTER(md5)
-
 } // namespace (anonymous)
 
 // As a special exception, this function is allowed to set ast->type
