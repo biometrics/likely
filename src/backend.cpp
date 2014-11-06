@@ -1513,23 +1513,6 @@ struct Lambda : public LikelyOperator
         }
     }
 
-    static likely_const_mat getResult(likely_const_expr expr)
-    {
-        if (!expr)
-            return NULL;
-        if (likely_const_mat m = expr->getData())
-            return m;
-        if (expr->uid() == UID()) {
-            const Lambda *lambda = static_cast<const Lambda*>(expr);
-            if (lambda->maxParameters() == 0) {
-                likely_const_mat m = lambda->evaluateConstantFunction(vector<likely_const_mat>());
-                lambda->setData(m);
-                return m;
-            }
-        }
-        return NULL;
-    }
-
     static void *getFunction(likely_const_expr expr, const vector<likely_matrix_type> &types)
     {
         if (!expr || (expr->uid() != UID()))
@@ -2528,9 +2511,9 @@ void *likely_compile(likely_const_expr expr, likely_matrix_type const *type, uin
 
 likely_const_mat likely_result(likely_const_env env)
 {
-    if (!env)
+    if (!env || !env->expr)
         return NULL;
-    return Lambda::getResult(env->expr);
+    return env->expr->getData();
 }
 
 likely_env likely_eval(likely_ast ast, likely_const_env parent)
