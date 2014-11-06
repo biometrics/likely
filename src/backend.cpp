@@ -332,7 +332,7 @@ struct LikelyValue
     Value *value;
     likely_matrix_type type;
 
-    LikelyValue(Value *value, likely_matrix_type type)
+    LikelyValue(Value *value = NULL, likely_matrix_type type = likely_matrix_void)
         : value(value), type(type)
     {
         if (value && type) {
@@ -413,7 +413,7 @@ typedef struct likely_expression const *likely_const_expr;
 
 struct likely_expression : public LikelyValue
 {
-    likely_expression(const LikelyValue &value, likely_const_mat data = NULL)
+    likely_expression(const LikelyValue &value = LikelyValue(), likely_const_mat data = NULL)
         : LikelyValue(value), data(data) {}
 
     virtual ~likely_expression()
@@ -620,7 +620,7 @@ struct Builder : public IRBuilder<>
             if (value == 0) value = -0; // IEEE/LLVM optimization quirk
             if      (depth == 64) return LikelyValue(ConstantFP::get(Type::getDoubleTy(getContext()), value), type);
             else if (depth == 32) return LikelyValue(ConstantFP::get(Type::getFloatTy(getContext()), value), type);
-            else                  { likely_assert(false, "invalid floating point constant depth: %d", depth); return LikelyValue(NULL, likely_matrix_void); }
+            else                  { likely_assert(false, "invalid floating point constant depth: %d", depth); return LikelyValue(); }
         } else {
             return constant(uint64_t(value), type);
         }
@@ -765,7 +765,7 @@ struct Builder : public IRBuilder<>
 class ConstantMat : public likely_expression
 {
     ConstantMat(likely_const_mat m)
-        : likely_expression(LikelyValue(NULL, likely_matrix_void), m) {}
+        : likely_expression(LikelyValue(), m) {}
 
     likely_const_expr evaluate(Builder &builder, likely_const_ast) const
     {
@@ -805,7 +805,6 @@ struct Symbol : public likely_expression
     vector<likely_matrix_type> parameters;
 
     Symbol(likely_const_expr function = NULL, vector<likely_matrix_type> parameters = vector<likely_matrix_type>())
-        : likely_expression(LikelyValue(NULL, likely_matrix_void))
     {
         init(function, parameters);
     }
@@ -912,10 +911,6 @@ class LikelyOperator : public likely_expression
     }
 
     virtual likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const = 0;
-
-protected:
-    LikelyOperator()
-        : likely_expression(LikelyValue(NULL, likely_matrix_void)) {}
 };
 
 } // namespace (anonymous)
@@ -1740,7 +1735,7 @@ class ifExpression : public LikelyOperator
             if (True->empty() || !True->back().isTerminator())
                 builder.CreateBr(End);
             builder.SetInsertPoint(End);
-            return new likely_expression(LikelyValue(NULL, likely_matrix_void));
+            return new likely_expression();
         }
     }
 };
@@ -1754,7 +1749,7 @@ struct Loop : public likely_expression
     BranchInst *latch;
 
     Loop(Builder &builder, const string &name, Value *start, Value *stop)
-        : likely_expression(LikelyValue(NULL, likely_matrix_void)), name(name), start(start), stop(stop), exit(NULL), latch(NULL)
+        : name(name), start(start), stop(stop), exit(NULL), latch(NULL)
     {
         // Loops assume at least one iteration
         BasicBlock *entry = builder.GetInsertBlock();
@@ -2199,7 +2194,7 @@ class evalExpression : public LikelyOperator
         builder.env = likely_repl(source_ast, parent, NULL, NULL);
         likely_release_ast(source_ast);
         likely_release_env(parent);
-        if (builder.env->expr) return new likely_expression(LikelyValue(NULL, likely_matrix_void));
+        if (builder.env->expr) return new likely_expression();
         else                   return NULL;
     }
 };
