@@ -1493,7 +1493,7 @@ struct Lambda : public LikelyOperator
         return new likely_expression(LikelyValue(function, likely_matrix_void), likely_retain_mat(result->getData()));
     }
 
-    likely_mat evaluateConstantFunction(const vector<likely_const_mat> &args) const
+    likely_mat evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const
     {
         vector<likely_matrix_type> params;
         for (likely_const_mat arg : args)
@@ -2532,7 +2532,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent)
         if (!strcmp(likely_symbol(ast), "->"))
             expr = likely_expression::get(builder, ast);
         else
-            expr = ConstantMat::get(Lambda(parent, ast).evaluateConstantFunction(vector<likely_const_mat>()));
+            expr = ConstantMat::get(Lambda(parent, ast).evaluateConstantFunction());
     }
 
     // Certain operators like `eval` introduce additional to variables to the environment,
