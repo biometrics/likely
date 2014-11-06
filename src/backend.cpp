@@ -764,30 +764,34 @@ struct Builder : public IRBuilder<>
 
 class ConstantMat : public likely_expression
 {
-    likely_module *module;
-    ConstantMat(Builder &builder, likely_const_mat m)
-        : likely_expression(LikelyValue(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(likely_mat)), uintptr_t(m)), builder.toLLVM(m->type)), m->type), m)
-        , module(builder.module) {}
+    ConstantMat(likely_const_mat m)
+        : likely_expression(LikelyValue(NULL, likely_matrix_void), m) {}
 
-    ~ConstantMat()
+    likely_const_expr evaluate(Builder &builder, likely_const_ast) const
     {
-        if (value->getNumUses() > 0)
-            module->mats.push_back(likely_retain_mat(getData()));
+        const likely_const_mat m = getData();
+        const LikelyValue value = (m->type & likely_matrix_multi_dimension) ? LikelyValue(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(likely_mat)), uintptr_t(m)), builder.toLLVM(m->type)), m->type)
+                                                                            : LikelyValue(builder.constant(likely_element(m, 0, 0, 0, 0), m->type), m->type);
+
+        // Make sure the lifetime of the data is at least as long as the lifetime of the code.
+        if (m->type & likely_matrix_multi_dimension)
+            builder.module->mats.push_back(likely_retain_mat(m));
+
+        return new likely_expression(value, likely_retain_mat(m));
     }
 
-    ConstantMat(const ConstantMat &) = delete;
-    ConstantMat &operator=(const ConstantMat &) = delete;
-
 public:
-    static likely_expression *get(Builder &builder, likely_const_mat data)
+    static likely_const_expr get(likely_const_mat data)
     {
-        assert(data); // We want to be warned of this in debug mode...
-        if (!data)    // ... but handle it gracefully in release mode.
+        if (!data)
             return NULL;
-        else if (!(data->type & likely_matrix_multi_dimension))
-            return new likely_expression(LikelyValue(builder.constant(likely_element(data, 0, 0, 0, 0), data->type), data->type), data);
-        else
-            return new ConstantMat(builder, data);
+        return new ConstantMat(data);
+    }
+
+    static likely_const_expr get(Builder &builder, likely_const_mat data)
+    {
+        unique_ptr<const likely_expression> expr(get(data));
+        return expr ? expr->evaluate(builder, NULL) : NULL;
     }
 };
 
