@@ -2445,10 +2445,16 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
 
         { // Is it a type?
             bool ok;
-            likely_matrix_type type = likely_type_from_string(ast->atom, &ok);
+            const likely_matrix_type matrixType = likely_type_from_string(ast->atom, &ok);
             if (ok) {
                 const_cast<likely_ast>(ast)->type = likely_ast_type;
-                return new MatrixType(builder, type);
+                return new MatrixType(builder, matrixType);
+            }
+
+            const likely_file_type fileType = likely_file_type_from_string(ast->atom, &ok);
+            if (ok) {
+                const_cast<likely_ast>(ast)->type = likely_ast_type;
+                return new likely_expression(LikelyValue(builder.constant(uint64_t(fileType), likely_matrix_u32)));
             }
         }
 
