@@ -49,6 +49,7 @@ enum likely_file_type_mask
     likely_file_text      = 0x00000008, /*!< \brief It's text, read it and append a \c NULL terminator. */
     likely_file_lisp      = 0x00000010 | likely_file_text, /*!< \brief The text file has plain source code. */
     likely_file_gfm       = 0x00000020 | likely_file_text, /*!< \brief The text file has source code is in [GitHub Flavored Markdown](https://help.github.com/articles/github-flavored-markdown/) code blocks. */
+    likely_file_guess     = 0xFFFFFFFF /*!< \brief Guess the file type using \ref likely_guess_file_type. */
 };
 
 /*!
@@ -70,7 +71,7 @@ LIKELY_EXPORT likely_file_type likely_guess_file_type(const char *file_name);
  * \par Implementation
  * \snippet src/io.cpp likely_file_type_to_string implementation.
  * \param[in] type The type to convert to a string.
- * \return A \ref likely_string.
+ * \return A \ref likely_string or \c NULL on error.
  * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT likely_mat likely_file_type_to_string(likely_file_type type);
@@ -83,7 +84,7 @@ LIKELY_EXPORT likely_mat likely_file_type_to_string(likely_file_type type);
  * \snippet src/io.cpp likely_file_type_from_string implementation.
  * \param[in] str String to convert to a \ref likely_file_type.
  * \param[out] ok Successful conversion. May be \c NULL.
- * \return A \ref likely_file_type from \p str on success, \ref likely_file_directory otherwise.
+ * \return A \ref likely_file_type from \p str on success, \ref likely_file_guess otherwise.
  * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT likely_matrix_type likely_file_type_from_string(const char *str, bool *ok);

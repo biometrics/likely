@@ -59,6 +59,7 @@ likely_mat likely_file_type_to_string(likely_file_type type)
     if (type == likely_file_text     ) return likely_string("text");
     if (type == likely_file_lisp     ) return likely_string("lisp");
     if (type == likely_file_gfm      ) return likely_string("gfm");
+    if (type == likely_file_guess    ) return likely_string("guess");
     return NULL;
 }
 //! [likely_file_type_to_string implementation.]
@@ -79,17 +80,18 @@ likely_file_type likely_file_type_from_string(const char *str, bool *ok)
     if (!strcmp(str, "text"     )) return likely_file_text;
     if (!strcmp(str, "lisp"     )) return likely_file_lisp;
     if (!strcmp(str, "gfm"      )) return likely_file_gfm;
+    if (!strcmp(str, "guess"    )) return likely_file_guess;
 
 error:
     if (ok)
         *ok = false;
-    return likely_file_directory;
+    return likely_file_guess;
 }
 //! [likely_file_type_from_string implementation.]
 
 static likely_mat readAsync(const string &fileName)
 {
-    return likely_read(fileName.c_str(), likely_guess_file_type(fileName.c_str()));
+    return likely_read(fileName.c_str(), likely_file_guess);
 }
 
 likely_mat likely_read(const char *file_name, likely_file_type type)
@@ -100,6 +102,9 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
         static string HOME = getenv("HOME");
         fileName = HOME + fileName.substr(1);
     }
+
+    if (type == likely_file_guess)
+        type = likely_guess_file_type(file_name);
 
     likely_mat result = NULL;
     if (type == likely_file_directory) {

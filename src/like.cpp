@@ -107,7 +107,7 @@ static void replShow(likely_const_env env, void *)
         likely_show(likely_result(env), likely_symbol(env->ast));
     } else {
         likely_mat rendered = likely_render(likely_result(env), NULL, NULL);
-        likely_mat baseline = likely_read(assert_.getValue().c_str(), likely_guess_file_type(assert_.getValue().c_str()));
+        likely_mat baseline = likely_read(assert_.getValue().c_str(), likely_file_guess);
         likely_assert(rendered->channels == baseline->channels, "expected: %d channels, got: %d", baseline->channels, rendered->channels);
         likely_assert(rendered->columns  == baseline->columns , "expected: %d columns, got: %d" , baseline->columns , rendered->columns);
         likely_assert(rendered->rows     == baseline->rows    , "expected: %d rows, got: %d"    , baseline->rows    , rendered->rows);

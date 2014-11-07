@@ -2391,7 +2391,7 @@ class readExpression : public SimpleUnaryOperator
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         if (likely_const_mat fileName = arg->getData())
-            return ConstantMat::get(builder, likely_read(fileName->data, likely_guess_file_type(fileName->data)));
+            return ConstantMat::get(builder, likely_read(fileName->data, likely_file_guess));
 
         Function *likelyRead = builder.module->module->getFunction("likely_read");
         if (!likelyRead) {
@@ -2404,7 +2404,7 @@ class readExpression : public SimpleUnaryOperator
             likelyRead->setDoesNotCapture(1);
             sys::DynamicLibrary::AddSymbol("likely_read", (void*) likely_read);
         }
-        return new likely_expression(LikelyValue(builder.CreateCall2(likelyRead, *arg, builder.constant(uint64_t(likely_file_media), likely_matrix_u32)), likely_matrix_multi_dimension));
+        return new likely_expression(LikelyValue(builder.CreateCall2(likelyRead, *arg, builder.constant(uint64_t(likely_file_guess), likely_matrix_u32)), likely_matrix_multi_dimension));
     }
 };
 LIKELY_REGISTER(read)
