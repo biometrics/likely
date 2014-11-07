@@ -638,7 +638,7 @@ Standard Library
     e  := (f32 2.718281) ; Euler's number
     pi := (f32 3.141592) ; The ratio of a circle's circumference to its diameter
 
-### Basic Unary Functions
+### Basic unary functions
     not  := (-> a (== a false))
     bool := (-> a (!= a false))
     sq  := (-> a (* a a))
@@ -658,6 +658,9 @@ Standard Library
 ### Matrix creation
     imitate-size := (-> (mat type) (new type mat.channels mat.columns mat.rows mat.frames))
     imitate := (-> mat (imitate-size mat mat.type))
+
+### Matrix I/O
+    decode := (export multi-dimension "likely_decode" multi-dimension)
 
 ### Type conversion
     cast := (-> (a b) (b.type a)) ; convert a to the type of b

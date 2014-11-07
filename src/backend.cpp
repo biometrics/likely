@@ -88,6 +88,8 @@ void likely_initialize(int opt_level, int size_level, bool loop_vectorize)
     initializeTransformUtils(Registry);
     initializeInstCombine(Registry);
     initializeTarget(Registry);
+
+    sys::DynamicLibrary::AddSymbol("likely_decode", (void*) likely_decode);
 }
 
 namespace {
@@ -819,8 +821,17 @@ private:
             vector<Type*> llvmParameters;
             for (likely_matrix_type parameter : parameters)
                 llvmParameters.push_back(builder.toLLVM(parameter));
-            FunctionType *functionType = FunctionType::get(builder.toLLVM(type), llvmParameters, false);
+            Type *llvmReturn = builder.toLLVM(type);
+            FunctionType *functionType = FunctionType::get(llvmReturn, llvmParameters, false);
             symbol = Function::Create(functionType, GlobalValue::ExternalLinkage, name, builder.module->module);
+            symbol->setCallingConv(CallingConv::C);
+            if (isa<PointerType>(llvmReturn))
+                symbol->setDoesNotAlias(0);
+            for (size_t i=0; i<llvmParameters.size(); i++)
+                if (isa<PointerType>(llvmParameters[i])) {
+                    symbol->setDoesNotAlias(i+1);
+                    symbol->setDoesNotCapture(i+1);
+                }
         }
 
         vector<Value*> args;
@@ -2395,29 +2406,6 @@ class writeExpression : public SimpleBinaryOperator
     }
 };
 LIKELY_REGISTER(write)
-
-class decodeExpression : public SimpleUnaryOperator
-{
-    const char *symbol() const { return "decode"; }
-    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
-    {
-        if (likely_const_mat buffer = arg->getData())
-            return ConstantMat::get(builder, likely_decode(buffer));
-
-        Function *likelyDecode = builder.module->module->getFunction("likely_decode");
-        if (!likelyDecode) {
-            FunctionType *functionType = FunctionType::get(builder.multiDimension(), builder.multiDimension(), false);
-            likelyDecode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_decode", builder.module->module);
-            likelyDecode->setCallingConv(CallingConv::C);
-            likelyDecode->setDoesNotAlias(0);
-            likelyDecode->setDoesNotAlias(1);
-            likelyDecode->setDoesNotCapture(1);
-            sys::DynamicLibrary::AddSymbol("likely_decode", (void*) likely_decode);
-        }
-        return new likely_expression(LikelyValue(builder.CreateCall(likelyDecode, builder.CreatePointerCast(*arg, builder.multiDimension())), likely_matrix_multi_dimension));
-    }
-};
-LIKELY_REGISTER(decode)
 
 class encodeExpression : public SimpleBinaryOperator
 {
