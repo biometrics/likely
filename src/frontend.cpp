@@ -463,7 +463,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
     likely_const_ast token = tokens->atoms[offset++];
 
     static likely_const_ast comment = likely_atom(";", 1);
-    if (!likely_ast_compare(token, comment)) {
+    while (!likely_ast_compare(token, comment)) {
         const uint32_t line = token->begin_line;
         while (token->begin_line == line) {
             if (offset < tokens->num_atoms)
