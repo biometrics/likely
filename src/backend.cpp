@@ -801,26 +801,11 @@ if (!EXPR.get()) return NULL;                                      \
 
 struct Symbol : public likely_expression
 {
-    string name;
-    vector<likely_matrix_type> parameters;
+    const string name;
+    const vector<likely_matrix_type> parameters;
 
-    Symbol(likely_const_expr function = NULL, vector<likely_matrix_type> parameters = vector<likely_matrix_type>())
-    {
-        init(function, parameters);
-    }
-
-    void init(likely_const_expr expr, vector<likely_matrix_type> parameters)
-    {
-        if (!expr)
-            return;
-
-        Function *function = cast<Function>(expr->value);
-        name = function->getName();
-        this->parameters = parameters;
-        value = function;
-        type = toLikely(function->getReturnType());
-        setData(likely_retain_mat(expr->getData()));
-    }
+    Symbol(const string &name, likely_matrix_type returnType, vector<likely_matrix_type> parameters = vector<likely_matrix_type>())
+        : likely_expression(LikelyValue(NULL, returnType)), name(name), parameters(parameters) {}
 
 private:
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
@@ -1490,7 +1475,7 @@ struct Lambda : public LikelyOperator
 
         likely_release_env(builder.env);
         builder.env = restore;
-        return new likely_expression(LikelyValue(function, likely_matrix_void), likely_retain_mat(result->getData()));
+        return new likely_expression(LikelyValue(function, result->type), likely_retain_mat(result->getData()));
     }
 
     likely_mat evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const
@@ -1639,7 +1624,7 @@ class externExpression : public LikelyOperator
             name = data->data;
         }
 
-        return new Symbol();
+        return NULL;
     }
 };
 LIKELY_REGISTER(extern)
@@ -2132,7 +2117,7 @@ class defineExpression : public LikelyOperator
                     TRY_EXPR(builder, rhs, expr);
                     const Lambda *lambda = static_cast<const Lambda*>(expr.get());
                     if (likely_const_expr function = lambda->generate(builder, parameters, name, false, false)) {
-                        likely_const_expr expr = new Symbol(function, parameters);
+                        likely_const_expr expr = new Symbol(name, function->type, parameters);
                         delete function;
                         return expr;
                     }
@@ -2211,7 +2196,7 @@ class evalExpression : public LikelyOperator
 LIKELY_REGISTER(eval)
 
 JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_matrix_type> &parameters, bool evaluate, bool arrayCC)
-    : module(new likely_module())
+    : Symbol(name, likely_matrix_void, parameters), module(new likely_module())
 {
     likely_env env = newEnv(lambda->env);
 
@@ -2220,7 +2205,14 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
         env->type &= ~likely_environment_ctfe;
 
     Builder builder(env, module);
-    init(unique_ptr<const likely_expression>(lambda->generate(builder, parameters, name, arrayCC, evaluate)).get(), parameters);
+    {
+        unique_ptr<const likely_expression> expr(lambda->generate(builder, parameters, name, arrayCC, evaluate));
+        if (expr) {
+            value = expr->value;
+            type = expr->type;
+            setData(likely_retain_mat(expr->getData()));
+        }
+    }
     likely_release_env(env);
     if (!value /* error */ || (evaluate && getData()) /* constant */)
         return;
