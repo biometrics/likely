@@ -660,7 +660,7 @@ Standard Library
     imitate := (-> mat (imitate-size mat mat.type))
 
 ### Matrix I/O
-    decode := (export multi-dimension "likely_decode" multi-dimension)
+    decode := (extern multi-dimension "likely_decode" multi-dimension)
 
 ### Type conversion
     cast := (-> (a b) (b.type a)) ; convert a to the type of b

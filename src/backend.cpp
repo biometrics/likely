@@ -810,6 +810,8 @@ struct Symbol : public likely_expression
         : likely_expression(LikelyValue(NULL, returnType)), name(name), parameters(parameters) {}
 
 private:
+    size_t maxParameters() const { return parameters.size(); }
+
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
         if (parameters.size() != ((ast->type == likely_ast_list) ? ast->num_atoms-1 : 0))
@@ -2178,7 +2180,7 @@ class defineExpression : public LikelyOperator
                     return get(builder, rhs);
                 } else {
                     // Lazy global value
-                    return new Lambda(builder.env, rhs);
+                    return new LazyDefinition(builder.env, rhs);
                 }
             }
         } else {
@@ -2441,7 +2443,7 @@ class encodeExpression : public SimpleBinaryOperator
         Function *likelyEncode = builder.module->module->getFunction("likely_encode");
         if (!likelyEncode) {
             Type *params[] = { builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()) };
-            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, false);
+            FunctionType *functionType = FunctionType::get(builder.toLLVM(likely_matrix_u8 | likely_matrix_multi_row), params, false);
             likelyEncode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_encode", builder.module->module);
             likelyEncode->setCallingConv(CallingConv::C);
             likelyEncode->setDoesNotAlias(0);
@@ -2451,7 +2453,7 @@ class encodeExpression : public SimpleBinaryOperator
             likelyEncode->setDoesNotCapture(2);
             sys::DynamicLibrary::AddSymbol("likely_encode", (void*) likely_encode);
         }
-        return new likely_expression(LikelyValue(builder.CreateCall2(likelyEncode, builder.CreatePointerCast(*arg1, builder.multiDimension()), *arg2), likely_matrix_multi_dimension));
+        return new likely_expression(LikelyValue(builder.CreateCall2(likelyEncode, builder.CreatePointerCast(*arg1, builder.multiDimension()), *arg2), likely_matrix_u8 | likely_matrix_multi_row));
     }
 };
 LIKELY_REGISTER(encode)
