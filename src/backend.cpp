@@ -1606,25 +1606,55 @@ class externExpression : public LikelyOperator
 {
     const char *symbol() const { return "extern"; }
     size_t maxParameters() const { return 3; }
+
+    static likely_matrix_type typeFromAst(Builder &builder, likely_const_ast ast, bool *ok)
+    {
+        const unique_ptr<const likely_expression> expr(get(builder, ast));
+        if (!expr) {
+            *ok = false;
+            return likely_matrix_void;
+        }
+
+        const likely_const_mat data = expr->getData();
+        if (!data || (data->type != likely_matrix_u32) || (data->type & likely_matrix_multi_dimension)) {
+            *ok = false;
+            return likely_matrix_void;
+        }
+
+        *ok = true;
+        return likely_matrix_type(likely_element(data, 0, 0, 0, 0));
+    }
+
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        Type *returnType;
-        {
-            TRY_EXPR(builder, ast->atoms[1], expr);
-            const likely_const_mat data = expr->getData();
-            assert(data && (data->type == likely_matrix_u32) && !(data->type & likely_matrix_multi_dimension));
-            returnType = builder.toLLVM(likely_matrix_type(likely_element(data, 0, 0, 0, 0)));
-        }
+        bool ok;
+        const likely_matrix_type returnType = typeFromAst(builder, ast->atoms[1], &ok);
+        if (!ok)
+            return NULL;
 
         string name;
         {
             TRY_EXPR(builder, ast->atoms[2], expr);
             const likely_const_mat data = expr->getData();
-            assert(likely_is_string(data));
+            if (!likely_is_string(data))
+                return NULL;
             name = data->data;
         }
 
-        return NULL;
+        vector<likely_matrix_type> parameters;
+        if (ast->atoms[3]->type == likely_ast_list) {
+            for (uint32_t i=0; i<ast->atoms[3]->num_atoms; i++) {
+                parameters.push_back(typeFromAst(builder, ast->atoms[3]->atoms[i], &ok));
+                if (!ok)
+                    return NULL;
+            }
+        } else {
+            parameters.push_back(typeFromAst(builder, ast->atoms[3], &ok));
+            if (!ok)
+                return NULL;
+        }
+
+        return new Symbol(name, returnType, parameters);
     }
 };
 LIKELY_REGISTER(extern)
