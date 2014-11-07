@@ -49,6 +49,44 @@ likely_file_type likely_guess_file_type(const char *file_name)
 }
 //! [likely_guess_file_type implementation.]
 
+//! [likely_file_type_to_string implementation.]
+likely_mat likely_file_type_to_string(likely_file_type type)
+{
+    if (type == likely_file_directory) return likely_string("directory");
+    if (type == likely_file_binary   ) return likely_string("binary");
+    if (type == likely_file_media    ) return likely_string("media");
+    if (type == likely_file_matrix   ) return likely_string("matrix");
+    if (type == likely_file_text     ) return likely_string("text");
+    if (type == likely_file_lisp     ) return likely_string("lisp");
+    if (type == likely_file_gfm      ) return likely_string("gfm");
+    return NULL;
+}
+//! [likely_file_type_to_string implementation.]
+
+//! [likely_file_type_from_string implementation.]
+likely_file_type likely_file_type_from_string(const char *str, bool *ok)
+{
+    if (!str)
+        goto error;
+
+    if (ok)
+        *ok = true;
+
+    if (!strcmp(str, "directory")) return likely_file_directory;
+    if (!strcmp(str, "binary"   )) return likely_file_binary;
+    if (!strcmp(str, "media"    )) return likely_file_media;
+    if (!strcmp(str, "matrix"   )) return likely_file_matrix;
+    if (!strcmp(str, "text"     )) return likely_file_text;
+    if (!strcmp(str, "lisp"     )) return likely_file_lisp;
+    if (!strcmp(str, "gfm"      )) return likely_file_gfm;
+
+error:
+    if (ok)
+        *ok = false;
+    return likely_file_directory;
+}
+//! [likely_file_type_from_string implementation.]
+
 static likely_mat readAsync(const string &fileName)
 {
     return likely_read(fileName.c_str(), likely_guess_file_type(fileName.c_str()));
