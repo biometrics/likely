@@ -589,14 +589,6 @@ Reads from _file-name_ and returns the decoded matrix.
 lenna:= (read "data/misc/lenna.tiff")
 ```
 
-##### (write _matrix_ _file-name_)
-Encodes _matrix_ based on the extension of _file-name_ and writes the encoded matrix to _file-name_.
-Returns the input _matrix_.
-
-```likely
-(write lenna "lenna.png")
-```
-
 #### Macros
 ##### (try _expr_ _fallback_)
 Attempts to evaluate _expr_ in the current environment and return the result.
@@ -645,6 +637,7 @@ Standard Library
     imitate := (-> mat (imitate-size mat mat.type))
 
 ### Matrix I/O
+    write  := (extern u8CXYT "likely_encode" (u8CXYT u8P))
     decode := (extern u8CXYT "likely_decode" u8CXYT)
     encode := (extern u8CXYT "likely_encode" (u8CXYT u8P))
 

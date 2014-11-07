@@ -94,7 +94,7 @@ static void replRender(likely_const_env env, void *)
     char fileName[bufferSize];
     snprintf(fileName, bufferSize, render.getValue().c_str(), index++);
     likely_mat rendered = likely_render(likely_result(env), NULL, NULL);
-    likely_write(rendered, fileName);
+    likely_release_mat(likely_write(rendered, fileName));
     likely_release_mat(rendered);
 }
 

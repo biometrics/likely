@@ -62,7 +62,9 @@ int main(int argc, char *argv[])
     likely_const_mat output = function(input);
 
     puts("Writing output image...");
-    likely_assert(likely_write(output, argv[3]), "failed to write: %s", argv[3]);
+    const likely_const_mat write_success = likely_write(output, argv[3]);
+    likely_assert(write_success, "failed to write: %s", argv[3]);
+    likely_release_mat(write_success);
 
     puts("Cleaning up...");
     likely_release_mat(output);

@@ -89,6 +89,7 @@ void likely_initialize(int opt_level, int size_level, bool loop_vectorize)
     initializeInstCombine(Registry);
     initializeTarget(Registry);
 
+    sys::DynamicLibrary::AddSymbol("likely_write", (void*) likely_write);
     sys::DynamicLibrary::AddSymbol("likely_decode", (void*) likely_decode);
     sys::DynamicLibrary::AddSymbol("likely_encode", (void*) likely_encode);
 }
@@ -2407,33 +2408,6 @@ class readExpression : public SimpleUnaryOperator
     }
 };
 LIKELY_REGISTER(read)
-
-class writeExpression : public SimpleBinaryOperator
-{
-    const char *symbol() const { return "write"; }
-    likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const
-    {
-        if (likely_const_mat image = arg1->getData())
-            if (likely_const_mat fileName = arg2->getData())
-                return ConstantMat::get(builder, likely_retain_mat(likely_write(image, fileName->data)));
-
-        Function *likelyWrite = builder.module->module->getFunction("likely_write");
-        if (!likelyWrite) {
-            Type *params[] = { builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()) };
-            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, false);
-            likelyWrite = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_write", builder.module->module);
-            likelyWrite->setCallingConv(CallingConv::C);
-            likelyWrite->setDoesNotAlias(0);
-            likelyWrite->setDoesNotAlias(1);
-            likelyWrite->setDoesNotCapture(1);
-            likelyWrite->setDoesNotAlias(2);
-            likelyWrite->setDoesNotCapture(2);
-            sys::DynamicLibrary::AddSymbol("likely_write", (void*) likely_write);
-        }
-        return new likely_expression(LikelyValue(builder.retainMat(builder.CreateCall2(likelyWrite, *arg1, *arg2)), likely_matrix_multi_dimension));
-    }
-};
-LIKELY_REGISTER(write)
 
 } // namespace (anonymous)
 
