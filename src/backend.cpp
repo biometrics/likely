@@ -2113,6 +2113,28 @@ LIKELY_REGISTER(kernel)
 
 class defineExpression : public LikelyOperator
 {
+    class LazyDefinition : public LikelyOperator
+    {
+        const likely_const_env env;
+        const likely_const_ast ast;
+
+        size_t minParameters() const { return 0; }
+        size_t maxParameters() const { return numeric_limits<size_t>::max(); }
+
+        likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+        {
+            likely_const_env env = this->env;
+            swap(builder.env, env);
+            unique_ptr<const likely_expression> op(get(builder, this->ast));
+            swap(builder.env, env);
+            return op.get() ? op->evaluate(builder, ast) : NULL;
+        }
+
+    public:
+        LazyDefinition(likely_const_env env, likely_const_ast ast)
+            : env(env), ast(ast) {}
+    };
+
     const char *symbol() const { return "="; }
     size_t maxParameters() const { return 2; }
 
