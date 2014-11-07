@@ -56,9 +56,9 @@ enum likely_matrix_type_mask
     likely_matrix_void      = 0x00000000, /*!< \brief Unknown type. */
     likely_matrix_depth     = 0x000000FF, /*!< \brief Bits per element. */
     likely_matrix_floating  = 0x00000100, /*!< \brief Elements are floating-point. */
-    likely_matrix_array     = 0x00000200, /*!< \brief Interpret as a pointer to an array of matricies (used internally only). */
+    likely_matrix_pointer   = 0x00000200, /*!< \brief Interpret as a pointer to the type. */
     likely_matrix_signed    = 0x00000400, /*!< \brief Elements are signed (integers). */
-    likely_matrix_c_type    = likely_matrix_depth | likely_matrix_floating | likely_matrix_array | likely_matrix_signed, /*!< \brief The portion of the \ref likely_matrix_type representable in \c C. */
+    likely_matrix_c_type    = likely_matrix_depth | likely_matrix_floating | likely_matrix_pointer | likely_matrix_signed, /*!< \brief The portion of the \ref likely_matrix_type representable in \c C. */
     likely_matrix_saturated = 0x00000800, /*!< \brief Use saturated arithmetic with computations involving these elements. */
     likely_matrix_element   = likely_matrix_c_type | likely_matrix_saturated, /*!< \brief The portion of \ref likely_matrix_type indicating how to interpret elements. */
     likely_matrix_u1  = 1, /*!< \brief 1-bit unsigned integer elements. */

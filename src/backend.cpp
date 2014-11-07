@@ -210,7 +210,7 @@ public:
             likely_release_mat(str);
         }
 
-        if (likely & likely_matrix_array)
+        if (likely & likely_matrix_pointer)
             llvm = PointerType::getUnqual(llvm);
 
         typeLUT[likely] = llvm;
@@ -386,7 +386,7 @@ struct LikelyValue
                     } else {
                         likely_matrix_type type = toLikely(element);
                         if (!isa<FunctionType>(element))
-                            type |= likely_matrix_array;
+                            type |= likely_matrix_pointer;
                         return type;
                     }
                 } else {
@@ -633,7 +633,7 @@ struct Builder : public IRBuilder<>
     LikelyValue intMax(likely_matrix_type type) { const likely_matrix_type bits = type & likely_matrix_depth; return constant((uint64_t) (1 << (bits - ((type & likely_matrix_signed) ? 1 : 0)))-1, bits); }
     LikelyValue intMin(likely_matrix_type type) { const likely_matrix_type bits = type & likely_matrix_depth; return constant((uint64_t) ((type & likely_matrix_signed) ? (1 << (bits - 1)) : 0), bits); }
     LikelyValue nullMat() { return LikelyValue(ConstantPointerNull::get(::cast<PointerType>((Type*)multiDimension())), likely_matrix_multi_dimension); }
-    LikelyValue nullData() { return LikelyValue(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_matrix_u8 | likely_matrix_array); }
+    LikelyValue nullData() { return LikelyValue(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_matrix_u8 | likely_matrix_pointer); }
 
     Value *addInts(Value *lhs, Value *rhs)
     {
@@ -662,7 +662,7 @@ struct Builder : public IRBuilder<>
     LikelyValue columns (const LikelyValue &m) { return (m & likely_matrix_multi_column ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 3), "columns" ), likely_matrix_u32), likely_matrix_native) : one(); }
     LikelyValue rows    (const LikelyValue &m) { return (m & likely_matrix_multi_row    ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 4), "rows"    ), likely_matrix_u32), likely_matrix_native) : one(); }
     LikelyValue frames  (const LikelyValue &m) { return (m & likely_matrix_multi_frame  ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 5), "frames"  ), likely_matrix_u32), likely_matrix_native) : one(); }
-    LikelyValue data    (const LikelyValue &m) { return LikelyValue(CreatePointerCast(CreateStructGEP(m, 6), module->context->scalar(m, true)), (m & likely_matrix_element) | likely_matrix_array); }
+    LikelyValue data    (const LikelyValue &m) { return LikelyValue(CreatePointerCast(CreateStructGEP(m, 6), module->context->scalar(m, true)), (m & likely_matrix_element) | likely_matrix_pointer); }
 
     LikelyValue cast(const LikelyValue &x, likely_matrix_type type)
     {
@@ -2456,7 +2456,7 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
 
         if ((ast->atom[0] == '"') && (ast->atom[ast->atom_len-1] == '"')) {
             const_cast<likely_ast>(ast)->type = likely_ast_string;
-            return new likely_expression(LikelyValue(builder.CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_matrix_i8 | likely_matrix_array));
+            return new likely_expression(LikelyValue(builder.CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_matrix_i8 | likely_matrix_pointer));
         }
 
         { // Is it a number?

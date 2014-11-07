@@ -596,7 +596,7 @@ likely_mat likely_type_to_string(likely_matrix_type type)
     if (type == likely_matrix_void           ) return likely_string("void");
     if (type == likely_matrix_depth          ) return likely_string("depth");
     if (type == likely_matrix_floating       ) return likely_string("floating");
-    if (type == likely_matrix_array          ) return likely_string("array");
+    if (type == likely_matrix_pointer        ) return likely_string("pointer");
     if (type == likely_matrix_signed         ) return likely_string("signed");
     if (type == likely_matrix_saturated      ) return likely_string("saturated");
     if (type == likely_matrix_element        ) return likely_string("element");
@@ -615,7 +615,7 @@ likely_mat likely_type_to_string(likely_matrix_type type)
     else                                    stream << 'u';
 
     stream << (type & likely_matrix_depth);
-    if (type & likely_matrix_array)         stream << 'A';
+    if (type & likely_matrix_pointer)       stream << 'P';
     if (type & likely_matrix_saturated)     stream << 'S';
     if (type & likely_matrix_multi_channel) stream << 'C';
     if (type & likely_matrix_multi_column)  stream << 'X';
@@ -642,7 +642,7 @@ likely_matrix_type likely_type_from_string(const char *str, bool *ok)
     if (!strcmp(str, "void"           )) return likely_matrix_void;
     if (!strcmp(str, "depth"          )) return likely_matrix_depth;
     if (!strcmp(str, "floating"       )) return likely_matrix_floating;
-    if (!strcmp(str, "array"          )) return likely_matrix_array;
+    if (!strcmp(str, "pointer"        )) return likely_matrix_pointer;
     if (!strcmp(str, "signed"         )) return likely_matrix_signed;
     if (!strcmp(str, "saturated"      )) return likely_matrix_saturated;
     if (!strcmp(str, "element"        )) return likely_matrix_element;
@@ -666,7 +666,7 @@ likely_matrix_type likely_type_from_string(const char *str, bool *ok)
 
     type += (int)strtol(str+1, &remainder, 10);
 
-    if (*remainder == 'A') { type |= likely_matrix_array;         remainder++; }
+    if (*remainder == 'P') { type |= likely_matrix_pointer;       remainder++; }
     if (*remainder == 'S') { type |= likely_matrix_saturated;     remainder++; }
     if (*remainder == 'C') { type |= likely_matrix_multi_channel; remainder++; }
     if (*remainder == 'X') { type |= likely_matrix_multi_column;  remainder++; }
