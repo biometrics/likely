@@ -564,31 +564,6 @@ If _matrix_ is not specified, returns a function which when given a matrix retur
 (frames uninitialized-color-image) ; Evaluates to 1
 ```
 
-#### Matrix I/O
-Supported matrix file formats are:
-
-| Extension                                                     | Type      |
-|---------------------------------------------------------------|-----------|
-| [bmp](http://en.wikipedia.org/wiki/BMP_file_format)           | Image     |
-| [jpg](http://en.wikipedia.org/wiki/Jpg)                       | Image     |
-| [png](http://en.wikipedia.org/wiki/Portable_Network_Graphics) | Image     |
-| [tiff](http://en.wikipedia.org/wiki/Tagged_Image_File_Format) | Image     |
-| [zip](http://en.wikipedia.org/wiki/Zip_%28file_format%29)     | Image Set |
-| [tar](http://en.wikipedia.org/wiki/Tar_%28computing%29)       | Image Set |
-| [gz](http://en.wikipedia.org/wiki/Gzip)                       | Image Set |
-| [bz2](http://en.wikipedia.org/wiki/Bzip2)                     | Image Set |
-
-*Image* formats expect single-frame matricies.
-*Image Set* formats are a collection of images with consistent dimensionality and data type.
-*Video* formats (not supported yet) expect multi-frame matricies.
-
-##### (read _file-name_)
-Reads from _file-name_ and returns the decoded matrix.
-
-```likely
-lenna:= (read "data/misc/lenna.tiff")
-```
-
 #### Macros
 ##### (try _expr_ _fallback_)
 Attempts to evaluate _expr_ in the current environment and return the result.
@@ -637,7 +612,8 @@ Standard Library
     imitate := (-> mat (imitate-size mat mat.type))
 
 ### Matrix I/O
-    write  := (extern u8CXYT "likely_encode" (u8CXYT u8P))
+    read   := (extern u8CXYT "likely_read" (u8P u32))
+    write  := (extern u8CXYT "likely_write" (u8CXYT u8P))
     decode := (extern u8CXYT "likely_decode" u8CXYT)
     encode := (extern u8CXYT "likely_encode" (u8CXYT u8P))
 

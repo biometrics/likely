@@ -91,6 +91,20 @@ LIKELY_EXPORT likely_matrix_type likely_file_type_from_string(const char *str, b
 
 /*!
  * \brief Read a \ref likely_matrix from a file.
+ *
+ * Supported \ref likely_file_media formats are:
+ *
+ * | Extension                                                     | Type      |
+ * |---------------------------------------------------------------|-----------|
+ * | [bmp](http://en.wikipedia.org/wiki/BMP_file_format)           | Image     |
+ * | [jpg](http://en.wikipedia.org/wiki/Jpg)                       | Image     |
+ * | [png](http://en.wikipedia.org/wiki/Portable_Network_Graphics) | Image     |
+ * | [tiff](http://en.wikipedia.org/wiki/Tagged_Image_File_Format) | Image     |
+ * |                                                               | Image Set |
+ *
+ * _Image_ formats expect single-frame matricies.
+ * _Video_ formats (not supported yet) expect multi-frame matricies.
+ * An _Image Set_ is a folder of images with consistent dimensionality and data type.
  * \param[in] file_name The name of the file to open and read.
  * \param[in] type How to process the file after reading.
  * \return Pointer to the new \ref likely_matrix constructed from the file, or \c NULL if the file could not be processed.

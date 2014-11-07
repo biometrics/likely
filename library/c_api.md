@@ -4,7 +4,7 @@ So you've developed an algorithm in Likely, how do you integrate it into your na
 Once again, let's consider our *[Hello World](?href=hello_world)* example:
 
 ```likely
-    lenna := "data/misc/lenna.tiff".read
+    lenna := "data/misc/lenna.tiff".(read media)
     hello_world :=
       a :->
       {
@@ -22,7 +22,7 @@ The **C translation** of this is:
 int main()
 {
     // Do work
-    likely_const_mat lenna = likely_read("data/misc/lenna.tiff", likely_file_binary);
+    likely_const_mat lenna = likely_read("data/misc/lenna.tiff", likely_file_media);
     likely_const_ast ast = likely_lex_and_parse("a:-> { dst := a.imitate (dst a) :=> (<- dst (/ a (a.type 2))) }", likely_file_lisp);
     likely_env parent = likely_jit();
     likely_env env = likely_eval(ast->atoms[0], parent);

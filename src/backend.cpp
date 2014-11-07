@@ -89,6 +89,7 @@ void likely_initialize(int opt_level, int size_level, bool loop_vectorize)
     initializeInstCombine(Registry);
     initializeTarget(Registry);
 
+    sys::DynamicLibrary::AddSymbol("likely_read", (void*) likely_read);
     sys::DynamicLibrary::AddSymbol("likely_write", (void*) likely_write);
     sys::DynamicLibrary::AddSymbol("likely_decode", (void*) likely_decode);
     sys::DynamicLibrary::AddSymbol("likely_encode", (void*) likely_encode);
@@ -2384,30 +2385,6 @@ class newExpression : public LikelyOperator
     }
 };
 LIKELY_REGISTER(new)
-
-class readExpression : public SimpleUnaryOperator
-{
-    const char *symbol() const { return "read"; }
-    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
-    {
-        if (likely_const_mat fileName = arg->getData())
-            return ConstantMat::get(builder, likely_read(fileName->data, likely_file_guess));
-
-        Function *likelyRead = builder.module->module->getFunction("likely_read");
-        if (!likelyRead) {
-            Type *params[] = { Type::getInt8PtrTy(builder.getContext()), Type::getInt32Ty(builder.getContext()) };
-            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, false);
-            likelyRead = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_read", builder.module->module);
-            likelyRead->setCallingConv(CallingConv::C);
-            likelyRead->setDoesNotAlias(0);
-            likelyRead->setDoesNotAlias(1);
-            likelyRead->setDoesNotCapture(1);
-            sys::DynamicLibrary::AddSymbol("likely_read", (void*) likely_read);
-        }
-        return new likely_expression(LikelyValue(builder.CreateCall2(likelyRead, *arg, builder.constant(uint64_t(likely_file_guess), likely_matrix_u32)), likely_matrix_multi_dimension));
-    }
-};
-LIKELY_REGISTER(read)
 
 } // namespace (anonymous)
 

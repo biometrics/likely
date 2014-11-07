@@ -107,7 +107,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 # Add dataset targets
 file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/average_face.jpg
               "${CMAKE_SOURCE_DIR}/data/demo/average_face.jpg"
-              EXPECTED_MD5 e26ced30e0ff93cd8b28fd2f3e7ae985)
+              EXPECTED_MD5 505e06e358a13c7619ee996bf184caff)
 
 file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/gabor_wavelet.jpg
               "${CMAKE_SOURCE_DIR}/data/demo/gabor_wavelet.jpg"
