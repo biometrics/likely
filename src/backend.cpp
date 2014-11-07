@@ -2111,27 +2111,6 @@ class kernelExpression : public LikelyOperator
 };
 LIKELY_REGISTER(kernel)
 
-struct Variable : public Assignable
-{
-    Variable(Builder &builder, likely_const_expr expr, const string &name)
-        : Assignable(builder.CreateAlloca(builder.toLLVM(expr->type), 0, name), *expr)
-    {
-        set(builder, expr);
-    }
-
-private:
-    void set(Builder &builder, likely_const_expr expr, likely_const_ast = NULL) const
-    {
-        builder.CreateStore((type & likely_matrix_multi_dimension) ? expr->value
-                                                                   : builder.cast(*expr, type).value, value);
-    }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
-    {
-        return new likely_expression(LikelyValue(builder.CreateLoad(value), type));
-    }
-};
-
 class defineExpression : public LikelyOperator
 {
     const char *symbol() const { return "="; }
@@ -2192,6 +2171,27 @@ LIKELY_REGISTER(define)
 
 class setExpression : public LikelyOperator
 {
+    struct Variable : public Assignable
+    {
+        Variable(Builder &builder, likely_const_expr expr, const string &name)
+            : Assignable(builder.CreateAlloca(builder.toLLVM(expr->type), 0, name), *expr)
+        {
+            set(builder, expr);
+        }
+
+    private:
+        void set(Builder &builder, likely_const_expr expr, likely_const_ast = NULL) const
+        {
+            builder.CreateStore((type & likely_matrix_multi_dimension) ? expr->value
+                                                                       : builder.cast(*expr, type).value, value);
+        }
+
+        likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
+        {
+            return new likely_expression(LikelyValue(builder.CreateLoad(value), type));
+        }
+    };
+
     const char *symbol() const { return "<-"; }
     size_t maxParameters() const { return 2; }
 
