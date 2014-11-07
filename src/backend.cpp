@@ -840,7 +840,10 @@ private:
         if (ast->type == likely_ast_list)
             for (size_t i=1; i<ast->num_atoms; i++) {
                 TRY_EXPR(builder, ast->atoms[i], arg)
-                args.push_back(builder.cast(*arg.get(), parameters[i-1]));
+                if (isa<PointerType>(arg->value->getType()))
+                    args.push_back(builder.CreatePointerCast(*arg, builder.toLLVM(parameters[i-1])));
+                else
+                    args.push_back(builder.cast(*arg.get(), parameters[i-1]));
             }
 
         return new likely_expression(LikelyValue(builder.CreateCall(symbol, args), type));
