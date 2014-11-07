@@ -1617,6 +1617,33 @@ class lambdaExpression : public LikelyOperator
 };
 LIKELY_REGISTER(lambda)
 
+class externExpression : public LikelyOperator
+{
+    const char *symbol() const { return "extern"; }
+    size_t maxParameters() const { return 3; }
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        Type *returnType;
+        {
+            TRY_EXPR(builder, ast->atoms[1], expr);
+            const likely_const_mat data = expr->getData();
+            assert(data && (data->type == likely_matrix_u32) && !(data->type & likely_matrix_multi_dimension));
+            returnType = builder.toLLVM(likely_matrix_type(likely_element(data, 0, 0, 0, 0)));
+        }
+
+        string name;
+        {
+            TRY_EXPR(builder, ast->atoms[2], expr);
+            const likely_const_mat data = expr->getData();
+            assert(likely_is_string(data));
+            name = data->data;
+        }
+
+        return new Symbol();
+    }
+};
+LIKELY_REGISTER(extern)
+
 class beginExpression : public LikelyOperator
 {
     const char *symbol() const { return "{"; }
