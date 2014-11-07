@@ -90,6 +90,7 @@ void likely_initialize(int opt_level, int size_level, bool loop_vectorize)
     initializeTarget(Registry);
 
     sys::DynamicLibrary::AddSymbol("likely_decode", (void*) likely_decode);
+    sys::DynamicLibrary::AddSymbol("likely_encode", (void*) likely_encode);
 }
 
 namespace {
@@ -2433,33 +2434,6 @@ class writeExpression : public SimpleBinaryOperator
     }
 };
 LIKELY_REGISTER(write)
-
-class encodeExpression : public SimpleBinaryOperator
-{
-    const char *symbol() const { return "encode"; }
-    likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const
-    {
-        if (likely_const_mat image = arg1->getData())
-            if (likely_const_mat extension = arg2->getData())
-                return ConstantMat::get(builder, likely_encode(image, extension->data));
-
-        Function *likelyEncode = builder.module->module->getFunction("likely_encode");
-        if (!likelyEncode) {
-            Type *params[] = { builder.multiDimension(), Type::getInt8PtrTy(builder.getContext()) };
-            FunctionType *functionType = FunctionType::get(builder.toLLVM(likely_matrix_u8 | likely_matrix_multi_row), params, false);
-            likelyEncode = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_encode", builder.module->module);
-            likelyEncode->setCallingConv(CallingConv::C);
-            likelyEncode->setDoesNotAlias(0);
-            likelyEncode->setDoesNotAlias(1);
-            likelyEncode->setDoesNotCapture(1);
-            likelyEncode->setDoesNotAlias(2);
-            likelyEncode->setDoesNotCapture(2);
-            sys::DynamicLibrary::AddSymbol("likely_encode", (void*) likely_encode);
-        }
-        return new likely_expression(LikelyValue(builder.CreateCall2(likelyEncode, builder.CreatePointerCast(*arg1, builder.multiDimension()), *arg2), likely_matrix_u8 | likely_matrix_multi_row));
-    }
-};
-LIKELY_REGISTER(encode)
 
 } // namespace (anonymous)
 

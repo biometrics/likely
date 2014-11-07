@@ -597,21 +597,6 @@ Returns the input _matrix_.
 (write lenna "lenna.png")
 ```
 
-##### (encode _matrix_ _extension_)
-Returns the result of encoding _matrix_ using the algorithm specified by _extension_.
-
-```likely
-encoded-lenna:= (encode lenna "png")
-```
-
-##### (decode _matrix_)
-Returns the decoded _matrix_.
-Automatically determines the encoding format.
-
-```likely
-(decode encoded-lenna)
-```
-
 #### Macros
 ##### (try _expr_ _fallback_)
 Attempts to evaluate _expr_ in the current environment and return the result.
@@ -661,6 +646,7 @@ Standard Library
 
 ### Matrix I/O
     decode := (extern u8CXYT "likely_decode" u8CXYT)
+    encode := (extern u8CXYT "likely_encode" (u8CXYT u8P))
 
 ### Type conversion
     cast := (-> (a b) (b.type a)) ; convert a to the type of b
