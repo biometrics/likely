@@ -622,6 +622,14 @@ Returns _fallback_ expression in the event of an error.
 (eval (+ 1) 3)   ; Evaluates to 3
 ```
 
+#### External Symbols
+##### (extern _returnType_ _symbolName_ _parameters_)
+References an externally defined symbol.
+
+```likely
+((extern i32 "abs" i32) -4) ; Evaluates to 4
+```
+
 Standard Library
 ----------------
 ### Basic mathematical constants
