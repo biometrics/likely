@@ -4,7 +4,7 @@ option(LIKELY_HELLOWORLD "Build Hello World examples" ON)
 if(${LIKELY_HELLOWORLD})
   # hello_world_jit
   add_executable(hello_world_jit hello_world_jit.c)
-  target_link_libraries(hello_world_jit likely)
+  target_link_libraries(hello_world_jit likely_shared)
   add_test(NAME hello_world_jit
            COMMAND hello_world_jit ${CMAKE_SOURCE_DIR}/data/misc/lenna.tiff "a :-> { dst := a.imitate (dst a) :=> (<- dst (/ a (a.type 2))) }" dark_lenna.png)
 

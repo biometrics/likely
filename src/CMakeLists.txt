@@ -43,13 +43,14 @@ add_library(likely_object OBJECT ${LIKELY_SRC})
 add_dependencies(likely_object likely_runtime ${LIKELY_LIBS} ${LIKELY_DEPENDS})
 
 # Build shared library
-add_library(likely SHARED $<TARGET_OBJECTS:likely_object> ${LIKELY_MISC})
-set_target_properties(likely PROPERTIES VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
-                                        SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR})
-target_link_libraries(likely PRIVATE likely_runtime ${LIKELY_LIBS})
-install(TARGETS likely ARCHIVE DESTINATION lib
-                       LIBRARY DESTINATION lib
-                       RUNTIME DESTINATION bin)
+add_library(likely_shared SHARED $<TARGET_OBJECTS:likely_object> ${LIKELY_MISC})
+set_target_properties(likely_shared PROPERTIES OUTPUT_NAME likely
+                                               VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}
+                                               SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR})
+target_link_libraries(likely_shared PRIVATE likely_runtime ${LIKELY_LIBS})
+install(TARGETS likely_shared ARCHIVE DESTINATION lib
+                              LIBRARY DESTINATION lib
+                              RUNTIME DESTINATION bin)
 
 # Build static library
 add_library(likely_static STATIC $<TARGET_OBJECTS:likely_object>)
@@ -64,12 +65,12 @@ install(TARGETS likely_static ARCHIVE DESTINATION lib)
 # Build console-interpreter-compiler
 add_executable(like like.cpp)
 set_target_properties(like PROPERTIES OUTPUT_NAME likely)
-target_link_libraries(like LLVMSupport likely)
+target_link_libraries(like likely_shared LLVMSupport)
 install(TARGETS like RUNTIME DESTINATION bin)
 
 # Benchmark
 add_executable(benchmark benchmark.cpp)
-target_link_libraries(benchmark likely LLVMSupport opencv_imgproc opencv_highgui)
+target_link_libraries(benchmark likely_shared LLVMSupport opencv_imgproc opencv_highgui)
 install(TARGETS benchmark RUNTIME DESTINATION bin)
 add_test(NAME benchmark
          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -98,7 +99,7 @@ if(${Qt5OpenGL_FOUND} AND ${Qt5PrintSupport_FOUND} AND ${Qt5Widgets_FOUND})
   endif()
   add_executable(dream dream.cpp ${QCUSTOMPLOT_SRC})
   qt5_use_modules(dream OpenGL PrintSupport Widgets)
-  target_link_libraries(dream likely LLVMSupport ${QT_STATIC_DEPENDENCIES})
+  target_link_libraries(dream likely_shared LLVMSupport ${QT_STATIC_DEPENDENCIES})
   install(TARGETS dream RUNTIME DESTINATION bin)
 else()
   if(WIN32)
