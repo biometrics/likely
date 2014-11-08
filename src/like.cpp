@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
         } else {
             type = likely_guess_file_type(input.c_str());
             code = likely_read(input.c_str(), type);
-            likely_assert(code, "failed to read: %s", input.c_str());
+            likely_assert(code != NULL, "failed to read: %s", input.c_str());
         }
 
         if (ast) {
