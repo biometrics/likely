@@ -56,19 +56,25 @@ using namespace std;
 static cl::opt<string> input(cl::Positional, cl::desc("<source_file_or_string>"), cl::init(""));
 static cl::opt<string> output(cl::Positional, cl::desc("<object_file>"), cl::init(""));
 static cl::opt<string> render("render", cl::desc("%d-formatted file to render matrix output to"));
+static cl::alias       renderA("r", cl::desc("Alias for -render"), cl::aliasopt(render));
 static cl::opt<string> assert_("assert", cl::desc("Confirm the output equals the specified value"));
+static cl::alias     assertA("A", cl::desc("Alias for -assert"), cl::aliasopt(assert_));
 static cl::opt<bool> ast("ast", cl::desc("Print abstract syntax tree"));
+static cl::alias     astA("a", cl::desc("Alias for -ast"), cl::aliasopt(ast));
 static cl::opt<bool> show("show", cl::desc("Show matrix output in a window"));
+static cl::alias     showA("s", cl::desc("Alias for -show"), cl::aliasopt(show));
 static cl::opt<bool> quiet("quiet", cl::desc("Don't show matrix output"));
+static cl::alias     quietA("q", cl::desc("Alias for -quiet"), cl::aliasopt(quiet));
 static cl::opt<bool> parallel("parallel" , cl::desc("Compile parallel kernels"));
+static cl::alias     parallelA("p", cl::desc("Alias for -parallel"), cl::aliasopt(parallel));
 
-// These variables mirror LLVM's `opt`
-static cl::opt<bool> OptLevelO1("O1", cl::desc("Optimization level 1. Similar to clang -O1"));
-static cl::opt<bool> OptLevelO2("O2", cl::desc("Optimization level 2. Similar to clang -O2"));
-static cl::opt<bool> OptLevelOs("Os", cl::desc("Like -O2 with extra optimizations for size. Similar to clang -Os"));
-static cl::opt<bool> OptLevelOz("Oz", cl::desc("Like -Os but reduces code size further. Similar to clang -Oz"));
-static cl::opt<bool> OptLevelO3("O3", cl::desc("Optimization level 3. Similar to clang -O3"));
-static cl::opt<bool> DisableLoopVectorization("disable-loop-vectorization", cl::desc("Disable the loop vectorization pass"), cl::init(false));
+cl::OptionCategory LLVMCat("LLVM Options", "These control the behavior of the internal LLVM compiler.");
+static cl::opt<bool> OptLevelO1("O1", cl::desc("Optimization level 1. Similar to clang -O1"), cl::cat(LLVMCat));
+static cl::opt<bool> OptLevelO2("O2", cl::desc("Optimization level 2. Similar to clang -O2"), cl::cat(LLVMCat));
+static cl::opt<bool> OptLevelOs("Os", cl::desc("Like -O2 with extra optimizations for size. Similar to clang -Os"), cl::cat(LLVMCat));
+static cl::opt<bool> OptLevelOz("Oz", cl::desc("Like -Os but reduces code size further. Similar to clang -Oz"), cl::cat(LLVMCat));
+static cl::opt<bool> OptLevelO3("O3", cl::desc("Optimization level 3. Similar to clang -O3"), cl::cat(LLVMCat));
+static cl::opt<bool> DisableLoopVectorization("disable-loop-vectorization", cl::desc("Disable the loop vectorization pass"), cl::cat(LLVMCat));
 
 static void checkOrPrintAndRelease(likely_const_mat input)
 {
