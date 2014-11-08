@@ -191,16 +191,13 @@ public:
 
     Type *toLLVM(likely_matrix_type likely)
     {
-        assert(!((likely & likely_matrix_signed) && (likely & likely_matrix_floating)));
         auto result = typeLUT.find(likely);
         if (result != typeLUT.end())
             return result->second;
 
         Type *llvm;
-        if (!(likely & likely_matrix_multi_dimension) && (likely & likely_matrix_depth)) {
-            llvm = scalar(likely);
-        } else {
-            likely_mat str = likely_type_to_string(likely);
+        if (likely & likely_matrix_multi_dimension) {
+            const likely_mat str = likely_type_to_string(likely);
             llvm = PointerType::getUnqual(StructType::create(str->data,
                                                              Type::getInt32Ty(context), // ref_count
                                                              Type::getInt32Ty(context), // type
@@ -211,6 +208,11 @@ public:
                                                              ArrayType::get(Type::getInt8Ty(context), 0), // data
                                                              NULL));
             likely_release_mat(str);
+
+        } else if (likely == likely_matrix_void) {
+            llvm = Type::getVoidTy(context);
+        } else {
+            llvm = scalar(likely);
         }
 
         if (likely & likely_matrix_pointer)
