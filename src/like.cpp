@@ -53,8 +53,10 @@ $ likely <source_file_or_string> <object_file> # compile <source_file_or_string>
 using namespace llvm;
 using namespace std;
 
-static cl::opt<string> input(cl::Positional, cl::desc("<source_file_or_string>"), cl::init(""));
-static cl::opt<string> output(cl::Positional, cl::desc("<object_file>"), cl::init(""));
+static cl::opt<string> input(cl::Positional, cl::desc("<source_file>"));
+static cl::opt<string> output(cl::Positional, cl::desc("<object_file>"));
+static cl::opt<string> command("command", cl::desc("Run the specified command"));
+static cl::alias       commandA("c", cl::desc("Alias for -command"), cl::aliasopt(command));
 static cl::opt<string> render("render", cl::desc("%d-formatted file to render matrix output to"));
 static cl::alias       renderA("r", cl::desc("Alias for -render"), cl::aliasopt(render));
 static cl::opt<string> assert_("assert", cl::desc("Confirm the output equals the specified value"));
@@ -159,7 +161,7 @@ int main(int argc, char *argv[])
     if (parallel)
         parent->type |= likely_environment_parallel;
 
-    if (input.empty()) {
+    if (input.empty() && command.empty()) {
         // console
         cout << "Likely\n";
         while (true) {
@@ -179,11 +181,15 @@ int main(int argc, char *argv[])
         }
     } else {
         // interpreter or compiler
-        likely_file_type type = likely_guess_file_type(input.c_str());
-        likely_mat code = likely_read(input.c_str(), type);
-        if (!code) {
+        likely_file_type type;
+        likely_mat code;
+        if (input.empty()) {
             type = likely_file_lisp;
-            code = likely_string(input.c_str());
+            code = likely_string(command.c_str());
+        } else {
+            type = likely_guess_file_type(input.c_str());
+            code = likely_read(input.c_str(), type);
+            likely_assert(code, "failed to read: %s", input.c_str());
         }
 
         if (ast) {

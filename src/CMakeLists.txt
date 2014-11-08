@@ -162,14 +162,14 @@ function(test_ast EXPR VALUE)
   string(MAKE_C_IDENTIFIER "${EXPR}" NAME)
   add_test(NAME "${NAME}"
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND like -ast "${EXPR}" -assert "${VALUE}")
+           COMMAND like -ast -command "${EXPR}" -assert "${VALUE}")
 endfunction()
 
 function(test_expr EXPR VALUE)
   string(MAKE_C_IDENTIFIER "${EXPR}" NAME)
   add_test(NAME "${NAME}"
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND like "${EXPR}" -assert "${VALUE}")
+           COMMAND like -command "${EXPR}" -assert "${VALUE}")
 endfunction()
 
 # List in the order they occur in standard.md
