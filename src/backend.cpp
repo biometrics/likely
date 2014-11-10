@@ -435,6 +435,12 @@ public:
     Variant(void *value, Type type)
         : value(value), type(type) {}
 
+    Variant()
+        : Variant(NULL, Mat) {}
+
+    Variant(likely_const_mat mat)
+        : Variant((void*) mat, Mat) {}
+
     ~Variant()
     {
         switch (type) {
@@ -460,6 +466,7 @@ public:
         return *this;
     }
 
+    operator bool() const { return value != NULL; }
     operator likely_const_ast() const { assert(type == Ast); return ast; }
     operator likely_const_env() const { assert(type == Env); return env; }
     operator likely_const_mat() const { assert(type == Mat); return mat; }
@@ -470,51 +477,45 @@ typedef struct likely_expression const *likely_const_expr;
 
 struct likely_expression : public LikelyValue
 {
-    likely_expression(const LikelyValue &value = LikelyValue(), likely_const_mat data = NULL)
+    likely_expression(const LikelyValue &value = LikelyValue(), const Variant &data = Variant())
         : LikelyValue(value), data(data) {}
 
-    virtual ~likely_expression()
-    {
-        likely_release_mat(data);
-    }
-
-    likely_expression(const likely_expression &) = delete;
-    likely_expression &operator=(const likely_expression &) = delete;
-
+    virtual ~likely_expression() {}
     virtual int uid() const { return 0; }
     virtual size_t maxParameters() const { return 0; }
     virtual size_t minParameters() const { return maxParameters(); }
     virtual const char *symbol() const { return ""; }
 
-    virtual likely_const_mat getData() const
+    virtual Variant getData() const
     {
         if (data || !value)
             return data;
 
+        likely_mat m = NULL;
         if (ConstantInt *constantInt = dyn_cast<ConstantInt>(value)) {
-            data = likely_new(type, 1, 1, 1, 1, NULL);
-            likely_set_element(const_cast<likely_mat>(data), (type & likely_matrix_signed) ? double(constantInt->getSExtValue())
-                                                                                           : double(constantInt->getZExtValue()), 0, 0, 0, 0);
+            m = likely_new(type, 1, 1, 1, 1, NULL);
+            likely_set_element(m, (type & likely_matrix_signed) ? double(constantInt->getSExtValue())
+                                                                : double(constantInt->getZExtValue()), 0, 0, 0, 0);
         } else if (ConstantFP *constantFP = dyn_cast<ConstantFP>(value)) {
             const APFloat &apFloat = constantFP->getValueAPF();
             if ((&apFloat.getSemantics() == &APFloat::IEEEsingle) || (&apFloat.getSemantics() == &APFloat::IEEEdouble)) {
                 // This should always be the case
-                data = likely_new(type, 1, 1, 1, 1, NULL);
-                likely_set_element(const_cast<likely_mat>(data), &apFloat.getSemantics() == &APFloat::IEEEsingle ? double(apFloat.convertToFloat())
-                                                                                                                 : apFloat.convertToDouble(), 0, 0, 0, 0);
-
+                m = likely_new(type, 1, 1, 1, 1, NULL);
+                likely_set_element(m, &apFloat.getSemantics() == &APFloat::IEEEsingle ? double(apFloat.convertToFloat())
+                                                                                      : apFloat.convertToDouble(), 0, 0, 0, 0);
             }
         } else if (GEPOperator *gepOperator = dyn_cast<GEPOperator>(value)) {
             if (GlobalValue *globalValue = dyn_cast<GlobalValue>(gepOperator->getPointerOperand()))
                 if (ConstantDataSequential *constantDataSequential = dyn_cast<ConstantDataSequential>(globalValue->getOperand(0)))
                     if (constantDataSequential->isCString())
-                        data = likely_string(constantDataSequential->getAsCString().data());
+                        m = likely_string(constantDataSequential->getAsCString().data());
         }
 
+        data = Variant(m);
         return data;
     }
 
-    void setData(likely_const_mat data) const
+    void setData(const Variant &data) const
     {
         assert(!getData());
         this->data = data;
@@ -574,7 +575,7 @@ struct likely_expression : public LikelyValue
     }
 
 private:
-    mutable likely_const_mat data; // use getData() and setData()
+    mutable Variant data; // use getData() and setData()
 };
 
 struct likely_module
