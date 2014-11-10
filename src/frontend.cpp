@@ -606,6 +606,8 @@ likely_mat likely_type_to_string(likely_type type)
     if (type == likely_multi_frame    ) return likely_string("multi-frame");
     if (type == likely_multi_dimension) return likely_string("multi-dimension");
     if (type == likely_native         ) return likely_string("native");
+    if (type == likely_ast_t          ) return likely_string("ast");
+    if (type == likely_env_t          ) return likely_string("env");
 
     // General case
     stringstream stream;
@@ -651,6 +653,8 @@ likely_type likely_type_from_string(const char *str, bool *ok)
     if (!strcmp(str, "multi-frame"    )) return likely_multi_frame;
     if (!strcmp(str, "multi-dimension")) return likely_multi_dimension;
     if (!strcmp(str, "native"         )) return likely_native;
+    if (!strcmp(str, "ast"            )) return likely_ast_t;
+    if (!strcmp(str, "env"            )) return likely_env_t;
 
     // General case
     length = strlen(str);

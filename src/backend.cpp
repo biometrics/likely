@@ -211,6 +211,10 @@ public:
 
         } else if (likely == likely_void) {
             llvm = Type::getVoidTy(context);
+        } else if (likely & likely_ast_t) {
+            llvm = PointerType::getUnqual(StructType::create(context, "ast"));
+        } else if (likely & likely_env_t) {
+            llvm = PointerType::getUnqual(StructType::create(context, "env"));
         } else {
             llvm = scalar(likely);
         }

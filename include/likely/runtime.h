@@ -79,6 +79,8 @@ enum likely_type_mask
     likely_multi_frame     = 0x00008000, /*!< \brief \ref likely_matrix::frames > 1. */
     likely_multi_dimension = likely_multi_channel | likely_multi_column | likely_multi_row | likely_multi_frame, /*!< \brief The portion of \ref likely_type indicating matrix dimensionality. Used for loop optimizations. */
     likely_native = sizeof(uintptr_t) * 8, /*!< \brief Native integer size. */
+    likely_ast_t = 0x10000000, /*!< \brief \brief Special case \ref likely_ast type. */
+    likely_env_t = 0x20000000, /*!< \brief \brief Special case \ref likely_env type. */
 };
 
 // Disable 'nonstandard extension used : zero-sized array in struct/union' warning
