@@ -57,7 +57,6 @@ typedef struct likely_environment const *likely_const_env; /*!< \brief Pointer t
  * | Function             | Description                |
  * |----------------------|----------------------------|
  * | \ref likely_standard | \copybrief likely_standard |
- * | \ref likely_eval     | \copybrief likely_eval     |
  * | \ref likely_repl     | \copybrief likely_repl     |
  *
  * \see \ref reference_counting
@@ -147,19 +146,6 @@ LIKELY_EXPORT void *likely_compile(struct likely_expression const *expr, likely_
 LIKELY_EXPORT likely_const_mat likely_result(likely_const_env env);
 
 /*!
- * \brief Evaluate an expression in the context of an environment.
- *
- * This function will modify \p ast->type to change atom values to their correct type,
- * and \p parent->children / \p parent->num_children to add the newly constructed environment.
- * \param[in] ast Statement to evaluate.
- * \param[in] parent Environment in which to evaluate \p ast.
- * \return A new \ref likely_environment holding the evaluation result.
- * \remark This function is \ref reentrant.
- * \see \ref likely_repl
- */
-LIKELY_EXPORT likely_env likely_eval(likely_ast ast, likely_const_env parent);
-
-/*!
  * \brief Signature of a function to call after a statement is completed.
  * \see \ref likely_repl
  */
@@ -169,13 +155,14 @@ typedef void (*likely_repl_callback)(likely_const_env env, void *context);
  * \brief Read-evaluate-print-loop.
  *
  * Evaluate a series of statements.
+ * This function will modify \p ast->type to change atom values to their correct type,
+ *
  * \param[in] ast Statements to evaluate.
  * \param[in] parent Environment in which to evaluate \p ast.
  * \param[in] repl_callback Function to call with the output of each completed statement.
  * \param[in] context User-defined data to pass to \p repl_callback.
  * \return A new \ref likely_environment holding the final evaluation result.
  * \remark This function is \ref reentrant.
- * \see \ref likely_eval
  */
 LIKELY_EXPORT likely_env likely_repl(likely_ast ast, likely_const_env parent, likely_repl_callback repl_callback, void *context);
 

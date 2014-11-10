@@ -168,8 +168,8 @@ int main(int argc, char *argv[])
             cout << "> ";
             string line;
             getline(cin, line);
-            likely_ast ast = likely_lex_and_parse(line.c_str(), likely_file_lisp);
-            likely_env env = likely_eval(ast->atoms[0], parent);
+            const likely_ast ast = likely_lex_and_parse(line.c_str(), likely_file_lisp);
+            const likely_env env = likely_repl(ast, parent, NULL, NULL);
             likely_release_ast(ast);
             if (!env->expr) {
                 likely_release_env(env);

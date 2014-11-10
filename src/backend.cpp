@@ -1152,9 +1152,9 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                     auto function = functionLUT.find(symbol());
                     if (function == functionLUT.end()) {
                         const string code = string("(a b) :-> { dst := a.imitate (dst a b) :=> (<- dst (") + symbol() + string(" a b)) }");
-                        likely_const_ast ast = likely_lex_and_parse(code.c_str(), likely_file_lisp);
-                        likely_env parent = likely_standard(NULL);
-                        likely_env env = likely_eval(ast->atoms[0], parent);
+                        const likely_ast ast = likely_lex_and_parse(code.c_str(), likely_file_lisp);
+                        const likely_env parent = likely_standard(NULL);
+                        const likely_env env = likely_repl(ast, parent, NULL, NULL);
                         assert(env->expr);
                         void *f = likely_compile(env->expr, NULL, 0);
                         likely_release_env(parent);
@@ -1384,11 +1384,14 @@ class tryExpression : public LikelyOperator
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         likely_const_expr value = NULL;
-        if (likely_env env = likely_eval(ast->atoms[1], builder.env)) {
-            if (likely_const_mat mat = likely_result(env))
+        likely_retain_ast(ast->atoms[1]);
+        const likely_ast statement = likely_list(&ast->atoms[1], 1);
+        if (const likely_env env = likely_repl(statement, builder.env, NULL, NULL)) {
+            if (const likely_const_mat mat = likely_result(env))
                 value = ConstantMat::get(builder, likely_retain_mat(mat));
             likely_release_env(env);
         }
+        likely_release_ast(statement);
 
         if (!value)
             value = get(builder, ast->atoms[2]);
@@ -2513,35 +2516,6 @@ likely_const_mat likely_result(likely_const_env env)
     return env->expr->getData();
 }
 
-likely_env likely_eval(likely_ast ast, likely_const_env parent)
-{
-    if (!ast)
-        return NULL;
-
-    Builder builder(parent, parent->module);
-    const bool definition = (ast->type == likely_ast_list) && (ast->num_atoms > 0) && !strcmp(ast->atoms[0]->atom, "=");
-    likely_const_expr expr = NULL;
-    if (definition) {
-        builder.module = NULL; // signify global scope
-        expr = likely_expression::get(builder, ast);
-    } else {
-        // If `ast` is not a lambda then it is a computation we perform by constructing and executing a parameterless lambda.
-        if (!strcmp(likely_symbol(ast), "->"))
-            expr = likely_expression::get(builder, ast);
-        else
-            expr = ConstantMat::get(Lambda(parent, ast).evaluateConstantFunction());
-    }
-
-    // Certain operators like `eval` introduce additional to variables to the environment,
-    // therefore, `builer.env` is not necessarily equal to `parent`.
-    likely_env env = newEnv(builder.env);
-    if (definition)
-        env->type |= likely_environment_definition;
-    env->ast = likely_retain_ast(ast);
-    env->expr = expr;
-    return env;
-}
-
 likely_env likely_repl(likely_ast ast, likely_const_env parent, likely_repl_callback repl_callback, void *context)
 {
     if (!ast || (ast->type != likely_ast_list))
@@ -2549,10 +2523,32 @@ likely_env likely_repl(likely_ast ast, likely_const_env parent, likely_repl_call
 
     likely_env env = likely_retain_env(parent);
     for (size_t i=0; i<ast->num_atoms; i++) {
-        if (!ast->atoms[i])
+        const likely_ast statement = ast->atoms[i];
+        if (!statement)
             continue;
 
-        env = likely_eval(ast->atoms[i], parent);
+        Builder builder(parent, parent->module);
+        const bool definition = (statement->type == likely_ast_list) && (statement->num_atoms > 0) && !strcmp(statement->atoms[0]->atom, "=");
+        likely_const_expr expr = NULL;
+        if (definition) {
+            builder.module = NULL; // signify global scope
+            expr = likely_expression::get(builder, statement);
+        } else {
+            // If `ast` is not a lambda then it is a computation we perform by constructing and executing a parameterless lambda.
+            if (!strcmp(likely_symbol(statement), "->"))
+                expr = likely_expression::get(builder, statement);
+            else
+                expr = ConstantMat::get(Lambda(parent, statement).evaluateConstantFunction());
+        }
+
+        // Certain operators like `eval` introduce additional to variables to the environment,
+        // therefore, `builer.env` is not necessarily equal to `parent`.
+        env = newEnv(builder.env);
+        if (definition)
+            env->type |= likely_environment_definition;
+        env->ast = likely_retain_ast(statement);
+        env->expr = expr;
+
         likely_release_env(parent);
         parent = env;
         if (repl_callback)
