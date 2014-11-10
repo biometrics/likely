@@ -2302,29 +2302,6 @@ class setExpression : public LikelyOperator
 };
 LIKELY_REGISTER(set)
 
-class evalExpression : public LikelyOperator
-{
-    const char *symbol() const { return "eval"; }
-    size_t maxParameters() const { return 1; }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        TRY_EXPR(builder, ast->atoms[1], expr);
-        const likely_const_mat source = expr->getData();
-        if (!likely_is_string(source))
-            return error(ast->atoms[1], "expected source code");
-
-        const likely_const_env parent = builder.env;
-        const likely_ast source_ast = likely_lex_and_parse(source->data, likely_file_gfm);
-        builder.env = likely_eval(source_ast, parent, NULL, NULL);
-        likely_release_ast(source_ast);
-        likely_release_env(parent);
-        if (builder.env->expr) return new likely_expression();
-        else                   return NULL;
-    }
-};
-LIKELY_REGISTER(eval)
-
 JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_matrix_type> &parameters, bool evaluate, bool arrayCC)
     : Symbol(name, likely_matrix_void, parameters), module(new likely_module())
 {
