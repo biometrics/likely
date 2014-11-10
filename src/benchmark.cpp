@@ -106,7 +106,7 @@ struct Test
         likely_ast ast = likely_lex_and_parse(source->data, type);
         likely_release_mat(source);
         likely_env parent = likely_standard(NULL);
-        likely_release_env(likely_repl(ast, parent, NULL, NULL));
+        likely_release_env(likely_eval(ast, parent, NULL, NULL));
 
         if (BenchmarkTest) {
             printf("\n");
@@ -115,7 +115,7 @@ struct Test
             int iter = 0;
             startTime = endTime = clock();
             while ((endTime-startTime) / CLOCKS_PER_SEC < TestSeconds) {
-                likely_release_env(likely_repl(ast, parent, NULL, NULL));
+                likely_release_env(likely_eval(ast, parent, NULL, NULL));
                 endTime = clock();
                 iter++;
             }
@@ -291,7 +291,7 @@ int main(int argc, char *argv[])
         const likely_env parent = likely_standard(NULL);
         if (BenchmarkParallel)
             parent->type |= likely_environment_parallel;
-        const likely_const_env env = likely_repl(ast, parent, NULL, NULL);
+        const likely_const_env env = likely_eval(ast, parent, NULL, NULL);
         assert(env->expr);
         likely_release_env(parent);
         likely_release_ast(ast);

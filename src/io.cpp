@@ -342,7 +342,7 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
     if (normalize == NULL) {
         const likely_ast ast = likely_lex_and_parse("(img min range) :-> { dst := (new u8 3 img.columns img.rows) (dst img min range) :=> (<- dst (- img min).(/ range).u8) }", likely_file_lisp);
         const likely_env parent = likely_standard(NULL);
-        env = likely_repl(ast, parent, NULL, NULL);
+        env = likely_eval(ast, parent, NULL, NULL);
         assert(env->expr);
         normalize = likely_compile(env->expr, NULL, 0);
         assert(normalize);

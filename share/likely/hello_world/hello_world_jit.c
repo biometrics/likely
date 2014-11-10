@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     const likely_env parent = likely_standard(NULL);
 
     puts("Compiling source code...");
-    const likely_const_env env = likely_repl(ast, parent, NULL, NULL);
+    const likely_const_env env = likely_eval(ast, parent, NULL, NULL);
     likely_assert(env->expr, "failed to evaluate: %s", argv[2]);
     likely_mat (*function)(likely_const_mat) = likely_compile(env->expr, &input->type, 1);
     likely_assert(function, "failed to compile: %s", argv[2]);

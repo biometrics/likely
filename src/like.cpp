@@ -92,7 +92,7 @@ static void checkOrPrintAndRelease(likely_const_mat input)
     likely_release_mat(input);
 }
 
-static void replRender(likely_const_env env, void *)
+static void renderCallback(likely_const_env env, void *)
 {
     if (env->type & likely_environment_definition)
         return;
@@ -106,7 +106,7 @@ static void replRender(likely_const_env env, void *)
     likely_release_mat(rendered);
 }
 
-static void replShow(likely_const_env env, void *)
+static void showCallback(likely_const_env env, void *)
 {
     if (env->type & likely_environment_definition)
         return;
@@ -131,12 +131,12 @@ static void replShow(likely_const_env env, void *)
     }
 }
 
-static void replQuiet(likely_const_env, void *)
+static void quietCallback(likely_const_env, void *)
 {
     return;
 }
 
-static void replPrint(likely_const_env env, void *)
+static void printCallback(likely_const_env env, void *)
 {
     if (env->type & likely_environment_definition)
         return;
@@ -147,11 +147,11 @@ int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
 
-    likely_repl_callback repl_callback;
-    if (!render.getValue().empty()) repl_callback = replRender;
-    else if (show)  repl_callback = replShow;
-    else if (quiet) repl_callback = replQuiet;
-    else            repl_callback = replPrint;
+    likely_eval_callback evalCallback;
+    if (!render.getValue().empty()) evalCallback = renderCallback;
+    else if (show)  evalCallback = showCallback;
+    else if (quiet) evalCallback = quietCallback;
+    else            evalCallback = printCallback;
 
     likely_initialize(OptLevelO3 ? 3 : ((OptLevelO2 || OptLevelOs || OptLevelOz) ? 2 : (OptLevelO1 ? 1 : (output.empty() ? 3 : 0))),
                       OptLevelOz ? 2 : (OptLevelOs ? 1 : 0),
@@ -169,14 +169,14 @@ int main(int argc, char *argv[])
             string line;
             getline(cin, line);
             const likely_ast ast = likely_lex_and_parse(line.c_str(), likely_file_lisp);
-            const likely_env env = likely_repl(ast, parent, NULL, NULL);
+            const likely_env env = likely_eval(ast, parent, NULL, NULL);
             likely_release_ast(ast);
             if (!env->expr) {
                 likely_release_env(env);
             } else {
                 likely_release_env(parent);
                 parent = env;
-                repl_callback(env, (void*) true);
+                evalCallback(env, (void*) true);
             }
         }
     } else {
@@ -193,15 +193,15 @@ int main(int argc, char *argv[])
         }
 
         if (ast) {
-            likely_ast parsed = likely_lex_and_parse(code->data, type);
+            const likely_ast parsed = likely_lex_and_parse(code->data, type);
             for (size_t i=0; i<parsed->num_atoms; i++)
                 checkOrPrintAndRelease(likely_ast_to_string(parsed->atoms[i]));
             likely_release_ast(parsed);
         } else {
-            likely_ast ast = likely_lex_and_parse(code->data, type);
-            likely_const_env env = likely_repl(ast, parent, repl_callback, NULL);
+            const likely_ast ast = likely_lex_and_parse(code->data, type);
+            const likely_const_env env = likely_eval(ast, parent, evalCallback, NULL);
             if (!env->expr && env->ast) {
-                likely_const_mat statement = likely_ast_to_string(env->ast);
+                const likely_const_mat statement = likely_ast_to_string(env->ast);
                 likely_assert(false, "error evaluating: %s", statement->data);
                 likely_release_mat(statement);
             }

@@ -955,7 +955,7 @@ struct RootEnvironment
         static bool init = false;
         if (!init) {
             likely_ast ast = likely_lex_and_parse(likely_standard_library, likely_file_gfm);
-            builtins() = likely_repl(ast, builtins(), NULL, NULL);
+            builtins() = likely_eval(ast, builtins(), NULL, NULL);
             likely_release_ast(ast);
             init = true;
         }
@@ -1154,7 +1154,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                         const string code = string("(a b) :-> { dst := a.imitate (dst a b) :=> (<- dst (") + symbol() + string(" a b)) }");
                         const likely_ast ast = likely_lex_and_parse(code.c_str(), likely_file_lisp);
                         const likely_env parent = likely_standard(NULL);
-                        const likely_env env = likely_repl(ast, parent, NULL, NULL);
+                        const likely_env env = likely_eval(ast, parent, NULL, NULL);
                         assert(env->expr);
                         void *f = likely_compile(env->expr, NULL, 0);
                         likely_release_env(parent);
@@ -1386,7 +1386,7 @@ class tryExpression : public LikelyOperator
         likely_const_expr value = NULL;
         likely_retain_ast(ast->atoms[1]);
         const likely_ast statement = likely_list(&ast->atoms[1], 1);
-        if (const likely_env env = likely_repl(statement, builder.env, NULL, NULL)) {
+        if (const likely_env env = likely_eval(statement, builder.env, NULL, NULL)) {
             if (const likely_const_mat mat = likely_result(env))
                 value = ConstantMat::get(builder, likely_retain_mat(mat));
             likely_release_env(env);
@@ -2262,7 +2262,7 @@ class evalExpression : public LikelyOperator
 
         const likely_const_env parent = builder.env;
         const likely_ast source_ast = likely_lex_and_parse(source->data, likely_file_gfm);
-        builder.env = likely_repl(source_ast, parent, NULL, NULL);
+        builder.env = likely_eval(source_ast, parent, NULL, NULL);
         likely_release_ast(source_ast);
         likely_release_env(parent);
         if (builder.env->expr) return new likely_expression();
@@ -2516,7 +2516,7 @@ likely_const_mat likely_result(likely_const_env env)
     return env->expr->getData();
 }
 
-likely_env likely_repl(likely_ast ast, likely_const_env parent, likely_repl_callback repl_callback, void *context)
+likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_callback eval_callback, void *context)
 {
     if (!ast || (ast->type != likely_ast_list))
         return NULL;
@@ -2551,8 +2551,8 @@ likely_env likely_repl(likely_ast ast, likely_const_env parent, likely_repl_call
 
         likely_release_env(parent);
         parent = env;
-        if (repl_callback)
-            repl_callback(env, context);
+        if (eval_callback)
+            eval_callback(env, context);
         if (!env->expr)
             break;
     }

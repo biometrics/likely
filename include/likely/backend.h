@@ -57,7 +57,7 @@ typedef struct likely_environment const *likely_const_env; /*!< \brief Pointer t
  * | Function             | Description                |
  * |----------------------|----------------------------|
  * | \ref likely_standard | \copybrief likely_standard |
- * | \ref likely_repl     | \copybrief likely_repl     |
+ * | \ref likely_eval     | \copybrief likely_eval     |
  *
  * \see \ref reference_counting
  */
@@ -147,24 +147,24 @@ LIKELY_EXPORT likely_const_mat likely_result(likely_const_env env);
 
 /*!
  * \brief Signature of a function to call after a statement is completed.
- * \see \ref likely_repl
+ * \see \ref likely_eval
  */
-typedef void (*likely_repl_callback)(likely_const_env env, void *context);
+typedef void (*likely_eval_callback)(likely_const_env env, void *context);
 
 /*!
- * \brief Read-evaluate-print-loop.
+ * \brief Evaluate a series of statements.
  *
- * Evaluate a series of statements.
+ * The input to this function is usually the output from \ref likely_parse.
  * This function will modify \p ast->type to change atom values to their correct type,
  *
  * \param[in] ast Statements to evaluate.
  * \param[in] parent Environment in which to evaluate \p ast.
- * \param[in] repl_callback Function to call with the output of each completed statement.
- * \param[in] context User-defined data to pass to \p repl_callback.
+ * \param[in] eval_callback Function to call with the output of each completed statement.
+ * \param[in] context User-defined data to pass to \p eval_callback.
  * \return A new \ref likely_environment holding the final evaluation result.
  * \remark This function is \ref reentrant.
  */
-LIKELY_EXPORT likely_env likely_repl(likely_ast ast, likely_const_env parent, likely_repl_callback repl_callback, void *context);
+LIKELY_EXPORT likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_callback eval_callback, void *context);
 
 /*!
  * \brief Lookup an environment variable by name.

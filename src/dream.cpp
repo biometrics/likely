@@ -310,7 +310,7 @@ private:
         return val;
     }
 
-    static void replCallback(likely_const_env env, void *context)
+    static void evalCallback(likely_const_env env, void *context)
     {
         reinterpret_cast<Source*>(context)->newResult(env);
     }
@@ -356,10 +356,10 @@ private slots:
             }
         }
 
-        likely_env env = likely_repl(header_ast, root, NULL, NULL);
+        likely_env env = likely_eval(header_ast, root, NULL, NULL);
         likely_release_ast(header_ast);
 
-        env = likely_repl(source_ast, env, replCallback, this);
+        env = likely_eval(source_ast, env, evalCallback, this);
         likely_release_ast(source_ast);
         if (env->expr) {
             const qint64 nsec = elapsedTimer.nsecsElapsed();
