@@ -444,6 +444,22 @@ public:
         }
     }
 
+    Variant(const Variant &other)
+    {
+        *this = other;
+    }
+
+    Variant &operator=(const Variant &other)
+    {
+        switch (other.type) {
+          case Ast: value = likely_retain_ast(other); break;
+          case Env: value = likely_retain_env(other); break;
+          case Mat: value = likely_retain_mat(other); break;
+        }
+        type = other.type;
+        return *this;
+    }
+
     operator likely_const_ast() const { assert(type == Ast); return ast; }
     operator likely_const_env() const { assert(type == Env); return env; }
     operator likely_const_mat() const { assert(type == Mat); return mat; }
