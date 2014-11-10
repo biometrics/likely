@@ -415,6 +415,40 @@ struct Builder;
 
 } // namespace (anonymous)
 
+class Variant
+{
+    union {
+        void *value = NULL;
+        likely_const_ast ast;
+        likely_const_env env;
+        likely_const_mat mat;
+    };
+
+public:
+    enum Type
+    {
+        Mat,
+        Ast,
+        Env,
+    } type;
+
+    Variant(void *value, Type type)
+        : value(value), type(type) {}
+
+    ~Variant()
+    {
+        switch (type) {
+          case Ast: likely_release_ast(ast); break;
+          case Env: likely_release_env(env); break;
+          case Mat: likely_release_mat(mat); break;
+        }
+    }
+
+    operator likely_const_ast() const { assert(type == Ast); return ast; }
+    operator likely_const_env() const { assert(type == Env); return env; }
+    operator likely_const_mat() const { assert(type == Mat); return mat; }
+};
+
 typedef struct likely_expression *likely_expr;
 typedef struct likely_expression const *likely_const_expr;
 
@@ -862,13 +896,7 @@ struct JITFunction : public Symbol
     void *function = NULL;
     ExecutionEngine *EE = NULL;
     likely_module *module;
-
-    enum ReturnType
-    {
-        Mat,
-        Ast,
-        Env,
-    } returnType = Mat;
+    Variant::Type returnType = Variant::Mat;
 
     JITFunction(const string &name, const Lambda *lambda, const vector<likely_matrix_type> &parameters, bool evaluate, bool arrayCC);
 
@@ -1407,26 +1435,6 @@ class tryExpression : public LikelyOperator
 };
 LIKELY_REGISTER(try)
 
-class Variant
-{
-    union {
-        void *value = NULL;
-        likely_const_ast ast;
-        likely_const_env env;
-        likely_const_mat mat;
-    };
-
-    JITFunction::ReturnType type;
-
-public:
-    Variant(void *value, JITFunction::ReturnType type)
-        : value(value), type(type) {}
-
-    operator likely_const_ast() const { assert(type == JITFunction::Ast); return ast; }
-    operator likely_const_env() const { assert(type == JITFunction::Env); return env; }
-    operator likely_const_mat() const { assert(type == JITFunction::Mat); return mat; }
-};
-
 struct Lambda : public LikelyOperator
 {
     likely_const_env env;
@@ -1588,7 +1596,7 @@ private:
         }
 
         result = ((builder.env->type & likely_environment_ctfe)
-                  && (constantArgs.size() == args.size())) ? ConstantMat::get(builder, evaluateConstantFunction(constantArgs))
+                  && (constantArgs.size() == args.size())) ? ConstantMat::get(builder, likely_retain_mat(evaluateConstantFunction(constantArgs)))
                                                            : evaluateFunction(builder, args);
 
     cleanup:
@@ -2567,7 +2575,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
             if (!strcmp(likely_symbol(statement), "->"))
                 expr = likely_expression::get(builder, statement);
             else
-                expr = ConstantMat::get(Lambda(parent, statement).evaluateConstantFunction());
+                expr = ConstantMat::get(likely_retain_mat(Lambda(parent, statement).evaluateConstantFunction()));
         }
 
         // Certain operators like `eval` introduce additional to variables to the environment,
