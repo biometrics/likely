@@ -730,7 +730,7 @@ struct Builder : public IRBuilder<>
             if (type & likely_matrix_floating)
                 type = likely_type_from_types(type, likely_matrix_floating);
         }
-        Type *dstType = module->context->scalar(type);
+        Type *dstType = module->context->scalar(type, type & likely_matrix_pointer);
         return LikelyValue(CreateCast(CastInst::getCastOpcode(x, (x & likely_matrix_signed) != 0, dstType, (type & likely_matrix_signed) != 0), x, dstType), type);
     }
 

@@ -117,6 +117,7 @@ LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_file_type typ
  * \brief Write a \ref likely_matrix to a file.
  *
  * The file extension in \p file_name is used to determine the desired file format.
+ * The input to this function is usually the output from \ref likely_render.
  * \param[in] image The matrix to write.
  * \param[in] file_name The file to write the matrix to.
  * \return \p image if successful, \c NULL otherwise.
@@ -176,13 +177,14 @@ LIKELY_EXPORT likely_mat likely_to_string_n(likely_const_mat *mats, size_t n);
 LIKELY_EXPORT likely_mat likely_to_string_va(likely_const_mat mat, ...);
 
 /*!
- * \brief Convert to three-channel \ref likely_matrix_u8 \ref likely_matrix suitable for displaying.
+ * \brief Convert to three-channel \ref likely_matrix_u8 \ref likely_matrix suitable for saving or displaying.
+ *
+ * The output from this function is usually the input to \ref likely_write or \ref likely_show.
  * \param[in] mat Matrix to convert.
  * \param[out] min The minimum value in \p mat. May be \c NULL.
  * \param[out] max The maximum value in \p mat. May be \c NULL.
- * \return A three-channel \ref likely_matrix_u8 matrix suitable for displaying.
+ * \return A three-channel \ref likely_matrix_u8 matrix suitable for saving or displaying if successful, \c NULL otherwise.
  * \remark This function is \ref thread-unsafe.
- * \see \ref likely_show
  */
 LIKELY_EXPORT likely_mat likely_render(likely_const_mat mat, double *min, double *max);
 

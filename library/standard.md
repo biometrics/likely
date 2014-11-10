@@ -587,6 +587,7 @@ Standard Library
 ### Basic mathematical constants
     true  := 1
     false := 0
+    null  := 0
     e  := (f32 2.718281) ; Euler's number
     pi := (f32 3.141592) ; The ratio of a circle's circumference to its diameter
 
@@ -616,6 +617,8 @@ Standard Library
     write  := (extern u8CXYT "likely_write" (u8CXYT u8P))
     decode := (extern u8CXYT "likely_decode" u8CXYT)
     encode := (extern u8CXYT "likely_encode" (u8CXYT u8P))
+    render := (extern u8CXYT "likely_render" (u8CXYT f64P f64P))
+    show   := (extern u8CXYT "likely_show" (u8CXYT u8P))
 
 ### Type conversion
     cast := (-> (a b) (b.type a)) ; convert a to the type of b
