@@ -427,31 +427,23 @@ class Variant
         likely_const_env env;
         likely_const_mat mat;
     };
+    likely_type type;
 
 public:
-    enum Type
-    {
-        Mat,
-        Ast,
-        Env,
-    } type;
-
-    Variant(void *value, Type type)
+    Variant(void *value, likely_type type)
         : value(value), type(type) {}
 
     Variant()
-        : Variant(NULL, Mat) {}
+        : Variant(NULL, likely_void) {}
 
     Variant(likely_const_mat mat)
-        : Variant((void*) mat, Mat) {}
+        : Variant((void*) mat, mat ? mat->type : likely_void) {}
 
     ~Variant()
     {
-        switch (type) {
-          case Ast: likely_release_ast(ast); break;
-          case Env: likely_release_env(env); break;
-          case Mat: likely_release_mat(mat); break;
-        }
+        if      (type & likely_ast_t) likely_release_ast(ast);
+        else if (type & likely_env_t) likely_release_env(env);
+        else                          likely_release_mat(mat);
     }
 
     Variant(const Variant &other)
@@ -461,19 +453,17 @@ public:
 
     Variant &operator=(const Variant &other)
     {
-        switch (other.type) {
-          case Ast: value = likely_retain_ast(other); break;
-          case Env: value = likely_retain_env(other); break;
-          case Mat: value = likely_retain_mat(other); break;
-        }
         type = other.type;
+        if      (type & likely_ast_t) value = likely_retain_ast(other);
+        else if (type & likely_env_t) value = likely_retain_env(other);
+        else                          value = likely_retain_mat(other);
         return *this;
     }
 
     operator bool() const { return value != NULL; }
-    operator likely_const_ast() const { assert(type == Ast); return ast; }
-    operator likely_const_env() const { assert(type == Env); return env; }
-    operator likely_const_mat() const { assert(type == Mat); return mat; }
+    operator likely_const_ast() const { assert(type & likely_ast_t); return ast; }
+    operator likely_const_env() const { assert(type & likely_env_t); return env; }
+    operator likely_const_mat() const { assert(!(type & (likely_ast_t | likely_env_t))); return mat; }
 };
 
 typedef struct likely_expression *likely_expr;
@@ -917,7 +907,7 @@ struct JITFunction : public Symbol
     void *function = NULL;
     ExecutionEngine *EE = NULL;
     likely_module *module;
-    Variant::Type returnType = Variant::Mat;
+    likely_type returnType = likely_multi_dimension;
 
     JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC);
 
