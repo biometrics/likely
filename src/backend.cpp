@@ -863,6 +863,13 @@ struct JITFunction : public Symbol
     ExecutionEngine *EE = NULL;
     likely_module *module;
 
+    enum ReturnType
+    {
+        Mat,
+        Ast,
+        Env,
+    } returnType = Mat;
+
     JITFunction(const string &name, const Lambda *lambda, const vector<likely_matrix_type> &parameters, bool evaluate, bool arrayCC);
 
     ~JITFunction()
@@ -1400,6 +1407,26 @@ class tryExpression : public LikelyOperator
 };
 LIKELY_REGISTER(try)
 
+class Variant
+{
+    union {
+        void *value = NULL;
+        likely_const_ast ast;
+        likely_const_env env;
+        likely_const_mat mat;
+    };
+
+    JITFunction::ReturnType type;
+
+public:
+    Variant(void *value, JITFunction::ReturnType type)
+        : value(value), type(type) {}
+
+    operator likely_const_ast() const { assert(type == JITFunction::Ast); return ast; }
+    operator likely_const_env() const { assert(type == JITFunction::Env); return env; }
+    operator likely_const_mat() const { assert(type == JITFunction::Mat); return mat; }
+};
+
 struct Lambda : public LikelyOperator
 {
     likely_const_env env;
@@ -1502,24 +1529,26 @@ struct Lambda : public LikelyOperator
         return new likely_expression(LikelyValue(function, result->type), likely_retain_mat(result->getData()));
     }
 
-    likely_mat evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const
+    Variant evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const
     {
         vector<likely_matrix_type> params;
         for (likely_const_mat arg : args)
             params.push_back(arg->type);
 
         JITFunction jit("likely_ctfe", this, params, true, !args.empty());
+        void *value;
         if (jit.function) { // compiler
-            return args.empty() ? reinterpret_cast<likely_mat (*)()>(jit.function)()
-                                : reinterpret_cast<likely_mat (*)(likely_const_mat const*)>(jit.function)(args.data());
+            value = args.empty() ? reinterpret_cast<void *(*)()>(jit.function)()
+                                 : reinterpret_cast<void *(*)(likely_const_mat const*)>(jit.function)(args.data());
         } else if (jit.EE) { // interpreter
             vector<GenericValue> gv;
             if (!args.empty())
                 gv.push_back(GenericValue((void*) args.data()));
-            return (likely_mat) jit.EE->runFunction(cast<Function>(jit.value), gv).PointerVal;
+            value = jit.EE->runFunction(cast<Function>(jit.value), gv).PointerVal;
         } else { // constant or error
-            return likely_retain_mat(jit.getData());
+            value = likely_retain_mat(jit.getData());
         }
+        return Variant(value, jit.returnType);
     }
 
     static void *getFunction(likely_const_expr expr, const vector<likely_matrix_type> &types)
