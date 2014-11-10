@@ -187,15 +187,16 @@ LIKELY_EXPORT likely_mat likely_to_string_va(likely_const_mat mat, ...);
 LIKELY_EXPORT likely_mat likely_render(likely_const_mat mat, double *min, double *max);
 
 /*!
- * \brief Displays a \ref likely_matrix in a window.
+ * \brief Display a \ref likely_matrix in a window.
  *
- * Calls \ref likely_render on \p mat automatically.
- * Pauses execution until a key is pressed, then hides the window.
- * \param[in] mat Matrix to display.
+ * Shows \p image in a window, pauses execution until a key is pressed, then hides the window.
+ * The input to this function is usually the output from \ref likely_render.
+ * \param[in] image Image to display.
  * \param[in] title Window title.
+ * \return \p image if successful, \c NULL otherwise.
  * \remark This function is \ref thread-safe.
  */
-LIKELY_EXPORT void likely_show(likely_const_mat mat, const char *title);
+LIKELY_EXPORT likely_mat likely_show(likely_const_mat image, const char *title);
 
 /** @} */ // end of io
 

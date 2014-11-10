@@ -111,10 +111,10 @@ static void showCallback(likely_const_env env, void *)
     if (env->type & likely_environment_definition)
         return;
 
+    const likely_mat rendered = likely_render(likely_result(env), NULL, NULL);
     if (assert_.getValue().empty()) {
-        likely_show(likely_result(env), likely_symbol(env->ast));
+        likely_release_mat(likely_show(rendered, likely_symbol(env->ast)));
     } else {
-        likely_mat rendered = likely_render(likely_result(env), NULL, NULL);
         likely_mat baseline = likely_read(assert_.getValue().c_str(), likely_file_guess);
         likely_assert(rendered->channels == baseline->channels, "expected: %d channels, got: %d", baseline->channels, rendered->channels);
         likely_assert(rendered->columns  == baseline->columns , "expected: %d columns, got: %d" , baseline->columns , rendered->columns);
@@ -124,11 +124,11 @@ static void showCallback(likely_const_env env, void *)
         size_t delta = 0;
         for (size_t i=0; i<elements; i++)
             delta += abs(int(rendered->data[i]) - int(baseline->data[i]));
-        likely_release_mat(rendered);
         likely_release_mat(baseline);
         likely_assert(delta < 2*elements /* arbitrary threshold */, "average delta: %g", float(delta) / float(elements));
         assert_.setValue(string());
     }
+    likely_release_mat(rendered);
 }
 
 static void quietCallback(likely_const_env, void *)
