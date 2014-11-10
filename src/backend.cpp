@@ -1468,7 +1468,7 @@ struct Lambda : public LikelyOperator
     Lambda(const Lambda &) = delete;
     Lambda &operator=(const Lambda &) = delete;
 
-    likely_const_expr generate(Builder &builder, vector<likely_matrix_type> parameters, string name, bool arrayCC, bool returnConstantOrMatrix) const
+    likely_const_expr generate(Builder &builder, vector<likely_matrix_type> parameters, string name, bool arrayCC, bool promoteScalarToMatrix) const
     {
         likely_const_env restore = builder.env;
         builder.env = newEnv(env);
@@ -1524,7 +1524,7 @@ struct Lambda : public LikelyOperator
             return NULL;
 
         // If we are expecting a constant or a matrix and don't get one then make a matrix
-        if (returnConstantOrMatrix && !result->getData() && !isMat(result->value->getType()))
+        if (promoteScalarToMatrix && !result->getData() && !dyn_cast<PointerType>(result->value->getType()))
             result.reset(new likely_expression(builder.toMat(*result)));
 
         // If we are returning a constant matrix, make sure to retain a copy
