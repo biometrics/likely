@@ -32,45 +32,45 @@
  */
 
 /*!
- * \brief Convert from a \ref likely_matrix_type to an OpenCV matrix depth.
+ * \brief Convert from a \ref likely_type to an OpenCV matrix depth.
  * \param[in] type The \ref likely_matrix::type to convert from.
  * \return The corresponding OpenCV matrix depth, or -1 if \p type is unrepresentable in OpenCV.
  * \remark This function is \ref thread-safe.
  * \see \ref likelyFromOpenCVDepth
  */
-inline int likelyToOpenCVDepth(likely_matrix_type type)
+inline int likelyToOpenCVDepth(likely_type type)
 {
-    switch (type & likely_matrix_c_type) {
-      case likely_matrix_u8:  return CV_8U;
-      case likely_matrix_i8:  return CV_8S;
-      case likely_matrix_u16: return CV_16U;
-      case likely_matrix_i16: return CV_16S;
-      case likely_matrix_i32: return CV_32S;
-      case likely_matrix_f32: return CV_32F;
-      case likely_matrix_f64: return CV_64F;
+    switch (type & likely_c_type) {
+      case likely_u8:  return CV_8U;
+      case likely_i8:  return CV_8S;
+      case likely_u16: return CV_16U;
+      case likely_i16: return CV_16S;
+      case likely_i32: return CV_32S;
+      case likely_f32: return CV_32F;
+      case likely_f64: return CV_64F;
     }
     return -1;
 }
 
 /*!
- * \brief Convert from an OpenCV matrix depth to a \ref likely_matrix_type.
+ * \brief Convert from an OpenCV matrix depth to a \ref likely_type.
  * \param[in] depth The \c cv::Mat::depth() to convert from.
- * \return The corresponding \ref likely_matrix_type, or \ref likely_matrix_void if \p depth is not representable in Likely.
+ * \return The corresponding \ref likely_type, or \ref likely_void if \p depth is not representable in Likely.
  * \remark This function is \ref thread-safe.
  * \see \ref likelyToOpenCVDepth
  */
-inline likely_matrix_type likelyFromOpenCVDepth(int depth)
+inline likely_type likelyFromOpenCVDepth(int depth)
 {
     switch (depth) {
-      case CV_8U:  return likely_matrix_u8;
-      case CV_8S:  return likely_matrix_i8;
-      case CV_16U: return likely_matrix_u16;
-      case CV_16S: return likely_matrix_i16;
-      case CV_32S: return likely_matrix_i32;
-      case CV_32F: return likely_matrix_f32;
-      case CV_64F: return likely_matrix_f64;
+      case CV_8U:  return likely_u8;
+      case CV_8S:  return likely_i8;
+      case CV_16U: return likely_u16;
+      case CV_16S: return likely_i16;
+      case CV_32S: return likely_i32;
+      case CV_32F: return likely_f32;
+      case CV_64F: return likely_f64;
     }
-    return likely_matrix_void;
+    return likely_void;
 }
 
 /*!

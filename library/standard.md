@@ -197,7 +197,7 @@ The remaining capitalized characters indicate:
 - **T** - Multi-frame matrix.
 
 Additionally, the following special cases are recognized as types: **void**, **depth**, **floating**, **array**, **signed**, **saturated**, **element**, **multi-channel**, **multi-column**, **multi-row**, **multi-frame**, **multi-dimension**, **string**, **native**.
-These special cases correspond to values of *likely_matrix_type_mask* in the C API.
+These special cases correspond to values of *likely_type_mask* in the C API.
 
 #### Intrinsic Operator
 An intrinsic operator is the basic construct for higher order expressions on numbers, strings and types.

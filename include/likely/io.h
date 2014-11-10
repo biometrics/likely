@@ -87,7 +87,7 @@ LIKELY_EXPORT likely_mat likely_file_type_to_string(likely_file_type type);
  * \return A \ref likely_file_type from \p str on success, \ref likely_file_guess otherwise.
  * \remark This function is \ref thread-safe.
  */
-LIKELY_EXPORT likely_matrix_type likely_file_type_from_string(const char *str, bool *ok);
+LIKELY_EXPORT likely_file_type likely_file_type_from_string(const char *str, bool *ok);
 
 /*!
  * \brief Read a \ref likely_matrix from a file.
@@ -177,13 +177,13 @@ LIKELY_EXPORT likely_mat likely_to_string_n(likely_const_mat *mats, size_t n);
 LIKELY_EXPORT likely_mat likely_to_string_va(likely_const_mat mat, ...);
 
 /*!
- * \brief Convert to three-channel \ref likely_matrix_u8 \ref likely_matrix suitable for saving or displaying.
+ * \brief Convert to three-channel \ref likely_u8 \ref likely_matrix suitable for saving or displaying.
  *
  * The output from this function is usually the input to \ref likely_write or \ref likely_show.
  * \param[in] mat Matrix to convert.
  * \param[out] min The minimum value in \p mat. May be \c NULL.
  * \param[out] max The maximum value in \p mat. May be \c NULL.
- * \return A three-channel \ref likely_matrix_u8 matrix suitable for saving or displaying if successful, \c NULL otherwise.
+ * \return A three-channel \ref likely_u8 matrix suitable for saving or displaying if successful, \c NULL otherwise.
  * \remark This function is \ref thread-unsafe.
  */
 LIKELY_EXPORT likely_mat likely_render(likely_const_mat mat, double *min, double *max);

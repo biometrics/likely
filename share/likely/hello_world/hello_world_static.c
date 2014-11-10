@@ -10,7 +10,7 @@ likely_const_mat hello_world_div2(const likely_const_mat m);
 int main()
 {
     const int elements = 1000;
-    likely_const_mat input = likely_new(likely_matrix_f32, 1, elements, 1, 1, NULL);
+    likely_const_mat input = likely_new(likely_f32, 1, elements, 1, 1, NULL);
 
     printf("Initializing input...\n");
     srand((unsigned int) time(NULL));

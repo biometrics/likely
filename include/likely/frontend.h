@@ -306,7 +306,7 @@ LIKELY_EXPORT int likely_ast_compare(likely_const_ast a, likely_const_ast b);
 LIKELY_EXPORT const char *likely_symbol(likely_const_ast ast);
 
 /*!
- * \brief Convert a \ref likely_matrix_type to a string.
+ * \brief Convert a \ref likely_type to a string.
  *
  * The opposite of \ref likely_type_from_string.
  * The returned \ref likely_matrix::data is valid \ref likely_file_lisp code.
@@ -316,42 +316,42 @@ LIKELY_EXPORT const char *likely_symbol(likely_const_ast ast);
  * \return A \ref likely_string.
  * \remark This function is \ref thread-safe.
  */
-LIKELY_EXPORT likely_mat likely_type_to_string(likely_matrix_type type);
+LIKELY_EXPORT likely_mat likely_type_to_string(likely_type type);
 
 /*!
- * \brief Convert a string to a \ref likely_matrix_type.
+ * \brief Convert a string to a \ref likely_type.
  *
  * The opposite of \ref likely_type_to_string.
  * \par Implementation
  * \snippet src/frontend.cpp likely_type_from_string implementation.
- * \param[in] str String to convert to a \ref likely_matrix_type.
+ * \param[in] str String to convert to a \ref likely_type.
  * \param[out] ok Successful conversion. May be \c NULL.
- * \return A \ref likely_matrix_type from \p str on success, \ref likely_matrix_void otherwise.
+ * \return A \ref likely_type from \p str on success, \ref likely_void otherwise.
  * \remark This function is \ref thread-safe.
  */
-LIKELY_EXPORT likely_matrix_type likely_type_from_string(const char *str, bool *ok);
+LIKELY_EXPORT likely_type likely_type_from_string(const char *str, bool *ok);
 
 /*!
- * \brief Determine the appropritate \ref likely_matrix_type for a scalar value.
+ * \brief Determine the appropritate \ref likely_type for a scalar value.
  * \par Implementation
  * \snippet src/frontend.cpp likely_type_from_value implementation.
  * \param[in] value The value from which to determine the appropriate type.
- * \return The appropriate \ref likely_matrix_type for \p value.
+ * \return The appropriate \ref likely_type for \p value.
  * \remark This function is \ref thread-safe.
  * \see \ref likely_type_from_types
  */
-LIKELY_EXPORT likely_matrix_type likely_type_from_value(double value);
+LIKELY_EXPORT likely_type likely_type_from_value(double value);
 
 /*!
- * \brief Determine the appropriate \ref likely_matrix_type for a binary operation.
+ * \brief Determine the appropriate \ref likely_type for a binary operation.
  * \par Implementation
  * \snippet src/frontend.cpp likely_type_from_types implementation.
  * \param[in] a Type to be consolidated.
  * \param[in] b Type to be consolidated.
- * \return The appropriate \ref likely_matrix_type for an operation involving \p a and \p b.
+ * \return The appropriate \ref likely_type for an operation involving \p a and \p b.
  * \remark This function is \ref thread-safe.
  */
-LIKELY_EXPORT likely_matrix_type likely_type_from_types(likely_matrix_type a, likely_matrix_type b);
+LIKELY_EXPORT likely_type likely_type_from_types(likely_type a, likely_type b);
 
 /** @} */ // end of frontend
 

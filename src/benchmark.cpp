@@ -45,7 +45,7 @@ static void checkRead(const void *data, const char *fileName)
     likely_assert(data != NULL, "failed to read \"%s\", did you forget to run 'benchmark' from the root of the repository?", fileName);
 }
 
-static Mat generateData(int rows, int columns, likely_matrix_type type)
+static Mat generateData(int rows, int columns, likely_type type)
 {
     static Mat m;
     if (!m.data) {
@@ -71,7 +71,7 @@ struct Test
         assert(lookup && lookup->expr);
         void * const f = likely_compile(lookup->expr, NULL, 0);
 
-        for (likely_matrix_type type : types()) {
+        for (likely_type type : types()) {
             for (int size : sizes()) {
                 if (BenchmarkTest && (size != 256)) continue;
 
@@ -130,15 +130,15 @@ struct Test
 protected:
     virtual const char *name() const = 0;
     virtual Mat computeBaseline(const Mat &src) const = 0;
-    virtual vector<likely_matrix_type> types() const
+    virtual vector<likely_type> types() const
     {
-        static vector<likely_matrix_type> types;
+        static vector<likely_type> types;
         if (types.empty()) {
-            types.push_back(likely_matrix_u8);
-            types.push_back(likely_matrix_u16);
-            types.push_back(likely_matrix_i32);
-            types.push_back(likely_matrix_f32);
-            types.push_back(likely_matrix_f64);
+            types.push_back(likely_u8);
+            types.push_back(likely_u16);
+            types.push_back(likely_i32);
+            types.push_back(likely_f32);
+            types.push_back(likely_f64);
         }
         return types;
     }
@@ -176,8 +176,8 @@ private:
     static likely_mat fromCvMat(const Mat &src)
     {
         likely_mat m = likelyFromOpenCVMat(src);
-        if (!(m->type & likely_matrix_floating) && ((m->type & likely_matrix_depth) <= 16))
-            m->type |= likely_matrix_saturated;
+        if (!(m->type & likely_floating) && ((m->type & likely_depth) <= 16))
+            m->type |= likely_saturated;
         return m;
     }
 
@@ -200,9 +200,9 @@ private:
             for (int i=0; i<srcCV.rows; i++)
                 for (int j=0; j<srcCV.cols; j++)
                     if (errorMat.at<float>(i, j) == 1) {
-                        const double src = likely_element(srcLikely, 0, j, i, 0);
-                        const double cv  = likely_element(cvLikely,  0, j, i, 0);
-                        const double dst = likely_element(dstLikely, 0, j, i, 0);
+                        const double src = likely_get_element(srcLikely, 0, j, i, 0);
+                        const double cv  = likely_get_element(cvLikely,  0, j, i, 0);
+                        const double dst = likely_get_element(dstLikely, 0, j, i, 0);
                         if (errors < 100) errorLocations << src << "\t" << cv << "\t" << dst << "\t" << i << "\t" << j << "\n";
                         errors++;
                     }
@@ -252,7 +252,7 @@ class fmaTest : public Test {
 class thresholdTest : public Test {
     const char *name() const { return "binary-threshold"; }
     Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 1, THRESH_BINARY); return dst; }
-    vector<likely_matrix_type> types() const { vector<likely_matrix_type> types; types.push_back(likely_matrix_u8); types.push_back(likely_matrix_f32); return types; }
+    vector<likely_type> types() const { vector<likely_type> types; types.push_back(likely_u8); types.push_back(likely_f32); return types; }
 };
 
 int main(int argc, char *argv[])

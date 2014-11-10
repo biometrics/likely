@@ -44,42 +44,41 @@ extern "C" {
 /*!
  * \brief How to interpret \ref likely_matrix::data.
  *
- * Available options are listed in \ref likely_matrix_type_mask.
+ * Available options are listed in \ref likely_type_mask.
  */
-typedef uint32_t likely_matrix_type;
+typedef uint32_t likely_type;
 
 /*!
- * \brief \ref likely_matrix_type bit format.
+ * \brief \ref likely_type bit format.
  */
-enum likely_matrix_type_mask
+enum likely_type_mask
 {
-    likely_matrix_void      = 0x00000000, /*!< \brief Unknown type. */
-    likely_matrix_depth     = 0x000000FF, /*!< \brief Bits per element. */
-    likely_matrix_floating  = 0x00000100, /*!< \brief Elements are floating-point. */
-    likely_matrix_pointer   = 0x00000200, /*!< \brief Interpret as a pointer to the type. */
-    likely_matrix_signed    = 0x00000400, /*!< \brief Elements are signed (integers). */
-    likely_matrix_c_type    = likely_matrix_depth | likely_matrix_floating | likely_matrix_pointer | likely_matrix_signed, /*!< \brief The portion of the \ref likely_matrix_type representable in \c C. */
-    likely_matrix_saturated = 0x00000800, /*!< \brief Use saturated arithmetic with computations involving these elements. */
-    likely_matrix_element   = likely_matrix_c_type | likely_matrix_saturated, /*!< \brief The portion of \ref likely_matrix_type indicating how to interpret elements. */
-    likely_matrix_u1  = 1, /*!< \brief 1-bit unsigned integer elements. */
-    likely_matrix_u8  = 8, /*!< \brief 8-bit unsigned integer elements. */
-    likely_matrix_u16 = 16, /*!< \brief 16-bit unsigned integer elements. */
-    likely_matrix_u32 = 32, /*!< \brief 32-bit unsigned integer elements. */
-    likely_matrix_u64 = 64, /*!< \brief 64-bit unsigned integer elements. */
-    likely_matrix_i8  = 8  | likely_matrix_signed, /*!< \brief 8-bit signed integer elements. */
-    likely_matrix_i16 = 16 | likely_matrix_signed, /*!< \brief 16-bit signed integer elements. */
-    likely_matrix_i32 = 32 | likely_matrix_signed, /*!< \brief 32-bit signed integer elements. */
-    likely_matrix_i64 = 64 | likely_matrix_signed, /*!< \brief 64-bit signed integer elements. */
-    likely_matrix_f16 = 16 | likely_matrix_floating, /*!< \brief 16-bit floating-point elements. */
-    likely_matrix_f32 = 32 | likely_matrix_floating, /*!< \brief 32-bit floating-point elements. */
-    likely_matrix_f64 = 64 | likely_matrix_floating, /*!< \brief 64-bit floating-point elements. */
-    likely_matrix_multi_channel   = 0x00001000, /*!< \brief \ref likely_matrix::channels > 1. */
-    likely_matrix_multi_column    = 0x00002000, /*!< \brief \ref likely_matrix::columns > 1. */
-    likely_matrix_multi_row       = 0x00004000, /*!< \brief \ref likely_matrix::rows > 1. */
-    likely_matrix_multi_frame     = 0x00008000, /*!< \brief \ref likely_matrix::frames > 1. */
-    likely_matrix_multi_dimension = likely_matrix_multi_channel | likely_matrix_multi_column | likely_matrix_multi_row | likely_matrix_multi_frame, /*!< \brief The portion of \ref likely_matrix_type indicating matrix dimensionality. Used for loop optimizations. */
-    likely_matrix_string = likely_matrix_i8 | likely_matrix_multi_channel, /*!< \brief likely_matrix::data is a C-style string. */
-    likely_matrix_native = sizeof(uintptr_t)*8, /*!< \brief Native integer size. */
+    likely_void      = 0x00000000, /*!< \brief Unknown type. */
+    likely_depth     = 0x000000FF, /*!< \brief Bits per element. */
+    likely_floating  = 0x00000100, /*!< \brief Elements are floating-point. */
+    likely_pointer   = 0x00000200, /*!< \brief Interpret as a pointer to the type. */
+    likely_signed    = 0x00000400, /*!< \brief Elements are signed (integers). */
+    likely_c_type    = likely_depth | likely_floating | likely_pointer | likely_signed, /*!< \brief The portion of the \ref likely_type representable in \c C. */
+    likely_saturated = 0x00000800, /*!< \brief Use saturated arithmetic with computations involving these elements. */
+    likely_element   = likely_c_type | likely_saturated, /*!< \brief The portion of \ref likely_type indicating how to interpret elements. */
+    likely_u1  = 1, /*!< \brief 1-bit unsigned integer elements. */
+    likely_u8  = 8, /*!< \brief 8-bit unsigned integer elements. */
+    likely_u16 = 16, /*!< \brief 16-bit unsigned integer elements. */
+    likely_u32 = 32, /*!< \brief 32-bit unsigned integer elements. */
+    likely_u64 = 64, /*!< \brief 64-bit unsigned integer elements. */
+    likely_i8  = 8  | likely_signed, /*!< \brief 8-bit signed integer elements. */
+    likely_i16 = 16 | likely_signed, /*!< \brief 16-bit signed integer elements. */
+    likely_i32 = 32 | likely_signed, /*!< \brief 32-bit signed integer elements. */
+    likely_i64 = 64 | likely_signed, /*!< \brief 64-bit signed integer elements. */
+    likely_f16 = 16 | likely_floating, /*!< \brief 16-bit floating-point elements. */
+    likely_f32 = 32 | likely_floating, /*!< \brief 32-bit floating-point elements. */
+    likely_f64 = 64 | likely_floating, /*!< \brief 64-bit floating-point elements. */
+    likely_multi_channel   = 0x00001000, /*!< \brief \ref likely_matrix::channels > 1. */
+    likely_multi_column    = 0x00002000, /*!< \brief \ref likely_matrix::columns > 1. */
+    likely_multi_row       = 0x00004000, /*!< \brief \ref likely_matrix::rows > 1. */
+    likely_multi_frame     = 0x00008000, /*!< \brief \ref likely_matrix::frames > 1. */
+    likely_multi_dimension = likely_multi_channel | likely_multi_column | likely_multi_row | likely_multi_frame, /*!< \brief The portion of \ref likely_type indicating matrix dimensionality. Used for loop optimizations. */
+    likely_native = sizeof(uintptr_t) * 8, /*!< \brief Native integer size. */
 };
 
 // Disable 'nonstandard extension used : zero-sized array in struct/union' warning
@@ -119,7 +118,7 @@ typedef struct likely_matrix *likely_mat; /*!< \brief Pointer to a \ref likely_m
 struct likely_matrix
 {
     uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain_mat and \ref likely_release_mat to track ownership. */
-    likely_matrix_type type; /*!< \brief Interpretation of \ref data. */
+    likely_type type; /*!< \brief Interpretation of \ref data. */
     uint32_t channels; /*!< \brief Sub-spatial dimensionality. */
     uint32_t columns;  /*!< \brief Horizontal dimensionality. */
     uint32_t rows;     /*!< \brief Vertical dimensionality. */
@@ -157,7 +156,7 @@ LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
  * Otherwise, the returned \ref likely_matrix::data is initialized by copying the contents of \p data.
  * In the latter case, \p data should be at least size \ref likely_bytes.
  *
- * The \ref likely_matrix_multi_dimension component of \ref likely_matrix::type is set automatically for \p channels, \p columns, \p rows and \p frames greater than one.
+ * The \ref likely_multi_dimension component of \ref likely_matrix::type is set automatically for \p channels, \p columns, \p rows and \p frames greater than one.
  *
  * \par Implementation
  * \snippet src/runtime_common.c likely_new implementation.
@@ -171,7 +170,7 @@ LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
  * \remark This function is \ref thread-safe.
  * \see \ref likely_scalar \ref likely_string
  */
-LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data);
+LIKELY_EXPORT likely_mat likely_new(likely_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data);
 
 /*!
  * \brief Allocate and initialize a new low-dimensional \ref likely_matrix.
@@ -185,7 +184,7 @@ LIKELY_EXPORT likely_mat likely_new(likely_matrix_type type, uint32_t channels, 
  * \return A pointer to the new multi-element \ref likely_matrix, or \c NULL if \c malloc failed.
  * \remark This function is \ref thread-safe.
  */
-LIKELY_EXPORT likely_mat likely_scalar(likely_matrix_type type, double *values, uint32_t n);
+LIKELY_EXPORT likely_mat likely_scalar(likely_type type, double *values, uint32_t n);
 
 /*!
  * \brief Allocate and initialize a new \ref likely_matrix from a string.
@@ -243,7 +242,7 @@ LIKELY_EXPORT void likely_release_mat(likely_const_mat mat);
  * \remark This function is \ref thread-safe.
  * \see \ref likely_set_element
  */
-LIKELY_EXPORT double likely_element(likely_const_mat m, uint32_t c, uint32_t x, uint32_t y, uint32_t t);
+LIKELY_EXPORT double likely_get_element(likely_const_mat m, uint32_t c, uint32_t x, uint32_t y, uint32_t t);
 
 /*!
  * \brief Set the value of a \ref likely_matrix at a specified location.
@@ -257,7 +256,7 @@ LIKELY_EXPORT double likely_element(likely_const_mat m, uint32_t c, uint32_t x, 
  * \param[in] y Row.
  * \param[in] t Frame.
  * \remark This function is \ref thread-safe.
- * \see \ref likely_element
+ * \see \ref likely_get_element
  */
 LIKELY_EXPORT void likely_set_element(likely_mat m, double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t);
 

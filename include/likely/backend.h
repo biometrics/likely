@@ -135,7 +135,7 @@ LIKELY_EXPORT void likely_release_env(likely_const_env env);
  * \return Function pointer with a \c C ABI. \ref owned_by expr.
  * \remark This function is \ref reentrant.
  */
-LIKELY_EXPORT void *likely_compile(struct likely_expression const *expr, likely_matrix_type const *type, uint32_t n);
+LIKELY_EXPORT void *likely_compile(struct likely_expression const *expr, likely_type const *type, uint32_t n);
 
 /*!
  * \brief Obtain the result of a computation.

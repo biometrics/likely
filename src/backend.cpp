@@ -100,7 +100,7 @@ namespace {
 class LikelyContext
 {
     static queue<LikelyContext*> contextPool;
-    map<likely_matrix_type, Type*> typeLUT;
+    map<likely_type, Type*> typeLUT;
     PassManager *PM;
 
     // use LikelyContext::acquire()
@@ -167,13 +167,13 @@ public:
 
     IntegerType *nativeInt()
     {
-        return Type::getIntNTy(context, unsigned(likely_matrix_native));
+        return Type::getIntNTy(context, unsigned(likely_native));
     }
 
-    Type *scalar(likely_matrix_type type, bool pointer = false)
+    Type *scalar(likely_type type, bool pointer = false)
     {
-        const size_t bits = type & likely_matrix_depth;
-        const bool floating = (type & likely_matrix_floating) != 0;
+        const size_t bits = type & likely_depth;
+        const bool floating = (type & likely_floating) != 0;
         if (floating) {
             if      (bits == 16) return pointer ? Type::getHalfPtrTy(context)   : Type::getHalfTy(context);
             else if (bits == 32) return pointer ? Type::getFloatPtrTy(context)  : Type::getFloatTy(context);
@@ -189,14 +189,14 @@ public:
         return NULL;
     }
 
-    Type *toLLVM(likely_matrix_type likely)
+    Type *toLLVM(likely_type likely)
     {
         auto result = typeLUT.find(likely);
         if (result != typeLUT.end())
             return result->second;
 
         Type *llvm;
-        if (likely & likely_matrix_multi_dimension) {
+        if (likely & likely_multi_dimension) {
             const likely_mat str = likely_type_to_string(likely);
             llvm = PointerType::getUnqual(StructType::create(str->data,
                                                              Type::getInt32Ty(context), // ref_count
@@ -209,13 +209,13 @@ public:
                                                              NULL));
             likely_release_mat(str);
 
-        } else if (likely == likely_matrix_void) {
+        } else if (likely == likely_void) {
             llvm = Type::getVoidTy(context);
         } else {
             llvm = scalar(likely);
         }
 
-        if (likely & likely_matrix_pointer)
+        if (likely & likely_pointer)
             llvm = PointerType::getUnqual(llvm);
 
         typeLUT[likely] = llvm;
@@ -337,21 +337,21 @@ static likely_env newEnv(likely_const_env parent)
 struct LikelyValue
 {
     Value *value;
-    likely_matrix_type type;
+    likely_type type;
 
-    LikelyValue(Value *value = NULL, likely_matrix_type type = likely_matrix_void)
+    LikelyValue(Value *value = NULL, likely_type type = likely_void)
         : value(value), type(type)
     {
         if (value && type) {
             // Check type correctness
-            likely_assert(!(type & likely_matrix_floating) || !(type & likely_matrix_signed), "type can't be both floating and signed (integer)");
-            likely_matrix_type inferred = toLikely(value->getType());
-            if (!(inferred & likely_matrix_multi_dimension)) {
+            likely_assert(!(type & likely_floating) || !(type & likely_signed), "type can't be both floating and signed (integer)");
+            likely_type inferred = toLikely(value->getType());
+            if (!(inferred & likely_multi_dimension)) {
                 // Can't represent these flags in LLVM IR for scalar types
-                if (type & likely_matrix_signed)
-                    inferred |= likely_matrix_signed;
-                if (type & likely_matrix_saturated)
-                    inferred |= likely_matrix_saturated;
+                if (type & likely_signed)
+                    inferred |= likely_signed;
+                if (type & likely_saturated)
+                    inferred |= likely_saturated;
             }
             if (inferred != type) {
                 const likely_mat llvm = likely_type_to_string(inferred);
@@ -365,7 +365,7 @@ struct LikelyValue
     }
 
     operator Value*() const { return value; }
-    operator likely_matrix_type() const { return type; }
+    operator likely_type() const { return type; }
 
     void dump() const
     {
@@ -375,12 +375,12 @@ struct LikelyValue
         likely_release_mat(m);
     }
 
-    static likely_matrix_type toLikely(Type *llvm)
+    static likely_type toLikely(Type *llvm)
     {
         if      (llvm->isIntegerTy()) return llvm->getIntegerBitWidth();
-        else if (llvm->isHalfTy())    return likely_matrix_f16;
-        else if (llvm->isFloatTy())   return likely_matrix_f32;
-        else if (llvm->isDoubleTy())  return likely_matrix_f64;
+        else if (llvm->isHalfTy())    return likely_f16;
+        else if (llvm->isFloatTy())   return likely_f32;
+        else if (llvm->isDoubleTy())  return likely_f64;
         else {
             if (FunctionType *function = dyn_cast<FunctionType>(llvm)) {
                 return toLikely(function->getReturnType());
@@ -389,13 +389,13 @@ struct LikelyValue
                     if (StructType *matrix = dyn_cast<StructType>(element)) {
                         return likely_type_from_string(matrix->getName().str().c_str(), NULL);
                     } else {
-                        likely_matrix_type type = toLikely(element);
+                        likely_type type = toLikely(element);
                         if (!isa<FunctionType>(element))
-                            type |= likely_matrix_pointer;
+                            type |= likely_pointer;
                         return type;
                     }
                 } else {
-                    return likely_matrix_void;
+                    return likely_void;
                 }
             }
         }
@@ -494,8 +494,8 @@ struct likely_expression : public LikelyValue
         likely_mat m = NULL;
         if (ConstantInt *constantInt = dyn_cast<ConstantInt>(value)) {
             m = likely_new(type, 1, 1, 1, 1, NULL);
-            likely_set_element(m, (type & likely_matrix_signed) ? double(constantInt->getSExtValue())
-                                                                : double(constantInt->getZExtValue()), 0, 0, 0, 0);
+            likely_set_element(m, (type & likely_signed) ? double(constantInt->getSExtValue())
+                                                         : double(constantInt->getZExtValue()), 0, 0, 0, 0);
         } else if (ConstantFP *constantFP = dyn_cast<ConstantFP>(value)) {
             const APFloat &apFloat = constantFP->getValueAPF();
             if ((&apFloat.getSemantics() == &APFloat::IEEEsingle) || (&apFloat.getSemantics() == &APFloat::IEEEdouble)) {
@@ -665,16 +665,16 @@ struct Builder : public IRBuilder<>
     Builder(likely_const_env env, likely_module *module)
         : IRBuilder<>(module ? module->context->context : getGlobalContext()), env(env), module(module) {}
 
-    LikelyValue constant(uint64_t value, likely_matrix_type type = likely_matrix_native)
+    LikelyValue constant(uint64_t value, likely_type type = likely_native)
     {
-        const unsigned depth = unsigned(type & likely_matrix_depth);
+        const unsigned depth = unsigned(type & likely_depth);
         return LikelyValue(Constant::getIntegerValue(Type::getIntNTy(getContext(), depth), APInt(depth, value)), type);
     }
 
-    LikelyValue constant(double value, likely_matrix_type type)
+    LikelyValue constant(double value, likely_type type)
     {
-        const size_t depth = type & likely_matrix_depth;
-        if (type & likely_matrix_floating) {
+        const size_t depth = type & likely_depth;
+        if (type & likely_floating) {
             if (value == 0) value = -0; // IEEE/LLVM optimization quirk
             if      (depth == 64) return LikelyValue(ConstantFP::get(Type::getDoubleTy(getContext()), value), type);
             else if (depth == 32) return LikelyValue(ConstantFP::get(Type::getFloatTy(getContext()), value), type);
@@ -684,12 +684,12 @@ struct Builder : public IRBuilder<>
         }
     }
 
-    LikelyValue zero(likely_matrix_type type = likely_matrix_native) { return constant(0.0, type); }
-    LikelyValue one (likely_matrix_type type = likely_matrix_native) { return constant(1.0, type); }
-    LikelyValue intMax(likely_matrix_type type) { const likely_matrix_type bits = type & likely_matrix_depth; return constant((uint64_t) (1 << (bits - ((type & likely_matrix_signed) ? 1 : 0)))-1, bits); }
-    LikelyValue intMin(likely_matrix_type type) { const likely_matrix_type bits = type & likely_matrix_depth; return constant((uint64_t) ((type & likely_matrix_signed) ? (1 << (bits - 1)) : 0), bits); }
-    LikelyValue nullMat() { return LikelyValue(ConstantPointerNull::get(::cast<PointerType>((Type*)multiDimension())), likely_matrix_multi_dimension); }
-    LikelyValue nullData() { return LikelyValue(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_matrix_u8 | likely_matrix_pointer); }
+    LikelyValue zero(likely_type type = likely_native) { return constant(0.0, type); }
+    LikelyValue one (likely_type type = likely_native) { return constant(1.0, type); }
+    LikelyValue intMax(likely_type type) { const likely_type bits = type & likely_depth; return constant((uint64_t) (1 << (bits - ((type & likely_signed) ? 1 : 0)))-1, bits); }
+    LikelyValue intMin(likely_type type) { const likely_type bits = type & likely_depth; return constant((uint64_t) ((type & likely_signed) ? (1 << (bits - 1)) : 0), bits); }
+    LikelyValue nullMat() { return LikelyValue(ConstantPointerNull::get(::cast<PointerType>((Type*)multiDimension())), likely_multi_dimension); }
+    LikelyValue nullData() { return LikelyValue(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_u8 | likely_pointer); }
 
     Value *addInts(Value *lhs, Value *rhs)
     {
@@ -714,29 +714,29 @@ struct Builder : public IRBuilder<>
     }
 
     // channels(), columns(), rows() and frames() return native integers by design
-    LikelyValue channels(const LikelyValue &m) { return (m & likely_matrix_multi_channel) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 2), "channels"), likely_matrix_u32), likely_matrix_native) : one(); }
-    LikelyValue columns (const LikelyValue &m) { return (m & likely_matrix_multi_column ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 3), "columns" ), likely_matrix_u32), likely_matrix_native) : one(); }
-    LikelyValue rows    (const LikelyValue &m) { return (m & likely_matrix_multi_row    ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 4), "rows"    ), likely_matrix_u32), likely_matrix_native) : one(); }
-    LikelyValue frames  (const LikelyValue &m) { return (m & likely_matrix_multi_frame  ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 5), "frames"  ), likely_matrix_u32), likely_matrix_native) : one(); }
-    LikelyValue data    (const LikelyValue &m) { return LikelyValue(CreatePointerCast(CreateStructGEP(m, 6), module->context->scalar(m, true)), (m & likely_matrix_element) | likely_matrix_pointer); }
+    LikelyValue channels(const LikelyValue &m) { return (m & likely_multi_channel) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 2), "channels"), likely_u32), likely_native) : one(); }
+    LikelyValue columns (const LikelyValue &m) { return (m & likely_multi_column ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 3), "columns" ), likely_u32), likely_native) : one(); }
+    LikelyValue rows    (const LikelyValue &m) { return (m & likely_multi_row    ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 4), "rows"    ), likely_u32), likely_native) : one(); }
+    LikelyValue frames  (const LikelyValue &m) { return (m & likely_multi_frame  ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 5), "frames"  ), likely_u32), likely_native) : one(); }
+    LikelyValue data    (const LikelyValue &m) { return LikelyValue(CreatePointerCast(CreateStructGEP(m, 6), module->context->scalar(m, true)), (m & likely_element) | likely_pointer); }
 
-    LikelyValue cast(const LikelyValue &x, likely_matrix_type type)
+    LikelyValue cast(const LikelyValue &x, likely_type type)
     {
-        type &= likely_matrix_element;
-        if ((x.type & likely_matrix_element) == type)
+        type &= likely_element;
+        if ((x.type & likely_element) == type)
             return LikelyValue(x, type);
-        if ((type & likely_matrix_depth) == 0) {
-            type |= x.type & likely_matrix_depth;
-            if (type & likely_matrix_floating)
-                type = likely_type_from_types(type, likely_matrix_floating);
+        if ((type & likely_depth) == 0) {
+            type |= x.type & likely_depth;
+            if (type & likely_floating)
+                type = likely_type_from_types(type, likely_floating);
         }
-        Type *dstType = module->context->scalar(type, type & likely_matrix_pointer);
-        return LikelyValue(CreateCast(CastInst::getCastOpcode(x, (x & likely_matrix_signed) != 0, dstType, (type & likely_matrix_signed) != 0), x, dstType), type);
+        Type *dstType = module->context->scalar(type, type & likely_pointer);
+        return LikelyValue(CreateCast(CastInst::getCastOpcode(x, (x & likely_signed) != 0, dstType, (type & likely_signed) != 0), x, dstType), type);
     }
 
     IntegerType *nativeInt() { return module->context->nativeInt(); }
-    Type *multiDimension() { return toLLVM(likely_matrix_multi_dimension); }
-    Type *toLLVM(likely_matrix_type likely) { return module->context->toLLVM(likely); }
+    Type *multiDimension() { return toLLVM(likely_multi_dimension); }
+    Type *toLLVM(likely_type likely) { return module->context->toLLVM(likely); }
 
     LikelyValue toMat(const LikelyValue &expr)
     {
@@ -746,7 +746,7 @@ struct Builder : public IRBuilder<>
         if (expr.value->getType()->isPointerTy() /* assume it's a string for now */) {
             Function *likelyString = module->module->getFunction("likely_string");
             if (!likelyString) {
-                FunctionType *functionType = FunctionType::get(toLLVM(likely_matrix_string), Type::getInt8PtrTy(getContext()), false);
+                FunctionType *functionType = FunctionType::get(toLLVM(likely_i8 | likely_multi_channel), Type::getInt8PtrTy(getContext()), false);
                 likelyString = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_string", module->module);
                 likelyString->setCallingConv(CallingConv::C);
                 likelyString->setDoesNotAlias(0);
@@ -754,7 +754,7 @@ struct Builder : public IRBuilder<>
                 likelyString->setDoesNotCapture(1);
                 sys::DynamicLibrary::AddSymbol("likely_string", (void*) likely_string);
             }
-            return LikelyValue(CreateCall(likelyString, expr), likely_matrix_string);
+            return LikelyValue(CreateCall(likelyString, expr), likely_i8 | likely_multi_channel);
         }
 
         Function *likelyScalar = module->module->getFunction("likely_scalar");
@@ -770,8 +770,8 @@ struct Builder : public IRBuilder<>
         }
 
         AllocaInst *allocaInst = CreateAlloca(Type::getDoubleTy(getContext()), one());
-        CreateStore(cast(expr, likely_matrix_f64), allocaInst);
-        return LikelyValue(CreateCall3(likelyScalar, constant(uint64_t(expr.type), likely_matrix_u32), allocaInst, one(likely_matrix_u32)), likely_matrix_multi_dimension);
+        CreateStore(cast(expr, likely_f64), allocaInst);
+        return LikelyValue(CreateCall3(likelyScalar, constant(uint64_t(expr.type), likely_u32), allocaInst, one(likely_u32)), likely_multi_dimension);
     }
 
     LikelyValue newMat(Value *type, Value *channels, Value *columns, Value *rows, Value *frames, Value *data)
@@ -788,7 +788,7 @@ struct Builder : public IRBuilder<>
             sys::DynamicLibrary::AddSymbol("likely_new", (void*) likely_new);
         }
         Value* args[] = { type, channels, columns, rows, frames, data };
-        return LikelyValue(CreateCall(likelyNew, args), likely_matrix_multi_dimension);
+        return LikelyValue(CreateCall(likelyNew, args), likely_multi_dimension);
     }
 
     LikelyValue retainMat(Value *m)
@@ -802,7 +802,7 @@ struct Builder : public IRBuilder<>
             likelyRetain->setDoesNotCapture(1);
             sys::DynamicLibrary::AddSymbol("likely_retain_mat", (void*) likely_retain_mat);
         }
-        return LikelyValue(CreateCall(likelyRetain, CreatePointerCast(m, multiDimension())), likely_matrix_multi_dimension);
+        return LikelyValue(CreateCall(likelyRetain, CreatePointerCast(m, multiDimension())), likely_multi_dimension);
     }
 
     LikelyValue releaseMat(Value *m)
@@ -816,7 +816,7 @@ struct Builder : public IRBuilder<>
             likelyRelease->setDoesNotCapture(1);
             sys::DynamicLibrary::AddSymbol("likely_release_mat", (void*) likely_release_mat);
         }
-        return LikelyValue(CreateCall(likelyRelease, CreatePointerCast(m, multiDimension())), likely_matrix_void);
+        return LikelyValue(CreateCall(likelyRelease, CreatePointerCast(m, multiDimension())), likely_void);
     }
 };
 
@@ -828,11 +828,11 @@ class ConstantMat : public likely_expression
     likely_const_expr evaluate(Builder &builder, likely_const_ast) const
     {
         const likely_const_mat m = getData();
-        const LikelyValue value = (m->type & likely_matrix_multi_dimension) ? LikelyValue(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(likely_mat)), uintptr_t(m)), builder.toLLVM(m->type)), m->type)
-                                                                            : LikelyValue(builder.constant(likely_element(m, 0, 0, 0, 0), m->type), m->type);
+        const LikelyValue value = (m->type & likely_multi_dimension) ? LikelyValue(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(likely_mat)), uintptr_t(m)), builder.toLLVM(m->type)), m->type)
+                                                                     : LikelyValue(builder.constant(likely_get_element(m, 0, 0, 0, 0), m->type), m->type);
 
         // Make sure the lifetime of the data is at least as long as the lifetime of the code.
-        if (m->type & likely_matrix_multi_dimension)
+        if (m->type & likely_multi_dimension)
             builder.module->mats.push_back(likely_retain_mat(m));
 
         return new likely_expression(value, likely_retain_mat(m));
@@ -860,9 +860,9 @@ if (!EXPR.get()) return NULL;                                      \
 struct Symbol : public likely_expression
 {
     const string name;
-    const vector<likely_matrix_type> parameters;
+    const vector<likely_type> parameters;
 
-    Symbol(const string &name, likely_matrix_type returnType, vector<likely_matrix_type> parameters = vector<likely_matrix_type>())
+    Symbol(const string &name, likely_type returnType, vector<likely_type> parameters = vector<likely_type>())
         : likely_expression(LikelyValue(NULL, returnType)), name(name), parameters(parameters) {}
 
 private:
@@ -877,7 +877,7 @@ private:
         if (!symbol) {
             // Translate definition type across contexts
             vector<Type*> llvmParameters;
-            for (likely_matrix_type parameter : parameters)
+            for (likely_type parameter : parameters)
                 llvmParameters.push_back(builder.toLLVM(parameter));
             Type *llvmReturn = builder.toLLVM(type);
             FunctionType *functionType = FunctionType::get(llvmReturn, llvmParameters, false);
@@ -915,7 +915,7 @@ struct JITFunction : public Symbol
     likely_module *module;
     Variant::Type returnType = Variant::Mat;
 
-    JITFunction(const string &name, const Lambda *lambda, const vector<likely_matrix_type> &parameters, bool evaluate, bool arrayCC);
+    JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC);
 
     ~JITFunction()
     {
@@ -1061,12 +1061,12 @@ class SimpleUnaryOperator : public UnaryOperator
 
 struct MatrixType : public LikelyOperator
 {
-    likely_matrix_type t;
-    MatrixType(Builder &builder, likely_matrix_type t)
+    likely_type t;
+    MatrixType(Builder &builder, likely_type t)
         : t(t)
     {
-        value = builder.constant(uint64_t(t), likely_matrix_u32);
-        type = likely_matrix_u32;
+        value = builder.constant(uint64_t(t), likely_u32);
+        type = likely_u32;
     }
 
 private:
@@ -1139,7 +1139,7 @@ class UnaryMathOperator : public SimpleUnaryOperator
 {
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &x) const
     {
-        likely_expression xc(builder.cast(*x.get(), likely_type_from_types(*x, likely_matrix_floating)));
+        likely_expression xc(builder.cast(*x.get(), likely_type_from_types(*x, likely_floating)));
         return new likely_expression(LikelyValue(builder.CreateCall(Intrinsic::getDeclaration(builder.module->module, id(), xc.value->getType()), xc), xc));
     }
     virtual Intrinsic::ID id() const = 0;
@@ -1182,7 +1182,7 @@ class ArithmeticOperator : public SimpleBinaryOperator
 {
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &lhs, const unique_ptr<const likely_expression> &rhs) const
     {
-        likely_matrix_type type = likely_type_from_types(*lhs, *rhs);
+        likely_type type = likely_type_from_types(*lhs, *rhs);
         return evaluateArithmetic(builder, builder.cast(*lhs.get(), type), builder.cast(*rhs.get(), type));
     }
     virtual likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const = 0;
@@ -1232,12 +1232,12 @@ class addExpression : public SimpleArithmeticOperator
     const char *symbol() const { return "+"; }
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
-        if (lhs.type & likely_matrix_floating) {
+        if (lhs.type & likely_floating) {
             return builder.CreateFAdd(lhs, rhs);
         } else {
-            if (lhs.type & likely_matrix_saturated) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module->module, (lhs.type & likely_matrix_signed) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs.value->getType()), lhs, rhs);
-                Value *overflowResult = (lhs.type & likely_matrix_signed) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, builder.zero(lhs)), builder.intMax(lhs), builder.intMin(lhs)) : builder.intMax(lhs).value;
+            if (lhs.type & likely_saturated) {
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module->module, (lhs.type & likely_signed) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs.value->getType()), lhs, rhs);
+                Value *overflowResult = (lhs.type & likely_signed) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, builder.zero(lhs)), builder.intMax(lhs), builder.intMin(lhs)) : builder.intMax(lhs).value;
                 return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
             } else {
                 return builder.CreateAdd(lhs, rhs);
@@ -1271,16 +1271,16 @@ class subtractExpression : public LikelyOperator
                 return NULL;
         }
 
-        const likely_matrix_type type = likely_type_from_types(*expr1, *expr2);
+        const likely_type type = likely_type_from_types(*expr1, *expr2);
         const likely_expression lhs(builder.cast(*expr1.get(), type));
         const likely_expression rhs(builder.cast(*expr2.get(), type));
 
-        if (type & likely_matrix_floating) {
+        if (type & likely_floating) {
             return new likely_expression(LikelyValue(builder.CreateFSub(lhs, rhs), type));
         } else {
-            if (type & likely_matrix_saturated) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module->module, (lhs.type & likely_matrix_signed) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value->getType()), lhs, rhs);
-                Value *overflowResult = (lhs.type & likely_matrix_signed) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, builder.zero(lhs)), builder.intMax(lhs), builder.intMin(lhs)) : builder.intMin(lhs).value;
+            if (type & likely_saturated) {
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module->module, (lhs.type & likely_signed) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value->getType()), lhs, rhs);
+                Value *overflowResult = (lhs.type & likely_signed) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, builder.zero(lhs)), builder.intMax(lhs), builder.intMin(lhs)) : builder.intMin(lhs).value;
                 return new likely_expression(LikelyValue(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type));
             } else {
                 return new likely_expression(LikelyValue(builder.CreateSub(lhs, rhs), type));
@@ -1295,13 +1295,13 @@ class multiplyExpression : public SimpleArithmeticOperator
     const char *symbol() const { return "*"; }
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
-        if (lhs & likely_matrix_floating) {
+        if (lhs & likely_floating) {
             return builder.CreateFMul(lhs, rhs);
         } else {
-            if (lhs.type & likely_matrix_saturated) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module->module, (lhs.type & likely_matrix_signed) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs.value->getType()), lhs, rhs);
+            if (lhs.type & likely_saturated) {
+                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module->module, (lhs.type & likely_signed) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs.value->getType()), lhs, rhs);
                 Value *zero = builder.zero(lhs);
-                Value *overflowResult = (lhs.type & likely_matrix_signed) ? builder.CreateSelect(builder.CreateXor(builder.CreateICmpSGE(lhs, zero), builder.CreateICmpSGE(rhs, zero)), builder.intMin(lhs), builder.intMax(lhs)) : builder.intMax(lhs).value;
+                Value *overflowResult = (lhs.type & likely_signed) ? builder.CreateSelect(builder.CreateXor(builder.CreateICmpSGE(lhs, zero), builder.CreateICmpSGE(rhs, zero)), builder.intMin(lhs), builder.intMax(lhs)) : builder.intMax(lhs).value;
                 return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
             } else {
                 return builder.CreateMul(lhs, rhs);
@@ -1316,11 +1316,11 @@ class divideExpression : public SimpleArithmeticOperator
     const char *symbol() const { return "/"; }
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &n, const likely_expression &d) const
     {
-        if (n.type & likely_matrix_floating) {
+        if (n.type & likely_floating) {
             return builder.CreateFDiv(n, d);
         } else {
-            if (n.type & likely_matrix_signed) {
-                if (n.type & likely_matrix_saturated) {
+            if (n.type & likely_signed) {
+                if (n.type & likely_saturated) {
                     Value *safe_i = builder.CreateAdd(n, builder.CreateZExt(builder.CreateICmpNE(builder.CreateOr(builder.CreateAdd(d, builder.one(n)), builder.CreateAdd(n, builder.intMin(n))), builder.zero(n)), n.value->getType()));
                     return builder.CreateSDiv(safe_i, d);
                 } else {
@@ -1339,9 +1339,9 @@ class remainderExpression : public SimpleArithmeticOperator
     const char *symbol() const { return "%"; }
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
-        return (lhs.type & likely_matrix_floating) ? builder.CreateFRem(lhs, rhs)
-                                                   : ((lhs.type & likely_matrix_signed) ? builder.CreateSRem(lhs, rhs)
-                                                                                        : builder.CreateURem(lhs, rhs));
+        return (lhs.type & likely_floating) ? builder.CreateFRem(lhs, rhs)
+                                                   : ((lhs.type & likely_signed) ? builder.CreateSRem(lhs, rhs)
+                                                                                 : builder.CreateURem(lhs, rhs));
     }
 };
 LIKELY_REGISTER(remainder)
@@ -1367,40 +1367,40 @@ class shiftRightExpression : public SimpleArithmeticOperator
     const char *symbol() const { return ">>"; }
     Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
-        return (lhs.type & likely_matrix_signed) ? builder.CreateAShr(lhs, rhs.value) : builder.CreateLShr(lhs, rhs.value);
+        return (lhs.type & likely_signed) ? builder.CreateAShr(lhs, rhs.value) : builder.CreateLShr(lhs, rhs.value);
     }
 };
 LIKELY_REGISTER(shiftRight)
 
-#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                                                                         \
-class OP##Expression : public ArithmeticOperator                                                                                                                                    \
-{                                                                                                                                                                                   \
-    const char *symbol() const { return #SYM; }                                                                                                                                     \
-    likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const                                                        \
-    {                                                                                                                                                                               \
-        return new likely_expression(LikelyValue((lhs.type & likely_matrix_floating) ? builder.CreateFCmpO##OP(lhs, rhs)                                                            \
-                                                                                     : ((lhs.type & likely_matrix_signed) ? builder.CreateICmpS##OP(lhs, rhs)                       \
-                                                                                                                          : builder.CreateICmpU##OP(lhs, rhs)), likely_matrix_u1)); \
-    }                                                                                                                                                                               \
-};                                                                                                                                                                                  \
-LIKELY_REGISTER(OP)                                                                                                                                                                 \
+#define LIKELY_REGISTER_COMPARISON(OP, SYM)                                                                                                                    \
+class OP##Expression : public ArithmeticOperator                                                                                                               \
+{                                                                                                                                                              \
+    const char *symbol() const { return #SYM; }                                                                                                                \
+    likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const                                   \
+    {                                                                                                                                                          \
+        return new likely_expression(LikelyValue((lhs.type & likely_floating) ? builder.CreateFCmpO##OP(lhs, rhs)                                              \
+                                                                              : ((lhs.type & likely_signed) ? builder.CreateICmpS##OP(lhs, rhs)                \
+                                                                                                            : builder.CreateICmpU##OP(lhs, rhs)), likely_u1)); \
+    }                                                                                                                                                          \
+};                                                                                                                                                             \
+LIKELY_REGISTER(OP)                                                                                                                                            \
 
 LIKELY_REGISTER_COMPARISON(LT, <)
 LIKELY_REGISTER_COMPARISON(LE, <=)
 LIKELY_REGISTER_COMPARISON(GT, >)
 LIKELY_REGISTER_COMPARISON(GE, >=)
 
-#define LIKELY_REGISTER_EQUALITY(OP, SYM)                                                                                        \
-class OP##Expression : public ArithmeticOperator                                                                                 \
-{                                                                                                                                \
-    const char *symbol() const { return #SYM; }                                                                                  \
-    likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const     \
-    {                                                                                                                            \
-        return new likely_expression(LikelyValue((lhs.type & likely_matrix_floating) ? builder.CreateFCmpO##OP(lhs, rhs)         \
-                                                                         : builder.CreateICmp##OP(lhs, rhs), likely_matrix_u1)); \
-    }                                                                                                                            \
-};                                                                                                                               \
-LIKELY_REGISTER(OP)                                                                                                              \
+#define LIKELY_REGISTER_EQUALITY(OP, SYM)                                                                                      \
+class OP##Expression : public ArithmeticOperator                                                                               \
+{                                                                                                                              \
+    const char *symbol() const { return #SYM; }                                                                                \
+    likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const   \
+    {                                                                                                                          \
+        return new likely_expression(LikelyValue((lhs.type & likely_floating) ? builder.CreateFCmpO##OP(lhs, rhs)              \
+                                                                              : builder.CreateICmp##OP(lhs, rhs), likely_u1)); \
+    }                                                                                                                          \
+};                                                                                                                             \
+LIKELY_REGISTER(OP)                                                                                                            \
 
 LIKELY_REGISTER_EQUALITY(EQ, ==)
 LIKELY_REGISTER_EQUALITY(NE, !=)
@@ -1409,7 +1409,7 @@ class BinaryMathOperator : public SimpleBinaryOperator
 {
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &x, const unique_ptr<const likely_expression> &n) const
     {
-        const likely_matrix_type type = likely_type_from_types(likely_type_from_types(*x, *n), likely_matrix_floating);
+        const likely_type type = likely_type_from_types(likely_type_from_types(*x, *n), likely_floating);
         const likely_expression xc(builder.cast(*x.get(), type));
         const likely_expression nc(builder.cast(*n.get(), type));
         return new likely_expression(LikelyValue(builder.CreateCall2(Intrinsic::getDeclaration(builder.module->module, id(), xc.value->getType()), xc, nc), xc));
@@ -1469,21 +1469,21 @@ struct Lambda : public LikelyOperator
     Lambda(const Lambda &) = delete;
     Lambda &operator=(const Lambda &) = delete;
 
-    likely_const_expr generate(Builder &builder, vector<likely_matrix_type> parameters, string name, bool arrayCC, bool promoteScalarToMatrix) const
+    likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, bool arrayCC, bool promoteScalarToMatrix) const
     {
         likely_const_env restore = builder.env;
         builder.env = newEnv(env);
         const_cast<likely_env>(builder.env)->type = restore->type;
 
         while (parameters.size() < maxParameters())
-            parameters.push_back(likely_matrix_multi_dimension);
+            parameters.push_back(likely_multi_dimension);
 
         vector<Type*> llvmTypes;
         if (arrayCC) {
             // Array calling convention - All arguments (which must be matrix pointers) come stored in an array.
             llvmTypes.push_back(PointerType::get(builder.multiDimension(), 0));
         } else {
-            for (const likely_matrix_type &parameter : parameters)
+            for (const likely_type &parameter : parameters)
                 llvmTypes.push_back(builder.toLLVM(parameter));
         }
 
@@ -1497,10 +1497,10 @@ struct Lambda : public LikelyOperator
             Value *argumentArray = tmpFunction->arg_begin();
             for (size_t i=0; i<parameters.size(); i++) {
                 Value *load = builder.CreateLoad(builder.CreateGEP(argumentArray, builder.constant(i)));
-                if (parameters[i] & likely_matrix_multi_dimension) {
+                if (parameters[i] & likely_multi_dimension) {
                     load = builder.CreatePointerCast(load, builder.toLLVM(parameters[i]));
                 } else {
-                    const likely_matrix_type tmpType = parameters[i] | likely_matrix_multi_dimension;
+                    const likely_type tmpType = parameters[i] | likely_multi_dimension;
                     const LikelyValue tmpValue(builder.CreatePointerCast(load, builder.toLLVM(tmpType)), tmpType);
                     load = builder.CreateLoad(builder.CreateGEP(builder.data(tmpValue), builder.zero()));
                 }
@@ -1556,7 +1556,7 @@ struct Lambda : public LikelyOperator
 
     Variant evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const
     {
-        vector<likely_matrix_type> params;
+        vector<likely_type> params;
         for (likely_const_mat arg : args)
             params.push_back(arg->type);
 
@@ -1576,7 +1576,7 @@ struct Lambda : public LikelyOperator
         return Variant(value, jit.returnType);
     }
 
-    static void *getFunction(likely_const_expr expr, const vector<likely_matrix_type> &types)
+    static void *getFunction(likely_const_expr expr, const vector<likely_type> &types)
     {
         if (!expr || (expr->uid() != UID()))
             return NULL;
@@ -1629,7 +1629,7 @@ private:
         // Do dynamic dispatch if the type isn't fully specified
         bool dynamic = false;
         for (likely_const_expr arg : args)
-            dynamic |= (arg->type == likely_matrix_multi_dimension);
+            dynamic |= (arg->type == likely_multi_dimension);
 
         if (dynamic) {
             likely_vtable vtable = new likely_virtual_table(builder.env, body, parameters);
@@ -1654,7 +1654,7 @@ private:
             for (size_t i=0; i<args.size(); i++)
                 builder.CreateStore(*args[i], builder.CreateGEP(matricies, builder.constant(i)));
             Value* args[] = { ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(vtable)), uintptr_t(vtable)), vTableType), matricies };
-            return new likely_expression(LikelyValue(builder.CreateCall(likelyDynamic, args), likely_matrix_multi_dimension));
+            return new likely_expression(LikelyValue(builder.CreateCall(likelyDynamic, args), likely_multi_dimension));
         }
 
         if (parameters) {
@@ -1685,28 +1685,28 @@ class externExpression : public LikelyOperator
     const char *symbol() const { return "extern"; }
     size_t maxParameters() const { return 3; }
 
-    static likely_matrix_type typeFromAst(Builder &builder, likely_const_ast ast, bool *ok)
+    static likely_type typeFromAst(Builder &builder, likely_const_ast ast, bool *ok)
     {
         const unique_ptr<const likely_expression> expr(get(builder, ast));
         if (!expr) {
             *ok = false;
-            return likely_matrix_void;
+            return likely_void;
         }
 
         const likely_const_mat data = expr->getData();
-        if (!data || (data->type != likely_matrix_u32) || (data->type & likely_matrix_multi_dimension)) {
+        if (!data || (data->type != likely_u32) || (data->type & likely_multi_dimension)) {
             *ok = false;
-            return likely_matrix_void;
+            return likely_void;
         }
 
         *ok = true;
-        return likely_matrix_type(likely_element(data, 0, 0, 0, 0));
+        return likely_type(likely_get_element(data, 0, 0, 0, 0));
     }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         bool ok;
-        const likely_matrix_type returnType = typeFromAst(builder, ast->atoms[1], &ok);
+        const likely_type returnType = typeFromAst(builder, ast->atoms[1], &ok);
         if (!ok)
             return NULL;
 
@@ -1719,7 +1719,7 @@ class externExpression : public LikelyOperator
             name = data->data;
         }
 
-        vector<likely_matrix_type> parameters;
+        vector<likely_type> parameters;
         if (ast->atoms[3]->type == likely_ast_list) {
             for (uint32_t i=0; i<ast->atoms[3]->num_atoms; i++) {
                 parameters.push_back(typeFromAst(builder, ast->atoms[3]->atoms[i], &ok));
@@ -1768,7 +1768,7 @@ LIKELY_REGISTER(begin)
 struct Label : public likely_expression
 {
     Label(BasicBlock *basicBlock)
-        : likely_expression(LikelyValue(basicBlock, likely_matrix_void)) {}
+        : likely_expression(LikelyValue(basicBlock, likely_void)) {}
 
 private:
     likely_const_expr evaluate(Builder &builder, likely_const_ast) const
@@ -1819,7 +1819,7 @@ class ifExpression : public LikelyOperator
         if (hasElse) {
             builder.SetInsertPoint(False);
             TRY_EXPR(builder, ast->atoms[3], f)
-            const likely_matrix_type resolved = likely_type_from_types(*t, *f);
+            const likely_type resolved = likely_type_from_types(*t, *f);
 
             builder.SetInsertPoint(True);
             const likely_expression tc(builder.cast(*t, resolved));
@@ -1861,7 +1861,7 @@ struct Loop : public likely_expression
         builder.SetInsertPoint(loop);
         value = builder.CreatePHI(builder.nativeInt(), 2, name);
         cast<PHINode>(value)->addIncoming(start, entry);
-        type = likely_matrix_native;
+        type = likely_native;
     }
 
     virtual void close(Builder &builder)
@@ -1894,7 +1894,7 @@ LIKELY_REGISTER(loop)
 
 struct Assignable : public LikelyOperator
 {
-    Assignable(Value *value, likely_matrix_type type)
+    Assignable(Value *value, likely_type type)
     {
         this->value = value;
         this->type = type;
@@ -1944,10 +1944,10 @@ class kernelExpression : public LikelyOperator
         Value *gep(Builder &builder, likely_const_ast) const
         {
             Value *i = builder.zero();
-            if (type & likely_matrix_multi_channel) i = likely_lookup(builder.env, "c")->expr->value;
-            if (type & likely_matrix_multi_column ) i = builder.addInts(builder.multiplyInts(likely_lookup(builder.env, "x")->expr->value, channels ), i);
-            if (type & likely_matrix_multi_row    ) i = builder.addInts(builder.multiplyInts(likely_lookup(builder.env, "y")->expr->value, rowStep  ), i);
-            if (type & likely_matrix_multi_frame  ) i = builder.addInts(builder.multiplyInts(likely_lookup(builder.env, "t")->expr->value, frameStep), i);
+            if (type & likely_multi_channel) i = likely_lookup(builder.env, "c")->expr->value;
+            if (type & likely_multi_column ) i = builder.addInts(builder.multiplyInts(likely_lookup(builder.env, "x")->expr->value, channels ), i);
+            if (type & likely_multi_row    ) i = builder.addInts(builder.multiplyInts(likely_lookup(builder.env, "y")->expr->value, rowStep  ), i);
+            if (type & likely_multi_frame  ) i = builder.addInts(builder.multiplyInts(likely_lookup(builder.env, "t")->expr->value, frameStep), i);
             return builder.CreateGEP(builder.data(*this), i);
         }
 
@@ -1967,7 +1967,7 @@ class kernelExpression : public LikelyOperator
 
             LoadInst *load = builder.CreateLoad(gep(builder, ast));
             load->setMetadata("llvm.mem.parallel_loop_access", node);
-            return new likely_expression(LikelyValue(load, type & likely_matrix_element));
+            return new likely_expression(LikelyValue(load, type & likely_element));
         }
     };
 
@@ -2017,11 +2017,11 @@ class kernelExpression : public LikelyOperator
         }
 
         Value *kernelSize;
-        if      (srcs[0]->type & likely_matrix_multi_frame)   kernelSize = builder.frames(*srcs[0]);
-        else if (srcs[0]->type & likely_matrix_multi_row)     kernelSize = builder.rows(*srcs[0]);
-        else if (srcs[0]->type & likely_matrix_multi_column)  kernelSize = builder.columns(*srcs[0]);
-        else if (srcs[0]->type & likely_matrix_multi_channel) kernelSize = builder.channels(*srcs[0]);
-        else                                                  kernelSize = builder.one();
+        if      (srcs[0]->type & likely_multi_frame)   kernelSize = builder.frames(*srcs[0]);
+        else if (srcs[0]->type & likely_multi_row)     kernelSize = builder.rows(*srcs[0]);
+        else if (srcs[0]->type & likely_multi_column)  kernelSize = builder.columns(*srcs[0]);
+        else if (srcs[0]->type & likely_multi_channel) kernelSize = builder.channels(*srcs[0]);
+        else                                           kernelSize = builder.one();
 
         if      (builder.env->type & likely_environment_heterogeneous) generateHeterogeneous(builder, ast, srcs, kernelSize);
         else if (builder.env->type & likely_environment_parallel)      generateParallel     (builder, ast, srcs, kernelSize);
@@ -2126,25 +2126,25 @@ class kernelExpression : public LikelyOperator
             switch (axis_index) {
               case 0:
                 name = "t";
-                multiElement = (kernelArguments[0]->type & likely_matrix_multi_frame) != 0;
+                multiElement = (kernelArguments[0]->type & likely_multi_frame) != 0;
                 elements = kernelArguments[0]->frames;
                 step = kernelArguments[0]->frameStep;
                 break;
               case 1:
                 name = "y";
-                multiElement = (kernelArguments[0]->type & likely_matrix_multi_row) != 0;
+                multiElement = (kernelArguments[0]->type & likely_multi_row) != 0;
                 elements = kernelArguments[0]->rows;
                 step = kernelArguments[0]->rowStep;
                 break;
               case 2:
                 name = "x";
-                multiElement = (kernelArguments[0]->type & likely_matrix_multi_column) != 0;
+                multiElement = (kernelArguments[0]->type & likely_multi_column) != 0;
                 elements = kernelArguments[0]->columns;
                 step = kernelArguments[0]->channels;
                 break;
               default:
                 name = "c";
-                multiElement = (kernelArguments[0]->type & likely_matrix_multi_channel) != 0;
+                multiElement = (kernelArguments[0]->type & likely_multi_channel) != 0;
                 elements = kernelArguments[0]->channels;
                 step = builder.constant(1);
                 break;
@@ -2155,7 +2155,7 @@ class kernelExpression : public LikelyOperator
                 else       axis = new KernelAxis(builder, name, builder.zero(), elements, step, axis);
                 define(builder.env, name.c_str(), axis); // takes ownership of axis
             } else {
-                define(builder.env, name.c_str(), new likely_expression(LikelyValue(builder.zero(), likely_matrix_native)));
+                define(builder.env, name.c_str(), new likely_expression(LikelyValue(builder.zero(), likely_native)));
             }
         }
 
@@ -2215,7 +2215,7 @@ class defineExpression : public LikelyOperator
             builder.module = builder.env->module;
             if (lhs->type == likely_ast_list) {
                 // Export symbol
-                vector<likely_matrix_type> parameters;
+                vector<likely_type> parameters;
                 for (size_t i=1; i<lhs->num_atoms; i++) {
                     if (lhs->atoms[i]->type == likely_ast_list)
                         return error(lhs->atoms[i], "expected an atom name parameter type");
@@ -2271,8 +2271,8 @@ class setExpression : public LikelyOperator
     private:
         void set(Builder &builder, likely_const_expr expr, likely_const_ast = NULL) const
         {
-            builder.CreateStore((type & likely_matrix_multi_dimension) ? expr->value
-                                                                       : builder.cast(*expr, type).value, value);
+            builder.CreateStore((type & likely_multi_dimension) ? expr->value
+                                                                : builder.cast(*expr, type).value, value);
         }
 
         likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
@@ -2302,8 +2302,8 @@ class setExpression : public LikelyOperator
 };
 LIKELY_REGISTER(set)
 
-JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_matrix_type> &parameters, bool evaluate, bool arrayCC)
-    : Symbol(name, likely_matrix_void, parameters), module(new likely_module())
+JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC)
+    : Symbol(name, likely_void, parameters), module(new likely_module())
 {
     likely_env env = newEnv(lambda->env);
 
@@ -2382,38 +2382,38 @@ class newExpression : public LikelyOperator
         Value *type = NULL, *channels = NULL, *columns = NULL, *rows = NULL, *frames = NULL, *data = NULL;
         switch (n) {
             case 6: data     = unique_ptr<const likely_expression>(get(builder, ast->atoms[6]))->value;
-            case 5: frames   = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[5])).get(), likely_matrix_u32);
-            case 4: rows     = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[4])).get(), likely_matrix_u32);
-            case 3: columns  = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[3])).get(), likely_matrix_u32);
-            case 2: channels = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[2])).get(), likely_matrix_u32);
-            case 1: type     = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[1])).get(), likely_matrix_u32);
+            case 5: frames   = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[5])).get(), likely_u32);
+            case 4: rows     = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[4])).get(), likely_u32);
+            case 3: columns  = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[3])).get(), likely_u32);
+            case 2: channels = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[2])).get(), likely_u32);
+            case 1: type     = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[1])).get(), likely_u32);
             default:           break;
         }
 
         switch (maxParameters()-n) {
-            case 6: type     = MatrixType(builder, likely_matrix_f32);
-            case 5: channels = builder.one(likely_matrix_u32);
-            case 4: columns  = builder.one(likely_matrix_u32);
-            case 3: rows     = builder.one(likely_matrix_u32);
-            case 2: frames   = builder.one(likely_matrix_u32);
+            case 6: type     = MatrixType(builder, likely_f32);
+            case 5: channels = builder.one(likely_u32);
+            case 4: columns  = builder.one(likely_u32);
+            case 3: rows     = builder.one(likely_u32);
+            case 2: frames   = builder.one(likely_u32);
             case 1: data     = builder.nullData();
             default:           break;
         }
 
-        likely_matrix_type inferredType = uint32_t(cast<ConstantInt>(type)->getZExtValue()) | likely_matrix_multi_dimension;
-        checkDimension(inferredType, channels, likely_matrix_multi_channel);
-        checkDimension(inferredType, columns , likely_matrix_multi_column);
-        checkDimension(inferredType, rows    , likely_matrix_multi_row);
-        checkDimension(inferredType, frames  , likely_matrix_multi_frame);
+        likely_type inferredType = uint32_t(cast<ConstantInt>(type)->getZExtValue()) | likely_multi_dimension;
+        checkDimension(inferredType, channels, likely_multi_channel);
+        checkDimension(inferredType, columns , likely_multi_column);
+        checkDimension(inferredType, rows    , likely_multi_row);
+        checkDimension(inferredType, frames  , likely_multi_frame);
 
         // TODO: stack allocate scalars
-        if (!(inferredType & likely_matrix_multi_dimension))
-            inferredType |= likely_matrix_multi_dimension;
+        if (!(inferredType & likely_multi_dimension))
+            inferredType |= likely_multi_dimension;
 
         return new likely_expression(LikelyValue(builder.CreatePointerCast(builder.newMat(type, channels, columns, rows, frames, data), builder.toLLVM(inferredType)), inferredType));
     }
 
-    static void checkDimension(likely_matrix_type &type, Value *dimension, likely_matrix_type mask)
+    static void checkDimension(likely_type &type, Value *dimension, likely_type mask)
     {
         if (ConstantInt *dim = dyn_cast<ConstantInt>(dimension))
             if (dim->getZExtValue() == 1)
@@ -2444,7 +2444,7 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
 
         if ((ast->atom[0] == '"') && (ast->atom[ast->atom_len-1] == '"')) {
             const_cast<likely_ast>(ast)->type = likely_ast_string;
-            return new likely_expression(LikelyValue(builder.CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_matrix_i8 | likely_matrix_pointer));
+            return new likely_expression(LikelyValue(builder.CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_i8 | likely_pointer));
         }
 
         { // Is it a number?
@@ -2458,7 +2458,7 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
 
         { // Is it a type?
             bool ok;
-            const likely_matrix_type matrixType = likely_type_from_string(ast->atom, &ok);
+            const likely_type matrixType = likely_type_from_string(ast->atom, &ok);
             if (ok) {
                 const_cast<likely_ast>(ast)->type = likely_ast_type;
                 return new MatrixType(builder, matrixType);
@@ -2467,7 +2467,7 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
             const likely_file_type fileType = likely_file_type_from_string(ast->atom, &ok);
             if (ok) {
                 const_cast<likely_ast>(ast)->type = likely_ast_type;
-                return new likely_expression(LikelyValue(builder.constant(uint64_t(fileType), likely_matrix_u32)));
+                return new likely_expression(LikelyValue(builder.constant(uint64_t(fileType), likely_u32)));
             }
         }
 
@@ -2523,7 +2523,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats)
     }
 
     if (function == NULL) {
-        vector<likely_matrix_type> types;
+        vector<likely_type> types;
         for (size_t i=0; i<vtable->n; i++)
             types.push_back(mats[i]->type);
         vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->env, vtable->body, vtable->parameters)).get(), types, false, true)));
@@ -2535,9 +2535,9 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats)
     return reinterpret_cast<likely_mat (*)(likely_const_mat const*)>(function)(mats);
 }
 
-void *likely_compile(likely_const_expr expr, likely_matrix_type const *type, uint32_t n)
+void *likely_compile(likely_const_expr expr, likely_type const *type, uint32_t n)
 {
-    return Lambda::getFunction(expr, vector<likely_matrix_type>(type, type + n));
+    return Lambda::getFunction(expr, vector<likely_type>(type, type + n));
 }
 
 likely_const_mat likely_result(likely_const_env env)

@@ -164,14 +164,14 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
                     }
                 }
             } else {
-                likely_mat buffer = likely_new(likely_matrix_u8, uint32_t(size + ((type & likely_file_text) ? 1 : 0)), 1, 1, 1, NULL);
+                likely_mat buffer = likely_new(likely_u8, uint32_t(size + ((type & likely_file_text) ? 1 : 0)), 1, 1, 1, NULL);
                 const bool success = (fread(buffer->data, 1, size, fp) == size);
                 if (success) {
                     if (type & likely_file_binary) {
                         result = likely_retain_mat(buffer);
                     } else if (type & likely_file_text) {
                         buffer->data[size] = 0;
-                        buffer->type = likely_matrix_string;
+                        buffer->type |= likely_signed;
                         result = likely_retain_mat(buffer);
                     } else if (type == likely_file_media) {
                         swap(buffer->channels, buffer->columns);
@@ -242,8 +242,8 @@ likely_mat likely_to_string_n(likely_const_mat *mats, size_t n)
             // skip it
         } else if (likely_is_string(m)) {
             buffer << m->data;
-        } else if (!(m->type & likely_matrix_multi_dimension)) {
-            buffer << likely_element(m, 0, 0, 0, 0);
+        } else if (!(m->type & likely_multi_dimension)) {
+            buffer << likely_get_element(m, 0, 0, 0, 0);
         } else {
             buffer << "(";
             likely_mat str = likely_type_to_string(m->type);
@@ -258,7 +258,7 @@ likely_mat likely_to_string_n(likely_const_mat *mats, size_t n)
                     for (uint32_t x=0; x<m->columns; x++) {
                         buffer << (m->channels > 1 ? "(" : "");
                         for (uint32_t c=0; c<m->channels; c++) {
-                            buffer << likely_element(m, c, x, y, t);
+                            buffer << likely_get_element(m, c, x, y, t);
                             if (c != m->channels-1)
                                 buffer << " ";
                         }
@@ -310,14 +310,14 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
         return NULL;
 
     double min, max, range;
-    if ((mat->type & likely_matrix_element) != likely_matrix_u8) {
+    if ((mat->type & likely_element) != likely_u8) {
         min = numeric_limits<double>::max();
         max = -numeric_limits<double>::max();
         for (uint32_t t=0; t<mat->frames; t++) {
             for (uint32_t y=0; y<mat->rows; y++) {
                 for (uint32_t x=0; x<mat->columns; x++) {
                     for (uint32_t c=0; c<mat->channels; c++) {
-                        const double value = likely_element(mat, c, x, y, t);
+                        const double value = likely_get_element(mat, c, x, y, t);
                         min = ::min(min, value);
                         max = ::max(max, value);
                     }
@@ -350,8 +350,8 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
         likely_release_ast(ast);
     }
 
-    likely_const_mat min_val = likely_scalar(likely_matrix_f32, &min, 1);
-    likely_const_mat range_val = likely_scalar(likely_matrix_f32, &range, 1);
+    likely_const_mat min_val = likely_scalar(likely_f32, &min, 1);
+    likely_const_mat range_val = likely_scalar(likely_f32, &range, 1);
     likely_mat n = reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat, likely_const_mat)>(normalize)(mat, min_val, range_val);
     likely_release_mat(min_val);
     likely_release_mat(range_val);
