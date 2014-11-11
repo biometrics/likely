@@ -908,7 +908,6 @@ struct JITFunction : public Symbol
     void *function = NULL;
     ExecutionEngine *EE = NULL;
     likely_module *module;
-    likely_type returnType = likely_multi_dimension;
 
     JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC);
 
@@ -1526,7 +1525,7 @@ struct Lambda : public LikelyOperator
 
         // If we are returning a constant matrix, make sure to retain a copy
         if (isa<ConstantExpr>(result->value) && isMat(result->value->getType()))
-            result.reset(new likely_expression(LikelyValue(builder.CreatePointerCast(builder.retainMat(result->value), builder.toLLVM(result->type)), result->type), likely_retain_mat(result->getData())));
+            result.reset(new likely_expression(LikelyValue(builder.CreatePointerCast(builder.retainMat(result->value), builder.toLLVM(result->type)), result->type), result->getData()));
 
         builder.CreateRet(*result);
 
@@ -1547,7 +1546,7 @@ struct Lambda : public LikelyOperator
 
         likely_release_env(builder.env);
         builder.env = restore;
-        return new likely_expression(LikelyValue(function, result->type), likely_retain_mat(result->getData()));
+        return new likely_expression(LikelyValue(function, result->type), result->getData());
     }
 
     Variant evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const
@@ -1569,7 +1568,7 @@ struct Lambda : public LikelyOperator
         } else { // constant or error
             value = likely_retain_mat(jit.getData());
         }
-        return Variant(value, jit.returnType);
+        return Variant(value, jit.type);
     }
 
     static void *getFunction(likely_const_expr expr, const vector<likely_type> &types)
@@ -1661,7 +1660,7 @@ private:
                 define(builder.env, parameters->atom, args[0]);
             }
         }
-        likely_const_expr result = get(builder, body);
+        const likely_const_expr result = get(builder, body);
         if (parameters)
             undefineAll(builder.env, parameters, false);
         return result;
@@ -2313,7 +2312,7 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
         if (expr) {
             value = expr->value;
             type = expr->type;
-            setData(likely_retain_mat(expr->getData()));
+            setData(expr->getData());
         }
     }
     likely_release_env(env);
