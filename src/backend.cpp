@@ -189,7 +189,7 @@ public:
                                                              ArrayType::get(Type::getInt8Ty(context), 0), // data
                                                              NULL));
             likely_release_mat(str);
-        } else if (!(likely & likely_depth)) {
+        } else if (likely == likely_void) {
             llvm = Type::getVoidTy(context);
         } else if (likely & likely_ast_t) {
             llvm = PointerType::getUnqual(StructType::create(context, "ast"));
@@ -2456,7 +2456,7 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
 
         // Special keyword
         if (!strcmp(ast->atom, "this"))
-            return ConstantData::get(builder.env);
+            return ConstantData::get(builder, likely_retain_env(builder.env));
 
         const_cast<likely_ast>(ast)->type = likely_ast_invalid;
         return likely_expression::error(ast, "invalid literal");
