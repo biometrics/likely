@@ -620,6 +620,9 @@ Standard Library
     render := (extern u8CXYT "likely_render" (u8CXYT f64P f64P))
     show   := (extern u8CXYT "likely_show" (u8CXYT u8P))
 
+### Compiler frontend
+    lex := (extern ast "likely_lex" u8P)
+
 ### Type conversion
     cast := (-> (a b) (b.type a)) ; convert a to the type of b
 

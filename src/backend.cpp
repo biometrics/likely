@@ -1108,6 +1108,7 @@ LIKELY_REGISTER_AXIS(channels)
 LIKELY_REGISTER_AXIS(columns)
 LIKELY_REGISTER_AXIS(rows)
 LIKELY_REGISTER_AXIS(frames)
+LIKELY_REGISTER_AXIS(data)
 
 class notExpression : public SimpleUnaryOperator
 {
