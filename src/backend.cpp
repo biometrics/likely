@@ -170,25 +170,6 @@ public:
         return Type::getIntNTy(context, unsigned(likely_native));
     }
 
-    Type *scalar(likely_type type, bool pointer = false)
-    {
-        const size_t bits = type & likely_depth;
-        const bool floating = (type & likely_floating) != 0;
-        if (floating) {
-            if      (bits == 16) return pointer ? Type::getHalfPtrTy(context)   : Type::getHalfTy(context);
-            else if (bits == 32) return pointer ? Type::getFloatPtrTy(context)  : Type::getFloatTy(context);
-            else if (bits == 64) return pointer ? Type::getDoublePtrTy(context) : Type::getDoubleTy(context);
-        } else {
-            if      (bits == 1)  return pointer ? Type::getInt1PtrTy(context)  : (Type*)Type::getInt1Ty(context);
-            else if (bits == 8)  return pointer ? Type::getInt8PtrTy(context)  : (Type*)Type::getInt8Ty(context);
-            else if (bits == 16) return pointer ? Type::getInt16PtrTy(context) : (Type*)Type::getInt16Ty(context);
-            else if (bits == 32) return pointer ? Type::getInt32PtrTy(context) : (Type*)Type::getInt32Ty(context);
-            else if (bits == 64) return pointer ? Type::getInt64PtrTy(context) : (Type*)Type::getInt64Ty(context);
-        }
-        likely_assert(false, "ty invalid matrix bits: %d and floating: %d", bits, floating);
-        return NULL;
-    }
-
     Type *toLLVM(likely_type likely)
     {
         auto result = typeLUT.find(likely);
@@ -197,7 +178,7 @@ public:
 
         Type *llvm;
         if (likely & likely_multi_dimension) {
-            const likely_mat str = likely_type_to_string(likely);
+            const likely_const_mat str = likely_type_to_string(likely);
             llvm = PointerType::getUnqual(StructType::create(str->data,
                                                              Type::getInt32Ty(context), // ref_count
                                                              Type::getInt32Ty(context), // type
@@ -208,7 +189,6 @@ public:
                                                              ArrayType::get(Type::getInt8Ty(context), 0), // data
                                                              NULL));
             likely_release_mat(str);
-
         } else if (likely == likely_void) {
             llvm = Type::getVoidTy(context);
         } else if (likely & likely_ast_t) {
@@ -216,7 +196,15 @@ public:
         } else if (likely & likely_env_t) {
             llvm = PointerType::getUnqual(StructType::create(context, "env"));
         } else {
-            llvm = scalar(likely);
+            const size_t bits = likely & likely_depth;
+            if (likely & likely_floating) {
+                if      (bits == 16) llvm = Type::getHalfTy(context);
+                else if (bits == 32) llvm = Type::getFloatTy(context);
+                else if (bits == 64) llvm = Type::getDoubleTy(context);
+                else                 { llvm = NULL; likely_assert(false, "invalid floating bits: %d", bits); }
+            } else {
+                llvm = Type::getIntNTy(context, bits);
+            }
         }
 
         if (likely & likely_pointer)
@@ -712,7 +700,7 @@ struct Builder : public IRBuilder<>
     LikelyValue columns (const LikelyValue &m) { return (m & likely_multi_column ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 3), "columns" ), likely_u32), likely_native) : one(); }
     LikelyValue rows    (const LikelyValue &m) { return (m & likely_multi_row    ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 4), "rows"    ), likely_u32), likely_native) : one(); }
     LikelyValue frames  (const LikelyValue &m) { return (m & likely_multi_frame  ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 5), "frames"  ), likely_u32), likely_native) : one(); }
-    LikelyValue data    (const LikelyValue &m) { return LikelyValue(CreatePointerCast(CreateStructGEP(m, 6), module->context->scalar(m, true)), (m & likely_element) | likely_pointer); }
+    LikelyValue data    (const LikelyValue &m) { const likely_type type = (m & likely_element) | likely_pointer; return LikelyValue(CreatePointerCast(CreateStructGEP(m, 6), toLLVM(type)), type); }
 
     LikelyValue cast(const LikelyValue &x, likely_type type)
     {
@@ -724,7 +712,7 @@ struct Builder : public IRBuilder<>
             if (type & likely_floating)
                 type = likely_type_from_types(type, likely_floating);
         }
-        Type *dstType = module->context->scalar(type, type & likely_pointer);
+        Type *dstType = toLLVM(type & likely_element);
         return LikelyValue(CreateCast(CastInst::getCastOpcode(x, (x & likely_signed) != 0, dstType, (type & likely_signed) != 0), x, dstType), type);
     }
 
