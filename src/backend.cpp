@@ -196,7 +196,7 @@ public:
         } else if (likely & likely_env_t) {
             llvm = PointerType::getUnqual(StructType::create(context, "env"));
         } else {
-            const size_t bits = likely & likely_depth;
+            const uint32_t bits = likely & likely_depth;
             if (likely & likely_floating) {
                 if      (bits == 16) llvm = Type::getHalfTy(context);
                 else if (bits == 32) llvm = Type::getFloatTy(context);
@@ -870,8 +870,8 @@ private:
                 symbol->setDoesNotAlias(0);
             for (size_t i=0; i<llvmParameters.size(); i++)
                 if (isa<PointerType>(llvmParameters[i])) {
-                    symbol->setDoesNotAlias(i+1);
-                    symbol->setDoesNotCapture(i+1);
+                    symbol->setDoesNotAlias(int(i)+1);
+                    symbol->setDoesNotCapture(int(i)+1);
                 }
         }
 
