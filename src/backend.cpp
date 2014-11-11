@@ -437,7 +437,7 @@ public:
         : Variant(NULL, likely_void) {}
 
     Variant(likely_const_mat mat)
-        : Variant((void*) mat, mat ? mat->type : likely_void) {}
+        : Variant((void*) mat, mat ? mat->type : likely_type(likely_void)) {}
 
     ~Variant()
     {
@@ -814,14 +814,15 @@ struct Builder : public IRBuilder<>
     }
 };
 
-class ConstantMat : public likely_expression
+class ConstantData : public likely_expression
 {
-    ConstantMat(likely_const_mat m)
-        : likely_expression(LikelyValue(), m) {}
+    ConstantData(const Variant &data)
+        : likely_expression(LikelyValue(), data) {}
 
     likely_const_expr evaluate(Builder &builder, likely_const_ast) const
     {
         const likely_const_mat m = getData();
+        assert(m);
         const LikelyValue value = (m->type & likely_multi_dimension) ? LikelyValue(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(likely_mat)), uintptr_t(m)), builder.toLLVM(m->type)), m->type)
                                                                      : LikelyValue(builder.constant(likely_get_element(m, 0, 0, 0, 0), m->type), m->type);
 
@@ -833,14 +834,14 @@ class ConstantMat : public likely_expression
     }
 
 public:
-    static likely_const_expr get(likely_const_mat data)
+    static likely_const_expr get(const Variant &data)
     {
         if (!data)
             return NULL;
-        return new ConstantMat(data);
+        return new ConstantData(data);
     }
 
-    static likely_const_expr get(Builder &builder, likely_const_mat data)
+    static likely_const_expr get(Builder &builder, const Variant &data)
     {
         unique_ptr<const likely_expression> expr(get(data));
         return expr ? expr->evaluate(builder, NULL) : NULL;
@@ -1212,7 +1213,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                     }
                     lock.unlock();
 
-                    return ConstantMat::get(builder, reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat)>(function->second)(LHS, RHS));
+                    return ConstantData::get(builder, reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat)>(function->second)(LHS, RHS));
                 }
             }
         }
@@ -1435,7 +1436,7 @@ class tryExpression : public LikelyOperator
         const likely_ast statement = likely_list(&ast->atoms[1], 1);
         if (const likely_env env = likely_eval(statement, builder.env, NULL, NULL)) {
             if (const likely_const_mat mat = likely_result(env->expr))
-                value = ConstantMat::get(builder, likely_retain_mat(mat));
+                value = ConstantData::get(builder, likely_retain_mat(mat));
             likely_release_env(env);
         }
         likely_release_ast(statement);
@@ -1608,7 +1609,7 @@ private:
         }
 
         result = ((builder.env->type & likely_environment_ctfe)
-                  && (constantArgs.size() == args.size())) ? ConstantMat::get(builder, likely_retain_mat(evaluateConstantFunction(constantArgs)))
+                  && (constantArgs.size() == args.size())) ? ConstantData::get(builder, evaluateConstantFunction(constantArgs))
                                                            : evaluateFunction(builder, args);
 
     cleanup:
@@ -2568,7 +2569,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
             if (!strcmp(likely_symbol(statement), "->"))
                 expr = likely_expression::get(builder, statement);
             else
-                expr = ConstantMat::get(likely_retain_mat(Lambda(parent, statement).evaluateConstantFunction()));
+                expr = ConstantData::get(Lambda(parent, statement).evaluateConstantFunction());
         }
 
         // Certain operators like `eval` introduce additional to variables to the environment,
