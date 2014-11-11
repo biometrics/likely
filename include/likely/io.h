@@ -49,6 +49,7 @@ enum likely_file_type_mask
     likely_file_text      = 0x00000008, /*!< \brief It's text, read it and append a \c NULL terminator. */
     likely_file_lisp      = 0x00000010 | likely_file_text, /*!< \brief The text file has plain source code. */
     likely_file_gfm       = 0x00000020 | likely_file_text, /*!< \brief The text file has source code is in [GitHub Flavored Markdown](https://help.github.com/articles/github-flavored-markdown/) code blocks. */
+    likely_file_tex       = 0x00000040 | likely_file_text, /*!< \brief The text file has source code is in LaTeX likely environment blocks. */
     likely_file_guess     = 0xFFFFFFFF /*!< \brief Guess the file type using \ref likely_guess_file_type. */
 };
 

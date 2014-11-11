@@ -45,6 +45,7 @@ likely_file_type likely_guess_file_type(const char *file_name)
     else if (!strcmp(extension, "txt" )) return likely_file_text;
     else if (!strcmp(extension, "lisp")) return likely_file_lisp;
     else if (!strcmp(extension, "md"  )) return likely_file_gfm;
+    else if (!strcmp(extension, "tex" )) return likely_file_tex;
     else                                 return likely_file_media;
 }
 //! [likely_guess_file_type implementation.]
@@ -59,6 +60,7 @@ likely_mat likely_file_type_to_string(likely_file_type type)
     if (type == likely_file_text     ) return likely_string("text");
     if (type == likely_file_lisp     ) return likely_string("lisp");
     if (type == likely_file_gfm      ) return likely_string("gfm");
+    if (type == likely_file_tex      ) return likely_string("tex");
     if (type == likely_file_guess    ) return likely_string("guess");
     return NULL;
 }
@@ -80,6 +82,7 @@ likely_file_type likely_file_type_from_string(const char *str, bool *ok)
     if (!strcmp(str, "text"     )) return likely_file_text;
     if (!strcmp(str, "lisp"     )) return likely_file_lisp;
     if (!strcmp(str, "gfm"      )) return likely_file_gfm;
+    if (!strcmp(str, "tex"      )) return likely_file_tex;
     if (!strcmp(str, "guess"    )) return likely_file_guess;
 
 error:
