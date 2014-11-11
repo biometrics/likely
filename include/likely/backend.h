@@ -138,12 +138,12 @@ LIKELY_EXPORT void likely_release_env(likely_const_env env);
 LIKELY_EXPORT void *likely_compile(struct likely_expression const *expr, likely_type const *type, uint32_t n);
 
 /*!
- * \brief Obtain the result of a computation.
- * \param[in] env Where the computation was performed.
- * \return The result of the computation, or \c NULL if no computation was performed. \ref owned_by \p env.
- * \remark This function is \ref thread-safe.
+ * \brief Obtain the result of a computation as a \ref likely_matrix if available.
+ * \param[in] expr Expression holding the computation.
+ * \return The result of the computation as a \ref likely_matrix, or \c NULL if the computation can't be represented as a \ref likely_matrix. \ref owned_by \p expr.
+ * \remark This function is \ref reentrant.
  */
-LIKELY_EXPORT likely_const_mat likely_result(likely_const_env env);
+LIKELY_EXPORT likely_const_mat likely_get_mat(const struct likely_expression *expr);
 
 /*!
  * \brief Signature of a function to call after a statement is completed.

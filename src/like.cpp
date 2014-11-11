@@ -101,7 +101,7 @@ static void renderCallback(likely_const_env env, void *)
     const int bufferSize = 128;
     char fileName[bufferSize];
     snprintf(fileName, bufferSize, render.getValue().c_str(), index++);
-    likely_mat rendered = likely_render(likely_result(env), NULL, NULL);
+    const likely_mat rendered = likely_render(likely_get_mat(env->expr), NULL, NULL);
     likely_release_mat(likely_write(rendered, fileName));
     likely_release_mat(rendered);
 }
@@ -111,7 +111,7 @@ static void showCallback(likely_const_env env, void *)
     if (env->type & likely_environment_definition)
         return;
 
-    const likely_mat rendered = likely_render(likely_result(env), NULL, NULL);
+    const likely_mat rendered = likely_render(likely_get_mat(env->expr), NULL, NULL);
     if (assert_.getValue().empty()) {
         likely_release_mat(likely_show(rendered, likely_symbol(env->ast)));
     } else {
@@ -140,7 +140,7 @@ static void printCallback(likely_const_env env, void *)
 {
     if (env->type & likely_environment_definition)
         return;
-    checkOrPrintAndRelease(likely_to_string(likely_result(env)));
+    checkOrPrintAndRelease(likely_to_string(likely_get_mat(env->expr)));
 }
 
 int main(int argc, char *argv[])

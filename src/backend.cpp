@@ -1434,7 +1434,7 @@ class tryExpression : public LikelyOperator
         likely_retain_ast(ast->atoms[1]);
         const likely_ast statement = likely_list(&ast->atoms[1], 1);
         if (const likely_env env = likely_eval(statement, builder.env, NULL, NULL)) {
-            if (const likely_const_mat mat = likely_result(env))
+            if (const likely_const_mat mat = likely_get_mat(env->expr))
                 value = ConstantMat::get(builder, likely_retain_mat(mat));
             likely_release_env(env);
         }
@@ -2535,11 +2535,11 @@ void *likely_compile(likely_const_expr expr, likely_type const *type, uint32_t n
     return Lambda::getFunction(expr, vector<likely_type>(type, type + n));
 }
 
-likely_const_mat likely_result(likely_const_env env)
+likely_const_mat likely_get_mat(const struct likely_expression *expr)
 {
-    if (!env || !env->expr)
+    if (!expr)
         return NULL;
-    return env->expr->getData();
+    return expr->getData();
 }
 
 likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_callback eval_callback, void *context)
