@@ -633,6 +633,9 @@ Standard Library
 ### Compiler backend
     eval := (extern env "likely_eval" (ast env void-pointer void-pointer))
 
+### Import
+    import-string := (-> (source-code source-type) (lex-and-parse source-code source-type).(eval this null null))
+
 ### Type conversion
     cast := (-> (a b) (b.type a)) ; convert a to the type of b
 

@@ -2565,7 +2565,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
 
                 // If the result of a computation is a new environment then use that environment (an import statement for example).
                 // Otherwise, construct a new expression from the result.
-                if (likely_const_env evaluated = data) env = const_cast<likely_env>(evaluated);
+                if (likely_const_env evaluated = data) env = likely_retain_env(evaluated);
                 else                                   expr = ConstantData::get(data);
            }
         }
