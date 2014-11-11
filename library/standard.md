@@ -622,6 +622,8 @@ Standard Library
 
 ### Compiler frontend
     lex := (extern ast "likely_lex" (i8P u32))
+    parse := (extern ast "likely_parse" ast)
+    lex-and-parse := (extern ast "likely_lex_and_parse" (i8P u32))
 
 ### Type conversion
     cast := (-> (a b) (b.type a)) ; convert a to the type of b
