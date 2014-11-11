@@ -625,6 +625,9 @@ Standard Library
     parse := (extern ast "likely_parse" ast)
     lex-and-parse := (extern ast "likely_lex_and_parse" (i8P u32))
 
+### Compiler backend
+    eval := (extern env "likely_eval" (ast env pointer pointer))
+
 ### Type conversion
     cast := (-> (a b) (b.type a)) ; convert a to the type of b
 

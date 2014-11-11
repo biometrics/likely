@@ -419,7 +419,7 @@ struct Builder;
 
 } // namespace (anonymous)
 
-class Variant
+struct Variant
 {
     union {
         void *value = NULL;
@@ -429,7 +429,6 @@ class Variant
     };
     likely_type type;
 
-public:
     Variant(void *value, likely_type type)
         : value(value), type(type) {}
 
@@ -438,6 +437,9 @@ public:
 
     Variant(likely_const_mat mat)
         : Variant((void*) mat, mat ? mat->type : likely_type(likely_void)) {}
+
+    Variant(likely_const_env env)
+        : Variant((void*) env, likely_env_t) {}
 
     ~Variant()
     {
@@ -577,7 +579,7 @@ struct likely_module
     LikelyContext *context;
     Module *module;
     vector<likely_const_expr> exprs;
-    vector<likely_const_mat> mats;
+    vector<Variant> data;
 
     likely_module()
         : context(LikelyContext::acquire())
@@ -588,8 +590,6 @@ struct likely_module
         finalize();
         for (likely_const_expr expr : exprs)
             delete expr;
-        for (likely_const_mat mat : mats)
-            likely_release_mat(mat);
     }
 
     likely_module(const likely_module &) = delete;
@@ -821,16 +821,16 @@ class ConstantData : public likely_expression
 
     likely_const_expr evaluate(Builder &builder, likely_const_ast) const
     {
-        const likely_const_mat m = getData();
-        assert(m);
-        const LikelyValue value = (m->type & likely_multi_dimension) ? LikelyValue(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(likely_mat)), uintptr_t(m)), builder.toLLVM(m->type)), m->type)
-                                                                     : LikelyValue(builder.constant(likely_get_element(m, 0, 0, 0, 0), m->type), m->type);
+        const Variant data = getData();
+
+        // Special case, return the scalar
+        if (const likely_const_mat m = data)
+            if (!(m->type & likely_multi_dimension))
+                return new likely_expression(LikelyValue(builder.constant(likely_get_element(m, 0, 0, 0, 0), m->type), m->type), data);
 
         // Make sure the lifetime of the data is at least as long as the lifetime of the code.
-        if (m->type & likely_multi_dimension)
-            builder.module->mats.push_back(likely_retain_mat(m));
-
-        return new likely_expression(value, likely_retain_mat(m));
+        builder.module->data.push_back(data);
+        return new likely_expression(LikelyValue(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(void*)), uintptr_t(data.value)), builder.toLLVM(data.type)), data.type), data);
     }
 
 public:
@@ -2465,6 +2465,10 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
                 return new likely_expression(LikelyValue(builder.constant(uint64_t(fileType), likely_u32)));
             }
         }
+
+        // Special keyword
+        if (!strcmp(ast->atom, "this"))
+            return ConstantData::get(builder.env);
 
         const_cast<likely_ast>(ast)->type = likely_ast_invalid;
         return likely_expression::error(ast, "invalid literal");
