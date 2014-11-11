@@ -624,6 +624,7 @@ Standard Library
     encode := (extern u8CXYT "likely_encode" (u8CXYT string))
     render := (extern u8CXYT "likely_render" (u8CXYT f64P f64P))
     show   := (extern u8CXYT "likely_show" (u8CXYT string))
+    guess-file-type := (extern file-type "likely_guess_file_type" string)
 
 ### Compiler frontend
     lex := (extern ast "likely_lex" (string file-type))
@@ -635,6 +636,7 @@ Standard Library
 
 ### Import
     import-string := (-> (source-code source-type) (lex-and-parse source-code source-type).(eval this null null))
+    import := (-> file (read file guess).data.(import-string file.guess-file-type))
 
 ### Type conversion
     cast := (-> (a b) (b.type a)) ; convert a to the type of b
