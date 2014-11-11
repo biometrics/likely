@@ -585,11 +585,11 @@ References an externally defined symbol.
 Standard Library
 ----------------
 ### Basic mathematical constants
+    null  := 0
     true  := 1
     false := 0
-    null  := 0
-    e  := (f32 2.718281) ; Euler's number
-    pi := (f32 3.141592) ; The ratio of a circle's circumference to its diameter
+    e  := (f32 2.718281)
+    pi := (f32 3.141592)
 
 ### Basic unary functions
     not  := (-> a (== a false))
@@ -613,15 +613,15 @@ Standard Library
     imitate := (-> mat (imitate-size mat mat.type))
 
 ### Matrix I/O
-    read   := (extern u8CXYT "likely_read" (u8P u32))
-    write  := (extern u8CXYT "likely_write" (u8CXYT u8P))
+    read   := (extern u8CXYT "likely_read" (i8P u32))
+    write  := (extern u8CXYT "likely_write" (u8CXYT i8P))
     decode := (extern u8CXYT "likely_decode" u8CXYT)
-    encode := (extern u8CXYT "likely_encode" (u8CXYT u8P))
+    encode := (extern u8CXYT "likely_encode" (u8CXYT i8P))
     render := (extern u8CXYT "likely_render" (u8CXYT f64P f64P))
-    show   := (extern u8CXYT "likely_show" (u8CXYT u8P))
+    show   := (extern u8CXYT "likely_show" (u8CXYT i8P))
 
 ### Compiler frontend
-    lex := (extern ast "likely_lex" u8P)
+    lex := (extern ast "likely_lex" (i8P u32))
 
 ### Type conversion
     cast := (-> (a b) (b.type a)) ; convert a to the type of b
