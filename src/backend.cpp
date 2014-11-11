@@ -2552,24 +2552,31 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
         Builder builder(parent, parent->module);
         const bool definition = (statement->type == likely_ast_list) && (statement->num_atoms > 0) && !strcmp(statement->atoms[0]->atom, "=");
         likely_const_expr expr = NULL;
+        env = NULL;
         if (definition) {
             builder.module = NULL; // signify global scope
             expr = likely_expression::get(builder, statement);
         } else {
             // If `ast` is not a lambda then it is a computation we perform by constructing and executing a parameterless lambda.
-            if (!strcmp(likely_symbol(statement), "->"))
+            if (!strcmp(likely_symbol(statement), "->")) {
                 expr = likely_expression::get(builder, statement);
-            else
-                expr = ConstantData::get(Lambda(parent, statement).evaluateConstantFunction());
+            } else {
+                const Variant data = Lambda(parent, statement).evaluateConstantFunction();
+
+                // If the result of a computation is a new environment then use that environment (an import statement for example).
+                // Otherwise, construct a new expression from the result.
+                if (likely_const_env evaluated = data) env = const_cast<likely_env>(evaluated);
+                else                                   expr = ConstantData::get(data);
+           }
         }
 
-        // Certain operators like `eval` introduce additional to variables to the environment,
-        // therefore, `builer.env` is not necessarily equal to `parent`.
-        env = newEnv(builder.env);
-        if (definition)
-            env->type |= likely_environment_definition;
-        env->ast = likely_retain_ast(statement);
-        env->expr = expr;
+        if (!env) {
+            env = newEnv(parent);
+            if (definition)
+                env->type |= likely_environment_definition;
+            env->ast = likely_retain_ast(statement);
+            env->expr = expr;
+        }
 
         likely_release_env(parent);
         parent = env;
