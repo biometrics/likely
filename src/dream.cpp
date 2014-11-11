@@ -663,7 +663,7 @@ public slots:
     void setHotSpot(likely_const_env env)
     {
         if (env)
-            hotSpot->show(likely_get_mat(env->expr), likely_symbol(env->ast));
+            hotSpot->show(likely_result(env->expr), likely_symbol(env->ast));
         else
             hotSpot->hide();
     }
@@ -673,7 +673,7 @@ public slots:
         if (env->type & likely_environment_definition)
             return;
 
-        if (const likely_const_mat m = likely_get_mat(env->expr)) {
+        if (const likely_const_mat m = likely_result(env->expr)) {
             const QString name = likely_symbol(env->ast);
             const int i = offset++;
             if (QLayoutItem *item = layout->itemAt(i)) // Try to recycle the widget

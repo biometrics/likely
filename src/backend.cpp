@@ -461,9 +461,9 @@ public:
     }
 
     operator bool() const { return value != NULL; }
-    operator likely_const_ast() const { assert(type & likely_ast_t); return ast; }
-    operator likely_const_env() const { assert(type & likely_env_t); return env; }
-    operator likely_const_mat() const { assert(!(type & (likely_ast_t | likely_env_t))); return mat; }
+    operator likely_const_ast() const { return (type & likely_ast_t) ? ast : NULL; }
+    operator likely_const_env() const { return (type & likely_env_t) ? env : NULL; }
+    operator likely_const_mat() const { return (!(type & (likely_ast_t | likely_env_t))) ? mat : NULL; }
 };
 
 typedef struct likely_expression *likely_expr;
@@ -1434,7 +1434,7 @@ class tryExpression : public LikelyOperator
         likely_retain_ast(ast->atoms[1]);
         const likely_ast statement = likely_list(&ast->atoms[1], 1);
         if (const likely_env env = likely_eval(statement, builder.env, NULL, NULL)) {
-            if (const likely_const_mat mat = likely_get_mat(env->expr))
+            if (const likely_const_mat mat = likely_result(env->expr))
                 value = ConstantMat::get(builder, likely_retain_mat(mat));
             likely_release_env(env);
         }
@@ -2535,11 +2535,15 @@ void *likely_compile(likely_const_expr expr, likely_type const *type, uint32_t n
     return Lambda::getFunction(expr, vector<likely_type>(type, type + n));
 }
 
-likely_const_mat likely_get_mat(const struct likely_expression *expr)
+likely_const_mat likely_result(const struct likely_expression *expr)
 {
     if (!expr)
         return NULL;
-    return expr->getData();
+
+    if (const likely_const_ast ast = expr->getData())
+        return likely_ast_to_string(ast);
+
+    return (likely_const_mat) expr->getData();
 }
 
 likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_callback eval_callback, void *context)
