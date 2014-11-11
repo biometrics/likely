@@ -604,6 +604,11 @@ Standard Library
     min := (-> (a b) (? (< a b) a b))
     max := (-> (a b) (? (> a b) a b))
 
+### Common types
+    string := i8P
+    void-pointer := i8P
+    file-type := u32
+
 ### Matrix information
     elements := (-> mat mat.channels :* mat.columns :* mat.rows :* mat.frames)
     bytes    := (-> mat (/ (+ (* (& mat.type depth) mat.elements) 7) 8))
@@ -613,20 +618,20 @@ Standard Library
     imitate := (-> mat (imitate-size mat mat.type))
 
 ### Matrix I/O
-    read   := (extern u8CXYT "likely_read" (i8P u32))
-    write  := (extern u8CXYT "likely_write" (u8CXYT i8P))
+    read   := (extern u8CXYT "likely_read" (string file-type))
+    write  := (extern u8CXYT "likely_write" (u8CXYT string))
     decode := (extern u8CXYT "likely_decode" u8CXYT)
-    encode := (extern u8CXYT "likely_encode" (u8CXYT i8P))
+    encode := (extern u8CXYT "likely_encode" (u8CXYT string))
     render := (extern u8CXYT "likely_render" (u8CXYT f64P f64P))
-    show   := (extern u8CXYT "likely_show" (u8CXYT i8P))
+    show   := (extern u8CXYT "likely_show" (u8CXYT string))
 
 ### Compiler frontend
-    lex := (extern ast "likely_lex" (i8P u32))
+    lex := (extern ast "likely_lex" (string file-type))
     parse := (extern ast "likely_parse" ast)
-    lex-and-parse := (extern ast "likely_lex_and_parse" (i8P u32))
+    lex-and-parse := (extern ast "likely_lex_and_parse" (string file-type))
 
 ### Compiler backend
-    eval := (extern env "likely_eval" (ast env pointer pointer))
+    eval := (extern env "likely_eval" (ast env void-pointer void-pointer))
 
 ### Type conversion
     cast := (-> (a b) (b.type a)) ; convert a to the type of b

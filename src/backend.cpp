@@ -189,7 +189,7 @@ public:
                                                              ArrayType::get(Type::getInt8Ty(context), 0), // data
                                                              NULL));
             likely_release_mat(str);
-        } else if (likely == likely_void) {
+        } else if (!(likely & likely_depth)) {
             llvm = Type::getVoidTy(context);
         } else if (likely & likely_ast_t) {
             llvm = PointerType::getUnqual(StructType::create(context, "ast"));
