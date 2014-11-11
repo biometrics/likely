@@ -243,7 +243,6 @@ static void tokenize(const char *str, const size_t len, vector<likely_ast> &toke
     }
 }
 
-// GFM = Github Flavored Markdown
 static void tokenizeGFM(const char *str, const size_t len, vector<likely_ast> &tokens)
 {
     uint32_t line = 0;
@@ -300,6 +299,49 @@ static void tokenizeGFM(const char *str, const size_t len, vector<likely_ast> &t
     }
 }
 
+static void tokenizeLaTeX(const char *str, const size_t len, vector<likely_ast> &tokens)
+{
+    const char *begin = "\\begin{likely}";
+    const char *end = "\\end{likely}";
+    const size_t beginLength = strlen(begin);
+    const size_t endLength = strlen(end);
+    const size_t minLength = beginLength + endLength;
+
+    size_t i = 0, currentLine = 0, currentColumn = 0;
+    while (i < len - minLength) {
+        if (str[i] == '\n') {
+            currentLine++;
+            currentColumn = 0;
+            i++;
+        } else if (!strncmp(&str[i], begin, beginLength)) {
+            i += beginLength;
+            currentColumn += beginLength;
+            const size_t startIndex = i;
+            const size_t startLine = currentLine;
+            const size_t startColumn = currentColumn;
+            while (i < len - endLength) {
+                if (str[i] == '\n') {
+                    currentLine++;
+                    currentColumn = 0;
+                    i++;
+                } else if (!strncmp(&str[i], end, endLength)) {
+                    break;
+                } else {
+                    currentColumn++;
+                    i++;
+                }
+            }
+            if (i < len - endLength)
+                tokenize(&str[startIndex], i-startIndex, tokens, startLine, startColumn);
+            i += endLength;
+            currentColumn += endLength;
+        } else {
+            currentColumn++;
+            i++;
+        }
+    }
+}
+
 static bool cleanup(vector<likely_ast> &atoms)
 {
     for (size_t i=0; i<atoms.size(); i++)
@@ -321,6 +363,9 @@ likely_ast likely_lex(const char *source, likely_file_type type)
         break;
       case likely_file_gfm:
         tokenizeGFM(source, len, tokens);
+        break;
+      case likely_file_tex:
+        tokenizeLaTeX(source, len, tokens);
         break;
       default:
         return NULL;
