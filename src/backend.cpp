@@ -59,7 +59,6 @@
 #include <sstream>
 
 #include "likely/backend.h"
-#include "likely/io.h"
 
 using namespace llvm;
 using namespace std;
@@ -988,7 +987,7 @@ struct RootEnvironment
     {
         static bool init = false;
         if (!init) {
-            likely_ast ast = likely_lex_and_parse(likely_standard_library, likely_file_gfm);
+            likely_ast ast = likely_lex_and_parse(likely_standard_library, likely_file_tex);
             builtins() = likely_eval(ast, builtins(), NULL, NULL);
             likely_release_ast(ast);
             init = true;

@@ -19,8 +19,8 @@ set(LIKELY_MISC ${LIKELY_LIBRARY}
 # Build standard library
 add_executable(embedfile embedfile.c)
 add_custom_command(OUTPUT likely_standard_library.c
-                   COMMAND embedfile likely_standard_library ${CMAKE_SOURCE_DIR}/library/standard.md
-                   DEPENDS embedfile ${CMAKE_SOURCE_DIR}/library/standard.md)
+                   COMMAND embedfile likely_standard_library ${CMAKE_SOURCE_DIR}/library/standard.tex
+                   DEPENDS embedfile ${CMAKE_SOURCE_DIR}/library/standard.tex)
 set(LIKELY_SRC ${LIKELY_SRC} ${CMAKE_CURRENT_BINARY_DIR}/likely_standard_library.c)
 set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
 
@@ -166,7 +166,7 @@ function(test_expr EXPR VALUE)
            COMMAND like -command "${EXPR}" -assert "${VALUE}")
 endfunction()
 
-# List in the order they occur in standard.md
+# List in the order they occur in standard.tex
 test_ast("(this is some code) ; This is a comment" "(this is some code)")
 test_expr("(+ 1 2) ; One plus two is three" 3)
 test_expr("(sq 3)  ; Three squared is nine" 9)

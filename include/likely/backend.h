@@ -179,7 +179,7 @@ LIKELY_EXPORT likely_env likely_eval(likely_ast ast, likely_const_env parent, li
 LIKELY_EXPORT likely_const_env likely_lookup(likely_const_env env, const char *name);
 
 /*!
- * \brief Contents of the Likely Standard Library: <tt>library/standard.md</tt>.
+ * \brief Contents of the Likely Standard Library: <tt>library/standard.tex</tt>.
  */
 LIKELY_EXPORT extern const char likely_standard_library[];
 
