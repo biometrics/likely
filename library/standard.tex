@@ -2,7 +2,7 @@
 \usepackage{hyperref}
 \usepackage{verbatim}
 
-% The Likely tokenizer will look for the use of \begin{likely} and \end{likely} to
+% The Likely tokenizer will look for the use of the "likely" environment to
 % determine what parts of the document are Likely source code.
 \newenvironment{likely}
 { \verbatim }
@@ -539,9 +539,9 @@ If \emph{data} is not specified then the elements will be uninitialized.
 If \emph{frames}, \emph{rows}, \emph{columns} or \emph{channels} are not specified then they will assume a value of \emph{1}.
 If \emph{type} is not specified then it will assume a value of \emph{f32} (32-bit floating point).
 
-```likely
+\begin{verbatim}
 uninitialized-color-image := (new u8 3 512 512)
-```
+\end{verbatim}
 
 \paragraph{(channels [\emph{matrix}])}
 Returns the number of channels in \emph{matrix} as a native integer.
