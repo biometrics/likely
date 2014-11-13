@@ -138,6 +138,7 @@ else()
       find_library(XCB_LIBRARY xcb)
       find_library(X11_LIBRARY X11)
       find_library(X11XCB_LIBRARY X11-xcb)
+      find_library(Z_LIBRARY z)
       set(QT_STATIC_DEPENDENCIES ${OPENGL_LIBRARIES}
                                  ${QT5_INSTALL_DIR}/lib/libQt5PlatformSupport.a
                                  ${QT5_INSTALL_DIR}/plugins/platforms/libqxcb.a
@@ -146,6 +147,7 @@ else()
                                  ${XCB_LIBRARY}
                                  ${X11_LIBRARY}
                                  ${X11XCB_LIBRARY}
+                                 ${Z_LIBRARY}
           CACHE INTERNAL "Qt static dependencies")
     endif()
   endif()
