@@ -151,12 +151,6 @@ else()
   endif()
 endif()
 
-find_package(Doxygen)
-if(${DOXYGEN_FOUND})
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in Doxyfile)
-  add_custom_target(doc ${DOXYGEN_EXECUTABLE} Doxyfile)
-endif()
-
 # Test standard library
 function(test_ast EXPR VALUE)
   string(MAKE_C_IDENTIFIER "${EXPR}" NAME)

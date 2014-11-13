@@ -7,3 +7,6 @@
 [submodule "qcustomplot"]
 	path = qcustomplot
 	url = https://git.gitorious.org/qcustomplot/qcustomplot.git
+[submodule "UseLATEX"]
+	path = UseLATEX
+	url = https://github.com/kmorel/UseLATEX.git

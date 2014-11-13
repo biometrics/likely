@@ -145,6 +145,30 @@ include_directories(include)
 add_subdirectory(src)
 add_subdirectory(share/likely/hello_world)
 
+# Build docs
+add_custom_target(doc)
+
+find_package(Doxygen)
+if(${DOXYGEN_FOUND})
+  configure_file(${CMAKE_SOURCE_DIR}/src/Doxyfile.in Doxyfile)
+  add_custom_target(doxygen ${DOXYGEN_EXECUTABLE} Doxyfile)
+  add_dependencies(doc doxygen)
+endif()
+
+find_package(LATEX)
+if(LATEX_COMPILER)
+  include(UseLATEX/UseLATEX.cmake)
+  file(GLOB LIKELY_TEX RELATIVE ${CMAKE_SOURCE_DIR} library/*.tex)
+  foreach(TEX_FILE ${LIKELY_TEX})
+    add_latex_document(${TEX_FILE}
+                       NO_DEFAULT
+                       MANGLE_TARGET_NAMES)
+    latex_get_filename_component(NAME "${TEX_FILE}" NAME_WE)
+    add_dependencies(doc ${NAME}_pdf)
+  endforeach()
+endif()
+
+# Install
 install(DIRECTORY include share DESTINATION ${CMAKE_INSTALL_PREFIX} PATTERN "*.DS_Store" EXCLUDE)
 install(FILES ${CMAKE_SOURCE_DIR}/LICENSE.txt ${CMAKE_SOURCE_DIR}/README.md DESTINATION share/likely)
 include(CPack)
