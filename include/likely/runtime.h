@@ -17,6 +17,7 @@
 #ifndef LIKELY_RUNTIME_H
 #define LIKELY_RUNTIME_H
 
+#include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -78,7 +79,17 @@ enum likely_type_mask
     likely_multi_row       = 0x00004000, /*!< \brief \ref likely_matrix::rows > 1. */
     likely_multi_frame     = 0x00008000, /*!< \brief \ref likely_matrix::frames > 1. */
     likely_multi_dimension = likely_multi_channel | likely_multi_column | likely_multi_row | likely_multi_frame, /*!< \brief The portion of \ref likely_type indicating matrix dimensionality. Used for loop optimizations. */
-    likely_native = sizeof(uintptr_t) * 8, /*!< \brief Native integer size. */
+    likely_char        = sizeof(char)        * CHAR_BIT, /*!< \brief C-compatible \c char type. */
+    likely_short       = sizeof(short)       * CHAR_BIT, /*!< \brief C-compatible \c short type. */
+    likely_int         = sizeof(int)         * CHAR_BIT, /*!< \brief C-compatible \c int type. */
+    likely_long        = sizeof(long)        * CHAR_BIT, /*!< \brief C-compatible \c long type. */
+    likely_long_long   = sizeof(long long)   * CHAR_BIT, /*!< \brief C-compatible \c long \c long type. */
+    likely_float       = sizeof(float)       * CHAR_BIT, /*!< \brief C-compatible \c float type. */
+    likely_double      = sizeof(double)      * CHAR_BIT, /*!< \brief C-compatible \c double type. */
+    likely_long_double = sizeof(long double) * CHAR_BIT, /*!< \brief C-compatible \c long \c double type. */
+    likely_bool        = sizeof(bool)        * CHAR_BIT, /*!< \brief C-compatible \c bool type. */
+    likely_size_t      = sizeof(size_t)      * CHAR_BIT, /*!< \brief C-compatible \c size_t type. */
+    likely_ptrdiff_t   = sizeof(ptrdiff_t)   * CHAR_BIT, /*!< \brief C-compatible \c ptrdiff_t type. */
     likely_ast_t = 0x10000000, /*!< \brief \brief Special case \ref likely_ast type. */
     likely_env_t = 0x20000000, /*!< \brief \brief Special case \ref likely_env type. */
 };

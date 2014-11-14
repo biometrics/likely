@@ -164,11 +164,6 @@ public:
         }
     }
 
-    IntegerType *nativeInt()
-    {
-        return Type::getIntNTy(context, unsigned(likely_native));
-    }
-
     Type *toLLVM(likely_type likely)
     {
         auto result = typeLUT.find(likely);
@@ -646,7 +641,7 @@ struct Builder : public IRBuilder<>
     Builder(likely_const_env env, likely_module *module)
         : IRBuilder<>(module ? module->context->context : getGlobalContext()), env(env), module(module) {}
 
-    LikelyValue constant(uint64_t value, likely_type type = likely_native)
+    LikelyValue constant(uint64_t value, likely_type type = likely_u64)
     {
         const unsigned depth = unsigned(type & likely_depth);
         return LikelyValue(Constant::getIntegerValue(Type::getIntNTy(getContext(), depth), APInt(depth, value)), type);
@@ -665,8 +660,8 @@ struct Builder : public IRBuilder<>
         }
     }
 
-    LikelyValue zero(likely_type type = likely_native) { return constant(0.0, type); }
-    LikelyValue one (likely_type type = likely_native) { return constant(1.0, type); }
+    LikelyValue zero(likely_type type = likely_u64) { return constant(0.0, type); }
+    LikelyValue one (likely_type type = likely_u64) { return constant(1.0, type); }
     LikelyValue intMax(likely_type type) { const likely_type bits = type & likely_depth; return constant((uint64_t) (1 << (bits - ((type & likely_signed) ? 1 : 0)))-1, bits); }
     LikelyValue intMin(likely_type type) { const likely_type bits = type & likely_depth; return constant((uint64_t) ((type & likely_signed) ? (1 << (bits - 1)) : 0), bits); }
     LikelyValue nullMat() { return LikelyValue(ConstantPointerNull::get(::cast<PointerType>((Type*)multiDimension())), likely_multi_dimension); }
@@ -695,10 +690,10 @@ struct Builder : public IRBuilder<>
     }
 
     // channels(), columns(), rows() and frames() return native integers by design
-    LikelyValue channels(const LikelyValue &m) { return (m & likely_multi_channel) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 2), "channels"), likely_u32), likely_native) : one(); }
-    LikelyValue columns (const LikelyValue &m) { return (m & likely_multi_column ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 3), "columns" ), likely_u32), likely_native) : one(); }
-    LikelyValue rows    (const LikelyValue &m) { return (m & likely_multi_row    ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 4), "rows"    ), likely_u32), likely_native) : one(); }
-    LikelyValue frames  (const LikelyValue &m) { return (m & likely_multi_frame  ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 5), "frames"  ), likely_u32), likely_native) : one(); }
+    LikelyValue channels(const LikelyValue &m) { return (m & likely_multi_channel) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 2), "channels"), likely_u32), likely_u64) : one(); }
+    LikelyValue columns (const LikelyValue &m) { return (m & likely_multi_column ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 3), "columns" ), likely_u32), likely_u64) : one(); }
+    LikelyValue rows    (const LikelyValue &m) { return (m & likely_multi_row    ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 4), "rows"    ), likely_u32), likely_u64) : one(); }
+    LikelyValue frames  (const LikelyValue &m) { return (m & likely_multi_frame  ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 5), "frames"  ), likely_u32), likely_u64) : one(); }
     LikelyValue data    (const LikelyValue &m) { const likely_type type = (m & likely_element) | likely_pointer; return LikelyValue(CreatePointerCast(CreateStructGEP(m, 6), toLLVM(type)), type); }
 
     LikelyValue cast(const LikelyValue &x, likely_type type)
@@ -715,7 +710,6 @@ struct Builder : public IRBuilder<>
         return LikelyValue(CreateCast(CastInst::getCastOpcode(x, (x & likely_signed) != 0, dstType, (type & likely_signed) != 0), x, dstType), type);
     }
 
-    IntegerType *nativeInt() { return module->context->nativeInt(); }
     Type *multiDimension() { return toLLVM(likely_multi_dimension); }
     Type *toLLVM(likely_type likely) { return module->context->toLLVM(likely); }
 
@@ -1841,9 +1835,9 @@ struct Loop : public likely_expression
         loop = BasicBlock::Create(builder.getContext(), "loop_" + name, entry->getParent());
         builder.CreateBr(loop);
         builder.SetInsertPoint(loop);
-        value = builder.CreatePHI(builder.nativeInt(), 2, name);
+        type = likely_u64;
+        value = builder.CreatePHI(builder.toLLVM(type), 2, name);
         cast<PHINode>(value)->addIncoming(start, entry);
-        type = likely_native;
     }
 
     virtual void close(Builder &builder)
@@ -2030,7 +2024,7 @@ class kernelExpression : public LikelyOperator
 
         Function *thunk;
         {
-            Type *params[] = { PointerType::getUnqual(parameterStructType), builder.nativeInt(), builder.nativeInt() };
+            Type *params[] = { PointerType::getUnqual(parameterStructType), builder.toLLVM(likely_u64), builder.toLLVM(likely_u64) };
             FunctionType *thunkType = FunctionType::get(Type::getVoidTy(builder.getContext()), params, false);
 
             thunk = ::cast<Function>(builder.module->module->getOrInsertFunction(builder.GetInsertBlock()->getParent()->getName().str() + "_thunk", thunkType));
@@ -2059,7 +2053,7 @@ class kernelExpression : public LikelyOperator
 
         builder.SetInsertPoint(entry);
 
-        Type *params[] = { thunk->getType(), PointerType::getUnqual(parameterStructType), builder.nativeInt() };
+        Type *params[] = { thunk->getType(), PointerType::getUnqual(parameterStructType), builder.toLLVM(likely_u64) };
         FunctionType *likelyForkType = FunctionType::get(Type::getVoidTy(builder.getContext()), params, false);
         Function *likelyFork = builder.module->module->getFunction("likely_fork");
         if (!likelyFork) {
@@ -2137,7 +2131,7 @@ class kernelExpression : public LikelyOperator
                 else       axis = new KernelAxis(builder, name, builder.zero(), elements, step, axis);
                 define(builder.env, name.c_str(), axis); // takes ownership of axis
             } else {
-                define(builder.env, name.c_str(), new likely_expression(LikelyValue(builder.zero(), likely_native)));
+                define(builder.env, name.c_str(), new likely_expression(LikelyValue(builder.zero(), likely_u64)));
             }
         }
 

@@ -650,7 +650,6 @@ likely_mat likely_type_to_string(likely_type type)
     if (type == likely_multi_row      ) return likely_string("multi-row");
     if (type == likely_multi_frame    ) return likely_string("multi-frame");
     if (type == likely_multi_dimension) return likely_string("multi-dimension");
-    if (type == likely_native         ) return likely_string("native");
     if (type == likely_ast_t          ) return likely_string("ast");
     if (type == likely_env_t          ) return likely_string("env");
 
@@ -697,7 +696,17 @@ likely_type likely_type_from_string(const char *str, bool *ok)
     if (!strcmp(str, "multi-row"      )) return likely_multi_row;
     if (!strcmp(str, "multi-frame"    )) return likely_multi_frame;
     if (!strcmp(str, "multi-dimension")) return likely_multi_dimension;
-    if (!strcmp(str, "native"         )) return likely_native;
+    if (!strcmp(str, "char"           )) return likely_char;
+    if (!strcmp(str, "short"          )) return likely_short;
+    if (!strcmp(str, "int"            )) return likely_int;
+    if (!strcmp(str, "long"           )) return likely_long;
+    if (!strcmp(str, "long-long"      )) return likely_long_long;
+    if (!strcmp(str, "float"          )) return likely_float;
+    if (!strcmp(str, "double"         )) return likely_double;
+    if (!strcmp(str, "long double"    )) return likely_long_double;
+    if (!strcmp(str, "bool"           )) return likely_bool;
+    if (!strcmp(str, "size_t"         )) return likely_size_t;
+    if (!strcmp(str, "ptrdiff_t"      )) return likely_ptrdiff_t;
     if (!strcmp(str, "ast"            )) return likely_ast_t;
     if (!strcmp(str, "env"            )) return likely_env_t;
 
