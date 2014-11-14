@@ -191,14 +191,14 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
 
 likely_mat likely_write(likely_const_mat image, const char *file_name)
 {
-    const size_t len = strlen(file_name);
-    if ((len < 3) || strcmp(&file_name[len-3], ".lm")) {
+    const likely_file_type fileType = likely_guess_file_type(file_name);
+    if (fileType == likely_file_media) {
         try {
             cv::imwrite(file_name, likelyToOpenCVMat(image));
         } catch (...) {
             return NULL;
         }
-    } else {
+    } else if (fileType == likely_file_matrix) {
         if (FILE *fp = fopen(file_name, "wb")) {
             const uint32_t ref_count = 1;
             fwrite(&ref_count, sizeof(uint32_t), 1, fp);
@@ -207,6 +207,8 @@ likely_mat likely_write(likely_const_mat image, const char *file_name)
         } else {
             return NULL;
         }
+    } else {
+        return NULL;
     }
     return likely_retain_mat(image);
 }
