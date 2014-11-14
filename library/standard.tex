@@ -1,5 +1,5 @@
-\documentclass{article}
-\usepackage{hyperref}
+\documentclass{scrbook}
+\usepackage[hidelinks]{hyperref}
 \usepackage{verbatim}
 
 % The Likely tokenizer will look for the use of the "likely" environment to
@@ -8,70 +8,55 @@
 { \verbatim }
 { \endverbatim }
 
+\newcommand{\noun}[1]{\textsc{#1}}
+\newcommand{\fref}[2]{\href{#1}{#2}\footnote{\href{#1}{#1}}}
+
 \title{The Likely Programming Language \\
-        Language Reference and Standard Library}
+        {\large Language Reference and Standard Library}}
 \author{Joshua C. Klontz}
 \date{\today}
 
 \begin{document}
 \maketitle
+\tableofcontents
 
-\section{Introduction}
-\emph{Likely} is a programming language for developing image processing and statistical learning algorithms.
-The goal of Likely is concise yet ambitious, \emph{to revolutionize computer vision algorithm design and deployment}.
+\chapter{Introduction}
+\noun{Likely} is a programming language for developing image processing and statistical learning algorithms.
+A special emphasis is given to parallel and heterogenous hardware architectures.
+The goal of Likely is concise yet ambitious, to revolutionize computer vision algorithm design and deployment.
 
-\subsection{Governing Principles}
-The following sections on just-in-time compilation, portability, live coding, and literate programming introduce the guiding design decisions behind Likely.
+The following sections introduce the guiding design decisions behind Likely.
 
-\subsection{Just-In-Time Compilation}
-Likely relies on the \href{http://llvm.org/}{Low Level Virtual Machine} (LLVM) just-in-time (JIT) compiler infrastructure for optimizations traditionally impossible in statically compiled languages.
+\section{Just-In-Time Compilation}
+Likely relies on the \fref{http://llvm.org/}{\noun{Low Level Virtual Machine}} (LLVM) just-in-time compiler infrastructure for optimizations traditionally impossible in statically compiled languages.
 Algorithms automatically leverage all instruction set extensions and coprocessors available at runtime.
 Furthermore, the entire premise of Likely is hinged on the observation that for image recognition applications, \emph{while algorithms must be generic to handle any matrix data type, at runtime they tend to be repeatedly executed on the same type.}
 
-Since images generally pass through the same pipeline at runtime, branching to handle different types is unnecessary and entire code blocks can be eliminated (or never compiled in the first place).
-Most importantly however, \emph{statistical learning moves from an offline model generation step to a compile-time simplification of a function (the learning algorithm) with constant arguments (the training set)}.
+Because images generally pass through the same pipeline at runtime, branching to handle different types is unnecessary and entire code blocks can be eliminated (or never compiled in the first place).
+Most importantly, \emph{statistical learning moves from an offline model generation step to a compile-time simplification of a function (the learning algorithm) with constant arguments (the training set)}.
 
-Compile-time knowledge of the statistical model opens the door to \href{https://github.com/biometrics/likely/issues/20}{unexplored optimization opportunities}.
+Compile-time knowledge of the statistical model opens the door to \fref{https://github.com/biometrics/likely/issues/20}{unexplored optimization opportunities}.
 
-\subsection{Portability}
-Likely is written using a portable subset of \emph{ISO C++11}, which means it can \href{http://llvm.org/docs/GettingStarted.html#hardware}{run everywhere LLVM does}.
-Algorithms execute natively on single CPU threads via the LLVM \emph{Machine Code Just-In-Time} (MCJIT) compiler, multi-core CPUs via a custom \emph{OpenMP}-like backend, and GPUs and coprocessors via \emph{CUDA} or \emph{OpenCL}.
+\section{Portability}
+Likely is written using a portable subset of \noun{ISO C++11}, which means it can \fref{http://llvm.org/docs/GettingStarted.html\#hardware}{run everywhere LLVM does}.
+Algorithms execute natively on single CPU threads via the LLVM \noun{Machine Code Just-In-Time} compiler, multi-core CPUs via a custom \noun{OpenMP}-like backend, and GPUs and coprocessors via \fref{https://github.com/biometrics/likely/issues/24}{\noun{CUDA}} or \fref{https://github.com/biometrics/likely/issues/25}{\noun{OpenCL}}.
 
-\begin{tabular}{ l l }
-Parallelization & Status \\ \hline
-Single-thread   & Done   \\
-Multi-thread    & Done   \\
-CUDA            & \href{https://github.com/biometrics/likely/issues/24}{\#24} \\
-OpenCL          & \href{https://github.com/biometrics/likely/issues/25}{\#25} \\
-\end{tabular}
+Likely algorithms can be \fref{http://liblikely.org/share/likely/hello\_world/hello\_world\_static.c}{compiled to native functions}, written for \fref{http://liblikely.org/share/likely/hello\_world/hello\_world\_jit.c}{dynamic just-in-time applications} and scripts, integrate into \fref{https://github.com/biometrics/likely/issues/46}{other languages}, published as \fref{https://github.com/biometrics/likely/issues/44}{web services}, and transcompiled into single \fref{https://github.com/biometrics/likely/issues/51}{\noun{C}} or \fref{https://github.com/biometrics/likely/issues/45}{\noun{JavaScript}} source files.
 
-Likely algorithms can be shipped as minimalist native libraries, written for dynamic just-in-time applications and scripts, integrate into other languages, published as web services, and transcompiled into single \emph{C} or \emph{JavaScript} source files.
-
-\begin{tabular}{ l l }
-Deployment               & Status \\ \hline
-Static compiler          & Done   \\
-JIT compiler             & Done   \\
-REPL shell               & Done   \\
-SWIG                     & \href{https://github.com/biometrics/likely/issues/46}{\#46} \\
-Web services             & \href{https://github.com/biometrics/likely/issues/44}{\#44} \\
-C transcompiler          & \href{https://github.com/biometrics/likely/issues/51}{\#51} \\
-JavaScript transcompiler & \href{https://github.com/biometrics/likely/issues/45}{\#45} \\
-\end{tabular}
-
-\subsection{Live Coding}
+\section{Live Coding}
 Developing image recognition algorithms is a creative process, and like all creative processes it relies on immediate visceral feedback while interacting with the creative medium.
 Image recognition algorithms have parameters, and visualizing their effect is critical for building intuition.
 This problem domain and Likely's JIT approach seem well suited for the concept of emph{live coding} popularized by \href{http://worrydream.com/}{Bret Victor}.
 In fact, Likely's accompanying IDE called \emph{dream}, is \href{https://www.youtube.com/watch?v=a_hz8wFACVM}{designed from the ground up to support interactive algorithm development}.
 
-\subsection{Literate Programming}
+\section{Literate Programming}
 Likely is a \href{http://www.literateprogramming.com/}{literate programming} language.
 This document, in addition to being the reference manual for the Likely programming language, is also the source code for the Likely standard library.
 
 Likely uses \href{https://help.github.com/articles/github-flavored-markdown}{Github Flavored Markdown} (GFM) syntax, and the Likely runtime will automatically extract and execute code block found in GFM source files.
 
-\section{Language Reference}
-\subsection{Prefix Notation}
+\part{Language Reference}
+\chapter{Prefix Notation}
 Likely is a Lisp-like language accepting fully-parenthesized Polish prefix notation, or \emph{s-expressions}:
 
 \begin{verbatim}
@@ -86,7 +71,7 @@ $ likely -c "(+ 1 2)"
 
 An important property of s-expressions is that they are equivalent to the compiler's abstract syntax tree.
 
-\subsection{Abstract Syntax Tree (AST) Manipulation}
+\chapter{Abstract Syntax Tree (AST) Manipulation}
 Likely recognizes three special tokens that influence how source code is parsed into an AST.
 These \emph{optional} tokens allow a developer to selectively depart from fully-parenthesized Polish prefix notation in order to improve code readability.
 These tokens and parenthesis are the \emph{only} symbols that need not be separated by a space.
@@ -104,16 +89,16 @@ $ likely -ast -c "1:+ 2"
 (+ 1 2)
 \end{verbatim}
 
-\subsubsection{Comment}
+\section{Comment}
 The semicolon and all following tokens through the end of the line are excluded from the AST.
 
 \begin{verbatim}
 (this is some code) ; This is a comment
 (+ 1 2) ; One plus two is three
 (sq 3)  ; Three squared is nine
-\env{verbatim}
+\end{verbatim}
 
-\subsubsection{Compose}
+\section{Compose}
 The expression to the left-hand-side (LHS) of the period is inserted as the first operand of the expression to the right-hand-side (RHS) of the period.
 Compose is \emph{left-associative}.
 
@@ -131,7 +116,7 @@ x.(f y) ; Parsed as (f x y)
 We might call the third example \href{http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394}{uniform function call syntax}.
 Note how this transformation does not apply to numbers!
 
-\subsubsection{Infix}
+\section{Infix}
 The expression to the RHS of the colon is the operator.
 The expression to the LHS of the colon is the first operand.
 The second expression to the RHS of the colon is the second operand.
@@ -149,10 +134,10 @@ x.f:h y.g   ; Parsed as (h (f x) (g y))
 
 Note how \emph{infix} has lower precedence than \emph{compose}.
 
-\subsection{Literals}
+\chapter{Literals}
 At the lowest level of interpretation, every atom is either a \emph{number}, \emph{string}, \emph{type}, or \emph{intrinsic operator}.
 
-\subsubsection{Number}
+\section{Number}
 A number is a series of digits with an optional leading negative sign (-) and optional containing decimal point (.).
 
 \begin{verbatim}
@@ -162,7 +147,7 @@ A number is a series of digits with an optional leading negative sign (-) and op
 0.42- ; Not a number
 \end{verbatim}
 
-\subsubsection{String}
+\section{String}
 A string is a series of characters enclosed in quotation marks (").
 
 \begin{verbatim}
@@ -170,7 +155,7 @@ A string is a series of characters enclosed in quotation marks (").
 'hello world' ; Not a string
 \end{verbatim}
 
-\subsubsection{Type}
+\section{Type}
 Types are special keywords indicating how data is represented.
 Let's start with a few examples:
 
@@ -210,14 +195,14 @@ The remaining capitalized characters indicate:
 Additionally, the following special cases are recognized as types: \emph{void}, \emph{depth}, \emph{floating}, \emph{array}, \emph{signed}, \emph{saturated}, \emph{element}, \emph{multi-channel}, \emph{multi-column}, \emph{multi-row}, \emph{multi-frame}, \emph{multi-dimension}, \emph{string}, \emph{native}.
 These special cases correspond to values of \emph{likely\emph{type}mask} in the C API.
 
-\subsubsection{Intrinsic Operator}
+\section{Intrinsic Operator}
 An intrinsic operator is the basic construct for higher order expressions on numbers, strings and types.
 The following section details all available intrinsic operators.
 
-\subsection{Intrinsic Operators}
+\chapter{Intrinsic Operators}
 Likely has the following builtin operators.
 
-\subsubsection{Arithmetic}
+\section{Arithmetic}
 \paragraph{(+ \emph{lhs} \emph{rhs})}
 The addition of \emph{lhs} by \emph{rhs}.
 
@@ -276,7 +261,7 @@ The remainder after division of \emph{lhs} by \emph{rhs}.
 (% 6.5 3.25) ; Evaluates to 0
 \end{verbatim}
 
-\subsubsection{Comparison}
+\section{Comparison}
 \paragraph{(== \emph{lhs} \emph{rhs})}
 One if \emph{lhs} equals \emph{rhs}, zero otherwise.
 
@@ -333,7 +318,7 @@ One if \emph{lhs} is greater than or equal to \emph{rhs}, zero otherwise.
 (>= 6 6.0)  ; Evaluates to 1
 \end{verbatim}
 
-\subsubsection{Bit Manipulation}
+\section{Bit Manipulation}
 \paragraph{(\& \emph{lhs} \emph{rhs})}
 Bitwise and of \emph{lhs} and \emph{rhs}.
 
@@ -378,7 +363,7 @@ Arithmetic right shift (sign extension) if \emph{lhs} is signed, logical right s
 (>> -2 1) ; Evaluates to -1
 \end{verbatim}
 
-\subsubsection{Math}
+\section{Math}
 \paragraph{(sqrt \emph{x})}
 The square root of \emph{x}.
 
@@ -527,7 +512,7 @@ The integral value that is nearest to \emph{x}, with halfway cases rounded away 
 (round -5.5) ; Evaluates to -6
 \end{verbatim}
 
-\subsubsection{Matricies}
+\section{Matricies}
 The fundamental data structure in Likely is a four-dimensional \emph{matrix}.
 In decreasing memory spatial locality order, its dimensions are: \emph{channels}, \emph{columns}, \emph{rows} and \emph{frames}.
 These dimensions are often abbreviated \emph{c}, \emph{x}, \emph{y} and \emph{t}, respectively.
@@ -575,7 +560,7 @@ If \emph{matrix} is not specified, returns a function which when given a matrix 
 (frames uninitialized-color-image) ; Evaluates to 1
 \end{verbatim}
 
-\subsubsection{Macros}
+\section{Macros}
 \paragraph{(try \emph{primary-expr} \emph{fallback-expr})}
 Attempts to evaluate \emph{primary-expr} in the current environment and return the result.
 Returns \emph{fallback-expr} expression in the event of an error.
@@ -585,7 +570,7 @@ Returns \emph{fallback-expr} expression in the event of an error.
 (eval (+ 1) 3)   ; Evaluates to 3
 \end{verbatim}
 
-\subsubsection{External Symbols}
+\section{External Symbols}
 \paragraph{(extern \emph{return-type} \emph{symbol-name} \emph{parameters})}
 References an externally defined symbol.
 
@@ -593,8 +578,9 @@ References an externally defined symbol.
 ((extern i32 "abs" i32) -4) ; Evaluates to 4
 \end{verbatim}
 
-\section{Standard Library}
-\subsection{Basic mathematical constants}
+\part{Standard Library}
+\chapter{Basic Symbols}
+\section{Constants}
 \begin{likely}
 null  := 0
 true  := 1
@@ -603,7 +589,7 @@ e  := (f32 2.718281)
 pi := (f32 3.141592)
 \end{likely}
 
-\subsection{Basic unary functions}
+\section{Unary Functions}
 \begin{likely}
 not  := (-> a (== a false))
 bool := (-> a (!= a false))
@@ -611,7 +597,7 @@ sq  := (-> a (* a a))
 abs := (-> a (? (< a 0) (* -1 a) a))
 \end{likely}
 
-\subsection{Basic binary functions}
+\section{Binary Functions}
 \begin{likely}
 and := (-> (a b) (& a.bool b.bool))
 or  := (-> (a b) (| a.bool b.bool))
@@ -620,26 +606,27 @@ min := (-> (a b) (? (< a b) a b))
 max := (-> (a b) (? (> a b) a b))
 \end{likely}
 
-\subsection{Common types}
+\chapter{Library Symbols}
+\section{Types}
 \begin{likely}
 string := i8P
 void-pointer := i8P
 file-type := u32
 \end{likely}
 
-\subsection{Matrix information}
+\section{Matrix Information}
 \begin{likely}
 elements := (-> mat mat.channels :* mat.columns :* mat.rows :* mat.frames)
 bytes    := (-> mat (/ (+ (* (& mat.type depth) mat.elements) 7) 8))
 \end{likely}
 
-\subsection{Matrix creation}
+\section{Matrix Creation}
 \begin{likely}
 imitate-size := (-> (mat type) (new type mat.channels mat.columns mat.rows mat.frames))
 imitate := (-> mat (imitate-size mat mat.type))
 \end{likely}
 
-\subsection{Matrix I/O}
+\section{Matrix I/O}
 \begin{likely}
 read   := (extern u8CXYT "likely_read" (string file-type))
 write  := (extern u8CXYT "likely_write" (u8CXYT string))
@@ -650,30 +637,31 @@ show   := (extern u8CXYT "likely_show" (u8CXYT string))
 guess-file-type := (extern file-type "likely_guess_file_type" string)
 \end{likely}
 
-\subsection{Compiler frontend}
+\section{Compiler Frontend}
 \begin{likely}
 lex := (extern ast "likely_lex" (string file-type))
 parse := (extern ast "likely_parse" ast)
 lex-and-parse := (extern ast "likely_lex_and_parse" (string file-type))
 \end{likely}
 
-\subsection{Compiler backend}
+\section{Compiler Backend}
 \begin{likely}
 eval := (extern env "likely_eval" (ast env void-pointer void-pointer))
 \end{likely}
 
-\subsection{Import}
+\section{Import}
 \begin{likely}
 import-string := (-> (source-code source-type) (lex-and-parse source-code source-type).(eval this null null))
 import := (-> file (read file guess).data.(import-string file.guess-file-type))
 \end{likely}
 
-\subsection{Type conversion}
+\section{Type Conversion}
 \begin{likely}
 cast := (-> (a b) (b.type a)) ; convert a to the type of b
 \end{likely}
 
-\subsection{Thresholding}
+\chapter{Pixel-wise operators}
+\section{Thresholding}
 \begin{likely}
 threshold-binary          := (-> (input threshold response) (? (> input threshold) response  0))
 threshold-binary-inverse  := (-> (input threshold response) (? (> input threshold) 0         response))
