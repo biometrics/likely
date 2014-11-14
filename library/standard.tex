@@ -12,7 +12,7 @@
 \newcommand{\fref}[2]{\href{#1}{#2}\footnote{\href{#1}{#1}}}
 
 \title{The Likely Programming Language \\
-        {\large Language Reference and Standard Library}}
+       {\large Language Reference and Standard Library}}
 \author{Joshua C. Klontz}
 \date{\today}
 
@@ -21,14 +21,23 @@
 \tableofcontents
 
 \chapter{Introduction}
-\noun{Likely} is a programming language for developing image processing and statistical learning algorithms.
-A special emphasis is given to parallel and heterogenous hardware architectures.
-The goal of Likely is concise yet ambitious, to revolutionize computer vision algorithm design and deployment.
+\fref{http://www.liblikely.org/}{\noun{Likely}} is a programming language for image processing and statistical learning algorithm development.
+A special emphasis in Likely is given to the execution of algorithms on parallel and heterogenous hardware architectures.
 
-The following sections introduce the guiding design decisions behind Likely.
+The goal of Likely is concise yet ambitious, \emph{to revolutionize computer vision algorithm design and deployment}.
+With this goal in mind, the following sections discuss the guiding design decisions behind Likely.
+
+\section{Embeddable Compiler}
+Likely is foremost a software library.
+Both the \fref{https://s3.amazonaws.com/liblikely/doxygen/console\_interpreter\_compiler.html}{\emph{likely} console-interpreter-compiler} and \fref{https://s3.amazonaws.com/liblikely/doxygen/integrated\_development\_environment.html}{\emph{dream} integrated development environment} are built on top of the \fref{https://s3.amazonaws.com/liblikely/doxygen/index.html}{Likely C API}.
+
+Understandably, there is more involved in deploying a computer vision application than simply applying algorithms to pixels alone.
+Likely is designed to excel at pixel transformations, while leaving the remaining application logic for implementation in the developer's preferred programming language.
+
+It was with this focus on an embeddable compiler that the domain name \url{liblikely.org} was chosen.
 
 \section{Just-In-Time Compilation}
-Likely relies on the \fref{http://llvm.org/}{\noun{Low Level Virtual Machine}} (LLVM) just-in-time compiler infrastructure for optimizations traditionally impossible in statically compiled languages.
+Likely leverages the \fref{http://llvm.org/}{\noun{Low Level Virtual Machine}} (LLVM) just-in-time compiler infrastructure for optimizations traditionally impossible in statically compiled languages.
 Algorithms automatically leverage all instruction set extensions and coprocessors available at runtime.
 Furthermore, the entire premise of Likely is hinged on the observation that for image recognition applications, \emph{while algorithms must be generic to handle any matrix data type, at runtime they tend to be repeatedly executed on the same type.}
 
