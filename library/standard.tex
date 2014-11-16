@@ -1,12 +1,25 @@
-\documentclass{scrbook}
-\usepackage[hidelinks]{hyperref}
-\usepackage{verbatim}
+\documentclass[numbers=noenddot]{scrbook}
 
 % The Likely tokenizer will look for the use of the "likely" environment to
 % determine what parts of the document are Likely source code.
 \newenvironment{likely}
 { \verbatim }
 { \endverbatim }
+
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{booktabs}
+\usepackage[hidelinks]{hyperref}
+\usepackage{listings}
+\usepackage{verbatim}
+
+\newtheoremstyle{dotless}{}{}{\itshape}{}{\bfseries}{}{ }{}
+
+\renewcommand{\arraystretch}{1.2} % more space between table rows
+
+\lstset{basicstyle=\ttfamily,
+  showstringspaces=false
+}
 
 \newcommand{\noun}[1]{\textsc{#1}}
 \newcommand{\fref}[2]{\href{#1}{#2}\footnote{\href{#1}{#1}}}
@@ -71,40 +84,50 @@ In addition to serving as the reference manual for the programming language and 
 Likely recognizes both \fref{https://help.github.com/articles/github-flavored-markdown}{GitHub Flavored Markdown} (GFM) and \fref{http://www.latex-project.org/}{\LaTeX} syntax, and will automatically extract source code from appropriately marked blocks.
 
 \part{Language Reference}
-\chapter{Prefix Notation}
-Likely is a Lisp-like language accepting fully-parenthesized Polish prefix notation, or \emph{s-expressions}:
+\chapter{Abstract Syntax Trees}
+\section{Prefix Notation}
+Likely is a member of the \noun{Lisp} family of languages, accepting fully-parenthesized prefix notation, also called \emph{s-expressions}.
 
-\begin{verbatim}
-(operator operand_1 operand_2 ... operand_N)
-\end{verbatim}
+\theoremstyle{dotless}
+\newtheorem*{PN}{Prefix Notation \nopunct}
+\begin{PN}
+$\boldsymbol{(} operator\ operand_1\ operand_2\ \dots\ operand_N \boldsymbol{)}$
+\end{PN}
 
 For example:
-\begin{verbatim}
+
+\begin{lstlisting}[language=bash, caption={Prefix notation example.}, captionpos=b]
 $ likely -c "(+ 1 2)"
 3
-\end{verbatim}
+\end{lstlisting}
 
-An important property of s-expressions is that they are equivalent to the compiler's abstract syntax tree.
+An important property of s-expressions is that they are equivalent to the compiler's \emph{abstract syntax tree} (AST).
 
-\chapter{Abstract Syntax Tree (AST) Manipulation}
+\section{Special Tokens}
 Likely recognizes three special tokens that influence how source code is parsed into an AST.
-These \emph{optional} tokens allow a developer to selectively depart from fully-parenthesized Polish prefix notation in order to improve code readability.
-These tokens and parenthesis are the \emph{only} symbols that need not be separated by a space.
+These tokens allow the developer to selectively depart from prefix notation to improve code readability.
+These special characters and parenthesis are the \emph{only} tokens that need not be separated by a space.
 
-\begin{tabular}{ l l }
-Token & Name    \\ \hline
+\begin{table}[h]
+\centering
+\begin{tabular}{@{} l l @{}}
+\toprule
+Token & Name    \\ \midrule
 ;     & Comment \\
 .     & Compose \\
 :     & Infix   \\
+\bottomrule
 \end{tabular}
+\caption{Likely special characters.}
+\end{table}
 
-Note that you can print the AST to see how source code is parsed:
-\begin{verbatim}
-$ likely -ast -c "1:+ 2"
+When in doubt, you can print the AST to see how source code is parsed:
+\begin{lstlisting}[language=bash, caption={Printing the abstract syntax tree.}, captionpos=b]
+$ likely -ast -c "1 :+ 2"
 (+ 1 2)
-\end{verbatim}
+\end{lstlisting}
 
-\section{Comment}
+\section{; Comment}
 The semicolon and all following tokens through the end of the line are excluded from the AST.
 
 \begin{verbatim}
@@ -113,7 +136,7 @@ The semicolon and all following tokens through the end of the line are excluded 
 (sq 3)  ; Three squared is nine
 \end{verbatim}
 
-\section{Compose}
+\section{. Compose}
 The expression to the left-hand-side (LHS) of the period is inserted as the first operand of the expression to the right-hand-side (RHS) of the period.
 Compose is \emph{left-associative}.
 
@@ -131,7 +154,7 @@ x.(f y) ; Parsed as (f x y)
 We might call the third example \href{http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394}{uniform function call syntax}.
 Note how this transformation does not apply to numbers!
 
-\section{Infix}
+\section{: Infix}
 The expression to the RHS of the colon is the operator.
 The expression to the LHS of the colon is the first operand.
 The second expression to the RHS of the colon is the second operand.
