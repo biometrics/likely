@@ -31,20 +31,26 @@ With this goal in mind, the following sections discuss the guiding design decisi
 Likely is foremost a software library.
 Both the \fref{https://s3.amazonaws.com/liblikely/doxygen/console\_interpreter\_compiler.html}{\emph{likely} console-interpreter-compiler} and \fref{https://s3.amazonaws.com/liblikely/doxygen/integrated\_development\_environment.html}{\emph{dream} integrated development environment} are built on top of the \fref{https://s3.amazonaws.com/liblikely/doxygen/index.html}{Likely C API}.
 
-Understandably, there is more involved in deploying a computer vision application than simply applying algorithms to pixels alone.
+Understandably, there is more involved in deploying a computer vision application than applying algorithms to pixels alone.
 Likely is designed to excel at pixel transformations, while leaving the remaining application logic for implementation in the developer's preferred programming language.
 
 It was with this focus on an embeddable compiler that the domain name \url{liblikely.org} was chosen.
 
-\section{Just-In-Time Compilation}
-Likely leverages the \fref{http://llvm.org/}{\noun{Low Level Virtual Machine}} (LLVM) just-in-time compiler infrastructure for optimizations traditionally impossible in statically compiled languages.
-Algorithms automatically leverage all instruction set extensions and coprocessors available at runtime.
-Furthermore, the entire premise of Likely is hinged on the observation that for image recognition applications, \emph{while algorithms must be generic to handle any matrix data type, at runtime they tend to be repeatedly executed on the same type.}
+\section{Compile-Time Function Evaluation}
+Compile-time function evalutation (CTFE) is a core tenant of Likely programming language.
+Likely rejects the notion of training a statistical learning model as an offline step after algorithm compilation.
+Instead, \emph{Likely formulates statistical learning as the compile-time evalutation of a function} (the learning algorithm) \emph{with constant arguments} (the training data).
+We believe that compile-time knowledge of the statistical model will open the door to interesting \fref{https://github.com/biometrics/likely/issues/20}{optimization opportunities}.
 
-Because images generally pass through the same pipeline at runtime, branching to handle different types is unnecessary and entire code blocks can be eliminated (or never compiled in the first place).
-Most importantly, \emph{statistical learning moves from an offline model generation step to a compile-time simplification of a function (the learning algorithm) with constant arguments (the training set)}.
+Likely leverages the \fref{http://llvm.org/}{\noun{Low Level Virtual Machine}} (LLVM) project for both static and just-in-time (JIT) compilation.
+One particularly salient use of the JIT compiler is for CTFE, as the JIT compiler automatically leverages all instruction set extensions and coprocessors available at runtime.
+In the special case where the function to be executed does not have loops, Likely will instead run an interpreter which has been found to be faster for executing simple code.
 
-Compile-time knowledge of the statistical model opens the door to \fref{https://github.com/biometrics/likely/issues/20}{unexplored optimization opportunities}.
+A computer vision algorithm is a series of image processing and statisical learning transformations that require incoming samples conform to particular type and dimensionality expectations.
+Likely exploits these expectations by conducting \emph{type inference using the output of functions evaluated at compile time}.
+Though algorithms are often written without specifying parameter types, they are still statically compiled because CTFE output dictates input type, and often dimensionality as well.
+This is in contrast to conventional computer vision libraries which, lacking compile-time knowledge of the particular algorithm of interest, provide parameter type generality by branching at runtime.
+Branching that is unnecessary for any particular algorithm where all runtime samples are expected to branch along the same path.
 
 \section{Portability}
 Likely is written using a portable subset of \noun{ISO C++11}, which means it can \fref{http://llvm.org/docs/GettingStarted.html\#hardware}{run everywhere LLVM does}.
