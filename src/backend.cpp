@@ -1946,12 +1946,12 @@ class kernelExpression : public LikelyOperator
         KernelArgument(Builder &builder, const likely_expression &matrix, const string &name)
             : Assignable(matrix.value, matrix.type), name(name)
         {
-            channels   = builder.cast(builder.channels(*this), likely_u64);
-            columns    = builder.cast(builder.columns(*this), likely_u64);
-            rowStep    = builder.multiplyInts(columns, channels);
-            rows       = builder.cast(builder.rows(*this), likely_u64);
-            frameStep  = builder.multiplyInts(rows, rowStep);
-            frames     = builder.cast(builder.frames(*this), likely_u64);
+            channels   = builder.channels(*this);
+            columns    = builder.columns(*this);
+            rows       = builder.rows(*this);
+            frames     = builder.frames(*this);
+            rowStep    = builder.multiplyInts(builder.cast(channels, likely_u64), builder.cast(columns, likely_u64));
+            frameStep  = builder.multiplyInts(rowStep, builder.cast(rows, likely_u64));
             channels ->setName(name + "_c");
             columns  ->setName(name + "_x");
             rows     ->setName(name + "_y");
@@ -1965,7 +1965,7 @@ class kernelExpression : public LikelyOperator
         {
             Value *i = builder.zero();
             if (type & likely_multi_channel) i = builder.CreateZExt(likely_lookup(builder.env, "c")->expr->value, Type::getInt64Ty(builder.getContext()));
-            if (type & likely_multi_column ) i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "x")->expr->value, Type::getInt64Ty(builder.getContext())), channels ), i);
+            if (type & likely_multi_column ) i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "x")->expr->value, Type::getInt64Ty(builder.getContext())), builder.CreateZExt(channels, Type::getInt64Ty(builder.getContext()))), i);
             if (type & likely_multi_row    ) i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "y")->expr->value, Type::getInt64Ty(builder.getContext())), rowStep  ), i);
             if (type & likely_multi_frame  ) i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "t")->expr->value, Type::getInt64Ty(builder.getContext())), frameStep), i);
             return builder.CreateGEP(builder.data(*this), i);
@@ -2011,7 +2011,7 @@ class kernelExpression : public LikelyOperator
 
             if (parent)
                 parent->child = this;
-            offset = builder.CreateAdd(parent ? parent->offset : builder.zero().value, builder.CreateMul(step, value), name + "_offset");
+            offset = builder.CreateAdd(parent ? parent->offset : builder.zero().value, builder.CreateMul(step, builder.CreateZExt(value, step->getType())), name + "_offset");
         }
 
         void close(Builder &builder)
@@ -2160,22 +2160,22 @@ class kernelExpression : public LikelyOperator
                 name = "x";
                 multiElement = (kernelArguments[0]->type & likely_multi_column) != 0;
                 elements = kernelArguments[0]->columns;
-                step = kernelArguments[0]->channels;
+                step = builder.cast(kernelArguments[0]->channels, likely_u64);
                 break;
               default:
                 name = "c";
                 multiElement = (kernelArguments[0]->type & likely_multi_channel) != 0;
                 elements = kernelArguments[0]->channels;
-                step = builder.constant(1);
+                step = builder.one();
                 break;
             }
 
             if (multiElement || ((axis_index == 3) && !axis)) {
                 if (!axis) axis = new KernelAxis(builder, name, start, stop, step, NULL);
-                else       axis = new KernelAxis(builder, name, builder.zero(), elements, step, axis);
+                else       axis = new KernelAxis(builder, name, builder.zero(likely_u32), elements, step, axis);
                 define(builder.env, name.c_str(), axis); // takes ownership of axis
             } else {
-                define(builder.env, name.c_str(), new likely_expression(LikelyValue(builder.zero(), likely_u64)));
+                define(builder.env, name.c_str(), new likely_expression(builder.zero(likely_u32)));
             }
         }
 
