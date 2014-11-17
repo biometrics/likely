@@ -801,23 +801,6 @@ struct Builder : public IRBuilder<>
         return LikelyValue(CreateCall3(likelyScalar, constant(uint64_t(expr.type), likely_u32), allocaInst, one(likely_u32)), likely_multi_dimension);
     }
 
-    LikelyValue newMat(Value *type, Value *channels, Value *columns, Value *rows, Value *frames, Value *data)
-    {
-        Function *likelyNew = module->module->getFunction("likely_new");
-        if (!likelyNew) {
-            Type *params[] = { Type::getInt32Ty(getContext()), Type::getInt32Ty(getContext()), Type::getInt32Ty(getContext()), Type::getInt32Ty(getContext()), Type::getInt32Ty(getContext()), Type::getInt8PtrTy(getContext()) };
-            FunctionType *functionType = FunctionType::get(multiDimension(), params, false);
-            likelyNew = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_new", module->module);
-            likelyNew->setCallingConv(CallingConv::C);
-            likelyNew->setDoesNotAlias(0);
-            likelyNew->setDoesNotAlias(6);
-            likelyNew->setDoesNotCapture(6);
-            sys::DynamicLibrary::AddSymbol("likely_new", (void*) likely_new);
-        }
-        Value* args[] = { type, channels, columns, rows, frames, data };
-        return LikelyValue(CreateCall(likelyNew, args), likely_multi_dimension);
-    }
-
     LikelyValue retainMat(Value *m)
     {
         Function *likelyRetain = module->module->getFunction("likely_retain_mat");
@@ -911,13 +894,22 @@ private:
             FunctionType *functionType = FunctionType::get(llvmReturn, llvmParameters, false);
             symbol = Function::Create(functionType, GlobalValue::ExternalLinkage, name, builder.module->module);
             symbol->setCallingConv(CallingConv::C);
-            if (isa<PointerType>(llvmReturn))
+            symbol->setCannotDuplicate();
+            symbol->setDoesNotThrow();
+            symbol->setOnlyReadsMemory();
+            if (isa<PointerType>(llvmReturn)) {
                 symbol->setDoesNotAlias(0);
-            for (size_t i=0; i<llvmParameters.size(); i++)
+            } else if (isa<IntegerType>(llvmReturn)) {
+                symbol->addAttribute(0, type & likely_signed ? Attribute::SExt : Attribute::ZExt);
+            }
+            for (size_t i=0; i<llvmParameters.size(); i++) {
                 if (isa<PointerType>(llvmParameters[i])) {
-                    symbol->setDoesNotAlias(int(i)+1);
-                    symbol->setDoesNotCapture(int(i)+1);
+                    symbol->setDoesNotAlias(unsigned(i)+1);
+                    symbol->setDoesNotCapture(unsigned(i)+1);
+                } else if (isa<IntegerType>(llvmParameters[i])) {
+                    symbol->addAttribute(unsigned(i)+1, parameters[i] & likely_signed ? Attribute::SExt : Attribute::ZExt);
                 }
+            }
         }
 
         vector<Value*> args;
@@ -2438,7 +2430,25 @@ class newExpression : public LikelyOperator
         if (!(inferredType & likely_multi_dimension))
             inferredType |= likely_multi_dimension;
 
-        return new likely_expression(LikelyValue(builder.CreatePointerCast(builder.newMat(type, channels, columns, rows, frames, data), builder.toLLVM(inferredType)), inferredType));
+        Function *likelyNew = builder.module->module->getFunction("likely_new");
+        if (!likelyNew) {
+            Type *params[] = { Type::getInt32Ty(builder.getContext()), Type::getInt32Ty(builder.getContext()), Type::getInt32Ty(builder.getContext()), Type::getInt32Ty(builder.getContext()), Type::getInt32Ty(builder.getContext()), Type::getInt8PtrTy(builder.getContext()) };
+            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, false);
+            likelyNew = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_new", builder.module->module);
+            likelyNew->setCallingConv(CallingConv::C);
+            likelyNew->setCannotDuplicate();
+            likelyNew->setDoesNotThrow();
+            likelyNew->setOnlyReadsMemory();
+            likelyNew->setDoesNotAlias(0);
+            for (unsigned i=1; i<6; i++)
+                likelyNew->addAttribute(i, Attribute::ZExt);
+            likelyNew->setDoesNotAlias(6);
+            likelyNew->setDoesNotCapture(6);
+            likelyNew->addAttribute(6, Attribute::ReadOnly);
+            sys::DynamicLibrary::AddSymbol("likely_new", (void*) likely_new);
+        }
+        Value* args[] = { type, channels, columns, rows, frames, data };
+        return new likely_expression(LikelyValue(builder.CreatePointerCast(builder.CreateCall(likelyNew, args), builder.toLLVM(inferredType)), inferredType));
     }
 
     static void checkDimension(likely_type &type, Value *dimension, likely_type mask)
