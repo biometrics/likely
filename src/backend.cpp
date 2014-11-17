@@ -698,49 +698,48 @@ struct Builder : public IRBuilder<>
         return NULL;
     }
 
-    // channels(), columns(), rows() and frames() return 64 bit integers by design
     LikelyValue channels(const LikelyValue &m)
     {
         if (!(m & likely_multi_channel))
-            return one();
+            return one(likely_u32);
 
         if (CallInst *const newCall = traceback(m))
-            return cast(newCall->getOperand(1), likely_u64);
+            return LikelyValue(newCall->getOperand(1), likely_u32);
 
-        return cast(LikelyValue(CreateLoad(CreateStructGEP(m, 2), "channels"), likely_u32), likely_u64);
+        return LikelyValue(CreateLoad(CreateStructGEP(m, 2), "channels"), likely_u32);
     }
 
     LikelyValue columns(const LikelyValue &m)
     {
         if (!(m & likely_multi_column))
-            return one();
+            return one(likely_u32);
 
         if (CallInst *const newCall = traceback(m))
-            return cast(newCall->getOperand(2), likely_u64);
+            return LikelyValue(newCall->getOperand(2), likely_u32);
 
-        return cast(LikelyValue(CreateLoad(CreateStructGEP(m, 3), "columns"), likely_u32), likely_u64);
+        return LikelyValue(CreateLoad(CreateStructGEP(m, 3), "columns"), likely_u32);
     }
 
     LikelyValue rows(const LikelyValue &m)
     {
         if (!(m & likely_multi_row))
-            return one();
+            return one(likely_u32);
 
         if (CallInst *const newCall = traceback(m))
-            return cast(newCall->getOperand(3), likely_u64);
+            return LikelyValue(newCall->getOperand(3), likely_u32);
 
-        return cast(LikelyValue(CreateLoad(CreateStructGEP(m, 4), "rows"), likely_u32), likely_u64);
+        return LikelyValue(CreateLoad(CreateStructGEP(m, 4), "rows"), likely_u32);
     }
 
     LikelyValue frames(const LikelyValue &m)
     {
         if (!(m & likely_multi_frame))
-            return one();
+            return one(likely_u32);
 
         if (CallInst *const newCall = traceback(m))
-            return cast(newCall->getOperand(4), likely_u64);
+            return LikelyValue(newCall->getOperand(4), likely_u32);
 
-        return cast(LikelyValue(CreateLoad(CreateStructGEP(m, 5), "frames"), likely_u32), likely_u64);
+        return LikelyValue(CreateLoad(CreateStructGEP(m, 5), "frames"), likely_u32);
     }
 
     LikelyValue data(const LikelyValue &m)
@@ -1888,14 +1887,14 @@ struct Loop : public likely_expression
         loop = BasicBlock::Create(builder.getContext(), "loop_" + name, entry->getParent());
         builder.CreateBr(loop);
         builder.SetInsertPoint(loop);
-        type = likely_u64;
+        type = toLikely(start->getType());
         value = builder.CreatePHI(builder.toLLVM(type), 2, name);
         cast<PHINode>(value)->addIncoming(start, entry);
     }
 
     virtual void close(Builder &builder)
     {
-        Value *increment = builder.CreateAdd(value, builder.one(), name + "_increment");
+        Value *increment = builder.CreateAdd(value, builder.one(type), name + "_increment");
         exit = BasicBlock::Create(builder.getContext(), name + "_exit", loop->getParent());
         latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_test"), exit, loop);
         cast<PHINode>(value)->addIncoming(increment, builder.GetInsertBlock());
@@ -1911,7 +1910,7 @@ class loopExpression : public LikelyOperator
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         TRY_EXPR(builder, ast->atoms[3], end)
-        Loop loop(builder, ast->atoms[2]->atom, builder.zero(), *end);
+        Loop loop(builder, ast->atoms[2]->atom, builder.zero(*end), *end);
         define(builder.env, ast->atoms[2]->atom, &loop);
         likely_const_expr expression = get(builder, ast->atoms[1]);
         undefine(builder.env, ast->atoms[2]->atom);
@@ -1955,12 +1954,12 @@ class kernelExpression : public LikelyOperator
         KernelArgument(Builder &builder, const likely_expression &matrix, const string &name)
             : Assignable(matrix.value, matrix.type), name(name)
         {
-            channels   = builder.channels(*this);
-            columns    = builder.columns(*this);
+            channels   = builder.cast(builder.channels(*this), likely_u64);
+            columns    = builder.cast(builder.columns(*this), likely_u64);
             rowStep    = builder.multiplyInts(columns, channels);
-            rows       = builder.rows(*this);
+            rows       = builder.cast(builder.rows(*this), likely_u64);
             frameStep  = builder.multiplyInts(rows, rowStep);
-            frames     = builder.frames(*this);
+            frames     = builder.cast(builder.frames(*this), likely_u64);
             channels ->setName(name + "_c");
             columns  ->setName(name + "_x");
             rows     ->setName(name + "_y");
@@ -1973,10 +1972,10 @@ class kernelExpression : public LikelyOperator
         Value *gep(Builder &builder, likely_const_ast) const
         {
             Value *i = builder.zero();
-            if (type & likely_multi_channel) i = likely_lookup(builder.env, "c")->expr->value;
-            if (type & likely_multi_column ) i = builder.addInts(builder.multiplyInts(likely_lookup(builder.env, "x")->expr->value, channels ), i);
-            if (type & likely_multi_row    ) i = builder.addInts(builder.multiplyInts(likely_lookup(builder.env, "y")->expr->value, rowStep  ), i);
-            if (type & likely_multi_frame  ) i = builder.addInts(builder.multiplyInts(likely_lookup(builder.env, "t")->expr->value, frameStep), i);
+            if (type & likely_multi_channel) i = builder.CreateZExt(likely_lookup(builder.env, "c")->expr->value, Type::getInt64Ty(builder.getContext()));
+            if (type & likely_multi_column ) i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "x")->expr->value, Type::getInt64Ty(builder.getContext())), channels ), i);
+            if (type & likely_multi_row    ) i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "y")->expr->value, Type::getInt64Ty(builder.getContext())), rowStep  ), i);
+            if (type & likely_multi_frame  ) i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "t")->expr->value, Type::getInt64Ty(builder.getContext())), frameStep), i);
             return builder.CreateGEP(builder.data(*this), i);
         }
 
@@ -2046,10 +2045,10 @@ class kernelExpression : public LikelyOperator
         }
 
         Value *kernelSize;
-        if      (srcs[0]->type & likely_multi_frame)   kernelSize = builder.frames(*srcs[0]);
-        else if (srcs[0]->type & likely_multi_row)     kernelSize = builder.rows(*srcs[0]);
-        else if (srcs[0]->type & likely_multi_column)  kernelSize = builder.columns(*srcs[0]);
-        else if (srcs[0]->type & likely_multi_channel) kernelSize = builder.channels(*srcs[0]);
+        if      (srcs[0]->type & likely_multi_frame)   kernelSize = builder.cast(builder.frames  (*srcs[0]), likely_u64);
+        else if (srcs[0]->type & likely_multi_row)     kernelSize = builder.cast(builder.rows    (*srcs[0]), likely_u64);
+        else if (srcs[0]->type & likely_multi_column)  kernelSize = builder.cast(builder.columns (*srcs[0]), likely_u64);
+        else if (srcs[0]->type & likely_multi_channel) kernelSize = builder.cast(builder.channels(*srcs[0]), likely_u64);
         else                                           kernelSize = builder.one();
 
         if      (builder.env->type & likely_environment_heterogeneous) generateHeterogeneous(builder, ast, srcs, kernelSize);
