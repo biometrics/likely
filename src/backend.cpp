@@ -689,12 +689,65 @@ struct Builder : public IRBuilder<>
         return CreateMul(lhs, rhs);
     }
 
-    // channels(), columns(), rows() and frames() return native integers by design
-    LikelyValue channels(const LikelyValue &m) { return (m & likely_multi_channel) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 2), "channels"), likely_u32), likely_u64) : one(); }
-    LikelyValue columns (const LikelyValue &m) { return (m & likely_multi_column ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 3), "columns" ), likely_u32), likely_u64) : one(); }
-    LikelyValue rows    (const LikelyValue &m) { return (m & likely_multi_row    ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 4), "rows"    ), likely_u32), likely_u64) : one(); }
-    LikelyValue frames  (const LikelyValue &m) { return (m & likely_multi_frame  ) ? cast(LikelyValue(CreateLoad(CreateStructGEP(m, 5), "frames"  ), likely_u32), likely_u64) : one(); }
-    LikelyValue data    (const LikelyValue &m) { const likely_type type = (m & likely_element) | likely_pointer; return LikelyValue(CreatePointerCast(CreateStructGEP(m, 6), toLLVM(type)), type); }
+    static CallInst *traceback(Value *m)
+    {
+        if (CastInst *const cast = dyn_cast<CastInst>(m))
+            if (CallInst *const call = dyn_cast<CallInst>(cast->getOperand(0)))
+                if (call->getCalledFunction()->getName() == "likely_new")
+                    return call;
+        return NULL;
+    }
+
+    // channels(), columns(), rows() and frames() return 64 bit integers by design
+    LikelyValue channels(const LikelyValue &m)
+    {
+        if (!(m & likely_multi_channel))
+            return one();
+
+        if (CallInst *const newCall = traceback(m))
+            return cast(newCall->getOperand(1), likely_u64);
+
+        return cast(LikelyValue(CreateLoad(CreateStructGEP(m, 2), "channels"), likely_u32), likely_u64);
+    }
+
+    LikelyValue columns(const LikelyValue &m)
+    {
+        if (!(m & likely_multi_column))
+            return one();
+
+        if (CallInst *const newCall = traceback(m))
+            return cast(newCall->getOperand(2), likely_u64);
+
+        return cast(LikelyValue(CreateLoad(CreateStructGEP(m, 3), "columns"), likely_u32), likely_u64);
+    }
+
+    LikelyValue rows(const LikelyValue &m)
+    {
+        if (!(m & likely_multi_row))
+            return one();
+
+        if (CallInst *const newCall = traceback(m))
+            return cast(newCall->getOperand(3), likely_u64);
+
+        return cast(LikelyValue(CreateLoad(CreateStructGEP(m, 4), "rows"), likely_u32), likely_u64);
+    }
+
+    LikelyValue frames(const LikelyValue &m)
+    {
+        if (!(m & likely_multi_frame))
+            return one();
+
+        if (CallInst *const newCall = traceback(m))
+            return cast(newCall->getOperand(4), likely_u64);
+
+        return cast(LikelyValue(CreateLoad(CreateStructGEP(m, 5), "frames"), likely_u32), likely_u64);
+    }
+
+    LikelyValue data(const LikelyValue &m)
+    {
+        const likely_type type = (m & likely_element) | likely_pointer;
+        return LikelyValue(CreatePointerCast(CreateStructGEP(m, 6), toLLVM(type)), type);
+    }
 
     LikelyValue cast(const LikelyValue &x, likely_type type)
     {
