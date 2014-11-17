@@ -71,6 +71,7 @@ static cl::opt<bool> parallel("parallel" , cl::desc("Compile parallel kernels"))
 static cl::alias     parallelA("p", cl::desc("Alias for -parallel"), cl::aliasopt(parallel));
 
 cl::OptionCategory LLVMCat("LLVM Options", "These control the behavior of the internal LLVM compiler.");
+static cl::opt<bool> OptLevelO0("O0", cl::desc("No optimizations. Similar to clang -O1"), cl::cat(LLVMCat));
 static cl::opt<bool> OptLevelO1("O1", cl::desc("Optimization level 1. Similar to clang -O1"), cl::cat(LLVMCat));
 static cl::opt<bool> OptLevelO2("O2", cl::desc("Optimization level 2. Similar to clang -O2"), cl::cat(LLVMCat));
 static cl::opt<bool> OptLevelOs("Os", cl::desc("Like -O2 with extra optimizations for size. Similar to clang -Os"), cl::cat(LLVMCat));
@@ -153,7 +154,7 @@ int main(int argc, char *argv[])
     else if (quiet) evalCallback = quietCallback;
     else            evalCallback = printCallback;
 
-    likely_initialize(OptLevelO3 ? 3 : ((OptLevelO2 || OptLevelOs || OptLevelOz) ? 2 : (OptLevelO1 ? 1 : (output.empty() ? 3 : 0))),
+    likely_initialize(OptLevelO3 ? 3 : ((OptLevelO2 || OptLevelOs || OptLevelOz) ? 2 : (OptLevelO1 ? 1 : (OptLevelO0 ? 0 : (output.empty() ? 3 : 0)))),
                       OptLevelOz ? 2 : (OptLevelOs ? 1 : 0),
                       !DisableLoopVectorization);
 
