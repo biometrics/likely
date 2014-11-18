@@ -66,12 +66,14 @@ using namespace std;
 static int OptLevel = 0;
 static int SizeLevel = 0;
 static bool LoopVectorize = false;
+static bool Verbose = false;
 
-void likely_initialize(int opt_level, int size_level, bool loop_vectorize)
+void likely_initialize(int opt_level, int size_level, bool loop_vectorize, bool verbose)
 {
     OptLevel = max(min(opt_level, 3), 0);
     SizeLevel = max(min(size_level, 2), 0);
     LoopVectorize = loop_vectorize;
+    Verbose = verbose;
 
     InitializeNativeTarget();
     InitializeNativeTargetAsmPrinter();
@@ -2376,18 +2378,23 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
     likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
 
     if (!evaluate) {
+        // optimize & compile
         EE->setObjectCache(&TheJITFunctionCache);
         if (!TheJITFunctionCache.alert(builder.module->module))
             builder.module->optimize();
 
         EE->finalizeObject();
         function = (void*) EE->getFunctionAddress(name);
+    }
 
+    if (Verbose)
+        builder.module->module->dump();
+
+    if (!evaluate) {
         // cleanup
         EE->removeModule(builder.module->module);
         builder.module->finalize();
     }
-//    builder.module->module->dump();
 }
 
 class newExpression : public LikelyOperator

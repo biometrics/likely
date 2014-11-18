@@ -922,7 +922,7 @@ private:
 int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
-    likely_initialize(3, 0, true);
+    likely_initialize(3, 0, true, false);
 
     QApplication::setApplicationName("Dream");
     QApplication::setOrganizationName("Likely");

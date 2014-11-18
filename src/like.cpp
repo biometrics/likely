@@ -69,6 +69,8 @@ static cl::opt<bool> quiet("quiet", cl::desc("Don't show matrix output"));
 static cl::alias     quietA("q", cl::desc("Alias for -quiet"), cl::aliasopt(quiet));
 static cl::opt<bool> parallel("parallel" , cl::desc("Compile parallel kernels"));
 static cl::alias     parallelA("p", cl::desc("Alias for -parallel"), cl::aliasopt(parallel));
+static cl::opt<bool> verbose("verbose" , cl::desc("Verbose compiler output"));
+static cl::alias     verboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(verbose));
 
 cl::OptionCategory LLVMCat("LLVM Options", "These control the behavior of the internal LLVM compiler.");
 static cl::opt<bool> OptLevelO0("O0", cl::desc("No optimizations. Similar to clang -O1"), cl::cat(LLVMCat));
@@ -156,7 +158,8 @@ int main(int argc, char *argv[])
 
     likely_initialize(OptLevelO3 ? 3 : ((OptLevelO2 || OptLevelOs || OptLevelOz) ? 2 : (OptLevelO1 ? 1 : (OptLevelO0 ? 0 : (output.empty() ? 3 : 0)))),
                       OptLevelOz ? 2 : (OptLevelOs ? 1 : 0),
-                      !DisableLoopVectorization);
+                      !DisableLoopVectorization,
+                      verbose);
 
     likely_env parent = likely_standard(output.empty() ? NULL /* JIT */ : output.c_str() /* Offline */);
     if (parallel)
