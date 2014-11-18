@@ -108,8 +108,8 @@ class LikelyContext
     LikelyContext()
         : PM(new PassManager())
     {
+        PM->add(createVerifierPass());
         if (OptLevel > 0) {
-            PM->add(createVerifierPass());
             static TargetMachine *TM = getTargetMachine(false);
             PM->add(new TargetLibraryInfo(Triple(sys::getProcessTriple())));
             PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
@@ -121,8 +121,6 @@ class LikelyContext
             builder.Inliner = createAlwaysInlinerPass();
             builder.populateModulePassManager(*PM);
             PM->add(createVerifierPass());
-        } else {
-            PM = NULL;
         }
     }
 
@@ -212,11 +210,9 @@ public:
 
     void optimize(Module &module)
     {
-        if (!PM)
-            return;
-
-        module.setTargetTriple(sys::getProcessTriple());
 //        DebugFlag = true;
+        if (OptLevel > 0)
+            module.setTargetTriple(sys::getProcessTriple());
         PM->run(module);
     }
 
