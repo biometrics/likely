@@ -2379,20 +2379,19 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
     likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
 
     if (!evaluate) {
-        // optimize & compile
+        // optimize
         EE->setObjectCache(&TheJITFunctionCache);
         if (!TheJITFunctionCache.alert(builder.module->module))
             builder.module->optimize();
-
-        EE->finalizeObject();
-        function = (void*) EE->getFunctionAddress(name);
     }
 
     if (Verbose)
         builder.module->module->dump();
 
     if (!evaluate) {
-        // cleanup
+        // compile & cleanup
+        EE->finalizeObject();
+        function = (void*) EE->getFunctionAddress(name);
         EE->removeModule(builder.module->module);
         builder.module->finalize();
     }
