@@ -746,6 +746,9 @@ struct Builder : public IRBuilder<>
 
     LikelyValue data(const LikelyValue &m)
     {
+        if (!(m & likely_multi_dimension))
+            return LikelyValue();
+
         const likely_type type = (m & likely_element) | likely_pointer;
         return LikelyValue(CreatePointerCast(CreateStructGEP(m, 6), toLLVM(type)), type);
     }
@@ -1944,6 +1947,7 @@ class kernelExpression : public LikelyOperator
         MDNode *node = NULL;
         Value *channels, *columns, *rows, *frames;
         Value *rowStep, *frameStep;
+        Value *data;
 
         KernelArgument(Builder &builder, const likely_expression &matrix, const string &name)
             : Assignable(matrix.value, matrix.type), name(name)
@@ -1952,6 +1956,7 @@ class kernelExpression : public LikelyOperator
             columns    = builder.columns(*this);
             rows       = builder.rows(*this);
             frames     = builder.frames(*this);
+            data       = builder.data(*this);
             rowStep    = builder.multiplyInts(builder.cast(channels, likely_u64), builder.cast(columns, likely_u64));
             frameStep  = builder.multiplyInts(rowStep, builder.cast(rows, likely_u64));
             channels ->setName(name + "_c");
@@ -1970,7 +1975,7 @@ class kernelExpression : public LikelyOperator
             if (type & likely_multi_column ) i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "x")->expr->value, Type::getInt64Ty(builder.getContext())), builder.CreateZExt(channels, Type::getInt64Ty(builder.getContext()))), i);
             if (type & likely_multi_row    ) i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "y")->expr->value, Type::getInt64Ty(builder.getContext())), rowStep  ), i);
             if (type & likely_multi_frame  ) i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "t")->expr->value, Type::getInt64Ty(builder.getContext())), frameStep), i);
-            return builder.CreateGEP(builder.data(*this), i);
+            return builder.CreateGEP(data, i);
         }
 
         void set(Builder &builder, likely_const_expr expr, likely_const_ast ast) const
