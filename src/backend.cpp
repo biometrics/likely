@@ -1869,17 +1869,17 @@ struct Loop : public likely_expression
 {
     string name;
     Value *start, *stop;
-    BasicBlock *loop, *exit;
+    BasicBlock *body, *exit;
     BranchInst *latch;
 
     Loop(Builder &builder, const string &name, Value *start, Value *stop)
         : name(name), start(start), stop(stop), exit(NULL), latch(NULL)
     {
-        // Loops assume at least one iteration
-        BasicBlock *entry = builder.GetInsertBlock();
-        loop = BasicBlock::Create(builder.getContext(), "loop_" + name, entry->getParent());
-        builder.CreateBr(loop);
-        builder.SetInsertPoint(loop);
+        BasicBlock *const entry = builder.GetInsertBlock();
+        body = BasicBlock::Create(builder.getContext(), name + "_body", entry->getParent());
+        exit = BasicBlock::Create(builder.getContext(), name + "_exit", body->getParent());
+        builder.CreateCondBr(builder.CreateICmpEQ(start, stop, name + "_precondition"), exit, body);
+        builder.SetInsertPoint(body);
         type = toLikely(start->getType());
         value = builder.CreatePHI(builder.toLLVM(type), 2, name);
         cast<PHINode>(value)->addIncoming(start, entry);
@@ -1887,9 +1887,8 @@ struct Loop : public likely_expression
 
     virtual void close(Builder &builder)
     {
-        Value *increment = builder.CreateAdd(value, builder.one(type), name + "_increment");
-        exit = BasicBlock::Create(builder.getContext(), name + "_exit", loop->getParent());
-        latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_test"), exit, loop);
+        Value *const increment = builder.CreateAdd(value, builder.one(type), name + "_increment");
+        latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_latch"), exit, body);
         cast<PHINode>(value)->addIncoming(increment, builder.GetInsertBlock());
         builder.SetInsertPoint(exit);
     }
