@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
     }
 
     puts("Initializing compiler...");
-    likely_initialize(3, 0, true, false);
+    likely_initialize(3, 0, true, true, false);
 
     puts("Reading input image...");
     const likely_const_mat input = likely_read(argv[1], likely_file_guess);

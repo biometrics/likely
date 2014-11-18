@@ -77,12 +77,13 @@ struct likely_environment
  * Call _once_ before the calling application begins using functionality provided in \ref backend.
  * \param[in] opt_level Specify the basic optimization level. 0 = -O0, 1 = -O1, 2 = -O2, 3 = -O3.
  * \param[in] size_level How much we're optimizing for size. 0 = none, 1 = -Os, 2 = -Oz.
- * \param[in] loop_vectorize Perform loop vectorization.
+ * \param[in] unroll_loops Perform loop unrolling optimization.
+ * \param[in] vectorize_loops Perform loop vectorization optimization.
  * \param[in] verbose Verbose compiler output.
  * \remark This function is \ref thread-unsafe.
  * \see likely_shutdown
  */
-LIKELY_EXPORT void likely_initialize(int opt_level, int size_level, bool loop_vectorize, bool verbose);
+LIKELY_EXPORT void likely_initialize(int opt_level, int size_level, bool unroll_loops, bool vectorize_loops, bool verbose);
 
 /*!
  * \brief Construct a compilation environment with \ref likely_standard_library symbols.

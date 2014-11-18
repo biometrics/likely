@@ -65,14 +65,16 @@ using namespace std;
 
 static int OptLevel = 0;
 static int SizeLevel = 0;
-static bool LoopVectorize = false;
+static bool UnrollLoops = false;
+static bool VectorizeLoops = false;
 static bool Verbose = false;
 
-void likely_initialize(int opt_level, int size_level, bool loop_vectorize, bool verbose)
+void likely_initialize(int opt_level, int size_level, bool unroll_loops, bool vectorize_loops, bool verbose)
 {
     OptLevel = max(min(opt_level, 3), 0);
     SizeLevel = max(min(size_level, 2), 0);
-    LoopVectorize = loop_vectorize;
+    UnrollLoops = unroll_loops;
+    VectorizeLoops = vectorize_loops;
     Verbose = verbose;
 
     InitializeNativeTarget();
@@ -117,7 +119,8 @@ class LikelyContext
             PassManagerBuilder builder;
             builder.OptLevel = OptLevel;
             builder.SizeLevel = SizeLevel;
-            builder.LoopVectorize = LoopVectorize;
+            builder.DisableUnrollLoops = !UnrollLoops;
+            builder.LoopVectorize = VectorizeLoops;
             builder.Inliner = createAlwaysInlinerPass();
             builder.populateModulePassManager(*PM);
             PM->add(createVerifierPass());

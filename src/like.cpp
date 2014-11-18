@@ -79,6 +79,7 @@ static cl::opt<bool> OptLevelO2("O2", cl::desc("Optimization level 2. Similar to
 static cl::opt<bool> OptLevelOs("Os", cl::desc("Like -O2 with extra optimizations for size. Similar to clang -Os"), cl::cat(LLVMCat));
 static cl::opt<bool> OptLevelOz("Oz", cl::desc("Like -Os but reduces code size further. Similar to clang -Oz"), cl::cat(LLVMCat));
 static cl::opt<bool> OptLevelO3("O3", cl::desc("Optimization level 3. Similar to clang -O3"), cl::cat(LLVMCat));
+static cl::opt<bool> DisableLoopUnrolling("disable-loop-unrolling", cl::desc("Disable loop unrolling in all relevant passes"), cl::cat(LLVMCat));
 static cl::opt<bool> DisableLoopVectorization("disable-loop-vectorization", cl::desc("Disable the loop vectorization pass"), cl::cat(LLVMCat));
 
 static void checkOrPrintAndRelease(likely_const_mat input)
@@ -158,6 +159,7 @@ int main(int argc, char *argv[])
 
     likely_initialize(OptLevelO3 ? 3 : ((OptLevelO2 || OptLevelOs || OptLevelOz) ? 2 : (OptLevelO1 ? 1 : (OptLevelO0 ? 0 : (output.empty() ? 3 : 0)))),
                       OptLevelOz ? 2 : (OptLevelOs ? 1 : 0),
+                      !DisableLoopUnrolling,
                       !DisableLoopVectorization,
                       verbose);
 
