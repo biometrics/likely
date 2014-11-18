@@ -1999,11 +1999,12 @@ class kernelExpression : public LikelyOperator
     struct KernelAxis : public Loop
     {
         KernelAxis *parent, *child;
+        Value *true_;
         MDNode *node;
         Value *offset;
 
         KernelAxis(Builder &builder, const string &name, Value *start, Value *stop, Value *step, KernelAxis *parent)
-            : Loop(builder, name, start, stop), parent(parent), child(NULL)
+            : Loop(builder, name, start, stop), parent(parent), child(NULL), true_(ConstantInt::getTrue(builder.getContext()))
         {
             { // Create self-referencing loop node
                 vector<Value*> metadata;
@@ -2024,6 +2025,31 @@ class kernelExpression : public LikelyOperator
             Loop::close(builder);
             latch->setMetadata("llvm.loop", node);
             if (parent) parent->close(builder);
+        }
+
+        bool referenced() const { return value->getNumUses() > 2; }
+
+        set<string> tryCollapse()
+        {
+            if (parent)
+                return parent->tryCollapse();
+
+            set<string> collapsedAxis;
+            collapsedAxis.insert(name);
+            if (referenced())
+                return collapsedAxis;
+
+            while (child && !child->referenced()) {
+                // Collapse the child loop into us
+                child->offset->replaceAllUsesWith(value);
+                child->latch->setCondition(true_);
+                DeleteDeadPHIs(child->body);
+                MergeBlockIntoPredecessor(child->body);
+                MergeBlockIntoPredecessor(child->exit);
+                collapsedAxis.insert(child->name);
+                child = child->child;
+            }
+            return collapsedAxis;
         }
     };
 
@@ -2195,6 +2221,7 @@ class kernelExpression : public LikelyOperator
         kernelArguments.clear();
 
         axis->close(builder);
+//        axis->tryCollapse(builder);
         delete undefine(builder.env, "c");
         delete undefine(builder.env, "x");
         delete undefine(builder.env, "y");
