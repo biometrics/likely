@@ -1941,11 +1941,9 @@ class kernelExpression : public LikelyOperator
 {
     struct KernelInfo
     {
-        MDNode *node;
-        Value *c, *x, *y, *t;
-        Value *cOffset, *xOffset, *yOffset, *tOffset;
-        KernelInfo(MDNode *node = NULL, Value *c = NULL, Value *x = NULL, Value *y = NULL, Value *t = NULL, Value *cOffset = NULL, Value *xOffset = NULL, Value *yOffset = NULL, Value *tOffset = NULL)
-            : node(node), c(c), x(x), y(y), t(t), cOffset(cOffset), xOffset(xOffset), yOffset(yOffset), tOffset(tOffset) {}
+        MDNode *node = NULL;
+        Value *c = NULL, *x = NULL, *y = NULL, *t = NULL;
+        Value *cOffset = NULL, *xOffset = NULL, *yOffset = NULL, *tOffset = NULL;
     };
 
     struct KernelArgument : public Assignable
@@ -2183,49 +2181,37 @@ class kernelExpression : public LikelyOperator
             kernelArguments.push_back(new KernelArgument(builder, *srcs[0], args->atom));
         }
 
+        KernelInfo info;
         KernelAxis *axis = NULL;
-        for (int axis_index=0; axis_index<4; axis_index++) {
-            string name;
-            bool multiElement;
-            Value *elements, *step;
-
-            switch (axis_index) {
-              case 0:
-                name = "t";
-                multiElement = (kernelArguments[0]->type & likely_multi_frame) != 0;
-                elements = kernelArguments[0]->frames;
-                step = kernelArguments[0]->frameStep;
-                break;
-              case 1:
-                name = "y";
-                multiElement = (kernelArguments[0]->type & likely_multi_row) != 0;
-                elements = kernelArguments[0]->rows;
-                step = kernelArguments[0]->rowStep;
-                break;
-              case 2:
-                name = "x";
-                multiElement = (kernelArguments[0]->type & likely_multi_column) != 0;
-                elements = kernelArguments[0]->columns;
-                step = builder.cast(kernelArguments[0]->channels, likely_u64);
-                break;
-              default:
-                name = "c";
-                multiElement = (kernelArguments[0]->type & likely_multi_channel) != 0;
-                elements = kernelArguments[0]->channels;
-                step = builder.one();
-                break;
-            }
-
-            if (multiElement || ((axis_index == 3) && !axis)) {
-                if (!axis) axis = new KernelAxis(builder, name, start, stop, step, NULL);
-                else       axis = new KernelAxis(builder, name, builder.zero(likely_u32), elements, step, axis);
-                define(builder.env, name.c_str(), axis); // takes ownership of axis
-            } else {
-                define(builder.env, name.c_str(), new likely_expression(builder.zero(likely_u32)));
-            }
+        if (kernelArguments[0]->type & likely_multi_frame) {
+            axis = new KernelAxis(builder, "t", start, stop, kernelArguments[0]->frameStep, NULL);
+            define(builder.env, "t", axis);
+        } else {
+            define(builder.env, "t", new likely_expression(builder.zero(likely_u32)));
         }
 
-        const KernelInfo info(axis->node);
+        if (kernelArguments[0]->type & likely_multi_row) {
+            axis = new KernelAxis(builder, "y", axis ? builder.zero(likely_u32).value : start, axis ? kernelArguments[0]->rows : stop, kernelArguments[0]->rowStep, axis);
+            define(builder.env, "y", axis);
+        } else {
+            define(builder.env, "y", new likely_expression(builder.zero(likely_u32)));
+        }
+
+        if (kernelArguments[0]->type & likely_multi_column) {
+            axis = new KernelAxis(builder, "x", axis ? builder.zero(likely_u32).value : start, axis ? kernelArguments[0]->columns : stop, builder.cast(kernelArguments[0]->channels, likely_u64), axis);
+            define(builder.env, "x", axis);
+        } else {
+            define(builder.env, "x", new likely_expression(builder.zero(likely_u32)));
+        }
+
+        if ((kernelArguments[0]->type & likely_multi_channel) || !axis) {
+            axis = new KernelAxis(builder, "c", axis ? builder.zero(likely_u32).value : start, axis ? kernelArguments[0]->channels : stop, builder.one(), axis);
+            define(builder.env, "c", axis);
+        } else {
+            define(builder.env, "c", new likely_expression(builder.zero(likely_u32)));
+        }
+
+        info.node = axis->node;
         for (KernelArgument *kernelArgument : kernelArguments) {
             kernelArgument->info = info;
             define(builder.env, kernelArgument->name.c_str(), kernelArgument);
