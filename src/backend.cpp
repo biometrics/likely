@@ -1939,10 +1939,19 @@ private:
 
 class kernelExpression : public LikelyOperator
 {
+    struct KernelInfo
+    {
+        MDNode *node;
+        Value *c, *x, *y, *t;
+        Value *cOffset, *xOffset, *yOffset, *tOffset;
+        KernelInfo(MDNode *node = NULL, Value *c = NULL, Value *x = NULL, Value *y = NULL, Value *t = NULL, Value *cOffset = NULL, Value *xOffset = NULL, Value *yOffset = NULL, Value *tOffset = NULL)
+            : node(node), c(c), x(x), y(y), t(t), cOffset(cOffset), xOffset(xOffset), yOffset(yOffset), tOffset(tOffset) {}
+    };
+
     struct KernelArgument : public Assignable
     {
         const string name;
-        MDNode *node = NULL;
+        KernelInfo info;
         Value *channels, *columns, *rows, *frames;
         Value *rowStep, *frameStep;
         Value *data;
@@ -1969,17 +1978,31 @@ class kernelExpression : public LikelyOperator
         Value *gep(Builder &builder, likely_const_ast) const
         {
             Value *i = builder.zero();
-            if (type & likely_multi_channel) i = builder.CreateZExt(likely_lookup(builder.env, "c")->expr->value, Type::getInt64Ty(builder.getContext()));
-            if (type & likely_multi_column ) i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "x")->expr->value, Type::getInt64Ty(builder.getContext())), builder.CreateZExt(channels, Type::getInt64Ty(builder.getContext()))), i);
-            if (type & likely_multi_row    ) i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "y")->expr->value, Type::getInt64Ty(builder.getContext())), rowStep  ), i);
-            if (type & likely_multi_frame  ) i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "t")->expr->value, Type::getInt64Ty(builder.getContext())), frameStep), i);
+            if (type & likely_multi_channel) {
+                i = builder.CreateZExt(likely_lookup(builder.env, "c")->expr->value, Type::getInt64Ty(builder.getContext()));
+            }
+            if (type & likely_multi_column) {
+                i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "x")->expr->value, Type::getInt64Ty(builder.getContext())),
+                                                         builder.CreateZExt(channels, Type::getInt64Ty(builder.getContext()))),
+                                    i);
+            }
+            if (type & likely_multi_row) {
+                i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "y")->expr->value, Type::getInt64Ty(builder.getContext())),
+                                                         rowStep),
+                                    i);
+            }
+            if (type & likely_multi_frame) {
+                i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "t")->expr->value, Type::getInt64Ty(builder.getContext())),
+                                                         frameStep),
+                                    i);
+            }
             return builder.CreateGEP(data, i);
         }
 
         void set(Builder &builder, likely_const_expr expr, likely_const_ast ast) const
         {
             StoreInst *store = builder.CreateStore(builder.cast(*expr, type), gep(builder, ast));
-            store->setMetadata("llvm.mem.parallel_loop_access", node);
+            store->setMetadata("llvm.mem.parallel_loop_access", info.node);
         }
 
         likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -1991,7 +2014,7 @@ class kernelExpression : public LikelyOperator
                 return new likely_expression((LikelyValue) *this);
 
             LoadInst *load = builder.CreateLoad(gep(builder, ast));
-            load->setMetadata("llvm.mem.parallel_loop_access", node);
+            load->setMetadata("llvm.mem.parallel_loop_access", info.node);
             return new likely_expression(LikelyValue(load, type & likely_element));
         }
     };
@@ -2017,7 +2040,7 @@ class kernelExpression : public LikelyOperator
 
             if (parent)
                 parent->child = this;
-            offset = builder.CreateAdd(parent ? parent->offset : builder.zero().value, builder.CreateMul(step, builder.CreateZExt(value, step->getType())), name + "_offset");
+            offset = builder.addInts(parent ? parent->offset : builder.zero().value, builder.multiplyInts(step, builder.CreateZExt(value, step->getType())));
         }
 
         void close(Builder &builder)
@@ -2027,29 +2050,21 @@ class kernelExpression : public LikelyOperator
             if (parent) parent->close(builder);
         }
 
-        bool referenced() const { return value->getNumUses() > 2; }
-
-        set<string> tryCollapse()
+        void tryCollapse()
         {
-            if (parent)
-                return parent->tryCollapse();
-
-            set<string> collapsedAxis;
-            collapsedAxis.insert(name);
-            if (referenced())
-                return collapsedAxis;
-
-            while (child && !child->referenced()) {
+            if ((value->getNumUses() == 2) && child && (child->value->getNumUses() == 2)) {
                 // Collapse the child loop into us
-                child->offset->replaceAllUsesWith(value);
-                child->latch->setCondition(true_);
-                DeleteDeadPHIs(child->body);
-                MergeBlockIntoPredecessor(child->body);
-                MergeBlockIntoPredecessor(child->exit);
-                collapsedAxis.insert(child->name);
-                child = child->child;
+//                child->offset->replaceAllUsesWith(value);
+//                child->latch->setCondition(true_);
+//                DeleteDeadPHIs(child->body);
+//                MergeBlockIntoPredecessor(child->body);
+//                MergeBlockIntoPredecessor(child->exit);
+//                collapsedAxis.insert(child->name);
+//                child = child->child;
             }
-            return collapsedAxis;
+
+            if (parent)
+                parent->tryCollapse();
         }
     };
 
@@ -2210,8 +2225,9 @@ class kernelExpression : public LikelyOperator
             }
         }
 
+        const KernelInfo info(axis->node);
         for (KernelArgument *kernelArgument : kernelArguments) {
-            kernelArgument->node = axis->node;
+            kernelArgument->info = info;
             define(builder.env, kernelArgument->name.c_str(), kernelArgument);
         }
 
@@ -2221,7 +2237,7 @@ class kernelExpression : public LikelyOperator
         kernelArguments.clear();
 
         axis->close(builder);
-//        axis->tryCollapse(builder);
+        axis->tryCollapse();
         delete undefine(builder.env, "c");
         delete undefine(builder.env, "x");
         delete undefine(builder.env, "y");
