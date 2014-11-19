@@ -1941,6 +1941,7 @@ class kernelExpression : public LikelyOperator
 {
     struct KernelInfo
     {
+        likely_type type;
         MDNode *node = NULL;
         Value *c = NULL, *x = NULL, *y = NULL, *t = NULL;
         Value *cOffset = NULL, *xOffset = NULL, *yOffset = NULL, *tOffset = NULL;
@@ -1973,27 +1974,53 @@ class kernelExpression : public LikelyOperator
         }
 
     private:
-        Value *gep(Builder &builder, likely_const_ast) const
+        Value *gep(Builder &builder, likely_const_ast ast) const
         {
-            Value *i = builder.zero();
-            if (type & likely_multi_channel) {
-                i = builder.CreateZExt(likely_lookup(builder.env, "c")->expr->value, Type::getInt64Ty(builder.getContext()));
+            int sharedIndex = int(length(ast)) - 1;
+            assert((sharedIndex >= 0) && (sharedIndex <= 4));
+            if ((type & likely_multi_channel) != (info.type & likely_multi_channel)) sharedIndex = max(sharedIndex, 4);
+            if ((type & likely_multi_column)  != (info.type & likely_multi_column )) sharedIndex = max(sharedIndex, 4);
+            if ((type & likely_multi_row)     != (info.type & likely_multi_row    )) sharedIndex = max(sharedIndex, 4);
+            if ((type & likely_multi_frame)   != (info.type & likely_multi_frame  )) sharedIndex = max(sharedIndex, 4);
+            sharedIndex = 4;
+
+            // Use the kernel offset for axis that aren't specified
+            Value *i = NULL;
+            switch (sharedIndex) {
+                case 4: i = builder.zero(); break;
+                case 3: i = info.tOffset; break;
+                case 2: i = info.yOffset; break;
+                case 1: i = info.xOffset; break;
+                case 0: i = info.cOffset; break;
+                default: break;
             }
-            if (type & likely_multi_column) {
-                i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "x")->expr->value, Type::getInt64Ty(builder.getContext())),
-                                                         builder.CreateZExt(channels, Type::getInt64Ty(builder.getContext()))),
-                                    i);
+
+            // Compute our own offset for axis that are specified
+            switch (sharedIndex) {
+              case 4:
+                if (type & likely_multi_frame)
+                    i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "t")->expr->value, Type::getInt64Ty(builder.getContext())),
+                                                             frameStep),
+                                        i);
+              case 3:
+                if (type & likely_multi_row)
+                    i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "y")->expr->value, Type::getInt64Ty(builder.getContext())),
+                                                             rowStep),
+                                        i);
+              case 2:
+                if (type & likely_multi_column)
+                    i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "x")->expr->value, Type::getInt64Ty(builder.getContext())),
+                                                             builder.CreateZExt(channels, Type::getInt64Ty(builder.getContext()))),
+                                        i);
+              case 1:
+                if (type & likely_multi_channel)
+                    i = builder.addInts(builder.CreateZExt(likely_lookup(builder.env, "c")->expr->value, Type::getInt64Ty(builder.getContext())),
+                                        i);
+              case 0:
+              default:
+                break;
             }
-            if (type & likely_multi_row) {
-                i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "y")->expr->value, Type::getInt64Ty(builder.getContext())),
-                                                         rowStep),
-                                    i);
-            }
-            if (type & likely_multi_frame) {
-                i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "t")->expr->value, Type::getInt64Ty(builder.getContext())),
-                                                         frameStep),
-                                    i);
-            }
+
             return builder.CreateGEP(data, i);
         }
 
@@ -2185,32 +2212,48 @@ class kernelExpression : public LikelyOperator
         KernelAxis *axis = NULL;
         if (kernelArguments[0]->type & likely_multi_frame) {
             axis = new KernelAxis(builder, "t", start, stop, kernelArguments[0]->frameStep, NULL);
+            info.t = builder.CreateZExt(*axis, Type::getInt64Ty(builder.getContext()));
+            info.tOffset = axis->offset;
             define(builder.env, "t", axis);
         } else {
+            info.t = info.tOffset = builder.one();
             define(builder.env, "t", new likely_expression(builder.zero(likely_u32)));
         }
 
         if (kernelArguments[0]->type & likely_multi_row) {
             axis = new KernelAxis(builder, "y", axis ? builder.zero(likely_u32).value : start, axis ? kernelArguments[0]->rows : stop, kernelArguments[0]->rowStep, axis);
+            info.y = builder.CreateZExt(*axis, Type::getInt64Ty(builder.getContext()));
+            info.yOffset = axis->offset;
             define(builder.env, "y", axis);
         } else {
+            info.y = builder.one();
+            info.yOffset = axis ? axis->offset : builder.one().value;
             define(builder.env, "y", new likely_expression(builder.zero(likely_u32)));
         }
 
         if (kernelArguments[0]->type & likely_multi_column) {
             axis = new KernelAxis(builder, "x", axis ? builder.zero(likely_u32).value : start, axis ? kernelArguments[0]->columns : stop, builder.cast(kernelArguments[0]->channels, likely_u64), axis);
+            info.x = builder.CreateZExt(*axis, Type::getInt64Ty(builder.getContext()));
+            info.xOffset = axis->offset;
             define(builder.env, "x", axis);
         } else {
+            info.x = builder.one();
+            info.xOffset = axis ? axis->offset : builder.one().value;
             define(builder.env, "x", new likely_expression(builder.zero(likely_u32)));
         }
 
         if ((kernelArguments[0]->type & likely_multi_channel) || !axis) {
             axis = new KernelAxis(builder, "c", axis ? builder.zero(likely_u32).value : start, axis ? kernelArguments[0]->channels : stop, builder.one(), axis);
+            info.c = builder.CreateZExt(*axis, Type::getInt64Ty(builder.getContext()));
+            info.cOffset = axis->offset;
             define(builder.env, "c", axis);
         } else {
+            info.c = builder.one();
+            info.cOffset = axis->offset;
             define(builder.env, "c", new likely_expression(builder.zero(likely_u32)));
         }
 
+        info.type = kernelArguments[0]->type;
         info.node = axis->node;
         for (KernelArgument *kernelArgument : kernelArguments) {
             kernelArgument->info = info;
