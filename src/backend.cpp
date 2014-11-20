@@ -1974,9 +1974,6 @@ class kernelExpression : public LikelyOperator
         }
 
     private:
-        size_t maxParameters() const { return 4; }
-        size_t minParameters() const { return 0; }
-
         Value *gep(Builder &builder, likely_const_ast ast) const
         {
             const size_t len = length(ast);
@@ -2001,20 +1998,20 @@ class kernelExpression : public LikelyOperator
 
             // Compute our own offset for axes that are specified
             if ((sharedIndex >= 4) && (type & likely_multi_frame)) {
-                Value *t = (len >= 5) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[4]))->value : likely_lookup(builder.env, "t")->expr->value;
+                Value *t = (len >= 5) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[4]))->value : info.t;
                 i = builder.addInts(builder.multiplyInts(builder.CreateZExt(t, Type::getInt64Ty(builder.getContext())), frameStep), i);
             }
             if ((sharedIndex >= 3) && (type & likely_multi_row)) {
-                Value *y = (len >= 4) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[3]))->value : likely_lookup(builder.env, "y")->expr->value;
+                Value *y = (len >= 4) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[3]))->value : info.y;
                 i = builder.addInts(builder.multiplyInts(builder.CreateZExt(y, Type::getInt64Ty(builder.getContext())), rowStep), i);
             }
             if ((sharedIndex >= 2) && (type & likely_multi_column)) {
-                Value *x = (len >= 3) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[2]))->value : likely_lookup(builder.env, "x")->expr->value;
+                Value *x = (len >= 3) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[2]))->value : info.x;
                 i = builder.addInts(builder.multiplyInts(builder.CreateZExt(x, Type::getInt64Ty(builder.getContext())),
                                                          builder.CreateZExt(channels, Type::getInt64Ty(builder.getContext()))), i);
             }
             if ((sharedIndex >= 1) && (type & likely_multi_channel)) {
-                Value *c = (len >= 2) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[1]))->value : likely_lookup(builder.env, "c")->expr->value;
+                Value *c = (len >= 2) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[1]))->value : info.c;
                 i = builder.addInts(builder.CreateZExt(c, Type::getInt64Ty(builder.getContext())), i);
             }
 
@@ -2210,7 +2207,8 @@ class kernelExpression : public LikelyOperator
             info.tOffset = axis->offset;
             define(builder.env, "t", axis);
         } else {
-            info.t = info.tOffset = builder.one();
+            info.t = builder.zero();
+            info.tOffset = builder.one();
             define(builder.env, "t", new likely_expression(builder.zero(likely_u32)));
         }
 
@@ -2220,7 +2218,7 @@ class kernelExpression : public LikelyOperator
             info.yOffset = axis->offset;
             define(builder.env, "y", axis);
         } else {
-            info.y = builder.one();
+            info.y = builder.zero();
             info.yOffset = axis ? axis->offset : builder.one().value;
             define(builder.env, "y", new likely_expression(builder.zero(likely_u32)));
         }
@@ -2231,7 +2229,7 @@ class kernelExpression : public LikelyOperator
             info.xOffset = axis->offset;
             define(builder.env, "x", axis);
         } else {
-            info.x = builder.one();
+            info.x = builder.zero();
             info.xOffset = axis ? axis->offset : builder.one().value;
             define(builder.env, "x", new likely_expression(builder.zero(likely_u32)));
         }
@@ -2242,7 +2240,7 @@ class kernelExpression : public LikelyOperator
             info.cOffset = axis->offset;
             define(builder.env, "c", axis);
         } else {
-            info.c = builder.one();
+            info.c = builder.zero();
             info.cOffset = axis->offset;
             define(builder.env, "c", new likely_expression(builder.zero(likely_u32)));
         }
