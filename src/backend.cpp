@@ -1952,7 +1952,7 @@ class kernelExpression : public LikelyOperator
         const string name;
         KernelInfo info;
         Value *channels, *columns, *rows, *frames;
-        Value *rowStep, *frameStep;
+        Value *columnStep, *rowStep, *frameStep;
         Value *data;
 
         KernelArgument(Builder &builder, const likely_expression &matrix, const string &name)
@@ -1963,7 +1963,8 @@ class kernelExpression : public LikelyOperator
             rows       = builder.rows(*this);
             frames     = builder.frames(*this);
             data       = builder.data(*this);
-            rowStep    = builder.multiplyInts(builder.cast(channels, likely_u64), builder.cast(columns, likely_u64));
+            columnStep = builder.cast(channels, likely_u64);
+            rowStep    = builder.multiplyInts(columnStep, builder.cast(columns, likely_u64));
             frameStep  = builder.multiplyInts(rowStep, builder.cast(rows, likely_u64));
             channels ->setName(name + "_c");
             columns  ->setName(name + "_x");
@@ -1998,21 +1999,24 @@ class kernelExpression : public LikelyOperator
 
             // Compute our own offset for axes that are specified
             if ((sharedIndex >= 4) && (type & likely_multi_frame)) {
-                Value *t = (len >= 5) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[4]))->value : info.t;
-                i = builder.addInts(builder.multiplyInts(builder.CreateZExt(t, Type::getInt64Ty(builder.getContext())), frameStep), i);
+                Value *const t = (len >= 5) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[4])), likely_u64).value
+                                            : info.t;
+                i = builder.addInts(builder.multiplyInts(t, frameStep), i);
             }
             if ((sharedIndex >= 3) && (type & likely_multi_row)) {
-                Value *y = (len >= 4) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[3]))->value : info.y;
-                i = builder.addInts(builder.multiplyInts(builder.CreateZExt(y, Type::getInt64Ty(builder.getContext())), rowStep), i);
+                Value *const y = (len >= 4) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[3])), likely_u64).value
+                                            : info.y;
+                i = builder.addInts(builder.multiplyInts(y, rowStep), i);
             }
             if ((sharedIndex >= 2) && (type & likely_multi_column)) {
-                Value *x = (len >= 3) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[2]))->value : info.x;
-                i = builder.addInts(builder.multiplyInts(builder.CreateZExt(x, Type::getInt64Ty(builder.getContext())),
-                                                         builder.CreateZExt(channels, Type::getInt64Ty(builder.getContext()))), i);
+                Value *const x = (len >= 3) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[2])), likely_u64).value
+                                            : info.x;
+                i = builder.addInts(builder.multiplyInts(x, columnStep), i);
             }
             if ((sharedIndex >= 1) && (type & likely_multi_channel)) {
-                Value *c = (len >= 2) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[1]))->value : info.c;
-                i = builder.addInts(builder.CreateZExt(c, Type::getInt64Ty(builder.getContext())), i);
+                Value *const c = (len >= 2) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[1])), likely_u64).value
+                                            : info.c;
+                i = builder.addInts(c, i);
             }
 
             return builder.CreateGEP(data, i);
