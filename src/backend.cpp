@@ -1944,6 +1944,7 @@ class kernelExpression : public LikelyOperator
         likely_type type;
         MDNode *node = NULL;
         Value *c = NULL, *x = NULL, *y = NULL, *t = NULL;
+        Value *columnStep = NULL, *rowStep = NULL, *frameStep = NULL;
         Value *cOffset = NULL, *xOffset = NULL, *yOffset = NULL, *tOffset = NULL;
     };
 
@@ -1978,33 +1979,43 @@ class kernelExpression : public LikelyOperator
         Value *gep(Builder &builder, likely_const_ast ast) const
         {
             const size_t len = length(ast);
-            const int sharedIndicies = ((type & likely_multi_dimension) == (info.type & likely_multi_dimension)) ? 5 - len : 0;
+            const likely_type sharedAxes = ~(type ^ info.type) & likely_multi_dimension;
+            const int sharedOffset = (sharedAxes == likely_multi_dimension) ? 5 - len : 0;
 
             // Use the kernel offset for axes that aren't specified
             Value *i;
-            if      (sharedIndicies == 4) i = info.cOffset;
-            else if (sharedIndicies == 3) i = info.xOffset;
-            else if (sharedIndicies == 2) i = info.yOffset;
-            else if (sharedIndicies == 1) i = info.tOffset;
-            else                          i = builder.zero();
+            if      (sharedOffset == 4) i = info.cOffset;
+            else if (sharedOffset == 3) i = info.xOffset;
+            else if (sharedOffset == 2) i = info.yOffset;
+            else if (sharedOffset == 1) i = info.tOffset;
+            else                        i = builder.zero();
 
             // Compute our own offset for axes that are specified
-            if ((sharedIndicies < 1) && (type & likely_multi_frame)) {
+            if ((sharedOffset < 1) && (type & likely_multi_frame)) {
                 Value *const t = (len >= 5) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[4])), likely_u64).value
                                             : info.t;
-                i = builder.addInts(builder.multiplyInts(t, frameStep), i);
+//                Value *const tStep = ((sharedAxes & likely_multi_channel)
+//                                      && (sharedAxes & likely_multi_column)
+//                                      && (sharedAxes & likely_multi_row)
+//                                      && (sharedAxes & likely_multi_frame)) ? info.frameStep : frameStep;
+                i = builder.addInts(builder.multiplyInts(t, frameStep /* tStep */), i);
             }
-            if ((sharedIndicies < 2) && (type & likely_multi_row)) {
+            if ((sharedOffset < 2) && (type & likely_multi_row)) {
                 Value *const y = (len >= 4) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[3])), likely_u64).value
                                             : info.y;
-                i = builder.addInts(builder.multiplyInts(y, rowStep), i);
+//                Value *const yStep = ((sharedAxes & likely_multi_channel)
+//                                      && (sharedAxes & likely_multi_column)
+//                                      && (sharedAxes & likely_multi_row)) ? info.rowStep : rowStep;
+                i = builder.addInts(builder.multiplyInts(y, rowStep /* yStep */), i);
             }
-            if ((sharedIndicies < 3) && (type & likely_multi_column)) {
+            if ((sharedOffset < 3) && (type & likely_multi_column)) {
                 Value *const x = (len >= 3) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[2])), likely_u64).value
                                             : info.x;
-                i = builder.addInts(builder.multiplyInts(x, columnStep), i);
+//                Value *const xStep = ((sharedAxes & likely_multi_channel)
+//                                      && (sharedAxes & likely_multi_column)) ? info.columnStep : columnStep;
+                i = builder.addInts(builder.multiplyInts(x, columnStep /* xStep */), i);
             }
-            if ((sharedIndicies < 4) && (type & likely_multi_channel)) {
+            if ((sharedOffset < 4) && (type & likely_multi_channel)) {
                 Value *const c = (len >= 2) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[1])), likely_u64).value
                                             : info.c;
                 i = builder.addInts(c, i);
@@ -2241,6 +2252,9 @@ class kernelExpression : public LikelyOperator
         }
 
         info.type = kernelArguments[0]->type;
+        info.columnStep = kernelArguments[0]->columnStep;
+        info.rowStep = kernelArguments[0]->rowStep;
+        info.frameStep = kernelArguments[0]->frameStep;
         info.node = axis->node;
         for (KernelArgument *kernelArgument : kernelArguments) {
             kernelArgument->info = info;
