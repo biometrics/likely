@@ -1974,9 +1974,13 @@ class kernelExpression : public LikelyOperator
         }
 
     private:
+        size_t maxParameters() const { return 4; }
+        size_t minParameters() const { return 0; }
+
         Value *gep(Builder &builder, likely_const_ast ast) const
         {
-            int sharedIndex = int(length(ast)) - 1;
+            const size_t len = length(ast);
+            int sharedIndex = int(len) - 1;
             assert((sharedIndex >= 0) && (sharedIndex <= 4));
             if ((type & likely_multi_channel) != (info.type & likely_multi_channel)) sharedIndex = max(sharedIndex, 4);
             if ((type & likely_multi_column)  != (info.type & likely_multi_column )) sharedIndex = max(sharedIndex, 4);
@@ -1984,7 +1988,7 @@ class kernelExpression : public LikelyOperator
             if ((type & likely_multi_frame)   != (info.type & likely_multi_frame  )) sharedIndex = max(sharedIndex, 4);
             sharedIndex = 4;
 
-            // Use the kernel offset for axis that aren't specified
+            // Use the kernel offset for axes that aren't specified
             Value *i = NULL;
             switch (sharedIndex) {
                 case 4: i = builder.zero(); break;
@@ -1995,30 +1999,23 @@ class kernelExpression : public LikelyOperator
                 default: break;
             }
 
-            // Compute our own offset for axis that are specified
-            switch (sharedIndex) {
-              case 4:
-                if (type & likely_multi_frame)
-                    i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "t")->expr->value, Type::getInt64Ty(builder.getContext())),
-                                                             frameStep),
-                                        i);
-              case 3:
-                if (type & likely_multi_row)
-                    i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "y")->expr->value, Type::getInt64Ty(builder.getContext())),
-                                                             rowStep),
-                                        i);
-              case 2:
-                if (type & likely_multi_column)
-                    i = builder.addInts(builder.multiplyInts(builder.CreateZExt(likely_lookup(builder.env, "x")->expr->value, Type::getInt64Ty(builder.getContext())),
-                                                             builder.CreateZExt(channels, Type::getInt64Ty(builder.getContext()))),
-                                        i);
-              case 1:
-                if (type & likely_multi_channel)
-                    i = builder.addInts(builder.CreateZExt(likely_lookup(builder.env, "c")->expr->value, Type::getInt64Ty(builder.getContext())),
-                                        i);
-              case 0:
-              default:
-                break;
+            // Compute our own offset for axes that are specified
+            if ((sharedIndex >= 4) && (type & likely_multi_frame)) {
+                Value *t = (len >= 5) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[4]))->value : likely_lookup(builder.env, "t")->expr->value;
+                i = builder.addInts(builder.multiplyInts(builder.CreateZExt(t, Type::getInt64Ty(builder.getContext())), frameStep), i);
+            }
+            if ((sharedIndex >= 3) && (type & likely_multi_row)) {
+                Value *y = (len >= 4) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[3]))->value : likely_lookup(builder.env, "y")->expr->value;
+                i = builder.addInts(builder.multiplyInts(builder.CreateZExt(y, Type::getInt64Ty(builder.getContext())), rowStep), i);
+            }
+            if ((sharedIndex >= 2) && (type & likely_multi_column)) {
+                Value *x = (len >= 3) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[2]))->value : likely_lookup(builder.env, "x")->expr->value;
+                i = builder.addInts(builder.multiplyInts(builder.CreateZExt(x, Type::getInt64Ty(builder.getContext())),
+                                                         builder.CreateZExt(channels, Type::getInt64Ty(builder.getContext()))), i);
+            }
+            if ((sharedIndex >= 1) && (type & likely_multi_channel)) {
+                Value *c = (len >= 2) ? unique_ptr<const likely_expression>(get(builder, ast->atoms[1]))->value : likely_lookup(builder.env, "c")->expr->value;
+                i = builder.addInts(builder.CreateZExt(c, Type::getInt64Ty(builder.getContext())), i);
             }
 
             return builder.CreateGEP(data, i);
@@ -2032,9 +2029,6 @@ class kernelExpression : public LikelyOperator
 
         likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
         {
-            if (ast->type == likely_ast_list)
-                return error(ast, "kernel operator does not take arguments");
-
             if (!isa<PointerType>(value->getType()))
                 return new likely_expression((LikelyValue) *this);
 

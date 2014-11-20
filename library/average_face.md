@@ -10,7 +10,7 @@ Compute the average face from a set of aligned faces [1].
         (dst m len) :=>
         {
           (<- j 0)
-          ($ (<- j (+ j m)) t len)
+          ($ (<- j (+ j (m c x y t))) t len)
           (<- dst (dst.type (/ j len)))
         }
       }
