@@ -638,20 +638,8 @@ const char *likely_symbol(likely_const_ast ast)
 likely_mat likely_type_to_string(likely_type type)
 {
     // Special cases
-    if (type == likely_void           ) return likely_string("void");
-    if (type == likely_depth          ) return likely_string("depth");
-    if (type == likely_floating       ) return likely_string("floating");
-    if (type == likely_pointer        ) return likely_string("pointer");
-    if (type == likely_signed         ) return likely_string("signed");
-    if (type == likely_saturated      ) return likely_string("saturated");
-    if (type == likely_element        ) return likely_string("element");
-    if (type == likely_multi_channel  ) return likely_string("multi-channel");
-    if (type == likely_multi_column   ) return likely_string("multi-column");
-    if (type == likely_multi_row      ) return likely_string("multi-row");
-    if (type == likely_multi_frame    ) return likely_string("multi-frame");
-    if (type == likely_multi_dimension) return likely_string("multi-dimension");
-    if (type == likely_ast_t          ) return likely_string("ast");
-    if (type == likely_env_t          ) return likely_string("env");
+    if (type == likely_ast_t) return likely_string("ast");
+    if (type == likely_env_t) return likely_string("env");
 
     // General case
     stringstream stream;
