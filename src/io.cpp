@@ -40,13 +40,13 @@ likely_file_type likely_guess_file_type(const char *file_name)
     if (!extension)
         return likely_file_directory;
     extension++; // remove the leading '.'
-    if      (!strcmp(extension, "bin" )) return likely_file_binary;
-    else if (!strcmp(extension, "mat" )) return likely_file_matrix;
-    else if (!strcmp(extension, "txt" )) return likely_file_text;
-    else if (!strcmp(extension, "lisp")) return likely_file_lisp;
-    else if (!strcmp(extension, "md"  )) return likely_file_gfm;
-    else if (!strcmp(extension, "tex" )) return likely_file_tex;
-    else                                 return likely_file_media;
+    if (!strcmp(extension, "bin" )) return likely_file_binary;
+    if (!strcmp(extension, "mat" )) return likely_file_matrix;
+    if (!strcmp(extension, "txt" )) return likely_file_text;
+    if (!strcmp(extension, "lisp")) return likely_file_lisp;
+    if (!strcmp(extension, "md"  )) return likely_file_gfm;
+    if (!strcmp(extension, "tex" )) return likely_file_tex;
+    return likely_file_media;
 }
 //! [likely_guess_file_type implementation.]
 
@@ -54,14 +54,14 @@ likely_file_type likely_guess_file_type(const char *file_name)
 likely_mat likely_file_type_to_string(likely_file_type type)
 {
     if (type == likely_file_directory) return likely_string("directory");
-    if (type == likely_file_binary   ) return likely_string("binary");
     if (type == likely_file_media    ) return likely_string("media");
-    if (type == likely_file_matrix   ) return likely_string("matrix");
-    if (type == likely_file_text     ) return likely_string("text");
-    if (type == likely_file_lisp     ) return likely_string("lisp");
-    if (type == likely_file_gfm      ) return likely_string("gfm");
-    if (type == likely_file_tex      ) return likely_string("tex");
     if (type == likely_file_guess    ) return likely_string("guess");
+    if (type == likely_file_binary   ) return likely_string(".bin");
+    if (type == likely_file_matrix   ) return likely_string(".mat");
+    if (type == likely_file_text     ) return likely_string(".txt");
+    if (type == likely_file_lisp     ) return likely_string(".lisp");
+    if (type == likely_file_gfm      ) return likely_string(".md");
+    if (type == likely_file_tex      ) return likely_string(".tex");
     return NULL;
 }
 //! [likely_file_type_to_string implementation.]
@@ -69,22 +69,22 @@ likely_mat likely_file_type_to_string(likely_file_type type)
 //! [likely_file_type_from_string implementation.]
 likely_file_type likely_file_type_from_string(const char *str, bool *ok)
 {
+    likely_file_type guess;
     if (!str)
         goto error;
 
     if (ok)
         *ok = true;
 
+    // Special cases
     if (!strcmp(str, "directory")) return likely_file_directory;
-    if (!strcmp(str, "binary"   )) return likely_file_binary;
     if (!strcmp(str, "media"    )) return likely_file_media;
-    if (!strcmp(str, "matrix"   )) return likely_file_matrix;
-    if (!strcmp(str, "text"     )) return likely_file_text;
-    if (!strcmp(str, "lisp"     )) return likely_file_lisp;
-    if (!strcmp(str, "gfm"      )) return likely_file_gfm;
-    if (!strcmp(str, "tex"      )) return likely_file_tex;
     if (!strcmp(str, "guess"    )) return likely_file_guess;
 
+    // General case
+    guess = likely_guess_file_type((string(".") + str).c_str());
+    if (guess != likely_file_media)
+        return guess;
 error:
     if (ok)
         *ok = false;
