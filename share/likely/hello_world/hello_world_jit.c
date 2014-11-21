@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     likely_initialize(3, 0, true, true, false);
 
     puts("Reading input image...");
-    const likely_const_mat input = likely_read(argv[1], likely_file_guess);
+    const likely_const_mat input = likely_read(argv[1], likely_file_guess, likely_image);
     likely_assert(input, "failed to read: %s", argv[1]);
     printf("Width: %u\nHeight: %u\n", input->columns, input->rows);
 

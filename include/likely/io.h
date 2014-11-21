@@ -107,12 +107,13 @@ LIKELY_EXPORT likely_file_type likely_file_type_from_string(const char *str, boo
  * _Video_ formats (not supported yet) expect multi-frame matricies.
  * An _Image Set_ is a folder of images with consistent dimensionality and data type.
  * \param[in] file_name The name of the file to open and read.
- * \param[in] type How to process the file after reading.
+ * \param[in] file_type How to process the file after reading.
+ * \param[in] type Expected matrix type.
  * \return Pointer to the new \ref likely_matrix constructed from the file, or \c NULL if the file could not be processed.
  * \remark This function is \ref thread-safe.
  * \see \ref likely_write
  */
-LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_file_type type);
+LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_file_type file_type, likely_type type);
 
 /*!
  * \brief Write a \ref likely_matrix to a file.
@@ -132,11 +133,12 @@ LIKELY_EXPORT likely_mat likely_write(likely_const_mat image, const char *file_n
  *
  * The format of \p buffer is determined automatically.
  * \param[in] buffer The buffer to decode.
+ * \param[in] type Expected matrix type.
  * \return Decoded image if successful, \c NULL otherwise.
  * \remark This function is \ref thread-safe.
  * \see \ref likely_encode
  */
-LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer);
+LIKELY_EXPORT likely_mat likely_decode(likely_const_mat buffer, likely_type type);
 
 /*!
  * \brief Encode a \ref likely_matrix to a buffer.

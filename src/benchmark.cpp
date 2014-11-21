@@ -99,7 +99,7 @@ struct Test
     static void runFile(const char *fileName)
     {
         const likely_file_type type = likely_guess_file_type(fileName);
-        likely_const_mat source = likely_read(fileName, type);
+        likely_const_mat source = likely_read(fileName, type, likely_text);
         checkRead(source, fileName);
 
         printf("%s \t", fileName);
@@ -284,7 +284,7 @@ int main(int argc, char *argv[])
         puts("");
         puts("Function \t\tType \tSize \tExec \tIter \t\tSpeedup");
 
-        const likely_const_mat source = likely_read("library/benchmark.md", likely_file_gfm);
+        const likely_const_mat source = likely_read("library/benchmark.md", likely_file_gfm, likely_text);
         checkRead(source, "library/benchmark.md");
         const likely_ast ast = likely_lex_and_parse(source->data, likely_file_gfm);
         likely_release_mat(source);

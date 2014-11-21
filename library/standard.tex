@@ -649,6 +649,7 @@ max := (-> (a b) (? (> a b) a b))
 \begin{likely}
 string := i8P
 void-pointer := i8P
+type-type := u32
 file-type := u32
 \end{likely}
 
@@ -666,9 +667,9 @@ imitate := (-> mat (imitate-size mat mat.type))
 
 \section{Matrix I/O}
 \begin{likely}
-read   := (extern u8CXYT "likely_read" (string file-type))
+read   := (extern u8CXYT "likely_read" (string file-type type-type))
 write  := (extern u8CXYT "likely_write" (u8CXYT string))
-decode := (extern u8CXYT "likely_decode" u8CXYT)
+decode := (extern u8CXYT "likely_decode" (u8CXYT type-type))
 encode := (extern u8CXYT "likely_encode" (u8CXYT string))
 render := (extern u8CXYT "likely_render" (u8CXYT f64P f64P))
 show   := (extern u8CXYT "likely_show" (u8CXYT string))
@@ -690,7 +691,7 @@ eval := (extern env "likely_eval" (ast env void-pointer void-pointer))
 \section{Import}
 \begin{likely}
 import-string := (-> (source-code source-type) (lex-and-parse source-code source-type).(eval this null null))
-import := (-> file (read file guess).data.(import-string file.guess-file-type))
+import := (-> file (read file guess text).data.(import-string file.guess-file-type))
 \end{likely}
 
 \section{Type Conversion}

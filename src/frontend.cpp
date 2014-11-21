@@ -696,6 +696,11 @@ likely_type likely_type_from_string(const char *str, bool *ok)
     if (!strcmp(str, "multi-row"      )) return likely_multi_row;
     if (!strcmp(str, "multi-frame"    )) return likely_multi_frame;
     if (!strcmp(str, "multi-dimension")) return likely_multi_dimension;
+    if (!strcmp(str, "text"           )) return likely_text;
+    if (!strcmp(str, "grayscale-image")) return likely_grayscale_image;
+    if (!strcmp(str, "image"          )) return likely_image;
+    if (!strcmp(str, "grayscale-video")) return likely_grayscale_video;
+    if (!strcmp(str, "video"          )) return likely_video;
     if (!strcmp(str, "char"           )) return likely_char;
     if (!strcmp(str, "short"          )) return likely_short;
     if (!strcmp(str, "int"            )) return likely_int;

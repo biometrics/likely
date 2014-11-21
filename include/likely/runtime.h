@@ -79,6 +79,11 @@ enum likely_type_mask
     likely_multi_row       = 0x00004000, /*!< \brief \ref likely_matrix::rows > 1. */
     likely_multi_frame     = 0x00008000, /*!< \brief \ref likely_matrix::frames > 1. */
     likely_multi_dimension = likely_multi_channel | likely_multi_column | likely_multi_row | likely_multi_frame, /*!< \brief The portion of \ref likely_type indicating matrix dimensionality. Used for loop optimizations. */
+    likely_text            = likely_i8 | likely_multi_channel, /*!< \brief Text file. */
+    likely_grayscale_image = likely_u8 | likely_multi_column | likely_multi_row, /*!< \brief Grayscale image. */
+    likely_image           = likely_grayscale_image | likely_multi_channel, /*!< \brief Color image. */
+    likely_grayscale_video = likely_grayscale_image | likely_multi_frame, /*!< \brief Grayscale video. */
+    likely_video           = likely_image | likely_multi_frame, /*!< \brief Color video. */
     likely_char        = sizeof(char)        * CHAR_BIT, /*!< \brief C-compatible \c char type. */
     likely_short       = sizeof(short)       * CHAR_BIT, /*!< \brief C-compatible \c short type. */
     likely_int         = sizeof(int)         * CHAR_BIT, /*!< \brief C-compatible \c int type. */

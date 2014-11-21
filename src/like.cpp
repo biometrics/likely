@@ -119,7 +119,7 @@ static void showCallback(likely_const_env env, void *)
     if (assert_.getValue().empty()) {
         likely_release_mat(likely_show(rendered, likely_symbol(env->ast)));
     } else {
-        likely_mat baseline = likely_read(assert_.getValue().c_str(), likely_file_guess);
+        likely_mat baseline = likely_read(assert_.getValue().c_str(), likely_file_guess, likely_image);
         likely_assert(rendered->channels == baseline->channels, "expected: %d channels, got: %d", baseline->channels, rendered->channels);
         likely_assert(rendered->columns  == baseline->columns , "expected: %d columns, got: %d" , baseline->columns , rendered->columns);
         likely_assert(rendered->rows     == baseline->rows    , "expected: %d rows, got: %d"    , baseline->rows    , rendered->rows);
@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
             code = likely_string(command.c_str());
         } else {
             type = likely_guess_file_type(input.c_str());
-            code = likely_read(input.c_str(), type);
+            code = likely_read(input.c_str(), type, likely_text);
             likely_assert(code != NULL, "failed to read: %s", input.c_str());
         }
 

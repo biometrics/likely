@@ -92,12 +92,12 @@ error:
 }
 //! [likely_file_type_from_string implementation.]
 
-static likely_mat readAsync(const string &fileName)
+static likely_mat readAsync(const string &fileName, likely_type type)
 {
-    return likely_read(fileName.c_str(), likely_file_guess);
+    return likely_read(fileName.c_str(), likely_file_guess, type);
 }
 
-likely_mat likely_read(const char *file_name, likely_file_type type)
+likely_mat likely_read(const char *file_name, likely_file_type file_type, likely_type type)
 {
     // Interpret ~ as $HOME
     string fileName = file_name;
@@ -106,16 +106,16 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
         fileName = HOME + fileName.substr(1);
     }
 
-    if (type == likely_file_guess)
-        type = likely_guess_file_type(file_name);
+    if (file_type == likely_file_guess)
+        file_type = likely_guess_file_type(file_name);
 
     likely_mat result = NULL;
-    if (type == likely_file_directory) {
+    if (file_type == likely_file_directory) {
         error_code ec;
         vector<future<likely_mat>> futures;
         for (sys::fs::recursive_directory_iterator i(fileName, ec), e; i != e; i.increment(ec))
             if (sys::fs::is_regular_file(i->path()))
-                futures.push_back(async(readAsync, i->path()));
+                futures.push_back(async(readAsync, i->path(), type & ~likely_multi_frame));
 
         // Combine into one matrix with multiple frames
         likely_matrix firstHeader;
@@ -152,7 +152,7 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
             const size_t size = ftell(fp);
             fseek(fp, 0, SEEK_SET);
 
-            if (type & likely_file_matrix) {
+            if (file_type & likely_file_matrix) {
                 likely_matrix header;
                 if (fread(&header, sizeof(likely_matrix), 1, fp)) {
                     const size_t bytes = likely_bytes(&header);
@@ -167,18 +167,18 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
                     }
                 }
             } else {
-                likely_mat buffer = likely_new(likely_u8, uint32_t(size + ((type & likely_file_text) ? 1 : 0)), 1, 1, 1, NULL);
+                likely_mat buffer = likely_new(likely_u8, uint32_t(size + ((file_type & likely_file_text) ? 1 : 0)), 1, 1, 1, NULL);
                 const bool success = (fread(buffer->data, 1, size, fp) == size);
                 if (success) {
-                    if (type & likely_file_binary) {
+                    if (file_type & likely_file_binary) {
                         result = likely_retain_mat(buffer);
-                    } else if (type & likely_file_text) {
+                    } else if (file_type & likely_file_text) {
                         buffer->data[size] = 0;
                         buffer->type |= likely_signed;
                         result = likely_retain_mat(buffer);
-                    } else if (type == likely_file_media) {
+                    } else if (file_type == likely_file_media) {
                         swap(buffer->channels, buffer->columns);
-                        result = likely_decode(buffer);
+                        result = likely_decode(buffer, type);
                     }
                 }
                 likely_release_mat(buffer);
@@ -186,6 +186,11 @@ likely_mat likely_read(const char *file_name, likely_file_type type)
             fclose(fp);
         }
     }
+    if (result && (result->type != type)) {
+        likely_release_mat(result);
+        result = NULL;
+    }
+    assert(result);
     return result;
 }
 
@@ -213,13 +218,19 @@ likely_mat likely_write(likely_const_mat image, const char *file_name)
     return likely_retain_mat(image);
 }
 
-likely_mat likely_decode(likely_const_mat buffer)
+likely_mat likely_decode(likely_const_mat buffer, likely_type type)
 {
+    likely_mat result = NULL;
     try {
-        return likelyFromOpenCVMat(cv::imdecode(likelyToOpenCVMat(buffer), CV_LOAD_IMAGE_UNCHANGED));
+        result = likelyFromOpenCVMat(cv::imdecode(likelyToOpenCVMat(buffer), CV_LOAD_IMAGE_UNCHANGED));
     } catch (...) {}
 
-    return NULL;
+    if (result && (result->type != type)) {
+        likely_release_mat(result);
+        result = NULL;
+    }
+    assert(result);
+    return result;
 }
 
 likely_mat likely_encode(likely_const_mat image, const char *extension)
