@@ -4,7 +4,7 @@ So you've developed an algorithm in Likely, how do you integrate it into your na
 Once again, let's consider our *[Hello World](?href=hello_world)* example:
 
 ```likely
-    lenna := "data/misc/lenna.tiff".(read media image)
+    lenna := "data/misc/lenna.tiff".read-image
     hello_world :=
       a :->
       {
