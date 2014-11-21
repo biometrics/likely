@@ -696,7 +696,7 @@ likely_type likely_type_from_string(const char *str, bool *ok)
     if (!strcmp(str, "long-long"      )) return likely_long_long;
     if (!strcmp(str, "float"          )) return likely_float;
     if (!strcmp(str, "double"         )) return likely_double;
-    if (!strcmp(str, "long double"    )) return likely_long_double;
+    if (!strcmp(str, "long-double"    )) return likely_long_double;
     if (!strcmp(str, "bool"           )) return likely_bool;
     if (!strcmp(str, "size_t"         )) return likely_size_t;
     if (!strcmp(str, "ptrdiff_t"      )) return likely_ptrdiff_t;
