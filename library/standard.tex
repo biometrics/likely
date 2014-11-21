@@ -677,12 +677,12 @@ guess-file-type := (extern file-type "likely_guess_file_type" string)
 \end{likely}
 
 \begin{likely}
-read-image               := (-> file-name (read file-name media image))
-read-image-grayscale     := (-> file-name (read file-name media image-grayscale))
-read-video               := (-> file-name (read file-name media video))
-read-video-grayscale     := (-> file-name (read file-name media video-grayscale))
-read-directory           := (-> file-name (read file-name directory image))
-read-directory-grayscale := (-> file-name (read file-name directory image-grayscale))
+read-image               := (-> file-name (read file-name media     image))
+read-image-grayscale     := (-> file-name (read file-name media     image-grayscale))
+read-video               := (-> file-name (read file-name media     video))
+read-video-grayscale     := (-> file-name (read file-name media     video-grayscale))
+read-directory           := (-> file-name (read file-name directory video))
+read-directory-grayscale := (-> file-name (read file-name directory video-grayscale))
 \end{likely}
 
 \section{Compiler Frontend}
