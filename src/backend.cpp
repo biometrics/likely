@@ -311,7 +311,6 @@ static likely_env newEnv(likely_const_env parent)
     if (parent) {
         if (parent->type & likely_environment_parallel     ) env->type |= likely_environment_parallel;
         if (parent->type & likely_environment_heterogeneous) env->type |= likely_environment_heterogeneous;
-        if (parent->type & likely_environment_ctfe         ) env->type |= likely_environment_ctfe;
     }
     env->parent = likely_retain_env(parent);
     env->ast = NULL;
@@ -638,9 +637,10 @@ struct Builder : public IRBuilder<>
 {
     likely_const_env env;
     likely_module *module;
+    bool ctfe; // Compile-time function evaluation
 
-    Builder(likely_const_env env, likely_module *module)
-        : IRBuilder<>(module ? module->context->context : getGlobalContext()), env(env), module(module) {}
+    Builder(likely_const_env env, likely_module *module, bool ctfe)
+        : IRBuilder<>(module ? module->context->context : getGlobalContext()), env(env), module(module), ctfe(ctfe) {}
 
     LikelyValue constant(uint64_t value, likely_type type = likely_u64)
     {
@@ -1043,10 +1043,8 @@ protected:
     static likely_const_env &builtins()
     {
         static likely_const_env root = NULL;
-        if (!root) {
+        if (!root)
             root = newEnv(NULL);
-            const_cast<likely_env>(root)->type |= likely_environment_ctfe;
-        }
         return root;
     }
 };
@@ -1217,7 +1215,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
     likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
         // Fold constant expressions
-        if (builder.env->type & likely_environment_ctfe) {
+        if (builder.ctfe) {
             if (likely_const_mat LHS = lhs.getData()) {
                 if (likely_const_mat RHS = rhs.getData()) {
                     static map<const char*, likely_const_env> envLUT;
@@ -1629,16 +1627,15 @@ private:
             if (!arg)
                 goto cleanup;
 
-            if ((builder.env->type & likely_environment_ctfe) && (constantArgs.size() == args.size()))
+            if (builder.ctfe && (constantArgs.size() == args.size()))
                 if (likely_const_mat constantArg = arg->getData())
                     constantArgs.push_back(constantArg);
 
             args.push_back(arg);
         }
 
-        result = ((builder.env->type & likely_environment_ctfe)
-                  && (constantArgs.size() == args.size())) ? ConstantData::get(builder, evaluateConstantFunction(constantArgs))
-                                                           : evaluateFunction(builder, args);
+        result = (builder.ctfe && (constantArgs.size() == args.size())) ? ConstantData::get(builder, evaluateConstantFunction(constantArgs))
+                                                                        : evaluateFunction(builder, args);
 
     cleanup:
         for (likely_const_expr arg : args)
@@ -2403,13 +2400,8 @@ LIKELY_REGISTER(set)
 JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC)
     : Symbol(name, likely_void, parameters), module(new likely_module())
 {
-    likely_env env = newEnv(lambda->env);
-
-    // Don't do compile time function evaluation when we're only interested in the result.
-    if (evaluate)
-        env->type &= ~likely_environment_ctfe;
-
-    Builder builder(env, module);
+    const likely_env env = newEnv(lambda->env);
+    Builder builder(env, module, !evaluate);
     {
         unique_ptr<const likely_expression> expr(lambda->generate(builder, parameters, name, arrayCC, evaluate));
         if (expr) {
@@ -2686,7 +2678,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
         if (!statement)
             continue;
 
-        Builder builder(parent, parent->module);
+        Builder builder(parent, parent->module, true);
         const bool definition = (statement->type == likely_ast_list) && (statement->num_atoms > 0) && !strcmp(statement->atoms[0]->atom, "=");
         likely_const_expr expr = NULL;
         env = NULL;
