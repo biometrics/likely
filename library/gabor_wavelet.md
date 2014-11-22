@@ -16,7 +16,7 @@ Interaction
 
 Definition
 
-    (gabor_wavelet i32 i32 f32 f32 f32 f32 f32) :=
+    gabor_wavelet :=
       (x_max y_max sigma_x sigma_y theta lambda psi) :->
       {
         dst := (new f32 1 x_max.(* 2).(+ 1) y_max.(* 2).(+ 1))

@@ -16,7 +16,7 @@ Interactive parameters
 
 Definition
 
-    (mandelbrot_set u32 u32 f32 f32 f32 f32 u32) :=
+    mandelbrot_set :=
       (width height x_min y_min x_range y_range iter) :->
       {
         dst := (new u8 1 width height)

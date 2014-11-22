@@ -15,7 +15,6 @@ Compute the average face from a set of aligned faces [1].
         }
       }
 
-    (average_face) := () :-> "data/lfw2".(read directory video-grayscale).avg
-    (average_face)
+    "data/lfw2".read-directory-grayscale.avg
 
 [1] http://www.openu.ac.il/home/hassner/data/lfwa/
