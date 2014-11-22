@@ -1706,49 +1706,55 @@ class externExpression : public LikelyOperator
     const char *symbol() const { return "extern"; }
     size_t maxParameters() const { return 3; }
 
-    static likely_type typeFromAst(Builder &builder, likely_const_ast ast, bool *ok)
+    static likely_mat eval(const likely_const_ast ast, const likely_const_env parent)
     {
-        const unique_ptr<const likely_expression> expr(get(builder, ast));
-        if (!expr) {
-            *ok = false;
-            return likely_void;
-        }
+        likely_retain_ast(ast);
+        const likely_ast list = likely_list(&const_cast<const likely_ast&>(ast), 1);
+        const likely_const_env env = likely_eval(list, parent, NULL, NULL);
+        likely_release_ast(list);
+        const likely_mat result = likely_retain_mat(likely_result(env ? env->expr : NULL));
+        likely_release_env(env);
+        return result;
+    }
 
-        const likely_const_mat data = expr->getData();
-        if (!data || (data->type != likely_u32) || (data->type & likely_multi_dimension)) {
-            *ok = false;
-            return likely_void;
-        }
+    static likely_type evalType(likely_const_ast ast, likely_const_env parent, bool *ok)
+    {
+        const likely_const_mat result = eval(ast, parent);
+        *ok = ((result != NULL) && (result->type == likely_u32));
+        const likely_type type = (*ok) ? likely_type(likely_get_element(result, 0, 0, 0, 0)) : likely_type(likely_void);
+        likely_release_mat(result);
+        return type;
+    }
 
-        *ok = true;
-        return likely_type(likely_get_element(data, 0, 0, 0, 0));
+    static string evalString(likely_const_ast ast, likely_const_env parent, bool *ok)
+    {
+        const likely_const_mat result = eval(ast, parent);
+        *ok = ((result != NULL) && (result->type == likely_text));
+        const string str = (*ok) ? result->data : "";
+        likely_release_mat(result);
+        return str;
     }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         bool ok;
-        const likely_type returnType = typeFromAst(builder, ast->atoms[1], &ok);
+        const likely_type returnType = evalType(ast->atoms[1], builder.env, &ok);
         if (!ok)
             return NULL;
 
-        string name;
-        {
-            TRY_EXPR(builder, ast->atoms[2], expr);
-            const likely_const_mat data = expr->getData();
-            if (!likely_is_string(data))
-                return NULL;
-            name = data->data;
-        }
+        const string name = evalString(ast->atoms[2], builder.env, &ok);
+        if (!ok)
+            return NULL;
 
         vector<likely_type> parameters;
         if (ast->atoms[3]->type == likely_ast_list) {
             for (uint32_t i=0; i<ast->atoms[3]->num_atoms; i++) {
-                parameters.push_back(typeFromAst(builder, ast->atoms[3]->atoms[i], &ok));
+                parameters.push_back(evalType(ast->atoms[3]->atoms[i], builder.env, &ok));
                 if (!ok)
                     return NULL;
             }
         } else {
-            parameters.push_back(typeFromAst(builder, ast->atoms[3], &ok));
+            parameters.push_back(evalType(ast->atoms[3], builder.env, &ok));
             if (!ok)
                 return NULL;
         }
