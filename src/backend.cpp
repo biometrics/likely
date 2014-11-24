@@ -2329,53 +2329,23 @@ class defineExpression : public LikelyOperator
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        likely_const_ast lhs = ast->atoms[1];
-        likely_const_ast rhs = ast->atoms[2];
-        const char *name = likely_symbol(ast);
+        const likely_const_ast rhs = ast->atoms[2];
+        const char *const name = likely_symbol(ast);
 
         if (!builder.module /* global variable */) {
             builder.module = builder.env->module;
-            if (lhs->type == likely_ast_list) {
-                // Export symbol
-                vector<likely_type> parameters;
-                for (size_t i=1; i<lhs->num_atoms; i++) {
-                    if (lhs->atoms[i]->type == likely_ast_list)
-                        return error(lhs->atoms[i], "expected an atom name parameter type");
-                    parameters.push_back(likely_type_from_string(lhs->atoms[i]->atom, NULL));
-                }
-
-                if (builder.env->module /* static compilation */) {
-                    TRY_EXPR(builder, rhs, expr);
-                    const Lambda *lambda = static_cast<const Lambda*>(expr.get());
-                    if (likely_const_expr function = lambda->generate(builder, parameters, name, false, false)) {
-                        likely_const_expr expr = new Symbol(name, function->type, parameters);
-                        delete function;
-                        return expr;
-                    }
-                } else {
-                    JITFunction *function = new JITFunction(name, unique_ptr<Lambda>(new Lambda(builder.env, rhs->atoms[2], rhs->atoms[1])).get(), parameters, false, false);
-                    if (function->function) {
-                        sys::DynamicLibrary::AddSymbol(name, function->function);
-                        return function;
-                    } else {
-                        delete function;
-                    }
-                }
+            if (!strcmp(likely_symbol(rhs), "->")) {
+                // Global variable
+                return get(builder, rhs);
             } else {
-                if (!strcmp(likely_symbol(rhs), "->")) {
-                    // Global variable
-                    return get(builder, rhs);
-                } else {
-                    // Lazy global value
-                    return new LazyDefinition(builder.env, rhs);
-                }
+                // Lazy global value
+                return new LazyDefinition(builder.env, rhs);
             }
         } else {
             likely_const_expr expr = get(builder, rhs);
             define(builder.env, name, expr);
             return new likely_expression((LikelyValue) *expr);
         }
-        return NULL;
     }
 };
 LIKELY_REGISTER(define)
