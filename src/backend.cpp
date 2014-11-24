@@ -2662,10 +2662,9 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
             continue;
 
         Builder builder(parent, parent->module, true);
-        const bool definition = (statement->type == likely_ast_list) && (statement->num_atoms > 0) && !strcmp(statement->atoms[0]->atom, "=");
         likely_const_expr expr = NULL;
         env = NULL;
-        if (definition) {
+        if (likely_is_definition(statement)) {
             const likely_const_ast rhs = statement->atoms[2];
             if (!strcmp(likely_symbol(rhs), "->")) {
                 // Global function
