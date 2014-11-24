@@ -2302,28 +2302,6 @@ LIKELY_REGISTER(kernel)
 
 class defineExpression : public LikelyOperator
 {
-    class LazyDefinition : public LikelyOperator
-    {
-        const likely_const_env env;
-        const likely_const_ast ast;
-
-        size_t minParameters() const { return 0; }
-        size_t maxParameters() const { return numeric_limits<size_t>::max(); }
-
-        likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-        {
-            likely_const_env env = this->env;
-            swap(builder.env, env);
-            unique_ptr<const likely_expression> op(get(builder, this->ast));
-            swap(builder.env, env);
-            return op.get() ? op->evaluate(builder, ast) : NULL;
-        }
-
-    public:
-        LazyDefinition(likely_const_env env, likely_const_ast ast)
-            : env(env), ast(ast) {}
-    };
-
     const char *symbol() const { return "="; }
     size_t maxParameters() const { return 2; }
 
@@ -2331,21 +2309,9 @@ class defineExpression : public LikelyOperator
     {
         const likely_const_ast rhs = ast->atoms[2];
         const char *const name = likely_symbol(ast);
-
-        if (!builder.module /* global variable */) {
-            builder.module = builder.env->module;
-            if (!strcmp(likely_symbol(rhs), "->")) {
-                // Global variable
-                return get(builder, rhs);
-            } else {
-                // Lazy global value
-                return new LazyDefinition(builder.env, rhs);
-            }
-        } else {
-            likely_const_expr expr = get(builder, rhs);
-            define(builder.env, name, expr);
-            return new likely_expression((LikelyValue) *expr);
-        }
+        likely_const_expr expr = get(builder, rhs);
+        define(builder.env, name, expr);
+        return new likely_expression((LikelyValue) *expr);
     }
 };
 LIKELY_REGISTER(define)
@@ -2662,6 +2628,28 @@ likely_const_mat likely_result(const struct likely_expression *expr)
     return (likely_const_mat) expr->getData();
 }
 
+class LazyDefinition : public LikelyOperator
+{
+    const likely_const_env env;
+    const likely_const_ast ast;
+
+    size_t minParameters() const { return 0; }
+    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
+
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        likely_const_env env = this->env;
+        swap(builder.env, env);
+        unique_ptr<const likely_expression> op(get(builder, this->ast));
+        swap(builder.env, env);
+        return op.get() ? op->evaluate(builder, ast) : NULL;
+    }
+
+public:
+    LazyDefinition(likely_const_env env, likely_const_ast ast)
+        : env(env), ast(ast) {}
+};
+
 likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_callback eval_callback, void *context)
 {
     if (!ast || (ast->type != likely_ast_list))
@@ -2678,8 +2666,14 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
         likely_const_expr expr = NULL;
         env = NULL;
         if (definition) {
-            builder.module = NULL; // signify global scope
-            expr = likely_expression::get(builder, statement);
+            const likely_const_ast rhs = statement->atoms[2];
+            if (!strcmp(likely_symbol(rhs), "->")) {
+                // Global function
+                expr = likely_expression::get(builder, rhs);
+            } else {
+                // Lazy global value
+                expr = new LazyDefinition(builder.env, rhs);
+            }
         } else {
             // If `ast` is not a lambda then it is a computation we perform by constructing and executing a parameterless lambda.
             const char *const symbol = ((statement->type == likely_ast_list)
