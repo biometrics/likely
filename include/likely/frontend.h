@@ -296,6 +296,16 @@ LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);
 LIKELY_EXPORT int likely_ast_compare(likely_const_ast a, likely_const_ast b);
 
 /*!
+ * \brief Returns true if the \ref likely_abstract_syntax_tree::atom is an assignment.
+ *
+ * \par Implementation
+ * \snippet src/frontend.cpp likely_is_definition implementation.
+ * \param[in] ast The abstract syntax tree to examine.
+ * \return \c true if \param ast is an assignment, \c false otherwise.
+ */
+ LIKELY_EXPORT bool likely_is_definition(likely_const_ast ast);
+
+/*!
  * \brief Find the first \ref likely_abstract_syntax_tree::atom that isn't an assignment (=) operator.
  *
  * Searches using an in order traversal of \p ast.

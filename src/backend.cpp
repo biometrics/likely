@@ -301,25 +301,6 @@ public:
 };
 static JITFunctionCache TheJITFunctionCache;
 
-static likely_env newEnv(likely_const_env parent)
-{
-    likely_env env = (likely_env) malloc(sizeof(likely_environment));
-    if (!env)
-        return NULL;
-
-    env->type = 0;
-    if (parent) {
-        if (parent->type & likely_environment_parallel     ) env->type |= likely_environment_parallel;
-        if (parent->type & likely_environment_heterogeneous) env->type |= likely_environment_heterogeneous;
-    }
-    env->parent = likely_retain_env(parent);
-    env->ast = NULL;
-    env->module = parent ? parent->module : NULL;
-    env->expr = NULL;
-    env->ref_count = 1;
-    return env;
-}
-
 struct LikelyValue
 {
     Value *value;
@@ -453,6 +434,27 @@ struct Variant
 typedef struct likely_expression *likely_expr;
 typedef struct likely_expression const *likely_const_expr;
 
+static likely_env newEnv(likely_const_env parent, likely_const_ast ast = NULL, likely_const_expr expr = NULL)
+{
+    likely_env env = (likely_env) malloc(sizeof(likely_environment));
+    if (!env)
+        return NULL;
+
+    env->type = 0;
+    if (parent) {
+        if (parent->type & likely_environment_parallel     ) env->type |= likely_environment_parallel;
+        if (parent->type & likely_environment_heterogeneous) env->type |= likely_environment_heterogeneous;
+    }
+    if (likely_is_definition(ast))
+        env->type |= likely_environment_definition;
+    env->parent = likely_retain_env(parent);
+    env->ast = likely_retain_ast(ast);
+    env->module = parent ? parent->module : NULL;
+    env->expr = expr;
+    env->ref_count = 1;
+    return env;
+}
+
 struct likely_expression : public LikelyValue
 {
     likely_expression(const LikelyValue &value = LikelyValue(), const Variant &data = Variant())
@@ -512,20 +514,11 @@ struct likely_expression : public LikelyValue
         return NULL;
     }
 
-    static void define(likely_const_env &env, likely_const_ast ast, likely_const_expr value)
-    {
-        likely_env child = newEnv(env);
-        child->type |= likely_environment_definition;
-        child->ast = likely_retain_ast(ast);
-        child->expr = value;
-        env = child;
-    }
-
-    static void define(likely_const_env &env, const char *name, likely_const_expr value)
+    static void define(likely_const_env &env, const char *name, likely_const_expr expr)
     {
         const likely_ast atoms[2] = { likely_atom("=", 1), likely_atom(name, strlen(name)) };
         const likely_ast list = likely_list(atoms, 2);
-        define(env, list, value);
+        env = newEnv(env, list, expr);
         likely_release_ast(list);
     }
 
@@ -2404,8 +2397,7 @@ LIKELY_REGISTER(set)
 JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC)
     : Symbol(name, likely_void, parameters), module(new likely_module())
 {
-    const likely_env env = newEnv(lambda->env);
-    Builder builder(env, module, !evaluate);
+    Builder builder(lambda->env, module, !evaluate);
     {
         unique_ptr<const likely_expression> expr(lambda->generate(builder, parameters, name, arrayCC, evaluate));
         if (expr) {
@@ -2414,7 +2406,6 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
             setData(expr->getData());
         }
     }
-    likely_release_env(env);
     if (!value /* error */ || (evaluate && getData()) /* constant */)
         return;
 
@@ -2707,13 +2698,8 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
            }
         }
 
-        if (!env) {
-            env = newEnv(parent);
-            if (definition)
-                env->type |= likely_environment_definition;
-            env->ast = likely_retain_ast(statement);
-            env->expr = expr;
-        }
+        if (!env)
+            env = newEnv(parent, statement, expr);
 
         likely_release_env(parent);
         parent = env;
