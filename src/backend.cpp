@@ -1704,7 +1704,8 @@ LIKELY_REGISTER(lambda)
 class externExpression : public LikelyOperator
 {
     const char *symbol() const { return "extern"; }
-    size_t maxParameters() const { return 3; }
+    size_t maxParameters() const { return 4; }
+    size_t minParameters() const { return 3; }
 
     static likely_mat eval(const likely_const_ast ast, const likely_const_env parent)
     {
@@ -1759,7 +1760,27 @@ class externExpression : public LikelyOperator
                 return NULL;
         }
 
-        return new Symbol(name, returnType, parameters);
+        if (ast->num_atoms < 5)
+            return new Symbol(name, returnType, parameters);
+
+        if (builder.module /* static compilation */) {
+            TRY_EXPR(builder, ast->atoms[4], expr);
+            const Lambda *lambda = static_cast<const Lambda*>(expr.get());
+            if (likely_const_expr function = lambda->generate(builder, parameters, name, false, false)) {
+                likely_const_expr expr = new Symbol(name, function->type, parameters);
+                delete function;
+                return expr;
+            }
+        } else /* JIT compilation */ {
+            JITFunction *function = new JITFunction(name, unique_ptr<Lambda>(new Lambda(builder.env, ast->atoms[4]->atoms[2], ast->atoms[4]->atoms[1])).get(), parameters, false, false);
+            if (function->function) {
+                sys::DynamicLibrary::AddSymbol(name, function->function);
+                return function;
+            } else {
+                delete function;
+            }
+        }
+        return NULL;
     }
 };
 LIKELY_REGISTER(extern)
@@ -2693,7 +2714,11 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
             expr = likely_expression::get(builder, statement);
         } else {
             // If `ast` is not a lambda then it is a computation we perform by constructing and executing a parameterless lambda.
-            if (!strcmp(likely_symbol(statement), "->")) {
+            const char *const symbol = ((statement->type == likely_ast_list)
+                                        && (statement->num_atoms > 0)
+                                        && (statement->atoms[0]->type != likely_ast_list))
+                                       ? statement->atoms[0]->atom : "";
+            if (!strcmp(symbol, "->") || !strcmp(symbol, "extern")) {
                 expr = likely_expression::get(builder, statement);
             } else {
                 const Variant data = Lambda(parent, statement).evaluateConstantFunction();

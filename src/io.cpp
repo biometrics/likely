@@ -305,7 +305,8 @@ likely_mat likely_to_string_n(likely_const_mat *mats, size_t n)
         }
     }
 
-    return likely_string(buffer.str().c_str());
+    const string str = buffer.str();
+    return str.empty() ? NULL : likely_string(str.c_str());
 }
 
 likely_mat likely_to_string_va(likely_const_mat mat, ...)

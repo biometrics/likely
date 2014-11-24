@@ -84,6 +84,8 @@ static cl::opt<bool> DisableLoopVectorization("disable-loop-vectorization", cl::
 
 static void checkOrPrintAndRelease(likely_const_mat input)
 {
+    if (!input)
+        return;
     assert(likely_is_string(input));
     if (assert_.getValue().empty()) {
         printf("%s\n", input->data);
