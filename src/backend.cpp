@@ -512,14 +512,21 @@ struct likely_expression : public LikelyValue
         return NULL;
     }
 
-    static void define(likely_const_env &env, const char *name, likely_const_expr value)
+    static void define(likely_const_env &env, likely_const_ast ast, likely_const_expr value)
     {
-        assert(name && strcmp(name, ""));
         likely_env child = newEnv(env);
         child->type |= likely_environment_definition;
-        child->ast = likely_atom(name, uint32_t(strlen(name)));
+        child->ast = likely_retain_ast(ast);
         child->expr = value;
         env = child;
+    }
+
+    static void define(likely_const_env &env, const char *name, likely_const_expr value)
+    {
+        const likely_ast atoms[2] = { likely_atom("=", 1), likely_atom(name, strlen(name)) };
+        const likely_ast list = likely_list(atoms, 2);
+        define(env, list, value);
+        likely_release_ast(list);
     }
 
     static likely_const_expr undefine(likely_const_env &env, const char *name)
