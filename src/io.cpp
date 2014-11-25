@@ -24,6 +24,7 @@
 #include <future>
 #include <string>
 #include <llvm/Support/FileSystem.h>
+#include <llvm/Support/Path.h>
 #include <opencv2/highgui/highgui.hpp>
 
 #include "likely/backend.h"
@@ -114,7 +115,7 @@ likely_mat likely_read(const char *file_name, likely_file_type file_type, likely
         error_code ec;
         vector<future<likely_mat>> futures;
         for (sys::fs::recursive_directory_iterator i(fileName, ec), e; i != e; i.increment(ec))
-            if (sys::fs::is_regular_file(i->path()))
+            if (sys::fs::is_regular_file(i->path()) && sys::path::has_stem(i->path()))
                 futures.push_back(async(readAsync, i->path(), type & ~likely_multi_frame));
 
         // Combine into one matrix with multiple frames
