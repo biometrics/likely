@@ -2504,9 +2504,14 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
         if (ast->num_atoms == 0)
             return likely_expression::error(ast, "Empty expression");
         likely_const_ast op = ast->atoms[0];
+
+        // This is an important special case that allows us to have
+        // environment variables that aren't wrapped in factory methods.
         if (op->type != likely_ast_list)
             if (const likely_const_env e = likely_lookup(builder.env, op->atom))
                 return e->expr->evaluate(builder, ast);
+
+        // Fallback general case
         TRY_EXPR(builder, op, e);
         return e->evaluate(builder, ast);
     } else {
@@ -2612,7 +2617,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats)
     return reinterpret_cast<likely_mat (*)(likely_const_mat const*)>(function)(mats);
 }
 
-void *likely_compile(likely_const_expr expr, likely_type const *type, uint32_t n)
+void *likely_compile(struct likely_expression const *expr, likely_type const *type, uint32_t n)
 {
     return Lambda::getFunction(expr, vector<likely_type>(type, type + n));
 }
@@ -2642,7 +2647,9 @@ class LazyDefinition : public LikelyOperator
         swap(builder.env, env);
         unique_ptr<const likely_expression> op(get(builder, this->ast));
         swap(builder.env, env);
-        return op.get() ? op->evaluate(builder, ast) : NULL;
+        if ((ast->type != likely_ast_list) || !op)
+            return op.release();
+        return op->evaluate(builder, ast);
     }
 
 public:
