@@ -2,7 +2,8 @@ Export
 ------
 You can also export symbols with C linkage.
 
-    foo := (extern u32 "foo" u32 (-> x (+ x 1)))
+    foo := (-> x (+ x 1))
+    (extern u32 "foo" u32 foo)
 
 The above function is equivalent to the C code:
 

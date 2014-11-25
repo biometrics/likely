@@ -1763,21 +1763,20 @@ class externExpression : public LikelyOperator
         if (ast->num_atoms < 5)
             return new Symbol(name, returnType, parameters);
 
+        const Lambda *lambda = static_cast<const Lambda*>(likely_lookup(builder.env, ast->atoms[4]->atom)->expr);
         if (builder.module /* static compilation */) {
-            TRY_EXPR(builder, ast->atoms[4], expr);
-            const Lambda *lambda = static_cast<const Lambda*>(expr.get());
             if (likely_const_expr function = lambda->generate(builder, parameters, name, false, false)) {
-                likely_const_expr expr = new Symbol(name, function->type, parameters);
+                const likely_const_expr symbol = new Symbol(name, function->type, parameters);
                 delete function;
-                return expr;
+                return symbol;
             }
         } else /* JIT compilation */ {
-            JITFunction *function = new JITFunction(name, unique_ptr<Lambda>(new Lambda(builder.env, ast->atoms[4]->atoms[2], ast->atoms[4]->atoms[1])).get(), parameters, false, false);
-            if (function->function) {
-                sys::DynamicLibrary::AddSymbol(name, function->function);
-                return function;
+            JITFunction *jitFunction = new JITFunction(name, lambda, parameters, false, false);
+            if (jitFunction->function) {
+                sys::DynamicLibrary::AddSymbol(name, jitFunction->function);
+                return jitFunction;
             } else {
-                delete function;
+                delete jitFunction;
             }
         }
         return NULL;
