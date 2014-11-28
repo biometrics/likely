@@ -1704,10 +1704,10 @@ LIKELY_REGISTER(lambda)
 class externExpression : public LikelyOperator
 {
     const char *symbol() const { return "extern"; }
-    size_t maxParameters() const { return 4; }
+    size_t maxParameters() const { return 5; }
     size_t minParameters() const { return 3; }
 
-    static likely_mat eval(const likely_const_ast ast, const likely_const_env parent)
+    static likely_mat eval(const likely_const_ast ast, const likely_const_env parent, bool *ok)
     {
         likely_retain_ast(ast);
         const likely_ast list = likely_list(&const_cast<const likely_ast&>(ast), 1);
@@ -1715,22 +1715,31 @@ class externExpression : public LikelyOperator
         likely_release_ast(list);
         const likely_mat result = likely_retain_mat(likely_result(env ? env->expr : NULL));
         likely_release_env(env);
+        *ok = (result != NULL);
         return result;
     }
 
     static likely_type evalType(likely_const_ast ast, likely_const_env parent, bool *ok)
     {
-        const likely_const_mat result = eval(ast, parent);
-        *ok = ((result != NULL) && (result->type == likely_u32));
+        const likely_const_mat result = eval(ast, parent, ok);
+        *ok &= (result->type == likely_u32);
         const likely_type type = (*ok) ? likely_type(likely_get_element(result, 0, 0, 0, 0)) : likely_type(likely_void);
         likely_release_mat(result);
         return type;
     }
 
+    static int evalInt(likely_const_ast ast, likely_const_env parent, bool *ok)
+    {
+        const likely_const_mat result = eval(ast, parent, ok);
+        const int val = (*ok) ? int(likely_get_element(result, 0, 0, 0, 0)) : 0;
+        likely_release_mat(result);
+        return val;
+    }
+
     static string evalString(likely_const_ast ast, likely_const_env parent, bool *ok)
     {
-        const likely_const_mat result = eval(ast, parent);
-        *ok = ((result != NULL) && (result->type == likely_text));
+        const likely_const_mat result = eval(ast, parent, ok);
+        *ok &= (result->type == likely_text);
         const string str = (*ok) ? result->data : "";
         likely_release_mat(result);
         return str;
@@ -1763,15 +1772,20 @@ class externExpression : public LikelyOperator
         if (ast->num_atoms < 5)
             return new Symbol(name, returnType, parameters);
 
+        const bool arrayCC = (ast->num_atoms < 6) ? false
+                                                  : evalInt(ast->atoms[5], builder.env, &ok);
+        if (!ok)
+            return NULL;
+
         const Lambda *lambda = static_cast<const Lambda*>(likely_lookup(builder.env, ast->atoms[4]->atom)->expr);
         if (builder.module /* static compilation */) {
-            if (likely_const_expr function = lambda->generate(builder, parameters, name, false, false)) {
+            if (likely_const_expr function = lambda->generate(builder, parameters, name, arrayCC, false)) {
                 const likely_const_expr symbol = new Symbol(name, function->type, parameters);
                 delete function;
                 return symbol;
             }
         } else /* JIT compilation */ {
-            JITFunction *jitFunction = new JITFunction(name, lambda, parameters, false, false);
+            JITFunction *jitFunction = new JITFunction(name, lambda, parameters, false, arrayCC);
             if (jitFunction->function) {
                 sys::DynamicLibrary::AddSymbol(name, jitFunction->function);
                 return jitFunction;
