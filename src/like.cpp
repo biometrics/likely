@@ -55,8 +55,8 @@ using namespace std;
 
 static cl::opt<string> input(cl::Positional, cl::desc("<source_file>"));
 static cl::opt<string> output(cl::Positional, cl::desc("<object_file>"));
-static cl::opt<string> command("command", cl::desc("Run the specified command"));
-static cl::alias       commandA("c", cl::desc("Alias for -command"), cl::aliasopt(command));
+static cl::opt<bool> command("command", cl::desc("Treat <source_file> as a command instead of a file"));
+static cl::alias     commandA("c", cl::desc("Alias for -command"), cl::aliasopt(command));
 static cl::opt<string> render("render", cl::desc("%d-formatted file to render matrix output to"));
 static cl::alias       renderA("r", cl::desc("Alias for -render"), cl::aliasopt(render));
 static cl::opt<string> assert_("assert", cl::desc("Confirm the output equals the specified value"));
@@ -169,7 +169,7 @@ int main(int argc, char *argv[])
     if (parallel)
         parent->type |= likely_environment_parallel;
 
-    if (input.empty() && command.empty()) {
+    if (input.empty()) {
         // console
         cout << "Likely\n";
         while (true) {
@@ -191,9 +191,9 @@ int main(int argc, char *argv[])
         // interpreter or compiler
         likely_file_type type;
         likely_mat code;
-        if (input.empty()) {
+        if (command) {
             type = likely_file_lisp;
-            code = likely_string(command.c_str());
+            code = likely_string(input.c_str());
         } else {
             type = likely_guess_file_type(input.c_str());
             code = likely_read(input.c_str(), type, likely_text);
