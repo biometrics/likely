@@ -361,20 +361,25 @@ test_expr("(threshold-to-zero-inverse 0.5 0.5)" 0.5)
 test_expr("(threshold-to-zero-inverse 0.6 0.5)" 0)
 
 # Test other library files
-function(test_demo FILE TEST_STATIC)
+function(test_demo FILE)
   add_test(NAME ${FILE}
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
            COMMAND like library/${FILE}.md -parallel -show -assert "data/demo/${FILE}.jpg")
-  if(${TEST_STATIC})
-    add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/${FILE}.o
-                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                       COMMAND like -q library/${FILE}.md ${CMAKE_BINARY_DIR}/${FILE}.o
-                       DEPENDS like ${CMAKE_SOURCE_DIR}/library/${FILE}.md
-                       VERBATIM)
-    add_executable(test_${FILE} $<TARGET_OBJECTS:likely_test> ${CMAKE_BINARY_DIR}/${FILE}.o)
-    set_source_files_properties(${CMAKE_BINARY_DIR}/${FILE}.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
-    target_link_libraries(test_${FILE} likely_shared)
-  endif()
+endfunction()
+
+function(test_static FILE ARGS)
+  add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/${FILE}.o
+                     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                     COMMAND like -q -c "\"library/${FILE}.md\".import (extern u8CXY \"likely_test_function\" u8CXY ${FILE} true)" ${CMAKE_BINARY_DIR}/${FILE}.o
+                     DEPENDS like ${CMAKE_SOURCE_DIR}/library/${FILE}.md
+                     VERBATIM)
+  add_executable(test_${FILE} $<TARGET_OBJECTS:likely_test> ${CMAKE_BINARY_DIR}/${FILE}.o)
+  set_source_files_properties(${CMAKE_BINARY_DIR}/${FILE}.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
+  target_link_libraries(test_${FILE} likely_shared)
+  separate_arguments(ARGS)
+  add_test(NAME static_${FILE}
+           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+           COMMAND test_${FILE} ${ARGS})
 endfunction()
 
 function(test_file FILE VALUE)
@@ -388,15 +393,16 @@ test_file(c_api "")
 test_file(comments 42)
 test_file(demos "")
 test_file(export 3)
-test_demo(gabor_wavelet OFF)
-test_demo(hello_world ON)
+test_demo(gabor_wavelet)
+test_demo(hello_world)
+test_static(hello_world "data/demo/hello_world.jpg u8CXY data/misc/lenna.tiff u8CXY")
 test_file(likely "")
-test_demo(mandelbrot_set OFF)
+test_demo(mandelbrot_set)
 test_file(matrix_io "Compression Ratio: 7.31714")
 test_file(tutorial "")
 
 # Test algorithms
 option(LIKELY_TEST_ALGORITHMS "Run computationally demanding tests" ON)
 if(${LIKELY_TEST_ALGORITHMS})
-  test_demo(average_face OFF)
+  test_demo(average_face)
 endif()
