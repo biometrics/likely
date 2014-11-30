@@ -388,3 +388,24 @@ likely_mat likely_show(likely_const_mat image, const char *title)
     cv::waitKey();
     return likely_retain_mat(image);
 }
+
+void likely_assert_approximate(likely_const_mat a, likely_const_mat b, float error_threshold)
+{
+    likely_assert(a->channels == b->channels, "channels: %d and: %d differ!", a->channels, b->channels);
+    likely_assert(a->columns  == b->columns , "columns: %d and: %d differ!" , a->columns , b->columns);
+    likely_assert(a->rows     == b->rows    , "rows: %d and: %d differ!"    , a->rows    , b->rows);
+    likely_assert(a->frames   == b->frames  , "frames: %d and: %d differ!"  , a->frames  , b->frames);
+    double delta = 0;
+    double sum = 0;
+    for (uint32_t t=0; t<a->frames; t++)
+        for (uint32_t y=0; y<a->rows; y++)
+            for (uint32_t x=0; x<a->columns; x++)
+                for (uint32_t c=0; c<a->channels; c++) {
+                    const double A = likely_get_element(a, c, x, y, t);
+                    const double B = likely_get_element(b, c, x, y, t);
+                    delta += fabs(A - B);
+                    sum += max(A, B);
+                }
+    const float relativeError = delta / sum;
+    likely_assert(relativeError < error_threshold, "average delta: %g%% greater than threshold: %g%%", relativeError, error_threshold);
+}

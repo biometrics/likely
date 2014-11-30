@@ -117,21 +117,13 @@ static void showCallback(likely_const_env env, void *)
     if (env->type & likely_environment_definition)
         return;
 
-    const likely_mat rendered = likely_render(likely_result(env->expr), NULL, NULL);
+    const likely_const_mat rendered = likely_render(likely_result(env->expr), NULL, NULL);
     if (assert_.getValue().empty()) {
         likely_release_mat(likely_show(rendered, likely_symbol(env->ast)));
     } else {
-        likely_mat baseline = likely_read(assert_.getValue().c_str(), likely_file_guess, likely_image);
-        likely_assert(rendered->channels == baseline->channels, "expected: %d channels, got: %d", baseline->channels, rendered->channels);
-        likely_assert(rendered->columns  == baseline->columns , "expected: %d columns, got: %d" , baseline->columns , rendered->columns);
-        likely_assert(rendered->rows     == baseline->rows    , "expected: %d rows, got: %d"    , baseline->rows    , rendered->rows);
-        likely_assert(rendered->frames   == baseline->frames  , "expected: %d frames, got: %d"  , baseline->frames  , rendered->frames);
-        const size_t elements = size_t(rendered->channels) * size_t(rendered->columns) * size_t(rendered->rows) * size_t(rendered->frames);
-        size_t delta = 0;
-        for (size_t i=0; i<elements; i++)
-            delta += abs(int(rendered->data[i]) - int(baseline->data[i]));
+        const likely_const_mat baseline = likely_read(assert_.getValue().c_str(), likely_file_guess, likely_image);
+        likely_assert_approximate(baseline, rendered, 0.03f /* arbitrary threshold */);
         likely_release_mat(baseline);
-        likely_assert(delta < 2*elements /* arbitrary threshold */, "average delta: %g", float(delta) / float(elements));
         assert_.setValue(string());
     }
     likely_release_mat(rendered);
