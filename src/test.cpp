@@ -38,7 +38,10 @@ int main(int argc, char *argv[])
     likely_assert(!args.empty(), "expected at least one argument, the return value.");
 
     const likely_const_mat result = likely_test_function(args.data() + 1);
-    (void) result;
+    const likely_const_mat rendered = likely_render(result, NULL, NULL);
+    likely_assert_approximate(args[0], rendered, 0.03f);
+    likely_release_mat(rendered);
+    likely_release_mat(result);
 
     for (likely_const_mat arg : args)
         likely_release_mat(arg);
