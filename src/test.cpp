@@ -26,12 +26,8 @@ extern "C" likely_mat likely_test_function(const likely_const_mat *args);
 int main(int argc, char *argv[])
 {
     vector<likely_const_mat> args;
-    for (int i=1; i<argc; i+=2) {
-        bool ok;
-        const likely_type type = likely_type_from_string(argv[i+1], &ok);
-        likely_assert(ok, "expected a type, got: %s", argv[i+1]);
-
-        const likely_const_mat arg = likely_read(argv[i], likely_file_media, type);
+    for (int i=1; i<argc; i++) {
+        const likely_const_mat arg = likely_read(argv[i], likely_file_media, likely_image);
         likely_assert(arg != NULL, "failed to read: %s", argv[i]);
         args.push_back(arg);
     }

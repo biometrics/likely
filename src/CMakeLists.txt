@@ -367,10 +367,10 @@ function(test_demo FILE)
            COMMAND like library/${FILE}.md -parallel -show -assert "data/demo/${FILE}.jpg")
 endfunction()
 
-function(test_static FILE ARGS)
+function(test_static FILE RETURN PARAMETERS ARGS)
   add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/${FILE}.o
                      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                     COMMAND like -q -c "\"library/${FILE}.md\".import (extern u8CXY \"likely_test_function\" u8CXY ${FILE} true)" ${CMAKE_BINARY_DIR}/${FILE}.o
+                     COMMAND like -q -c "\"library/${FILE}.md\".import (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${CMAKE_BINARY_DIR}/${FILE}.o
                      DEPENDS like ${CMAKE_SOURCE_DIR}/library/${FILE}.md
                      VERBATIM)
   add_executable(test_${FILE} $<TARGET_OBJECTS:likely_test> ${CMAKE_BINARY_DIR}/${FILE}.o)
@@ -379,7 +379,7 @@ function(test_static FILE ARGS)
   separate_arguments(ARGS)
   add_test(NAME static_${FILE}
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND test_${FILE} ${ARGS})
+           COMMAND test_${FILE} "data/demo/${FILE}.jpg" ${ARGS})
 endfunction()
 
 function(test_file FILE VALUE)
@@ -394,10 +394,12 @@ test_file(comments 42)
 test_file(demos "")
 test_file(export 3)
 test_demo(gabor_wavelet)
+#test_static(gabor_wavelet "f32XY" "()" "")
 test_demo(hello_world)
-test_static(hello_world "data/demo/hello_world.jpg u8CXY data/misc/lenna.tiff u8CXY")
+test_static(hello_world "u8CXY" "u8CXY" "data/misc/lenna.tiff")
 test_file(likely "")
 test_demo(mandelbrot_set)
+#test_static(mandelbrot_set "f32XY" "()" "")
 test_file(matrix_io "Compression Ratio: 7.31714")
 test_file(tutorial "")
 
@@ -405,4 +407,5 @@ test_file(tutorial "")
 option(LIKELY_TEST_ALGORITHMS "Run computationally demanding tests" ON)
 if(${LIKELY_TEST_ALGORITHMS})
   test_demo(average_face)
+  #test_static(average_face "f32XY" "()" "")
 endif()
