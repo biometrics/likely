@@ -192,23 +192,21 @@ int main(int argc, char *argv[])
             likely_assert(code != NULL, "failed to read: %s", input.c_str());
         }
 
+        const likely_ast parsed = likely_lex_and_parse(code->data, type);
+        likely_release_mat(code);
         if (ast) {
-            const likely_ast parsed = likely_lex_and_parse(code->data, type);
             for (size_t i=0; i<parsed->num_atoms; i++)
                 checkOrPrintAndRelease(likely_ast_to_string(parsed->atoms[i]));
-            likely_release_ast(parsed);
         } else {
-            const likely_ast ast = likely_lex_and_parse(code->data, type);
-            const likely_const_env env = likely_eval(ast, parent, evalCallback, NULL);
+            const likely_const_env env = likely_eval(parsed, parent, evalCallback, NULL);
             if (!env->expr && env->ast) {
                 const likely_const_mat statement = likely_ast_to_string(env->ast);
                 likely_assert(false, "error evaluating: %s", statement->data);
                 likely_release_mat(statement);
             }
             likely_release_env(env);
-            likely_release_ast(ast);
         }
-        likely_release_mat(code);
+        likely_release_ast(parsed);
     }
 
     likely_assert(assert_.getValue().empty(), "unreached assertion: %s", assert_.getValue().data());
