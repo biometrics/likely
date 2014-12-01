@@ -1004,17 +1004,7 @@ struct likely_virtual_table : public LikelyOperator
     vector<unique_ptr<JITFunction>> functions;
 
     likely_virtual_table(likely_const_env env, likely_const_ast body, likely_const_ast parameters)
-        : env(likely_retain_env(env)), body(likely_retain_ast(body)), parameters(likely_retain_ast(parameters)), n(length(parameters)) {}
-
-    ~likely_virtual_table()
-    {
-        likely_release_ast(parameters);
-        likely_release_ast(body);
-        likely_release_env(env);
-    }
-
-    likely_virtual_table(const likely_virtual_table &) = delete;
-    likely_virtual_table &operator=(const likely_virtual_table &) = delete;
+        : env(env), body(body), parameters(parameters), n(length(parameters)) {}
 
 private:
     likely_const_expr evaluateOperator(Builder &, likely_const_ast) const { return NULL; }
@@ -1651,7 +1641,7 @@ private:
             dynamic |= (arg->type == likely_multi_dimension);
 
         if (dynamic) {
-            likely_vtable vtable = new likely_virtual_table(builder.env, body, parameters);
+            const likely_vtable vtable = new likely_virtual_table(builder.env, body, parameters);
             builder.module->exprs.push_back(vtable);
 
             PointerType *vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
@@ -1777,7 +1767,7 @@ class externExpression : public LikelyOperator
 
         const Lambda *lambda = static_cast<const Lambda*>(likely_lookup(builder.env, ast->atoms[4]->atom)->expr);
         if (builder.module /* static compilation */) {
-            if (likely_const_expr function = lambda->generate(builder, parameters, name, arrayCC, false)) {
+            if (const likely_const_expr function = lambda->generate(builder, parameters, name, arrayCC, false)) {
                 const likely_const_expr symbol = new Symbol(name, function->type, parameters);
                 delete function;
                 return symbol;

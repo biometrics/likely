@@ -69,7 +69,7 @@ struct Test
 
         const likely_const_env lookup = likely_lookup(env, name());
         assert(lookup && lookup->expr);
-        void * const f = likely_compile(lookup->expr, NULL, 0);
+        void *const f = likely_compile(lookup->expr, NULL, 0);
 
         for (likely_type type : types()) {
             for (int size : sizes()) {
