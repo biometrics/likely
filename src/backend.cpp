@@ -1493,9 +1493,8 @@ struct Lambda : public LikelyOperator
 
     likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, bool arrayCC, bool promoteScalarToMatrix) const
     {
-        likely_const_env restore = builder.env;
-        builder.env = newEnv(env);
-        const_cast<likely_env>(builder.env)->type = restore->type;
+        const likely_const_env restore = builder.env;
+        builder.env = env;
 
         while (parameters.size() < maxParameters())
             parameters.push_back(likely_multi_dimension);
@@ -1571,7 +1570,6 @@ struct Lambda : public LikelyOperator
         if (originalInsertBlock)
             builder.SetInsertPoint(originalInsertBlock);
 
-        likely_release_env(builder.env);
         builder.env = restore;
         return new likely_expression(LikelyValue(function, result->type), result->getData());
     }

@@ -210,6 +210,8 @@ int main(int argc, char *argv[])
     }
 
     likely_assert(assert_.getValue().empty(), "unreached assertion: %s", assert_.getValue().data());
+
+    assert(parent->ref_count == 1);
     likely_release_env(parent);
     likely_shutdown();
     return EXIT_SUCCESS;
