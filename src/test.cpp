@@ -25,12 +25,20 @@ extern "C" likely_mat likely_test_function(const likely_const_mat *args);
 
 int main(int argc, char *argv[])
 {
+    likely_initialize(3, 0, true, true, false);
+
     vector<likely_const_mat> args;
+    const likely_const_env parent = likely_standard(NULL);
     for (int i=1; i<argc; i++) {
-        const likely_const_mat arg = likely_read(argv[i], likely_file_media, likely_image);
-        likely_assert(arg != NULL, "failed to read: %s", argv[i]);
+        const likely_ast ast = likely_lex_and_parse(argv[i], likely_file_lisp);
+        const likely_const_env env = likely_eval(ast, parent, NULL, NULL);
+        likely_release_ast(ast);
+        const likely_const_mat arg = likely_retain_mat(likely_result(env->expr));
+        likely_release_env(env);
+        likely_assert(arg != NULL, "failed to evaluate: %s", argv[i]);
         args.push_back(arg);
     }
+    likely_release_env(parent);
     likely_assert(!args.empty(), "expected at least one argument, the return value.");
 
     const likely_const_mat result = likely_test_function(args.data() + 1);
@@ -42,5 +50,6 @@ int main(int argc, char *argv[])
     for (likely_const_mat arg : args)
         likely_release_mat(arg);
 
+    likely_shutdown();
     return EXIT_SUCCESS;
 }
