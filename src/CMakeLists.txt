@@ -389,7 +389,6 @@ function(test_file FILE VALUE)
 endfunction()
 
 # List alphabetically
-test_file(c_api "")
 test_file(comments 42)
 test_file(demos "")
 test_file(export 3)
