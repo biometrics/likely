@@ -370,7 +370,7 @@ endfunction()
 function(test_static FILE RETURN PARAMETERS ARGS)
   add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/${FILE}.o
                      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                     COMMAND like -q -c "\"library/${FILE}.md\".import (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${CMAKE_BINARY_DIR}/${FILE}.o
+                     COMMAND like -O3 -q -c "\"library/${FILE}.md\".import (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${CMAKE_BINARY_DIR}/${FILE}.o
                      DEPENDS like ${CMAKE_SOURCE_DIR}/library/${FILE}.md
                      VERBATIM)
   add_executable(test_${FILE} $<TARGET_OBJECTS:likely_test> ${CMAKE_BINARY_DIR}/${FILE}.o)
@@ -398,7 +398,7 @@ test_demo(hello_world)
 test_static(hello_world "u8CXY" "u8CXY" "\"data/misc/lenna.tiff\".read-image")
 test_file(likely "")
 test_demo(mandelbrot_set)
-#test_static(mandelbrot_set "u8XY" "(i32 i32 f32 f32 f32 f32 i32)" "600 400 -2.f32 -1.f32 3.f32 2.f32 20")
+test_static(mandelbrot_set "u8XY" "(i32 i32 f32 f32 f32 f32 i32)" "600 400 -2.f32 -1.f32 3.f32 2.f32 20")
 test_file(matrix_io "Compression Ratio: 7.31714")
 test_file(tutorial "")
 
