@@ -107,7 +107,7 @@ struct Test
         checkRead(source, fileName);
 
         printf("%s \t", fileName);
-        likely_env parent = likely_standard(NULL);
+        const likely_const_env parent = likely_standard(likely_jit(false), NULL);
         likely_release_env(likely_lex_parse_and_eval(source->data, file_type, parent));
 
         if (BenchmarkTest) {
@@ -260,7 +260,6 @@ class thresholdTest : public Test {
 int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
-    likely_initialize(3, 0, true, true, false);
 
     // Print to console immediately
     setbuf(stdout, NULL);
@@ -288,7 +287,7 @@ int main(int argc, char *argv[])
 
         const likely_const_mat source = likely_read("library/benchmark.md", likely_file_gfm, likely_text);
         checkRead(source, "library/benchmark.md");
-        const likely_env parent = likely_standard(NULL);
+        const likely_env parent = likely_standard(likely_jit(false), NULL);
         if (BenchmarkParallel)
             parent->type |= likely_environment_parallel;
         const likely_const_env env = likely_lex_parse_and_eval(source->data, likely_file_gfm, parent);

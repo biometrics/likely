@@ -63,69 +63,69 @@
 using namespace llvm;
 using namespace std;
 
-static int OptLevel = 0;
-static int SizeLevel = 0;
-static bool UnrollLoops = false;
-static bool VectorizeLoops = false;
-static bool Verbose = false;
-
-void likely_initialize(int opt_level, int size_level, bool unroll_loops, bool vectorize_loops, bool verbose)
+//! [likely_jit implementation.]
+likely_settings likely_jit(bool verbose)
 {
-    OptLevel = max(min(opt_level, 3), 0);
-    SizeLevel = max(min(size_level, 2), 0);
-    UnrollLoops = unroll_loops;
-    VectorizeLoops = vectorize_loops;
-    Verbose = verbose;
-
-    InitializeNativeTarget();
-    InitializeNativeTargetAsmPrinter();
-    InitializeNativeTargetAsmParser();
-
-    PassRegistry &Registry = *PassRegistry::getPassRegistry();
-    initializeCore(Registry);
-    initializeScalarOpts(Registry);
-    initializeVectorization(Registry);
-    initializeIPO(Registry);
-    initializeAnalysis(Registry);
-    initializeIPA(Registry);
-    initializeTransformUtils(Registry);
-    initializeInstCombine(Registry);
-    initializeTarget(Registry);
-
-    sys::DynamicLibrary::AddSymbol("likely_read", (void*) likely_read);
-    sys::DynamicLibrary::AddSymbol("likely_write", (void*) likely_write);
-    sys::DynamicLibrary::AddSymbol("likely_decode", (void*) likely_decode);
-    sys::DynamicLibrary::AddSymbol("likely_encode", (void*) likely_encode);
+    likely_settings settings;
+    settings.opt_level = 3;
+    settings.size_level = 0;
+    settings.heterogeneous = false;
+    settings.parallel = false;
+    settings.unroll_loops = true;
+    settings.vectorize_loops = true;
+    settings.verbose = verbose;
+    return settings;
 }
+//! [likely_jit implementation.]
 
 namespace {
 
-class LikelyContext
+class LikelyContext : public likely_settings
 {
     static queue<LikelyContext*> contextPool;
     map<likely_type, Type*> typeLUT;
     PassManager *PM;
 
-    // use LikelyContext::acquire()
-    LikelyContext()
-        : PM(new PassManager())
+public:
+    LLVMContext context;
+
+    LikelyContext(const likely_settings &settings)
+        : likely_settings(settings), PM(new PassManager())
     {
-        static TargetMachine *TM = getTargetMachine(false);
+        static TargetMachine *TM = NULL;
+        if (!TM) {
+            InitializeNativeTarget();
+            InitializeNativeTargetAsmPrinter();
+            InitializeNativeTargetAsmParser();
+
+            PassRegistry &Registry = *PassRegistry::getPassRegistry();
+            initializeCore(Registry);
+            initializeScalarOpts(Registry);
+            initializeVectorization(Registry);
+            initializeIPO(Registry);
+            initializeAnalysis(Registry);
+            initializeIPA(Registry);
+            initializeTransformUtils(Registry);
+            initializeInstCombine(Registry);
+            initializeTarget(Registry);
+
+            TM = getTargetMachine(false);
+        }
+
         PM->add(createVerifierPass());
         PM->add(new TargetLibraryInfo(Triple(sys::getProcessTriple())));
         PM->add(new DataLayoutPass());
         TM->addAnalysisPasses(*PM);
         PassManagerBuilder builder;
-        builder.OptLevel = OptLevel;
-        builder.SizeLevel = SizeLevel;
-        builder.DisableUnrollLoops = !UnrollLoops;
-        builder.LoopVectorize = VectorizeLoops;
+        builder.OptLevel = opt_level;
+        builder.SizeLevel = size_level;
+        builder.DisableUnrollLoops = !unroll_loops;
+        builder.LoopVectorize = vectorize_loops;
         builder.Inliner = createAlwaysInlinerPass();
         builder.populateModulePassManager(*PM);
         PM->add(createVerifierPass());
     }
 
-    // use LikelyContext::release()
     ~LikelyContext()
     {
         delete PM;
@@ -133,37 +133,6 @@ class LikelyContext
 
     LikelyContext(const LikelyContext &) = delete;
     LikelyContext &operator=(const LikelyContext &) = delete;
-
-public:
-    LLVMContext context;
-
-    static LikelyContext *acquire()
-    {
-        static mutex lock;
-        lock_guard<mutex> guard(lock);
-
-        if (contextPool.empty())
-            contextPool.push(new LikelyContext());
-
-        LikelyContext *context = contextPool.front();
-        contextPool.pop();
-        return context;
-    }
-
-    static void release(LikelyContext *context)
-    {
-        static mutex lock;
-        lock_guard<mutex> guard(lock);
-        contextPool.push(context);
-    }
-
-    static void shutdown()
-    {
-        while (!contextPool.empty()) {
-            delete contextPool.front();
-            contextPool.pop();
-        }
-    }
 
     Type *toLLVM(likely_type likely)
     {
@@ -212,7 +181,7 @@ public:
     void optimize(Module &module)
     {
 //        DebugFlag = true;
-        if (OptLevel > 0)
+        if (opt_level > 0)
             module.setTargetTriple(sys::getProcessTriple());
         PM->run(module);
     }
@@ -447,6 +416,7 @@ static likely_env newEnv(likely_const_env parent, likely_const_ast ast = NULL, l
         env->type |= likely_environment_definition;
     env->parent = likely_retain_env(parent);
     env->ast = likely_retain_ast(ast);
+    env->settings = parent ? parent->settings : NULL;
     env->module = parent ? parent->module : NULL;
     env->expr = expr;
     env->ref_count = 1;
@@ -566,13 +536,13 @@ private:
 
 struct likely_module
 {
-    LikelyContext *context;
+    unique_ptr<LikelyContext> context;
     Module *module;
     vector<likely_const_expr> exprs;
     vector<Variant> data;
 
-    likely_module()
-        : context(LikelyContext::acquire())
+    likely_module(const likely_settings &settings)
+        : context(new LikelyContext(settings))
         , module(new Module("likely_module", context->context)) {}
 
     virtual ~likely_module()
@@ -596,10 +566,7 @@ struct likely_module
             delete module;
             module = NULL;
         }
-        if (context) {
-            LikelyContext::release(context);
-            context = NULL;
-        }
+        context.reset();
     }
 };
 
@@ -610,8 +577,8 @@ class OfflineModule : public likely_module
     const string fileName;
 
 public:
-    OfflineModule(const string &fileName)
-        : fileName(fileName) {}
+    OfflineModule(const likely_settings &settings, const string &fileName)
+        : likely_module(settings), fileName(fileName) {}
 
     ~OfflineModule()
     {
@@ -1232,7 +1199,7 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                     auto function = functionLUT.find(symbol());
                     if (function == functionLUT.end()) {
                         const string code = string("(extern multi-dimension \"_likely_simple_arithmetic\" (multi-dimension multi-dimension) (a b) :-> { dst := a.imitate (dst a b) :=> (<- dst (") + symbol() + string(" a b)) })");
-                        const likely_env parent = likely_standard(NULL);
+                        const likely_env parent = likely_standard(likely_jit(false), NULL);
                         const likely_env env = likely_lex_parse_and_eval(code.c_str(), likely_file_lisp, parent);
                         likely_release_env(parent);
                         void *const f = likely_function(env->expr);
@@ -2366,7 +2333,8 @@ class setExpression : public LikelyOperator
 LIKELY_REGISTER(set)
 
 JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC)
-    : Symbol(name, likely_void, parameters), module(new likely_module())
+    : Symbol(name, likely_void, parameters)
+    , module(new likely_module(likely_jit(lambda->env->settings ? lambda->env->settings->verbose : false)))
 {
     Builder builder(lambda->env, module, !evaluate);
     {
@@ -2412,7 +2380,7 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
             builder.module->optimize();
     }
 
-    if (Verbose)
+    if (module->context->verbose)
         builder.module->module->dump();
 
     if (!evaluate) {
@@ -2557,11 +2525,13 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
     }
 }
 
-likely_env likely_standard(const char *file_name)
+likely_env likely_standard(likely_settings settings, const char *file_name)
 {
-    likely_env env = newEnv(RootEnvironment::get());
+    const likely_env env = newEnv(RootEnvironment::get());
+    env->settings = (likely_settings*) malloc(sizeof(likely_settings));
+    memcpy(env->settings, &settings, sizeof(likely_settings));
     if (file_name)
-        env->module = new OfflineModule(file_name);
+        env->module = new OfflineModule(settings, file_name);
     return env;
 }
 
@@ -2581,6 +2551,8 @@ void likely_release_env(likely_const_env env)
 
     delete env->expr;
     likely_release_ast(env->ast);
+    if (env->settings && !env->parent->settings)
+        free(env->settings);
     if (env->module && !env->parent->module)
         delete env->module;
     likely_release_env(env->parent);
@@ -2724,6 +2696,5 @@ likely_env likely_lex_parse_and_eval(const char *source, likely_file_type file_t
 void likely_shutdown()
 {
     likely_release_env(RootEnvironment::get());
-    LikelyContext::shutdown();
     llvm_shutdown();
 }

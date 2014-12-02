@@ -31,6 +31,30 @@ extern "C" {
  */
 
 /*!
+ * \brief Compilation options.
+ * \see \ref likely_jit
+ */
+struct likely_settings
+{
+    int opt_level; /*!< \brief Specify the basic optimization level. 0 = -O0, 1 = -O1, 2 = -O2, 3 = -O3. */
+    int size_level; /*!< \brief How much we're optimizing for size. 0 = none, 1 = -Os, 2 = -Oz. */
+    bool parallel; /*!< \brief Generate parallel code. */
+    bool heterogeneous; /*!< \brief Generate heterogeneous code. */
+    bool unroll_loops; /*!< \brief Perform loop unrolling optimization. */
+    bool vectorize_loops; /*!< \brief Perform loop vectorization optimization. */
+    bool verbose; /*!< Verbose compiler output. */
+};
+
+/*!
+ * \brief Default just-in-time compiler options.
+ * \par Implementation
+ * \snippet src/backend.cpp likely_jit implementation.
+ * \param[in] verbose Verbose compiler output.
+ * \return \ref likely_settings initialized for just-in-time compilation.
+ */
+LIKELY_EXPORT struct likely_settings likely_jit(bool verbose);
+
+/*!
  * \brief How to interpret \ref likely_environment.
  *
  * Available options are listed in \ref likely_environment_type_mask.
@@ -65,25 +89,12 @@ struct likely_environment
 {
     likely_const_env parent; /*!< \brief Additional context, or \c NULL if root. */
     likely_const_ast ast; /*!< \brief Associated source code. */
+    struct likely_settings *settings; /*!< \brief Used internally to control compiler behavior. */
     struct likely_module *module; /*!< \brief Used internally as a container to store generated instructions during static compilation. */
     struct likely_expression const *expr; /*!< The result of interpreting \ref ast in the context of \ref parent. \c NULL if an error occured. */
     likely_environment_type type; /*!< Interpretation of \ref likely_environment. */
     uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain_env and \ref likely_release_env to track ownership. */
 };
-
-/*!
- * \brief Initialize the compiler.
- *
- * Call _once_ before the calling application begins using functionality provided in \ref backend.
- * \param[in] opt_level Specify the basic optimization level. 0 = -O0, 1 = -O1, 2 = -O2, 3 = -O3.
- * \param[in] size_level How much we're optimizing for size. 0 = none, 1 = -Os, 2 = -Oz.
- * \param[in] unroll_loops Perform loop unrolling optimization.
- * \param[in] vectorize_loops Perform loop vectorization optimization.
- * \param[in] verbose Verbose compiler output.
- * \remark This function is \ref thread-unsafe.
- * \see likely_shutdown
- */
-LIKELY_EXPORT void likely_initialize(int opt_level, int size_level, bool unroll_loops, bool vectorize_loops, bool verbose);
 
 /*!
  * \brief Construct a compilation environment with \ref likely_standard_library symbols.
@@ -98,11 +109,12 @@ LIKELY_EXPORT void likely_initialize(int opt_level, int size_level, bool unroll_
  * Code is written to \p file_name when the returned \ref likely_environment is deleted by \ref likely_release_env.
  * If \p file_name is \c NULL, just-in-time compilation will be performed instead.
  *
+ * \param[in] settings Compiler options.
  * \param[in] file_name Where to save the compilation output for static compilation, or \c NULL for just-in-time compilation.
  * \return A new compilation environment.
  * \remark This function is \ref thread-unsafe.
  */
-LIKELY_EXPORT likely_env likely_standard(const char *file_name);
+LIKELY_EXPORT likely_env likely_standard(struct likely_settings settings, const char *file_name);
 
 /*!
  * \brief Retain a reference to an environment.
@@ -207,7 +219,6 @@ LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *
  *
  * Call _once_ after the calling application finishes using functionality provided in \ref backend.
  * \remark This function is \ref thread-unsafe.
- * \see likely_initialize
  */
 LIKELY_EXPORT void likely_shutdown();
 

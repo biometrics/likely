@@ -151,13 +151,16 @@ int main(int argc, char *argv[])
     else if (quiet) evalCallback = quietCallback;
     else            evalCallback = printCallback;
 
-    likely_initialize(OptLevelO3 ? 3 : ((OptLevelO2 || OptLevelOs || OptLevelOz) ? 2 : (OptLevelO1 ? 1 : (OptLevelO0 ? 0 : (output.empty() ? 3 : 0)))),
-                      OptLevelOz ? 2 : (OptLevelOs ? 1 : 0),
-                      !DisableLoopUnrolling,
-                      !DisableLoopVectorization,
-                      verbose);
+    likely_settings settings;
+    settings.opt_level = OptLevelO3 ? 3 : ((OptLevelO2 || OptLevelOs || OptLevelOz) ? 2 : (OptLevelO1 ? 1 : (OptLevelO0 ? 0 : (output.empty() ? 3 : 0))));
+    settings.size_level = OptLevelOz ? 2 : (OptLevelOs ? 1 : 0);
+    settings.parallel = parallel;
+    settings.heterogeneous = false;
+    settings.unroll_loops = !DisableLoopUnrolling;
+    settings.vectorize_loops = !DisableLoopVectorization;
+    settings.verbose = verbose;
 
-    likely_env parent = likely_standard(output.empty() ? NULL /* JIT */ : output.c_str() /* Offline */);
+    likely_env parent = likely_standard(settings, output.empty() ? NULL /* JIT */ : output.c_str() /* Offline */);
     if (parallel)
         parent->type |= likely_environment_parallel;
 

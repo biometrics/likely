@@ -38,16 +38,13 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    puts("Initializing compiler...");
-    likely_initialize(3, 0, true, true, false);
-
     puts("Reading input image...");
     const likely_const_mat input = likely_read(argv[1], likely_file_guess, likely_image);
     likely_assert(input, "failed to read: %s", argv[1]);
     printf("Width: %u\nHeight: %u\n", input->columns, input->rows);
 
     puts("Creating a JIT compiler environment...");
-    const likely_env parent = likely_standard(NULL);
+    const likely_env parent = likely_standard(likely_jit(false), NULL);
 
     puts("Compiling source code...");
     const likely_const_env env = likely_lex_parse_and_eval(argv[2], likely_file_lisp, parent);

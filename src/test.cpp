@@ -25,10 +25,8 @@ extern "C" likely_mat likely_test_function(const likely_const_mat *args);
 
 int main(int argc, char *argv[])
 {
-    likely_initialize(3, 0, true, true, false);
-
     vector<likely_const_mat> args;
-    const likely_const_env parent = likely_standard(NULL);
+    const likely_const_env parent = likely_standard(likely_jit(false), NULL);
     for (int i=1; i<argc; i++) {
         const likely_const_env env = likely_lex_parse_and_eval(argv[i], likely_file_lisp, parent);
         const likely_const_mat arg = likely_retain_mat(likely_result(env->expr));
