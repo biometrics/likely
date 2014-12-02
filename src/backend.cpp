@@ -506,6 +506,16 @@ struct likely_expression : public LikelyValue
         return new likely_expression(LikelyValue(value, type));
     }
 
+    static likely_const_env lookup(likely_const_env env, const char *name)
+    {
+        while (env) {
+            if ((env->type & likely_environment_definition) && !strcmp(name, likely_symbol(env->ast)))
+                return env;
+            env = env->parent;
+        }
+        return NULL;
+    }
+
     static likely_const_expr get(Builder &builder, likely_const_ast ast);
 
     static likely_const_expr error(likely_const_ast ast, const char *message)
@@ -951,7 +961,17 @@ struct JITFunction : public Symbol
     JITFunction(const JITFunction &) = delete;
     JITFunction &operator=(const JITFunction &) = delete;
 
+    static void *getFunction(likely_const_expr expr)
+    {
+        if (!expr || (expr->uid() != UID()))
+            return NULL;
+        return reinterpret_cast<const JITFunction*>(expr)->function;
+    }
+
 private:
+    static int UID() { return __LINE__; }
+    int uid() const { return UID(); }
+
     struct HasLoop : public LoopInfo
     {
         bool hasLoop = false;
@@ -1765,7 +1785,7 @@ class externExpression : public LikelyOperator
         if (!ok)
             return NULL;
 
-        const Lambda *lambda = static_cast<const Lambda*>(likely_lookup(builder.env, ast->atoms[4]->atom)->expr);
+        const Lambda *lambda = static_cast<const Lambda*>(lookup(builder.env, ast->atoms[4]->atom)->expr);
         if (builder.module /* static compilation */) {
             if (const likely_const_expr function = lambda->generate(builder, parameters, name, arrayCC, false)) {
                 const likely_const_expr symbol = new Symbol(name, function->type, parameters);
@@ -2351,7 +2371,7 @@ class setExpression : public LikelyOperator
         assert(builder.module);
         likely_const_expr expr = get(builder, rhs);
         if (expr) {
-            const likely_const_env env = likely_lookup(builder.env, name);
+            const likely_const_env env = lookup(builder.env, name);
             const Assignable *assignable = env ? Assignable::dynamicCast(env->expr) : NULL;
             if (assignable) assignable->set(builder, expr, lhs);
             else            define(builder.env, name, new Variable(builder, expr, name));
@@ -2503,14 +2523,14 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
         // This is an important special case that allows us to have
         // environment variables that aren't wrapped in factory methods.
         if (op->type != likely_ast_list)
-            if (const likely_const_env e = likely_lookup(builder.env, op->atom))
+            if (const likely_const_env e = lookup(builder.env, op->atom))
                 return e->expr->evaluate(builder, ast);
 
         // Fallback general case
         TRY_EXPR(builder, op, e);
         return e->evaluate(builder, ast);
     } else {
-        if (const likely_const_env e = likely_lookup(builder.env, ast->atom)) {
+        if (const likely_const_env e = lookup(builder.env, ast->atom)) {
             const_cast<likely_ast>(ast)->type = likely_ast_operator;
             return e->expr->evaluate(builder, ast);
         }
@@ -2628,6 +2648,11 @@ likely_const_mat likely_result(const struct likely_expression *expr)
     return (likely_const_mat) expr->getData();
 }
 
+void *likely_function(const struct likely_expression *expr)
+{
+    return JITFunction::getFunction(expr);
+}
+
 class LazyDefinition : public LikelyOperator
 {
     const likely_const_env env;
@@ -2706,18 +2731,6 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
 
     return env;
 }
-
-//! [likely_lookup implementation.]
-likely_const_env likely_lookup(likely_const_env env, const char *name)
-{
-    while (env) {
-        if ((env->type & likely_environment_definition) && !strcmp(name, likely_symbol(env->ast)))
-            return env;
-        env = env->parent;
-    }
-    return NULL;
-}
-//! [likely_lookup implementation.]
 
 void likely_shutdown()
 {

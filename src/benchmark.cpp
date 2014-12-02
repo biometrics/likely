@@ -62,14 +62,18 @@ static Mat generateData(int rows, int columns, likely_type type)
 
 struct Test
 {
-    void run(likely_const_env env) const
+    void run(likely_const_env parent) const
     {
         if (!BenchmarkFunction.empty() && (name() != BenchmarkFunction))
             return;
 
-        const likely_const_env lookup = likely_lookup(env, name());
-        assert(lookup && lookup->expr);
-        void *const f = likely_compile(lookup->expr, NULL, 0);
+        stringstream source;
+        source << "(extern multi-dimension \"" << name() << "\" multi-dimension " << name() << ")";
+        const likely_ast ast = likely_lex_and_parse(source.str().c_str(), likely_file_lisp);
+        const likely_const_env env = likely_eval(ast, parent, NULL, NULL);
+        likely_release_ast(ast);
+        void *const f = likely_function(env->expr);
+        assert(f);
 
         for (likely_type type : types()) {
             for (int size : sizes()) {
@@ -94,6 +98,8 @@ struct Test
                 printf("%-8.3g \t%.3gx\n", double(likely.iterations), likely.Hz/baseline.Hz);
             }
         }
+
+        likely_release_env(env);
     }
 
     static void runFile(const char *fileName)
