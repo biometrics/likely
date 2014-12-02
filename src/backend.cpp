@@ -1233,12 +1233,12 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                     lock.lock();
                     auto function = functionLUT.find(symbol());
                     if (function == functionLUT.end()) {
-                        const string code = string("(a b) :-> { dst := a.imitate (dst a b) :=> (<- dst (") + symbol() + string(" a b)) }");
+                        const string code = string("(extern multi-dimension \"_likely_simple_arithmetic\" (multi-dimension multi-dimension) (a b) :-> { dst := a.imitate (dst a b) :=> (<- dst (") + symbol() + string(" a b)) })");
                         const likely_env parent = likely_standard(NULL);
                         const likely_env env = likely_lex_parse_and_eval(code.c_str(), likely_file_lisp, parent);
-                        assert(env->expr);
-                        void *f = likely_compile(env->expr, NULL, 0);
                         likely_release_env(parent);
+                        void *const f = likely_function(env->expr);
+                        assert(f);
                         envLUT.insert(pair<const char*, likely_const_env>(symbol(), env));
                         functionLUT.insert(pair<const char*, void*>(symbol(), f));
                         function = functionLUT.find(symbol());
@@ -1602,21 +1602,9 @@ struct Lambda : public LikelyOperator
         return Variant(value, jit.type);
     }
 
-    static void *getFunction(likely_const_expr expr, const vector<likely_type> &types)
-    {
-        if (!expr || (expr->uid() != UID()))
-            return NULL;
-        const Lambda *lambda = static_cast<const Lambda*>(expr);
-        JITFunction *jitFunction = new JITFunction("likely_jit_function", lambda, types, false, false);
-        lambda->jitFunctions.push_back(jitFunction);
-        return jitFunction->function;
-    }
-
 private:
     mutable vector<JITFunction*> jitFunctions;
 
-    static int UID() { return __LINE__; }
-    int uid() const { return UID(); }
     size_t maxParameters() const { return length(parameters); }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -1781,7 +1769,9 @@ class externExpression : public LikelyOperator
         if (!ok)
             return NULL;
 
-        const Lambda *lambda = static_cast<const Lambda*>(lookup(builder.env, ast->atoms[4]->atom)->expr);
+        const Lambda *lambda = static_cast<const Lambda*>((ast->atoms[4]->type == likely_ast_list) ? likely_expression::get(builder, ast->atoms[4])
+                                                                                                   : lookup(builder.env, ast->atoms[4]->atom)->expr);
+        const unique_ptr<const Lambda> lambdaOwner((ast->atoms[4]->type == likely_ast_list) ? lambda : NULL);
         if (builder.module /* static compilation */) {
             if (const likely_const_expr function = lambda->generate(builder, parameters, name, arrayCC, false)) {
                 const likely_const_expr symbol = new Symbol(name, function->type, parameters);
@@ -2626,11 +2616,6 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats)
     }
 
     return reinterpret_cast<likely_mat (*)(likely_const_mat const*)>(function)(mats);
-}
-
-void *likely_compile(struct likely_expression const *expr, likely_type const *type, uint32_t n)
-{
-    return Lambda::getFunction(expr, vector<likely_type>(type, type + n));
 }
 
 likely_const_mat likely_result(const struct likely_expression *expr)

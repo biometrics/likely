@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
                  "hello_world_jit <input_image> <function> <output_image>\n"
              "\n"
              "Example:\n\t"
-                 "hello_world_jit data/misc/lenna.tiff 'a :-> { dst := a.imitate (dst a) :=> (<- dst (/ a (a.type 2))) }' dark_lenna.png\n");
+                 "hello_world_jit data/misc/lenna.tiff '(extern multi-dimension \"function\" multi-dimension a :-> { dst := a.imitate (dst a) :=> (<- dst (/ a (a.type 2))) })' dark_lenna.png\n");
         return EXIT_FAILURE;
     }
 
@@ -51,8 +51,7 @@ int main(int argc, char *argv[])
 
     puts("Compiling source code...");
     const likely_const_env env = likely_lex_parse_and_eval(argv[2], likely_file_lisp, parent);
-    likely_assert(env->expr, "failed to evaluate: %s", argv[2]);
-    likely_mat (*function)(likely_const_mat) = likely_compile(env->expr, &input->type, 1);
+    likely_mat (*function)(likely_const_mat) = likely_function(env->expr);
     likely_assert(function, "failed to compile: %s", argv[2]);
 
     puts("Calling compiled function...");

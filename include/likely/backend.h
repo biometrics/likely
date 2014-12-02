@@ -126,24 +126,11 @@ LIKELY_EXPORT likely_env likely_retain_env(likely_const_env env);
 LIKELY_EXPORT void likely_release_env(likely_const_env env);
 
 /*!
- * \brief Compile a function with the specific parameter types.
- *
- * If an incomplete \p type is specified, the returned function will perform dynamic dispatch at runtime based on the argument types.
- * See \ref likely_dynamic for details.
- *
- * \param[in] expr Function expression.
- * \param[in] type Function type.
- * \param[in] n Length of \p type.
- * \return Function pointer with a \c C ABI. \ref owned_by expr.
- * \remark This function is \ref reentrant.
- */
-LIKELY_EXPORT void *likely_compile(struct likely_expression const *expr, likely_type const *type, uint32_t n);
-
-/*!
  * \brief Obtain the result of a computation as a \ref likely_matrix.
  * \param[in] expr Expression holding the computation.
  * \return The result of the computation as a \ref likely_matrix. \ref owned_by \p expr.
  * \remark This function is \ref reentrant.
+ * \see \ref likely_function
  */
 LIKELY_EXPORT likely_const_mat likely_result(const struct likely_expression *expr);
 
@@ -152,6 +139,7 @@ LIKELY_EXPORT likely_const_mat likely_result(const struct likely_expression *exp
  * \param[in] expr Expression holding the compilation.
  * \return Pointer to the compiled function, or \c NULL if not possible. \ref owned_by \p expr.
  * \remark This function is \ref thread-safe.
+ * \see \ref likely_result
  */
 LIKELY_EXPORT void *likely_function(const struct likely_expression *expr);
 

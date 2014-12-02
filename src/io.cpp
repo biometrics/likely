@@ -359,8 +359,8 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
     static void *normalize = NULL;
     if (normalize == NULL) {
         const likely_env parent = likely_standard(NULL);
-        env = likely_lex_parse_and_eval("(img min range) :-> { dst := (new u8 3 img.columns img.rows) (dst img min range) :=> (<- dst (- img min).(/ range).u8) }", likely_file_lisp, parent);
-        normalize = likely_compile(env->expr, NULL, 0);
+        env = likely_lex_parse_and_eval("(extern multi-dimension \"_likely_normalize\" (multi-dimension multi-dimension multi-dimension) (img min range) :-> { dst := (new u8 3 img.columns img.rows) (dst img min range) :=> (<- dst (- img min).(/ range).u8) })", likely_file_lisp, parent);
+        normalize = likely_function(env->expr);
         assert(normalize);
         likely_release_env(parent);
     }
