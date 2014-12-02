@@ -114,7 +114,7 @@ class LikelyContext
         if (OptLevel > 0) {
             static TargetMachine *TM = getTargetMachine(false);
             PM->add(new TargetLibraryInfo(Triple(sys::getProcessTriple())));
-            PM->add(new DataLayoutPass(*TM->getSubtargetImpl()->getDataLayout()));
+            PM->add(new DataLayoutPass());
             TM->addAnalysisPasses(*PM);
             PassManagerBuilder builder;
             builder.OptLevel = OptLevel;
@@ -2395,14 +2395,8 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
 
     string error;
     EngineBuilder engineBuilder(unique_ptr<Module>(builder.module->module));
-    engineBuilder.setErrorStr(&error);
-
-    if (evaluate) {
-        engineBuilder.setEngineKind(EngineKind::Interpreter);
-    } else {
-        engineBuilder.setEngineKind(EngineKind::JIT)
-                     .setUseMCJIT(true);
-    }
+    engineBuilder.setErrorStr(&error)
+                 .setEngineKind(evaluate ? EngineKind::Interpreter : EngineKind::JIT);
 
     EE = engineBuilder.create(targetMachine);
     likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
