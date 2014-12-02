@@ -853,7 +853,6 @@ private:
 
         Function *symbol = builder.module->module->getFunction(name);
         if (!symbol) {
-            // Translate definition type across contexts
             vector<Type*> llvmParameters;
             for (likely_type parameter : parameters)
                 llvmParameters.push_back(builder.toLLVM(parameter));
@@ -883,10 +882,17 @@ private:
         if (ast->type == likely_ast_list)
             for (size_t i=1; i<ast->num_atoms; i++) {
                 TRY_EXPR(builder, ast->atoms[i], arg)
-                if (isa<PointerType>(arg->value->getType()))
-                    args.push_back(builder.CreatePointerCast(*arg, builder.toLLVM(parameters[i-1])));
-                else
-                    args.push_back(builder.cast(*arg.get(), parameters[i-1]));
+                const likely_type parameter = parameters[i-1];
+                if (arg->type & likely_multi_dimension) {
+                    if (parameter & likely_multi_dimension)
+                        args.push_back(builder.CreatePointerCast(*arg, builder.toLLVM(parameter)));
+                    else if (parameter & likely_pointer)
+                        args.push_back(builder.CreatePointerCast(builder.data(*arg), builder.toLLVM(parameter)));
+                    else
+                        likely_assert(false, "can't cast matrix to scalar");
+                } else {
+                    args.push_back(builder.cast(*arg.get(), parameter));
+                }
             }
 
         return new likely_expression(LikelyValue(builder.CreateCall(symbol, args), type));
