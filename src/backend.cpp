@@ -110,21 +110,19 @@ class LikelyContext
     LikelyContext()
         : PM(new PassManager())
     {
+        static TargetMachine *TM = getTargetMachine(false);
         PM->add(createVerifierPass());
-        if (OptLevel > 0) {
-            static TargetMachine *TM = getTargetMachine(false);
-            PM->add(new TargetLibraryInfo(Triple(sys::getProcessTriple())));
-            PM->add(new DataLayoutPass());
-            TM->addAnalysisPasses(*PM);
-            PassManagerBuilder builder;
-            builder.OptLevel = OptLevel;
-            builder.SizeLevel = SizeLevel;
-            builder.DisableUnrollLoops = !UnrollLoops;
-            builder.LoopVectorize = VectorizeLoops;
-            builder.Inliner = createAlwaysInlinerPass();
-            builder.populateModulePassManager(*PM);
-            PM->add(createVerifierPass());
-        }
+        PM->add(new TargetLibraryInfo(Triple(sys::getProcessTriple())));
+        PM->add(new DataLayoutPass());
+        TM->addAnalysisPasses(*PM);
+        PassManagerBuilder builder;
+        builder.OptLevel = OptLevel;
+        builder.SizeLevel = SizeLevel;
+        builder.DisableUnrollLoops = !UnrollLoops;
+        builder.LoopVectorize = VectorizeLoops;
+        builder.Inliner = createAlwaysInlinerPass();
+        builder.populateModulePassManager(*PM);
+        PM->add(createVerifierPass());
     }
 
     // use LikelyContext::release()
