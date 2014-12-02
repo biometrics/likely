@@ -70,7 +70,7 @@ likely_settings likely_jit(bool verbose)
     settings.opt_level = 3;
     settings.size_level = 0;
     settings.heterogeneous = false;
-    settings.parallel = false;
+    settings.parallel = likely_can_fork();
     settings.unroll_loops = true;
     settings.vectorize_loops = true;
     settings.verbose = verbose;
