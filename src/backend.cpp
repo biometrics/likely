@@ -82,11 +82,10 @@ namespace {
 
 class LikelyContext : public likely_settings
 {
-    static queue<LikelyContext*> contextPool;
     map<likely_type, Type*> typeLUT;
-    PassManager *PM;
 
 public:
+    PassManager *PM;
     LLVMContext context;
 
     LikelyContext(const likely_settings &settings)
@@ -178,14 +177,6 @@ public:
         return llvm;
     }
 
-    void optimize(Module &module)
-    {
-//        DebugFlag = true;
-        if (opt_level > 0)
-            module.setTargetTriple(sys::getProcessTriple());
-        PM->run(module);
-    }
-
     static TargetMachine *getTargetMachine(bool JIT)
     {
         static const Target *TheTarget = NULL;
@@ -221,7 +212,6 @@ public:
         return TM;
     }
 };
-queue<LikelyContext*> LikelyContext::contextPool;
 
 class JITFunctionCache : public ObjectCache
 {
@@ -543,7 +533,10 @@ struct likely_module
 
     likely_module(const likely_settings &settings)
         : context(new LikelyContext(settings))
-        , module(new Module("likely_module", context->context)) {}
+        , module(new Module("likely_module", context->context))
+    {
+        module->setTargetTriple(sys::getProcessTriple());
+    }
 
     virtual ~likely_module()
     {
@@ -554,11 +547,6 @@ struct likely_module
 
     likely_module(const likely_module &) = delete;
     likely_module &operator=(const likely_module &) = delete;
-
-    void optimize()
-    {
-        context->optimize(*module);
-    }
 
     void finalize()
     {
@@ -582,7 +570,7 @@ public:
 
     ~OfflineModule()
     {
-        optimize();
+        context->PM->run(*module);
 
         error_code errorCode;
         tool_output_file output(fileName.c_str(), errorCode, sys::fs::F_None);
@@ -2377,7 +2365,7 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
         // optimize
         EE->setObjectCache(&TheJITFunctionCache);
         if (!TheJITFunctionCache.alert(builder.module->module))
-            builder.module->optimize();
+            builder.module->context->PM->run(*builder.module->module);
     }
 
     if (module->context->verbose)
