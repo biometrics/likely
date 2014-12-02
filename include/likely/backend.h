@@ -53,10 +53,11 @@ typedef struct likely_environment const *likely_const_env; /*!< \brief Pointer t
 /*!
  * \brief The context in which the semantics of an abstract syntax tree is determined.
  * \par Environment Construction
- * | Function             | Description                |
- * |----------------------|----------------------------|
- * | \ref likely_standard | \copybrief likely_standard |
- * | \ref likely_eval     | \copybrief likely_eval     |
+ * | Function                       | Description                          |
+ * |--------------------------------|--------------------------------------|
+ * | \ref likely_standard           | \copybrief likely_standard           |
+ * | \ref likely_eval               | \copybrief likely_eval               |
+ * | \ref likely_lex_parse_and_eval | \copybrief likely_lex_parse_and_eval |
  *
  * \see \ref reference_counting
  */
@@ -164,16 +165,28 @@ typedef void (*likely_eval_callback)(likely_const_env env, void *context);
  * \brief Evaluate a series of statements.
  *
  * The input to this function is usually the output from \ref likely_parse.
- * This function will modify \p ast->type to change atom values to their correct type,
- *
+ * This function will modify \p ast->type to change atom values to their correct type.
  * \param[in] ast Statements to evaluate.
  * \param[in] parent Environment in which to evaluate \p ast.
  * \param[in] eval_callback Function to call with the output of each completed statement.
  * \param[in] context User-defined data to pass to \p eval_callback.
  * \return A new \ref likely_environment holding the final evaluation result.
  * \remark This function is \ref reentrant.
+ * \see \ref likely_lex_parse_and_eval
  */
 LIKELY_EXPORT likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_callback eval_callback, void *context);
+
+/*!
+ * \brief Convenient alternative to \ref likely_lex_and_parse followed by \ref likely_eval.
+ * \par Implementation
+ * \snippet src/backend.cpp likely_lex_parse_and_eval implementation.
+ * \param[in] source Code from which to extract tokens and build the abstract syntax tree.
+ * \param[in] file_type How to interpret \p source when extracting tokens.
+ * \param[in] parent Environment in which to evaluate \p source.
+ * \return A new \ref likely_environment holding the final evaluation result.
+ * \remark This function is \ref reentrant.
+ */
+LIKELY_EXPORT likely_env likely_lex_parse_and_eval(const char *source, likely_file_type file_type, likely_const_env parent);
 
 /*!
  * \brief Contents of the Likely Standard Library: <tt>library/standard.tex</tt>.

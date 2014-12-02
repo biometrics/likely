@@ -245,12 +245,12 @@ LIKELY_EXPORT void likely_assert(bool condition, const char *format, ...);
  *
  * The output from this function is usually the input to \ref likely_parse.
  * \param[in] source Code from which to extract tokens.
- * \param[in] type How to interpret \p source.
+ * \param[in] file_type How to interpret \p source.
  * \return A list of tokens extracted from \p source.
  * \remark This function is \ref thread-safe.
  * \see \ref likely_lex_and_parse
  */
-LIKELY_EXPORT likely_ast likely_lex(const char *source, likely_file_type type);
+LIKELY_EXPORT likely_ast likely_lex(const char *source, likely_file_type file_type);
 
 /*!
  * \brief Perform syntactic analysis, converting a list of tokens into an abstract syntax tree.
@@ -268,12 +268,12 @@ LIKELY_EXPORT likely_ast likely_parse(likely_const_ast tokens);
  * \par Implementation
  * \snippet src/frontend.cpp likely_lex_and_parse implementation.
  * \param[in] source Code from which to extract tokens and build the abstract syntax tree.
- * \param[in] type How to interpret \p source when extracting tokens.
+ * \param[in] file_type How to interpret \p source when extracting tokens.
  * \return An abstract syntax tree built from \p source.
  * \remark This function is \ref thread-safe.
- * \see \ref likely_ast_to_string
+ * \see \ref likely_ast_to_string \ref likely_lex_parse_and_eval
  */
-LIKELY_EXPORT likely_ast likely_lex_and_parse(const char *source, likely_file_type type);
+LIKELY_EXPORT likely_ast likely_lex_and_parse(const char *source, likely_file_type file_type);
 
 /*!
  * \brief Convert an abstract syntax tree into a string.

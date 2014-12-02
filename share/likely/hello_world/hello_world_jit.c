@@ -46,14 +46,11 @@ int main(int argc, char *argv[])
     likely_assert(input, "failed to read: %s", argv[1]);
     printf("Width: %u\nHeight: %u\n", input->columns, input->rows);
 
-    puts("Parsing function...");
-    const likely_ast ast = likely_lex_and_parse(argv[2], likely_file_lisp);
-
     puts("Creating a JIT compiler environment...");
     const likely_env parent = likely_standard(NULL);
 
     puts("Compiling source code...");
-    const likely_const_env env = likely_eval(ast, parent, NULL, NULL);
+    const likely_const_env env = likely_lex_parse_and_eval(argv[2], likely_file_lisp, parent);
     likely_assert(env->expr, "failed to evaluate: %s", argv[2]);
     likely_mat (*function)(likely_const_mat) = likely_compile(env->expr, &input->type, 1);
     likely_assert(function, "failed to compile: %s", argv[2]);
@@ -70,7 +67,6 @@ int main(int argc, char *argv[])
     likely_release_mat(output);
     likely_release_env(env);
     likely_release_env(parent);
-    likely_release_ast(ast);
     likely_release_mat(input);
 
     puts("Done!");

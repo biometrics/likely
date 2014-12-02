@@ -350,14 +350,14 @@ static bool cleanup(vector<likely_ast> &atoms)
     return false;
 }
 
-likely_ast likely_lex(const char *source, likely_file_type type)
+likely_ast likely_lex(const char *source, likely_file_type file_type)
 {
     if (!source)
         return NULL;
 
     vector<likely_ast> tokens;
     const size_t len = strlen(source);
-    switch (type) {
+    switch (file_type) {
       case likely_file_lisp:
         tokenize(source, len, tokens, 0, 0);
         break;
@@ -579,9 +579,9 @@ likely_ast likely_parse(likely_const_ast tokens)
 }
 
 //! [likely_lex_and_parse implementation.]
-likely_ast likely_lex_and_parse(const char *source, likely_file_type type)
+likely_ast likely_lex_and_parse(const char *source, likely_file_type file_type)
 {
-    likely_const_ast tokens = likely_lex(source, type);
+    likely_const_ast tokens = likely_lex(source, file_type);
     likely_ast ast = likely_parse(tokens);
     likely_release_ast(tokens);
     return ast;

@@ -30,9 +30,7 @@ int main(int argc, char *argv[])
     vector<likely_const_mat> args;
     const likely_const_env parent = likely_standard(NULL);
     for (int i=1; i<argc; i++) {
-        const likely_ast ast = likely_lex_and_parse(argv[i], likely_file_lisp);
-        const likely_const_env env = likely_eval(ast, parent, NULL, NULL);
-        likely_release_ast(ast);
+        const likely_const_env env = likely_lex_parse_and_eval(argv[i], likely_file_lisp, parent);
         const likely_const_mat arg = likely_retain_mat(likely_result(env->expr));
         likely_release_env(env);
         likely_assert(arg != NULL, "failed to evaluate: %s", argv[i]);

@@ -22,18 +22,16 @@ The **C translation** of this is:
 int main()
 {
     // Do work
-    likely_const_mat lenna = likely_read("data/misc/lenna.tiff", likely_file_media, likely_image);
-    likely_const_ast ast = likely_lex_and_parse("a:-> { dst := a.imitate (dst a) :=> (<- dst (/ a (a.type 2))) }", likely_file_lisp);
-    likely_env parent = likely_jit();
-    likely_env env = likely_eval(ast, parent, NULL, NULL);
+    const likely_const_mat lenna = likely_read("data/misc/lenna.tiff", likely_file_media, likely_image);
+    const likely_const_env parent = likely_standard(NULL);
+    const likely_const_env env = likely_lex_parse_and_eval("a :-> { dst := a.imitate (dst a) :=> (<- dst (/ a (a.type 2))) }", likely_file_lisp, parent);
     (likely_mat (*darken)(likely_const_mat)) = likely_compile(env->expr, NULL, 0);
-    likely_const_mat dark_lenna = darken(lenna);
+    const likely_const_mat dark_lenna = darken(lenna);
 
     // Clean up
     likely_release_mat(dark_lenna);
     likely_release_env(env);
     likely_release_env(parent);
-    likely_release_ast(ast);
     likely_release_mat(lenna);
     return 0;
 }

@@ -168,9 +168,7 @@ int main(int argc, char *argv[])
             cout << "> ";
             string line;
             getline(cin, line);
-            const likely_ast ast = likely_lex_and_parse(line.c_str(), likely_file_lisp);
-            const likely_env env = likely_eval(ast, parent, NULL, NULL);
-            likely_release_ast(ast);
+            const likely_env env = likely_lex_parse_and_eval(line.c_str(), likely_file_lisp, parent);
             if (!env->expr) {
                 likely_release_env(env);
             } else {

@@ -69,9 +69,7 @@ struct Test
 
         stringstream source;
         source << "(extern multi-dimension \"" << name() << "\" multi-dimension " << name() << ")";
-        const likely_ast ast = likely_lex_and_parse(source.str().c_str(), likely_file_lisp);
-        const likely_const_env env = likely_eval(ast, parent, NULL, NULL);
-        likely_release_ast(ast);
+        const likely_const_env env = likely_lex_parse_and_eval(source.str().c_str(), likely_file_lisp, parent);
         void *const f = likely_function(env->expr);
         assert(f);
 
@@ -104,15 +102,13 @@ struct Test
 
     static void runFile(const char *fileName)
     {
-        const likely_file_type type = likely_guess_file_type(fileName);
-        likely_const_mat source = likely_read(fileName, type, likely_text);
+        const likely_file_type file_type = likely_guess_file_type(fileName);
+        likely_const_mat source = likely_read(fileName, file_type, likely_text);
         checkRead(source, fileName);
 
         printf("%s \t", fileName);
-        likely_ast ast = likely_lex_and_parse(source->data, type);
-        likely_release_mat(source);
         likely_env parent = likely_standard(NULL);
-        likely_release_env(likely_eval(ast, parent, NULL, NULL));
+        likely_release_env(likely_lex_parse_and_eval(source->data, file_type, parent));
 
         if (BenchmarkTest) {
             printf("\n");
@@ -121,7 +117,7 @@ struct Test
             int iter = 0;
             startTime = endTime = clock();
             while ((endTime-startTime) / CLOCKS_PER_SEC < TestSeconds) {
-                likely_release_env(likely_eval(ast, parent, NULL, NULL));
+                likely_release_env(likely_lex_parse_and_eval(source->data, file_type, parent));
                 endTime = clock();
                 iter++;
             }
@@ -130,7 +126,7 @@ struct Test
         }
 
         likely_release_env(parent);
-        likely_release_ast(ast);
+        likely_release_mat(source);
     }
 
 protected:
@@ -292,15 +288,13 @@ int main(int argc, char *argv[])
 
         const likely_const_mat source = likely_read("library/benchmark.md", likely_file_gfm, likely_text);
         checkRead(source, "library/benchmark.md");
-        const likely_ast ast = likely_lex_and_parse(source->data, likely_file_gfm);
-        likely_release_mat(source);
         const likely_env parent = likely_standard(NULL);
         if (BenchmarkParallel)
             parent->type |= likely_environment_parallel;
-        const likely_const_env env = likely_eval(ast, parent, NULL, NULL);
+        const likely_const_env env = likely_lex_parse_and_eval(source->data, likely_file_gfm, parent);
+        likely_release_mat(source);
         assert(env->expr);
         likely_release_env(parent);
-        likely_release_ast(ast);
 
         fmaTest().run(env);
         thresholdTest().run(env);

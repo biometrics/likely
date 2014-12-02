@@ -1039,9 +1039,7 @@ struct RootEnvironment
     {
         static bool init = false;
         if (!init) {
-            likely_ast ast = likely_lex_and_parse(likely_standard_library, likely_file_tex);
-            builtins() = likely_eval(ast, builtins(), NULL, NULL);
-            likely_release_ast(ast);
+            builtins() = likely_lex_parse_and_eval(likely_standard_library, likely_file_tex, builtins());
             init = true;
         }
 
@@ -1236,13 +1234,11 @@ class SimpleArithmeticOperator : public ArithmeticOperator
                     auto function = functionLUT.find(symbol());
                     if (function == functionLUT.end()) {
                         const string code = string("(a b) :-> { dst := a.imitate (dst a b) :=> (<- dst (") + symbol() + string(" a b)) }");
-                        const likely_ast ast = likely_lex_and_parse(code.c_str(), likely_file_lisp);
                         const likely_env parent = likely_standard(NULL);
-                        const likely_env env = likely_eval(ast, parent, NULL, NULL);
+                        const likely_env env = likely_lex_parse_and_eval(code.c_str(), likely_file_lisp, parent);
                         assert(env->expr);
                         void *f = likely_compile(env->expr, NULL, 0);
                         likely_release_env(parent);
-                        likely_release_ast(ast);
                         envLUT.insert(pair<const char*, likely_const_env>(symbol(), env));
                         functionLUT.insert(pair<const char*, void*>(symbol(), f));
                         function = functionLUT.find(symbol());
@@ -2731,6 +2727,16 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
 
     return env;
 }
+
+//! [likely_lex_parse_and_eval implementation.]
+likely_env likely_lex_parse_and_eval(const char *source, likely_file_type file_type, likely_const_env parent)
+{
+    const likely_ast ast = likely_lex_and_parse(source, file_type);
+    const likely_env env = likely_eval(ast, parent, NULL, NULL);
+    likely_release_ast(ast);
+    return env;
+}
+//! [likely_lex_parse_and_eval implementation.]
 
 void likely_shutdown()
 {
