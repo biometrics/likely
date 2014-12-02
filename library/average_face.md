@@ -2,6 +2,8 @@ Average Face
 ------------
 Compute the average face from a set of aligned faces [1].
 
+Definition
+
     avg :=
       m :->
       {
@@ -15,6 +17,11 @@ Compute the average face from a set of aligned faces [1].
         }
       }
 
-    "data/lfw2".read-directory-grayscale.avg
+    average_face :=
+      () :-> "data/lfw2".read-directory-grayscale.avg
+
+Execution
+
+    (average_face)
 
 [1] http://www.openu.ac.il/home/hassner/data/lfwa/
