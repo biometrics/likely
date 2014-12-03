@@ -2323,7 +2323,7 @@ LIKELY_REGISTER(set)
 
 JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC)
     : Symbol(name, likely_void, parameters)
-    , module(new likely_module(likely_jit(lambda->env->settings ? lambda->env->settings->verbose : false)))
+    , module(new likely_module(likely_jit(lambda->env->settings /* Standard library does not have settings */ && lambda->env->settings->verbose)))
 {
     Builder builder(lambda->env, module, !evaluate);
     {
