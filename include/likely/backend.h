@@ -75,7 +75,6 @@ struct likely_environment
     struct likely_settings *settings; /*!< \brief Used internally to control compiler behavior. */
     struct likely_module *module; /*!< \brief Used internally as a container to store generated instructions during static compilation. */
     struct likely_expression const *expr; /*!< The result of interpreting \ref ast in the context of \ref parent. \c NULL if an error occured. */
-    bool definition; /*!< \brief \ref ast is a \ref likely_is_definition. */
     uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain_env and \ref likely_release_env to track ownership. */
 };
 

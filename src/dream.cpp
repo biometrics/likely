@@ -670,7 +670,7 @@ public slots:
 
     void print(likely_const_env env)
     {
-        if (env->definition)
+        if (likely_is_definition(env->ast))
             return;
 
         if (const likely_const_mat m = likely_result(env->expr)) {
