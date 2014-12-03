@@ -522,7 +522,7 @@ struct likely_module
     unique_ptr<LikelyContext> context;
     Module *module;
     vector<likely_const_expr> exprs;
-    vector<Variant> data;
+    vector<pair<Variant,Value*>> data;
 
     likely_module(const likely_settings &settings)
         : context(new LikelyContext(settings))
@@ -804,8 +804,12 @@ class ConstantData : public likely_expression
                 return new likely_expression(LikelyValue(builder.constant(likely_get_element(m, 0, 0, 0, 0), m->type), m->type), data);
 
         // Make sure the lifetime of the data is at least as long as the lifetime of the code.
-        builder.module->data.push_back(data);
-        return new likely_expression(LikelyValue(ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(void*)), uintptr_t(data.value)), builder.module->context->toLLVM(data.type)), data.type), data);
+        if (!value) {
+            const_cast<Value*&>(this->value) = ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(void*)), uintptr_t(data.value));
+            builder.module->data.push_back(pair<Variant,Value*>(data, value));
+        }
+
+        return new likely_expression(LikelyValue(ConstantExpr::getIntToPtr(cast<Constant>(value), builder.module->context->toLLVM(data.type)), data.type), data);
     }
 
 public:
