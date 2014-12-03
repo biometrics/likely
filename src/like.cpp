@@ -160,9 +160,7 @@ int main(int argc, char *argv[])
     settings.vectorize_loops = !DisableLoopVectorization;
     settings.verbose = verbose;
 
-    likely_env parent = likely_standard(settings, output.empty() ? NULL /* JIT */ : output.c_str() /* Offline */);
-    if (parallel)
-        parent->type |= likely_environment_parallel;
+    likely_const_env parent = likely_standard(settings, output.empty() ? NULL /* JIT */ : output.c_str() /* Offline */);
 
     if (input.empty()) {
         // console

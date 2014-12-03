@@ -287,9 +287,9 @@ int main(int argc, char *argv[])
 
         const likely_const_mat source = likely_read("library/benchmark.md", likely_file_gfm, likely_text);
         checkRead(source, "library/benchmark.md");
-        const likely_env parent = likely_standard(likely_jit(false), NULL);
-        if (BenchmarkParallel)
-            parent->type |= likely_environment_parallel;
+        likely_settings settings = likely_jit(false);
+        settings.parallel = BenchmarkParallel;
+        const likely_const_env parent = likely_standard(settings, NULL);
         const likely_const_env env = likely_lex_parse_and_eval(source->data, likely_file_gfm, parent);
         likely_release_mat(source);
         assert(env->expr);

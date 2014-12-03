@@ -398,10 +398,6 @@ static likely_env newEnv(likely_const_env parent, likely_const_ast ast = NULL, l
         return NULL;
 
     env->type = 0;
-    if (parent) {
-        if (parent->type & likely_environment_parallel     ) env->type |= likely_environment_parallel;
-        if (parent->type & likely_environment_heterogeneous) env->type |= likely_environment_heterogeneous;
-    }
     if (likely_is_definition(ast))
         env->type |= likely_environment_definition;
     env->parent = likely_retain_env(parent);
@@ -2101,9 +2097,9 @@ class kernelExpression : public LikelyOperator
         else if (srcs[0]->type & likely_multi_channel) kernelSize = builder.cast(builder.channels(*srcs[0]), likely_u64);
         else                                           kernelSize = builder.one();
 
-        if      (builder.env->type & likely_environment_heterogeneous) generateHeterogeneous(builder, ast, srcs, kernelSize);
-        else if (builder.env->type & likely_environment_parallel)      generateParallel     (builder, ast, srcs, kernelSize);
-        else                                                           generateSerial       (builder, ast, srcs, kernelSize);
+        if      (builder.env->settings->heterogeneous) generateHeterogeneous(builder, ast, srcs, kernelSize);
+        else if (builder.env->settings->parallel)      generateParallel     (builder, ast, srcs, kernelSize);
+        else                                           generateSerial       (builder, ast, srcs, kernelSize);
 
         for (size_t i=1; i<srcs.size(); i++)
             delete srcs[i];

@@ -192,10 +192,10 @@ public slots:
 
     void setExecution(const QString &execution)
     {
+        likely_settings settings = likely_jit(false);
+        settings.parallel = (execution == "Parallel");
         likely_release_env(root);
-        root = likely_standard(likely_jit(false), NULL);
-        if (execution == "Parallel")
-            root->type |= likely_environment_parallel;
+        root = likely_standard(settings, NULL);
         previousSource.clear(); // clear cache
         eval();
     }
