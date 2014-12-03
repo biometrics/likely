@@ -623,7 +623,7 @@ struct Builder : public IRBuilder<>
     LikelyValue one (likely_type type = likely_u64) { return constant(1.0, type); }
     LikelyValue intMax(likely_type type) { const likely_type bits = type & likely_depth; return constant((uint64_t) (1 << (bits - ((type & likely_signed) ? 1 : 0)))-1, bits); }
     LikelyValue intMin(likely_type type) { const likely_type bits = type & likely_depth; return constant((uint64_t) ((type & likely_signed) ? (1 << (bits - 1)) : 0), bits); }
-    LikelyValue nullMat() { return LikelyValue(ConstantPointerNull::get(::cast<PointerType>((Type*)multiDimension())), likely_multi_dimension); }
+    LikelyValue nullMat() { return LikelyValue(ConstantPointerNull::get(::cast<PointerType>(toLLVM(likely_multi_dimension))), likely_multi_dimension); }
     LikelyValue nullData() { return LikelyValue(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_u8 | likely_pointer); }
 
     Value *addInts(Value *lhs, Value *rhs)
@@ -724,7 +724,6 @@ struct Builder : public IRBuilder<>
         return LikelyValue(CreateCast(CastInst::getCastOpcode(x, (x & likely_signed) != 0, dstType, (type & likely_signed) != 0), x, dstType), type);
     }
 
-    Type *multiDimension() { return toLLVM(likely_multi_dimension); }
     Type *toLLVM(likely_type likely) { return module->context->toLLVM(likely); }
 
     LikelyValue toMat(const LikelyValue &expr)
@@ -749,7 +748,7 @@ struct Builder : public IRBuilder<>
         Function *likelyScalar = module->module->getFunction("likely_scalar");
         if (!likelyScalar) {
             Type *params[] = { Type::getInt32Ty(getContext()), Type::getDoublePtrTy(getContext()), Type::getInt32Ty(getContext()) };
-            FunctionType *functionType = FunctionType::get(multiDimension(), params, false);
+            FunctionType *functionType = FunctionType::get(toLLVM(likely_multi_dimension), params, false);
             likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar", module->module);
             likelyScalar->setCallingConv(CallingConv::C);
             likelyScalar->setDoesNotAlias(0);
@@ -767,28 +766,28 @@ struct Builder : public IRBuilder<>
     {
         Function *likelyRetain = module->module->getFunction("likely_retain_mat");
         if (!likelyRetain) {
-            FunctionType *functionType = FunctionType::get(multiDimension(), multiDimension(), false);
+            FunctionType *functionType = FunctionType::get(toLLVM(likely_multi_dimension), toLLVM(likely_multi_dimension), false);
             likelyRetain = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_retain_mat", module->module);
             likelyRetain->setCallingConv(CallingConv::C);
             likelyRetain->setDoesNotAlias(1);
             likelyRetain->setDoesNotCapture(1);
             sys::DynamicLibrary::AddSymbol("likely_retain_mat", (void*) likely_retain_mat);
         }
-        return LikelyValue(CreateCall(likelyRetain, CreatePointerCast(m, multiDimension())), likely_multi_dimension);
+        return LikelyValue(CreateCall(likelyRetain, CreatePointerCast(m, toLLVM(likely_multi_dimension))), likely_multi_dimension);
     }
 
     LikelyValue releaseMat(Value *m)
     {
         Function *likelyRelease = module->module->getFunction("likely_release_mat");
         if (!likelyRelease) {
-            FunctionType *functionType = FunctionType::get(Type::getVoidTy(getContext()), multiDimension(), false);
+            FunctionType *functionType = FunctionType::get(Type::getVoidTy(getContext()), toLLVM(likely_multi_dimension), false);
             likelyRelease = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_release_mat", module->module);
             likelyRelease->setCallingConv(CallingConv::C);
             likelyRelease->setDoesNotAlias(1);
             likelyRelease->setDoesNotCapture(1);
             sys::DynamicLibrary::AddSymbol("likely_release_mat", (void*) likely_release_mat);
         }
-        return LikelyValue(CreateCall(likelyRelease, CreatePointerCast(m, multiDimension())), likely_void);
+        return LikelyValue(CreateCall(likelyRelease, CreatePointerCast(m, toLLVM(likely_multi_dimension))), likely_void);
     }
 };
 
@@ -1462,7 +1461,7 @@ struct Lambda : public LikelyOperator
         vector<Type*> llvmTypes;
         if (arrayCC) {
             // Array calling convention - All arguments (which must be matrix pointers) come stored in an array.
-            llvmTypes.push_back(PointerType::get(builder.multiDimension(), 0));
+            llvmTypes.push_back(PointerType::get(builder.toLLVM(likely_multi_dimension), 0));
         } else {
             for (const likely_type &parameter : parameters)
                 llvmTypes.push_back(builder.toLLVM(parameter));
@@ -1605,8 +1604,8 @@ private:
             PointerType *vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
             Function *likelyDynamic = builder.module->module->getFunction("likely_dynamic");
             if (!likelyDynamic) {
-                Type *params[] = { vTableType, PointerType::get(builder.multiDimension(), 0) };
-                FunctionType *likelyDynamicType = FunctionType::get(builder.multiDimension(), params, false);
+                Type *params[] = { vTableType, PointerType::get(builder.toLLVM(likely_multi_dimension), 0) };
+                FunctionType *likelyDynamicType = FunctionType::get(builder.toLLVM(likely_multi_dimension), params, false);
                 likelyDynamic = Function::Create(likelyDynamicType, GlobalValue::ExternalLinkage, "likely_dynamic", builder.module->module);
                 likelyDynamic->setCallingConv(CallingConv::C);
                 likelyDynamic->setDoesNotAlias(0);
@@ -1617,7 +1616,7 @@ private:
                 sys::DynamicLibrary::AddSymbol("likely_dynamic", (void*) likely_dynamic);
             }
 
-            Value *matricies = builder.CreateAlloca(builder.multiDimension(), builder.constant(args.size()));
+            Value *matricies = builder.CreateAlloca(builder.toLLVM(likely_multi_dimension), builder.constant(args.size()));
             for (size_t i=0; i<args.size(); i++)
                 builder.CreateStore(*args[i], builder.CreateGEP(matricies, builder.constant(i)));
             Value* args[] = { ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(vtable)), uintptr_t(vtable)), vTableType), matricies };
@@ -2424,7 +2423,7 @@ class newExpression : public LikelyOperator
         Function *likelyNew = builder.module->module->getFunction("likely_new");
         if (!likelyNew) {
             Type *params[] = { Type::getInt32Ty(builder.getContext()), Type::getInt32Ty(builder.getContext()), Type::getInt32Ty(builder.getContext()), Type::getInt32Ty(builder.getContext()), Type::getInt32Ty(builder.getContext()), Type::getInt8PtrTy(builder.getContext()) };
-            FunctionType *functionType = FunctionType::get(builder.multiDimension(), params, false);
+            FunctionType *functionType = FunctionType::get(builder.toLLVM(likely_multi_dimension), params, false);
             likelyNew = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_new", builder.module->module);
             likelyNew->setCallingConv(CallingConv::C);
             likelyNew->setCannotDuplicate();
