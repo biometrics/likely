@@ -2096,9 +2096,9 @@ class kernelExpression : public LikelyOperator
         else if (srcs[0]->type & likely_multi_channel) kernelSize = builder.cast(builder.channels(*srcs[0]), likely_u64);
         else                                           kernelSize = builder.one();
 
-        if      (builder.env->settings->heterogeneous) generateHeterogeneous(builder, ast, srcs, kernelSize);
-        else if (builder.env->settings->parallel)      generateParallel     (builder, ast, srcs, kernelSize);
-        else                                           generateSerial       (builder, ast, srcs, kernelSize);
+        if      (builder.module->context->heterogeneous) generateHeterogeneous(builder, ast, srcs, kernelSize);
+        else if (builder.module->context->parallel)      generateParallel     (builder, ast, srcs, kernelSize);
+        else                                             generateSerial       (builder, ast, srcs, kernelSize);
 
         for (size_t i=1; i<srcs.size(); i++)
             delete srcs[i];
