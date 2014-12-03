@@ -564,6 +564,8 @@ public:
     ~OfflineModule()
     {
         context->PM->run(*module);
+        if (context->verbose)
+            module->dump();
 
         error_code errorCode;
         tool_output_file output(fileName.c_str(), errorCode, sys::fs::F_None);
