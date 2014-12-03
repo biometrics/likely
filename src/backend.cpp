@@ -397,14 +397,12 @@ static likely_env newEnv(likely_const_env parent, likely_const_ast ast = NULL, l
     if (!env)
         return NULL;
 
-    env->type = 0;
-    if (likely_is_definition(ast))
-        env->type |= likely_environment_definition;
     env->parent = likely_retain_env(parent);
     env->ast = likely_retain_ast(ast);
     env->settings = parent ? parent->settings : NULL;
     env->module = parent ? parent->module : NULL;
     env->expr = expr;
+    env->definition = likely_is_definition(ast);
     env->ref_count = 1;
     return env;
 }
@@ -463,7 +461,7 @@ struct likely_expression : public LikelyValue
     static likely_const_env lookup(likely_const_env env, const char *name)
     {
         while (env) {
-            if ((env->type & likely_environment_definition) && !strcmp(name, likely_symbol(env->ast)))
+            if (env->definition && !strcmp(name, likely_symbol(env->ast)))
                 return env;
             env = env->parent;
         }
@@ -488,7 +486,7 @@ struct likely_expression : public LikelyValue
 
     static likely_const_expr undefine(likely_const_env &env, const char *name)
     {
-        assert(env->type & likely_environment_definition);
+        assert(env->definition);
         likely_assert(!strcmp(name, likely_symbol(env->ast)), "undefine variable mismatch");
         likely_env old = const_cast<likely_env>(env);
         likely_const_expr value = NULL;

@@ -100,7 +100,7 @@ static void checkOrPrintAndRelease(likely_const_mat input)
 
 static void renderCallback(likely_const_env env, void *)
 {
-    if (env->type & likely_environment_definition)
+    if (env->definition)
         return;
 
     static int index = 0;
@@ -114,7 +114,7 @@ static void renderCallback(likely_const_env env, void *)
 
 static void showCallback(likely_const_env env, void *)
 {
-    if (env->type & likely_environment_definition)
+    if (env->definition)
         return;
 
     const likely_const_mat rendered = likely_render(likely_result(env->expr), NULL, NULL);
@@ -136,7 +136,7 @@ static void quietCallback(likely_const_env, void *)
 
 static void printCallback(likely_const_env env, void *)
 {
-    if (env->type & likely_environment_definition)
+    if (env->definition)
         return;
     checkOrPrintAndRelease(likely_to_string(likely_result(env->expr)));
 }

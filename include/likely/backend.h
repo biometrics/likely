@@ -54,21 +54,6 @@ struct likely_settings
  */
 LIKELY_EXPORT struct likely_settings likely_jit(bool verbose);
 
-/*!
- * \brief How to interpret \ref likely_environment.
- *
- * Available options are listed in \ref likely_environment_type_mask.
- */
-typedef uint32_t likely_environment_type;
-
-/*!
- * \brief \ref likely_environment_type bit format.
- */
-enum likely_environment_type_mask
-{
-    likely_environment_definition = 0x00000001, /*!< \brief \ref likely_environment::ast is a \ref likely_is_definition. */
-};
-
 typedef struct likely_environment *likely_env; /*!< \brief Pointer to a \ref likely_environment. */
 typedef struct likely_environment const *likely_const_env; /*!< \brief Pointer to a constant \ref likely_environment. */
 
@@ -90,7 +75,7 @@ struct likely_environment
     struct likely_settings *settings; /*!< \brief Used internally to control compiler behavior. */
     struct likely_module *module; /*!< \brief Used internally as a container to store generated instructions during static compilation. */
     struct likely_expression const *expr; /*!< The result of interpreting \ref ast in the context of \ref parent. \c NULL if an error occured. */
-    likely_environment_type type; /*!< Interpretation of \ref likely_environment. */
+    bool definition; /*!< \brief \ref ast is a \ref likely_is_definition. */
     uint32_t ref_count; /*!< \brief Reference count used by \ref likely_retain_env and \ref likely_release_env to track ownership. */
 };
 
