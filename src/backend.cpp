@@ -133,28 +133,35 @@ public:
     LikelyContext(const LikelyContext &) = delete;
     LikelyContext &operator=(const LikelyContext &) = delete;
 
-    Type *toLLVM(likely_type likely)
+    Type *toLLVM(likely_type likely, uint64_t elements = 0)
     {
-        auto result = typeLUT.find(likely);
-        if (result != typeLUT.end())
-            return result->second;
+        if (elements == 0) {
+            auto const result = typeLUT.find(likely);
+            if (result != typeLUT.end())
+                return result->second;
+        }
 
         Type *llvm;
         if (likely & likely_multi_dimension) {
+            stringstream name;
             const likely_const_mat str = likely_type_to_string(likely);
+            name << str->data;
+            likely_release_mat(str);
+            if (elements != 0)
+                name << "_" << elements;
+
             likely_type element = likely & likely_element;
             if (!(element & likely_depth))
                 element |= likely_u8;
-            llvm = PointerType::getUnqual(StructType::create(str->data,
+            llvm = PointerType::getUnqual(StructType::create(name.str(),
                                                              Type::getInt32Ty(context), // ref_count
                                                              Type::getInt32Ty(context), // type
                                                              Type::getInt32Ty(context), // channels
                                                              Type::getInt32Ty(context), // columns
                                                              Type::getInt32Ty(context), // rows
                                                              Type::getInt32Ty(context), // frames
-                                                             ArrayType::get(toLLVM(element), 0), // data
+                                                             ArrayType::get(toLLVM(element), elements), // data
                                                              NULL));
-            likely_release_mat(str);
         } else if (likely == likely_void) {
             llvm = Type::getVoidTy(context);
         } else if (likely & likely_ast_t) {
@@ -176,7 +183,8 @@ public:
         if (likely & likely_pointer)
             llvm = PointerType::getUnqual(llvm);
 
-        typeLUT[likely] = llvm;
+        if (elements == 0)
+            typeLUT[likely] = llvm;
         return llvm;
     }
 
@@ -582,7 +590,10 @@ public:
                 continue;
 
             const likely_const_mat mat = datum.first;
-            assert(mat); (void) mat;
+            assert(mat);
+
+            StructType *const type = cast<StructType>(cast<PointerType>(context->toLLVM(mat->type, uint64_t(mat->channels) * uint64_t(mat->columns) * uint64_t(mat->rows) * uint64_t(mat->frames)))->getElementType());
+            (void) type;
         }
 
         if (context->verbose)
