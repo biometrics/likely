@@ -307,9 +307,9 @@ static void tokenizeLaTeX(const char *str, const size_t len, vector<likely_ast> 
 {
     const char *begin = "\\begin{likely}";
     const char *end = "\\end{likely}";
-    const size_t beginLength = strlen(begin);
-    const size_t endLength = strlen(end);
-    const size_t minLength = beginLength + endLength;
+    const uint32_t beginLength = strlen(begin);
+    const uint32_t endLength = strlen(end);
+    const uint32_t minLength = beginLength + endLength;
 
     size_t i = 0;
     uint32_t currentLine = 0, currentColumn = 0;
