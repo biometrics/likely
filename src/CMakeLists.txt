@@ -376,18 +376,22 @@ test_file(tutorial "")
 
 # Test demos
 function(test_demo FILE RETURN PARAMETERS ARGS)
-  add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/${FILE}.o
-                     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                     COMMAND like -O3 -q -c "\"library/${FILE}.md\".import (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${CMAKE_BINARY_DIR}/${FILE}.o
-                     DEPENDS like ${CMAKE_SOURCE_DIR}/library/${FILE}.md
-                     VERBATIM)
-  add_executable(test_${FILE} $<TARGET_OBJECTS:likely_test> ${CMAKE_BINARY_DIR}/${FILE}.o)
-  set_source_files_properties(${CMAKE_BINARY_DIR}/${FILE}.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
-  target_link_libraries(test_${FILE} likely_shared)
-  separate_arguments(ARGS)
-  add_test(NAME static_${FILE}
-           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND test_${FILE} "\"data/demo/${FILE}.jpg\".read-image" ${ARGS})
+  foreach(KERNEL_TYPE "" "-p")
+    set(OBJECT_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}.o)
+    add_custom_command(OUTPUT ${OBJECT_FILE}
+                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                       COMMAND like -O3 ${KERNEL_TYPE} -q -c "\"library/${FILE}.md\".import (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${OBJECT_FILE}
+                       DEPENDS like ${CMAKE_SOURCE_DIR}/library/${FILE}.md
+                       VERBATIM)
+    set(TEST_EXECUTABLE static_${FILE}${KERNEL_TYPE})
+    add_executable(${TEST_EXECUTABLE} $<TARGET_OBJECTS:likely_test> ${OBJECT_FILE})
+    set_source_files_properties(${OBJECT_FILE} PROPERTIES EXTERNAL_OBJECT true GENERATED true)
+    target_link_libraries(${TEST_EXECUTABLE} likely_shared)
+    separate_arguments(ARGS)
+    add_test(NAME ${FILE}${KERNEL_TYPE}
+             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+             COMMAND ${TEST_EXECUTABLE} "\"data/demo/${FILE}.jpg\".read-image" ${ARGS})
+  endforeach()
 endfunction()
 
 test_demo(gabor_wavelet "f32XY" "(i32 i32 f32 f32 f32 f32 f32)" "192 192 64.f32 64.f32 0.f32 128.f32 0.f32")
