@@ -361,13 +361,21 @@ test_expr("(threshold-to-zero-inverse 0.5 0.5)" 0.5)
 test_expr("(threshold-to-zero-inverse 0.6 0.5)" 0)
 
 # Test other library files
-function(test_demo FILE)
+function(test_file FILE VALUE)
   add_test(NAME ${FILE}
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND like library/${FILE}.md -parallel -show -assert "data/demo/${FILE}.jpg")
+           COMMAND like library/${FILE}.md -assert "${VALUE}")
 endfunction()
 
-function(test_static FILE RETURN PARAMETERS ARGS)
+test_file(comments 42)
+test_file(demos "")
+test_file(export 3)
+test_file(likely "")
+test_file(matrix_io "Compression Ratio: 7.31714")
+test_file(tutorial "")
+
+# Test demos
+function(test_demo FILE RETURN PARAMETERS ARGS)
   add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/${FILE}.o
                      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
                      COMMAND like -O3 -q -c "\"library/${FILE}.md\".import (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${CMAKE_BINARY_DIR}/${FILE}.o
@@ -382,29 +390,12 @@ function(test_static FILE RETURN PARAMETERS ARGS)
            COMMAND test_${FILE} "\"data/demo/${FILE}.jpg\".read-image" ${ARGS})
 endfunction()
 
-function(test_file FILE VALUE)
-  add_test(NAME ${FILE}
-           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND like library/${FILE}.md -assert "${VALUE}")
-endfunction()
-
-# List alphabetically
-test_file(comments 42)
-test_file(demos "")
-test_file(export 3)
-test_demo(gabor_wavelet)
-test_static(gabor_wavelet "f32XY" "(i32 i32 f32 f32 f32 f32 f32)" "192 192 64.f32 64.f32 0.f32 128.f32 0.f32")
-test_demo(hello_world)
-test_static(hello_world "u8CXY" "u8CXY" "\"data/misc/lenna.tiff\".read-image")
-test_file(likely "")
-test_demo(mandelbrot_set)
-test_static(mandelbrot_set "u8XY" "(i32 i32 f32 f32 f32 f32 i32)" "600 400 -2.f32 -1.f32 3.f32 2.f32 20")
-test_file(matrix_io "Compression Ratio: 7.31714")
-test_file(tutorial "")
+test_demo(gabor_wavelet "f32XY" "(i32 i32 f32 f32 f32 f32 f32)" "192 192 64.f32 64.f32 0.f32 128.f32 0.f32")
+test_demo(hello_world "u8CXY" "u8CXY" "\"data/misc/lenna.tiff\".read-image")
+test_demo(mandelbrot_set "u8XY" "(i32 i32 f32 f32 f32 f32 i32)" "600 400 -2.f32 -1.f32 3.f32 2.f32 20")
 
 # Test algorithms
 option(LIKELY_TEST_ALGORITHMS "Run computationally demanding tests" ON)
 if(${LIKELY_TEST_ALGORITHMS})
-  test_demo(average_face)
-  test_static(average_face "u8XY" "()" "")
+  test_demo(average_face "u8XY" "()" "")
 endif()
