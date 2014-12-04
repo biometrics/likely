@@ -14,7 +14,6 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include <alloca.h>
 #include <stdlib.h>
 #include <string.h>
 #include <likely.h>
@@ -26,7 +25,7 @@ int main(int argc, char *argv[])
 {
     likely_assert(argc > 1, "expected at least one argument, the return value.");
 
-    likely_const_mat *args = (likely_const_mat*) alloca(sizeof(likely_const_mat) * (argc-1));
+    likely_const_mat *const args = (likely_const_mat*) malloc(sizeof(likely_const_mat) * (argc-1));
     const likely_const_env parent = likely_standard(likely_jit(false), NULL);
     for (int i=1; i<argc; i++) {
         likely_const_mat arg = NULL;
@@ -49,6 +48,7 @@ int main(int argc, char *argv[])
 
     for (int i=0; i<argc-1; i++)
         likely_release_mat(args[i]);
+    free(args);
 
     likely_shutdown();
     return EXIT_SUCCESS;
