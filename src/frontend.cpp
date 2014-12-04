@@ -311,7 +311,8 @@ static void tokenizeLaTeX(const char *str, const size_t len, vector<likely_ast> 
     const size_t endLength = strlen(end);
     const size_t minLength = beginLength + endLength;
 
-    size_t i = 0, currentLine = 0, currentColumn = 0;
+    size_t i = 0;
+    uint32_t currentLine = 0, currentColumn = 0;
     while (i < len - minLength) {
         if (str[i] == '\n') {
             currentLine++;
@@ -321,8 +322,8 @@ static void tokenizeLaTeX(const char *str, const size_t len, vector<likely_ast> 
             i += beginLength;
             currentColumn += beginLength;
             const size_t startIndex = i;
-            const size_t startLine = currentLine;
-            const size_t startColumn = currentColumn;
+            const uint32_t startLine = currentLine;
+            const uint32_t startColumn = currentColumn;
             while (i < len - endLength) {
                 if (str[i] == '\n') {
                     currentLine++;

@@ -403,6 +403,6 @@ void likely_assert_approximate(likely_const_mat a, likely_const_mat b, float err
                     delta += fabs(A - B);
                     sum += max(A, B);
                 }
-    const float relativeError = delta / sum;
+    const float relativeError = float(delta / sum);
     likely_assert(relativeError < error_threshold, "average delta: %g%% greater than threshold: %g%%", relativeError, error_threshold);
 }
