@@ -574,17 +574,15 @@ public:
 
     ~OfflineModule()
     {
-        context->PM->run(*module);
-
         // Inline constant mats as they won't be around after the program exits!
-        for (const pair<Variant,Constant*> datum : data) {
+        int inlinedIndex = 0;
+        for (const pair<Variant,Constant*> &datum : data) {
             bool used = false;
-            for (const Use &use : datum.second->uses()) {
-                if (use.getUser()->getNumUses() > 0) {
+            for (User *user : datum.second->users())
+                if (user->getNumUses() > 0) {
                     used = true;
                     break;
                 }
-            }
 
             if (!used)
                 continue;
@@ -592,9 +590,40 @@ public:
             const likely_const_mat mat = datum.first;
             assert(mat);
 
-            StructType *const type = cast<StructType>(cast<PointerType>(context->toLLVM(mat->type, uint64_t(mat->channels) * uint64_t(mat->columns) * uint64_t(mat->rows) * uint64_t(mat->frames)))->getElementType());
-            (void) type;
+            const uint64_t elements = uint64_t(mat->channels) * uint64_t(mat->columns) * uint64_t(mat->rows) * uint64_t(mat->frames);
+            StructType *const structType = cast<StructType>(cast<PointerType>(context->toLLVM(mat->type, elements))->getElementType());
+            const likely_type c_type = mat->type & likely_c_type;
+            Constant *const values[7] = { ConstantInt::get(IntegerType::get(context->context, 8*sizeof(uint32_t)), numeric_limits<uint32_t>::max()),
+                                          ConstantInt::get(IntegerType::get(context->context, 8*sizeof(uint32_t)), mat->type),
+                                          ConstantInt::get(IntegerType::get(context->context, 8*sizeof(uint32_t)), mat->channels),
+                                          ConstantInt::get(IntegerType::get(context->context, 8*sizeof(uint32_t)), mat->columns),
+                                          ConstantInt::get(IntegerType::get(context->context, 8*sizeof(uint32_t)), mat->rows),
+                                          ConstantInt::get(IntegerType::get(context->context, 8*sizeof(uint32_t)), mat->frames),
+                                          (c_type == likely_u8)  ? ConstantDataArray::get(context->context, ArrayRef<uint8_t >((uint8_t*)  &mat->data, elements))
+                                        : (c_type == likely_u16) ? ConstantDataArray::get(context->context, ArrayRef<uint16_t>((uint16_t*) &mat->data, elements))
+                                        : (c_type == likely_u32) ? ConstantDataArray::get(context->context, ArrayRef<uint32_t>((uint32_t*) &mat->data, elements))
+                                        : (c_type == likely_u64) ? ConstantDataArray::get(context->context, ArrayRef<uint64_t>((uint64_t*) &mat->data, elements))
+                                        : (c_type == likely_u64) ? ConstantDataArray::get(context->context, ArrayRef<float   >((float*)    &mat->data, elements))
+                                        :                          ConstantDataArray::get(context->context, ArrayRef<double  >((double*)   &mat->data, elements)) };
+            Constant *const constantStruct = ConstantStruct::get(structType, values);
+
+            stringstream name;
+            name << "likely_inlined_mat_" << inlinedIndex++;
+            GlobalVariable *const globalVariable = cast<GlobalVariable>(module->getOrInsertGlobal(name.str(), structType));
+            globalVariable->setConstant(true);
+            globalVariable->setInitializer(constantStruct);
+            globalVariable->setLinkage(GlobalVariable::PrivateLinkage);
+            globalVariable->setUnnamedAddr(true);
+
+            for (User *user : datum.second->users()) {
+                for (User *instruction : user->users()) {
+                    CastInst *const castInst = CastInst::CreatePointerBitCastOrAddrSpaceCast(globalVariable, user->getType(), "", cast<Instruction>(instruction));
+                    user->replaceAllUsesWith(castInst);
+                }
+            }
         }
+
+        context->PM->run(*module);
 
         if (context->verbose)
             module->dump();
