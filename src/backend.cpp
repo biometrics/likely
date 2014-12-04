@@ -142,6 +142,9 @@ public:
         Type *llvm;
         if (likely & likely_multi_dimension) {
             const likely_const_mat str = likely_type_to_string(likely);
+            likely_type element = likely & likely_element;
+            if (!(element & likely_depth))
+                element |= likely_u8;
             llvm = PointerType::getUnqual(StructType::create(str->data,
                                                              Type::getInt32Ty(context), // ref_count
                                                              Type::getInt32Ty(context), // type
@@ -149,7 +152,7 @@ public:
                                                              Type::getInt32Ty(context), // columns
                                                              Type::getInt32Ty(context), // rows
                                                              Type::getInt32Ty(context), // frames
-                                                             ArrayType::get(Type::getInt8Ty(context), 0), // data
+                                                             ArrayType::get(toLLVM(element), 0), // data
                                                              NULL));
             likely_release_mat(str);
         } else if (likely == likely_void) {
@@ -579,7 +582,7 @@ public:
                 continue;
 
             const likely_const_mat mat = datum.first;
-            assert(mat);
+            assert(mat); (void) mat;
         }
 
         if (context->verbose)
