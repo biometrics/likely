@@ -14,37 +14,40 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include <cstdlib>
-#include <vector>
+#include <stdlib.h>
+#include <string.h>
 #include <likely.h>
 
-using namespace std;
-
 // This function should be provided by the likely static compiler
-extern "C" likely_mat likely_test_function(const likely_const_mat *args);
+extern likely_mat likely_test_function(const likely_const_mat *args);
 
 int main(int argc, char *argv[])
 {
-    vector<likely_const_mat> args;
+    likely_assert(argc > 1, "expected at least one argument, the return value.");
+
+    likely_const_mat *args = (likely_const_mat*) alloca(sizeof(likely_const_mat) * (argc-1));
     const likely_const_env parent = likely_standard(likely_jit(false), NULL);
     for (int i=1; i<argc; i++) {
-        const likely_const_env env = likely_lex_parse_and_eval(argv[i], likely_file_lisp, parent);
-        const likely_const_mat arg = likely_retain_mat(likely_result(env->expr));
-        likely_release_env(env);
-        likely_assert(arg != NULL, "failed to evaluate: %s", argv[i]);
-        args.push_back(arg);
+        likely_const_mat arg = NULL;
+        if (strcmp(argv[i], "-")) {
+            const likely_const_env env = likely_lex_parse_and_eval(argv[i], likely_file_lisp, parent);
+            arg = likely_retain_mat(likely_result(env->expr));
+            likely_release_env(env);
+            likely_assert(arg != NULL, "failed to evaluate: %s", argv[i]);
+        }
+        args[i-1] = arg;
     }
     likely_release_env(parent);
-    likely_assert(!args.empty(), "expected at least one argument, the return value.");
 
-    const likely_const_mat result = likely_test_function(args.data() + 1);
+    const likely_const_mat result = likely_test_function(args + 1);
     const likely_const_mat rendered = likely_render(result, NULL, NULL);
-    likely_assert_approximate(args[0], rendered, 0.03f);
+    if (args[0]) likely_assert_approximate(args[0], rendered, 0.03f);
+    else         likely_show(rendered, argv[0]);
     likely_release_mat(rendered);
     likely_release_mat(result);
 
-    for (likely_const_mat arg : args)
-        likely_release_mat(arg);
+    for (int i=0; i<argc-1; i++)
+        likely_release_mat(args[i]);
 
     likely_shutdown();
     return EXIT_SUCCESS;

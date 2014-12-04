@@ -79,8 +79,8 @@ add_test(NAME benchmark_parallel
          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
          COMMAND benchmark -test -parallel)
 
-# Test
-add_library(likely_test OBJECT test.cpp)
+# Main
+add_library(likely_main OBJECT main.c)
 
 # Dream
 set(QT5_INSTALL_DIR "${CMAKE_BINARY_DIR}/Qt5.3.2")
@@ -383,8 +383,8 @@ function(test_demo FILE RETURN PARAMETERS ARGS)
                        COMMAND like -O3 ${KERNEL_TYPE} -q -c "\"library/${FILE}.md\".import (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${OBJECT_FILE}
                        DEPENDS like ${CMAKE_SOURCE_DIR}/library/${FILE}.md
                        VERBATIM)
-    set(TEST_EXECUTABLE static_${FILE}${KERNEL_TYPE})
-    add_executable(${TEST_EXECUTABLE} $<TARGET_OBJECTS:likely_test> ${OBJECT_FILE})
+    set(TEST_EXECUTABLE ${FILE}${KERNEL_TYPE})
+    add_executable(${TEST_EXECUTABLE} $<TARGET_OBJECTS:likely_main> ${OBJECT_FILE})
     set_source_files_properties(${OBJECT_FILE} PROPERTIES EXTERNAL_OBJECT true GENERATED true)
     target_link_libraries(${TEST_EXECUTABLE} likely_shared)
     separate_arguments(ARGS)
