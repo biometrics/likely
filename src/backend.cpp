@@ -615,6 +615,7 @@ public:
             globalVariable->setLinkage(GlobalVariable::PrivateLinkage);
             globalVariable->setUnnamedAddr(true);
 
+            vector<Instruction*> eraseLater;
             for (User *user : datum.second->users()) {
                 for (User *supposedInstruction : user->users()) {
                     Instruction *const instruction = cast<Instruction>(supposedInstruction);
@@ -624,10 +625,12 @@ public:
                         if (   (callInst->getCalledFunction()->getName() == "likely_retain_mat")
                             || (callInst->getCalledFunction()->getName() == "likely_release_mat"))
                             instruction->replaceAllUsesWith(castInst);
-                            instruction->eraseFromParent();
+                            eraseLater.push_back(instruction);
                     }
                 }
             }
+            for (Instruction *instruction : eraseLater)
+                instruction->eraseFromParent();
         }
 
         context->PM->run(*module);
