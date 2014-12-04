@@ -14,6 +14,7 @@
  * limitations under the License.                                            *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include <alloca.h>
 #include <stdlib.h>
 #include <string.h>
 #include <likely.h>
