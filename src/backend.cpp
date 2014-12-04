@@ -616,9 +616,16 @@ public:
             globalVariable->setUnnamedAddr(true);
 
             for (User *user : datum.second->users()) {
-                for (User *instruction : user->users()) {
-                    CastInst *const castInst = CastInst::CreatePointerBitCastOrAddrSpaceCast(globalVariable, user->getType(), "", cast<Instruction>(instruction));
+                for (User *supposedInstruction : user->users()) {
+                    Instruction *const instruction = cast<Instruction>(supposedInstruction);
+                    CastInst *const castInst = CastInst::CreatePointerBitCastOrAddrSpaceCast(globalVariable, user->getType(), "", instruction);
                     user->replaceAllUsesWith(castInst);
+                    if (CallInst *const callInst = dyn_cast<CallInst>(instruction)) {
+                        if (   (callInst->getCalledFunction()->getName() == "likely_retain_mat")
+                            || (callInst->getCalledFunction()->getName() == "likely_release_mat"))
+                            instruction->replaceAllUsesWith(castInst);
+                            instruction->eraseFromParent();
+                    }
                 }
             }
         }
