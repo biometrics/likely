@@ -564,6 +564,24 @@ public:
     ~OfflineModule()
     {
         context->PM->run(*module);
+
+        // Inline constant mats as they won't be around after the program exits!
+        for (const pair<Variant,Constant*> datum : data) {
+            bool used = false;
+            for (const Use &use : datum.second->uses()) {
+                if (use.getUser()->getNumUses() > 0) {
+                    used = true;
+                    break;
+                }
+            }
+
+            if (!used)
+                continue;
+
+            const likely_const_mat mat = datum.first;
+            assert(mat);
+        }
+
         if (context->verbose)
             module->dump();
 
