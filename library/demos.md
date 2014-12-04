@@ -8,10 +8,9 @@ $ likely library/<demo>.md -show
 $ likely library/<demo>.md -render result.png
 ```
 
+Be sure to also check out [algorithms](?href=algorithms).
+
 <dl class="dl-horizontal">
-  <dt>average_face</dt>
-  <dd><a href="?href=average_face"> <img src="https://github.com/biometrics/likely/releases/download/v0.1/average_face.jpg" class="img-thumbnail" width="256"> </a></dd>
-  <br>
   <dt>hello_world</dt>
   <dd><a href="?href=hello_world"><img src="https://github.com/biometrics/likely/releases/download/v0.1/hello_world.jpg" class="img-thumbnail" width="256"></a></dd>
   <br>

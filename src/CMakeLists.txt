@@ -374,7 +374,7 @@ test_file(likely "")
 test_file(matrix_io "Compression Ratio: 7.31714")
 test_file(tutorial "")
 
-# Test demos
+# Compile and test demos
 function(test_demo FILE RETURN PARAMETERS ARGS)
   foreach(KERNEL_TYPE "" "-p")
     set(OBJECT_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}.o)
@@ -394,12 +394,15 @@ function(test_demo FILE RETURN PARAMETERS ARGS)
   endforeach()
 endfunction()
 
-test_demo(gabor_wavelet "f32XY" "(i32 i32 f32 f32 f32 f32 f32)" "192 192 64.f32 64.f32 0.f32 128.f32 0.f32")
-test_demo(hello_world "u8CXY" "u8CXY" "\"data/misc/lenna.tiff\".read-image")
-test_demo(mandelbrot_set "u8XY" "(i32 i32 f32 f32 f32 f32 i32)" "600 400 -2.f32 -1.f32 3.f32 2.f32 20")
+option(LIKELY_DEMOS "Compile and test simple demos." ON)
+if(${LIKELY_DEMOS})
+  test_demo(gabor_wavelet "f32XY" "(i32 i32 f32 f32 f32 f32 f32)" "192 192 64.f32 64.f32 0.f32 128.f32 0.f32")
+  test_demo(hello_world "u8CXY" "u8CXY" "\"data/misc/lenna.tiff\".read-image")
+  test_demo(mandelbrot_set "u8XY" "(i32 i32 f32 f32 f32 f32 i32)" "600 400 -2.f32 -1.f32 3.f32 2.f32 20")
+endif()
 
-# Test algorithms
-option(LIKELY_TEST_ALGORITHMS "Run computationally demanding tests" ON)
-if(${LIKELY_TEST_ALGORITHMS})
+# Compile and test algorithms
+option(LIKELY_ALGORITHMS "Compile and test complex algorithms." OFF)
+if(${LIKELY_ALGORITHMS})
   test_demo(average_face "u8XY" "()" "")
 endif()
