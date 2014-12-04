@@ -34,7 +34,7 @@ extern "C" {
  * Statically compiled Likely algorithms will generally depend on these symbols
  * <i>and these symbols only</i>.
  *
- * Unless otherwise noted, these functions are implemented in \c src/runtime_common.c and designed to have no dependencies outside of the \c C Standard Library.
+ * Unless otherwise noted, these functions are implemented in \c src/runtime.c and designed to have no dependencies outside of the \c C Standard Library.
  * Use these symbols by linking against the \c likely_runtime static library,
  * the complete \c likely library, or by compiling the relevant source files
  * directly into your project.
@@ -127,7 +127,7 @@ typedef struct likely_matrix *likely_mat; /*!< \brief Pointer to a \ref likely_m
  * \par Element Access
  * By convention, element layout in \ref likely_matrix::data with respect to decreasing spatial locality is: channel, column, row, frame.
  * Thus an element at channel _c_, column _x_, row _y_ and frame _t_, can be retrieved like:
- * \snippet src/runtime_common.c likely_element implementation.
+ * \snippet src/runtime.c likely_element implementation.
  *
  * Convenience functions \ref likely_element and \ref likely_set_element are provided for individual element access.
  * However, these functions should be used sparingly as they are inefficient for iterating over a large numbers of elements due to the repeated index calculations.
@@ -148,7 +148,7 @@ struct likely_matrix
  * \brief Get the size of \ref likely_matrix::data in bytes.
  *
  * \par Implementation
- * \snippet src/runtime_common.c likely_bytes implementation.
+ * \snippet src/runtime.c likely_bytes implementation.
  * \param[in] mat The matrix from which to calculate the data buffer size.
  * \return The length of \ref likely_matrix::data in bytes.
  * \remark This function is \ref thread-safe.
@@ -159,7 +159,7 @@ LIKELY_EXPORT size_t likely_bytes(likely_const_mat mat);
  * \brief Check if a \ref likely_matrix represents a string.
  *
  * \par Implementation
- * \snippet src/runtime_common.c likely_is_string implementation.
+ * \snippet src/runtime.c likely_is_string implementation.
  * \param[in] m The matrix to test.
  * \return \c true if \ref likely_matrix::data is a string, \c false otherwise.
  * \remark This function is \ref thread-safe.
@@ -177,7 +177,7 @@ LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
  * The \ref likely_multi_dimension component of \ref likely_matrix::type is set automatically for \p channels, \p columns, \p rows and \p frames greater than one.
  *
  * \par Implementation
- * \snippet src/runtime_common.c likely_new implementation.
+ * \snippet src/runtime.c likely_new implementation.
  * \param[in] type \ref likely_matrix::type.
  * \param[in] channels \ref likely_matrix::channels.
  * \param[in] columns \ref likely_matrix::columns.
@@ -195,7 +195,7 @@ LIKELY_EXPORT likely_mat likely_new(likely_type type, uint32_t channels, uint32_
  *
  * Convenient alternative to \ref likely_new for low-dimensional vectors.
  * \par Implementation
- * \snippet src/runtime_common.c likely_scalar implementation.
+ * \snippet src/runtime.c likely_scalar implementation.
  * \param[in] type \ref likely_matrix::type.
  * \param[in] values Array of element values.
  * \param[in] n Length of \p values.
@@ -210,7 +210,7 @@ LIKELY_EXPORT likely_mat likely_scalar(likely_type type, double *values, uint32_
  * Convenient alternative to \ref likely_new.
  * The returned \ref likely_matrix::data is a valid \c C string of length <tt>\ref likely_matrix::channels - 1</tt>.
  * \par Implementation
- * \snippet src/runtime_common.c likely_string implementation.
+ * \snippet src/runtime.c likely_string implementation.
  * \param[in] str String used to initialized \ref likely_matrix::data.
  * \return A pointer to the new \ref likely_matrix holding a string, or \c NULL if \c malloc failed.
  * \remark This function is \ref thread-safe.
@@ -223,7 +223,7 @@ LIKELY_EXPORT likely_mat likely_string(const char *str);
  *
  * Increments \ref likely_matrix::ref_count.
  * \par Implementation
- * \snippet src/runtime_common.c likely_retain_mat implementation.
+ * \snippet src/runtime.c likely_retain_mat implementation.
  * \param[in] mat Matrix to add a reference. May be \c NULL.
  * \return \p mat.
  * \remark This function is \ref reentrant.
@@ -237,7 +237,7 @@ LIKELY_EXPORT likely_mat likely_retain_mat(likely_const_mat mat);
  * Decrements \ref likely_matrix::ref_count.
  * Frees the matrix memory when the reference count is decremented to zero.
  * \par Implementation
- * \snippet src/runtime_common.c likely_release_mat implementation.
+ * \snippet src/runtime.c likely_release_mat implementation.
  * \param[in] mat Matrix to subtract a reference. May be \c NULL.
  * \remark This function is \ref reentrant.
  * \see \ref likely_retain_mat
@@ -250,7 +250,7 @@ LIKELY_EXPORT void likely_release_mat(likely_const_mat mat);
  * A \c NULL \p m or out-of-bounds \p c, \p x, \p y or \p t will return \p NAN.
  * \ref likely_assert is called if the matrix does not have a type convertible to \c C.
  * \par Implementation
- * \snippet src/runtime_common.c likely_element implementation.
+ * \snippet src/runtime.c likely_element implementation.
  * \param[in] m The matrix to index into.
  * \param[in] c Channel.
  * \param[in] x Column.
