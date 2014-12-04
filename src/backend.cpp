@@ -488,7 +488,7 @@ struct likely_expression : public LikelyValue
 
     static void define(likely_const_env &env, const char *name, likely_const_expr expr)
     {
-        const likely_ast atoms[2] = { likely_atom("=", 1), likely_atom(name, strlen(name)) };
+        const likely_ast atoms[2] = { likely_atom("=", 1), likely_atom(name, uint32_t(strlen(name))) };
         const likely_ast list = likely_list(atoms, 2);
         env = newEnv(env, list, expr);
         likely_release_ast(list);
@@ -1784,8 +1784,7 @@ class externExpression : public LikelyOperator
         if (ast->num_atoms < 5)
             return new Symbol(name, returnType, parameters);
 
-        const bool arrayCC = (ast->num_atoms < 6) ? false
-                                                  : evalInt(ast->atoms[5], builder.env, &ok);
+        const bool arrayCC = (ast->num_atoms >= 6) && (evalInt(ast->atoms[5], builder.env, &ok) != 0);
         if (!ok)
             return NULL;
 
@@ -2031,7 +2030,7 @@ class kernelExpression : public LikelyOperator
         {
             const size_t len = length(ast);
             const likely_type sharedAxes = ~(type ^ info.type) & likely_multi_dimension;
-            const int sharedOffset = (sharedAxes == likely_multi_dimension) ? 5 - len : 0;
+            const size_t sharedOffset = (sharedAxes == likely_multi_dimension) ? 5 - len : 0;
 
             // Use the kernel offset for axes that aren't specified
             Value *i;
