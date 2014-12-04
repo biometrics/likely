@@ -77,7 +77,8 @@ likely_ast likely_retain_ast(likely_const_ast ast)
 {
     if (!ast) return NULL;
     assert(ast->ref_count > 0);
-    const_cast<likely_ast>(ast)->ref_count++;
+    if (ast->ref_count != UINT32_MAX)
+        const_cast<likely_ast>(ast)->ref_count++;
     return const_cast<likely_ast>(ast);
 }
 
@@ -85,7 +86,8 @@ void likely_release_ast(likely_const_ast ast)
 {
     if (!ast) return;
     assert(ast->ref_count > 0);
-    if (--const_cast<likely_ast>(ast)->ref_count) return;
+    if ((ast->ref_count == UINT32_MAX) || --const_cast<likely_ast>(ast)->ref_count)
+        return;
     if (ast->type == likely_ast_list)
         for (size_t i=0; i<ast->num_atoms; i++)
             likely_release_ast(ast->atoms[i]);
@@ -113,7 +115,8 @@ likely_err likely_retain_err(likely_const_err err)
 {
     if (!err) return NULL;
     assert(err->ref_count > 0);
-    const_cast<likely_err>(err)->ref_count++;
+    if (err->ref_count != UINT32_MAX)
+        const_cast<likely_err>(err)->ref_count++;
     return const_cast<likely_err>(err);
 }
 
@@ -121,7 +124,8 @@ void likely_release_err(likely_const_err err)
 {
     if (!err) return;
     assert(err->ref_count > 0);
-    if (--const_cast<likely_err>(err)->ref_count) return;
+    if ((err->ref_count == UINT32_MAX) || --const_cast<likely_err>(err)->ref_count)
+        return;
     likely_release_ast(err->where);
     likely_release_err(err->parent);
     free((void*) err);

@@ -94,7 +94,8 @@ likely_mat likely_retain_mat(likely_const_mat mat)
     if (!mat)
         return NULL;
     assert(mat->ref_count > 0);
-    ((likely_mat) mat)->ref_count++;
+    if (mat->ref_count != UINT32_MAX)
+        ((likely_mat) mat)->ref_count++;
     return (likely_mat) mat;
 }
 //! [likely_retain_mat implementation.]
@@ -105,7 +106,7 @@ void likely_release_mat(likely_const_mat mat)
     if (!mat)
         return;
     assert(mat->ref_count > 0);
-    if (--((likely_mat) mat)->ref_count)
+    if ((mat->ref_count == UINT32_MAX) || --((likely_mat) mat)->ref_count)
         return;
     free((void*) mat);
 }

@@ -44,6 +44,9 @@
  * When the reference count is decremented to zero, any memory associated with the structure will be freed.
  * Applications should _not_ modify the \c ref_count variable directly.
  *
+ * As a special case, structures that live in constant memory or should persist for the lifetime of the application are assigned a \c ref_count equal to \c UINT32_MAX.
+ * In this case \a retain and \a release are no-ops.
+ *
  * \section owned_by Owned By
  * There are certain functions in the API which always return references to existing data.
  * These functions will indicate which parameter the return value is \ref owned_by in the documentation of the return value itself.

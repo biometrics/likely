@@ -2587,7 +2587,8 @@ likely_env likely_retain_env(likely_const_env env)
 {
     if (!env) return NULL;
     assert(env->ref_count > 0);
-    const_cast<likely_env>(env)->ref_count++;
+    if (env->ref_count != UINT32_MAX)
+        const_cast<likely_env>(env)->ref_count++;
     return const_cast<likely_env>(env);
 }
 
@@ -2595,8 +2596,8 @@ void likely_release_env(likely_const_env env)
 {
     if (!env) return;
     assert(env->ref_count > 0);
-    if (--const_cast<likely_env>(env)->ref_count) return;
-
+    if ((env->ref_count == UINT32_MAX) || --const_cast<likely_env>(env)->ref_count)
+        return;
     delete env->expr;
     likely_release_ast(env->ast);
     if (env->settings && !env->parent->settings)
