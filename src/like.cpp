@@ -71,6 +71,8 @@ static cl::opt<bool> parallel("parallel" , cl::desc("Compile parallel kernels"))
 static cl::alias     parallelA("p", cl::desc("Alias for -parallel"), cl::aliasopt(parallel));
 static cl::opt<bool> verbose("verbose" , cl::desc("Verbose compiler output"));
 static cl::alias     verboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(verbose));
+static cl::opt<bool> examine("examine" , cl::desc("Alias for -q -v -Oz -disable-loop-unrolling -disable-loop-vectorization"));
+static cl::alias     examineA("e", cl::desc("Alias for -examine"), cl::aliasopt(examine));
 
 cl::OptionCategory LLVMCat("LLVM Options", "These control the behavior of the internal LLVM compiler.");
 static cl::opt<bool> OptLevelO0("O0", cl::desc("No optimizations. Similar to clang -O1"), cl::cat(LLVMCat));
@@ -144,6 +146,14 @@ static void printCallback(likely_const_env env, void *)
 int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
+
+    if (examine) {
+        verbose.setValue(true);
+        quiet.setValue(true);
+        OptLevelOz.setValue(true);
+        DisableLoopUnrolling.setValue(true);
+        DisableLoopVectorization.setValue(true);
+    }
 
     likely_eval_callback evalCallback;
     if (!render.getValue().empty()) evalCallback = renderCallback;
