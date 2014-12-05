@@ -2321,6 +2321,12 @@ class kernelExpression : public LikelyOperator
         kernelArguments.clear();
 
         axis->close(builder);
+
+        // Clean up any instructions we didn't end up using
+        FunctionPassManager FPM(builder.module->module);
+        FPM.add(createDeadInstEliminationPass());
+        FPM.run(*kernelHead->getParent());
+
         axis->tryCollapse();
         delete undefine(builder.env, "c");
         delete undefine(builder.env, "x");
