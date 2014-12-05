@@ -1925,13 +1925,13 @@ struct Loop : public likely_expression
 {
     string name;
     Value *start, *stop, *precondition;
-    BasicBlock *body, *exit;
+    BasicBlock *entry, *body, *exit;
     BranchInst *latch;
 
     Loop(Builder &builder, const string &name, Value *start, Value *stop)
         : name(name), start(start), stop(stop), exit(NULL), latch(NULL)
     {
-        BasicBlock *const entry = builder.GetInsertBlock();
+        entry = builder.GetInsertBlock();
         body = BasicBlock::Create(builder.getContext(), name + "_body", entry->getParent());
         exit = BasicBlock::Create(builder.getContext(), name + "_exit", body->getParent());
         precondition = builder.CreateICmpNE(start, stop, name + "_precondition");
@@ -2098,12 +2098,11 @@ class kernelExpression : public LikelyOperator
     struct KernelAxis : public Loop
     {
         KernelAxis *parent, *child;
-        Value *true_;
         MDNode *node;
         Value *offset;
 
         KernelAxis(Builder &builder, const string &name, Value *start, Value *stop, Value *step, KernelAxis *parent)
-            : Loop(builder, name, start, stop), parent(parent), child(NULL), true_(ConstantInt::getTrue(builder.getContext()))
+            : Loop(builder, name, start, stop), parent(parent), child(NULL)
         {
             { // Create self-referencing loop node
                 vector<Value*> metadata;
@@ -2127,22 +2126,34 @@ class kernelExpression : public LikelyOperator
             if (parent) parent->close(builder);
         }
 
-        void tryCollapse()
+        void tryCollapse(Builder &builder)
         {
             if ((value->getNumUses() == 2) && child && (child->value->getNumUses() == 2)) {
                 // Assume for now that one user is the offset and the other is the increment.
 
                 // Collapse the child loop into us
 //                child->offset->replaceAllUsesWith(value);
-//                child->latch->setCondition(true_);
-//                child->precondition->replaceAllUsesWith(true_);
-//                DeleteDeadPHIs(child->body);
-//                MergeBlockIntoPredecessor(child->body);
-//                MergeBlockIntoPredecessor(child->exit);
+//                child->latch->setCondition(ConstantInt::getTrue(builder.getContext()));
+//                child->precondition->replaceAllUsesWith(ConstantInt::getTrue(builder.getContext()));
+
+                // Update our range
+//                BasicBlock *const restore = builder.GetInsertBlock();
+//                builder.SetInsertPoint(entry->getTerminator());
+//                Value *const step = builder.CreateZExt(builder.CreateSub(child->stop, child->start), start->getType());
+//                Value *const newStart = builder.multiplyInts(start, step);
+//                Value *const newStop = builder.multiplyInts(stop, step);
+//                start->replaceAllUsesWith(newStart);
+//                stop->replaceAllUsesWith(newStop);
+//                start = newStart;
+//                stop = newStop;
+//                builder.SetInsertPoint(restore);
+
+                // Update our child
+//                child = child->child;
             }
 
             if (parent)
-                parent->tryCollapse();
+                parent->tryCollapse(builder);
         }
     };
 
@@ -2329,7 +2340,7 @@ class kernelExpression : public LikelyOperator
         FPM.add(createDeadInstEliminationPass());
         FPM.run(*kernelHead->getParent());
 
-        axis->tryCollapse();
+        axis->tryCollapse(builder);
         delete undefine(builder.env, "c");
         delete undefine(builder.env, "x");
         delete undefine(builder.env, "y");
