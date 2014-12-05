@@ -1924,7 +1924,7 @@ LIKELY_REGISTER(if)
 struct Loop : public likely_expression
 {
     string name;
-    Value *start, *stop, *precondition;
+    Value *start, *stop, *precondition, *postcondition;
     BasicBlock *entry, *body, *exit;
     BranchInst *latch;
 
@@ -1945,7 +1945,8 @@ struct Loop : public likely_expression
     virtual void close(Builder &builder)
     {
         Value *const increment = builder.CreateAdd(value, builder.one(type), name + "_increment");
-        latch = builder.CreateCondBr(builder.CreateICmpEQ(increment, stop, name + "_latch"), exit, body);
+        postcondition = builder.CreateICmpNE(increment, stop, name + "_postcondition");
+        latch = builder.CreateCondBr(postcondition, body, exit);
         cast<PHINode>(value)->addIncoming(increment, builder.GetInsertBlock());
         builder.SetInsertPoint(exit);
     }
@@ -2133,17 +2134,17 @@ class kernelExpression : public LikelyOperator
 
                 // Collapse the child loop into us
 //                child->offset->replaceAllUsesWith(value);
-//                child->latch->setCondition(ConstantInt::getTrue(builder.getContext()));
+//                child->latch->setCondition(ConstantInt::getFalse(builder.getContext()));
 //                child->precondition->replaceAllUsesWith(ConstantInt::getTrue(builder.getContext()));
 
                 // Update our range
 //                BasicBlock *const restore = builder.GetInsertBlock();
-//                builder.SetInsertPoint(entry->getTerminator());
+//                builder.SetInsertPoint(cast<Instruction>(precondition));
 //                Value *const step = builder.CreateZExt(builder.CreateSub(child->stop, child->start), start->getType());
 //                Value *const newStart = builder.multiplyInts(start, step);
 //                Value *const newStop = builder.multiplyInts(stop, step);
-//                start->replaceAllUsesWith(newStart);
-//                stop->replaceAllUsesWith(newStop);
+//                cast<PHINode>(value)->setIncomingValue(0, newStart);
+//                cast<ICmpInst>(postcondition)->setOperand(1, newStop);
 //                start = newStart;
 //                stop = newStop;
 //                builder.SetInsertPoint(restore);
