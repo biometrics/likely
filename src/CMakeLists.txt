@@ -375,34 +375,38 @@ test_file(matrix_io "Compression Ratio: 7.31714")
 test_file(tutorial "")
 
 # Compile and test demos
-function(test_demo FILE RETURN PARAMETERS ARGS)
+function(add_demo FILE RETURN PARAMETERS ARGS)
   foreach(KERNEL_TYPE "" "-p")
-    set(OBJECT_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}.o)
-    add_custom_command(OUTPUT ${OBJECT_FILE}
+    set(BITCODE_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}.bc)
+    set(OBJECT_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}.${CMAKE_C_OUTPUT_EXTENSION})
+    add_custom_command(OUTPUT ${BITCODE_FILE}
                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                       COMMAND like -O3 ${KERNEL_TYPE} -q -c "\"library/${FILE}.md\".import (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${OBJECT_FILE}
+                       COMMAND like -O2 ${KERNEL_TYPE} -q -c "\"library/${FILE}.md\".import (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${BITCODE_FILE}
                        DEPENDS like ${CMAKE_SOURCE_DIR}/library/${FILE}.md
                        VERBATIM)
-    set(TEST_EXECUTABLE ${FILE}${KERNEL_TYPE})
-    add_executable(${TEST_EXECUTABLE} $<TARGET_OBJECTS:likely_main> ${OBJECT_FILE})
+    add_custom_command(OUTPUT ${OBJECT_FILE}
+                       COMMAND llc -filetype=obj ${BITCODE_FILE} -o ${OBJECT_FILE}
+                       DEPENDS llc ${BITCODE_FILE})
+    set(DEMO_EXECUTABLE ${FILE}${KERNEL_TYPE})
+    add_executable(${DEMO_EXECUTABLE} $<TARGET_OBJECTS:likely_main> ${OBJECT_FILE})
     set_source_files_properties(${OBJECT_FILE} PROPERTIES EXTERNAL_OBJECT true GENERATED true)
-    target_link_libraries(${TEST_EXECUTABLE} likely_shared)
+    target_link_libraries(${DEMO_EXECUTABLE} likely_shared)
     separate_arguments(ARGS)
     add_test(NAME ${FILE}${KERNEL_TYPE}
              WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-             COMMAND ${TEST_EXECUTABLE} "\"data/demo/${FILE}.jpg\".read-image" ${ARGS})
+             COMMAND ${DEMO_EXECUTABLE} "\"data/demo/${FILE}.jpg\".read-image" ${ARGS})
   endforeach()
 endfunction()
 
 option(LIKELY_DEMOS "Compile and test simple demos." ON)
 if(${LIKELY_DEMOS})
-  test_demo(gabor_wavelet "f32XY" "(i32 i32 f32 f32 f32 f32 f32)" "192 192 64.f32 64.f32 0.f32 128.f32 0.f32")
-  test_demo(hello_world "u8CXY" "u8CXY" "\"data/misc/lenna.tiff\".read-image")
-  test_demo(mandelbrot_set "u8XY" "(i32 i32 f32 f32 f32 f32 i32)" "600 400 -2.f32 -1.f32 3.f32 2.f32 20")
+  add_demo(gabor_wavelet "f32XY" "(i32 i32 f32 f32 f32 f32 f32)" "192 192 64.f32 64.f32 0.f32 128.f32 0.f32")
+  add_demo(hello_world "u8CXY" "u8CXY" "\"data/misc/lenna.tiff\".read-image")
+  add_demo(mandelbrot_set "u8XY" "(i32 i32 f32 f32 f32 f32 i32)" "600 400 -2.f32 -1.f32 3.f32 2.f32 20")
 endif()
 
 # Compile and test algorithms
 option(LIKELY_ALGORITHMS "Compile and test complex algorithms." OFF)
 if(${LIKELY_ALGORITHMS})
-  test_demo(average_face "u8XY" "()" "")
+  add_demo(average_face "u8XY" "()" "")
 endif()
