@@ -1924,7 +1924,7 @@ LIKELY_REGISTER(if)
 struct Loop : public likely_expression
 {
     string name;
-    Value *start, *stop;
+    Value *start, *stop, *precondition;
     BasicBlock *body, *exit;
     BranchInst *latch;
 
@@ -1934,7 +1934,8 @@ struct Loop : public likely_expression
         BasicBlock *const entry = builder.GetInsertBlock();
         body = BasicBlock::Create(builder.getContext(), name + "_body", entry->getParent());
         exit = BasicBlock::Create(builder.getContext(), name + "_exit", body->getParent());
-        builder.CreateCondBr(builder.CreateICmpEQ(start, stop, name + "_precondition"), exit, body);
+        precondition = builder.CreateICmpNE(start, stop, name + "_precondition");
+        builder.CreateCondBr(precondition, body, exit);
         builder.SetInsertPoint(body);
         type = toLikely(start->getType());
         value = builder.CreatePHI(builder.module->context->toLLVM(type), 2, name);
@@ -2129,14 +2130,15 @@ class kernelExpression : public LikelyOperator
         void tryCollapse()
         {
             if ((value->getNumUses() == 2) && child && (child->value->getNumUses() == 2)) {
+                // Assume for now that one user is the offset and the other is the increment.
+
                 // Collapse the child loop into us
 //                child->offset->replaceAllUsesWith(value);
 //                child->latch->setCondition(true_);
+//                child->precondition->replaceAllUsesWith(true_);
 //                DeleteDeadPHIs(child->body);
 //                MergeBlockIntoPredecessor(child->body);
 //                MergeBlockIntoPredecessor(child->exit);
-//                collapsedAxis.insert(child->name);
-//                child = child->child;
             }
 
             if (parent)
