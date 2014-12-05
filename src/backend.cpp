@@ -2122,6 +2122,7 @@ class kernelExpression : public LikelyOperator
         {
             Loop::close(builder);
             latch->setMetadata("llvm.loop", node);
+            if (child) exit->moveAfter(child->exit);
             if (parent) parent->close(builder);
         }
 
