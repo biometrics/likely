@@ -2047,26 +2047,26 @@ class kernelExpression : public LikelyOperator
             if ((sharedOffset < 1) && (type & likely_multi_frame)) {
                 Value *const t = (len >= 5) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[4])), likely_u64).value
                                             : info.t;
-//                Value *const tStep = ((sharedAxes & likely_multi_channel)
-//                                      && (sharedAxes & likely_multi_column)
-//                                      && (sharedAxes & likely_multi_row)
-//                                      && (sharedAxes & likely_multi_frame)) ? info.frameStep : frameStep;
-                i = builder.addInts(builder.multiplyInts(t, frameStep /* tStep */), i);
+                Value *const tStep = ((sharedAxes & likely_multi_channel)
+                                      && (sharedAxes & likely_multi_column)
+                                      && (sharedAxes & likely_multi_row)
+                                      && (sharedAxes & likely_multi_frame)) ? info.frameStep : frameStep;
+                i = builder.addInts(builder.multiplyInts(t, tStep), i);
             }
             if ((sharedOffset < 2) && (type & likely_multi_row)) {
                 Value *const y = (len >= 4) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[3])), likely_u64).value
                                             : info.y;
-//                Value *const yStep = ((sharedAxes & likely_multi_channel)
-//                                      && (sharedAxes & likely_multi_column)
-//                                      && (sharedAxes & likely_multi_row)) ? info.rowStep : rowStep;
-                i = builder.addInts(builder.multiplyInts(y, rowStep /* yStep */), i);
+                Value *const yStep = ((sharedAxes & likely_multi_channel)
+                                      && (sharedAxes & likely_multi_column)
+                                      && (sharedAxes & likely_multi_row)) ? info.rowStep : rowStep;
+                i = builder.addInts(builder.multiplyInts(y, yStep), i);
             }
             if ((sharedOffset < 3) && (type & likely_multi_column)) {
                 Value *const x = (len >= 3) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[2])), likely_u64).value
                                             : info.x;
-//                Value *const xStep = ((sharedAxes & likely_multi_channel)
-//                                      && (sharedAxes & likely_multi_column)) ? info.columnStep : columnStep;
-                i = builder.addInts(builder.multiplyInts(x, columnStep /* xStep */), i);
+                Value *const xStep = ((sharedAxes & likely_multi_channel)
+                                      && (sharedAxes & likely_multi_column)) ? info.columnStep : columnStep;
+                i = builder.addInts(builder.multiplyInts(x, xStep), i);
             }
             if ((sharedOffset < 4) && (type & likely_multi_channel)) {
                 Value *const c = (len >= 2) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[1])), likely_u64).value
