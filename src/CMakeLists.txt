@@ -63,10 +63,10 @@ target_link_libraries(likely_static likely_runtime ${LIKELY_LIBS})
 install(TARGETS likely_static ARCHIVE DESTINATION lib)
 
 # Build console-interpreter-compiler
-add_executable(like likely.cpp)
-set_target_properties(like PROPERTIES OUTPUT_NAME likely)
-target_link_libraries(like likely_shared LLVMSupport)
-install(TARGETS like RUNTIME DESTINATION bin)
+add_executable(likely likely.cpp)
+set_target_properties(likely PROPERTIES OUTPUT_NAME likely)
+target_link_libraries(likely likely_shared LLVMSupport)
+install(TARGETS likely RUNTIME DESTINATION bin)
 
 # Benchmark
 add_executable(benchmark benchmark.cpp)
@@ -161,14 +161,14 @@ function(test_ast EXPR VALUE)
   string(MAKE_C_IDENTIFIER "${EXPR}" NAME)
   add_test(NAME "${NAME}"
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND like -ast -command "${EXPR}" -assert "${VALUE}")
+           COMMAND likely -ast -command "${EXPR}" -assert "${VALUE}")
 endfunction()
 
 function(test_expr EXPR VALUE)
   string(MAKE_C_IDENTIFIER "${EXPR}" NAME)
   add_test(NAME "${NAME}"
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND like -command "${EXPR}" -assert "${VALUE}")
+           COMMAND likely -command "${EXPR}" -assert "${VALUE}")
 endfunction()
 
 # List in the order they occur in standard.tex
@@ -364,7 +364,7 @@ test_expr("(threshold-to-zero-inverse 0.6 0.5)" 0)
 function(test_file FILE VALUE)
   add_test(NAME ${FILE}
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND like library/${FILE}.md -assert "${VALUE}")
+           COMMAND likely library/${FILE}.md -assert "${VALUE}")
 endfunction()
 
 test_file(comments 42)
@@ -381,8 +381,8 @@ function(add_demo FILE RETURN PARAMETERS ARGS)
     set(OBJECT_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}.${CMAKE_C_OUTPUT_EXTENSION})
     add_custom_command(OUTPUT ${BITCODE_FILE}
                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                       COMMAND like -O2 ${KERNEL_TYPE} -q -c "\"library/${FILE}.md\".import (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${BITCODE_FILE}
-                       DEPENDS like ${CMAKE_SOURCE_DIR}/library/${FILE}.md
+                       COMMAND likely -O2 ${KERNEL_TYPE} -q -c "\"library/${FILE}.md\".import (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${BITCODE_FILE}
+                       DEPENDS likely ${CMAKE_SOURCE_DIR}/library/${FILE}.md
                        VERBATIM)
     add_custom_command(OUTPUT ${OBJECT_FILE}
                        COMMAND llc -filetype=obj ${BITCODE_FILE} -o ${OBJECT_FILE}

@@ -10,8 +10,8 @@ if(${LIKELY_HELLOWORLD})
 
   # hello_world_static
   add_custom_command(OUTPUT hello_world_static_lisp.o
-                     COMMAND like ${CMAKE_CURRENT_SOURCE_DIR}/hello_world_static.lisp hello_world_static_lisp.o
-                     DEPENDS like hello_world_static.lisp
+                     COMMAND likely ${CMAKE_CURRENT_SOURCE_DIR}/hello_world_static.lisp hello_world_static_lisp.o
+                     DEPENDS likely hello_world_static.lisp
                      VERBATIM)
   add_definitions(-DLIKELY_LIBRARY)
   add_executable(hello_world_static hello_world_static.c hello_world_static_lisp.o)
