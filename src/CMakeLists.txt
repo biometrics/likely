@@ -63,7 +63,7 @@ target_link_libraries(likely_static likely_runtime ${LIKELY_LIBS})
 install(TARGETS likely_static ARCHIVE DESTINATION lib)
 
 # Build console-interpreter-compiler
-add_executable(like like.cpp)
+add_executable(like likely.cpp)
 set_target_properties(like PROPERTIES OUTPUT_NAME likely)
 target_link_libraries(like likely_shared LLVMSupport)
 install(TARGETS like RUNTIME DESTINATION bin)
