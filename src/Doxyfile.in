@@ -745,7 +745,7 @@ WARN_LOGFILE           =
 
 INPUT                  = "${CMAKE_SOURCE_DIR}/include" \
                          "${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello_world_jit.c" \
-                         "${CMAKE_SOURCE_DIR}/src/like.cpp" \
+                         "${CMAKE_SOURCE_DIR}/src/likely.cpp" \
                          "${CMAKE_SOURCE_DIR}/src/dream.cpp"
 
 # This tag can be used to specify the character encoding of the source files

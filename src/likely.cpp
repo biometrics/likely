@@ -38,8 +38,8 @@ $ likely <source_file_or_string> <object_file> # compile <source_file_or_string>
 \endverbatim
  *
  * This application is a good entry point for learning about the Likely API.
- * Its source code in <tt>src/like.cpp</tt> is reproduced below:
- * \snippet src/like.cpp console_interpreter_compiler implementation.
+ * Its source code in <tt>src/likely.cpp</tt> is reproduced below:
+ * \snippet src/likely.cpp console_interpreter_compiler implementation.
  */
 
 //! [console_interpreter_compiler implementation.]
