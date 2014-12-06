@@ -2008,20 +2008,19 @@ class kernelExpression : public LikelyOperator
         const string name;
         KernelInfo info;
         Value *channels, *columns, *rows, *frames;
-        Value *columnStep, *rowStep, *frameStep;
+        Value *rowStep, *frameStep;
         Value *data;
 
         KernelArgument(Builder &builder, const likely_expression &matrix, const string &name)
             : Assignable(matrix.value, matrix.type), name(name)
         {
-            channels   = builder.channels(*this);
-            columns    = builder.columns(*this);
-            rows       = builder.rows(*this);
-            frames     = builder.frames(*this);
+            channels   = builder.cast(builder.channels(*this), likely_u64);
+            columns    = builder.cast(builder.columns (*this), likely_u64);
+            rows       = builder.cast(builder.rows    (*this), likely_u64);
+            frames     = builder.cast(builder.frames  (*this), likely_u64);
+            rowStep    = builder.multiplyInts(channels, columns);
+            frameStep  = builder.multiplyInts(rowStep, rows);
             data       = builder.data(*this);
-            columnStep = builder.cast(channels, likely_u64);
-            rowStep    = builder.multiplyInts(columnStep, builder.cast(columns, likely_u64));
-            frameStep  = builder.multiplyInts(rowStep, builder.cast(rows, likely_u64));
             channels ->setName(name + "_c");
             columns  ->setName(name + "_x");
             rows     ->setName(name + "_y");
@@ -2067,7 +2066,7 @@ class kernelExpression : public LikelyOperator
                 Value *const x = (len >= 3) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[2])), likely_u64).value
                                             : info.x;
                 Value *const xStep = ((sharedAxes & likely_multi_channel)
-                                      && (sharedAxes & likely_multi_column)) ? info.columnStep : columnStep;
+                                      && (sharedAxes & likely_multi_column)) ? info.columnStep : channels;
                 i = builder.addInts(builder.multiplyInts(x, xStep), i);
             }
             if ((sharedOffset < 4) && (type & likely_multi_channel)) {
@@ -2277,50 +2276,46 @@ class kernelExpression : public LikelyOperator
         KernelAxis *axis = NULL;
         if (kernelArguments[0]->type & likely_multi_frame) {
             axis = new KernelAxis(builder, "t", start, stop, kernelArguments[0]->frameStep, NULL);
-            info.t = builder.CreateZExt(*axis, Type::getInt64Ty(builder.getContext()));
-            info.tOffset = axis->offset;
+            info.t = axis->value;
             define(builder.env, "t", axis);
         } else {
             info.t = builder.zero();
-            info.tOffset = builder.one();
-            define(builder.env, "t", new likely_expression(builder.zero(likely_u32)));
+            define(builder.env, "t", new likely_expression(builder.zero()));
         }
+        info.tOffset = axis ? axis->offset : builder.one().value;
 
         if (kernelArguments[0]->type & likely_multi_row) {
-            axis = new KernelAxis(builder, "y", axis ? builder.zero(likely_u32).value : start, axis ? kernelArguments[0]->rows : stop, kernelArguments[0]->rowStep, axis);
-            info.y = builder.CreateZExt(*axis, Type::getInt64Ty(builder.getContext()));
-            info.yOffset = axis->offset;
+            axis = new KernelAxis(builder, "y", axis ? builder.zero().value : start, axis ? kernelArguments[0]->rows : stop, kernelArguments[0]->rowStep, axis);
+            info.y = axis->value;
             define(builder.env, "y", axis);
         } else {
             info.y = builder.zero();
-            info.yOffset = axis ? axis->offset : builder.one().value;
-            define(builder.env, "y", new likely_expression(builder.zero(likely_u32)));
+            define(builder.env, "y", new likely_expression(builder.zero()));
         }
+        info.yOffset = axis ? axis->offset : builder.one().value;
 
         if (kernelArguments[0]->type & likely_multi_column) {
-            axis = new KernelAxis(builder, "x", axis ? builder.zero(likely_u32).value : start, axis ? kernelArguments[0]->columns : stop, builder.cast(kernelArguments[0]->channels, likely_u64), axis);
-            info.x = builder.CreateZExt(*axis, Type::getInt64Ty(builder.getContext()));
-            info.xOffset = axis->offset;
+            axis = new KernelAxis(builder, "x", axis ? builder.zero().value : start, axis ? kernelArguments[0]->columns : stop, kernelArguments[0]->channels, axis);
+            info.x = axis->value;
             define(builder.env, "x", axis);
         } else {
             info.x = builder.zero();
-            info.xOffset = axis ? axis->offset : builder.one().value;
-            define(builder.env, "x", new likely_expression(builder.zero(likely_u32)));
+            define(builder.env, "x", new likely_expression(builder.zero()));
         }
+        info.xOffset = axis ? axis->offset : builder.one().value;
 
         if ((kernelArguments[0]->type & likely_multi_channel) || !axis) {
-            axis = new KernelAxis(builder, "c", axis ? builder.zero(likely_u32).value : start, axis ? kernelArguments[0]->channels : stop, builder.one(), axis);
-            info.c = builder.CreateZExt(*axis, Type::getInt64Ty(builder.getContext()));
-            info.cOffset = axis->offset;
+            axis = new KernelAxis(builder, "c", axis ? builder.zero().value : start, axis ? kernelArguments[0]->channels : stop, builder.one(), axis);
+            info.c = axis->value;
             define(builder.env, "c", axis);
         } else {
             info.c = builder.zero();
-            info.cOffset = axis->offset;
-            define(builder.env, "c", new likely_expression(builder.zero(likely_u32)));
+            define(builder.env, "c", new likely_expression(builder.zero()));
         }
+        info.cOffset = axis->offset;
 
         info.type = kernelArguments[0]->type;
-        info.columnStep = kernelArguments[0]->columnStep;
+        info.columnStep = kernelArguments[0]->channels;
         info.rowStep = kernelArguments[0]->rowStep;
         info.frameStep = kernelArguments[0]->frameStep;
         info.node = axis->node;
