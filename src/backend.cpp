@@ -494,28 +494,22 @@ struct likely_expression : public LikelyValue
         likely_release_ast(list);
     }
 
-    static likely_const_expr undefine(likely_const_env &env, const char *name)
+    static void undefine(likely_const_env &env, const char *name)
     {
         assert(likely_is_definition(env->ast));
         likely_assert(!strcmp(name, likely_symbol(env->ast)), "undefine variable mismatch");
-        likely_env old = const_cast<likely_env>(env);
-        likely_const_expr value = NULL;
-        swap(value, old->expr);
-        env = old->parent;
+        const likely_const_env old = env;
+        env = env->parent;
         likely_release_env(old);
-        return value;
     }
 
-    static void undefineAll(likely_const_env &env, likely_const_ast args, bool deleteExpression)
+    static void undefineAll(likely_const_env &env, likely_const_ast args)
     {
         if (args->type == likely_ast_list) {
-            for (size_t i=0; i<args->num_atoms; i++) {
-                likely_const_expr expression = undefine(env, args->atoms[args->num_atoms-i-1]->atom);
-                if (deleteExpression) delete expression;
-            }
+            for (size_t i=0; i<args->num_atoms; i++)
+                undefine(env, args->atoms[args->num_atoms-i-1]->atom);
         } else {
-            likely_const_expr expression = undefine(env, args->atom);
-            if (deleteExpression) delete expression;
+            undefine(env, args->atom);
         }
     }
 
@@ -1569,8 +1563,6 @@ struct Lambda : public LikelyOperator
         }
 
         unique_ptr<const likely_expression> result(evaluateFunction(builder, arguments));
-        for (likely_const_expr arg : arguments)
-            delete arg;
         if (!result)
             return NULL;
 
@@ -1657,7 +1649,7 @@ private:
         return result;
     }
 
-    likely_const_expr evaluateFunction(Builder &builder, const vector<likely_const_expr> &args) const
+    likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args /* takes ownership */) const
     {
         assert(args.size() == maxParameters());
 
@@ -1705,7 +1697,8 @@ private:
         }
         const likely_const_expr result = get(builder, body);
         if (parameters)
-            undefineAll(builder.env, parameters, false);
+            undefineAll(builder.env, parameters);
+        args.clear();
 
         swap(builder.env, restore);
         return result;
@@ -1964,11 +1957,11 @@ class loopExpression : public LikelyOperator
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         TRY_EXPR(builder, ast->atoms[3], end)
-        Loop loop(builder, ast->atoms[2]->atom, builder.zero(*end), *end);
-        define(builder.env, ast->atoms[2]->atom, &loop);
+        Loop *const loop = new Loop(builder, ast->atoms[2]->atom, builder.zero(*end), *end);
+        define(builder.env, ast->atoms[2]->atom, loop); // takes ownership of `loop`
         likely_const_expr expression = get(builder, ast->atoms[1]);
+        loop->close(builder);
         undefine(builder.env, ast->atoms[2]->atom);
-        loop.close(builder);
         return expression;
     }
 };
@@ -2330,7 +2323,7 @@ class kernelExpression : public LikelyOperator
 
         delete get(builder, ast->atoms[2]);
 
-        undefineAll(builder.env, args, true);
+        undefineAll(builder.env, args);
         kernelArguments.clear();
 
         axis->close(builder);
@@ -2341,10 +2334,10 @@ class kernelExpression : public LikelyOperator
         FPM.run(*kernelHead->getParent());
 
         axis->tryCollapse(builder);
-        delete undefine(builder.env, "c");
-        delete undefine(builder.env, "x");
-        delete undefine(builder.env, "y");
-        delete undefine(builder.env, "t");
+        undefine(builder.env, "c");
+        undefine(builder.env, "x");
+        undefine(builder.env, "y");
+        undefine(builder.env, "t");
     }
 };
 LIKELY_REGISTER(kernel)
