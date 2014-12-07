@@ -341,7 +341,7 @@ test_expr("(min -1 1.3)" -1)
 test_expr("(max 1 -1.3)" 1)
 test_expr("(new u8 3 512 512).elements" 786432)
 test_expr("(new u8 3 512 512).bytes" 786432)
-test_expr("\"library/comments.md\".import" 42)
+test_expr("\"library/comments.md\".(import this)" 42)
 test_expr("(cast 2.3 2)" 2)
 test_expr("(cast 2.3 2.f32)" 2.3)
 test_expr("(threshold-binary 0.4 0.5 1)" 0)
@@ -381,7 +381,7 @@ function(add_demo FILE RETURN PARAMETERS ARGS)
     set(OBJECT_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}${CMAKE_C_OUTPUT_EXTENSION})
     add_custom_command(OUTPUT ${BITCODE_FILE}
                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                       COMMAND likely -O2 ${KERNEL_TYPE} -q -c "\"library/${FILE}.md\".import (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${BITCODE_FILE}
+                       COMMAND likely -O2 ${KERNEL_TYPE} -q -c "\"library/${FILE}.md\".(import this) (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${BITCODE_FILE}
                        DEPENDS likely ${CMAKE_SOURCE_DIR}/library/${FILE}.md
                        VERBATIM)
     add_custom_command(OUTPUT ${OBJECT_FILE}

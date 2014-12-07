@@ -4,7 +4,7 @@ Algorithms are like [demos](?href=demos) except that they are too computationall
 Instead they are statically compiled:
 
 ```bash
-$ likely -O3 -c '"library/<algorithm>.md".import (extern <return_type> "likely_test_function" <parameter_types> <algorithm> true)' <algorithm>.o
+$ likely -O3 -c '"library/<algorithm>.md".(import this) (extern <return_type> "likely_test_function" <parameter_types> <algorithm> true)' <algorithm>.o
 $ clang src/main.c <algorithm>.o -llikely -o <algorithm> # specify -I and -L as needed
 $ ./<algorithm> - <arguments>
 ```

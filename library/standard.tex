@@ -699,8 +699,8 @@ eval := (extern env "likely_eval" (ast env void-pointer-t void-pointer-t))
 
 \section{Import}
 \begin{likely}
-import-string := (-> (source-code source-type) (lex-and-parse source-code source-type).(eval this null null))
-import := (-> file ((read text) file guess text).data.(import-string file.guess-file-type))
+import-string := (-> (source-code source-type environment) (lex-and-parse source-code source-type).(eval environment null null))
+import := (-> (file environment) ((read text) file guess text).data.(import-string file.guess-file-type environment))
 \end{likely}
 
 \section{Type Conversion}
