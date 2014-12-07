@@ -647,10 +647,10 @@ max := (-> (a b) (? (> a b) a b))
 \chapter{Library Symbols}
 \section{Types}
 \begin{likely}
-string := i8P
-void-pointer := i8P
-type-type := u32
-file-type := u32
+string-t       := i8P
+void-pointer-t := i8P
+type-t         := u32
+file-type-t    := u32
 \end{likely}
 
 \section{Matrix Information}
@@ -667,13 +667,13 @@ imitate := (-> mat (imitate-size mat mat.type))
 
 \section{Matrix I/O}
 \begin{likely}
-read   := (-> return-type (extern return-type "likely_read" (string file-type type-type)))
-write  := (extern u8CXYT "likely_write" (u8CXYT string))
-decode := (extern u8CXYT "likely_decode" (u8CXYT type-type))
-encode := (extern u8CXYT "likely_encode" (u8CXYT string))
+read   := (-> return-type (extern return-type "likely_read" (string-t file-type-t type-t)))
+write  := (extern u8CXYT "likely_write" (u8CXYT string-t))
+decode := (extern u8CXYT "likely_decode" (u8CXYT type-t))
+encode := (extern u8CXYT "likely_encode" (u8CXYT string-t))
 render := (extern u8CXYT "likely_render" (u8CXYT f64P f64P))
-show   := (extern u8CXYT "likely_show" (u8CXYT string))
-guess-file-type := (extern file-type "likely_guess_file_type" string)
+show   := (extern u8CXYT "likely_show" (u8CXYT string-t))
+guess-file-type-t := (extern file-type-t "likely_guess_file_type" string-t)
 \end{likely}
 
 \begin{likely}
@@ -687,20 +687,20 @@ read-directory-grayscale := (-> file-name ((read video-grayscale) file-name dire
 
 \section{Compiler Frontend}
 \begin{likely}
-lex := (extern ast "likely_lex" (string file-type))
+lex := (extern ast "likely_lex" (string-t file-type-t))
 parse := (extern ast "likely_parse" ast)
-lex-and-parse := (extern ast "likely_lex_and_parse" (string file-type))
+lex-and-parse := (extern ast "likely_lex_and_parse" (string-t file-type-t))
 \end{likely}
 
 \section{Compiler Backend}
 \begin{likely}
-eval := (extern env "likely_eval" (ast env void-pointer void-pointer))
+eval := (extern env "likely_eval" (ast env void-pointer-t void-pointer-t))
 \end{likely}
 
 \section{Import}
 \begin{likely}
-import-string := (-> (source-code source-type) (lex-and-parse source-code source-type).(eval this null null))
-import := (-> file ((read text) file guess text).data.(import-string file.guess-file-type))
+import-string-t := (-> (source-code source-type) (lex-and-parse source-code source-type).(eval this null null))
+import := (-> file ((read text) file guess text).data.(import-string-t file.guess-file-type-t))
 \end{likely}
 
 \section{Type Conversion}
