@@ -1522,9 +1522,6 @@ struct Lambda : public LikelyOperator
 
     likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, bool arrayCC, bool promoteScalarToMatrix) const
     {
-        const likely_const_env restore = builder.env;
-        builder.env = env;
-
         while (parameters.size() < maxParameters())
             parameters.push_back(likely_multi_dimension);
 
@@ -1599,7 +1596,6 @@ struct Lambda : public LikelyOperator
         if (originalInsertBlock)
             builder.SetInsertPoint(originalInsertBlock);
 
-        builder.env = restore;
         return new likely_expression(LikelyValue(function, result->type), result->getData());
     }
 
@@ -1693,6 +1689,9 @@ private:
             return new likely_expression(LikelyValue(builder.CreateCall(likelyDynamic, args), likely_multi_dimension));
         }
 
+        likely_const_env restore = env;
+        swap(builder.env, restore);
+
         if (parameters) {
             if (parameters->type == likely_ast_list) {
                 for (size_t i=0; i<args.size(); i++)
@@ -1704,6 +1703,8 @@ private:
         const likely_const_expr result = get(builder, body);
         if (parameters)
             undefineAll(builder.env, parameters, false);
+
+        swap(builder.env, restore);
         return result;
     }
 };
@@ -2629,8 +2630,23 @@ void likely_release_env(likely_const_env env)
     likely_release_ast(env->ast);
     if (env->settings && !env->parent->settings)
         free(env->settings);
-    if (env->module && !env->parent->module)
-        delete env->module;
+
+    // This is where our decision to manage module ownership using the environment plays out.
+    // We must check the environment stack to see if we're the last user.
+    if (env->module) {
+        bool owner = true;
+        likely_const_env tmp = env->parent;
+        while (tmp) {
+            if (env->module == tmp->module) {
+                owner = false;
+                break;
+            }
+            tmp = tmp->parent;
+        }
+        if (owner)
+            delete env->module;
+    }
+
     likely_release_env(env->parent);
     free(const_cast<likely_env>(env));
 }
@@ -2740,8 +2756,18 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
 
                 // If the result of a computation is a new environment then use that environment (an import statement for example).
                 // Otherwise, construct a new expression from the result.
-                if (likely_const_env evaluated = data) env = likely_retain_env(evaluated);
-                else                                   expr = ConstantData::get(data);
+                if (const likely_const_env evaluated = data) {
+                    // Confirm the returned environment is a descendant of `parent`
+                    likely_const_env tmp = evaluated->parent;
+                    while (tmp && (tmp != parent))
+                        tmp = tmp->parent;
+                    likely_assert(tmp != NULL, "evaluation expected a descendant environment.");
+
+                    env = likely_retain_env(evaluated);
+                    env->module = parent->module;
+                } else {
+                    expr = ConstantData::get(data);
+                }
            }
         }
 
