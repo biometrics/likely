@@ -673,7 +673,7 @@ decode := (extern u8CXYT "likely_decode" (u8CXYT type-t))
 encode := (extern u8CXYT "likely_encode" (u8CXYT string-t))
 render := (extern u8CXYT "likely_render" (u8CXYT f64P f64P))
 show   := (extern u8CXYT "likely_show" (u8CXYT string-t))
-guess-file-type-t := (extern file-type-t "likely_guess_file_type" string-t)
+guess-file-type := (extern file-type-t "likely_guess_file_type" string-t)
 \end{likely}
 
 \begin{likely}
@@ -699,8 +699,8 @@ eval := (extern env "likely_eval" (ast env void-pointer-t void-pointer-t))
 
 \section{Import}
 \begin{likely}
-import-string-t := (-> (source-code source-type) (lex-and-parse source-code source-type).(eval this null null))
-import := (-> file ((read text) file guess text).data.(import-string-t file.guess-file-type-t))
+import-string := (-> (source-code source-type) (lex-and-parse source-code source-type).(eval this null null))
+import := (-> file ((read text) file guess text).data.(import-string file.guess-file-type))
 \end{likely}
 
 \section{Type Conversion}
