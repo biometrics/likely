@@ -665,8 +665,8 @@ public:
 struct Builder : public IRBuilder<>
 {
     likely_const_env env;
-    likely_module *module;
-    bool ctfe; // Compile-time function evaluation
+    likely_module *const module;
+    const bool ctfe; // Compile-time function evaluation
 
     Builder(likely_const_env env, likely_module *module, bool ctfe)
         : IRBuilder<>(module ? module->context->context : getGlobalContext()), env(env), module(module), ctfe(ctfe) {}
