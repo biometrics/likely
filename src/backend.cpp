@@ -704,12 +704,18 @@ struct Builder : public IRBuilder<>
 
     Value *multiplyInts(Value *lhs, Value *rhs)
     {
-        if (Constant *c = dyn_cast<Constant>(lhs))
+        if (Constant *const c = dyn_cast<Constant>(lhs)) {
+            if (c->isZeroValue())
+                return c;
             if (c->isOneValue())
                 return rhs;
-        if (Constant *c = dyn_cast<Constant>(rhs))
+        }
+        if (Constant *const c = dyn_cast<Constant>(rhs)) {
+            if (c->isZeroValue())
+                return c;
             if (c->isOneValue())
                 return lhs;
+        }
         return CreateMul(lhs, rhs);
     }
 
@@ -2129,24 +2135,26 @@ class kernelExpression : public LikelyOperator
                 // Assume for now that one user is the offset and the other is the increment.
 
                 // Collapse the child loop into us
-//                child->offset->replaceAllUsesWith(value);
-//                child->latch->setCondition(ConstantInt::getFalse(builder.getContext()));
-//                child->precondition->replaceAllUsesWith(ConstantInt::getTrue(builder.getContext()));
+                child->offset->replaceAllUsesWith(value);
+                child->latch->setCondition(ConstantInt::getFalse(builder.getContext()));
+                child->precondition->replaceAllUsesWith(ConstantInt::getTrue(builder.getContext()));
 
                 // Update our range
-//                BasicBlock *const restore = builder.GetInsertBlock();
-//                builder.SetInsertPoint(cast<Instruction>(precondition));
-//                Value *const step = builder.CreateZExt(builder.CreateSub(child->stop, child->start), start->getType());
-//                Value *const newStart = builder.multiplyInts(start, step);
-//                Value *const newStop = builder.multiplyInts(stop, step);
-//                cast<PHINode>(value)->setIncomingValue(0, newStart);
-//                cast<ICmpInst>(postcondition)->setOperand(1, newStop);
-//                start = newStart;
-//                stop = newStop;
-//                builder.SetInsertPoint(restore);
+                BasicBlock *const restore = builder.GetInsertBlock();
+                builder.SetInsertPoint(cast<Instruction>(precondition));
+                Value *const step = builder.CreateZExt(builder.CreateSub(child->stop, child->start), start->getType());
+                Value *const newStart = builder.multiplyInts(start, step);
+                Value *const newStop = builder.multiplyInts(stop, step);
+                cast<ICmpInst>(precondition)->setOperand(0, newStart);
+                cast<ICmpInst>(precondition)->setOperand(1, newStop);
+                cast<PHINode>(value)->setIncomingValue(0, newStart);
+                cast<ICmpInst>(postcondition)->setOperand(1, newStop);
+                start = newStart;
+                stop = newStop;
+                builder.SetInsertPoint(restore);
 
                 // Update our child
-//                child = child->child;
+                child = child->child;
             }
 
             if (parent)
@@ -2333,7 +2341,7 @@ class kernelExpression : public LikelyOperator
         FPM.add(createDeadInstEliminationPass());
         FPM.run(*kernelHead->getParent());
 
-        axis->tryCollapse(builder);
+//        axis->tryCollapse(builder);
         undefine(builder.env, "c");
         undefine(builder.env, "x");
         undefine(builder.env, "y");

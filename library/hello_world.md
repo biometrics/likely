@@ -9,6 +9,5 @@ Click **View Source** and _copy+paste_ this file into **dream**, Likely's IDE. N
         dst := a.imitate
         (dst a) :=> (<- dst (/ a (a.type 2)))
       }
-    lenna.hello_world
 
 [Next](?href=likely)
