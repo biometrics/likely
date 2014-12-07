@@ -1509,12 +1509,15 @@ struct Lambda : public LikelyOperator
     likely_const_ast body, parameters;
 
     Lambda(likely_const_env env, likely_const_ast body, likely_const_ast parameters = NULL)
-        : env(env), body(body), parameters(parameters) {}
+        : env(likely_retain_env(env)), body(likely_retain_ast(body)), parameters(likely_retain_ast(parameters)) {}
 
     ~Lambda()
     {
         for (JITFunction *jitFunction : jitFunctions)
             delete jitFunction;
+        likely_release_ast(parameters);
+        likely_release_ast(body);
+        likely_release_env(env);
     }
 
     Lambda(const Lambda &) = delete;
