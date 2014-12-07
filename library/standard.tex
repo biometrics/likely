@@ -667,9 +667,12 @@ imitate := (-> mat (imitate-size mat mat.type))
 
 \section{Matrix I/O}
 \begin{likely}
-read   := (-> return-type (extern return-type "likely_read" (string-t file-type-t type-t)))
+read   := (-> return-type
+             (-> (file-name file-type)
+                 ((extern return-type "likely_read" (string-t file-type-t type-t)) file-name file-type return-type)))
 write  := (extern u8CXYT "likely_write" (u8CXYT string-t))
-decode := (extern u8CXYT "likely_decode" (u8CXYT type-t))
+decode := (-> return-type
+              (-> mat ((extern return-type "likely_decode" (u8CXYT type-t)) mat return-type)))
 encode := (extern u8CXYT "likely_encode" (u8CXYT string-t))
 render := (extern u8CXYT "likely_render" (u8CXYT f64P f64P))
 show   := (extern u8CXYT "likely_show" (u8CXYT string-t))
@@ -677,12 +680,12 @@ guess-file-type := (extern file-type-t "likely_guess_file_type" string-t)
 \end{likely}
 
 \begin{likely}
-read-image               := (-> file-name ((read image)           file-name media     image))
-read-image-grayscale     := (-> file-name ((read image-grayscale) file-name media     image-grayscale))
-read-video               := (-> file-name ((read video)           file-name media     video))
-read-video-grayscale     := (-> file-name ((read video-grayscale) file-name media     video-grayscale))
-read-directory           := (-> file-name ((read video)           file-name directory video))
-read-directory-grayscale := (-> file-name ((read video-grayscale) file-name directory video-grayscale))
+read-image               := (-> file-name ((read image)           file-name media    ))
+read-image-grayscale     := (-> file-name ((read image-grayscale) file-name media    ))
+read-video               := (-> file-name ((read video)           file-name media    ))
+read-video-grayscale     := (-> file-name ((read video-grayscale) file-name media    ))
+read-directory           := (-> file-name ((read video)           file-name directory))
+read-directory-grayscale := (-> file-name ((read video-grayscale) file-name directory))
 \end{likely}
 
 \section{Compiler Frontend}
@@ -700,7 +703,7 @@ eval := (extern env "likely_eval" (ast env void-pointer-t void-pointer-t))
 \section{Import}
 \begin{likely}
 import-string := (-> (source-code source-type environment) (lex-and-parse source-code source-type).(eval environment null null))
-import := (-> (file environment) ((read text) file guess text).data.(import-string file.guess-file-type environment))
+import := (-> (file environment) ((read text) file guess).data.(import-string file.guess-file-type environment))
 \end{likely}
 
 \section{Type Conversion}
