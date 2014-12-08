@@ -1517,6 +1517,11 @@ struct Lambda : public LikelyOperator
         likely_release_env(env);
     }
 
+    static bool isFunction(const char *symbol)
+    {
+        return !strcmp(symbol, "->") || !strcmp(symbol, "extern");
+    }
+
     likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, bool arrayCC, bool promoteScalarToMatrix) const
     {
         while (parameters.size() < maxParameters())
@@ -1638,8 +1643,9 @@ private:
             args.push_back(arg);
         }
 
-        result = (builder.ctfe && (constantArgs.size() == args.size())) ? ConstantData::get(builder, evaluateConstantFunction(constantArgs))
-                                                                        : evaluateFunction(builder, args);
+        result = (builder.ctfe && !isFunction(likely_symbol(body)) && (constantArgs.size() == args.size()))
+                 ? ConstantData::get(builder, evaluateConstantFunction(constantArgs))
+                 : evaluateFunction(builder, args);
 
     cleanup:
         for (likely_const_expr arg : args)
@@ -2753,7 +2759,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
                                         && (statement->num_atoms > 0)
                                         && (statement->atoms[0]->type != likely_ast_list))
                                        ? statement->atoms[0]->atom : "";
-            if (!strcmp(symbol, "->") || !strcmp(symbol, "extern")) {
+            if (Lambda::isFunction(symbol)) {
                 expr = likely_expression::get(builder, statement);
             } else {
                 const Variant data = Lambda(parent, statement).evaluateConstantFunction();
