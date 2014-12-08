@@ -1244,34 +1244,6 @@ class SimpleArithmeticOperator : public ArithmeticOperator
 {
     likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
     {
-        // Fold constant expressions
-        if (builder.ctfe) {
-            if (likely_const_mat LHS = lhs.getData()) {
-                if (likely_const_mat RHS = rhs.getData()) {
-                    static map<const char*, likely_const_env> envLUT;
-                    static map<const char*, void*> functionLUT;
-                    static mutex lock;
-
-                    lock.lock();
-                    auto function = functionLUT.find(symbol());
-                    if (function == functionLUT.end()) {
-                        const string code = string("(extern multi-dimension \"_likely_simple_arithmetic\" (multi-dimension multi-dimension) (a b) :-> { dst := a.imitate (dst a b) :=> (<- dst (") + symbol() + string(" a b)) })");
-                        const likely_env parent = likely_standard(likely_jit(false), NULL);
-                        const likely_env env = likely_lex_parse_and_eval(code.c_str(), likely_file_lisp, parent);
-                        likely_release_env(parent);
-                        void *const f = likely_function(env->expr);
-                        assert(f);
-                        envLUT.insert(pair<const char*, likely_const_env>(symbol(), env));
-                        functionLUT.insert(pair<const char*, void*>(symbol(), f));
-                        function = functionLUT.find(symbol());
-                    }
-                    lock.unlock();
-
-                    return ConstantData::get(builder, reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat)>(function->second)(LHS, RHS));
-                }
-            }
-        }
-
         return new likely_expression(LikelyValue(evaluateSimpleArithmetic(builder, lhs, rhs), lhs));
     }
     virtual Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const = 0;
@@ -2471,76 +2443,6 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
         builder.module->finalize();
     }
 }
-
-class newExpression : public LikelyOperator
-{
-    const char *symbol() const { return "new"; }
-    size_t maxParameters() const { return 6; }
-    size_t minParameters() const { return 0; }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        const size_t n = ast->num_atoms - 1;
-        Value *type = NULL, *channels = NULL, *columns = NULL, *rows = NULL, *frames = NULL, *data = NULL;
-        switch (n) {
-            case 6: data     = unique_ptr<const likely_expression>(get(builder, ast->atoms[6]))->value;
-            case 5: frames   = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[5])).get(), likely_u32);
-            case 4: rows     = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[4])).get(), likely_u32);
-            case 3: columns  = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[3])).get(), likely_u32);
-            case 2: channels = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[2])).get(), likely_u32);
-            case 1: type     = builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[1])).get(), likely_u32);
-            default:           break;
-        }
-
-        switch (maxParameters()-n) {
-            case 6: type     = MatrixType(builder, likely_f32);
-            case 5: channels = builder.one(likely_u32);
-            case 4: columns  = builder.one(likely_u32);
-            case 3: rows     = builder.one(likely_u32);
-            case 2: frames   = builder.one(likely_u32);
-            case 1: data     = builder.nullData();
-            default:           break;
-        }
-
-        likely_type inferredType = uint32_t(cast<ConstantInt>(type)->getZExtValue()) | likely_multi_dimension;
-        checkDimension(inferredType, channels, likely_multi_channel);
-        checkDimension(inferredType, columns , likely_multi_column);
-        checkDimension(inferredType, rows    , likely_multi_row);
-        checkDimension(inferredType, frames  , likely_multi_frame);
-
-        // TODO: stack allocate scalars
-        if (!(inferredType & likely_multi_dimension))
-            inferredType |= likely_multi_dimension;
-
-        Function *likelyNew = builder.module->module->getFunction("likely_new");
-        if (!likelyNew) {
-            Type *params[] = { Type::getInt32Ty(builder.getContext()), Type::getInt32Ty(builder.getContext()), Type::getInt32Ty(builder.getContext()), Type::getInt32Ty(builder.getContext()), Type::getInt32Ty(builder.getContext()), Type::getInt8PtrTy(builder.getContext()) };
-            FunctionType *functionType = FunctionType::get(builder.module->context->toLLVM(likely_multi_dimension), params, false);
-            likelyNew = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_new", builder.module->module);
-            likelyNew->setCallingConv(CallingConv::C);
-            likelyNew->setCannotDuplicate();
-            likelyNew->setDoesNotThrow();
-            likelyNew->setOnlyReadsMemory();
-            likelyNew->setDoesNotAlias(0);
-            for (unsigned i=1; i<6; i++)
-                likelyNew->addAttribute(i, Attribute::ZExt);
-            likelyNew->setDoesNotAlias(6);
-            likelyNew->setDoesNotCapture(6);
-            likelyNew->addAttribute(6, Attribute::ReadOnly);
-            sys::DynamicLibrary::AddSymbol("likely_new", (void*) likely_new);
-        }
-        Value* args[] = { type, channels, columns, rows, frames, data };
-        return new likely_expression(LikelyValue(builder.CreatePointerCast(builder.CreateCall(likelyNew, args), builder.module->context->toLLVM(inferredType)), inferredType));
-    }
-
-    static void checkDimension(likely_type &type, Value *dimension, likely_type mask)
-    {
-        if (ConstantInt *dim = dyn_cast<ConstantInt>(dimension))
-            if (dim->getZExtValue() == 1)
-                type &= ~mask;
-    }
-};
-LIKELY_REGISTER(new)
 
 } // namespace (anonymous)
 

@@ -19,7 +19,7 @@ Definition
     mandelbrot_set :=
       (width height x_min y_min x_range y_range iter) :->
       {
-        dst := (new u8XY 1 width height)
+        dst := ((new u8XY) 1 width height 1 null)
         (dst width height x_min y_min x_range y_range iter) :=>
         {
           zr0 := (/ (* x.f32 x_range) width)  :+ x_min

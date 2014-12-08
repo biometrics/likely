@@ -563,7 +563,7 @@ If \emph{frames}, \emph{rows}, \emph{columns} or \emph{channels} are not specifi
 If \emph{type} is not specified then it will assume a value of \emph{f32} (32-bit floating point).
 
 \begin{verbatim}
-uninitialized-color-image := (new u8 3 512 512)
+uninitialized-color-image := ((new u8CXY) 3 512 512 1 null)
 \end{verbatim}
 
 \paragraph{(channels [\emph{matrix}])}
@@ -661,15 +661,18 @@ bytes    := (-> mat (/ (+ (* (& mat.type depth) mat.elements) 7) 8))
 
 \section{Matrix Creation}
 \begin{likely}
-imitate-size := (-> (mat type) (new type mat.channels mat.columns mat.rows mat.frames))
+new := (-> return-type
+           (-> (channels columns rows frames data)
+               ((extern return-type "likely_new" (type-t u32 u32 u32 u32 void-pointer-t)) return-type channels columns rows frames data)))
+imitate-size := (-> (mat type) ((new type) mat.channels mat.columns mat.rows mat.frames null))
 imitate := (-> mat (imitate-size mat mat.type))
 \end{likely}
 
 \section{Matrix I/O}
 \begin{likely}
 read   := (-> return-type
-             (-> (file-name file-type)
-                 ((extern return-type "likely_read" (string-t file-type-t type-t)) file-name file-type return-type)))
+              (-> (file-name file-type)
+                  ((extern return-type "likely_read" (string-t file-type-t type-t)) file-name file-type return-type)))
 write  := (extern u8CXYT "likely_write" (u8CXYT string-t))
 decode := (-> return-type
               (-> mat ((extern return-type "likely_decode" (u8CXYT type-t)) mat return-type)))
