@@ -419,10 +419,12 @@ static likely_env newEnv(likely_const_env parent, likely_const_ast ast = NULL, l
 
 struct likely_expression : public LikelyValue
 {
+    mutable vector<likely_vtable> vtables;
+
     likely_expression(const LikelyValue &value = LikelyValue(), const Variant &data = Variant())
         : LikelyValue(value), data(data) {}
 
-    virtual ~likely_expression() {}
+    virtual ~likely_expression();
     likely_expression(const likely_expression &) = delete;
     likely_expression &operator=(const likely_expression &) = delete;
 
@@ -529,7 +531,6 @@ struct likely_module
 {
     unique_ptr<LikelyContext> context;
     Module *module;
-    vector<likely_const_expr> exprs;
     vector<pair<Variant,Constant*>> data;
 
     likely_module(const likely_settings &settings)
@@ -542,8 +543,6 @@ struct likely_module
     virtual ~likely_module()
     {
         finalize();
-        for (likely_const_expr expr : exprs)
-            delete expr;
     }
 
     likely_module(const likely_module &) = delete;
@@ -1036,7 +1035,7 @@ class LikelyOperator : public likely_expression
 
 } // namespace (anonymous)
 
-struct likely_virtual_table : public LikelyOperator
+struct likely_virtual_table
 {
     const likely_const_env env;
     const likely_const_ast body, parameters;
@@ -1044,10 +1043,13 @@ struct likely_virtual_table : public LikelyOperator
     vector<unique_ptr<JITFunction>> functions;
 
     likely_virtual_table(likely_const_env env, likely_const_ast body, likely_const_ast parameters)
-        : env(env), body(body), parameters(parameters), n(length(parameters)) {}
+        : env(env) /* don't retain a copy because `env` owns us` */, body(likely_retain_ast(body)), parameters(likely_retain_ast(parameters)), n(likely_expression::length(parameters)) {}
 
-private:
-    likely_const_expr evaluateOperator(Builder &, likely_const_ast) const { return NULL; }
+    ~likely_virtual_table()
+    {
+        likely_release_ast(parameters);
+        likely_release_ast(body);
+    }
 };
 
 namespace {
@@ -1655,8 +1657,10 @@ private:
             dynamic |= (arg->type == likely_multi_dimension);
 
         if (dynamic) {
-            const likely_vtable vtable = new likely_virtual_table(builder.env, body, parameters);
-            builder.module->exprs.push_back(vtable);
+            const likely_vtable vtable = new likely_virtual_table(env, body, parameters);
+            if (!env->expr)
+                const_cast<likely_expr&>(env->expr) = new likely_expression();
+            env->expr->vtables.push_back(vtable);
 
             PointerType *vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
             Function *likelyDynamic = builder.module->module->getFunction("likely_dynamic");
@@ -2533,6 +2537,12 @@ class newExpression : public LikelyOperator
 LIKELY_REGISTER(new)
 
 } // namespace (anonymous)
+
+likely_expression::~likely_expression()
+{
+    for (likely_vtable vtable : vtables)
+        delete vtable;
+}
 
 // As a special exception, this function is allowed to set ast->type
 likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
