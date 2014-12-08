@@ -174,7 +174,8 @@ LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
  * Otherwise, the returned \ref likely_matrix::data is initialized by copying the contents of \p data.
  * In the latter case, \p data should be at least size \ref likely_bytes.
  *
- * The \ref likely_multi_dimension component of \ref likely_matrix::type is set automatically for \p channels, \p columns, \p rows and \p frames greater than one.
+ * The \ref likely_multi_dimension component of \ref likely_matrix::type is checked against \p channels, \p columns, \p rows and \p frames for correctness.
+ * All four axis must be non-zero.
  *
  * \par Implementation
  * \snippet src/runtime.c likely_new implementation.
@@ -184,7 +185,7 @@ LIKELY_EXPORT bool likely_is_string(likely_const_mat m);
  * \param[in] rows \ref likely_matrix::rows.
  * \param[in] frames \ref likely_matrix::frames.
  * \param[in] data \ref likely_matrix::data.
- * \return A pointer to the new \ref likely_matrix, or \c NULL if \c malloc failed.
+ * \return A pointer to the new \ref likely_matrix if successful, or \c NULL otherwise.
  * \remark This function is \ref thread-safe.
  * \see \ref likely_scalar \ref likely_string
  */
@@ -199,7 +200,7 @@ LIKELY_EXPORT likely_mat likely_new(likely_type type, uint32_t channels, uint32_
  * \param[in] type \ref likely_matrix::type.
  * \param[in] values Array of element values.
  * \param[in] n Length of \p values.
- * \return A pointer to the new multi-element \ref likely_matrix, or \c NULL if \c malloc failed.
+ * \return A pointer to the new \ref likely_matrix if successful, or \c NULL otherwise.
  * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT likely_mat likely_scalar(likely_type type, double *values, uint32_t n);
@@ -212,7 +213,7 @@ LIKELY_EXPORT likely_mat likely_scalar(likely_type type, double *values, uint32_
  * \par Implementation
  * \snippet src/runtime.c likely_string implementation.
  * \param[in] str String used to initialized \ref likely_matrix::data.
- * \return A pointer to the new \ref likely_matrix holding a string, or \c NULL if \c malloc failed.
+ * \return A pointer to the new \ref likely_matrix if successful, or \c NULL otherwise.
  * \remark This function is \ref thread-safe.
  * \see \ref likely_is_string
  */

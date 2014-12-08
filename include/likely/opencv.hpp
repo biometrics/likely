@@ -101,7 +101,11 @@ inline likely_mat likelyFromOpenCVMat(const cv::Mat &mat)
 {
     if (!mat.isContinuous() || !mat.data)
         return NULL;
-    return likely_new(likelyFromOpenCVDepth(mat.depth()), mat.channels(), mat.cols, mat.rows, 1, mat.data);
+    likely_type type = likelyFromOpenCVDepth(mat.depth());
+    if (mat.channels() > 1) type |= likely_multi_channel;
+    if (mat.cols       > 1) type |= likely_multi_column;
+    if (mat.rows       > 1) type |= likely_multi_row;
+    return likely_new(type, mat.channels(), mat.cols, mat.rows, 1, mat.data);
 }
 
 /** @} */ // end of opencv

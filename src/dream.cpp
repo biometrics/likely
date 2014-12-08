@@ -461,7 +461,7 @@ public:
             likely_release_mat(printed);
         } else {
             likely_mat show = (m->frames == 1) ? likely_retain_mat(m)
-                                               : likely_new(m->type, m->channels, m->columns, m->rows, 1,
+                                               : likely_new(m->type & ~likely_multi_frame, m->channels, m->columns, m->rows, 1,
                                                             m->data + size_t(min(fabs(x), 1.0) * (m->frames-1)) * (((m->type & likely_depth) * size_t(m->channels) * size_t(m->columns) * size_t(m->rows) + 7) / 8));
             double min, max;
             likely_const_mat rendered = likely_render(show, &min, &max);

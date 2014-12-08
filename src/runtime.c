@@ -46,11 +46,19 @@ bool likely_is_string(likely_const_mat m)
 //! [likely_new implementation.]
 likely_mat likely_new(likely_type type, uint32_t channels, uint32_t columns, uint32_t rows, uint32_t frames, void const *data)
 {
-    likely_mat m;
-    const size_t bytes = ((uint64_t)(type & likely_depth) * channels * columns * rows * frames + 7) / 8;
-    m = (likely_mat) malloc(sizeof(struct likely_matrix) + bytes);
-    if (!m)
-        return NULL;
+    // Note that we don't check the opposite case where an axis is one but the type suggests it is greater than one,
+    // such a case is considered to be sub-optimal but correct.
+    if ((channels > 1) && !(type & likely_multi_channel)) { assert(!"expected multi-channel type"); return NULL; }
+    if ((columns  > 1) && !(type & likely_multi_column )) { assert(!"expected multi-column type" ); return NULL; }
+    if ((rows     > 1) && !(type & likely_multi_row    )) { assert(!"expected multi-row type"    ); return NULL; }
+    if ((frames   > 1) && !(type & likely_multi_frame  )) { assert(!"expected multi-frame type"  ); return NULL; }
+
+    const size_t elements = (size_t)channels * (size_t)columns * (size_t)rows * (size_t)frames;
+    if (elements == 0) { assert(!"expected non-zero elements"); return NULL; }
+
+    const size_t bytes = ((type & likely_depth) * elements + 7) / 8;
+    const likely_mat m = (likely_mat) malloc(sizeof(struct likely_matrix) + bytes);
+    if (!m) { assert(!"malloc failure"); return NULL; }
 
     m->ref_count = 1;
     m->type = type;
@@ -58,11 +66,6 @@ likely_mat likely_new(likely_type type, uint32_t channels, uint32_t columns, uin
     m->columns = columns;
     m->rows = rows;
     m->frames = frames;
-
-    if (channels > 1) m->type |= likely_multi_channel;
-    if (columns  > 1) m->type |= likely_multi_column;
-    if (rows     > 1) m->type |= likely_multi_row;
-    if (frames   > 1) m->type |= likely_multi_frame;
 
     if (data)
         memcpy((void*)m->data, data, bytes);
@@ -84,7 +87,7 @@ likely_mat likely_scalar(likely_type type, double *values, uint32_t n)
 //! [likely_string implementation.]
 likely_mat likely_string(const char *str)
 {
-    return likely_new(likely_i8, (uint32_t)strlen(str) + 1 /* include the null-terminator */, 1, 1, 1, str);
+    return likely_new(likely_i8 | likely_multi_channel, (uint32_t)strlen(str) + 1 /* include the null-terminator */, 1, 1, 1, str);
 }
 //! [likely_string implementation.]
 
