@@ -423,6 +423,9 @@ struct likely_expression : public LikelyValue
         : LikelyValue(value), data(data) {}
 
     virtual ~likely_expression() {}
+    likely_expression(const likely_expression &) = delete;
+    likely_expression &operator=(const likely_expression &) = delete;
+
     virtual int uid() const { return 0; }
     virtual size_t maxParameters() const { return 0; }
     virtual size_t minParameters() const { return maxParameters(); }
@@ -651,9 +654,6 @@ public:
 
         output.keep();
     }
-
-    OfflineModule(const OfflineModule &) = delete;
-    OfflineModule &operator=(const OfflineModule &) = delete;
 };
 
 struct Builder : public IRBuilder<>
@@ -980,9 +980,6 @@ struct JITFunction : public Symbol
         delete EE;
         delete module;
     }
-
-    JITFunction(const JITFunction &) = delete;
-    JITFunction &operator=(const JITFunction &) = delete;
 
     static void *getFunction(likely_const_expr expr)
     {
@@ -1517,9 +1514,6 @@ struct Lambda : public LikelyOperator
         likely_release_ast(body);
         likely_release_env(env);
     }
-
-    Lambda(const Lambda &) = delete;
-    Lambda &operator=(const Lambda &) = delete;
 
     likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, bool arrayCC, bool promoteScalarToMatrix) const
     {
