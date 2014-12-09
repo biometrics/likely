@@ -861,9 +861,10 @@ private:
     static CallInst *traceback(Value *m)
     {
         if (CastInst *const cast = dyn_cast<CastInst>(m))
-            if (CallInst *const call = dyn_cast<CallInst>(cast->getOperand(0)))
-                if (call->getCalledFunction()->getName() == "likely_new")
-                    return call;
+            m = cast->getOperand(0);
+        if (CallInst *const call = dyn_cast<CallInst>(m))
+            if (call->getCalledFunction()->getName() == "likely_new")
+                return call;
         return NULL;
     }
 
