@@ -1921,7 +1921,7 @@ struct Loop : public likely_expression
     BasicBlock *entry, *body, *exit;
     BranchInst *latch;
 
-    Loop(Builder &builder, const string &name, Value *start, Value *stop, bool checkPrecondition = true)
+    Loop(Builder &builder, const string &name, Value *start, Value *stop)
         : name(name), start(start), stop(stop), exit(NULL), latch(NULL)
     {
         entry = builder.GetInsertBlock();
@@ -2106,9 +2106,11 @@ class kernelExpression : public LikelyOperator
                 MDNode::deleteTemporary(tmp);
             }
 
+            offset = builder.addInts(parent ? parent->offset : builder.zero().value, builder.multiplyInts(step, builder.CreateZExt(value, step->getType())));
+            offset->setName(name + "_offset");
+
             if (parent)
                 parent->child = this;
-            offset = builder.addInts(parent ? parent->offset : builder.zero().value, builder.multiplyInts(step, builder.CreateZExt(value, step->getType())));
         }
 
         void close(Builder &builder)
