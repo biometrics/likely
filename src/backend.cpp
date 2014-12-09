@@ -718,15 +718,6 @@ struct Builder : public IRBuilder<>
         return CreateMul(lhs, rhs);
     }
 
-    static CallInst *traceback(Value *m)
-    {
-        if (CastInst *const cast = dyn_cast<CastInst>(m))
-            if (CallInst *const call = dyn_cast<CallInst>(cast->getOperand(0)))
-                if (call->getCalledFunction()->getName() == "likely_new")
-                    return call;
-        return NULL;
-    }
-
     LikelyValue channels(const LikelyValue &m)
     {
         if (!(m & likely_multi_channel))
@@ -735,7 +726,9 @@ struct Builder : public IRBuilder<>
         if (CallInst *const newCall = traceback(m))
             return LikelyValue(newCall->getOperand(1), likely_u32);
 
-        return LikelyValue(CreateLoad(CreateStructGEP(m, 2), "channels"), likely_u32);
+        LoadInst *const load = CreateLoad(CreateStructGEP(m, 2), "channels");
+        load->setMetadata(LLVMContext::MD_range, axisRange());
+        return LikelyValue(load, likely_u32);
     }
 
     LikelyValue columns(const LikelyValue &m)
@@ -746,7 +739,9 @@ struct Builder : public IRBuilder<>
         if (CallInst *const newCall = traceback(m))
             return LikelyValue(newCall->getOperand(2), likely_u32);
 
-        return LikelyValue(CreateLoad(CreateStructGEP(m, 3), "columns"), likely_u32);
+        LoadInst *const load = CreateLoad(CreateStructGEP(m, 3), "columns");
+        load->setMetadata(LLVMContext::MD_range, axisRange());
+        return LikelyValue(load, likely_u32);
     }
 
     LikelyValue rows(const LikelyValue &m)
@@ -757,7 +752,9 @@ struct Builder : public IRBuilder<>
         if (CallInst *const newCall = traceback(m))
             return LikelyValue(newCall->getOperand(3), likely_u32);
 
-        return LikelyValue(CreateLoad(CreateStructGEP(m, 4), "rows"), likely_u32);
+        LoadInst *const load = CreateLoad(CreateStructGEP(m, 4), "rows");
+        load->setMetadata(LLVMContext::MD_range, axisRange());
+        return LikelyValue(load, likely_u32);
     }
 
     LikelyValue frames(const LikelyValue &m)
@@ -768,7 +765,9 @@ struct Builder : public IRBuilder<>
         if (CallInst *const newCall = traceback(m))
             return LikelyValue(newCall->getOperand(4), likely_u32);
 
-        return LikelyValue(CreateLoad(CreateStructGEP(m, 5), "frames"), likely_u32);
+        LoadInst *const load = CreateLoad(CreateStructGEP(m, 5), "frames");
+        load->setMetadata(LLVMContext::MD_range, axisRange());
+        return LikelyValue(load, likely_u32);
     }
 
     LikelyValue data(const LikelyValue &m)
@@ -856,6 +855,24 @@ struct Builder : public IRBuilder<>
             sys::DynamicLibrary::AddSymbol("likely_release_mat", (void*) likely_release_mat);
         }
         return LikelyValue(CreateCall(likelyRelease, CreatePointerCast(m, module->context->toLLVM(likely_multi_dimension))), likely_void);
+    }
+
+private:
+    static CallInst *traceback(Value *m)
+    {
+        if (CastInst *const cast = dyn_cast<CastInst>(m))
+            if (CallInst *const call = dyn_cast<CallInst>(cast->getOperand(0)))
+                if (call->getCalledFunction()->getName() == "likely_new")
+                    return call;
+        return NULL;
+    }
+
+    MDNode *axisRange()
+    {
+        Type *const type = Type::getInt32Ty(getContext());
+        Value *const values[2] = { ConstantInt::get(type, 1),
+                                   ConstantInt::get(type, std::numeric_limits<uint32_t>::max()) };
+        return MDNode::get(getContext(), values);
     }
 };
 
@@ -1903,7 +1920,7 @@ struct Loop : public likely_expression
     BasicBlock *entry, *body, *exit;
     BranchInst *latch;
 
-    Loop(Builder &builder, const string &name, Value *start, Value *stop)
+    Loop(Builder &builder, const string &name, Value *start, Value *stop, bool checkPrecondition = true)
         : name(name), start(start), stop(stop), exit(NULL), latch(NULL)
     {
         entry = builder.GetInsertBlock();

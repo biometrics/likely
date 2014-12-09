@@ -563,7 +563,7 @@ If \emph{frames}, \emph{rows}, \emph{columns} or \emph{channels} are not specifi
 If \emph{type} is not specified then it will assume a value of \emph{f32} (32-bit floating point).
 
 \begin{verbatim}
-uninitialized-color-image := ((new u8CXY) 3 512 512 1 null)
+uninitialized-color-image := (new u8CXY 3 512 512 1 null)
 \end{verbatim}
 
 \paragraph{(channels [\emph{matrix}])}
@@ -661,21 +661,19 @@ bytes    := (-> mat (/ (+ (* (& mat.type depth) mat.elements) 7) 8))
 
 \section{Matrix Creation}
 \begin{likely}
-new := (-> return-type
-           (-> (channels columns rows frames data)
-               ((extern return-type "likely_new" (type-t u32 u32 u32 u32 void-pointer-t)) return-type channels columns rows frames data)))
-imitate-size := (-> (mat type) ((new type) mat.channels mat.columns mat.rows mat.frames null))
+new := (-> (return-type channels columns rows frames data)
+           ((extern return-type "likely_new" (type-t u32 u32 u32 u32 void-pointer-t)) return-type channels columns rows frames data))
+imitate-size := (-> (mat type) (new type mat.channels mat.columns mat.rows mat.frames null))
 imitate := (-> mat (imitate-size mat mat.type))
 \end{likely}
 
 \section{Matrix I/O}
 \begin{likely}
-read   := (-> return-type
-              (-> (file-name file-type)
-                  ((extern return-type "likely_read" (string-t file-type-t type-t)) file-name file-type return-type)))
+read   := (-> (file-name file-type return-type)
+              ((extern return-type "likely_read" (string-t file-type-t type-t)) file-name file-type return-type))
 write  := (extern u8CXYT "likely_write" (u8CXYT string-t))
-decode := (-> return-type
-              (-> mat ((extern return-type "likely_decode" (u8CXYT type-t)) mat return-type)))
+decode := (-> (mat return-type)
+              ((extern return-type "likely_decode" (u8CXYT type-t)) mat return-type))
 encode := (extern u8CXYT "likely_encode" (u8CXYT string-t))
 render := (extern u8CXYT "likely_render" (u8CXYT f64P f64P))
 show   := (extern u8CXYT "likely_show" (u8CXYT string-t))
@@ -683,12 +681,12 @@ guess-file-type := (extern file-type-t "likely_guess_file_type" string-t)
 \end{likely}
 
 \begin{likely}
-read-image               := (-> file-name ((read image)           file-name media    ))
-read-image-grayscale     := (-> file-name ((read image-grayscale) file-name media    ))
-read-video               := (-> file-name ((read video)           file-name media    ))
-read-video-grayscale     := (-> file-name ((read video-grayscale) file-name media    ))
-read-directory           := (-> file-name ((read video)           file-name directory))
-read-directory-grayscale := (-> file-name ((read video-grayscale) file-name directory))
+read-image               := (-> file-name file-name.(read media     image          ))
+read-image-grayscale     := (-> file-name file-name.(read media     image-grayscale))
+read-video               := (-> file-name file-name.(read media     video          ))
+read-video-grayscale     := (-> file-name file-name.(read media     video-grayscale))
+read-directory           := (-> file-name file-name.(read directory video          ))
+read-directory-grayscale := (-> file-name file-name.(read directory video-grayscale))
 \end{likely}
 
 \section{Compiler Frontend}
@@ -706,7 +704,7 @@ eval := (extern env "likely_eval" (ast env void-pointer-t void-pointer-t))
 \section{Import}
 \begin{likely}
 import-string := (-> (source-code source-type environment) (lex-and-parse source-code source-type).(eval environment null null))
-import := (-> (file environment) ((read text) file guess).data.(import-string file.guess-file-type environment))
+import := (-> (file-name environment) file-name.(read guess text).data.(import-string file-name.guess-file-type environment))
 \end{likely}
 
 \section{Type Conversion}
