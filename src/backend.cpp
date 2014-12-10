@@ -690,7 +690,7 @@ struct Builder : public IRBuilder<>
     LikelyValue nullMat() { return LikelyValue(ConstantPointerNull::get(::cast<PointerType>(module->context->toLLVM(likely_multi_dimension))), likely_multi_dimension); }
     LikelyValue nullData() { return LikelyValue(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_u8 | likely_pointer); }
 
-    Value *addInts(Value *lhs, Value *rhs)
+    Value *addInts(Value *lhs, Value *rhs, const Twine &name = "")
     {
         if (Constant *c = dyn_cast<Constant>(lhs))
             if (c->isZeroValue())
@@ -698,10 +698,10 @@ struct Builder : public IRBuilder<>
         if (Constant *c = dyn_cast<Constant>(rhs))
             if (c->isZeroValue())
                 return lhs;
-        return CreateAdd(lhs, rhs);
+        return CreateAdd(lhs, rhs, name, true, true);
     }
 
-    Value *multiplyInts(Value *lhs, Value *rhs)
+    Value *multiplyInts(Value *lhs, Value *rhs, const Twine &name = "")
     {
         if (Constant *const c = dyn_cast<Constant>(lhs)) {
             if (c->isZeroValue())
@@ -715,7 +715,7 @@ struct Builder : public IRBuilder<>
             if (c->isOneValue())
                 return lhs;
         }
-        return CreateMul(lhs, rhs);
+        return CreateMul(lhs, rhs, name, true, true);
     }
 
     LikelyValue channels(const LikelyValue &m)
@@ -1280,7 +1280,7 @@ class addExpression : public SimpleArithmeticOperator
                 Value *overflowResult = (lhs.type & likely_signed) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, builder.zero(lhs)), builder.intMax(lhs), builder.intMin(lhs)) : builder.intMax(lhs).value;
                 return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
             } else {
-                return builder.CreateAdd(lhs, rhs);
+                return builder.addInts(lhs, rhs);
             }
         }
     }
@@ -1344,7 +1344,7 @@ class multiplyExpression : public SimpleArithmeticOperator
                 Value *overflowResult = (lhs.type & likely_signed) ? builder.CreateSelect(builder.CreateXor(builder.CreateICmpSGE(lhs, zero), builder.CreateICmpSGE(rhs, zero)), builder.intMin(lhs), builder.intMax(lhs)) : builder.intMax(lhs).value;
                 return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
             } else {
-                return builder.CreateMul(lhs, rhs);
+                return builder.multiplyInts(lhs, rhs);
             }
         }
     }
@@ -1937,7 +1937,7 @@ struct Loop : public likely_expression
 
     virtual void close(Builder &builder)
     {
-        Value *const increment = builder.CreateAdd(value, builder.one(type), name + "_increment");
+        Value *const increment = builder.addInts(value, builder.one(type), name + "_increment");
         postcondition = builder.CreateICmpNE(increment, stop, name + "_postcondition");
         latch = builder.CreateCondBr(postcondition, body, exit);
         cast<PHINode>(value)->addIncoming(increment, builder.GetInsertBlock());
