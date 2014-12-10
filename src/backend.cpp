@@ -2092,10 +2092,10 @@ class kernelExpression : public LikelyOperator
     {
         KernelAxis *parent, *child;
         MDNode *node;
-        Value *offset;
+        Value *step, *offset;
 
         KernelAxis(Builder &builder, const string &name, Value *start, Value *stop, Value *step, KernelAxis *parent)
-            : Loop(builder, name, start, stop), parent(parent), child(NULL)
+            : Loop(builder, name, start, stop), parent(parent), child(NULL), step(step)
         {
             { // Create self-referencing loop node
                 vector<Value*> metadata;
@@ -2106,7 +2106,7 @@ class kernelExpression : public LikelyOperator
                 MDNode::deleteTemporary(tmp);
             }
 
-            offset = builder.addInts(parent ? parent->offset : builder.zero().value, builder.multiplyInts(step, builder.CreateZExt(value, step->getType())));
+            offset = builder.addInts(parent ? parent->offset : builder.zero().value, builder.multiplyInts(step, value));
             offset->setName(name + "_offset");
 
             if (parent)
@@ -2126,26 +2126,28 @@ class kernelExpression : public LikelyOperator
             if ((value->getNumUses() == 2) && child && (child->value->getNumUses() == 2)) {
                 // Assume for now that one user is the offset and the other is the increment.
 
-                // Collapse the child loop into us
-                child->offset->replaceAllUsesWith(value);
-                child->latch->setCondition(ConstantInt::getFalse(builder.getContext()));
-                child->precondition->replaceAllUsesWith(ConstantInt::getTrue(builder.getContext()));
-
                 // Update our range
                 BasicBlock *const restore = builder.GetInsertBlock();
                 builder.SetInsertPoint(cast<Instruction>(precondition));
                 Value *const newStart = builder.multiplyInts(start, child->stop);
                 Value *const newStop = builder.multiplyInts(stop, child->stop);
+                builder.SetInsertPoint(cast<Instruction>(offset));
+                Value *const newOffset = builder.addInts(parent ? parent->offset : builder.zero().value, builder.multiplyInts(child->step, value));
                 cast<ICmpInst>(precondition)->setOperand(0, newStart);
                 cast<ICmpInst>(precondition)->setOperand(1, newStop);
                 cast<PHINode>(value)->setIncomingValue(0, newStart);
                 cast<ICmpInst>(postcondition)->setOperand(1, newStop);
+                offset->replaceAllUsesWith(newOffset);
                 start = newStart;
                 stop = newStop;
+                step = child->step;
+                offset = newOffset;
                 builder.SetInsertPoint(restore);
 
-                // Update our child
-                child = child->child;
+                // Collapse the child loop
+                child->value->replaceAllUsesWith(builder.zero());
+                child->latch->setCondition(ConstantInt::getFalse(builder.getContext()));
+                child->precondition->replaceAllUsesWith(ConstantInt::getTrue(builder.getContext()));
             }
 
             if (parent)
@@ -2332,7 +2334,7 @@ class kernelExpression : public LikelyOperator
         FPM.add(createDeadInstEliminationPass());
         FPM.run(*kernelHead->getParent());
 
-//        axis->tryCollapse(builder);
+        axis->tryCollapse(builder);
         undefine(builder.env, "c");
         undefine(builder.env, "x");
         undefine(builder.env, "y");
