@@ -2134,9 +2134,8 @@ class kernelExpression : public LikelyOperator
                 // Update our range
                 BasicBlock *const restore = builder.GetInsertBlock();
                 builder.SetInsertPoint(cast<Instruction>(precondition));
-                Value *const step = builder.CreateZExt(builder.CreateSub(child->stop, child->start), start->getType());
-                Value *const newStart = builder.multiplyInts(start, step);
-                Value *const newStop = builder.multiplyInts(stop, step);
+                Value *const newStart = builder.multiplyInts(start, child->stop);
+                Value *const newStop = builder.multiplyInts(stop, child->stop);
                 cast<ICmpInst>(precondition)->setOperand(0, newStart);
                 cast<ICmpInst>(precondition)->setOperand(1, newStop);
                 cast<PHINode>(value)->setIncomingValue(0, newStart);
