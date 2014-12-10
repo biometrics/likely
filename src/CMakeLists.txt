@@ -378,17 +378,22 @@ test_file(tutorial "")
 function(add_demo FILE RETURN PARAMETERS ARGS)
   foreach(KERNEL_TYPE "" "-p")
     set(BITCODE_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}.bc)
+    set(IR_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}.ll)
     set(OBJECT_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}${CMAKE_C_OUTPUT_EXTENSION})
     add_custom_command(OUTPUT ${BITCODE_FILE}
                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                       COMMAND likely -O2 ${KERNEL_TYPE} -q -c "\"library/${FILE}.md\".(import this) (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${BITCODE_FILE}
+                       COMMAND likely -Oz -disable-loop-unrolling -disable-loop-vectorization ${KERNEL_TYPE} -q -c "\"library/${FILE}.md\".(import this) (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${BITCODE_FILE}
                        DEPENDS likely ${CMAKE_SOURCE_DIR}/library/${FILE}.md
                        VERBATIM)
+    add_custom_command(OUTPUT ${IR_FILE}
+                       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+                       COMMAND llvm-dis ${BITCODE_FILE}
+                       DEPENDS llvm-dis ${BITCODE_FILE})
     add_custom_command(OUTPUT ${OBJECT_FILE}
-                       COMMAND llc -filetype=obj ${BITCODE_FILE} -o ${OBJECT_FILE}
+                       COMMAND llc -O3 -filetype=obj ${BITCODE_FILE} -o ${OBJECT_FILE}
                        DEPENDS llc ${BITCODE_FILE})
     set(DEMO_EXECUTABLE ${FILE}${KERNEL_TYPE})
-    add_executable(${DEMO_EXECUTABLE} $<TARGET_OBJECTS:likely_main> ${OBJECT_FILE})
+    add_executable(${DEMO_EXECUTABLE} $<TARGET_OBJECTS:likely_main> ${OBJECT_FILE} ${IR_FILE})
     set_source_files_properties(${OBJECT_FILE} PROPERTIES EXTERNAL_OBJECT true GENERATED true)
     target_link_libraries(${DEMO_EXECUTABLE} likely_shared)
     separate_arguments(ARGS)
