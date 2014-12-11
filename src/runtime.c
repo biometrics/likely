@@ -57,20 +57,25 @@ likely_mat likely_new(likely_type type, uint32_t channels, uint32_t columns, uin
     if (elements == 0) { assert(!"expected non-zero elements"); return NULL; }
 
     const size_t bytes = ((type & likely_depth) * elements + 7) / 8;
-    const likely_mat m = (likely_mat) malloc(sizeof(struct likely_matrix) + bytes);
-    if (!m) { assert(!"malloc failure"); return NULL; }
+    const unsigned char alignment = 16; // Likely guarantees that likely_matrix::data has 16-byte alignment
+    likely_mat mat = (likely_mat) malloc(sizeof(struct likely_matrix) + bytes + alignment);
+    if (!mat) { assert(!"malloc failure"); return NULL; }
+    const char offset = alignment - ((uintptr_t)&mat->data % alignment);
+    mat = (likely_mat) ((uintptr_t)mat + offset);
+    ((unsigned char*)mat)[-1] = offset;
+    assert((uintptr_t)&mat->data % alignment == 0);
 
-    m->ref_count = 1;
-    m->type = type;
-    m->channels = channels;
-    m->columns = columns;
-    m->rows = rows;
-    m->frames = frames;
+    mat->ref_count = 1;
+    mat->type = type;
+    mat->channels = channels;
+    mat->columns = columns;
+    mat->rows = rows;
+    mat->frames = frames;
 
     if (data)
-        memcpy((void*)m->data, data, bytes);
+        memcpy((void*)mat->data, data, bytes);
 
-    return m;
+    return mat;
 }
 //! [likely_new implementation.]
 
@@ -111,7 +116,7 @@ void likely_release_mat(likely_const_mat mat)
     assert(mat->ref_count > 0);
     if ((mat->ref_count == UINT32_MAX) || --((likely_mat) mat)->ref_count)
         return;
-    free((void*) mat);
+    free((void*) ((uintptr_t)mat - ((unsigned char*)mat)[-1]));
 }
 //! [likely_release_mat implementation.]
 

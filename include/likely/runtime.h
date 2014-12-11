@@ -141,7 +141,7 @@ struct likely_matrix
     uint32_t columns;  /*!< \brief Horizontal dimensionality. */
     uint32_t rows;     /*!< \brief Vertical dimensionality. */
     uint32_t frames;   /*!< \brief Super-spatial (temporal) dimensionality. */
-    char data[]; /*!< \brief Buffer. */
+    char data[]; /*!< \brief Buffer with guaranteed 16-byte alignment. */
 };
 
 /*!
