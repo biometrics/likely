@@ -21,6 +21,7 @@
 #include <llvm/PassManager.h>
 #include <llvm/ADT/Hashing.h>
 #include <llvm/ADT/Triple.h>
+#include <llvm/Analysis/AssumptionTracker.h>
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
@@ -86,10 +87,11 @@ class LikelyContext : public likely_settings
 
 public:
     PassManager *PM;
+    AssumptionTracker *AT;
     LLVMContext context;
 
     LikelyContext(const likely_settings &settings)
-        : likely_settings(settings), PM(new PassManager())
+        : likely_settings(settings), PM(new PassManager()), AT(new AssumptionTracker())
     {
         static TargetMachine *TM = NULL;
         if (!TM) {
@@ -112,6 +114,7 @@ public:
         }
 
         PM->add(createVerifierPass());
+        PM->add(AT);
         PM->add(new TargetLibraryInfo(Triple(sys::getProcessTriple())));
         PM->add(new DataLayoutPass());
         TM->addAnalysisPasses(*PM);
@@ -2020,6 +2023,16 @@ class kernelExpression : public LikelyOperator
             frames   ->setName(name + "_t");
             rowStep  ->setName(name + "_y_step");
             frameStep->setName(name + "_t_step");
+
+            if (data) {
+                // This is how we communicate data alignment guarantee
+                Value *const ptrint = builder.CreatePtrToInt(data, Type::getInt64Ty(builder.getContext()));
+                Value *const maskedptr = builder.CreateAnd(ptrint, 15);
+                Value *const maskcond = builder.CreateICmpEQ(maskedptr, builder.zero());
+                Function *const assume = Intrinsic::getDeclaration(builder.module->module, Intrinsic::assume);
+                CallInst *const assumption = builder.CreateCall(assume, maskcond);
+                builder.module->context->AT->registerAssumption(assumption);
+            }
         }
 
     private:
