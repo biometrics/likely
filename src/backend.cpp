@@ -538,10 +538,7 @@ struct likely_module
 
     likely_module(const likely_settings &settings)
         : context(new LikelyContext(settings))
-        , module(new Module("likely_module", context->context))
-    {
-        module->setTargetTriple(sys::getProcessTriple());
-    }
+        , module(new Module("likely_module", context->context)) {}
 
     virtual ~likely_module()
     {
@@ -2445,8 +2442,9 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
         evaluate = !hasLoop->hasLoop;
     }
 
-    TargetMachine *targetMachine = LikelyContext::getTargetMachine(true);
+    TargetMachine *const targetMachine = LikelyContext::getTargetMachine(true);
     builder.module->module->setDataLayout(targetMachine->getSubtargetImpl()->getDataLayout());
+    builder.module->module->setTargetTriple(sys::getProcessTriple());
 
     string error;
     EngineBuilder engineBuilder(unique_ptr<Module>(builder.module->module));
