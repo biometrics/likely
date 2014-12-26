@@ -722,4 +722,16 @@ threshold-to-zero         := (-> (input threshold)          (? (> input threshol
 threshold-to-zero-inverse := (-> (input threshold)          (? (> input threshold) 0         input))
 \end{likely}
 
+\chapter{Convolutions}
+\section{Covariance}
+\begin{likely}
+covariance :=
+  vecs :->
+    {
+        cov := (new vecs.type.floating vecs.channels vecs.columns vecs.columns vecs.frames null)
+        ; TODO - complete
+        cov
+    }
+\end{likely}
+
 \end{document}
