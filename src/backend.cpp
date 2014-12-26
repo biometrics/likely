@@ -874,8 +874,8 @@ private:
     MDNode *axisRange()
     {
         Type *const type = Type::getInt32Ty(getContext());
-        Value *const values[2] = { ConstantInt::get(type, 1),
-                                   ConstantInt::get(type, std::numeric_limits<uint32_t>::max()) };
+        Metadata *const values[2] = { ConstantAsMetadata::get(ConstantInt::get(type, 1)),
+                                      ConstantAsMetadata::get(ConstantInt::get(type, std::numeric_limits<uint32_t>::max())) };
         return MDNode::get(getContext(), values);
     }
 };
@@ -2111,12 +2111,9 @@ class kernelExpression : public LikelyOperator
             : Loop(builder, name, start, stop), parent(parent), child(NULL), step(step)
         {
             { // Create self-referencing loop node
-                vector<Value*> metadata;
-                MDNode *tmp = MDNode::getTemporary(builder.getContext(), metadata);
-                metadata.push_back(tmp);
-                node = MDNode::get(builder.getContext(), metadata);
-                tmp->replaceAllUsesWith(node);
-                MDNode::deleteTemporary(tmp);
+                llvm::Metadata *const Args[] = { 0 };
+                node = llvm::MDNode::get(builder.getContext(), Args);
+                node->replaceOperandWith(0, node);
             }
 
             offset = builder.addInts(parent ? parent->offset : builder.zero().value, builder.multiplyInts(step, value));
