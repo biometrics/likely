@@ -57,7 +57,7 @@ likely_mat likely_new(likely_type type, uint32_t channels, uint32_t columns, uin
     if (elements == 0) { assert(!"expected non-zero elements"); return NULL; }
 
     const size_t bytes = ((type & likely_depth) * elements + 7) / 8;
-    const unsigned char alignment = 16; // Likely guarantees that likely_matrix::data has 16-byte alignment
+    const unsigned char alignment = 32; // Likely guarantees that likely_matrix::data has 32-byte alignment
     likely_mat mat = (likely_mat) malloc(sizeof(struct likely_matrix) + bytes + alignment);
     if (!mat) { assert(!"malloc failure"); return NULL; }
     const char offset = alignment - ((uintptr_t)&mat->data % alignment);

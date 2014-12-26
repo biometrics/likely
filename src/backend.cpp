@@ -2027,7 +2027,7 @@ class kernelExpression : public LikelyOperator
             if (data) {
                 // This is how we communicate data alignment guarantee
                 Value *const ptrint = builder.CreatePtrToInt(data, Type::getInt64Ty(builder.getContext()));
-                Value *const maskedptr = builder.CreateAnd(ptrint, 15);
+                Value *const maskedptr = builder.CreateAnd(ptrint, 31);
                 Value *const maskcond = builder.CreateICmpEQ(maskedptr, builder.zero());
                 Function *const assume = Intrinsic::getDeclaration(builder.module->module, Intrinsic::assume);
                 CallInst *const assumption = builder.CreateCall(assume, maskcond);
