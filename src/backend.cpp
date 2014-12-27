@@ -1468,6 +1468,32 @@ LIKELY_REGISTER(OP)                                    \
 LIKELY_REGISTER_BINARY_MATH(pow)
 LIKELY_REGISTER_BINARY_MATH(copysign)
 
+class Quote : public likely_expression
+{
+    likely_const_ast ast;
+
+public:
+    Quote(likely_const_ast ast)
+        : ast(likely_retain_ast(ast)) {}
+
+private:
+    ~Quote() { likely_release_ast(ast); }
+
+    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
+    {
+        TRY_EXPR(builder, this->ast, op)
+        return op->evaluate(builder, ast);
+    }
+};
+
+class quoteExpression : public LikelyOperator
+{
+    const char *symbol() const { return "quote"; }
+    size_t maxParameters() const { return 1; }
+    likely_const_expr evaluateOperator(Builder &, likely_const_ast ast) const { return new Quote(ast); }
+};
+LIKELY_REGISTER(quote)
+
 class tryExpression : public LikelyOperator
 {
     const char *symbol() const { return "try"; }
