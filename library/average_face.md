@@ -9,9 +9,9 @@ Compute the average face from a set of aligned faces [1].
         len := m.frames
         (dst m len) :=>
         {
-          (<- j 0)
-          ($ (<- j (+ j (m c x y t))) t len)
-          (<- dst (dst.type (/ j len)))
+          j :<- 0
+          (-> t (<- j (+ j (m c x y t)))).(iter len)
+          dst :<- (dst.type (/ j len))
         }
       }
 

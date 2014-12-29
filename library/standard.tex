@@ -722,6 +722,22 @@ threshold-to-zero         := (-> (input threshold)          (? (> input threshol
 threshold-to-zero-inverse := (-> (input threshold)          (? (> input threshold) 0         input))
 \end{likely}
 
+\chapter{Loops}
+\section{iter}
+\begin{likely}
+iter :=
+  (expr end) :->
+  {
+    i :<- 0
+  loop.#
+    (!= i end) :? {
+      (expr i)
+      i :<- (+ i 1)
+      loop
+    }
+  }
+\end{likely}
+
 \chapter{Convolutions}
 \section{Covariance}
 \begin{likely}
