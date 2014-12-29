@@ -1914,37 +1914,6 @@ class ifExpression : public LikelyOperator
 };
 LIKELY_REGISTER(if)
 
-struct Loop : public likely_expression
-{
-    string name;
-    Value *start, *stop, *precondition, *postcondition;
-    BasicBlock *entry, *body, *exit;
-    BranchInst *latch;
-
-    Loop(Builder &builder, const string &name, Value *start, Value *stop)
-        : name(name), start(start), stop(stop), exit(NULL), latch(NULL)
-    {
-        entry = builder.GetInsertBlock();
-        body = BasicBlock::Create(builder.getContext(), name + "_body", entry->getParent());
-        exit = BasicBlock::Create(builder.getContext(), name + "_exit", body->getParent());
-        precondition = builder.CreateICmpNE(start, stop, name + "_precondition");
-        builder.CreateCondBr(precondition, body, exit);
-        builder.SetInsertPoint(body);
-        type = toLikely(start->getType());
-        value = builder.CreatePHI(builder.module->context->toLLVM(type), 2, name);
-        cast<PHINode>(value)->addIncoming(start, entry);
-    }
-
-    virtual void close(Builder &builder)
-    {
-        Value *const increment = builder.addInts(value, builder.one(type), name + "_increment");
-        postcondition = builder.CreateICmpNE(increment, stop, name + "_postcondition");
-        latch = builder.CreateCondBr(postcondition, body, exit);
-        cast<PHINode>(value)->addIncoming(increment, builder.GetInsertBlock());
-        builder.SetInsertPoint(exit);
-    }
-};
-
 struct Assignable : public LikelyOperator
 {
     Assignable(Value *value, likely_type type)
@@ -2080,15 +2049,29 @@ class kernelExpression : public LikelyOperator
         }
     };
 
-    struct KernelAxis : public Loop
+    struct KernelAxis : public likely_expression
     {
+        string name;
+        Value *start, *stop, *precondition, *postcondition;
+        BasicBlock *entry, *body, *exit;
+        BranchInst *latch;
         KernelAxis *parent, *child;
         MDNode *node;
         Value *step, *offset;
 
         KernelAxis(Builder &builder, const string &name, Value *start, Value *stop, Value *step, KernelAxis *parent)
-            : Loop(builder, name, start, stop), parent(parent), child(NULL), step(step)
+            : name(name), start(start), stop(stop), exit(NULL), latch(NULL), parent(parent), child(NULL), step(step)
         {
+            entry = builder.GetInsertBlock();
+            body = BasicBlock::Create(builder.getContext(), name + "_body", entry->getParent());
+            exit = BasicBlock::Create(builder.getContext(), name + "_exit", body->getParent());
+            precondition = builder.CreateICmpNE(start, stop, name + "_precondition");
+            builder.CreateCondBr(precondition, body, exit);
+            builder.SetInsertPoint(body);
+            type = toLikely(start->getType());
+            value = builder.CreatePHI(builder.module->context->toLLVM(type), 2, name);
+            cast<PHINode>(value)->addIncoming(start, entry);
+
             { // Create self-referencing loop node
                 llvm::Metadata *const Args[] = { 0 };
                 node = llvm::MDNode::get(builder.getContext(), Args);
@@ -2104,7 +2087,12 @@ class kernelExpression : public LikelyOperator
 
         void close(Builder &builder)
         {
-            Loop::close(builder);
+            Value *const increment = builder.addInts(value, builder.one(type), name + "_increment");
+            postcondition = builder.CreateICmpNE(increment, stop, name + "_postcondition");
+            latch = builder.CreateCondBr(postcondition, body, exit);
+            cast<PHINode>(value)->addIncoming(increment, builder.GetInsertBlock());
+            builder.SetInsertPoint(exit);
+
             latch->setMetadata("llvm.loop", node);
             if (child) exit->moveAfter(child->exit);
             if (parent) parent->close(builder);
