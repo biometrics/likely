@@ -359,6 +359,7 @@ test_expr("(threshold-to-zero 0.6 0.5)" 0.6)
 test_expr("(threshold-to-zero-inverse 0.4 0.5)" 0.4)
 test_expr("(threshold-to-zero-inverse 0.5 0.5)" 0.5)
 test_expr("(threshold-to-zero-inverse 0.6 0.5)" 0)
+test_expr("{ j :<- 0 (iter (-> i (<- j (+ j i))) 10) j }" 45)
 
 # Test other library files
 function(test_file FILE VALUE)
