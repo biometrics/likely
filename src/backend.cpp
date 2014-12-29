@@ -1945,24 +1945,6 @@ struct Loop : public likely_expression
     }
 };
 
-class loopExpression : public LikelyOperator
-{
-    const char *symbol() const { return "$"; }
-    size_t maxParameters() const { return 3; }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        TRY_EXPR(builder, ast->atoms[3], end)
-        Loop *const loop = new Loop(builder, ast->atoms[2]->atom, builder.zero(*end), *end);
-        define(builder.env, ast->atoms[2]->atom, loop); // takes ownership of `loop`
-        likely_const_expr expression = get(builder, ast->atoms[1]);
-        loop->close(builder);
-        undefine(builder.env, ast->atoms[2]->atom);
-        return expression;
-    }
-};
-LIKELY_REGISTER(loop)
-
 struct Assignable : public LikelyOperator
 {
     Assignable(Value *value, likely_type type)
