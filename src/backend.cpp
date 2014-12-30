@@ -30,6 +30,7 @@
 #include <llvm/ExecutionEngine/Interpreter.h>
 #include <llvm/ExecutionEngine/ObjectCache.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
+#include <llvm/IR/ConstantRange.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
@@ -685,8 +686,23 @@ struct Builder : public IRBuilder<>
 
     LikelyValue zero(likely_type type = likely_u64) { return constant(0.0, type); }
     LikelyValue one (likely_type type = likely_u64) { return constant(1.0, type); }
-    LikelyValue intMax(likely_type type) { const likely_type bits = type & likely_depth; return constant((uint64_t) (1 << (bits - ((type & likely_signed) ? 1 : 0)))-1, bits); }
-    LikelyValue intMin(likely_type type) { const likely_type bits = type & likely_depth; return constant((uint64_t) ((type & likely_signed) ? (1 << (bits - 1)) : 0), bits); }
+
+    LikelyValue intMax(likely_type type)
+    {
+        ConstantRange constantRange(type & likely_depth);
+        const APInt apInt = (type & likely_signed) ? constantRange.getSignedMax() : constantRange.getUnsignedMax();
+        Constant *const constant = ConstantInt::getIntegerValue(Type::getIntNTy(getContext(), type & likely_depth), apInt);
+        return LikelyValue(constant, type);
+    }
+
+    LikelyValue intMin(likely_type type)
+    {
+        ConstantRange constantRange(type & likely_depth);
+        const APInt apInt = (type & likely_signed) ? constantRange.getSignedMin() : constantRange.getUnsignedMin();
+        Constant *const constant = ConstantInt::getIntegerValue(Type::getIntNTy(getContext(), type & likely_depth), apInt);
+        return LikelyValue(constant, type);
+    }
+
     LikelyValue nullMat() { return LikelyValue(ConstantPointerNull::get(::cast<PointerType>(module->context->toLLVM(likely_multi_dimension))), likely_multi_dimension); }
     LikelyValue nullData() { return LikelyValue(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_u8 | likely_pointer); }
 
