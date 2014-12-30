@@ -758,6 +758,14 @@ average-frame :=
       result :<- (result.type (/ j len))
     }
   }
+
+center-frame :=
+  mat :->
+  {
+    avg := mat.average-frame
+    result := mat.(imitate-size mat.type.depth-double.signed)
+    (result mat avg) :=> (<- result (- mat avg))
+  }
 \end{likely}
 
 \chapter{Convolutions}
