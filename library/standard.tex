@@ -743,6 +743,23 @@ iter :=
   }
 \end{likely}
 
+\chapter{Reductions}
+\section{Average}
+\begin{likely}
+average-frame :=
+  mat :->
+  {
+    result := (new mat.type mat.channels mat.columns mat.rows 1 null)
+    len := mat.frames
+    (result mat len) :=>
+    {
+      j :<- (mat.type.depth-double.depth-atleast-32 0)
+      (-> t (<- j (+ j (mat c x y t)))).(iter len)
+      result :<- (result.type (/ j len))
+    }
+  }
+\end{likely}
+
 \chapter{Convolutions}
 \section{Covariance}
 \begin{likely}
