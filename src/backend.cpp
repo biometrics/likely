@@ -1906,6 +1906,17 @@ class ifExpression : public LikelyOperator
         const bool hasElse = ast->num_atoms == 4;
 
         TRY_EXPR(builder, ast->atoms[1], Cond)
+
+        // Special case where the conditional is a constant value
+        if (ConstantInt *const constantInt = dyn_cast<ConstantInt>(Cond->value)) {
+            if (constantInt->isZero()) {
+                if (hasElse) return get(builder, ast->atoms[3]);
+                else         return new likely_expression();
+            } else {
+                return get(builder, ast->atoms[2]);
+            }
+        }
+
         BasicBlock *True = BasicBlock::Create(builder.getContext(), "then", function);
         BasicBlock *False = hasElse ? BasicBlock::Create(builder.getContext(), "else", function) : NULL;
         BasicBlock *End = BasicBlock::Create(builder.getContext(), "end", function);
