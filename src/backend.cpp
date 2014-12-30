@@ -953,7 +953,8 @@ private:
             vector<Type*> llvmParameters;
             for (likely_type parameter : parameters)
                 llvmParameters.push_back(builder.module->context->toLLVM(parameter));
-            Type *llvmReturn = builder.module->context->toLLVM(type);
+            // If the return type is a matrix, we generalize it to allow overloading.
+            Type *llvmReturn = builder.module->context->toLLVM(type & likely_multi_dimension ? likely_multi_dimension : type);
             FunctionType *functionType = FunctionType::get(llvmReturn, llvmParameters, false);
             symbol = Function::Create(functionType, GlobalValue::ExternalLinkage, name, builder.module->module);
             symbol->setCallingConv(CallingConv::C);
@@ -992,7 +993,10 @@ private:
                 }
             }
 
-        return new likely_expression(LikelyValue(builder.CreateCall(symbol, args), type));
+        Value *value = builder.CreateCall(symbol, args);
+        if (type & likely_multi_dimension)
+            value = builder.CreatePointerCast(value, builder.module->context->toLLVM(type));
+        return new likely_expression(LikelyValue(value, type));
     }
 };
 
