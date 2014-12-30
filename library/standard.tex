@@ -710,6 +710,11 @@ import := (-> (file-name environment) file-name.(read guess text).data.(import-s
 \section{Type Conversion}
 \begin{likely}
 cast := (-> (a b) (b.type a)) ; convert a to the type of b
+depth-double := (-> t (| (* (& t depth) 2) (& t (~ depth))).make-type)
+depth-atleast := (-> (t bits) (| (max bits (& t depth)) (& t (~ depth))).make-type)
+depth-atleast-16 := (-> t (depth-atleast t 16))
+depth-atleast-32 := (-> t (depth-atleast t 32))
+depth-atleast-64 := (-> t (depth-atleast t 64))
 \end{likely}
 
 \chapter{Pixel-wise operators}

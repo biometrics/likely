@@ -1221,6 +1221,18 @@ class typeExpression : public SimpleUnaryOperator
 };
 LIKELY_REGISTER(type)
 
+class makeTypeExpression : public SimpleUnaryOperator
+{
+    const char *symbol() const { return "make-type"; }
+    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
+    {
+        if (ConstantInt *const constantInt = dyn_cast<ConstantInt>(arg->value))
+            return new MatrixType(builder, likely_type(constantInt->getZExtValue()));
+        return NULL;
+    }
+};
+LIKELY_REGISTER(makeType)
+
 class UnaryMathOperator : public SimpleUnaryOperator
 {
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &x) const
