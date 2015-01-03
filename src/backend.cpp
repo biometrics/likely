@@ -954,7 +954,7 @@ private:
             for (likely_type parameter : parameters)
                 llvmParameters.push_back(builder.module->context->toLLVM(parameter));
             // If the return type is a matrix, we generalize it to allow overloading.
-            Type *llvmReturn = builder.module->context->toLLVM(type & likely_multi_dimension ? likely_multi_dimension : type);
+            Type *llvmReturn = builder.module->context->toLLVM(type & likely_multi_dimension ? likely_type(likely_multi_dimension) : type);
             FunctionType *functionType = FunctionType::get(llvmReturn, llvmParameters, false);
             symbol = Function::Create(functionType, GlobalValue::ExternalLinkage, name, builder.module->module);
             symbol->setCallingConv(CallingConv::C);
