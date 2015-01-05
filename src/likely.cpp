@@ -71,6 +71,8 @@ static cl::opt<bool> parallel("parallel" , cl::desc("Compile parallel kernels"))
 static cl::alias     parallelA("p", cl::desc("Alias for -parallel"), cl::aliasopt(parallel));
 static cl::opt<bool> verbose("verbose" , cl::desc("Verbose compiler output"));
 static cl::alias     verboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(verbose));
+static cl::opt<bool> ctfeInherit("ctfe-inherit" , cl::desc("Compile time function evaluation should inherit static compiler settings"));
+static cl::alias     ctfeInheritA("i", cl::desc("Alias for -ctfe-inherit"), cl::aliasopt(ctfeInherit));
 static cl::opt<bool> examine("examine" , cl::desc("Alias for -q -v -Oz -disable-loop-unrolling -disable-loop-vectorization"));
 static cl::alias     examineA("e", cl::desc("Alias for -examine"), cl::aliasopt(examine));
 
@@ -150,6 +152,7 @@ int main(int argc, char *argv[])
     if (examine) {
         verbose.setValue(true);
         quiet.setValue(true);
+        ctfeInherit.setValue(true);
         OptLevelOz.setValue(true);
         DisableLoopUnrolling.setValue(true);
         DisableLoopVectorization.setValue(true);
@@ -169,6 +172,7 @@ int main(int argc, char *argv[])
     settings.unroll_loops = !DisableLoopUnrolling;
     settings.vectorize_loops = !DisableLoopVectorization;
     settings.verbose = verbose;
+    settings.ctfe_inherit = ctfeInherit;
 
     likely_const_env parent = likely_standard(settings, output.empty() ? NULL /* JIT */ : output.c_str() /* Offline */);
 

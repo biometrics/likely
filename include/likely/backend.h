@@ -42,7 +42,8 @@ struct likely_settings
     bool heterogeneous; /*!< \brief Generate heterogeneous code. */
     bool unroll_loops; /*!< \brief Perform loop unrolling optimization. */
     bool vectorize_loops; /*!< \brief Perform loop vectorization optimization. */
-    bool verbose; /*!< Verbose compiler output. */
+    bool verbose; /*!< \brief Verbose compiler output. */
+    bool ctfe_inherit; /*!< \brief Compile-time function evaluation should inherit settings instead of \ref likely_jit defaults. */
 };
 
 /*!

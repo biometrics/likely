@@ -76,6 +76,7 @@ likely_settings likely_jit(bool verbose)
     settings.unroll_loops = true;
     settings.vectorize_loops = true;
     settings.verbose = verbose;
+    settings.ctfe_inherit = false;
     return settings;
 }
 //! [likely_jit implementation.]
@@ -2436,7 +2437,7 @@ LIKELY_REGISTER(set)
 
 JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC)
     : Symbol(name, likely_void, parameters)
-    , module(new likely_module((evaluate || !lambda->env->settings) // standard library does not have settings
+    , module(new likely_module((!lambda->env->settings /* standard library does not have settings */ || (evaluate && !lambda->env->settings->ctfe_inherit))
                                ? likely_jit(lambda->env->settings && lambda->env->settings->verbose)
                                : *lambda->env->settings))
 {
