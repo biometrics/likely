@@ -2217,12 +2217,12 @@ class kernelExpression : public LikelyOperator
         vector<Type*> parameterTypes;
         for (const likely_const_expr src : srcs)
             parameterTypes.push_back(src->value->getType());
-        StructType *parameterStructType = StructType::get(builder.getContext(), parameterTypes);
+        StructType *const parameterStructType = StructType::get(builder.getContext(), parameterTypes);
 
         Function *thunk;
         {
-            Type *params[] = { PointerType::getUnqual(parameterStructType), builder.module->context->toLLVM(likely_u64), builder.module->context->toLLVM(likely_u64) };
-            FunctionType *thunkType = FunctionType::get(Type::getVoidTy(builder.getContext()), params, false);
+            Type *const params[] = { PointerType::getUnqual(parameterStructType), builder.module->context->toLLVM(likely_u64), builder.module->context->toLLVM(likely_u64) };
+            FunctionType *const thunkType = FunctionType::get(Type::getVoidTy(builder.getContext()), params, false);
 
             // Functions can have multiple kernels, start from 0 until an unused thunk name is found
             string name;
@@ -2242,9 +2242,9 @@ class kernelExpression : public LikelyOperator
             thunk->setDoesNotCapture(1);
 
             Function::arg_iterator it = thunk->arg_begin();
-            Value *parameterStruct = it++;
-            Value *start = it++;
-            Value *stop = it++;
+            Value *const parameterStruct = it++;
+            Value *const start = it++;
+            Value *const stop = it++;
 
             builder.SetInsertPoint(BasicBlock::Create(builder.getContext(), "entry", thunk));
             vector<likely_const_expr> thunkSrcs;
@@ -2260,8 +2260,9 @@ class kernelExpression : public LikelyOperator
 
         builder.SetInsertPoint(entry);
 
-        Type *params[] = { thunk->getType(), PointerType::getUnqual(parameterStructType), builder.module->context->toLLVM(likely_u64) };
-        FunctionType *likelyForkType = FunctionType::get(Type::getVoidTy(builder.getContext()), params, false);
+        Type *const voidPtr = Type::getInt8PtrTy(builder.getContext());
+        Type *const params[] = { voidPtr, voidPtr, builder.module->context->toLLVM(likely_u64) };
+        FunctionType *const likelyForkType = FunctionType::get(Type::getVoidTy(builder.getContext()), params, false);
         Function *likelyFork = builder.module->module->getFunction("likely_fork");
         if (!likelyFork) {
             likelyFork = Function::Create(likelyForkType, GlobalValue::ExternalLinkage, "likely_fork", builder.module->module);
@@ -2273,11 +2274,11 @@ class kernelExpression : public LikelyOperator
             sys::DynamicLibrary::AddSymbol("likely_fork", (void*) likely_fork);
         }
 
-        Value *parameterStruct = builder.CreateAlloca(parameterStructType);
+        Value *const parameterStruct = builder.CreateAlloca(parameterStructType);
         for (size_t i=0; i<srcs.size(); i++)
             builder.CreateStore(*srcs[i], builder.CreateStructGEP(parameterStruct, unsigned(i)));
 
-        builder.CreateCall3(likelyFork, builder.module->module->getFunction(thunk->getName()), parameterStruct, kernelSize);
+        builder.CreateCall3(likelyFork, builder.CreatePointerCast(builder.module->module->getFunction(thunk->getName()), voidPtr), builder.CreatePointerCast(parameterStruct, voidPtr), kernelSize);
     }
 
     void generateHeterogeneous(Builder &, likely_const_ast, const vector<likely_const_expr> &, Value *) const
