@@ -715,6 +715,11 @@ depth-atleast := (-> (t bits) (| (max bits (& t depth)) (& t (~ depth))).make-ty
 depth-atleast-16 := (-> t (depth-atleast t 16))
 depth-atleast-32 := (-> t (depth-atleast t 32))
 depth-atleast-64 := (-> t (depth-atleast t 64))
+
+single-channel := (-> t (& t (~ multi-channel)))
+single-column  := (-> t (& t (~ multi-column )))
+single-row     := (-> t (& t (~ multi-row    )))
+single-frame   := (-> t (& t (~ multi-frame  )))
 \end{likely}
 
 \chapter{Pixel-wise operators}
@@ -749,7 +754,7 @@ iter :=
 average-frame :=
   mat :->
   {
-    result := (new mat.type mat.channels mat.columns mat.rows 1 null)
+    result := (new mat.type.single-frame mat.channels mat.columns mat.rows 1 null)
     len := mat.frames
     (result mat len) :=>
     {
