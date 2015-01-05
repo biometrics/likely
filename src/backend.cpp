@@ -2375,6 +2375,26 @@ class kernelExpression : public LikelyOperator
 };
 LIKELY_REGISTER(kernel)
 
+class serialExpression : public LikelyOperator
+{
+    const char *symbol() const { return "serial"; }
+    size_t maxParameters() const { return 1; }
+
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        likely_settings &settings = *builder.module->context;
+        const bool restoreParallel = settings.parallel;
+        const bool restoreHeterogeneous = settings.heterogeneous;
+        settings.parallel = false;
+        settings.heterogeneous = false;
+        const likely_const_expr expr = get(builder, ast->atoms[1]);
+        settings.parallel = restoreParallel;
+        settings.heterogeneous = restoreHeterogeneous;
+        return expr;
+    }
+};
+LIKELY_REGISTER(serial)
+
 class defineExpression : public LikelyOperator
 {
     const char *symbol() const { return "="; }
