@@ -13,7 +13,7 @@ Compare to **[cv::Mat::convertTo](http://docs.opencv.org/2.4.8/modules/core/doc/
         dst-type := src.type.floating
         dst := src.(imitate-size dst-type)
         (dst src) :=>
-          (<- dst (+ (* src.dst-type 2.dst-type) 3.dst-type))
+          dst :<- (+ (* src.dst-type 2.dst-type) 3.dst-type)
       }
 
 ### Binary threshold
@@ -24,14 +24,14 @@ Compare to **[cv::threshold(THRESHOLD_BINARY)](http://docs.opencv.org/2.4.8/modu
       {
         dst := src.imitate
         (dst src) :=>
-          (<- dst (src.type (threshold-binary src 127 1)))
+          dst :<- (src.type (threshold-binary src 127 1))
       }
 
-### Minimum & Maximum locations
+### Minimum & maximum locations
 Compare to **[cv::minMaxLoc](http://docs.opencv.org/2.4.8/modules/core/doc/operations_on_arrays.html#minmaxloc)**.
 
     min-max-loc :=
       src :->
       {
-        dst := (new f64C 6 1 1 1 null)
+        dst := (new f64X src.channels 6 1 src.frames null)
       }
