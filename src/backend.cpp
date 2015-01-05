@@ -2224,7 +2224,17 @@ class kernelExpression : public LikelyOperator
             Type *params[] = { PointerType::getUnqual(parameterStructType), builder.module->context->toLLVM(likely_u64), builder.module->context->toLLVM(likely_u64) };
             FunctionType *thunkType = FunctionType::get(Type::getVoidTy(builder.getContext()), params, false);
 
-            thunk = ::cast<Function>(builder.module->module->getOrInsertFunction(builder.GetInsertBlock()->getParent()->getName().str() + "_thunk", thunkType));
+            // Functions can have multiple kernels, start from 0 until an unused thunk name is found
+            string name;
+            int i = 0;
+            while (name.empty() || builder.module->module->getFunction(name)) {
+                stringstream stream;
+                stream << builder.GetInsertBlock()->getParent()->getName().str() << "_thunk" << i;
+                name = stream.str();
+                i++;
+            }
+
+            thunk = ::cast<Function>(builder.module->module->getOrInsertFunction(name, thunkType));
             thunk->addFnAttr(Attribute::NoUnwind);
             thunk->setCallingConv(CallingConv::C);
             thunk->setLinkage(GlobalValue::PrivateLinkage);
