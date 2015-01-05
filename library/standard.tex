@@ -769,7 +769,7 @@ center-frame :=
   {
     avg := mat.average-frame
     result := mat.(imitate-size mat.type.depth-double.signed)
-    (result mat avg) :=> (<- result (- mat avg))
+    (result mat avg) :=> (<- result (- (result.type mat) (result.type avg)))
   }
 \end{likely}
 
