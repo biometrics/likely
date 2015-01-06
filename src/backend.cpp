@@ -789,9 +789,8 @@ struct Builder : public IRBuilder<>
 
     LikelyValue data(const LikelyValue &m)
     {
-        if (!(m & likely_multi_dimension))
+        if (!likely_expression::isMat(m.value->getType()))
             return LikelyValue();
-
         const likely_type type = (m & likely_element) | likely_pointer;
         return LikelyValue(CreatePointerCast(CreateStructGEP(m, 6), module->context->toLLVM(type)), type);
     }
