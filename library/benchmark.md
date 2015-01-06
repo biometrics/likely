@@ -34,13 +34,41 @@ Compare to **[cv::minMaxLoc](http://docs.opencv.org/2.4.8/modules/core/doc/opera
       src :->
       {
         dst := (new f64XY.(imitate-channel src.type).(imitate-frame src.type) src.channels 3 2 src.frames null)
-        ((dst.channels 1 1 dst.frames) dst) :=>
+        ((dst.channels 1 1 dst.frames) dst src) :=>
         {
-          (dst c 0 0 t) :<- dst.type.numeric-limit-max
-          (dst c 1 0 t) :<- 0
-          (dst c 2 0 t) :<- 0
-          (dst c 0 1 t) :<- dst.type.numeric-limit-min
-          (dst c 1 1 t) :<- 0
-          (dst c 2 1 t) :<- 0
+          current-min-value :<- dst.type.numeric-limit-max
+          current-min-x     :<- 0
+          current-min-y     :<- 0
+          current-max-value :<- dst.type.numeric-limit-min
+          current-max-x     :<- 0
+          current-max-y     :<- 0
+
+          (iter (-> y
+            (iter (-> x
+              {
+                current-value := (src c x y t)
+                (? (< current-value current-min-value)
+                {
+                  current-min-value :<- current-value
+                  current-min-x :<- x
+                  current-min-y :<- y
+                })
+
+                (? (> current-value current-max-value)
+                {
+                  current-max-value :<- current-value
+                  current-max-x :<- x
+                  current-max-y :<- y
+                })
+              })
+            src.columns))
+          src.rows)
+
+          (dst c 0 0) :<- current-min-value
+          (dst c 1 0) :<- current-min-x
+          (dst c 2 0) :<- current-min-y
+          (dst c 0 1) :<- current-max-value
+          (dst c 1 1) :<- current-max-x
+          (dst c 2 1) :<- current-max-y
         }
       }
