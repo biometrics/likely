@@ -2329,6 +2329,8 @@ class kernelExpression : public LikelyOperator
         vector<KernelArgument*> kernelArguments;
         const likely_const_ast args = ast->atoms[1];
         const size_t argsStart = ((args->type == likely_ast_list) && (args->atoms[0]->type == likely_ast_list)) ? 1 : 0;
+        const uint32_t manualDims = argsStart ? args->atoms[0]->num_atoms : 0;
+        assert(manualDims <= 4);
         if (args->type == likely_ast_list) {
             for (size_t i=argsStart; i<args->num_atoms; i++)
                 kernelArguments.push_back(new KernelArgument(builder, *srcs[i-argsStart], args->atoms[i]->atom));
@@ -2339,7 +2341,7 @@ class kernelExpression : public LikelyOperator
         KernelInfo info;
         KernelAxis *axis = NULL;
         if (   (!argsStart && (kernelArguments[0]->type & likely_multi_frame))
-            || ( argsStart && (args->atoms[0]->num_atoms >= 4))) {
+            || ( argsStart && (manualDims >= 4))) {
             Value *const frameStep = argsStart ? builder.CreateMul(builder.CreateMul(*srcs[srcs.size()-4], *srcs[srcs.size()-3]), *srcs[srcs.size()-2])
                                                : kernelArguments[0]->frameStep;
             axis = new KernelAxis(builder, "t", start
@@ -2355,11 +2357,11 @@ class kernelExpression : public LikelyOperator
         info.tOffset = axis ? axis->offset : builder.one().value;
 
         if (   (!argsStart && (kernelArguments[0]->type & likely_multi_row))
-            || ( argsStart && (args->atoms[0]->num_atoms >= 3))) {
+            || ( argsStart && (manualDims >= 3))) {
             Value *const rowStep = argsStart ? builder.CreateMul(*srcs[srcs.size()-4], *srcs[srcs.size()-3])
                                              : kernelArguments[0]->rowStep;
             axis = new KernelAxis(builder, "y", axis ? builder.zero().value : start
-                                              , axis ? kernelArguments[0]->rows : stop
+                                              , axis ? (argsStart ? *srcs[srcs.size() - (manualDims-2)] : kernelArguments[0]->rows) : stop
                                               , rowStep
                                               , axis);
             info.y = axis->value;
@@ -2371,11 +2373,11 @@ class kernelExpression : public LikelyOperator
         info.yOffset = axis ? axis->offset : builder.one().value;
 
         if (   (!argsStart && (kernelArguments[0]->type & likely_multi_column))
-            || ( argsStart && (args->atoms[0]->num_atoms >= 2))) {
+            || ( argsStart && (manualDims >= 2))) {
             Value *const columnStep = argsStart ? srcs[srcs.size()-4]->value
                                                 : kernelArguments[0]->channels;
             axis = new KernelAxis(builder, "x", axis ? builder.zero().value : start
-                                              , axis ? kernelArguments[0]->columns : stop
+                                              , axis ? (argsStart ? *srcs[srcs.size() - (manualDims-1)] : kernelArguments[0]->columns) : stop
                                               , columnStep
                                               , axis);
             info.x = axis->value;
@@ -2387,10 +2389,10 @@ class kernelExpression : public LikelyOperator
         info.xOffset = axis ? axis->offset : builder.one().value;
 
         if (   (!argsStart && (kernelArguments[0]->type & likely_multi_channel))
-            || ( argsStart && (args->atoms[0]->num_atoms >= 1))
+            || ( argsStart && (manualDims >= 1))
             || !axis) {
             axis = new KernelAxis(builder, "c", axis ? builder.zero().value : start
-                                              , axis ? kernelArguments[0]->channels : stop
+                                              , axis ? (argsStart ? *srcs[srcs.size() - manualDims] : kernelArguments[0]->channels) : stop
                                               , builder.one()
                                               , axis);
             info.c = axis->value;
