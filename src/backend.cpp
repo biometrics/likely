@@ -2340,15 +2340,19 @@ class kernelExpression : public LikelyOperator
             kernelArguments.push_back(new KernelArgument(builder, *srcs[0], args->atom));
         }
 
+        Value *const manualChannels  = (manualDims >= 1) ? srcs[srcs.size() - manualDims + 0]->value : NULL;
+        Value *const manualColumns   = (manualDims >= 2) ? srcs[srcs.size() - manualDims + 1]->value : NULL;
+        Value *const manualRows      = (manualDims >= 3) ? srcs[srcs.size() - manualDims + 2]->value : NULL;
+        Value *const manualRowStep   = (manualDims >= 3) ? builder.CreateMul(manualChannels, manualColumns) : NULL;
+        Value *const manualFrameStep = (manualDims >= 4) ? builder.CreateMul(manualRowStep, manualRows)     : NULL;
+
         KernelInfo info;
         KernelAxis *axis = NULL;
         if (   (!argsStart && (kernelArguments[0]->type & likely_multi_frame))
             || ( argsStart && (manualDims >= 4))) {
-            Value *const frameStep = argsStart ? builder.CreateMul(builder.CreateMul(*srcs[srcs.size()-4], *srcs[srcs.size()-3]), *srcs[srcs.size()-2])
-                                               : kernelArguments[0]->frameStep;
             axis = new KernelAxis(builder, "t", start
                                               , stop
-                                              , frameStep
+                                              , argsStart ? manualFrameStep : kernelArguments[0]->frameStep
                                               , NULL);
             info.t = axis->value;
             define(builder.env, "t", axis);
@@ -2360,11 +2364,9 @@ class kernelExpression : public LikelyOperator
 
         if (   (!argsStart && (kernelArguments[0]->type & likely_multi_row))
             || ( argsStart && (manualDims >= 3))) {
-            Value *const rowStep = argsStart ? builder.CreateMul(*srcs[srcs.size()-4], *srcs[srcs.size()-3])
-                                             : kernelArguments[0]->rowStep;
             axis = new KernelAxis(builder, "y", axis ? builder.zero().value : start
-                                              , axis ? (argsStart ? *srcs[srcs.size() - (manualDims-2)] : kernelArguments[0]->rows) : stop
-                                              , rowStep
+                                              , axis ? (argsStart ? manualRows : kernelArguments[0]->rows) : stop
+                                              , argsStart ? manualRowStep : kernelArguments[0]->rowStep
                                               , axis);
             info.y = axis->value;
             define(builder.env, "y", axis);
@@ -2376,11 +2378,9 @@ class kernelExpression : public LikelyOperator
 
         if (   (!argsStart && (kernelArguments[0]->type & likely_multi_column))
             || ( argsStart && (manualDims >= 2))) {
-            Value *const columnStep = argsStart ? srcs[srcs.size()-4]->value
-                                                : kernelArguments[0]->channels;
             axis = new KernelAxis(builder, "x", axis ? builder.zero().value : start
-                                              , axis ? (argsStart ? *srcs[srcs.size() - (manualDims-1)] : kernelArguments[0]->columns) : stop
-                                              , columnStep
+                                              , axis ? (argsStart ? manualColumns : kernelArguments[0]->columns) : stop
+                                              , argsStart ? manualChannels : kernelArguments[0]->channels
                                               , axis);
             info.x = axis->value;
             define(builder.env, "x", axis);
@@ -2394,7 +2394,7 @@ class kernelExpression : public LikelyOperator
             || ( argsStart && (manualDims >= 1))
             || !axis) {
             axis = new KernelAxis(builder, "c", axis ? builder.zero().value : start
-                                              , axis ? (argsStart ? *srcs[srcs.size() - manualDims] : kernelArguments[0]->channels) : stop
+                                              , axis ? (argsStart ? manualChannels : kernelArguments[0]->channels) : stop
                                               , builder.one()
                                               , axis);
             info.c = axis->value;
