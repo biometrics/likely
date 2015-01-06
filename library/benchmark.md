@@ -33,5 +33,14 @@ Compare to **[cv::minMaxLoc](http://docs.opencv.org/2.4.8/modules/core/doc/opera
     min-max-loc :=
       src :->
       {
-        dst := (new f64X.(imitate-channel src.type).(imitate-frame src.type) src.channels 6 1 src.frames null)
+        dst := (new f64XY.(imitate-channel src.type).(imitate-frame src.type) src.channels 3 2 src.frames null)
+        ((dst.channels 1 1 dst.frames) dst) :=>
+        {
+          (dst c 0 0 t) :<- dst.type.numeric-limit-max
+          (dst c 1 0 t) :<- 0
+          (dst c 2 0 t) :<- 0
+          (dst c 0 1 t) :<- dst.type.numeric-limit-min
+          (dst c 1 1 t) :<- 0
+          (dst c 2 1 t) :<- 0
+        }
       }
