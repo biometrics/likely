@@ -513,10 +513,10 @@ struct likely_expression : public LikelyValue
         likely_release_env(old);
     }
 
-    static void undefineAll(likely_const_env &env, likely_const_ast args)
+    static void undefineAll(likely_const_env &env, likely_const_ast args, size_t start=0)
     {
         if (args->type == likely_ast_list) {
-            for (size_t i=0; i<args->num_atoms; i++)
+            for (size_t i=0; i<args->num_atoms-start; i++)
                 undefine(env, args->atoms[args->num_atoms-i-1]->atom);
         } else {
             undefine(env, args->atom);
@@ -2183,8 +2183,9 @@ class kernelExpression : public LikelyOperator
     {
         vector<likely_const_expr> srcs;
         const likely_const_ast args = ast->atoms[1];
+        const size_t argsStart = ((args->type == likely_ast_list) && (args->atoms[0]->type == likely_ast_list)) ? 1 : 0;
         if (args->type == likely_ast_list) {
-            for (size_t j=0; j<args->num_atoms; j++)
+            for (size_t j=argsStart; j<args->num_atoms; j++)
                 srcs.push_back(get(builder, args->atoms[j]));
         } else {
             srcs.push_back(get(builder, args));
@@ -2295,9 +2296,10 @@ class kernelExpression : public LikelyOperator
 
         vector<KernelArgument*> kernelArguments;
         const likely_const_ast args = ast->atoms[1];
+        const size_t argsStart = ((args->type == likely_ast_list) && (args->atoms[0]->type == likely_ast_list)) ? 1 : 0;
         if (args->type == likely_ast_list) {
-            for (size_t i=0; i<args->num_atoms; i++)
-                kernelArguments.push_back(new KernelArgument(builder, *srcs[i], args->atoms[i]->atom));
+            for (size_t i=argsStart; i<args->num_atoms; i++)
+                kernelArguments.push_back(new KernelArgument(builder, *srcs[i-argsStart], args->atoms[i]->atom));
         } else {
             kernelArguments.push_back(new KernelArgument(builder, *srcs[0], args->atom));
         }
@@ -2356,7 +2358,7 @@ class kernelExpression : public LikelyOperator
 
         delete get(builder, ast->atoms[2]);
 
-        undefineAll(builder.env, args);
+        undefineAll(builder.env, args, argsStart);
         kernelArguments.clear();
 
         axis->close(builder);
