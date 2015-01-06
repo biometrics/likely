@@ -2231,9 +2231,10 @@ class kernelExpression : public LikelyOperator
             else                                           kernelSize = builder.one();
         }
 
-        if      (builder.module->context->heterogeneous) generateHeterogeneous(builder, ast, srcs, kernelSize);
-        else if (builder.module->context->parallel)      generateParallel     (builder, ast, srcs, kernelSize);
-        else                                             generateSerial       (builder, ast, srcs, kernelSize);
+        const bool serial = isa<ConstantInt>(kernelSize) && (cast<ConstantInt>(kernelSize)->isOne());
+        if      (builder.module->context->heterogeneous && !serial) generateHeterogeneous(builder, ast, srcs, kernelSize);
+        else if (builder.module->context->parallel      && !serial) generateParallel     (builder, ast, srcs, kernelSize);
+        else                                                        generateSerial       (builder, ast, srcs, kernelSize);
 
         for (size_t i=1; i<srcs.size(); i++)
             delete srcs[i];
