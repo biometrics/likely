@@ -4,7 +4,7 @@ Likely functions tested against their [OpenCV](http://www.opencv.org) equivalent
 
 **[Results](https://s3.amazonaws.com/liblikely/benchmark.txt)**
 
-### Fused multiply add
+### Fused multiply-add
 Compare to **[cv::Mat::convertTo](http://docs.opencv.org/2.4.8/modules/core/doc/basic_structures.html#mat-convertto)**.
 
     fused-multiply-add :=
@@ -24,7 +24,7 @@ Compare to **[cv::threshold(THRESHOLD_BINARY)](http://docs.opencv.org/2.4.8/modu
       {
         dst := src.imitate
         (dst src) :=>
-          dst :<- (src.type (threshold-binary src 127 1))
+          dst :<- (threshold-binary src 127 1)
       }
 
 ### Minimum & maximum locations
@@ -33,5 +33,5 @@ Compare to **[cv::minMaxLoc](http://docs.opencv.org/2.4.8/modules/core/doc/opera
     min-max-loc :=
       src :->
       {
-        dst := (new f64X src.channels 6 1 src.frames null)
+        dst := (new f64X.(imitate-channel src.type).(imitate-frame src.type) src.channels 6 1 src.frames null)
       }

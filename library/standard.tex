@@ -716,10 +716,17 @@ depth-atleast-16 := (-> t (depth-atleast t 16))
 depth-atleast-32 := (-> t (depth-atleast t 32))
 depth-atleast-64 := (-> t (depth-atleast t 64))
 
-single-channel := (-> t (& t (~ multi-channel)))
-single-column  := (-> t (& t (~ multi-column )))
-single-row     := (-> t (& t (~ multi-row    )))
-single-frame   := (-> t (& t (~ multi-frame  )))
+single-dimension := (-> d (-> t (& t (~ d))))
+single-channel := (single-dimension multi-channel)
+single-column  := (single-dimension multi-column )
+single-row     := (single-dimension multi-row    )
+single-frame   := (single-dimension multi-frame  )
+
+imitate-dimension := (-> d (-> (t u) (? (& u d) (| t d) (& t (~ d)))))
+imitate-channel := (imitate-dimension multi-channel)
+imitate-column  := (imitate-dimension multi-column)
+imitate-row     := (imitate-dimension multi-row)
+imitate-frame   := (imitate-dimension multi-frame)
 \end{likely}
 
 \chapter{Pixel-wise operators}
