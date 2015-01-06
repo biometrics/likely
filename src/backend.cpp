@@ -1281,6 +1281,30 @@ class SimpleBinaryOperator : public LikelyOperator
     virtual likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const = 0;
 };
 
+class numericLimitExpression : public SimpleBinaryOperator
+{
+    const char *symbol() const { return "numeric-limit"; }
+    likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &arg1, const unique_ptr<const likely_expression> &arg2) const
+    {
+        if (!isa<ConstantInt>(arg1->value) || !isa<ConstantInt>(arg2->value))
+            return NULL;
+        const likely_type type = likely_type(cast<ConstantInt>(arg1->value)->getZExtValue());
+        const bool minimum = cast<ConstantInt>(arg2->value)->getZExtValue() == 0;
+        const int depth = type & likely_depth;
+        if (type & likely_floating) {
+            if      (depth == 16) return new likely_expression(LikelyValue(ConstantFP::get(builder.getContext(), APFloat::getLargest(APFloat::IEEEhalf, minimum)), likely_f16));
+            else if (depth == 32) return new likely_expression(LikelyValue(ConstantFP::get(builder.getContext(), APFloat::getLargest(APFloat::IEEEsingle, minimum)), likely_f32));
+            else if (depth == 64) return new likely_expression(LikelyValue(ConstantFP::get(builder.getContext(), APFloat::getLargest(APFloat::IEEEdouble, minimum)), likely_f64));
+            else    return NULL;
+        } else if (type & likely_signed) {
+            return new likely_expression(LikelyValue(ConstantInt::get(builder.getContext(), minimum ? APInt::getSignedMinValue(depth) : APInt::getSignedMaxValue(depth)), depth | likely_signed));
+        } else {
+            return new likely_expression(LikelyValue(ConstantInt::get(builder.getContext(), minimum ? APInt::getMinValue(depth) : APInt::getMaxValue(depth)), depth));
+        }
+    }
+};
+LIKELY_REGISTER(numericLimit)
+
 class ArithmeticOperator : public SimpleBinaryOperator
 {
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &lhs, const unique_ptr<const likely_expression> &rhs) const

@@ -627,6 +627,12 @@ e  := (f32 2.718281)
 pi := (f32 3.141592)
 \end{likely}
 
+\section{Numeric Limits}
+\begin{likely}
+numeric-limit-max := (-> t (numeric-limit t 1))
+numeric-limit-min := (-> t (numeric-limit t 0))
+\end{likely}
+
 \section{Unary Functions}
 \begin{likely}
 not  := (-> a (== a false))
