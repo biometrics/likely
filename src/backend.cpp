@@ -2211,16 +2211,24 @@ class kernelExpression : public LikelyOperator
         if (args->type == likely_ast_list) {
             for (size_t j=argsStart; j<args->num_atoms; j++)
                 srcs.push_back(get(builder, args->atoms[j]));
+            if (argsStart)
+                for (size_t j=0; j<args->atoms[0]->num_atoms; j++)
+                    srcs.push_back(get(builder, args->atoms[0]->atoms[j]));
         } else {
             srcs.push_back(get(builder, args));
         }
 
         Value *kernelSize;
-        if      (srcs[0]->type & likely_multi_frame)   kernelSize = builder.cast(builder.frames  (*srcs[0]), likely_u64);
-        else if (srcs[0]->type & likely_multi_row)     kernelSize = builder.cast(builder.rows    (*srcs[0]), likely_u64);
-        else if (srcs[0]->type & likely_multi_column)  kernelSize = builder.cast(builder.columns (*srcs[0]), likely_u64);
-        else if (srcs[0]->type & likely_multi_channel) kernelSize = builder.cast(builder.channels(*srcs[0]), likely_u64);
-        else                                           kernelSize = builder.one();
+        if (argsStart) {
+            if (args->atoms[0]->num_atoms == 0) kernelSize = builder.one();
+            else                                kernelSize = builder.cast(*srcs.back(), likely_u64);
+        } else {
+            if      (srcs[0]->type & likely_multi_frame)   kernelSize = builder.cast(builder.frames  (*srcs[0]), likely_u64);
+            else if (srcs[0]->type & likely_multi_row)     kernelSize = builder.cast(builder.rows    (*srcs[0]), likely_u64);
+            else if (srcs[0]->type & likely_multi_column)  kernelSize = builder.cast(builder.columns (*srcs[0]), likely_u64);
+            else if (srcs[0]->type & likely_multi_channel) kernelSize = builder.cast(builder.channels(*srcs[0]), likely_u64);
+            else                                           kernelSize = builder.one();
+        }
 
         if      (builder.module->context->heterogeneous) generateHeterogeneous(builder, ast, srcs, kernelSize);
         else if (builder.module->context->parallel)      generateParallel     (builder, ast, srcs, kernelSize);
@@ -2330,8 +2338,12 @@ class kernelExpression : public LikelyOperator
 
         KernelInfo info;
         KernelAxis *axis = NULL;
-        if (kernelArguments[0]->type & likely_multi_frame) {
-            axis = new KernelAxis(builder, "t", start, stop, kernelArguments[0]->frameStep, NULL);
+        if (   (!argsStart && (kernelArguments[0]->type & likely_multi_frame))
+            || ( argsStart && (args->atoms[0]->num_atoms >= 4))) {
+            axis = new KernelAxis(builder, "t", start
+                                              , stop
+                                              , kernelArguments[0]->frameStep
+                                              , NULL);
             info.t = axis->value;
             define(builder.env, "t", axis);
         } else {
@@ -2340,8 +2352,12 @@ class kernelExpression : public LikelyOperator
         }
         info.tOffset = axis ? axis->offset : builder.one().value;
 
-        if (kernelArguments[0]->type & likely_multi_row) {
-            axis = new KernelAxis(builder, "y", axis ? builder.zero().value : start, axis ? kernelArguments[0]->rows : stop, kernelArguments[0]->rowStep, axis);
+        if (   (!argsStart && (kernelArguments[0]->type & likely_multi_row))
+            || ( argsStart && (args->atoms[0]->num_atoms >= 3))) {
+            axis = new KernelAxis(builder, "y", axis ? builder.zero().value : start
+                                              , axis ? kernelArguments[0]->rows : stop
+                                              , kernelArguments[0]->rowStep
+                                              , axis);
             info.y = axis->value;
             define(builder.env, "y", axis);
         } else {
@@ -2350,8 +2366,12 @@ class kernelExpression : public LikelyOperator
         }
         info.yOffset = axis ? axis->offset : builder.one().value;
 
-        if (kernelArguments[0]->type & likely_multi_column) {
-            axis = new KernelAxis(builder, "x", axis ? builder.zero().value : start, axis ? kernelArguments[0]->columns : stop, kernelArguments[0]->channels, axis);
+        if (   (!argsStart && (kernelArguments[0]->type & likely_multi_column))
+            || ( argsStart && (args->atoms[0]->num_atoms >= 2))) {
+            axis = new KernelAxis(builder, "x", axis ? builder.zero().value : start
+                                              , axis ? kernelArguments[0]->columns : stop
+                                              , kernelArguments[0]->channels
+                                              , axis);
             info.x = axis->value;
             define(builder.env, "x", axis);
         } else {
@@ -2360,8 +2380,13 @@ class kernelExpression : public LikelyOperator
         }
         info.xOffset = axis ? axis->offset : builder.one().value;
 
-        if ((kernelArguments[0]->type & likely_multi_channel) || !axis) {
-            axis = new KernelAxis(builder, "c", axis ? builder.zero().value : start, axis ? kernelArguments[0]->channels : stop, builder.one(), axis);
+        if (   (!argsStart && (kernelArguments[0]->type & likely_multi_channel))
+            || ( argsStart && (args->atoms[0]->num_atoms >= 1))
+            || !axis) {
+            axis = new KernelAxis(builder, "c", axis ? builder.zero().value : start
+                                              , axis ? kernelArguments[0]->channels : stop
+                                              , builder.one()
+                                              , axis);
             info.c = axis->value;
             define(builder.env, "c", axis);
         } else {
