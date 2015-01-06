@@ -2212,8 +2212,10 @@ class kernelExpression : public LikelyOperator
             for (size_t j=argsStart; j<args->num_atoms; j++)
                 srcs.push_back(get(builder, args->atoms[j]));
             if (argsStart)
-                for (size_t j=0; j<args->atoms[0]->num_atoms; j++)
-                    srcs.push_back(get(builder, args->atoms[0]->atoms[j]));
+                for (size_t j=0; j<args->atoms[0]->num_atoms; j++) {
+                    const unique_ptr<const likely_expression> expr(get(builder, args->atoms[0]->atoms[j]));
+                    srcs.push_back(new likely_expression(builder.cast(*expr, likely_u64)));
+                }
         } else {
             srcs.push_back(get(builder, args));
         }
@@ -2221,7 +2223,7 @@ class kernelExpression : public LikelyOperator
         Value *kernelSize;
         if (argsStart) {
             if (args->atoms[0]->num_atoms == 0) kernelSize = builder.one();
-            else                                kernelSize = builder.cast(*srcs.back(), likely_u64);
+            else                                kernelSize = *srcs.back();
         } else {
             if      (srcs[0]->type & likely_multi_frame)   kernelSize = builder.cast(builder.frames  (*srcs[0]), likely_u64);
             else if (srcs[0]->type & likely_multi_row)     kernelSize = builder.cast(builder.rows    (*srcs[0]), likely_u64);
