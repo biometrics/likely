@@ -2207,46 +2207,56 @@ class kernelExpression : public LikelyOperator
         vector<likely_const_expr> srcs;
         const likely_const_ast args = ast->atoms[1];
         const size_t argsStart = ((args->type == likely_ast_list) && (args->atoms[0]->type == likely_ast_list)) ? 1 : 0;
+        const uint32_t manualDims = argsStart ? args->atoms[0]->num_atoms : 0;
         if (args->type == likely_ast_list) {
             for (size_t j=argsStart; j<args->num_atoms; j++)
                 srcs.push_back(get(builder, args->atoms[j]));
-            if (argsStart)
-                for (size_t j=0; j<args->atoms[0]->num_atoms; j++) {
-                    const unique_ptr<const likely_expression> expr(get(builder, args->atoms[0]->atoms[j]));
-                    srcs.push_back(new likely_expression(builder.cast(*expr, likely_u64)));
-                }
+            for (size_t j=0; j<manualDims; j++) {
+                const unique_ptr<const likely_expression> expr(get(builder, args->atoms[0]->atoms[j]));
+                srcs.push_back(new likely_expression(builder.cast(*expr, likely_u64)));
+            }
         } else {
             srcs.push_back(get(builder, args));
         }
 
-        Value *kernelSize;
+        likely_type kernelType = likely_void;
         if (argsStart) {
-            if (args->atoms[0]->num_atoms == 0) kernelSize = builder.one();
-            else                                kernelSize = *srcs.back();
+            for (uint32_t i=0; i<manualDims; i++) {
+                if (ConstantInt *const constantInt = dyn_cast<ConstantInt>(srcs[srcs.size() - 1 - i]->value))
+                    if (constantInt->isOne())
+                        continue;
+                if      (i == 0) kernelType |= likely_multi_channel;
+                else if (i == 1) kernelType |= likely_multi_column;
+                else if (i == 2) kernelType |= likely_multi_row;
+                else if (i == 3) kernelType |= likely_multi_frame;
+            }
         } else {
-            if      (srcs[0]->type & likely_multi_frame)   kernelSize = builder.cast(builder.frames  (*srcs[0]), likely_u64);
-            else if (srcs[0]->type & likely_multi_row)     kernelSize = builder.cast(builder.rows    (*srcs[0]), likely_u64);
-            else if (srcs[0]->type & likely_multi_column)  kernelSize = builder.cast(builder.columns (*srcs[0]), likely_u64);
-            else if (srcs[0]->type & likely_multi_channel) kernelSize = builder.cast(builder.channels(*srcs[0]), likely_u64);
-            else                                           kernelSize = builder.one();
+            kernelType = srcs[0]->type;
         }
 
+        Value *kernelSize;
+        if      (kernelType & likely_multi_frame)   kernelSize = argsStart ? srcs[srcs.size() - manualDims + 3]->value : builder.cast(builder.frames  (*srcs[0]), likely_u64).value;
+        else if (kernelType & likely_multi_row)     kernelSize = argsStart ? srcs[srcs.size() - manualDims + 2]->value : builder.cast(builder.rows    (*srcs[0]), likely_u64).value;
+        else if (kernelType & likely_multi_column)  kernelSize = argsStart ? srcs[srcs.size() - manualDims + 1]->value : builder.cast(builder.columns (*srcs[0]), likely_u64).value;
+        else if (kernelType & likely_multi_channel) kernelSize = argsStart ? srcs[srcs.size() - manualDims + 0]->value : builder.cast(builder.channels(*srcs[0]), likely_u64).value;
+        else                                        kernelSize = builder.one();
+
         const bool serial = isa<ConstantInt>(kernelSize) && (cast<ConstantInt>(kernelSize)->isOne());
-        if      (builder.module->context->heterogeneous && !serial) generateHeterogeneous(builder, ast, srcs, kernelSize);
-        else if (builder.module->context->parallel      && !serial) generateParallel     (builder, ast, srcs, kernelSize);
-        else                                                        generateSerial       (builder, ast, srcs, kernelSize);
+        if      (builder.module->context->heterogeneous && !serial) generateHeterogeneous(builder, ast, srcs, kernelType, kernelSize);
+        else if (builder.module->context->parallel      && !serial) generateParallel     (builder, ast, srcs, kernelType, kernelSize);
+        else                                                        generateSerial       (builder, ast, srcs, kernelType, kernelSize);
 
         for (size_t i=1; i<srcs.size(); i++)
             delete srcs[i];
         return srcs[0];
     }
 
-    void generateSerial(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, Value *kernelSize) const
+    void generateSerial(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, likely_type kernelType, Value *kernelSize) const
     {
-        generateCommon(builder, ast, srcs, builder.zero(), kernelSize);
+        generateCommon(builder, ast, srcs, kernelType, builder.zero(), kernelSize);
     }
 
-    void generateParallel(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, Value *kernelSize) const
+    void generateParallel(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, likely_type kernelType, Value *kernelSize) const
     {
         BasicBlock *entry = builder.GetInsertBlock();
 
@@ -2287,7 +2297,7 @@ class kernelExpression : public LikelyOperator
             for (size_t i=0; i<srcs.size(); i++)
                 thunkSrcs.push_back(new likely_expression(LikelyValue(builder.CreateLoad(builder.CreateStructGEP(parameterStruct, unsigned(i))), srcs[i]->type)));
 
-            generateCommon(builder, ast, thunkSrcs, start, stop);
+            generateCommon(builder, ast, thunkSrcs, kernelType, start, stop);
             const_cast<likely_expr>(srcs[0])->type = thunkSrcs[0]->type;
             for (likely_const_expr thunkSrc : thunkSrcs)
                 delete thunkSrc;
@@ -2317,12 +2327,12 @@ class kernelExpression : public LikelyOperator
         builder.CreateCall3(likelyFork, builder.CreatePointerCast(builder.module->module->getFunction(thunk->getName()), voidPtr), builder.CreatePointerCast(parameterStruct, voidPtr), kernelSize);
     }
 
-    void generateHeterogeneous(Builder &, likely_const_ast, const vector<likely_const_expr> &, Value *) const
+    void generateHeterogeneous(Builder &, likely_const_ast, const vector<likely_const_expr> &, likely_type, Value *) const
     {
         assert(!"Not implemented");
     }
 
-    void generateCommon(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, Value *start, Value *stop) const
+    void generateCommon(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, likely_type kernelType, Value *start, Value *stop) const
     {
         BasicBlock *const kernelHead = BasicBlock::Create(builder.getContext(), "kernel_head", builder.GetInsertBlock()->getParent());
         builder.CreateBr(kernelHead);
@@ -2348,8 +2358,7 @@ class kernelExpression : public LikelyOperator
 
         KernelInfo info;
         KernelAxis *axis = NULL;
-        if (   (!argsStart && (kernelArguments[0]->type & likely_multi_frame))
-            || ( argsStart && (manualDims >= 4))) {
+        if (kernelType & likely_multi_frame) {
             axis = new KernelAxis(builder, "t", start
                                               , stop
                                               , argsStart ? manualFrameStep : kernelArguments[0]->frameStep
@@ -2362,8 +2371,7 @@ class kernelExpression : public LikelyOperator
         }
         info.tOffset = axis ? axis->offset : builder.one().value;
 
-        if (   (!argsStart && (kernelArguments[0]->type & likely_multi_row))
-            || ( argsStart && (manualDims >= 3))) {
+        if (kernelType & likely_multi_row) {
             axis = new KernelAxis(builder, "y", axis ? builder.zero().value : start
                                               , axis ? (argsStart ? manualRows : kernelArguments[0]->rows) : stop
                                               , argsStart ? manualRowStep : kernelArguments[0]->rowStep
@@ -2376,8 +2384,7 @@ class kernelExpression : public LikelyOperator
         }
         info.yOffset = axis ? axis->offset : builder.one().value;
 
-        if (   (!argsStart && (kernelArguments[0]->type & likely_multi_column))
-            || ( argsStart && (manualDims >= 2))) {
+        if (kernelType & likely_multi_column) {
             axis = new KernelAxis(builder, "x", axis ? builder.zero().value : start
                                               , axis ? (argsStart ? manualColumns : kernelArguments[0]->columns) : stop
                                               , argsStart ? manualChannels : kernelArguments[0]->channels
@@ -2390,9 +2397,7 @@ class kernelExpression : public LikelyOperator
         }
         info.xOffset = axis ? axis->offset : builder.one().value;
 
-        if (   (!argsStart && (kernelArguments[0]->type & likely_multi_channel))
-            || ( argsStart && (manualDims >= 1))
-            || !axis) {
+        if (kernelType & likely_multi_channel) {
             axis = new KernelAxis(builder, "c", axis ? builder.zero().value : start
                                               , axis ? (argsStart ? manualChannels : kernelArguments[0]->channels) : stop
                                               , builder.one()
