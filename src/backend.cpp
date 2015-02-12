@@ -119,7 +119,7 @@ public:
         PM->add(ACT);
         PM->add(new TargetLibraryInfoWrapperPass(Triple(sys::getProcessTriple())));
         PM->add(new DataLayoutPass());
-        TM->addAnalysisPasses(*PM);
+        PM->add(createTargetTransformInfoWrapperPass(TM->getTargetIRAnalysis()));
         PassManagerBuilder builder;
         builder.OptLevel = opt_level;
         builder.SizeLevel = size_level;
