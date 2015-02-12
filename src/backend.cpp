@@ -2534,7 +2534,7 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
     }
 
     TargetMachine *const targetMachine = LikelyContext::getTargetMachine(true);
-    builder.module->module->setDataLayout(targetMachine->getSubtargetImpl()->getDataLayout());
+    builder.module->module->setDataLayout(targetMachine->getDataLayout());
     builder.module->module->setTargetTriple(sys::getProcessTriple());
 
     string error;
