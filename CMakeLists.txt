@@ -160,10 +160,15 @@ if(LATEX_COMPILER)
   include(UseLATEX/UseLATEX.cmake)
   file(GLOB LIKELY_TEX RELATIVE ${CMAKE_SOURCE_DIR} library/*.tex)
   foreach(TEX_FILE ${LIKELY_TEX})
+    latex_get_filename_component(NAME "${TEX_FILE}" NAME_WE)
+    set(LIKELY_BIBFILES "library/${NAME}.bib")
+    if(NOT EXISTS ${LIKELY_BIBFILES})
+      unset(LIKELY_BIBFILES)
+    endif()
     add_latex_document(${TEX_FILE}
+                       BIBFILES ${LIBRARY_BIBFILES}
                        NO_DEFAULT
                        MANGLE_TARGET_NAMES)
-    latex_get_filename_component(NAME "${TEX_FILE}" NAME_WE)
     add_dependencies(doc ${NAME}_pdf)
   endforeach()
 endif()
