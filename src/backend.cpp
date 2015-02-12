@@ -21,7 +21,7 @@
 #include <llvm/PassManager.h>
 #include <llvm/ADT/Hashing.h>
 #include <llvm/ADT/Triple.h>
-#include <llvm/Analysis/AssumptionTracker.h>
+#include <llvm/Analysis/AssumptionCache.h>
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
@@ -89,11 +89,11 @@ class LikelyContext : public likely_settings
 
 public:
     PassManager *PM;
-    AssumptionTracker *AT;
+    AssumptionCacheTracker *ACT;
     LLVMContext context;
 
     LikelyContext(const likely_settings &settings)
-        : likely_settings(settings), PM(new PassManager()), AT(new AssumptionTracker())
+        : likely_settings(settings), PM(new PassManager()), ACT(new AssumptionCacheTracker())
     {
         static TargetMachine *TM = NULL;
         if (!TM) {
@@ -116,7 +116,7 @@ public:
         }
 
         PM->add(createVerifierPass());
-        PM->add(AT);
+        PM->add(ACT);
         PM->add(new TargetLibraryInfo(Triple(sys::getProcessTriple())));
         PM->add(new DataLayoutPass());
         TM->addAnalysisPasses(*PM);
@@ -2046,7 +2046,7 @@ class kernelExpression : public LikelyOperator
                 Value *const maskcond = builder.CreateICmpEQ(maskedptr, builder.zero());
                 Function *const assume = Intrinsic::getDeclaration(builder.module->module, Intrinsic::assume);
                 CallInst *const assumption = builder.CreateCall(assume, maskcond);
-                builder.module->context->AT->registerAssumption(assumption);
+                builder.module->context->ACT->getAssumptionCache(*builder.GetInsertBlock()->getParent()).registerAssumption(assumption);
             }
         }
 
