@@ -1,4 +1,4 @@
-\documentclass[numbers=noenddot]{scrbook}
+\documentclass[twoside=false, numbers=noenddot]{scrbook}
 
 % The Likely tokenizer will look for the use of the "likely" environment to
 % determine what parts of the document are Likely source code.
@@ -42,15 +42,15 @@ With this goal in mind, the following sections discuss the guiding design decisi
 
 \section{Embeddable Compiler}
 Likely is foremost a software library.
-Both the \fref{https://s3.amazonaws.com/liblikely/doxygen/console\_interpreter\_compiler.html}{\emph{likely} console-interpreter-compiler} and \fref{https://s3.amazonaws.com/liblikely/doxygen/integrated\_development\_environment.html}{\emph{dream} integrated development environment} are built on top of the \fref{https://s3.amazonaws.com/liblikely/doxygen/index.html}{Likely C API}.
+Both the \fref{https://s3.amazonaws.com/liblikely/doxygen/console\_interpreter\_compiler.html}{\emph{likely} console-interpreter-compiler} and the \fref{https://s3.amazonaws.com/liblikely/doxygen/integrated\_development\_environment.html}{\emph{dream} integrated development environment} are built on top of the \fref{https://s3.amazonaws.com/liblikely/doxygen/index.html}{Likely C API}.
 
 Understandably, there is more involved in deploying a computer vision application than applying algorithms to pixels alone.
-Likely is designed to excel at pixel transformations, while leaving the remaining application logic for implementation in the developer's preferred programming language.
+Likely is designed to excel at pixel/feature/subspace transformations, while leaving general application logic for the developer's programming language of choice.
 
-It was with this focus on an embeddable compiler that the domain name \url{liblikely.org} was chosen.
+It was with this focus on an embeddable compiler that the \url{liblikely.org} domain name was chosen.
 
 \section{Compile-Time Function Evaluation}
-Compile-time function evalutation (CTFE) is a core tenant of Likely programming language.
+Compile-time function evalutation (CTFE) is a core tenant of the Likely programming language.
 Likely rejects the notion of training a statistical learning model as an offline step after algorithm compilation.
 Instead, \emph{Likely formulates statistical learning as the compile-time evalutation of a function} (the learning algorithm) \emph{with constant arguments} (the training data).
 We believe that compile-time knowledge of the statistical model will open the door to interesting \fref{https://github.com/biometrics/likely/issues/20}{optimization opportunities}.
@@ -59,17 +59,17 @@ Likely leverages the \fref{http://llvm.org/}{\noun{Low Level Virtual Machine}} (
 One particularly salient use of the JIT compiler is for CTFE, as the JIT compiler automatically leverages all instruction set extensions and coprocessors available at runtime.
 In the special case where the function to be executed does not have loops, Likely will instead run an interpreter which has been found to be faster for executing simple code.
 
-A computer vision algorithm is a series of image processing and statisical learning transformations that require incoming samples conform to particular type and dimensionality expectations.
-Likely exploits these expectations by conducting \emph{type inference using the output of functions evaluated at compile time}.
+A computer vision algorithm is a series of image processing and statisical learning transformations requiring incoming samples that conform to particular type and dimensionality expectations.
+Likely exploits these expectations through \emph{type inference on the output of functions evaluated at compile time}.
 Though algorithms are often written without specifying parameter types, they are still statically compiled because CTFE output dictates input type, and often dimensionality as well.
 This is in contrast to conventional computer vision libraries which, lacking compile-time knowledge of the particular algorithm of interest, provide parameter type generality by branching at runtime.
-Branching that is unnecessary for any particular algorithm where all runtime samples are expected to branch along the same path.
+This branching is often unnecessary for any particular algorithm where all runtime samples are expected to follow the same code path.
 
 \section{Portability}
 Likely is written using a portable subset of \noun{ISO C++11}, which means it can \fref{http://llvm.org/docs/GettingStarted.html\#hardware}{run everywhere LLVM does}.
 Algorithms execute natively on single CPU threads via the LLVM \noun{Machine Code JIT} compiler, multi-core CPUs via a custom \noun{OpenMP}-like backend, and GPUs and coprocessors via \fref{https://github.com/biometrics/likely/issues/24}{\noun{CUDA}} or \fref{https://github.com/biometrics/likely/issues/25}{\noun{OpenCL}}.
 
-Likely algorithms can be \fref{http://liblikely.org/share/likely/hello\_world/hello\_world\_static.c}{statically compiled to native object files}, \fref{http://liblikely.org/share/likely/hello\_world/hello\_world\_jit.c}{just-in-time compiled for dynamic applications and scripts}, integrate into \fref{https://github.com/biometrics/likely/issues/46}{other languages}, published as \fref{https://github.com/biometrics/likely/issues/44}{web services}, and even transcompiled into single \fref{https://github.com/biometrics/likely/issues/51}{\noun{C}} or \fref{https://github.com/biometrics/likely/issues/45}{\noun{JavaScript}} source files.
+Likely algorithms can be \fref{http://liblikely.org/share/likely/hello\_world/hello\_world\_static.c}{statically compiled to native object files}, \fref{http://liblikely.org/share/likely/hello\_world/hello\_world\_jit.c}{just-in-time compiled for dynamic applications and scripts}, integrated into \fref{https://github.com/biometrics/likely/issues/46}{other languages}, published as \fref{https://github.com/biometrics/likely/issues/44}{web services}, and even transcompiled into single \fref{https://github.com/biometrics/likely/issues/51}{\noun{C}} or \fref{https://github.com/biometrics/likely/issues/45}{\noun{JavaScript}} source files.
 
 \section{Live Coding}
 Developing computer vision algorithms is a creative process, and like all creative processes it relies on immediate visceral feedback through interaction with the creative medium.
@@ -79,7 +79,7 @@ In fact, Likely's accompanying IDE called \emph{dream}, is \fref{https://www.you
 
 \section{Literate Programming}
 Likely is a \fref{http://www.literateprogramming.com/}{literate programming} language.
-In addition to serving as the reference manual for the programming language and standard library, \fref{https://github.com/biometrics/likely/blob/gh-pages/library/standard.tex}{\emph{is document also contains the source code for the Likely standard library}}.
+In addition to serving as the reference manual for the programming language and standard library, \fref{https://github.com/biometrics/likely/blob/gh-pages/library/standard.tex}{\emph{this document is also the source code for the Likely standard library}}.
 
 Likely recognizes both \fref{https://help.github.com/articles/github-flavored-markdown}{GitHub Flavored Markdown} (GFM) and \fref{http://www.latex-project.org/}{\LaTeX} syntax, and will automatically extract source code from appropriately marked blocks.
 
