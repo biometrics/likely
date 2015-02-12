@@ -117,7 +117,7 @@ public:
 
         PM->add(createVerifierPass());
         PM->add(ACT);
-        PM->add(new TargetLibraryInfo(Triple(sys::getProcessTriple())));
+        PM->add(new TargetLibraryInfoWrapperPass(Triple(sys::getProcessTriple())));
         PM->add(new DataLayoutPass());
         TM->addAnalysisPasses(*PM);
         PassManagerBuilder builder;
@@ -1029,7 +1029,7 @@ private:
     static int UID() { return __LINE__; }
     int uid() const { return UID(); }
 
-    struct HasLoop : public LoopInfo
+    struct HasLoop : public LoopInfoWrapperPass
     {
         bool hasLoop = false;
 
@@ -1039,8 +1039,8 @@ private:
             if (hasLoop)
                 return false;
 
-            const bool result = LoopInfo::runOnFunction(F);
-            hasLoop = !empty();
+            const bool result = LoopInfoWrapperPass::runOnFunction(F);
+            hasLoop = !getLoopInfo().empty();
             return result;
         }
     };
