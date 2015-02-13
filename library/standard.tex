@@ -22,6 +22,7 @@
 }
 
 \newcommand{\noun}[1]{\textsc{#1}}
+\newcommand{\cref}[3]{\href{#1}{\noun{#2}}\cite{#3}}
 \newcommand{\fref}[2]{\href{#1}{#2}\footnote{\href{#1}{#1}}}
 
 \title{The Likely Programming Language \\
@@ -102,11 +103,11 @@ $ likely -c "(+ 1 2)"
 \end{lstlisting}
 
 An important property of s-expressions is that they are equivalent to the compiler's \emph{abstract syntax tree} (AST).
-A reading of SICP\cite{Abelson:1996:SIC:547755} is strongly encouraged for developers interested in a deeper understanding of the motivations behind this syntax.
+A reading of \cref{https://mitpress.mit.edu/sicp/full-text/book/book.html}{Structure and Interpretation of Computer Programs}{Abelson:1996:SIC:547755} is strongly encouraged for developers interested in a deeper understanding of the motivations behind this syntax.
 
 \section{Special Tokens}
 Likely recognizes three special tokens that influence how source code is parsed into an AST.
-These tokens allow the developer to selectively depart from prefix notation to improve code readability.
+These tokens allow developers to selectively depart from prefix notation to improve code readability.
 These special characters and parenthesis are the \emph{only} tokens that need not be separated by a space.
 
 \begin{table}[h]
@@ -119,7 +120,7 @@ Token & Name    \\ \midrule
 :     & Infix   \\
 \bottomrule
 \end{tabular}
-\caption{Likely special characters.}
+\caption{Likely special tokens.}
 \end{table}
 
 When in doubt, you can print the AST to see how source code is parsed:
@@ -129,16 +130,16 @@ $ likely -ast -c "1 :+ 2"
 \end{lstlisting}
 
 \section{; Comment}
-The semicolon and all following tokens through the end of the line are excluded from the AST.
+The semicolon and all subsequent tokens through the end of the line are excluded from the AST.
 
 \begin{verbatim}
-(this is some code) ; This is a comment
-(+ 1 2) ; One plus two is three
-(sq 3)  ; Three squared is nine
+(this is some code) ; this is a comment
+; (also a comment)
+(back to code again)
 \end{verbatim}
 
 \section{. Compose}
-The expression to the left-hand-side (LHS) of the period is inserted as the first operand of the expression to the right-hand-side (RHS) of the period.
+The expression to the left-hand-side (LHS) of the period is the first operand of the expression to the right-hand-side (RHS) of the period.
 Compose is \emph{left-associative}.
 
 \begin{verbatim}
@@ -152,14 +153,14 @@ x.(f y) ; Parsed as (f x y)
 1.(+ 2) ; Evaluates to 3
 \end{verbatim}
 
-We might call the third example \href{http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394}{uniform function call syntax}.
+We might call the third example \cref{http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394}{uniform function call syntax}{Bright:2012:UFC}.
 Note how this transformation does not apply to numbers!
 
 \section{: Infix}
 The expression to the RHS of the colon is the operator.
 The expression to the LHS of the colon is the first operand.
 The second expression to the RHS of the colon is the second operand.
-Infix is \emph{right-associative}.
+Infix is \emph{right-associative} and has \emph{lower} precedence than compose.
 
 \begin{verbatim}
 x:f y       ; Parsed as (f x y)
@@ -170,8 +171,6 @@ x.f:h y.g   ; Parsed as (h (f x) (g y))
 1:+ 2       ; Evaluates to 3
 3.sq:+ 4.sq ; Evaluates to 25
 \end{verbatim}
-
-Note how \emph{infix} has lower precedence than \emph{compose}.
 
 \chapter{Literals}
 At the lowest level of interpretation, every atom is either a \emph{number}, \emph{string}, \emph{type}, or \emph{intrinsic operator}.

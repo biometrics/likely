@@ -172,9 +172,9 @@ function(test_expr EXPR VALUE)
 endfunction()
 
 # List in the order they occur in standard.tex
-test_ast("(this is some code) ; This is a comment" "(this is some code)")
-test_expr("(+ 1 2) ; One plus two is three" 3)
-test_expr("(sq 3)  ; Three squared is nine" 9)
+test_ast("(this is some code) ; this is a comment" "(this is some code)")
+test_ast("; (also a comment)" "")
+test_ast("(back to code again)" "(back to code again)")
 test_ast("x.f" "(f x)")
 test_ast("x.f.g" "(g (f x))")
 test_ast("x.(f y)" "(f x y)")
