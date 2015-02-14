@@ -16,7 +16,7 @@ Skip to the good stuff: **[installation](?href=README.md)**,
 <img src="/share/likely/WhatIf.svg" width="768">
 
 ### The Big Idea
-Likely formulates statistical learning as the compile-time evalutation of a function (the learning algorithm) with constant arguments (the training data).
+Likely formulates statistical learning as the compile-time evaluation of a function (the learning algorithm) with constant arguments (the training data).
 
 ### Principles
  - Effective syntax for pattern recognition and image processing.
