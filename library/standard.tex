@@ -93,12 +93,27 @@ Likely recognizes both \fref{https://help.github.com/articles/github-flavored-ma
 
 \part{Language Reference}
 \chapter{Parsing}
-This chapter covers how source code is translated into the compiler's \emph{abstract syntax tree} (AST).
+This chapter covers how source code files are translated into the compiler's \emph{abstract syntax tree} \index{abstract syntax tree|see {AST}} (AST) \index{AST} representation of the program.
+
+\section{Source Code File Formats}
+To facilitate literate programming, Likely recognizes several source code file formats from their file extensions:
+
+\begin{figure}[h]
+\centering
+\begin{description}
+\item[.lisp] - The entire file is Likely source code.
+\item[.md]   - GFM file, source code is extracted from \texttt{likely} syntax-highlighted code blocks.
+\item[.tex]  - \LaTeX\ file, source code is extracted from \texttt{likely} environment.
+\end{description}
+\caption{Source code file formats.}
+\end{figure}
+
+The Likely API function call for inferring file format from extension is \texttt{likely\char`_guess\char`_file\char`_type} \index{\texttt{likely\char`_guess\char`_file\char`_type}}.
 
 \section{Lexical Analysis}
-Source code is first converted into a sequence of tokens by applying the following rules:
+Source code is first converted into a sequence of words or \emph{tokens} \index{token} by applying the following rules:
 
-\begin{figure*}[h]
+\begin{figure}[h]
 \begin{enumerate}
 \item Tokens are separated by whitespace.
 \item The following special single-character tokens need not be separated by whitespace:\newline
@@ -106,7 +121,7 @@ Source code is first converted into a sequence of tokens by applying the followi
 \item The characters between double-quotation marks are a single token, including the quotation marks themselves.
 \end{enumerate}
 \caption{Lexical analysis rules.}
-\end{figure*}
+\end{figure}
 
 The Likely API function call for lexical analysis is \texttt{likely\char`_lex} \index{\texttt{likely\char`_lex}}.
 
