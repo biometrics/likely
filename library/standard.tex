@@ -11,6 +11,8 @@
 \usepackage{booktabs}
 \usepackage[hidelinks]{hyperref}
 \usepackage{listings}
+\usepackage{makeidx}
+\usepackage{tocbibind}
 \usepackage{verbatim}
 
 \newtheoremstyle{dotless}{}{}{\itshape}{}{\bfseries}{}{ }{}
@@ -20,6 +22,8 @@
 \lstset{basicstyle=\ttfamily,
   showstringspaces=false
 }
+
+\makeindex
 
 \newcommand{\noun}[1]{\textsc{#1}}
 \newcommand{\cref}[3]{\href{#1}{\noun{#2}}\cite{#3}}
@@ -103,7 +107,7 @@ Source code is first converted into a sequence of tokens by applying the followi
 \caption{Lexical analysis rules.}
 \end{figure*}
 
-The Likely API function call for lexical analysis is \texttt{likely\char`_lex}.
+The Likely API function call for lexical analysis is \texttt{likely\char`_lex} \index{\texttt{likely\char`_lex}}.
 
 \section{Prefix Notation}
 Likely is a member of the \noun{Lisp} family of languages, accepting fully-parenthesized Polish \emph{prefix notation}.
@@ -816,5 +820,7 @@ covariance :=
 
 \bibliographystyle{plain}
 \bibliography{library/standard}
+
+\printindex
 
 \end{document}

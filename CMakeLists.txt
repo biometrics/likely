@@ -162,13 +162,16 @@ if(LATEX_COMPILER)
   foreach(TEX_FILE ${LIKELY_TEX})
     latex_get_filename_component(NAME "${TEX_FILE}" NAME_WE)
     set(LIKELY_BIBFILE "library/${NAME}.bib")
+    set(LIKELY_INDEX "USE_INDEX")
     if(NOT EXISTS "${CMAKE_SOURCE_DIR}/${LIKELY_BIBFILE}")
       unset(LIKELY_BIBFILE)
+      unset(LIKELY_INDEX)
     endif()
     add_latex_document(${TEX_FILE}
                        BIBFILES ${LIKELY_BIBFILE}
                        NO_DEFAULT
-                       MANGLE_TARGET_NAMES)
+                       MANGLE_TARGET_NAMES
+                       ${LIKELY_INDEX})
     add_dependencies(doc ${NAME}_pdf)
   endforeach()
 endif()
