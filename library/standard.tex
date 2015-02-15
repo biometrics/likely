@@ -6,8 +6,6 @@
 { \verbatim }
 { \endverbatim }
 
-\usepackage{amsmath}
-\usepackage{amsthm}
 \usepackage{booktabs}
 \usepackage[hidelinks]{hyperref}
 \usepackage{listings}
@@ -15,10 +13,6 @@
 \usepackage{scrhack}
 \usepackage{tocbibind}
 \usepackage{verbatim}
-
-\newtheoremstyle{dotless}{}{}{\itshape}{}{\bfseries}{}{ }{}
-
-\renewcommand{\arraystretch}{1.2} % more space between table rows
 
 \lstset{basicstyle=\ttfamily,
   showstringspaces=false
@@ -114,6 +108,7 @@ The Likely API function call for inferring file format from extension is \texttt
 Source code is first converted into a sequence of words or \emph{tokens} \index{token} by applying the following rules:
 
 \begin{figure}[h]
+\centering
 \begin{enumerate}
 \item Tokens are separated by whitespace.
 \item The following special single-character tokens need not be separated by whitespace:\newline
@@ -126,13 +121,13 @@ Source code is first converted into a sequence of words or \emph{tokens} \index{
 The Likely API function call for lexical analysis is \texttt{likely\char`_lex} \index{\texttt{likely\char`_lex}}.
 
 \section{Prefix Notation}
-Likely is a member of the \noun{Lisp} family of languages, accepting fully-parenthesized Polish \emph{prefix notation}.
+Likely is a member of the \noun{Lisp} family of languages, accepting fully-parenthesized Polish \emph{prefix notation}:
 
-\theoremstyle{dotless}
-\newtheorem*{PN}{Prefix Notation \nopunct}
-\begin{PN}
-$\boldsymbol{(} operator\ operand_1\ operand_2\ \dots\ operand_N \boldsymbol{)}$
-\end{PN}
+\begin{figure}[h]
+\centering
+\texttt{($operator$ $operand_1$ $operand_2$ \dots\ $operand_N$)}
+\caption{Prefix notation.}
+\end{figure}
 
 For example:
 
