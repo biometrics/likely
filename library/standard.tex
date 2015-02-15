@@ -87,9 +87,26 @@ In addition to serving as the reference manual for the programming language and 
 Likely recognizes both \fref{https://help.github.com/articles/github-flavored-markdown}{GitHub Flavored Markdown} (GFM) and \fref{http://www.latex-project.org/}{\LaTeX} syntax, and will automatically extract source code from appropriately marked blocks.
 
 \part{Language Reference}
-\chapter{Abstract Syntax Trees}
+\chapter{Parsing}
+This chapter covers how source code is translated into the compiler's \emph{abstract syntax tree} (AST).
+
+\section{Lexical Analysis}
+Source code is first converted into a sequence of tokens by applying the following rules:
+
+\begin{figure*}[h]
+\begin{enumerate}
+\item Tokens are separated by whitespace.
+\item The following special single-character tokens need not be separated by whitespace:\newline
+      \texttt{();.:}
+\item The characters between double-quotation marks are a single token, including the quotation marks themselves.
+\end{enumerate}
+\caption{Lexical analysis rules.}
+\end{figure*}
+
+The Likely API function call for lexical analysis is \texttt{likely\char`_lex}.
+
 \section{Prefix Notation}
-Likely is a member of the \noun{Lisp} family of languages, accepting fully-parenthesized prefix notation, also called \emph{s-expressions}.
+Likely is a member of the \noun{Lisp} family of languages, accepting fully-parenthesized Polish \emph{prefix notation}.
 
 \theoremstyle{dotless}
 \newtheorem*{PN}{Prefix Notation \nopunct}
@@ -104,7 +121,7 @@ $ likely -c "(+ 1 2)"
 3
 \end{lstlisting}
 
-An important property of s-expressions is that they are equivalent to the compiler's \emph{abstract syntax tree} (AST).
+An important property of prefix notation is that it is equivalent to AST, where branches are \emph{lists} and leaves are \emph{atoms}.
 A reading of \cref{https://mitpress.mit.edu/sicp/full-text/book/book.html}{Structure and Interpretation of Computer Programs}{Abelson:1996:SIC:547755} is strongly encouraged for developers interested in a deeper understanding of the motivations behind this syntax.
 
 \section{Special Tokens}
@@ -131,7 +148,7 @@ $ likely -ast -c "1 :+ 2"
 (+ 1 2)
 \end{lstlisting}
 
-\section{; Comment}
+\subsection{; (Comment)}
 The semicolon and all subsequent tokens through the end of the line are excluded from the AST.
 
 \begin{verbatim}
@@ -140,7 +157,7 @@ The semicolon and all subsequent tokens through the end of the line are excluded
 (back to code again)
 \end{verbatim}
 
-\section{. Compose}
+\subsection{. (Compose)}
 The expression to the left-hand-side (LHS) of the period is the first operand of the expression to the right-hand-side (RHS) of the period.
 Compose is \emph{left-associative}.
 
@@ -158,7 +175,7 @@ x.(f y) ; Parsed as (f x y)
 We might call the third example \cref{http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394}{uniform function call syntax}{Bright:2012:UFC}.
 Note how this transformation does not apply to numbers!
 
-\section{: Infix}
+\subsection{: (Infix)}
 The expression to the RHS of the colon is the operator.
 The expression to the LHS of the colon is the first operand.
 The second expression to the RHS of the colon is the second operand.
@@ -175,7 +192,7 @@ x.f:h y.g   ; Parsed as (h (f x) (g y))
 \end{verbatim}
 
 \chapter{Literals}
-At the lowest level of interpretation, every atom is either a \emph{number}, \emph{string}, \emph{type}, or \emph{intrinsic operator}.
+At the lowest level of interpretation, every atom is either a \emph{number}, \emph{string}, or \emph{type}.
 
 \section{Number}
 A number is a series of digits with an optional leading negative sign (-) and optional containing decimal point (.).
@@ -235,11 +252,8 @@ The remaining capitalized characters indicate:
 Additionally, the following special cases are recognized as types: \emph{void}, \emph{depth}, \emph{floating}, \emph{array}, \emph{signed}, \emph{saturated}, \emph{element}, \emph{multi-channel}, \emph{multi-column}, \emph{multi-row}, \emph{multi-frame}, \emph{multi-dimension}, \emph{string}, \emph{native}.
 These special cases correspond to values of \emph{likely\emph{type}mask} in the C API.
 
-\section{Intrinsic Operator}
-An intrinsic operator is the basic construct for higher order expressions on numbers, strings and types.
-The following section details all available intrinsic operators.
-
 \chapter{Intrinsic Operators}
+An intrinsic operator is the basic construct for higher order expressions on numbers, strings and types.
 Likely has the following builtin operators.
 
 \section{Arithmetic}
