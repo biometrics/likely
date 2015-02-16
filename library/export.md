@@ -15,5 +15,3 @@ uint32_t foo(uint32_t x)
 ```
 
     (foo 2) ; returns 3
-
-[Previous](?href=matrix_io)

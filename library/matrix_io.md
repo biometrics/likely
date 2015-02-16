@@ -6,5 +6,3 @@ Matrix I/O
     decoded-lenna := encoded-lenna.(decode image)
     "Compression Ratio: " (/ decoded-lenna.bytes.f64 encoded-lenna.bytes.f64)
     ; decoded-lenna.(write "lenna.png")
-
-[Previous](?href=comments) | [Next](?href=export)
