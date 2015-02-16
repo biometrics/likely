@@ -1,0 +1,25 @@
+\documentclass{article}
+\usepackage{verbatim}
+
+\newenvironment{likely}
+{ \verbatim }
+{ \endverbatim }
+
+\title{Literate Programming in Likely using \LaTeX}
+\author{Joshua C. Klontz}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+Likely can parse \LaTeX by looking for the \texttt{likely} environment:
+
+\begin{likely}
+(= x 9)
+(= y (* x 4))
+(+ y 6)
+\end{likely}
+
+Everything else is ignored!
+
+\end{document}
