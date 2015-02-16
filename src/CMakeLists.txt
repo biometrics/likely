@@ -373,9 +373,7 @@ endfunction()
 test_file(comments 42)
 test_file(demos "")
 test_file(export 3)
-test_file(likely "")
 test_file(matrix_io "Compression Ratio: 7.31714")
-test_file(tutorial "")
 
 # Compile and test demos
 function(add_demo FILE RETURN PARAMETERS ARGS)
