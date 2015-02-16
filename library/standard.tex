@@ -25,6 +25,7 @@
 \newcommand{\fref}[2]{\href{#1}{#2}\footnote{\href{#1}{#1}}}
 \newcommand{\doxygenurl}{https://s3.amazonaws.com/liblikely/doxygen/}
 \newcommand{\githuburl}{https://github.com/biometrics/likely/}
+\newcommand{\pindex}[1]{#1\index{#1}}
 
 % Acronyms
 \newcommand{\AST}{AST\index{abstract syntax tree (AST)}}
@@ -96,7 +97,7 @@ Likely recognizes both \fref{https://help.github.com/articles/github-flavored-ma
 This chapter covers how source code files are translated into the compiler's \emph{abstract syntax tree} (\AST) program representation.
 
 \section{Source Code File Formats}
-To facilitate literate programming,\index{literate programming} Likely recognizes several source code file formats based on their file extension:
+To facilitate \pindex{literate programming}, Likely recognizes several source code file formats based on their file extension:
 
 \begin{figure}[h]
 \centering
@@ -108,7 +109,7 @@ To facilitate literate programming,\index{literate programming} Likely recognize
 \caption{Source code file formats.}
 \end{figure}
 
-The Likely API function call for inferring file format from extension is \texttt{likely\char`_guess\char`_file\char`_type} \index{\texttt{likely\char`_guess\char`_file\char`_type}}.
+The Likely API function call for inferring file format from extension is \pindex{\texttt{likely\char`_guess\char`_file\char`_type}}.
 
 \section{Lexical Analysis}
 Source code is first converted into a sequence of words or \emph{tokens} \index{token} by applying the following rules:
@@ -124,7 +125,7 @@ Source code is first converted into a sequence of words or \emph{tokens} \index{
 \caption{Lexical analysis rules.}
 \end{figure}
 
-The Likely API function call for lexical analysis is \texttt{likely\char`_lex} \index{\texttt{likely\char`_lex}}.
+The Likely API function call for lexical analysis is \pindex{\texttt{likely\char`_lex}}.
 
 \section{Prefix Notation}
 Likely is a member of the Lisp family of languages, accepting fully-parenthesized Polish \emph{prefix notation}:
