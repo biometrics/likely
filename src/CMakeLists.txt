@@ -367,13 +367,14 @@ test_expr("{ j :<- 0 (iter (-> i (<- j (+ j i))) 10) j }" 45)
 function(test_file FILE VALUE)
   add_test(NAME ${FILE}
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND likely library/${FILE}.md -assert "${VALUE}")
+           COMMAND likely library/${FILE} -assert "${VALUE}")
 endfunction()
 
-test_file(demos "")
-test_file(export 3)
-test_file(literate_programming 42)
-test_file(matrix_io "Compression Ratio: 7.31714")
+test_file(demos.md "")
+test_file(export.md 3)
+test_file(literate_programming.md 42)
+test_file(literate_programming.tex 42)
+test_file(matrix_io.md "Compression Ratio: 7.31714")
 
 # Compile and test demos
 function(add_demo FILE RETURN PARAMETERS ARGS)
