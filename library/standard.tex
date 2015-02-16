@@ -21,10 +21,19 @@
 \makeindex
 
 \newcommand{\noun}[1]{\textsc{#1}}
-\newcommand{\cref}[3]{\href{#1}{\noun{#2}}\cite{#3}}
+\newcommand{\cref}[3]{\href{#1}{#2}\cite{#3}}
 \newcommand{\fref}[2]{\href{#1}{#2}\footnote{\href{#1}{#1}}}
 \newcommand{\doxygenurl}{https://s3.amazonaws.com/liblikely/doxygen/}
 \newcommand{\githuburl}{https://github.com/biometrics/likely/}
+
+% Acronyms
+\newcommand{\AST}{AST\index{abstract syntax tree (AST)}}
+\newcommand{\CTFE}{CTFE\index{compile-time function evaluation (CTFE)}}
+\newcommand{\GFM}{GFM\index{GitHub Flavored Markdown (GFM)}}
+\newcommand{\JIT}{JIT\index{just-in-time (JIT)}}
+\newcommand{\LLVM}{LLVM\index{Low Level Virtual Machine (LLVM)}}
+
+\hyphenation{Java-Script}
 
 \title{The Likely Programming Language \\
        {\large Language Reference and Standard Library}}
@@ -37,57 +46,54 @@
 
 \chapter{Introduction}
 \fref{http://www.liblikely.org/}{\noun{Likely}} is a programming language for image processing and statistical learning algorithm development.
-A special emphasis in Likely is given to the execution of algorithms on parallel and heterogenous hardware architectures.
-
-The goal of Likely is concise yet ambitious, \emph{to revolutionize computer vision algorithm design and deployment}.
-With this goal in mind, the following sections discuss the guiding design decisions behind Likely.
+The following sections discuss the guiding design decisions behind Likely.
 
 \section{Embeddable Compiler}
 Likely is foremost a software library.
-Both the \fref{\doxygenurl console\_interpreter\_compiler.html}{\emph{likely} console-interpreter-compiler} and the \fref{\doxygenurl integrated\_development\_environment.html}{\emph{dream} integrated development environment} are built on top of the \fref{\doxygenurl index.html}{Likely C API}.
+Both the \fref{\doxygenurl console\_interpreter\_compiler.html}{\texttt{likely} console-interpreter-compiler} and the \fref{\doxygenurl integrated\_development\_environment.html}{\texttt{dream} integrated development environment} are built on top of the \fref{\doxygenurl index.html}{\noun{Likely C API}}.
 
 Understandably, there is more involved in deploying a computer vision application than applying algorithms to pixels alone.
 Likely is designed to excel at pixel/feature/subspace transformations, while leaving general application logic for the developer's programming language of choice.
+Likely code can both call, and be called by the \cref{http://www.cs.otago.ac.nz/cosc440/readings/C-Programming-Ebook.pdf}{C Programming Language}{kernighan1988c}, and by extension many other programming languages as well.
 
 It was with this focus on an embeddable compiler that the \url{liblikely.org} domain name was chosen.
 
 \section{Compile-Time Function Evaluation}
-Compile-time function evaluation \index{compile-time function evaluation|see {CTFE}} (CTFE) \index{CTFE} is a core tenant of the Likely programming language.
-Likely rejects the notion of training a statistical learning model as an offline step after algorithm compilation.
+Compile-time function evaluation (\CTFE) is a core tenant of the Likely programming language.
+Likely rejects the learning of a statistical model as an offline step after algorithm compilation.
 Instead, \emph{Likely formulates statistical learning as the compile-time evaluation of a function} (the learning algorithm) \emph{with constant arguments} (the training data).
-We believe that compile-time knowledge of the statistical model will open the door to interesting \fref{\githuburl issues/20}{optimization opportunities}.
 
-Likely leverages the \fref{http://llvm.org/}{\noun{Low Level Virtual Machine}} (LLVM) project for both static and just-in-time (JIT) compilation.
-One particularly salient use of the JIT compiler is for CTFE \index{CTFE}, as the JIT compiler automatically leverages all instruction set extensions and coprocessors available at runtime.
-In the special case where the function to be executed does not have loops, Likely will instead run an interpreter which has been found to be faster for executing simple code.
+Likely leverages the \cref{http://llvm.org/}{Low Level Virtual Machine}{lattner2004llvm} (\LLVM) project for both static and just-in-time (\JIT) compilation.
+One particularly salient use of the \JIT\ compiler is for \CTFE, as the \JIT\ compiler automatically leverages all instruction set extensions and coprocessors available at runtime.
+In the special case where the function to be executed does not have loops, Likely will instead run an interpreter, which has been found to be faster for executing simple code.
 
 A computer vision algorithm is a series of image processing and statistical learning transformations requiring incoming samples that conform to particular type and dimensionality expectations.
-Likely exploits these expectations through \emph{type inference on the output of functions evaluated at compile time}.
-Though algorithms are often written without specifying parameter types, they are still statically compiled because CTFE \index{CTFE} output dictates input type, and often dimensionality as well.
+Likely exploits these expectations through inference on the output of functions evaluated at compile time.
+Algorithms written without specifying parameter types are still statically compiled because \emph{\CTFE\ output dictates parameter type, and often array dimensionality as well}.
 This is in contrast to conventional computer vision libraries which, lacking compile-time knowledge of the particular algorithm of interest, provide parameter type generality by branching at runtime.
 This branching is often unnecessary for any particular algorithm where all runtime samples are expected to follow the same code path.
 
 \section{Portability}
-Likely is written using a portable subset of \noun{ISO C++11}, which means it can \fref{http://llvm.org/docs/GettingStarted.html\#hardware}{run everywhere LLVM does}.
-Algorithms execute natively on single CPU threads via the LLVM \noun{Machine Code JIT} compiler, multi-core CPUs via a custom \noun{OpenMP}-like backend, and GPUs and coprocessors via \fref{\githuburl issues/24}{\noun{CUDA}} or \fref{\githuburl issues/25}{\noun{OpenCL}}.
+Likely is written in a portable subset of \noun{C++}, which means it can \fref{http://llvm.org/docs/GettingStarted.html\#hardware}{run everywhere \LLVM\ does}.
+Algorithms execute natively on single CPU threads via the \LLVM\ \noun{Machine Code \JIT} compiler, multi-core CPUs via a custom \noun{OpenMP}-like backend, and GPUs and coprocessors via \noun{CUDA} or \noun{OpenCL} (in progress).
 
-Likely algorithms can be \fref{http://liblikely.org/share/likely/hello\_world/hello\_world\_static.c}{statically compiled to native object files}, \fref{http://liblikely.org/share/likely/hello\_world/hello\_world\_jit.c}{just-in-time compiled for dynamic applications and scripts}, integrated into \fref{\githuburl issues/46}{other languages}, published as \fref{\githuburl issues/44}{web services}, and even transcompiled into single \fref{\githuburl issues/51}{\noun{C}} or \fref{\githuburl issues/45}{\noun{JavaScript}} source files.
+Likely algorithms can be \fref{http://liblikely.org/share/likely/hello\_world/hello\_world\_static.c}{statically compiled to native object files}, \fref{http://liblikely.org/share/likely/hello\_world/hello\_world\_jit.c}{just-in-time compiled for dynamic applications and scripts}, integrated into other languages (in progress), published as web services (in progress), and even transcompiled into single \noun{C} or \noun{JavaScript} source files (in progress).
 
 \section{Live Coding}
 Developing computer vision algorithms is a creative process, and like all creative processes it relies on immediate visceral feedback through interaction with the creative medium.
 Algorithms have numerous parameters, and visualizing their effects is critical to building intuition and making improvements.
-The computer vision domain and Likely's library design are well suited for \emph{live coding} \index{live coding} popularized by \fref{http://worrydream.com/}{Bret Victor}.
+The computer vision domain and Likely's library design are well suited for the idea of \emph{live coding} \index{live coding} popularized by \fref{http://worrydream.com/}{Bret Victor}.
 In fact, Likely's accompanying IDE called \emph{dream}, is \fref{https://www.youtube.com/watch?v=a\_hz8wFACVM}{designed from the ground up to support interactive algorithm development}.
 
 \section{Literate Programming}
-Likely is a \fref{http://www.literateprogramming.com/}{literate programming} \index{literate programming} language.
+Likely is a \cref{http://www.literateprogramming.com/}{\emph{literate programming}}{knuth1984literate} \index{literate programming} language.
 In addition to serving as the reference manual for the programming language and standard library, \fref{\githuburl blob/gh-pages/library/standard.tex}{\emph{this document is also the source code for the Likely standard library}}.
 
-Likely recognizes both \fref{https://help.github.com/articles/github-flavored-markdown}{GitHub Flavored Markdown} \index{GitHub Flavored Markdown|see {GFM}} (GFM) \index{GFM} and \fref{http://www.latex-project.org/}{\LaTeX} \index{latex} syntax, and will automatically extract source code from appropriately marked blocks.
+Likely recognizes both \fref{https://help.github.com/articles/github-flavored-markdown}{GitHub Flavored Markdown} (\GFM) and \cref{http://www.latex-project.org/}{\LaTeX}{lamport1986document} \index{\LaTeX} syntax, and will automatically extract source code from appropriately marked blocks.
 
 \part{Language Reference}
 \chapter{Parsing}
-This chapter covers how source code files are translated into the compiler's \emph{abstract syntax tree} \index{abstract syntax tree|see {AST}} (AST) \index{AST} program representation.
+This chapter covers how source code files are translated into the compiler's \emph{abstract syntax tree} (\AST) program representation.
 
 \section{Source Code File Formats}
 To facilitate literate programming,\index{literate programming} Likely recognizes several source code file formats based on their file extension:
@@ -96,8 +102,8 @@ To facilitate literate programming,\index{literate programming} Likely recognize
 \centering
 \begin{description}
 \item[.lisp] - The entire file is Likely source code.
-\item[.md]   - GFM \index{GFM} file, source code is extracted from \texttt{likely} syntax-highlighted code blocks.
-\item[.tex]  - \LaTeX \index{latex} file, source code is extracted from \texttt{likely} environment.
+\item[.md]   - \GFM\ file, source code is extracted from \texttt{likely} syntax-highlighted code blocks.
+\item[.tex]  - \LaTeX \index{\LaTeX} file, source code is extracted from \texttt{likely} environment.
 \end{description}
 \caption{Source code file formats.}
 \end{figure}
@@ -121,7 +127,7 @@ Source code is first converted into a sequence of words or \emph{tokens} \index{
 The Likely API function call for lexical analysis is \texttt{likely\char`_lex} \index{\texttt{likely\char`_lex}}.
 
 \section{Prefix Notation}
-Likely is a member of the \noun{Lisp} family of languages, accepting fully-parenthesized Polish \emph{prefix notation}:
+Likely is a member of the Lisp family of languages, accepting fully-parenthesized Polish \emph{prefix notation}:
 
 \begin{figure}[h]
 \centering
@@ -136,11 +142,11 @@ $ likely -c "(+ 1 2)"
 3
 \end{lstlisting}
 
-An important property of prefix notation is that it is equivalent to AST, where branches are \emph{lists} and leaves are \emph{atoms}.
+An important property of prefix notation is that it is equivalent to the \AST, where branches are \emph{lists} and leaves are \emph{atoms}.
 A reading of \cref{https://mitpress.mit.edu/sicp/full-text/book/book.html}{Structure and Interpretation of Computer Programs}{Abelson:1996:SIC:547755} is strongly encouraged for developers interested in a deeper understanding of the motivations behind this syntax.
 
 \section{Special Tokens}
-Likely recognizes three special tokens that influence how source code is parsed into an AST.
+Likely recognizes three special tokens that influence how source code is parsed into an \AST.
 These tokens allow developers to selectively depart from prefix notation to improve code readability.
 These special characters and parenthesis are the \emph{only} tokens that need not be separated by a space.
 
@@ -157,14 +163,14 @@ Token & Name    \\ \midrule
 \caption{Likely special tokens.}
 \end{table}
 
-When in doubt, you can print the AST to see how source code is parsed:
+When in doubt, you can print the \AST\ to see how source code is parsed:
 \begin{lstlisting}[language=bash, caption={Printing the abstract syntax tree.}, captionpos=b]
 $ likely -ast -c "1 :+ 2"
 (+ 1 2)
 \end{lstlisting}
 
 \subsection{; (Comment)}
-The semicolon and all subsequent tokens through the end of the line are excluded from the AST.
+The semicolon and all subsequent tokens through the end of the line are excluded from the \AST.
 
 \begin{verbatim}
 (this is some code) ; this is a comment
