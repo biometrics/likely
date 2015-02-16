@@ -39,9 +39,11 @@
 \newcommand{\noun}[1]{\textsc{#1}}
 \newcommand{\cref}[3]{\href{#1}{#2}\cite{#3}}
 \newcommand{\fref}[2]{\href{#1}{#2}\footnote{\href{#1}{#1}}}
-\newcommand{\doxygenurl}{https://s3.amazonaws.com/liblikely/doxygen/}
+\newcommand{\awsurl}{https://s3.amazonaws.com/liblikely/}
 \newcommand{\githuburl}{https://raw.githubusercontent.com/biometrics/likely/gh-pages/}
+\newcommand{\dindex}[1]{\textit{#1}\index{#1}}
 \newcommand{\pindex}[1]{#1\index{#1}}
+\newcommand{\tindex}[1]{\pindex{\texttt{#1}}}
 
 % Acronyms
 \newcommand{\AST}{AST\index{abstract syntax tree (AST)}}
@@ -67,7 +69,7 @@ The following sections discuss the guiding design decisions behind Likely.
 
 \section{Embeddable Compiler}
 Likely is foremost a software library.
-Both the \fref{\doxygenurl console\_interpreter\_compiler.html}{\texttt{likely} console-interpreter-compiler} and the \fref{\doxygenurl integrated\_development\_environment.html}{\texttt{dream} integrated development environment} are built on top of the \fref{\doxygenurl index.html}{\noun{Likely C API}}.
+Both the \fref{\awsurl doxygen/console\_interpreter\_compiler.html}{\texttt{likely} console-interpreter-compiler} and the \fref{\awsurl doxygen/integrated\_development\_environment.html}{\texttt{dream} integrated development environment} are built on top of the \fref{\awsurl doxygen/index.html}{\noun{Likely C API}}.
 
 Understandably, there is more involved in deploying a computer vision application than applying algorithms to pixels alone.
 Likely is designed to excel at pixel/feature/subspace transformations, while leaving general application logic for the developer's programming language of choice.
@@ -99,30 +101,31 @@ Likely algorithms can be \fref{http://liblikely.org/share/likely/hello\_world/he
 \section{Live Coding}
 Developing computer vision algorithms is a creative process, and like all creative processes it relies on immediate visceral feedback through interaction with the creative medium.
 Algorithms have numerous parameters, and visualizing their effects is critical to building intuition and making improvements.
-The computer vision domain and Likely's library design are well suited for the idea of \emph{live coding} \index{live coding} popularized by \fref{http://worrydream.com/}{Bret Victor}.
+The computer vision domain and Likely's library design are well suited for the idea of \dindex{live coding} popularized by \fref{http://worrydream.com/}{Bret Victor}.
 In fact, Likely's accompanying IDE called \emph{dream}, is \fref{https://www.youtube.com/watch?v=a\_hz8wFACVM}{designed from the ground up to support interactive algorithm development}.
 
 \section{Literate Programming}
-Likely is a \cref{http://www.literateprogramming.com/}{\emph{literate programming}}{knuth1984literate} \index{literate programming} language.
+Likely is a \cref{http://www.literateprogramming.com/}{\pindex{literate programming}}{knuth1984literate} language.
 In addition to serving as the reference manual for the programming language and standard library, \fref{\githuburl library/standard.tex}{\emph{this document is also the source code for the Likely standard library}}.
 
-Likely recognizes both \fref{https://help.github.com/articles/github-flavored-markdown}{GitHub Flavored Markdown} (\GFM) and \cref{http://www.latex-project.org/}{\LaTeX}{lamport1986document} \index{\LaTeX} syntax, and will automatically extract source code from appropriately marked blocks.
+Likely recognizes both \fref{https://help.github.com/articles/github-flavored-markdown}{GitHub Flavored Markdown} (\GFM) and \cref{http://www.latex-project.org/}{\LaTeX \index{LaTeX}}{lamport1986document} syntax, and will automatically extract source code from appropriately marked blocks.
 
 \part{Language Reference}
 \chapter{Parsing}
-This chapter covers how source code files are translated into the compiler's \emph{abstract syntax tree} (\AST) program representation.
+This chapter covers how a source code file is translated into the compiler's \emph{abstract syntax tree} (\AST) program representation.
+This is also referred to as the compiler's \fref{\awsurl doxygen/group\_\_frontend.html}{\dindex{frontend}}.
 
 \section{Source Code File Formats}
-To facilitate \pindex{literate programming}, Likely recognizes several source code file formats based on their file extension:
+To facilitate \pindex{literate programming}, Likely recognizes several source code file formats based on their extension:
 
 \begin{figure}[h]
 \centering
 \begin{description}
 \item[.lisp] - The entire file is Likely source code.
 \item[.md]   - \GFM\ file, source code is extracted from \texttt{likely} syntax-highlighted code blocks.
-\item[.tex]  - \LaTeX \index{\LaTeX} file, source code is extracted from \texttt{likely} environment.
+\item[.tex]  - \pindex{LaTeX} file, source code is extracted from the \texttt{likely} environment.
 \end{description}
-\caption{Source code file extensions formats.}
+\caption{Source code file extensions and formats.}
 \end{figure}
 
 For example, this \GFM\ \fref{\githuburl library/literate\_programming.md}{source file} can be rendered \fref{http://liblikely.org/?href=literate\_programming}{in a web browser} and also executed by Likely:
@@ -132,17 +135,17 @@ $ likely library/literate_programming.md
 42
 \end{lstlisting}
 
-Similarly, this \LaTeX\ \index{\LaTeX}\fref{\githuburl library/literate\_programming.tex}{source file} can be rendered \fref{https://s3.amazonaws.com/liblikely/latex/literate\_programming.pdf}{to \noun{PDF}} and also executed by Likely:
+Similarly, this \pindex{LaTeX} \fref{\githuburl library/literate\_programming.tex}{source file} can be rendered \fref{\awsurl latex/literate\_programming.pdf}{to \noun{PDF}} and also executed by Likely:
 
-\begin{lstlisting}[language=bash, caption={Literate programming using \LaTeX \index{\LaTeX}.}, captionpos=b]
+\begin{lstlisting}[language=bash, caption={Literate programming using \pindex{LaTeX}.}, captionpos=b]
 $ likely library/literate_programming.tex
 42
 \end{lstlisting}
 
-\pindex{\texttt{likely\char`_guess\char`_file\char`_type}} is the Likely API function call for inferring file format from extension.
+\tindex{likely\char`_guess\char`_file\char`_type} is the function call for inferring file format from extension.
 
 \section{Lexical Analysis}
-Source code is first converted into a sequence of words or \emph{tokens} \index{token} by applying the following rules:
+Source code is first converted into a sequence of words or \dindex{tokens} by applying the following rules:
 
 \begin{figure}[h]
 \centering
@@ -155,10 +158,10 @@ Source code is first converted into a sequence of words or \emph{tokens} \index{
 \caption{Lexical analysis rules.}
 \end{figure}
 
-The Likely API function call for lexical analysis is \pindex{\texttt{likely\char`_lex}}.
+\tindex{likely\char`_lex} is the function call for lexical analysis.
 
 \section{Prefix Notation}
-Likely is a member of the Lisp family of languages, accepting fully-parenthesized Polish \emph{prefix notation}:
+Likely is a member of the Lisp family of languages, accepting fully-parenthesized Polish \pindex{prefix notation}:
 
 \begin{figure}[h]
 \centering
@@ -173,13 +176,14 @@ $ likely -c "(+ 1 2)"
 3
 \end{lstlisting}
 
-An important property of prefix notation is that it is equivalent to the \AST, where branches are \emph{lists} and leaves are \emph{atoms}.
+An important property of prefix notation is that it is equivalent to the \AST, where a branch is a \dindex{list} and leaf is an \dindex{atom}.
 A reading of \cref{https://mitpress.mit.edu/sicp/full-text/book/book.html}{Structure and Interpretation of Computer Programs}{Abelson:1996:SIC:547755} is strongly encouraged for developers interested in a deeper understanding of the motivations behind this syntax.
 
+\tindex{likely\char`_parse} is the function call for constructing an \AST\ from \pindex{tokens}.
+
 \section{Special Tokens}
-Likely recognizes three special tokens that influence how source code is parsed into an \AST.
-These tokens allow developers to selectively depart from prefix notation to improve code readability.
-These special characters and parenthesis are the \emph{only} tokens that need not be separated by a space.
+Likely recognizes three special tokens that influence how \pindex{tokens} are parsed into an \AST.
+These \pindex{tokens} allow developers to selectively depart from \pindex{prefix notation} to improve code readability.
 
 \begin{table}[h]
 \centering
