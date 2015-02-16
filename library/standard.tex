@@ -40,7 +40,7 @@
 \newcommand{\cref}[3]{\href{#1}{#2}\cite{#3}}
 \newcommand{\fref}[2]{\href{#1}{#2}\footnote{\href{#1}{#1}}}
 \newcommand{\doxygenurl}{https://s3.amazonaws.com/liblikely/doxygen/}
-\newcommand{\githuburl}{https://github.com/biometrics/likely/}
+\newcommand{\githuburl}{https://raw.githubusercontent.com/biometrics/likely/gh-pages/}
 \newcommand{\pindex}[1]{#1\index{#1}}
 
 % Acronyms
@@ -104,7 +104,7 @@ In fact, Likely's accompanying IDE called \emph{dream}, is \fref{https://www.you
 
 \section{Literate Programming}
 Likely is a \cref{http://www.literateprogramming.com/}{\emph{literate programming}}{knuth1984literate} \index{literate programming} language.
-In addition to serving as the reference manual for the programming language and standard library, \fref{\githuburl blob/gh-pages/library/standard.tex}{\emph{this document is also the source code for the Likely standard library}}.
+In addition to serving as the reference manual for the programming language and standard library, \fref{\githuburl library/standard.tex}{\emph{this document is also the source code for the Likely standard library}}.
 
 Likely recognizes both \fref{https://help.github.com/articles/github-flavored-markdown}{GitHub Flavored Markdown} (\GFM) and \cref{http://www.latex-project.org/}{\LaTeX}{lamport1986document} \index{\LaTeX} syntax, and will automatically extract source code from appropriately marked blocks.
 
@@ -125,7 +125,21 @@ To facilitate \pindex{literate programming}, Likely recognizes several source co
 \caption{Source code file extensions formats.}
 \end{figure}
 
-The Likely API function call for inferring file format from extension is \pindex{\texttt{likely\char`_guess\char`_file\char`_type}}.
+For example, this \GFM\ \fref{\githuburl library/literate\_programming.md}{source file} can be rendered \fref{http://liblikely.org/?href=literate\_programming}{in a web browser} and also executed by Likely:
+
+\begin{lstlisting}[language=bash, caption={Literate programming using \GFM.}, captionpos=b]
+$ likely library/literate_programming.md
+42
+\end{lstlisting}
+
+Similarly, this \LaTeX\ \index{\LaTeX}\fref{\githuburl library/literate\_programming.tex}{source file} can be rendered \fref{https://s3.amazonaws.com/liblikely/latex/literate\_programming.pdf}{to \noun{PDF}} and also executed by Likely:
+
+\begin{lstlisting}[language=bash, caption={Literate programming using \LaTeX \index{\LaTeX}.}, captionpos=b]
+$ likely library/literate_programming.tex
+42
+\end{lstlisting}
+
+\pindex{\texttt{likely\char`_guess\char`_file\char`_type}} is the Likely API function call for inferring file format from extension.
 
 \section{Lexical Analysis}
 Source code is first converted into a sequence of words or \emph{tokens} \index{token} by applying the following rules:
