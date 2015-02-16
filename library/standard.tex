@@ -93,7 +93,7 @@ This is in contrast to conventional computer vision libraries which, lacking com
 This branching is often unnecessary for any particular algorithm where all runtime samples are expected to follow the same code path.
 
 \section{Portability}
-Likely is written in a portable subset of \noun{C++}, which means it can \fref{http://llvm.org/docs/GettingStarted.html\#hardware}{run everywhere \LLVM\ does}.
+Likely is written in a portable subset of modern C++\cite{stroustrup1986c++}, which means it can \fref{http://llvm.org/docs/GettingStarted.html\#hardware}{run everywhere \LLVM\ does}.
 Algorithms execute natively on single CPU threads via the \LLVM\ \noun{Machine Code \JIT} compiler, multi-core CPUs via a custom \noun{OpenMP}-like backend, and GPUs and coprocessors via \noun{CUDA} or \noun{OpenCL} (in progress).
 
 Likely algorithms can be \fref{http://liblikely.org/share/likely/hello\_world/hello\_world\_static.c}{statically compiled to native object files}, \fref{http://liblikely.org/share/likely/hello\_world/hello\_world\_jit.c}{just-in-time compiled for dynamic applications and scripts}, integrated into other languages (in progress), published as web services (in progress), and even transcompiled into single \noun{C} or \noun{JavaScript} source files (in progress).
@@ -177,12 +177,13 @@ $ likely -c "(+ 1 2)"
 \end{lstlisting}
 
 An important property of prefix notation is that it is equivalent to the \AST, where a branch is a \dindex{list} and leaf is an \dindex{atom}.
+Every branch or leaf is also called an \dindex{expression}.
 A reading of \cref{https://mitpress.mit.edu/sicp/full-text/book/book.html}{Structure and Interpretation of Computer Programs}{Abelson:1996:SIC:547755} is strongly encouraged for developers interested in a deeper understanding of the motivations behind this syntax.
 
 \tindex{likely\char`_parse} is the function call for constructing an \AST\ from \pindex{tokens}.
 
 \section{Special Tokens}
-Likely recognizes three special tokens that influence how \pindex{tokens} are parsed into an \AST.
+Likely recognizes three special \pindex{tokens} that influence how \pindex{expressions} are parsed into an \AST.
 These \pindex{tokens} allow developers to selectively depart from \pindex{prefix notation} to improve code readability.
 
 \begin{table}[h]
@@ -205,7 +206,7 @@ $ likely -ast -c "1 :+ 2"
 \end{lstlisting}
 
 \subsection{; (Comment)}
-The semicolon and all subsequent tokens through the end of the line are excluded from the \AST.
+The semicolon and all subsequent \pindex{tokens} through the end of the line are excluded from the \AST.
 
 \begin{verbatim}
 (this is some code) ; this is a comment
@@ -214,8 +215,8 @@ The semicolon and all subsequent tokens through the end of the line are excluded
 \end{verbatim}
 
 \subsection{. (Compose)}
-The expression to the left-hand-side (LHS) of the period is the first operand of the expression to the right-hand-side (RHS) of the period.
-Compose is \emph{left-associative}.
+The \pindex{expression} to the left-hand-side (LHS) of the period is the first operand of the expression to the right-hand-side (RHS) of the period.
+Compose \index{compose} is \emph{left-associative}.
 
 \begin{verbatim}
 x.f     ; Parsed as (f x)
@@ -229,13 +230,13 @@ x.(f y) ; Parsed as (f x y)
 \end{verbatim}
 
 We might call the third example \cref{http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394}{uniform function call syntax}{Bright:2012:UFC}.
-Note how this transformation does not apply to numbers!
+In the sixth example, note how this transformation does not apply to numbers!
 
 \subsection{: (Infix)}
-The expression to the RHS of the colon is the operator.
-The expression to the LHS of the colon is the first operand.
-The second expression to the RHS of the colon is the second operand.
-Infix is \emph{right-associative} and has \emph{lower} precedence than compose.
+The \pindex{expression} to the RHS of the colon is the operator.
+The \pindex{expression} to the LHS of the colon is the first operand.
+The second \pindex{expression} to the RHS of the colon is the second operand.
+Infix \index{infix} is \emph{right-associative} and has \emph{lower} precedence than \pindex{compose}.
 
 \begin{verbatim}
 x:f y       ; Parsed as (f x y)
