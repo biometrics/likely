@@ -2605,7 +2605,14 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
             const double value = strtod(ast->atom, &p);
             if (*p == 0) {
                 const_cast<likely_ast>(ast)->type = likely_ast_number;
-                return new likely_expression(builder.constant(value, likely_type_from_value(value)));
+
+                likely_type type;
+                if      (int32_t(value) == value) type = likely_i32;
+                else if (int64_t(value) == value) type = likely_i64;
+                else if (float(value)   == value) type = likely_f32;
+                else                              type = likely_f64;
+
+                return new likely_expression(builder.constant(value, type));
             }
         }
 

@@ -342,17 +342,6 @@ LIKELY_EXPORT likely_mat likely_type_to_string(likely_type type);
 LIKELY_EXPORT likely_type likely_type_from_string(const char *str, bool *ok);
 
 /*!
- * \brief Determine the appropritate \ref likely_type for a scalar value.
- * \par Implementation
- * \snippet src/frontend.cpp likely_type_from_value implementation.
- * \param[in] value The value from which to determine the appropriate type.
- * \return The appropriate \ref likely_type for \p value.
- * \remark This function is \ref thread-safe.
- * \see \ref likely_type_from_types
- */
-LIKELY_EXPORT likely_type likely_type_from_value(double value);
-
-/*!
  * \brief Determine the appropriate \ref likely_type for a binary operation.
  * \par Implementation
  * \snippet src/frontend.cpp likely_type_from_types implementation.

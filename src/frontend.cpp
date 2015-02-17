@@ -748,16 +748,6 @@ error:
 }
 //! [likely_type_from_string implementation.]
 
-//! [likely_type_from_value implementation.]
-likely_type likely_type_from_value(double value)
-{
-    if      (int32_t(value) == value) return likely_i32;
-    else if (int64_t(value) == value) return likely_i64;
-    else if (float(value)   == value) return likely_f32;
-    else                              return likely_f64;
-}
-//! [likely_type_from_value implementation.]
-
 //! [likely_type_from_types implementation.]
 likely_type likely_type_from_types(likely_type a, likely_type b)
 {
