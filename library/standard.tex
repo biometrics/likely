@@ -330,6 +330,11 @@ The presence or absense of \texttt{C}, \texttt{X}, \texttt{Y} and \texttt{T} ind
 In addition to accepting the general pattern mentioned above, this function also recognizes a number of special cases corresponding to values in \tindex{likely\char`_type\char`_mask}.
 The special cases include all common C types.
 
+\subsection{First-class citizenship}
+An important aspect of a \pindex{type} is that, contrary to most programming languages, it is a \dindex{first-class citizen} of Likely.
+In addition to having an integer value, represented in the API by \tindex{likely\char`_type}, it can also be used as a unary-operand to perform a cast.
+Most importantly though, it can be \emph{passed as an argument to a function}.
+
 \chapter{Intrinsic Operators}
 An intrinsic operator is the basic construct for higher order expressions on numbers, strings and types.
 Likely has the following builtin operators.
