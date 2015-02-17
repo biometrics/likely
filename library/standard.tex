@@ -150,13 +150,15 @@ Source code is first converted into a sequence of words or \dindex{tokens} by ap
 \begin{figure}[h]
 \centering
 \begin{enumerate}
-\item Tokens are separated by whitespace.
-\item The following special single-character tokens need not be separated by whitespace:\newline
+\item Tokens are separated by \pindex{whitespace}.
+\item The following special single-character tokens need not be separated by \pindex{whitespace}:\newline
       \texttt{();.:}
 \item The characters between double-quotation marks are a single token, including the quotation marks themselves.
 \end{enumerate}
 \caption{Lexical analysis rules.}
 \end{figure}
+
+Where \dindex{whitespace} is defined by the C function \fref{http://www.cplusplus.com/reference/cctype/isspace/}{\texttt{isspace}}.
 
 \tindex{likely\char`_lex} is the function call for lexical analysis.
 
@@ -249,7 +251,7 @@ x.f:h y.g   ; Parsed as (h (f x) (g y))
 \end{verbatim}
 
 \chapter{Literals}
-At the lowest level of interpretation, every atom is either a \emph{number}, \emph{string}, or \emph{type}.
+At the lowest level of interpretation, every atom operand is either a \emph{number}, \emph{string}, or \emph{type}.
 
 \section{Number}
 A number is a series of digits with an optional leading negative sign (-) and optional containing decimal point (.).

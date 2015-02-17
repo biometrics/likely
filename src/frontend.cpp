@@ -211,8 +211,7 @@ static void tokenize(const char *str, const size_t len, vector<likely_ast> &toke
     uint32_t i = 0;
     while (true) {
         // Skip whitespace and control characters
-        const char ignored = ' ';
-        while ((i < len) && (str[i] <= ignored)) {
+        while ((i < len) && isspace(str[i])) {
             incrementCounters(str[i], line, column);
             i++;
         }
@@ -223,11 +222,11 @@ static void tokenize(const char *str, const size_t len, vector<likely_ast> &toke
         const uint32_t begin_line = line;
         const uint32_t begin_column = column;
         bool inString = false;
-        while ((i < len) && (inString || ((str[i] > ignored) && (str[i] != '(')
-                                                             && (str[i] != ')')
-                                                             && (str[i] != '.')
-                                                             && (str[i] != ':')
-                                                             && (str[i] != ';')))) {
+        while ((i < len) && (inString || (!isspace(str[i]) && (str[i] != '(')
+                                                           && (str[i] != ')')
+                                                           && (str[i] != '.')
+                                                           && (str[i] != ':')
+                                                           && (str[i] != ';')))) {
             incrementCounters(str[i], line, column);
             if      (str[i] == '"')  inString = !inString;
             else if (str[i] == '\\') { i++; column++; }
