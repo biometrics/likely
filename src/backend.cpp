@@ -2600,19 +2600,21 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
             return new likely_expression(LikelyValue(builder.CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_i8 | likely_pointer));
         }
 
-        { // Is it a number?
+        { // Is it an integer?
+            char *p;
+            const int64_t value = strtoll(ast->atom, &p, 10);
+            if (*p == 0) {
+                const_cast<likely_ast>(ast)->type = likely_ast_number;
+                return new likely_expression(builder.constant(uint64_t(value), int32_t(value) == value ? likely_i32 : likely_i64));
+            }
+        }
+
+        { // Is it a real?
             char *p;
             const double value = strtod(ast->atom, &p);
             if (*p == 0) {
                 const_cast<likely_ast>(ast)->type = likely_ast_number;
-
-                likely_type type;
-                if      (int32_t(value) == value) type = likely_i32;
-                else if (int64_t(value) == value) type = likely_i64;
-                else if (float(value)   == value) type = likely_f32;
-                else                              type = likely_f64;
-
-                return new likely_expression(builder.constant(value, type));
+                return new likely_expression(builder.constant(value, float(value) == value ? likely_f32 : likely_f64));
             }
         }
 
