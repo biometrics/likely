@@ -251,20 +251,29 @@ x.f:h y.g   ; Parsed as (h (f x) (g y))
 \end{verbatim}
 
 \chapter{Literals}
-At the lowest level of interpretation, every atom operand is either a \emph{number}, \emph{string}, or \emph{type}.
+The Likely compiler recognizes the following kinds of fixed, or \dindex{literal}, \pindex{atom}s.
 
-\section{Number}
-A number is a series of digits with an optional leading negative sign (-) and optional containing decimal point (.).
+\section{Integer}
+An \dindex{integer} is an \pindex{atom} that can be parsed \emph{to completion in base-10} by the C function \fref{http://www.cplusplus.com/reference/cstdlib/strtoll/}{\texttt{strtoll}}.
+If the value can be represented without loss as an \texttt{int32\_t} then it is done so, otherwise it is represented as an \texttt{int64\_t}.
 
 \begin{verbatim}
-42    ; A number
--0.42 ; A number
-.42   ; Not a number
-0.42- ; Not a number
+-42 ; An integer
+42a ; Not an integer
+\end{verbatim}
+
+\section{Real}
+A \dindex{real} is an \pindex{atom} that can be parsed \emph{to completion} by the C function \fref{http://www.cplusplus.com/reference/cstdlib/strtod/}{\texttt{strtod}}.
+If the value can be represented without loss as a \texttt{float} then it is done so, otherwise it is represented as a \texttt{double}.
+
+\begin{verbatim}
+0.42  ; A real
+0.42- ; Not a real
 \end{verbatim}
 
 \section{String}
-A string is a series of characters enclosed in quotation marks (").
+A \dindex{string} is an \pindex{atom} enclosed in double-quotation marks.
+Values are represented as \texttt{const char*}.
 
 \begin{verbatim}
 "hello world" ; A string

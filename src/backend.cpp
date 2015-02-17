@@ -2595,11 +2595,6 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
             return e->expr->evaluate(builder, ast);
         }
 
-        if ((ast->atom[0] == '"') && (ast->atom[ast->atom_len-1] == '"')) {
-            const_cast<likely_ast>(ast)->type = likely_ast_string;
-            return new likely_expression(LikelyValue(builder.CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_i8 | likely_pointer));
-        }
-
         { // Is it an integer?
             char *p;
             const int64_t value = strtoll(ast->atom, &p, 10);
@@ -2616,6 +2611,12 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
                 const_cast<likely_ast>(ast)->type = likely_ast_number;
                 return new likely_expression(builder.constant(value, float(value) == value ? likely_f32 : likely_f64));
             }
+        }
+
+        // Is it a string?
+        if ((ast->atom[0] == '"') && (ast->atom[ast->atom_len-1] == '"')) {
+            const_cast<likely_ast>(ast)->type = likely_ast_string;
+            return new likely_expression(LikelyValue(builder.CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_i8 | likely_pointer));
         }
 
         { // Is it a type?
