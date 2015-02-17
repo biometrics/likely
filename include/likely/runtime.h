@@ -89,12 +89,12 @@ enum likely_type_mask
     likely_int         = sizeof(int)         * CHAR_BIT, /*!< \brief C-compatible \c int type. */
     likely_long        = sizeof(long)        * CHAR_BIT, /*!< \brief C-compatible \c long type. */
     likely_long_long   = sizeof(long long)   * CHAR_BIT, /*!< \brief C-compatible \c long \c long type. */
-    likely_float       = sizeof(float)       * CHAR_BIT, /*!< \brief C-compatible \c float type. */
-    likely_double      = sizeof(double)      * CHAR_BIT, /*!< \brief C-compatible \c double type. */
-    likely_long_double = sizeof(long double) * CHAR_BIT, /*!< \brief C-compatible \c long \c double type. */
     likely_bool        = sizeof(bool)        * CHAR_BIT, /*!< \brief C-compatible \c bool type. */
     likely_size_t      = sizeof(size_t)      * CHAR_BIT, /*!< \brief C-compatible \c size_t type. */
     likely_ptrdiff_t   = sizeof(ptrdiff_t)   * CHAR_BIT, /*!< \brief C-compatible \c ptrdiff_t type. */
+    likely_float       = sizeof(float)       * CHAR_BIT + likely_floating, /*!< \brief C-compatible \c float type. */
+    likely_double      = sizeof(double)      * CHAR_BIT + likely_floating, /*!< \brief C-compatible \c double type. */
+    likely_long_double = sizeof(long double) * CHAR_BIT + likely_floating, /*!< \brief C-compatible \c long \c double type. */
     likely_ast_t = 0x10000000, /*!< \brief \brief Special case \ref likely_ast type. */
     likely_env_t = 0x20000000, /*!< \brief \brief Special case \ref likely_env type. */
 };

@@ -119,7 +119,6 @@ This is also referred to as the compiler's \fref{\awsurl doxygen/group\_\_fronte
 To facilitate \pindex{literate programming}, Likely recognizes several source code file formats based on their extension:
 
 \begin{figure}[h]
-\centering
 \begin{description}
 \item[.lisp] - The entire file is Likely source code.
 \item[.md]   - \GFM\ file, source code is extracted from \texttt{likely} syntax-highlighted code blocks.
@@ -148,7 +147,6 @@ $ likely library/literate_programming.tex
 Source code is first converted into a sequence of words or \dindex{tokens} by applying the following rules:
 
 \begin{figure}[h]
-\centering
 \begin{enumerate}
 \item Tokens are separated by \pindex{whitespace}.
 \item The following special single-character tokens need not be separated by \pindex{whitespace}:\newline
@@ -281,44 +279,56 @@ Values are represented as \texttt{const char*}.
 \end{verbatim}
 
 \section{Type}
-Types are special keywords indicating how data is represented.
+A \dindex{type} is a keyword indicating how data is represented.
 Let's start with a few examples:
 
 \begin{verbatim}
-i16 ; 16-bit signed integer scalar
-u32 ; 32-bit unsigned integer scalar
-f64 ; 64-bit floating-point real scalar
-f32C ; 32-bit floating-point real multi-channel matrix
+i16  ; 16-bit signed integer scalar
+u32  ; 32-bit unsigned integer scalar
+f64  ; 64-bit floating-point real scalar
+f32C ; 32-bit floating-point real multi-channel vector
 u8XY ; 8-bit unsigned integer multi-column multi-row matrix
 \end{verbatim}
 
-The general, types are recognized by the following regular expression:
+In general, a \pindex{type} conforms to the following regular expression:
 
-\begin{verbatim}
-[uif]\d+P?S?C?X?Y?T?
-\end{verbatim}
+\begin{figure}[h]
+\centering
+\texttt{[uif]\textbackslash d+P?S?C?X?Y?T?}
+\caption{Regular expression for identifying types.}
+\end{figure}
 
-The first character indicates the element type, and is one of:
+The first character indicates the element bit pattern, and is one of:
 
-\begin{itemize}
-\item \emph{u} - Unsigned integer
-\item \emph{i} - Signed integer
-\item \emph{f} - Floating-point real
-\end{itemize}
+\begin{figure}[h]
+\begin{description}
+\item[u] - Unsigned integer
+\item[i] - Signed integer
+\item[f] - Floating-point real
+\end{description}
+\caption{Type leading character.}
+\end{figure}
 
-The next one-or-more decimal characters indicate the element depth, and should generally be a power of two.
-
+The next one-or-more decimal characters indicate the element bit depth, and should generally be a power of two.
 The remaining capitalized characters indicate:
 
-- **P** - Type is a pointer.
-- **S** - Perform saturated arithmetic when using this type.
-- **C** - Multi-channel matrix.
-- **X** - Multi-column matrix.
-- **Y** - Multi-row matrix.
-- **T** - Multi-frame matrix.
+\begin{figure}[h]
+\begin{description}
+\item[P] - Type is a pointer
+\item[S] - Perform saturated arithmetic
+\item[C] - Multi-channel matrix
+\item[X] - Multi-column matrix
+\item[Y] - Multi-row matrix
+\item[T] - Multi-frame matrix
+\end{description}
+\caption{Type trailing characters.}
+\end{figure}
 
-Additionally, the following special cases are recognized as types: \emph{void}, \emph{depth}, \emph{floating}, \emph{array}, \emph{signed}, \emph{saturated}, \emph{element}, \emph{multi-channel}, \emph{multi-column}, \emph{multi-row}, \emph{multi-frame}, \emph{multi-dimension}, \emph{string}, \emph{native}.
-These special cases correspond to values of \emph{likely\emph{type}mask} in the C API.
+The presence or absense of \texttt{C}, \texttt{X}, \texttt{Y} and \texttt{T} indicate whether we call it a \dindex{scalar}, \dindex{vector} or \dindex{matrix} \pindex{type}.
+
+\tindex{likely\char`_type\char`_from\char`_string} is the formal definition of a \pindex{type}.
+In addition to accepting the general pattern mentioned above, this function also recognizes a number of special cases corresponding to values in \tindex{likely\char`_type\char`_mask}.
+The special cases include all common C types.
 
 \chapter{Intrinsic Operators}
 An intrinsic operator is the basic construct for higher order expressions on numbers, strings and types.
