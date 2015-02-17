@@ -2619,14 +2619,17 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
             return new likely_expression(LikelyValue(builder.CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_i8 | likely_pointer));
         }
 
-        { // Is it a type?
+        { // Is it a matrix type?
             bool ok;
             const likely_type matrixType = likely_type_from_string(ast->atom, &ok);
             if (ok) {
                 const_cast<likely_ast>(ast)->type = likely_ast_type;
                 return new MatrixType(builder, matrixType);
             }
+        }
 
+        { // Is it a file type?
+            bool ok;
             const likely_file_type fileType = likely_file_type_from_string(ast->atom, &ok);
             if (ok) {
                 const_cast<likely_ast>(ast)->type = likely_ast_type;
