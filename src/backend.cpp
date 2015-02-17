@@ -2599,7 +2599,7 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
             char *p;
             const int64_t value = strtoll(ast->atom, &p, 10);
             if (*p == 0) {
-                const_cast<likely_ast>(ast)->type = likely_ast_number;
+                const_cast<likely_ast>(ast)->type = likely_ast_integer;
                 return new likely_expression(builder.constant(uint64_t(value), int32_t(value) == value ? likely_i32 : likely_i64));
             }
         }
@@ -2608,7 +2608,7 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
             char *p;
             const double value = strtod(ast->atom, &p);
             if (*p == 0) {
-                const_cast<likely_ast>(ast)->type = likely_ast_number;
+                const_cast<likely_ast>(ast)->type = likely_ast_real;
                 return new likely_expression(builder.constant(value, float(value) == value ? likely_f32 : likely_f64));
             }
         }

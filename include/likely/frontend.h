@@ -46,10 +46,11 @@ enum likely_abstract_syntax_tree_types
     likely_ast_list     = 0, /*!< likely_abstract_syntax_tree::atoms and likely_abstract_syntax_tree::num_atoms are accessible. */
     likely_ast_atom     = 1, /*!< likely_abstract_syntax_tree::atom and likely_abstract_syntax_tree::atom_len are accessible. */
     likely_ast_operator = 2, /*!< A \ref likely_ast_atom identified as a operator during evaluation. */
-    likely_ast_string   = 3, /*!< A \ref likely_ast_atom identified as a string during evaluation. */
-    likely_ast_number   = 4, /*!< A \ref likely_ast_atom identified as a number during evaluation. */
-    likely_ast_type     = 5, /*!< A \ref likely_ast_atom identified as a type during evaluation. */
-    likely_ast_invalid  = 6, /*!< A \ref likely_ast_atom that could not be identified during evaluation. */
+    likely_ast_integer  = 3, /*!< A \ref likely_ast_atom identified as an integer during evaluation. */
+    likely_ast_real     = 4, /*!< A \ref likely_ast_atom identified as a real during evaluation. */
+    likely_ast_string   = 5, /*!< A \ref likely_ast_atom identified as a string during evaluation. */
+    likely_ast_type     = 6, /*!< A \ref likely_ast_atom identified as a type during evaluation. */
+    likely_ast_invalid  = 7, /*!< A \ref likely_ast_atom that could not be identified during evaluation. */
 };
 
 typedef struct likely_abstract_syntax_tree *likely_ast; /*!< \brief Pointer to a \ref likely_abstract_syntax_tree. */

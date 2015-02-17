@@ -128,7 +128,7 @@ private:
             if (ast->begin_line == line) {
                 if (ast->type == likely_ast_string) {
                     setFormat(ast->begin_column, ast->end_column - ast->begin_column, stringFormat);
-                } else if (CommandMode::enabled && (ast->type == likely_ast_number)) {
+                } else if (CommandMode::enabled && ((ast->type == likely_ast_integer) || (ast->type == likely_ast_real))) {
                     setFormat(ast->begin_column, ast->end_column - ast->begin_column, numberFormat);
                 }
             }
