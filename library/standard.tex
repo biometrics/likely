@@ -332,8 +332,13 @@ The special cases include all common C types.
 
 \subsection{First-class citizenship}
 An important aspect of a \pindex{type} is that, contrary to most programming languages, it is a \dindex{first-class citizen} of Likely.
-In addition to having an integer value, represented in the API by \tindex{likely\char`_type}, it can also be used as a unary-operand to perform a cast.
+In addition to having an integer value represented in the API by \tindex{likely\char`_type}, it can also be used as a unary-operand to perform a cast.
 Most importantly though, it can be \emph{passed as an argument to a function}.
+
+\section{File-Type}
+If a \pindex{type} indicates how to interpret the contents of an address in memory, a \dindex{file-type} indicates how to interpret the contents of a file on disk.
+This is a relatively unimportant portion of the language, and is generally transparent to the developer.
+Therefore it is just noted that, analogous to a \pindex{type}, a \pindex{file-type} is defined by the function \tindex{likely\char`_file\char`_type\char`_from\char`_string}, and has an integer value represented in the API by \tindex{likely\char`_file\char`_type}.
 
 \chapter{Intrinsic Operators}
 An intrinsic operator is the basic construct for higher order expressions on numbers, strings and types.
