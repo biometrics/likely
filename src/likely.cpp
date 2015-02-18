@@ -59,8 +59,8 @@ static cl::opt<bool> command("command", cl::desc("Treat <source_file> as a comma
 static cl::alias     commandA("c", cl::desc("Alias for -command"), cl::aliasopt(command));
 static cl::opt<string> render("render", cl::desc("%d-formatted file to render matrix output to"));
 static cl::alias       renderA("r", cl::desc("Alias for -render"), cl::aliasopt(render));
-static cl::opt<string> assert_("assert", cl::desc("Confirm the output equals the specified value"));
-static cl::alias     assertA("A", cl::desc("Alias for -assert"), cl::aliasopt(assert_));
+static cl::opt<string> ensure("ensure", cl::desc("Confirm the output equals the specified value"));
+static cl::alias       ensureA("e", cl::desc("Alias for -ensure"), cl::aliasopt(ensure));
 static cl::opt<bool> ast("ast", cl::desc("Print abstract syntax tree"));
 static cl::alias     astA("a", cl::desc("Alias for -ast"), cl::aliasopt(ast));
 static cl::opt<bool> show("show", cl::desc("Show matrix output in a window"));
@@ -74,7 +74,7 @@ static cl::alias     verboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(
 static cl::opt<bool> ctfeInherit("ctfe-inherit" , cl::desc("Compile time function evaluation should inherit static compiler settings"));
 static cl::alias     ctfeInheritA("i", cl::desc("Alias for -ctfe-inherit"), cl::aliasopt(ctfeInherit));
 static cl::opt<bool> examine("examine" , cl::desc("Alias for -q -v -Oz -disable-loop-unrolling -disable-loop-vectorization"));
-static cl::alias     examineA("e", cl::desc("Alias for -examine"), cl::aliasopt(examine));
+static cl::alias     examineA("ex", cl::desc("Alias for -examine"), cl::aliasopt(examine));
 
 cl::OptionCategory LLVMCat("LLVM Options", "These control the behavior of the internal LLVM compiler.");
 static cl::opt<bool> OptLevelO0("O0", cl::desc("No optimizations. Similar to clang -O1"), cl::cat(LLVMCat));
@@ -91,13 +91,13 @@ static void checkOrPrintAndRelease(likely_const_mat input)
     if (!input)
         return;
     assert(likely_is_string(input));
-    if (assert_.getValue().empty()) {
+    if (ensure.getValue().empty()) {
         printf("%s\n", input->data);
     } else {
         const size_t len = input->channels - 1;
-        likely_ensure((len <= assert_.getValue().size()) && !strncmp(input->data, assert_.getValue().c_str(), len),
-                      "expected: %s\n        but got: %s", assert_.getValue().c_str(), input->data);
-        assert_.setValue(assert_.getValue().substr(len));
+        likely_ensure((len <= ensure.getValue().size()) && !strncmp(input->data, ensure.getValue().c_str(), len),
+                      "expected: %s\n        but got: %s", ensure.getValue().c_str(), input->data);
+        ensure.setValue(ensure.getValue().substr(len));
     }
     likely_release_mat(input);
 }
@@ -122,13 +122,13 @@ static void showCallback(likely_const_env env, void *)
         return;
 
     const likely_const_mat rendered = likely_render(likely_result(env->expr), NULL, NULL);
-    if (assert_.getValue().empty()) {
+    if (ensure.getValue().empty()) {
         likely_release_mat(likely_show(rendered, likely_symbol(env->ast)));
     } else {
-        const likely_const_mat baseline = likely_read(assert_.getValue().c_str(), likely_file_guess, likely_image);
+        const likely_const_mat baseline = likely_read(ensure.getValue().c_str(), likely_file_guess, likely_image);
         likely_ensure_approximate(baseline, rendered, 0.03f /* arbitrary threshold */);
         likely_release_mat(baseline);
-        assert_.setValue(string());
+        ensure.setValue(string());
     }
     likely_release_mat(rendered);
 }
@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
         likely_release_ast(parsed);
     }
 
-    likely_ensure(assert_.getValue().empty(), "unreached assertion: %s", assert_.getValue().data());
+    likely_ensure(ensure.getValue().empty(), "unreached assertion: %s", ensure.getValue().data());
 
     assert(parent->ref_count == 1);
     likely_release_env(parent);

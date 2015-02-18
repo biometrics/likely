@@ -161,14 +161,14 @@ function(test_ast EXPR VALUE)
   string(MAKE_C_IDENTIFIER "${EXPR}" NAME)
   add_test(NAME "${NAME}"
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND likely -ast -command "${EXPR}" -assert "${VALUE}")
+           COMMAND likely -ast -c "${EXPR}" -e "${VALUE}")
 endfunction()
 
 function(test_expr EXPR VALUE)
   string(MAKE_C_IDENTIFIER "${EXPR}" NAME)
   add_test(NAME "${NAME}"
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND likely -command "${EXPR}" -assert "${VALUE}")
+           COMMAND likely -c "${EXPR}" -e "${VALUE}")
 endfunction()
 
 # List in the order they occur in standard.tex
@@ -366,7 +366,7 @@ test_expr("{ j :<- 0 (iter (-> i (<- j (+ j i))) 10) j }" 45)
 function(test_file FILE VALUE)
   add_test(NAME ${FILE}
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND likely library/${FILE} -assert "${VALUE}")
+           COMMAND likely library/${FILE} -e "${VALUE}")
 endfunction()
 
 test_file(demos.md "")
