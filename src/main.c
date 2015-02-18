@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 
     const likely_const_mat result = likely_test_function(args + 1);
     const likely_const_mat rendered = likely_render(result, NULL, NULL);
-    if (args[0]) likely_assert_approximate(args[0], rendered, 0.03f);
+    if (args[0]) likely_ensure_approximate(args[0], rendered, 0.03f);
     else         likely_show(rendered, argv[0]);
     likely_release_mat(rendered);
     likely_release_mat(result);

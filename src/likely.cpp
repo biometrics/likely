@@ -126,7 +126,7 @@ static void showCallback(likely_const_env env, void *)
         likely_release_mat(likely_show(rendered, likely_symbol(env->ast)));
     } else {
         const likely_const_mat baseline = likely_read(assert_.getValue().c_str(), likely_file_guess, likely_image);
-        likely_assert_approximate(baseline, rendered, 0.03f /* arbitrary threshold */);
+        likely_ensure_approximate(baseline, rendered, 0.03f /* arbitrary threshold */);
         likely_release_mat(baseline);
         assert_.setValue(string());
     }

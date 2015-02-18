@@ -410,7 +410,7 @@ likely_mat likely_show(likely_const_mat image, const char *title)
     return likely_retain_mat(image);
 }
 
-void likely_assert_approximate(likely_const_mat a, likely_const_mat b, float error_threshold)
+void likely_ensure_approximate(likely_const_mat a, likely_const_mat b, float error_threshold)
 {
     likely_ensure(a->channels == b->channels, "channels: %d and: %d differ!", a->channels, b->channels);
     likely_ensure(a->columns  == b->columns , "columns: %d and: %d differ!" , a->columns , b->columns);

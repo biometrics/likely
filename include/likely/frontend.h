@@ -220,7 +220,7 @@ LIKELY_EXPORT void likely_set_error_callback(likely_error_callback callback, voi
  * \param[in] what Description of the error.
  * \return \c false.
  * \remark This function is \ref thread-safe.
- * \see \ref likely_assert
+ * \see \ref likely_ensure
  */
 LIKELY_EXPORT bool likely_throw(likely_const_ast where, const char *what);
 

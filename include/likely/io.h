@@ -204,14 +204,14 @@ LIKELY_EXPORT likely_mat likely_render(likely_const_mat mat, double *min, double
 LIKELY_EXPORT likely_mat likely_show(likely_const_mat image, const char *title);
 
 /*!
- * \brief Assert that two matricies are approximately equal.
+ * \brief Ensure that two matricies are approximately equal.
  *
  * Useful for testing against a lossily-compressed baseline image.
  * \param[in] a First matrix.
  * \param[in] b Second matrix.
  * \param[in] error_threshold The allowed cumulative element error relative to the cumulative element sum.
  */
-LIKELY_EXPORT void likely_assert_approximate(likely_const_mat a, likely_const_mat b, float error_threshold);
+LIKELY_EXPORT void likely_ensure_approximate(likely_const_mat a, likely_const_mat b, float error_threshold);
 
 /** @} */ // end of io
 

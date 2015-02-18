@@ -249,7 +249,7 @@ LIKELY_EXPORT void likely_release_mat(likely_const_mat mat);
  * \brief Get the value of a \ref likely_matrix at a specified location.
  *
  * A \c NULL \p m or out-of-bounds \p c, \p x, \p y or \p t will return \p NAN.
- * \ref likely_assert is called if the matrix does not have a type convertible to \c C.
+ * \c assert is called if the matrix does not have a type convertible to \c C.
  * \par Implementation
  * \snippet src/runtime.c likely_element implementation.
  * \param[in] m The matrix to index into.
@@ -267,7 +267,7 @@ LIKELY_EXPORT double likely_get_element(likely_const_mat m, uint32_t c, uint32_t
  * \brief Set the value of a \ref likely_matrix at a specified location.
  *
  * A \c NULL \p m or out-of-bounds \p c, \p x, \p y or \p t will return without setting \p value.
- * \ref likely_assert is called if the matrix does not have a type convertible to \c C.
+ * \c assert is called if the matrix does not have a type convertible to \c C.
  * \param[in] m The matrix to index into.
  * \param[in] value The value to set the element to.
  * \param[in] c Channel.
