@@ -400,8 +400,8 @@ The \dindex{remainder} after division of $num$ by $denom$.
 \end{verbatim}
 
 \section{Comparison}
-\paragraph{(== \emph{lhs} \emph{rhs})}
-One if \emph{lhs} equals \emph{rhs}, zero otherwise.
+\subsection{(== $a$ $b$)}
+\texttt{1} if $a$ is \dindex{equal} to $b$, \texttt{0} otherwise.
 
 \begin{verbatim}
 (== 2 2)   ; Evaluates to 1
@@ -410,8 +410,8 @@ One if \emph{lhs} equals \emph{rhs}, zero otherwise.
 (== 2 2.1) ; Evaluates to 0
 \end{verbatim}
 
-\paragraph{(!= \emph{lhs} \emph{rhs})}
-One if \emph{lhs} does not equal \emph{rhs}, zero otherwise.
+\subsection{(!= $a$ $b$)}
+\texttt{1} if $a$ is not \pindex{equal} to $b$, \texttt{0} otherwise.
 
 \begin{verbatim}
 (!= 3 3)   ; Evaluates to 0
@@ -420,8 +420,8 @@ One if \emph{lhs} does not equal \emph{rhs}, zero otherwise.
 (!= 3 3.1) ; Evaluates to 1
 \end{verbatim}
 
-\paragraph{(< \emph{lhs} \emph{rhs})}
-One if \emph{lhs} is less than \emph{rhs}, zero otherwise.
+\subsection{(\textless\ $lhs$ $rhs$)}
+\texttt{1} if $lhs$ is \dindex{less} than $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
 (< 4 5)    ; Evaluates to 1
@@ -429,8 +429,8 @@ One if \emph{lhs} is less than \emph{rhs}, zero otherwise.
 (< 4 4.0)  ; Evaluates to 0
 \end{verbatim}
 
-\paragraph{(<= \emph{lhs} \emph{rhs})}
-One if \emph{lhs} is less than or equal to \emph{rhs}, zero otherwise.
+\subsection{(\textless = $lhs$ $rhs$)}
+\texttt{1} if $lhs$ is \pindex{less} than or \pindex{equal} to $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
 (<= 4 5)    ; Evaluates to 1
@@ -438,8 +438,8 @@ One if \emph{lhs} is less than or equal to \emph{rhs}, zero otherwise.
 (<= 4 4.0)  ; Evaluates to 1
 \end{verbatim}
 
-\paragraph{(> \emph{lhs} \emph{rhs})}
-One if \emph{lhs} is greater than \emph{rhs}, zero otherwise.
+\subsection{(\textgreater\ $lhs$ $rhs$)}
+\texttt{1} if $lhs$ is \dindex{greater} than $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
 (> 6 7)    ; Evaluates to 0
@@ -447,8 +447,8 @@ One if \emph{lhs} is greater than \emph{rhs}, zero otherwise.
 (> 6 6.0)  ; Evaluates to 0
 \end{verbatim}
 
-\paragraph{(>= \emph{lhs} \emph{rhs})}
-One if \emph{lhs} is greater than or equal to \emph{rhs}, zero otherwise.
+\subsection{(\textgreater = $lhs$ $rhs$)}
+\texttt{1} if $lhs$ is \pindex{greater} than or \pindex{equal} to $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
 (>= 6 7)    ; Evaluates to 0
