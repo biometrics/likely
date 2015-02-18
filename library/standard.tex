@@ -341,12 +341,12 @@ This is a relatively unimportant portion of the language, and is generally trans
 Therefore it is just noted that, analogous to a \pindex{type}, a \pindex{file-type} is defined by the function \tindex{likely\char`_file\char`_type\char`_from\char`_string}, and has an integer value represented in the API by \tindex{likely\char`_file\char`_type}.
 
 \chapter{Intrinsic Operators}
-An intrinsic operator is the basic construct for higher order expressions on numbers, strings and types.
+An \dindex{intrinsic operator} is the basic construct for higher order expressions on \pindex{literal}s.
 Likely has the following builtin operators.
 
 \section{Arithmetic}
-\paragraph{(+ \emph{lhs} \emph{rhs})}
-The addition of \emph{lhs} by \emph{rhs}.
+\subsection{(+ $a$ $b$)}
+The \dindex{addition} of $a$ and $b$.
 
 \begin{verbatim}
 (+ 2 2)     ; Evaluates to 4
@@ -355,9 +355,8 @@ The addition of \emph{lhs} by \emph{rhs}.
 (+ 1.8 2.2) ; Evaluates to 4
 \end{verbatim}
 
-\paragraph{(- \emph{lhs} [\emph{rhs}])}
-The subtraction of \emph{lhs} by \emph{rhs}.
-If \emph{rhs} is not provided then the negation of \emph{lhs}.
+\subsection{(- $lhs$ $[rhs]$)}
+If $rhs$ is provided then the \dindex{subtraction} of $lhs$ by $rhs$, otherwise the \dindex{negation} of $lhs$.
 
 \begin{verbatim}
 (- 3 2)     ; Evaluates to 1
@@ -369,8 +368,8 @@ If \emph{rhs} is not provided then the negation of \emph{lhs}.
 (- -1.1)    ; Evaluates to 1.1
 \end{verbatim}
 
-\paragraph{(* \emph{lhs} \emph{rhs})}
-The multiplication of \emph{lhs} by \emph{rhs}.
+\subsection{(* $a$ $b$)}
+The \dindex{multiplication} of $a$ and $b$.
 
 \begin{verbatim}
 (* 1 2)     ; Evaluates to 2
@@ -379,8 +378,8 @@ The multiplication of \emph{lhs} by \emph{rhs}.
 (* 1.5 2.0) ; Evaluates to 3
 \end{verbatim}
 
-\paragraph{(/ \emph{lhs} \emph{rhs})}
-The division of \emph{lhs} by \emph{rhs}.
+\subsection{(/ $num$ $denom$)}
+The \dindex{division} of $num$ by $denom$.
 
 \begin{verbatim}
 (/ 4 2)     ; Evaluates to 2
@@ -389,8 +388,8 @@ The division of \emph{lhs} by \emph{rhs}.
 (/ 4.2 2.1) ; Evaluates to 2
 \end{verbatim}
 
-\paragraph{(\% \emph{lhs} \emph{rhs})}
-The remainder after division of \emph{lhs} by \emph{rhs}.
+\subsection{(\% $num$ $denom$)}
+The \dindex{remainder} after division of $num$ by $denom$.
 
 \begin{verbatim}
 (% 7 3)      ; Evaluates to 1
