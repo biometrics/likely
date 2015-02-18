@@ -179,7 +179,7 @@ public:
                 if      (bits == 16) llvm = Type::getHalfTy(context);
                 else if (bits == 32) llvm = Type::getFloatTy(context);
                 else if (bits == 64) llvm = Type::getDoubleTy(context);
-                else                 { llvm = NULL; likely_assert(false, "invalid floating bits: %d", bits); }
+                else                 { llvm = NULL; likely_ensure(false, "invalid floating bits: %d", bits); }
             } else {
                 llvm = Type::getIntNTy(context, bits);
             }
@@ -203,7 +203,7 @@ public:
         if (TheTarget == NULL) {
             string error;
             TheTarget = TargetRegistry::lookupTarget(sys::getProcessTriple(), error);
-            likely_assert(TheTarget != NULL, "target lookup failed with error: %s", error.c_str());
+            likely_ensure(TheTarget != NULL, "target lookup failed with error: %s", error.c_str());
             TO.LessPreciseFPMADOption = true;
             TO.UnsafeFPMath = true;
             TO.NoInfsFPMath = true;
@@ -224,7 +224,7 @@ public:
                                                            Reloc::Default,
                                                            JIT ? CodeModel::JITDefault : CodeModel::Default,
                                                            CodeGenOpt::Aggressive);
-        likely_assert(TM != NULL, "failed to create target machine");
+        likely_ensure(TM != NULL, "failed to create target machine");
         return TM;
     }
 };
@@ -284,7 +284,7 @@ struct LikelyValue
     {
         if (value && type) {
             // Check type correctness
-            likely_assert(!(type & likely_floating) || !(type & likely_signed), "type can't be both floating and signed (integer)");
+            likely_ensure(!(type & likely_floating) || !(type & likely_signed), "type can't be both floating and signed (integer)");
             likely_type inferred = toLikely(value->getType());
             if (!(inferred & likely_multi_dimension)) {
                 // Can't represent these flags in LLVM IR for scalar types
@@ -297,7 +297,7 @@ struct LikelyValue
                 const likely_mat llvm = likely_type_to_string(inferred);
                 const likely_mat likely = likely_type_to_string(type);
                 value->dump();
-                likely_assert(false, "type mismatch between LLVM: %s and Likely: %s", llvm->data, likely->data);
+                likely_ensure(false, "type mismatch between LLVM: %s and Likely: %s", llvm->data, likely->data);
                 likely_release_mat(llvm);
                 likely_release_mat(likely);
             }
@@ -507,7 +507,7 @@ struct likely_expression : public LikelyValue
     static void undefine(likely_const_env &env, const char *name)
     {
         assert(likely_is_definition(env->ast));
-        likely_assert(!strcmp(name, likely_symbol(env->ast)), "undefine variable mismatch");
+        likely_ensure(!strcmp(name, likely_symbol(env->ast)), "undefine variable mismatch");
         const likely_const_env old = env;
         env = env->parent;
         likely_release_env(old);
@@ -638,7 +638,7 @@ public:
 
         error_code errorCode;
         tool_output_file output(fileName.c_str(), errorCode, sys::fs::F_None);
-        likely_assert(!errorCode, "%s", errorCode.message().c_str());
+        likely_ensure(!errorCode, "%s", errorCode.message().c_str());
 
         const string extension = fileName.substr(fileName.find_last_of(".") + 1);
         if (extension == "ll") {
@@ -679,7 +679,7 @@ struct Builder : public IRBuilder<>
             if (value == 0) value = -0; // IEEE/LLVM optimization quirk
             if      (depth == 64) return LikelyValue(ConstantFP::get(Type::getDoubleTy(getContext()), value), type);
             else if (depth == 32) return LikelyValue(ConstantFP::get(Type::getFloatTy(getContext()), value), type);
-            else                  { likely_assert(false, "invalid floating point constant depth: %d", depth); return LikelyValue(); }
+            else                  { likely_ensure(false, "invalid floating point constant depth: %d", depth); return LikelyValue(); }
         } else {
             return constant(uint64_t(value), type);
         }
@@ -987,7 +987,7 @@ private:
                     else if (parameter & likely_pointer)
                         args.push_back(builder.CreatePointerCast(builder.data(*arg), builder.module->context->toLLVM(parameter)));
                     else
-                        likely_assert(false, "can't cast matrix to scalar");
+                        likely_ensure(false, "can't cast matrix to scalar");
                 } else {
                     args.push_back(builder.cast(*arg.get(), parameter));
                 }
@@ -2543,7 +2543,7 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
                  .setEngineKind(evaluate ? EngineKind::Interpreter : EngineKind::JIT);
 
     EE = engineBuilder.create(targetMachine);
-    likely_assert(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
+    likely_ensure(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
 
     if (!evaluate) {
         // optimize
@@ -2806,7 +2806,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
                     likely_const_env tmp = evaluated->parent;
                     while (tmp && (tmp != parent))
                         tmp = tmp->parent;
-                    likely_assert(tmp != NULL, "evaluation expected a descendant environment.");
+                    likely_ensure(tmp != NULL, "evaluation expected a descendant environment.");
 
                     env = likely_retain_env(evaluated);
                     env->module = parent->module;

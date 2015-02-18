@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
 
     puts("Reading input image...");
     const likely_const_mat input = likely_read(argv[1], likely_file_guess, likely_image);
-    likely_assert(input, "failed to read: %s", argv[1]);
+    likely_ensure(input, "failed to read: %s", argv[1]);
     printf("Width: %u\nHeight: %u\n", input->columns, input->rows);
 
     puts("Creating a JIT compiler environment...");
@@ -49,14 +49,14 @@ int main(int argc, char *argv[])
     puts("Compiling source code...");
     const likely_const_env env = likely_lex_parse_and_eval(argv[2], likely_file_lisp, parent);
     likely_mat (*function)(likely_const_mat) = likely_function(env->expr);
-    likely_assert(function, "failed to compile: %s", argv[2]);
+    likely_ensure(function, "failed to compile: %s", argv[2]);
 
     puts("Calling compiled function...");
     const likely_const_mat output = function(input);
 
     puts("Writing output image...");
     const likely_const_mat write_success = likely_write(output, argv[3]);
-    likely_assert(write_success, "failed to write: %s", argv[3]);
+    likely_ensure(write_success, "failed to write: %s", argv[3]);
     likely_release_mat(write_success);
 
     puts("Cleaning up...");

@@ -178,22 +178,18 @@ likely_mat likely_err_to_string(likely_err err)
     return likely_string(stream.str().c_str());
 }
 
-void likely_assert(bool condition, const char *format, ...)
+void likely_ensure(bool condition, const char *format, ...)
 {
-    va_list ap;
     if (condition)
         return;
 
+    va_list ap;
     va_start(ap, format);
-    fprintf(stderr, "Likely ");
+    fprintf(stderr, "Likely Error - ");
     vfprintf(stderr, format, ap);
     fprintf(stderr, "\n");
 
-#ifdef _WIN32
-    exit(EXIT_FAILURE); // We prefer not to trigger the Windows crash dialog box
-#else // !_WIN32
-    abort();
-#endif // _WIN32
+    exit(EXIT_FAILURE);
 }
 
 static void incrementCounters(char c, uint32_t &line, uint32_t &column)

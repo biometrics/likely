@@ -195,7 +195,6 @@ likely_mat likely_read(const char *file_name, likely_file_type file_type, likely
         likely_release_mat(result);
         result = NULL;
     }
-    assert(result);
     return result;
 }
 
@@ -413,10 +412,10 @@ likely_mat likely_show(likely_const_mat image, const char *title)
 
 void likely_assert_approximate(likely_const_mat a, likely_const_mat b, float error_threshold)
 {
-    likely_assert(a->channels == b->channels, "channels: %d and: %d differ!", a->channels, b->channels);
-    likely_assert(a->columns  == b->columns , "columns: %d and: %d differ!" , a->columns , b->columns);
-    likely_assert(a->rows     == b->rows    , "rows: %d and: %d differ!"    , a->rows    , b->rows);
-    likely_assert(a->frames   == b->frames  , "frames: %d and: %d differ!"  , a->frames  , b->frames);
+    likely_ensure(a->channels == b->channels, "channels: %d and: %d differ!", a->channels, b->channels);
+    likely_ensure(a->columns  == b->columns , "columns: %d and: %d differ!" , a->columns , b->columns);
+    likely_ensure(a->rows     == b->rows    , "rows: %d and: %d differ!"    , a->rows    , b->rows);
+    likely_ensure(a->frames   == b->frames  , "frames: %d and: %d differ!"  , a->frames  , b->frames);
     double delta = 0;
     double sum = 0;
     for (uint32_t t=0; t<a->frames; t++)
@@ -429,5 +428,5 @@ void likely_assert_approximate(likely_const_mat a, likely_const_mat b, float err
                     sum += max(A, B);
                 }
     const float relativeError = float(delta / sum);
-    likely_assert(relativeError < error_threshold, "average delta: %g%% greater than threshold: %g%%", relativeError, error_threshold);
+    likely_ensure(relativeError < error_threshold, "average delta: %g%% greater than threshold: %g%%", relativeError, error_threshold);
 }

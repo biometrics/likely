@@ -95,7 +95,7 @@ static void checkOrPrintAndRelease(likely_const_mat input)
         printf("%s\n", input->data);
     } else {
         const size_t len = input->channels - 1;
-        likely_assert((len <= assert_.getValue().size()) && !strncmp(input->data, assert_.getValue().c_str(), len),
+        likely_ensure((len <= assert_.getValue().size()) && !strncmp(input->data, assert_.getValue().c_str(), len),
                       "expected: %s\n        but got: %s", assert_.getValue().c_str(), input->data);
         assert_.setValue(assert_.getValue().substr(len));
     }
@@ -202,7 +202,7 @@ int main(int argc, char *argv[])
         } else {
             type = likely_guess_file_type(input.c_str());
             code = likely_read(input.c_str(), type, likely_text);
-            likely_assert(code != NULL, "failed to read: %s", input.c_str());
+            likely_ensure(code != NULL, "failed to read: %s", input.c_str());
         }
 
         const likely_ast parsed = likely_lex_and_parse(code->data, type);
@@ -214,7 +214,7 @@ int main(int argc, char *argv[])
             const likely_const_env env = likely_eval(parsed, parent, evalCallback, NULL);
             if (!env->expr && env->ast) {
                 const likely_const_mat statement = likely_ast_to_string(env->ast);
-                likely_assert(false, "error evaluating: %s", statement->data);
+                likely_ensure(false, "error evaluating: %s", statement->data);
                 likely_release_mat(statement);
             }
             likely_release_env(env);
@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
         likely_release_ast(parsed);
     }
 
-    likely_assert(assert_.getValue().empty(), "unreached assertion: %s", assert_.getValue().data());
+    likely_ensure(assert_.getValue().empty(), "unreached assertion: %s", assert_.getValue().data());
 
     assert(parent->ref_count == 1);
     likely_release_env(parent);

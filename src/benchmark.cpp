@@ -42,7 +42,7 @@ static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the spe
 
 static void checkRead(const void *data, const char *fileName)
 {
-    likely_assert(data != NULL, "failed to read \"%s\", did you forget to run 'benchmark' from the root of the repository?", fileName);
+    likely_ensure(data != NULL, "failed to read \"%s\", did you forget to run 'benchmark' from the root of the repository?", fileName);
 }
 
 static Mat generateData(int rows, int columns, likely_type type)
