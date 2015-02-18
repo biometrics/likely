@@ -351,8 +351,7 @@ The \dindex{addition} of $a$ and $b$.
 \begin{verbatim}
 (+ 2 2)     ; Evaluates to 4
 (+ 1.8 2)   ; Evaluates to 3.8
-(+ 1.8 2.1) ; Evaluates to 3.9
-(+ 1.8 2.2) ; Evaluates to 4
+(+ 1.8 2.2) ; Evaluates to 4.0
 \end{verbatim}
 
 \subsection{(- $lhs$ $[rhs]$)}
@@ -362,8 +361,7 @@ If $rhs$ is provided then the \dindex{subtraction} of $lhs$ by $rhs$, otherwise 
 (- 3 2)     ; Evaluates to 1
 (- 2 3)     ; Evaluates to -1
 (- 3.2 2)   ; Evaluates to 1.2
-(- 3.2 2.1) ; Evaluates to 1.1
-(- 3.2 2.2) ; Evaluates to 1
+(- 3.2 2.2) ; Evaluates to 1.0
 (- 1)       ; Evaluates to -1
 (- -1.1)    ; Evaluates to 1.1
 \end{verbatim}
@@ -374,8 +372,7 @@ The \dindex{multiplication} of $a$ and $b$.
 \begin{verbatim}
 (* 1 2)     ; Evaluates to 2
 (* 1.3 2)   ; Evaluates to 2.6
-(* 1.4 2.1) ; Evaluates to 2.94
-(* 1.5 2.0) ; Evaluates to 3
+(* 1.5 2.0) ; Evaluates to 3.0
 \end{verbatim}
 
 \subsection{(/ $num$ $denom$)}
@@ -384,8 +381,7 @@ The \dindex{division} of $num$ by $denom$.
 \begin{verbatim}
 (/ 4 2)     ; Evaluates to 2
 (/ 4.5 2)   ; Evaluates to 2.25
-(/ 4.5 2.5) ; Evaluates to 1.8
-(/ 4.2 2.1) ; Evaluates to 2
+(/ 4.2 2.1) ; Evaluates to 2.0
 \end{verbatim}
 
 \subsection{(\% $num$ $denom$)}
@@ -394,12 +390,13 @@ The \dindex{remainder} after division of $num$ by $denom$.
 \begin{verbatim}
 (% 7 3)      ; Evaluates to 1
 (% 6 3)      ; Evaluates to 0
+(% 6 3.0)    ; Evaluates to 0.0
 (% 6.5 3)    ; Evaluates to 0.5
 (% -6.5 3)   ; Evaluates to -0.5
 (% 6.5 -3)   ; Evaluates to 0.5
 (% -6.5 -3)  ; Evaluates to -0.5
 (% 6.5 7.5)  ; Evaluates to 6.5
-(% 6.5 3.25) ; Evaluates to 0
+(% 6.5 3.25) ; Evaluates to 0.0
 \end{verbatim}
 
 \section{Comparison}
@@ -509,19 +506,18 @@ Arithmetic right shift (sign extension) if \emph{lhs} is signed, logical right s
 The square root of \emph{x}.
 
 \begin{verbatim}
-(sqrt 2)   ; Evaluates to 1.41421
-(sqrt 2.1) ; Evaluates to 1.44914
-(sqrt 4)   ; Evaluates to 2
-(sqrt 0)   ; Evaluates to 0
+(sqrt 2.0) ; Evaluates to 1.41421
+(sqrt 4)   ; Evaluates to 2.0
+(sqrt 0)   ; Evaluates to 0.0
 \end{verbatim}
 
 \paragraph{(sin \emph{x})}
 The sine of an angle of \emph{x} radians.
 
 \begin{verbatim}
-(sin 0)         ; Evaluates to 0
-(sin 1.570796)  ; Evaluates to 1
-(sin -1.570796) ; Evaluates to -1
+(sin 0)         ; Evaluates to 0.0
+(sin 1.570796)  ; Evaluates to 1.0
+(sin -1.570796) ; Evaluates to -1.0
 (sin 0.523599)  ; Evaluates to 0.5
 \end{verbatim}
 
@@ -529,8 +525,8 @@ The sine of an angle of \emph{x} radians.
 The cosine of an angle of \emph{x} radians.
 
 \begin{verbatim}
-(cos 0)        ; Evaluates to 1
-(cos 3.141593) ; Evaluates to -1
+(cos 0)        ; Evaluates to 1.0
+(cos 3.141593) ; Evaluates to -1.0
 (cos 1.047198) ; Evaluates to 0.5
 \end{verbatim}
 
@@ -538,20 +534,20 @@ The cosine of an angle of \emph{x} radians.
 The \emph{base} raised to the power \emph{exponent}.
 
 \begin{verbatim}
-(pow 2 3)     ; Evaluates to 8
+(pow 2 3)     ; Evaluates to 8.0
 (pow 2 -3)    ; Evaluates to 0.125
-(pow -2 3)    ; Evaluates to -8
+(pow -2 3)    ; Evaluates to -8.0
 (pow 1.5 0.5) ; Evaluates to 1.22474
 (pow 2 0.5)   ; Evaluates to 1.41421
-(pow 4 0.5)   ; Evaluates to 2
-(pow 4 0)     ; Evaluates to 1
+(pow 4 0.5)   ; Evaluates to 2.0
+(pow 4 0)     ; Evaluates to 1.0
 \end{verbatim}
 
 \paragraph{(exp \emph{x})}
 The base-e exponential function of \emph{x}, which is e raised to the power \emph{x}.
 
 \begin{verbatim}
-(exp 0)   ; Evaluates to 1
+(exp 0)   ; Evaluates to 1.0
 (exp 1)   ; Evaluates to 2.71828
 (exp 1.5) ; Evaluates to 4.48169
 \end{verbatim}
@@ -560,19 +556,19 @@ The base-e exponential function of \emph{x}, which is e raised to the power \emp
 The base-2 exponential function of \emph{x}, which is 2 raised to the power \emph{x}.
 
 \begin{verbatim}
-(exp2 0)   ; Evaluates to 1
-(exp2 1)   ; Evaluates to 2
+(exp2 0)   ; Evaluates to 1.0
+(exp2 1)   ; Evaluates to 2.0
 (exp2 0.5) ; Evaluates to 1.41421
-(exp2 3)   ; Evaluates to 8
+(exp2 3)   ; Evaluates to 8.0
 \end{verbatim}
 
 \paragraph{(log \emph{x})}
 The natural logarithm of \emph{x}.
 
 \begin{verbatim}
-(log 1)        ; Evaluates to 0
-(log 2.718281) ; Evaluates to 1
-(log 7.389056) ; Evaluates to 2
+(log 1)        ; Evaluates to 0.0
+(log 2.718281) ; Evaluates to 1.0
+(log 7.389056) ; Evaluates to 2.0
 (log 0.5)      ; Evaluates to -0.693147
 \end{verbatim}
 
@@ -580,9 +576,9 @@ The natural logarithm of \emph{x}.
 The common (base-10) logarithm of \emph{x}.
 
 \begin{verbatim}
-(log10 1)   ; Evaluates to 0
-(log10 10)  ; Evaluates to 1
-(log10 100) ; Evaluates to 2
+(log10 1)   ; Evaluates to 0.0
+(log10 10)  ; Evaluates to 1.0
+(log10 100) ; Evaluates to 2.0
 (log10 0.5) ; Evaluates to -0.30103
 \end{verbatim}
 
@@ -590,10 +586,10 @@ The common (base-10) logarithm of \emph{x}.
 The binary (base-2) logarithm of \emph{x}.
 
 \begin{verbatim}
-(log2 1)   ; Evaluates to 0
-(log2 2)   ; Evaluates to 1
-(log2 4)   ; Evaluates to 2
-(log2 0.5) ; Evaluates to -1
+(log2 1)   ; Evaluates to 0.0
+(log2 2)   ; Evaluates to 1.0
+(log2 4)   ; Evaluates to 2.0
+(log2 0.5) ; Evaluates to -1.0
 (log2 10)  ; Evaluates to 3.32193
 \end{verbatim}
 
@@ -601,7 +597,7 @@ The binary (base-2) logarithm of \emph{x}.
 A value with the magnitude of \emph{x} and the sign of \emph{y}.
 
 \begin{verbatim}
-(copysign 3 -1.1) ; Evaluates to -3
+(copysign 3 -1.1) ; Evaluates to -3.0
 (copysign -4.3 2) ; Evaluates to 4.3
 \end{verbatim}
 
@@ -609,48 +605,48 @@ A value with the magnitude of \emph{x} and the sign of \emph{y}.
 The largest integral value that is not greater than \emph{x}.
 
 \begin{verbatim}
-(floor 2.3)  ; Evaluates to 2
-(floor 3.8)  ; Evaluates to 3
-(floor 5.5)  ; Evaluates to 5
-(floor -2.3) ; Evaluates to -3
-(floor -3.8) ; Evaluates to -4
-(floor -5.5) ; Evaluates to -6
+(floor 2.3)  ; Evaluates to 2.0
+(floor 3.8)  ; Evaluates to 3.0
+(floor 5.5)  ; Evaluates to 5.0
+(floor -2.3) ; Evaluates to -3.0
+(floor -3.8) ; Evaluates to -4.0
+(floor -5.5) ; Evaluates to -6.0
 \end{verbatim}
 
 \paragraph{(ceil \emph{x})}
 The smallest integral value that is not less than \emph{x}.
 
 \begin{verbatim}
-(ceil 2.3)  ; Evaluates to 3
-(ceil 3.8)  ; Evaluates to 4
-(ceil 5.5)  ; Evaluates to 6
-(ceil -2.3) ; Evaluates to -2
-(ceil -3.8) ; Evaluates to -3
-(ceil -5.5) ; Evaluates to -5
+(ceil 2.3)  ; Evaluates to 3.0
+(ceil 3.8)  ; Evaluates to 4.0
+(ceil 5.5)  ; Evaluates to 6.0
+(ceil -2.3) ; Evaluates to -2.0
+(ceil -3.8) ; Evaluates to -3.0
+(ceil -5.5) ; Evaluates to -5.0
 \end{verbatim}
 
 \paragraph{(trunc \emph{x})}
 The nearest integral value that is not larger in magnitude than \emph{x}.
 
 \begin{verbatim}
-(trunc 2.3)  ; Evaluates to 2
-(trunc 3.8)  ; Evaluates to 3
-(trunc 5.5)  ; Evaluates to 5
-(trunc -2.3) ; Evaluates to -2
-(trunc -3.8) ; Evaluates to -3
-(trunc -5.5) ; Evaluates to -5
+(trunc 2.3)  ; Evaluates to 2.0
+(trunc 3.8)  ; Evaluates to 3.0
+(trunc 5.5)  ; Evaluates to 5.0
+(trunc -2.3) ; Evaluates to -2.0
+(trunc -3.8) ; Evaluates to -3.0
+(trunc -5.5) ; Evaluates to -5.0
 \end{verbatim}
 
 \paragraph{(round \emph{x})}
 The integral value that is nearest to \emph{x}, with halfway cases rounded away from zero.
 
 \begin{verbatim}
-(round 2.3)  ; Evaluates to 2
-(round 3.8)  ; Evaluates to 4
-(round 5.5)  ; Evaluates to 6
-(round -2.3) ; Evaluates to -2
-(round -3.8) ; Evaluates to -4
-(round -5.5) ; Evaluates to -6
+(round 2.3)  ; Evaluates to 2.0
+(round 3.8)  ; Evaluates to 4.0
+(round 5.5)  ; Evaluates to 6.0
+(round -2.3) ; Evaluates to -2.0
+(round -3.8) ; Evaluates to -4.0
+(round -5.5) ; Evaluates to -6.0
 \end{verbatim}
 
 \section{Matricies}

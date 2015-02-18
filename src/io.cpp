@@ -20,6 +20,7 @@
 #endif
 
 #include <cstdarg>
+#include <iomanip>
 #include <iostream>
 #include <future>
 #include <string>
@@ -253,6 +254,27 @@ likely_mat likely_to_string(likely_const_mat mat)
     return likely_to_string_n(&mat, 1);
 }
 
+static void printElement(stringstream &buffer, double value, likely_type type)
+{
+    if (type & likely_floating) {
+        bool looksLikeAnInteger;
+        {
+            stringstream tmpStream;
+            tmpStream << value;
+            const string tmpString = tmpStream.str();
+            char *p;
+            strtoll(tmpString.c_str(), &p, 10);
+            looksLikeAnInteger = (*p == 0);
+        }
+
+        buffer << value;
+        if (looksLikeAnInteger)
+            buffer << ".0"; // Print a significant figure to distinguish floating-point values from integers
+    } else {
+        buffer << int64_t(value);
+    }
+}
+
 likely_mat likely_to_string_n(likely_const_mat *mats, size_t n)
 {
     stringstream buffer;
@@ -263,7 +285,7 @@ likely_mat likely_to_string_n(likely_const_mat *mats, size_t n)
         } else if (likely_is_string(m)) {
             buffer << m->data;
         } else if (!(m->type & likely_multi_dimension)) {
-            buffer << likely_get_element(m, 0, 0, 0, 0);
+            printElement(buffer, likely_get_element(m, 0, 0, 0, 0), m->type);
         } else {
             buffer << "(";
             likely_mat str = likely_type_to_string(m->type);
@@ -278,7 +300,7 @@ likely_mat likely_to_string_n(likely_const_mat *mats, size_t n)
                     for (uint32_t x=0; x<m->columns; x++) {
                         buffer << (m->channels > 1 ? "(" : "");
                         for (uint32_t c=0; c<m->channels; c++) {
-                            buffer << likely_get_element(m, c, x, y, t);
+                            printElement(buffer, likely_get_element(m, c, x, y, t), m->type);
                             if (c != m->channels-1)
                                 buffer << " ";
                         }
