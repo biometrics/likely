@@ -205,7 +205,7 @@ $ likely -ast -c "1 :+ 2"
 (+ 1 2)
 \end{lstlisting}
 
-\subsection{; (Comment)}
+\subsection{Comment (;)}
 The semicolon and all subsequent \pindex{tokens} through the end of the line are excluded from the \AST.
 
 \begin{verbatim}
@@ -214,7 +214,7 @@ The semicolon and all subsequent \pindex{tokens} through the end of the line are
 (back to code again)
 \end{verbatim}
 
-\subsection{. (Compose)}
+\subsection{Compose (.)}
 The \pindex{expression} to the left-hand-side (LHS) of the period is the first operand of the expression to the right-hand-side (RHS) of the period.
 Compose \index{compose} is \emph{left-associative}.
 
@@ -232,7 +232,7 @@ x.(f y) ; Parsed as (f x y)
 We might call the third example \cref{http://www.drdobbs.com/cpp/uniform-function-call-syntax/232700394}{uniform function call syntax}{Bright:2012:UFC}.
 In the sixth example, note how this transformation does not apply to numbers!
 
-\subsection{: (Infix)}
+\subsection{Infix (:)}
 The \pindex{expression} to the RHS of the colon is the operator.
 The \pindex{expression} to the LHS of the colon is the first operand.
 The second \pindex{expression} to the RHS of the colon is the second operand.
@@ -343,8 +343,8 @@ The rules for doing so are as follows:
 \begin{enumerate}
 \item{If two operands differ in depth, the operand with lesser \pindex{depth} is promoted to the greater \pindex{depth}.}
 \item{If one of the operands is an \pindex{integer} and the other is a \pindex{real}, the \pindex{integer} is casted to a \pindex{real}.}
-\item{If both operands are integers and one operand is \pindex{signed}, the output is \pindex{signed}.}
-\item{If one operand is \pindex{saturated}, the output is \pindex{saturated}.}
+\item{If both operands are integers and one operand is \pindex{signed}, the operation is \pindex{signed}.}
+\item{If one operand is \pindex{saturated}, the operation is \pindex{saturated}.}
 \end{enumerate}
 \caption{Implicit conversion rules.}
 \end{figure}
@@ -358,10 +358,11 @@ Therefore it is just noted that, analogous to a \pindex{type}, a \pindex{file-ty
 
 \chapter{Intrinsic Operators}
 An \dindex{intrinsic operator} is the basic construct for higher order expressions on \pindex{literal}s.
+Unless otherwise noted, the choice of symbols and their definitions are consistent with C.
 Likely has the following builtin operators.
 
 \section{Arithmetic}
-\subsection{(+ $a$ $b$)}
+\subsection{Addition (+ $a$ $b$)}
 The \dindex{addition} of $a$ and $b$.
 
 \begin{verbatim}
@@ -370,7 +371,7 @@ The \dindex{addition} of $a$ and $b$.
 (+ 1.8 2.2) ; Evaluates to 4.0
 \end{verbatim}
 
-\subsection{(- $lhs$ $[rhs]$)}
+\subsection{Subtraction (- $lhs$ $[rhs]$)}
 If $rhs$ is provided then the \dindex{subtraction} of $lhs$ by $rhs$, otherwise the \dindex{negation} of $lhs$.
 
 \begin{verbatim}
@@ -382,7 +383,7 @@ If $rhs$ is provided then the \dindex{subtraction} of $lhs$ by $rhs$, otherwise 
 (- -1.1)    ; Evaluates to 1.1
 \end{verbatim}
 
-\subsection{(* $a$ $b$)}
+\subsection{Multiplication (* $a$ $b$)}
 The \dindex{multiplication} of $a$ and $b$.
 
 \begin{verbatim}
@@ -391,7 +392,7 @@ The \dindex{multiplication} of $a$ and $b$.
 (* 1.5 2.0) ; Evaluates to 3.0
 \end{verbatim}
 
-\subsection{(/ $num$ $denom$)}
+\subsection{Division (/ $num$ $denom$)}
 The \dindex{division} of $num$ by $denom$.
 
 \begin{verbatim}
@@ -400,7 +401,7 @@ The \dindex{division} of $num$ by $denom$.
 (/ 4.2 2.1) ; Evaluates to 2.0
 \end{verbatim}
 
-\subsection{(\% $num$ $denom$)}
+\subsection{Remainder (\% $num$ $denom$)}
 The \dindex{remainder} after division of $num$ by $denom$.
 
 \begin{verbatim}
@@ -416,8 +417,8 @@ The \dindex{remainder} after division of $num$ by $denom$.
 \end{verbatim}
 
 \section{Comparison}
-\subsection{(== $a$ $b$)}
-\texttt{1} if $a$ is \dindex{equal} to $b$, \texttt{0} otherwise.
+\subsection{Equal-to (== $a$ $b$)}
+\texttt{1} if $a$ is \dindex{equal-to} $b$, \texttt{0} otherwise.
 
 \begin{verbatim}
 (== 2 2)   ; Evaluates to 1
@@ -426,8 +427,8 @@ The \dindex{remainder} after division of $num$ by $denom$.
 (== 2 2.1) ; Evaluates to 0
 \end{verbatim}
 
-\subsection{(!= $a$ $b$)}
-\texttt{1} if $a$ is not \pindex{equal} to $b$, \texttt{0} otherwise.
+\subsection{Not Equal-to (!= $a$ $b$)}
+\texttt{1} if $a$ is not \pindex{equal-to} to $b$, \texttt{0} otherwise.
 
 \begin{verbatim}
 (!= 3 3)   ; Evaluates to 0
@@ -436,8 +437,8 @@ The \dindex{remainder} after division of $num$ by $denom$.
 (!= 3 3.1) ; Evaluates to 1
 \end{verbatim}
 
-\subsection{(\textless\ $lhs$ $rhs$)}
-\texttt{1} if $lhs$ is \dindex{less} than $rhs$, \texttt{0} otherwise.
+\subsection{Less-than (\textless\ $lhs$ $rhs$)}
+\texttt{1} if $lhs$ is \dindex{less-than} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
 (< 4 5)    ; Evaluates to 1
@@ -445,8 +446,8 @@ The \dindex{remainder} after division of $num$ by $denom$.
 (< 4 4.0)  ; Evaluates to 0
 \end{verbatim}
 
-\subsection{(\textless = $lhs$ $rhs$)}
-\texttt{1} if $lhs$ is \pindex{less} than or \pindex{equal} to $rhs$, \texttt{0} otherwise.
+\subsection{Less-than or Equal-to (\textless = $lhs$ $rhs$)}
+\texttt{1} if $lhs$ is \pindex{less} than or \pindex{equal-to} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
 (<= 4 5)    ; Evaluates to 1
@@ -454,8 +455,8 @@ The \dindex{remainder} after division of $num$ by $denom$.
 (<= 4 4.0)  ; Evaluates to 1
 \end{verbatim}
 
-\subsection{(\textgreater\ $lhs$ $rhs$)}
-\texttt{1} if $lhs$ is \dindex{greater} than $rhs$, \texttt{0} otherwise.
+\subsection{Greater-than (\textgreater\ $lhs$ $rhs$)}
+\texttt{1} if $lhs$ is \dindex{greater-than} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
 (> 6 7)    ; Evaluates to 0
@@ -463,8 +464,8 @@ The \dindex{remainder} after division of $num$ by $denom$.
 (> 6 6.0)  ; Evaluates to 0
 \end{verbatim}
 
-\subsection{(\textgreater = $lhs$ $rhs$)}
-\texttt{1} if $lhs$ is \pindex{greater} than or \pindex{equal} to $rhs$, \texttt{0} otherwise.
+\subsection{Greater-than or Equal-to (\textgreater = $lhs$ $rhs$)}
+\texttt{1} if $lhs$ is \pindex{greater} than or \pindex{equal-to} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
 (>= 6 7)    ; Evaluates to 0
@@ -473,7 +474,7 @@ The \dindex{remainder} after division of $num$ by $denom$.
 \end{verbatim}
 
 \section{Bit Manipulation}
-\subsection{(\& $a$ $b$)}
+\subsection{Bitwise-and (\& $a$ $b$)}
 The \dindex{bitwise-and} of $a$ and $b$.
 
 \begin{verbatim}
@@ -481,7 +482,7 @@ The \dindex{bitwise-and} of $a$ and $b$.
 (& 1 3) ; Evaluates to 1
 \end{verbatim}
 
-\subsection{(\textbar\ $a$ $b$)}
+\subsection{Bitwise-or (\textbar\ $a$ $b$)}
 The \dindex{bitwise-or} of $a$ and $b$.
 
 \begin{verbatim}
@@ -489,7 +490,7 @@ The \dindex{bitwise-or} of $a$ and $b$.
 (| 1 3) ; Evaluates to 3
 \end{verbatim}
 
-\subsection{(\char`\^\ $a$ $b$)}
+\subsection{Bitwise-exclusive-or (\char`\^\ $a$ $b$)}
 The \dindex{bitwise-exclusive-or} of $a$ and $b$.
 
 \begin{verbatim}
@@ -497,7 +498,7 @@ The \dindex{bitwise-exclusive-or} of $a$ and $b$.
 (^ 1 3) ; Evaluates to 2
 \end{verbatim}
 
-\subsection{(\textless\textless\ $x$ $n$)}
+\subsection{Left-shift (\textless\textless\ $x$ $n$)}
 The \dindex{left-shift} of $x$ by $n$ bits.
 
 \begin{verbatim}
@@ -505,7 +506,7 @@ The \dindex{left-shift} of $x$ by $n$ bits.
 (<< 2 1) ; Evaluates to 4
 \end{verbatim}
 
-\subsection{(\textgreater\textgreater\ $x$ $n$)}
+\subsection{Right-shift (\textgreater\textgreater\ $x$ $n$)}
 The \dindex{right-shift} of $x$ by $n$ bits.
 If $x$ is signed then the operation is an \dindex{arithmetic} right-shift (sign extension), otherwise it is a \dindex{logical} right-shift (zero extension).
 
