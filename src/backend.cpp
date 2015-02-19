@@ -1908,15 +1908,13 @@ private:
 class labelExpression : public LikelyOperator
 {
     const char *symbol() const { return "#"; }
-    size_t maxParameters() const { return 1; }
+    size_t maxParameters() const { return 0; }
 
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
     {
-        const string name = ast->atoms[1]->atom;
-        BasicBlock *label = BasicBlock::Create(builder.getContext(), name, builder.GetInsertBlock()->getParent());
+        BasicBlock *label = BasicBlock::Create(builder.getContext(), "label", builder.GetInsertBlock()->getParent());
         builder.CreateBr(label);
         builder.SetInsertPoint(label);
-        define(builder.env, name.c_str(), new Label(label));
         return new Label(label);
     }
 };

@@ -880,7 +880,7 @@ iter :=
   (expr end) :->
   {
     i :<- 0
-  loop.#
+    loop := #
     (!= i end) :? {
       (expr i)
       i :<- (+ i 1)

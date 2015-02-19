@@ -27,7 +27,7 @@ Definition
           zr :<- 0.f32
           zi :<- 0.f32
           j :<- 0
-        loop.#
+          loop := #
           tmp := (+ (- zr.sq zi.sq) zr0)
           zi :<- (+ (* (* zr zi) 2) zi0)
           zr :<- tmp
