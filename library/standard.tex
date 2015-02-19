@@ -343,14 +343,15 @@ The rules for doing so are as follows:
 \begin{enumerate}
 \item{If two operands differ in depth, the operand with lesser \pindex{depth} is promoted to the greater \pindex{depth}.}
 \item{If one of the operands is an \pindex{integer} and the other is a \pindex{real}, the \pindex{integer} is casted to a \pindex{real}.}
+\item{If both operands are integers and one operand is \pindex{signed}, the output is \pindex{signed}.}
 \item{If one operand is \pindex{saturated}, the output is \pindex{saturated}.}
 \end{enumerate}
 \caption{Implicit conversion rules.}
 \end{figure}
 
-There rules are codified in the function \tindex{likely\char`_type\char`_from\char`_types}.
+These rules are codified in the function \tindex{likely\char`_type\char`_from\char`_types}.
 
-\section{File-Type}
+\section{File-type}
 If a \pindex{type} indicates how to interpret the contents of an address in memory, a \dindex{file-type} indicates how to interpret the contents of a file on disk.
 This is a relatively unimportant portion of the language, and is generally transparent to the developer.
 Therefore it is just noted that, analogous to a \pindex{type}, a \pindex{file-type} is defined by the function \tindex{likely\char`_file\char`_type\char`_from\char`_string}, and has an integer value represented in the API by \tindex{likely\char`_file\char`_type}.
@@ -472,41 +473,41 @@ The \dindex{remainder} after division of $num$ by $denom$.
 \end{verbatim}
 
 \section{Bit Manipulation}
-\paragraph{(\& \emph{lhs} \emph{rhs})}
-Bitwise and of \emph{lhs} and \emph{rhs}.
+\subsection{(\& $a$ $b$)}
+The \dindex{bitwise-and} of $a$ and $b$.
 
 \begin{verbatim}
 (& 1 2) ; Evaluates to 0
 (& 1 3) ; Evaluates to 1
 \end{verbatim}
 
-\paragraph{(| \emph{lhs} \emph{rhs})}
-Bitwise or of \emph{lhs} and \emph{rhs}.
+\subsection{(\textbar\ $a$ $b$)}
+The \dindex{bitwise-or} of $a$ and $b$.
 
 \begin{verbatim}
 (| 1 2) ; Evaluates to 3
 (| 1 3) ; Evaluates to 3
 \end{verbatim}
 
-\paragraph{(\^{} \emph{lhs} \emph{rhs})}
-Bitwise exclusive or of \emph{lhs} and \emph{rhs}.
+\subsection{(\char`\^\ $a$ $b$)}
+The \dindex{bitwise-exclusive-or} of $a$ and $b$.
 
 \begin{verbatim}
 (^ 1 2) ; Evaluates to 3
 (^ 1 3) ; Evaluates to 2
 \end{verbatim}
 
-\paragraph{(<< \emph{lhs} \emph{rhs})}
-Left shift of \emph{lhs} by \emph{rhs} bits.
+\subsection{(\textless\textless\ $x$ $n$)}
+The \dindex{left-shift} of $x$ by $n$ bits.
 
 \begin{verbatim}
 (<< 2 0) ; Evaluates to 2
 (<< 2 1) ; Evaluates to 4
 \end{verbatim}
 
-\paragraph{(>> \emph{lhs} \emph{rhs})}
-Right shift of \emph{lhs} by \emph{rhs} bits.
-Arithmetic right shift (sign extension) if \emph{lhs} is signed, logical right shift (zero extension) otherwise.
+\subsection{(\textgreater\textgreater\ $x$ $n$)}
+The \dindex{right-shift} of $x$ by $n$ bits.
+If $x$ is signed then the operation is an \dindex{arithmetic} right-shift (sign extension), otherwise it is a \dindex{logical} right-shift (zero extension).
 
 \begin{verbatim}
 (>> 2 0)  ; Evaluates to 2
