@@ -330,10 +330,25 @@ The presence or absense of \texttt{C}, \texttt{X}, \texttt{Y} and \texttt{T} ind
 In addition to accepting the general pattern mentioned above, this function also recognizes a number of special cases corresponding to values in \tindex{likely\char`_type\char`_mask}.
 The special cases include all common C types.
 
-\subsection{First-class citizenship}
+\subsection{First-class Citizenship}
 An important aspect of a \pindex{type} is that, contrary to most programming languages, it is a \dindex{first-class citizen} of Likely.
 In addition to having an integer value represented in the API by \tindex{likely\char`_type}, it can also be used as a unary-operand to perform a cast.
 Most importantly though, it can be \emph{passed as an argument to a function}.
+
+\subsection{Implicit Conversion}
+Intrinsic \pindex{operator}s will implictly convert their \pindex{operand}s to the same type.
+The rules for doing so are as follows:
+
+\begin{figure}[h]
+\begin{enumerate}
+\item{If two operands differ in depth, the operand with lesser \pindex{depth} is promoted to the greater \pindex{depth}.}
+\item{If one of the operands is an \pindex{integer} and the other is a \pindex{real}, the \pindex{integer} is casted to a \pindex{real}.}
+\item{If one operand is \pindex{saturated}, the output is \pindex{saturated}.}
+\end{enumerate}
+\caption{Implicit conversion rules.}
+\end{figure}
+
+There rules are codified in the function \tindex{likely\char`_type\char`_from\char`_types}.
 
 \section{File-Type}
 If a \pindex{type} indicates how to interpret the contents of an address in memory, a \dindex{file-type} indicates how to interpret the contents of a file on disk.
