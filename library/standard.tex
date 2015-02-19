@@ -672,11 +672,23 @@ The result of a \dindex{round} operation is the integral value that is nearest t
 \end{verbatim}
 
 \section{Control Flow}
-\subsection{(\# $name$)}
-Creates a \dindex{label} statement in the code.
+\subsection{(? $condition$ $then$ $[else]$)}
+The behavior of the \dindex{if} operator depends its use:
 
-\subsection{(? $condition$ $then$ $else$)}
-Creates an \dindex{if} statement in the code.
+\paragraph{(? $condition$ $then$ $else$)}
+In the case that the $else$ operand is provided, the \pindex{if} operator is an \pindex{expression} with value $then$ if $condition$ is not equal to \texttt{0} and $else$ otherwise.
+Implicit type conversion ensures that $then$ and $else$ are the same type.
+
+\paragraph{(? $condition$ $then$)}
+In the case that the $else$ operand is not provided, the \pindex{if} operator is a \pindex{statement} with no value.
+The $then$ \pindex{statement} is executed if and only if $condition$ is not equal to \texttt{0}.
+
+\paragraph{(? \texttt{constant} $then$ $[else]$)}
+In the case that the condition is a constant \pindex{integer} or \pindex{real}, the branching will happen at compile time.
+
+\subsection{(\#)}
+The \dindex{label} operator creates a point in the code that can be jumped to.
+This primitive is necessary for constructing loops.
 
 \section{Matricies}
 The fundamental data structure in Likely is a four-dimensional \emph{matrix}.

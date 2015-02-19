@@ -1891,35 +1891,6 @@ class beginExpression : public LikelyOperator
 };
 LIKELY_REGISTER(begin)
 
-struct Label : public likely_expression
-{
-    Label(BasicBlock *basicBlock)
-        : likely_expression(LikelyValue(basicBlock, likely_void)) {}
-
-private:
-    likely_const_expr evaluate(Builder &builder, likely_const_ast) const
-    {
-        BasicBlock *basicBlock = cast<BasicBlock>(value);
-        builder.CreateBr(basicBlock);
-        return new Label(basicBlock);
-    }
-};
-
-class labelExpression : public LikelyOperator
-{
-    const char *symbol() const { return "#"; }
-    size_t maxParameters() const { return 0; }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
-    {
-        BasicBlock *label = BasicBlock::Create(builder.getContext(), "label", builder.GetInsertBlock()->getParent());
-        builder.CreateBr(label);
-        builder.SetInsertPoint(label);
-        return new Label(label);
-    }
-};
-LIKELY_REGISTER(label)
-
 class ifExpression : public LikelyOperator
 {
     const char *symbol() const { return "?"; }
@@ -1978,6 +1949,35 @@ class ifExpression : public LikelyOperator
     }
 };
 LIKELY_REGISTER(if)
+
+struct Label : public likely_expression
+{
+    Label(BasicBlock *basicBlock)
+        : likely_expression(LikelyValue(basicBlock, likely_void)) {}
+
+private:
+    likely_const_expr evaluate(Builder &builder, likely_const_ast) const
+    {
+        BasicBlock *basicBlock = cast<BasicBlock>(value);
+        builder.CreateBr(basicBlock);
+        return new Label(basicBlock);
+    }
+};
+
+class labelExpression : public LikelyOperator
+{
+    const char *symbol() const { return "#"; }
+    size_t maxParameters() const { return 0; }
+
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
+    {
+        BasicBlock *label = BasicBlock::Create(builder.getContext(), "label", builder.GetInsertBlock()->getParent());
+        builder.CreateBr(label);
+        builder.SetInsertPoint(label);
+        return new Label(label);
+    }
+};
+LIKELY_REGISTER(label)
 
 struct Assignable : public LikelyOperator
 {
