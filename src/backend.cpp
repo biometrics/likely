@@ -2452,7 +2452,7 @@ class defineExpression : public LikelyOperator
         const char *const name = likely_symbol(ast);
         likely_const_expr expr = get(builder, rhs);
         define(builder.env, name, expr);
-        return new likely_expression((LikelyValue) *expr);
+        return new likely_expression();
     }
 };
 LIKELY_REGISTER(define)
