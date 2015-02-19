@@ -1866,19 +1866,20 @@ LIKELY_REGISTER(extern)
 class beginExpression : public LikelyOperator
 {
     const char *symbol() const { return "{"; }
-    size_t minParameters() const { return 1; }
+    size_t minParameters() const { return 2; }
     size_t maxParameters() const { return numeric_limits<size_t>::max(); }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         likely_const_expr result = NULL;
         likely_const_env root = builder.env;
-        for (size_t i=1; i<ast->num_atoms-1; i++) {
+        for (size_t i=1; i<ast->num_atoms-2; i++) {
             const unique_ptr<const likely_expression> expr(get(builder, ast->atoms[i]));
             if (!expr.get())
                 goto cleanup;
         }
-        result = get(builder, ast->atoms[ast->num_atoms-1]);
+        result = get(builder, ast->atoms[ast->num_atoms-2]);
+        // the last operand is "}"
 
     cleanup:
         while (builder.env != root) {

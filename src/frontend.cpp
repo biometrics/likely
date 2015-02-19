@@ -522,10 +522,11 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
     static likely_const_ast listClose = likely_atom(")", 1);
     static likely_const_ast beginOpen = likely_atom("{", 1);
     static likely_const_ast beginClose = likely_atom("}", 1);
-    if (!likely_ast_compare(token, listOpen) || !likely_ast_compare(token, beginOpen)) {
+    const bool list = !likely_ast_compare(token, listOpen);
+    if (list || !likely_ast_compare(token, beginOpen)) {
         vector<likely_ast> atoms;
         likely_const_ast close;
-        if (!likely_ast_compare(token, listOpen)) {
+        if (list) {
             close = listClose;
         } else {
             atoms.push_back(likely_retain_ast(token));
@@ -537,8 +538,11 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
             bool success = shift(tokens, offset, atoms);
             if (success) {
                 if (!likely_ast_compare(atoms.back(), close)) {
-                    end = atoms.back();
-                    atoms.pop_back();
+                    end = likely_retain_ast(atoms.back());
+                    if (list) {
+                        likely_release_ast(atoms.back());
+                        atoms.pop_back();
+                    }
                 } else {
                     success = success && reduce(tokens, offset, atoms);
                 }
