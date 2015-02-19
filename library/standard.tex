@@ -362,7 +362,7 @@ Unless otherwise noted, the choice of symbols and their definitions are consiste
 Likely has the following builtin operators.
 
 \section{Arithmetic}
-\subsection{Addition (+ $a$ $b$)}
+\subsection{(+ $a$ $b$)}
 The \dindex{addition} of $a$ and $b$.
 
 \begin{verbatim}
@@ -371,7 +371,7 @@ The \dindex{addition} of $a$ and $b$.
 (+ 1.8 2.2) ; Evaluates to 4.0
 \end{verbatim}
 
-\subsection{Subtraction (- $lhs$ $[rhs]$)}
+\subsection{(- $lhs$ $[rhs]$)}
 If $rhs$ is provided then the \dindex{subtraction} of $lhs$ by $rhs$, otherwise the \dindex{negation} of $lhs$.
 
 \begin{verbatim}
@@ -383,7 +383,7 @@ If $rhs$ is provided then the \dindex{subtraction} of $lhs$ by $rhs$, otherwise 
 (- -1.1)    ; Evaluates to 1.1
 \end{verbatim}
 
-\subsection{Multiplication (* $a$ $b$)}
+\subsection{(* $a$ $b$)}
 The \dindex{multiplication} of $a$ and $b$.
 
 \begin{verbatim}
@@ -392,7 +392,7 @@ The \dindex{multiplication} of $a$ and $b$.
 (* 1.5 2.0) ; Evaluates to 3.0
 \end{verbatim}
 
-\subsection{Division (/ $num$ $denom$)}
+\subsection{(/ $num$ $denom$)}
 The \dindex{division} of $num$ by $denom$.
 
 \begin{verbatim}
@@ -401,7 +401,7 @@ The \dindex{division} of $num$ by $denom$.
 (/ 4.2 2.1) ; Evaluates to 2.0
 \end{verbatim}
 
-\subsection{Remainder (\% $num$ $denom$)}
+\subsection{(\% $num$ $denom$)}
 The \dindex{remainder} after division of $num$ by $denom$.
 
 \begin{verbatim}
@@ -417,7 +417,9 @@ The \dindex{remainder} after division of $num$ by $denom$.
 \end{verbatim}
 
 \section{Comparison}
-\subsection{Equal-to (== $a$ $b$)}
+The output of these operators is always a 1-bit \pindex{integer}.
+
+\subsection{(== $a$ $b$)}
 \texttt{1} if $a$ is \dindex{equal-to} $b$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -427,7 +429,7 @@ The \dindex{remainder} after division of $num$ by $denom$.
 (== 2 2.1) ; Evaluates to 0
 \end{verbatim}
 
-\subsection{Not Equal-to (!= $a$ $b$)}
+\subsection{(!= $a$ $b$)}
 \texttt{1} if $a$ is not \pindex{equal-to} to $b$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -437,7 +439,7 @@ The \dindex{remainder} after division of $num$ by $denom$.
 (!= 3 3.1) ; Evaluates to 1
 \end{verbatim}
 
-\subsection{Less-than (\textless\ $lhs$ $rhs$)}
+\subsection{(\textless\ $lhs$ $rhs$)}
 \texttt{1} if $lhs$ is \dindex{less-than} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -446,7 +448,7 @@ The \dindex{remainder} after division of $num$ by $denom$.
 (< 4 4.0)  ; Evaluates to 0
 \end{verbatim}
 
-\subsection{Less-than or Equal-to (\textless = $lhs$ $rhs$)}
+\subsection{(\textless = $lhs$ $rhs$)}
 \texttt{1} if $lhs$ is \pindex{less} than or \pindex{equal-to} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -455,7 +457,7 @@ The \dindex{remainder} after division of $num$ by $denom$.
 (<= 4 4.0)  ; Evaluates to 1
 \end{verbatim}
 
-\subsection{Greater-than (\textgreater\ $lhs$ $rhs$)}
+\subsection{(\textgreater\ $lhs$ $rhs$)}
 \texttt{1} if $lhs$ is \dindex{greater-than} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -464,7 +466,7 @@ The \dindex{remainder} after division of $num$ by $denom$.
 (> 6 6.0)  ; Evaluates to 0
 \end{verbatim}
 
-\subsection{Greater-than or Equal-to (\textgreater = $lhs$ $rhs$)}
+\subsection{(\textgreater = $lhs$ $rhs$)}
 \texttt{1} if $lhs$ is \pindex{greater} than or \pindex{equal-to} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -474,7 +476,7 @@ The \dindex{remainder} after division of $num$ by $denom$.
 \end{verbatim}
 
 \section{Bit Manipulation}
-\subsection{Bitwise-and (\& $a$ $b$)}
+\subsection{(\& $a$ $b$)}
 The \dindex{bitwise-and} of $a$ and $b$.
 
 \begin{verbatim}
@@ -482,7 +484,7 @@ The \dindex{bitwise-and} of $a$ and $b$.
 (& 1 3) ; Evaluates to 1
 \end{verbatim}
 
-\subsection{Bitwise-or (\textbar\ $a$ $b$)}
+\subsection{(\textbar\ $a$ $b$)}
 The \dindex{bitwise-or} of $a$ and $b$.
 
 \begin{verbatim}
@@ -490,7 +492,7 @@ The \dindex{bitwise-or} of $a$ and $b$.
 (| 1 3) ; Evaluates to 3
 \end{verbatim}
 
-\subsection{Bitwise-exclusive-or (\char`\^\ $a$ $b$)}
+\subsection{(\char`\^\ $a$ $b$)}
 The \dindex{bitwise-exclusive-or} of $a$ and $b$.
 
 \begin{verbatim}
@@ -498,7 +500,7 @@ The \dindex{bitwise-exclusive-or} of $a$ and $b$.
 (^ 1 3) ; Evaluates to 2
 \end{verbatim}
 
-\subsection{Left-shift (\textless\textless\ $x$ $n$)}
+\subsection{(\textless\textless\ $x$ $n$)}
 The \dindex{left-shift} of $x$ by $n$ bits.
 
 \begin{verbatim}
@@ -506,7 +508,7 @@ The \dindex{left-shift} of $x$ by $n$ bits.
 (<< 2 1) ; Evaluates to 4
 \end{verbatim}
 
-\subsection{Right-shift (\textgreater\textgreater\ $x$ $n$)}
+\subsection{(\textgreater\textgreater\ $x$ $n$)}
 The \dindex{right-shift} of $x$ by $n$ bits.
 If $x$ is signed then the operation is an \dindex{arithmetic} right-shift (sign extension), otherwise it is a \dindex{logical} right-shift (zero extension).
 
@@ -519,8 +521,11 @@ If $x$ is signed then the operation is an \dindex{arithmetic} right-shift (sign 
 \end{verbatim}
 
 \section{Math}
-\paragraph{(sqrt \emph{x})}
-The square root of \emph{x}.
+A subset of the \fref{http://www.cplusplus.com/reference/cmath/}{C common mathematical operations}.
+The output of these operators is always a \pindex{real}.
+
+\subsection{(sqrt $x$)}
+The \dindex{square root} of $x$.
 
 \begin{verbatim}
 (sqrt 2.0) ; Evaluates to 1.41421
@@ -528,8 +533,8 @@ The square root of \emph{x}.
 (sqrt 0)   ; Evaluates to 0.0
 \end{verbatim}
 
-\paragraph{(sin \emph{x})}
-The sine of an angle of \emph{x} radians.
+\subsection{(sin $x$)}
+The \dindex{sine} of an angle of $x$ radians.
 
 \begin{verbatim}
 (sin 0)         ; Evaluates to 0.0
@@ -538,8 +543,8 @@ The sine of an angle of \emph{x} radians.
 (sin 0.523599)  ; Evaluates to 0.5
 \end{verbatim}
 
-\paragraph{(cos \emph{x})}
-The cosine of an angle of \emph{x} radians.
+\subsection{(cos $x$)}
+The cosine of an angle of $x$ radians.
 
 \begin{verbatim}
 (cos 0)        ; Evaluates to 1.0
@@ -547,8 +552,8 @@ The cosine of an angle of \emph{x} radians.
 (cos 1.047198) ; Evaluates to 0.5
 \end{verbatim}
 
-\paragraph{(pow \emph{base} \emph{exponent})}
-The \emph{base} raised to the power \emph{exponent}.
+\subsection{(pow $base$ $exponent$)}
+The $base$ raised to the \dindex{power} $exponent$.
 
 \begin{verbatim}
 (pow 2 3)     ; Evaluates to 8.0
@@ -560,8 +565,8 @@ The \emph{base} raised to the power \emph{exponent}.
 (pow 4 0)     ; Evaluates to 1.0
 \end{verbatim}
 
-\paragraph{(exp \emph{x})}
-The base-e exponential function of \emph{x}, which is e raised to the power \emph{x}.
+\subsection{(exp $x$)}
+The \dindex{base-e exponential} function of $x$, which is $e$ raised to the \pindex{power} $x$.
 
 \begin{verbatim}
 (exp 0)   ; Evaluates to 1.0
@@ -569,8 +574,8 @@ The base-e exponential function of \emph{x}, which is e raised to the power \emp
 (exp 1.5) ; Evaluates to 4.48169
 \end{verbatim}
 
-\paragraph{(exp2 \emph{x})}
-The base-2 exponential function of \emph{x}, which is 2 raised to the power \emph{x}.
+\subsection{(exp2 $x$)}
+The \dindex{base-2 exponential} function of $x$, which is $2$ raised to the \pindex{power} $x$.
 
 \begin{verbatim}
 (exp2 0)   ; Evaluates to 1.0
@@ -579,8 +584,8 @@ The base-2 exponential function of \emph{x}, which is 2 raised to the power \emp
 (exp2 3)   ; Evaluates to 8.0
 \end{verbatim}
 
-\paragraph{(log \emph{x})}
-The natural logarithm of \emph{x}.
+\subsection{(log $x$)}
+The \dindex{natural logarithm} (base-$e$) of $x$.
 
 \begin{verbatim}
 (log 1)        ; Evaluates to 0.0
@@ -589,8 +594,8 @@ The natural logarithm of \emph{x}.
 (log 0.5)      ; Evaluates to -0.693147
 \end{verbatim}
 
-\paragraph{(log10 \emph{x})}
-The common (base-10) logarithm of \emph{x}.
+\subsection{(log10 $x$)}
+The \dindex{common logarithm} (base-$10$) of $x$.
 
 \begin{verbatim}
 (log10 1)   ; Evaluates to 0.0
@@ -599,8 +604,8 @@ The common (base-10) logarithm of \emph{x}.
 (log10 0.5) ; Evaluates to -0.30103
 \end{verbatim}
 
-\paragraph{(log2 \emph{x})}
-The binary (base-2) logarithm of \emph{x}.
+\subsection{(log2 $x$)}
+The \dindex{binary logarithm} (base-$2$) of $x$.
 
 \begin{verbatim}
 (log2 1)   ; Evaluates to 0.0
@@ -610,16 +615,16 @@ The binary (base-2) logarithm of \emph{x}.
 (log2 10)  ; Evaluates to 3.32193
 \end{verbatim}
 
-\paragraph{(copysign \emph{x} \emph{y})}
-A value with the magnitude of \emph{x} and the sign of \emph{y}.
+\subsection{(copysign $x$ $y$)}
+The result of a \dindex{copysign} operation is a value with the magnitude of $x$ and the sign of $y$.
 
 \begin{verbatim}
 (copysign 3 -1.1) ; Evaluates to -3.0
 (copysign -4.3 2) ; Evaluates to 4.3
 \end{verbatim}
 
-\paragraph{(floor \emph{x})}
-The largest integral value that is not greater than \emph{x}.
+\subsection{(floor $x$)}
+The result of a \dindex{floor} operation is the largest integral value that is not greater than $x$.
 
 \begin{verbatim}
 (floor 2.3)  ; Evaluates to 2.0
@@ -630,8 +635,8 @@ The largest integral value that is not greater than \emph{x}.
 (floor -5.5) ; Evaluates to -6.0
 \end{verbatim}
 
-\paragraph{(ceil \emph{x})}
-The smallest integral value that is not less than \emph{x}.
+\subsection{(ceil $x$)}
+The result of a \dindex{ceil} operation is the smallest integral value that is not less than $x$.
 
 \begin{verbatim}
 (ceil 2.3)  ; Evaluates to 3.0
@@ -642,8 +647,8 @@ The smallest integral value that is not less than \emph{x}.
 (ceil -5.5) ; Evaluates to -5.0
 \end{verbatim}
 
-\paragraph{(trunc \emph{x})}
-The nearest integral value that is not larger in magnitude than \emph{x}.
+\subsection{(trunc $x$)}
+The result of a \dindex{trunc} operation is the nearest integral value that is not larger in magnitude than $x$.
 
 \begin{verbatim}
 (trunc 2.3)  ; Evaluates to 2.0
@@ -654,8 +659,8 @@ The nearest integral value that is not larger in magnitude than \emph{x}.
 (trunc -5.5) ; Evaluates to -5.0
 \end{verbatim}
 
-\paragraph{(round \emph{x})}
-The integral value that is nearest to \emph{x}, with halfway cases rounded away from zero.
+\subsection{(round $x$)}
+The result of a \dindex{round} operation is the integral value that is nearest to $x$, with halfway cases rounded away from zero.
 
 \begin{verbatim}
 (round 2.3)  ; Evaluates to 2.0
