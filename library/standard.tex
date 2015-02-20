@@ -250,6 +250,15 @@ x.f:h y.g   ; Parsed as (h (f x) (g y))
 3.sq:+ 4.sq ; Evaluates to 25
 \end{verbatim}
 
+\section{Imperative Notation (\{ \dots\ \})}
+Likely makes one additional departure from fully parenthesized notation, automatically identifying braces as a \pindex{list} structure.
+
+\begin{verbatim}
+{ x y z } ; Parsed as ({ x y z })
+\end{verbatim}
+
+See subsection \ref{subsec:begin} for the semantics of this structure.
+
 \chapter{Literals}
 The Likely compiler recognizes the following kinds of fixed, or \dindex{literal}, \pindex{atom}s.
 
@@ -675,6 +684,7 @@ The result of a \dindex{round} operation is the integral value that is nearest t
 
 \section{Control Flow}
 \subsection{(\{ \textit{statement statement \dots\ statement expression} \})}
+\label{subsec:begin}
 The \dindex{begin} operator allows imperative-style programming.
 A \dindex{statement} is a value-less expression.
 Likely will execute a series of zero-or-more \pindex{statement}s, then value of the \pindex{begin} operator is the value of $expression$ evaluated in the context of the statements.
