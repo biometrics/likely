@@ -1863,6 +1863,88 @@ class externExpression : public LikelyOperator
 };
 LIKELY_REGISTER(extern)
 
+class defineExpression : public LikelyOperator
+{
+    const char *symbol() const { return "="; }
+    size_t maxParameters() const { return 2; }
+
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        const likely_const_ast rhs = ast->atoms[2];
+        const char *const name = likely_symbol(ast);
+        likely_const_expr expr = get(builder, rhs);
+        define(builder.env, name, expr);
+        return new likely_expression();
+    }
+};
+LIKELY_REGISTER(define)
+
+struct Assignable : public LikelyOperator
+{
+    Assignable(Value *value, likely_type type)
+    {
+        this->value = value;
+        this->type = type;
+    }
+
+    virtual void set(Builder &builder, likely_const_expr expr, likely_const_ast ast) const = 0;
+
+    static const Assignable *dynamicCast(likely_const_expr expr)
+    {
+        return (expr && (expr->uid() == UID())) ? static_cast<const Assignable*>(expr) : NULL;
+    }
+
+private:
+    static int UID() { return __LINE__; }
+    int uid() const { return UID(); }
+    size_t maxParameters() const { return 4; }
+    size_t minParameters() const { return 0; }
+};
+
+class assignExpression : public LikelyOperator
+{
+    struct Variable : public Assignable
+    {
+        Variable(Builder &builder, likely_const_expr expr, const string &name)
+            : Assignable(builder.CreateAlloca(builder.module->context->toLLVM(expr->type), 0, name), *expr)
+        {
+            set(builder, expr);
+        }
+
+    private:
+        void set(Builder &builder, likely_const_expr expr, likely_const_ast = NULL) const
+        {
+            builder.CreateStore((type & likely_multi_dimension) ? expr->value
+                                                                : builder.cast(*expr, type).value, value);
+        }
+
+        likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
+        {
+            return new likely_expression(LikelyValue(builder.CreateLoad(value), type));
+        }
+    };
+
+    const char *symbol() const { return "<-"; }
+    size_t maxParameters() const { return 2; }
+
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        likely_const_ast lhs = ast->atoms[1];
+        likely_const_ast rhs = ast->atoms[2];
+        const char *name = likely_symbol(ast);
+        assert(builder.module);
+        likely_const_expr expr = get(builder, rhs);
+        if (expr) {
+            const likely_const_env env = lookup(builder.env, name);
+            const Assignable *assignable = env ? Assignable::dynamicCast(env->expr) : NULL;
+            if (assignable) assignable->set(builder, expr, lhs);
+            else            define(builder.env, name, new Variable(builder, expr, name));
+        }
+        return expr;
+    }
+};
+LIKELY_REGISTER(assign)
+
 class beginExpression : public LikelyOperator
 {
     const char *symbol() const { return "{"; }
@@ -1979,28 +2061,6 @@ class labelExpression : public LikelyOperator
     }
 };
 LIKELY_REGISTER(label)
-
-struct Assignable : public LikelyOperator
-{
-    Assignable(Value *value, likely_type type)
-    {
-        this->value = value;
-        this->type = type;
-    }
-
-    virtual void set(Builder &builder, likely_const_expr expr, likely_const_ast ast) const = 0;
-
-    static const Assignable *dynamicCast(likely_const_expr expr)
-    {
-        return (expr && (expr->uid() == UID())) ? static_cast<const Assignable*>(expr) : NULL;
-    }
-
-private:
-    static int UID() { return __LINE__; }
-    int uid() const { return UID(); }
-    size_t maxParameters() const { return 4; }
-    size_t minParameters() const { return 0; }
-};
 
 class kernelExpression : public LikelyOperator
 {
@@ -2439,66 +2499,6 @@ class kernelExpression : public LikelyOperator
     }
 };
 LIKELY_REGISTER(kernel)
-
-class defineExpression : public LikelyOperator
-{
-    const char *symbol() const { return "="; }
-    size_t maxParameters() const { return 2; }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        const likely_const_ast rhs = ast->atoms[2];
-        const char *const name = likely_symbol(ast);
-        likely_const_expr expr = get(builder, rhs);
-        define(builder.env, name, expr);
-        return new likely_expression();
-    }
-};
-LIKELY_REGISTER(define)
-
-class setExpression : public LikelyOperator
-{
-    struct Variable : public Assignable
-    {
-        Variable(Builder &builder, likely_const_expr expr, const string &name)
-            : Assignable(builder.CreateAlloca(builder.module->context->toLLVM(expr->type), 0, name), *expr)
-        {
-            set(builder, expr);
-        }
-
-    private:
-        void set(Builder &builder, likely_const_expr expr, likely_const_ast = NULL) const
-        {
-            builder.CreateStore((type & likely_multi_dimension) ? expr->value
-                                                                : builder.cast(*expr, type).value, value);
-        }
-
-        likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
-        {
-            return new likely_expression(LikelyValue(builder.CreateLoad(value), type));
-        }
-    };
-
-    const char *symbol() const { return "<-"; }
-    size_t maxParameters() const { return 2; }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        likely_const_ast lhs = ast->atoms[1];
-        likely_const_ast rhs = ast->atoms[2];
-        const char *name = likely_symbol(ast);
-        assert(builder.module);
-        likely_const_expr expr = get(builder, rhs);
-        if (expr) {
-            const likely_const_env env = lookup(builder.env, name);
-            const Assignable *assignable = env ? Assignable::dynamicCast(env->expr) : NULL;
-            if (assignable) assignable->set(builder, expr, lhs);
-            else            define(builder.env, name, new Variable(builder, expr, name));
-        }
-        return expr;
-    }
-};
-LIKELY_REGISTER(set)
 
 JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC)
     : Symbol(name, likely_void, parameters)
