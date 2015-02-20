@@ -313,6 +313,37 @@ test_expr("(round 5.5)" 6.0)
 test_expr("(round -2.3)" -2.0)
 test_expr("(round -3.8)" -4.0)
 test_expr("(round -5.5)" -6.0)
+test_expr("x := 1
+           y := 2
+           {
+             x := 4
+             y := 5
+             (+ x y)
+           }
+           (+ x y)" 93)
+test_expr("x := 1
+           y := 2
+           (? (< x y) x y)" 1)
+test_expr("{
+             x :<- 0
+             (? (== x 0) (<- x 1))
+             x
+           }" 1)
+test_expr("x := 0
+           (? x 1 2)" 2)
+test_expr("{
+             end := 10
+             i :<- 1
+             j :<- 0
+             loop := #
+             (< i end) :?
+             {
+               j :<- (+ j i)
+               i :<- (+ i 1)
+               loop
+             }
+             j
+           }" 45)
 test_expr("(new u8CXY 3 512 512 1 null).channels" 3)
 test_expr("(new u8CXY 3 512 512 1 null).columns" 512)
 test_expr("(new u8CXY 3 512 512 1 null).rows" 512)
