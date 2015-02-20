@@ -165,10 +165,11 @@ function(test_ast EXPR VALUE)
 endfunction()
 
 function(test_expr EXPR VALUE)
-  string(MAKE_C_IDENTIFIER "${EXPR}" NAME)
+  string(REGEX REPLACE "[\r\n\t ]+" " " CLEAN_EXPR "${EXPR}") # Remove extra white space for cleanliness
+  string(MAKE_C_IDENTIFIER "${CLEAN_EXPR}" NAME)
   add_test(NAME "${NAME}"
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND likely -c "${EXPR}" -e "${VALUE}")
+           COMMAND likely -c "${CLEAN_EXPR}" -e "${VALUE}")
 endfunction()
 
 # List in the order they occur in standard.tex
@@ -237,12 +238,12 @@ test_expr("(> 6 6.0)" 0)
 test_expr("(>= 6 7)" 0)
 test_expr("(>= 6 -7.0)" 1)
 test_expr("(>= 6 6.0)" 1)
-test_expr("(& 1 2) " 0)
-test_expr("(& 1 3) " 1)
-test_expr("(| 1 2)  " 3)
-test_expr("(| 1 3)  " 3)
-test_expr("(^ 1 2)   " 3)
-test_expr("(^ 1 3)   " 2)
+test_expr("(& 1 2);" 0)
+test_expr("(& 1 3);" 1)
+test_expr("(| 1 2);;" 3)
+test_expr("(| 1 3);;" 3)
+test_expr("(^ 1 2);;;" 3)
+test_expr("(^ 1 3);;;" 2)
 test_expr("(<< 2 0)" 2)
 test_expr("(<< 2 1)" 4)
 test_expr("(>> 2 0) " 2)
