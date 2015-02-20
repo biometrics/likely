@@ -316,6 +316,16 @@ test_expr("(round -2.3)" -2.0)
 test_expr("(round -3.8)" -4.0)
 test_expr("(round -5.5)" -6.0)
 test_expr("x := 1
+           y := (+ x 1)
+           x := 4
+           y
+           (+ x 1)" 25)
+test_expr("{
+             x :<- 1
+             x :<- (+ x 1)
+             (+ x 2)
+           }" 4)
+test_expr("x := 1
            y := 2
            {
              x := 4

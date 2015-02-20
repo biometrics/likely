@@ -235,6 +235,7 @@ We might call the third example \cref{http://www.drdobbs.com/cpp/uniform-functio
 In the sixth example, note how this transformation does not apply to numbers!
 
 \subsection{Infix (:)}
+\label{subsec:infix}
 The \pindex{expression} to the RHS of the colon is the operator.
 The \pindex{expression} to the LHS of the colon is the first operand.
 The second \pindex{expression} to the RHS of the colon is the second operand.
@@ -456,7 +457,7 @@ The output of these operators is always a 1-bit \pindex{integer}.
 (!= 3 3.1) ; Evaluates to 1
 \end{verbatim}
 
-\subsection{(\textless\ \textit{lhs rhs})}
+\subsection{(< \textit{lhs rhs})}
 \texttt{1} if $lhs$ is \dindex{less-than} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -465,7 +466,7 @@ The output of these operators is always a 1-bit \pindex{integer}.
 (< 4 4.0)  ; Evaluates to 0
 \end{verbatim}
 
-\subsection{(\textless = \textit{lhs rhs})}
+\subsection{(<= \textit{lhs rhs})}
 \texttt{1} if $lhs$ is \pindex{less} than or \pindex{equal-to} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -474,7 +475,7 @@ The output of these operators is always a 1-bit \pindex{integer}.
 (<= 4 4.0)  ; Evaluates to 1
 \end{verbatim}
 
-\subsection{(\textgreater\ \textit{lhs rhs})}
+\subsection{(> \textit{lhs rhs})}
 \texttt{1} if $lhs$ is \dindex{greater-than} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -483,7 +484,7 @@ The output of these operators is always a 1-bit \pindex{integer}.
 (> 6 6.0)  ; Evaluates to 0
 \end{verbatim}
 
-\subsection{(\textgreater = \textit{lhs rhs})}
+\subsection{(>= \textit{lhs rhs})}
 \texttt{1} if $lhs$ is \pindex{greater} than or \pindex{equal-to} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -517,7 +518,7 @@ The \dindex{bitwise-exclusive-or} of $a$ and $b$.
 (^ 1 3) ; Evaluates to 2
 \end{verbatim}
 
-\subsection{(\textless\textless\ \textit{x n})}
+\subsection{(<< \textit{x n})}
 The \dindex{left-shift} of $x$ by $n$ bits.
 
 \begin{verbatim}
@@ -525,7 +526,7 @@ The \dindex{left-shift} of $x$ by $n$ bits.
 (<< 2 1) ; Evaluates to 4
 \end{verbatim}
 
-\subsection{(\textgreater\textgreater\ \textit{x n})}
+\subsection{(>> \textit{x n})}
 The \dindex{right-shift} of $x$ by $n$ bits.
 If $x$ is signed then the operation is an \dindex{arithmetic} right-shift (sign extension), otherwise it is a \dindex{logical} right-shift (zero extension).
 
@@ -688,11 +689,43 @@ The result of a \dindex{round} operation is the integral value that is nearest t
 (round -5.5) ; Evaluates to -6.0
 \end{verbatim}
 
+\section{Statements}
+A \dindex{statement} is a value-less expression.
+
+\subsection{(= \textit{name expression})}
+The \dindex{define} statement associates a $name$ with an $expression$.
+A \pindex{define} is \dindex{lazy}, $expression$ will only be evaluated if and when $name$ is referenced.
+Definitions are \dindex{immutable}, though they may \dindex{shadow}.
+
+\begin{verbatim}
+x := 1
+y := (+ x 1)
+x := 4
+y      ; Evaluates to 2
+(+ x 1); Evaluates to 5
+\end{verbatim}
+
+Recall that the colon is the \pindex{infix} token for syntactic sugar described in subsection \ref{subsec:infix}.
+
+\subsection{(<- \textit{name expression})}
+The \dindex{assign} statement stack-allocates a variable with type and initial value dictated by $expression$.
+The variable can be referenced to using $name$.
+Assignments are \dindex{mutable}.
+
+Because assignment is explicitly tied to stack allocation, assignments are not allowed in the global scope.
+
+\begin{verbatim}
+{
+  x :<- 1
+  x :<- (+ x 1)
+  (+ x 2)
+} ; Evaluates to 4
+\end{verbatim}
+
 \section{Control Flow}
 \subsection{(\{ \textit{statement statement \dots\ statement expression} \})}
 \label{subsec:begin}
 The \dindex{begin} operator allows imperative-style programming.
-A \dindex{statement} is a value-less expression.
 Likely will execute a series of zero-or-more \pindex{statement}s, then value of the \pindex{begin} operator is the value of $expression$ evaluated in the context of the statements.
 
 As would be expected in an imperative programming language, the open and close braces introduce \dindex{scope} for variable declarations.
