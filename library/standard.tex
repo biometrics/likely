@@ -23,8 +23,10 @@
 { \endverbatim }
 
 \usepackage{booktabs}
+\usepackage[T1]{fontenc}
 \usepackage[hidelinks]{hyperref}
 \usepackage{listings}
+\usepackage{lmodern}
 \usepackage{makeidx}
 \usepackage{scrhack}
 \usepackage{tocbibind}
@@ -294,7 +296,7 @@ In general, a \pindex{type} conforms to the following regular expression:
 
 \begin{figure}[h]
 \centering
-\texttt{[uif]\textbackslash d+P?S?C?X?Y?T?}
+\texttt{[uif]\char`\\ d+P?S?C?X?Y?T?}
 \caption{Regular expression for identifying types.}
 \end{figure}
 
@@ -362,7 +364,7 @@ Unless otherwise noted, the choice of symbols and their definitions are consiste
 Likely has the following builtin operators.
 
 \section{Arithmetic}
-\subsection{(+ $a$ $b$)}
+\subsection{(+ \textit{a b})}
 The \dindex{addition} of $a$ and $b$.
 
 \begin{verbatim}
@@ -371,7 +373,7 @@ The \dindex{addition} of $a$ and $b$.
 (+ 1.8 2.2) ; Evaluates to 4.0
 \end{verbatim}
 
-\subsection{(- $lhs$ $[rhs]$)}
+\subsection{(- \textit{lhs [rhs]})}
 If $rhs$ is provided then the \dindex{subtraction} of $lhs$ by $rhs$, otherwise the \dindex{negation} of $lhs$.
 
 \begin{verbatim}
@@ -383,7 +385,7 @@ If $rhs$ is provided then the \dindex{subtraction} of $lhs$ by $rhs$, otherwise 
 (- -1.1)    ; Evaluates to 1.1
 \end{verbatim}
 
-\subsection{(* $a$ $b$)}
+\subsection{(* \textit{a b})}
 The \dindex{multiplication} of $a$ and $b$.
 
 \begin{verbatim}
@@ -392,7 +394,7 @@ The \dindex{multiplication} of $a$ and $b$.
 (* 1.5 2.0) ; Evaluates to 3.0
 \end{verbatim}
 
-\subsection{(/ $num$ $denom$)}
+\subsection{(/ \textit{num denom})}
 The \dindex{division} of $num$ by $denom$.
 
 \begin{verbatim}
@@ -401,7 +403,7 @@ The \dindex{division} of $num$ by $denom$.
 (/ 4.2 2.1) ; Evaluates to 2.0
 \end{verbatim}
 
-\subsection{(\% $num$ $denom$)}
+\subsection{(\% \textit{num denom})}
 The \dindex{remainder} after division of $num$ by $denom$.
 
 \begin{verbatim}
@@ -419,7 +421,7 @@ The \dindex{remainder} after division of $num$ by $denom$.
 \section{Comparison}
 The output of these operators is always a 1-bit \pindex{integer}.
 
-\subsection{(== $a$ $b$)}
+\subsection{(== \textit{a b})}
 \texttt{1} if $a$ is \dindex{equal-to} $b$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -429,7 +431,7 @@ The output of these operators is always a 1-bit \pindex{integer}.
 (== 2 2.1) ; Evaluates to 0
 \end{verbatim}
 
-\subsection{(!= $a$ $b$)}
+\subsection{(!= \textit{a b})}
 \texttt{1} if $a$ is not \pindex{equal-to} to $b$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -439,7 +441,7 @@ The output of these operators is always a 1-bit \pindex{integer}.
 (!= 3 3.1) ; Evaluates to 1
 \end{verbatim}
 
-\subsection{(\textless\ $lhs$ $rhs$)}
+\subsection{(\textless\ \textit{lhs rhs})}
 \texttt{1} if $lhs$ is \dindex{less-than} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -448,7 +450,7 @@ The output of these operators is always a 1-bit \pindex{integer}.
 (< 4 4.0)  ; Evaluates to 0
 \end{verbatim}
 
-\subsection{(\textless = $lhs$ $rhs$)}
+\subsection{(\textless = \textit{lhs rhs})}
 \texttt{1} if $lhs$ is \pindex{less} than or \pindex{equal-to} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -457,7 +459,7 @@ The output of these operators is always a 1-bit \pindex{integer}.
 (<= 4 4.0)  ; Evaluates to 1
 \end{verbatim}
 
-\subsection{(\textgreater\ $lhs$ $rhs$)}
+\subsection{(\textgreater\ \textit{lhs rhs})}
 \texttt{1} if $lhs$ is \dindex{greater-than} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -466,7 +468,7 @@ The output of these operators is always a 1-bit \pindex{integer}.
 (> 6 6.0)  ; Evaluates to 0
 \end{verbatim}
 
-\subsection{(\textgreater = $lhs$ $rhs$)}
+\subsection{(\textgreater = \textit{lhs rhs})}
 \texttt{1} if $lhs$ is \pindex{greater} than or \pindex{equal-to} $rhs$, \texttt{0} otherwise.
 
 \begin{verbatim}
@@ -476,7 +478,7 @@ The output of these operators is always a 1-bit \pindex{integer}.
 \end{verbatim}
 
 \section{Bit Manipulation}
-\subsection{(\& $a$ $b$)}
+\subsection{(\& \textit{a b})}
 The \dindex{bitwise-and} of $a$ and $b$.
 
 \begin{verbatim}
@@ -484,7 +486,7 @@ The \dindex{bitwise-and} of $a$ and $b$.
 (& 1 3) ; Evaluates to 1
 \end{verbatim}
 
-\subsection{(\textbar\ $a$ $b$)}
+\subsection{(\textbar\ \textit{a b})}
 The \dindex{bitwise-or} of $a$ and $b$.
 
 \begin{verbatim}
@@ -492,7 +494,7 @@ The \dindex{bitwise-or} of $a$ and $b$.
 (| 1 3) ; Evaluates to 3
 \end{verbatim}
 
-\subsection{(\char`\^\ $a$ $b$)}
+\subsection{(\textasciicircum\ \textit{a b})}
 The \dindex{bitwise-exclusive-or} of $a$ and $b$.
 
 \begin{verbatim}
@@ -500,7 +502,7 @@ The \dindex{bitwise-exclusive-or} of $a$ and $b$.
 (^ 1 3) ; Evaluates to 2
 \end{verbatim}
 
-\subsection{(\textless\textless\ $x$ $n$)}
+\subsection{(\textless\textless\ \textit{x n})}
 The \dindex{left-shift} of $x$ by $n$ bits.
 
 \begin{verbatim}
@@ -508,7 +510,7 @@ The \dindex{left-shift} of $x$ by $n$ bits.
 (<< 2 1) ; Evaluates to 4
 \end{verbatim}
 
-\subsection{(\textgreater\textgreater\ $x$ $n$)}
+\subsection{(\textgreater\textgreater\ \textit{x n})}
 The \dindex{right-shift} of $x$ by $n$ bits.
 If $x$ is signed then the operation is an \dindex{arithmetic} right-shift (sign extension), otherwise it is a \dindex{logical} right-shift (zero extension).
 
@@ -524,7 +526,7 @@ If $x$ is signed then the operation is an \dindex{arithmetic} right-shift (sign 
 A subset of the \fref{http://www.cplusplus.com/reference/cmath/}{C common mathematical operations}.
 The output of these operators is always a \pindex{real}.
 
-\subsection{(sqrt $x$)}
+\subsection{(sqrt \textit{x})}
 The \dindex{square root} of $x$.
 
 \begin{verbatim}
@@ -533,7 +535,7 @@ The \dindex{square root} of $x$.
 (sqrt 0)   ; Evaluates to 0.0
 \end{verbatim}
 
-\subsection{(sin $x$)}
+\subsection{(sin \textit{x})}
 The \dindex{sine} of an angle of $x$ radians.
 
 \begin{verbatim}
@@ -543,7 +545,7 @@ The \dindex{sine} of an angle of $x$ radians.
 (sin 0.523599)  ; Evaluates to 0.5
 \end{verbatim}
 
-\subsection{(cos $x$)}
+\subsection{(cos \textit{x})}
 The cosine of an angle of $x$ radians.
 
 \begin{verbatim}
@@ -552,7 +554,7 @@ The cosine of an angle of $x$ radians.
 (cos 1.047198) ; Evaluates to 0.5
 \end{verbatim}
 
-\subsection{(pow $base$ $exponent$)}
+\subsection{(pow \textit{base exponent})}
 The $base$ raised to the \dindex{power} $exponent$.
 
 \begin{verbatim}
@@ -565,7 +567,7 @@ The $base$ raised to the \dindex{power} $exponent$.
 (pow 4 0)     ; Evaluates to 1.0
 \end{verbatim}
 
-\subsection{(exp $x$)}
+\subsection{(exp \textit{x})}
 The \dindex{base-e exponential} function of $x$, which is $e$ raised to the \pindex{power} $x$.
 
 \begin{verbatim}
@@ -574,7 +576,7 @@ The \dindex{base-e exponential} function of $x$, which is $e$ raised to the \pin
 (exp 1.5) ; Evaluates to 4.48169
 \end{verbatim}
 
-\subsection{(exp2 $x$)}
+\subsection{(exp2 \textit{x})}
 The \dindex{base-2 exponential} function of $x$, which is $2$ raised to the \pindex{power} $x$.
 
 \begin{verbatim}
@@ -584,7 +586,7 @@ The \dindex{base-2 exponential} function of $x$, which is $2$ raised to the \pin
 (exp2 3)   ; Evaluates to 8.0
 \end{verbatim}
 
-\subsection{(log $x$)}
+\subsection{(log \textit{x})}
 The \dindex{natural logarithm} (base-$e$) of $x$.
 
 \begin{verbatim}
@@ -594,7 +596,7 @@ The \dindex{natural logarithm} (base-$e$) of $x$.
 (log 0.5)      ; Evaluates to -0.693147
 \end{verbatim}
 
-\subsection{(log10 $x$)}
+\subsection{(log10 \textit{x})}
 The \dindex{common logarithm} (base-$10$) of $x$.
 
 \begin{verbatim}
@@ -604,7 +606,7 @@ The \dindex{common logarithm} (base-$10$) of $x$.
 (log10 0.5) ; Evaluates to -0.30103
 \end{verbatim}
 
-\subsection{(log2 $x$)}
+\subsection{(log2 \textit{x})}
 The \dindex{binary logarithm} (base-$2$) of $x$.
 
 \begin{verbatim}
@@ -615,7 +617,7 @@ The \dindex{binary logarithm} (base-$2$) of $x$.
 (log2 10)  ; Evaluates to 3.32193
 \end{verbatim}
 
-\subsection{(copysign $x$ $y$)}
+\subsection{(copysign \textit{x} \textit{y})}
 The result of a \dindex{copysign} operation is a value with the magnitude of $x$ and the sign of $y$.
 
 \begin{verbatim}
@@ -623,7 +625,7 @@ The result of a \dindex{copysign} operation is a value with the magnitude of $x$
 (copysign -4.3 2) ; Evaluates to 4.3
 \end{verbatim}
 
-\subsection{(floor $x$)}
+\subsection{(floor \textit{x})}
 The result of a \dindex{floor} operation is the largest integral value that is not greater than $x$.
 
 \begin{verbatim}
@@ -635,7 +637,7 @@ The result of a \dindex{floor} operation is the largest integral value that is n
 (floor -5.5) ; Evaluates to -6.0
 \end{verbatim}
 
-\subsection{(ceil $x$)}
+\subsection{(ceil \textit{x})}
 The result of a \dindex{ceil} operation is the smallest integral value that is not less than $x$.
 
 \begin{verbatim}
@@ -647,7 +649,7 @@ The result of a \dindex{ceil} operation is the smallest integral value that is n
 (ceil -5.5) ; Evaluates to -5.0
 \end{verbatim}
 
-\subsection{(trunc $x$)}
+\subsection{(trunc \textit{x})}
 The result of a \dindex{trunc} operation is the nearest integral value that is not larger in magnitude than $x$.
 
 \begin{verbatim}
@@ -659,7 +661,7 @@ The result of a \dindex{trunc} operation is the nearest integral value that is n
 (trunc -5.5) ; Evaluates to -5.0
 \end{verbatim}
 
-\subsection{(round $x$)}
+\subsection{(round \textit{x})}
 The result of a \dindex{round} operation is the integral value that is nearest to $x$, with halfway cases rounded away from zero.
 
 \begin{verbatim}
@@ -672,7 +674,7 @@ The result of a \dindex{round} operation is the integral value that is nearest t
 \end{verbatim}
 
 \section{Control Flow}
-\subsection{(? $condition$ $then$ $[else]$)}
+\subsection{(? \textit{condition then [else]})}
 The behavior of the \dindex{if} operator depends its use:
 
 \paragraph{(? $condition$ $then$ $else$)}
