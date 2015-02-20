@@ -674,6 +674,24 @@ The result of a \dindex{round} operation is the integral value that is nearest t
 \end{verbatim}
 
 \section{Control Flow}
+\subsection{(\{ \textit{statement statement \dots\ statement expression} \})}
+The \dindex{begin} operator allows imperative-style programming.
+A \dindex{statement} is a value-less expression.
+Likely will execute a series of zero-or-more \pindex{statement}s, then value of the \pindex{begin} operator is the value of $expression$ evaluated in the context of the statements.
+
+As would be expected in an imperative programming language, the open and close braces introduce \dindex{scope} for variable declarations.
+
+\begin{verbatim}
+x := 1
+y := 2
+{
+  x := 4
+  y := 5
+  (+ x y)
+} ; Evaluates to 9
+(+ x y) ; Evaluates to 3
+\end{verbatim}
+
 \subsection{(? \textit{condition then [else]})}
 The behavior of the \dindex{if} operator depends its use:
 
@@ -681,16 +699,51 @@ The behavior of the \dindex{if} operator depends its use:
 In the case that the $else$ operand is provided, the \pindex{if} operator is an \pindex{expression} with value $then$ if $condition$ is not equal to \texttt{0} and $else$ otherwise.
 Implicit type conversion ensures that $then$ and $else$ are the same type.
 
+\begin{verbatim}
+x := 1
+y := 2
+(? (< x y) x y) ; Evaluates to 1
+\end{verbatim}
+
 \paragraph{(? $condition$ $then$)}
 In the case that the $else$ operand is not provided, the \pindex{if} operator is a \pindex{statement} with no value.
 The $then$ \pindex{statement} is executed if and only if $condition$ is not equal to \texttt{0}.
 
+\begin{verbatim}
+{
+  x :<- 0
+  (? (== x 0) (<- x 1))
+  x
+} ; Evaluates to 1
+\end{verbatim}
+
 \paragraph{(? \texttt{constant} $then$ $[else]$)}
 In the case that the condition is a constant \pindex{integer} or \pindex{real}, the branching will happen at compile time.
+
+\begin{verbatim}
+x := 0
+(? x 1 2) ; Evaluates to 2 at compile time
+\end{verbatim}
 
 \subsection{(\#)}
 The \dindex{label} operator creates a point in the code that can be jumped to.
 This primitive is necessary for constructing loops.
+
+\begin{verbatim}
+{
+  end := 10
+  i :<- 1
+  j :<- 0
+  loop := #
+  (< i end) :?
+  {
+    j :<- (+ j i)
+    i :<- (+ i 1)
+    loop
+  }
+  j
+} ; Evaluates to 45
+\end{verbatim}
 
 \section{Matricies}
 The fundamental data structure in Likely is a four-dimensional \emph{matrix}.
