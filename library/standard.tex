@@ -367,6 +367,12 @@ If a \pindex{type} indicates how to interpret the contents of an address in memo
 This is a relatively unimportant portion of the language, and is generally transparent to the developer.
 Therefore it is just noted that, analogous to a \pindex{type}, a \pindex{file-type} is defined by the function \tindex{likely\char`_file\char`_type\char`_from\char`_string}, and has an integer value represented in the API by \tindex{likely\char`_file\char`_type}.
 
+\section{\texttt{this}}
+The \dindex{\texttt{this}} keyword refers to the appliation's current \dindex{environment}, or set of referenceable variables.
+Likely's ability to self-execute code, such as when including the contents of another file, are made possible by \tindex{this}.
+
+In terms of the Likely API, \texttt{this} is a pointer to a \tindex{likely\char`_environment}, and is most useful in conjunction with the function \tindex{likely\char`_eval}.
+
 \chapter{Intrinsic Operators}
 An \dindex{intrinsic operator} is the basic construct for higher order expressions on \pindex{literal}s.
 Unless otherwise noted, the choice of symbols and their definitions are consistent with C.
