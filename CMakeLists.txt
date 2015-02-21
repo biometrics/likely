@@ -65,7 +65,7 @@ endif()
 llvm_map_components_to_libnames(LIKELY_LLVM_LIBRARIES bitwriter ipo interpreter mcjit native support vectorize)
 set(LIKELY_LIBS ${LIKELY_LIBS} ${LIKELY_LLVM_LIBRARIES})
 
-  # Find or build OpenCV
+# Find or build OpenCV
 option(LIKELY_SYSTEM_OPENCV "Use system OpenCV" OFF)
 if(${LIKELY_SYSTEM_OPENCV})
   find_package(OpenCV REQUIRED)

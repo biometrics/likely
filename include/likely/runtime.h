@@ -308,6 +308,12 @@ LIKELY_EXPORT void likely_fork(likely_thunk thunk, void *args, size_t size);
  */
 LIKELY_EXPORT bool likely_can_fork();
 
+/*!
+ * \brief Initialize the co-processor for heterogeneous execution.
+ * \return \c true if the system has a viable co-processor, \c false otherwise.
+ */
+LIKELY_EXPORT bool likely_initialize_coprocessor();
+
 /** @} */ // end of runtime
 
 #ifdef __cplusplus

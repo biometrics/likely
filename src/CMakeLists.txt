@@ -33,6 +33,15 @@ if(${LIKELY_PROFILING})
   endif()
 endif()
 
+# Build CUDA backend if possible
+find_library(CUDA_LIBRARY cuda)
+if(CUDA_LIBRARY)
+  set(LIKELY_SRC ${LIKELY_SRC} cuda.cpp)
+  set(LIKELY_LIBS ${LIKELY_LIBS} ${CUDA_LIBRARY})
+else()
+  add_definitions(-DLIKELY_NO_COPROCESSOR)
+endif()
+
 # Build runtime-only library
 add_definitions(-DLIKELY_LIBRARY)
 add_library(likely_runtime STATIC runtime.c runtime_stdthread.cpp)

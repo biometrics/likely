@@ -177,3 +177,10 @@ void likely_set_element(likely_mat m, double value, uint32_t c, uint32_t x, uint
       default: assert(!"likely_set_element unsupported type");
     }
 }
+
+#ifdef LIKELY_NO_COPROCESSOR
+bool likely_initialize_coprocessor()
+{
+    return false;
+}
+#endif // LIKELY_NO_COPROCESSOR
