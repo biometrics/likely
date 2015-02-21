@@ -65,17 +65,6 @@ void likely_fork(likely_thunk thunk, void *args, size_t size)
     static mutex forkLock;
     lock_guard<mutex> lockFork(forkLock);
 
-    // Spin up the worker threads
-    if (workers == NULL) {
-        numWorkers = max((int)thread::hardware_concurrency(), 1);
-        workers = new atomic<bool>[numWorkers];
-        for (size_t i = 1; i < numWorkers; i++) {
-            workers[i] = true;
-            thread(workerThread, i).detach();
-            while (workers[i]) {} // Wait for the worker to initialize
-        }
-    }
-
     currentThunk = thunk;
     thunkArgs = args;
     thunkSize = size;
@@ -95,7 +84,19 @@ void likely_fork(likely_thunk thunk, void *args, size_t size)
         while (workers[i]) {} // Wait for the worker to finish
 }
 
-bool likely_can_fork()
+bool likely_initialize_multicore()
 {
-    return thread::hardware_concurrency() > 1;
+    numWorkers = max((int)thread::hardware_concurrency(), 1);
+    if (numWorkers == 1)
+        return false;
+
+    // Spin up the worker threads
+    workers = new atomic<bool>[numWorkers];
+    for (size_t i=1; i<numWorkers; i++) {
+        workers[i] = true;
+        thread(workerThread, i).detach();
+        while (workers[i]) {} // Wait for the worker to initialize
+    }
+
+    return true;
 }

@@ -10,6 +10,9 @@ static CUdevice Device;
 
 bool likely_initialize_coprocessor()
 {
+    // Initializing CUDA is expensive, so we'll disable it until we're ready to use it
+    return false;
+
     if (cuInit(0))
         return false;
 
