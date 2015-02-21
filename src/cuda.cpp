@@ -1,5 +1,8 @@
-#include <iostream>
+#ifdef __APPLE__
 #include <cuda/cuda.h>
+#else // !__APPLE__
+#include <cuda.h>
+#endif // __APPLE__
 
 #include "likely/runtime.h"
 
@@ -20,5 +23,5 @@ bool likely_initialize_coprocessor()
     if (cuDeviceGet(&Device, 0))
         return false;
 
-    return true;
+    return false;
 }
