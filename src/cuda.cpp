@@ -1,8 +1,4 @@
-#ifdef __APPLE__
-#include <cuda/cuda.h>
-#else // !__APPLE__
 #include <cuda.h>
-#endif // __APPLE__
 
 #include "likely/runtime.h"
 
