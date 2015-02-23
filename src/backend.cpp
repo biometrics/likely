@@ -1947,18 +1947,14 @@ class reassignExpression : public LikelyOperator
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        likely_const_ast lhs = ast->atoms[1];
-        likely_const_ast rhs = ast->atoms[2];
-        const char *name = likely_symbol(ast);
+        const char *name = ast->atoms[1]->atom;
         assert(builder.module);
-        likely_const_expr expr = get(builder, rhs);
-        if (expr) {
-            const likely_const_env env = lookup(builder.env, name);
-            const Assignable *assignable = env ? Assignable::dynamicCast(env->expr) : NULL;
-            if (assignable) assignable->set(builder, expr, lhs);
-            else            define(builder.env, name, new Variable(builder, expr, name));
-        }
-        return expr;
+        TRY_EXPR(builder, ast->atoms[2], expr);
+        const likely_const_env env = lookup(builder.env, name);
+        const Assignable *assignable = env ? Assignable::dynamicCast(env->expr) : NULL;
+        assert(assignable);
+        assignable->set(builder, expr.get(), ast->atoms[1]);
+        return new likely_expression();
     }
 };
 LIKELY_REGISTER(reassign)
