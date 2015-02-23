@@ -1889,7 +1889,7 @@ struct Assignable : public LikelyOperator
         this->type = type;
     }
 
-    virtual void set(Builder &builder, likely_const_expr expr, likely_const_ast ast) const = 0;
+    virtual void set(Builder &builder, const likely_expression &expr, likely_const_ast ast) const = 0;
 
     static const Assignable *dynamicCast(likely_const_expr expr)
     {
@@ -1908,14 +1908,14 @@ struct Variable : public Assignable
     Variable(Builder &builder, likely_const_expr expr, const string &name)
         : Assignable(builder.CreateAlloca(builder.module->context->toLLVM(expr->type), 0, name), *expr)
     {
-        set(builder, expr);
+        set(builder, *expr);
     }
 
 private:
-    void set(Builder &builder, likely_const_expr expr, likely_const_ast = NULL) const
+    void set(Builder &builder, const likely_expression &expr, likely_const_ast = NULL) const
     {
-        builder.CreateStore((type & likely_multi_dimension) ? expr->value
-                                                            : builder.cast(*expr, type).value, value);
+        builder.CreateStore((type & likely_multi_dimension) ? expr.value
+                                                            : builder.cast(expr, type).value, value);
     }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
@@ -1947,13 +1947,12 @@ class reassignExpression : public LikelyOperator
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        const char *name = ast->atoms[1]->atom;
         assert(builder.module);
         TRY_EXPR(builder, ast->atoms[2], expr);
-        const likely_const_env env = lookup(builder.env, name);
+        const likely_const_env env = lookup(builder.env, likely_symbol(ast->atoms[1]));
         const Assignable *assignable = env ? Assignable::dynamicCast(env->expr) : NULL;
         assert(assignable);
-        assignable->set(builder, expr.get(), ast->atoms[1]);
+        assignable->set(builder, *expr, ast->atoms[1]);
         return new likely_expression();
     }
 };
@@ -2172,9 +2171,9 @@ class kernelExpression : public LikelyOperator
             return builder.CreateGEP(data, i);
         }
 
-        void set(Builder &builder, likely_const_expr expr, likely_const_ast ast) const
+        void set(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
         {
-            StoreInst *store = builder.CreateStore(builder.cast(*expr, type), gep(builder, ast));
+            StoreInst *store = builder.CreateStore(builder.cast(expr, type), gep(builder, ast));
             store->setMetadata("llvm.mem.parallel_loop_access", info.node);
         }
 
