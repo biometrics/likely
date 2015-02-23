@@ -707,19 +707,29 @@ y      ; Evaluates to 2
 
 Recall that the colon is the \pindex{infix} token for syntactic sugar described in subsection \ref{subsec:infix}.
 
-\subsection{(<- \textit{name expression})}
-The \dindex{assign} statement stack-allocates a variable with type and initial value dictated by $expression$.
-The variable can be referenced to using $name$.
-Assignments are \dindex{mutable}.
+\subsection{(<\textasciitilde\ \textit{name expression})}
+The \dindex{assign} statement stack-allocates a variable with type and initial value of $expression$.
+The variable can be referenced using $name$.
+Assignments are \dindex{mutable} using the \pindex{reassign} statement.
 
 Because assignment is explicitly tied to stack allocation, assignments are not allowed in the global scope.
 
 \begin{verbatim}
 {
-  x :<- 1
+  x :<~ 1
+  x
+} ; Evaluates to 1
+\end{verbatim}
+
+\subsection{(<- \textit{name expression})}
+The \dindex{reassign} statement stores the value of $expression$ into the variable $name$ previously defined by an \pindex{assign} statement.
+
+\begin{verbatim}
+{
+  x :<~ 1
   x :<- (+ x 1)
-  (+ x 2)
-} ; Evaluates to 4
+  x
+} ; Evaluates to 2
 \end{verbatim}
 
 \section{Control Flow}

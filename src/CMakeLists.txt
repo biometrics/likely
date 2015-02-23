@@ -333,9 +333,13 @@ test_expr("x := 1
            (+ x 1)" 25)
 test_expr("{
              x :<~ 1
+             x
+           }" 1)
+test_expr("{
+             x :<~ 1
              x :<- (+ x 1)
-             (+ x 2)
-           }" 4)
+             x
+           }" 2)
 test_expr("x := 1
            y := 2
            {
