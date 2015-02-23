@@ -770,7 +770,7 @@ The $then$ \pindex{statement} is executed if and only if $condition$ is not equa
 
 \begin{verbatim}
 {
-  x :<- 0
+  x :<~ 0
   (? (== x 0) (<- x 1))
   x
 } ; Evaluates to 1
@@ -791,8 +791,8 @@ This primitive is necessary for constructing loops.
 \begin{verbatim}
 {
   end := 10
-  i :<- 1
-  j :<- 0
+  i :<~ 1
+  j :<~ 0
   loop := #
   (< i end) :?
   {
@@ -809,48 +809,46 @@ The fundamental data structure in Likely is a four-dimensional \emph{matrix}.
 In decreasing memory spatial locality order, its dimensions are: \emph{channels}, \emph{columns}, \emph{rows} and \emph{frames}.
 These dimensions are often abbreviated \emph{c}, \emph{x}, \emph{y} and \emph{t}, respectively.
 Ownership of matricies is managed automatically using reference counting.
+Matricies are represented with the C API struct \tindex{likely\char`_matrix}.
 
-\paragraph{(new [\emph{type} [\emph{channels} [\emph{columns} [\emph{rows} [\emph{frames} [\emph{data}]]]]]])}
-Returns a newly allocated matrix with element type \emph{type}, dimensions \emph{channels}, \emph{columns}, \emph{rows} and \emph{frames}, initialized to \emph{data}.
-If \emph{data} is not specified then the elements will be uninitialized.
-If \emph{frames}, \emph{rows}, \emph{columns} or \emph{channels} are not specified then they will assume a value of \emph{1}.
-If \emph{type} is not specified then it will assume a value of \emph{f32} (32-bit floating point).
-
-\begin{verbatim}
-uninitialized-color-image := (new u8CXY 3 512 512 1 null)
-\end{verbatim}
-
-\paragraph{(channels [\emph{matrix}])}
-Returns the number of channels in \emph{matrix} as a native integer.
-If \emph{matrix} is not specified, returns a function which when given a matrix returns the number of channels in the matrix.
+\subsection{(channels \textit{[matrix]})}
+The \dindex{channels} operator returns the number of \pindex{channels} in $matrix$.
+If $matrix$ is not specified, this operator returns a function which when given a matrix returns the number of \pindex{channels} in the matrix.
 
 \begin{verbatim}
-(channels uninitialized-color-image) ; Evaluates to 3
+(channels (read-image "data/misc/lenna.tiff")) ; Evaluates to 3
 \end{verbatim}
 
-\paragraph{(columns [\emph{matrix}])}
-Returns the number of columns in \emph{matrix} as a native integer.
-If \emph{matrix} is not specified, returns a function which when given a matrix returns the number of columns in the matrix.
+\subsection{(columns \textit{[matrix]})}
+The \dindex{columns} operator returns the number of \pindex{columns} in $matrix$.
+If $matrix$ is not specified, this operator returns a function which when given a matrix returns the number of \pindex{columns} in the matrix.
 
 \begin{verbatim}
-(columns uninitialized-color-image) ; Evaluates to 512
+(columns (read-image "data/misc/lenna.tiff")) ; Evaluates to 512
 \end{verbatim}
 
-\paragraph{(rows [\emph{matrix}])}
-Returns the number of rows in \emph{matrix} as type a native integer.
-If \emph{matrix} is not specified, returns a function which when given a matrix returns the number of rows in the matrix.
+\subsection{(rows \textit{[matrix]})}
+The \dindex{rows} operator returns the number of \pindex{rows} in $matrix$.
+If $matrix$ is not specified, this operator returns a function which when given a matrix returns the number of \pindex{rows} in the matrix.
 
 \begin{verbatim}
-(rows uninitialized-color-image) ; Evaluates to 512
+(rows (read-image "data/misc/lenna.tiff")) ; Evaluates to 512
 \end{verbatim}
 
-\paragraph{(frames [\emph{matrix}])}
-Returns the number of frames in \emph{matrix} as type a native integer.
-If \emph{matrix} is not specified, returns a function which when given a matrix returns the number of frames in the matrix.
+\subsection{(frames \textit{[matrix]})}
+The \dindex{frames} operator returns the number of \pindex{frames} in $matrix$.
+If $matrix$ is not specified, this operator returns a function which when given a matrix returns the number of \pindex{frames} in the matrix.
 
 \begin{verbatim}
-(frames uninitialized-color-image) ; Evaluates to 1
+(frames (read-image "data/misc/lenna.tiff")) ; Evaluates to 1
 \end{verbatim}
+
+\subsection{(data \textit{[matrix]})}
+The \dindex{data} operator returns a pointer to the $matrix$ \pindex{data}.
+If $matrix$ is not specified, this operator returns a function which when given a matrix returns a pointer to the matrix \pindex{data}.
+
+This operator is useful for interoperability with external functions that operate on raw data buffers.
+Developers generally shouldn't need to use it otherwise in Likely code.
 
 \section{Macros}
 \paragraph{(try \emph{primary-expr} \emph{fallback-expr})}

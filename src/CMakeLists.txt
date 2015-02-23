@@ -371,10 +371,10 @@ test_expr("{
              }
              j
            }" 45)
-test_expr("(new u8CXY 3 512 512 1 null).channels" 3)
-test_expr("(new u8CXY 3 512 512 1 null).columns" 512)
-test_expr("(new u8CXY 3 512 512 1 null).rows" 512)
-test_expr("(new u8CXY 3 512 512 1 null).frames" 1)
+test_expr("(channels (read-image \"data/misc/lenna.tiff\"))" 3)
+test_expr("(columns (read-image \"data/misc/lenna.tiff\"))" 512)
+test_expr("(rows (read-image \"data/misc/lenna.tiff\"))" 512)
+test_expr("(frames (read-image \"data/misc/lenna.tiff\"))" 1)
 test_expr("(try (+ 1 1) 3)" 2)
 test_expr("(try (+ 1) 3)" 3)
 test_expr("((extern i32 \"abs\" i32) -4)" 4)
