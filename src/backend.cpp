@@ -1903,29 +1903,45 @@ private:
     size_t minParameters() const { return 0; }
 };
 
+struct Variable : public Assignable
+{
+    Variable(Builder &builder, likely_const_expr expr, const string &name)
+        : Assignable(builder.CreateAlloca(builder.module->context->toLLVM(expr->type), 0, name), *expr)
+    {
+        set(builder, expr);
+    }
+
+private:
+    void set(Builder &builder, likely_const_expr expr, likely_const_ast = NULL) const
+    {
+        builder.CreateStore((type & likely_multi_dimension) ? expr->value
+                                                            : builder.cast(*expr, type).value, value);
+    }
+
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
+    {
+        return new likely_expression(LikelyValue(builder.CreateLoad(value), type));
+    }
+};
+
 class assignExpression : public LikelyOperator
 {
-    struct Variable : public Assignable
+    const char *symbol() const { return "<~"; }
+    size_t maxParameters() const { return 2; }
+
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        Variable(Builder &builder, likely_const_expr expr, const string &name)
-            : Assignable(builder.CreateAlloca(builder.module->context->toLLVM(expr->type), 0, name), *expr)
-        {
-            set(builder, expr);
-        }
+        const char *name = ast->atoms[1]->atom;
+        assert(builder.module);
+        TRY_EXPR(builder, ast->atoms[2], expr);
+        define(builder.env, name, new Variable(builder, expr.get(), name));
+        return new likely_expression();
+    }
+};
+LIKELY_REGISTER(assign)
 
-    private:
-        void set(Builder &builder, likely_const_expr expr, likely_const_ast = NULL) const
-        {
-            builder.CreateStore((type & likely_multi_dimension) ? expr->value
-                                                                : builder.cast(*expr, type).value, value);
-        }
-
-        likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
-        {
-            return new likely_expression(LikelyValue(builder.CreateLoad(value), type));
-        }
-    };
-
+class reassignExpression : public LikelyOperator
+{
     const char *symbol() const { return "<-"; }
     size_t maxParameters() const { return 2; }
 
@@ -1945,7 +1961,7 @@ class assignExpression : public LikelyOperator
         return expr;
     }
 };
-LIKELY_REGISTER(assign)
+LIKELY_REGISTER(reassign)
 
 class beginExpression : public LikelyOperator
 {

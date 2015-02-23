@@ -647,7 +647,7 @@ const char *likely_symbol(likely_const_ast ast)
     while (ast && (ast->type == likely_ast_list) && (ast->num_atoms > 0)) {
         if ((ast->num_atoms > 1)
                 && (ast->atoms[0]->type != likely_ast_list)
-                && (!strcmp(ast->atoms[0]->atom, "=") || !strcmp(ast->atoms[0]->atom, "<-")))
+                && (!strcmp(ast->atoms[0]->atom, "=") || !strcmp(ast->atoms[0]->atom, "<~") || !strcmp(ast->atoms[0]->atom, "<-")))
             ast = ast->atoms[1];
         else
             ast = ast->atoms[0];

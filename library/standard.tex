@@ -995,7 +995,7 @@ threshold-to-zero-inverse := (-> (input threshold)          (? (> input threshol
 iter :=
   (expr end) :->
   {
-    i :<- 0
+    i :<~ 0
     loop := #
     (!= i end) :? {
       (expr i)
@@ -1015,7 +1015,7 @@ average-frame :=
     len := mat.frames
     (result mat len) :=>
     {
-      j :<- (mat.type.depth-double.depth-atleast-32 0)
+      j :<~ (mat.type.depth-double.depth-atleast-32 0)
       (-> t (<- j (+ j (mat c x y t)))).(iter len)
       result :<- (result.type (/ j len))
     }
