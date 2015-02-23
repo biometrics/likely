@@ -43,7 +43,7 @@
 \newcommand{\fref}[2]{\href{#1}{#2}\footnote{\href{#1}{#1}}}
 \newcommand{\awsurl}{https://s3.amazonaws.com/liblikely/}
 \newcommand{\githuburl}{https://raw.githubusercontent.com/biometrics/likely/gh-pages/}
-\newcommand{\dindex}[1]{\textit{#1}\index{#1}}
+\newcommand{\dindex}[1]{\emph{#1}\index{#1}}
 \newcommand{\pindex}[1]{#1\index{#1}}
 \newcommand{\tindex}[1]{\pindex{\texttt{#1}}}
 
@@ -380,8 +380,8 @@ Unless otherwise noted, the choice of symbols and their definitions are consiste
 Likely has the following builtin operators.
 
 \section{Arithmetic}
-\subsection{(+ \textit{a b})}
-The \dindex{addition} of $a$ and $b$.
+\subsection{(+ \emph{a b})}
+The \dindex{addition} of \emph{a} and \emph{b}.
 
 \begin{verbatim}
 (+ 2 2)     ; Evaluates to 4
@@ -389,8 +389,8 @@ The \dindex{addition} of $a$ and $b$.
 (+ 1.8 2.2) ; Evaluates to 4.0
 \end{verbatim}
 
-\subsection{(- \textit{lhs [rhs]})}
-If $rhs$ is provided then the \dindex{subtraction} of $lhs$ by $rhs$, otherwise the \dindex{negation} of $lhs$.
+\subsection{(- \emph{lhs [rhs]})}
+If \emph{rhs} is provided then the \dindex{subtraction} of \emph{lhs} by \emph{rhs}, otherwise the \dindex{negation} of \emph{lhs}.
 
 \begin{verbatim}
 (- 3 2)     ; Evaluates to 1
@@ -401,8 +401,8 @@ If $rhs$ is provided then the \dindex{subtraction} of $lhs$ by $rhs$, otherwise 
 (- -1.1)    ; Evaluates to 1.1
 \end{verbatim}
 
-\subsection{(* \textit{a b})}
-The \dindex{multiplication} of $a$ and $b$.
+\subsection{(* \emph{a b})}
+The \dindex{multiplication} of \emph{a} and \emph{b}.
 
 \begin{verbatim}
 (* 1 2)     ; Evaluates to 2
@@ -410,8 +410,8 @@ The \dindex{multiplication} of $a$ and $b$.
 (* 1.5 2.0) ; Evaluates to 3.0
 \end{verbatim}
 
-\subsection{(/ \textit{num denom})}
-The \dindex{division} of $num$ by $denom$.
+\subsection{(/ \emph{num denom})}
+The \dindex{division} of \emph{num} by \emph{denom}.
 
 \begin{verbatim}
 (/ 4 2)     ; Evaluates to 2
@@ -419,8 +419,8 @@ The \dindex{division} of $num$ by $denom$.
 (/ 4.2 2.1) ; Evaluates to 2.0
 \end{verbatim}
 
-\subsection{(\% \textit{num denom})}
-The \dindex{remainder} after division of $num$ by $denom$.
+\subsection{(\% \emph{num denom})}
+The \dindex{remainder} after division of \emph{num} by \emph{denom}.
 
 \begin{verbatim}
 (% 7 3)      ; Evaluates to 1
@@ -435,10 +435,10 @@ The \dindex{remainder} after division of $num$ by $denom$.
 \end{verbatim}
 
 \section{Comparison}
-The output of these operators is always a 1-bit \pindex{integer}.
+The output of these operators is always a 1-bit unsigned \pindex{integer}.
 
-\subsection{(== \textit{a b})}
-\texttt{1} if $a$ is \dindex{equal-to} $b$, \texttt{0} otherwise.
+\subsection{(== \emph{a b})}
+\texttt{1} if \emph{a} is \dindex{equal-to} \emph{b}, \texttt{0} otherwise.
 
 \begin{verbatim}
 (== 2 2)   ; Evaluates to 1
@@ -447,8 +447,8 @@ The output of these operators is always a 1-bit \pindex{integer}.
 (== 2 2.1) ; Evaluates to 0
 \end{verbatim}
 
-\subsection{(!= \textit{a b})}
-\texttt{1} if $a$ is not \pindex{equal-to} to $b$, \texttt{0} otherwise.
+\subsection{(!= \emph{a b})}
+\texttt{1} if \emph{a} is \pindex{not} \pindex{equal-to} to \emph{b}, \texttt{0} otherwise.
 
 \begin{verbatim}
 (!= 3 3)   ; Evaluates to 0
@@ -457,8 +457,8 @@ The output of these operators is always a 1-bit \pindex{integer}.
 (!= 3 3.1) ; Evaluates to 1
 \end{verbatim}
 
-\subsection{(< \textit{lhs rhs})}
-\texttt{1} if $lhs$ is \dindex{less-than} $rhs$, \texttt{0} otherwise.
+\subsection{(< \emph{lhs rhs})}
+\texttt{1} if \emph{lhs} is \dindex{less-than} \emph{rhs}, \texttt{0} otherwise.
 
 \begin{verbatim}
 (< 4 5)    ; Evaluates to 1
@@ -466,8 +466,8 @@ The output of these operators is always a 1-bit \pindex{integer}.
 (< 4 4.0)  ; Evaluates to 0
 \end{verbatim}
 
-\subsection{(<= \textit{lhs rhs})}
-\texttt{1} if $lhs$ is \pindex{less} than or \pindex{equal-to} $rhs$, \texttt{0} otherwise.
+\subsection{(<= \emph{lhs rhs})}
+\texttt{1} if \emph{lhs} is \pindex{less-than} or \pindex{equal-to} \emph{rhs}, \texttt{0} otherwise.
 
 \begin{verbatim}
 (<= 4 5)    ; Evaluates to 1
@@ -475,8 +475,8 @@ The output of these operators is always a 1-bit \pindex{integer}.
 (<= 4 4.0)  ; Evaluates to 1
 \end{verbatim}
 
-\subsection{(> \textit{lhs rhs})}
-\texttt{1} if $lhs$ is \dindex{greater-than} $rhs$, \texttt{0} otherwise.
+\subsection{(> \emph{lhs rhs})}
+\texttt{1} if \emph{lhs} is \dindex{greater-than} \emph{rhs}, \texttt{0} otherwise.
 
 \begin{verbatim}
 (> 6 7)    ; Evaluates to 0
@@ -484,8 +484,8 @@ The output of these operators is always a 1-bit \pindex{integer}.
 (> 6 6.0)  ; Evaluates to 0
 \end{verbatim}
 
-\subsection{(>= \textit{lhs rhs})}
-\texttt{1} if $lhs$ is \pindex{greater} than or \pindex{equal-to} $rhs$, \texttt{0} otherwise.
+\subsection{(>= \emph{lhs rhs})}
+\texttt{1} if \emph{lhs} is \pindex{greater-than} or \pindex{equal-to} \emph{rhs}, \texttt{0} otherwise.
 
 \begin{verbatim}
 (>= 6 7)    ; Evaluates to 0
@@ -494,41 +494,41 @@ The output of these operators is always a 1-bit \pindex{integer}.
 \end{verbatim}
 
 \section{Bit Manipulation}
-\subsection{(\& \textit{a b})}
-The \dindex{bitwise-and} of $a$ and $b$.
+\subsection{(\& \emph{a b})}
+The \dindex{bitwise-and} of \emph{a} and \emph{b}.
 
 \begin{verbatim}
 (& 1 2) ; Evaluates to 0
 (& 1 3) ; Evaluates to 1
 \end{verbatim}
 
-\subsection{(\textbar\ \textit{a b})}
-The \dindex{bitwise-or} of $a$ and $b$.
+\subsection{(\textbar\ \emph{a b})}
+The \dindex{bitwise-or} of \emph{a} and \emph{b}.
 
 \begin{verbatim}
 (| 1 2) ; Evaluates to 3
 (| 1 3) ; Evaluates to 3
 \end{verbatim}
 
-\subsection{(\textasciicircum\ \textit{a b})}
-The \dindex{bitwise-exclusive-or} of $a$ and $b$.
+\subsection{(\textasciicircum\ \emph{a b})}
+The \dindex{bitwise-exclusive-or} of \emph{a} and \emph{b}.
 
 \begin{verbatim}
 (^ 1 2) ; Evaluates to 3
 (^ 1 3) ; Evaluates to 2
 \end{verbatim}
 
-\subsection{(<< \textit{x n})}
-The \dindex{left-shift} of $x$ by $n$ bits.
+\subsection{(<< \emph{x n})}
+The \dindex{left-shift} of \emph{x} by \emph{n} bits.
 
 \begin{verbatim}
 (<< 2 0) ; Evaluates to 2
 (<< 2 1) ; Evaluates to 4
 \end{verbatim}
 
-\subsection{(>> \textit{x n})}
-The \dindex{right-shift} of $x$ by $n$ bits.
-If $x$ is signed then the operation is an \dindex{arithmetic} right-shift (sign extension), otherwise it is a \dindex{logical} right-shift (zero extension).
+\subsection{(>> \emph{x n})}
+The \dindex{right-shift} of \emph{x} by \emph{n} bits.
+If \emph{x} is signed then the operation is an \dindex{arithmetic} right-shift (sign extension), otherwise it is a \dindex{logical} right-shift (zero extension).
 
 \begin{verbatim}
 (>> 2 0)  ; Evaluates to 2
@@ -542,8 +542,8 @@ If $x$ is signed then the operation is an \dindex{arithmetic} right-shift (sign 
 A subset of the \fref{http://www.cplusplus.com/reference/cmath/}{C common mathematical operations}.
 The output of these operators is always a \pindex{real}.
 
-\subsection{(sqrt \textit{x})}
-The \dindex{square root} of $x$.
+\subsection{(sqrt \emph{x})}
+The \dindex{square root} of \emph{x}.
 
 \begin{verbatim}
 (sqrt 2.0) ; Evaluates to 1.41421
@@ -551,8 +551,8 @@ The \dindex{square root} of $x$.
 (sqrt 0)   ; Evaluates to 0.0
 \end{verbatim}
 
-\subsection{(sin \textit{x})}
-The \dindex{sine} of an angle of $x$ radians.
+\subsection{(sin \emph{x})}
+The \dindex{sine} of an angle of \emph{x} radians.
 
 \begin{verbatim}
 (sin 0)         ; Evaluates to 0.0
@@ -561,8 +561,8 @@ The \dindex{sine} of an angle of $x$ radians.
 (sin 0.523599)  ; Evaluates to 0.5
 \end{verbatim}
 
-\subsection{(cos \textit{x})}
-The cosine of an angle of $x$ radians.
+\subsection{(cos \emph{x})}
+The \dindex{cosine} of an angle of \emph{x} radians.
 
 \begin{verbatim}
 (cos 0)        ; Evaluates to 1.0
@@ -570,8 +570,8 @@ The cosine of an angle of $x$ radians.
 (cos 1.047198) ; Evaluates to 0.5
 \end{verbatim}
 
-\subsection{(pow \textit{base exponent})}
-The $base$ raised to the \dindex{power} $exponent$.
+\subsection{(pow \emph{base exponent})}
+The \emph{base} raised to the \dindex{power} \emph{exponent}.
 
 \begin{verbatim}
 (pow 2 3)     ; Evaluates to 8.0
@@ -583,8 +583,8 @@ The $base$ raised to the \dindex{power} $exponent$.
 (pow 4 0)     ; Evaluates to 1.0
 \end{verbatim}
 
-\subsection{(exp \textit{x})}
-The \dindex{base-e exponential} function of $x$, which is $e$ raised to the \pindex{power} $x$.
+\subsection{(exp \emph{x})}
+The \dindex{base-e exponential} function of \emph{x}, which is \emph{e} raised to the \pindex{power} \emph{x}.
 
 \begin{verbatim}
 (exp 0)   ; Evaluates to 1.0
@@ -592,8 +592,8 @@ The \dindex{base-e exponential} function of $x$, which is $e$ raised to the \pin
 (exp 1.5) ; Evaluates to 4.48169
 \end{verbatim}
 
-\subsection{(exp2 \textit{x})}
-The \dindex{base-2 exponential} function of $x$, which is $2$ raised to the \pindex{power} $x$.
+\subsection{(exp2 \emph{x})}
+The \dindex{base-2 exponential} function of \emph{x}, which is \emph{2} raised to the \pindex{power} \emph{x}.
 
 \begin{verbatim}
 (exp2 0)   ; Evaluates to 1.0
@@ -602,8 +602,8 @@ The \dindex{base-2 exponential} function of $x$, which is $2$ raised to the \pin
 (exp2 3)   ; Evaluates to 8.0
 \end{verbatim}
 
-\subsection{(log \textit{x})}
-The \dindex{natural logarithm} (base-$e$) of $x$.
+\subsection{(log \emph{x})}
+The \dindex{natural logarithm} (base-e) of \emph{x}.
 
 \begin{verbatim}
 (log 1)        ; Evaluates to 0.0
@@ -612,8 +612,8 @@ The \dindex{natural logarithm} (base-$e$) of $x$.
 (log 0.5)      ; Evaluates to -0.693147
 \end{verbatim}
 
-\subsection{(log10 \textit{x})}
-The \dindex{common logarithm} (base-$10$) of $x$.
+\subsection{(log10 \emph{x})}
+The \dindex{common logarithm} (base-10) of \emph{x}.
 
 \begin{verbatim}
 (log10 1)   ; Evaluates to 0.0
@@ -622,8 +622,8 @@ The \dindex{common logarithm} (base-$10$) of $x$.
 (log10 0.5) ; Evaluates to -0.30103
 \end{verbatim}
 
-\subsection{(log2 \textit{x})}
-The \dindex{binary logarithm} (base-$2$) of $x$.
+\subsection{(log2 \emph{x})}
+The \dindex{binary logarithm} (base-2) of \emph{x}.
 
 \begin{verbatim}
 (log2 1)   ; Evaluates to 0.0
@@ -633,16 +633,16 @@ The \dindex{binary logarithm} (base-$2$) of $x$.
 (log2 10)  ; Evaluates to 3.32193
 \end{verbatim}
 
-\subsection{(copysign \textit{x} \textit{y})}
-The result of a \dindex{copysign} operation is a value with the magnitude of $x$ and the sign of $y$.
+\subsection{(copysign \emph{x y})}
+The result of a \dindex{copysign} operation is a value with the magnitude of \emph{x} and the sign of \emph{y}.
 
 \begin{verbatim}
 (copysign 3 -1.1) ; Evaluates to -3.0
 (copysign -4.3 2) ; Evaluates to 4.3
 \end{verbatim}
 
-\subsection{(floor \textit{x})}
-The result of a \dindex{floor} operation is the largest integral value that is not greater than $x$.
+\subsection{(floor \emph{x})}
+The result of a \dindex{floor} operation is the largest integral value that is not greater than \emph{x}.
 
 \begin{verbatim}
 (floor 2.3)  ; Evaluates to 2.0
@@ -653,8 +653,8 @@ The result of a \dindex{floor} operation is the largest integral value that is n
 (floor -5.5) ; Evaluates to -6.0
 \end{verbatim}
 
-\subsection{(ceil \textit{x})}
-The result of a \dindex{ceil} operation is the smallest integral value that is not less than $x$.
+\subsection{(ceil \emph{x})}
+The result of a \dindex{ceil} operation is the smallest integral value that is not less than \emph{x}.
 
 \begin{verbatim}
 (ceil 2.3)  ; Evaluates to 3.0
@@ -665,8 +665,8 @@ The result of a \dindex{ceil} operation is the smallest integral value that is n
 (ceil -5.5) ; Evaluates to -5.0
 \end{verbatim}
 
-\subsection{(trunc \textit{x})}
-The result of a \dindex{trunc} operation is the nearest integral value that is not larger in magnitude than $x$.
+\subsection{(trunc \emph{x})}
+The result of a \dindex{trunc} operation is the nearest integral value that is not larger in magnitude than \emph{x}.
 
 \begin{verbatim}
 (trunc 2.3)  ; Evaluates to 2.0
@@ -677,8 +677,8 @@ The result of a \dindex{trunc} operation is the nearest integral value that is n
 (trunc -5.5) ; Evaluates to -5.0
 \end{verbatim}
 
-\subsection{(round \textit{x})}
-The result of a \dindex{round} operation is the integral value that is nearest to $x$, with halfway cases rounded away from zero.
+\subsection{(round \emph{x})}
+The result of a \dindex{round} operation is the integral value that is nearest to \emph{x}, with halfway cases rounded away from zero.
 
 \begin{verbatim}
 (round 2.3)  ; Evaluates to 2.0
@@ -692,9 +692,9 @@ The result of a \dindex{round} operation is the integral value that is nearest t
 \section{Statements}
 A \dindex{statement} is a value-less expression.
 
-\subsection{(= \textit{name expression})}
-The \dindex{define} statement associates a $name$ with an $expression$.
-A \pindex{define} is \dindex{lazy}, $expression$ will only be evaluated if and when $name$ is referenced.
+\subsection{(= \emph{name expression})}
+The \dindex{define} statement associates a \emph{name} with an \emph{expression}.
+A \pindex{define} is \dindex{lazy}, \emph{expression} will only be evaluated if and when \emph{name} is referenced.
 Definitions are \dindex{immutable}, though they may \dindex{shadow}.
 
 \begin{verbatim}
@@ -707,9 +707,9 @@ y      ; Evaluates to 2
 
 Recall that the colon is the \pindex{infix} token for syntactic sugar described in subsection \ref{subsec:infix}.
 
-\subsection{(<\textasciitilde\ \textit{name expression})}
-The \dindex{assign} statement stack-allocates a variable with type and initial value of $expression$.
-The variable can be referenced using $name$.
+\subsection{(<\textasciitilde\ \emph{name expression})}
+The \dindex{assign} statement stack-allocates a variable with type and initial value of \emph{expression}.
+The variable can be referenced using \emph{name}.
 Assignments are \dindex{mutable} using the \pindex{reassign} statement.
 
 Because assignment is explicitly tied to stack allocation, assignments are not allowed in the global scope.
@@ -721,8 +721,8 @@ Because assignment is explicitly tied to stack allocation, assignments are not a
 } ; Evaluates to 1
 \end{verbatim}
 
-\subsection{(<- \textit{name expression})}
-The \dindex{reassign} statement stores the value of $expression$ into the variable $name$ previously defined by an \pindex{assign} statement.
+\subsection{(<- \emph{name expression})}
+The \dindex{reassign} statement stores the value of \emph{expression} into the variable \emph{name} previously defined by an \pindex{assign} statement.
 
 \begin{verbatim}
 {
@@ -733,10 +733,10 @@ The \dindex{reassign} statement stores the value of $expression$ into the variab
 \end{verbatim}
 
 \section{Control Flow}
-\subsection{(\{ \textit{statement statement \dots\ statement expression} \})}
+\subsection{(\{ \emph{statement statement \dots\ statement expression} \})}
 \label{subsec:begin}
 The \dindex{begin} operator allows imperative-style programming.
-Likely will execute a series of zero-or-more \pindex{statement}s, then value of the \pindex{begin} operator is the value of $expression$ evaluated in the context of the statements.
+Likely will execute a series of zero-or-more \pindex{statement}s, then value of the \pindex{begin} operator is the value of \emph{expression} evaluated in the context of the statements.
 
 As would be expected in an imperative programming language, the open and close braces introduce \dindex{scope} for variable declarations.
 
@@ -751,12 +751,12 @@ y := 2
 (+ x y) ; Evaluates to 3
 \end{verbatim}
 
-\subsection{(? \textit{condition then [else]})}
+\subsection{(? \emph{condition then [else]})}
 The behavior of the \dindex{if} operator depends its use:
 
-\paragraph{(? $condition$ $then$ $else$)}
-In the case that the $else$ operand is provided, the \pindex{if} operator is an \pindex{expression} with value $then$ if $condition$ is not equal to \texttt{0} and $else$ otherwise.
-Implicit type conversion ensures that $then$ and $else$ are the same type.
+\paragraph{(? \emph{condition then else})}
+In the case that the \emph{else} operand is provided, the \pindex{if} operator is an \pindex{expression} with value \emph{then} if \emph{condition} is not equal to \texttt{0} and \emph{else} otherwise.
+Implicit type conversion ensures that \emph{then} and \emph{else} are the same type.
 
 \begin{verbatim}
 x := 1
@@ -764,9 +764,9 @@ y := 2
 (? (< x y) x y) ; Evaluates to 1
 \end{verbatim}
 
-\paragraph{(? $condition$ $then$)}
-In the case that the $else$ operand is not provided, the \pindex{if} operator is a \pindex{statement} with no value.
-The $then$ \pindex{statement} is executed if and only if $condition$ is not equal to \texttt{0}.
+\paragraph{(? \emph{condition then})}
+In the case that the \emph{else} operand is not provided, the \pindex{if} operator is a \pindex{statement} with no value.
+The \emph{then} \pindex{statement} is executed if and only if \emph{condition} is not equal to \texttt{0}.
 
 \begin{verbatim}
 {
@@ -776,7 +776,7 @@ The $then$ \pindex{statement} is executed if and only if $condition$ is not equa
 } ; Evaluates to 1
 \end{verbatim}
 
-\paragraph{(? \texttt{constant} $then$ $[else]$)}
+\paragraph{(? \texttt{constant} \emph{then [else]})}
 In the case that the condition is a constant \pindex{integer} or \pindex{real}, the branching will happen at compile time.
 
 \begin{verbatim}
@@ -811,55 +811,55 @@ These dimensions are often abbreviated \emph{c}, \emph{x}, \emph{y} and \emph{t}
 Ownership of matricies is managed automatically using reference counting.
 Matricies are represented with the C API struct \tindex{likely\char`_matrix}.
 
-\subsection{(channels \textit{[matrix]})}
-The \dindex{channels} operator returns the number of \pindex{channels} in $matrix$.
-If $matrix$ is not specified, this operator returns a function which when given a matrix returns the number of \pindex{channels} in the matrix.
+\subsection{(channels \emph{[matrix]})}
+The \dindex{channels} operator returns the number of \pindex{channels} in \emph{matrix}.
+If \emph{matrix} is not specified, this operator returns a function which when given a matrix returns the number of \pindex{channels} in the matrix.
 
 \begin{verbatim}
 (channels (read-image "data/misc/lenna.tiff")) ; Evaluates to 3
 \end{verbatim}
 
-\subsection{(columns \textit{[matrix]})}
-The \dindex{columns} operator returns the number of \pindex{columns} in $matrix$.
-If $matrix$ is not specified, this operator returns a function which when given a matrix returns the number of \pindex{columns} in the matrix.
+\subsection{(columns \emph{[matrix]})}
+The \dindex{columns} operator returns the number of \pindex{columns} in \emph{matrix}.
+If \emph{matrix} is not specified, this operator returns a function which when given a matrix returns the number of \pindex{columns} in the matrix.
 
 \begin{verbatim}
 (columns (read-image "data/misc/lenna.tiff")) ; Evaluates to 512
 \end{verbatim}
 
-\subsection{(rows \textit{[matrix]})}
-The \dindex{rows} operator returns the number of \pindex{rows} in $matrix$.
-If $matrix$ is not specified, this operator returns a function which when given a matrix returns the number of \pindex{rows} in the matrix.
+\subsection{(rows \emph{[matrix]})}
+The \dindex{rows} operator returns the number of \pindex{rows} in \emph{matrix}.
+If \emph{matrix} is not specified, this operator returns a function which when given a matrix returns the number of \pindex{rows} in the matrix.
 
 \begin{verbatim}
 (rows (read-image "data/misc/lenna.tiff")) ; Evaluates to 512
 \end{verbatim}
 
-\subsection{(frames \textit{[matrix]})}
-The \dindex{frames} operator returns the number of \pindex{frames} in $matrix$.
-If $matrix$ is not specified, this operator returns a function which when given a matrix returns the number of \pindex{frames} in the matrix.
+\subsection{(frames \emph{[matrix]})}
+The \dindex{frames} operator returns the number of \pindex{frames} in \emph{matrix}.
+If \emph{matrix} is not specified, this operator returns a function which when given a matrix returns the number of \pindex{frames} in the matrix.
 
 \begin{verbatim}
 (frames (read-image "data/misc/lenna.tiff")) ; Evaluates to 1
 \end{verbatim}
 
-\subsection{(data \textit{[matrix]})}
-The \dindex{data} operator returns a pointer to the $matrix$ \pindex{data}.
-If $matrix$ is not specified, this operator returns a function which when given a matrix returns a pointer to the matrix \pindex{data}.
+\subsection{(data \emph{[matrix]})}
+The \dindex{data} operator returns a pointer to the \emph{matrix} \pindex{data}.
+If \emph{matrix} is not specified, this operator returns a function which when given a matrix returns a pointer to the matrix \pindex{data}.
 
 This operator is useful for interoperability with external functions that operate on raw data buffers.
 Developers generally shouldn't need to use it otherwise in Likely code.
 
 \section{Abstraction}
-\subsection{(try \textit{primary fallback})}
-The \dindex{try} operator returns the $primary$ expression if it could be evaluated sucessfully, and the $fallback$ expression otherwise.
+\subsection{(try \emph{primary fallback})}
+The \dindex{try} operator returns the \emph{primary} expression if it could be evaluated sucessfully, and the \emph{fallback} expression otherwise.
 
 \begin{verbatim}
 (eval (+ 1 1) 3) ; Evaluates to 2
 (eval (+ 1) 3)   ; Evaluates to 3
 \end{verbatim}
 
-\subsection{(extern \textit{return-type symbol-name parameters})}
+\subsection{(extern \emph{return-type symbol-name parameters})}
 The \dindex{extern} operator returns a callable externally defined function.
 
 \begin{verbatim}
