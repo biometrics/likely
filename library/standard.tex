@@ -494,6 +494,14 @@ The output of these operators is always a 1-bit unsigned \pindex{integer}.
 \end{verbatim}
 
 \section{Bit Manipulation}
+\subsection{(\textasciitilde\ \emph{a})}
+The \dindex{bitwise-not} of \emph{a}.
+
+\begin{verbatim}
+(~ 0)          ; Evaluates to 2147483647
+(~ 2147483647) ; Evaluates to 0
+\end{verbatim}
+
 \subsection{(\& \emph{a b})}
 The \dindex{bitwise-and} of \emph{a} and \emph{b}.
 
@@ -859,6 +867,7 @@ The \dindex{try} operator returns the \emph{primary} expression if it could be e
 (eval (+ 1) 3)   ; Evaluates to 3
 \end{verbatim}
 
+\section{Interface}
 \subsection{(extern \emph{return-type symbol-name parameters})}
 The \dindex{extern} operator returns a callable externally defined function.
 
