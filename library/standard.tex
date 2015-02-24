@@ -291,6 +291,7 @@ Values are represented as \texttt{const char*}.
 \end{verbatim}
 
 \section{Type}
+\label{sec:type}
 A \dindex{type} is a keyword indicating how data is represented.
 Let's start with a few examples:
 
@@ -344,8 +345,7 @@ The special cases include all common C types.
 
 \subsection{First-class Citizenship}
 An important aspect of a \pindex{type} is that, contrary to most programming languages, it is a \dindex{first-class citizen} of Likely.
-In addition to having an integer value represented in the API by \tindex{likely\char`_type}, it can also be used as a unary-operand to perform a cast.
-Most importantly though, it can be \emph{passed as an argument to a function}.
+It can also be used as a unary-operand to perform a cast and can be \emph{passed as an argument to a function}.
 
 \subsection{Implicit Conversion}
 Intrinsic \pindex{operator}s will implictly convert their \pindex{operand}s to the same type.
@@ -362,6 +362,10 @@ The rules for doing so are as follows:
 \end{figure}
 
 These rules are codified in the function \tindex{likely\char`_type\char`_from\char`_types}.
+
+\subsection{Integer Representation}
+Every \pindex{type} is represented by an integer value, codified in the Likely API by \tindex{likely\char`_type}.
+This facilitates the construction of functions on types, expressing how the output type of an operation varies with resepect to the input types.
 
 \section{File-type}
 If a \pindex{type} indicates how to interpret the contents of an address in memory, a \dindex{file-type} indicates how to interpret the contents of a file on disk.
@@ -810,6 +814,23 @@ This primitive is necessary for constructing loops.
   }
   j
 } ; Evaluates to 45
+\end{verbatim}
+
+\section{Types}
+Recall that \pindex{type} intrinsics were discussed in section \ref{sec:type}.
+
+\subsection{(type \emph{x})}
+The \dindex{type} operator returns the intrinsic \pindex{type} of an expression \emph{x}.
+
+\begin{verbatim}
+((type 2.0) 1) ; Evaluates to 1.0
+\end{verbatim}
+
+\subsection{(make-type \emph{a})}
+The \dindex{make-type} operator constructs an intrinsic \pindex{type} from an integer value \emph{a}.
+
+\begin{verbatim}
+((make-type 288) 1) ; Evaluates to 1.0
 \end{verbatim}
 
 \section{Matricies}

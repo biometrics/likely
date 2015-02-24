@@ -373,6 +373,8 @@ test_expr("{
              }
              j
            }" 45)
+test_expr("((type 2.0) 1)" 1.0)
+test_expr("((make-type 288) 1)" 1.0)
 test_expr("(channels (read-image \"data/misc/lenna.tiff\"))" 3)
 test_expr("(columns (read-image \"data/misc/lenna.tiff\"))" 512)
 test_expr("(rows (read-image \"data/misc/lenna.tiff\"))" 512)
