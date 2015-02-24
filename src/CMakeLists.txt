@@ -88,7 +88,7 @@ add_test(NAME benchmark
          COMMAND benchmark -test)
 add_test(NAME benchmark_parallel
          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-         COMMAND benchmark -test -parallel)
+         COMMAND benchmark -test -m)
 
 # Main
 add_library(likely_main OBJECT main.c)
@@ -457,7 +457,7 @@ test_file(matrix_io.md "Compression Ratio: 7.31714")
 
 # Compile and test demos
 function(add_demo FILE RETURN PARAMETERS ARGS)
-  foreach(KERNEL_TYPE "" "-p")
+  foreach(KERNEL_TYPE "" "-m")
     set(BITCODE_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}.bc)
     set(IR_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}.ll)
     set(OBJECT_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}${CMAKE_C_OUTPUT_EXTENSION})

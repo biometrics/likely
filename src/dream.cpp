@@ -193,7 +193,7 @@ public slots:
     void setExecution(const QString &execution)
     {
         likely_settings settings = likely_jit(false);
-        settings.parallel = (execution == "Parallel");
+        settings.multicore = (execution == "Multi-core");
         likely_release_env(root);
         root = likely_standard(settings, NULL);
         previousSource.clear(); // clear cache
@@ -781,7 +781,7 @@ public:
         menuBar->addMenu(fileMenu);
         menuBar->addMenu(commandsMenu);
 
-        execution->addItems(QStringList() << "Serial" << "Parallel");
+        execution->addItems(QStringList() << "Single-core" << "Multi-core");
         QStatusBar *statusBar = new QStatusBar();
         statusBar->addPermanentWidget(execution);
         statusBar->setSizeGripEnabled(true);

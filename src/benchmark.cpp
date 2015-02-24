@@ -36,7 +36,8 @@ const double ErrorTolerance = 0.000001;
 const int TestSeconds = 1;
 
 static cl::opt<bool> BenchmarkTest    ("test"     , cl::desc("Run tests for correctness only"));
-static cl::opt<bool> BenchmarkParallel("parallel" , cl::desc("Compile parallel kernels"));
+static cl::opt<bool> BenchmarkMulticore("multi-core" , cl::desc("Compile multi-core kernels"));
+static cl::alias     BenchmarkMulticoreA("m", cl::desc("Alias for -multi-core"), cl::aliasopt(BenchmarkMulticore));
 static cl::opt<string> BenchmarkFile    ("file"    , cl::desc("Benchmark the specified file only"), cl::value_desc("filename"));
 static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"));
 
@@ -82,7 +83,7 @@ struct Test
                 likely_mat srcLikely = fromCvMat(srcCV);
 
                 likely_mat typeString = likely_type_to_string(type);
-                printf("%s \t%s \t%d \t%s\t", name(), typeString->data, size, BenchmarkParallel ? "P" : "S");
+                printf("%s \t%s \t%d \t%s\t", name(), typeString->data, size, BenchmarkMulticore ? "P" : "S");
                 likely_release_mat(typeString);
                 testCorrectness(reinterpret_cast<likely_mat (*)(likely_const_mat)>(f), srcCV, srcLikely);
 
@@ -288,7 +289,7 @@ int main(int argc, char *argv[])
         const likely_const_mat source = likely_read("library/benchmark.md", likely_file_gfm, likely_text);
         checkRead(source, "library/benchmark.md");
         likely_settings settings = likely_jit(false);
-        settings.parallel = BenchmarkParallel;
+        settings.multicore = BenchmarkMulticore;
         const likely_const_env parent = likely_standard(settings, NULL);
         const likely_const_env env = likely_lex_parse_and_eval(source->data, likely_file_gfm, parent);
         likely_release_mat(source);

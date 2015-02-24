@@ -74,7 +74,7 @@ likely_settings likely_jit(bool verbose)
     settings.opt_level = 3;
     settings.size_level = 0;
     settings.heterogeneous = coprocessor;
-    settings.parallel = multicore;
+    settings.multicore = multicore;
     settings.unroll_loops = true;
     settings.vectorize_loops = true;
     settings.verbose = verbose;
@@ -2333,7 +2333,7 @@ class kernelExpression : public LikelyOperator
 
         const bool serial = isa<ConstantInt>(kernelSize) && (cast<ConstantInt>(kernelSize)->isOne());
         if      (builder.module->context->heterogeneous && !serial) generateHeterogeneous(builder, ast, srcs, kernelType, kernelSize);
-        else if (builder.module->context->parallel      && !serial) generateParallel     (builder, ast, srcs, kernelType, kernelSize);
+        else if (builder.module->context->multicore     && !serial) generateMulticore    (builder, ast, srcs, kernelType, kernelSize);
         else                                                        generateSerial       (builder, ast, srcs, kernelType, kernelSize);
 
         for (size_t i=1; i<srcs.size(); i++)
@@ -2346,7 +2346,7 @@ class kernelExpression : public LikelyOperator
         generateCommon(builder, ast, srcs, kernelType, builder.zero(), kernelSize);
     }
 
-    void generateParallel(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, likely_type kernelType, Value *kernelSize) const
+    void generateMulticore(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, likely_type kernelType, Value *kernelSize) const
     {
         BasicBlock *entry = builder.GetInsertBlock();
 
