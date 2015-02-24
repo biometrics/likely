@@ -891,7 +891,18 @@ Developers generally shouldn't need to use it otherwise in Likely code.
 
 \section{Abstraction}
 \subsection{(-> \emph{parameters body})}
-% TODO: write me
+The \dindex{lambda} operator returns an anonymous function with the specified list of \emph{parameters} and \emph{body} expression.
+In the general case, \emph{parameters} is a \pindex{list} of atoms indicating parameter names and argument order.
+As a special case, \emph{parameters} can be a single \pindex{atom} for a unary \pindex{lambda}.
+
+\begin{verbatim}
+increment := (-> x (+ x 1))
+(increment 1) ; Evaluates to 2
+max := (-> (x y) (? (> x y) x y))
+(max 2 1) ; Evaluates to 2
+two := (-> () 2)
+two ; Evaluates to 2
+\end{verbatim}
 
 \subsection{(=> \emph{[dimensions] arguments body})}
 % TODO: write me
