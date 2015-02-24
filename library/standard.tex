@@ -833,6 +833,22 @@ The \dindex{make-type} operator constructs an intrinsic \pindex{type} from an in
 ((make-type 288) 1) ; Evaluates to 1.0
 \end{verbatim}
 
+\subsection{(numeric-limit \emph{type} \emph{maximum})}
+The \dindex{numeric-limit} operator returns the maximum value representable by \emph{type} if \emph{maximum} is non-zero, otherwise it returns the minimum value representable by \emph{type}.
+
+\begin{verbatim}
+(numeric-limit u8 1)  ; Evaluates to 255
+(numeric-limit u8 0)  ; Evaluates to 0
+(numeric-limit i8 1)  ; Evaluates to 127
+(numeric-limit i8 0)  ; Evaluates to -128
+(numeric-limit u32 1) ; Evaluates to 4294967295
+(numeric-limit u32 0) ; Evaluates to 0
+(numeric-limit i32 1) ; Evaluates to 2147483647
+(numeric-limit i32 0) ; Evaluates to -2147483648
+(numeric-limit f32 1) ; Evaluates to 3.40282e+38
+(numeric-limit f32 0) ; Evaluates to -3.40282e+38
+\end{verbatim}
+
 \section{Matricies}
 The fundamental data structure in Likely is a four-dimensional \emph{matrix}.
 In decreasing memory spatial locality order, its dimensions are: \emph{channels}, \emph{columns}, \emph{rows} and \emph{frames}.
