@@ -904,8 +904,22 @@ two := (-> () 2)
 two ; Evaluates to 2
 \end{verbatim}
 
-\subsection{(=> \emph{[dimensions] arguments body})}
-% TODO: write me
+\subsection{(=> \emph{arguments body})}
+The \dindex{kernel} operator is used to express embarrassingly parallel computations.
+Its existence is arguably the primary reason why Likely is a \emph{domain specific} programming language.
+The usage of the \pindex{kernel} operator is more complex than other operators, but the benefit is a reduction in boilerplate code for image recognition algorithms.
+
+In the general case, \emph{arguments} is a \pindex{list} of atoms indicating local variables to bring into scope.
+As a special case, \emph{arguments} can be a single \pindex{atom} when only one local variable is desired.
+The first argument is also the value returned by the \pindex{kernel} operator.
+
+Prior to evaluating the \emph{body} expression, the \pindex{kernel} operator declares four variables: \texttt{c}, \texttt{x}, \texttt{y}, and \texttt{t}, called the \pindex{kernel} \dindex{axes}.
+Each of these variables takes on a range of values, from zero to the result of the \emph{\pindex{channels}}, \emph{\pindex{columns}}, \emph{\pindex{rows}} and \emph{\pindex{frames}} operators applied to the first argument, respectively.
+The \emph{body} expression is then evaluated for every combination of the \pindex{axes} values in parallel.
+As a special case, a \pindex{list} of up to four expressions may be specified before the first argument to manually specify the \pindex{axes} ranges.
+
+Inside a \pindex{kernel} body, every argument becomes an operator taking between zero and four parameters.
+These parameters are element indicies if the argument is a matrix, and their default values are the \pindex{axes}.
 
 \subsection{(try \emph{primary fallback})}
 The \dindex{try} operator returns the \emph{primary} expression if it could be evaluated sucessfully, and the \emph{fallback} expression otherwise.
