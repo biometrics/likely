@@ -1130,6 +1130,16 @@ struct RegisterExpression : public RootEnvironment
 };
 #define LIKELY_REGISTER(EXP) static RegisterExpression<EXP##Expression> Register##EXP##Expression;
 
+class NullaryOperator : public LikelyOperator
+{
+    size_t maxParameters() const { return 0; }
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
+    {
+        return evaluateNullary(builder);
+    }
+    virtual likely_const_expr evaluateNullary(Builder &builder) const = 0;
+};
+
 class UnaryOperator : public LikelyOperator
 {
     size_t maxParameters() const { return 1; }
@@ -1238,6 +1248,16 @@ class makeTypeExpression : public SimpleUnaryOperator
     }
 };
 LIKELY_REGISTER(makeType)
+
+class thisExpression : public NullaryOperator
+{
+    const char *symbol() const { return "this"; }
+    likely_const_expr evaluateNullary(Builder &builder) const
+    {
+        return ConstantData::get(builder, likely_retain_env(builder.env));
+    }
+};
+LIKELY_REGISTER(this)
 
 class UnaryMathOperator : public SimpleUnaryOperator
 {
@@ -2060,12 +2080,10 @@ private:
     }
 };
 
-class labelExpression : public LikelyOperator
+class labelExpression : public NullaryOperator
 {
     const char *symbol() const { return "#"; }
-    size_t maxParameters() const { return 0; }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
+    likely_const_expr evaluateNullary(Builder &builder) const
     {
         BasicBlock *label = BasicBlock::Create(builder.getContext(), "label", builder.GetInsertBlock()->getParent());
         builder.CreateBr(label);
@@ -2649,12 +2667,8 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
             }
         }
 
-        // Special keyword
-        if (!strcmp(ast->atom, "this"))
-            return ConstantData::get(builder, likely_retain_env(builder.env));
-
         const_cast<likely_ast>(ast)->type = likely_ast_invalid;
-        return likely_expression::error(ast, "invalid literal");
+        return likely_expression::error(ast, "invalid atom");
     }
 }
 
