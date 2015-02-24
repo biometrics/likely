@@ -266,7 +266,16 @@ static void printElement(stringstream &buffer, double value, likely_type type)
             looksLikeAnInteger = (*p == 0);
         }
 
+#ifdef _MSC_VER
+    const unsigned int originalExponentFormat = _set_output_format(_TWO_DIGIT_EXPONENT); // for cross-platform consistency
+#endif // _MSC_VER
+
         buffer << value;
+
+#ifdef _MSC_VER
+    _set_output_format(originalExponentFormat); // restore original format
+#endif // _MSC_VER
+
         if (looksLikeAnInteger)
             buffer << ".0"; // Print a significant figure to distinguish floating-point values from integers
     } else {
