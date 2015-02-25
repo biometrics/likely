@@ -28,7 +28,6 @@ Demos
 <script>
 var html = ""
 var demos = [
- ["Hello World"   , "'\"data/misc/lenna.tiff\".read-image'"],
  ["Mandelbrot Set", "600 400 -2.f32 -1.f32 3.f32 2.f32 20"],
  ["Gabor Wavelet" , "192 192 64.f32 64.f32 0.f32 128.f32 0.f32"],
  ["Average Face"  , ""]]
