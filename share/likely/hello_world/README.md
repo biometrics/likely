@@ -25,6 +25,7 @@ Likely as a Scripting Language
 ------------------------------
 Copy the above *hello-world* source code into a file called *hello-world.lisp*.
 Feel free to remove the comments (the semicolon through the end of the line) if they feel cluttered.
+
 Let's start by running the file we just made:
 
 ```bash
@@ -34,19 +35,33 @@ $ likely hello-world.lisp
 Hey, nothing happened!
 Well that's because we defined a function but we didn't actually try calling it.
 To call *hello-world* we need an image to provide as input.
-Let's consider the famous _Lenna_ image:
+Consider the famous _Lenna_ image:
 
 ```bash
 $ likely -c '(read-image "data/misc/lenna.tiff")' -show
 ```
 
-With the window that just popped up focus, press any key to close it.
+With the window that just popped up in focus, press any key to close it.
 Note that *-c* runs a command instead of a file, and that *-show* displays the output in a window instead of printing it to the terminal.
 
 We're now ready to run *hello-world* on *Lenna*. To do so, add the following line to the end of *hello-world.lisp*:
 
 ```lisp
 (hello-world (read-image "data/misc/lenna.tiff")) ; call hello-world with Lenna
+```
+
+Let's re-run our code:
+
+```bash
+$ likely hello-world.lisp -show
+```
+
+Success!
+The image we're seeing should look exactly twice as dark as the original *Lenna*.
+To save our output instead of showing it:
+
+```bash
+$ likely hello-world.lisp -render dark_lenna.jpg
 ```
 
 - **[hello_world.md](?href=likely)** - Run
