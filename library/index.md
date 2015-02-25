@@ -6,7 +6,6 @@ Likely
 Skip to the good stuff: **[installation](?href=README.md)**,
                         **[hello world](?href=share/likely/hello_world/README.md)**,
                         **[demos](?href=demos)**,
-                        **[algorithms](?href=algorithms)**,
                         **[language reference](https://s3.amazonaws.com/liblikely/latex/standard.pdf)**,
                         **[api](https://s3.amazonaws.com/liblikely/doxygen/index.html)**,
                         **[benchmark](?href=benchmark)**,
