@@ -30,6 +30,10 @@ Definition
         }
       }
 
-Execution
+Dynamic Execution
 
     (gabor_wavelet radius radius sigma (/ sigma gamma) theta_rad lambda_norm psi)
+
+Static Compilation
+
+    (extern f32XY "likely_test_function" (i32 i32 f32 f32 f32 f32 f32) gabor_wavelet true)

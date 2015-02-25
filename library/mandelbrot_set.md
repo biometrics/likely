@@ -37,6 +37,10 @@ Definition
         }
       }
 
-Execution
+Dynamic Execution
 
     (mandelbrot_set width height x_min y_min x_range y_range iter)
+
+Static Compilation
+
+    (extern u8XY "likely_test_function" (i32 i32 f32 f32 f32 f32 i32) mandelbrot_set true)

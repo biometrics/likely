@@ -456,14 +456,14 @@ test_file(literate_programming.tex 42)
 test_file(matrix_io.md "Compression Ratio: 7.31714")
 
 # Compile and test demos
-function(add_demo FILE RETURN PARAMETERS ARGS)
+function(add_demo FILE ARGS)
   foreach(KERNEL_TYPE "" "-m")
     set(BITCODE_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}.bc)
     set(IR_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}.ll)
     set(OBJECT_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}${CMAKE_C_OUTPUT_EXTENSION})
     add_custom_command(OUTPUT ${BITCODE_FILE}
                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                       COMMAND likely -Oz -disable-loop-unrolling -disable-loop-vectorization ${KERNEL_TYPE} -q -c "\"library/${FILE}.md\".(import this) (extern ${RETURN} \"likely_test_function\" ${PARAMETERS} ${FILE} true)" ${BITCODE_FILE}
+                       COMMAND likely -Oz -disable-loop-unrolling -disable-loop-vectorization ${KERNEL_TYPE} -q "library/${FILE}.md" ${BITCODE_FILE}
                        DEPENDS likely ${CMAKE_SOURCE_DIR}/library/${FILE}.md
                        VERBATIM)
     add_custom_command(OUTPUT ${IR_FILE}
@@ -487,10 +487,10 @@ endfunction()
 set(LIKELY_DEMOS "Default" CACHE STRING "Compile and test demos.")
 set_property(CACHE LIKELY_DEMOS PROPERTY STRINGS "None" "Default" "All")
 if(NOT ${LIKELY_DEMOS} MATCHES "None")
-  add_demo(hello_world "u8CXY" "u8CXY" "\"data/misc/lenna.tiff\".read-image")
-  add_demo(mandelbrot_set "u8XY" "(i32 i32 f32 f32 f32 f32 i32)" "600 400 -2.f32 -1.f32 3.f32 2.f32 20")
-  add_demo(gabor_wavelet "f32XY" "(i32 i32 f32 f32 f32 f32 f32)" "192 192 64.f32 64.f32 0.f32 128.f32 0.f32")
+  add_demo(hello_world "\"data/misc/lenna.tiff\".read-image")
+  add_demo(mandelbrot_set "600 400 -2.f32 -1.f32 3.f32 2.f32 20")
+  add_demo(gabor_wavelet "192 192 64.f32 64.f32 0.f32 128.f32 0.f32")
 endif()
 if(${LIKELY_DEMOS} MATCHES "All")
-  add_demo(average_face "u8XY" "()" "")
+  add_demo(average_face "")
 endif()

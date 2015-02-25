@@ -1,14 +1,19 @@
 Hello World
 -----------
-Click **View Source** and _copy+paste_ this file into **dream**, Likely's IDE. Note that you can **CTRL+scroll** to increment/decrement numerical constants, and that source code is re-executed as you edit.
 
     lenna := "data/misc/lenna.tiff".read-image
     hello_world :=
-      a :->
+      src :->
       {
-        dst := a.imitate
-        (dst a) :=> (<- dst (/ a (a.type 2)))
+        dst := src.imitate
+        (dst src) :=>
+          (<- dst (/ src (src.type 2)))
       }
-    lenna.hello_world
 
-[Next](?href=likely)
+Dynamic Execution
+
+    (hello_world lenna)
+
+Static Compilation
+
+    (extern u8CXY "likely_test_function" u8CXY hello_world true)

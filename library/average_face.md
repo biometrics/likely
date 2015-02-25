@@ -18,8 +18,12 @@ Compute the average face from a set of aligned faces [1].
     average_face :=
       () :-> "data/lfw2".read-directory-grayscale.average
 
-Execution
+Dynamic Execution
 
     average_face
+
+Static Compilation
+
+    (extern u8XY "likely_test_function" () average_face true)
 
 [1] http://www.openu.ac.il/home/hassner/data/lfwa/

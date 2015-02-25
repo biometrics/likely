@@ -12,7 +12,7 @@ Demos can also be statically compiled to object files with a C ABI.
 For example:
 
 ```bash
-$ likely -O3 -c '"<file>".(import this) (extern <return_type> "likely_test_function" <parameter_types> <algorithm> true)' <algorithm>.o
+$ likely -Oz <file> <algorithm>.o # or -O3 for speed optimization
 $ clang src/main.c <algorithm>.o -llikely -o <algorithm> # specify -I and -L as needed
 $ ./<algorithm> - <arguments>
 ```
@@ -28,10 +28,10 @@ Demos
 <script>
 var html = ""
 var demos = [
- ["Hello World"   , "u8CXY", "u8CXY"                        , "'\"data/misc/lenna.tiff\".read-image'"],
- ["Mandelbrot Set", "u8XY" , "(i32 i32 f32 f32 f32 f32 i32)", "600 400 -2.f32 -1.f32 3.f32 2.f32 20"],
- ["Gabor Wavelet" , "f32XY", "(i32 i32 f32 f32 f32 f32 f32)", "192 192 64.f32 64.f32 0.f32 128.f32 0.f32"],
- ["Average Face"  , "u8XY" , "()"                           , ""]]
+ ["Hello World"   , "'\"data/misc/lenna.tiff\".read-image'"],
+ ["Mandelbrot Set", "600 400 -2.f32 -1.f32 3.f32 2.f32 20"],
+ ["Gabor Wavelet" , "192 192 64.f32 64.f32 0.f32 128.f32 0.f32"],
+ ["Average Face"  , ""]]
 var index = 0
 demos.forEach(function(demo) {
  var fileName = demo[0].toLowerCase().replace(" ", "_");
@@ -51,14 +51,8 @@ demos.forEach(function(demo) {
   + '        <dt>Generated LLVM IR</dt>'
   + '        <dd><a href="https://s3.amazonaws.com/liblikely/ir/' + fileName + '.ll">serial</a> &'
   + '            <a href="https://s3.amazonaws.com/liblikely/ir/' + fileName + '-p.ll">parallel</a></dd>'
-  + '        <dt>Algorithm</dt>'
-  + '        <dd>' + fileName + '</dd>'
-  + '        <dt>Return Type</dt>'
+  + '        <dt>Arguments</dt>'
   + '        <dd>' + demo[1] + '</dd>'
-  + '        <dt>Parameter Types</dt>'
-  + '        <dd>' + demo[2] + '</dd>'
-  + '        <dt>Example Arguments</dt>'
-  + '        <dd>' + demo[3] + '</dd>'
   + '      </dl>'
   + '    </div>'
   + '  </div>'
