@@ -191,9 +191,11 @@ likely_mat likely_read(const char *file_name, likely_file_type file_type, likely
             fclose(fp);
         }
     }
+    likely_ensure(result != NULL, "failed to read: %s", file_name);
     if (result && (result->type != type)) {
         likely_release_mat(result);
         result = NULL;
+        likely_ensure(false, "type mismatch for: %s", file_name);
     }
     return result;
 }

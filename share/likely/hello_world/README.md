@@ -19,6 +19,8 @@ hello-world :=             ; hello-world is
   }
 ```
 
+The remainder of this tutorial assumes that your working directory is the root of the Likely repository.
+
 Likely as a Scripting Language
 ------------------------------
 Copy the above *hello-world* source code into a file called *hello-world.lisp*.
