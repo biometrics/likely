@@ -28,7 +28,7 @@ Demos
 <script>
 var html = ""
 var demos = [
- ["Hello World"   , "u8CXY", "u8CXY"                        , "\"data/misc/lenna.tiff\".read-image"],
+ ["Hello World"   , "u8CXY", "u8CXY"                        , "'\"data/misc/lenna.tiff\".read-image'"],
  ["Mandelbrot Set", "u8XY" , "(i32 i32 f32 f32 f32 f32 i32)", "600 400 -2.f32 -1.f32 3.f32 2.f32 20"],
  ["Gabor Wavelet" , "f32XY", "(i32 i32 f32 f32 f32 f32 f32)", "192 192 64.f32 64.f32 0.f32 128.f32 0.f32"],
  ["Average Face"  , "u8XY" , "()"                           , ""]]
