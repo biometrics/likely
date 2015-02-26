@@ -60,13 +60,13 @@ int main(int argc, char *argv[])
 
     puts("Compiling source code...");
     const likely_const_env env = likely_lex_parse_and_eval(source_code, likely_file_lisp, parent);
-    likely_mat (*function)(likely_const_mat) = likely_function(env->expr);
-    likely_ensure(function, "failed to compile source code");
+    likely_mat (*hello_world)(likely_const_mat) = likely_function(env->expr);
+    likely_ensure(hello_world, "failed to compile source code");
     free(source_code);
     source_code = NULL;
 
     puts("Calling compiled function...");
-    const likely_const_mat output = function(input);
+    const likely_const_mat output = hello_world(input);
 
     puts("Writing output image...");
     const likely_const_mat write_success = likely_write(output, argv[3]);

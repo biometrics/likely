@@ -3,7 +3,7 @@ Hello World
 
 Welcome to a brief tutorial on Likely!
 Here we will cover the primary techniques for executing source code written in the Likely programming language.
-Note that this document assumes a successful [installation](?href=README.md).
+Note that this document assumes a successful **[installation](?href=README.md)**.
 
 For this tutorial we will consider a function called *hello-world* that takes one matrix as input and returns a new matrix as output, where every element in the output matrix is half the value of the corresponding element in the input matrix.
 The Likely source code for this function is:
@@ -23,7 +23,7 @@ The remainder of this tutorial assumes that your working directory is the root o
 
 Likely as a Scripting Language
 ------------------------------
-Copy the above *hello-world* source code into a file called *hello-world.lisp*.
+Copy the *hello-world* source code above into a file called *hello-world.lisp*.
 Feel free to remove the comments (the semicolon through the end of the line) if they feel cluttered.
 
 Let's start by running the file we just made:
@@ -61,10 +61,48 @@ The image we're seeing should look exactly twice as dark as the original *Lenna*
 To save our output instead of showing it:
 
 ```bash
-$ likely hello-world.lisp -render dark_lenna.jpg
+$ likely hello-world.lisp -render dark_lenna_interpreted.png
 ```
 
 Likely as a Just-In-Time Compiler
 ---------------------------------
-- **[hello_world_jit.c](share/likely/hello_world/hello_world_jit.c)** - Embed Likely as a just-in-time compiler
+Instead of using the provided *likely* executable as we did previously, this time we're interested in building our own application on top of the **[Likely API](https://s3.amazonaws.com/liblikely/doxygen/index.html)**.
+We'd like for our application to just-in-time compile the *hello-world* function source code into something callable from C.
+
+Starting with our *hello-world.lisp* file from the previous section, replace the last line (calling hello-world with Lenna) with:
+
+```lisp
+(extern u8CXY "hello_world" u8CXY hello-world) ; Export a C function with a prototype:
+                                               ;   likely_mat hello_world(likely_mat)
+                                               ; and body:
+                                               ;   hello-world
+```
+
+The source code for our application is in **[share/likely/hello_world/hello_world_jit.c](share/likely/hello_world/hello_world_jit.c)**.
+Notice that it expects three parameters: an input image, a source file, and an output image.
+It's behavior is to read the input image, compile the source file, retrieve the compiled function, call the function with the input image to produce the output image, and finally save the output image.
+Let's run it:
+
+```
+$ hello_world_jit data/misc/lenna.tiff hello-world.lisp dark_lenna_jit.png
+Reading input image...
+Dimensions: 512x512
+Reading source code...
+Creating a JIT compiler environment...
+Compiling source code...
+Calling compiled function...
+Writing output image...
+Cleaning up...
+Done!
+```
+
+Success!
+We can confirm that we get the exact same output as we did earlier:
+
+```bash
+$ diff dark_lenna_interpreted.png dark_lenna_jit.png
+```
+
+Likely as a Static Compiler
+---------------------------
 - **[hello_world_static.c](share/likely/hello_world/hello_world_static.c)** - Statically compile a Likely function
