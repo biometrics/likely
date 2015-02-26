@@ -97,12 +97,40 @@ Done!
 ```
 
 Success!
-We can confirm that we get the exact same output as we did earlier:
+We can confirm that we get the exact same output as we did previously:
 
 ```bash
-$ diff dark_lenna_interpreted.png dark_lenna_jit.png
+$ diff dark_lenna_jit.png dark_lenna_interpreted.png
 ```
 
 Likely as a Static Compiler
 ---------------------------
-- **[hello_world_static.c](share/likely/hello_world/hello_world_static.c)** - Statically compile a Likely function
+Finally, we're interested in simplifying the application we just wrote.
+Instead of waiting until runtime, we'd like to compile *hello-world* offline, ahead of time.
+
+Using the same *hello-world.lisp* file from the previous section:
+
+```bash
+$ likely hello-world.lisp hello-world.o
+```
+
+We've just compiled our Likely source file into a native object file.
+Now we can simplify the source code for our application to **[share/likely/hello_world/hello_world_static.c](share/likely/hello_world/hello_world_static.c)**.
+Though it's behavior is the same, notice that it now expects only two paramters: an input image and an output image.
+Let's run it:
+
+```
+$ hello_world_static data/misc/lenna.tiff dark_lenna_static.png
+Reading input image...
+Dimensions: 512x512
+Calling compiled function...
+Writing output image...
+Cleaning up...
+```
+
+Success!
+Once again, we can confirm that we get the exact same output as we did previously:
+
+```bash
+$ diff dark_lenna_static.png dark_lenna_jit.png
+```
