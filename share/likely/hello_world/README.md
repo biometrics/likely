@@ -64,6 +64,7 @@ To save our output instead of showing it:
 $ likely hello-world.lisp -render dark_lenna.jpg
 ```
 
-- **[hello_world.md](?href=likely)** - Run
+Likely as a Just-In-Time Compiler
+---------------------------------
 - **[hello_world_jit.c](share/likely/hello_world/hello_world_jit.c)** - Embed Likely as a just-in-time compiler
 - **[hello_world_static.c](share/likely/hello_world/hello_world_static.c)** - Statically compile a Likely function

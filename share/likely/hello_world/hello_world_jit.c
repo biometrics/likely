@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
                  "hello_world_jit <input_image> <function> <output_image>\n"
              "\n"
              "Example:\n\t"
-                 "hello_world_jit data/misc/lenna.tiff '(extern multi-dimension \"function\" multi-dimension a :-> { dst := a.imitate (dst a) :=> (<- dst (/ a (a.type 2))) })' dark_lenna.png\n");
+                 "hello_world_jit data/misc/lenna.tiff share/likely/hello_world/hello-world-jit.lisp dark_lenna.png\n");
         return EXIT_FAILURE;
     }
 
@@ -43,13 +43,25 @@ int main(int argc, char *argv[])
     likely_ensure(input, "failed to read: %s", argv[1]);
     printf("Width: %u\nHeight: %u\n", input->columns, input->rows);
 
+    puts("Reading source code...");
+    FILE *const file = fopen(argv[2], "rb");
+    likely_ensure(file, "failed to read: %s", argv[2]);
+    fseek(file, 0L, SEEK_END);
+    const long file_size = ftell(file);
+    rewind(file);
+    char *const source_code = (char *) malloc(file_size+1);
+    fread(source_code, file_size, 1, file);
+    source_code[file_size] = 0;
+    fclose(file);
+
     puts("Creating a JIT compiler environment...");
     const likely_env parent = likely_standard(likely_jit(false), NULL);
 
     puts("Compiling source code...");
-    const likely_const_env env = likely_lex_parse_and_eval(argv[2], likely_file_lisp, parent);
+    const likely_const_env env = likely_lex_parse_and_eval(source_code, likely_file_lisp, parent);
     likely_mat (*function)(likely_const_mat) = likely_function(env->expr);
-    likely_ensure(function, "failed to compile: %s", argv[2]);
+    likely_ensure(function, "failed to compile source code");
+    free(source_code);
 
     puts("Calling compiled function...");
     const likely_const_mat output = function(input);
