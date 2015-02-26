@@ -45,12 +45,13 @@ int main(int argc, char *argv[])
 
     puts("Reading source code...");
     FILE *const file = fopen(argv[2], "rb");
-    likely_ensure(file, "failed to read: %s", argv[2]);
+    likely_ensure(file, "failed to open for reading: %s", argv[2]);
     fseek(file, 0L, SEEK_END);
     const long file_size = ftell(file);
     rewind(file);
     char *const source_code = (char *) malloc(file_size+1);
-    fread(source_code, file_size, 1, file);
+    likely_ensure(fread(source_code, file_size, 1, file),
+                  "failed to read: %s", argv[2]);
     source_code[file_size] = 0;
     fclose(file);
 
