@@ -178,20 +178,6 @@ likely_mat likely_err_to_string(likely_err err)
     return likely_string(stream.str().c_str());
 }
 
-void likely_ensure(bool condition, const char *format, ...)
-{
-    if (condition)
-        return;
-
-    va_list ap;
-    va_start(ap, format);
-    fprintf(stderr, "Likely Error - ");
-    vfprintf(stderr, format, ap);
-    fprintf(stderr, "\n");
-
-    exit(EXIT_FAILURE);
-}
-
 static void incrementCounters(char c, uint32_t &line, uint32_t &column)
 {
     if (c == '\n') {

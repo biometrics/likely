@@ -421,6 +421,20 @@ likely_mat likely_show(likely_const_mat image, const char *title)
     return likely_retain_mat(image);
 }
 
+void likely_ensure(bool condition, const char *format, ...)
+{
+    if (condition)
+        return;
+
+    va_list ap;
+    va_start(ap, format);
+    fprintf(stderr, "Likely Error - ");
+    vfprintf(stderr, format, ap);
+    fprintf(stderr, "\n");
+
+    exit(EXIT_FAILURE);
+}
+
 void likely_ensure_approximate(likely_const_mat a, likely_const_mat b, float error_threshold)
 {
     likely_ensure(a->channels == b->channels, "channels: %d and: %d differ!", a->channels, b->channels);

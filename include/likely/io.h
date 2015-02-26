@@ -204,6 +204,17 @@ LIKELY_EXPORT likely_mat likely_render(likely_const_mat mat, double *min, double
 LIKELY_EXPORT likely_mat likely_show(likely_const_mat image, const char *title);
 
 /*!
+ * \brief Conditional exit with an error message.
+ *
+ * Unlike \c assert which calls \c abort, this function calls \c exit.
+ * \param[in] condition If \c false, print \a format and abort.
+ * \param[in] format <tt>printf</tt>-style error message.
+ * \remark This function is \ref thread-safe.
+ * \see \ref likely_throw
+ */
+LIKELY_EXPORT void likely_ensure(bool condition, const char *format, ...);
+
+/*!
  * \brief Ensure that two matricies are approximately equal.
  *
  * Useful for testing against a lossily-compressed baseline image.

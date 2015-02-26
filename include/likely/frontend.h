@@ -233,17 +233,6 @@ LIKELY_EXPORT bool likely_throw(likely_const_ast where, const char *what);
 LIKELY_EXPORT likely_mat likely_err_to_string(likely_err err);
 
 /*!
- * \brief Conditional exit with an error message.
- *
- * Unlike \c assert which calls \c abort, this function calls \c exit.
- * \param[in] condition If \c false, print \a format and abort.
- * \param[in] format <tt>printf</tt>-style error message.
- * \remark This function is \ref thread-safe.
- * \see \ref likely_throw
- */
-LIKELY_EXPORT void likely_ensure(bool condition, const char *format, ...);
-
-/*!
  * \brief Perform lexical analysis, converting source code into a list of tokens.
  *
  * The output from this function is usually the input to \ref likely_parse.
