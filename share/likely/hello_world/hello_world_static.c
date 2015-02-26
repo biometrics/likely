@@ -1,37 +1,39 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <likely/runtime.h>
+#include <likely.h>
 
 // Provided by a call to the static compiler:
-// $ likely hello_world_div2.md hello_world_div2.o
-likely_const_mat hello_world_div2(const likely_const_mat m);
+// $ likely share/likely/hello_world/hello-world-compiled.lisp hello_world.o
+likely_const_mat hello_world(const likely_const_mat m);
 
-int main()
+int main(int argc, char *argv[])
 {
-    const int elements = 1000;
-    likely_const_mat input = likely_new(likely_f32 | likely_multi_column, 1, elements, 1, 1, NULL);
+    if (argc != 3) {
+        puts("Usage:\n\t"
+                 "hello_world_static <input_image> <output_image>\n"
+             "\n"
+             "Example:\n\t"
+                 "hello_world_static data/misc/lenna.tiff dark_lenna.png\n");
+        return EXIT_FAILURE;
+    }
 
-    printf("Initializing input...\n");
-    srand((unsigned int) time(NULL));
-    for (int i=0; i<elements; i++)
-        ((float*)input->data)[i] = (float) rand();
+    puts("Reading input image...");
+    const likely_const_mat input = likely_read(argv[1], likely_file_guess, likely_image);
+    likely_ensure(input, "failed to read: %s", argv[1]);
+    printf("Width: %u\nHeight: %u\n", input->columns, input->rows);
 
-    printf("Computing output...\n");
-    likely_const_mat output = hello_world_div2(input);
+    puts("Calling compiled function...");
+    const likely_const_mat output = hello_world(input);
 
-    printf("Checking output...\n");
-    for (int i=0; i<elements; i++)
-        if (((float*)output->data)[i] != ((float*)input->data)[i] / 2) {
-            printf("Unexpected result:\n\tindex: %d\n\tinput: %g\n\texpected: %g\n\tactual: %g",
-                   i, ((float*)input->data)[i], ((float*)input->data)[i]/2, ((float*)output->data)[i]);
-            abort();
-        }
+    puts("Writing output image...");
+    const likely_const_mat write_success = likely_write(output, argv[2]);
+    likely_ensure(write_success, "failed to write: %s", argv[2]);
+    likely_release_mat(write_success);
 
-    printf("Releasing data...\n");
-    likely_release_mat(input);
+    puts("Cleaning up...");
     likely_release_mat(output);
+    likely_release_mat(input);
 
-    printf("Done!\n");
-    return 0;
+    return EXIT_SUCCESS;
 }

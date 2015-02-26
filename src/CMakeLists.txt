@@ -13,9 +13,8 @@ set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/index.html
                 ${CMAKE_SOURCE_DIR}/share/likely/LikelyConfig.cmake
                 ${CMAKE_SOURCE_DIR}/share/likely/hello_world/README.md
-                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello-world.lisp
-                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello-world-jit.lisp
-                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello_world_static.lisp
+                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello-world-compiled.lisp
+                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello-world-interpreted.lisp
                 ${CMAKE_SOURCE_DIR}/src/Doxyfile.in)
 
 # Build standard library
