@@ -2,6 +2,11 @@ project(hello_world)
 option(LIKELY_HELLOWORLD "Build Hello World examples" ON)
 
 if(${LIKELY_HELLOWORLD})
+  # hello_world
+  add_test(NAME hello_world
+           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+           COMMAND likely ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello-world.lisp -q)
+
   # hello_world_jit
   add_executable(hello_world_jit hello_world_jit.c)
   target_link_libraries(hello_world_jit likely_shared)
