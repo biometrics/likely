@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
     fseek(file, 0L, SEEK_END);
     const long file_size = ftell(file);
     rewind(file);
-    char *const source_code = (char *) malloc(file_size+1);
+    char *source_code = (char *) malloc(file_size+1);
     likely_ensure(fread(source_code, file_size, 1, file),
                   "failed to read: %s", argv[2]);
     source_code[file_size] = 0;
@@ -63,6 +63,7 @@ int main(int argc, char *argv[])
     likely_mat (*function)(likely_const_mat) = likely_function(env->expr);
     likely_ensure(function, "failed to compile source code");
     free(source_code);
+    source_code = NULL;
 
     puts("Calling compiled function...");
     const likely_const_mat output = function(input);
