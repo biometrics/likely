@@ -956,14 +956,8 @@ In terms of the Likely API, the returned value is a pointer to a \tindex{likely\
 null  := 0
 true  := 1
 false := 0
-e  := (f32 2.718281)
-pi := (f32 3.141592)
-\end{likely}
-
-\section{Numeric Limits}
-\begin{likely}
-numeric-limit-max := (-> t (numeric-limit t 1))
-numeric-limit-min := (-> t (numeric-limit t 0))
+e  := 2.7182818284590452353602874713526
+pi := 3.1415926535897932384626433832795
 \end{likely}
 
 \section{Unary Functions}
@@ -981,6 +975,12 @@ or  := (-> (a b) (| a.bool b.bool))
 xor := (-> (a b) (^ a.bool b.bool))
 min := (-> (a b) (? (< a b) a b))
 max := (-> (a b) (? (> a b) a b))
+\end{likely}
+
+\section{Numeric Limits}
+\begin{likely}
+numeric-limit-max := (-> t (numeric-limit t 1))
+numeric-limit-min := (-> t (numeric-limit t 0))
 \end{likely}
 
 \chapter{Library Symbols}

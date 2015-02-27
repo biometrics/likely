@@ -10,7 +10,7 @@ Wavelet parameters
 
 Interaction
 
-    theta_rad   := theta :+ (try gabor_wavelet_angle 0).(* pi).(/ 180)
+    theta_rad   := theta :+ (try gabor_wavelet_angle 0).(* pi.f32).(/ 180)
     lambda_norm := lambda :* (try gabor_wavelet_scale 1)
     radius      := (try gabor_wavelet_width 385).(- 1).(/ 2)
 
@@ -26,7 +26,7 @@ Definition
           dy := (- y.i32 y_max)
           xp := (*       dx theta.cos) :+ (* dy theta.sin)
           yp := (* -1 :* dx theta.sin) :+ (* dy theta.cos)
-          dst :<- (* -0.5 (/ xp sigma_x).sq :+ (/ yp sigma_y).sq).exp :* (+ (* (/ (* 2 pi) lambda) xp) psi).cos
+          dst :<- (* -0.5 (/ xp sigma_x).sq :+ (/ yp sigma_y).sq).exp :* (+ (* (/ (* 2 pi.f32) lambda) xp) psi).cos
         }
       }
 
