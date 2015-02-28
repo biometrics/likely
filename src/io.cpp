@@ -152,7 +152,9 @@ likely_mat likely_read(const char *file_name, likely_file_type file_type, likely
             likely_release_mat(image);
         }
     } else {
-        if (FILE *fp = fopen(fileName.c_str(), "rb")) {
+        FILE *const fp = fopen(fileName.c_str(), "rb");
+        likely_ensure(fp != NULL, "failed to open: %s", file_name);
+        if (fp) {
             fseek(fp, 0, SEEK_END);
             const size_t size = ftell(fp);
             fseek(fp, 0, SEEK_SET);
@@ -174,6 +176,7 @@ likely_mat likely_read(const char *file_name, likely_file_type file_type, likely
             } else {
                 likely_mat buffer = likely_new(likely_u8 | likely_multi_channel, uint32_t(size + ((file_type & likely_file_text) ? 1 : 0)), 1, 1, 1, NULL);
                 const bool success = (fread(buffer->data, 1, size, fp) == size);
+                likely_ensure(success, "failed to read: %s", file_name);
                 if (success) {
                     if (file_type & likely_file_binary) {
                         result = likely_retain_mat(buffer);
@@ -191,11 +194,11 @@ likely_mat likely_read(const char *file_name, likely_file_type file_type, likely
             fclose(fp);
         }
     }
-    likely_ensure(result != NULL, "failed to read: %s", file_name);
+    likely_ensure(result != NULL, "failed to process: %s", file_name);
     if (result && (result->type != type)) {
         likely_release_mat(result);
         result = NULL;
-        likely_ensure(false, "type mismatch for: %s", file_name);
+        likely_ensure(false, "read type mismatch for: %s", file_name);
     }
     return result;
 }
@@ -231,11 +234,12 @@ likely_mat likely_decode(likely_const_mat buffer, likely_type type)
         result = likelyFromOpenCVMat(cv::imdecode(likelyToOpenCVMat(buffer), CV_LOAD_IMAGE_UNCHANGED));
     } catch (...) {}
 
+    likely_ensure(result != NULL, "decode failure");
     if (result && (result->type != type)) {
         likely_release_mat(result);
         result = NULL;
+        likely_ensure(false, "decode type mismatch");
     }
-    assert(result);
     return result;
 }
 
