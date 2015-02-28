@@ -69,6 +69,8 @@ static cl::opt<bool> quiet("quiet", cl::desc("Don't show matrix output"));
 static cl::alias     quietA("q", cl::desc("Alias for -quiet"), cl::aliasopt(quiet));
 static cl::opt<bool> multicore("multi-core" , cl::desc("Compile multi-core kernels"));
 static cl::alias     multicoreA("m", cl::desc("Alias for -multi-core"), cl::aliasopt(multicore));
+static cl::opt<bool> heterogeneous("heterogeneous" , cl::desc("Compile heterogeneous kernels"));
+static cl::alias     heterogeneousA("h", cl::desc("Alias for -heterogeneous"), cl::aliasopt(heterogeneous));
 static cl::opt<bool> verbose("verbose" , cl::desc("Verbose compiler output"));
 static cl::alias     verboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(verbose));
 static cl::opt<bool> ctfeInherit("ctfe-inherit" , cl::desc("Compile time function evaluation should inherit static compiler settings"));
@@ -168,7 +170,7 @@ int main(int argc, char *argv[])
     settings.opt_level = OptLevelO3 ? 3 : ((OptLevelO2 || OptLevelOs || OptLevelOz) ? 2 : (OptLevelO1 ? 1 : (OptLevelO0 ? 0 : (output.empty() ? 3 : 0))));
     settings.size_level = OptLevelOz ? 2 : (OptLevelOs ? 1 : 0);
     settings.multicore = multicore;
-    settings.heterogeneous = false;
+    settings.heterogeneous = heterogeneous;
     settings.unroll_loops = !DisableLoopUnrolling;
     settings.vectorize_loops = !DisableLoopVectorization;
     settings.verbose = verbose;
