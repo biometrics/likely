@@ -59,6 +59,7 @@
 #include <queue>
 #include <set>
 #include <sstream>
+#include <thread>
 
 #include "likely/backend.h"
 
@@ -68,12 +69,11 @@ using namespace std;
 //! [likely_jit implementation.]
 likely_settings likely_jit(bool verbose)
 {
-    static bool heterogeneous = likely_initialize_coprocessor();
     likely_settings settings;
     settings.opt_level = 3;
     settings.size_level = 0;
-    settings.multicore = likely_can_fork();
-    settings.heterogeneous = heterogeneous;
+    settings.multicore = thread::hardware_concurrency() > 1;
+    settings.heterogeneous = false;
     settings.unroll_loops = true;
     settings.vectorize_loops = true;
     settings.verbose = verbose;
@@ -2416,9 +2416,13 @@ class kernelExpression : public LikelyOperator
         builder.CreateCall3(likelyFork, builder.CreatePointerCast(builder.module->module->getFunction(thunk->getName()), voidPtr), builder.CreatePointerCast(parameterStruct, voidPtr), kernelSize);
     }
 
-    void generateHeterogeneous(Builder &, likely_const_ast, const vector<likely_const_expr> &, likely_type, Value *) const
+    void generateHeterogeneous(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, likely_type kernelType, Value *kernelSize) const
     {
-        assert(!"Not implemented");
+        likely_initialize_coprocessor();
+
+        // The heterogeneous backend isn't done yet so generate CPU code for the time being
+        if (builder.module->context->multicore) generateMulticore(builder, ast, srcs, kernelType, kernelSize);
+        else                                    generateSerial(builder, ast, srcs, kernelType, kernelSize);
     }
 
     void generateCommon(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, likely_type kernelType, Value *start, Value *stop) const

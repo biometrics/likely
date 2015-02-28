@@ -94,8 +94,3 @@ void likely_fork(likely_thunk thunk, void *args, size_t size)
     for (size_t i = 1; i < numWorkers; i++)
         while (workers[i]) {} // Wait for the worker to finish
 }
-
-bool likely_can_fork()
-{
-    return thread::hardware_concurrency() > 1;
-}

@@ -298,15 +298,8 @@ typedef void (*likely_thunk)(void *args, size_t start, size_t stop);
  * \param[in] args The arguments to propogate to \p thunk.
  * \param[in] size The range [0, \p size) over which to execute \p thunk.
  * \remark This function is \ref thread-safe.
- * \see likely_can_fork
  */
 LIKELY_EXPORT void likely_fork(likely_thunk thunk, void *args, size_t size);
-
-/*!
- * \brief Determine if parallel code should be generated for the executing system.
- * \return \c true if \ref likely_fork is implemented and the executing system has more than one thread, \c false otherwise.
- */
-LIKELY_EXPORT bool likely_can_fork();
 
 /*!
  * \brief Initialize the co-processor for heterogeneous execution.
