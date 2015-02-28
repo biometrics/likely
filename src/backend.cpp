@@ -68,13 +68,12 @@ using namespace std;
 //! [likely_jit implementation.]
 likely_settings likely_jit(bool verbose)
 {
-    static const bool multicore   = likely_initialize_multicore();
-    static const bool coprocessor = likely_initialize_coprocessor();
+    static bool heterogeneous = likely_initialize_coprocessor();
     likely_settings settings;
     settings.opt_level = 3;
     settings.size_level = 0;
-    settings.heterogeneous = coprocessor;
-    settings.multicore = multicore;
+    settings.multicore = likely_can_fork();
+    settings.heterogeneous = heterogeneous;
     settings.unroll_loops = true;
     settings.vectorize_loops = true;
     settings.verbose = verbose;

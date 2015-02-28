@@ -293,30 +293,24 @@ typedef void (*likely_thunk)(void *args, size_t start, size_t stop);
  * [Here](https://software.intel.com/en-us/blogs/2010/07/23/thunk-you-very-much-or-how-do-openmp-compilers-work-part-2) is a good introductory article on the subject.
  *
  * This function is implemented in \c src/runtime_stdthread.cpp and depends on the presence of a <tt>C++11</tt>-compatible standard library.
- * This function can only be used after a call to \ref likely_initialize_multicore which returns \c true.
  * \note This function is used internally and should not be called directly.
  * \param[in] thunk The function to run.
  * \param[in] args The arguments to propogate to \p thunk.
  * \param[in] size The range [0, \p size) over which to execute \p thunk.
  * \remark This function is \ref thread-safe.
+ * \see likely_can_fork
  */
 LIKELY_EXPORT void likely_fork(likely_thunk thunk, void *args, size_t size);
 
 /*!
- * \brief Initialize threads for multi-core execution.
- * \note This function should only be called once.
- * \return \c true if the executing system has more than one thread, \c false otherwise.
- * \remark This function is \ref thread-unsafe.
- * \see \ref likely_initialize_coprocessor
+ * \brief Determine if parallel code should be generated for the executing system.
+ * \return \c true if \ref likely_fork is implemented and the executing system has more than one thread, \c false otherwise.
  */
-LIKELY_EXPORT bool likely_initialize_multicore();
+LIKELY_EXPORT bool likely_can_fork();
 
 /*!
  * \brief Initialize the co-processor for heterogeneous execution.
- * \note This function should only be called once.
  * \return \c true if the system has a viable co-processor, \c false otherwise.
- * \remark This function is \ref thread-unsafe.
- * \see \ref likely_initialize_multicore
  */
 LIKELY_EXPORT bool likely_initialize_coprocessor();
 
