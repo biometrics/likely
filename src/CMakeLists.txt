@@ -454,7 +454,7 @@ test_file(demos.md "")
 test_file(export.md 3)
 test_file(literate_programming.md 42)
 test_file(literate_programming.tex 42)
-test_file(matrix_io.md "Compression Ratio: 7.31714")
+test_file(matrix_io.lisp "Compression Ratio: 7.31714")
 
 # Compile and test demos
 function(add_demo FILE ARGS)
