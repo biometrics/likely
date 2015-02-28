@@ -2229,8 +2229,8 @@ class kernelExpression : public LikelyOperator
             cast<PHINode>(value)->addIncoming(start, entry);
 
             { // Create self-referencing loop node
-                llvm::Metadata *const Args[] = { 0 };
-                node = llvm::MDNode::get(builder.getContext(), Args);
+                Metadata *const Args[] = { 0 };
+                node = MDNode::get(builder.getContext(), Args);
                 node->replaceOperandWith(0, node);
             }
 
@@ -2369,7 +2369,7 @@ class kernelExpression : public LikelyOperator
                 i++;
             }
 
-            thunk = ::cast<Function>(builder.module->module->getOrInsertFunction(name, thunkType));
+            thunk = cast<Function>(builder.module->module->getOrInsertFunction(name, thunkType));
             thunk->addFnAttr(Attribute::NoUnwind);
             thunk->setCallingConv(CallingConv::C);
             thunk->setLinkage(GlobalValue::PrivateLinkage);
@@ -2420,9 +2420,26 @@ class kernelExpression : public LikelyOperator
     {
         likely_initialize_coprocessor();
 
+        likely_module kernelModule(*builder.env->settings);
+        kernelModule.module->setTargetTriple("nvptx-nvidia-cuda");
+        NamedMDNode *const nvvmAnnotations = kernelModule.module->getOrInsertNamedMetadata("nvvm.annotations");
+        Builder kernelBuilder(builder.env, &kernelModule, false);
+
+        vector<Type*> parameterTypes;
+        for (const likely_const_expr src : srcs)
+            parameterTypes.push_back(src->value->getType());
+        FunctionType *const kernelFunctionType = FunctionType::get(Type::getVoidTy(kernelBuilder.getContext()), parameterTypes, false);
+        Function *const kernel = cast<Function>(kernelBuilder.module->module->getOrInsertFunction(builder.GetInsertBlock()->getParent()->getName().str() + "_kernel", kernelFunctionType));
+        Metadata* metadata[3] = { ValueAsMetadata::get(kernel),
+                                  MDString::get(kernelBuilder.getContext(), "kernel"),
+                                  ValueAsMetadata::get(kernelBuilder.one(likely_u32)) };
+        nvvmAnnotations->addOperand(MDTuple::get(kernelBuilder.getContext(), metadata));
+
+        kernelBuilder.module->module->dump();
+
         // The heterogeneous backend isn't done yet so generate CPU code for the time being
         if (builder.module->context->multicore) generateMulticore(builder, ast, srcs, kernelType, kernelSize);
-        else                                    generateSerial(builder, ast, srcs, kernelType, kernelSize);
+        else                                    generateSerial   (builder, ast, srcs, kernelType, kernelSize);
     }
 
     void generateCommon(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, likely_type kernelType, Value *start, Value *stop) const
