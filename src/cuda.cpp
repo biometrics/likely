@@ -1,8 +1,9 @@
+#include <iostream>
 #include <cuda.h>
 
 #include "likely/runtime.h"
 
-static CUdevice Device;
+using namespace std;
 
 bool likely_initialize_coprocessor()
 {
@@ -16,8 +17,25 @@ bool likely_initialize_coprocessor()
     if (deviceCount == 0)
         return false;
 
-    if (cuDeviceGet(&Device, 0))
+    CUdevice device;
+    if (cuDeviceGet(&device, 0))
         return false;
 
-    return false;
+    char name[128];
+    if (cuDeviceGetName(name, 128, device))
+        return false;
+    cerr << "Using CUDA Device [0]: " << name << "\n";
+
+    int devMajor, devMinor;
+    if (cuDeviceComputeCapability(&devMajor, &devMinor, device))
+        return false;
+    cerr << "Device Compute Capability: " << devMajor << "." << devMinor << "\n";
+    if (devMajor < 2)
+        return false;
+
+    CUcontext context;
+    if (cuCtxCreate(&context, 0, device))
+        return false;
+
+    return true;
 }
