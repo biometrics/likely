@@ -508,7 +508,8 @@ struct likely_expression : public LikelyValue
     static void undefine(likely_const_env &env, const char *name)
     {
         assert(likely_is_definition(env->ast));
-        likely_ensure(!strcmp(name, likely_symbol(env->ast)), "undefine variable mismatch");
+        const char *const top = likely_symbol(env->ast);
+        likely_ensure(!strcmp(name, top), "undefine variable mismatch, expected: %s but got %s", name, top);
         const likely_const_env old = env;
         env = env->parent;
         likely_release_env(old);
@@ -2441,6 +2442,23 @@ class kernelExpression : public LikelyOperator
         define(kernelBuilder.env, "x", new likely_expression(LikelyValue(kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_x, Type::getInt32Ty(kernelBuilder.getContext())), "x"), likely_u32)));
         define(kernelBuilder.env, "y", new likely_expression(LikelyValue(kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_y, Type::getInt32Ty(kernelBuilder.getContext())), "y"), likely_u32)));
         define(kernelBuilder.env, "t", new likely_expression(LikelyValue(kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_z, Type::getInt32Ty(kernelBuilder.getContext())), "t"), likely_u32)));
+
+        vector<KernelArgument*> kernelArguments;
+        Function::arg_iterator it = kernel->arg_begin();
+        const likely_const_ast args = ast->atoms[1];
+        const size_t argsStart = ((args->type == likely_ast_list) && (args->atoms[0]->type == likely_ast_list)) ? 1 : 0;
+        if (args->type == likely_ast_list) {
+            for (size_t i=argsStart; i<args->num_atoms; i++)
+                kernelArguments.push_back(new KernelArgument(kernelBuilder, LikelyValue(it++, *srcs[i-argsStart]), args->atoms[i]->atom));
+        } else {
+            kernelArguments.push_back(new KernelArgument(kernelBuilder, LikelyValue(it++, *srcs[0]), args->atom));
+        }
+
+        for (KernelArgument *kernelArgument : kernelArguments)
+            define(kernelBuilder.env, kernelArgument->name.c_str(), kernelArgument);
+
+        undefineAll(kernelBuilder.env, args, argsStart);
+        kernelArguments.clear();
 
         undefine(kernelBuilder.env, "t");
         undefine(kernelBuilder.env, "y");
