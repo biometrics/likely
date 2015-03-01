@@ -2191,8 +2191,9 @@ class kernelExpression : public LikelyOperator
 
         void set(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
         {
-            StoreInst *store = builder.CreateStore(builder.cast(expr, type), gep(builder, ast));
-            store->setMetadata("llvm.mem.parallel_loop_access", info.node);
+            StoreInst *const store = builder.CreateStore(builder.cast(expr, type), gep(builder, ast));
+            if (info.node)
+                store->setMetadata("llvm.mem.parallel_loop_access", info.node);
         }
 
         likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -2200,8 +2201,9 @@ class kernelExpression : public LikelyOperator
             if (!isa<PointerType>(value->getType()))
                 return new likely_expression((LikelyValue) *this);
 
-            LoadInst *load = builder.CreateLoad(gep(builder, ast));
-            load->setMetadata("llvm.mem.parallel_loop_access", info.node);
+            LoadInst *const load = builder.CreateLoad(gep(builder, ast));
+            if (info.node)
+                load->setMetadata("llvm.mem.parallel_loop_access", info.node);
             return new likely_expression(LikelyValue(load, type & likely_element));
         }
     };
@@ -2438,10 +2440,17 @@ class kernelExpression : public LikelyOperator
 
         kernelBuilder.SetInsertPoint(BasicBlock::Create(kernelBuilder.getContext(), "entry", kernel));
 
-        define(kernelBuilder.env, "c", new likely_expression(LikelyValue(kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_w, Type::getInt32Ty(kernelBuilder.getContext())), "c"), likely_u32)));
-        define(kernelBuilder.env, "x", new likely_expression(LikelyValue(kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_x, Type::getInt32Ty(kernelBuilder.getContext())), "x"), likely_u32)));
-        define(kernelBuilder.env, "y", new likely_expression(LikelyValue(kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_y, Type::getInt32Ty(kernelBuilder.getContext())), "y"), likely_u32)));
-        define(kernelBuilder.env, "t", new likely_expression(LikelyValue(kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_z, Type::getInt32Ty(kernelBuilder.getContext())), "t"), likely_u32)));
+        KernelInfo info;
+        info.node = NULL;
+        info.c = (kernelType & likely_multi_channel) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_w, Type::getInt32Ty(kernelBuilder.getContext())), "c") : builder.one(likely_u32);
+        info.x = (kernelType & likely_multi_column ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_x, Type::getInt32Ty(kernelBuilder.getContext())), "x") : builder.one(likely_u32);
+        info.y = (kernelType & likely_multi_row    ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_y, Type::getInt32Ty(kernelBuilder.getContext())), "y") : builder.one(likely_u32);
+        info.t = (kernelType & likely_multi_frame  ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_z, Type::getInt32Ty(kernelBuilder.getContext())), "t") : builder.one(likely_u32);
+
+        define(kernelBuilder.env, "c", new likely_expression(LikelyValue(info.c, likely_u32)));
+        define(kernelBuilder.env, "x", new likely_expression(LikelyValue(info.x, likely_u32)));
+        define(kernelBuilder.env, "y", new likely_expression(LikelyValue(info.y, likely_u32)));
+        define(kernelBuilder.env, "t", new likely_expression(LikelyValue(info.t, likely_u32)));
 
         vector<KernelArgument*> kernelArguments;
         Function::arg_iterator it = kernel->arg_begin();
@@ -2454,8 +2463,10 @@ class kernelExpression : public LikelyOperator
             kernelArguments.push_back(new KernelArgument(kernelBuilder, LikelyValue(it++, *srcs[0]), args->atom));
         }
 
-        for (KernelArgument *kernelArgument : kernelArguments)
+        for (KernelArgument *kernelArgument : kernelArguments) {
+            kernelArgument->info = info;
             define(kernelBuilder.env, kernelArgument->name.c_str(), kernelArgument);
+        }
 
         undefineAll(kernelBuilder.env, args, argsStart);
         kernelArguments.clear();
