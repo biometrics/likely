@@ -2435,6 +2435,18 @@ class kernelExpression : public LikelyOperator
                                   ValueAsMetadata::get(kernelBuilder.one(likely_u32)) };
         nvvmAnnotations->addOperand(MDTuple::get(kernelBuilder.getContext(), metadata));
 
+        kernelBuilder.SetInsertPoint(BasicBlock::Create(kernelBuilder.getContext(), "entry", kernel));
+
+        define(kernelBuilder.env, "c", new likely_expression(LikelyValue(kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_w, Type::getInt32Ty(kernelBuilder.getContext())), "c"), likely_u32)));
+        define(kernelBuilder.env, "x", new likely_expression(LikelyValue(kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_x, Type::getInt32Ty(kernelBuilder.getContext())), "x"), likely_u32)));
+        define(kernelBuilder.env, "y", new likely_expression(LikelyValue(kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_y, Type::getInt32Ty(kernelBuilder.getContext())), "y"), likely_u32)));
+        define(kernelBuilder.env, "t", new likely_expression(LikelyValue(kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_z, Type::getInt32Ty(kernelBuilder.getContext())), "t"), likely_u32)));
+
+        undefine(kernelBuilder.env, "t");
+        undefine(kernelBuilder.env, "y");
+        undefine(kernelBuilder.env, "x");
+        undefine(kernelBuilder.env, "c");
+
         kernelBuilder.module->module->dump();
 
         // The heterogeneous backend isn't done yet so generate CPU code for the time being
