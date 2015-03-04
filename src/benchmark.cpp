@@ -69,8 +69,15 @@ struct Test
             return;
 
         stringstream source;
-        source << "(extern multi-dimension \"" << name() << "\" multi-dimension " << name() << ")";
-        const likely_const_env env = likely_lex_parse_and_eval(source.str().c_str(), likely_file_lisp, parent);
+        stringstream fileName;
+        fileName << "library/" << name() << ".md";
+        const likely_const_mat fileSource = likely_read(fileName.str().c_str(), likely_file_gfm, likely_text);
+        checkRead(fileSource, fileName.str().c_str());
+        source << fileSource->data;
+        likely_release_mat(fileSource);
+
+        source << "    (extern multi-dimension \"" << name() << "\" multi-dimension " << name() << ")";
+        const likely_const_env env = likely_lex_parse_and_eval(source.str().c_str(), likely_file_gfm, parent);
         void *const f = likely_function(env->expr);
         assert(f);
 
@@ -286,18 +293,13 @@ int main(int argc, char *argv[])
         puts("");
         puts("Function \t\tType \tSize \tExec \tIter \t\tSpeedup");
 
-        const likely_const_mat source = likely_read("library/benchmark.md", likely_file_gfm, likely_text);
-        checkRead(source, "library/benchmark.md");
         likely_settings settings = likely_jit(false);
         settings.multicore = BenchmarkMulticore;
         const likely_const_env parent = likely_standard(settings, NULL);
-        const likely_const_env env = likely_lex_parse_and_eval(source->data, likely_file_gfm, parent);
-        likely_release_mat(source);
-        assert(env->expr);
-        likely_release_env(parent);
 
-        fmaTest().run(env);
-        thresholdTest().run(env);
+        fmaTest().run(parent);
+        thresholdTest().run(parent);
+        likely_release_env(parent);
     }
 
     likely_shutdown();
