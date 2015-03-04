@@ -9,6 +9,9 @@ Likely functions measured against their [OpenCV](http://www.opencv.org) equivale
 **Q:** Why are some of the multi-core benchmarks slower? <br>
 **A:** For functions that are fast to execute, the overhead of multi-threaded execution isn't worth it.
 
+**Q:** Where can I look up the definition of an operand? <br>
+**A:** In the [standard library](https://s3.amazonaws.com/liblikely/latex/standard.pdf).
+
 ### Functions
 - [Binary threshold](?href=binary-threshold)
 - [Fused multiply-add](?href=fused-multiply-add)
