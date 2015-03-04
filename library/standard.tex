@@ -964,8 +964,8 @@ pi := 3.1415926535897932384626433832795
 \begin{likely}
 not  := (-> a (== a false))
 bool := (-> a (!= a false))
-sq  := (-> a (* a a))
-abs := (-> a (? (< a 0) (* -1 a) a))
+sq   := (-> a (* a a))
+abs  := (-> a (? (< a 0) (* -1 a) a))
 \end{likely}
 
 \section{Binary Functions}
@@ -994,68 +994,139 @@ file-type-t    := u32
 
 \section{Matrix Information}
 \begin{likely}
-elements := (-> mat mat.channels :* mat.columns :* mat.rows :* mat.frames)
-bytes    := (-> mat (/ (+ (* (& mat.type depth) mat.elements) 7) 8))
+elements :=
+  mat :->
+    (* (* (* mat.channels mat.columns) mat.rows) mat.frames)
+
+bytes :=
+  mat :->
+    (/ (+ (* (& mat.type depth) mat.elements) 7) 8)
 \end{likely}
 
 \section{Matrix Creation}
 \begin{likely}
-new := (-> (return-type channels columns rows frames data)
-           ((extern return-type "likely_new" (type-t u32 u32 u32 u32 void-pointer-t)) return-type channels columns rows frames data))
-imitate-size := (-> (mat type) (new type mat.channels mat.columns mat.rows mat.frames null))
-imitate := (-> mat (imitate-size mat mat.type))
+new :=
+  (return-type channels columns rows frames data) :->
+  {
+    f := (extern return-type
+                 "likely_new"
+                 (type-t u32 u32 u32 u32 void-pointer-t))
+    (f return-type channels columns rows frames data)
+  }
+
+imitate-size :=
+  (mat type) :->
+    (new type mat.channels mat.columns mat.rows mat.frames null)
+
+imitate :=
+  mat :->
+    (imitate-size mat mat.type)
 \end{likely}
 
 \section{Matrix I/O}
 \begin{likely}
-read   := (-> (file-name file-type return-type)
-              ((extern return-type "likely_read" (string-t file-type-t type-t)) file-name file-type return-type))
-write  := (extern u8CXYT "likely_write" (u8CXYT string-t))
-decode := (-> (mat return-type)
-              ((extern return-type "likely_decode" (u8CXYT type-t)) mat return-type))
-encode := (extern u8CXYT "likely_encode" (u8CXYT string-t))
+read :=
+  (file-name file-type return-type) :->
+  {
+    f := (extern return-type
+                 "likely_read"
+                 (string-t file-type-t type-t))
+    (f file-name file-type return-type)
+  }
+
+decode :=
+  (mat return-type) :->
+  {
+    f := (extern return-type
+                 "likely_decode"
+                 (u8CXYT type-t))
+    (f mat return-type)
+  }
+
+write  := (extern u8CXYT "likely_write"  (u8CXYT string-t ))
+encode := (extern u8CXYT "likely_encode" (u8CXYT string-t ))
 render := (extern u8CXYT "likely_render" (u8CXYT f64P f64P))
-show   := (extern u8CXYT "likely_show" (u8CXYT string-t))
-guess-file-type := (extern file-type-t "likely_guess_file_type" string-t)
+show   := (extern u8CXYT "likely_show"   (u8CXYT string-t ))
+
+guess-file-type :=
+  (extern file-type-t "likely_guess_file_type" string-t)
 \end{likely}
 
 \begin{likely}
-read-image               := (-> file-name file-name.(read media     image          ))
-read-image-grayscale     := (-> file-name file-name.(read media     image-grayscale))
-read-video               := (-> file-name file-name.(read media     video          ))
-read-video-grayscale     := (-> file-name file-name.(read media     video-grayscale))
-read-directory           := (-> file-name file-name.(read directory video          ))
-read-directory-grayscale := (-> file-name file-name.(read directory video-grayscale))
+read-image :=
+  (-> file-name (read file-name media     image          ))
+
+read-image-grayscale :=
+  (-> file-name (read file-name media     image-grayscale))
+
+read-video :=
+  (-> file-name (read file-name media     video          ))
+
+read-video-grayscale :=
+  (-> file-name (read file-name media     video-grayscale))
+
+read-directory :=
+  (-> file-name (read file-name directory video          ))
+
+read-directory-grayscale :=
+  (-> file-name (read file-name directory video-grayscale))
 \end{likely}
 
 \section{Compiler Frontend}
 \begin{likely}
-lex := (extern ast "likely_lex" (string-t file-type-t))
+lex   := (extern ast "likely_lex" (string-t file-type-t))
 parse := (extern ast "likely_parse" ast)
-lex-and-parse := (extern ast "likely_lex_and_parse" (string-t file-type-t))
+lex-and-parse := (extern ast
+                         "likely_lex_and_parse"
+                         (string-t file-type-t))
 \end{likely}
 
 \section{Compiler Backend}
 \begin{likely}
-eval := (extern env "likely_eval" (ast env void-pointer-t void-pointer-t))
+eval := (extern env
+                "likely_eval"
+                (ast env void-pointer-t void-pointer-t))
 \end{likely}
 
 \section{Import}
 \begin{likely}
-import-string := (-> (source-code source-type environment) (lex-and-parse source-code source-type).(eval environment null null))
-import := (-> (file-name environment) file-name.(read guess text).data.(import-string file-name.guess-file-type environment))
+import-string :=
+  (source-code source-type environment) :->
+    (lex-and-parse source-code source-type)
+   .(eval environment null null)
+
+import :=
+  (file-name environment) :->
+    file-name
+   .(read guess text)
+   .data
+   .(import-string file-name.guess-file-type environment)
 \end{likely}
 
 \section{Type Conversion}
 \begin{likely}
-cast := (-> (a b) (b.type a)) ; convert a to the type of b
-depth-double := (-> t (| (* (& t depth) 2) (& t (~ depth))).make-type)
-depth-atleast := (-> (t bits) (| (max bits (& t depth)) (& t (~ depth))).make-type)
+cast :=
+  (a b) :->
+    (b.type a) ; convert a to the type of b
+
+depth-double :=
+  t :->
+    (| (* (& t depth) 2) (& t (~ depth)))
+   .make-type
+
+depth-atleast :=
+  (t bits) :->
+    (| (max bits (& t depth)) (& t (~ depth)))
+   .make-type
+
 depth-atleast-16 := (-> t (depth-atleast t 16))
 depth-atleast-32 := (-> t (depth-atleast t 32))
 depth-atleast-64 := (-> t (depth-atleast t 64))
 
-single-dimension := (-> d (-> t (& t (~ d))))
+single-dimension :=
+  d :->
+   (-> t (& t (~ d)))
+
 single-channel := (single-dimension multi-channel)
 single-column  := (single-dimension multi-column )
 single-row     := (single-dimension multi-row    )
@@ -1071,11 +1142,15 @@ imitate-frame   := (imitate-dimension multi-frame)
 \chapter{Pixel-wise operators}
 \section{Thresholding}
 \begin{likely}
-threshold-binary          := (-> (input threshold response) (? (> input threshold) response  0))
-threshold-binary-inverse  := (-> (input threshold response) (? (> input threshold) 0         response))
-threshold-truncate        := (-> (input threshold)          (? (> input threshold) threshold input))
-threshold-to-zero         := (-> (input threshold)          (? (> input threshold) input     0))
-threshold-to-zero-inverse := (-> (input threshold)          (? (> input threshold) 0         input))
+threshold :=
+  (s t hi lo) :->
+    (? (> s t) hi lo)
+
+threshold-binary          := (-> (s t hi) (threshold s t hi 0))
+threshold-binary-inverse  := (-> (s t lo) (threshold s t 0  lo))
+threshold-truncate        := (-> (s t)    (threshold s t t  s))
+threshold-to-zero         := (-> (s t)    (threshold s t s  0))
+threshold-to-zero-inverse := (-> (s t)    (threshold s t 0  s))
 \end{likely}
 
 \chapter{Loops}
@@ -1100,7 +1175,8 @@ iter :=
 average-frame :=
   mat :->
   {
-    result := (new mat.type.single-frame mat.channels mat.columns mat.rows 1 null)
+    result := (new mat.type.single-frame
+                   mat.channels mat.columns mat.rows 1 null)
     len := mat.frames
     (result mat len) :=>
     {
@@ -1115,20 +1191,9 @@ center-frame :=
   {
     avg := mat.average-frame
     result := mat.(imitate-size mat.type.depth-double.signed)
-    (result mat avg) :=> (<- result (- (result.type mat) (result.type avg)))
+    (result mat avg) :=>
+      (<- result (- (result.type mat) (result.type avg)))
   }
-\end{likely}
-
-\chapter{Convolutions}
-\section{Covariance}
-\begin{likely}
-covariance :=
-  vecs :->
-    {
-        cov := (new vecs.type.floating vecs.channels vecs.columns vecs.columns vecs.frames null)
-        ; TODO - complete
-        cov
-    }
 \end{likely}
 
 \bibliographystyle{plain}
