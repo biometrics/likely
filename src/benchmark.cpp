@@ -90,7 +90,7 @@ struct Test
                 likely_mat srcLikely = fromCvMat(srcCV);
 
                 likely_mat typeString = likely_type_to_string(type);
-                printf("%s \t%s \t%d \t%s\t", name(), typeString->data, size, BenchmarkMulticore ? "P" : "S");
+                printf("%s \t%s \t%d \t%s\t", name(), typeString->data, size, BenchmarkMulticore ? "m" : "s");
                 likely_release_mat(typeString);
                 testCorrectness(reinterpret_cast<likely_mat (*)(likely_const_mat)>(f), srcCV, srcLikely);
 
@@ -285,7 +285,7 @@ int main(int argc, char *argv[])
         puts("Function: Benchmarked function name");
         puts("    Type: Matrix element data type");
         puts("    Size: Matrix rows and columns");
-        puts("    Exec: (S)erial or (P)arallel");
+        puts("    Exec: (s)ingle-core or (m)ulti-core");
         puts("    Iter: Times Likely function was run in one second");
         puts(" Speedup: Execution speed of Likely relative to OpenCV");
         puts("");
