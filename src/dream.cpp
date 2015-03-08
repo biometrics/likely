@@ -40,8 +40,9 @@ $ dream [<source_file>]
 using namespace llvm;
 using namespace std;
 
-static cl::opt<string> Input(cl::Positional, cl::desc("<source_file>"), cl::init(""));
-static cl::opt<bool> Spartan("spartan", cl::desc("Hide the source code, only show the output"));
+static cl::opt<string> DreamInput(cl::Positional, cl::desc("<source_file>"), cl::init(""));
+static cl::opt<bool> DreamSpartan("spartan", cl::desc("Hide the source code, only show the output"));
+static cl::alias     DreamSpartanA("s", cl::desc("Alias for -spartan"), cl::aliasopt(DreamSpartan));
 
 class CommandMode : public QObject
 {
@@ -818,7 +819,7 @@ public:
 
         likely_set_error_callback(error_callback, statusBar);
         restore();
-        this->spartan(Spartan);
+        this->spartan(DreamSpartan);
     }
 
 private slots:
@@ -842,8 +843,8 @@ private slots:
 
     void restore()
     {
-        if (!Input.empty()) {
-            settings.setValue("sourceFileName", QString::fromStdString(Input));
+        if (!DreamInput.empty()) {
+            settings.setValue("sourceFileName", QString::fromStdString(DreamInput));
             settings.sync();
         }
 
