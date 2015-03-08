@@ -2508,6 +2508,8 @@ class kernelExpression : public LikelyOperator
         Value *const manualFrameStep = (manualDims >= 4) ? builder.CreateMul(manualRowStep, manualRows)     : NULL;
 
         KernelInfo info;
+        info.type = kernelType;
+
         KernelAxis *axis = NULL;
         if (kernelType & likely_multi_frame) {
             axis = new KernelAxis(builder, "t", start
@@ -2561,7 +2563,6 @@ class kernelExpression : public LikelyOperator
         }
         info.cOffset = axis->offset;
 
-        info.type = kernelArguments[0]->type;
         info.columnStep = kernelArguments[0]->channels;
         info.rowStep = kernelArguments[0]->rowStep;
         info.frameStep = kernelArguments[0]->frameStep;
