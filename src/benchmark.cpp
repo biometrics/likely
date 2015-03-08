@@ -35,10 +35,10 @@ using namespace std;
 const double ErrorTolerance = 0.000001;
 const int TestSeconds = 1;
 
-static cl::opt<bool> BenchmarkTest    ("test"     , cl::desc("Run tests for correctness only"));
-static cl::opt<bool> BenchmarkMulticore("multi-core" , cl::desc("Compile multi-core kernels"));
+static cl::opt<bool> BenchmarkTest("test", cl::desc("Run tests for correctness only"));
+static cl::opt<bool> BenchmarkMulticore("multi-core", cl::desc("Compile multi-core kernels"));
 static cl::alias     BenchmarkMulticoreA("m", cl::desc("Alias for -multi-core"), cl::aliasopt(BenchmarkMulticore));
-static cl::opt<string> BenchmarkFile    ("file"    , cl::desc("Benchmark the specified file only"), cl::value_desc("filename"));
+static cl::opt<string> BenchmarkFile("file", cl::desc("Benchmark the specified file only"), cl::value_desc("filename"));
 static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"));
 
 static void checkRead(const void *data, const char *fileName)
