@@ -2563,10 +2563,17 @@ class kernelExpression : public LikelyOperator
         }
         info.cOffset = axis->offset;
 
-        info.columnStep = kernelArguments[0]->channels;
-        info.rowStep = kernelArguments[0]->rowStep;
-        info.frameStep = kernelArguments[0]->frameStep;
+        if (argsStart == 0) {
+            info.columnStep = kernelArguments[0]->channels;
+            info.rowStep    = kernelArguments[0]->rowStep;
+            info.frameStep  = kernelArguments[0]->frameStep;
+        } else {
+            info.columnStep = manualChannels  ? manualChannels  : builder.one().value;
+            info.rowStep    = manualRowStep   ? manualRowStep   : (manualColumns ? builder.CreateMul(info.columnStep, manualColumns) : info.columnStep);
+            info.frameStep  = manualFrameStep ? manualFrameStep : (manualRows    ? builder.CreateMul(info.rowStep   , manualRows   ) : info.rowStep   );
+        }
         info.node = axis->node;
+
         for (KernelArgument *kernelArgument : kernelArguments) {
             kernelArgument->info = info;
             define(builder.env, kernelArgument->name.c_str(), kernelArgument);
