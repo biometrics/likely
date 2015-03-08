@@ -2314,7 +2314,7 @@ class kernelExpression : public LikelyOperator
         likely_type kernelType = likely_void;
         if (argsStart) {
             for (uint32_t i=0; i<manualDims; i++) {
-                if (ConstantInt *const constantInt = dyn_cast<ConstantInt>(srcs[srcs.size() - 1 - i]->value))
+                if (ConstantInt *const constantInt = dyn_cast<ConstantInt>(srcs[srcs.size() - manualDims + i]->value))
                     if (constantInt->isOne())
                         continue;
                 if      (i == 0) kernelType |= likely_multi_channel;
