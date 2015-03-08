@@ -2561,7 +2561,7 @@ class kernelExpression : public LikelyOperator
             info.c = builder.zero();
             define(builder.env, "c", new likely_expression(builder.zero()));
         }
-        info.cOffset = axis->offset;
+        info.cOffset = axis ? axis->offset : builder.one().value;
 
         if (argsStart == 0) {
             info.columnStep = kernelArguments[0]->channels;
@@ -2572,7 +2572,7 @@ class kernelExpression : public LikelyOperator
             info.rowStep    = manualRowStep   ? manualRowStep   : (manualColumns ? builder.CreateMul(info.columnStep, manualColumns) : info.columnStep);
             info.frameStep  = manualFrameStep ? manualFrameStep : (manualRows    ? builder.CreateMul(info.rowStep   , manualRows   ) : info.rowStep   );
         }
-        info.node = axis->node;
+        info.node = axis ? axis->node : NULL;
 
         for (KernelArgument *kernelArgument : kernelArguments) {
             kernelArgument->info = info;
@@ -2584,14 +2584,16 @@ class kernelExpression : public LikelyOperator
         undefineAll(builder.env, args, argsStart);
         kernelArguments.clear();
 
-        axis->close(builder);
+        if (axis)
+            axis->close(builder);
 
         // Clean up any instructions we didn't end up using
         FunctionPassManager FPM(builder.module->module);
         FPM.add(createDeadInstEliminationPass());
         FPM.run(*kernelHead->getParent());
 
-        axis->tryCollapse(builder);
+        if (axis)
+            axis->tryCollapse(builder);
         undefine(builder.env, "c");
         undefine(builder.env, "x");
         undefine(builder.env, "y");
