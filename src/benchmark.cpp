@@ -38,6 +38,8 @@ const int TestSeconds = 1;
 static cl::opt<bool> BenchmarkTest("test", cl::desc("Run tests for correctness only"));
 static cl::opt<bool> BenchmarkMulticore("multi-core", cl::desc("Compile multi-core kernels"));
 static cl::alias     BenchmarkMulticoreA("m", cl::desc("Alias for -multi-core"), cl::aliasopt(BenchmarkMulticore));
+static cl::opt<bool> BenchmarkVerbose("verbose", cl::desc("Verbose compiler output"));
+static cl::alias     BenchmarkVerboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(BenchmarkVerbose));
 static cl::opt<string> BenchmarkFile("file", cl::desc("Benchmark the specified file only"), cl::value_desc("filename"));
 static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"));
 
@@ -352,6 +354,7 @@ int main(int argc, char *argv[])
 
         likely_settings settings = likely_jit(false);
         settings.multicore = BenchmarkMulticore;
+        settings.verbose = BenchmarkVerbose;
         const likely_const_env parent = likely_standard(settings, NULL);
 
         fmaTest().run(parent);

@@ -2676,6 +2676,12 @@ likely_expression::~likely_expression()
 // As a special exception, this function is allowed to set ast->type
 likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
 {
+    if (builder.env->settings && builder.env->settings->verbose) {
+        const likely_mat str = likely_ast_to_string(ast);
+        puts(str->data);
+        likely_release_mat(str);
+    }
+
     if (ast->type == likely_ast_list) {
         if (ast->num_atoms == 0)
             return likely_expression::error(ast, "Empty expression");
