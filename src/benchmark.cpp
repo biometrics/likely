@@ -292,6 +292,36 @@ class thresholdTest : public Test
     }
 };
 
+class minMaxLocTest : public Test
+{
+    const char *name() const
+    {
+        return "min-max-loc";
+    }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat result(2, 3, CV_MAKETYPE(CV_64F, src.channels()));
+        vector<Mat> mv;
+        split(src, mv);
+
+        for (size_t i=0; i<mv.size(); i++) {
+            double minVal, maxVal;
+            Point minLoc, maxLoc;
+            minMaxLoc(mv[i], &minVal, &maxVal, &minLoc, &maxLoc);
+
+            result.at<double>(0, 0, i) = minVal;
+            result.at<double>(0, 1, i) = minLoc.x;
+            result.at<double>(0, 2, i) = minLoc.y;
+            result.at<double>(1, 0, i) = maxVal;
+            result.at<double>(1, 1, i) = maxLoc.x;
+            result.at<double>(1, 2, i) = maxLoc.y;
+        }
+
+        return result;
+    }
+};
+
 int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
@@ -326,6 +356,7 @@ int main(int argc, char *argv[])
 
         fmaTest().run(parent);
         thresholdTest().run(parent);
+//        minMaxLocTest().run(parent);
         likely_release_env(parent);
     }
 
