@@ -642,7 +642,7 @@ public:
         context->PM->run(*module);
 
         if (context->verbose)
-            module->dump();
+            module->print(outs(), NULL);
 
         error_code errorCode;
         tool_output_file output(fileName.c_str(), errorCode, sys::fs::F_None);
@@ -2660,7 +2660,7 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
     }
 
     if (module->context->verbose)
-        builder.module->module->dump();
+        builder.module->module->print(outs(), NULL);
 
     if (!evaluate) {
         // compile & cleanup
