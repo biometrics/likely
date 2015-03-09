@@ -416,8 +416,14 @@ static likely_env newEnv(likely_const_env parent, likely_const_ast ast = NULL, l
 
     env->parent = likely_retain_env(parent);
     env->ast = likely_retain_ast(ast);
-    env->settings = parent ? parent->settings : NULL;
-    env->module = parent ? parent->module : NULL;
+    if (parent) {
+        env->settings = parent->settings;
+        env->module = parent->module;
+    } else {
+        env->settings = (likely_settings*) malloc(sizeof(likely_settings));
+        *env->settings = likely_jit(false);
+        env->module = NULL;
+    }
     env->expr = expr;
     env->ref_count = 1;
     return env;
@@ -2604,8 +2610,8 @@ LIKELY_REGISTER(kernel)
 
 JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC)
     : Symbol(name, likely_void, parameters)
-    , module(new likely_module((!lambda->env->settings /* standard library does not have settings */ || (evaluate && !lambda->env->settings->ctfe_inherit))
-                               ? likely_jit(lambda->env->settings && lambda->env->settings->verbose)
+    , module(new likely_module((evaluate && !lambda->env->settings->ctfe_inherit)
+                               ? likely_jit(lambda->env->settings->verbose)
                                : *lambda->env->settings))
 {
     Builder builder(lambda->env, module, !evaluate);
@@ -2676,7 +2682,7 @@ likely_expression::~likely_expression()
 // As a special exception, this function is allowed to set ast->type
 likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
 {
-    if (builder.env->settings && builder.env->settings->verbose) {
+    if (builder.env->settings->verbose) {
         const likely_mat str = likely_ast_to_string(ast);
         puts(str->data);
         likely_release_mat(str);
@@ -2776,7 +2782,7 @@ void likely_release_env(likely_const_env env)
         return;
     delete env->expr;
     likely_release_ast(env->ast);
-    if (env->settings && !env->parent->settings)
+    if (!env->parent || (env->settings != env->parent->settings))
         free(env->settings);
 
     // This is where our decision to manage module ownership using the environment plays out.
