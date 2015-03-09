@@ -2683,7 +2683,7 @@ likely_expression::~likely_expression()
 likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
 {
     if (builder.env->settings->verbose) {
-        const likely_mat str = likely_ast_to_string(ast);
+        const likely_mat str = likely_ast_to_string(ast, 2);
         puts(str->data);
         likely_release_mat(str);
     }
@@ -2840,7 +2840,7 @@ likely_const_mat likely_result(const struct likely_expression *expr)
         return NULL;
 
     if (const likely_const_ast ast = expr->getData())
-        return likely_ast_to_string(ast);
+        return likely_ast_to_string(ast, -1);
 
     return (likely_const_mat) expr->getData();
 }

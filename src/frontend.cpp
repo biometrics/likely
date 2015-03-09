@@ -155,16 +155,20 @@ bool likely_throw(likely_const_ast where, const char *what)
     return false;
 }
 
-static void print(const likely_const_ast ast, stringstream &stream)
+static void print(const likely_const_ast ast, stringstream &stream, int depth)
 {
     if (ast->type == likely_ast_list) {
-        stream << "(";
-        for (size_t i=0; i<ast->num_atoms; i++) {
-            print(ast->atoms[i], stream);
-            if (i != ast->num_atoms - 1)
-                stream << " ";
+        if (depth == 0) {
+            stream << " ";
+        } else {
+            stream << "(";
+            for (size_t i=0; i<ast->num_atoms; i++) {
+                print(ast->atoms[i], stream, depth > 0 ? depth-1 : -1);
+                if (i != ast->num_atoms - 1)
+                    stream << " ";
+            }
+            stream << ")";
         }
-        stream << ")";
     } else {
         stream.write(ast->atom, ast->atom_len);
     }
@@ -174,7 +178,7 @@ likely_mat likely_err_to_string(likely_err err)
 {
     stringstream stream;
     stream << err->what << " at: ";
-    print(err->where, stream);
+    print(err->where, stream, -1);
     return likely_string(stream.str().c_str());
 }
 
@@ -583,10 +587,10 @@ likely_ast likely_lex_and_parse(const char *source, likely_file_type file_type)
 }
 //! [likely_lex_and_parse implementation.]
 
-likely_mat likely_ast_to_string(likely_const_ast ast)
+likely_mat likely_ast_to_string(likely_const_ast ast, int depth)
 {
     stringstream stream;
-    print(ast, stream);
+    print(ast, stream, depth);
     return likely_string(stream.str().c_str());
 }
 

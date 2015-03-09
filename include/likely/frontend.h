@@ -273,10 +273,12 @@ LIKELY_EXPORT likely_ast likely_lex_and_parse(const char *source, likely_file_ty
  * The opposite of \ref likely_lex_and_parse.
  * The returned \ref likely_matrix::data is valid \ref likely_file_lisp code.
  * \param[in] ast The abstract syntax tree to convert into a string.
+ * \param[in] depth Maximum levels of \p ast to print or \c -1 for all.
+ *                  Unprinted atoms are represented with a single space.
  * \return A \ref likely_string.
  * \remark This function is \ref thread-safe.
  */
-LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast);
+LIKELY_EXPORT likely_mat likely_ast_to_string(likely_const_ast ast, int depth);
 
 /*!
  * \brief Compare two abstract syntax trees.
