@@ -254,15 +254,42 @@ private:
     }
 };
 
-class fmaTest : public Test {
-    const char *name() const { return "fused-multiply-add"; }
-    Mat computeBaseline(const Mat &src) const { Mat dst; src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3); return dst; }
+class fmaTest : public Test
+{
+    const char *name() const
+    {
+        return "fused-multiply-add";
+    }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat dst;
+        src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3);
+        return dst;
+    }
 };
 
-class thresholdTest : public Test {
-    const char *name() const { return "binary-threshold"; }
-    Mat computeBaseline(const Mat &src) const { Mat dst; threshold(src, dst, 127, 1, THRESH_BINARY); return dst; }
-    vector<likely_type> types() const { vector<likely_type> types; types.push_back(likely_u8); types.push_back(likely_f32); return types; }
+class thresholdTest : public Test
+{
+    const char *name() const
+    {
+        return "binary-threshold";
+    }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat dst;
+        threshold(src, dst, 127, 1, THRESH_BINARY);
+        return dst;
+    }
+
+    vector<likely_type> types() const
+    {
+        vector<likely_type> types;
+        types.push_back(likely_u8);
+        types.push_back(likely_f32);
+        return types;
+    }
 };
 
 int main(int argc, char *argv[])
