@@ -538,6 +538,8 @@ struct likely_expression : public LikelyValue
 
 private:
     mutable Variant data; // use getData() and setData()
+
+    static likely_const_expr _get(Builder &builder, likely_const_ast ast);
 };
 
 struct likely_module
@@ -2679,15 +2681,28 @@ likely_expression::~likely_expression()
         delete vtable;
 }
 
-// As a special exception, this function is allowed to set ast->type
 likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
 {
+    const likely_const_expr result = _get(builder, ast);
+
     if (builder.env->settings->verbose) {
         const likely_mat str = likely_ast_to_string(ast, 2);
-        puts(str->data);
+        outs() << str->data << '\n';
         likely_release_mat(str);
+
+        if (result && result->value) {
+            outs() << "  ";
+            result->value->print(outs());
+            outs() << '\n';
+        }
     }
 
+    return result;
+}
+
+// As a special exception, this function is allowed to set ast->type
+likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast)
+{
     if (ast->type == likely_ast_list) {
         if (ast->num_atoms == 0)
             return likely_expression::error(ast, "Empty expression");
