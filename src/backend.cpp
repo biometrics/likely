@@ -543,13 +543,17 @@ private:
 
 struct likely_module
 {
-    unique_ptr<LikelyContext> context;
+    shared_ptr<LikelyContext> context;
     Module *module;
     vector<pair<Variant,Constant*>> data;
 
     likely_module(const likely_settings &settings)
         : context(new LikelyContext(settings))
-        , module(new Module("likely_module", context->context)) {}
+        , module(new Module("likely_module_new", context->context)) {}
+
+    likely_module(const shared_ptr<LikelyContext> &context)
+        : context(context)
+        , module(new Module("likely_module_inherited", context->context)) {}
 
     virtual ~likely_module()
     {
@@ -2611,10 +2615,14 @@ LIKELY_REGISTER(kernel)
 
 JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC)
     : Symbol(name, likely_void, parameters)
-    , module(new likely_module((evaluate && !lambda->env->settings->ctfe_inherit)
-                               ? likely_jit(lambda->env->settings->verbose)
-                               : *lambda->env->settings))
 {
+    if (lambda->env->module)
+        module = new likely_module(lambda->env->module->context); // propogate the current context if possible
+    else
+        module = new likely_module((evaluate && !lambda->env->settings->ctfe_inherit)
+                                   ? likely_jit(lambda->env->settings->verbose)
+                                   : *lambda->env->settings); // construct a new context otherwise
+
     Builder builder(lambda->env, module, !evaluate);
     unique_ptr<const likely_expression> expr(lambda->generate(builder, parameters, name, arrayCC, evaluate));
     if (!expr) // error
