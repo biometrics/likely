@@ -2616,15 +2616,14 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
                                : *lambda->env->settings))
 {
     Builder builder(lambda->env, module, !evaluate);
-    {
-        unique_ptr<const likely_expression> expr(lambda->generate(builder, parameters, name, arrayCC, evaluate));
-        if (expr) {
-            value = expr->value;
-            type = expr->type;
-            setData(expr->getData());
-        }
-    }
-    if (!value /* error */ || (evaluate && getData()) /* constant */)
+    unique_ptr<const likely_expression> expr(lambda->generate(builder, parameters, name, arrayCC, evaluate));
+    if (!expr) // error
+        return;
+
+    value = expr->value;
+    type = expr->type;
+    setData(expr->getData());
+    if (evaluate && getData()) // constant
         return;
 
 // No libffi support for Windows
@@ -2669,6 +2668,7 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
         function = (void*) EE->getFunctionAddress(name);
         EE->removeModule(builder.module->module);
         builder.module->finalize();
+        value = NULL;
     }
 }
 
