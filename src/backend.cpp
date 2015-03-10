@@ -119,7 +119,6 @@ public:
         PM->add(createVerifierPass());
         PM->add(ACT);
         PM->add(new TargetLibraryInfoWrapperPass(Triple(sys::getProcessTriple())));
-        PM->add(new DataLayoutPass());
         PM->add(createTargetTransformInfoWrapperPass(TM->getTargetIRAnalysis()));
         PassManagerBuilder builder;
         builder.OptLevel = opt_level;
@@ -2643,7 +2642,7 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
     }
 
     TargetMachine *const targetMachine = LikelyContext::getTargetMachine(true);
-    builder.module->module->setDataLayout(targetMachine->getDataLayout());
+    builder.module->module->setDataLayout(*targetMachine->getDataLayout());
     builder.module->module->setTargetTriple(sys::getProcessTriple());
 
     string error;
