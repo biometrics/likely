@@ -22,6 +22,7 @@
 #include <cstdarg>
 #include <iomanip>
 #include <iostream>
+#include <mutex>
 #include <future>
 #include <string>
 #include <llvm/Support/FileSystem.h>
@@ -152,7 +153,14 @@ likely_mat likely_read(const char *file_name, likely_file_type file_type, likely
             likely_release_mat(image);
         }
     } else {
-        FILE *const fp = fopen(fileName.c_str(), "rb");
+        FILE *fp;
+        { // we lock to ensure that fopen + perror is atomic
+            static mutex m;
+            unique_lock<mutex> lock(m);
+            fp = fopen(fileName.c_str(), "rb");
+            if (!fp)
+                perror(NULL);
+        }
         likely_ensure(fp != NULL, "failed to open: %s", file_name);
         if (fp) {
             fseek(fp, 0, SEEK_END);
