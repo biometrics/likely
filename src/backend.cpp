@@ -18,7 +18,6 @@
 #  define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#include <llvm/PassManager.h>
 #include <llvm/ADT/Hashing.h>
 #include <llvm/ADT/Triple.h>
 #include <llvm/Analysis/AssumptionCache.h>
@@ -33,6 +32,7 @@
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/IR/ConstantRange.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/Debug.h>
@@ -89,12 +89,12 @@ class LikelyContext : public likely_settings
     map<likely_type, Type*> typeLUT;
 
 public:
-    PassManager *PM;
+    legacy::PassManager *PM;
     AssumptionCacheTracker *ACT;
     LLVMContext context;
 
     LikelyContext(const likely_settings &settings)
-        : likely_settings(settings), PM(new PassManager()), ACT(new AssumptionCacheTracker())
+        : likely_settings(settings), PM(new legacy::PassManager()), ACT(new AssumptionCacheTracker())
     {
         static TargetMachine *TM = NULL;
         if (!TM) {
@@ -656,7 +656,7 @@ public:
         } else if (extension == "bc") {
             WriteBitcodeToFile(module, output.os());
         } else {
-            PassManager pm;
+            legacy::PassManager pm;
             formatted_raw_ostream fos(output.os());
             static TargetMachine *TM = LikelyContext::getTargetMachine(false);
             TM->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
@@ -2596,7 +2596,7 @@ class kernelExpression : public LikelyOperator
             axis->close(builder);
 
         // Clean up any instructions we didn't end up using
-        FunctionPassManager FPM(builder.module->module);
+        legacy::FunctionPassManager FPM(builder.module->module);
         FPM.add(createDeadInstEliminationPass());
         FPM.run(*kernelHead->getParent());
 
@@ -2635,7 +2635,7 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
 
     // Don't run the interpreter on a module with loops, better to compile and execute it instead.
     if (evaluate) {
-        PassManager PM;
+        legacy::PassManager PM;
         HasLoop *hasLoop = new HasLoop();
         PM.add(hasLoop);
         PM.run(*builder.module->module);
