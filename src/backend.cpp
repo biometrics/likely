@@ -77,7 +77,6 @@ likely_settings likely_jit(bool verbose)
     settings.unroll_loops = true;
     settings.vectorize_loops = true;
     settings.verbose = verbose;
-    settings.ctfe_inherit = false;
     return settings;
 }
 //! [likely_jit implementation.]
@@ -2616,12 +2615,10 @@ LIKELY_REGISTER(kernel)
 JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC)
     : Symbol(name, likely_void, parameters)
 {
-    if (lambda->env->module)
-        module = new likely_module(lambda->env->module->context); // propogate the current context if possible
-    else
-        module = new likely_module((evaluate && !lambda->env->settings->ctfe_inherit)
-                                   ? likely_jit(lambda->env->settings->verbose)
-                                   : *lambda->env->settings); // construct a new context otherwise
+    if (lambda->env->module) // propogate the current context if possible
+        module = new likely_module(lambda->env->module->context);
+    else // construct a new context otherwise
+        module = new likely_module(evaluate ? likely_jit(lambda->env->settings->verbose) : *lambda->env->settings);
 
     Builder builder(lambda->env, module, !evaluate);
     unique_ptr<const likely_expression> expr(lambda->generate(builder, parameters, name, arrayCC, evaluate));

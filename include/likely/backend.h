@@ -43,7 +43,6 @@ struct likely_settings
     bool unroll_loops; /*!< \brief Perform loop unrolling optimization. */
     bool vectorize_loops; /*!< \brief Perform loop vectorization optimization. */
     bool verbose; /*!< \brief Verbose compiler output. */
-    bool ctfe_inherit; /*!< \brief Compile-time function evaluation should inherit settings instead of \ref likely_jit defaults. */
 };
 
 /*!

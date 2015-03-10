@@ -63,8 +63,6 @@ static cl::opt<bool> LikelyAst("ast", cl::desc("Print abstract syntax tree"));
 static cl::alias     LikelyAstA("a", cl::desc("Alias for -ast"), cl::aliasopt(LikelyAst));
 static cl::opt<bool> LikelyVerbose("verbose", cl::desc("Verbose compiler output"));
 static cl::alias     LikelyVerboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(LikelyVerbose));
-static cl::opt<bool> LikelyCtfeInherit("ctfe-inherit", cl::desc("Compile time function evaluation should inherit static compiler settings"));
-static cl::alias     LikelyCtfeInheritA("i", cl::desc("Alias for -ctfe-inherit"), cl::aliasopt(LikelyCtfeInherit));
 static cl::opt<bool> LikelyExamine("examine", cl::desc("Alias for -q -v -Oz -disable-loop-unrolling -disable-loop-vectorization"));
 static cl::alias     LikelyExamineA("ex", cl::desc("Alias for -examine"), cl::aliasopt(LikelyExamine));
 
@@ -158,7 +156,6 @@ int main(int argc, char *argv[])
     if (LikelyExamine) {
         LikelyVerbose.setValue(true);
         LikelyQuiet.setValue(true);
-        LikelyCtfeInherit.setValue(true);
         LikelyOz.setValue(true);
         LikelyDisableLoopUnrolling.setValue(true);
         LikelyDisableLoopVectorization.setValue(true);
@@ -178,7 +175,6 @@ int main(int argc, char *argv[])
     settings.unroll_loops = !LikelyDisableLoopUnrolling;
     settings.vectorize_loops = !LikelyDisableLoopVectorization;
     settings.verbose = LikelyVerbose;
-    settings.ctfe_inherit = LikelyCtfeInherit;
 
     likely_const_env parent = likely_standard(settings, LikelyOutput.empty() ? NULL /* JIT */ : LikelyOutput.c_str() /* Offline */);
 
