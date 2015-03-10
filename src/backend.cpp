@@ -1337,25 +1337,25 @@ class ArithmeticOperator : public SimpleBinaryOperator
 {
     likely_const_expr evaluateSimpleBinary(Builder &builder, const unique_ptr<const likely_expression> &lhs, const unique_ptr<const likely_expression> &rhs) const
     {
-        likely_type type = likely_type_from_types(*lhs, *rhs);
+        const likely_type type = likely_type_from_types(*lhs, *rhs);
         return evaluateArithmetic(builder, builder.cast(*lhs.get(), type), builder.cast(*rhs.get(), type));
     }
-    virtual likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const = 0;
+    virtual likely_const_expr evaluateArithmetic(Builder &builder, const LikelyValue &lhs, const LikelyValue &rhs) const = 0;
 };
 
 class SimpleArithmeticOperator : public ArithmeticOperator
 {
-    likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
+    likely_const_expr evaluateArithmetic(Builder &builder, const LikelyValue &lhs, const LikelyValue &rhs) const
     {
         return new likely_expression(LikelyValue(evaluateSimpleArithmetic(builder, lhs, rhs), lhs));
     }
-    virtual Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const = 0;
+    virtual Value *evaluateSimpleArithmetic(Builder &builder, const LikelyValue &lhs, const LikelyValue &rhs) const = 0;
 };
 
 class addExpression : public SimpleArithmeticOperator
 {
     const char *symbol() const { return "+"; }
-    Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
+    Value *evaluateSimpleArithmetic(Builder &builder, const LikelyValue &lhs, const LikelyValue &rhs) const
     {
         if (lhs.type & likely_floating) {
             return builder.CreateFAdd(lhs, rhs);
@@ -1418,7 +1418,7 @@ LIKELY_REGISTER(subtract)
 class multiplyExpression : public SimpleArithmeticOperator
 {
     const char *symbol() const { return "*"; }
-    Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
+    Value *evaluateSimpleArithmetic(Builder &builder, const LikelyValue &lhs, const LikelyValue &rhs) const
     {
         if (lhs & likely_floating) {
             return builder.CreateFMul(lhs, rhs);
@@ -1439,7 +1439,7 @@ LIKELY_REGISTER(multiply)
 class divideExpression : public SimpleArithmeticOperator
 {
     const char *symbol() const { return "/"; }
-    Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &n, const likely_expression &d) const
+    Value *evaluateSimpleArithmetic(Builder &builder, const LikelyValue &n, const LikelyValue &d) const
     {
         if (n.type & likely_floating) {
             return builder.CreateFDiv(n, d);
@@ -1462,7 +1462,7 @@ LIKELY_REGISTER(divide)
 class remainderExpression : public SimpleArithmeticOperator
 {
     const char *symbol() const { return "%"; }
-    Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
+    Value *evaluateSimpleArithmetic(Builder &builder, const LikelyValue &lhs, const LikelyValue &rhs) const
     {
         return (lhs.type & likely_floating) ? builder.CreateFRem(lhs, rhs)
                                                    : ((lhs.type & likely_signed) ? builder.CreateSRem(lhs, rhs)
@@ -1471,16 +1471,16 @@ class remainderExpression : public SimpleArithmeticOperator
 };
 LIKELY_REGISTER(remainder)
 
-#define LIKELY_REGISTER_LOGIC(OP, SYM)                                                                                  \
-class OP##Expression : public SimpleArithmeticOperator                                                                  \
-{                                                                                                                       \
-    const char *symbol() const { return #SYM; }                                                                         \
-    Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const \
-    {                                                                                                                   \
-        return builder.Create##OP(lhs, rhs.value);                                                                      \
-    }                                                                                                                   \
-};                                                                                                                      \
-LIKELY_REGISTER(OP)                                                                                                     \
+#define LIKELY_REGISTER_LOGIC(OP, SYM)                                                                      \
+class OP##Expression : public SimpleArithmeticOperator                                                      \
+{                                                                                                           \
+    const char *symbol() const { return #SYM; }                                                             \
+    Value *evaluateSimpleArithmetic(Builder &builder, const LikelyValue &lhs, const LikelyValue &rhs) const \
+    {                                                                                                       \
+        return builder.Create##OP(lhs, rhs.value);                                                          \
+    }                                                                                                       \
+};                                                                                                          \
+LIKELY_REGISTER(OP)                                                                                         \
 
 LIKELY_REGISTER_LOGIC(And , &)
 LIKELY_REGISTER_LOGIC(Or  , |)
@@ -1490,7 +1490,7 @@ LIKELY_REGISTER_LOGIC(Shl , <<)
 class shiftRightExpression : public SimpleArithmeticOperator
 {
     const char *symbol() const { return ">>"; }
-    Value *evaluateSimpleArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const
+    Value *evaluateSimpleArithmetic(Builder &builder, const LikelyValue &lhs, const LikelyValue &rhs) const
     {
         return (lhs.type & likely_signed) ? builder.CreateAShr(lhs, rhs.value) : builder.CreateLShr(lhs, rhs.value);
     }
@@ -1501,7 +1501,7 @@ LIKELY_REGISTER(shiftRight)
 class OP##Expression : public ArithmeticOperator                                                                                                               \
 {                                                                                                                                                              \
     const char *symbol() const { return #SYM; }                                                                                                                \
-    likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const                                   \
+    likely_const_expr evaluateArithmetic(Builder &builder, const LikelyValue &lhs, const LikelyValue &rhs) const                                               \
     {                                                                                                                                                          \
         return new likely_expression(LikelyValue((lhs.type & likely_floating) ? builder.CreateFCmpO##OP(lhs, rhs)                                              \
                                                                               : ((lhs.type & likely_signed) ? builder.CreateICmpS##OP(lhs, rhs)                \
@@ -1519,7 +1519,7 @@ LIKELY_REGISTER_COMPARISON(GE, >=)
 class OP##Expression : public ArithmeticOperator                                                                               \
 {                                                                                                                              \
     const char *symbol() const { return #SYM; }                                                                                \
-    likely_const_expr evaluateArithmetic(Builder &builder, const likely_expression &lhs, const likely_expression &rhs) const   \
+    likely_const_expr evaluateArithmetic(Builder &builder, const LikelyValue &lhs, const LikelyValue &rhs) const               \
     {                                                                                                                          \
         return new likely_expression(LikelyValue((lhs.type & likely_floating) ? builder.CreateFCmpO##OP(lhs, rhs)              \
                                                                               : builder.CreateICmp##OP(lhs, rhs), likely_u1)); \
