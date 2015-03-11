@@ -78,7 +78,7 @@ struct Test
         source << fileSource->data;
         likely_release_mat(fileSource);
 
-        source << "    (extern multi-dimension \"" << name() << "\" multi-dimension " << name() << ")";
+        source << "    (extern multi-dimension \"" << name() << "\" multi-dimension " << name() << " true)";
         const likely_const_env env = likely_lex_parse_and_eval(source.str().c_str(), likely_file_gfm, parent);
         void *const f = likely_function(env->expr);
         assert(f);
@@ -88,22 +88,25 @@ struct Test
                 if (BenchmarkTest && (size != 256)) continue;
 
                 // Generate input matrix
-                Mat srcCV = generateData(size, size, type);
-                likely_mat srcLikely = fromCvMat(srcCV);
+                const Mat srcCV = generateData(size, size, type);
+                vector<likely_const_mat> likelyArgs;
+                likelyArgs.push_back(fromCvMat(srcCV));
 
                 likely_mat typeString = likely_type_to_string(type);
                 printf("%s \t%s \t%d \t%s\t", name(), typeString->data, size, BenchmarkMulticore ? "m" : "s");
                 likely_release_mat(typeString);
-                testCorrectness(reinterpret_cast<likely_mat (*)(likely_const_mat)>(f), srcCV, srcLikely);
+                testCorrectness(reinterpret_cast<likely_mat (*)(const likely_const_mat*)>(f), srcCV, likelyArgs.data());
 
-                if (BenchmarkTest) {
+                if (!BenchmarkTest) {
+                    Speed baseline = testBaselineSpeed(srcCV);
+                    Speed likely = testLikelySpeed(reinterpret_cast<likely_mat (*)(const likely_const_mat*)>(f), likelyArgs.data());
+                    printf("%-8.3g \t%.3gx\n", double(likely.iterations), likely.Hz/baseline.Hz);
+                } else {
                     printf("\n");
-                    continue;
                 }
 
-                Speed baseline = testBaselineSpeed(srcCV);
-                Speed likely = testLikelySpeed(reinterpret_cast<likely_mat (*)(likely_const_mat)>(f), srcLikely);
-                printf("%-8.3g \t%.3gx\n", double(likely.iterations), likely.Hz/baseline.Hz);
+                for (const likely_const_mat &likelyArg : likelyArgs)
+                    likely_release_mat(likelyArg);
             }
         }
 
@@ -193,7 +196,7 @@ private:
         return m;
     }
 
-    void testCorrectness(likely_mat (*f)(likely_const_mat), const Mat &srcCV, const likely_const_mat srcLikely) const
+    void testCorrectness(likely_mat (*f)(const likely_const_mat*), const Mat &srcCV, const likely_const_mat *srcLikely) const
     {
         Mat dstOpenCV = computeBaseline(srcCV);
         likely_const_mat dstLikely = f(srcLikely);
@@ -212,9 +215,9 @@ private:
             for (int i=0; i<srcCV.rows; i++)
                 for (int j=0; j<srcCV.cols; j++)
                     if (errorMat.at<float>(i, j) == 1) {
-                        const double src = likely_get_element(srcLikely, 0, j, i, 0);
-                        const double cv  = likely_get_element(cvLikely,  0, j, i, 0);
-                        const double dst = likely_get_element(dstLikely, 0, j, i, 0);
+                        const double src = likely_get_element(srcLikely[0], 0, j, i, 0);
+                        const double cv  = likely_get_element(cvLikely    , 0, j, i, 0);
+                        const double dst = likely_get_element(dstLikely   , 0, j, i, 0);
                         if (errors < 100) errorLocations << src << "\t" << cv << "\t" << dst << "\t" << i << "\t" << j << "\n";
                         errors++;
                     }
@@ -241,7 +244,7 @@ private:
         return Test::Speed(iter, startTime, endTime);
     }
 
-    Speed testLikelySpeed(likely_mat (*f)(likely_const_mat), const likely_const_mat srcLikely) const
+    Speed testLikelySpeed(likely_mat (*f)(const likely_const_mat*), const likely_const_mat *srcLikely) const
     {
         clock_t startTime, endTime;
         int iter = 0;
