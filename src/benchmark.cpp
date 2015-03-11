@@ -310,7 +310,7 @@ class minMaxLocTest : public Test
         vector<Mat> mv;
         split(src, mv);
 
-        for (size_t i=0; i<mv.size(); i++) {
+        for (int i=0; i<int(mv.size()); i++) {
             double minVal, maxVal;
             Point minLoc, maxLoc;
             minMaxLoc(mv[i], &minVal, &maxVal, &minLoc, &maxLoc);
