@@ -359,7 +359,7 @@ int main(int argc, char *argv[])
 
         fmaTest().run(parent);
         thresholdTest().run(parent);
-//        minMaxLocTest().run(parent);
+        minMaxLocTest().run(parent);
         likely_release_env(parent);
     }
 

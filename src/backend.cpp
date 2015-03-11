@@ -669,7 +669,7 @@ struct Builder : public IRBuilder<>
 {
     likely_const_env env;
     likely_module *const module;
-    const bool ctfe; // Compile-time function evaluation
+    bool ctfe; // Compile-time function evaluation
 
     Builder(likely_const_env env, likely_module *module, bool ctfe)
         : IRBuilder<>(module ? module->context->context : getGlobalContext()), env(env), module(module), ctfe(ctfe) {}
@@ -1775,7 +1775,16 @@ private:
                 define(builder.env, parameters->atom, args[0]);
             }
         }
+
+        // If we define local variables then CTFE is no longer possible
+        const bool ctfeRestore = builder.ctfe;
+        if (!args.empty())
+            builder.ctfe = false;
+
         const likely_const_expr result = get(builder, body);
+
+        builder.ctfe = ctfeRestore;
+
         if (parameters)
             undefineAll(builder.env, parameters);
         args.clear();
