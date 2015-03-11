@@ -542,17 +542,13 @@ private:
 
 struct likely_module
 {
-    shared_ptr<LikelyContext> context;
+    unique_ptr<LikelyContext> context;
     Module *module;
     vector<pair<Variant,Constant*>> data;
 
     likely_module(const likely_settings &settings)
         : context(new LikelyContext(settings))
-        , module(new Module("likely_module_new", context->context)) {}
-
-    likely_module(const shared_ptr<LikelyContext> &context)
-        : context(context)
-        , module(new Module("likely_module_inherited", context->context)) {}
+        , module(new Module("likely_module", context->context)) {}
 
     virtual ~likely_module()
     {
@@ -2614,12 +2610,8 @@ LIKELY_REGISTER(kernel)
 
 JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC)
     : Symbol(name, likely_void, parameters)
+    , module(new likely_module(evaluate ? likely_jit(lambda->env->settings->verbose) : *lambda->env->settings))
 {
-    if (lambda->env->module) // propogate the current context if possible
-        module = new likely_module(lambda->env->module->context);
-    else // construct a new context otherwise
-        module = new likely_module(evaluate ? likely_jit(lambda->env->settings->verbose) : *lambda->env->settings);
-
     Builder builder(lambda->env, module, !evaluate);
     unique_ptr<const likely_expression> expr(lambda->generate(builder, parameters, name, arrayCC, evaluate));
     if (!expr) // error
