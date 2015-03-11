@@ -83,23 +83,26 @@ struct Test
         void *const f = likely_function(env->expr);
         assert(f);
 
-        for (likely_type type : types()) {
-            for (int size : sizes()) {
-                if (BenchmarkTest && (size != 256)) continue;
+        for (const likely_type type : types()) {
+            for (const int size : sizes()) {
+                if (BenchmarkTest && (size != 128)) continue;
 
                 // Generate input matrix
                 const Mat srcCV = generateData(size, size, type);
                 vector<likely_const_mat> likelyArgs;
-                likelyArgs.push_back(fromCvMat(srcCV));
+                const likely_mat likelySrc = likelyFromOpenCVMat(srcCV);
+                if (!(likelySrc->type & likely_floating) && ((likelySrc->type & likely_depth) <= 16))
+                    likelySrc->type |= likely_saturated; // Follow OpenCV's saturation convention
+                likelyArgs.push_back(likelySrc);
 
-                likely_mat typeString = likely_type_to_string(type);
+                const likely_const_mat typeString = likely_type_to_string(type);
                 printf("%s \t%s \t%d \t%s\t", name(), typeString->data, size, BenchmarkMulticore ? "m" : "s");
                 likely_release_mat(typeString);
                 testCorrectness(reinterpret_cast<likely_mat (*)(const likely_const_mat*)>(f), srcCV, likelyArgs.data());
 
                 if (!BenchmarkTest) {
-                    Speed baseline = testBaselineSpeed(srcCV);
-                    Speed likely = testLikelySpeed(reinterpret_cast<likely_mat (*)(const likely_const_mat*)>(f), likelyArgs.data());
+                    const Speed baseline = testBaselineSpeed(srcCV);
+                    const Speed likely = testLikelySpeed(reinterpret_cast<likely_mat (*)(const likely_const_mat*)>(f), likelyArgs.data());
                     printf("%-8.3g \t%.3gx\n", double(likely.iterations), likely.Hz/baseline.Hz);
                 } else {
                     printf("\n");
@@ -116,7 +119,7 @@ struct Test
     static void runFile(const char *fileName)
     {
         const likely_file_type file_type = likely_guess_file_type(fileName);
-        likely_const_mat source = likely_read(fileName, file_type, likely_text);
+        const likely_const_mat source = likely_read(fileName, file_type, likely_text);
         checkRead(source, fileName);
 
         printf("%s \t", fileName);
@@ -145,38 +148,28 @@ struct Test
 protected:
     virtual const char *name() const = 0;
     virtual Mat computeBaseline(const Mat &src) const = 0;
+
     virtual vector<likely_type> types() const
     {
-        static vector<likely_type> types;
-        if (types.empty()) {
-            types.push_back(likely_u8);
-            types.push_back(likely_u16);
-            types.push_back(likely_i32);
-            types.push_back(likely_f32);
-            types.push_back(likely_f64);
-        }
+        vector<likely_type> types;
+        types.push_back(likely_u8);
+        types.push_back(likely_u16);
+        types.push_back(likely_i32);
+        types.push_back(likely_f32);
+        types.push_back(likely_f64);
         return types;
     }
 
     virtual vector<int> sizes() const
     {
-        static vector<int> sizes;
-        if (sizes.empty()) {
-            sizes.push_back(8);
-            sizes.push_back(16);
-            sizes.push_back(32);
-            sizes.push_back(64);
-            sizes.push_back(128);
-            sizes.push_back(256);
-            sizes.push_back(512);
-            sizes.push_back(1024);
-            sizes.push_back(2048);
-        }
+        vector<int> sizes;
+        sizes.push_back(8);
+        sizes.push_back(32);
+        sizes.push_back(128);
+        sizes.push_back(512);
+        sizes.push_back(2048);
         return sizes;
     }
-
-    virtual bool serial() const { return true; }
-    virtual bool parallel() const { return true; }
 
 private:
     struct Speed
@@ -188,30 +181,22 @@ private:
             : iterations(iter), Hz(double(iter) * CLOCKS_PER_SEC / (endTime-startTime)) {}
     };
 
-    static likely_mat fromCvMat(const Mat &src)
-    {
-        likely_mat m = likelyFromOpenCVMat(src);
-        if (!(m->type & likely_floating) && ((m->type & likely_depth) <= 16))
-            m->type |= likely_saturated;
-        return m;
-    }
-
     void testCorrectness(likely_mat (*f)(const likely_const_mat*), const Mat &srcCV, const likely_const_mat *srcLikely) const
     {
         Mat dstOpenCV = computeBaseline(srcCV);
-        likely_const_mat dstLikely = f(srcLikely);
+        const likely_const_mat dstLikely = f(srcLikely);
 
         Mat errorMat = abs(likelyToOpenCVMat(dstLikely) - dstOpenCV);
         errorMat.convertTo(errorMat, CV_32F);
         dstOpenCV.convertTo(dstOpenCV, CV_32F);
         errorMat = errorMat / (dstOpenCV + ErrorTolerance); // Normalize errors
         threshold(errorMat, errorMat, ErrorTolerance, 1, THRESH_BINARY);
-        int errors = (int) norm(errorMat, NORM_L1);
-        if (errors > 0) {
-            likely_const_mat cvLikely = fromCvMat(dstOpenCV);
+
+        if (norm(errorMat, NORM_L1) > 0) {
+            const likely_const_mat cvLikely = likelyFromOpenCVMat(dstOpenCV);
             stringstream errorLocations;
             errorLocations << "input\topencv\tlikely\trow\tcolumn\n";
-            errors = 0;
+            int errors = 0;
             for (int i=0; i<srcCV.rows; i++)
                 for (int j=0; j<srcCV.cols; j++)
                     if (errorMat.at<float>(i, j) == 1) {
