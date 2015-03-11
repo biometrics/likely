@@ -335,11 +335,11 @@ test_expr("x := 1
            y
            (+ x 1)" 25)
 test_expr("{
-             x := (<~ 1)
+             x := 1.$
              x
            }" 1)
 test_expr("{
-             x := (<~ 1)
+             x := 1.$
              x :<- (+ x 1)
              x
            }" 2)
@@ -355,7 +355,7 @@ test_expr("x := 1
            y := 2
            (? (< x y) x y)" 1)
 test_expr("{
-             x := (<~ 0)
+             x := 0.$
              (? (== x 0) (<- x 1))
              x
            }" 1)
@@ -363,8 +363,8 @@ test_expr("x := 0
            (? x 1 2)" 2)
 test_expr("{
              end := 10
-             i := (<~ 1)
-             j := (<~ 0)
+             i := 1.$
+             j := 0.$
              loop := #
              (< i end) :?
              {
@@ -441,7 +441,7 @@ test_expr("(threshold-to-zero 0.6 0.5)" 0.6)
 test_expr("(threshold-to-zero-inverse 0.4 0.5)" 0.4)
 test_expr("(threshold-to-zero-inverse 0.5 0.5)" 0.5)
 test_expr("(threshold-to-zero-inverse 0.6 0.5)" 0)
-test_expr("{ j := (<~ 0) (iter (-> i (<- j (+ j i))) 10) j }" 45)
+test_expr("{ j := 0.$ (iter (-> i (<- j (+ j i))) 10) j }" 45)
 
 # Test other library files
 function(test_file FILE VALUE)

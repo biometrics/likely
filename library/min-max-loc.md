@@ -9,12 +9,12 @@ Compare to **[cv::minMaxLoc](http://docs.opencv.org/2.4.8/modules/core/doc/opera
         height := src.rows
         ((dst.channels 1 1 dst.frames) dst src width height) :=>
         {
-          current-min-value := (<~ dst.type.numeric-limit-max)
-          current-min-x     := (<~ 0)
-          current-min-y     := (<~ 0)
-          current-max-value := (<~ dst.type.numeric-limit-min)
-          current-max-x     := (<~ 0)
-          current-max-y     := (<~ 0)
+          current-min-value := dst.type.numeric-limit-max.$
+          current-min-x     := 0.$
+          current-min-y     := 0.$
+          current-max-value := dst.type.numeric-limit-min.$
+          current-max-x     := 0.$
+          current-max-y     := 0.$
 
           check-location :=
             (x y) :->

@@ -1961,7 +1961,7 @@ private:
 
 class allocateExpression : public LikelyOperator
 {
-    const char *symbol() const { return "<~"; }
+    const char *symbol() const { return "$"; }
     size_t maxParameters() const { return 1; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const

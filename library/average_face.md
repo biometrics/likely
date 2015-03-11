@@ -9,7 +9,7 @@ Compute the average face from a set of aligned faces [1].
         len := data.frames
         (dst data len) :=>
         {
-          j := (<~ (data.type.depth-double.depth-atleast-32 0))
+          j := (data.type.depth-double.depth-atleast-32 0).$
           (-> t (<- j (+ j (data c x y t)))).(iter len)
           dst :<- (dst.type (/ j len))
         }

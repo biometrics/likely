@@ -24,9 +24,9 @@ Definition
         {
           zr0 := (/ (* x.f32 x_range) width)  :+ x_min
           zi0 := (/ (* y.f32 y_range) height) :+ y_min
-          zr := (<~ 0.f32)
-          zi := (<~ 0.f32)
-          j := (<~ 0)
+          zr := 0.f32.$
+          zi := 0.f32.$
+          j := 0.$
           loop := #
           tmp := (+ (- zr.sq zi.sq) zr0)
           zi :<- (+ (* (* zr zi) 2) zi0)

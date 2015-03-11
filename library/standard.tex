@@ -713,7 +713,7 @@ y      ; Evaluates to 2
 
 Recall that the colon is the \pindex{infix} token for syntactic sugar described in subsection \ref{subsec:infix}.
 
-\subsection{(<\textasciitilde\ \emph{expression})}
+\subsection{(\$\ \emph{expression})}
 The \dindex{allocate} expression stack-allocates a variable with type and initial value of \emph{expression}.
 Assignments are \dindex{mutable} using the \pindex{assign} statement.
 
@@ -721,7 +721,7 @@ Because assignment is explicitly tied to stack allocation, assignments are not a
 
 \begin{verbatim}
 {
-  x := (<~ 1)
+  x := 1.$
   x
 } ; Evaluates to 1
 \end{verbatim}
@@ -731,7 +731,7 @@ The \dindex{assign} statement stores the value of \emph{expression} into the var
 
 \begin{verbatim}
 {
-  x := (<~ 1)
+  x := 1.$
   x :<- (+ x 1)
   x
 } ; Evaluates to 2
@@ -775,7 +775,7 @@ The \emph{then} \pindex{statement} is executed if and only if \emph{condition} i
 
 \begin{verbatim}
 {
-  x := (<~ 0)
+  x := 0.$
   (? (== x 0) (<- x 1))
   x
 } ; Evaluates to 1
@@ -796,8 +796,8 @@ This primitive is necessary for constructing loops.
 \begin{verbatim}
 {
   end := 10
-  i := (<~ 1)
-  j := (<~ 0)
+  i := 1.$
+  j := 0.$
   loop := #
   (< i end) :?
   {
@@ -1161,7 +1161,7 @@ threshold-to-zero-inverse := (-> (s t)    (threshold s t 0  s))
 iter :=
   (expr end) :->
   {
-    i := (<~ 0)
+    i := 0.$
     loop := #
     (!= i end) :? {
       (expr i)
