@@ -1940,8 +1940,8 @@ private:
 
 struct Variable : public Assignable
 {
-    Variable(Builder &builder, likely_const_expr expr, const string &name)
-        : Assignable(builder.CreateAlloca(builder.module->context->toLLVM(expr->type), 0, name), *expr)
+    Variable(Builder &builder, likely_const_expr expr)
+        : Assignable(builder.CreateAlloca(builder.module->context->toLLVM(expr->type), 0), *expr)
     {
         set(builder, *expr);
     }
@@ -1959,23 +1959,21 @@ private:
     }
 };
 
-class assignExpression : public LikelyOperator
+class allocateExpression : public LikelyOperator
 {
     const char *symbol() const { return "<~"; }
-    size_t maxParameters() const { return 2; }
+    size_t maxParameters() const { return 1; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        const char *name = ast->atoms[1]->atom;
         assert(builder.module);
-        TRY_EXPR(builder, ast->atoms[2], expr);
-        define(builder.env, name, new Variable(builder, expr.get(), name));
-        return new likely_expression();
+        TRY_EXPR(builder, ast->atoms[1], expr);
+        return new Variable(builder, expr.get());
     }
 };
-LIKELY_REGISTER(assign)
+LIKELY_REGISTER(allocate)
 
-class reassignExpression : public LikelyOperator
+class assignExpression : public LikelyOperator
 {
     const char *symbol() const { return "<-"; }
     size_t maxParameters() const { return 2; }
@@ -1991,7 +1989,7 @@ class reassignExpression : public LikelyOperator
         return new likely_expression();
     }
 };
-LIKELY_REGISTER(reassign)
+LIKELY_REGISTER(assign)
 
 class beginExpression : public LikelyOperator
 {
