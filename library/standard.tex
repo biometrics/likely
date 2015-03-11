@@ -1132,7 +1132,10 @@ single-column  := (single-dimension multi-column )
 single-row     := (single-dimension multi-row    )
 single-frame   := (single-dimension multi-frame  )
 
-imitate-dimension := (-> d (-> (t u) (? (& u d) (| t d) (& t (~ d)))))
+imitate-dimension :=
+  d :->
+    (-> (t u) (? (& u d) (| t d) (& t (~ d))))
+
 imitate-channel := (imitate-dimension multi-channel)
 imitate-column  := (imitate-dimension multi-column)
 imitate-row     := (imitate-dimension multi-row)
@@ -1166,33 +1169,6 @@ iter :=
       i :<- (+ i 1)
       loop
     }
-  }
-\end{likely}
-
-\chapter{Reductions}
-\section{Average}
-\begin{likely}
-average-frame :=
-  mat :->
-  {
-    result := (new mat.type.single-frame
-                   mat.channels mat.columns mat.rows 1 null)
-    len := mat.frames
-    (result mat len) :=>
-    {
-      j :<~ (mat.type.depth-double.depth-atleast-32 0)
-      (-> t (<- j (+ j (mat c x y t)))).(iter len)
-      result :<- (result.type (/ j len))
-    }
-  }
-
-center-frame :=
-  mat :->
-  {
-    avg := mat.average-frame
-    result := mat.(imitate-size mat.type.depth-double.signed)
-    (result mat avg) :=>
-      (<- result (- (result.type mat) (result.type avg)))
   }
 \end{likely}
 
