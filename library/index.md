@@ -8,7 +8,7 @@ Skip to the good stuff: **[installation](?href=README.md)**,
                         **[demos](?href=demos)**,
                         **[language reference](https://s3.amazonaws.com/liblikely/latex/standard.pdf)**,
                         **[api](https://s3.amazonaws.com/liblikely/doxygen/index.html)**,
-                        **[benchmark](?href=benchmark)**,
+                        **[benchmarks](?href=benchmarks)**,
                         **[ci](http://ci.liblikely.org/waterfall)**.
 
 <img src="/share/likely/WhatIf.svg" width="768">

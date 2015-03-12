@@ -1,5 +1,5 @@
-Benchmark
----------
+Benchmarks
+----------
 Likely functions measured against their [OpenCV](http://www.opencv.org) equivalents.
 
 ### Results
