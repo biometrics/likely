@@ -501,7 +501,7 @@ function(add_demo FILE ARGS)
                        VERBATIM)
     add_custom_command(OUTPUT ${IR_FILE}
                        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-                       COMMAND llvm-dis ${BITCODE_FILE}
+                       COMMAND llvm-dis ${BITCODE_FILE} -o=${IR_FILE}
                        DEPENDS llvm-dis ${BITCODE_FILE})
     add_custom_command(OUTPUT ${OBJECT_FILE}
                        COMMAND llc -O3 -filetype=obj ${BITCODE_FILE} -o ${OBJECT_FILE}
