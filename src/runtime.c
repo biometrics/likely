@@ -80,7 +80,7 @@ likely_mat likely_new(likely_type type, uint32_t channels, uint32_t columns, uin
 //! [likely_new implementation.]
 
 //! [likely_scalar implementation.]
-likely_mat likely_scalar(likely_type type, double *values, uint32_t n)
+likely_mat likely_scalar(likely_type type, const double *values, uint32_t n)
 {
     likely_mat m = likely_new(type, n, 1, 1, 1, NULL);
     for (uint32_t i=0; i<n; i++)

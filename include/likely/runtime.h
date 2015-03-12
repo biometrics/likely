@@ -203,7 +203,7 @@ LIKELY_EXPORT likely_mat likely_new(likely_type type, uint32_t channels, uint32_
  * \return A pointer to the new \ref likely_matrix if successful, or \c NULL otherwise.
  * \remark This function is \ref thread-safe.
  */
-LIKELY_EXPORT likely_mat likely_scalar(likely_type type, double *values, uint32_t n);
+LIKELY_EXPORT likely_mat likely_scalar(likely_type type, const double *values, uint32_t n);
 
 /*!
  * \brief Allocate and initialize a new \ref likely_matrix from a string.

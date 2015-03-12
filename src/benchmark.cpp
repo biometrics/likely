@@ -154,7 +154,11 @@ struct Test
 protected:
     virtual const char *name() const = 0;
     virtual Mat computeBaseline(const Mat &src) const = 0;
-    virtual vector<likely_const_mat> additionalArguments() const = 0;
+
+    virtual vector<likely_const_mat> additionalArguments() const
+    {
+        return vector<likely_const_mat>();
+    }
 
     virtual vector<likely_type> types() const
     {
@@ -260,7 +264,12 @@ class fmaTest : public Test
 
     vector<likely_const_mat> additionalArguments() const
     {
-        return vector<likely_const_mat>();
+        vector<likely_const_mat> args;
+        const double alpha = 2;
+        const double beta = 3;
+        args.push_back(likely_scalar(likely_f64, &alpha, 1));
+        args.push_back(likely_scalar(likely_f64, &beta, 1));
+        return args;
     }
 
     Mat computeBaseline(const Mat &src) const
@@ -280,7 +289,12 @@ class thresholdTest : public Test
 
     vector<likely_const_mat> additionalArguments() const
     {
-        return vector<likely_const_mat>();
+        vector<likely_const_mat> args;
+        const double thresh = 127;
+        const double maxval = 1;
+        args.push_back(likely_scalar(likely_f64, &thresh, 1));
+        args.push_back(likely_scalar(likely_f64, &maxval, 1));
+        return args;
     }
 
     Mat computeBaseline(const Mat &src) const
@@ -304,11 +318,6 @@ class minMaxLocTest : public Test
     const char *name() const
     {
         return "min-max-loc";
-    }
-
-    vector<likely_const_mat> additionalArguments() const
-    {
-        return vector<likely_const_mat>();
     }
 
     Mat computeBaseline(const Mat &src) const

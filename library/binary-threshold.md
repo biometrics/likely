@@ -2,9 +2,9 @@
 Compare to **[cv::threshold(THRESHOLD_BINARY)](http://docs.opencv.org/2.4.8/modules/imgproc/doc/miscellaneous_transformations.html#threshold)**.
 
     binary-threshold :=
-      src :->
+      (src thresh maxval) :->
       {
         dst := src.imitate
-        (dst src) :=>
-          dst :<- (threshold-binary src 127 1)
+        (dst src thresh maxval) :=>
+          dst :<- (threshold-binary src thresh maxval)
       }
