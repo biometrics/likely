@@ -456,6 +456,37 @@ test_file(literate_programming.md 42)
 test_file(literate_programming.tex 42)
 test_file(matrix_io.lisp "Compression Ratio: 7.31714")
 
+# Generate IR for bechmarks
+function(add_benchmark RETVAL FILE PARAMETERS)
+  foreach(KERNEL_TYPE "" "-m")
+    string(MAKE_C_IDENTIFIER ${FILE} SYMBOL_NAME)
+    string(MAKE_C_IDENTIFIER "${RETVAL} ${FILE} ${PARAMETERS}${KERNEL_TYPE}" FILE_NAME)
+    set(IR_FILE ${CMAKE_BINARY_DIR}/benchmarks/${FILE_NAME}.ll)
+    add_custom_command(OUTPUT ${IR_FILE}
+                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                       COMMAND likely -Oz -disable-loop-unrolling -disable-loop-vectorization ${KERNEL_TYPE} -c "(import \"library/${FILE}.md\" this) (extern ${RETVAL} \"${SYMBOL_NAME}\" ${PARAMETERS} ${FILE})" ${IR_FILE}
+                       DEPENDS likely ${CMAKE_SOURCE_DIR}/library/${FILE}.md
+                       VERBATIM)
+    add_custom_target(${FILE_NAME} ALL
+                      DEPENDS ${IR_FILE})
+  endforeach()
+endfunction()
+
+if(NOT ${LIKELY_DEMOS} MATCHES "None")
+  add_benchmark("f32CXY" "fused-multiply-add" "(u8CXY double double)")
+  add_benchmark("f32CXY" "fused-multiply-add" "(u16CXY double double)")
+  add_benchmark("f32CXY" "fused-multiply-add" "(i32CXY double double)")
+  add_benchmark("f32CXY" "fused-multiply-add" "(f32CXY double double)")
+  add_benchmark("f64CXY" "fused-multiply-add" "(f64CXY double double)")
+  add_benchmark("u8CXY"  "binary-threshold" "(u8CXY double double)")
+  add_benchmark("f32CXY" "binary-threshold" "(f32CXY double double)")
+  add_benchmark("f64CXY" "min-max-loc" "u8CXY")
+  add_benchmark("f64CXY" "min-max-loc" "u16CXY")
+  add_benchmark("f64CXY" "min-max-loc" "i32CXY")
+  add_benchmark("f64CXY" "min-max-loc" "f32CXY")
+  add_benchmark("f64CXY" "min-max-loc" "f64CXY")
+endif()
+
 # Compile and test demos
 function(add_demo FILE ARGS)
   foreach(KERNEL_TYPE "" "-m")
