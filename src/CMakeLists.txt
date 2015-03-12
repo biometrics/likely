@@ -473,6 +473,7 @@ function(add_benchmark RETVAL FILE PARAMETERS)
 endfunction()
 
 if(NOT ${LIKELY_DEMOS} MATCHES "None")
+  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/benchmarks)
   add_benchmark("f32CXY" "fused-multiply-add" "(u8CXY double double)")
   add_benchmark("f32CXY" "fused-multiply-add" "(u16CXY double double)")
   add_benchmark("f32CXY" "fused-multiply-add" "(i32CXY double double)")
