@@ -472,17 +472,27 @@ struct likely_expression : public LikelyValue
         return data;
     }
 
-    void setData(const Variant &data) const
-    {
-        assert(!getData());
-        this->data = data;
-    }
-
     virtual likely_const_expr evaluate(Builder &, likely_const_ast) const
     {
         return new likely_expression(LikelyValue(value, type));
     }
 
+    static size_t length(likely_const_ast ast)
+    {
+        return ast ? ((ast->type == likely_ast_list) ? ast->num_atoms : 1) : 0;
+    }
+
+    static void define(likely_const_env &env, const char *name, likely_const_expr expr)
+    {
+        const likely_ast atoms[2] = { likely_atom("=", 1), likely_atom(name, uint32_t(strlen(name))) };
+        const likely_ast list = likely_list(atoms, 2);
+        env = newEnv(env, list, expr);
+        likely_release_ast(list);
+    }
+
+    static likely_const_expr get(Builder &builder, likely_const_ast ast);
+
+protected:
     static likely_const_env lookup(likely_const_env env, const char *name)
     {
         while (env) {
@@ -493,20 +503,10 @@ struct likely_expression : public LikelyValue
         return NULL;
     }
 
-    static likely_const_expr get(Builder &builder, likely_const_ast ast);
-
     static likely_const_expr error(likely_const_ast ast, const char *message)
     {
         likely_throw(ast, message);
         return NULL;
-    }
-
-    static void define(likely_const_env &env, const char *name, likely_const_expr expr)
-    {
-        const likely_ast atoms[2] = { likely_atom("=", 1), likely_atom(name, uint32_t(strlen(name))) };
-        const likely_ast list = likely_list(atoms, 2);
-        env = newEnv(env, list, expr);
-        likely_release_ast(list);
     }
 
     static void undefine(likely_const_env &env, const char *name)
@@ -529,17 +529,17 @@ struct likely_expression : public LikelyValue
         }
     }
 
-    static size_t length(likely_const_ast ast)
-    {
-        return ast ? ((ast->type == likely_ast_list) ? ast->num_atoms : 1) : 0;
-    }
-
-protected:
     static void DCE(Function &function)
     {
         legacy::FunctionPassManager FPM(function.getParent());
         FPM.add(createDeadInstEliminationPass());
         FPM.run(function);
+    }
+
+    void setData(const Variant &data) const
+    {
+        assert(!getData());
+        this->data = data;
     }
 
 private:
