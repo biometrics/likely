@@ -13,6 +13,6 @@ Likely functions measured against their [OpenCV](http://www.opencv.org) equivale
 **A:** In the [standard library](https://s3.amazonaws.com/liblikely/latex/standard.pdf).
 
 ### Functions
-- [Binary threshold](?href=binary-threshold)
 - [Fused multiply-add](?href=fused-multiply-add)
+- [Binary threshold](?href=binary-threshold)
 - [Minimum & maximum locations](?href=min-max-loc)

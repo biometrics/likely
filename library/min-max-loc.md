@@ -52,8 +52,8 @@ Compare to **[cv::minMaxLoc](http://docs.opencv.org/2.4.8/modules/core/doc/opera
 #### Generated LLVM IR
 | Type   | Single-core | Multi-core |
 |--------|-------------|------------|
-| u8CXY  | [Download](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u8CXY.ll)  | [Download](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u8CXY_m.ll)  |
-| u16CXY | [Download](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u16CXY.ll) | [Download](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u16CXY_m.ll) |
-| i32CXY | [Download](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_i32CXY.ll) | [Download](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_i32CXY_m.ll) |
-| f32CXY | [Download](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f32CXY.ll) | [Download](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f32CXY_m.ll) |
-| f64CXY | [Download](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f64CXY.ll) | [Download](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f64CXY_m.ll) |
+| u8CXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u8CXY.ll)  | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u8CXY_m.ll)  |
+| u16CXY | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u16CXY.ll) | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u16CXY_m.ll) |
+| i32CXY | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_i32CXY.ll) | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_i32CXY_m.ll) |
+| f32CXY | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f32CXY.ll) | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f32CXY_m.ll) |
+| f64CXY | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f64CXY.ll) | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f64CXY_m.ll) |
