@@ -2613,8 +2613,10 @@ class kernelExpression : public LikelyOperator
         undefineAll(builder.env, args, argsStart);
         kernelArguments.clear();
 
-        if (axis)
+        if (axis) {
+            axis->exit->moveAfter(builder.GetInsertBlock());
             axis->close(builder);
+        }
 
         // Clean up any instructions we didn't end up using
         DCE(*kernelHead->getParent());
