@@ -2246,7 +2246,7 @@ class kernelExpression : public LikelyOperator
         string name;
         Value *start, *stop, *precondition, *postcondition;
         BasicBlock *entry, *body, *exit;
-        BranchInst *latch;
+        BranchInst *latch, *preconditionBranch;
         KernelAxis *parent, *child;
         MDNode *node;
         Value *step, *offset;
@@ -2258,7 +2258,7 @@ class kernelExpression : public LikelyOperator
             body = BasicBlock::Create(builder.getContext(), name + "_body", entry->getParent());
             exit = BasicBlock::Create(builder.getContext(), name + "_exit", body->getParent());
             precondition = builder.CreateICmpNE(start, stop, name + "_precondition");
-            builder.CreateCondBr(precondition, body, exit);
+            preconditionBranch = builder.CreateCondBr(precondition, body, exit);
             builder.SetInsertPoint(body);
             type = toLikely(start->getType());
             value = builder.CreatePHI(builder.module->context->toLLVM(type), 2, name);
@@ -2312,14 +2312,23 @@ class kernelExpression : public LikelyOperator
                 stop = newStop;
                 step = child->step;
                 offset = newOffset;
-                builder.SetInsertPoint(restore);
 
                 // Collapse the child loop
                 child->value->replaceAllUsesWith(builder.zero());
                 cast<Instruction>(child->value)->eraseFromParent();
-                child->latch->setCondition(ConstantInt::getFalse(builder.getContext()));
-                child->precondition->replaceAllUsesWith(ConstantInt::getTrue(builder.getContext()));
-                cast<Instruction>(child->precondition)->eraseFromParent();
+                builder.SetInsertPoint(child->latch->getParent());
+                BranchInst *const newChildLatch = builder.CreateBr(child->exit);
+                child->latch->eraseFromParent();
+                child->latch = newChildLatch;
+                builder.SetInsertPoint(child->preconditionBranch->getParent());
+                BranchInst *const newChildPreconditionBranch = builder.CreateBr(child->body);
+                child->preconditionBranch->eraseFromParent();
+                child->preconditionBranch = newChildPreconditionBranch;
+                MergeBlockIntoPredecessor(child->exit);
+                MergeBlockIntoPredecessor(child->body);
+                child->exit = NULL;
+                child->body = NULL;
+                builder.SetInsertPoint(restore);
 
                 // Remove dead instructions to facilitate collapsing additional loops
                 DCE(*restore->getParent());
