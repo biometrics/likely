@@ -2287,6 +2287,7 @@ class kernelExpression : public LikelyOperator
                 cast<PHINode>(value)->setIncomingValue(0, newStart);
                 cast<ICmpInst>(postcondition)->setOperand(1, newStop);
                 offset->replaceAllUsesWith(newOffset);
+                cast<Instruction>(offset)->eraseFromParent();
                 start = newStart;
                 stop = newStop;
                 step = child->step;
@@ -2295,8 +2296,10 @@ class kernelExpression : public LikelyOperator
 
                 // Collapse the child loop
                 child->value->replaceAllUsesWith(builder.zero());
+                cast<Instruction>(child->value)->eraseFromParent();
                 child->latch->setCondition(ConstantInt::getFalse(builder.getContext()));
                 child->precondition->replaceAllUsesWith(ConstantInt::getTrue(builder.getContext()));
+                cast<Instruction>(child->precondition)->eraseFromParent();
             }
 
             if (parent)
