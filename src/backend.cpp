@@ -2051,10 +2051,11 @@ class ifExpression : public LikelyOperator
             }
         }
 
-        BasicBlock *True = BasicBlock::Create(builder.getContext(), "then", function);
-        BasicBlock *False = hasElse ? BasicBlock::Create(builder.getContext(), "else", function) : NULL;
-        BasicBlock *End = BasicBlock::Create(builder.getContext(), "end", function);
-        builder.CreateCondBr(*Cond, True, hasElse ? False : End);
+        BasicBlock *const Entry = builder.GetInsertBlock();
+        BasicBlock *const True = BasicBlock::Create(builder.getContext(), "then", function);
+        BasicBlock *const False = hasElse ? BasicBlock::Create(builder.getContext(), "else", function) : NULL;
+        BasicBlock *const End = BasicBlock::Create(builder.getContext(), "end", function);
+        Instruction *const condBr = builder.CreateCondBr(*Cond, True, hasElse ? False : End);
 
         builder.SetInsertPoint(True);
         TRY_EXPR(builder, ast->atoms[2], t)
@@ -2073,10 +2074,21 @@ class ifExpression : public LikelyOperator
             builder.CreateBr(End);
 
             builder.SetInsertPoint(End);
-            PHINode *phi = builder.CreatePHI(builder.module->context->toLLVM(resolved), 2);
-            phi->addIncoming(tc, True);
-            phi->addIncoming(fc, False);
-            return new likely_expression(LikelyValue(phi, resolved));
+            if ((True->size() == 1) && (False->size() == 1)) {
+                // Special case where the conditional is reducible to a select instruction
+                condBr->eraseFromParent();
+                True->eraseFromParent();
+                False->eraseFromParent();
+                End->eraseFromParent();
+                builder.SetInsertPoint(Entry);
+                return new likely_expression(LikelyValue(builder.CreateSelect(*Cond, tc, fc), resolved));
+            } else {
+                // General case
+                PHINode *const phi = builder.CreatePHI(builder.module->context->toLLVM(resolved), 2);
+                phi->addIncoming(tc, True);
+                phi->addIncoming(fc, False);
+                return new likely_expression(LikelyValue(phi, resolved));
+            }
         } else {
             if (True->empty() || !True->back().isTerminator())
                 builder.CreateBr(End);
