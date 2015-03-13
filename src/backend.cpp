@@ -534,6 +534,14 @@ struct likely_expression : public LikelyValue
         return ast ? ((ast->type == likely_ast_list) ? ast->num_atoms : 1) : 0;
     }
 
+protected:
+    static void DCE(Function &function)
+    {
+        legacy::FunctionPassManager FPM(function.getParent());
+        FPM.add(createDeadInstEliminationPass());
+        FPM.run(function);
+    }
+
 private:
     mutable Variant data; // use getData() and setData()
 
@@ -2300,6 +2308,11 @@ class kernelExpression : public LikelyOperator
                 child->latch->setCondition(ConstantInt::getFalse(builder.getContext()));
                 child->precondition->replaceAllUsesWith(ConstantInt::getTrue(builder.getContext()));
                 cast<Instruction>(child->precondition)->eraseFromParent();
+
+                // Remove dead instructions to facilitate collapsing additional loops
+                DCE(*restore->getParent());
+
+                return; // TODO: remove this
             }
 
             if (parent)
@@ -2604,9 +2617,7 @@ class kernelExpression : public LikelyOperator
             axis->close(builder);
 
         // Clean up any instructions we didn't end up using
-        legacy::FunctionPassManager FPM(builder.module->module);
-        FPM.add(createDeadInstEliminationPass());
-        FPM.run(*kernelHead->getParent());
+        DCE(*kernelHead->getParent());
 
         if (axis)
             axis->tryCollapse(builder);
