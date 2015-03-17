@@ -95,7 +95,7 @@ struct TestBase
                 const likely_mat likelySrc = likelyFromOpenCVMat(srcCV);
                 if (!(likelySrc->type & likely_floating) && ((likelySrc->type & likely_depth) <= 16))
                     likelySrc->type |= likely_saturated; // Follow OpenCV's saturation convention
-                vector<likely_const_mat> likelyArgs = additionalArguments();
+                vector<likely_const_mat> likelyArgs = additionalArguments(type);
                 likelyArgs.insert(likelyArgs.begin(), likelySrc);
 
                 const likely_const_mat typeString = likely_type_to_string(type);
@@ -153,7 +153,7 @@ protected:
     virtual Mat computeBaseline(const Mat &src) const = 0;
     virtual int additionalParameters() const = 0;
 
-    virtual vector<likely_const_mat> additionalArguments() const
+    virtual vector<likely_const_mat> additionalArguments(likely_type) const
     {
         return vector<likely_const_mat>();
     }
@@ -269,13 +269,13 @@ class BinaryThreshold : public Test<2>
         return "binary-threshold";
     }
 
-    vector<likely_const_mat> additionalArguments() const
+    vector<likely_const_mat> additionalArguments(likely_type type) const
     {
         vector<likely_const_mat> args;
         const double thresh = 127;
         const double maxval = 1;
-        args.push_back(likely_scalar(likely_f64, &thresh, 1));
-        args.push_back(likely_scalar(likely_f64, &maxval, 1));
+        args.push_back(likely_scalar(type, &thresh, 1));
+        args.push_back(likely_scalar(type, &maxval, 1));
         return args;
     }
 
@@ -302,7 +302,7 @@ class FusedMultiplyAdd : public Test<2>
         return "fused-multiply-add";
     }
 
-    vector<likely_const_mat> additionalArguments() const
+    vector<likely_const_mat> additionalArguments(likely_type) const
     {
         vector<likely_const_mat> args;
         const double alpha = 2;
