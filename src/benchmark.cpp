@@ -63,7 +63,7 @@ static Mat generateData(int rows, int columns, likely_type type)
     return n;
 }
 
-struct Test
+struct TestBase
 {
     void run(likely_const_env parent) const
     {
@@ -151,11 +151,7 @@ struct Test
 protected:
     virtual const char *name() const = 0;
     virtual Mat computeBaseline(const Mat &src) const = 0;
-
-    virtual int additionalParameters() const
-    {
-        return 0;
-    }
+    virtual int additionalParameters() const = 0;
 
     virtual vector<likely_const_mat> additionalArguments() const
     {
@@ -239,7 +235,7 @@ private:
             endTime = clock();
             iter++;
         }
-        return Test::Speed(iter, startTime, endTime);
+        return TestBase::Speed(iter, startTime, endTime);
     }
 
     Speed testLikelySpeed(likely_mat (*f)(const likely_const_mat*), const likely_const_mat *srcLikely) const
@@ -253,20 +249,24 @@ private:
             endTime = clock();
             iter++;
         }
-        return Test::Speed(iter, startTime, endTime);
+        return TestBase::Speed(iter, startTime, endTime);
     }
 };
 
-class binaryThresholdTest : public Test
+template <int const N = 0>
+struct Test : public TestBase
+{
+    int additionalParameters() const
+    {
+        return N;
+    }
+};
+
+class BinaryThreshold : public Test<2>
 {
     const char *name() const
     {
         return "binary-threshold";
-    }
-
-    int additionalParameters() const
-    {
-        return 2;
     }
 
     vector<likely_const_mat> additionalArguments() const
@@ -295,16 +295,11 @@ class binaryThresholdTest : public Test
     }
 };
 
-class fusedMultiplyAddTest : public Test
+class FusedMultiplyAdd : public Test<2>
 {
     const char *name() const
     {
         return "fused-multiply-add";
-    }
-
-    int additionalParameters() const
-    {
-        return 2;
     }
 
     vector<likely_const_mat> additionalArguments() const
@@ -325,7 +320,7 @@ class fusedMultiplyAddTest : public Test
     }
 };
 
-class minMaxLocTest : public Test
+class MinMaxLoc : public Test<>
 {
     const char *name() const
     {
@@ -363,7 +358,7 @@ int main(int argc, char *argv[])
     setbuf(stdout, NULL);
 
     if (!BenchmarkFile.empty()) {
-        Test::runFile(BenchmarkFile.getValue().c_str());
+        TestBase::runFile(BenchmarkFile.getValue().c_str());
     } else {
         const time_t now = time(0);
         char dateTime[80];
@@ -388,9 +383,9 @@ int main(int argc, char *argv[])
         settings.verbose = BenchmarkVerbose;
         const likely_const_env parent = likely_standard(settings, NULL);
 
-        binaryThresholdTest().run(parent);
-        fusedMultiplyAddTest().run(parent);
-        minMaxLocTest().run(parent);
+        BinaryThreshold().run(parent);
+        FusedMultiplyAdd().run(parent);
+        MinMaxLoc().run(parent);
         likely_release_env(parent);
     }
 
