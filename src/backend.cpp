@@ -2250,6 +2250,7 @@ class kernelExpression : public LikelyOperator
         KernelAxis *parent, *child;
         MDNode *node;
         Value *step, *offset;
+        BinaryOperator *axisOffset;
 
         KernelAxis(Builder &builder, const string &name, Value *start, Value *stop, Value *step, KernelAxis *parent)
             : name(name), start(start), stop(stop), exit(NULL), latch(NULL), parent(parent), child(NULL), step(step)
@@ -2269,7 +2270,8 @@ class kernelExpression : public LikelyOperator
                 node->replaceOperandWith(0, node);
             }
 
-            offset = builder.addInts(parent ? parent->offset : builder.zero().value, builder.multiplyInts(step, value));
+            axisOffset = cast<BinaryOperator>(builder.CreateMul(step, value, name + "_axisOffset", true, true));
+            offset = builder.addInts(parent ? parent->offset : builder.zero().value, axisOffset);
             offset->setName(name + "_offset");
 
             if (parent)
@@ -2292,23 +2294,21 @@ class kernelExpression : public LikelyOperator
         void tryCollapse(Builder &builder)
         {
             if ((value->getNumUses() == 2) && child && (child->value->getNumUses() == 2)) {
-                // Assume for now that one user is the offset and the other is the increment.
+                // Assume for now that one user is the offset and the other is the increment
 
                 // Update our range
                 BasicBlock *const restore = builder.GetInsertBlock();
                 builder.SetInsertPoint(cast<Instruction>(entry->getTerminator()));
                 Value *const newStart = builder.multiplyInts(start, child->stop);
                 Value *const newStop = builder.multiplyInts(stop, child->stop);
-                builder.SetInsertPoint(cast<Instruction>(offset));
-                Value *const newOffset = builder.addInts(parent ? parent->offset : builder.zero().value, builder.multiplyInts(child->step, value));
                 cast<PHINode>(value)->setIncomingValue(0, newStart);
                 cast<ICmpInst>(postcondition)->setOperand(1, newStop);
-                offset->replaceAllUsesWith(newOffset);
-                cast<Instruction>(offset)->eraseFromParent();
                 start = newStart;
                 stop = newStop;
+
+                // Update our step
+                axisOffset->setOperand(0, child->step);
                 step = child->step;
-                offset = newOffset;
 
                 // Collapse the child loop
                 child->value->replaceAllUsesWith(builder.zero());
