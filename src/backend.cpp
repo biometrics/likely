@@ -2318,7 +2318,9 @@ class kernelExpression : public LikelyOperator
                 child->latch->eraseFromParent();
                 child->latch = newChildLatch;
                 MergeBlockIntoPredecessor(child->exit);
+                MergeBlockIntoPredecessor(child->body);
                 child->exit = NULL;
+                child->body = NULL;
                 builder.SetInsertPoint(restore);
 
                 // Remove dead instructions to facilitate collapsing additional loops
