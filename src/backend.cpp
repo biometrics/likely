@@ -556,7 +556,7 @@ struct likely_module
 
     likely_module(const likely_settings &settings)
         : context(new LikelyContext(settings))
-        , module(new Module("likely_module", context->context)) {}
+        , module(new Module("likely", context->context)) {}
 
     virtual ~likely_module()
     {
