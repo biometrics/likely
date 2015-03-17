@@ -4,10 +4,9 @@ Compare to **[cv::Mat::convertTo](http://docs.opencv.org/2.4.8/modules/core/doc/
     fused-multiply-add :=
       (src alpha beta) :->
       {
-        dst-type := src.type.floating
-        dst := src.(imitate-size dst-type)
+        dst := src.(imitate-size src.type.floating)
         (dst src alpha beta) :=>
-          dst :<- (+ (* src.dst-type alpha.dst-type) beta.dst-type)
+          dst :<- (+ (* src alpha) beta)
       }
 
 #### Generated LLVM IR
