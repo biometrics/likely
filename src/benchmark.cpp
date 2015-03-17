@@ -303,13 +303,14 @@ class FusedMultiplyAdd : public Test<2>
         return "fused-multiply-add";
     }
 
-    vector<likely_const_mat> additionalArguments(likely_type) const
+    vector<likely_const_mat> additionalArguments(likely_type type) const
     {
+        const likely_type scalarType = ((type & likely_depth) <= 32) ? likely_f32 : likely_f64;
         vector<likely_const_mat> args;
         const double alpha = 2;
         const double beta = 3;
-        args.push_back(likely_scalar(likely_f64, &alpha, 1));
-        args.push_back(likely_scalar(likely_f64, &beta, 1));
+        args.push_back(likely_scalar(scalarType, &alpha, 1));
+        args.push_back(likely_scalar(scalarType, &beta, 1));
         return args;
     }
 
