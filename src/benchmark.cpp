@@ -78,9 +78,8 @@ struct Test
         source << fileSource->data;
         likely_release_mat(fileSource);
 
-        const vector<likely_const_mat> additionalArgs = additionalArguments();
         source << "    (extern multi-dimension \"" << name() << "\" (";
-        for (size_t i=0; i<additionalArgs.size(); i++)
+        for (int i=0; i<additionalParameters(); i++)
             source << " multi-dimension";
         source << ") " << name() << " true)";
         const likely_const_env env = likely_lex_parse_and_eval(source.str().c_str(), likely_file_gfm, parent);
@@ -96,7 +95,7 @@ struct Test
                 const likely_mat likelySrc = likelyFromOpenCVMat(srcCV);
                 if (!(likelySrc->type & likely_floating) && ((likelySrc->type & likely_depth) <= 16))
                     likelySrc->type |= likely_saturated; // Follow OpenCV's saturation convention
-                vector<likely_const_mat> likelyArgs = additionalArgs;
+                vector<likely_const_mat> likelyArgs = additionalArguments();
                 likelyArgs.insert(likelyArgs.begin(), likelySrc);
 
                 const likely_const_mat typeString = likely_type_to_string(type);
@@ -112,12 +111,10 @@ struct Test
                     printf("\n");
                 }
 
-                likely_release_mat(likelySrc);
+                for (const likely_const_mat &likelyArg : likelyArgs)
+                    likely_release_mat(likelyArg);
             }
         }
-
-        for (const likely_const_mat &additionalArg : additionalArgs)
-            likely_release_mat(additionalArg);
 
         likely_release_env(env);
     }
@@ -154,6 +151,11 @@ struct Test
 protected:
     virtual const char *name() const = 0;
     virtual Mat computeBaseline(const Mat &src) const = 0;
+
+    virtual int additionalParameters() const
+    {
+        return 0;
+    }
 
     virtual vector<likely_const_mat> additionalArguments() const
     {
@@ -262,6 +264,11 @@ class binaryThresholdTest : public Test
         return "binary-threshold";
     }
 
+    int additionalParameters() const
+    {
+        return 2;
+    }
+
     vector<likely_const_mat> additionalArguments() const
     {
         vector<likely_const_mat> args;
@@ -293,6 +300,11 @@ class fusedMultiplyAddTest : public Test
     const char *name() const
     {
         return "fused-multiply-add";
+    }
+
+    int additionalParameters() const
+    {
+        return 2;
     }
 
     vector<likely_const_mat> additionalArguments() const
