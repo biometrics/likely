@@ -2298,7 +2298,10 @@ class kernelExpression : public LikelyOperator
 
                 // Update our range
                 BasicBlock *const restore = builder.GetInsertBlock();
-                builder.SetInsertPoint(cast<Instruction>(entry->getTerminator()));
+                const KernelAxis *ancestor = this;
+                while (ancestor->parent)
+                    ancestor = ancestor->parent;
+                builder.SetInsertPoint(cast<Instruction>(ancestor->entry->getTerminator())); // At this point we know that all of the `start` and `stop` values have been created but not yet used
                 Value *const newStart = builder.multiplyInts(start, child->stop);
                 Value *const newStop = builder.multiplyInts(stop, child->stop);
                 cast<PHINode>(value)->setIncomingValue(0, newStart);
@@ -2325,8 +2328,6 @@ class kernelExpression : public LikelyOperator
 
                 // Remove dead instructions to facilitate collapsing additional loops
                 DCE(*restore->getParent());
-
-                return; // TODO: remove this
             }
 
             if (parent)
