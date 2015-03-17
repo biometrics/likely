@@ -2244,9 +2244,9 @@ class kernelExpression : public LikelyOperator
     struct KernelAxis : public likely_expression
     {
         string name;
-        Value *start, *stop, *precondition, *postcondition;
+        Value *start, *stop, *postcondition;
         BasicBlock *entry, *body, *exit;
-        BranchInst *latch, *preconditionBranch;
+        BranchInst *latch;
         KernelAxis *parent, *child;
         MDNode *node;
         Value *step, *offset;
@@ -2257,8 +2257,7 @@ class kernelExpression : public LikelyOperator
             entry = builder.GetInsertBlock();
             body = BasicBlock::Create(builder.getContext(), name + "_body", entry->getParent());
             exit = BasicBlock::Create(builder.getContext(), name + "_exit", body->getParent());
-            precondition = builder.CreateICmpNE(start, stop, name + "_precondition");
-            preconditionBranch = builder.CreateCondBr(precondition, body, exit);
+            builder.CreateBr(body);
             builder.SetInsertPoint(body);
             type = toLikely(start->getType());
             value = builder.CreatePHI(builder.module->context->toLLVM(type), 2, name);
@@ -2297,13 +2296,11 @@ class kernelExpression : public LikelyOperator
 
                 // Update our range
                 BasicBlock *const restore = builder.GetInsertBlock();
-                builder.SetInsertPoint(cast<Instruction>(precondition));
+                builder.SetInsertPoint(cast<Instruction>(entry->getTerminator()));
                 Value *const newStart = builder.multiplyInts(start, child->stop);
                 Value *const newStop = builder.multiplyInts(stop, child->stop);
                 builder.SetInsertPoint(cast<Instruction>(offset));
                 Value *const newOffset = builder.addInts(parent ? parent->offset : builder.zero().value, builder.multiplyInts(child->step, value));
-                cast<ICmpInst>(precondition)->setOperand(0, newStart);
-                cast<ICmpInst>(precondition)->setOperand(1, newStop);
                 cast<PHINode>(value)->setIncomingValue(0, newStart);
                 cast<ICmpInst>(postcondition)->setOperand(1, newStop);
                 offset->replaceAllUsesWith(newOffset);
@@ -2320,14 +2317,8 @@ class kernelExpression : public LikelyOperator
                 BranchInst *const newChildLatch = builder.CreateBr(child->exit);
                 child->latch->eraseFromParent();
                 child->latch = newChildLatch;
-                builder.SetInsertPoint(child->preconditionBranch->getParent());
-                BranchInst *const newChildPreconditionBranch = builder.CreateBr(child->body);
-                child->preconditionBranch->eraseFromParent();
-                child->preconditionBranch = newChildPreconditionBranch;
                 MergeBlockIntoPredecessor(child->exit);
-                MergeBlockIntoPredecessor(child->body);
                 child->exit = NULL;
-                child->body = NULL;
                 builder.SetInsertPoint(restore);
 
                 // Remove dead instructions to facilitate collapsing additional loops
