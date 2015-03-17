@@ -255,32 +255,7 @@ private:
     }
 };
 
-class fmaTest : public Test
-{
-    const char *name() const
-    {
-        return "fused-multiply-add";
-    }
-
-    vector<likely_const_mat> additionalArguments() const
-    {
-        vector<likely_const_mat> args;
-        const double alpha = 2;
-        const double beta = 3;
-        args.push_back(likely_scalar(likely_f64, &alpha, 1));
-        args.push_back(likely_scalar(likely_f64, &beta, 1));
-        return args;
-    }
-
-    Mat computeBaseline(const Mat &src) const
-    {
-        Mat dst;
-        src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3);
-        return dst;
-    }
-};
-
-class thresholdTest : public Test
+class binaryThresholdTest : public Test
 {
     const char *name() const
     {
@@ -310,6 +285,31 @@ class thresholdTest : public Test
         types.push_back(likely_u8);
         types.push_back(likely_f32);
         return types;
+    }
+};
+
+class fusedMultiplyAddTest : public Test
+{
+    const char *name() const
+    {
+        return "fused-multiply-add";
+    }
+
+    vector<likely_const_mat> additionalArguments() const
+    {
+        vector<likely_const_mat> args;
+        const double alpha = 2;
+        const double beta = 3;
+        args.push_back(likely_scalar(likely_f64, &alpha, 1));
+        args.push_back(likely_scalar(likely_f64, &beta, 1));
+        return args;
+    }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat dst;
+        src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3);
+        return dst;
     }
 };
 
@@ -376,8 +376,8 @@ int main(int argc, char *argv[])
         settings.verbose = BenchmarkVerbose;
         const likely_const_env parent = likely_standard(settings, NULL);
 
-        fmaTest().run(parent);
-        thresholdTest().run(parent);
+        binaryThresholdTest().run(parent);
+        fusedMultiplyAddTest().run(parent);
         minMaxLocTest().run(parent);
         likely_release_env(parent);
     }
