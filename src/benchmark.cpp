@@ -290,6 +290,7 @@ class BinaryThreshold : public Test<2>
     {
         vector<likely_type> types;
         types.push_back(likely_u8);
+        types.push_back(likely_i16);
         types.push_back(likely_f32);
         return types;
     }
