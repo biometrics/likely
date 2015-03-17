@@ -6,6 +6,7 @@ Likely functions measured against their [OpenCV](http://www.opencv.org) equivale
 - [Single-core](https://s3.amazonaws.com/liblikely/benchmarks/single-core.txt)
 - [Multi-core](https://s3.amazonaws.com/liblikely/benchmarks/multi-core.txt)
 
+### FAQ
 **Q:** Why are some of the multi-core benchmarks slower? <br>
 **A:** For functions that are fast to execute, the overhead of multi-threaded execution isn't worth it.
 
