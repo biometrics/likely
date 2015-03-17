@@ -50,10 +50,10 @@ Compare to **[cv::minMaxLoc](http://docs.opencv.org/2.4.8/modules/core/doc/opera
       }
 
 #### Generated LLVM IR
-| Type   | Single-core | Multi-core |
-|--------|-------------|------------|
-| u8CXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u8CXY.ll)  | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u8CXY_m.ll)  |
-| u16CXY | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u16CXY.ll) | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u16CXY_m.ll) |
-| i32CXY | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_i32CXY.ll) | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_i32CXY_m.ll) |
-| f32CXY | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f32CXY.ll) | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f32CXY_m.ll) |
-| f64CXY | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f64CXY.ll) | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f64CXY_m.ll) |
+| Type    | Single-core | Multi-core |
+|---------|-------------|------------|
+| u8SCXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u8SCXY.ll)  | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u8SCXY_m.ll)  |
+| u16SCXY | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u16SCXY.ll) | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_u16SCXY_m.ll) |
+| i32CXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_i32CXY.ll)  | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_i32CXY_m.ll)  |
+| f32CXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f32CXY.ll)  | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f32CXY_m.ll)  |
+| f64CXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f64CXY.ll)  | [View](https://s3.amazonaws.com/liblikely/benchmarks/min_max_loc_f64CXY_f64CXY_m.ll)  |

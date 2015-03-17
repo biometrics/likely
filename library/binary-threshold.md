@@ -10,8 +10,8 @@ Compare to **[cv::threshold(THRESHOLD_BINARY)](http://docs.opencv.org/2.4.8/modu
       }
 
 #### Generated LLVM IR
-| Type   | Single-core | Multi-core |
-|--------|-------------|------------|
-| u8CXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/binary_threshold_u8CXY__u8CXY_u8_u8_.ll)     | [View](https://s3.amazonaws.com/liblikely/benchmarks/binary_threshold_u8CXY__u8CXY_u8_u8__m.ll)     |
-| i16CXY | [View](https://s3.amazonaws.com/liblikely/benchmarks/binary_threshold_i16CXY__i16CXY_i16_i16_.ll) | [View](https://s3.amazonaws.com/liblikely/benchmarks/binary_threshold_i16CXY__i16CXY_i16_i16__m.ll) |
-| f32CXY | [View](https://s3.amazonaws.com/liblikely/benchmarks/binary_threshold_f32CXY__f32CXY_f32_f32_.ll) | [View](https://s3.amazonaws.com/liblikely/benchmarks/binary_threshold_f32CXY__f32CXY_f32_f32__m.ll) |
+| Type    | Single-core | Multi-core |
+|---------|-------------|------------|
+| u8SCXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/binary_threshold_u8SCXY__u8SCXY_u8S_u8S_.ll)     | [View](https://s3.amazonaws.com/liblikely/benchmarks/binary_threshold_u8SCXY__u8SCXY_u8S_u8S__m.ll)     |
+| i16SCXY | [View](https://s3.amazonaws.com/liblikely/benchmarks/binary_threshold_i16SCXY__i16SCXY_i16S_i16S_.ll) | [View](https://s3.amazonaws.com/liblikely/benchmarks/binary_threshold_i16SCXY__i16SCXY_i16S_i16S__m.ll) |
+| f32CXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/binary_threshold_f32CXY__f32CXY_f32_f32_.ll)     | [View](https://s3.amazonaws.com/liblikely/benchmarks/binary_threshold_f32CXY__f32CXY_f32_f32__m.ll)     |
