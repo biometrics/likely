@@ -811,6 +811,53 @@ struct Builder : public IRBuilder<>
         return LikelyValue(CreatePointerCast(CreateStructGEP(m, 6), module->context->toLLVM(type)), type);
     }
 
+    enum Comparison
+    {
+        LT, // Less-than
+        LE, // Less-than or equal-to
+        GT, // Greater-than
+        GE, // Greater-than or equal-to
+        EQ, // Equal-to
+        NE, // Not equal-to
+    };
+
+    LikelyValue compare(const LikelyValue &lhs, const LikelyValue &rhs, Comparison comparison)
+    {
+        Value *result;
+        switch (comparison) {
+          case LT:
+            result = (lhs.type & likely_floating) ? CreateFCmpOLT(lhs, rhs)
+                                                  : ((lhs.type & likely_signed) ? CreateICmpSLT(lhs, rhs)
+                                                                                : CreateICmpULT(lhs, rhs));
+            break;
+          case LE:
+            result = (lhs.type & likely_floating) ? CreateFCmpOLE(lhs, rhs)
+                                                  : ((lhs.type & likely_signed) ? CreateICmpSLE(lhs, rhs)
+                                                                                : CreateICmpULE(lhs, rhs));
+            break;
+          case GT:
+            result = (lhs.type & likely_floating) ? CreateFCmpOGT(lhs, rhs)
+                                                  : ((lhs.type & likely_signed) ? CreateICmpSGT(lhs, rhs)
+                                                                                : CreateICmpUGT(lhs, rhs));
+            break;
+          case GE:
+            result = (lhs.type & likely_floating) ? CreateFCmpOGE(lhs, rhs)
+                                                  : ((lhs.type & likely_signed) ? CreateICmpSGE(lhs, rhs)
+                                                                                : CreateICmpUGE(lhs, rhs));
+            break;
+          case EQ:
+            result = (lhs.type & likely_floating) ? CreateFCmpOEQ(lhs, rhs)
+                                                  : CreateICmpEQ(lhs, rhs);
+            break;
+          case NE:
+            result = (lhs.type & likely_floating) ? CreateFCmpONE(lhs, rhs)
+                                                  : CreateICmpNE(lhs, rhs);
+            break;
+        }
+
+        return LikelyValue(result, likely_u1);
+    }
+
     LikelyValue numericLimit(likely_type type, bool minimum)
     {
         const int depth = type & likely_depth;
@@ -837,10 +884,11 @@ struct Builder : public IRBuilder<>
                 type = likely_type_from_types(type, likely_floating);
         }
         Type *const dstType = module->context->toLLVM(type & likely_element);
-        const bool lossless = ((x.type & likely_floating) == (type & likely_floating)) &&
-                              ((x.type & likely_depth) <= (type & likely_depth));
-        (void) lossless;
+//        const bool lossless = ((x.type & likely_floating) == (type & likely_floating)) &&
+//                              ((x.type & likely_depth) <= (type & likely_depth));
 //        if ((type & likely_saturated) && !lossless) {
+//            const LikelyValue numericMinimum = cast(numericLimit(type, true), x.type);
+//            const LikelyValue numericMaximum = cast(numericLimit(type, false), x.type);
 
 //        } else {
             return LikelyValue(CreateCast(CastInst::getCastOpcode(x, (x & likely_signed) != 0, dstType, (type & likely_signed) != 0), x, dstType), type);
@@ -1522,9 +1570,7 @@ class OP##Expression : public ArithmeticOperator                                
     const char *symbol() const { return #SYM; }                                                                                                                \
     likely_const_expr evaluateArithmetic(Builder &builder, const LikelyValue &lhs, const LikelyValue &rhs) const                                               \
     {                                                                                                                                                          \
-        return new likely_expression(LikelyValue((lhs.type & likely_floating) ? builder.CreateFCmpO##OP(lhs, rhs)                                              \
-                                                                              : ((lhs.type & likely_signed) ? builder.CreateICmpS##OP(lhs, rhs)                \
-                                                                                                            : builder.CreateICmpU##OP(lhs, rhs)), likely_u1)); \
+        return new likely_expression(builder.compare(lhs, rhs, Builder::OP));                                                                                  \
     }                                                                                                                                                          \
 };                                                                                                                                                             \
 LIKELY_REGISTER(OP)                                                                                                                                            \
@@ -1533,21 +1579,8 @@ LIKELY_REGISTER_COMPARISON(LT, <)
 LIKELY_REGISTER_COMPARISON(LE, <=)
 LIKELY_REGISTER_COMPARISON(GT, >)
 LIKELY_REGISTER_COMPARISON(GE, >=)
-
-#define LIKELY_REGISTER_EQUALITY(OP, SYM)                                                                                      \
-class OP##Expression : public ArithmeticOperator                                                                               \
-{                                                                                                                              \
-    const char *symbol() const { return #SYM; }                                                                                \
-    likely_const_expr evaluateArithmetic(Builder &builder, const LikelyValue &lhs, const LikelyValue &rhs) const               \
-    {                                                                                                                          \
-        return new likely_expression(LikelyValue((lhs.type & likely_floating) ? builder.CreateFCmpO##OP(lhs, rhs)              \
-                                                                              : builder.CreateICmp##OP(lhs, rhs), likely_u1)); \
-    }                                                                                                                          \
-};                                                                                                                             \
-LIKELY_REGISTER(OP)                                                                                                            \
-
-LIKELY_REGISTER_EQUALITY(EQ, ==)
-LIKELY_REGISTER_EQUALITY(NE, !=)
+LIKELY_REGISTER_COMPARISON(EQ, ==)
+LIKELY_REGISTER_COMPARISON(NE, !=)
 
 class BinaryMathOperator : public SimpleBinaryOperator
 {
