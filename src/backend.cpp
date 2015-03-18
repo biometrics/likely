@@ -811,6 +811,21 @@ struct Builder : public IRBuilder<>
         return LikelyValue(CreatePointerCast(CreateStructGEP(m, 6), module->context->toLLVM(type)), type);
     }
 
+    LikelyValue numericLimit(likely_type type, bool minimum)
+    {
+        const int depth = type & likely_depth;
+        if (type & likely_floating) {
+            if      (depth == 16) return LikelyValue(ConstantFP::get(getContext(), APFloat::getLargest(APFloat::IEEEhalf, minimum)), likely_f16);
+            else if (depth == 32) return LikelyValue(ConstantFP::get(getContext(), APFloat::getLargest(APFloat::IEEEsingle, minimum)), likely_f32);
+            else if (depth == 64) return LikelyValue(ConstantFP::get(getContext(), APFloat::getLargest(APFloat::IEEEdouble, minimum)), likely_f64);
+            else    return LikelyValue();
+        } else if (type & likely_signed) {
+            return LikelyValue(ConstantInt::get(getContext(), minimum ? APInt::getSignedMinValue(depth) : APInt::getSignedMaxValue(depth)), depth | likely_signed);
+        } else {
+            return LikelyValue(ConstantInt::get(getContext(), minimum ? APInt::getMinValue(depth) : APInt::getMaxValue(depth)), depth);
+        }
+    }
+
     LikelyValue cast(const LikelyValue &x, likely_type type)
     {
         type &= likely_element;
@@ -821,8 +836,15 @@ struct Builder : public IRBuilder<>
             if (type & likely_floating)
                 type = likely_type_from_types(type, likely_floating);
         }
-        Type *dstType = module->context->toLLVM(type & likely_element);
-        return LikelyValue(CreateCast(CastInst::getCastOpcode(x, (x & likely_signed) != 0, dstType, (type & likely_signed) != 0), x, dstType), type);
+        Type *const dstType = module->context->toLLVM(type & likely_element);
+        const bool lossless = ((x.type & likely_floating) == (type & likely_floating)) &&
+                              ((x.type & likely_depth) <= (type & likely_depth));
+        (void) lossless;
+//        if ((type & likely_saturated) && !lossless) {
+
+//        } else {
+            return LikelyValue(CreateCast(CastInst::getCastOpcode(x, (x & likely_signed) != 0, dstType, (type & likely_signed) != 0), x, dstType), type);
+//        }
     }
 
     LikelyValue toMat(const LikelyValue &expr)
@@ -1325,17 +1347,7 @@ class numericLimitExpression : public SimpleBinaryOperator
             return NULL;
         const likely_type type = likely_type(cast<ConstantInt>(arg1->value)->getZExtValue());
         const bool minimum = cast<ConstantInt>(arg2->value)->getZExtValue() == 0;
-        const int depth = type & likely_depth;
-        if (type & likely_floating) {
-            if      (depth == 16) return new likely_expression(LikelyValue(ConstantFP::get(builder.getContext(), APFloat::getLargest(APFloat::IEEEhalf, minimum)), likely_f16));
-            else if (depth == 32) return new likely_expression(LikelyValue(ConstantFP::get(builder.getContext(), APFloat::getLargest(APFloat::IEEEsingle, minimum)), likely_f32));
-            else if (depth == 64) return new likely_expression(LikelyValue(ConstantFP::get(builder.getContext(), APFloat::getLargest(APFloat::IEEEdouble, minimum)), likely_f64));
-            else    return NULL;
-        } else if (type & likely_signed) {
-            return new likely_expression(LikelyValue(ConstantInt::get(builder.getContext(), minimum ? APInt::getSignedMinValue(depth) : APInt::getSignedMaxValue(depth)), depth | likely_signed));
-        } else {
-            return new likely_expression(LikelyValue(ConstantInt::get(builder.getContext(), minimum ? APInt::getMinValue(depth) : APInt::getMaxValue(depth)), depth));
-        }
+        return new likely_expression(builder.numericLimit(type, minimum));
     }
 };
 LIKELY_REGISTER(numericLimit)
