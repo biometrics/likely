@@ -823,7 +823,7 @@ struct Builder : public IRBuilder<>
 
     LikelyValue compare(const LikelyValue &lhs, const LikelyValue &rhs, Comparison comparison)
     {
-        Value *result;
+        Value *result = NULL;
         switch (comparison) {
           case LT:
             result = (lhs.type & likely_floating) ? CreateFCmpOLT(lhs, rhs)
