@@ -884,15 +884,35 @@ struct Builder : public IRBuilder<>
                 type = likely_type_from_types(type, likely_floating);
         }
         Type *const dstType = module->context->toLLVM(type & likely_element);
-//        const bool lossless = ((x.type & likely_floating) == (type & likely_floating)) &&
-//                              ((x.type & likely_depth) <= (type & likely_depth));
-//        if ((type & likely_saturated) && !lossless) {
-//            const LikelyValue numericMinimum = cast(numericLimit(type, true), x.type);
-//            const LikelyValue numericMaximum = cast(numericLimit(type, false), x.type);
+        const LikelyValue casted(CreateCast(CastInst::getCastOpcode(x, (x & likely_signed) != 0, dstType, (type & likely_signed) != 0), x, dstType), type);
 
-//        } else {
-            return LikelyValue(CreateCast(CastInst::getCastOpcode(x, (x & likely_signed) != 0, dstType, (type & likely_signed) != 0), x, dstType), type);
-//        }
+        if (x.type & likely_saturated) {
+            bool lossless;
+            if (x.type & likely_floating) {
+                if (type & likely_floating)
+                    lossless = (x.type & likely_depth) <= (type & likely_depth);     // float -> float
+                else
+                    lossless = false;                                                // float -> int
+            } else {
+                if (type & likely_floating)
+                    lossless = (x.type & likely_depth) <= (type & likely_depth) / 2; // int -> float
+                else
+                    lossless = (x.type & likely_depth) <= (type & likely_depth);     // int -> int
+            }
+
+            if (lossless)
+                return casted;
+
+            const LikelyValue numericMinimum = numericLimit(type, true);
+            const LikelyValue numericMaximum = numericLimit(type, false);
+            const LikelyValue exceedsMinimum = compare(x, cast(numericMinimum, x.type), LT);
+            const LikelyValue exceedsMaximum = compare(x, cast(numericMaximum, x.type), GT);
+            Value *const selectMinOrValue      = CreateSelect(exceedsMinimum, numericMinimum, casted);
+            Value *const selectMaxOrMinOrValue = CreateSelect(exceedsMaximum, numericMaximum, selectMinOrValue);
+            return LikelyValue(selectMaxOrMinOrValue, type);
+        } else {
+            return casted;
+        }
     }
 
     LikelyValue toMat(const LikelyValue &expr)
