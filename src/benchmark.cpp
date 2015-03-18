@@ -307,8 +307,8 @@ class FusedMultiplyAdd : public Test<2>
     {
         const likely_type scalarType = ((type & likely_depth) <= 32) ? likely_f32 : likely_f64;
         vector<likely_const_mat> args;
-        const double alpha = 2;
-        const double beta = 3;
+        const double alpha = 3.141592;
+        const double beta = 2.718281;
         args.push_back(likely_scalar(scalarType, &alpha, 1));
         args.push_back(likely_scalar(scalarType, &beta, 1));
         return args;
@@ -317,7 +317,7 @@ class FusedMultiplyAdd : public Test<2>
     Mat computeBaseline(const Mat &src) const
     {
         Mat dst;
-        src.convertTo(dst, src.depth(), 2, 3);
+        src.convertTo(dst, src.depth(), 3.141592, 2.718281);
         return dst;
     }
 };
