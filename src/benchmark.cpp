@@ -162,7 +162,7 @@ protected:
     {
         vector<likely_type> types;
         types.push_back(likely_u8);
-        types.push_back(likely_u16);
+        types.push_back(likely_i16);
         types.push_back(likely_i32);
         types.push_back(likely_f32);
         types.push_back(likely_f64);
