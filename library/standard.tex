@@ -976,6 +976,22 @@ min := (-> (a b) (? (< a b) a b))
 max := (-> (a b) (? (> a b) a b))
 \end{likely}
 
+\section{Type Querying}
+\begin{likely}
+is-type :=
+ (t m) :->
+   (!= (& t m) 0)
+
+is-floating      := (-> t (is-type t floating     ))
+is-pointer       := (-> t (is-type t pointer      ))
+is-signed        := (-> t (is-type t signed       ))
+is-saturated     := (-> t (is-type t saturated    ))
+is-multi-channel := (-> t (is-type t multi-channel))
+is-multi-column  := (-> t (is-type t multi-column ))
+is-multi-row     := (-> t (is-type t multi-row    ))
+is-multi-frame   := (-> t (is-type t multi-frame  ))
+\end{likely}
+
 \section{Numeric Limits}
 \begin{likely}
 numeric-limit-max := (-> t (numeric-limit t 1))
