@@ -317,7 +317,7 @@ class FusedMultiplyAdd : public Test<2>
     Mat computeBaseline(const Mat &src) const
     {
         Mat dst;
-        src.convertTo(dst, src.depth() == CV_64F ? CV_64F : CV_32F, 2, 3);
+        src.convertTo(dst, src.depth(), 2, 3);
         return dst;
     }
 };

@@ -4,7 +4,7 @@ Compare to **[cv::Mat::convertTo](http://docs.opencv.org/2.4.8/modules/core/doc/
     fused-multiply-add :=
       (src alpha beta) :->
       {
-        dst := src.(imitate-size src.type.floating)
+        dst := src.imitate
         (dst src alpha beta) :=>
           dst :<- (+ (* src alpha) beta)
       }
@@ -12,8 +12,8 @@ Compare to **[cv::Mat::convertTo](http://docs.opencv.org/2.4.8/modules/core/doc/
 #### Generated LLVM IR
 | Type    | Single-core | Multi-core |
 |---------|-------------|------------|
-| u8SCXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_f32CXY__u8SCXY_f32_f32_.ll)  | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_f32CXY__u8SCXY_f32_f32__m.ll)  |
-| u16SCXY | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_f32CXY__u16SCXY_f32_f32_.ll) | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_f32CXY__u16SCXY_f32_f32__m.ll) |
-| i32CXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_f32CXY__i32CXY_f32_f32_.ll)  | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_f32CXY__i32CXY_f32_f32__m.ll)  |
-| f32CXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_f32CXY__f32CXY_f32_f32_.ll)  | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_f32CXY__f32CXY_f32_f32__m.ll)  |
-| f64CXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_f64CXY__f64CXY_f64_f64_.ll)  | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_f64CXY__f64CXY_f64_f64__m.ll)  |
+| u8SCXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_u8SCXY__u8SCXY_f32_f32_.ll)   | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_u8SCXY__u8SCXY_f32_f32__m.ll)   |
+| u16SCXY | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_u16SCXY__u16SCXY_f32_f32_.ll) | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_u16SCXY__u16SCXY_f32_f32__m.ll) |
+| i32CXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_i32CXY__i32CXY_f32_f32_.ll)   | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_i32CXY__i32CXY_f32_f32__m.ll)   |
+| f32CXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_f32CXY__f32CXY_f32_f32_.ll)   | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_f32CXY__f32CXY_f32_f32__m.ll)   |
+| f64CXY  | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_f64CXY__f64CXY_f64_f64_.ll)   | [View](https://s3.amazonaws.com/liblikely/benchmarks/fused_multiply_add_f64CXY__f64CXY_f64_f64__m.ll)   |
