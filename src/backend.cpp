@@ -2313,7 +2313,6 @@ class kernelExpression : public LikelyOperator
         BasicBlock *entry, *body, *exit;
         BranchInst *latch;
         KernelAxis *parent, *child;
-        MDNode *node;
         Value *step, *offset;
         BinaryOperator *axisOffset;
 
@@ -2328,13 +2327,6 @@ class kernelExpression : public LikelyOperator
             type = toLikely(start->getType());
             value = builder.CreatePHI(builder.module->context->toLLVM(type), 2, name);
             cast<PHINode>(value)->addIncoming(start, entry);
-
-            { // Create self-referencing loop node
-                Metadata *const Args[] = { 0 };
-                node = MDNode::get(builder.getContext(), Args);
-                node->replaceOperandWith(0, node);
-            }
-
             axisOffset = cast<BinaryOperator>(builder.CreateMul(step, value, name + "_axisOffset", true, true));
             offset = builder.addInts(parent ? parent->offset : builder.zero().value, axisOffset);
             offset->setName(name + "_offset");
@@ -2351,12 +2343,11 @@ class kernelExpression : public LikelyOperator
             cast<PHINode>(value)->addIncoming(increment, builder.GetInsertBlock());
             builder.SetInsertPoint(exit);
 
-            latch->setMetadata("llvm.loop", node);
             if (child) exit->moveAfter(child->exit);
             if (parent) parent->close(builder);
         }
 
-        void tryCollapse(Builder &builder)
+        void tryCollapse(Builder &builder, MDNode *node)
         {
             if ((value->getNumUses() == 2) && child && (child->value->getNumUses() == 2)) {
                 // Assume for now that one user is the offset and the other is the increment
@@ -2393,10 +2384,18 @@ class kernelExpression : public LikelyOperator
 
                 // Remove dead instructions to facilitate collapsing additional loops
                 DCE(*restore->getParent());
+            } else if (child && node) {
+                // We couldn't collapse the child loop, mark it for vectorization
+                child->latch->setMetadata("llvm.loop", node);
+                node = NULL;
+            } else if (!parent && node) {
+                // There is no child loop to collapse, mark us for vectorization
+                latch->setMetadata("llvm.loop", node);
+                node = NULL;
             }
 
             if (parent)
-                parent->tryCollapse(builder);
+                parent->tryCollapse(builder, node);
         }
     };
 
@@ -2619,6 +2618,12 @@ class kernelExpression : public LikelyOperator
         KernelInfo info;
         info.type = kernelType;
 
+        { // Create self-referencing loop node
+            Metadata *const Args[] = { 0 };
+            info.node = MDNode::get(builder.getContext(), Args);
+            info.node->replaceOperandWith(0, info.node);
+        }
+
         KernelAxis *axis = NULL;
         if (kernelType & likely_multi_frame) {
             axis = new KernelAxis(builder, "t", start
@@ -2681,7 +2686,6 @@ class kernelExpression : public LikelyOperator
             info.rowStep    = manualRowStep   ? manualRowStep   : (manualColumns ? builder.CreateMul(info.columnStep, manualColumns) : info.columnStep);
             info.frameStep  = manualFrameStep ? manualFrameStep : (manualRows    ? builder.CreateMul(info.rowStep   , manualRows   ) : info.rowStep   );
         }
-        info.node = axis ? axis->node : NULL;
 
         for (KernelArgument *kernelArgument : kernelArguments) {
             kernelArgument->info = info;
@@ -2702,7 +2706,7 @@ class kernelExpression : public LikelyOperator
         DCE(*kernelHead->getParent());
 
         if (axis)
-            axis->tryCollapse(builder);
+            axis->tryCollapse(builder, info.node);
         undefine(builder.env, "c");
         undefine(builder.env, "x");
         undefine(builder.env, "y");
