@@ -2388,14 +2388,14 @@ class kernelExpression : public LikelyOperator
                 // We couldn't collapse the child loop, mark it for vectorization
                 child->latch->setMetadata("llvm.loop", node);
                 node = NULL;
-            } else if (!parent && node) {
-                // There is no child loop to collapse, mark us for vectorization
-                latch->setMetadata("llvm.loop", node);
-                node = NULL;
             }
 
-            if (parent)
+            if (parent) {
                 parent->tryCollapse(builder, node);
+            } else if (node) {
+                // There is no child loop to collapse, mark us for vectorization
+                latch->setMetadata("llvm.loop", node);
+            }
         }
     };
 
