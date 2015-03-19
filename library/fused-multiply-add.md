@@ -8,7 +8,7 @@ Compare to **[cv::Mat::convertTo](http://docs.opencv.org/2.4.8/modules/core/doc/
         (dst src alpha beta) :=>
         {
           val := (+ (* src alpha) beta)
-          dst :<- (? dst.type.is-floating val (round-integer val))
+          dst :<- (? dst.type.is-floating val (round-integer val dst.type))
         }
       }
 

@@ -1190,8 +1190,8 @@ threshold-to-zero-inverse := (-> (s t)    (threshold s t 0  s))
 \section{Rounding}
 \begin{likely}
 round-integer :=
-  a :->
-    (a.type.not-floating.signed (+ a (? (is-negative a) -0.5 0.5)))
+  (a t) :->
+    (t (+ a (? (is-negative a) -0.5 0.5)))
 \end{likely}
 
 \chapter{Loops}
