@@ -20,23 +20,24 @@ Compare to **[cv::minMaxLoc](http://docs.opencv.org/2.4.8/modules/core/doc/opera
             (x y) :->
             {
               current-value := (src c x y t)
-              (? (< current-value current-min-value)
+              (< current-value current-min-value) :?
               {
                 current-min-value :<- current-value
                 current-min-x :<- x
                 current-min-y :<- y
-              })
+              }
 
-              (? (> current-value current-max-value)
+              (> current-value current-max-value) :?
               {
                 current-max-value :<- current-value
                 current-max-x :<- x
                 current-max-y :<- y
-              })
+              }
             }
 
           check-row :=
-            y :-> (iter (-> x (check-location x y)) width)
+            y :->
+              (iter (-> x (check-location x y)) width)
 
           (iter (-> y (check-row y)) height)
 

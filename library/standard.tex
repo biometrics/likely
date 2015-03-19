@@ -1202,7 +1202,8 @@ iter :=
   {
     i := 0.$
     loop := #
-    (!= i end) :? {
+    (!= i end) :?
+    {
       (expr i)
       i :<- (+ i 1)
       loop
