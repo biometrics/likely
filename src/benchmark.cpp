@@ -44,6 +44,7 @@ static cl::opt<bool> BenchmarkHuman("human", cl::desc("Optimize compiler output 
 static cl::alias     BenchmarkHumanA("h", cl::desc("Alias for -human"), cl::aliasopt(BenchmarkHuman));
 static cl::opt<string> BenchmarkFile("file", cl::desc("Benchmark the specified file only"), cl::value_desc("filename"));
 static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"));
+static cl::opt<string> BenchmarkType("type", cl::desc("Benchmark the specified type only"), cl::value_desc("type"));
 
 static void checkRead(const void *data, const char *fileName)
 {
@@ -89,6 +90,9 @@ struct TestBase
         assert(f);
 
         for (const likely_type type : types()) {
+            if (!BenchmarkType.empty() && (type != likely_type_from_string(BenchmarkType.c_str(), NULL)))
+                continue;
+
             for (const int size : sizes()) {
                 if (BenchmarkTest && (size != 128)) continue;
 
