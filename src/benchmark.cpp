@@ -51,14 +51,17 @@ static void checkRead(const void *data, const char *fileName)
     likely_ensure(data != NULL, "failed to read \"%s\", did you forget to run 'benchmark' from the root of the repository?", fileName);
 }
 
-static Mat generateData(int rows, int columns, likely_type type)
+static Mat generateData(int rows, int columns, likely_type type, bool color)
 {
-    static Mat m;
-    if (!m.data) {
-        m = imread("data/misc/lenna.tiff");
-        checkRead(m.data, "data/misc/lenna.tiff");
-        cvtColor(m, m, CV_BGR2GRAY);
+    static Mat original;
+    if (!original.data) {
+        original = imread("data/misc/lenna.tiff");
+        checkRead(original.data, "data/misc/lenna.tiff");
     }
+
+    Mat m;
+    if (color) m = original;
+    else       cvtColor(original, m, CV_BGR2GRAY);
 
     Mat n;
     resize(m, n, Size(columns, rows), 0, 0, INTER_NEAREST);
@@ -97,7 +100,7 @@ struct TestBase
                 if (BenchmarkTest && (size != 128)) continue;
 
                 // Generate input matrix
-                const Mat srcCV = generateData(size, size, type);
+                const Mat srcCV = generateData(size, size, type, color());
                 const likely_mat likelySrc = likelyFromOpenCVMat(srcCV);
                 if (!(likelySrc->type & likely_floating) && ((likelySrc->type & likely_depth) <= 16))
                     likelySrc->type |= likely_saturated; // Follow OpenCV's saturation convention
@@ -158,6 +161,7 @@ protected:
     virtual const char *name() const = 0;
     virtual Mat computeBaseline(const Mat &src) const = 0;
     virtual int additionalParameters() const = 0;
+    virtual bool color() const { return false; }
 
     virtual vector<likely_const_mat> additionalArguments(likely_type) const
     {
@@ -210,17 +214,29 @@ private:
         if (norm(errorMat, NORM_L1) > 0) {
             const likely_const_mat cvLikely = likelyFromOpenCVMat(dstOpenCV);
             stringstream errorLocations;
-            errorLocations << "input\topencv\tlikely\trow\tcolumn\n";
+            errorLocations << "input\topencv\tlikely\trow\tcolumn\tchannel\n";
             int errors = 0;
-            for (int i=0; i<srcCV.rows; i++)
-                for (int j=0; j<srcCV.cols; j++)
-                    if (errorMat.at<float>(i, j) == 1) {
-                        const double src = likely_get_element(srcLikely[0], 0, j, i, 0);
-                        const double cv  = likely_get_element(cvLikely    , 0, j, i, 0);
-                        const double dst = likely_get_element(dstLikely   , 0, j, i, 0);
-                        if (errors < 100) errorLocations << src << "\t" << cv << "\t" << dst << "\t" << i << "\t" << j << "\n";
-                        errors++;
-                    }
+            for (int i=0; i<dstOpenCV.rows; i++)
+                for (int j=0; j<dstOpenCV.cols; j++)
+                    for (int k=0; k<dstOpenCV.channels(); k++)
+                        if (errorMat.at<float>(i, j, k) == 1) {
+                            stringstream src;
+                            if ((dstOpenCV.channels() == 1) && (srcCV.channels() > 1)) {
+                                src << "(";
+                                for (int c=0; c<srcCV.channels(); c++) {
+                                    src << likely_get_element(srcLikely[0], c, j, i, 0);
+                                    if (c < srcCV.channels() - 1)
+                                        src << " ";
+                                }
+                                src << ")";
+                            } else {
+                                src << likely_get_element(srcLikely[0], k, j, i, 0);
+                            }
+                            const double cv  = likely_get_element(cvLikely    , k, j, i, 0);
+                            const double dst = likely_get_element(dstLikely   , k, j, i, 0);
+                            if (errors < 100) errorLocations << src.str() << "\t" << cv << "\t" << dst << "\t" << i << "\t" << j << "\t" << k << "\n";
+                            errors++;
+                        }
             if (errors > 0) {
                 fprintf(stderr, "Test for: %s differs in: %d location(s):\n%s", name(), errors, errorLocations.str().c_str());
                 exit(EXIT_FAILURE);
@@ -358,6 +374,35 @@ class MinMaxLoc : public Test<>
     }
 };
 
+class ConvertGrayscale : public Test<>
+{
+    const char *name() const
+    {
+        return "convert-grayscale";
+    }
+
+    bool color() const
+    {
+        return true;
+    }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat dst;
+        cvtColor(src, dst, CV_BGR2GRAY);
+        return dst;
+    }
+
+    vector<likely_type> types() const
+    {
+        vector<likely_type> types;
+        types.push_back(likely_u8);
+        types.push_back(likely_u16);
+        types.push_back(likely_f32);
+        return types;
+    }
+};
+
 int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
@@ -396,6 +441,7 @@ int main(int argc, char *argv[])
         const likely_const_env parent = likely_standard(settings, NULL);
 
         BinaryThreshold().run(parent);
+        ConvertGrayscale().run(parent);
         FusedMultiplyAdd().run(parent);
         MinMaxLoc().run(parent);
         likely_release_env(parent);
@@ -404,4 +450,3 @@ int main(int argc, char *argv[])
     likely_shutdown();
     return EXIT_SUCCESS;
 }
-

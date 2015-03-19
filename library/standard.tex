@@ -1194,6 +1194,22 @@ round-integer :=
     (t (+ a (? (is-negative a) -0.5 0.5)))
 \end{likely}
 
+\section{Color Space Conversion}
+\begin{likely}
+bgr-to-y-float :=
+  (b g r) :->
+    (+ (+ (* 0.114.f32 b) (* 0.587.f32 g)) (* 0.299.f32 r))
+
+bgr-to-y-int :=
+  (b g r) :->
+    (>> (+ (+ (+ (* 1868 b) (* 9617 g)) (* 4899 r)) (<< 1 13)) 14)
+
+bgr-to-y :=
+  (t b g r) :->
+    (? t.is-floating (bgr-to-y-float b g r)
+                     (bgr-to-y-int   b g r))
+\end{likely}
+
 \chapter{Loops}
 \section{iter}
 \begin{likely}
