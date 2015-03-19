@@ -1119,7 +1119,7 @@ is-multi-frame   := (-> t (is-type t multi-frame  ))
 
 is-single-dimension :=
   d :->
-   (-> t (& t (~ d)))
+   (-> t (== (& t d) 0))
 
 is-single-channel := (is-single-dimension multi-channel)
 is-single-column  := (is-single-dimension multi-column )
