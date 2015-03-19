@@ -40,6 +40,8 @@ static cl::opt<bool> BenchmarkMulticore("multi-core", cl::desc("Compile multi-co
 static cl::alias     BenchmarkMulticoreA("m", cl::desc("Alias for -multi-core"), cl::aliasopt(BenchmarkMulticore));
 static cl::opt<bool> BenchmarkVerbose("verbose", cl::desc("Verbose compiler output"));
 static cl::alias     BenchmarkVerboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(BenchmarkVerbose));
+static cl::opt<bool> BenchmarkHuman("human", cl::desc("Optimize compiler output for human readability"));
+static cl::alias     BenchmarkHumanA("h", cl::desc("Alias for -human"), cl::aliasopt(BenchmarkHuman));
 static cl::opt<string> BenchmarkFile("file", cl::desc("Benchmark the specified file only"), cl::value_desc("filename"));
 static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"));
 
@@ -383,6 +385,10 @@ int main(int argc, char *argv[])
         likely_settings settings = likely_jit(false);
         settings.multicore = BenchmarkMulticore;
         settings.verbose = BenchmarkVerbose;
+        settings.opt_level = BenchmarkHuman ? 2 : 3;
+        settings.size_level = BenchmarkHuman ? 2 : 0;
+        settings.unroll_loops = !BenchmarkHuman;
+        settings.vectorize_loops = !BenchmarkHuman;
         const likely_const_env parent = likely_standard(settings, NULL);
 
         BinaryThreshold().run(parent);
