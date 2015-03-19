@@ -974,6 +974,9 @@ or  := (-> (a b) (| a.bool b.bool))
 xor := (-> (a b) (^ a.bool b.bool))
 min := (-> (a b) (? (< a b) a b))
 max := (-> (a b) (? (> a b) a b))
+
+is-positive := (-> a (> a 0))
+is-negative := (-> a (< a 0))
 \end{likely}
 
 \section{Numeric Limits}
@@ -1188,7 +1191,7 @@ threshold-to-zero-inverse := (-> (s t)    (threshold s t 0  s))
 \begin{likely}
 round-integer :=
   a :->
-    (a.type.not-floating (+ a 0.5))
+    (a.type.not-floating.signed (+ a (? (is-negative a) -0.5 0.5)))
 \end{likely}
 
 \chapter{Loops}
