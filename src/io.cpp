@@ -239,7 +239,9 @@ likely_mat likely_decode(likely_const_mat buffer, likely_type type)
 {
     likely_mat result = NULL;
     try {
-        result = likelyFromOpenCVMat(cv::imdecode(likelyToOpenCVMat(buffer), CV_LOAD_IMAGE_UNCHANGED));
+        result = likelyFromOpenCVMat(cv::imdecode(likelyToOpenCVMat(buffer),
+                                                  (type & likely_multi_channel) ? CV_LOAD_IMAGE_COLOR
+                                                                                : CV_LOAD_IMAGE_GRAYSCALE));
     } catch (...) {}
 
     likely_ensure(result != NULL, "decode failure");

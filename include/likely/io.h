@@ -106,6 +106,8 @@ LIKELY_EXPORT likely_file_type likely_file_type_from_string(const char *str, boo
  * _Image_ formats expect single-frame matricies.
  * _Video_ formats (not supported yet) expect multi-frame matricies.
  * An _Image Set_ is a folder of images with consistent dimensionality and data type.
+ *
+ * The presence/absense of \ref likely_multi_channel in \p type dictates whether the returned matrix is a color/grayscale image.
  * \param[in] file_name The name of the file to open and read.
  * \param[in] file_type How to process the file after reading.
  * \param[in] type Expected matrix type.
@@ -132,6 +134,8 @@ LIKELY_EXPORT likely_mat likely_write(likely_const_mat image, const char *file_n
  * \brief Decode a \ref likely_matrix from a buffer.
  *
  * The format of \p buffer is determined automatically.
+ *
+ * The presence/absense of \ref likely_multi_channel in \p type dictates whether the returned matrix is a color/grayscale image.
  * \param[in] buffer The buffer to decode.
  * \param[in] type Expected matrix type.
  * \return Decoded image if successful, \c NULL otherwise.
