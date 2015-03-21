@@ -985,7 +985,7 @@ numeric-limit-max := (-> t (numeric-limit t 1))
 numeric-limit-min := (-> t (numeric-limit t 0))
 \end{likely}
 
-\chapter{Library Symbols}
+\chapter{Likely Library Symbols}
 \section{Types}
 \begin{likely}
 string-t       := i8P
@@ -1171,6 +1171,12 @@ imitate-channel := (imitate-dimension multi-channel)
 imitate-column  := (imitate-dimension multi-column)
 imitate-row     := (imitate-dimension multi-row)
 imitate-frame   := (imitate-dimension multi-frame)
+\end{likely}
+
+\chapter{C Library Symbols}
+\section{I/O}
+\begin{likely}
+puts := (extern int "puts" string-t)
 \end{likely}
 
 \chapter{Pixel-wise operators}

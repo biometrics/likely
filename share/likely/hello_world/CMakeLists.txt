@@ -18,10 +18,22 @@ if(${LIKELY_HELLOWORLD})
                      COMMAND likely ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-compiled.lisp hello_world_compiled_lisp.o
                      DEPENDS likely hello-world-compiled.lisp
                      VERBATIM)
+  set_source_files_properties(hello_world_compiled_lisp.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
   add_definitions(-DLIKELY_LIBRARY)
   add_executable(hello_world_static hello_world_static.c hello_world_compiled_lisp.o)
-  set_source_files_properties(hello_world_compiled_lisp.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
   target_link_libraries(hello_world_static likely_shared)
   add_test(NAME hello_world_static
            COMMAND hello_world_static ${CMAKE_SOURCE_DIR}/data/misc/lenna.tiff dark_lenna.png)
+
+  # Main
+  add_custom_command(OUTPUT hello_world_main_lisp.o
+                     COMMAND likely ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-main.lisp hello_world_main_lisp.o
+                     DEPENDS likely hello-world-main.lisp
+                     VERBATIM)
+  set_source_files_properties(hello_world_main_lisp.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
+  add_executable(hello_world_main hello_world_main_lisp.o)
+  set_target_properties(hello_world_main PROPERTIES LINKER_LANGUAGE C)
+  add_test(NAME hello_world_main
+           COMMAND hello_world_main)
+
 endif()
