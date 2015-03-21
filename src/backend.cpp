@@ -875,6 +875,12 @@ struct Builder : public IRBuilder<>
 
     LikelyValue cast(const LikelyValue &x, likely_type type)
     {
+        if (x.type == type)
+            return x;
+
+        if (LikelyValue::isMat(x.value->getType()))
+            return LikelyValue(CreatePointerCast(x, module->context->toLLVM(type)), type);
+
         type &= likely_element;
         if ((x.type & likely_element) == type)
             return LikelyValue(x, type);
