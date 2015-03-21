@@ -38,6 +38,8 @@ const int TestSeconds = 1;
 static cl::opt<bool> BenchmarkTest("test", cl::desc("Run tests for correctness only"));
 static cl::opt<bool> BenchmarkMulticore("multi-core", cl::desc("Compile multi-core kernels"));
 static cl::alias     BenchmarkMulticoreA("m", cl::desc("Alias for -multi-core"), cl::aliasopt(BenchmarkMulticore));
+static cl::opt<bool> BenchmarkQuiet("quiet", cl::desc("Don't print benchmark output"));
+static cl::alias     BenchmarkQuietA("q", cl::desc("Alias for -quiet"), cl::aliasopt(BenchmarkQuiet));
 static cl::opt<bool> BenchmarkVerbose("verbose", cl::desc("Verbose compiler output"));
 static cl::alias     BenchmarkVerboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(BenchmarkVerbose));
 static cl::opt<bool> BenchmarkHuman("human", cl::desc("Optimize compiler output for human readability"));
@@ -108,16 +110,19 @@ struct TestBase
                 likelyArgs.insert(likelyArgs.begin(), likelySrc);
 
                 const likely_const_mat typeString = likely_type_to_string(type);
-                printf("%s \t%s \t%d \t%s\t", name(), typeString->data, size, BenchmarkMulticore ? "m" : "s");
+                if (!BenchmarkQuiet)
+                    printf("%s \t%s \t%d \t%s\t", name(), typeString->data, size, BenchmarkMulticore ? "m" : "s");
                 likely_release_mat(typeString);
                 testCorrectness(reinterpret_cast<likely_mat (*)(const likely_const_mat*)>(f), srcCV, likelyArgs.data());
 
                 if (!BenchmarkTest) {
                     const Speed baseline = testBaselineSpeed(srcCV);
                     const Speed likely = testLikelySpeed(reinterpret_cast<likely_mat (*)(const likely_const_mat*)>(f), likelyArgs.data());
-                    printf("%-8.3g \t%.3gx\n", double(likely.iterations), likely.Hz/baseline.Hz);
+                    if (!BenchmarkQuiet)
+                        printf("%-8.3g \t%.3gx\n", double(likely.iterations), likely.Hz/baseline.Hz);
                 } else {
-                    printf("\n");
+                    if (!BenchmarkQuiet)
+                        printf("\n");
                 }
 
                 for (const likely_const_mat &likelyArg : likelyArgs)
@@ -134,12 +139,14 @@ struct TestBase
         const likely_const_mat source = likely_read(fileName, file_type, likely_text);
         checkRead(source, fileName);
 
-        printf("%s \t", fileName);
+        if (!BenchmarkQuiet)
+            printf("%s \t", fileName);
         const likely_const_env parent = likely_standard(likely_jit(false), NULL);
         likely_release_env(likely_lex_parse_and_eval(source->data, file_type, parent));
 
         if (BenchmarkTest) {
-            printf("\n");
+            if (!BenchmarkQuiet)
+                printf("\n");
         } else {
             clock_t startTime, endTime;
             int iter = 0;
@@ -150,7 +157,8 @@ struct TestBase
                 iter++;
             }
             Speed speed(iter, startTime, endTime);
-            printf("%.2e\n", speed.Hz);
+            if (!BenchmarkQuiet)
+                printf("%.2e\n", speed.Hz);
         }
 
         likely_release_env(parent);
@@ -407,23 +415,25 @@ int main(int argc, char *argv[])
     if (!BenchmarkFile.empty()) {
         TestBase::runFile(BenchmarkFile.getValue().c_str());
     } else {
-        const time_t now = time(0);
-        char dateTime[80];
-        strftime(dateTime, sizeof(dateTime), "%Y-%m-%d.%X", localtime(&now));
-        puts(dateTime);
-        puts("");
-        puts("Likely vs. OpenCV Benchmark Results");
-        puts("-----------------------------------");
-        puts("Function: Benchmarked function name");
-        puts("    Type: Matrix element data type");
-        puts("    Size: Matrix rows and columns");
-        puts("    Exec: (s)ingle-core or (m)ulti-core");
-        puts("    Iter: Times Likely function was run in one second");
-        puts(" Speedup: Execution speed of Likely relative to OpenCV");
-        puts("");
-        puts("To reproduce the following results, run the `benchmark` application, included in a build of Likely, from the root of the Likely repository.");
-        puts("");
-        puts("Function \t\tType \tSize \tExec \tIter \t\tSpeedup");
+        if (!BenchmarkQuiet) {
+            const time_t now = time(0);
+            char dateTime[80];
+            strftime(dateTime, sizeof(dateTime), "%Y-%m-%d.%X", localtime(&now));
+            puts(dateTime);
+            puts("");
+            puts("Likely vs. OpenCV Benchmark Results");
+            puts("-----------------------------------");
+            puts("Function: Benchmarked function name");
+            puts("    Type: Matrix element data type");
+            puts("    Size: Matrix rows and columns");
+            puts("    Exec: (s)ingle-core or (m)ulti-core");
+            puts("    Iter: Times Likely function was run in one second");
+            puts(" Speedup: Execution speed of Likely relative to OpenCV");
+            puts("");
+            puts("To reproduce the following results, run the `benchmark` application, included in a build of Likely, from the root of the Likely repository.");
+            puts("");
+            puts("Function \t\tType \tSize \tExec \tIter \t\tSpeedup");
+        }
 
         likely_settings settings = likely_jit(false);
         settings.multicore = BenchmarkMulticore;
