@@ -161,7 +161,7 @@ protected:
     virtual const char *name() const = 0;
     virtual Mat computeBaseline(const Mat &src) const = 0;
     virtual int additionalParameters() const = 0;
-    virtual bool color() const { return false; }
+    virtual bool color() const = 0;
 
     virtual vector<likely_const_mat> additionalArguments(likely_type) const
     {
@@ -275,12 +275,17 @@ private:
     }
 };
 
-template <int const N = 0>
+template <int const N = 0, bool const C = true>
 struct Test : public TestBase
 {
     int additionalParameters() const
     {
         return N;
+    }
+
+    bool color() const
+    {
+        return C;
     }
 };
 
@@ -344,7 +349,7 @@ class FusedMultiplyAdd : public Test<2>
     }
 };
 
-class MinMaxLoc : public Test<>
+class MinMaxLoc : public Test<0, false>
 {
     const char *name() const
     {
@@ -353,23 +358,17 @@ class MinMaxLoc : public Test<>
 
     Mat computeBaseline(const Mat &src) const
     {
-        Mat result(2, 3, CV_MAKETYPE(CV_64F, src.channels()));
-        vector<Mat> mv;
-        split(src, mv);
+        double minVal, maxVal;
+        Point minLoc, maxLoc;
+        minMaxLoc(src, &minVal, &maxVal, &minLoc, &maxLoc);
 
-        for (int i=0; i<int(mv.size()); i++) {
-            double minVal, maxVal;
-            Point minLoc, maxLoc;
-            minMaxLoc(mv[i], &minVal, &maxVal, &minLoc, &maxLoc);
-
-            result.at<double>(0, 0, i) = minVal;
-            result.at<double>(0, 1, i) = minLoc.x;
-            result.at<double>(0, 2, i) = minLoc.y;
-            result.at<double>(1, 0, i) = maxVal;
-            result.at<double>(1, 1, i) = maxLoc.x;
-            result.at<double>(1, 2, i) = maxLoc.y;
-        }
-
+        Mat result(2, 3, CV_64FC1);
+        result.at<double>(0, 0) = minVal;
+        result.at<double>(0, 1) = minLoc.x;
+        result.at<double>(0, 2) = minLoc.y;
+        result.at<double>(1, 0) = maxVal;
+        result.at<double>(1, 1) = maxLoc.x;
+        result.at<double>(1, 2) = maxLoc.y;
         return result;
     }
 };
@@ -379,11 +378,6 @@ class ConvertGrayscale : public Test<>
     const char *name() const
     {
         return "convert-grayscale";
-    }
-
-    bool color() const
-    {
-        return true;
     }
 
     Mat computeBaseline(const Mat &src) const
