@@ -346,6 +346,43 @@ LIKELY_EXPORT likely_type likely_type_from_string(const char *str, bool *ok);
  */
 LIKELY_EXPORT likely_type likely_type_from_types(likely_type a, likely_type b);
 
+/*!
+ * \brief Construct a pointer type.
+ * \param[in] element_type Element type.
+ * \return Compound pointer type.
+ * \remark This function is \ref thread-safe.
+ * \see likely_element_type
+ */
+LIKELY_EXPORT likely_type likely_pointer_type(likely_type element_type);
+
+/*!
+ * \brief Retrieve the element type of a pointer.
+ * \param[in] pointer_type Compound pointer type.
+ * \return Element type.
+ * \remark This function is \ref thread-safe.
+ * \see likely_pointer_type
+ */
+LIKELY_EXPORT likely_type likely_element_type(likely_type pointer_type);
+
+/*!
+ * \brief Construct a struct type.
+ * \param[in] member_types Member types.
+ * \param[in] members Length of \p member_types.
+ * \return Compound struct type.
+ * \remark This function is \ref thread-safe.
+ * \see likely_member_types
+ */
+LIKELY_EXPORT likely_type likely_struct_type(const likely_type *member_types, uint32_t members);
+
+/*!
+ * \brief Retrieve the member types of a struct.
+ * \param[in] struct_type Compound struct type.
+ * \param[out] member_types Member types. Should be large enough to hold all members of the struct.
+ * \remark This function is \ref thread-safe.
+ * \see likely_struct_type
+ */
+LIKELY_EXPORT void likely_member_types(likely_type struct_type, likely_type *member_types);
+
 /** @} */ // end of frontend
 
 #ifdef __cplusplus

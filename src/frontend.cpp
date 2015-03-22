@@ -756,3 +756,37 @@ likely_type likely_type_from_types(likely_type a, likely_type b)
     return type;
 }
 //! [likely_type_from_types implementation.]
+
+static vector<likely_type> PointerTypes;
+static mutex PointerTypesMutex;
+
+likely_type likely_pointer_type(likely_type element_type)
+{
+    lock_guard<mutex> locker(PointerTypesMutex);
+    PointerTypes.push_back(element_type);
+    return likely_compound_pointer | PointerTypes.size() - 1;
+}
+
+likely_type likely_element_type(likely_type pointer_type)
+{
+    lock_guard<mutex> locker(PointerTypesMutex);
+    return PointerTypes[pointer_type & ~likely_compound_pointer];
+}
+
+static vector<vector<likely_type>> StructTypes;
+static mutex StructTypesMutex;
+
+likely_type likely_struct_type(const likely_type *member_types, uint32_t members)
+{
+    lock_guard<mutex> locker(StructTypesMutex);
+    StructTypes.push_back(vector<likely_type>(member_types, member_types + members));
+    return likely_compound_struct | (members << 16) | (StructTypes.size() - 1);
+}
+
+void likely_member_types(likely_type struct_type, likely_type *member_types)
+{
+    lock_guard<mutex> locker(StructTypesMutex);
+    memcpy(member_types,
+           StructTypes[struct_type & ~(likely_compound_struct | likely_compound_members)].data(),
+           ((struct_type & likely_compound_members) >> 16) * sizeof(likely_type));
+}

@@ -95,8 +95,11 @@ enum likely_type_mask
     likely_float       = sizeof(float)       * CHAR_BIT + likely_floating, /*!< \brief C-compatible \c float type. */
     likely_double      = sizeof(double)      * CHAR_BIT + likely_floating, /*!< \brief C-compatible \c double type. */
     likely_long_double = sizeof(long double) * CHAR_BIT + likely_floating, /*!< \brief C-compatible \c long \c double type. */
-    likely_ast_t = 0x10000000, /*!< \brief \brief Special case \ref likely_ast type. */
-    likely_env_t = 0x20000000, /*!< \brief \brief Special case \ref likely_env type. */
+    likely_ast_t = 0x10000000, /*!< \brief Special case \ref likely_ast type. */
+    likely_env_t = 0x20000000, /*!< \brief Special case \ref likely_env type. */
+    likely_compound_pointer = 0x40000000, /*!< \brief Compound pointer type. */
+    likely_compound_members = 0x0FFF0000, /*!< \brief Compound struct members. */
+    likely_compound_struct  = 0x80000000, /*!< \brief Compound struct type. */
 };
 
 // Disable 'nonstandard extension used : zero-sized array in struct/union' warning

@@ -1280,6 +1280,11 @@ struct MatrixType : public LikelyOperator
         type = likely_u32;
     }
 
+    static bool is(likely_const_expr expr)
+    {
+        return expr->uid() == UID();
+    }
+
 private:
     size_t minParameters() const { return 0; }
     size_t maxParameters() const { return 1; }
@@ -1290,7 +1295,7 @@ private:
     {
         if ((ast->type == likely_ast_list) && (ast->num_atoms > 1)) {
             TRY_EXPR(builder, ast->atoms[1], expr)
-            if (expr->uid() == UID()) {
+            if (is(expr.get())) {
                 const MatrixType *matrixType = static_cast<const MatrixType*>(expr.get());
                 return new MatrixType(builder, likely_type_from_types(matrixType->t, t));
             } else {
@@ -1301,6 +1306,36 @@ private:
         }
     }
 };
+
+class pointerExpression : public SimpleUnaryOperator
+{
+    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
+    {
+        if (MatrixType::is(arg.get()))
+            return new MatrixType(builder, likely_pointer_type(reinterpret_cast<const MatrixType*>(arg.get())->t));
+        return NULL;
+    }
+};
+LIKELY_REGISTER(pointer)
+
+class structExpression : public LikelyOperator
+{
+    size_t minParameters() const { return 1; }
+    size_t maxParamaters() const { return likely_compound_members >> 16; }
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        vector<likely_type> types;
+        for (uint32_t i=1; i<ast->num_atoms; i++) {
+            TRY_EXPR(builder, ast->atoms[i], expr)
+            if (MatrixType::is(expr.get()))
+                types.push_back(reinterpret_cast<const MatrixType*>(expr.get())->t);
+            else
+                return NULL;
+        }
+        return new MatrixType(builder, likely_struct_type(types.data(), int32_t(types.size())));
+    }
+};
+LIKELY_REGISTER(struct)
 
 #define LIKELY_REGISTER_AXIS(AXIS)                                                   \
 class AXIS##Expression : public LikelyOperator                                       \
