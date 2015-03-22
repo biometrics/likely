@@ -33,7 +33,9 @@ if(${LIKELY_HELLOWORLD})
   set_source_files_properties(hello_world_main_lisp.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
   add_executable(hello_world_main hello_world_main_lisp.o)
   set_target_properties(hello_world_main PROPERTIES LINKER_LANGUAGE C)
+  if(VS)
+    target_link_libraries(hello_world_main MSVCRT)
+  endif()
   add_test(NAME hello_world_main
            COMMAND hello_world_main)
-
 endif()
