@@ -764,8 +764,15 @@ static mutex PointerTypesMutex;
 likely_type likely_pointer_type(likely_type element_type)
 {
     lock_guard<mutex> locker(PointerTypesMutex);
-    PointerTypes.push_back(element_type);
-    return likely_compound_pointer | (PointerTypes.size() - 1);
+    const auto it = find(PointerTypes.begin(), PointerTypes.end(), element_type);
+    int index;
+    if (it != PointerTypes.end()) {
+        index = it - PointerTypes.begin();
+    } else {
+        PointerTypes.push_back(element_type);
+        index = PointerTypes.size() - 1;
+    }
+    return likely_compound_pointer | index;
 }
 
 likely_type likely_element_type(likely_type pointer_type)
@@ -780,8 +787,16 @@ static mutex StructTypesMutex;
 likely_type likely_struct_type(const likely_type *member_types, uint32_t members)
 {
     lock_guard<mutex> locker(StructTypesMutex);
-    StructTypes.push_back(vector<likely_type>(member_types, member_types + members));
-    return likely_compound_struct | (members << 16) | (StructTypes.size() - 1);
+    const vector<likely_type> structType(member_types, member_types + members);
+    const auto it = find(StructTypes.begin(), StructTypes.end(), structType);
+    int index;
+    if (it != StructTypes.end()) {
+        index = it - StructTypes.begin();
+    } else {
+        StructTypes.push_back(structType);
+        index = StructTypes.size() - 1;
+    }
+    return likely_compound_struct | (members << 16) | index;
 }
 
 void likely_member_types(likely_type struct_type, likely_type *member_types)
