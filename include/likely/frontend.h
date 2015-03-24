@@ -373,9 +373,17 @@ LIKELY_EXPORT likely_type likely_element_type(likely_type pointer_type);
 LIKELY_EXPORT likely_type likely_struct_type(const likely_type *member_types, uint32_t members);
 
 /*!
+ * \brief Return the number of members in a struct.
+ * \param[in] struct_type Compound struct type.
+ * \return The number of members in \p struct_type.
+ * \remark This function is \ref thread-safe.
+ */
+LIKELY_EXPORT uint32_t likely_struct_members(likely_type struct_type);
+
+/*!
  * \brief Retrieve the member types of a struct.
  * \param[in] struct_type Compound struct type.
- * \param[out] member_types Member types. Should be large enough to hold all members of the struct.
+ * \param[out] member_types Member types. Should be large enough to hold \ref likely_struct_members elements.
  * \remark This function is \ref thread-safe.
  * \see likely_struct_type
  */

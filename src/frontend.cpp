@@ -658,7 +658,7 @@ static void typeToStream(likely_type type, stringstream &stream)
         stream << ")";
     } else if (type & likely_compound_struct) {
         stream << "(struct";
-        vector<likely_type> memberTypes((type & likely_compound_members) >> 16);
+        vector<likely_type> memberTypes(likely_struct_members(type));
         likely_member_types(type, memberTypes.data());
         for (const likely_type memberType : memberTypes) {
             stream << " ";
@@ -812,10 +812,15 @@ likely_type likely_struct_type(const likely_type *member_types, uint32_t members
     return likely_compound_struct | (members << 16) | index;
 }
 
+uint32_t likely_struct_members(likely_type struct_type)
+{
+    return (struct_type & likely_compound_members) >> 16;
+}
+
 void likely_member_types(likely_type struct_type, likely_type *member_types)
 {
     lock_guard<mutex> locker(StructTypesMutex);
     memcpy(member_types,
            StructTypes[struct_type & ~(likely_compound_struct | likely_compound_members)].data(),
-           ((struct_type & likely_compound_members) >> 16) * sizeof(likely_type));
+           likely_struct_members(struct_type) * sizeof(likely_type));
 }

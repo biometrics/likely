@@ -149,8 +149,7 @@ public:
         if (likely & likely_compound_pointer) {
             llvm = PointerType::getUnqual(toLLVM(likely_element_type(likely)));
         } else if (likely & likely_compound_struct) {
-            const int n = likely & likely_compound_members >> 16;
-            vector<likely_type> memberTypes(n);
+            vector<likely_type> memberTypes(likely_struct_members(likely));
             likely_member_types(likely, memberTypes.data());
             vector<Type*> members;
             for (const likely_type memberType : memberTypes)
@@ -1310,7 +1309,7 @@ LIKELY_REGISTER(pointer)
 class structExpression : public LikelyOperator
 {
     size_t minParameters() const { return 1; }
-    size_t maxParamaters() const { return likely_compound_members >> 16; }
+    size_t maxParamaters() const { return likely_struct_members(likely_compound_members); }
     const char *symbol() const { return "struct"; }
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
