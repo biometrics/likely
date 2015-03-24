@@ -24,8 +24,6 @@
 //! [likely_bytes implementation.]
 size_t likely_bytes(likely_const_mat mat)
 {
-    if (mat->type & likely_pointer)
-        return 0;
     return ((mat->type & likely_depth) * (size_t) mat->channels * (size_t) mat->columns * (size_t) mat->rows * (size_t) mat->frames + 7) / 8;
 }
 //! [likely_bytes implementation.]

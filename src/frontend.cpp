@@ -646,29 +646,44 @@ const char *likely_symbol(likely_const_ast ast)
     return (ast && (ast->type != likely_ast_list)) ? ast->atom : "";
 }
 
-//! [likely_type_to_string implementation.]
+static void typeToStream(likely_type type, stringstream &stream)
+{
+    if (type == likely_ast_t) {
+        stream << "ast";
+    } else if (type == likely_env_t) {
+        stream << "env";
+    } else if (type & likely_compound_pointer) {
+        stream << "(pointer ";
+        typeToStream(likely_element_type(type), stream);
+        stream << ")";
+    } else if (type & likely_compound_struct) {
+        stream << "(struct";
+        vector<likely_type> memberTypes((type & likely_compound_members) >> 16);
+        likely_member_types(type, memberTypes.data());
+        for (const likely_type memberType : memberTypes) {
+            stream << " ";
+            typeToStream(memberType, stream);
+        }
+        stream << ")";
+    } else {
+        if      (type & likely_floating) stream << 'f';
+        else if (type & likely_signed)   stream << 'i';
+        else                             stream << 'u';
+        stream << (type & likely_depth);
+        if (type & likely_saturated)     stream << 'S';
+        if (type & likely_multi_channel) stream << 'C';
+        if (type & likely_multi_column)  stream << 'X';
+        if (type & likely_multi_row)     stream << 'Y';
+        if (type & likely_multi_frame)   stream << 'T';
+    }
+}
+
 likely_mat likely_type_to_string(likely_type type)
 {
-    // Special cases
-    if (type == likely_ast_t) return likely_string("ast");
-    if (type == likely_env_t) return likely_string("env");
-
-    // General case
     stringstream stream;
-    if      (type & likely_floating) stream << 'f';
-    else if (type & likely_signed)   stream << 'i';
-    else                             stream << 'u';
-
-    stream << (type & likely_depth);
-    if (type & likely_pointer)       stream << 'P';
-    if (type & likely_saturated)     stream << 'S';
-    if (type & likely_multi_channel) stream << 'C';
-    if (type & likely_multi_column)  stream << 'X';
-    if (type & likely_multi_row)     stream << 'Y';
-    if (type & likely_multi_frame)   stream << 'T';
+    typeToStream(type, stream);
     return likely_string(stream.str().c_str());
 }
-//! [likely_type_to_string implementation.]
 
 //! [likely_type_from_string implementation.]
 likely_type likely_type_from_string(const char *str, bool *ok)
@@ -687,7 +702,6 @@ likely_type likely_type_from_string(const char *str, bool *ok)
     if (!strcmp(str, "void"           )) return likely_void;
     if (!strcmp(str, "depth"          )) return likely_depth;
     if (!strcmp(str, "floating"       )) return likely_floating;
-    if (!strcmp(str, "pointer"        )) return likely_pointer;
     if (!strcmp(str, "signed"         )) return likely_signed;
     if (!strcmp(str, "saturated"      )) return likely_saturated;
     if (!strcmp(str, "element"        )) return likely_element;
@@ -727,7 +741,6 @@ likely_type likely_type_from_string(const char *str, bool *ok)
 
     type += (int)strtol(str+1, &remainder, 10);
 
-    if (*remainder == 'P') { type |= likely_pointer;       remainder++; }
     if (*remainder == 'S') { type |= likely_saturated;     remainder++; }
     if (*remainder == 'C') { type |= likely_multi_channel; remainder++; }
     if (*remainder == 'X') { type |= likely_multi_column;  remainder++; }

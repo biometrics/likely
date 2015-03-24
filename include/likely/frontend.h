@@ -314,8 +314,6 @@ LIKELY_EXPORT const char *likely_symbol(likely_const_ast ast);
  *
  * The opposite of \ref likely_type_from_string.
  * The returned \ref likely_matrix::data is valid \ref likely_file_lisp code.
- * \par Implementation
- * \snippet src/frontend.cpp likely_type_to_string implementation.
  * \param[in] type The type to convert to a string.
  * \return A \ref likely_string.
  * \remark This function is \ref thread-safe.

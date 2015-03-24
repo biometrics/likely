@@ -194,9 +194,6 @@ public:
             }
         }
 
-        if (likely & likely_pointer)
-            llvm = PointerType::getUnqual(llvm);
-
         if (elements == 0)
             typeLUT[likely] = llvm;
         return llvm;
@@ -289,29 +286,7 @@ struct LikelyValue
     likely_type type;
 
     LikelyValue(Value *value = NULL, likely_type type = likely_void)
-        : value(value), type(type)
-    {
-        if (value && type) {
-            // Check type correctness
-            likely_ensure(!(type & likely_floating) || !(type & likely_signed), "type can't be both floating and signed (integer)");
-            likely_type inferred = toLikely(value->getType());
-            if (!(inferred & likely_multi_dimension)) {
-                // Can't represent these flags in LLVM IR for scalar types
-                if (type & likely_signed)
-                    inferred |= likely_signed;
-                if (type & likely_saturated)
-                    inferred |= likely_saturated;
-            }
-            if (inferred != type) {
-                const likely_mat llvm = likely_type_to_string(inferred);
-                const likely_mat likely = likely_type_to_string(type);
-                value->dump();
-                likely_ensure(false, "type mismatch between LLVM: %s and Likely: %s", llvm->data, likely->data);
-                likely_release_mat(llvm);
-                likely_release_mat(likely);
-            }
-        }
-    }
+        : value(value), type(type) {}
 
     operator Value*() const { return value; }
     operator likely_type() const { return type; }
@@ -338,10 +313,8 @@ struct LikelyValue
                     if (StructType *matrix = dyn_cast<StructType>(element)) {
                         return likely_type_from_string(matrix->getName().str().c_str(), NULL);
                     } else {
-                        likely_type type = toLikely(element);
-                        if (!isa<FunctionType>(element))
-                            type |= likely_pointer;
-                        return type;
+                        const likely_type type = toLikely(element);
+                        return isa<FunctionType>(element) ? type : likely_pointer_type(type);
                     }
                 } else {
                     return likely_void;
@@ -731,7 +704,7 @@ struct Builder : public IRBuilder<>
     }
 
     LikelyValue nullMat() { return LikelyValue(ConstantPointerNull::get(::cast<PointerType>(module->context->toLLVM(likely_multi_dimension))), likely_multi_dimension); }
-    LikelyValue nullData() { return LikelyValue(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_u8 | likely_pointer); }
+    LikelyValue nullData() { return LikelyValue(ConstantPointerNull::get(Type::getInt8PtrTy(getContext())), likely_pointer_type(likely_u8)); }
 
     Value *addInts(Value *lhs, Value *rhs, const Twine &name = "")
     {
@@ -817,7 +790,7 @@ struct Builder : public IRBuilder<>
     {
         if (!likely_expression::isMat(m.value->getType()))
             return LikelyValue();
-        const likely_type type = (m & likely_element) | likely_pointer;
+        const likely_type type = likely_pointer_type(m & likely_element);
         return LikelyValue(CreatePointerCast(CreateStructGEP(m, 6), module->context->toLLVM(type)), type);
     }
 
@@ -890,6 +863,11 @@ struct Builder : public IRBuilder<>
 
         if (LikelyValue::isMat(x.value->getType()))
             return LikelyValue(CreatePointerCast(x, module->context->toLLVM(type)), type);
+
+        if (!(x.type & likely_compound_pointer) && (type & likely_compound_pointer)) {
+            Type *const dstType = module->context->toLLVM(type);
+            return LikelyValue(CreateIntToPtr(x.value, dstType), type);
+        }
 
         type &= likely_element;
         if ((x.type & likely_element) == type)
@@ -1106,7 +1084,7 @@ private:
                 if (arg->type & likely_multi_dimension) {
                     if (parameter & likely_multi_dimension)
                         args.push_back(builder.CreatePointerCast(*arg, builder.module->context->toLLVM(parameter)));
-                    else if (parameter & likely_pointer)
+                    else if (parameter & likely_compound_pointer)
                         args.push_back(builder.CreatePointerCast(builder.data(*arg), builder.module->context->toLLVM(parameter)));
                     else
                         likely_ensure(false, "can't cast matrix to scalar");
@@ -1319,6 +1297,7 @@ private:
 
 class pointerExpression : public SimpleUnaryOperator
 {
+    const char *symbol() const { return "pointer"; }
     likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
     {
         if (MatrixType::is(arg.get()))
@@ -1332,6 +1311,7 @@ class structExpression : public LikelyOperator
 {
     size_t minParameters() const { return 1; }
     size_t maxParamaters() const { return likely_compound_members >> 16; }
+    const char *symbol() const { return "struct"; }
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         vector<likely_type> types;
@@ -2898,7 +2878,7 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
         // Is it a string?
         if ((ast->atom[0] == '"') && (ast->atom[ast->atom_len-1] == '"')) {
             const_cast<likely_ast>(ast)->type = likely_ast_string;
-            return new likely_expression(LikelyValue(builder.CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_i8 | likely_pointer));
+            return new likely_expression(LikelyValue(builder.CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_pointer_type(likely_i8)));
         }
 
         { // Is it a matrix type?

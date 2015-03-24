@@ -445,6 +445,7 @@ void likely_ensure(bool condition, const char *format, ...)
     fprintf(stderr, "Likely Error - ");
     vfprintf(stderr, format, ap);
     fprintf(stderr, "\n");
+    assert(false); // Abort in debug mode, exit in release mode
 
     exit(EXIT_FAILURE);
 }
