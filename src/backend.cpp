@@ -149,12 +149,14 @@ public:
         if (likely & likely_compound_pointer) {
             llvm = PointerType::getUnqual(toLLVM(likely_element_type(likely)));
         } else if (likely & likely_compound_struct) {
+            const likely_const_mat name = likely_struct_name(likely);
             vector<likely_type> memberTypes(likely_struct_members(likely));
             likely_member_types(likely, memberTypes.data());
             vector<Type*> members;
             for (const likely_type memberType : memberTypes)
                 members.push_back(toLLVM(memberType));
-            llvm = StructType::create(context, members);
+            llvm = StructType::create(members, name->data);
+            likely_release_mat(name);
         } else if (likely & likely_multi_dimension) {
             stringstream name;
             const likely_const_mat str = likely_type_to_string(likely);
@@ -475,6 +477,44 @@ struct likely_expression : public LikelyValue
     static likely_const_expr get(Builder &builder, likely_const_ast ast);
 
 protected:
+    static likely_mat eval(const likely_const_ast ast, const likely_const_env parent, bool *ok)
+    {
+        likely_retain_ast(ast);
+        const likely_ast list = likely_list(&const_cast<const likely_ast&>(ast), 1);
+        const likely_const_env env = likely_eval(list, parent, NULL, NULL);
+        likely_release_ast(list);
+        const likely_mat result = likely_retain_mat(likely_result(env ? env->expr : NULL));
+        likely_release_env(env);
+        *ok = (result != NULL);
+        return result;
+    }
+
+    static likely_type evalType(likely_const_ast ast, likely_const_env parent, bool *ok)
+    {
+        const likely_const_mat result = eval(ast, parent, ok);
+        *ok &= (result->type == likely_u32);
+        const likely_type type = (*ok) ? likely_type(likely_get_element(result, 0, 0, 0, 0)) : likely_type(likely_void);
+        likely_release_mat(result);
+        return type;
+    }
+
+    static int evalInt(likely_const_ast ast, likely_const_env parent, bool *ok)
+    {
+        const likely_const_mat result = eval(ast, parent, ok);
+        const int val = (*ok) ? int(likely_get_element(result, 0, 0, 0, 0)) : 0;
+        likely_release_mat(result);
+        return val;
+    }
+
+    static string evalString(likely_const_ast ast, likely_const_env parent, bool *ok)
+    {
+        const likely_const_mat result = eval(ast, parent, ok);
+        *ok &= (result->type == likely_text);
+        const string str = (*ok) ? result->data : "";
+        likely_release_mat(result);
+        return str;
+    }
+
     static likely_const_env lookup(likely_const_env env, const char *name)
     {
         while (env) {
@@ -1294,14 +1334,16 @@ private:
     }
 };
 
-class pointerExpression : public SimpleUnaryOperator
+class pointerExpression : public UnaryOperator
 {
     const char *symbol() const { return "pointer"; }
-    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
+    likely_const_expr evaluateUnary(Builder &builder, const likely_const_ast arg) const
     {
-        if (MatrixType::is(arg.get()))
-            return new MatrixType(builder, likely_pointer_type(reinterpret_cast<const MatrixType*>(arg.get())->t));
-        return NULL;
+        bool ok;
+        const likely_type elementType = evalType(arg, builder.env, &ok);
+        if (!ok)
+            return NULL;
+        return new MatrixType(builder, likely_pointer_type(elementType));
     }
 };
 LIKELY_REGISTER(pointer)
@@ -1313,15 +1355,17 @@ class structExpression : public LikelyOperator
     const char *symbol() const { return "struct"; }
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
+        bool ok;
+        const string name = evalString(ast->atoms[1], builder.env, &ok);
+        if (!ok)
+            return NULL;
         vector<likely_type> types;
-        for (uint32_t i=1; i<ast->num_atoms; i++) {
-            TRY_EXPR(builder, ast->atoms[i], expr)
-            if (MatrixType::is(expr.get()))
-                types.push_back(reinterpret_cast<const MatrixType*>(expr.get())->t);
-            else
+        for (uint32_t i=2; i<ast->num_atoms; i++) {
+            types.push_back(evalType(ast->atoms[i], builder.env, &ok));
+            if (!ok)
                 return NULL;
         }
-        return new MatrixType(builder, likely_struct_type(types.data(), int32_t(types.size())));
+        return new MatrixType(builder, likely_struct_type(name.c_str(), types.data(), int32_t(types.size())));
     }
 };
 LIKELY_REGISTER(struct)
@@ -1910,44 +1954,6 @@ class externExpression : public LikelyOperator
     const char *symbol() const { return "extern"; }
     size_t maxParameters() const { return 5; }
     size_t minParameters() const { return 3; }
-
-    static likely_mat eval(const likely_const_ast ast, const likely_const_env parent, bool *ok)
-    {
-        likely_retain_ast(ast);
-        const likely_ast list = likely_list(&const_cast<const likely_ast&>(ast), 1);
-        const likely_const_env env = likely_eval(list, parent, NULL, NULL);
-        likely_release_ast(list);
-        const likely_mat result = likely_retain_mat(likely_result(env ? env->expr : NULL));
-        likely_release_env(env);
-        *ok = (result != NULL);
-        return result;
-    }
-
-    static likely_type evalType(likely_const_ast ast, likely_const_env parent, bool *ok)
-    {
-        const likely_const_mat result = eval(ast, parent, ok);
-        *ok &= (result->type == likely_u32);
-        const likely_type type = (*ok) ? likely_type(likely_get_element(result, 0, 0, 0, 0)) : likely_type(likely_void);
-        likely_release_mat(result);
-        return type;
-    }
-
-    static int evalInt(likely_const_ast ast, likely_const_env parent, bool *ok)
-    {
-        const likely_const_mat result = eval(ast, parent, ok);
-        const int val = (*ok) ? int(likely_get_element(result, 0, 0, 0, 0)) : 0;
-        likely_release_mat(result);
-        return val;
-    }
-
-    static string evalString(likely_const_ast ast, likely_const_env parent, bool *ok)
-    {
-        const likely_const_mat result = eval(ast, parent, ok);
-        *ok &= (result->type == likely_text);
-        const string str = (*ok) ? result->data : "";
-        likely_release_mat(result);
-        return str;
-    }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {

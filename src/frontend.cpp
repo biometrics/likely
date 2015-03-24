@@ -794,13 +794,13 @@ likely_type likely_element_type(likely_type pointer_type)
     return PointerTypes[pointer_type & ~likely_compound_pointer];
 }
 
-static vector<vector<likely_type>> StructTypes;
+static vector<pair<string, vector<likely_type>>> StructTypes;
 static mutex StructTypesMutex;
 
-likely_type likely_struct_type(const likely_type *member_types, uint32_t members)
+likely_type likely_struct_type(const char *name, const likely_type *member_types, uint32_t members)
 {
     lock_guard<mutex> locker(StructTypesMutex);
-    const vector<likely_type> structType(member_types, member_types + members);
+    const pair<string, vector<likely_type>> structType(name, vector<likely_type>(member_types, member_types + members));
     const auto it = find(StructTypes.begin(), StructTypes.end(), structType);
     likely_type index;
     if (it != StructTypes.end()) {
@@ -812,6 +812,12 @@ likely_type likely_struct_type(const likely_type *member_types, uint32_t members
     return likely_compound_struct | (members << 16) | index;
 }
 
+likely_mat likely_struct_name(likely_type struct_type)
+{
+    lock_guard<mutex> locker(StructTypesMutex);
+    return likely_string(StructTypes[struct_type & ~(likely_compound_struct | likely_compound_members)].first.c_str());
+}
+
 uint32_t likely_struct_members(likely_type struct_type)
 {
     return (struct_type & likely_compound_members) >> 16;
@@ -821,6 +827,6 @@ void likely_member_types(likely_type struct_type, likely_type *member_types)
 {
     lock_guard<mutex> locker(StructTypesMutex);
     memcpy(member_types,
-           StructTypes[struct_type & ~(likely_compound_struct | likely_compound_members)].data(),
+           StructTypes[struct_type & ~(likely_compound_struct | likely_compound_members)].second.data(),
            likely_struct_members(struct_type) * sizeof(likely_type));
 }
