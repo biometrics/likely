@@ -146,7 +146,17 @@ public:
         }
 
         Type *llvm;
-        if (likely & likely_multi_dimension) {
+        if (likely & likely_compound_pointer) {
+            llvm = PointerType::getUnqual(toLLVM(likely_element_type(likely)));
+        } else if (likely & likely_compound_struct) {
+            const int n = likely & likely_compound_members >> 16;
+            vector<likely_type> memberTypes(n);
+            likely_member_types(likely, memberTypes.data());
+            vector<Type*> members;
+            for (const likely_type memberType : memberTypes)
+                members.push_back(toLLVM(memberType));
+            llvm = StructType::create(context, members);
+        } else if (likely & likely_multi_dimension) {
             stringstream name;
             const likely_const_mat str = likely_type_to_string(likely);
             name << str->data;
