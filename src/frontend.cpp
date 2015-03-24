@@ -778,12 +778,12 @@ likely_type likely_pointer_type(likely_type element_type)
 {
     lock_guard<mutex> locker(PointerTypesMutex);
     const auto it = find(PointerTypes.begin(), PointerTypes.end(), element_type);
-    int index;
+    likely_type index;
     if (it != PointerTypes.end()) {
-        index = it - PointerTypes.begin();
+        index = likely_type(it - PointerTypes.begin());
     } else {
         PointerTypes.push_back(element_type);
-        index = PointerTypes.size() - 1;
+        index = likely_type(PointerTypes.size() - 1);
     }
     return likely_compound_pointer | index;
 }
@@ -802,12 +802,12 @@ likely_type likely_struct_type(const likely_type *member_types, uint32_t members
     lock_guard<mutex> locker(StructTypesMutex);
     const vector<likely_type> structType(member_types, member_types + members);
     const auto it = find(StructTypes.begin(), StructTypes.end(), structType);
-    int index;
+    likely_type index;
     if (it != StructTypes.end()) {
-        index = it - StructTypes.begin();
+        index = likely_type(it - StructTypes.begin());
     } else {
         StructTypes.push_back(structType);
-        index = StructTypes.size() - 1;
+        index = likely_type(StructTypes.size() - 1);
     }
     return likely_compound_struct | (members << 16) | index;
 }
