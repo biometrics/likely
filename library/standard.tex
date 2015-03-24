@@ -988,8 +988,8 @@ numeric-limit-min := (-> t (numeric-limit t 0))
 \chapter{Likely Library Symbols}
 \section{Types}
 \begin{likely}
-string-t       := i8P
-void-pointer-t := i8P
+string-t       := i8.pointer
+void-pointer-t := i8.pointer
 type-t         := u32
 file-type-t    := u32
 \end{likely}
@@ -1045,10 +1045,10 @@ decode :=
     (f mat return-type)
   }
 
-write  := (extern u8CXYT "likely_write"  (u8CXYT string-t ))
-encode := (extern u8CXYT "likely_encode" (u8CXYT string-t ))
-render := (extern u8CXYT "likely_render" (u8CXYT f64P f64P))
-show   := (extern u8CXYT "likely_show"   (u8CXYT string-t ))
+write  := (extern u8CXYT "likely_write"  (u8CXYT string-t))
+encode := (extern u8CXYT "likely_encode" (u8CXYT string-t))
+show   := (extern u8CXYT "likely_show"   (u8CXYT string-t))
+render := (extern u8CXYT "likely_render" (u8CXYT f64.pointer f64.pointer))
 
 guess-file-type :=
   (extern file-type-t "likely_guess_file_type" string-t)
