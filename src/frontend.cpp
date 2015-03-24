@@ -25,6 +25,7 @@
 #include <iostream>
 #include <limits>
 #include <map>
+#include <mutex>
 #include <sstream>
 #include <vector>
 
@@ -764,7 +765,7 @@ likely_type likely_pointer_type(likely_type element_type)
 {
     lock_guard<mutex> locker(PointerTypesMutex);
     PointerTypes.push_back(element_type);
-    return likely_compound_pointer | PointerTypes.size() - 1;
+    return likely_compound_pointer | (PointerTypes.size() - 1);
 }
 
 likely_type likely_element_type(likely_type pointer_type)
