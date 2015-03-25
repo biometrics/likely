@@ -800,7 +800,8 @@ static mutex StructTypesMutex;
 likely_type likely_struct_type(const char *name, const likely_type *member_types, uint32_t members)
 {
     lock_guard<mutex> locker(StructTypesMutex);
-    const pair<string, vector<likely_type>> structType(name, vector<likely_type>(member_types, member_types + members));
+    const pair<string, vector<likely_type>> structType(name, members > 0 ? vector<likely_type>(member_types, member_types + members)
+                                                                         : vector<likely_type>());
     const auto it = find(StructTypes.begin(), StructTypes.end(), structType);
     likely_type index;
     if (it != StructTypes.end()) {
@@ -809,24 +810,31 @@ likely_type likely_struct_type(const char *name, const likely_type *member_types
         StructTypes.push_back(structType);
         index = likely_type(StructTypes.size() - 1);
     }
-    return likely_compound_struct | (members << 16) | index;
+    return likely_compound_struct | index;
 }
 
 likely_mat likely_struct_name(likely_type struct_type)
 {
     lock_guard<mutex> locker(StructTypesMutex);
-    return likely_string(StructTypes[struct_type & ~(likely_compound_struct | likely_compound_members)].first.c_str());
+    const size_t index = struct_type & ~likely_compound_struct;
+    assert(index < StructTypes.size());
+    return likely_string(StructTypes[index].first.c_str());
 }
 
 uint32_t likely_struct_members(likely_type struct_type)
 {
-    return (struct_type & likely_compound_members) >> 16;
+    lock_guard<mutex> locker(StructTypesMutex);
+    const size_t index = struct_type & ~likely_compound_struct;
+    assert(index < StructTypes.size());
+    return uint32_t(StructTypes[index].second.size());
 }
 
 void likely_member_types(likely_type struct_type, likely_type *member_types)
 {
     lock_guard<mutex> locker(StructTypesMutex);
+    const size_t index = struct_type & ~likely_compound_struct;
+    assert(index < StructTypes.size());
     memcpy(member_types,
-           StructTypes[struct_type & ~(likely_compound_struct | likely_compound_members)].second.data(),
+           StructTypes[index].second.data(),
            likely_struct_members(struct_type) * sizeof(likely_type));
 }

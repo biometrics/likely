@@ -365,7 +365,7 @@ LIKELY_EXPORT likely_type likely_element_type(likely_type pointer_type);
 /*!
  * \brief Construct a struct type.
  * \param[in] name Struct name.
- * \param[in] member_types Member types.
+ * \param[in] member_types Member types. May be \c NULL if \p members is \c 0.
  * \param[in] members Length of \p member_types.
  * \return Compound struct type.
  * \remark This function is \ref thread-safe.
