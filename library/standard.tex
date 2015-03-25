@@ -990,10 +990,10 @@ numeric-limit-min := (-> t (numeric-limit t 0))
 \begin{likely}
 ast := (struct "ast").pointer
 env := (struct "env").pointer
-string-t       := i8.pointer
-void-pointer-t := i8.pointer
-type-t         := u32
-file-type-t    := u32
+string       := i8.pointer
+void-pointer := i8.pointer
+likely-type      := u32
+likely-file-type := u32
 \end{likely}
 
 \section{Matrix Information}
@@ -1014,7 +1014,7 @@ new :=
   {
     f := (extern return-type
                  "likely_new"
-                 (type-t u32 u32 u32 u32 void-pointer-t))
+                 (likely-type u32 u32 u32 u32 void-pointer))
     (f return-type channels columns rows frames data)
   }
 
@@ -1034,7 +1034,7 @@ read :=
   {
     f := (extern return-type
                  "likely_read"
-                 (string-t file-type-t type-t))
+                 (string likely-file-type likely-type))
     (f file-name file-type return-type)
   }
 
@@ -1043,17 +1043,17 @@ decode :=
   {
     f := (extern return-type
                  "likely_decode"
-                 (u8CXYT type-t))
+                 (u8CXYT likely-type))
     (f mat return-type)
   }
 
-write  := (extern u8CXYT "likely_write"  (u8CXYT string-t))
-encode := (extern u8CXYT "likely_encode" (u8CXYT string-t))
-show   := (extern u8CXYT "likely_show"   (u8CXYT string-t))
+write  := (extern u8CXYT "likely_write"  (u8CXYT string))
+encode := (extern u8CXYT "likely_encode" (u8CXYT string))
+show   := (extern u8CXYT "likely_show"   (u8CXYT string))
 render := (extern u8CXYT "likely_render" (u8CXYT f64.pointer f64.pointer))
 
 guess-file-type :=
-  (extern file-type-t "likely_guess_file_type" string-t)
+  (extern likely-file-type "likely_guess_file_type" string)
 \end{likely}
 
 \begin{likely}
@@ -1078,18 +1078,18 @@ read-directory-grayscale :=
 
 \section{Compiler Frontend}
 \begin{likely}
-lex   := (extern ast "likely_lex" (string-t file-type-t))
+lex   := (extern ast "likely_lex" (string likely-file-type))
 parse := (extern ast "likely_parse" ast)
 lex-and-parse := (extern ast
                          "likely_lex_and_parse"
-                         (string-t file-type-t))
+                         (string likely-file-type))
 \end{likely}
 
 \section{Compiler Backend}
 \begin{likely}
 eval := (extern env
                 "likely_eval"
-                (ast env void-pointer-t void-pointer-t))
+                (ast env void-pointer void-pointer))
 \end{likely}
 
 \section{Import}
@@ -1178,7 +1178,7 @@ imitate-frame   := (imitate-dimension multi-frame)
 \chapter{C Library Symbols}
 \section{I/O}
 \begin{likely}
-puts := (extern int "puts" string-t)
+puts := (extern int "puts" string)
 \end{likely}
 
 \chapter{Pixel-wise operators}
