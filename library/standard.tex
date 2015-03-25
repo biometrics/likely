@@ -988,6 +988,8 @@ numeric-limit-min := (-> t (numeric-limit t 0))
 \chapter{Likely Library Symbols}
 \section{Types}
 \begin{likely}
+ast := (struct "ast").pointer
+env := (struct "env").pointer
 string-t       := i8.pointer
 void-pointer-t := i8.pointer
 type-t         := u32

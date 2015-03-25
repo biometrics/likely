@@ -55,10 +55,11 @@
  * \note In the case of \ref owned_by, the calling application should not explicitly release the return value unless the calling application explicitly retained it earlier.
  *
  * \section thread_safety Thread Safety
- * All functions are marked one of:
+ * All functions are marked:
  * - \anchor thread-safe \b thread-safe: Can be called simultaneously from multiple threads, even when the invocations use shared data.
  * - \anchor reentrant \b reentrant: Can be called simultaneously from multiple threads, but only if each invocation uses its own data.
  * - \anchor thread-unsafe \b thread-unsafe: Can not be called simultaneously from multiple threads.
+ * - \anchor static-unsafe \b static-unsafe: Can not be called during static initialization.
  */
 
 #endif // LIKELY_H

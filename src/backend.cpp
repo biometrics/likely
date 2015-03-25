@@ -155,7 +155,8 @@ public:
             vector<Type*> members;
             for (const likely_type memberType : memberTypes)
                 members.push_back(toLLVM(memberType));
-            llvm = StructType::create(members, name->data);
+            llvm = members.empty() ? StructType::create(context, name->data)
+                                   : StructType::create(members, name->data);
             likely_release_mat(name);
         } else if (likely & likely_multi_dimension) {
             stringstream name;
@@ -179,10 +180,6 @@ public:
                                                              NULL));
         } else if (likely == likely_void) {
             llvm = Type::getVoidTy(context);
-        } else if (likely & likely_ast_t) {
-            llvm = PointerType::getUnqual(StructType::create(context, "ast"));
-        } else if (likely & likely_env_t) {
-            llvm = PointerType::getUnqual(StructType::create(context, "env"));
         } else {
             const uint32_t bits = likely & likely_depth;
             if (likely & likely_floating) {
@@ -358,13 +355,16 @@ struct Variant
         : Variant((void*) mat, mat ? mat->type : likely_type(likely_void)) {}
 
     Variant(likely_const_env env)
-        : Variant((void*) env, likely_env_t) {}
+        : Variant((void*) env, envType()) {}
 
     ~Variant()
     {
-        if      (type & likely_ast_t) likely_release_ast(ast);
-        else if (type & likely_env_t) likely_release_env(env);
-        else                          likely_release_mat(mat);
+        if (!value)
+            return;
+
+        if      (type == astType()) likely_release_ast(ast);
+        else if (type == envType()) likely_release_env(env);
+        else                        likely_release_mat(mat);
     }
 
     Variant(const Variant &other)
@@ -375,16 +375,33 @@ struct Variant
     Variant &operator=(const Variant &other)
     {
         type = other.type;
-        if      (type & likely_ast_t) value = likely_retain_ast(other);
-        else if (type & likely_env_t) value = likely_retain_env(other);
-        else                          value = likely_retain_mat(other);
+        if      (!other.value)      value = NULL;
+        else if (type == astType()) value = likely_retain_ast(other);
+        else if (type == envType()) value = likely_retain_env(other);
+        else                        value = likely_retain_mat(other);
         return *this;
     }
 
     operator bool() const { return value != NULL; }
-    operator likely_const_ast() const { return (type & likely_ast_t) ? ast : NULL; }
-    operator likely_const_env() const { return (type & likely_env_t) ? env : NULL; }
-    operator likely_const_mat() const { return (!(type & (likely_ast_t | likely_env_t))) ? mat : NULL; }
+    operator likely_const_ast() const { return (value && (type == astType())) ? ast : NULL; }
+    operator likely_const_env() const { return (value && (type == envType())) ? env : NULL; }
+    operator likely_const_mat() const { return (value && ((type != astType()) && (type != envType()))) ? mat : NULL; }
+
+private:
+    // We carefully avoid unnecessary calls to these functions in order to
+    // sidestep the static initialization order fiasco with variables handling
+    // pointer and struct types in frontend.cpp.
+    static likely_type astType()
+    {
+        static likely_type ast = likely_pointer_type(likely_struct_type("ast", NULL, 0));
+        return ast;
+    }
+
+    static likely_type envType()
+    {
+        static likely_type env = likely_pointer_type(likely_struct_type("env", NULL, 0));
+        return env;
+    }
 };
 
 typedef struct likely_expression *likely_expr;
@@ -1351,7 +1368,7 @@ LIKELY_REGISTER(pointer)
 class structExpression : public LikelyOperator
 {
     size_t minParameters() const { return 1; }
-    size_t maxParamaters() const { return likely_struct_members(likely_compound_members); }
+    size_t maxParameters() const { return std::numeric_limits<uint32_t>::max(); }
     const char *symbol() const { return "struct"; }
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
@@ -1365,7 +1382,7 @@ class structExpression : public LikelyOperator
             if (!ok)
                 return NULL;
         }
-        return new MatrixType(builder, likely_struct_type(name.c_str(), types.data(), int32_t(types.size())));
+        return new MatrixType(builder, likely_struct_type(name.c_str(), types.empty() ? NULL : types.data(), int32_t(types.size())));
     }
 };
 LIKELY_REGISTER(struct)

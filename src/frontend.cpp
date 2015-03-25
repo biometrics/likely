@@ -648,23 +648,25 @@ const char *likely_symbol(likely_const_ast ast)
 
 static void typeToStream(likely_type type, stringstream &stream)
 {
-    if (type == likely_ast_t) {
-        stream << "ast";
-    } else if (type == likely_env_t) {
-        stream << "env";
-    } else if (type & likely_compound_pointer) {
+    if (type & likely_compound_pointer) {
         stream << "(pointer ";
         typeToStream(likely_element_type(type), stream);
         stream << ")";
     } else if (type & likely_compound_struct) {
-        stream << "(struct";
-        vector<likely_type> memberTypes(likely_struct_members(type));
-        likely_member_types(type, memberTypes.data());
-        for (const likely_type memberType : memberTypes) {
-            stream << " ";
-            typeToStream(memberType, stream);
+        stream << "(struct \"";
+        const likely_const_mat name = likely_struct_name(type);
+        stream << name->data << "\"";
+        const uint32_t members = likely_struct_members(type);
+        if (members > 0) {
+            vector<likely_type> memberTypes(members);
+            likely_member_types(type, memberTypes.data());
+            for (const likely_type memberType : memberTypes) {
+                stream << " ";
+                typeToStream(memberType, stream);
+            }
         }
         stream << ")";
+        likely_release_mat(name);
     } else {
         if      (type & likely_floating) stream << 'f';
         else if (type & likely_signed)   stream << 'i';
@@ -726,8 +728,6 @@ likely_type likely_type_from_string(const char *str, bool *ok)
     if (!strcmp(str, "float"          )) return likely_float;
     if (!strcmp(str, "double"         )) return likely_double;
     if (!strcmp(str, "long-double"    )) return likely_long_double;
-    if (!strcmp(str, "ast"            )) return likely_ast_t;
-    if (!strcmp(str, "env"            )) return likely_env_t;
 
     // General case
     length = strlen(str);
@@ -772,11 +772,11 @@ likely_type likely_type_from_types(likely_type a, likely_type b)
 //! [likely_type_from_types implementation.]
 
 static vector<likely_type> PointerTypes;
-static mutex PointerTypesMutex;
+static recursive_mutex PointerTypesMutex;
 
 likely_type likely_pointer_type(likely_type element_type)
 {
-    lock_guard<mutex> locker(PointerTypesMutex);
+    lock_guard<recursive_mutex> locker(PointerTypesMutex);
     const auto it = find(PointerTypes.begin(), PointerTypes.end(), element_type);
     likely_type index;
     if (it != PointerTypes.end()) {
@@ -790,16 +790,19 @@ likely_type likely_pointer_type(likely_type element_type)
 
 likely_type likely_element_type(likely_type pointer_type)
 {
-    lock_guard<mutex> locker(PointerTypesMutex);
-    return PointerTypes[pointer_type & ~likely_compound_pointer];
+    lock_guard<recursive_mutex> locker(PointerTypesMutex);
+    const size_t index = pointer_type & ~likely_compound_pointer;
+    assert(index < PointerTypes.size());
+    return PointerTypes[index];
 }
 
+// Avoid static initialization order fiasco
 static vector<pair<string, vector<likely_type>>> StructTypes;
-static mutex StructTypesMutex;
+static recursive_mutex StructTypesMutex;
 
 likely_type likely_struct_type(const char *name, const likely_type *member_types, uint32_t members)
 {
-    lock_guard<mutex> locker(StructTypesMutex);
+    lock_guard<recursive_mutex> locker(StructTypesMutex);
     const pair<string, vector<likely_type>> structType(name, members > 0 ? vector<likely_type>(member_types, member_types + members)
                                                                          : vector<likely_type>());
     const auto it = find(StructTypes.begin(), StructTypes.end(), structType);
@@ -815,7 +818,7 @@ likely_type likely_struct_type(const char *name, const likely_type *member_types
 
 likely_mat likely_struct_name(likely_type struct_type)
 {
-    lock_guard<mutex> locker(StructTypesMutex);
+    lock_guard<recursive_mutex> locker(StructTypesMutex);
     const size_t index = struct_type & ~likely_compound_struct;
     assert(index < StructTypes.size());
     return likely_string(StructTypes[index].first.c_str());
@@ -823,7 +826,7 @@ likely_mat likely_struct_name(likely_type struct_type)
 
 uint32_t likely_struct_members(likely_type struct_type)
 {
-    lock_guard<mutex> locker(StructTypesMutex);
+    lock_guard<recursive_mutex> locker(StructTypesMutex);
     const size_t index = struct_type & ~likely_compound_struct;
     assert(index < StructTypes.size());
     return uint32_t(StructTypes[index].second.size());
@@ -831,10 +834,10 @@ uint32_t likely_struct_members(likely_type struct_type)
 
 void likely_member_types(likely_type struct_type, likely_type *member_types)
 {
-    lock_guard<mutex> locker(StructTypesMutex);
+    lock_guard<recursive_mutex> locker(StructTypesMutex);
     const size_t index = struct_type & ~likely_compound_struct;
     assert(index < StructTypes.size());
-    memcpy(member_types,
-           StructTypes[index].second.data(),
-           likely_struct_members(struct_type) * sizeof(likely_type));
+    const uint32_t members = likely_struct_members(struct_type);
+    if (members > 0)
+        memcpy(member_types, StructTypes[index].second.data(), members * sizeof(likely_type));
 }
