@@ -826,7 +826,7 @@ The \dindex{make-type} operator constructs an intrinsic \pindex{type} from an in
 ((make-type 288) 1) ; Evaluates to 1.0
 \end{verbatim}
 
-\subsection{(numeric-limit \emph{type} \emph{maximum})}
+\subsection{(numeric-limit \emph{type maximum})}
 The \dindex{numeric-limit} operator returns the maximum value representable by \emph{type} if \emph{maximum} is non-zero, otherwise it returns the minimum value representable by \emph{type}.
 
 \begin{verbatim}
@@ -841,6 +841,13 @@ The \dindex{numeric-limit} operator returns the maximum value representable by \
 (numeric-limit f32 1) ; Evaluates to 3.40282e+38
 (numeric-limit f32 0) ; Evaluates to -3.40282e+38
 \end{verbatim}
+
+\subsection{(pointer \emph{type})}
+The \dindex{pointer} operator constructs a new type that is a pointer to an element \emph{type}.
+A pointer type can be used as a unary operator, which when given an integer operand, returns the de-referenced value at the speficied index.
+
+\subsection{(struct \emph{name type type \dots\ type})}
+The \dindex{struct} operator constructs a new type that is a struct with title \emph{name} and members specified by zero or more \emph{type}.
 
 \section{Matricies}
 The fundamental data structure in Likely is a four-dimensional \emph{matrix}.
