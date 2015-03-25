@@ -1111,9 +1111,7 @@ private:
             FunctionType *functionType = FunctionType::get(llvmReturn, llvmParameters, false);
             symbol = Function::Create(functionType, GlobalValue::ExternalLinkage, name, builder.module->module);
             symbol->setCallingConv(CallingConv::C);
-            symbol->setCannotDuplicate();
             symbol->setDoesNotThrow();
-            symbol->setOnlyReadsMemory();
             if (isa<PointerType>(llvmReturn)) {
                 symbol->setDoesNotAlias(0);
             } else if (isa<IntegerType>(llvmReturn)) {
