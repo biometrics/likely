@@ -2643,10 +2643,6 @@ class kernelExpression : public LikelyOperator
 
     void generateCommon(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, likely_type kernelType, Value *start, Value *stop) const
     {
-        BasicBlock *const kernelHead = BasicBlock::Create(builder.getContext(), "kernel_head", builder.GetInsertBlock()->getParent());
-        builder.CreateBr(kernelHead);
-        builder.SetInsertPoint(kernelHead);
-
         vector<KernelArgument*> kernelArguments;
         const likely_const_ast args = ast->atoms[1];
         const size_t argsStart = ((args->type == likely_ast_list) && (args->atoms[0]->type == likely_ast_list)) ? 1 : 0;
@@ -2753,7 +2749,7 @@ class kernelExpression : public LikelyOperator
         }
 
         // Clean up any instructions we didn't end up using
-        DCE(*kernelHead->getParent());
+        DCE(*builder.GetInsertBlock()->getParent());
 
         if (axis)
             axis->tryCollapse(builder, info.node);
