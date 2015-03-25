@@ -778,15 +778,15 @@ static vector<likely_type> &getPointerTypes()
     return PointerTypes;
 }
 
-static recursive_mutex &getPointerTypesMutex()
+static mutex &getPointerTypesMutex()
 {
-    static recursive_mutex PointerTypesMutex;
+    static mutex PointerTypesMutex;
     return PointerTypesMutex;
 }
 
 likely_type likely_pointer_type(likely_type element_type)
 {
-    lock_guard<recursive_mutex> locker(getPointerTypesMutex());
+    lock_guard<mutex> locker(getPointerTypesMutex());
     auto &PointerTypes = getPointerTypes();
     const auto it = find(PointerTypes.begin(), PointerTypes.end(), element_type);
     likely_type index;
@@ -801,7 +801,7 @@ likely_type likely_pointer_type(likely_type element_type)
 
 likely_type likely_element_type(likely_type pointer_type)
 {
-    lock_guard<recursive_mutex> locker(getPointerTypesMutex());
+    lock_guard<mutex> locker(getPointerTypesMutex());
     auto &PointerTypes = getPointerTypes();
     const size_t index = pointer_type & ~likely_compound_pointer;
     assert(index < PointerTypes.size());
@@ -815,9 +815,9 @@ static vector<pair<string, vector<likely_type>>> &getStructTypes()
     return StructTypes;
 }
 
-static recursive_mutex &getStructTypesMutex()
+static mutex &getStructTypesMutex()
 {
-    static recursive_mutex StructTypesMutex;
+    static mutex StructTypesMutex;
     return StructTypesMutex;
 }
 
@@ -825,7 +825,7 @@ likely_type likely_struct_type(const char *name, const likely_type *member_types
 {
     const pair<string, vector<likely_type>> structType(name, members > 0 ? vector<likely_type>(member_types, member_types + members)
                                                                          : vector<likely_type>());
-    lock_guard<recursive_mutex> locker(getStructTypesMutex());
+    lock_guard<mutex> locker(getStructTypesMutex());
     auto &StructTypes = getStructTypes();
     const auto it = find(StructTypes.begin(), StructTypes.end(), structType);
     likely_type index;
@@ -840,7 +840,7 @@ likely_type likely_struct_type(const char *name, const likely_type *member_types
 
 likely_mat likely_struct_name(likely_type struct_type)
 {
-    lock_guard<recursive_mutex> locker(getStructTypesMutex());
+    lock_guard<mutex> locker(getStructTypesMutex());
     auto &StructTypes = getStructTypes();
     const size_t index = struct_type & ~likely_compound_struct;
     assert(index < StructTypes.size());
@@ -849,7 +849,7 @@ likely_mat likely_struct_name(likely_type struct_type)
 
 uint32_t likely_struct_members(likely_type struct_type)
 {
-    lock_guard<recursive_mutex> locker(getStructTypesMutex());
+    lock_guard<mutex> locker(getStructTypesMutex());
     auto &StructTypes = getStructTypes();
     const size_t index = struct_type & ~likely_compound_struct;
     assert(index < StructTypes.size());
@@ -858,11 +858,11 @@ uint32_t likely_struct_members(likely_type struct_type)
 
 void likely_member_types(likely_type struct_type, likely_type *member_types)
 {
-    lock_guard<recursive_mutex> locker(getStructTypesMutex());
+    lock_guard<mutex> locker(getStructTypesMutex());
     auto &StructTypes = getStructTypes();
     const size_t index = struct_type & ~likely_compound_struct;
     assert(index < StructTypes.size());
-    const uint32_t members = likely_struct_members(struct_type);
-    if (members > 0)
-        memcpy(member_types, StructTypes[index].second.data(), members * sizeof(likely_type));
+    const vector<likely_type> &memberTypes = StructTypes[index].second;
+    if (!memberTypes.empty())
+        memcpy(member_types, memberTypes.data(), sizeof(likely_type) * memberTypes.size());
 }
