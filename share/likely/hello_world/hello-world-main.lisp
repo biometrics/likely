@@ -10,9 +10,12 @@ hello-world :=
 main :=
   (argc argv) :->
   {
-    dst := (argv 1).read-image.hello-world
-    (? (> argc 2) (write dst (argv 2))
-                  (show dst "hello world!"))
+    (puts "Reading input image...")
+    src := (argv 1).read-image
+    (puts "Calling function...")
+    dst := src.hello-world
+    (puts "Writing output image...")
+    (write dst (argv 2))
     0
   }
 

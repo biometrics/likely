@@ -134,3 +134,50 @@ Once again, we can confirm that we get the exact same output as we did previousl
 ```bash
 $ diff dark_lenna_static.png dark_lenna_jit.png
 ```
+
+Likely as a Standalone Language
+-------------------------------
+Hold on!
+In the previous section we still had to write some C code to execute our statically-compiled Likely function.
+We'd like to write the *main* function in Likely instead of C, so that our application is written completely in Likely.
+
+Starting with our *hello-world.lisp* file from the previous section, replace the last line (exporting hello-world as "hello_world") with:
+
+```lisp
+main :=
+  (argc argv) :->
+  {
+    (puts "Reading input image...")
+    src := (argv 1).read-image
+    (puts "Calling function...")
+    dst := src.hello-world
+    (puts "Writing output image...")
+    (write dst (argv 2))
+    0
+  }
+
+(extern int "main" (int string.pointer) main)
+```
+
+Then it's the same procedure to compile a native object file:
+
+```bash
+$ likely hello-world.lisp hello-world.o
+```
+
+Except this time the executable can be built without **[share/likely/hello_world/hello_world_static.c](share/likely/hello_world/hello_world_static.c)**.
+Let's run it:
+
+```
+$ hello_world_main data/misc/lenna.tiff dark_lenna_main.png
+Reading input image...
+Calling function...
+Writing output image...
+```
+
+Success!
+You know the drill:
+
+```bash
+$ diff dark_lenna_main.png dark_lenna_static.png
+```
