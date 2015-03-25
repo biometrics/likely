@@ -1,8 +1,8 @@
 main :=
-  () :->
+  (argc argv) :->
   {
-    (puts "hello world!")
+    (puts (argv 0))
     0
   }
 
-(extern int "main" () main)
+(extern int "main" (int string.pointer) main)

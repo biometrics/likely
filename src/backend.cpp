@@ -473,10 +473,7 @@ struct likely_expression : public LikelyValue
         return data;
     }
 
-    virtual likely_const_expr evaluate(Builder &, likely_const_ast) const
-    {
-        return new likely_expression(LikelyValue(value, type));
-    }
+    virtual likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const;
 
     static size_t length(likely_const_ast ast)
     {
@@ -2835,6 +2832,18 @@ likely_expression::~likely_expression()
 {
     for (likely_vtable vtable : vtables)
         delete vtable;
+}
+
+likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast ast) const
+{
+    if ((type & likely_compound_pointer) && (ast->type == likely_ast_list)) {
+        if (ast->num_atoms != 2)
+            return NULL;
+        TRY_EXPR(builder, ast->atoms[1], arg);
+        return new likely_expression(LikelyValue(builder.CreateLoad(builder.CreateGEP(value, *arg)), likely_element_type(type)));
+    }
+
+    return new likely_expression(LikelyValue(value, type));
 }
 
 likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
