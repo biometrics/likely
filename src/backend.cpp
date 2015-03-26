@@ -1901,11 +1901,14 @@ private:
                 const_cast<likely_expr&>(env->expr) = new likely_expression();
             env->expr->vtables.push_back(vtable);
 
-            PointerType *vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
+            PointerType *const vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
+            PointerType *const staticDataType = PointerType::getUnqual(Type::getInt8Ty(builder.getContext()));
             Function *likelyDynamic = builder.module->module->getFunction("likely_dynamic");
             if (!likelyDynamic) {
-                Type *params[] = { vTableType, PointerType::get(builder.module->context->toLLVM(likely_multi_dimension), 0) };
-                FunctionType *likelyDynamicType = FunctionType::get(builder.module->context->toLLVM(likely_multi_dimension), params, false);
+                Type *const params[] = { vTableType,
+                                         PointerType::getUnqual(builder.module->context->toLLVM(likely_multi_dimension)),
+                                         staticDataType };
+                FunctionType *const likelyDynamicType = FunctionType::get(builder.module->context->toLLVM(likely_multi_dimension), params, false);
                 likelyDynamic = Function::Create(likelyDynamicType, GlobalValue::ExternalLinkage, "likely_dynamic", builder.module->module);
                 likelyDynamic->setCallingConv(CallingConv::C);
                 likelyDynamic->setDoesNotAlias(0);
@@ -1916,10 +1919,12 @@ private:
                 sys::DynamicLibrary::AddSymbol("likely_dynamic", (void*) likely_dynamic);
             }
 
-            Value *matricies = builder.CreateAlloca(builder.module->context->toLLVM(likely_multi_dimension), builder.constant(args.size()));
+            Value *const matricies = builder.CreateAlloca(builder.module->context->toLLVM(likely_multi_dimension), builder.constant(args.size()));
             for (size_t i=0; i<args.size(); i++)
                 builder.CreateStore(*args[i], builder.CreateGEP(matricies, builder.constant(i)));
-            Value* args[] = { ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(vtable)), uintptr_t(vtable)), vTableType), matricies };
+            Value *const args[] = { ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(vtable)), uintptr_t(vtable)), vTableType),
+                                    matricies,
+                                    ConstantPointerNull::get(staticDataType) };
             return new likely_expression(LikelyValue(builder.CreateCall(likelyDynamic, args), likely_multi_dimension));
         }
 
@@ -2988,8 +2993,10 @@ void likely_release_env(likely_const_env env)
     free(const_cast<likely_env>(env));
 }
 
-likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats)
+likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats, const void *data)
 {
+    (void) data;
+
     void *function = NULL;
     for (size_t i=0; i<vtable->functions.size(); i++) {
         const unique_ptr<JITFunction> &jitFunction = vtable->functions[i];

@@ -182,19 +182,20 @@ LIKELY_EXPORT extern const char likely_standard_library[];
 typedef struct likely_virtual_table *likely_vtable;
 
 /*!
- * \brief Used internally for dynamic dispatch.
+ * \brief Used internally for dynamic dispatching.
  *
- * Since dynamic dispatch does code generation based on runtime argument types,
- * it follows that dynamic dispatch can only work on functions where all parameter types can be inspected at runtime.
- * In other words, functions that have only likely_mat parameters.
- * This is in contrast to \ref likely_fork where parameters are known at compile time and may therefore take an arbitrary internally-defined structure.
+ * Since dynamic dispatching does code generation based on runtime argument types,
+ * it follows that parameter types must be inspectable at runtime.
+ * In other words, dynamic parameters should be specified using \ref likely_mat.
+ *
  * \note This function is used internally and should not be called directly.
- * \param[in] vtable Virtual function table for retrieving or compiling the appropriate function based on the types of \p m.
- * \param[in] mats Array of arguments to pass to the function. The length of \p mats is known by \p vtable.
- * \return The result from calling the dynamically dispatch function.
- * \remark This function is \ref thread-safe.
+ * \param[in] vtable Virtual function table for retrieving or compiling the appropriate function based on the types of \p mats.
+ * \param[in] mats Array of arguments to pass to the function with dynamic types. The length of \p mats is known by \p vtable.
+ * \param[in] data Array of arguments to pass to the function with static types. The layout of \p data is known by \p vtable.
+ * \return The result of calling the dynamically-dispatched function.
+ * \remark This function is \ref reentrant.
  */
-LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats);
+LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats, const void *data);
 
 /*!
  * \brief Deallocate objects created to perform compilation.
