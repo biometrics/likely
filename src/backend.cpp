@@ -1773,6 +1773,17 @@ struct Lambda : public LikelyOperator
         return !strcmp(symbol, "->") || !strcmp(symbol, "extern");
     }
 
+    static Value *castOrPromote(Builder &builder, Value *load, likely_type type)
+    {
+        if (type & likely_multi_dimension) {
+            return builder.CreatePointerCast(load, builder.module->context->toLLVM(type));
+        } else {
+            const likely_type tmpType = type | likely_multi_dimension;
+            const LikelyValue tmpValue(builder.CreatePointerCast(load, builder.module->context->toLLVM(tmpType)), tmpType);
+            return builder.CreateLoad(builder.CreateGEP(builder.data(tmpValue), builder.zero()));
+        }
+    }
+
     likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, Symbol::CallingConvention cc, bool promoteScalarToMatrix) const
     {
         assert(cc == Symbol::VirtualCC ? !virtualTypes.empty() : virtualTypes.empty());
@@ -1801,24 +1812,34 @@ struct Lambda : public LikelyOperator
         builder.SetInsertPoint(entry);
 
         vector<likely_const_expr> arguments;
-        if (cc != Symbol::RegularCC) {
-            Value *argumentArray = tmpFunction->arg_begin();
-            for (size_t i=0; i<parameters.size(); i++) {
-                Value *load = builder.CreateLoad(builder.CreateGEP(argumentArray, builder.constant(i)));
-                if (parameters[i] & likely_multi_dimension) {
-                    load = builder.CreatePointerCast(load, builder.module->context->toLLVM(parameters[i]));
-                } else {
-                    const likely_type tmpType = parameters[i] | likely_multi_dimension;
-                    const LikelyValue tmpValue(builder.CreatePointerCast(load, builder.module->context->toLLVM(tmpType)), tmpType);
-                    load = builder.CreateLoad(builder.CreateGEP(builder.data(tmpValue), builder.zero()));
-                }
-                arguments.push_back(new likely_expression(LikelyValue(load, parameters[i])));
-            }
-        } else {
+        if (cc == Symbol::RegularCC) {
             Function::arg_iterator it = tmpFunction->arg_begin();
             size_t i = 0;
             while (it != tmpFunction->arg_end())
                 arguments.push_back(new likely_expression(LikelyValue(it++, parameters[i++])));
+        } else if (cc == Symbol::ArrayCC) {
+            Value *const argumentArray = tmpFunction->arg_begin();
+            for (size_t i=0; i<parameters.size(); i++) {
+                Value *load = builder.CreateLoad(builder.CreateGEP(argumentArray, builder.constant(i)));
+                load = castOrPromote(builder, load, parameters[i]);
+                arguments.push_back(new likely_expression(LikelyValue(load, parameters[i])));
+            }
+        } else if (cc == Symbol::VirtualCC) {
+            Function::arg_iterator it = tmpFunction->arg_begin();
+            Value *const dynamicArguments = it++;
+            Value *const staticArguments = it++;
+            int dynamicIndex = 0, staticIndex = 0;
+            for (size_t i=0; i<parameters.size(); i++) {
+                if (virtualTypes[i] == likely_multi_dimension) {
+                    Value *load = builder.CreateLoad(builder.CreateGEP(dynamicArguments, builder.constant(dynamicIndex++)));
+                    load = castOrPromote(builder, load, parameters[i]);
+                    arguments.push_back(new likely_expression(LikelyValue(load, parameters[i])));
+                } else {
+                    arguments.push_back(new likely_expression(LikelyValue(builder.CreateStructGEP(staticArguments, staticIndex++), parameters[i])));
+                }
+            }
+        } else {
+            assert(!"Invalid calling convention!");
         }
 
         for (size_t i=0; i<arguments.size(); i++) {
