@@ -1100,6 +1100,15 @@ struct Symbol : public likely_expression
         VirtualCC
     };
 
+    static PointerType *getStaticDataType(LikelyContext *context, const vector<likely_type> &types)
+    {
+        vector<Type*> elements;
+        for (const likely_type type : types)
+            if (type != likely_multi_dimension)
+                elements.push_back(context->toLLVM(type));
+        return PointerType::getUnqual(StructType::get(context->context, elements));
+    }
+
 private:
     size_t maxParameters() const { return parameters.size(); }
 
@@ -1781,7 +1790,7 @@ struct Lambda : public LikelyOperator
             // Virtual calling convention - Dynamically typed arguments come stored in an array of matricies.
             //                              Statically typed arguments come stored in a struct pointer.
             llvmTypes.push_back(PointerType::getUnqual(builder.module->context->toLLVM(likely_multi_dimension)));
-            llvmTypes.push_back(PointerType::getUnqual(Type::getInt8Ty(builder.getContext())));
+            llvmTypes.push_back(Symbol::getStaticDataType(builder.module->context.get(), virtualTypes));
         } else {
             assert(!"Invalid calling convention!");
         }
@@ -1923,7 +1932,7 @@ private:
             env->expr->vtables.push_back(vtable);
 
             PointerType *const vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
-            PointerType *const staticDataType = PointerType::getUnqual(Type::getInt8Ty(builder.getContext()));
+            PointerType *const staticDataType = Symbol::getStaticDataType(builder.module->context.get(), types);
             Function *likelyDynamic = builder.module->module->getFunction("likely_dynamic");
             if (!likelyDynamic) {
                 Type *const params[] = { vTableType,
