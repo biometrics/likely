@@ -1100,13 +1100,13 @@ struct Symbol : public likely_expression
         VirtualCC
     };
 
-    static PointerType *getStaticDataType(LikelyContext *context, const vector<likely_type> &types)
+    static StructType *getStaticDataType(LikelyContext *context, const vector<likely_type> &types)
     {
         vector<Type*> elements;
         for (const likely_type type : types)
             if (type != likely_multi_dimension)
                 elements.push_back(context->toLLVM(type));
-        return PointerType::getUnqual(StructType::get(context->context, elements));
+        return StructType::get(context->context, elements);
     }
 
 private:
@@ -1790,7 +1790,7 @@ struct Lambda : public LikelyOperator
             // Virtual calling convention - Dynamically typed arguments come stored in an array of matricies.
             //                              Statically typed arguments come stored in a struct pointer.
             llvmTypes.push_back(PointerType::getUnqual(builder.module->context->toLLVM(likely_multi_dimension)));
-            llvmTypes.push_back(Symbol::getStaticDataType(builder.module->context.get(), virtualTypes));
+            llvmTypes.push_back(PointerType::getUnqual(Symbol::getStaticDataType(builder.module->context.get(), virtualTypes)));
         } else {
             assert(!"Invalid calling convention!");
         }
@@ -1932,7 +1932,8 @@ private:
             env->expr->vtables.push_back(vtable);
 
             PointerType *const vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
-            PointerType *const staticDataType = Symbol::getStaticDataType(builder.module->context.get(), types);
+            StructType *const staticDataStructType = Symbol::getStaticDataType(builder.module->context.get(), types);
+            PointerType *const staticDataType = PointerType::getUnqual(Type::getInt8Ty(builder.getContext()));
             Function *likelyDynamic = builder.module->module->getFunction("likely_dynamic");
             if (!likelyDynamic) {
                 Type *const params[] = { vTableType,
@@ -1949,12 +1950,32 @@ private:
                 sys::DynamicLibrary::AddSymbol("likely_dynamic", (void*) likely_dynamic);
             }
 
-            Value *const matricies = builder.CreateAlloca(builder.module->context->toLLVM(likely_multi_dimension), builder.constant(args.size()));
-            for (size_t i=0; i<args.size(); i++)
-                builder.CreateStore(*args[i], builder.CreateGEP(matricies, builder.constant(i)));
+            const size_t dynamicArguments = args.size() - staticDataStructType->getNumElements();
+            Value *const matricies = builder.CreateAlloca(builder.module->context->toLLVM(likely_multi_dimension), builder.constant(dynamicArguments));
+            {
+                size_t index = 0;
+                for (size_t i=0; i<args.size(); i++)
+                    if (types[i] == likely_multi_dimension)
+                        builder.CreateStore(*args[i], builder.CreateGEP(matricies, builder.constant(index++)));
+                assert(index == dynamicArguments);
+            }
+
+            Value *staticData;
+            if (staticDataStructType->getNumElements() > 0) {
+                staticData = builder.CreateAlloca(staticDataStructType, builder.one());
+                size_t index = 0;
+                for (size_t i=0; i<args.size(); i++)
+                    if (types[i] != likely_multi_dimension)
+                        builder.CreateStore(*args[i], builder.CreateStructGEP(staticData, index++));
+                assert(index == staticDataStructType->getNumElements());
+                staticData = builder.CreatePointerCast(staticData, staticDataType);
+            } else {
+                staticData = ConstantPointerNull::get(staticDataType);
+            }
+
             Value *const args[] = { ConstantExpr::getIntToPtr(ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(vtable)), uintptr_t(vtable)), vTableType),
                                     matricies,
-                                    ConstantPointerNull::get(staticDataType) };
+                                    staticData };
             return new likely_expression(LikelyValue(builder.CreateCall(likelyDynamic, args), likely_multi_dimension));
         }
 
