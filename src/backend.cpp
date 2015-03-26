@@ -1987,7 +1987,7 @@ private:
                 size_t index = 0;
                 for (size_t i=0; i<args.size(); i++)
                     if (types[i] != likely_multi_dimension)
-                        builder.CreateStore(*args[i], builder.CreateStructGEP(staticData, index++));
+                        builder.CreateStore(*args[i], builder.CreateStructGEP(staticData, static_cast<unsigned int>(index++)));
                 assert(index == staticDataStructType->getNumElements());
                 staticData = builder.CreatePointerCast(staticData, staticDataType);
             } else {
