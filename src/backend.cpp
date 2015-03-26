@@ -1093,6 +1093,13 @@ struct Symbol : public likely_expression
     Symbol(const string &name, likely_type returnType, vector<likely_type> parameters = vector<likely_type>())
         : likely_expression(LikelyValue(NULL, returnType)), name(name), parameters(parameters) {}
 
+    enum CallingConvention
+    {
+        RegularCC,
+        ArrayCC,
+        VirtualCC
+    };
+
 private:
     size_t maxParameters() const { return parameters.size(); }
 
@@ -1159,7 +1166,7 @@ struct JITFunction : public Symbol
     ExecutionEngine *EE = NULL;
     likely_module *module;
 
-    JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC);
+    JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, Symbol::CallingConvention cc);
 
     ~JITFunction()
     {
@@ -1755,13 +1762,13 @@ struct Lambda : public LikelyOperator
         return !strcmp(symbol, "->") || !strcmp(symbol, "extern");
     }
 
-    likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, bool arrayCC, bool promoteScalarToMatrix) const
+    likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, Symbol::CallingConvention cc, bool promoteScalarToMatrix) const
     {
         while (parameters.size() < maxParameters())
             parameters.push_back(likely_multi_dimension);
 
         vector<Type*> llvmTypes;
-        if (arrayCC) {
+        if (cc != Symbol::RegularCC) {
             // Array calling convention - All arguments (which must be matrix pointers) come stored in an array.
             llvmTypes.push_back(PointerType::get(builder.module->context->toLLVM(likely_multi_dimension), 0));
         } else {
@@ -1775,7 +1782,7 @@ struct Lambda : public LikelyOperator
         builder.SetInsertPoint(entry);
 
         vector<likely_const_expr> arguments;
-        if (arrayCC) {
+        if (cc != Symbol::RegularCC) {
             Value *argumentArray = tmpFunction->arg_begin();
             for (size_t i=0; i<parameters.size(); i++) {
                 Value *load = builder.CreateLoad(builder.CreateGEP(argumentArray, builder.constant(i)));
@@ -1838,7 +1845,7 @@ struct Lambda : public LikelyOperator
         for (likely_const_mat arg : args)
             params.push_back(arg->type);
 
-        JITFunction jit("likely_ctfe", this, params, true, !args.empty());
+        JITFunction jit("likely_ctfe", this, params, true, args.empty() ? Symbol::RegularCC : Symbol::ArrayCC);
         void *value;
         if (jit.function) { // compiler
             value = args.empty() ? reinterpret_cast<void *(*)()>(jit.function)()
@@ -1999,7 +2006,7 @@ class externExpression : public LikelyOperator
         if (ast->num_atoms < 5)
             return new Symbol(name, returnType, parameters);
 
-        const bool arrayCC = (ast->num_atoms >= 6) && (evalInt(ast->atoms[5], builder.env, &ok) != 0);
+        const Symbol::CallingConvention cc = (ast->num_atoms >= 6) && (evalInt(ast->atoms[5], builder.env, &ok) != 0) ? Symbol::ArrayCC : Symbol::RegularCC;
         if (!ok)
             return NULL;
 
@@ -2007,13 +2014,13 @@ class externExpression : public LikelyOperator
                                                                                                    : lookup(builder.env, ast->atoms[4]->atom)->expr);
         const unique_ptr<const Lambda> lambdaOwner((ast->atoms[4]->type == likely_ast_list) ? lambda : NULL);
         if (builder.module /* static compilation */) {
-            if (const likely_const_expr function = lambda->generate(builder, parameters, name, arrayCC, false)) {
+            if (const likely_const_expr function = lambda->generate(builder, parameters, name, cc, false)) {
                 const likely_const_expr symbol = new Symbol(name, function->type, parameters);
                 delete function;
                 return symbol;
             }
         } else /* JIT compilation */ {
-            JITFunction *jitFunction = new JITFunction(name, lambda, parameters, false, arrayCC);
+            JITFunction *jitFunction = new JITFunction(name, lambda, parameters, false, cc);
             if (jitFunction->function) {
                 sys::DynamicLibrary::AddSymbol(name, jitFunction->function);
                 return jitFunction;
@@ -2773,12 +2780,12 @@ class kernelExpression : public LikelyOperator
 };
 LIKELY_REGISTER(kernel)
 
-JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, bool arrayCC)
+JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, Symbol::CallingConvention cc)
     : Symbol(name, likely_void, parameters)
     , module(new likely_module(evaluate ? likely_jit(lambda->env->settings->verbose) : *lambda->env->settings))
 {
     Builder builder(lambda->env, module, !evaluate);
-    unique_ptr<const likely_expression> expr(lambda->generate(builder, parameters, name, arrayCC, evaluate));
+    unique_ptr<const likely_expression> expr(lambda->generate(builder, parameters, name, cc, evaluate));
     if (!expr) // error
         return;
 
@@ -3015,7 +3022,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats, const vo
         vector<likely_type> types;
         for (size_t i=0; i<vtable->n; i++)
             types.push_back(mats[i]->type);
-        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->env, vtable->body, vtable->parameters)).get(), types, false, true)));
+        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->env, vtable->body, vtable->parameters)).get(), types, false, Symbol::VirtualCC)));
         function = vtable->functions.back()->function;
         if (function == NULL)
             return NULL;
