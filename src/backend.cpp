@@ -1349,7 +1349,7 @@ private:
 class pointerExpression : public UnaryOperator
 {
     const char *symbol() const { return "pointer"; }
-    likely_const_expr evaluateUnary(Builder &builder, const likely_const_ast arg) const
+    likely_const_expr evaluateUnary(Builder &builder, likely_const_ast arg) const
     {
         bool ok;
         const likely_type elementType = evalType(arg, builder.env, &ok);
