@@ -2246,6 +2246,7 @@ class kernelExpression : public LikelyOperator
         likely_type type;
         MDNode *node = NULL;
         Value *c = NULL, *x = NULL, *y = NULL, *t = NULL;
+        Value *channels = NULL, *columns = NULL, *rows = NULL, *frames = NULL;
         Value *columnStep = NULL, *rowStep = NULL, *frameStep = NULL;
         Value *cOffset = NULL, *xOffset = NULL, *yOffset = NULL, *tOffset = NULL;
     };
@@ -2670,6 +2671,7 @@ class kernelExpression : public LikelyOperator
 
         KernelAxis *axis = NULL;
         if (kernelType & likely_multi_frame) {
+            info.frames = stop;
             axis = new KernelAxis(builder, "t", start
                                               , stop
                                               , argsStart ? manualFrameStep : kernelArguments[0]->frameStep
@@ -2677,45 +2679,52 @@ class kernelExpression : public LikelyOperator
             info.t = axis->value;
             define(builder.env, "t", axis);
         } else {
+            info.frames = builder.one();
             info.t = builder.zero();
             define(builder.env, "t", new likely_expression(builder.zero()));
         }
         info.tOffset = axis ? axis->offset : builder.one().value;
 
         if (kernelType & likely_multi_row) {
+            info.rows = axis ? (argsStart ? manualRows : kernelArguments[0]->rows) : stop;
             axis = new KernelAxis(builder, "y", axis ? builder.zero().value : start
-                                              , axis ? (argsStart ? manualRows : kernelArguments[0]->rows) : stop
+                                              , info.rows
                                               , argsStart ? manualRowStep : kernelArguments[0]->rowStep
                                               , axis);
             info.y = axis->value;
             define(builder.env, "y", axis);
         } else {
+            info.rows = builder.one();
             info.y = builder.zero();
             define(builder.env, "y", new likely_expression(builder.zero()));
         }
         info.yOffset = axis ? axis->offset : builder.one().value;
 
         if (kernelType & likely_multi_column) {
+            info.columns = axis ? (argsStart ? manualColumns : kernelArguments[0]->columns) : stop;
             axis = new KernelAxis(builder, "x", axis ? builder.zero().value : start
-                                              , axis ? (argsStart ? manualColumns : kernelArguments[0]->columns) : stop
+                                              , info.columns
                                               , argsStart ? manualChannels : kernelArguments[0]->channels
                                               , axis);
             info.x = axis->value;
             define(builder.env, "x", axis);
         } else {
+            info.columns = builder.one();
             info.x = builder.zero();
             define(builder.env, "x", new likely_expression(builder.zero()));
         }
         info.xOffset = axis ? axis->offset : builder.one().value;
 
         if (kernelType & likely_multi_channel) {
+            info.channels = axis ? (argsStart ? manualChannels : kernelArguments[0]->channels) : stop;
             axis = new KernelAxis(builder, "c", axis ? builder.zero().value : start
-                                              , axis ? (argsStart ? manualChannels : kernelArguments[0]->channels) : stop
+                                              , info.channels
                                               , builder.one()
                                               , axis);
             info.c = axis->value;
             define(builder.env, "c", axis);
         } else {
+            info.channels = builder.one();
             info.c = builder.zero();
             define(builder.env, "c", new likely_expression(builder.zero()));
         }
