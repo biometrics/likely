@@ -1235,11 +1235,12 @@ struct likely_virtual_table
 {
     const likely_const_env env;
     const likely_const_ast body, parameters;
+    const vector<likely_type> types;
     const size_t n;
     vector<unique_ptr<JITFunction>> functions;
 
-    likely_virtual_table(likely_const_env env, likely_const_ast body, likely_const_ast parameters)
-        : env(env) /* don't retain a copy because `env` owns us` */, body(likely_retain_ast(body)), parameters(likely_retain_ast(parameters)), n(likely_expression::length(parameters)) {}
+    likely_virtual_table(likely_const_env env, likely_const_ast body, likely_const_ast parameters, const vector<likely_type> &types)
+        : env(env) /* don't retain a copy because `env` owns us` */, body(likely_retain_ast(body)), parameters(likely_retain_ast(parameters)), types(types), n(likely_expression::length(parameters)) {}
 
     ~likely_virtual_table()
     {
@@ -1746,9 +1747,10 @@ struct Lambda : public LikelyOperator
 {
     const likely_const_env env;
     const likely_const_ast body, parameters;
+    const vector<likely_type> virtualTypes;
 
-    Lambda(likely_const_env env, likely_const_ast body, likely_const_ast parameters = NULL)
-        : env(likely_retain_env(env)), body(likely_retain_ast(body)), parameters(likely_retain_ast(parameters)) {}
+    Lambda(likely_const_env env, likely_const_ast body, likely_const_ast parameters = NULL, const vector<likely_type> &virtualTypes = vector<likely_type>())
+        : env(likely_retain_env(env)), body(likely_retain_ast(body)), parameters(likely_retain_ast(parameters)), virtualTypes(virtualTypes) {}
 
     ~Lambda()
     {
@@ -1764,6 +1766,7 @@ struct Lambda : public LikelyOperator
 
     likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, Symbol::CallingConvention cc, bool promoteScalarToMatrix) const
     {
+        assert(cc == Symbol::VirtualCC ? !virtualTypes.empty() : virtualTypes.empty());
         while (parameters.size() < maxParameters())
             parameters.push_back(likely_multi_dimension);
 
@@ -1910,7 +1913,11 @@ private:
             dynamic |= (arg->type == likely_multi_dimension);
 
         if (dynamic) {
-            const likely_vtable vtable = new likely_virtual_table(env, body, parameters);
+            vector<likely_type> types;
+            for (likely_const_expr arg : args)
+                types.push_back(arg->type);
+
+            const likely_vtable vtable = new likely_virtual_table(env, body, parameters, types);
             if (!env->expr)
                 const_cast<likely_expr&>(env->expr) = new likely_expression();
             env->expr->vtables.push_back(vtable);
@@ -3027,7 +3034,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats, const vo
         vector<likely_type> types;
         for (size_t i=0; i<vtable->n; i++)
             types.push_back(mats[i]->type);
-        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->env, vtable->body, vtable->parameters)).get(), types, false, Symbol::VirtualCC)));
+        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->env, vtable->body, vtable->parameters, vtable->types)).get(), types, false, Symbol::VirtualCC)));
         function = vtable->functions.back()->function;
         if (function == NULL)
             return NULL;
