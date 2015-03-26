@@ -1768,12 +1768,19 @@ struct Lambda : public LikelyOperator
             parameters.push_back(likely_multi_dimension);
 
         vector<Type*> llvmTypes;
-        if (cc != Symbol::RegularCC) {
-            // Array calling convention - All arguments (which must be matrix pointers) come stored in an array.
-            llvmTypes.push_back(PointerType::get(builder.module->context->toLLVM(likely_multi_dimension), 0));
-        } else {
+        if (cc == Symbol::RegularCC) {
             for (const likely_type &parameter : parameters)
                 llvmTypes.push_back(builder.module->context->toLLVM(parameter));
+        } else if (cc == Symbol::ArrayCC) {
+            // Array calling convention - All arguments come stored in an array of matricies.
+            llvmTypes.push_back(PointerType::getUnqual(builder.module->context->toLLVM(likely_multi_dimension)));
+        } else if (cc == Symbol::VirtualCC) {
+            // Virtual calling convention - Dynamically typed arguments come stored in an array of matricies.
+            //                              Statically typed arguments come stored in a struct pointer.
+            llvmTypes.push_back(PointerType::getUnqual(builder.module->context->toLLVM(likely_multi_dimension)));
+            llvmTypes.push_back(PointerType::getUnqual(Type::getInt8Ty(builder.getContext())));
+        } else {
+            assert(!"Invalid calling convention!");
         }
 
         BasicBlock *originalInsertBlock = builder.GetInsertBlock();
@@ -3002,8 +3009,6 @@ void likely_release_env(likely_const_env env)
 
 likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats, const void *data)
 {
-    (void) data;
-
     void *function = NULL;
     for (size_t i=0; i<vtable->functions.size(); i++) {
         const unique_ptr<JITFunction> &jitFunction = vtable->functions[i];
@@ -3028,7 +3033,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats, const vo
             return NULL;
     }
 
-    return reinterpret_cast<likely_mat (*)(likely_const_mat const*)>(function)(mats);
+    return reinterpret_cast<likely_mat (*)(likely_const_mat const*, const void *)>(function)(mats, data);
 }
 
 likely_const_mat likely_result(const struct likely_expression *expr)
