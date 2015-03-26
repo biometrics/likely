@@ -1835,7 +1835,7 @@ struct Lambda : public LikelyOperator
                     load = castOrPromote(builder, load, parameters[i]);
                     arguments.push_back(new likely_expression(LikelyValue(load, parameters[i])));
                 } else {
-                    arguments.push_back(new likely_expression(LikelyValue(builder.CreateStructGEP(staticArguments, staticIndex++), parameters[i])));
+                    arguments.push_back(new likely_expression(LikelyValue(builder.CreateLoad(builder.CreateStructGEP(staticArguments, staticIndex++)), parameters[i])));
                 }
             }
         } else {
@@ -3082,9 +3082,11 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats, const vo
     }
 
     if (function == NULL) {
-        vector<likely_type> types;
+        vector<likely_type> types = vtable->types;
+        int dynamicIndex = 0;
         for (size_t i=0; i<vtable->n; i++)
-            types.push_back(mats[i]->type);
+            if (types[i] == likely_multi_dimension)
+                types[i] = mats[dynamicIndex++]->type;
         vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->env, vtable->body, vtable->parameters, vtable->types)).get(), types, false, Symbol::VirtualCC)));
         function = vtable->functions.back()->function;
         if (function == NULL)

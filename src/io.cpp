@@ -415,19 +415,14 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
                                 "    (dst src min range) :=>\n"
                                 "      dst :<- (- src min).(/ range)\n"
                                 "  }\n"
-                                "(extern multi-dimension \"_likely_normalize\" (multi-dimension multi-dimension multi-dimension) -likely-normalize)";
+                                "(extern multi-dimension \"_likely_normalize\" (multi-dimension double double) -likely-normalize)";
         env = likely_lex_parse_and_eval(src, likely_file_lisp, parent);
         normalize = likely_function(env->expr);
         assert(normalize);
         likely_release_env(parent);
     }
 
-    likely_const_mat min_val = likely_scalar(likely_f32, &min, 1);
-    likely_const_mat range_val = likely_scalar(likely_f32, &range, 1);
-    likely_mat n = reinterpret_cast<likely_mat (*)(likely_const_mat, likely_const_mat, likely_const_mat)>(normalize)(mat, min_val, range_val);
-    likely_release_mat(min_val);
-    likely_release_mat(range_val);
-
+    const likely_mat n = reinterpret_cast<likely_mat (*)(likely_const_mat, double, double)>(normalize)(mat, min, range);
     if (min_) *min_ = min;
     if (max_) *max_ = max;
     return n;
