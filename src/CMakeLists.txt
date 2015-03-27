@@ -458,11 +458,12 @@ test_file(literate_programming.tex 42)
 test_file(matrix_io.lisp "Compression Ratio: 7.31714")
 
 # Generate IR for bechmarks
+set(LIKELY_BENCHMARKS_DIR ${CMAKE_SOURCE_DIR}/ir/benchmarks)
 function(add_benchmark RETVAL FILE PARAMETERS)
   foreach(KERNEL_TYPE "" "-m")
     string(MAKE_C_IDENTIFIER ${FILE} SYMBOL_NAME)
     string(MAKE_C_IDENTIFIER "${FILE} ${RETVAL} ${PARAMETERS}${KERNEL_TYPE}" FILE_NAME)
-    set(IR_FILE ${CMAKE_BINARY_DIR}/benchmarks/${FILE_NAME}.ll)
+    set(IR_FILE ${LIKELY_BENCHMARKS_DIR}/${FILE_NAME}.ll)
     add_custom_command(OUTPUT ${IR_FILE}
                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
                        COMMAND likely -Oz -disable-loop-unrolling -disable-loop-vectorization ${KERNEL_TYPE} -c "(import \"library/${FILE}.md\" this) (extern ${RETVAL} \"${SYMBOL_NAME}\" ${PARAMETERS} ${FILE})" ${IR_FILE}
@@ -474,8 +475,8 @@ function(add_benchmark RETVAL FILE PARAMETERS)
 endfunction()
 
 if(NOT ${LIKELY_DEMOS} MATCHES "None")
-  file(REMOVE_RECURSE ${CMAKE_BINARY_DIR}/benchmarks)
-  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/benchmarks)
+  file(REMOVE_RECURSE ${LIKELY_BENCHMARKS_DIR})
+  file(MAKE_DIRECTORY ${LIKELY_BENCHMARKS_DIR})
   add_benchmark("u8SCXY"  "binary-threshold" "(u8SCXY u8S u8S)"   )
   add_benchmark("i16SCXY" "binary-threshold" "(i16SCXY i16S i16S)")
   add_benchmark("f32CXY"  "binary-threshold" "(f32CXY f32 f32)"   )
@@ -495,10 +496,11 @@ if(NOT ${LIKELY_DEMOS} MATCHES "None")
 endif()
 
 # Compile and test demos
+set(LIKELY_DEMOS_DIR ${CMAKE_SOURCE_DIR}/ir/demos)
 function(add_demo FILE ARGS)
   foreach(KERNEL_TYPE "" "-m")
     set(BITCODE_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}.bc)
-    set(IR_FILE ${CMAKE_BINARY_DIR}/demos/${FILE}${KERNEL_TYPE}.ll)
+    set(IR_FILE ${LIKELY_DEMOS_DIR}/${FILE}${KERNEL_TYPE}.ll)
     set(OBJECT_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}${CMAKE_C_OUTPUT_EXTENSION})
     add_custom_command(OUTPUT ${BITCODE_FILE}
                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -526,8 +528,8 @@ endfunction()
 set(LIKELY_DEMOS "Default" CACHE STRING "Compile and test demos.")
 set_property(CACHE LIKELY_DEMOS PROPERTY STRINGS "None" "Default" "All")
 if(NOT ${LIKELY_DEMOS} MATCHES "None")
-  file(REMOVE_RECURSE ${CMAKE_BINARY_DIR}/demos)
-  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/demos)
+  file(REMOVE_RECURSE ${LIKELY_DEMOS_DIR})
+  file(MAKE_DIRECTORY ${LIKELY_DEMOS_DIR})
   add_demo(mandelbrot_set "600 400 -2.f32 -1.f32 3.f32 2.f32 20")
   add_demo(gabor_wavelet "192 192 64.f32 64.f32 0.f32 128.f32 0.f32")
 endif()
