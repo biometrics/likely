@@ -3,8 +3,8 @@ Benchmarks
 Likely functions measured against their [OpenCV](http://www.opencv.org) equivalents.
 
 ### Results
-- [Single-core](https://s3.amazonaws.com/liblikely/benchmarks/single-core.txt)
-- [Multi-core](https://s3.amazonaws.com/liblikely/benchmarks/multi-core.txt)
+- [Single-core](https://s3.amazonaws.com/liblikely/single-core.txt)
+- [Multi-core](https://s3.amazonaws.com/liblikely/multi-core.txt)
 
 ### FAQ
 **Q:** Why are some of the multi-core benchmarks slower? <br>
