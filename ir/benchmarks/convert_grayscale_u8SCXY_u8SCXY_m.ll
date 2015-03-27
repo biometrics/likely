@@ -59,11 +59,9 @@ y_body:                                           ; preds = %y_body, %entry
   %35 = add nuw nsw i32 %34, %31
   %36 = add nuw nsw i32 %35, %33
   %37 = lshr i32 %36, 14
-  %38 = sitofp i32 %37 to float
-  %39 = fadd float %38, 5.000000e-01
-  %40 = fptoui float %39 to i8
-  %41 = getelementptr %u8SXY, %u8SXY* %4, i64 0, i32 6, i64 %y
-  store i8 %40, i8* %41, align 1, !llvm.mem.parallel_loop_access !1
+  %38 = trunc i32 %37 to i8
+  %39 = getelementptr %u8SXY, %u8SXY* %4, i64 0, i32 6, i64 %y
+  store i8 %38, i8* %39, align 1, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %18
   br i1 %y_postcondition, label %y_exit, label %y_body, !llvm.loop !1

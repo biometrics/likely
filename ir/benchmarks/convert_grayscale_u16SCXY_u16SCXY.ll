@@ -61,18 +61,16 @@ y_body:                                           ; preds = %y_body, %entry
   %34 = add nuw nsw i32 %33, %30
   %35 = add nuw i32 %34, %32
   %36 = lshr i32 %35, 14
-  %37 = sitofp i32 %36 to float
-  %38 = fadd float %37, 5.000000e-01
-  %39 = fptoui float %38 to i16
-  %40 = getelementptr i16, i16* %8, i64 %y
-  store i16 %39, i16* %40, align 2, !llvm.mem.parallel_loop_access !1
+  %37 = trunc i32 %36 to i16
+  %38 = getelementptr i16, i16* %8, i64 %y
+  store i16 %37, i16* %38, align 2, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %17
   br i1 %y_postcondition, label %y_exit, label %y_body, !llvm.loop !1
 
 y_exit:                                           ; preds = %y_body
-  %41 = bitcast %u0CXYT* %5 to %u16SXY*
-  ret %u16SXY* %41
+  %39 = bitcast %u0CXYT* %5 to %u16SXY*
+  ret %u16SXY* %39
 }
 
 attributes #0 = { nounwind }

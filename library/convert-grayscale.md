@@ -8,10 +8,7 @@ Compare to **[cv::cvtColor(CV_BGR2GRAY)](http://docs.opencv.org/modules/imgproc/
         dst := (new src.type.not-multi-channel 1 src.columns src.rows src.frames null)
         src := (src.type.not-saturated src)
         (dst src) :=>
-        {
-          val := (bgr-to-y src.type (src 0) (src 1) (src 2))
-          dst :<- (? dst.type.is-floating val (round-integer val dst.type))
-        }
+          dst :<- (bgr-to-y src.type (src 0) (src 1) (src 2))
       }
 
 #### Generated LLVM IR
