@@ -2369,7 +2369,7 @@ class kernelExpression : public LikelyOperator
         {
             const size_t len = length(ast);
             const likely_type sharedAxes = ~(type ^ info.type) & likely_multi_dimension;
-            const size_t sharedOffset = (sharedAxes == likely_multi_dimension) ? 5 - len : 0;
+            const size_t sharedOffset = 5 - len;
 
             // Use the kernel offset for axes that aren't specified
             Value *i;
@@ -2378,6 +2378,29 @@ class kernelExpression : public LikelyOperator
             else if (sharedOffset == 2) i = info.yOffset;
             else if (sharedOffset == 1) i = info.tOffset;
             else                        i = builder.zero();
+
+            // Scale the offset appropriately
+            if (sharedOffset != 0) {
+                if ((type & likely_multi_channel) && !(info.type & likely_multi_channel))
+                    i = builder.multiplyInts(i, channels);
+                else if (!(type & likely_multi_channel) && (info.type & likely_multi_channel))
+                    i = builder.CreateExactUDiv(i, info.channels);
+
+                if ((type & likely_multi_column) && !(info.type & likely_multi_column))
+                    i = builder.multiplyInts(i, columns);
+                else if (!(type & likely_multi_column) && (info.type & likely_multi_column))
+                    i = builder.CreateExactUDiv(i, info.columns);
+
+                if ((type & likely_multi_row) && !(info.type & likely_multi_row))
+                    i = builder.multiplyInts(i, rows);
+                else if (!(type & likely_multi_row) && (info.type & likely_multi_row))
+                    i = builder.CreateExactUDiv(i, info.rows);
+
+                if ((type & likely_multi_frame) && !(info.type & likely_multi_frame))
+                    i = builder.multiplyInts(i, frames);
+                else if (!(type & likely_multi_frame) && (info.type & likely_multi_frame))
+                    i = builder.CreateExactUDiv(i, info.frames);
+            }
 
             // Compute our own offset for axes that are specified
             if ((sharedOffset < 1) && (type & likely_multi_frame)) {
