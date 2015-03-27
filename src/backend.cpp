@@ -944,19 +944,31 @@ struct Builder : public IRBuilder<>
                 if (type & likely_floating)
                     lossless = (x.type & likely_depth) <= (type & likely_depth) / 2; // int -> float
                 else
-                    lossless = (x.type & likely_depth) <= (type & likely_depth);     // int -> int
+                    lossless = ((x.type & likely_depth) < (type & likely_depth))     // int -> int
+                            || (((x.type & likely_depth ) == (type & likely_depth))
+                             && ((x.type & likely_signed) == (type & likely_signed)));
             }
 
             if (lossless)
                 return casted;
 
-            const LikelyValue numericMinimum = numericLimit(type, true);
-            const LikelyValue numericMaximum = numericLimit(type, false);
-            const LikelyValue exceedsMinimum = compare(x, cast(numericMinimum, x.type), LT);
-            const LikelyValue exceedsMaximum = compare(x, cast(numericMaximum, x.type), GT);
-            Value *const selectMinOrValue      = CreateSelect(exceedsMinimum, numericMinimum, casted);
-            Value *const selectMaxOrMinOrValue = CreateSelect(exceedsMaximum, numericMaximum, selectMinOrValue);
-            return LikelyValue(selectMaxOrMinOrValue, type);
+            Value *result = casted;
+
+            // The only time we don't need to check for underflow is unsigned -> signed integers of the same depth
+            if (!((((x.type ^ type) & likely_c_type) == likely_signed) && (type & likely_signed))) {
+                const LikelyValue numericMinimum = numericLimit(type, true);
+                const LikelyValue exceedsMinimum = compare(x, cast(numericMinimum, x.type), LT);
+                result = CreateSelect(exceedsMinimum, numericMinimum, result);
+            }
+
+            // The only time we don't need to check for overflow is signed -> unsigned integers of the same depth
+            if (!((((x.type ^ type) & likely_c_type) == likely_signed) && !(type & likely_signed))) {
+                const LikelyValue numericMaximum = numericLimit(type, false);
+                const LikelyValue exceedsMaximum = compare(x, cast(numericMaximum, x.type), GT);
+                result = CreateSelect(exceedsMaximum, numericMaximum, result);
+            }
+
+            return LikelyValue(result, type);
         } else {
             return casted;
         }
