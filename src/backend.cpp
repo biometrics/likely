@@ -2435,7 +2435,7 @@ class kernelExpression : public LikelyOperator
     struct KernelAxis : public likely_expression
     {
         string name;
-        Value *start, *stop, *postcondition;
+        Value *start, *stop, *increment, *postcondition;
         BasicBlock *entry, *body, *exit;
         BranchInst *latch;
         KernelAxis *parent, *child;
@@ -2464,7 +2464,7 @@ class kernelExpression : public LikelyOperator
 
         void close(Builder &builder)
         {
-            Value *const increment = builder.addInts(value, builder.one(type), name + "_increment");
+            increment = builder.addInts(value, builder.one(type), name + "_increment");
             postcondition = builder.CreateICmpNE(increment, stop, name + "_postcondition");
             latch = builder.CreateCondBr(postcondition, body, exit);
             cast<PHINode>(value)->addIncoming(increment, builder.GetInsertBlock());
@@ -2476,7 +2476,15 @@ class kernelExpression : public LikelyOperator
 
         void tryCollapse(Builder &builder, MDNode *node)
         {
-            collapsible = (value->getNumUses() == 2); // Assume for now that one user is the offset and the other is the increment
+            collapsible = true;
+            for (User *const user : value->users()) {
+                if (user == increment)
+                    continue;
+                if (user == axisOffset)
+                    continue;
+                collapsible = false;
+                break;
+            }
 
             if (collapsible && child && child->collapsible) {
                 // Update our range
