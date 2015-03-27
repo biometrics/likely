@@ -8,8 +8,8 @@
 ; Function Attrs: nounwind
 declare void @llvm.assume(i1) #0
 
-; Function Attrs: nounwind
-declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
+; Function Attrs: nounwind readonly
+declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #1
 
 ; Function Attrs: nounwind
 define private void @convert_grayscale_tmp_thunk0({ %u16SXY*, %u16CXY* }* noalias nocapture readonly, i64, i64) #0 {
@@ -99,6 +99,7 @@ entry:
 }
 
 attributes #0 = { nounwind }
+attributes #1 = { nounwind readonly }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

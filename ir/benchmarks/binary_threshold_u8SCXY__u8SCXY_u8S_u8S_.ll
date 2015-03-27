@@ -3,14 +3,14 @@
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %u8SCXY = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 
-; Function Attrs: nounwind
+; Function Attrs: nounwind readonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind
-declare void @llvm.assume(i1) #0
+declare void @llvm.assume(i1) #1
 
 ; Function Attrs: nounwind
-define %u8SCXY* @binary_threshold(%u8SCXY*, i8, i8) #0 {
+define %u8SCXY* @binary_threshold(%u8SCXY*, i8, i8) #1 {
 entry:
   %3 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 0, i32 2
   %channels = load i32, i32* %3, align 4, !range !0
@@ -54,7 +54,8 @@ y_exit:                                           ; preds = %y_body
   ret %u8SCXY* %23
 }
 
-attributes #0 = { nounwind }
+attributes #0 = { nounwind readonly }
+attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

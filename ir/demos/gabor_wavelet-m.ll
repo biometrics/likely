@@ -5,11 +5,11 @@
 %i32CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i32] }
 %f32CXYT = type { i32, i32, i32, i32, i32, i32, [0 x float] }
 
-; Function Attrs: nounwind
+; Function Attrs: nounwind readonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind
-define private void @likely_test_function_tmp_thunk0({ %f32XY*, i32, i32, float, float, float, float, float }* noalias nocapture readonly, i64, i64) #0 {
+define private void @likely_test_function_tmp_thunk0({ %f32XY*, i32, i32, float, float, float, float, float }* noalias nocapture readonly, i64, i64) #1 {
 entry:
   %3 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %0, i64 0, i32 0
   %4 = load %f32XY*, %f32XY** %3, align 8
@@ -89,16 +89,16 @@ y_exit:                                           ; preds = %x_exit
 }
 
 ; Function Attrs: nounwind
-declare void @llvm.assume(i1) #0
+declare void @llvm.assume(i1) #1
 
 ; Function Attrs: nounwind readnone
-declare float @llvm.cos.f32(float) #1
+declare float @llvm.cos.f32(float) #2
 
 ; Function Attrs: nounwind readnone
-declare float @llvm.sin.f32(float) #1
+declare float @llvm.sin.f32(float) #2
 
 ; Function Attrs: nounwind readnone
-declare float @llvm.exp.f32(float) #1
+declare float @llvm.exp.f32(float) #2
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
@@ -167,8 +167,9 @@ entry:
   ret %f32XY* %33
 }
 
-attributes #0 = { nounwind }
-attributes #1 = { nounwind readnone }
+attributes #0 = { nounwind readonly }
+attributes #1 = { nounwind }
+attributes #2 = { nounwind readnone }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

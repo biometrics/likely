@@ -1135,6 +1135,9 @@ private:
             symbol = Function::Create(functionType, GlobalValue::ExternalLinkage, name, builder.module->module);
             symbol->setCallingConv(CallingConv::C);
             symbol->setDoesNotThrow();
+            const string likelyPrefix = "likely_";
+            if (!name.compare(0, likelyPrefix.size(), likelyPrefix))
+                symbol->setOnlyReadsMemory();
             if (isa<PointerType>(llvmReturn)) {
                 symbol->setDoesNotAlias(0);
             } else if (isa<IntegerType>(llvmReturn)) {

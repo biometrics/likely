@@ -4,14 +4,14 @@
 %f64CXY = type { i32, i32, i32, i32, i32, i32, [0 x double] }
 %f32CXY = type { i32, i32, i32, i32, i32, i32, [0 x float] }
 
-; Function Attrs: nounwind
+; Function Attrs: nounwind readonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind
-declare void @llvm.assume(i1) #0
+declare void @llvm.assume(i1) #1
 
 ; Function Attrs: nounwind
-define %f64CXY* @min_max_loc(%f32CXY*) #0 {
+define %f64CXY* @min_max_loc(%f32CXY*) #1 {
 entry:
   %1 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 2
   %channels = load i32, i32* %1, align 4, !range !0
@@ -28,8 +28,6 @@ entry:
   %9 = and i64 %8, 31
   %10 = icmp eq i64 %9, 0
   tail call void @llvm.assume(i1 %10)
-  %channels1 = load i32, i32* %1, align 4, !range !0
-  %src_c = zext i32 %channels1 to i64
   %src_x = zext i32 %columns to i64
   %11 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 0
   %12 = ptrtoint float* %11 to i64
@@ -97,7 +95,7 @@ then5:                                            ; preds = %then, %then5
   %47 = phi i32 [ %23, %then ], [ %58, %then5 ]
   %48 = sext i32 %storemerge125 to i64
   %tmp = add i64 %48, %25
-  %tmp2 = mul i64 %tmp, %src_c
+  %tmp2 = mul i64 %tmp, %5
   %49 = add i64 %tmp2, %c
   %50 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %49
   %51 = load float, float* %50, align 4, !llvm.mem.parallel_loop_access !1
@@ -120,7 +118,8 @@ end6:                                             ; preds = %then5
   br i1 %64, label %end, label %then
 }
 
-attributes #0 = { nounwind }
+attributes #0 = { nounwind readonly }
+attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

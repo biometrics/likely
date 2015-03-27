@@ -3,11 +3,11 @@
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %i32CXY = type { i32, i32, i32, i32, i32, i32, [0 x i32] }
 
-; Function Attrs: nounwind
+; Function Attrs: nounwind readonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind
-define private void @fused_multiply_add_tmp_thunk0({ %i32CXY*, %i32CXY*, float, float }* noalias nocapture readonly, i64, i64) #0 {
+define private void @fused_multiply_add_tmp_thunk0({ %i32CXY*, %i32CXY*, float, float }* noalias nocapture readonly, i64, i64) #1 {
 entry:
   %3 = getelementptr inbounds { %i32CXY*, %i32CXY*, float, float }, { %i32CXY*, %i32CXY*, float, float }* %0, i64 0, i32 0
   %4 = load %i32CXY*, %i32CXY** %3, align 8
@@ -60,7 +60,7 @@ y_exit:                                           ; preds = %y_body
 }
 
 ; Function Attrs: nounwind
-declare void @llvm.assume(i1) #0
+declare void @llvm.assume(i1) #1
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
@@ -89,7 +89,8 @@ entry:
   ret %i32CXY* %7
 }
 
-attributes #0 = { nounwind }
+attributes #0 = { nounwind readonly }
+attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

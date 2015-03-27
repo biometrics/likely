@@ -7,8 +7,8 @@
 ; Function Attrs: nounwind
 declare void @llvm.assume(i1) #0
 
-; Function Attrs: nounwind
-declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
+; Function Attrs: nounwind readonly
+declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #1
 
 ; Function Attrs: nounwind
 define %u8SXY* @convert_grayscale(%u8SCXY*) #0 {
@@ -30,8 +30,7 @@ entry:
   %10 = and i64 %9, 31
   %11 = icmp eq i64 %10, 0
   tail call void @llvm.assume(i1 %11)
-  %channels1 = load i32, i32* %1, align 4, !range !0
-  %src_c = zext i32 %channels1 to i64
+  %src_c = zext i32 %channels to i64
   %12 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 1
   %13 = bitcast %u8SCXY* %12 to i8*
   %14 = ptrtoint %u8SCXY* %12 to i64
@@ -77,6 +76,7 @@ y_exit:                                           ; preds = %y_body
 }
 
 attributes #0 = { nounwind }
+attributes #1 = { nounwind readonly }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

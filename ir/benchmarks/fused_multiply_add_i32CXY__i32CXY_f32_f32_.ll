@@ -3,14 +3,14 @@
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %i32CXY = type { i32, i32, i32, i32, i32, i32, [0 x i32] }
 
-; Function Attrs: nounwind
+; Function Attrs: nounwind readonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind
-declare void @llvm.assume(i1) #0
+declare void @llvm.assume(i1) #1
 
 ; Function Attrs: nounwind
-define %i32CXY* @fused_multiply_add(%i32CXY*, float, float) #0 {
+define %i32CXY* @fused_multiply_add(%i32CXY*, float, float) #1 {
 entry:
   %3 = getelementptr inbounds %i32CXY, %i32CXY* %0, i64 0, i32 2
   %channels = load i32, i32* %3, align 4, !range !0
@@ -58,7 +58,8 @@ y_exit:                                           ; preds = %y_body
   ret %i32CXY* %28
 }
 
-attributes #0 = { nounwind }
+attributes #0 = { nounwind readonly }
+attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

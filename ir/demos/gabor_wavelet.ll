@@ -5,23 +5,23 @@
 %i32CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i32] }
 %f32CXYT = type { i32, i32, i32, i32, i32, i32, [0 x float] }
 
-; Function Attrs: nounwind
+; Function Attrs: nounwind readonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind
-declare void @llvm.assume(i1) #0
+declare void @llvm.assume(i1) #1
 
 ; Function Attrs: nounwind readnone
-declare float @llvm.cos.f32(float) #1
+declare float @llvm.cos.f32(float) #2
 
 ; Function Attrs: nounwind readnone
-declare float @llvm.sin.f32(float) #1
+declare float @llvm.sin.f32(float) #2
 
 ; Function Attrs: nounwind readnone
-declare float @llvm.exp.f32(float) #1
+declare float @llvm.exp.f32(float) #2
 
 ; Function Attrs: nounwind
-define %f32XY* @likely_test_function(%u0CXYT** nocapture readonly) #0 {
+define %f32XY* @likely_test_function(%u0CXYT** nocapture readonly) #1 {
 entry:
   %1 = bitcast %u0CXYT** %0 to %i32CXYT**
   %2 = load %i32CXYT*, %i32CXYT** %1, align 8
@@ -124,7 +124,8 @@ y_exit:                                           ; preds = %x_exit
   ret %f32XY* %68
 }
 
-attributes #0 = { nounwind }
-attributes #1 = { nounwind readnone }
+attributes #0 = { nounwind readonly }
+attributes #1 = { nounwind }
+attributes #2 = { nounwind readnone }
 
 !0 = distinct !{!0}
