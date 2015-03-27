@@ -4,6 +4,7 @@ Compare to **[cv::cvtColor(CV_BGR2GRAY)](http://docs.opencv.org/modules/imgproc/
     convert-grayscale :=
       src :->
       {
+        (assume src.channels.(== 3))
         dst := (new src.type.not-multi-channel 1 src.columns src.rows src.frames null)
         src := (src.type.not-saturated src)
         (dst src) :=>

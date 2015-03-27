@@ -6,6 +6,9 @@
 %u16SCXY = type { i32, i32, i32, i32, i32, i32, [0 x i16] }
 
 ; Function Attrs: nounwind
+declare void @llvm.assume(i1) #0
+
+; Function Attrs: nounwind
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind
@@ -69,29 +72,30 @@ y_exit:                                           ; preds = %y_body
   ret void
 }
 
-; Function Attrs: nounwind
-declare void @llvm.assume(i1) #0
-
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
 define %u16SXY* @convert_grayscale(%u16SCXY*) {
 entry:
-  %1 = getelementptr inbounds %u16SCXY, %u16SCXY* %0, i64 0, i32 3
-  %columns = load i32, i32* %1, align 4, !range !0
-  %2 = getelementptr inbounds %u16SCXY, %u16SCXY* %0, i64 0, i32 4
-  %rows = load i32, i32* %2, align 4, !range !0
-  %3 = tail call %u0CXYT* @likely_new(i32 25616, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
-  %4 = bitcast %u0CXYT* %3 to %u16SXY*
-  %5 = zext i32 %rows to i64
-  %6 = alloca { %u16SXY*, %u16CXY* }, align 8
-  %7 = bitcast { %u16SXY*, %u16CXY* }* %6 to %u0CXYT**
-  store %u0CXYT* %3, %u0CXYT** %7, align 8
-  %8 = getelementptr inbounds { %u16SXY*, %u16CXY* }, { %u16SXY*, %u16CXY* }* %6, i64 0, i32 1
-  %9 = bitcast %u16CXY** %8 to %u16SCXY**
-  store %u16SCXY* %0, %u16SCXY** %9, align 8
-  %10 = bitcast { %u16SXY*, %u16CXY* }* %6 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %u16SXY*, %u16CXY* }*, i64, i64)* @convert_grayscale_tmp_thunk0 to i8*), i8* %10, i64 %5)
-  ret %u16SXY* %4
+  %1 = getelementptr inbounds %u16SCXY, %u16SCXY* %0, i64 0, i32 2
+  %channels = load i32, i32* %1, align 4, !range !0
+  %2 = icmp eq i32 %channels, 3
+  tail call void @llvm.assume(i1 %2)
+  %3 = getelementptr inbounds %u16SCXY, %u16SCXY* %0, i64 0, i32 3
+  %columns = load i32, i32* %3, align 4, !range !0
+  %4 = getelementptr inbounds %u16SCXY, %u16SCXY* %0, i64 0, i32 4
+  %rows = load i32, i32* %4, align 4, !range !0
+  %5 = tail call %u0CXYT* @likely_new(i32 25616, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
+  %6 = bitcast %u0CXYT* %5 to %u16SXY*
+  %7 = zext i32 %rows to i64
+  %8 = alloca { %u16SXY*, %u16CXY* }, align 8
+  %9 = bitcast { %u16SXY*, %u16CXY* }* %8 to %u0CXYT**
+  store %u0CXYT* %5, %u0CXYT** %9, align 8
+  %10 = getelementptr inbounds { %u16SXY*, %u16CXY* }, { %u16SXY*, %u16CXY* }* %8, i64 0, i32 1
+  %11 = bitcast %u16CXY** %10 to %u16SCXY**
+  store %u16SCXY* %0, %u16SCXY** %11, align 8
+  %12 = bitcast { %u16SXY*, %u16CXY* }* %8 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %u16SXY*, %u16CXY* }*, i64, i64)* @convert_grayscale_tmp_thunk0 to i8*), i8* %12, i64 %7)
+  ret %u16SXY* %6
 }
 
 attributes #0 = { nounwind }

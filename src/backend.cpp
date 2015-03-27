@@ -1026,6 +1026,13 @@ struct Builder : public IRBuilder<>
         return LikelyValue(CreateCall(likelyRelease, CreatePointerCast(m, module->context->toLLVM(likely_multi_dimension))), likely_void);
     }
 
+    void assume(Value *const condition)
+    {
+        Function *const assume = Intrinsic::getDeclaration(module->module, Intrinsic::assume);
+        CallInst *const assumption = CreateCall(assume, condition);
+        module->context->ACT->getAssumptionCache(*GetInsertBlock()->getParent()).registerAssumption(assumption);
+    }
+
 private:
     static CallInst *traceback(Value *m)
     {
@@ -2189,6 +2196,17 @@ class assignExpression : public LikelyOperator
 };
 LIKELY_REGISTER(assign)
 
+class assumeExpression : public SimpleUnaryOperator
+{
+    const char *symbol() const { return "assume"; }
+    likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const
+    {
+        builder.assume(*arg);
+        return new likely_expression();
+    }
+};
+LIKELY_REGISTER(assume)
+
 class beginExpression : public LikelyOperator
 {
     const char *symbol() const { return "{"; }
@@ -2358,9 +2376,7 @@ class kernelExpression : public LikelyOperator
                 Value *const ptrint = builder.CreatePtrToInt(data, Type::getInt64Ty(builder.getContext()));
                 Value *const maskedptr = builder.CreateAnd(ptrint, 31);
                 Value *const maskcond = builder.CreateICmpEQ(maskedptr, builder.zero());
-                Function *const assume = Intrinsic::getDeclaration(builder.module->module, Intrinsic::assume);
-                CallInst *const assumption = builder.CreateCall(assume, maskcond);
-                builder.module->context->ACT->getAssumptionCache(*builder.GetInsertBlock()->getParent()).registerAssumption(assumption);
+                builder.assume(maskcond);
             }
         }
 
