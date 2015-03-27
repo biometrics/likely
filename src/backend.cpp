@@ -2441,6 +2441,7 @@ class kernelExpression : public LikelyOperator
         KernelAxis *parent, *child;
         Value *step, *offset;
         BinaryOperator *axisOffset;
+        bool collapsible = false;
 
         KernelAxis(Builder &builder, const string &name, Value *start, Value *stop, Value *step, KernelAxis *parent)
             : name(name), start(start), stop(stop), exit(NULL), latch(NULL), parent(parent), child(NULL), step(step)
@@ -2475,9 +2476,9 @@ class kernelExpression : public LikelyOperator
 
         void tryCollapse(Builder &builder, MDNode *node)
         {
-            if ((value->getNumUses() == 2) && child && (child->value->getNumUses() == 2)) {
-                // Assume for now that one user is the offset and the other is the increment
+            collapsible = (value->getNumUses() == 2); // Assume for now that one user is the offset and the other is the increment
 
+            if (collapsible && child && child->collapsible) {
                 // Update our range
                 BasicBlock *const restore = builder.GetInsertBlock();
                 const KernelAxis *ancestor = this;
