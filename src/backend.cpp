@@ -2769,7 +2769,7 @@ class kernelExpression : public LikelyOperator
             info.t = builder.zero();
             define(builder.env, "t", new likely_expression(builder.zero()));
         }
-        info.tOffset = axis ? axis->offset : builder.one().value;
+        info.tOffset = axis ? axis->offset : builder.zero().value;
 
         if (kernelType & likely_multi_row) {
             info.rows = axis ? (argsStart ? manualRows : kernelArguments[0]->rows) : stop;
@@ -2784,7 +2784,7 @@ class kernelExpression : public LikelyOperator
             info.y = builder.zero();
             define(builder.env, "y", new likely_expression(builder.zero()));
         }
-        info.yOffset = axis ? axis->offset : builder.one().value;
+        info.yOffset = axis ? axis->offset : builder.zero().value;
 
         if (kernelType & likely_multi_column) {
             info.columns = axis ? (argsStart ? manualColumns : kernelArguments[0]->columns) : stop;
@@ -2799,7 +2799,7 @@ class kernelExpression : public LikelyOperator
             info.x = builder.zero();
             define(builder.env, "x", new likely_expression(builder.zero()));
         }
-        info.xOffset = axis ? axis->offset : builder.one().value;
+        info.xOffset = axis ? axis->offset : builder.zero().value;
 
         if (kernelType & likely_multi_channel) {
             info.channels = axis ? (argsStart ? manualChannels : kernelArguments[0]->channels) : stop;
@@ -2814,7 +2814,7 @@ class kernelExpression : public LikelyOperator
             info.c = builder.zero();
             define(builder.env, "c", new likely_expression(builder.zero()));
         }
-        info.cOffset = axis ? axis->offset : builder.one().value;
+        info.cOffset = axis ? axis->offset : builder.zero().value;
 
         if (argsStart == 0) {
             info.columnStep = kernelArguments[0]->channels;
