@@ -1118,6 +1118,11 @@ struct Symbol : public likely_expression
         VirtualCC
     };
 
+    static bool is(const likely_const_expr expr)
+    {
+        return expr->uid() == UID();
+    }
+
     static StructType *getStaticDataType(LikelyContext *context, const vector<likely_type> &types)
     {
         vector<Type*> elements;
@@ -1129,6 +1134,8 @@ struct Symbol : public likely_expression
 
 private:
     size_t maxParameters() const { return parameters.size(); }
+    static int UID() { return __LINE__; }
+    int uid() const { return UID(); }
 
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
@@ -1789,6 +1796,11 @@ struct Lambda : public LikelyOperator
         likely_release_env(env);
     }
 
+    static bool is(const likely_const_expr expr)
+    {
+        return expr->uid() == UID();
+    }
+
     static bool isFunction(const char *symbol)
     {
         return !strcmp(symbol, "->") || !strcmp(symbol, "extern");
@@ -1924,6 +1936,8 @@ struct Lambda : public LikelyOperator
 
 private:
     size_t maxParameters() const { return length(parameters); }
+    static int UID() { return __LINE__; }
+    int uid() const { return UID(); }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
@@ -3094,7 +3108,7 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
     } else {
         if (const likely_const_env env = lookup(builder.env, ast->atom)) {
             const_cast<likely_ast>(ast)->type = likely_ast_operator;
-            if (Lambda::isFunction(env->expr->symbol())) {
+            if (Lambda::is(env->expr) || Symbol::is(env->expr)) {
                 return new ShadowExpression(env);
             } else if (LazyDefinition::is(env->expr)) {
                 return unique_ptr<const likely_expression>(LazyDefinition::eval(builder, env->expr))->evaluate(builder, ast);

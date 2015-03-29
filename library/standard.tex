@@ -910,7 +910,7 @@ increment := (-> x (+ x 1))
 max := (-> (x y) (? (> x y) x y))
 (max 2 1) ; Evaluates to 2
 two := (-> () 2)
-two ; Evaluates to 2
+(two) ; Evaluates to 2
 \end{verbatim}
 
 \subsection{(=> \emph{arguments body})}
@@ -1224,8 +1224,7 @@ bgr-to-y-int :=
 
 bgr-to-y :=
   (t b g r) :->
-    (? t.is-floating (bgr-to-y-float b g r)
-                     (bgr-to-y-int   b g r))
+    ((? t.is-floating bgr-to-y-float bgr-to-y-int) b g r)
 \end{likely}
 
 \chapter{Loops}

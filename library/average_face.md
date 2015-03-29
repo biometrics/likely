@@ -20,7 +20,7 @@ Compute the average face from a set of aligned faces [1].
 
 Dynamic Execution
 
-    average_face
+    (average_face)
 
 Static Compilation
 
