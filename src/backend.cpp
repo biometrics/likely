@@ -574,7 +574,6 @@ protected:
 
     void setData(const Variant &data) const
     {
-        assert(!getData());
         this->data = data;
     }
 
@@ -3045,6 +3044,35 @@ public:
     }
 };
 
+struct ShadowExpression : public likely_expression
+{
+    likely_const_env env;
+
+    ShadowExpression(const likely_const_env env)
+        : likely_expression(LikelyValue(*env->expr))
+        , env(likely_retain_env(env)) {}
+
+private:
+    ~ShadowExpression()
+    {
+        likely_release_env(env);
+    }
+
+    int uid() const { return env->expr->uid(); }
+    size_t maxParameters() const { return env->expr->maxParameters(); }
+    size_t minParameters() const { return env->expr->minParameters(); }
+    const char *symbol() const { return env->expr->symbol(); }
+    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const { return env->expr->evaluate(builder, ast); }
+
+    Variant getData() const
+    {
+        if (const Variant data = likely_expression::getData())
+            return data;
+        setData(env->expr->getData());
+        return likely_expression::getData();
+    }
+};
+
 // As a special exception, this function is allowed to set ast->type
 likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast)
 {
@@ -3066,8 +3094,13 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
     } else {
         if (const likely_const_env env = lookup(builder.env, ast->atom)) {
             const_cast<likely_ast>(ast)->type = likely_ast_operator;
-            return (LazyDefinition::is(env->expr) ? unique_ptr<const likely_expression>(LazyDefinition::eval(builder, env->expr)).get()
-                                                  : env->expr)->evaluate(builder, ast);
+            if (Lambda::isFunction(env->expr->symbol())) {
+                return new ShadowExpression(env);
+            } else if (LazyDefinition::is(env->expr)) {
+                return unique_ptr<const likely_expression>(LazyDefinition::eval(builder, env->expr))->evaluate(builder, ast);
+            } else {
+                return env->expr->evaluate(builder, ast);
+            }
         }
 
         { // Is it an integer?
