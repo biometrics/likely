@@ -546,17 +546,12 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
                 return cleanup(atoms);
         }
 
-        if (atoms.size() == 1) {
-            // Collapse single-element lists
-            output.push_back(atoms[0]);
-        } else {
-            likely_ast list = likely_list(atoms.data(), uint32_t(atoms.size()));
-            list->begin_line = token->begin_line;
-            list->begin_column = token->begin_column;
-            list->end_line = end->end_line;
-            list->end_column = end->end_column;
-            output.push_back(list);
-        }
+        likely_ast list = likely_list(atoms.data(), uint32_t(atoms.size()));
+        list->begin_line = token->begin_line;
+        list->begin_column = token->begin_column;
+        list->end_line = end->end_line;
+        list->end_column = end->end_column;
+        output.push_back(list);
         likely_release_ast(end);
     } else {
         output.push_back(likely_retain_ast(token));
