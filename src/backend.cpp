@@ -3058,35 +3058,6 @@ public:
     }
 };
 
-struct ShadowExpression : public likely_expression
-{
-    likely_const_env env;
-
-    ShadowExpression(const likely_const_env env)
-        : likely_expression(LikelyValue(*env->expr))
-        , env(likely_retain_env(env)) {}
-
-private:
-    ~ShadowExpression()
-    {
-        likely_release_env(env);
-    }
-
-    int uid() const { return env->expr->uid(); }
-    size_t maxParameters() const { return env->expr->maxParameters(); }
-    size_t minParameters() const { return env->expr->minParameters(); }
-    const char *symbol() const { return env->expr->symbol(); }
-    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const { return env->expr->evaluate(builder, ast); }
-
-    Variant getData() const
-    {
-        if (const Variant data = likely_expression::getData())
-            return data;
-        setData(env->expr->getData());
-        return likely_expression::getData();
-    }
-};
-
 // As a special exception, this function is allowed to set ast->type
 likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast)
 {
@@ -3108,8 +3079,12 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
     } else {
         if (const likely_const_env env = lookup(builder.env, ast->atom)) {
             const_cast<likely_ast>(ast)->type = likely_ast_operator;
-            if (Lambda::is(env->expr) || Symbol::is(env->expr)) {
-                return new ShadowExpression(env);
+            if (Lambda::is(env->expr)) {
+                const Lambda *const lambda = reinterpret_cast<const Lambda*>(env->expr);
+                return new Lambda(lambda->env, lambda->body, lambda->parameters, lambda->virtualTypes);
+            } else if (Symbol::is(env->expr)) {
+                const Symbol *const symbol = reinterpret_cast<const Symbol*>(env->expr);
+                return new Symbol(symbol->name, symbol->type, symbol->parameters);
             } else if (LazyDefinition::is(env->expr)) {
                 return unique_ptr<const likely_expression>(LazyDefinition::eval(builder, env->expr))->evaluate(builder, ast);
             } else {
