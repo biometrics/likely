@@ -3021,43 +3021,6 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
     return result;
 }
 
-class LazyDefinition : public LikelyOperator
-{
-    const likely_const_env env;
-    const likely_const_ast ast;
-
-    size_t minParameters() const { return 0; }
-    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
-    static int UID() { return __LINE__; }
-    int uid() const { return UID(); }
-
-    likely_const_expr evaluateOperator(Builder &, likely_const_ast) const
-    {
-        assert(!"LazyDefinition does not expect to be evaluated!");
-        return NULL;
-    }
-
-public:
-    LazyDefinition(likely_const_env env, likely_const_ast ast)
-        : env(env), ast(ast) {}
-
-    static bool is(const likely_const_expr expr)
-    {
-        return expr->uid() == UID();
-    }
-
-    static likely_const_expr eval(Builder &builder, const likely_const_expr expr)
-    {
-        assert(LazyDefinition::is(expr));
-        const LazyDefinition *const lazyDefinition = reinterpret_cast<const LazyDefinition*>(expr);
-        likely_const_env env = lazyDefinition->env;
-        swap(builder.env, env);
-        const likely_const_expr result = get(builder, lazyDefinition->ast);
-        swap(builder.env, env);
-        return result;
-    }
-};
-
 // As a special exception, this function is allowed to set ast->type
 likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast)
 {
@@ -3069,9 +3032,8 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
         // This is an important special case that allows us to have
         // environment variables that aren't wrapped in factory methods.
         if (op->type != likely_ast_list)
-            if (const likely_const_env env = lookup(builder.env, op->atom))
-                return (LazyDefinition::is(env->expr) ? unique_ptr<const likely_expression>(LazyDefinition::eval(builder, env->expr)).get()
-                                                      : env->expr)->evaluate(builder, ast);
+            if (const likely_const_env e = lookup(builder.env, op->atom))
+                return e->expr->evaluate(builder, ast);
 
         // Fallback general case
         TRY_EXPR(builder, op, e);
@@ -3085,8 +3047,6 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
             } else if (Symbol::is(env->expr)) {
                 const Symbol *const symbol = reinterpret_cast<const Symbol*>(env->expr);
                 return new Symbol(symbol->name, symbol->type, symbol->parameters);
-            } else if (LazyDefinition::is(env->expr)) {
-                return unique_ptr<const likely_expression>(LazyDefinition::eval(builder, env->expr))->evaluate(builder, ast);
             } else {
                 return env->expr->evaluate(builder, ast);
             }
@@ -3235,6 +3195,30 @@ void *likely_function(const struct likely_expression *expr)
 {
     return JITFunction::getFunction(expr);
 }
+
+class LazyDefinition : public LikelyOperator
+{
+    const likely_const_env env;
+    const likely_const_ast ast;
+
+    size_t minParameters() const { return 0; }
+    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
+
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        likely_const_env env = this->env;
+        swap(builder.env, env);
+        unique_ptr<const likely_expression> op(get(builder, this->ast));
+        swap(builder.env, env);
+        if ((ast->type != likely_ast_list) || !op)
+            return op.release();
+        return op->evaluate(builder, ast);
+    }
+
+public:
+    LazyDefinition(likely_const_env env, likely_const_ast ast)
+        : env(env), ast(ast) {}
+};
 
 likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_callback eval_callback, void *context)
 {
