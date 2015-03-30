@@ -705,7 +705,8 @@ public:
         stream.flush();
 
         if (data.empty()) *output = NULL;
-        else              *output = likely_new(likely_u8 | likely_multi_channel, uint32_t(data.size()), 1, 1, 1, data.data());
+        else              *output = (file_type == likely_file_ir) ? likely_string(data.data())
+                                                                  : likely_new(likely_u8 | likely_multi_channel, uint32_t(data.size()), 1, 1, 1, data.data());
     }
 };
 

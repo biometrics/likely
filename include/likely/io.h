@@ -112,14 +112,14 @@ LIKELY_EXPORT likely_mat likely_read(const char *file_name, likely_file_type fil
  * \brief Write a \ref likely_matrix to a file.
  *
  * The file extension in \p file_name is used to determine the desired file format.
- * The input to this function is usually the output from \ref likely_render.
- * \param[in] image The matrix to write.
+ * In the case of image data, the input to this function is usually the output from \ref likely_render.
+ * \param[in] data The matrix to write.
  * \param[in] file_name The file to write the matrix to.
- * \return \p image if successful, \c NULL otherwise.
+ * \return \c true if successful, \c false otherwise.
  * \remark This function is \ref thread-safe.
  * \see \ref likely_read
  */
-LIKELY_EXPORT likely_mat likely_write(likely_const_mat image, const char *file_name);
+LIKELY_EXPORT bool likely_write(likely_const_mat data, const char *file_name);
 
 /*!
  * \brief Decode a \ref likely_matrix from a buffer.

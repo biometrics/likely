@@ -1057,7 +1057,7 @@ decode :=
     (f mat return-type)
   }
 
-write  := (extern u8CXYT "likely_write"  (u8CXYT string))
+write  := (extern u8     "likely_write"  (u8CXYT string))
 encode := (extern u8CXYT "likely_encode" (u8CXYT string))
 show   := (extern u8CXYT "likely_show"   (u8CXYT string))
 render := (extern u8CXYT "likely_render" (u8CXYT f64.pointer f64.pointer))

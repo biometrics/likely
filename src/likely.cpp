@@ -116,7 +116,7 @@ static void renderCallback(likely_const_env env, void *)
     char fileName[bufferSize];
     snprintf(fileName, bufferSize, LikelyRender.getValue().c_str(), index++);
     const likely_mat rendered = likely_render(likely_result(env->expr), NULL, NULL);
-    likely_release_mat(likely_write(rendered, fileName));
+    likely_write(rendered, fileName);
     likely_release_mat(rendered);
 }
 

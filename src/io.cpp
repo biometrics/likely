@@ -200,34 +200,32 @@ likely_mat likely_read(const char *file_name, likely_file_type file_type, likely
     return result;
 }
 
-likely_mat likely_write(likely_const_mat image, const char *file_name)
+bool likely_write(likely_const_mat image, const char *file_name)
 {
     const likely_file_type fileType = likely_guess_file_type(file_name);
     if (fileType == likely_file_media) {
         try {
             cv::imwrite(file_name, likelyToOpenCVMat(image));
         } catch (...) {
-            return NULL;
-        }
-    } else if (fileType == likely_file_matrix) {
-        if (FILE *const fp = fopen(file_name, "wb")) {
-            const uint32_t ref_count = 1;
-            fwrite(&ref_count, sizeof(uint32_t), 1, fp);
-            fwrite(reinterpret_cast<uint32_t const*>(image)+1, likely_bytes(image)-sizeof(uint32_t), 1, fp);
-            fclose(fp);
-        } else {
-            return NULL;
+            return false;
         }
     } else {
         if (FILE *const fp = fopen(file_name, "wb")) {
-            const size_t size = (fileType & likely_file_text) ? strlen(image->data) : likely_bytes(image);
-            fwrite(image->data, size, 1, fp);
+            if (fileType == likely_file_matrix) {
+                const uint32_t ref_count = 1;
+                fwrite(&ref_count, sizeof(uint32_t), 1, fp);
+                fwrite(reinterpret_cast<uint32_t const*>(image)+1, likely_bytes(image)-sizeof(uint32_t), 1, fp);
+            } else {
+                const size_t size = (fileType & likely_file_text) ? strlen(image->data)
+                                                                  : likely_bytes(image);
+                fwrite(image->data, size, 1, fp);
+            }
             fclose(fp);
         } else {
-            return NULL;
+            return false;
         }
     }
-    return likely_retain_mat(image);
+    return true;
 }
 
 likely_mat likely_decode(likely_const_mat buffer, likely_type type)

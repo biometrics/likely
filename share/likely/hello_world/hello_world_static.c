@@ -27,9 +27,8 @@ int main(int argc, char *argv[])
     const likely_const_mat output = hello_world(input);
 
     puts("Writing output image...");
-    const likely_const_mat write_success = likely_write(output, argv[2]);
+    const bool write_success = likely_write(output, argv[2]);
     likely_ensure(write_success, "failed to write: %s", argv[2]);
-    likely_release_mat(write_success);
 
     puts("Cleaning up...");
     likely_release_mat(output);
