@@ -25,6 +25,18 @@ if(${LIKELY_HELLOWORLD})
   add_test(NAME hello_world_static
            COMMAND hello_world_static ${CMAKE_SOURCE_DIR}/data/misc/lenna.tiff dark_lenna.png)
 
+  # Pre-compiled
+  add_custom_command(OUTPUT hello_world_precompiled_lisp.bc
+                     COMMAND likely -Oz -disable-loop-unrolling -disable-loop-vectorization ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-compiled.lisp ${CMAKE_BINARY_DIR}/hello_world_precompiled_lisp.bc
+                     DEPENDS likely hello-world-compiled.lisp
+                     VERBATIM)
+  add_custom_target(hello_world_precompiled_lisp ALL
+                    DEPENDS hello_world_precompiled_lisp.bc)
+  add_executable(hello_world_precompiled hello_world_precompiled.c)
+  target_link_libraries(hello_world_precompiled likely_shared)
+  add_test(NAME hello_world_precompiled
+           COMMAND hello_world_precompiled ${CMAKE_SOURCE_DIR}/data/misc/lenna.tiff ${CMAKE_BINARY_DIR}/hello_world_precompiled_lisp.bc hello_world dark_lenna.png)
+
   # Main
   add_custom_command(OUTPUT hello_world_main_lisp.o
                      COMMAND likely ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-main.lisp hello_world_main_lisp.o

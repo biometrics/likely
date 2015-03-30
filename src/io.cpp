@@ -192,7 +192,7 @@ likely_mat likely_read(const char *file_name, likely_file_type file_type, likely
         }
     }
     likely_ensure(result != NULL, "failed to process: %s", file_name);
-    if (result && (result->type != type)) {
+    if (result && (type != likely_void) && (result->type != type)) {
         likely_release_mat(result);
         result = NULL;
         likely_ensure(false, "read type mismatch for: %s", file_name);
