@@ -971,17 +971,17 @@ pi := 3.1415926535897932384626433832795
 
 \section{Unary Functions}
 \begin{likely}
-not  := (-> a (== a false))
-bool := (-> a (!= a false))
-sq   := (-> a (* a a))
-abs  := (-> a (? (< a 0) (* -1 a) a))
+not     := (-> a (== a false))
+to-bool := (-> a (!= a false))
+sq      := (-> a (* a a))
+abs     := (-> a (? (< a 0) (* -1 a) a))
 \end{likely}
 
 \section{Binary Functions}
 \begin{likely}
-and := (-> (a b) (& a.bool b.bool))
-or  := (-> (a b) (| a.bool b.bool))
-xor := (-> (a b) (^ a.bool b.bool))
+and := (-> (a b) (& a.to-bool b.to-bool))
+or  := (-> (a b) (| a.to-bool b.to-bool))
+xor := (-> (a b) (^ a.to-bool b.to-bool))
 min := (-> (a b) (? (< a b) a b))
 max := (-> (a b) (? (> a b) a b))
 
@@ -1057,7 +1057,7 @@ decode :=
     (f mat return-type)
   }
 
-write  := (extern u8     "likely_write"  (u8CXYT string))
+write  := (extern bool   "likely_write"  (u8CXYT string))
 encode := (extern u8CXYT "likely_encode" (u8CXYT string))
 show   := (extern u8CXYT "likely_show"   (u8CXYT string))
 render := (extern u8CXYT "likely_render" (u8CXYT f64.pointer f64.pointer))
