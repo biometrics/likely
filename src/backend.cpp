@@ -1254,6 +1254,7 @@ private:
     {
         EE->finalizeObject();
         function = (void*) EE->getFunctionAddress(name.c_str());
+        likely_ensure(function, "no function named: %s", name.c_str());
         EE->removeModule(module->module);
         module->finalize();
         value = NULL;
@@ -3007,6 +3008,7 @@ JITFunction::JITFunction(const likely_const_mat bitcode, const char *symbol)
     , module(new likely_module(bitcode))
 {
     if (module->module) {
+        EE = createExecutionEngine(unique_ptr<Module>(module->module), EngineKind::JIT);
         module->context->PM->run(*module->module);
         compileAndCleanup();
     } else {
