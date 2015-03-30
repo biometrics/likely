@@ -49,6 +49,11 @@ likely_file_type likely_guess_file_type(const char *file_name)
     if (!strcmp(extension, "lisp")) return likely_file_lisp;
     if (!strcmp(extension, "md"  )) return likely_file_gfm;
     if (!strcmp(extension, "tex" )) return likely_file_tex;
+    if (!strcmp(extension, "ll"  )) return likely_file_ir;
+    if (!strcmp(extension, "bc"  )) return likely_file_bitcode;
+    if (!strcmp(extension, "o"   )) return likely_file_object;
+    if (!strcmp(extension, "s"   )) return likely_file_assembly;
+
     return likely_file_media;
 }
 //! [likely_guess_file_type implementation.]
@@ -65,6 +70,10 @@ likely_mat likely_file_type_to_string(likely_file_type type)
     if (type == likely_file_lisp     ) return likely_string(".lisp");
     if (type == likely_file_gfm      ) return likely_string(".md");
     if (type == likely_file_tex      ) return likely_string(".tex");
+    if (type == likely_file_ir       ) return likely_string(".ll");
+    if (type == likely_file_bitcode  ) return likely_string(".bc");
+    if (type == likely_file_object   ) return likely_string(".o");
+    if (type == likely_file_assembly ) return likely_string(".s");
     return NULL;
 }
 //! [likely_file_type_to_string implementation.]
@@ -221,7 +230,7 @@ likely_mat likely_write(likely_const_mat image, const char *file_name)
             return NULL;
         }
     } else if (fileType == likely_file_matrix) {
-        if (FILE *fp = fopen(file_name, "wb")) {
+        if (FILE *const fp = fopen(file_name, "wb")) {
             const uint32_t ref_count = 1;
             fwrite(&ref_count, sizeof(uint32_t), 1, fp);
             fwrite(reinterpret_cast<uint32_t const*>(image)+1, likely_bytes(image)-sizeof(uint32_t), 1, fp);
@@ -230,7 +239,13 @@ likely_mat likely_write(likely_const_mat image, const char *file_name)
             return NULL;
         }
     } else {
-        return NULL;
+        if (FILE *const fp = fopen(file_name, "wb")) {
+            const size_t size = (fileType & likely_file_text) ? strlen(image->data) : likely_bytes(image);
+            fwrite(image->data, size, 1, fp);
+            fclose(fp);
+        } else {
+            return NULL;
+        }
     }
     return likely_retain_mat(image);
 }
@@ -407,7 +422,7 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
     static likely_const_env env = NULL;
     static void *normalize = NULL;
     if (normalize == NULL) {
-        const likely_env parent = likely_standard(likely_jit(false), NULL);
+        const likely_env parent = likely_standard(likely_jit(false), NULL, likely_file_void);
         const char *const src = "-likely-normalize :=\n"
                                 "  (src min range) :->\n"
                                 "  {\n"

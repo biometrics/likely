@@ -141,7 +141,7 @@ struct TestBase
 
         if (!BenchmarkQuiet)
             printf("%s \t", fileName);
-        const likely_const_env parent = likely_standard(likely_jit(false), NULL);
+        const likely_const_env parent = likely_standard(likely_jit(false), NULL, likely_file_void);
         likely_release_env(likely_lex_parse_and_eval(source->data, file_type, parent));
 
         if (BenchmarkTest) {
@@ -442,7 +442,7 @@ int main(int argc, char *argv[])
         settings.size_level = BenchmarkHuman ? 2 : 0;
         settings.unroll_loops = !BenchmarkHuman;
         settings.vectorize_loops = !BenchmarkHuman;
-        const likely_const_env parent = likely_standard(settings, NULL);
+        const likely_const_env parent = likely_standard(settings, NULL, likely_file_void);
 
         BinaryThreshold().run(parent);
         ConvertGrayscale().run(parent);

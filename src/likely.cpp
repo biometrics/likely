@@ -176,7 +176,10 @@ int main(int argc, char *argv[])
     settings.vectorize_loops = !LikelyDisableLoopVectorization;
     settings.verbose = LikelyVerbose;
 
-    likely_const_env parent = likely_standard(settings, LikelyOutput.empty() ? NULL /* JIT */ : LikelyOutput.c_str() /* Offline */);
+    likely_mat output = NULL;
+    likely_const_env parent = likely_standard(settings,
+                                              LikelyOutput.empty() ? NULL /* JIT */ : &output /* Offline */,
+                                              likely_guess_file_type(LikelyOutput.c_str()));
 
     if (LikelyInput.empty()) {
         // console
@@ -228,6 +231,12 @@ int main(int argc, char *argv[])
 
     assert(parent->ref_count == 1);
     likely_release_env(parent);
+
+    if (output) {
+        likely_write(output, LikelyOutput.c_str());
+        likely_release_mat(output);
+    }
+
     likely_shutdown();
     return EXIT_SUCCESS;
 }

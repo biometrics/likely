@@ -167,7 +167,7 @@ class Source : public QPlainTextEdit
     Q_OBJECT
     QString header, previousSource;
     int wheelRemainderX = 0, wheelRemainderY = 0;
-    likely_env root = likely_standard(likely_jit(false), NULL);
+    likely_env root = likely_standard(likely_jit(false), NULL, likely_file_void);
     likely_env current = NULL;
 
 public:
@@ -196,7 +196,7 @@ public slots:
         likely_settings settings = likely_jit(false);
         settings.multicore = (execution == "Multi-core");
         likely_release_env(root);
-        root = likely_standard(settings, NULL);
+        root = likely_standard(settings, NULL, likely_file_void);
         previousSource.clear(); // clear cache
         eval();
     }

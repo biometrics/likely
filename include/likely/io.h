@@ -42,7 +42,8 @@ typedef uint32_t likely_file_type;
  */
 enum likely_file_type_mask
 {
-    likely_file_directory = 0x00000000, /*!< \brief It's a directory, recursively read all the files. */
+    likely_file_void      = 0x00000000, /*!< \brief It's not a file. */
+    likely_file_directory = likely_file_void, /*!< \brief It's a directory, recursively read all the files. */
     likely_file_binary    = 0x00000001, /*!< \brief It's binary data, just read it. */
     likely_file_media     = 0x00000002, /*!< \brief It's an image or video, read and decode it. */
     likely_file_matrix    = 0x00000004, /*!< \brief It's a \ref likely_matrix, memory map it. */
@@ -50,6 +51,10 @@ enum likely_file_type_mask
     likely_file_lisp      = 0x00000010 | likely_file_text, /*!< \brief The text file has plain source code. */
     likely_file_gfm       = 0x00000020 | likely_file_text, /*!< \brief The text file has source code is in [GitHub Flavored Markdown](https://help.github.com/articles/github-flavored-markdown/) code blocks. */
     likely_file_tex       = 0x00000040 | likely_file_text, /*!< \brief The text file has source code is in LaTeX likely environment blocks. */
+    likely_file_ir        = 0x00000100 | likely_file_text, /*!< \brief LLVM IR (.ll) */
+    likely_file_bitcode   = 0x00000200 | likely_file_binary, /*!< \brief LLVM bitcode (.bc) */
+    likely_file_object    = 0x00000400 | likely_file_binary, /*!< \brief Object file (.o) */
+    likely_file_assembly  = 0x00000800 | likely_file_binary, /*!< \brief Assembly file (.s) */
     likely_file_guess     = 0xFFFFFFFF /*!< \brief Guess the file type using \ref likely_guess_file_type. */
 };
 

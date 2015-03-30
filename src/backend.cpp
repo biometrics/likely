@@ -615,11 +615,12 @@ namespace {
 
 class OfflineModule : public likely_module
 {
-    const string fileName;
+    likely_mat *const output;
+    const likely_file_type file_type;
 
 public:
-    OfflineModule(const likely_settings &settings, const string &fileName)
-        : likely_module(settings), fileName(fileName) {}
+    OfflineModule(const likely_settings &settings, likely_mat *output, likely_file_type file_type)
+        : likely_module(settings), output(output), file_type(file_type) {}
 
     ~OfflineModule()
     {
@@ -687,24 +688,24 @@ public:
         if (context->verbose)
             module->print(outs(), NULL);
 
-        error_code errorCode;
-        tool_output_file output(fileName.c_str(), errorCode, sys::fs::F_None);
-        likely_ensure(!errorCode, "%s", errorCode.message().c_str());
-
-        const string extension = fileName.substr(fileName.find_last_of(".") + 1);
-        if (extension == "ll") {
-            module->print(output.os(), NULL);
-        } else if (extension == "bc") {
-            WriteBitcodeToFile(module, output.os());
+        SmallVector<char, 0> data;
+        raw_svector_ostream stream(data);
+        if (file_type == likely_file_ir) {
+            module->print(stream, NULL);
+            stream << '\0';
+        } else if (file_type == likely_file_bitcode) {
+            WriteBitcodeToFile(module, stream);
         } else {
             legacy::PassManager pm;
-            formatted_raw_ostream fos(output.os());
+            formatted_raw_ostream fos(stream);
             static TargetMachine *TM = LikelyContext::getTargetMachine(false);
-            TM->addPassesToEmitFile(pm, fos, extension == "s" ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
+            TM->addPassesToEmitFile(pm, fos, (file_type == likely_file_assembly) ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
             pm.run(*module);
         }
+        stream.flush();
 
-        output.keep();
+        if (data.empty()) *output = NULL;
+        else              *output = likely_new(likely_u8 | likely_multi_channel, uint32_t(data.size()), 1, 1, 1, data.data());
     }
 };
 
@@ -3099,13 +3100,13 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
     }
 }
 
-likely_env likely_standard(likely_settings settings, const char *file_name)
+likely_env likely_standard(likely_settings settings, likely_mat *output, likely_file_type file_type)
 {
     const likely_env env = newEnv(RootEnvironment::get());
     env->settings = (likely_settings*) malloc(sizeof(likely_settings));
     memcpy(env->settings, &settings, sizeof(likely_settings));
-    if (file_name)
-        env->module = new OfflineModule(settings, file_name);
+    if (output)
+        env->module = new OfflineModule(settings, output, file_type);
     return env;
 }
 

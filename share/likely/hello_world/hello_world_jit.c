@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
     fclose(file);
 
     puts("Creating a JIT compiler environment...");
-    const likely_env parent = likely_standard(likely_jit(false), NULL);
+    const likely_env parent = likely_standard(likely_jit(false), NULL, likely_file_void);
 
     puts("Compiling source code...");
     const likely_const_env env = likely_lex_parse_and_eval(source_code, likely_file_lisp, parent);

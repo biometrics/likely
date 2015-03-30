@@ -81,22 +81,16 @@ struct likely_environment
 /*!
  * \brief Construct a compilation environment with \ref likely_standard_library symbols.
  *
- * The extension of \p file_name dictates the type of output.
- * Recognized file extensions are:
- * - \c ll - LLVM IR (unoptimized)
- * - \c bc - LLVM bit code (unoptimized)
- * - \c s - Assembly (optimized for native machine)
- * - \c o - Object file (optimized for native machine)
- *
- * Code is written to \p file_name when the returned \ref likely_environment is deleted by \ref likely_release_env.
- * If \p file_name is \c NULL, just-in-time compilation will be performed instead.
+ * Code is written to \p output when the returned \ref likely_environment is deleted by \ref likely_release_env.
+ * If \p output is \c NULL, just-in-time compilation will be performed instead.
  *
  * \param[in] settings Compiler options.
- * \param[in] file_name Where to save the compilation output for static compilation, or \c NULL for just-in-time compilation.
+ * \param[in] output Where to save the compilation output for static compilation, or \c NULL for just-in-time compilation.
+ * \param[in] file_type Format of \p output, ignored if \p output is \c NULL. Valid options are \ref likely_file_ir, \ref likely_file_bitcode, \ref likely_file_object or \ref likely_file_assembly.
  * \return A new compilation environment.
  * \remark This function is \ref thread-unsafe.
  */
-LIKELY_EXPORT likely_env likely_standard(struct likely_settings settings, const char *file_name);
+LIKELY_EXPORT likely_env likely_standard(struct likely_settings settings, likely_mat *output, likely_file_type file_type);
 
 /*!
  * \brief Retain a reference to an environment.
