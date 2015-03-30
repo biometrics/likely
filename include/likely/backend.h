@@ -93,6 +93,17 @@ struct likely_environment
 LIKELY_EXPORT likely_env likely_standard(struct likely_settings settings, likely_mat *output, likely_file_type file_type);
 
 /*!
+ * \brief Re-construct a compiled function from bitcode.
+ *
+ * For use with \ref likely_function.
+ * \param[in] bitcode Output from \ref likely_standard.
+ * \param[in] symbol Function name.
+ * \return A pre-compiled compilation environment.
+ * \remark This function is \ref thread-safe.
+ */
+LIKELY_EXPORT likely_env likely_precompiled(likely_const_mat bitcode, const char *symbol);
+
+/*!
  * \brief Retain a reference to an environment.
  *
  * Increments \ref likely_environment::ref_count.

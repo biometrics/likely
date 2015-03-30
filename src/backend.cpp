@@ -593,6 +593,13 @@ struct likely_module
         : context(new LikelyContext(settings))
         , module(new Module("likely", context->context)) {}
 
+    likely_module(const likely_const_mat bitcode)
+        : context(new LikelyContext(likely_jit(false)))
+    {
+        const ErrorOr<Module*> result = parseBitcodeFile(MemoryBufferRef(StringRef(bitcode->data, likely_bytes(bitcode)), "likely"), context->context);
+        module = result ? result.get() : NULL;
+    }
+
     virtual ~likely_module()
     {
         finalize();
@@ -1206,6 +1213,7 @@ struct JITFunction : public Symbol
     likely_module *module;
 
     JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, Symbol::CallingConvention cc);
+    JITFunction(const likely_const_mat bitcode, const char *symbol);
 
     ~JITFunction()
     {
@@ -1225,6 +1233,31 @@ struct JITFunction : public Symbol
 private:
     static int UID() { return __LINE__; }
     int uid() const { return UID(); }
+
+    static ExecutionEngine *createExecutionEngine(unique_ptr<Module> module, EngineKind::Kind kind)
+    {
+        TargetMachine *const targetMachine = LikelyContext::getTargetMachine(true);
+        module->setDataLayout(*targetMachine->getDataLayout());
+        module->setTargetTriple(sys::getProcessTriple());
+
+        string error;
+        EngineBuilder engineBuilder(unique_ptr<Module>(module.release()));
+        engineBuilder.setErrorStr(&error)
+                     .setEngineKind(kind);
+
+        ExecutionEngine *const EE = engineBuilder.create(targetMachine);
+        likely_ensure(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
+        return EE;
+    }
+
+    void compileAndCleanup()
+    {
+        EE->finalizeObject();
+        function = (void*) EE->getFunctionAddress(name.c_str());
+        EE->removeModule(module->module);
+        module->finalize();
+        value = NULL;
+    }
 
     struct HasLoop : public LoopInfoWrapperPass
     {
@@ -2948,39 +2981,36 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
         legacy::PassManager PM;
         HasLoop *hasLoop = new HasLoop();
         PM.add(hasLoop);
-        PM.run(*builder.module->module);
+        PM.run(*module->module);
         evaluate = !hasLoop->hasLoop;
     }
 
-    TargetMachine *const targetMachine = LikelyContext::getTargetMachine(true);
-    builder.module->module->setDataLayout(*targetMachine->getDataLayout());
-    builder.module->module->setTargetTriple(sys::getProcessTriple());
-
-    string error;
-    EngineBuilder engineBuilder(unique_ptr<Module>(builder.module->module));
-    engineBuilder.setErrorStr(&error)
-                 .setEngineKind(evaluate ? EngineKind::Interpreter : EngineKind::JIT);
-
-    EE = engineBuilder.create(targetMachine);
-    likely_ensure(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
+    EE = createExecutionEngine(unique_ptr<Module>(module->module),
+                               evaluate ? EngineKind::Interpreter : EngineKind::JIT);
 
     if (!evaluate) {
         // optimize
         EE->setObjectCache(&TheJITFunctionCache);
-        if (!TheJITFunctionCache.alert(builder.module->module))
-            builder.module->context->PM->run(*builder.module->module);
+        if (!TheJITFunctionCache.alert(module->module))
+            module->context->PM->run(*module->module);
     }
 
     if (module->context->verbose)
-        builder.module->module->print(outs(), NULL);
+        module->module->print(outs(), NULL);
 
-    if (!evaluate) {
-        // compile & cleanup
-        EE->finalizeObject();
-        function = (void*) EE->getFunctionAddress(name);
-        EE->removeModule(builder.module->module);
-        builder.module->finalize();
-        value = NULL;
+    if (!evaluate)
+        compileAndCleanup();
+}
+
+JITFunction::JITFunction(const likely_const_mat bitcode, const char *symbol)
+    : Symbol(symbol, likely_void)
+    , module(new likely_module(bitcode))
+{
+    if (module->module) {
+        module->context->PM->run(*module->module);
+        compileAndCleanup();
+    } else {
+        function = NULL;
     }
 }
 
@@ -3108,6 +3138,15 @@ likely_env likely_standard(likely_settings settings, likely_mat *output, likely_
     memcpy(env->settings, &settings, sizeof(likely_settings));
     if (output)
         env->module = new OfflineModule(settings, output, file_type);
+    return env;
+}
+
+likely_env likely_precompiled(likely_const_mat bitcode, const char *symbol)
+{
+    const likely_env env = newEnv(NULL);
+    env->settings = NULL;
+    env->module = NULL;
+    env->expr = new JITFunction(bitcode, symbol);
     return env;
 }
 
