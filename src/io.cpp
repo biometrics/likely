@@ -58,26 +58,6 @@ likely_file_type likely_guess_file_type(const char *file_name)
 }
 //! [likely_guess_file_type implementation.]
 
-//! [likely_file_type_to_string implementation.]
-likely_mat likely_file_type_to_string(likely_file_type type)
-{
-    if (type == likely_file_directory) return likely_string("directory");
-    if (type == likely_file_media    ) return likely_string("media");
-    if (type == likely_file_guess    ) return likely_string("guess");
-    if (type == likely_file_binary   ) return likely_string(".bin");
-    if (type == likely_file_matrix   ) return likely_string(".mat");
-    if (type == likely_file_text     ) return likely_string(".txt");
-    if (type == likely_file_lisp     ) return likely_string(".lisp");
-    if (type == likely_file_gfm      ) return likely_string(".md");
-    if (type == likely_file_tex      ) return likely_string(".tex");
-    if (type == likely_file_ir       ) return likely_string(".ll");
-    if (type == likely_file_bitcode  ) return likely_string(".bc");
-    if (type == likely_file_object   ) return likely_string(".o");
-    if (type == likely_file_assembly ) return likely_string(".s");
-    return NULL;
-}
-//! [likely_file_type_to_string implementation.]
-
 //! [likely_file_type_from_string implementation.]
 likely_file_type likely_file_type_from_string(const char *str, bool *ok)
 {

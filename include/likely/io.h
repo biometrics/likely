@@ -70,22 +70,8 @@ enum likely_file_type_mask
 LIKELY_EXPORT likely_file_type likely_guess_file_type(const char *file_name);
 
 /*!
- * \brief Convert a \ref likely_file_type to a string.
- *
- * The opposite of \ref likely_file_type_from_string.
- * The returned \ref likely_matrix::data is valid \ref likely_file_lisp code.
- * \par Implementation
- * \snippet src/io.cpp likely_file_type_to_string implementation.
- * \param[in] type The type to convert to a string.
- * \return A \ref likely_string or \c NULL on error.
- * \remark This function is \ref thread-safe.
- */
-LIKELY_EXPORT likely_mat likely_file_type_to_string(likely_file_type type);
-
-/*!
  * \brief Convert a string to a \ref likely_file_type.
  *
- * The opposite of \ref likely_file_type_to_string.
  * \par Implementation
  * \snippet src/io.cpp likely_file_type_from_string implementation.
  * \param[in] str String to convert to a \ref likely_file_type.
