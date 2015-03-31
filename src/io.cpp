@@ -427,6 +427,36 @@ void likely_show(likely_const_mat image, const char *title)
     cv::waitKey();
 }
 
+// Avoid static initialization order fiasco
+static map<string, likely_mat> &getGlobals()
+{
+    static map<string, likely_mat> Globals;
+    return Globals;
+}
+
+static mutex &getGlobalsMutex()
+{
+    static mutex GlobalsMutex;
+    return GlobalsMutex;
+}
+
+likely_mat likely_global(const char *name, likely_type type)
+{
+    lock_guard<mutex> locker(getGlobalsMutex());
+    const likely_mat value = getGlobals()[name];
+    likely_ensure(value, "no global value with name: %s", name);
+    likely_ensure((value->type == type) || (type == likely_void), "global value: %s had unexpected type", name);
+    return likely_retain_mat(value);
+}
+
+void likely_set_global(const char *name, likely_mat mat)
+{
+    lock_guard<mutex> locker(getGlobalsMutex());
+    likely_mat &value = getGlobals()[name];
+    likely_release_mat(value);
+    value = mat;
+}
+
 void likely_ensure(bool condition, const char *format, ...)
 {
     if (condition)
