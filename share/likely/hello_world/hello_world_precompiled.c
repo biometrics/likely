@@ -18,11 +18,9 @@ int main(int argc, char *argv[])
 
     puts("Reading input image...");
     const likely_const_mat input = likely_read(argv[1], likely_file_guess, likely_image);
-    likely_ensure(input, "failed to read: %s", argv[1]);
 
     puts("Reading bitcode...");
     const likely_const_mat bitcode = likely_read(argv[2], likely_file_bitcode, likely_void);
-    likely_ensure(bitcode, "failed to read: %s", argv[2]);
 
     puts("Compiling function...");
     const likely_env env = likely_precompiled(bitcode, argv[3]);

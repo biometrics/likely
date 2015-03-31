@@ -19,8 +19,6 @@ int main(int argc, char *argv[])
 
     puts("Reading input image...");
     const likely_const_mat input = likely_read(argv[1], likely_file_guess, likely_image);
-    likely_ensure(input, "failed to read: %s", argv[1]);
-    printf("Dimensions: %ux%u\n", input->columns, input->rows);
 
     puts("Calling compiled function...");
     const likely_const_mat output = hello_world(input);

@@ -205,7 +205,8 @@ LIKELY_EXPORT likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *
 /*!
  * \brief Deallocate objects created to perform compilation.
  *
- * Call _once_ after the calling application finishes using functionality provided in \ref backend.
+ * Call _once_ after the calling application finishes using functionality provided in \ref backend to clean up global resources.
+ * Calling this funciton is _optional_.
  * \remark This function is \ref thread-unsafe.
  */
 LIKELY_EXPORT void likely_shutdown();

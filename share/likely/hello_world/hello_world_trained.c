@@ -22,7 +22,6 @@ int main(int argc, char *argv[])
     puts("Reading source code...");
     const likely_file_type file_type = likely_guess_file_type(argv[1]);
     const likely_const_mat source_file = likely_read(argv[1], file_type, likely_void);
-    likely_ensure(source_file, "failed to open for reading: %s", argv[1]);
 
     puts("Creating a JIT compiler environment...");
     const likely_env parent = likely_standard(likely_jit(false), NULL, likely_file_void);
