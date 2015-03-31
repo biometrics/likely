@@ -16,8 +16,7 @@ if(${LIKELY_HELLOWORLD})
   # Static Compiled
   add_custom_command(OUTPUT hello_world_compiled_lisp.o
                      COMMAND likely ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-compiled.lisp hello_world_compiled_lisp.o
-                     DEPENDS likely hello-world-compiled.lisp
-                     VERBATIM)
+                     DEPENDS likely hello-world-compiled.lisp)
   set_source_files_properties(hello_world_compiled_lisp.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
   add_definitions(-DLIKELY_LIBRARY)
   add_executable(hello_world_static hello_world_static.c hello_world_compiled_lisp.o)
@@ -28,8 +27,7 @@ if(${LIKELY_HELLOWORLD})
   # Pre-compiled
   add_custom_command(OUTPUT hello_world_precompiled_lisp.bc
                      COMMAND likely -Oz -disable-loop-unrolling -disable-loop-vectorization ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-compiled.lisp ${CMAKE_BINARY_DIR}/hello_world_precompiled_lisp.bc
-                     DEPENDS likely hello-world-compiled.lisp
-                     VERBATIM)
+                     DEPENDS likely hello-world-compiled.lisp)
   add_custom_target(hello_world_precompiled_lisp ALL
                     DEPENDS hello_world_precompiled_lisp.bc)
   add_executable(hello_world_precompiled hello_world_precompiled.c)
@@ -40,8 +38,7 @@ if(${LIKELY_HELLOWORLD})
   # Main
   add_custom_command(OUTPUT hello_world_main_lisp.o
                      COMMAND likely ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-main.lisp hello_world_main_lisp.o
-                     DEPENDS likely hello-world-main.lisp
-                     VERBATIM)
+                     DEPENDS likely hello-world-main.lisp)
   set_source_files_properties(hello_world_main_lisp.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
   add_executable(hello_world_main hello_world_main_lisp.o)
   set_target_properties(hello_world_main PROPERTIES LINKER_LANGUAGE C)
