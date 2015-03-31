@@ -63,14 +63,12 @@ static cl::opt<bool> LikelyAst("ast", cl::desc("Print abstract syntax tree"));
 static cl::alias     LikelyAstA("a", cl::desc("Alias for -ast"), cl::aliasopt(LikelyAst));
 static cl::opt<bool> LikelyVerbose("verbose", cl::desc("Verbose compiler output"));
 static cl::alias     LikelyVerboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(LikelyVerbose));
-static cl::opt<bool> LikelyExamine("examine", cl::desc("Alias for -q -v -Oz -disable-loop-unrolling -disable-loop-vectorization"));
-static cl::alias     LikelyExamineA("ex", cl::desc("Alias for -examine"), cl::aliasopt(LikelyExamine));
 
 cl::OptionCategory ArchitectureCategory("Architecture");
 static cl::opt<bool> LikelyMulticore("multi-core" , cl::desc("Compile multi-core kernels"), cl::cat(ArchitectureCategory));
 static cl::alias     LikelyMulticoreA("m", cl::desc("Alias for -multi-core"), cl::cat(ArchitectureCategory), cl::aliasopt(LikelyMulticore));
 static cl::opt<bool> LikelyHeterogeneous("heterogeneous" , cl::desc("Compile heterogeneous kernels"), cl::cat(ArchitectureCategory));
-static cl::alias     LikelyHeterogeneousA("h", cl::desc("Alias for -heterogeneous"), cl::cat(ArchitectureCategory), cl::aliasopt(LikelyHeterogeneous));
+static cl::alias     LikelyHeterogeneousA("hg", cl::desc("Alias for -heterogeneous"), cl::cat(ArchitectureCategory), cl::aliasopt(LikelyHeterogeneous));
 
 cl::OptionCategory OptimizationsCategory("Optimizations");
 static cl::opt<bool> LikelyO0("O0", cl::desc("No optimizations"), cl::cat(OptimizationsCategory));
@@ -81,6 +79,8 @@ static cl::opt<bool> LikelyOs("Os", cl::desc("Like -O2 but with extra optimizati
 static cl::opt<bool> LikelyOz("Oz", cl::desc("Like -Os but reduces code size further"), cl::cat(OptimizationsCategory));
 static cl::opt<bool> LikelyDisableLoopUnrolling("disable-loop-unrolling", cl::desc("Disable loop unrolling in all relevant passes"), cl::cat(OptimizationsCategory));
 static cl::opt<bool> LikelyDisableLoopVectorization("disable-loop-vectorization", cl::desc("Disable the loop vectorization pass"), cl::cat(OptimizationsCategory));
+static cl::opt<bool> LikelyHuman("human", cl::desc("Optimize compiler output for human readability"), cl::cat(OptimizationsCategory));
+static cl::alias     LikelyHumanA("h", cl::desc("Alias for -human"), cl::cat(OptimizationsCategory), cl::aliasopt(LikelyHuman));
 
 cl::OptionCategory PrintingCategory("Printing");
 static cl::opt<string> LikelyRender ("render", cl::desc("%d-formatted file to render matrix output to"), cl::cat(PrintingCategory));
@@ -153,9 +153,7 @@ int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
 
-    if (LikelyExamine) {
-        LikelyVerbose.setValue(true);
-        LikelyQuiet.setValue(true);
+    if (LikelyHuman) {
         LikelyOz.setValue(true);
         LikelyDisableLoopUnrolling.setValue(true);
         LikelyDisableLoopVectorization.setValue(true);

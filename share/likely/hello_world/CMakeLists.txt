@@ -26,7 +26,7 @@ if(${LIKELY_HELLOWORLD})
 
   # Pre-compiled
   add_custom_command(OUTPUT hello_world_precompiled_lisp.bc
-                     COMMAND likely -Oz -disable-loop-unrolling -disable-loop-vectorization ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-compiled.lisp ${CMAKE_BINARY_DIR}/hello_world_precompiled_lisp.bc
+                     COMMAND likely -h ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-compiled.lisp ${CMAKE_BINARY_DIR}/hello_world_precompiled_lisp.bc
                      DEPENDS likely hello-world-compiled.lisp)
   add_custom_target(hello_world_precompiled_lisp ALL
                     DEPENDS hello_world_precompiled_lisp.bc)
