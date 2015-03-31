@@ -3,7 +3,7 @@
 #include <likely.h>
 
 // <bitcode> provided by a call to the static compiler:
-// $ likely share/likely/hello_world/hello-world-compiled.lisp hello_world.bc
+// $ likely -h share/likely/hello_world/hello-world-compiled.lisp hello_world.bc
 
 int main(int argc, char *argv[])
 {
@@ -19,7 +19,6 @@ int main(int argc, char *argv[])
     puts("Reading input image...");
     const likely_const_mat input = likely_read(argv[1], likely_file_guess, likely_image);
     likely_ensure(input, "failed to read: %s", argv[1]);
-    printf("Dimensions: %ux%u\n", input->columns, input->rows);
 
     puts("Reading bitcode...");
     const likely_const_mat bitcode = likely_read(argv[2], likely_file_bitcode, likely_void);

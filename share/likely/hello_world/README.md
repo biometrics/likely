@@ -5,7 +5,7 @@ Welcome to a brief tutorial on Likely!
 Here we will cover the primary techniques for executing source code written in the Likely programming language.
 Note that this document assumes a successful **[installation](?href=README.md)**.
 
-For this tutorial we will consider a function called *hello-world* that takes one matrix as input and returns a new matrix as output, where every element in the output matrix is half the value of the corresponding element in the input matrix.
+For this tutorial we will consider a function called *hello-world* that takes one matrix as input, and returns as output a new matrix in which every element is half the value of the input matrix.
 The Likely source code for this function is:
 
 ```lisp
@@ -26,16 +26,16 @@ Likely as a Scripting Language
 Copy the *hello-world* source code above into a file called *hello-world.lisp*.
 Feel free to remove the comments (the semicolon through the end of the line) if they feel cluttered.
 
-Let's start by running the file we just made:
+Let's start by running the file we just created:
 
 ```bash
 $ likely hello-world.lisp
 ```
 
 Hey, nothing happened!
-Well that's because we defined a function but we didn't actually try calling it.
+Well that is because we defined a function but we didn't actually call it!
 To call *hello-world* we need an image to provide as input.
-Consider the famous _Lenna_ image:
+Consider the famous _Lenna_:
 
 ```bash
 $ likely -c '(read-image "data/misc/lenna.tiff")' -show
@@ -67,7 +67,7 @@ $ likely hello-world.lisp -render dark_lenna_interpreted.png
 Likely as a Just-In-Time Compiler
 ---------------------------------
 Instead of using the provided *likely* executable as we did previously, this time we're interested in building our own application on top of the **[Likely API](https://s3.amazonaws.com/liblikely/doxygen/index.html)**.
-We'd like for our application to just-in-time compile the *hello-world* function source code into something callable from C.
+We'd like for our application to just-in-time (JIT) compile the *hello-world* function source code into something callable from C.
 
 Starting with our *hello-world.lisp* file from the previous section, replace the last line (calling hello-world with Lenna) with:
 
@@ -78,9 +78,11 @@ Starting with our *hello-world.lisp* file from the previous section, replace the
                                                ;   hello-world
 ```
 
+Note that *u8CXY* is part of the Likely type system, corresponding to an unsigned 8-bit multi-channel, multi-column, multi-row matrix.
+
 The source code for our application is in **[share/likely/hello_world/hello_world_jit.c](share/likely/hello_world/hello_world_jit.c)**.
 Notice that it expects three parameters: an input image, a source file, and an output image.
-It's behavior is to read the input image, compile the source file, retrieve the compiled function, call the function with the input image to produce the output image, and finally save the output image.
+Its behavior is to read the input image, compile the source file, retrieve the compiled function, call the function with the input image to produce the output image, and finally save the output image.
 Let's run it:
 
 ```
@@ -97,7 +99,7 @@ Done!
 ```
 
 Success!
-We can confirm that we get the exact same output as we did previously:
+We can confirm that we get the exact same output as previously:
 
 ```bash
 $ diff dark_lenna_jit.png dark_lenna_interpreted.png
@@ -105,7 +107,7 @@ $ diff dark_lenna_jit.png dark_lenna_interpreted.png
 
 Likely as a Static Compiler
 ---------------------------
-Finally, we're interested in simplifying the application we just wrote.
+Now we are interested in simplifying the application we just wrote.
 Instead of waiting until runtime, we'd like to compile *hello-world* offline, ahead of time.
 
 Using the same *hello-world.lisp* file from the previous section:
@@ -116,7 +118,7 @@ $ likely hello-world.lisp hello-world.o
 
 We've just compiled our Likely source file into a native object file.
 Now we can simplify the source code for our application to **[share/likely/hello_world/hello_world_static.c](share/likely/hello_world/hello_world_static.c)**.
-Though it's behavior is the same, notice that it now expects only two paramters: an input image and an output image.
+Though the behavior is the same, notice it now expects only two parameters: an input image and an output image.
 Let's run it:
 
 ```
@@ -128,20 +130,40 @@ Writing output image...
 Cleaning up...
 ```
 
-Success!
-Once again, we can confirm that we get the exact same output as we did previously:
+Likely as a Pre-compiler
+------------------------
+Consider the situtation where we have a very long compilation process that involves a lot of machine learning, but where we would still like to realize the benifits of JIT compilation.
+Instead of compiling to a native object file, you can instead compile to platform-independent LLVM bitcode.
+
+Using the same *hello-world.lisp* file from the previous section:
 
 ```bash
-$ diff dark_lenna_static.png dark_lenna_jit.png
+$ likely -h hello-world.lisp hello-world.bc
+```
+
+Note that *-h* optimizes the code for minimum size (and maximum human readability), which is desireable because it will be re-compiled at runtime anyway for maximum speed.
+
+We've just compiled our Likely source code into platform-independent LLVM bitcode.
+We can load this bitcode at runtime using **[share/likely/hello_world/hello_world_static.c](share/likely/hello_world/hello_world_static.c)** and it will be JIT compiled for the host CPU.
+Let's run it:
+
+```
+$ hello_world_precompiled data/misc/lenna.tiff hello-world.bc hello_world dark_lenna_precompiled.png
+Reading input image...
+Reading bitcode...
+Compiling function...
+Calling compiled function...
+Writing output image...
+Cleaning up...
 ```
 
 Likely as a Standalone Language
 -------------------------------
 Hold on!
-In the previous section we still had to write some C code to execute our statically-compiled Likely function.
+In all of the previous sections we still had to write some C code to execute our Likely function.
 We'd like to write the *main* function in Likely instead of C, so that our application is written completely in Likely.
 
-Starting with our *hello-world.lisp* file from the previous section, replace the last line (exporting hello-world as "hello_world") with:
+Starting with our *hello-world.lisp* file from the previous sections, replace the last line (exporting hello-world as "hello_world") with:
 
 ```lisp
 main :=
@@ -165,7 +187,7 @@ Then it's the same procedure to compile a native object file:
 $ likely hello-world.lisp hello-world.o
 ```
 
-Except this time the executable can be built without **[share/likely/hello_world/hello_world_static.c](share/likely/hello_world/hello_world_static.c)**.
+Except this time the executable can be built without C code.
 Let's run it:
 
 ```
@@ -173,11 +195,4 @@ $ hello_world_main data/misc/lenna.tiff dark_lenna_main.png
 Reading input image...
 Calling function...
 Writing output image...
-```
-
-Success!
-You know the drill:
-
-```bash
-$ diff dark_lenna_main.png dark_lenna_static.png
 ```
