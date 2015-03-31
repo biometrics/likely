@@ -1059,7 +1059,7 @@ decode :=
 
 write  := (extern bool   "likely_write"  (u8CXYT string))
 encode := (extern u8CXYT "likely_encode" (u8CXYT string))
-show   := (extern u8CXYT "likely_show"   (u8CXYT string))
+show   := (extern void   "likely_show"   (u8CXYT string))
 render := (extern u8CXYT "likely_render" (u8CXYT f64.pointer f64.pointer))
 
 guess-file-type :=

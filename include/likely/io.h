@@ -193,10 +193,9 @@ LIKELY_EXPORT likely_mat likely_render(likely_const_mat mat, double *min, double
  * The input to this function is usually the output from \ref likely_render.
  * \param[in] image Image to display.
  * \param[in] title Window title.
- * \return \p image if successful, \c NULL otherwise.
  * \remark This function is \ref thread-safe.
  */
-LIKELY_EXPORT likely_mat likely_show(likely_const_mat image, const char *title);
+LIKELY_EXPORT void likely_show(likely_const_mat image, const char *title);
 
 /*!
  * \brief Conditional exit with an error message.
