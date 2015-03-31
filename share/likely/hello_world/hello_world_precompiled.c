@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <likely.h>
 
 // <bitcode> provided by a call to the static compiler:
