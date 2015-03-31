@@ -1062,6 +1062,17 @@ encode := (extern u8CXYT "likely_encode" (u8CXYT string))
 show   := (extern void   "likely_show"   (u8CXYT string))
 render := (extern u8CXYT "likely_render" (u8CXYT f64.pointer f64.pointer))
 
+global :=
+  (name return-type) :->
+  {
+    f := (extern return-type
+                 "likely_global"
+                 (string likely-type))
+    (f name return-type)
+  }
+
+set-global := (extern void "likely_set_global" (string u8CXYT))
+
 guess-file-type :=
   (extern likely-file-type "likely_guess_file_type" string)
 \end{likely}
