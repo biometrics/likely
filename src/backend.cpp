@@ -2055,7 +2055,7 @@ struct Lambda : public LikelyFunction
         for (likely_const_mat arg : args)
             params.push_back(arg->type);
 
-        JITFunction jit("likely_ctfe", this, params, true, args.empty() ? Symbol::RegularCC : Symbol::ArrayCC);
+        JITFunction jit("likely_ctfe", this, params, true, args.empty() ? LikelyFunction::RegularCC : LikelyFunction::ArrayCC);
         void *value;
         if (jit.function) { // compiler
             value = args.empty() ? reinterpret_cast<void *(*)()>(jit.function)()
@@ -2126,7 +2126,7 @@ private:
             env->expr->vtables.push_back(vtable);
 
             PointerType *const vTableType = PointerType::getUnqual(StructType::create(builder.getContext(), "VTable"));
-            StructType *const staticDataStructType = Symbol::getStaticDataType(builder.module->context.get(), types);
+            StructType *const staticDataStructType = getStaticDataType(builder.module->context.get(), types);
             PointerType *const staticDataType = PointerType::getUnqual(Type::getInt8Ty(builder.getContext()));
             Function *likelyDynamic = builder.module->module->getFunction("likely_dynamic");
             if (!likelyDynamic) {
@@ -2249,7 +2249,7 @@ class externExpression : public LikelyOperator
             return new Symbol(builder.env, name, returnType, parameters);
         }
 
-        const Symbol::CallingConvention cc = (ast->num_atoms >= 6) && (evalInt(ast->atoms[5], builder.env, &ok) != 0) ? Symbol::ArrayCC : Symbol::RegularCC;
+        const LikelyFunction::CallingConvention cc = (ast->num_atoms >= 6) && (evalInt(ast->atoms[5], builder.env, &ok) != 0) ? LikelyFunction::ArrayCC : LikelyFunction::RegularCC;
         if (!ok)
             return NULL;
 
@@ -3257,7 +3257,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats, const vo
         for (size_t i=0; i<vtable->n; i++)
             if (types[i] == likely_multi_dimension)
                 types[i] = mats[dynamicIndex++]->type;
-        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->env, vtable->body, vtable->parameters, vtable->types)).get(), types, false, Symbol::VirtualCC)));
+        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->env, vtable->body, vtable->parameters, vtable->types)).get(), types, false, LikelyFunction::VirtualCC)));
         function = vtable->functions.back()->function;
         if (function == NULL)
             return NULL;
