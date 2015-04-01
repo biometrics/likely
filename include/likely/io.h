@@ -217,7 +217,7 @@ LIKELY_EXPORT likely_mat likely_global(const char *name, likely_type type);
  * \param[in] mat Lookup value. May be \c NULL to clear a previous entry.
  * \remark This function is \ref thread-safe.
  */
-LIKELY_EXPORT void likely_set_global(const char *name, likely_const_mat mat);
+LIKELY_EXPORT void likely_set_global(const char *name, likely_mat mat);
 
 /*!
  * \brief Conditional exit with an error message.
