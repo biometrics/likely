@@ -1308,6 +1308,7 @@ private:
     {
         likely_const_expr result = NULL;
 
+        bool doCTFE = builder.ctfe && ctfe();
         vector<likely_const_expr> args;
         vector<likely_const_mat> constantArgs;
         const size_t arguments = length(ast)-1;
@@ -1316,16 +1317,18 @@ private:
             if (!arg)
                 goto cleanup;
 
-            if (builder.ctfe && (constantArgs.size() == args.size()))
+            if (doCTFE) {
                 if (likely_const_mat constantArg = arg->getData())
                     constantArgs.push_back(constantArg);
+                else
+                    doCTFE = false;
+            }
 
             args.push_back(arg);
         }
 
-        result = (builder.ctfe && ctfe() && (constantArgs.size() == args.size()))
-                 ? ConstantData::get(builder, evaluateConstantFunction(constantArgs))
-                 : evaluateFunction(builder, args);
+        result = doCTFE ? ConstantData::get(builder, evaluateConstantFunction(constantArgs))
+                        : evaluateFunction(builder, args);
 
     cleanup:
         for (likely_const_expr arg : args)
@@ -1333,8 +1336,8 @@ private:
         return result;
     }
 
+    virtual bool ctfe() const { return true; }
     virtual likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args /* takes ownership */) const = 0;
-    virtual bool ctfe() const = 0;
 };
 
 struct Symbol : public LikelyFunction
@@ -1351,8 +1354,6 @@ struct Symbol : public LikelyFunction
     }
 
 private:
-    bool ctfe() const { return false; }
-
     likely_const_expr clone() const
     {
         return new Symbol(env, name, type, parameters);
