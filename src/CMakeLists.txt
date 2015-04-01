@@ -467,7 +467,7 @@ function(add_benchmark RETVAL FILE PARAMETERS)
     set(IR_FILE ${LIKELY_BENCHMARKS_DIR}/${FILE_NAME}.ll)
     add_custom_command(OUTPUT ${IR_FILE}
                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                       COMMAND likely ${KERNEL_TYPE} -c "(import \"library/${FILE}.md\" this) (extern ${RETVAL} \"${SYMBOL_NAME}\" ${PARAMETERS} ${FILE})" ${IR_FILE}
+                       COMMAND likely -ro ${KERNEL_TYPE} -c "(import \"library/${FILE}.md\" this) (extern ${RETVAL} \"${SYMBOL_NAME}\" ${PARAMETERS} ${FILE})" ${IR_FILE}
                        DEPENDS likely ${CMAKE_SOURCE_DIR}/library/${FILE}.md
                        VERBATIM)
     add_custom_target(${FILE_NAME} ALL
@@ -476,8 +476,6 @@ function(add_benchmark RETVAL FILE PARAMETERS)
 endfunction()
 
 if(NOT ${LIKELY_DEMOS} MATCHES "None")
-  file(REMOVE_RECURSE ${LIKELY_BENCHMARKS_DIR})
-  file(MAKE_DIRECTORY ${LIKELY_BENCHMARKS_DIR})
   add_benchmark("u8SCXY"  "binary-threshold" "(u8SCXY u8S u8S)"   )
   add_benchmark("i16SCXY" "binary-threshold" "(i16SCXY i16S i16S)")
   add_benchmark("f32CXY"  "binary-threshold" "(f32CXY f32 f32)"   )
@@ -505,7 +503,7 @@ function(add_demo FILE ARGS)
     set(OBJECT_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}${CMAKE_C_OUTPUT_EXTENSION})
     add_custom_command(OUTPUT ${BITCODE_FILE}
                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                       COMMAND likely ${KERNEL_TYPE} -q "library/${FILE}.md" ${BITCODE_FILE}
+                       COMMAND likely -ro ${KERNEL_TYPE} -q "library/${FILE}.md" ${BITCODE_FILE}
                        DEPENDS likely ${CMAKE_SOURCE_DIR}/library/${FILE}.md
                        VERBATIM)
     add_custom_command(OUTPUT ${IR_FILE}
@@ -529,8 +527,6 @@ endfunction()
 set(LIKELY_DEMOS "Default" CACHE STRING "Compile and test demos.")
 set_property(CACHE LIKELY_DEMOS PROPERTY STRINGS "None" "Default" "All")
 if(NOT ${LIKELY_DEMOS} MATCHES "None")
-  file(REMOVE_RECURSE ${LIKELY_DEMOS_DIR})
-  file(MAKE_DIRECTORY ${LIKELY_DEMOS_DIR})
   add_demo(mandelbrot_set "600 400 -2.f32 -1.f32 3.f32 2.f32 20")
   add_demo(gabor_wavelet "192 192 64.f32 64.f32 0.f32 128.f32 0.f32")
 endif()

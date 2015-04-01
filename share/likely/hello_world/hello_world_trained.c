@@ -29,7 +29,8 @@ int main(int argc, char *argv[])
     puts("Compiling source code...");
     likely_mat output = NULL;
     const likely_file_type object_file_type = likely_guess_file_type(argv[3]);
-    const struct likely_settings settings = likely_default_settings(object_file_type, false);
+    struct likely_settings settings = likely_default_settings(object_file_type, false);
+//    settings.runtime_only = true;
     const likely_env parent = likely_standard(settings, &output, object_file_type);
     likely_release_env(likely_lex_parse_and_eval(source_file->data, source_file_type, parent));
     likely_release_env(parent);

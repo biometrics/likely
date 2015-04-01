@@ -61,6 +61,8 @@ static cl::opt<string> LikelyEnsure("ensure", cl::desc("Confirm the output equal
 static cl::alias       LikelyEnsureA("e", cl::desc("Alias for -ensure"), cl::aliasopt(LikelyEnsure));
 static cl::opt<bool> LikelyAst("ast", cl::desc("Print abstract syntax tree"));
 static cl::alias     LikelyAstA("a", cl::desc("Alias for -ast"), cl::aliasopt(LikelyAst));
+static cl::opt<bool> LikelyRuntimeOnly("runtime-only", cl::desc("The compiler can only reference external symbols in the Likely runtime"));
+static cl::alias     LikelyRuntimeOnlyA("ro", cl::desc("Alias for -ro"), cl::aliasopt(LikelyRuntimeOnly));
 static cl::opt<bool> LikelyVerbose("verbose", cl::desc("Verbose compiler output"));
 static cl::alias     LikelyVerboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(LikelyVerbose));
 
@@ -176,7 +178,8 @@ int main(int argc, char *argv[])
     if (LikelyHeterogeneous) settings.heterogeneous = true;
     if (LikelyDisableLoopUnrolling    ) settings.unroll_loops = false;
     if (LikelyDisableLoopVectorization) settings.vectorize_loops = false;
-    if (LikelyVerbose) settings.verbose = true;
+    if (LikelyRuntimeOnly) settings.runtime_only = true;
+    if (LikelyVerbose    ) settings.verbose = true;
 
     likely_mat output = NULL;
     likely_const_env parent = likely_standard(settings,

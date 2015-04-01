@@ -87,6 +87,7 @@ likely_settings likely_default_settings(likely_file_type file_type, bool verbose
     else
         settings.multicore = false;
     settings.heterogeneous = false;
+    settings.runtime_only = false;
     settings.verbose = verbose;
     return settings;
 }
@@ -2150,8 +2151,13 @@ class externExpression : public LikelyOperator
                 return NULL;
         }
 
-        if (ast->num_atoms < 5)
+        if (ast->num_atoms < 5) {
+            if (builder.module && builder.module->context->runtime_only) {
+                const bool runtimeSymbol = (name == "likely_new");
+                likely_ensure(runtimeSymbol, "referenced non-runtime symbol: %s", name.c_str());
+            }
             return new Symbol(name, returnType, parameters);
+        }
 
         const Symbol::CallingConvention cc = (ast->num_atoms >= 6) && (evalInt(ast->atoms[5], builder.env, &ok) != 0) ? Symbol::ArrayCC : Symbol::RegularCC;
         if (!ok)

@@ -15,7 +15,7 @@ if(${LIKELY_HELLOWORLD})
 
   # Static Compiled
   add_custom_command(OUTPUT hello_world_compiled_lisp.o
-                     COMMAND likely ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-compiled.lisp hello_world_compiled_lisp.o
+                     COMMAND likely -ro ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-compiled.lisp hello_world_compiled_lisp.o
                      DEPENDS likely hello-world-compiled.lisp)
   set_source_files_properties(hello_world_compiled_lisp.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
   add_definitions(-DLIKELY_LIBRARY)
@@ -32,7 +32,7 @@ if(${LIKELY_HELLOWORLD})
 
   # Pre-compiled
   add_custom_command(OUTPUT hello_world_precompiled_lisp.bc
-                     COMMAND likely ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-compiled.lisp ${CMAKE_BINARY_DIR}/hello_world_precompiled_lisp.bc
+                     COMMAND likely -ro ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-compiled.lisp ${CMAKE_BINARY_DIR}/hello_world_precompiled_lisp.bc
                      DEPENDS likely hello-world-compiled.lisp)
   add_custom_target(hello_world_precompiled_lisp ALL
                     DEPENDS hello_world_precompiled_lisp.bc)

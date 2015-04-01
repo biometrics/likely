@@ -42,6 +42,7 @@ struct likely_settings
     bool heterogeneous; /*!< \brief Enable heterogeneous code generation. */
     bool unroll_loops; /*!< \brief Perform loop unrolling optimization. */
     bool vectorize_loops; /*!< \brief Perform loop vectorization optimization. */
+    bool runtime_only; /*!< \brief The compiler can only reference external symbols in \ref runtime. */
     bool verbose; /*!< \brief Verbose compiler output. */
 };
 
