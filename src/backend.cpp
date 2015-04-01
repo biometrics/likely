@@ -1177,6 +1177,8 @@ struct LikelyFunction : public LikelyOperator
 
     virtual likely_const_expr clone() const = 0;
 
+    Variant evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const;
+
     likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, CallingConvention cc, bool promoteScalarToMatrix) const
     {
         assert(cc == VirtualCC ? !virtualTypes.empty() : virtualTypes.empty());
@@ -1302,7 +1304,37 @@ private:
     static int UID() { return __LINE__; }
     int uid() const { return UID(); }
 
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        likely_const_expr result = NULL;
+
+        vector<likely_const_expr> args;
+        vector<likely_const_mat> constantArgs;
+        const size_t arguments = length(ast)-1;
+        for (size_t i=0; i<arguments; i++) {
+            likely_const_expr arg = get(builder, ast->atoms[i+1]);
+            if (!arg)
+                goto cleanup;
+
+            if (builder.ctfe && (constantArgs.size() == args.size()))
+                if (likely_const_mat constantArg = arg->getData())
+                    constantArgs.push_back(constantArg);
+
+            args.push_back(arg);
+        }
+
+        result = (builder.ctfe && ctfe() && (constantArgs.size() == args.size()))
+                 ? ConstantData::get(builder, evaluateConstantFunction(constantArgs))
+                 : evaluateFunction(builder, args);
+
+    cleanup:
+        for (likely_const_expr arg : args)
+            delete arg;
+        return result;
+    }
+
     virtual likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args /* takes ownership */) const = 0;
+    virtual bool ctfe() const = 0;
 };
 
 struct Symbol : public LikelyFunction
@@ -1319,6 +1351,8 @@ struct Symbol : public LikelyFunction
     }
 
 private:
+    bool ctfe() const { return false; }
+
     likely_const_expr clone() const
     {
         return new Symbol(env, name, type, parameters);
@@ -1375,27 +1409,6 @@ private:
         if (type & likely_multi_dimension)
             value = builder.CreatePointerCast(value, builder.module->context->toLLVM(type));
         return new likely_expression(LikelyValue(value, type));
-    }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        likely_const_expr result = NULL;
-
-        vector<likely_const_expr> args;
-        const size_t arguments = length(ast)-1;
-        for (size_t i=0; i<arguments; i++) {
-            likely_const_expr arg = get(builder, ast->atoms[i+1]);
-            if (!arg)
-                goto cleanup;
-            args.push_back(arg);
-        }
-
-        result = evaluateFunction(builder, args);
-
-    cleanup:
-        for (likely_const_expr arg : args)
-            delete arg;
-        return result;
     }
 };
 
@@ -1525,6 +1538,28 @@ private:
         }
     };
 };
+
+Variant LikelyFunction::evaluateConstantFunction(const vector<likely_const_mat> &args) const
+{
+    vector<likely_type> params;
+    for (likely_const_mat arg : args)
+        params.push_back(arg->type);
+
+    JITFunction jit("likely_ctfe", this, params, true, args.empty() ? LikelyFunction::RegularCC : LikelyFunction::ArrayCC);
+    void *value;
+    if (jit.function) { // compiler
+        value = args.empty() ? reinterpret_cast<void *(*)()>(jit.function)()
+                             : reinterpret_cast<void *(*)(likely_const_mat const*)>(jit.function)(args.data());
+    } else if (jit.EE) { // interpreter
+        vector<GenericValue> gv;
+        if (!args.empty())
+            gv.push_back(GenericValue((void*) args.data()));
+        value = jit.EE->runFunction(cast<Function>(jit.value), gv).PointerVal;
+    } else { // constant or error
+        value = likely_retain_mat(jit.getData());
+    }
+    return Variant(value, jit.type);
+}
 
 } // namespace (anonymous)
 
@@ -2060,61 +2095,12 @@ struct Lambda : public LikelyFunction
         return !strcmp(symbol, "->") || !strcmp(symbol, "extern");
     }
 
-    Variant evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const
-    {
-        vector<likely_type> params;
-        for (likely_const_mat arg : args)
-            params.push_back(arg->type);
-
-        JITFunction jit("likely_ctfe", this, params, true, args.empty() ? LikelyFunction::RegularCC : LikelyFunction::ArrayCC);
-        void *value;
-        if (jit.function) { // compiler
-            value = args.empty() ? reinterpret_cast<void *(*)()>(jit.function)()
-                                 : reinterpret_cast<void *(*)(likely_const_mat const*)>(jit.function)(args.data());
-        } else if (jit.EE) { // interpreter
-            vector<GenericValue> gv;
-            if (!args.empty())
-                gv.push_back(GenericValue((void*) args.data()));
-            value = jit.EE->runFunction(cast<Function>(jit.value), gv).PointerVal;
-        } else { // constant or error
-            value = likely_retain_mat(jit.getData());
-        }
-        return Variant(value, jit.type);
-    }
-
 private:
+    bool ctfe() const { return !isFunction(likely_symbol(body)); }
+
     likely_const_expr clone() const
     {
         return new Lambda(env, body, parameters, virtualTypes);
-    }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        likely_const_expr result = NULL;
-
-        vector<likely_const_expr> args;
-        vector<likely_const_mat> constantArgs;
-        const size_t arguments = length(ast)-1;
-        for (size_t i=0; i<arguments; i++) {
-            likely_const_expr arg = get(builder, ast->atoms[i+1]);
-            if (!arg)
-                goto cleanup;
-
-            if (builder.ctfe && (constantArgs.size() == args.size()))
-                if (likely_const_mat constantArg = arg->getData())
-                    constantArgs.push_back(constantArg);
-
-            args.push_back(arg);
-        }
-
-        result = (builder.ctfe && !isFunction(likely_symbol(body)) && (constantArgs.size() == args.size()))
-                 ? ConstantData::get(builder, evaluateConstantFunction(constantArgs))
-                 : evaluateFunction(builder, args);
-
-    cleanup:
-        for (likely_const_expr arg : args)
-            delete arg;
-        return result;
     }
 
     likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args) const
