@@ -1151,8 +1151,16 @@ class LikelyOperator : public likely_expression
 
 struct LikelyFunction : public LikelyOperator
 {
-    LikelyFunction(size_t parameters)
-        : parameters(parameters) {}
+    enum CallingConvention
+    {
+        RegularCC,
+        ArrayCC,
+        VirtualCC
+    };
+
+    LikelyFunction(size_t numParameters, const vector<likely_type> &virtualTypes = vector<likely_type>())
+        : numParameters(numParameters)
+        , virtualTypes(virtualTypes) {}
 
     static bool is(const likely_const_expr expr)
     {
@@ -1161,13 +1169,132 @@ struct LikelyFunction : public LikelyOperator
 
     virtual LikelyFunction *clone() const = 0;
 
+    likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, CallingConvention cc, bool promoteScalarToMatrix) const
+    {
+        assert(cc == VirtualCC ? !virtualTypes.empty() : virtualTypes.empty());
+        while (parameters.size() < maxParameters())
+            parameters.push_back(likely_multi_dimension);
+
+        vector<Type*> llvmTypes;
+        if (cc == RegularCC) {
+            for (const likely_type &parameter : parameters)
+                llvmTypes.push_back(builder.module->context->toLLVM(parameter));
+        } else if (cc == ArrayCC) {
+            // Array calling convention - All arguments come stored in an array of matricies.
+            llvmTypes.push_back(PointerType::getUnqual(builder.module->context->toLLVM(likely_multi_dimension)));
+        } else if (cc == VirtualCC) {
+            // Virtual calling convention - Dynamically typed arguments come stored in an array of matricies.
+            //                              Statically typed arguments come stored in a struct pointer.
+            llvmTypes.push_back(PointerType::getUnqual(builder.module->context->toLLVM(likely_multi_dimension)));
+            llvmTypes.push_back(PointerType::getUnqual(getStaticDataType(builder.module->context.get(), virtualTypes)));
+        } else {
+            assert(!"Invalid calling convention!");
+        }
+
+        BasicBlock *originalInsertBlock = builder.GetInsertBlock();
+        Function *tmpFunction = cast<Function>(builder.module->module->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(builder.getContext()), llvmTypes, false)));
+        BasicBlock *entry = BasicBlock::Create(builder.getContext(), "entry", tmpFunction);
+        builder.SetInsertPoint(entry);
+
+        vector<likely_const_expr> arguments;
+        if (cc == RegularCC) {
+            Function::arg_iterator it = tmpFunction->arg_begin();
+            size_t i = 0;
+            while (it != tmpFunction->arg_end())
+                arguments.push_back(new likely_expression(LikelyValue(it++, parameters[i++])));
+        } else if (cc == ArrayCC) {
+            Value *const argumentArray = tmpFunction->arg_begin();
+            for (size_t i=0; i<parameters.size(); i++) {
+                Value *load = builder.CreateLoad(builder.CreateGEP(argumentArray, builder.constant(i)));
+                load = castOrPromote(builder, load, parameters[i]);
+                arguments.push_back(new likely_expression(LikelyValue(load, parameters[i])));
+            }
+        } else if (cc == VirtualCC) {
+            Function::arg_iterator it = tmpFunction->arg_begin();
+            Value *const dynamicArguments = it++;
+            Value *const staticArguments = it++;
+            int dynamicIndex = 0, staticIndex = 0;
+            for (size_t i=0; i<parameters.size(); i++) {
+                if (virtualTypes[i] == likely_multi_dimension) {
+                    Value *load = builder.CreateLoad(builder.CreateGEP(dynamicArguments, builder.constant(dynamicIndex++)));
+                    load = castOrPromote(builder, load, parameters[i]);
+                    arguments.push_back(new likely_expression(LikelyValue(load, parameters[i])));
+                } else {
+                    arguments.push_back(new likely_expression(LikelyValue(builder.CreateLoad(builder.CreateStructGEP(staticArguments, staticIndex++)), parameters[i])));
+                }
+            }
+        } else {
+            assert(!"Invalid calling convention!");
+        }
+
+        for (size_t i=0; i<arguments.size(); i++) {
+            stringstream name; name << "arg_" << i;
+            arguments[i]->value->setName(name.str());
+        }
+
+        unique_ptr<const likely_expression> result(evaluateFunction(builder, arguments));
+        if (!result)
+            return NULL;
+
+        // If we are expecting a constant or a matrix and don't get one then make a matrix
+        if (promoteScalarToMatrix && !result->getData() && !dyn_cast<PointerType>(result->value->getType()))
+            result.reset(new likely_expression(builder.toMat(*result)));
+
+        // If we are returning a constant matrix, make sure to retain a copy
+        if (isa<ConstantExpr>(result->value) && isMat(result->value->getType()))
+            result.reset(new likely_expression(LikelyValue(builder.CreatePointerCast(builder.retainMat(result->value), builder.module->context->toLLVM(result->type)), result->type), result->getData()));
+
+        builder.CreateRet(*result);
+
+        Function *function = cast<Function>(builder.module->module->getOrInsertFunction(name, FunctionType::get(result->value->getType(), llvmTypes, false)));
+
+        ValueToValueMapTy VMap;
+        Function::arg_iterator tmpArgs = tmpFunction->arg_begin();
+        Function::arg_iterator args = function->arg_begin();
+        while (args != function->arg_end())
+            VMap[tmpArgs++] = args++;
+
+        SmallVector<ReturnInst*, 1> returns;
+        CloneFunctionInto(function, tmpFunction, VMap, false, returns);
+        tmpFunction->eraseFromParent();
+
+        if (originalInsertBlock)
+            builder.SetInsertPoint(originalInsertBlock);
+
+        return new likely_expression(LikelyValue(function, result->type), result->getData());
+    }
+
 protected:
-    size_t maxParameters() const { return parameters; }
+    const size_t numParameters;
+    const vector<likely_type> virtualTypes;
+
+    size_t maxParameters() const { return numParameters; }
+
+    static StructType *getStaticDataType(LikelyContext *context, const vector<likely_type> &types)
+    {
+        vector<Type*> elements;
+        for (const likely_type type : types)
+            if (type != likely_multi_dimension)
+                elements.push_back(context->toLLVM(type));
+        return StructType::get(context->context, elements);
+    }
+
+    static Value *castOrPromote(Builder &builder, Value *load, likely_type type)
+    {
+        if (type & likely_multi_dimension) {
+            return builder.CreatePointerCast(load, builder.module->context->toLLVM(type));
+        } else {
+            const likely_type tmpType = type | likely_multi_dimension;
+            const LikelyValue tmpValue(builder.CreatePointerCast(load, builder.module->context->toLLVM(tmpType)), tmpType);
+            return builder.CreateLoad(builder.CreateGEP(builder.data(tmpValue), builder.zero()));
+        }
+    }
 
 private:
-    const size_t parameters;
     static int UID() { return __LINE__; }
     int uid() const { return UID(); }
+
+    virtual likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args /* takes ownership */) const = 0;
 };
 
 struct Symbol : public LikelyFunction
@@ -1183,26 +1310,16 @@ struct Symbol : public LikelyFunction
         type = returnType;
     }
 
-    enum CallingConvention
-    {
-        RegularCC,
-        ArrayCC,
-        VirtualCC
-    };
-
-    static StructType *getStaticDataType(LikelyContext *context, const vector<likely_type> &types)
-    {
-        vector<Type*> elements;
-        for (const likely_type type : types)
-            if (type != likely_multi_dimension)
-                elements.push_back(context->toLLVM(type));
-        return StructType::get(context->context, elements);
-    }
-
 private:
     LikelyFunction *clone() const
     {
         return new Symbol(name, type, parameters);
+    }
+
+    likely_const_expr evaluateFunction(Builder &, vector<likely_const_expr> &) const
+    {
+        assert(!"Not implemented");
+        return NULL;
     }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -1854,14 +1971,12 @@ struct Lambda : public LikelyFunction
 {
     const likely_const_env env;
     const likely_const_ast body, parameters;
-    const vector<likely_type> virtualTypes;
 
     Lambda(likely_const_env env, likely_const_ast body, likely_const_ast parameters = NULL, const vector<likely_type> &virtualTypes = vector<likely_type>())
-        : LikelyFunction(length(parameters))
+        : LikelyFunction(length(parameters), virtualTypes)
         , env(likely_retain_env(env))
         , body(likely_retain_ast(body))
-        , parameters(likely_retain_ast(parameters))
-        , virtualTypes(virtualTypes) {}
+        , parameters(likely_retain_ast(parameters)) {}
 
     ~Lambda()
     {
@@ -1873,112 +1988,6 @@ struct Lambda : public LikelyFunction
     static bool isFunction(const char *symbol)
     {
         return !strcmp(symbol, "->") || !strcmp(symbol, "extern");
-    }
-
-    static Value *castOrPromote(Builder &builder, Value *load, likely_type type)
-    {
-        if (type & likely_multi_dimension) {
-            return builder.CreatePointerCast(load, builder.module->context->toLLVM(type));
-        } else {
-            const likely_type tmpType = type | likely_multi_dimension;
-            const LikelyValue tmpValue(builder.CreatePointerCast(load, builder.module->context->toLLVM(tmpType)), tmpType);
-            return builder.CreateLoad(builder.CreateGEP(builder.data(tmpValue), builder.zero()));
-        }
-    }
-
-    likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, Symbol::CallingConvention cc, bool promoteScalarToMatrix) const
-    {
-        assert(cc == Symbol::VirtualCC ? !virtualTypes.empty() : virtualTypes.empty());
-        while (parameters.size() < maxParameters())
-            parameters.push_back(likely_multi_dimension);
-
-        vector<Type*> llvmTypes;
-        if (cc == Symbol::RegularCC) {
-            for (const likely_type &parameter : parameters)
-                llvmTypes.push_back(builder.module->context->toLLVM(parameter));
-        } else if (cc == Symbol::ArrayCC) {
-            // Array calling convention - All arguments come stored in an array of matricies.
-            llvmTypes.push_back(PointerType::getUnqual(builder.module->context->toLLVM(likely_multi_dimension)));
-        } else if (cc == Symbol::VirtualCC) {
-            // Virtual calling convention - Dynamically typed arguments come stored in an array of matricies.
-            //                              Statically typed arguments come stored in a struct pointer.
-            llvmTypes.push_back(PointerType::getUnqual(builder.module->context->toLLVM(likely_multi_dimension)));
-            llvmTypes.push_back(PointerType::getUnqual(Symbol::getStaticDataType(builder.module->context.get(), virtualTypes)));
-        } else {
-            assert(!"Invalid calling convention!");
-        }
-
-        BasicBlock *originalInsertBlock = builder.GetInsertBlock();
-        Function *tmpFunction = cast<Function>(builder.module->module->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(builder.getContext()), llvmTypes, false)));
-        BasicBlock *entry = BasicBlock::Create(builder.getContext(), "entry", tmpFunction);
-        builder.SetInsertPoint(entry);
-
-        vector<likely_const_expr> arguments;
-        if (cc == Symbol::RegularCC) {
-            Function::arg_iterator it = tmpFunction->arg_begin();
-            size_t i = 0;
-            while (it != tmpFunction->arg_end())
-                arguments.push_back(new likely_expression(LikelyValue(it++, parameters[i++])));
-        } else if (cc == Symbol::ArrayCC) {
-            Value *const argumentArray = tmpFunction->arg_begin();
-            for (size_t i=0; i<parameters.size(); i++) {
-                Value *load = builder.CreateLoad(builder.CreateGEP(argumentArray, builder.constant(i)));
-                load = castOrPromote(builder, load, parameters[i]);
-                arguments.push_back(new likely_expression(LikelyValue(load, parameters[i])));
-            }
-        } else if (cc == Symbol::VirtualCC) {
-            Function::arg_iterator it = tmpFunction->arg_begin();
-            Value *const dynamicArguments = it++;
-            Value *const staticArguments = it++;
-            int dynamicIndex = 0, staticIndex = 0;
-            for (size_t i=0; i<parameters.size(); i++) {
-                if (virtualTypes[i] == likely_multi_dimension) {
-                    Value *load = builder.CreateLoad(builder.CreateGEP(dynamicArguments, builder.constant(dynamicIndex++)));
-                    load = castOrPromote(builder, load, parameters[i]);
-                    arguments.push_back(new likely_expression(LikelyValue(load, parameters[i])));
-                } else {
-                    arguments.push_back(new likely_expression(LikelyValue(builder.CreateLoad(builder.CreateStructGEP(staticArguments, staticIndex++)), parameters[i])));
-                }
-            }
-        } else {
-            assert(!"Invalid calling convention!");
-        }
-
-        for (size_t i=0; i<arguments.size(); i++) {
-            stringstream name; name << "arg_" << i;
-            arguments[i]->value->setName(name.str());
-        }
-
-        unique_ptr<const likely_expression> result(evaluateFunction(builder, arguments));
-        if (!result)
-            return NULL;
-
-        // If we are expecting a constant or a matrix and don't get one then make a matrix
-        if (promoteScalarToMatrix && !result->getData() && !dyn_cast<PointerType>(result->value->getType()))
-            result.reset(new likely_expression(builder.toMat(*result)));
-
-        // If we are returning a constant matrix, make sure to retain a copy
-        if (isa<ConstantExpr>(result->value) && isMat(result->value->getType()))
-            result.reset(new likely_expression(LikelyValue(builder.CreatePointerCast(builder.retainMat(result->value), builder.module->context->toLLVM(result->type)), result->type), result->getData()));
-
-        builder.CreateRet(*result);
-
-        Function *function = cast<Function>(builder.module->module->getOrInsertFunction(name, FunctionType::get(result->value->getType(), llvmTypes, false)));
-
-        ValueToValueMapTy VMap;
-        Function::arg_iterator tmpArgs = tmpFunction->arg_begin();
-        Function::arg_iterator args = function->arg_begin();
-        while (args != function->arg_end())
-            VMap[tmpArgs++] = args++;
-
-        SmallVector<ReturnInst*, 1> returns;
-        CloneFunctionInto(function, tmpFunction, VMap, false, returns);
-        tmpFunction->eraseFromParent();
-
-        if (originalInsertBlock)
-            builder.SetInsertPoint(originalInsertBlock);
-
-        return new likely_expression(LikelyValue(function, result->type), result->getData());
     }
 
     Variant evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const
@@ -2038,7 +2047,7 @@ private:
         return result;
     }
 
-    likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args /* takes ownership */) const
+    likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args) const
     {
         assert(args.size() == maxParameters());
 
