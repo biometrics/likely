@@ -1124,13 +1124,64 @@ public:
 const unique_ptr<const likely_expression> EXPR(get(BUILDER, AST)); \
 if (!EXPR.get()) return NULL;                                      \
 
-struct Symbol : public likely_expression
+class LikelyOperator : public likely_expression
+{
+    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
+    {
+        if ((ast->type != likely_ast_list) && (minParameters() > 0))
+            return error(ast, "operator expected arguments");
+
+        const size_t args = length(ast)-1;
+        const size_t min = minParameters();
+        const size_t max = maxParameters();
+        if ((args < min) || (args > max)) {
+            stringstream stream;
+            stream << "operator with: " << min;
+            if (max != min)
+                stream << "-" << max;
+            stream << " parameters passed: " << args << " argument" << (args == 1 ? "" : "s");
+            return error(ast, stream.str().c_str());
+        }
+
+        return evaluateOperator(builder, ast);
+    }
+
+    virtual likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const = 0;
+};
+
+struct LikelyFunction : public LikelyOperator
+{
+    LikelyFunction(size_t parameters)
+        : parameters(parameters) {}
+
+    static bool is(const likely_const_expr expr)
+    {
+        return expr->uid() == UID();
+    }
+
+    virtual LikelyFunction *clone() const = 0;
+
+protected:
+    size_t maxParameters() const { return parameters; }
+
+private:
+    const size_t parameters;
+    static int UID() { return __LINE__; }
+    int uid() const { return UID(); }
+};
+
+struct Symbol : public LikelyFunction
 {
     const string name;
     const vector<likely_type> parameters;
 
     Symbol(const string &name, likely_type returnType, vector<likely_type> parameters = vector<likely_type>())
-        : likely_expression(LikelyValue(NULL, returnType)), name(name), parameters(parameters) {}
+        : LikelyFunction(parameters.size())
+        , name(name)
+        , parameters(parameters)
+    {
+        type = returnType;
+    }
 
     enum CallingConvention
     {
@@ -1138,11 +1189,6 @@ struct Symbol : public likely_expression
         ArrayCC,
         VirtualCC
     };
-
-    static bool is(const likely_const_expr expr)
-    {
-        return expr->uid() == UID();
-    }
 
     static StructType *getStaticDataType(LikelyContext *context, const vector<likely_type> &types)
     {
@@ -1154,11 +1200,12 @@ struct Symbol : public likely_expression
     }
 
 private:
-    size_t maxParameters() const { return parameters.size(); }
-    static int UID() { return __LINE__; }
-    int uid() const { return UID(); }
+    LikelyFunction *clone() const
+    {
+        return new Symbol(name, type, parameters);
+    }
 
-    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         if (parameters.size() != ((ast->type == likely_ast_list) ? ast->num_atoms-1 : 0))
             return error(ast, "incorrect argument count");
@@ -1287,31 +1334,6 @@ private:
             return result;
         }
     };
-};
-
-class LikelyOperator : public likely_expression
-{
-    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
-    {
-        if ((ast->type != likely_ast_list) && (minParameters() > 0))
-            return error(ast, "operator expected arguments");
-
-        const size_t args = length(ast)-1;
-        const size_t min = minParameters();
-        const size_t max = maxParameters();
-        if ((args < min) || (args > max)) {
-            stringstream stream;
-            stream << "operator with: " << min;
-            if (max != min)
-                stream << "-" << max;
-            stream << " parameters passed: " << args << " argument" << (args == 1 ? "" : "s");
-            return error(ast, stream.str().c_str());
-        }
-
-        return evaluateOperator(builder, ast);
-    }
-
-    virtual likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const = 0;
 };
 
 } // namespace (anonymous)
@@ -1828,25 +1850,24 @@ class tryExpression : public LikelyOperator
 };
 LIKELY_REGISTER(try)
 
-struct Lambda : public LikelyOperator
+struct Lambda : public LikelyFunction
 {
     const likely_const_env env;
     const likely_const_ast body, parameters;
     const vector<likely_type> virtualTypes;
 
     Lambda(likely_const_env env, likely_const_ast body, likely_const_ast parameters = NULL, const vector<likely_type> &virtualTypes = vector<likely_type>())
-        : env(likely_retain_env(env)), body(likely_retain_ast(body)), parameters(likely_retain_ast(parameters)), virtualTypes(virtualTypes) {}
+        : LikelyFunction(length(parameters))
+        , env(likely_retain_env(env))
+        , body(likely_retain_ast(body))
+        , parameters(likely_retain_ast(parameters))
+        , virtualTypes(virtualTypes) {}
 
     ~Lambda()
     {
         likely_release_ast(parameters);
         likely_release_ast(body);
         likely_release_env(env);
-    }
-
-    static bool is(const likely_const_expr expr)
-    {
-        return expr->uid() == UID();
     }
 
     static bool isFunction(const char *symbol)
@@ -1983,9 +2004,10 @@ struct Lambda : public LikelyOperator
     }
 
 private:
-    size_t maxParameters() const { return length(parameters); }
-    static int UID() { return __LINE__; }
-    int uid() const { return UID(); }
+    LikelyFunction *clone() const
+    {
+        return new Lambda(env, body, parameters, virtualTypes);
+    }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
@@ -3092,15 +3114,10 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
     } else {
         if (const likely_const_env env = lookup(builder.env, ast->atom)) {
             const_cast<likely_ast>(ast)->type = likely_ast_operator;
-            if (Lambda::is(env->expr)) {
-                const Lambda *const lambda = reinterpret_cast<const Lambda*>(env->expr);
-                return new Lambda(lambda->env, lambda->body, lambda->parameters, lambda->virtualTypes);
-            } else if (Symbol::is(env->expr)) {
-                const Symbol *const symbol = reinterpret_cast<const Symbol*>(env->expr);
-                return new Symbol(symbol->name, symbol->type, symbol->parameters);
-            } else {
+            if (LikelyFunction::is(env->expr))
+                return reinterpret_cast<const LikelyFunction*>(env->expr)->clone();
+            else
                 return env->expr->evaluate(builder, ast);
-            }
         }
 
         { // Is it an integer?
