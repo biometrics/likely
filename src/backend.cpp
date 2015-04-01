@@ -1158,16 +1158,24 @@ struct LikelyFunction : public LikelyOperator
         VirtualCC
     };
 
-    LikelyFunction(size_t numParameters, const vector<likely_type> &virtualTypes = vector<likely_type>())
-        : numParameters(numParameters)
+    const likely_const_env env;
+
+    LikelyFunction(const likely_const_env env, const size_t numParameters, const vector<likely_type> &virtualTypes = vector<likely_type>())
+        : env(likely_retain_env(env))
+        , numParameters(numParameters)
         , virtualTypes(virtualTypes) {}
+
+    ~LikelyFunction()
+    {
+        likely_release_env(env);
+    }
 
     static bool is(const likely_const_expr expr)
     {
         return expr->uid() == UID();
     }
 
-    virtual LikelyFunction *clone() const = 0;
+    virtual likely_const_expr clone() const = 0;
 
     likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, CallingConvention cc, bool promoteScalarToMatrix) const
     {
@@ -1302,8 +1310,8 @@ struct Symbol : public LikelyFunction
     const string name;
     const vector<likely_type> parameters;
 
-    Symbol(const string &name, likely_type returnType, vector<likely_type> parameters = vector<likely_type>())
-        : LikelyFunction(parameters.size())
+    Symbol(const likely_const_env env, const string &name, const likely_type returnType, const vector<likely_type> parameters = vector<likely_type>())
+        : LikelyFunction(env, parameters.size())
         , name(name)
         , parameters(parameters)
     {
@@ -1311,9 +1319,9 @@ struct Symbol : public LikelyFunction
     }
 
 private:
-    LikelyFunction *clone() const
+    likely_const_expr clone() const
     {
-        return new Symbol(name, type, parameters);
+        return new Symbol(env, name, type, parameters);
     }
 
     likely_const_expr evaluateFunction(Builder &, vector<likely_const_expr> &) const
@@ -1388,7 +1396,7 @@ struct JITFunction : public Symbol
     ExecutionEngine *EE = NULL;
     likely_module *module;
 
-    JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, Symbol::CallingConvention cc);
+    JITFunction(const string &name, const LikelyFunction *lambda, const vector<likely_type> &parameters, bool evaluate, LikelyFunction::CallingConvention cc);
     JITFunction(const likely_const_mat bitcode, const char *symbol);
 
     ~JITFunction()
@@ -1969,12 +1977,10 @@ LIKELY_REGISTER(try)
 
 struct Lambda : public LikelyFunction
 {
-    const likely_const_env env;
     const likely_const_ast body, parameters;
 
     Lambda(likely_const_env env, likely_const_ast body, likely_const_ast parameters = NULL, const vector<likely_type> &virtualTypes = vector<likely_type>())
-        : LikelyFunction(length(parameters), virtualTypes)
-        , env(likely_retain_env(env))
+        : LikelyFunction(env, length(parameters), virtualTypes)
         , body(likely_retain_ast(body))
         , parameters(likely_retain_ast(parameters)) {}
 
@@ -1982,7 +1988,6 @@ struct Lambda : public LikelyFunction
     {
         likely_release_ast(parameters);
         likely_release_ast(body);
-        likely_release_env(env);
     }
 
     static bool isFunction(const char *symbol)
@@ -2013,7 +2018,7 @@ struct Lambda : public LikelyFunction
     }
 
 private:
-    LikelyFunction *clone() const
+    likely_const_expr clone() const
     {
         return new Lambda(env, body, parameters, virtualTypes);
     }
@@ -2187,7 +2192,7 @@ class externExpression : public LikelyOperator
                 const bool runtimeSymbol = (name == "likely_new");
                 likely_ensure(runtimeSymbol, "referenced non-runtime symbol: %s", name.c_str());
             }
-            return new Symbol(name, returnType, parameters);
+            return new Symbol(builder.env, name, returnType, parameters);
         }
 
         const Symbol::CallingConvention cc = (ast->num_atoms >= 6) && (evalInt(ast->atoms[5], builder.env, &ok) != 0) ? Symbol::ArrayCC : Symbol::RegularCC;
@@ -2199,7 +2204,7 @@ class externExpression : public LikelyOperator
         const unique_ptr<const Lambda> lambdaOwner((ast->atoms[4]->type == likely_ast_list) ? lambda : NULL);
         if (builder.module /* static compilation */) {
             if (const likely_const_expr function = lambda->generate(builder, parameters, name, cc, false)) {
-                const likely_const_expr symbol = new Symbol(name, function->type, parameters);
+                const likely_const_expr symbol = new Symbol(builder.env, name, function->type, parameters);
                 delete function;
                 return symbol;
             }
@@ -3005,8 +3010,8 @@ class kernelExpression : public LikelyOperator
 };
 LIKELY_REGISTER(kernel)
 
-JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, Symbol::CallingConvention cc)
-    : Symbol(name, likely_void, parameters)
+JITFunction::JITFunction(const string &name, const LikelyFunction *lambda, const vector<likely_type> &parameters, bool evaluate, LikelyFunction::CallingConvention cc)
+    : Symbol(NULL, name, likely_void, parameters)
     , module(new likely_module(evaluate ? likely_default_settings(likely_file_void, lambda->env->settings->verbose) : *lambda->env->settings))
 {
     Builder builder(lambda->env, module, !evaluate);
@@ -3052,7 +3057,7 @@ JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<
 }
 
 JITFunction::JITFunction(const likely_const_mat bitcode, const char *symbol)
-    : Symbol(symbol, likely_void)
+    : Symbol(NULL, symbol, likely_void)
     , module(new likely_module(bitcode))
 {
     if (module->module) {
