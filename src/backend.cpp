@@ -1266,7 +1266,7 @@ private:
     {
         EE->finalizeObject();
         function = (void*) EE->getFunctionAddress(name.c_str());
-        likely_ensure(function, "no function named: %s", name.c_str());
+        likely_ensure(function != NULL, "no function named: %s", name.c_str());
         EE->removeModule(module->module);
         module->finalize();
         value = NULL;
@@ -3363,7 +3363,7 @@ likely_mat likely_compute(const char *source)
     const likely_mat result = likely_retain_mat(likely_result(env->expr));
     likely_release_env(env);
     likely_release_env(parent);
-    likely_ensure(result, "failed to compute: %s", source);
+    likely_ensure(result != NULL, "failed to compute: %s", source);
     return result;
 }
 //! [likely_compute implementation.]
