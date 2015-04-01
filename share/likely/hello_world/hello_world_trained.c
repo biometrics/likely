@@ -26,17 +26,18 @@ int main(int argc, char *argv[])
     puts("Reading training parameter...");
     likely_set_global("training-parameter", likely_compute(argv[2]));
 
-    puts("Creating a JIT compiler environment...");
-    const likely_env parent = likely_standard(likely_jit(false), NULL, likely_file_void);
-
     puts("Compiling source code...");
-    const likely_const_env env = likely_lex_parse_and_eval(source_file->data, file_type, parent);
-//    likely_env (*hello_world_train)(likely_const_mat) = likely_function(env->expr);
-//    likely_ensure(hello_world_train, "failed to compile training function");
+    likely_mat output = NULL;
+    const likely_env parent = likely_standard(likely_jit(false), &output, likely_file_bitcode);
+    likely_release_env(likely_lex_parse_and_eval(source_file->data, file_type, parent));
+    likely_release_env(parent);
+    likely_ensure(output, "failed to compile: %s", argv[1]);
+
+    puts("Saving bitcode...");
+    const bool write_success = likely_write(output, argv[3]);
+    likely_ensure(write_success, "failed to write: %s", argv[3]);
 
     puts("Cleaning up...");
-    likely_release_env(env);
-    likely_release_env(parent);
     likely_release_mat(source_file);
 
     return EXIT_SUCCESS;
