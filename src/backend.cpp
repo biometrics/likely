@@ -1324,17 +1324,8 @@ private:
         return new Symbol(env, name, type, parameters);
     }
 
-    likely_const_expr evaluateFunction(Builder &, vector<likely_const_expr> &) const
+    likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args) const
     {
-        assert(!"Not implemented");
-        return NULL;
-    }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
-    {
-        if (parameters.size() != ((ast->type == likely_ast_list) ? ast->num_atoms-1 : 0))
-            return error(ast, "incorrect argument count");
-
         Function *symbol = builder.module->module->getFunction(name);
         if (!symbol) {
             vector<Type*> llvmParameters;
@@ -1364,27 +1355,47 @@ private:
             }
         }
 
-        vector<Value*> args;
-        if (ast->type == likely_ast_list)
-            for (size_t i=1; i<ast->num_atoms; i++) {
-                TRY_EXPR(builder, ast->atoms[i], arg)
-                const likely_type parameter = parameters[i-1];
-                if (arg->type & likely_multi_dimension) {
-                    if (parameter & likely_multi_dimension)
-                        args.push_back(builder.CreatePointerCast(*arg, builder.module->context->toLLVM(parameter)));
-                    else if (parameter & likely_compound_pointer)
-                        args.push_back(builder.CreatePointerCast(builder.data(*arg), builder.module->context->toLLVM(parameter)));
-                    else
-                        likely_ensure(false, "can't cast matrix to scalar");
-                } else {
-                    args.push_back(builder.cast(*arg.get(), parameter));
-                }
+        vector<Value*> castedArgs;
+        for (size_t i=0; i<args.size(); i++) {
+            const likely_const_expr arg = args[i];
+            const likely_type parameter = parameters[i];
+            if (arg->type & likely_multi_dimension) {
+                if (parameter & likely_multi_dimension)
+                    castedArgs.push_back(builder.CreatePointerCast(*arg, builder.module->context->toLLVM(parameter)));
+                else if (parameter & likely_compound_pointer)
+                    castedArgs.push_back(builder.CreatePointerCast(builder.data(*arg), builder.module->context->toLLVM(parameter)));
+                else
+                    likely_ensure(false, "can't cast matrix to scalar");
+            } else {
+                castedArgs.push_back(builder.cast(*arg, parameter));
             }
+        }
 
-        Value *value = builder.CreateCall(symbol, args);
+        Value *value = builder.CreateCall(symbol, castedArgs);
         if (type & likely_multi_dimension)
             value = builder.CreatePointerCast(value, builder.module->context->toLLVM(type));
         return new likely_expression(LikelyValue(value, type));
+    }
+
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        likely_const_expr result = NULL;
+
+        vector<likely_const_expr> args;
+        const size_t arguments = length(ast)-1;
+        for (size_t i=0; i<arguments; i++) {
+            likely_const_expr arg = get(builder, ast->atoms[i+1]);
+            if (!arg)
+                goto cleanup;
+            args.push_back(arg);
+        }
+
+        result = evaluateFunction(builder, args);
+
+    cleanup:
+        for (likely_const_expr arg : args)
+            delete arg;
+        return result;
     }
 };
 
