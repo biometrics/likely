@@ -1388,16 +1388,70 @@ private:
     }
 };
 
-struct Lambda;
-
 struct JITFunction : public Symbol
 {
     void *function = NULL;
     ExecutionEngine *EE = NULL;
     likely_module *module;
 
-    JITFunction(const string &name, const LikelyFunction *lambda, const vector<likely_type> &parameters, bool evaluate, LikelyFunction::CallingConvention cc);
-    JITFunction(const likely_const_mat bitcode, const char *symbol);
+    JITFunction(const string &name, const LikelyFunction *function, const vector<likely_type> &parameters, bool evaluate, LikelyFunction::CallingConvention cc)
+        : Symbol(NULL, name, likely_void, parameters)
+        , module(new likely_module(evaluate ? likely_default_settings(likely_file_void, function->env->settings->verbose) : *function->env->settings))
+    {
+        Builder builder(function->env, module, !evaluate);
+        unique_ptr<const likely_expression> expr(function->generate(builder, parameters, name, cc, evaluate));
+        if (!expr) // error
+            return;
+
+        value = expr->value;
+        type = expr->type;
+        setData(expr->getData());
+        if (evaluate && getData()) // constant
+            return;
+
+        // No libffi support for Windows
+#ifdef _WIN32
+        evaluate = false;
+#endif // _WIN32
+
+        // Don't run the interpreter on a module with loops, better to compile and execute it instead.
+        if (evaluate) {
+            legacy::PassManager PM;
+            HasLoop *hasLoop = new HasLoop();
+            PM.add(hasLoop);
+            PM.run(*module->module);
+            evaluate = !hasLoop->hasLoop;
+        }
+
+        EE = createExecutionEngine(unique_ptr<Module>(module->module),
+                                   evaluate ? EngineKind::Interpreter : EngineKind::JIT);
+
+        if (!evaluate) {
+            // optimize
+            EE->setObjectCache(&TheJITFunctionCache);
+            if (!TheJITFunctionCache.alert(module->module))
+                module->context->PM->run(*module->module);
+        }
+
+        if (module->context->verbose)
+            module->module->print(outs(), NULL);
+
+        if (!evaluate)
+            compileAndCleanup();
+    }
+
+    JITFunction(const likely_const_mat bitcode, const char *symbol)
+        : Symbol(NULL, symbol, likely_void)
+        , module(new likely_module(bitcode))
+    {
+        if (module->module) {
+            EE = createExecutionEngine(unique_ptr<Module>(module->module), EngineKind::JIT);
+            module->context->PM->run(*module->module);
+            compileAndCleanup();
+        } else {
+            function = NULL;
+        }
+    }
 
     ~JITFunction()
     {
@@ -3009,65 +3063,6 @@ class kernelExpression : public LikelyOperator
     }
 };
 LIKELY_REGISTER(kernel)
-
-JITFunction::JITFunction(const string &name, const LikelyFunction *lambda, const vector<likely_type> &parameters, bool evaluate, LikelyFunction::CallingConvention cc)
-    : Symbol(NULL, name, likely_void, parameters)
-    , module(new likely_module(evaluate ? likely_default_settings(likely_file_void, lambda->env->settings->verbose) : *lambda->env->settings))
-{
-    Builder builder(lambda->env, module, !evaluate);
-    unique_ptr<const likely_expression> expr(lambda->generate(builder, parameters, name, cc, evaluate));
-    if (!expr) // error
-        return;
-
-    value = expr->value;
-    type = expr->type;
-    setData(expr->getData());
-    if (evaluate && getData()) // constant
-        return;
-
-// No libffi support for Windows
-#ifdef _WIN32
-    evaluate = false;
-#endif // _WIN32
-
-    // Don't run the interpreter on a module with loops, better to compile and execute it instead.
-    if (evaluate) {
-        legacy::PassManager PM;
-        HasLoop *hasLoop = new HasLoop();
-        PM.add(hasLoop);
-        PM.run(*module->module);
-        evaluate = !hasLoop->hasLoop;
-    }
-
-    EE = createExecutionEngine(unique_ptr<Module>(module->module),
-                               evaluate ? EngineKind::Interpreter : EngineKind::JIT);
-
-    if (!evaluate) {
-        // optimize
-        EE->setObjectCache(&TheJITFunctionCache);
-        if (!TheJITFunctionCache.alert(module->module))
-            module->context->PM->run(*module->module);
-    }
-
-    if (module->context->verbose)
-        module->module->print(outs(), NULL);
-
-    if (!evaluate)
-        compileAndCleanup();
-}
-
-JITFunction::JITFunction(const likely_const_mat bitcode, const char *symbol)
-    : Symbol(NULL, symbol, likely_void)
-    , module(new likely_module(bitcode))
-{
-    if (module->module) {
-        EE = createExecutionEngine(unique_ptr<Module>(module->module), EngineKind::JIT);
-        module->context->PM->run(*module->module);
-        compileAndCleanup();
-    } else {
-        function = NULL;
-    }
-}
 
 } // namespace (anonymous)
 
