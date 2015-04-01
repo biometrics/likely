@@ -167,7 +167,7 @@ class Source : public QPlainTextEdit
     Q_OBJECT
     QString header, previousSource;
     int wheelRemainderX = 0, wheelRemainderY = 0;
-    likely_env root = likely_standard(likely_jit(false), NULL, likely_file_void);
+    likely_env root = likely_standard(likely_default_settings(likely_file_void, false), NULL, likely_file_void);
     likely_env current = NULL;
 
 public:
@@ -193,7 +193,7 @@ public slots:
 
     void setExecution(const QString &execution)
     {
-        likely_settings settings = likely_jit(false);
+        likely_settings settings = likely_default_settings(likely_file_void, false);
         settings.multicore = (execution == "Multi-core");
         likely_release_env(root);
         root = likely_standard(settings, NULL, likely_file_void);

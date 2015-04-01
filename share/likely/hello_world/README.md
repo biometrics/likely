@@ -137,10 +137,8 @@ Instead of compiling to a native object file, you can instead compile to platfor
 Using the same *hello-world.lisp* file from the previous section:
 
 ```bash
-$ likely -h hello-world.lisp hello-world.bc
+$ likely hello-world.lisp hello-world.bc
 ```
-
-Note that *-h* optimizes the code for minimum size (and maximum human readability), which is desireable because it will be re-compiled at runtime anyway for maximum speed.
 
 We've just compiled our Likely source code into platform-independent LLVM bitcode.
 We can load this bitcode at runtime using **[share/likely/hello_world/hello_world_static.c](share/likely/hello_world/hello_world_static.c)** and it will be JIT compiled for the host CPU.

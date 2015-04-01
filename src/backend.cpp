@@ -66,20 +66,31 @@
 using namespace llvm;
 using namespace std;
 
-//! [likely_jit implementation.]
-likely_settings likely_jit(bool verbose)
+//! [likely_default_settings implementation.]
+likely_settings likely_default_settings(likely_file_type file_type, bool verbose)
 {
     likely_settings settings;
-    settings.opt_level = 3;
-    settings.size_level = 0;
-    settings.multicore = thread::hardware_concurrency() > 1;
+    if ((file_type == likely_file_ir) || (file_type == likely_file_bitcode)) {
+        settings.opt_level = 2;
+        settings.size_level = 2;
+        settings.multicore = false;
+        settings.unroll_loops = false;
+        settings.vectorize_loops = false;
+    } else {
+        settings.opt_level = 3;
+        settings.size_level = 0;
+        settings.unroll_loops = true;
+        settings.vectorize_loops = true;
+    }
+    if (file_type == likely_file_void)
+        settings.multicore = thread::hardware_concurrency() > 1;
+    else
+        settings.multicore = false;
     settings.heterogeneous = false;
-    settings.unroll_loops = true;
-    settings.vectorize_loops = true;
     settings.verbose = verbose;
     return settings;
 }
-//! [likely_jit implementation.]
+//! [likely_default_settings implementation.]
 
 namespace {
 
@@ -420,7 +431,7 @@ static likely_env newEnv(likely_const_env parent, likely_const_ast ast = NULL, l
         env->module = parent->module;
     } else {
         env->settings = (likely_settings*) malloc(sizeof(likely_settings));
-        *env->settings = likely_jit(false);
+        *env->settings = likely_default_settings(likely_file_void, false);
         env->module = NULL;
     }
     env->expr = expr;
@@ -594,7 +605,7 @@ struct likely_module
         , module(new Module("likely", context->context)) {}
 
     likely_module(const likely_const_mat bitcode)
-        : context(new LikelyContext(likely_jit(false)))
+        : context(new LikelyContext(likely_default_settings(likely_file_void, false)))
     {
         const ErrorOr<Module*> result = parseBitcodeFile(MemoryBufferRef(StringRef(bitcode->data, likely_bytes(bitcode)), "likely"), context->context);
         module = result ? result.get() : NULL;
@@ -2959,7 +2970,7 @@ LIKELY_REGISTER(kernel)
 
 JITFunction::JITFunction(const string &name, const Lambda *lambda, const vector<likely_type> &parameters, bool evaluate, Symbol::CallingConvention cc)
     : Symbol(name, likely_void, parameters)
-    , module(new likely_module(evaluate ? likely_jit(lambda->env->settings->verbose) : *lambda->env->settings))
+    , module(new likely_module(evaluate ? likely_default_settings(likely_file_void, lambda->env->settings->verbose) : *lambda->env->settings))
 {
     Builder builder(lambda->env, module, !evaluate);
     unique_ptr<const likely_expression> expr(lambda->generate(builder, parameters, name, cc, evaluate));
@@ -3341,7 +3352,7 @@ likely_env likely_lex_parse_and_eval(const char *source, likely_file_type file_t
 //! [likely_compute implementation.]
 likely_mat likely_compute(const char *source)
 {
-    const likely_const_env parent = likely_standard(likely_jit(false), NULL, likely_file_void);
+    const likely_const_env parent = likely_standard(likely_default_settings(likely_file_void, false), NULL, likely_file_void);
     const likely_const_env env = likely_lex_parse_and_eval(source, likely_file_lisp, parent);
     const likely_mat result = likely_retain_mat(likely_result(env->expr));
     likely_release_env(env);

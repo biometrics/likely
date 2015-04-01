@@ -141,7 +141,7 @@ struct TestBase
 
         if (!BenchmarkQuiet)
             printf("%s \t", fileName);
-        const likely_const_env parent = likely_standard(likely_jit(false), NULL, likely_file_void);
+        const likely_const_env parent = likely_standard(likely_default_settings(likely_file_void, false), NULL, likely_file_void);
         likely_release_env(likely_lex_parse_and_eval(source->data, file_type, parent));
 
         if (BenchmarkTest) {
@@ -435,13 +435,9 @@ int main(int argc, char *argv[])
             puts("Function \t\tType \tSize \tExec \tIter \t\tSpeedup");
         }
 
-        likely_settings settings = likely_jit(false);
+        likely_settings settings = likely_default_settings(BenchmarkHuman ? likely_file_ir : likely_file_object, false);
         settings.multicore = BenchmarkMulticore;
         settings.verbose = BenchmarkVerbose;
-        settings.opt_level = BenchmarkHuman ? 2 : 3;
-        settings.size_level = BenchmarkHuman ? 2 : 0;
-        settings.unroll_loops = !BenchmarkHuman;
-        settings.vectorize_loops = !BenchmarkHuman;
         const likely_const_env parent = likely_standard(settings, NULL, likely_file_void);
 
         BinaryThreshold().run(parent);

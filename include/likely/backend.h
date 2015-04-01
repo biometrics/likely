@@ -32,7 +32,7 @@ extern "C" {
 
 /*!
  * \brief Compilation options.
- * \see \ref likely_jit
+ * \see \ref likely_default_settings
  */
 struct likely_settings
 {
@@ -46,13 +46,18 @@ struct likely_settings
 };
 
 /*!
- * \brief Default just-in-time compiler options.
+ * \brief Construct the default compiler options.
+ *
+ * If \p file_type is \ref likely_file_ir or \ref likely_file_bitcode then the settings will be optimized for minimum code size and maximum code human readability,
+ * otherwise the settings will be optimized for maximum execution speed.
+ * If \p file_type is \ref likely_file_void then multicore execution may be enabled.
  * \par Implementation
- * \snippet src/backend.cpp likely_jit implementation.
+ * \snippet src/backend.cpp likely_default_settings implementation.
+ * \param[in] file_type File type.
  * \param[in] verbose Verbose compiler output.
  * \return \ref likely_settings initialized for just-in-time compilation.
  */
-LIKELY_EXPORT struct likely_settings likely_jit(bool verbose);
+LIKELY_EXPORT struct likely_settings likely_default_settings(likely_file_type file_type, bool verbose);
 
 typedef struct likely_environment *likely_env; /*!< \brief Pointer to a \ref likely_environment. */
 typedef struct likely_environment const *likely_const_env; /*!< \brief Pointer to a constant \ref likely_environment. */
@@ -178,7 +183,7 @@ LIKELY_EXPORT likely_env likely_lex_parse_and_eval(const char *source, likely_fi
 /*!
  * \brief Convenient alternative to \ref likely_lex_parse_and_eval followed by \ref likely_result in a generic environment.
  * \par Implementation
- * \snippet src/backend.cpp likely_evaluate implementation.
+ * \snippet src/backend.cpp likely_compute implementation.
  * \param[in] source Code to compute.
  * \return The result of the computation.
  */

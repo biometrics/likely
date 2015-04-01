@@ -41,7 +41,7 @@ likely_file_type likely_guess_file_type(const char *file_name)
 {
     const char *extension = strrchr(file_name, '.');
     if (!extension)
-        return likely_file_directory;
+        return likely_file_void;
     extension++; // remove the leading '.'
     if (!strcmp(extension, "bin" )) return likely_file_binary;
     if (!strcmp(extension, "mat" )) return likely_file_matrix;
@@ -400,7 +400,7 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
     static likely_const_env env = NULL;
     static void *normalize = NULL;
     if (normalize == NULL) {
-        const likely_env parent = likely_standard(likely_jit(false), NULL, likely_file_void);
+        const likely_env parent = likely_standard(likely_default_settings(likely_file_void, false), NULL, likely_file_void);
         const char *const src = "-likely-normalize :=\n"
                                 "  (src min range) :->\n"
                                 "  {\n"

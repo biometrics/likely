@@ -165,14 +165,18 @@ int main(int argc, char *argv[])
     else if (LikelyQuiet) evalCallback = quietCallback;
     else                  evalCallback = printCallback;
 
-    likely_settings settings;
-    settings.opt_level = LikelyO3 ? 3 : ((LikelyO2 || LikelyOs || LikelyOz) ? 2 : (LikelyO1 ? 1 : (LikelyO0 ? 0 : (LikelyOutput.empty() ? 3 : 0))));
-    settings.size_level = LikelyOz ? 2 : (LikelyOs ? 1 : 0);
-    settings.multicore = LikelyMulticore;
-    settings.heterogeneous = LikelyHeterogeneous;
-    settings.unroll_loops = !LikelyDisableLoopUnrolling;
-    settings.vectorize_loops = !LikelyDisableLoopVectorization;
-    settings.verbose = LikelyVerbose;
+    likely_settings settings = likely_default_settings(LikelyHuman ? likely_file_ir : likely_guess_file_type(LikelyOutput.c_str()), false);
+    if (LikelyO0) { settings.opt_level = 0; settings.size_level = 0; }
+    if (LikelyO1) { settings.opt_level = 1; settings.size_level = 0; }
+    if (LikelyO2) { settings.opt_level = 2; settings.size_level = 0; }
+    if (LikelyO3) { settings.opt_level = 3; settings.size_level = 0; }
+    if (LikelyOs) { settings.opt_level = 2; settings.size_level = 1; }
+    if (LikelyOz) { settings.opt_level = 2; settings.size_level = 2; }
+    if (LikelyMulticore    ) settings.multicore     = true;
+    if (LikelyHeterogeneous) settings.heterogeneous = true;
+    if (LikelyDisableLoopUnrolling    ) settings.unroll_loops = false;
+    if (LikelyDisableLoopVectorization) settings.vectorize_loops = false;
+    if (LikelyVerbose) settings.verbose = true;
 
     likely_mat output = NULL;
     likely_const_env parent = likely_standard(settings,
