@@ -26,18 +26,8 @@ int main(int argc, char *argv[])
     likely_ensure(argc > 1, "expected at least one argument, the return value.");
 
     likely_const_mat *const args = (likely_const_mat*) malloc(sizeof(likely_const_mat) * (argc-1));
-    const likely_const_env parent = likely_standard(likely_jit(false), NULL, likely_file_void);
-    for (int i=1; i<argc; i++) {
-        likely_const_mat arg = NULL;
-        if (strcmp(argv[i], "-")) {
-            const likely_const_env env = likely_lex_parse_and_eval(argv[i], likely_file_lisp, parent);
-            arg = likely_retain_mat(likely_result(env->expr));
-            likely_release_env(env);
-            likely_ensure(arg != NULL, "failed to evaluate: %s", argv[i]);
-        }
-        args[i-1] = arg;
-    }
-    likely_release_env(parent);
+    for (int i=1; i<argc; i++)
+        args[i-1] = !strcmp(argv[i], "-") ? NULL : likely_compute(argv[i]);
 
     const likely_const_mat result = likely_test_function(args + 1);
     const likely_const_mat rendered = likely_render(result, NULL, NULL);

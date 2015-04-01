@@ -3338,6 +3338,19 @@ likely_env likely_lex_parse_and_eval(const char *source, likely_file_type file_t
 }
 //! [likely_lex_parse_and_eval implementation.]
 
+//! [likely_compute implementation.]
+likely_mat likely_compute(const char *source)
+{
+    const likely_const_env parent = likely_standard(likely_jit(false), NULL, likely_file_void);
+    const likely_const_env env = likely_lex_parse_and_eval(source, likely_file_lisp, parent);
+    const likely_mat result = likely_retain_mat(likely_result(env->expr));
+    likely_release_env(env);
+    likely_release_env(parent);
+    likely_ensure(result, "failed to compute: %s", source);
+    return result;
+}
+//! [likely_compute implementation.]
+
 void likely_shutdown()
 {
     likely_release_env(RootEnvironment::get());

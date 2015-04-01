@@ -176,6 +176,15 @@ LIKELY_EXPORT likely_env likely_eval(likely_ast ast, likely_const_env parent, li
 LIKELY_EXPORT likely_env likely_lex_parse_and_eval(const char *source, likely_file_type file_type, likely_const_env parent);
 
 /*!
+ * \brief Convenient alternative to \ref likely_lex_parse_and_eval followed by \ref likely_result in a generic environment.
+ * \par Implementation
+ * \snippet src/backend.cpp likely_evaluate implementation.
+ * \param[in] source Code to compute.
+ * \return The result of the computation.
+ */
+LIKELY_EXPORT likely_mat likely_compute(const char *source);
+
+/*!
  * \brief Contents of the Likely Standard Library: <tt>library/standard.tex</tt>.
  */
 LIKELY_EXPORT extern const char likely_standard_library[];
