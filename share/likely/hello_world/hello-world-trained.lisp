@@ -1,9 +1,11 @@
+d := (global "training-parameter" i32)
+
 hello-world :=
   src :->
   {
     dst := src.imitate
     (dst src) :=>
-      dst :<- (/ src (global "training-parameter" u32))
+      dst :<- (/ src d)
     dst
   }
 

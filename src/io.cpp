@@ -445,7 +445,13 @@ likely_mat likely_global(const char *name, likely_type type)
     lock_guard<mutex> locker(getGlobalsMutex());
     const likely_mat value = getGlobals()[name];
     likely_ensure(value != NULL, "no global value with name: %s", name);
-    likely_ensure((value->type == type) || (type == likely_void), "global value: %s had unexpected type", name);
+    if ((value->type != type) && (type != likely_void)) {
+        const likely_const_mat expected = likely_type_to_string(type);
+        const likely_const_mat actual = likely_type_to_string(value->type);
+        likely_ensure(false , "global value: %s had unexpected type, expected: %s but got: %s", name, expected->data, actual->data);
+        likely_release_mat(expected);
+        likely_release_mat(actual);
+    }
     return likely_retain_mat(value);
 }
 
