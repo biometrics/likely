@@ -2251,17 +2251,16 @@ class externExpression : public LikelyOperator
         if (!ok)
             return NULL;
 
-        const Lambda *lambda = static_cast<const Lambda*>((ast->atoms[4]->type == likely_ast_list) ? likely_expression::get(builder, ast->atoms[4])
-                                                                                                   : lookup(builder.env, ast->atoms[4]->atom)->expr);
-        const unique_ptr<const Lambda> lambdaOwner((ast->atoms[4]->type == likely_ast_list) ? lambda : NULL);
+        const unique_ptr<const LikelyFunction> function(reinterpret_cast<const LikelyFunction*>(likely_expression::get(builder, ast->atoms[4])));
+        assert(LikelyFunction::is(function.get()));
         if (builder.module /* static compilation */) {
-            if (const likely_const_expr function = lambda->generate(builder, parameters, name, cc, false)) {
-                const likely_const_expr symbol = new Symbol(builder.env, name, function->type, parameters);
-                delete function;
+            if (const likely_const_expr f = function->generate(builder, parameters, name, cc, false)) {
+                const likely_const_expr symbol = new Symbol(builder.env, name, f->type, parameters);
+                delete f;
                 return symbol;
             }
         } else /* JIT compilation */ {
-            JITFunction *jitFunction = new JITFunction(name, lambda, parameters, false, cc);
+            JITFunction *jitFunction = new JITFunction(name, function.get(), parameters, false, cc);
             if (jitFunction->function) {
                 sys::DynamicLibrary::AddSymbol(name, jitFunction->function);
                 return jitFunction;
