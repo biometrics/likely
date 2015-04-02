@@ -1175,6 +1175,11 @@ struct LikelyFunction : public LikelyOperator
         return expr->uid() == UID();
     }
 
+    static bool isSymbol(const char *symbol)
+    {
+        return !strcmp(symbol, "->") || !strcmp(symbol, "extern");
+    }
+
     virtual likely_const_expr clone() const = 0;
 
     Variant evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const;
@@ -2091,13 +2096,8 @@ struct Lambda : public LikelyFunction
         likely_release_ast(body);
     }
 
-    static bool isFunction(const char *symbol)
-    {
-        return !strcmp(symbol, "->") || !strcmp(symbol, "extern");
-    }
-
 private:
-    bool ctfe() const { return !isFunction(likely_symbol(body)); }
+    bool ctfe() const { return !isSymbol(likely_symbol(body)); }
 
     likely_const_expr clone() const
     {
@@ -3333,7 +3333,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
                                         && (statement->num_atoms > 0)
                                         && (statement->atoms[0]->type != likely_ast_list))
                                        ? statement->atoms[0]->atom : "";
-            if (Lambda::isFunction(symbol)) {
+            if (LikelyFunction::isSymbol(symbol)) {
                 expr = likely_expression::get(builder, statement);
             } else {
                 const Variant data = Lambda(parent, statement).evaluateConstantFunction();
