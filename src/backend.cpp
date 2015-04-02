@@ -1170,17 +1170,10 @@ struct LikelyFunction : public LikelyOperator
         likely_release_env(env);
     }
 
-    static bool is(const likely_const_expr expr)
-    {
-        return expr->uid() == UID();
-    }
-
     static bool isSymbol(const char *symbol)
     {
         return !strcmp(symbol, "->") || !strcmp(symbol, "extern");
     }
-
-    virtual likely_const_expr clone() const = 0;
 
     Variant evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const;
 
@@ -1306,11 +1299,11 @@ protected:
     }
 
 private:
-    static int UID() { return __LINE__; }
-    int uid() const { return UID(); }
-
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
+        if (ast->type != likely_ast_list)
+            return clone();
+
         likely_const_expr result = NULL;
 
         bool doCTFE = builder.ctfe && ctfe();
@@ -1342,6 +1335,7 @@ private:
     }
 
     virtual bool ctfe() const { return true; }
+    virtual likely_const_expr clone() const = 0;
     virtual likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args /* takes ownership */) const = 0;
 };
 
@@ -2252,7 +2246,6 @@ class externExpression : public LikelyOperator
             return NULL;
 
         const unique_ptr<const LikelyFunction> function(reinterpret_cast<const LikelyFunction*>(likely_expression::get(builder, ast->atoms[4])));
-        assert(LikelyFunction::is(function.get()));
         if (builder.module /* static compilation */) {
             if (const likely_const_expr f = function->generate(builder, parameters, name, cc, false)) {
                 const likely_const_expr symbol = new Symbol(builder.env, name, f->type, parameters);
@@ -3120,10 +3113,7 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
     } else {
         if (const likely_const_env env = lookup(builder.env, ast->atom)) {
             const_cast<likely_ast>(ast)->type = likely_ast_operator;
-            if (LikelyFunction::is(env->expr))
-                return reinterpret_cast<const LikelyFunction*>(env->expr)->clone();
-            else
-                return env->expr->evaluate(builder, ast);
+            return env->expr->evaluate(builder, ast);
         }
 
         { // Is it an integer?
