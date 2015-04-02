@@ -3318,14 +3318,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
         likely_const_expr expr = NULL;
         env = NULL;
         if (likely_is_definition(statement)) {
-            const likely_const_ast rhs = statement->atoms[2];
-            if (!strcmp(likely_symbol(rhs), "->")) {
-                // Global function
-                expr = likely_expression::get(builder, rhs);
-            } else {
-                // Lazy global value
-                expr = new LazyDefinition(builder.env, rhs);
-            }
+            expr = new LazyDefinition(builder.env, statement->atoms[2]);
         } else {
             // If `ast` is not a lambda then it is a computation we perform by constructing and executing a parameterless lambda.
             const char *const symbol = ((statement->type == likely_ast_list)
