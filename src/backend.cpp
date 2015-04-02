@@ -3289,13 +3289,20 @@ class LazyDefinition : public LikelyOperator
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        likely_const_env env = this->env;
-        swap(builder.env, env);
-        unique_ptr<const likely_expression> op(get(builder, this->ast));
-        swap(builder.env, env);
-        if ((ast->type != likely_ast_list) || !op)
-            return op.release();
-        return op->evaluate(builder, ast);
+        if (LikelyFunction::isSymbol(likely_symbol(this->ast)) || (ast->type == likely_ast_list)) {
+            // It's a global function
+            likely_const_env env = this->env;
+            swap(builder.env, env);
+            unique_ptr<const likely_expression> op(get(builder, this->ast));
+            swap(builder.env, env);
+            if ((ast->type != likely_ast_list) || !op)
+                return op.release();
+            return op->evaluate(builder, ast);
+        } else {
+            const Variant data = Lambda(env, this->ast).evaluateConstantFunction();
+            assert((likely_const_mat) data);
+            return ConstantData::get(data)->evaluate(builder, NULL);
+        }
     }
 
 public:
