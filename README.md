@@ -11,10 +11,10 @@
     $ make test
     $ make install
 
-### Minimum Supported Platforms
+### Tested Platforms
 
 | OS           | Compiler  |
 |--------------|-----------|
-| OS X 10.9    | XCode 5.0 |
+| OS X 10.10.2 | XCode 6.2 |
 | Ubuntu 13.10 | GCC 4.8.1 |
 | Windows 7    | VS 2013   |
