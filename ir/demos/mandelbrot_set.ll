@@ -1,4 +1,4 @@
-; ModuleID = '/Users/m29396/likely/build/mandelbrot_set.bc'
+; ModuleID = 'likely'
 
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %u8XY = type { i32, i32, i32, i32, i32, i32, [0 x i8] }

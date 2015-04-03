@@ -498,21 +498,16 @@ endif()
 set(LIKELY_DEMOS_DIR ${CMAKE_SOURCE_DIR}/ir/demos)
 function(add_demo FILE ARGS)
   foreach(KERNEL_TYPE "" "-m")
-    set(BITCODE_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}.bc)
     set(IR_FILE ${LIKELY_DEMOS_DIR}/${FILE}${KERNEL_TYPE}.ll)
     set(OBJECT_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}${CMAKE_C_OUTPUT_EXTENSION})
-    add_custom_command(OUTPUT ${BITCODE_FILE}
+    add_custom_command(OUTPUT ${IR_FILE}
                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                       COMMAND likely -ro ${KERNEL_TYPE} -q "library/${FILE}.md" ${BITCODE_FILE}
+                       COMMAND likely -ro ${KERNEL_TYPE} -q "library/${FILE}.md" ${IR_FILE}
                        DEPENDS likely ${CMAKE_SOURCE_DIR}/library/${FILE}.md
                        VERBATIM)
-    add_custom_command(OUTPUT ${IR_FILE}
-                       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-                       COMMAND llvm-dis ${BITCODE_FILE} -o=${IR_FILE}
-                       DEPENDS llvm-dis ${BITCODE_FILE})
     add_custom_command(OUTPUT ${OBJECT_FILE}
-                       COMMAND llc -O3 -filetype=obj ${BITCODE_FILE} -o ${OBJECT_FILE}
-                       DEPENDS llc ${BITCODE_FILE})
+                       COMMAND llc -O3 -filetype=obj ${IR_FILE} -o ${OBJECT_FILE}
+                       DEPENDS llc ${IR_FILE})
     set(DEMO_EXECUTABLE ${FILE}${KERNEL_TYPE})
     add_executable(${DEMO_EXECUTABLE} $<TARGET_OBJECTS:likely_main> ${OBJECT_FILE} ${IR_FILE})
     set_source_files_properties(${OBJECT_FILE} PROPERTIES EXTERNAL_OBJECT true GENERATED true)
