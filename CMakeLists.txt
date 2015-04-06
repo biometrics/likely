@@ -177,7 +177,7 @@ if(LATEX_COMPILER)
 endif()
 
 # Install
-install(DIRECTORY include share DESTINATION ${CMAKE_INSTALL_PREFIX} PATTERN "*.DS_Store" EXCLUDE)
+install(DIRECTORY include share DESTINATION .)
 install(FILES ${CMAKE_SOURCE_DIR}/LICENSE.txt ${CMAKE_SOURCE_DIR}/README.md DESTINATION share/likely)
 
 # Package
