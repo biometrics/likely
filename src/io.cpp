@@ -44,7 +44,7 @@ likely_file_type likely_guess_file_type(const char *file_name)
         return likely_file_void;
     extension++; // remove the leading '.'
     if (!strcmp(extension, "bin" )) return likely_file_binary;
-    if (!strcmp(extension, "mat" )) return likely_file_matrix;
+    if (!strcmp(extension, "lm"  )) return likely_file_matrix;
     if (!strcmp(extension, "txt" )) return likely_file_text;
     if (!strcmp(extension, "lisp")) return likely_file_lisp;
     if (!strcmp(extension, "md"  )) return likely_file_gfm;
