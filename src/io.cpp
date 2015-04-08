@@ -61,26 +61,31 @@ likely_file_type likely_guess_file_type(const char *file_name)
 //! [likely_file_type_from_string implementation.]
 likely_file_type likely_file_type_from_string(const char *str, bool *ok)
 {
-    likely_file_type guess;
     if (!str)
         goto error;
 
     if (ok)
         *ok = true;
 
-    // Special cases
+    if (!strcmp(str, "void"     )) return likely_file_void;
     if (!strcmp(str, "directory")) return likely_file_directory;
+    if (!strcmp(str, "binary"   )) return likely_file_binary;
     if (!strcmp(str, "media"    )) return likely_file_media;
+    if (!strcmp(str, "matrix"   )) return likely_file_matrix;
+    if (!strcmp(str, "text"     )) return likely_file_text;
+    if (!strcmp(str, "lisp"     )) return likely_file_lisp;
+    if (!strcmp(str, "gfm"      )) return likely_file_gfm;
+    if (!strcmp(str, "tex"      )) return likely_file_tex;
+    if (!strcmp(str, "ir"       )) return likely_file_ir;
+    if (!strcmp(str, "bitcode"  )) return likely_file_bitcode;
+    if (!strcmp(str, "object"   )) return likely_file_object;
+    if (!strcmp(str, "assembly" )) return likely_file_assembly;
     if (!strcmp(str, "guess"    )) return likely_file_guess;
 
-    // General case
-    guess = likely_guess_file_type((string(".") + str).c_str());
-    if (guess != likely_file_media)
-        return guess;
 error:
     if (ok)
         *ok = false;
-    return likely_file_guess;
+    return likely_file_void;
 }
 //! [likely_file_type_from_string implementation.]
 
