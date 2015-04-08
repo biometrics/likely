@@ -160,14 +160,13 @@ likely_mat likely_read(const char *file_name, likely_file_type file_type, likely
                 likely_matrix header;
                 if (fread(&header, sizeof(likely_matrix), 1, fp)) {
                     const size_t bytes = likely_bytes(&header);
-                    if (sizeof(likely_matrix) + bytes == size) {
-                        result = likely_new(header.type, header.channels, header.columns, header.rows, header.frames, NULL);
-                        const bool success = (fread(result->data, bytes, 1, fp) == 1);
-                        assert(success);
-                        if (!success) {
-                            likely_release_mat(result);
-                            result = NULL;
-                        }
+                    likely_ensure(sizeof(likely_matrix) + bytes == size, "mismatch between matrix header and file size");
+                    result = likely_new(header.type, header.channels, header.columns, header.rows, header.frames, NULL);
+                    const bool success = (fread(result->data, bytes, 1, fp) == 1);
+                    assert(success);
+                    if (!success) {
+                        likely_release_mat(result);
+                        result = NULL;
                     }
                 }
             } else {
@@ -214,7 +213,7 @@ bool likely_write(likely_const_mat image, const char *file_name)
             if (fileType == likely_file_matrix) {
                 const uint32_t ref_count = 1;
                 fwrite(&ref_count, sizeof(uint32_t), 1, fp);
-                fwrite(reinterpret_cast<uint32_t const*>(image)+1, likely_bytes(image)-sizeof(uint32_t), 1, fp);
+                fwrite(reinterpret_cast<uint32_t const*>(image)+1, sizeof(likely_matrix)-sizeof(uint32_t)+likely_bytes(image), 1, fp);
             } else {
                 const size_t size = (fileType & likely_file_text) ? strlen(image->data)
                                                                   : likely_bytes(image);
