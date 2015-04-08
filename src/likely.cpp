@@ -65,6 +65,8 @@ static cl::opt<bool> LikelyRuntimeOnly("runtime-only", cl::desc("The compiler ca
 static cl::alias     LikelyRuntimeOnlyA("ro", cl::desc("Alias for -ro"), cl::aliasopt(LikelyRuntimeOnly));
 static cl::opt<bool> LikelyVerbose("verbose", cl::desc("Verbose compiler output"));
 static cl::alias     LikelyVerboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(LikelyVerbose));
+static cl::opt<string> LikelyPreprocess("preprocess", cl::desc("Command to run prior to input"));
+static cl::alias       LikelyPreprocessA("p", cl::desc("Alias for -preprocess"), cl::aliasopt(LikelyPreprocess));
 
 cl::OptionCategory ArchitectureCategory("Architecture");
 static cl::opt<bool> LikelyMulticore("multi-core" , cl::desc("Compile multi-core kernels"), cl::cat(ArchitectureCategory));
@@ -185,6 +187,13 @@ int main(int argc, char *argv[])
     likely_const_env parent = likely_standard(settings,
                                               LikelyOutput.empty() ? NULL /* JIT */ : &output /* Offline */,
                                               likely_guess_file_type(LikelyOutput.c_str()));
+
+    if (!LikelyPreprocess.empty()) {
+        const likely_env env = likely_lex_parse_and_eval(LikelyPreprocess.c_str(), likely_file_lisp, parent);
+        likely_ensure(env != NULL, "failed to evaluate preprocess command: %s", LikelyPreprocess.c_str());
+        likely_release_env(parent);
+        parent = env;
+    }
 
     if (LikelyInput.empty()) {
         // console
