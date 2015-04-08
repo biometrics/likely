@@ -39,9 +39,11 @@ using namespace std;
 //! [likely_guess_file_type implementation.]
 likely_file_type likely_guess_file_type(const char *file_name)
 {
+    if (!file_name)
+        return likely_file_void;
     const char *extension = strrchr(file_name, '.');
     if (!extension)
-        return likely_file_void;
+        return likely_file_directory;
     extension++; // remove the leading '.'
     if (!strcmp(extension, "bin" )) return likely_file_binary;
     if (!strcmp(extension, "lm"  )) return likely_file_matrix;

@@ -65,6 +65,7 @@ enum likely_file_type_mask
  * \snippet src/io.cpp likely_guess_file_type implementation.
  * \param[in] file_name The file name whose extension to interpret.
  * \return Guess of the \ref likely_file_type based on the extension of \p file_name.
+ *         \ref likely_file_media if the extension was not recognized.
  * \see likely_read
  */
 LIKELY_EXPORT likely_file_type likely_guess_file_type(const char *file_name);
@@ -76,7 +77,7 @@ LIKELY_EXPORT likely_file_type likely_guess_file_type(const char *file_name);
  * \snippet src/io.cpp likely_file_type_from_string implementation.
  * \param[in] str String to convert to a \ref likely_file_type.
  * \param[out] ok Successful conversion. May be \c NULL.
- * \return A \ref likely_file_type from \p str on success, \ref likely_file_guess otherwise.
+ * \return A \ref likely_file_type from \p str on success, \ref likely_file_void otherwise.
  * \remark This function is \ref thread-safe.
  */
 LIKELY_EXPORT likely_file_type likely_file_type_from_string(const char *str, bool *ok);
