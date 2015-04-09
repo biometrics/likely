@@ -1,11 +1,11 @@
-d := (global "training-parameter" i32)
+; This source file expects an environment in which `training-parameter` is defined
 
 hello-world :=
   src :->
   {
     dst := src.imitate
     (dst src) :=>
-      dst :<- (/ src d)
+      dst :<- (/ src training-parameter)
     dst
   }
 
