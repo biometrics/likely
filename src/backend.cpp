@@ -3118,7 +3118,7 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
 
         { // Is it an integer?
             char *p;
-            const int64_t value = strtoll(ast->atom, &p, 10);
+            const int64_t value = strtoll(ast->atom, &p, 0);
             if (*p == 0) {
                 const_cast<likely_ast>(ast)->type = likely_ast_integer;
                 return new likely_expression(builder.constant(uint64_t(value), int32_t(value) == value ? likely_i32 : likely_i64));

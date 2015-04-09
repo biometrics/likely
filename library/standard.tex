@@ -264,12 +264,14 @@ See subsection \ref{subsec:begin} for the semantics of this structure.
 The Likely compiler recognizes the following kinds of fixed, or \dindex{literal}, \pindex{atom}s.
 
 \section{Integer}
-An \dindex{integer} is an \pindex{atom} that can be parsed \emph{to completion in base-10} by the C function \fref{http://www.cplusplus.com/reference/cstdlib/strtoll/}{\texttt{strtoll}}.
+An \dindex{integer} is an \pindex{atom} that can be parsed \emph{to completion in base-0} by the C function \fref{http://www.cplusplus.com/reference/cstdlib/strtoll/}{\texttt{strtoll}}.
 If the value can be represented without loss as an \texttt{int32\_t} then it is done so, otherwise it is represented as an \texttt{int64\_t}.
 
 \begin{verbatim}
--42 ; An integer
-42a ; Not an integer
+42   ; A decimal integer
+-42  ; A decimal integer
+0x2a ; A hexadecimal integer
+2a   ; Not an integer
 \end{verbatim}
 
 \section{Real}
