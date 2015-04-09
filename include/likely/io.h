@@ -199,28 +199,6 @@ LIKELY_EXPORT likely_mat likely_render(likely_const_mat mat, double *min, double
 LIKELY_EXPORT void likely_show(likely_const_mat image, const char *title);
 
 /*!
- * \brief Retrieve a matrix from the global table.
- *
- * The value should have been set previously using \ref likely_set_global.
- * \param[in] name Lookup key.
- * \param[in] type Expected value type.
- * \return The matrix for the specified \p name and \p type.
- * \remark This function is \ref thread-safe.
- */
-LIKELY_EXPORT likely_mat likely_global(const char *name, likely_type type);
-
-/*!
- * \brief Add a matrix to the global table.
- *
- * This function will assume ownership of \p mat.
- * The value can be later retrieved using \ref likely_global.
- * \param[in] name Lookup key.
- * \param[in] mat Lookup value. May be \c NULL to clear a previous entry.
- * \remark This function is \ref thread-safe.
- */
-LIKELY_EXPORT void likely_set_global(const char *name, likely_mat mat);
-
-/*!
  * \brief Conditional exit with an error message.
  *
  * Unlike \c assert which calls \c abort, this function calls \c exit.
