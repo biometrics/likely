@@ -934,21 +934,23 @@ struct Builder : public IRBuilder<>
         if (x.type == type)
             return x;
 
-        if (LikelyValue::isMat(x.value->getType()))
+        // matrix -> matrix
+        if ((x.type & likely_multi_dimension) && (type & likely_multi_dimension))
             return LikelyValue(CreatePointerCast(x, module->context->toLLVM(type)), type);
 
-        if (!(x.type & likely_compound_pointer) && (type & likely_compound_pointer)) {
+        // int -> pointer, int -> matrix
+        if (!(x.type & (~likely_element | likely_floating))
+            && ((type & likely_compound_pointer) || (type & likely_multi_dimension))) {
             Type *const dstType = module->context->toLLVM(type);
             return LikelyValue(CreateIntToPtr(x.value, dstType), type);
         }
 
-        type &= likely_element;
-        if ((x.type & likely_element) == type)
-            return LikelyValue(x, type);
+        // scalar -> scalar
+        assert(!(x.type & ~likely_element) && !(type & ~likely_element));
         if ((type & likely_depth) == 0) {
             type |= x.type & likely_depth;
             if (type & likely_floating)
-                type = likely_type_from_types(type, likely_floating);
+                type = likely_type_from_types(type, likely_floating); // Promote to a valid floating point type
         }
         Type *const dstType = module->context->toLLVM(type & likely_element);
         const LikelyValue casted(CreateCast(CastInst::getCastOpcode(x, (x & likely_signed) != 0, dstType, (type & likely_signed) != 0), x, dstType), type);
@@ -2615,7 +2617,7 @@ class kernelExpression : public LikelyOperator
 
         void set(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
         {
-            StoreInst *const store = builder.CreateStore(builder.cast(expr, type), gep(builder, ast));
+            StoreInst *const store = builder.CreateStore(builder.cast(expr, type & likely_element), gep(builder, ast));
             if (info.node)
                 store->setMetadata("llvm.mem.parallel_loop_access", info.node);
         }
