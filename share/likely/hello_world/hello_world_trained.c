@@ -35,16 +35,7 @@ int main(int argc, char *argv[])
     likely_const_env parent = likely_standard(settings, &output, object_file_type);
 
     {
-        char source[128];
-        if (training_parameter->type & likely_multi_dimension) {
-            const likely_const_mat trainingParameterType = likely_type_to_string(training_parameter->type);
-            snprintf(source, 128, "(= training-parameter (%s %zu))", trainingParameterType->data, (uintptr_t)training_parameter);
-            likely_release_mat(trainingParameterType);
-        } else {
-            snprintf(source, 128, "(= training-parameter %g)", likely_get_element(training_parameter, 0, 0, 0, 0));
-        }
-        const likely_const_env env = likely_lex_parse_and_eval(source, likely_file_lisp, parent);
-        likely_ensure(env, "failed to construct training environment");
+        const likely_const_env env = likely_define("training-parameter", training_parameter, parent);
         likely_release_env(parent);
         parent = env;
     }

@@ -191,6 +191,16 @@ LIKELY_EXPORT likely_env likely_lex_parse_and_eval(const char *source, likely_fi
 LIKELY_EXPORT likely_mat likely_compute(const char *source);
 
 /*!
+ * \brief Construct a new environment with the defined variable.
+ * \param[in] name Variable name.
+ * \param[in] value Variable value.
+ * \param[in] parent Parent environment.
+ * \return A new environment with the defined variable.
+ * \remark This function is \ref reentrant.
+ */
+LIKELY_EXPORT likely_env likely_define(const char *name, likely_const_mat value, likely_const_env parent);
+
+/*!
  * \brief Contents of the Likely Standard Library: <tt>library/standard.tex</tt>.
  */
 LIKELY_EXPORT extern const char likely_standard_library[];

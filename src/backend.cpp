@@ -3383,6 +3383,21 @@ likely_mat likely_compute(const char *source)
 }
 //! [likely_compute implementation.]
 
+likely_env likely_define(const char *name, likely_const_mat value, likely_const_env parent)
+{
+    char source[128];
+    if (value->type & likely_multi_dimension) {
+        const likely_const_mat valueType = likely_type_to_string(value->type);
+        snprintf(source, 128, "(= %s (%s %zu))", name, valueType->data, (uintptr_t)value);
+        likely_release_mat(valueType);
+    } else {
+        snprintf(source, 128, "(= %s %g)", name, likely_get_element(value, 0, 0, 0, 0));
+    }
+    const likely_env env = likely_lex_parse_and_eval(source, likely_file_lisp, parent);
+    likely_ensure(env, "definition failure");
+    return env;
+}
+
 void likely_shutdown()
 {
     likely_release_env(RootEnvironment::get());
