@@ -3313,11 +3313,10 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
         if (!statement)
             continue;
 
-        Builder builder(parent, parent->module, true);
         likely_const_expr expr = NULL;
         env = NULL;
         if (likely_is_definition(statement)) {
-            expr = new LazyDefinition(builder.env, statement->atoms[2]);
+            expr = new LazyDefinition(parent, statement->atoms[2]);
         } else {
             // If `ast` is not a lambda then it is a computation we perform by constructing and executing a parameterless lambda.
             const char *const symbol = ((statement->type == likely_ast_list)
@@ -3325,6 +3324,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
                                         && (statement->atoms[0]->type != likely_ast_list))
                                        ? statement->atoms[0]->atom : "";
             if (LikelyFunction::isSymbol(symbol)) {
+                Builder builder(parent, parent->module, true);
                 expr = likely_expression::get(builder, statement);
             } else {
                 const Variant data = Lambda(parent, statement).evaluateConstantFunction();
@@ -3385,6 +3385,9 @@ likely_mat likely_compute(const char *source)
 
 likely_env likely_define(const char *name, likely_const_mat value, likely_const_env parent)
 {
+    if (!name || !value)
+        return NULL;
+
     char source[128];
     if (value->type & likely_multi_dimension) {
         const likely_const_mat valueType = likely_type_to_string(value->type);
