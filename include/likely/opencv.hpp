@@ -17,6 +17,7 @@
 #ifndef LIKELY_OPENCV_HPP
 #define LIKELY_OPENCV_HPP
 
+#include <vector>
 #include <likely/runtime.h>
 #include <opencv2/core/core.hpp>
 
@@ -75,27 +76,28 @@ inline likely_type likelyFromOpenCVDepth(int depth)
 
 /*!
  * \brief Convert from a \ref likely_matrix to an OpenCV matrix.
- * \note This function performs a \em shallow copy. If you want a deep copy, call \c cv::Mat::clone() afterwards.
+ *
+ * The inverse of \ref likelyFromOpenCVMat.
  * \param[in] mat The \ref likely_mat to convert from.
  * \return An OpenCV matrix referencing \ref likely_matrix::data;
  * \remark This function is \ref thread-safe.
- * \see \ref likelyFromOpenCVMat
+ * \see \ref likelyToOpenCVMats
  */
 inline cv::Mat likelyToOpenCVMat(likely_const_mat mat)
 {
     if (!mat)
         return cv::Mat();
-    return cv::Mat((int) mat->rows, (int) mat->columns, CV_MAKETYPE(likelyToOpenCVDepth(mat->type), (int) mat->channels), (void*) mat->data);
+    return cv::Mat((int) mat->rows, (int) mat->columns, CV_MAKETYPE(likelyToOpenCVDepth(mat->type), int(mat->channels)), (void*) mat->data).clone();
 }
 
 /*!
  * \brief Convert from an OpenCV matrix to a \ref likely_matrix.
  *
- * This function performs a \em deep copy by necessity.
+ * The inverse of \ref likelyToOpenCVMat.
  * \param[in] mat The OpenCV matrix to convert from.
  * \return A \ref likely_mat initialized to \c cv::Mat::data.
  * \remark This function is \ref thread-safe.
- * \see \ref likelyToOpenCVMat
+ * \see \ref likelyFromOpenCVMats
  */
 inline likely_mat likelyFromOpenCVMat(const cv::Mat &mat)
 {
@@ -106,6 +108,69 @@ inline likely_mat likelyFromOpenCVMat(const cv::Mat &mat)
     if (mat.cols       > 1) type |= likely_multi_column;
     if (mat.rows       > 1) type |= likely_multi_row;
     return likely_new(type, mat.channels(), mat.cols, mat.rows, 1, mat.data);
+}
+
+/*!
+ * \brief Convert from a \ref likely_matrix to a vector of OpenCV matricies.
+ *
+ * The inverse of \ref likelyFromOpenCVMats.
+ * The output matricies will have size equal to the number of frames in \p mat.
+ * \param[in] mat The \ref likely_mat to convert from.
+ * \return An OpenCV matrix referencing \ref likely_matrix::data;
+ * \remark This function is \ref thread-safe.
+ * \see \ref likelyToOpenCVMat
+ */
+inline std::vector<cv::Mat> likelyToOpenCVMats(likely_const_mat mat)
+{
+    std::vector<cv::Mat> mats;
+    if (!mat)
+        return mats;
+    const int type = CV_MAKETYPE(likelyToOpenCVDepth(mat->type), int(mat->channels));
+    const size_t step = (mat->type & likely_depth) * mat->channels * mat->columns * mat->rows / 8;
+    for (size_t i=0; i<mat->frames; i++)
+        mats.push_back(cv::Mat(mat->rows, mat->columns, type, (void*)(mat->data + i * step)).clone());
+    return mats;
+}
+
+/*!
+ * \brief Convert from a vector of OpenCV matricies to a \ref likely_matrix.
+ *
+ * The inverse of \ref likelyToOpenCVMats.
+ * The input matricies are expected to be continuous and have the same type and dimensionality.
+ * The output matrix will have frames equal to the number of input matricies.
+ * \param[in] mats The OpenCV matricies to convert from.
+ * \return A \ref likely_mat initialized to the concatenation of all \c cv::Mat::data, or \c NULL if \p mats is empty.
+ * \remark This function is \ref thread-safe.
+ * \see \ref likelyFromOpenCVMat
+ */
+inline likely_mat likelyFromOpenCVMats(const std::vector<cv::Mat> &mats)
+{
+    if (mats.empty())
+        return NULL;
+
+    const int depth = mats.front().depth();
+    const int channels = mats.front().channels();
+    const int columns = mats.front().cols;
+    const int rows = mats.front().rows;
+    const size_t frames = mats.size();
+    likely_type type = likelyFromOpenCVDepth(depth);
+    if (channels > 1) type |= likely_multi_channel;
+    if (columns  > 1) type |= likely_multi_column;
+    if (rows     > 1) type |= likely_multi_row;
+    if (frames   > 1) type |= likely_multi_frame;
+
+    const likely_mat m = likely_new(type, channels, columns, rows, uint32_t(frames), NULL);
+    const size_t step = (type & likely_depth) * channels * columns * rows / 8;
+    for (size_t i=0; i<frames; i++) {
+        const cv::Mat &mat = mats[i];
+        likely_ensure(mat.isContinuous(), "expected continuous matrix data");
+        likely_ensure(mat.depth() == depth, "depth mismatch");
+        likely_ensure(mat.channels() == channels, "channel mismatch");
+        likely_ensure(mat.cols == columns, "columns mismatch");
+        likely_ensure(mat.rows == rows, "rows mismatch");
+        memcpy(m->data + i * step, mat.data, step);
+    }
+    return m;
 }
 
 /** @} */ // end of opencv
