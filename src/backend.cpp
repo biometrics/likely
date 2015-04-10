@@ -1267,7 +1267,7 @@ struct LikelyFunction : public LikelyOperator
         }
 
         unique_ptr<const likely_expression> result(evaluateFunction(builder, arguments));
-        if (!result)
+        if (!result || !result->value)
             return NULL;
 
         // If we are expecting a constant or a matrix and don't get one then make a matrix
@@ -3308,20 +3308,18 @@ class LazyDefinition : public likely_expression
 
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
-        if (LikelyFunction::isSymbol(likely_symbol(this->ast)) || (ast->type == likely_ast_list)) {
-            // It's a global function
-            likely_const_env env = this->env;
-            swap(builder.env, env);
-            unique_ptr<const likely_expression> op(get(builder, this->ast));
-            swap(builder.env, env);
-            if ((ast->type != likely_ast_list) || !op)
-                return op.release();
-            return op->evaluate(builder, ast);
-        } else {
-            const Variant data = Lambda(env, this->ast).evaluateConstantFunction();
-            assert((likely_const_mat) data);
-            return ConstantData::get(data)->evaluate(builder, NULL);
-        }
+        if (!LikelyFunction::isSymbol(likely_symbol(this->ast)) && !(ast->type == likely_ast_list)) // If it doesn't look like a function ...
+            if (const Variant data = Lambda(env, this->ast).evaluateConstantFunction()) // ... see if it's a constant value.
+                return ConstantData::get(data)->evaluate(builder, NULL);
+
+        // It's a global function
+        likely_const_env env = this->env;
+        swap(builder.env, env);
+        unique_ptr<const likely_expression> op(get(builder, this->ast));
+        swap(builder.env, env);
+        if ((ast->type != likely_ast_list) || !op)
+            return op.release();
+        return op->evaluate(builder, ast);
     }
 
 public:
