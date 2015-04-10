@@ -37,9 +37,10 @@ if(${LIKELY_PROFILING})
 endif()
 
 # Build CUDA backend if possible
-find_library(CUDA_LIBRARY cuda)
-find_path(CUDA_INCLUDE cuda.h)
-if(CUDA_LIBRARY AND CUDA_INCLUDE)
+option(LIKELY_CUDA "Build Likely with (incomplete) CUDA backend" OFF)
+if(${LIKELY_CUDA})
+  find_library(CUDA_LIBRARY cuda)
+  find_path(CUDA_INCLUDE cuda.h)
   include_directories(${CUDA_INCLUDE})
   set(LIKELY_SRC ${LIKELY_SRC} cuda.cpp)
   set(LIKELY_LIBS ${LIKELY_LIBS} ${CUDA_LIBRARY})
