@@ -1128,11 +1128,13 @@ if (!EXPR.get()) return NULL;                                      \
 
 struct ShadowExpression : public likely_expression
 {
-    likely_const_expr expr;
     ShadowExpression(const likely_const_expr expr)
-        : likely_expression(LikelyValue(*expr)) {}
+        : likely_expression(LikelyValue(*expr))
+        , expr(expr) {}
 
 private:
+    const likely_const_expr expr;
+
     int uid() const { return expr->uid(); }
     size_t maxParameters() const { return expr->maxParameters(); }
     size_t minParameters() const { return expr->minParameters(); }
