@@ -3073,6 +3073,32 @@ likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast
         return new likely_expression(LikelyValue(builder.CreateLoad(builder.CreateGEP(value, *arg)), likely_element_type(type)));
     }
 
+    if ((type & likely_multi_dimension) && (ast->type == likely_ast_list)) {
+        Value *const channel = (ast->num_atoms >= 2) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[1])), likely_u64).value
+                                                     : builder.zero().value;
+        Value *const column  = (ast->num_atoms >= 3) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[2])), likely_u64).value
+                                                     : builder.zero().value;
+        Value *const row     = (ast->num_atoms >= 4) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[3])), likely_u64).value
+                                                     : builder.zero().value;
+        Value *const frame   = (ast->num_atoms >= 5) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[4])), likely_u64).value
+                                                     : builder.zero().value;
+
+        Value *const channels   = builder.cast(builder.channels(*this), likely_u64);
+        Value *const columns    = builder.cast(builder.columns (*this), likely_u64);
+        Value *const rows       = builder.cast(builder.rows    (*this), likely_u64);
+
+        Value *const rowStep    = builder.multiplyInts(channels, columns);
+        Value *const frameStep  = builder.multiplyInts(rowStep, rows);
+
+        Value *index = builder.CreateMul(frame, frameStep);
+        index = builder.CreateAdd(index, builder.CreateMul(row, rowStep));
+        index = builder.CreateAdd(index, builder.CreateMul(column, channels));
+        index = builder.CreateAdd(index, channel);
+
+        Value *const load = builder.CreateLoad(builder.CreateGEP(builder.data(*this), index));
+        return new likely_expression(LikelyValue(load, type & likely_element));
+    }
+
     return new likely_expression(LikelyValue(value, type));
 }
 
