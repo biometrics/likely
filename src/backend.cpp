@@ -1130,7 +1130,7 @@ class LikelyOperator : public likely_expression
 {
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
-        if ((ast->type != likely_ast_list) && (minParameters() > 0))
+        if (ast->type != likely_ast_list)
             return error(ast, "operator expected arguments");
 
         const size_t args = length(ast)-1;
@@ -1652,7 +1652,7 @@ class SimpleUnaryOperator : public UnaryOperator
     virtual likely_const_expr evaluateSimpleUnary(Builder &builder, const unique_ptr<const likely_expression> &arg) const = 0;
 };
 
-struct MatrixType : public LikelyOperator
+struct MatrixType : public likely_expression
 {
     likely_type t;
     MatrixType(Builder &builder, likely_type t)
@@ -1668,12 +1668,10 @@ struct MatrixType : public LikelyOperator
     }
 
 private:
-    size_t minParameters() const { return 0; }
-    size_t maxParameters() const { return 1; }
     static int UID() { return __LINE__; }
     int uid() const { return UID(); }
 
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
         if ((ast->type == likely_ast_list) && (ast->num_atoms > 1)) {
             TRY_EXPR(builder, ast->atoms[1], expr)
@@ -1730,16 +1728,11 @@ class AXIS##Expression : public LikelyOperator                                  
 {                                                                                    \
     const char *symbol() const { return #AXIS; }                                     \
     size_t maxParameters() const { return 1; }                                       \
-    size_t minParameters() const { return 0; }                                       \
                                                                                      \
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const \
     {                                                                                \
-        if (length(ast) < 2) {                                                       \
-            return new AXIS##Expression();                                           \
-        } else {                                                                     \
-            TRY_EXPR(builder, ast->atoms[1], expr)                                   \
-            return new likely_expression(builder.AXIS(*expr.get()));                 \
-        }                                                                            \
+        TRY_EXPR(builder, ast->atoms[1], expr)                                       \
+        return new likely_expression(builder.AXIS(*expr.get()));                     \
     }                                                                                \
 };                                                                                   \
 LIKELY_REGISTER(AXIS)                                                                \
@@ -2285,7 +2278,7 @@ class defineExpression : public LikelyOperator
 };
 LIKELY_REGISTER(define)
 
-struct Assignable : public LikelyOperator
+struct Assignable : public likely_expression
 {
     Assignable(Value *value, likely_type type)
     {
@@ -2322,7 +2315,7 @@ private:
                                                             : builder.cast(expr, type).value, value);
     }
 
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
+    likely_const_expr evaluate(Builder &builder, likely_const_ast) const
     {
         return new likely_expression(LikelyValue(builder.CreateLoad(value), type));
     }
@@ -2623,7 +2616,7 @@ class kernelExpression : public LikelyOperator
                 store->setMetadata("llvm.mem.parallel_loop_access", info.node);
         }
 
-        likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+        likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
         {
             if (!isa<PointerType>(value->getType()))
                 return new likely_expression((LikelyValue) *this);
@@ -3298,15 +3291,12 @@ void *likely_function(const struct likely_expression *expr)
     return JITFunction::getFunction(expr);
 }
 
-class LazyDefinition : public LikelyOperator
+class LazyDefinition : public likely_expression
 {
     const likely_const_env env;
     const likely_const_ast ast;
 
-    size_t minParameters() const { return 0; }
-    size_t maxParameters() const { return numeric_limits<size_t>::max(); }
-
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
         if (LikelyFunction::isSymbol(likely_symbol(this->ast)) || (ast->type == likely_ast_list)) {
             // It's a global function

@@ -861,41 +861,36 @@ These dimensions are often abbreviated \emph{c}, \emph{x}, \emph{y} and \emph{t}
 Ownership of matricies is managed automatically using reference counting.
 Matricies are represented with the C API struct \tindex{likely\char`_matrix}.
 
-\subsection{(channels \emph{[matrix]})}
+\subsection{(channels \emph{matrix})}
 The \dindex{channels} operator returns the number of \pindex{channels} in \emph{matrix}.
-If \emph{matrix} is not specified, this operator returns a function which when given a matrix returns the number of \pindex{channels} in the matrix.
 
 \begin{verbatim}
 (channels (read-image "data/misc/lenna.tiff")) ; Evaluates to 3
 \end{verbatim}
 
-\subsection{(columns \emph{[matrix]})}
+\subsection{(columns \emph{matrix})}
 The \dindex{columns} operator returns the number of \pindex{columns} in \emph{matrix}.
-If \emph{matrix} is not specified, this operator returns a function which when given a matrix returns the number of \pindex{columns} in the matrix.
 
 \begin{verbatim}
 (columns (read-image "data/misc/lenna.tiff")) ; Evaluates to 512
 \end{verbatim}
 
-\subsection{(rows \emph{[matrix]})}
+\subsection{(rows \emph{matrix})}
 The \dindex{rows} operator returns the number of \pindex{rows} in \emph{matrix}.
-If \emph{matrix} is not specified, this operator returns a function which when given a matrix returns the number of \pindex{rows} in the matrix.
 
 \begin{verbatim}
 (rows (read-image "data/misc/lenna.tiff")) ; Evaluates to 512
 \end{verbatim}
 
-\subsection{(frames \emph{[matrix]})}
+\subsection{(frames \emph{matrix})}
 The \dindex{frames} operator returns the number of \pindex{frames} in \emph{matrix}.
-If \emph{matrix} is not specified, this operator returns a function which when given a matrix returns the number of \pindex{frames} in the matrix.
 
 \begin{verbatim}
 (frames (read-image "data/misc/lenna.tiff")) ; Evaluates to 1
 \end{verbatim}
 
-\subsection{(data \emph{[matrix]})}
+\subsection{(data \emph{matrix})}
 The \dindex{data} operator returns a pointer to the \emph{matrix} \pindex{data}.
-If \emph{matrix} is not specified, this operator returns a function which when given a matrix returns a pointer to the matrix \pindex{data}.
 
 This operator is useful for interoperability with external functions that operate on raw data buffers.
 Developers generally shouldn't need to use it otherwise in Likely code.
