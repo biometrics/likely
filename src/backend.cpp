@@ -3388,7 +3388,7 @@ likely_env likely_define(const char *name, likely_const_mat value, likely_const_
     const likely_ast atoms[3] = { likely_atom("=", 1),
                                   likely_atom(name, strlen(name)),
                                   likely_atom("", 0) };
-    return newEnv(parent, likely_list(atoms, 3), ConstantData::get(Variant(value)));
+    return newEnv(parent, likely_list(atoms, 3), ConstantData::get(Variant(likely_retain_mat(value))));
 }
 
 void likely_shutdown()
