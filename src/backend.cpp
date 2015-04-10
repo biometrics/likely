@@ -3083,12 +3083,12 @@ likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast
         Value *const frame   = (ast->num_atoms >= 5) ? builder.cast(*unique_ptr<const likely_expression>(get(builder, ast->atoms[4])), likely_u64).value
                                                      : builder.zero().value;
 
-        Value *const channels   = builder.cast(builder.channels(*this), likely_u64);
-        Value *const columns    = builder.cast(builder.columns (*this), likely_u64);
-        Value *const rows       = builder.cast(builder.rows    (*this), likely_u64);
+        Value *const channels = builder.cast(builder.channels(*this), likely_u64);
+        Value *const columns  = builder.cast(builder.columns (*this), likely_u64);
+        Value *const rows     = builder.cast(builder.rows    (*this), likely_u64);
 
-        Value *const rowStep    = builder.multiplyInts(channels, columns);
-        Value *const frameStep  = builder.multiplyInts(rowStep, rows);
+        Value *const rowStep   = builder.multiplyInts(channels, columns);
+        Value *const frameStep = builder.multiplyInts(rowStep, rows);
 
         Value *index = builder.CreateMul(frame, frameStep);
         index = builder.CreateAdd(index, builder.CreateMul(row, rowStep));
