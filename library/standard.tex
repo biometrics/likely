@@ -794,8 +794,8 @@ x := 0
 (? x 1 2) ; Evaluates to 2 at compile time
 \end{verbatim}
 
-\subsection{(\#)}
-The \dindex{label} operator creates a point in the code that can be jumped to.
+\subsection{\#}
+The \dindex{label} operand refers to the current \dindex{basic block}, or location in the code, that can be jumped to.
 This primitive is necessary for constructing loops.
 
 \begin{verbatim}
@@ -954,8 +954,8 @@ my-abs := (-> x (? (>= x 0) x (- x)))
                                  ;   int my_abs(int);
 \end{verbatim}
 
-\subsection{(this)}
-The \dindex{this} operator returns the current \dindex{environment} of referenceable variables.
+\subsection{this}
+The \dindex{this} operand refers to the current \dindex{environment} of referenceable variables.
 Likely's ability to self-execute code, such as when including the contents of another file, are made possible by \emph{\pindex{this}}.
 
 In terms of the Likely API, the returned value is a pointer to a \tindex{likely\char`_environment}, and is most useful in conjunction with the function \tindex{likely\char`_eval}.

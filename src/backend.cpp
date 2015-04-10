@@ -1621,14 +1621,15 @@ struct RegisterExpression : public RootEnvironment
 };
 #define LIKELY_REGISTER(EXP) static RegisterExpression<EXP##Expression> Register##EXP##Expression;
 
-class NullaryOperator : public LikelyOperator
+class Operand : public likely_expression
 {
-    size_t maxParameters() const { return 0; }
-    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast) const
+    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
-        return evaluateNullary(builder);
+        if (ast->type == likely_ast_list)
+            return error(ast, "operand does not callable");
+        return evaluateOperand(builder);
     }
-    virtual likely_const_expr evaluateNullary(Builder &builder) const = 0;
+    virtual likely_const_expr evaluateOperand(Builder &builder) const = 0;
 };
 
 class UnaryOperator : public LikelyOperator
@@ -1781,10 +1782,10 @@ class makeTypeExpression : public SimpleUnaryOperator
 };
 LIKELY_REGISTER(makeType)
 
-class thisExpression : public NullaryOperator
+class thisExpression : public Operand
 {
     const char *symbol() const { return "this"; }
-    likely_const_expr evaluateNullary(Builder &builder) const
+    likely_const_expr evaluateOperand(Builder &builder) const
     {
         return ConstantData::get(builder, likely_retain_env(builder.env));
     }
@@ -2484,10 +2485,10 @@ private:
     }
 };
 
-class labelExpression : public NullaryOperator
+class labelExpression : public Operand
 {
     const char *symbol() const { return "#"; }
-    likely_const_expr evaluateNullary(Builder &builder) const
+    likely_const_expr evaluateOperand(Builder &builder) const
     {
         BasicBlock *label = BasicBlock::Create(builder.getContext(), "label", builder.GetInsertBlock()->getParent());
         builder.CreateBr(label);
