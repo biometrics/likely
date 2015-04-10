@@ -1246,6 +1246,71 @@ iter :=
   }
 \end{likely}
 
+\section{reductions}
+\begin{likely}
+min-element :=
+  src :->
+  {
+    current-min-value := src.type.numeric-limit-max.$
+
+    check-element :=
+      (c x y t) :->
+      {
+        current-value := (src c x y t)
+        (< current-value current-min-value) :?
+          current-min-value :<- current-value
+      }
+
+    check-column :=
+      (x y t) :->
+        (iter (-> c (check-element c x y t)) src.channels)
+
+    check-row :=
+      (y t) :->
+        (iter (-> x (check-column x y t)) src.columns)
+
+    check-frame :=
+      t :->
+        (iter (-> y (check-row y t)) src.rows)
+
+    (iter (-> t (check-frame t)) src.frames)
+
+    current-min-value
+  }
+\end{likely}
+
+\begin{likely}
+max-element :=
+  src :->
+  {
+    current-max-value := src.type.numeric-limit-min.$
+
+    check-element :=
+      (c x y t) :->
+      {
+        current-value := (src c x y t)
+        (> current-value current-max-value) :?
+          current-max-value :<- current-value
+      }
+
+    check-column :=
+      (x y t) :->
+        (iter (-> c (check-element c x y t)) src.channels)
+
+    check-row :=
+      (y t) :->
+        (iter (-> x (check-column x y t)) src.columns)
+
+    check-frame :=
+      t :->
+        (iter (-> y (check-row y t)) src.rows)
+
+    (iter (-> t (check-frame t)) src.frames)
+
+    current-max-value
+  }
+\end{likely}
+
 \bibliographystyle{plain}
 \bibliography{library/standard}
 
