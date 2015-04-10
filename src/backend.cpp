@@ -1126,12 +1126,34 @@ public:
 const unique_ptr<const likely_expression> EXPR(get(BUILDER, AST)); \
 if (!EXPR.get()) return NULL;                                      \
 
+struct ShadowExpression : public likely_expression
+{
+    likely_const_expr expr;
+    ShadowExpression(const likely_const_expr expr)
+        : likely_expression(LikelyValue(*expr)) {}
+
+private:
+    int uid() const { return expr->uid(); }
+    size_t maxParameters() const { return expr->maxParameters(); }
+    size_t minParameters() const { return expr->minParameters(); }
+    const char *symbol() const { return expr->symbol(); }
+    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const { return expr->evaluate(builder, ast); }
+
+    Variant getData() const
+    {
+        if (const Variant data = likely_expression::getData())
+            return data;
+        setData(expr->getData());
+        return likely_expression::getData();
+    }
+};
+
 class LikelyOperator : public likely_expression
 {
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
         if (ast->type != likely_ast_list)
-            return error(ast, "operator expected arguments");
+            return new ShadowExpression(this);
 
         const size_t args = length(ast)-1;
         const size_t min = minParameters();
@@ -1303,9 +1325,6 @@ protected:
 private:
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        if (ast->type != likely_ast_list)
-            return clone();
-
         likely_const_expr result = NULL;
 
         bool doCTFE = builder.ctfe && ctfe();
@@ -1337,7 +1356,6 @@ private:
     }
 
     virtual bool ctfe() const { return true; }
-    virtual likely_const_expr clone() const = 0;
     virtual likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args /* takes ownership */) const = 0;
 };
 
@@ -1355,11 +1373,6 @@ struct Symbol : public LikelyFunction
     }
 
 private:
-    likely_const_expr clone() const
-    {
-        return new Symbol(env, name, type, parameters);
-    }
-
     likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args) const
     {
         Function *symbol = builder.module->module->getFunction(name);
@@ -2088,11 +2101,6 @@ struct Lambda : public LikelyFunction
 
 private:
     bool ctfe() const { return !isSymbol(likely_symbol(body)); }
-
-    likely_const_expr clone() const
-    {
-        return new Lambda(env, body, parameters, virtualTypes);
-    }
 
     likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args) const
     {
