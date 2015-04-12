@@ -251,6 +251,16 @@ x.f:h y.g   ; Parsed as (h (f x) (g y))
 3.sq:+ 4.sq ; Evaluates to 25
 \end{verbatim}
 
+The \pindex{infix} operator is often used for \pindex{define} statements:
+\begin{verbatim}
+name := value
+\end{verbatim}
+
+and \dindex{object-oriented programming}:
+\begin{verbatim}
+object:function argument
+\end{verbatim}
+
 \section{Imperative Notation (\{ \dots\ \})}
 Likely makes one additional departure from fully parenthesized notation, automatically identifying braces as a \pindex{list} structure.
 
@@ -1239,6 +1249,26 @@ iter :=
       loop
     }
   }
+
+iter-channels :=
+  expr :->
+    (-> (mat t y x) (iter (-> c (expr mat t y x c)) mat.channels))
+
+iter-columns :=
+  expr :->
+    (-> (mat t y) (iter (-> x (expr mat t y x)) mat.columns))
+
+iter-rows :=
+  expr :->
+    (-> (mat t) (iter (-> y (expr mat t y)) mat.rows))
+
+iter-frames :=
+  expr :->
+    (-> mat (iter (-> t (expr mat t)) mat.frames))
+
+iter-elements :=
+  (mat expr) :->
+    (expr.iter-channels.iter-columns.iter-rows.iter-frames mat)
 \end{likely}
 
 \section{reductions}
@@ -1247,61 +1277,23 @@ min-element :=
   src :->
   {
     current-min-value := src.type.numeric-limit-max.$
-
     check-element :=
-      (c x y t) :->
-      {
-        current-value := (src c x y t)
-        (< current-value current-min-value) :?
-          current-min-value :<- current-value
-      }
+      (mat t y x c) :->
+        current-min-value :<- (min current-min-value (mat c x y t))
 
-    check-column :=
-      (x y t) :->
-        (iter (-> c (check-element c x y t)) src.channels)
-
-    check-row :=
-      (y t) :->
-        (iter (-> x (check-column x y t)) src.columns)
-
-    check-frame :=
-      t :->
-        (iter (-> y (check-row y t)) src.rows)
-
-    (iter (-> t (check-frame t)) src.frames)
-
+    src:iter-elements check-element
     current-min-value
   }
-\end{likely}
 
-\begin{likely}
 max-element :=
   src :->
   {
     current-max-value := src.type.numeric-limit-min.$
-
     check-element :=
-      (c x y t) :->
-      {
-        current-value := (src c x y t)
-        (> current-value current-max-value) :?
-          current-max-value :<- current-value
-      }
+      (mat t y x c) :->
+        current-max-value :<- (max current-max-value (mat c x y t))
 
-    check-column :=
-      (x y t) :->
-        (iter (-> c (check-element c x y t)) src.channels)
-
-    check-row :=
-      (y t) :->
-        (iter (-> x (check-column x y t)) src.columns)
-
-    check-frame :=
-      t :->
-        (iter (-> y (check-row y t)) src.rows)
-
-    (iter (-> t (check-frame t)) src.frames)
-
+    src:iter-elements check-element
     current-max-value
   }
 \end{likely}
