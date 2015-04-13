@@ -1697,7 +1697,7 @@ private:
                 return new likely_expression(builder.cast(*expr, t));
             }
         } else {
-            return new likely_expression((LikelyValue) *this);
+            return new MatrixType(builder, t);
         }
     }
 };
