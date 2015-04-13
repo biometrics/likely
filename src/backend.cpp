@@ -1103,6 +1103,7 @@ class ConstantData : public likely_expression
 
         // Make sure the lifetime of the data is at least as long as the lifetime of the code.
         Constant *const address = ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(void*)), uintptr_t(data.value));
+        assert(builder.module);
         builder.module->data.push_back(pair<Variant,Constant*>(data, address));
         return new likely_expression(LikelyValue(ConstantExpr::getIntToPtr(address, builder.module->context->toLLVM(data.type)), data.type), data);
     }
@@ -2338,7 +2339,6 @@ class allocateExpression : public LikelyOperator
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        assert(builder.module);
         TRY_EXPR(builder, ast->atoms[1], expr);
         return new Variable(builder, expr.get());
     }
@@ -2352,7 +2352,6 @@ class assignExpression : public LikelyOperator
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        assert(builder.module);
         TRY_EXPR(builder, ast->atoms[2], expr);
         const likely_const_env env = lookup(builder.env, likely_symbol(ast->atoms[1]));
         const Assignable *assignable = env ? Assignable::dynamicCast(env->expr) : NULL;
@@ -3310,7 +3309,7 @@ class LazyDefinition : public likely_expression
     {
         if (!LikelyFunction::isSymbol(likely_symbol(this->ast)) && !(ast->type == likely_ast_list)) // If it doesn't look like a function ...
             if (const Variant data = Lambda(env, this->ast).evaluateConstantFunction()) // ... see if it's a constant value.
-                return ConstantData::get(data)->evaluate(builder, NULL);
+                return ConstantData::get(builder, data);
 
         // It's a global function
         likely_const_env env = this->env;
