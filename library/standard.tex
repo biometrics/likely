@@ -1184,12 +1184,13 @@ not-multi-frame   := (not-type multi-frame)
 
 imitate-dimension :=
   d :->
-    (-> (t u) (? (& u d) (| t d) (& t (~ d))))
+    (-> (t u) (| (& t (~ d)) (& u d)))
 
-imitate-channel := (imitate-dimension multi-channel)
-imitate-column  := (imitate-dimension multi-column)
-imitate-row     := (imitate-dimension multi-row)
-imitate-frame   := (imitate-dimension multi-frame)
+imitate-channels   := (imitate-dimension multi-channel)
+imitate-columns    := (imitate-dimension multi-column)
+imitate-rows       := (imitate-dimension multi-row)
+imitate-frames     := (imitate-dimension multi-frame)
+imitate-dimensions := (imitate-dimension multi-dimension)
 \end{likely}
 
 \chapter{C Library Symbols}
