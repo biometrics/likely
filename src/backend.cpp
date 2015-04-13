@@ -1329,7 +1329,7 @@ private:
     {
         likely_const_expr result = NULL;
 
-        bool doCTFE = builder.ctfe && ctfe();
+        bool doCTFE = builder.ctfe;
         vector<likely_const_expr> args;
         vector<likely_const_mat> constantArgs;
         const size_t arguments = length(ast)-1;
@@ -1357,7 +1357,6 @@ private:
         return result;
     }
 
-    virtual bool ctfe() const { return true; }
     virtual likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args /* takes ownership */) const = 0;
 };
 
@@ -2102,8 +2101,6 @@ struct Lambda : public LikelyFunction
     }
 
 private:
-    bool ctfe() const { return !isSymbol(likely_symbol(body)); }
-
     likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args) const
     {
         assert(args.size() == maxParameters());
