@@ -1169,28 +1169,21 @@ depth-atleast-16 := (-> t (depth-atleast t 16))
 depth-atleast-32 := (-> t (depth-atleast t 32))
 depth-atleast-64 := (-> t (depth-atleast t 64))
 
-not-type :=
-  d :->
-    (-> t (& t (~ d)).make-type)
+not-floating        := (-> t (& t (~ floating       )).make-type)
+not-pointer         := (-> t (& t (~ pointer        )).make-type)
+not-signed          := (-> t (& t (~ signed         )).make-type)
+not-saturated       := (-> t (& t (~ saturated      )).make-type)
+not-multi-channel   := (-> t (& t (~ multi-channel  )).make-type)
+not-multi-column    := (-> t (& t (~ multi-column   )).make-type)
+not-multi-row       := (-> t (& t (~ multi-row      )).make-type)
+not-multi-frame     := (-> t (& t (~ multi-frame    )).make-type)
+not-multi-dimension := (-> t (& t (~ multi-dimension)).make-type)
 
-not-floating      := (not-type floating)
-not-pointer       := (not-type pointer)
-not-signed        := (not-type signed)
-not-saturated     := (not-type saturated)
-not-multi-channel := (not-type multi-channel)
-not-multi-column  := (not-type multi-column)
-not-multi-row     := (not-type multi-row)
-not-multi-frame   := (not-type multi-frame)
-
-imitate-dimension :=
-  d :->
-    (-> (t u) (| (& t (~ d)) (& u d)))
-
-imitate-channels   := (imitate-dimension multi-channel)
-imitate-columns    := (imitate-dimension multi-column)
-imitate-rows       := (imitate-dimension multi-row)
-imitate-frames     := (imitate-dimension multi-frame)
-imitate-dimensions := (imitate-dimension multi-dimension)
+imitate-channels   := (-> (t u) (| t.not-multi-channel   (& u multi-channel  )).make-type)
+imitate-columns    := (-> (t u) (| t.not-multi-column    (& u multi-column   )).make-type)
+imitate-rows       := (-> (t u) (| t.not-multi-row       (& u multi-row      )).make-type)
+imitate-frames     := (-> (t u) (| t.not-multi-frame     (& u multi-frame    )).make-type)
+imitate-dimensions := (-> (t u) (| t.not-multi-dimension (& u multi-dimension)).make-type)
 \end{likely}
 
 \chapter{C Library Symbols}
