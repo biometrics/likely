@@ -199,9 +199,13 @@ likely_mat likely_read(const char *file_name, likely_file_type file_type, likely
     }
     likely_ensure(result != NULL, "failed to process: %s", file_name);
     if (result && (type != likely_void) && (result->type != type)) {
+        const likely_const_mat expected = likely_type_to_string(type);
+        const likely_const_mat actual = likely_type_to_string(result->type);
+        likely_ensure(false, "read type mismatch for: %s, expected: %s but got: %s", file_name, expected->data, actual->data);
+        likely_release_mat(actual);
+        likely_release_mat(expected);
         likely_release_mat(result);
         result = NULL;
-        likely_ensure(false, "read type mismatch for: %s", file_name);
     }
     return result;
 }
