@@ -1,4 +1,4 @@
-; ModuleID = '/Users/m29396/likely/build/average_face-m.bc'
+; ModuleID = 'likely'
 
 %u8XYT_62500 = type { i32, i32, i32, i32, i32, i32, [62500 x i8] }
 %u8XYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }

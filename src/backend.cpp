@@ -1348,7 +1348,7 @@ private:
             args.push_back(arg);
         }
 
-        result = doCTFE ? ConstantData::get(evaluateConstantFunction(constantArgs))
+        result = doCTFE ? ConstantData::get(builder, evaluateConstantFunction(constantArgs))
                         : evaluateFunction(builder, args);
 
     cleanup:
