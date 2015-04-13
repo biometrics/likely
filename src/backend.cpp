@@ -1440,45 +1440,16 @@ struct JITFunction : public Symbol
         , module(new likely_module(evaluate ? likely_default_settings(likely_file_void, function->env->settings->verbose) : *function->env->settings))
     {
         Builder builder(function->env, module, !evaluate);
-        unique_ptr<const likely_expression> expr(function->generate(builder, parameters, name, cc, evaluate));
-        if (!expr) // error
-            return;
+        init(builder, name, function, parameters, evaluate, cc);
+    }
 
-        value = expr->value;
-        type = expr->type;
-        setData(expr->getData());
-        if (evaluate && getData()) // constant
-            return;
-
-        // No libffi support for Windows
-#ifdef _WIN32
-        evaluate = false;
-#endif // _WIN32
-
-        // Don't run the interpreter on a module with loops, better to compile and execute it instead.
-        if (evaluate) {
-            legacy::PassManager PM;
-            HasLoop *hasLoop = new HasLoop();
-            PM.add(hasLoop);
-            PM.run(*module->module);
-            evaluate = !hasLoop->hasLoop;
-        }
-
-        EE = createExecutionEngine(unique_ptr<Module>(module->module),
-                                   evaluate ? EngineKind::Interpreter : EngineKind::JIT);
-
-        if (!evaluate) {
-            // optimize
-            EE->setObjectCache(&TheJITFunctionCache);
-            if (!TheJITFunctionCache.alert(module->module))
-                module->context->PM->run(*module->module);
-        }
-
-        if (module->context->verbose)
-            module->module->print(outs(), NULL);
-
-        if (!evaluate)
-            compileAndCleanup();
+    JITFunction(const string &name, likely_const_ast ast, likely_const_env env, const vector<likely_type> &parameters, LikelyFunction::CallingConvention cc)
+        : Symbol(NULL, name, likely_void, parameters)
+        , module(new likely_module(*env->settings))
+    {
+        Builder builder(env, module, true);
+        const unique_ptr<const LikelyFunction> function(reinterpret_cast<const LikelyFunction*>(likely_expression::get(builder, ast)));
+        init(builder, name, function.get(), parameters, false, cc);
     }
 
     JITFunction(const likely_const_mat bitcode, const char *symbol)
@@ -1527,6 +1498,49 @@ private:
         ExecutionEngine *const EE = engineBuilder.create(targetMachine);
         likely_ensure(EE != NULL, "failed to create execution engine with error: %s", error.c_str());
         return EE;
+    }
+
+    void init(Builder &builder, const string &name, const LikelyFunction *function, const vector<likely_type> &parameters, bool evaluate, LikelyFunction::CallingConvention cc)
+    {
+        unique_ptr<const likely_expression> expr(function->generate(builder, parameters, name, cc, evaluate));
+        if (!expr) // error
+            return;
+
+        value = expr->value;
+        type = expr->type;
+        setData(expr->getData());
+        if (evaluate && getData()) // constant
+            return;
+
+        // No libffi support for Windows
+#ifdef _WIN32
+        evaluate = false;
+#endif // _WIN32
+
+        // Don't run the interpreter on a module with loops, better to compile and execute it instead.
+        if (evaluate) {
+            legacy::PassManager PM;
+            HasLoop *hasLoop = new HasLoop();
+            PM.add(hasLoop);
+            PM.run(*module->module);
+            evaluate = !hasLoop->hasLoop;
+        }
+
+        EE = createExecutionEngine(unique_ptr<Module>(module->module),
+                                   evaluate ? EngineKind::Interpreter : EngineKind::JIT);
+
+        if (!evaluate) {
+            // optimize
+            EE->setObjectCache(&TheJITFunctionCache);
+            if (!TheJITFunctionCache.alert(module->module))
+                module->context->PM->run(*module->module);
+        }
+
+        if (module->context->verbose)
+            module->module->print(outs(), NULL);
+
+        if (!evaluate)
+            compileAndCleanup();
     }
 
     void compileAndCleanup()
@@ -2252,15 +2266,15 @@ class externExpression : public LikelyOperator
         if (!ok)
             return NULL;
 
-        const unique_ptr<const LikelyFunction> function(reinterpret_cast<const LikelyFunction*>(likely_expression::get(builder, ast->atoms[4])));
         if (builder.module /* static compilation */) {
+            const unique_ptr<const LikelyFunction> function(reinterpret_cast<const LikelyFunction*>(likely_expression::get(builder, ast->atoms[4])));
             if (const likely_const_expr f = function->generate(builder, parameters, name, cc, false)) {
                 const likely_const_expr symbol = new Symbol(builder.env, name, f->type, parameters);
                 delete f;
                 return symbol;
             }
         } else /* JIT compilation */ {
-            JITFunction *jitFunction = new JITFunction(name, function.get(), parameters, false, cc);
+            JITFunction *const jitFunction = new JITFunction(name, ast->atoms[4], builder.env, parameters, cc);
             if (jitFunction->function) {
                 sys::DynamicLibrary::AddSymbol(name, jitFunction->function);
                 return jitFunction;
