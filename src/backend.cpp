@@ -1348,7 +1348,7 @@ private:
             args.push_back(arg);
         }
 
-        result = doCTFE ? ConstantData::get(builder, evaluateConstantFunction(constantArgs))
+        result = doCTFE ? ConstantData::get(evaluateConstantFunction(constantArgs))
                         : evaluateFunction(builder, args);
 
     cleanup:
@@ -2183,10 +2183,13 @@ private:
             }
         }
 
-        // If we define local variables then CTFE is no longer possible
         const bool ctfeRestore = builder.ctfe;
-        if (!args.empty())
-            builder.ctfe = false;
+        if (builder.ctfe)
+            for (const likely_const_expr arg : args)
+                if (arg->value) { // If we define local variables then CTFE is no longer possible
+                    builder.ctfe = false;
+                    break;
+                }
 
         const likely_const_expr result = get(builder, body);
 
