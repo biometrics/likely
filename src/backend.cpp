@@ -3366,6 +3366,10 @@ class LazyDefinition : public likely_expression
 
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
+        /* Note that we could simply never do "top-down" CTFE here and let
+         * LikelyFunction do CTFE from the "bottom-up". However, it's in the
+         * interest of the semantics of the language to perform "top-down" CTFE
+         * to avoid constructing potentially numerous intermediate results. */
         if (LikelyFunction::looksLikeImmediate(this->ast)) { // If it looks like an immediate ...
             const Variant data = Lambda(env, this->ast).evaluateConstantFunction(); // ... it should be a constant value.
             assert(data);
