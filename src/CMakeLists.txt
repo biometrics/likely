@@ -205,6 +205,7 @@ test_ast("x:f (g y)" "(f x (g y))")
 test_ast("x.f:h y.g" "(h (f x) (g y))")
 test_ast("(g x:f y)" "(g (f x y))")
 test_ast("{ x y z }" "({ x y z })")
+test_ast("[ q ]" "([ q ])")
 test_expr("42" 42)
 test_expr("(-42)" -42)
 test_expr("0x2a" 42)
@@ -357,6 +358,7 @@ test_expr("x := 1
              (+ x y)
            }
            (+ x y)" 93)
+test_expr("x := [ (sqrt (+ (* 3 3) (* 4 4))) ] x" 5.0)
 test_expr("x := 1
            y := 2
            (? (< x y) x y)" 1)

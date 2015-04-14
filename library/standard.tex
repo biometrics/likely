@@ -261,14 +261,15 @@ and \dindex{object-oriented programming}:
 object:function argument
 \end{verbatim}
 
-\section{Imperative Notation (\{ \dots\ \})}
-Likely makes one additional departure from fully parenthesized notation, automatically identifying braces as a \pindex{list} structure.
+\section{List Notation (\{ \dots\ \}, [ \dots\ ])}
+Likely makes an additional departure from fully parenthesized notation, automatically identifying \dindex{braces} and \dindex{brackets} as \pindex{list} structures.
 
 \begin{verbatim}
 { x y z } ; Parsed as ({ x y z })
+[ q ]     ; Parsed as ([ q ])
 \end{verbatim}
 
-See subsection \ref{subsec:begin} for the semantics of this structure.
+See subsection \ref{subsec:begin} for the semantics of \pindex{braces}, and subsection \ref{subsec:evaluate} for the semantics of \pindex{brackets}.
 
 \chapter{Literals}
 The Likely compiler recognizes the following kinds of fixed, or \dindex{literal}, \pindex{atom}s.
@@ -769,6 +770,15 @@ y := 2
   (+ x y)
 } ; Evaluates to 9
 (+ x y) ; Evaluates to 3
+\end{verbatim}
+
+\subsection{([ \emph{expression} ])}
+\label{subsec:evaluate}
+The \dindex{evaluate} operator allows compile-time function evaluation.
+Likely will execute \emph{expression} at compile-time.
+
+\begin{verbatim}
+x := [ (sqrt (+ (* 3 3) (* 4 4))) ] ; x is 5.0
 \end{verbatim}
 
 \subsection{(? \emph{condition then [else]})}

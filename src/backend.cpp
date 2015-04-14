@@ -2399,7 +2399,7 @@ class beginExpression : public LikelyOperator
 };
 LIKELY_REGISTER(begin)
 
-class ctfeExpression : public LikelyOperator
+class evaluateExpression : public LikelyOperator
 {
     const char *symbol() const { return "["; }
     size_t maxParameters() const { return 2; }
@@ -2409,7 +2409,7 @@ class ctfeExpression : public LikelyOperator
         return ConstantData::get(builder, Lambda(builder.env, ast->atoms[1]).evaluateConstantFunction());
     }
 };
-LIKELY_REGISTER(ctfe)
+LIKELY_REGISTER(evaluate)
 
 class ifExpression : public LikelyOperator
 {
