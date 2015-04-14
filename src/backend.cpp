@@ -2399,6 +2399,18 @@ class beginExpression : public LikelyOperator
 };
 LIKELY_REGISTER(begin)
 
+class ctfeExpression : public LikelyOperator
+{
+    const char *symbol() const { return "["; }
+    size_t maxParameters() const { return 2; }
+
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        return ConstantData::get(builder, Lambda(builder.env, ast->atoms[1]).evaluateConstantFunction());
+    }
+};
+LIKELY_REGISTER(ctfe)
+
 class ifExpression : public LikelyOperator
 {
     const char *symbol() const { return "?"; }
@@ -3312,43 +3324,8 @@ class LazyDefinition : public likely_expression
     const likely_const_env env;
     const likely_const_ast ast;
 
-    static bool looksLikeImmediate(const likely_const_ast ast)
-    {
-        if (ast->type != likely_ast_list)
-            return true;
-
-        assert(ast->atoms > 0);
-        const likely_const_ast op = ast->atoms[0];
-        if (op->type == likely_ast_list)
-            return true;
-
-        if (LikelyFunction::isSymbol(op->atom))
-            return false;
-
-        if (!strcmp(op->atom, "{")) {
-            assert(ast->num_atoms >= 2);
-            return looksLikeImmediate(ast->atoms[ast->num_atoms-2]);
-        }
-
-        return true;
-    }
-
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
-        if (looksLikeImmediate(this->ast)) { // If it looks like an immediate ...
-            if (env->settings->verbose) {
-                outs() << "CTFE: ";
-                const likely_const_mat str = likely_ast_to_string(this->ast, 2);
-                outs() << str->data << '\n';
-                likely_release_mat(str);
-            }
-
-            const Variant data = Lambda(env, this->ast).evaluateConstantFunction(); // ... it should be a constant value.
-            assert(data);
-            return ConstantData::get(builder, data);
-        }
-
-        // It's a global function
         likely_const_env env = this->env;
         swap(builder.env, env);
         unique_ptr<const likely_expression> op(get(builder, this->ast));

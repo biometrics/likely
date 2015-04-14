@@ -6,13 +6,13 @@ Interactive parameters
 
     x_scale := 3
     y_scale := 2
-    x_range := x_scale :* (try mandelbrot_set_scale 1)
-    y_range := y_scale :* (try mandelbrot_set_scale 1)
-    x_min   := (- (* x_scale (try mandelbrot_set_x 0)) (/ x_range 2.f)) :- 0.5
-    y_min   := (- (* y_scale (try mandelbrot_set_y 0)) (/ y_range 2.f))
-    width   := (try mandelbrot_set_width 600)
-    height  := (* width y_scale) :/ x_scale
-    iter    := (/ (try mandelbrot_set_angle 0) 4) :+ 20
+    x_range := [ x_scale :* (try mandelbrot_set_scale 1)                         ]
+    y_range := [ y_scale :* (try mandelbrot_set_scale 1)                         ]
+    x_min   := [ (- (* x_scale (try mandelbrot_set_x 0)) (/ x_range 2.f)) :- 0.5 ]
+    y_min   := [ (- (* y_scale (try mandelbrot_set_y 0)) (/ y_range 2.f))        ]
+    width   := [ (try mandelbrot_set_width 600)                                  ]
+    height  := [ (* width y_scale) :/ x_scale                                    ]
+    iter    := [ (/ (try mandelbrot_set_angle 0) 4) :+ 20                        ]
 
 Definition
 

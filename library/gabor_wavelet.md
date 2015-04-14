@@ -10,9 +10,9 @@ Wavelet parameters
 
 Interaction
 
-    theta_rad   := theta :+ (try gabor_wavelet_angle 0).(* pi.f32).(/ 180)
-    lambda_norm := lambda :* (try gabor_wavelet_scale 1)
-    radius      := (try gabor_wavelet_width 385).(- 1).(/ 2)
+    theta_rad   := [ theta :+ (try gabor_wavelet_angle 0).(* pi.f32).(/ 180) ]
+    lambda_norm := [ lambda :* (try gabor_wavelet_scale 1)                   ]
+    radius      := [ (try gabor_wavelet_width 385).(- 1).(/ 2)               ]
 
 Definition
 
