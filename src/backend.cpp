@@ -1201,27 +1201,6 @@ struct LikelyFunction : public LikelyOperator
         return !strcmp(symbol, "->") || !strcmp(symbol, "extern");
     }
 
-    static bool looksLikeImmediate(const likely_const_ast ast)
-    {
-        if (ast->type != likely_ast_list)
-            return true;
-
-        assert(ast->atoms > 0);
-        const likely_const_ast op = ast->atoms[0];
-        if (op->type == likely_ast_list)
-            return true;
-
-        if (isSymbol(op->atom))
-            return false;
-
-        if (!strcmp(op->atom, "{")) {
-            assert(ast->num_atoms >= 2);
-            return looksLikeImmediate(ast->atoms[ast->num_atoms-2]);
-        }
-
-        return true;
-    }
-
     Variant evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const;
 
     likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, CallingConvention cc, bool promoteScalarToMatrix) const
@@ -1369,7 +1348,6 @@ private:
         return result;
     }
 
-    virtual bool looksLikeImmediate() const { return true; }
     virtual likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args /* takes ownership */) const = 0;
 };
 
@@ -2131,11 +2109,6 @@ struct Lambda : public LikelyFunction
     }
 
 private:
-    bool looksLikeImmediate() const
-    {
-        return LikelyFunction::looksLikeImmediate(body);
-    }
-
     likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args) const
     {
         assert(args.size() == maxParameters());
@@ -3339,9 +3312,30 @@ class LazyDefinition : public likely_expression
     const likely_const_env env;
     const likely_const_ast ast;
 
+    static bool looksLikeImmediate(const likely_const_ast ast)
+    {
+        if (ast->type != likely_ast_list)
+            return true;
+
+        assert(ast->atoms > 0);
+        const likely_const_ast op = ast->atoms[0];
+        if (op->type == likely_ast_list)
+            return true;
+
+        if (LikelyFunction::isSymbol(op->atom))
+            return false;
+
+        if (!strcmp(op->atom, "{")) {
+            assert(ast->num_atoms >= 2);
+            return looksLikeImmediate(ast->atoms[ast->num_atoms-2]);
+        }
+
+        return true;
+    }
+
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
-        if (LikelyFunction::looksLikeImmediate(this->ast)) { // If it looks like an immediate ...
+        if (looksLikeImmediate(this->ast)) { // If it looks like an immediate ...
             if (env->settings->verbose) {
                 outs() << "CTFE: ";
                 const likely_const_mat str = likely_ast_to_string(this->ast, 2);
