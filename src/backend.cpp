@@ -3371,6 +3371,13 @@ class LazyDefinition : public likely_expression
          * interest of the semantics of the language to perform "top-down" CTFE
          * to avoid constructing potentially numerous intermediate results. */
         if (LikelyFunction::looksLikeImmediate(this->ast)) { // If it looks like an immediate ...
+            if (env->settings->verbose) {
+                outs() << "CTFE: ";
+                const likely_const_mat str = likely_ast_to_string(this->ast, 2);
+                outs() << str->data << '\n';
+                likely_release_mat(str);
+            }
+
             const Variant data = Lambda(env, this->ast).evaluateConstantFunction(); // ... it should be a constant value.
             assert(data);
             return ConstantData::get(builder, data);
