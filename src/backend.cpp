@@ -1271,9 +1271,7 @@ struct LikelyFunction : public LikelyOperator
         if (!result)
             return NULL;
 
-        if (!result->value)
-            // It appears that the result is an operator, usually the result of over optimistic CTFE
-            return result.release();
+        assert(result->value); // We should have an immediate
 
         // If we are expecting a constant or a matrix and don't get one then make a matrix
         if (promoteScalarToMatrix && !result->getData() && !dyn_cast<PointerType>(result->value->getType()))
@@ -1516,9 +1514,6 @@ private:
         if (evaluate && getData()) // constant
             return;
 
-        if (evaluate && !value) // operator
-            return setData(newEnv(NULL, NULL, expr.release()));
-
         // No libffi support for Windows
 #ifdef _WIN32
         evaluate = false;
@@ -1587,9 +1582,6 @@ Variant LikelyFunction::evaluateConstantFunction(const vector<likely_const_mat> 
         outs() << "CTFE (" << args.size() << ")\n";
 
     JITFunction jit("likely_ctfe", this, params, true, args.empty() ? LikelyFunction::RegularCC : LikelyFunction::ArrayCC);
-    if (const Variant &data = jit.getData()) // constant
-        return data;
-
     void *value;
     if (jit.function) { // compiler
         value = args.empty() ? reinterpret_cast<void *(*)()>(jit.function)()
