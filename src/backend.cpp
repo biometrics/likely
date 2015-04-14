@@ -1202,6 +1202,27 @@ struct LikelyFunction : public LikelyOperator
         return !strcmp(symbol, "->") || !strcmp(symbol, "extern");
     }
 
+    static bool looksLikeImmediate(const likely_const_ast ast)
+    {
+        if (ast->type != likely_ast_list)
+            return true;
+
+        assert(ast->atoms > 0);
+        const likely_const_ast op = ast->atoms[0];
+        if (op->type == likely_ast_list)
+            return true;
+
+        if (isSymbol(op->atom))
+            return false;
+
+        if (!strcmp(op->atom, "{")) {
+            assert(ast->num_atoms >= 2);
+            return looksLikeImmediate(ast->atoms[ast->num_atoms-2]);
+        }
+
+        return true;
+    }
+
     Variant evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const;
 
     likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, CallingConvention cc, bool promoteScalarToMatrix) const
@@ -1332,7 +1353,7 @@ private:
     {
         likely_const_expr result = NULL;
 
-        bool ctfe = builder.ctfe;
+        bool ctfe = builder.ctfe && looksLikeImmediate();
         vector<likely_const_expr> args;
         vector<likely_const_mat> constantArgs;
         const size_t arguments = length(ast)-1;
@@ -1360,6 +1381,7 @@ private:
         return result;
     }
 
+    virtual bool looksLikeImmediate() const { return true; }
     virtual likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args /* takes ownership */) const = 0;
 };
 
@@ -2121,6 +2143,11 @@ struct Lambda : public LikelyFunction
     }
 
 private:
+    bool looksLikeImmediate() const
+    {
+        return LikelyFunction::looksLikeImmediate(body);
+    }
+
     likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args) const
     {
         assert(args.size() == maxParameters());
@@ -3336,13 +3363,7 @@ class LazyDefinition : public likely_expression
 
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
-        bool immediate = !(ast->type == likely_ast_list);
-        if (immediate) {
-            const char *const symbol = likely_symbol(this->ast);
-            immediate = !LikelyFunction::isSymbol(symbol) && strcmp(symbol, "{");
-        }
-
-        if (immediate) { // If it doesn't look like a function ...
+        if (LikelyFunction::looksLikeImmediate(this->ast)) { // If it looks like an immediate ...
             const Variant data = Lambda(env, this->ast).evaluateConstantFunction(); // ... it should be a constant value.
             assert(data);
             return ConstantData::get(builder, data);
