@@ -1339,12 +1339,12 @@ private:
         vector<likely_const_mat> constantArgs;
         const size_t arguments = length(ast)-1;
         for (size_t i=0; i<arguments; i++) {
-            likely_const_expr arg = get(builder, ast->atoms[i+1]);
+            const likely_const_expr arg = get(builder, ast->atoms[i+1]);
             if (!arg)
                 goto cleanup;
 
             if (ctfe) {
-                if (likely_const_mat constantArg = arg->getData())
+                if (const likely_const_mat constantArg = arg->getData())
                     constantArgs.push_back(constantArg);
                 else
                     ctfe = false;
@@ -1580,20 +1580,11 @@ private:
 Variant LikelyFunction::evaluateConstantFunction(const vector<likely_const_mat> &args) const
 {
     vector<likely_type> params;
-    for (likely_const_mat arg : args)
+    for (const likely_const_mat arg : args)
         params.push_back(arg->type);
 
-    if (env->settings->verbose) {
-        outs() << "CTFE: ";
-        if (env->ast) {
-            const likely_const_mat str = likely_ast_to_string(env->ast, 2);
-            outs() << str->data;
-            likely_release_mat(str);
-        } else {
-            outs() << "<>";
-        }
-        outs() << '\n';
-    }
+    if (env->settings->verbose)
+        outs() << "CTFE (" << args.size() << ")\n";
 
     JITFunction jit("likely_ctfe", this, params, true, args.empty() ? LikelyFunction::RegularCC : LikelyFunction::ArrayCC);
     if (const Variant &data = jit.getData()) // constant
