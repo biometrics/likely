@@ -509,19 +509,25 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
         }
     }
 
-    static likely_const_ast listOpen = likely_atom("(", 1);
-    static likely_const_ast listClose = likely_atom(")", 1);
-    static likely_const_ast beginOpen = likely_atom("{", 1);
-    static likely_const_ast beginClose = likely_atom("}", 1);
-    const bool list = !likely_ast_compare(token, listOpen);
-    if (list || !likely_ast_compare(token, beginOpen)) {
+    static likely_const_ast parenOpen = likely_atom("(", 1);
+    static likely_const_ast parenClose = likely_atom(")", 1);
+    static likely_const_ast braceOpen = likely_atom("{", 1);
+    static likely_const_ast braceClose = likely_atom("}", 1);
+    static likely_const_ast bracketOpen = likely_atom("[", 1);
+    static likely_const_ast bracketClose = likely_atom("]", 1);
+    bool paren = false, brace = false, bracket = false;
+    if      (!likely_ast_compare(token, parenOpen  )) paren = true;
+    else if (!likely_ast_compare(token, braceOpen  )) brace = true;
+    else if (!likely_ast_compare(token, bracketOpen)) bracket = true;
+    if (paren || brace || bracket) {
         vector<likely_ast> atoms;
         likely_const_ast close;
-        if (list) {
-            close = listClose;
+        if (paren) {
+            close = parenClose;
         } else {
             atoms.push_back(likely_retain_ast(token));
-            close = beginClose;
+            if (brace) close = braceClose;
+            else       close = bracketClose;
         }
 
         likely_const_ast end = NULL;
@@ -530,7 +536,7 @@ static bool shift(likely_const_ast tokens, size_t &offset, vector<likely_ast> &o
             if (success) {
                 if (!likely_ast_compare(atoms.back(), close)) {
                     end = likely_retain_ast(atoms.back());
-                    if (list) {
+                    if (paren) {
                         likely_release_ast(atoms.back());
                         atoms.pop_back();
                     }
