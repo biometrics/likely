@@ -1334,7 +1334,7 @@ private:
     {
         likely_const_expr result = NULL;
 
-        bool doCTFE = builder.ctfe;
+        bool ctfe = builder.ctfe;
         vector<likely_const_expr> args;
         vector<likely_const_mat> constantArgs;
         const size_t arguments = length(ast)-1;
@@ -1343,18 +1343,18 @@ private:
             if (!arg)
                 goto cleanup;
 
-            if (doCTFE) {
+            if (ctfe) {
                 if (likely_const_mat constantArg = arg->getData())
                     constantArgs.push_back(constantArg);
                 else
-                    doCTFE = false;
+                    ctfe = false;
             }
 
             args.push_back(arg);
         }
 
-        result = doCTFE ? ConstantData::get(builder, evaluateConstantFunction(constantArgs))
-                        : evaluateFunction(builder, args);
+        result = ctfe ? ConstantData::get(builder, evaluateConstantFunction(constantArgs))
+                      : evaluateFunction(builder, args);
 
     cleanup:
         for (likely_const_expr arg : args)
@@ -1582,6 +1582,18 @@ Variant LikelyFunction::evaluateConstantFunction(const vector<likely_const_mat> 
     vector<likely_type> params;
     for (likely_const_mat arg : args)
         params.push_back(arg->type);
+
+    if (env->settings->verbose) {
+        outs() << "CTFE: ";
+        if (env->ast) {
+            const likely_const_mat str = likely_ast_to_string(env->ast, 2);
+            outs() << str->data;
+            likely_release_mat(str);
+        } else {
+            outs() << "<>";
+        }
+        outs() << '\n';
+    }
 
     JITFunction jit("likely_ctfe", this, params, true, args.empty() ? LikelyFunction::RegularCC : LikelyFunction::ArrayCC);
     if (const Variant &data = jit.getData()) // constant
@@ -3131,18 +3143,28 @@ likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast
 
 likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
 {
+    likely_const_mat str = NULL;
+    if (builder.env->settings->verbose) {
+        str = likely_ast_to_string(ast, 2);
+        outs() << "ENTERING: " << str->data << '\n';
+    }
+
     const likely_const_expr result = _get(builder, ast);
 
     if (builder.env->settings->verbose) {
-        const likely_mat str = likely_ast_to_string(ast, 2);
-        outs() << str->data << '\n';
+        outs() << "EXITING: " << str->data << '\n';
         likely_release_mat(str);
 
-        if (result && result->value) {
-            outs() << "  ";
-            result->value->print(outs());
-            outs() << '\n';
+        outs() << "RESULT: ";
+        if (result) {
+            if (result->value)
+                result->value->print(outs());
+            else
+                outs() << "<>";
+        } else {
+            outs() << "<error>";
         }
+        outs() << '\n';
     }
 
     return result;
