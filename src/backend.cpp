@@ -3344,9 +3344,17 @@ class LazyDefinition : public likely_expression
 
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
-        if (!LikelyFunction::isSymbol(likely_symbol(this->ast)) && !(ast->type == likely_ast_list)) // If it doesn't look like a function ...
-            if (const Variant data = Lambda(env, this->ast).evaluateConstantFunction()) // ... see if it's a constant value.
-                return ConstantData::get(builder, data);
+        bool immediate = !(ast->type == likely_ast_list);
+        if (immediate) {
+            const char *const symbol = likely_symbol(this->ast);
+            immediate = !LikelyFunction::isSymbol(symbol) && strcmp(symbol, "{");
+        }
+
+        if (immediate) { // If it doesn't look like a function ...
+            const Variant data = Lambda(env, this->ast).evaluateConstantFunction(); // ... it should be a constant value.
+            assert(data);
+            return ConstantData::get(builder, data);
+        }
 
         // It's a global function
         likely_const_env env = this->env;
