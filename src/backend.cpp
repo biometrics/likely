@@ -733,10 +733,9 @@ struct Builder : public IRBuilder<>
 {
     likely_const_env env;
     likely_module *const module;
-    bool ctfe; // Compile-time function evaluation
 
-    Builder(likely_const_env env, likely_module *module, bool ctfe)
-        : IRBuilder<>(module ? module->context->context : getGlobalContext()), env(env), module(module), ctfe(ctfe) {}
+    Builder(likely_const_env env, likely_module *module)
+        : IRBuilder<>(module ? module->context->context : getGlobalContext()), env(env), module(module) {}
 
     LikelyValue constant(uint64_t value, likely_type type = likely_u64)
     {
@@ -1353,27 +1352,16 @@ private:
     {
         likely_const_expr result = NULL;
 
-        bool ctfe = builder.ctfe && looksLikeImmediate();
         vector<likely_const_expr> args;
-        vector<likely_const_mat> constantArgs;
         const size_t arguments = length(ast)-1;
         for (size_t i=0; i<arguments; i++) {
             const likely_const_expr arg = get(builder, ast->atoms[i+1]);
             if (!arg)
                 goto cleanup;
-
-            if (ctfe) {
-                if (const likely_const_mat constantArg = arg->getData())
-                    constantArgs.push_back(constantArg);
-                else
-                    ctfe = false;
-            }
-
             args.push_back(arg);
         }
 
-        result = ctfe ? ConstantData::get(builder, evaluateConstantFunction(constantArgs))
-                      : evaluateFunction(builder, args);
+        result = evaluateFunction(builder, args);
 
     cleanup:
         for (likely_const_expr arg : args)
@@ -1463,7 +1451,7 @@ struct JITFunction : public Symbol
         : Symbol(NULL, name, likely_void, parameters)
         , module(new likely_module(evaluate ? likely_default_settings(likely_file_void, function->env->settings->verbose) : *function->env->settings))
     {
-        Builder builder(function->env, module, !evaluate);
+        Builder builder(function->env, module);
         init(builder, name, function, parameters, evaluate, cc);
     }
 
@@ -1471,7 +1459,7 @@ struct JITFunction : public Symbol
         : Symbol(NULL, name, likely_void, parameters)
         , module(new likely_module(*env->settings))
     {
-        Builder builder(env, module, true);
+        Builder builder(env, module);
         const unique_ptr<const LikelyFunction> function(reinterpret_cast<const LikelyFunction*>(likely_expression::get(builder, ast)));
         init(builder, name, function.get(), parameters, false, cc);
     }
@@ -1602,9 +1590,6 @@ Variant LikelyFunction::evaluateConstantFunction(const vector<likely_const_mat> 
     vector<likely_type> params;
     for (const likely_const_mat arg : args)
         params.push_back(arg->type);
-
-    if (env->settings->verbose)
-        outs() << "CTFE (" << args.size() << ")\n";
 
     JITFunction jit("likely_ctfe", this, params, true, args.empty() ? LikelyFunction::RegularCC : LikelyFunction::ArrayCC);
     void *value;
@@ -2230,17 +2215,7 @@ private:
             }
         }
 
-        const bool ctfeRestore = builder.ctfe;
-        if (builder.ctfe)
-            for (const likely_const_expr arg : args)
-                if (arg->value) { // If we define local variables then CTFE is no longer possible
-                    builder.ctfe = false;
-                    break;
-                }
-
         const likely_const_expr result = get(builder, body);
-
-        builder.ctfe = ctfeRestore;
 
         if (parameters)
             undefineAll(builder.env, parameters);
@@ -2923,7 +2898,7 @@ class kernelExpression : public LikelyOperator
         likely_module kernelModule(*builder.env->settings);
         kernelModule.module->setTargetTriple("nvptx-nvidia-cuda");
         NamedMDNode *const nvvmAnnotations = kernelModule.module->getOrInsertNamedMetadata("nvvm.annotations");
-        Builder kernelBuilder(builder.env, &kernelModule, false);
+        Builder kernelBuilder(builder.env, &kernelModule);
 
         vector<Type*> parameterTypes;
         for (const likely_const_expr src : srcs)
@@ -3366,10 +3341,6 @@ class LazyDefinition : public likely_expression
 
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
-        /* Note that we could simply never do "top-down" CTFE here and let
-         * LikelyFunction do CTFE from the "bottom-up". However, it's in the
-         * interest of the semantics of the language to perform "top-down" CTFE
-         * to avoid constructing potentially numerous intermediate results. */
         if (LikelyFunction::looksLikeImmediate(this->ast)) { // If it looks like an immediate ...
             if (env->settings->verbose) {
                 outs() << "CTFE: ";
@@ -3420,7 +3391,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
                                         && (statement->atoms[0]->type != likely_ast_list))
                                        ? statement->atoms[0]->atom : "";
             if (LikelyFunction::isSymbol(symbol)) {
-                Builder builder(parent, parent->module, true);
+                Builder builder(parent, parent->module);
                 expr = likely_expression::get(builder, statement);
             } else {
                 const Variant data = Lambda(parent, statement).evaluateConstantFunction();
