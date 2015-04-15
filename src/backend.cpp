@@ -1113,39 +1113,43 @@ private:
     }
 };
 
-class ConstantData : public likely_expression
+struct ConstantData : public likely_expression
 {
     ConstantData(const Variant &data)
         : likely_expression(LikelyValue(), data) {}
 
-    likely_const_expr evaluate(Builder &builder, likely_const_ast) const
+    ConstantData(Builder &builder, const Variant &data)
     {
-        const Variant data = getData();
+        if (!data)
+            return;
+
+        setData(data);
 
         // Special case, return the scalar
         if (const likely_const_mat m = data)
-            if (!(m->type & likely_multi_dimension))
-                return new likely_expression(LikelyValue(builder.constant(likely_get_element(m, 0, 0, 0, 0), m->type), m->type), data);
+            if (!(m->type & likely_multi_dimension)) {
+                value = builder.constant(likely_get_element(m, 0, 0, 0, 0), m->type);
+                type = m->type;
+                return;
+            }
 
         // Make sure the lifetime of the data is at least as long as the lifetime of the code.
         Constant *const address = ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(void*)), uintptr_t(data.value));
         assert(builder.module);
         builder.module->data.push_back(pair<Variant,Constant*>(data, address));
-        return new likely_expression(LikelyValue(ConstantExpr::getIntToPtr(address, builder.module->context->toLLVM(data.type)), data.type), data);
-    }
-
-public:
-    static likely_const_expr get(const Variant &data)
-    {
-        if (!data)
-            return NULL;
-        return new ConstantData(data);
+        value = ConstantExpr::getIntToPtr(address, builder.module->context->toLLVM(data.type));
+        type = data.type;
     }
 
     static likely_const_expr get(Builder &builder, const Variant &data)
     {
-        const UniqueExpression expr(get(data));
-        return expr ? expr->evaluate(builder, NULL) : NULL;
+        return data ? new ConstantData(builder, data) : NULL;
+    }
+
+private:
+    likely_const_expr evaluate(Builder &builder, likely_const_ast) const
+    {
+        return new ConstantData(builder, getData());
     }
 };
 
@@ -3377,7 +3381,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
                     env = likely_retain_env(evaluated);
                     env->module = parent->module;
                 } else {
-                    expr = ConstantData::get(data);
+                    expr = data ? new ConstantData(data) : NULL;
                 }
            }
         }
@@ -3421,7 +3425,9 @@ likely_mat likely_compute(const char *source)
 
 likely_env likely_define(const char *name, likely_const_mat value, likely_const_env parent)
 {
-    likely_expression::define(parent, name, ConstantData::get(Variant(likely_retain_mat(value))));
+    if (!value)
+        return NULL;
+    likely_expression::define(parent, name, new ConstantData(likely_retain_mat(value)));
     return const_cast<likely_env>(parent); // define() swaps the value of parent with child, so this is safe
 }
 
