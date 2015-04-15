@@ -3422,10 +3422,8 @@ likely_mat likely_compute(const char *source)
 
 likely_env likely_define(const char *name, likely_const_mat value, likely_const_env parent)
 {
-    const likely_ast atoms[3] = { likely_atom("=", 1),
-                                  likely_atom(name, strlen(name)),
-                                  likely_atom("", 0) };
-    return newEnv(parent, likely_list(atoms, 3), ConstantData::get(Variant(likely_retain_mat(value))));
+    likely_expression::define(parent, name,  ConstantData::get(Variant(likely_retain_mat(value))));
+    return const_cast<likely_env>(parent); // define() swaps the value of parent with child, so this is safe
 }
 
 void likely_shutdown()
