@@ -3148,21 +3148,20 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
     if (ast->type == likely_ast_list) {
         if (ast->num_atoms == 0)
             return likely_expression::error(ast, "Empty expression");
-        likely_const_ast op = ast->atoms[0];
+        const likely_const_ast op = ast->atoms[0];
 
-        // This is an important special case that allows us to have
-        // environment variables that aren't wrapped in factory methods.
         if (op->type != likely_ast_list)
-            if (const likely_const_env e = lookup(builder.env, op->atom))
-                return e->expr->evaluate(builder, ast);
+            if (const likely_const_env env = lookup(builder.env, op->atom)) {
+                const_cast<likely_ast>(op)->type = likely_ast_operator;
+                return env->expr->evaluate(builder, ast); // Environment variable _operators_ need not be lowered
+            }
 
-        // Fallback general case
-        TRY_EXPR(builder, op, e);
-        return e->evaluate(builder, ast);
+        TRY_EXPR(builder, op, expr);
+        return expr->evaluate(builder, ast);
     } else {
         if (const likely_const_env env = lookup(builder.env, ast->atom)) {
-            const_cast<likely_ast>(ast)->type = likely_ast_operator;
-            return env->expr->evaluate(builder, ast);
+            const_cast<likely_ast>(ast)->type = likely_ast_operand;
+            return env->expr->evaluate(builder, ast); // Environment variable _operands_ need to be lowered
         }
 
         { // Is it an integer?
