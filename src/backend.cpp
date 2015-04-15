@@ -1997,8 +1997,8 @@ class remainderExpression : public SimpleArithmeticOperator
     Value *evaluateSimpleArithmetic(Builder &builder, const LikelyValue &lhs, const LikelyValue &rhs) const
     {
         return (lhs.type & likely_floating) ? builder.CreateFRem(lhs, rhs)
-                                                   : ((lhs.type & likely_signed) ? builder.CreateSRem(lhs, rhs)
-                                                                                 : builder.CreateURem(lhs, rhs));
+                                            : ((lhs.type & likely_signed) ? builder.CreateSRem(lhs, rhs)
+                                                                          : builder.CreateURem(lhs, rhs));
     }
 };
 LIKELY_REGISTER(remainder)
@@ -3422,7 +3422,7 @@ likely_mat likely_compute(const char *source)
 
 likely_env likely_define(const char *name, likely_const_mat value, likely_const_env parent)
 {
-    likely_expression::define(parent, name,  ConstantData::get(Variant(likely_retain_mat(value))));
+    likely_expression::define(parent, name, ConstantData::get(Variant(likely_retain_mat(value))));
     return const_cast<likely_env>(parent); // define() swaps the value of parent with child, so this is safe
 }
 
