@@ -1186,10 +1186,9 @@ struct LikelyFunction : public LikelyOperator
 
     const likely_const_env env;
 
-    LikelyFunction(const likely_const_env env, const size_t numParameters, const vector<likely_type> &virtualTypes = vector<likely_type>())
+    LikelyFunction(const likely_const_env env, const size_t numParameters)
         : env(likely_retain_env(env))
-        , numParameters(numParameters)
-        , virtualTypes(virtualTypes) {}
+        , numParameters(numParameters) {}
 
     ~LikelyFunction()
     {
@@ -1203,7 +1202,7 @@ struct LikelyFunction : public LikelyOperator
 
     Variant evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const;
 
-    likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, CallingConvention cc, bool promoteScalarToMatrix) const
+    likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, bool promoteScalarToMatrix, CallingConvention cc, const vector<likely_type> &virtualTypes = vector<likely_type>()) const
     {
         assert(cc == VirtualCC ? !virtualTypes.empty() : virtualTypes.empty());
         while (parameters.size() < maxParameters())
@@ -1302,7 +1301,6 @@ struct LikelyFunction : public LikelyOperator
 
 protected:
     const size_t numParameters;
-    const vector<likely_type> virtualTypes;
 
     size_t maxParameters() const { return numParameters; }
 
@@ -1425,12 +1423,12 @@ struct JITFunction : public Symbol
     ExecutionEngine *EE = NULL;
     likely_module *module;
 
-    JITFunction(const string &name, const LikelyFunction *function, const vector<likely_type> &parameters, bool evaluate, LikelyFunction::CallingConvention cc)
+    JITFunction(const string &name, const LikelyFunction *function, const vector<likely_type> &parameters, bool evaluate, LikelyFunction::CallingConvention cc, const vector<likely_type> &virtualTypes = vector<likely_type>())
         : Symbol(NULL, name, likely_void, parameters)
         , module(new likely_module(evaluate ? likely_default_settings(likely_file_void, function->env->settings->verbose) : *function->env->settings))
     {
         Builder builder(function->env, module);
-        init(builder, name, function, parameters, evaluate, cc);
+        init(builder, name, function, parameters, evaluate, cc, virtualTypes);
     }
 
     JITFunction(const string &name, likely_const_ast ast, likely_const_env env, const vector<likely_type> &parameters, LikelyFunction::CallingConvention cc)
@@ -1490,9 +1488,9 @@ private:
         return EE;
     }
 
-    void init(Builder &builder, const string &name, const LikelyFunction *function, const vector<likely_type> &parameters, bool evaluate, LikelyFunction::CallingConvention cc)
+    void init(Builder &builder, const string &name, const LikelyFunction *function, const vector<likely_type> &parameters, bool evaluate, LikelyFunction::CallingConvention cc, const vector<likely_type> &virtualTypes = vector<likely_type>())
     {
-        unique_ptr<const likely_expression> expr(function->generate(builder, parameters, name, cc, evaluate));
+        unique_ptr<const likely_expression> expr(function->generate(builder, parameters, name, evaluate, cc, virtualTypes));
         if (!expr) // error
             return;
 
@@ -2097,8 +2095,8 @@ struct Lambda : public LikelyFunction
 {
     const likely_const_ast body, parameters;
 
-    Lambda(likely_const_env env, likely_const_ast body, likely_const_ast parameters = NULL, const vector<likely_type> &virtualTypes = vector<likely_type>())
-        : LikelyFunction(env, length(parameters), virtualTypes)
+    Lambda(likely_const_env env, likely_const_ast body, likely_const_ast parameters = NULL)
+        : LikelyFunction(env, length(parameters))
         , body(likely_retain_ast(body))
         , parameters(likely_retain_ast(parameters)) {}
 
@@ -2251,7 +2249,7 @@ class externExpression : public LikelyOperator
 
         if (builder.module /* static compilation */) {
             const unique_ptr<const LikelyFunction> function(reinterpret_cast<const LikelyFunction*>(likely_expression::get(builder, ast->atoms[4])));
-            if (const likely_const_expr f = function->generate(builder, parameters, name, cc, false)) {
+            if (const likely_const_expr f = function->generate(builder, parameters, name, false, cc)) {
                 const likely_const_expr symbol = new Symbol(builder.env, name, f->type, parameters);
                 delete f;
                 return symbol;
@@ -3294,7 +3292,7 @@ likely_mat likely_dynamic(likely_vtable vtable, likely_const_mat *mats, const vo
         for (size_t i=0; i<vtable->n; i++)
             if (types[i] == likely_multi_dimension)
                 types[i] = mats[dynamicIndex++]->type;
-        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->env, vtable->body, vtable->parameters, vtable->types)).get(), types, false, LikelyFunction::VirtualCC)));
+        vtable->functions.push_back(unique_ptr<JITFunction>(new JITFunction("likely_vtable_entry", unique_ptr<Lambda>(new Lambda(vtable->env, vtable->body, vtable->parameters)).get(), types, false, LikelyFunction::VirtualCC, vtable->types)));
         function = vtable->functions.back()->function;
         if (function == NULL)
             return NULL;
