@@ -2252,7 +2252,7 @@ class externExpression : public LikelyOperator
 
         if (builder.module /* static compilation */) {
             const UniqueExpression function(likely_expression::get(builder, ast->atoms[4]));
-            const UniqueExpression f = reinterpret_cast<const LikelyFunction*>(function.get())->generate(builder, parameters, name, false, cc);
+            const UniqueExpression f(reinterpret_cast<const LikelyFunction*>(function.get())->generate(builder, parameters, name, false, cc));
             if (f)
                 return new Symbol(builder.env, name, f->type, parameters);
         } else /* JIT compilation */ {
