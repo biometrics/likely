@@ -433,6 +433,8 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
 
 void likely_show(likely_const_mat image, const char *title)
 {
+    if (!image || !title)
+        return;
     cv::imshow(title, likelyToOpenCVMat(image));
     cv::waitKey();
 }

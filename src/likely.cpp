@@ -130,6 +130,9 @@ static void showCallback(likely_const_env env, void *)
         return;
 
     const likely_const_mat rendered = likely_render(likely_result(env->expr), NULL, NULL);
+    if (!rendered)
+        return;
+
     if (LikelyEnsure.getValue().empty()) {
         likely_show(rendered, likely_symbol(env->ast));
     } else {
