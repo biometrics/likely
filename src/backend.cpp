@@ -2074,16 +2074,7 @@ class tryExpression : public LikelyOperator
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        likely_const_expr value = NULL;
-        likely_retain_ast(ast->atoms[1]);
-        const likely_ast statement = likely_list(&ast->atoms[1], 1);
-        if (const likely_env env = likely_eval(statement, builder.env, NULL, NULL)) {
-            if (const likely_const_mat mat = likely_result(env->expr))
-                value = new ConstantData(builder, likely_retain_mat(mat));
-            likely_release_env(env);
-        }
-        likely_release_ast(statement);
-
+        likely_const_expr value = get(builder, ast->atoms[1]);
         if (!value)
             value = get(builder, ast->atoms[2]);
         return value;

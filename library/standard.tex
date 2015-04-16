@@ -947,12 +947,12 @@ As a special case, a \pindex{list} of up to four expressions may be specified be
 Inside a \pindex{kernel} body, every argument becomes an operator taking between zero and four parameters.
 These parameters are element indicies if the argument is a matrix, and their default values are the \pindex{axes}.
 
-\subsection{(try \emph{primary fallback})}
-The \dindex{try} operator returns the \emph{primary} expression if it could be evaluated successfully, and the \emph{fallback} expression otherwise.
+\subsection{(try [ \emph{primary} ] fallback})}
+The \dindex{try} operator returns the \emph{primary} expression if it could be evaluated successfully at compile-time, and the \emph{fallback} expression otherwise.
 
 \begin{verbatim}
-(try (+ 1 1) 3) ; Evaluates to 2
-(try (+ 1) 3)   ; Evaluates to 3
+(try [ (+ 1 1) ] 3) ; Evaluates to 2
+(try [ (+ 1) ] 3)   ; Evaluates to 3
 \end{verbatim}
 
 \subsection{(extern \emph{return-type symbol-name parameter-types [lambda]})}
