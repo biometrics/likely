@@ -1124,26 +1124,19 @@ struct ConstantData : public likely_expression
             return;
 
         setData(data);
+        type = data.type;
 
         // Special case, return the scalar
         if (const likely_const_mat m = data)
             if (!(m->type & likely_multi_dimension)) {
                 value = builder.constant(likely_get_element(m, 0, 0, 0, 0), m->type);
-                type = m->type;
                 return;
             }
 
         // Make sure the lifetime of the data is at least as long as the lifetime of the code.
         Constant *const address = ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(void*)), uintptr_t(data.value));
-        assert(builder.module);
         builder.module->data.push_back(pair<Variant,Constant*>(data, address));
         value = ConstantExpr::getIntToPtr(address, builder.module->context->toLLVM(data.type));
-        type = data.type;
-    }
-
-    static likely_const_expr get(Builder &builder, const Variant &data)
-    {
-        return data ? new ConstantData(builder, data) : NULL;
     }
 
 private:
@@ -1807,7 +1800,7 @@ class thisExpression : public Operand
     const char *symbol() const { return "this"; }
     likely_const_expr evaluateOperand(Builder &builder) const
     {
-        return ConstantData::get(builder, likely_retain_env(builder.env));
+        return new ConstantData(builder, likely_retain_env(builder.env));
     }
 };
 LIKELY_REGISTER(this)
@@ -2086,7 +2079,7 @@ class tryExpression : public LikelyOperator
         const likely_ast statement = likely_list(&ast->atoms[1], 1);
         if (const likely_env env = likely_eval(statement, builder.env, NULL, NULL)) {
             if (const likely_const_mat mat = likely_result(env->expr))
-                value = ConstantData::get(builder, likely_retain_mat(mat));
+                value = new ConstantData(builder, likely_retain_mat(mat));
             likely_release_env(env);
         }
         likely_release_ast(statement);
@@ -2409,7 +2402,8 @@ class evaluateExpression : public LikelyOperator
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        return ConstantData::get(builder, Lambda(builder.env, ast->atoms[1]).evaluateConstantFunction());
+        const Variant data = Lambda(builder.env, ast->atoms[1]).evaluateConstantFunction();
+        return data ? new ConstantData(builder, data) : NULL;
     }
 };
 LIKELY_REGISTER(evaluate)
