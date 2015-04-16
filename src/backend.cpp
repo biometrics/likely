@@ -358,7 +358,12 @@ struct Variant
     likely_type type;
 
     Variant(void *value, likely_type type)
-        : value(value), type(type) {}
+        : value(value), type(type)
+    {
+        // If it's actually a matrix, let's discover it's real type
+        if (const likely_const_mat mat = *this)
+            this->type = mat->type;
+    }
 
     Variant()
         : Variant(NULL, likely_void) {}
