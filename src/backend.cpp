@@ -1140,8 +1140,10 @@ struct ConstantData : public likely_expression
     }
 
 private:
-    likely_const_expr evaluate(Builder &builder, likely_const_ast) const
+    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
+        if (ast->type == likely_ast_list)
+            return likely_expression::evaluate(builder, ast); // Knows how to index into the matrix
         return new ConstantData(builder, getData());
     }
 };
