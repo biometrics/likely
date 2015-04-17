@@ -386,51 +386,37 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
         return likely_retain_mat(mat);
     }
 
-    double min, max, range;
-    static likely_const_env minMaxEnv = NULL;
-    static void *minMax = NULL;
-    if (minMax == NULL) {
-        const likely_env parent = likely_standard(likely_default_settings(likely_file_void, false), NULL, likely_file_void);
-        const char *const src = "-likely-minmax :=                   \n"
-                                "  (src min max) :->                 \n"
-                                "  {                                 \n"
-                                "    (? (== (& src.type element) u8) \n"
-                                "      {                             \n"
-                                "        min :<- 0                   \n"
-                                "        max :<- 255                 \n"
-                                "      } {                           \n"
-                                "        min :<- src.min-element     \n"
-                                "        max :<- src.max-element     \n"
-                                "      })                            \n"
-                                "  }                                 \n"
-                                "(extern void \"_likely_minmax\" (multi-dimension double.pointer double.pointer) -likely-minmax) \n";
-        minMaxEnv = likely_lex_parse_and_eval(src, likely_file_lisp, parent);
-        minMax = likely_function(minMaxEnv->expr);
-        assert(minMax);
-        likely_release_env(parent);
-    }
-    reinterpret_cast<void (*)(likely_const_mat, double*, double*)>(minMax)(mat, &min, &max);
-    range = (max - min) / 255;
-
     static likely_const_env env = NULL;
-    static void *normalize = NULL;
-    if (normalize == NULL) {
+    static void *render = NULL;
+    if (render == NULL) {
         const likely_env parent = likely_standard(likely_default_settings(likely_file_void, false), NULL, likely_file_void);
-        const char *const src = "-likely-normalize :=\n"
-                                "  (src a b) :->\n"
-                                "  {\n"
-                                "    dst := (new u8CXY 3 src.columns src.rows 1 null)\n"
-                                "    (dst src a b) :=>\n"
-                                "      dst :<- (* src a).(+ b)\n"
-                                "  }\n"
-                                "(extern multi-dimension \"_likely_normalize\" (multi-dimension double double) -likely-normalize)";
+        const char *const src = "-likely-render :=                                   "
+                                "  (src min max) :->                                 "
+                                "  {                                                 "
+                                "    (? (== (& src.type element) u8)                 "
+                                "      {                                             "
+                                "        min :<- 0                                   "
+                                "        max :<- 255                                 "
+                                "      } {                                           "
+                                "        min :<- src.min-element                     "
+                                "        max :<- src.max-element                     "
+                                "      })                                            "
+                                "    range := (- (max) (min)).(/ 255)                "
+                                "    a := (/ 1         range)                        "
+                                "    b := (/ (- (min)) range)                        "
+                                "    dst := (new u8CXY 3 src.columns src.rows 1 null)"
+                                "    (dst src a b) :=>                               "
+                                "      dst :<- (* src a).(+ b)                       "
+                                "  }                                                 "
+                                "(extern multi-dimension \"_likely_render\" (multi-dimension double.pointer double.pointer) -likely-render)\n";
         env = likely_lex_parse_and_eval(src, likely_file_lisp, parent);
-        normalize = likely_function(env->expr);
-        assert(normalize);
+        render = likely_function(env->expr);
+        assert(render);
         likely_release_env(parent);
     }
 
-    const likely_mat n = reinterpret_cast<likely_mat (*)(likely_const_mat, double, double)>(normalize)(mat, 1/range, -min/range);
+    double min, max;
+    const likely_mat n = reinterpret_cast<likely_mat (*)(likely_const_mat, double*, double*)>(render)(mat, &min, &max);
     if (min_) *min_ = min;
     if (max_) *max_ = max;
     return n;
