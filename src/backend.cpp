@@ -3074,10 +3074,15 @@ likely_expression::~likely_expression()
 likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast ast) const
 {
     if ((type & likely_compound_pointer) && (ast->type == likely_ast_list)) {
-        if (ast->num_atoms != 2)
+        const likely_type elementType = likely_element_type(type);
+        if (ast->num_atoms == 1) {
+            return new likely_expression(LikelyValue(builder.CreateLoad(value), elementType));
+        } else if (ast->num_atoms == 2) {
+            TRY_EXPR(builder, ast->atoms[1], arg);
+            return new likely_expression(LikelyValue(builder.CreateLoad(builder.CreateGEP(value, *arg)), elementType));
+        } else {
             return NULL;
-        TRY_EXPR(builder, ast->atoms[1], arg);
-        return new likely_expression(LikelyValue(builder.CreateLoad(builder.CreateGEP(value, *arg)), likely_element_type(type)));
+        }
     }
 
     if ((type & likely_multi_dimension) && (ast->type == likely_ast_list)) {
