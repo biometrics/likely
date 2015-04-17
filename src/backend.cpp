@@ -1276,19 +1276,25 @@ struct LikelyFunction : public LikelyOperator
         if (!result)
             return NULL;
 
-        assert(result->value); // We should have an immediate
+        if (result->type) {
+            assert(result->value);
 
-        // If we are expecting a constant or a matrix and don't get one then make a matrix
-        if (promoteScalarToMatrix && !result->getData() && !dyn_cast<PointerType>(result->value->getType()))
-            result.reset(new likely_expression(builder.toMat(*result)));
+            // If we are expecting a constant or a matrix and don't get one then make a matrix
+            if (promoteScalarToMatrix && !result->getData() && !dyn_cast<PointerType>(result->value->getType()))
+                result.reset(new likely_expression(builder.toMat(*result)));
 
-        // If we are returning a constant matrix, make sure to retain a copy
-        if (isa<ConstantExpr>(result->value) && isMat(result->value->getType()))
-            result.reset(new likely_expression(LikelyValue(builder.CreatePointerCast(builder.retainMat(result->value), builder.module->context->toLLVM(result->type)), result->type), result->getData()));
+            // If we are returning a constant matrix, make sure to retain a copy
+            if (isa<ConstantExpr>(result->value) && isMat(result->value->getType()))
+                result.reset(new likely_expression(LikelyValue(builder.CreatePointerCast(builder.retainMat(result->value), builder.module->context->toLLVM(result->type)), result->type), result->getData()));
 
-        builder.CreateRet(*result);
+            builder.CreateRet(*result);
+        } else {
+            assert(!result->value);
+            assert(!promoteScalarToMatrix);
+            builder.CreateRetVoid();
+        }
 
-        Function *function = cast<Function>(builder.module->module->getOrInsertFunction(name, FunctionType::get(result->value->getType(), llvmTypes, false)));
+        Function *const function = cast<Function>(builder.module->module->getOrInsertFunction(name, FunctionType::get(builder.module->context->toLLVM(result->type), llvmTypes, false)));
 
         ValueToValueMapTy VMap;
         Function::arg_iterator tmpArgs = tmpFunction->arg_begin();
@@ -3156,7 +3162,7 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
 {
     if (ast->type == likely_ast_list) {
         if (ast->num_atoms == 0)
-            return likely_expression::error(ast, "Empty expression");
+            return new likely_expression(); // Special case, return a void expression
         const likely_const_ast op = ast->atoms[0];
 
         if (op->type != likely_ast_list)
