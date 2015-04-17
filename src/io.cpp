@@ -379,44 +379,49 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
     if (!mat)
         return NULL;
 
-    double min, max, range;
-    if ((mat->type & likely_element) != likely_u8) {
-        min = numeric_limits<double>::max();
-        max = -numeric_limits<double>::max();
-        for (uint32_t t=0; t<mat->frames; t++) {
-            for (uint32_t y=0; y<mat->rows; y++) {
-                for (uint32_t x=0; x<mat->columns; x++) {
-                    for (uint32_t c=0; c<mat->channels; c++) {
-                        const double value = likely_get_element(mat, c, x, y, t);
-                        min = ::min(min, value);
-                        max = ::max(max, value);
-                    }
-                }
-            }
-        }
-        range = (max - min) / 255.0;
-    } else {
-        min = 0;
-        max = 255;
-        range = 1;
-        // Special case, return the original image
-        if (mat->channels == 3) {
-            if (min_) *min_ = min;
-            if (max_) *max_ = max;
-            return likely_retain_mat(mat);
-        }
+    // Special case, return the original image
+    if (((mat->type & likely_element) == likely_u8) && (mat->channels == 3)) {
+        if (min_) *min_ = 0;
+        if (max_) *max_ = 255;
+        return likely_retain_mat(mat);
     }
+
+    double min, max, range;
+    static likely_const_env minMaxEnv = NULL;
+    static void *minMax = NULL;
+    if (minMax == NULL) {
+        const likely_env parent = likely_standard(likely_default_settings(likely_file_void, false), NULL, likely_file_void);
+        const char *const src = "-likely-minmax :=                   \n"
+                                "  (src min max) :->                 \n"
+                                "  {                                 \n"
+                                "    (? (== (& src.type element) u8) \n"
+                                "      {                             \n"
+                                "        min :<- 0                   \n"
+                                "        max :<- 255                 \n"
+                                "      } {                           \n"
+                                "        min :<- src.min-element     \n"
+                                "        max :<- src.max-element     \n"
+                                "      })                            \n"
+                                "  }                                 \n"
+                                "(extern void \"_likely_minmax\" (multi-dimension double.pointer double.pointer) -likely-minmax) \n";
+        minMaxEnv = likely_lex_parse_and_eval(src, likely_file_lisp, parent);
+        minMax = likely_function(minMaxEnv->expr);
+        assert(minMax);
+        likely_release_env(parent);
+    }
+    reinterpret_cast<void (*)(likely_const_mat, double*, double*)>(minMax)(mat, &min, &max);
+    range = (max - min) / 255;
 
     static likely_const_env env = NULL;
     static void *normalize = NULL;
     if (normalize == NULL) {
         const likely_env parent = likely_standard(likely_default_settings(likely_file_void, false), NULL, likely_file_void);
         const char *const src = "-likely-normalize :=\n"
-                                "  (src min range) :->\n"
+                                "  (src a b) :->\n"
                                 "  {\n"
                                 "    dst := (new u8CXY 3 src.columns src.rows 1 null)\n"
-                                "    (dst src min range) :=>\n"
-                                "      dst :<- (- src min).(/ range)\n"
+                                "    (dst src a b) :=>\n"
+                                "      dst :<- (* src a).(+ b)\n"
                                 "  }\n"
                                 "(extern multi-dimension \"_likely_normalize\" (multi-dimension double double) -likely-normalize)";
         env = likely_lex_parse_and_eval(src, likely_file_lisp, parent);
@@ -425,7 +430,7 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
         likely_release_env(parent);
     }
 
-    const likely_mat n = reinterpret_cast<likely_mat (*)(likely_const_mat, double, double)>(normalize)(mat, min, range);
+    const likely_mat n = reinterpret_cast<likely_mat (*)(likely_const_mat, double, double)>(normalize)(mat, 1/range, -min/range);
     if (min_) *min_ = min;
     if (max_) *max_ = max;
     return n;
