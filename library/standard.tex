@@ -1101,6 +1101,9 @@ read-directory :=
 
 read-directory-grayscale :=
   (-> file-name (read file-name directory video-grayscale))
+
+read-matrix :=
+  (-> file-name [ (read file-name matrix multi-dimension) ])
 \end{likely}
 
 \section{Compiler Frontend}

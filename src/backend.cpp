@@ -1118,6 +1118,23 @@ private:
     }
 };
 
+struct ConstantString : public likely_expression
+{
+    ConstantString(Builder &builder, const likely_const_mat str)
+    {
+        setData(str);
+        value = builder.CreateGlobalStringPtr(str->data);
+        type = likely_pointer_type(likely_i8);
+    }
+
+private:
+    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
+    {
+        assert(ast->type != likely_ast_list);
+        return new ConstantString(builder, likely_retain_mat(getData()));
+    }
+};
+
 struct ConstantData : public likely_expression
 {
     ConstantData(const Variant &data)
@@ -3200,7 +3217,7 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
         // Is it a string?
         if ((ast->atom[0] == '"') && (ast->atom[ast->atom_len-1] == '"')) {
             const_cast<likely_ast>(ast)->type = likely_ast_string;
-            return new likely_expression(LikelyValue(builder.CreateGlobalStringPtr(string(ast->atom).substr(1, ast->atom_len-2)), likely_pointer_type(likely_i8)));
+            return new ConstantString(builder, likely_string(string(ast->atom).substr(1, ast->atom_len-2).c_str()));
         }
 
         { // Is it a matrix type?
