@@ -2305,21 +2305,21 @@ private:
 struct Variable : public Assignable
 {
     Variable(Builder &builder, likely_const_expr expr)
-        : Assignable(builder.CreateAlloca(builder.module->context->toLLVM(expr->type), 0), *expr)
+        : Assignable(builder.CreateAlloca(builder.module->context->toLLVM(expr->type), 0), likely_pointer_type(*expr))
     {
-        set(builder, *expr);
+        builder.CreateStore(*expr, value);
     }
 
 private:
-    void set(Builder &builder, const likely_expression &expr, likely_const_ast = NULL) const
+    void set(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
     {
-        builder.CreateStore((type & likely_multi_dimension) ? expr.value
-                                                            : builder.cast(expr, type).value, value);
+        assert(ast->type != likely_ast_list);
+        builder.CreateStore(builder.cast(expr, likely_element_type(type)), value);
     }
 
     likely_const_expr evaluate(Builder &builder, likely_const_ast) const
     {
-        return new likely_expression(LikelyValue(builder.CreateLoad(value), type));
+        return new likely_expression(LikelyValue(builder.CreateLoad(value), likely_element_type(type)));
     }
 };
 
