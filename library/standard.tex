@@ -726,8 +726,9 @@ y      ; Evaluates to 2
 
 Recall that the colon is the \pindex{infix} token for syntactic sugar described in subsection \ref{subsec:infix}.
 
-\subsection{(\$\ \emph{expression})}
+\subsection{(\$\ \emph{expression} [\emph{size}])}
 The \dindex{allocate} expression stack-allocates a variable with type and initial value of \emph{expression}.
+If \emph{size} is provided, the variable is an \dindex{array} instead of a scalar.
 Variables are \dindex{mutable} using the \pindex{store} statement.
 
 Because variables is explicitly tied to stack allocation, the \pindex{allocate} expression is not allowed in the global scope.
@@ -735,19 +736,29 @@ Because variables is explicitly tied to stack allocation, the \pindex{allocate} 
 \begin{verbatim}
 {
   x := 1.$
-  x
-} ; Evaluates to 1
+  x ; Evaluates to 1
+
+  y := ($ 3 2)
+  (+ (y 0) (y 1)) ; Evaluates to 6
+}
 \end{verbatim}
 
-\subsection{(<- \emph{name expression})}
+\subsection{(<- \emph{name expression} [\emph{index}])}
 The \dindex{store} statement stores the value of \emph{expression} into the variable \emph{name} previously defined by an \pindex{allocate} expression.
+If \emph{index} is provided, the variable is assumed to be an \pindex{array}, and \emph{expression} is stored at the specified index.
 
 \begin{verbatim}
 {
   x := 1.$
   x :<- (+ x 1)
-  x
-} ; Evaluates to 2
+  x ; Evaluates to 2
+
+  y := ($ 0 2)
+  (y 0) :<- 1
+  (y 1) :<- (+ (y 0) 1)
+  (+ (y 0) (y 1)) ; Evaluates to 3
+}
+
 \end{verbatim}
 
 \subsection{(assume \emph{expression})}

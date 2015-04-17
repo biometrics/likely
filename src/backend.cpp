@@ -2327,34 +2327,81 @@ private:
 
 struct Variable : public Assignable
 {
-    Variable(Builder &builder, likely_const_expr expr)
-        : Assignable(builder.CreateAlloca(builder.module->context->toLLVM(expr->type), 0), likely_pointer_type(*expr))
+    Variable(Builder &builder, const LikelyValue &expr)
+        : Assignable(builder.CreateAlloca(builder.module->context->toLLVM(expr), 0), likely_pointer_type(expr))
     {
-        builder.CreateStore(*expr, value);
+        builder.CreateStore(expr, value);
+    }
+
+    Variable(Builder &builder, const LikelyValue &expr, const LikelyValue &size)
+        : Assignable(builder.CreateAlloca(builder.module->context->toLLVM(expr), size), likely_pointer_type(expr))
+    {
+        // Create a loop to initialize the entire array
+        BasicBlock *const entry = builder.GetInsertBlock();
+        BasicBlock *const body = BasicBlock::Create(builder.getContext(), "variable_init_body", entry->getParent());
+        BasicBlock *const exit = BasicBlock::Create(builder.getContext(), "variable_init_exit", body->getParent());
+        builder.CreateBr(body);
+        builder.SetInsertPoint(body);
+        PHINode *const phiNode = builder.CreatePHI(Type::getInt32Ty(builder.getContext()), 2);
+        phiNode->addIncoming(builder.zero(likely_u32), entry);
+        builder.CreateStore(expr, builder.CreateGEP(value, phiNode));
+        Value *const increment = builder.addInts(phiNode, builder.one(likely_u32));
+        Value *const postcondition = builder.CreateICmpNE(increment, size);
+        builder.CreateCondBr(postcondition, body, exit);
+        phiNode->addIncoming(increment, body);
+        builder.SetInsertPoint(exit);
     }
 
 private:
     void set(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
     {
-        assert(ast->type != likely_ast_list);
-        builder.CreateStore(builder.cast(expr, likely_element_type(type)), value);
+        Value *ptr;
+        if (ast->type == likely_ast_list) {
+            // array
+            assert(ast->num_atoms == 2);
+            const UniqueExpression index(get(builder, ast->atoms[1]));
+            assert(index);
+            ptr = builder.CreateGEP(value, builder.cast(*index, likely_u32));
+        } else {
+            // scalar
+            ptr = value;
+        }
+        builder.CreateStore(builder.cast(expr, likely_element_type(type)), ptr);
     }
 
-    likely_const_expr evaluate(Builder &builder, likely_const_ast) const
+    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
-        return new likely_expression(LikelyValue(builder.CreateLoad(value), likely_element_type(type)));
+        Value *ptr;
+        if (ast->type == likely_ast_list) {
+            assert(ast->num_atoms == 2);
+            const UniqueExpression index(get(builder, ast->atoms[1]));
+            assert(index);
+            ptr = builder.CreateGEP(value, builder.cast(*index, likely_u32));
+        } else {
+            // scalar
+            ptr = value;
+        }
+        return new likely_expression(LikelyValue(builder.CreateLoad(ptr), likely_element_type(type)));
     }
 };
 
 class allocateExpression : public LikelyOperator
 {
     const char *symbol() const { return "$"; }
-    size_t maxParameters() const { return 1; }
+    size_t minParameters() const { return 1; }
+    size_t maxParameters() const { return 2; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        TRY_EXPR(builder, ast->atoms[1], expr);
-        return new Variable(builder, expr.get());
+        TRY_EXPR(builder, ast->atoms[1], value);
+        if (ast->num_atoms == 2) {
+            // scalar
+            return new Variable(builder, *value);
+        } else {
+            // array
+            TRY_EXPR(builder, ast->atoms[1], size);
+            return new Variable(builder, *value, builder.cast(*size, likely_u32));
+        }
     }
 };
 LIKELY_REGISTER(allocate)
