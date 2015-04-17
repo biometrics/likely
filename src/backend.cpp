@@ -2336,7 +2336,7 @@ class allocateExpression : public LikelyOperator
 };
 LIKELY_REGISTER(allocate)
 
-class assignExpression : public LikelyOperator
+class storeExpression : public LikelyOperator
 {
     const char *symbol() const { return "<-"; }
     size_t maxParameters() const { return 2; }
@@ -2345,13 +2345,21 @@ class assignExpression : public LikelyOperator
     {
         TRY_EXPR(builder, ast->atoms[2], expr);
         const likely_const_env env = lookup(builder.env, likely_symbol(ast->atoms[1]));
-        const Assignable *assignable = env ? Assignable::dynamicCast(env->expr) : NULL;
-        assert(assignable);
-        assignable->set(builder, *expr, ast->atoms[1]);
+        assert(env);
+        const likely_const_expr pointer = env->expr;
+        assert(pointer);
+
+        if (const Assignable *const assignable = Assignable::dynamicCast(pointer))
+            assignable->set(builder, *expr, ast->atoms[1]);
+        else if (pointer->type & likely_compound_pointer)
+            builder.CreateStore(builder.cast(*expr, likely_element_type(pointer->type)), pointer->value);
+        else
+            assert(false);
+
         return new likely_expression();
     }
 };
-LIKELY_REGISTER(assign)
+LIKELY_REGISTER(store)
 
 class assumeExpression : public SimpleUnaryOperator
 {

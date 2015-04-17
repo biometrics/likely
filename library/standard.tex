@@ -728,9 +728,9 @@ Recall that the colon is the \pindex{infix} token for syntactic sugar described 
 
 \subsection{(\$\ \emph{expression})}
 The \dindex{allocate} expression stack-allocates a variable with type and initial value of \emph{expression}.
-Assignments are \dindex{mutable} using the \pindex{assign} statement.
+Variables are \dindex{mutable} using the \pindex{store} statement.
 
-Because assignment is explicitly tied to stack allocation, assignments are not allowed in the global scope.
+Because variables is explicitly tied to stack allocation, the \pindex{allocate} expression is not allowed in the global scope.
 
 \begin{verbatim}
 {
@@ -740,7 +740,7 @@ Because assignment is explicitly tied to stack allocation, assignments are not a
 \end{verbatim}
 
 \subsection{(<- \emph{name expression})}
-The \dindex{assign} statement stores the value of \emph{expression} into the variable \emph{name} previously defined by an \pindex{allocate} expression.
+The \dindex{store} statement stores the value of \emph{expression} into the variable \emph{name} previously defined by an \pindex{allocate} expression.
 
 \begin{verbatim}
 {
