@@ -10,6 +10,7 @@ Compare to **[cv::normalize(NORM_L2)](http://docs.opencv.org/modules/core/doc/op
             norm :<- (+ norm e.f64.sq)
         src:iter-elements add-squared-element
         norm :<- (/ 1 (sqrt norm))
+        norm := (src.element-type norm)
 
         dst := src.imitate
         (dst src norm) :=>

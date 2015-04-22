@@ -26,14 +26,14 @@ entry:
   br label %then
 
 then:                                             ; preds = %entry, %then
-  %storemerge4 = phi i32 [ 0, %entry ], [ %12, %then ]
+  %storemerge3 = phi i32 [ 0, %entry ], [ %12, %then ]
   %6 = phi double [ 0.000000e+00, %entry ], [ %11, %then ]
-  %7 = sext i32 %storemerge4 to i64
+  %7 = sext i32 %storemerge3 to i64
   %8 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 %7
   %9 = load double, double* %8, align 8
   %10 = fmul double %9, %9
   %11 = fadd double %6, %10
-  %12 = add nuw nsw i32 %storemerge4, 1
+  %12 = add nuw nsw i32 %storemerge3, 1
   %13 = icmp eq i32 %12, %5
   br i1 %13, label %end, label %then
 

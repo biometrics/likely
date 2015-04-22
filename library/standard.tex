@@ -1179,6 +1179,10 @@ cast :=
   (a b) :->
     (b.type a) ; convert a to the type of b
 
+element-type :=
+  m :->
+    (& m.type element).make-type
+
 depth-double :=
   t :->
     (| (* (& t depth) 2) (& t (~ depth)))
