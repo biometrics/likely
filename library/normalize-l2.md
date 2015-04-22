@@ -1,10 +1,11 @@
-### L2 Normalization
+### L2 normalization
 Compare to **[cv::normalize(NORM_L2)](http://docs.opencv.org/modules/core/doc/operations_on_arrays.html#normalize)**.
 
     normalize-l2 :=
       src :->
       {
-        norm := 0.f64.$
+        norm-type := (? (== (& src.type depth) 8) i32 f64)
+        norm := 0.norm-type.$
         add-squared-element :=
           (mat t y x c) :->
             norm :<- (+ norm (mat c x y t).f32.sq)

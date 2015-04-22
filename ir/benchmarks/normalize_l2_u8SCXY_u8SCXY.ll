@@ -4,13 +4,16 @@
 %u8SCXY = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 
 ; Function Attrs: nounwind readnone
-declare double @llvm.sqrt.f64(double) #0
+declare float @llvm.sqrt.f32(float) #0
 
 ; Function Attrs: nounwind readonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #1
 
 ; Function Attrs: nounwind
 declare void @llvm.assume(i1) #2
+
+; Function Attrs: nounwind readnone
+declare { i32, i1 } @llvm.smul.with.overflow.i32(i32, i32) #0
 
 ; Function Attrs: nounwind
 define %u8SCXY* @normalize_l2(%u8SCXY*) #2 {
@@ -21,110 +24,118 @@ entry:
   br label %then
 
 then:                                             ; preds = %entry, %end3
-  %storemerge29 = phi i32 [ 0, %entry ], [ %26, %end3 ]
-  %4 = phi double [ 0.000000e+00, %entry ], [ %44, %end3 ]
+  %storemerge30 = phi i32 [ 0, %entry ], [ %30, %end3 ]
+  %4 = phi i32 [ 0, %entry ], [ %49, %end3 ]
   %rows = load i32, i32* %1, align 4, !range !0
-  %5 = sext i32 %storemerge29 to i64
+  %5 = sext i32 %storemerge30 to i64
   %6 = zext i32 %rows to i64
   %7 = mul nsw i64 %6, %5
   br label %then2
 
 end:                                              ; preds = %end3
-  %8 = tail call double @llvm.sqrt.f64(double %44)
-  %9 = fdiv double 1.000000e+00, %8
+  %8 = sitofp i32 %49 to float
+  %9 = tail call float @llvm.sqrt.f32(float %8)
+  %10 = fdiv float 1.000000e+00, %9
+  %11 = fptosi float %10 to i32
   %channels13 = load i32, i32* %3, align 4, !range !0
   %columns14 = load i32, i32* %2, align 4, !range !0
   %rows15 = load i32, i32* %1, align 4, !range !0
-  %10 = tail call %u0CXYT* @likely_new(i32 29704, i32 %channels13, i32 %columns14, i32 %rows15, i32 1, i8* null)
-  %11 = zext i32 %rows15 to i64
+  %12 = tail call %u0CXYT* @likely_new(i32 29704, i32 %channels13, i32 %columns14, i32 %rows15, i32 1, i8* null)
+  %13 = zext i32 %rows15 to i64
   %dst_c = zext i32 %channels13 to i64
   %dst_x = zext i32 %columns14 to i64
-  %12 = getelementptr inbounds %u0CXYT, %u0CXYT* %10, i64 1
-  %13 = bitcast %u0CXYT* %12 to i8*
-  %14 = ptrtoint %u0CXYT* %12 to i64
-  %15 = and i64 %14, 31
-  %16 = icmp eq i64 %15, 0
-  tail call void @llvm.assume(i1 %16)
-  %17 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 0, i32 6, i64 0
-  %18 = ptrtoint i8* %17 to i64
-  %19 = and i64 %18, 31
-  %20 = icmp eq i64 %19, 0
-  tail call void @llvm.assume(i1 %20)
-  %21 = mul nuw nsw i64 %dst_x, %dst_c
-  %22 = mul nuw nsw i64 %21, %11
+  %14 = getelementptr inbounds %u0CXYT, %u0CXYT* %12, i64 1
+  %15 = bitcast %u0CXYT* %14 to i8*
+  %16 = ptrtoint %u0CXYT* %14 to i64
+  %17 = and i64 %16, 31
+  %18 = icmp eq i64 %17, 0
+  tail call void @llvm.assume(i1 %18)
+  %19 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 0, i32 6, i64 0
+  %20 = ptrtoint i8* %19 to i64
+  %21 = and i64 %20, 31
+  %22 = icmp eq i64 %21, 0
+  tail call void @llvm.assume(i1 %22)
+  %23 = mul nuw nsw i64 %dst_x, %dst_c
+  %24 = mul nuw nsw i64 %23, %13
+  %25 = lshr i32 %11, 31
+  %26 = add nuw i32 %25, 2147483647
   br label %y_body
 
 then2:                                            ; preds = %then, %end6
-  %storemerge128 = phi i32 [ 0, %then ], [ %33, %end6 ]
-  %23 = phi double [ %4, %then ], [ %44, %end6 ]
+  %storemerge129 = phi i32 [ 0, %then ], [ %37, %end6 ]
+  %27 = phi i32 [ %4, %then ], [ %49, %end6 ]
   %columns = load i32, i32* %2, align 4, !range !0
-  %24 = sext i32 %storemerge128 to i64
-  %25 = zext i32 %columns to i64
-  %tmp = add i64 %7, %24
+  %28 = sext i32 %storemerge129 to i64
+  %29 = zext i32 %columns to i64
+  %tmp = add i64 %7, %28
   br label %then5
 
 end3:                                             ; preds = %end6
-  %26 = add nuw nsw i32 %storemerge29, 1
-  %27 = icmp eq i32 %storemerge29, 0
-  br i1 %27, label %end, label %then
+  %30 = add nuw nsw i32 %storemerge30, 1
+  %31 = icmp eq i32 %storemerge30, 0
+  br i1 %31, label %end, label %then
 
 then5:                                            ; preds = %then2, %end9
-  %storemerge227 = phi i32 [ 0, %then2 ], [ %47, %end9 ]
-  %28 = phi double [ %23, %then2 ], [ %44, %end9 ]
+  %storemerge228 = phi i32 [ 0, %then2 ], [ %52, %end9 ]
+  %32 = phi i32 [ %27, %then2 ], [ %49, %end9 ]
   %channels = load i32, i32* %3, align 4, !range !0
-  %29 = sext i32 %storemerge227 to i64
-  %30 = zext i32 %channels to i64
-  %31 = mul nuw nsw i64 %25, %30
-  %32 = mul nsw i64 %30, %29
-  %tmp7 = mul i64 %31, %tmp
+  %33 = sext i32 %storemerge228 to i64
+  %34 = zext i32 %channels to i64
+  %35 = mul nuw nsw i64 %29, %34
+  %36 = mul nsw i64 %34, %33
+  %tmp8 = mul i64 %35, %tmp
   br label %then8
 
 end6:                                             ; preds = %end9
-  %33 = add nuw nsw i32 %storemerge128, 1
-  %34 = icmp eq i32 %33, %rows
-  br i1 %34, label %end3, label %then2
+  %37 = add nuw nsw i32 %storemerge129, 1
+  %38 = icmp eq i32 %37, %rows
+  br i1 %38, label %end3, label %then2
 
 then8:                                            ; preds = %then5, %then8
-  %storemerge326 = phi i32 [ 0, %then5 ], [ %45, %then8 ]
-  %35 = phi double [ %28, %then5 ], [ %44, %then8 ]
-  %36 = sext i32 %storemerge326 to i64
-  %37 = add i64 %32, %36
-  %38 = add i64 %37, %tmp7
-  %39 = getelementptr %u8SCXY, %u8SCXY* %0, i64 0, i32 6, i64 %38
-  %40 = load i8, i8* %39, align 1
-  %41 = uitofp i8 %40 to float
-  %42 = fmul float %41, %41
-  %43 = fpext float %42 to double
-  %44 = fadd double %35, %43
-  %45 = add nuw nsw i32 %storemerge326, 1
-  %46 = icmp eq i32 %45, %channels
-  br i1 %46, label %end9, label %then8
+  %storemerge327 = phi i32 [ 0, %then5 ], [ %50, %then8 ]
+  %39 = phi i32 [ %32, %then5 ], [ %49, %then8 ]
+  %40 = sext i32 %storemerge327 to i64
+  %41 = add i64 %36, %40
+  %42 = add i64 %41, %tmp8
+  %43 = getelementptr %u8SCXY, %u8SCXY* %0, i64 0, i32 6, i64 %42
+  %44 = load i8, i8* %43, align 1
+  %45 = uitofp i8 %44 to float
+  %46 = fmul float %45, %45
+  %47 = sitofp i32 %39 to float
+  %48 = fadd float %47, %46
+  %49 = fptosi float %48 to i32
+  %50 = add nuw nsw i32 %storemerge327, 1
+  %51 = icmp eq i32 %50, %channels
+  br i1 %51, label %end9, label %then8
 
 end9:                                             ; preds = %then8
-  %47 = add nuw nsw i32 %storemerge227, 1
-  %48 = icmp eq i32 %47, %columns
-  br i1 %48, label %end6, label %then5
+  %52 = add nuw nsw i32 %storemerge228, 1
+  %53 = icmp eq i32 %52, %columns
+  br i1 %53, label %end6, label %then5
 
 y_body:                                           ; preds = %y_body, %end
   %y = phi i64 [ 0, %end ], [ %y_increment, %y_body ]
-  %49 = getelementptr %u8SCXY, %u8SCXY* %0, i64 0, i32 6, i64 %y
-  %50 = load i8, i8* %49, align 1, !llvm.mem.parallel_loop_access !1
-  %51 = uitofp i8 %50 to double
-  %52 = fmul double %9, %51
-  %53 = fptoui double %52 to i8
-  %54 = fcmp olt double %52, 0.000000e+00
-  %55 = select i1 %54, i8 0, i8 %53
-  %56 = fcmp ogt double %52, 2.550000e+02
-  %57 = select i1 %56, i8 -1, i8 %55
-  %58 = getelementptr i8, i8* %13, i64 %y
-  store i8 %57, i8* %58, align 1, !llvm.mem.parallel_loop_access !1
+  %54 = getelementptr %u8SCXY, %u8SCXY* %0, i64 0, i32 6, i64 %y
+  %55 = load i8, i8* %54, align 1, !llvm.mem.parallel_loop_access !1
+  %56 = zext i8 %55 to i32
+  %57 = tail call { i32, i1 } @llvm.smul.with.overflow.i32(i32 %56, i32 %11)
+  %58 = extractvalue { i32, i1 } %57, 1
+  %59 = extractvalue { i32, i1 } %57, 0
+  %60 = select i1 %58, i32 %26, i32 %59
+  %61 = trunc i32 %60 to i8
+  %62 = icmp slt i32 %60, 0
+  %63 = select i1 %62, i8 0, i8 %61
+  %64 = icmp sgt i32 %60, 255
+  %65 = select i1 %64, i8 -1, i8 %63
+  %66 = getelementptr i8, i8* %15, i64 %y
+  store i8 %65, i8* %66, align 1, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %22
+  %y_postcondition = icmp eq i64 %y_increment, %24
   br i1 %y_postcondition, label %y_exit, label %y_body, !llvm.loop !1
 
 y_exit:                                           ; preds = %y_body
-  %59 = bitcast %u0CXYT* %10 to %u8SCXY*
-  ret %u8SCXY* %59
+  %67 = bitcast %u0CXYT* %12 to %u8SCXY*
+  ret %u8SCXY* %67
 }
 
 attributes #0 = { nounwind readnone }

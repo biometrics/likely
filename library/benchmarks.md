@@ -18,3 +18,4 @@ Likely functions measured against their [OpenCV](http://www.opencv.org) equivale
 - [Convert grayscale](?href=convert-grayscale)
 - [Fused multiply-add](?href=fused-multiply-add)
 - [Minimum & maximum locations](?href=min-max-loc)
+- [L2 normalization](?href=normalize-l2)
