@@ -2,13 +2,6 @@ project(likely)
 cmake_minimum_required(VERSION 2.8.12)
 cmake_policy(SET CMP0020 NEW)
 include(ExternalProject)
-
-# Configure
-set(CPACK_PACKAGE_NAME "Likely")
-set(CPACK_PACKAGE_DESCRIPTION "An embeddable just-in-time Lisp for image recognition and heterogeneous computing.")
-set(CPACK_PACKAGE_VERSION_MAJOR 0)
-set(CPACK_PACKAGE_VERSION_MINOR 4)
-set(CPACK_PACKAGE_VERSION_PATCH 0)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # Build configuration
@@ -181,5 +174,12 @@ install(DIRECTORY include share DESTINATION .)
 install(FILES ${CMAKE_SOURCE_DIR}/LICENSE.txt ${CMAKE_SOURCE_DIR}/README.md DESTINATION share/likely)
 
 # Package
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "An embeddable just-in-time Lisp for image recognition and heterogeneous computing.")
 set(CPACK_PACKAGE_FILE_NAME "Likely-${CMAKE_SYSTEM_NAME}")
+set(CPACK_PACKAGE_NAME "Likely")
+set(CPACK_PACKAGE_VENDOR "Joshua C. Klontz")
+set(CPACK_PACKAGE_VERSION_MAJOR 0)
+set(CPACK_PACKAGE_VERSION_MINOR 4)
+set(CPACK_PACKAGE_VERSION_PATCH 0)
+set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE.txt)
 include(CPack)
