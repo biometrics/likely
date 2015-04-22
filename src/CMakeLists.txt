@@ -510,6 +510,11 @@ if(NOT ${LIKELY_DEMOS} MATCHES "None")
   add_benchmark("f64CXY" "min-max-loc" "i32CXY" )
   add_benchmark("f64CXY" "min-max-loc" "f32CXY" )
   add_benchmark("f64CXY" "min-max-loc" "f64CXY" )
+  add_benchmark("u8SCXY"  "normalize-l2" "u8SCXY")
+  add_benchmark("i16SCXY" "normalize-l2" "i16SCXY")
+  add_benchmark("i32CXY"  "normalize-l2" "i32CXY")
+  add_benchmark("f32CXY"  "normalize-l2" "f32CXY")
+  add_benchmark("f64CXY"  "normalize-l2" "f64CXY")
 endif()
 
 # Compile and test demos

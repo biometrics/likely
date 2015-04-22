@@ -216,7 +216,7 @@ private:
         Mat errorMat = abs(likelyToOpenCVMat(dstLikely) - dstOpenCV);
         errorMat.convertTo(errorMat, CV_32F);
         dstOpenCV.convertTo(dstOpenCV, CV_32F);
-        errorMat = errorMat / (dstOpenCV + ErrorTolerance); // Normalize errors
+        errorMat /= (dstOpenCV + ErrorTolerance); // Normalize errors
         threshold(errorMat, errorMat, ErrorTolerance, 1, THRESH_BINARY);
 
         if (norm(errorMat, NORM_L1) > 0) {
@@ -224,10 +224,11 @@ private:
             stringstream errorLocations;
             errorLocations << "input\topencv\tlikely\trow\tcolumn\tchannel\n";
             int errors = 0;
+            const int channels = dstOpenCV.channels();
             for (int i=0; i<dstOpenCV.rows; i++)
                 for (int j=0; j<dstOpenCV.cols; j++)
-                    for (int k=0; k<dstOpenCV.channels(); k++)
-                        if (errorMat.at<float>(i, j, k) == 1) {
+                    for (int k=0; k<channels; k++)
+                        if (errorMat.at<float>(i, j*channels + k) == 1) {
                             stringstream src;
                             if ((dstOpenCV.channels() == 1) && (srcCV.channels() > 1)) {
                                 src << "(";
@@ -405,6 +406,21 @@ class ConvertGrayscale : public Test<>
     }
 };
 
+class NormalizeL2 : public Test<>
+{
+    const char *name() const
+    {
+        return "normalize-l2";
+    }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat dst;
+        normalize(src, dst);
+        return dst;
+    }
+};
+
 int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
@@ -444,6 +460,7 @@ int main(int argc, char *argv[])
         ConvertGrayscale().run(parent);
         FusedMultiplyAdd().run(parent);
         MinMaxLoc().run(parent);
+        NormalizeL2().run(parent);
         likely_release_env(parent);
     }
 
