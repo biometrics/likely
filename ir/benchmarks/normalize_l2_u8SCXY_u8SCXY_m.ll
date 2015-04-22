@@ -75,93 +75,47 @@ declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
 define %u8SCXY* @normalize_l2(%u8SCXY*) {
 entry:
-  %1 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 0, i32 4
+  %1 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 0, i32 2
+  %channels = load i32, i32* %1, align 4, !range !0
   %2 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 0, i32 3
-  %3 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 0, i32 2
+  %columns = load i32, i32* %2, align 4, !range !0
+  %3 = mul nuw nsw i32 %columns, %channels
+  %4 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 0, i32 4
+  %rows = load i32, i32* %4, align 4, !range !0
+  %5 = mul nuw nsw i32 %3, %rows
   br label %then
 
-then:                                             ; preds = %entry, %end3
-  %storemerge30 = phi i32 [ 0, %entry ], [ %23, %end3 ]
-  %4 = phi i32 [ 0, %entry ], [ %42, %end3 ]
-  %rows = load i32, i32* %1, align 4, !range !0
-  %5 = sext i32 %storemerge30 to i64
-  %6 = zext i32 %rows to i64
-  %7 = mul nsw i64 %6, %5
-  br label %then2
+then:                                             ; preds = %entry, %then
+  %storemerge5 = phi i32 [ 0, %entry ], [ %13, %then ]
+  %6 = phi i32 [ 0, %entry ], [ %12, %then ]
+  %7 = sext i32 %storemerge5 to i64
+  %8 = getelementptr %u8SCXY, %u8SCXY* %0, i64 0, i32 6, i64 %7
+  %9 = load i8, i8* %8, align 1
+  %10 = zext i8 %9 to i32
+  %11 = mul nuw nsw i32 %10, %10
+  %12 = add nuw nsw i32 %11, %6
+  %13 = add nuw nsw i32 %storemerge5, 1
+  %14 = icmp eq i32 %13, %5
+  br i1 %14, label %end, label %then
 
-end:                                              ; preds = %end3
-  %8 = sitofp i32 %42 to float
-  %9 = tail call float @llvm.sqrt.f32(float %8)
-  %10 = fdiv float 1.000000e+00, %9
-  %11 = fptosi float %10 to i32
-  %channels13 = load i32, i32* %3, align 4, !range !0
-  %columns14 = load i32, i32* %2, align 4, !range !0
-  %rows15 = load i32, i32* %1, align 4, !range !0
-  %12 = tail call %u0CXYT* @likely_new(i32 29704, i32 %channels13, i32 %columns14, i32 %rows15, i32 1, i8* null)
-  %13 = bitcast %u0CXYT* %12 to %u8SCXY*
-  %14 = zext i32 %rows15 to i64
-  %15 = alloca { %u8SCXY*, %u8SCXY*, i32 }, align 8
-  %16 = bitcast { %u8SCXY*, %u8SCXY*, i32 }* %15 to %u0CXYT**
-  store %u0CXYT* %12, %u0CXYT** %16, align 8
-  %17 = getelementptr inbounds { %u8SCXY*, %u8SCXY*, i32 }, { %u8SCXY*, %u8SCXY*, i32 }* %15, i64 0, i32 1
-  store %u8SCXY* %0, %u8SCXY** %17, align 8
-  %18 = getelementptr inbounds { %u8SCXY*, %u8SCXY*, i32 }, { %u8SCXY*, %u8SCXY*, i32 }* %15, i64 0, i32 2
-  store i32 %11, i32* %18, align 8
-  %19 = bitcast { %u8SCXY*, %u8SCXY*, i32 }* %15 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %u8SCXY*, %u8SCXY*, i32 }*, i64, i64)* @normalize_l2_tmp_thunk0 to i8*), i8* %19, i64 %14)
-  ret %u8SCXY* %13
-
-then2:                                            ; preds = %then, %end6
-  %storemerge129 = phi i32 [ 0, %then ], [ %30, %end6 ]
-  %20 = phi i32 [ %4, %then ], [ %42, %end6 ]
-  %columns = load i32, i32* %2, align 4, !range !0
-  %21 = sext i32 %storemerge129 to i64
-  %22 = zext i32 %columns to i64
-  %tmp = add i64 %7, %21
-  br label %then5
-
-end3:                                             ; preds = %end6
-  %23 = add nuw nsw i32 %storemerge30, 1
-  %24 = icmp eq i32 %storemerge30, 0
-  br i1 %24, label %end, label %then
-
-then5:                                            ; preds = %then2, %end9
-  %storemerge228 = phi i32 [ 0, %then2 ], [ %45, %end9 ]
-  %25 = phi i32 [ %20, %then2 ], [ %42, %end9 ]
-  %channels = load i32, i32* %3, align 4, !range !0
-  %26 = sext i32 %storemerge228 to i64
-  %27 = zext i32 %channels to i64
-  %28 = mul nuw nsw i64 %22, %27
-  %29 = mul nsw i64 %27, %26
-  %tmp8 = mul i64 %28, %tmp
-  br label %then8
-
-end6:                                             ; preds = %end9
-  %30 = add nuw nsw i32 %storemerge129, 1
-  %31 = icmp eq i32 %30, %rows
-  br i1 %31, label %end3, label %then2
-
-then8:                                            ; preds = %then5, %then8
-  %storemerge327 = phi i32 [ 0, %then5 ], [ %43, %then8 ]
-  %32 = phi i32 [ %25, %then5 ], [ %42, %then8 ]
-  %33 = sext i32 %storemerge327 to i64
-  %34 = add i64 %29, %33
-  %35 = add i64 %34, %tmp8
-  %36 = getelementptr %u8SCXY, %u8SCXY* %0, i64 0, i32 6, i64 %35
-  %37 = load i8, i8* %36, align 1
-  %38 = uitofp i8 %37 to float
-  %39 = fmul float %38, %38
-  %40 = sitofp i32 %32 to float
-  %41 = fadd float %40, %39
-  %42 = fptosi float %41 to i32
-  %43 = add nuw nsw i32 %storemerge327, 1
-  %44 = icmp eq i32 %43, %channels
-  br i1 %44, label %end9, label %then8
-
-end9:                                             ; preds = %then8
-  %45 = add nuw nsw i32 %storemerge228, 1
-  %46 = icmp eq i32 %45, %columns
-  br i1 %46, label %end6, label %then5
+end:                                              ; preds = %then
+  %15 = sitofp i32 %12 to float
+  %16 = tail call float @llvm.sqrt.f32(float %15)
+  %17 = fdiv float 1.000000e+00, %16
+  %18 = fptosi float %17 to i32
+  %19 = tail call %u0CXYT* @likely_new(i32 29704, i32 %channels, i32 %columns, i32 %rows, i32 1, i8* null)
+  %20 = bitcast %u0CXYT* %19 to %u8SCXY*
+  %21 = zext i32 %rows to i64
+  %22 = alloca { %u8SCXY*, %u8SCXY*, i32 }, align 8
+  %23 = bitcast { %u8SCXY*, %u8SCXY*, i32 }* %22 to %u0CXYT**
+  store %u0CXYT* %19, %u0CXYT** %23, align 8
+  %24 = getelementptr inbounds { %u8SCXY*, %u8SCXY*, i32 }, { %u8SCXY*, %u8SCXY*, i32 }* %22, i64 0, i32 1
+  store %u8SCXY* %0, %u8SCXY** %24, align 8
+  %25 = getelementptr inbounds { %u8SCXY*, %u8SCXY*, i32 }, { %u8SCXY*, %u8SCXY*, i32 }* %22, i64 0, i32 2
+  store i32 %18, i32* %25, align 8
+  %26 = bitcast { %u8SCXY*, %u8SCXY*, i32 }* %22 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %u8SCXY*, %u8SCXY*, i32 }*, i64, i64)* @normalize_l2_tmp_thunk0 to i8*), i8* %26, i64 %21)
+  ret %u8SCXY* %20
 }
 
 attributes #0 = { nounwind readnone }

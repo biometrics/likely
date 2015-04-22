@@ -1268,25 +1268,9 @@ iter :=
     }
   }
 
-iter-channels :=
-  expr :->
-    (-> (mat t y x) (iter (-> c (expr mat t y x c)) mat.channels))
-
-iter-columns :=
-  expr :->
-    (-> (mat t y) (iter (-> x (expr mat t y x)) mat.columns))
-
-iter-rows :=
-  expr :->
-    (-> (mat t) (iter (-> y (expr mat t y)) mat.rows))
-
-iter-frames :=
-  expr :->
-    (-> mat (iter (-> t (expr mat t)) mat.frames))
-
 iter-elements :=
   (mat expr) :->
-    (expr.iter-channels.iter-columns.iter-rows.iter-frames mat)
+    (iter (-> i (expr (mat i))) mat.elements)
 \end{likely}
 
 \section{reductions}
@@ -1296,9 +1280,8 @@ min-element :=
   {
     current-min-value := src.type.numeric-limit-max.$
     check-element :=
-      (mat t y x c) :->
-        current-min-value :<- (min current-min-value (mat c x y t))
-
+      e :->
+        current-min-value :<- (min current-min-value e)
     src:iter-elements check-element
     current-min-value
   }
@@ -1308,9 +1291,8 @@ max-element :=
   {
     current-max-value := src.type.numeric-limit-min.$
     check-element :=
-      (mat t y x c) :->
-        current-max-value :<- (max current-max-value (mat c x y t))
-
+      e :->
+        current-max-value :<- (max current-max-value e)
     src:iter-elements check-element
     current-max-value
   }

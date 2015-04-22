@@ -7,9 +7,8 @@ Compare to **[cv::normalize(NORM_L2)](http://docs.opencv.org/modules/core/doc/op
         norm-type := (? (== (& src.type depth) 8) i32 f64)
         norm := 0.norm-type.$
         add-squared-element :=
-          (mat t y x c) :->
-            norm :<- (+ norm (mat c x y t).f32.sq)
-
+          e :->
+            norm :<- (+ norm e.norm-type.sq)
         src:iter-elements add-squared-element
         norm :<- (/ 1 (sqrt norm))
 
