@@ -419,6 +419,14 @@ class NormalizeL2 : public Test<>
         normalize(src, dst);
         return dst;
     }
+
+    vector<likely_type> types() const
+    {
+        vector<likely_type> types;
+        types.push_back(likely_f32);
+        types.push_back(likely_f64);
+        return types;
+    }
 };
 
 int main(int argc, char *argv[])
