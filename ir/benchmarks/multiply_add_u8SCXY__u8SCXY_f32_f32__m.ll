@@ -7,7 +7,7 @@
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind
-define private void @fused_multiply_add_tmp_thunk0({ %u8SCXY*, %u8SCXY*, float, float }* noalias nocapture readonly, i64, i64) #1 {
+define private void @multiply_add_tmp_thunk0({ %u8SCXY*, %u8SCXY*, float, float }* noalias nocapture readonly, i64, i64) #1 {
 entry:
   %3 = getelementptr inbounds { %u8SCXY*, %u8SCXY*, float, float }, { %u8SCXY*, %u8SCXY*, float, float }* %0, i64 0, i32 0
   %4 = load %u8SCXY*, %u8SCXY** %3, align 8
@@ -68,7 +68,7 @@ declare void @llvm.assume(i1) #1
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
-define %u8SCXY* @fused_multiply_add(%u8SCXY*, float, float) {
+define %u8SCXY* @multiply_add(%u8SCXY*, float, float) {
 entry:
   %3 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 0, i32 2
   %channels = load i32, i32* %3, align 4, !range !0
@@ -89,7 +89,7 @@ entry:
   %13 = getelementptr inbounds { %u8SCXY*, %u8SCXY*, float, float }, { %u8SCXY*, %u8SCXY*, float, float }* %9, i64 0, i32 3
   store float %2, float* %13, align 4
   %14 = bitcast { %u8SCXY*, %u8SCXY*, float, float }* %9 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %u8SCXY*, %u8SCXY*, float, float }*, i64, i64)* @fused_multiply_add_tmp_thunk0 to i8*), i8* %14, i64 %8)
+  call void @likely_fork(i8* bitcast (void ({ %u8SCXY*, %u8SCXY*, float, float }*, i64, i64)* @multiply_add_tmp_thunk0 to i8*), i8* %14, i64 %8)
   ret %u8SCXY* %7
 }
 

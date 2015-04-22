@@ -332,11 +332,11 @@ class BinaryThreshold : public Test<2>
     }
 };
 
-class FusedMultiplyAdd : public Test<2>
+class MultiplyAdd : public Test<2>
 {
     const char *name() const
     {
-        return "fused-multiply-add";
+        return "multiply-add";
     }
 
     vector<likely_const_mat> additionalArguments(likely_type type) const
@@ -466,7 +466,7 @@ int main(int argc, char *argv[])
 
         BinaryThreshold().run(parent);
         ConvertGrayscale().run(parent);
-        FusedMultiplyAdd().run(parent);
+        MultiplyAdd().run(parent);
         MinMaxLoc().run(parent);
         NormalizeL2().run(parent);
         likely_release_env(parent);

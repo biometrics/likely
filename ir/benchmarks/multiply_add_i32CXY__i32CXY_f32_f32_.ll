@@ -10,7 +10,7 @@ declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 
 declare void @llvm.assume(i1) #1
 
 ; Function Attrs: nounwind
-define %i32CXY* @fused_multiply_add(%i32CXY*, float, float) #1 {
+define %i32CXY* @multiply_add(%i32CXY*, float, float) #1 {
 entry:
   %3 = getelementptr inbounds %i32CXY, %i32CXY* %0, i64 0, i32 2
   %channels = load i32, i32* %3, align 4, !range !0
