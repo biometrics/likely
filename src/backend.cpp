@@ -2584,19 +2584,10 @@ LIKELY_REGISTER(label)
 
 class kernelExpression : public LikelyOperator
 {
-    struct KernelInfo
-    {
-        likely_type type;
-        MDNode *node = NULL;
-        Value *channels = NULL, *columns = NULL, *rows = NULL, *frames = NULL;
-        Value *columnStep = NULL, *rowStep = NULL, *frameStep = NULL;
-        Value *cOffset = NULL, *xOffset = NULL, *yOffset = NULL, *tOffset = NULL;
-    };
-
     struct KernelArgument : public Assignable
     {
         const string name;
-        KernelInfo info;
+        MDNode *node = NULL;
         Value *channels, *columns, *rows, *frames;
         Value *rowStep, *frameStep;
         Value *data;
@@ -2658,8 +2649,8 @@ class kernelExpression : public LikelyOperator
         void set(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
         {
             StoreInst *const store = builder.CreateStore(builder.cast(expr, type & likely_element), gep(builder, ast));
-            if (info.node)
-                store->setMetadata("llvm.mem.parallel_loop_access", info.node);
+            if (node)
+                store->setMetadata("llvm.mem.parallel_loop_access", node);
         }
 
         likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
@@ -2668,8 +2659,8 @@ class kernelExpression : public LikelyOperator
                 return new likely_expression((LikelyValue) *this);
 
             LoadInst *const load = builder.CreateLoad(gep(builder, ast));
-            if (info.node)
-                load->setMetadata("llvm.mem.parallel_loop_access", info.node);
+            if (node)
+                load->setMetadata("llvm.mem.parallel_loop_access", node);
             return new likely_expression(LikelyValue(load, type & likely_element));
         }
     };
@@ -2925,8 +2916,6 @@ class kernelExpression : public LikelyOperator
 
         kernelBuilder.SetInsertPoint(BasicBlock::Create(kernelBuilder.getContext(), "entry", kernel));
 
-        KernelInfo info;
-        info.node = NULL;
         Value *const c = (kernelType & likely_multi_channel) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_w, Type::getInt32Ty(kernelBuilder.getContext())), "c") : builder.one(likely_u32).value;
         Value *const x = (kernelType & likely_multi_column ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_x, Type::getInt32Ty(kernelBuilder.getContext())), "x") : builder.one(likely_u32).value;
         Value *const y = (kernelType & likely_multi_row    ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_y, Type::getInt32Ty(kernelBuilder.getContext())), "y") : builder.one(likely_u32).value;
@@ -2949,7 +2938,7 @@ class kernelExpression : public LikelyOperator
         }
 
         for (KernelArgument *kernelArgument : kernelArguments) {
-            kernelArgument->info = info;
+//            kernelArgument->node = node;
             define(kernelBuilder.env, kernelArgument->name.c_str(), kernelArgument);
         }
 
@@ -2988,80 +2977,56 @@ class kernelExpression : public LikelyOperator
         Value *const manualRowStep   = (manualDims >= 3) ? builder.CreateMul(manualChannels, manualColumns) : NULL;
         Value *const manualFrameStep = (manualDims >= 4) ? builder.CreateMul(manualRowStep, manualRows)     : NULL;
 
-        KernelInfo info;
-        info.type = kernelType;
-
+        MDNode *node;
         { // Create self-referencing loop node
             Metadata *const Args[] = { 0 };
-            info.node = MDNode::get(builder.getContext(), Args);
-            info.node->replaceOperandWith(0, info.node);
+            node = MDNode::get(builder.getContext(), Args);
+            node->replaceOperandWith(0, node);
         }
 
         KernelAxis *axis = NULL;
         if (kernelType & likely_multi_frame) {
-            info.frames = stop;
             axis = new KernelAxis(builder, "t", start
                                               , stop
                                               , argsStart ? manualFrameStep : kernelArguments[0]->frameStep
                                               , NULL);
             define(builder.env, "t", axis);
         } else {
-            info.frames = builder.one();
             define(builder.env, "t", new likely_expression(builder.zero()));
         }
-        info.tOffset = axis ? axis->offset : builder.zero().value;
 
         if (kernelType & likely_multi_row) {
-            info.rows = axis ? (argsStart ? manualRows : kernelArguments[0]->rows) : stop;
             axis = new KernelAxis(builder, "y", axis ? builder.zero().value : start
-                                              , info.rows
+                                              , axis ? (argsStart ? manualRows : kernelArguments[0]->rows) : stop
                                               , argsStart ? manualRowStep : kernelArguments[0]->rowStep
                                               , axis);
             define(builder.env, "y", axis);
         } else {
-            info.rows = builder.one();
             define(builder.env, "y", new likely_expression(builder.zero()));
         }
-        info.yOffset = axis ? axis->offset : builder.zero().value;
 
         if (kernelType & likely_multi_column) {
-            info.columns = axis ? (argsStart ? manualColumns : kernelArguments[0]->columns) : stop;
             axis = new KernelAxis(builder, "x", axis ? builder.zero().value : start
-                                              , info.columns
+                                              , axis ? (argsStart ? manualColumns : kernelArguments[0]->columns) : stop
                                               , argsStart ? manualChannels : kernelArguments[0]->channels
                                               , axis);
             define(builder.env, "x", axis);
         } else {
-            info.columns = builder.one();
             define(builder.env, "x", new likely_expression(builder.zero()));
         }
-        info.xOffset = axis ? axis->offset : builder.zero().value;
 
         if (kernelType & likely_multi_channel) {
-            info.channels = axis ? (argsStart ? manualChannels : kernelArguments[0]->channels) : stop;
             axis = new KernelAxis(builder, "c", axis ? builder.zero().value : start
-                                              , info.channels
+                                              , axis ? (argsStart ? manualChannels : kernelArguments[0]->channels) : stop
                                               , builder.one()
                                               , axis);
             define(builder.env, "c", axis);
         } else {
-            info.channels = builder.one();
             define(builder.env, "c", new likely_expression(builder.zero()));
         }
-        info.cOffset = axis ? axis->offset : builder.zero().value;
 
-        if (argsStart == 0) {
-            info.columnStep = kernelArguments[0]->channels;
-            info.rowStep    = kernelArguments[0]->rowStep;
-            info.frameStep  = kernelArguments[0]->frameStep;
-        } else {
-            info.columnStep = manualChannels  ? manualChannels  : builder.one().value;
-            info.rowStep    = manualRowStep   ? manualRowStep   : (manualColumns ? builder.CreateMul(info.columnStep, manualColumns) : info.columnStep);
-            info.frameStep  = manualFrameStep ? manualFrameStep : (manualRows    ? builder.CreateMul(info.rowStep   , manualRows   ) : info.rowStep   );
-        }
-
-        for (KernelArgument *kernelArgument : kernelArguments) {
-            kernelArgument->info = info;
+        for (KernelArgument *const kernelArgument : kernelArguments) {
+            kernelArgument->node = node;
             define(builder.env, kernelArgument->name.c_str(), kernelArgument);
         }
 
@@ -3079,7 +3044,7 @@ class kernelExpression : public LikelyOperator
         DCE(*builder.GetInsertBlock()->getParent());
 
         if (axis)
-            axis->tryCollapse(builder, info.node);
+            axis->tryCollapse(builder, node);
         undefine(builder.env, "c");
         undefine(builder.env, "x");
         undefine(builder.env, "y");
