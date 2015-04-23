@@ -2672,7 +2672,6 @@ class kernelExpression : public LikelyOperator
         BasicBlock *entry, *body, *exit;
         BranchInst *latch;
         KernelAxis *parent, *child;
-        bool collapsible = false;
 
         KernelAxis(Builder &builder, const string &name, Value *start, Value *stop, KernelAxis *parent)
             : name(name), start(start), stop(stop), exit(NULL), latch(NULL), parent(parent), child(NULL)
@@ -2704,7 +2703,7 @@ class kernelExpression : public LikelyOperator
 
         void tryCollapse(Builder &builder, MDNode *node)
         {
-            collapsible = true;
+            bool collapsible = false;
             for (User *const user : value->users()) {
                 if (user == increment)
                     continue;
@@ -2712,7 +2711,7 @@ class kernelExpression : public LikelyOperator
                 break;
             }
 
-            if (collapsible && child && child->collapsible) {
+            if (collapsible) {
                 // Update our range
                 BasicBlock *const restore = builder.GetInsertBlock();
                 const KernelAxis *ancestor = this;
@@ -2741,17 +2740,15 @@ class kernelExpression : public LikelyOperator
 
                 // Remove dead instructions to facilitate collapsing additional loops
                 DCE(*restore->getParent());
-            } else if (child && node) {
+            } else if (child) {
                 // We couldn't collapse the child loop, mark it for vectorization
                 child->latch->setMetadata("llvm.loop", node);
                 node = NULL;
             }
 
-            if (parent) {
-                parent->tryCollapse(builder, node);
-            } else if (node) {
-                // There is no child loop to collapse, mark us for vectorization
-                latch->setMetadata("llvm.loop", node);
+            if (node) {
+                if (parent) parent->tryCollapse(builder, node);    // Continue collapsing loops
+                else        latch->setMetadata("llvm.loop", node); // There is no child loop to collapse, mark us for vectorization
             }
         }
     };
