@@ -24,6 +24,7 @@ entry:
   %10 = getelementptr inbounds %f64CXY, %f64CXY* %4, i64 0, i32 3
   %columns = load i32, i32* %10, align 4, !range !0
   %dst_x = zext i32 %columns to i64
+  %dst_y_step = mul nuw nsw i64 %dst_x, %dst_c
   %11 = getelementptr inbounds %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 0
   %12 = ptrtoint double* %11 to i64
   %13 = and i64 %12, 31
@@ -35,6 +36,7 @@ entry:
   %16 = getelementptr inbounds %f64CXY, %f64CXY* %6, i64 0, i32 3
   %columns2 = load i32, i32* %16, align 4, !range !0
   %src_x = zext i32 %columns2 to i64
+  %src_y_step = mul nuw nsw i64 %src_x, %src_c
   %17 = getelementptr inbounds %f64CXY, %f64CXY* %6, i64 0, i32 6, i64 0
   %18 = ptrtoint double* %17 to i64
   %19 = and i64 %18, 31
@@ -44,37 +46,24 @@ entry:
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
-  %21 = mul i64 %y, %src_x
-  %22 = mul i64 %y, %dst_x
+  %21 = mul nuw nsw i64 %src_y_step, %y
+  %22 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
-x_body:                                           ; preds = %c_exit, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %c_exit ]
-  %tmp = add i64 %x, %21
-  %tmp4 = mul i64 %tmp, %src_c
-  %tmp5 = add i64 %x, %22
-  %tmp6 = mul i64 %tmp5, %dst_c
-  br label %c_body
-
-c_body:                                           ; preds = %c_body, %x_body
-  %c = phi i64 [ 0, %x_body ], [ %c_increment, %c_body ]
-  %23 = add i64 %tmp4, %c
+x_body:                                           ; preds = %x_body, %y_body
+  %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
+  %23 = add nuw nsw i64 %x, %21
   %24 = getelementptr %f64CXY, %f64CXY* %6, i64 0, i32 6, i64 %23
   %25 = load double, double* %24, align 8, !llvm.mem.parallel_loop_access !1
   %26 = fmul double %8, %25
-  %27 = add i64 %tmp6, %c
+  %27 = add nuw nsw i64 %x, %22
   %28 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %27
   store double %26, double* %28, align 8, !llvm.mem.parallel_loop_access !1
-  %c_increment = add nuw nsw i64 %c, 1
-  %c_postcondition = icmp eq i64 %c_increment, %dst_c
-  br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !1
-
-c_exit:                                           ; preds = %c_body
   %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %dst_x
-  br i1 %x_postcondition, label %x_exit, label %x_body
+  %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
+  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
 
-x_exit:                                           ; preds = %c_exit
+x_exit:                                           ; preds = %x_body
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %2
   br i1 %y_postcondition, label %y_exit, label %y_body

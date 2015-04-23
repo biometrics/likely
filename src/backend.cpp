@@ -2623,25 +2623,25 @@ class kernelExpression : public LikelyOperator
         {
             const size_t len = length(ast);
             Value *i = builder.zero();
-            if (type & likely_multi_frame) {
-                static const likely_const_ast defaultT = likely_atom("t", 1);
-                Value *const t = builder.cast(*UniqueExpression(get(builder, (len >= 5) ? ast->atoms[4] : defaultT)), likely_u64).value;
-                i = builder.addInts(builder.multiplyInts(t, frameStep), i);
-            }
-            if (type & likely_multi_row) {
-                static const likely_const_ast defaultY = likely_atom("y", 1);
-                Value *const y = builder.cast(*UniqueExpression(get(builder, (len >= 4) ? ast->atoms[3] : defaultY)), likely_u64).value;
-                i = builder.addInts(builder.multiplyInts(y, rowStep), i);
+            if (type & likely_multi_channel) {
+                static const likely_const_ast defaultC = likely_atom("c", 1);
+                Value *const c = builder.cast(*UniqueExpression(get(builder, (len >= 2) ? ast->atoms[1] : defaultC)), likely_u64).value;
+                i = builder.addInts(c, i);
             }
             if (type & likely_multi_column) {
                 static const likely_const_ast defaultX = likely_atom("x", 1);
                 Value *const x = builder.cast(*UniqueExpression(get(builder, (len >= 3) ? ast->atoms[2] : defaultX)), likely_u64).value;
                 i = builder.addInts(builder.multiplyInts(x, channels), i);
             }
-            if (type & likely_multi_channel) {
-                static const likely_const_ast defaultC = likely_atom("c", 1);
-                Value *const c = builder.cast(*UniqueExpression(get(builder, (len >= 2) ? ast->atoms[1] : defaultC)), likely_u64).value;
-                i = builder.addInts(c, i);
+            if (type & likely_multi_row) {
+                static const likely_const_ast defaultY = likely_atom("y", 1);
+                Value *const y = builder.cast(*UniqueExpression(get(builder, (len >= 4) ? ast->atoms[3] : defaultY)), likely_u64).value;
+                i = builder.addInts(builder.multiplyInts(y, rowStep), i);
+            }
+            if (type & likely_multi_frame) {
+                static const likely_const_ast defaultT = likely_atom("t", 1);
+                Value *const t = builder.cast(*UniqueExpression(get(builder, (len >= 5) ? ast->atoms[4] : defaultT)), likely_u64).value;
+                i = builder.addInts(builder.multiplyInts(t, frameStep), i);
             }
             return builder.CreateGEP(data, i);
         }
@@ -2703,13 +2703,51 @@ class kernelExpression : public LikelyOperator
 
         void tryCollapse(Builder &builder, MDNode *node)
         {
-            bool collapsible = false;
-            for (User *const user : value->users()) {
-                if (user == increment)
-                    continue;
-                collapsible = false;
-                break;
-            }
+            bool collapsible = !!child; // To be collapsible there must be a child loop to collapse
+
+            // To be collapsible we must be able to replace all the uses of our value
+            set<Value*> replaceables;
+            if (collapsible)
+                for (User *const user : value->users()) {
+                    if (user == increment)
+                        continue; // Trivially replaceable
+
+                    // We can only replace (+ (* value child->stop) child->value)
+                    if (MulOperator *const mulOperator = dyn_cast<MulOperator>(user))
+                        if (mulOperator->getOperand(0) == value) {
+                            Instruction *const a = dyn_cast<Instruction>(mulOperator->getOperand(1));
+                            Instruction *const b = dyn_cast<Instruction>(child->stop);
+                            if (a && b && a->isSameOperationAs(b)) { // Match (* value child->stop)
+                                for (const Use &use : mulOperator->uses()) {
+                                    if (AddOperator *const addOperator = dyn_cast<AddOperator>(use.getUser())) // Match (+ (* value child->stop) child->value)
+                                        if ((addOperator->getOperand(0) == mulOperator) && (addOperator->getOperand(1) == child->value)) {
+                                            replaceables.insert(addOperator);
+                                            continue;
+                                        }
+
+                                    collapsible = false;
+                                    break;
+                                }
+                                continue;
+                            }
+                        }
+
+                    collapsible = false;
+                    break;
+                }
+
+            // To be collapsible all of our childs uses must have been identified for replacement
+            if (collapsible)
+                for (User *const user : child->value->users()) {
+                    if (user == child->increment)
+                        continue; // Trivially replaceable
+
+                    if (replaceables.find(user) != replaceables.end())
+                        continue; // We know that it is replaceable
+
+                    collapsible = false;
+                    break;
+                }
 
             if (collapsible) {
                 // Update our range
@@ -2724,6 +2762,10 @@ class kernelExpression : public LikelyOperator
                 cast<ICmpInst>(postcondition)->setOperand(1, newStop);
                 start = newStart;
                 stop = newStop;
+
+                // Update our replaceables
+                for (Value *const replaceable : replaceables)
+                    replaceable->replaceAllUsesWith(value);
 
                 // Collapse the child loop
                 child->value->replaceAllUsesWith(builder.zero());

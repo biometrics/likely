@@ -41,27 +41,25 @@ entry:
   %22 = icmp eq i64 %21, 0
   tail call void @llvm.assume(i1 %22)
   %23 = shl nuw nsw i64 %dst_c, 1
-  %24 = add nuw nsw i64 %dst_y_step, %dst_c
-  %25 = add nuw nsw i64 %dst_y_step, %23
   br label %c_body
 
 c_body:                                           ; preds = %end, %entry
   %c = phi i64 [ %1, %entry ], [ %c_increment, %end ]
-  %26 = icmp eq i32 %10, 0
-  br i1 %26, label %end, label %then
+  %24 = icmp eq i32 %10, 0
+  br i1 %24, label %end, label %then
 
 then:                                             ; preds = %c_body, %end6
-  %storemerge41 = phi i32 [ %71, %end6 ], [ 0, %c_body ]
-  %27 = phi double [ %.lcssa28, %end6 ], [ 0x7FEFFFFFFFFFFFFF, %c_body ]
-  %28 = phi double [ %.lcssa27, %end6 ], [ 0xFFEFFFFFFFFFFFFF, %c_body ]
-  %29 = phi i32 [ %.lcssa26, %end6 ], [ 0, %c_body ]
-  %30 = phi i32 [ %.lcssa25, %end6 ], [ 0, %c_body ]
-  %31 = phi i32 [ %.lcssa24, %end6 ], [ 0, %c_body ]
-  %32 = phi i32 [ %.lcssa, %end6 ], [ 0, %c_body ]
-  %33 = sext i32 %storemerge41 to i64
-  %34 = mul nsw i64 %33, %src_x
-  %35 = icmp eq i32 %8, 0
-  br i1 %35, label %end6, label %then5
+  %storemerge41 = phi i32 [ %69, %end6 ], [ 0, %c_body ]
+  %25 = phi double [ %.lcssa28, %end6 ], [ 0x7FEFFFFFFFFFFFFF, %c_body ]
+  %26 = phi double [ %.lcssa27, %end6 ], [ 0xFFEFFFFFFFFFFFFF, %c_body ]
+  %27 = phi i32 [ %.lcssa26, %end6 ], [ 0, %c_body ]
+  %28 = phi i32 [ %.lcssa25, %end6 ], [ 0, %c_body ]
+  %29 = phi i32 [ %.lcssa24, %end6 ], [ 0, %c_body ]
+  %30 = phi i32 [ %.lcssa, %end6 ], [ 0, %c_body ]
+  %31 = sext i32 %storemerge41 to i64
+  %32 = mul nsw i64 %31, %src_x
+  %33 = icmp eq i32 %8, 0
+  br i1 %33, label %end6, label %then5
 
 end:                                              ; preds = %end6, %c_body
   %.lcssa34 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %.lcssa28, %end6 ]
@@ -70,27 +68,27 @@ end:                                              ; preds = %end6, %c_body
   %.lcssa31 = phi i32 [ 0, %c_body ], [ %.lcssa25, %end6 ]
   %.lcssa30 = phi i32 [ 0, %c_body ], [ %.lcssa24, %end6 ]
   %.lcssa29 = phi i32 [ 0, %c_body ], [ %.lcssa, %end6 ]
-  %36 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %c
-  store double %.lcssa34, double* %36, align 8, !llvm.mem.parallel_loop_access !1
-  %37 = sitofp i32 %.lcssa32 to double
-  %38 = add nuw nsw i64 %c, %dst_c
-  %39 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %38
-  store double %37, double* %39, align 8, !llvm.mem.parallel_loop_access !1
-  %40 = sitofp i32 %.lcssa31 to double
-  %41 = add nuw nsw i64 %c, %23
+  %34 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %c
+  store double %.lcssa34, double* %34, align 8, !llvm.mem.parallel_loop_access !1
+  %35 = sitofp i32 %.lcssa32 to double
+  %36 = add nuw nsw i64 %c, %dst_c
+  %37 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %36
+  store double %35, double* %37, align 8, !llvm.mem.parallel_loop_access !1
+  %38 = sitofp i32 %.lcssa31 to double
+  %39 = add nuw nsw i64 %c, %23
+  %40 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %39
+  store double %38, double* %40, align 8, !llvm.mem.parallel_loop_access !1
+  %41 = add nuw nsw i64 %c, %dst_y_step
   %42 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %41
-  store double %40, double* %42, align 8, !llvm.mem.parallel_loop_access !1
-  %43 = add nuw nsw i64 %c, %dst_y_step
-  %44 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %43
-  store double %.lcssa33, double* %44, align 8, !llvm.mem.parallel_loop_access !1
-  %45 = sitofp i32 %.lcssa30 to double
-  %46 = add nuw nsw i64 %24, %c
-  %47 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %46
-  store double %45, double* %47, align 8, !llvm.mem.parallel_loop_access !1
-  %48 = sitofp i32 %.lcssa29 to double
-  %49 = add nuw nsw i64 %25, %c
-  %50 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %49
-  store double %48, double* %50, align 8, !llvm.mem.parallel_loop_access !1
+  store double %.lcssa33, double* %42, align 8, !llvm.mem.parallel_loop_access !1
+  %43 = sitofp i32 %.lcssa30 to double
+  %44 = add nuw nsw i64 %36, %dst_y_step
+  %45 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %44
+  store double %43, double* %45, align 8, !llvm.mem.parallel_loop_access !1
+  %46 = sitofp i32 %.lcssa29 to double
+  %47 = add nuw nsw i64 %39, %dst_y_step
+  %48 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %47
+  store double %46, double* %48, align 8, !llvm.mem.parallel_loop_access !1
   %c_increment = add nuw nsw i64 %c, 1
   %c_postcondition = icmp eq i64 %c_increment, %2
   br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !1
@@ -99,41 +97,41 @@ c_exit:                                           ; preds = %end
   ret void
 
 then5:                                            ; preds = %then, %then5
-  %storemerge1135 = phi i32 [ %69, %then5 ], [ 0, %then ]
-  %51 = phi double [ %64, %then5 ], [ %27, %then ]
-  %52 = phi double [ %68, %then5 ], [ %28, %then ]
-  %53 = phi i32 [ %63, %then5 ], [ %29, %then ]
-  %54 = phi i32 [ %62, %then5 ], [ %30, %then ]
-  %55 = phi i32 [ %67, %then5 ], [ %31, %then ]
-  %56 = phi i32 [ %66, %then5 ], [ %32, %then ]
-  %57 = sext i32 %storemerge1135 to i64
-  %tmp = add i64 %57, %34
+  %storemerge1135 = phi i32 [ %67, %then5 ], [ 0, %then ]
+  %49 = phi double [ %62, %then5 ], [ %25, %then ]
+  %50 = phi double [ %66, %then5 ], [ %26, %then ]
+  %51 = phi i32 [ %61, %then5 ], [ %27, %then ]
+  %52 = phi i32 [ %60, %then5 ], [ %28, %then ]
+  %53 = phi i32 [ %65, %then5 ], [ %29, %then ]
+  %54 = phi i32 [ %64, %then5 ], [ %30, %then ]
+  %55 = sext i32 %storemerge1135 to i64
+  %tmp = add i64 %55, %32
   %tmp12 = mul i64 %tmp, %src_c
-  %58 = add i64 %tmp12, %c
-  %59 = getelementptr %f64CXY, %f64CXY* %6, i64 0, i32 6, i64 %58
-  %60 = load double, double* %59, align 8, !llvm.mem.parallel_loop_access !1
-  %61 = fcmp olt double %60, %51
-  %62 = select i1 %61, i32 %storemerge41, i32 %54
-  %63 = select i1 %61, i32 %storemerge1135, i32 %53
-  %64 = select i1 %61, double %60, double %51
-  %65 = fcmp ogt double %60, %52
-  %66 = select i1 %65, i32 %storemerge41, i32 %56
-  %67 = select i1 %65, i32 %storemerge1135, i32 %55
-  %68 = select i1 %65, double %60, double %52
-  %69 = add nuw nsw i32 %storemerge1135, 1
-  %70 = icmp eq i32 %69, %8
-  br i1 %70, label %end6, label %then5
+  %56 = add i64 %tmp12, %c
+  %57 = getelementptr %f64CXY, %f64CXY* %6, i64 0, i32 6, i64 %56
+  %58 = load double, double* %57, align 8, !llvm.mem.parallel_loop_access !1
+  %59 = fcmp olt double %58, %49
+  %60 = select i1 %59, i32 %storemerge41, i32 %52
+  %61 = select i1 %59, i32 %storemerge1135, i32 %51
+  %62 = select i1 %59, double %58, double %49
+  %63 = fcmp ogt double %58, %50
+  %64 = select i1 %63, i32 %storemerge41, i32 %54
+  %65 = select i1 %63, i32 %storemerge1135, i32 %53
+  %66 = select i1 %63, double %58, double %50
+  %67 = add nuw nsw i32 %storemerge1135, 1
+  %68 = icmp eq i32 %67, %8
+  br i1 %68, label %end6, label %then5
 
 end6:                                             ; preds = %then5, %then
-  %.lcssa28 = phi double [ %27, %then ], [ %64, %then5 ]
-  %.lcssa27 = phi double [ %28, %then ], [ %68, %then5 ]
-  %.lcssa26 = phi i32 [ %29, %then ], [ %63, %then5 ]
-  %.lcssa25 = phi i32 [ %30, %then ], [ %62, %then5 ]
-  %.lcssa24 = phi i32 [ %31, %then ], [ %67, %then5 ]
-  %.lcssa = phi i32 [ %32, %then ], [ %66, %then5 ]
-  %71 = add nuw nsw i32 %storemerge41, 1
-  %72 = icmp eq i32 %71, %10
-  br i1 %72, label %end, label %then
+  %.lcssa28 = phi double [ %25, %then ], [ %62, %then5 ]
+  %.lcssa27 = phi double [ %26, %then ], [ %66, %then5 ]
+  %.lcssa26 = phi i32 [ %27, %then ], [ %61, %then5 ]
+  %.lcssa25 = phi i32 [ %28, %then ], [ %60, %then5 ]
+  %.lcssa24 = phi i32 [ %29, %then ], [ %65, %then5 ]
+  %.lcssa = phi i32 [ %30, %then ], [ %64, %then5 ]
+  %69 = add nuw nsw i32 %storemerge41, 1
+  %70 = icmp eq i32 %69, %10
+  br i1 %70, label %end, label %then
 }
 
 ; Function Attrs: nounwind
