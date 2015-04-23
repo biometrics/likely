@@ -2668,8 +2668,8 @@ class kernelExpression : public LikelyOperator
 
             // Compute our own offset for axes that are specified
             if ((sharedOffset < 1) && (type & likely_multi_frame)) {
-                Value *const t = (len >= 5) ? builder.cast(*UniqueExpression(get(builder, ast->atoms[4])), likely_u64).value
-                                            : info.t;
+                static const likely_const_ast defaultT = likely_atom("t", 1);
+                Value *const t = builder.cast(*UniqueExpression(get(builder, (len >= 5) ? ast->atoms[4] : defaultT)), likely_u64).value;
                 Value *const tStep = ((sharedAxes & likely_multi_channel)
                                       && (sharedAxes & likely_multi_column)
                                       && (sharedAxes & likely_multi_row)
@@ -2677,23 +2677,23 @@ class kernelExpression : public LikelyOperator
                 i = builder.addInts(builder.multiplyInts(t, tStep), i);
             }
             if ((sharedOffset < 2) && (type & likely_multi_row)) {
-                Value *const y = (len >= 4) ? builder.cast(*UniqueExpression(get(builder, ast->atoms[3])), likely_u64).value
-                                            : info.y;
+                static const likely_const_ast defaultY = likely_atom("y", 1);
+                Value *const y = builder.cast(*UniqueExpression(get(builder, (len >= 4) ? ast->atoms[3] : defaultY)), likely_u64).value;
                 Value *const yStep = ((sharedAxes & likely_multi_channel)
                                       && (sharedAxes & likely_multi_column)
                                       && (sharedAxes & likely_multi_row)) ? info.rowStep : rowStep;
                 i = builder.addInts(builder.multiplyInts(y, yStep), i);
             }
             if ((sharedOffset < 3) && (type & likely_multi_column)) {
-                Value *const x = (len >= 3) ? builder.cast(*UniqueExpression(get(builder, ast->atoms[2])), likely_u64).value
-                                            : info.x;
+                static const likely_const_ast defaultX = likely_atom("x", 1);
+                Value *const x = builder.cast(*UniqueExpression(get(builder, (len >= 3) ? ast->atoms[2] : defaultX)), likely_u64).value;
                 Value *const xStep = ((sharedAxes & likely_multi_channel)
                                       && (sharedAxes & likely_multi_column)) ? info.columnStep : channels;
                 i = builder.addInts(builder.multiplyInts(x, xStep), i);
             }
             if ((sharedOffset < 4) && (type & likely_multi_channel)) {
-                Value *const c = (len >= 2) ? builder.cast(*UniqueExpression(get(builder, ast->atoms[1])), likely_u64).value
-                                            : info.c;
+                static const likely_const_ast defaultC = likely_atom("c", 1);
+                Value *const c = builder.cast(*UniqueExpression(get(builder, (len >= 2) ? ast->atoms[1] : defaultC)), likely_u64).value;
                 i = builder.addInts(c, i);
             }
 
