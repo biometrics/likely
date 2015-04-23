@@ -606,7 +606,7 @@ protected:
     {
         legacy::FunctionPassManager FPM(function.getParent());
         FPM.add(createDeadInstEliminationPass());
-        FPM.run(function);
+        while (FPM.run(function)) {}
     }
 
     void setData(const Variant &data) const

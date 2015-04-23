@@ -44,7 +44,6 @@ end:                                              ; preds = %then
   %17 = zext i32 %rows to i64
   %dst_c = zext i32 %channels to i64
   %dst_x = zext i32 %columns to i64
-  %dst_y_step = mul nuw nsw i64 %dst_x, %dst_c
   %18 = getelementptr inbounds %u0CXYT, %u0CXYT* %16, i64 1
   %19 = bitcast %u0CXYT* %18 to double*
   %20 = ptrtoint %u0CXYT* %18 to i64
@@ -56,31 +55,22 @@ end:                                              ; preds = %then
   %25 = and i64 %24, 31
   %26 = icmp eq i64 %25, 0
   tail call void @llvm.assume(i1 %26)
+  %27 = mul nuw nsw i64 %dst_x, %dst_c
+  %28 = mul nuw nsw i64 %27, %17
   br label %y_body
 
-y_body:                                           ; preds = %x_exit, %end
-  %y = phi i64 [ 0, %end ], [ %y_increment, %x_exit ]
-  %27 = mul nuw nsw i64 %y, %dst_y_step
-  br label %x_body
-
-x_body:                                           ; preds = %x_body, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
-  %28 = add nuw nsw i64 %x, %27
-  %29 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 %28
+y_body:                                           ; preds = %y_body, %end
+  %y = phi i64 [ 0, %end ], [ %y_increment, %y_body ]
+  %29 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 %y
   %30 = load double, double* %29, align 8, !llvm.mem.parallel_loop_access !1
   %31 = fmul double %15, %30
-  %32 = getelementptr double, double* %19, i64 %28
+  %32 = getelementptr double, double* %19, i64 %y
   store double %31, double* %32, align 8, !llvm.mem.parallel_loop_access !1
-  %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
-
-x_exit:                                           ; preds = %x_body
   %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %17
-  br i1 %y_postcondition, label %y_exit, label %y_body
+  %y_postcondition = icmp eq i64 %y_increment, %28
+  br i1 %y_postcondition, label %y_exit, label %y_body, !llvm.loop !1
 
-y_exit:                                           ; preds = %x_exit
+y_exit:                                           ; preds = %y_body
   %33 = bitcast %u0CXYT* %16 to %f64CXY*
   ret %f64CXY* %33
 }
