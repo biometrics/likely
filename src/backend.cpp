@@ -2672,12 +2672,10 @@ class kernelExpression : public LikelyOperator
         BasicBlock *entry, *body, *exit;
         BranchInst *latch;
         KernelAxis *parent, *child;
-        Value *step, *offset;
-        BinaryOperator *axisOffset;
         bool collapsible = false;
 
-        KernelAxis(Builder &builder, const string &name, Value *start, Value *stop, Value *step, KernelAxis *parent)
-            : name(name), start(start), stop(stop), exit(NULL), latch(NULL), parent(parent), child(NULL), step(step)
+        KernelAxis(Builder &builder, const string &name, Value *start, Value *stop, KernelAxis *parent)
+            : name(name), start(start), stop(stop), exit(NULL), latch(NULL), parent(parent), child(NULL)
         {
             entry = builder.GetInsertBlock();
             body = BasicBlock::Create(builder.getContext(), name + "_body", entry->getParent());
@@ -2687,9 +2685,6 @@ class kernelExpression : public LikelyOperator
             type = toLikely(start->getType());
             value = builder.CreatePHI(builder.module->context->toLLVM(type), 2, name);
             cast<PHINode>(value)->addIncoming(start, entry);
-            axisOffset = cast<BinaryOperator>(builder.CreateMul(step, value, name + "_axisOffset", true, true));
-            offset = builder.addInts(parent ? parent->offset : builder.zero().value, axisOffset);
-            offset->setName(name + "_offset");
 
             if (parent)
                 parent->child = this;
@@ -2713,8 +2708,6 @@ class kernelExpression : public LikelyOperator
             for (User *const user : value->users()) {
                 if (user == increment)
                     continue;
-                if (user == axisOffset)
-                    continue;
                 collapsible = false;
                 break;
             }
@@ -2732,10 +2725,6 @@ class kernelExpression : public LikelyOperator
                 cast<ICmpInst>(postcondition)->setOperand(1, newStop);
                 start = newStart;
                 stop = newStop;
-
-                // Update our step
-                axisOffset->setOperand(0, child->step);
-                step = child->step;
 
                 // Collapse the child loop
                 child->value->replaceAllUsesWith(builder.zero());
@@ -2971,11 +2960,9 @@ class kernelExpression : public LikelyOperator
             kernelArguments.push_back(new KernelArgument(builder, *srcs[0], args->atom));
         }
 
-        Value *const manualChannels  = (manualDims >= 1) ? srcs[srcs.size() - manualDims + 0]->value : NULL;
-        Value *const manualColumns   = (manualDims >= 2) ? srcs[srcs.size() - manualDims + 1]->value : NULL;
-        Value *const manualRows      = (manualDims >= 3) ? srcs[srcs.size() - manualDims + 2]->value : NULL;
-        Value *const manualRowStep   = (manualDims >= 3) ? builder.CreateMul(manualChannels, manualColumns) : NULL;
-        Value *const manualFrameStep = (manualDims >= 4) ? builder.CreateMul(manualRowStep, manualRows)     : NULL;
+        Value *const manualChannels = (manualDims >= 1) ? srcs[srcs.size() - manualDims + 0]->value : NULL;
+        Value *const manualColumns  = (manualDims >= 2) ? srcs[srcs.size() - manualDims + 1]->value : NULL;
+        Value *const manualRows     = (manualDims >= 3) ? srcs[srcs.size() - manualDims + 2]->value : NULL;
 
         MDNode *node;
         { // Create self-referencing loop node
@@ -2986,10 +2973,7 @@ class kernelExpression : public LikelyOperator
 
         KernelAxis *axis = NULL;
         if (kernelType & likely_multi_frame) {
-            axis = new KernelAxis(builder, "t", start
-                                              , stop
-                                              , argsStart ? manualFrameStep : kernelArguments[0]->frameStep
-                                              , NULL);
+            axis = new KernelAxis(builder, "t", start, stop, NULL);
             define(builder.env, "t", axis);
         } else {
             define(builder.env, "t", new likely_expression(builder.zero()));
@@ -2998,7 +2982,6 @@ class kernelExpression : public LikelyOperator
         if (kernelType & likely_multi_row) {
             axis = new KernelAxis(builder, "y", axis ? builder.zero().value : start
                                               , axis ? (argsStart ? manualRows : kernelArguments[0]->rows) : stop
-                                              , argsStart ? manualRowStep : kernelArguments[0]->rowStep
                                               , axis);
             define(builder.env, "y", axis);
         } else {
@@ -3008,7 +2991,6 @@ class kernelExpression : public LikelyOperator
         if (kernelType & likely_multi_column) {
             axis = new KernelAxis(builder, "x", axis ? builder.zero().value : start
                                               , axis ? (argsStart ? manualColumns : kernelArguments[0]->columns) : stop
-                                              , argsStart ? manualChannels : kernelArguments[0]->channels
                                               , axis);
             define(builder.env, "x", axis);
         } else {
@@ -3018,7 +3000,6 @@ class kernelExpression : public LikelyOperator
         if (kernelType & likely_multi_channel) {
             axis = new KernelAxis(builder, "c", axis ? builder.zero().value : start
                                               , axis ? (argsStart ? manualChannels : kernelArguments[0]->channels) : stop
-                                              , builder.one()
                                               , axis);
             define(builder.env, "c", axis);
         } else {
