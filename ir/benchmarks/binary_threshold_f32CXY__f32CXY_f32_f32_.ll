@@ -33,23 +33,43 @@ entry:
   %15 = and i64 %14, 31
   %16 = icmp eq i64 %15, 0
   tail call void @llvm.assume(i1 %16)
-  %17 = mul nuw nsw i64 %dst_x, %dst_c
-  %18 = mul nuw nsw i64 %17, %7
   br label %y_body
 
-y_body:                                           ; preds = %y_body, %entry
-  %y = phi i64 [ 0, %entry ], [ %y_increment, %y_body ]
-  %19 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %y
+y_body:                                           ; preds = %x_exit, %entry
+  %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit ]
+  %17 = mul i64 %y, %dst_x
+  br label %x_body
+
+x_body:                                           ; preds = %c_exit, %y_body
+  %x = phi i64 [ 0, %y_body ], [ %x_increment, %c_exit ]
+  %tmp = add i64 %x, %17
+  %tmp1 = mul i64 %tmp, %dst_c
+  br label %c_body
+
+c_body:                                           ; preds = %c_body, %x_body
+  %c = phi i64 [ 0, %x_body ], [ %c_increment, %c_body ]
+  %18 = add i64 %tmp1, %c
+  %19 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %18
   %20 = load float, float* %19, align 4, !llvm.mem.parallel_loop_access !1
   %21 = fcmp ogt float %20, %1
   %22 = select i1 %21, float %2, float 0.000000e+00
-  %23 = getelementptr float, float* %9, i64 %y
+  %23 = getelementptr float, float* %9, i64 %18
   store float %22, float* %23, align 4, !llvm.mem.parallel_loop_access !1
-  %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %18
-  br i1 %y_postcondition, label %y_exit, label %y_body, !llvm.loop !1
+  %c_increment = add nuw nsw i64 %c, 1
+  %c_postcondition = icmp eq i64 %c_increment, %dst_c
+  br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !1
 
-y_exit:                                           ; preds = %y_body
+c_exit:                                           ; preds = %c_body
+  %x_increment = add nuw nsw i64 %x, 1
+  %x_postcondition = icmp eq i64 %x_increment, %dst_x
+  br i1 %x_postcondition, label %x_exit, label %x_body
+
+x_exit:                                           ; preds = %c_exit
+  %y_increment = add nuw nsw i64 %y, 1
+  %y_postcondition = icmp eq i64 %y_increment, %7
+  br i1 %y_postcondition, label %y_exit, label %y_body
+
+y_exit:                                           ; preds = %x_exit
   %24 = bitcast %u0CXYT* %6 to %f32CXY*
   ret %f32CXY* %24
 }

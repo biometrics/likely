@@ -63,48 +63,48 @@ entry:
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit ]
-  %y_offset = mul nuw nsw i64 %y, %dst_y_step
   %37 = uitofp i64 %y to float
   %38 = fmul float %arg_5, %37
   %39 = fdiv float %38, %36
   %40 = fadd float %arg_3, %39
+  %41 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
 x_body:                                           ; preds = %end, %y_body
   %x = phi i64 [ 0, %y_body ], [ %x_increment, %end ]
-  %41 = uitofp i64 %x to float
-  %42 = fmul float %arg_4, %41
-  %43 = fdiv float %42, %35
-  %44 = fadd float %arg_2, %43
+  %42 = uitofp i64 %x to float
+  %43 = fmul float %arg_4, %42
+  %44 = fdiv float %43, %35
+  %45 = fadd float %arg_2, %44
   br label %label
 
 label:                                            ; preds = %label, %x_body
-  %45 = phi i32 [ %55, %label ], [ 0, %x_body ]
-  %46 = phi float [ %54, %label ], [ 0.000000e+00, %x_body ]
-  %47 = phi float [ %51, %label ], [ 0.000000e+00, %x_body ]
-  %48 = fmul float %47, %47
-  %49 = fmul float %46, %46
-  %50 = fsub float %48, %49
-  %51 = fadd float %44, %50
-  %52 = fmul float %47, %46
-  %53 = fmul float %52, 2.000000e+00
-  %54 = fadd float %40, %53
-  %55 = add nuw nsw i32 %45, 1
-  %56 = fmul float %51, %51
-  %57 = fmul float %54, %54
-  %58 = fadd float %56, %57
-  %59 = fcmp olt float %58, 4.000000e+00
-  %60 = icmp slt i32 %55, %arg_6
-  %61 = and i1 %60, %59
-  br i1 %61, label %label, label %end
+  %46 = phi i32 [ %56, %label ], [ 0, %x_body ]
+  %47 = phi float [ %55, %label ], [ 0.000000e+00, %x_body ]
+  %48 = phi float [ %52, %label ], [ 0.000000e+00, %x_body ]
+  %49 = fmul float %48, %48
+  %50 = fmul float %47, %47
+  %51 = fsub float %49, %50
+  %52 = fadd float %45, %51
+  %53 = fmul float %48, %47
+  %54 = fmul float %53, 2.000000e+00
+  %55 = fadd float %40, %54
+  %56 = add nuw nsw i32 %46, 1
+  %57 = fmul float %52, %52
+  %58 = fmul float %55, %55
+  %59 = fadd float %57, %58
+  %60 = fcmp olt float %59, 4.000000e+00
+  %61 = icmp slt i32 %56, %arg_6
+  %62 = and i1 %61, %60
+  br i1 %62, label %label, label %end
 
 end:                                              ; preds = %label
-  %x_offset = add nuw nsw i64 %x, %y_offset
-  %62 = mul nuw nsw i32 %55, 255
-  %63 = sdiv i32 %62, %arg_6
-  %64 = trunc i32 %63 to i8
-  %65 = getelementptr i8, i8* %31, i64 %x_offset
-  store i8 %64, i8* %65, align 1, !llvm.mem.parallel_loop_access !0
+  %63 = mul nuw nsw i32 %56, 255
+  %64 = sdiv i32 %63, %arg_6
+  %65 = trunc i32 %64 to i8
+  %66 = add nuw nsw i64 %x, %41
+  %67 = getelementptr i8, i8* %31, i64 %66
+  store i8 %65, i8* %67, align 1, !llvm.mem.parallel_loop_access !0
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !0
@@ -115,8 +115,8 @@ x_exit:                                           ; preds = %end
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %66 = bitcast %u0CXYT* %28 to %u8XY*
-  ret %u8XY* %66
+  %68 = bitcast %u0CXYT* %28 to %u8XY*
+  ret %u8XY* %68
 }
 
 attributes #0 = { nounwind readonly }

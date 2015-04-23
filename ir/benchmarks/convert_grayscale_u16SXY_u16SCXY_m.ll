@@ -29,24 +29,32 @@ entry:
   %12 = getelementptr inbounds %u16CXY, %u16CXY* %6, i64 0, i32 2
   %channels = load i32, i32* %12, align 4, !range !0
   %src_c = zext i32 %channels to i64
-  %13 = getelementptr inbounds %u16CXY, %u16CXY* %6, i64 0, i32 6, i64 0
-  %14 = ptrtoint i16* %13 to i64
-  %15 = and i64 %14, 31
-  %16 = icmp eq i64 %15, 0
-  tail call void @llvm.assume(i1 %16)
-  %17 = mul nuw nsw i64 %dst_y_step, %1
-  %18 = mul nuw nsw i64 %dst_y_step, %2
+  %13 = getelementptr inbounds %u16CXY, %u16CXY* %6, i64 0, i32 3
+  %columns1 = load i32, i32* %13, align 4, !range !0
+  %src_x = zext i32 %columns1 to i64
+  %14 = getelementptr inbounds %u16CXY, %u16CXY* %6, i64 0, i32 6, i64 0
+  %15 = ptrtoint i16* %14 to i64
+  %16 = and i64 %15, 31
+  %17 = icmp eq i64 %16, 0
+  tail call void @llvm.assume(i1 %17)
   br label %y_body
 
-y_body:                                           ; preds = %y_body, %entry
-  %y = phi i64 [ %17, %entry ], [ %y_increment, %y_body ]
-  %19 = mul nuw nsw i64 %y, %src_c
-  %20 = getelementptr %u16CXY, %u16CXY* %6, i64 0, i32 6, i64 %19
+y_body:                                           ; preds = %x_exit, %entry
+  %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
+  %18 = mul i64 %y, %src_x
+  %19 = mul nuw nsw i64 %y, %dst_y_step
+  br label %x_body
+
+x_body:                                           ; preds = %x_body, %y_body
+  %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
+  %tmp = add i64 %x, %18
+  %tmp3 = mul i64 %tmp, %src_c
+  %20 = getelementptr %u16CXY, %u16CXY* %6, i64 0, i32 6, i64 %tmp3
   %21 = load i16, i16* %20, align 2, !llvm.mem.parallel_loop_access !1
-  %22 = add nuw nsw i64 %19, 1
+  %22 = add nuw nsw i64 %tmp3, 1
   %23 = getelementptr %u16CXY, %u16CXY* %6, i64 0, i32 6, i64 %22
   %24 = load i16, i16* %23, align 2, !llvm.mem.parallel_loop_access !1
-  %25 = add nuw nsw i64 %19, 2
+  %25 = add nuw nsw i64 %tmp3, 2
   %26 = getelementptr %u16CXY, %u16CXY* %6, i64 0, i32 6, i64 %25
   %27 = load i16, i16* %26, align 2, !llvm.mem.parallel_loop_access !1
   %28 = zext i16 %21 to i32
@@ -60,13 +68,19 @@ y_body:                                           ; preds = %y_body, %entry
   %36 = add nuw i32 %35, %33
   %37 = lshr i32 %36, 14
   %38 = trunc i32 %37 to i16
-  %39 = getelementptr %u16SXY, %u16SXY* %4, i64 0, i32 6, i64 %y
-  store i16 %38, i16* %39, align 2, !llvm.mem.parallel_loop_access !1
-  %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %18
-  br i1 %y_postcondition, label %y_exit, label %y_body, !llvm.loop !1
+  %39 = add nuw nsw i64 %x, %19
+  %40 = getelementptr %u16SXY, %u16SXY* %4, i64 0, i32 6, i64 %39
+  store i16 %38, i16* %40, align 2, !llvm.mem.parallel_loop_access !1
+  %x_increment = add nuw nsw i64 %x, 1
+  %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
+  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
 
-y_exit:                                           ; preds = %y_body
+x_exit:                                           ; preds = %x_body
+  %y_increment = add nuw nsw i64 %y, 1
+  %y_postcondition = icmp eq i64 %y_increment, %2
+  br i1 %y_postcondition, label %y_exit, label %y_body
+
+y_exit:                                           ; preds = %x_exit
   ret void
 }
 

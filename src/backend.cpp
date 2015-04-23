@@ -2631,71 +2631,27 @@ class kernelExpression : public LikelyOperator
         Value *gep(Builder &builder, likely_const_ast ast) const
         {
             const size_t len = length(ast);
-            const likely_type sharedAxes = ~(type ^ info.type) & likely_multi_dimension;
-            const size_t sharedOffset = 5 - len;
-
-            // Use the kernel offset for axes that aren't specified
-            Value *i;
-            if      (sharedOffset == 4) i = info.cOffset;
-            else if (sharedOffset == 3) i = info.xOffset;
-            else if (sharedOffset == 2) i = info.yOffset;
-            else if (sharedOffset == 1) i = info.tOffset;
-            else                        i = builder.zero();
-
-            // Scale the offset appropriately
-            if (sharedOffset != 0) {
-                if ((type & likely_multi_channel) && !(info.type & likely_multi_channel))
-                    i = builder.multiplyInts(i, channels);
-                else if (!(type & likely_multi_channel) && (info.type & likely_multi_channel))
-                    i = builder.CreateExactUDiv(i, info.channels);
-
-                if ((type & likely_multi_column) && !(info.type & likely_multi_column))
-                    i = builder.multiplyInts(i, columns);
-                else if (!(type & likely_multi_column) && (info.type & likely_multi_column))
-                    i = builder.CreateExactUDiv(i, info.columns);
-
-                if ((type & likely_multi_row) && !(info.type & likely_multi_row))
-                    i = builder.multiplyInts(i, rows);
-                else if (!(type & likely_multi_row) && (info.type & likely_multi_row))
-                    i = builder.CreateExactUDiv(i, info.rows);
-
-                if ((type & likely_multi_frame) && !(info.type & likely_multi_frame))
-                    i = builder.multiplyInts(i, frames);
-                else if (!(type & likely_multi_frame) && (info.type & likely_multi_frame))
-                    i = builder.CreateExactUDiv(i, info.frames);
-            }
-
-            // Compute our own offset for axes that are specified
-            if ((sharedOffset < 1) && (type & likely_multi_frame)) {
+            Value *i = builder.zero();
+            if (type & likely_multi_frame) {
                 static const likely_const_ast defaultT = likely_atom("t", 1);
                 Value *const t = builder.cast(*UniqueExpression(get(builder, (len >= 5) ? ast->atoms[4] : defaultT)), likely_u64).value;
-                Value *const tStep = ((sharedAxes & likely_multi_channel)
-                                      && (sharedAxes & likely_multi_column)
-                                      && (sharedAxes & likely_multi_row)
-                                      && (sharedAxes & likely_multi_frame)) ? info.frameStep : frameStep;
-                i = builder.addInts(builder.multiplyInts(t, tStep), i);
+                i = builder.addInts(builder.multiplyInts(t, frameStep), i);
             }
-            if ((sharedOffset < 2) && (type & likely_multi_row)) {
+            if (type & likely_multi_row) {
                 static const likely_const_ast defaultY = likely_atom("y", 1);
                 Value *const y = builder.cast(*UniqueExpression(get(builder, (len >= 4) ? ast->atoms[3] : defaultY)), likely_u64).value;
-                Value *const yStep = ((sharedAxes & likely_multi_channel)
-                                      && (sharedAxes & likely_multi_column)
-                                      && (sharedAxes & likely_multi_row)) ? info.rowStep : rowStep;
-                i = builder.addInts(builder.multiplyInts(y, yStep), i);
+                i = builder.addInts(builder.multiplyInts(y, rowStep), i);
             }
-            if ((sharedOffset < 3) && (type & likely_multi_column)) {
+            if (type & likely_multi_column) {
                 static const likely_const_ast defaultX = likely_atom("x", 1);
                 Value *const x = builder.cast(*UniqueExpression(get(builder, (len >= 3) ? ast->atoms[2] : defaultX)), likely_u64).value;
-                Value *const xStep = ((sharedAxes & likely_multi_channel)
-                                      && (sharedAxes & likely_multi_column)) ? info.columnStep : channels;
-                i = builder.addInts(builder.multiplyInts(x, xStep), i);
+                i = builder.addInts(builder.multiplyInts(x, channels), i);
             }
-            if ((sharedOffset < 4) && (type & likely_multi_channel)) {
+            if (type & likely_multi_channel) {
                 static const likely_const_ast defaultC = likely_atom("c", 1);
                 Value *const c = builder.cast(*UniqueExpression(get(builder, (len >= 2) ? ast->atoms[1] : defaultC)), likely_u64).value;
                 i = builder.addInts(c, i);
             }
-
             return builder.CreateGEP(data, i);
         }
 

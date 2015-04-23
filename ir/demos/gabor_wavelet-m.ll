@@ -42,39 +42,39 @@ entry:
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
-  %y_offset = mul nuw nsw i64 %y, %dst_y_step
   %27 = trunc i64 %y to i32
   %28 = sub i32 %27, %8
   %29 = sitofp i32 %28 to float
   %30 = fmul float %29, %25
   %31 = fmul float %29, %24
+  %32 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
 x_body:                                           ; preds = %x_body, %y_body
   %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
-  %x_offset = add nuw nsw i64 %x, %y_offset
-  %32 = trunc i64 %x to i32
-  %33 = sub i32 %32, %6
-  %34 = sitofp i32 %33 to float
-  %35 = fmul float %24, %34
-  %36 = fadd float %30, %35
-  %37 = sub nsw i32 0, %33
-  %38 = sitofp i32 %37 to float
-  %39 = fmul float %25, %38
-  %40 = fadd float %31, %39
-  %41 = fdiv float %36, %10
-  %42 = fmul float %41, %41
-  %43 = fdiv float %40, %12
-  %44 = fmul float %43, %43
-  %45 = fadd float %42, %44
-  %46 = fmul float %45, -5.000000e-01
-  %47 = tail call float @llvm.exp.f32(float %46)
-  %48 = fmul float %36, %26
-  %49 = fadd float %18, %48
-  %50 = tail call float @llvm.cos.f32(float %49)
-  %51 = fmul float %47, %50
-  %52 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %x_offset
-  store float %51, float* %52, align 4, !llvm.mem.parallel_loop_access !1
+  %33 = trunc i64 %x to i32
+  %34 = sub i32 %33, %6
+  %35 = sitofp i32 %34 to float
+  %36 = fmul float %24, %35
+  %37 = fadd float %30, %36
+  %38 = sub nsw i32 0, %34
+  %39 = sitofp i32 %38 to float
+  %40 = fmul float %25, %39
+  %41 = fadd float %31, %40
+  %42 = fdiv float %37, %10
+  %43 = fmul float %42, %42
+  %44 = fdiv float %41, %12
+  %45 = fmul float %44, %44
+  %46 = fadd float %43, %45
+  %47 = fmul float %46, -5.000000e-01
+  %48 = tail call float @llvm.exp.f32(float %47)
+  %49 = fmul float %37, %26
+  %50 = fadd float %18, %49
+  %51 = tail call float @llvm.cos.f32(float %50)
+  %52 = fmul float %48, %51
+  %53 = add nuw nsw i64 %x, %32
+  %54 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %53
+  store float %52, float* %54, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
