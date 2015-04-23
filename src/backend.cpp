@@ -2588,7 +2588,6 @@ class kernelExpression : public LikelyOperator
     {
         likely_type type;
         MDNode *node = NULL;
-        Value *c = NULL, *x = NULL, *y = NULL, *t = NULL;
         Value *channels = NULL, *columns = NULL, *rows = NULL, *frames = NULL;
         Value *columnStep = NULL, *rowStep = NULL, *frameStep = NULL;
         Value *cOffset = NULL, *xOffset = NULL, *yOffset = NULL, *tOffset = NULL;
@@ -2972,15 +2971,15 @@ class kernelExpression : public LikelyOperator
 
         KernelInfo info;
         info.node = NULL;
-        info.c = (kernelType & likely_multi_channel) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_w, Type::getInt32Ty(kernelBuilder.getContext())), "c") : builder.one(likely_u32).value;
-        info.x = (kernelType & likely_multi_column ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_x, Type::getInt32Ty(kernelBuilder.getContext())), "x") : builder.one(likely_u32).value;
-        info.y = (kernelType & likely_multi_row    ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_y, Type::getInt32Ty(kernelBuilder.getContext())), "y") : builder.one(likely_u32).value;
-        info.t = (kernelType & likely_multi_frame  ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_z, Type::getInt32Ty(kernelBuilder.getContext())), "t") : builder.one(likely_u32).value;
+        Value *const c = (kernelType & likely_multi_channel) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_w, Type::getInt32Ty(kernelBuilder.getContext())), "c") : builder.one(likely_u32).value;
+        Value *const x = (kernelType & likely_multi_column ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_x, Type::getInt32Ty(kernelBuilder.getContext())), "x") : builder.one(likely_u32).value;
+        Value *const y = (kernelType & likely_multi_row    ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_y, Type::getInt32Ty(kernelBuilder.getContext())), "y") : builder.one(likely_u32).value;
+        Value *const t = (kernelType & likely_multi_frame  ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_z, Type::getInt32Ty(kernelBuilder.getContext())), "t") : builder.one(likely_u32).value;
 
-        define(kernelBuilder.env, "c", new likely_expression(LikelyValue(info.c, likely_u32)));
-        define(kernelBuilder.env, "x", new likely_expression(LikelyValue(info.x, likely_u32)));
-        define(kernelBuilder.env, "y", new likely_expression(LikelyValue(info.y, likely_u32)));
-        define(kernelBuilder.env, "t", new likely_expression(LikelyValue(info.t, likely_u32)));
+        define(kernelBuilder.env, "c", new likely_expression(LikelyValue(c, likely_u32)));
+        define(kernelBuilder.env, "x", new likely_expression(LikelyValue(x, likely_u32)));
+        define(kernelBuilder.env, "y", new likely_expression(LikelyValue(y, likely_u32)));
+        define(kernelBuilder.env, "t", new likely_expression(LikelyValue(t, likely_u32)));
 
         vector<KernelArgument*> kernelArguments;
         Function::arg_iterator it = kernel->arg_begin();
@@ -3049,11 +3048,9 @@ class kernelExpression : public LikelyOperator
                                               , stop
                                               , argsStart ? manualFrameStep : kernelArguments[0]->frameStep
                                               , NULL);
-            info.t = axis->value;
             define(builder.env, "t", axis);
         } else {
             info.frames = builder.one();
-            info.t = builder.zero();
             define(builder.env, "t", new likely_expression(builder.zero()));
         }
         info.tOffset = axis ? axis->offset : builder.zero().value;
@@ -3064,11 +3061,9 @@ class kernelExpression : public LikelyOperator
                                               , info.rows
                                               , argsStart ? manualRowStep : kernelArguments[0]->rowStep
                                               , axis);
-            info.y = axis->value;
             define(builder.env, "y", axis);
         } else {
             info.rows = builder.one();
-            info.y = builder.zero();
             define(builder.env, "y", new likely_expression(builder.zero()));
         }
         info.yOffset = axis ? axis->offset : builder.zero().value;
@@ -3079,11 +3074,9 @@ class kernelExpression : public LikelyOperator
                                               , info.columns
                                               , argsStart ? manualChannels : kernelArguments[0]->channels
                                               , axis);
-            info.x = axis->value;
             define(builder.env, "x", axis);
         } else {
             info.columns = builder.one();
-            info.x = builder.zero();
             define(builder.env, "x", new likely_expression(builder.zero()));
         }
         info.xOffset = axis ? axis->offset : builder.zero().value;
@@ -3094,11 +3087,9 @@ class kernelExpression : public LikelyOperator
                                               , info.channels
                                               , builder.one()
                                               , axis);
-            info.c = axis->value;
             define(builder.env, "c", axis);
         } else {
             info.channels = builder.one();
-            info.c = builder.zero();
             define(builder.env, "c", new likely_expression(builder.zero()));
         }
         info.cOffset = axis ? axis->offset : builder.zero().value;
