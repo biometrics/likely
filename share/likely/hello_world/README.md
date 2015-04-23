@@ -141,7 +141,7 @@ $ likely hello-world.lisp hello-world.bc
 ```
 
 We've just compiled our Likely source code into platform-independent LLVM bitcode.
-We can load this bitcode at runtime using **[share/likely/hello_world/hello_world_static.c](share/likely/hello_world/hello_world_static.c)** and it will be JIT compiled for the host CPU.
+We can load this bitcode at runtime using **[share/likely/hello_world/hello_world_precompiled.c](share/likely/hello_world/hello_world_precompiled.c)** and it will be JIT compiled for the host CPU.
 Let's run it:
 
 ```
