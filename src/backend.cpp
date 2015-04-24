@@ -842,52 +842,28 @@ struct Builder : public IRBuilder<>
     {
         if (!(m & likely_multi_channel))
             return one(likely_u32);
-
-        if (CallInst *const newCall = traceback(m))
-            return LikelyValue(newCall->getOperand(1), likely_u32);
-
-        LoadInst *const load = CreateLoad(CreateStructGEP(m, 2), "channels");
-        load->setMetadata(LLVMContext::MD_range, axisRange());
-        return LikelyValue(load, likely_u32);
+        return axis(m, 0, "channels");
     }
 
     LikelyValue columns(const LikelyValue &m)
     {
         if (!(m & likely_multi_column))
             return one(likely_u32);
-
-        if (CallInst *const newCall = traceback(m))
-            return LikelyValue(newCall->getOperand(2), likely_u32);
-
-        LoadInst *const load = CreateLoad(CreateStructGEP(m, 3), "columns");
-        load->setMetadata(LLVMContext::MD_range, axisRange());
-        return LikelyValue(load, likely_u32);
+        return axis(m, 1, "columns");
     }
 
     LikelyValue rows(const LikelyValue &m)
     {
         if (!(m & likely_multi_row))
             return one(likely_u32);
-
-        if (CallInst *const newCall = traceback(m))
-            return LikelyValue(newCall->getOperand(3), likely_u32);
-
-        LoadInst *const load = CreateLoad(CreateStructGEP(m, 4), "rows");
-        load->setMetadata(LLVMContext::MD_range, axisRange());
-        return LikelyValue(load, likely_u32);
+        return axis(m, 2, "rows");
     }
 
     LikelyValue frames(const LikelyValue &m)
     {
         if (!(m & likely_multi_frame))
             return one(likely_u32);
-
-        if (CallInst *const newCall = traceback(m))
-            return LikelyValue(newCall->getOperand(4), likely_u32);
-
-        LoadInst *const load = CreateLoad(CreateStructGEP(m, 5), "frames");
-        load->setMetadata(LLVMContext::MD_range, axisRange());
-        return LikelyValue(load, likely_u32);
+        return axis(m, 3, "frames");
     }
 
     LikelyValue data(const LikelyValue &m)
@@ -1099,14 +1075,21 @@ struct Builder : public IRBuilder<>
     }
 
 private:
-    static CallInst *traceback(Value *m)
+    LikelyValue axis(Value *m, const unsigned idx, const char *const name)
     {
-        if (CastInst *const cast = dyn_cast<CastInst>(m))
+        // Trace back through casts
+        while (CastInst *const cast = dyn_cast<CastInst>(m))
             m = cast->getOperand(0);
+
+        // If the origin is a call to "likely_new" then we can determine the
+        // axis value from the corresponding function call argument.
         if (CallInst *const call = dyn_cast<CallInst>(m))
             if (call->getCalledFunction()->getName() == "likely_new")
-                return call;
-        return NULL;
+                return LikelyValue(call->getOperand(idx+1), likely_u32);
+
+        LoadInst *const load = CreateLoad(CreateStructGEP(m, idx+2), name);
+        load->setMetadata(LLVMContext::MD_range, axisRange());
+        return LikelyValue(load, likely_u32);
     }
 
     MDNode *axisRange()
