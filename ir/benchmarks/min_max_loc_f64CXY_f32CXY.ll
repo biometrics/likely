@@ -41,19 +41,19 @@ c_body:                                           ; preds = %end, %entry
   %c = phi i64 [ 0, %entry ], [ %c_increment, %end ]
   br label %then
 
-then:                                             ; preds = %c_body, %end6
-  %storemerge26 = phi i32 [ 0, %c_body ], [ %61, %end6 ]
-  %16 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %54, %end6 ]
-  %17 = phi double [ 0xFFEFFFFFFFFFFFFF, %c_body ], [ %58, %end6 ]
-  %18 = phi i32 [ 0, %c_body ], [ %53, %end6 ]
-  %19 = phi i32 [ 0, %c_body ], [ %52, %end6 ]
-  %20 = phi i32 [ 0, %c_body ], [ %57, %end6 ]
-  %21 = phi i32 [ 0, %c_body ], [ %56, %end6 ]
+then:                                             ; preds = %c_body, %end3
+  %storemerge26 = phi i32 [ 0, %c_body ], [ %61, %end3 ]
+  %16 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %54, %end3 ]
+  %17 = phi double [ 0xFFEFFFFFFFFFFFFF, %c_body ], [ %58, %end3 ]
+  %18 = phi i32 [ 0, %c_body ], [ %53, %end3 ]
+  %19 = phi i32 [ 0, %c_body ], [ %52, %end3 ]
+  %20 = phi i32 [ 0, %c_body ], [ %57, %end3 ]
+  %21 = phi i32 [ 0, %c_body ], [ %56, %end3 ]
   %22 = sext i32 %storemerge26 to i64
   %23 = mul nsw i64 %22, %src_x
-  br label %then5
+  br label %then2
 
-end:                                              ; preds = %end6
+end:                                              ; preds = %end3
   %24 = getelementptr double, double* %7, i64 %c
   store double %54, double* %24, align 8, !llvm.mem.parallel_loop_access !1
   %25 = sitofp i32 %53 to double
@@ -83,14 +83,14 @@ c_exit:                                           ; preds = %end
   %39 = bitcast %u0CXYT* %2 to %f64CXY*
   ret %f64CXY* %39
 
-then5:                                            ; preds = %then, %then5
-  %storemerge125 = phi i32 [ 0, %then ], [ %59, %then5 ]
-  %40 = phi double [ %16, %then ], [ %54, %then5 ]
-  %41 = phi double [ %17, %then ], [ %58, %then5 ]
-  %42 = phi i32 [ %18, %then ], [ %53, %then5 ]
-  %43 = phi i32 [ %19, %then ], [ %52, %then5 ]
-  %44 = phi i32 [ %20, %then ], [ %57, %then5 ]
-  %45 = phi i32 [ %21, %then ], [ %56, %then5 ]
+then2:                                            ; preds = %then, %then2
+  %storemerge125 = phi i32 [ 0, %then ], [ %59, %then2 ]
+  %40 = phi double [ %16, %then ], [ %54, %then2 ]
+  %41 = phi double [ %17, %then ], [ %58, %then2 ]
+  %42 = phi i32 [ %18, %then ], [ %53, %then2 ]
+  %43 = phi i32 [ %19, %then ], [ %52, %then2 ]
+  %44 = phi i32 [ %20, %then ], [ %57, %then2 ]
+  %45 = phi i32 [ %21, %then ], [ %56, %then2 ]
   %46 = sext i32 %storemerge125 to i64
   %tmp = add i64 %46, %23
   %tmp2 = mul i64 %tmp, %5
@@ -108,9 +108,9 @@ then5:                                            ; preds = %then, %then5
   %58 = select i1 %55, double %50, double %41
   %59 = add nuw nsw i32 %storemerge125, 1
   %60 = icmp eq i32 %59, %columns
-  br i1 %60, label %end6, label %then5
+  br i1 %60, label %end3, label %then2
 
-end6:                                             ; preds = %then5
+end3:                                             ; preds = %then2
   %61 = add nuw nsw i32 %storemerge26, 1
   %62 = icmp eq i32 %61, %rows
   br i1 %62, label %end, label %then

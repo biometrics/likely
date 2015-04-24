@@ -1087,7 +1087,28 @@ private:
             if (call->getCalledFunction()->getName() == "likely_new")
                 return LikelyValue(call->getOperand(idx+1), likely_u32);
 
-        LoadInst *const load = CreateLoad(CreateStructGEP(m, idx+2), name);
+        // See if we have already indexed it
+        Value *priorGEP = NULL;
+        for (BasicBlock &BB : *GetInsertBlock()->getParent())
+            for (Instruction &I : BB)
+                if (GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(&I))
+                    if (GEP->getOperand(0) == m)
+                        if (ConstantInt *const idx1 = dyn_cast<ConstantInt>(GEP->getOperand(1)))
+                            if (idx1->isZero())
+                                if (ConstantInt *const idx2 = dyn_cast<ConstantInt>(GEP->getOperand(2)))
+                                    if (idx2->equalsInt(idx+2))
+                                        priorGEP = GEP;
+
+        // See if we have already loaded it
+        if (priorGEP)
+            for (User *const user : priorGEP->users())
+                if (LoadInst *const load = dyn_cast<LoadInst>(user))
+                    return LikelyValue(load, likely_u32);
+
+        if (!priorGEP)
+            priorGEP = CreateStructGEP(m, idx+2);
+
+        LoadInst *const load = CreateLoad(priorGEP, name);
         load->setMetadata(LLVMContext::MD_range, axisRange());
         return LikelyValue(load, likely_u32);
     }
