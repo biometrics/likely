@@ -21,6 +21,7 @@
 #include <llvm/ADT/Hashing.h>
 #include <llvm/ADT/Triple.h>
 #include <llvm/Analysis/AssumptionCache.h>
+#include <llvm/Analysis/CodeMetrics.h>
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
@@ -95,11 +96,46 @@ likely_settings likely_default_settings(likely_file_type file_type, bool verbose
 
 namespace {
 
-class LikelyContext : public likely_settings
+struct AssumptionSubstitution : public FunctionPass
 {
-    map<likely_type, Type*> typeLUT;
+    static char ID;
+    AssumptionSubstitution() : FunctionPass(ID) {}
 
-public:
+    void getAnalysisUsage(AnalysisUsage &analysisUsage) const override
+    {
+        analysisUsage.setPreservesCFG();
+        analysisUsage.addPreserved<AssumptionCacheTracker>();
+        analysisUsage.addRequired<AssumptionCacheTracker>();
+    }
+
+    bool runOnFunction(Function &F) override
+    {
+        AssumptionCache &AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
+
+        SmallPtrSet<const Value*, 1> EphValues;
+        CodeMetrics::collectEphemeralValues(&F, &AC, EphValues);
+
+        bool modified = false;
+        for (const auto &assumption : AC.assumptions())
+            if (CallInst *const callInst = dyn_cast_or_null<CallInst>((Value*)assumption))
+                if (CmpInst *const cmpInst = dyn_cast<CmpInst>(callInst->getOperand(0)))
+                    if (cmpInst->getPredicate() == CmpInst::ICMP_EQ) {
+                        Value *const find    = cmpInst->getOperand(0);
+                        Value *const replace = cmpInst->getOperand(1);
+                        for (User *const user : find->users())
+                            if (!EphValues.count(user)) {
+                                user->replaceUsesOfWith(find, replace);
+                                modified = true;
+                            }
+                    }
+
+        return modified;
+    }
+};
+char AssumptionSubstitution::ID = 0;
+
+struct LikelyContext : public likely_settings
+{
     legacy::PassManager *PM;
     AssumptionCacheTracker *ACT;
     LLVMContext context;
@@ -137,6 +173,7 @@ public:
         builder.DisableUnrollLoops = !unroll_loops;
         builder.LoopVectorize = vectorize_loops;
         builder.Inliner = createAlwaysInlinerPass();
+        builder.addExtension(PassManagerBuilder::EP_Peephole, addPeephole);
         builder.populateModulePassManager(*PM);
         PM->add(createVerifierPass());
     }
@@ -242,6 +279,14 @@ public:
                                                            CodeGenOpt::Aggressive);
         likely_ensure(TM != NULL, "failed to create target machine");
         return TM;
+    }
+
+private:
+    map<likely_type, Type*> typeLUT;
+
+    static void addPeephole(const PassManagerBuilder &, legacy::PassManagerBase &PM)
+    {
+        PM.add(new AssumptionSubstitution());
     }
 };
 
@@ -1102,18 +1147,8 @@ private:
         // See if we have already loaded it
         if (priorGEP)
             for (User *const user : priorGEP->users())
-                if (LoadInst *const load = dyn_cast<LoadInst>(user)) {
-                    // See if there is an assumption of the form (== load x), in which case we will return x.
-                    AssumptionCache &assumptionCache = module->context->ACT->getAssumptionCache(*load->getParent()->getParent());
-                    for (const auto &assumption : assumptionCache.assumptions())
-                        if (CallInst *const callInst = dyn_cast_or_null<CallInst>((Value*)assumption))
-                            if (CmpInst *const cmpInst = dyn_cast<CmpInst>(callInst->getOperand(0)))
-                                if ((cmpInst->getPredicate() == CmpInst::ICMP_EQ) && (cmpInst->getOperand(0) == load))
-                                    return LikelyValue(cmpInst->getOperand(1), likely_u32);
-
-                    // Use the existing load
+                if (LoadInst *const load = dyn_cast<LoadInst>(user))
                     return LikelyValue(load, likely_u32);
-                }
 
         if (!priorGEP)
             priorGEP = CreateStructGEP(m, idx+2);
