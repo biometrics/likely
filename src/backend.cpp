@@ -1102,8 +1102,18 @@ private:
         // See if we have already loaded it
         if (priorGEP)
             for (User *const user : priorGEP->users())
-                if (LoadInst *const load = dyn_cast<LoadInst>(user))
+                if (LoadInst *const load = dyn_cast<LoadInst>(user)) {
+                    // See if there is an assumption of the form (== load x), in which case we will return x.
+                    AssumptionCache &assumptionCache = module->context->ACT->getAssumptionCache(*load->getParent()->getParent());
+                    for (const auto &assumption : assumptionCache.assumptions())
+                        if (CallInst *const callInst = dyn_cast_or_null<CallInst>((Value*)assumption))
+                            if (CmpInst *const cmpInst = dyn_cast<CmpInst>(callInst->getOperand(0)))
+                                if ((cmpInst->getPredicate() == CmpInst::ICMP_EQ) && (cmpInst->getOperand(0) == load))
+                                    return LikelyValue(cmpInst->getOperand(1), likely_u32);
+
+                    // Use the existing load
                     return LikelyValue(load, likely_u32);
+                }
 
         if (!priorGEP)
             priorGEP = CreateStructGEP(m, idx+2);

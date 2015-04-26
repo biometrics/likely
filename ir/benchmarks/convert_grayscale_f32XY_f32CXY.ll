@@ -30,8 +30,7 @@ entry:
   %10 = and i64 %9, 31
   %11 = icmp eq i64 %10, 0
   tail call void @llvm.assume(i1 %11)
-  %src_c = zext i32 %channels to i64
-  %src_y_step = mul nuw nsw i64 %dst_y_step, %src_c
+  %src_y_step = mul nuw nsw i64 %dst_y_step, 3
   %12 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 0
   %13 = ptrtoint float* %12 to i64
   %14 = and i64 %13, 31
@@ -49,7 +48,7 @@ y_body:                                           ; preds = %x_exit, %entry
 
 x_body:                                           ; preds = %x_body, %y_body
   %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
-  %20 = mul nuw nsw i64 %x, %src_c
+  %20 = mul nuw nsw i64 %x, 3
   %21 = add nuw nsw i64 %20, %16
   %22 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %21
   %23 = load float, float* %22, align 4, !llvm.mem.parallel_loop_access !1
