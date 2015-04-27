@@ -33,40 +33,40 @@ entry:
   %15 = icmp eq i64 %14, 0
   tail call void @llvm.assume(i1 %15)
   %16 = mul nuw i64 %dst_x, %dst_c
-  br label %x_body
+  br label %y_body
 
-x_body:                                           ; preds = %entry, %x_exit
+y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit ]
   %17 = mul i64 %y, %dst_x
-  %tmp1 = mul i64 %17, %dst_c
-  br label %c_body
+  %18 = mul i64 %17, %dst_c
+  br label %x_body
 
-c_body:                                           ; preds = %c_body, %x_body
-  %c = phi i64 [ 0, %x_body ], [ %c_increment, %c_body ]
-  %18 = add i64 %tmp1, %c
-  %19 = getelementptr %i32CXY, %i32CXY* %0, i64 0, i32 6, i64 %18
-  %20 = load i32, i32* %19, align 4, !llvm.mem.parallel_loop_access !1
-  %21 = sitofp i32 %20 to float
-  %22 = fmul float %21, %1
-  %23 = fadd float %22, %2
-  %24 = fcmp olt float %23, 0.000000e+00
-  %25 = select i1 %24, float -5.000000e-01, float 5.000000e-01
-  %26 = fadd float %23, %25
-  %27 = fptosi float %26 to i32
-  %28 = getelementptr i32, i32* %8, i64 %18
-  store i32 %27, i32* %28, align 4, !llvm.mem.parallel_loop_access !1
-  %c_increment = add nuw nsw i64 %c, 1
-  %c_postcondition = icmp eq i64 %c_increment, %16
-  br i1 %c_postcondition, label %x_exit, label %c_body, !llvm.loop !1
+x_body:                                           ; preds = %x_body, %y_body
+  %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
+  %19 = add i64 %18, %x
+  %20 = getelementptr %i32CXY, %i32CXY* %0, i64 0, i32 6, i64 %19
+  %21 = load i32, i32* %20, align 4, !llvm.mem.parallel_loop_access !1
+  %22 = sitofp i32 %21 to float
+  %23 = fmul float %22, %1
+  %24 = fadd float %23, %2
+  %25 = fcmp olt float %24, 0.000000e+00
+  %26 = select i1 %25, float -5.000000e-01, float 5.000000e-01
+  %27 = fadd float %24, %26
+  %28 = fptosi float %27 to i32
+  %29 = getelementptr i32, i32* %8, i64 %19
+  store i32 %28, i32* %29, align 4, !llvm.mem.parallel_loop_access !1
+  %x_increment = add nuw nsw i64 %x, 1
+  %x_postcondition = icmp eq i64 %x_increment, %16
+  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
 
-x_exit:                                           ; preds = %c_body
+x_exit:                                           ; preds = %x_body
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %7
-  br i1 %y_postcondition, label %y_exit, label %x_body
+  br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %29 = bitcast %u0CXYT* %6 to %i32CXY*
-  ret %i32CXY* %29
+  %30 = bitcast %u0CXYT* %6 to %i32CXY*
+  ret %i32CXY* %30
 }
 
 attributes #0 = { nounwind readonly }

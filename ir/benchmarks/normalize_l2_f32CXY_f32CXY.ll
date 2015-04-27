@@ -58,34 +58,34 @@ end:                                              ; preds = %then
   %28 = icmp eq i64 %27, 0
   tail call void @llvm.assume(i1 %28)
   %29 = mul nuw i64 %dst_x, %dst_c
-  br label %x_body
+  br label %y_body
 
-x_body:                                           ; preds = %end, %x_exit
+y_body:                                           ; preds = %x_exit, %end
   %y = phi i64 [ 0, %end ], [ %y_increment, %x_exit ]
   %30 = mul i64 %y, %dst_x
-  %tmp3 = mul i64 %30, %dst_c
-  br label %c_body
+  %31 = mul i64 %30, %dst_c
+  br label %x_body
 
-c_body:                                           ; preds = %c_body, %x_body
-  %c = phi i64 [ 0, %x_body ], [ %c_increment, %c_body ]
-  %31 = add i64 %tmp3, %c
-  %32 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %31
-  %33 = load float, float* %32, align 4, !llvm.mem.parallel_loop_access !1
-  %34 = fmul float %17, %33
-  %35 = getelementptr float, float* %21, i64 %31
-  store float %34, float* %35, align 4, !llvm.mem.parallel_loop_access !1
-  %c_increment = add nuw nsw i64 %c, 1
-  %c_postcondition = icmp eq i64 %c_increment, %29
-  br i1 %c_postcondition, label %x_exit, label %c_body, !llvm.loop !1
+x_body:                                           ; preds = %x_body, %y_body
+  %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
+  %32 = add i64 %31, %x
+  %33 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %32
+  %34 = load float, float* %33, align 4, !llvm.mem.parallel_loop_access !1
+  %35 = fmul float %17, %34
+  %36 = getelementptr float, float* %21, i64 %32
+  store float %35, float* %36, align 4, !llvm.mem.parallel_loop_access !1
+  %x_increment = add nuw nsw i64 %x, 1
+  %x_postcondition = icmp eq i64 %x_increment, %29
+  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
 
-x_exit:                                           ; preds = %c_body
+x_exit:                                           ; preds = %x_body
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %19
-  br i1 %y_postcondition, label %y_exit, label %x_body
+  br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %36 = bitcast %u0CXYT* %18 to %f32CXY*
-  ret %f32CXY* %36
+  %37 = bitcast %u0CXYT* %18 to %f32CXY*
+  ret %f32CXY* %37
 }
 
 attributes #0 = { nounwind readnone }

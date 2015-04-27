@@ -34,35 +34,35 @@ entry:
   %16 = icmp eq i64 %15, 0
   tail call void @llvm.assume(i1 %16)
   %17 = mul nuw i64 %dst_x, %dst_c
-  br label %x_body
+  br label %y_body
 
-x_body:                                           ; preds = %entry, %x_exit
+y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit ]
   %18 = mul i64 %y, %dst_x
-  %tmp1 = mul i64 %18, %dst_c
-  br label %c_body
+  %19 = mul i64 %18, %dst_c
+  br label %x_body
 
-c_body:                                           ; preds = %c_body, %x_body
-  %c = phi i64 [ 0, %x_body ], [ %c_increment, %c_body ]
-  %19 = add i64 %tmp1, %c
-  %20 = getelementptr %i16SCXY, %i16SCXY* %0, i64 0, i32 6, i64 %19
-  %21 = load i16, i16* %20, align 2, !llvm.mem.parallel_loop_access !1
-  %22 = icmp sgt i16 %21, %1
-  %. = select i1 %22, i16 %2, i16 0
-  %23 = getelementptr i16, i16* %9, i64 %19
-  store i16 %., i16* %23, align 2, !llvm.mem.parallel_loop_access !1
-  %c_increment = add nuw nsw i64 %c, 1
-  %c_postcondition = icmp eq i64 %c_increment, %17
-  br i1 %c_postcondition, label %x_exit, label %c_body, !llvm.loop !1
+x_body:                                           ; preds = %x_body, %y_body
+  %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
+  %20 = add i64 %19, %x
+  %21 = getelementptr %i16SCXY, %i16SCXY* %0, i64 0, i32 6, i64 %20
+  %22 = load i16, i16* %21, align 2, !llvm.mem.parallel_loop_access !1
+  %23 = icmp sgt i16 %22, %1
+  %. = select i1 %23, i16 %2, i16 0
+  %24 = getelementptr i16, i16* %9, i64 %20
+  store i16 %., i16* %24, align 2, !llvm.mem.parallel_loop_access !1
+  %x_increment = add nuw nsw i64 %x, 1
+  %x_postcondition = icmp eq i64 %x_increment, %17
+  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
 
-x_exit:                                           ; preds = %c_body
+x_exit:                                           ; preds = %x_body
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %7
-  br i1 %y_postcondition, label %y_exit, label %x_body
+  br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %24 = bitcast %u0CXYT* %6 to %i16SCXY*
-  ret %i16SCXY* %24
+  %25 = bitcast %u0CXYT* %6 to %i16SCXY*
+  ret %i16SCXY* %25
 }
 
 attributes #0 = { nounwind readonly }

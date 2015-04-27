@@ -180,7 +180,7 @@ struct LoopCollapse : public LoopPass
         }
     }
 
-    bool runOnLoop(Loop *loop, LPPassManager &) override
+    bool runOnLoop(Loop *loop, LPPassManager &LPM) override
     {
         PHINode *const CIV = loop->getCanonicalInductionVariable();
         if (!CIV)
@@ -258,30 +258,34 @@ struct LoopCollapse : public LoopPass
             return false;
         }
 
-        // Scale our exitCriteria by parentExitCriteria
-        IRBuilder<> builder(loop->getLoopPreheader()->getTerminator());
+        // Promote the metadata
+        parent->setLoopID(loop->getLoopID());
+
+        // Scale parentExitCriteria by exitCriteria
+        IRBuilder<> builder(parent->getLoopPreheader()->getTerminator());
         Value *const scaledExitCriteria = builder.CreateMul(parentExitCriteria, exitCriteria);
-        postcondition->replaceUsesOfWith(exitCriteria, scaledExitCriteria);
+        parentPostcondition->replaceUsesOfWith(parentExitCriteria, scaledExitCriteria);
 
         // Update the outer additions
         for (const pair<AddOperator*, Value*> &outerAdd : outerAdds) {
             // Since we wish for our new induction variable to be:
-            // newCIV = parentCIV * exitCriteria + CIV
+            //   newCIV = parentCIV * exitCriteria + CIV
             //
             // It follows that we should re-write:
-            // (invariant + parentCIV) * exitCriteria + CIV
+            //   (invariant + parentCIV) * exitCriteria + CIV
             // as:
-            // invariant * exitCriteria + newCIV
+            //   invariant * exitCriteria + newCIV
             builder.SetInsertPoint(cast<Instruction>(outerAdd.first));
-            outerAdd.first->replaceAllUsesWith(builder.CreateAdd(builder.CreateMul(outerAdd.second, exitCriteria), CIV));
+            outerAdd.first->replaceAllUsesWith(builder.CreateAdd(builder.CreateMul(outerAdd.second, exitCriteria), parentCIV));
         }
 
-        // Update our parent's range
-        BranchInst *const branchInst = cast<BranchInst>(parent->getLoopLatch()->getTerminator());
-        Value *const newCondition = (branchInst->getOperand(2) == parent->getUniqueExitBlock()) ? ConstantInt::getTrue(branchInst->getCondition()->getType())
-                                                                                                : ConstantInt::getFalse(branchInst->getCondition()->getType());
-        branchInst->setCondition(newCondition);
+        // Fold the terminator
+        TerminatorInst *const terminatorInst = loop->getLoopLatch()->getTerminator();
+        builder.SetInsertPoint(terminatorInst);
+        builder.CreateBr(loop->getUniqueExitBlock());
+        terminatorInst->eraseFromParent();
 
+        LPM.deleteLoopFromQueue(loop);
         return true;
     }
 };
