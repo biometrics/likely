@@ -208,23 +208,26 @@ struct LoopCollapse : public LoopPass
             return false;
 
         // To be collapsible we must be able to pattern match all uses of parentCIV
-        set<AddOperator*> outerAdds;
+        map<AddOperator*, Value*> outerAdds; // A mapping of outerAdd -> invariant
         for (User *const user : parentCIV->users()) {
             if (user == parentIncrement)
                 continue;
 
-            // We can only replace uses of the form (+ (* (+ parentCIV invariant) exitCriteria) CIV)
-            // Check (+ parentCIV invariant)
+            // We can only replace uses of the form `(parentCIV + invariant) * exitCriteria + CIV`
+            // Check `parentCIV + invariant`
             AddOperator *const innerAdd = dyn_cast<AddOperator>(user);
             if (!innerAdd)
                 return false;
 
-            if (!(((innerAdd->getOperand(0) == parentCIV) && parent->isLoopInvariant(innerAdd->getOperand(1))) ||
-                  ((innerAdd->getOperand(1) == parentCIV) && parent->isLoopInvariant(innerAdd->getOperand(0)))))
+            Value *invariant = NULL;
+            if      (innerAdd->getOperand(0) == parentCIV) invariant = innerAdd->getOperand(1);
+            else if (innerAdd->getOperand(1) == parentCIV) invariant = innerAdd->getOperand(0);
+            else    return false;
+            if (!parent->isLoopInvariant(invariant))
                 return false;
 
             for (User *const user : innerAdd->users()) {
-                // Check (* innerAdd exitCriteria)
+                // Check `innerAdd * exitCriteria`
                 MulOperator *const mul = dyn_cast<MulOperator>(user);
                 if (!mul)
                     return false;
@@ -232,7 +235,7 @@ struct LoopCollapse : public LoopPass
                       ((mul->getOperand(1) == innerAdd) && (mul->getOperand(0) == exitCriteria))))
                     return false;
 
-                // Check (+ mul CIV)
+                // Check `mul + CIV`
                 for (User *const user : mul->users()) {
                     AddOperator *const outerAdd = dyn_cast<AddOperator>(user);
                     if (!outerAdd)
@@ -240,7 +243,7 @@ struct LoopCollapse : public LoopPass
                     if (!(((outerAdd->getOperand(0) == mul) && (outerAdd->getOperand(1) == CIV)) ||
                           ((outerAdd->getOperand(1) == mul) && (outerAdd->getOperand(0) == CIV))))
                         return false;
-                    outerAdds.insert(outerAdd);
+                    outerAdds.insert(pair<AddOperator*,Value*>(outerAdd, invariant));
                 }
             }
         }
@@ -256,24 +259,28 @@ struct LoopCollapse : public LoopPass
             return false;
         }
 
-        /*
-        // Update our range
-        IRBuilder<> builder(loopPreheader->getTerminator());
-        Value *const newExitCriteria = builder.CreateMul(parentExitCriteria, exitCriteria);
-        postcondition->replaceUsesOfWith(exitCriteria, newExitCriteria);
+        // Scale our exitCriteria by parentExitCriteria
+        IRBuilder<> builder(loop->getLoopPreheader()->getTerminator());
+        Value *const scaledExitCriteria = builder.CreateMul(parentExitCriteria, exitCriteria);
+        postcondition->replaceUsesOfWith(exitCriteria, scaledExitCriteria);
 
-        // Update our replaceables
-        for (User *const user : CIV->users()) {
-            if (user == increment)
-                continue;
-            cast<MulOperator>(cast<AddOperator>(user)->getOperand(0))->setOperand(1, ConstantInt::get(user->getType(), 0));
+        // Update the outer additions
+        for (const pair<AddOperator*, Value*> &outerAdd : outerAdds) {
+            // Since we wish for our new induction variable to be:
+            // newCIV = parentCIV * exitCriteria + CIV
+            //
+            // It follows that we should re-write:
+            // (invariant + parentCIV) * exitCriteria + CIV
+            // as:
+            // invariant * exitCriteria + newCIV
+            builder.SetInsertPoint(cast<Instruction>(outerAdd.first));
+            outerAdd.first->replaceAllUsesWith(builder.CreateAdd(builder.CreateMul(outerAdd.second, exitCriteria), CIV));
         }
 
         // Update our parent's range
         parentPostcondition->replaceUsesOfWith(parentExitCriteria, ConstantInt::get(parentExitCriteria->getType(), 1));
-        */
 
-        return false;
+        return true;
     }
 };
 char LoopCollapse::ID = 0;
