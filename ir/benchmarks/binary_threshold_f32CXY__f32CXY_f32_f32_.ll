@@ -33,24 +33,23 @@ entry:
   %15 = and i64 %14, 31
   %16 = icmp eq i64 %15, 0
   tail call void @llvm.assume(i1 %16)
-  %17 = mul nuw nsw i64 %dst_x, %dst_c
+  %17 = mul nuw i64 %dst_x, %dst_c
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit ]
-  %18 = mul i64 %y, %dst_x
-  %19 = mul nuw nsw i64 %18, %dst_c
+  %18 = mul i64 %y, %17
   br label %x_body
 
 x_body:                                           ; preds = %x_body, %y_body
   %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
-  %20 = add nuw nsw i64 %19, %x
-  %21 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %20
-  %22 = load float, float* %21, align 4, !llvm.mem.parallel_loop_access !1
-  %23 = fcmp ogt float %22, %1
-  %24 = select i1 %23, float %2, float 0.000000e+00
-  %25 = getelementptr float, float* %9, i64 %20
-  store float %24, float* %25, align 4, !llvm.mem.parallel_loop_access !1
+  %tmp = add i64 %x, %18
+  %19 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %tmp
+  %20 = load float, float* %19, align 4, !llvm.mem.parallel_loop_access !1
+  %21 = fcmp ogt float %20, %1
+  %22 = select i1 %21, float %2, float 0.000000e+00
+  %23 = getelementptr float, float* %9, i64 %tmp
+  store float %22, float* %23, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %17
   br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
@@ -61,8 +60,8 @@ x_exit:                                           ; preds = %x_body
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %26 = bitcast %u0CXYT* %6 to %f32CXY*
-  ret %f32CXY* %26
+  %24 = bitcast %u0CXYT* %6 to %f32CXY*
+  ret %f32CXY* %24
 }
 
 attributes #0 = { nounwind readonly }

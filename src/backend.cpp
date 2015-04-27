@@ -280,8 +280,28 @@ struct LoopCollapse : public LoopPass
             // as:
             //   [invariant * exitCriteria] + newCIV
             builder.SetInsertPoint(cast<Instruction>(outerAdd.first));
-            outerAdd.first->replaceAllUsesWith(outerAdd.second ? builder.CreateAdd(builder.CreateMul(outerAdd.second, exitCriteria, "", true, true), parentCIV, "", true, true)
-                                                               : parentCIV);
+            if (outerAdd.second) {
+                Value *newInvariant = NULL;
+
+                // If relevant, scale before the grandparentCIV to facilitate collapsing additional loops
+                if (MulOperator *const mul = dyn_cast<MulOperator>(outerAdd.second))
+                    if (mul->hasOneUse())
+                        if (Loop *const grandparent = parent->getParentLoop())
+                            if (PHINode *const grandparentCIV = grandparent->getCanonicalInductionVariable())
+                                if ((mul->getOperand(0) == grandparentCIV) || (mul->getOperand(1) == grandparentCIV)) {
+                                    builder.SetInsertPoint(cast<Instruction>(mul));
+                                    const unsigned nonCIVindex = mul->getOperand(0) != grandparentCIV ? 0 : 1;
+                                    mul->setOperand(nonCIVindex, builder.CreateMul(mul->getOperand(nonCIVindex), exitCriteria));
+                                    newInvariant = mul;
+                                }
+
+                builder.SetInsertPoint(cast<Instruction>(outerAdd.first));
+                if (!newInvariant)
+                    newInvariant = builder.CreateMul(outerAdd.second, exitCriteria, "", true, true);
+                outerAdd.first->replaceAllUsesWith(builder.CreateAdd(newInvariant, parentCIV, "", true, true));
+            } else {
+                outerAdd.first->replaceAllUsesWith(parentCIV);
+            }
         }
 
         // Fold the terminator
