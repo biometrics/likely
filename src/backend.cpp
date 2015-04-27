@@ -162,6 +162,7 @@ struct LoopCollapse : public LoopPass
         postcondition = NULL;
         increment = NULL;
         exitCriteria = NULL;
+
         Value *const CIV = loop->getCanonicalInductionVariable();
         BasicBlock *const loopLatch = loop->getLoopLatch();
         if (!CIV || !loopLatch)
@@ -200,10 +201,11 @@ struct LoopCollapse : public LoopPass
         ICmpInst *postcondition, *parentPostcondition;
         AddOperator *increment, *parentIncrement;
         Value *exitCriteria, *parentExitCriteria;
-        getIncrementAndExitCriteria(loop, postcondition, increment, exitCriteria);
+        getIncrementAndExitCriteria(loop ,        postcondition,       increment,       exitCriteria);
         getIncrementAndExitCriteria(parent, parentPostcondition, parentIncrement, parentExitCriteria);
-        (void) parentExitCriteria;
-        if (!increment || !exitCriteria || !parentIncrement)
+        if (!postcondition || !parentPostcondition ||
+            !increment     || !parentIncrement     ||
+            !exitCriteria  || !parentExitCriteria)
             return false;
 
         // To be collapsible we must be able to pattern match all uses of parentCIV
