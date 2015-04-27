@@ -181,16 +181,6 @@ struct LoopCollapse : public LoopPass
         }
     }
 
-    // Check (+ parentCIV invariant)
-    static AddOperator *getInnerAdd(Value *const value, Loop *parent, PHINode *const parentCIV)
-    {
-        if (AddOperator *const innerAdd = dyn_cast<AddOperator>(value))
-            if (((innerAdd->getOperand(0) == parentCIV) && parent->isLoopInvariant(innerAdd->getOperand(1))) ||
-                ((innerAdd->getOperand(1) == parentCIV) && parent->isLoopInvariant(innerAdd->getOperand(0))))
-                return innerAdd;
-        return NULL;
-    }
-
     bool runOnLoop(Loop *loop, LPPassManager &) override
     {
         PHINode *const CIV = loop->getCanonicalInductionVariable();
@@ -217,15 +207,20 @@ struct LoopCollapse : public LoopPass
         if (!increment || !exitCriteria || !parentIncrement)
             return false;
 
-        // To be collapsible we must be able to replace all the uses of parentCIV
+        // To be collapsible we must be able to pattern match all uses of parentCIV
+        set<AddOperator*> outerAdds;
         for (User *const user : parentCIV->users()) {
             if (user == parentIncrement)
                 continue;
 
             // We can only replace uses of the form (+ (* (+ parentCIV invariant) exitCriteria) CIV)
             // Check (+ parentCIV invariant)
-            AddOperator *const innerAdd = getInnerAdd(user, parent, parentCIV);
+            AddOperator *const innerAdd = dyn_cast<AddOperator>(user);
             if (!innerAdd)
+                return false;
+
+            if (!(((innerAdd->getOperand(0) == parentCIV) && parent->isLoopInvariant(innerAdd->getOperand(1))) ||
+                  ((innerAdd->getOperand(1) == parentCIV) && parent->isLoopInvariant(innerAdd->getOperand(0)))))
                 return false;
 
             for (User *const user : innerAdd->users()) {
@@ -245,39 +240,20 @@ struct LoopCollapse : public LoopPass
                     if (!(((outerAdd->getOperand(0) == mul) && (outerAdd->getOperand(1) == CIV)) ||
                           ((outerAdd->getOperand(1) == mul) && (outerAdd->getOperand(0) == CIV))))
                         return false;
+                    outerAdds.insert(outerAdd);
                 }
             }
         }
 
-        // To be collapsible we must be able to replace all the uses of CIV
+        // To be collapsible we must have pattern matched all uses of CIV
         for (User *const user : CIV->users()) {
             if (user == increment)
                 continue;
 
-            // We can only replace uses of the form (+ (* (+ parentCIV invariant) exitCriteria) CIV)
-            // Check (+ _ CIV)
-            AddOperator *const outerAdd = dyn_cast<AddOperator>(user);
-            if (!outerAdd)
-                return false;
+            if (outerAdds.find(dyn_cast_or_null<AddOperator>(user)) != outerAdds.end())
+                continue;
 
-            Value *nonCIV = NULL;
-            if      (outerAdd->getOperand(0) == CIV) nonCIV = outerAdd->getOperand(1);
-            else if (outerAdd->getOperand(1) == CIV) nonCIV = outerAdd->getOperand(0);
-            else    return false;
-
-            // Check (+ _ exitCriteria)
-            MulOperator *const mul = dyn_cast<MulOperator>(nonCIV);
-            if (!mul)
-                return false;
-
-            Value *nonExitCriteria = NULL;
-            if      (mul->getOperand(0) == exitCriteria) nonExitCriteria = mul->getOperand(1);
-            else if (mul->getOperand(1) == exitCriteria) nonExitCriteria = mul->getOperand(0);
-            else    return false;
-
-            // Check (+ parentCIV invariant)
-            if (!getInnerAdd(nonExitCriteria, parent, parentCIV))
-                return false;
+            return false;
         }
 
         /*
