@@ -26,14 +26,14 @@ entry:
   br label %then
 
 then:                                             ; preds = %entry, %then
-  %storemerge3 = phi i32 [ 0, %entry ], [ %12, %then ]
+  %storemerge4 = phi i32 [ 0, %entry ], [ %12, %then ]
   %6 = phi double [ 0.000000e+00, %entry ], [ %11, %then ]
-  %7 = sext i32 %storemerge3 to i64
+  %7 = sext i32 %storemerge4 to i64
   %8 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 %7
   %9 = load double, double* %8, align 8
   %10 = fmul double %9, %9
   %11 = fadd double %6, %10
-  %12 = add nuw nsw i32 %storemerge3, 1
+  %12 = add nuw nsw i32 %storemerge4, 1
   %13 = icmp eq i32 %12, %5
   br i1 %13, label %end, label %then
 
@@ -55,24 +55,35 @@ end:                                              ; preds = %then
   %25 = and i64 %24, 31
   %26 = icmp eq i64 %25, 0
   tail call void @llvm.assume(i1 %26)
-  %27 = mul nuw nsw i64 %dst_x, %dst_c
-  %28 = mul nuw nsw i64 %27, %17
-  br label %y_body
+  %27 = mul nuw i64 %dst_x, %dst_c
+  br label %x_body
 
-y_body:                                           ; preds = %y_body, %end
-  %y = phi i64 [ 0, %end ], [ %y_increment, %y_body ]
-  %29 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 %y
-  %30 = load double, double* %29, align 8, !llvm.mem.parallel_loop_access !1
-  %31 = fmul double %15, %30
-  %32 = getelementptr double, double* %19, i64 %y
-  store double %31, double* %32, align 8, !llvm.mem.parallel_loop_access !1
+x_body:                                           ; preds = %end, %x_exit
+  %y = phi i64 [ 0, %end ], [ %y_increment, %x_exit ]
+  %28 = mul i64 %y, %dst_x
+  %tmp3 = mul i64 %28, %dst_c
+  br label %c_body
+
+c_body:                                           ; preds = %c_body, %x_body
+  %c = phi i64 [ 0, %x_body ], [ %c_increment, %c_body ]
+  %29 = add i64 %tmp3, %c
+  %30 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 %29
+  %31 = load double, double* %30, align 8, !llvm.mem.parallel_loop_access !1
+  %32 = fmul double %15, %31
+  %33 = getelementptr double, double* %19, i64 %29
+  store double %32, double* %33, align 8, !llvm.mem.parallel_loop_access !1
+  %c_increment = add nuw nsw i64 %c, 1
+  %c_postcondition = icmp eq i64 %c_increment, %27
+  br i1 %c_postcondition, label %x_exit, label %c_body, !llvm.loop !1
+
+x_exit:                                           ; preds = %c_body
   %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %28
-  br i1 %y_postcondition, label %y_exit, label %y_body, !llvm.loop !1
+  %y_postcondition = icmp eq i64 %y_increment, %17
+  br i1 %y_postcondition, label %y_exit, label %x_body
 
-y_exit:                                           ; preds = %y_body
-  %33 = bitcast %u0CXYT* %16 to %f64CXY*
-  ret %f64CXY* %33
+y_exit:                                           ; preds = %x_exit
+  %34 = bitcast %u0CXYT* %16 to %f64CXY*
+  ret %f64CXY* %34
 }
 
 attributes #0 = { nounwind readnone }

@@ -142,7 +142,6 @@ struct AssumptionSubstitution : public FunctionPass
 };
 char AssumptionSubstitution::ID = 0;
 
-static bool ExperimentalLoopCollapse = false;
 /*
  * Collapse nested loops of the form:
  * for (int i=0; i<x; i++)
@@ -278,7 +277,10 @@ struct LoopCollapse : public LoopPass
         }
 
         // Update our parent's range
-        parentPostcondition->replaceUsesOfWith(parentExitCriteria, ConstantInt::get(parentExitCriteria->getType(), 1));
+        BranchInst *const branchInst = cast<BranchInst>(parent->getLoopLatch()->getTerminator());
+        Value *const newCondition = (branchInst->getOperand(2) == parent->getUniqueExitBlock()) ? ConstantInt::getTrue(branchInst->getCondition()->getType())
+                                                                                                : ConstantInt::getFalse(branchInst->getCondition()->getType());
+        branchInst->setCondition(newCondition);
 
         return true;
     }
@@ -443,8 +445,7 @@ private:
 
     static void addLoopOptimizerEnd(const PassManagerBuilder &, legacy::PassManagerBase &PM)
     {
-        if (ExperimentalLoopCollapse)
-            PM.add(new LoopCollapse());
+        PM.add(new LoopCollapse());
     }
 };
 
@@ -803,13 +804,6 @@ protected:
         } else {
             undefine(env, args->atom);
         }
-    }
-
-    static void DCE(Function &function)
-    {
-        legacy::FunctionPassManager FPM(function.getParent());
-        FPM.add(createDeadInstEliminationPass());
-        while (FPM.run(function)) {}
     }
 
     void setData(const Variant &data) const
@@ -2906,99 +2900,6 @@ class kernelExpression : public LikelyOperator
             if (child) exit->moveAfter(child->exit);
             if (parent) parent->close(builder);
         }
-
-        void tryCollapse(Builder &builder, MDNode *node)
-        {
-            bool collapsible = !!child; // To be collapsible there must be a child loop to collapse
-
-            // To be collapsible we must be able to replace all the uses of our value
-            set<Value*> replaceables;
-            if (collapsible)
-                for (User *const user : value->users()) {
-                    if (user == increment)
-                        continue; // Trivially replaceable
-
-                    // We can only replace (+ (* value child->stop) child->value)
-                    if (MulOperator *const mulOperator = dyn_cast<MulOperator>(user))
-                        if (mulOperator->getOperand(0) == value) {
-                            Instruction *const a = dyn_cast<Instruction>(mulOperator->getOperand(1));
-                            Instruction *const b = dyn_cast<Instruction>(child->stop);
-                            if (a && b && a->isSameOperationAs(b)) { // Match (* value child->stop)
-                                for (const Use &use : mulOperator->uses()) {
-                                    if (AddOperator *const addOperator = dyn_cast<AddOperator>(use.getUser())) // Match (+ (* value child->stop) child->value)
-                                        if ((addOperator->getOperand(0) == mulOperator) && (addOperator->getOperand(1) == child->value)) {
-                                            replaceables.insert(addOperator);
-                                            continue;
-                                        }
-
-                                    collapsible = false;
-                                    break;
-                                }
-                                continue;
-                            }
-                        }
-
-                    collapsible = false;
-                    break;
-                }
-
-            // To be collapsible all of our childs uses must have been identified for replacement
-            if (collapsible)
-                for (User *const user : child->value->users()) {
-                    if (user == child->increment)
-                        continue; // Trivially replaceable
-
-                    if (replaceables.find(user) != replaceables.end())
-                        continue; // We know that it is replaceable
-
-                    collapsible = false;
-                    break;
-                }
-
-            if (collapsible) {
-                // Update our range
-                BasicBlock *const restore = builder.GetInsertBlock();
-                const KernelAxis *ancestor = this;
-                while (ancestor->parent)
-                    ancestor = ancestor->parent;
-                builder.SetInsertPoint(cast<Instruction>(ancestor->entry->getTerminator())); // At this point we know that all of the `start` and `stop` values have been created but not yet used
-                Value *const newStart = builder.multiplyInts(start, child->stop);
-                Value *const newStop = builder.multiplyInts(stop, child->stop);
-                cast<PHINode>(value)->setIncomingValue(0, newStart);
-                cast<ICmpInst>(postcondition)->setOperand(1, newStop);
-                start = newStart;
-                stop = newStop;
-
-                // Update our replaceables
-                for (Value *const replaceable : replaceables)
-                    replaceable->replaceAllUsesWith(value);
-
-                // Collapse the child loop
-                child->value->replaceAllUsesWith(builder.zero());
-                cast<Instruction>(child->value)->eraseFromParent();
-                builder.SetInsertPoint(child->latch->getParent());
-                BranchInst *const newChildLatch = builder.CreateBr(child->exit);
-                child->latch->eraseFromParent();
-                child->latch = newChildLatch;
-                MergeBlockIntoPredecessor(child->exit);
-                MergeBlockIntoPredecessor(child->body);
-                child->exit = NULL;
-                child->body = NULL;
-                builder.SetInsertPoint(restore);
-
-                // Remove dead instructions to facilitate collapsing additional loops
-                DCE(*restore->getParent());
-            } else if (child) {
-                // We couldn't collapse the child loop, mark it for vectorization
-                child->latch->setMetadata("llvm.loop", node);
-                node = NULL;
-            }
-
-            if (node) {
-                if (parent) parent->tryCollapse(builder, node);    // Continue collapsing loops
-                else        latch->setMetadata("llvm.loop", node); // There is no child loop to collapse, mark us for vectorization
-            }
-        }
     };
 
     const char *symbol() const { return "=>"; }
@@ -3263,13 +3164,9 @@ class kernelExpression : public LikelyOperator
         if (axis) {
             axis->exit->moveAfter(builder.GetInsertBlock());
             axis->close(builder);
+            axis->latch->setMetadata("llvm.loop", node);
         }
 
-        // Clean up any instructions we didn't end up using
-        DCE(*builder.GetInsertBlock()->getParent());
-
-        if (axis && !ExperimentalLoopCollapse)
-            axis->tryCollapse(builder, node);
         undefine(builder.env, "c");
         undefine(builder.env, "x");
         undefine(builder.env, "y");
