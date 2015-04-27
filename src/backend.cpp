@@ -214,26 +214,28 @@ struct LoopCollapse : public LoopPass
             if (user == parentIncrement)
                 continue;
 
-            // We can only replace uses of the form `(parentCIV + invariant) * exitCriteria + CIV`
-            // Check `parentCIV + invariant`
-            AddOperator *const innerAdd = dyn_cast<AddOperator>(user);
-            if (!innerAdd)
-                return false;
-
+            // We can only replace uses of the form `(parentCIV [+ invariant]) * exitCriteria + CIV`
+            // Check `parentCIV [+ invariant]`
+            vector<User*> potentialMuls;
             Value *invariant = NULL;
-            if      (innerAdd->getOperand(0) == parentCIV) invariant = innerAdd->getOperand(1);
-            else if (innerAdd->getOperand(1) == parentCIV) invariant = innerAdd->getOperand(0);
-            else    return false;
-            if (!parent->isLoopInvariant(invariant))
-                return false;
+            if (AddOperator *const innerAdd = dyn_cast<AddOperator>(user)) {
+                if      (innerAdd->getOperand(0) == parentCIV) invariant = innerAdd->getOperand(1);
+                else if (innerAdd->getOperand(1) == parentCIV) invariant = innerAdd->getOperand(0);
+                else    return false;
+                if (!parent->isLoopInvariant(invariant))
+                    return false;
+                for (User *const user : innerAdd->users())
+                    potentialMuls.push_back(user);
+            } else {
+                potentialMuls.push_back(user);
+            }
 
-            for (User *const user : innerAdd->users()) {
+            for (User *const potentialMul : potentialMuls) {
                 // Check `innerAdd * exitCriteria`
-                MulOperator *const mul = dyn_cast<MulOperator>(user);
+                MulOperator *const mul = dyn_cast<MulOperator>(potentialMul);
                 if (!mul)
                     return false;
-                if (!(((mul->getOperand(0) == innerAdd) && (mul->getOperand(1) == exitCriteria)) ||
-                      ((mul->getOperand(1) == innerAdd) && (mul->getOperand(0) == exitCriteria))))
+                if ((mul->getOperand(0) != exitCriteria) && (mul->getOperand(1) != exitCriteria))
                     return false;
 
                 // Check `mul + CIV`
@@ -265,7 +267,7 @@ struct LoopCollapse : public LoopPass
 
         // Scale parentExitCriteria by exitCriteria
         IRBuilder<> builder(parent->getLoopPreheader()->getTerminator());
-        Value *const scaledExitCriteria = builder.CreateMul(parentExitCriteria, exitCriteria);
+        Value *const scaledExitCriteria = builder.CreateMul(parentExitCriteria, exitCriteria, "", true, true);
         parentPostcondition->replaceUsesOfWith(parentExitCriteria, scaledExitCriteria);
 
         // Update the outer additions
@@ -274,11 +276,12 @@ struct LoopCollapse : public LoopPass
             //   newCIV = parentCIV * exitCriteria + CIV
             //
             // It follows that we should re-write:
-            //   (invariant + parentCIV) * exitCriteria + CIV
+            //   (parentCIV [+ invariant]) * exitCriteria + CIV
             // as:
-            //   invariant * exitCriteria + newCIV
+            //   [invariant * exitCriteria] + newCIV
             builder.SetInsertPoint(cast<Instruction>(outerAdd.first));
-            outerAdd.first->replaceAllUsesWith(builder.CreateAdd(builder.CreateMul(outerAdd.second, exitCriteria), parentCIV));
+            outerAdd.first->replaceAllUsesWith(outerAdd.second ? builder.CreateAdd(builder.CreateMul(outerAdd.second, exitCriteria, "", true, true), parentCIV, "", true, true)
+                                                               : parentCIV);
         }
 
         // Fold the terminator

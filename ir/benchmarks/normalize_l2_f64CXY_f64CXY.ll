@@ -55,18 +55,18 @@ end:                                              ; preds = %then
   %25 = and i64 %24, 31
   %26 = icmp eq i64 %25, 0
   tail call void @llvm.assume(i1 %26)
-  %27 = mul nuw i64 %dst_x, %dst_c
+  %27 = mul nuw nsw i64 %dst_x, %dst_c
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %end
   %y = phi i64 [ 0, %end ], [ %y_increment, %x_exit ]
   %28 = mul i64 %y, %dst_x
-  %29 = mul i64 %28, %dst_c
+  %29 = mul nuw nsw i64 %28, %dst_c
   br label %x_body
 
 x_body:                                           ; preds = %x_body, %y_body
   %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
-  %30 = add i64 %29, %x
+  %30 = add nuw nsw i64 %29, %x
   %31 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 %30
   %32 = load double, double* %31, align 8, !llvm.mem.parallel_loop_access !1
   %33 = fmul double %15, %32
