@@ -181,32 +181,38 @@ struct LoopCollapse : public LoopPass
         }
     }
 
+    // Check (+ parentCIV invariant)
+    static AddOperator *getInnerAdd(Value *const value, Loop *parent, PHINode *const parentCIV)
+    {
+        if (AddOperator *const innerAdd = dyn_cast<AddOperator>(value))
+            if (((innerAdd->getOperand(0) == parentCIV) && parent->isLoopInvariant(innerAdd->getOperand(1))) ||
+                ((innerAdd->getOperand(1) == parentCIV) && parent->isLoopInvariant(innerAdd->getOperand(0))))
+                return innerAdd;
+        return NULL;
+    }
+
     bool runOnLoop(Loop *loop, LPPassManager &) override
     {
         PHINode *const CIV = loop->getCanonicalInductionVariable();
         if (!CIV)
             return false;
 
-        Loop *const parentLoop = loop->getParentLoop();
-        if (!parentLoop)
+        Loop *const parent = loop->getParentLoop();
+        if (!parent)
             return false;
 
-        PHINode *const parentCIV = parentLoop->getCanonicalInductionVariable();
+        PHINode *const parentCIV = parent->getCanonicalInductionVariable();
         if (!parentCIV)
             return false;
 
         if (CIV->getType() != parentCIV->getType())
             return false;
 
-        BasicBlock *const loopPreheader = loop->getLoopPreheader();
-        if (!loopPreheader)
-            return false;
-
         ICmpInst *postcondition, *parentPostcondition;
         AddOperator *increment, *parentIncrement;
         Value *exitCriteria, *parentExitCriteria;
         getIncrementAndExitCriteria(loop, postcondition, increment, exitCriteria);
-        getIncrementAndExitCriteria(parentLoop, parentPostcondition, parentIncrement, parentExitCriteria);
+        getIncrementAndExitCriteria(parent, parentPostcondition, parentIncrement, parentExitCriteria);
         (void) parentExitCriteria;
         if (!increment || !exitCriteria || !parentIncrement)
             return false;
@@ -216,18 +222,28 @@ struct LoopCollapse : public LoopPass
             if (user == parentIncrement)
                 continue;
 
-            // We can only replace (+ (* parentCIV exitCriteria) CIV)
-            for (User *const user : user->users()) {
-                MulOperator *const mulOperator = dyn_cast<MulOperator>(user);
-                if (!mulOperator)
+            // We can only replace uses of the form (+ (* (+ parentCIV invariant) exitCriteria) CIV)
+            // Check (+ parentCIV invariant)
+            AddOperator *const innerAdd = getInnerAdd(user, parent, parentCIV);
+            if (!innerAdd)
+                return false;
+
+            for (User *const user : innerAdd->users()) {
+                // Check (* innerAdd exitCriteria)
+                MulOperator *const mul = dyn_cast<MulOperator>(user);
+                if (!mul)
                     return false;
-                if (mulOperator->getOperand(1) != exitCriteria)
+                if (!(((mul->getOperand(0) == innerAdd) && (mul->getOperand(1) == exitCriteria)) ||
+                      ((mul->getOperand(1) == innerAdd) && (mul->getOperand(0) == exitCriteria))))
                     return false;
-                for (User *const user : mulOperator->users()) {
-                    AddOperator *const addOperator = dyn_cast<AddOperator>(user);
-                    if (!addOperator)
+
+                // Check (+ mul CIV)
+                for (User *const user : mul->users()) {
+                    AddOperator *const outerAdd = dyn_cast<AddOperator>(user);
+                    if (!outerAdd)
                         return false;
-                    if (addOperator->getOperand(1) != CIV)
+                    if (!(((outerAdd->getOperand(0) == mul) && (outerAdd->getOperand(1) == CIV)) ||
+                          ((outerAdd->getOperand(1) == mul) && (outerAdd->getOperand(0) == CIV))))
                         return false;
                 }
             }
@@ -238,14 +254,29 @@ struct LoopCollapse : public LoopPass
             if (user == increment)
                 continue;
 
-            // We can only replace (+ (* parentCIV exitCriteria) CIV)
-            AddOperator *const addOperator = dyn_cast<AddOperator>(user);
-            if (!addOperator)
+            // We can only replace uses of the form (+ (* (+ parentCIV invariant) exitCriteria) CIV)
+            // Check (+ _ CIV)
+            AddOperator *const outerAdd = dyn_cast<AddOperator>(user);
+            if (!outerAdd)
                 return false;
-            MulOperator *const mulOperator = dyn_cast<MulOperator>(addOperator->getOperand(0));
-            if (!mulOperator)
+
+            Value *nonCIV = NULL;
+            if      (outerAdd->getOperand(0) == CIV) nonCIV = outerAdd->getOperand(1);
+            else if (outerAdd->getOperand(1) == CIV) nonCIV = outerAdd->getOperand(0);
+            else    return false;
+
+            // Check (+ _ exitCriteria)
+            MulOperator *const mul = dyn_cast<MulOperator>(nonCIV);
+            if (!mul)
                 return false;
-            if (mulOperator->getOperand(1) != exitCriteria)
+
+            Value *nonExitCriteria = NULL;
+            if      (mul->getOperand(0) == exitCriteria) nonExitCriteria = mul->getOperand(1);
+            else if (mul->getOperand(1) == exitCriteria) nonExitCriteria = mul->getOperand(0);
+            else    return false;
+
+            // Check (+ parentCIV invariant)
+            if (!getInnerAdd(nonExitCriteria, parent, parentCIV))
                 return false;
         }
 
