@@ -23,6 +23,7 @@
 #include <llvm/Analysis/AssumptionCache.h>
 #include <llvm/Analysis/CodeMetrics.h>
 #include <llvm/Analysis/LoopInfo.h>
+#include <llvm/Analysis/LoopPass.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
@@ -96,6 +97,13 @@ likely_settings likely_default_settings(likely_file_type file_type, bool verbose
 
 namespace {
 
+static bool IsOne(Value *value)
+{
+    if (ConstantInt *const constantInt = dyn_cast<ConstantInt>(value))
+        return constantInt->isOne();
+    return false;
+}
+
 struct AssumptionSubstitution : public FunctionPass
 {
     static char ID;
@@ -133,6 +141,135 @@ struct AssumptionSubstitution : public FunctionPass
     }
 };
 char AssumptionSubstitution::ID = 0;
+
+static bool ExperimentalLoopCollapse = false;
+/*
+ * Collapse nested loops of the form:
+ * for (int i=0; i<x; i++)
+ *   for (int j=0; j<y; j++)
+ *     f(i*y+j)
+ *
+ * To:
+ * for (int i=0; i<x*y; i++)
+ *   f(i)
+ */
+struct LoopCollapse : public LoopPass
+{
+    static char ID;
+    LoopCollapse() : LoopPass(ID) {}
+
+    static void getIncrementAndExitCriteria(Loop *const loop, ICmpInst *&postcondition, AddOperator *&increment, Value *&exitCriteria)
+    {
+        postcondition = NULL;
+        increment = NULL;
+        exitCriteria = NULL;
+        Value *const CIV = loop->getCanonicalInductionVariable();
+        BasicBlock *const loopLatch = loop->getLoopLatch();
+        if (!CIV || !loopLatch)
+            return;
+
+        if (BranchInst *const branchInst = dyn_cast<BranchInst>(loopLatch->getTerminator())) {
+            postcondition = dyn_cast<ICmpInst>(branchInst->getOperand(0));
+            if (postcondition) {
+                if (AddOperator *const addOperator = dyn_cast<AddOperator>(postcondition->getOperand(0)))
+                    if ((IsOne(addOperator->getOperand(0)) && (addOperator->getOperand(1) == CIV)) ||
+                        (IsOne(addOperator->getOperand(1)) && (addOperator->getOperand(0) == CIV)))
+                        increment = addOperator;
+                if (loop->isLoopInvariant(postcondition->getOperand(1)))
+                    exitCriteria = postcondition->getOperand(1);
+            }
+        }
+    }
+
+    bool runOnLoop(Loop *loop, LPPassManager &) override
+    {
+        PHINode *const CIV = loop->getCanonicalInductionVariable();
+        if (!CIV)
+            return false;
+
+        Loop *const parentLoop = loop->getParentLoop();
+        if (!parentLoop)
+            return false;
+
+        PHINode *const parentCIV = parentLoop->getCanonicalInductionVariable();
+        if (!parentCIV)
+            return false;
+
+        if (CIV->getType() != parentCIV->getType())
+            return false;
+
+        BasicBlock *const loopPreheader = loop->getLoopPreheader();
+        if (!loopPreheader)
+            return false;
+
+        ICmpInst *postcondition, *parentPostcondition;
+        AddOperator *increment, *parentIncrement;
+        Value *exitCriteria, *parentExitCriteria;
+        getIncrementAndExitCriteria(loop, postcondition, increment, exitCriteria);
+        getIncrementAndExitCriteria(parentLoop, parentPostcondition, parentIncrement, parentExitCriteria);
+        (void) parentExitCriteria;
+        if (!increment || !exitCriteria || !parentIncrement)
+            return false;
+
+        // To be collapsible we must be able to replace all the uses of parentCIV
+        for (User *const user : parentCIV->users()) {
+            if (user == parentIncrement)
+                continue;
+
+            // We can only replace (+ (* parentCIV exitCriteria) CIV)
+            for (User *const user : user->users()) {
+                MulOperator *const mulOperator = dyn_cast<MulOperator>(user);
+                if (!mulOperator)
+                    return false;
+                if (mulOperator->getOperand(1) != exitCriteria)
+                    return false;
+                for (User *const user : mulOperator->users()) {
+                    AddOperator *const addOperator = dyn_cast<AddOperator>(user);
+                    if (!addOperator)
+                        return false;
+                    if (addOperator->getOperand(1) != CIV)
+                        return false;
+                }
+            }
+        }
+
+        // To be collapsible we must be able to replace all the uses of CIV
+        for (User *const user : CIV->users()) {
+            if (user == increment)
+                continue;
+
+            // We can only replace (+ (* parentCIV exitCriteria) CIV)
+            AddOperator *const addOperator = dyn_cast<AddOperator>(user);
+            if (!addOperator)
+                return false;
+            MulOperator *const mulOperator = dyn_cast<MulOperator>(addOperator->getOperand(0));
+            if (!mulOperator)
+                return false;
+            if (mulOperator->getOperand(1) != exitCriteria)
+                return false;
+        }
+
+        /*
+        // Update our range
+        IRBuilder<> builder(loopPreheader->getTerminator());
+        Value *const newExitCriteria = builder.CreateMul(parentExitCriteria, exitCriteria);
+        postcondition->replaceUsesOfWith(exitCriteria, newExitCriteria);
+
+        // Update our replaceables
+        for (User *const user : CIV->users()) {
+            if (user == increment)
+                continue;
+            cast<MulOperator>(cast<AddOperator>(user)->getOperand(0))->setOperand(1, ConstantInt::get(user->getType(), 0));
+        }
+
+        // Update our parent's range
+        parentPostcondition->replaceUsesOfWith(parentExitCriteria, ConstantInt::get(parentExitCriteria->getType(), 1));
+        */
+
+        return false;
+    }
+};
+char LoopCollapse::ID = 0;
 
 struct LikelyContext : public likely_settings
 {
@@ -174,6 +311,7 @@ struct LikelyContext : public likely_settings
         builder.LoopVectorize = vectorize_loops;
         builder.Inliner = createAlwaysInlinerPass();
         builder.addExtension(PassManagerBuilder::EP_Peephole, addPeephole);
+        builder.addExtension(PassManagerBuilder::EP_LoopOptimizerEnd, addLoopOptimizerEnd);
         builder.populateModulePassManager(*PM);
         PM->add(createVerifierPass());
     }
@@ -287,6 +425,12 @@ private:
     static void addPeephole(const PassManagerBuilder &, legacy::PassManagerBase &PM)
     {
         PM.add(new AssumptionSubstitution());
+    }
+
+    static void addLoopOptimizerEnd(const PassManagerBuilder &, legacy::PassManagerBase &PM)
+    {
+        if (ExperimentalLoopCollapse)
+            PM.add(new LoopCollapse());
     }
 };
 
@@ -2866,9 +3010,8 @@ class kernelExpression : public LikelyOperator
         likely_type kernelType = likely_void;
         if (argsStart) {
             for (uint32_t i=0; i<manualDims; i++) {
-                if (ConstantInt *const constantInt = dyn_cast<ConstantInt>(srcs[srcs.size() - manualDims + i]->value))
-                    if (constantInt->isOne())
-                        continue;
+                if (IsOne(srcs[srcs.size() - manualDims + i]->value))
+                    continue;
                 if      (i == 0) kernelType |= likely_multi_channel;
                 else if (i == 1) kernelType |= likely_multi_column;
                 else if (i == 2) kernelType |= likely_multi_row;
@@ -2885,7 +3028,7 @@ class kernelExpression : public LikelyOperator
         else if (kernelType & likely_multi_channel) kernelSize = argsStart ? srcs[srcs.size() - manualDims + 0]->value : builder.cast(builder.channels(*srcs[0]), likely_u64).value;
         else                                        kernelSize = builder.one();
 
-        const bool serial = isa<ConstantInt>(kernelSize) && (cast<ConstantInt>(kernelSize)->isOne());
+        const bool serial = isa<ConstantInt>(kernelSize) && (IsOne(kernelSize));
         if      (builder.module->context->heterogeneous && !serial) generateHeterogeneous(builder, ast, srcs, kernelType, kernelSize);
         else if (builder.module->context->multicore     && !serial) generateMulticore    (builder, ast, srcs, kernelType, kernelSize);
         else                                                        generateSerial       (builder, ast, srcs, kernelType, kernelSize);
@@ -3111,7 +3254,7 @@ class kernelExpression : public LikelyOperator
         // Clean up any instructions we didn't end up using
         DCE(*builder.GetInsertBlock()->getParent());
 
-        if (axis)
+        if (axis && !ExperimentalLoopCollapse)
             axis->tryCollapse(builder, node);
         undefine(builder.env, "c");
         undefine(builder.env, "x");
