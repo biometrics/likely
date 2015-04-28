@@ -268,13 +268,8 @@ struct LoopCollapse : public LoopPass
             return false;
         }
 
-        BasicBlock *const loopLatch = loop->getLoopLatch();
-        BasicBlock *const uniqueExitBlock = loop->getUniqueExitBlock();
-//        BasicBlock *const header = loop->getHeader();
-        MDNode *const loopID = loop->getLoopID();
-
         // Promote the metadata
-        parent->setLoopID(loopID);
+        parent->setLoopID(loop->getLoopID());
 
         // Scale parentExitCriteria by exitCriteria
         IRBuilder<> builder(parent->getLoopPreheader()->getTerminator());
@@ -312,19 +307,11 @@ struct LoopCollapse : public LoopPass
         }
 
         // Fold the loop
-        TerminatorInst *const terminatorInst = loopLatch->getTerminator();
+        TerminatorInst *const terminatorInst = loop->getLoopLatch()->getTerminator();
         builder.SetInsertPoint(terminatorInst);
-        builder.CreateBr(uniqueExitBlock);
+        builder.CreateBr(loop->getUniqueExitBlock());
         terminatorInst->eraseFromParent();
 
-//        parent->removeChildLoop(parent->getSubLoops().begin());
-//        MergeBlockIntoPredecessor(uniqueExitBlock);
-//        MergeBlockIntoPredecessor(header);
-
-//        assert(postcondition->hasNUses(0));
-//        postcondition->eraseFromParent();
-//        assert(increment->hasNUses(0));
-//        cast<Instruction>(increment)->eraseFromParent();
         LPM.deleteLoopFromQueue(parent);
         return true;
     }
