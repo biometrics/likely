@@ -157,77 +157,76 @@ struct LoopCollapse : public LoopPass
     static char ID;
     LoopCollapse() : LoopPass(ID) {}
 
-    static void getIncrementAndExitCriteria(Loop *const loop, ICmpInst *&postcondition, AddOperator *&increment, Value *&exitCriteria)
+    struct LoopAnalysis
     {
-        postcondition = NULL;
-        increment = NULL;
-        exitCriteria = NULL;
+        ICmpInst    *latchCmp = NULL;     // Latch comparison instruction
+        AddOperator *inc = NULL;          // Induction variable increment instruction
+        Value       *exitCriteria = NULL; // Loop exit value
 
-        Value *const CIV = loop->getCanonicalInductionVariable();
-        BasicBlock *const loopLatch = loop->getLoopLatch();
-        if (!CIV || !loopLatch)
-            return;
+        LoopAnalysis(Loop *const loop)
+        {
+            Value *const CIV = loop->getCanonicalInductionVariable();
+            BasicBlock *const loopLatch = loop->getLoopLatch();
+            if (!CIV || !loopLatch)
+                return;
 
-        if (BranchInst *const branchInst = dyn_cast<BranchInst>(loopLatch->getTerminator())) {
-            postcondition = dyn_cast<ICmpInst>(branchInst->getOperand(0));
-            if (postcondition) {
-                if (AddOperator *const addOperator = dyn_cast<AddOperator>(postcondition->getOperand(0)))
-                    if ((IsOne(addOperator->getOperand(0)) && (addOperator->getOperand(1) == CIV)) ||
-                        (IsOne(addOperator->getOperand(1)) && (addOperator->getOperand(0) == CIV)))
-                        increment = addOperator;
-                if (loop->isLoopInvariant(postcondition->getOperand(1)))
-                    exitCriteria = postcondition->getOperand(1);
+            if (BranchInst *const branchInst = dyn_cast<BranchInst>(loopLatch->getTerminator())) {
+                latchCmp = dyn_cast<ICmpInst>(branchInst->getOperand(0));
+                if (latchCmp) {
+                    if (AddOperator *const addOperator = dyn_cast<AddOperator>(latchCmp->getOperand(0)))
+                        if ((IsOne(addOperator->getOperand(0)) && (addOperator->getOperand(1) == CIV)) ||
+                            (IsOne(addOperator->getOperand(1)) && (addOperator->getOperand(0) == CIV)))
+                            inc = addOperator;
+                    if (loop->isLoopInvariant(latchCmp->getOperand(1)))
+                        exitCriteria = latchCmp->getOperand(1);
+                }
             }
         }
-    }
+
+        operator bool() const
+        {
+            return latchCmp && inc && exitCriteria;
+        }
+    };
 
     bool runOnLoop(Loop *parent, LPPassManager &LPM) override
     {
-        // We only know how to handle a single subloop
-        const std::vector<Loop*> &subloops = parent->getSubLoops();
-        if (subloops.size() != 1)
+        // We can only collapse single subloops
+        if (parent->getSubLoops().size() != 1)
             return false;
 
-        Loop *const loop = subloops[0];
+        // We will attempt to collapse `child` into `parent`
+        Loop *const child = parent->getSubLoops().front();
 
-        PHINode *const CIV = loop->getCanonicalInductionVariable();
-        if (!CIV)
-            return false;
-
+        // The loops must have canonical induction variables of the same type
         PHINode *const parentCIV = parent->getCanonicalInductionVariable();
-        if (!parentCIV)
+        PHINode *const childCIV = child->getCanonicalInductionVariable();
+        if (!parentCIV || !childCIV || (parentCIV->getType() != childCIV->getType()))
             return false;
 
-        if (CIV->getType() != parentCIV->getType())
+        // Retrieve important values associated with the loops
+        const LoopAnalysis parentLA(parent);
+        const LoopAnalysis childLA(child);
+        if (!parentLA || !childLA)
             return false;
 
-        ICmpInst *postcondition, *parentPostcondition;
-        AddOperator *increment, *parentIncrement;
-        Value *exitCriteria, *parentExitCriteria;
-        getIncrementAndExitCriteria(loop ,        postcondition,       increment,       exitCriteria);
-        getIncrementAndExitCriteria(parent, parentPostcondition, parentIncrement, parentExitCriteria);
-        if (!postcondition || !parentPostcondition ||
-            !increment     || !parentIncrement     ||
-            !exitCriteria  || !parentExitCriteria)
-            return false;
-
-        if (!increment->hasNUses(2)|| !postcondition->hasOneUse())
+        if (!childLA.inc->hasNUses(2)|| !childLA.latchCmp->hasOneUse())
             return false;
 
         { // Hoist the exit criteria
             bool changedParent;
-            if (!parent->makeLoopInvariant(parentExitCriteria, changedParent))
+            if (!parent->makeLoopInvariant(parentLA.exitCriteria, changedParent))
                 return changedParent;
 
             bool changed;
-            if (!parent->makeLoopInvariant(exitCriteria, changed))
+            if (!parent->makeLoopInvariant(childLA.exitCriteria, changed))
                 return changed || changedParent;
         }
 
         // To be collapsible we must be able to pattern match all uses of parentCIV
         map<AddOperator*, Value*> outerAdds; // A mapping of outerAdd -> invariant
         for (User *const user : parentCIV->users()) {
-            if (user == parentIncrement)
+            if (user == parentLA.inc)
                 continue;
 
             // We can only replace uses of the form `(parentCIV [+ invariant]) * exitCriteria + CIV`
@@ -251,7 +250,7 @@ struct LoopCollapse : public LoopPass
                 MulOperator *const mul = dyn_cast<MulOperator>(potentialMul);
                 if (!mul)
                     return false;
-                if ((mul->getOperand(0) != exitCriteria) && (mul->getOperand(1) != exitCriteria))
+                if ((mul->getOperand(0) != childLA.exitCriteria) && (mul->getOperand(1) != childLA.exitCriteria))
                     return false;
 
                 // Check `mul + CIV`
@@ -259,8 +258,8 @@ struct LoopCollapse : public LoopPass
                     AddOperator *const outerAdd = dyn_cast<AddOperator>(user);
                     if (!outerAdd)
                         return false;
-                    if (!(((outerAdd->getOperand(0) == mul) && (outerAdd->getOperand(1) == CIV)) ||
-                          ((outerAdd->getOperand(1) == mul) && (outerAdd->getOperand(0) == CIV))))
+                    if (!(((outerAdd->getOperand(0) == mul) && (outerAdd->getOperand(1) == childCIV)) ||
+                          ((outerAdd->getOperand(1) == mul) && (outerAdd->getOperand(0) == childCIV))))
                         return false;
                     outerAdds.insert(pair<AddOperator*,Value*>(outerAdd, invariant));
                 }
@@ -268,8 +267,8 @@ struct LoopCollapse : public LoopPass
         }
 
         // To be collapsible we must have pattern matched all uses of CIV
-        for (User *const user : CIV->users()) {
-            if (user == increment)
+        for (User *const user : childCIV->users()) {
+            if (user == childLA.inc)
                 continue;
 
             if (outerAdds.find(dyn_cast_or_null<AddOperator>(user)) != outerAdds.end())
@@ -279,12 +278,12 @@ struct LoopCollapse : public LoopPass
         }
 
         // Promote the metadata
-        parent->setLoopID(loop->getLoopID());
+        parent->setLoopID(child->getLoopID());
 
-        // Scale parentExitCriteria by exitCriteria
+        // Scale parentLA.exitCriteria by exitCriteria
         IRBuilder<> builder(parent->getLoopPreheader()->getTerminator());
-        Instruction *const scaledExitCriteria = cast<Instruction>(builder.CreateMul(parentExitCriteria, exitCriteria, "", true, true));
-        parentPostcondition->replaceUsesOfWith(parentExitCriteria, scaledExitCriteria);
+        Instruction *const scaledExitCriteria = cast<Instruction>(builder.CreateMul(parentLA.exitCriteria, childLA.exitCriteria, "", true, true));
+        parentLA.latchCmp->replaceUsesOfWith(parentLA.exitCriteria, scaledExitCriteria);
 
         // Update the outer additions
         for (const pair<AddOperator*, Value*> &outerAdd : outerAdds) {
@@ -301,15 +300,15 @@ struct LoopCollapse : public LoopPass
 
                 // If relevant, recycle scaledExitCriteria in the outer addition to facilitate collapsing additional loops
                 if (MulOperator *const mul = dyn_cast<MulOperator>(outerAdd.second))
-                    if (mul->hasOneUse() && ((mul->getOperand(0) == parentExitCriteria) || (mul->getOperand(1) == parentExitCriteria))) {
+                    if (mul->hasOneUse() && ((mul->getOperand(0) == parentLA.exitCriteria) || (mul->getOperand(1) == parentLA.exitCriteria))) {
                         scaledExitCriteria->moveBefore(cast<Instruction>(mul));
-                        mul->replaceUsesOfWith(parentExitCriteria, scaledExitCriteria);
+                        mul->replaceUsesOfWith(parentLA.exitCriteria, scaledExitCriteria);
                         newInvariant = mul;
                     }
 
                 builder.SetInsertPoint(cast<Instruction>(outerAdd.first));
                 if (!newInvariant)
-                    newInvariant = builder.CreateMul(outerAdd.second, exitCriteria, "", true, true);
+                    newInvariant = builder.CreateMul(outerAdd.second, childLA.exitCriteria, "", true, true);
                 outerAdd.first->replaceAllUsesWith(builder.CreateAdd(newInvariant, parentCIV, "", true, true));
             } else {
                 outerAdd.first->replaceAllUsesWith(parentCIV);
@@ -317,18 +316,18 @@ struct LoopCollapse : public LoopPass
         }
 
         // Replace the latch
-        BasicBlock *const loopLatch = loop->getLoopLatch();
+        BasicBlock *const loopLatch = child->getLoopLatch();
         TerminatorInst *const terminatorInst = loopLatch->getTerminator();
         builder.SetInsertPoint(terminatorInst);
-        builder.CreateBr(loop->getUniqueExitBlock());
+        builder.CreateBr(child->getUniqueExitBlock());
         terminatorInst->eraseFromParent();
 
         // Remove the postcondition and increment
-        assert(postcondition->hasNUses(0));
-        postcondition->eraseFromParent();
-        CIV->removeIncomingValue(loopLatch);
-        assert(increment->hasNUses(0));
-        cast<Instruction>(increment)->eraseFromParent();
+        assert(childLA.latchCmp->hasNUses(0));
+        childLA.latchCmp->eraseFromParent();
+        childCIV->removeIncomingValue(loopLatch);
+        assert(childLA.inc->hasNUses(0));
+        cast<Instruction>(childLA.inc)->eraseFromParent();
 
         LPM.redoLoop(parent);
         return true;
