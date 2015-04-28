@@ -159,15 +159,21 @@ struct LoopCollapse : public LoopPass
 
     struct LoopAnalysis
     {
+        BasicBlock  *preheader  = NULL; // Loop preheader block
         PHINode     *CIV        = NULL; // Canonical induction variable
         BasicBlock  *latchBlock = NULL; // Latch block
         BranchInst  *latch      = NULL; // Loop latch
         ICmpInst    *latchCmp   = NULL; // Latch comparison instruction
-        AddOperator *increment  = NULL; // Induction variable increment instruction
         Value       *exitVal    = NULL; // Loop invariant exit value
+        AddOperator *increment  = NULL; // Induction variable increment instruction
+        BasicBlock  *exitBlock  = NULL; // Unique exit block
 
         LoopAnalysis(Loop *const loop)
         {
+            preheader = loop->getLoopPreheader();
+            if (!preheader)
+                return;
+
             CIV = loop->getCanonicalInductionVariable();
             if (!CIV)
                 return;
@@ -196,13 +202,17 @@ struct LoopCollapse : public LoopPass
                 if ((IsOne(addOperator->getOperand(0)) && (addOperator->getOperand(1) == CIV)) ||
                     (IsOne(addOperator->getOperand(1)) && (addOperator->getOperand(0) == CIV)))
                     increment = addOperator;
+            if (!increment)
+                return;
+
+            exitBlock = loop->getUniqueExitBlock();
         }
 
         // For the analysis to be considered valid, all values must be non-null
         // and the latch instructions must not be used for other purposes.
         operator bool() const
         {
-            return CIV && latchBlock && latchCmp && increment && exitVal &&
+            return preheader && CIV && latchBlock && latchCmp && exitVal && increment && exitBlock &&
                    increment->hasNUses(2) && latchCmp->hasOneUse();
         }
     };
@@ -227,55 +237,56 @@ struct LoopCollapse : public LoopPass
         if (parent.CIV->getType() != child.CIV->getType())
             return false;
 
-        // To be collapsible we must be able to pattern match all uses of parentLA.CIV
-        map<AddOperator*, Value*> outerAdds; // A mapping of outerAdd -> invariant
+        // We must be able to pattern match each use of the parent loop's induction variable as a "collapsible index",
+        // which is something of the form:
+        //   (+ (* (+ parent.CIV [invariant]) child.exitVal) child.CIV)
+        map<AddOperator* /* collapsible index */, Value* /* invariant offset */> collapsibleIndicies;
         for (User *const user : parent.CIV->users()) {
             if (user == parent.increment)
                 continue;
 
-            // We can only replace uses of the form `(parentLA.CIV [+ invariant]) * exitCriteria + CIV`
-            // Check `parentLA.CIV [+ invariant]`
-            vector<User*> potentialMuls;
+            // Match (+ parent.CIV [invariant])
+            vector<User*> potentialMultiplies;
             Value *invariant = NULL;
-            if (AddOperator *const innerAdd = dyn_cast<AddOperator>(user)) {
-                if      (innerAdd->getOperand(0) == parent.CIV) invariant = innerAdd->getOperand(1);
-                else if (innerAdd->getOperand(1) == parent.CIV) invariant = innerAdd->getOperand(0);
+            if (AddOperator *const addOperator = dyn_cast<AddOperator>(user)) {
+                if      (addOperator->getOperand(0) == parent.CIV) invariant = addOperator->getOperand(1);
+                else if (addOperator->getOperand(1) == parent.CIV) invariant = addOperator->getOperand(0);
                 else    return false;
                 if (!parentLoop->isLoopInvariant(invariant))
                     return false;
-                for (User *const user : innerAdd->users())
-                    potentialMuls.push_back(user);
+                for (User *const user : addOperator->users())
+                    potentialMultiplies.push_back(user);
             } else {
-                potentialMuls.push_back(user);
+                // Proceed under the assumption that there is no invariant offset
+                potentialMultiplies.push_back(user);
             }
 
-            for (User *const potentialMul : potentialMuls) {
-                // Check `innerAdd * exitCriteria`
-                MulOperator *const mul = dyn_cast<MulOperator>(potentialMul);
-                if (!mul)
+            for (User *const potentialMultiply : potentialMultiplies) {
+                // Match (* _ child.exitVal)
+                MulOperator *const mulOperator = dyn_cast<MulOperator>(potentialMultiply);
+                if (!mulOperator)
                     return false;
-                if ((mul->getOperand(0) != child.exitVal) && (mul->getOperand(1) != child.exitVal))
+                if ((mulOperator->getOperand(0) != child.exitVal) && (mulOperator->getOperand(1) != child.exitVal))
                     return false;
 
-                // Check `mul + CIV`
-                for (User *const user : mul->users()) {
-                    AddOperator *const outerAdd = dyn_cast<AddOperator>(user);
-                    if (!outerAdd)
+                // Match (+ _ child.CIV)
+                for (User *const user : mulOperator->users()) {
+                    AddOperator *const addOperator = dyn_cast<AddOperator>(user);
+                    if (!addOperator)
                         return false;
-                    if (!(((outerAdd->getOperand(0) == mul) && (outerAdd->getOperand(1) == child.CIV)) ||
-                          ((outerAdd->getOperand(1) == mul) && (outerAdd->getOperand(0) == child.CIV))))
+                    if ((addOperator->getOperand(0) != child.CIV) && (addOperator->getOperand(1) != child.CIV))
                         return false;
-                    outerAdds.insert(pair<AddOperator*,Value*>(outerAdd, invariant));
+                    collapsibleIndicies.insert(pair<AddOperator*,Value*>(addOperator, invariant));
                 }
             }
         }
 
-        // To be collapsible we must have pattern matched all uses of CIV
+        // We must have pattern matched all uses of child.CIV
         for (User *const user : child.CIV->users()) {
             if (user == child.increment)
                 continue;
 
-            if (outerAdds.find(dyn_cast_or_null<AddOperator>(user)) != outerAdds.end())
+            if (collapsibleIndicies.find(dyn_cast_or_null<AddOperator>(user)) != collapsibleIndicies.end())
                 continue;
 
             return false;
@@ -288,55 +299,65 @@ struct LoopCollapse : public LoopPass
                 return changed;
         }
 
+        // At this point we have proven that child is collapsible into parent,
+        // so lets do it!
+
         // Promote the metadata
         parentLoop->setLoopID(childLoop->getLoopID());
 
-        // Scale parentLA.exitCriteria by exitCriteria
-        IRBuilder<> builder(parentLoop->getLoopPreheader()->getTerminator());
-        Instruction *const scaledExitCriteria = cast<Instruction>(builder.CreateMul(parent.exitVal, child.exitVal, "", true, true));
-        parent.latchCmp->replaceUsesOfWith(parent.exitVal, scaledExitCriteria);
+        // Scale parent.exitVal by child.exitVal
+        IRBuilder<> builder(parent.preheader->getTerminator());
+        Instruction *const scaledExitVal = cast<Instruction>(builder.CreateMul(parent.exitVal, child.exitVal, "", true, true));
+        parent.latchCmp->replaceUsesOfWith(parent.exitVal, scaledExitVal);
 
-        // Update the outer additions
-        for (const pair<AddOperator*, Value*> &outerAdd : outerAdds) {
-            // Since we wish for our new induction variable to be:
-            //   newCIV = parentLA.CIV * exitCriteria + CIV
+        // Replace the collapsible indicies
+        for (const pair<AddOperator*, Value*> &collapsibleIndex : collapsibleIndicies) {
+            // Since our new induction variable is:
+            //   newCIV = parent.CIV * child.exitVal + child.CIV
             //
             // It follows that we should re-write:
-            //   (parentLA.CIV [+ invariant]) * exitCriteria + CIV
+            //   (parent.CIV [+ invariant]) * child.exitVal + child.CIV
             // as:
-            //   [invariant * exitCriteria] + newCIV
-            builder.SetInsertPoint(cast<Instruction>(outerAdd.first));
-            if (outerAdd.second) {
-                Value *newInvariant = NULL;
+            //   (+ [* invariant child.exitVal] newCIV)
+            if (collapsibleIndex.second) {
+                // There is an invariant
+                Value *scaledInvariant = NULL;
 
-                // If relevant, recycle scaledExitCriteria in the outer addition to facilitate collapsing additional loops
-                if (MulOperator *const mul = dyn_cast<MulOperator>(outerAdd.second))
+                // As a special case, try to pattern match the invariant to:
+                //   (* <x> parent.exitVal)
+                // In which case we can reorder:
+                //   (* (* <x> parent.exitVal) child.exitVal)
+                // To:
+                //   (* <x> (* parent.exitVal child.exitVal))
+                // Which equals:
+                //   (* <x> scaledExitVal)
+                // Using `scaledExitVal` here facilitates collapsing additional nested loops if <x> is the grandparent loop's CIV.
+                if (MulOperator *const mul = dyn_cast<MulOperator>(collapsibleIndex.second))
                     if (mul->hasOneUse() && ((mul->getOperand(0) == parent.exitVal) || (mul->getOperand(1) == parent.exitVal))) {
-                        scaledExitCriteria->moveBefore(cast<Instruction>(mul));
-                        mul->replaceUsesOfWith(parent.exitVal, scaledExitCriteria);
-                        newInvariant = mul;
+                        scaledExitVal->moveBefore(cast<Instruction>(mul));
+                        mul->replaceUsesOfWith(parent.exitVal, scaledExitVal);
+                        scaledInvariant = mul;
                     }
 
-                builder.SetInsertPoint(cast<Instruction>(outerAdd.first));
-                if (!newInvariant)
-                    newInvariant = builder.CreateMul(outerAdd.second, child.exitVal, "", true, true);
-                outerAdd.first->replaceAllUsesWith(builder.CreateAdd(newInvariant, parent.CIV, "", true, true));
+                builder.SetInsertPoint(cast<Instruction>(collapsibleIndex.first));
+                if (!scaledInvariant)
+                    scaledInvariant = builder.CreateMul(collapsibleIndex.second, child.exitVal, "", true, true);
+                collapsibleIndex.first->replaceAllUsesWith(builder.CreateAdd(scaledInvariant, parent.CIV, "", true, true));
             } else {
-                outerAdd.first->replaceAllUsesWith(parent.CIV);
+                // There is no invariant
+                collapsibleIndex.first->replaceAllUsesWith(parent.CIV);
             }
         }
 
-        // Replace the latch
-        BasicBlock *const loopLatch = childLoop->getLoopLatch();
-        TerminatorInst *const terminatorInst = loopLatch->getTerminator();
-        builder.SetInsertPoint(terminatorInst);
-        builder.CreateBr(childLoop->getUniqueExitBlock());
-        terminatorInst->eraseFromParent();
+        // Replace the child's latch with an unconditional branch
+        builder.SetInsertPoint(child.latch);
+        builder.CreateBr(child.exitBlock);
+        child.latch->eraseFromParent();
 
         // Remove the postcondition and increment
         assert(child.latchCmp->hasNUses(0));
         child.latchCmp->eraseFromParent();
-        child.CIV->removeIncomingValue(loopLatch);
+        child.CIV->removeIncomingValue(child.latchBlock);
         assert(child.increment->hasNUses(0));
         cast<Instruction>(child.increment)->eraseFromParent();
 
