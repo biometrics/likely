@@ -181,14 +181,17 @@ struct LoopCollapse : public LoopPass
         }
     }
 
-    bool runOnLoop(Loop *loop, LPPassManager &LPM) override
+    bool runOnLoop(Loop *parent, LPPassManager &LPM) override
     {
-        PHINode *const CIV = loop->getCanonicalInductionVariable();
-        if (!CIV)
+        // We only know how to handle a single subloop
+        const std::vector<Loop*> &subloops = parent->getSubLoops();
+        if (subloops.size() != 1)
             return false;
 
-        Loop *const parent = loop->getParentLoop();
-        if (!parent)
+        Loop *const loop = subloops[0];
+
+        PHINode *const CIV = loop->getCanonicalInductionVariable();
+        if (!CIV)
             return false;
 
         PHINode *const parentCIV = parent->getCanonicalInductionVariable();
@@ -206,6 +209,9 @@ struct LoopCollapse : public LoopPass
         if (!postcondition || !parentPostcondition ||
             !increment     || !parentIncrement     ||
             !exitCriteria  || !parentExitCriteria)
+            return false;
+
+        if (!increment->hasNUses(2)|| !postcondition->hasOneUse())
             return false;
 
         // To be collapsible we must be able to pattern match all uses of parentCIV
@@ -262,12 +268,17 @@ struct LoopCollapse : public LoopPass
             return false;
         }
 
+        BasicBlock *const loopLatch = loop->getLoopLatch();
+        BasicBlock *const uniqueExitBlock = loop->getUniqueExitBlock();
+//        BasicBlock *const header = loop->getHeader();
+        MDNode *const loopID = loop->getLoopID();
+
         // Promote the metadata
-        parent->setLoopID(loop->getLoopID());
+        parent->setLoopID(loopID);
 
         // Scale parentExitCriteria by exitCriteria
         IRBuilder<> builder(parent->getLoopPreheader()->getTerminator());
-        Value *const scaledExitCriteria = builder.CreateMul(parentExitCriteria, exitCriteria, "", true, true);
+        Instruction *const scaledExitCriteria = cast<Instruction>(builder.CreateMul(parentExitCriteria, exitCriteria, "", true, true));
         parentPostcondition->replaceUsesOfWith(parentExitCriteria, scaledExitCriteria);
 
         // Update the outer additions
@@ -283,17 +294,13 @@ struct LoopCollapse : public LoopPass
             if (outerAdd.second) {
                 Value *newInvariant = NULL;
 
-                // If relevant, scale before the grandparentCIV to facilitate collapsing additional loops
+                // If relevant, recycle scaledExitCriteria in the outer addition to facilitate collapsing additional loops
                 if (MulOperator *const mul = dyn_cast<MulOperator>(outerAdd.second))
-                    if (mul->hasOneUse())
-                        if (Loop *const grandparent = parent->getParentLoop())
-                            if (PHINode *const grandparentCIV = grandparent->getCanonicalInductionVariable())
-                                if ((mul->getOperand(0) == grandparentCIV) || (mul->getOperand(1) == grandparentCIV)) {
-                                    builder.SetInsertPoint(cast<Instruction>(mul));
-                                    const unsigned nonCIVindex = mul->getOperand(0) != grandparentCIV ? 0 : 1;
-                                    mul->setOperand(nonCIVindex, builder.CreateMul(mul->getOperand(nonCIVindex), exitCriteria));
-                                    newInvariant = mul;
-                                }
+                    if (mul->hasOneUse() && ((mul->getOperand(0) == parentExitCriteria) || (mul->getOperand(1) == parentExitCriteria))) {
+                        scaledExitCriteria->moveBefore(cast<Instruction>(mul));
+                        mul->replaceUsesOfWith(parentExitCriteria, scaledExitCriteria);
+                        newInvariant = mul;
+                    }
 
                 builder.SetInsertPoint(cast<Instruction>(outerAdd.first));
                 if (!newInvariant)
@@ -304,13 +311,21 @@ struct LoopCollapse : public LoopPass
             }
         }
 
-        // Fold the terminator
-        TerminatorInst *const terminatorInst = loop->getLoopLatch()->getTerminator();
+        // Fold the loop
+        TerminatorInst *const terminatorInst = loopLatch->getTerminator();
         builder.SetInsertPoint(terminatorInst);
-        builder.CreateBr(loop->getUniqueExitBlock());
+        builder.CreateBr(uniqueExitBlock);
         terminatorInst->eraseFromParent();
 
-        LPM.deleteLoopFromQueue(loop);
+//        parent->removeChildLoop(parent->getSubLoops().begin());
+//        MergeBlockIntoPredecessor(uniqueExitBlock);
+//        MergeBlockIntoPredecessor(header);
+
+//        assert(postcondition->hasNUses(0));
+//        postcondition->eraseFromParent();
+//        assert(increment->hasNUses(0));
+//        cast<Instruction>(increment)->eraseFromParent();
+        LPM.deleteLoopFromQueue(parent);
         return true;
     }
 };
