@@ -214,6 +214,16 @@ struct LoopCollapse : public LoopPass
         if (!increment->hasNUses(2)|| !postcondition->hasOneUse())
             return false;
 
+        { // Hoist the exit criteria
+            bool changedParent;
+            if (!parent->makeLoopInvariant(parentExitCriteria, changedParent))
+                return changedParent;
+
+            bool changed;
+            if (!parent->makeLoopInvariant(exitCriteria, changed))
+                return changed || changedParent;
+        }
+
         // To be collapsible we must be able to pattern match all uses of parentCIV
         map<AddOperator*, Value*> outerAdds; // A mapping of outerAdd -> invariant
         for (User *const user : parentCIV->users()) {
@@ -320,7 +330,7 @@ struct LoopCollapse : public LoopPass
         assert(increment->hasNUses(0));
         cast<Instruction>(increment)->eraseFromParent();
 
-        LPM.deleteLoopFromQueue(parent);
+        LPM.redoLoop(parent);
         return true;
     }
 };
@@ -480,11 +490,13 @@ private:
     static void addPeephole(const PassManagerBuilder &, legacy::PassManagerBase &PM)
     {
         PM.add(new AssumptionSubstitution());
+        PM.add(createVerifierPass());
     }
 
     static void addLoopOptimizerEnd(const PassManagerBuilder &, legacy::PassManagerBase &PM)
     {
         PM.add(new LoopCollapse());
+        PM.add(createVerifierPass());
     }
 };
 
