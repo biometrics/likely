@@ -306,11 +306,19 @@ struct LoopCollapse : public LoopPass
             }
         }
 
-        // Fold the loop
-        TerminatorInst *const terminatorInst = loop->getLoopLatch()->getTerminator();
+        // Replace the latch
+        BasicBlock *const loopLatch = loop->getLoopLatch();
+        TerminatorInst *const terminatorInst = loopLatch->getTerminator();
         builder.SetInsertPoint(terminatorInst);
         builder.CreateBr(loop->getUniqueExitBlock());
         terminatorInst->eraseFromParent();
+
+        // Remove the postcondition and increment
+        assert(postcondition->hasNUses(0));
+        postcondition->eraseFromParent();
+        CIV->removeIncomingValue(loopLatch);
+        assert(increment->hasNUses(0));
+        cast<Instruction>(increment)->eraseFromParent();
 
         LPM.deleteLoopFromQueue(parent);
         return true;
