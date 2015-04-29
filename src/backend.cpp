@@ -239,46 +239,52 @@ struct LoopCollapse : public LoopPass
 
         // We must be able to pattern match each use of the parent loop's induction variable as a "collapsible index",
         // which is something of the form:
-        //   (+ (* (+ parent.CIV [offset]) (* child.exitVal [scale])) child.CIV)
+        //   (+ (+ (* (+ parent.CIV [offset])
+        //            (* child.exitVal [scale]))
+        //         [step])
+        //      (* child.CIV [scale]))
         struct Invariant
         {
-            Value *offset = NULL;
-            Value *scale  = NULL;
+            Value *offset = NULL; // Default = 0
+            Value *scale  = NULL; // Default = 1
+            Value *step   = NULL; // Default = 0
         };
 
         map<AddOperator* /* collapsible index */, Invariant> collapsibleIndicies;
-        for (User *const parentCIVuser : parent.CIV->users()) {
-            if (parentCIVuser == parent.increment)
+        for (User *const user : parent.CIV->users()) {
+            if (user == parent.increment)
                 continue;
 
-            // Keep track of the two optional invariants: "offset" and "scale"
+            // Keep track of the two three optional invariants: offset, scale, and step.
             Invariant invariant;
 
             // Match (+ parent.CIV [offset])
-            vector<User*> potentialMultiplies;
-            if (AddOperator *const addOperator = dyn_cast<AddOperator>(parentCIVuser)) {
-                if      (addOperator->getOperand(0) == parent.CIV) invariant.offset = addOperator->getOperand(1);
-                else if (addOperator->getOperand(1) == parent.CIV) invariant.offset = addOperator->getOperand(0);
+            vector<User*> users;
+            if (AddOperator *const add = dyn_cast<AddOperator>(user)) {
+                // There is an `offset`
+                if      (add->getOperand(0) == parent.CIV) invariant.offset = add->getOperand(1);
+                else if (add->getOperand(1) == parent.CIV) invariant.offset = add->getOperand(0);
                 else    return false;
                 if (!parentLoop->isLoopInvariant(invariant.offset))
                     return false;
-                for (User *const user : addOperator->users())
-                    potentialMultiplies.push_back(user);
+                for (User *const user : add->users())
+                    users.push_back(user);
             } else {
-                // Proceed under the assumption that there is no invariant offset
-                potentialMultiplies.push_back(parentCIVuser);
+                // There is no `offset`
+                users.push_back(user);
             }
 
-            for (User *const potentialMultiply : potentialMultiplies) {
+            for (User *const user : users) {
                 // Match (* _ (* child.exitVal [scale]))
-                MulOperator *const mulOperator = dyn_cast<MulOperator>(potentialMultiply);
-                if (!mulOperator)
+                MulOperator *const mul = dyn_cast<MulOperator>(user);
+                if (!mul)
                     return false;
 
                 // Match (* child.exitVal [scale])
-                if ((mulOperator->getOperand(0) != child.exitVal) && (mulOperator->getOperand(1) != child.exitVal)) {
-                    MulOperator *const scaledChildExitVal = dyn_cast<MulOperator>(mulOperator->getOperand(0) != parentCIVuser ? mulOperator->getOperand(0)
-                                                                                                                              : mulOperator->getOperand(1));
+                if ((mul->getOperand(0) != child.exitVal) && (mul->getOperand(1) != child.exitVal)) {
+                    // There is a `scale`
+                    MulOperator *const scaledChildExitVal = dyn_cast<MulOperator>(mul->getOperand(0) != user ? mul->getOperand(0)
+                                                                                                             : mul->getOperand(1));
                     if (!scaledChildExitVal)
                         return false;
 
@@ -290,14 +296,38 @@ struct LoopCollapse : public LoopPass
                         return false;
                 }
 
-                // Match (+ _ child.CIV)
-                for (User *const user : mulOperator->users()) {
-                    AddOperator *const addOperator = dyn_cast<AddOperator>(user);
-                    if (!addOperator)
+                // Match (+ child.CIV (+ _ [step]))
+                for (User *const user : mul->users()) {
+                    AddOperator *const add = dyn_cast<AddOperator>(user);
+                    if (!add)
                         return false;
-                    if ((addOperator->getOperand(0) != child.CIV) && (addOperator->getOperand(1) != child.CIV))
-                        return false;
-                    collapsibleIndicies.insert(pair<AddOperator*,Invariant>(addOperator, invariant));
+
+                    // Match (+ _ [step])
+                    vector<User*> users;
+                    if ((add->getOperand(0) != child.CIV) && (add->getOperand(1) != child.CIV)) {
+                        invariant.step = add->getOperand(0) != mul ? add->getOperand(0)
+                                                                   : add->getOperand(1);
+                        if (!parentLoop->isLoopInvariant(invariant.step))
+                            return false;
+                        for (User *user : add->users())
+                            users.push_back(user);
+                    } else {
+                        users.push_back(add);
+                    }
+
+                    // Match (+ _ (* child.CIV [step]))
+                    for (User *const user : users) {
+                        AddOperator *const add = dyn_cast<AddOperator>(user);
+                        if (!add)
+                            return false;
+
+                        if ((add->getOperand(0) != child.CIV) && (add->getOperand(1) != child.CIV)) {
+                            // TODO: (+ _ (* child.CIV [step]))
+                            return false;
+                        }
+
+                        collapsibleIndicies.insert(pair<AddOperator*,Invariant>(add, invariant));
+                    }
                 }
             }
         }
@@ -371,6 +401,8 @@ struct LoopCollapse : public LoopPass
 
             if (Value *const scale = collapsibleIndex.second.scale)
                 replace = builder.CreateMul(scale, replace, "", true, true);
+
+            assert(!collapsibleIndex.second.step);
 
             collapsibleIndex.first->replaceAllUsesWith(replace);
         }
