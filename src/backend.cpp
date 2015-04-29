@@ -255,7 +255,7 @@ struct LoopCollapse : public LoopPass
             if (user == parent.increment)
                 continue;
 
-            // Keep track of the two three optional invariants: offset, scale, and step.
+            // Keep track of the three optional invariants: offset, scale, and step.
             Invariant invariant;
 
             // Match (+ parent.CIV [offset])
@@ -270,7 +270,6 @@ struct LoopCollapse : public LoopPass
                 for (User *const user : add->users())
                     users.push_back(user);
             } else {
-                // There is no `offset`
                 users.push_back(user);
             }
 
@@ -304,26 +303,40 @@ struct LoopCollapse : public LoopPass
 
                     // Match (+ _ [step])
                     vector<User*> users;
+                    Value *parent = NULL;
                     if ((add->getOperand(0) != child.CIV) && (add->getOperand(1) != child.CIV)) {
+                        // There is a `step`
                         invariant.step = add->getOperand(0) != mul ? add->getOperand(0)
                                                                    : add->getOperand(1);
                         if (!parentLoop->isLoopInvariant(invariant.step))
                             return false;
                         for (User *user : add->users())
                             users.push_back(user);
+                        parent = user;
                     } else {
                         users.push_back(add);
                     }
 
-                    // Match (+ _ (* child.CIV [step]))
+                    // Match (+ _ (* child.CIV [scale]))
                     for (User *const user : users) {
                         AddOperator *const add = dyn_cast<AddOperator>(user);
                         if (!add)
                             return false;
 
                         if ((add->getOperand(0) != child.CIV) && (add->getOperand(1) != child.CIV)) {
-                            // TODO: (+ _ (* child.CIV [step]))
-                            return false;
+                            // Match (+ _ (* child.CIV scale))
+                            if (!invariant.step)
+                                return false;
+                            assert(parent);
+
+                            MulOperator *const mul = dyn_cast<MulOperator>(add->getOperand(0) != parent ? add->getOperand(0)
+                                                                                                        : add->getOperand(1));
+                            if (!mul)
+                                return false;
+
+                            if (!(((mul->getOperand(0) == child.CIV) && (mul->getOperand(1) == invariant.scale)) ||
+                                  ((mul->getOperand(1) == child.CIV) && (mul->getOperand(0) == invariant.scale))))
+                                return false;
                         }
 
                         collapsibleIndicies.insert(pair<AddOperator*,Invariant>(add, invariant));
