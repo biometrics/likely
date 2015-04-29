@@ -143,14 +143,37 @@ struct AssumptionSubstitution : public FunctionPass
 char AssumptionSubstitution::ID = 0;
 
 /*
- * Collapse nested loops of the form:
- * for (int i=0; i<x; i++)
- *   for (int j=0; j<y; j++)
- *     f(i*y+j)
+ * // Collapse nested loops of the form:
+ * const int y, // Outer loop iterations
+ *           x, // Inner loop iterations
+ *           t, // Outer offset, or zero
+ *           s, // Inner offset, or zero
+ *           u, // Scale, or one
+ * for (int i=0; i<y; i++)
+ *   for (int j=0; j<x; j++)
+ *     f((t + i) * x * u + j * u + s)
  *
- * To:
- * for (int i=0; i<x*y; i++)
- *   f(i)
+ * // Which after LICM looks like:
+ * const int a = x * u;
+ * for (int i=0; i<y; i++) {
+ *   const int b = i + t;
+ *   const int c = a * b;
+ *   for (int j=0; j<x; j++) {
+ *     const int d = j * u;
+ *     const int e = d + s
+ *     const int f = c + e;
+ *     g(e);
+ *   }
+ * }
+ *
+ * // To:
+ * for (int k=0; k<z; k++)
+ *   g((v + k) * u + s)
+ *
+ * // Where:
+ * v := t * x
+ * k := i * x + j
+ * z := x * y
  */
 struct LoopCollapse : public LoopPass
 {
@@ -217,6 +240,23 @@ struct LoopCollapse : public LoopPass
         }
     };
 
+    // Helper function
+    static bool isD(Value *const maybeD, Value *const j, Value *const u)
+    {
+        if (u) {
+            MulOperator *const d = dyn_cast<MulOperator>(maybeD);
+            if (!d)
+                return false; // Failed to match `d = _ * _`
+            if (!(((d->getOperand(0) == j) && (d->getOperand(1) == u)) ||
+                  ((d->getOperand(1) == j) && (d->getOperand(0) == u))))
+                return false; // Failed to match `d = j * u`
+        } else {
+            if (maybeD != j)
+                return false; // Failed to match `d = j` when `u = 1`
+        }
+        return true;
+    }
+
     bool runOnLoop(Loop *parentLoop, LPPassManager &LPM) override
     {
         // We can only collapse single subloops
@@ -237,110 +277,110 @@ struct LoopCollapse : public LoopPass
         if (parent.CIV->getType() != child.CIV->getType())
             return false;
 
-        // We must be able to pattern match each use of the parent loop's induction variable as a "collapsible index",
-        // which is something of the form:
-        //   (+ (+ (* (+ parent.CIV [offset])
-        //            (* child.exitVal [scale]))
-        //         [step])
-        //      (* child.CIV [scale]))
-        struct Invariant
+        // See the comment above LoopCollapse for the definition of these member variables
+        struct CollapsiblePattern
         {
-            Value *offset = NULL; // Default = 0
-            Value *scale  = NULL; // Default = 1
-            Value *step   = NULL; // Default = 0
+            Value *t, *u, *f;
+            User *jUser;
+            CollapsiblePattern(Value *const t, Value *const u, Value *const f, User *const jUser)
+                : t(t), u(u), f(f), jUser(jUser) {}
         };
 
-        map<AddOperator* /* collapsible index */, Invariant> collapsibleIndicies;
-        for (User *const user : parent.CIV->users()) {
-            if (user == parent.increment)
+        // To be collapsible, we must be able to pattern match all uses of `i` (parent.CIV)
+        vector<CollapsiblePattern> collapsiblePatterns;
+        for (User *const maybeB : parent.CIV->users()) {
+            if (maybeB == parent.increment)
                 continue;
 
-            // Keep track of the three optional invariants: offset, scale, and step.
-            Invariant invariant;
-
-            // Match (+ parent.CIV [offset])
-            vector<User*> users;
-            if (AddOperator *const add = dyn_cast<AddOperator>(user)) {
-                // There is an `offset`
-                if      (add->getOperand(0) == parent.CIV) invariant.offset = add->getOperand(1);
-                else if (add->getOperand(1) == parent.CIV) invariant.offset = add->getOperand(0);
-                else    return false;
-                if (!parentLoop->isLoopInvariant(invariant.offset))
-                    return false;
-                for (User *const user : add->users())
-                    users.push_back(user);
-            } else {
-                users.push_back(user);
+            // Match `b = i + t`
+            Value *b = NULL;
+            Value *t = NULL;
+            vector<User*> bUsers;
+            if (AddOperator *const maybeIt = dyn_cast<AddOperator>(maybeB)) {
+                Value *maybeT = NULL;
+                if      (maybeIt->getOperand(0) == parent.CIV) maybeT = maybeIt->getOperand(1);
+                else if (maybeIt->getOperand(1) == parent.CIV) maybeT = maybeIt->getOperand(0);
+                if (maybeT && parentLoop->isLoopInvariant(maybeT)) {
+                    b = maybeB;
+                    t = maybeT;
+                    for (User *const user : maybeIt->users())
+                        bUsers.push_back(user);
+                }
             }
 
-            for (User *const user : users) {
-                // Match (* _ (* child.exitVal [scale]))
-                MulOperator *const mul = dyn_cast<MulOperator>(user);
-                if (!mul)
-                    return false;
+            // Failed to match `b = i + t`, proceed under the assumption that `t = 0` and therefore `b = i`
+            if (!b) {
+                b = parent.CIV;
+                bUsers.push_back(maybeB);
+            }
 
-                // Match (* child.exitVal [scale])
-                if ((mul->getOperand(0) != child.exitVal) && (mul->getOperand(1) != child.exitVal)) {
-                    // There is a `scale`
-                    MulOperator *const scaledChildExitVal = dyn_cast<MulOperator>(mul->getOperand(0) != user ? mul->getOperand(0)
-                                                                                                             : mul->getOperand(1));
-                    if (!scaledChildExitVal)
-                        return false;
+            for (User *const bUser : bUsers) {
+                // Match `c = a * b`
+                MulOperator *const c = dyn_cast<MulOperator>(bUser);
+                if (!c)
+                    return false; // Failed to match `c = _ * _`
 
-                    if      (scaledChildExitVal->getOperand(0) == child.exitVal) invariant.scale = scaledChildExitVal->getOperand(1);
-                    else if (scaledChildExitVal->getOperand(1) == child.exitVal) invariant.scale = scaledChildExitVal->getOperand(0);
-                    else    return false;
-
-                    if (!parentLoop->isLoopInvariant(invariant.scale))
-                        return false;
+                // Match `a = x * u`
+                Value *a = NULL;
+                Value *u = NULL;
+                if (MulOperator *const maybeA = dyn_cast<MulOperator>(c->getOperand(0) != b ? c->getOperand(0)
+                                                                                            : c->getOperand(1))) {
+                    Value *maybeU = NULL;
+                    if      (maybeA->getOperand(0) == child.exitVal) maybeU = maybeA->getOperand(1);
+                    else if (maybeA->getOperand(1) == child.exitVal) maybeU = maybeA->getOperand(0);
+                    if (maybeU && parentLoop->isLoopInvariant(maybeU)) {
+                        a = maybeA;
+                        u = maybeU;
+                    }
                 }
 
-                // Match (+ child.CIV (+ _ [step]))
-                for (User *const user : mul->users()) {
-                    AddOperator *const add = dyn_cast<AddOperator>(user);
-                    if (!add)
-                        return false;
+                // Failed to match `a = x * u`, proceed under the assumption that `u = 1` and therefore `a = x`
+                if (!a)
+                    a = child.exitVal;
 
-                    // Match (+ _ [step])
-                    vector<User*> users;
-                    Value *parent = NULL;
-                    if ((add->getOperand(0) != child.CIV) && (add->getOperand(1) != child.CIV)) {
-                        // There is a `step`
-                        invariant.step = add->getOperand(0) != mul ? add->getOperand(0)
-                                                                   : add->getOperand(1);
-                        if (!parentLoop->isLoopInvariant(invariant.step))
-                            return false;
-                        for (User *user : add->users())
-                            users.push_back(user);
-                        parent = user;
+                if (!(((c->getOperand(0) == a) && (c->getOperand(1) == b)) ||
+                      ((c->getOperand(1) == a) && (c->getOperand(0) == b))))
+                    return false; // Failed to match `c = a * b`
+
+                for (User *const cUser : c->users()) {
+                    // Match `f = c + e`
+                    AddOperator *const f = dyn_cast<AddOperator>(cUser);
+                    if (!f)
+                        return false; // Failed to match `e = _ + _`
+
+                    Value *dOrE = f->getOperand(0) != c ? f->getOperand(0)
+                                                        : f->getOperand(1);
+                    Value *e = NULL;
+                    Value *d = NULL;
+                    Value *s = NULL;
+                    if (AddOperator *const maybeE = dyn_cast<AddOperator>(dOrE)) {
+                        e = maybeE;
+
+                        // Match `e = d + s`
+                        Value *maybeS = NULL;
+                        if      (isD(maybeE->getOperand(0), child.CIV, u)) { d = maybeE->getOperand(0); maybeS = maybeE->getOperand(1); }
+                        else if (isD(maybeE->getOperand(1), child.CIV, u)) { d = maybeE->getOperand(1); maybeS = maybeE->getOperand(0); }
+                        else return false; // Failed to match e = d + _
+
+                        if (!maybeS || !parentLoop->isLoopInvariant(maybeS))
+                            return false; // Failed to match e = d + s
+                        s = maybeS;
                     } else {
-                        users.push_back(add);
-                    }
-
-                    // Match (+ _ (* child.CIV [scale]))
-                    for (User *const user : users) {
-                        AddOperator *const add = dyn_cast<AddOperator>(user);
-                        if (!add)
-                            return false;
-
-                        if ((add->getOperand(0) != child.CIV) && (add->getOperand(1) != child.CIV)) {
-                            // Match (+ _ (* child.CIV scale))
-                            if (!invariant.step)
-                                return false;
-                            assert(parent);
-
-                            MulOperator *const mul = dyn_cast<MulOperator>(add->getOperand(0) != parent ? add->getOperand(0)
-                                                                                                        : add->getOperand(1));
-                            if (!mul)
-                                return false;
-
-                            if (!(((mul->getOperand(0) == child.CIV) && (mul->getOperand(1) == invariant.scale)) ||
-                                  ((mul->getOperand(1) == child.CIV) && (mul->getOperand(0) == invariant.scale))))
-                                return false;
+                        // Match e = d
+                        if (isD(dOrE, child.CIV, u)) {
+                            // s = 0
+                            d = dOrE;
+                            e = d;
+                        } else {
+                            return false; // Failed to match `e = d`
                         }
-
-                        collapsibleIndicies.insert(pair<AddOperator*,Invariant>(add, invariant));
                     }
+
+                    if (!(((f->getOperand(0) == c) && (f->getOperand(1) == e)) ||
+                          ((f->getOperand(1) == c) && (f->getOperand(0) == e))))
+                        return false; // Failed to match `f = c + e`
+
+                    collapsiblePatterns.push_back(CollapsiblePattern(t, u, f, cast<User>(u ? d : f)));
                 }
             }
         }
@@ -350,10 +390,15 @@ struct LoopCollapse : public LoopPass
             if (user == child.increment)
                 continue;
 
-            if (collapsibleIndicies.find(dyn_cast_or_null<AddOperator>(user)) != collapsibleIndicies.end())
-                continue;
+            bool found = false;
+            for (const CollapsiblePattern &cp : collapsiblePatterns)
+                if (cp.jUser == user) {
+                    found = true;
+                    break;
+                }
 
-            return false;
+            if (!found)
+                return false;
         }
 
         // Hoist the child's exit value outside of the parent loop
@@ -371,53 +416,43 @@ struct LoopCollapse : public LoopPass
 
         // Scale parent.exitVal by child.exitVal
         IRBuilder<> builder(parent.preheader->getTerminator());
-        Instruction *const scaledExitVal = cast<Instruction>(builder.CreateMul(parent.exitVal, child.exitVal, "", true, true));
-        parent.latchCmp->replaceUsesOfWith(parent.exitVal, scaledExitVal);
+        Instruction *const z = cast<Instruction>(builder.CreateMul(parent.exitVal, child.exitVal, "", true, true));
+        parent.latchCmp->replaceUsesOfWith(parent.exitVal, z);
 
-        // Replace each collapsible index
-        for (const pair<AddOperator*, Invariant> &collapsibleIndex : collapsibleIndicies) {
-            // Since our new induction variable is:
-            //   newCIV := (+ (* parent.CIV child.exitVal) child.CIV)
-            //
-            // It follows that we should re-write our collapsible index:
-            //   (+ (* (+ parent.CIV [offset]) (* child.exitVal [scale])) child.CIV)
-            // as:
-            //   (* (+ (* child.exitVal [offset]) newCIV) [scale])
+        // Replace each collapsible pattern
+        for (const CollapsiblePattern &cp : collapsiblePatterns) {
+            // Construct the new use right before the current use
+            builder.SetInsertPoint(cast<Instruction>(cp.f));
 
-            // Construct the new index right before the current index
-            builder.SetInsertPoint(cast<Instruction>(collapsibleIndex.first));
             Value *replace = parent.CIV;
 
-            if (Value *const offset = collapsibleIndex.second.offset) {
-                Value *scaledOffset = NULL;
+            if (cp.t) {
+                Value *v = NULL;
 
-                // As a special case, try to pattern match the invariant to:
-                //   (* <x> parent.exitVal)
-                // In which case we can reorder:
-                //   (* (* <x> parent.exitVal) child.exitVal)
+                // As a special case, try to pattern match `t = h * y`
+                // In which case reorder:
+                //   (* (* h y) x)
                 // To:
-                //   (* <x> (* parent.exitVal child.exitVal))
+                //   (* h (* y x))
                 // Which equals:
-                //   (* <x> scaledExitVal)
-                // Using `scaledExitVal` here facilitates collapsing additional nested loops if <x> is the grandparent loop's CIV.
-                if (MulOperator *const mul = dyn_cast<MulOperator>(offset))
-                    if (mul->hasOneUse() && ((mul->getOperand(0) == parent.exitVal) || (mul->getOperand(1) == parent.exitVal))) {
-                        scaledExitVal->moveBefore(cast<Instruction>(mul));
-                        mul->replaceUsesOfWith(parent.exitVal, scaledExitVal);
-                        scaledOffset = mul;
+                //   (* h z)
+                // And facilitates collapsing additional nested loops if `s` is the grandparent loop's CIV.
+                if (MulOperator *const hy = dyn_cast<MulOperator>(cp.t))
+                    if (hy->hasOneUse() && ((hy->getOperand(0) == parent.exitVal) || (hy->getOperand(1) == parent.exitVal))) {
+                        z->moveBefore(cast<Instruction>(hy));
+                        hy->replaceUsesOfWith(parent.exitVal, z);
+                        v = hy;
                     }
 
-                if (!scaledOffset)
-                    scaledOffset = builder.CreateMul(offset, child.exitVal, "", true, true);
-                replace = builder.CreateAdd(scaledOffset, replace, "", true, true);
+                if (!v)
+                    v = builder.CreateMul(cp.t, child.exitVal, "", true, true);
+                replace = builder.CreateAdd(v, replace, "", true, true);
             }
 
-            if (Value *const scale = collapsibleIndex.second.scale)
-                replace = builder.CreateMul(scale, replace, "", true, true);
+            if (cp.u)
+                replace = builder.CreateMul(cp.u, replace, "", true, true);
 
-            assert(!collapsibleIndex.second.step);
-
-            collapsibleIndex.first->replaceAllUsesWith(replace);
+            cp.f->replaceAllUsesWith(replace);
         }
 
         // Replace the child's latch with an unconditional branch
