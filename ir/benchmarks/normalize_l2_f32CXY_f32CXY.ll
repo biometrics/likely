@@ -20,10 +20,10 @@ entry:
   %combine.extract.trunc = trunc i64 %channels.combined to i32
   %combine.extract.shift = lshr i64 %channels.combined, 32
   %combine.extract.trunc5 = trunc i64 %combine.extract.shift to i32
-  %3 = mul i32 %combine.extract.trunc5, %combine.extract.trunc
+  %3 = mul nuw nsw i32 %combine.extract.trunc5, %combine.extract.trunc
   %4 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 4
   %rows = load i32, i32* %4, align 4, !range !0
-  %5 = mul i32 %3, %rows
+  %5 = mul nuw nsw i32 %3, %rows
   br label %then
 
 then:                                             ; preds = %entry, %then

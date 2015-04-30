@@ -44,16 +44,16 @@ y_body:                                           ; preds = %y_body, %entry
   %21 = uitofp i8 %20 to float
   %22 = fmul float %21, %1
   %23 = fadd float %22, %2
-  %24 = fcmp olt float %23, 0.000000e+00
-  %25 = select i1 %24, float -5.000000e-01, float 5.000000e-01
-  %26 = fadd float %23, %25
-  %27 = fptoui float %26 to i8
-  %28 = fcmp olt float %26, 0.000000e+00
-  %29 = select i1 %28, i8 0, i8 %27
-  %30 = fcmp ogt float %26, 2.550000e+02
-  %31 = select i1 %30, i8 -1, i8 %29
-  %32 = getelementptr i8, i8* %9, i64 %y
-  store i8 %31, i8* %32, align 1, !llvm.mem.parallel_loop_access !1
+  %24 = getelementptr i8, i8* %9, i64 %y
+  %25 = fcmp olt float %23, 0.000000e+00
+  %26 = select i1 %25, float -5.000000e-01, float 5.000000e-01
+  %27 = fadd float %23, %26
+  %28 = fptoui float %27 to i8
+  %29 = fcmp olt float %27, 0.000000e+00
+  %30 = select i1 %29, i8 0, i8 %28
+  %31 = fcmp ogt float %27, 2.550000e+02
+  %32 = select i1 %31, i8 -1, i8 %30
+  store i8 %32, i8* %24, align 1, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %18
   br i1 %y_postcondition, label %y_exit, label %y_body, !llvm.loop !1

@@ -21,7 +21,7 @@ entry:
   %12 = bitcast i32* %11 to i64*
   %channels.combined = load i64, i64* %12, align 4
   %dst_c = and i64 %channels.combined, 4294967295
-  %combine.extract.shift = lshr i64 %channels.combined, 32
+  %combine.extract.shift9 = lshr i64 %channels.combined, 32
   %13 = getelementptr inbounds %u8SCXY, %u8SCXY* %4, i64 0, i32 6, i64 0
   %14 = ptrtoint i8* %13 to i64
   %15 = and i64 %14, 31
@@ -31,7 +31,7 @@ entry:
   %18 = bitcast i32* %17 to i64*
   %channels1.combined = load i64, i64* %18, align 4
   %src_c = and i64 %channels1.combined, 4294967295
-  %combine.extract.shift9 = lshr i64 %channels1.combined, 32
+  %combine.extract.shift = lshr i64 %channels1.combined, 32
   %19 = getelementptr inbounds %u8SCXY, %u8SCXY* %6, i64 0, i32 6, i64 0
   %20 = ptrtoint i8* %19 to i64
   %21 = and i64 %20, 31
@@ -41,8 +41,8 @@ entry:
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
-  %23 = mul i64 %y, %combine.extract.shift9
-  %24 = mul i64 %y, %combine.extract.shift
+  %23 = mul i64 %y, %combine.extract.shift
+  %24 = mul i64 %y, %combine.extract.shift9
   br label %x_body
 
 x_body:                                           ; preds = %c_exit, %y_body
@@ -61,24 +61,24 @@ c_body:                                           ; preds = %c_body, %x_body
   %28 = uitofp i8 %27 to float
   %29 = fmul float %8, %28
   %30 = fadd float %10, %29
-  %31 = fcmp olt float %30, 0.000000e+00
-  %32 = select i1 %31, float -5.000000e-01, float 5.000000e-01
-  %33 = fadd float %30, %32
-  %34 = fptoui float %33 to i8
-  %35 = fcmp olt float %33, 0.000000e+00
-  %36 = select i1 %35, i8 0, i8 %34
-  %37 = fcmp ogt float %33, 2.550000e+02
-  %38 = select i1 %37, i8 -1, i8 %36
-  %39 = add i64 %tmp6, %c
-  %40 = getelementptr %u8SCXY, %u8SCXY* %4, i64 0, i32 6, i64 %39
-  store i8 %38, i8* %40, align 1, !llvm.mem.parallel_loop_access !0
+  %31 = add i64 %tmp6, %c
+  %32 = getelementptr %u8SCXY, %u8SCXY* %4, i64 0, i32 6, i64 %31
+  %33 = fcmp olt float %30, 0.000000e+00
+  %34 = select i1 %33, float -5.000000e-01, float 5.000000e-01
+  %35 = fadd float %30, %34
+  %36 = fptoui float %35 to i8
+  %37 = fcmp olt float %35, 0.000000e+00
+  %38 = select i1 %37, i8 0, i8 %36
+  %39 = fcmp ogt float %35, 2.550000e+02
+  %40 = select i1 %39, i8 -1, i8 %38
+  store i8 %40, i8* %32, align 1, !llvm.mem.parallel_loop_access !0
   %c_increment = add nuw nsw i64 %c, 1
   %c_postcondition = icmp eq i64 %c_increment, %dst_c
   br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !0
 
 c_exit:                                           ; preds = %c_body
   %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %combine.extract.shift
+  %x_postcondition = icmp eq i64 %x_increment, %combine.extract.shift9
   br i1 %x_postcondition, label %x_exit, label %x_body
 
 x_exit:                                           ; preds = %c_exit

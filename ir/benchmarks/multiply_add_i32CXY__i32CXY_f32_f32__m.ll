@@ -61,13 +61,13 @@ c_body:                                           ; preds = %c_body, %x_body
   %28 = sitofp i32 %27 to float
   %29 = fmul float %8, %28
   %30 = fadd float %10, %29
-  %31 = fcmp olt float %30, 0.000000e+00
-  %32 = select i1 %31, float -5.000000e-01, float 5.000000e-01
-  %33 = fadd float %30, %32
-  %34 = fptosi float %33 to i32
-  %35 = add i64 %tmp6, %c
-  %36 = getelementptr %i32CXY, %i32CXY* %4, i64 0, i32 6, i64 %35
-  store i32 %34, i32* %36, align 4, !llvm.mem.parallel_loop_access !0
+  %31 = add i64 %tmp6, %c
+  %32 = getelementptr %i32CXY, %i32CXY* %4, i64 0, i32 6, i64 %31
+  %33 = fcmp olt float %30, 0.000000e+00
+  %34 = select i1 %33, float -5.000000e-01, float 5.000000e-01
+  %35 = fadd float %30, %34
+  %36 = fptosi float %35 to i32
+  store i32 %36, i32* %32, align 4, !llvm.mem.parallel_loop_access !0
   %c_increment = add nuw nsw i64 %c, 1
   %c_postcondition = icmp eq i64 %c_increment, %dst_c
   br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !0

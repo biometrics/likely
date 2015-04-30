@@ -122,6 +122,7 @@ struct LikelyContext : public likely_settings
             TM = getTargetMachine(false);
         }
 
+        // Initialization and target information
         PM->add(createVerifierPass());
         PM->add(ACT);
         PM->add(new TargetLibraryInfoWrapperPass(Triple(sys::getProcessTriple())));
@@ -131,29 +132,24 @@ struct LikelyContext : public likely_settings
         PM->add(createTypeBasedAliasAnalysisPass());
         PM->add(createBasicAliasAnalysisPass());
 
-        // Our assumption substitution pass
-        PM->add(createAssumptionSubstitutionPass());
-        PM->add(createVerifierPass());
-
         // Remove dead or redudant instructions
-        PM->add(createDeadCodeEliminationPass());
+        PM->add(createAssumptionSubstitutionPass()); // Our in house pass
+        PM->add(createVerifierPass()); // Make sure it works :)
         PM->add(createEarlyCSEPass());
         PM->add(createInstructionCombiningPass());
+        PM->add(createDeadCodeEliminationPass());
         PM->add(createReassociatePass());
         PM->add(createCFGSimplificationPass());
 
-        // Update the function's signature
-        PM->add(createFunctionAttrsPass());
-
         // Optimize loops
-        PM->add(createLoopRotatePass());
+        PM->add(createLoopRotatePass()); // Canonicalization
         PM->add(createLICMPass());
         PM->add(createIndVarSimplifyPass());
-        PM->add(createLoopDeletionPass());
-
-        // Our loop collapse pass
-        PM->add(createLoopCollapsePass());
-        PM->add(createVerifierPass());
+        PM->add(createLoopCollapsePass()); // Our in house pass
+        PM->add(createVerifierPass()); // Make sure it works :)
+        PM->add(createCFGSimplificationPass()); // Cleanup
+        PM->add(createInstructionCombiningPass());
+        PM->add(createDeadCodeEliminationPass());
 
         // More sophisticated scalar optimizations
         PM->add(createGVNPass());
@@ -163,6 +159,9 @@ struct LikelyContext : public likely_settings
         PM->add(createAggressiveDCEPass());
         PM->add(createCFGSimplificationPass());
         PM->add(createInstructionCombiningPass());
+
+        // Update the function's signature
+        PM->add(createFunctionAttrsPass());
 
         // Vectorize the loops
         if (!human) {
