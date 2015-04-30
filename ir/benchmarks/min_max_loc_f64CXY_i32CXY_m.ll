@@ -187,8 +187,9 @@ entry:
   %12 = getelementptr inbounds { %f64CXY*, %i32CXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i32CXY*, i32, i32, i64, i64, i64, i64 }* %7, i64 0, i32 4
   store i64 %6, i64* %12, align 8
   %13 = getelementptr inbounds { %f64CXY*, %i32CXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i32CXY*, i32, i32, i64, i64, i64, i64 }* %7, i64 0, i32 5
-  %14 = bitcast i64* %13 to <2 x i64>*
-  store <2 x i64> <i64 1, i64 1>, <2 x i64>* %14, align 8
+  store i64 1, i64* %13, align 8
+  %14 = getelementptr inbounds { %f64CXY*, %i32CXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i32CXY*, i32, i32, i64, i64, i64, i64 }* %7, i64 0, i32 6
+  store i64 1, i64* %14, align 8
   %15 = getelementptr inbounds { %f64CXY*, %i32CXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i32CXY*, i32, i32, i64, i64, i64, i64 }* %7, i64 0, i32 7
   store i64 1, i64* %15, align 8
   %16 = bitcast { %f64CXY*, %i32CXY*, i32, i32, i64, i64, i64, i64 }* %7 to i8*

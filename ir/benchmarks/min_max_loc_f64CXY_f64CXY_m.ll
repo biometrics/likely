@@ -16,15 +16,15 @@ entry:
   %7 = getelementptr { %f64CXY*, %f64CXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %f64CXY*, i32, i32, i64, i64, i64, i64 }* %0, i64 0, i32 2
   %8 = bitcast i32* %7 to i64*
   %.combined = load i64, i64* %8, align 4
-  %combine.extract.trunc21 = trunc i64 %.combined to i32
-  %combine.extract.shift22 = lshr i64 %.combined, 32
-  %combine.extract.trunc23 = trunc i64 %combine.extract.shift22 to i32
+  %combine.extract.trunc18 = trunc i64 %.combined to i32
+  %combine.extract.shift19 = lshr i64 %.combined, 32
+  %combine.extract.trunc20 = trunc i64 %combine.extract.shift19 to i32
   %9 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 2
   %10 = bitcast i32* %9 to i64*
   %channels.combined = load i64, i64* %10, align 4
   %dst_c = and i64 %channels.combined, 4294967295
-  %combine.extract.shift = lshr i64 %channels.combined, 32
-  %dst_y_step = mul nuw nsw i64 %combine.extract.shift, %dst_c
+  %combine.extract.shift22 = lshr i64 %channels.combined, 32
+  %dst_y_step = mul nuw nsw i64 %combine.extract.shift22, %dst_c
   %11 = getelementptr inbounds %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 0
   %12 = ptrtoint double* %11 to i64
   %13 = and i64 %12, 31
@@ -34,15 +34,15 @@ entry:
   %16 = bitcast i32* %15 to i64*
   %channels1.combined = load i64, i64* %16, align 4
   %src_c = and i64 %channels1.combined, 4294967295
-  %combine.extract.shift19 = lshr i64 %channels1.combined, 32
+  %combine.extract.shift = lshr i64 %channels1.combined, 32
   %17 = getelementptr inbounds %f64CXY, %f64CXY* %6, i64 0, i32 6, i64 0
   %18 = ptrtoint double* %17 to i64
   %19 = and i64 %18, 31
   %20 = icmp eq i64 %19, 0
   call void @llvm.assume(i1 %20)
-  %21 = icmp eq i32 %combine.extract.trunc23, 0
+  %21 = icmp eq i32 %combine.extract.trunc20, 0
   %22 = shl nuw nsw i64 %dst_c, 1
-  %23 = icmp eq i32 %combine.extract.trunc21, 0
+  %23 = icmp eq i32 %combine.extract.trunc18, 0
   br label %c_body
 
 c_body:                                           ; preds = %end, %entry
@@ -61,7 +61,7 @@ then:                                             ; preds = %c_body, %end6
 
 then5.lr.ph:                                      ; preds = %then
   %31 = sext i32 %30 to i64
-  %32 = mul nsw i64 %31, %combine.extract.shift19
+  %32 = mul nsw i64 %31, %combine.extract.shift
   br label %then5
 
 label.end_crit_edge:                              ; preds = %end6
@@ -130,7 +130,7 @@ end6:                                             ; preds = %label4.end6_crit_ed
   %70 = phi double [ %80, %label4.end6_crit_edge ], [ %28, %then ]
   %71 = phi double [ %76, %label4.end6_crit_edge ], [ %29, %then ]
   %72 = add nuw nsw i32 %30, 1
-  %73 = icmp eq i32 %72, %combine.extract.trunc23
+  %73 = icmp eq i32 %72, %combine.extract.trunc20
   br i1 %73, label %label.end_crit_edge, label %then
 
 then7:                                            ; preds = %then5
@@ -151,7 +151,7 @@ end10:                                            ; preds = %then9, %end8
   %79 = phi i32 [ %60, %then9 ], [ %55, %end8 ]
   %80 = phi double [ %64, %then9 ], [ %58, %end8 ]
   %81 = add nuw nsw i32 %60, 1
-  %82 = icmp eq i32 %81, %combine.extract.trunc21
+  %82 = icmp eq i32 %81, %combine.extract.trunc18
   br i1 %82, label %label4.end6_crit_edge, label %then5
 }
 
@@ -185,8 +185,9 @@ entry:
   %12 = getelementptr inbounds { %f64CXY*, %f64CXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %f64CXY*, i32, i32, i64, i64, i64, i64 }* %7, i64 0, i32 4
   store i64 %6, i64* %12, align 8
   %13 = getelementptr inbounds { %f64CXY*, %f64CXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %f64CXY*, i32, i32, i64, i64, i64, i64 }* %7, i64 0, i32 5
-  %14 = bitcast i64* %13 to <2 x i64>*
-  store <2 x i64> <i64 1, i64 1>, <2 x i64>* %14, align 8
+  store i64 1, i64* %13, align 8
+  %14 = getelementptr inbounds { %f64CXY*, %f64CXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %f64CXY*, i32, i32, i64, i64, i64, i64 }* %7, i64 0, i32 6
+  store i64 1, i64* %14, align 8
   %15 = getelementptr inbounds { %f64CXY*, %f64CXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %f64CXY*, i32, i32, i64, i64, i64, i64 }* %7, i64 0, i32 7
   store i64 1, i64* %15, align 8
   %16 = bitcast { %f64CXY*, %f64CXY*, i32, i32, i64, i64, i64, i64 }* %7 to i8*

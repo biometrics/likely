@@ -140,7 +140,6 @@ struct LikelyContext : public likely_settings
         PM->add(createEarlyCSEPass());
         PM->add(createInstructionCombiningPass());
         PM->add(createReassociatePass());
-        PM->add(createFloat2IntPass());
         PM->add(createCFGSimplificationPass());
 
         // Update the function's signature
@@ -160,17 +159,20 @@ struct LikelyContext : public likely_settings
         PM->add(createGVNPass());
         PM->add(createDeadStoreEliminationPass());
         PM->add(createLoadCombinePass());
-        PM->add(createSLPVectorizerPass());
+        PM->add(createFloat2IntPass());
         PM->add(createAggressiveDCEPass());
         PM->add(createCFGSimplificationPass());
         PM->add(createInstructionCombiningPass());
-        PM->add(createDeadInstEliminationPass());
 
         // Vectorize the loops
         if (!human) {
-            PM->add(createLoopRotatePass());
-            PM->add(createLoopVectorizePass());
-            PM->add(createAlignmentFromAssumptionsPass());
+            PM->add(createLoopRotatePass()); // Canonical form needed by vectorization
+            PM->add(createLoopVectorizePass()); // Loop vectorization with unrolling
+            PM->add(createLoopUnrollPass()); // Unroll loops that couldn't be vectorized
+            PM->add(createSLPVectorizerPass()); // Vectorize unrolled instructions
+            PM->add(createAlignmentFromAssumptionsPass()); // Use vectorized and unrolled loops to prove alignment
+            PM->add(createCFGSimplificationPass()); // Cleanup
+            PM->add(createInstructionCombiningPass());
         }
 
         PM->add(createVerifierPass());
