@@ -13,76 +13,78 @@ define private void @likely_test_function_tmp_thunk0({ %u8XY*, i32, i32, float, 
 entry:
   %3 = getelementptr inbounds { %u8XY*, i32, i32, float, float, float, float, i32 }, { %u8XY*, i32, i32, float, float, float, float, i32 }* %0, i64 0, i32 0
   %4 = load %u8XY*, %u8XY** %3, align 8
-  %5 = getelementptr inbounds { %u8XY*, i32, i32, float, float, float, float, i32 }, { %u8XY*, i32, i32, float, float, float, float, i32 }* %0, i64 0, i32 1
-  %6 = load i32, i32* %5, align 4
-  %7 = getelementptr inbounds { %u8XY*, i32, i32, float, float, float, float, i32 }, { %u8XY*, i32, i32, float, float, float, float, i32 }* %0, i64 0, i32 2
-  %8 = load i32, i32* %7, align 4
-  %9 = getelementptr inbounds { %u8XY*, i32, i32, float, float, float, float, i32 }, { %u8XY*, i32, i32, float, float, float, float, i32 }* %0, i64 0, i32 3
+  %5 = getelementptr { %u8XY*, i32, i32, float, float, float, float, i32 }, { %u8XY*, i32, i32, float, float, float, float, i32 }* %0, i64 0, i32 1
+  %6 = bitcast i32* %5 to i64*
+  %.combined = load i64, i64* %6, align 4
+  %combine.extract.trunc = trunc i64 %.combined to i32
+  %combine.extract.shift = lshr i64 %.combined, 32
+  %combine.extract.trunc6 = trunc i64 %combine.extract.shift to i32
+  %7 = getelementptr inbounds { %u8XY*, i32, i32, float, float, float, float, i32 }, { %u8XY*, i32, i32, float, float, float, float, i32 }* %0, i64 0, i32 3
+  %8 = load float, float* %7, align 4
+  %9 = getelementptr inbounds { %u8XY*, i32, i32, float, float, float, float, i32 }, { %u8XY*, i32, i32, float, float, float, float, i32 }* %0, i64 0, i32 4
   %10 = load float, float* %9, align 4
-  %11 = getelementptr inbounds { %u8XY*, i32, i32, float, float, float, float, i32 }, { %u8XY*, i32, i32, float, float, float, float, i32 }* %0, i64 0, i32 4
+  %11 = getelementptr inbounds { %u8XY*, i32, i32, float, float, float, float, i32 }, { %u8XY*, i32, i32, float, float, float, float, i32 }* %0, i64 0, i32 5
   %12 = load float, float* %11, align 4
-  %13 = getelementptr inbounds { %u8XY*, i32, i32, float, float, float, float, i32 }, { %u8XY*, i32, i32, float, float, float, float, i32 }* %0, i64 0, i32 5
+  %13 = getelementptr inbounds { %u8XY*, i32, i32, float, float, float, float, i32 }, { %u8XY*, i32, i32, float, float, float, float, i32 }* %0, i64 0, i32 6
   %14 = load float, float* %13, align 4
-  %15 = getelementptr inbounds { %u8XY*, i32, i32, float, float, float, float, i32 }, { %u8XY*, i32, i32, float, float, float, float, i32 }* %0, i64 0, i32 6
-  %16 = load float, float* %15, align 4
-  %17 = getelementptr inbounds { %u8XY*, i32, i32, float, float, float, float, i32 }, { %u8XY*, i32, i32, float, float, float, float, i32 }* %0, i64 0, i32 7
-  %18 = load i32, i32* %17, align 4
-  %19 = getelementptr inbounds %u8XY, %u8XY* %4, i64 0, i32 3
-  %columns = load i32, i32* %19, align 4, !range !0
+  %15 = getelementptr inbounds { %u8XY*, i32, i32, float, float, float, float, i32 }, { %u8XY*, i32, i32, float, float, float, float, i32 }* %0, i64 0, i32 7
+  %16 = load i32, i32* %15, align 4
+  %17 = getelementptr inbounds %u8XY, %u8XY* %4, i64 0, i32 3
+  %columns = load i32, i32* %17, align 4, !range !0
   %dst_y_step = zext i32 %columns to i64
-  %20 = getelementptr inbounds %u8XY, %u8XY* %4, i64 0, i32 6, i64 0
-  %21 = ptrtoint i8* %20 to i64
-  %22 = and i64 %21, 31
-  %23 = icmp eq i64 %22, 0
-  tail call void @llvm.assume(i1 %23)
-  %24 = sitofp i32 %6 to float
-  %25 = sitofp i32 %8 to float
+  %18 = getelementptr inbounds %u8XY, %u8XY* %4, i64 0, i32 6, i64 0
+  %19 = ptrtoint i8* %18 to i64
+  %20 = and i64 %19, 31
+  %21 = icmp eq i64 %20, 0
+  call void @llvm.assume(i1 %21)
+  %22 = sitofp i32 %combine.extract.trunc to float
+  %23 = sitofp i32 %combine.extract.trunc6 to float
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
-  %26 = uitofp i64 %y to float
-  %27 = fmul float %16, %26
-  %28 = fdiv float %27, %25
-  %29 = fadd float %12, %28
-  %30 = mul nuw nsw i64 %y, %dst_y_step
+  %24 = uitofp i64 %y to float
+  %25 = fmul float %14, %24
+  %26 = fdiv float %25, %23
+  %27 = fadd float %10, %26
+  %28 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
 x_body:                                           ; preds = %end, %y_body
   %x = phi i64 [ 0, %y_body ], [ %x_increment, %end ]
-  %31 = uitofp i64 %x to float
-  %32 = fmul float %14, %31
-  %33 = fdiv float %32, %24
-  %34 = fadd float %10, %33
+  %29 = uitofp i64 %x to float
+  %30 = fmul float %12, %29
+  %31 = fdiv float %30, %22
+  %32 = fadd float %8, %31
   br label %label
 
 label:                                            ; preds = %label, %x_body
-  %35 = phi i32 [ %45, %label ], [ 0, %x_body ]
-  %36 = phi float [ %44, %label ], [ 0.000000e+00, %x_body ]
-  %37 = phi float [ %41, %label ], [ 0.000000e+00, %x_body ]
-  %38 = fmul float %37, %37
-  %39 = fmul float %36, %36
-  %40 = fsub float %38, %39
-  %41 = fadd float %34, %40
-  %42 = fmul float %37, %36
-  %43 = fmul float %42, 2.000000e+00
-  %44 = fadd float %29, %43
-  %45 = add nuw nsw i32 %35, 1
-  %46 = fmul float %41, %41
-  %47 = fmul float %44, %44
-  %48 = fadd float %46, %47
-  %49 = fcmp olt float %48, 4.000000e+00
-  %50 = icmp slt i32 %45, %18
-  %51 = and i1 %50, %49
-  br i1 %51, label %label, label %end
+  %33 = phi i32 [ %43, %label ], [ 0, %x_body ]
+  %34 = phi float [ %42, %label ], [ 0.000000e+00, %x_body ]
+  %35 = phi float [ %39, %label ], [ 0.000000e+00, %x_body ]
+  %36 = fmul float %35, %35
+  %37 = fmul float %34, %34
+  %38 = fsub float %36, %37
+  %39 = fadd float %32, %38
+  %40 = fmul float %35, %34
+  %41 = fmul float %40, 2.000000e+00
+  %42 = fadd float %27, %41
+  %43 = add nuw nsw i32 %33, 1
+  %44 = fmul float %39, %39
+  %45 = fmul float %42, %42
+  %46 = fadd float %44, %45
+  %47 = fcmp olt float %46, 4.000000e+00
+  %48 = icmp slt i32 %43, %16
+  %49 = and i1 %48, %47
+  br i1 %49, label %label, label %end
 
 end:                                              ; preds = %label
-  %52 = mul nuw nsw i32 %45, 255
-  %53 = sdiv i32 %52, %18
-  %54 = trunc i32 %53 to i8
-  %55 = add nuw nsw i64 %x, %30
-  %56 = getelementptr %u8XY, %u8XY* %4, i64 0, i32 6, i64 %55
-  store i8 %54, i8* %56, align 1, !llvm.mem.parallel_loop_access !1
+  %50 = mul nuw nsw i32 %43, 255
+  %51 = sdiv i32 %50, %16
+  %52 = trunc i32 %51 to i8
+  %53 = add nuw nsw i64 %x, %28
+  %54 = getelementptr %u8XY, %u8XY* %4, i64 0, i32 6, i64 %53
+  store i8 %52, i8* %54, align 1, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
@@ -137,7 +139,7 @@ entry:
   %26 = load %i32CXYT*, %i32CXYT** %25, align 8
   %27 = getelementptr inbounds %i32CXYT, %i32CXYT* %26, i64 0, i32 6, i64 0
   %arg_6 = load i32, i32* %27, align 4
-  %28 = tail call %u0CXYT* @likely_new(i32 24584, i32 1, i32 %arg_0, i32 %arg_1, i32 1, i8* null)
+  %28 = call %u0CXYT* @likely_new(i32 24584, i32 1, i32 %arg_0, i32 %arg_1, i32 1, i8* null)
   %29 = bitcast %u0CXYT* %28 to %u8XY*
   %30 = zext i32 %arg_1 to i64
   %31 = alloca { %u8XY*, i32, i32, float, float, float, float, i32 }, align 8

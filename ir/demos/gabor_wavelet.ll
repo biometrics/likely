@@ -20,8 +20,7 @@ declare float @llvm.sin.f32(float) #2
 ; Function Attrs: nounwind readnone
 declare float @llvm.exp.f32(float) #2
 
-; Function Attrs: nounwind
-define %f32XY* @likely_test_function(%u0CXYT** nocapture readonly) #1 {
+define %f32XY* @likely_test_function(%u0CXYT** nocapture readonly) {
 entry:
   %1 = bitcast %u0CXYT** %0 to %i32CXYT**
   %2 = load %i32CXYT*, %i32CXYT** %1, align 8
@@ -61,7 +60,7 @@ entry:
   %29 = or i32 %28, 1
   %30 = shl nuw nsw i32 %arg_1, 1
   %31 = or i32 %30, 1
-  %32 = tail call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %29, i32 %31, i32 1, i8* null)
+  %32 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %29, i32 %31, i32 1, i8* null)
   %33 = zext i32 %31 to i64
   %dst_y_step = zext i32 %29 to i64
   %34 = getelementptr inbounds %u0CXYT, %u0CXYT* %32, i64 1
@@ -69,9 +68,9 @@ entry:
   %36 = ptrtoint %u0CXYT* %34 to i64
   %37 = and i64 %36, 31
   %38 = icmp eq i64 %37, 0
-  tail call void @llvm.assume(i1 %38)
-  %39 = tail call float @llvm.cos.f32(float %arg_4)
-  %40 = tail call float @llvm.sin.f32(float %arg_4)
+  call void @llvm.assume(i1 %38)
+  %39 = call float @llvm.cos.f32(float %arg_4)
+  %40 = call float @llvm.sin.f32(float %arg_4)
   %41 = fdiv float 0x401921FB60000000, %arg_5
   br label %y_body
 
@@ -102,10 +101,10 @@ x_body:                                           ; preds = %x_body, %y_body
   %60 = fmul float %59, %59
   %61 = fadd float %58, %60
   %62 = fmul float %61, -5.000000e-01
-  %63 = tail call float @llvm.exp.f32(float %62)
+  %63 = call float @llvm.exp.f32(float %62)
   %64 = fmul float %52, %41
   %65 = fadd float %arg_6, %64
-  %66 = tail call float @llvm.cos.f32(float %65)
+  %66 = call float @llvm.cos.f32(float %65)
   %67 = fmul float %63, %66
   %68 = add nuw nsw i64 %x, %47
   %69 = getelementptr float, float* %35, i64 %68

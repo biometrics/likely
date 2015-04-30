@@ -10,30 +10,30 @@ declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 
 ; Function Attrs: nounwind
 declare void @llvm.assume(i1) #1
 
-; Function Attrs: nounwind
-define %f64CXY* @min_max_loc(%i16SCXY*) #1 {
+define %f64CXY* @min_max_loc(%i16SCXY*) {
 entry:
-  %1 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 2
-  %channels = load i32, i32* %1, align 4, !range !0
-  %2 = tail call %u0CXYT* @likely_new(i32 28992, i32 %channels, i32 3, i32 2, i32 1, i8* null)
-  %3 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 3
-  %columns = load i32, i32* %3, align 4, !range !0
+  %1 = getelementptr %i16SCXY, %i16SCXY* %0, i64 0, i32 2
+  %2 = bitcast i32* %1 to i64*
+  %channels.combined = load i64, i64* %2, align 4
+  %combine.extract.trunc = trunc i64 %channels.combined to i32
+  %3 = call %u0CXYT* @likely_new(i32 28992, i32 %combine.extract.trunc, i32 3, i32 2, i32 1, i8* null)
+  %combine.extract.shift = lshr i64 %channels.combined, 32
+  %combine.extract.trunc7 = trunc i64 %combine.extract.shift to i32
   %4 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 4
   %rows = load i32, i32* %4, align 4, !range !0
-  %5 = zext i32 %channels to i64
+  %5 = and i64 %channels.combined, 4294967295
   %dst_y_step = mul nuw nsw i64 %5, 3
-  %6 = getelementptr inbounds %u0CXYT, %u0CXYT* %2, i64 1
+  %6 = getelementptr inbounds %u0CXYT, %u0CXYT* %3, i64 1
   %7 = bitcast %u0CXYT* %6 to double*
   %8 = ptrtoint %u0CXYT* %6 to i64
   %9 = and i64 %8, 31
   %10 = icmp eq i64 %9, 0
-  tail call void @llvm.assume(i1 %10)
-  %src_x = zext i32 %columns to i64
+  call void @llvm.assume(i1 %10)
   %11 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 6, i64 0
   %12 = ptrtoint i16* %11 to i64
   %13 = and i64 %12, 31
   %14 = icmp eq i64 %13, 0
-  tail call void @llvm.assume(i1 %14)
+  call void @llvm.assume(i1 %14)
   %15 = shl nuw nsw i64 %5, 1
   br label %c_body
 
@@ -42,78 +42,90 @@ c_body:                                           ; preds = %end, %entry
   br label %then
 
 then:                                             ; preds = %c_body, %end3
-  %storemerge26 = phi i32 [ 0, %c_body ], [ %61, %end3 ]
-  %16 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %54, %end3 ]
-  %17 = phi double [ 0xFFEFFFFFFFFFFFFF, %c_body ], [ %58, %end3 ]
-  %18 = phi i32 [ 0, %c_body ], [ %53, %end3 ]
-  %19 = phi i32 [ 0, %c_body ], [ %52, %end3 ]
-  %20 = phi i32 [ 0, %c_body ], [ %57, %end3 ]
-  %21 = phi i32 [ 0, %c_body ], [ %56, %end3 ]
-  %22 = sext i32 %storemerge26 to i64
-  %23 = mul nsw i64 %22, %src_x
+  %16 = phi i32 [ 0, %c_body ], [ %60, %end3 ]
+  %17 = phi i32 [ 0, %c_body ], [ %61, %end3 ]
+  %18 = phi i32 [ 0, %c_body ], [ %56, %end3 ]
+  %19 = phi i32 [ 0, %c_body ], [ %57, %end3 ]
+  %20 = phi double [ 0xFFEFFFFFFFFFFFFF, %c_body ], [ %62, %end3 ]
+  %21 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %58, %end3 ]
+  %22 = phi i32 [ 0, %c_body ], [ %54, %end3 ]
+  %23 = sext i32 %22 to i64
+  %24 = mul nsw i64 %23, %combine.extract.shift
   br label %then2
 
 end:                                              ; preds = %end3
-  %24 = getelementptr double, double* %7, i64 %c
-  store double %54, double* %24, align 8, !llvm.mem.parallel_loop_access !1
-  %25 = sitofp i32 %53 to double
-  %26 = add nuw nsw i64 %c, %5
-  %27 = getelementptr double, double* %7, i64 %26
-  store double %25, double* %27, align 8, !llvm.mem.parallel_loop_access !1
-  %28 = sitofp i32 %52 to double
-  %29 = add nuw nsw i64 %c, %15
-  %30 = getelementptr double, double* %7, i64 %29
-  store double %28, double* %30, align 8, !llvm.mem.parallel_loop_access !1
-  %31 = add nuw nsw i64 %c, %dst_y_step
-  %32 = getelementptr double, double* %7, i64 %31
-  store double %58, double* %32, align 8, !llvm.mem.parallel_loop_access !1
-  %33 = sitofp i32 %57 to double
-  %34 = add nuw nsw i64 %26, %dst_y_step
-  %35 = getelementptr double, double* %7, i64 %34
-  store double %33, double* %35, align 8, !llvm.mem.parallel_loop_access !1
-  %36 = sitofp i32 %56 to double
-  %37 = add nuw nsw i64 %29, %dst_y_step
-  %38 = getelementptr double, double* %7, i64 %37
-  store double %36, double* %38, align 8, !llvm.mem.parallel_loop_access !1
+  %25 = getelementptr double, double* %7, i64 %c
+  store double %58, double* %25, align 8, !llvm.mem.parallel_loop_access !1
+  %26 = sitofp i32 %57 to double
+  %27 = add nuw nsw i64 %c, %5
+  %28 = getelementptr double, double* %7, i64 %27
+  store double %26, double* %28, align 8, !llvm.mem.parallel_loop_access !1
+  %29 = sitofp i32 %56 to double
+  %30 = add nuw nsw i64 %c, %15
+  %31 = getelementptr double, double* %7, i64 %30
+  store double %29, double* %31, align 8, !llvm.mem.parallel_loop_access !1
+  %32 = add nuw nsw i64 %c, %dst_y_step
+  %33 = getelementptr double, double* %7, i64 %32
+  store double %62, double* %33, align 8, !llvm.mem.parallel_loop_access !1
+  %34 = sitofp i32 %61 to double
+  %35 = add nuw nsw i64 %27, %dst_y_step
+  %36 = getelementptr double, double* %7, i64 %35
+  store double %34, double* %36, align 8, !llvm.mem.parallel_loop_access !1
+  %37 = sitofp i32 %60 to double
+  %38 = add nuw nsw i64 %30, %dst_y_step
+  %39 = getelementptr double, double* %7, i64 %38
+  store double %37, double* %39, align 8, !llvm.mem.parallel_loop_access !1
   %c_increment = add nuw nsw i64 %c, 1
   %c_postcondition = icmp eq i64 %c_increment, %5
   br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !1
 
 c_exit:                                           ; preds = %end
-  %39 = bitcast %u0CXYT* %2 to %f64CXY*
-  ret %f64CXY* %39
+  %40 = bitcast %u0CXYT* %3 to %f64CXY*
+  ret %f64CXY* %40
 
-then2:                                            ; preds = %then, %then2
-  %storemerge125 = phi i32 [ 0, %then ], [ %59, %then2 ]
-  %40 = phi double [ %16, %then ], [ %54, %then2 ]
-  %41 = phi double [ %17, %then ], [ %58, %then2 ]
-  %42 = phi i32 [ %18, %then ], [ %53, %then2 ]
-  %43 = phi i32 [ %19, %then ], [ %52, %then2 ]
-  %44 = phi i32 [ %20, %then ], [ %57, %then2 ]
-  %45 = phi i32 [ %21, %then ], [ %56, %then2 ]
-  %46 = sext i32 %storemerge125 to i64
-  %tmp = add i64 %46, %23
+then2:                                            ; preds = %then, %end7
+  %41 = phi i32 [ %16, %then ], [ %60, %end7 ]
+  %42 = phi i32 [ %17, %then ], [ %61, %end7 ]
+  %43 = phi i32 [ %18, %then ], [ %56, %end7 ]
+  %44 = phi i32 [ %19, %then ], [ %57, %end7 ]
+  %45 = phi double [ %20, %then ], [ %62, %end7 ]
+  %46 = phi double [ %21, %then ], [ %58, %end7 ]
+  %47 = phi i32 [ 0, %then ], [ %63, %end7 ]
+  %48 = sext i32 %47 to i64
+  %tmp = add i64 %48, %24
   %tmp2 = mul i64 %tmp, %5
-  %47 = add i64 %tmp2, %c
-  %48 = getelementptr %i16SCXY, %i16SCXY* %0, i64 0, i32 6, i64 %47
-  %49 = load i16, i16* %48, align 2, !llvm.mem.parallel_loop_access !1
-  %50 = sitofp i16 %49 to double
-  %51 = fcmp olt double %50, %40
-  %52 = select i1 %51, i32 %storemerge26, i32 %43
-  %53 = select i1 %51, i32 %storemerge125, i32 %42
-  %54 = select i1 %51, double %50, double %40
-  %55 = fcmp ogt double %50, %41
-  %56 = select i1 %55, i32 %storemerge26, i32 %45
-  %57 = select i1 %55, i32 %storemerge125, i32 %44
-  %58 = select i1 %55, double %50, double %41
-  %59 = add nuw nsw i32 %storemerge125, 1
-  %60 = icmp eq i32 %59, %columns
-  br i1 %60, label %end3, label %then2
+  %49 = add i64 %tmp2, %c
+  %50 = getelementptr %i16SCXY, %i16SCXY* %0, i64 0, i32 6, i64 %49
+  %51 = load i16, i16* %50, align 2, !llvm.mem.parallel_loop_access !1
+  %52 = sitofp i16 %51 to double
+  %53 = fcmp olt double %52, %46
+  br i1 %53, label %then4, label %end5
 
-end3:                                             ; preds = %then2
-  %61 = add nuw nsw i32 %storemerge26, 1
-  %62 = icmp eq i32 %61, %rows
-  br i1 %62, label %end, label %then
+end3:                                             ; preds = %end7
+  %54 = add nuw nsw i32 %22, 1
+  %55 = icmp eq i32 %54, %rows
+  br i1 %55, label %end, label %then
+
+then4:                                            ; preds = %then2
+  br label %end5
+
+end5:                                             ; preds = %then4, %then2
+  %56 = phi i32 [ %22, %then4 ], [ %43, %then2 ]
+  %57 = phi i32 [ %47, %then4 ], [ %44, %then2 ]
+  %58 = phi double [ %52, %then4 ], [ %46, %then2 ]
+  %59 = fcmp ogt double %52, %45
+  br i1 %59, label %then6, label %end7
+
+then6:                                            ; preds = %end5
+  br label %end7
+
+end7:                                             ; preds = %then6, %end5
+  %60 = phi i32 [ %22, %then6 ], [ %41, %end5 ]
+  %61 = phi i32 [ %47, %then6 ], [ %42, %end5 ]
+  %62 = phi double [ %52, %then6 ], [ %45, %end5 ]
+  %63 = add nuw nsw i32 %47, 1
+  %64 = icmp eq i32 %63, %combine.extract.trunc7
+  br i1 %64, label %end3, label %then2
 }
 
 attributes #0 = { nounwind readonly }

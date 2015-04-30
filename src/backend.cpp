@@ -23,6 +23,7 @@
 #include <llvm/Analysis/AssumptionCache.h>
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Analysis/LoopPass.h>
+#include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
 #include <llvm/Bitcode/ReaderWriter.h>
@@ -131,15 +132,53 @@ struct LikelyContext : public likely_settings
         PM->add(ACT);
         PM->add(new TargetLibraryInfoWrapperPass(Triple(sys::getProcessTriple())));
         PM->add(createTargetTransformInfoWrapperPass(TM->getTargetIRAnalysis()));
-        PassManagerBuilder builder;
-        builder.OptLevel = opt_level;
-        builder.SizeLevel = size_level;
-        builder.DisableUnrollLoops = !unroll_loops;
-        builder.LoopVectorize = vectorize_loops;
-        builder.Inliner = createAlwaysInlinerPass();
-        builder.addExtension(PassManagerBuilder::EP_Peephole, addPeephole);
-        builder.addExtension(PassManagerBuilder::EP_LoopOptimizerEnd, addLoopOptimizerEnd);
-        builder.populateModulePassManager(*PM);
+
+        // Alias analysis
+        PM->add(createTypeBasedAliasAnalysisPass());
+        PM->add(createBasicAliasAnalysisPass());
+
+        // Our assumption substitution pass
+        PM->add(createAssumptionSubstitutionPass());
+        PM->add(createVerifierPass());
+
+        // Remove dead or redudant instructions
+        PM->add(createDeadCodeEliminationPass());
+        PM->add(createEarlyCSEPass());
+        PM->add(createInstructionCombiningPass());
+        PM->add(createReassociatePass());
+        PM->add(createFloat2IntPass());
+        PM->add(createCFGSimplificationPass());
+
+        // Update the function's signature
+        PM->add(createFunctionAttrsPass());
+
+        // Optimize loops
+        PM->add(createLoopRotatePass());
+        PM->add(createLICMPass());
+        PM->add(createIndVarSimplifyPass());
+        PM->add(createLoopDeletionPass());
+        PM->add(createSimpleLoopUnrollPass());
+
+        // Our loop collapse pass
+        PM->add(createLoopCollapsePass());
+        PM->add(createVerifierPass());
+
+        // More sophisticated scalar optimizations
+        PM->add(createGVNPass());
+        PM->add(createDeadStoreEliminationPass());
+        PM->add(createLoadCombinePass());
+        PM->add(createSLPVectorizerPass());
+        PM->add(createAggressiveDCEPass());
+        PM->add(createCFGSimplificationPass());
+        PM->add(createInstructionCombiningPass());
+        PM->add(createDeadInstEliminationPass());
+
+        if (vectorize_loops) {
+            PM->add(createLoopRotatePass());
+            PM->add(createLoopVectorizePass());
+            PM->add(createAlignmentFromAssumptionsPass());
+        }
+
         PM->add(createVerifierPass());
     }
 
@@ -248,18 +287,6 @@ struct LikelyContext : public likely_settings
 
 private:
     map<likely_type, Type*> typeLUT;
-
-    static void addPeephole(const PassManagerBuilder &, legacy::PassManagerBase &PM)
-    {
-        PM.add(createAssumptionSubstitutionPass());
-        PM.add(createVerifierPass());
-    }
-
-    static void addLoopOptimizerEnd(const PassManagerBuilder &, legacy::PassManagerBase &PM)
-    {
-        PM.add(createLoopCollapsePass());
-        PM.add(createVerifierPass());
-    }
 };
 
 class JITFunctionCache : public ObjectCache

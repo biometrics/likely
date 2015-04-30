@@ -11,8 +11,7 @@ declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 
 ; Function Attrs: nounwind
 declare void @llvm.assume(i1) #1
 
-; Function Attrs: nounwind
-define %u8XY* @likely_test_function(%u0CXYT** nocapture readonly) #1 {
+define %u8XY* @likely_test_function(%u0CXYT** nocapture readonly) {
 entry:
   %1 = bitcast %u0CXYT** %0 to %i32CXYT**
   %2 = load %i32CXYT*, %i32CXYT** %1, align 8
@@ -48,7 +47,7 @@ entry:
   %26 = load %i32CXYT*, %i32CXYT** %25, align 8
   %27 = getelementptr inbounds %i32CXYT, %i32CXYT* %26, i64 0, i32 6, i64 0
   %arg_6 = load i32, i32* %27, align 4
-  %28 = tail call %u0CXYT* @likely_new(i32 24584, i32 1, i32 %arg_0, i32 %arg_1, i32 1, i8* null)
+  %28 = call %u0CXYT* @likely_new(i32 24584, i32 1, i32 %arg_0, i32 %arg_1, i32 1, i8* null)
   %29 = zext i32 %arg_1 to i64
   %dst_y_step = zext i32 %arg_0 to i64
   %30 = getelementptr inbounds %u0CXYT, %u0CXYT* %28, i64 1
@@ -56,7 +55,7 @@ entry:
   %32 = ptrtoint %u0CXYT* %30 to i64
   %33 = and i64 %32, 31
   %34 = icmp eq i64 %33, 0
-  tail call void @llvm.assume(i1 %34)
+  call void @llvm.assume(i1 %34)
   %35 = sitofp i32 %arg_0 to float
   %36 = sitofp i32 %arg_1 to float
   br label %y_body
