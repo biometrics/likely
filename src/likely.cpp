@@ -67,24 +67,14 @@ static cl::opt<bool> LikelyVerbose("verbose", cl::desc("Verbose compiler output"
 static cl::alias     LikelyVerboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(LikelyVerbose));
 static cl::opt<string> LikelyPreprocess("preprocess", cl::desc("Command to run prior to input"));
 static cl::alias       LikelyPreprocessA("p", cl::desc("Alias for -preprocess"), cl::aliasopt(LikelyPreprocess));
+static cl::opt<bool> LikelyHuman("human", cl::desc("Optimize compiler output for human readability"));
+static cl::alias     LikelyHumanA("h", cl::desc("Alias for -human"), cl::aliasopt(LikelyHuman));
 
 cl::OptionCategory ArchitectureCategory("Architecture");
 static cl::opt<bool> LikelyMulticore("multi-core" , cl::desc("Compile multi-core kernels"), cl::cat(ArchitectureCategory));
 static cl::alias     LikelyMulticoreA("m", cl::desc("Alias for -multi-core"), cl::cat(ArchitectureCategory), cl::aliasopt(LikelyMulticore));
 static cl::opt<bool> LikelyHeterogeneous("heterogeneous" , cl::desc("Compile heterogeneous kernels"), cl::cat(ArchitectureCategory));
 static cl::alias     LikelyHeterogeneousA("hg", cl::desc("Alias for -heterogeneous"), cl::cat(ArchitectureCategory), cl::aliasopt(LikelyHeterogeneous));
-
-cl::OptionCategory OptimizationsCategory("Optimizations");
-static cl::opt<bool> LikelyO0("O0", cl::desc("No optimizations"), cl::cat(OptimizationsCategory));
-static cl::opt<bool> LikelyO1("O1", cl::desc("Optimization level 1"), cl::cat(OptimizationsCategory));
-static cl::opt<bool> LikelyO2("O2", cl::desc("Optimization level 2"), cl::cat(OptimizationsCategory));
-static cl::opt<bool> LikelyO3("O3", cl::desc("Optimization level 3"), cl::cat(OptimizationsCategory));
-static cl::opt<bool> LikelyOs("Os", cl::desc("Like -O2 but with extra optimizations for size"), cl::cat(OptimizationsCategory));
-static cl::opt<bool> LikelyOz("Oz", cl::desc("Like -Os but reduces code size further"), cl::cat(OptimizationsCategory));
-static cl::opt<bool> LikelyDisableLoopUnrolling("disable-loop-unrolling", cl::desc("Disable loop unrolling in all relevant passes"), cl::cat(OptimizationsCategory));
-static cl::opt<bool> LikelyDisableLoopVectorization("disable-loop-vectorization", cl::desc("Disable the loop vectorization pass"), cl::cat(OptimizationsCategory));
-static cl::opt<bool> LikelyHuman("human", cl::desc("Optimize compiler output for human readability"), cl::cat(OptimizationsCategory));
-static cl::alias     LikelyHumanA("h", cl::desc("Alias for -human"), cl::cat(OptimizationsCategory), cl::aliasopt(LikelyHuman));
 
 cl::OptionCategory PrintingCategory("Printing");
 static cl::opt<string> LikelyRender ("render", cl::desc("%d-formatted file to render matrix output to"), cl::cat(PrintingCategory));
@@ -160,12 +150,6 @@ int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
 
-    if (LikelyHuman) {
-        LikelyOz.setValue(true);
-        LikelyDisableLoopUnrolling.setValue(true);
-        LikelyDisableLoopVectorization.setValue(true);
-    }
-
     likely_eval_callback evalCallback;
     if (!LikelyRender.getValue().empty()) evalCallback = renderCallback;
     else if (LikelyShow)  evalCallback = showCallback;
@@ -173,18 +157,11 @@ int main(int argc, char *argv[])
     else                  evalCallback = printCallback;
 
     likely_settings settings = likely_default_settings(LikelyHuman ? likely_file_ir : likely_guess_file_type(LikelyOutput.c_str()), false);
-    if (LikelyO0) { settings.opt_level = 0; settings.size_level = 0; }
-    if (LikelyO1) { settings.opt_level = 1; settings.size_level = 0; }
-    if (LikelyO2) { settings.opt_level = 2; settings.size_level = 0; }
-    if (LikelyO3) { settings.opt_level = 3; settings.size_level = 0; }
-    if (LikelyOs) { settings.opt_level = 2; settings.size_level = 1; }
-    if (LikelyOz) { settings.opt_level = 2; settings.size_level = 2; }
     if (LikelyMulticore    ) settings.multicore     = true;
     if (LikelyHeterogeneous) settings.heterogeneous = true;
-    if (LikelyDisableLoopUnrolling    ) settings.unroll_loops = false;
-    if (LikelyDisableLoopVectorization) settings.vectorize_loops = false;
-    if (LikelyRuntimeOnly) settings.runtime_only = true;
-    if (LikelyVerbose    ) settings.verbose = true;
+    if (LikelyHuman        ) settings.human         = true;
+    if (LikelyRuntimeOnly  ) settings.runtime_only  = true;
+    if (LikelyVerbose      ) settings.verbose       = true;
 
     likely_mat output = NULL;
     likely_const_env parent = likely_standard(settings,

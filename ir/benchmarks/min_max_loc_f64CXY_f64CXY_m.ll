@@ -16,15 +16,15 @@ entry:
   %7 = getelementptr { %f64CXY*, %f64CXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %f64CXY*, i32, i32, i64, i64, i64, i64 }* %0, i64 0, i32 2
   %8 = bitcast i32* %7 to i64*
   %.combined = load i64, i64* %8, align 4
-  %combine.extract.trunc = trunc i64 %.combined to i32
-  %combine.extract.shift = lshr i64 %.combined, 32
-  %combine.extract.trunc17 = trunc i64 %combine.extract.shift to i32
+  %combine.extract.trunc21 = trunc i64 %.combined to i32
+  %combine.extract.shift22 = lshr i64 %.combined, 32
+  %combine.extract.trunc23 = trunc i64 %combine.extract.shift22 to i32
   %9 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 2
   %10 = bitcast i32* %9 to i64*
   %channels.combined = load i64, i64* %10, align 4
   %dst_c = and i64 %channels.combined, 4294967295
-  %combine.extract.shift22 = lshr i64 %channels.combined, 32
-  %dst_y_step = mul nuw nsw i64 %combine.extract.shift22, %dst_c
+  %combine.extract.shift = lshr i64 %channels.combined, 32
+  %dst_y_step = mul nuw nsw i64 %combine.extract.shift, %dst_c
   %11 = getelementptr inbounds %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 0
   %12 = ptrtoint double* %11 to i64
   %13 = and i64 %12, 31
@@ -40,9 +40,9 @@ entry:
   %19 = and i64 %18, 31
   %20 = icmp eq i64 %19, 0
   call void @llvm.assume(i1 %20)
-  %21 = icmp eq i32 %combine.extract.trunc17, 0
+  %21 = icmp eq i32 %combine.extract.trunc23, 0
   %22 = shl nuw nsw i64 %dst_c, 1
-  %23 = icmp eq i32 %combine.extract.trunc, 0
+  %23 = icmp eq i32 %combine.extract.trunc21, 0
   br label %c_body
 
 c_body:                                           ; preds = %end, %entry
@@ -130,7 +130,7 @@ end6:                                             ; preds = %label4.end6_crit_ed
   %70 = phi double [ %80, %label4.end6_crit_edge ], [ %28, %then ]
   %71 = phi double [ %76, %label4.end6_crit_edge ], [ %29, %then ]
   %72 = add nuw nsw i32 %30, 1
-  %73 = icmp eq i32 %72, %combine.extract.trunc17
+  %73 = icmp eq i32 %72, %combine.extract.trunc23
   br i1 %73, label %label.end_crit_edge, label %then
 
 then7:                                            ; preds = %then5
@@ -151,7 +151,7 @@ end10:                                            ; preds = %then9, %end8
   %79 = phi i32 [ %60, %then9 ], [ %55, %end8 ]
   %80 = phi double [ %64, %then9 ], [ %58, %end8 ]
   %81 = add nuw nsw i32 %60, 1
-  %82 = icmp eq i32 %81, %combine.extract.trunc
+  %82 = icmp eq i32 %81, %combine.extract.trunc21
   br i1 %82, label %label4.end6_crit_edge, label %then5
 }
 

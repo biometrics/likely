@@ -36,12 +36,9 @@ extern "C" {
  */
 struct likely_settings
 {
-    int opt_level; /*!< \brief Specify the basic optimization level. 0 = -O0, 1 = -O1, 2 = -O2, 3 = -O3. */
-    int size_level; /*!< \brief How much we're optimizing for size. 0 = none, 1 = -Os, 2 = -Oz. */
     bool multicore; /*!< \brief Enable parallel code generation. */
     bool heterogeneous; /*!< \brief Enable heterogeneous code generation. */
-    bool unroll_loops; /*!< \brief Perform loop unrolling optimization. */
-    bool vectorize_loops; /*!< \brief Perform loop vectorization optimization. */
+    bool human; /*!< \brief Optimize for code readability. */
     bool runtime_only; /*!< \brief The compiler can only reference external symbols in \ref runtime. */
     bool verbose; /*!< \brief Verbose compiler output. */
 };

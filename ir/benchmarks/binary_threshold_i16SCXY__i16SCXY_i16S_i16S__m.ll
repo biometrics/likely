@@ -16,9 +16,9 @@ entry:
   %7 = getelementptr { %i16SCXY*, %i16SCXY*, i16, i16 }, { %i16SCXY*, %i16SCXY*, i16, i16 }* %0, i64 0, i32 2
   %8 = bitcast i16* %7 to i32*
   %.combined = load i32, i32* %8, align 2
-  %combine.extract.trunc = trunc i32 %.combined to i16
-  %combine.extract.shift = lshr i32 %.combined, 16
-  %combine.extract.trunc7 = trunc i32 %combine.extract.shift to i16
+  %combine.extract.trunc8 = trunc i32 %.combined to i16
+  %combine.extract.shift9 = lshr i32 %.combined, 16
+  %combine.extract.trunc10 = trunc i32 %combine.extract.shift9 to i16
   %9 = getelementptr %i16SCXY, %i16SCXY* %4, i64 0, i32 2
   %10 = bitcast i32* %9 to i64*
   %channels.combined = load i64, i64* %10, align 4
@@ -33,7 +33,7 @@ entry:
   %16 = bitcast i32* %15 to i64*
   %channels1.combined = load i64, i64* %16, align 4
   %src_c = and i64 %channels1.combined, 4294967295
-  %combine.extract.shift9 = lshr i64 %channels1.combined, 32
+  %combine.extract.shift = lshr i64 %channels1.combined, 32
   %17 = getelementptr inbounds %i16SCXY, %i16SCXY* %6, i64 0, i32 6, i64 0
   %18 = ptrtoint i16* %17 to i64
   %19 = and i64 %18, 31
@@ -43,7 +43,7 @@ entry:
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
-  %21 = mul i64 %y, %combine.extract.shift9
+  %21 = mul i64 %y, %combine.extract.shift
   %22 = mul i64 %y, %combine.extract.shift12
   br label %x_body
 
@@ -60,8 +60,8 @@ c_body:                                           ; preds = %c_body, %x_body
   %23 = add i64 %tmp4, %c
   %24 = getelementptr %i16SCXY, %i16SCXY* %6, i64 0, i32 6, i64 %23
   %25 = load i16, i16* %24, align 2, !llvm.mem.parallel_loop_access !0
-  %26 = icmp sgt i16 %25, %combine.extract.trunc
-  %. = select i1 %26, i16 %combine.extract.trunc7, i16 0
+  %26 = icmp sgt i16 %25, %combine.extract.trunc8
+  %. = select i1 %26, i16 %combine.extract.trunc10, i16 0
   %27 = add i64 %tmp6, %c
   %28 = getelementptr %i16SCXY, %i16SCXY* %4, i64 0, i32 6, i64 %27
   store i16 %., i16* %28, align 2, !llvm.mem.parallel_loop_access !0

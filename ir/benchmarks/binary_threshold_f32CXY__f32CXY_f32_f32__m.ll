@@ -21,7 +21,7 @@ entry:
   %12 = bitcast i32* %11 to i64*
   %channels.combined = load i64, i64* %12, align 4
   %dst_c = and i64 %channels.combined, 4294967295
-  %combine.extract.shift = lshr i64 %channels.combined, 32
+  %combine.extract.shift9 = lshr i64 %channels.combined, 32
   %13 = getelementptr inbounds %f32CXY, %f32CXY* %4, i64 0, i32 6, i64 0
   %14 = ptrtoint float* %13 to i64
   %15 = and i64 %14, 31
@@ -31,7 +31,7 @@ entry:
   %18 = bitcast i32* %17 to i64*
   %channels1.combined = load i64, i64* %18, align 4
   %src_c = and i64 %channels1.combined, 4294967295
-  %combine.extract.shift9 = lshr i64 %channels1.combined, 32
+  %combine.extract.shift = lshr i64 %channels1.combined, 32
   %19 = getelementptr inbounds %f32CXY, %f32CXY* %6, i64 0, i32 6, i64 0
   %20 = ptrtoint float* %19 to i64
   %21 = and i64 %20, 31
@@ -41,8 +41,8 @@ entry:
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
-  %23 = mul i64 %y, %combine.extract.shift9
-  %24 = mul i64 %y, %combine.extract.shift
+  %23 = mul i64 %y, %combine.extract.shift
+  %24 = mul i64 %y, %combine.extract.shift9
   br label %x_body
 
 x_body:                                           ; preds = %c_exit, %y_body
@@ -69,7 +69,7 @@ c_body:                                           ; preds = %c_body, %x_body
 
 c_exit:                                           ; preds = %c_body
   %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %combine.extract.shift
+  %x_postcondition = icmp eq i64 %x_increment, %combine.extract.shift9
   br i1 %x_postcondition, label %x_exit, label %x_body
 
 x_exit:                                           ; preds = %c_exit

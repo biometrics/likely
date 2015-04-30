@@ -72,16 +72,10 @@ likely_settings likely_default_settings(likely_file_type file_type, bool verbose
 {
     likely_settings settings;
     if ((file_type == likely_file_ir) || (file_type == likely_file_bitcode)) {
-        settings.opt_level = 2;
-        settings.size_level = 2;
         settings.multicore = false;
-        settings.unroll_loops = false;
-        settings.vectorize_loops = false;
+        settings.human = true;
     } else {
-        settings.opt_level = 3;
-        settings.size_level = 0;
-        settings.unroll_loops = true;
-        settings.vectorize_loops = true;
+        settings.human = false;
     }
     if (file_type == likely_file_void)
         settings.multicore = thread::hardware_concurrency() > 1;
@@ -157,7 +151,6 @@ struct LikelyContext : public likely_settings
         PM->add(createLICMPass());
         PM->add(createIndVarSimplifyPass());
         PM->add(createLoopDeletionPass());
-        PM->add(createSimpleLoopUnrollPass());
 
         // Our loop collapse pass
         PM->add(createLoopCollapsePass());
@@ -173,7 +166,8 @@ struct LikelyContext : public likely_settings
         PM->add(createInstructionCombiningPass());
         PM->add(createDeadInstEliminationPass());
 
-        if (vectorize_loops) {
+        // Vectorize the loops
+        if (!human) {
             PM->add(createLoopRotatePass());
             PM->add(createLoopVectorizePass());
             PM->add(createAlignmentFromAssumptionsPass());
