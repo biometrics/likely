@@ -11,17 +11,16 @@ declare void @llvm.assume(i1) #1
 
 define %i32CXY* @multiply_add(%i32CXY*, float, float) {
 entry:
-  %3 = getelementptr %i32CXY, %i32CXY* %0, i64 0, i32 2
-  %4 = bitcast i32* %3 to i64*
-  %channels.combined = load i64, i64* %4, align 4
-  %combine.extract.trunc = trunc i64 %channels.combined to i32
-  %combine.extract.shift = lshr i64 %channels.combined, 32
-  %combine.extract.trunc2 = trunc i64 %combine.extract.shift to i32
+  %3 = getelementptr inbounds %i32CXY, %i32CXY* %0, i64 0, i32 2
+  %channels = load i32, i32* %3, align 4, !range !0
+  %4 = getelementptr inbounds %i32CXY, %i32CXY* %0, i64 0, i32 3
+  %columns = load i32, i32* %4, align 4, !range !0
   %5 = getelementptr inbounds %i32CXY, %i32CXY* %0, i64 0, i32 4
   %rows = load i32, i32* %5, align 4, !range !0
-  %6 = call %u0CXYT* @likely_new(i32 29216, i32 %combine.extract.trunc, i32 %combine.extract.trunc2, i32 %rows, i32 1, i8* null)
+  %6 = call %u0CXYT* @likely_new(i32 29216, i32 %channels, i32 %columns, i32 %rows, i32 1, i8* null)
   %7 = zext i32 %rows to i64
-  %dst_c = and i64 %channels.combined, 4294967295
+  %dst_c = zext i32 %channels to i64
+  %dst_x = zext i32 %columns to i64
   %8 = getelementptr inbounds %u0CXYT, %u0CXYT* %6, i64 1, i32 0
   %9 = ptrtoint i32* %8 to i64
   %10 = and i64 %9, 31
@@ -32,7 +31,7 @@ entry:
   %14 = and i64 %13, 31
   %15 = icmp eq i64 %14, 0
   call void @llvm.assume(i1 %15)
-  %16 = mul nuw nsw i64 %combine.extract.shift, %dst_c
+  %16 = mul nuw nsw i64 %dst_x, %dst_c
   %17 = mul nuw nsw i64 %7, %16
   br label %y_body
 

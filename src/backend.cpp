@@ -151,11 +151,10 @@ struct LikelyContext : public likely_settings
         PM->add(createInstructionCombiningPass());
         PM->add(createDeadCodeEliminationPass());
 
-        // More sophisticated scalar optimizations
+        // Sophisticated scalar optimizations
+        PM->add(createLICMPass());
         PM->add(createGVNPass());
         PM->add(createDeadStoreEliminationPass());
-        PM->add(createLoadCombinePass());
-        PM->add(createFloat2IntPass());
         PM->add(createAggressiveDCEPass());
         PM->add(createCFGSimplificationPass());
         PM->add(createInstructionCombiningPass());
@@ -169,6 +168,7 @@ struct LikelyContext : public likely_settings
             PM->add(createLoopVectorizePass()); // Loop vectorization with unrolling
             PM->add(createLoopUnrollPass()); // Unroll loops that couldn't be vectorized
             PM->add(createSLPVectorizerPass()); // Vectorize unrolled instructions
+            PM->add(createLoadCombinePass()); // Combine adjacent loads
             PM->add(createAlignmentFromAssumptionsPass()); // Use vectorized and unrolled loops to prove alignment
             PM->add(createCFGSimplificationPass()); // Cleanup
             PM->add(createInstructionCombiningPass());

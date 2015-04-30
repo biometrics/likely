@@ -14,13 +14,11 @@ declare void @llvm.assume(i1) #2
 
 define %f64CXY* @normalize_l2(%f64CXY*) {
 entry:
-  %1 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 2
-  %2 = bitcast i32* %1 to i64*
-  %channels.combined = load i64, i64* %2, align 4
-  %combine.extract.trunc = trunc i64 %channels.combined to i32
-  %combine.extract.shift = lshr i64 %channels.combined, 32
-  %combine.extract.trunc5 = trunc i64 %combine.extract.shift to i32
-  %3 = mul nuw nsw i32 %combine.extract.trunc5, %combine.extract.trunc
+  %1 = getelementptr inbounds %f64CXY, %f64CXY* %0, i64 0, i32 2
+  %channels = load i32, i32* %1, align 4, !range !0
+  %2 = getelementptr inbounds %f64CXY, %f64CXY* %0, i64 0, i32 3
+  %columns = load i32, i32* %2, align 4, !range !0
+  %3 = mul nuw nsw i32 %columns, %channels
   %4 = getelementptr inbounds %f64CXY, %f64CXY* %0, i64 0, i32 4
   %rows = load i32, i32* %4, align 4, !range !0
   %5 = mul nuw nsw i32 %3, %rows
@@ -41,9 +39,10 @@ then:                                             ; preds = %entry, %then
 end:                                              ; preds = %then
   %15 = call double @llvm.sqrt.f64(double %12)
   %16 = fdiv double 1.000000e+00, %15
-  %17 = call %u0CXYT* @likely_new(i32 28992, i32 %combine.extract.trunc, i32 %combine.extract.trunc5, i32 %rows, i32 1, i8* null)
+  %17 = call %u0CXYT* @likely_new(i32 28992, i32 %channels, i32 %columns, i32 %rows, i32 1, i8* null)
   %18 = zext i32 %rows to i64
-  %dst_c = and i64 %channels.combined, 4294967295
+  %dst_c = zext i32 %channels to i64
+  %dst_x = zext i32 %columns to i64
   %19 = getelementptr inbounds %u0CXYT, %u0CXYT* %17, i64 1
   %20 = bitcast %u0CXYT* %19 to double*
   %21 = ptrtoint %u0CXYT* %19 to i64
@@ -55,7 +54,7 @@ end:                                              ; preds = %then
   %26 = and i64 %25, 31
   %27 = icmp eq i64 %26, 0
   call void @llvm.assume(i1 %27)
-  %28 = mul nuw nsw i64 %combine.extract.shift, %dst_c
+  %28 = mul nuw nsw i64 %dst_x, %dst_c
   %29 = mul nuw nsw i64 %18, %28
   br label %y_body
 

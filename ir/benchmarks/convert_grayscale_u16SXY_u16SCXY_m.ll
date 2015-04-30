@@ -26,12 +26,13 @@ entry:
   %10 = and i64 %9, 31
   %11 = icmp eq i64 %10, 0
   call void @llvm.assume(i1 %11)
-  %12 = getelementptr %u16CXY, %u16CXY* %6, i64 0, i32 2
-  %13 = bitcast i32* %12 to i64*
-  %channels.combined = load i64, i64* %13, align 4
-  %src_c = and i64 %channels.combined, 4294967295
-  %combine.extract.shift = lshr i64 %channels.combined, 32
-  %src_y_step = mul nuw nsw i64 %combine.extract.shift, %src_c
+  %12 = getelementptr inbounds %u16CXY, %u16CXY* %6, i64 0, i32 2
+  %channels = load i32, i32* %12, align 4, !range !0
+  %src_c = zext i32 %channels to i64
+  %13 = getelementptr inbounds %u16CXY, %u16CXY* %6, i64 0, i32 3
+  %columns1 = load i32, i32* %13, align 4, !range !0
+  %src_x = zext i32 %columns1 to i64
+  %src_y_step = mul nuw nsw i64 %src_x, %src_c
   %14 = getelementptr inbounds %u16CXY, %u16CXY* %6, i64 0, i32 6, i64 0
   %15 = ptrtoint i16* %14 to i64
   %16 = and i64 %15, 31
@@ -90,17 +91,15 @@ declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
 define %u16SXY* @convert_grayscale(%u16SCXY*) {
 entry:
-  %1 = getelementptr %u16SCXY, %u16SCXY* %0, i64 0, i32 2
-  %2 = bitcast i32* %1 to i64*
-  %channels.combined = load i64, i64* %2, align 4
-  %combine.extract.trunc = trunc i64 %channels.combined to i32
-  %3 = icmp eq i32 %combine.extract.trunc, 3
-  call void @llvm.assume(i1 %3)
-  %combine.extract.shift = lshr i64 %channels.combined, 32
-  %combine.extract.trunc1 = trunc i64 %combine.extract.shift to i32
+  %1 = getelementptr inbounds %u16SCXY, %u16SCXY* %0, i64 0, i32 2
+  %channels = load i32, i32* %1, align 4, !range !0
+  %2 = icmp eq i32 %channels, 3
+  call void @llvm.assume(i1 %2)
+  %3 = getelementptr inbounds %u16SCXY, %u16SCXY* %0, i64 0, i32 3
+  %columns = load i32, i32* %3, align 4, !range !0
   %4 = getelementptr inbounds %u16SCXY, %u16SCXY* %0, i64 0, i32 4
   %rows = load i32, i32* %4, align 4, !range !0
-  %5 = call %u0CXYT* @likely_new(i32 25616, i32 1, i32 %combine.extract.trunc1, i32 %rows, i32 1, i8* null)
+  %5 = call %u0CXYT* @likely_new(i32 25616, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
   %6 = bitcast %u0CXYT* %5 to %u16SXY*
   %7 = zext i32 %rows to i64
   %8 = alloca { %u16SXY*, %u16CXY* }, align 8

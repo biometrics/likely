@@ -17,21 +17,23 @@ entry:
   %8 = load float, float* %7, align 4
   %9 = getelementptr inbounds { %i16SCXY*, %i16SCXY*, float, float }, { %i16SCXY*, %i16SCXY*, float, float }* %0, i64 0, i32 3
   %10 = load float, float* %9, align 4
-  %11 = getelementptr %i16SCXY, %i16SCXY* %4, i64 0, i32 2
-  %12 = bitcast i32* %11 to i64*
-  %channels.combined = load i64, i64* %12, align 4
-  %dst_c = and i64 %channels.combined, 4294967295
-  %combine.extract.shift9 = lshr i64 %channels.combined, 32
+  %11 = getelementptr inbounds %i16SCXY, %i16SCXY* %4, i64 0, i32 2
+  %channels = load i32, i32* %11, align 4, !range !0
+  %dst_c = zext i32 %channels to i64
+  %12 = getelementptr inbounds %i16SCXY, %i16SCXY* %4, i64 0, i32 3
+  %columns = load i32, i32* %12, align 4, !range !0
+  %dst_x = zext i32 %columns to i64
   %13 = getelementptr inbounds %i16SCXY, %i16SCXY* %4, i64 0, i32 6, i64 0
   %14 = ptrtoint i16* %13 to i64
   %15 = and i64 %14, 31
   %16 = icmp eq i64 %15, 0
   call void @llvm.assume(i1 %16)
-  %17 = getelementptr %i16SCXY, %i16SCXY* %6, i64 0, i32 2
-  %18 = bitcast i32* %17 to i64*
-  %channels1.combined = load i64, i64* %18, align 4
-  %src_c = and i64 %channels1.combined, 4294967295
-  %combine.extract.shift = lshr i64 %channels1.combined, 32
+  %17 = getelementptr inbounds %i16SCXY, %i16SCXY* %6, i64 0, i32 2
+  %channels1 = load i32, i32* %17, align 4, !range !0
+  %src_c = zext i32 %channels1 to i64
+  %18 = getelementptr inbounds %i16SCXY, %i16SCXY* %6, i64 0, i32 3
+  %columns2 = load i32, i32* %18, align 4, !range !0
+  %src_x = zext i32 %columns2 to i64
   %19 = getelementptr inbounds %i16SCXY, %i16SCXY* %6, i64 0, i32 6, i64 0
   %20 = ptrtoint i16* %19 to i64
   %21 = and i64 %20, 31
@@ -41,8 +43,8 @@ entry:
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
-  %23 = mul i64 %y, %combine.extract.shift
-  %24 = mul i64 %y, %combine.extract.shift9
+  %23 = mul i64 %y, %src_x
+  %24 = mul i64 %y, %dst_x
   br label %x_body
 
 x_body:                                           ; preds = %c_exit, %y_body
@@ -57,7 +59,7 @@ c_body:                                           ; preds = %c_body, %x_body
   %c = phi i64 [ 0, %x_body ], [ %c_increment, %c_body ]
   %25 = add i64 %tmp4, %c
   %26 = getelementptr %i16SCXY, %i16SCXY* %6, i64 0, i32 6, i64 %25
-  %27 = load i16, i16* %26, align 2, !llvm.mem.parallel_loop_access !0
+  %27 = load i16, i16* %26, align 2, !llvm.mem.parallel_loop_access !1
   %28 = sitofp i16 %27 to float
   %29 = fmul float %8, %28
   %30 = fadd float %10, %29
@@ -71,14 +73,14 @@ c_body:                                           ; preds = %c_body, %x_body
   %38 = select i1 %37, i16 -32768, i16 %36
   %39 = fcmp ogt float %35, 3.276700e+04
   %40 = select i1 %39, i16 32767, i16 %38
-  store i16 %40, i16* %32, align 2, !llvm.mem.parallel_loop_access !0
+  store i16 %40, i16* %32, align 2, !llvm.mem.parallel_loop_access !1
   %c_increment = add nuw nsw i64 %c, 1
   %c_postcondition = icmp eq i64 %c_increment, %dst_c
-  br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !0
+  br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !1
 
 c_exit:                                           ; preds = %c_body
   %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %combine.extract.shift9
+  %x_postcondition = icmp eq i64 %x_increment, %dst_x
   br i1 %x_postcondition, label %x_exit, label %x_body
 
 x_exit:                                           ; preds = %c_exit
@@ -97,15 +99,13 @@ declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
 define %i16SCXY* @multiply_add(%i16SCXY*, float, float) {
 entry:
-  %3 = getelementptr %i16SCXY, %i16SCXY* %0, i64 0, i32 2
-  %4 = bitcast i32* %3 to i64*
-  %channels.combined = load i64, i64* %4, align 4
-  %combine.extract.trunc = trunc i64 %channels.combined to i32
-  %combine.extract.shift = lshr i64 %channels.combined, 32
-  %combine.extract.trunc1 = trunc i64 %combine.extract.shift to i32
+  %3 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 2
+  %channels = load i32, i32* %3, align 4, !range !0
+  %4 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 3
+  %columns = load i32, i32* %4, align 4, !range !0
   %5 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 4
-  %rows = load i32, i32* %5, align 4, !range !1
-  %6 = call %u0CXYT* @likely_new(i32 30224, i32 %combine.extract.trunc, i32 %combine.extract.trunc1, i32 %rows, i32 1, i8* null)
+  %rows = load i32, i32* %5, align 4, !range !0
+  %6 = call %u0CXYT* @likely_new(i32 30224, i32 %channels, i32 %columns, i32 %rows, i32 1, i8* null)
   %7 = bitcast %u0CXYT* %6 to %i16SCXY*
   %8 = zext i32 %rows to i64
   %9 = alloca { %i16SCXY*, %i16SCXY*, float, float }, align 8
@@ -125,5 +125,5 @@ entry:
 attributes #0 = { nounwind readonly }
 attributes #1 = { nounwind }
 
-!0 = distinct !{!0}
-!1 = !{i32 1, i32 -1}
+!0 = !{i32 1, i32 -1}
+!1 = distinct !{!1}

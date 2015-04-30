@@ -12,23 +12,22 @@ declare void @llvm.assume(i1) #1
 
 define %f64CXY* @min_max_loc(%i16SCXY*) {
 entry:
-  %1 = getelementptr %i16SCXY, %i16SCXY* %0, i64 0, i32 2
-  %2 = bitcast i32* %1 to i64*
-  %channels.combined = load i64, i64* %2, align 4
-  %combine.extract.trunc = trunc i64 %channels.combined to i32
-  %3 = call %u0CXYT* @likely_new(i32 28992, i32 %combine.extract.trunc, i32 3, i32 2, i32 1, i8* null)
-  %combine.extract.shift = lshr i64 %channels.combined, 32
-  %combine.extract.trunc7 = trunc i64 %combine.extract.shift to i32
+  %1 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 2
+  %channels = load i32, i32* %1, align 4, !range !0
+  %2 = call %u0CXYT* @likely_new(i32 28992, i32 %channels, i32 3, i32 2, i32 1, i8* null)
+  %3 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 3
+  %columns = load i32, i32* %3, align 4, !range !0
   %4 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 4
   %rows = load i32, i32* %4, align 4, !range !0
-  %5 = and i64 %channels.combined, 4294967295
+  %5 = zext i32 %channels to i64
   %dst_y_step = mul nuw nsw i64 %5, 3
-  %6 = getelementptr inbounds %u0CXYT, %u0CXYT* %3, i64 1
+  %6 = getelementptr inbounds %u0CXYT, %u0CXYT* %2, i64 1
   %7 = bitcast %u0CXYT* %6 to double*
   %8 = ptrtoint %u0CXYT* %6 to i64
   %9 = and i64 %8, 31
   %10 = icmp eq i64 %9, 0
   call void @llvm.assume(i1 %10)
+  %src_x = zext i32 %columns to i64
   %11 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 6, i64 0
   %12 = ptrtoint i16* %11 to i64
   %13 = and i64 %12, 31
@@ -50,7 +49,7 @@ then:                                             ; preds = %c_body, %end3
   %21 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %58, %end3 ]
   %22 = phi i32 [ 0, %c_body ], [ %54, %end3 ]
   %23 = sext i32 %22 to i64
-  %24 = mul nsw i64 %23, %combine.extract.shift
+  %24 = mul nsw i64 %23, %src_x
   br label %then2
 
 end:                                              ; preds = %end3
@@ -80,7 +79,7 @@ end:                                              ; preds = %end3
   br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !1
 
 c_exit:                                           ; preds = %end
-  %40 = bitcast %u0CXYT* %3 to %f64CXY*
+  %40 = bitcast %u0CXYT* %2 to %f64CXY*
   ret %f64CXY* %40
 
 then2:                                            ; preds = %then, %end7
@@ -124,7 +123,7 @@ end7:                                             ; preds = %then6, %end5
   %61 = phi i32 [ %47, %then6 ], [ %42, %end5 ]
   %62 = phi double [ %52, %then6 ], [ %45, %end5 ]
   %63 = add nuw nsw i32 %47, 1
-  %64 = icmp eq i32 %63, %combine.extract.trunc7
+  %64 = icmp eq i32 %63, %columns
   br i1 %64, label %end3, label %then2
 }
 

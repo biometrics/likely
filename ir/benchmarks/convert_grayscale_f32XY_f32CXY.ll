@@ -12,18 +12,17 @@ declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 
 
 define %f32XY* @convert_grayscale(%f32CXY*) {
 entry:
-  %1 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 2
-  %2 = bitcast i32* %1 to i64*
-  %channels.combined = load i64, i64* %2, align 4
-  %combine.extract.trunc = trunc i64 %channels.combined to i32
-  %3 = icmp eq i32 %combine.extract.trunc, 3
-  call void @llvm.assume(i1 %3)
-  %combine.extract.shift = lshr i64 %channels.combined, 32
-  %combine.extract.trunc1 = trunc i64 %combine.extract.shift to i32
+  %1 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 2
+  %channels = load i32, i32* %1, align 4, !range !0
+  %2 = icmp eq i32 %channels, 3
+  call void @llvm.assume(i1 %2)
+  %3 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 3
+  %columns = load i32, i32* %3, align 4, !range !0
   %4 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 4
   %rows = load i32, i32* %4, align 4, !range !0
-  %5 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %combine.extract.trunc1, i32 %rows, i32 1, i8* null)
+  %5 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
   %6 = zext i32 %rows to i64
+  %dst_y_step = zext i32 %columns to i64
   %7 = getelementptr inbounds %u0CXYT, %u0CXYT* %5, i64 1
   %8 = bitcast %u0CXYT* %7 to float*
   %9 = ptrtoint %u0CXYT* %7 to i64
@@ -35,7 +34,7 @@ entry:
   %14 = and i64 %13, 31
   %15 = icmp eq i64 %14, 0
   call void @llvm.assume(i1 %15)
-  %16 = mul nuw nsw i64 %6, %combine.extract.shift
+  %16 = mul nuw nsw i64 %6, %dst_y_step
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %entry
