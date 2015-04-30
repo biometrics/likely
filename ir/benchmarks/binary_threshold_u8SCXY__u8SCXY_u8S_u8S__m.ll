@@ -57,12 +57,12 @@ x_body:                                           ; preds = %c_exit, %y_body
 
 c_body:                                           ; preds = %c_body, %x_body
   %c = phi i64 [ 0, %x_body ], [ %c_increment, %c_body ]
-  %25 = add i64 %tmp4, %c
+  %25 = add i64 %c, %tmp4
   %26 = getelementptr %u8SCXY, %u8SCXY* %6, i64 0, i32 6, i64 %25
   %27 = load i8, i8* %26, align 1, !llvm.mem.parallel_loop_access !1
   %28 = icmp ugt i8 %27, %8
   %. = select i1 %28, i8 %10, i8 0
-  %29 = add i64 %tmp6, %c
+  %29 = add i64 %c, %tmp6
   %30 = getelementptr %u8SCXY, %u8SCXY* %4, i64 0, i32 6, i64 %29
   store i8 %., i8* %30, align 1, !llvm.mem.parallel_loop_access !1
   %c_increment = add nuw nsw i64 %c, 1

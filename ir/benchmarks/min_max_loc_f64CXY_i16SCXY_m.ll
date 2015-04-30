@@ -52,13 +52,13 @@ c_body:                                           ; preds = %end, %entry
   br i1 %23, label %end, label %then
 
 then:                                             ; preds = %c_body, %end6
-  %27 = phi i32 [ %69, %end6 ], [ 0, %c_body ]
-  %28 = phi i32 [ %70, %end6 ], [ 0, %c_body ]
-  %29 = phi i32 [ %71, %end6 ], [ 0, %c_body ]
-  %30 = phi i32 [ %72, %end6 ], [ 0, %c_body ]
-  %31 = phi double [ %73, %end6 ], [ 0xFFEFFFFFFFFFFFFF, %c_body ]
-  %32 = phi double [ %74, %end6 ], [ 0x7FEFFFFFFFFFFFFF, %c_body ]
-  %33 = phi i32 [ %75, %end6 ], [ 0, %c_body ]
+  %27 = phi i32 [ %78, %end6 ], [ 0, %c_body ]
+  %28 = phi i32 [ %79, %end6 ], [ 0, %c_body ]
+  %29 = phi i32 [ %80, %end6 ], [ 0, %c_body ]
+  %30 = phi i32 [ %81, %end6 ], [ 0, %c_body ]
+  %31 = phi double [ %82, %end6 ], [ 0xFFEFFFFFFFFFFFFF, %c_body ]
+  %32 = phi double [ %83, %end6 ], [ 0x7FEFFFFFFFFFFFFF, %c_body ]
+  %33 = phi i32 [ %84, %end6 ], [ 0, %c_body ]
   br i1 %25, label %end6, label %then5.lr.ph
 
 then5.lr.ph:                                      ; preds = %then
@@ -66,16 +66,13 @@ then5.lr.ph:                                      ; preds = %then
   %35 = mul nsw i64 %34, %src_x
   br label %then5
 
-label.end_crit_edge:                              ; preds = %end6
-  br label %end
-
-end:                                              ; preds = %label.end_crit_edge, %c_body
-  %36 = phi i32 [ %69, %label.end_crit_edge ], [ 0, %c_body ]
-  %37 = phi i32 [ %70, %label.end_crit_edge ], [ 0, %c_body ]
-  %38 = phi double [ %73, %label.end_crit_edge ], [ 0xFFEFFFFFFFFFFFFF, %c_body ]
-  %39 = phi i32 [ %71, %label.end_crit_edge ], [ 0, %c_body ]
-  %40 = phi i32 [ %72, %label.end_crit_edge ], [ 0, %c_body ]
-  %41 = phi double [ %74, %label.end_crit_edge ], [ 0x7FEFFFFFFFFFFFFF, %c_body ]
+end:                                              ; preds = %end6, %c_body
+  %36 = phi i32 [ 0, %c_body ], [ %78, %end6 ]
+  %37 = phi i32 [ 0, %c_body ], [ %79, %end6 ]
+  %38 = phi double [ 0xFFEFFFFFFFFFFFFF, %c_body ], [ %82, %end6 ]
+  %39 = phi i32 [ 0, %c_body ], [ %80, %end6 ]
+  %40 = phi i32 [ 0, %c_body ], [ %81, %end6 ]
+  %41 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %83, %end6 ]
   store double %41, double* %26, align 8, !llvm.mem.parallel_loop_access !1
   %42 = sitofp i32 %40 to double
   %43 = add nuw nsw i64 %c, %dst_c
@@ -103,14 +100,14 @@ end:                                              ; preds = %label.end_crit_edge
 c_exit:                                           ; preds = %end
   ret void
 
-then5:                                            ; preds = %then5.lr.ph, %end10
-  %56 = phi i32 [ %27, %then5.lr.ph ], [ %81, %end10 ]
-  %57 = phi i32 [ %28, %then5.lr.ph ], [ %82, %end10 ]
-  %58 = phi i32 [ %29, %then5.lr.ph ], [ %77, %end10 ]
-  %59 = phi i32 [ %30, %then5.lr.ph ], [ %78, %end10 ]
-  %60 = phi double [ %31, %then5.lr.ph ], [ %83, %end10 ]
-  %61 = phi double [ %32, %then5.lr.ph ], [ %79, %end10 ]
-  %62 = phi i32 [ 0, %then5.lr.ph ], [ %84, %end10 ]
+then5:                                            ; preds = %then5.lr.ph, %then5
+  %56 = phi i32 [ %27, %then5.lr.ph ], [ %73, %then5 ]
+  %57 = phi i32 [ %28, %then5.lr.ph ], [ %74, %then5 ]
+  %58 = phi i32 [ %29, %then5.lr.ph ], [ %69, %then5 ]
+  %59 = phi i32 [ %30, %then5.lr.ph ], [ %70, %then5 ]
+  %60 = phi double [ %31, %then5.lr.ph ], [ %75, %then5 ]
+  %61 = phi double [ %32, %then5.lr.ph ], [ %71, %then5 ]
+  %62 = phi i32 [ 0, %then5.lr.ph ], [ %76, %then5 ]
   %63 = sext i32 %62 to i64
   %tmp = add i64 %63, %35
   %tmp12 = mul i64 %tmp, %src_c
@@ -119,42 +116,27 @@ then5:                                            ; preds = %then5.lr.ph, %end10
   %66 = load i16, i16* %65, align 2, !llvm.mem.parallel_loop_access !1
   %67 = sitofp i16 %66 to double
   %68 = fcmp olt double %67, %61
-  br i1 %68, label %then7, label %end8
+  %69 = select i1 %68, i32 %33, i32 %58
+  %70 = select i1 %68, i32 %62, i32 %59
+  %71 = select i1 %68, double %67, double %61
+  %72 = fcmp ogt double %67, %60
+  %73 = select i1 %72, i32 %33, i32 %56
+  %74 = select i1 %72, i32 %62, i32 %57
+  %75 = select i1 %72, double %67, double %60
+  %76 = add nuw nsw i32 %62, 1
+  %77 = icmp eq i32 %76, %8
+  br i1 %77, label %end6, label %then5
 
-label4.end6_crit_edge:                            ; preds = %end10
-  br label %end6
-
-end6:                                             ; preds = %label4.end6_crit_edge, %then
-  %69 = phi i32 [ %81, %label4.end6_crit_edge ], [ %27, %then ]
-  %70 = phi i32 [ %82, %label4.end6_crit_edge ], [ %28, %then ]
-  %71 = phi i32 [ %77, %label4.end6_crit_edge ], [ %29, %then ]
-  %72 = phi i32 [ %78, %label4.end6_crit_edge ], [ %30, %then ]
-  %73 = phi double [ %83, %label4.end6_crit_edge ], [ %31, %then ]
-  %74 = phi double [ %79, %label4.end6_crit_edge ], [ %32, %then ]
-  %75 = add nuw nsw i32 %33, 1
-  %76 = icmp eq i32 %75, %10
-  br i1 %76, label %label.end_crit_edge, label %then
-
-then7:                                            ; preds = %then5
-  br label %end8
-
-end8:                                             ; preds = %then7, %then5
-  %77 = phi i32 [ %33, %then7 ], [ %58, %then5 ]
-  %78 = phi i32 [ %62, %then7 ], [ %59, %then5 ]
-  %79 = phi double [ %67, %then7 ], [ %61, %then5 ]
-  %80 = fcmp ogt double %67, %60
-  br i1 %80, label %then9, label %end10
-
-then9:                                            ; preds = %end8
-  br label %end10
-
-end10:                                            ; preds = %then9, %end8
-  %81 = phi i32 [ %33, %then9 ], [ %56, %end8 ]
-  %82 = phi i32 [ %62, %then9 ], [ %57, %end8 ]
-  %83 = phi double [ %67, %then9 ], [ %60, %end8 ]
-  %84 = add nuw nsw i32 %62, 1
-  %85 = icmp eq i32 %84, %8
-  br i1 %85, label %label4.end6_crit_edge, label %then5
+end6:                                             ; preds = %then5, %then
+  %78 = phi i32 [ %27, %then ], [ %73, %then5 ]
+  %79 = phi i32 [ %28, %then ], [ %74, %then5 ]
+  %80 = phi i32 [ %29, %then ], [ %69, %then5 ]
+  %81 = phi i32 [ %30, %then ], [ %70, %then5 ]
+  %82 = phi double [ %31, %then ], [ %75, %then5 ]
+  %83 = phi double [ %32, %then ], [ %71, %then5 ]
+  %84 = add nuw nsw i32 %33, 1
+  %85 = icmp eq i32 %84, %10
+  br i1 %85, label %end, label %then
 }
 
 ; Function Attrs: nounwind

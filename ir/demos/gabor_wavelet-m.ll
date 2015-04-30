@@ -45,8 +45,8 @@ y_body:                                           ; preds = %x_exit, %entry
   %27 = trunc i64 %y to i32
   %28 = sub i32 %27, %8
   %29 = sitofp i32 %28 to float
-  %30 = fmul float %29, %25
-  %31 = fmul float %29, %24
+  %30 = fmul float %25, %29
+  %31 = fmul float %24, %29
   %32 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
@@ -68,7 +68,7 @@ x_body:                                           ; preds = %x_body, %y_body
   %46 = fadd float %43, %45
   %47 = fmul float %46, -5.000000e-01
   %48 = call float @llvm.exp.f32(float %47)
-  %49 = fmul float %37, %26
+  %49 = fmul float %26, %37
   %50 = fadd float %18, %49
   %51 = call float @llvm.cos.f32(float %50)
   %52 = fmul float %48, %51

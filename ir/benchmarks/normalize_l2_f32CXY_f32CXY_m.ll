@@ -58,11 +58,11 @@ x_body:                                           ; preds = %c_exit, %y_body
 
 c_body:                                           ; preds = %c_body, %x_body
   %c = phi i64 [ 0, %x_body ], [ %c_increment, %c_body ]
-  %23 = add i64 %tmp4, %c
+  %23 = add i64 %c, %tmp4
   %24 = getelementptr %f32CXY, %f32CXY* %6, i64 0, i32 6, i64 %23
   %25 = load float, float* %24, align 4, !llvm.mem.parallel_loop_access !1
   %26 = fmul float %8, %25
-  %27 = add i64 %tmp6, %c
+  %27 = add i64 %c, %tmp6
   %28 = getelementptr %f32CXY, %f32CXY* %4, i64 0, i32 6, i64 %27
   store float %26, float* %28, align 4, !llvm.mem.parallel_loop_access !1
   %c_increment = add nuw nsw i64 %c, 1

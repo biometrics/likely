@@ -57,13 +57,13 @@ x_body:                                           ; preds = %c_exit, %y_body
 
 c_body:                                           ; preds = %c_body, %x_body
   %c = phi i64 [ 0, %x_body ], [ %c_increment, %c_body ]
-  %25 = add i64 %tmp4, %c
+  %25 = add i64 %c, %tmp4
   %26 = getelementptr %i16SCXY, %i16SCXY* %6, i64 0, i32 6, i64 %25
   %27 = load i16, i16* %26, align 2, !llvm.mem.parallel_loop_access !1
   %28 = sitofp i16 %27 to float
   %29 = fmul float %8, %28
   %30 = fadd float %10, %29
-  %31 = add i64 %tmp6, %c
+  %31 = add i64 %c, %tmp6
   %32 = getelementptr %i16SCXY, %i16SCXY* %4, i64 0, i32 6, i64 %31
   %33 = fcmp olt float %30, 0.000000e+00
   %34 = select i1 %33, float -5.000000e-01, float 5.000000e-01

@@ -132,35 +132,43 @@ struct LikelyContext : public likely_settings
         PM->add(createTypeBasedAliasAnalysisPass());
         PM->add(createBasicAliasAnalysisPass());
 
-        // Remove dead or redudant instructions
+        // Global cleanup
+        PM->add(createFunctionAttrsPass());
+        PM->add(createGlobalDCEPass());
+        PM->add(createConstantMergePass());
+
+        // Basic scalar optimizations
         PM->add(createAssumptionSubstitutionPass()); // Our in house pass
         PM->add(createVerifierPass()); // Make sure it works :)
         PM->add(createEarlyCSEPass());
         PM->add(createInstructionCombiningPass());
         PM->add(createDeadCodeEliminationPass());
-        PM->add(createReassociatePass());
         PM->add(createCFGSimplificationPass());
+        PM->add(createReassociatePass());
 
         // Optimize loops
         PM->add(createLoopRotatePass()); // Canonicalization
         PM->add(createLICMPass());
         PM->add(createIndVarSimplifyPass());
+        PM->add(createSimpleLoopUnrollPass()); // Complete unrolling only
         PM->add(createLoopCollapsePass()); // Our in house pass
         PM->add(createVerifierPass()); // Make sure it works :)
         PM->add(createCFGSimplificationPass()); // Cleanup
         PM->add(createInstructionCombiningPass());
         PM->add(createDeadCodeEliminationPass());
+        PM->add(createLICMPass());
 
         // Sophisticated scalar optimizations
-        PM->add(createLICMPass());
         PM->add(createGVNPass());
+        PM->add(createSCCPPass());
+        PM->add(createBitTrackingDCEPass());
+        PM->add(createInstructionCombiningPass());
         PM->add(createDeadStoreEliminationPass());
-        PM->add(createAggressiveDCEPass());
+        PM->add(createLICMPass());
         PM->add(createCFGSimplificationPass());
         PM->add(createInstructionCombiningPass());
-
-        // Update the function's signature
-        PM->add(createFunctionAttrsPass());
+        PM->add(createAggressiveDCEPass());
+        PM->add(createReassociatePass());
 
         // Vectorize the loops
         if (!human) {
@@ -169,6 +177,7 @@ struct LikelyContext : public likely_settings
             PM->add(createLoopUnrollPass()); // Unroll loops that couldn't be vectorized
             PM->add(createSLPVectorizerPass()); // Vectorize unrolled instructions
             PM->add(createLoadCombinePass()); // Combine adjacent loads
+            PM->add(createBBVectorizePass()); // Vectorize basic blocks
             PM->add(createAlignmentFromAssumptionsPass()); // Use vectorized and unrolled loops to prove alignment
             PM->add(createCFGSimplificationPass()); // Cleanup
             PM->add(createInstructionCombiningPass());

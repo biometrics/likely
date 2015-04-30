@@ -33,7 +33,7 @@ entry:
   %16 = icmp eq i64 %15, 0
   call void @llvm.assume(i1 %16)
   %17 = mul nuw nsw i64 %dst_x, %dst_c
-  %18 = mul nuw nsw i64 %7, %17
+  %18 = mul nuw nsw i64 %17, %7
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %entry
@@ -41,8 +41,8 @@ y_body:                                           ; preds = %y_body, %entry
   %19 = getelementptr %i16SCXY, %i16SCXY* %0, i64 0, i32 6, i64 %y
   %20 = load i16, i16* %19, align 2, !llvm.mem.parallel_loop_access !1
   %21 = sitofp i16 %20 to float
-  %22 = fmul float %21, %1
-  %23 = fadd float %22, %2
+  %22 = fmul float %1, %21
+  %23 = fadd float %2, %22
   %24 = getelementptr i16, i16* %9, i64 %y
   %25 = fcmp olt float %23, 0.000000e+00
   %26 = select i1 %25, float -5.000000e-01, float 5.000000e-01

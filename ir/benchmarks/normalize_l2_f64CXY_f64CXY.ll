@@ -55,7 +55,7 @@ end:                                              ; preds = %then
   %27 = icmp eq i64 %26, 0
   call void @llvm.assume(i1 %27)
   %28 = mul nuw nsw i64 %dst_x, %dst_c
-  %29 = mul nuw nsw i64 %18, %28
+  %29 = mul nuw nsw i64 %28, %18
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %end

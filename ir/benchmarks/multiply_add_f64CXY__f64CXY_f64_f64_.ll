@@ -33,15 +33,15 @@ entry:
   %16 = icmp eq i64 %15, 0
   call void @llvm.assume(i1 %16)
   %17 = mul nuw nsw i64 %dst_x, %dst_c
-  %18 = mul nuw nsw i64 %7, %17
+  %18 = mul nuw nsw i64 %17, %7
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %y_body ]
   %19 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 %y
   %20 = load double, double* %19, align 8, !llvm.mem.parallel_loop_access !1
-  %21 = fmul double %20, %1
-  %22 = fadd double %21, %2
+  %21 = fmul double %1, %20
+  %22 = fadd double %2, %21
   %23 = getelementptr double, double* %9, i64 %y
   store double %22, double* %23, align 8, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
