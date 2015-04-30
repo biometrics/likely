@@ -158,11 +158,11 @@ char AssumptionSubstitution::ID = 0;
  * for (int i=0; i<y; i++) {
  *   const int b = i + t;
  *   const int c = a * b;
+ *   const int d = c + s
  *   for (int j=0; j<x; j++) {
- *     const int d = j * u;
- *     const int e = d + s
- *     const int f = c + e;
- *     g(e);
+ *     const int e = j * u;
+ *     const int f = d + e;
+ *     g(f);
  *   }
  * }
  *
@@ -240,23 +240,6 @@ struct LoopCollapse : public LoopPass
         }
     };
 
-    // Helper function
-    static bool isD(Value *const maybeD, Value *const j, Value *const u)
-    {
-        if (u) {
-            MulOperator *const d = dyn_cast<MulOperator>(maybeD);
-            if (!d)
-                return false; // Failed to match `d = _ * _`
-            if (!(((d->getOperand(0) == j) && (d->getOperand(1) == u)) ||
-                  ((d->getOperand(1) == j) && (d->getOperand(0) == u))))
-                return false; // Failed to match `d = j * u`
-        } else {
-            if (maybeD != j)
-                return false; // Failed to match `d = j` when `u = 1`
-        }
-        return true;
-    }
-
     bool runOnLoop(Loop *parentLoop, LPPassManager &LPM) override
     {
         // We can only collapse single subloops
@@ -280,10 +263,10 @@ struct LoopCollapse : public LoopPass
         // See the comment above LoopCollapse for the definition of these member variables
         struct CollapsiblePattern
         {
-            Value *t, *u, *f;
+            Value *t, *s, *u, *f;
             User *jUser;
-            CollapsiblePattern(Value *const t, Value *const u, Value *const f, User *const jUser)
-                : t(t), u(u), f(f), jUser(jUser) {}
+            CollapsiblePattern(Value *const t, Value *const s, Value *const u, Value *const f, User *const jUser)
+                : t(t), s(s), u(u), f(f), jUser(jUser) {}
         };
 
         // To be collapsible, we must be able to pattern match all uses of `i` (parent.CIV)
@@ -343,44 +326,50 @@ struct LoopCollapse : public LoopPass
                     return false; // Failed to match `c = a * b`
 
                 for (User *const cUser : c->users()) {
-                    // Match `f = c + e`
-                    AddOperator *const f = dyn_cast<AddOperator>(cUser);
-                    if (!f)
-                        return false; // Failed to match `e = _ + _`
-
-                    Value *dOrE = f->getOperand(0) != c ? f->getOperand(0)
-                                                        : f->getOperand(1);
-                    Value *e = NULL;
+                    // Match `d = c + s`
                     Value *d = NULL;
                     Value *s = NULL;
-                    if (AddOperator *const maybeE = dyn_cast<AddOperator>(dOrE)) {
-                        e = maybeE;
-
-                        // Match `e = d + s`
-                        Value *maybeS = NULL;
-                        if      (isD(maybeE->getOperand(0), child.CIV, u)) { d = maybeE->getOperand(0); maybeS = maybeE->getOperand(1); }
-                        else if (isD(maybeE->getOperand(1), child.CIV, u)) { d = maybeE->getOperand(1); maybeS = maybeE->getOperand(0); }
-                        else return false; // Failed to match e = d + _
-
-                        if (!maybeS || !parentLoop->isLoopInvariant(maybeS))
-                            return false; // Failed to match e = d + s
-                        s = maybeS;
-                    } else {
-                        // Match e = d
-                        if (isD(dOrE, child.CIV, u)) {
-                            // s = 0
-                            d = dOrE;
-                            e = d;
-                        } else {
-                            return false; // Failed to match `e = d`
+                    vector<User*> dUsers;
+                    if (AddOperator *const maybeD = dyn_cast<AddOperator>(cUser)) {
+                        Value *const maybeS = maybeD->getOperand(0) != c ? maybeD->getOperand(0)
+                                                                         : maybeD->getOperand(1);
+                        if (parentLoop->isLoopInvariant(maybeS)) {
+                            d = maybeD;
+                            s = maybeS;
+                            for (User *const user : d->users())
+                                dUsers.push_back(user);
                         }
                     }
 
-                    if (!(((f->getOperand(0) == c) && (f->getOperand(1) == e)) ||
-                          ((f->getOperand(1) == c) && (f->getOperand(0) == e))))
-                        return false; // Failed to match `f = c + e`
+                    // Failed to match `d = c + s`, proceed under the assumption that `s = 0` and therefore `d = c`
+                    if (!d) {
+                        d = c;
+                        dUsers.push_back(cUser);
+                    }
 
-                    collapsiblePatterns.push_back(CollapsiblePattern(t, u, f, cast<User>(u ? d : f)));
+                    for (User *const dUser : dUsers) {
+                        // Match `f = d + e`
+                        AddOperator *const f = dyn_cast<AddOperator>(dUser);
+                        if (!f)
+                            return false; // Failed to match `f = _ + _`
+
+                        // Match `e = j * u`
+                        Value *const e = f->getOperand(0) != d ? f->getOperand(0)
+                                                               : f->getOperand(1);
+                        if (u) {
+                            MulOperator *const ju = dyn_cast<MulOperator>(e);
+                            if (!ju)
+                                return false; // Failed to match `e = _ * _`
+                            if (!(((ju->getOperand(0) == child.CIV) && (ju->getOperand(1) == u)) ||
+                                  ((ju->getOperand(1) == child.CIV) && (ju->getOperand(0) == u))))
+                                return false; // Failed to match `e = j * u`
+                        } else {
+                            if (e != child.CIV)
+                                return false; // Failed to match `e = j` when `u = 1`
+                        }
+
+                        collapsiblePatterns.push_back(CollapsiblePattern(t, s, u, f, cast<User>(u ? e : f)));
+                    }
                 }
             }
         }
@@ -451,6 +440,9 @@ struct LoopCollapse : public LoopPass
 
             if (cp.u)
                 replace = builder.CreateMul(cp.u, replace, "", true, true);
+
+            if (cp.s)
+                replace = builder.CreateAdd(cp.s, replace, "", true, true);
 
             cp.f->replaceAllUsesWith(replace);
         }
