@@ -22,6 +22,7 @@
 #include <fstream>
 #include <iostream>
 #include <llvm/Support/CommandLine.h>
+#include <llvm/Support/Path.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -47,18 +48,29 @@ static cl::alias     BenchmarkHumanA("h", cl::desc("Alias for -human"), cl::alia
 static cl::opt<string> BenchmarkFile("file", cl::desc("Benchmark the specified file only"), cl::value_desc("filename"));
 static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"));
 static cl::opt<string> BenchmarkType("type", cl::desc("Benchmark the specified type only"), cl::value_desc("type"));
+static cl::opt<string> BenchmarkRoot("root", cl::desc("Root of the Likely repository"), cl::value_desc("path"));
 
 static void checkRead(const void *data, const char *fileName)
 {
-    likely_ensure(data != NULL, "failed to read \"%s\", did you forget to run 'benchmark' from the root of the repository?", fileName);
+    likely_ensure(data != NULL, "failed to read \"%s\", did you forget to set '-root' or run 'benchmark' from the root of the Likely repository?", fileName);
+}
+
+static string resolvePath(const string &fileName)
+{
+    if (BenchmarkRoot.empty())
+        return fileName;
+    SmallString<16> resolvedPath;
+    sys::path::append(resolvedPath, BenchmarkRoot, fileName);
+    return resolvedPath.str();
 }
 
 static Mat generateData(int rows, int columns, likely_type type, bool color)
 {
     static Mat original;
     if (!original.data) {
-        original = imread("data/misc/lenna.tiff");
-        checkRead(original.data, "data/misc/lenna.tiff");
+        const char *const lenna = "data/misc/lenna.tiff";
+        original = imread(resolvePath(lenna));
+        checkRead(original.data, lenna);
     }
 
     Mat m;
@@ -81,7 +93,7 @@ struct TestBase
         stringstream source;
         stringstream fileName;
         fileName << "library/" << name() << ".md";
-        const likely_const_mat fileSource = likely_read(fileName.str().c_str(), likely_file_gfm, likely_text);
+        const likely_const_mat fileSource = likely_read(resolvePath(fileName.str()).c_str(), likely_file_gfm, likely_text);
         checkRead(fileSource, fileName.str().c_str());
         source << fileSource->data;
         likely_release_mat(fileSource);
@@ -136,7 +148,7 @@ struct TestBase
     static void runFile(const char *fileName)
     {
         const likely_file_type file_type = likely_guess_file_type(fileName);
-        const likely_const_mat source = likely_read(fileName, file_type, likely_text);
+        const likely_const_mat source = likely_read(resolvePath(fileName).c_str(), file_type, likely_text);
         checkRead(source, fileName);
 
         if (!BenchmarkQuiet)
