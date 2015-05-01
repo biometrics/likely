@@ -106,10 +106,6 @@ file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/gabor_
               "${CMAKE_SOURCE_DIR}/data/demo/gabor_wavelet.jpg"
               EXPECTED_MD5 cf0c27b391516783f7973c83f3fd68f7)
 
-file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/hello_world.jpg
-              "${CMAKE_SOURCE_DIR}/data/demo/hello_world.jpg"
-              EXPECTED_MD5 87f9409a6c28428565835413a41cc9e3)
-
 file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/mandelbrot_set.jpg
               "${CMAKE_SOURCE_DIR}/data/demo/mandelbrot_set.jpg"
               EXPECTED_MD5 544dd8db0eaa75a2da846fa33445b5c9)
