@@ -27,12 +27,10 @@ if(${LIKELY_HELLOWORLD})
   # Trained
   add_executable(hello_world_trained hello_world_trained.c)
   target_link_libraries(hello_world_trained likely_shared)
+  add_test(NAME hello_world_trained
+           COMMAND hello_world_trained ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-trained.lisp 2 ${CMAKE_BINARY_DIR}/hello_world_precompiled_lisp.bc)
 
   # Pre-compiled
-  add_custom_command(OUTPUT hello_world_precompiled_lisp.bc
-                     COMMAND hello_world_trained ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-trained.lisp 2 ${CMAKE_BINARY_DIR}/hello_world_precompiled_lisp.bc
-                     DEPENDS hello-world-trained.lisp)
-  add_custom_target(hello_world_precompiled_lisp ALL)
   add_executable(hello_world_precompiled hello_world_precompiled.c)
   target_link_libraries(hello_world_precompiled likely_shared)
   add_test(NAME hello_world_precompiled
