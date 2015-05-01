@@ -145,16 +145,17 @@ struct TestBase
         likely_release_env(env);
     }
 
-    static void runFile(const char *fileName)
+    static void runFile(const char *fileName, likely_const_env const parent)
     {
-        const likely_file_type file_type = likely_guess_file_type(fileName);
-        const likely_const_mat source = likely_read(resolvePath(fileName).c_str(), file_type, likely_text);
+        if (!BenchmarkFile.empty() && (fileName != BenchmarkFile))
+            return;
+
+        const likely_const_mat source = likely_read(resolvePath(string("library/") + string(fileName) + string(".md")).c_str(), likely_file_gfm, likely_text);
         checkRead(source, fileName);
 
         if (!BenchmarkQuiet)
-            printf("%s \t", fileName);
-        const likely_const_env parent = likely_standard(likely_default_settings(likely_file_void, false), NULL, likely_file_void);
-        likely_release_env(likely_lex_parse_and_eval(source->data, file_type, parent));
+            printf("%s \t%s \t", fileName, BenchmarkMulticore ? "m" : "s");
+        likely_release_env(likely_lex_parse_and_eval(source->data, likely_file_gfm, parent));
 
         if (BenchmarkTest) {
             if (!BenchmarkQuiet)
@@ -164,7 +165,7 @@ struct TestBase
             int iter = 0;
             startTime = endTime = clock();
             while ((endTime-startTime) / CLOCKS_PER_SEC < TestSeconds) {
-                likely_release_env(likely_lex_parse_and_eval(source->data, file_type, parent));
+                likely_release_env(likely_lex_parse_and_eval(source->data, likely_file_gfm, parent));
                 endTime = clock();
                 iter++;
             }
@@ -173,7 +174,6 @@ struct TestBase
                 printf("%.2e\n", speed.Hz);
         }
 
-        likely_release_env(parent);
         likely_release_mat(source);
     }
 
@@ -253,8 +253,8 @@ private:
                             } else {
                                 src << likely_get_element(srcLikely[0], k, j, i, 0);
                             }
-                            const double cv  = likely_get_element(cvLikely    , k, j, i, 0);
-                            const double dst = likely_get_element(dstLikely   , k, j, i, 0);
+                            const double cv  = likely_get_element(cvLikely , k, j, i, 0);
+                            const double dst = likely_get_element(dstLikely, k, j, i, 0);
                             if (errors < 100) errorLocations << src.str() << "\t" << cv << "\t" << dst << "\t" << i << "\t" << j << "\t" << k << "\n";
                             errors++;
                         }
@@ -445,17 +445,25 @@ int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
 
-    // Print to console immediately
+    // Print to the console immediately
     setbuf(stdout, NULL);
 
-    if (!BenchmarkFile.empty()) {
-        TestBase::runFile(BenchmarkFile.getValue().c_str());
-    } else {
+    likely_settings settings = likely_default_settings(BenchmarkHuman ? likely_file_ir : likely_file_object, false);
+    settings.multicore = BenchmarkMulticore;
+    settings.verbose = BenchmarkVerbose;
+    const likely_const_env parent = likely_standard(settings, NULL, likely_file_void);
+
+    if (!BenchmarkQuiet) {
+        const time_t now = time(0);
+        char dateTime[80];
+        strftime(dateTime, sizeof(dateTime), "%Y-%m-%d.%X", localtime(&now));
+        puts(dateTime);
+        puts("");
+        puts("To reproduce the following results, run the `benchmark` application included in a build of Likely.");
+    }
+
+    if (BenchmarkFile.empty()) {
         if (!BenchmarkQuiet) {
-            const time_t now = time(0);
-            char dateTime[80];
-            strftime(dateTime, sizeof(dateTime), "%Y-%m-%d.%X", localtime(&now));
-            puts(dateTime);
             puts("");
             puts("Likely vs. OpenCV Benchmark Results");
             puts("-----------------------------------");
@@ -466,23 +474,33 @@ int main(int argc, char *argv[])
             puts("    Iter: Times Likely function was run in one second");
             puts(" Speedup: Execution speed of Likely relative to OpenCV");
             puts("");
-            puts("To reproduce the following results, run the `benchmark` application, included in a build of Likely, from the root of the Likely repository.");
-            puts("");
             puts("Function \t\tType \tSize \tExec \tIter \t\tSpeedup");
         }
-
-        likely_settings settings = likely_default_settings(BenchmarkHuman ? likely_file_ir : likely_file_object, false);
-        settings.multicore = BenchmarkMulticore;
-        settings.verbose = BenchmarkVerbose;
-        const likely_const_env parent = likely_standard(settings, NULL, likely_file_void);
 
         BinaryThreshold().run(parent);
         ConvertGrayscale().run(parent);
         MultiplyAdd().run(parent);
         MinMaxLoc().run(parent);
         NormalizeL2().run(parent);
-        likely_release_env(parent);
     }
+
+    if (BenchmarkFunction.empty()) {
+        if (!BenchmarkQuiet) {
+            puts("");
+            puts("Likely Demo Benchmark Results");
+            puts("-----------------------------");
+            puts("File: Benchmarked file name");
+            puts("Exec: (s)ingle-core or (m)ulti-core");
+            puts("Iter: Times Likely file was run in one second");
+            puts("");
+            puts("File \t\tExec \tIter");
+        }
+
+        TestBase::runFile("gabor_wavelet", parent);
+        TestBase::runFile("mandelbrot_set", parent);
+    }
+
+    likely_release_env(parent);
 
     likely_shutdown();
     return EXIT_SUCCESS;
