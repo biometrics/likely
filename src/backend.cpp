@@ -127,9 +127,6 @@ struct LikelyContext : public likely_settings
         PM->add(ACT);
         PM->add(new TargetLibraryInfoWrapperPass(Triple(sys::getProcessTriple())));
         PM->add(createTargetTransformInfoWrapperPass(TM->getTargetIRAnalysis()));
-
-        // Alias analysis
-        PM->add(createTypeBasedAliasAnalysisPass());
         PM->add(createBasicAliasAnalysisPass());
 
         // Global cleanup
@@ -155,19 +152,13 @@ struct LikelyContext : public likely_settings
         PM->add(createVerifierPass()); // Make sure it works :)
         PM->add(createCFGSimplificationPass()); // Cleanup
         PM->add(createInstructionCombiningPass());
-        PM->add(createDeadCodeEliminationPass());
-        PM->add(createLICMPass());
 
         // Sophisticated scalar optimizations
         PM->add(createGVNPass());
-        PM->add(createSCCPPass());
-        PM->add(createBitTrackingDCEPass());
         PM->add(createInstructionCombiningPass());
-        PM->add(createDeadStoreEliminationPass());
         PM->add(createLICMPass());
         PM->add(createCFGSimplificationPass());
         PM->add(createInstructionCombiningPass());
-        PM->add(createAggressiveDCEPass());
         PM->add(createReassociatePass());
 
         // Vectorize the loops
