@@ -1,4 +1,4 @@
-set(LIKELY_SRC assumption_substitution.cpp backend.cpp frontend.cpp io.cpp loop_collapse.cpp)
+set(LIKELY_SRC assumption_substitution.cpp axis_substitution.cpp backend.cpp frontend.cpp io.cpp loop_collapse.cpp)
 file(GLOB LIKELY_LIBRARY ${CMAKE_SOURCE_DIR}/library/*)
 set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/LICENSE.txt

@@ -48,50 +48,50 @@ entry:
 c_body:                                           ; preds = %end, %entry
   %c = phi i64 [ %1, %entry ], [ %c_increment, %end ]
   %26 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %c
-  br i1 %23, label %end, label %then
+  br i1 %23, label %end, label %label4.preheader
 
-then:                                             ; preds = %c_body, %end6
-  %27 = phi i32 [ %77, %end6 ], [ 0, %c_body ]
-  %28 = phi i32 [ %78, %end6 ], [ 0, %c_body ]
-  %29 = phi i32 [ %79, %end6 ], [ 0, %c_body ]
-  %30 = phi i32 [ %80, %end6 ], [ 0, %c_body ]
-  %31 = phi double [ %81, %end6 ], [ 0xFFEFFFFFFFFFFFFF, %c_body ]
-  %32 = phi double [ %82, %end6 ], [ 0x7FEFFFFFFFFFFFFF, %c_body ]
-  %33 = phi i32 [ %83, %end6 ], [ 0, %c_body ]
+label4.preheader:                                 ; preds = %c_body, %end6
+  %27 = phi i32 [ %71, %end6 ], [ 0, %c_body ]
+  %28 = phi double [ %.lcssa16, %end6 ], [ 0x7FEFFFFFFFFFFFFF, %c_body ]
+  %29 = phi i32 [ %.lcssa15, %end6 ], [ 0, %c_body ]
+  %30 = phi i32 [ %.lcssa14, %end6 ], [ 0, %c_body ]
+  %31 = phi double [ %.lcssa13, %end6 ], [ 0xFFEFFFFFFFFFFFFF, %c_body ]
+  %32 = phi i32 [ %.lcssa12, %end6 ], [ 0, %c_body ]
+  %33 = phi i32 [ %.lcssa, %end6 ], [ 0, %c_body ]
   br i1 %25, label %end6, label %then5.lr.ph
 
-then5.lr.ph:                                      ; preds = %then
-  %34 = sext i32 %33 to i64
+then5.lr.ph:                                      ; preds = %label4.preheader
+  %34 = sext i32 %27 to i64
   %35 = mul nsw i64 %34, %src_x
   br label %then5
 
 end:                                              ; preds = %end6, %c_body
-  %36 = phi i32 [ 0, %c_body ], [ %77, %end6 ]
-  %37 = phi i32 [ 0, %c_body ], [ %78, %end6 ]
-  %38 = phi double [ 0xFFEFFFFFFFFFFFFF, %c_body ], [ %81, %end6 ]
-  %39 = phi i32 [ 0, %c_body ], [ %79, %end6 ]
-  %40 = phi i32 [ 0, %c_body ], [ %80, %end6 ]
-  %41 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %82, %end6 ]
-  store double %41, double* %26, align 8, !llvm.mem.parallel_loop_access !1
-  %42 = sitofp i32 %40 to double
-  %43 = add nuw nsw i64 %c, %dst_c
-  %44 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %43
-  store double %42, double* %44, align 8, !llvm.mem.parallel_loop_access !1
-  %45 = sitofp i32 %39 to double
-  %46 = add nuw nsw i64 %c, %24
-  %47 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %46
-  store double %45, double* %47, align 8, !llvm.mem.parallel_loop_access !1
-  %48 = add nuw nsw i64 %c, %dst_y_step
+  %.lcssa22 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %.lcssa16, %end6 ]
+  %.lcssa21 = phi i32 [ 0, %c_body ], [ %.lcssa15, %end6 ]
+  %.lcssa20 = phi i32 [ 0, %c_body ], [ %.lcssa14, %end6 ]
+  %.lcssa19 = phi double [ 0xFFEFFFFFFFFFFFFF, %c_body ], [ %.lcssa13, %end6 ]
+  %.lcssa18 = phi i32 [ 0, %c_body ], [ %.lcssa12, %end6 ]
+  %.lcssa17 = phi i32 [ 0, %c_body ], [ %.lcssa, %end6 ]
+  store double %.lcssa22, double* %26, align 8, !llvm.mem.parallel_loop_access !1
+  %36 = sitofp i32 %.lcssa21 to double
+  %37 = add nuw nsw i64 %c, %dst_c
+  %38 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %37
+  store double %36, double* %38, align 8, !llvm.mem.parallel_loop_access !1
+  %39 = sitofp i32 %.lcssa20 to double
+  %40 = add nuw nsw i64 %c, %24
+  %41 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %40
+  store double %39, double* %41, align 8, !llvm.mem.parallel_loop_access !1
+  %42 = add nuw nsw i64 %c, %dst_y_step
+  %43 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %42
+  store double %.lcssa19, double* %43, align 8, !llvm.mem.parallel_loop_access !1
+  %44 = sitofp i32 %.lcssa18 to double
+  %45 = add nuw nsw i64 %37, %dst_y_step
+  %46 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %45
+  store double %44, double* %46, align 8, !llvm.mem.parallel_loop_access !1
+  %47 = sitofp i32 %.lcssa17 to double
+  %48 = add nuw nsw i64 %40, %dst_y_step
   %49 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %48
-  store double %38, double* %49, align 8, !llvm.mem.parallel_loop_access !1
-  %50 = sitofp i32 %37 to double
-  %51 = add nuw nsw i64 %43, %dst_y_step
-  %52 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %51
-  store double %50, double* %52, align 8, !llvm.mem.parallel_loop_access !1
-  %53 = sitofp i32 %36 to double
-  %54 = add nuw nsw i64 %46, %dst_y_step
-  %55 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %54
-  store double %53, double* %55, align 8, !llvm.mem.parallel_loop_access !1
+  store double %47, double* %49, align 8, !llvm.mem.parallel_loop_access !1
   %c_increment = add nuw nsw i64 %c, 1
   %c_postcondition = icmp eq i64 %c_increment, %2
   br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !1
@@ -100,41 +100,41 @@ c_exit:                                           ; preds = %end
   ret void
 
 then5:                                            ; preds = %then5.lr.ph, %then5
-  %56 = phi i32 [ %27, %then5.lr.ph ], [ %72, %then5 ]
-  %57 = phi i32 [ %28, %then5.lr.ph ], [ %73, %then5 ]
-  %58 = phi i32 [ %29, %then5.lr.ph ], [ %68, %then5 ]
-  %59 = phi i32 [ %30, %then5.lr.ph ], [ %69, %then5 ]
-  %60 = phi double [ %31, %then5.lr.ph ], [ %74, %then5 ]
-  %61 = phi double [ %32, %then5.lr.ph ], [ %70, %then5 ]
-  %62 = phi i32 [ 0, %then5.lr.ph ], [ %75, %then5 ]
-  %63 = sext i32 %62 to i64
-  %tmp = add i64 %63, %35
-  %tmp12 = mul i64 %tmp, %src_c
-  %64 = add i64 %tmp12, %c
-  %65 = getelementptr %f64CXY, %f64CXY* %6, i64 0, i32 6, i64 %64
-  %66 = load double, double* %65, align 8, !llvm.mem.parallel_loop_access !1
-  %67 = fcmp olt double %66, %61
-  %68 = select i1 %67, i32 %33, i32 %58
-  %69 = select i1 %67, i32 %62, i32 %59
-  %70 = select i1 %67, double %66, double %61
-  %71 = fcmp ogt double %66, %60
-  %72 = select i1 %71, i32 %33, i32 %56
-  %73 = select i1 %71, i32 %62, i32 %57
-  %74 = select i1 %71, double %66, double %60
-  %75 = add nuw nsw i32 %62, 1
-  %76 = icmp eq i32 %75, %8
-  br i1 %76, label %end6, label %then5
+  %50 = phi double [ %28, %then5.lr.ph ], [ %64, %then5 ]
+  %51 = phi i32 [ %29, %then5.lr.ph ], [ %63, %then5 ]
+  %52 = phi i32 [ %30, %then5.lr.ph ], [ %62, %then5 ]
+  %53 = phi double [ %31, %then5.lr.ph ], [ %68, %then5 ]
+  %54 = phi i32 [ %32, %then5.lr.ph ], [ %67, %then5 ]
+  %55 = phi i32 [ %33, %then5.lr.ph ], [ %66, %then5 ]
+  %56 = phi i32 [ 0, %then5.lr.ph ], [ %69, %then5 ]
+  %57 = sext i32 %56 to i64
+  %tmp = add i64 %57, %35
+  %tmp11 = mul i64 %tmp, %src_c
+  %58 = add i64 %tmp11, %c
+  %59 = getelementptr %f64CXY, %f64CXY* %6, i64 0, i32 6, i64 %58
+  %60 = load double, double* %59, align 8, !llvm.mem.parallel_loop_access !1
+  %61 = fcmp olt double %60, %50
+  %62 = select i1 %61, i32 %27, i32 %52
+  %63 = select i1 %61, i32 %56, i32 %51
+  %64 = select i1 %61, double %60, double %50
+  %65 = fcmp ogt double %60, %53
+  %66 = select i1 %65, i32 %27, i32 %55
+  %67 = select i1 %65, i32 %56, i32 %54
+  %68 = select i1 %65, double %60, double %53
+  %69 = add nuw nsw i32 %56, 1
+  %70 = icmp eq i32 %69, %8
+  br i1 %70, label %end6, label %then5
 
-end6:                                             ; preds = %then5, %then
-  %77 = phi i32 [ %27, %then ], [ %72, %then5 ]
-  %78 = phi i32 [ %28, %then ], [ %73, %then5 ]
-  %79 = phi i32 [ %29, %then ], [ %68, %then5 ]
-  %80 = phi i32 [ %30, %then ], [ %69, %then5 ]
-  %81 = phi double [ %31, %then ], [ %74, %then5 ]
-  %82 = phi double [ %32, %then ], [ %70, %then5 ]
-  %83 = add nuw nsw i32 %33, 1
-  %84 = icmp eq i32 %83, %10
-  br i1 %84, label %end, label %then
+end6:                                             ; preds = %then5, %label4.preheader
+  %.lcssa16 = phi double [ %28, %label4.preheader ], [ %64, %then5 ]
+  %.lcssa15 = phi i32 [ %29, %label4.preheader ], [ %63, %then5 ]
+  %.lcssa14 = phi i32 [ %30, %label4.preheader ], [ %62, %then5 ]
+  %.lcssa13 = phi double [ %31, %label4.preheader ], [ %68, %then5 ]
+  %.lcssa12 = phi i32 [ %32, %label4.preheader ], [ %67, %then5 ]
+  %.lcssa = phi i32 [ %33, %label4.preheader ], [ %66, %then5 ]
+  %71 = add nuw nsw i32 %27, 1
+  %72 = icmp eq i32 %71, %10
+  br i1 %72, label %end, label %label4.preheader
 }
 
 ; Function Attrs: nounwind

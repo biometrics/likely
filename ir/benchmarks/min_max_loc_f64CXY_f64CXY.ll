@@ -37,21 +37,21 @@ entry:
 
 c_body:                                           ; preds = %end, %entry
   %c = phi i64 [ 0, %entry ], [ %c_increment, %end ]
-  br label %then
+  br label %label8.preheader
 
-then:                                             ; preds = %c_body, %end3
-  %16 = phi i32 [ 0, %c_body ], [ %57, %end3 ]
-  %17 = phi i32 [ 0, %c_body ], [ %58, %end3 ]
-  %18 = phi i32 [ 0, %c_body ], [ %53, %end3 ]
-  %19 = phi i32 [ 0, %c_body ], [ %54, %end3 ]
-  %20 = phi double [ 0xFFEFFFFFFFFFFFFF, %c_body ], [ %59, %end3 ]
-  %21 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %55, %end3 ]
-  %22 = phi i32 [ 0, %c_body ], [ %62, %end3 ]
-  %23 = sext i32 %22 to i64
+label8.preheader:                                 ; preds = %c_body, %end10
+  %16 = phi i32 [ 0, %c_body ], [ %62, %end10 ]
+  %17 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %55, %end10 ]
+  %18 = phi i32 [ 0, %c_body ], [ %54, %end10 ]
+  %19 = phi i32 [ 0, %c_body ], [ %53, %end10 ]
+  %20 = phi double [ 0xFFEFFFFFFFFFFFFF, %c_body ], [ %59, %end10 ]
+  %21 = phi i32 [ 0, %c_body ], [ %58, %end10 ]
+  %22 = phi i32 [ 0, %c_body ], [ %57, %end10 ]
+  %23 = sext i32 %16 to i64
   %24 = mul nsw i64 %23, %src_x
-  br label %then2
+  br label %then9
 
-end:                                              ; preds = %end3
+end:                                              ; preds = %end10
   %25 = getelementptr double, double* %7, i64 %c
   store double %55, double* %25, align 8, !llvm.mem.parallel_loop_access !1
   %26 = sitofp i32 %54 to double
@@ -81,36 +81,36 @@ c_exit:                                           ; preds = %end
   %40 = bitcast %u0CXYT* %2 to %f64CXY*
   ret %f64CXY* %40
 
-then2:                                            ; preds = %then, %then2
-  %41 = phi i32 [ %16, %then ], [ %57, %then2 ]
-  %42 = phi i32 [ %17, %then ], [ %58, %then2 ]
-  %43 = phi i32 [ %18, %then ], [ %53, %then2 ]
-  %44 = phi i32 [ %19, %then ], [ %54, %then2 ]
-  %45 = phi double [ %20, %then ], [ %59, %then2 ]
-  %46 = phi double [ %21, %then ], [ %55, %then2 ]
-  %47 = phi i32 [ 0, %then ], [ %60, %then2 ]
+then9:                                            ; preds = %label8.preheader, %then9
+  %41 = phi double [ %17, %label8.preheader ], [ %55, %then9 ]
+  %42 = phi i32 [ %18, %label8.preheader ], [ %54, %then9 ]
+  %43 = phi i32 [ %19, %label8.preheader ], [ %53, %then9 ]
+  %44 = phi double [ %20, %label8.preheader ], [ %59, %then9 ]
+  %45 = phi i32 [ %21, %label8.preheader ], [ %58, %then9 ]
+  %46 = phi i32 [ %22, %label8.preheader ], [ %57, %then9 ]
+  %47 = phi i32 [ 0, %label8.preheader ], [ %60, %then9 ]
   %48 = sext i32 %47 to i64
   %tmp = add i64 %48, %24
-  %tmp2 = mul i64 %tmp, %5
-  %49 = add i64 %tmp2, %c
+  %tmp1 = mul i64 %tmp, %5
+  %49 = add i64 %tmp1, %c
   %50 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 %49
   %51 = load double, double* %50, align 8, !llvm.mem.parallel_loop_access !1
-  %52 = fcmp olt double %51, %46
-  %53 = select i1 %52, i32 %22, i32 %43
-  %54 = select i1 %52, i32 %47, i32 %44
-  %55 = select i1 %52, double %51, double %46
-  %56 = fcmp ogt double %51, %45
-  %57 = select i1 %56, i32 %22, i32 %41
-  %58 = select i1 %56, i32 %47, i32 %42
-  %59 = select i1 %56, double %51, double %45
+  %52 = fcmp olt double %51, %41
+  %53 = select i1 %52, i32 %16, i32 %43
+  %54 = select i1 %52, i32 %47, i32 %42
+  %55 = select i1 %52, double %51, double %41
+  %56 = fcmp ogt double %51, %44
+  %57 = select i1 %56, i32 %16, i32 %46
+  %58 = select i1 %56, i32 %47, i32 %45
+  %59 = select i1 %56, double %51, double %44
   %60 = add nuw nsw i32 %47, 1
   %61 = icmp eq i32 %60, %columns
-  br i1 %61, label %end3, label %then2
+  br i1 %61, label %end10, label %then9
 
-end3:                                             ; preds = %then2
-  %62 = add nuw nsw i32 %22, 1
+end10:                                            ; preds = %then9
+  %62 = add nuw nsw i32 %16, 1
   %63 = icmp eq i32 %62, %rows
-  br i1 %63, label %end, label %then
+  br i1 %63, label %end, label %label8.preheader
 }
 
 attributes #0 = { nounwind readonly }

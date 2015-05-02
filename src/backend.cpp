@@ -33,6 +33,7 @@
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/IR/ConstantRange.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/IRPrintingPasses.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
@@ -89,6 +90,7 @@ likely_settings likely_default_settings(likely_file_type file_type, bool verbose
 //! [likely_default_settings implementation.]
 
 FunctionPass *createAssumptionSubstitutionPass(); // assumption_substitution.cpp
+ModulePass   *createAxisSubstitutionPass();       // axis_substitution.cpp
 LoopPass     *createLoopCollapsePass();           // loop_collapse.cpp
 
 namespace {
@@ -135,10 +137,14 @@ struct LikelyContext : public likely_settings
         PM->add(createConstantMergePass());
 
         // Basic scalar optimizations
+        PM->add(createEarlyCSEPass()); // Combine redundant instructions ...
+        PM->add(createGVNPass());      // ... and loads prior to our substitution passes:
         PM->add(createAssumptionSubstitutionPass()); // Our in house pass
-        PM->add(createVerifierPass()); // Make sure it works :)
-        PM->add(createEarlyCSEPass());
-        PM->add(createInstructionCombiningPass());
+        PM->add(createVerifierPass());               // Make sure it works :)
+        PM->add(createAxisSubstitutionPass()); // Our in house pass
+        PM->add(createVerifierPass());         // Make sure it works :)
+        PM->add(createEarlyCSEPass()); // The substitution passes will create new CSE opportunities
+        PM->add(createInstructionCombiningPass()); // Cleanup
         PM->add(createDeadCodeEliminationPass());
         PM->add(createCFGSimplificationPass());
         PM->add(createReassociatePass());
@@ -149,7 +155,7 @@ struct LikelyContext : public likely_settings
         PM->add(createIndVarSimplifyPass());
         PM->add(createSimpleLoopUnrollPass()); // Complete unrolling only
         PM->add(createLoopCollapsePass()); // Our in house pass
-        PM->add(createVerifierPass()); // Make sure it works :)
+        PM->add(createVerifierPass());     // Make sure it works :)
         PM->add(createCFGSimplificationPass()); // Cleanup
         PM->add(createInstructionCombiningPass());
 
@@ -1116,38 +1122,7 @@ struct Builder : public IRBuilder<>
 private:
     LikelyValue axis(Value *m, const unsigned idx, const char *const name)
     {
-        // Trace back through casts
-        while (CastInst *const cast = dyn_cast<CastInst>(m))
-            m = cast->getOperand(0);
-
-        // If the origin is a call to "likely_new" then we can determine the
-        // axis value from the corresponding function call argument.
-        if (CallInst *const call = dyn_cast<CallInst>(m))
-            if (call->getCalledFunction()->getName() == "likely_new")
-                return LikelyValue(call->getOperand(idx+1), likely_u32);
-
-        // See if we have already indexed it
-        Value *priorGEP = NULL;
-        for (BasicBlock &BB : *GetInsertBlock()->getParent())
-            for (Instruction &I : BB)
-                if (GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(&I))
-                    if (GEP->getOperand(0) == m)
-                        if (ConstantInt *const idx1 = dyn_cast<ConstantInt>(GEP->getOperand(1)))
-                            if (idx1->isZero())
-                                if (ConstantInt *const idx2 = dyn_cast<ConstantInt>(GEP->getOperand(2)))
-                                    if (idx2->equalsInt(idx+2))
-                                        priorGEP = GEP;
-
-        // See if we have already loaded it
-        if (priorGEP)
-            for (User *const user : priorGEP->users())
-                if (LoadInst *const load = dyn_cast<LoadInst>(user))
-                    return LikelyValue(load, likely_u32);
-
-        if (!priorGEP)
-            priorGEP = CreateStructGEP(m, idx+2);
-
-        LoadInst *const load = CreateLoad(priorGEP, name);
+        LoadInst *const load = CreateLoad(CreateStructGEP(m, idx+2), name);
         load->setMetadata(LLVMContext::MD_range, axisRange());
         return LikelyValue(load, likely_u32);
     }

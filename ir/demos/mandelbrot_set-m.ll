@@ -57,9 +57,9 @@ x_body:                                           ; preds = %end, %y_body
   br label %label
 
 label:                                            ; preds = %label, %x_body
-  %35 = phi i32 [ %45, %label ], [ 0, %x_body ]
-  %36 = phi float [ %44, %label ], [ 0.000000e+00, %x_body ]
-  %37 = phi float [ %41, %label ], [ 0.000000e+00, %x_body ]
+  %35 = phi i32 [ 0, %x_body ], [ %45, %label ]
+  %36 = phi float [ 0.000000e+00, %x_body ], [ %44, %label ]
+  %37 = phi float [ 0.000000e+00, %x_body ], [ %41, %label ]
   %38 = fmul float %37, %37
   %39 = fmul float %36, %36
   %40 = fsub float %38, %39
