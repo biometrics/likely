@@ -514,6 +514,8 @@ if(NOT ${LIKELY_DEMOS} MATCHES "None")
   add_benchmark("f64CXY" "normalize-l2" "f64CXY")
   add_benchmark("f32XY" "matrix-multiplication" "(f32XY f32XY)")
   add_benchmark("f64XY" "matrix-multiplication" "(f64XY f64XY)")
+  add_benchmark("f32XY" "gemm" "(f32XY f32XY f64 f32XY f64)")
+  add_benchmark("f64XY" "gemm" "(f64XY f64XY f64 f32XY f64)")
 endif()
 
 # Compile and test demos

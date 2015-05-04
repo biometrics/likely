@@ -471,6 +471,41 @@ class MatrixMultiplication : public Test<1, false>
     }
 };
 
+class GEMM : public Test<4, false>
+{
+    const char *name() const
+    {
+        return "gemm";
+    }
+
+    vector<likely_const_mat> additionalArguments(likely_const_mat src) const
+    {
+        vector<likely_const_mat> args;
+        const double alpha = 3.141592;
+        const double beta = 2.718281;
+        args.push_back(likely_retain_mat(src));
+        args.push_back(likely_scalar(likely_double, &alpha, 1));
+        args.push_back(likely_retain_mat(src));
+        args.push_back(likely_scalar(likely_double, &beta, 1));
+        return args;
+    }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat dst;
+        gemm(src, src, 3.141592, src, 2.718281, dst);
+        return dst;
+    }
+
+    vector<likely_type> types() const
+    {
+        vector<likely_type> types;
+        types.push_back(likely_f32);
+        types.push_back(likely_f64);
+        return types;
+    }
+};
+
 int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
@@ -513,6 +548,7 @@ int main(int argc, char *argv[])
         MinMaxLoc().run(parent);
         NormalizeL2().run(parent);
         MatrixMultiplication().run(parent);
+        GEMM().run(parent);
     }
 
     if (BenchmarkFunction.empty()) {

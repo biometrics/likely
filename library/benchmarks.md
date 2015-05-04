@@ -20,3 +20,4 @@ Likely functions measured against their [OpenCV](http://www.opencv.org) equivale
 - [Minimum & maximum locations](?href=min-max-loc)
 - [L2 normalization](?href=normalize-l2)
 - [Matrix multiplication](?href=matrix-multiplication)
+- [GEMM](?href=gemm)
