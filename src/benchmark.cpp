@@ -469,6 +469,16 @@ class MatrixMultiplication : public Test<1, false>
         types.push_back(likely_f64);
         return types;
     }
+
+    vector<int> sizes() const
+    {
+        vector<int> sizes;
+        sizes.push_back(8);
+        sizes.push_back(32);
+        sizes.push_back(128);
+        sizes.push_back(512);
+        return sizes;
+    }
 };
 
 class GEMM : public Test<4, false>
@@ -503,6 +513,16 @@ class GEMM : public Test<4, false>
         types.push_back(likely_f32);
         types.push_back(likely_f64);
         return types;
+    }
+
+    vector<int> sizes() const
+    {
+        vector<int> sizes;
+        sizes.push_back(8);
+        sizes.push_back(32);
+        sizes.push_back(128);
+        sizes.push_back(512);
+        return sizes;
     }
 };
 
