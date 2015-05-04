@@ -526,6 +526,41 @@ class GEMM : public Test<4, false>
     }
 };
 
+class MatchTemplate : public Test<1, false>
+{
+    const Mat templ;
+
+    const char *name() const
+    {
+        return "match-template";
+    }
+
+    vector<likely_const_mat> additionalArguments(likely_const_mat) const
+    {
+        vector<likely_const_mat> args;
+        args.push_back(likelyFromOpenCVMat(templ));
+        return args;
+    }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat dst;
+        matchTemplate(src, templ, dst, CV_TM_CCORR);
+        return dst;
+    }
+
+    vector<likely_type> types() const
+    {
+        vector<likely_type> types;
+        types.push_back(likely_f32);
+        return types;
+    }
+
+public:
+    MatchTemplate()
+        : templ(generateData(8, 8, likely_f32, false)) {}
+};
+
 int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
@@ -569,6 +604,7 @@ int main(int argc, char *argv[])
         NormalizeL2().run(parent);
         MatrixMultiplication().run(parent);
         GEMM().run(parent);
+        MatchTemplate().run(parent);
     }
 
     if (BenchmarkFunction.empty()) {

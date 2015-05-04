@@ -516,6 +516,7 @@ if(NOT ${LIKELY_DEMOS} MATCHES "None")
   add_benchmark("f64XY" "matrix-multiplication" "(f64XY f64XY)")
   add_benchmark("f32XY" "gemm" "(f32XY f32XY f64 f32XY f64)")
   add_benchmark("f64XY" "gemm" "(f64XY f64XY f64 f32XY f64)")
+  add_benchmark("f32XY" "match-template" "(f32XY f32XY)")
 endif()
 
 # Compile and test demos

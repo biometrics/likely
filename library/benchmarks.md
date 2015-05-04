@@ -21,3 +21,4 @@ Likely functions measured against their [OpenCV](http://www.opencv.org) equivale
 - [L2 normalization](?href=normalize-l2)
 - [Matrix multiplication](?href=matrix-multiplication)
 - [GEMM](?href=gemm)
+- [Match template](?href=match-template)
