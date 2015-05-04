@@ -118,7 +118,7 @@ struct TestBase
                 const likely_mat likelySrc = likelyFromOpenCVMat(srcCV);
                 if (!(likelySrc->type & likely_floating) && ((likelySrc->type & likely_depth) <= 16))
                     likelySrc->type |= likely_saturated; // Follow OpenCV's saturation convention
-                vector<likely_const_mat> likelyArgs = additionalArguments(type);
+                vector<likely_const_mat> likelyArgs = additionalArguments(likelySrc);
                 likelyArgs.insert(likelyArgs.begin(), likelySrc);
 
                 const likely_const_mat typeString = likely_type_to_string(type);
@@ -183,7 +183,7 @@ protected:
     virtual int additionalParameters() const = 0;
     virtual bool color() const = 0;
 
-    virtual vector<likely_const_mat> additionalArguments(likely_type) const
+    virtual vector<likely_const_mat> additionalArguments(likely_const_mat) const
     {
         return vector<likely_const_mat>();
     }
@@ -317,13 +317,14 @@ class BinaryThreshold : public Test<2>
         return "binary-threshold";
     }
 
-    vector<likely_const_mat> additionalArguments(likely_type type) const
+    vector<likely_const_mat> additionalArguments(likely_const_mat src) const
     {
+        const likely_type scalarType = src->type & likely_element & ~likely_saturated;
         vector<likely_const_mat> args;
         const double thresh = 127;
         const double maxval = 1;
-        args.push_back(likely_scalar(type, &thresh, 1));
-        args.push_back(likely_scalar(type, &maxval, 1));
+        args.push_back(likely_scalar(scalarType, &thresh, 1));
+        args.push_back(likely_scalar(scalarType, &maxval, 1));
         return args;
     }
 
@@ -351,9 +352,9 @@ class MultiplyAdd : public Test<2>
         return "multiply-add";
     }
 
-    vector<likely_const_mat> additionalArguments(likely_type type) const
+    vector<likely_const_mat> additionalArguments(likely_const_mat src) const
     {
-        const likely_type scalarType = ((type & likely_depth) <= 32) ? likely_f32 : likely_f64;
+        const likely_type scalarType = ((src->type & likely_depth) <= 32) ? likely_f32 : likely_f64;
         vector<likely_const_mat> args;
         const double alpha = 3.141592;
         const double beta = 2.718281;
@@ -429,6 +430,35 @@ class NormalizeL2 : public Test<>
     {
         Mat dst;
         normalize(src, dst);
+        return dst;
+    }
+
+    vector<likely_type> types() const
+    {
+        vector<likely_type> types;
+        types.push_back(likely_f32);
+        types.push_back(likely_f64);
+        return types;
+    }
+};
+
+class MatrixMultiply : public Test<1, false>
+{
+    const char *name() const
+    {
+        return "matrix-multiply";
+    }
+
+    vector<likely_const_mat> additionalArguments(likely_const_mat src) const
+    {
+        vector<likely_const_mat> args;
+        args.push_back(likely_retain_mat(src));
+        return args;
+    }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat dst = src * src;
         return dst;
     }
 
