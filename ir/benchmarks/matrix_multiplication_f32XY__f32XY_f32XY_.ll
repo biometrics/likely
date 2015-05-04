@@ -11,11 +11,11 @@ declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 
 
 define %f32XY* @matrix_multiplication(%f32XY*, %f32XY*) {
 entry:
-  %2 = getelementptr inbounds %f32XY, %f32XY* %0, i64 0, i32 3
-  %columns = load i32, i32* %2, align 4, !range !0
-  %3 = getelementptr inbounds %f32XY, %f32XY* %1, i64 0, i32 4
-  %rows = load i32, i32* %3, align 4, !range !0
-  %4 = icmp eq i32 %columns, %rows
+  %2 = getelementptr inbounds %f32XY, %f32XY* %1, i64 0, i32 4
+  %rows = load i32, i32* %2, align 4, !range !0
+  %3 = getelementptr inbounds %f32XY, %f32XY* %0, i64 0, i32 3
+  %columns = load i32, i32* %3, align 4, !range !0
+  %4 = icmp eq i32 %rows, %columns
   call void @llvm.assume(i1 %4)
   %5 = getelementptr inbounds %f32XY, %f32XY* %1, i64 0, i32 3
   %columns1 = load i32, i32* %5, align 4, !range !0
@@ -30,7 +30,7 @@ entry:
   %12 = and i64 %11, 31
   %13 = icmp eq i64 %12, 0
   call void @llvm.assume(i1 %13)
-  %A_y_step = zext i32 %rows to i64
+  %A_y_step = zext i32 %columns to i64
   %14 = getelementptr inbounds %f32XY, %f32XY* %0, i64 0, i32 6, i64 0
   %15 = ptrtoint float* %14 to i64
   %16 = and i64 %15, 31
@@ -54,28 +54,29 @@ x_body:                                           ; preds = %end, %y_body
   br label %then
 
 then:                                             ; preds = %x_body, %then
-  %24 = phi i32 [ 0, %x_body ], [ %37, %then ]
-  %25 = phi double [ 0.000000e+00, %x_body ], [ %36, %then ]
+  %24 = phi i32 [ 0, %x_body ], [ %38, %then ]
+  %25 = phi double [ 0.000000e+00, %x_body ], [ %37, %then ]
   %26 = sext i32 %24 to i64
   %27 = add nuw nsw i64 %26, %22
   %28 = getelementptr %f32XY, %f32XY* %0, i64 0, i32 6, i64 %27
   %29 = load float, float* %28, align 4, !llvm.mem.parallel_loop_access !1
-  %30 = mul nuw nsw i64 %26, %C_y_step
-  %31 = add nuw nsw i64 %30, %x
-  %32 = getelementptr %f32XY, %f32XY* %1, i64 0, i32 6, i64 %31
-  %33 = load float, float* %32, align 4, !llvm.mem.parallel_loop_access !1
-  %34 = fmul float %29, %33
+  %30 = fpext float %29 to double
+  %31 = mul nuw nsw i64 %26, %C_y_step
+  %32 = add nuw nsw i64 %31, %x
+  %33 = getelementptr %f32XY, %f32XY* %1, i64 0, i32 6, i64 %32
+  %34 = load float, float* %33, align 4, !llvm.mem.parallel_loop_access !1
   %35 = fpext float %34 to double
-  %36 = fadd double %25, %35
-  %37 = add nuw nsw i32 %24, 1
-  %38 = icmp eq i32 %37, %columns
-  br i1 %38, label %end, label %then
+  %36 = fmul double %30, %35
+  %37 = fadd double %25, %36
+  %38 = add nuw nsw i32 %24, 1
+  %39 = icmp eq i32 %38, %columns
+  br i1 %39, label %end, label %then
 
 end:                                              ; preds = %then
-  %39 = fptrunc double %36 to float
-  %40 = add nuw nsw i64 %x, %23
-  %41 = getelementptr float, float* %10, i64 %40
-  store float %39, float* %41, align 4, !llvm.mem.parallel_loop_access !1
+  %40 = fptrunc double %37 to float
+  %41 = add nuw nsw i64 %x, %23
+  %42 = getelementptr float, float* %10, i64 %41
+  store float %40, float* %42, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %C_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
@@ -86,8 +87,8 @@ x_exit:                                           ; preds = %end
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %42 = bitcast %u0CXYT* %7 to %f32XY*
-  ret %f32XY* %42
+  %43 = bitcast %u0CXYT* %7 to %f32XY*
+  ret %f32XY* %43
 }
 
 attributes #0 = { nounwind }

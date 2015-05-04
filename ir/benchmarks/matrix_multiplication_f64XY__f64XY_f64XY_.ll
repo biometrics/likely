@@ -11,11 +11,11 @@ declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 
 
 define %f64XY* @matrix_multiplication(%f64XY*, %f64XY*) {
 entry:
-  %2 = getelementptr inbounds %f64XY, %f64XY* %0, i64 0, i32 3
-  %columns = load i32, i32* %2, align 4, !range !0
-  %3 = getelementptr inbounds %f64XY, %f64XY* %1, i64 0, i32 4
-  %rows = load i32, i32* %3, align 4, !range !0
-  %4 = icmp eq i32 %columns, %rows
+  %2 = getelementptr inbounds %f64XY, %f64XY* %1, i64 0, i32 4
+  %rows = load i32, i32* %2, align 4, !range !0
+  %3 = getelementptr inbounds %f64XY, %f64XY* %0, i64 0, i32 3
+  %columns = load i32, i32* %3, align 4, !range !0
+  %4 = icmp eq i32 %rows, %columns
   call void @llvm.assume(i1 %4)
   %5 = getelementptr inbounds %f64XY, %f64XY* %1, i64 0, i32 3
   %columns1 = load i32, i32* %5, align 4, !range !0
@@ -30,7 +30,7 @@ entry:
   %12 = and i64 %11, 31
   %13 = icmp eq i64 %12, 0
   call void @llvm.assume(i1 %13)
-  %A_y_step = zext i32 %rows to i64
+  %A_y_step = zext i32 %columns to i64
   %14 = getelementptr inbounds %f64XY, %f64XY* %0, i64 0, i32 6, i64 0
   %15 = ptrtoint double* %14 to i64
   %16 = and i64 %15, 31

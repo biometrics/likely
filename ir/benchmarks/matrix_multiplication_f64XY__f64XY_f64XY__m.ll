@@ -96,11 +96,11 @@ declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
 define %f64XY* @matrix_multiplication(%f64XY*, %f64XY*) {
 entry:
-  %2 = getelementptr inbounds %f64XY, %f64XY* %0, i64 0, i32 3
-  %columns = load i32, i32* %2, align 4, !range !0
-  %3 = getelementptr inbounds %f64XY, %f64XY* %1, i64 0, i32 4
-  %rows = load i32, i32* %3, align 4, !range !0
-  %4 = icmp eq i32 %columns, %rows
+  %2 = getelementptr inbounds %f64XY, %f64XY* %1, i64 0, i32 4
+  %rows = load i32, i32* %2, align 4, !range !0
+  %3 = getelementptr inbounds %f64XY, %f64XY* %0, i64 0, i32 3
+  %columns = load i32, i32* %3, align 4, !range !0
+  %4 = icmp eq i32 %rows, %columns
   call void @llvm.assume(i1 %4)
   %5 = getelementptr inbounds %f64XY, %f64XY* %1, i64 0, i32 3
   %columns1 = load i32, i32* %5, align 4, !range !0
@@ -117,7 +117,7 @@ entry:
   %13 = getelementptr inbounds { %f64XY*, %f64XY*, %f64XY*, i32 }, { %f64XY*, %f64XY*, %f64XY*, i32 }* %10, i64 0, i32 2
   store %f64XY* %1, %f64XY** %13, align 8
   %14 = getelementptr inbounds { %f64XY*, %f64XY*, %f64XY*, i32 }, { %f64XY*, %f64XY*, %f64XY*, i32 }* %10, i64 0, i32 3
-  store i32 %rows, i32* %14, align 8
+  store i32 %columns, i32* %14, align 8
   %15 = bitcast { %f64XY*, %f64XY*, %f64XY*, i32 }* %10 to i8*
   call void @likely_fork(i8* bitcast (void ({ %f64XY*, %f64XY*, %f64XY*, i32 }*, i64, i64)* @matrix_multiplication_tmp_thunk0 to i8*), i8* %15, i64 %9)
   ret %f64XY* %8
