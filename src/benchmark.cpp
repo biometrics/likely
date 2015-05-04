@@ -442,11 +442,11 @@ class NormalizeL2 : public Test<>
     }
 };
 
-class MatrixMultiply : public Test<1, false>
+class MatrixMultiplication : public Test<1, false>
 {
     const char *name() const
     {
-        return "matrix-multiply";
+        return "matrix-multiplication";
     }
 
     vector<likely_const_mat> additionalArguments(likely_const_mat src) const
@@ -512,6 +512,7 @@ int main(int argc, char *argv[])
         MultiplyAdd().run(parent);
         MinMaxLoc().run(parent);
         NormalizeL2().run(parent);
+        MatrixMultiplication().run(parent);
     }
 
     if (BenchmarkFunction.empty()) {

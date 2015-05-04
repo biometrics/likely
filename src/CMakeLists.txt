@@ -512,6 +512,8 @@ if(NOT ${LIKELY_DEMOS} MATCHES "None")
   add_benchmark("f64CXY" "min-max-loc" "f64CXY" )
   add_benchmark("f32CXY" "normalize-l2" "f32CXY")
   add_benchmark("f64CXY" "normalize-l2" "f64CXY")
+  add_benchmark("f32XY" "matrix-multiplication" "(f32XY f32XY)")
+  add_benchmark("f64XY" "matrix-multiplication" "(f64XY f64XY)")
 endif()
 
 # Compile and test demos
