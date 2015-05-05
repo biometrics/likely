@@ -45,38 +45,161 @@ struct AxisSubstitution : public ModulePass
             }
     }
 
+    static map<Value*, CallInst*> getOrigins(Function &F)
+    {
+        map<Value* /* likely_mat */, CallInst* /* likely_new() */> origins;
+        for (BasicBlock &B : F)
+            for (Instruction &I : B)
+                if (CallInst *const call = dyn_cast<CallInst>(&I))
+                    if (call->getCalledFunction()->getName() == "likely_new") {
+                        origins.insert(pair<Value*, CallInst*>(call, call));
+                        recursiveCastedOrigins(call, call, origins);
+                    }
+        return origins;
+    }
+
+    // Returns -1 on failure to pattern match
+    static int getStructGEPIndex(GetElementPtrInst *const GEP)
+    {
+        // Special case optimized likely_matrix::data GEP
+        if (GEP->getNumOperands() < 3)
+            return -1;
+
+        ConstantInt *const index = dyn_cast<ConstantInt>(GEP->getOperand(2));
+        if (!index)
+            return -1;
+
+        return int(index->getZExtValue());
+    }
+
     bool runOnModule(Module &M) override
     {
         bool modified = false;
 
         for (Function &F : M.functions()) {
-            map<Value* /* likely_mat */, CallInst* /* likely_new() */> origins;
-            for (BasicBlock &B : F)
-                for (Instruction &I : B)
-                    if (CallInst *const call = dyn_cast<CallInst>(&I))
-                        if (call->getCalledFunction()->getName() == "likely_new") {
-                            origins.insert(pair<Value*, CallInst*>(call, call));
-                            recursiveCastedOrigins(call, call, origins);
-                        }
+            // Local origins - replace all axis loads of matricies returned by likely_new with the
+            // corresponding value passed to likely_new.
+            for (const pair<Value*, CallInst*> &origin : getOrigins(F))
+                for (User *const user : origin.first->users()) {
+                    GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(user);
+                    if (!GEP)
+                        continue;
 
-            for (const pair<Value*, CallInst*> &origin : origins)
-                for (User *const user : origin.first->users())
-                    if (GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(user)) {
-                        // Special case optimized likely_matrix::data GEP
-                        if (GEP->getNumOperands() < 3)
+                    const int i = getStructGEPIndex(GEP);
+                    if (i < 0)
+                        continue;
+                    assert(i >= 1); // We should never reference likely_matrix::ref_count
+
+                    for (User *const user : GEP->users()) {
+                        LoadInst *const load = dyn_cast<LoadInst>(user);
+                        if (!load)
                             continue;
 
-                        if (ConstantInt *const index = cast<ConstantInt>(GEP->getOperand(2))) {
-                            const uint64_t i = index->getZExtValue();
-                            assert(i >= 1); // We should never reference likely_matrix::ref_count
+                        load->replaceAllUsesWith(origin.second->getOperand(i - 1));
+                        modified = true;
+                    }
+                }
 
-                            for (User *const user : GEP->users())
-                                if (LoadInst *const load = dyn_cast<LoadInst>(user)) {
-                                    load->replaceAllUsesWith(origin.second->getOperand(i - 1));
-                                    modified = true;
-                                }
+            // Remote origins - trace the origin of axis loads through likely_fork to simplify when possible.
+            if (!F.hasNUses(1))
+                continue;
+
+            for (User *const bitcastUser : F.users().begin()->users()) {
+                CallInst *const callInst = dyn_cast<CallInst>(bitcastUser);
+                if (!callInst)
+                    continue;
+
+                Function *const function = callInst->getCalledFunction();
+                if (!function || (function->getName() != "likely_fork"))
+                    continue;
+
+                AllocaInst *const allocaInst = cast<AllocaInst>(cast<CastInst>(callInst->getOperand(1))->getOperand(0));
+                const map<Value*, CallInst*> origins = getOrigins(*allocaInst->getParent()->getParent());
+
+                // Populate thunkOrigins to the extent possible in the caller
+                vector<Value*> thunkOrigins(cast<StructType>(allocaInst->getType()->getElementType())->getNumElements(), NULL);
+                for (User *const allocaInstUsers : allocaInst->users()) {
+                    GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(allocaInstUsers);
+                    if (!GEP)
+                        continue;
+
+                    const int i = getStructGEPIndex(GEP);
+                    if (i < 0)
+                        continue;
+
+                    for (User *const gepUser : GEP->users()) {
+                        StoreInst *const storeInst = dyn_cast<StoreInst>(gepUser);
+                        if (!storeInst)
+                            continue;
+
+                        const auto &it = origins.find(storeInst->getValueOperand());
+                        if (it == origins.end())
+                            continue;
+
+                        assert(!thunkOrigins[i]);
+                        thunkOrigins[i] = it->first;
+                    }
+                }
+
+                // Iterate over the thunk users in the callee
+                for (User *const thunkUser : F.args().begin()->users()) {
+                    GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(thunkUser);
+                    if (!GEP)
+                        continue;
+
+                    const int i = getStructGEPIndex(GEP);
+                    if (i < 0)
+                        continue;
+
+                    const auto &origin = origins.find(thunkOrigins[i]);
+                    if (origin == origins.end())
+                        continue;
+
+                    for (User *const gepUser : GEP->users()) {
+                        LoadInst *const thunkElement = dyn_cast<LoadInst>(gepUser);
+                        if (!thunkElement)
+                            continue;
+
+                        for (User *const thunkElementUser : thunkElement->users()) {
+                            GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(thunkElementUser);
+                            if (!GEP)
+                                continue;
+
+                            const int j = getStructGEPIndex(GEP);
+                            if (j < 0)
+                                continue;
+                            assert(j >= 1); // We should never reference likely_matrix::ref_count
+
+                            for (User *const gepUser : GEP->users()) {
+                                LoadInst *const axisLoad = dyn_cast<LoadInst>(gepUser);
+                                if (!axisLoad)
+                                    continue;
+
+                                // We found a load that we may be able to replace if we can trace its origin
+                                LoadInst *const originLoad = dyn_cast<LoadInst>(origin->second->getOperand(j-1));
+                                if (!originLoad)
+                                    continue;
+
+                                GetElementPtrInst *const originGEP = dyn_cast<GetElementPtrInst>(originLoad->getPointerOperand());
+                                if (!originGEP)
+                                    continue;
+
+                                const int k = getStructGEPIndex(originGEP);
+                                if (k < 0)
+                                    continue;
+                                assert(k >= 1); // We should never reference likely_matrix::ref_count
+
+                                Value *const originMat = originGEP->getPointerOperand();
+                                const size_t originIndex = find(thunkOrigins.begin(), thunkOrigins.end(), originMat) - thunkOrigins.begin();
+                                if (originIndex >= thunkOrigins.size())
+                                    continue;
+
+                                // TODO: finish me
+                            }
                         }
                     }
+                }
+            }
         }
 
         return modified;
