@@ -171,11 +171,11 @@ private:
                     continue; // We have no origin information for the corresponding argument in the caller,
                               // and thus no opportunity to optimize.
 
-                Value *const caleeArg = calleeArgs[i];
-                if (!caleeArg)
+                Value *const calleeArg = calleeArgs[i];
+                if (!calleeArg)
                     continue;
 
-                for (User *const calleeArgUser : caleeArg->users()) {
+                for (User *const calleeArgUser : calleeArg->users()) {
                     const int matrixGEPIndex = getMatrixGEPIndex(calleeArgUser);
                     if (matrixGEPIndex < 0)
                         continue;
