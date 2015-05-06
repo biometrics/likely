@@ -30,30 +30,39 @@ struct AssumptionSubstitution : public FunctionPass
     void getAnalysisUsage(AnalysisUsage &analysisUsage) const override
     {
         analysisUsage.setPreservesCFG();
-        analysisUsage.addPreserved<AssumptionCacheTracker>();
         analysisUsage.addRequired<AssumptionCacheTracker>();
+        analysisUsage.addPreserved<AssumptionCacheTracker>();
     }
 
     bool runOnFunction(Function &F) override
     {
         AssumptionCache &AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
 
-        SmallPtrSet<const Value*, 1> EphValues;
-        CodeMetrics::collectEphemeralValues(&F, &AC, EphValues);
+        SmallPtrSet<const Value*, 1> ephValues;
+        CodeMetrics::collectEphemeralValues(&F, &AC, ephValues);
 
         bool modified = false;
-        for (const auto &assumption : AC.assumptions())
-            if (CallInst *const callInst = dyn_cast_or_null<CallInst>((Value*)assumption))
-                if (CmpInst *const cmpInst = dyn_cast<CmpInst>(callInst->getOperand(0)))
-                    if (cmpInst->getPredicate() == CmpInst::ICMP_EQ) {
-                        Value *const find    = cmpInst->getOperand(0);
-                        Value *const replace = cmpInst->getOperand(1);
-                        for (User *const user : find->users())
-                            if (!EphValues.count(user)) {
-                                user->replaceUsesOfWith(find, replace);
-                                modified = true;
-                            }
-                    }
+        for (const auto &assumption : AC.assumptions()) {
+            CallInst *const callInst = dyn_cast_or_null<CallInst>((Value*)assumption);
+            if (!callInst)
+                continue;
+
+            CmpInst *const cmpInst = dyn_cast<CmpInst>(callInst->getOperand(0));
+            if (!cmpInst || (cmpInst->getPredicate() != CmpInst::ICMP_EQ))
+                continue;
+
+            // We're only interested in replacing instructions
+            Instruction *const findInst = dyn_cast<Instruction>(cmpInst->getOperand(0));
+            if (!findInst)
+                continue;
+
+            Value *const replace = cmpInst->getOperand(1);
+            for (User *const user : findInst->users())
+                if (!ephValues.count(user)) { // We're only interested in replacing non-ephemeral uses
+                    user->replaceUsesOfWith(findInst, replace);
+                    modified = true;
+                }
+        }
 
         return modified;
     }
