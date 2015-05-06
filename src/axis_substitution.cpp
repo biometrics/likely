@@ -38,13 +38,12 @@ private:
         analysisUsage.setPreservesCFG();
     }
 
-    static void recursiveCastedOrigins(Value *const value, CallInst *const call, map<Value*, CallInst*> &origins)
+    static void recursiveCastedOrigins(Value *const value, CallInst *const callInst, map<Value*, CallInst*> &origins)
     {
+        origins.insert(pair<Value*, CallInst*>(value, callInst));
         for (User *const user : value->users())
-            if (CastInst *const cast = dyn_cast<CastInst>(user)) {
-                origins.insert(pair<Value*, CallInst*>(cast, call));
-                recursiveCastedOrigins(cast, call, origins);
-            }
+            if (CastInst *const cast = dyn_cast<CastInst>(user))
+                recursiveCastedOrigins(cast, callInst, origins);
     }
 
     static map<Value*, CallInst*> getOrigins(Function &F)
@@ -53,10 +52,8 @@ private:
         for (BasicBlock &B : F)
             for (Instruction &I : B)
                 if (CallInst *const call = dyn_cast<CallInst>(&I))
-                    if (call->getCalledFunction()->getName() == "likely_new") {
-                        origins.insert(pair<Value*, CallInst*>(call, call));
+                    if (call->getCalledFunction()->getName() == "likely_new")
                         recursiveCastedOrigins(call, call, origins);
-                    }
         return origins;
     }
 
