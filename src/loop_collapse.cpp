@@ -63,26 +63,24 @@ struct LoopCollapse : public LoopPass
     struct LoopAnalysis
     {
         BasicBlock  *preheader  = NULL; // Loop preheader block
-        PHINode     *CIV        = NULL; // Canonical induction variable
         BasicBlock  *latchBlock = NULL; // Latch block
+        BasicBlock  *exitBlock  = NULL; // Unique exit block
+        PHINode     *IV         = NULL; // Induction variable
         BranchInst  *latch      = NULL; // Loop latch
         ICmpInst    *latchCmp   = NULL; // Latch comparison instruction
         Value       *exitVal    = NULL; // Loop invariant exit value
         AddOperator *increment  = NULL; // Induction variable increment instruction
-        BasicBlock  *exitBlock  = NULL; // Unique exit block
 
         LoopAnalysis(Loop *const loop)
         {
-            preheader = loop->getLoopPreheader();
-            if (!preheader)
-                return;
-
-            CIV = loop->getCanonicalInductionVariable();
-            if (!CIV)
-                return;
-
+            preheader  = loop->getLoopPreheader();
             latchBlock = loop->getLoopLatch();
-            if (!latchBlock)
+            exitBlock  = loop->getUniqueExitBlock();
+            if (!preheader || !latchBlock || !exitBlock)
+                return;
+
+            IV = loop->getCanonicalInductionVariable();
+            if (!IV)
                 return;
 
             latch = dyn_cast<BranchInst>(latchBlock->getTerminator());
@@ -102,20 +100,16 @@ struct LoopCollapse : public LoopPass
 
             if (AddOperator *const addOperator = dyn_cast<AddOperator>(latchCmp->getOperand(0) != exitVal ? latchCmp->getOperand(0)
                                                                                                           : latchCmp->getOperand(1)))
-                if ((isOne(addOperator->getOperand(0)) && (addOperator->getOperand(1) == CIV)) ||
-                    (isOne(addOperator->getOperand(1)) && (addOperator->getOperand(0) == CIV)))
+                if ((isOne(addOperator->getOperand(0)) && (addOperator->getOperand(1) == IV)) ||
+                    (isOne(addOperator->getOperand(1)) && (addOperator->getOperand(0) == IV)))
                     increment = addOperator;
-            if (!increment)
-                return;
-
-            exitBlock = loop->getUniqueExitBlock();
         }
 
         // For the analysis to be considered valid, all values must be non-null
         // and the latch instructions must not be used for other purposes.
         operator bool() const
         {
-            return preheader && CIV && latchBlock && latchCmp && exitVal && increment && exitBlock &&
+            return preheader && latchBlock && exitBlock && IV && latchCmp && exitVal && increment &&
                    increment->hasNUses(2) && latchCmp->hasOneUse();
         }
     };
@@ -144,7 +138,7 @@ struct LoopCollapse : public LoopPass
             return false;
 
         // The loops must have canonical induction variables of the same type
-        if (parent.CIV->getType() != child.CIV->getType())
+        if (parent.IV->getType() != child.IV->getType())
             return false;
 
         // See the comment above LoopCollapse for the definition of these member variables
@@ -158,7 +152,7 @@ struct LoopCollapse : public LoopPass
 
         // To be collapsible, we must be able to pattern match all uses of `i` (parent.CIV)
         vector<CollapsiblePattern> collapsiblePatterns;
-        for (User *const maybeB : parent.CIV->users()) {
+        for (User *const maybeB : parent.IV->users()) {
             if (maybeB == parent.increment)
                 continue;
 
@@ -168,8 +162,8 @@ struct LoopCollapse : public LoopPass
             vector<User*> bUsers;
             if (AddOperator *const maybeIt = dyn_cast<AddOperator>(maybeB)) {
                 Value *maybeT = NULL;
-                if      (maybeIt->getOperand(0) == parent.CIV) maybeT = maybeIt->getOperand(1);
-                else if (maybeIt->getOperand(1) == parent.CIV) maybeT = maybeIt->getOperand(0);
+                if      (maybeIt->getOperand(0) == parent.IV) maybeT = maybeIt->getOperand(1);
+                else if (maybeIt->getOperand(1) == parent.IV) maybeT = maybeIt->getOperand(0);
                 if (maybeT && parentLoop->isLoopInvariant(maybeT)) {
                     b = maybeB;
                     t = maybeT;
@@ -180,7 +174,7 @@ struct LoopCollapse : public LoopPass
 
             // Failed to match `b = i + t`, proceed under the assumption that `t = 0` and therefore `b = i`
             if (!b) {
-                b = parent.CIV;
+                b = parent.IV;
                 bUsers.push_back(maybeB);
             }
 
@@ -247,11 +241,11 @@ struct LoopCollapse : public LoopPass
                             MulOperator *const ju = dyn_cast<MulOperator>(e);
                             if (!ju)
                                 return false; // Failed to match `e = _ * _`
-                            if (!(((ju->getOperand(0) == child.CIV) && (ju->getOperand(1) == u)) ||
-                                  ((ju->getOperand(1) == child.CIV) && (ju->getOperand(0) == u))))
+                            if (!(((ju->getOperand(0) == child.IV) && (ju->getOperand(1) == u)) ||
+                                  ((ju->getOperand(1) == child.IV) && (ju->getOperand(0) == u))))
                                 return false; // Failed to match `e = j * u`
                         } else {
-                            if (e != child.CIV)
+                            if (e != child.IV)
                                 return false; // Failed to match `e = j` when `u = 1`
                         }
 
@@ -262,7 +256,7 @@ struct LoopCollapse : public LoopPass
         }
 
         // We must have pattern matched all uses of child.CIV
-        for (User *const user : child.CIV->users()) {
+        for (User *const user : child.IV->users()) {
             if (user == child.increment)
                 continue;
 
@@ -300,7 +294,7 @@ struct LoopCollapse : public LoopPass
             // Construct the new use right before the current use
             builder.SetInsertPoint(cast<Instruction>(cp.f));
 
-            Value *replace = parent.CIV;
+            Value *replace = parent.IV;
 
             if (cp.t) {
                 Value *v = NULL;
@@ -342,7 +336,7 @@ struct LoopCollapse : public LoopPass
         // Remove the postcondition and increment
         assert(child.latchCmp->hasNUses(0));
         child.latchCmp->eraseFromParent();
-        child.CIV->removeIncomingValue(child.latchBlock);
+        child.IV->removeIncomingValue(child.latchBlock);
         assert(child.increment->hasNUses(0));
         cast<Instruction>(child.increment)->eraseFromParent();
 
