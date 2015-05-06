@@ -33,33 +33,23 @@ entry:
   %19 = and i64 %18, 31
   %20 = icmp eq i64 %19, 0
   call void @llvm.assume(i1 %20)
-  %21 = mul nuw nsw i64 %dst_x, %dst_c
+  %21 = mul i64 %dst_c, %2
+  %22 = mul i64 %21, %dst_x
   br label %y_body
 
-y_body:                                           ; preds = %x_exit, %entry
-  %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
-  %22 = mul i64 %y, %21
-  br label %x_body
-
-x_body:                                           ; preds = %x_body, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
-  %23 = add nuw nsw i64 %x, %22
-  %24 = getelementptr %f32CXY, %f32CXY* %6, i64 0, i32 6, i64 %23
-  %25 = load float, float* %24, align 4, !llvm.mem.parallel_loop_access !1
-  %26 = fcmp ogt float %25, %8
-  %27 = select i1 %26, float %10, float 0.000000e+00
-  %28 = getelementptr %f32CXY, %f32CXY* %4, i64 0, i32 6, i64 %23
-  store float %27, float* %28, align 4, !llvm.mem.parallel_loop_access !1
-  %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %21
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
-
-x_exit:                                           ; preds = %x_body
+y_body:                                           ; preds = %y_body, %entry
+  %y = phi i64 [ %1, %entry ], [ %y_increment, %y_body ]
+  %23 = getelementptr %f32CXY, %f32CXY* %6, i64 0, i32 6, i64 %y
+  %24 = load float, float* %23, align 4, !llvm.mem.parallel_loop_access !1
+  %25 = fcmp ogt float %24, %8
+  %26 = select i1 %25, float %10, float 0.000000e+00
+  %27 = getelementptr %f32CXY, %f32CXY* %4, i64 0, i32 6, i64 %y
+  store float %26, float* %27, align 4, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %2
-  br i1 %y_postcondition, label %y_exit, label %y_body
+  %y_postcondition = icmp eq i64 %y_increment, %22
+  br i1 %y_postcondition, label %y_exit, label %y_body, !llvm.loop !1
 
-y_exit:                                           ; preds = %x_exit
+y_exit:                                           ; preds = %y_body
   ret void
 }
 

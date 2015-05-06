@@ -79,10 +79,6 @@ struct LoopCollapse : public LoopPass
             if (!preheader || !latchBlock || !exitBlock)
                 return;
 
-            IV = loop->getCanonicalInductionVariable();
-            if (!IV)
-                return;
-
             latch = dyn_cast<BranchInst>(latchBlock->getTerminator());
             if (!latch)
                 return;
@@ -98,11 +94,13 @@ struct LoopCollapse : public LoopPass
             else
                 return;
 
-            if (AddOperator *const addOperator = dyn_cast<AddOperator>(latchCmp->getOperand(0) != exitVal ? latchCmp->getOperand(0)
-                                                                                                          : latchCmp->getOperand(1)))
-                if ((isOne(addOperator->getOperand(0)) && (addOperator->getOperand(1) == IV)) ||
-                    (isOne(addOperator->getOperand(1)) && (addOperator->getOperand(0) == IV)))
-                    increment = addOperator;
+            increment = dyn_cast<AddOperator>(latchCmp->getOperand(0) != exitVal ? latchCmp->getOperand(0)
+                                                                                 : latchCmp->getOperand(1));
+            if (!increment)
+                return;
+
+            if      (isOne(increment->getOperand(0))) IV = dyn_cast<PHINode>(increment->getOperand(1));
+            else if (isOne(increment->getOperand(1))) IV = dyn_cast<PHINode>(increment->getOperand(0));
         }
 
         // For the analysis to be considered valid, all values must be non-null
@@ -281,8 +279,9 @@ struct LoopCollapse : public LoopPass
         // At this point we have proven that child is collapsible into parent,
         // so lets do it!
 
-        // Promote the metadata
-        parentLoop->setLoopID(childLoop->getLoopID());
+        // Promote the Loop ID
+        if (MDNode *const loopID = childLoop->getLoopID())
+            parentLoop->setLoopID(loopID);
 
         // Scale parent.exitVal by child.exitVal
         IRBuilder<> builder(parent.preheader->getTerminator());
