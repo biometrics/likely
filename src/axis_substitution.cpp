@@ -32,6 +32,7 @@ struct AxisSubstitution : public ModulePass
     static char ID;
     AxisSubstitution() : ModulePass(ID) {}
 
+private:
     void getAnalysisUsage(AnalysisUsage &analysisUsage) const override
     {
         analysisUsage.setPreservesCFG();
@@ -60,8 +61,12 @@ struct AxisSubstitution : public ModulePass
     }
 
     // Returns -1 on failure to pattern match
-    static int getStructGEPIndex(GetElementPtrInst *const GEP)
+    static int getStructGEPIndex(Value *const value)
     {
+        GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(value);
+        if (!GEP)
+            return -1;
+
         // Special case optimized likely_matrix::data GEP
         if (GEP->getNumOperands() < 3)
             return -1;
@@ -73,178 +78,164 @@ struct AxisSubstitution : public ModulePass
         return int(index->getZExtValue());
     }
 
+    static int getMatrixGEPIndex(Value *const value)
+    {
+        const int i = getStructGEPIndex(value);
+        assert(i != 0); // We should never reference likely_matrix::ref_count
+        return i;
+    }
+
     bool runOnModule(Module &M) override
     {
         bool modified = false;
 
         for (Function &F : M.functions()) {
-            // Local origins - replace all axis loads of matricies returned by likely_new with the
-            // corresponding value passed to likely_new.
+            // Local origins - Replace all axis loads of matricies returned by
+            // likely_new with the corresponding value passed to likely_new.
             for (const pair<Value*, CallInst*> &origin : getOrigins(F))
                 for (User *const user : origin.first->users()) {
-                    GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(user);
-                    if (!GEP)
-                        continue;
-
-                    const int i = getStructGEPIndex(GEP);
+                    const int i = getMatrixGEPIndex(user);
                     if (i < 0)
-                        continue;
-                    assert(i >= 1); // We should never reference likely_matrix::ref_count
+                        continue; // It's not a matrix GEP
 
-                    for (User *const user : GEP->users()) {
-                        LoadInst *const load = dyn_cast<LoadInst>(user);
+                    for (User *const matrixGEPuser : user->users()) {
+                        LoadInst *const load = dyn_cast<LoadInst>(matrixGEPuser);
                         if (!load)
                             continue;
 
-                        load->replaceAllUsesWith(origin.second->getOperand(i - 1));
+                        load->replaceAllUsesWith(origin.second->getOperand(i - 1)); // We know that the origin dominates the load
                         modified = true;
                     }
                 }
 
-            // Remote origins - trace the origin of axis loads through likely_fork to simplify when possible.
-            if (!F.hasNUses(1))
+            // Remote origins - Trace the origin of axis values through
+            // likely_fork and back again to simplify loads when possible.
+            if (!F.hasOneUse())
+                continue; // It can't be a thunk
+
+            Constant *const thunkPointer = dyn_cast<Constant>(*F.users().begin());
+            if (!thunkPointer || !thunkPointer->getType()->isPointerTy())
+                continue; // It can't be a thunk
+
+            if (!thunkPointer->hasOneUse())
+                continue; // It can't be a thunk
+
+            CallInst *const callInst = dyn_cast<CallInst>(*thunkPointer->users().begin());
+            if (!callInst)
                 continue;
 
-            for (User *const bitcastUser : F.users().begin()->users()) {
-                CallInst *const callInst = dyn_cast<CallInst>(bitcastUser);
-                if (!callInst)
+            Function *const function = callInst->getCalledFunction();
+            if (!function || (function->getName() != "likely_fork"))
+                continue;
+
+            // At this point we have identified both the thunk and it's caller
+            AllocaInst *const allocaInst = cast<AllocaInst>(cast<CastInst>(callInst->getOperand(1))->getOperand(0));
+            const map<Value*, CallInst*> origins = getOrigins(*allocaInst->getParent()->getParent());
+            const DominatorTree dominatorTree = DominatorTreeAnalysis().run(F);
+            const int numArgs = cast<StructType>(allocaInst->getType()->getElementType())->getNumElements();
+
+            // Populate caller struct arguments
+            vector<Value*> callerArgs(numArgs, NULL);
+            for (User *const allocaInstUser : allocaInst->users()) {
+                const int i = getStructGEPIndex(allocaInstUser);
+                if (i < 0)
                     continue;
 
-                Function *const function = callInst->getCalledFunction();
-                if (!function || (function->getName() != "likely_fork"))
+                for (User *const gepUser : allocaInstUser->users()) {
+                    StoreInst *const storeInst = dyn_cast<StoreInst>(gepUser);
+                    if (!storeInst)
+                        continue;
+                    callerArgs[i] = storeInst->getValueOperand();
+                }
+            }
+
+            // Populate callee struct arguments
+            vector<LoadInst*> calleeArgs(numArgs, NULL);
+            for (User *const argUser : F.args().begin()->users()) {
+                const int i = getStructGEPIndex(argUser);
+                if (i < 0)
                     continue;
 
-                DominatorTree dominatorTree = DominatorTreeAnalysis().run(F);
-
-                AllocaInst *const allocaInst = cast<AllocaInst>(cast<CastInst>(callInst->getOperand(1))->getOperand(0));
-                const map<Value*, CallInst*> origins = getOrigins(*allocaInst->getParent()->getParent());
-
-                vector<Value*> remoteThunk(cast<StructType>(allocaInst->getType()->getElementType())->getNumElements(), NULL);
-                for (User *const remoteThunkUser : allocaInst->users()) {
-                    GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(remoteThunkUser);
-                    if (!GEP)
+                for (User *const gepUser : argUser->users()) {
+                    LoadInst *const loadInst = dyn_cast<LoadInst>(gepUser);
+                    if (!loadInst)
                         continue;
-
-                    const int i = getStructGEPIndex(GEP);
-                    if (i < 0)
-                        continue;
-
-                    for (User *const gepUser : GEP->users()) {
-                        StoreInst *const storeInst = dyn_cast<StoreInst>(gepUser);
-                        if (!storeInst)
-                            continue;
-                        remoteThunk[i] = storeInst->getValueOperand();
-                    }
+                    calleeArgs[i] = loadInst;
                 }
+            }
 
-                vector<Value*> localThunk(remoteThunk.size(), NULL);
-                for (User *const localThunkUser : F.args().begin()->users()) {
-                    GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(localThunkUser);
-                    if (!GEP)
+            // Iterate over callee args
+            for (int i=0; i<numArgs; i++) {
+                const auto &origin = origins.find(callerArgs[i]);
+                if (origin == origins.end())
+                    continue; // We have no origin information for the corresponding argument in the caller,
+                              // and thus no opportunity to optimize.
+
+                Value *const caleeArg = calleeArgs[i];
+                if (!caleeArg)
+                    continue;
+
+                for (User *const calleeArgUser : caleeArg->users()) {
+                    const int matrixGEPIndex = getMatrixGEPIndex(calleeArgUser);
+                    if (matrixGEPIndex < 0)
                         continue;
 
-                    const int i = getStructGEPIndex(GEP);
-                    if (i < 0)
-                        continue;
-
-                    for (User *const gepUser : GEP->users()) {
-                        LoadInst *const loadInst = dyn_cast<LoadInst>(gepUser);
-                        if (!loadInst)
-                            continue;
-                        localThunk[i] = loadInst;
-                    }
-                }
-
-                // Iterate over the thunk users in the callee
-                for (User *const thunkUser : F.args().begin()->users()) {
-                    GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(thunkUser);
-                    if (!GEP)
-                        continue;
-
-                    const int i = getStructGEPIndex(GEP);
-                    if (i < 0)
-                        continue;
-
-                    const auto &origin = origins.find(remoteThunk[i]);
-                    if (origin == origins.end())
-                        continue;
-
-                    for (User *const gepUser : GEP->users()) {
-                        LoadInst *const thunkElement = dyn_cast<LoadInst>(gepUser);
-                        if (!thunkElement)
+                    for (User *const gepUser : calleeArgUser->users()) {
+                        LoadInst *const replaceable = dyn_cast<LoadInst>(gepUser);
+                        if (!replaceable)
                             continue;
 
-                        for (User *const thunkElementUser : thunkElement->users()) {
-                            GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(thunkElementUser);
-                            if (!GEP)
+                        // At this point we've identified a load that we may be able to replace if we can trace its origin
+                        LoadInst *const originLoad = dyn_cast<LoadInst>(origin->second->getOperand(matrixGEPIndex-1));
+                        if (!originLoad)
+                            continue;
+
+                        GetElementPtrInst *const originGEP = dyn_cast<GetElementPtrInst>(originLoad->getPointerOperand());
+                        if (!originGEP)
+                            continue;
+
+                        const int originStructGEPIndex = getMatrixGEPIndex(originGEP);
+                        if (originStructGEPIndex < 0)
+                            continue;
+
+                        Value *const originMatrix = originGEP->getPointerOperand();
+                        const size_t originIndex = find(callerArgs.begin(), callerArgs.end(), originMatrix) - callerArgs.begin();
+                        if (originIndex >= callerArgs.size())
+                            continue;
+
+                        Value *const tracedOrigin = calleeArgs[originIndex];
+                        if (!tracedOrigin)
+                            continue;
+
+                        // At this point we know which matrix and struct GEP index are equivalent to the replaceable load,
+                        // let's look for it.
+                        for (User *const tracedOriginUser : tracedOrigin->users()) {
+                            GetElementPtrInst *const tracedOriginGEP = dyn_cast<GetElementPtrInst>(tracedOriginUser);
+                            if (!tracedOriginGEP)
                                 continue;
 
-                            const int j = getStructGEPIndex(GEP);
-                            if (j < 0)
-                                continue;
-                            assert(j >= 1); // We should never reference likely_matrix::ref_count
+                            const int index = getMatrixGEPIndex(tracedOriginGEP);
+                            if (index != originStructGEPIndex)
+                                continue; // Not the index we are looking for
 
-                            for (User *const gepUser : GEP->users()) {
-                                LoadInst *const axisLoad = dyn_cast<LoadInst>(gepUser);
-                                if (!axisLoad)
+                            for (User *const tracedOriginGEPuser : tracedOriginGEP->users()) {
+                                LoadInst *const replace = dyn_cast<LoadInst>(tracedOriginGEPuser);
+                                if (!replace)
                                     continue;
 
-                                // We found a load that we may be able to replace if we can trace its origin
-                                LoadInst *const originLoad = dyn_cast<LoadInst>(origin->second->getOperand(j-1));
-                                if (!originLoad)
-                                    continue;
-
-                                GetElementPtrInst *const originGEP = dyn_cast<GetElementPtrInst>(originLoad->getPointerOperand());
-                                if (!originGEP)
-                                    continue;
-
-                                const int k = getStructGEPIndex(originGEP);
-                                if (k < 0)
-                                    continue;
-                                assert(k >= 1); // We should never reference likely_matrix::ref_count
-
-                                Value *const originMat = originGEP->getPointerOperand();
-                                const size_t originIndex = find(remoteThunk.begin(), remoteThunk.end(), originMat) - remoteThunk.begin();
-                                if (originIndex >= remoteThunk.size())
-                                    continue;
-
-                                Value *const localOrigin = localThunk[originIndex];
-                                if (!localOrigin)
-                                    continue;
-
-                                // See if we can find a load for the same axis
-                                bool success = false;
-                                for (User *const localOriginUser : localOrigin->users()) {
-                                    GetElementPtrInst *const localOriginGEP = dyn_cast<GetElementPtrInst>(localOriginUser);
-                                    if (!localOriginGEP)
-                                        continue;
-
-                                    const int l = getStructGEPIndex(localOriginGEP);
-                                    if (l < 0)
-                                        continue;
-                                    assert(l >= 1); // We should never reference likely_matrix::ref_count
-
-                                    if (k != l)
-                                        continue;
-
-                                    for (User *const localOriginGEPuser : localOriginGEP->users()) {
-                                        LoadInst *const replace = dyn_cast<LoadInst>(localOriginGEPuser);
-                                        if (!replace)
-                                            continue;
-                                        if (dominatorTree.dominates(axisLoad, replace)) {
-                                            replace->moveBefore(axisLoad);
-                                            localOriginGEP->moveBefore(replace);
-                                        }
-                                        axisLoad->replaceAllUsesWith(replace);
-                                        modified = true;
-                                        success = true;
-                                        break;
-                                    }
-
-                                    if (success)
-                                        break;
+                                // At this point we've found the replacement,
+                                // make sure to move instructions accordingly
+                                if (dominatorTree.dominates(replaceable, replace)) {
+                                    replace->moveBefore(replaceable);
+                                    tracedOriginGEP->moveBefore(replace);
                                 }
+                                replaceable->replaceAllUsesWith(replace);
+                                modified = true;
+                                break;
                             }
+
+                            if (replaceable->hasNUses(0))
+                                break; // The replacement occurred
                         }
                     }
                 }
