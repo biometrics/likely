@@ -16,6 +16,7 @@
 
 #include <llvm/Pass.h>
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/Dominators.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
 #include <iostream>
@@ -113,13 +114,14 @@ struct AxisSubstitution : public ModulePass
                 if (!function || (function->getName() != "likely_fork"))
                     continue;
 
+                DominatorTree dominatorTree = DominatorTreeAnalysis().run(F);
+
                 AllocaInst *const allocaInst = cast<AllocaInst>(cast<CastInst>(callInst->getOperand(1))->getOperand(0));
                 const map<Value*, CallInst*> origins = getOrigins(*allocaInst->getParent()->getParent());
 
-                // Populate thunkOrigins to the extent possible in the caller
-                vector<Value*> thunkOrigins(cast<StructType>(allocaInst->getType()->getElementType())->getNumElements(), NULL);
-                for (User *const allocaInstUsers : allocaInst->users()) {
-                    GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(allocaInstUsers);
+                vector<Value*> remoteThunk(cast<StructType>(allocaInst->getType()->getElementType())->getNumElements(), NULL);
+                for (User *const remoteThunkUser : allocaInst->users()) {
+                    GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(remoteThunkUser);
                     if (!GEP)
                         continue;
 
@@ -131,13 +133,25 @@ struct AxisSubstitution : public ModulePass
                         StoreInst *const storeInst = dyn_cast<StoreInst>(gepUser);
                         if (!storeInst)
                             continue;
+                        remoteThunk[i] = storeInst->getValueOperand();
+                    }
+                }
 
-                        const auto &it = origins.find(storeInst->getValueOperand());
-                        if (it == origins.end())
+                vector<Value*> localThunk(remoteThunk.size(), NULL);
+                for (User *const localThunkUser : F.args().begin()->users()) {
+                    GetElementPtrInst *const GEP = dyn_cast<GetElementPtrInst>(localThunkUser);
+                    if (!GEP)
+                        continue;
+
+                    const int i = getStructGEPIndex(GEP);
+                    if (i < 0)
+                        continue;
+
+                    for (User *const gepUser : GEP->users()) {
+                        LoadInst *const loadInst = dyn_cast<LoadInst>(gepUser);
+                        if (!loadInst)
                             continue;
-
-                        assert(!thunkOrigins[i]);
-                        thunkOrigins[i] = it->first;
+                        localThunk[i] = loadInst;
                     }
                 }
 
@@ -151,7 +165,7 @@ struct AxisSubstitution : public ModulePass
                     if (i < 0)
                         continue;
 
-                    const auto &origin = origins.find(thunkOrigins[i]);
+                    const auto &origin = origins.find(remoteThunk[i]);
                     if (origin == origins.end())
                         continue;
 
@@ -190,11 +204,46 @@ struct AxisSubstitution : public ModulePass
                                 assert(k >= 1); // We should never reference likely_matrix::ref_count
 
                                 Value *const originMat = originGEP->getPointerOperand();
-                                const size_t originIndex = find(thunkOrigins.begin(), thunkOrigins.end(), originMat) - thunkOrigins.begin();
-                                if (originIndex >= thunkOrigins.size())
+                                const size_t originIndex = find(remoteThunk.begin(), remoteThunk.end(), originMat) - remoteThunk.begin();
+                                if (originIndex >= remoteThunk.size())
                                     continue;
 
-                                // TODO: finish me
+                                Value *const localOrigin = localThunk[originIndex];
+                                if (!localOrigin)
+                                    continue;
+
+                                // See if we can find a load for the same axis
+                                bool success = false;
+                                for (User *const localOriginUser : localOrigin->users()) {
+                                    GetElementPtrInst *const localOriginGEP = dyn_cast<GetElementPtrInst>(localOriginUser);
+                                    if (!localOriginGEP)
+                                        continue;
+
+                                    const int l = getStructGEPIndex(localOriginGEP);
+                                    if (l < 0)
+                                        continue;
+                                    assert(l >= 1); // We should never reference likely_matrix::ref_count
+
+                                    if (k != l)
+                                        continue;
+
+                                    for (User *const localOriginGEPuser : localOriginGEP->users()) {
+                                        LoadInst *const replace = dyn_cast<LoadInst>(localOriginGEPuser);
+                                        if (!replace)
+                                            continue;
+                                        if (dominatorTree.dominates(axisLoad, replace)) {
+                                            replace->moveBefore(axisLoad);
+                                            localOriginGEP->moveBefore(replace);
+                                        }
+                                        axisLoad->replaceAllUsesWith(replace);
+                                        modified = true;
+                                        success = true;
+                                        break;
+                                    }
+
+                                    if (success)
+                                        break;
+                                }
                             }
                         }
                     }

@@ -17,64 +17,44 @@ entry:
   %8 = load i16, i16* %7, align 2
   %9 = getelementptr inbounds { %i16SCXY*, %i16SCXY*, i16, i16 }, { %i16SCXY*, %i16SCXY*, i16, i16 }* %0, i64 0, i32 3
   %10 = load i16, i16* %9, align 2
-  %11 = getelementptr inbounds %i16SCXY, %i16SCXY* %4, i64 0, i32 2
-  %channels = load i32, i32* %11, align 4, !range !0
-  %dst_c = zext i32 %channels to i64
-  %12 = getelementptr inbounds %i16SCXY, %i16SCXY* %4, i64 0, i32 3
-  %columns = load i32, i32* %12, align 4, !range !0
-  %dst_x = zext i32 %columns to i64
+  %11 = getelementptr inbounds %i16SCXY, %i16SCXY* %6, i64 0, i32 2
+  %channels1 = load i32, i32* %11, align 4, !range !0
+  %dst_c = zext i32 %channels1 to i64
+  %12 = getelementptr inbounds %i16SCXY, %i16SCXY* %6, i64 0, i32 3
+  %columns2 = load i32, i32* %12, align 4, !range !0
+  %dst_x = zext i32 %columns2 to i64
   %13 = getelementptr inbounds %i16SCXY, %i16SCXY* %4, i64 0, i32 6, i64 0
   %14 = ptrtoint i16* %13 to i64
   %15 = and i64 %14, 31
   %16 = icmp eq i64 %15, 0
   call void @llvm.assume(i1 %16)
-  %17 = getelementptr inbounds %i16SCXY, %i16SCXY* %6, i64 0, i32 2
-  %channels1 = load i32, i32* %17, align 4, !range !0
-  %src_c = zext i32 %channels1 to i64
-  %18 = getelementptr inbounds %i16SCXY, %i16SCXY* %6, i64 0, i32 3
-  %columns2 = load i32, i32* %18, align 4, !range !0
-  %src_x = zext i32 %columns2 to i64
-  %19 = getelementptr inbounds %i16SCXY, %i16SCXY* %6, i64 0, i32 6, i64 0
-  %20 = ptrtoint i16* %19 to i64
-  %21 = and i64 %20, 31
-  %22 = icmp eq i64 %21, 0
-  call void @llvm.assume(i1 %22)
+  %17 = getelementptr inbounds %i16SCXY, %i16SCXY* %6, i64 0, i32 6, i64 0
+  %18 = ptrtoint i16* %17 to i64
+  %19 = and i64 %18, 31
+  %20 = icmp eq i64 %19, 0
+  call void @llvm.assume(i1 %20)
+  %21 = mul nuw nsw i64 %dst_x, %dst_c
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
-  %23 = mul i64 %y, %src_x
-  %24 = mul i64 %y, %dst_x
+  %22 = mul i64 %y, %21
   br label %x_body
 
-x_body:                                           ; preds = %c_exit, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %c_exit ]
-  %tmp = add i64 %x, %23
-  %tmp4 = mul i64 %tmp, %src_c
-  %tmp5 = add i64 %x, %24
-  %tmp6 = mul i64 %tmp5, %dst_c
-  br label %c_body
-
-c_body:                                           ; preds = %c_body, %x_body
-  %c = phi i64 [ 0, %x_body ], [ %c_increment, %c_body ]
-  %25 = add i64 %c, %tmp4
-  %26 = getelementptr %i16SCXY, %i16SCXY* %6, i64 0, i32 6, i64 %25
-  %27 = load i16, i16* %26, align 2, !llvm.mem.parallel_loop_access !1
-  %28 = icmp sgt i16 %27, %8
-  %. = select i1 %28, i16 %10, i16 0
-  %29 = add i64 %c, %tmp6
-  %30 = getelementptr %i16SCXY, %i16SCXY* %4, i64 0, i32 6, i64 %29
-  store i16 %., i16* %30, align 2, !llvm.mem.parallel_loop_access !1
-  %c_increment = add nuw nsw i64 %c, 1
-  %c_postcondition = icmp eq i64 %c_increment, %dst_c
-  br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !1
-
-c_exit:                                           ; preds = %c_body
+x_body:                                           ; preds = %x_body, %y_body
+  %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
+  %23 = add nuw nsw i64 %x, %22
+  %24 = getelementptr %i16SCXY, %i16SCXY* %6, i64 0, i32 6, i64 %23
+  %25 = load i16, i16* %24, align 2, !llvm.mem.parallel_loop_access !1
+  %26 = icmp sgt i16 %25, %8
+  %. = select i1 %26, i16 %10, i16 0
+  %27 = getelementptr %i16SCXY, %i16SCXY* %4, i64 0, i32 6, i64 %23
+  store i16 %., i16* %27, align 2, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %dst_x
-  br i1 %x_postcondition, label %x_exit, label %x_body
+  %x_postcondition = icmp eq i64 %x_increment, %21
+  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
 
-x_exit:                                           ; preds = %c_exit
+x_exit:                                           ; preds = %x_body
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %2
   br i1 %y_postcondition, label %y_exit, label %y_body

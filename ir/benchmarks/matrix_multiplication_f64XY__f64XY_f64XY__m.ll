@@ -20,9 +20,9 @@ entry:
   %8 = load %f64XY*, %f64XY** %7, align 8
   %9 = getelementptr inbounds { %f64XY*, %f64XY*, %f64XY*, i32 }, { %f64XY*, %f64XY*, %f64XY*, i32 }* %0, i64 0, i32 3
   %10 = load i32, i32* %9, align 4
-  %11 = getelementptr inbounds %f64XY, %f64XY* %4, i64 0, i32 3
-  %columns = load i32, i32* %11, align 4, !range !0
-  %C_y_step = zext i32 %columns to i64
+  %11 = getelementptr inbounds %f64XY, %f64XY* %8, i64 0, i32 3
+  %columns3 = load i32, i32* %11, align 4, !range !0
+  %C_y_step = zext i32 %columns3 to i64
   %12 = getelementptr inbounds %f64XY, %f64XY* %4, i64 0, i32 6, i64 0
   %13 = ptrtoint double* %12 to i64
   %14 = and i64 %13, 31
@@ -36,49 +36,46 @@ entry:
   %19 = and i64 %18, 31
   %20 = icmp eq i64 %19, 0
   call void @llvm.assume(i1 %20)
-  %21 = getelementptr inbounds %f64XY, %f64XY* %8, i64 0, i32 3
-  %columns3 = load i32, i32* %21, align 4, !range !0
-  %B_y_step = zext i32 %columns3 to i64
-  %22 = getelementptr inbounds %f64XY, %f64XY* %8, i64 0, i32 6, i64 0
-  %23 = ptrtoint double* %22 to i64
-  %24 = and i64 %23, 31
-  %25 = icmp eq i64 %24, 0
-  call void @llvm.assume(i1 %25)
-  %26 = icmp eq i32 %10, 0
+  %21 = getelementptr inbounds %f64XY, %f64XY* %8, i64 0, i32 6, i64 0
+  %22 = ptrtoint double* %21 to i64
+  %23 = and i64 %22, 31
+  %24 = icmp eq i64 %23, 0
+  call void @llvm.assume(i1 %24)
+  %25 = icmp eq i32 %10, 0
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
-  %27 = mul nuw nsw i64 %y, %C_y_step
-  %28 = mul nuw nsw i64 %y, %A_y_step
+  %26 = mul nuw nsw i64 %y, %C_y_step
+  %27 = mul nuw nsw i64 %y, %A_y_step
   br label %x_body
 
 x_body:                                           ; preds = %end, %y_body
   %x = phi i64 [ 0, %y_body ], [ %x_increment, %end ]
-  br i1 %26, label %end, label %then
+  br i1 %25, label %end, label %then
 
 then:                                             ; preds = %x_body, %then
-  %29 = phi i32 [ %41, %then ], [ 0, %x_body ]
-  %30 = phi double [ %40, %then ], [ 0.000000e+00, %x_body ]
-  %31 = sext i32 %29 to i64
-  %32 = add nuw nsw i64 %31, %28
-  %33 = getelementptr %f64XY, %f64XY* %6, i64 0, i32 6, i64 %32
-  %34 = load double, double* %33, align 8, !llvm.mem.parallel_loop_access !1
-  %35 = mul nuw nsw i64 %31, %B_y_step
-  %36 = add nuw nsw i64 %35, %x
-  %37 = getelementptr %f64XY, %f64XY* %8, i64 0, i32 6, i64 %36
-  %38 = load double, double* %37, align 8, !llvm.mem.parallel_loop_access !1
-  %39 = fmul double %34, %38
-  %40 = fadd double %30, %39
-  %41 = add nuw nsw i32 %29, 1
-  %42 = icmp eq i32 %41, %10
-  br i1 %42, label %end, label %then
+  %28 = phi i32 [ %40, %then ], [ 0, %x_body ]
+  %29 = phi double [ %39, %then ], [ 0.000000e+00, %x_body ]
+  %30 = sext i32 %28 to i64
+  %31 = add nuw nsw i64 %30, %27
+  %32 = getelementptr %f64XY, %f64XY* %6, i64 0, i32 6, i64 %31
+  %33 = load double, double* %32, align 8, !llvm.mem.parallel_loop_access !1
+  %34 = mul nuw nsw i64 %30, %C_y_step
+  %35 = add nuw nsw i64 %34, %x
+  %36 = getelementptr %f64XY, %f64XY* %8, i64 0, i32 6, i64 %35
+  %37 = load double, double* %36, align 8, !llvm.mem.parallel_loop_access !1
+  %38 = fmul double %33, %37
+  %39 = fadd double %29, %38
+  %40 = add nuw nsw i32 %28, 1
+  %41 = icmp eq i32 %40, %10
+  br i1 %41, label %end, label %then
 
 end:                                              ; preds = %then, %x_body
-  %.lcssa = phi double [ 0.000000e+00, %x_body ], [ %40, %then ]
-  %43 = add nuw nsw i64 %x, %27
-  %44 = getelementptr %f64XY, %f64XY* %4, i64 0, i32 6, i64 %43
-  store double %.lcssa, double* %44, align 8, !llvm.mem.parallel_loop_access !1
+  %.lcssa = phi double [ 0.000000e+00, %x_body ], [ %39, %then ]
+  %42 = add nuw nsw i64 %x, %26
+  %43 = getelementptr %f64XY, %f64XY* %4, i64 0, i32 6, i64 %42
+  store double %.lcssa, double* %43, align 8, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %C_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
