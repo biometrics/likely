@@ -191,6 +191,40 @@ struct LikelyContext : public likely_settings
     LikelyContext(const LikelyContext &) = delete;
     LikelyContext &operator=(const LikelyContext &) = delete;
 
+    StructType *toLLVMStruct(likely_type likely, uint64_t elements = 0)
+    {
+        assert(likely & likely_multi_dimension);
+
+        if (elements == 0) {
+            auto const result = structTypeLUT.find(likely);
+            if (result != structTypeLUT.end())
+                return result->second;
+        }
+
+        stringstream name;
+        const likely_const_mat str = likely_type_to_string(likely);
+        name << str->data;
+        likely_release_mat(str);
+        if (elements != 0)
+            name << "_" << elements;
+
+        likely_type element = likely & likely_element;
+        if (!(element & likely_depth))
+            element |= likely_u8;
+        StructType *const llvm = StructType::create(name.str(),
+                                                    Type::getInt32Ty(context), // ref_count
+                                                    Type::getInt32Ty(context), // type
+                                                    Type::getInt32Ty(context), // channels
+                                                    Type::getInt32Ty(context), // columns
+                                                    Type::getInt32Ty(context), // rows
+                                                    Type::getInt32Ty(context), // frames
+                                                    ArrayType::get(toLLVM(element), elements), // data
+                                                    NULL);
+        if (elements == 0)
+            structTypeLUT[likely] = llvm;
+        return llvm;
+    }
+
     Type *toLLVM(likely_type likely, uint64_t elements = 0)
     {
         if (elements == 0) {
@@ -213,25 +247,7 @@ struct LikelyContext : public likely_settings
                                    : StructType::create(members, name->data);
             likely_release_mat(name);
         } else if (likely & likely_multi_dimension) {
-            stringstream name;
-            const likely_const_mat str = likely_type_to_string(likely);
-            name << str->data;
-            likely_release_mat(str);
-            if (elements != 0)
-                name << "_" << elements;
-
-            likely_type element = likely & likely_element;
-            if (!(element & likely_depth))
-                element |= likely_u8;
-            llvm = PointerType::getUnqual(StructType::create(name.str(),
-                                                             Type::getInt32Ty(context), // ref_count
-                                                             Type::getInt32Ty(context), // type
-                                                             Type::getInt32Ty(context), // channels
-                                                             Type::getInt32Ty(context), // columns
-                                                             Type::getInt32Ty(context), // rows
-                                                             Type::getInt32Ty(context), // frames
-                                                             ArrayType::get(toLLVM(element), elements), // data
-                                                             NULL));
+            llvm = PointerType::getUnqual(toLLVMStruct(likely, elements));
         } else if (likely == likely_void) {
             llvm = Type::getVoidTy(context);
         } else {
@@ -287,6 +303,7 @@ struct LikelyContext : public likely_settings
     }
 
 private:
+    map<likely_type, StructType*> structTypeLUT;
     map<likely_type, Type*> typeLUT;
 };
 
@@ -916,7 +933,7 @@ struct Builder : public IRBuilder<>
         if (!likely_expression::isMat(m.value->getType()))
             return LikelyValue();
         const likely_type type = likely_pointer_type(m & likely_element);
-        return LikelyValue(CreatePointerCast(CreateStructGEP(m, 6), module->context->toLLVM(type)), type);
+        return LikelyValue(CreatePointerCast(CreateStructGEP(module->context->toLLVMStruct(m), m, 6), module->context->toLLVM(type)), type);
     }
 
     enum Comparison
@@ -1120,9 +1137,9 @@ struct Builder : public IRBuilder<>
     }
 
 private:
-    LikelyValue axis(Value *m, const unsigned idx, const char *const name)
+    LikelyValue axis(const LikelyValue &m, const unsigned idx, const char *const name)
     {
-        LoadInst *const load = CreateLoad(CreateStructGEP(m, idx+2), name);
+        LoadInst *const load = CreateLoad(CreateStructGEP(module->context->toLLVMStruct(m), m, idx+2), name);
         load->setMetadata(LLVMContext::MD_range, axisRange());
         return LikelyValue(load, likely_u32);
     }
@@ -1251,6 +1268,7 @@ struct LikelyFunction : public LikelyOperator
             parameters.push_back(likely_multi_dimension);
 
         vector<Type*> llvmTypes;
+        StructType *staticDataType = NULL;
         if (cc == RegularCC) {
             for (const likely_type &parameter : parameters)
                 llvmTypes.push_back(builder.module->context->toLLVM(parameter));
@@ -1261,7 +1279,8 @@ struct LikelyFunction : public LikelyOperator
             // Virtual calling convention - Dynamically typed arguments come stored in an array of matricies.
             //                              Statically typed arguments come stored in a struct pointer.
             llvmTypes.push_back(PointerType::getUnqual(builder.module->context->toLLVM(likely_multi_dimension)));
-            llvmTypes.push_back(PointerType::getUnqual(getStaticDataType(builder.module->context.get(), virtualTypes)));
+            staticDataType = getStaticDataType(builder.module->context.get(), virtualTypes);
+            llvmTypes.push_back(PointerType::getUnqual(staticDataType));
         } else {
             assert(!"Invalid calling convention!");
         }
@@ -1295,7 +1314,7 @@ struct LikelyFunction : public LikelyOperator
                     load = castOrPromote(builder, load, parameters[i]);
                     arguments.push_back(new likely_expression(LikelyValue(load, parameters[i])));
                 } else {
-                    arguments.push_back(new likely_expression(LikelyValue(builder.CreateLoad(builder.CreateStructGEP(staticArguments, staticIndex++)), parameters[i])));
+                    arguments.push_back(new likely_expression(LikelyValue(builder.CreateLoad(builder.CreateStructGEP(staticDataType, staticArguments, staticIndex++)), parameters[i])));
                 }
             }
         } else {
@@ -2199,7 +2218,7 @@ private:
                 size_t index = 0;
                 for (size_t i=0; i<args.size(); i++)
                     if (types[i] != likely_multi_dimension)
-                        builder.CreateStore(*args[i], builder.CreateStructGEP(staticData, static_cast<unsigned int>(index++)));
+                        builder.CreateStore(*args[i], builder.CreateStructGEP(staticDataStructType, staticData, static_cast<unsigned int>(index++)));
                 assert(index == staticDataStructType->getNumElements());
                 staticData = builder.CreatePointerCast(staticData, staticDataType);
             } else {
@@ -2814,7 +2833,7 @@ class kernelExpression : public LikelyOperator
             builder.SetInsertPoint(BasicBlock::Create(builder.getContext(), "entry", thunk));
             vector<likely_const_expr> thunkSrcs;
             for (size_t i=0; i<srcs.size(); i++)
-                thunkSrcs.push_back(new likely_expression(LikelyValue(builder.CreateLoad(builder.CreateStructGEP(parameterStruct, unsigned(i))), srcs[i]->type)));
+                thunkSrcs.push_back(new likely_expression(LikelyValue(builder.CreateLoad(builder.CreateStructGEP(parameterStructType, parameterStruct, unsigned(i))), srcs[i]->type)));
 
             generateCommon(builder, ast, thunkSrcs, kernelType, start, stop);
             const_cast<likely_expr>(srcs[0])->type = thunkSrcs[0]->type;
@@ -2841,7 +2860,7 @@ class kernelExpression : public LikelyOperator
 
         Value *const parameterStruct = builder.CreateAlloca(parameterStructType);
         for (size_t i=0; i<srcs.size(); i++)
-            builder.CreateStore(*srcs[i], builder.CreateStructGEP(parameterStruct, unsigned(i)));
+            builder.CreateStore(*srcs[i], builder.CreateStructGEP(parameterStructType, parameterStruct, unsigned(i)));
 
         builder.CreateCall3(likelyFork, builder.CreatePointerCast(builder.module->module->getFunction(thunk->getName()), voidPtr), builder.CreatePointerCast(parameterStruct, voidPtr), kernelSize);
     }
