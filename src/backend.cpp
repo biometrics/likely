@@ -810,9 +810,8 @@ public:
             WriteBitcodeToFile(module, stream);
         } else {
             legacy::PassManager pm;
-            formatted_raw_ostream fos(stream);
             static TargetMachine *TM = LikelyContext::getTargetMachine(false);
-            TM->addPassesToEmitFile(pm, fos, (file_type == likely_file_assembly) ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
+            TM->addPassesToEmitFile(pm, stream, (file_type == likely_file_assembly) ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
             pm.run(*module);
         }
         stream.flush();
