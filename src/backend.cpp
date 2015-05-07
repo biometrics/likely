@@ -1141,7 +1141,7 @@ struct ConstantString : public likely_expression
     ConstantString(Builder &builder, const likely_const_mat str)
     {
         setData(str);
-        value = builder.CreateGlobalStringPtr(str->data);
+        value = builder.CreateGlobalStringPtr(str->data, str->data);
         type = likely_pointer_type(likely_i8);
     }
 
