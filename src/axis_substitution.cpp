@@ -38,6 +38,21 @@ private:
         analysisUsage.setPreservesCFG();
     }
 
+    // Find the index of value in values, traversing through bitcast users if necessarry
+    static size_t recursiveCastedFind(Value *value, vector<Value*> &values)
+    {
+        const size_t index = find(values.begin(), values.end(), value) - values.begin();
+        if (index != values.size())
+            return index;
+        for (User *const user : value->users())
+            if (isa<BitCastInst>(user)) {
+                const size_t index = recursiveCastedFind(user, values);
+                if (index != values.size())
+                    return index;
+            }
+        return values.size();
+    }
+
     static void recursiveCastedOrigins(Value *const value, CallInst *const callInst, map<Value*, CallInst*> &origins)
     {
         origins.insert(pair<Value*, CallInst*>(value, callInst));
@@ -196,7 +211,7 @@ private:
                             continue;
 
                         Value *const originMatrix = originGEP->getPointerOperand();
-                        const size_t originIndex = find(callerArgs.begin(), callerArgs.end(), originMatrix) - callerArgs.begin();
+                        const size_t originIndex = recursiveCastedFind(originMatrix, callerArgs);
                         if (originIndex >= callerArgs.size())
                             continue;
 
