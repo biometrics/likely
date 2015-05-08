@@ -71,7 +71,7 @@ entry:
   call void @llvm.assume(i1 %38)
   %39 = call float @llvm.cos.f32(float %arg_4)
   %40 = call float @llvm.sin.f32(float %arg_4)
-  %41 = fdiv float 0x401921FB60000000, %arg_5
+  %41 = fdiv fast float 0x401921FB60000000, %arg_5
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
@@ -79,8 +79,8 @@ y_body:                                           ; preds = %x_exit, %entry
   %42 = trunc i64 %y to i32
   %43 = sub i32 %42, %arg_1
   %44 = sitofp i32 %43 to float
-  %45 = fmul float %40, %44
-  %46 = fmul float %39, %44
+  %45 = fmul fast float %44, %40
+  %46 = fmul fast float %44, %39
   %47 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
@@ -89,23 +89,23 @@ x_body:                                           ; preds = %x_body, %y_body
   %48 = trunc i64 %x to i32
   %49 = sub i32 %48, %arg_0
   %50 = sitofp i32 %49 to float
-  %51 = fmul float %39, %50
-  %52 = fadd float %45, %51
+  %51 = fmul fast float %50, %39
+  %52 = fadd fast float %51, %45
   %53 = sub nsw i32 0, %49
   %54 = sitofp i32 %53 to float
-  %55 = fmul float %40, %54
-  %56 = fadd float %46, %55
-  %57 = fdiv float %52, %arg_2
-  %58 = fmul float %57, %57
-  %59 = fdiv float %56, %arg_3
-  %60 = fmul float %59, %59
-  %61 = fadd float %58, %60
-  %62 = fmul float %61, -5.000000e-01
+  %55 = fmul fast float %54, %40
+  %56 = fadd fast float %55, %46
+  %57 = fdiv fast float %52, %arg_2
+  %58 = fmul fast float %57, %57
+  %59 = fdiv fast float %56, %arg_3
+  %60 = fmul fast float %59, %59
+  %61 = fadd fast float %60, %58
+  %62 = fmul fast float %61, -5.000000e-01
   %63 = call float @llvm.exp.f32(float %62)
-  %64 = fmul float %41, %52
-  %65 = fadd float %arg_6, %64
+  %64 = fmul fast float %52, %41
+  %65 = fadd fast float %64, %arg_6
   %66 = call float @llvm.cos.f32(float %65)
-  %67 = fmul float %63, %66
+  %67 = fmul fast float %66, %63
   %68 = add nuw nsw i64 %x, %47
   %69 = getelementptr float, float* %35, i64 %68
   store float %67, float* %69, align 4, !llvm.mem.parallel_loop_access !0

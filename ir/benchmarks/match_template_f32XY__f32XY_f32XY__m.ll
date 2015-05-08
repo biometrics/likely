@@ -97,9 +97,9 @@ then6:                                            ; preds = %then6.lr.ph, %then6
   %47 = add nuw nsw i64 %43, %37
   %48 = getelementptr %f32XY, %f32XY* %8, i64 0, i32 6, i64 %47
   %49 = load float, float* %48, align 4, !llvm.mem.parallel_loop_access !1
-  %50 = fmul float %46, %49
+  %50 = fmul fast float %49, %46
   %51 = fpext float %50 to double
-  %52 = fadd double %41, %51
+  %52 = fadd fast double %51, %41
   %53 = add nuw nsw i32 %42, 1
   %54 = icmp eq i32 %53, %10
   br i1 %54, label %end7, label %then6

@@ -37,7 +37,7 @@ entry:
   call void @llvm.assume(i1 %23)
   %24 = call float @llvm.cos.f32(float %14)
   %25 = call float @llvm.sin.f32(float %14)
-  %26 = fdiv float 0x401921FB60000000, %16
+  %26 = fdiv fast float 0x401921FB60000000, %16
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
@@ -45,8 +45,8 @@ y_body:                                           ; preds = %x_exit, %entry
   %27 = trunc i64 %y to i32
   %28 = sub i32 %27, %8
   %29 = sitofp i32 %28 to float
-  %30 = fmul float %25, %29
-  %31 = fmul float %24, %29
+  %30 = fmul fast float %29, %25
+  %31 = fmul fast float %29, %24
   %32 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
@@ -55,23 +55,23 @@ x_body:                                           ; preds = %x_body, %y_body
   %33 = trunc i64 %x to i32
   %34 = sub i32 %33, %6
   %35 = sitofp i32 %34 to float
-  %36 = fmul float %24, %35
-  %37 = fadd float %30, %36
+  %36 = fmul fast float %35, %24
+  %37 = fadd fast float %36, %30
   %38 = sub nsw i32 0, %34
   %39 = sitofp i32 %38 to float
-  %40 = fmul float %25, %39
-  %41 = fadd float %31, %40
-  %42 = fdiv float %37, %10
-  %43 = fmul float %42, %42
-  %44 = fdiv float %41, %12
-  %45 = fmul float %44, %44
-  %46 = fadd float %43, %45
-  %47 = fmul float %46, -5.000000e-01
+  %40 = fmul fast float %39, %25
+  %41 = fadd fast float %40, %31
+  %42 = fdiv fast float %37, %10
+  %43 = fmul fast float %42, %42
+  %44 = fdiv fast float %41, %12
+  %45 = fmul fast float %44, %44
+  %46 = fadd fast float %45, %43
+  %47 = fmul fast float %46, -5.000000e-01
   %48 = call float @llvm.exp.f32(float %47)
-  %49 = fmul float %26, %37
-  %50 = fadd float %18, %49
+  %49 = fmul fast float %37, %26
+  %50 = fadd fast float %49, %18
   %51 = call float @llvm.cos.f32(float %50)
-  %52 = fmul float %48, %51
+  %52 = fmul fast float %51, %48
   %53 = add nuw nsw i64 %x, %32
   %54 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %53
   store float %52, float* %54, align 4, !llvm.mem.parallel_loop_access !1

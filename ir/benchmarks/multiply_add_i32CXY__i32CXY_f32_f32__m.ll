@@ -42,12 +42,12 @@ y_body:                                           ; preds = %y_body, %entry
   %23 = getelementptr %i32CXY, %i32CXY* %6, i64 0, i32 6, i64 %y
   %24 = load i32, i32* %23, align 4, !llvm.mem.parallel_loop_access !1
   %25 = sitofp i32 %24 to float
-  %26 = fmul float %8, %25
-  %27 = fadd float %10, %26
+  %26 = fmul fast float %25, %8
+  %27 = fadd fast float %26, %10
   %28 = getelementptr %i32CXY, %i32CXY* %4, i64 0, i32 6, i64 %y
   %29 = fcmp olt float %27, 0.000000e+00
   %30 = select i1 %29, float -5.000000e-01, float 5.000000e-01
-  %31 = fadd float %27, %30
+  %31 = fadd fast float %30, %27
   %32 = fptosi float %31 to i32
   store i32 %32, i32* %28, align 4, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1

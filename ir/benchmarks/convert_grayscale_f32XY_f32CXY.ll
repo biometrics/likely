@@ -48,11 +48,11 @@ y_body:                                           ; preds = %y_body, %entry
   %23 = add nuw nsw i64 %17, 2
   %24 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %23
   %25 = load float, float* %24, align 4, !llvm.mem.parallel_loop_access !1
-  %26 = fmul float %19, 0x3FBD2F1AA0000000
-  %27 = fmul float %22, 0x3FE2C8B440000000
-  %28 = fadd float %26, %27
-  %29 = fmul float %25, 0x3FD322D0E0000000
-  %30 = fadd float %28, %29
+  %26 = fmul fast float %19, 0x3FBD2F1AA0000000
+  %27 = fmul fast float %22, 0x3FE2C8B440000000
+  %28 = fadd fast float %27, %26
+  %29 = fmul fast float %25, 0x3FD322D0E0000000
+  %30 = fadd fast float %28, %29
   %31 = getelementptr float, float* %8, i64 %y
   store float %30, float* %31, align 4, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1

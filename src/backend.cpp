@@ -828,7 +828,12 @@ struct Builder : public IRBuilder<>
     likely_module *const module;
 
     Builder(likely_const_env env, likely_module *module)
-        : IRBuilder<>(module ? module->context->context : getGlobalContext()), env(env), module(module) {}
+        : IRBuilder<>(module ? module->context->context : getGlobalContext()), env(env), module(module)
+    {
+        FastMathFlags FMF;
+        FMF.setUnsafeAlgebra(); // Enable all fast-math optimizations
+        SetFastMathFlags(FMF);
+    }
 
     LikelyValue constant(uint64_t value, likely_type type = likely_u64)
     {

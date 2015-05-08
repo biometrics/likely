@@ -41,8 +41,8 @@ y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %y_body ]
   %23 = getelementptr %f32CXY, %f32CXY* %6, i64 0, i32 6, i64 %y
   %24 = load float, float* %23, align 4, !llvm.mem.parallel_loop_access !1
-  %25 = fmul float %8, %24
-  %26 = fadd float %10, %25
+  %25 = fmul fast float %24, %8
+  %26 = fadd fast float %25, %10
   %27 = getelementptr %f32CXY, %f32CXY* %4, i64 0, i32 6, i64 %y
   store float %26, float* %27, align 4, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1

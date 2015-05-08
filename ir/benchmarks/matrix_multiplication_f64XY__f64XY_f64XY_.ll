@@ -64,8 +64,8 @@ then:                                             ; preds = %x_body, %then
   %31 = add nuw nsw i64 %30, %x
   %32 = getelementptr %f64XY, %f64XY* %1, i64 0, i32 6, i64 %31
   %33 = load double, double* %32, align 8, !llvm.mem.parallel_loop_access !1
-  %34 = fmul double %29, %33
-  %35 = fadd double %25, %34
+  %34 = fmul fast double %33, %29
+  %35 = fadd fast double %34, %25
   %36 = add nuw nsw i32 %24, 1
   %37 = icmp eq i32 %36, %columns
   br i1 %37, label %end, label %then

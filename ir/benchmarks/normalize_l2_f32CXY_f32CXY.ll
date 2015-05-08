@@ -31,15 +31,15 @@ then:                                             ; preds = %entry, %then
   %9 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %8
   %10 = load float, float* %9, align 4
   %11 = fpext float %10 to double
-  %12 = fmul double %11, %11
-  %13 = fadd double %7, %12
+  %12 = fmul fast double %11, %11
+  %13 = fadd fast double %12, %7
   %14 = add nuw nsw i32 %6, 1
   %15 = icmp eq i32 %14, %5
   br i1 %15, label %end, label %then
 
 end:                                              ; preds = %then
   %16 = call double @llvm.sqrt.f64(double %13)
-  %17 = fdiv double 1.000000e+00, %16
+  %17 = fdiv fast double 1.000000e+00, %16
   %18 = fptrunc double %17 to float
   %19 = call %u0CXYT* @likely_new(i32 28960, i32 %channels, i32 %columns, i32 %rows, i32 1, i8* null)
   %20 = zext i32 %rows to i64
@@ -64,7 +64,7 @@ y_body:                                           ; preds = %y_body, %end
   %y = phi i64 [ 0, %end ], [ %y_increment, %y_body ]
   %32 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %y
   %33 = load float, float* %32, align 4, !llvm.mem.parallel_loop_access !1
-  %34 = fmul float %18, %33
+  %34 = fmul fast float %33, %18
   %35 = getelementptr float, float* %22, i64 %y
   store float %34, float* %35, align 4, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1

@@ -93,9 +93,9 @@ then13:                                           ; preds = %label12.preheader, 
   %43 = add nuw nsw i64 %39, %32
   %44 = getelementptr %f32XY, %f32XY* %1, i64 0, i32 6, i64 %43
   %45 = load float, float* %44, align 4, !llvm.mem.parallel_loop_access !1
-  %46 = fmul float %42, %45
+  %46 = fmul fast float %45, %42
   %47 = fpext float %46 to double
-  %48 = fadd double %37, %47
+  %48 = fadd fast double %47, %37
   %49 = add nuw nsw i32 %38, 1
   %50 = icmp eq i32 %49, %columns1
   br i1 %50, label %end14, label %then13

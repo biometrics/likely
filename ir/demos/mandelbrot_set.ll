@@ -63,35 +63,35 @@ entry:
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit ]
   %37 = uitofp i64 %y to float
-  %38 = fmul float %arg_5, %37
-  %39 = fdiv float %38, %36
-  %40 = fadd float %arg_3, %39
+  %38 = fmul fast float %37, %arg_5
+  %39 = fdiv fast float %38, %36
+  %40 = fadd fast float %39, %arg_3
   %41 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
 x_body:                                           ; preds = %end, %y_body
   %x = phi i64 [ 0, %y_body ], [ %x_increment, %end ]
   %42 = uitofp i64 %x to float
-  %43 = fmul float %arg_4, %42
-  %44 = fdiv float %43, %35
-  %45 = fadd float %arg_2, %44
+  %43 = fmul fast float %42, %arg_4
+  %44 = fdiv fast float %43, %35
+  %45 = fadd fast float %44, %arg_2
   br label %label
 
 label:                                            ; preds = %label, %x_body
   %46 = phi i32 [ 0, %x_body ], [ %56, %label ]
   %47 = phi float [ 0.000000e+00, %x_body ], [ %55, %label ]
   %48 = phi float [ 0.000000e+00, %x_body ], [ %52, %label ]
-  %49 = fmul float %48, %48
-  %50 = fmul float %47, %47
-  %51 = fsub float %49, %50
-  %52 = fadd float %45, %51
-  %53 = fmul float %47, %48
-  %54 = fmul float %53, 2.000000e+00
-  %55 = fadd float %40, %54
+  %49 = fmul fast float %48, %48
+  %50 = fmul fast float %47, %47
+  %51 = fsub fast float %49, %50
+  %52 = fadd fast float %45, %51
+  %53 = fmul fast float %47, 2.000000e+00
+  %54 = fmul fast float %53, %48
+  %55 = fadd fast float %40, %54
   %56 = add nuw nsw i32 %46, 1
-  %57 = fmul float %52, %52
-  %58 = fmul float %55, %55
-  %59 = fadd float %57, %58
+  %57 = fmul fast float %52, %52
+  %58 = fmul fast float %55, %55
+  %59 = fadd fast float %57, %58
   %60 = fcmp olt float %59, 4.000000e+00
   %61 = icmp slt i32 %56, %arg_6
   %62 = and i1 %61, %60
