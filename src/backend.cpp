@@ -176,8 +176,8 @@ struct LikelyContext : public likely_settings
             PM->add(createSLPVectorizerPass()); // Vectorize unrolled instructions
             PM->add(createLoadCombinePass()); // Combine adjacent loads
             PM->add(createAlignmentFromAssumptionsPass()); // Use vectorized and unrolled loops to prove alignment
-            PM->add(createCFGSimplificationPass()); // Cleanup
-            PM->add(createInstructionCombiningPass());
+            PM->add(createInstructionCombiningPass()); // Cleanup
+            PM->add(createCFGSimplificationPass());
         }
 
         PM->add(createVerifierPass());
