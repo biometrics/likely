@@ -49,6 +49,7 @@ static cl::opt<string> BenchmarkFile("file", cl::desc("Benchmark the specified f
 static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"));
 static cl::opt<string> BenchmarkType("type", cl::desc("Benchmark the specified type only"), cl::value_desc("type"));
 static cl::opt<string> BenchmarkRoot("root", cl::desc("Root of the Likely repository"), cl::value_desc("path"));
+static cl::opt<int>    BenchmarkSize("size", cl::desc("Benchmark the specified size only"));
 
 static void checkRead(const void *data, const char *fileName)
 {
@@ -112,6 +113,7 @@ struct TestBase
 
             for (const int size : sizes()) {
                 if (BenchmarkTest && (size != 128)) continue;
+                if (BenchmarkSize && (size != BenchmarkSize)) continue;
 
                 // Generate input matrix
                 const Mat srcCV = generateData(size, size, type, color());
