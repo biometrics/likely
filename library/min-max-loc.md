@@ -9,44 +9,36 @@ Compare to **[cv::minMaxLoc](http://docs.opencv.org/2.4.8/modules/core/doc/opera
         height := src.rows
         ((dst.channels 1 1 dst.frames) dst src width height) :=>
         {
-          current-min-value := dst.type.numeric-limit-max.$
-          current-min-x     := 0.$
-          current-min-y     := 0.$
-          current-max-value := dst.type.numeric-limit-min.$
-          current-max-x     := 0.$
-          current-max-y     := 0.$
+          current-min-value := src.type.numeric-limit-max.$
+          current-min-idx   := 0.$
+          current-max-value := src.type.numeric-limit-min.$
+          current-max-idx   := 0.$
 
           check-location :=
-            (x y) :->
+            i :->
             {
-              current-value := (src c x y t)
+              current-value := (src c i 0 t)
               (< current-value current-min-value) :?
               {
                 current-min-value :<- current-value
-                current-min-x :<- x
-                current-min-y :<- y
+                current-min-idx :<- i
               }
 
               (> current-value current-max-value) :?
               {
                 current-max-value :<- current-value
-                current-max-x :<- x
-                current-max-y :<- y
+                current-max-idx :<- i
               }
             }
 
-          check-row :=
-            y :->
-              (iter (-> x (check-location x y)) width)
-
-          (iter (-> y (check-row y)) height)
+          (iter (-> i (check-location i)) (* width height))
 
           (dst c 0 0) :<- current-min-value
-          (dst c 1 0) :<- current-min-x
-          (dst c 2 0) :<- current-min-y
+          (dst c 1 0) :<- (% current-min-idx width)
+          (dst c 2 0) :<- (/ current-min-idx width)
           (dst c 0 1) :<- current-max-value
-          (dst c 1 1) :<- current-max-x
-          (dst c 2 1) :<- current-max-y
+          (dst c 1 1) :<- (% current-max-idx width)
+          (dst c 2 1) :<- (/ current-max-idx width)
         }
       }
 
