@@ -171,10 +171,10 @@ struct LikelyContext : public likely_settings
         if (!human) {
             PM->add(createLoopRotatePass()); // Canonical form needed by vectorization
             PM->add(createLoopVectorizePass()); // Loop vectorization with unrolling
+            PM->add(createBBVectorizePass()); // Fallback to vectorizing the entire block
             PM->add(createLoopUnrollPass()); // Unroll loops that couldn't be vectorized
             PM->add(createSLPVectorizerPass()); // Vectorize unrolled instructions
             PM->add(createLoadCombinePass()); // Combine adjacent loads
-            PM->add(createBBVectorizePass()); // Vectorize basic blocks
             PM->add(createAlignmentFromAssumptionsPass()); // Use vectorized and unrolled loops to prove alignment
             PM->add(createCFGSimplificationPass()); // Cleanup
             PM->add(createInstructionCombiningPass());
