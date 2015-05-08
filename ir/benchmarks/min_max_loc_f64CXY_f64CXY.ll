@@ -26,91 +26,73 @@ entry:
   %9 = and i64 %8, 31
   %10 = icmp eq i64 %9, 0
   call void @llvm.assume(i1 %10)
-  %src_x = zext i32 %columns to i64
   %11 = getelementptr inbounds %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 0
   %12 = ptrtoint double* %11 to i64
   %13 = and i64 %12, 31
   %14 = icmp eq i64 %13, 0
   call void @llvm.assume(i1 %14)
-  %15 = shl nuw nsw i64 %5, 1
+  %15 = mul nuw nsw i32 %rows, %columns
+  %16 = shl nuw nsw i64 %5, 1
   br label %c_body
 
 c_body:                                           ; preds = %end, %entry
   %c = phi i64 [ 0, %entry ], [ %c_increment, %end ]
-  br label %label8.preheader
+  br label %then
 
-label8.preheader:                                 ; preds = %c_body, %end10
-  %16 = phi i32 [ 0, %c_body ], [ %62, %end10 ]
-  %17 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %55, %end10 ]
-  %18 = phi i32 [ 0, %c_body ], [ %54, %end10 ]
-  %19 = phi i32 [ 0, %c_body ], [ %53, %end10 ]
-  %20 = phi double [ 0xFFEFFFFFFFFFFFFF, %c_body ], [ %59, %end10 ]
-  %21 = phi i32 [ 0, %c_body ], [ %58, %end10 ]
-  %22 = phi i32 [ 0, %c_body ], [ %57, %end10 ]
-  %23 = sext i32 %16 to i64
-  %24 = mul nsw i64 %23, %src_x
-  br label %then9
+then:                                             ; preds = %c_body, %then
+  %17 = phi i32 [ 0, %c_body ], [ %33, %then ]
+  %18 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %29, %then ]
+  %19 = phi i32 [ 0, %c_body ], [ %28, %then ]
+  %20 = phi double [ 0xFFEFFFFFFFFFFFFF, %c_body ], [ %32, %then ]
+  %21 = phi i32 [ 0, %c_body ], [ %31, %then ]
+  %22 = sext i32 %17 to i64
+  %23 = mul nuw nsw i64 %22, %5
+  %24 = add nuw nsw i64 %23, %c
+  %25 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 %24
+  %26 = load double, double* %25, align 8, !llvm.mem.parallel_loop_access !1
+  %27 = fcmp olt double %26, %18
+  %28 = select i1 %27, i32 %17, i32 %19
+  %29 = select i1 %27, double %26, double %18
+  %30 = fcmp ogt double %26, %20
+  %31 = select i1 %30, i32 %17, i32 %21
+  %32 = select i1 %30, double %26, double %20
+  %33 = add nuw nsw i32 %17, 1
+  %34 = icmp eq i32 %33, %15
+  br i1 %34, label %end, label %then
 
-end:                                              ; preds = %end10
-  %25 = getelementptr double, double* %7, i64 %c
-  store double %55, double* %25, align 8, !llvm.mem.parallel_loop_access !1
-  %26 = sitofp i32 %54 to double
-  %27 = add nuw nsw i64 %c, %5
-  %28 = getelementptr double, double* %7, i64 %27
-  store double %26, double* %28, align 8, !llvm.mem.parallel_loop_access !1
-  %29 = sitofp i32 %53 to double
-  %30 = add nuw nsw i64 %c, %15
-  %31 = getelementptr double, double* %7, i64 %30
-  store double %29, double* %31, align 8, !llvm.mem.parallel_loop_access !1
-  %32 = add nuw nsw i64 %c, %dst_y_step
-  %33 = getelementptr double, double* %7, i64 %32
-  store double %59, double* %33, align 8, !llvm.mem.parallel_loop_access !1
-  %34 = sitofp i32 %58 to double
-  %35 = add nuw nsw i64 %27, %dst_y_step
-  %36 = getelementptr double, double* %7, i64 %35
-  store double %34, double* %36, align 8, !llvm.mem.parallel_loop_access !1
-  %37 = sitofp i32 %57 to double
-  %38 = add nuw nsw i64 %30, %dst_y_step
+end:                                              ; preds = %then
+  %35 = getelementptr double, double* %7, i64 %c
+  store double %29, double* %35, align 8, !llvm.mem.parallel_loop_access !1
+  %36 = srem i32 %28, %columns
+  %37 = sitofp i32 %36 to double
+  %38 = add nuw nsw i64 %c, %5
   %39 = getelementptr double, double* %7, i64 %38
   store double %37, double* %39, align 8, !llvm.mem.parallel_loop_access !1
+  %40 = sdiv i32 %28, %columns
+  %41 = sitofp i32 %40 to double
+  %42 = add nuw nsw i64 %c, %16
+  %43 = getelementptr double, double* %7, i64 %42
+  store double %41, double* %43, align 8, !llvm.mem.parallel_loop_access !1
+  %44 = add nuw nsw i64 %c, %dst_y_step
+  %45 = getelementptr double, double* %7, i64 %44
+  store double %32, double* %45, align 8, !llvm.mem.parallel_loop_access !1
+  %46 = srem i32 %31, %columns
+  %47 = sitofp i32 %46 to double
+  %48 = add nuw nsw i64 %38, %dst_y_step
+  %49 = getelementptr double, double* %7, i64 %48
+  store double %47, double* %49, align 8, !llvm.mem.parallel_loop_access !1
+  %50 = sdiv i32 %31, %columns
+  %51 = sitofp i32 %50 to double
+  %52 = add nuw nsw i64 %42, %dst_y_step
+  %53 = getelementptr double, double* %7, i64 %52
+  store double %51, double* %53, align 8, !llvm.mem.parallel_loop_access !1
   %c_increment = add nuw nsw i64 %c, 1
   %c_postcondition = icmp eq i64 %c_increment, %5
   br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !1
 
 c_exit:                                           ; preds = %end
-  %40 = bitcast %u0CXYT* %2 to %f64CXY*
-  ret %f64CXY* %40
-
-then9:                                            ; preds = %label8.preheader, %then9
-  %41 = phi double [ %17, %label8.preheader ], [ %55, %then9 ]
-  %42 = phi i32 [ %18, %label8.preheader ], [ %54, %then9 ]
-  %43 = phi i32 [ %19, %label8.preheader ], [ %53, %then9 ]
-  %44 = phi double [ %20, %label8.preheader ], [ %59, %then9 ]
-  %45 = phi i32 [ %21, %label8.preheader ], [ %58, %then9 ]
-  %46 = phi i32 [ %22, %label8.preheader ], [ %57, %then9 ]
-  %47 = phi i32 [ 0, %label8.preheader ], [ %60, %then9 ]
-  %48 = sext i32 %47 to i64
-  %tmp = add i64 %48, %24
-  %tmp1 = mul i64 %tmp, %5
-  %49 = add i64 %tmp1, %c
-  %50 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 %49
-  %51 = load double, double* %50, align 8, !llvm.mem.parallel_loop_access !1
-  %52 = fcmp olt double %51, %41
-  %53 = select i1 %52, i32 %16, i32 %43
-  %54 = select i1 %52, i32 %47, i32 %42
-  %55 = select i1 %52, double %51, double %41
-  %56 = fcmp ogt double %51, %44
-  %57 = select i1 %56, i32 %16, i32 %46
-  %58 = select i1 %56, i32 %47, i32 %45
-  %59 = select i1 %56, double %51, double %44
-  %60 = add nuw nsw i32 %47, 1
-  %61 = icmp eq i32 %60, %columns
-  br i1 %61, label %end10, label %then9
-
-end10:                                            ; preds = %then9
-  %62 = add nuw nsw i32 %16, 1
-  %63 = icmp eq i32 %62, %rows
-  br i1 %63, label %end, label %label8.preheader
+  %54 = bitcast %u0CXYT* %2 to %f64CXY*
+  ret %f64CXY* %54
 }
 
 attributes #0 = { nounwind readonly }

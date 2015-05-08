@@ -30,110 +30,79 @@ entry:
   %15 = and i64 %14, 31
   %16 = icmp eq i64 %15, 0
   call void @llvm.assume(i1 %16)
-  %17 = getelementptr inbounds %f32CXY, %f32CXY* %6, i64 0, i32 3
-  %columns2 = load i32, i32* %17, align 4, !range !0
-  %src_x = zext i32 %columns2 to i64
-  %18 = getelementptr inbounds %f32CXY, %f32CXY* %6, i64 0, i32 6, i64 0
-  %19 = ptrtoint float* %18 to i64
-  %20 = and i64 %19, 31
-  %21 = icmp eq i64 %20, 0
-  call void @llvm.assume(i1 %21)
-  %22 = icmp eq i32 %10, 0
+  %17 = getelementptr inbounds %f32CXY, %f32CXY* %6, i64 0, i32 6, i64 0
+  %18 = ptrtoint float* %17 to i64
+  %19 = and i64 %18, 31
+  %20 = icmp eq i64 %19, 0
+  call void @llvm.assume(i1 %20)
+  %21 = mul nuw nsw i32 %10, %8
+  %22 = icmp eq i32 %21, 0
   %23 = shl nuw nsw i64 %dst_c, 1
-  %24 = icmp eq i32 %8, 0
   br label %c_body
 
 c_body:                                           ; preds = %end, %entry
   %c = phi i64 [ %1, %entry ], [ %c_increment, %end ]
-  %25 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %c
-  br i1 %22, label %end, label %label4.preheader
+  br i1 %22, label %end, label %then
 
-label4.preheader:                                 ; preds = %c_body, %end6
-  %26 = phi i32 [ %71, %end6 ], [ 0, %c_body ]
-  %27 = phi double [ %.lcssa16, %end6 ], [ 0x7FEFFFFFFFFFFFFF, %c_body ]
-  %28 = phi i32 [ %.lcssa15, %end6 ], [ 0, %c_body ]
-  %29 = phi i32 [ %.lcssa14, %end6 ], [ 0, %c_body ]
-  %30 = phi double [ %.lcssa13, %end6 ], [ 0xFFEFFFFFFFFFFFFF, %c_body ]
-  %31 = phi i32 [ %.lcssa12, %end6 ], [ 0, %c_body ]
-  %32 = phi i32 [ %.lcssa, %end6 ], [ 0, %c_body ]
-  br i1 %24, label %end6, label %then5.lr.ph
+then:                                             ; preds = %c_body, %then
+  %24 = phi i32 [ %40, %then ], [ 0, %c_body ]
+  %25 = phi float [ %36, %then ], [ 0x47EFFFFFE0000000, %c_body ]
+  %26 = phi i32 [ %35, %then ], [ 0, %c_body ]
+  %27 = phi float [ %39, %then ], [ 0xC7EFFFFFE0000000, %c_body ]
+  %28 = phi i32 [ %38, %then ], [ 0, %c_body ]
+  %29 = sext i32 %24 to i64
+  %30 = mul nuw nsw i64 %29, %dst_c
+  %31 = add nuw nsw i64 %30, %c
+  %32 = getelementptr %f32CXY, %f32CXY* %6, i64 0, i32 6, i64 %31
+  %33 = load float, float* %32, align 4, !llvm.mem.parallel_loop_access !1
+  %34 = fcmp olt float %33, %25
+  %35 = select i1 %34, i32 %24, i32 %26
+  %36 = select i1 %34, float %33, float %25
+  %37 = fcmp ogt float %33, %27
+  %38 = select i1 %37, i32 %24, i32 %28
+  %39 = select i1 %37, float %33, float %27
+  %40 = add nuw nsw i32 %24, 1
+  %41 = icmp eq i32 %40, %21
+  br i1 %41, label %end, label %then
 
-then5.lr.ph:                                      ; preds = %label4.preheader
-  %33 = sext i32 %26 to i64
-  %34 = mul nsw i64 %33, %src_x
-  br label %then5
-
-end:                                              ; preds = %end6, %c_body
-  %.lcssa22 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %.lcssa16, %end6 ]
-  %.lcssa21 = phi i32 [ 0, %c_body ], [ %.lcssa15, %end6 ]
-  %.lcssa20 = phi i32 [ 0, %c_body ], [ %.lcssa14, %end6 ]
-  %.lcssa19 = phi double [ 0xFFEFFFFFFFFFFFFF, %c_body ], [ %.lcssa13, %end6 ]
-  %.lcssa18 = phi i32 [ 0, %c_body ], [ %.lcssa12, %end6 ]
-  %.lcssa17 = phi i32 [ 0, %c_body ], [ %.lcssa, %end6 ]
-  store double %.lcssa22, double* %25, align 8, !llvm.mem.parallel_loop_access !1
-  %35 = sitofp i32 %.lcssa21 to double
-  %36 = add nuw nsw i64 %c, %dst_c
-  %37 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %36
-  store double %35, double* %37, align 8, !llvm.mem.parallel_loop_access !1
-  %38 = sitofp i32 %.lcssa20 to double
-  %39 = add nuw nsw i64 %c, %23
-  %40 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %39
-  store double %38, double* %40, align 8, !llvm.mem.parallel_loop_access !1
-  %41 = add nuw nsw i64 %c, %dst_y_step
-  %42 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %41
-  store double %.lcssa19, double* %42, align 8, !llvm.mem.parallel_loop_access !1
-  %43 = sitofp i32 %.lcssa18 to double
-  %44 = add nuw nsw i64 %36, %dst_y_step
-  %45 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %44
-  store double %43, double* %45, align 8, !llvm.mem.parallel_loop_access !1
-  %46 = sitofp i32 %.lcssa17 to double
-  %47 = add nuw nsw i64 %39, %dst_y_step
-  %48 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %47
-  store double %46, double* %48, align 8, !llvm.mem.parallel_loop_access !1
+end:                                              ; preds = %then, %c_body
+  %.lcssa10 = phi float [ 0x47EFFFFFE0000000, %c_body ], [ %36, %then ]
+  %.lcssa9 = phi i32 [ 0, %c_body ], [ %35, %then ]
+  %.lcssa8 = phi float [ 0xC7EFFFFFE0000000, %c_body ], [ %39, %then ]
+  %.lcssa = phi i32 [ 0, %c_body ], [ %38, %then ]
+  %42 = fpext float %.lcssa10 to double
+  %43 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %c
+  store double %42, double* %43, align 8, !llvm.mem.parallel_loop_access !1
+  %44 = srem i32 %.lcssa9, %8
+  %45 = sitofp i32 %44 to double
+  %46 = add nuw nsw i64 %c, %dst_c
+  %47 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %46
+  store double %45, double* %47, align 8, !llvm.mem.parallel_loop_access !1
+  %48 = sdiv i32 %.lcssa9, %8
+  %49 = sitofp i32 %48 to double
+  %50 = add nuw nsw i64 %c, %23
+  %51 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %50
+  store double %49, double* %51, align 8, !llvm.mem.parallel_loop_access !1
+  %52 = fpext float %.lcssa8 to double
+  %53 = add nuw nsw i64 %c, %dst_y_step
+  %54 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %53
+  store double %52, double* %54, align 8, !llvm.mem.parallel_loop_access !1
+  %55 = srem i32 %.lcssa, %8
+  %56 = sitofp i32 %55 to double
+  %57 = add nuw nsw i64 %46, %dst_y_step
+  %58 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %57
+  store double %56, double* %58, align 8, !llvm.mem.parallel_loop_access !1
+  %59 = sdiv i32 %.lcssa, %8
+  %60 = sitofp i32 %59 to double
+  %61 = add nuw nsw i64 %50, %dst_y_step
+  %62 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %61
+  store double %60, double* %62, align 8, !llvm.mem.parallel_loop_access !1
   %c_increment = add nuw nsw i64 %c, 1
   %c_postcondition = icmp eq i64 %c_increment, %2
   br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !1
 
 c_exit:                                           ; preds = %end
   ret void
-
-then5:                                            ; preds = %then5.lr.ph, %then5
-  %49 = phi double [ %27, %then5.lr.ph ], [ %64, %then5 ]
-  %50 = phi i32 [ %28, %then5.lr.ph ], [ %63, %then5 ]
-  %51 = phi i32 [ %29, %then5.lr.ph ], [ %62, %then5 ]
-  %52 = phi double [ %30, %then5.lr.ph ], [ %68, %then5 ]
-  %53 = phi i32 [ %31, %then5.lr.ph ], [ %67, %then5 ]
-  %54 = phi i32 [ %32, %then5.lr.ph ], [ %66, %then5 ]
-  %55 = phi i32 [ 0, %then5.lr.ph ], [ %69, %then5 ]
-  %56 = sext i32 %55 to i64
-  %tmp = add i64 %56, %34
-  %tmp11 = mul i64 %tmp, %dst_c
-  %57 = add i64 %tmp11, %c
-  %58 = getelementptr %f32CXY, %f32CXY* %6, i64 0, i32 6, i64 %57
-  %59 = load float, float* %58, align 4, !llvm.mem.parallel_loop_access !1
-  %60 = fpext float %59 to double
-  %61 = fcmp olt double %60, %49
-  %62 = select i1 %61, i32 %26, i32 %51
-  %63 = select i1 %61, i32 %55, i32 %50
-  %64 = select i1 %61, double %60, double %49
-  %65 = fcmp ogt double %60, %52
-  %66 = select i1 %65, i32 %26, i32 %54
-  %67 = select i1 %65, i32 %55, i32 %53
-  %68 = select i1 %65, double %60, double %52
-  %69 = add nuw nsw i32 %55, 1
-  %70 = icmp eq i32 %69, %8
-  br i1 %70, label %end6, label %then5
-
-end6:                                             ; preds = %then5, %label4.preheader
-  %.lcssa16 = phi double [ %27, %label4.preheader ], [ %64, %then5 ]
-  %.lcssa15 = phi i32 [ %28, %label4.preheader ], [ %63, %then5 ]
-  %.lcssa14 = phi i32 [ %29, %label4.preheader ], [ %62, %then5 ]
-  %.lcssa13 = phi double [ %30, %label4.preheader ], [ %68, %then5 ]
-  %.lcssa12 = phi i32 [ %31, %label4.preheader ], [ %67, %then5 ]
-  %.lcssa = phi i32 [ %32, %label4.preheader ], [ %66, %then5 ]
-  %71 = add nuw nsw i32 %26, 1
-  %72 = icmp eq i32 %71, %10
-  br i1 %72, label %end, label %label4.preheader
 }
 
 ; Function Attrs: nounwind

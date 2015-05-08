@@ -27,92 +27,75 @@ entry:
   %9 = and i64 %8, 31
   %10 = icmp eq i64 %9, 0
   call void @llvm.assume(i1 %10)
-  %src_x = zext i32 %columns to i64
   %11 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 6, i64 0
   %12 = ptrtoint i16* %11 to i64
   %13 = and i64 %12, 31
   %14 = icmp eq i64 %13, 0
   call void @llvm.assume(i1 %14)
-  %15 = shl nuw nsw i64 %5, 1
+  %15 = mul nuw nsw i32 %rows, %columns
+  %16 = shl nuw nsw i64 %5, 1
   br label %c_body
 
 c_body:                                           ; preds = %end, %entry
   %c = phi i64 [ 0, %entry ], [ %c_increment, %end ]
-  br label %label8.preheader
+  br label %then
 
-label8.preheader:                                 ; preds = %c_body, %end10
-  %16 = phi i32 [ 0, %c_body ], [ %63, %end10 ]
-  %17 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %56, %end10 ]
-  %18 = phi i32 [ 0, %c_body ], [ %55, %end10 ]
-  %19 = phi i32 [ 0, %c_body ], [ %54, %end10 ]
-  %20 = phi double [ 0xFFEFFFFFFFFFFFFF, %c_body ], [ %60, %end10 ]
-  %21 = phi i32 [ 0, %c_body ], [ %59, %end10 ]
-  %22 = phi i32 [ 0, %c_body ], [ %58, %end10 ]
-  %23 = sext i32 %16 to i64
-  %24 = mul nsw i64 %23, %src_x
-  br label %then9
+then:                                             ; preds = %c_body, %then
+  %17 = phi i32 [ 0, %c_body ], [ %31, %then ]
+  %18 = phi i16 [ 32767, %c_body ], [ %.1, %then ]
+  %19 = phi i32 [ 0, %c_body ], [ %., %then ]
+  %20 = phi i16 [ -32768, %c_body ], [ %30, %then ]
+  %21 = phi i32 [ 0, %c_body ], [ %29, %then ]
+  %22 = sext i32 %17 to i64
+  %23 = mul nuw nsw i64 %22, %5
+  %24 = add nuw nsw i64 %23, %c
+  %25 = getelementptr %i16SCXY, %i16SCXY* %0, i64 0, i32 6, i64 %24
+  %26 = load i16, i16* %25, align 2, !llvm.mem.parallel_loop_access !1
+  %27 = icmp slt i16 %26, %18
+  %. = select i1 %27, i32 %17, i32 %19
+  %.1 = select i1 %27, i16 %26, i16 %18
+  %28 = icmp sgt i16 %26, %20
+  %29 = select i1 %28, i32 %17, i32 %21
+  %30 = select i1 %28, i16 %26, i16 %20
+  %31 = add nuw nsw i32 %17, 1
+  %32 = icmp eq i32 %31, %15
+  br i1 %32, label %end, label %then
 
-end:                                              ; preds = %end10
-  %25 = getelementptr double, double* %7, i64 %c
-  store double %56, double* %25, align 8, !llvm.mem.parallel_loop_access !1
-  %26 = sitofp i32 %55 to double
-  %27 = add nuw nsw i64 %c, %5
-  %28 = getelementptr double, double* %7, i64 %27
-  store double %26, double* %28, align 8, !llvm.mem.parallel_loop_access !1
-  %29 = sitofp i32 %54 to double
-  %30 = add nuw nsw i64 %c, %15
-  %31 = getelementptr double, double* %7, i64 %30
-  store double %29, double* %31, align 8, !llvm.mem.parallel_loop_access !1
-  %32 = add nuw nsw i64 %c, %dst_y_step
-  %33 = getelementptr double, double* %7, i64 %32
-  store double %60, double* %33, align 8, !llvm.mem.parallel_loop_access !1
-  %34 = sitofp i32 %59 to double
-  %35 = add nuw nsw i64 %27, %dst_y_step
-  %36 = getelementptr double, double* %7, i64 %35
-  store double %34, double* %36, align 8, !llvm.mem.parallel_loop_access !1
-  %37 = sitofp i32 %58 to double
-  %38 = add nuw nsw i64 %30, %dst_y_step
-  %39 = getelementptr double, double* %7, i64 %38
-  store double %37, double* %39, align 8, !llvm.mem.parallel_loop_access !1
+end:                                              ; preds = %then
+  %33 = sitofp i16 %.1 to double
+  %34 = getelementptr double, double* %7, i64 %c
+  store double %33, double* %34, align 8, !llvm.mem.parallel_loop_access !1
+  %35 = srem i32 %., %columns
+  %36 = sitofp i32 %35 to double
+  %37 = add nuw nsw i64 %c, %5
+  %38 = getelementptr double, double* %7, i64 %37
+  store double %36, double* %38, align 8, !llvm.mem.parallel_loop_access !1
+  %39 = sdiv i32 %., %columns
+  %40 = sitofp i32 %39 to double
+  %41 = add nuw nsw i64 %c, %16
+  %42 = getelementptr double, double* %7, i64 %41
+  store double %40, double* %42, align 8, !llvm.mem.parallel_loop_access !1
+  %43 = sitofp i16 %30 to double
+  %44 = add nuw nsw i64 %c, %dst_y_step
+  %45 = getelementptr double, double* %7, i64 %44
+  store double %43, double* %45, align 8, !llvm.mem.parallel_loop_access !1
+  %46 = srem i32 %29, %columns
+  %47 = sitofp i32 %46 to double
+  %48 = add nuw nsw i64 %37, %dst_y_step
+  %49 = getelementptr double, double* %7, i64 %48
+  store double %47, double* %49, align 8, !llvm.mem.parallel_loop_access !1
+  %50 = sdiv i32 %29, %columns
+  %51 = sitofp i32 %50 to double
+  %52 = add nuw nsw i64 %41, %dst_y_step
+  %53 = getelementptr double, double* %7, i64 %52
+  store double %51, double* %53, align 8, !llvm.mem.parallel_loop_access !1
   %c_increment = add nuw nsw i64 %c, 1
   %c_postcondition = icmp eq i64 %c_increment, %5
   br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !1
 
 c_exit:                                           ; preds = %end
-  %40 = bitcast %u0CXYT* %2 to %f64CXY*
-  ret %f64CXY* %40
-
-then9:                                            ; preds = %label8.preheader, %then9
-  %41 = phi double [ %17, %label8.preheader ], [ %56, %then9 ]
-  %42 = phi i32 [ %18, %label8.preheader ], [ %55, %then9 ]
-  %43 = phi i32 [ %19, %label8.preheader ], [ %54, %then9 ]
-  %44 = phi double [ %20, %label8.preheader ], [ %60, %then9 ]
-  %45 = phi i32 [ %21, %label8.preheader ], [ %59, %then9 ]
-  %46 = phi i32 [ %22, %label8.preheader ], [ %58, %then9 ]
-  %47 = phi i32 [ 0, %label8.preheader ], [ %61, %then9 ]
-  %48 = sext i32 %47 to i64
-  %tmp = add i64 %48, %24
-  %tmp1 = mul i64 %tmp, %5
-  %49 = add i64 %tmp1, %c
-  %50 = getelementptr %i16SCXY, %i16SCXY* %0, i64 0, i32 6, i64 %49
-  %51 = load i16, i16* %50, align 2, !llvm.mem.parallel_loop_access !1
-  %52 = sitofp i16 %51 to double
-  %53 = fcmp olt double %52, %41
-  %54 = select i1 %53, i32 %16, i32 %43
-  %55 = select i1 %53, i32 %47, i32 %42
-  %56 = select i1 %53, double %52, double %41
-  %57 = fcmp ogt double %52, %44
-  %58 = select i1 %57, i32 %16, i32 %46
-  %59 = select i1 %57, i32 %47, i32 %45
-  %60 = select i1 %57, double %52, double %44
-  %61 = add nuw nsw i32 %47, 1
-  %62 = icmp eq i32 %61, %columns
-  br i1 %62, label %end10, label %then9
-
-end10:                                            ; preds = %then9
-  %63 = add nuw nsw i32 %16, 1
-  %64 = icmp eq i32 %63, %rows
-  br i1 %64, label %end, label %label8.preheader
+  %54 = bitcast %u0CXYT* %2 to %f64CXY*
+  ret %f64CXY* %54
 }
 
 attributes #0 = { nounwind readonly }
