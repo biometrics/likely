@@ -65,7 +65,7 @@ static string resolvePath(const string &fileName)
     return resolvedPath.str();
 }
 
-static Mat generateData(int rows, int columns, likely_type type, bool color)
+static vector<Mat> generateData(int rows, int columns, likely_type type, bool color)
 {
     static Mat original;
     if (!original.data) {
@@ -81,7 +81,10 @@ static Mat generateData(int rows, int columns, likely_type type, bool color)
     Mat n;
     resize(m, n, Size(columns, rows), 0, 0, INTER_NEAREST);
     n.convertTo(n, likelyToOpenCVDepth(type));
-    return n;
+
+    vector<Mat> mv;
+    mv.push_back(n);
+    return mv;
 }
 
 struct TestBase
@@ -116,8 +119,8 @@ struct TestBase
                 if (BenchmarkSize && (size != BenchmarkSize)) continue;
 
                 // Generate input matrix
-                const Mat srcCV = generateData(size, size, type, color());
-                const likely_mat likelySrc = likelyFromOpenCVMat(srcCV);
+                const vector<Mat> srcCV = generateData(size, size, type, color());
+                const likely_mat likelySrc = likelyFromOpenCVMats(srcCV);
                 if (!(likelySrc->type & likely_floating) && ((likelySrc->type & likely_depth) <= 16))
                     likelySrc->type |= likely_saturated; // Follow OpenCV's saturation convention
                 vector<likely_const_mat> likelyArgs = additionalArguments(likelySrc);
@@ -181,7 +184,7 @@ struct TestBase
 
 protected:
     virtual const char *name() const = 0;
-    virtual Mat computeBaseline(const Mat &src) const = 0;
+    virtual Mat computeBaseline(const vector<Mat> &src) const = 0;
     virtual int additionalParameters() const = 0;
     virtual bool color() const = 0;
 
@@ -222,7 +225,7 @@ private:
             : iterations(iter), Hz(double(iter) * CLOCKS_PER_SEC / (endTime-startTime)) {}
     };
 
-    void testCorrectness(likely_mat (*f)(const likely_const_mat*), const Mat &srcCV, const likely_const_mat *srcLikely) const
+    void testCorrectness(likely_mat (*f)(const likely_const_mat*), const vector<Mat> &srcCV, const likely_const_mat *srcLikely) const
     {
         Mat dstOpenCV = computeBaseline(srcCV);
         const likely_const_mat dstLikely = f(srcLikely);
@@ -236,28 +239,16 @@ private:
         if (norm(errorMat, NORM_L1) > 0) {
             const likely_const_mat cvLikely = likelyFromOpenCVMat(dstOpenCV);
             stringstream errorLocations;
-            errorLocations << "input\topencv\tlikely\trow\tcolumn\tchannel\n";
+            errorLocations << "opencv\tlikely\trow\tcolumn\tchannel\n";
             int errors = 0;
             const int channels = dstOpenCV.channels();
             for (int i=0; i<dstOpenCV.rows; i++)
                 for (int j=0; j<dstOpenCV.cols; j++)
                     for (int k=0; k<channels; k++)
                         if (errorMat.at<float>(i, j*channels + k) == 1) {
-                            stringstream src;
-                            if ((dstOpenCV.channels() == 1) && (srcCV.channels() > 1)) {
-                                src << "(";
-                                for (int c=0; c<srcCV.channels(); c++) {
-                                    src << likely_get_element(srcLikely[0], c, j, i, 0);
-                                    if (c < srcCV.channels() - 1)
-                                        src << " ";
-                                }
-                                src << ")";
-                            } else {
-                                src << likely_get_element(srcLikely[0], k, j, i, 0);
-                            }
                             const double cv  = likely_get_element(cvLikely , k, j, i, 0);
                             const double dst = likely_get_element(dstLikely, k, j, i, 0);
-                            if (errors < 100) errorLocations << src.str() << "\t" << cv << "\t" << dst << "\t" << i << "\t" << j << "\t" << k << "\n";
+                            if (errors < 100) errorLocations << cv << "\t" << dst << "\t" << i << "\t" << j << "\t" << k << "\n";
                             errors++;
                         }
             if (errors > 0) {
@@ -270,7 +261,7 @@ private:
         likely_release_mat(dstLikely);
     }
 
-    Speed testBaselineSpeed(const Mat &src) const
+    Speed testBaselineSpeed(const vector<Mat> &src) const
     {
         clock_t startTime, endTime;
         int iter = 0;
@@ -330,10 +321,10 @@ class BinaryThreshold : public Test<2>
         return args;
     }
 
-    Mat computeBaseline(const Mat &src) const
+    Mat computeBaseline(const vector<Mat> &src) const
     {
         Mat dst;
-        threshold(src, dst, 127, 1, THRESH_BINARY);
+        threshold(src[0], dst, 127, 1, THRESH_BINARY);
         return dst;
     }
 
@@ -365,10 +356,10 @@ class MultiplyAdd : public Test<2>
         return args;
     }
 
-    Mat computeBaseline(const Mat &src) const
+    Mat computeBaseline(const vector<Mat> &src) const
     {
         Mat dst;
-        src.convertTo(dst, src.depth(), 3.141592, 2.718281);
+        src[0].convertTo(dst, src[0].depth(), 3.141592, 2.718281);
         return dst;
     }
 };
@@ -380,11 +371,11 @@ class MinMaxLoc : public Test<0, false>
         return "min-max-loc";
     }
 
-    Mat computeBaseline(const Mat &src) const
+    Mat computeBaseline(const vector<Mat> &src) const
     {
         double minVal, maxVal;
         Point minLoc, maxLoc;
-        minMaxLoc(src, &minVal, &maxVal, &minLoc, &maxLoc);
+        minMaxLoc(src[0], &minVal, &maxVal, &minLoc, &maxLoc);
 
         Mat result(2, 3, CV_64FC1);
         result.at<double>(0, 0) = minVal;
@@ -404,10 +395,10 @@ class ConvertGrayscale : public Test<>
         return "convert-grayscale";
     }
 
-    Mat computeBaseline(const Mat &src) const
+    Mat computeBaseline(const vector<Mat> &src) const
     {
         Mat dst;
-        cvtColor(src, dst, CV_BGR2GRAY);
+        cvtColor(src[0], dst, CV_BGR2GRAY);
         return dst;
     }
 
@@ -428,10 +419,10 @@ class NormalizeL2 : public Test<>
         return "normalize-l2";
     }
 
-    Mat computeBaseline(const Mat &src) const
+    Mat computeBaseline(const vector<Mat> &src) const
     {
         Mat dst;
-        normalize(src, dst);
+        normalize(src[0], dst);
         return dst;
     }
 
@@ -458,9 +449,9 @@ class MatrixMultiplication : public Test<1, false>
         return args;
     }
 
-    Mat computeBaseline(const Mat &src) const
+    Mat computeBaseline(const vector<Mat> &src) const
     {
-        Mat dst = src * src;
+        Mat dst = src[0] * src[0];
         return dst;
     }
 
@@ -502,10 +493,10 @@ class GEMM : public Test<4, false>
         return args;
     }
 
-    Mat computeBaseline(const Mat &src) const
+    Mat computeBaseline(const vector<Mat> &src) const
     {
         Mat dst;
-        gemm(src, src, 3.141592, src, 2.718281, dst);
+        gemm(src[0], src[0], 3.141592, src[0], 2.718281, dst);
         return dst;
     }
 
@@ -544,10 +535,10 @@ class MatchTemplate : public Test<1, false>
         return args;
     }
 
-    Mat computeBaseline(const Mat &src) const
+    Mat computeBaseline(const vector<Mat> &src) const
     {
         Mat dst;
-        matchTemplate(src, templ, dst, CV_TM_CCORR);
+        matchTemplate(src[0], templ, dst, CV_TM_CCORR);
         return dst;
     }
 
@@ -560,7 +551,7 @@ class MatchTemplate : public Test<1, false>
 
 public:
     MatchTemplate()
-        : templ(generateData(8, 8, likely_f32, false)) {}
+        : templ(generateData(8, 8, likely_f32, false)[0]) {}
 };
 
 int main(int argc, char *argv[])
