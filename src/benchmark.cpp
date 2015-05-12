@@ -65,17 +65,32 @@ static vector<Mat> generateData(int rows, int columns, likely_type type, bool co
     vector<Mat> original;
     if (lfwa) {
         assert(!color);
-        const likely_const_mat m = likely_read(resolvePath("data/lfw2").data(),
-                                               likely_file_directory,
-                                               likely_video_grayscale);
-        original = likelyToOpenCVMats(m);
-        likely_release_mat(m);
+        static vector<Mat> preread;
+        if (preread.empty()) {
+            const likely_const_mat m = likely_read(resolvePath("data/lfw2").data(),
+                                                   likely_file_directory,
+                                                   likely_video_grayscale);
+            preread = likelyToOpenCVMats(m);
+            likely_release_mat(m);
+        }
+        original = preread;
     } else {
-        const likely_const_mat m = likely_read(resolvePath("data/misc/lenna.tiff").data(),
-                                               likely_file_media,
-                                               color ? likely_image : likely_image_grayscale);
-        original.push_back(likelyToOpenCVMat(m));
-        likely_release_mat(m);
+        static Mat preread;
+        if (!preread.data) {
+            const likely_const_mat m = likely_read(resolvePath("data/misc/lenna.tiff").data(),
+                                                   likely_file_media,
+                                                   likely_image);
+            preread = likelyToOpenCVMat(m);
+            likely_release_mat(m);
+        }
+
+        if (color) {
+            original.push_back(preread);
+        } else {
+            Mat grayscale;
+            cvtColor(preread, grayscale, CV_BGR2GRAY);
+            original.push_back(grayscale);
+        }
     }
 
     vector<Mat> resized;
@@ -231,10 +246,11 @@ private:
         Mat dstOpenCV = computeBaseline(srcCV);
         const likely_const_mat dstLikely = f(srcLikely);
 
-        Mat errorMat = abs(likelyToOpenCVMat(dstLikely) - dstOpenCV);
+        Mat errorMat;
+        absdiff(likelyToOpenCVMats(dstLikely)[0], dstOpenCV, errorMat);
         errorMat.convertTo(errorMat, CV_32F);
         dstOpenCV.convertTo(dstOpenCV, CV_32F);
-        errorMat /= (dstOpenCV + ErrorTolerance); // Normalize errors
+        errorMat /= (abs(dstOpenCV) + ErrorTolerance); // Normalize errors
         threshold(errorMat, errorMat, ErrorTolerance, 1, THRESH_BINARY);
 
         if (norm(errorMat, NORM_L1) > 0) {
@@ -569,21 +585,32 @@ class MeanCenter : public Test<0, false, true>
 
     Mat computeBaseline(const vector<Mat> &src) const
     {
-        Mat mean = src[0];
-        for (size_t i=1; i<src.size(); i++)
-            mean += src[i];
+        Mat mean = Mat::zeros(src[0].size(), src[0].type());
+        for (const Mat &m : src)
+            mean += m;
         mean /= src.size();
         vector<Mat> dst;
         for (const Mat &m : src)
             dst.push_back(m - mean);
-        return dst[0];
+
+        return dst[0]; // We only test the first image for correctness
     }
 
     vector<likely_type> types() const
     {
         vector<likely_type> types;
         types.push_back(likely_f32);
+        types.push_back(likely_f64);
         return types;
+    }
+
+    vector<int> sizes() const
+    {
+        vector<int> sizes;
+        sizes.push_back(8);
+        sizes.push_back(32);
+        sizes.push_back(128);
+        return sizes;
     }
 };
 

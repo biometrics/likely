@@ -7,7 +7,7 @@
         len := src.frames
         ((src.channels src.columns src.rows 1) dst src len) :=>
         {
-          sum := (src.type.depth-double.depth-atleast-32 0).$
+          sum := (src.type.depth-atleast-32 0).$
           (-> t (<- sum (+ sum src))).(iter len)
           dst-type := dst.type
           beta := (/ sum.dst-type len.dst-type)
