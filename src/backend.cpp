@@ -2742,7 +2742,8 @@ class kernelExpression : public LikelyOperator
         }
     };
 
-    const char *symbol() const { return "=>"; }
+    virtual const char *symbol() const { return "=>"; }
+    virtual bool reduction() const { return false; }
     size_t maxParameters() const { return 2; }
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
@@ -2776,14 +2777,15 @@ class kernelExpression : public LikelyOperator
             kernelType = srcs[0]->type;
         }
 
+        const int automaticDimsIndex = reduction() ? 1 : 0;
         Value *kernelSize;
-        if      (kernelType & likely_multi_frame)   kernelSize = argsStart ? srcs[srcs.size() - manualDims + 3]->value : builder.cast(builder.frames  (*srcs[0]), likely_u64).value;
-        else if (kernelType & likely_multi_row)     kernelSize = argsStart ? srcs[srcs.size() - manualDims + 2]->value : builder.cast(builder.rows    (*srcs[0]), likely_u64).value;
-        else if (kernelType & likely_multi_column)  kernelSize = argsStart ? srcs[srcs.size() - manualDims + 1]->value : builder.cast(builder.columns (*srcs[0]), likely_u64).value;
-        else if (kernelType & likely_multi_channel) kernelSize = argsStart ? srcs[srcs.size() - manualDims + 0]->value : builder.cast(builder.channels(*srcs[0]), likely_u64).value;
+        if      (kernelType & likely_multi_frame)   kernelSize = argsStart ? srcs[srcs.size() - manualDims + 3]->value : builder.cast(builder.frames  (*srcs[automaticDimsIndex]), likely_u64).value;
+        else if (kernelType & likely_multi_row)     kernelSize = argsStart ? srcs[srcs.size() - manualDims + 2]->value : builder.cast(builder.rows    (*srcs[automaticDimsIndex]), likely_u64).value;
+        else if (kernelType & likely_multi_column)  kernelSize = argsStart ? srcs[srcs.size() - manualDims + 1]->value : builder.cast(builder.columns (*srcs[automaticDimsIndex]), likely_u64).value;
+        else if (kernelType & likely_multi_channel) kernelSize = argsStart ? srcs[srcs.size() - manualDims + 0]->value : builder.cast(builder.channels(*srcs[automaticDimsIndex]), likely_u64).value;
         else                                        kernelSize = builder.one();
 
-        const bool serial = isa<ConstantInt>(kernelSize) && (isOne(kernelSize));
+        const bool serial = reduction() || (isa<ConstantInt>(kernelSize) && (isOne(kernelSize)));
         if      (builder.module->context->heterogeneous && !serial) generateHeterogeneous(builder, ast, srcs, kernelType, kernelSize);
         else if (builder.module->context->multicore     && !serial) generateMulticore    (builder, ast, srcs, kernelType, kernelSize);
         else                                                        generateSerial       (builder, ast, srcs, kernelType, kernelSize);
@@ -2948,13 +2950,7 @@ class kernelExpression : public LikelyOperator
         Value *const manualChannels = (manualDims >= 1) ? srcs[srcs.size() - manualDims + 0]->value : NULL;
         Value *const manualColumns  = (manualDims >= 2) ? srcs[srcs.size() - manualDims + 1]->value : NULL;
         Value *const manualRows     = (manualDims >= 3) ? srcs[srcs.size() - manualDims + 2]->value : NULL;
-
-        MDNode *node;
-        { // Create self-referencing loop node
-            Metadata *const Args[] = { 0 };
-            node = MDNode::get(builder.getContext(), Args);
-            node->replaceOperandWith(0, node);
-        }
+        const int automaticDimsIndex = reduction() ? 1 : 0;
 
         KernelAxis *axis = NULL;
         if (kernelType & likely_multi_frame) {
@@ -2966,7 +2962,7 @@ class kernelExpression : public LikelyOperator
 
         if (kernelType & likely_multi_row) {
             axis = new KernelAxis(builder, "y", axis ? builder.zero().value : start
-                                              , axis ? (argsStart ? manualRows : kernelArguments[0]->rows) : stop
+                                              , axis ? (argsStart ? manualRows : kernelArguments[automaticDimsIndex]->rows) : stop
                                               , axis);
             define(builder.env, "y", axis);
         } else {
@@ -2975,7 +2971,7 @@ class kernelExpression : public LikelyOperator
 
         if (kernelType & likely_multi_column) {
             axis = new KernelAxis(builder, "x", axis ? builder.zero().value : start
-                                              , axis ? (argsStart ? manualColumns : kernelArguments[0]->columns) : stop
+                                              , axis ? (argsStart ? manualColumns : kernelArguments[automaticDimsIndex]->columns) : stop
                                               , axis);
             define(builder.env, "x", axis);
         } else {
@@ -2984,11 +2980,20 @@ class kernelExpression : public LikelyOperator
 
         if (kernelType & likely_multi_channel) {
             axis = new KernelAxis(builder, "c", axis ? builder.zero().value : start
-                                              , axis ? (argsStart ? manualChannels : kernelArguments[0]->channels) : stop
+                                              , axis ? (argsStart ? manualChannels : kernelArguments[automaticDimsIndex]->channels) : stop
                                               , axis);
             define(builder.env, "c", axis);
         } else {
             define(builder.env, "c", new likely_expression(builder.zero()));
+        }
+
+        MDNode *node;
+        if (reduction()) {
+            node = NULL;
+        } else { // Create self-referencing loop node
+            Metadata *const Args[] = { 0 };
+            node = MDNode::get(builder.getContext(), Args);
+            node->replaceOperandWith(0, node);
         }
 
         for (KernelArgument *const kernelArgument : kernelArguments) {
@@ -3004,7 +3009,8 @@ class kernelExpression : public LikelyOperator
         if (axis) {
             axis->exit->moveAfter(builder.GetInsertBlock());
             axis->close(builder);
-            axis->latch->setMetadata("llvm.loop", node);
+            if (node)
+                axis->latch->setMetadata("llvm.loop", node);
         }
 
         undefine(builder.env, "c");
@@ -3014,6 +3020,13 @@ class kernelExpression : public LikelyOperator
     }
 };
 LIKELY_REGISTER(kernel)
+
+class reductionExpression : public kernelExpression
+{
+    const char *symbol() const { return "+>"; }
+    bool reduction() const { return true; }
+};
+LIKELY_REGISTER(reduction)
 
 } // namespace (anonymous)
 
