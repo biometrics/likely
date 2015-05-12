@@ -1566,12 +1566,14 @@ private:
 
         value = expr->value;
         type = expr->type;
-        setData(expr->getData());
-        if (evaluate && getData()) { // constant
-            if (module->context->verbose)
-                module->module->print(outs(), NULL);
-            return;
-        }
+
+        if (evaluate) // Check for the case of a constant value
+            if (const Variant constant = expr->getData()) {
+                setData(constant);
+                if (module->context->verbose)
+                    module->module->print(outs(), NULL);
+                return;
+            }
 
         // No libffi support for Windows
 #ifdef _WIN32
