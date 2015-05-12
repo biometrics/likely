@@ -65,26 +65,38 @@ static string resolvePath(const string &fileName)
     return resolvedPath.str();
 }
 
-static vector<Mat> generateData(int rows, int columns, likely_type type, bool color)
+static vector<Mat> generateData(int rows, int columns, likely_type type, bool color, bool imageSet)
 {
-    static Mat original;
-    if (!original.data) {
+    vector<Mat> original;
+    if (imageSet) {
+
+    } else {
         const char *const lenna = "data/misc/lenna.tiff";
-        original = imread(resolvePath(lenna));
-        checkRead(original.data, lenna);
+        const Mat m = imread(resolvePath(lenna));
+        checkRead(m.data, lenna);
+        original.push_back(m);
     }
 
-    Mat m;
-    if (color) m = original;
-    else       cvtColor(original, m, CV_BGR2GRAY);
+    vector<Mat> cvt;
+    if (color) {
+        cvt = original;
+    } else {
+        for (const Mat &m : original) {
+            Mat n;
+            cvtColor(m, n, CV_BGR2GRAY);
+            cvt.push_back(n);
+        }
+    }
 
-    Mat n;
-    resize(m, n, Size(columns, rows), 0, 0, INTER_NEAREST);
-    n.convertTo(n, likelyToOpenCVDepth(type));
+    vector<Mat> resized;
+    for (const Mat &m : cvt) {
+        Mat n;
+        resize(m, n, Size(columns, rows), 0, 0, INTER_NEAREST);
+        n.convertTo(n, likelyToOpenCVDepth(type));
+        resized.push_back(n);
+    }
 
-    vector<Mat> mv;
-    mv.push_back(n);
-    return mv;
+    return resized;
 }
 
 struct TestBase
@@ -119,7 +131,7 @@ struct TestBase
                 if (BenchmarkSize && (size != BenchmarkSize)) continue;
 
                 // Generate input matrix
-                const vector<Mat> srcCV = generateData(size, size, type, color());
+                const vector<Mat> srcCV = generateData(size, size, type, color(), imageSet());
                 const likely_mat likelySrc = likelyFromOpenCVMats(srcCV);
                 if (!(likelySrc->type & likely_floating) && ((likelySrc->type & likely_depth) <= 16))
                     likelySrc->type |= likely_saturated; // Follow OpenCV's saturation convention
@@ -187,6 +199,7 @@ protected:
     virtual Mat computeBaseline(const vector<Mat> &src) const = 0;
     virtual int additionalParameters() const = 0;
     virtual bool color() const = 0;
+    virtual bool imageSet() const = 0;
 
     virtual vector<likely_const_mat> additionalArguments(likely_const_mat) const
     {
@@ -289,7 +302,7 @@ private:
     }
 };
 
-template <int const N = 0, bool const C = true>
+template <int const N = 0, bool const C = true, bool const IS = false>
 struct Test : public TestBase
 {
     int additionalParameters() const
@@ -300,6 +313,11 @@ struct Test : public TestBase
     bool color() const
     {
         return C;
+    }
+
+    bool imageSet() const
+    {
+        return IS;
     }
 };
 
@@ -551,7 +569,28 @@ class MatchTemplate : public Test<1, false>
 
 public:
     MatchTemplate()
-        : templ(generateData(8, 8, likely_f32, false)[0]) {}
+        : templ(generateData(8, 8, likely_f32, false, false)[0]) {}
+};
+
+class MeanCenter : public Test<0, false, true>
+{
+    const char *name() const
+    {
+        return "mean-center";
+    }
+
+    Mat computeBaseline(const vector<Mat> &) const
+    {
+        Mat dst;
+        return dst;
+    }
+
+    vector<likely_type> types() const
+    {
+        vector<likely_type> types;
+        types.push_back(likely_f32);
+        return types;
+    }
 };
 
 int main(int argc, char *argv[])
