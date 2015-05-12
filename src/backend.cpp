@@ -2765,6 +2765,7 @@ class kernelExpression : public LikelyOperator
             srcs.push_back(get(builder, args));
         }
 
+        const int automaticDimsIndex = reduction() ? 1 : 0;
         likely_type kernelType = likely_void;
         if (argsStart) {
             for (uint32_t i=0; i<manualDims; i++) {
@@ -2776,10 +2777,9 @@ class kernelExpression : public LikelyOperator
                 else if (i == 3) kernelType |= likely_multi_frame;
             }
         } else {
-            kernelType = srcs[0]->type;
+            kernelType = srcs[automaticDimsIndex]->type;
         }
 
-        const int automaticDimsIndex = reduction() ? 1 : 0;
         Value *kernelSize;
         if      (kernelType & likely_multi_frame)   kernelSize = argsStart ? srcs[srcs.size() - manualDims + 3]->value : builder.cast(builder.frames  (*srcs[automaticDimsIndex]), likely_u64).value;
         else if (kernelType & likely_multi_row)     kernelSize = argsStart ? srcs[srcs.size() - manualDims + 2]->value : builder.cast(builder.rows    (*srcs[automaticDimsIndex]), likely_u64).value;
