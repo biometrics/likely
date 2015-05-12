@@ -64,7 +64,12 @@ static vector<Mat> generateData(int rows, int columns, likely_type type, bool co
 {
     vector<Mat> original;
     if (lfwa) {
-
+        assert(!color);
+        const likely_const_mat m = likely_read(resolvePath("data/lfw2").data(),
+                                               likely_file_directory,
+                                               likely_video_grayscale);
+        original = likelyToOpenCVMats(m);
+        likely_release_mat(m);
     } else {
         const likely_const_mat m = likely_read(resolvePath("data/misc/lenna.tiff").data(),
                                                likely_file_media,
@@ -562,10 +567,16 @@ class MeanCenter : public Test<0, false, true>
         return "mean-center";
     }
 
-    Mat computeBaseline(const vector<Mat> &) const
+    Mat computeBaseline(const vector<Mat> &src) const
     {
-        Mat dst;
-        return dst;
+        Mat mean = src[0];
+        for (size_t i=1; i<src.size(); i++)
+            mean += src[i];
+        mean /= src.size();
+        vector<Mat> dst;
+        for (const Mat &m : src)
+            dst.push_back(m - mean);
+        return dst[0];
     }
 
     vector<likely_type> types() const
@@ -620,6 +631,7 @@ int main(int argc, char *argv[])
         MatrixMultiplication().run(parent);
         GEMM().run(parent);
         MatchTemplate().run(parent);
+//        MeanCenter().run(parent);
     }
 
     if (BenchmarkFunction.empty()) {
