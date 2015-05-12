@@ -51,11 +51,6 @@ static cl::opt<string> BenchmarkType("type", cl::desc("Benchmark the specified t
 static cl::opt<string> BenchmarkRoot("root", cl::desc("Root of the Likely repository"), cl::value_desc("path"));
 static cl::opt<int>    BenchmarkSize("size", cl::desc("Benchmark the specified size only"));
 
-static void checkRead(const void *data, const char *fileName)
-{
-    likely_ensure(data != NULL, "failed to read \"%s\", did you forget to set '-root' or run 'benchmark' from the root of the Likely repository?", fileName);
-}
-
 static string resolvePath(const string &fileName)
 {
     if (BenchmarkRoot.empty())
@@ -65,31 +60,21 @@ static string resolvePath(const string &fileName)
     return resolvedPath.str();
 }
 
-static vector<Mat> generateData(int rows, int columns, likely_type type, bool color, bool imageSet)
+static vector<Mat> generateData(int rows, int columns, likely_type type, bool color, bool lfwa)
 {
     vector<Mat> original;
-    if (imageSet) {
+    if (lfwa) {
 
     } else {
-        const char *const lenna = "data/misc/lenna.tiff";
-        const Mat m = imread(resolvePath(lenna));
-        checkRead(m.data, lenna);
-        original.push_back(m);
-    }
-
-    vector<Mat> cvt;
-    if (color) {
-        cvt = original;
-    } else {
-        for (const Mat &m : original) {
-            Mat n;
-            cvtColor(m, n, CV_BGR2GRAY);
-            cvt.push_back(n);
-        }
+        const likely_const_mat m = likely_read(resolvePath("data/misc/lenna.tiff").data(),
+                                               likely_file_media,
+                                               color ? likely_image : likely_image_grayscale);
+        original.push_back(likelyToOpenCVMat(m));
+        likely_release_mat(m);
     }
 
     vector<Mat> resized;
-    for (const Mat &m : cvt) {
+    for (const Mat &m : original) {
         Mat n;
         resize(m, n, Size(columns, rows), 0, 0, INTER_NEAREST);
         n.convertTo(n, likelyToOpenCVDepth(type));
@@ -110,7 +95,6 @@ struct TestBase
         stringstream fileName;
         fileName << "library/" << name() << ".md";
         const likely_const_mat fileSource = likely_read(resolvePath(fileName.str()).c_str(), likely_file_gfm, likely_text);
-        checkRead(fileSource, fileName.str().c_str());
         source << fileSource->data;
         likely_release_mat(fileSource);
 
@@ -131,7 +115,7 @@ struct TestBase
                 if (BenchmarkSize && (size != BenchmarkSize)) continue;
 
                 // Generate input matrix
-                const vector<Mat> srcCV = generateData(size, size, type, color(), imageSet());
+                const vector<Mat> srcCV = generateData(size, size, type, color(), lfwa());
                 const likely_mat likelySrc = likelyFromOpenCVMats(srcCV);
                 if (!(likelySrc->type & likely_floating) && ((likelySrc->type & likely_depth) <= 16))
                     likelySrc->type |= likely_saturated; // Follow OpenCV's saturation convention
@@ -168,7 +152,6 @@ struct TestBase
             return;
 
         const likely_const_mat source = likely_read(resolvePath(string("library/") + string(fileName) + string(".md")).c_str(), likely_file_gfm, likely_text);
-        checkRead(source, fileName);
 
         if (!BenchmarkQuiet)
             printf("%s \t%s \t", fileName, BenchmarkMulticore ? "m" : "s");
@@ -199,7 +182,7 @@ protected:
     virtual Mat computeBaseline(const vector<Mat> &src) const = 0;
     virtual int additionalParameters() const = 0;
     virtual bool color() const = 0;
-    virtual bool imageSet() const = 0;
+    virtual bool lfwa() const = 0;
 
     virtual vector<likely_const_mat> additionalArguments(likely_const_mat) const
     {
@@ -302,7 +285,7 @@ private:
     }
 };
 
-template <int const N = 0, bool const C = true, bool const IS = false>
+template <int const N = 0, bool const C = true, bool const LFWA = false>
 struct Test : public TestBase
 {
     int additionalParameters() const
@@ -315,9 +298,9 @@ struct Test : public TestBase
         return C;
     }
 
-    bool imageSet() const
+    bool lfwa() const
     {
-        return IS;
+        return LFWA;
     }
 };
 
