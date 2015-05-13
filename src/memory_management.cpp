@@ -15,7 +15,7 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <llvm/Pass.h>
-#include <llvm/Analysis/PostDominators.h>
+#include <llvm/Analysis/RegionInfo.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
@@ -34,8 +34,8 @@ struct MemoryManagement : public ModulePass
     void getAnalysisUsage(AnalysisUsage &analysisUsage) const override
     {
         analysisUsage.setPreservesCFG();
-        analysisUsage.addRequired<PostDominatorTree>();
-        analysisUsage.addPreserved<PostDominatorTree>();
+        analysisUsage.addRequired<RegionInfoPass>();
+        analysisUsage.addPreserved<RegionInfoPass>();
     }
 
     static void recursiveCollectDecendents(Instruction *const I, set<Instruction*> &decendents)
@@ -61,7 +61,7 @@ struct MemoryManagement : public ModulePass
             if (F.isDeclaration())
                 continue;
 
-            PostDominatorTree &PDT = getAnalysis<PostDominatorTree>(F);
+            RegionInfo &RI = getAnalysis<RegionInfoPass>(F).getRegionInfo();
 
             // Scan the function looking for calls to "likely_new"
             for (BasicBlock &BB : F)
@@ -83,12 +83,30 @@ struct MemoryManagement : public ModulePass
                     if (isRetVal)
                         continue;
 
-                    // At this point we've identified a matrix that we need to release,
-                    // now we need to figure out where to put the call to "likely_release".
-                    BasicBlock *postDominator = &F.getEntryBlock();
-                    for (Instruction *const I : decendents)
-                        postDominator = PDT.findNearestCommonDominator(postDominator, I->getParent());
+                    // Find the region that encompasses all the instructions
+                    SmallVector<BasicBlock*, 8> blocks;
+                    for (Instruction *const I : decendents) {
+                        BasicBlock *const block = I->getParent();
+                        if (find(blocks.begin(), blocks.end(), block) == blocks.end())
+                            blocks.push_back(block);
+                    }
+                    Region *const region = RI.getCommonRegion(blocks);
+                    assert(region);
 
+                    // Figure out where to insert the release call(s)
+                    vector<Instruction*> insertPoints;
+                    if (BasicBlock *const exitBlock = region->getExit()) {
+                        insertPoints.push_back(exitBlock->getFirstNonPHI());
+                    } else {
+                        // It's a top level region, scan for return instructions
+                        for (BasicBlock *const BB : region->blocks()) {
+                            TerminatorInst *const terminator = BB->getTerminator();
+                            if (isa<ReturnInst>(terminator))
+                                insertPoints.push_back(terminator);
+                        }
+                    }
+
+                    // Get or insert "likely_release_mat"
                     Function *likelyRelease = M.getFunction("likely_release_mat");
                     if (!likelyRelease) {
                         FunctionType *const functionType = FunctionType::get(Type::getVoidTy(M.getContext()), Type::getInt8PtrTy(M.getContext()), false);
@@ -98,8 +116,11 @@ struct MemoryManagement : public ModulePass
                         likelyRelease->setDoesNotCapture(1);
                     }
 
-                    IRBuilder<> builder(postDominator->getTerminator());
-                    builder.CreateCall(likelyRelease, builder.CreatePointerCast(call, Type::getInt8PtrTy(M.getContext())));
+                    for (Instruction *const insertPoint : insertPoints) {
+                        IRBuilder<> builder(insertPoint);
+                        builder.CreateCall(likelyRelease, builder.CreatePointerCast(call, Type::getInt8PtrTy(M.getContext())));
+                    }
+
                     modified = true;
                 }
         }
