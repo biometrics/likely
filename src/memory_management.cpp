@@ -26,46 +26,16 @@ using namespace std;
 
 namespace {
 
-struct MemoryManagement : public FunctionPass
+struct MemoryManagement : public ModulePass
 {
     static char ID;
-    MemoryManagement() : FunctionPass(ID) {}
+    MemoryManagement() : ModulePass(ID) {}
 
     void getAnalysisUsage(AnalysisUsage &analysisUsage) const override
     {
         analysisUsage.setPreservesCFG();
         analysisUsage.addRequired<PostDominatorTree>();
         analysisUsage.addPreserved<PostDominatorTree>();
-    }
-
-    vector<pair<CallInst* /* matrix */, TerminatorInst* /* release point */>> releaseableMatricies;
-
-    bool doInitialization(Module &) override
-    {
-        releaseableMatricies.clear();
-        return false;
-    }
-
-    bool doFinalization(Module &M)
-    {
-        if (releaseableMatricies.empty())
-            return false;
-
-        Function *likelyRelease = M.getFunction("likely_release_mat");
-        if (!likelyRelease) {
-            FunctionType *const functionType = FunctionType::get(Type::getVoidTy(M.getContext()), Type::getInt8PtrTy(M.getContext()), false);
-            likelyRelease = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_release_mat", &M);
-            likelyRelease->setCallingConv(CallingConv::C);
-            likelyRelease->setDoesNotAlias(1);
-            likelyRelease->setDoesNotCapture(1);
-        }
-
-        for (const pair<CallInst*,TerminatorInst*> &releaseableMatrix : releaseableMatricies) {
-            IRBuilder<> builder(releaseableMatrix.second);
-            builder.CreateCall(likelyRelease, builder.CreatePointerCast(releaseableMatrix.first, Type::getInt8PtrTy(M.getContext())));
-        }
-
-        return true;
     }
 
     static void recursiveCollectDecendents(Instruction *const I, set<Instruction*> &decendents)
@@ -83,49 +53,65 @@ struct MemoryManagement : public FunctionPass
         }
     }
 
-    bool runOnFunction(Function &F) override
+    bool runOnModule(Module &M) override
     {
-        PostDominatorTree &PDT = getAnalysis<PostDominatorTree>();
+        bool modified = false;
 
-        // Scan the function looking for calls to "likely_new"
-        for (BasicBlock &BB : F)
-            for (Instruction &I : BB) {
-                CallInst *const call = dyn_cast<CallInst>(&I);
-                if (!call)
-                    continue;
-                if (call->getCalledFunction()->getName() != "likely_new")
-                    continue;
-                set<Instruction*> decendents;
-                recursiveCollectDecendents(call, decendents);
+        for (Function &F : M) {
+            if (F.isDeclaration())
+                continue;
 
-                bool isRetVal = false;
-                for (Instruction *const I : decendents)
-                    if (isa<ReturnInst>(I)) {
-                        isRetVal = true;
-                        break;
+            PostDominatorTree &PDT = getAnalysis<PostDominatorTree>(F);
+
+            // Scan the function looking for calls to "likely_new"
+            for (BasicBlock &BB : F)
+                for (Instruction &I : BB) {
+                    CallInst *const call = dyn_cast<CallInst>(&I);
+                    if (!call)
+                        continue;
+                    if (call->getCalledFunction()->getName() != "likely_new")
+                        continue;
+                    set<Instruction*> decendents;
+                    recursiveCollectDecendents(call, decendents);
+
+                    bool isRetVal = false;
+                    for (Instruction *const I : decendents)
+                        if (isa<ReturnInst>(I)) {
+                            isRetVal = true;
+                            break;
+                        }
+                    if (isRetVal)
+                        continue;
+
+                    // At this point we've identified a matrix that we need to release,
+                    // now we need to figure out where to put the call to "likely_release".
+                    BasicBlock *postDominator = &F.getEntryBlock();
+                    for (Instruction *const I : decendents)
+                        postDominator = PDT.findNearestCommonDominator(postDominator, I->getParent());
+
+                    Function *likelyRelease = M.getFunction("likely_release_mat");
+                    if (!likelyRelease) {
+                        FunctionType *const functionType = FunctionType::get(Type::getVoidTy(M.getContext()), Type::getInt8PtrTy(M.getContext()), false);
+                        likelyRelease = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_release_mat", &M);
+                        likelyRelease->setCallingConv(CallingConv::C);
+                        likelyRelease->setDoesNotAlias(1);
+                        likelyRelease->setDoesNotCapture(1);
                     }
-                if (isRetVal)
-                    continue;
 
-                // At this point we've identified a matrix that we need to release,
-                // now we need to figure out where to put the call to "likely_release".
-                BasicBlock *postDominator = &F.getEntryBlock();
-                for (Instruction *const I : decendents)
-                    postDominator = PDT.findNearestCommonDominator(postDominator, I->getParent());
+                    IRBuilder<> builder(postDominator->getTerminator());
+                    builder.CreateCall(likelyRelease, builder.CreatePointerCast(call, Type::getInt8PtrTy(M.getContext())));
+                    modified = true;
+                }
+        }
 
-                // We actually insert the release calls in doFinalization()
-                // because it involves adding an external function to the module.
-                releaseableMatricies.push_back(pair<CallInst*,TerminatorInst*>(call, postDominator->getTerminator()));
-            }
-
-        return false;
+        return modified;
     }
 };
 char MemoryManagement::ID = 0;
 
 } // namespace (anonymous)
 
-FunctionPass *createMemoryManagementPass()
+ModulePass *createMemoryManagementPass()
 {
     return new MemoryManagement();
 }

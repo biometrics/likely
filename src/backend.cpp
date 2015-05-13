@@ -92,7 +92,7 @@ likely_settings likely_default_settings(likely_file_type file_type, bool verbose
 FunctionPass *createAssumptionSubstitutionPass(); // assumption_substitution.cpp
 ModulePass   *createAxisSubstitutionPass();       // axis_substitution.cpp
 LoopPass     *createLoopCollapsePass();           // loop_collapse.cpp
-FunctionPass *createMemoryManagementPass();       // memory_management.cpp
+ModulePass   *createMemoryManagementPass();       // memory_management.cpp
 
 namespace {
 
