@@ -1122,20 +1122,6 @@ struct Builder : public IRBuilder<>
         return LikelyValue(CreateCall(likelyRetain, CreatePointerCast(m, module->context->toLLVM(likely_multi_dimension))), likely_multi_dimension);
     }
 
-    LikelyValue releaseMat(Value *m)
-    {
-        Function *likelyRelease = module->module->getFunction("likely_release_mat");
-        if (!likelyRelease) {
-            FunctionType *functionType = FunctionType::get(Type::getVoidTy(getContext()), module->context->toLLVM(likely_multi_dimension), false);
-            likelyRelease = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_release_mat", module->module);
-            likelyRelease->setCallingConv(CallingConv::C);
-            likelyRelease->setDoesNotAlias(1);
-            likelyRelease->setDoesNotCapture(1);
-            sys::DynamicLibrary::AddSymbol("likely_release_mat", (void*) likely_release_mat);
-        }
-        return LikelyValue(CreateCall(likelyRelease, CreatePointerCast(m, module->context->toLLVM(likely_multi_dimension))), likely_void);
-    }
-
     void assume(Value *const condition)
     {
         Function *const assume = Intrinsic::getDeclaration(module->module, Intrinsic::assume);
