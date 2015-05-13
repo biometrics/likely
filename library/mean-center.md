@@ -9,7 +9,7 @@
         (sum src) :+>
           sum :<- (+ sum src)
 
-        average := sum.(imitate-size src.type.not-multi-frame)
+        average := sum.(imitate-size src.type)
         norm := (/ 1 src.frames.floating)
         (average sum norm) :=>
           average :<- (* sum norm)

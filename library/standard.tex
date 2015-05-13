@@ -1060,14 +1060,6 @@ new :=
                  (likely-type u32 u32 u32 u32 void-pointer))
     (f return-type channels columns rows frames data)
   }
-
-imitate-size :=
-  (mat type) :->
-    (new type mat.channels mat.columns mat.rows mat.frames null)
-
-imitate :=
-  mat :->
-    (imitate-size mat mat.type)
 \end{likely}
 
 \section{Matrix I/O}
@@ -1217,6 +1209,17 @@ imitate-columns    := (-> (t u) (| t.not-multi-column    (& u multi-column   )).
 imitate-rows       := (-> (t u) (| t.not-multi-row       (& u multi-row      )).make-type)
 imitate-frames     := (-> (t u) (| t.not-multi-frame     (& u multi-frame    )).make-type)
 imitate-dimensions := (-> (t u) (| t.not-multi-dimension (& u multi-dimension)).make-type)
+\end{likely}
+
+\section{Matrix Creation}
+\begin{likely}
+imitate-size :=
+  (mat element-type) :->
+    (new element-type.(imitate-dimensions mat.type) mat.channels mat.columns mat.rows mat.frames null)
+
+imitate :=
+  mat :->
+    (imitate-size mat mat.type)
 \end{likely}
 
 \chapter{C Library Symbols}
