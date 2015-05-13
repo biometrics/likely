@@ -92,6 +92,7 @@ likely_settings likely_default_settings(likely_file_type file_type, bool verbose
 FunctionPass *createAssumptionSubstitutionPass(); // assumption_substitution.cpp
 ModulePass   *createAxisSubstitutionPass();       // axis_substitution.cpp
 LoopPass     *createLoopCollapsePass();           // loop_collapse.cpp
+FunctionPass *createMemoryManagementPass();       // memory_management.cpp
 
 namespace {
 
@@ -139,9 +140,9 @@ struct LikelyContext : public likely_settings
         // Basic scalar optimizations
         PM->add(createEarlyCSEPass()); // Combine redundant instructions ...
         PM->add(createGVNPass());      // ... and loads prior to our substitution passes:
-        PM->add(createAssumptionSubstitutionPass()); // Our in house pass
+        PM->add(createAssumptionSubstitutionPass()); // Our in-house pass
         PM->add(createVerifierPass());               // Make sure it works :)
-        PM->add(createAxisSubstitutionPass()); // Our in house pass
+        PM->add(createAxisSubstitutionPass()); // Our-in house pass
         PM->add(createVerifierPass());         // Make sure it works :)
         PM->add(createEarlyCSEPass()); // The substitution passes will create new CSE opportunities
         PM->add(createInstructionCombiningPass()); // Cleanup
@@ -154,7 +155,7 @@ struct LikelyContext : public likely_settings
         PM->add(createLICMPass());
         PM->add(createIndVarSimplifyPass());
         PM->add(createSimpleLoopUnrollPass()); // Complete unrolling only
-        PM->add(createLoopCollapsePass()); // Our in house pass
+        PM->add(createLoopCollapsePass()); // Our in-house pass
         PM->add(createVerifierPass());     // Make sure it works :)
         PM->add(createCFGSimplificationPass()); // Cleanup
         PM->add(createInstructionCombiningPass());
@@ -166,6 +167,8 @@ struct LikelyContext : public likely_settings
         PM->add(createCFGSimplificationPass());
         PM->add(createInstructionCombiningPass());
         PM->add(createReassociatePass());
+        PM->add(createMemoryManagementPass()); // Our in-house pass
+        PM->add(createVerifierPass());         // Make sure it works :)
 
         // Vectorize the loops
         if (!human) {
