@@ -60,48 +60,25 @@ static string resolvePath(const string &fileName)
     return resolvedPath.str();
 }
 
-static vector<Mat> generateData(int rows, int columns, likely_type type, bool color, bool lfwa)
+static Mat generateData(int rows, int columns, likely_type type, bool color)
 {
-    vector<Mat> original;
-    if (lfwa) {
-        assert(!color);
-        static vector<Mat> preread;
-        if (preread.empty()) {
-            const likely_const_mat m = likely_read(resolvePath("data/lfw2").data(),
-                                                   likely_file_directory,
-                                                   likely_video_grayscale);
-            preread = likelyToOpenCVMats(m);
-            likely_release_mat(m);
-        }
-        original = preread;
-    } else {
-        static Mat preread;
-        if (!preread.data) {
-            const likely_const_mat m = likely_read(resolvePath("data/misc/lenna.tiff").data(),
-                                                   likely_file_media,
-                                                   likely_image);
-            preread = likelyToOpenCVMat(m);
-            likely_release_mat(m);
-        }
-
-        if (color) {
-            original.push_back(preread);
-        } else {
-            Mat grayscale;
-            cvtColor(preread, grayscale, CV_BGR2GRAY);
-            original.push_back(grayscale);
-        }
+    static Mat preread;
+    if (!preread.data) {
+        const likely_const_mat m = likely_read(resolvePath("data/misc/lenna.tiff").data(),
+                                               likely_file_media,
+                                               likely_image);
+        preread = likelyToOpenCVMat(m);
+        likely_release_mat(m);
     }
 
-    vector<Mat> resized;
-    for (const Mat &m : original) {
-        Mat n;
-        resize(m, n, Size(columns, rows), 0, 0, INTER_NEAREST);
-        n.convertTo(n, likelyToOpenCVDepth(type));
-        resized.push_back(n);
-    }
+    Mat original;
+    if (color) original = preread;
+    else       cvtColor(preread, original, CV_BGR2GRAY);
 
-    return resized;
+    Mat scaled;
+    resize(original, scaled, Size(columns, rows), 0, 0, INTER_NEAREST);
+    scaled.convertTo(scaled, likelyToOpenCVDepth(type));
+    return scaled;
 }
 
 struct TestBase
@@ -135,8 +112,8 @@ struct TestBase
                 if (BenchmarkSize && (size != BenchmarkSize)) continue;
 
                 // Generate input matrix
-                const vector<Mat> srcCV = generateData(size, size, type, color(), lfwa());
-                const likely_mat likelySrc = likelyFromOpenCVMats(srcCV);
+                const Mat srcCV = generateData(size, size, type, color());
+                const likely_mat likelySrc = likelyFromOpenCVMat(srcCV);
                 if (!(likelySrc->type & likely_floating) && ((likelySrc->type & likely_depth) <= 16))
                     likelySrc->type |= likely_saturated; // Follow OpenCV's saturation convention
                 vector<likely_const_mat> likelyArgs = additionalArguments(likelySrc);
@@ -199,10 +176,9 @@ struct TestBase
 
 protected:
     virtual const char *name() const = 0;
-    virtual Mat computeBaseline(const vector<Mat> &src) const = 0;
+    virtual Mat computeBaseline(const Mat &src) const = 0;
     virtual int additionalParameters() const = 0;
     virtual bool color() const = 0;
-    virtual bool lfwa() const = 0;
 
     virtual vector<likely_const_mat> additionalArguments(likely_const_mat) const
     {
@@ -241,7 +217,7 @@ private:
             : iterations(iter), Hz(double(iter) * CLOCKS_PER_SEC / (endTime-startTime)) {}
     };
 
-    void testCorrectness(likely_mat (*f)(const likely_const_mat*), const vector<Mat> &srcCV, const likely_const_mat *srcLikely) const
+    void testCorrectness(likely_mat (*f)(const likely_const_mat*), const Mat &srcCV, const likely_const_mat *srcLikely) const
     {
         Mat dstOpenCV = computeBaseline(srcCV);
         const likely_const_mat dstLikely = f(srcLikely);
@@ -278,7 +254,7 @@ private:
         likely_release_mat(dstLikely);
     }
 
-    Speed testBaselineSpeed(const vector<Mat> &src) const
+    Speed testBaselineSpeed(const Mat &src) const
     {
         clock_t startTime, endTime;
         int iter = 0;
@@ -306,7 +282,7 @@ private:
     }
 };
 
-template <int const N = 0, bool const C = true, bool const LFWA = false>
+template <int const N = 0, bool const C = true>
 struct Test : public TestBase
 {
     int additionalParameters() const
@@ -317,11 +293,6 @@ struct Test : public TestBase
     bool color() const
     {
         return C;
-    }
-
-    bool lfwa() const
-    {
-        return LFWA;
     }
 };
 
@@ -343,10 +314,10 @@ class BinaryThreshold : public Test<2>
         return args;
     }
 
-    Mat computeBaseline(const vector<Mat> &src) const
+    Mat computeBaseline(const Mat &src) const
     {
         Mat dst;
-        threshold(src[0], dst, 127, 1, THRESH_BINARY);
+        threshold(src, dst, 127, 1, THRESH_BINARY);
         return dst;
     }
 
@@ -378,10 +349,10 @@ class MultiplyAdd : public Test<2>
         return args;
     }
 
-    Mat computeBaseline(const vector<Mat> &src) const
+    Mat computeBaseline(const Mat &src) const
     {
         Mat dst;
-        src[0].convertTo(dst, src[0].depth(), 3.141592, 2.718281);
+        src.convertTo(dst, src.depth(), 3.141592, 2.718281);
         return dst;
     }
 };
@@ -393,11 +364,11 @@ class MinMaxLoc : public Test<0, false>
         return "min-max-loc";
     }
 
-    Mat computeBaseline(const vector<Mat> &src) const
+    Mat computeBaseline(const Mat &src) const
     {
         double minVal, maxVal;
         Point minLoc, maxLoc;
-        minMaxLoc(src[0], &minVal, &maxVal, &minLoc, &maxLoc);
+        minMaxLoc(src, &minVal, &maxVal, &minLoc, &maxLoc);
 
         Mat result(2, 3, CV_64FC1);
         result.at<double>(0, 0) = minVal;
@@ -417,10 +388,10 @@ class ConvertGrayscale : public Test<>
         return "convert-grayscale";
     }
 
-    Mat computeBaseline(const vector<Mat> &src) const
+    Mat computeBaseline(const Mat &src) const
     {
         Mat dst;
-        cvtColor(src[0], dst, CV_BGR2GRAY);
+        cvtColor(src, dst, CV_BGR2GRAY);
         return dst;
     }
 
@@ -441,10 +412,10 @@ class NormalizeL2 : public Test<>
         return "normalize-l2";
     }
 
-    Mat computeBaseline(const vector<Mat> &src) const
+    Mat computeBaseline(const Mat &src) const
     {
         Mat dst;
-        normalize(src[0], dst);
+        normalize(src, dst);
         return dst;
     }
 
@@ -471,9 +442,9 @@ class MatrixMultiplication : public Test<1, false>
         return args;
     }
 
-    Mat computeBaseline(const vector<Mat> &src) const
+    Mat computeBaseline(const Mat &src) const
     {
-        Mat dst = src[0] * src[0];
+        Mat dst = src * src;
         return dst;
     }
 
@@ -515,10 +486,10 @@ class GEMM : public Test<4, false>
         return args;
     }
 
-    Mat computeBaseline(const vector<Mat> &src) const
+    Mat computeBaseline(const Mat &src) const
     {
         Mat dst;
-        gemm(src[0], src[0], 3.141592, src[0], 2.718281, dst);
+        gemm(src, src, 3.141592, src, 2.718281, dst);
         return dst;
     }
 
@@ -557,10 +528,10 @@ class MatchTemplate : public Test<1, false>
         return args;
     }
 
-    Mat computeBaseline(const vector<Mat> &src) const
+    Mat computeBaseline(const Mat &src) const
     {
         Mat dst;
-        matchTemplate(src[0], templ, dst, CV_TM_CCORR);
+        matchTemplate(src, templ, dst, CV_TM_CCORR);
         return dst;
     }
 
@@ -573,7 +544,7 @@ class MatchTemplate : public Test<1, false>
 
 public:
     MatchTemplate()
-        : templ(generateData(8, 8, likely_f32, false, false)[0]) {}
+        : templ(generateData(8, 8, likely_f32, false)) {}
 };
 
 class Covariance : public Test<0, false>
@@ -583,10 +554,10 @@ class Covariance : public Test<0, false>
         return "covariance";
     }
 
-    Mat computeBaseline(const vector<Mat> &src) const
+    Mat computeBaseline(const Mat &src) const
     {
         Mat cov, mean;
-        calcCovarMatrix(src[0], cov, mean, CV_COVAR_NORMAL);
+        calcCovarMatrix(src, cov, mean, CV_COVAR_NORMAL);
         return cov;
     }
 
@@ -605,10 +576,10 @@ class Average : public Test<0, false>
         return "average";
     }
 
-    Mat computeBaseline(const vector<Mat> &src) const
+    Mat computeBaseline(const Mat &src) const
     {
         Mat average;
-        reduce(src[0], average, 0, CV_REDUCE_AVG, src[0].depth() == CV_64F ? CV_64F : CV_32F);
+        reduce(src, average, 0, CV_REDUCE_AVG, src.depth() == CV_64F ? CV_64F : CV_32F);
         return average;
     }
 
