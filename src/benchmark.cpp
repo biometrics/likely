@@ -50,6 +50,7 @@ static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the spe
 static cl::opt<string> BenchmarkType("type", cl::desc("Benchmark the specified type only"), cl::value_desc("type"));
 static cl::opt<string> BenchmarkRoot("root", cl::desc("Root of the Likely repository"), cl::value_desc("path"));
 static cl::opt<int>    BenchmarkSize("size", cl::desc("Benchmark the specified size only"));
+static cl::opt<bool>   BenchmarkNoLFWA("no-lfwa", cl::desc("Disable benchmarks on that rely on the LFWA dataset"));
 
 static string resolvePath(const string &fileName)
 {
@@ -109,6 +110,9 @@ struct TestBase
     void run(likely_const_env parent) const
     {
         if (!BenchmarkFunction.empty() && (name() != BenchmarkFunction))
+            return;
+
+        if (BenchmarkNoLFWA && lfwa())
             return;
 
         stringstream source;
