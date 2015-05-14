@@ -557,7 +557,7 @@ class Covariance : public Test<0, false>
     Mat computeBaseline(const Mat &src) const
     {
         Mat cov, mean;
-        calcCovarMatrix(src, cov, mean, CV_COVAR_NORMAL);
+        calcCovarMatrix(src, cov, mean, CV_COVAR_NORMAL | CV_COVAR_ROWS);
         return cov;
     }
 
@@ -566,6 +566,16 @@ class Covariance : public Test<0, false>
         vector<likely_type> types;
         types.push_back(likely_f64);
         return types;
+    }
+
+    vector<int> sizes() const
+    {
+        vector<int> sizes;
+        sizes.push_back(8);
+        sizes.push_back(32);
+        sizes.push_back(128);
+        sizes.push_back(512);
+        return sizes;
     }
 };
 

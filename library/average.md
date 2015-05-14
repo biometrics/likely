@@ -4,14 +4,14 @@ Compare to **[cv::reduce(CV_REDUCE_AVG)](http://docs.opencv.org/modules/core/doc
     average :=
       src :->
       {
-        sum := (new src.type.depth-atleast-32.floating.not-multi-row src.channels src.columns 1 src.frames null)
-        sum :=>
-          sum :<- 0
-        (sum src) :+>
-          sum :<- (+ sum src)
+        avg := (new src.type.depth-atleast-32.floating.not-multi-row src.channels src.columns 1 src.frames null)
+        avg :=>
+          avg :<- 0
+        (avg src) :+>
+          avg :<- (+ avg src)
         norm := (/ 1 src.rows.floating)
-        (sum norm) :=>
-          sum :<- (* sum norm)
+        (avg norm) :=>
+          avg :<- (* avg norm)
       }
 
 #### Generated LLVM IR
