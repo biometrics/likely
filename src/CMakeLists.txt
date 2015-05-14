@@ -95,10 +95,10 @@ target_link_libraries(benchmark likely_shared LLVMSupport opencv_imgproc opencv_
 install(TARGETS benchmark RUNTIME DESTINATION bin)
 add_test(NAME benchmark
          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-         COMMAND benchmark -test -no-lfwa)
+         COMMAND benchmark -test)
 add_test(NAME benchmark_parallel
          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-         COMMAND benchmark -test -no-lfwa -m)
+         COMMAND benchmark -test -m)
 
 # Main
 add_library(likely_main OBJECT main.c)
