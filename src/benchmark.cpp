@@ -580,6 +580,28 @@ public:
         : templ(generateData(8, 8, likely_f32, false, false)[0]) {}
 };
 
+class Covariance : public Test<0, false>
+{
+    const char *name() const
+    {
+        return "covariance";
+    }
+
+    Mat computeBaseline(const vector<Mat> &src) const
+    {
+        Mat cov, mean;
+        calcCovarMatrix(src[0], cov, mean, CV_COVAR_NORMAL);
+        return cov;
+    }
+
+    vector<likely_type> types() const
+    {
+        vector<likely_type> types;
+        types.push_back(likely_f64);
+        return types;
+    }
+};
+
 class MeanCenter : public Test<0, false, true>
 {
     const char *name() const
@@ -662,6 +684,7 @@ int main(int argc, char *argv[])
         GEMM().run(parent);
         MatchTemplate().run(parent);
         MeanCenter().run(parent);
+//        Covariance().run(parent);
     }
 
     if (BenchmarkFunction.empty()) {
