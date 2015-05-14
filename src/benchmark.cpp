@@ -33,7 +33,7 @@ using namespace cv;
 using namespace llvm;
 using namespace std;
 
-const double ErrorTolerance = 0.000001;
+const double ErrorTolerance = 0.00001;
 const int TestSeconds = 1;
 
 static cl::opt<bool> BenchmarkTest("test", cl::desc("Run tests for correctness only"));
@@ -250,7 +250,7 @@ private:
         absdiff(likelyToOpenCVMats(dstLikely)[0], dstOpenCV, errorMat);
         errorMat.convertTo(errorMat, CV_32F);
         dstOpenCV.convertTo(dstOpenCV, CV_32F);
-        errorMat /= (abs(dstOpenCV) + ErrorTolerance); // Normalize errors
+        errorMat /= (abs(dstOpenCV) + 1); // Normalize errors
         threshold(errorMat, errorMat, ErrorTolerance, 1, THRESH_BINARY);
 
         if (norm(errorMat, NORM_L1) > 0) {
@@ -592,7 +592,6 @@ class MeanCenter : public Test<0, false, true>
         vector<Mat> dst;
         for (const Mat &m : src)
             dst.push_back(m - mean);
-
         return dst[0]; // We only test the first image for correctness
     }
 
@@ -658,7 +657,7 @@ int main(int argc, char *argv[])
         MatrixMultiplication().run(parent);
         GEMM().run(parent);
         MatchTemplate().run(parent);
-//        MeanCenter().run(parent);
+        MeanCenter().run(parent);
     }
 
     if (BenchmarkFunction.empty()) {

@@ -22,3 +22,4 @@ Likely functions measured against their [OpenCV](http://www.opencv.org) equivale
 - [Matrix multiplication](?href=matrix-multiplication)
 - [GEMM](?href=gemm)
 - [Match template](?href=match-template)
+- [Mean center](?href=mean-center)

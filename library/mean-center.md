@@ -1,4 +1,6 @@
 ### Mean center
+There is no direct analogy to mean-centering an array of images in OpenCV.
+Arguably the idiomatic way of accomplishing this is to use [matrix expressions](http://docs.opencv.org/modules/core/doc/basic_structures.html#matrixexpressions).
 
     mean-center :=
       src :->
