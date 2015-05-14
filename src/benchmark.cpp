@@ -179,6 +179,7 @@ protected:
     virtual Mat computeBaseline(const Mat &src) const = 0;
     virtual int additionalParameters() const = 0;
     virtual bool color() const = 0;
+    virtual int maxSize() const = 0;
 
     virtual vector<likely_const_mat> additionalArguments(likely_const_mat) const
     {
@@ -196,14 +197,14 @@ protected:
         return types;
     }
 
-    virtual vector<int> sizes() const
+    vector<int> sizes() const
     {
         vector<int> sizes;
-        sizes.push_back(8);
-        sizes.push_back(32);
-        sizes.push_back(128);
-        sizes.push_back(512);
-        sizes.push_back(2048);
+        if (maxSize() >= 8)    sizes.push_back(8);
+        if (maxSize() >= 32)   sizes.push_back(32);
+        if (maxSize() >= 128)  sizes.push_back(128);
+        if (maxSize() >= 512)  sizes.push_back(512);
+        if (maxSize() >= 2048) sizes.push_back(2048);
         return sizes;
     }
 
@@ -282,7 +283,7 @@ private:
     }
 };
 
-template <int const N = 0, bool const C = true>
+template <int const N = 0, bool const C = true, const int MS = 2048>
 struct Test : public TestBase
 {
     int additionalParameters() const
@@ -293,6 +294,11 @@ struct Test : public TestBase
     bool color() const
     {
         return C;
+    }
+
+    int maxSize() const
+    {
+        return MS;
     }
 };
 
@@ -428,7 +434,7 @@ class NormalizeL2 : public Test<>
     }
 };
 
-class MatrixMultiplication : public Test<1, false>
+class MatrixMultiplication : public Test<1, false, 512>
 {
     const char *name() const
     {
@@ -455,19 +461,9 @@ class MatrixMultiplication : public Test<1, false>
         types.push_back(likely_f64);
         return types;
     }
-
-    vector<int> sizes() const
-    {
-        vector<int> sizes;
-        sizes.push_back(8);
-        sizes.push_back(32);
-        sizes.push_back(128);
-        sizes.push_back(512);
-        return sizes;
-    }
 };
 
-class GEMM : public Test<4, false>
+class GEMM : public Test<4, false, 512>
 {
     const char *name() const
     {
@@ -499,16 +495,6 @@ class GEMM : public Test<4, false>
         types.push_back(likely_f32);
         types.push_back(likely_f64);
         return types;
-    }
-
-    vector<int> sizes() const
-    {
-        vector<int> sizes;
-        sizes.push_back(8);
-        sizes.push_back(32);
-        sizes.push_back(128);
-        sizes.push_back(512);
-        return sizes;
     }
 };
 
@@ -547,7 +533,7 @@ public:
         : templ(generateData(8, 8, likely_f32, false)) {}
 };
 
-class Covariance : public Test<0, false>
+class Covariance : public Test<0, false, 512>
 {
     const char *name() const
     {
@@ -566,16 +552,6 @@ class Covariance : public Test<0, false>
         vector<likely_type> types;
         types.push_back(likely_f64);
         return types;
-    }
-
-    vector<int> sizes() const
-    {
-        vector<int> sizes;
-        sizes.push_back(8);
-        sizes.push_back(32);
-        sizes.push_back(128);
-        sizes.push_back(512);
-        return sizes;
     }
 };
 
