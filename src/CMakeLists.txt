@@ -523,6 +523,10 @@ if(NOT ${LIKELY_DEMOS} MATCHES "None")
   add_benchmark("f32XY" "gemm" "(f32XY f32XY f64 f32XY f64)")
   add_benchmark("f64XY" "gemm" "(f64XY f64XY f64 f32XY f64)")
   add_benchmark("f32XY" "match-template" "(f32XY f32XY)")
+  add_benchmark("f32X" "average" "u8XY")
+  add_benchmark("f32X" "average" "i16XY")
+  add_benchmark("f32X" "average" "f32XY")
+  add_benchmark("f64X" "average" "f64XY")
 endif()
 
 # Compile and test demos

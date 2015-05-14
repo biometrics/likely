@@ -602,40 +602,28 @@ class Covariance : public Test<0, false>
     }
 };
 
-class MeanCenter : public Test<0, false, true>
+class Average : public Test<0, false>
 {
     const char *name() const
     {
-        return "mean-center";
+        return "average";
     }
 
     Mat computeBaseline(const vector<Mat> &src) const
     {
-        Mat mean = Mat::zeros(src[0].size(), src[0].type());
-        for (const Mat &m : src)
-            mean += m;
-        mean /= src.size();
-        vector<Mat> dst;
-        for (const Mat &m : src)
-            dst.push_back(m - mean);
-        return dst[0]; // We only test the first image for correctness
+        Mat average;
+        reduce(src[0], average, 0, CV_REDUCE_AVG, src[0].depth() == CV_64F ? CV_64F : CV_32F);
+        return average;
     }
 
     vector<likely_type> types() const
     {
         vector<likely_type> types;
+        types.push_back(likely_u8);
+        types.push_back(likely_i16);
         types.push_back(likely_f32);
         types.push_back(likely_f64);
         return types;
-    }
-
-    vector<int> sizes() const
-    {
-        vector<int> sizes;
-        sizes.push_back(8);
-        sizes.push_back(32);
-        sizes.push_back(128);
-        return sizes;
     }
 };
 
@@ -683,7 +671,7 @@ int main(int argc, char *argv[])
         MatrixMultiplication().run(parent);
         GEMM().run(parent);
         MatchTemplate().run(parent);
-        MeanCenter().run(parent);
+        Average().run(parent);
 //        Covariance().run(parent);
     }
 
