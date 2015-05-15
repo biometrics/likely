@@ -1,5 +1,5 @@
 ### Multiply-add
-Compare to **[cv::Mat::convertTo](http://docs.opencv.org/2.4.8/modules/core/doc/basic_structures.html#mat-convertto)**.
+Compare to **[cv::Mat::convertTo](http://docs.opencv.org/modules/core/doc/basic_structures.html#mat-convertto)**.
 
     multiply-add :=
       (src alpha beta) :->

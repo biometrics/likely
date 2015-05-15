@@ -533,28 +533,6 @@ public:
         : templ(generateData(8, 8, likely_f32, false)) {}
 };
 
-class Covariance : public Test<0, false, 512>
-{
-    const char *name() const
-    {
-        return "covariance";
-    }
-
-    Mat computeBaseline(const Mat &src) const
-    {
-        Mat cov, mean;
-        calcCovarMatrix(src, cov, mean, CV_COVAR_NORMAL | CV_COVAR_ROWS);
-        return cov;
-    }
-
-    vector<likely_type> types() const
-    {
-        vector<likely_type> types;
-        types.push_back(likely_f64);
-        return types;
-    }
-};
-
 class Average : public Test<0, false>
 {
     const char *name() const
@@ -574,6 +552,57 @@ class Average : public Test<0, false>
         vector<likely_type> types;
         types.push_back(likely_u8);
         types.push_back(likely_i16);
+        types.push_back(likely_f32);
+        types.push_back(likely_f64);
+        return types;
+    }
+};
+
+class MultiplyTransposed : public Test<1, false>
+{
+    const char *name() const
+    {
+        return "multiply-transposed";
+    }
+
+    vector<likely_const_mat> additionalArguments(likely_const_mat src) const
+    {
+        vector<likely_const_mat> args;
+        args.push_back(likelyFromOpenCVMat(Mat::ones(1, src->columns, ((src->type & likely_depth) == 64) ? CV_64F : CV_32F)));
+        return args;
+    }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        return src;
+    }
+
+    vector<likely_type> types() const
+    {
+        vector<likely_type> types;
+        types.push_back(likely_f32);
+        types.push_back(likely_f64);
+        return types;
+    }
+};
+
+class Covariance : public Test<0, false, 512>
+{
+    const char *name() const
+    {
+        return "covariance";
+    }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat cov, mean;
+        calcCovarMatrix(src, cov, mean, CV_COVAR_NORMAL | CV_COVAR_ROWS, src.depth() == CV_64F ? CV_64F : CV_32F);
+        return cov;
+    }
+
+    vector<likely_type> types() const
+    {
+        vector<likely_type> types;
         types.push_back(likely_f32);
         types.push_back(likely_f64);
         return types;
@@ -625,6 +654,7 @@ int main(int argc, char *argv[])
         GEMM().run(parent);
         MatchTemplate().run(parent);
         Average().run(parent);
+//        MultiplyTransposed().run(parent);
 //        Covariance().run(parent);
     }
 
