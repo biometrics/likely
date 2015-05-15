@@ -121,33 +121,34 @@ y_exit:                                           ; preds = %x_exit
   ret void
 
 then3:                                            ; preds = %label.preheader, %then3
-  %21 = phi i32 [ %34, %then3 ], [ 0, %label.preheader ]
-  %22 = phi double [ %33, %then3 ], [ 0.000000e+00, %label.preheader ]
+  %21 = phi i32 [ %35, %then3 ], [ 0, %label.preheader ]
+  %22 = phi double [ %34, %then3 ], [ 0.000000e+00, %label.preheader ]
   %23 = sext i32 %21 to i64
   %24 = mul nuw nsw i64 %23, %dst_y_step
   %25 = add nuw nsw i64 %24, %x
   %26 = getelementptr %f32XY, %f32XY* %6, i64 0, i32 6, i64 %25
   %27 = load float, float* %26, align 4, !llvm.mem.parallel_loop_access !2
-  %28 = add nuw nsw i64 %24, %y
-  %29 = getelementptr %f32XY, %f32XY* %6, i64 0, i32 6, i64 %28
-  %30 = load float, float* %29, align 4, !llvm.mem.parallel_loop_access !2
-  %31 = fmul fast float %30, %27
+  %28 = fpext float %27 to double
+  %29 = add nuw nsw i64 %24, %y
+  %30 = getelementptr %f32XY, %f32XY* %6, i64 0, i32 6, i64 %29
+  %31 = load float, float* %30, align 4, !llvm.mem.parallel_loop_access !2
   %32 = fpext float %31 to double
-  %33 = fadd fast double %32, %22
-  %34 = add nuw nsw i32 %21, 1
-  %35 = icmp eq i32 %34, %8
-  br i1 %35, label %end4, label %then3
+  %33 = fmul fast double %32, %28
+  %34 = fadd fast double %33, %22
+  %35 = add nuw nsw i32 %21, 1
+  %36 = icmp eq i32 %35, %8
+  br i1 %36, label %end4, label %then3
 
 end4:                                             ; preds = %then3, %label.preheader
-  %.lcssa = phi double [ 0.000000e+00, %label.preheader ], [ %33, %then3 ]
-  %36 = fptrunc double %.lcssa to float
-  %37 = add nuw nsw i64 %x, %19
-  %38 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %37
-  store float %36, float* %38, align 4, !llvm.mem.parallel_loop_access !2
-  %39 = mul nuw nsw i64 %x, %dst_y_step
-  %40 = add nuw nsw i64 %39, %y
-  %41 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %40
-  store float %36, float* %41, align 4, !llvm.mem.parallel_loop_access !2
+  %.lcssa = phi double [ 0.000000e+00, %label.preheader ], [ %34, %then3 ]
+  %37 = fptrunc double %.lcssa to float
+  %38 = add nuw nsw i64 %x, %19
+  %39 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %38
+  store float %37, float* %39, align 4, !llvm.mem.parallel_loop_access !2
+  %40 = mul nuw nsw i64 %x, %dst_y_step
+  %41 = add nuw nsw i64 %40, %y
+  %42 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %41
+  store float %37, float* %42, align 4, !llvm.mem.parallel_loop_access !2
   br label %end
 }
 

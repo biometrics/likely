@@ -531,6 +531,10 @@ if(NOT ${LIKELY_DEMOS} MATCHES "None")
   add_benchmark("f32XY" "multiply-transposed" "(i16XY f32X)")
   add_benchmark("f32XY" "multiply-transposed" "(f32XY f32X)")
   add_benchmark("f64XY" "multiply-transposed" "(f64XY f64X)")
+  add_benchmark("f32XY" "covariance" "u8XY")
+  add_benchmark("f32XY" "covariance" "i16XY")
+  add_benchmark("f32XY" "covariance" "f32XY")
+  add_benchmark("f64XY" "covariance" "f64XY")
 endif()
 
 # Compile and test demos

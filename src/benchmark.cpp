@@ -611,6 +611,8 @@ class Covariance : public Test<0, false, 512>
     vector<likely_type> types() const
     {
         vector<likely_type> types;
+        types.push_back(likely_u8);
+        types.push_back(likely_i16);
         types.push_back(likely_f32);
         types.push_back(likely_f64);
         return types;
@@ -663,7 +665,7 @@ int main(int argc, char *argv[])
         MatchTemplate().run(parent);
         Average().run(parent);
         MultiplyTransposed().run(parent);
-//        Covariance().run(parent);
+        Covariance().run(parent);
     }
 
     if (BenchmarkFunction.empty()) {

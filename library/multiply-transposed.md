@@ -15,8 +15,8 @@ Compare to **[cv::multransposed](http://docs.opencv.org/modules/core/doc/operati
           (<= y x) :?
           {
             dot := 0.f64.$
-            (-> i (<- dot (+ dot (* (centered c x i t)
-                                    (centered c y i t))))).(iter len)
+            (-> i (<- dot (+ dot (* (centered c x i t).f64
+                                    (centered c y i t).f64)))).(iter len)
             dst         :<- dot
             (dst c y x) :<- dot
           }
