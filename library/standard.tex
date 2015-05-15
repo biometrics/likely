@@ -985,11 +985,8 @@ my-abs := (-> x (? (>= x 0) x (- x)))
                                  ;   int my_abs(int);
 \end{verbatim}
 
-\subsection{this}
-The \dindex{this} operand refers to the current \dindex{environment} of referenceable variables.
-Likely's ability to self-execute code, such as when including the contents of another file, are made possible by \emph{\pindex{this}}.
-
-In terms of the Likely API, the returned value is a pointer to a \tindex{likely\char`_environment}, and is most useful in conjunction with the function \tindex{likely\char`_eval}.
+\subsection{import}
+The \dindex{import} operator reads and evaluates a source code file.
 
 \part{Standard Library}
 \chapter{Basic Symbols}
@@ -1112,37 +1109,6 @@ read-directory-grayscale :=
 
 read-matrix :=
   (-> file-name [ (read file-name matrix multi-dimension) ])
-\end{likely}
-
-\section{Compiler Frontend}
-\begin{likely}
-lex   := (extern ast "likely_lex" (string likely-file-type))
-parse := (extern ast "likely_parse" ast)
-lex-and-parse := (extern ast
-                         "likely_lex_and_parse"
-                         (string likely-file-type))
-\end{likely}
-
-\section{Compiler Backend}
-\begin{likely}
-eval := (extern env
-                "likely_eval"
-                (ast env void-pointer void-pointer))
-\end{likely}
-
-\section{Import}
-\begin{likely}
-import-string :=
-  (source-code source-type environment) :->
-    (lex-and-parse source-code source-type)
-   .(eval environment null null)
-
-import :=
-  (file-name environment) :->
-    file-name
-   .(read guess text)
-   .data
-   .(import-string file-name.guess-file-type environment)
 \end{likely}
 
 \section{Type Querying}

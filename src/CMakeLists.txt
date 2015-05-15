@@ -445,7 +445,7 @@ test_expr("(min -1 1.3)" -1)
 test_expr("(max 1 -1.3)" 1)
 test_expr("(new u8CXY 3 512 512 1 null).elements" 786432)
 test_expr("(new u8CXY 3 512 512 1 null).bytes" 786432)
-test_expr("\"library/literate_programming.md\".(import this)" 42)
+test_expr("\"library/literate_programming.md\".import" 42)
 test_expr("(cast 2.3 2)" 2)
 test_expr("(cast 2.3 2.f32)" 2.3)
 test_expr("(+ (u8.depth-double 255) 1.u8)" 256)
@@ -491,7 +491,7 @@ function(add_benchmark RETVAL FILE PARAMETERS)
     set(IR_FILE ${LIKELY_BENCHMARKS_DIR}/${FILE_NAME}.ll)
     add_custom_command(OUTPUT ${IR_FILE}
                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                       COMMAND likely -ro ${KERNEL_TYPE} -c "(import \"library/${FILE}.md\" this) (extern ${RETVAL} \"${SYMBOL_NAME}\" ${PARAMETERS} ${FILE})" ${IR_FILE}
+                       COMMAND likely -ro ${KERNEL_TYPE} -c "(import \"library/${FILE}.md\") (extern ${RETVAL} \"${SYMBOL_NAME}\" ${PARAMETERS} ${FILE})" ${IR_FILE}
                        DEPENDS likely ${CMAKE_SOURCE_DIR}/library/${FILE}.md
                        VERBATIM)
     add_custom_target(${FILE_NAME} ALL

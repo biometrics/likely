@@ -1,8 +1,8 @@
 ### Covariance
 Compare to **[cv::calcCovarMatrix](http://docs.opencv.org/modules/core/doc/operations_on_arrays.html#calccovarmatrix)**.
 
-    "library/average.md".(import this)
-    "library/multiply-transposed.md".(import this)
+    "library/average.md".import
+    "library/multiply-transposed.md".import
 
     covariance :=
       src :->

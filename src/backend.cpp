@@ -3285,6 +3285,17 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
             if (LikelyFunction::isSymbol(symbol)) {
                 Builder builder(parent, parent->module);
                 expr = likely_expression::get(builder, statement);
+            } else if (!strcmp(symbol, "import")) {
+                const likely_const_ast path = statement->atoms[1];
+                assert((path->atom[0] == '"') && (path->atom[path->atom_len-1] == '"'));
+                const_cast<likely_ast>(path)->type = likely_ast_string;
+                const string fileName = string(path->atom).substr(1, path->atom_len-2);
+                const likely_type fileType = likely_guess_file_type(fileName.c_str());
+                const likely_const_mat source = likely_read(fileName.c_str(), fileType, likely_text);
+                const likely_ast sourceAst = likely_lex_and_parse(source->data, fileType);
+                env = likely_eval(sourceAst, parent, eval_callback, context);
+                likely_release_ast(sourceAst);
+                likely_release_mat(source);
             } else {
                 const Variant data = Lambda(parent, statement).evaluateConstantFunction();
 
