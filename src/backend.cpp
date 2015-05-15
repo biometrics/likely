@@ -419,8 +419,6 @@ struct Variant
 {
     union {
         void *value = NULL;
-        likely_const_ast ast;
-        likely_const_env env;
         likely_const_mat mat;
     };
     likely_type type;
@@ -439,17 +437,11 @@ struct Variant
     Variant(likely_const_mat mat)
         : Variant((void*) mat, mat ? mat->type : likely_type(likely_void)) {}
 
-    Variant(likely_const_env env)
-        : Variant((void*) env, envType()) {}
-
     ~Variant()
     {
         if (!value)
             return;
-
-        if      (type == astType()) likely_release_ast(ast);
-        else if (type == envType()) likely_release_env(env);
-        else                        likely_release_mat(mat);
+        likely_release_mat(mat);
     }
 
     Variant(const Variant &other)
@@ -460,17 +452,13 @@ struct Variant
     Variant &operator=(const Variant &other)
     {
         type = other.type;
-        if      (!other.value)      value = NULL;
-        else if (type == astType()) value = likely_retain_ast(other);
-        else if (type == envType()) value = likely_retain_env(other);
-        else                        value = likely_retain_mat(other);
+        if      (!other.value) value = NULL;
+        else                   value = likely_retain_mat(other);
         return *this;
     }
 
     operator bool() const { return value != NULL; }
-    operator likely_const_ast() const { return (value && (type == astType())) ? ast : NULL; }
-    operator likely_const_env() const { return (value && (type == envType())) ? env : NULL; }
-    operator likely_const_mat() const { return (value && ((type != astType()) && (type != envType()))) ? mat : NULL; }
+    operator likely_const_mat() const { return mat; }
 
 private:
     // We carefully avoid unnecessary calls to these functions in order to
@@ -1821,16 +1809,6 @@ class makeTypeExpression : public SimpleUnaryOperator
     }
 };
 LIKELY_REGISTER(makeType)
-
-class thisExpression : public Operand
-{
-    const char *symbol() const { return "this"; }
-    likely_const_expr evaluateOperand(Builder &builder) const
-    {
-        return new ConstantData(builder, likely_retain_env(builder.env));
-    }
-};
-LIKELY_REGISTER(this)
 
 class UnaryMathOperator : public SimpleUnaryOperator
 {
@@ -3228,10 +3206,6 @@ likely_const_mat likely_result(const struct likely_expression *expr)
 {
     if (!expr)
         return NULL;
-
-    if (const likely_const_ast ast = expr->getData())
-        return likely_ast_to_string(ast, -1);
-
     return (likely_const_mat) expr->getData();
 }
 
@@ -3298,22 +3272,8 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
                 likely_release_mat(source);
             } else {
                 const Variant data = Lambda(parent, statement).evaluateConstantFunction();
-
-                // If the result of a computation is a new environment then use that environment (an import statement for example).
-                // Otherwise, construct a new expression from the result.
-                if (const likely_const_env evaluated = data) {
-                    // Confirm the returned environment is a descendant of `parent`
-                    likely_const_env tmp = evaluated->parent;
-                    while (tmp && (tmp != parent))
-                        tmp = tmp->parent;
-                    likely_ensure(tmp != NULL, "evaluation expected a descendant environment.");
-
-                    env = likely_retain_env(evaluated);
-                    env->module = parent->module;
-                } else {
-                    expr = data ? new ConstantData(data) : NULL;
-                }
-           }
+                expr = data ? new ConstantData(data) : NULL;
+            }
         }
 
         if (!env)
