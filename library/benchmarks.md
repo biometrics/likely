@@ -24,3 +24,4 @@ Likely functions measured against their [OpenCV](http://www.opencv.org) equivale
 - [Match template](?href=match-template)
 - [Average](?href=average)
 - [Multiply transposed](?href=multiply-transposed)
+- [Covariance](?href=covariance)
