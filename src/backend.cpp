@@ -417,30 +417,13 @@ struct Builder;
 
 struct Variant
 {
-    union {
-        void *value = NULL;
-        likely_const_mat mat;
-    };
-    likely_type type;
+    likely_const_mat mat;
 
-    Variant(void *value, likely_type type)
-        : value(value), type(type)
-    {
-        // If it's actually a matrix, let's discover it's real type
-        if (const likely_const_mat mat = *this)
-            this->type = mat->type;
-    }
-
-    Variant()
-        : Variant(NULL, likely_void) {}
-
-    Variant(likely_const_mat mat)
-        : Variant((void*) mat, mat ? mat->type : likely_type(likely_void)) {}
+    Variant(likely_const_mat mat = NULL)
+        : mat(mat) {}
 
     ~Variant()
     {
-        if (!value)
-            return;
         likely_release_mat(mat);
     }
 
@@ -451,30 +434,12 @@ struct Variant
 
     Variant &operator=(const Variant &other)
     {
-        type = other.type;
-        if      (!other.value) value = NULL;
-        else                   value = likely_retain_mat(other);
+        mat = likely_retain_mat(other.mat);
         return *this;
     }
 
-    operator bool() const { return value != NULL; }
+    operator bool() const { return mat != NULL; }
     operator likely_const_mat() const { return mat; }
-
-private:
-    // We carefully avoid unnecessary calls to these functions in order to
-    // sidestep the static initialization order fiasco with variables handling
-    // pointer and struct types in frontend.cpp.
-    static likely_type astType()
-    {
-        static likely_type ast = likely_pointer_type(likely_struct_type("ast", NULL, 0));
-        return ast;
-    }
-
-    static likely_type envType()
-    {
-        static likely_type env = likely_pointer_type(likely_struct_type("env", NULL, 0));
-        return env;
-    }
 };
 
 typedef struct likely_expression *likely_expr;
@@ -1166,7 +1131,7 @@ struct ConstantData : public likely_expression
             return;
 
         setData(data);
-        type = data.type;
+        type = data.mat->type;
 
         // Special case, return the scalar
         if (const likely_const_mat m = data)
@@ -1176,9 +1141,9 @@ struct ConstantData : public likely_expression
             }
 
         // Make sure the lifetime of the data is at least as long as the lifetime of the code.
-        Constant *const address = ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(void*)), uintptr_t(data.value));
+        Constant *const address = ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(void*)), uintptr_t(data.mat));
         builder.module->data.push_back(pair<Variant,Constant*>(data, address));
-        value = ConstantExpr::getIntToPtr(address, builder.module->context->toLLVM(data.type));
+        value = ConstantExpr::getIntToPtr(address, builder.module->context->toLLVM(data.mat->type));
     }
 
 private:
@@ -1244,7 +1209,7 @@ struct LikelyFunction : public LikelyOperator
         return !strcmp(symbol, "->") || !strcmp(symbol, "extern");
     }
 
-    Variant evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const;
+    likely_mat evaluateConstantFunction(const vector<likely_const_mat> &args = vector<likely_const_mat>()) const;
 
     likely_const_expr generate(Builder &builder, vector<likely_type> parameters, string name, bool promoteScalarToMatrix, CallingConvention cc, const vector<likely_type> &virtualTypes = vector<likely_type>()) const
     {
@@ -1581,21 +1546,19 @@ private:
     }
 };
 
-Variant LikelyFunction::evaluateConstantFunction(const vector<likely_const_mat> &args) const
+likely_mat LikelyFunction::evaluateConstantFunction(const vector<likely_const_mat> &args) const
 {
     vector<likely_type> params;
     for (const likely_const_mat arg : args)
         params.push_back(arg->type);
 
     JITFunction jit("likely_ctfe", this, params, true, args.empty() ? LikelyFunction::RegularCC : LikelyFunction::ArrayCC);
-    void *value;
     if (jit.function) { // compiler
-        value = args.empty() ? reinterpret_cast<void *(*)()>(jit.function)()
-                             : reinterpret_cast<void *(*)(likely_const_mat const*)>(jit.function)(args.data());
+        return args.empty() ? reinterpret_cast<likely_mat (*)()>(jit.function)()
+                            : reinterpret_cast<likely_mat (*)(likely_const_mat const*)>(jit.function)(args.data());
     } else { // constant or error
-        value = likely_retain_mat(jit.getData());
+        return likely_retain_mat(jit.getData());
     }
-    return Variant(value, jit.type);
 }
 
 } // namespace (anonymous)
