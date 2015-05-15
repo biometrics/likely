@@ -415,24 +415,24 @@ struct Builder;
 
 } // namespace (anonymous)
 
-struct Variant
+struct SharedMat
 {
     likely_const_mat mat;
 
-    Variant(likely_const_mat mat = NULL)
+    SharedMat(likely_const_mat mat = NULL)
         : mat(mat) {}
 
-    ~Variant()
+    ~SharedMat()
     {
         likely_release_mat(mat);
     }
 
-    Variant(const Variant &other)
+    SharedMat(const SharedMat &other)
     {
         *this = other;
     }
 
-    Variant &operator=(const Variant &other)
+    SharedMat &operator=(const SharedMat &other)
     {
         mat = likely_retain_mat(other.mat);
         return *this;
@@ -470,7 +470,7 @@ struct likely_expression : public LikelyValue
 {
     mutable vector<likely_vtable> vtables;
 
-    likely_expression(const LikelyValue &value = LikelyValue(), const Variant &data = Variant())
+    likely_expression(const LikelyValue &value = LikelyValue(), const SharedMat &data = SharedMat())
         : LikelyValue(value), data(data) {}
 
     virtual ~likely_expression(); // use release()
@@ -502,7 +502,7 @@ struct likely_expression : public LikelyValue
     virtual size_t minParameters() const { return maxParameters(); }
     virtual const char *symbol() const { return ""; }
 
-    virtual Variant getData() const
+    virtual SharedMat getData() const
     {
         if (data || !value)
             return data;
@@ -527,7 +527,7 @@ struct likely_expression : public LikelyValue
                         m = likely_string(constantDataSequential->getAsCString().data());
         }
 
-        data = Variant(m);
+        data = SharedMat(m);
         return data;
     }
 
@@ -623,13 +623,13 @@ protected:
         }
     }
 
-    void setData(const Variant &data) const
+    void setData(const SharedMat &data) const
     {
         this->data = data;
     }
 
 private:
-    mutable Variant data; // use getData() and setData()
+    mutable SharedMat data; // use getData() and setData()
     mutable uint32_t ref_count = 1;
 
     static likely_const_expr _get(Builder &builder, likely_const_ast ast);
@@ -645,7 +645,7 @@ struct likely_module
 {
     unique_ptr<LikelyContext> context;
     Module *module;
-    vector<pair<Variant,Constant*>> data;
+    vector<pair<SharedMat,Constant*>> data;
 
     likely_module(const likely_settings &settings)
         : context(new LikelyContext(settings))
@@ -691,7 +691,7 @@ public:
     {
         // Inline constant mats as they won't be around after the program exits!
         int inlinedIndex = 0;
-        for (const pair<Variant,Constant*> &datum : data) {
+        for (const pair<SharedMat,Constant*> &datum : data) {
             bool used = false;
             for (User *user : datum.second->users())
                 if (user->getNumUses() > 0) {
@@ -1122,10 +1122,10 @@ private:
 
 struct ConstantData : public likely_expression
 {
-    ConstantData(const Variant &data)
+    ConstantData(const SharedMat &data)
         : likely_expression(LikelyValue(), data) {}
 
-    ConstantData(Builder &builder, const Variant &data)
+    ConstantData(Builder &builder, const SharedMat &data)
     {
         if (!data)
             return;
@@ -1142,7 +1142,7 @@ struct ConstantData : public likely_expression
 
         // Make sure the lifetime of the data is at least as long as the lifetime of the code.
         Constant *const address = ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(void*)), uintptr_t(data.mat));
-        builder.module->data.push_back(pair<Variant,Constant*>(data, address));
+        builder.module->data.push_back(pair<SharedMat,Constant*>(data, address));
         value = ConstantExpr::getIntToPtr(address, builder.module->context->toLLVM(data.mat->type));
     }
 
@@ -1514,7 +1514,7 @@ private:
         type = expr->type;
 
         if (evaluate) // Check for the case of a constant value
-            if (const Variant constant = expr->getData()) {
+            if (const SharedMat constant = expr->getData()) {
                 setData(constant);
                 if (module->context->verbose)
                     module->module->print(outs(), NULL);
@@ -2416,7 +2416,7 @@ class evaluateExpression : public LikelyOperator
 
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        const Variant data = Lambda(builder.env, ast->atoms[1]).evaluateConstantFunction();
+        const SharedMat data = Lambda(builder.env, ast->atoms[1]).evaluateConstantFunction();
         return data ? new ConstantData(builder, data) : NULL;
     }
 };
@@ -3234,7 +3234,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
                 likely_release_ast(sourceAst);
                 likely_release_mat(source);
             } else {
-                const Variant data = Lambda(parent, statement).evaluateConstantFunction();
+                const SharedMat data = Lambda(parent, statement).evaluateConstantFunction();
                 expr = data ? new ConstantData(data) : NULL;
             }
         }
