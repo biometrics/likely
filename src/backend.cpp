@@ -1148,10 +1148,18 @@ private:
 
 struct ConstantString : public likely_expression
 {
-    ConstantString(Builder &builder, const likely_const_mat str)
+    GlobalVariable *gv;
+
+    ConstantString(Builder &builder, const likely_const_mat str, GlobalVariable *gv = NULL)
     {
         setData(str);
-        value = builder.CreateGlobalStringPtr(str->data, str->data);
+        if (!gv || (gv->getParent() != builder.module->module))
+            gv = builder.CreateGlobalString(str->data, str->data);
+        this->gv = gv;
+
+        Value *zero = ConstantInt::get(Type::getInt32Ty(builder.getContext()), 0);
+        Value *Args[] = { zero, zero };
+        value = builder.CreateInBoundsGEP(gv->getValueType(), gv, Args);
         type = likely_pointer_type(likely_i8);
     }
 
@@ -1159,7 +1167,7 @@ private:
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
         assert(ast->type != likely_ast_list);
-        return new ConstantString(builder, likely_retain_mat(getData()));
+        return new ConstantString(builder, likely_retain_mat(getData()), gv);
     }
 };
 
