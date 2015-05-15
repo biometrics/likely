@@ -114,7 +114,6 @@ struct LikelyContext : public likely_settings
             initializeVectorization(Registry);
             initializeIPO(Registry);
             initializeAnalysis(Registry);
-            initializeIPA(Registry);
             initializeTransformUtils(Registry);
             initializeInstCombine(Registry);
             initializeTarget(Registry);
