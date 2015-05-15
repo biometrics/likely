@@ -112,7 +112,8 @@ struct TestBase
                 if (BenchmarkSize && (size != BenchmarkSize)) continue;
 
                 // Generate input matrix
-                const Mat srcCV = generateData(size, size, type, color());
+                const Mat srcCV = preprocess(generateData(size, size, type, color()));
+
                 const likely_mat likelySrc = likelyFromOpenCVMat(srcCV);
                 if (!(likelySrc->type & likely_floating) && ((likelySrc->type & likely_depth) <= 16))
                     likelySrc->type |= likely_saturated; // Follow OpenCV's saturation convention
@@ -178,6 +179,7 @@ struct TestBase
 
 protected:
     virtual const char *name() const = 0;
+    virtual Mat preprocess(const Mat &src) const { return src; }
     virtual Mat computeBaseline(const Mat &src) const = 0;
     virtual int additionalParameters() const = 0;
     virtual bool color() const = 0;
@@ -220,13 +222,32 @@ private:
             : iterations(iter), Hz(double(iter) * CLOCKS_PER_SEC / (endTime-startTime)) {}
     };
 
+    void checkAxis(uint32_t expected, uint32_t actual) const
+    {
+        if (expected == actual)
+            return;
+
+        fprintf(stderr, "Test for: %s differs in channel count, exptected: %d but got %d", name(), expected, actual);
+        exit(EXIT_FAILURE);
+    }
+
     void testCorrectness(likely_mat (*f)(const likely_const_mat*), const Mat &srcCV, const likely_const_mat *srcLikely) const
     {
         Mat dstOpenCV = computeBaseline(srcCV);
         const likely_const_mat dstLikely = f(srcLikely);
 
+        if (!dstLikely) {
+            fprintf(stderr, "Likely returned NULL!");
+            exit(EXIT_FAILURE);
+        }
+
+        checkAxis(dstOpenCV.channels(), dstLikely->channels);
+        checkAxis(dstOpenCV.cols      , dstLikely->columns );
+        checkAxis(dstOpenCV.rows      , dstLikely->rows    );
+        checkAxis(1                   , dstLikely->frames  );
+
         Mat errorMat;
-        absdiff(likelyToOpenCVMats(dstLikely)[0], dstOpenCV, errorMat);
+        absdiff(likelyToOpenCVMat(dstLikely), dstOpenCV, errorMat);
         errorMat.convertTo(errorMat, CV_32F);
         dstOpenCV.convertTo(dstOpenCV, CV_32F);
         errorMat /= (abs(dstOpenCV) + 1); // Normalize errors
@@ -619,6 +640,36 @@ class Covariance : public Test<0, false, 512>
     }
 };
 
+class Eigen : public Test<0, false, 128>
+{
+    const char *name() const
+    {
+        return "eigen";
+    }
+
+    Mat preprocess(const Mat &src) const
+    {
+        Mat cov, mean;
+        calcCovarMatrix(src, cov, mean, CV_COVAR_NORMAL | CV_COVAR_ROWS, src.depth() == CV_64F ? CV_64F : CV_32F);
+        return cov;
+    }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat eigenValues, eigenVectors;
+        eigen(src, true, eigenValues, eigenVectors);
+        return eigenVectors;
+    }
+
+    vector<likely_type> types() const
+    {
+        vector<likely_type> types;
+        types.push_back(likely_f32);
+        types.push_back(likely_f64);
+        return types;
+    }
+};
+
 int main(int argc, char *argv[])
 {
     cl::ParseCommandLineOptions(argc, argv);
@@ -666,6 +717,7 @@ int main(int argc, char *argv[])
         Average().run(parent);
         MultiplyTransposed().run(parent);
         Covariance().run(parent);
+//        Eigen().run(parent);
     }
 
     if (BenchmarkFunction.empty()) {
