@@ -527,6 +527,10 @@ if(NOT ${LIKELY_DEMOS} MATCHES "None")
   add_benchmark("f32X" "average" "i16XY")
   add_benchmark("f32X" "average" "f32XY")
   add_benchmark("f64X" "average" "f64XY")
+  add_benchmark("f32XY" "multiply-transposed" "(u8XY f32X)")
+  add_benchmark("f32XY" "multiply-transposed" "(i16XY f32X)")
+  add_benchmark("f32XY" "multiply-transposed" "(f32XY f32X)")
+  add_benchmark("f64XY" "multiply-transposed" "(f64XY f64X)")
 endif()
 
 # Compile and test demos

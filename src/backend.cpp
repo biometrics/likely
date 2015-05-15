@@ -2577,7 +2577,7 @@ class ifExpression : public LikelyOperator
                 return new likely_expression(LikelyValue(phi, resolved));
             }
         } else {
-            if (True->empty() || !True->back().isTerminator())
+            if (builder.GetInsertBlock()->empty() || !builder.GetInsertBlock()->back().isTerminator())
                 builder.CreateBr(End);
             builder.SetInsertPoint(End);
             return new likely_expression();

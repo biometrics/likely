@@ -119,10 +119,12 @@ struct TestBase
                 vector<likely_const_mat> likelyArgs = additionalArguments(likelySrc);
                 likelyArgs.insert(likelyArgs.begin(), likelySrc);
 
-                const likely_const_mat typeString = likely_type_to_string(type);
-                if (!BenchmarkQuiet)
+                if (!BenchmarkQuiet) {
+                    const likely_const_mat typeString = likely_type_to_string(type);
                     printf("%s \t%s \t%d \t%s\t", name(), typeString->data, size, BenchmarkMulticore ? "m" : "s");
-                likely_release_mat(typeString);
+                    likely_release_mat(typeString);
+                }
+
                 testCorrectness(reinterpret_cast<likely_mat (*)(const likely_const_mat*)>(f), srcCV, likelyArgs.data());
 
                 if (!BenchmarkTest) {
@@ -242,7 +244,7 @@ private:
                         if (errorMat.at<float>(i, j*channels + k) == 1) {
                             const double cv  = likely_get_element(cvLikely , k, j, i, 0);
                             const double dst = likely_get_element(dstLikely, k, j, i, 0);
-                            if (errors < 100) errorLocations << cv << "\t" << dst << "\t" << i << "\t" << j << "\t" << k << "\n";
+                            if (errors < 100) errorLocations << cv << " \t" << dst << " \t" << i << " \t" << j << " \t" << k << "\n";
                             errors++;
                         }
             if (errors > 0) {
@@ -558,28 +560,34 @@ class Average : public Test<0, false>
     }
 };
 
-class MultiplyTransposed : public Test<1, false>
+class MultiplyTransposed : public Test<1, false, 512>
 {
     const char *name() const
     {
         return "multiply-transposed";
     }
 
+    mutable Mat delta;
     vector<likely_const_mat> additionalArguments(likely_const_mat src) const
     {
         vector<likely_const_mat> args;
-        args.push_back(likelyFromOpenCVMat(Mat::ones(1, src->columns, ((src->type & likely_depth) == 64) ? CV_64F : CV_32F)));
+        delta = Mat::ones(1, src->columns, ((src->type & likely_depth) == 64) ? CV_64F : CV_32F);
+        args.push_back(likelyFromOpenCVMat(delta));
         return args;
     }
 
     Mat computeBaseline(const Mat &src) const
     {
-        return src;
+        Mat dst;
+        mulTransposed(src, dst, true, delta);
+        return dst;
     }
 
     vector<likely_type> types() const
     {
         vector<likely_type> types;
+        types.push_back(likely_u8);
+        types.push_back(likely_i16);
         types.push_back(likely_f32);
         types.push_back(likely_f64);
         return types;
@@ -654,7 +662,7 @@ int main(int argc, char *argv[])
         GEMM().run(parent);
         MatchTemplate().run(parent);
         Average().run(parent);
-//        MultiplyTransposed().run(parent);
+        MultiplyTransposed().run(parent);
 //        Covariance().run(parent);
     }
 
