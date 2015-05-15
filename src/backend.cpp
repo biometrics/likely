@@ -21,14 +21,11 @@
 #include <llvm/ADT/Hashing.h>
 #include <llvm/ADT/Triple.h>
 #include <llvm/Analysis/AssumptionCache.h>
-#include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Analysis/LoopPass.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
 #include <llvm/Bitcode/ReaderWriter.h>
-#include <llvm/ExecutionEngine/GenericValue.h>
-#include <llvm/ExecutionEngine/Interpreter.h>
 #include <llvm/ExecutionEngine/ObjectCache.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/IR/ConstantRange.h>
@@ -1577,30 +1574,13 @@ private:
         evaluate = false;
 #endif // _WIN32
 
-        // Don't run the interpreter on a module with loops, better to compile and execute it instead.
-        if (evaluate) {
-            legacy::PassManager PM;
-            HasLoop *hasLoop = new HasLoop();
-            PM.add(hasLoop);
-            PM.run(*module->module);
-            evaluate = !hasLoop->hasLoop;
-        }
-
-        EE = createExecutionEngine(unique_ptr<Module>(module->module),
-                                   evaluate ? EngineKind::Interpreter : EngineKind::JIT);
-
-        if (!evaluate) {
-            // optimize
-            EE->setObjectCache(&TheJITFunctionCache);
-            if (!TheJITFunctionCache.alert(module->module))
-                module->context->PM->run(*module->module);
-        }
-
+        EE = createExecutionEngine(unique_ptr<Module>(module->module), EngineKind::JIT);
+        EE->setObjectCache(&TheJITFunctionCache);
+        if (!TheJITFunctionCache.alert(module->module))
+            module->context->PM->run(*module->module);
         if (module->context->verbose)
             module->module->print(outs(), NULL);
-
-        if (!evaluate)
-            compileAndCleanup();
+        compileAndCleanup();
     }
 
     void compileAndCleanup()
@@ -1612,22 +1592,6 @@ private:
         module->finalize();
         value = NULL;
     }
-
-    struct HasLoop : public LoopInfoWrapperPass
-    {
-        bool hasLoop = false;
-
-    private:
-        bool runOnFunction(Function &F)
-        {
-            if (hasLoop)
-                return false;
-
-            const bool result = LoopInfoWrapperPass::runOnFunction(F);
-            hasLoop = !getLoopInfo().empty();
-            return result;
-        }
-    };
 };
 
 Variant LikelyFunction::evaluateConstantFunction(const vector<likely_const_mat> &args) const
@@ -1641,11 +1605,6 @@ Variant LikelyFunction::evaluateConstantFunction(const vector<likely_const_mat> 
     if (jit.function) { // compiler
         value = args.empty() ? reinterpret_cast<void *(*)()>(jit.function)()
                              : reinterpret_cast<void *(*)(likely_const_mat const*)>(jit.function)(args.data());
-    } else if (jit.EE) { // interpreter
-        vector<GenericValue> gv;
-        if (!args.empty())
-            gv.push_back(GenericValue((void*) args.data()));
-        value = jit.EE->runFunction(cast<Function>(jit.value), gv).PointerVal;
     } else { // constant or error
         value = likely_retain_mat(jit.getData());
     }
