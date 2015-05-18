@@ -528,6 +528,7 @@ struct likely_expression : public LikelyValue
     }
 
     virtual likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const;
+    virtual Value *gep(Builder &builder, likely_const_ast ast) const;
     virtual void set(Builder &builder, const likely_expression &expr, likely_const_ast ast) const;
 
     static size_t length(likely_const_ast ast)
@@ -2868,19 +2869,17 @@ likely_expression::~likely_expression()
         delete vtable;
 }
 
-likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast ast) const
+Value *likely_expression::gep(Builder &builder, likely_const_ast ast) const
 {
     if ((type & likely_compound_pointer) && (ast->type == likely_ast_list)) {
-        Value *ptr;
         if (ast->num_atoms == 1) {
-            ptr = value;
+            return value;
         } else {
             assert(ast->num_atoms == 2);
             const UniqueExpression index(get(builder, ast->atoms[1]));
             assert(index);
-            ptr = builder.CreateGEP(value, builder.cast(*index, likely_u32));
+            return builder.CreateGEP(value, builder.cast(*index, likely_u32));
         }
-        return new likely_expression(LikelyValue(builder.CreateLoad(ptr), likely_element_type(type)));
     }
 
     if ((type & likely_multi_dimension) && (ast->type == likely_ast_list)) {
@@ -2905,9 +2904,20 @@ likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast
         index = builder.CreateAdd(index, builder.CreateMul(column, channels));
         index = builder.CreateAdd(index, channel);
 
-        Value *const load = builder.CreateLoad(builder.CreateGEP(builder.data(*this), index));
-        return new likely_expression(LikelyValue(load, type & likely_element));
+        return builder.CreateGEP(builder.data(*this), index);
     }
+
+    assert(!"GEP logic error");
+    return NULL;
+}
+
+likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast ast) const
+{
+    if ((type & likely_compound_pointer) && (ast->type == likely_ast_list))
+        return new likely_expression(LikelyValue(builder.CreateLoad(gep(builder, ast)), likely_element_type(type)));
+
+    if ((type & likely_multi_dimension) && (ast->type == likely_ast_list))
+        return new likely_expression(LikelyValue(builder.CreateLoad(gep(builder, ast)), type & likely_element));
 
     return new likely_expression(LikelyValue(value, type));
 }
