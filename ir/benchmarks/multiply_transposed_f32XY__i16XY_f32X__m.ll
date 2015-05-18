@@ -101,20 +101,20 @@ y_body:                                           ; preds = %x_exit, %entry
   %19 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
-x_body:                                           ; preds = %end, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %end ]
+x_body:                                           ; preds = %exit, %y_body
+  %x = phi i64 [ 0, %y_body ], [ %x_increment, %exit ]
   %20 = icmp ugt i64 %y, %x
-  br i1 %20, label %end, label %label.preheader
+  br i1 %20, label %exit, label %label.preheader
 
 label.preheader:                                  ; preds = %x_body
-  br i1 %18, label %end4, label %then3
+  br i1 %18, label %exit4, label %true_enry3
 
-end:                                              ; preds = %x_body, %end4
+exit:                                             ; preds = %x_body, %exit4
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !2
 
-x_exit:                                           ; preds = %end
+x_exit:                                           ; preds = %exit
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %2
   br i1 %y_postcondition, label %y_exit, label %y_body
@@ -122,9 +122,9 @@ x_exit:                                           ; preds = %end
 y_exit:                                           ; preds = %x_exit
   ret void
 
-then3:                                            ; preds = %label.preheader, %then3
-  %21 = phi i32 [ %35, %then3 ], [ 0, %label.preheader ]
-  %22 = phi double [ %34, %then3 ], [ 0.000000e+00, %label.preheader ]
+true_enry3:                                       ; preds = %label.preheader, %true_enry3
+  %21 = phi i32 [ %35, %true_enry3 ], [ 0, %label.preheader ]
+  %22 = phi double [ %34, %true_enry3 ], [ 0.000000e+00, %label.preheader ]
   %23 = sext i32 %21 to i64
   %24 = mul nuw nsw i64 %23, %dst_y_step
   %25 = add nuw nsw i64 %24, %x
@@ -139,10 +139,10 @@ then3:                                            ; preds = %label.preheader, %t
   %34 = fadd fast double %33, %22
   %35 = add nuw nsw i32 %21, 1
   %36 = icmp eq i32 %35, %8
-  br i1 %36, label %end4, label %then3
+  br i1 %36, label %exit4, label %true_enry3
 
-end4:                                             ; preds = %then3, %label.preheader
-  %.lcssa = phi double [ 0.000000e+00, %label.preheader ], [ %34, %then3 ]
+exit4:                                            ; preds = %true_enry3, %label.preheader
+  %.lcssa = phi double [ 0.000000e+00, %label.preheader ], [ %34, %true_enry3 ]
   %37 = fptrunc double %.lcssa to float
   %38 = add nuw nsw i64 %x, %19
   %39 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %38
@@ -151,7 +151,7 @@ end4:                                             ; preds = %then3, %label.prehe
   %41 = add nuw nsw i64 %40, %y
   %42 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %41
   store float %37, float* %42, align 4, !llvm.mem.parallel_loop_access !2
-  br label %end
+  br label %exit
 }
 
 define %f32XY* @multiply_transposed(%i16XY*, %f32X*) {

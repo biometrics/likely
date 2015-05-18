@@ -51,21 +51,21 @@ y_body:                                           ; preds = %x_exit, %entry
   %25 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
-x_body:                                           ; preds = %end, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %end ]
+x_body:                                           ; preds = %exit, %y_body
+  %x = phi i64 [ 0, %y_body ], [ %x_increment, %exit ]
   br label %label12.preheader
 
-label12.preheader:                                ; preds = %x_body, %end14
-  %26 = phi i32 [ 0, %x_body ], [ %51, %end14 ]
-  %27 = phi double [ 0.000000e+00, %x_body ], [ %48, %end14 ]
+label12.preheader:                                ; preds = %x_body, %exit14
+  %26 = phi i32 [ 0, %x_body ], [ %51, %exit14 ]
+  %27 = phi double [ 0.000000e+00, %x_body ], [ %48, %exit14 ]
   %28 = sext i32 %26 to i64
   %29 = add nuw nsw i64 %28, %y
   %30 = mul nuw nsw i64 %29, %src_y_step
   %31 = add i64 %30, %x
   %32 = mul nuw nsw i64 %28, %templ_y_step
-  br label %then13
+  br label %true_enry13
 
-end:                                              ; preds = %end14
+exit:                                             ; preds = %exit14
   %33 = fptrunc double %48 to float
   %34 = add nuw nsw i64 %x, %25
   %35 = getelementptr float, float* %13, i64 %34
@@ -74,7 +74,7 @@ end:                                              ; preds = %end14
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
 
-x_exit:                                           ; preds = %end
+x_exit:                                           ; preds = %exit
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %11
   br i1 %y_postcondition, label %y_exit, label %y_body
@@ -83,9 +83,9 @@ y_exit:                                           ; preds = %x_exit
   %36 = bitcast %u0CXYT* %10 to %f32XY*
   ret %f32XY* %36
 
-then13:                                           ; preds = %label12.preheader, %then13
-  %37 = phi double [ %27, %label12.preheader ], [ %48, %then13 ]
-  %38 = phi i32 [ 0, %label12.preheader ], [ %49, %then13 ]
+true_enry13:                                      ; preds = %label12.preheader, %true_enry13
+  %37 = phi double [ %27, %label12.preheader ], [ %48, %true_enry13 ]
+  %38 = phi i32 [ 0, %label12.preheader ], [ %49, %true_enry13 ]
   %39 = sext i32 %38 to i64
   %40 = add i64 %31, %39
   %41 = getelementptr %f32XY, %f32XY* %0, i64 0, i32 6, i64 %40
@@ -98,12 +98,12 @@ then13:                                           ; preds = %label12.preheader, 
   %48 = fadd fast double %47, %37
   %49 = add nuw nsw i32 %38, 1
   %50 = icmp eq i32 %49, %columns1
-  br i1 %50, label %end14, label %then13
+  br i1 %50, label %exit14, label %true_enry13
 
-end14:                                            ; preds = %then13
+exit14:                                           ; preds = %true_enry13
   %51 = add nuw nsw i32 %26, 1
   %52 = icmp eq i32 %51, %rows2
-  br i1 %52, label %end, label %label12.preheader
+  br i1 %52, label %exit, label %label12.preheader
 }
 
 attributes #0 = { nounwind readonly }

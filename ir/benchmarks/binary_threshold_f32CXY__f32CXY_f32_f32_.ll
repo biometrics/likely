@@ -41,16 +41,16 @@ y_body:                                           ; preds = %y_body, %entry
   %19 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %y
   %20 = load float, float* %19, align 4, !llvm.mem.parallel_loop_access !1
   %21 = fcmp ogt float %20, %1
-  %22 = select i1 %21, float %2, float 0.000000e+00
-  %23 = getelementptr float, float* %9, i64 %y
-  store float %22, float* %23, align 4, !llvm.mem.parallel_loop_access !1
+  %. = select i1 %21, float %2, float 0.000000e+00
+  %22 = getelementptr float, float* %9, i64 %y
+  store float %., float* %22, align 4, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %18
   br i1 %y_postcondition, label %y_exit, label %y_body, !llvm.loop !1
 
 y_exit:                                           ; preds = %y_body
-  %24 = bitcast %u0CXYT* %6 to %f32CXY*
-  ret %f32CXY* %24
+  %23 = bitcast %u0CXYT* %6 to %f32CXY*
+  ret %f32CXY* %23
 }
 
 attributes #0 = { nounwind readonly }

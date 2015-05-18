@@ -45,21 +45,21 @@ y_body:                                           ; preds = %y_body, %entry
   %23 = fadd fast float %22, %2
   %24 = getelementptr i16, i16* %9, i64 %y
   %25 = fcmp olt float %23, 0.000000e+00
-  %26 = select i1 %25, float -5.000000e-01, float 5.000000e-01
-  %27 = fadd fast float %26, %23
-  %28 = fptosi float %27 to i16
-  %29 = fcmp olt float %27, -3.276800e+04
-  %30 = select i1 %29, i16 -32768, i16 %28
-  %31 = fcmp ogt float %27, 3.276700e+04
-  %32 = select i1 %31, i16 32767, i16 %30
-  store i16 %32, i16* %24, align 2, !llvm.mem.parallel_loop_access !1
+  %. = select i1 %25, float -5.000000e-01, float 5.000000e-01
+  %26 = fadd fast float %., %23
+  %27 = fptosi float %26 to i16
+  %28 = fcmp olt float %26, -3.276800e+04
+  %29 = select i1 %28, i16 -32768, i16 %27
+  %30 = fcmp ogt float %26, 3.276700e+04
+  %31 = select i1 %30, i16 32767, i16 %29
+  store i16 %31, i16* %24, align 2, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %18
   br i1 %y_postcondition, label %y_exit, label %y_body, !llvm.loop !1
 
 y_exit:                                           ; preds = %y_body
-  %33 = bitcast %u0CXYT* %6 to %i16SCXY*
-  ret %i16SCXY* %33
+  %32 = bitcast %u0CXYT* %6 to %i16SCXY*
+  ret %i16SCXY* %32
 }
 
 attributes #0 = { nounwind readonly }

@@ -2277,7 +2277,7 @@ struct Variable : public Assignable
         // Create a loop to initialize the entire array
         BasicBlock *const entry = builder.GetInsertBlock();
         BasicBlock *const body = BasicBlock::Create(builder.getContext(), "variable_init_body", entry->getParent());
-        BasicBlock *const exit = BasicBlock::Create(builder.getContext(), "variable_init_exit", body->getParent());
+        BasicBlock *const exit = BasicBlock::Create(builder.getContext(), "variable_init_exit", entry->getParent());
         builder.CreateBr(body);
         builder.SetInsertPoint(body);
         PHINode *const phiNode = builder.CreatePHI(Type::getInt32Ty(builder.getContext()), 2);
@@ -2445,48 +2445,38 @@ class ifExpression : public LikelyOperator
             }
         }
 
-        BasicBlock *const Entry = builder.GetInsertBlock();
-        BasicBlock *const True = BasicBlock::Create(builder.getContext(), "then", function);
-        BasicBlock *const False = hasElse ? BasicBlock::Create(builder.getContext(), "else", function) : NULL;
-        BasicBlock *const End = BasicBlock::Create(builder.getContext(), "end", function);
-        Instruction *const condBr = builder.CreateCondBr(*Cond, True, hasElse ? False : End);
+        BasicBlock *const TrueEntry = BasicBlock::Create(builder.getContext(), "true_enry", function);
+        BasicBlock *const FalseEntry = hasElse ? BasicBlock::Create(builder.getContext(), "false_entry", function) : NULL;
+        BasicBlock *const Exit = BasicBlock::Create(builder.getContext(), "exit", function);
+        builder.CreateCondBr(*Cond, TrueEntry, hasElse ? FalseEntry : Exit);
 
-        builder.SetInsertPoint(True);
+        builder.SetInsertPoint(TrueEntry);
         TRY_EXPR(builder, ast->atoms[2], t)
+        BasicBlock *const TrueExit = builder.GetInsertBlock();
 
         if (hasElse) {
-            builder.SetInsertPoint(False);
+            builder.SetInsertPoint(FalseEntry);
             TRY_EXPR(builder, ast->atoms[3], f)
+            BasicBlock *const FalseExit = builder.GetInsertBlock();
             const likely_type resolved = likely_type_from_types(*t, *f);
 
-            builder.SetInsertPoint(True);
+            builder.SetInsertPoint(TrueExit);
             const likely_expression tc(builder.cast(*t, resolved));
-            builder.CreateBr(End);
+            builder.CreateBr(Exit);
 
-            builder.SetInsertPoint(False);
+            builder.SetInsertPoint(FalseExit);
             const likely_expression fc(builder.cast(*f, resolved));
-            builder.CreateBr(End);
+            builder.CreateBr(Exit);
 
-            builder.SetInsertPoint(End);
-            if ((True->size() == 1) && (False->size() == 1)) {
-                // Special case where the conditional is reducible to a select instruction
-                condBr->eraseFromParent();
-                True->eraseFromParent();
-                False->eraseFromParent();
-                End->eraseFromParent();
-                builder.SetInsertPoint(Entry);
-                return new likely_expression(LikelyValue(builder.CreateSelect(*Cond, tc, fc), resolved));
-            } else {
-                // General case
-                PHINode *const phi = builder.CreatePHI(builder.module->context->toLLVM(resolved), 2);
-                phi->addIncoming(tc, True);
-                phi->addIncoming(fc, False);
-                return new likely_expression(LikelyValue(phi, resolved));
-            }
+            builder.SetInsertPoint(Exit);
+            PHINode *const phi = builder.CreatePHI(builder.module->context->toLLVM(resolved), 2);
+            phi->addIncoming(tc, TrueExit);
+            phi->addIncoming(fc, FalseExit);
+            return new likely_expression(LikelyValue(phi, resolved));
         } else {
-            if (builder.GetInsertBlock()->empty() || !builder.GetInsertBlock()->back().isTerminator())
-                builder.CreateBr(End);
-            builder.SetInsertPoint(End);
+            if (TrueExit->empty() || !TrueExit->back().isTerminator())
+                builder.CreateBr(Exit);
+            builder.SetInsertPoint(Exit);
             return new likely_expression();
         }
     }

@@ -130,17 +130,17 @@ y_body53:                                         ; preds = %x_exit57, %y_exit33
   %49 = mul nuw nsw i64 %y55, %3
   br label %x_body56
 
-x_body56:                                         ; preds = %end, %y_body53
-  %x58 = phi i64 [ 0, %y_body53 ], [ %x_increment61, %end ]
+x_body56:                                         ; preds = %exit, %y_body53
+  %x58 = phi i64 [ 0, %y_body53 ], [ %x_increment61, %exit ]
   %50 = icmp ugt i64 %y55, %x58
-  br i1 %50, label %end, label %then59
+  br i1 %50, label %exit, label %true_enry59
 
-end:                                              ; preds = %x_body56, %end60
+exit:                                             ; preds = %x_body56, %exit60
   %x_increment61 = add nuw nsw i64 %x58, 1
   %x_postcondition62 = icmp eq i64 %x_increment61, %3
   br i1 %x_postcondition62, label %x_exit57, label %x_body56, !llvm.loop !4
 
-x_exit57:                                         ; preds = %end
+x_exit57:                                         ; preds = %exit
   %y_increment63 = add nuw nsw i64 %y55, 1
   %y_postcondition64 = icmp eq i64 %y_increment63, %3
   br i1 %y_postcondition64, label %y_exit54, label %y_body53
@@ -153,9 +153,9 @@ y_exit54:                                         ; preds = %x_exit57
   call void @likely_release_mat(i8* %53)
   ret %f64XY* %51
 
-then59:                                           ; preds = %x_body56, %then59
-  %54 = phi i32 [ %66, %then59 ], [ 0, %x_body56 ]
-  %55 = phi double [ %65, %then59 ], [ 0.000000e+00, %x_body56 ]
+true_enry59:                                      ; preds = %x_body56, %true_enry59
+  %54 = phi i32 [ %66, %true_enry59 ], [ 0, %x_body56 ]
+  %55 = phi double [ %65, %true_enry59 ], [ 0.000000e+00, %x_body56 ]
   %56 = sext i32 %54 to i64
   %57 = mul nuw nsw i64 %56, %3
   %58 = add nuw nsw i64 %57, %x58
@@ -168,9 +168,9 @@ then59:                                           ; preds = %x_body56, %then59
   %65 = fadd fast double %64, %55
   %66 = add nuw nsw i32 %54, 1
   %67 = icmp eq i32 %66, %rows
-  br i1 %67, label %end60, label %then59
+  br i1 %67, label %exit60, label %true_enry59
 
-end60:                                            ; preds = %then59
+exit60:                                           ; preds = %true_enry59
   %68 = add nuw nsw i64 %x58, %49
   %69 = getelementptr double, double* %45, i64 %68
   store double %65, double* %69, align 8, !llvm.mem.parallel_loop_access !4
@@ -178,7 +178,7 @@ end60:                                            ; preds = %then59
   %71 = add nuw nsw i64 %70, %y55
   %72 = getelementptr double, double* %45, i64 %71
   store double %65, double* %72, align 8, !llvm.mem.parallel_loop_access !4
-  br label %end
+  br label %exit
 }
 
 declare void @likely_release_mat(i8* noalias nocapture)

@@ -40,16 +40,16 @@ entry:
   %23 = shl nuw nsw i64 %dst_c, 1
   br label %c_body
 
-c_body:                                           ; preds = %end, %entry
-  %c = phi i64 [ %1, %entry ], [ %c_increment, %end ]
-  br i1 %22, label %end, label %then
+c_body:                                           ; preds = %exit, %entry
+  %c = phi i64 [ %1, %entry ], [ %c_increment, %exit ]
+  br i1 %22, label %exit, label %true_enry
 
-then:                                             ; preds = %c_body, %then
-  %24 = phi i32 [ %38, %then ], [ 0, %c_body ]
-  %25 = phi i32 [ %.8, %then ], [ 2147483647, %c_body ]
-  %26 = phi i32 [ %., %then ], [ 0, %c_body ]
-  %27 = phi i32 [ %37, %then ], [ -2147483648, %c_body ]
-  %28 = phi i32 [ %36, %then ], [ 0, %c_body ]
+true_enry:                                        ; preds = %c_body, %true_enry
+  %24 = phi i32 [ %38, %true_enry ], [ 0, %c_body ]
+  %25 = phi i32 [ %.8, %true_enry ], [ 2147483647, %c_body ]
+  %26 = phi i32 [ %., %true_enry ], [ 0, %c_body ]
+  %27 = phi i32 [ %37, %true_enry ], [ -2147483648, %c_body ]
+  %28 = phi i32 [ %36, %true_enry ], [ 0, %c_body ]
   %29 = sext i32 %24 to i64
   %30 = mul nuw nsw i64 %29, %dst_c
   %31 = add nuw nsw i64 %30, %c
@@ -63,13 +63,13 @@ then:                                             ; preds = %c_body, %then
   %37 = select i1 %35, i32 %33, i32 %27
   %38 = add nuw nsw i32 %24, 1
   %39 = icmp eq i32 %38, %21
-  br i1 %39, label %end, label %then
+  br i1 %39, label %exit, label %true_enry
 
-end:                                              ; preds = %then, %c_body
-  %.lcssa11 = phi i32 [ 2147483647, %c_body ], [ %.8, %then ]
-  %.lcssa10 = phi i32 [ 0, %c_body ], [ %., %then ]
-  %.lcssa9 = phi i32 [ -2147483648, %c_body ], [ %37, %then ]
-  %.lcssa = phi i32 [ 0, %c_body ], [ %36, %then ]
+exit:                                             ; preds = %true_enry, %c_body
+  %.lcssa11 = phi i32 [ 2147483647, %c_body ], [ %.8, %true_enry ]
+  %.lcssa10 = phi i32 [ 0, %c_body ], [ %., %true_enry ]
+  %.lcssa9 = phi i32 [ -2147483648, %c_body ], [ %37, %true_enry ]
+  %.lcssa = phi i32 [ 0, %c_body ], [ %36, %true_enry ]
   %40 = sitofp i32 %.lcssa11 to double
   %41 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %c
   store double %40, double* %41, align 8, !llvm.mem.parallel_loop_access !1
@@ -101,7 +101,7 @@ end:                                              ; preds = %then, %c_body
   %c_postcondition = icmp eq i64 %c_increment, %2
   br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !1
 
-c_exit:                                           ; preds = %end
+c_exit:                                           ; preds = %exit
   ret void
 }
 

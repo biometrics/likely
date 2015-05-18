@@ -42,9 +42,9 @@ y_body:                                           ; preds = %y_body, %entry
   %23 = getelementptr %f32CXY, %f32CXY* %6, i64 0, i32 6, i64 %y
   %24 = load float, float* %23, align 4, !llvm.mem.parallel_loop_access !1
   %25 = fcmp ogt float %24, %8
-  %26 = select i1 %25, float %10, float 0.000000e+00
-  %27 = getelementptr %f32CXY, %f32CXY* %4, i64 0, i32 6, i64 %y
-  store float %26, float* %27, align 4, !llvm.mem.parallel_loop_access !1
+  %. = select i1 %25, float %10, float 0.000000e+00
+  %26 = getelementptr %f32CXY, %f32CXY* %4, i64 0, i32 6, i64 %y
+  store float %., float* %26, align 4, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %22
   br i1 %y_postcondition, label %y_exit, label %y_body, !llvm.loop !1

@@ -50,13 +50,13 @@ y_body:                                           ; preds = %x_exit, %entry
   %27 = mul nuw nsw i64 %y, %A_y_step
   br label %x_body
 
-x_body:                                           ; preds = %end, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %end ]
-  br i1 %25, label %end, label %then
+x_body:                                           ; preds = %exit, %y_body
+  %x = phi i64 [ 0, %y_body ], [ %x_increment, %exit ]
+  br i1 %25, label %exit, label %true_enry
 
-then:                                             ; preds = %x_body, %then
-  %28 = phi i32 [ %40, %then ], [ 0, %x_body ]
-  %29 = phi double [ %39, %then ], [ 0.000000e+00, %x_body ]
+true_enry:                                        ; preds = %x_body, %true_enry
+  %28 = phi i32 [ %40, %true_enry ], [ 0, %x_body ]
+  %29 = phi double [ %39, %true_enry ], [ 0.000000e+00, %x_body ]
   %30 = sext i32 %28 to i64
   %31 = add nuw nsw i64 %30, %27
   %32 = getelementptr %f64XY, %f64XY* %6, i64 0, i32 6, i64 %31
@@ -69,10 +69,10 @@ then:                                             ; preds = %x_body, %then
   %39 = fadd fast double %38, %29
   %40 = add nuw nsw i32 %28, 1
   %41 = icmp eq i32 %40, %10
-  br i1 %41, label %end, label %then
+  br i1 %41, label %exit, label %true_enry
 
-end:                                              ; preds = %then, %x_body
-  %.lcssa = phi double [ 0.000000e+00, %x_body ], [ %39, %then ]
+exit:                                             ; preds = %true_enry, %x_body
+  %.lcssa = phi double [ 0.000000e+00, %x_body ], [ %39, %true_enry ]
   %42 = add nuw nsw i64 %x, %26
   %43 = getelementptr %f64XY, %f64XY* %4, i64 0, i32 6, i64 %42
   store double %.lcssa, double* %43, align 8, !llvm.mem.parallel_loop_access !1
@@ -80,7 +80,7 @@ end:                                              ; preds = %then, %x_body
   %x_postcondition = icmp eq i64 %x_increment, %C_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
 
-x_exit:                                           ; preds = %end
+x_exit:                                           ; preds = %exit
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %2
   br i1 %y_postcondition, label %y_exit, label %y_body

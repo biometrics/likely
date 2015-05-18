@@ -78,17 +78,17 @@ y_body18:                                         ; preds = %x_exit22, %y_exit
   %34 = mul nuw nsw i64 %y20, %centered_y_step
   br label %x_body21
 
-x_body21:                                         ; preds = %end, %y_body18
-  %x23 = phi i64 [ 0, %y_body18 ], [ %x_increment26, %end ]
+x_body21:                                         ; preds = %exit, %y_body18
+  %x23 = phi i64 [ 0, %y_body18 ], [ %x_increment26, %exit ]
   %35 = icmp ugt i64 %y20, %x23
-  br i1 %35, label %end, label %then24
+  br i1 %35, label %exit, label %true_enry24
 
-end:                                              ; preds = %x_body21, %end25
+exit:                                             ; preds = %x_body21, %exit25
   %x_increment26 = add nuw nsw i64 %x23, 1
   %x_postcondition27 = icmp eq i64 %x_increment26, %centered_y_step
   br i1 %x_postcondition27, label %x_exit22, label %x_body21, !llvm.loop !2
 
-x_exit22:                                         ; preds = %end
+x_exit22:                                         ; preds = %exit
   %y_increment28 = add nuw nsw i64 %y20, 1
   %y_postcondition29 = icmp eq i64 %y_increment28, %centered_y_step
   br i1 %y_postcondition29, label %y_exit19, label %y_body18
@@ -99,9 +99,9 @@ y_exit19:                                         ; preds = %x_exit22
   call void @likely_release_mat(i8* %37)
   ret %f32XY* %36
 
-then24:                                           ; preds = %x_body21, %then24
-  %38 = phi i32 [ %52, %then24 ], [ 0, %x_body21 ]
-  %39 = phi double [ %51, %then24 ], [ 0.000000e+00, %x_body21 ]
+true_enry24:                                      ; preds = %x_body21, %true_enry24
+  %38 = phi i32 [ %52, %true_enry24 ], [ 0, %x_body21 ]
+  %39 = phi double [ %51, %true_enry24 ], [ 0.000000e+00, %x_body21 ]
   %40 = sext i32 %38 to i64
   %41 = mul nuw nsw i64 %40, %centered_y_step
   %42 = add nuw nsw i64 %41, %x23
@@ -116,9 +116,9 @@ then24:                                           ; preds = %x_body21, %then24
   %51 = fadd fast double %50, %39
   %52 = add nuw nsw i32 %38, 1
   %53 = icmp eq i32 %52, %rows
-  br i1 %53, label %end25, label %then24
+  br i1 %53, label %exit25, label %true_enry24
 
-end25:                                            ; preds = %then24
+exit25:                                           ; preds = %true_enry24
   %54 = fptrunc double %51 to float
   %55 = add nuw nsw i64 %x23, %34
   %56 = getelementptr float, float* %30, i64 %55
@@ -127,7 +127,7 @@ end25:                                            ; preds = %then24
   %58 = add nuw nsw i64 %57, %y20
   %59 = getelementptr float, float* %30, i64 %58
   store float %54, float* %59, align 4, !llvm.mem.parallel_loop_access !2
-  br label %end
+  br label %exit
 }
 
 declare void @likely_release_mat(i8* noalias nocapture)

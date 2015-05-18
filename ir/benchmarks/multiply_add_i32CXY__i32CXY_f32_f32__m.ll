@@ -46,10 +46,10 @@ y_body:                                           ; preds = %y_body, %entry
   %27 = fadd fast float %26, %10
   %28 = getelementptr %i32CXY, %i32CXY* %4, i64 0, i32 6, i64 %y
   %29 = fcmp olt float %27, 0.000000e+00
-  %30 = select i1 %29, float -5.000000e-01, float 5.000000e-01
-  %31 = fadd fast float %30, %27
-  %32 = fptosi float %31 to i32
-  store i32 %32, i32* %28, align 4, !llvm.mem.parallel_loop_access !1
+  %. = select i1 %29, float -5.000000e-01, float 5.000000e-01
+  %30 = fadd fast float %., %27
+  %31 = fptosi float %30 to i32
+  store i32 %31, i32* %28, align 4, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %22
   br i1 %y_postcondition, label %y_exit, label %y_body, !llvm.loop !1

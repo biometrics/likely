@@ -49,13 +49,13 @@ y_body:                                           ; preds = %x_exit, %entry
   %23 = mul nuw nsw i64 %y, %A_y_step
   br label %x_body
 
-x_body:                                           ; preds = %end, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %end ]
-  br label %then
+x_body:                                           ; preds = %exit, %y_body
+  %x = phi i64 [ 0, %y_body ], [ %x_increment, %exit ]
+  br label %true_enry
 
-then:                                             ; preds = %x_body, %then
-  %24 = phi i32 [ 0, %x_body ], [ %36, %then ]
-  %25 = phi double [ 0.000000e+00, %x_body ], [ %35, %then ]
+true_enry:                                        ; preds = %x_body, %true_enry
+  %24 = phi i32 [ 0, %x_body ], [ %36, %true_enry ]
+  %25 = phi double [ 0.000000e+00, %x_body ], [ %35, %true_enry ]
   %26 = sext i32 %24 to i64
   %27 = add nuw nsw i64 %26, %23
   %28 = getelementptr %f64XY, %f64XY* %0, i64 0, i32 6, i64 %27
@@ -68,9 +68,9 @@ then:                                             ; preds = %x_body, %then
   %35 = fadd fast double %34, %25
   %36 = add nuw nsw i32 %24, 1
   %37 = icmp eq i32 %36, %columns
-  br i1 %37, label %end, label %then
+  br i1 %37, label %exit, label %true_enry
 
-end:                                              ; preds = %then
+exit:                                             ; preds = %true_enry
   %38 = add nuw nsw i64 %x, %22
   %39 = getelementptr double, double* %10, i64 %38
   store double %35, double* %39, align 8, !llvm.mem.parallel_loop_access !1
@@ -78,7 +78,7 @@ end:                                              ; preds = %then
   %x_postcondition = icmp eq i64 %x_increment, %C_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
 
-x_exit:                                           ; preds = %end
+x_exit:                                           ; preds = %exit
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %8
   br i1 %y_postcondition, label %y_exit, label %y_body

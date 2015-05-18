@@ -62,14 +62,14 @@ y_body:                                           ; preds = %x_exit, %entry
   %34 = mul nuw nsw i64 %y, %src1_y_step
   br label %x_body
 
-x_body:                                           ; preds = %end, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %end ]
+x_body:                                           ; preds = %exit, %y_body
+  %x = phi i64 [ 0, %y_body ], [ %x_increment, %exit ]
   %35 = add nuw nsw i64 %x, %33
-  br label %then
+  br label %true_enry
 
-then:                                             ; preds = %x_body, %then
-  %36 = phi i32 [ 0, %x_body ], [ %48, %then ]
-  %37 = phi float [ 0.000000e+00, %x_body ], [ %47, %then ]
+true_enry:                                        ; preds = %x_body, %true_enry
+  %36 = phi i32 [ 0, %x_body ], [ %48, %true_enry ]
+  %37 = phi float [ 0.000000e+00, %x_body ], [ %47, %true_enry ]
   %38 = sext i32 %36 to i64
   %39 = add nuw nsw i64 %38, %34
   %40 = getelementptr %f32XY, %f32XY* %0, i64 0, i32 6, i64 %39
@@ -82,9 +82,9 @@ then:                                             ; preds = %x_body, %then
   %47 = fadd fast float %46, %37
   %48 = add nuw nsw i32 %36, 1
   %49 = icmp eq i32 %48, %columns
-  br i1 %49, label %end, label %then
+  br i1 %49, label %exit, label %true_enry
 
-end:                                              ; preds = %then
+exit:                                             ; preds = %true_enry
   %50 = getelementptr float, float* %17, i64 %35
   %51 = fpext float %47 to double
   %52 = fmul fast double %51, %2
@@ -100,7 +100,7 @@ end:                                              ; preds = %then
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
 
-x_exit:                                           ; preds = %end
+x_exit:                                           ; preds = %exit
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %15
   br i1 %y_postcondition, label %y_exit, label %y_body

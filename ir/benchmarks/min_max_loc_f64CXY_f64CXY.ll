@@ -35,16 +35,16 @@ entry:
   %16 = shl nuw nsw i64 %5, 1
   br label %c_body
 
-c_body:                                           ; preds = %end, %entry
-  %c = phi i64 [ 0, %entry ], [ %c_increment, %end ]
-  br label %then
+c_body:                                           ; preds = %exit, %entry
+  %c = phi i64 [ 0, %entry ], [ %c_increment, %exit ]
+  br label %true_enry
 
-then:                                             ; preds = %c_body, %then
-  %17 = phi i32 [ 0, %c_body ], [ %33, %then ]
-  %18 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %29, %then ]
-  %19 = phi i32 [ 0, %c_body ], [ %28, %then ]
-  %20 = phi double [ 0xFFEFFFFFFFFFFFFF, %c_body ], [ %32, %then ]
-  %21 = phi i32 [ 0, %c_body ], [ %31, %then ]
+true_enry:                                        ; preds = %c_body, %true_enry
+  %17 = phi i32 [ 0, %c_body ], [ %33, %true_enry ]
+  %18 = phi double [ 0x7FEFFFFFFFFFFFFF, %c_body ], [ %29, %true_enry ]
+  %19 = phi i32 [ 0, %c_body ], [ %28, %true_enry ]
+  %20 = phi double [ 0xFFEFFFFFFFFFFFFF, %c_body ], [ %32, %true_enry ]
+  %21 = phi i32 [ 0, %c_body ], [ %31, %true_enry ]
   %22 = sext i32 %17 to i64
   %23 = mul nuw nsw i64 %22, %5
   %24 = add nuw nsw i64 %23, %c
@@ -58,9 +58,9 @@ then:                                             ; preds = %c_body, %then
   %32 = select i1 %30, double %26, double %20
   %33 = add nuw nsw i32 %17, 1
   %34 = icmp eq i32 %33, %15
-  br i1 %34, label %end, label %then
+  br i1 %34, label %exit, label %true_enry
 
-end:                                              ; preds = %then
+exit:                                             ; preds = %true_enry
   %35 = getelementptr double, double* %7, i64 %c
   store double %29, double* %35, align 8, !llvm.mem.parallel_loop_access !1
   %36 = srem i32 %28, %columns
@@ -90,7 +90,7 @@ end:                                              ; preds = %then
   %c_postcondition = icmp eq i64 %c_increment, %5
   br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !1
 
-c_exit:                                           ; preds = %end
+c_exit:                                           ; preds = %exit
   %54 = bitcast %u0CXYT* %2 to %f64CXY*
   ret %f64CXY* %54
 }

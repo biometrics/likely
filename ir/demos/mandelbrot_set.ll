@@ -69,8 +69,8 @@ y_body:                                           ; preds = %x_exit, %entry
   %41 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
-x_body:                                           ; preds = %end, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %end ]
+x_body:                                           ; preds = %exit, %y_body
+  %x = phi i64 [ 0, %y_body ], [ %x_increment, %exit ]
   %42 = uitofp i64 %x to float
   %43 = fmul fast float %42, %arg_4
   %44 = fdiv fast float %43, %35
@@ -95,9 +95,9 @@ label:                                            ; preds = %label, %x_body
   %60 = fcmp olt float %59, 4.000000e+00
   %61 = icmp slt i32 %56, %arg_6
   %62 = and i1 %61, %60
-  br i1 %62, label %label, label %end
+  br i1 %62, label %label, label %exit
 
-end:                                              ; preds = %label
+exit:                                             ; preds = %label
   %63 = mul nuw nsw i32 %56, 255
   %64 = sdiv i32 %63, %arg_6
   %65 = trunc i32 %64 to i8
@@ -108,7 +108,7 @@ end:                                              ; preds = %label
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !0
 
-x_exit:                                           ; preds = %end
+x_exit:                                           ; preds = %exit
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %29
   br i1 %y_postcondition, label %y_exit, label %y_body
