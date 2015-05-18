@@ -5,12 +5,12 @@ Compare to **[cv::eigen](http://docs.opencv.org/modules/core/doc/operations_on_a
       src :->
       {
           ; Make a copy because we will iteratively modify the matrix in-place
-          dst := src.imitate
-          (dst src) :=>
-            dst :<- src
+          A := src.imitate
+          (A src) :=>
+            A :<- src
 
-          n := dst.rows
-          native-type := dst.type.element-type
+          n := A.rows
+          native-type := A.type.element-type
 
           ; Householder Tridiagonalization
           tridiagonalization-iteration :=
@@ -25,13 +25,13 @@ Compare to **[cv::eigen](http://docs.opencv.org/modules/core/doc/operations_on_a
             init-v :=
               i :->
               {
-                e := (dst 0 k (+ row-start i))
+                e := (A 0 k (+ row-start i))
                 sigma :<- (+ sigma e.sq)
                 (v i) :<- e
               }
             init-v.(iter-range 1 m)
 
-            x1 := (dst 0 k row-start)
+            x1 := (A 0 k row-start)
             B := (? (and (== sigma 0) (>= x1 0))
                     0
                  (? (and (== sigma 0) (< x1 0))
@@ -50,8 +50,12 @@ Compare to **[cv::eigen](http://docs.opencv.org/modules/core/doc/operations_on_a
                       B
                     }
                  )).native-type.$
+
+            p := (new native-type.multi-column.multi-row 1 m m 1 null)
+            (p A v B) :=>
+              p :<- 0
           }
 
           tridiagonalization-iteration.(iter (- n 2))
-          dst
+          A
       }
