@@ -528,6 +528,7 @@ struct likely_expression : public LikelyValue
     }
 
     virtual likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const;
+    virtual void set(Builder &builder, const likely_expression &expr, likely_const_ast ast) const;
 
     static size_t length(likely_const_ast ast)
     {
@@ -2237,38 +2238,16 @@ class defineExpression : public LikelyOperator
 };
 LIKELY_REGISTER(define)
 
-struct Assignable : public likely_expression
-{
-    Assignable(Value *value, likely_type type)
-    {
-        this->value = value;
-        this->type = type;
-    }
-
-    virtual void set(Builder &builder, const likely_expression &expr, likely_const_ast ast) const = 0;
-
-    static const Assignable *dynamicCast(likely_const_expr expr)
-    {
-        return (expr && (expr->uid() == UID())) ? static_cast<const Assignable*>(expr) : NULL;
-    }
-
-private:
-    static int UID() { return __LINE__; }
-    int uid() const { return UID(); }
-    size_t maxParameters() const { return 4; }
-    size_t minParameters() const { return 0; }
-};
-
-struct Variable : public Assignable
+struct Variable : public likely_expression
 {
     Variable(Builder &builder, const LikelyValue &expr)
-        : Assignable(builder.CreateAlloca(builder.module->context->toLLVM(expr), 0), likely_pointer_type(expr))
+        : likely_expression(LikelyValue(builder.CreateAlloca(builder.module->context->toLLVM(expr), 0), likely_pointer_type(expr)))
     {
         builder.CreateStore(expr, value);
     }
 
     Variable(Builder &builder, const LikelyValue &expr, const LikelyValue &size)
-        : Assignable(builder.CreateAlloca(builder.module->context->toLLVM(expr), size), likely_pointer_type(expr))
+        : likely_expression(LikelyValue(builder.CreateAlloca(builder.module->context->toLLVM(expr), size), likely_pointer_type(expr)))
     {
         // Create a loop to initialize the entire array
         BasicBlock *const entry = builder.GetInsertBlock();
@@ -2352,14 +2331,7 @@ class storeExpression : public LikelyOperator
         assert(env);
         const likely_const_expr pointer = env->expr;
         assert(pointer);
-
-        if (const Assignable *const assignable = Assignable::dynamicCast(pointer))
-            assignable->set(builder, *expr, ast->atoms[1]);
-        else if (pointer->type & likely_compound_pointer)
-            builder.CreateStore(builder.cast(*expr, likely_element_type(pointer->type)), pointer->value);
-        else
-            assert(false);
-
+        pointer->set(builder, *expr, ast->atoms[1]);
         return new likely_expression();
     }
 };
@@ -2508,7 +2480,7 @@ LIKELY_REGISTER(label)
 
 class kernelExpression : public LikelyOperator
 {
-    struct KernelArgument : public Assignable
+    struct KernelArgument : public likely_expression
     {
         const string name;
         MDNode *node = NULL;
@@ -2517,7 +2489,7 @@ class kernelExpression : public LikelyOperator
         Value *data;
 
         KernelArgument(Builder &builder, const likely_expression &matrix, const string &name)
-            : Assignable(matrix.value, matrix.type), name(name)
+            : likely_expression(LikelyValue(matrix.value, matrix.type)), name(name)
         {
             channels   = builder.cast(builder.channels(*this), likely_u64);
             columns    = builder.cast(builder.columns (*this), likely_u64);
@@ -2961,6 +2933,11 @@ likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast
     }
 
     return new likely_expression(LikelyValue(value, type));
+}
+
+void likely_expression::set(Builder &builder, const likely_expression &expr, likely_const_ast) const
+{
+    builder.CreateStore(builder.cast(expr, likely_element_type(type)), value);
 }
 
 likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
