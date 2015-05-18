@@ -63,7 +63,7 @@ label12.preheader:                                ; preds = %x_body, %exit14
   %30 = mul nuw nsw i64 %29, %src_y_step
   %31 = add i64 %30, %x
   %32 = mul nuw nsw i64 %28, %templ_y_step
-  br label %true_enry13
+  br label %true_entry13
 
 exit:                                             ; preds = %exit14
   %33 = fptrunc double %48 to float
@@ -83,9 +83,9 @@ y_exit:                                           ; preds = %x_exit
   %36 = bitcast %u0CXYT* %10 to %f32XY*
   ret %f32XY* %36
 
-true_enry13:                                      ; preds = %label12.preheader, %true_enry13
-  %37 = phi double [ %27, %label12.preheader ], [ %48, %true_enry13 ]
-  %38 = phi i32 [ 0, %label12.preheader ], [ %49, %true_enry13 ]
+true_entry13:                                     ; preds = %label12.preheader, %true_entry13
+  %37 = phi double [ %27, %label12.preheader ], [ %48, %true_entry13 ]
+  %38 = phi i32 [ 0, %label12.preheader ], [ %49, %true_entry13 ]
   %39 = sext i32 %38 to i64
   %40 = add i64 %31, %39
   %41 = getelementptr %f32XY, %f32XY* %0, i64 0, i32 6, i64 %40
@@ -98,9 +98,9 @@ true_enry13:                                      ; preds = %label12.preheader, 
   %48 = fadd fast double %47, %37
   %49 = add nuw nsw i32 %38, 1
   %50 = icmp eq i32 %49, %columns1
-  br i1 %50, label %exit14, label %true_enry13
+  br i1 %50, label %exit14, label %true_entry13
 
-exit14:                                           ; preds = %true_enry13
+exit14:                                           ; preds = %true_entry13
   %51 = add nuw nsw i32 %26, 1
   %52 = icmp eq i32 %51, %rows2
   br i1 %52, label %exit, label %label12.preheader

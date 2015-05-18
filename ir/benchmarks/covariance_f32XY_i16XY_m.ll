@@ -159,7 +159,7 @@ x_body:                                           ; preds = %exit, %y_body
   br i1 %20, label %exit, label %label.preheader
 
 label.preheader:                                  ; preds = %x_body
-  br i1 %18, label %exit4, label %true_enry3
+  br i1 %18, label %exit4, label %true_entry3
 
 exit:                                             ; preds = %x_body, %exit4
   %x_increment = add nuw nsw i64 %x, 1
@@ -174,9 +174,9 @@ x_exit:                                           ; preds = %exit
 y_exit:                                           ; preds = %x_exit
   ret void
 
-true_enry3:                                       ; preds = %label.preheader, %true_enry3
-  %21 = phi i32 [ %35, %true_enry3 ], [ 0, %label.preheader ]
-  %22 = phi double [ %34, %true_enry3 ], [ 0.000000e+00, %label.preheader ]
+true_entry3:                                      ; preds = %label.preheader, %true_entry3
+  %21 = phi i32 [ %35, %true_entry3 ], [ 0, %label.preheader ]
+  %22 = phi double [ %34, %true_entry3 ], [ 0.000000e+00, %label.preheader ]
   %23 = sext i32 %21 to i64
   %24 = mul nuw nsw i64 %23, %dst_y_step
   %25 = add nuw nsw i64 %24, %x
@@ -191,10 +191,10 @@ true_enry3:                                       ; preds = %label.preheader, %t
   %34 = fadd fast double %33, %22
   %35 = add nuw nsw i32 %21, 1
   %36 = icmp eq i32 %35, %8
-  br i1 %36, label %exit4, label %true_enry3
+  br i1 %36, label %exit4, label %true_entry3
 
-exit4:                                            ; preds = %true_enry3, %label.preheader
-  %.lcssa = phi double [ 0.000000e+00, %label.preheader ], [ %34, %true_enry3 ]
+exit4:                                            ; preds = %true_entry3, %label.preheader
+  %.lcssa = phi double [ 0.000000e+00, %label.preheader ], [ %34, %true_entry3 ]
   %37 = fptrunc double %.lcssa to float
   %38 = add nuw nsw i64 %x, %19
   %39 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %38

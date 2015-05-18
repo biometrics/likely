@@ -68,11 +68,11 @@ entry:
   %4 = getelementptr inbounds %f64CXY, %f64CXY* %0, i64 0, i32 4
   %rows = load i32, i32* %4, align 4, !range !0
   %5 = mul nuw nsw i32 %3, %rows
-  br label %true_enry
+  br label %true_entry
 
-true_enry:                                        ; preds = %entry, %true_enry
-  %6 = phi i32 [ 0, %entry ], [ %13, %true_enry ]
-  %7 = phi double [ 0.000000e+00, %entry ], [ %12, %true_enry ]
+true_entry:                                       ; preds = %entry, %true_entry
+  %6 = phi i32 [ 0, %entry ], [ %13, %true_entry ]
+  %7 = phi double [ 0.000000e+00, %entry ], [ %12, %true_entry ]
   %8 = sext i32 %6 to i64
   %9 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 %8
   %10 = load double, double* %9, align 8
@@ -80,9 +80,9 @@ true_enry:                                        ; preds = %entry, %true_enry
   %12 = fadd fast double %11, %7
   %13 = add nuw nsw i32 %6, 1
   %14 = icmp eq i32 %13, %5
-  br i1 %14, label %exit, label %true_enry
+  br i1 %14, label %exit, label %true_entry
 
-exit:                                             ; preds = %true_enry
+exit:                                             ; preds = %true_entry
   %15 = call double @llvm.sqrt.f64(double %12)
   %16 = fdiv fast double 1.000000e+00, %15
   %17 = call %u0CXYT* @likely_new(i32 28992, i32 %channels, i32 %columns, i32 %rows, i32 1, i8* null)

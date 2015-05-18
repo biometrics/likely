@@ -3,7 +3,7 @@
 #include <likely.h>
 
 // <bitcode> provided by a call to the static compiler:
-// $ likely -h share/likely/hello_world/hello-world-compiled.lisp hello_world.bc
+// $ likely share/likely/hello_world/hello-world-compiled.lisp hello_world.bc
 
 int main(int argc, char *argv[])
 {

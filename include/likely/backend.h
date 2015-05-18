@@ -36,9 +36,9 @@ extern "C" {
  */
 struct likely_settings
 {
+    int optimization_level; /*!< \brief 0 = no optimizations, 1 = minimum size and maximum readability, 2 = maximum speed. */
     bool multicore; /*!< \brief Enable parallel code generation. */
     bool heterogeneous; /*!< \brief Enable heterogeneous code generation. */
-    bool human; /*!< \brief Optimize for code readability. */
     bool runtime_only; /*!< \brief The compiler can only reference external symbols in \ref runtime. */
     bool verbose; /*!< \brief Verbose compiler output. */
 };

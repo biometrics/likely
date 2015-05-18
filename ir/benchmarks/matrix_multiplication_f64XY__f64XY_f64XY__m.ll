@@ -52,11 +52,11 @@ y_body:                                           ; preds = %x_exit, %entry
 
 x_body:                                           ; preds = %exit, %y_body
   %x = phi i64 [ 0, %y_body ], [ %x_increment, %exit ]
-  br i1 %25, label %exit, label %true_enry
+  br i1 %25, label %exit, label %true_entry
 
-true_enry:                                        ; preds = %x_body, %true_enry
-  %28 = phi i32 [ %40, %true_enry ], [ 0, %x_body ]
-  %29 = phi double [ %39, %true_enry ], [ 0.000000e+00, %x_body ]
+true_entry:                                       ; preds = %x_body, %true_entry
+  %28 = phi i32 [ %40, %true_entry ], [ 0, %x_body ]
+  %29 = phi double [ %39, %true_entry ], [ 0.000000e+00, %x_body ]
   %30 = sext i32 %28 to i64
   %31 = add nuw nsw i64 %30, %27
   %32 = getelementptr %f64XY, %f64XY* %6, i64 0, i32 6, i64 %31
@@ -69,10 +69,10 @@ true_enry:                                        ; preds = %x_body, %true_enry
   %39 = fadd fast double %38, %29
   %40 = add nuw nsw i32 %28, 1
   %41 = icmp eq i32 %40, %10
-  br i1 %41, label %exit, label %true_enry
+  br i1 %41, label %exit, label %true_entry
 
-exit:                                             ; preds = %true_enry, %x_body
-  %.lcssa = phi double [ 0.000000e+00, %x_body ], [ %39, %true_enry ]
+exit:                                             ; preds = %true_entry, %x_body
+  %.lcssa = phi double [ 0.000000e+00, %x_body ], [ %39, %true_entry ]
   %42 = add nuw nsw i64 %x, %26
   %43 = getelementptr %f64XY, %f64XY* %4, i64 0, i32 6, i64 %42
   store double %.lcssa, double* %43, align 8, !llvm.mem.parallel_loop_access !1

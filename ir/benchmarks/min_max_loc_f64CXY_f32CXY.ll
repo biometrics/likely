@@ -38,14 +38,14 @@ entry:
 
 c_body:                                           ; preds = %exit, %entry
   %c = phi i64 [ 0, %entry ], [ %c_increment, %exit ]
-  br label %true_enry
+  br label %true_entry
 
-true_enry:                                        ; preds = %c_body, %true_enry
-  %17 = phi i32 [ 0, %c_body ], [ %33, %true_enry ]
-  %18 = phi float [ 0x47EFFFFFE0000000, %c_body ], [ %29, %true_enry ]
-  %19 = phi i32 [ 0, %c_body ], [ %28, %true_enry ]
-  %20 = phi float [ 0xC7EFFFFFE0000000, %c_body ], [ %32, %true_enry ]
-  %21 = phi i32 [ 0, %c_body ], [ %31, %true_enry ]
+true_entry:                                       ; preds = %c_body, %true_entry
+  %17 = phi i32 [ 0, %c_body ], [ %33, %true_entry ]
+  %18 = phi float [ 0x47EFFFFFE0000000, %c_body ], [ %29, %true_entry ]
+  %19 = phi i32 [ 0, %c_body ], [ %28, %true_entry ]
+  %20 = phi float [ 0xC7EFFFFFE0000000, %c_body ], [ %32, %true_entry ]
+  %21 = phi i32 [ 0, %c_body ], [ %31, %true_entry ]
   %22 = sext i32 %17 to i64
   %23 = mul nuw nsw i64 %22, %5
   %24 = add nuw nsw i64 %23, %c
@@ -59,9 +59,9 @@ true_enry:                                        ; preds = %c_body, %true_enry
   %32 = select i1 %30, float %26, float %20
   %33 = add nuw nsw i32 %17, 1
   %34 = icmp eq i32 %33, %15
-  br i1 %34, label %exit, label %true_enry
+  br i1 %34, label %exit, label %true_entry
 
-exit:                                             ; preds = %true_enry
+exit:                                             ; preds = %true_entry
   %35 = fpext float %29 to double
   %36 = getelementptr double, double* %7, i64 %c
   store double %35, double* %36, align 8, !llvm.mem.parallel_loop_access !1

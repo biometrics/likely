@@ -68,11 +68,11 @@ entry:
   %4 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 4
   %rows = load i32, i32* %4, align 4, !range !0
   %5 = mul nuw nsw i32 %3, %rows
-  br label %true_enry
+  br label %true_entry
 
-true_enry:                                        ; preds = %entry, %true_enry
-  %6 = phi i32 [ 0, %entry ], [ %14, %true_enry ]
-  %7 = phi double [ 0.000000e+00, %entry ], [ %13, %true_enry ]
+true_entry:                                       ; preds = %entry, %true_entry
+  %6 = phi i32 [ 0, %entry ], [ %14, %true_entry ]
+  %7 = phi double [ 0.000000e+00, %entry ], [ %13, %true_entry ]
   %8 = sext i32 %6 to i64
   %9 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %8
   %10 = load float, float* %9, align 4
@@ -81,9 +81,9 @@ true_enry:                                        ; preds = %entry, %true_enry
   %13 = fadd fast double %12, %7
   %14 = add nuw nsw i32 %6, 1
   %15 = icmp eq i32 %14, %5
-  br i1 %15, label %exit, label %true_enry
+  br i1 %15, label %exit, label %true_entry
 
-exit:                                             ; preds = %true_enry
+exit:                                             ; preds = %true_entry
   %16 = call double @llvm.sqrt.f64(double %13)
   %17 = fdiv fast double 1.000000e+00, %16
   %18 = fptrunc double %17 to float

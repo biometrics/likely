@@ -43,8 +43,8 @@ static cl::opt<bool> BenchmarkQuiet("quiet", cl::desc("Don't print benchmark out
 static cl::alias     BenchmarkQuietA("q", cl::desc("Alias for -quiet"), cl::aliasopt(BenchmarkQuiet));
 static cl::opt<bool> BenchmarkVerbose("verbose", cl::desc("Verbose compiler output"));
 static cl::alias     BenchmarkVerboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(BenchmarkVerbose));
-static cl::opt<bool> BenchmarkHuman("human", cl::desc("Optimize compiler output for human readability"));
-static cl::alias     BenchmarkHumanA("h", cl::desc("Alias for -human"), cl::aliasopt(BenchmarkHuman));
+static cl::opt<int> BenchmarkOptimizationLevel("optimization-level", cl::desc("Compiler optimization level (0-2)"), cl::init(2));
+static cl::alias    BenchmarkOptimizationLevelA("o", cl::desc("Alias for -optimization-level"), cl::aliasopt(BenchmarkOptimizationLevel));
 static cl::opt<string> BenchmarkFile("file", cl::desc("Benchmark the specified file only"), cl::value_desc("filename"));
 static cl::opt<string> BenchmarkFunction("function", cl::desc("Benchmark the specified function only"), cl::value_desc("string"));
 static cl::opt<string> BenchmarkType("type", cl::desc("Benchmark the specified type only"), cl::value_desc("type"));
@@ -677,9 +677,10 @@ int main(int argc, char *argv[])
     // Print to the console immediately
     setbuf(stdout, NULL);
 
-    likely_settings settings = likely_default_settings(BenchmarkHuman ? likely_file_ir : likely_file_object, false);
+    likely_settings settings = likely_default_settings(likely_file_void, BenchmarkVerbose);
+    settings.optimization_level = BenchmarkOptimizationLevel;
     settings.multicore = BenchmarkMulticore;
-    settings.verbose = BenchmarkVerbose;
+    settings.heterogeneous = false;
     const likely_const_env parent = likely_standard(settings, NULL, likely_file_void);
 
     if (!BenchmarkQuiet) {

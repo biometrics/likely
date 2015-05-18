@@ -51,11 +51,11 @@ y_body:                                           ; preds = %x_exit, %entry
 
 x_body:                                           ; preds = %exit, %y_body
   %x = phi i64 [ 0, %y_body ], [ %x_increment, %exit ]
-  br label %true_enry
+  br label %true_entry
 
-true_enry:                                        ; preds = %x_body, %true_enry
-  %24 = phi i32 [ 0, %x_body ], [ %36, %true_enry ]
-  %25 = phi double [ 0.000000e+00, %x_body ], [ %35, %true_enry ]
+true_entry:                                       ; preds = %x_body, %true_entry
+  %24 = phi i32 [ 0, %x_body ], [ %36, %true_entry ]
+  %25 = phi double [ 0.000000e+00, %x_body ], [ %35, %true_entry ]
   %26 = sext i32 %24 to i64
   %27 = add nuw nsw i64 %26, %23
   %28 = getelementptr %f64XY, %f64XY* %0, i64 0, i32 6, i64 %27
@@ -68,9 +68,9 @@ true_enry:                                        ; preds = %x_body, %true_enry
   %35 = fadd fast double %34, %25
   %36 = add nuw nsw i32 %24, 1
   %37 = icmp eq i32 %36, %columns
-  br i1 %37, label %exit, label %true_enry
+  br i1 %37, label %exit, label %true_entry
 
-exit:                                             ; preds = %true_enry
+exit:                                             ; preds = %true_entry
   %38 = add nuw nsw i64 %x, %22
   %39 = getelementptr double, double* %10, i64 %38
   store double %35, double* %39, align 8, !llvm.mem.parallel_loop_access !1

@@ -67,8 +67,8 @@ static cl::opt<bool> LikelyVerbose("verbose", cl::desc("Verbose compiler output"
 static cl::alias     LikelyVerboseA("v", cl::desc("Alias for -verbose"), cl::aliasopt(LikelyVerbose));
 static cl::opt<string> LikelyPreprocess("preprocess", cl::desc("Command to run prior to input"));
 static cl::alias       LikelyPreprocessA("p", cl::desc("Alias for -preprocess"), cl::aliasopt(LikelyPreprocess));
-static cl::opt<bool> LikelyHuman("human", cl::desc("Optimize compiler output for human readability"));
-static cl::alias     LikelyHumanA("h", cl::desc("Alias for -human"), cl::aliasopt(LikelyHuman));
+static cl::opt<int> LikelyOptimizationLevel("optimization-level", cl::desc("Compiler optimization level (0-2)"), cl::init(-1));
+static cl::alias    LikelyOptimizationLevelA("o", cl::desc("Alias for -optimization-level"), cl::aliasopt(LikelyOptimizationLevel));
 
 cl::OptionCategory ArchitectureCategory("Architecture");
 static cl::opt<bool> LikelyMulticore("multi-core" , cl::desc("Compile multi-core kernels"), cl::cat(ArchitectureCategory));
@@ -156,12 +156,12 @@ int main(int argc, char *argv[])
     else if (LikelyQuiet) evalCallback = quietCallback;
     else                  evalCallback = printCallback;
 
-    likely_settings settings = likely_default_settings(LikelyHuman ? likely_file_ir : likely_guess_file_type(LikelyOutput.c_str()), false);
-    if (LikelyMulticore    ) settings.multicore     = true;
-    if (LikelyHeterogeneous) settings.heterogeneous = true;
-    if (LikelyHuman        ) settings.human         = true;
-    if (LikelyRuntimeOnly  ) settings.runtime_only  = true;
-    if (LikelyVerbose      ) settings.verbose       = true;
+    likely_settings settings = likely_default_settings(likely_guess_file_type(LikelyOutput.c_str()), LikelyVerbose);
+    settings.multicore     = LikelyMulticore;
+    settings.heterogeneous = LikelyHeterogeneous;
+    settings.runtime_only  = LikelyRuntimeOnly;
+    if (LikelyOptimizationLevel >= 0)
+        settings.optimization_level = LikelyOptimizationLevel;
 
     likely_mat output = NULL;
     likely_const_env parent = likely_standard(settings,

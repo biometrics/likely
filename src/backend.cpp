@@ -69,16 +69,8 @@ using namespace std;
 likely_settings likely_default_settings(likely_file_type file_type, bool verbose)
 {
     likely_settings settings;
-    if ((file_type == likely_file_ir) || (file_type == likely_file_bitcode)) {
-        settings.multicore = false;
-        settings.human = true;
-    } else {
-        settings.human = false;
-    }
-    if (file_type == likely_file_void)
-        settings.multicore = thread::hardware_concurrency() > 1;
-    else
-        settings.multicore = false;
+    settings.optimization_level = ((file_type == likely_file_ir) || (file_type == likely_file_bitcode)) ? 1 : 2;
+    settings.multicore = (file_type == likely_file_void) && (thread::hardware_concurrency() > 1);
     settings.heterogeneous = false;
     settings.runtime_only = false;
     settings.verbose = verbose;
@@ -121,65 +113,67 @@ struct LikelyContext : public likely_settings
             TM = getTargetMachine(false);
         }
 
-        // Initialization and target information
         PM->add(createVerifierPass());
-        PM->add(ACT);
-        PM->add(new TargetLibraryInfoWrapperPass(Triple(sys::getProcessTriple())));
-        PM->add(createTargetTransformInfoWrapperPass(TM->getTargetIRAnalysis()));
-        PM->add(createBasicAliasAnalysisPass());
 
-        // Global cleanup
-        PM->add(createFunctionAttrsPass());
-        PM->add(createGlobalDCEPass());
-        PM->add(createConstantMergePass());
+        if (optimization_level >= 1) {
+            // Initialization and target information
+            PM->add(ACT);
+            PM->add(new TargetLibraryInfoWrapperPass(Triple(sys::getProcessTriple())));
+            PM->add(createTargetTransformInfoWrapperPass(TM->getTargetIRAnalysis()));
+            PM->add(createBasicAliasAnalysisPass());
 
-        // Basic scalar optimizations
-        PM->add(createEarlyCSEPass()); // Combine redundant instructions ...
-        PM->add(createGVNPass());      // ... and loads prior to our substitution passes:
-        PM->add(createAssumptionSubstitutionPass()); // Our in-house pass
-        PM->add(createVerifierPass());               // Make sure it works :)
-        PM->add(createAxisSubstitutionPass()); // Our-in house pass
-        PM->add(createVerifierPass());         // Make sure it works :)
-        PM->add(createEarlyCSEPass()); // The substitution passes will create new CSE opportunities
-        PM->add(createInstructionCombiningPass()); // Cleanup
-        PM->add(createDeadCodeEliminationPass());
-        PM->add(createCFGSimplificationPass());
-        PM->add(createReassociatePass());
+            // Global cleanup
+            PM->add(createFunctionAttrsPass());
+            PM->add(createGlobalDCEPass());
+            PM->add(createConstantMergePass());
 
-        // Optimize loops
-        PM->add(createLoopRotatePass()); // Canonicalization
-        PM->add(createLICMPass());
-        PM->add(createIndVarSimplifyPass());
-        PM->add(createSimpleLoopUnrollPass()); // Complete unrolling only
-        PM->add(createLoopCollapsePass()); // Our in-house pass
-        PM->add(createVerifierPass());     // Make sure it works :)
-        PM->add(createCFGSimplificationPass()); // Cleanup
-        PM->add(createInstructionCombiningPass());
-
-        // Sophisticated scalar optimizations
-        PM->add(createGVNPass());
-        PM->add(createInstructionCombiningPass());
-        PM->add(createLICMPass());
-        PM->add(createCFGSimplificationPass());
-        PM->add(createInstructionCombiningPass());
-        PM->add(createReassociatePass());
-        PM->add(createMemoryManagementPass()); // Our in-house pass
-        PM->add(createVerifierPass());         // Make sure it works :)
-
-        // Vectorize the loops
-        if (!human) {
-            PM->add(createLoopRotatePass()); // Canonical form needed by vectorization
-            PM->add(createLoopVectorizePass()); // Loop vectorization with unrolling
-            PM->add(createBBVectorizePass()); // Fallback to vectorizing the entire block
-            PM->add(createLoopUnrollPass()); // Unroll loops that couldn't be vectorized
-            PM->add(createSLPVectorizerPass()); // Vectorize unrolled instructions
-            PM->add(createLoadCombinePass()); // Combine adjacent loads
-            PM->add(createAlignmentFromAssumptionsPass()); // Use vectorized and unrolled loops to prove alignment
+            // Basic scalar optimizations
+            PM->add(createEarlyCSEPass()); // Combine redundant instructions ...
+            PM->add(createGVNPass());      // ... and loads prior to our substitution passes:
+            PM->add(createAssumptionSubstitutionPass()); // Our in-house pass
+            PM->add(createVerifierPass());               // Make sure it works :)
+            PM->add(createAxisSubstitutionPass()); // Our-in house pass
+            PM->add(createVerifierPass());         // Make sure it works :)
+            PM->add(createEarlyCSEPass()); // The substitution passes will create new CSE opportunities
             PM->add(createInstructionCombiningPass()); // Cleanup
+            PM->add(createDeadCodeEliminationPass());
             PM->add(createCFGSimplificationPass());
-        }
+            PM->add(createReassociatePass());
 
-        PM->add(createVerifierPass());
+            // Optimize loops
+            PM->add(createLoopRotatePass()); // Canonicalization
+            PM->add(createLICMPass());
+            PM->add(createIndVarSimplifyPass());
+            PM->add(createSimpleLoopUnrollPass()); // Complete unrolling only
+            PM->add(createLoopCollapsePass()); // Our in-house pass
+            PM->add(createVerifierPass());     // Make sure it works :)
+            PM->add(createCFGSimplificationPass()); // Cleanup
+            PM->add(createInstructionCombiningPass());
+
+            // Sophisticated scalar optimizations
+            PM->add(createGVNPass());
+            PM->add(createInstructionCombiningPass());
+            PM->add(createLICMPass());
+            PM->add(createCFGSimplificationPass());
+            PM->add(createInstructionCombiningPass());
+            PM->add(createReassociatePass());
+            PM->add(createMemoryManagementPass()); // Our in-house pass
+            PM->add(createVerifierPass());         // Make sure it works :)
+
+            // Vectorize the loops
+            if (optimization_level >= 2) {
+                PM->add(createLoopRotatePass()); // Canonical form needed by vectorization
+                PM->add(createLoopVectorizePass()); // Loop vectorization with unrolling
+                PM->add(createBBVectorizePass()); // Fallback to vectorizing the entire block
+                PM->add(createLoopUnrollPass()); // Unroll loops that couldn't be vectorized
+                PM->add(createSLPVectorizerPass()); // Vectorize unrolled instructions
+                PM->add(createLoadCombinePass()); // Combine adjacent loads
+                PM->add(createAlignmentFromAssumptionsPass()); // Use vectorized and unrolled loops to prove alignment
+                PM->add(createInstructionCombiningPass()); // Cleanup
+                PM->add(createCFGSimplificationPass());
+                PM->add(createVerifierPass());
+            }
+        }
     }
 
     ~LikelyContext()
@@ -2445,7 +2439,7 @@ class ifExpression : public LikelyOperator
             }
         }
 
-        BasicBlock *const TrueEntry = BasicBlock::Create(builder.getContext(), "true_enry", function);
+        BasicBlock *const TrueEntry = BasicBlock::Create(builder.getContext(), "true_entry", function);
         BasicBlock *const FalseEntry = hasElse ? BasicBlock::Create(builder.getContext(), "false_entry", function) : NULL;
         BasicBlock *const Exit = BasicBlock::Create(builder.getContext(), "exit", function);
         builder.CreateCondBr(*Cond, TrueEntry, hasElse ? FalseEntry : Exit);

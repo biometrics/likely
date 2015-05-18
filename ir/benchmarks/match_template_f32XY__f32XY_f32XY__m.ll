@@ -59,15 +59,15 @@ x_body:                                           ; preds = %exit, %y_body
 label5.preheader:                                 ; preds = %x_body, %exit7
   %31 = phi i32 [ %55, %exit7 ], [ 0, %x_body ]
   %32 = phi double [ %.lcssa, %exit7 ], [ 0.000000e+00, %x_body ]
-  br i1 %29, label %exit7, label %true_enry6.lr.ph
+  br i1 %29, label %exit7, label %true_entry6.lr.ph
 
-true_enry6.lr.ph:                                 ; preds = %label5.preheader
+true_entry6.lr.ph:                                ; preds = %label5.preheader
   %33 = sext i32 %31 to i64
   %34 = add nuw nsw i64 %33, %y
   %35 = mul nuw nsw i64 %34, %src_y_step
   %36 = add i64 %35, %x
   %37 = mul nuw nsw i64 %33, %templ_y_step
-  br label %true_enry6
+  br label %true_entry6
 
 exit:                                             ; preds = %exit7, %x_body
   %.lcssa8 = phi double [ 0.000000e+00, %x_body ], [ %.lcssa, %exit7 ]
@@ -87,9 +87,9 @@ x_exit:                                           ; preds = %exit
 y_exit:                                           ; preds = %x_exit
   ret void
 
-true_enry6:                                       ; preds = %true_enry6.lr.ph, %true_enry6
-  %41 = phi double [ %32, %true_enry6.lr.ph ], [ %52, %true_enry6 ]
-  %42 = phi i32 [ 0, %true_enry6.lr.ph ], [ %53, %true_enry6 ]
+true_entry6:                                      ; preds = %true_entry6.lr.ph, %true_entry6
+  %41 = phi double [ %32, %true_entry6.lr.ph ], [ %52, %true_entry6 ]
+  %42 = phi i32 [ 0, %true_entry6.lr.ph ], [ %53, %true_entry6 ]
   %43 = sext i32 %42 to i64
   %44 = add i64 %36, %43
   %45 = getelementptr %f32XY, %f32XY* %6, i64 0, i32 6, i64 %44
@@ -102,10 +102,10 @@ true_enry6:                                       ; preds = %true_enry6.lr.ph, %
   %52 = fadd fast double %51, %41
   %53 = add nuw nsw i32 %42, 1
   %54 = icmp eq i32 %53, %10
-  br i1 %54, label %exit7, label %true_enry6
+  br i1 %54, label %exit7, label %true_entry6
 
-exit7:                                            ; preds = %true_enry6, %label5.preheader
-  %.lcssa = phi double [ %32, %label5.preheader ], [ %52, %true_enry6 ]
+exit7:                                            ; preds = %true_entry6, %label5.preheader
+  %.lcssa = phi double [ %32, %label5.preheader ], [ %52, %true_entry6 ]
   %55 = add nuw nsw i32 %31, 1
   %56 = icmp eq i32 %55, %12
   br i1 %56, label %exit, label %label5.preheader

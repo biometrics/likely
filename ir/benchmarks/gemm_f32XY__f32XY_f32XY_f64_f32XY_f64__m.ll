@@ -68,11 +68,11 @@ x_body:                                           ; preds = %exit, %y_body
   %x = phi i64 [ 0, %y_body ], [ %x_increment, %exit ]
   %39 = add nuw nsw i64 %x, %37
   %40 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %39
-  br i1 %36, label %exit, label %true_enry
+  br i1 %36, label %exit, label %true_entry
 
-true_enry:                                        ; preds = %x_body, %true_enry
-  %41 = phi i32 [ %53, %true_enry ], [ 0, %x_body ]
-  %42 = phi float [ %52, %true_enry ], [ 0.000000e+00, %x_body ]
+true_entry:                                       ; preds = %x_body, %true_entry
+  %41 = phi i32 [ %53, %true_entry ], [ 0, %x_body ]
+  %42 = phi float [ %52, %true_entry ], [ 0.000000e+00, %x_body ]
   %43 = sext i32 %41 to i64
   %44 = add nuw nsw i64 %43, %38
   %45 = getelementptr %f32XY, %f32XY* %6, i64 0, i32 6, i64 %44
@@ -85,10 +85,10 @@ true_enry:                                        ; preds = %x_body, %true_enry
   %52 = fadd fast float %51, %42
   %53 = add nuw nsw i32 %41, 1
   %54 = icmp eq i32 %53, %16
-  br i1 %54, label %exit, label %true_enry
+  br i1 %54, label %exit, label %true_entry
 
-exit:                                             ; preds = %true_enry, %x_body
-  %.lcssa = phi float [ 0.000000e+00, %x_body ], [ %52, %true_enry ]
+exit:                                             ; preds = %true_entry, %x_body
+  %.lcssa = phi float [ 0.000000e+00, %x_body ], [ %52, %true_entry ]
   %55 = fpext float %.lcssa to double
   %56 = fmul fast double %55, %10
   %57 = fptrunc double %56 to float

@@ -51,11 +51,11 @@ y_body:                                           ; preds = %x_exit, %entry
 
 x_body:                                           ; preds = %exit, %y_body
   %x = phi i64 [ 0, %y_body ], [ %x_increment, %exit ]
-  br label %true_enry
+  br label %true_entry
 
-true_enry:                                        ; preds = %x_body, %true_enry
-  %24 = phi i32 [ 0, %x_body ], [ %38, %true_enry ]
-  %25 = phi double [ 0.000000e+00, %x_body ], [ %37, %true_enry ]
+true_entry:                                       ; preds = %x_body, %true_entry
+  %24 = phi i32 [ 0, %x_body ], [ %38, %true_entry ]
+  %25 = phi double [ 0.000000e+00, %x_body ], [ %37, %true_entry ]
   %26 = sext i32 %24 to i64
   %27 = add nuw nsw i64 %26, %22
   %28 = getelementptr %f32XY, %f32XY* %0, i64 0, i32 6, i64 %27
@@ -70,9 +70,9 @@ true_enry:                                        ; preds = %x_body, %true_enry
   %37 = fadd fast double %36, %25
   %38 = add nuw nsw i32 %24, 1
   %39 = icmp eq i32 %38, %columns
-  br i1 %39, label %exit, label %true_enry
+  br i1 %39, label %exit, label %true_entry
 
-exit:                                             ; preds = %true_enry
+exit:                                             ; preds = %true_entry
   %40 = fptrunc double %37 to float
   %41 = add nuw nsw i64 %x, %23
   %42 = getelementptr float, float* %10, i64 %41
