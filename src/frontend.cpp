@@ -802,6 +802,10 @@ likely_type likely_pointer_type(likely_type element_type)
 
 likely_type likely_element_type(likely_type pointer_type)
 {
+    // Handle matricies as a special case
+    if (!(pointer_type & (likely_compound_pointer | likely_compound_struct)))
+        return pointer_type & likely_element;
+
     lock_guard<mutex> locker(getPointerTypesMutex());
     auto &PointerTypes = getPointerTypes();
     const size_t index = pointer_type & ~likely_compound_pointer;

@@ -2871,7 +2871,9 @@ likely_expression::~likely_expression()
 
 Value *likely_expression::gep(Builder &builder, likely_const_ast ast) const
 {
-    if ((type & likely_compound_pointer) && (ast->type == likely_ast_list)) {
+    assert(ast->type == likely_ast_list);
+
+    if (type & likely_compound_pointer) {
         if (ast->num_atoms == 1) {
             return value;
         } else {
@@ -2882,7 +2884,7 @@ Value *likely_expression::gep(Builder &builder, likely_const_ast ast) const
         }
     }
 
-    if ((type & likely_multi_dimension) && (ast->type == likely_ast_list)) {
+    if (type & likely_multi_dimension) {
         Value *const channel = (ast->num_atoms >= 2) ? builder.cast(*UniqueExpression(get(builder, ast->atoms[1])), likely_u64).value
                                                      : builder.zero().value;
         Value *const column  = (ast->num_atoms >= 3) ? builder.cast(*UniqueExpression(get(builder, ast->atoms[2])), likely_u64).value
@@ -2913,12 +2915,8 @@ Value *likely_expression::gep(Builder &builder, likely_const_ast ast) const
 
 likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast ast) const
 {
-    if ((type & likely_compound_pointer) && (ast->type == likely_ast_list))
+    if (ast->type == likely_ast_list)
         return new likely_expression(LikelyValue(builder.CreateLoad(gep(builder, ast)), likely_element_type(type)));
-
-    if ((type & likely_multi_dimension) && (ast->type == likely_ast_list))
-        return new likely_expression(LikelyValue(builder.CreateLoad(gep(builder, ast)), type & likely_element));
-
     return new likely_expression(LikelyValue(value, type));
 }
 
