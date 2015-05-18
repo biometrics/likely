@@ -2924,18 +2924,7 @@ likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast
 
 void likely_expression::set(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
 {
-    Value *ptr;
-    if (ast->type == likely_ast_list) {
-        // array
-        assert(ast->num_atoms == 2);
-        const UniqueExpression index(get(builder, ast->atoms[1]));
-        assert(index);
-        ptr = builder.CreateGEP(value, builder.cast(*index, likely_u32));
-    } else {
-        // scalar
-        ptr = value;
-    }
-    builder.CreateStore(builder.cast(expr, likely_element_type(type)), ptr);
+    builder.CreateStore(builder.cast(expr, likely_element_type(type)), (ast->type == likely_ast_list) ? gep(builder, ast) : value);
 }
 
 likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
