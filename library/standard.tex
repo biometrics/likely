@@ -1231,10 +1231,10 @@ bgr-to-y :=
 \chapter{Loops}
 \section{iter}
 \begin{likely}
-iter :=
-  (expr end) :->
+iter-range :=
+  (expr start end) :->
   {
-    i := 0.$
+    i := start.$
     loop := #
     (!= i end) :?
     {
@@ -1243,6 +1243,10 @@ iter :=
       loop
     }
   }
+
+iter :=
+  (expr end) :->
+    (iter-range expr 0 end)
 
 iter-elements :=
   (mat expr) :->
