@@ -2268,17 +2268,9 @@ struct Variable : public likely_expression
 private:
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
-        Value *ptr;
-        if (ast->type == likely_ast_list) {
-            assert(ast->num_atoms == 2);
-            const UniqueExpression index(get(builder, ast->atoms[1]));
-            assert(index);
-            ptr = builder.CreateGEP(value, builder.cast(*index, likely_u32));
-        } else {
-            // scalar
-            ptr = value;
-        }
-        return new likely_expression(LikelyValue(builder.CreateLoad(ptr), likely_element_type(type)));
+        if (ast->type == likely_ast_list)
+            return likely_expression::evaluate(builder, ast);
+        return new likely_expression(LikelyValue(builder.CreateLoad(value), likely_element_type(type)));
     }
 };
 
@@ -2879,15 +2871,16 @@ likely_expression::~likely_expression()
 likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast ast) const
 {
     if ((type & likely_compound_pointer) && (ast->type == likely_ast_list)) {
-        const likely_type elementType = likely_element_type(type);
+        Value *ptr;
         if (ast->num_atoms == 1) {
-            return new likely_expression(LikelyValue(builder.CreateLoad(value), elementType));
-        } else if (ast->num_atoms == 2) {
-            TRY_EXPR(builder, ast->atoms[1], arg);
-            return new likely_expression(LikelyValue(builder.CreateLoad(builder.CreateGEP(value, *arg)), elementType));
+            ptr = value;
         } else {
-            return NULL;
+            assert(ast->num_atoms == 2);
+            const UniqueExpression index(get(builder, ast->atoms[1]));
+            assert(index);
+            ptr = builder.CreateGEP(value, builder.cast(*index, likely_u32));
         }
+        return new likely_expression(LikelyValue(builder.CreateLoad(ptr), likely_element_type(type)));
     }
 
     if ((type & likely_multi_dimension) && (ast->type == likely_ast_list)) {
