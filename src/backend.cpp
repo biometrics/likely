@@ -2331,7 +2331,7 @@ class allocateExpression : public LikelyOperator
             return new Variable(builder, *value);
         } else {
             // array
-            TRY_EXPR(builder, ast->atoms[1], size);
+            TRY_EXPR(builder, ast->atoms[2], size);
             return new Variable(builder, *value, builder.cast(*size, likely_u32));
         }
     }
