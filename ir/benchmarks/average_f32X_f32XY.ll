@@ -22,17 +22,9 @@ entry:
   %7 = and i64 %6, 31
   %8 = icmp eq i64 %7, 0
   call void @llvm.assume(i1 %8)
-  br label %x_body
-
-x_body:                                           ; preds = %x_body, %entry
-  %x = phi i64 [ 0, %entry ], [ %x_increment, %x_body ]
-  %9 = getelementptr float, float* %5, i64 %x
-  store float 0.000000e+00, float* %9, align 4, !llvm.mem.parallel_loop_access !1
-  %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %3
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
-
-x_exit:                                           ; preds = %x_body
+  %scevgep1 = bitcast %u0CXYT* %4 to i8*
+  %9 = shl nuw nsw i64 %3, 2
+  call void @llvm.memset.p0i8.i64(i8* %scevgep1, i8 0, i64 %9, i32 4, i1 false)
   %10 = bitcast %u0CXYT* %2 to %f32X*
   %11 = getelementptr inbounds %f32XY, %f32XY* %0, i64 0, i32 4
   %rows = load i32, i32* %11, align 4, !range !0
@@ -44,8 +36,8 @@ x_exit:                                           ; preds = %x_body
   call void @llvm.assume(i1 %16)
   br label %y_body
 
-y_body:                                           ; preds = %x_exit8, %x_exit
-  %y = phi i64 [ 0, %x_exit ], [ %y_increment, %x_exit8 ]
+y_body:                                           ; preds = %x_exit8, %entry
+  %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit8 ]
   %17 = mul nuw nsw i64 %y, %3
   br label %x_body7
 
@@ -75,20 +67,22 @@ y_exit:                                           ; preds = %x_exit8
 x_body16:                                         ; preds = %x_body16, %y_exit
   %x18 = phi i64 [ 0, %y_exit ], [ %x_increment19, %x_body16 ]
   %26 = getelementptr float, float* %5, i64 %x18
-  %27 = load float, float* %26, align 4, !llvm.mem.parallel_loop_access !2
+  %27 = load float, float* %26, align 4, !llvm.mem.parallel_loop_access !1
   %28 = fmul fast float %27, %25
-  store float %28, float* %26, align 4, !llvm.mem.parallel_loop_access !2
+  store float %28, float* %26, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment19 = add nuw nsw i64 %x18, 1
   %x_postcondition20 = icmp eq i64 %x_increment19, %3
-  br i1 %x_postcondition20, label %x_exit17, label %x_body16, !llvm.loop !2
+  br i1 %x_postcondition20, label %x_exit17, label %x_body16, !llvm.loop !1
 
 x_exit17:                                         ; preds = %x_body16
   ret %f32X* %10
 }
+
+; Function Attrs: nounwind
+declare void @llvm.memset.p0i8.i64(i8* nocapture, i8, i64, i32, i1) #1
 
 attributes #0 = { nounwind readonly }
 attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}
-!2 = distinct !{!2}

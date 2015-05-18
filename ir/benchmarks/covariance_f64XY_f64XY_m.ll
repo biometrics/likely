@@ -17,17 +17,13 @@ entry:
   %7 = and i64 %6, 31
   %8 = icmp eq i64 %7, 0
   call void @llvm.assume(i1 %8)
-  br label %x_body
-
-x_body:                                           ; preds = %x_body, %entry
-  %x = phi i64 [ %1, %entry ], [ %x_increment, %x_body ]
-  %9 = getelementptr %f64X, %f64X* %4, i64 0, i32 6, i64 %x
-  store double 0.000000e+00, double* %9, align 8, !llvm.mem.parallel_loop_access !0
-  %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %2
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !0
-
-x_exit:                                           ; preds = %x_body
+  %scevgep = getelementptr %f64X, %f64X* %4, i64 1, i32 0
+  %9 = shl i64 %1, 1
+  %scevgep1 = getelementptr i32, i32* %scevgep, i64 %9
+  %scevgep12 = bitcast i32* %scevgep1 to i8*
+  %10 = sub i64 %2, %1
+  %11 = shl i64 %10, 3
+  call void @llvm.memset.p0i8.i64(i8* %scevgep12, i8 0, i64 %11, i32 8, i1 false)
   ret void
 }
 
@@ -54,12 +50,12 @@ entry:
 x_body:                                           ; preds = %x_body, %entry
   %x = phi i64 [ %1, %entry ], [ %x_increment, %x_body ]
   %12 = getelementptr %f64X, %f64X* %4, i64 0, i32 6, i64 %x
-  %13 = load double, double* %12, align 8, !llvm.mem.parallel_loop_access !1
+  %13 = load double, double* %12, align 8, !llvm.mem.parallel_loop_access !0
   %14 = fmul fast double %13, %11
-  store double %14, double* %12, align 8, !llvm.mem.parallel_loop_access !1
+  store double %14, double* %12, align 8, !llvm.mem.parallel_loop_access !0
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %2
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
+  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !0
 
 x_exit:                                           ; preds = %x_body
   ret void
@@ -75,7 +71,7 @@ entry:
   %7 = getelementptr inbounds { %f64XY*, %f64XY*, %f64X* }, { %f64XY*, %f64XY*, %f64X* }* %0, i64 0, i32 2
   %8 = load %f64X*, %f64X** %7, align 8
   %9 = getelementptr inbounds %f64XY, %f64XY* %6, i64 0, i32 3
-  %columns1 = load i32, i32* %9, align 4, !range !2
+  %columns1 = load i32, i32* %9, align 4, !range !1
   %centered_y_step = zext i32 %columns1 to i64
   %10 = getelementptr inbounds %f64XY, %f64XY* %4, i64 0, i32 6, i64 0
   %11 = ptrtoint double* %10 to i64
@@ -103,15 +99,15 @@ x_body:                                           ; preds = %x_body, %y_body
   %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
   %23 = add nuw nsw i64 %x, %22
   %24 = getelementptr %f64XY, %f64XY* %6, i64 0, i32 6, i64 %23
-  %25 = load double, double* %24, align 8, !llvm.mem.parallel_loop_access !3
+  %25 = load double, double* %24, align 8, !llvm.mem.parallel_loop_access !2
   %26 = getelementptr %f64X, %f64X* %8, i64 0, i32 6, i64 %x
-  %27 = load double, double* %26, align 8, !llvm.mem.parallel_loop_access !3
+  %27 = load double, double* %26, align 8, !llvm.mem.parallel_loop_access !2
   %28 = fsub fast double %25, %27
   %29 = getelementptr %f64XY, %f64XY* %4, i64 0, i32 6, i64 %23
-  store double %28, double* %29, align 8, !llvm.mem.parallel_loop_access !3
+  store double %28, double* %29, align 8, !llvm.mem.parallel_loop_access !2
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %centered_y_step
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !3
+  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !2
 
 x_exit:                                           ; preds = %x_body
   %y_increment = add nuw nsw i64 %y, 1
@@ -132,7 +128,7 @@ entry:
   %7 = getelementptr inbounds { %f64XY*, %f64XY*, i32 }, { %f64XY*, %f64XY*, i32 }* %0, i64 0, i32 2
   %8 = load i32, i32* %7, align 4
   %9 = getelementptr inbounds %f64XY, %f64XY* %6, i64 0, i32 3
-  %columns1 = load i32, i32* %9, align 4, !range !2
+  %columns1 = load i32, i32* %9, align 4, !range !1
   %dst_y_step = zext i32 %columns1 to i64
   %10 = getelementptr inbounds %f64XY, %f64XY* %4, i64 0, i32 6, i64 0
   %11 = ptrtoint double* %10 to i64
@@ -163,7 +159,7 @@ label.preheader:                                  ; preds = %x_body
 exit:                                             ; preds = %x_body, %exit4
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !4
+  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !3
 
 x_exit:                                           ; preds = %exit
   %y_increment = add nuw nsw i64 %y, 1
@@ -180,10 +176,10 @@ true_entry3:                                      ; preds = %label.preheader, %t
   %24 = mul nuw nsw i64 %23, %dst_y_step
   %25 = add nuw nsw i64 %24, %x
   %26 = getelementptr %f64XY, %f64XY* %6, i64 0, i32 6, i64 %25
-  %27 = load double, double* %26, align 8, !llvm.mem.parallel_loop_access !4
+  %27 = load double, double* %26, align 8, !llvm.mem.parallel_loop_access !3
   %28 = add nuw nsw i64 %24, %y
   %29 = getelementptr %f64XY, %f64XY* %6, i64 0, i32 6, i64 %28
-  %30 = load double, double* %29, align 8, !llvm.mem.parallel_loop_access !4
+  %30 = load double, double* %29, align 8, !llvm.mem.parallel_loop_access !3
   %31 = fmul fast double %30, %27
   %32 = fadd fast double %31, %22
   %33 = add nuw nsw i32 %21, 1
@@ -194,18 +190,18 @@ exit4:                                            ; preds = %true_entry3, %label
   %.lcssa = phi double [ 0.000000e+00, %label.preheader ], [ %32, %true_entry3 ]
   %35 = add nuw nsw i64 %x, %19
   %36 = getelementptr %f64XY, %f64XY* %4, i64 0, i32 6, i64 %35
-  store double %.lcssa, double* %36, align 8, !llvm.mem.parallel_loop_access !4
+  store double %.lcssa, double* %36, align 8, !llvm.mem.parallel_loop_access !3
   %37 = mul nuw nsw i64 %x, %dst_y_step
   %38 = add nuw nsw i64 %37, %y
   %39 = getelementptr %f64XY, %f64XY* %4, i64 0, i32 6, i64 %38
-  store double %.lcssa, double* %39, align 8, !llvm.mem.parallel_loop_access !4
+  store double %.lcssa, double* %39, align 8, !llvm.mem.parallel_loop_access !3
   br label %exit
 }
 
 define %f64XY* @covariance(%f64XY*) {
 entry:
   %1 = getelementptr inbounds %f64XY, %f64XY* %0, i64 0, i32 3
-  %columns = load i32, i32* %1, align 4, !range !2
+  %columns = load i32, i32* %1, align 4, !range !1
   %2 = call %u0CXYT* @likely_new(i32 8512, i32 1, i32 %columns, i32 1, i32 1, i8* null)
   %3 = zext i32 %columns to i64
   %4 = alloca { %f64X* }, align 8
@@ -214,7 +210,7 @@ entry:
   %6 = bitcast { %f64X* }* %4 to i8*
   call void @likely_fork(i8* bitcast (void ({ %f64X* }*, i64, i64)* @covariance_tmp_thunk0 to i8*), i8* %6, i64 %3)
   %7 = getelementptr inbounds %f64XY, %f64XY* %0, i64 0, i32 4
-  %rows = load i32, i32* %7, align 4, !range !2
+  %rows = load i32, i32* %7, align 4, !range !1
   %8 = zext i32 %rows to i64
   %9 = getelementptr inbounds %u0CXYT, %u0CXYT* %2, i64 1
   %10 = bitcast %u0CXYT* %9 to double*
@@ -222,7 +218,7 @@ entry:
   %12 = and i64 %11, 31
   %13 = icmp eq i64 %12, 0
   call void @llvm.assume(i1 %13)
-  %columns3 = load i32, i32* %1, align 4, !range !2
+  %columns3 = load i32, i32* %1, align 4, !range !1
   %src_y_step = zext i32 %columns3 to i64
   %14 = getelementptr inbounds %f64XY, %f64XY* %0, i64 0, i32 6, i64 0
   %15 = ptrtoint double* %14 to i64
@@ -264,8 +260,8 @@ y_exit:                                           ; preds = %x_exit
   store float %26, float* %29, align 8
   %30 = bitcast { %f64X*, float }* %27 to i8*
   call void @likely_fork(i8* bitcast (void ({ %f64X*, float }*, i64, i64)* @covariance_tmp_thunk1 to i8*), i8* %30, i64 %3)
-  %columns7 = load i32, i32* %1, align 4, !range !2
-  %rows8 = load i32, i32* %7, align 4, !range !2
+  %columns7 = load i32, i32* %1, align 4, !range !1
+  %rows8 = load i32, i32* %7, align 4, !range !1
   %31 = call %u0CXYT* @likely_new(i32 24896, i32 1, i32 %columns7, i32 %rows8, i32 1, i8* null)
   %32 = zext i32 %rows8 to i64
   %33 = alloca { %f64XY*, %f64XY*, %f64X* }, align 8
@@ -298,13 +294,15 @@ y_exit:                                           ; preds = %x_exit
   ret %f64XY* %40
 }
 
+; Function Attrs: nounwind
+declare void @llvm.memset.p0i8.i64(i8* nocapture, i8, i64, i32, i1) #1
+
 declare void @likely_release_mat(i8* noalias nocapture)
 
 attributes #0 = { nounwind readonly }
 attributes #1 = { nounwind }
 
 !0 = distinct !{!0}
-!1 = distinct !{!1}
-!2 = !{i32 1, i32 -1}
+!1 = !{i32 1, i32 -1}
+!2 = distinct !{!2}
 !3 = distinct !{!3}
-!4 = distinct !{!4}

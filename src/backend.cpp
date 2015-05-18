@@ -144,6 +144,8 @@ struct LikelyContext : public likely_settings
             PM->add(createLoopRotatePass()); // Canonicalization
             PM->add(createLICMPass());
             PM->add(createIndVarSimplifyPass());
+            PM->add(createLoopIdiomPass());
+            PM->add(createLoopDeletionPass()); // Loop idiom pass may create dead loops
             PM->add(createSimpleLoopUnrollPass()); // Complete unrolling only
             PM->add(createLoopCollapsePass()); // Our in-house pass
             PM->add(createVerifierPass());     // Make sure it works :)
