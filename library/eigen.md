@@ -51,9 +51,34 @@ Compare to **[cv::eigen](http://docs.opencv.org/modules/core/doc/operations_on_a
                     }
                  )).native-type.$
 
-            p := (new native-type.multi-column.multi-row 1 m m 1 null)
-            (p A v B) :=>
-              p :<- 0
+            p := ($ 0.native-type m)
+            init-p :=
+              i :->
+              {
+                dot := 0.native-type.$
+                row := (+ row-start i)
+                (-> j (<- dot (+ dot (* (A 0 (+ row-start j) row) (v j))))).(iter m)
+                (p i) :<- (* B dot)
+              }
+            init-p.(iter m)
+
+            v-norm := 0.native-type.$
+            (-> i (<- v-norm (+ v-norm (* (p i) (v i))))).(iter m)
+            v-norm := v-norm.(* B).(/ 2)
+
+            w := ($ 0.native-type m)
+            (-> i (<- (w i) (- (p i) (* v-norm (v i))))).(iter m)
+
+            l2-norm := 0.native-type.$
+            (-> i (<- l2-norm (+ l2-norm (A 0 k (+ row-start i))))).(iter m)
+            l2-norm := l2-norm.sqrt
+
+            (A 0 k row-start) :<- l2-norm
+            (A 0 row-start k) :<- l2-norm
+
+            ((1 m m) A) :=>
+              (A 0 (+ row-start x) (+ row-start y)) :<- (- (A 0 (+ row-start x) (+ row-start y))
+                                                        (+ (* (v x) (w y)) (* (v y) (w x))))
           }
 
           tridiagonalization-iteration.(iter (- n 2))
