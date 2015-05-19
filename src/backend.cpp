@@ -529,7 +529,7 @@ struct likely_expression : public LikelyValue
 
     virtual likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const;
     virtual Value *gep(Builder &builder, likely_const_ast ast) const;
-    virtual void set(Builder &builder, const likely_expression &expr, likely_const_ast ast) const;
+    virtual StoreInst *store(Builder &builder, const likely_expression &expr, likely_const_ast ast) const;
 
     static size_t length(likely_const_ast ast)
     {
@@ -2308,7 +2308,7 @@ class storeExpression : public LikelyOperator
         assert(env);
         const likely_const_expr pointer = env->expr;
         assert(pointer);
-        pointer->set(builder, *expr, ast->atoms[1]);
+        pointer->store(builder, *expr, ast->atoms[1]);
         return new likely_expression();
     }
 };
@@ -2519,11 +2519,12 @@ class kernelExpression : public LikelyOperator
             return builder.CreateGEP(data, i);
         }
 
-        void set(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
+        StoreInst *store(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
         {
             StoreInst *const store = builder.CreateStore(builder.cast(expr, type & likely_element), gep(builder, ast));
             if (node)
                 store->setMetadata("llvm.mem.parallel_loop_access", node);
+            return store;
         }
 
         likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
@@ -2920,9 +2921,9 @@ likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast
     return new likely_expression(LikelyValue(value, type));
 }
 
-void likely_expression::set(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
+StoreInst *likely_expression::store(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
 {
-    builder.CreateStore(builder.cast(expr, likely_element_type(type)), (ast->type == likely_ast_list) ? gep(builder, ast) : value);
+    return builder.CreateStore(builder.cast(expr, likely_element_type(type)), (ast->type == likely_ast_list) ? gep(builder, ast) : value);
 }
 
 likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
