@@ -2484,6 +2484,9 @@ class kernelExpression : public LikelyOperator
     private:
         Value *gep(Builder &builder, likely_const_ast ast) const
         {
+            if (!data) // Fallback to generic value handling if the kernel argument isn't a matrix
+                return likely_expression::gep(builder, ast);
+
             const size_t len = length(ast);
             Value *i = builder.zero();
             if (type & likely_multi_channel) {
@@ -2511,6 +2514,8 @@ class kernelExpression : public LikelyOperator
 
         StoreInst *store(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
         {
+            if (!data) // Fallback to generic value handling if the kernel argument isn't a matrix
+                return likely_expression::store(builder, expr, ast);
             StoreInst *const store = builder.CreateStore(builder.cast(expr, type & likely_element), gep(builder, ast));
             if (node)
                 store->setMetadata("llvm.mem.parallel_loop_access", node);
@@ -2519,9 +2524,8 @@ class kernelExpression : public LikelyOperator
 
         likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
         {
-            if (!isa<PointerType>(value->getType()))
-                return new likely_expression((LikelyValue) *this);
-
+            if (!data) // Fallback to generic value handling if the kernel argument isn't a matrix
+                return likely_expression::evaluate(builder, ast);
             LoadInst *const load = builder.CreateLoad(gep(builder, ast));
             if (node)
                 load->setMetadata("llvm.mem.parallel_loop_access", node);
