@@ -2888,7 +2888,6 @@ Value *likely_expression::gep(Builder &builder, likely_const_ast ast) const
         return builder.CreateGEP(builder.data(*this), index);
     }
 
-    assert(!"GEP logic error");
     return NULL;
 }
 
@@ -2900,6 +2899,18 @@ likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast
             load->setMetadata("llvm.mem.parallel_loop_access", node);
         return new likely_expression(LikelyValue(load, likely_element_type(type)));
     }
+
+    if (ast->type == likely_ast_list) {
+        // It's an array
+        AllocaInst *const allocaInst = builder.CreateAlloca(value->getType(), builder.constant(uint64_t(ast->num_atoms), likely_u32));
+        builder.CreateStore(value, builder.CreateGEP(value->getType(), allocaInst, builder.zero(likely_u32)));
+        for (uint32_t i=1; i<ast->num_atoms; i++) {
+            TRY_EXPR(builder, ast->atoms[i], expr)
+            builder.CreateStore(builder.cast(*expr, type), builder.CreateGEP(value->getType(), allocaInst, builder.constant(uint64_t(i), likely_u32)));
+        }
+        return new likely_expression(LikelyValue(allocaInst, likely_pointer_type(type)));
+    }
+
     return new likely_expression(LikelyValue(value, type));
 }
 
