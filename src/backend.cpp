@@ -2246,42 +2246,6 @@ class defineExpression : public LikelyOperator
 };
 LIKELY_REGISTER(define)
 
-struct Variable : public likely_expression
-{
-    Variable(Builder &builder, const LikelyValue &expr)
-        : likely_expression(LikelyValue(builder.CreateAlloca(builder.module->context->toLLVM(expr), 0), likely_pointer_type(expr)))
-    {
-        builder.CreateStore(expr, value);
-    }
-
-    Variable(Builder &builder, const LikelyValue &expr, const LikelyValue &size)
-        : likely_expression(LikelyValue(builder.CreateAlloca(builder.module->context->toLLVM(expr), size), likely_pointer_type(expr)))
-    {
-        // Create a loop to initialize the entire array
-        BasicBlock *const entry = builder.GetInsertBlock();
-        BasicBlock *const body = BasicBlock::Create(builder.getContext(), "variable_init_body", entry->getParent());
-        BasicBlock *const exit = BasicBlock::Create(builder.getContext(), "variable_init_exit", entry->getParent());
-        builder.CreateBr(body);
-        builder.SetInsertPoint(body);
-        PHINode *const phiNode = builder.CreatePHI(Type::getInt32Ty(builder.getContext()), 2);
-        phiNode->addIncoming(builder.zero(likely_u32), entry);
-        builder.CreateStore(expr, builder.CreateGEP(value, phiNode));
-        Value *const increment = builder.addInts(phiNode, builder.one(likely_u32));
-        Value *const postcondition = builder.CreateICmpNE(increment, size);
-        builder.CreateCondBr(postcondition, body, exit);
-        phiNode->addIncoming(increment, body);
-        builder.SetInsertPoint(exit);
-    }
-
-private:
-    likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
-    {
-        if (ast->type == likely_ast_list)
-            return likely_expression::evaluate(builder, ast);
-        return new likely_expression(LikelyValue(builder.CreateLoad(value), likely_element_type(type)));
-    }
-};
-
 class allocateExpression : public LikelyOperator
 {
     const char *symbol() const { return "$"; }
@@ -2293,11 +2257,30 @@ class allocateExpression : public LikelyOperator
         TRY_EXPR(builder, ast->atoms[1], value);
         if (ast->num_atoms == 2) {
             // scalar
-            return new Variable(builder, *value);
+            AllocaInst *const allocaInst = builder.CreateAlloca(builder.module->context->toLLVM(*value), 0);
+            builder.CreateStore(*value, allocaInst);
+            return new likely_expression(LikelyValue(allocaInst, likely_pointer_type(*value)));
         } else {
             // array
             TRY_EXPR(builder, ast->atoms[2], size);
-            return new Variable(builder, *value, builder.cast(*size, likely_u32));
+            AllocaInst *const allocaInst = builder.CreateAlloca(builder.module->context->toLLVM(*value), *size);
+
+            // Create a loop to initialize the entire array
+            BasicBlock *const entry = builder.GetInsertBlock();
+            BasicBlock *const body = BasicBlock::Create(builder.getContext(), "variable_init_body", entry->getParent());
+            BasicBlock *const exit = BasicBlock::Create(builder.getContext(), "variable_init_exit", entry->getParent());
+            builder.CreateBr(body);
+            builder.SetInsertPoint(body);
+            PHINode *const phiNode = builder.CreatePHI(Type::getInt32Ty(builder.getContext()), 2);
+            phiNode->addIncoming(builder.zero(likely_u32), entry);
+            builder.CreateStore(*value, builder.CreateGEP(allocaInst, phiNode));
+            Value *const increment = builder.addInts(phiNode, builder.one(likely_u32));
+            Value *const postcondition = builder.CreateICmpNE(increment, *size);
+            builder.CreateCondBr(postcondition, body, exit);
+            phiNode->addIncoming(increment, body);
+            builder.SetInsertPoint(exit);
+
+            return new likely_expression(LikelyValue(allocaInst, likely_pointer_type(*value)));
         }
     }
 };
@@ -2928,6 +2911,11 @@ likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast
 {
     if (ast->type == likely_ast_list)
         return new likely_expression(LikelyValue(builder.CreateLoad(gep(builder, ast)), likely_element_type(type)));
+
+    // By convention all stack-allocated variables are evaluated "by value"
+    if (isa<AllocaInst>(value))
+        return new likely_expression(LikelyValue(builder.CreateLoad(value), likely_element_type(type)));
+
     return new likely_expression(LikelyValue(value, type));
 }
 
