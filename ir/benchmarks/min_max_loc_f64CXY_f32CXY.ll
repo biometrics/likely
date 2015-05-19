@@ -62,33 +62,33 @@ true_entry:                                       ; preds = %c_body, %true_entry
   br i1 %34, label %exit, label %true_entry
 
 exit:                                             ; preds = %true_entry
-  %35 = fpext float %29 to double
-  %36 = getelementptr double, double* %7, i64 %c
-  store double %35, double* %36, align 8, !llvm.mem.parallel_loop_access !1
+  %35 = getelementptr double, double* %7, i64 %c
+  %36 = fpext float %29 to double
+  store double %36, double* %35, align 8, !llvm.mem.parallel_loop_access !1
   %37 = srem i32 %28, %columns
-  %38 = sitofp i32 %37 to double
-  %39 = add nuw nsw i64 %c, %5
-  %40 = getelementptr double, double* %7, i64 %39
-  store double %38, double* %40, align 8, !llvm.mem.parallel_loop_access !1
+  %38 = add nuw nsw i64 %c, %5
+  %39 = getelementptr double, double* %7, i64 %38
+  %40 = sitofp i32 %37 to double
+  store double %40, double* %39, align 8, !llvm.mem.parallel_loop_access !1
   %41 = sdiv i32 %28, %columns
-  %42 = sitofp i32 %41 to double
-  %43 = add nuw nsw i64 %c, %16
-  %44 = getelementptr double, double* %7, i64 %43
-  store double %42, double* %44, align 8, !llvm.mem.parallel_loop_access !1
-  %45 = fpext float %32 to double
-  %46 = add nuw nsw i64 %c, %dst_y_step
-  %47 = getelementptr double, double* %7, i64 %46
-  store double %45, double* %47, align 8, !llvm.mem.parallel_loop_access !1
+  %42 = add nuw nsw i64 %c, %16
+  %43 = getelementptr double, double* %7, i64 %42
+  %44 = sitofp i32 %41 to double
+  store double %44, double* %43, align 8, !llvm.mem.parallel_loop_access !1
+  %45 = add nuw nsw i64 %c, %dst_y_step
+  %46 = getelementptr double, double* %7, i64 %45
+  %47 = fpext float %32 to double
+  store double %47, double* %46, align 8, !llvm.mem.parallel_loop_access !1
   %48 = srem i32 %31, %columns
-  %49 = sitofp i32 %48 to double
-  %50 = add nuw nsw i64 %39, %dst_y_step
-  %51 = getelementptr double, double* %7, i64 %50
-  store double %49, double* %51, align 8, !llvm.mem.parallel_loop_access !1
+  %49 = add nuw nsw i64 %38, %dst_y_step
+  %50 = getelementptr double, double* %7, i64 %49
+  %51 = sitofp i32 %48 to double
+  store double %51, double* %50, align 8, !llvm.mem.parallel_loop_access !1
   %52 = sdiv i32 %31, %columns
-  %53 = sitofp i32 %52 to double
-  %54 = add nuw nsw i64 %43, %dst_y_step
-  %55 = getelementptr double, double* %7, i64 %54
-  store double %53, double* %55, align 8, !llvm.mem.parallel_loop_access !1
+  %53 = add nuw nsw i64 %42, %dst_y_step
+  %54 = getelementptr double, double* %7, i64 %53
+  %55 = sitofp i32 %52 to double
+  store double %55, double* %54, align 8, !llvm.mem.parallel_loop_access !1
   %c_increment = add nuw nsw i64 %c, 1
   %c_postcondition = icmp eq i64 %c_increment, %5
   br i1 %c_postcondition, label %c_exit, label %c_body

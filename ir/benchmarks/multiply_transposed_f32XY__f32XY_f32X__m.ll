@@ -141,14 +141,14 @@ Flow6:                                            ; preds = %x_body, %exit4
 
 exit4:                                            ; preds = %true_entry3, %label.preheader
   %.lcssa = phi double [ 0.000000e+00, %label.preheader ], [ %34, %true_entry3 ]
-  %37 = fptrunc double %.lcssa to float
-  %38 = add nuw nsw i64 %x, %19
-  %39 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %38
-  store float %37, float* %39, align 4, !llvm.mem.parallel_loop_access !2
+  %37 = add nuw nsw i64 %x, %19
+  %38 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %37
+  %39 = fptrunc double %.lcssa to float
+  store float %39, float* %38, align 4, !llvm.mem.parallel_loop_access !2
   %40 = mul nuw nsw i64 %x, %dst_y_step
   %41 = add nuw nsw i64 %40, %y
   %42 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %41
-  store float %37, float* %42, align 4, !llvm.mem.parallel_loop_access !2
+  store float %39, float* %42, align 4, !llvm.mem.parallel_loop_access !2
   br label %Flow6
 }
 

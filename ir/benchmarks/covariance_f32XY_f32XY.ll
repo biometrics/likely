@@ -164,14 +164,14 @@ Flow:                                             ; preds = %x_body56, %exit60
   br i1 %x_postcondition62, label %x_exit57, label %x_body56
 
 exit60:                                           ; preds = %true_entry59
-  %69 = fptrunc double %66 to float
-  %70 = add nuw nsw i64 %x58, %48
-  %71 = getelementptr float, float* %44, i64 %70
-  store float %69, float* %71, align 4, !llvm.mem.parallel_loop_access !3
+  %69 = add nuw nsw i64 %x58, %48
+  %70 = getelementptr float, float* %44, i64 %69
+  %71 = fptrunc double %66 to float
+  store float %71, float* %70, align 4, !llvm.mem.parallel_loop_access !3
   %72 = mul nuw nsw i64 %x58, %3
   %73 = add nuw nsw i64 %72, %y55
   %74 = getelementptr float, float* %44, i64 %73
-  store float %69, float* %74, align 4, !llvm.mem.parallel_loop_access !3
+  store float %71, float* %74, align 4, !llvm.mem.parallel_loop_access !3
   br label %Flow
 }
 

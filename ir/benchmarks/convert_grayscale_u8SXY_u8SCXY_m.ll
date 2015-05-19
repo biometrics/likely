@@ -58,9 +58,9 @@ y_body:                                           ; preds = %y_body, %entry
   %34 = add nuw nsw i32 %33, %30
   %35 = add nuw nsw i32 %34, %32
   %36 = lshr i32 %35, 14
-  %37 = trunc i32 %36 to i8
-  %38 = getelementptr %u8SXY, %u8SXY* %4, i64 0, i32 6, i64 %y
-  store i8 %37, i8* %38, align 1, !llvm.mem.parallel_loop_access !1
+  %37 = getelementptr %u8SXY, %u8SXY* %4, i64 0, i32 6, i64 %y
+  %38 = trunc i32 %36 to i8
+  store i8 %38, i8* %37, align 1, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %17
   br i1 %y_postcondition, label %y_exit, label %y_body

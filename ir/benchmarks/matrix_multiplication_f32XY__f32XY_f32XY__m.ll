@@ -75,10 +75,10 @@ true_entry:                                       ; preds = %x_body, %true_entry
 
 exit:                                             ; preds = %true_entry, %x_body
   %.lcssa = phi double [ 0.000000e+00, %x_body ], [ %41, %true_entry ]
-  %44 = fptrunc double %.lcssa to float
-  %45 = add nuw nsw i64 %x, %26
-  %46 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %45
-  store float %44, float* %46, align 4, !llvm.mem.parallel_loop_access !1
+  %44 = add nuw nsw i64 %x, %26
+  %45 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %44
+  %46 = fptrunc double %.lcssa to float
+  store float %46, float* %45, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %C_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body

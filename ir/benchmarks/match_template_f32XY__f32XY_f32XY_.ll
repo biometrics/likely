@@ -66,10 +66,10 @@ label12.preheader:                                ; preds = %x_body, %exit14
   br label %true_entry13
 
 exit:                                             ; preds = %exit14
-  %33 = fptrunc double %48 to float
-  %34 = add nuw nsw i64 %x, %25
-  %35 = getelementptr float, float* %13, i64 %34
-  store float %33, float* %35, align 4, !llvm.mem.parallel_loop_access !1
+  %33 = add nuw nsw i64 %x, %25
+  %34 = getelementptr float, float* %13, i64 %33
+  %35 = fptrunc double %48 to float
+  store float %35, float* %34, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body

@@ -2511,16 +2511,6 @@ class kernelExpression : public LikelyOperator
             }
             return builder.CreateGEP(data, i);
         }
-
-        likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
-        {
-            if (!data) // Fallback to generic value handling if the kernel argument isn't a matrix
-                return likely_expression::evaluate(builder, ast);
-            LoadInst *const load = builder.CreateLoad(gep(builder, ast));
-            if (node)
-                load->setMetadata("llvm.mem.parallel_loop_access", node);
-            return new likely_expression(LikelyValue(load, type & likely_element));
-        }
     };
 
     struct KernelAxis : public likely_expression
@@ -2860,7 +2850,7 @@ likely_expression::~likely_expression()
 Value *likely_expression::gep(Builder &builder, likely_const_ast ast) const
 {
     if (ast->type != likely_ast_list)
-        return value;
+        return dyn_cast<AllocaInst>(value);
 
     if (type & likely_compound_pointer) {
         if (ast->num_atoms == 1) {
@@ -2904,19 +2894,21 @@ Value *likely_expression::gep(Builder &builder, likely_const_ast ast) const
 
 likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast ast) const
 {
-    if (ast->type == likely_ast_list)
-        return new likely_expression(LikelyValue(builder.CreateLoad(gep(builder, ast)), likely_element_type(type)));
-
-    // By convention all stack-allocated variables are evaluated "by value"
-    if (isa<AllocaInst>(value))
-        return new likely_expression(LikelyValue(builder.CreateLoad(value), likely_element_type(type)));
-
+    if (Value *const GEP = gep(builder, ast)) {
+        LoadInst *const load = builder.CreateLoad(GEP);
+        if (node)
+            load->setMetadata("llvm.mem.parallel_loop_access", node);
+        return new likely_expression(LikelyValue(load, likely_element_type(type)));
+    }
     return new likely_expression(LikelyValue(value, type));
 }
 
 void likely_expression::store(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
 {
-    StoreInst *const store = builder.CreateStore(builder.cast(expr, likely_element_type(type)), gep(builder, ast));
+    Value *GEP = gep(builder, ast);
+    if (!GEP)
+        GEP = value;
+    StoreInst *const store = builder.CreateStore(builder.cast(expr, likely_element_type(type)), GEP);
     if (node)
         store->setMetadata("llvm.mem.parallel_loop_access", node);
 }

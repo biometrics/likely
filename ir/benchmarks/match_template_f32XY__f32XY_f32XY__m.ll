@@ -71,10 +71,10 @@ true_entry6.lr.ph:                                ; preds = %label5.preheader
 
 exit:                                             ; preds = %exit7, %x_body
   %.lcssa8 = phi double [ 0.000000e+00, %x_body ], [ %55, %exit7 ]
-  %38 = fptrunc double %.lcssa8 to float
-  %39 = add nuw nsw i64 %x, %30
-  %40 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %39
-  store float %38, float* %40, align 4, !llvm.mem.parallel_loop_access !1
+  %38 = add nuw nsw i64 %x, %30
+  %39 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %38
+  %40 = fptrunc double %.lcssa8 to float
+  store float %40, float* %39, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body
