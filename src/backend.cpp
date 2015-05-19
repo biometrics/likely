@@ -472,6 +472,7 @@ static likely_env newEnv(likely_const_env parent, likely_const_ast ast = NULL, l
 struct likely_expression : public LikelyValue
 {
     mutable vector<likely_vtable> vtables;
+    MDNode *node = NULL; // For annotating parallel loads and stores
 
     likely_expression(const LikelyValue &value = LikelyValue(), const SharedMat &data = SharedMat())
         : LikelyValue(value), data(data) {}
@@ -536,7 +537,7 @@ struct likely_expression : public LikelyValue
 
     virtual likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const;
     virtual Value *gep(Builder &builder, likely_const_ast ast) const;
-    virtual StoreInst *store(Builder &builder, const likely_expression &expr, likely_const_ast ast) const;
+    void store(Builder &builder, const likely_expression &expr, likely_const_ast ast) const;
 
     static size_t length(likely_const_ast ast)
     {
@@ -2450,7 +2451,6 @@ class kernelExpression : public LikelyOperator
     struct KernelArgument : public likely_expression
     {
         const string name;
-        MDNode *node = NULL;
         Value *channels, *columns, *rows, *frames;
         Value *rowStep, *frameStep;
         Value *data;
@@ -2510,16 +2510,6 @@ class kernelExpression : public LikelyOperator
                 i = builder.addInts(builder.multiplyInts(t, frameStep), i);
             }
             return builder.CreateGEP(data, i);
-        }
-
-        StoreInst *store(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
-        {
-            if (!data) // Fallback to generic value handling if the kernel argument isn't a matrix
-                return likely_expression::store(builder, expr, ast);
-            StoreInst *const store = builder.CreateStore(builder.cast(expr, type & likely_element), gep(builder, ast));
-            if (node)
-                store->setMetadata("llvm.mem.parallel_loop_access", node);
-            return store;
         }
 
         likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
@@ -2869,7 +2859,8 @@ likely_expression::~likely_expression()
 
 Value *likely_expression::gep(Builder &builder, likely_const_ast ast) const
 {
-    assert(ast->type == likely_ast_list);
+    if (ast->type != likely_ast_list)
+        return value;
 
     if (type & likely_compound_pointer) {
         if (ast->num_atoms == 1) {
@@ -2923,9 +2914,11 @@ likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast
     return new likely_expression(LikelyValue(value, type));
 }
 
-StoreInst *likely_expression::store(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
+void likely_expression::store(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
 {
-    return builder.CreateStore(builder.cast(expr, likely_element_type(type)), (ast->type == likely_ast_list) ? gep(builder, ast) : value);
+    StoreInst *const store = builder.CreateStore(builder.cast(expr, likely_element_type(type)), gep(builder, ast));
+    if (node)
+        store->setMetadata("llvm.mem.parallel_loop_access", node);
 }
 
 likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
