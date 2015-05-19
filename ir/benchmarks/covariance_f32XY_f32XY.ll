@@ -39,8 +39,8 @@ y_body:                                           ; preds = %x_exit8, %entry
   %16 = mul nuw nsw i64 %y, %3
   br label %x_body7
 
-x_body7:                                          ; preds = %x_body7, %y_body
-  %x9 = phi i64 [ 0, %y_body ], [ %x_increment10, %x_body7 ]
+x_body7:                                          ; preds = %y_body, %x_body7
+  %x9 = phi i64 [ %x_increment10, %x_body7 ], [ 0, %y_body ]
   %17 = getelementptr float, float* %5, i64 %x9
   %18 = load float, float* %17, align 4
   %19 = add nuw nsw i64 %x9, %16
@@ -70,7 +70,7 @@ x_body16:                                         ; preds = %x_body16, %y_exit
   store float %27, float* %25, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment19 = add nuw nsw i64 %x18, 1
   %x_postcondition20 = icmp eq i64 %x_increment19, %3
-  br i1 %x_postcondition20, label %x_exit17, label %x_body16, !llvm.loop !1
+  br i1 %x_postcondition20, label %x_exit17, label %x_body16
 
 x_exit17:                                         ; preds = %x_body16
   %28 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
@@ -87,8 +87,8 @@ y_body32:                                         ; preds = %x_exit36, %x_exit17
   %34 = mul nuw nsw i64 %y34, %3
   br label %x_body35
 
-x_body35:                                         ; preds = %x_body35, %y_body32
-  %x37 = phi i64 [ 0, %y_body32 ], [ %x_increment38, %x_body35 ]
+x_body35:                                         ; preds = %y_body32, %x_body35
+  %x37 = phi i64 [ %x_increment38, %x_body35 ], [ 0, %y_body32 ]
   %35 = add nuw nsw i64 %x37, %34
   %36 = getelementptr %f32XY, %f32XY* %0, i64 0, i32 6, i64 %35
   %37 = load float, float* %36, align 4, !llvm.mem.parallel_loop_access !2
@@ -99,7 +99,7 @@ x_body35:                                         ; preds = %x_body35, %y_body32
   store float %40, float* %41, align 4, !llvm.mem.parallel_loop_access !2
   %x_increment38 = add nuw nsw i64 %x37, 1
   %x_postcondition39 = icmp eq i64 %x_increment38, %3
-  br i1 %x_postcondition39, label %x_exit36, label %x_body35, !llvm.loop !2
+  br i1 %x_postcondition39, label %x_exit36, label %x_body35
 
 x_exit36:                                         ; preds = %x_body35
   %y_increment40 = add nuw nsw i64 %y34, 1
@@ -121,17 +121,12 @@ y_body53:                                         ; preds = %x_exit57, %y_exit33
   %48 = mul nuw nsw i64 %y55, %3
   br label %x_body56
 
-x_body56:                                         ; preds = %exit, %y_body53
-  %x58 = phi i64 [ 0, %y_body53 ], [ %x_increment61, %exit ]
+x_body56:                                         ; preds = %y_body53, %Flow
+  %x58 = phi i64 [ %x_increment61, %Flow ], [ 0, %y_body53 ]
   %49 = icmp ugt i64 %y55, %x58
-  br i1 %49, label %exit, label %true_entry59
+  br i1 %49, label %Flow, label %true_entry59
 
-exit:                                             ; preds = %x_body56, %exit60
-  %x_increment61 = add nuw nsw i64 %x58, 1
-  %x_postcondition62 = icmp eq i64 %x_increment61, %3
-  br i1 %x_postcondition62, label %x_exit57, label %x_body56, !llvm.loop !3
-
-x_exit57:                                         ; preds = %exit
+x_exit57:                                         ; preds = %Flow
   %y_increment63 = add nuw nsw i64 %y55, 1
   %y_postcondition64 = icmp eq i64 %y_increment63, %3
   br i1 %y_postcondition64, label %y_exit54, label %y_body53
@@ -163,6 +158,11 @@ true_entry59:                                     ; preds = %x_body56, %true_ent
   %68 = icmp eq i32 %67, %rows
   br i1 %68, label %exit60, label %true_entry59
 
+Flow:                                             ; preds = %x_body56, %exit60
+  %x_increment61 = add nuw nsw i64 %x58, 1
+  %x_postcondition62 = icmp eq i64 %x_increment61, %3
+  br i1 %x_postcondition62, label %x_exit57, label %x_body56
+
 exit60:                                           ; preds = %true_entry59
   %69 = fptrunc double %66 to float
   %70 = add nuw nsw i64 %x58, %48
@@ -172,7 +172,7 @@ exit60:                                           ; preds = %true_entry59
   %73 = add nuw nsw i64 %72, %y55
   %74 = getelementptr float, float* %44, i64 %73
   store float %69, float* %74, align 4, !llvm.mem.parallel_loop_access !3
-  br label %exit
+  br label %Flow
 }
 
 ; Function Attrs: nounwind

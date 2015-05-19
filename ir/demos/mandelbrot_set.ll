@@ -69,18 +69,18 @@ y_body:                                           ; preds = %x_exit, %entry
   %41 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
-x_body:                                           ; preds = %exit, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %exit ]
+x_body:                                           ; preds = %y_body, %exit
+  %x = phi i64 [ %x_increment, %exit ], [ 0, %y_body ]
   %42 = uitofp i64 %x to float
   %43 = fmul fast float %42, %arg_4
   %44 = fdiv fast float %43, %35
   %45 = fadd fast float %44, %arg_2
   br label %label
 
-label:                                            ; preds = %label, %x_body
-  %46 = phi i32 [ 0, %x_body ], [ %56, %label ]
-  %47 = phi float [ 0.000000e+00, %x_body ], [ %55, %label ]
-  %48 = phi float [ 0.000000e+00, %x_body ], [ %52, %label ]
+label:                                            ; preds = %x_body, %label
+  %46 = phi i32 [ %56, %label ], [ 0, %x_body ]
+  %47 = phi float [ %55, %label ], [ 0.000000e+00, %x_body ]
+  %48 = phi float [ %52, %label ], [ 0.000000e+00, %x_body ]
   %49 = fmul fast float %48, %48
   %50 = fmul fast float %47, %47
   %51 = fsub fast float %49, %50
@@ -92,21 +92,21 @@ label:                                            ; preds = %label, %x_body
   %57 = fmul fast float %52, %52
   %58 = fmul fast float %55, %55
   %59 = fadd fast float %57, %58
-  %60 = fcmp olt float %59, 4.000000e+00
-  %61 = icmp slt i32 %56, %arg_6
-  %62 = and i1 %61, %60
-  br i1 %62, label %label, label %exit
+  %notlhs = icmp sge i32 %56, %arg_6
+  %notrhs = fcmp uge float %59, 4.000000e+00
+  %60 = or i1 %notlhs, %notrhs
+  br i1 %60, label %exit, label %label
 
 exit:                                             ; preds = %label
-  %63 = mul nuw nsw i32 %56, 255
-  %64 = sdiv i32 %63, %arg_6
-  %65 = trunc i32 %64 to i8
-  %66 = add nuw nsw i64 %x, %41
-  %67 = getelementptr i8, i8* %31, i64 %66
-  store i8 %65, i8* %67, align 1, !llvm.mem.parallel_loop_access !0
+  %61 = mul nuw nsw i32 %56, 255
+  %62 = sdiv i32 %61, %arg_6
+  %63 = trunc i32 %62 to i8
+  %64 = add nuw nsw i64 %x, %41
+  %65 = getelementptr i8, i8* %31, i64 %64
+  store i8 %63, i8* %65, align 1, !llvm.mem.parallel_loop_access !0
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !0
+  br i1 %x_postcondition, label %x_exit, label %x_body
 
 x_exit:                                           ; preds = %exit
   %y_increment = add nuw nsw i64 %y, 1
@@ -114,8 +114,8 @@ x_exit:                                           ; preds = %exit
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %68 = bitcast %u0CXYT* %28 to %u8XY*
-  ret %u8XY* %68
+  %66 = bitcast %u0CXYT* %28 to %u8XY*
+  ret %u8XY* %66
 }
 
 attributes #0 = { nounwind readonly }

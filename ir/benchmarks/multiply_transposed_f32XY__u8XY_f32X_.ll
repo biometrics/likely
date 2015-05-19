@@ -43,8 +43,8 @@ y_body:                                           ; preds = %x_exit, %entry
   %19 = mul nuw nsw i64 %y, %centered_y_step
   br label %x_body
 
-x_body:                                           ; preds = %x_body, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
+x_body:                                           ; preds = %y_body, %x_body
+  %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
   %20 = add nuw nsw i64 %x, %19
   %21 = getelementptr %u8XY, %u8XY* %0, i64 0, i32 6, i64 %20
   %22 = load i8, i8* %21, align 1, !llvm.mem.parallel_loop_access !1
@@ -56,7 +56,7 @@ x_body:                                           ; preds = %x_body, %y_body
   store float %26, float* %27, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %centered_y_step
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
+  br i1 %x_postcondition, label %x_exit, label %x_body
 
 x_exit:                                           ; preds = %x_body
   %y_increment = add nuw nsw i64 %y, 1
@@ -78,17 +78,12 @@ y_body18:                                         ; preds = %x_exit22, %y_exit
   %34 = mul nuw nsw i64 %y20, %centered_y_step
   br label %x_body21
 
-x_body21:                                         ; preds = %exit, %y_body18
-  %x23 = phi i64 [ 0, %y_body18 ], [ %x_increment26, %exit ]
+x_body21:                                         ; preds = %y_body18, %Flow
+  %x23 = phi i64 [ %x_increment26, %Flow ], [ 0, %y_body18 ]
   %35 = icmp ugt i64 %y20, %x23
-  br i1 %35, label %exit, label %true_entry24
+  br i1 %35, label %Flow, label %true_entry24
 
-exit:                                             ; preds = %x_body21, %exit25
-  %x_increment26 = add nuw nsw i64 %x23, 1
-  %x_postcondition27 = icmp eq i64 %x_increment26, %centered_y_step
-  br i1 %x_postcondition27, label %x_exit22, label %x_body21, !llvm.loop !2
-
-x_exit22:                                         ; preds = %exit
+x_exit22:                                         ; preds = %Flow
   %y_increment28 = add nuw nsw i64 %y20, 1
   %y_postcondition29 = icmp eq i64 %y_increment28, %centered_y_step
   br i1 %y_postcondition29, label %y_exit19, label %y_body18
@@ -118,6 +113,11 @@ true_entry24:                                     ; preds = %x_body21, %true_ent
   %53 = icmp eq i32 %52, %rows
   br i1 %53, label %exit25, label %true_entry24
 
+Flow:                                             ; preds = %x_body21, %exit25
+  %x_increment26 = add nuw nsw i64 %x23, 1
+  %x_postcondition27 = icmp eq i64 %x_increment26, %centered_y_step
+  br i1 %x_postcondition27, label %x_exit22, label %x_body21
+
 exit25:                                           ; preds = %true_entry24
   %54 = fptrunc double %51 to float
   %55 = add nuw nsw i64 %x23, %34
@@ -127,7 +127,7 @@ exit25:                                           ; preds = %true_entry24
   %58 = add nuw nsw i64 %57, %y20
   %59 = getelementptr float, float* %30, i64 %58
   store float %54, float* %59, align 4, !llvm.mem.parallel_loop_access !2
-  br label %exit
+  br label %Flow
 }
 
 declare void @likely_release_mat(i8* noalias nocapture)

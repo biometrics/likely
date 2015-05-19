@@ -50,8 +50,8 @@ y_body:                                           ; preds = %x_exit, %entry
   %32 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
-x_body:                                           ; preds = %x_body, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
+x_body:                                           ; preds = %y_body, %x_body
+  %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
   %33 = trunc i64 %x to i32
   %34 = sub i32 %33, %6
   %35 = sitofp i32 %34 to float
@@ -77,7 +77,7 @@ x_body:                                           ; preds = %x_body, %y_body
   store float %52, float* %54, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
+  br i1 %x_postcondition, label %x_exit, label %x_body
 
 x_exit:                                           ; preds = %x_body
   %y_increment = add nuw nsw i64 %y, 1

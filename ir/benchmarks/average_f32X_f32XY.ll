@@ -41,8 +41,8 @@ y_body:                                           ; preds = %x_exit8, %entry
   %17 = mul nuw nsw i64 %y, %3
   br label %x_body7
 
-x_body7:                                          ; preds = %x_body7, %y_body
-  %x9 = phi i64 [ 0, %y_body ], [ %x_increment10, %x_body7 ]
+x_body7:                                          ; preds = %y_body, %x_body7
+  %x9 = phi i64 [ %x_increment10, %x_body7 ], [ 0, %y_body ]
   %18 = getelementptr float, float* %5, i64 %x9
   %19 = load float, float* %18, align 4
   %20 = add nuw nsw i64 %x9, %17
@@ -72,7 +72,7 @@ x_body16:                                         ; preds = %x_body16, %y_exit
   store float %28, float* %26, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment19 = add nuw nsw i64 %x18, 1
   %x_postcondition20 = icmp eq i64 %x_increment19, %3
-  br i1 %x_postcondition20, label %x_exit17, label %x_body16, !llvm.loop !1
+  br i1 %x_postcondition20, label %x_exit17, label %x_body16
 
 x_exit17:                                         ; preds = %x_body16
   ret %f32X* %10

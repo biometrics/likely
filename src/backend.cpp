@@ -127,7 +127,7 @@ struct LikelyContext : public likely_settings
             PM->add(createGlobalDCEPass());
             PM->add(createConstantMergePass());
 
-            // Basic scalar optimizations
+            // First pass scalar optimizations
             PM->add(createEarlyCSEPass()); // Combine redundant instructions ...
             PM->add(createGVNPass());      // ... and loads prior to our substitution passes:
             PM->add(createAssumptionSubstitutionPass()); // Our in-house pass
@@ -140,7 +140,7 @@ struct LikelyContext : public likely_settings
             PM->add(createCFGSimplificationPass());
             PM->add(createReassociatePass());
 
-            // Optimize loops
+            // Loop optimizations
             PM->add(createLoopRotatePass()); // Canonicalization
             PM->add(createLICMPass());
             PM->add(createIndVarSimplifyPass());
@@ -152,15 +152,22 @@ struct LikelyContext : public likely_settings
             PM->add(createCFGSimplificationPass()); // Cleanup
             PM->add(createInstructionCombiningPass());
 
-            // Sophisticated scalar optimizations
+            // Second pass scalar optimizations
             PM->add(createGVNPass());
             PM->add(createInstructionCombiningPass());
             PM->add(createLICMPass());
             PM->add(createCFGSimplificationPass());
             PM->add(createInstructionCombiningPass());
-            PM->add(createReassociatePass());
+
+            // Memory management
+            PM->add(createStructurizeCFGPass()); // Help our memory manager by creating single-entry/single-exit regions
             PM->add(createMemoryManagementPass()); // Our in-house pass
             PM->add(createVerifierPass());         // Make sure it works :)
+
+            // Canonicalization
+            PM->add(createInstructionCombiningPass()); // Cleanup
+            PM->add(createCFGSimplificationPass());
+            PM->add(createReassociatePass());
 
             // Vectorize the loops
             if (optimization_level >= 2) {

@@ -48,18 +48,18 @@ y_body:                                           ; preds = %x_exit, %entry
   %30 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
-x_body:                                           ; preds = %exit, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %exit ]
+x_body:                                           ; preds = %y_body, %exit
+  %x = phi i64 [ %x_increment, %exit ], [ 0, %y_body ]
   %31 = uitofp i64 %x to float
   %32 = fmul fast float %31, %14
   %33 = fdiv fast float %32, %24
   %34 = fadd fast float %33, %10
   br label %label
 
-label:                                            ; preds = %label, %x_body
-  %35 = phi i32 [ 0, %x_body ], [ %45, %label ]
-  %36 = phi float [ 0.000000e+00, %x_body ], [ %44, %label ]
-  %37 = phi float [ 0.000000e+00, %x_body ], [ %41, %label ]
+label:                                            ; preds = %x_body, %label
+  %35 = phi i32 [ %45, %label ], [ 0, %x_body ]
+  %36 = phi float [ %44, %label ], [ 0.000000e+00, %x_body ]
+  %37 = phi float [ %41, %label ], [ 0.000000e+00, %x_body ]
   %38 = fmul fast float %37, %37
   %39 = fmul fast float %36, %36
   %40 = fsub fast float %38, %39
@@ -71,21 +71,21 @@ label:                                            ; preds = %label, %x_body
   %46 = fmul fast float %41, %41
   %47 = fmul fast float %44, %44
   %48 = fadd fast float %46, %47
-  %49 = fcmp olt float %48, 4.000000e+00
-  %50 = icmp slt i32 %45, %18
-  %51 = and i1 %50, %49
-  br i1 %51, label %label, label %exit
+  %notlhs = icmp sge i32 %45, %18
+  %notrhs = fcmp uge float %48, 4.000000e+00
+  %49 = or i1 %notlhs, %notrhs
+  br i1 %49, label %exit, label %label
 
 exit:                                             ; preds = %label
-  %52 = mul nuw nsw i32 %45, 255
-  %53 = sdiv i32 %52, %18
-  %54 = trunc i32 %53 to i8
-  %55 = add nuw nsw i64 %x, %30
-  %56 = getelementptr %u8XY, %u8XY* %4, i64 0, i32 6, i64 %55
-  store i8 %54, i8* %56, align 1, !llvm.mem.parallel_loop_access !1
+  %50 = mul nuw nsw i32 %45, 255
+  %51 = sdiv i32 %50, %18
+  %52 = trunc i32 %51 to i8
+  %53 = add nuw nsw i64 %x, %30
+  %54 = getelementptr %u8XY, %u8XY* %4, i64 0, i32 6, i64 %53
+  store i8 %52, i8* %54, align 1, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
+  br i1 %x_postcondition, label %x_exit, label %x_body
 
 x_exit:                                           ; preds = %exit
   %y_increment = add nuw nsw i64 %y, 1

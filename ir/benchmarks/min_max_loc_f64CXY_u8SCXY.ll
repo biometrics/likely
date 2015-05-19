@@ -41,11 +41,11 @@ c_body:                                           ; preds = %exit, %entry
   br label %true_entry
 
 true_entry:                                       ; preds = %c_body, %true_entry
-  %17 = phi i32 [ 0, %c_body ], [ %31, %true_entry ]
-  %18 = phi i8 [ -1, %c_body ], [ %.1, %true_entry ]
-  %19 = phi i32 [ 0, %c_body ], [ %., %true_entry ]
-  %20 = phi i8 [ 0, %c_body ], [ %30, %true_entry ]
-  %21 = phi i32 [ 0, %c_body ], [ %29, %true_entry ]
+  %17 = phi i32 [ %31, %true_entry ], [ 0, %c_body ]
+  %18 = phi i8 [ %.1, %true_entry ], [ -1, %c_body ]
+  %19 = phi i32 [ %., %true_entry ], [ 0, %c_body ]
+  %20 = phi i8 [ %30, %true_entry ], [ 0, %c_body ]
+  %21 = phi i32 [ %29, %true_entry ], [ 0, %c_body ]
   %22 = sext i32 %17 to i64
   %23 = mul nuw nsw i64 %22, %5
   %24 = add nuw nsw i64 %23, %c
@@ -91,7 +91,7 @@ exit:                                             ; preds = %true_entry
   store double %51, double* %53, align 8, !llvm.mem.parallel_loop_access !1
   %c_increment = add nuw nsw i64 %c, 1
   %c_postcondition = icmp eq i64 %c_increment, %5
-  br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !1
+  br i1 %c_postcondition, label %c_exit, label %c_body
 
 c_exit:                                           ; preds = %exit
   %54 = bitcast %u0CXYT* %2 to %f64CXY*

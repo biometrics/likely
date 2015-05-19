@@ -55,7 +55,7 @@ x_body:                                           ; preds = %x_body, %entry
   store double %14, double* %12, align 8, !llvm.mem.parallel_loop_access !0
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %2
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !0
+  br i1 %x_postcondition, label %x_exit, label %x_body
 
 x_exit:                                           ; preds = %x_body
   ret void
@@ -95,8 +95,8 @@ y_body:                                           ; preds = %x_exit, %entry
   %22 = mul nuw nsw i64 %y, %centered_y_step
   br label %x_body
 
-x_body:                                           ; preds = %x_body, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
+x_body:                                           ; preds = %y_body, %x_body
+  %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
   %23 = add nuw nsw i64 %x, %22
   %24 = getelementptr %f64XY, %f64XY* %6, i64 0, i32 6, i64 %23
   %25 = load double, double* %24, align 8, !llvm.mem.parallel_loop_access !2
@@ -107,7 +107,7 @@ x_body:                                           ; preds = %x_body, %y_body
   store double %28, double* %29, align 8, !llvm.mem.parallel_loop_access !2
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %centered_y_step
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !2
+  br i1 %x_postcondition, label %x_exit, label %x_body
 
 x_exit:                                           ; preds = %x_body
   %y_increment = add nuw nsw i64 %y, 1
@@ -148,20 +148,15 @@ y_body:                                           ; preds = %x_exit, %entry
   %19 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
-x_body:                                           ; preds = %exit, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %exit ]
+x_body:                                           ; preds = %y_body, %Flow6
+  %x = phi i64 [ %x_increment, %Flow6 ], [ 0, %y_body ]
   %20 = icmp ugt i64 %y, %x
-  br i1 %20, label %exit, label %label.preheader
+  br i1 %20, label %Flow6, label %label.preheader
 
 label.preheader:                                  ; preds = %x_body
   br i1 %18, label %exit4, label %true_entry3
 
-exit:                                             ; preds = %x_body, %exit4
-  %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !3
-
-x_exit:                                           ; preds = %exit
+x_exit:                                           ; preds = %Flow6
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %2
   br i1 %y_postcondition, label %y_exit, label %y_body
@@ -186,6 +181,11 @@ true_entry3:                                      ; preds = %label.preheader, %t
   %34 = icmp eq i32 %33, %8
   br i1 %34, label %exit4, label %true_entry3
 
+Flow6:                                            ; preds = %x_body, %exit4
+  %x_increment = add nuw nsw i64 %x, 1
+  %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
+  br i1 %x_postcondition, label %x_exit, label %x_body
+
 exit4:                                            ; preds = %true_entry3, %label.preheader
   %.lcssa = phi double [ 0.000000e+00, %label.preheader ], [ %32, %true_entry3 ]
   %35 = add nuw nsw i64 %x, %19
@@ -195,7 +195,7 @@ exit4:                                            ; preds = %true_entry3, %label
   %38 = add nuw nsw i64 %37, %y
   %39 = getelementptr %f64XY, %f64XY* %4, i64 0, i32 6, i64 %38
   store double %.lcssa, double* %39, align 8, !llvm.mem.parallel_loop_access !3
-  br label %exit
+  br label %Flow6
 }
 
 define %f64XY* @covariance(%f64XY*) {
@@ -232,8 +232,8 @@ y_body:                                           ; preds = %x_exit, %entry
   %18 = mul nuw nsw i64 %y, %src_y_step
   br label %x_body
 
-x_body:                                           ; preds = %x_body, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
+x_body:                                           ; preds = %y_body, %x_body
+  %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
   %19 = getelementptr double, double* %10, i64 %x
   %20 = load double, double* %19, align 8
   %21 = add nuw nsw i64 %x, %18

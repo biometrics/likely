@@ -47,7 +47,7 @@ y_body:                                           ; preds = %y_body, %entry
   store double %23, double* %24, align 8, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %20
-  br i1 %y_postcondition, label %y_exit, label %y_body, !llvm.loop !1
+  br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
   ret void
@@ -70,7 +70,7 @@ entry:
   %5 = mul nuw nsw i32 %3, %rows
   br label %true_entry
 
-true_entry:                                       ; preds = %entry, %true_entry
+true_entry:                                       ; preds = %true_entry, %entry
   %6 = phi i32 [ 0, %entry ], [ %13, %true_entry ]
   %7 = phi double [ 0.000000e+00, %entry ], [ %12, %true_entry ]
   %8 = sext i32 %6 to i64

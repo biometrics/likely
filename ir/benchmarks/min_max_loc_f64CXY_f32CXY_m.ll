@@ -36,13 +36,13 @@ entry:
   %20 = icmp eq i64 %19, 0
   call void @llvm.assume(i1 %20)
   %21 = mul nuw nsw i32 %10, %8
-  %22 = icmp eq i32 %21, 0
-  %23 = shl nuw nsw i64 %dst_c, 1
+  %22 = shl nuw nsw i64 %dst_c, 1
+  %23 = icmp eq i32 %21, 0
   br label %c_body
 
 c_body:                                           ; preds = %exit, %entry
   %c = phi i64 [ %1, %entry ], [ %c_increment, %exit ]
-  br i1 %22, label %exit, label %true_entry
+  br i1 %23, label %exit, label %true_entry
 
 true_entry:                                       ; preds = %c_body, %true_entry
   %24 = phi i32 [ %40, %true_entry ], [ 0, %c_body ]
@@ -80,7 +80,7 @@ exit:                                             ; preds = %true_entry, %c_body
   store double %45, double* %47, align 8, !llvm.mem.parallel_loop_access !1
   %48 = sdiv i32 %.lcssa9, %8
   %49 = sitofp i32 %48 to double
-  %50 = add nuw nsw i64 %c, %23
+  %50 = add nuw nsw i64 %c, %22
   %51 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %50
   store double %49, double* %51, align 8, !llvm.mem.parallel_loop_access !1
   %52 = fpext float %.lcssa8 to double
@@ -99,7 +99,7 @@ exit:                                             ; preds = %true_entry, %c_body
   store double %60, double* %62, align 8, !llvm.mem.parallel_loop_access !1
   %c_increment = add nuw nsw i64 %c, 1
   %c_postcondition = icmp eq i64 %c_increment, %2
-  br i1 %c_postcondition, label %c_exit, label %c_body, !llvm.loop !1
+  br i1 %c_postcondition, label %c_exit, label %c_body
 
 c_exit:                                           ; preds = %exit
   ret void

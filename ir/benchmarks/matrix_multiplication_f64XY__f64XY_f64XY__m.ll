@@ -50,8 +50,8 @@ y_body:                                           ; preds = %x_exit, %entry
   %27 = mul nuw nsw i64 %y, %A_y_step
   br label %x_body
 
-x_body:                                           ; preds = %exit, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %exit ]
+x_body:                                           ; preds = %y_body, %exit
+  %x = phi i64 [ %x_increment, %exit ], [ 0, %y_body ]
   br i1 %25, label %exit, label %true_entry
 
 true_entry:                                       ; preds = %x_body, %true_entry
@@ -78,7 +78,7 @@ exit:                                             ; preds = %true_entry, %x_body
   store double %.lcssa, double* %43, align 8, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %C_y_step
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
+  br i1 %x_postcondition, label %x_exit, label %x_body
 
 x_exit:                                           ; preds = %exit
   %y_increment = add nuw nsw i64 %y, 1

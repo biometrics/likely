@@ -43,8 +43,8 @@ entry:
   %26 = and i64 %25, 31
   %27 = icmp eq i64 %26, 0
   call void @llvm.assume(i1 %27)
-  %28 = icmp eq i32 %12, 0
-  %29 = icmp eq i32 %10, 0
+  %28 = icmp eq i32 %10, 0
+  %29 = icmp eq i32 %12, 0
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
@@ -52,14 +52,14 @@ y_body:                                           ; preds = %x_exit, %entry
   %30 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
-x_body:                                           ; preds = %exit, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %exit ]
-  br i1 %28, label %exit, label %label5.preheader
+x_body:                                           ; preds = %y_body, %exit
+  %x = phi i64 [ %x_increment, %exit ], [ 0, %y_body ]
+  br i1 %29, label %exit, label %label5.preheader
 
 label5.preheader:                                 ; preds = %x_body, %exit7
-  %31 = phi i32 [ %55, %exit7 ], [ 0, %x_body ]
-  %32 = phi double [ %.lcssa, %exit7 ], [ 0.000000e+00, %x_body ]
-  br i1 %29, label %exit7, label %true_entry6.lr.ph
+  %31 = phi i32 [ %56, %exit7 ], [ 0, %x_body ]
+  %32 = phi double [ %55, %exit7 ], [ 0.000000e+00, %x_body ]
+  br i1 %28, label %exit7, label %true_entry6.lr.ph
 
 true_entry6.lr.ph:                                ; preds = %label5.preheader
   %33 = sext i32 %31 to i64
@@ -70,14 +70,14 @@ true_entry6.lr.ph:                                ; preds = %label5.preheader
   br label %true_entry6
 
 exit:                                             ; preds = %exit7, %x_body
-  %.lcssa8 = phi double [ 0.000000e+00, %x_body ], [ %.lcssa, %exit7 ]
+  %.lcssa8 = phi double [ 0.000000e+00, %x_body ], [ %55, %exit7 ]
   %38 = fptrunc double %.lcssa8 to float
   %39 = add nuw nsw i64 %x, %30
   %40 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %39
   store float %38, float* %40, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !1
+  br i1 %x_postcondition, label %x_exit, label %x_body
 
 x_exit:                                           ; preds = %exit
   %y_increment = add nuw nsw i64 %y, 1
@@ -88,8 +88,8 @@ y_exit:                                           ; preds = %x_exit
   ret void
 
 true_entry6:                                      ; preds = %true_entry6.lr.ph, %true_entry6
-  %41 = phi double [ %32, %true_entry6.lr.ph ], [ %52, %true_entry6 ]
-  %42 = phi i32 [ 0, %true_entry6.lr.ph ], [ %53, %true_entry6 ]
+  %41 = phi double [ %52, %true_entry6 ], [ %32, %true_entry6.lr.ph ]
+  %42 = phi i32 [ %53, %true_entry6 ], [ 0, %true_entry6.lr.ph ]
   %43 = sext i32 %42 to i64
   %44 = add i64 %36, %43
   %45 = getelementptr %f32XY, %f32XY* %6, i64 0, i32 6, i64 %44
@@ -105,10 +105,10 @@ true_entry6:                                      ; preds = %true_entry6.lr.ph, 
   br i1 %54, label %exit7, label %true_entry6
 
 exit7:                                            ; preds = %true_entry6, %label5.preheader
-  %.lcssa = phi double [ %32, %label5.preheader ], [ %52, %true_entry6 ]
-  %55 = add nuw nsw i32 %31, 1
-  %56 = icmp eq i32 %55, %12
-  br i1 %56, label %exit, label %label5.preheader
+  %55 = phi double [ %32, %label5.preheader ], [ %52, %true_entry6 ]
+  %56 = add nuw nsw i32 %31, 1
+  %57 = icmp eq i32 %56, %12
+  br i1 %57, label %exit, label %label5.preheader
 }
 
 ; Function Attrs: nounwind

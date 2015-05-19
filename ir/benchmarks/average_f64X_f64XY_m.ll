@@ -55,7 +55,7 @@ x_body:                                           ; preds = %x_body, %entry
   store double %14, double* %12, align 8, !llvm.mem.parallel_loop_access !0
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %2
-  br i1 %x_postcondition, label %x_exit, label %x_body, !llvm.loop !0
+  br i1 %x_postcondition, label %x_exit, label %x_body
 
 x_exit:                                           ; preds = %x_body
   ret void
@@ -95,8 +95,8 @@ y_body:                                           ; preds = %x_exit, %entry
   %18 = mul nuw nsw i64 %y, %src_y_step
   br label %x_body
 
-x_body:                                           ; preds = %x_body, %y_body
-  %x = phi i64 [ 0, %y_body ], [ %x_increment, %x_body ]
+x_body:                                           ; preds = %y_body, %x_body
+  %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
   %19 = getelementptr double, double* %10, i64 %x
   %20 = load double, double* %19, align 8
   %21 = add nuw nsw i64 %x, %18

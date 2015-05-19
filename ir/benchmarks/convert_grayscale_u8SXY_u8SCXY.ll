@@ -64,7 +64,7 @@ y_body:                                           ; preds = %y_body, %entry
   store i8 %37, i8* %38, align 1, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %17
-  br i1 %y_postcondition, label %y_exit, label %y_body, !llvm.loop !1
+  br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
   %39 = bitcast %u0CXYT* %5 to %u8SXY*
