@@ -2594,14 +2594,17 @@ class kernelExpression : public LikelyOperator
         const size_t argsStart = ((args->type == likely_ast_list) && (args->atoms[0]->type == likely_ast_list)) ? 1 : 0;
         const uint32_t manualDims = argsStart ? args->atoms[0]->num_atoms : 0;
         if (args->type == likely_ast_list) {
-            for (size_t j=argsStart; j<args->num_atoms; j++)
-                srcs.push_back(get(builder, args->atoms[j]));
+            for (size_t j=argsStart; j<args->num_atoms; j++) {
+                const likely_const_ast arg = args->atoms[j];
+                assert(arg->type != likely_ast_list);
+                srcs.push_back(retain(lookup(builder.env, arg->atom)->expr));
+            }
             for (size_t j=0; j<manualDims; j++) {
                 const UniqueExpression expr(get(builder, args->atoms[0]->atoms[j]));
                 srcs.push_back(new likely_expression(builder.cast(*expr, likely_u64)));
             }
         } else {
-            srcs.push_back(get(builder, args));
+            srcs.push_back(retain(lookup(builder.env, args->atom)->expr));
         }
 
         const int automaticDimsIndex = reduction() ? 1 : 0;
