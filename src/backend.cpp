@@ -1032,6 +1032,33 @@ struct Builder : public IRBuilder<>
         if (LikelyValue::isMat(expr.value->getType()))
             return expr;
 
+        if (AllocaInst *const allocaInst = dyn_cast<AllocaInst>(expr.value)) {
+            const likely_type type = likely_element_type(expr) | likely_multi_channel;
+            Function *likelyNew = module->module->getFunction("likely_new");
+            if (!likelyNew) {
+                Type *params[] = { Type::getInt32Ty(getContext()),
+                                   Type::getInt32Ty(getContext()),
+                                   Type::getInt32Ty(getContext()),
+                                   Type::getInt32Ty(getContext()),
+                                   Type::getInt32Ty(getContext()),
+                                   Type::getInt8PtrTy(getContext()) };
+                FunctionType *functionType = FunctionType::get(module->context->toLLVM(type), params, false);
+                likelyNew = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_new", module->module);
+                likelyNew->setCallingConv(CallingConv::C);
+                likelyNew->setDoesNotAlias(0);
+                likelyNew->setDoesNotAlias(6);
+                likelyNew->setDoesNotCapture(6);
+                sys::DynamicLibrary::AddSymbol("likely_new", (void*) likely_new);
+            }
+            Value *args[] = { constant(uint64_t(type), likely_u32),
+                              allocaInst->getArraySize(),
+                              one(likely_u32),
+                              one(likely_u32),
+                              one(likely_u32),
+                              CreatePointerCast(allocaInst, Type::getInt8PtrTy(getContext())) };
+            return LikelyValue(CreateCall(likelyNew, args), type);
+        }
+
         if (expr.value->getType()->isPointerTy() /* assume it's a string for now */) {
             Function *likelyString = module->module->getFunction("likely_string");
             if (!likelyString) {
@@ -1290,7 +1317,7 @@ struct LikelyFunction : public LikelyOperator
             assert(result->value);
 
             // If we are expecting a constant or a matrix and don't get one then make a matrix
-            if (promoteScalarToMatrix && !result->getData() && !dyn_cast<PointerType>(result->value->getType()))
+            if (promoteScalarToMatrix && !result->getData() && !isMat(result->value->getType()))
                 result.reset(new likely_expression(builder.toMat(*result)));
 
             // If we are returning a constant matrix, make sure to retain a copy
