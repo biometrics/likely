@@ -41,16 +41,16 @@ y_body:                                           ; preds = %y_body, %entry
   %19 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 %y
   %20 = load double, double* %19, align 8, !llvm.mem.parallel_loop_access !1
   %21 = fmul fast double %20, %1
-  %22 = fadd fast double %21, %2
-  %23 = getelementptr double, double* %9, i64 %y
-  store double %22, double* %23, align 8, !llvm.mem.parallel_loop_access !1
+  %val = fadd fast double %21, %2
+  %22 = getelementptr double, double* %9, i64 %y
+  store double %val, double* %22, align 8, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %18
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
-  %24 = bitcast %u0CXYT* %6 to %f64CXY*
-  ret %f64CXY* %24
+  %dst = bitcast %u0CXYT* %6 to %f64CXY*
+  ret %f64CXY* %dst
 }
 
 attributes #0 = { nounwind readonly }

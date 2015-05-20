@@ -135,26 +135,26 @@ entry:
   %13 = icmp eq i32 %columns3, %columns4
   call void @llvm.assume(i1 %13)
   %14 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns4, i32 %rows2, i32 1, i8* null)
-  %15 = bitcast %u0CXYT* %14 to %f32XY*
-  %16 = zext i32 %rows2 to i64
-  %17 = alloca { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }, align 8
-  %18 = bitcast { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %17 to %u0CXYT**
-  store %u0CXYT* %14, %u0CXYT** %18, align 8
-  %19 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }, { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %17, i64 0, i32 1
-  store %f32XY* %0, %f32XY** %19, align 8
-  %20 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }, { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %17, i64 0, i32 2
-  store %f32XY* %1, %f32XY** %20, align 8
-  %21 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }, { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %17, i64 0, i32 3
-  store double %2, double* %21, align 8
-  %22 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }, { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %17, i64 0, i32 4
-  store %f32XY* %3, %f32XY** %22, align 8
-  %23 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }, { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %17, i64 0, i32 5
-  store double %4, double* %23, align 8
-  %24 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }, { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %17, i64 0, i32 6
-  store i32 %columns, i32* %24, align 8
-  %25 = bitcast { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %17 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }*, i64, i64)* @gemm_tmp_thunk0 to i8*), i8* %25, i64 %16)
-  ret %f32XY* %15
+  %dst = bitcast %u0CXYT* %14 to %f32XY*
+  %15 = zext i32 %rows2 to i64
+  %16 = alloca { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }, align 8
+  %17 = bitcast { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %16 to %u0CXYT**
+  store %u0CXYT* %14, %u0CXYT** %17, align 8
+  %18 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }, { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %16, i64 0, i32 1
+  store %f32XY* %0, %f32XY** %18, align 8
+  %19 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }, { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %16, i64 0, i32 2
+  store %f32XY* %1, %f32XY** %19, align 8
+  %20 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }, { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %16, i64 0, i32 3
+  store double %2, double* %20, align 8
+  %21 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }, { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %16, i64 0, i32 4
+  store %f32XY* %3, %f32XY** %21, align 8
+  %22 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }, { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %16, i64 0, i32 5
+  store double %4, double* %22, align 8
+  %23 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }, { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %16, i64 0, i32 6
+  store i32 %columns, i32* %23, align 8
+  %24 = bitcast { %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }* %16 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32XY*, %f32XY*, double, %f32XY*, double, i32 }*, i64, i64)* @gemm_tmp_thunk0 to i8*), i8* %24, i64 %15)
+  ret %f32XY* %dst
 }
 
 attributes #0 = { nounwind }

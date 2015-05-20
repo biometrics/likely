@@ -49,8 +49,8 @@ y_body:                                           ; preds = %y_body, %entry
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
-  %23 = bitcast %u0CXYT* %6 to %u8SCXY*
-  ret %u8SCXY* %23
+  %dst = bitcast %u0CXYT* %6 to %u8SCXY*
+  ret %u8SCXY* %dst
 }
 
 attributes #0 = { nounwind readonly }

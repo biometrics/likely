@@ -42,24 +42,24 @@ y_body:                                           ; preds = %y_body, %entry
   %20 = load i8, i8* %19, align 1, !llvm.mem.parallel_loop_access !1
   %21 = uitofp i8 %20 to float
   %22 = fmul fast float %21, %1
-  %23 = fadd fast float %22, %2
-  %24 = getelementptr i8, i8* %9, i64 %y
-  %25 = fcmp olt float %23, 0.000000e+00
-  %. = select i1 %25, float -5.000000e-01, float 5.000000e-01
-  %26 = fadd fast float %., %23
-  %27 = fptoui float %26 to i8
-  %28 = fcmp olt float %26, 0.000000e+00
-  %29 = select i1 %28, i8 0, i8 %27
-  %30 = fcmp ogt float %26, 2.550000e+02
-  %31 = select i1 %30, i8 -1, i8 %29
-  store i8 %31, i8* %24, align 1, !llvm.mem.parallel_loop_access !1
+  %val = fadd fast float %22, %2
+  %23 = getelementptr i8, i8* %9, i64 %y
+  %24 = fcmp olt float %val, 0.000000e+00
+  %. = select i1 %24, float -5.000000e-01, float 5.000000e-01
+  %25 = fadd fast float %., %val
+  %26 = fptoui float %25 to i8
+  %27 = fcmp olt float %25, 0.000000e+00
+  %28 = select i1 %27, i8 0, i8 %26
+  %29 = fcmp ogt float %25, 2.550000e+02
+  %30 = select i1 %29, i8 -1, i8 %28
+  store i8 %30, i8* %23, align 1, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %18
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
-  %32 = bitcast %u0CXYT* %6 to %u8SCXY*
-  ret %u8SCXY* %32
+  %dst = bitcast %u0CXYT* %6 to %u8SCXY*
+  ret %u8SCXY* %dst
 }
 
 attributes #0 = { nounwind readonly }

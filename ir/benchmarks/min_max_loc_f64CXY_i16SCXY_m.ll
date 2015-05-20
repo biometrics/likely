@@ -45,58 +45,58 @@ c_body:                                           ; preds = %exit, %entry
   br i1 %23, label %exit, label %true_entry
 
 true_entry:                                       ; preds = %c_body, %true_entry
-  %24 = phi i32 [ %38, %true_entry ], [ 0, %c_body ]
-  %25 = phi i16 [ %.8, %true_entry ], [ 32767, %c_body ]
+  %24 = phi i32 [ %37, %true_entry ], [ 0, %c_body ]
+  %25 = phi i16 [ %current-value., %true_entry ], [ 32767, %c_body ]
   %26 = phi i32 [ %., %true_entry ], [ 0, %c_body ]
-  %27 = phi i16 [ %37, %true_entry ], [ -32768, %c_body ]
-  %28 = phi i32 [ %36, %true_entry ], [ 0, %c_body ]
+  %27 = phi i16 [ %36, %true_entry ], [ -32768, %c_body ]
+  %28 = phi i32 [ %35, %true_entry ], [ 0, %c_body ]
   %29 = sext i32 %24 to i64
   %30 = mul nuw nsw i64 %29, %dst_c
   %31 = add nuw nsw i64 %30, %c
   %32 = getelementptr %i16SCXY, %i16SCXY* %6, i64 0, i32 6, i64 %31
-  %33 = load i16, i16* %32, align 2, !llvm.mem.parallel_loop_access !1
-  %34 = icmp slt i16 %33, %25
-  %. = select i1 %34, i32 %24, i32 %26
-  %.8 = select i1 %34, i16 %33, i16 %25
-  %35 = icmp sgt i16 %33, %27
-  %36 = select i1 %35, i32 %24, i32 %28
-  %37 = select i1 %35, i16 %33, i16 %27
-  %38 = add nuw nsw i32 %24, 1
-  %39 = icmp eq i32 %38, %21
-  br i1 %39, label %exit, label %true_entry
+  %current-value = load i16, i16* %32, align 2, !llvm.mem.parallel_loop_access !1
+  %33 = icmp slt i16 %current-value, %25
+  %. = select i1 %33, i32 %24, i32 %26
+  %current-value. = select i1 %33, i16 %current-value, i16 %25
+  %34 = icmp sgt i16 %current-value, %27
+  %35 = select i1 %34, i32 %24, i32 %28
+  %36 = select i1 %34, i16 %current-value, i16 %27
+  %37 = add nuw nsw i32 %24, 1
+  %38 = icmp eq i32 %37, %21
+  br i1 %38, label %exit, label %true_entry
 
 exit:                                             ; preds = %true_entry, %c_body
-  %.lcssa11 = phi i16 [ 32767, %c_body ], [ %.8, %true_entry ]
-  %.lcssa10 = phi i32 [ 0, %c_body ], [ %., %true_entry ]
-  %.lcssa9 = phi i16 [ -32768, %c_body ], [ %37, %true_entry ]
-  %.lcssa = phi i32 [ 0, %c_body ], [ %36, %true_entry ]
-  %40 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %c
-  %41 = sitofp i16 %.lcssa11 to double
-  store double %41, double* %40, align 8, !llvm.mem.parallel_loop_access !1
-  %42 = srem i32 %.lcssa10, %8
-  %43 = add nuw nsw i64 %c, %dst_c
-  %44 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %43
-  %45 = sitofp i32 %42 to double
-  store double %45, double* %44, align 8, !llvm.mem.parallel_loop_access !1
-  %46 = sdiv i32 %.lcssa10, %8
-  %47 = add nuw nsw i64 %c, %22
-  %48 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %47
-  %49 = sitofp i32 %46 to double
-  store double %49, double* %48, align 8, !llvm.mem.parallel_loop_access !1
-  %50 = add nuw nsw i64 %c, %dst_y_step
-  %51 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %50
-  %52 = sitofp i16 %.lcssa9 to double
-  store double %52, double* %51, align 8, !llvm.mem.parallel_loop_access !1
-  %53 = srem i32 %.lcssa, %8
-  %54 = add nuw nsw i64 %43, %dst_y_step
-  %55 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %54
-  %56 = sitofp i32 %53 to double
-  store double %56, double* %55, align 8, !llvm.mem.parallel_loop_access !1
-  %57 = sdiv i32 %.lcssa, %8
-  %58 = add nuw nsw i64 %47, %dst_y_step
-  %59 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %58
-  %60 = sitofp i32 %57 to double
-  store double %60, double* %59, align 8, !llvm.mem.parallel_loop_access !1
+  %.lcssa10 = phi i16 [ 32767, %c_body ], [ %current-value., %true_entry ]
+  %.lcssa9 = phi i32 [ 0, %c_body ], [ %., %true_entry ]
+  %.lcssa8 = phi i16 [ -32768, %c_body ], [ %36, %true_entry ]
+  %.lcssa = phi i32 [ 0, %c_body ], [ %35, %true_entry ]
+  %39 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %c
+  %40 = sitofp i16 %.lcssa10 to double
+  store double %40, double* %39, align 8, !llvm.mem.parallel_loop_access !1
+  %41 = srem i32 %.lcssa9, %8
+  %42 = add nuw nsw i64 %c, %dst_c
+  %43 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %42
+  %44 = sitofp i32 %41 to double
+  store double %44, double* %43, align 8, !llvm.mem.parallel_loop_access !1
+  %45 = sdiv i32 %.lcssa9, %8
+  %46 = add nuw nsw i64 %c, %22
+  %47 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %46
+  %48 = sitofp i32 %45 to double
+  store double %48, double* %47, align 8, !llvm.mem.parallel_loop_access !1
+  %49 = add nuw nsw i64 %c, %dst_y_step
+  %50 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %49
+  %51 = sitofp i16 %.lcssa8 to double
+  store double %51, double* %50, align 8, !llvm.mem.parallel_loop_access !1
+  %52 = srem i32 %.lcssa, %8
+  %53 = add nuw nsw i64 %42, %dst_y_step
+  %54 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %53
+  %55 = sitofp i32 %52 to double
+  store double %55, double* %54, align 8, !llvm.mem.parallel_loop_access !1
+  %56 = sdiv i32 %.lcssa, %8
+  %57 = add nuw nsw i64 %46, %dst_y_step
+  %58 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %57
+  %59 = sitofp i32 %56 to double
+  store double %59, double* %58, align 8, !llvm.mem.parallel_loop_access !1
   %c_increment = add nuw nsw i64 %c, 1
   %c_postcondition = icmp eq i64 %c_increment, %2
   br i1 %c_postcondition, label %c_exit, label %c_body
@@ -115,32 +115,32 @@ entry:
   %1 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 2
   %channels = load i32, i32* %1, align 4, !range !0
   %2 = call %u0CXYT* @likely_new(i32 28992, i32 %channels, i32 3, i32 2, i32 1, i8* null)
-  %3 = bitcast %u0CXYT* %2 to %f64CXY*
-  %4 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 3
-  %columns = load i32, i32* %4, align 4, !range !0
-  %5 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 4
-  %rows = load i32, i32* %5, align 4, !range !0
-  %6 = zext i32 %channels to i64
-  %7 = alloca { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, align 8
-  %8 = bitcast { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %7 to %u0CXYT**
-  store %u0CXYT* %2, %u0CXYT** %8, align 8
-  %9 = getelementptr inbounds { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %7, i64 0, i32 1
-  store %i16SCXY* %0, %i16SCXY** %9, align 8
-  %10 = getelementptr inbounds { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %7, i64 0, i32 2
-  store i32 %columns, i32* %10, align 8
-  %11 = getelementptr inbounds { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %7, i64 0, i32 3
-  store i32 %rows, i32* %11, align 4
-  %12 = getelementptr inbounds { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %7, i64 0, i32 4
-  store i64 %6, i64* %12, align 8
-  %13 = getelementptr inbounds { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %7, i64 0, i32 5
+  %dst = bitcast %u0CXYT* %2 to %f64CXY*
+  %3 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 3
+  %width = load i32, i32* %3, align 4, !range !0
+  %4 = getelementptr inbounds %i16SCXY, %i16SCXY* %0, i64 0, i32 4
+  %height = load i32, i32* %4, align 4, !range !0
+  %5 = zext i32 %channels to i64
+  %6 = alloca { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, align 8
+  %7 = bitcast { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %6 to %u0CXYT**
+  store %u0CXYT* %2, %u0CXYT** %7, align 8
+  %8 = getelementptr inbounds { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %6, i64 0, i32 1
+  store %i16SCXY* %0, %i16SCXY** %8, align 8
+  %9 = getelementptr inbounds { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %6, i64 0, i32 2
+  store i32 %width, i32* %9, align 8
+  %10 = getelementptr inbounds { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %6, i64 0, i32 3
+  store i32 %height, i32* %10, align 4
+  %11 = getelementptr inbounds { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %6, i64 0, i32 4
+  store i64 %5, i64* %11, align 8
+  %12 = getelementptr inbounds { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %6, i64 0, i32 5
+  store i64 1, i64* %12, align 8
+  %13 = getelementptr inbounds { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %6, i64 0, i32 6
   store i64 1, i64* %13, align 8
-  %14 = getelementptr inbounds { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %7, i64 0, i32 6
+  %14 = getelementptr inbounds { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %6, i64 0, i32 7
   store i64 1, i64* %14, align 8
-  %15 = getelementptr inbounds { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }, { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %7, i64 0, i32 7
-  store i64 1, i64* %15, align 8
-  %16 = bitcast { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %7 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }*, i64, i64)* @min_max_loc_tmp_thunk0 to i8*), i8* %16, i64 %6)
-  ret %f64CXY* %3
+  %15 = bitcast { %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }* %6 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f64CXY*, %i16SCXY*, i32, i32, i64, i64, i64, i64 }*, i64, i64)* @min_max_loc_tmp_thunk0 to i8*), i8* %15, i64 %5)
+  ret %f64CXY* %dst
 }
 
 attributes #0 = { nounwind readonly }

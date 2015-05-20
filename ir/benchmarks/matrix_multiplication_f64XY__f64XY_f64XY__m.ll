@@ -104,20 +104,20 @@ entry:
   %6 = getelementptr inbounds %f64XY, %f64XY* %0, i64 0, i32 4
   %rows2 = load i32, i32* %6, align 4, !range !0
   %7 = call %u0CXYT* @likely_new(i32 24896, i32 1, i32 %columns1, i32 %rows2, i32 1, i8* null)
-  %8 = bitcast %u0CXYT* %7 to %f64XY*
-  %9 = zext i32 %rows2 to i64
-  %10 = alloca { %f64XY*, %f64XY*, %f64XY*, i32 }, align 8
-  %11 = bitcast { %f64XY*, %f64XY*, %f64XY*, i32 }* %10 to %u0CXYT**
-  store %u0CXYT* %7, %u0CXYT** %11, align 8
-  %12 = getelementptr inbounds { %f64XY*, %f64XY*, %f64XY*, i32 }, { %f64XY*, %f64XY*, %f64XY*, i32 }* %10, i64 0, i32 1
-  store %f64XY* %0, %f64XY** %12, align 8
-  %13 = getelementptr inbounds { %f64XY*, %f64XY*, %f64XY*, i32 }, { %f64XY*, %f64XY*, %f64XY*, i32 }* %10, i64 0, i32 2
-  store %f64XY* %1, %f64XY** %13, align 8
-  %14 = getelementptr inbounds { %f64XY*, %f64XY*, %f64XY*, i32 }, { %f64XY*, %f64XY*, %f64XY*, i32 }* %10, i64 0, i32 3
-  store i32 %columns, i32* %14, align 8
-  %15 = bitcast { %f64XY*, %f64XY*, %f64XY*, i32 }* %10 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f64XY*, %f64XY*, %f64XY*, i32 }*, i64, i64)* @matrix_multiplication_tmp_thunk0 to i8*), i8* %15, i64 %9)
-  ret %f64XY* %8
+  %C = bitcast %u0CXYT* %7 to %f64XY*
+  %8 = zext i32 %rows2 to i64
+  %9 = alloca { %f64XY*, %f64XY*, %f64XY*, i32 }, align 8
+  %10 = bitcast { %f64XY*, %f64XY*, %f64XY*, i32 }* %9 to %u0CXYT**
+  store %u0CXYT* %7, %u0CXYT** %10, align 8
+  %11 = getelementptr inbounds { %f64XY*, %f64XY*, %f64XY*, i32 }, { %f64XY*, %f64XY*, %f64XY*, i32 }* %9, i64 0, i32 1
+  store %f64XY* %0, %f64XY** %11, align 8
+  %12 = getelementptr inbounds { %f64XY*, %f64XY*, %f64XY*, i32 }, { %f64XY*, %f64XY*, %f64XY*, i32 }* %9, i64 0, i32 2
+  store %f64XY* %1, %f64XY** %12, align 8
+  %13 = getelementptr inbounds { %f64XY*, %f64XY*, %f64XY*, i32 }, { %f64XY*, %f64XY*, %f64XY*, i32 }* %9, i64 0, i32 3
+  store i32 %columns, i32* %13, align 8
+  %14 = bitcast { %f64XY*, %f64XY*, %f64XY*, i32 }* %9 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f64XY*, %f64XY*, %f64XY*, i32 }*, i64, i64)* @matrix_multiplication_tmp_thunk0 to i8*), i8* %14, i64 %8)
+  ret %f64XY* %C
 }
 
 attributes #0 = { nounwind }

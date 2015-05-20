@@ -102,9 +102,9 @@ y_body:                                           ; preds = %x_exit, %entry
 x_body:                                           ; preds = %y_body, %Flow6
   %x = phi i64 [ %x_increment, %Flow6 ], [ 0, %y_body ]
   %20 = icmp ugt i64 %y, %x
-  br i1 %20, label %Flow6, label %label.preheader
+  br i1 %20, label %Flow6, label %loop.preheader
 
-label.preheader:                                  ; preds = %x_body
+loop.preheader:                                   ; preds = %x_body
   br i1 %18, label %exit4, label %true_entry3
 
 x_exit:                                           ; preds = %Flow6
@@ -115,9 +115,9 @@ x_exit:                                           ; preds = %Flow6
 y_exit:                                           ; preds = %x_exit
   ret void
 
-true_entry3:                                      ; preds = %label.preheader, %true_entry3
-  %21 = phi i32 [ %35, %true_entry3 ], [ 0, %label.preheader ]
-  %22 = phi double [ %34, %true_entry3 ], [ 0.000000e+00, %label.preheader ]
+true_entry3:                                      ; preds = %loop.preheader, %true_entry3
+  %21 = phi i32 [ %35, %true_entry3 ], [ 0, %loop.preheader ]
+  %22 = phi double [ %34, %true_entry3 ], [ 0.000000e+00, %loop.preheader ]
   %23 = sext i32 %21 to i64
   %24 = mul nuw nsw i64 %23, %dst_y_step
   %25 = add nuw nsw i64 %24, %x
@@ -139,8 +139,8 @@ Flow6:                                            ; preds = %x_body, %exit4
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body
 
-exit4:                                            ; preds = %true_entry3, %label.preheader
-  %.lcssa = phi double [ 0.000000e+00, %label.preheader ], [ %34, %true_entry3 ]
+exit4:                                            ; preds = %true_entry3, %loop.preheader
+  %.lcssa = phi double [ 0.000000e+00, %loop.preheader ], [ %34, %true_entry3 ]
   %37 = add nuw nsw i64 %x, %19
   %38 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %37
   %39 = fptrunc double %.lcssa to float
@@ -170,21 +170,21 @@ entry:
   %10 = bitcast { %f32XY*, %f32XY*, %f32X* }* %6 to i8*
   call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32XY*, %f32X* }*, i64, i64)* @multiply_transposed_tmp_thunk0 to i8*), i8* %10, i64 %5)
   %11 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns, i32 %columns, i32 1, i8* null)
-  %12 = bitcast %u0CXYT* %11 to %f32XY*
-  %13 = zext i32 %columns to i64
-  %14 = alloca { %f32XY*, %f32XY*, i32 }, align 8
-  %15 = bitcast { %f32XY*, %f32XY*, i32 }* %14 to %u0CXYT**
-  store %u0CXYT* %11, %u0CXYT** %15, align 8
-  %16 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %14, i64 0, i32 1
-  %17 = bitcast %f32XY** %16 to %u0CXYT**
-  store %u0CXYT* %4, %u0CXYT** %17, align 8
-  %18 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %14, i64 0, i32 2
-  store i32 %rows, i32* %18, align 8
-  %19 = bitcast { %f32XY*, %f32XY*, i32 }* %14 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32XY*, i32 }*, i64, i64)* @multiply_transposed_tmp_thunk1 to i8*), i8* %19, i64 %13)
-  %20 = bitcast %u0CXYT* %4 to i8*
-  call void @likely_release_mat(i8* %20)
-  ret %f32XY* %12
+  %dst = bitcast %u0CXYT* %11 to %f32XY*
+  %12 = zext i32 %columns to i64
+  %13 = alloca { %f32XY*, %f32XY*, i32 }, align 8
+  %14 = bitcast { %f32XY*, %f32XY*, i32 }* %13 to %u0CXYT**
+  store %u0CXYT* %11, %u0CXYT** %14, align 8
+  %15 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %13, i64 0, i32 1
+  %16 = bitcast %f32XY** %15 to %u0CXYT**
+  store %u0CXYT* %4, %u0CXYT** %16, align 8
+  %17 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %13, i64 0, i32 2
+  store i32 %rows, i32* %17, align 8
+  %18 = bitcast { %f32XY*, %f32XY*, i32 }* %13 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32XY*, i32 }*, i64, i64)* @multiply_transposed_tmp_thunk1 to i8*), i8* %18, i64 %12)
+  %19 = bitcast %u0CXYT* %4 to i8*
+  call void @likely_release_mat(i8* %19)
+  ret %f32XY* %dst
 }
 
 declare void @likely_release_mat(i8* noalias nocapture)

@@ -70,8 +70,8 @@ y_body:                                           ; preds = %y_body, %exit
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
-  %34 = bitcast %u0CXYT* %17 to %f64CXY*
-  ret %f64CXY* %34
+  %dst = bitcast %u0CXYT* %17 to %f64CXY*
+  ret %f64CXY* %dst
 }
 
 attributes #0 = { nounwind readnone }

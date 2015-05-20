@@ -77,38 +77,38 @@ entry:
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit ]
   %42 = trunc i64 %y to i32
-  %43 = sub i32 %42, %arg_1
-  %44 = sitofp i32 %43 to float
-  %45 = fmul fast float %44, %40
-  %46 = fmul fast float %44, %39
-  %47 = mul nuw nsw i64 %y, %dst_y_step
+  %dy = sub i32 %42, %arg_1
+  %43 = sitofp i32 %dy to float
+  %44 = fmul fast float %43, %40
+  %45 = fmul fast float %43, %39
+  %46 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
 x_body:                                           ; preds = %y_body, %x_body
   %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
-  %48 = trunc i64 %x to i32
-  %49 = sub i32 %48, %arg_0
-  %50 = sitofp i32 %49 to float
-  %51 = fmul fast float %50, %39
-  %52 = fadd fast float %51, %45
-  %53 = sub nsw i32 0, %49
-  %54 = sitofp i32 %53 to float
-  %55 = fmul fast float %54, %40
-  %56 = fadd fast float %55, %46
-  %57 = fdiv fast float %52, %arg_2
-  %58 = fmul fast float %57, %57
-  %59 = fdiv fast float %56, %arg_3
-  %60 = fmul fast float %59, %59
-  %61 = fadd fast float %60, %58
-  %62 = fmul fast float %61, -5.000000e-01
-  %63 = call float @llvm.exp.f32(float %62)
-  %64 = fmul fast float %52, %41
-  %65 = fadd fast float %64, %arg_6
-  %66 = call float @llvm.cos.f32(float %65)
-  %67 = fmul fast float %66, %63
-  %68 = add nuw nsw i64 %x, %47
-  %69 = getelementptr float, float* %35, i64 %68
-  store float %67, float* %69, align 4, !llvm.mem.parallel_loop_access !0
+  %47 = trunc i64 %x to i32
+  %dx = sub i32 %47, %arg_0
+  %48 = sitofp i32 %dx to float
+  %49 = fmul fast float %48, %39
+  %xp = fadd fast float %49, %44
+  %50 = sub nsw i32 0, %dx
+  %51 = sitofp i32 %50 to float
+  %52 = fmul fast float %51, %40
+  %yp = fadd fast float %52, %45
+  %53 = fdiv fast float %xp, %arg_2
+  %54 = fmul fast float %53, %53
+  %55 = fdiv fast float %yp, %arg_3
+  %56 = fmul fast float %55, %55
+  %57 = fadd fast float %56, %54
+  %58 = fmul fast float %57, -5.000000e-01
+  %59 = call float @llvm.exp.f32(float %58)
+  %60 = fmul fast float %xp, %41
+  %61 = fadd fast float %60, %arg_6
+  %62 = call float @llvm.cos.f32(float %61)
+  %63 = fmul fast float %62, %59
+  %64 = add nuw nsw i64 %x, %46
+  %65 = getelementptr float, float* %35, i64 %64
+  store float %63, float* %65, align 4, !llvm.mem.parallel_loop_access !0
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body
@@ -119,8 +119,8 @@ x_exit:                                           ; preds = %x_body
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %70 = bitcast %u0CXYT* %32 to %f32XY*
-  ret %f32XY* %70
+  %dst = bitcast %u0CXYT* %32 to %f32XY*
+  ret %f32XY* %dst
 }
 
 attributes #0 = { nounwind readonly }

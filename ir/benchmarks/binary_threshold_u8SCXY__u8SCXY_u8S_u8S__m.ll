@@ -67,20 +67,20 @@ entry:
   %5 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 0, i32 4
   %rows = load i32, i32* %5, align 4, !range !0
   %6 = call %u0CXYT* @likely_new(i32 29704, i32 %channels, i32 %columns, i32 %rows, i32 1, i8* null)
-  %7 = bitcast %u0CXYT* %6 to %u8SCXY*
-  %8 = zext i32 %rows to i64
-  %9 = alloca { %u8SCXY*, %u8SCXY*, i8, i8 }, align 8
-  %10 = bitcast { %u8SCXY*, %u8SCXY*, i8, i8 }* %9 to %u0CXYT**
-  store %u0CXYT* %6, %u0CXYT** %10, align 8
-  %11 = getelementptr inbounds { %u8SCXY*, %u8SCXY*, i8, i8 }, { %u8SCXY*, %u8SCXY*, i8, i8 }* %9, i64 0, i32 1
-  store %u8SCXY* %0, %u8SCXY** %11, align 8
-  %12 = getelementptr inbounds { %u8SCXY*, %u8SCXY*, i8, i8 }, { %u8SCXY*, %u8SCXY*, i8, i8 }* %9, i64 0, i32 2
-  store i8 %1, i8* %12, align 8
-  %13 = getelementptr inbounds { %u8SCXY*, %u8SCXY*, i8, i8 }, { %u8SCXY*, %u8SCXY*, i8, i8 }* %9, i64 0, i32 3
-  store i8 %2, i8* %13, align 1
-  %14 = bitcast { %u8SCXY*, %u8SCXY*, i8, i8 }* %9 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %u8SCXY*, %u8SCXY*, i8, i8 }*, i64, i64)* @binary_threshold_tmp_thunk0 to i8*), i8* %14, i64 %8)
-  ret %u8SCXY* %7
+  %dst = bitcast %u0CXYT* %6 to %u8SCXY*
+  %7 = zext i32 %rows to i64
+  %8 = alloca { %u8SCXY*, %u8SCXY*, i8, i8 }, align 8
+  %9 = bitcast { %u8SCXY*, %u8SCXY*, i8, i8 }* %8 to %u0CXYT**
+  store %u0CXYT* %6, %u0CXYT** %9, align 8
+  %10 = getelementptr inbounds { %u8SCXY*, %u8SCXY*, i8, i8 }, { %u8SCXY*, %u8SCXY*, i8, i8 }* %8, i64 0, i32 1
+  store %u8SCXY* %0, %u8SCXY** %10, align 8
+  %11 = getelementptr inbounds { %u8SCXY*, %u8SCXY*, i8, i8 }, { %u8SCXY*, %u8SCXY*, i8, i8 }* %8, i64 0, i32 2
+  store i8 %1, i8* %11, align 8
+  %12 = getelementptr inbounds { %u8SCXY*, %u8SCXY*, i8, i8 }, { %u8SCXY*, %u8SCXY*, i8, i8 }* %8, i64 0, i32 3
+  store i8 %2, i8* %12, align 1
+  %13 = bitcast { %u8SCXY*, %u8SCXY*, i8, i8 }* %8 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %u8SCXY*, %u8SCXY*, i8, i8 }*, i64, i64)* @binary_threshold_tmp_thunk0 to i8*), i8* %13, i64 %7)
+  ret %u8SCXY* %dst
 }
 
 attributes #0 = { nounwind readonly }

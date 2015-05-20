@@ -54,26 +54,26 @@ y_body:                                           ; preds = %x_exit, %entry
 
 x_body:                                           ; preds = %y_body, %exit
   %x = phi i64 [ %x_increment, %exit ], [ 0, %y_body ]
-  br i1 %29, label %exit, label %label5.preheader
+  br i1 %29, label %exit, label %loop6.preheader
 
-label5.preheader:                                 ; preds = %x_body, %exit7
-  %31 = phi i32 [ %56, %exit7 ], [ 0, %x_body ]
-  %32 = phi double [ %55, %exit7 ], [ 0.000000e+00, %x_body ]
-  br i1 %28, label %exit7, label %true_entry6.lr.ph
+loop6.preheader:                                  ; preds = %x_body, %exit8
+  %31 = phi i32 [ %56, %exit8 ], [ 0, %x_body ]
+  %32 = phi double [ %55, %exit8 ], [ 0.000000e+00, %x_body ]
+  br i1 %28, label %exit8, label %true_entry7.lr.ph
 
-true_entry6.lr.ph:                                ; preds = %label5.preheader
+true_entry7.lr.ph:                                ; preds = %loop6.preheader
   %33 = sext i32 %31 to i64
   %34 = add nuw nsw i64 %33, %y
   %35 = mul nuw nsw i64 %34, %src_y_step
   %36 = add i64 %35, %x
   %37 = mul nuw nsw i64 %33, %templ_y_step
-  br label %true_entry6
+  br label %true_entry7
 
-exit:                                             ; preds = %exit7, %x_body
-  %.lcssa8 = phi double [ 0.000000e+00, %x_body ], [ %55, %exit7 ]
+exit:                                             ; preds = %exit8, %x_body
+  %.lcssa9 = phi double [ 0.000000e+00, %x_body ], [ %55, %exit8 ]
   %38 = add nuw nsw i64 %x, %30
   %39 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %38
-  %40 = fptrunc double %.lcssa8 to float
+  %40 = fptrunc double %.lcssa9 to float
   store float %40, float* %39, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
@@ -87,9 +87,9 @@ x_exit:                                           ; preds = %exit
 y_exit:                                           ; preds = %x_exit
   ret void
 
-true_entry6:                                      ; preds = %true_entry6.lr.ph, %true_entry6
-  %41 = phi double [ %52, %true_entry6 ], [ %32, %true_entry6.lr.ph ]
-  %42 = phi i32 [ %53, %true_entry6 ], [ 0, %true_entry6.lr.ph ]
+true_entry7:                                      ; preds = %true_entry7.lr.ph, %true_entry7
+  %41 = phi double [ %52, %true_entry7 ], [ %32, %true_entry7.lr.ph ]
+  %42 = phi i32 [ %53, %true_entry7 ], [ 0, %true_entry7.lr.ph ]
   %43 = sext i32 %42 to i64
   %44 = add i64 %36, %43
   %45 = getelementptr %f32XY, %f32XY* %6, i64 0, i32 6, i64 %44
@@ -102,13 +102,13 @@ true_entry6:                                      ; preds = %true_entry6.lr.ph, 
   %52 = fadd fast double %51, %41
   %53 = add nuw nsw i32 %42, 1
   %54 = icmp eq i32 %53, %10
-  br i1 %54, label %exit7, label %true_entry6
+  br i1 %54, label %exit8, label %true_entry7
 
-exit7:                                            ; preds = %true_entry6, %label5.preheader
-  %55 = phi double [ %32, %label5.preheader ], [ %52, %true_entry6 ]
+exit8:                                            ; preds = %true_entry7, %loop6.preheader
+  %55 = phi double [ %32, %loop6.preheader ], [ %52, %true_entry7 ]
   %56 = add nuw nsw i32 %31, 1
   %57 = icmp eq i32 %56, %12
-  br i1 %57, label %exit, label %label5.preheader
+  br i1 %57, label %exit, label %loop6.preheader
 }
 
 ; Function Attrs: nounwind
@@ -132,22 +132,22 @@ entry:
   %8 = sub i32 %rows, %rows2
   %9 = add nuw nsw i32 %8, 1
   %10 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %5, i32 %9, i32 1, i8* null)
-  %11 = bitcast %u0CXYT* %10 to %f32XY*
-  %12 = zext i32 %9 to i64
-  %13 = alloca { %f32XY*, %f32XY*, %f32XY*, i32, i32 }, align 8
-  %14 = bitcast { %f32XY*, %f32XY*, %f32XY*, i32, i32 }* %13 to %u0CXYT**
-  store %u0CXYT* %10, %u0CXYT** %14, align 8
-  %15 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, i32, i32 }, { %f32XY*, %f32XY*, %f32XY*, i32, i32 }* %13, i64 0, i32 1
-  store %f32XY* %0, %f32XY** %15, align 8
-  %16 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, i32, i32 }, { %f32XY*, %f32XY*, %f32XY*, i32, i32 }* %13, i64 0, i32 2
-  store %f32XY* %1, %f32XY** %16, align 8
-  %17 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, i32, i32 }, { %f32XY*, %f32XY*, %f32XY*, i32, i32 }* %13, i64 0, i32 3
-  store i32 %columns1, i32* %17, align 8
-  %18 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, i32, i32 }, { %f32XY*, %f32XY*, %f32XY*, i32, i32 }* %13, i64 0, i32 4
-  store i32 %rows2, i32* %18, align 4
-  %19 = bitcast { %f32XY*, %f32XY*, %f32XY*, i32, i32 }* %13 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32XY*, %f32XY*, i32, i32 }*, i64, i64)* @match_template_tmp_thunk0 to i8*), i8* %19, i64 %12)
-  ret %f32XY* %11
+  %dst = bitcast %u0CXYT* %10 to %f32XY*
+  %11 = zext i32 %9 to i64
+  %12 = alloca { %f32XY*, %f32XY*, %f32XY*, i32, i32 }, align 8
+  %13 = bitcast { %f32XY*, %f32XY*, %f32XY*, i32, i32 }* %12 to %u0CXYT**
+  store %u0CXYT* %10, %u0CXYT** %13, align 8
+  %14 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, i32, i32 }, { %f32XY*, %f32XY*, %f32XY*, i32, i32 }* %12, i64 0, i32 1
+  store %f32XY* %0, %f32XY** %14, align 8
+  %15 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, i32, i32 }, { %f32XY*, %f32XY*, %f32XY*, i32, i32 }* %12, i64 0, i32 2
+  store %f32XY* %1, %f32XY** %15, align 8
+  %16 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, i32, i32 }, { %f32XY*, %f32XY*, %f32XY*, i32, i32 }* %12, i64 0, i32 3
+  store i32 %columns1, i32* %16, align 8
+  %17 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY*, i32, i32 }, { %f32XY*, %f32XY*, %f32XY*, i32, i32 }* %12, i64 0, i32 4
+  store i32 %rows2, i32* %17, align 4
+  %18 = bitcast { %f32XY*, %f32XY*, %f32XY*, i32, i32 }* %12 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32XY*, %f32XY*, i32, i32 }*, i64, i64)* @match_template_tmp_thunk0 to i8*), i8* %18, i64 %11)
+  ret %f32XY* %dst
 }
 
 attributes #0 = { nounwind readonly }

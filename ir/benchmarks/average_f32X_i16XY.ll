@@ -25,58 +25,58 @@ entry:
   %scevgep1 = bitcast %u0CXYT* %4 to i8*
   %9 = shl nuw nsw i64 %3, 2
   call void @llvm.memset.p0i8.i64(i8* %scevgep1, i8 0, i64 %9, i32 4, i1 false)
-  %10 = bitcast %u0CXYT* %2 to %f32X*
-  %11 = getelementptr inbounds %i16XY, %i16XY* %0, i64 0, i32 4
-  %rows = load i32, i32* %11, align 4, !range !0
-  %12 = zext i32 %rows to i64
-  %13 = getelementptr inbounds %i16XY, %i16XY* %0, i64 0, i32 6, i64 0
-  %14 = ptrtoint i16* %13 to i64
-  %15 = and i64 %14, 31
-  %16 = icmp eq i64 %15, 0
-  call void @llvm.assume(i1 %16)
+  %avg = bitcast %u0CXYT* %2 to %f32X*
+  %10 = getelementptr inbounds %i16XY, %i16XY* %0, i64 0, i32 4
+  %rows = load i32, i32* %10, align 4, !range !0
+  %11 = zext i32 %rows to i64
+  %12 = getelementptr inbounds %i16XY, %i16XY* %0, i64 0, i32 6, i64 0
+  %13 = ptrtoint i16* %12 to i64
+  %14 = and i64 %13, 31
+  %15 = icmp eq i64 %14, 0
+  call void @llvm.assume(i1 %15)
   br label %y_body
 
 y_body:                                           ; preds = %x_exit8, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit8 ]
-  %17 = mul nuw nsw i64 %y, %3
+  %16 = mul nuw nsw i64 %y, %3
   br label %x_body7
 
 x_body7:                                          ; preds = %y_body, %x_body7
   %x9 = phi i64 [ %x_increment10, %x_body7 ], [ 0, %y_body ]
-  %18 = getelementptr float, float* %5, i64 %x9
-  %19 = load float, float* %18, align 4
-  %20 = add nuw nsw i64 %x9, %17
-  %21 = getelementptr %i16XY, %i16XY* %0, i64 0, i32 6, i64 %20
-  %22 = load i16, i16* %21, align 2
-  %23 = sitofp i16 %22 to float
-  %24 = fadd fast float %23, %19
-  store float %24, float* %18, align 4
+  %17 = getelementptr float, float* %5, i64 %x9
+  %18 = load float, float* %17, align 4
+  %19 = add nuw nsw i64 %x9, %16
+  %20 = getelementptr %i16XY, %i16XY* %0, i64 0, i32 6, i64 %19
+  %21 = load i16, i16* %20, align 2
+  %22 = sitofp i16 %21 to float
+  %23 = fadd fast float %22, %18
+  store float %23, float* %17, align 4
   %x_increment10 = add nuw nsw i64 %x9, 1
   %x_postcondition11 = icmp eq i64 %x_increment10, %3
   br i1 %x_postcondition11, label %x_exit8, label %x_body7
 
 x_exit8:                                          ; preds = %x_body7
   %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %12
+  %y_postcondition = icmp eq i64 %y_increment, %11
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit8
-  %25 = uitofp i32 %rows to float
-  %26 = fdiv fast float 1.000000e+00, %25
+  %24 = uitofp i32 %rows to float
+  %norm = fdiv fast float 1.000000e+00, %24
   br label %x_body16
 
 x_body16:                                         ; preds = %x_body16, %y_exit
   %x18 = phi i64 [ 0, %y_exit ], [ %x_increment19, %x_body16 ]
-  %27 = getelementptr float, float* %5, i64 %x18
-  %28 = load float, float* %27, align 4, !llvm.mem.parallel_loop_access !1
-  %29 = fmul fast float %28, %26
-  store float %29, float* %27, align 4, !llvm.mem.parallel_loop_access !1
+  %25 = getelementptr float, float* %5, i64 %x18
+  %26 = load float, float* %25, align 4, !llvm.mem.parallel_loop_access !1
+  %27 = fmul fast float %26, %norm
+  store float %27, float* %25, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment19 = add nuw nsw i64 %x18, 1
   %x_postcondition20 = icmp eq i64 %x_increment19, %3
   br i1 %x_postcondition20, label %x_exit17, label %x_body16
 
 x_exit17:                                         ; preds = %x_body16
-  ret %f32X* %10
+  ret %f32X* %avg
 }
 
 ; Function Attrs: nounwind

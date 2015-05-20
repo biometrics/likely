@@ -112,17 +112,17 @@ x_exit:                                           ; preds = %x_body
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %25 = bitcast %u0CXYT* %2 to %f32X*
-  %26 = uitofp i32 %rows to float
-  %27 = fdiv fast float 1.000000e+00, %26
-  %28 = alloca { %f32X*, float }, align 8
-  %29 = bitcast { %f32X*, float }* %28 to %u0CXYT**
-  store %u0CXYT* %2, %u0CXYT** %29, align 8
-  %30 = getelementptr inbounds { %f32X*, float }, { %f32X*, float }* %28, i64 0, i32 1
-  store float %27, float* %30, align 8
-  %31 = bitcast { %f32X*, float }* %28 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32X*, float }*, i64, i64)* @average_tmp_thunk1 to i8*), i8* %31, i64 %3)
-  ret %f32X* %25
+  %avg = bitcast %u0CXYT* %2 to %f32X*
+  %25 = uitofp i32 %rows to float
+  %norm = fdiv fast float 1.000000e+00, %25
+  %26 = alloca { %f32X*, float }, align 8
+  %27 = bitcast { %f32X*, float }* %26 to %u0CXYT**
+  store %u0CXYT* %2, %u0CXYT** %27, align 8
+  %28 = getelementptr inbounds { %f32X*, float }, { %f32X*, float }* %26, i64 0, i32 1
+  store float %norm, float* %28, align 8
+  %29 = bitcast { %f32X*, float }* %26 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32X*, float }*, i64, i64)* @average_tmp_thunk1 to i8*), i8* %29, i64 %3)
+  ret %f32X* %avg
 }
 
 ; Function Attrs: nounwind

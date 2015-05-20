@@ -86,18 +86,18 @@ exit:                                             ; preds = %true_entry
   %15 = call double @llvm.sqrt.f64(double %12)
   %16 = fdiv fast double 1.000000e+00, %15
   %17 = call %u0CXYT* @likely_new(i32 28992, i32 %channels, i32 %columns, i32 %rows, i32 1, i8* null)
-  %18 = bitcast %u0CXYT* %17 to %f64CXY*
-  %19 = zext i32 %rows to i64
-  %20 = alloca { %f64CXY*, %f64CXY*, double }, align 8
-  %21 = bitcast { %f64CXY*, %f64CXY*, double }* %20 to %u0CXYT**
-  store %u0CXYT* %17, %u0CXYT** %21, align 8
-  %22 = getelementptr inbounds { %f64CXY*, %f64CXY*, double }, { %f64CXY*, %f64CXY*, double }* %20, i64 0, i32 1
-  store %f64CXY* %0, %f64CXY** %22, align 8
-  %23 = getelementptr inbounds { %f64CXY*, %f64CXY*, double }, { %f64CXY*, %f64CXY*, double }* %20, i64 0, i32 2
-  store double %16, double* %23, align 8
-  %24 = bitcast { %f64CXY*, %f64CXY*, double }* %20 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f64CXY*, %f64CXY*, double }*, i64, i64)* @normalize_l2_tmp_thunk0 to i8*), i8* %24, i64 %19)
-  ret %f64CXY* %18
+  %dst = bitcast %u0CXYT* %17 to %f64CXY*
+  %18 = zext i32 %rows to i64
+  %19 = alloca { %f64CXY*, %f64CXY*, double }, align 8
+  %20 = bitcast { %f64CXY*, %f64CXY*, double }* %19 to %u0CXYT**
+  store %u0CXYT* %17, %u0CXYT** %20, align 8
+  %21 = getelementptr inbounds { %f64CXY*, %f64CXY*, double }, { %f64CXY*, %f64CXY*, double }* %19, i64 0, i32 1
+  store %f64CXY* %0, %f64CXY** %21, align 8
+  %22 = getelementptr inbounds { %f64CXY*, %f64CXY*, double }, { %f64CXY*, %f64CXY*, double }* %19, i64 0, i32 2
+  store double %16, double* %22, align 8
+  %23 = bitcast { %f64CXY*, %f64CXY*, double }* %19 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f64CXY*, %f64CXY*, double }*, i64, i64)* @normalize_l2_tmp_thunk0 to i8*), i8* %23, i64 %18)
+  ret %f64CXY* %dst
 }
 
 attributes #0 = { nounwind readnone }

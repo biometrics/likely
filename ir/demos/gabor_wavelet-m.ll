@@ -43,38 +43,38 @@ entry:
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
   %27 = trunc i64 %y to i32
-  %28 = sub i32 %27, %8
-  %29 = sitofp i32 %28 to float
-  %30 = fmul fast float %29, %25
-  %31 = fmul fast float %29, %24
-  %32 = mul nuw nsw i64 %y, %dst_y_step
+  %dy = sub i32 %27, %8
+  %28 = sitofp i32 %dy to float
+  %29 = fmul fast float %28, %25
+  %30 = fmul fast float %28, %24
+  %31 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
 x_body:                                           ; preds = %y_body, %x_body
   %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
-  %33 = trunc i64 %x to i32
-  %34 = sub i32 %33, %6
-  %35 = sitofp i32 %34 to float
-  %36 = fmul fast float %35, %24
-  %37 = fadd fast float %36, %30
-  %38 = sub nsw i32 0, %34
-  %39 = sitofp i32 %38 to float
-  %40 = fmul fast float %39, %25
-  %41 = fadd fast float %40, %31
-  %42 = fdiv fast float %37, %10
-  %43 = fmul fast float %42, %42
-  %44 = fdiv fast float %41, %12
-  %45 = fmul fast float %44, %44
-  %46 = fadd fast float %45, %43
-  %47 = fmul fast float %46, -5.000000e-01
-  %48 = call float @llvm.exp.f32(float %47)
-  %49 = fmul fast float %37, %26
-  %50 = fadd fast float %49, %18
-  %51 = call float @llvm.cos.f32(float %50)
-  %52 = fmul fast float %51, %48
-  %53 = add nuw nsw i64 %x, %32
-  %54 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %53
-  store float %52, float* %54, align 4, !llvm.mem.parallel_loop_access !1
+  %32 = trunc i64 %x to i32
+  %dx = sub i32 %32, %6
+  %33 = sitofp i32 %dx to float
+  %34 = fmul fast float %33, %24
+  %xp = fadd fast float %34, %29
+  %35 = sub nsw i32 0, %dx
+  %36 = sitofp i32 %35 to float
+  %37 = fmul fast float %36, %25
+  %yp = fadd fast float %37, %30
+  %38 = fdiv fast float %xp, %10
+  %39 = fmul fast float %38, %38
+  %40 = fdiv fast float %yp, %12
+  %41 = fmul fast float %40, %40
+  %42 = fadd fast float %41, %39
+  %43 = fmul fast float %42, -5.000000e-01
+  %44 = call float @llvm.exp.f32(float %43)
+  %45 = fmul fast float %xp, %26
+  %46 = fadd fast float %45, %18
+  %47 = call float @llvm.cos.f32(float %46)
+  %48 = fmul fast float %47, %44
+  %49 = add nuw nsw i64 %x, %31
+  %50 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %49
+  store float %48, float* %50, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body
@@ -143,28 +143,28 @@ entry:
   %30 = shl nuw nsw i32 %arg_1, 1
   %31 = or i32 %30, 1
   %32 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %29, i32 %31, i32 1, i8* null)
-  %33 = bitcast %u0CXYT* %32 to %f32XY*
-  %34 = zext i32 %31 to i64
-  %35 = alloca { %f32XY*, i32, i32, float, float, float, float, float }, align 8
-  %36 = bitcast { %f32XY*, i32, i32, float, float, float, float, float }* %35 to %u0CXYT**
-  store %u0CXYT* %32, %u0CXYT** %36, align 8
-  %37 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %35, i64 0, i32 1
-  store i32 %arg_0, i32* %37, align 8
-  %38 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %35, i64 0, i32 2
-  store i32 %arg_1, i32* %38, align 4
-  %39 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %35, i64 0, i32 3
-  store float %arg_2, float* %39, align 8
-  %40 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %35, i64 0, i32 4
-  store float %arg_3, float* %40, align 4
-  %41 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %35, i64 0, i32 5
-  store float %arg_4, float* %41, align 8
-  %42 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %35, i64 0, i32 6
-  store float %arg_5, float* %42, align 4
-  %43 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %35, i64 0, i32 7
-  store float %arg_6, float* %43, align 8
-  %44 = bitcast { %f32XY*, i32, i32, float, float, float, float, float }* %35 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32XY*, i32, i32, float, float, float, float, float }*, i64, i64)* @likely_test_function_tmp_thunk0 to i8*), i8* %44, i64 %34)
-  ret %f32XY* %33
+  %dst = bitcast %u0CXYT* %32 to %f32XY*
+  %33 = zext i32 %31 to i64
+  %34 = alloca { %f32XY*, i32, i32, float, float, float, float, float }, align 8
+  %35 = bitcast { %f32XY*, i32, i32, float, float, float, float, float }* %34 to %u0CXYT**
+  store %u0CXYT* %32, %u0CXYT** %35, align 8
+  %36 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %34, i64 0, i32 1
+  store i32 %arg_0, i32* %36, align 8
+  %37 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %34, i64 0, i32 2
+  store i32 %arg_1, i32* %37, align 4
+  %38 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %34, i64 0, i32 3
+  store float %arg_2, float* %38, align 8
+  %39 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %34, i64 0, i32 4
+  store float %arg_3, float* %39, align 4
+  %40 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %34, i64 0, i32 5
+  store float %arg_4, float* %40, align 8
+  %41 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %34, i64 0, i32 6
+  store float %arg_5, float* %41, align 4
+  %42 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %34, i64 0, i32 7
+  store float %arg_6, float* %42, align 8
+  %43 = bitcast { %f32XY*, i32, i32, float, float, float, float, float }* %34 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32XY*, i32, i32, float, float, float, float, float }*, i64, i64)* @likely_test_function_tmp_thunk0 to i8*), i8* %43, i64 %33)
+  ret %f32XY* %dst
 }
 
 attributes #0 = { nounwind readonly }

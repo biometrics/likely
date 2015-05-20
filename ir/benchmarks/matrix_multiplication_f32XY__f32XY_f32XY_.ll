@@ -87,8 +87,8 @@ x_exit:                                           ; preds = %exit
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %43 = bitcast %u0CXYT* %7 to %f32XY*
-  ret %f32XY* %43
+  %C = bitcast %u0CXYT* %7 to %f32XY*
+  ret %f32XY* %C
 }
 
 attributes #0 = { nounwind }

@@ -86,20 +86,20 @@ true_entry:                                       ; preds = %true_entry, %entry
 exit:                                             ; preds = %true_entry
   %16 = call double @llvm.sqrt.f64(double %13)
   %17 = fdiv fast double 1.000000e+00, %16
-  %18 = fptrunc double %17 to float
-  %19 = call %u0CXYT* @likely_new(i32 28960, i32 %channels, i32 %columns, i32 %rows, i32 1, i8* null)
-  %20 = bitcast %u0CXYT* %19 to %f32CXY*
-  %21 = zext i32 %rows to i64
-  %22 = alloca { %f32CXY*, %f32CXY*, float }, align 8
-  %23 = bitcast { %f32CXY*, %f32CXY*, float }* %22 to %u0CXYT**
-  store %u0CXYT* %19, %u0CXYT** %23, align 8
-  %24 = getelementptr inbounds { %f32CXY*, %f32CXY*, float }, { %f32CXY*, %f32CXY*, float }* %22, i64 0, i32 1
-  store %f32CXY* %0, %f32CXY** %24, align 8
-  %25 = getelementptr inbounds { %f32CXY*, %f32CXY*, float }, { %f32CXY*, %f32CXY*, float }* %22, i64 0, i32 2
-  store float %18, float* %25, align 8
-  %26 = bitcast { %f32CXY*, %f32CXY*, float }* %22 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32CXY*, %f32CXY*, float }*, i64, i64)* @normalize_l2_tmp_thunk0 to i8*), i8* %26, i64 %21)
-  ret %f32CXY* %20
+  %norm4 = fptrunc double %17 to float
+  %18 = call %u0CXYT* @likely_new(i32 28960, i32 %channels, i32 %columns, i32 %rows, i32 1, i8* null)
+  %dst = bitcast %u0CXYT* %18 to %f32CXY*
+  %19 = zext i32 %rows to i64
+  %20 = alloca { %f32CXY*, %f32CXY*, float }, align 8
+  %21 = bitcast { %f32CXY*, %f32CXY*, float }* %20 to %u0CXYT**
+  store %u0CXYT* %18, %u0CXYT** %21, align 8
+  %22 = getelementptr inbounds { %f32CXY*, %f32CXY*, float }, { %f32CXY*, %f32CXY*, float }* %20, i64 0, i32 1
+  store %f32CXY* %0, %f32CXY** %22, align 8
+  %23 = getelementptr inbounds { %f32CXY*, %f32CXY*, float }, { %f32CXY*, %f32CXY*, float }* %20, i64 0, i32 2
+  store float %norm4, float* %23, align 8
+  %24 = bitcast { %f32CXY*, %f32CXY*, float }* %20 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32CXY*, %f32CXY*, float }*, i64, i64)* @normalize_l2_tmp_thunk0 to i8*), i8* %24, i64 %19)
+  ret %f32CXY* %dst
 }
 
 attributes #0 = { nounwind readnone }

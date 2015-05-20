@@ -2317,7 +2317,9 @@ class defineExpression : public LikelyOperator
     {
         const likely_const_ast rhs = ast->atoms[2];
         const char *const name = likely_symbol(ast);
-        likely_const_expr expr = get(builder, rhs);
+        const likely_const_expr expr = get(builder, rhs);
+        if (expr->value)
+            expr->value->setName(name);
         define(builder.env, name, expr);
         return new likely_expression();
     }

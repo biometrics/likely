@@ -149,9 +149,9 @@ y_body:                                           ; preds = %x_exit, %entry
 x_body:                                           ; preds = %y_body, %Flow6
   %x = phi i64 [ %x_increment, %Flow6 ], [ 0, %y_body ]
   %20 = icmp ugt i64 %y, %x
-  br i1 %20, label %Flow6, label %label.preheader
+  br i1 %20, label %Flow6, label %loop.preheader
 
-label.preheader:                                  ; preds = %x_body
+loop.preheader:                                   ; preds = %x_body
   br i1 %18, label %exit4, label %true_entry3
 
 x_exit:                                           ; preds = %Flow6
@@ -162,9 +162,9 @@ x_exit:                                           ; preds = %Flow6
 y_exit:                                           ; preds = %x_exit
   ret void
 
-true_entry3:                                      ; preds = %label.preheader, %true_entry3
-  %21 = phi i32 [ %35, %true_entry3 ], [ 0, %label.preheader ]
-  %22 = phi double [ %34, %true_entry3 ], [ 0.000000e+00, %label.preheader ]
+true_entry3:                                      ; preds = %loop.preheader, %true_entry3
+  %21 = phi i32 [ %35, %true_entry3 ], [ 0, %loop.preheader ]
+  %22 = phi double [ %34, %true_entry3 ], [ 0.000000e+00, %loop.preheader ]
   %23 = sext i32 %21 to i64
   %24 = mul nuw nsw i64 %23, %dst_y_step
   %25 = add nuw nsw i64 %24, %x
@@ -186,8 +186,8 @@ Flow6:                                            ; preds = %x_body, %exit4
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body
 
-exit4:                                            ; preds = %true_entry3, %label.preheader
-  %.lcssa = phi double [ 0.000000e+00, %label.preheader ], [ %34, %true_entry3 ]
+exit4:                                            ; preds = %true_entry3, %loop.preheader
+  %.lcssa = phi double [ 0.000000e+00, %loop.preheader ], [ %34, %true_entry3 ]
   %37 = add nuw nsw i64 %x, %19
   %38 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %37
   %39 = fptrunc double %.lcssa to float
@@ -253,46 +253,46 @@ x_exit:                                           ; preds = %x_body
 
 y_exit:                                           ; preds = %x_exit
   %25 = uitofp i32 %rows to float
-  %26 = fdiv fast float 1.000000e+00, %25
-  %27 = alloca { %f32X*, float }, align 8
-  %28 = bitcast { %f32X*, float }* %27 to %u0CXYT**
-  store %u0CXYT* %2, %u0CXYT** %28, align 8
-  %29 = getelementptr inbounds { %f32X*, float }, { %f32X*, float }* %27, i64 0, i32 1
-  store float %26, float* %29, align 8
-  %30 = bitcast { %f32X*, float }* %27 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32X*, float }*, i64, i64)* @covariance_tmp_thunk1 to i8*), i8* %30, i64 %3)
+  %norm = fdiv fast float 1.000000e+00, %25
+  %26 = alloca { %f32X*, float }, align 8
+  %27 = bitcast { %f32X*, float }* %26 to %u0CXYT**
+  store %u0CXYT* %2, %u0CXYT** %27, align 8
+  %28 = getelementptr inbounds { %f32X*, float }, { %f32X*, float }* %26, i64 0, i32 1
+  store float %norm, float* %28, align 8
+  %29 = bitcast { %f32X*, float }* %26 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32X*, float }*, i64, i64)* @covariance_tmp_thunk1 to i8*), i8* %29, i64 %3)
   %columns7 = load i32, i32* %1, align 4, !range !1
   %rows8 = load i32, i32* %7, align 4, !range !1
-  %31 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns7, i32 %rows8, i32 1, i8* null)
-  %32 = zext i32 %rows8 to i64
-  %33 = alloca { %f32XY*, %f32XY*, %f32X* }, align 8
-  %34 = bitcast { %f32XY*, %f32XY*, %f32X* }* %33 to %u0CXYT**
-  store %u0CXYT* %31, %u0CXYT** %34, align 8
-  %35 = getelementptr inbounds { %f32XY*, %f32XY*, %f32X* }, { %f32XY*, %f32XY*, %f32X* }* %33, i64 0, i32 1
-  store %f32XY* %0, %f32XY** %35, align 8
-  %36 = getelementptr inbounds { %f32XY*, %f32XY*, %f32X* }, { %f32XY*, %f32XY*, %f32X* }* %33, i64 0, i32 2
-  %37 = bitcast %f32X** %36 to %u0CXYT**
-  store %u0CXYT* %2, %u0CXYT** %37, align 8
-  %38 = bitcast { %f32XY*, %f32XY*, %f32X* }* %33 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32XY*, %f32X* }*, i64, i64)* @covariance_tmp_thunk2 to i8*), i8* %38, i64 %32)
-  %39 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns7, i32 %columns7, i32 1, i8* null)
-  %40 = bitcast %u0CXYT* %39 to %f32XY*
-  %41 = zext i32 %columns7 to i64
-  %42 = alloca { %f32XY*, %f32XY*, i32 }, align 8
-  %43 = bitcast { %f32XY*, %f32XY*, i32 }* %42 to %u0CXYT**
-  store %u0CXYT* %39, %u0CXYT** %43, align 8
-  %44 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %42, i64 0, i32 1
-  %45 = bitcast %f32XY** %44 to %u0CXYT**
-  store %u0CXYT* %31, %u0CXYT** %45, align 8
-  %46 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %42, i64 0, i32 2
-  store i32 %rows8, i32* %46, align 8
-  %47 = bitcast { %f32XY*, %f32XY*, i32 }* %42 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32XY*, i32 }*, i64, i64)* @covariance_tmp_thunk3 to i8*), i8* %47, i64 %41)
-  %48 = bitcast %u0CXYT* %2 to i8*
-  call void @likely_release_mat(i8* %48)
-  %49 = bitcast %u0CXYT* %31 to i8*
-  call void @likely_release_mat(i8* %49)
-  ret %f32XY* %40
+  %30 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns7, i32 %rows8, i32 1, i8* null)
+  %31 = zext i32 %rows8 to i64
+  %32 = alloca { %f32XY*, %f32XY*, %f32X* }, align 8
+  %33 = bitcast { %f32XY*, %f32XY*, %f32X* }* %32 to %u0CXYT**
+  store %u0CXYT* %30, %u0CXYT** %33, align 8
+  %34 = getelementptr inbounds { %f32XY*, %f32XY*, %f32X* }, { %f32XY*, %f32XY*, %f32X* }* %32, i64 0, i32 1
+  store %f32XY* %0, %f32XY** %34, align 8
+  %35 = getelementptr inbounds { %f32XY*, %f32XY*, %f32X* }, { %f32XY*, %f32XY*, %f32X* }* %32, i64 0, i32 2
+  %36 = bitcast %f32X** %35 to %u0CXYT**
+  store %u0CXYT* %2, %u0CXYT** %36, align 8
+  %37 = bitcast { %f32XY*, %f32XY*, %f32X* }* %32 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32XY*, %f32X* }*, i64, i64)* @covariance_tmp_thunk2 to i8*), i8* %37, i64 %31)
+  %38 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns7, i32 %columns7, i32 1, i8* null)
+  %dst = bitcast %u0CXYT* %38 to %f32XY*
+  %39 = zext i32 %columns7 to i64
+  %40 = alloca { %f32XY*, %f32XY*, i32 }, align 8
+  %41 = bitcast { %f32XY*, %f32XY*, i32 }* %40 to %u0CXYT**
+  store %u0CXYT* %38, %u0CXYT** %41, align 8
+  %42 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %40, i64 0, i32 1
+  %43 = bitcast %f32XY** %42 to %u0CXYT**
+  store %u0CXYT* %30, %u0CXYT** %43, align 8
+  %44 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %40, i64 0, i32 2
+  store i32 %rows8, i32* %44, align 8
+  %45 = bitcast { %f32XY*, %f32XY*, i32 }* %40 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32XY*, i32 }*, i64, i64)* @covariance_tmp_thunk3 to i8*), i8* %45, i64 %39)
+  %46 = bitcast %u0CXYT* %2 to i8*
+  call void @likely_release_mat(i8* %46)
+  %47 = bitcast %u0CXYT* %30 to i8*
+  call void @likely_release_mat(i8* %47)
+  ret %f32XY* %dst
 }
 
 ; Function Attrs: nounwind

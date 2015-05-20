@@ -65,45 +65,45 @@ y_body:                                           ; preds = %x_exit, %entry
   %37 = uitofp i64 %y to float
   %38 = fmul fast float %37, %arg_5
   %39 = fdiv fast float %38, %36
-  %40 = fadd fast float %39, %arg_3
-  %41 = mul nuw nsw i64 %y, %dst_y_step
+  %zi0 = fadd fast float %39, %arg_3
+  %40 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
 x_body:                                           ; preds = %y_body, %exit
   %x = phi i64 [ %x_increment, %exit ], [ 0, %y_body ]
-  %42 = uitofp i64 %x to float
-  %43 = fmul fast float %42, %arg_4
-  %44 = fdiv fast float %43, %35
-  %45 = fadd fast float %44, %arg_2
-  br label %label
+  %41 = uitofp i64 %x to float
+  %42 = fmul fast float %41, %arg_4
+  %43 = fdiv fast float %42, %35
+  %zr0 = fadd fast float %43, %arg_2
+  br label %loop
 
-label:                                            ; preds = %x_body, %label
-  %46 = phi i32 [ %56, %label ], [ 0, %x_body ]
-  %47 = phi float [ %55, %label ], [ 0.000000e+00, %x_body ]
-  %48 = phi float [ %52, %label ], [ 0.000000e+00, %x_body ]
-  %49 = fmul fast float %48, %48
-  %50 = fmul fast float %47, %47
-  %51 = fsub fast float %49, %50
-  %52 = fadd fast float %45, %51
-  %53 = fmul fast float %47, 2.000000e+00
-  %54 = fmul fast float %53, %48
-  %55 = fadd fast float %40, %54
-  %56 = add nuw nsw i32 %46, 1
-  %57 = fmul fast float %52, %52
-  %58 = fmul fast float %55, %55
-  %59 = fadd fast float %57, %58
-  %notlhs = icmp sge i32 %56, %arg_6
-  %notrhs = fcmp uge float %59, 4.000000e+00
-  %60 = or i1 %notlhs, %notrhs
-  br i1 %60, label %exit, label %label
+loop:                                             ; preds = %x_body, %loop
+  %44 = phi i32 [ %53, %loop ], [ 0, %x_body ]
+  %45 = phi float [ %52, %loop ], [ 0.000000e+00, %x_body ]
+  %46 = phi float [ %tmp, %loop ], [ 0.000000e+00, %x_body ]
+  %47 = fmul fast float %46, %46
+  %48 = fmul fast float %45, %45
+  %49 = fsub fast float %47, %48
+  %tmp = fadd fast float %zr0, %49
+  %50 = fmul fast float %45, 2.000000e+00
+  %51 = fmul fast float %50, %46
+  %52 = fadd fast float %zi0, %51
+  %53 = add nuw nsw i32 %44, 1
+  %54 = fmul fast float %tmp, %tmp
+  %55 = fmul fast float %52, %52
+  %56 = fadd fast float %54, %55
+  %notlhs = icmp sge i32 %53, %arg_6
+  %notrhs = fcmp uge float %56, 4.000000e+00
+  %57 = or i1 %notlhs, %notrhs
+  br i1 %57, label %exit, label %loop
 
-exit:                                             ; preds = %label
-  %61 = mul nuw nsw i32 %56, 255
-  %62 = sdiv i32 %61, %arg_6
-  %63 = trunc i32 %62 to i8
-  %64 = add nuw nsw i64 %x, %41
-  %65 = getelementptr i8, i8* %31, i64 %64
-  store i8 %63, i8* %65, align 1, !llvm.mem.parallel_loop_access !0
+exit:                                             ; preds = %loop
+  %58 = mul nuw nsw i32 %53, 255
+  %59 = sdiv i32 %58, %arg_6
+  %60 = trunc i32 %59 to i8
+  %61 = add nuw nsw i64 %x, %40
+  %62 = getelementptr i8, i8* %31, i64 %61
+  store i8 %60, i8* %62, align 1, !llvm.mem.parallel_loop_access !0
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body
@@ -114,8 +114,8 @@ x_exit:                                           ; preds = %exit
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %66 = bitcast %u0CXYT* %28 to %u8XY*
-  ret %u8XY* %66
+  %dst = bitcast %u0CXYT* %28 to %u8XY*
+  ret %u8XY* %dst
 }
 
 attributes #0 = { nounwind readonly }
