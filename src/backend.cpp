@@ -1240,9 +1240,11 @@ struct LikelyFunction : public LikelyOperator
 
     const likely_const_env env;
 
-    LikelyFunction(const likely_const_env env, const size_t numParameters)
+    LikelyFunction(const likely_const_env env, const size_t numParameters, const bool isVarArg)
         : env(likely_retain_env(env))
-        , numParameters(numParameters) {}
+        , numParameters(numParameters)
+        , isVarArg(isVarArg)
+    {}
 
     ~LikelyFunction()
     {
@@ -1281,7 +1283,7 @@ struct LikelyFunction : public LikelyOperator
         }
 
         BasicBlock *originalInsertBlock = builder.GetInsertBlock();
-        Function *tmpFunction = cast<Function>(builder.module->module->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(builder.getContext()), llvmTypes, false)));
+        Function *tmpFunction = cast<Function>(builder.module->module->getOrInsertFunction(name+"_tmp", FunctionType::get(Type::getVoidTy(builder.getContext()), llvmTypes, isVarArg)));
         BasicBlock *entry = BasicBlock::Create(builder.getContext(), "entry", tmpFunction);
         builder.SetInsertPoint(entry);
 
@@ -1338,9 +1340,13 @@ struct LikelyFunction : public LikelyOperator
 
             builder.CreateRet(*result);
         } else {
-            assert(!result->value);
-            assert(!promoteScalarToMatrix);
-            builder.CreateRetVoid();
+            if (promoteScalarToMatrix) {
+                result.reset(new likely_expression(LikelyValue(ConstantPointerNull::get(cast<PointerType>(builder.module->context->toLLVM(likely_multi_dimension))), likely_multi_dimension)));
+                builder.CreateRet(*result);
+            } else {
+                assert(!result->value);
+                builder.CreateRetVoid();
+            }
         }
 
         Function *const function = cast<Function>(builder.module->module->getOrInsertFunction(name, FunctionType::get(builder.module->context->toLLVM(result->type), llvmTypes, false)));
@@ -1363,8 +1369,10 @@ struct LikelyFunction : public LikelyOperator
 
 protected:
     const size_t numParameters;
+    const bool isVarArg;
 
-    size_t maxParameters() const { return numParameters; }
+    size_t maxParameters() const { return isVarArg ? std::numeric_limits<size_t>::max() : numParameters; }
+    size_t minParameters() const { return numParameters; }
 
     static StructType *getStaticDataType(LikelyContext *context, const vector<likely_type> &types)
     {
@@ -1416,8 +1424,8 @@ struct Symbol : public LikelyFunction
     const string name;
     const vector<likely_type> parameters;
 
-    Symbol(const likely_const_env env, const string &name, const likely_type returnType, const vector<likely_type> parameters = vector<likely_type>())
-        : LikelyFunction(env, parameters.size())
+    Symbol(const likely_const_env env, const string &name, const likely_type returnType, const vector<likely_type> parameters = vector<likely_type>(), bool isVarArg = false)
+        : LikelyFunction(env, parameters.size(), isVarArg)
         , name(name)
         , parameters(parameters)
     {
@@ -1434,7 +1442,7 @@ private:
                 llvmParameters.push_back(builder.module->context->toLLVM(parameter));
             // If the return type is a matrix, we generalize it to allow overloading.
             Type *llvmReturn = builder.module->context->toLLVM(type & likely_multi_dimension ? likely_type(likely_multi_dimension) : type);
-            FunctionType *functionType = FunctionType::get(llvmReturn, llvmParameters, false);
+            FunctionType *functionType = FunctionType::get(llvmReturn, llvmParameters, isVarArg);
             symbol = Function::Create(functionType, GlobalValue::ExternalLinkage, name, builder.module->module);
             symbol->setCallingConv(CallingConv::C);
             symbol->setDoesNotThrow();
@@ -1456,16 +1464,21 @@ private:
         vector<Value*> castedArgs;
         for (size_t i=0; i<args.size(); i++) {
             const likely_const_expr arg = args[i];
-            const likely_type parameter = parameters[i];
-            if (arg->type & likely_multi_dimension) {
-                if (parameter & likely_multi_dimension)
-                    castedArgs.push_back(builder.CreatePointerCast(*arg, builder.module->context->toLLVM(parameter)));
-                else if (parameter & likely_compound_pointer)
-                    castedArgs.push_back(builder.CreatePointerCast(builder.data(*arg), builder.module->context->toLLVM(parameter)));
-                else
-                    likely_ensure(false, "can't cast matrix to scalar");
+            if (i >= parameters.size()) {
+                assert(isVarArg);
+                castedArgs.push_back(*arg);
             } else {
-                castedArgs.push_back(builder.cast(*arg, parameter));
+                const likely_type parameter = parameters[i];
+                if (arg->type & likely_multi_dimension) {
+                    if (parameter & likely_multi_dimension)
+                        castedArgs.push_back(builder.CreatePointerCast(*arg, builder.module->context->toLLVM(parameter)));
+                    else if (parameter & likely_compound_pointer)
+                        castedArgs.push_back(builder.CreatePointerCast(builder.data(*arg), builder.module->context->toLLVM(parameter)));
+                    else
+                        likely_ensure(false, "can't cast matrix to scalar");
+                } else {
+                    castedArgs.push_back(builder.cast(*arg, parameter));
+                }
             }
         }
 
@@ -2118,7 +2131,7 @@ struct Lambda : public LikelyFunction
     const likely_const_ast body, parameters;
 
     Lambda(likely_const_env env, likely_const_ast body, likely_const_ast parameters = NULL)
-        : LikelyFunction(env, length(parameters))
+        : LikelyFunction(env, length(parameters), false)
         , body(likely_retain_ast(body))
         , parameters(likely_retain_ast(parameters)) {}
 
@@ -2244,15 +2257,22 @@ class externExpression : public LikelyOperator
         if (!ok)
             return NULL;
 
+        bool isVarArg = false;
         vector<likely_type> parameters;
-        if (ast->atoms[3]->type == likely_ast_list) {
-            for (uint32_t i=0; i<ast->atoms[3]->num_atoms; i++) {
-                parameters.push_back(evalType(ast->atoms[3]->atoms[i], builder.env, &ok));
-                if (!ok)
-                    return NULL;
+        const likely_const_ast parameterTypes = ast->atoms[3];
+        if (parameterTypes->type == likely_ast_list) {
+            for (uint32_t i=0; i<parameterTypes->num_atoms; i++) {
+                const likely_const_ast parameterType = parameterTypes->atoms[i];
+                if ((i == (parameterTypes->num_atoms - 1)) && (parameterType->type == likely_ast_list) && (parameterType->num_atoms == 0)) {
+                    isVarArg = true;
+                } else {
+                    parameters.push_back(evalType(parameterType, builder.env, &ok));
+                    if (!ok)
+                        return NULL;
+                }
             }
         } else {
-            parameters.push_back(evalType(ast->atoms[3], builder.env, &ok));
+            parameters.push_back(evalType(parameterTypes, builder.env, &ok));
             if (!ok)
                 return NULL;
         }
@@ -2262,7 +2282,7 @@ class externExpression : public LikelyOperator
                 const bool runtimeSymbol = (name == "likely_new");
                 likely_ensure(runtimeSymbol, "referenced non-runtime symbol: %s", name.c_str());
             }
-            return new Symbol(builder.env, name, returnType, parameters);
+            return new Symbol(builder.env, name, returnType, parameters, isVarArg);
         }
 
         const LikelyFunction::CallingConvention cc = (ast->num_atoms >= 6) && (evalInt(ast->atoms[5], builder.env, &ok) != 0) ? LikelyFunction::ArrayCC : LikelyFunction::RegularCC;

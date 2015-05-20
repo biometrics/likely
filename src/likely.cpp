@@ -210,13 +210,7 @@ int main(int argc, char *argv[])
             for (size_t i=0; i<parsed->num_atoms; i++)
                 checkOrPrintAndRelease(likely_ast_to_string(parsed->atoms[i], -1));
         } else {
-            const likely_const_env env = likely_eval(parsed, parent, evalCallback, NULL);
-            if (!env->expr && env->ast) {
-                const likely_const_mat statement = likely_ast_to_string(env->ast, -1);
-                likely_ensure(false, "error evaluating: %s", statement->data);
-                likely_release_mat(statement);
-            }
-            likely_release_env(env);
+            likely_release_env(likely_eval(parsed, parent, evalCallback, NULL));
         }
         likely_release_ast(parsed);
     }
