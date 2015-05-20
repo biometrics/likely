@@ -1119,6 +1119,9 @@ is-single-channel := (is-single-dimension multi-channel)
 is-single-column  := (is-single-dimension multi-column )
 is-single-row     := (is-single-dimension multi-row    )
 is-single-frame   := (is-single-dimension multi-frame  )
+
+type-to-string :=
+  (extern i8C "likely_type_to_string" u32)
 \end{likely}
 
 \section{Type Conversion}

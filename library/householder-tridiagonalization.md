@@ -10,7 +10,7 @@ Golub & Van Loan, "Matrix Computations 4th Edition", Section 8.3.1.
             A :<- src
 
           n := A.rows
-          native-type := A.type.element-type
+          native-type := A.element-type
 
           ; Householder Tridiagonalization
           tridiagonalization-iteration :=
