@@ -152,7 +152,6 @@ LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *exten
  * \param[in] mat Matrix to stringify.
  * \return Stringified matrix.
  * \remark This function is \ref thread-safe.
- * \see \ref likely_to_string_n
  */
 LIKELY_EXPORT likely_mat likely_to_string(likely_const_mat mat);
 
