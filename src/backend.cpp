@@ -1466,7 +1466,13 @@ private:
             const likely_const_expr arg = args[i];
             if (i >= parameters.size()) {
                 assert(isVarArg);
-                castedArgs.push_back(*arg);
+                // C variadic argument default conversions
+                if (arg->value->getType()->isPointerTy())
+                    castedArgs.push_back(*arg);
+                else if (arg->type & likely_floating)
+                    castedArgs.push_back(builder.cast(*arg, likely_double));
+                else
+                    castedArgs.push_back(builder.cast(*arg, likely_type_from_types(arg->type, likely_int)));
             } else {
                 const likely_type parameter = parameters[i];
                 if (arg->type & likely_multi_dimension) {
