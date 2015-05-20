@@ -1,7 +1,7 @@
-### Eigen
-Compare to **[cv::eigen](http://docs.opencv.org/modules/core/doc/operations_on_arrays.html#eigen)**.
+### Householder tridiagonalization
+Golub & Van Loan, "Matrix Computations 4th Edition", Section 8.3.1.
 
-    eigen :=
+    householder-tridiagonalization :=
       src :->
       {
           ; Make a copy because we will iteratively modify the matrix in-place
@@ -76,7 +76,7 @@ Compare to **[cv::eigen](http://docs.opencv.org/modules/core/doc/operations_on_a
             (A 0 k row-start) :<- l2-norm
             (A 0 row-start k) :<- l2-norm
 
-            ((1 m m) A) :=>
+            ((1 m m) A v w row-start) :=>
               (A 0 (+ row-start x) (+ row-start y)) :<- (- (A 0 (+ row-start x) (+ row-start y))
                                                         (+ (* (v x) (w y)) (* (v y) (w x))))
           }
