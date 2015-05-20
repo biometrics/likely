@@ -1004,6 +1004,7 @@ not     := (-> a (== a false))
 to-bool := (-> a (!= a false))
 sq      := (-> a (* a a))
 abs     := (-> a (? (< a 0) (* -1 a) a))
+sign    := (-> a (? (< a 0) -1 1))
 \end{likely}
 
 \section{Binary Functions}
