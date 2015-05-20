@@ -304,12 +304,24 @@ likely_mat likely_to_string(likely_const_mat m)
 
     stringstream buffer;
     if (likely_is_string(m)) {
-        buffer << m->data;
+        // string
+        buffer << "\"" << m->data << "\"";
     } else if (!(m->type & likely_multi_dimension)) {
+        // scalar
         printElement(buffer, likely_get_element(m, 0, 0, 0, 0), m->type);
-    } else {
+    } else if ((m->type & likely_multi_dimension) == likely_multi_channel) {
+        // vector
         buffer << "(";
-        likely_mat str = likely_type_to_string(m->type);
+        for (uint32_t c=0; c<m->channels; c++) {
+            printElement(buffer, likely_get_element(m, c, 0, 0, 0), m->type);
+            if (c != m->channels-1)
+                buffer << " ";
+        }
+        buffer << ")";
+    } else {
+        // matrix
+        buffer << "(";
+        const likely_const_mat str = likely_type_to_string(m->type);
         buffer << str->data << " ";
         likely_release_mat(str);
 
