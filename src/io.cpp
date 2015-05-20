@@ -267,11 +267,6 @@ likely_mat likely_encode(likely_const_mat image, const char *extension)
     return likelyFromOpenCVMat(cv::Mat(buf));
 }
 
-likely_mat likely_to_string(likely_const_mat mat)
-{
-    return likely_to_string_n(&mat, 1);
-}
-
 static void printElement(stringstream &buffer, double value, likely_type type)
 {
     if (type & likely_floating) {
@@ -302,76 +297,62 @@ static void printElement(stringstream &buffer, double value, likely_type type)
     }
 }
 
-likely_mat likely_to_string_n(likely_const_mat *mats, size_t n)
+likely_mat likely_to_string(likely_const_mat m)
 {
-    stringstream buffer;
-    for (size_t i=0; i<n; i++) {
-        likely_const_mat m = mats[i];
-        if (!m) {
-            // skip it
-        } else if (likely_is_string(m)) {
-            buffer << m->data;
-        } else if (!(m->type & likely_multi_dimension)) {
-            printElement(buffer, likely_get_element(m, 0, 0, 0, 0), m->type);
-        } else {
-            buffer << "(";
-            likely_mat str = likely_type_to_string(m->type);
-            buffer << str->data << " ";
-            likely_release_mat(str);
+    if (!m)
+        return NULL;
 
-            buffer << (m->frames > 1 ? "(" : "");
-            for (uint32_t t=0; t<m->frames; t++) {
-                buffer << (m->rows > 1 ? "(" : "");
-                for (uint32_t y=0; y<m->rows; y++) {
-                    buffer << (m->columns > 1 ? "(" : "");
-                    for (uint32_t x=0; x<m->columns; x++) {
-                        buffer << (m->channels > 1 ? "(" : "");
-                        for (uint32_t c=0; c<m->channels; c++) {
-                            printElement(buffer, likely_get_element(m, c, x, y, t), m->type);
-                            if (c != m->channels-1)
-                                buffer << " ";
-                        }
-                        buffer << (m->channels > 1 ? ")" : "");
-                        if (x != m->columns-1)
+    stringstream buffer;
+    if (likely_is_string(m)) {
+        buffer << m->data;
+    } else if (!(m->type & likely_multi_dimension)) {
+        printElement(buffer, likely_get_element(m, 0, 0, 0, 0), m->type);
+    } else {
+        buffer << "(";
+        likely_mat str = likely_type_to_string(m->type);
+        buffer << str->data << " ";
+        likely_release_mat(str);
+
+        buffer << (m->frames > 1 ? "(" : "");
+        for (uint32_t t=0; t<m->frames; t++) {
+            buffer << (m->rows > 1 ? "(" : "");
+            for (uint32_t y=0; y<m->rows; y++) {
+                buffer << (m->columns > 1 ? "(" : "");
+                for (uint32_t x=0; x<m->columns; x++) {
+                    buffer << (m->channels > 1 ? "(" : "");
+                    for (uint32_t c=0; c<m->channels; c++) {
+                        printElement(buffer, likely_get_element(m, c, x, y, t), m->type);
+                        if (c != m->channels-1)
                             buffer << " ";
                     }
-                    buffer << (m->columns > 1 ? ")" : "");
-                    if (y != m->rows-1)
-                        buffer << "\n";
+                    buffer << (m->channels > 1 ? ")" : "");
+                    if (x != m->columns-1)
+                        buffer << " ";
                 }
-                buffer << (m->rows > 1 ? ")" : "");
-                if (t != m->frames-1)
-                    buffer << "\n\n";
+                buffer << (m->columns > 1 ? ")" : "");
+                if (y != m->rows-1)
+                    buffer << "\n";
             }
-            buffer << ((m->frames > 1) ? ")" : "");
-
-            const bool frames   =            (m->frames   > 1);
-            const bool rows     = frames  || (m->rows     > 1);
-            const bool columns  = rows    || (m->columns  > 1);
-            const bool channels = columns || (m->channels > 1);
-            if (channels) buffer << " (" << m->channels;
-            if (columns ) buffer << " "  << m->columns;
-            if (rows    ) buffer << " "  << m->rows;
-            if (frames  ) buffer << " "  << m->frames;
-            if (channels) buffer << ")";
-            buffer << ")";
+            buffer << (m->rows > 1 ? ")" : "");
+            if (t != m->frames-1)
+                buffer << "\n\n";
         }
+        buffer << ((m->frames > 1) ? ")" : "");
+
+        const bool frames   =            (m->frames   > 1);
+        const bool rows     = frames  || (m->rows     > 1);
+        const bool columns  = rows    || (m->columns  > 1);
+        const bool channels = columns || (m->channels > 1);
+        if (channels) buffer << " (" << m->channels;
+        if (columns ) buffer << " "  << m->columns;
+        if (rows    ) buffer << " "  << m->rows;
+        if (frames  ) buffer << " "  << m->frames;
+        if (channels) buffer << ")";
+        buffer << ")";
     }
 
     const string str = buffer.str();
     return str.empty() ? NULL : likely_string(str.c_str());
-}
-
-likely_mat likely_to_string_va(likely_const_mat mat, ...)
-{
-    va_list ap;
-    va_start(ap, mat);
-    vector<likely_const_mat> mv;
-    while (mat) {
-        mv.push_back(mat);
-        mat = va_arg(ap, likely_const_mat);
-    }
-    return likely_to_string_n(mv.data(), mv.size());
 }
 
 likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)

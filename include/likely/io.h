@@ -157,25 +157,6 @@ LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *exten
 LIKELY_EXPORT likely_mat likely_to_string(likely_const_mat mat);
 
 /*!
- * \brief Convert an array of \ref likely_matrix to a \ref likely_string suitable for printing.
- * \param[in] mats Vector of matricies to stringify.
- * \param[in] n Length of \p mats.
- * \return Stringified matrix.
- * \remark This function is \ref thread-safe.
- * \see \ref likely_to_string \ref likely_to_string_va
- */
-LIKELY_EXPORT likely_mat likely_to_string_n(likely_const_mat *mats, size_t n);
-
-/*!
- * \brief Convert a list of \ref likely_matrix to a \ref likely_string suitable for printing.
- * \param[in] mat <tt>NULL</tt>-terminated list of matricies to stringify.
- * \return Stringified matrix.
- * \remark This function is \ref thread-safe
- * \see \ref likely_to_string_n
- */
-LIKELY_EXPORT likely_mat likely_to_string_va(likely_const_mat mat, ...);
-
-/*!
  * \brief Convert to three-channel \ref likely_u8 \ref likely_matrix suitable for saving or displaying.
  *
  * The output from this function is usually the input to \ref likely_write or \ref likely_show.
