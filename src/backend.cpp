@@ -1027,6 +1027,31 @@ struct Builder : public IRBuilder<>
         }
     }
 
+    Function *likelyNew()
+    {
+        Function *likelyNew = module->module->getFunction("likely_new");
+        if (!likelyNew) {
+            Type *params[] = { Type::getInt32Ty(getContext()),
+                               Type::getInt32Ty(getContext()),
+                               Type::getInt32Ty(getContext()),
+                               Type::getInt32Ty(getContext()),
+                               Type::getInt32Ty(getContext()),
+                               Type::getInt8PtrTy(getContext()) };
+            FunctionType *functionType = FunctionType::get(module->context->toLLVM(likely_multi_dimension), params, false);
+            likelyNew = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_new", module->module);
+            likelyNew->setCallingConv(CallingConv::C);
+            likelyNew->setDoesNotThrow();
+            likelyNew->setOnlyReadsMemory();
+            for (int i=1; i<6; i++)
+                likelyNew->addAttribute(i, Attribute::ZExt);
+            likelyNew->setDoesNotAlias(0);
+            likelyNew->setDoesNotAlias(6);
+            likelyNew->setDoesNotCapture(6);
+            sys::DynamicLibrary::AddSymbol("likely_new", (void*) likely_new);
+        }
+        return likelyNew;
+    }
+
     LikelyValue toMat(const LikelyValue &expr)
     {
         if (LikelyValue::isMat(expr.value->getType()))
@@ -1034,29 +1059,13 @@ struct Builder : public IRBuilder<>
 
         if (AllocaInst *const allocaInst = dyn_cast<AllocaInst>(expr.value)) {
             const likely_type type = likely_element_type(expr) | likely_multi_channel;
-            Function *likelyNew = module->module->getFunction("likely_new");
-            if (!likelyNew) {
-                Type *params[] = { Type::getInt32Ty(getContext()),
-                                   Type::getInt32Ty(getContext()),
-                                   Type::getInt32Ty(getContext()),
-                                   Type::getInt32Ty(getContext()),
-                                   Type::getInt32Ty(getContext()),
-                                   Type::getInt8PtrTy(getContext()) };
-                FunctionType *functionType = FunctionType::get(module->context->toLLVM(type), params, false);
-                likelyNew = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_new", module->module);
-                likelyNew->setCallingConv(CallingConv::C);
-                likelyNew->setDoesNotAlias(0);
-                likelyNew->setDoesNotAlias(6);
-                likelyNew->setDoesNotCapture(6);
-                sys::DynamicLibrary::AddSymbol("likely_new", (void*) likely_new);
-            }
             Value *args[] = { constant(uint64_t(type), likely_u32),
                               allocaInst->getArraySize(),
                               one(likely_u32),
                               one(likely_u32),
                               one(likely_u32),
                               CreatePointerCast(allocaInst, Type::getInt8PtrTy(getContext())) };
-            return LikelyValue(CreateCall(likelyNew, args), type);
+            return LikelyValue(CreatePointerCast(CreateCall(likelyNew(), args), module->context->toLLVM(type)), type);
         }
 
         if (expr.value->getType()->isPointerTy() /* assume it's a string for now */) {
@@ -1065,6 +1074,7 @@ struct Builder : public IRBuilder<>
                 FunctionType *functionType = FunctionType::get(module->context->toLLVM(likely_i8 | likely_multi_channel), Type::getInt8PtrTy(getContext()), false);
                 likelyString = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_string", module->module);
                 likelyString->setCallingConv(CallingConv::C);
+                likelyString->setDoesNotThrow();
                 likelyString->setDoesNotAlias(0);
                 likelyString->setDoesNotAlias(1);
                 likelyString->setDoesNotCapture(1);
@@ -1079,6 +1089,7 @@ struct Builder : public IRBuilder<>
             FunctionType *functionType = FunctionType::get(module->context->toLLVM(likely_multi_dimension), params, false);
             likelyScalar = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_scalar", module->module);
             likelyScalar->setCallingConv(CallingConv::C);
+            likelyScalar->setDoesNotThrow();
             likelyScalar->setDoesNotAlias(0);
             likelyScalar->setDoesNotAlias(2);
             likelyScalar->setDoesNotCapture(2);
@@ -1097,6 +1108,7 @@ struct Builder : public IRBuilder<>
             FunctionType *functionType = FunctionType::get(module->context->toLLVM(likely_multi_dimension), module->context->toLLVM(likely_multi_dimension), false);
             likelyRetain = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_retain_mat", module->module);
             likelyRetain->setCallingConv(CallingConv::C);
+            likelyRetain->setDoesNotThrow();
             likelyRetain->setDoesNotAlias(1);
             likelyRetain->setDoesNotCapture(1);
             sys::DynamicLibrary::AddSymbol("likely_retain_mat", (void*) likely_retain_mat);
@@ -1426,8 +1438,6 @@ private:
             symbol = Function::Create(functionType, GlobalValue::ExternalLinkage, name, builder.module->module);
             symbol->setCallingConv(CallingConv::C);
             symbol->setDoesNotThrow();
-            if (name == "likely_new")
-                symbol->setOnlyReadsMemory();
             if (isa<PointerType>(llvmReturn)) {
                 symbol->setDoesNotAlias(0);
             } else if (isa<IntegerType>(llvmReturn)) {
@@ -1704,13 +1714,33 @@ private:
 
     likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const
     {
-        if ((ast->type == likely_ast_list) && (ast->num_atoms > 1)) {
-            TRY_EXPR(builder, ast->atoms[1], expr)
-            if (is(expr.get())) {
-                const MatrixType *matrixType = static_cast<const MatrixType*>(expr.get());
-                return new MatrixType(builder, likely_type_from_types(matrixType->t, t));
+        if (ast->type == likely_ast_list) {
+            if (ast->num_atoms == 2) {
+                // scalar type cast
+                TRY_EXPR(builder, ast->atoms[1], expr)
+                if (is(expr.get())) {
+                    const MatrixType *matrixType = static_cast<const MatrixType*>(expr.get());
+                    return new MatrixType(builder, likely_type_from_types(matrixType->t, t));
+                } else {
+                    return new likely_expression(builder.cast(*expr, t));
+                }
             } else {
-                return new likely_expression(builder.cast(*expr, t));
+                // matrix construction
+                assert(ast->num_atoms <= 6);
+                vector<Value*> args;
+                args.push_back(builder.constant(uint64_t(t), likely_u32));
+                for (uint32_t i=1; i<ast->num_atoms; i++) {
+                    TRY_EXPR(builder, ast->atoms[i], expr)
+                    if (i <= 4)
+                        args.push_back(builder.cast(*expr, likely_u32));
+                    else
+                        args.push_back(builder.CreatePointerCast(*expr, Type::getInt8PtrTy(builder.getContext())));
+                }
+                while (args.size() < 5)
+                    args.push_back(builder.one(likely_u32));
+                if (args.size() == 5)
+                    args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(builder.getContext())));
+                return new likely_expression(LikelyValue(builder.CreatePointerCast(builder.CreateCall(builder.likelyNew(), args), builder.module->context->toLLVM(t)), t));
             }
         } else {
             return new MatrixType(builder, t);

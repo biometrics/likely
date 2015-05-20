@@ -19,7 +19,7 @@ Definition
     gabor_wavelet :=
       (x_max y_max sigma_x sigma_y theta lambda psi) :->
       {
-        dst := (new f32XY 1 x_max.(* 2).(+ 1) y_max.(* 2).(+ 1) 1 null)
+        dst := (f32XY 1 x_max.(* 2).(+ 1) y_max.(* 2).(+ 1))
         (dst x_max y_max sigma_x sigma_y theta lambda psi) :=>
         {
           dx := (- x.i32 x_max)

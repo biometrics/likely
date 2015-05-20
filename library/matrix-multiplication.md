@@ -5,7 +5,7 @@ Compare to **[A*B](http://docs.opencv.org/modules/core/doc/basic_structures.html
       (A B) :->
       {
         (assume (== B.rows A.columns))
-        C := (new A.type 1 B.columns A.rows 1 null)
+        C := (A.type 1 B.columns A.rows)
         len := A.columns
         (C A B len) :=>
         {

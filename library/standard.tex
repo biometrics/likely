@@ -992,7 +992,6 @@ The \dindex{import} operator reads and evaluates a source code file.
 \chapter{Basic Symbols}
 \section{Constants}
 \begin{likely}
-null  := 0
 true  := 1
 false := 0
 e  := 2.7182818284590452353602874713526
@@ -1043,18 +1042,6 @@ elements :=
 bytes :=
   mat :->
     (/ (+ (* (& mat.type depth) mat.elements) 7) 8)
-\end{likely}
-
-\section{Matrix Creation}
-\begin{likely}
-new :=
-  (return-type channels columns rows frames data) :->
-  {
-    f := (extern return-type
-                 "likely_new"
-                 (likely-type u32 u32 u32 u32 void-pointer))
-    (f return-type channels columns rows frames data)
-  }
 \end{likely}
 
 \section{Matrix I/O}
@@ -1179,7 +1166,7 @@ imitate-dimensions := (-> (t u) (| t.not-multi-dimension (& u multi-dimension)).
 \begin{likely}
 imitate-size :=
   (mat element-type) :->
-    (new element-type.(imitate-dimensions mat.type) mat.channels mat.columns mat.rows mat.frames null)
+    (element-type.(imitate-dimensions mat.type) mat.channels mat.columns mat.rows mat.frames)
 
 imitate :=
   mat :->

@@ -9,7 +9,7 @@ Compare to **[cv::multransposed](http://docs.opencv.org/modules/core/doc/operati
           centered :<- (- src delta)
 
         len := centered.rows
-        dst := (new centered.type centered.channels centered.columns centered.columns centered.frames null)
+        dst := (centered.type centered.channels centered.columns centered.columns centered.frames)
         (dst centered len) :=>
         {
           (<= y x) :?

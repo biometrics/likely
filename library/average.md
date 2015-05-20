@@ -4,7 +4,7 @@ Compare to **[cv::reduce(CV_REDUCE_AVG)](http://docs.opencv.org/modules/core/doc
     average :=
       src :->
       {
-        avg := (new src.type.depth-atleast-32.floating.not-multi-row src.channels src.columns 1 src.frames null)
+        avg := (src.type.depth-atleast-32.floating.not-multi-row src.channels src.columns 1 src.frames)
         avg :=>
           avg :<- 0
         (avg src) :+>

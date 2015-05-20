@@ -4,12 +4,8 @@ Compare to **[cv::matchTemplate](http://docs.opencv.org/modules/imgproc/doc/obje
     match-template :=
       (src templ) :->
       {
-        dst := (new src.type
-                    1
-                    (+ (- src.columns templ.columns) 1)
-                    (+ (- src.rows    templ.rows   ) 1)
-                    1
-                    null)
+        dst := (src.type 1 (+ (- src.columns templ.columns) 1)
+                           (+ (- src.rows    templ.rows   ) 1))
         width  := templ.columns
         height := templ.rows
         (dst src templ width height) :=>
