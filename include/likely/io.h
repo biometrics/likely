@@ -149,6 +149,8 @@ LIKELY_EXPORT likely_mat likely_encode(likely_const_mat image, const char *exten
 
 /*!
  * \brief Convert a \ref likely_matrix to a \ref likely_string suitable for printing.
+ *
+ * This function is _idempotent_ in the sense that the returned string is valid Likely code that can be executed to reconstruct the input.
  * \param[in] mat Matrix to stringify.
  * \return Stringified matrix.
  * \remark This function is \ref thread-safe.

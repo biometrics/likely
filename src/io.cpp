@@ -324,43 +324,37 @@ likely_mat likely_to_string(likely_const_mat m)
         const likely_const_mat str = likely_type_to_string(m->type);
         buffer << str->data << " ";
         likely_release_mat(str);
+        buffer << m->channels << " ";
+        buffer << m->columns  << " ";
+        buffer << m->rows     << " ";
+        buffer << m->frames   << " ";
 
-        buffer << (m->frames > 1 ? "(" : "");
+        const char *separators[] = { " ", "  ", "\n", "\n\n" };
+        int separatorIndex = 0;
+        const char *const channelSeparator = (m->channels > 1) ? separators[separatorIndex++] : "";
+        const char *const columnSeparator  = (m->columns  > 1) ? separators[separatorIndex++] : "";
+        const char *const rowSeparator     = (m->rows     > 1) ? separators[separatorIndex++] : "";
+        const char *const frameSeparator   = (m->frames   > 1) ? separators[separatorIndex++] : "";
+
+        buffer << "(";
         for (uint32_t t=0; t<m->frames; t++) {
-            buffer << (m->rows > 1 ? "(" : "");
             for (uint32_t y=0; y<m->rows; y++) {
-                buffer << (m->columns > 1 ? "(" : "");
                 for (uint32_t x=0; x<m->columns; x++) {
-                    buffer << (m->channels > 1 ? "(" : "");
                     for (uint32_t c=0; c<m->channels; c++) {
                         printElement(buffer, likely_get_element(m, c, x, y, t), m->type);
                         if (c != m->channels-1)
-                            buffer << " ";
+                            buffer << channelSeparator;
                     }
-                    buffer << (m->channels > 1 ? ")" : "");
                     if (x != m->columns-1)
-                        buffer << " ";
+                        buffer << columnSeparator;
                 }
-                buffer << (m->columns > 1 ? ")" : "");
                 if (y != m->rows-1)
-                    buffer << "\n";
+                    buffer << rowSeparator;
             }
-            buffer << (m->rows > 1 ? ")" : "");
             if (t != m->frames-1)
-                buffer << "\n\n";
+                buffer << frameSeparator;
         }
-        buffer << ((m->frames > 1) ? ")" : "");
-
-        const bool frames   =            (m->frames   > 1);
-        const bool rows     = frames  || (m->rows     > 1);
-        const bool columns  = rows    || (m->columns  > 1);
-        const bool channels = columns || (m->channels > 1);
-        if (channels) buffer << " (" << m->channels;
-        if (columns ) buffer << " "  << m->columns;
-        if (rows    ) buffer << " "  << m->rows;
-        if (frames  ) buffer << " "  << m->frames;
-        if (channels) buffer << ")";
-        buffer << ")";
+        buffer << "))";
     }
 
     const string str = buffer.str();
