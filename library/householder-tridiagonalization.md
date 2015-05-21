@@ -80,10 +80,10 @@ Golub & Van Loan, "Matrix Computations 4th Edition", Section 8.3.1.
     householder-tridiagonalization :=
       src :->
       {
-          ; Make a copy because we will iteratively modify the matrix in-place
-          A := src.copy
+        ; Make a copy because we will iteratively modify the matrix in-place
+        A := src.copy
 
-          ; Iteratively tridiagonalize the matrix
-          (-> k (householder-tridiagonalization-iteration A k)).(iter (- A.rows 2))
-          A
+        ; Iteratively tridiagonalize the matrix
+        (-> k (householder-tridiagonalization-iteration A k)).(iter (- A.rows 2))
+        A
       }
