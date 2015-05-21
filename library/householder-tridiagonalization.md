@@ -22,25 +22,21 @@ Golub & Van Loan, "Matrix Computations 4th Edition", Section 8.3.1.
           }
         init-v.(iter-range 1 m)
 
-        x1 := (A 0 k row-start)
-        B := (? (and (== sigma 0) (>= x1 0))
+        x0 := (A 0 k row-start)
+        u := (+ x0.sq sigma).sqrt
+        B := (? (and (== sigma 0) (>= x0 0))
                 0
-             (? (and (== sigma 0) (< x1 0))
+             (? (and (== sigma 0) (< x0 0))
                 -2
                 {
-                  u := x1.sq.(+ sigma).sqrt
-                  v1 := (? (<= x1 0)
-                           (- x1 u)
-                           (- sigma).(/ (+ x1 u)))
-
-                  v1-sq := v1.sq
-                  B := 2.(* v1-sq).(/ (+ sigma v1-sq))
-                  v1-recip := (/ 1 v1)
+                  v0 := (? (<= x0 0)
+                           (- x0 u)
+                           (- sigma).(/ (+ x0 u)))
                   norm-v :=
                     i :->
-                      (v i) :<- (* (v i) v1-recip)
+                      (v i) :<- (/ (v i) v0)
                   norm-v.(iter-range 1 m)
-                  B
+                  2.(* v0.sq).(/ (+ sigma v0.sq))
                 }
              )).native-type.$
 
@@ -52,17 +48,22 @@ Golub & Van Loan, "Matrix Computations 4th Edition", Section 8.3.1.
         v-norm := (dot w v m).(* B).(/ 2)
         (-> i (<- (w i) (- (w i) (* v-norm (v i))))).(iter m)
 
-        l2-norm := (norm-l2 (-> i (A 0 k (+ row-start i))) m)
-        (A 0 k row-start) :<- l2-norm
-        (A 0 row-start k) :<- l2-norm
-        set-zero :=
+        ; Start modifying A
+        (A 0 k row-start) :<- u
+        (A 0 row-start k) :<- u
+
+        ; Store the householder vector used to re-construct Q in the subdiagonal portion of A,
+        ; and store zeros in the superdiagonal portion of A.
+        store-householder-vector :=
           i :->
           {
-            (A 0 k i) :<- 0
-            (A 0 i k) :<- 0
+            ai := (+ row-start i)
+            (A 0 k ai) :<- (v i)
+            (A 0 ai k) :<- 0
           }
-        set-zero.(iter-range (+ k 2) n)
+        store-householder-vector.(iter-range 1 m)
 
+        ; Symmetric update of the remainder of A
         update-A :=
           (x y) :->
           {
@@ -78,12 +79,13 @@ Golub & Van Loan, "Matrix Computations 4th Edition", Section 8.3.1.
       }
 
     householder-tridiagonalization :=
-      src :->
+      A :->
       {
-        ; Make a copy because we will iteratively modify the matrix in-place
-        A := src.copy
-
-        ; Iteratively tridiagonalize the matrix
+        ; Iteratively tridiagonalize the matrix in place
         (-> k (householder-tridiagonalization-iteration A k)).(iter (- A.rows 2))
-        A
+
+        ; A now stores both the tridiagonal matrix and Q in factored form
+        T := A.imitate
+        (T A) :=>
+          T :<- (? (<= (- x y).abs 1) A 0)
       }
