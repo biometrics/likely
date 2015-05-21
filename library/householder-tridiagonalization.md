@@ -35,23 +35,22 @@ Golub & Van Loan, "Matrix Computations 4th Edition", Section 8.3.1.
 
                   v1-sq := v1.sq
                   B := 2.(* v1-sq).(/ (+ sigma v1-sq))
+                  v1-recip := (/ 1 v1)
                   norm-v :=
                     i :->
-                      (v i) :<- (/ (v i) v1)
+                      (v i) :<- (* (v i) v1-recip)
                   norm-v.(iter-range 1 m)
                   B
                 }
              )).native-type.$
 
-        p := ($ 0.native-type m)
-        init-p :=
-          i :->
-            (p i) :<- (* B (dot (-> j (A 0 (+ row-start j) (+ row-start i))) v m))
-        init-p.(iter m)
-
-        v-norm := (dot p v m).(* B).(/ 2)
         w := ($ 0.native-type m)
-        (-> i (<- (w i) (- (p i) (* v-norm (v i))))).(iter m)
+        init-w :=
+          i :->
+            (w i) :<- (* B (dot (-> j (A 0 (+ row-start j) (+ row-start i))) v m))
+        init-w.(iter m)
+        v-norm := (dot w v m).(* B).(/ 2)
+        (-> i (<- (w i) (- (w i) (* v-norm (v i))))).(iter m)
 
         l2-norm := (norm-l2 (-> i (A 0 k (+ row-start i))) m)
         (A 0 k row-start) :<- l2-norm
