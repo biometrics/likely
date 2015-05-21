@@ -61,7 +61,6 @@ Golub & Van Loan, "Matrix Computations 4th Edition", Section 8.3.1.
         (-> i (<- (w i) (- (p i) (* v-norm (v i))))).(iter m)
 
         l2-norm := (norm-l2 (-> i (A 0 k (+ row-start i))) m native-type)
-
         (A 0 k row-start) :<- l2-norm
         (A 0 row-start k) :<- l2-norm
         set-zero :=
@@ -72,9 +71,18 @@ Golub & Van Loan, "Matrix Computations 4th Edition", Section 8.3.1.
           }
         set-zero.(iter-range (+ k 2) n)
 
-        ((1 m m) A v w row-start) :=>
-          (A 0 (+ row-start x) (+ row-start y)) :<- (- (A 0 (+ row-start x) (+ row-start y))
-                                                    (+ (* (v x) (w y)) (* (v y) (w x))))
+        update-A :=
+          (x y) :->
+          {
+            ax := (+ row-start x)
+            ay := (+ row-start y)
+            val := (- (A 0 ax ay)
+                      (+ (* (v x) (w y)) (* (v y) (w x))))
+            (A 0 ax ay) :<- val
+            (A 0 ay ax) :<- val
+          }
+        update-A.(iter-triangle m)
+        A
       }
 
     householder-tridiagonalization :=

@@ -1263,6 +1263,18 @@ iter :=
 iter-elements :=
   (mat expr) :->
     (iter (-> i (expr (mat i))) mat.elements)
+
+iter-rectangle :=
+  (f x y) :->
+    (-> i (-> j (f j i)).(iter x)).(iter y)
+
+iter-square :=
+  (f n) :->
+    (iter-rectangle f n n)
+
+iter-triangle :=
+  (f n) :->
+    (-> i (-> j (f j i)).(iter (+ i 1))).(iter n)
 \end{likely}
 
 \section{Vector reductions}
