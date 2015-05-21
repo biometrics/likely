@@ -432,7 +432,7 @@ void likely_ensure(bool condition, const char *format, ...)
     exit(EXIT_FAILURE);
 }
 
-void likely_ensure_approximate(likely_const_mat a, likely_const_mat b, float error_threshold)
+void likely_ensure_approximately_equal(likely_const_mat a, likely_const_mat b, float error_threshold)
 {
     likely_ensure(a->channels == b->channels, "channels: %d and: %d differ!", a->channels, b->channels);
     likely_ensure(a->columns  == b->columns , "columns: %d and: %d differ!" , a->columns , b->columns);
@@ -450,5 +450,5 @@ void likely_ensure_approximate(likely_const_mat a, likely_const_mat b, float err
                     sum += max(A, B);
                 }
     const float relativeError = float(delta / sum);
-    likely_ensure(relativeError < error_threshold, "average delta: %g%% greater than threshold: %g%%", relativeError, error_threshold);
+    likely_ensure(relativeError < error_threshold, "average delta: %g greater than threshold: %g", relativeError, error_threshold);
 }

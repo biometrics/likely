@@ -5,6 +5,17 @@ src := (f32XY 1 4 4 1 (4.0 1 -2  2
                         -2 0  3 -2
                          2 1 -2 -1))
 
-src
+A1 := (f32XY 1 4 4 1 (4.0          3          0          0
+                        3 (/ 10.0 3) (/ -4.0 3)         -1
+                        0 (/ -4.0 3)         -1 (/ -4.0 3)
+                        0         -1 (/ -4.0 3)  (/ 5.0 3)))
 
-(householder-tridiagonalization src)
+A := (f32XY 1 4 4 1 (4.0          3            0            0
+                       3 (/ 10.0 3)    (/ 5.0 3)            0
+                       0  (/ 5.0 3) (/ -33.0 25) (/ -68.0 75)
+                       0          0 (/ -68.0 75) (/ 149.0 75)))
+
+error-threshold := 0.000001
+
+(ensure-approximately-equal (householder-tridiagonalization-iteration src 0) A1 error-threshold)
+(ensure-approximately-equal (householder-tridiagonalization           src  ) A  error-threshold)

@@ -3278,8 +3278,6 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
         parent = env;
         if (eval_callback)
             eval_callback(env, context);
-        if (!env->expr)
-            break;
     }
 
     return env;

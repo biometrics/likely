@@ -199,7 +199,7 @@ LIKELY_EXPORT void likely_ensure(bool condition, const char *format, ...);
  * \param[in] b Second matrix.
  * \param[in] error_threshold The allowed cumulative element error relative to the cumulative element sum.
  */
-LIKELY_EXPORT void likely_ensure_approximate(likely_const_mat a, likely_const_mat b, float error_threshold);
+LIKELY_EXPORT void likely_ensure_approximately_equal(likely_const_mat a, likely_const_mat b, float error_threshold);
 
 /** @} */ // end of io
 

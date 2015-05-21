@@ -1072,6 +1072,9 @@ render := (extern u8CXYT "likely_render" (u8CXYT f64.pointer f64.pointer))
 
 guess-file-type :=
   (extern likely-file-type "likely_guess_file_type" string)
+
+ensure-approximately-equal :=
+  (extern void "likely_ensure_approximately_equal" (multi-dimension multi-dimension float))
 \end{likely}
 
 \begin{likely}
