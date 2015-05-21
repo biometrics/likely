@@ -54,29 +54,26 @@ x_body:                                           ; preds = %y_body, %exit
   br label %true_entry
 
 true_entry:                                       ; preds = %x_body, %true_entry
-  %24 = phi i32 [ %38, %true_entry ], [ 0, %x_body ]
-  %25 = phi double [ %37, %true_entry ], [ 0.000000e+00, %x_body ]
+  %24 = phi i32 [ %36, %true_entry ], [ 0, %x_body ]
+  %25 = phi float [ %35, %true_entry ], [ 0.000000e+00, %x_body ]
   %26 = sext i32 %24 to i64
   %27 = add nuw nsw i64 %26, %23
   %28 = getelementptr %f32XY, %f32XY* %0, i64 0, i32 6, i64 %27
   %29 = load float, float* %28, align 4, !llvm.mem.parallel_loop_access !1
-  %30 = fpext float %29 to double
-  %31 = mul nuw nsw i64 %26, %C_y_step
-  %32 = add nuw nsw i64 %31, %x
-  %33 = getelementptr %f32XY, %f32XY* %1, i64 0, i32 6, i64 %32
-  %34 = load float, float* %33, align 4, !llvm.mem.parallel_loop_access !1
-  %35 = fpext float %34 to double
-  %36 = fmul fast double %35, %30
-  %37 = fadd fast double %36, %25
-  %38 = add nuw nsw i32 %24, 1
-  %39 = icmp eq i32 %38, %columns
-  br i1 %39, label %exit, label %true_entry
+  %30 = mul nuw nsw i64 %26, %C_y_step
+  %31 = add nuw nsw i64 %30, %x
+  %32 = getelementptr %f32XY, %f32XY* %1, i64 0, i32 6, i64 %31
+  %33 = load float, float* %32, align 4, !llvm.mem.parallel_loop_access !1
+  %34 = fmul fast float %33, %29
+  %35 = fadd fast float %34, %25
+  %36 = add nuw nsw i32 %24, 1
+  %37 = icmp eq i32 %36, %columns
+  br i1 %37, label %exit, label %true_entry
 
 exit:                                             ; preds = %true_entry
-  %40 = add nuw nsw i64 %x, %22
-  %41 = getelementptr float, float* %10, i64 %40
-  %42 = fptrunc double %37 to float
-  store float %42, float* %41, align 4, !llvm.mem.parallel_loop_access !1
+  %38 = add nuw nsw i64 %x, %22
+  %39 = getelementptr float, float* %10, i64 %38
+  store float %35, float* %39, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %C_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body

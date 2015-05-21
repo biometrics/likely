@@ -46,14 +46,14 @@ Golub & Van Loan, "Matrix Computations 4th Edition", Section 8.3.1.
         p := ($ 0.native-type m)
         init-p :=
           i :->
-            (p i) :<- (* B (dot (-> j (A 0 (+ row-start j) (+ row-start i))) v m native-type))
+            (p i) :<- (* B (dot (-> j (A 0 (+ row-start j) (+ row-start i))) v m))
         init-p.(iter m)
 
-        v-norm := (dot p v m native-type).(* B).(/ 2)
+        v-norm := (dot p v m).(* B).(/ 2)
         w := ($ 0.native-type m)
         (-> i (<- (w i) (- (p i) (* v-norm (v i))))).(iter m)
 
-        l2-norm := (norm-l2 (-> i (A 0 k (+ row-start i))) m native-type)
+        l2-norm := (norm-l2 (-> i (A 0 k (+ row-start i))) m)
         (A 0 k row-start) :<- l2-norm
         (A 0 row-start k) :<- l2-norm
         set-zero :=

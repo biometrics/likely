@@ -1135,8 +1135,12 @@ cast :=
     (b.type a) ; convert a to the type of b
 
 element-type :=
-  m :->
-    (& m.type element).make-type
+  x :->
+    [((extern u32 "likely_element_type" u32) x.type)].make-type
+
+type-from-types :=
+  (t u) :->
+    [((extern u32 "likely_type_from_types" (u32 u32)) t u)].make-type
 
 depth-double :=
   t :->
@@ -1288,20 +1292,22 @@ iter-triangle :=
 \section{Vector reductions}
 \begin{likely}
 dot :=
-  (a b n type) :->
+  (a b n) :->
   {
-    result := 0.type.$
-    (-> i (<- result (+ result (* (a i).type (b i).type)))).(iter n)
+    native-type := (type-from-types (a 0).type (b 0).type).depth-atleast-32
+    result := 0.native-type.$
+    (-> i (<- result (+ result (* (a i).native-type (b i).native-type)))).(iter n)
     result
   }
 
 norm-l2 :=
-  (a n type) :->
+  (a n) :->
   {
-    result := 0.type.$
+    native-type := (a 0).type.depth-atleast-32
+    result := 0.native-type.$
     add-squared :=
       i :->
-        result :<- (+ result (a i).sq)
+        result :<- (+ result (a i).native-type.sq)
     add-squared.(iter n)
     result.sqrt
   }

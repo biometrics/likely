@@ -14,8 +14,7 @@ Compare to **[cv::gemm](http://docs.opencv.org/modules/core/doc/operations_on_ar
           native-type := dst.element-type
           dot-product := (dot (-> i (src1 0 i y))
                               (-> i (src2 0 x i))
-                              len
-                              native-type)
+                              len)
           dst :<- (+ (* alpha dot-product).native-type (* beta src3).native-type)
         }
       }

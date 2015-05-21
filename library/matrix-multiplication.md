@@ -10,8 +10,7 @@ Compare to **[A*B](http://docs.opencv.org/modules/core/doc/basic_structures.html
         (C A B len) :=>
           C :<- (dot (-> i (A 0 i y))
                      (-> i (B 0 x i))
-                     len
-                     f64)
+                     len)
       }
 
 #### Generated LLVM IR
