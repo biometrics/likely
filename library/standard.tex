@@ -1187,7 +1187,24 @@ puts := (extern int "puts" string)
 printf := (extern void "printf" (string ()))
 \end{likely}
 
-\chapter{Pixel-wise operators}
+\chapter{In-place kernels}
+\begin{likely}
+set :=
+  (mat val) :->
+    (mat val) :=>
+      mat :<- val
+
+set-zero :=
+  mat :->
+    (set mat 0)
+
+scale :=
+  (mat val) :->
+    (mat val) :=>
+      mat :<- (* mat val)
+\end{likely}
+
+\chapter{Element-wise operators}
 \section{Thresholding}
 \begin{likely}
 threshold :=
@@ -1248,7 +1265,18 @@ iter-elements :=
     (iter (-> i (expr (mat i))) mat.elements)
 \end{likely}
 
-\section{reductions}
+\section{Vector reductions}
+\begin{likely}
+dot :=
+  (a b n type) :->
+  {
+    result := 0.type.$
+    (-> i (<- result (+ result (* (a i) (b i))))).(iter n)
+    result
+  }
+\end{likely}
+
+\section{Matrix reductions}
 \begin{likely}
 min-element :=
   src :->

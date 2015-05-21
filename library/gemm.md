@@ -11,12 +11,12 @@ Compare to **[cv::gemm](http://docs.opencv.org/modules/core/doc/operations_on_ar
         len := src1.columns
         (dst src1 src2 alpha src3 beta len) :=>
         {
-          dot-product := 0.(cast dst).$
-          madd :=
-            i :->
-              dot-product :<- (+ dot-product (* (src1 0 i y) (src2 0 x i)))
-          (iter madd len)
-          dst :<- (+ (* alpha dot-product).(cast dst) (* beta src3).(cast dst))
+          native-type := dst.element-type
+          dot-product := (dot (-> i (src1 0 i y))
+                              (-> i (src2 0 x i))
+                              len
+                              native-type)
+          dst :<- (+ (* alpha dot-product).native-type (* beta src3).native-type)
         }
       }
 

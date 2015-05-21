@@ -5,9 +5,7 @@ Compute the average face from a set of aligned faces [1].
     average :=
       data :->
       {
-        sum := (data.type.depth-atleast-32.not-multi-frame data.channels data.columns data.rows)
-        sum :=>
-          sum :<- 0
+        sum := (data.type.depth-atleast-32.not-multi-frame data.channels data.columns data.rows).set-zero
         (sum data) :+>
           sum :<- (+ sum data)
 

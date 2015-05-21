@@ -33,26 +33,25 @@ declare void @llvm.assume(i1) #1
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
 ; Function Attrs: nounwind
-define private void @covariance_tmp_thunk1({ %f64X*, float }* noalias nocapture readonly, i64, i64) #1 {
+define private void @covariance_tmp_thunk1({ %f64X*, double }* noalias nocapture readonly, i64, i64) #1 {
 entry:
-  %3 = getelementptr inbounds { %f64X*, float }, { %f64X*, float }* %0, i64 0, i32 0
+  %3 = getelementptr inbounds { %f64X*, double }, { %f64X*, double }* %0, i64 0, i32 0
   %4 = load %f64X*, %f64X** %3, align 8
-  %5 = getelementptr inbounds { %f64X*, float }, { %f64X*, float }* %0, i64 0, i32 1
-  %6 = load float, float* %5, align 4
+  %5 = getelementptr inbounds { %f64X*, double }, { %f64X*, double }* %0, i64 0, i32 1
+  %6 = load double, double* %5, align 8
   %7 = getelementptr inbounds %f64X, %f64X* %4, i64 0, i32 6, i64 0
   %8 = ptrtoint double* %7 to i64
   %9 = and i64 %8, 31
   %10 = icmp eq i64 %9, 0
   call void @llvm.assume(i1 %10)
-  %11 = fpext float %6 to double
   br label %x_body
 
 x_body:                                           ; preds = %x_body, %entry
   %x = phi i64 [ %1, %entry ], [ %x_increment, %x_body ]
-  %12 = getelementptr %f64X, %f64X* %4, i64 0, i32 6, i64 %x
-  %13 = load double, double* %12, align 8, !llvm.mem.parallel_loop_access !0
-  %14 = fmul fast double %13, %11
-  store double %14, double* %12, align 8, !llvm.mem.parallel_loop_access !0
+  %11 = getelementptr %f64X, %f64X* %4, i64 0, i32 6, i64 %x
+  %12 = load double, double* %11, align 8, !llvm.mem.parallel_loop_access !0
+  %13 = fmul fast double %12, %6
+  store double %13, double* %11, align 8, !llvm.mem.parallel_loop_access !0
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %2
   br i1 %x_postcondition, label %x_exit, label %x_body
@@ -251,15 +250,15 @@ x_exit:                                           ; preds = %x_body
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %25 = uitofp i32 %rows to float
-  %norm = fdiv fast float 1.000000e+00, %25
-  %26 = alloca { %f64X*, float }, align 8
-  %27 = bitcast { %f64X*, float }* %26 to %u0CXYT**
+  %25 = uitofp i32 %rows to double
+  %norm = fdiv fast double 1.000000e+00, %25
+  %26 = alloca { %f64X*, double }, align 8
+  %27 = bitcast { %f64X*, double }* %26 to %u0CXYT**
   store %u0CXYT* %2, %u0CXYT** %27, align 8
-  %28 = getelementptr inbounds { %f64X*, float }, { %f64X*, float }* %26, i64 0, i32 1
-  store float %norm, float* %28, align 8
-  %29 = bitcast { %f64X*, float }* %26 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f64X*, float }*, i64, i64)* @covariance_tmp_thunk1 to i8*), i8* %29, i64 %3)
+  %28 = getelementptr inbounds { %f64X*, double }, { %f64X*, double }* %26, i64 0, i32 1
+  store double %norm, double* %28, align 8
+  %29 = bitcast { %f64X*, double }* %26 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f64X*, double }*, i64, i64)* @covariance_tmp_thunk1 to i8*), i8* %29, i64 %3)
   %columns7 = load i32, i32* %1, align 4, !range !1
   %rows8 = load i32, i32* %7, align 4, !range !1
   %30 = call %u0CXYT* @likely_new(i32 24896, i32 1, i32 %columns7, i32 %rows8, i32 1, i8* null)

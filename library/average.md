@@ -9,7 +9,7 @@ Compare to **[cv::reduce(CV_REDUCE_AVG)](http://docs.opencv.org/modules/core/doc
           avg :<- 0
         (avg src) :+>
           avg :<- (+ avg src)
-        norm := (/ 1 src.rows.floating)
+        norm := (/ 1 (avg.element-type src.rows))
         (avg norm) :=>
           avg :<- (* avg norm)
       }

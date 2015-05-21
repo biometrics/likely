@@ -60,17 +60,16 @@ x_exit8:                                          ; preds = %x_body7
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit8
-  %23 = uitofp i32 %rows to float
-  %norm = fdiv fast float 1.000000e+00, %23
-  %24 = fpext float %norm to double
+  %23 = uitofp i32 %rows to double
+  %norm = fdiv fast double 1.000000e+00, %23
   br label %x_body16
 
 x_body16:                                         ; preds = %x_body16, %y_exit
   %x18 = phi i64 [ 0, %y_exit ], [ %x_increment19, %x_body16 ]
-  %25 = getelementptr double, double* %5, i64 %x18
-  %26 = load double, double* %25, align 8, !llvm.mem.parallel_loop_access !1
-  %27 = fmul fast double %26, %24
-  store double %27, double* %25, align 8, !llvm.mem.parallel_loop_access !1
+  %24 = getelementptr double, double* %5, i64 %x18
+  %25 = load double, double* %24, align 8, !llvm.mem.parallel_loop_access !1
+  %26 = fmul fast double %25, %norm
+  store double %26, double* %24, align 8, !llvm.mem.parallel_loop_access !1
   %x_increment19 = add nuw nsw i64 %x18, 1
   %x_postcondition20 = icmp eq i64 %x_increment19, %3
   br i1 %x_postcondition20, label %x_exit17, label %x_body16
