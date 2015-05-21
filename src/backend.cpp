@@ -2934,8 +2934,11 @@ likely_expression::~likely_expression()
 
 Value *likely_expression::gep(Builder &builder, likely_const_ast ast) const
 {
-    if (ast->type != likely_ast_list)
-        return dyn_cast<AllocaInst>(value);
+    if (ast->type != likely_ast_list) {
+        // Scalar alloca are dereferenceable without an index, array alloca are not
+        AllocaInst *const allocaInst = dyn_cast<AllocaInst>(value);
+        return allocaInst && !allocaInst->isArrayAllocation() ? allocaInst : NULL;
+    }
 
     if (type & likely_compound_pointer) {
         if (ast->num_atoms == 1) {
