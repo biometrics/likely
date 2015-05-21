@@ -1178,6 +1178,14 @@ imitate-size :=
 imitate :=
   mat :->
     (imitate-size mat mat.type)
+
+copy :=
+  src :->
+  {
+    dst := src.imitate
+    (dst src) :=>
+      dst :<- src
+  }
 \end{likely}
 
 \chapter{C Library Symbols}
