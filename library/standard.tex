@@ -1210,6 +1210,11 @@ set-zero :=
   mat :->
     (set mat 0)
 
+set-identity :=
+  mat :->
+    mat :=>
+      mat :<- (? (== x y) 1 0)
+
 scale :=
   (mat val) :->
     (mat val) :=>
