@@ -8,14 +8,10 @@ Compare to **[A*B](http://docs.opencv.org/modules/core/doc/basic_structures.html
         C := (A.type 1 B.columns A.rows)
         len := A.columns
         (C A B len) :=>
-        {
-          dot-product := 0.f64.$
-          madd :=
-            i :->
-              dot-product :<- (+ dot-product (* (A 0 i y).f64 (B 0 x i).f64))
-          (iter madd len)
-          C :<- dot-product
-        }
+          C :<- (dot (-> i (A 0 i y))
+                     (-> i (B 0 x i))
+                     len
+                     f64)
       }
 
 #### Generated LLVM IR

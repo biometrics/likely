@@ -1271,8 +1271,19 @@ dot :=
   (a b n type) :->
   {
     result := 0.type.$
-    (-> i (<- result (+ result (* (a i) (b i))))).(iter n)
+    (-> i (<- result (+ result (* (a i).type (b i).type)))).(iter n)
     result
+  }
+
+norm-l2 :=
+  (a n type) :->
+  {
+    result := 0.type.$
+    add-squared :=
+      i :->
+        result :<- (+ result (a i).sq)
+    add-squared.(iter n)
+    result.sqrt
   }
 \end{likely}
 
