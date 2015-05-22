@@ -45,6 +45,8 @@ error-threshold := 0.000001
   (ensure-approximately-equal T T-truth error-threshold)
 
   Q := (householder-forward-accumulation A)
+  Q2 := (householder-backward-accumulation A)
+  ; (ensure-approximately-equal Q Q2 error-threshold)
   (ensure-approximately-equal (matrix-multiplication Q Q.transpose)
                               Q.imitate.set-identity
                               error-threshold)

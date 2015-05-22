@@ -125,39 +125,50 @@ GVL Section 5.1.6
 
 GVL Equation 5.1.5.
 
-    householder-backward-accumulation-iteration :=
-      (A Q j) :->
-      {
-        native-type := A.element-type
-        m := (- A.rows j)
-        v := ($ 0.native-type m)
-        (v 0) :<- 1
-        u := 1.native-type.$
-        init-vu :=
-          i :->
-          {
-            e := (A 0 (- j 1) (+ j i))
-            (v i) :<- e
-            u :<- (+ u e.sq)
-          }
-        init-vu.(iter-range 1 m)
-        Bj := (/ 2 u)
+    householder-backward-accumulation :=
+      A :->
+    {
+      n := A.rows
+      Q := A.imitate.set-identity
 
-        vQ := ($ 0.native-type m)
-        init-vQ :=
-          i :->
-            (vQ i) :<- (dot v (-> k (A 0 (+ j k) (+ j i))) m)
-        init-vQ.(iter m)
+      ; Note the similarity between this function and "householder-unfactor"
+      householder-backward-accumulation-iteration :=
+        (A Q h) :->
+        {
+          native-type := A.element-type
+          j := (+ h 1)
+          m := (- n j)
+          v := ($ 0.native-type m)
+          (v 0) :<- 1
+          u := 1.native-type.$
+          init-vu :=
+            i :->
+            {
+              e := (A 0 h (+ j i))
+              (v i) :<- e
+              u :<- (+ u e.sq)
+            }
+          init-vu.(iter-range 1 m)
+          Bj := (/ 2 u)
 
-        update-Q :=
-         (k i) :->
-         {
-           ji := (+ j i)
-           jk := (+ j k)
-           (Q 0 jk ji) :<- (- (Q 0 jk ji) Bj.(* (v i)).(* (vQ k)))
-         }
-        update-Q.(iter-square m)
-      }
+          vQ := ($ 0.native-type m)
+          init-vQ :=
+            i :->
+              (vQ i) :<- (dot v (-> k (A 0 (+ j k) (+ j i))) m)
+          init-vQ.(iter m)
+
+          update-Q :=
+           (k i) :->
+           {
+             ji := (+ j i)
+             jk := (+ j k)
+             (Q 0 jk ji) :<- (- (Q 0 jk ji) Bj.(* (v i)).(* (vQ k)))
+           }
+          update-Q.(iter-square m)
+        }
+      (-> i (householder-backward-accumulation-iteration A Q (- n (+ i 2)))).(iter (- n 2))
+      Q
+    }
 
     imitate-tridiagonal :=
       A :->

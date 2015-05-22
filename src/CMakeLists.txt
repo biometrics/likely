@@ -486,7 +486,9 @@ test_file(export.md 3)
 test_file(literate_programming.md 42)
 test_file(literate_programming.tex 42)
 test_file(matrix_io.lisp "\"Compression Ratio: \"7.31714")
-test_file(householder-tridiagonalization-test.lisp "")
+if(${LIKELY_DEMOS} MATCHES "All")
+  test_file(householder-tridiagonalization-test.lisp "")
+endif()
 
 # Generate IR for bechmarks
 set(LIKELY_BENCHMARKS_DIR ${CMAKE_SOURCE_DIR}/ir/benchmarks)
