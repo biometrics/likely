@@ -1260,22 +1260,34 @@ bgr-to-y :=
 \chapter{Loops}
 \section{iter}
 \begin{likely}
-iter-range :=
-  (expr start end) :->
+iter-generic :=
+  (expr start end step) :->
   {
     i := start.$
     loop := #
     (!= i end) :?
     {
       (expr i)
-      i :<- (+ i 1)
+      i :<- (step i)
       loop
     }
   }
 
+iter-range :=
+  (expr start end) :->
+    (iter-generic expr start end (-> i (+ i 1)))
+
 iter :=
   (expr end) :->
     (iter-range expr 0 end)
+
+iter-reverse-range :=
+  (expr end start) :->
+    (iter-generic expr (- end 1) (- start 1) (-> i (- i 1)))
+
+iter-reverse :=
+  (expr end) :->
+    (iter-reverse-range expr end 0)
 
 iter-elements :=
   (mat expr) :->
