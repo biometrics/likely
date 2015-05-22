@@ -1306,6 +1306,19 @@ iter-triangle :=
     (-> i (-> j (f j i)).(iter (+ i 1))).(iter n)
 \end{likely}
 
+\begin{likely}
+while :=
+  (expr state) :->
+  {
+    loop := #
+    (state) :?
+    {
+      (expr)
+      loop
+    }
+  }
+\end{likely}
+
 \section{Vector reductions}
 \begin{likely}
 dot :=
