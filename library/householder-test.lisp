@@ -1,4 +1,4 @@
-"library/householder-tridiagonalization.md".import
+"library/householder.md".import
 "library/transpose.md".import
 
 src := (f32XY 1 4 4 1 (4.0 1 -2  2
@@ -18,9 +18,10 @@ T-truth := (f32XY 1 4 4 1 (4.0          3            0            0
 
 error-threshold := 0.000001
 
+; Test a single iteration
 {
   A0 := src.copy
-  (householder-tridiagonalization-iteration A0 0)
+  (householder-iteration A0 0)
   (ensure-approximately-equal A0
                               A0-truth
                               error-threshold)
@@ -39,14 +40,11 @@ error-threshold := 0.000001
                               error-threshold)
 }
 
+; Test a complete diagonalization
 {
-  A := src.copy
-  T := (householder-tridiagonalization A)
+  Q := src.copy
+  T := (householder Q)
   (ensure-approximately-equal T T-truth error-threshold)
-
-  Q := (householder-forward-accumulation A)
-  Q2 := (householder-backward-accumulation A)
-  ; (ensure-approximately-equal Q Q2 error-threshold)
   (ensure-approximately-equal (matrix-multiplication Q Q.transpose)
                               Q.imitate.set-identity
                               error-threshold)

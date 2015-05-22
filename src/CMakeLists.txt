@@ -487,7 +487,7 @@ test_file(literate_programming.md 42)
 test_file(literate_programming.tex 42)
 test_file(matrix_io.lisp "\"Compression Ratio: \"7.31714")
 if(${LIKELY_DEMOS} MATCHES "All")
-  test_file(householder-tridiagonalization-test.lisp "")
+  test_file(householder-test.lisp "")
 endif()
 
 # Generate IR for bechmarks
