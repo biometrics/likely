@@ -84,10 +84,11 @@ GVL Algorithm 8.3.1
 
 GVL Section 5.1.6
 
-    householder-unfactor-matrix :=
-      (A j) :->
+    householder-unfactor :=
+      (A h) :->
       {
         native-type := A.element-type
+        j := (+ h 1)
         m := (- A.rows j)
         v := ($ 0.native-type m)
         (v 0) :<- 1
@@ -95,7 +96,7 @@ GVL Section 5.1.6
         init-vu :=
           i :->
           {
-            e := (A 0 (- j 1) (+ j i))
+            e := (A 0 h (+ j i))
             (v i) :<- e
             u :<- (+ u e.sq)
           }
@@ -114,14 +115,11 @@ GVL Section 5.1.6
         Q
       }
 
-    householder-forward-accumulate :=
+    householder-forward-accumulation :=
       A :->
     {
       Q := A.imitate.set-identity
-      forware-accumulate-iteration :=
-        j :->
-          (set Q (matrix-multiplication Q (householder-unfactor-matrix A j)))
-      forware-accumulate-iteration.(iter-range 1 A.rows)
+      (-> j (set Q (matrix-multiplication Q (householder-unfactor A j)))).(iter (- A.rows 2))
       Q
     }
 
