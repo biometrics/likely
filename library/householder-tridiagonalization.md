@@ -61,7 +61,7 @@ GVL Algorithm 8.3.1
             ai := (+ row-start i)
             vi := (v i)
             (A 0 k ai) :<- vi
-            (A 0 ai k) :<- (/ vi B)
+            (A 0 ai k) :<- 0
           }
         store-v.(iter-range 1 m)
 
@@ -88,31 +88,42 @@ GVL Equation 5.1.5.
         native-type := A.element-type
         n := A.rows
         m := (- n j)
-        v  := ($ 0.native-type m)
-        Bv := ($ 0.native-type m)
-        (v  0) :<- 1
-        (Bv 0) :<- 1
-        init-v :=
+        v := ($ 0.native-type m)
+        (v 0) :<- 1
+        u := 1.native-type.$
+        init-vu :=
           i :->
           {
-            ji := (+ j i)
-            (v i)  :<- (A 0 j ji)
-            (Bv i) :<- (A 0 ji j)
+            e := (A 0 j (+ j i))
+            (v i) :<- e
+            u :<- (+ u e.sq)
           }
-        init-v.(iter-range 1 m)
+        init-vu.(iter-range 1 m)
+        Bj := (/ 2 u)
 
         vQ := ($ 0.native-type m)
         init-vQ :=
           i :->
-            (vQ i) :<- (dot v (-> k (Q 0 (+ j i) (+ j k))) m)
+            (vQ i) :<- (dot v (-> k (A 0 (+ j k) (+ j i))) m)
         init-vQ.(iter m)
 
         update-Q :=
-          (i k) :->
-            (Q 0 (+ j i) (+ j k)) :<- (- (Q 0 (+ j i) (+ j k))
-                                         (* (Bv k) (vQ i)))
-        ; update-Q.(iter-square m)
+         (k i) :->
+           (Q 0 (+ j k) (+ j i)) :<- (- (Q 0 (+ j k) (+ j i)) Bj.(* (v i)).(* (vQ k)))
+        update-Q.(iter-square m)
       }
+
+GVL Equation 8.3.1
+
+    tridiagonal-decomposition :=
+      (A Q) :->
+    {
+      T := A.imitate
+      (T A Q) :=>
+      {
+        T :<- 0
+      }
+    }
 
 GVL Section 8.3.1.
 
@@ -130,7 +141,7 @@ GVL Section 8.3.1.
           T :<- (? (<= (- x y).abs 1) A 0)
 
         Q := A.imitate.set-identity
-        (-> j (householder-backward-accumulation-iteration A Q (- n (+ i 1)))).(iter n)
+        (-> j (householder-backward-accumulation-iteration A Q (- n (+ j 1)))).(iter n)
 
         ; By convention, A is set to Q and T is returned
         (set A Q)
