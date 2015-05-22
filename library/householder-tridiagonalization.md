@@ -1,6 +1,8 @@
 ### Householder tridiagonalization
 See Golub & Van Loan, "Matrix Computations 4th Edition" (GVL).
 
+    "library/matrix-multiplication.md".import
+
 GVL Algorithm 8.3.1
 
     householder-tridiagonalization-iteration :=
@@ -80,21 +82,63 @@ GVL Algorithm 8.3.1
         A
       }
 
-GVL Equation 5.1.5.
+GVL Section 5.1.6
 
-    householder-backward-accumulation-iteration :=
-      (A Q j) :->
+    householder-unfactor-matrix :=
+      (A j) :->
       {
         native-type := A.element-type
-        n := A.rows
-        m := (- n j)
+        m := (- A.rows j)
         v := ($ 0.native-type m)
         (v 0) :<- 1
         u := 1.native-type.$
         init-vu :=
           i :->
           {
-            e := (A 0 j (+ j i))
+            e := (A 0 (- j 1) (+ j i))
+            (v i) :<- e
+            u :<- (+ u e.sq)
+          }
+        init-vu.(iter-range 1 m)
+        Bj := (/ 2 u)
+
+        Q := A.imitate.set-identity
+        update-Q :=
+         (k i) :->
+         {
+           ji := (+ j i)
+           jk := (+ j k)
+           (Q 0 jk ji) :<- (- (Q 0 jk ji) Bj.(* (v i)).(* (v k)))
+         }
+        update-Q.(iter-square m)
+        Q
+      }
+
+    householder-forward-accumulate :=
+      A :->
+    {
+      Q := A.imitate.set-identity
+      forware-accumulate-iteration :=
+        j :->
+          (set Q (matrix-multiplication Q (householder-unfactor-matrix A j)))
+      forware-accumulate-iteration.(iter-range 1 A.rows)
+      Q
+    }
+
+GVL Equation 5.1.5.
+
+    householder-backward-accumulation-iteration :=
+      (A Q j) :->
+      {
+        native-type := A.element-type
+        m := (- A.rows j)
+        v := ($ 0.native-type m)
+        (v 0) :<- 1
+        u := 1.native-type.$
+        init-vu :=
+          i :->
+          {
+            e := (A 0 (- j 1) (+ j i))
             (v i) :<- e
             u :<- (+ u e.sq)
           }
@@ -109,20 +153,20 @@ GVL Equation 5.1.5.
 
         update-Q :=
          (k i) :->
-           (Q 0 (+ j k) (+ j i)) :<- (- (Q 0 (+ j k) (+ j i)) Bj.(* (v i)).(* (vQ k)))
+         {
+           ji := (+ j i)
+           jk := (+ j k)
+           (Q 0 jk ji) :<- (- (Q 0 jk ji) Bj.(* (v i)).(* (vQ k)))
+         }
         update-Q.(iter-square m)
       }
 
-GVL Equation 8.3.1
-
-    tridiagonal-decomposition :=
-      (A Q) :->
+    imitate-tridiagonal :=
+      A :->
     {
       T := A.imitate
-      (T A Q) :=>
-      {
-        T :<- 0
-      }
+      (T A) :=>
+        T :<- (? (<= (- x y).abs 1) A 0)
     }
 
 GVL Section 8.3.1.
@@ -136,14 +180,12 @@ GVL Section 8.3.1.
         (-> k (householder-tridiagonalization-iteration A k)).(iter (- n 2))
 
         ; A now stores both the tridiagonal matrix and Q in factored form
-        T := A.imitate
-        (T A) :=>
-          T :<- (? (<= (- x y).abs 1) A 0)
+        T := A.imitate-tridiagonal
 
-        Q := A.imitate.set-identity
-        (-> j (householder-backward-accumulation-iteration A Q (- n (+ j 1)))).(iter n)
+        ; Q := A.imitate.set-identity
+        ; (-> j (householder-backward-accumulation-iteration A Q (- n (+ j 1)))).(iter (- n 1))
 
         ; By convention, A is set to Q and T is returned
-        (set A Q)
+        ; (set A Q)
         T
       }
