@@ -1,5 +1,4 @@
 "library/householder.md".import
-"library/transpose.md".import
 
 src := (f32XY 1 4 4 1 (4.0 1 -2  2
                          1 2  0  1
@@ -27,7 +26,7 @@ error-threshold := 0.000001
                               error-threshold)
 
   Q0 := (householder-unfactor A0 0)
-  (ensure-approximately-equal (matrix-multiplication Q0 Q0.transpose)
+  (ensure-approximately-equal (mtimes Q0 Q0.transpose)
                               Q0.imitate.set-identity
                               error-threshold)
 
@@ -35,7 +34,7 @@ error-threshold := 0.000001
   (A0 0 0 2) :<- 0
   (A0 0 0 3) :<- 0
 
-  (ensure-approximately-equal (matrix-multiplication (matrix-multiplication Q0.transpose src) Q0)
+  (ensure-approximately-equal (mtimes (mtimes Q0.transpose src) Q0)
                               A0
                               error-threshold)
 }
@@ -45,10 +44,10 @@ error-threshold := 0.000001
   Q := src.copy
   T := (householder Q)
   (ensure-approximately-equal T T-truth error-threshold)
-  (ensure-approximately-equal (matrix-multiplication Q Q.transpose)
+  (ensure-approximately-equal (mtimes Q Q.transpose)
                               Q.imitate.set-identity
                               error-threshold)
-  (ensure-approximately-equal (matrix-multiplication (matrix-multiplication Q.transpose src) Q)
+  (ensure-approximately-equal (mtimes (mtimes Q.transpose src) Q)
                               T
                               error-threshold)
 }

@@ -1355,6 +1355,29 @@ max-element :=
   }
 \end{likely}
 
+\section{Matrix Multiplication}
+\begin{likely}
+transpose :=
+  src :->
+  {
+    dst := src.imitate
+    (dst src) :=>
+      (dst c x y) :<- (src c y x)
+  }
+
+mtimes :=
+  (A B) :->
+  {
+    (assume (== B.rows A.columns))
+    C := (A.type 1 B.columns A.rows)
+    len := A.columns
+    (C A B len) :=>
+      C :<- (dot (-> i (A 0 i y))
+                 (-> i (B 0 x i))
+                 len)
+  }
+\end{likely}
+
 \bibliographystyle{plain}
 \bibliography{library/standard}
 

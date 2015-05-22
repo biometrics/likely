@@ -1,13 +1,6 @@
 ### Transpose
 Compare to **[cv::transpose](http://docs.opencv.org/modules/core/doc/operations_on_arrays.html#transpose)**.
-
-    transpose :=
-      src :->
-      {
-        dst := src.imitate
-        (dst src) :=>
-          (dst c x y) :<- (src c y x)
-      }
+Where "transpose" is defined in the standard library.
 
 #### Generated LLVM IR
 | Type  | Single-core | Multi-core |

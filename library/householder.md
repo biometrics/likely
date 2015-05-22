@@ -1,8 +1,6 @@
 ### Householder tridiagonalization
 See Golub & Van Loan, "Matrix Computations 4th Edition" (GVL).
 
-    "library/matrix-multiplication.md".import
-
 GVL Algorithm 8.3.1
 
     householder-iteration :=
