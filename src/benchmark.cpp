@@ -581,6 +581,21 @@ class Average : public Test<0, false>
     }
 };
 
+class Transpose : public Test<0, false>
+{
+    const char *name() const
+    {
+        return "transpose";
+    }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat dst;
+        transpose(src, dst);
+        return dst;
+    }
+};
+
 class MultiplyTransposed : public Test<1, false, 512>
 {
     const char *name() const
@@ -716,6 +731,7 @@ int main(int argc, char *argv[])
         GEMM().run(parent);
         MatchTemplate().run(parent);
         Average().run(parent);
+        Transpose().run(parent);
         MultiplyTransposed().run(parent);
         Covariance().run(parent);
 //        Eigen().run(parent);
