@@ -25,6 +25,6 @@ Dynamic Execution
 
 Static Compilation
 
-    (extern u8XY "likely_test_function" () average_face true)
+    (extern u8XY "likely_test_function" () average_face ())
 
 [1] http://www.openu.ac.il/home/hassner/data/lfwa/

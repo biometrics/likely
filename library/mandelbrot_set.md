@@ -43,4 +43,4 @@ Dynamic Execution
 
 Static Compilation
 
-    (extern u8XY "likely_test_function" (i32 i32 f32 f32 f32 f32 i32) mandelbrot_set true)
+    (extern u8XY "likely_test_function" (i32 i32 f32 f32 f32 f32 i32) mandelbrot_set ())

@@ -2297,7 +2297,7 @@ class externExpression : public LikelyOperator
             return new Symbol(builder.env, name, returnType, parameters, isVarArg);
         }
 
-        const LikelyFunction::CallingConvention cc = (ast->num_atoms >= 6) && (evalInt(ast->atoms[5], builder.env, &ok) != 0) ? LikelyFunction::ArrayCC : LikelyFunction::RegularCC;
+        const LikelyFunction::CallingConvention cc = (ast->num_atoms >= 6) ? LikelyFunction::ArrayCC : LikelyFunction::RegularCC;
         if (!ok)
             return NULL;
 

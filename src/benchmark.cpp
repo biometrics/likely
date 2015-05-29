@@ -98,7 +98,7 @@ struct TestBase
         source << "    (extern multi-dimension \"" << name() << "\" (";
         for (int i=0; i<additionalParameters(); i++)
             source << " multi-dimension";
-        source << ") " << name() << " true)";
+        source << ") " << name() << " ())";
         const likely_const_env env = likely_lex_parse_and_eval(source.str().c_str(), likely_file_gfm, parent);
         void *const f = likely_function(env->expr);
         assert(f);

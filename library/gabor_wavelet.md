@@ -36,4 +36,4 @@ Dynamic Execution
 
 Static Compilation
 
-    (extern f32XY "likely_test_function" (i32 i32 f32 f32 f32 f32 f32) gabor_wavelet true)
+    (extern f32XY "likely_test_function" (i32 i32 f32 f32 f32 f32 f32) gabor_wavelet ())
