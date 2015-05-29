@@ -52,7 +52,7 @@ GVL Algorithm 8.3.3
 
         p := 0.$
         q := 0.$
-        (-> () (<- q q.++)).(while (-> () (and (< q n)
+        (-> () (<- q q.++)).(while (-> () (&& (< q n)
                                                (not (dt (- n q.++))))))
 
         (< q n) :?

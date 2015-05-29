@@ -26,9 +26,9 @@ GVL Algorithm 8.3.1
 
         x0 := (A 0 k row-start)
         u := (+ x0.sq sigma).sqrt
-        B := (? (and (== sigma 0) (>= x0 0))
+        B := (? (&& (== sigma 0) (>= x0 0))
                 0
-             (? (and (== sigma 0) (< x0 0))
+             (? (&& (== sigma 0) (< x0 0))
                 -2
                 {
                   v0 := (? (<= x0 0)

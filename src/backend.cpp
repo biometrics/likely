@@ -976,6 +976,12 @@ struct Builder : public IRBuilder<>
             return LikelyValue(CreateIntToPtr(x.value, dstType), type);
         }
 
+        // scalar -> bool
+        if (type == likely_u1) {
+            if (x.value) return compare(x, zero(x.type), NE);
+            else         return LikelyValue(ConstantInt::getFalse(getContext()), likely_u1);
+        }
+
         // scalar -> scalar
         assert(!(x.type & ~likely_element) && !(type & ~likely_element));
         if ((type & likely_depth) == 0) {
@@ -2503,6 +2509,59 @@ class ifExpression : public LikelyOperator
     }
 };
 LIKELY_REGISTER(if)
+
+class logicalExpression : public LikelyOperator
+{
+    size_t maxParameters() const { return std::numeric_limits<size_t>::max(); }
+    size_t minParameters() const { return 1; }
+    virtual void shortCircuit(Builder &builder, const LikelyValue &result, BasicBlock *const next, BasicBlock *const exit, PHINode *const phiNode) const = 0;
+
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
+    {
+        BasicBlock *const entry = builder.GetInsertBlock();
+        BasicBlock *const exit = BasicBlock::Create(builder.getContext(), "logical_exit", entry->getParent());
+        builder.SetInsertPoint(exit);
+        PHINode *const phiNode = builder.CreatePHI(Type::getInt1Ty(builder.getContext()), ast->num_atoms-1);
+        builder.SetInsertPoint(entry);
+        for (uint32_t i=1; i<ast->num_atoms; i++) {
+            TRY_EXPR(builder, ast->atoms[i], expr)
+            const LikelyValue result = builder.cast(*expr, likely_u1);
+            if (i == ast->num_atoms-1) {
+                builder.CreateBr(exit);
+                exit->moveAfter(builder.GetInsertBlock());
+                phiNode->addIncoming(result, builder.GetInsertBlock());
+                builder.SetInsertPoint(exit);
+            } else {
+                BasicBlock *const next = BasicBlock::Create(builder.getContext(), "logical_next", builder.GetInsertBlock()->getParent());
+                shortCircuit(builder, result, next, exit, phiNode);
+                builder.SetInsertPoint(next);
+            }
+        }
+        return new likely_expression(LikelyValue(phiNode, likely_u1));
+    }
+};
+
+class logicalAndExpression : public logicalExpression
+{
+    const char *symbol() const { return "&&"; }
+    void shortCircuit(Builder &builder, const LikelyValue &result, BasicBlock *const next, BasicBlock *const exit, PHINode *const phiNode) const
+    {
+        builder.CreateCondBr(result, next, exit);
+        phiNode->addIncoming(ConstantInt::getFalse(builder.getContext()), builder.GetInsertBlock());
+    }
+};
+LIKELY_REGISTER(logicalAnd)
+
+class logicalOrExpression : public logicalExpression
+{
+    const char *symbol() const { return "||"; }
+    void shortCircuit(Builder &builder, const LikelyValue &result, BasicBlock *const next, BasicBlock *const exit, PHINode *const phiNode) const
+    {
+        builder.CreateCondBr(result, exit, next);
+        phiNode->addIncoming(ConstantInt::getTrue(builder.getContext()), builder.GetInsertBlock());
+    }
+};
+LIKELY_REGISTER(logicalOr)
 
 struct Label : public likely_expression
 {

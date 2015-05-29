@@ -504,6 +504,27 @@ The output of these operators is always a 1-bit unsigned \pindex{integer}.
 (>= 6 6.0)  ; Evaluates to 1
 \end{verbatim}
 
+\section{Logic}
+\subsection{(\&\&\ \emph{a b ... n})}
+The \dindex{short-circuit} \dindex{logical-and} of \emph{a b ... n}.
+
+\begin{verbatim}
+(&& 0 0) ; Short-circuit evaluates to 0
+(&& 0 1) ; Short-circuit evaluates to 0
+(&& 1 0) ; Evaluates to 0
+(&& 1 1) ; Evaluates to 1
+\end{verbatim}
+
+\subsection{(\textbar\textbar\ \emph{a b ... n})}
+The \dindex{short-circuit} \dindex{logical-or} of \emph{a b ... n}.
+
+\begin{verbatim}
+(|| 0 0) ; Evaluates to 0
+(|| 0 1) ; Evaluates to 1
+(|| 1 0) ; Short-circuit evaluates to 1
+(|| 1 1) ; Short-circuit evaluates to 1
+\end{verbatim}
+
 \section{Bit Manipulation}
 \subsection{(\textasciitilde\ \emph{a})}
 The \dindex{bitwise-not} of \emph{a}.
@@ -1011,8 +1032,6 @@ sign    := (-> a (? (< a 0) -1 1))
 
 \section{Binary Functions}
 \begin{likely}
-and := (-> (a b) (& a.to-bool b.to-bool))
-or  := (-> (a b) (| a.to-bool b.to-bool))
 xor := (-> (a b) (^ a.to-bool b.to-bool))
 min := (-> (a b) (? (< a b) a b))
 max := (-> (a b) (? (> a b) a b))
