@@ -4,8 +4,8 @@ Compare to **[cv::matchTemplate](http://docs.opencv.org/modules/imgproc/doc/obje
     match-template :=
       (src templ) :->
       {
-        dst := (src.type 1 (+ (- src.columns templ.columns) 1)
-                           (+ (- src.rows    templ.rows   ) 1))
+        dst := (src.type 1 (- src.columns templ.columns).++
+                           (- src.rows    templ.rows   ).++)
         (dst src templ) :=>
         {
           outer-x := x

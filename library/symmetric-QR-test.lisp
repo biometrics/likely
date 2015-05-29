@@ -7,3 +7,4 @@ src := (f32XY 1 4 4 1 (4.0 1 -2  2
 
 error-threshold := 0.000001
 
+(symmetric-QR src)

@@ -1005,6 +1005,8 @@ to-bool := (-> a (!= a false))
 sq      := (-> a (* a a))
 abs     := (-> a (? (< a 0) (* -1 a) a))
 sign    := (-> a (? (< a 0) -1 1))
+++      := (-> a (+ a 1))
+--      := (-> a (- a 1))
 \end{likely}
 
 \section{Binary Functions}
@@ -1275,7 +1277,7 @@ iter-generic :=
 
 iter-range :=
   (expr start end) :->
-    (iter-generic expr start end (-> i (+ i 1)))
+    (iter-generic expr start end (-> i i.++))
 
 iter :=
   (expr end) :->
@@ -1283,7 +1285,7 @@ iter :=
 
 iter-reverse-range :=
   (expr end start) :->
-    (iter-generic expr (- end 1) (- start 1) (-> i (- i 1)))
+    (iter-generic expr end.-- start.-- (-> i i.--))
 
 iter-reverse :=
   (expr end) :->
@@ -1303,7 +1305,7 @@ iter-square :=
 
 iter-triangle :=
   (f n) :->
-    (-> i (-> j (f j i)).(iter (+ i 1))).(iter n)
+    (-> i (-> j (f j i)).(iter i.++)).(iter n)
 \end{likely}
 
 \begin{likely}

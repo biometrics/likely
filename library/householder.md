@@ -86,7 +86,7 @@ GVL Section 5.1.6
       (A h) :->
       {
         native-type := A.element-type
-        j := (+ h 1)
+        j := h.++
         m := (- A.rows j)
         v := ($ 0.native-type m)
         (v 0) :<- 1
@@ -127,7 +127,7 @@ GVL Equation 5.1.5
         (A Q h) :->
         {
           native-type := A.element-type
-          j := (+ h 1)
+          j := h.++
           m := (- n j)
           v := ($ 0.native-type m)
           (v 0) :<- 1
