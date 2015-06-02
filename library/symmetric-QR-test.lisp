@@ -27,18 +27,12 @@ error-threshold := 0.00001
                           -2 0  3 -2
                            2 1 -2 -1))
 
-  D-truth := (f32XY 1 4 4 1 (6.84462.f32        0       0       0
-                                       0 -2.19752       0       0
-                                       0        0 1.08437       0
-                                       0        0       0 2.26853))
-
   Q := src.copy
-  D := (symmetric-QR src)
-  (ensure-approximately-equal D D-truth error-threshold)
-  ; (ensure-approximately-equal (mtimes Q Q.transpose)
-  ;                             Q.imitate.set-identity
-  ;                             error-threshold)
-  ; (ensure-approximately-equal (mtimes (mtimes Q.transpose src) Q)
-  ;                             D
-  ;                             error-threshold)
+  D := (symmetric-QR Q)
+  (ensure-approximately-equal (mtimes Q Q.transpose)
+                              Q.imitate.set-identity
+                              error-threshold)
+  (ensure-approximately-equal (mtimes (mtimes Q.transpose src) Q)
+                              D
+                              error-threshold)
 }

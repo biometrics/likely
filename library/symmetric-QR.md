@@ -104,7 +104,7 @@ GVL Algorithm 8.3.3
       {
         tol :=
           x :->
-            (/ x 20000) ; A tolerance greater than unit roundoff.
+            (/ x 2e9) ; A tolerance greater than unit roundoff.
 
         set-zero-small-tridiagonal-elements :=
           i :->
