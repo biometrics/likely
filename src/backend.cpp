@@ -2485,21 +2485,31 @@ class ifExpression : public LikelyOperator
             builder.SetInsertPoint(FalseEntry);
             TRY_EXPR(builder, ast->atoms[3], f)
             BasicBlock *const FalseExit = builder.GetInsertBlock();
-            const likely_type resolved = likely_type_from_types(*t, *f);
 
-            builder.SetInsertPoint(TrueExit);
-            const likely_expression tc(builder.cast(*t, resolved));
-            builder.CreateBr(Exit);
+            if (t->value && f->value) {
+                const likely_type resolved = likely_type_from_types(*t, *f);
 
-            builder.SetInsertPoint(FalseExit);
-            const likely_expression fc(builder.cast(*f, resolved));
-            builder.CreateBr(Exit);
+                builder.SetInsertPoint(TrueExit);
+                const likely_expression tc(builder.cast(*t, resolved));
+                builder.CreateBr(Exit);
 
-            builder.SetInsertPoint(Exit);
-            PHINode *const phi = builder.CreatePHI(builder.module->context->toLLVM(resolved), 2);
-            phi->addIncoming(tc, TrueExit);
-            phi->addIncoming(fc, FalseExit);
-            return new likely_expression(LikelyValue(phi, resolved));
+                builder.SetInsertPoint(FalseExit);
+                const likely_expression fc(builder.cast(*f, resolved));
+                builder.CreateBr(Exit);
+
+                builder.SetInsertPoint(Exit);
+                PHINode *const phi = builder.CreatePHI(builder.module->context->toLLVM(resolved), 2);
+                phi->addIncoming(tc, TrueExit);
+                phi->addIncoming(fc, FalseExit);
+                return new likely_expression(LikelyValue(phi, resolved));
+            } else {
+                builder.SetInsertPoint(TrueExit);
+                builder.CreateBr(Exit);
+                builder.SetInsertPoint(FalseExit);
+                builder.CreateBr(Exit);
+                builder.SetInsertPoint(Exit);
+                return new likely_expression();
+            }
         } else {
             if (TrueExit->empty() || !TrueExit->back().isTerminator())
                 builder.CreateBr(Exit);

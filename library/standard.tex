@@ -1019,12 +1019,13 @@ pi := 3.1415926535897932384626433832795
 
 \section{Unary Functions}
 \begin{likely}
-not     := (-> a (== a 0))
-sq      := (-> a (* a a))
-abs     := (-> a (? (< a 0) (* -1 a) a))
-sign    := (-> a (? (< a 0) -1 1))
-++      := (-> a (+ a 1))
---      := (-> a (- a 1))
+not   := (-> a (== a 0))
+sq    := (-> a (* a a))
+abs   := (-> a (? (< a 0) (* -1 a) a))
+sign  := (-> a (? (< a 0) -1 1))
+recip := (-> a (/ 1 a))
+++    := (-> a (+ a 1))
+--    := (-> a (- a 1))
 \end{likely}
 
 \section{Binary Functions}

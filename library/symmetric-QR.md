@@ -6,9 +6,55 @@ See Golub & Van Loan, "Matrix Computations 4th Edition" (GVL).
 GVL Algorithm 8.3.2
 
     implicit-symmetric-QR-step-with-Wilkinson-shift :=
-      (dd dt p q) :->
+      (dd dt p q n Q) :->
     {
-      0
+      native-type := Q.element-type
+      begin := p
+      end := (- n q)
+      d := (/ (- (dd end.--) (dd end)) 2)
+      u := (- (dd end)
+              (/ (dt end).sq
+                 (+ d
+                    (* d.sign
+                       (+ d.sq (dt end).sq).sqrt))))
+      x := (- (dd begin) u).$
+      z := (dt begin.++).$
+      givens-rotation :=
+        k :->
+        {
+          a := x
+          b := z
+          c := 1.native-type.$
+          s := 0.native-type.$
+          (!= b 0) :?
+            (? (> b.abs a.abs)
+               {
+                 t := (/ (- a) b)
+                 s :<- (+ 1 t.sq).sqrt.recip
+                 c :<- (* s t)
+               } {
+                 t := (/ (- b) a)
+                 c :<- (+ 1 t.sq).sqrt.recip
+                 s :<- (* c t)
+               })
+
+          ; GVL Section 5.1.9
+          apply-rows :=
+            j :->
+            {
+              j
+            }
+          apply-rows.(iter-range begin end)
+
+          apply-columns :=
+            j :->
+            {
+              j
+            }
+          apply-columns.(iter-range begin end)
+
+        }
+      givens-rotation.(iter-range begin end)
     }
 
 GVL Algorithm 8.3.3
@@ -35,7 +81,8 @@ GVL Algorithm 8.3.3
       }
       init-n-vectors.(iter-range 1 n)
 
-      qq := 0.$
+      p := 0.$
+      q := 0.$
       iter :=
         () :->
       {
@@ -50,19 +97,18 @@ GVL Algorithm 8.3.3
               (dt i.++) :<- 0
         set-zero-small-tridiagonal-elements.(iter n.--)
 
-        p := 0.$
-        q := 0.$
+        (-> () (<- p p.++)).(while (-> () (&& (< p n)
+                                              (not (dt p.++)))))
         (-> () (<- q q.++)).(while (-> () (&& (< q n)
-                                               (not (dt (- n q.++))))))
+                                              (not (dt (- n q.++))))))
 
         (< q n) :?
-          (implicit-symmetric-QR-step-with-Wilkinson-shift dd dt p q)
+          (implicit-symmetric-QR-step-with-Wilkinson-shift dd dt p q n Q)
 
-
-        qq :<- qq.++
+        q :<- q.++
       }
 
-      iter.(while (-> () (< qq n)))
+      iter.(while (-> () (< q n)))
 
       T
     }
