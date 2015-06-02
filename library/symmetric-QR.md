@@ -92,7 +92,7 @@ GVL Algorithm 8.3.3
     symmetric-QR :=
       A :->
     {
-      Q := A.copy
+      Q := A ; By convention A is set to Q and D is returned
       T := (householder Q)
 
       n := A.rows
@@ -104,7 +104,7 @@ GVL Algorithm 8.3.3
       {
         tol :=
           x :->
-            (/ x 100) ; A tolerance greater than unit roundoff.
+            (/ x 20000) ; A tolerance greater than unit roundoff.
 
         set-zero-small-tridiagonal-elements :=
           i :->
