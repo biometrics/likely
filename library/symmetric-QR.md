@@ -6,31 +6,31 @@ See Golub & Van Loan, "Matrix Computations 4th Edition" (GVL).
 GVL Section 5.1.9
 
     apply-givens-GTA :=
-      (A p q k c s) :->
+      (A p q i k c s) :->
       {
         rotate :=
           j :->
           {
-            t1 := (A 0 j k   )
-            t2 := (A 0 j k.++)
-            (A 0 k j)    :<- (- (* c t1) (* s t2))
-            (A 0 k.++ j) :<- (+ (* s t1) (* c t2))
+            t1 := (A 0 j i)
+            t2 := (A 0 j k)
+            (A 0 i j) :<- (- (* c t1) (* s t2))
+            (A 0 k j) :<- (+ (* s t1) (* c t2))
           }
-        rotate.(iter-range p q)
+        rotate.(iter-range p q.++)
       }
 
     apply-givens-AG :=
-      (A p q k c s) :->
+      (A p q i k c s) :->
       {
         rotate :=
           j :->
           {
-            t1 := (A 0 k    j)
-            t2 := (A 0 k.++ j)
-            (A 0 k j)    :<- (- (* c t1) (* s t2))
-            (A 0 k.++ j) :<- (+ (* s t1) (* c t2))
+            t1 := (A 0 i j)
+            t2 := (A 0 k j)
+            (A 0 i j) :<- (- (* c t1) (* s t2))
+            (A 0 k j) :<- (+ (* s t1) (* c t2))
           }
-        rotate.(iter-range p q)
+        rotate.(iter-range p q.++)
       }
 
 GVL Algorithm 8.3.2
@@ -52,13 +52,12 @@ GVL Algorithm 8.3.2
       x := (T 0 p p).(- u).$
       z := (T 0 p p.++).$
 
-      native-type := Q.element-type
-
       givens-rotation :=
         k :->
         {
           a := x
           b := z
+          native-type := T.element-type
           c := 1.native-type.$
           s := 0.native-type.$
           (!= b 0) :?
@@ -73,9 +72,9 @@ GVL Algorithm 8.3.2
                  s :<- (* c t)
                })
 
-          (apply-givens-GTA T p q k c s)
-          (apply-givens-AG  T p q k c s)
-          (apply-givens-AG  Q p q k c s)
+          (apply-givens-GTA T p q k k.++ c s)
+          (apply-givens-AG  T p q k k.++ c s)
+          (apply-givens-AG  Q p q k k.++ c s)
 
           (< k q.--) :?
           {
