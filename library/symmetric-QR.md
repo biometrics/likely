@@ -6,19 +6,26 @@ See Golub & Van Loan, "Matrix Computations 4th Edition" (GVL).
 GVL Algorithm 8.3.2
 
     implicit-symmetric-QR-step-with-Wilkinson-shift :=
-      (dd dt p q n Q) :->
+      (T Q p q) :->
     {
-      native-type := Q.element-type
-      begin := p
-      end := (- n q)
-      d := (/ (- (dd end.--) (dd end)) 2)
-      u := (- (dd end)
-              (/ (dt end).sq
+      q := q.-- ; Make [p, q] an inclusive range
+
+      tnn     := (T 0 q    q   )
+      tnn-1   := (T 0 q    q.--)
+      tn-1n-1 := (T 0 q.-- q.--)
+
+      d := (- tn-1n-1 tnn).(/ 2)
+      u := (- tnn
+              (/ tnn-1.sq
                  (+ d
                     (* d.sign
-                       (+ d.sq (dt end).sq).sqrt))))
-      x := (- (dd begin) u).$
-      z := (dt begin.++).$
+                       (+ d.sq tnn-1.sq).sqrt))))
+
+      x := (T 0 p p).(- u).$
+      z := (T 0 p p.++).$
+
+      native-type := Q.element-type
+
       givens-rotation :=
         k :->
         {
@@ -37,24 +44,8 @@ GVL Algorithm 8.3.2
                  c :<- (+ 1 t.sq).sqrt.recip
                  s :<- (* c t)
                })
-
-          ; GVL Section 5.1.9
-          apply-rows :=
-            j :->
-            {
-              j
-            }
-          apply-rows.(iter-range begin end)
-
-          apply-columns :=
-            j :->
-            {
-              j
-            }
-          apply-columns.(iter-range begin end)
-
         }
-      givens-rotation.(iter-range begin end)
+      givens-rotation.(iter-range p q)
     }
 
 GVL Algorithm 8.3.3
@@ -66,24 +57,10 @@ GVL Algorithm 8.3.3
       T := (householder Q)
 
       n := A.rows
-      native-type := A.element-type
-
-      ; Store T as a pair of n-vectors
-      dd := ($ 0.native-type n)
-      dt := ($ 0.native-type n)
-      (dd 0) :<- (T)
-      (dt 0) :<- 0
-      init-n-vectors :=
-        i :->
-      {
-        (dd i) :<- (T 0 i i)
-        (dt i) :<- (T 0 i.-- i)
-      }
-      init-n-vectors.(iter-range 1 n)
-
       p := 0.$
-      q := 0.$
-      iter :=
+      q := n.$
+
+      symmetric-QR-iteration :=
         () :->
       {
         tol :=
@@ -92,23 +69,23 @@ GVL Algorithm 8.3.3
 
         set-zero-small-tridiagonal-elements :=
           i :->
-            (<= (dt i.++).abs (tol (+ (dd i).abs
-                                      (dd i.++).abs))) :?
-              (dt i.++) :<- 0
-        set-zero-small-tridiagonal-elements.(iter n.--)
+            (<= (T 0 i i.++).abs (tol (+ (T 0 i    i   ).abs
+                                         (T 0 i.++ i.++).abs))) :?
+              {
+                (T 0 i i.++) :<- 0
+                (T 0 i.++ i) :<- 0
+              }
+        set-zero-small-tridiagonal-elements.(iter-range p q.--)
 
-        (-> () (<- p p.++)).(while (-> () (&& (< p n)
-                                              (not (dt p.++)))))
-        (-> () (<- q q.++)).(while (-> () (&& (< q n)
-                                              (not (dt (- n q.++))))))
+        (-> () (<- p p.++)).(while (-> () (&& (< p n) (not (T 0 p p.++)))))
+        (-> () (<- q q.--)).(while (-> () (&& (> q 0) (not (T 0 q q.--)))))
 
-        (< q n) :?
-          (implicit-symmetric-QR-step-with-Wilkinson-shift dd dt p q n Q)
+        (> q 0) :?
+          (implicit-symmetric-QR-step-with-Wilkinson-shift T Q p q)
 
-        q :<- q.++
+        q :<- q.-- ; TODO - remove
       }
-
-      iter.(while (-> () (< q n)))
+      symmetric-QR-iteration.(while (-> () (> q 0)))
 
       T
     }
