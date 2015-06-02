@@ -13,10 +13,11 @@ GVL Section 5.1.9
           {
             t1 := (A 0 j i)
             t2 := (A 0 j k)
-            (A 0 i j) :<- (- (* c t1) (* s t2))
-            (A 0 k j) :<- (+ (* s t1) (* c t2))
+            (A 0 j i) :<- (- (* c t1) (* s t2))
+            (A 0 j k) :<- (+ (* s t1) (* c t2))
           }
         rotate.(iter-range p q.++)
+        A
       }
 
     apply-givens-AG :=
@@ -31,6 +32,7 @@ GVL Section 5.1.9
             (A 0 k j) :<- (+ (* s t1) (* c t2))
           }
         rotate.(iter-range p q.++)
+        A
       }
 
 GVL Algorithm 8.3.2
