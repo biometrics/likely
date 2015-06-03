@@ -1241,6 +1241,13 @@ scale :=
 \end{likely}
 
 \chapter{Element-wise operators}
+\section{Type Conversion}
+\begin{likely}
+convert :=
+  (mat type) :->
+    (set mat.(imitate-size type) mat)
+\end{likely}
+
 \section{Thresholding}
 \begin{likely}
 threshold :=
