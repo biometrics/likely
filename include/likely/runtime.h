@@ -279,6 +279,24 @@ LIKELY_EXPORT double likely_get_element(likely_const_mat m, uint32_t c, uint32_t
 LIKELY_EXPORT void likely_set_element(likely_mat m, double value, uint32_t c, uint32_t x, uint32_t y, uint32_t t);
 
 /*!
+ * \brief Set parallel execution thread count.
+ *
+ * The default thread count is [thread::hardware_concurrency()](http://en.cppreference.com/w/cpp/thread/thread/hardware_concurrency).
+ * \param[in] thread_count Number of worker threads.
+ * \remark This function is \ref thread-unsafe.
+ * \see \ref likely_get_thread_count \ref likely_default_settings
+ */
+LIKELY_EXPORT void likely_set_thread_count(unsigned thread_count);
+
+/*!
+ * \brief Get parallel execution thread count.
+ * \return Number of worker threads.
+ * \remark This function is \ref thread-safe.
+ * \see \ref likely_set_thread_count \ref likely_default_settings \ref likely_fork
+ */
+LIKELY_EXPORT unsigned likely_get_thread_count();
+
+/*!
  * \brief A special kind of function designed to be run in parallel.
  * \see \ref likely_fork
  */
@@ -286,6 +304,8 @@ typedef void (*likely_thunk)(void *args, size_t start, size_t stop);
 
 /*!
  * \brief Execute work in parallel.
+ *
+ * The number of threads to use is governed by \ref likely_get_thread_count.
  *
  * In contrast to \ref likely_dynamic, thunk parameters are known at compile time and may therefore take an arbitrary internally-defined structure.
  * The implementation is very similar to how \a OpenMP works.

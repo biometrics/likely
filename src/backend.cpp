@@ -70,7 +70,7 @@ likely_settings likely_default_settings(likely_file_type file_type, bool verbose
 {
     likely_settings settings;
     settings.optimization_level = ((file_type == likely_file_ir) || (file_type == likely_file_bitcode)) ? 1 : 2;
-    settings.multicore = (file_type == likely_file_void) && (thread::hardware_concurrency() > 1);
+    settings.multicore = (file_type == likely_file_void) && (likely_get_thread_count() != 0);
     settings.heterogeneous = false;
     settings.runtime_only = false;
     settings.verbose = verbose;

@@ -20,16 +20,28 @@
 #include <condition_variable>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 #include "likely/runtime.h"
 
 using namespace std;
 
+static unsigned threadCount = thread::hardware_concurrency();
+
+void likely_set_thread_count(unsigned thread_count)
+{
+    threadCount = thread_count;
+}
+
+unsigned likely_get_thread_count()
+{
+    return threadCount;
+}
+
 // Parallel synchronization
 static condition_variable worker;
 static mutex work;
-static atomic<bool> *workers = NULL;
-static size_t numWorkers = 0;
+static vector<atomic<bool>*> workers;
 
 // Parallel data
 static likely_thunk currentThunk = NULL;
@@ -39,7 +51,7 @@ static size_t thunkSize = 0;
 static void executeWorker(size_t id)
 {
     // There are hardware_concurrency-1 helper threads and the main thread with id = 0
-    const size_t step = (thunkSize+numWorkers-1)/numWorkers;
+    const size_t step = (thunkSize+threadCount-1)/threadCount;
     const size_t start = id * step;
     const size_t stop = min((id+1)*step, thunkSize);
     if (start >= stop) return;
@@ -51,8 +63,8 @@ static void workerThread(size_t id)
     while (true) {
         {
             unique_lock<mutex> lock(work);
-            workers[id] = false;
-            while (!workers[id])
+            *workers[id] = false;
+            while (!*workers[id])
                 worker.wait(lock);
         }
 
@@ -66,14 +78,10 @@ void likely_fork(likely_thunk thunk, void *args, size_t size)
     lock_guard<mutex> lockFork(forkLock);
 
     // Spin up the worker threads
-    if (workers == NULL) {
-        numWorkers = max((int)thread::hardware_concurrency(), 1);
-        workers = new atomic<bool>[numWorkers];
-        for (size_t i = 1; i < numWorkers; i++) {
-            workers[i] = true;
-            thread(workerThread, i).detach();
-            while (workers[i]) {} // Wait for the worker to initialize
-        }
+    while (workers.size() < threadCount) {
+        workers.push_back(new atomic<bool>(true));
+        thread(workerThread, workers.size()-1).detach();
+        while (*workers.back()) {} // Wait for the worker to initialize
     }
 
     currentThunk = thunk;
@@ -82,15 +90,15 @@ void likely_fork(likely_thunk thunk, void *args, size_t size)
 
     {
         unique_lock<mutex> lock(work);
-        for (size_t i = 1; i < numWorkers; i++) {
-            assert(!workers[i]);
-            workers[i] = true;
+        for (unsigned i=1; i<threadCount; i++) {
+            assert(!*workers[i]);
+            *workers[i] = true;
         }
     }
 
     worker.notify_all();
     executeWorker(0);
 
-    for (size_t i = 1; i < numWorkers; i++)
-        while (workers[i]) {} // Wait for the worker to finish
+    for (size_t i=1; i<threadCount; i++)
+        while (*workers[i]) {} // Wait for the worker to finish
 }

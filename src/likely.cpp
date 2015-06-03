@@ -69,6 +69,8 @@ static cl::opt<string> LikelyPreprocess("preprocess", cl::desc("Command to run p
 static cl::alias       LikelyPreprocessA("p", cl::desc("Alias for -preprocess"), cl::aliasopt(LikelyPreprocess));
 static cl::opt<int> LikelyOptimizationLevel("optimization-level", cl::desc("Compiler optimization level (0-2)"), cl::init(-1));
 static cl::alias    LikelyOptimizationLevelA("o", cl::desc("Alias for -optimization-level"), cl::aliasopt(LikelyOptimizationLevel));
+static cl::opt<int> LikelyThreadCount("thread-count", cl::desc("Multi-core thread count"), cl::init(-1));
+static cl::alias    LikelyThreadCountA("tc", cl::desc("Alias for -thread-count"), cl::aliasopt(LikelyThreadCount));
 
 cl::OptionCategory ArchitectureCategory("Architecture");
 static cl::opt<bool> LikelyMulticore("multi-core" , cl::desc("Compile multi-core kernels"), cl::cat(ArchitectureCategory));
@@ -155,6 +157,9 @@ int main(int argc, char *argv[])
     else if (LikelyShow)  evalCallback = showCallback;
     else if (LikelyQuiet) evalCallback = quietCallback;
     else                  evalCallback = printCallback;
+
+    if (LikelyThreadCount >= 0)
+        likely_set_thread_count(LikelyThreadCount);
 
     likely_settings settings = likely_default_settings(likely_guess_file_type(LikelyOutput.c_str()), LikelyVerbose);
     settings.multicore     = LikelyMulticore;
