@@ -100,33 +100,29 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # Add dataset targets
-file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/average_face.jpg
-              "${CMAKE_SOURCE_DIR}/data/demo/average_face.jpg"
-              EXPECTED_MD5 505e06e358a13c7619ee996bf184caff)
+function(download_demo_image NAME MD5)
+  file(DOWNLOAD "https://github.com/biometrics/likely/releases/download/v0.1/${NAME}.jpg"
+                "${CMAKE_SOURCE_DIR}/data/demo/${NAME}.jpg"
+                EXPECTED_MD5 ${MD5})
+endfunction()
 
-file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/gabor_wavelet.jpg
-              "${CMAKE_SOURCE_DIR}/data/demo/gabor_wavelet.jpg"
-              EXPECTED_MD5 cf0c27b391516783f7973c83f3fd68f7)
+download_demo_image("average_face"   505e06e358a13c7619ee996bf184caff)
+download_demo_image("gabor_wavelet"  cf0c27b391516783f7973c83f3fd68f7)
+download_demo_image("mandelbrot_set" 544dd8db0eaa75a2da846fa33445b5c9)
 
-file(DOWNLOAD https://github.com/biometrics/likely/releases/download/v0.1/mandelbrot_set.jpg
-              "${CMAKE_SOURCE_DIR}/data/demo/mandelbrot_set.jpg"
-              EXPECTED_MD5 544dd8db0eaa75a2da846fa33445b5c9)
+function(download_archive NAME MD5)
+  ExternalProject_Add(${NAME}
+                      URL "https://github.com/biometrics/likely/releases/download/v0.1/${NAME}.tar.gz"
+                      URL_MD5 ${MD5}
+                      SOURCE_DIR "${CMAKE_SOURCE_DIR}/data/${NAME}"
+                      CONFIGURE_COMMAND ""
+                      BUILD_COMMAND ""
+                      INSTALL_COMMAND "")
+endfunction()
 
-ExternalProject_Add(lfwa
-                    URL https://github.com/biometrics/likely/releases/download/v0.1/lfwa.tar.gz
-                    URL_MD5 5d1d409b3b7217ec931facd89a542c89
-                    SOURCE_DIR "${CMAKE_SOURCE_DIR}/data/lfw2"
-                    CONFIGURE_COMMAND ""
-                    BUILD_COMMAND ""
-                    INSTALL_COMMAND "")
-
-ExternalProject_Add(misc
-                    URL https://github.com/biometrics/likely/releases/download/v0.1/misc.tar.gz
-                    URL_MD5 c69b1a52908da7b105667b2d4180651b
-                    SOURCE_DIR "${CMAKE_SOURCE_DIR}/data/misc"
-                    CONFIGURE_COMMAND ""
-                    BUILD_COMMAND ""
-                    INSTALL_COMMAND "")
+download_archive("lfwa" 5d1d409b3b7217ec931facd89a542c89)
+download_archive("misc" c69b1a52908da7b105667b2d4180651b)
+download_archive("mnist" c341c72e5da5e91fd421560aa04de5a1)
 
 # Set up testing
 enable_testing()

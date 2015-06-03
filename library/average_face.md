@@ -17,7 +17,7 @@ Compute the average face from a set of aligned faces [1].
 
     average_face :=
       () :->
-        [ "data/lfw2".read-directory-grayscale.average ]
+        [ "data/lfwa".read-directory-grayscale.average ]
 
 Dynamic Execution
 
