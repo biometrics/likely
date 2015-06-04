@@ -150,6 +150,8 @@ static void printCallback(likely_const_env env, void *)
 
 int main(int argc, char *argv[])
 {
+    setbuf(stdout, NULL); // Don't buffer stdout
+
     cl::ParseCommandLineOptions(argc, argv);
 
     likely_eval_callback evalCallback;
