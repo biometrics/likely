@@ -883,20 +883,24 @@ The \dindex{make-type} operator constructs an intrinsic \pindex{type} from an in
 ((make-type 288) 1) ; Evaluates to 1.0
 \end{verbatim}
 
-\subsection{(numeric-limit \emph{type maximum})}
-The \dindex{numeric-limit} operator returns the maximum value representable by \emph{type} if \emph{maximum} is non-zero, otherwise it returns the minimum value representable by \emph{type}.
+\subsection{(numeric-limit \emph{type smallest non-positive})}
+The \dindex{numeric-limit} operator returns the largest or \emph{smallest} positive or \emph{non-positive} value representable by \emph{type}.
 
 \begin{verbatim}
-(numeric-limit u8 1)  ; Evaluates to 255
-(numeric-limit u8 0)  ; Evaluates to 0
-(numeric-limit i8 1)  ; Evaluates to 127
-(numeric-limit i8 0)  ; Evaluates to -128
-(numeric-limit u32 1) ; Evaluates to 4294967295
-(numeric-limit u32 0) ; Evaluates to 0
-(numeric-limit i32 1) ; Evaluates to 2147483647
-(numeric-limit i32 0) ; Evaluates to -2147483648
-(numeric-limit f32 1) ; Evaluates to 3.40282e+38
-(numeric-limit f32 0) ; Evaluates to -3.40282e+38
+(numeric-limit u8  0 0) ; Evaluates to 255
+(numeric-limit u8  0 1) ; Evaluates to 0
+(numeric-limit i8  0 0) ; Evaluates to 127
+(numeric-limit i8  0 1) ; Evaluates to -128
+(numeric-limit u32 0 0) ; Evaluates to 4294967295
+(numeric-limit u32 0 1) ; Evaluates to 0
+(numeric-limit i32 0 0) ; Evaluates to 2147483647
+(numeric-limit i32 0 1) ; Evaluates to -2147483648
+(numeric-limit i32 1 0) ; Evaluates to 1
+(numeric-limit i32 1 1) ; Evaluates to -1
+(numeric-limit f32 0 0) ; Evaluates to 3.40282e+38
+(numeric-limit f32 0 1) ; Evaluates to -3.40282e+38
+(numeric-limit f32 1 0) ; Evaluates to 1.4013e-45
+(numeric-limit f32 1 1) ; Evaluates to -1.4013e-45
 \end{verbatim}
 
 \subsection{(pointer \emph{type})}
@@ -1013,6 +1017,8 @@ The \dindex{import} operator reads and evaluates a source code file.
 \chapter{Basic Symbols}
 \section{Constants}
 \begin{likely}
+true  := 1.bool
+false := 0.bool
 e  := 2.7182818284590452353602874713526
 pi := 3.1415926535897932384626433832795
 \end{likely}
@@ -1040,8 +1046,9 @@ is-negative := (-> a (< a 0))
 
 \section{Numeric Limits}
 \begin{likely}
-numeric-limit-max := (-> t (numeric-limit t 1))
-numeric-limit-min := (-> t (numeric-limit t 0))
+numeric-limit-max     := (-> t (numeric-limit t false false))
+numeric-limit-min     := (-> t (numeric-limit t false true ))
+numeric-limit-epsilon := (-> t (numeric-limit t true  false))
 \end{likely}
 
 \chapter{Likely Library Symbols}

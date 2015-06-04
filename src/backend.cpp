@@ -945,18 +945,25 @@ struct Builder : public IRBuilder<>
         return LikelyValue(result, likely_u1);
     }
 
-    LikelyValue numericLimit(likely_type type, bool minimum)
+    LikelyValue numericLimit(likely_type type, bool smallest, bool negative)
     {
         const int depth = type & likely_depth;
         if (type & likely_floating) {
-            if      (depth == 16) return LikelyValue(ConstantFP::get(getContext(), APFloat::getLargest(APFloat::IEEEhalf, minimum)), likely_f16);
-            else if (depth == 32) return LikelyValue(ConstantFP::get(getContext(), APFloat::getLargest(APFloat::IEEEsingle, minimum)), likely_f32);
-            else if (depth == 64) return LikelyValue(ConstantFP::get(getContext(), APFloat::getLargest(APFloat::IEEEdouble, minimum)), likely_f64);
+            if      (depth == 16) return LikelyValue(ConstantFP::get(getContext(), smallest ? APFloat::getSmallest(APFloat::IEEEhalf  , negative)
+                                                                                            : APFloat::getLargest (APFloat::IEEEhalf  , negative)), likely_f16);
+            else if (depth == 32) return LikelyValue(ConstantFP::get(getContext(), smallest ? APFloat::getSmallest(APFloat::IEEEsingle, negative)
+                                                                                            : APFloat::getLargest (APFloat::IEEEsingle, negative)), likely_f32);
+            else if (depth == 64) return LikelyValue(ConstantFP::get(getContext(), smallest ? APFloat::getSmallest(APFloat::IEEEdouble, negative)
+                                                                                            : APFloat::getLargest (APFloat::IEEEdouble, negative)), likely_f64);
             else    return LikelyValue();
         } else if (type & likely_signed) {
-            return LikelyValue(ConstantInt::get(getContext(), minimum ? APInt::getSignedMinValue(depth) : APInt::getSignedMaxValue(depth)), depth | likely_signed);
+            if (smallest) return constant(uint64_t(negative ? -1 : 1), depth | likely_signed);
+            else          return LikelyValue(ConstantInt::get(getContext(), negative ? APInt::getSignedMinValue(depth) :
+                                                                                       APInt::getSignedMaxValue(depth)), depth | likely_signed);
         } else {
-            return LikelyValue(ConstantInt::get(getContext(), minimum ? APInt::getMinValue(depth) : APInt::getMaxValue(depth)), depth);
+            if (smallest) return constant(uint64_t(negative ? 0 : 1), depth);
+            else          return LikelyValue(ConstantInt::get(getContext(), negative ? APInt::getMinValue(depth)
+                                                                                     : APInt::getMaxValue(depth)), depth);
         }
     }
 
@@ -1015,14 +1022,14 @@ struct Builder : public IRBuilder<>
 
             // The only time we don't need to check for underflow is unsigned -> signed integers of the same depth
             if (!((((x.type ^ type) & likely_c_type) == likely_signed) && (type & likely_signed))) {
-                const LikelyValue numericMinimum = numericLimit(type, true);
+                const LikelyValue numericMinimum = numericLimit(type, false, true);
                 const LikelyValue exceedsMinimum = compare(x, cast(numericMinimum, x.type), LT);
                 result = CreateSelect(exceedsMinimum, numericMinimum, result);
             }
 
             // The only time we don't need to check for overflow is signed -> unsigned integers of the same depth
             if (!((((x.type ^ type) & likely_c_type) == likely_signed) && !(type & likely_signed))) {
-                const LikelyValue numericMaximum = numericLimit(type, false);
+                const LikelyValue numericMaximum = numericLimit(type, false, false);
                 const LikelyValue exceedsMaximum = compare(x, cast(numericMaximum, x.type), GT);
                 result = CreateSelect(exceedsMaximum, numericMaximum, result);
             }
@@ -1904,16 +1911,23 @@ class SimpleBinaryOperator : public LikelyOperator
     virtual likely_const_expr evaluateSimpleBinary(Builder &builder, const UniqueExpression &arg1, const UniqueExpression &arg2) const = 0;
 };
 
-class numericLimitExpression : public SimpleBinaryOperator
+class numericLimitExpression : public LikelyOperator
 {
     const char *symbol() const { return "numeric-limit"; }
-    likely_const_expr evaluateSimpleBinary(Builder &builder, const UniqueExpression &arg1, const UniqueExpression &arg2) const
+    size_t maxParameters() const { return 3; }
+    likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
-        if (!isa<ConstantInt>(arg1->value) || !isa<ConstantInt>(arg2->value))
-            return NULL;
-        const likely_type type = likely_type(cast<ConstantInt>(arg1->value)->getZExtValue());
-        const bool minimum = cast<ConstantInt>(arg2->value)->getZExtValue() == 0;
-        return new likely_expression(builder.numericLimit(type, minimum));
+        vector<ConstantInt*> args;
+        for (int i=1; i<4; i++) {
+            TRY_EXPR(builder, ast->atoms[i], expr)
+            args.push_back(dyn_cast<ConstantInt>(expr->value));
+            if (!args.back())
+                return NULL;
+        }
+
+        return new likely_expression(builder.numericLimit(likely_type(args[0]->getZExtValue()),
+                                                          args[1]->getZExtValue(),
+                                                          args[2]->getZExtValue()));
     }
 };
 LIKELY_REGISTER(numericLimit)
