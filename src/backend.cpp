@@ -3124,6 +3124,36 @@ likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
     return result;
 }
 
+static string unescape(const string& s)
+{
+  string res;
+  string::const_iterator it = s.begin();
+  while (it != s.end()) {
+    char c = *it++;
+    if (c == '\\' && it != s.end()) {
+        const char d = *it++;
+        switch (d) {
+          case 'a' : c = 0x07; break;
+          case 'b' : c = 0x08; break;
+          case 'f' : c = 0x0C; break;
+          case 'n' : c = 0x0A; break;
+          case 'r' : c = 0x0D; break;
+          case 't' : c = 0x09; break;
+          case 'v' : c = 0x0B; break;
+          case '\\': c = 0x5C; break;
+          case '\'': c = 0x27; break;
+          case '"' : c = 0x22; break;
+          case '\?': c = 0x3F; break;
+          default:
+            res += c;
+            c = d;
+        }
+    }
+    res += c;
+  }
+  return res;
+}
+
 // As a special exception, this function is allowed to set ast->type
 likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast)
 {
@@ -3167,7 +3197,7 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
         // Is it a string?
         if ((ast->atom[0] == '"') && (ast->atom[ast->atom_len-1] == '"')) {
             const_cast<likely_ast>(ast)->type = likely_ast_string;
-            return new ConstantString(builder, likely_string(string(ast->atom).substr(1, ast->atom_len-2).c_str()));
+            return new ConstantString(builder, likely_string(unescape(string(ast->atom).substr(1, ast->atom_len-2)).c_str()));
         }
 
         { // Is it a matrix type?
