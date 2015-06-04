@@ -89,40 +89,44 @@ GVL Algorithm 8.3.2
 
 GVL Algorithm 8.3.3
 
+    implicit-tridiagonal-QR :=
+      (T Q) :->
+      {
+        n := T.rows
+        p := 0.$
+        q := (- n 1).$
+
+        symmetric-QR-iteration :=
+          () :->
+          {
+            tol :=
+              x :->
+                (/ x 2e9) ; A tolerance greater than unit roundoff.
+
+            set-zero-small-tridiagonal-elements :=
+              i :->
+                (<= (T 0 i i.++).abs (tol (+ (T 0 i    i   ).abs
+                                             (T 0 i.++ i.++).abs))) :?
+                {
+                  (T 0 i i.++) :<- 0
+                  (T 0 i.++ i) :<- 0
+                }
+            set-zero-small-tridiagonal-elements.(iter-range p q)
+
+            (-> () (<- p p.++)).(while (-> () (&& (< p n) (not (T 0 p p.++)))))
+            (-> () (<- q q.--)).(while (-> () (&& (> q 0) (not (T 0 q q.--)))))
+
+            (> q 0) :?
+              (implicit-symmetric-QR-step-with-Wilkinson-shift T Q p q)
+          }
+        symmetric-QR-iteration.(while (-> () (> q 0)))
+
+        T ; T is now diagonal
+      }
+
     symmetric-QR :=
       A :->
     {
       Q := A ; By convention A is set to Q and D is returned
-      T := (householder Q)
-
-      n := A.rows
-      p := 0.$
-      q := (- n 1).$
-
-      symmetric-QR-iteration :=
-        () :->
-      {
-        tol :=
-          x :->
-            (/ x 2e9) ; A tolerance greater than unit roundoff.
-
-        set-zero-small-tridiagonal-elements :=
-          i :->
-            (<= (T 0 i i.++).abs (tol (+ (T 0 i    i   ).abs
-                                         (T 0 i.++ i.++).abs))) :?
-              {
-                (T 0 i i.++) :<- 0
-                (T 0 i.++ i) :<- 0
-              }
-        set-zero-small-tridiagonal-elements.(iter-range p q)
-
-        (-> () (<- p p.++)).(while (-> () (&& (< p n) (not (T 0 p p.++)))))
-        (-> () (<- q q.--)).(while (-> () (&& (> q 0) (not (T 0 q q.--)))))
-
-        (> q 0) :?
-          (implicit-symmetric-QR-step-with-Wilkinson-shift T Q p q)
-      }
-      symmetric-QR-iteration.(while (-> () (> q 0)))
-
-      T
+      (householder Q).(implicit-tridiagonal-QR Q)
     }
