@@ -1394,6 +1394,35 @@ max-element :=
   }
 \end{likely}
 
+\begin{likely}
+average-generic :=
+  (avg src n) :->
+  {
+    avg.set-zero
+    (avg src) :+>
+      avg :<- (+ avg src)
+    (!= n 1) :?
+      avg.(scale (avg.element-type n).recip)
+    avg
+  }
+
+average-channel :=
+  src :->
+    (average-generic (src.type.depth-atleast-32.floating.not-multi-channel 1 src.columns src.rows src.frames) src src.channels)
+
+average-column :=
+  src :->
+    (average-generic (src.type.depth-atleast-32.floating.not-multi-column src.channels 1 src.rows src.frames) src src.columns)
+
+average-row :=
+  src :->
+    (average-generic (src.type.depth-atleast-32.floating.not-multi-row src.channels src.columns 1 src.frames) src src.rows)
+
+average-frame :=
+  src :->
+    (average-generic (src.type.depth-atleast-32.floating.not-multi-frame src.channels src.columns src.rows 1) src src.frames)
+\end{likely}
+
 \section{Matrix Multiplication}
 \begin{likely}
 transpose :=

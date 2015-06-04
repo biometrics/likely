@@ -9,7 +9,7 @@ Principal Component Analysis (PCA)
       raw-samples :->
       {
         samples := raw-samples.(convert raw-samples.element-type.floating)
-        mean := (average samples)
+        mean := samples.average-row
         cov := (multiply-transposed samples mean)
         mean
       }

@@ -1,18 +1,7 @@
 ### Average
 Compare to **[cv::reduce(CV_REDUCE_AVG)](http://docs.opencv.org/modules/core/doc/operations_on_arrays.html#reduce)**.
 
-    average :=
-      src :->
-      {
-        avg := (src.type.depth-atleast-32.floating.not-multi-row src.channels src.columns 1 src.frames)
-        avg :=>
-          avg :<- 0
-        (avg src) :+>
-          avg :<- (+ avg src)
-        norm := (/ 1 (avg.element-type src.rows))
-        (avg norm) :=>
-          avg :<- (* avg norm)
-      }
+    average := average-row ; Where "average-row" is defined in the standard library.
 
 #### Generated LLVM IR
 | Type  | Single-core | Multi-core |

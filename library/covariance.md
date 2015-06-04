@@ -1,12 +1,11 @@
 ### Covariance
 Compare to **[cv::calcCovarMatrix](http://docs.opencv.org/modules/core/doc/operations_on_arrays.html#calccovarmatrix)**.
 
-    "library/average.md".import
     "library/multiply-transposed.md".import
 
     covariance :=
       src :->
-        (multiply-transposed src (average src))
+        (multiply-transposed src src.average-row)
 
 #### Generated LLVM IR
 | Type  | Single-core | Multi-core |
