@@ -76,7 +76,7 @@ entry:
   %6 = load %f32XY*, %f32XY** %5, align 8
   %7 = getelementptr inbounds %f32XY, %f32XY* %4, i64 0, i32 3
   %columns = load i32, i32* %7, align 4, !range !2
-  %dst_y_step = zext i32 %columns to i64
+  %mat_y_step = zext i32 %columns to i64
   %8 = getelementptr inbounds %f32XY, %f32XY* %4, i64 0, i32 6, i64 0
   %9 = ptrtoint float* %8 to i64
   %10 = and i64 %9, 31
@@ -84,7 +84,7 @@ entry:
   call void @llvm.assume(i1 %11)
   %12 = getelementptr inbounds %f32XY, %f32XY* %6, i64 0, i32 3
   %columns1 = load i32, i32* %12, align 4, !range !2
-  %src_y_step = zext i32 %columns1 to i64
+  %val_y_step = zext i32 %columns1 to i64
   %13 = getelementptr inbounds %f32XY, %f32XY* %6, i64 0, i32 6, i64 0
   %14 = ptrtoint float* %13 to i64
   %15 = and i64 %14, 31
@@ -94,8 +94,8 @@ entry:
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
-  %17 = mul nuw nsw i64 %y, %src_y_step
-  %18 = mul nuw nsw i64 %y, %dst_y_step
+  %17 = mul nuw nsw i64 %y, %val_y_step
+  %18 = mul nuw nsw i64 %y, %mat_y_step
   br label %x_body
 
 x_body:                                           ; preds = %y_body, %x_body
@@ -107,7 +107,7 @@ x_body:                                           ; preds = %y_body, %x_body
   %23 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %22
   store float %21, float* %23, align 4, !llvm.mem.parallel_loop_access !3
   %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
+  %x_postcondition = icmp eq i64 %x_increment, %mat_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body
 
 x_exit:                                           ; preds = %x_body

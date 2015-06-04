@@ -3,22 +3,7 @@ Compare to **[cv::multransposed](http://docs.opencv.org/modules/core/doc/operati
 
     multiply-transposed :=
       (src delta) :->
-      {
-        centered := src.(imitate-size delta.type).(set src).(center delta)
-        len := src.rows
-        dst := (centered.type src.channels src.columns src.columns src.frames)
-        (dst centered len) :=>
-        {
-          (<= y x) :?
-          {
-            dot := 0.f64.$
-            (-> i (<- dot (+ dot (* (centered c x i t).f64
-                                    (centered c y i t).f64)))).(iter len)
-            dst         :<- dot
-            (dst c y x) :<- dot
-          }
-        }
-      }
+        src.(imitate-size delta.type).(set src).(center delta).(A-transpose-A-generic f64)
 
 | Type  | Single-core | Multi-core |
 |-------|-------------|------------|

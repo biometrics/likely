@@ -1454,6 +1454,28 @@ mtimes :=
                  (-> i (B 0 x i))
                  len)
   }
+
+A-transpose-A-generic :=
+  (src working-type) :->
+  {
+    len := src.rows
+    dst := (src.type src.channels src.columns src.columns src.frames)
+    (dst src len) :=>
+    {
+      (<= y x) :?
+      {
+        dot := 0.working-type.$
+        (-> i (<- dot (+ dot (* (src c x i t).working-type
+                                (src c y i t).working-type)))).(iter len)
+        dst         :<- dot
+        (dst c y x) :<- dot
+      }
+    }
+  }
+
+A-transpose-A :=
+  src :->
+    (A-transpose-A-generic src src.element-type.depth-atleast-32)
 \end{likely}
 
 \bibliographystyle{plain}
