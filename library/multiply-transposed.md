@@ -4,12 +4,9 @@ Compare to **[cv::multransposed](http://docs.opencv.org/modules/core/doc/operati
     multiply-transposed :=
       (src delta) :->
       {
-        centered := src.(imitate-size delta.type)
-        (centered src delta) :=>
-          centered :<- (- src delta)
-
-        len := centered.rows
-        dst := (centered.type centered.channels centered.columns centered.columns centered.frames)
+        centered := src.(imitate-size delta.type).(set src).(center delta)
+        len := src.rows
+        dst := (centered.type src.channels src.columns src.columns src.frames)
         (dst centered len) :=>
         {
           (<= y x) :?

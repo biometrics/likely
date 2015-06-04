@@ -1238,6 +1238,16 @@ scale :=
   (mat val) :->
     (mat val) :=>
       mat :<- (* mat val)
+
+shift :=
+  (mat val) :->
+    (mat val) :=>
+      mat :<- (+ mat val)
+
+center :=
+  (mat val) :->
+    (mat val) :=>
+      mat :<- (- mat val)
 \end{likely}
 
 \chapter{Element-wise operators}
