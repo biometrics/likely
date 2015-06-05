@@ -123,6 +123,49 @@ struct MemoryManagement : public ModulePass
 
                     modified = true;
                 }
+
+            // Scan the function looking for return values that are arguments
+            for (BasicBlock &BB : F)
+                for (Instruction &I : BB) {
+                    ReturnInst *const returnInst = dyn_cast<ReturnInst>(&I);
+                    if (!returnInst)
+                        continue;
+
+                    Value *const returnValue = returnInst->getReturnValue();
+                    if (!returnValue) // ret void
+                        continue;
+
+                    PointerType *const pointerType = dyn_cast<PointerType>(returnValue->getType());
+                    if (!pointerType)
+                        continue;
+
+                    Value *origin = returnValue;
+                    while (isa<LoadInst>(origin) || isa<CastInst>(origin)) {
+                        if (isa<LoadInst>(origin))
+                            origin = cast<LoadInst>(origin)->getPointerOperand();
+                        else
+                            origin = cast<CastInst>(origin)->getOperand(0);
+                    }
+
+                    if (!isa<Argument>(origin))
+                        continue;
+
+                    // Get or insert "likely_retain_mat"
+                    Function *likelyRetain = M.getFunction("likely_retain_mat");
+                    if (!likelyRetain) {
+                        FunctionType *const functionType = FunctionType::get(Type::getInt8PtrTy(M.getContext()), Type::getInt8PtrTy(M.getContext()), false);
+                        likelyRetain = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_retain_mat", &M);
+                        likelyRetain->setCallingConv(CallingConv::C);
+                        likelyRetain->setDoesNotAlias(1);
+                        likelyRetain->setDoesNotCapture(1);
+                    }
+
+                    IRBuilder<> builder(returnInst);
+                    Value *const retainedReturnValue = builder.CreatePointerCast(builder.CreateCall(likelyRetain, builder.CreatePointerCast(returnValue, Type::getInt8PtrTy(M.getContext()))), returnValue->getType());
+                    returnInst->replaceUsesOfWith(returnValue, retainedReturnValue);
+
+                    modified = true;
+                }
         }
 
         return modified;
