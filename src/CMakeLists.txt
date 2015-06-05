@@ -555,6 +555,11 @@ if(NOT ${LIKELY_DEMOS} MATCHES "None")
   add_benchmark("f32XY" "covariance" "i16XY")
   add_benchmark("f32XY" "covariance" "f32XY")
   add_benchmark("f64XY" "covariance" "f64XY")
+  add_benchmark("u8SXY"  "sort" "u8SXY")
+  add_benchmark("i16SXY" "sort" "i16SXY")
+  add_benchmark("i32XY"  "sort" "i32XY")
+  add_benchmark("f32XY"  "sort" "f32XY")
+  add_benchmark("f64XY"  "sort" "f64XY")
 endif()
 
 # Compile and test demos

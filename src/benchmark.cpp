@@ -655,33 +655,18 @@ class Covariance : public Test<0, false, 512>
     }
 };
 
-class Eigen : public Test<0, false, 128>
+class Sort : public Test<0, false>
 {
     const char *name() const
     {
-        return "eigen";
-    }
-
-    Mat preprocess(const Mat &src) const
-    {
-        Mat cov, mean;
-        calcCovarMatrix(src, cov, mean, CV_COVAR_NORMAL | CV_COVAR_ROWS, src.depth() == CV_64F ? CV_64F : CV_32F);
-        return cov;
+        return "sort";
     }
 
     Mat computeBaseline(const Mat &src) const
     {
-        Mat eigenValues, eigenVectors;
-        eigen(src, true, eigenValues, eigenVectors);
-        return eigenVectors;
-    }
-
-    vector<likely_type> types() const
-    {
-        vector<likely_type> types;
-        types.push_back(likely_f32);
-        types.push_back(likely_f64);
-        return types;
+        Mat dst = src;
+        cv::sort(src, dst, CV_SORT_EVERY_ROW);
+        return dst;
     }
 };
 
@@ -734,7 +719,7 @@ int main(int argc, char *argv[])
         Transpose().run(parent);
         MultiplyTransposed().run(parent);
         Covariance().run(parent);
-//        Eigen().run(parent);
+        Sort().run(parent);
     }
 
     if (BenchmarkFunction.empty()) {
