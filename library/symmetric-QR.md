@@ -101,7 +101,7 @@ GVL Algorithm 8.3.3
           {
             tol :=
               x :->
-                (/ x 2e9) ; A tolerance greater than unit roundoff.
+                (* x x.type.numeric-limit-epsilon) ; A tolerance greater than unit roundoff.
 
             set-zero-small-tridiagonal-elements :=
               i :->
@@ -117,7 +117,16 @@ GVL Algorithm 8.3.3
             (-> () (<- q q.--)).(while (-> () (&& (> q 0) (not (T 0 q q.--)))))
 
             (> q 0) :?
+            {
+              before := (T 0 q q.--)
               (implicit-symmetric-QR-step-with-Wilkinson-shift T Q p q)
+              after := (T 0 q q.--)
+              (== before after) :? ; Guard against infinite loops
+              {
+                (T 0 q q.--) :<- 0
+                (T 0 q.-- q) :<- 0
+              }
+            }
           }
         symmetric-QR-iteration.(while (-> () (> q 0)))
 
