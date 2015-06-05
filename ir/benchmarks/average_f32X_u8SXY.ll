@@ -1,8 +1,8 @@
 ; ModuleID = 'likely'
 
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
-%f32X = type { i32, i32, i32, i32, i32, i32, [0 x float] }
-%i16XY = type { i32, i32, i32, i32, i32, i32, [0 x i16] }
+%f32SX = type { i32, i32, i32, i32, i32, i32, [0 x float] }
+%u8SXY = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 
 ; Function Attrs: nounwind readonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
@@ -10,12 +10,12 @@ declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 
 ; Function Attrs: nounwind
 declare void @llvm.assume(i1) #1
 
-define %f32X* @average(%i16XY*) {
+define %f32SX* @average(%u8SXY*) {
 entry:
-  %1 = getelementptr inbounds %i16XY, %i16XY* %0, i64 0, i32 3
+  %1 = getelementptr inbounds %u8SXY, %u8SXY* %0, i64 0, i32 3
   %columns = load i32, i32* %1, align 4, !range !0
-  %2 = call %u0CXYT* @likely_new(i32 8480, i32 1, i32 %columns, i32 1, i32 1, i8* null)
-  %3 = getelementptr inbounds %i16XY, %i16XY* %0, i64 0, i32 4
+  %2 = call %u0CXYT* @likely_new(i32 9504, i32 1, i32 %columns, i32 1, i32 1, i8* null)
+  %3 = getelementptr inbounds %u8SXY, %u8SXY* %0, i64 0, i32 4
   %rows = load i32, i32* %3, align 4, !range !0
   %4 = zext i32 %columns to i64
   %5 = getelementptr inbounds %u0CXYT, %u0CXYT* %2, i64 1
@@ -27,10 +27,10 @@ entry:
   %scevgep1 = bitcast %u0CXYT* %5 to i8*
   %10 = shl nuw nsw i64 %4, 2
   call void @llvm.memset.p0i8.i64(i8* %scevgep1, i8 0, i64 %10, i32 4, i1 false)
-  %11 = bitcast %u0CXYT* %2 to %f32X*
+  %11 = bitcast %u0CXYT* %2 to %f32SX*
   %12 = zext i32 %rows to i64
-  %13 = getelementptr inbounds %i16XY, %i16XY* %0, i64 0, i32 6, i64 0
-  %14 = ptrtoint i16* %13 to i64
+  %13 = getelementptr inbounds %u8SXY, %u8SXY* %0, i64 0, i32 6, i64 0
+  %14 = ptrtoint i8* %13 to i64
   %15 = and i64 %14, 31
   %16 = icmp eq i64 %15, 0
   call void @llvm.assume(i1 %16)
@@ -46,9 +46,9 @@ x_body7:                                          ; preds = %y_body, %x_body7
   %18 = getelementptr float, float* %6, i64 %x9
   %19 = load float, float* %18, align 4
   %20 = add nuw nsw i64 %x9, %17
-  %21 = getelementptr %i16XY, %i16XY* %0, i64 0, i32 6, i64 %20
-  %22 = load i16, i16* %21, align 2
-  %23 = sitofp i16 %22 to float
+  %21 = getelementptr %u8SXY, %u8SXY* %0, i64 0, i32 6, i64 %20
+  %22 = load i8, i8* %21, align 1
+  %23 = uitofp i8 %22 to float
   %24 = fadd fast float %23, %19
   store float %24, float* %18, align 4
   %x_increment10 = add nuw nsw i64 %x9, 1
@@ -70,7 +70,7 @@ true_entry:                                       ; preds = %y_exit
   br label %x_body15
 
 Flow2:                                            ; preds = %x_body15, %y_exit
-  ret %f32X* %11
+  ret %f32SX* %11
 
 x_body15:                                         ; preds = %true_entry, %x_body15
   %x17 = phi i64 [ %x_increment18, %x_body15 ], [ 0, %true_entry ]

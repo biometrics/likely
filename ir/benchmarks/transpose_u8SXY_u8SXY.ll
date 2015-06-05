@@ -1,7 +1,7 @@
 ; ModuleID = 'likely'
 
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
-%u8XY = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
+%u8SXY = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 
 ; Function Attrs: nounwind readonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
@@ -9,13 +9,13 @@ declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 
 ; Function Attrs: nounwind
 declare void @llvm.assume(i1) #1
 
-define %u8XY* @transpose(%u8XY*) {
+define %u8SXY* @transpose(%u8SXY*) {
 entry:
-  %1 = getelementptr inbounds %u8XY, %u8XY* %0, i64 0, i32 3
+  %1 = getelementptr inbounds %u8SXY, %u8SXY* %0, i64 0, i32 3
   %columns = load i32, i32* %1, align 4, !range !0
-  %2 = getelementptr inbounds %u8XY, %u8XY* %0, i64 0, i32 4
+  %2 = getelementptr inbounds %u8SXY, %u8SXY* %0, i64 0, i32 4
   %rows = load i32, i32* %2, align 4, !range !0
-  %3 = call %u0CXYT* @likely_new(i32 24584, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
+  %3 = call %u0CXYT* @likely_new(i32 25608, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
   %4 = zext i32 %rows to i64
   %dst_y_step = zext i32 %columns to i64
   %5 = getelementptr inbounds %u0CXYT, %u0CXYT* %3, i64 1
@@ -24,7 +24,7 @@ entry:
   %8 = and i64 %7, 31
   %9 = icmp eq i64 %8, 0
   call void @llvm.assume(i1 %9)
-  %10 = getelementptr inbounds %u8XY, %u8XY* %0, i64 0, i32 6, i64 0
+  %10 = getelementptr inbounds %u8SXY, %u8SXY* %0, i64 0, i32 6, i64 0
   %11 = ptrtoint i8* %10 to i64
   %12 = and i64 %11, 31
   %13 = icmp eq i64 %12, 0
@@ -40,7 +40,7 @@ x_body:                                           ; preds = %y_body, %x_body
   %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
   %15 = mul nuw nsw i64 %x, %dst_y_step
   %16 = add nuw nsw i64 %15, %y
-  %17 = getelementptr %u8XY, %u8XY* %0, i64 0, i32 6, i64 %16
+  %17 = getelementptr %u8SXY, %u8SXY* %0, i64 0, i32 6, i64 %16
   %18 = load i8, i8* %17, align 1, !llvm.mem.parallel_loop_access !1
   %19 = add nuw nsw i64 %x, %14
   %20 = getelementptr i8, i8* %6, i64 %19
@@ -55,8 +55,8 @@ x_exit:                                           ; preds = %x_body
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %dst = bitcast %u0CXYT* %3 to %u8XY*
-  ret %u8XY* %dst
+  %dst = bitcast %u0CXYT* %3 to %u8SXY*
+  ret %u8SXY* %dst
 }
 
 attributes #0 = { nounwind readonly }

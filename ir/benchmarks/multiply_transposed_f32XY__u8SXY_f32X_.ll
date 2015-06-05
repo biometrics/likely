@@ -2,7 +2,7 @@
 
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %f32XY = type { i32, i32, i32, i32, i32, i32, [0 x float] }
-%u8XY = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
+%u8SXY = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %f32X = type { i32, i32, i32, i32, i32, i32, [0 x float] }
 
 ; Function Attrs: nounwind readonly
@@ -11,11 +11,11 @@ declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 
 ; Function Attrs: nounwind
 declare void @llvm.assume(i1) #1
 
-define %f32XY* @multiply_transposed(%u8XY*, %f32X*) {
+define %f32XY* @multiply_transposed(%u8SXY*, %f32X*) {
 entry:
-  %2 = getelementptr inbounds %u8XY, %u8XY* %0, i64 0, i32 3
+  %2 = getelementptr inbounds %u8SXY, %u8SXY* %0, i64 0, i32 3
   %columns = load i32, i32* %2, align 4, !range !0
-  %3 = getelementptr inbounds %u8XY, %u8XY* %0, i64 0, i32 4
+  %3 = getelementptr inbounds %u8SXY, %u8SXY* %0, i64 0, i32 4
   %rows = load i32, i32* %3, align 4, !range !0
   %4 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
   %5 = zext i32 %rows to i64
@@ -26,7 +26,7 @@ entry:
   %9 = and i64 %8, 31
   %10 = icmp eq i64 %9, 0
   call void @llvm.assume(i1 %10)
-  %11 = getelementptr inbounds %u8XY, %u8XY* %0, i64 0, i32 6, i64 0
+  %11 = getelementptr inbounds %u8SXY, %u8SXY* %0, i64 0, i32 6, i64 0
   %12 = ptrtoint i8* %11 to i64
   %13 = and i64 %12, 31
   %14 = icmp eq i64 %13, 0
@@ -36,7 +36,7 @@ entry:
 
 y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %y_body ]
-  %16 = getelementptr %u8XY, %u8XY* %0, i64 0, i32 6, i64 %y
+  %16 = getelementptr %u8SXY, %u8SXY* %0, i64 0, i32 6, i64 %y
   %17 = load i8, i8* %16, align 1, !llvm.mem.parallel_loop_access !1
   %18 = getelementptr float, float* %7, i64 %y
   %19 = uitofp i8 %17 to float

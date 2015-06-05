@@ -2,20 +2,20 @@
 
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %f32XY = type { i32, i32, i32, i32, i32, i32, [0 x float] }
-%i16XY = type { i32, i32, i32, i32, i32, i32, [0 x i16] }
+%u8SXY = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %f32X = type { i32, i32, i32, i32, i32, i32, [0 x float] }
 
 ; Function Attrs: nounwind readonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind
-define private void @multiply_transposed_tmp_thunk0({ %f32XY*, %i16XY* }* noalias nocapture readonly, i64, i64) #1 {
+define private void @multiply_transposed_tmp_thunk0({ %f32XY*, %u8SXY* }* noalias nocapture readonly, i64, i64) #1 {
 entry:
-  %3 = getelementptr inbounds { %f32XY*, %i16XY* }, { %f32XY*, %i16XY* }* %0, i64 0, i32 0
+  %3 = getelementptr inbounds { %f32XY*, %u8SXY* }, { %f32XY*, %u8SXY* }* %0, i64 0, i32 0
   %4 = load %f32XY*, %f32XY** %3, align 8
-  %5 = getelementptr inbounds { %f32XY*, %i16XY* }, { %f32XY*, %i16XY* }* %0, i64 0, i32 1
-  %6 = load %i16XY*, %i16XY** %5, align 8
-  %7 = getelementptr inbounds %i16XY, %i16XY* %6, i64 0, i32 3
+  %5 = getelementptr inbounds { %f32XY*, %u8SXY* }, { %f32XY*, %u8SXY* }* %0, i64 0, i32 1
+  %6 = load %u8SXY*, %u8SXY** %5, align 8
+  %7 = getelementptr inbounds %u8SXY, %u8SXY* %6, i64 0, i32 3
   %columns1 = load i32, i32* %7, align 4, !range !0
   %mat_y_step = zext i32 %columns1 to i64
   %8 = getelementptr inbounds %f32XY, %f32XY* %4, i64 0, i32 6, i64 0
@@ -23,8 +23,8 @@ entry:
   %10 = and i64 %9, 31
   %11 = icmp eq i64 %10, 0
   call void @llvm.assume(i1 %11)
-  %12 = getelementptr inbounds %i16XY, %i16XY* %6, i64 0, i32 6, i64 0
-  %13 = ptrtoint i16* %12 to i64
+  %12 = getelementptr inbounds %u8SXY, %u8SXY* %6, i64 0, i32 6, i64 0
+  %13 = ptrtoint i8* %12 to i64
   %14 = and i64 %13, 31
   %15 = icmp eq i64 %14, 0
   call void @llvm.assume(i1 %15)
@@ -33,10 +33,10 @@ entry:
 
 y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %y_body ]
-  %17 = getelementptr %i16XY, %i16XY* %6, i64 0, i32 6, i64 %y
-  %18 = load i16, i16* %17, align 2, !llvm.mem.parallel_loop_access !1
+  %17 = getelementptr %u8SXY, %u8SXY* %6, i64 0, i32 6, i64 %y
+  %18 = load i8, i8* %17, align 1, !llvm.mem.parallel_loop_access !1
   %19 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %y
-  %20 = sitofp i16 %18 to float
+  %20 = uitofp i8 %18 to float
   store float %20, float* %19, align 4, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %16
@@ -183,21 +183,21 @@ exit4:                                            ; preds = %true_entry3, %loop.
   br label %Flow6
 }
 
-define %f32XY* @multiply_transposed(%i16XY*, %f32X*) {
+define %f32XY* @multiply_transposed(%u8SXY*, %f32X*) {
 entry:
-  %2 = getelementptr inbounds %i16XY, %i16XY* %0, i64 0, i32 3
+  %2 = getelementptr inbounds %u8SXY, %u8SXY* %0, i64 0, i32 3
   %columns = load i32, i32* %2, align 4, !range !0
-  %3 = getelementptr inbounds %i16XY, %i16XY* %0, i64 0, i32 4
+  %3 = getelementptr inbounds %u8SXY, %u8SXY* %0, i64 0, i32 4
   %rows = load i32, i32* %3, align 4, !range !0
   %4 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
   %5 = zext i32 %rows to i64
-  %6 = alloca { %f32XY*, %i16XY* }, align 8
-  %7 = bitcast { %f32XY*, %i16XY* }* %6 to %u0CXYT**
+  %6 = alloca { %f32XY*, %u8SXY* }, align 8
+  %7 = bitcast { %f32XY*, %u8SXY* }* %6 to %u0CXYT**
   store %u0CXYT* %4, %u0CXYT** %7, align 8
-  %8 = getelementptr inbounds { %f32XY*, %i16XY* }, { %f32XY*, %i16XY* }* %6, i64 0, i32 1
-  store %i16XY* %0, %i16XY** %8, align 8
-  %9 = bitcast { %f32XY*, %i16XY* }* %6 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %i16XY* }*, i64, i64)* @multiply_transposed_tmp_thunk0 to i8*), i8* %9, i64 %5)
+  %8 = getelementptr inbounds { %f32XY*, %u8SXY* }, { %f32XY*, %u8SXY* }* %6, i64 0, i32 1
+  store %u8SXY* %0, %u8SXY** %8, align 8
+  %9 = bitcast { %f32XY*, %u8SXY* }* %6 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %u8SXY* }*, i64, i64)* @multiply_transposed_tmp_thunk0 to i8*), i8* %9, i64 %5)
   %10 = alloca { %f32XY*, %f32X* }, align 8
   %11 = bitcast { %f32XY*, %f32X* }* %10 to %u0CXYT**
   store %u0CXYT* %4, %u0CXYT** %11, align 8

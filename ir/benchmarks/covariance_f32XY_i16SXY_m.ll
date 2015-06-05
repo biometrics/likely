@@ -1,21 +1,21 @@
 ; ModuleID = 'likely'
 
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
-%f32X = type { i32, i32, i32, i32, i32, i32, [0 x float] }
-%f32XY = type { i32, i32, i32, i32, i32, i32, [0 x float] }
-%i16XY = type { i32, i32, i32, i32, i32, i32, [0 x i16] }
+%f32SX = type { i32, i32, i32, i32, i32, i32, [0 x float] }
+%f32SXY = type { i32, i32, i32, i32, i32, i32, [0 x float] }
+%i16SXY = type { i32, i32, i32, i32, i32, i32, [0 x i16] }
 
 ; Function Attrs: nounwind readonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind
-define private void @covariance_tmp_thunk0({ %f32X*, i32 }* noalias nocapture readonly, i64, i64) #1 {
+define private void @covariance_tmp_thunk0({ %f32SX*, i32 }* noalias nocapture readonly, i64, i64) #1 {
 entry:
-  %3 = getelementptr inbounds { %f32X*, i32 }, { %f32X*, i32 }* %0, i64 0, i32 0
-  %4 = load %f32X*, %f32X** %3, align 8
-  %5 = getelementptr inbounds { %f32X*, i32 }, { %f32X*, i32 }* %0, i64 0, i32 1
+  %3 = getelementptr inbounds { %f32SX*, i32 }, { %f32SX*, i32 }* %0, i64 0, i32 0
+  %4 = load %f32SX*, %f32SX** %3, align 8
+  %5 = getelementptr inbounds { %f32SX*, i32 }, { %f32SX*, i32 }* %0, i64 0, i32 1
   %6 = load i32, i32* %5, align 4
-  %7 = getelementptr inbounds %f32X, %f32X* %4, i64 0, i32 6, i64 0
+  %7 = getelementptr inbounds %f32SX, %f32SX* %4, i64 0, i32 6, i64 0
   %8 = ptrtoint float* %7 to i64
   %9 = and i64 %8, 31
   %10 = icmp eq i64 %9, 0
@@ -25,7 +25,7 @@ entry:
 
 x_body:                                           ; preds = %x_body, %entry
   %x = phi i64 [ %1, %entry ], [ %x_increment, %x_body ]
-  %12 = getelementptr %f32X, %f32X* %4, i64 0, i32 6, i64 %x
+  %12 = getelementptr %f32SX, %f32SX* %4, i64 0, i32 6, i64 %x
   store float %11, float* %12, align 4, !llvm.mem.parallel_loop_access !0
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %2
@@ -41,13 +41,13 @@ declare void @llvm.assume(i1) #1
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
 ; Function Attrs: nounwind
-define private void @covariance_tmp_thunk1({ %f32X*, float }* noalias nocapture readonly, i64, i64) #1 {
+define private void @covariance_tmp_thunk1({ %f32SX*, float }* noalias nocapture readonly, i64, i64) #1 {
 entry:
-  %3 = getelementptr inbounds { %f32X*, float }, { %f32X*, float }* %0, i64 0, i32 0
-  %4 = load %f32X*, %f32X** %3, align 8
-  %5 = getelementptr inbounds { %f32X*, float }, { %f32X*, float }* %0, i64 0, i32 1
+  %3 = getelementptr inbounds { %f32SX*, float }, { %f32SX*, float }* %0, i64 0, i32 0
+  %4 = load %f32SX*, %f32SX** %3, align 8
+  %5 = getelementptr inbounds { %f32SX*, float }, { %f32SX*, float }* %0, i64 0, i32 1
   %6 = load float, float* %5, align 4
-  %7 = getelementptr inbounds %f32X, %f32X* %4, i64 0, i32 6, i64 0
+  %7 = getelementptr inbounds %f32SX, %f32SX* %4, i64 0, i32 6, i64 0
   %8 = ptrtoint float* %7 to i64
   %9 = and i64 %8, 31
   %10 = icmp eq i64 %9, 0
@@ -56,7 +56,7 @@ entry:
 
 x_body:                                           ; preds = %x_body, %entry
   %x = phi i64 [ %1, %entry ], [ %x_increment, %x_body ]
-  %11 = getelementptr %f32X, %f32X* %4, i64 0, i32 6, i64 %x
+  %11 = getelementptr %f32SX, %f32SX* %4, i64 0, i32 6, i64 %x
   %12 = load float, float* %11, align 4, !llvm.mem.parallel_loop_access !1
   %13 = fmul fast float %12, %6
   store float %13, float* %11, align 4, !llvm.mem.parallel_loop_access !1
@@ -69,24 +69,24 @@ x_exit:                                           ; preds = %x_body
 }
 
 ; Function Attrs: nounwind
-define private void @covariance_tmp_thunk2({ %f32XY*, %i16XY* }* noalias nocapture readonly, i64, i64) #1 {
+define private void @covariance_tmp_thunk2({ %f32SXY*, %i16SXY* }* noalias nocapture readonly, i64, i64) #1 {
 entry:
-  %3 = getelementptr inbounds { %f32XY*, %i16XY* }, { %f32XY*, %i16XY* }* %0, i64 0, i32 0
-  %4 = load %f32XY*, %f32XY** %3, align 8
-  %5 = getelementptr inbounds { %f32XY*, %i16XY* }, { %f32XY*, %i16XY* }* %0, i64 0, i32 1
-  %6 = load %i16XY*, %i16XY** %5, align 8
-  %7 = getelementptr inbounds %f32XY, %f32XY* %4, i64 0, i32 3
+  %3 = getelementptr inbounds { %f32SXY*, %i16SXY* }, { %f32SXY*, %i16SXY* }* %0, i64 0, i32 0
+  %4 = load %f32SXY*, %f32SXY** %3, align 8
+  %5 = getelementptr inbounds { %f32SXY*, %i16SXY* }, { %f32SXY*, %i16SXY* }* %0, i64 0, i32 1
+  %6 = load %i16SXY*, %i16SXY** %5, align 8
+  %7 = getelementptr inbounds %f32SXY, %f32SXY* %4, i64 0, i32 3
   %columns = load i32, i32* %7, align 4, !range !2
   %mat_y_step = zext i32 %columns to i64
-  %8 = getelementptr inbounds %f32XY, %f32XY* %4, i64 0, i32 6, i64 0
+  %8 = getelementptr inbounds %f32SXY, %f32SXY* %4, i64 0, i32 6, i64 0
   %9 = ptrtoint float* %8 to i64
   %10 = and i64 %9, 31
   %11 = icmp eq i64 %10, 0
   call void @llvm.assume(i1 %11)
-  %12 = getelementptr inbounds %i16XY, %i16XY* %6, i64 0, i32 3
+  %12 = getelementptr inbounds %i16SXY, %i16SXY* %6, i64 0, i32 3
   %columns1 = load i32, i32* %12, align 4, !range !2
   %val_y_step = zext i32 %columns1 to i64
-  %13 = getelementptr inbounds %i16XY, %i16XY* %6, i64 0, i32 6, i64 0
+  %13 = getelementptr inbounds %i16SXY, %i16SXY* %6, i64 0, i32 6, i64 0
   %14 = ptrtoint i16* %13 to i64
   %15 = and i64 %14, 31
   %16 = icmp eq i64 %15, 0
@@ -102,10 +102,10 @@ y_body:                                           ; preds = %x_exit, %entry
 x_body:                                           ; preds = %y_body, %x_body
   %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
   %19 = add nuw nsw i64 %x, %17
-  %20 = getelementptr %i16XY, %i16XY* %6, i64 0, i32 6, i64 %19
+  %20 = getelementptr %i16SXY, %i16SXY* %6, i64 0, i32 6, i64 %19
   %21 = load i16, i16* %20, align 2, !llvm.mem.parallel_loop_access !3
   %22 = add nuw nsw i64 %x, %18
-  %23 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %22
+  %23 = getelementptr %f32SXY, %f32SXY* %4, i64 0, i32 6, i64 %22
   %24 = sitofp i16 %21 to float
   store float %24, float* %23, align 4, !llvm.mem.parallel_loop_access !3
   %x_increment = add nuw nsw i64 %x, 1
@@ -122,21 +122,21 @@ y_exit:                                           ; preds = %x_exit
 }
 
 ; Function Attrs: nounwind
-define private void @covariance_tmp_thunk3({ %f32XY*, %f32X* }* noalias nocapture readonly, i64, i64) #1 {
+define private void @covariance_tmp_thunk3({ %f32SXY*, %f32SX* }* noalias nocapture readonly, i64, i64) #1 {
 entry:
-  %3 = getelementptr inbounds { %f32XY*, %f32X* }, { %f32XY*, %f32X* }* %0, i64 0, i32 0
-  %4 = load %f32XY*, %f32XY** %3, align 8
-  %5 = getelementptr inbounds { %f32XY*, %f32X* }, { %f32XY*, %f32X* }* %0, i64 0, i32 1
-  %6 = load %f32X*, %f32X** %5, align 8
-  %7 = getelementptr inbounds %f32XY, %f32XY* %4, i64 0, i32 3
+  %3 = getelementptr inbounds { %f32SXY*, %f32SX* }, { %f32SXY*, %f32SX* }* %0, i64 0, i32 0
+  %4 = load %f32SXY*, %f32SXY** %3, align 8
+  %5 = getelementptr inbounds { %f32SXY*, %f32SX* }, { %f32SXY*, %f32SX* }* %0, i64 0, i32 1
+  %6 = load %f32SX*, %f32SX** %5, align 8
+  %7 = getelementptr inbounds %f32SXY, %f32SXY* %4, i64 0, i32 3
   %columns = load i32, i32* %7, align 4, !range !2
   %mat_y_step = zext i32 %columns to i64
-  %8 = getelementptr inbounds %f32XY, %f32XY* %4, i64 0, i32 6, i64 0
+  %8 = getelementptr inbounds %f32SXY, %f32SXY* %4, i64 0, i32 6, i64 0
   %9 = ptrtoint float* %8 to i64
   %10 = and i64 %9, 31
   %11 = icmp eq i64 %10, 0
   call void @llvm.assume(i1 %11)
-  %12 = getelementptr inbounds %f32X, %f32X* %6, i64 0, i32 6, i64 0
+  %12 = getelementptr inbounds %f32SX, %f32SX* %6, i64 0, i32 6, i64 0
   %13 = ptrtoint float* %12 to i64
   %14 = and i64 %13, 31
   %15 = icmp eq i64 %14, 0
@@ -151,9 +151,9 @@ y_body:                                           ; preds = %x_exit, %entry
 x_body:                                           ; preds = %y_body, %x_body
   %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
   %17 = add nuw nsw i64 %x, %16
-  %18 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %17
+  %18 = getelementptr %f32SXY, %f32SXY* %4, i64 0, i32 6, i64 %17
   %19 = load float, float* %18, align 4, !llvm.mem.parallel_loop_access !4
-  %20 = getelementptr %f32X, %f32X* %6, i64 0, i32 6, i64 %x
+  %20 = getelementptr %f32SX, %f32SX* %6, i64 0, i32 6, i64 %x
   %21 = load float, float* %20, align 4, !llvm.mem.parallel_loop_access !4
   %22 = fsub fast float %19, %21
   store float %22, float* %18, align 4, !llvm.mem.parallel_loop_access !4
@@ -171,23 +171,23 @@ y_exit:                                           ; preds = %x_exit
 }
 
 ; Function Attrs: nounwind
-define private void @covariance_tmp_thunk4({ %f32XY*, %f32XY*, i32 }* noalias nocapture readonly, i64, i64) #1 {
+define private void @covariance_tmp_thunk4({ %f32SXY*, %f32SXY*, i32 }* noalias nocapture readonly, i64, i64) #1 {
 entry:
-  %3 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %0, i64 0, i32 0
-  %4 = load %f32XY*, %f32XY** %3, align 8
-  %5 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %0, i64 0, i32 1
-  %6 = load %f32XY*, %f32XY** %5, align 8
-  %7 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %0, i64 0, i32 2
+  %3 = getelementptr inbounds { %f32SXY*, %f32SXY*, i32 }, { %f32SXY*, %f32SXY*, i32 }* %0, i64 0, i32 0
+  %4 = load %f32SXY*, %f32SXY** %3, align 8
+  %5 = getelementptr inbounds { %f32SXY*, %f32SXY*, i32 }, { %f32SXY*, %f32SXY*, i32 }* %0, i64 0, i32 1
+  %6 = load %f32SXY*, %f32SXY** %5, align 8
+  %7 = getelementptr inbounds { %f32SXY*, %f32SXY*, i32 }, { %f32SXY*, %f32SXY*, i32 }* %0, i64 0, i32 2
   %8 = load i32, i32* %7, align 4
-  %9 = getelementptr inbounds %f32XY, %f32XY* %6, i64 0, i32 3
+  %9 = getelementptr inbounds %f32SXY, %f32SXY* %6, i64 0, i32 3
   %columns1 = load i32, i32* %9, align 4, !range !2
   %dst_y_step = zext i32 %columns1 to i64
-  %10 = getelementptr inbounds %f32XY, %f32XY* %4, i64 0, i32 6, i64 0
+  %10 = getelementptr inbounds %f32SXY, %f32SXY* %4, i64 0, i32 6, i64 0
   %11 = ptrtoint float* %10 to i64
   %12 = and i64 %11, 31
   %13 = icmp eq i64 %12, 0
   call void @llvm.assume(i1 %13)
-  %14 = getelementptr inbounds %f32XY, %f32XY* %6, i64 0, i32 6, i64 0
+  %14 = getelementptr inbounds %f32SXY, %f32SXY* %6, i64 0, i32 6, i64 0
   %15 = ptrtoint float* %14 to i64
   %16 = and i64 %15, 31
   %17 = icmp eq i64 %16, 0
@@ -222,11 +222,11 @@ true_entry3:                                      ; preds = %loop.preheader, %tr
   %23 = sext i32 %21 to i64
   %24 = mul nuw nsw i64 %23, %dst_y_step
   %25 = add nuw nsw i64 %24, %x
-  %26 = getelementptr %f32XY, %f32XY* %6, i64 0, i32 6, i64 %25
+  %26 = getelementptr %f32SXY, %f32SXY* %6, i64 0, i32 6, i64 %25
   %27 = load float, float* %26, align 4, !llvm.mem.parallel_loop_access !5
   %28 = fpext float %27 to double
   %29 = add nuw nsw i64 %24, %y
-  %30 = getelementptr %f32XY, %f32XY* %6, i64 0, i32 6, i64 %29
+  %30 = getelementptr %f32SXY, %f32SXY* %6, i64 0, i32 6, i64 %29
   %31 = load float, float* %30, align 4, !llvm.mem.parallel_loop_access !5
   %32 = fpext float %31 to double
   %33 = fmul fast double %32, %28
@@ -243,31 +243,31 @@ Flow6:                                            ; preds = %x_body, %exit4
 exit4:                                            ; preds = %true_entry3, %loop.preheader
   %.lcssa = phi double [ 0.000000e+00, %loop.preheader ], [ %34, %true_entry3 ]
   %37 = add nuw nsw i64 %x, %19
-  %38 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %37
+  %38 = getelementptr %f32SXY, %f32SXY* %4, i64 0, i32 6, i64 %37
   %39 = fptrunc double %.lcssa to float
   store float %39, float* %38, align 4, !llvm.mem.parallel_loop_access !5
   %40 = mul nuw nsw i64 %x, %dst_y_step
   %41 = add nuw nsw i64 %40, %y
-  %42 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %41
+  %42 = getelementptr %f32SXY, %f32SXY* %4, i64 0, i32 6, i64 %41
   store float %39, float* %42, align 4, !llvm.mem.parallel_loop_access !5
   br label %Flow6
 }
 
-define %f32XY* @covariance(%i16XY*) {
+define %f32SXY* @covariance(%i16SXY*) {
 entry:
-  %1 = getelementptr inbounds %i16XY, %i16XY* %0, i64 0, i32 3
+  %1 = getelementptr inbounds %i16SXY, %i16SXY* %0, i64 0, i32 3
   %columns = load i32, i32* %1, align 4, !range !2
-  %2 = call %u0CXYT* @likely_new(i32 8480, i32 1, i32 %columns, i32 1, i32 1, i8* null)
-  %3 = getelementptr inbounds %i16XY, %i16XY* %0, i64 0, i32 4
+  %2 = call %u0CXYT* @likely_new(i32 9504, i32 1, i32 %columns, i32 1, i32 1, i8* null)
+  %3 = getelementptr inbounds %i16SXY, %i16SXY* %0, i64 0, i32 4
   %rows = load i32, i32* %3, align 4, !range !2
   %4 = zext i32 %columns to i64
-  %5 = alloca { %f32X*, i32 }, align 8
-  %6 = bitcast { %f32X*, i32 }* %5 to %u0CXYT**
+  %5 = alloca { %f32SX*, i32 }, align 8
+  %6 = bitcast { %f32SX*, i32 }* %5 to %u0CXYT**
   store %u0CXYT* %2, %u0CXYT** %6, align 8
-  %7 = getelementptr inbounds { %f32X*, i32 }, { %f32X*, i32 }* %5, i64 0, i32 1
+  %7 = getelementptr inbounds { %f32SX*, i32 }, { %f32SX*, i32 }* %5, i64 0, i32 1
   store i32 0, i32* %7, align 8
-  %8 = bitcast { %f32X*, i32 }* %5 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32X*, i32 }*, i64, i64)* @covariance_tmp_thunk0 to i8*), i8* %8, i64 %4)
+  %8 = bitcast { %f32SX*, i32 }* %5 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32SX*, i32 }*, i64, i64)* @covariance_tmp_thunk0 to i8*), i8* %8, i64 %4)
   %rows2 = load i32, i32* %3, align 4, !range !2
   %9 = zext i32 %rows2 to i64
   %10 = getelementptr inbounds %u0CXYT, %u0CXYT* %2, i64 1
@@ -278,7 +278,7 @@ entry:
   call void @llvm.assume(i1 %14)
   %columns4 = load i32, i32* %1, align 4, !range !2
   %src_y_step = zext i32 %columns4 to i64
-  %15 = getelementptr inbounds %i16XY, %i16XY* %0, i64 0, i32 6, i64 0
+  %15 = getelementptr inbounds %i16SXY, %i16SXY* %0, i64 0, i32 6, i64 0
   %16 = ptrtoint i16* %15 to i64
   %17 = and i64 %16, 31
   %18 = icmp eq i64 %17, 0
@@ -295,7 +295,7 @@ x_body:                                           ; preds = %y_body, %x_body
   %20 = getelementptr float, float* %11, i64 %x
   %21 = load float, float* %20, align 4
   %22 = add nuw nsw i64 %x, %19
-  %23 = getelementptr %i16XY, %i16XY* %0, i64 0, i32 6, i64 %22
+  %23 = getelementptr %i16SXY, %i16SXY* %0, i64 0, i32 6, i64 %22
   %24 = load i16, i16* %23, align 2
   %25 = sitofp i16 %24 to float
   %26 = fadd fast float %25, %21
@@ -316,13 +316,13 @@ y_exit:                                           ; preds = %x_exit
 true_entry:                                       ; preds = %y_exit
   %28 = uitofp i32 %rows to float
   %29 = fdiv fast float 1.000000e+00, %28
-  %30 = alloca { %f32X*, float }, align 8
-  %31 = bitcast { %f32X*, float }* %30 to %u0CXYT**
+  %30 = alloca { %f32SX*, float }, align 8
+  %31 = bitcast { %f32SX*, float }* %30 to %u0CXYT**
   store %u0CXYT* %2, %u0CXYT** %31, align 8
-  %32 = getelementptr inbounds { %f32X*, float }, { %f32X*, float }* %30, i64 0, i32 1
+  %32 = getelementptr inbounds { %f32SX*, float }, { %f32SX*, float }* %30, i64 0, i32 1
   store float %29, float* %32, align 8
-  %33 = bitcast { %f32X*, float }* %30 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32X*, float }*, i64, i64)* @covariance_tmp_thunk1 to i8*), i8* %33, i64 %4)
+  %33 = bitcast { %f32SX*, float }* %30 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32SX*, float }*, i64, i64)* @covariance_tmp_thunk1 to i8*), i8* %33, i64 %4)
   %columns7.pre = load i32, i32* %1, align 4
   %rows8.pre = load i32, i32* %3, align 4
   br label %exit
@@ -330,41 +330,41 @@ true_entry:                                       ; preds = %y_exit
 exit:                                             ; preds = %y_exit, %true_entry
   %rows8 = phi i32 [ %rows2, %y_exit ], [ %rows8.pre, %true_entry ]
   %columns7 = phi i32 [ %columns4, %y_exit ], [ %columns7.pre, %true_entry ]
-  %34 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns7, i32 %rows8, i32 1, i8* null)
+  %34 = call %u0CXYT* @likely_new(i32 25888, i32 1, i32 %columns7, i32 %rows8, i32 1, i8* null)
   %35 = zext i32 %rows8 to i64
-  %36 = alloca { %f32XY*, %i16XY* }, align 8
-  %37 = bitcast { %f32XY*, %i16XY* }* %36 to %u0CXYT**
+  %36 = alloca { %f32SXY*, %i16SXY* }, align 8
+  %37 = bitcast { %f32SXY*, %i16SXY* }* %36 to %u0CXYT**
   store %u0CXYT* %34, %u0CXYT** %37, align 8
-  %38 = getelementptr inbounds { %f32XY*, %i16XY* }, { %f32XY*, %i16XY* }* %36, i64 0, i32 1
-  store %i16XY* %0, %i16XY** %38, align 8
-  %39 = bitcast { %f32XY*, %i16XY* }* %36 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %i16XY* }*, i64, i64)* @covariance_tmp_thunk2 to i8*), i8* %39, i64 %35)
-  %40 = alloca { %f32XY*, %f32X* }, align 8
-  %41 = bitcast { %f32XY*, %f32X* }* %40 to %u0CXYT**
+  %38 = getelementptr inbounds { %f32SXY*, %i16SXY* }, { %f32SXY*, %i16SXY* }* %36, i64 0, i32 1
+  store %i16SXY* %0, %i16SXY** %38, align 8
+  %39 = bitcast { %f32SXY*, %i16SXY* }* %36 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32SXY*, %i16SXY* }*, i64, i64)* @covariance_tmp_thunk2 to i8*), i8* %39, i64 %35)
+  %40 = alloca { %f32SXY*, %f32SX* }, align 8
+  %41 = bitcast { %f32SXY*, %f32SX* }* %40 to %u0CXYT**
   store %u0CXYT* %34, %u0CXYT** %41, align 8
-  %42 = getelementptr inbounds { %f32XY*, %f32X* }, { %f32XY*, %f32X* }* %40, i64 0, i32 1
-  %43 = bitcast %f32X** %42 to %u0CXYT**
+  %42 = getelementptr inbounds { %f32SXY*, %f32SX* }, { %f32SXY*, %f32SX* }* %40, i64 0, i32 1
+  %43 = bitcast %f32SX** %42 to %u0CXYT**
   store %u0CXYT* %2, %u0CXYT** %43, align 8
-  %44 = bitcast { %f32XY*, %f32X* }* %40 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32X* }*, i64, i64)* @covariance_tmp_thunk3 to i8*), i8* %44, i64 %35)
-  %45 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns7, i32 %columns7, i32 1, i8* null)
-  %dst = bitcast %u0CXYT* %45 to %f32XY*
+  %44 = bitcast { %f32SXY*, %f32SX* }* %40 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32SXY*, %f32SX* }*, i64, i64)* @covariance_tmp_thunk3 to i8*), i8* %44, i64 %35)
+  %45 = call %u0CXYT* @likely_new(i32 25888, i32 1, i32 %columns7, i32 %columns7, i32 1, i8* null)
+  %dst = bitcast %u0CXYT* %45 to %f32SXY*
   %46 = zext i32 %columns7 to i64
-  %47 = alloca { %f32XY*, %f32XY*, i32 }, align 8
-  %48 = bitcast { %f32XY*, %f32XY*, i32 }* %47 to %u0CXYT**
+  %47 = alloca { %f32SXY*, %f32SXY*, i32 }, align 8
+  %48 = bitcast { %f32SXY*, %f32SXY*, i32 }* %47 to %u0CXYT**
   store %u0CXYT* %45, %u0CXYT** %48, align 8
-  %49 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %47, i64 0, i32 1
-  %50 = bitcast %f32XY** %49 to %u0CXYT**
+  %49 = getelementptr inbounds { %f32SXY*, %f32SXY*, i32 }, { %f32SXY*, %f32SXY*, i32 }* %47, i64 0, i32 1
+  %50 = bitcast %f32SXY** %49 to %u0CXYT**
   store %u0CXYT* %34, %u0CXYT** %50, align 8
-  %51 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %47, i64 0, i32 2
+  %51 = getelementptr inbounds { %f32SXY*, %f32SXY*, i32 }, { %f32SXY*, %f32SXY*, i32 }* %47, i64 0, i32 2
   store i32 %rows8, i32* %51, align 8
-  %52 = bitcast { %f32XY*, %f32XY*, i32 }* %47 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32XY*, i32 }*, i64, i64)* @covariance_tmp_thunk4 to i8*), i8* %52, i64 %46)
+  %52 = bitcast { %f32SXY*, %f32SXY*, i32 }* %47 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32SXY*, %f32SXY*, i32 }*, i64, i64)* @covariance_tmp_thunk4 to i8*), i8* %52, i64 %46)
   %53 = bitcast %u0CXYT* %2 to i8*
   call void @likely_release_mat(i8* %53)
   %54 = bitcast %u0CXYT* %34 to i8*
   call void @likely_release_mat(i8* %54)
-  ret %f32XY* %dst
+  ret %f32SXY* %dst
 }
 
 declare void @likely_release_mat(i8* noalias nocapture)

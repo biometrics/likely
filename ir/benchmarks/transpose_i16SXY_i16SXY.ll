@@ -1,7 +1,7 @@
 ; ModuleID = 'likely'
 
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
-%i16XY = type { i32, i32, i32, i32, i32, i32, [0 x i16] }
+%i16SXY = type { i32, i32, i32, i32, i32, i32, [0 x i16] }
 
 ; Function Attrs: nounwind readonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
@@ -9,13 +9,13 @@ declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 
 ; Function Attrs: nounwind
 declare void @llvm.assume(i1) #1
 
-define %i16XY* @transpose(%i16XY*) {
+define %i16SXY* @transpose(%i16SXY*) {
 entry:
-  %1 = getelementptr inbounds %i16XY, %i16XY* %0, i64 0, i32 3
+  %1 = getelementptr inbounds %i16SXY, %i16SXY* %0, i64 0, i32 3
   %columns = load i32, i32* %1, align 4, !range !0
-  %2 = getelementptr inbounds %i16XY, %i16XY* %0, i64 0, i32 4
+  %2 = getelementptr inbounds %i16SXY, %i16SXY* %0, i64 0, i32 4
   %rows = load i32, i32* %2, align 4, !range !0
-  %3 = call %u0CXYT* @likely_new(i32 25104, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
+  %3 = call %u0CXYT* @likely_new(i32 26128, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
   %4 = zext i32 %rows to i64
   %dst_y_step = zext i32 %columns to i64
   %5 = getelementptr inbounds %u0CXYT, %u0CXYT* %3, i64 1
@@ -24,7 +24,7 @@ entry:
   %8 = and i64 %7, 31
   %9 = icmp eq i64 %8, 0
   call void @llvm.assume(i1 %9)
-  %10 = getelementptr inbounds %i16XY, %i16XY* %0, i64 0, i32 6, i64 0
+  %10 = getelementptr inbounds %i16SXY, %i16SXY* %0, i64 0, i32 6, i64 0
   %11 = ptrtoint i16* %10 to i64
   %12 = and i64 %11, 31
   %13 = icmp eq i64 %12, 0
@@ -40,7 +40,7 @@ x_body:                                           ; preds = %y_body, %x_body
   %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
   %15 = mul nuw nsw i64 %x, %dst_y_step
   %16 = add nuw nsw i64 %15, %y
-  %17 = getelementptr %i16XY, %i16XY* %0, i64 0, i32 6, i64 %16
+  %17 = getelementptr %i16SXY, %i16SXY* %0, i64 0, i32 6, i64 %16
   %18 = load i16, i16* %17, align 2, !llvm.mem.parallel_loop_access !1
   %19 = add nuw nsw i64 %x, %14
   %20 = getelementptr i16, i16* %6, i64 %19
@@ -55,8 +55,8 @@ x_exit:                                           ; preds = %x_body
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %dst = bitcast %u0CXYT* %3 to %i16XY*
-  ret %i16XY* %dst
+  %dst = bitcast %u0CXYT* %3 to %i16SXY*
+  ret %i16SXY* %dst
 }
 
 attributes #0 = { nounwind readonly }
