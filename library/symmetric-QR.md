@@ -139,3 +139,28 @@ GVL Algorithm 8.3.3
       Q := A ; By convention A is set to Q and D is returned
       (householder Q).(implicit-tridiagonal-QR Q)
     }
+
+    eigen-sort :=
+      (D Q) :->
+      {
+        len := Q.rows
+        (selection-sort (-> i (D 0 i i))
+                        (-> (x y) (> x y))
+                        (-> (i j) {
+                                    ; Swap eigen values
+                                    tmp := (D 0 i i)
+                                    (D 0 i i) :<- (D 0 j j)
+                                    (D 0 j j) :<- tmp
+
+                                    ; Swap eigen vectors
+                                    swap-Q :=
+                                      k :->
+                                      {
+                                        tmp := (Q 0 k i)
+                                        (Q 0 k i) :<- (Q 0 k j)
+                                        (Q 0 k j) :<- tmp
+                                      }
+                                    swap-Q.(iter len)
+                                  })
+                        len)
+      }

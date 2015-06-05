@@ -10,5 +10,7 @@ Principal Component Analysis (PCA)
         mean := samples.average-row
         cov := samples.copy.(center mean).A-transpose-A.(scale (samples.element-type samples.rows).recip)
         evecs := cov
-        evals := (symmetric-QR cov)
+        evals := (symmetric-QR evecs)
+        (eigen-sort evals evecs)
+        evecs
       }
