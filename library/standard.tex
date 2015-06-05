@@ -1485,6 +1485,37 @@ A-transpose-A :=
     (A-transpose-A-generic src src.element-type.depth-atleast-32)
 \end{likely}
 
+\chapter{Sorting}
+\section{Selection Sort}
+\begin{likely}
+selection-sort :=
+  (get less-than swap len) :->
+  {
+    selection-sort-iteration :=
+      i :->
+      {
+        min-element := (get i).$
+        min-index   := i.$
+
+        selection-sort-scan :=
+          j :->
+          {
+            element := (get j)
+            (less-than element min-element) :?
+            {
+              min-element :<- element
+              min-index   :<- j
+            }
+          }
+        selection-sort-scan.(iter-range i.++ len)
+
+        (!= i min-index) :?
+          (swap i min-index)
+      }
+    selection-sort-iteration.(iter len)
+  }
+\end{likely}
+
 \bibliographystyle{plain}
 \bibliography{library/standard}
 

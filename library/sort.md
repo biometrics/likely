@@ -7,32 +7,14 @@ Compare to **[cv::sort(CV_SORT_EVERY_ROW)](http://docs.opencv.org/modules/core/d
         len := src.rows
         ((src.channels 1 src.rows src.frames) src len) :=>
         {
-          insertion-sort-iteration :=
-            i :->
-          {
-            min-element := (src c i y t).$
-            min-index   := i.$
-
-            insertion-sort-scan :=
-              j :->
-              {
-                element := (src c j y t)
-                (< element min-element) :?
-                {
-                  min-element :<- element
-                  min-index   :<- j
-                }
-              }
-            insertion-sort-scan.(iter-range i.++ len)
-
-            (!= i min-index) :?
-            {
-              tmp := (src c i y t)
-              (src c i y t) :<- (src c min-index y t)
-              (src c min-index y t) :<- tmp
-            }
-          }
-          insertion-sort-iteration.(iter len)
+          (selection-sort (-> i (src c i y t))
+                          (-> (x y) (< x y))
+                          (-> (i j) {
+                                      tmp := (src c i y t)
+                                      (src c i y t) :<- (src c j y t)
+                                      (src c j y t) :<- tmp
+                                    })
+                          len)
         }
       }
 
