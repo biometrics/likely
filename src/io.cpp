@@ -27,7 +27,7 @@
 #include <string>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Path.h>
-#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/highgui.hpp>
 
 #include "likely/backend.h"
 #include "likely/io.h"

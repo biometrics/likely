@@ -23,9 +23,7 @@
 #include <iostream>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/Path.h>
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 #include <likely.h>
 #include <likely/opencv.hpp>
 
@@ -428,7 +426,7 @@ class ConvertGrayscale : public Test<>
     {
         vector<likely_type> types;
         types.push_back(likely_u8);
-        types.push_back(likely_u16);
+//        types.push_back(likely_u16);
         types.push_back(likely_f32);
         return types;
     }

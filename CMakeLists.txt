@@ -63,7 +63,6 @@ set(LIKELY_LIBS ${LIKELY_LIBS} ${LIKELY_LLVM_LIBRARIES})
 option(LIKELY_SYSTEM_OPENCV "Use system OpenCV" OFF)
 if(${LIKELY_SYSTEM_OPENCV})
   find_package(OpenCV REQUIRED)
-  set(LIKELY_LIBS ${LIKELY_LIBS} ${OpenCV_LIBS})
 else()
   option(BUILD_WITH_STATIC_CRT "OpenCV static MSVC CRT" OFF)
   option(ENABLE_FAST_MATH "OpenCV fast-math" ON)
@@ -71,10 +70,13 @@ else()
   option(WITH_OPENEXR "OpenCV OpenEXR support" OFF)
   add_subdirectory(opencv EXCLUDE_FROM_ALL)
   include_directories(${CMAKE_SOURCE_DIR}/opencv/modules/core/include
+                      ${CMAKE_SOURCE_DIR}/opencv/modules/hal/include
                       ${CMAKE_SOURCE_DIR}/opencv/modules/highgui/include
-                      ${CMAKE_SOURCE_DIR}/opencv/modules/imgproc/include)
-  set(LIKELY_LIBS ${LIKELY_LIBS} opencv_highgui)
+                      ${CMAKE_SOURCE_DIR}/opencv/modules/imgcodecs/include
+                      ${CMAKE_SOURCE_DIR}/opencv/modules/imgproc/include
+                      ${CMAKE_SOURCE_DIR}/opencv/modules/videoio/include)
 endif()
+set(LIKELY_LIBS ${LIKELY_LIBS} opencv_core opencv_hal opencv_highgui opencv_imgcodecs opencv_imgproc opencv_videoio)
 
 # Compiler configuration
 if(NOT VS)
@@ -138,8 +140,8 @@ add_custom_target(doc)
 find_package(Doxygen)
 if(${DOXYGEN_FOUND})
   configure_file(${CMAKE_SOURCE_DIR}/src/Doxyfile.in Doxyfile)
-  add_custom_target(doxygen ${DOXYGEN_EXECUTABLE} Doxyfile)
-  add_dependencies(doc doxygen)
+  add_custom_target(likely_doxygen ${DOXYGEN_EXECUTABLE} Doxyfile)
+  add_dependencies(doc likely_doxygen)
 endif()
 
 find_package(LATEX)
