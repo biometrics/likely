@@ -660,8 +660,8 @@ struct likely_module
     likely_module(const likely_const_mat bitcode)
         : context(new LikelyContext(likely_default_settings(likely_file_void, false)))
     {
-        const ErrorOr<Module*> result = parseBitcodeFile(MemoryBufferRef(StringRef(bitcode->data, likely_bytes(bitcode)), "likely"), context->context);
-        module = result ? result.get() : NULL;
+        ErrorOr<unique_ptr<Module>> result = parseBitcodeFile(MemoryBufferRef(StringRef(bitcode->data, likely_bytes(bitcode)), "likely"), context->context);
+        module = result ? result.get().release() : NULL;
     }
 
     virtual ~likely_module()
