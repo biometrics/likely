@@ -104,7 +104,7 @@ add_test(NAME benchmark_parallel
 add_library(likely_main OBJECT main.c)
 
 # Dream
-set(QT5_INSTALL_DIR "${CMAKE_BINARY_DIR}/Qt5.5.0")
+set(QT5_INSTALL_DIR "${CMAKE_BINARY_DIR}/Qt5.3.2")
 set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${QT5_INSTALL_DIR})
 find_package(Qt5OpenGL QUIET)
 find_package(Qt5PrintSupport QUIET)
@@ -138,10 +138,10 @@ else()
     if(NOT APPLE)
       set(QT_CONFIGURE_FLAGS "-qt-xcb")
     endif()
-    ExternalProject_Add(Qt5.5.0
-        URL http://download.qt.io/official_releases/qt/5.5/5.5.0/submodules/qtbase-opensource-src-5.5.0.tar.gz
-        URL_MD5 371491aa7a768b689cf860b4d8585487
-        CONFIGURE_COMMAND ../Qt5.5.0/configure -prefix ${QT5_INSTALL_DIR} -opensource -confirm-license -static -release -no-compile-examples ${QT_CONFIGURE_FLAGS})
+    ExternalProject_Add(Qt5.3.2
+        URL http://download.qt-project.org/official_releases/qt/5.3/5.3.2/submodules/qtbase-opensource-src-5.3.2.tar.gz
+        URL_MD5 2a692eed83c4f7e48e1db65ed1a2ae9f
+        CONFIGURE_COMMAND ../Qt5.3.2/configure -prefix ${QT5_INSTALL_DIR} -opensource -confirm-license -static -release -no-compile-examples ${QT_CONFIGURE_FLAGS})
     if(APPLE)
       find_package(OpenGL REQUIRED)
       find_library(COCOA_LIBRARY Cocoa)
