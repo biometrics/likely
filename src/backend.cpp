@@ -1093,7 +1093,7 @@ struct Builder : public IRBuilder<>
                 likelyString->setDoesNotCapture(1);
                 sys::DynamicLibrary::AddSymbol("likely_string", (void*) likely_string);
             }
-            return LikelyValue(CreateCall(likelyString, expr), likely_i8 | likely_multi_channel);
+            return LikelyValue(CreateCall(likelyString, { expr }), likely_i8 | likely_multi_channel);
         }
 
         Function *likelyScalar = module->module->getFunction("likely_scalar");
@@ -1111,7 +1111,7 @@ struct Builder : public IRBuilder<>
 
         AllocaInst *allocaInst = CreateAlloca(Type::getDoubleTy(getContext()), one());
         CreateStore(cast(expr, likely_f64), allocaInst);
-        return LikelyValue(CreateCall3(likelyScalar, constant(uint64_t(expr.type), likely_u32), allocaInst, one(likely_u32)), likely_multi_dimension);
+        return LikelyValue(CreateCall(likelyScalar, { constant(uint64_t(expr.type), likely_u32), allocaInst, one(likely_u32) }), likely_multi_dimension);
     }
 
     LikelyValue retainMat(Value *m)
@@ -1873,7 +1873,7 @@ class UnaryMathOperator : public SimpleUnaryOperator
     likely_const_expr evaluateSimpleUnary(Builder &builder, const UniqueExpression &x) const
     {
         likely_expression xc(builder.cast(*x.get(), likely_type_from_types(*x, likely_floating)));
-        return new likely_expression(LikelyValue(builder.CreateCall(Intrinsic::getDeclaration(builder.module->module, id(), xc.value->getType()), xc), xc));
+        return new likely_expression(LikelyValue(builder.CreateCall(Intrinsic::getDeclaration(builder.module->module, id(), xc.value->getType()), { xc }), xc));
     }
     virtual Intrinsic::ID id() const = 0;
 };
@@ -1960,7 +1960,7 @@ class addExpression : public SimpleArithmeticOperator
             return builder.CreateFAdd(lhs, rhs);
         } else {
             if (lhs.type & likely_saturated) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module->module, (lhs.type & likely_signed) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs.value->getType()), lhs, rhs);
+                CallInst *result = builder.CreateCall(Intrinsic::getDeclaration(builder.module->module, (lhs.type & likely_signed) ? Intrinsic::sadd_with_overflow : Intrinsic::uadd_with_overflow, lhs.value->getType()), { lhs, rhs });
                 Value *overflowResult = (lhs.type & likely_signed) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, builder.zero(lhs)), builder.intMax(lhs), builder.intMin(lhs)) : builder.intMax(lhs).value;
                 return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
             } else {
@@ -2003,7 +2003,7 @@ class subtractExpression : public LikelyOperator
             return new likely_expression(LikelyValue(builder.CreateFSub(lhs, rhs), type));
         } else {
             if (type & likely_saturated) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module->module, (lhs.type & likely_signed) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value->getType()), lhs, rhs);
+                CallInst *result = builder.CreateCall(Intrinsic::getDeclaration(builder.module->module, (lhs.type & likely_signed) ? Intrinsic::ssub_with_overflow : Intrinsic::usub_with_overflow, lhs.value->getType()), { lhs, rhs });
                 Value *overflowResult = (lhs.type & likely_signed) ? builder.CreateSelect(builder.CreateICmpSGE(lhs, builder.zero(lhs)), builder.intMax(lhs), builder.intMin(lhs)) : builder.intMin(lhs).value;
                 return new likely_expression(LikelyValue(builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0)), type));
             } else {
@@ -2023,7 +2023,7 @@ class multiplyExpression : public SimpleArithmeticOperator
             return builder.CreateFMul(lhs, rhs);
         } else {
             if (lhs.type & likely_saturated) {
-                CallInst *result = builder.CreateCall2(Intrinsic::getDeclaration(builder.module->module, (lhs.type & likely_signed) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs.value->getType()), lhs, rhs);
+                CallInst *result = builder.CreateCall(Intrinsic::getDeclaration(builder.module->module, (lhs.type & likely_signed) ? Intrinsic::smul_with_overflow : Intrinsic::umul_with_overflow, lhs.value->getType()), { lhs, rhs });
                 Value *zero = builder.zero(lhs);
                 Value *overflowResult = (lhs.type & likely_signed) ? builder.CreateSelect(builder.CreateXor(builder.CreateICmpSGE(lhs, zero), builder.CreateICmpSGE(rhs, zero)), builder.intMin(lhs), builder.intMax(lhs)) : builder.intMax(lhs).value;
                 return builder.CreateSelect(builder.CreateExtractValue(result, 1), overflowResult, builder.CreateExtractValue(result, 0));
@@ -2121,7 +2121,7 @@ class BinaryMathOperator : public SimpleBinaryOperator
         const likely_type type = likely_type_from_types(likely_type_from_types(*x, *n), likely_floating);
         const likely_expression xc(builder.cast(*x.get(), type));
         const likely_expression nc(builder.cast(*n.get(), type));
-        return new likely_expression(LikelyValue(builder.CreateCall2(Intrinsic::getDeclaration(builder.module->module, id(), xc.value->getType()), xc, nc), xc));
+        return new likely_expression(LikelyValue(builder.CreateCall(Intrinsic::getDeclaration(builder.module->module, id(), xc.value->getType()), { xc, nc }), xc));
     }
     virtual Intrinsic::ID id() const = 0;
 };
@@ -2847,7 +2847,7 @@ class kernelExpression : public LikelyOperator
         for (size_t i=0; i<srcs.size(); i++)
             builder.CreateStore(*srcs[i], builder.CreateStructGEP(parameterStructType, parameterStruct, unsigned(i)));
 
-        builder.CreateCall3(likelyFork, builder.CreatePointerCast(builder.module->module->getFunction(thunk->getName()), voidPtr), builder.CreatePointerCast(parameterStruct, voidPtr), kernelSize);
+        builder.CreateCall(likelyFork, { builder.CreatePointerCast(builder.module->module->getFunction(thunk->getName()), voidPtr), builder.CreatePointerCast(parameterStruct, voidPtr), kernelSize });
     }
 
     void generateHeterogeneous(Builder &builder, likely_const_ast ast, const vector<likely_const_expr> &srcs, likely_type kernelType, Value *kernelSize) const
@@ -2871,10 +2871,10 @@ class kernelExpression : public LikelyOperator
 
         kernelBuilder.SetInsertPoint(BasicBlock::Create(kernelBuilder.getContext(), "entry", kernel));
 
-        Value *const c = (kernelType & likely_multi_channel) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_w, Type::getInt32Ty(kernelBuilder.getContext())), "c") : builder.one(likely_u32).value;
-        Value *const x = (kernelType & likely_multi_column ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_x, Type::getInt32Ty(kernelBuilder.getContext())), "x") : builder.one(likely_u32).value;
-        Value *const y = (kernelType & likely_multi_row    ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_y, Type::getInt32Ty(kernelBuilder.getContext())), "y") : builder.one(likely_u32).value;
-        Value *const t = (kernelType & likely_multi_frame  ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_z, Type::getInt32Ty(kernelBuilder.getContext())), "t") : builder.one(likely_u32).value;
+        Value *const c = (kernelType & likely_multi_channel) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_w, Type::getInt32Ty(kernelBuilder.getContext())), {}, "c") : builder.one(likely_u32).value;
+        Value *const x = (kernelType & likely_multi_column ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_x, Type::getInt32Ty(kernelBuilder.getContext())), {}, "x") : builder.one(likely_u32).value;
+        Value *const y = (kernelType & likely_multi_row    ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_y, Type::getInt32Ty(kernelBuilder.getContext())), {}, "y") : builder.one(likely_u32).value;
+        Value *const t = (kernelType & likely_multi_frame  ) ? kernelBuilder.CreateCall(Intrinsic::getDeclaration(kernelBuilder.module->module, Intrinsic::ptx_read_tid_z, Type::getInt32Ty(kernelBuilder.getContext())), {}, "t") : builder.one(likely_u32).value;
 
         define(kernelBuilder.env, "c", new likely_expression(LikelyValue(c, likely_u32)));
         define(kernelBuilder.env, "x", new likely_expression(LikelyValue(x, likely_u32)));
