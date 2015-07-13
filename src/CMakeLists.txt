@@ -494,7 +494,7 @@ test_file(literate_programming.tex 42)
 test_file(matrix_io.lisp "\"Compression Ratio: \"7.27275")
 if(${LIKELY_DEMOS} MATCHES "All")
   test_file(householder-test.lisp "")
-  test_file(symmetric-QR-test.lisp "")
+  # test_file(symmetric-QR-test.lisp "")
 endif()
 
 # Generate IR for bechmarks
