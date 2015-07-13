@@ -4,7 +4,7 @@
 %f64X = type { i32, i32, i32, i32, i32, i32, [0 x double] }
 %f64XY = type { i32, i32, i32, i32, i32, i32, [0 x double] }
 
-; Function Attrs: nounwind readonly
+; Function Attrs: nounwind argmemonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind
@@ -143,7 +143,7 @@ exit:                                             ; preds = %y_exit, %true_entry
   ret %f64X* %26
 }
 
-attributes #0 = { nounwind readonly }
+attributes #0 = { nounwind argmemonly }
 attributes #1 = { nounwind }
 
 !0 = distinct !{!0}

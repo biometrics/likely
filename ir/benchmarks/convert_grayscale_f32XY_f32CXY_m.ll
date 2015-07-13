@@ -7,7 +7,7 @@
 ; Function Attrs: nounwind
 declare void @llvm.assume(i1) #0
 
-; Function Attrs: nounwind readonly
+; Function Attrs: nounwind argmemonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #1
 
 ; Function Attrs: nounwind
@@ -88,7 +88,7 @@ entry:
 }
 
 attributes #0 = { nounwind }
-attributes #1 = { nounwind readonly }
+attributes #1 = { nounwind argmemonly }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

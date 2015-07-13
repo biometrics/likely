@@ -3,7 +3,7 @@
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %i16SCXY = type { i32, i32, i32, i32, i32, i32, [0 x i16] }
 
-; Function Attrs: nounwind readonly
+; Function Attrs: nounwind argmemonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind
@@ -83,7 +83,7 @@ entry:
   ret %i16SCXY* %dst
 }
 
-attributes #0 = { nounwind readonly }
+attributes #0 = { nounwind argmemonly }
 attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}

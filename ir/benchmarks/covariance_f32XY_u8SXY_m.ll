@@ -5,7 +5,7 @@
 %f32SXY = type { i32, i32, i32, i32, i32, i32, [0 x float] }
 %u8SXY = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 
-; Function Attrs: nounwind readonly
+; Function Attrs: nounwind argmemonly
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind
@@ -369,7 +369,7 @@ exit:                                             ; preds = %y_exit, %true_entry
 
 declare void @likely_release_mat(i8* noalias nocapture)
 
-attributes #0 = { nounwind readonly }
+attributes #0 = { nounwind argmemonly }
 attributes #1 = { nounwind }
 
 !0 = distinct !{!0}

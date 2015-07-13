@@ -1068,7 +1068,7 @@ struct Builder : public IRBuilder<>
             likelyNew = Function::Create(functionType, GlobalValue::ExternalLinkage, "likely_new", module->module);
             likelyNew->setCallingConv(CallingConv::C);
             likelyNew->setDoesNotThrow();
-            likelyNew->setOnlyReadsMemory();
+            likelyNew->setOnlyAccessesArgMemory();
             for (int i=1; i<6; i++)
                 likelyNew->addAttribute(i, Attribute::ZExt);
             likelyNew->setDoesNotAlias(0);
