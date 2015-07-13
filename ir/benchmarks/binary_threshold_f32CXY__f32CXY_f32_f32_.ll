@@ -40,7 +40,7 @@ y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %y_body ]
   %19 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %y
   %20 = load float, float* %19, align 4, !llvm.mem.parallel_loop_access !1
-  %21 = fcmp ogt float %20, %1
+  %21 = fcmp fast ogt float %20, %1
   %. = select i1 %21, float %2, float 0.000000e+00
   %22 = getelementptr float, float* %9, i64 %y
   store float %., float* %22, align 4, !llvm.mem.parallel_loop_access !1

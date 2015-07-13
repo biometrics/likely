@@ -45,13 +45,13 @@ y_body:                                           ; preds = %y_body, %entry
   %26 = fmul fast float %25, %8
   %val = fadd fast float %26, %10
   %27 = getelementptr %i16SCXY, %i16SCXY* %4, i64 0, i32 6, i64 %y
-  %28 = fcmp olt float %val, 0.000000e+00
+  %28 = fcmp fast olt float %val, 0.000000e+00
   %. = select i1 %28, float -5.000000e-01, float 5.000000e-01
   %29 = fadd fast float %., %val
   %30 = fptosi float %29 to i16
-  %31 = fcmp olt float %29, -3.276800e+04
+  %31 = fcmp fast olt float %29, -3.276800e+04
   %32 = select i1 %31, i16 -32768, i16 %30
-  %33 = fcmp ogt float %29, 3.276700e+04
+  %33 = fcmp fast ogt float %29, 3.276700e+04
   %34 = select i1 %33, i16 32767, i16 %32
   store i16 %34, i16* %27, align 2, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
