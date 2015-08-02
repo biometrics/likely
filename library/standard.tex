@@ -1443,11 +1443,12 @@ average-frame :=
 \section{Matrix Multiplication}
 \begin{likely}
 transpose :=
-  src :->
+  (a) :->
   {
-    dst := src.imitate
-    (dst src) :=>
-      (dst c x y) :<- (src c y x)
+      tr := (a.type a.channels a.rows a.columns a.frames)
+      (a tr) :=>
+        (tr c y x t) :<- (a c x y t)
+      tr
   }
 
 mtimes :=
