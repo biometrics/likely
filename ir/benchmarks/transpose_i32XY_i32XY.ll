@@ -11,13 +11,13 @@ declare void @llvm.assume(i1) #1
 
 define %i32XY* @transpose(%i32XY*) {
 entry:
-  %1 = getelementptr inbounds %i32XY, %i32XY* %0, i64 0, i32 3
-  %columns = load i32, i32* %1, align 4, !range !0
-  %2 = getelementptr inbounds %i32XY, %i32XY* %0, i64 0, i32 4
-  %rows = load i32, i32* %2, align 4, !range !0
-  %3 = call %u0CXYT* @likely_new(i32 25120, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
-  %4 = zext i32 %rows to i64
-  %dst_y_step = zext i32 %columns to i64
+  %1 = getelementptr inbounds %i32XY, %i32XY* %0, i64 0, i32 4
+  %rows = load i32, i32* %1, align 4, !range !0
+  %2 = getelementptr inbounds %i32XY, %i32XY* %0, i64 0, i32 3
+  %columns = load i32, i32* %2, align 4, !range !0
+  %3 = call %u0CXYT* @likely_new(i32 25120, i32 1, i32 %rows, i32 %columns, i32 1, i8* null)
+  %4 = zext i32 %columns to i64
+  %dst_y_step = zext i32 %rows to i64
   %5 = getelementptr inbounds %u0CXYT, %u0CXYT* %3, i64 1, i32 0
   %6 = ptrtoint i32* %5 to i64
   %7 = and i64 %6, 31
@@ -37,7 +37,7 @@ y_body:                                           ; preds = %x_exit, %entry
 
 x_body:                                           ; preds = %y_body, %x_body
   %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
-  %14 = mul nuw nsw i64 %x, %dst_y_step
+  %14 = mul nuw nsw i64 %x, %4
   %15 = add nuw nsw i64 %14, %y
   %16 = getelementptr %i32XY, %i32XY* %0, i64 0, i32 6, i64 %15
   %17 = load i32, i32* %16, align 4, !llvm.mem.parallel_loop_access !1

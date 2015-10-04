@@ -1445,7 +1445,7 @@ average-frame :=
 transpose :=
   src :->
   {
-    dst := src.imitate
+    dst := (src.type src.channels src.rows src.columns src.frames)
     (dst src) :=>
       (dst c x y) :<- (src c y x)
   }

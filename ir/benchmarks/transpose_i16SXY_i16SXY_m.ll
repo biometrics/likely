@@ -13,35 +13,38 @@ entry:
   %4 = load %i16SXY*, %i16SXY** %3, align 8
   %5 = getelementptr inbounds { %i16SXY*, %i16SXY* }, { %i16SXY*, %i16SXY* }* %0, i64 0, i32 1
   %6 = load %i16SXY*, %i16SXY** %5, align 8
-  %7 = getelementptr inbounds %i16SXY, %i16SXY* %6, i64 0, i32 3
-  %columns1 = load i32, i32* %7, align 4, !range !0
-  %dst_y_step = zext i32 %columns1 to i64
-  %8 = getelementptr inbounds %i16SXY, %i16SXY* %4, i64 0, i32 6, i64 0
-  %9 = ptrtoint i16* %8 to i64
-  %10 = and i64 %9, 31
-  %11 = icmp eq i64 %10, 0
-  call void @llvm.assume(i1 %11)
-  %12 = getelementptr inbounds %i16SXY, %i16SXY* %6, i64 0, i32 6, i64 0
-  %13 = ptrtoint i16* %12 to i64
-  %14 = and i64 %13, 31
-  %15 = icmp eq i64 %14, 0
-  call void @llvm.assume(i1 %15)
+  %7 = getelementptr inbounds %i16SXY, %i16SXY* %6, i64 0, i32 4
+  %rows2 = load i32, i32* %7, align 4, !range !0
+  %dst_y_step = zext i32 %rows2 to i64
+  %8 = getelementptr inbounds %i16SXY, %i16SXY* %6, i64 0, i32 3
+  %columns1 = load i32, i32* %8, align 4, !range !0
+  %9 = getelementptr inbounds %i16SXY, %i16SXY* %4, i64 0, i32 6, i64 0
+  %10 = ptrtoint i16* %9 to i64
+  %11 = and i64 %10, 31
+  %12 = icmp eq i64 %11, 0
+  call void @llvm.assume(i1 %12)
+  %src_y_step = zext i32 %columns1 to i64
+  %13 = getelementptr inbounds %i16SXY, %i16SXY* %6, i64 0, i32 6, i64 0
+  %14 = ptrtoint i16* %13 to i64
+  %15 = and i64 %14, 31
+  %16 = icmp eq i64 %15, 0
+  call void @llvm.assume(i1 %16)
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
-  %16 = mul nuw nsw i64 %y, %dst_y_step
+  %17 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
 x_body:                                           ; preds = %y_body, %x_body
   %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
-  %17 = mul nuw nsw i64 %x, %dst_y_step
-  %18 = add nuw nsw i64 %17, %y
-  %19 = getelementptr %i16SXY, %i16SXY* %6, i64 0, i32 6, i64 %18
-  %20 = load i16, i16* %19, align 2, !llvm.mem.parallel_loop_access !1
-  %21 = add nuw nsw i64 %x, %16
-  %22 = getelementptr %i16SXY, %i16SXY* %4, i64 0, i32 6, i64 %21
-  store i16 %20, i16* %22, align 2, !llvm.mem.parallel_loop_access !1
+  %18 = mul nuw nsw i64 %x, %src_y_step
+  %19 = add nuw nsw i64 %18, %y
+  %20 = getelementptr %i16SXY, %i16SXY* %6, i64 0, i32 6, i64 %19
+  %21 = load i16, i16* %20, align 2, !llvm.mem.parallel_loop_access !1
+  %22 = add nuw nsw i64 %x, %17
+  %23 = getelementptr %i16SXY, %i16SXY* %4, i64 0, i32 6, i64 %22
+  store i16 %21, i16* %23, align 2, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body
@@ -62,13 +65,13 @@ declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
 define %i16SXY* @transpose(%i16SXY*) {
 entry:
-  %1 = getelementptr inbounds %i16SXY, %i16SXY* %0, i64 0, i32 3
-  %columns = load i32, i32* %1, align 4, !range !0
-  %2 = getelementptr inbounds %i16SXY, %i16SXY* %0, i64 0, i32 4
-  %rows = load i32, i32* %2, align 4, !range !0
-  %3 = call %u0CXYT* @likely_new(i32 26128, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
+  %1 = getelementptr inbounds %i16SXY, %i16SXY* %0, i64 0, i32 4
+  %rows = load i32, i32* %1, align 4, !range !0
+  %2 = getelementptr inbounds %i16SXY, %i16SXY* %0, i64 0, i32 3
+  %columns = load i32, i32* %2, align 4, !range !0
+  %3 = call %u0CXYT* @likely_new(i32 26128, i32 1, i32 %rows, i32 %columns, i32 1, i8* null)
   %dst = bitcast %u0CXYT* %3 to %i16SXY*
-  %4 = zext i32 %rows to i64
+  %4 = zext i32 %columns to i64
   %5 = alloca { %i16SXY*, %i16SXY* }, align 8
   %6 = bitcast { %i16SXY*, %i16SXY* }* %5 to %u0CXYT**
   store %u0CXYT* %3, %u0CXYT** %6, align 8
