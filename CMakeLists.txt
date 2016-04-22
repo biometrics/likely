@@ -76,7 +76,7 @@ else()
                       ${CMAKE_SOURCE_DIR}/opencv/modules/imgproc/include
                       ${CMAKE_SOURCE_DIR}/opencv/modules/videoio/include)
 endif()
-set(LIKELY_LIBS ${LIKELY_LIBS} opencv_core opencv_hal opencv_highgui opencv_imgcodecs opencv_imgproc opencv_videoio)
+set(LIKELY_LIBS ${LIKELY_LIBS} opencv_core opencv_highgui opencv_imgcodecs opencv_imgproc opencv_videoio)
 
 # Compiler configuration
 if(NOT VS)
