@@ -11,29 +11,14 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-  set(CLANG ON)
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  set(GCC ON)
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
-  set(ICC ON)
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-  set(VS ON)
-endif()
-
-if(NOT VS)
+if(NOT WIN32)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -fvisibility=hidden")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS}")
 endif()
 
-if(APPLE)
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mmacosx-version-min=10.9")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmacosx-version-min=10.9")
-endif()
-
-# Build in Debug mode by default
-if("${CMAKE_BUILD_TYPE}" STREQUAL "")
-  set(CMAKE_BUILD_TYPE Debug CACHE STRING "One of: Debug, Release, RelWithDebInfo, MinSizeRel" FORCE)
 endif()
 
 # Find or build LLVM
@@ -81,8 +66,8 @@ endif()
 set(LIKELY_LIBS ${LIKELY_LIBS} opencv_core opencv_highgui opencv_imgcodecs opencv_imgproc opencv_videoio)
 
 # Compiler configuration
-if(NOT VS)
-  if(GCC)
+if(NOT WIN32)
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
     set(CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL "${CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL} -Wl,-x,-s,--gc-sections")

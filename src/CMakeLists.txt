@@ -66,7 +66,7 @@ install(TARGETS likely_shared ARCHIVE DESTINATION lib
 
 # Build static library
 add_library(likely_static STATIC $<TARGET_OBJECTS:likely_object>)
-if(VS)
+if(WIN32)
   set_target_properties(likely_static PROPERTIES OUTPUT_NAME liblikely) # Avoid name collision
 else()
   set_target_properties(likely_static PROPERTIES OUTPUT_NAME likely)
