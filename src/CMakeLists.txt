@@ -33,15 +33,6 @@ add_custom_command(OUTPUT likely_standard_library.c
 set(LIKELY_SRC ${LIKELY_SRC} ${CMAKE_CURRENT_BINARY_DIR}/likely_standard_library.c)
 set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
 
-# CPU Profiling
-option(LIKELY_PROFILING "Build Likely for code profiling" OFF)
-if(${LIKELY_PROFILING})
-  if(NOT VS)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-omit-frame-pointer")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer")
-  endif()
-endif()
-
 # Build CUDA backend if possible
 option(LIKELY_CUDA "Build Likely with (incomplete) CUDA backend" OFF)
 if(${LIKELY_CUDA})
