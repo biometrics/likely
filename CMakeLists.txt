@@ -90,7 +90,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # Add dataset targets
 function(download_demo_image NAME MD5)
-  file(DOWNLOAD "http://github.com/biometrics/likely/releases/download/v0.1/${NAME}.jpg"
+  file(DOWNLOAD "https://github.com/biometrics/likely/releases/download/v0.1/${NAME}.jpg"
                 "${CMAKE_SOURCE_DIR}/data/demo/${NAME}.jpg"
                 EXPECTED_MD5 ${MD5})
 endfunction()
@@ -101,7 +101,7 @@ download_demo_image("mandelbrot_set" 544dd8db0eaa75a2da846fa33445b5c9)
 
 function(download_archive NAME MD5)
   ExternalProject_Add(${NAME}
-                      URL "http://github.com/biometrics/likely/releases/download/v0.1/${NAME}.tar.gz"
+                      URL "https://github.com/biometrics/likely/releases/download/v0.1/${NAME}.tar.gz"
                       URL_MD5 ${MD5}
                       SOURCE_DIR "${CMAKE_SOURCE_DIR}/data/${NAME}"
                       CONFIGURE_COMMAND ""
