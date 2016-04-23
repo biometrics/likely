@@ -31,7 +31,6 @@ add_custom_command(OUTPUT likely_standard_library.c
                    COMMAND embedfile likely_standard_library ${CMAKE_SOURCE_DIR}/library/standard.tex
                    DEPENDS embedfile ${CMAKE_SOURCE_DIR}/library/standard.tex)
 set(LIKELY_SRC ${LIKELY_SRC} ${CMAKE_CURRENT_BINARY_DIR}/likely_standard_library.c)
-set(LIKELY_DEPENDS ${LIKELY_DEPENDS} likely_standard_library.c)
 
 # Build CUDA backend if possible
 option(LIKELY_CUDA "Build Likely with (incomplete) CUDA backend" OFF)
@@ -52,7 +51,7 @@ add_library(likely_runtime STATIC runtime.c runtime_stdthread.cpp)
 # Build common object files
 add_definitions(-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
 add_library(likely_object OBJECT ${LIKELY_SRC})
-add_dependencies(likely_object likely_runtime ${LIKELY_LIBS} ${LIKELY_DEPENDS})
+add_dependencies(likely_object likely_runtime ${LIKELY_LIBS})
 
 # Build shared library
 add_library(likely_shared SHARED $<TARGET_OBJECTS:likely_object> ${LIKELY_MISC})
