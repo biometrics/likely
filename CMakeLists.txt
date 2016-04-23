@@ -54,7 +54,6 @@ else()
   option(BUILD_TESTS "OpenCV accuracy & regression tests" OFF)
   option(ENABLE_FAST_MATH "OpenCV fast-math" ON)
   option(WITH_CUDA "OpenCV CUDA support" OFF)
-  option(WITH_IPP "OpenCV Intel IPP support" OFF) # CMake fails to download the required dependency due to lack of pre-packaged SSL support
   option(WITH_OPENEXR "OpenCV OpenEXR support" OFF)
   add_subdirectory(opencv EXCLUDE_FROM_ALL)
   include_directories(${CMAKE_SOURCE_DIR}/opencv/modules/core/include
