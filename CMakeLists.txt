@@ -109,7 +109,7 @@ function(download_archive NAME MD5)
 endfunction()
 
 download_archive("lfwa" 5d1d409b3b7217ec931facd89a542c89)
-download_archive("misc" c69b1a52908da7b105667b2d4180651b)
+download_archive("misc" 0c306f262dc5a2a2108cd805c0c40a99)
 download_archive("mnist" c341c72e5da5e91fd421560aa04de5a1)
 
 # Set up testing
