@@ -44,7 +44,7 @@ if(${LIKELY_HELLOWORLD})
   add_executable(hello_world_main hello_world_main_lisp.o)
   set_target_properties(hello_world_main PROPERTIES LINKER_LANGUAGE C)
   target_link_libraries(hello_world_main likely_shared)
-  if(VS)
+  if(MSVC)
     target_link_libraries(hello_world_main MSVCRT)
   endif()
   add_test(NAME hello_world_main

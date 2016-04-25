@@ -12,7 +12,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
-if(NOT WIN32)
+if(NOT MSVC)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -fvisibility=hidden")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fvisibility=hidden")
 endif()
@@ -66,7 +66,7 @@ endif()
 set(LIKELY_LIBS ${LIKELY_LIBS} opencv_core opencv_highgui opencv_imgcodecs opencv_imgproc opencv_videoio)
 
 # Compiler configuration
-if(NOT WIN32)
+if(NOT MSVC)
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
