@@ -1,6 +1,6 @@
 Likely
 ======
-> An embeddable just-in-time Lisp for image recognition and heterogeneous computing.
+> A compiler intermediate representation for image recognition and heterogeneous computing.
 > -- [@jklontz](https://github.com/jklontz)
 
 Skip to the good stuff: **[installation](?href=README.md)**,
@@ -11,23 +11,9 @@ Skip to the good stuff: **[installation](?href=README.md)**,
                         **[benchmarks](?href=benchmarks)**,
                         **[ci](http://ci.liblikely.org/waterfall)**.
 
-<img src="/share/likely/WhatIf.svg" width="768">
-
 ### The Big Idea
-Likely formulates statistical learning as the compile-time evaluation of a function (the learning algorithm) with constant arguments (the training data).
-
-### Principles
- - Effective syntax for pattern recognition and image processing.
- - Embeddable into other projects and languages.
- - Immediate visual feedback during algorithm development.
- - Heterogeneous hardware architecture support.
- - Free open source software.
-
-### Background
-The software engineering of a complex system is often facilitated by a _Domain Specific Language_ (DSL) whose syntax is designed to efficiently solve problems encountered in the domain.
-While many technical communities rely on DSLs, there exists no popular specialized language for image recognition.
-As a consequence, current algorithm development practices fail to simultaneously respect human time and creativity, and hardware capacity and diversity.
-We believe a just-in-time DSL for image recognition is necessary to invent algorithms too complex, inefficient, or otherwise impossible to express in today's static and dynamic languages.
+Likely is a Lisp-inspired file format for serializing image recognition models.
+Storing both the inference algorithm and the model parameters together in a Likely file separates the machine learning framework for generating the model from the computing devices executing the model.
 
 ### License
 Likely is offered under **[Apache 2.0](LICENSE.txt)**, meaning it's *free for academic and commercial use*.
