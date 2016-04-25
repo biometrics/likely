@@ -495,7 +495,7 @@ function(add_demo FILE ARGS)
     set(DEMO_EXECUTABLE ${FILE}${KERNEL_TYPE})
     add_executable(${DEMO_EXECUTABLE} $<TARGET_OBJECTS:likely_main> ${OBJECT_FILE} ${IR_FILE})
     set_source_files_properties(${OBJECT_FILE} PROPERTIES EXTERNAL_OBJECT true GENERATED true)
-    target_link_libraries(${DEMO_EXECUTABLE} likely_shared)
+    target_link_libraries(${DEMO_EXECUTABLE} likely_shared m)
     separate_arguments(ARGS)
     add_test(NAME ${FILE}${KERNEL_TYPE}
              WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
