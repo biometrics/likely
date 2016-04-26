@@ -8,12 +8,13 @@ Skip to the good stuff: **[installation](?href=README.md)**,
                         **[demos](?href=demos)**,
                         **[language reference](https://s3.amazonaws.com/liblikely/latex/standard.pdf)**,
                         **[api](https://s3.amazonaws.com/liblikely/doxygen/index.html)**,
-                        **[benchmarks](?href=benchmarks)**,
-                        **[ci](http://ci.liblikely.org/waterfall)**.
+                        **[benchmarks](?href=benchmarks)**.
+
+<img src="/share/likely/CompilerIR.svg" width="768">
 
 ### The Big Idea
-Likely is a Lisp-inspired file format for serializing image recognition models.
-Storing both the inference algorithm and the model parameters together in a Likely file separates the machine learning framework for generating the model from the computing devices executing the model.
+Likely is a Lisp-inspired programming language / file format for serializing image recognition models.
+Storing both the inference algorithm and the model parameters together in a Likely source file allows the model to be executed on operating systems and hardware architectures not supported by the machine learning framework used to generate it.
 
 ### License
 Likely is offered under **[Apache 2.0](LICENSE.txt)**, meaning it's *free for academic and commercial use*.
