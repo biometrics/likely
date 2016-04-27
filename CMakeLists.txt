@@ -24,7 +24,7 @@ endif()
 
 # Find or build LLVM
 option(LIKELY_SYSTEM_LLVM "Use system LLVM" OFF)
-if(${LIKELY_SYSTEM_LLVM})
+if(LIKELY_SYSTEM_LLVM)
   find_package(LLVM REQUIRED)
   include_directories(${LLVM_INCLUDE_DIRS})
   link_directories(${LLVM_LIBRARY_DIRS})
@@ -46,7 +46,7 @@ set(LIKELY_LIBS ${LIKELY_LIBS} ${LIKELY_LLVM_LIBRARIES})
 
 # Find or build OpenCV
 option(LIKELY_SYSTEM_OPENCV "Use system OpenCV" OFF)
-if(${LIKELY_SYSTEM_OPENCV})
+if(LIKELY_SYSTEM_OPENCV)
   find_package(OpenCV REQUIRED)
 else()
   option(BUILD_WITH_STATIC_CRT "OpenCV static MSVC CRT" OFF)
@@ -124,7 +124,7 @@ add_subdirectory(share/likely/hello_world)
 add_custom_target(doc)
 
 find_package(Doxygen)
-if(${DOXYGEN_FOUND})
+if(DOXYGEN_FOUND)
   configure_file(${CMAKE_SOURCE_DIR}/src/Doxyfile.in Doxyfile)
   add_custom_target(likely_doxygen ${DOXYGEN_EXECUTABLE} Doxyfile)
   add_dependencies(doc likely_doxygen)

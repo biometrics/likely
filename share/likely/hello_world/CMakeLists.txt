@@ -1,7 +1,7 @@
 project(hello_world)
 option(LIKELY_HELLOWORLD "Build Hello World examples" ON)
 
-if(${LIKELY_HELLOWORLD})
+if(LIKELY_HELLOWORLD)
   # Interpreted
   add_test(NAME hello_world_interpreted
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}

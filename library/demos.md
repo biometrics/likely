@@ -4,7 +4,6 @@ Ways to run a demo from the command line:
 ```bash
 $ likely <file> -show
 $ likely <file> -render result.png
-$ dream <file> # Likely's IDE
 ```
 
 ### Static Compilation
@@ -17,9 +16,8 @@ $ clang src/main.c <algorithm>.o -llikely -o <algorithm> # specify -I and -L as 
 $ ./<algorithm> - <arguments>
 ```
 
-When building Likely, demo compilation and testing is controlled by the *CMake* variable **LIKELY_DEMOS** which defaults to **Default**.
-Demo compilation and testing can be disabled with **LIKELY_DEMOS=None**.
-Certain computationally demanding demos must be explicitly enabled with **LIKELY_DEMOS=All**.
+When building Likely, demo compilation and testing is controlled by the *CMake* variable **LIKELY_DEMOS** which defaults to **ON**.
+Demo compilation and testing can be disabled with **LIKELY_DEMOS=OFF**.
 
 Demos
 -----

@@ -12,7 +12,7 @@ The Likely source code for this function is:
 hello-world :=             ; hello-world is
   src :->                  ; a function with one parameter "src"
   {                        ; which first
-    dst := src.imitate     ; constructs a variable "dst" with the same type and dimensionality as "src"
+    dst := src.imitate     ; constructs a matrix "dst" with the same type and dimensionality as "src"
     (dst src) :=>          ; then every element in "dst"
       dst :<- (/ src 2)    ; is assigned a value equal to half the value of "src" at the same location
     dst                    ; finally "dst" is returned by the function.
