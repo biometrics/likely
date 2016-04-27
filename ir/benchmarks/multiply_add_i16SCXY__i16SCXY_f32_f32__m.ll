@@ -48,9 +48,9 @@ y_body:                                           ; preds = %y_body, %entry
   %28 = fcmp fast olt float %val, 0.000000e+00
   %. = select i1 %28, float -5.000000e-01, float 5.000000e-01
   %29 = fadd fast float %., %val
-  %30 = fptosi float %29 to i16
-  %31 = fcmp fast olt float %29, -3.276800e+04
-  %32 = select i1 %31, i16 -32768, i16 %30
+  %30 = fcmp fast ogt float %29, -3.276800e+04
+  %31 = select i1 %30, float %29, float -3.276800e+04
+  %32 = fptosi float %31 to i16
   %33 = fcmp fast ogt float %29, 3.276700e+04
   %34 = select i1 %33, i16 32767, i16 %32
   store i16 %34, i16* %27, align 2, !llvm.mem.parallel_loop_access !1

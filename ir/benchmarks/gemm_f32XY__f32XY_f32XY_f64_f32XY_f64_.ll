@@ -81,7 +81,7 @@ true_entry:                                       ; preds = %x_body, %true_entry
   %46 = fmul fast float %45, %41
   %47 = fadd fast float %46, %37
   %48 = add nuw nsw i32 %36, 1
-  %49 = icmp eq i32 %48, %columns
+  %49 = icmp eq i32 %48, %rows
   br i1 %49, label %exit, label %true_entry
 
 exit:                                             ; preds = %true_entry

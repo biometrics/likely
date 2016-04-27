@@ -21,6 +21,7 @@
 #include <llvm/ADT/Hashing.h>
 #include <llvm/ADT/Triple.h>
 #include <llvm/Analysis/AssumptionCache.h>
+#include <llvm/Analysis/BasicAliasAnalysis.h>
 #include <llvm/Analysis/LoopPass.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
@@ -120,7 +121,7 @@ struct LikelyContext : public likely_settings
             PM->add(ACT);
             PM->add(new TargetLibraryInfoWrapperPass(Triple(sys::getProcessTriple())));
             PM->add(createTargetTransformInfoWrapperPass(TM->getTargetIRAnalysis()));
-            PM->add(createBasicAliasAnalysisPass());
+            PM->add(createBasicAAWrapperPass());
 
             // Global cleanup
             PM->add(createFunctionAttrsPass());
@@ -674,7 +675,7 @@ struct likely_module
     {
         if (native) {
             TM.reset(LikelyContext::getTargetMachine(jit));
-            module->setDataLayout(*TM->getDataLayout());
+            module->setDataLayout(TM->createDataLayout());
             module->setTargetTriple(sys::getProcessTriple());
         }
     }
@@ -786,7 +787,6 @@ public:
             TM->addPassesToEmitFile(pm, stream, (file_type == likely_file_assembly) ? TargetMachine::CGFT_AssemblyFile : TargetMachine::CGFT_ObjectFile);
             pm.run(*module);
         }
-        stream.flush();
 
         if (data.empty()) *output = NULL;
         else              *output = (file_type == likely_file_ir) ? likely_string(data.data())
