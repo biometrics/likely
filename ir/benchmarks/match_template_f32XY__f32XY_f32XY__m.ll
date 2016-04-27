@@ -3,10 +3,10 @@
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %f32XY = type { i32, i32, i32, i32, i32, i32, [0 x float] }
 
-; Function Attrs: nounwind argmemonly
+; Function Attrs: argmemonly nounwind
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
-; Function Attrs: nounwind
+; Function Attrs: norecurse nounwind
 define private void @match_template_tmp_thunk0({ %f32XY*, %f32XY*, %f32XY* }* noalias nocapture readonly, i64, i64) #1 {
 entry:
   %3 = getelementptr inbounds { %f32XY*, %f32XY*, %f32XY* }, { %f32XY*, %f32XY*, %f32XY* }* %0, i64 0, i32 0
@@ -102,7 +102,7 @@ y_exit:                                           ; preds = %x_exit
 }
 
 ; Function Attrs: nounwind
-declare void @llvm.assume(i1) #1
+declare void @llvm.assume(i1) #2
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
@@ -136,8 +136,9 @@ entry:
   ret %f32XY* %dst
 }
 
-attributes #0 = { nounwind argmemonly }
-attributes #1 = { nounwind }
+attributes #0 = { argmemonly nounwind }
+attributes #1 = { norecurse nounwind }
+attributes #2 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

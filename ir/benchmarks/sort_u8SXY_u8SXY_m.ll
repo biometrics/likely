@@ -2,7 +2,7 @@
 
 %u8SXY = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 
-; Function Attrs: nounwind
+; Function Attrs: norecurse nounwind
 define private void @sort_tmp_thunk0({ %u8SXY*, i32, i64, i64, i64, i64 }* noalias nocapture readonly, i64, i64) #0 {
 entry:
   %3 = getelementptr inbounds { %u8SXY*, i32, i64, i64, i64, i64 }, { %u8SXY*, i32, i64, i64, i64, i64 }* %0, i64 0, i32 0
@@ -80,7 +80,7 @@ true_entry7:                                      ; preds = %exit4
 }
 
 ; Function Attrs: nounwind
-declare void @llvm.assume(i1) #0
+declare void @llvm.assume(i1) #1
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
@@ -112,7 +112,8 @@ entry:
 
 declare i8* @likely_retain_mat(i8* noalias nocapture)
 
-attributes #0 = { nounwind }
+attributes #0 = { norecurse nounwind }
+attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

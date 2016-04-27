@@ -1319,9 +1319,9 @@ struct LikelyFunction : public LikelyOperator
             Function::arg_iterator it = tmpFunction->arg_begin();
             size_t i = 0;
             while (it != tmpFunction->arg_end())
-                arguments.push_back(new likely_expression(LikelyValue(it++, parameters[i++])));
+                arguments.push_back(new likely_expression(LikelyValue(&*it++, parameters[i++])));
         } else if (cc == ArrayCC) {
-            Value *const argumentArray = tmpFunction->arg_begin();
+            Value *const argumentArray = &*tmpFunction->arg_begin();
             for (size_t i=0; i<parameters.size(); i++) {
                 Value *load = builder.CreateLoad(builder.CreateGEP(argumentArray, builder.constant(i)));
                 load = castOrPromote(builder, load, parameters[i]);
@@ -1329,8 +1329,8 @@ struct LikelyFunction : public LikelyOperator
             }
         } else if (cc == VirtualCC) {
             Function::arg_iterator it = tmpFunction->arg_begin();
-            Value *const dynamicArguments = it++;
-            Value *const staticArguments = it++;
+            Value *const dynamicArguments = &*it++;
+            Value *const staticArguments = &*it++;
             int dynamicIndex = 0, staticIndex = 0;
             for (size_t i=0; i<parameters.size(); i++) {
                 if (virtualTypes[i] == likely_multi_dimension) {
@@ -1382,7 +1382,7 @@ struct LikelyFunction : public LikelyOperator
         Function::arg_iterator tmpArgs = tmpFunction->arg_begin();
         Function::arg_iterator args = function->arg_begin();
         while (args != function->arg_end())
-            VMap[tmpArgs++] = args++;
+            VMap[&*tmpArgs++] = &*args++;
 
         SmallVector<ReturnInst*, 1> returns;
         CloneFunctionInto(function, tmpFunction, VMap, false, returns);
@@ -2821,9 +2821,9 @@ class kernelExpression : public LikelyOperator
             thunk->setDoesNotCapture(1);
 
             Function::arg_iterator it = thunk->arg_begin();
-            Value *const parameterStruct = it++;
-            Value *const start = it++;
-            Value *const stop = it++;
+            Value *const parameterStruct = &*it++;
+            Value *const start = &*it++;
+            Value *const stop = &*it++;
 
             builder.SetInsertPoint(BasicBlock::Create(builder.getContext(), "entry", thunk));
             vector<likely_const_expr> thunkSrcs;
@@ -2897,9 +2897,9 @@ class kernelExpression : public LikelyOperator
         const size_t argsStart = ((args->type == likely_ast_list) && (args->atoms[0]->type == likely_ast_list)) ? 1 : 0;
         if (args->type == likely_ast_list) {
             for (size_t i=argsStart; i<args->num_atoms; i++)
-                kernelArguments.push_back(new KernelArgument(kernelBuilder, LikelyValue(it++, *srcs[i-argsStart]), args->atoms[i]->atom));
+                kernelArguments.push_back(new KernelArgument(kernelBuilder, LikelyValue(&*it++, *srcs[i-argsStart]), args->atoms[i]->atom));
         } else {
-            kernelArguments.push_back(new KernelArgument(kernelBuilder, LikelyValue(it++, *srcs[0]), args->atom));
+            kernelArguments.push_back(new KernelArgument(kernelBuilder, LikelyValue(&*it++, *srcs[0]), args->atom));
         }
 
         for (KernelArgument *kernelArgument : kernelArguments) {

@@ -4,7 +4,7 @@
 %f32XY = type { i32, i32, i32, i32, i32, i32, [0 x float] }
 %f32X = type { i32, i32, i32, i32, i32, i32, [0 x float] }
 
-; Function Attrs: nounwind argmemonly
+; Function Attrs: argmemonly nounwind
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind
@@ -145,12 +145,12 @@ exit40:                                           ; preds = %true_entry39
   br label %Flow
 }
 
-; Function Attrs: nounwind argmemonly
+; Function Attrs: argmemonly nounwind
 declare void @llvm.memcpy.p0i8.p0i8.i64(i8* nocapture, i8* nocapture readonly, i64, i32, i1) #0
 
 declare void @likely_release_mat(i8* noalias nocapture)
 
-attributes #0 = { nounwind argmemonly }
+attributes #0 = { argmemonly nounwind }
 attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}

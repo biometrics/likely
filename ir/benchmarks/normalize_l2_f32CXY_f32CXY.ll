@@ -6,7 +6,7 @@
 ; Function Attrs: nounwind readnone
 declare double @llvm.sqrt.f64(double) #0
 
-; Function Attrs: nounwind argmemonly
+; Function Attrs: argmemonly nounwind
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #1
 
 ; Function Attrs: nounwind
@@ -77,7 +77,7 @@ y_exit:                                           ; preds = %y_body
 }
 
 attributes #0 = { nounwind readnone }
-attributes #1 = { nounwind argmemonly }
+attributes #1 = { argmemonly nounwind }
 attributes #2 = { nounwind }
 
 !0 = !{i32 1, i32 -1}

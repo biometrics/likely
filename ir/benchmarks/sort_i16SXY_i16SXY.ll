@@ -5,7 +5,8 @@
 ; Function Attrs: nounwind
 declare void @llvm.assume(i1) #0
 
-define %i16SXY* @sort(%i16SXY*) {
+; Function Attrs: norecurse
+define %i16SXY* @sort(%i16SXY*) #1 {
 entry:
   %1 = getelementptr inbounds %i16SXY, %i16SXY* %0, i64 0, i32 4
   %len = load i32, i32* %1, align 4, !range !0
@@ -82,6 +83,7 @@ true_entry8:                                      ; preds = %exit5
 declare i8* @likely_retain_mat(i8* noalias nocapture)
 
 attributes #0 = { nounwind }
+attributes #1 = { norecurse }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

@@ -6,10 +6,10 @@
 ; Function Attrs: nounwind readnone
 declare double @llvm.sqrt.f64(double) #0
 
-; Function Attrs: nounwind argmemonly
+; Function Attrs: argmemonly nounwind
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #1
 
-; Function Attrs: nounwind
+; Function Attrs: norecurse nounwind
 define private void @normalize_l2_tmp_thunk0({ %f64CXY*, %f64CXY*, double }* noalias nocapture readonly, i64, i64) #2 {
 entry:
   %3 = getelementptr inbounds { %f64CXY*, %f64CXY*, double }, { %f64CXY*, %f64CXY*, double }* %0, i64 0, i32 0
@@ -54,7 +54,7 @@ y_exit:                                           ; preds = %y_body
 }
 
 ; Function Attrs: nounwind
-declare void @llvm.assume(i1) #2
+declare void @llvm.assume(i1) #3
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
@@ -101,8 +101,9 @@ exit:                                             ; preds = %true_entry
 }
 
 attributes #0 = { nounwind readnone }
-attributes #1 = { nounwind argmemonly }
-attributes #2 = { nounwind }
+attributes #1 = { argmemonly nounwind }
+attributes #2 = { norecurse nounwind }
+attributes #3 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

@@ -5,10 +5,10 @@
 %f32SXY = type { i32, i32, i32, i32, i32, i32, [0 x float] }
 %i16SXY = type { i32, i32, i32, i32, i32, i32, [0 x i16] }
 
-; Function Attrs: nounwind argmemonly
+; Function Attrs: argmemonly nounwind
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
-; Function Attrs: nounwind
+; Function Attrs: norecurse nounwind
 define private void @covariance_tmp_thunk0({ %f32SX*, i32 }* noalias nocapture readonly, i64, i64) #1 {
 entry:
   %3 = getelementptr inbounds { %f32SX*, i32 }, { %f32SX*, i32 }* %0, i64 0, i32 0
@@ -36,11 +36,11 @@ x_exit:                                           ; preds = %x_body
 }
 
 ; Function Attrs: nounwind
-declare void @llvm.assume(i1) #1
+declare void @llvm.assume(i1) #2
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
-; Function Attrs: nounwind
+; Function Attrs: norecurse nounwind
 define private void @covariance_tmp_thunk1({ %f32SX*, float }* noalias nocapture readonly, i64, i64) #1 {
 entry:
   %3 = getelementptr inbounds { %f32SX*, float }, { %f32SX*, float }* %0, i64 0, i32 0
@@ -68,7 +68,7 @@ x_exit:                                           ; preds = %x_body
   ret void
 }
 
-; Function Attrs: nounwind
+; Function Attrs: norecurse nounwind
 define private void @covariance_tmp_thunk2({ %f32SXY*, %i16SXY* }* noalias nocapture readonly, i64, i64) #1 {
 entry:
   %3 = getelementptr inbounds { %f32SXY*, %i16SXY* }, { %f32SXY*, %i16SXY* }* %0, i64 0, i32 0
@@ -121,7 +121,7 @@ y_exit:                                           ; preds = %x_exit
   ret void
 }
 
-; Function Attrs: nounwind
+; Function Attrs: norecurse nounwind
 define private void @covariance_tmp_thunk3({ %f32SXY*, %f32SX* }* noalias nocapture readonly, i64, i64) #1 {
 entry:
   %3 = getelementptr inbounds { %f32SXY*, %f32SX* }, { %f32SXY*, %f32SX* }* %0, i64 0, i32 0
@@ -170,7 +170,7 @@ y_exit:                                           ; preds = %x_exit
   ret void
 }
 
-; Function Attrs: nounwind
+; Function Attrs: norecurse nounwind
 define private void @covariance_tmp_thunk4({ %f32SXY*, %f32SXY*, i32 }* noalias nocapture readonly, i64, i64) #1 {
 entry:
   %3 = getelementptr inbounds { %f32SXY*, %f32SXY*, i32 }, { %f32SXY*, %f32SXY*, i32 }* %0, i64 0, i32 0
@@ -369,8 +369,9 @@ exit:                                             ; preds = %y_exit, %true_entry
 
 declare void @likely_release_mat(i8* noalias nocapture)
 
-attributes #0 = { nounwind argmemonly }
-attributes #1 = { nounwind }
+attributes #0 = { argmemonly nounwind }
+attributes #1 = { norecurse nounwind }
+attributes #2 = { nounwind }
 
 !0 = distinct !{!0}
 !1 = distinct !{!1}

@@ -7,11 +7,11 @@
 ; Function Attrs: nounwind
 declare void @llvm.assume(i1) #0
 
-; Function Attrs: nounwind argmemonly
+; Function Attrs: argmemonly nounwind
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #1
 
-; Function Attrs: nounwind
-define private void @gemm_tmp_thunk0({ %f32XY*, %f64XY*, %f64XY*, double, %f32XY*, double, i32 }* noalias nocapture readonly, i64, i64) #0 {
+; Function Attrs: norecurse nounwind
+define private void @gemm_tmp_thunk0({ %f32XY*, %f64XY*, %f64XY*, double, %f32XY*, double, i32 }* noalias nocapture readonly, i64, i64) #2 {
 entry:
   %3 = getelementptr inbounds { %f32XY*, %f64XY*, %f64XY*, double, %f32XY*, double, i32 }, { %f32XY*, %f64XY*, %f64XY*, double, %f32XY*, double, i32 }* %0, i64 0, i32 0
   %4 = load %f32XY*, %f32XY** %3, align 8
@@ -158,7 +158,8 @@ entry:
 }
 
 attributes #0 = { nounwind }
-attributes #1 = { nounwind argmemonly }
+attributes #1 = { argmemonly nounwind }
+attributes #2 = { norecurse nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

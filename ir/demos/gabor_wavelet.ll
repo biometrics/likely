@@ -5,7 +5,7 @@
 %i32CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i32] }
 %f32CXYT = type { i32, i32, i32, i32, i32, i32, [0 x float] }
 
-; Function Attrs: nounwind argmemonly
+; Function Attrs: argmemonly nounwind
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind
@@ -123,7 +123,7 @@ y_exit:                                           ; preds = %x_exit
   ret %f32XY* %dst
 }
 
-attributes #0 = { nounwind argmemonly }
+attributes #0 = { argmemonly nounwind }
 attributes #1 = { nounwind }
 attributes #2 = { nounwind readnone }
 
