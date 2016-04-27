@@ -73,25 +73,21 @@ declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
 define %u16SXY* @convert_grayscale(%u16SCXY*) {
 entry:
-  %1 = getelementptr inbounds %u16SCXY, %u16SCXY* %0, i64 0, i32 2
-  %channels = load i32, i32* %1, align 4, !range !0
-  %2 = icmp eq i32 %channels, 3
-  call void @llvm.assume(i1 %2)
-  %3 = getelementptr inbounds %u16SCXY, %u16SCXY* %0, i64 0, i32 3
-  %columns = load i32, i32* %3, align 4, !range !0
-  %4 = getelementptr inbounds %u16SCXY, %u16SCXY* %0, i64 0, i32 4
-  %rows = load i32, i32* %4, align 4, !range !0
-  %5 = call %u0CXYT* @likely_new(i32 25616, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
-  %dst = bitcast %u0CXYT* %5 to %u16SXY*
-  %6 = zext i32 %rows to i64
-  %7 = alloca { %u16SXY*, %u16CXY* }, align 8
-  %8 = bitcast { %u16SXY*, %u16CXY* }* %7 to %u0CXYT**
-  store %u0CXYT* %5, %u0CXYT** %8, align 8
-  %9 = getelementptr inbounds { %u16SXY*, %u16CXY* }, { %u16SXY*, %u16CXY* }* %7, i64 0, i32 1
-  %10 = bitcast %u16CXY** %9 to %u16SCXY**
-  store %u16SCXY* %0, %u16SCXY** %10, align 8
-  %11 = bitcast { %u16SXY*, %u16CXY* }* %7 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %u16SXY*, %u16CXY* }*, i64, i64)* @convert_grayscale_tmp_thunk0 to i8*), i8* %11, i64 %6)
+  %1 = getelementptr inbounds %u16SCXY, %u16SCXY* %0, i64 0, i32 3
+  %columns = load i32, i32* %1, align 4, !range !0
+  %2 = getelementptr inbounds %u16SCXY, %u16SCXY* %0, i64 0, i32 4
+  %rows = load i32, i32* %2, align 4, !range !0
+  %3 = call %u0CXYT* @likely_new(i32 25616, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
+  %dst = bitcast %u0CXYT* %3 to %u16SXY*
+  %4 = zext i32 %rows to i64
+  %5 = alloca { %u16SXY*, %u16CXY* }, align 8
+  %6 = bitcast { %u16SXY*, %u16CXY* }* %5 to %u0CXYT**
+  store %u0CXYT* %3, %u0CXYT** %6, align 8
+  %7 = getelementptr inbounds { %u16SXY*, %u16CXY* }, { %u16SXY*, %u16CXY* }* %5, i64 0, i32 1
+  %8 = bitcast %u16CXY** %7 to %u16SCXY**
+  store %u16SCXY* %0, %u16SCXY** %8, align 8
+  %9 = bitcast { %u16SXY*, %u16CXY* }* %5 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %u16SXY*, %u16CXY* }*, i64, i64)* @convert_grayscale_tmp_thunk0 to i8*), i8* %9, i64 %4)
   ret %u16SXY* %dst
 }
 

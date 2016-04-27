@@ -339,7 +339,6 @@ struct LoopCollapse : public LoopPass
         assert(child.increment->hasNUses(0));
         cast<Instruction>(child.increment)->eraseFromParent();
 
-        LPM.redoLoop(parentLoop);
         return true;
     }
 };

@@ -13,54 +13,53 @@ declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 
 define %f32XY* @convert_grayscale(%f32CXY*) {
 entry:
   %1 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 2
-  %channels = load i32, i32* %1, align 4, !range !0
-  %2 = icmp eq i32 %channels, 3
-  call void @llvm.assume(i1 %2)
-  %3 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 3
-  %columns = load i32, i32* %3, align 4, !range !0
-  %4 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 4
-  %rows = load i32, i32* %4, align 4, !range !0
-  %5 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
-  %6 = zext i32 %rows to i64
+  %2 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 3
+  %columns = load i32, i32* %2, align 4, !range !0
+  %3 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 4
+  %rows = load i32, i32* %3, align 4, !range !0
+  %4 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
+  %5 = zext i32 %rows to i64
   %dst_y_step = zext i32 %columns to i64
-  %7 = getelementptr inbounds %u0CXYT, %u0CXYT* %5, i64 1
-  %8 = bitcast %u0CXYT* %7 to float*
-  %9 = ptrtoint %u0CXYT* %7 to i64
-  %10 = and i64 %9, 31
-  %11 = icmp eq i64 %10, 0
-  call void @llvm.assume(i1 %11)
-  %12 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 0
-  %13 = ptrtoint float* %12 to i64
-  %14 = and i64 %13, 31
-  %15 = icmp eq i64 %14, 0
-  call void @llvm.assume(i1 %15)
-  %16 = mul nuw nsw i64 %6, %dst_y_step
+  %6 = getelementptr inbounds %u0CXYT, %u0CXYT* %4, i64 1
+  %7 = bitcast %u0CXYT* %6 to float*
+  %8 = ptrtoint %u0CXYT* %6 to i64
+  %9 = and i64 %8, 31
+  %10 = icmp eq i64 %9, 0
+  call void @llvm.assume(i1 %10)
+  %channels4 = load i32, i32* %1, align 4, !range !0
+  %src_c = zext i32 %channels4 to i64
+  %11 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 0
+  %12 = ptrtoint float* %11 to i64
+  %13 = and i64 %12, 31
+  %14 = icmp eq i64 %13, 0
+  call void @llvm.assume(i1 %14)
+  %15 = mul nuw nsw i64 %5, %dst_y_step
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %y_body ]
-  %17 = mul nuw nsw i64 %y, 3
-  %18 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %17
-  %19 = load float, float* %18, align 4, !llvm.mem.parallel_loop_access !1
-  %20 = add nuw nsw i64 %17, 1
-  %21 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %20
-  %22 = load float, float* %21, align 4, !llvm.mem.parallel_loop_access !1
-  %23 = add nuw nsw i64 %17, 2
-  %24 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %23
-  %25 = load float, float* %24, align 4, !llvm.mem.parallel_loop_access !1
-  %26 = fmul fast float %19, 0x3FBD2F1AA0000000
-  %27 = fmul fast float %22, 0x3FE2C8B440000000
-  %28 = fadd fast float %27, %26
-  %29 = fmul fast float %25, 0x3FD322D0E0000000
-  %30 = fadd fast float %28, %29
-  %31 = getelementptr float, float* %8, i64 %y
-  store float %30, float* %31, align 4, !llvm.mem.parallel_loop_access !1
+  %16 = mul nuw nsw i64 %y, %src_c
+  %17 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %16
+  %18 = load float, float* %17, align 4, !llvm.mem.parallel_loop_access !1
+  %19 = add nuw nsw i64 %16, 1
+  %20 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %19
+  %21 = load float, float* %20, align 4, !llvm.mem.parallel_loop_access !1
+  %22 = add nuw nsw i64 %16, 2
+  %23 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %22
+  %24 = load float, float* %23, align 4, !llvm.mem.parallel_loop_access !1
+  %25 = fmul fast float %18, 0x3FBD2F1AA0000000
+  %26 = fmul fast float %21, 0x3FE2C8B440000000
+  %27 = fadd fast float %26, %25
+  %28 = fmul fast float %24, 0x3FD322D0E0000000
+  %29 = fadd fast float %27, %28
+  %30 = getelementptr float, float* %7, i64 %y
+  store float %29, float* %30, align 4, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %16
+  %y_postcondition = icmp eq i64 %y_increment, %15
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
-  %dst = bitcast %u0CXYT* %5 to %f32XY*
+  %dst = bitcast %u0CXYT* %4 to %f32XY*
   ret %f32XY* %dst
 }
 

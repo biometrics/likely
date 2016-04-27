@@ -66,24 +66,20 @@ declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
 define %f32XY* @convert_grayscale(%f32CXY*) {
 entry:
-  %1 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 2
-  %channels = load i32, i32* %1, align 4, !range !0
-  %2 = icmp eq i32 %channels, 3
-  call void @llvm.assume(i1 %2)
-  %3 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 3
-  %columns = load i32, i32* %3, align 4, !range !0
-  %4 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 4
-  %rows = load i32, i32* %4, align 4, !range !0
-  %5 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
-  %dst = bitcast %u0CXYT* %5 to %f32XY*
-  %6 = zext i32 %rows to i64
-  %7 = alloca { %f32XY*, %f32CXY* }, align 8
-  %8 = bitcast { %f32XY*, %f32CXY* }* %7 to %u0CXYT**
-  store %u0CXYT* %5, %u0CXYT** %8, align 8
-  %9 = getelementptr inbounds { %f32XY*, %f32CXY* }, { %f32XY*, %f32CXY* }* %7, i64 0, i32 1
-  store %f32CXY* %0, %f32CXY** %9, align 8
-  %10 = bitcast { %f32XY*, %f32CXY* }* %7 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32CXY* }*, i64, i64)* @convert_grayscale_tmp_thunk0 to i8*), i8* %10, i64 %6)
+  %1 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 3
+  %columns = load i32, i32* %1, align 4, !range !0
+  %2 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 4
+  %rows = load i32, i32* %2, align 4, !range !0
+  %3 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
+  %dst = bitcast %u0CXYT* %3 to %f32XY*
+  %4 = zext i32 %rows to i64
+  %5 = alloca { %f32XY*, %f32CXY* }, align 8
+  %6 = bitcast { %f32XY*, %f32CXY* }* %5 to %u0CXYT**
+  store %u0CXYT* %3, %u0CXYT** %6, align 8
+  %7 = getelementptr inbounds { %f32XY*, %f32CXY* }, { %f32XY*, %f32CXY* }* %5, i64 0, i32 1
+  store %f32CXY* %0, %f32CXY** %7, align 8
+  %8 = bitcast { %f32XY*, %f32CXY* }* %5 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32CXY* }*, i64, i64)* @convert_grayscale_tmp_thunk0 to i8*), i8* %8, i64 %4)
   ret %f32XY* %dst
 }
 
