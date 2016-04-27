@@ -37,7 +37,7 @@ true_entry:                                       ; preds = %true_entry, %entry
   br i1 %14, label %exit, label %true_entry
 
 exit:                                             ; preds = %true_entry
-  %15 = call double @llvm.sqrt.f64(double %12)
+  %15 = call fast double @llvm.sqrt.f64(double %12)
   %16 = fdiv fast double 1.000000e+00, %15
   %17 = call %u0CXYT* @likely_new(i32 28992, i32 %channels, i32 %columns, i32 %rows, i32 1, i8* null)
   %18 = zext i32 %rows to i64

@@ -84,7 +84,7 @@ true_entry:                                       ; preds = %true_entry, %entry
   br i1 %15, label %exit, label %true_entry
 
 exit:                                             ; preds = %true_entry
-  %16 = call double @llvm.sqrt.f64(double %13)
+  %16 = call fast double @llvm.sqrt.f64(double %13)
   %17 = fdiv fast double 1.000000e+00, %16
   %norm4 = fptrunc double %17 to float
   %18 = call %u0CXYT* @likely_new(i32 28960, i32 %channels, i32 %columns, i32 %rows, i32 1, i8* null)

@@ -69,8 +69,8 @@ entry:
   %37 = and i64 %36, 31
   %38 = icmp eq i64 %37, 0
   call void @llvm.assume(i1 %38)
-  %39 = call float @llvm.cos.f32(float %arg_4)
-  %40 = call float @llvm.sin.f32(float %arg_4)
+  %39 = call fast float @llvm.cos.f32(float %arg_4)
+  %40 = call fast float @llvm.sin.f32(float %arg_4)
   %41 = fdiv fast float 0x401921FB60000000, %arg_5
   br label %y_body
 
@@ -101,10 +101,10 @@ x_body:                                           ; preds = %y_body, %x_body
   %56 = fmul fast float %55, %55
   %57 = fadd fast float %54, %56
   %58 = fmul fast float %57, -5.000000e-01
-  %59 = call float @llvm.exp.f32(float %58)
+  %59 = call fast float @llvm.exp.f32(float %58)
   %60 = fmul fast float %xp, %41
   %61 = fadd fast float %60, %arg_6
-  %62 = call float @llvm.cos.f32(float %61)
+  %62 = call fast float @llvm.cos.f32(float %61)
   %63 = fmul fast float %62, %59
   %64 = add nuw nsw i64 %x, %46
   %65 = getelementptr float, float* %35, i64 %64
