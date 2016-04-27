@@ -12,7 +12,7 @@ Compare to **[cv::matchTemplate](http://docs.opencv.org/modules/imgproc/doc/obje
           outer-y := y
           result := 0.f64.$
           (dst templ src outer-x outer-y) :+>
-            result :<- (+ result (* (src 0 (+ x outer-x) (+ y outer-y)) (templ 0 x y)))
+            result :<- (+ result (* (src 0 (+ x outer-x) (+ y outer-y)) templ))
           dst :<- result
         }
       }
