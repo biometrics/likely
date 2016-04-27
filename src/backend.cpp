@@ -124,7 +124,8 @@ struct LikelyContext : public likely_settings
             PM->add(createBasicAAWrapperPass());
 
             // Global cleanup
-            PM->add(createFunctionAttrsPass());
+            PM->add(createPostOrderFunctionAttrsPass());
+            PM->add(createReversePostOrderFunctionAttrsPass());
             PM->add(createGlobalDCEPass());
             PM->add(createConstantMergePass());
 
@@ -804,7 +805,7 @@ struct Builder : public IRBuilder<>
     {
         FastMathFlags FMF;
         FMF.setUnsafeAlgebra(); // Enable all fast-math optimizations
-        SetFastMathFlags(FMF);
+        setFastMathFlags(FMF);
     }
 
     LikelyValue constant(uint64_t value, likely_type type = likely_u64)
