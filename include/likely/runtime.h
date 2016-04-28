@@ -91,9 +91,9 @@ enum likely_type_mask
     likely_bool        = sizeof(bool)        * CHAR_BIT, /*!< \brief C-compatible \c bool type. */
     likely_size_t      = sizeof(size_t)      * CHAR_BIT, /*!< \brief C-compatible \c size_t type. */
     likely_ptrdiff_t   = sizeof(ptrdiff_t)   * CHAR_BIT, /*!< \brief C-compatible \c ptrdiff_t type. */
-    likely_float       = sizeof(float)       * CHAR_BIT + likely_floating, /*!< \brief C-compatible \c float type. */
-    likely_double      = sizeof(double)      * CHAR_BIT + likely_floating, /*!< \brief C-compatible \c double type. */
-    likely_long_double = sizeof(long double) * CHAR_BIT + likely_floating, /*!< \brief C-compatible \c long \c double type. */
+    likely_float       = sizeof(float)       * CHAR_BIT | likely_floating, /*!< \brief C-compatible \c float type. */
+    likely_double      = sizeof(double)      * CHAR_BIT | likely_floating, /*!< \brief C-compatible \c double type. */
+    likely_long_double = sizeof(long double) * CHAR_BIT | likely_floating, /*!< \brief C-compatible \c long \c double type. */
     likely_compound_pointer = 0x40000000, /*!< \brief Compound pointer type. */
     likely_compound_struct  = 0x80000000, /*!< \brief Compound struct type. */
 };
