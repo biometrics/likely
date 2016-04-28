@@ -112,7 +112,7 @@ typedef struct likely_matrix *likely_mat; /*!< \brief Pointer to a \ref likely_m
  * The fields excluding \ref data are collectively referred to as the matrix _header_.
  * In contrast to most image processing libraries which tend to feature 3-dimensional matrices (_channels_, _columns_ and _rows_), Likely includes a fourth dimension, _frames_, in order to facilitate processing videos and image collections.
  *
- * \par Martrix Construction
+ * \par Construction
  * | Function              | Description                 |
  * |-----------------------|-----------------------------|
  * | \ref likely_new       | \copybrief likely_new       |
@@ -130,6 +130,19 @@ typedef struct likely_matrix *likely_mat; /*!< \brief Pointer to a \ref likely_m
  *
  * Convenience functions \ref likely_element and \ref likely_set_element are provided for individual element access.
  * However, these functions should be used sparingly as they are inefficient for iterating over a large numbers of elements due to the repeated index calculations.
+ *
+ * \anchor serialization
+ * \par Serialization
+ * The in-memory and on-disk representations of a \ref likely_matrix are isomorphic.
+ * In other words, you can serialize a matrix like:
+ * \code
+ * likely_const_mat mat = ...;
+ * FILE *file = ...;
+ * fwrite((const void *) mat, sizeof(likely_matrix) + likely_bytes(mat), 1, file);
+ * \endcode
+ * Alternatively, you can just call \ref likely_write.
+ * Likely uses a <c>.lm</c> file extension for matricies.
+ *
  * \see \ref reference_counting
  */
 struct likely_matrix

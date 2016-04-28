@@ -79,6 +79,7 @@ inline likely_type likelyFromOpenCVDepth(int depth)
  *
  * The inverse of \ref likelyFromOpenCVMat.
  * \param[in] mat The \ref likely_mat to convert from.
+ * \param[in] frame The frame in \p mat to convert from.
  * \return An OpenCV matrix referencing \ref likely_matrix::data;
  * \remark This function is \ref thread-safe.
  * \see \ref likelyToOpenCVMats
