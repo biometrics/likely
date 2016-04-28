@@ -172,7 +172,8 @@ LIKELY_EXPORT likely_mat likely_render(likely_const_mat mat, double *min, double
 /*!
  * \brief Display a \ref likely_matrix in a window.
  *
- * Shows \p image in a window, pauses execution until a key is pressed, then hides the window.
+ * Show \p image in a window, pause execution until a key is pressed, then hide the window.
+ * If \p image has multiple frames, each frame will be presented sequentially.
  * The input to this function is usually the output from \ref likely_render.
  * \param[in] image Image to display.
  * \param[in] title Window title.

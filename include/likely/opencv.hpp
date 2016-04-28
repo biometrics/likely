@@ -83,11 +83,14 @@ inline likely_type likelyFromOpenCVDepth(int depth)
  * \remark This function is \ref thread-safe.
  * \see \ref likelyToOpenCVMats
  */
-inline cv::Mat likelyToOpenCVMat(likely_const_mat mat)
+inline cv::Mat likelyToOpenCVMat(likely_const_mat mat, uint32_t frame = 0)
 {
     if (!mat)
         return cv::Mat();
-    return cv::Mat((int) mat->rows, (int) mat->columns, CV_MAKETYPE(likelyToOpenCVDepth(mat->type), int(mat->channels)), (void*) mat->data).clone();
+    return cv::Mat((int) mat->rows,
+                   (int) mat->columns,
+                   CV_MAKETYPE(likelyToOpenCVDepth(mat->type), int(mat->channels)),
+                   (void*) (mat->data + likely_bytes(mat) * frame / mat->frames)).clone();
 }
 
 /*!
@@ -125,10 +128,8 @@ inline std::vector<cv::Mat> likelyToOpenCVMats(likely_const_mat mat)
     std::vector<cv::Mat> mats;
     if (!mat)
         return mats;
-    const int type = CV_MAKETYPE(likelyToOpenCVDepth(mat->type), int(mat->channels));
-    const size_t step = (mat->type & likely_depth) * mat->channels * mat->columns * mat->rows / 8;
-    for (size_t i=0; i<mat->frames; i++)
-        mats.push_back(cv::Mat(mat->rows, mat->columns, type, (void*)(mat->data + i * step)).clone());
+    for (uint32_t i=0; i<mat->frames; i++)
+        mats.push_back(likelyToOpenCVMat(mat, i));
     return mats;
 }
 

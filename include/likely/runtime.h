@@ -139,7 +139,7 @@ struct likely_matrix
     uint32_t channels; /*!< \brief Sub-spatial dimensionality. */
     uint32_t columns;  /*!< \brief Horizontal dimensionality. */
     uint32_t rows;     /*!< \brief Vertical dimensionality. */
-    uint32_t frames;   /*!< \brief Super-spatial (temporal) dimensionality. */
+    uint32_t frames;   /*!< \brief Super-spatial or temporal dimensionality. */
     char data[]; /*!< \brief Buffer with guaranteed 32-byte alignment. */
 };
 

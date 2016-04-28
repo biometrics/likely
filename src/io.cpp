@@ -377,25 +377,29 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
     static void *render = NULL;
     if (render == NULL) {
         const likely_env parent = likely_standard(likely_default_settings(likely_file_void, false), NULL, likely_file_void);
-        const char *const src = "-likely-render :=                        "
-                                "  (src min max) :->                      "
-                                "  {                                      "
-                                "    (? (== (& src.type element) u8)      "
-                                "      {                                  "
-                                "        min :<- 0                        "
-                                "        max :<- 255                      "
-                                "      } {                                "
-                                "        min :<- src.min-element          "
-                                "        max :<- src.max-element          "
-                                "      })                                 "
-                                "    range := (- (max) (min)).(/ 255)     "
-                                "    a := (/ 1         range)             "
-                                "    b := (/ (- (min)) range)             "
-                                "    dst := (u8CXY 3 src.columns src.rows)"
-                                "    (dst src a b) :=>                    "
-                                "      dst :<- (* src a).(+ b)            "
-                                "  }                                      "
-                                "(extern multi-dimension \"_likely_render\" (multi-dimension double.pointer double.pointer) -likely-render)\n";
+        const char *const src = "-likely-render :=                                                                                         "
+                                "  (src min max) :->                                                                                       "
+                                "  {                                                                                                       "
+                                "    (? (== (& src.type element) u8)                                                                       "
+                                "      {                                                                                                   "
+                                "        min :<- 0                                                                                         "
+                                "        max :<- 255                                                                                       "
+                                "      } {                                                                                                 "
+                                "        min :<- src.min-element                                                                           "
+                                "        max :<- src.max-element                                                                           "
+                                "      })                                                                                                  "
+                                "    range := (- (max) (min)).(/ 255)                                                                      "
+                                "    a := (/ 1         range)                                                                              "
+                                "    b := (/ (- (min)) range)                                                                              "
+                                "    dst := (u8.(imitate-dimensions src.type).multi-channel                                                "
+                                "            3                                                                                             "
+                                "            src.columns                                                                                   "
+                                "            src.rows                                                                                      "
+                                "            src.frames)                                                                                   "
+                                "    (dst src a b) :=>                                                                                     "
+                                "      dst :<- (* src a).(+ b)                                                                             "
+                                "  }                                                                                                       "
+                                "(extern multi-dimension \"_likely_render\" (multi-dimension double.pointer double.pointer) -likely-render)";
         env = likely_lex_parse_and_eval(src, likely_file_lisp, parent);
         render = likely_function(env->expr);
         assert(render);
@@ -413,8 +417,10 @@ void likely_show(likely_const_mat image, const char *title)
 {
     if (!image || !title)
         return;
-    cv::imshow(title, likelyToOpenCVMat(image));
-    cv::waitKey();
+    for (const cv::Mat &m: likelyToOpenCVMats(image)) {
+        cv::imshow(title, m);
+        cv::waitKey();
+    }
 }
 
 void likely_ensure(bool condition, const char *format, ...)
