@@ -15,13 +15,22 @@ Facial similarity is measured between two faces using the Euclidean distance in 
 
 Training the Eigenfaces algorithm (computing the mean and leading eigenvectors), is out of scope for the Likely project.
 There are plenty of machine learning frameworks that address algorithm training.
-For example, using [OpenBR](www.openbiometrics.org) training the Eigenfaces algorithm looks like:
+For example, using [OpenBR](http://www.openbiometrics.org) training the Eigenfaces algorithm looks like:
 
-```
+```bash
 $ br -algorithm "Open+Cvt(Gray)+CvtFloat+PCA" -train /path/to/folder_of_aligned_faces Eigenfaces.model
 ```
 
-This tutorial will also not cover how to massage matrix data into Likely's `.lm` format.
+This tutorial will also not cover how to massage matrix data into Likely's `.lm` file format.
+See the [serialization](https://s3.amazonaws.com/liblikely/doxygen/structlikely__matrix.html#serialization) section in our API documentation if you are interested in how to do this.
 
+The Eigenfaces model consists of two files: `data/demo/lfwa_grayscale_mean.lm` and `data/demo/lfwa_grayscale_evecs.lm` containing the average face and thirty-two leading Eigenvectors respectively.
+They were trained on the [LFW-a](http://www.openu.ac.il/home/hassner/data/lfwa/) dataset, after converting to grayscale and resizing to 64x64 pixels.
+Let's take a moment to visualize these files:
+
+```bash
+$ likely -c '(read-matrix "data/demo/lfwa_grayscale_mean.lm")' -show
+$ likely -c '(read-matrix "data/demo/lfwa_grayscale_evecs.lm")' -show ; Press any key to advance to the next Eigenvector
+```
 
 ** TODO: Finish Writing **

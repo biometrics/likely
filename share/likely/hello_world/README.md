@@ -187,7 +187,7 @@ $ likely hello-world.lisp hello-world.o
 Except this time the executable can be built without C code.
 Let's run it:
 
-```
+```bash
 $ hello_world_main data/misc/lenna.tiff dark_lenna_main.png
 Reading input image...
 Calling function...
