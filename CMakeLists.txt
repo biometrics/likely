@@ -112,6 +112,7 @@ enable_testing()
 include_directories(include)
 add_subdirectory(src)
 add_subdirectory(share/likely/hello_world)
+add_subdirectory(share/likely/model_translation)
 
 # Build docs
 add_custom_target(doc)

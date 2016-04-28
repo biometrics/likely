@@ -5,6 +5,7 @@ Likely
 
 Skip to the good stuff: **[installation](?href=README.md)**,
                         **[hello world](?href=share/likely/hello_world/README.md)**,
+                        **[model translation](?href=share/likely/model_translation/README.md)**,
                         **[demos](?href=demos)**,
                         **[language reference](https://s3.amazonaws.com/liblikely/latex/standard.pdf)**,
                         **[api](https://s3.amazonaws.com/liblikely/doxygen/index.html)**,

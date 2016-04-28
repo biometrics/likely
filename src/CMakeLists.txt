@@ -23,6 +23,7 @@ set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello-world-interpreted.lisp
                 ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello-world-main.lisp
                 ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello-world-trained.lisp
+                ${CMAKE_SOURCE_DIR}/share/likely/model_translation/README.md
                 ${CMAKE_SOURCE_DIR}/src/Doxyfile.in)
 
 # Build standard library
