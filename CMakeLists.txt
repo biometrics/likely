@@ -81,15 +81,15 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # Add dataset targets
-function(download_demo_image NAME MD5)
-  file(DOWNLOAD "https://github.com/biometrics/likely/releases/download/v0.1/${NAME}.jpg"
-                "${CMAKE_SOURCE_DIR}/data/demo/${NAME}.jpg"
+function(download_demo_file NAME MD5)
+  file(DOWNLOAD "https://github.com/biometrics/likely/releases/download/v0.1/${NAME}"
+                "${CMAKE_SOURCE_DIR}/data/demo/${NAME}"
                 EXPECTED_MD5 ${MD5})
 endfunction()
 
-download_demo_image("average_face"   505e06e358a13c7619ee996bf184caff)
-download_demo_image("gabor_wavelet"  cf0c27b391516783f7973c83f3fd68f7)
-download_demo_image("mandelbrot_set" 544dd8db0eaa75a2da846fa33445b5c9)
+download_demo_file("average_face.jpg"   505e06e358a13c7619ee996bf184caff)
+download_demo_file("gabor_wavelet.jpg"  cf0c27b391516783f7973c83f3fd68f7)
+download_demo_file("mandelbrot_set.jpg" 544dd8db0eaa75a2da846fa33445b5c9)
 
 function(download_archive NAME MD5)
   ExternalProject_Add(${NAME}
