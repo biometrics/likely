@@ -776,8 +776,8 @@ public:
         if (context->verbose)
             module->print(outs(), NULL);
 
-        SmallVector<char, 0> data;
-        raw_svector_ostream stream(data);
+        SmallVector<char, 0> buffer;
+        raw_svector_ostream stream(buffer);
         if (file_type == likely_file_ir) {
             module->print(stream, NULL);
             stream << '\0';
@@ -789,9 +789,9 @@ public:
             pm.run(*module);
         }
 
-        if (data.empty()) *output = NULL;
-        else              *output = (file_type == likely_file_ir) ? likely_string(data.data())
-                                                                  : likely_new(likely_u8 | likely_multi_channel, uint32_t(data.size()), 1, 1, 1, data.data());
+        if (buffer.empty()) *output = NULL;
+        else                *output = (file_type == likely_file_ir) ? likely_string(buffer.data())
+                                                                    : likely_new(likely_u8 | likely_multi_channel, uint32_t(buffer.size()), 1, 1, 1, buffer.data());
     }
 };
 
