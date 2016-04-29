@@ -741,7 +741,7 @@ public:
                                         : (c_type == likely_u16) ? ConstantDataArray::get(context->context, ArrayRef<uint16_t>((uint16_t*) &mat->data, elements))
                                         : (c_type == likely_u32) ? ConstantDataArray::get(context->context, ArrayRef<uint32_t>((uint32_t*) &mat->data, elements))
                                         : (c_type == likely_u64) ? ConstantDataArray::get(context->context, ArrayRef<uint64_t>((uint64_t*) &mat->data, elements))
-                                        : (c_type == likely_u64) ? ConstantDataArray::get(context->context, ArrayRef<float   >((float*)    &mat->data, elements))
+                                        : (c_type == likely_f32) ? ConstantDataArray::get(context->context, ArrayRef<float   >((float*)    &mat->data, elements))
                                         :                          ConstantDataArray::get(context->context, ArrayRef<double  >((double*)   &mat->data, elements)) };
             Constant *const constantStruct = ConstantStruct::get(structType, values);
 
