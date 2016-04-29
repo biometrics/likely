@@ -1207,11 +1207,10 @@ struct ConstantData : public likely_expression
         type = data.mat->type;
 
         // Special case, return the scalar
-        if (const likely_const_mat m = data)
-            if (!(m->type & likely_multi_dimension)) {
-                value = builder.constant(likely_get_element(m, 0, 0, 0, 0), m->type);
-                return;
-            }
+        if (!(type & likely_multi_dimension)) {
+            value = builder.constant(likely_get_element(data, 0, 0, 0, 0), type);
+            return;
+        }
 
         // Make sure the lifetime of the data is at least as long as the lifetime of the code.
         Constant *const address = ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(void*)), uintptr_t(data.mat));
