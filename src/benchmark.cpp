@@ -225,7 +225,7 @@ private:
         if (expected == actual)
             return;
 
-        fprintf(stderr, "Test for: %s differs in channel count, exptected: %d but got %d", name(), expected, actual);
+        fprintf(stderr, "Test for: %s differs in channel count, exptected: %d but got %d\n", name(), expected, actual);
         exit(EXIT_FAILURE);
     }
 
@@ -567,7 +567,7 @@ class Convolution : public Test<3, false>
     {
         vector<likely_const_mat> args;
         const double stride = 1;
-        const double pad = 0;
+        const double pad = 1;
         args.push_back(likelyFromOpenCVMat(kernel));
         args.push_back(likely_scalar(likely_i32, &stride, 1));
         args.push_back(likely_scalar(likely_i32, &pad, 1));
@@ -577,7 +577,7 @@ class Convolution : public Test<3, false>
     Mat computeBaseline(const Mat &src) const
     {
         Mat dst;
-        filter2D(src, dst, -1, kernel);
+        filter2D(src, dst, -1, kernel, Point(-1, -1), 0, BORDER_CONSTANT);
         return dst;
     }
 
