@@ -24,8 +24,7 @@ $ br -algorithm "Open+Cvt(Gray)+CvtFloat+PCA" -train /path/to/folder_of_aligned_
 This tutorial will also not cover how to massage matrix data into Likely's `.lm` file format.
 See the [serialization](https://s3.amazonaws.com/liblikely/doxygen/structlikely__matrix.html#serialization) section in our API documentation if you are interested in how to do this.
 
-The Eigenfaces model consists of two files: `data/demo/lfwa_grayscale_mean.lm` and `data/demo/lfwa_grayscale_evecs.lm` containing the average face and thirty-two leading Eigenvectors respectively.
-They were trained on the [LFW-a](http://www.openu.ac.il/home/hassner/data/lfwa/) dataset, after converting to grayscale and resizing to 64x64 pixels.
+Our Eigenfaces model consists of two files: `data/demo/lfwa_grayscale_mean.lm` and `data/demo/lfwa_grayscale_evecs.lm` containing the average face and thirty-two leading Eigenvectors respectively, trained on the [LFW-a](http://www.openu.ac.il/home/hassner/data/lfwa/) dataset.
 Let's take a moment to visualize these files:
 
 ```bash

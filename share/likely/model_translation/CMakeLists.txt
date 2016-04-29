@@ -2,8 +2,8 @@ project(model_translation)
 option(LIKELY_MODELTRANSLATION "Build model translation tutorial" ON)
 
 if(LIKELY_MODELTRANSLATION)
-  download_demo_file("lfwa_grayscale_mean.lm"  23b7770b157f7a691a00b776bb43ed2f)
-  download_demo_file("lfwa_grayscale_evecs.lm" 7af40fffdd7da6d04be3b009f655f6aa)
+  download_demo_file("lfwa_grayscale_mean.lm"  103a2631963155550f1b6347e585a03f)
+  download_demo_file("lfwa_grayscale_evecs.lm" e4018236995896304484e966fba35198)
 
   add_test(NAME lfwa_grayscale_mean_lm
            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
