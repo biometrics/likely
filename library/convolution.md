@@ -42,4 +42,4 @@ Convolve a matrix with a kernel
 #### Generated LLVM IR
 | Type   | Single-core | Multi-core |
 |--------|-------------|------------|
-| f32XY  | [View](https://raw.githubusercontent.com/biometrics/likely/gh-pages/ir/benchmarks/match_template_f32XY__f32XY_f32XY_.ll) | [View](https://raw.githubusercontent.com/biometrics/likely/gh-pages/ir/benchmarks/match_template_f32XY__f32XY_f32XY__m.ll) |
+| f32XY  | [View](https://raw.githubusercontent.com/biometrics/likely/gh-pages/ir/benchmarks/convolution_f32XY__f32XY_f32XY_i32_i32_.ll) | [View](https://raw.githubusercontent.com/biometrics/likely/gh-pages/ir/benchmarks/convolution_f32XY__f32XY_f32XY_i32_i32__m.ll) |
