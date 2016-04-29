@@ -713,8 +713,9 @@ public:
     ~OfflineModule()
     {
         // Inline constant mats as they won't be around after the program exits!
-        int inlinedIndex = 0;
-        for (const pair<SharedMat,Constant*> &datum : data) {
+        for (size_t i=0; i<data.size(); i++) {
+            const pair<SharedMat,Constant*> &datum = data[i];
+
             bool used = false;
             for (User *user : datum.second->users())
                 if (user->getNumUses() > 0) {
@@ -746,23 +747,24 @@ public:
             Constant *const constantStruct = ConstantStruct::get(structType, values);
 
             stringstream name;
-            name << "likely_inlined_mat_" << inlinedIndex++;
-            GlobalVariable *const globalVariable = cast<GlobalVariable>(module->getOrInsertGlobal(name.str(), structType));
-            globalVariable->setConstant(true);
-            globalVariable->setInitializer(constantStruct);
-            globalVariable->setLinkage(GlobalVariable::PrivateLinkage);
-            globalVariable->setUnnamedAddr(true);
+            name << "likely_inlined_mat_" << i;
+            GlobalVariable *const inlinedMat = cast<GlobalVariable>(module->getOrInsertGlobal(name.str(), structType));
+            inlinedMat->setConstant(true);
+            inlinedMat->setInitializer(constantStruct);
+            inlinedMat->setLinkage(GlobalVariable::PrivateLinkage);
+            inlinedMat->setUnnamedAddr(true);
 
             vector<Instruction*> eraseLater;
-            for (User *user : datum.second->users()) {
-                for (User *supposedInstruction : user->users()) {
+            for (User *supposedConstantExpr : datum.second->users()) {
+                ConstantExpr *const constantExpr = cast<ConstantExpr>(supposedConstantExpr); // We expect an inttoptr constant expression
+                for (User *supposedInstruction : constantExpr->users()) {
                     Instruction *const instruction = cast<Instruction>(supposedInstruction);
-                    CastInst *const castInst = CastInst::CreatePointerBitCastOrAddrSpaceCast(globalVariable, user->getType(), "", instruction);
-                    user->replaceAllUsesWith(castInst);
+                    CastInst *const castedInlinedMat = CastInst::CreatePointerBitCastOrAddrSpaceCast(inlinedMat, constantExpr->getType(), "", instruction);
+                    instruction->replaceUsesOfWith(constantExpr, castedInlinedMat);
                     if (CallInst *const callInst = dyn_cast<CallInst>(instruction)) {
-                        if (   (callInst->getCalledFunction()->getName() == "likely_retain_mat")
-                            || (callInst->getCalledFunction()->getName() == "likely_release_mat"))
-                            instruction->replaceAllUsesWith(castInst);
+                        if ((callInst->getCalledFunction()->getName() == "likely_retain_mat") ||
+                            (callInst->getCalledFunction()->getName() == "likely_release_mat"))
+                            instruction->replaceAllUsesWith(castedInlinedMat);
                             eraseLater.push_back(instruction);
                     }
                 }
