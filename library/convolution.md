@@ -39,6 +39,16 @@ Convolve a matrix with a kernel
             }
         }
 
+        src := (f32XY 1 5 5 1 (1.f32 2 3 4 5
+                               1     2 3 4 5
+                               1     2 3 4 5
+                               1     2 3 4 5
+                               1     2 3 4 5))
+        kernel := (f32XY 1 3 3 1 (2.f32 2 2
+                                  2     2 2
+                                  2     2 2))
+        (convolution src kernel 1 0)
+
 #### Generated LLVM IR
 | Type   | Single-core | Multi-core |
 |--------|-------------|------------|
