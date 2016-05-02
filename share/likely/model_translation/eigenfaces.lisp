@@ -1,13 +1,13 @@
-mean  := [ "data/demo/lfwa_grayscale_mean.lm".read-matrix  ]
-evecs := [ "data/demo/lfwa_grayscale_evecs.lm".read-matrix ]
-
 eigenfaces :=
   src :->
   {
+    mean  := [ "data/demo/lfwa_grayscale_mean.lm".read-matrix  ]
+    evecs := [ "data/demo/lfwa_grayscale_evecs.lm".read-matrix ]
     (assume-same-dimensions src mean)
+
     centered := (imitate-size src f32)
-    ; (centered src mean) :=>
-    ;  centered :<- (- src.f32 mean)
+    (centered src mean) :=>
+      centered :<- (- src.f32 mean)
     centered
   }
 
