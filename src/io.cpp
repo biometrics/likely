@@ -417,7 +417,7 @@ void likely_show(likely_const_mat image, const char *title)
 {
     if (!image || !title)
         return;
-    for (const cv::Mat &m: likelyToOpenCVMats(image)) {
+    for (const cv::Mat &m : likelyToOpenCVMats(image)) {
         cv::imshow(title, m);
         cv::waitKey();
     }

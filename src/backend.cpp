@@ -717,7 +717,7 @@ public:
             const pair<SharedMat,Constant*> &datum = data[i];
 
             bool used = false;
-            for (User *user : datum.second->users())
+            for (User *const user : datum.second->users())
                 if (user->getNumUses() > 0) {
                     used = true;
                     break;
@@ -755,12 +755,12 @@ public:
             inlinedMat->setUnnamedAddr(true);
 
             vector<Instruction*> eraseLater;
-            for (User *supposedConstantExpr : datum.second->users()) {
+            for (User *const supposedConstantExpr : datum.second->users()) {
                 ConstantExpr *const constantExpr = cast<ConstantExpr>(supposedConstantExpr); // We expect an inttoptr constant expression
                 Constant *const castedInlinedMat = ConstantExpr::getPointerBitCastOrAddrSpaceCast(inlinedMat, constantExpr->getType());
                 constantExpr->replaceAllUsesWith(castedInlinedMat);
 
-                for (User *user : castedInlinedMat->users())
+                for (User *const user : castedInlinedMat->users())
                     if (CallInst *const callInst = dyn_cast<CallInst>(user))
                         if ((callInst->getCalledFunction()->getName() == "likely_retain_mat") ||
                             (callInst->getCalledFunction()->getName() == "likely_release_mat")) {
@@ -768,7 +768,7 @@ public:
                             eraseLater.push_back(callInst);
                         }
             }
-            for (Instruction *instruction : eraseLater)
+            for (Instruction *const instruction : eraseLater)
                 instruction->eraseFromParent();
         }
 
@@ -1439,7 +1439,7 @@ private:
         result = evaluateFunction(builder, args);
 
     cleanup:
-        for (likely_const_expr arg : args)
+        for (const likely_const_expr arg : args)
             release(arg);
         return result;
     }
@@ -1466,7 +1466,7 @@ private:
         Function *symbol = builder.module->module->getFunction(name);
         if (!symbol) {
             vector<Type*> llvmParameters;
-            for (likely_type parameter : parameters)
+            for (const likely_type parameter : parameters)
                 llvmParameters.push_back(builder.module->context->toLLVM(parameter));
             // If the return type is a matrix, we generalize it to allow overloading.
             Type *llvmReturn = builder.module->context->toLLVM(type & likely_multi_dimension ? likely_type(likely_multi_dimension) : type);
@@ -2185,12 +2185,12 @@ private:
 
         // Do dynamic dispatch if the type isn't fully specified
         bool dynamic = false;
-        for (likely_const_expr arg : args)
+        for (const likely_const_expr arg : args)
             dynamic |= (arg->type == likely_multi_dimension);
 
         if (dynamic) {
             vector<likely_type> types;
-            for (likely_const_expr arg : args)
+            for (const likely_const_expr arg : args)
                 types.push_back(arg->type);
 
             const likely_vtable vtable = new likely_virtual_table(env, body, parameters, types);
@@ -2833,7 +2833,7 @@ class kernelExpression : public LikelyOperator
 
             generateCommon(builder, ast, thunkSrcs, kernelType, start, stop);
             const_cast<likely_expr>(srcs[0])->type = thunkSrcs[0]->type;
-            for (likely_const_expr thunkSrc : thunkSrcs)
+            for (const likely_const_expr thunkSrc : thunkSrcs)
                 release(thunkSrc);
             builder.CreateRetVoid();
         }
@@ -2903,7 +2903,7 @@ class kernelExpression : public LikelyOperator
             kernelArguments.push_back(new KernelArgument(kernelBuilder, LikelyValue(&*it++, *srcs[0]), args->atom));
         }
 
-        for (KernelArgument *kernelArgument : kernelArguments) {
+        for (KernelArgument *const kernelArgument : kernelArguments) {
 //            kernelArgument->node = node;
             define(kernelBuilder.env, kernelArgument->name.c_str(), kernelArgument);
         }
@@ -3022,7 +3022,7 @@ LIKELY_REGISTER(reduction)
 
 likely_expression::~likely_expression()
 {
-    for (likely_vtable vtable : vtables)
+    for (const likely_vtable vtable : vtables)
         delete vtable;
 }
 
