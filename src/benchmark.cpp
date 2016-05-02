@@ -426,7 +426,7 @@ class ConvertGrayscale : public Test<>
     {
         vector<likely_type> types;
         types.push_back(likely_u8);
-//        types.push_back(likely_u16);
+        types.push_back(likely_u16);
         types.push_back(likely_f32);
         return types;
     }
