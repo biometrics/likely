@@ -4,7 +4,7 @@ evecs := [ "data/demo/lfwa_grayscale_evecs.lm".read-matrix ]
 eigenfaces :=
   src :->
   {
-    ; (assume-same-dimensions src mean)
+    (assume-same-dimensions src mean)
     centered := (imitate-size src f32)
     ; (centered src mean) :=>
     ;  centered :<- (- src.f32 mean)

@@ -757,17 +757,16 @@ public:
             vector<Instruction*> eraseLater;
             for (User *supposedConstantExpr : datum.second->users()) {
                 ConstantExpr *const constantExpr = cast<ConstantExpr>(supposedConstantExpr); // We expect an inttoptr constant expression
-                for (User *supposedInstruction : constantExpr->users()) {
-                    Instruction *const instruction = cast<Instruction>(supposedInstruction);
-                    CastInst *const castedInlinedMat = CastInst::CreatePointerBitCastOrAddrSpaceCast(inlinedMat, constantExpr->getType(), "", instruction);
-                    instruction->replaceUsesOfWith(constantExpr, castedInlinedMat);
-                    if (CallInst *const callInst = dyn_cast<CallInst>(instruction)) {
+                Constant *const castedInlinedMat = ConstantExpr::getPointerBitCastOrAddrSpaceCast(inlinedMat, constantExpr->getType());
+                constantExpr->replaceAllUsesWith(castedInlinedMat);
+
+                for (User *user : castedInlinedMat->users())
+                    if (CallInst *const callInst = dyn_cast<CallInst>(user))
                         if ((callInst->getCalledFunction()->getName() == "likely_retain_mat") ||
-                            (callInst->getCalledFunction()->getName() == "likely_release_mat"))
-                            instruction->replaceAllUsesWith(castedInlinedMat);
-                            eraseLater.push_back(instruction);
-                    }
-                }
+                            (callInst->getCalledFunction()->getName() == "likely_release_mat")) {
+                            callInst->replaceAllUsesWith(castedInlinedMat);
+                            eraseLater.push_back(callInst);
+                        }
             }
             for (Instruction *instruction : eraseLater)
                 instruction->eraseFromParent();
