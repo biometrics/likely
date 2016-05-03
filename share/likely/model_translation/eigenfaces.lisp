@@ -5,10 +5,15 @@ eigenfaces :=
     evecs := [ "data/demo/lfwa_grayscale_evecs.lm".read-matrix ]
     (assume-same-dimensions src mean)
 
-    centered := (imitate-size src f32)
+    centered := (imitate-size src mean.type)
     (centered src mean) :=>
-      centered :<- (- src.f32 mean)
-    centered
+      centered :<- (- src mean)
+
+    projection := (mean.element-type.multi-frame 1 1 1 evecs.frames)
+    projection.set-zero
+
+    (projection evecs centered) :+>
+      projection :<- (+ (* evecs centered) projection)
   }
 
 main :=
@@ -18,6 +23,8 @@ main :=
     src := (argv 1).read-image
     (puts "Computing projection...")
     dst := src.eigenfaces
+    (puts "Printing feature vector...")
+    (puts dst.to-string.data)
     0
   }
 

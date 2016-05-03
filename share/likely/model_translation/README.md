@@ -32,4 +32,65 @@ $ likely -c '(read-matrix "data/demo/lfwa_grayscale_mean.lm")' -show
 $ likely -c '(read-matrix "data/demo/lfwa_grayscale_evecs.lm")' -show ; Press any key to advance to the next Eigenvector
 ```
 
+Model Translation via Source Code
+---------------------------------
+The easiest way to translate a model is to implement the inference algorithm in Likely and read the model parameters at compile time.
+Here's an example program that reads in an image (assumed to be a grayscale 250x250 pixel aligned face), computes the eigefaces projection, and prints the resulting 32-dimension feature vector.
+
+```lisp
+eigenfaces :=
+  src :->
+  {
+    mean  := [ "data/demo/lfwa_grayscale_mean.lm".read-matrix  ]
+    evecs := [ "data/demo/lfwa_grayscale_evecs.lm".read-matrix ]
+    (assume-same-dimensions src mean)
+
+    centered := (imitate-size src mean.type)
+    (centered src mean) :=>
+      centered :<- (- src mean)
+
+    projection := (mean.element-type.multi-frame 1 1 1 evecs.frames)
+    projection.set-zero
+
+    (projection evecs centered) :+>
+      projection :<- (+ (* evecs centered) projection)
+  }
+
+main :=
+  (argc argv) :->
+  {
+    (puts "Reading input image...")
+    src := (argv 1).read-image
+    (puts "Computing projection...")
+    dst := src.eigenfaces
+    (puts "Printing feature vector...")
+    (puts dst.to-string.data)
+    0
+  }
+
+(extern int "main" (int string.pointer) main)
+```
+
+Let's compile and run it!
+
+```bash
+$ likely share/likely/model_translation/eigenfaces.lisp eigenfaces_lisp.o
+$ gcc eigenfaces_lisp.o -L build -llikely -o eigenfaces_lisp
+$ ./eigenfaces_lisp data/lfwa/AJ_Cook/AJ_Cook_0001.jpg
+Reading input image...
+Computing projection...
+Printing feature vector...
+(f32T 1 1 1 32 (3651.61 -1007.48 3488.73 -1229.35 620.067 -2439.48 2683.14 -1730.9 1884.0 -713.038 1120.44 -83.7625 525.15 -1878.85 307.216 -946.852 1566.74 -1024.61 1379.03 -309.945 184.071 -2295.56 1514.87 -1216.92 2362.41 -668.262 409.929 -90.3121 318.591 -708.783 360.535 -229.618))
+```
+
+Note that `mean` and `evecs` are compile-time constants embedded in the executable.
+
+```bash
+$ du -h data/demo/lfwa_grayscale_*
+7.6M	data/demo/lfwa_grayscale_evecs.lm
+248K	data/demo/lfwa_grayscale_mean.lm
+$ du -h eigenfaces_lisp
+7.9M	eigenfaces_lisp
+```
+
 ** TODO: Finish Writing **
