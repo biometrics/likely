@@ -285,7 +285,7 @@ struct LoopCollapse : public LoopPass
 
         // Scale parent.exitVal by child.exitVal
         IRBuilder<> builder(parent.preheader->getTerminator());
-        Instruction *const z = cast<Instruction>(builder.CreateMul(parent.exitVal, child.exitVal, "", true, true));
+        Value *const z = builder.CreateMul(parent.exitVal, child.exitVal, "", true, true);
         parent.latchCmp->replaceUsesOfWith(parent.exitVal, z);
 
         // Replace each collapsible pattern
@@ -308,7 +308,8 @@ struct LoopCollapse : public LoopPass
                 // And facilitates collapsing additional nested loops if `s` is the grandparent loop's CIV.
                 if (MulOperator *const hy = dyn_cast<MulOperator>(cp.t))
                     if (hy->hasOneUse() && ((hy->getOperand(0) == parent.exitVal) || (hy->getOperand(1) == parent.exitVal))) {
-                        z->moveBefore(cast<Instruction>(hy));
+                        if (Instruction *const zInst = dyn_cast<Instruction>(z))
+                            zInst->moveBefore(cast<Instruction>(hy));
                         hy->replaceUsesOfWith(parent.exitVal, z);
                         v = hy;
                     }
