@@ -63,6 +63,7 @@ struct LoopCollapse : public LoopPass
     struct LoopAnalysis
     {
         BasicBlock  *preheader  = NULL; // Loop preheader block
+        BasicBlock  *header     = NULL; // Loop header block
         BasicBlock  *latchBlock = NULL; // Latch block
         BasicBlock  *exitBlock  = NULL; // Unique exit block
         PHINode     *IV         = NULL; // Induction variable
@@ -74,6 +75,7 @@ struct LoopCollapse : public LoopPass
         LoopAnalysis(Loop *const loop)
         {
             preheader  = loop->getLoopPreheader();
+            header     = loop->getHeader();
             latchBlock = loop->getLoopLatch();
             exitBlock  = loop->getUniqueExitBlock();
             if (!preheader || !latchBlock || !exitBlock)
@@ -107,7 +109,7 @@ struct LoopCollapse : public LoopPass
         // and the latch instructions must not be used for other purposes.
         operator bool() const
         {
-            return preheader && latchBlock && exitBlock && IV && latchCmp && exitVal && increment &&
+            return preheader && header && latchBlock && exitBlock && IV && latchCmp && exitVal && increment &&
                    increment->hasNUses(2) && latchCmp->hasOneUse();
         }
     };
@@ -328,6 +330,11 @@ struct LoopCollapse : public LoopPass
             cp.f->replaceAllUsesWith(replace);
         }
 
+        // Remove phi nodes references to the latch from the header
+        for (Instruction &instruction : *child.header)
+            if (PHINode *const phi = dyn_cast<PHINode>(&instruction))
+                phi->removeIncomingValue(child.latchBlock);
+
         // Replace the child's latch with an unconditional branch
         builder.SetInsertPoint(child.latch);
         builder.CreateBr(child.exitBlock);
@@ -336,7 +343,6 @@ struct LoopCollapse : public LoopPass
         // Remove the postcondition and increment
         assert(child.latchCmp->hasNUses(0));
         child.latchCmp->eraseFromParent();
-        child.IV->removeIncomingValue(child.latchBlock);
         assert(child.increment->hasNUses(0));
         cast<Instruction>(child.increment)->eraseFromParent();
 
