@@ -184,7 +184,7 @@ $ ./build/likely share/likely/hello_world/hello-world-main.lisp hello-world-main
 Then use the system linker to assemble the executable:
 
 ```
-$ gcc hello-world-main.o -L build -llikely -o hello_world_main
+$ gcc hello-world-main.o -L build -llikely -o build/hello_world_main
 ```
 
 Notice how the executable was built with just the one object file originating from the Likely source file.
