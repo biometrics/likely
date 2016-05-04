@@ -108,6 +108,17 @@ download_archive("mnist" c341c72e5da5e91fd421560aa04de5a1)
 # Set up testing
 enable_testing()
 
+# Helper function to build an executable from a Likely-generated object file
+macro(likely_executable NAME)
+  set_source_files_properties(${NAME}.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
+  add_executable(${NAME} ${NAME}.o)
+  set_target_properties(${NAME} PROPERTIES LINKER_LANGUAGE C)
+  target_link_libraries(${NAME} likely_shared)
+  if(MSVC)
+    target_link_libraries(${NAME} MSVCRT)
+  endif()
+endmacro()
+
 # Build targets
 include_directories(include)
 add_subdirectory(src)

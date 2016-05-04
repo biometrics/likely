@@ -17,13 +17,17 @@ if(LIKELY_MODELTRANSLATION)
                      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
                      COMMAND likely ${CMAKE_CURRENT_SOURCE_DIR}/eigenfaces.lisp ${CMAKE_CURRENT_BINARY_DIR}/eigenfaces_lisp.o
                      DEPENDS likely eigenfaces.lisp)
-  set_source_files_properties(eigenfaces_lisp.o PROPERTIES EXTERNAL_OBJECT true GENERATED true)
-  add_executable(eigenfaces_lisp eigenfaces_lisp.o)
-  set_target_properties(eigenfaces_lisp PROPERTIES LINKER_LANGUAGE C)
-  target_link_libraries(eigenfaces_lisp likely_shared)
-  if(MSVC)
-    target_link_libraries(eigenfaces_lisp MSVCRT)
-  endif()
+  likely_executable(eigenfaces_lisp)
   add_test(NAME eigenfaces_lisp
            COMMAND eigenfaces_lisp ${CMAKE_SOURCE_DIR}/data/lfwa/AJ_Cook/AJ_Cook_0001.jpg)
+
+  # API version
+  add_executable(eigenfaces_model_translator eigenfaces_model_translator.c)
+  target_link_libraries(eigenfaces_model_translator likely_shared)
+  add_custom_command(OUTPUT eigenfaces_api.o
+                     COMMAND eigenfaces_model_translator ${CMAKE_CURRENT_SOURCE_DIR}/eigenfaces-api.lisp ${CMAKE_SOURCE_DIR}/data/demo/lfwa_grayscale_mean.lm ${CMAKE_SOURCE_DIR}/data/demo/lfwa_grayscale_evecs.lm ${CMAKE_CURRENT_BINARY_DIR}/eigenfaces_api.o
+                     DEPENDS likely eigenfaces-api.lisp)
+  likely_executable(eigenfaces_api)
+  add_test(NAME eigenfaces_api
+           COMMAND eigenfaces_api ${CMAKE_SOURCE_DIR}/data/lfwa/AJ_Cook/AJ_Cook_0001.jpg)
 endif()
