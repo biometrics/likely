@@ -74,9 +74,9 @@ main :=
 Let's compile and run it!
 
 ```bash
-$ ./build/likely share/likely/model_translation/eigenfaces.lisp eigenfaces_lisp.o
-$ gcc eigenfaces_lisp.o -L build -llikely -o ./build/eigenfaces_lisp
-$ ./build/eigenfaces_lisp data/lfwa/AJ_Cook/AJ_Cook_0001.jpg
+$ ./build/likely share/likely/model_translation/eigenfaces-ctfe.lisp eigenfaces_ctfe.o
+$ gcc eigenfaces_ctfe.o -L build -llikely -o ./build/eigenfaces_ctfe
+$ ./build/eigenfaces_ctfe data/lfwa/AJ_Cook/AJ_Cook_0001.jpg
 Reading input image...
 Computing projection...
 Printing feature vector...
@@ -89,21 +89,28 @@ Note that `mean` and `evecs` are compile-time constants embedded into the execut
 $ du -h data/demo/lfwa_grayscale_*
 7.6M	data/demo/lfwa_grayscale_evecs.lm
 248K	data/demo/lfwa_grayscale_mean.lm
-$ du -h build/eigenfaces_lisp
-7.9M	build/eigenfaces_lisp
+$ du -h build/eigenfaces_ctfe
+7.9M	build/eigenfaces_ctfe
 ```
 
-Model Translation via API
--------------------------
-Perhaps you want to avoid serializing the model parameters to disk, only to read them again at compile time.
-We can accomplish this by building a custom model translation application that defines the model parameters before compiling the inference algorithm.
-Here is the source code for our model translator: **[share/likely/model_translation/eigenfaces_model_translator.c](share/likely/model_translation/eigenfaces_model_translator.c)**
-And here is the updated source code for our inference algorithm: **[share/likely/model_translation/eigenfaces-api.lisp](share/likely/model_translation/eigenfaces-api.lisp)**
-Note how the inference source code no longer references files on disk.
-
-We can use `eigenfaces_model_translator` to generate an object file identical to the one in the previous section:
+Model Translation via Definitions
+---------------------------------
+Perhaps you want to keep your inference source code free of hard-coded file paths.
+**[share/likely/model_translation/eigenfaces-def.lisp](share/likely/model_translation/eigenfaces-def.lisp)** is an updated version of the inference source code expecting `mean` and `evecs` to be defined in advance.
+Note that the object file we generate is identical to the one in the previous section:
 
 ```bash
-$ ./build/eigenfaces_model_translator share/likely/model_translation/eigenfaces-api.lisp data/demo/lfwa_grayscale_mean.lm data/demo/lfwa_grayscale_evecs.lm eigenfaces_api.o
-$ diff eigenfaces_api.o eigenfaces_lisp.o
+$ ./build/likely -preprocess='(= mean [ "data/demo/lfwa_grayscale_mean.lm".read-matrix ]) (= evecs [ "data/demo/lfwa_grayscale_evecs.lm".read-matrix ])' share/likely/model_translation/eigenfaces-def.lisp eigenfaces_def.o
+$ diff eigenfaces_def.o eigenfaces_ctfe.o
+```
+
+Model Translation via Definitions and a Custom Translator
+---------------------------------------------------------
+For tighter integration with the machine learning framework we are translating from, we can build a custom model translation application that makes use of the same inference code from the previous section.
+**[share/likely/model_translation/eigenfaces_model_translator.c](share/likely/model_translation/eigenfaces_model_translator.c)** has the source code for our translator.
+Note the use of the `likely_define` function.
+
+```bash
+$ ./build/eigenfaces_model_translator share/likely/model_translation/eigenfaces-def.lisp data/demo/lfwa_grayscale_mean.lm data/demo/lfwa_grayscale_evecs.lm eigenfaces_def.o
+$ diff eigenfaces_def.o eigenfaces_ctfe.o
 ```

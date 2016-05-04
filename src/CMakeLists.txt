@@ -24,7 +24,7 @@ set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello-world-main.lisp
                 ${CMAKE_SOURCE_DIR}/share/likely/model_translation/README.md
                 ${CMAKE_SOURCE_DIR}/share/likely/model_translation/eigenfaces-ctfe.lisp
-                ${CMAKE_SOURCE_DIR}/share/likely/model_translation/eigenfaces-api.lisp
+                ${CMAKE_SOURCE_DIR}/share/likely/model_translation/eigenfaces-def.lisp
                 ${CMAKE_SOURCE_DIR}/src/Doxyfile.in)
 
 # Build standard library
