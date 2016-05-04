@@ -81,17 +81,6 @@ set_target_properties(likely PROPERTIES OUTPUT_NAME likely)
 target_link_libraries(likely likely_shared LLVMSupport)
 install(TARGETS likely RUNTIME DESTINATION bin)
 
-# Benchmark
-add_executable(benchmark benchmark.cpp)
-target_link_libraries(benchmark likely_shared LLVMSupport opencv_imgproc opencv_highgui)
-install(TARGETS benchmark RUNTIME DESTINATION bin)
-add_test(NAME benchmark
-         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-         COMMAND benchmark -test)
-add_test(NAME benchmark_parallel
-         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-         COMMAND benchmark -test -m)
-
 # Main
 add_library(likely_main OBJECT main.c)
 
@@ -411,25 +400,36 @@ test_file(literate_programming.md 42)
 test_file(literate_programming.tex 42)
 test_file(matrix_io.lisp "\"Compression Ratio: \"7.27275")
 
-# Generate IR for bechmarks
-set(LIKELY_BENCHMARKS_DIR ${CMAKE_SOURCE_DIR}/ir/benchmarks)
-function(add_benchmark RETVAL FILE PARAMETERS)
-  foreach(KERNEL_TYPE "" "-m")
-    string(MAKE_C_IDENTIFIER ${FILE} SYMBOL_NAME)
-    string(MAKE_C_IDENTIFIER "${FILE} ${RETVAL} ${PARAMETERS}${KERNEL_TYPE}" FILE_NAME)
-    set(IR_FILE ${LIKELY_BENCHMARKS_DIR}/${FILE_NAME}.ll)
-    add_custom_command(OUTPUT ${IR_FILE}
-                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                       COMMAND likely -ro ${KERNEL_TYPE} -c "(import \"library/${FILE}.md\") (extern ${RETVAL} \"${SYMBOL_NAME}\" ${PARAMETERS} ${FILE})" ${IR_FILE}
-                       DEPENDS likely ${CMAKE_SOURCE_DIR}/library/${FILE}.md
-                       VERBATIM)
-    add_custom_target(${FILE_NAME} ALL
-                      DEPENDS ${IR_FILE})
-  endforeach()
-endfunction()
+# Benchmarks
+option(LIKELY_BENCHMARKS "Compile and test benchmarks." ON)
+if(LIKELY_BENCHMARKS)
+  add_executable(benchmark benchmark.cpp)
+  target_link_libraries(benchmark likely_shared LLVMSupport opencv_imgproc opencv_highgui)
+  install(TARGETS benchmark RUNTIME DESTINATION bin)
+  add_test(NAME benchmark
+           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+           COMMAND benchmark -test)
+  add_test(NAME benchmark_parallel
+           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+           COMMAND benchmark -test -m)
 
-option(LIKELY_DEMOS "Compile and test demos." ON)
-if(LIKELY_DEMOS)
+  set(LIKELY_BENCHMARKS_DIR ${CMAKE_SOURCE_DIR}/ir/benchmarks)
+  function(add_benchmark RETVAL FILE PARAMETERS)
+    foreach(KERNEL_TYPE "" "-m")
+      string(MAKE_C_IDENTIFIER ${FILE} SYMBOL_NAME)
+      string(MAKE_C_IDENTIFIER "${FILE} ${RETVAL} ${PARAMETERS}${KERNEL_TYPE}" FILE_NAME)
+      set(IR_FILE ${LIKELY_BENCHMARKS_DIR}/${FILE_NAME}.ll)
+      add_custom_command(OUTPUT ${IR_FILE}
+                         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                         COMMAND likely -ro ${KERNEL_TYPE} -c "(import \"library/${FILE}.md\") (extern ${RETVAL} \"${SYMBOL_NAME}\" ${PARAMETERS} ${FILE})" ${IR_FILE}
+                         DEPENDS likely ${CMAKE_SOURCE_DIR}/library/${FILE}.md
+                         VERBATIM)
+      add_custom_target(${FILE_NAME} ALL
+                        DEPENDS ${IR_FILE})
+    endforeach()
+  endfunction()
+
+  # Generate IR for benchmarks
   add_benchmark("u8SCXY"  "binary-threshold" "(u8SCXY u8S u8S)"   )
   add_benchmark("i16SCXY" "binary-threshold" "(i16SCXY i16S i16S)")
   add_benchmark("f32CXY"  "binary-threshold" "(f32CXY f32 f32)"   )
@@ -477,35 +477,37 @@ if(LIKELY_DEMOS)
   add_benchmark("f64XY"  "sort" "f64XY")
 endif()
 
-# Compile and test demos
-set(LIKELY_DEMOS_DIR ${CMAKE_SOURCE_DIR}/ir/demos)
-function(add_demo FILE ARGS)
-  foreach(KERNEL_TYPE "" "-m")
-    set(IR_FILE ${LIKELY_DEMOS_DIR}/${FILE}${KERNEL_TYPE}.ll)
-    set(OBJECT_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}${CMAKE_C_OUTPUT_EXTENSION})
-    add_custom_command(OUTPUT ${IR_FILE}
-                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                       COMMAND likely -ro ${KERNEL_TYPE} -q "library/${FILE}.md" ${IR_FILE}
-                       DEPENDS likely ${CMAKE_SOURCE_DIR}/library/${FILE}.md
-                       VERBATIM)
-    add_custom_command(OUTPUT ${OBJECT_FILE}
-                       COMMAND llc -O3 -filetype=obj ${IR_FILE} -o ${OBJECT_FILE}
-                       DEPENDS llc ${IR_FILE})
-    set(DEMO_EXECUTABLE ${FILE}${KERNEL_TYPE})
-    add_executable(${DEMO_EXECUTABLE} $<TARGET_OBJECTS:likely_main> ${OBJECT_FILE} ${IR_FILE})
-    set_source_files_properties(${OBJECT_FILE} PROPERTIES EXTERNAL_OBJECT true GENERATED true)
-    target_link_libraries(${DEMO_EXECUTABLE} likely_shared)
-    if (UNIX)
-      target_link_libraries(${DEMO_EXECUTABLE} m)
-    endif()
-    separate_arguments(ARGS)
-    add_test(NAME ${FILE}${KERNEL_TYPE}
-             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-             COMMAND ${DEMO_EXECUTABLE} "\"data/demo/${FILE}.jpg\".read-image" ${ARGS})
-  endforeach()
-endfunction()
-
+# Demos
+option(LIKELY_DEMOS "Compile and test demos." ON)
 if(LIKELY_DEMOS)
+  # Compile and test demos
+  set(LIKELY_DEMOS_DIR ${CMAKE_SOURCE_DIR}/ir/demos)
+  function(add_demo FILE ARGS)
+    foreach(KERNEL_TYPE "" "-m")
+      set(IR_FILE ${LIKELY_DEMOS_DIR}/${FILE}${KERNEL_TYPE}.ll)
+      set(OBJECT_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}${CMAKE_C_OUTPUT_EXTENSION})
+      add_custom_command(OUTPUT ${IR_FILE}
+                         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                         COMMAND likely -ro ${KERNEL_TYPE} -q "library/${FILE}.md" ${IR_FILE}
+                         DEPENDS likely ${CMAKE_SOURCE_DIR}/library/${FILE}.md
+                         VERBATIM)
+      add_custom_command(OUTPUT ${OBJECT_FILE}
+                         COMMAND llc -O3 -filetype=obj ${IR_FILE} -o ${OBJECT_FILE}
+                         DEPENDS llc ${IR_FILE})
+      set(DEMO_EXECUTABLE ${FILE}${KERNEL_TYPE})
+      add_executable(${DEMO_EXECUTABLE} $<TARGET_OBJECTS:likely_main> ${OBJECT_FILE} ${IR_FILE})
+      set_source_files_properties(${OBJECT_FILE} PROPERTIES EXTERNAL_OBJECT true GENERATED true)
+      target_link_libraries(${DEMO_EXECUTABLE} likely_shared)
+      if (UNIX)
+        target_link_libraries(${DEMO_EXECUTABLE} m)
+      endif()
+      separate_arguments(ARGS)
+      add_test(NAME ${FILE}${KERNEL_TYPE}
+               WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+               COMMAND ${DEMO_EXECUTABLE} "\"data/demo/${FILE}.jpg\".read-image" ${ARGS})
+    endforeach()
+  endfunction()
+
   add_demo(mandelbrot_set "600 400 -2.f32 -1.f32 3.f32 2.f32 20")
   add_demo(gabor_wavelet "192 192 64.f32 64.f32 0.f32 128.f32 0.f32")
   add_demo(average_face "")
