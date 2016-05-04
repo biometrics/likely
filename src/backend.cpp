@@ -3037,11 +3037,12 @@ Value *likely_expression::gep(Builder &builder, likely_const_ast ast) const
     if (type & likely_compound_pointer) {
         if (ast->num_atoms == 1) {
             return value;
-        } else {
-            assert(ast->num_atoms == 2);
+        } else if (ast->num_atoms == 2) {
             const UniqueExpression index(get(builder, ast->atoms[1]));
             assert(index);
             return builder.CreateGEP(value, builder.cast(*index, likely_u32));
+        } else {
+            return NULL;
         }
     }
 
