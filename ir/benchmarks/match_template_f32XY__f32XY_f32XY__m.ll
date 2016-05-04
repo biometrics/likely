@@ -39,32 +39,32 @@ entry:
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
-  %outer-y = phi i64 [ %1, %entry ], [ %y_increment27, %x_exit ]
+  %outer-y = phi i64 [ %1, %entry ], [ %y_increment22, %x_exit ]
   %25 = mul nuw nsw i64 %outer-y, %dst_y_step
   br label %x_body
 
-x_body:                                           ; preds = %y_body, %y_exit22
-  %outer-x = phi i64 [ %x_increment25, %y_exit22 ], [ 0, %y_body ]
+x_body:                                           ; preds = %y_body, %y_exit17
+  %outer-x = phi i64 [ %x_increment20, %y_exit17 ], [ 0, %y_body ]
   %rows5 = load i32, i32* %20, align 4, !range !0
   %26 = zext i32 %rows5 to i64
-  %columns11 = load i32, i32* %19, align 4, !range !0
-  %templ_y_step14 = zext i32 %columns11 to i64
-  %columns16 = load i32, i32* %14, align 4, !range !0
-  %src_y_step19 = zext i32 %columns16 to i64
-  br label %y_body21
+  %columns6 = load i32, i32* %19, align 4, !range !0
+  %templ_y_step9 = zext i32 %columns6 to i64
+  %columns11 = load i32, i32* %14, align 4, !range !0
+  %src_y_step14 = zext i32 %columns11 to i64
+  br label %y_body16
 
-y_body21:                                         ; preds = %x_body, %x_exit24
-  %27 = phi double [ %41, %x_exit24 ], [ 0.000000e+00, %x_body ]
-  %y = phi i64 [ %y_increment, %x_exit24 ], [ 0, %x_body ]
+y_body16:                                         ; preds = %x_body, %x_exit19
+  %27 = phi double [ %41, %x_exit19 ], [ 0.000000e+00, %x_body ]
+  %y = phi i64 [ %y_increment, %x_exit19 ], [ 0, %x_body ]
   %28 = add nuw nsw i64 %y, %outer-y
-  %29 = mul nuw nsw i64 %28, %src_y_step19
+  %29 = mul nuw nsw i64 %28, %src_y_step14
   %30 = add i64 %29, %outer-x
-  %31 = mul nuw nsw i64 %y, %templ_y_step14
-  br label %x_body23
+  %31 = mul nuw nsw i64 %y, %templ_y_step9
+  br label %x_body18
 
-x_body23:                                         ; preds = %y_body21, %x_body23
-  %32 = phi double [ %41, %x_body23 ], [ %27, %y_body21 ]
-  %x = phi i64 [ %x_increment, %x_body23 ], [ 0, %y_body21 ]
+x_body18:                                         ; preds = %y_body16, %x_body18
+  %32 = phi double [ %41, %x_body18 ], [ %27, %y_body16 ]
+  %x = phi i64 [ %x_increment, %x_body18 ], [ 0, %y_body16 ]
   %33 = add i64 %30, %x
   %34 = getelementptr %f32XY, %f32XY* %6, i64 0, i32 6, i64 %33
   %35 = load float, float* %34, align 4
@@ -75,27 +75,27 @@ x_body23:                                         ; preds = %y_body21, %x_body23
   %40 = fpext float %39 to double
   %41 = fadd fast double %40, %32
   %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %templ_y_step14
-  br i1 %x_postcondition, label %x_exit24, label %x_body23
+  %x_postcondition = icmp eq i64 %x_increment, %templ_y_step9
+  br i1 %x_postcondition, label %x_exit19, label %x_body18
 
-x_exit24:                                         ; preds = %x_body23
+x_exit19:                                         ; preds = %x_body18
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %26
-  br i1 %y_postcondition, label %y_exit22, label %y_body21
+  br i1 %y_postcondition, label %y_exit17, label %y_body16
 
-y_exit22:                                         ; preds = %x_exit24
+y_exit17:                                         ; preds = %x_exit19
   %42 = add nuw nsw i64 %outer-x, %25
   %43 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %42
   %44 = fptrunc double %41 to float
   store float %44, float* %43, align 4, !llvm.mem.parallel_loop_access !1
-  %x_increment25 = add nuw nsw i64 %outer-x, 1
-  %x_postcondition26 = icmp eq i64 %x_increment25, %dst_y_step
-  br i1 %x_postcondition26, label %x_exit, label %x_body
+  %x_increment20 = add nuw nsw i64 %outer-x, 1
+  %x_postcondition21 = icmp eq i64 %x_increment20, %dst_y_step
+  br i1 %x_postcondition21, label %x_exit, label %x_body
 
-x_exit:                                           ; preds = %y_exit22
-  %y_increment27 = add nuw nsw i64 %outer-y, 1
-  %y_postcondition28 = icmp eq i64 %y_increment27, %2
-  br i1 %y_postcondition28, label %y_exit, label %y_body
+x_exit:                                           ; preds = %y_exit17
+  %y_increment22 = add nuw nsw i64 %outer-y, 1
+  %y_postcondition23 = icmp eq i64 %y_increment22, %2
+  br i1 %y_postcondition23, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
   ret void
