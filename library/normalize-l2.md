@@ -7,10 +7,10 @@ Compare to **[cv::normalize(NORM_L2)](http://docs.opencv.org/modules/core/doc/op
         norm := 0.f64.$
         add-squared-element :=
           e :->
-            norm :<- (+ norm e.f64.sq)
+            norm :<- (+ (norm) e.f64.sq)
         src:iter-elements add-squared-element
-        norm :<- (/ 1 (sqrt norm))
-        norm := (src.element-type norm)
+        norm :<- (/ 1 (sqrt (norm)))
+        norm := (src.element-type (norm))
 
         dst := src.imitate
         (dst src norm) :=>

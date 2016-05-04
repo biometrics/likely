@@ -18,13 +18,13 @@ Compare to **[cv::minMaxLoc](http://docs.opencv.org/2.4.8/modules/core/doc/opera
             i :->
             {
               current-value := (src c i 0 t)
-              (< current-value current-min-value) :?
+              (< current-value (current-min-value)) :?
               {
                 current-min-value :<- current-value
                 current-min-idx :<- i
               }
 
-              (> current-value current-max-value) :?
+              (> current-value (current-max-value)) :?
               {
                 current-max-value :<- current-value
                 current-max-idx :<- i
@@ -33,12 +33,12 @@ Compare to **[cv::minMaxLoc](http://docs.opencv.org/2.4.8/modules/core/doc/opera
 
           (iter (-> i (check-location i)) (* width height))
 
-          (dst c 0 0) :<- current-min-value
-          (dst c 1 0) :<- (% current-min-idx width)
-          (dst c 2 0) :<- (/ current-min-idx width)
-          (dst c 0 1) :<- current-max-value
-          (dst c 1 1) :<- (% current-max-idx width)
-          (dst c 2 1) :<- (/ current-max-idx width)
+          (dst c 0 0) :<- (current-min-value)
+          (dst c 1 0) :<- (% (current-min-idx) width)
+          (dst c 2 0) :<- (/ (current-min-idx) width)
+          (dst c 0 1) :<- (current-max-value)
+          (dst c 1 1) :<- (% (current-max-idx) width)
+          (dst c 2 1) :<- (/ (current-max-idx) width)
         }
       }
 
