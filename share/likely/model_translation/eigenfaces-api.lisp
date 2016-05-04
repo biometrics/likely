@@ -3,8 +3,10 @@
 eigenfaces :=
   src :->
   {
+    ; Bring the variables into local scope for use in the kernels
     mean  := mean
     evecs := evecs
+
     (assume-same-dimensions src mean)
 
     centered := (imitate-size src mean.type)
