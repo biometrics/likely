@@ -757,7 +757,7 @@ Because variables is explicitly tied to stack allocation, the \pindex{allocate} 
 \begin{verbatim}
 {
   x := 1.$
-  x ; Evaluates to 1
+  (x) ; Evaluates to 1
 
   y := ($ 3 2)
   (+ (y 0) (y 1)) ; Evaluates to 6
@@ -771,8 +771,8 @@ If \emph{index} is provided, the variable is assumed to be an \pindex{array}, an
 \begin{verbatim}
 {
   x := 1.$
-  x :<- (+ x 1)
-  x ; Evaluates to 2
+  x :<- (+ (x) 1)
+  (x) ; Evaluates to 2
 
   y := ($ 0 2)
   (y 0) :<- 1
@@ -833,8 +833,8 @@ The \emph{then} \pindex{statement} is executed if and only if \emph{condition} i
 \begin{verbatim}
 {
   x := 0.$
-  (? (== x 0) (<- x 1))
-  x
+  (? (== (x) 0) (<- x 1))
+  (x)
 } ; Evaluates to 1
 \end{verbatim}
 
@@ -856,13 +856,13 @@ This primitive is necessary for constructing loops.
   i := 1.$
   j := 0.$
   loop := #
-  (< i end) :?
+  (< (i) end) :?
   {
-    j :<- (+ j i)
-    i :<- (+ i 1)
+    j :<- (+ (j) (i))
+    i :<- (+ (i) 1)
     loop
   }
-  j
+  (j)
 } ; Evaluates to 45
 \end{verbatim}
 
@@ -1338,10 +1338,10 @@ iter-generic :=
   {
     i := start.$
     loop := #
-    (!= i end) :?
+    (!= (i) end) :?
     {
-      (expr i)
-      i :<- (step i)
+      (expr (i))
+      i :<- (step (i))
       loop
     }
   }
@@ -1399,8 +1399,8 @@ dot :=
   {
     native-type := (type-from-types (a 0).type (b 0).type).depth-atleast-32
     result := 0.native-type.$
-    (-> i (<- result (+ result (* (a i).native-type (b i).native-type)))).(iter n)
-    result
+    (-> i (<- result (+ (result) (* (a i).native-type (b i).native-type)))).(iter n)
+    (result)
   }
 
 norm-l2 :=
@@ -1410,9 +1410,9 @@ norm-l2 :=
     result := 0.native-type.$
     add-squared :=
       i :->
-        result :<- (+ result (a i).native-type.sq)
+        result :<- (+ (result) (a i).native-type.sq)
     add-squared.(iter n)
-    result.sqrt
+    (result).sqrt
   }
 \end{likely}
 
@@ -1424,20 +1424,20 @@ min-element :=
     current-min-value := src.type.numeric-limit-max.$
     check-element :=
       e :->
-        current-min-value :<- (min current-min-value e)
+        current-min-value :<- (min (current-min-value) e)
     src:iter-elements check-element
-    current-min-value
+    (current-min-value)
   }
 
 max-element :=
   src :->
   {
-    current-max-value := src.type.numeric-limit-min.$
+    (current-max-value) := src.type.numeric-limit-min.$
     check-element :=
       e :->
-        current-max-value :<- (max current-max-value e)
+        current-max-value :<- (max (current-max-value) e)
     src:iter-elements check-element
-    current-max-value
+    (current-max-value)
   }
 \end{likely}
 
@@ -1502,10 +1502,10 @@ A-transpose-A-generic :=
       (<= y x) :?
       {
         dot := 0.working-type.$
-        (-> i (<- dot (+ dot (* (src c x i t).working-type
-                                (src c y i t).working-type)))).(iter len)
-        dst         :<- dot
-        (dst c y x) :<- dot
+        (-> i (<- dot (+ (dot) (* (src c x i t).working-type
+                                  (src c y i t).working-type)))).(iter len)
+        dst         :<- (dot)
+        (dst c y x) :<- (dot)
       }
     }
   }
@@ -1531,7 +1531,7 @@ selection-sort :=
           j :->
           {
             element := (get j)
-            (less-than element min-element) :?
+            (less-than element (min-element)) :?
             {
               min-element :<- element
               min-index   :<- j
@@ -1539,8 +1539,8 @@ selection-sort :=
           }
         selection-sort-scan.(iter-range i.++ len)
 
-        (!= i min-index) :?
-          (swap i min-index)
+        (!= i (min-index)) :?
+          (swap i (min-index))
       }
     selection-sort-iteration.(iter len)
   }

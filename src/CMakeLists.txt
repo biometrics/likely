@@ -267,7 +267,7 @@ test_expr("x := 1
            (+ x 1)" 25)
 test_expr("{
              x := 1.$
-             x
+             (x)
            }" 1)
 test_expr("{
              y := ($ 3 2)
@@ -275,8 +275,8 @@ test_expr("{
            }" 6)
 test_expr("{
              x := 1.$
-             x :<- (+ x 1)
-             x
+             x :<- (+ (x) 1)
+             (x)
            }" 2)
 test_expr("{
              y := ($ 0 2)
@@ -298,8 +298,8 @@ test_expr("x := 1
            (? (< x y) x y)" 1)
 test_expr("{
              x := 0.$
-             (? (== x 0) (<- x 1))
-             x
+             (? (== (x) 0) (<- x 1))
+             (x)
            }" 1)
 test_expr("x := 0
            (? x 1 2)" 2)
@@ -308,13 +308,13 @@ test_expr("{
              i := 1.$
              j := 0.$
              loop := #
-             (< i end) :?
+             (< (i) end) :?
              {
-               j :<- (+ j i)
-               i :<- (+ i 1)
+               j :<- (+ (j) (i))
+               i :<- (+ (i) 1)
                loop
              }
-             j
+             (j)
            }" 45)
 test_expr("((type 2.0) 1)" 1.0)
 test_expr("((make-type 288) 1)" 1.0)
@@ -381,9 +381,9 @@ test_expr("(threshold-to-zero 0.6 0.5)" 0.6)
 test_expr("(threshold-to-zero-inverse 0.4 0.5)" 0.4)
 test_expr("(threshold-to-zero-inverse 0.5 0.5)" 0.5)
 test_expr("(threshold-to-zero-inverse 0.6 0.5)" 0)
-test_expr("{ j := 0.$ (iter         (-> i (<- j (+ j i))) 10) j }" 45)
-test_expr("{ j := 0.$ (iter-reverse (-> i (<- j (+ j i))) 10) j }" 45)
-test_expr("{ j := 0.$ (-> () (<- j (+ j 1))).(while (-> () (!= j 10))) j }" 10)
+test_expr("{ j := 0.$ (iter         (-> i (<- j (+ (j) i))) 10) (j) }" 45)
+test_expr("{ j := 0.$ (iter-reverse (-> i (<- j (+ (j) i))) 10) (j) }" 45)
+test_expr("{ j := 0.$ (-> () (<- j (+ (j) 1))).(while (-> () (!= (j) 10))) (j) }" 10)
 test_expr("\"data/misc/lenna.tiff\".read-image.min-element" 3)
 test_expr("\"data/misc/lenna.tiff\".read-image.max-element" 255)
 
