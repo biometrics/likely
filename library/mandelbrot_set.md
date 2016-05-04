@@ -28,12 +28,12 @@ Definition
           zi := 0.f32.$
           j := 0.$
           loop := #
-          tmp := (+ (- zr.sq zi.sq) zr0)
-          zi :<- (+ (* (* zr zi) 2) zi0)
+          tmp := (+ (- (zr).sq (zi).sq) zr0)
+          zi :<- (+ (* (* (zr) (zi)) 2) zi0)
           zr :<- tmp
-          j :<- (+ j 1)
-          (& (< (+ zr.sq zi.sq) 4) (< j iter)) :? loop
-          dst :<- (* 255 j).(/ iter).u8
+          j :<- (+ (j) 1)
+          (& (< (+ (zr).sq (zi).sq) 4) (< (j) iter)) :? loop
+          dst :<- (* 255 (j)).(/ iter).u8
         }
       }
 
