@@ -539,7 +539,6 @@ struct likely_expression : public LikelyValue
 
     virtual likely_const_expr evaluate(Builder &builder, likely_const_ast ast) const;
     virtual Value *gep(Builder &builder, likely_const_ast ast) const;
-    void store(Builder &builder, const likely_expression &expr, likely_const_ast ast) const;
 
     static size_t length(likely_const_ast ast)
     {
@@ -2415,7 +2414,14 @@ class storeExpression : public LikelyOperator
         assert(env);
         const likely_const_expr pointer = env->expr;
         assert(pointer);
-        pointer->store(builder, *expr, ast->atoms[1]);
+
+        Value *GEP = pointer->gep(builder, ast->atoms[1]);
+        if (!GEP)
+            GEP = pointer->value;
+        StoreInst *const store = builder.CreateStore(builder.cast(*expr, likely_element_type(pointer->type)), GEP);
+        if (pointer->node)
+            store->setMetadata("llvm.mem.parallel_loop_access", pointer->node);
+
         return new likely_expression();
     }
 };
@@ -3092,16 +3098,6 @@ likely_const_expr likely_expression::evaluate(Builder &builder, likely_const_ast
     }
 
     return new likely_expression(LikelyValue(value, type));
-}
-
-void likely_expression::store(Builder &builder, const likely_expression &expr, likely_const_ast ast) const
-{
-    Value *GEP = gep(builder, ast);
-    if (!GEP)
-        GEP = value;
-    StoreInst *const store = builder.CreateStore(builder.cast(expr, likely_element_type(type)), GEP);
-    if (node)
-        store->setMetadata("llvm.mem.parallel_loop_access", node);
 }
 
 likely_const_expr likely_expression::get(Builder &builder, likely_const_ast ast)
