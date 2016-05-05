@@ -4,15 +4,17 @@ Compare to **[cv::matchTemplate](http://docs.opencv.org/modules/imgproc/doc/obje
     match-template :=
       (src templ) :->
       {
-        dst := (src.type 1 (- src.columns templ.columns).++
-                           (- src.rows    templ.rows   ).++)
-        (dst src templ) :=>
+        width  := templ.columns
+        height := templ.rows
+        dst := (src.type 1 (- src.columns width ).++
+                           (- src.rows    height).++)
+        (dst src templ width height) :=>
         {
-          outer-x := x
-          outer-y := y
           result := 0.f64.$
-          (result templ src outer-x outer-y) :+>
-            result :<- (+ (result) (* (src 0 (+ x outer-x) (+ y outer-y)) templ))
+          dot :=
+            (inner-x inner-y) :->
+              result :<- (+ (result) (* (src 0 (+ x inner-x) (+ y inner-y)) (templ 0 inner-x inner-y)))
+          (iter-rectangle dot width height)
           dst :<- (result)
         }
       }
