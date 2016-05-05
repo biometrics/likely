@@ -983,10 +983,14 @@ As a special case, a \pindex{list} of up to four expressions may be specified be
 Inside a \pindex{kernel} body, every argument becomes an operator taking between zero and four parameters.
 These parameters are element indicies if the argument is a matrix, and their default values are the \pindex{axes}.
 
+A \pindex{kernel} operator may not be nested within another \pindex{kernel} or \pindex{reduction} operator.
+
 \subsection{(+> \emph{arguments body})}
 The \dindex{reduction} operator is just like the \dindex{kernel} operator in syntax and semantics except for the following differences.
 First, reductions are serial instead of parallel.
 Second, axes ranges are taken from the second argument instead of the first.
+
+A \pindex{reduction} operator may not be nested within another \pindex{reduction} or \pindex{kernel} operator.
 
 \subsection{(try [ \emph{primary} ] \emph{fallback})}
 The \dindex{try} operator returns the \emph{primary} expression if it could be evaluated successfully at compile-time, and the \emph{fallback} expression otherwise.
