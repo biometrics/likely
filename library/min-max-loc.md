@@ -4,42 +4,38 @@ Compare to **[cv::minMaxLoc](http://docs.opencv.org/2.4.8/modules/core/doc/opera
     min-max-loc :=
       src :->
       {
-        dst := (f64XY.(imitate-channels src.type).(imitate-frames src.type) src.channels 3 2 src.frames)
-        width := src.columns
-        height := src.rows
-        ((dst.channels 1 1 dst.frames) dst src width height) :=>
-        {
-          current-min-value := src.type.numeric-limit-max.$
-          current-min-idx   := 0.$
-          current-max-value := src.type.numeric-limit-min.$
-          current-max-idx   := 0.$
+        current-min-value := src.element-type.numeric-limit-max.$
+        current-min-idx   := 0.$
+        current-max-value := src.element-type.numeric-limit-min.$
+        current-max-idx   := 0.$
 
-          check-location :=
-            i :->
+        check-location :=
+          i :->
+          {
+            current-value := (src i)
+            (< current-value (current-min-value)) :?
             {
-              current-value := (src c i 0 t)
-              (< current-value (current-min-value)) :?
-              {
-                current-min-value :<- current-value
-                current-min-idx :<- i
-              }
-
-              (> current-value (current-max-value)) :?
-              {
-                current-max-value :<- current-value
-                current-max-idx :<- i
-              }
+              current-min-value :<- current-value
+              current-min-idx :<- i
             }
 
-          (iter (-> i (check-location i)) (* width height))
+            (> current-value (current-max-value)) :?
+            {
+              current-max-value :<- current-value
+              current-max-idx :<- i
+            }
+          }
 
-          (dst c 0 0) :<- (current-min-value)
-          (dst c 1 0) :<- (% (current-min-idx) width)
-          (dst c 2 0) :<- (/ (current-min-idx) width)
-          (dst c 0 1) :<- (current-max-value)
-          (dst c 1 1) :<- (% (current-max-idx) width)
-          (dst c 2 1) :<- (/ (current-max-idx) width)
-        }
+        (iter check-location src.elements)
+
+        dst := (f64XY 1 3 2)
+        (dst 0 0 0) :<- (current-min-value)
+        (dst 0 1 0) :<- (% (current-min-idx) src.columns)
+        (dst 0 2 0) :<- (/ (current-min-idx) src.columns)
+        (dst 0 0 1) :<- (current-max-value)
+        (dst 0 1 1) :<- (% (current-max-idx) src.columns)
+        (dst 0 2 1) :<- (/ (current-max-idx) src.columns)
+        dst
       }
 
 #### Generated LLVM IR
