@@ -653,7 +653,7 @@ class Covariance : public Test<0, false, 512>
     }
 };
 
-class Sort : public Test<0, false>
+class Sort : public Test<0, false, 512>
 {
     const char *name() const
     {
