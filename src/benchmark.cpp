@@ -225,7 +225,7 @@ private:
         if (expected == actual)
             return;
 
-        fprintf(stderr, "Test for: %s differs in channel count, exptected: %d but got %d", name(), expected, actual);
+        fprintf(stderr, "Test for: %s differs in channel count, exptected: %d but got %d\n", name(), expected, actual);
         exit(EXIT_FAILURE);
     }
 
@@ -554,6 +554,45 @@ public:
         : templ(generateData(8, 8, likely_f32, false)) {}
 };
 
+class Convolution : public Test<3, false>
+{
+    const Mat kernel;
+
+    const char *name() const
+    {
+        return "convolution";
+    }
+
+    vector<likely_const_mat> additionalArguments(likely_const_mat) const
+    {
+        vector<likely_const_mat> args;
+        const double stride = 1;
+        const double pad = 1;
+        args.push_back(likelyFromOpenCVMat(kernel));
+        args.push_back(likely_scalar(likely_i32, &stride, 1));
+        args.push_back(likely_scalar(likely_i32, &pad, 1));
+        return args;
+    }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat dst;
+        filter2D(src, dst, -1, kernel, Point(-1, -1), 0, BORDER_CONSTANT);
+        return dst;
+    }
+
+    vector<likely_type> types() const
+    {
+        vector<likely_type> types;
+        types.push_back(likely_f32);
+        return types;
+    }
+
+public:
+    Convolution()
+        : kernel(generateData(3, 3, likely_f32, false)) {}
+};
+
 class Average : public Test<0, false>
 {
     const char *name() const
@@ -713,6 +752,7 @@ int main(int argc, char *argv[])
         MatrixMultiplication().run(parent);
         GEMM().run(parent);
         MatchTemplate().run(parent);
+        Convolution().run(parent);
         Average().run(parent);
         Transpose().run(parent);
         MultiplyTransposed().run(parent);
