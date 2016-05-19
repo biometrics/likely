@@ -12,7 +12,7 @@ Interactive parameters
     y_min   := (try [ mandelbrot_set_y ] 0).(* y_scale).(- (/ y_range 2.f))
     width   := (try [ mandelbrot_set_width ] 600)
     height  := width.(* y_scale).(/ x_scale)
-    iter    := (try [ mandelbrot_set_angle ] 0).(/  4).(+ 20)
+    iter    := (try [ mandelbrot_set_angle ] 0).(/ 4).(+ 20)
 
 Definition
 
