@@ -1036,6 +1036,15 @@ sign  := (-> a (? (< a 0) -1 1))
 recip := (-> a (/ 1 a))
 ++    := (-> a (+ a 1))
 --    := (-> a (- a 1))
+
+is-zero := (-> a (== a 0))
+is-one  := (-> a (== a 1))
+
+is-even := (-> a (== (% a 2) 0))
+is-odd  := (-> a (== (% a 2) 1))
+
+is-positive := (-> a (> a 0))
+is-negative := (-> a (< a 0))
 \end{likely}
 
 \section{Binary Functions}
@@ -1043,9 +1052,6 @@ recip := (-> a (/ 1 a))
 xor := (-> (a b) (!= a.bool b.bool))
 min := (-> (a b) (? (< a b) a b))
 max := (-> (a b) (? (> a b) a b))
-
-is-positive := (-> a (> a 0))
-is-negative := (-> a (< a 0))
 \end{likely}
 
 \section{Numeric Limits}

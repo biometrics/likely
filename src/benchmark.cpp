@@ -554,6 +554,44 @@ public:
         : templ(generateData(8, 8, likely_f32, false)) {}
 };
 
+class Filter2D : public Test<1, false>
+{
+    const Mat kernel;
+
+    const char *name() const
+    {
+        return "filter-2D";
+    }
+
+    vector<likely_const_mat> additionalArguments(likely_const_mat) const
+    {
+        vector<likely_const_mat> args;
+        args.push_back(likelyFromOpenCVMat(kernel));
+        return args;
+    }
+
+    Mat computeBaseline(const Mat &src) const
+    {
+        Mat dst;
+        filter2D(src, dst, src.depth() == CV_64F ? CV_64F : CV_32F, kernel, Point(-1, -1), 0, BORDER_CONSTANT);
+        return dst;
+    }
+
+    vector<likely_type> types() const
+    {
+        vector<likely_type> types;
+        types.push_back(likely_u8);
+        types.push_back(likely_i16);
+        types.push_back(likely_f32);
+        types.push_back(likely_f64);
+        return types;
+    }
+
+ public:
+    Filter2D()
+        : kernel(generateData(3, 3, likely_f32, false)) {}
+ };
+
 class Average : public Test<0, false>
 {
     const char *name() const
@@ -713,6 +751,7 @@ int main(int argc, char *argv[])
         MatrixMultiplication().run(parent);
         GEMM().run(parent);
         MatchTemplate().run(parent);
+        Filter2D().run(parent);
         Average().run(parent);
         Transpose().run(parent);
         MultiplyTransposed().run(parent);

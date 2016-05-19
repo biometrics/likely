@@ -22,6 +22,7 @@ Likely functions measured against their [OpenCV](http://www.opencv.org) equivale
 - [Matrix multiplication](?href=matrix-multiplication)
 - [GEMM](?href=gemm)
 - [Match template](?href=match-template)
+- [Filter 2D](?href=filter-2D)
 - [Average](?href=average)
 - [Multiply transposed](?href=multiply-transposed)
 - [Covariance](?href=covariance)
