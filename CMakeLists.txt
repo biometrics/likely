@@ -27,10 +27,10 @@ else()
   endif()
   set(LLVM_TARGETS_TO_BUILD "host" CACHE STRING "LLVM targets")
   add_subdirectory(llvm EXCLUDE_FROM_ALL)
-  set(CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}/llvm/share/llvm/cmake/")
+  set(CMAKE_MODULE_PATH "${PROJECT_BINARY_DIR}/llvm/share/llvm/cmake/")
   include(LLVMConfig)
-  include_directories(${CMAKE_SOURCE_DIR}/llvm/include
-                      ${CMAKE_BINARY_DIR}/llvm/include)
+  include_directories(${PROJECT_SOURCE_DIR}/llvm/include
+                      ${PROJECT_BINARY_DIR}/llvm/include)
   link_directories(${LLVM_LIBRARY_DIRS})
   add_definitions(${LLVM_DEFINITIONS})
 endif()
@@ -49,12 +49,12 @@ else()
   option(WITH_CUDA "OpenCV CUDA support" OFF)
   option(WITH_OPENEXR "OpenCV OpenEXR support" OFF)
   add_subdirectory(opencv EXCLUDE_FROM_ALL)
-  include_directories(${CMAKE_SOURCE_DIR}/opencv/modules/core/include
-                      ${CMAKE_SOURCE_DIR}/opencv/modules/hal/include
-                      ${CMAKE_SOURCE_DIR}/opencv/modules/highgui/include
-                      ${CMAKE_SOURCE_DIR}/opencv/modules/imgcodecs/include
-                      ${CMAKE_SOURCE_DIR}/opencv/modules/imgproc/include
-                      ${CMAKE_SOURCE_DIR}/opencv/modules/videoio/include)
+  include_directories(${PROJECT_SOURCE_DIR}/opencv/modules/core/include
+                      ${PROJECT_SOURCE_DIR}/opencv/modules/hal/include
+                      ${PROJECT_SOURCE_DIR}/opencv/modules/highgui/include
+                      ${PROJECT_SOURCE_DIR}/opencv/modules/imgcodecs/include
+                      ${PROJECT_SOURCE_DIR}/opencv/modules/imgproc/include
+                      ${PROJECT_SOURCE_DIR}/opencv/modules/videoio/include)
 endif()
 set(LIKELY_LIBS ${LIKELY_LIBS} opencv_core opencv_highgui opencv_imgcodecs opencv_imgproc opencv_videoio)
 
@@ -76,14 +76,14 @@ if(NOT MSVC)
 endif()
 
 # Put artifacts in the build directory root
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
 
 # Add dataset targets
 function(download_demo_file NAME MD5)
   file(DOWNLOAD "https://github.com/biometrics/likely/releases/download/v0.1/${NAME}"
-                "${CMAKE_SOURCE_DIR}/data/demo/${NAME}"
+                "${PROJECT_SOURCE_DIR}/data/demo/${NAME}"
                 EXPECTED_MD5 ${MD5})
 endfunction()
 
@@ -95,7 +95,7 @@ function(download_archive NAME MD5)
   ExternalProject_Add(${NAME}
                       URL "https://github.com/biometrics/likely/releases/download/v0.1/${NAME}.tar.gz"
                       URL_MD5 ${MD5}
-                      SOURCE_DIR "${CMAKE_SOURCE_DIR}/data/${NAME}"
+                      SOURCE_DIR "${PROJECT_SOURCE_DIR}/data/${NAME}"
                       CONFIGURE_COMMAND ""
                       BUILD_COMMAND ""
                       INSTALL_COMMAND "")
@@ -130,7 +130,7 @@ add_custom_target(doc)
 
 find_package(Doxygen)
 if(DOXYGEN_FOUND)
-  configure_file(${CMAKE_SOURCE_DIR}/src/Doxyfile.in Doxyfile)
+  configure_file(${PROJECT_SOURCE_DIR}/src/Doxyfile.in Doxyfile)
   add_custom_target(likely_doxygen ${DOXYGEN_EXECUTABLE} Doxyfile)
   add_dependencies(doc likely_doxygen)
 endif()
@@ -138,12 +138,12 @@ endif()
 find_package(LATEX)
 if(LATEX_COMPILER)
   include(UseLATEX/UseLATEX.cmake)
-  file(GLOB LIKELY_TEX RELATIVE ${CMAKE_SOURCE_DIR} library/*.tex)
+  file(GLOB LIKELY_TEX RELATIVE ${PROJECT_SOURCE_DIR} library/*.tex)
   foreach(TEX_FILE ${LIKELY_TEX})
     latex_get_filename_component(NAME "${TEX_FILE}" NAME_WE)
     set(LIKELY_BIBFILE "library/${NAME}.bib")
     set(LIKELY_INDEX "USE_INDEX")
-    if(NOT EXISTS "${CMAKE_SOURCE_DIR}/${LIKELY_BIBFILE}")
+    if(NOT EXISTS "${PROJECT_SOURCE_DIR}/${LIKELY_BIBFILE}")
       unset(LIKELY_BIBFILE)
       unset(LIKELY_INDEX)
     endif()
@@ -158,12 +158,12 @@ endif()
 
 # Install
 install(DIRECTORY include share DESTINATION .)
-install(FILES ${CMAKE_SOURCE_DIR}/LICENSE.txt ${CMAKE_SOURCE_DIR}/README.md DESTINATION share/likely)
+install(FILES ${PROJECT_SOURCE_DIR}/LICENSE.txt ${PROJECT_SOURCE_DIR}/README.md DESTINATION share/likely)
 
 # Package
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "An embeddable just-in-time Lisp for image recognition and heterogeneous computing.")
 set(CPACK_PACKAGE_FILE_NAME "Likely-${CMAKE_SYSTEM_NAME}")
 set(CPACK_PACKAGE_NAME "Likely")
 set(CPACK_PACKAGE_VENDOR "Joshua C. Klontz")
-set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE.txt)
+set(CPACK_RESOURCE_FILE_LICENSE ${PROJECT_SOURCE_DIR}/LICENSE.txt)
 include(CPack)

@@ -5,33 +5,33 @@ set(LIKELY_SRC assumption_substitution.cpp
                io.cpp
                loop_collapse.cpp
                memory_management.cpp)
-file(GLOB LIKELY_LIBRARY ${CMAKE_SOURCE_DIR}/library/*)
+file(GLOB LIKELY_LIBRARY ${PROJECT_SOURCE_DIR}/library/*)
 set(LIKELY_MISC ${LIKELY_LIBRARY}
-                ${CMAKE_SOURCE_DIR}/LICENSE.txt
-                ${CMAKE_SOURCE_DIR}/README.md
-                ${CMAKE_SOURCE_DIR}/include/likely.h
-                ${CMAKE_SOURCE_DIR}/include/likely/backend.h
-                ${CMAKE_SOURCE_DIR}/include/likely/export.h
-                ${CMAKE_SOURCE_DIR}/include/likely/frontend.h
-                ${CMAKE_SOURCE_DIR}/include/likely/io.h
-                ${CMAKE_SOURCE_DIR}/include/likely/opencv.hpp
-                ${CMAKE_SOURCE_DIR}/include/likely/runtime.h
-                ${CMAKE_SOURCE_DIR}/index.html
-                ${CMAKE_SOURCE_DIR}/share/likely/LikelyConfig.cmake
-                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/README.md
-                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello-world-compiled.lisp
-                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello-world-interpreted.lisp
-                ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello-world-main.lisp
-                ${CMAKE_SOURCE_DIR}/share/likely/model_translation/README.md
-                ${CMAKE_SOURCE_DIR}/share/likely/model_translation/eigenfaces-ctfe.lisp
-                ${CMAKE_SOURCE_DIR}/share/likely/model_translation/eigenfaces-def.lisp
-                ${CMAKE_SOURCE_DIR}/src/Doxyfile.in)
+                ${PROJECT_SOURCE_DIR}/LICENSE.txt
+                ${PROJECT_SOURCE_DIR}/README.md
+                ${PROJECT_SOURCE_DIR}/include/likely.h
+                ${PROJECT_SOURCE_DIR}/include/likely/backend.h
+                ${PROJECT_SOURCE_DIR}/include/likely/export.h
+                ${PROJECT_SOURCE_DIR}/include/likely/frontend.h
+                ${PROJECT_SOURCE_DIR}/include/likely/io.h
+                ${PROJECT_SOURCE_DIR}/include/likely/opencv.hpp
+                ${PROJECT_SOURCE_DIR}/include/likely/runtime.h
+                ${PROJECT_SOURCE_DIR}/index.html
+                ${PROJECT_SOURCE_DIR}/share/likely/LikelyConfig.cmake
+                ${PROJECT_SOURCE_DIR}/share/likely/hello_world/README.md
+                ${PROJECT_SOURCE_DIR}/share/likely/hello_world/hello-world-compiled.lisp
+                ${PROJECT_SOURCE_DIR}/share/likely/hello_world/hello-world-interpreted.lisp
+                ${PROJECT_SOURCE_DIR}/share/likely/hello_world/hello-world-main.lisp
+                ${PROJECT_SOURCE_DIR}/share/likely/model_translation/README.md
+                ${PROJECT_SOURCE_DIR}/share/likely/model_translation/eigenfaces-ctfe.lisp
+                ${PROJECT_SOURCE_DIR}/share/likely/model_translation/eigenfaces-def.lisp
+                ${PROJECT_SOURCE_DIR}/src/Doxyfile.in)
 
 # Build standard library
 add_executable(embedfile embedfile.c)
 add_custom_command(OUTPUT likely_standard_library.c
-                   COMMAND embedfile likely_standard_library ${CMAKE_SOURCE_DIR}/library/standard.tex
-                   DEPENDS embedfile ${CMAKE_SOURCE_DIR}/library/standard.tex)
+                   COMMAND embedfile likely_standard_library ${PROJECT_SOURCE_DIR}/library/standard.tex
+                   DEPENDS embedfile ${PROJECT_SOURCE_DIR}/library/standard.tex)
 set(LIKELY_SRC ${LIKELY_SRC} ${CMAKE_CURRENT_BINARY_DIR}/likely_standard_library.c)
 
 # Build CUDA backend if possible
@@ -91,7 +91,7 @@ if(LIKELY_UNITTESTS)
   function(test_ast EXPR VALUE)
     string(MAKE_C_IDENTIFIER "${EXPR}" NAME)
     add_test(NAME "${NAME}"
-             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+             WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
              COMMAND likely -ast -c "${EXPR}" -e "${VALUE}")
   endfunction()
 
@@ -99,7 +99,7 @@ if(LIKELY_UNITTESTS)
     string(REGEX REPLACE "[\r\n\t ]+" " " CLEAN_EXPR "${EXPR}") # Remove extra white space for cleanliness
     string(MAKE_C_IDENTIFIER "${CLEAN_EXPR}" NAME)
     add_test(NAME "${NAME}"
-             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+             WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
              COMMAND likely -c "${CLEAN_EXPR}" -e "${VALUE}")
   endfunction()
 
@@ -393,7 +393,7 @@ if(LIKELY_UNITTESTS)
   # Test other library files
   function(test_file FILE VALUE)
     add_test(NAME ${FILE}
-             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+             WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
              COMMAND likely library/${FILE} -e "${VALUE}")
   endfunction()
 
@@ -411,22 +411,22 @@ if(LIKELY_BENCHMARKS)
   target_link_libraries(benchmark likely_shared LLVMSupport opencv_imgproc opencv_highgui)
   install(TARGETS benchmark RUNTIME DESTINATION bin)
   add_test(NAME benchmark
-           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+           WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
            COMMAND benchmark -test)
   add_test(NAME benchmark_parallel
-           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+           WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
            COMMAND benchmark -test -m)
 
-  set(LIKELY_BENCHMARKS_DIR ${CMAKE_SOURCE_DIR}/ir/benchmarks)
+  set(LIKELY_BENCHMARKS_DIR ${PROJECT_SOURCE_DIR}/ir/benchmarks)
   function(add_benchmark RETVAL FILE PARAMETERS)
     foreach(KERNEL_TYPE "" "-m")
       string(MAKE_C_IDENTIFIER ${FILE} SYMBOL_NAME)
       string(MAKE_C_IDENTIFIER "${FILE} ${RETVAL} ${PARAMETERS}${KERNEL_TYPE}" FILE_NAME)
       set(IR_FILE ${LIKELY_BENCHMARKS_DIR}/${FILE_NAME}.ll)
       add_custom_command(OUTPUT ${IR_FILE}
-                         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
                          COMMAND likely -ro ${KERNEL_TYPE} -c "(import \"library/${FILE}.md\") (extern ${RETVAL} \"${SYMBOL_NAME}\" ${PARAMETERS} ${FILE})" ${IR_FILE}
-                         DEPENDS likely ${CMAKE_SOURCE_DIR}/library/${FILE}.md
+                         DEPENDS likely ${PROJECT_SOURCE_DIR}/library/${FILE}.md
                          VERBATIM)
       add_custom_target(${FILE_NAME} ALL
                         DEPENDS ${IR_FILE})
@@ -489,15 +489,15 @@ endif()
 option(LIKELY_DEMOS "Compile and test demos." ON)
 if(LIKELY_DEMOS)
   # Compile and test demos
-  set(LIKELY_DEMOS_DIR ${CMAKE_SOURCE_DIR}/ir/demos)
+  set(LIKELY_DEMOS_DIR ${PROJECT_SOURCE_DIR}/ir/demos)
   function(add_demo FILE ARGS)
     foreach(KERNEL_TYPE "" "-m")
       set(IR_FILE ${LIKELY_DEMOS_DIR}/${FILE}${KERNEL_TYPE}.ll)
-      set(OBJECT_FILE ${CMAKE_BINARY_DIR}/${FILE}${KERNEL_TYPE}${CMAKE_C_OUTPUT_EXTENSION})
+      set(OBJECT_FILE ${PROJECT_BINARY_DIR}/${FILE}${KERNEL_TYPE}${CMAKE_C_OUTPUT_EXTENSION})
       add_custom_command(OUTPUT ${IR_FILE}
-                         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
                          COMMAND likely -ro ${KERNEL_TYPE} -q "library/${FILE}.md" ${IR_FILE}
-                         DEPENDS likely ${CMAKE_SOURCE_DIR}/library/${FILE}.md
+                         DEPENDS likely ${PROJECT_SOURCE_DIR}/library/${FILE}.md
                          VERBATIM)
       add_custom_command(OUTPUT ${OBJECT_FILE}
                          COMMAND llc -O3 -filetype=obj ${IR_FILE} -o ${OBJECT_FILE}
@@ -511,7 +511,7 @@ if(LIKELY_DEMOS)
       endif()
       separate_arguments(ARGS)
       add_test(NAME ${FILE}${KERNEL_TYPE}
-               WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+               WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
                COMMAND ${DEMO_EXECUTABLE} "\"data/demo/${FILE}.jpg\".read-image" ${ARGS})
     endforeach()
   endfunction()

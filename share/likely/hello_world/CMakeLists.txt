@@ -1,17 +1,16 @@
-project(hello_world)
 option(LIKELY_HELLOWORLD "Build Hello World examples" ON)
 
 if(LIKELY_HELLOWORLD)
   # Interpreted
   add_test(NAME hello_world_interpreted
-           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-           COMMAND likely ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello-world-interpreted.lisp -q)
+           WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+           COMMAND likely ${PROJECT_SOURCE_DIR}/share/likely/hello_world/hello-world-interpreted.lisp -q)
 
   # JIT Compiled
   add_executable(hello_world_jit hello_world_jit.c)
   target_link_libraries(hello_world_jit likely_shared)
   add_test(NAME hello_world_jit
-           COMMAND hello_world_jit ${CMAKE_SOURCE_DIR}/data/misc/lenna.tiff ${CMAKE_SOURCE_DIR}/share/likely/hello_world/hello-world-compiled.lisp dark_lenna.png)
+           COMMAND hello_world_jit ${PROJECT_SOURCE_DIR}/data/misc/lenna.tiff ${PROJECT_SOURCE_DIR}/share/likely/hello_world/hello-world-compiled.lisp dark_lenna.png)
 
   # Static Compiled
   add_custom_command(OUTPUT hello_world_compiled_lisp.o
@@ -22,15 +21,15 @@ if(LIKELY_HELLOWORLD)
   add_executable(hello_world_static hello_world_static.c hello_world_compiled_lisp.o)
   target_link_libraries(hello_world_static likely_shared)
   add_test(NAME hello_world_static
-           COMMAND hello_world_static ${CMAKE_SOURCE_DIR}/data/misc/lenna.tiff dark_lenna.png)
+           COMMAND hello_world_static ${PROJECT_SOURCE_DIR}/data/misc/lenna.tiff dark_lenna.png)
 
   # Pre-compiled
   add_executable(hello_world_precompiled hello_world_precompiled.c)
   target_link_libraries(hello_world_precompiled likely_shared)
   add_test(NAME hello_world_precompile
-           COMMAND likely -ro ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-compiled.lisp ${CMAKE_BINARY_DIR}/hello_world_precompiled_lisp.bc)
+           COMMAND likely -ro ${CMAKE_CURRENT_SOURCE_DIR}/hello-world-compiled.lisp ${PROJECT_BINARY_DIR}/hello_world_precompiled_lisp.bc)
   add_test(NAME hello_world_precompiled
-           COMMAND hello_world_precompiled ${CMAKE_SOURCE_DIR}/data/misc/lenna.tiff ${CMAKE_BINARY_DIR}/hello_world_precompiled_lisp.bc hello_world dark_lenna.png)
+           COMMAND hello_world_precompiled ${PROJECT_SOURCE_DIR}/data/misc/lenna.tiff ${PROJECT_BINARY_DIR}/hello_world_precompiled_lisp.bc hello_world dark_lenna.png)
 
   # Main
   add_custom_command(OUTPUT hello_world_main.o
@@ -38,5 +37,5 @@ if(LIKELY_HELLOWORLD)
                      DEPENDS likely hello-world-main.lisp)
   likely_executable(hello_world_main)
   add_test(NAME hello_world_main
-           COMMAND hello_world_main ${CMAKE_SOURCE_DIR}/data/misc/lenna.tiff dark_lenna.png)
+           COMMAND hello_world_main ${PROJECT_SOURCE_DIR}/data/misc/lenna.tiff dark_lenna.png)
 endif()
