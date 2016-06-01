@@ -3427,12 +3427,11 @@ likely_mat likely_compute(const char *source)
 }
 //! [likely_compute implementation.]
 
-likely_env likely_define(const char *name, likely_const_mat value, likely_const_env parent)
+void likely_define(const char *name, likely_const_mat value, likely_const_env *env)
 {
-    if (!value)
-        return NULL;
-    likely_expression::define(parent, name, new ConstantData(likely_retain_mat(value)));
-    return const_cast<likely_env>(parent); // define() swaps the value of parent with child, so this is safe
+    const likely_const_env parent = *env;
+    likely_expression::define(*env, name, new ConstantData(likely_retain_mat(value)));
+    likely_release_env(parent);
 }
 
 void likely_shutdown()

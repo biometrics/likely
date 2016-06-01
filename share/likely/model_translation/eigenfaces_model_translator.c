@@ -34,18 +34,8 @@ int main(int argc, char *argv[])
     const likely_file_type object_file_type = likely_guess_file_type(argv[4]);
     struct likely_settings settings = likely_default_settings(object_file_type, false);
     likely_const_env parent = likely_standard(settings, &output, object_file_type);
-
-    {
-        const likely_const_env env = likely_define("mean", mean, parent);
-        likely_release_env(parent);
-        parent = env;
-    }
-
-    {
-        const likely_const_env env = likely_define("evecs", evecs, parent);
-        likely_release_env(parent);
-        parent = env;
-    }
+    likely_define("mean", mean, &parent);
+    likely_define("evecs", evecs, &parent);
 
     // Compiling inference algorithm...
     likely_release_env(likely_lex_parse_and_eval(source_file->data, source_file_type, parent));
