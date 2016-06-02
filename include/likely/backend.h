@@ -41,6 +41,7 @@ struct likely_settings
     bool heterogeneous; /*!< \brief Enable heterogeneous code generation. */
     bool runtime_only; /*!< \brief The compiler can only reference external symbols in \ref runtime. */
     bool verbose; /*!< \brief Verbose compiler output. */
+    const char *module_id; /*!< \brief LLVM module identifier. Default is \c "likely". */
 };
 
 /*!

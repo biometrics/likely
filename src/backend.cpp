@@ -75,6 +75,7 @@ likely_settings likely_default_settings(likely_file_type file_type, bool verbose
     settings.heterogeneous = false;
     settings.runtime_only = false;
     settings.verbose = verbose;
+    settings.module_id = "likely";
     return settings;
 }
 //! [likely_default_settings implementation.]
@@ -657,7 +658,7 @@ struct likely_module
 
     likely_module(const likely_settings &settings, bool native, bool jit)
         : context(new LikelyContext(settings))
-        , module(new Module("likely", context->context))
+        , module(new Module(settings.module_id, context->context))
     {
         init(native, jit);
     }

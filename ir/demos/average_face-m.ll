@@ -1,4 +1,4 @@
-; ModuleID = 'likely'
+; ModuleID = 'library/average_face.md'
 
 %u8XY_62500 = type { i32, i32, i32, i32, i32, i32, [62500 x i8] }
 %u8XY = type { i32, i32, i32, i32, i32, i32, [0 x i8] }

@@ -1,4 +1,4 @@
-; ModuleID = 'likely'
+; ModuleID = 'library/gabor_wavelet.md'
 
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %f32XY = type { i32, i32, i32, i32, i32, i32, [0 x float] }

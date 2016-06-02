@@ -169,6 +169,8 @@ int main(int argc, char *argv[])
     settings.runtime_only  = LikelyRuntimeOnly;
     if (LikelyOptimizationLevel >= 0)
         settings.optimization_level = LikelyOptimizationLevel;
+    if (!LikelyInput.empty() && !LikelyCommand)
+        settings.module_id = LikelyInput.c_str();
 
     likely_mat output = NULL;
     likely_const_env parent = likely_standard(settings,
