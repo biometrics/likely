@@ -11,9 +11,9 @@ Compare to **[cv::filter2d](http://docs.opencv.org/2.4/modules/imgproc/doc/filte
             (assume width.is-odd)
             (assume height.is-odd)
 
-            padded := (src.type 1 (+ src.columns width.-- )
-                                  (+ src.rows    height.--)
-                                     src.frames            ).set-zero
+            padded := (src.type.not-indirect 1 (+ src.columns width.-- )
+                                               (+ src.rows    height.--)
+                                                  src.frames            ).set-zero
 
             pad-columns := (/ (- width  1) 2)
             pad-rows    := (/ (- height 1) 2)

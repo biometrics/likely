@@ -23,38 +23,25 @@ entry:
   %12 = getelementptr inbounds %u8SCXY, %u8SCXY* %6, i64 0, i32 3
   %columns2 = load i32, i32* %12, align 4, !range !0
   %dst_x = zext i32 %columns2 to i64
-  %13 = getelementptr inbounds %u8SCXY, %u8SCXY* %4, i64 0, i32 6, i64 0
-  %14 = ptrtoint i8* %13 to i64
-  %15 = and i64 %14, 31
-  %16 = icmp eq i64 %15, 0
-  call void @llvm.assume(i1 %16)
-  %17 = getelementptr inbounds %u8SCXY, %u8SCXY* %6, i64 0, i32 6, i64 0
-  %18 = ptrtoint i8* %17 to i64
-  %19 = and i64 %18, 31
-  %20 = icmp eq i64 %19, 0
-  call void @llvm.assume(i1 %20)
-  %21 = mul i64 %dst_c, %2
-  %22 = mul i64 %21, %dst_x
+  %13 = mul i64 %dst_c, %2
+  %14 = mul i64 %13, %dst_x
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %y_body ]
-  %23 = getelementptr %u8SCXY, %u8SCXY* %6, i64 0, i32 6, i64 %y
-  %24 = load i8, i8* %23, align 1, !llvm.mem.parallel_loop_access !1
-  %25 = icmp ugt i8 %24, %8
-  %. = select i1 %25, i8 %10, i8 0
-  %26 = getelementptr %u8SCXY, %u8SCXY* %4, i64 0, i32 6, i64 %y
-  store i8 %., i8* %26, align 1, !llvm.mem.parallel_loop_access !1
+  %15 = getelementptr %u8SCXY, %u8SCXY* %6, i64 0, i32 6, i64 %y
+  %16 = load i8, i8* %15, align 1, !llvm.mem.parallel_loop_access !1
+  %17 = icmp ugt i8 %16, %8
+  %. = select i1 %17, i8 %10, i8 0
+  %18 = getelementptr %u8SCXY, %u8SCXY* %4, i64 0, i32 6, i64 %y
+  store i8 %., i8* %18, align 1, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %22
+  %y_postcondition = icmp eq i64 %y_increment, %14
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
   ret void
 }
-
-; Function Attrs: nounwind
-declare void @llvm.assume(i1) #2
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
@@ -85,7 +72,6 @@ entry:
 
 attributes #0 = { argmemonly nounwind }
 attributes #1 = { norecurse nounwind }
-attributes #2 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

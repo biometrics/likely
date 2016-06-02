@@ -12,31 +12,26 @@ entry:
   %7 = getelementptr inbounds %i32XY, %i32XY* %4, i64 0, i32 3
   %columns = load i32, i32* %7, align 4, !range !0
   %src_y_step = zext i32 %columns to i64
-  %8 = getelementptr inbounds %i32XY, %i32XY* %4, i64 0, i32 6, i64 0
-  %9 = ptrtoint i32* %8 to i64
-  %10 = and i64 %9, 31
-  %11 = icmp eq i64 %10, 0
-  call void @llvm.assume(i1 %11)
-  %12 = icmp eq i32 %6, 0
+  %8 = icmp eq i32 %6, 0
   br label %y_body
 
 y_body:                                           ; preds = %exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %exit ]
-  br i1 %12, label %exit, label %true_entry.lr.ph
+  br i1 %8, label %exit, label %true_entry.lr.ph
 
 true_entry.lr.ph:                                 ; preds = %y_body
-  %13 = mul nuw nsw i64 %y, %src_y_step
+  %9 = mul nuw nsw i64 %y, %src_y_step
   br label %true_entry
 
 true_entry:                                       ; preds = %true_entry.lr.ph, %loop.backedge
-  %14 = phi i32 [ %19, %loop.backedge ], [ 0, %true_entry.lr.ph ]
-  %15 = sext i32 %14 to i64
-  %16 = add nuw nsw i64 %15, %13
-  %17 = getelementptr %i32XY, %i32XY* %4, i64 0, i32 6, i64 %16
-  %18 = load i32, i32* %17, align 4, !llvm.mem.parallel_loop_access !1
-  %19 = add nuw nsw i32 %14, 1
-  %20 = icmp eq i32 %19, %6
-  br i1 %20, label %exit4, label %true_entry3
+  %10 = phi i32 [ %15, %loop.backedge ], [ 0, %true_entry.lr.ph ]
+  %11 = sext i32 %10 to i64
+  %12 = add nuw nsw i64 %11, %9
+  %13 = getelementptr %i32XY, %i32XY* %4, i64 0, i32 6, i64 %12
+  %14 = load i32, i32* %13, align 4, !llvm.mem.parallel_loop_access !1
+  %15 = add nuw nsw i32 %10, 1
+  %16 = icmp eq i32 %15, %6
+  br i1 %16, label %exit4, label %true_entry3
 
 exit:                                             ; preds = %loop.backedge, %y_body
   %y_increment = add nuw nsw i64 %y, 1
@@ -47,40 +42,37 @@ y_exit:                                           ; preds = %exit
   ret void
 
 true_entry3:                                      ; preds = %true_entry, %true_entry3
-  %21 = phi i32 [ %28, %true_entry3 ], [ %19, %true_entry ]
-  %22 = phi i32 [ %., %true_entry3 ], [ %14, %true_entry ]
-  %23 = phi i32 [ %element., %true_entry3 ], [ %18, %true_entry ]
-  %24 = sext i32 %21 to i64
-  %25 = add nuw nsw i64 %24, %13
-  %26 = getelementptr %i32XY, %i32XY* %4, i64 0, i32 6, i64 %25
-  %element = load i32, i32* %26, align 4, !llvm.mem.parallel_loop_access !1
-  %27 = icmp slt i32 %element, %23
-  %element. = select i1 %27, i32 %element, i32 %23
-  %. = select i1 %27, i32 %21, i32 %22
-  %28 = add nuw nsw i32 %21, 1
-  %29 = icmp eq i32 %28, %6
-  br i1 %29, label %exit4, label %true_entry3
+  %17 = phi i32 [ %24, %true_entry3 ], [ %15, %true_entry ]
+  %18 = phi i32 [ %., %true_entry3 ], [ %10, %true_entry ]
+  %19 = phi i32 [ %element., %true_entry3 ], [ %14, %true_entry ]
+  %20 = sext i32 %17 to i64
+  %21 = add nuw nsw i64 %20, %9
+  %22 = getelementptr %i32XY, %i32XY* %4, i64 0, i32 6, i64 %21
+  %element = load i32, i32* %22, align 4, !llvm.mem.parallel_loop_access !1
+  %23 = icmp slt i32 %element, %19
+  %element. = select i1 %23, i32 %element, i32 %19
+  %. = select i1 %23, i32 %17, i32 %18
+  %24 = add nuw nsw i32 %17, 1
+  %25 = icmp eq i32 %24, %6
+  br i1 %25, label %exit4, label %true_entry3
 
 exit4:                                            ; preds = %true_entry3, %true_entry
-  %.lcssa = phi i32 [ %14, %true_entry ], [ %., %true_entry3 ]
-  %30 = icmp eq i32 %14, %.lcssa
-  br i1 %30, label %loop.backedge, label %true_entry7
+  %.lcssa = phi i32 [ %10, %true_entry ], [ %., %true_entry3 ]
+  %26 = icmp eq i32 %10, %.lcssa
+  br i1 %26, label %loop.backedge, label %true_entry7
 
 loop.backedge:                                    ; preds = %exit4, %true_entry7
-  br i1 %20, label %exit, label %true_entry
+  br i1 %16, label %exit, label %true_entry
 
 true_entry7:                                      ; preds = %exit4
-  %31 = sext i32 %.lcssa to i64
-  %32 = add nuw nsw i64 %31, %13
-  %33 = getelementptr %i32XY, %i32XY* %4, i64 0, i32 6, i64 %32
-  %34 = load i32, i32* %33, align 4, !llvm.mem.parallel_loop_access !1
-  store i32 %34, i32* %17, align 4, !llvm.mem.parallel_loop_access !1
-  store i32 %18, i32* %33, align 4, !llvm.mem.parallel_loop_access !1
+  %27 = sext i32 %.lcssa to i64
+  %28 = add nuw nsw i64 %27, %9
+  %29 = getelementptr %i32XY, %i32XY* %4, i64 0, i32 6, i64 %28
+  %30 = load i32, i32* %29, align 4, !llvm.mem.parallel_loop_access !1
+  store i32 %30, i32* %13, align 4, !llvm.mem.parallel_loop_access !1
+  store i32 %14, i32* %29, align 4, !llvm.mem.parallel_loop_access !1
   br label %loop.backedge
 }
-
-; Function Attrs: nounwind
-declare void @llvm.assume(i1) #1
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
@@ -113,7 +105,6 @@ entry:
 declare i8* @likely_retain_mat(i8* noalias nocapture)
 
 attributes #0 = { norecurse nounwind }
-attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

@@ -53,8 +53,10 @@ likely_mat likely_new(likely_type type, uint32_t channels, uint32_t columns, uin
 
     const size_t elements = (size_t)channels * (size_t)columns * (size_t)rows * (size_t)frames;
     if (elements == 0) { assert(!"expected non-zero elements"); return NULL; }
+    const bool indirect = type & likely_indirect;
+    if (indirect && !data) { assert(!"expected non-null data for indirect matrix"); return NULL; }
 
-    const size_t bytes = ((type & likely_depth) * elements + 7) / 8;
+    const size_t bytes = indirect ? sizeof(void*) : (((type & likely_depth) * elements + 7) / 8);
     const unsigned char alignment = 32; // Likely guarantees that likely_matrix::data has 32-byte alignment
     likely_mat mat = (likely_mat) malloc(sizeof(struct likely_matrix) + bytes + alignment);
     if (!mat) { assert(!"malloc failure"); return NULL; }
@@ -70,8 +72,8 @@ likely_mat likely_new(likely_type type, uint32_t channels, uint32_t columns, uin
     mat->rows = rows;
     mat->frames = frames;
 
-    if (data)
-        memcpy((void*)mat->data, data, bytes);
+    if (data || indirect)
+        memcpy((void*)mat->data, (type & likely_indirect) ? &data : data, bytes);
 
     return mat;
 }
@@ -130,18 +132,19 @@ double likely_get_element(likely_const_mat m, uint32_t c, uint32_t x, uint32_t y
     frameStep = m->rows * rowStep;
     index = t*frameStep + y*rowStep + x*columnStep + c;
 
+    const void *const data = (m->type & likely_indirect) ? *(void**)m->data : m->data;
     switch (m->type & likely_c_type) {
-      case likely_u8:  return (double) (( uint8_t const*) m->data)[index];
-      case likely_u16: return (double) ((uint16_t const*) m->data)[index];
-      case likely_u32: return (double) ((uint32_t const*) m->data)[index];
-      case likely_u64: return (double) ((uint64_t const*) m->data)[index];
-      case likely_i8:  return (double) ((  int8_t const*) m->data)[index];
-      case likely_i16: return (double) (( int16_t const*) m->data)[index];
-      case likely_i32: return (double) (( int32_t const*) m->data)[index];
-      case likely_i64: return (double) (( int64_t const*) m->data)[index];
-      case likely_f32: return (double) ((   float const*) m->data)[index];
-      case likely_f64: return (double) ((  double const*) m->data)[index];
-      case likely_u1:  return (double) ((((uint8_t const*)m->data)[index/8] & (1 << index%8)) != 0);
+      case likely_u8:  return (double) (( uint8_t const*) data)[index];
+      case likely_u16: return (double) ((uint16_t const*) data)[index];
+      case likely_u32: return (double) ((uint32_t const*) data)[index];
+      case likely_u64: return (double) ((uint64_t const*) data)[index];
+      case likely_i8:  return (double) ((  int8_t const*) data)[index];
+      case likely_i16: return (double) (( int16_t const*) data)[index];
+      case likely_i32: return (double) (( int32_t const*) data)[index];
+      case likely_i64: return (double) (( int64_t const*) data)[index];
+      case likely_f32: return (double) ((   float const*) data)[index];
+      case likely_f64: return (double) ((  double const*) data)[index];
+      case likely_u1:  return (double) ((((uint8_t const*)data)[index/8] & (1 << index%8)) != 0);
       default: assert(!"likely_element unsupported type");
     }
     return NAN;
@@ -159,19 +162,20 @@ void likely_set_element(likely_mat m, double value, uint32_t c, uint32_t x, uint
     frameStep = m->rows * rowStep;
     index = t*frameStep + y*rowStep + x*columnStep + c;
 
+    const void *const data = (m->type & likely_indirect) ? *(void**)m->data : m->data;
     switch (m->type & likely_c_type) {
-      case likely_u8:  (( uint8_t*)m->data)[index] = ( uint8_t)value; break;
-      case likely_u16: ((uint16_t*)m->data)[index] = (uint16_t)value; break;
-      case likely_u32: ((uint32_t*)m->data)[index] = (uint32_t)value; break;
-      case likely_u64: ((uint64_t*)m->data)[index] = (uint64_t)value; break;
-      case likely_i8:  ((  int8_t*)m->data)[index] = (  int8_t)value; break;
-      case likely_i16: (( int16_t*)m->data)[index] = ( int16_t)value; break;
-      case likely_i32: (( int32_t*)m->data)[index] = ( int32_t)value; break;
-      case likely_i64: (( int64_t*)m->data)[index] = ( int64_t)value; break;
-      case likely_f32: ((   float*)m->data)[index] = (   float)value; break;
-      case likely_f64: ((  double*)m->data)[index] = (  double)value; break;
-      case likely_u1:  if (value == 0) (((uint8_t*)m->data)[index/8] &= ~(1 << index%8));
-                       else            (((uint8_t*)m->data)[index/8] |=  (1 << index%8)); break;
+      case likely_u8:  (( uint8_t*)data)[index] = ( uint8_t)value; break;
+      case likely_u16: ((uint16_t*)data)[index] = (uint16_t)value; break;
+      case likely_u32: ((uint32_t*)data)[index] = (uint32_t)value; break;
+      case likely_u64: ((uint64_t*)data)[index] = (uint64_t)value; break;
+      case likely_i8:  ((  int8_t*)data)[index] = (  int8_t)value; break;
+      case likely_i16: (( int16_t*)data)[index] = ( int16_t)value; break;
+      case likely_i32: (( int32_t*)data)[index] = ( int32_t)value; break;
+      case likely_i64: (( int64_t*)data)[index] = ( int64_t)value; break;
+      case likely_f32: ((   float*)data)[index] = (   float)value; break;
+      case likely_f64: ((  double*)data)[index] = (  double)value; break;
+      case likely_u1:  if (value == 0) (((uint8_t*)data)[index/8] &= ~(1 << index%8));
+                       else            (((uint8_t*)data)[index/8] |=  (1 << index%8)); break;
       default: assert(!"likely_set_element unsupported type");
     }
 }

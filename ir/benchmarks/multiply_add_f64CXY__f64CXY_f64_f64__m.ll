@@ -23,38 +23,25 @@ entry:
   %12 = getelementptr inbounds %f64CXY, %f64CXY* %6, i64 0, i32 3
   %columns2 = load i32, i32* %12, align 4, !range !0
   %dst_x = zext i32 %columns2 to i64
-  %13 = getelementptr inbounds %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 0
-  %14 = ptrtoint double* %13 to i64
-  %15 = and i64 %14, 31
-  %16 = icmp eq i64 %15, 0
-  call void @llvm.assume(i1 %16)
-  %17 = getelementptr inbounds %f64CXY, %f64CXY* %6, i64 0, i32 6, i64 0
-  %18 = ptrtoint double* %17 to i64
-  %19 = and i64 %18, 31
-  %20 = icmp eq i64 %19, 0
-  call void @llvm.assume(i1 %20)
-  %21 = mul i64 %dst_c, %2
-  %22 = mul i64 %21, %dst_x
+  %13 = mul i64 %dst_c, %2
+  %14 = mul i64 %13, %dst_x
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %y_body ]
-  %23 = getelementptr %f64CXY, %f64CXY* %6, i64 0, i32 6, i64 %y
-  %24 = load double, double* %23, align 8, !llvm.mem.parallel_loop_access !1
-  %25 = fmul fast double %24, %8
-  %val = fadd fast double %25, %10
-  %26 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %y
-  store double %val, double* %26, align 8, !llvm.mem.parallel_loop_access !1
+  %15 = getelementptr %f64CXY, %f64CXY* %6, i64 0, i32 6, i64 %y
+  %16 = load double, double* %15, align 8, !llvm.mem.parallel_loop_access !1
+  %17 = fmul fast double %16, %8
+  %val = fadd fast double %17, %10
+  %18 = getelementptr %f64CXY, %f64CXY* %4, i64 0, i32 6, i64 %y
+  store double %val, double* %18, align 8, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %22
+  %y_postcondition = icmp eq i64 %y_increment, %14
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
   ret void
 }
-
-; Function Attrs: nounwind
-declare void @llvm.assume(i1) #2
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
@@ -85,7 +72,6 @@ entry:
 
 attributes #0 = { argmemonly nounwind }
 attributes #1 = { norecurse nounwind }
-attributes #2 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

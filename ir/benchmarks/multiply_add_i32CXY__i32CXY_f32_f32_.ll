@@ -6,10 +6,7 @@
 ; Function Attrs: argmemonly nounwind
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
-; Function Attrs: nounwind
-declare void @llvm.assume(i1) #1
-
-define %i32CXY* @multiply_add(%i32CXY*, float, float) {
+define noalias %i32CXY* @multiply_add(%i32CXY* nocapture readonly, float, float) {
 entry:
   %3 = getelementptr inbounds %i32CXY, %i32CXY* %0, i64 0, i32 2
   %channels = load i32, i32* %3, align 4, !range !0
@@ -22,34 +19,25 @@ entry:
   %dst_c = zext i32 %channels to i64
   %dst_x = zext i32 %columns to i64
   %8 = getelementptr inbounds %u0CXYT, %u0CXYT* %6, i64 1, i32 0
-  %9 = ptrtoint i32* %8 to i64
-  %10 = and i64 %9, 31
-  %11 = icmp eq i64 %10, 0
-  call void @llvm.assume(i1 %11)
-  %12 = getelementptr inbounds %i32CXY, %i32CXY* %0, i64 0, i32 6, i64 0
-  %13 = ptrtoint i32* %12 to i64
-  %14 = and i64 %13, 31
-  %15 = icmp eq i64 %14, 0
-  call void @llvm.assume(i1 %15)
-  %16 = mul nuw nsw i64 %dst_x, %dst_c
-  %17 = mul nuw nsw i64 %16, %7
+  %9 = mul nuw nsw i64 %dst_x, %dst_c
+  %10 = mul nuw nsw i64 %9, %7
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %y_body ]
-  %18 = getelementptr %i32CXY, %i32CXY* %0, i64 0, i32 6, i64 %y
-  %19 = load i32, i32* %18, align 4, !llvm.mem.parallel_loop_access !1
-  %20 = sitofp i32 %19 to float
-  %21 = fmul fast float %20, %1
-  %val = fadd fast float %21, %2
-  %22 = getelementptr i32, i32* %8, i64 %y
-  %23 = fcmp fast olt float %val, 0.000000e+00
-  %. = select i1 %23, float -5.000000e-01, float 5.000000e-01
-  %24 = fadd fast float %., %val
-  %25 = fptosi float %24 to i32
-  store i32 %25, i32* %22, align 4, !llvm.mem.parallel_loop_access !1
+  %11 = getelementptr %i32CXY, %i32CXY* %0, i64 0, i32 6, i64 %y
+  %12 = load i32, i32* %11, align 4, !llvm.mem.parallel_loop_access !1
+  %13 = sitofp i32 %12 to float
+  %14 = fmul fast float %13, %1
+  %val = fadd fast float %14, %2
+  %15 = getelementptr i32, i32* %8, i64 %y
+  %16 = fcmp fast olt float %val, 0.000000e+00
+  %. = select i1 %16, float -5.000000e-01, float 5.000000e-01
+  %17 = fadd fast float %., %val
+  %18 = fptosi float %17 to i32
+  store i32 %18, i32* %15, align 4, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %17
+  %y_postcondition = icmp eq i64 %y_increment, %10
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
@@ -58,7 +46,6 @@ y_exit:                                           ; preds = %y_body
 }
 
 attributes #0 = { argmemonly nounwind }
-attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

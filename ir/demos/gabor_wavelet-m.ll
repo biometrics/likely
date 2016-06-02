@@ -30,51 +30,46 @@ entry:
   %19 = getelementptr inbounds %f32XY, %f32XY* %4, i64 0, i32 3
   %columns = load i32, i32* %19, align 4, !range !0
   %dst_y_step = zext i32 %columns to i64
-  %20 = getelementptr inbounds %f32XY, %f32XY* %4, i64 0, i32 6, i64 0
-  %21 = ptrtoint float* %20 to i64
-  %22 = and i64 %21, 31
-  %23 = icmp eq i64 %22, 0
-  call void @llvm.assume(i1 %23)
-  %24 = call fast float @llvm.cos.f32(float %14)
-  %25 = call fast float @llvm.sin.f32(float %14)
-  %26 = fdiv fast float 0x401921FB60000000, %16
+  %20 = call fast float @llvm.cos.f32(float %14)
+  %21 = call fast float @llvm.sin.f32(float %14)
+  %22 = fdiv fast float 0x401921FB60000000, %16
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
-  %27 = trunc i64 %y to i32
-  %dy = sub i32 %27, %8
-  %28 = sitofp i32 %dy to float
-  %29 = fmul fast float %28, %25
-  %30 = fmul fast float %28, %24
-  %31 = mul nuw nsw i64 %y, %dst_y_step
+  %23 = trunc i64 %y to i32
+  %dy = sub i32 %23, %8
+  %24 = sitofp i32 %dy to float
+  %25 = fmul fast float %24, %21
+  %26 = fmul fast float %24, %20
+  %27 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
 x_body:                                           ; preds = %y_body, %x_body
   %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
-  %32 = trunc i64 %x to i32
-  %dx = sub i32 %32, %6
-  %33 = sitofp i32 %dx to float
-  %34 = fmul fast float %33, %24
-  %xp = fadd fast float %34, %29
-  %35 = sub nsw i32 0, %dx
-  %36 = sitofp i32 %35 to float
-  %37 = fmul fast float %36, %25
-  %yp = fadd fast float %37, %30
-  %38 = fdiv fast float %xp, %10
-  %39 = fmul fast float %38, %38
-  %40 = fdiv fast float %yp, %12
-  %41 = fmul fast float %40, %40
-  %42 = fadd fast float %39, %41
-  %43 = fmul fast float %42, -5.000000e-01
-  %44 = call fast float @llvm.exp.f32(float %43)
-  %45 = fmul fast float %xp, %26
-  %46 = fadd fast float %45, %18
-  %47 = call fast float @llvm.cos.f32(float %46)
-  %48 = fmul fast float %47, %44
-  %49 = add nuw nsw i64 %x, %31
-  %50 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %49
-  store float %48, float* %50, align 4, !llvm.mem.parallel_loop_access !1
+  %28 = trunc i64 %x to i32
+  %dx = sub i32 %28, %6
+  %29 = sitofp i32 %dx to float
+  %30 = fmul fast float %29, %20
+  %xp = fadd fast float %30, %25
+  %31 = sub nsw i32 0, %dx
+  %32 = sitofp i32 %31 to float
+  %33 = fmul fast float %32, %21
+  %yp = fadd fast float %33, %26
+  %34 = fdiv fast float %xp, %10
+  %35 = fmul fast float %34, %34
+  %36 = fdiv fast float %yp, %12
+  %37 = fmul fast float %36, %36
+  %38 = fadd fast float %35, %37
+  %39 = fmul fast float %38, -5.000000e-01
+  %40 = call fast float @llvm.exp.f32(float %39)
+  %41 = fmul fast float %xp, %22
+  %42 = fadd fast float %41, %18
+  %43 = call fast float @llvm.cos.f32(float %42)
+  %44 = fmul fast float %43, %40
+  %45 = add nuw nsw i64 %x, %27
+  %46 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %45
+  store float %44, float* %46, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body
@@ -88,17 +83,14 @@ y_exit:                                           ; preds = %x_exit
   ret void
 }
 
-; Function Attrs: nounwind
-declare void @llvm.assume(i1) #2
+; Function Attrs: nounwind readnone
+declare float @llvm.cos.f32(float) #2
 
 ; Function Attrs: nounwind readnone
-declare float @llvm.cos.f32(float) #3
+declare float @llvm.sin.f32(float) #2
 
 ; Function Attrs: nounwind readnone
-declare float @llvm.sin.f32(float) #3
-
-; Function Attrs: nounwind readnone
-declare float @llvm.exp.f32(float) #3
+declare float @llvm.exp.f32(float) #2
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
@@ -169,8 +161,7 @@ entry:
 
 attributes #0 = { argmemonly nounwind }
 attributes #1 = { norecurse nounwind }
-attributes #2 = { nounwind }
-attributes #3 = { nounwind readnone }
+attributes #2 = { nounwind readnone }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

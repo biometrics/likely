@@ -674,6 +674,7 @@ static void typeToStream(likely_type type, stringstream &stream)
         else                             stream << 'u';
         stream << (type & likely_depth);
         if (type & likely_saturated)     stream << 'S';
+        if (type & likely_indirect)      stream << 'I';
         if (type & likely_multi_channel) stream << 'C';
         if (type & likely_multi_column)  stream << 'X';
         if (type & likely_multi_row)     stream << 'Y';
@@ -708,6 +709,7 @@ likely_type likely_type_from_string(const char *str, bool *ok)
     if (!strcmp(str, "signed"         )) return likely_signed;
     if (!strcmp(str, "saturated"      )) return likely_saturated;
     if (!strcmp(str, "element"        )) return likely_element;
+    if (!strcmp(str, "indirect"       )) return likely_indirect;
     if (!strcmp(str, "multi-channel"  )) return likely_multi_channel;
     if (!strcmp(str, "multi-column"   )) return likely_multi_column;
     if (!strcmp(str, "multi-row"      )) return likely_multi_row;
@@ -743,6 +745,7 @@ likely_type likely_type_from_string(const char *str, bool *ok)
     type += (int)strtol(str+1, &remainder, 10);
 
     if (*remainder == 'S') { type |= likely_saturated;     remainder++; }
+    if (*remainder == 'I') { type |= likely_indirect;      remainder++; }
     if (*remainder == 'C') { type |= likely_multi_channel; remainder++; }
     if (*remainder == 'X') { type |= likely_multi_column;  remainder++; }
     if (*remainder == 'Y') { type |= likely_multi_row;     remainder++; }

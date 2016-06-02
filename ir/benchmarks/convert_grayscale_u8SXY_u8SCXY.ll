@@ -10,7 +10,7 @@ declare void @llvm.assume(i1) #0
 ; Function Attrs: argmemonly nounwind
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #1
 
-define %u8SXY* @convert_grayscale(%u8SCXY*) {
+define noalias %u8SXY* @convert_grayscale(%u8SCXY* nocapture readonly) {
 entry:
   %1 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 0, i32 3
   %columns = load i32, i32* %1, align 4, !range !0
@@ -21,48 +21,40 @@ entry:
   %dst_y_step = zext i32 %columns to i64
   %5 = getelementptr inbounds %u0CXYT, %u0CXYT* %3, i64 1
   %6 = bitcast %u0CXYT* %5 to i8*
-  %7 = ptrtoint %u0CXYT* %5 to i64
-  %8 = and i64 %7, 31
-  %9 = icmp eq i64 %8, 0
-  call void @llvm.assume(i1 %9)
-  %10 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 0, i32 2
-  %channels4 = load i32, i32* %10, align 4, !range !0
+  %7 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 0, i32 2
+  %channels4 = load i32, i32* %7, align 4, !range !0
   %src_c = zext i32 %channels4 to i64
-  %11 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 1
-  %12 = bitcast %u8SCXY* %11 to i8*
-  %13 = ptrtoint %u8SCXY* %11 to i64
-  %14 = and i64 %13, 31
-  %15 = icmp eq i64 %14, 0
-  call void @llvm.assume(i1 %15)
-  %16 = mul nuw nsw i64 %4, %dst_y_step
+  %8 = getelementptr inbounds %u8SCXY, %u8SCXY* %0, i64 1
+  %9 = bitcast %u8SCXY* %8 to i8*
+  %10 = mul nuw nsw i64 %4, %dst_y_step
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %y_body ]
-  %17 = mul nuw nsw i64 %y, %src_c
-  %18 = getelementptr i8, i8* %12, i64 %17
+  %11 = mul nuw nsw i64 %y, %src_c
+  %12 = getelementptr i8, i8* %9, i64 %11
+  %13 = load i8, i8* %12, align 1, !llvm.mem.parallel_loop_access !1
+  %14 = add nuw nsw i64 %11, 1
+  %15 = getelementptr i8, i8* %9, i64 %14
+  %16 = load i8, i8* %15, align 1, !llvm.mem.parallel_loop_access !1
+  %17 = add nuw nsw i64 %11, 2
+  %18 = getelementptr i8, i8* %9, i64 %17
   %19 = load i8, i8* %18, align 1, !llvm.mem.parallel_loop_access !1
-  %20 = add nuw nsw i64 %17, 1
-  %21 = getelementptr i8, i8* %12, i64 %20
-  %22 = load i8, i8* %21, align 1, !llvm.mem.parallel_loop_access !1
-  %23 = add nuw nsw i64 %17, 2
-  %24 = getelementptr i8, i8* %12, i64 %23
-  %25 = load i8, i8* %24, align 1, !llvm.mem.parallel_loop_access !1
-  %26 = zext i8 %19 to i32
-  %27 = mul nuw nsw i32 %26, 1868
-  %28 = zext i8 %22 to i32
-  %29 = mul nuw nsw i32 %28, 9617
-  %30 = zext i8 %25 to i32
-  %31 = mul nuw nsw i32 %30, 4899
-  %32 = add nuw nsw i32 %27, 8192
-  %33 = add nuw nsw i32 %32, %29
-  %34 = add nuw nsw i32 %33, %31
-  %35 = lshr i32 %34, 14
-  %36 = getelementptr i8, i8* %6, i64 %y
-  %37 = trunc i32 %35 to i8
-  store i8 %37, i8* %36, align 1, !llvm.mem.parallel_loop_access !1
+  %20 = zext i8 %13 to i32
+  %21 = mul nuw nsw i32 %20, 1868
+  %22 = zext i8 %16 to i32
+  %23 = mul nuw nsw i32 %22, 9617
+  %24 = zext i8 %19 to i32
+  %25 = mul nuw nsw i32 %24, 4899
+  %26 = add nuw nsw i32 %21, 8192
+  %27 = add nuw nsw i32 %26, %23
+  %28 = add nuw nsw i32 %27, %25
+  %29 = lshr i32 %28, 14
+  %30 = getelementptr i8, i8* %6, i64 %y
+  %31 = trunc i32 %29 to i8
+  store i8 %31, i8* %30, align 1, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %16
+  %y_postcondition = icmp eq i64 %y_increment, %10
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body

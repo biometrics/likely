@@ -24,37 +24,24 @@ entry:
   %10 = getelementptr inbounds %f32CXY, %f32CXY* %6, i64 0, i32 3
   %columns2 = load i32, i32* %10, align 4, !range !0
   %dst_x = zext i32 %columns2 to i64
-  %11 = getelementptr inbounds %f32CXY, %f32CXY* %4, i64 0, i32 6, i64 0
-  %12 = ptrtoint float* %11 to i64
-  %13 = and i64 %12, 31
-  %14 = icmp eq i64 %13, 0
-  call void @llvm.assume(i1 %14)
-  %15 = getelementptr inbounds %f32CXY, %f32CXY* %6, i64 0, i32 6, i64 0
-  %16 = ptrtoint float* %15 to i64
-  %17 = and i64 %16, 31
-  %18 = icmp eq i64 %17, 0
-  call void @llvm.assume(i1 %18)
-  %19 = mul i64 %dst_c, %2
-  %20 = mul i64 %19, %dst_x
+  %11 = mul i64 %dst_c, %2
+  %12 = mul i64 %11, %dst_x
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %y_body ]
-  %21 = getelementptr %f32CXY, %f32CXY* %6, i64 0, i32 6, i64 %y
-  %22 = load float, float* %21, align 4, !llvm.mem.parallel_loop_access !1
-  %23 = fmul fast float %22, %8
-  %24 = getelementptr %f32CXY, %f32CXY* %4, i64 0, i32 6, i64 %y
-  store float %23, float* %24, align 4, !llvm.mem.parallel_loop_access !1
+  %13 = getelementptr %f32CXY, %f32CXY* %6, i64 0, i32 6, i64 %y
+  %14 = load float, float* %13, align 4, !llvm.mem.parallel_loop_access !1
+  %15 = fmul fast float %14, %8
+  %16 = getelementptr %f32CXY, %f32CXY* %4, i64 0, i32 6, i64 %y
+  store float %15, float* %16, align 4, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %20
+  %y_postcondition = icmp eq i64 %y_increment, %12
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
   ret void
 }
-
-; Function Attrs: nounwind
-declare void @llvm.assume(i1) #3
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
@@ -105,7 +92,6 @@ exit:                                             ; preds = %true_entry
 attributes #0 = { nounwind readnone }
 attributes #1 = { argmemonly nounwind }
 attributes #2 = { norecurse nounwind }
-attributes #3 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

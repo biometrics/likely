@@ -9,10 +9,7 @@ declare double @llvm.sqrt.f64(double) #0
 ; Function Attrs: argmemonly nounwind
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #1
 
-; Function Attrs: nounwind
-declare void @llvm.assume(i1) #2
-
-define %f64CXY* @normalize_l2(%f64CXY*) {
+define noalias %f64CXY* @normalize_l2(%f64CXY* nocapture readonly) {
 entry:
   %1 = getelementptr inbounds %f64CXY, %f64CXY* %0, i64 0, i32 2
   %channels = load i32, i32* %1, align 4, !range !0
@@ -45,28 +42,19 @@ exit:                                             ; preds = %true_entry
   %dst_x = zext i32 %columns to i64
   %19 = getelementptr inbounds %u0CXYT, %u0CXYT* %17, i64 1
   %20 = bitcast %u0CXYT* %19 to double*
-  %21 = ptrtoint %u0CXYT* %19 to i64
-  %22 = and i64 %21, 31
-  %23 = icmp eq i64 %22, 0
-  call void @llvm.assume(i1 %23)
-  %24 = getelementptr inbounds %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 0
-  %25 = ptrtoint double* %24 to i64
-  %26 = and i64 %25, 31
-  %27 = icmp eq i64 %26, 0
-  call void @llvm.assume(i1 %27)
-  %28 = mul nuw nsw i64 %dst_x, %dst_c
-  %29 = mul nuw nsw i64 %28, %18
+  %21 = mul nuw nsw i64 %dst_x, %dst_c
+  %22 = mul nuw nsw i64 %21, %18
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %exit
   %y = phi i64 [ 0, %exit ], [ %y_increment, %y_body ]
-  %30 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 %y
-  %31 = load double, double* %30, align 8, !llvm.mem.parallel_loop_access !1
-  %32 = fmul fast double %31, %16
-  %33 = getelementptr double, double* %20, i64 %y
-  store double %32, double* %33, align 8, !llvm.mem.parallel_loop_access !1
+  %23 = getelementptr %f64CXY, %f64CXY* %0, i64 0, i32 6, i64 %y
+  %24 = load double, double* %23, align 8, !llvm.mem.parallel_loop_access !1
+  %25 = fmul fast double %24, %16
+  %26 = getelementptr double, double* %20, i64 %y
+  store double %25, double* %26, align 8, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %29
+  %y_postcondition = icmp eq i64 %y_increment, %22
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
@@ -76,7 +64,6 @@ y_exit:                                           ; preds = %y_body
 
 attributes #0 = { nounwind readnone }
 attributes #1 = { argmemonly nounwind }
-attributes #2 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

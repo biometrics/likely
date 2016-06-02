@@ -23,43 +23,30 @@ entry:
   %12 = getelementptr inbounds %i32CXY, %i32CXY* %6, i64 0, i32 3
   %columns2 = load i32, i32* %12, align 4, !range !0
   %dst_x = zext i32 %columns2 to i64
-  %13 = getelementptr inbounds %i32CXY, %i32CXY* %4, i64 0, i32 6, i64 0
-  %14 = ptrtoint i32* %13 to i64
-  %15 = and i64 %14, 31
-  %16 = icmp eq i64 %15, 0
-  call void @llvm.assume(i1 %16)
-  %17 = getelementptr inbounds %i32CXY, %i32CXY* %6, i64 0, i32 6, i64 0
-  %18 = ptrtoint i32* %17 to i64
-  %19 = and i64 %18, 31
-  %20 = icmp eq i64 %19, 0
-  call void @llvm.assume(i1 %20)
-  %21 = mul i64 %dst_c, %2
-  %22 = mul i64 %21, %dst_x
+  %13 = mul i64 %dst_c, %2
+  %14 = mul i64 %13, %dst_x
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %y_body ]
-  %23 = getelementptr %i32CXY, %i32CXY* %6, i64 0, i32 6, i64 %y
-  %24 = load i32, i32* %23, align 4, !llvm.mem.parallel_loop_access !1
-  %25 = sitofp i32 %24 to float
-  %26 = fmul fast float %25, %8
-  %val = fadd fast float %26, %10
-  %27 = getelementptr %i32CXY, %i32CXY* %4, i64 0, i32 6, i64 %y
-  %28 = fcmp fast olt float %val, 0.000000e+00
-  %. = select i1 %28, float -5.000000e-01, float 5.000000e-01
-  %29 = fadd fast float %., %val
-  %30 = fptosi float %29 to i32
-  store i32 %30, i32* %27, align 4, !llvm.mem.parallel_loop_access !1
+  %15 = getelementptr %i32CXY, %i32CXY* %6, i64 0, i32 6, i64 %y
+  %16 = load i32, i32* %15, align 4, !llvm.mem.parallel_loop_access !1
+  %17 = sitofp i32 %16 to float
+  %18 = fmul fast float %17, %8
+  %val = fadd fast float %18, %10
+  %19 = getelementptr %i32CXY, %i32CXY* %4, i64 0, i32 6, i64 %y
+  %20 = fcmp fast olt float %val, 0.000000e+00
+  %. = select i1 %20, float -5.000000e-01, float 5.000000e-01
+  %21 = fadd fast float %., %val
+  %22 = fptosi float %21 to i32
+  store i32 %22, i32* %19, align 4, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %22
+  %y_postcondition = icmp eq i64 %y_increment, %14
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
   ret void
 }
-
-; Function Attrs: nounwind
-declare void @llvm.assume(i1) #2
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
@@ -90,7 +77,6 @@ entry:
 
 attributes #0 = { argmemonly nounwind }
 attributes #1 = { norecurse nounwind }
-attributes #2 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

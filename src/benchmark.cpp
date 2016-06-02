@@ -112,7 +112,7 @@ struct TestBase
                 // Generate input matrix
                 const Mat srcCV = preprocess(generateData(size, size, type, color()));
 
-                const likely_mat likelySrc = likelyFromOpenCVMat(srcCV);
+                const likely_mat likelySrc = likelyFromOpenCVMat(srcCV, true); // A convenient opportunity to test `likely_indirect`
                 if (!(likelySrc->type & likely_floating) && ((likelySrc->type & likely_depth) <= 16))
                     likelySrc->type |= likely_saturated; // Follow OpenCV's saturation convention
                 vector<likely_const_mat> likelyArgs = additionalArguments(likelySrc);

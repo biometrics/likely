@@ -911,7 +911,11 @@ struct Builder : public IRBuilder<>
         if (!likely_expression::isMat(m.value->getType()))
             return LikelyValue();
         const likely_type type = likely_pointer_type(m & likely_element);
-        return LikelyValue(CreatePointerCast(CreateStructGEP(module->context->toLLVMStruct(m), m, 6), module->context->toLLVM(type)), type);
+        Type *const resultType = module->context->toLLVM(type);
+        Value *result = CreateStructGEP(module->context->toLLVMStruct(m), m, 6);
+        if (m & likely_indirect) result = CreateLoad(CreatePointerCast(result, PointerType::getUnqual(resultType)));
+        else                     result = CreatePointerCast(result, resultType);
+        return LikelyValue(result, type);
     }
 
     enum Comparison
@@ -2657,14 +2661,6 @@ class kernelExpression : public LikelyOperator
             frames   ->setName(name + "_t");
             rowStep  ->setName(name + "_y_step");
             frameStep->setName(name + "_t_step");
-
-            if (data) {
-                // This is how we communicate data alignment guarantee
-                Value *const ptrint = builder.CreatePtrToInt(data, Type::getInt64Ty(builder.getContext()));
-                Value *const maskedptr = builder.CreateAnd(ptrint, 31);
-                Value *const maskcond = builder.CreateICmpEQ(maskedptr, builder.zero());
-                builder.assume(maskcond);
-            }
         }
 
     private:

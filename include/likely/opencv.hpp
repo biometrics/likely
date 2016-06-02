@@ -91,7 +91,7 @@ inline cv::Mat likelyToOpenCVMat(likely_const_mat mat, uint32_t frame = 0)
     return cv::Mat((int) mat->rows,
                    (int) mat->columns,
                    CV_MAKETYPE(likelyToOpenCVDepth(mat->type), int(mat->channels)),
-                   (void*) (mat->data + likely_bytes(mat) * frame / mat->frames)).clone();
+                   (void*) (((mat->type & likely_indirect) ? *(char**)mat->data : mat->data) + likely_bytes(mat) * frame / mat->frames)).clone();
 }
 
 /*!
@@ -103,11 +103,12 @@ inline cv::Mat likelyToOpenCVMat(likely_const_mat mat, uint32_t frame = 0)
  * \remark This function is \ref thread-safe.
  * \see \ref likelyFromOpenCVMats
  */
-inline likely_mat likelyFromOpenCVMat(const cv::Mat &mat)
+inline likely_mat likelyFromOpenCVMat(const cv::Mat &mat, bool indirect = false)
 {
     if (!mat.isContinuous() || !mat.data)
         return NULL;
     likely_type type = likelyFromOpenCVDepth(mat.depth());
+    if (indirect) type |= likely_indirect;
     if (mat.channels() > 1) type |= likely_multi_channel;
     if (mat.cols       > 1) type |= likely_multi_column;
     if (mat.rows       > 1) type |= likely_multi_row;
@@ -170,7 +171,7 @@ inline likely_mat likelyFromOpenCVMats(const std::vector<cv::Mat> &mats)
         likely_ensure(mat.channels() == channels, "channel mismatch");
         likely_ensure(mat.cols == columns, "columns mismatch");
         likely_ensure(mat.rows == rows, "rows mismatch");
-        memcpy(m->data + i * step, mat.data, step);
+        memcpy(((m->type & likely_indirect) ? *(char**)m->data : m->data) + i * step, mat.data, step);
     }
     return m;
 }

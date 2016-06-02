@@ -18,33 +18,23 @@ entry:
   %dst_y_step = zext i32 %rows2 to i64
   %8 = getelementptr inbounds %u8SXY, %u8SXY* %6, i64 0, i32 3
   %columns1 = load i32, i32* %8, align 4, !range !0
-  %9 = getelementptr inbounds %u8SXY, %u8SXY* %4, i64 0, i32 6, i64 0
-  %10 = ptrtoint i8* %9 to i64
-  %11 = and i64 %10, 31
-  %12 = icmp eq i64 %11, 0
-  call void @llvm.assume(i1 %12)
   %src_y_step = zext i32 %columns1 to i64
-  %13 = getelementptr inbounds %u8SXY, %u8SXY* %6, i64 0, i32 6, i64 0
-  %14 = ptrtoint i8* %13 to i64
-  %15 = and i64 %14, 31
-  %16 = icmp eq i64 %15, 0
-  call void @llvm.assume(i1 %16)
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
-  %17 = mul nuw nsw i64 %y, %dst_y_step
+  %9 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
 x_body:                                           ; preds = %y_body, %x_body
   %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
-  %18 = mul nuw nsw i64 %x, %src_y_step
-  %19 = add nuw nsw i64 %18, %y
-  %20 = getelementptr %u8SXY, %u8SXY* %6, i64 0, i32 6, i64 %19
-  %21 = load i8, i8* %20, align 1, !llvm.mem.parallel_loop_access !1
-  %22 = add nuw nsw i64 %x, %17
-  %23 = getelementptr %u8SXY, %u8SXY* %4, i64 0, i32 6, i64 %22
-  store i8 %21, i8* %23, align 1, !llvm.mem.parallel_loop_access !1
+  %10 = mul nuw nsw i64 %x, %src_y_step
+  %11 = add nuw nsw i64 %10, %y
+  %12 = getelementptr %u8SXY, %u8SXY* %6, i64 0, i32 6, i64 %11
+  %13 = load i8, i8* %12, align 1, !llvm.mem.parallel_loop_access !1
+  %14 = add nuw nsw i64 %x, %9
+  %15 = getelementptr %u8SXY, %u8SXY* %4, i64 0, i32 6, i64 %14
+  store i8 %13, i8* %15, align 1, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body
@@ -57,9 +47,6 @@ x_exit:                                           ; preds = %x_body
 y_exit:                                           ; preds = %x_exit
   ret void
 }
-
-; Function Attrs: nounwind
-declare void @llvm.assume(i1) #2
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
@@ -84,7 +71,6 @@ entry:
 
 attributes #0 = { argmemonly nounwind }
 attributes #1 = { norecurse nounwind }
-attributes #2 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

@@ -8,19 +8,16 @@
 ; Function Attrs: argmemonly nounwind
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
-; Function Attrs: nounwind
-declare void @llvm.assume(i1) #1
+; Function Attrs: nounwind readnone
+declare float @llvm.cos.f32(float) #1
 
 ; Function Attrs: nounwind readnone
-declare float @llvm.cos.f32(float) #2
+declare float @llvm.sin.f32(float) #1
 
 ; Function Attrs: nounwind readnone
-declare float @llvm.sin.f32(float) #2
+declare float @llvm.exp.f32(float) #1
 
-; Function Attrs: nounwind readnone
-declare float @llvm.exp.f32(float) #2
-
-define %f32XY* @likely_test_function(%u0CXYT** nocapture readonly) {
+define noalias %f32XY* @likely_test_function(%u0CXYT** nocapture readonly) {
 entry:
   %1 = bitcast %u0CXYT** %0 to %i32CXYT**
   %2 = load %i32CXYT*, %i32CXYT** %1, align 8
@@ -65,50 +62,46 @@ entry:
   %dst_y_step = zext i32 %29 to i64
   %34 = getelementptr inbounds %u0CXYT, %u0CXYT* %32, i64 1
   %35 = bitcast %u0CXYT* %34 to float*
-  %36 = ptrtoint %u0CXYT* %34 to i64
-  %37 = and i64 %36, 31
-  %38 = icmp eq i64 %37, 0
-  call void @llvm.assume(i1 %38)
-  %39 = call fast float @llvm.cos.f32(float %arg_4)
-  %40 = call fast float @llvm.sin.f32(float %arg_4)
-  %41 = fdiv fast float 0x401921FB60000000, %arg_5
+  %36 = call fast float @llvm.cos.f32(float %arg_4)
+  %37 = call fast float @llvm.sin.f32(float %arg_4)
+  %38 = fdiv fast float 0x401921FB60000000, %arg_5
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit ]
-  %42 = trunc i64 %y to i32
-  %dy = sub i32 %42, %arg_1
-  %43 = sitofp i32 %dy to float
-  %44 = fmul fast float %43, %40
-  %45 = fmul fast float %43, %39
-  %46 = mul nuw nsw i64 %y, %dst_y_step
+  %39 = trunc i64 %y to i32
+  %dy = sub i32 %39, %arg_1
+  %40 = sitofp i32 %dy to float
+  %41 = fmul fast float %40, %37
+  %42 = fmul fast float %40, %36
+  %43 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
 x_body:                                           ; preds = %y_body, %x_body
   %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
-  %47 = trunc i64 %x to i32
-  %dx = sub i32 %47, %arg_0
-  %48 = sitofp i32 %dx to float
-  %49 = fmul fast float %48, %39
-  %xp = fadd fast float %49, %44
-  %50 = sub nsw i32 0, %dx
-  %51 = sitofp i32 %50 to float
-  %52 = fmul fast float %51, %40
-  %yp = fadd fast float %52, %45
-  %53 = fdiv fast float %xp, %arg_2
-  %54 = fmul fast float %53, %53
-  %55 = fdiv fast float %yp, %arg_3
-  %56 = fmul fast float %55, %55
-  %57 = fadd fast float %54, %56
-  %58 = fmul fast float %57, -5.000000e-01
-  %59 = call fast float @llvm.exp.f32(float %58)
-  %60 = fmul fast float %xp, %41
-  %61 = fadd fast float %60, %arg_6
-  %62 = call fast float @llvm.cos.f32(float %61)
-  %63 = fmul fast float %62, %59
-  %64 = add nuw nsw i64 %x, %46
-  %65 = getelementptr float, float* %35, i64 %64
-  store float %63, float* %65, align 4, !llvm.mem.parallel_loop_access !0
+  %44 = trunc i64 %x to i32
+  %dx = sub i32 %44, %arg_0
+  %45 = sitofp i32 %dx to float
+  %46 = fmul fast float %45, %36
+  %xp = fadd fast float %46, %41
+  %47 = sub nsw i32 0, %dx
+  %48 = sitofp i32 %47 to float
+  %49 = fmul fast float %48, %37
+  %yp = fadd fast float %49, %42
+  %50 = fdiv fast float %xp, %arg_2
+  %51 = fmul fast float %50, %50
+  %52 = fdiv fast float %yp, %arg_3
+  %53 = fmul fast float %52, %52
+  %54 = fadd fast float %51, %53
+  %55 = fmul fast float %54, -5.000000e-01
+  %56 = call fast float @llvm.exp.f32(float %55)
+  %57 = fmul fast float %xp, %38
+  %58 = fadd fast float %57, %arg_6
+  %59 = call fast float @llvm.cos.f32(float %58)
+  %60 = fmul fast float %59, %56
+  %61 = add nuw nsw i64 %x, %43
+  %62 = getelementptr float, float* %35, i64 %61
+  store float %60, float* %62, align 4, !llvm.mem.parallel_loop_access !0
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %dst_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body
@@ -124,7 +117,6 @@ y_exit:                                           ; preds = %x_exit
 }
 
 attributes #0 = { argmemonly nounwind }
-attributes #1 = { nounwind }
-attributes #2 = { nounwind readnone }
+attributes #1 = { nounwind readnone }
 
 !0 = distinct !{!0}

@@ -23,59 +23,44 @@ entry:
   %11 = getelementptr inbounds %f32XY, %f32XY* %8, i64 0, i32 3
   %columns3 = load i32, i32* %11, align 4, !range !0
   %C_y_step = zext i32 %columns3 to i64
-  %12 = getelementptr inbounds %f32XY, %f32XY* %4, i64 0, i32 6, i64 0
-  %13 = ptrtoint float* %12 to i64
-  %14 = and i64 %13, 31
-  %15 = icmp eq i64 %14, 0
-  call void @llvm.assume(i1 %15)
-  %16 = getelementptr inbounds %f32XY, %f32XY* %6, i64 0, i32 3
-  %columns1 = load i32, i32* %16, align 4, !range !0
+  %12 = getelementptr inbounds %f32XY, %f32XY* %6, i64 0, i32 3
+  %columns1 = load i32, i32* %12, align 4, !range !0
   %A_y_step = zext i32 %columns1 to i64
-  %17 = getelementptr inbounds %f32XY, %f32XY* %6, i64 0, i32 6, i64 0
-  %18 = ptrtoint float* %17 to i64
-  %19 = and i64 %18, 31
-  %20 = icmp eq i64 %19, 0
-  call void @llvm.assume(i1 %20)
-  %21 = getelementptr inbounds %f32XY, %f32XY* %8, i64 0, i32 6, i64 0
-  %22 = ptrtoint float* %21 to i64
-  %23 = and i64 %22, 31
-  %24 = icmp eq i64 %23, 0
-  call void @llvm.assume(i1 %24)
-  %25 = icmp eq i32 %10, 0
+  %13 = icmp eq i32 %10, 0
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %x_exit ]
-  %26 = mul nuw nsw i64 %y, %C_y_step
-  %27 = mul nuw nsw i64 %y, %A_y_step
+  %14 = mul nuw nsw i64 %y, %C_y_step
+  %15 = mul nuw nsw i64 %y, %A_y_step
   br label %x_body
 
 x_body:                                           ; preds = %y_body, %exit
   %x = phi i64 [ %x_increment, %exit ], [ 0, %y_body ]
-  br i1 %25, label %exit, label %true_entry
+  br i1 %13, label %exit, label %true_entry
 
 true_entry:                                       ; preds = %x_body, %true_entry
-  %28 = phi i32 [ %40, %true_entry ], [ 0, %x_body ]
-  %29 = phi float [ %39, %true_entry ], [ 0.000000e+00, %x_body ]
-  %30 = sext i32 %28 to i64
-  %31 = add nuw nsw i64 %30, %27
-  %32 = getelementptr %f32XY, %f32XY* %6, i64 0, i32 6, i64 %31
-  %33 = load float, float* %32, align 4, !llvm.mem.parallel_loop_access !1
-  %34 = mul nuw nsw i64 %30, %C_y_step
-  %35 = add nuw nsw i64 %34, %x
-  %36 = getelementptr %f32XY, %f32XY* %8, i64 0, i32 6, i64 %35
-  %37 = load float, float* %36, align 4, !llvm.mem.parallel_loop_access !1
-  %38 = fmul fast float %37, %33
-  %39 = fadd fast float %38, %29
-  %40 = add nuw nsw i32 %28, 1
-  %41 = icmp eq i32 %40, %10
-  br i1 %41, label %exit, label %true_entry
+  %16 = phi i32 [ %28, %true_entry ], [ 0, %x_body ]
+  %17 = phi float [ %27, %true_entry ], [ 0.000000e+00, %x_body ]
+  %18 = sext i32 %16 to i64
+  %19 = add nuw nsw i64 %18, %15
+  %20 = getelementptr %f32XY, %f32XY* %6, i64 0, i32 6, i64 %19
+  %21 = load float, float* %20, align 4, !llvm.mem.parallel_loop_access !1
+  %22 = mul nuw nsw i64 %18, %C_y_step
+  %23 = add nuw nsw i64 %22, %x
+  %24 = getelementptr %f32XY, %f32XY* %8, i64 0, i32 6, i64 %23
+  %25 = load float, float* %24, align 4, !llvm.mem.parallel_loop_access !1
+  %26 = fmul fast float %25, %21
+  %27 = fadd fast float %26, %17
+  %28 = add nuw nsw i32 %16, 1
+  %29 = icmp eq i32 %28, %10
+  br i1 %29, label %exit, label %true_entry
 
 exit:                                             ; preds = %true_entry, %x_body
-  %.lcssa = phi float [ 0.000000e+00, %x_body ], [ %39, %true_entry ]
-  %42 = add nuw nsw i64 %x, %26
-  %43 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %42
-  store float %.lcssa, float* %43, align 4, !llvm.mem.parallel_loop_access !1
+  %.lcssa = phi float [ 0.000000e+00, %x_body ], [ %27, %true_entry ]
+  %30 = add nuw nsw i64 %x, %14
+  %31 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %30
+  store float %.lcssa, float* %31, align 4, !llvm.mem.parallel_loop_access !1
   %x_increment = add nuw nsw i64 %x, 1
   %x_postcondition = icmp eq i64 %x_increment, %C_y_step
   br i1 %x_postcondition, label %x_exit, label %x_body

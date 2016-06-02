@@ -7,7 +7,7 @@ Compare to **[cv::gemm](http://docs.opencv.org/modules/core/doc/operations_on_ar
         (assume (== src2.rows src1.columns))
         (assume (== src1.rows src3.rows))
         (assume (== src2.columns src3.columns))
-        dst := (src3.type 1 src3.columns src3.rows)
+        dst := (src3.type.not-indirect 1 src3.columns src3.rows)
         len := src1.columns
         (dst src1 src2 alpha src3 beta len) :=>
         {

@@ -6,8 +6,8 @@ Compare to **[cv::matchTemplate](http://docs.opencv.org/modules/imgproc/doc/obje
       {
         width  := templ.columns
         height := templ.rows
-        dst := (src.type 1 (- src.columns width ).++
-                           (- src.rows    height).++)
+        dst := (src.type.not-indirect 1 (- src.columns width ).++
+                                        (- src.rows    height).++)
         (dst src templ width height) :=>
         {
           result := 0.f64.$

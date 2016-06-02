@@ -1197,17 +1197,18 @@ not-floating        := (-> t (& t (~ floating       )).make-type)
 not-pointer         := (-> t (& t (~ pointer        )).make-type)
 not-signed          := (-> t (& t (~ signed         )).make-type)
 not-saturated       := (-> t (& t (~ saturated      )).make-type)
+not-indirect        := (-> t (& t (~ indirect       )).make-type)
 not-multi-channel   := (-> t (& t (~ multi-channel  )).make-type)
 not-multi-column    := (-> t (& t (~ multi-column   )).make-type)
 not-multi-row       := (-> t (& t (~ multi-row      )).make-type)
 not-multi-frame     := (-> t (& t (~ multi-frame    )).make-type)
 not-multi-dimension := (-> t (& t (~ multi-dimension)).make-type)
 
-imitate-channels   := (-> (t u) (| t.not-multi-channel   (& u multi-channel  )).make-type)
-imitate-columns    := (-> (t u) (| t.not-multi-column    (& u multi-column   )).make-type)
-imitate-rows       := (-> (t u) (| t.not-multi-row       (& u multi-row      )).make-type)
-imitate-frames     := (-> (t u) (| t.not-multi-frame     (& u multi-frame    )).make-type)
-imitate-dimensions := (-> (t u) (| t.not-multi-dimension (& u multi-dimension)).make-type)
+imitate-channels   := (-> (t u) (| t.not-indirect.not-multi-channel   (& u multi-channel  )).make-type)
+imitate-columns    := (-> (t u) (| t.not-indirect.not-multi-column    (& u multi-column   )).make-type)
+imitate-rows       := (-> (t u) (| t.not-indirect.not-multi-row       (& u multi-row      )).make-type)
+imitate-frames     := (-> (t u) (| t.not-indirect.not-multi-frame     (& u multi-frame    )).make-type)
+imitate-dimensions := (-> (t u) (| t.not-indirect.not-multi-dimension (& u multi-dimension)).make-type)
 \end{likely}
 
 \section{Matrix Creation}
@@ -1465,19 +1466,19 @@ average-generic :=
 
 average-channel :=
   src :->
-    (average-generic (src.type.depth-atleast-32.floating.not-multi-channel 1 src.columns src.rows src.frames) src src.channels)
+    (average-generic (src.type.not-indirect.depth-atleast-32.floating.not-multi-channel 1 src.columns src.rows src.frames) src src.channels)
 
 average-column :=
   src :->
-    (average-generic (src.type.depth-atleast-32.floating.not-multi-column src.channels 1 src.rows src.frames) src src.columns)
+    (average-generic (src.type.not-indirect.depth-atleast-32.floating.not-multi-column src.channels 1 src.rows src.frames) src src.columns)
 
 average-row :=
   src :->
-    (average-generic (src.type.depth-atleast-32.floating.not-multi-row src.channels src.columns 1 src.frames) src src.rows)
+    (average-generic (src.type.not-indirect.depth-atleast-32.floating.not-multi-row src.channels src.columns 1 src.frames) src src.rows)
 
 average-frame :=
   src :->
-    (average-generic (src.type.depth-atleast-32.floating.not-multi-frame src.channels src.columns src.rows 1) src src.frames)
+    (average-generic (src.type.not-indirect.depth-atleast-32.floating.not-multi-frame src.channels src.columns src.rows 1) src src.frames)
 \end{likely}
 
 \section{Matrix Multiplication}
@@ -1485,7 +1486,7 @@ average-frame :=
 transpose :=
   src :->
   {
-    dst := (src.type src.channels src.rows src.columns src.frames)
+    dst := (src.type.not-indirect src.channels src.rows src.columns src.frames)
     (dst src) :=>
       (dst c x y) :<- (src c y x)
   }
@@ -1494,7 +1495,7 @@ mtimes :=
   (A B) :->
   {
     (assume (== B.rows A.columns))
-    C := (A.type 1 B.columns A.rows)
+    C := (A.type.not-indirect 1 B.columns A.rows)
     len := A.columns
     (C A B len) :=>
       C :<- (dot (-> i (A 0 i y))

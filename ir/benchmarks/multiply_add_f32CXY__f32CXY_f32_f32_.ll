@@ -6,10 +6,7 @@
 ; Function Attrs: argmemonly nounwind
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
-; Function Attrs: nounwind
-declare void @llvm.assume(i1) #1
-
-define %f32CXY* @multiply_add(%f32CXY*, float, float) {
+define noalias %f32CXY* @multiply_add(%f32CXY* nocapture readonly, float, float) {
 entry:
   %3 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 2
   %channels = load i32, i32* %3, align 4, !range !0
@@ -23,29 +20,20 @@ entry:
   %dst_x = zext i32 %columns to i64
   %8 = getelementptr inbounds %u0CXYT, %u0CXYT* %6, i64 1
   %9 = bitcast %u0CXYT* %8 to float*
-  %10 = ptrtoint %u0CXYT* %8 to i64
-  %11 = and i64 %10, 31
-  %12 = icmp eq i64 %11, 0
-  call void @llvm.assume(i1 %12)
-  %13 = getelementptr inbounds %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 0
-  %14 = ptrtoint float* %13 to i64
-  %15 = and i64 %14, 31
-  %16 = icmp eq i64 %15, 0
-  call void @llvm.assume(i1 %16)
-  %17 = mul nuw nsw i64 %dst_x, %dst_c
-  %18 = mul nuw nsw i64 %17, %7
+  %10 = mul nuw nsw i64 %dst_x, %dst_c
+  %11 = mul nuw nsw i64 %10, %7
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %y_body ]
-  %19 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %y
-  %20 = load float, float* %19, align 4, !llvm.mem.parallel_loop_access !1
-  %21 = fmul fast float %20, %1
-  %val = fadd fast float %21, %2
-  %22 = getelementptr float, float* %9, i64 %y
-  store float %val, float* %22, align 4, !llvm.mem.parallel_loop_access !1
+  %12 = getelementptr %f32CXY, %f32CXY* %0, i64 0, i32 6, i64 %y
+  %13 = load float, float* %12, align 4, !llvm.mem.parallel_loop_access !1
+  %14 = fmul fast float %13, %1
+  %val = fadd fast float %14, %2
+  %15 = getelementptr float, float* %9, i64 %y
+  store float %val, float* %15, align 4, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
-  %y_postcondition = icmp eq i64 %y_increment, %18
+  %y_postcondition = icmp eq i64 %y_increment, %11
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
@@ -54,7 +42,6 @@ y_exit:                                           ; preds = %y_body
 }
 
 attributes #0 = { argmemonly nounwind }
-attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}
