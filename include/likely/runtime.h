@@ -169,6 +169,20 @@ struct likely_matrix
 LIKELY_EXPORT size_t likely_bytes(likely_const_mat mat);
 
 /*!
+ * \brief Helper function to retrieve a pointer to the matrix data buffer.
+ *
+ * This function is only useful for matricies that might be \ref likely_indirect.
+ * Otherwise just use \ref likely_matrix::data directly.
+ *
+ * \par Implementation
+ * \snippet src/runtime.c likely_data implementation.
+ * \param[in] mat The matrix from which to retrieve the data buffer pointer.
+ * \return Pointer to the data buffer.
+ * \remark This function is \ref thread-safe.
+ */
+LIKELY_EXPORT const char *likely_data(likely_const_mat mat);
+
+/*!
  * \brief Check if a \ref likely_matrix represents a string.
  *
  * \par Implementation

@@ -91,7 +91,7 @@ inline cv::Mat likelyToOpenCVMat(likely_const_mat mat, uint32_t frame = 0)
     return cv::Mat((int) mat->rows,
                    (int) mat->columns,
                    CV_MAKETYPE(likelyToOpenCVDepth(mat->type), int(mat->channels)),
-                   (void*) (((mat->type & likely_indirect) ? *(char**)mat->data : mat->data) + likely_bytes(mat) * frame / mat->frames)).clone();
+                   (void*) (likely_data(mat) + likely_bytes(mat) * frame / mat->frames)).clone();
 }
 
 /*!
@@ -99,6 +99,7 @@ inline cv::Mat likelyToOpenCVMat(likely_const_mat mat, uint32_t frame = 0)
  *
  * The inverse of \ref likelyToOpenCVMat.
  * \param[in] mat The OpenCV matrix to convert from.
+ * \param[in] indirect Shallow copy \c cv::Mat::data.
  * \return A \ref likely_mat initialized to \c cv::Mat::data.
  * \remark This function is \ref thread-safe.
  * \see \ref likelyFromOpenCVMats
@@ -171,7 +172,7 @@ inline likely_mat likelyFromOpenCVMats(const std::vector<cv::Mat> &mats)
         likely_ensure(mat.channels() == channels, "channel mismatch");
         likely_ensure(mat.cols == columns, "columns mismatch");
         likely_ensure(mat.rows == rows, "rows mismatch");
-        memcpy(((m->type & likely_indirect) ? *(char**)m->data : m->data) + i * step, mat.data, step);
+        memcpy(m->data + i * step, mat.data, step);
     }
     return m;
 }

@@ -28,6 +28,13 @@ size_t likely_bytes(likely_const_mat mat)
 }
 //! [likely_bytes implementation.]
 
+//! [likely_data implementation.]
+const char *likely_data(likely_const_mat mat)
+{
+    return (mat->type & likely_indirect) ? *(const char**)mat->data : mat->data;
+}
+//! [likely_data implementation.]
+
 //! [likely_is_string implementation.]
 bool likely_is_string(likely_const_mat m)
 {
@@ -132,7 +139,7 @@ double likely_get_element(likely_const_mat m, uint32_t c, uint32_t x, uint32_t y
     frameStep = m->rows * rowStep;
     index = t*frameStep + y*rowStep + x*columnStep + c;
 
-    const void *const data = (m->type & likely_indirect) ? *(void**)m->data : m->data;
+    const void *const data = likely_data(m);
     switch (m->type & likely_c_type) {
       case likely_u8:  return (double) (( uint8_t const*) data)[index];
       case likely_u16: return (double) ((uint16_t const*) data)[index];
@@ -162,7 +169,7 @@ void likely_set_element(likely_mat m, double value, uint32_t c, uint32_t x, uint
     frameStep = m->rows * rowStep;
     index = t*frameStep + y*rowStep + x*columnStep + c;
 
-    const void *const data = (m->type & likely_indirect) ? *(void**)m->data : m->data;
+    const void *const data = likely_data(m);
     switch (m->type & likely_c_type) {
       case likely_u8:  (( uint8_t*)data)[index] = ( uint8_t)value; break;
       case likely_u16: ((uint16_t*)data)[index] = (uint16_t)value; break;
