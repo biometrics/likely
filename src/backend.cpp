@@ -1941,8 +1941,8 @@ class numericLimitExpression : public LikelyOperator
         }
 
         return new likely_expression(builder.numericLimit(likely_type(args[0]->getZExtValue()),
-                                                          bool(args[1]->getZExtValue()),
-                                                          bool(args[2]->getZExtValue())));
+                                                          args[1]->getZExtValue() != 0,
+                                                          args[2]->getZExtValue() != 0));
     }
 };
 LIKELY_REGISTER(numericLimit)
