@@ -31,7 +31,10 @@ size_t likely_bytes(likely_const_mat mat)
 //! [likely_data implementation.]
 const char *likely_data(likely_const_mat mat)
 {
-    return (mat->type & likely_indirect) ? *(const char**)mat->data : mat->data;
+    const char *result;
+    if (mat->type & likely_indirect) memcpy(&result, mat->data, sizeof(char*));
+    else                             result = mat->data;
+    return result;
 }
 //! [likely_data implementation.]
 
@@ -63,7 +66,7 @@ likely_mat likely_new(likely_type type, uint32_t channels, uint32_t columns, uin
     const bool indirect = type & likely_indirect;
     if (indirect && !data) { assert(!"expected non-null data for indirect matrix"); return NULL; }
 
-    const size_t bytes = indirect ? sizeof(void*) : (((type & likely_depth) * elements + 7) / 8);
+    const size_t bytes = indirect ? sizeof(char*) : (((type & likely_depth) * elements + 7) / 8);
     const unsigned char alignment = 32; // Likely guarantees that likely_matrix::data has 32-byte alignment
     likely_mat mat = (likely_mat) malloc(sizeof(struct likely_matrix) + bytes + alignment);
     if (!mat) { assert(!"malloc failure"); return NULL; }
