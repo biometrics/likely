@@ -111,7 +111,7 @@ LIKELY_EXPORT void likely_static(likely_env env, likely_const_mat *output, likel
  * \param[in] symbol Function name.
  * \remark This function is \ref reentrant.
  */
-LIKELY_EXPORT void likely_precompiled_jit(likely_env env, likely_const_mat bitcode, const char *symbol);
+LIKELY_EXPORT void likely_jit(likely_env env, likely_const_mat bitcode, const char *symbol);
 
 /*!
  * \brief Retain a reference to an environment.
