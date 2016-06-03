@@ -656,24 +656,19 @@ struct likely_module
     Module *module;
     vector<pair<SharedMat,Constant*>> data;
 
-    likely_module(const likely_settings &settings, bool native, bool jit)
+    likely_module(const likely_settings &settings, bool native, bool jit, const likely_const_mat bitcode = NULL)
         : context(new LikelyContext(settings))
-        , module(new Module(settings.module_id, context->context))
+        , module(NULL)
     {
-        init(native, jit);
-    }
+        if (bitcode) {
+            ErrorOr<unique_ptr<Module>> result = parseBitcodeFile(MemoryBufferRef(StringRef(bitcode->data, likely_bytes(bitcode)), settings.module_id), context->context);
+            if (!result)
+                return;
+            module = result.get().release();
+        } else {
+            module = new Module(settings.module_id, context->context);
+        }
 
-    likely_module(const likely_const_mat bitcode, bool native, bool jit)
-        : context(new LikelyContext(likely_default_settings(likely_file_void, false)))
-    {
-        ErrorOr<unique_ptr<Module>> result = parseBitcodeFile(MemoryBufferRef(StringRef(bitcode->data, likely_bytes(bitcode)), "likely"), context->context);
-        module = result ? result.get().release() : NULL;
-        if (module)
-            init(native, jit);
-    }
-
-    void init(bool native, bool jit)
-    {
         if (native) {
             TM.reset(LikelyContext::getTargetMachine(jit));
             module->setDataLayout(TM->createDataLayout());
@@ -1550,9 +1545,9 @@ struct JITFunction : public Symbol
         init(builder, name, reinterpret_cast<const LikelyFunction*>(function.get()), parameters, false, cc);
     }
 
-    JITFunction(const likely_const_mat bitcode, const char *symbol)
+    JITFunction(const likely_settings &settings, const likely_const_mat bitcode, const char *symbol)
         : Symbol(NULL, symbol, likely_void)
-        , module(new likely_module(bitcode, true, true))
+        , module(new likely_module(settings, true, true, bitcode))
     {
         if (module->module) {
             EE = createExecutionEngine(unique_ptr<Module>(module->module), unique_ptr<TargetMachine>(module->TM.release()), EngineKind::JIT);
@@ -3242,12 +3237,22 @@ likely_env likely_standard_static(likely_settings settings, likely_const_mat *ou
     return env;
 }
 
-likely_env likely_precompiled(likely_const_mat bitcode, const char *symbol)
+likely_env likely_precompiled_jit(likely_settings settings, likely_const_mat bitcode, const char *symbol)
 {
     const likely_env env = newEnv(NULL);
-    env->settings = NULL;
+    env->settings = (likely_settings*) malloc(sizeof(likely_settings));
+    memcpy(env->settings, &settings, sizeof(likely_settings));
     env->module = NULL;
-    env->expr = new JITFunction(bitcode, symbol);
+    env->expr = new JITFunction(settings, bitcode, symbol);
+    return env;
+}
+
+likely_env likely_precompiled_static(likely_settings settings, likely_const_mat bitcode, likely_const_mat *output, likely_file_type file_type)
+{
+    const likely_env env = newEnv(NULL);
+    env->settings = (likely_settings*) malloc(sizeof(likely_settings));
+    memcpy(env->settings, &settings, sizeof(likely_settings));
+    env->module = new StaticModule(settings, output, file_type);
     return env;
 }
 
