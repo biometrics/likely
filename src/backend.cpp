@@ -701,16 +701,16 @@ struct likely_module
 
 namespace {
 
-class OfflineModule : public likely_module
+class StaticModule : public likely_module
 {
     likely_const_mat *const output;
     const likely_file_type file_type;
 
 public:
-    OfflineModule(const likely_settings &settings, likely_const_mat *output, likely_file_type file_type)
+    StaticModule(const likely_settings &settings, likely_const_mat *output, likely_file_type file_type)
         : likely_module(settings, (file_type == likely_file_object) || (file_type == likely_file_assembly), false), output(output), file_type(file_type) {}
 
-    ~OfflineModule()
+    ~StaticModule()
     {
         // Inline constant mats as they won't be around after the program exits!
         for (size_t i=0; i<data.size(); i++) {
@@ -3238,7 +3238,7 @@ likely_env likely_standard_static(likely_settings settings, likely_const_mat *ou
     const likely_env env = newEnv(RootEnvironment::get());
     env->settings = (likely_settings*) malloc(sizeof(likely_settings));
     memcpy(env->settings, &settings, sizeof(likely_settings));
-    env->module = new OfflineModule(settings, output, file_type);
+    env->module = new StaticModule(settings, output, file_type);
     return env;
 }
 
