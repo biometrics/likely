@@ -172,10 +172,9 @@ int main(int argc, char *argv[])
     if (!LikelyInput.empty() && !LikelyCommand)
         settings.module_id = LikelyInput.c_str();
 
-    likely_mat output = NULL;
-    likely_const_env parent = likely_standard(settings,
-                                              LikelyOutput.empty() ? NULL /* JIT */ : &output /* Offline */,
-                                              likely_guess_file_type(LikelyOutput.c_str()));
+    likely_const_mat output = NULL;
+    likely_const_env parent = LikelyOutput.empty() ? likely_standard_jit(settings)
+                                                   : likely_standard_static(settings, &output, likely_guess_file_type(LikelyOutput.c_str()));
 
     if (!LikelyPreprocess.empty()) {
         const likely_env env = likely_lex_parse_and_eval(LikelyPreprocess.c_str(), likely_file_lisp, parent);

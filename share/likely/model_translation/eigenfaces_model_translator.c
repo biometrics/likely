@@ -30,10 +30,10 @@ int main(int argc, char *argv[])
     likely_ensure(evecs, "failed to read evecs file: %s", argv[3]);
 
     // Constructing model translation environment...
-    likely_mat output = NULL;
+    likely_const_mat output = NULL;
     const likely_file_type object_file_type = likely_guess_file_type(argv[4]);
     struct likely_settings settings = likely_default_settings(object_file_type, false);
-    likely_const_env parent = likely_standard(settings, &output, object_file_type);
+    likely_const_env parent = likely_standard_static(settings, &output, object_file_type);
     likely_define("mean", mean, &parent);
     likely_define("evecs", evecs, &parent);
 

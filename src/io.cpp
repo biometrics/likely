@@ -376,7 +376,7 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
     static likely_const_env env = NULL;
     static void *render = NULL;
     if (render == NULL) {
-        const likely_env parent = likely_standard(likely_default_settings(likely_file_void, false), NULL, likely_file_void);
+        const likely_env parent = likely_standard_jit(likely_default_settings(likely_file_void, false));
         const char *const src = "-likely-render :=                                                                                         "
                                 "  (src min max) :->                                                                                       "
                                 "  {                                                                                                       "

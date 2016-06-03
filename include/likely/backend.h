@@ -83,18 +83,28 @@ struct likely_environment
 };
 
 /*!
- * \brief Construct a compilation environment with \ref likely_standard_library symbols.
+ * \brief Construct a just-in-time compilation environment with \ref likely_standard_library symbols.
+ *
+ * \param[in] settings Compiler options.
+ * \return A new compilation environment.
+ * \remark This function is \ref thread-unsafe.
+ * \see \ref likely_standard_static
+ */
+LIKELY_EXPORT likely_env likely_standard_jit(struct likely_settings settings);
+
+/*!
+ * \brief Construct a static compilation environment with \ref likely_standard_library symbols.
  *
  * Code is written to \p output when the returned \ref likely_environment is deleted by \ref likely_release_env.
- * If \p output is \c NULL, just-in-time compilation will be performed instead.
  *
  * \param[in] settings Compiler options.
  * \param[in] output Where to save the compilation output for static compilation, or \c NULL for just-in-time compilation.
  * \param[in] file_type Format of \p output, ignored if \p output is \c NULL. Valid options are \ref likely_file_ir, \ref likely_file_bitcode, \ref likely_file_object or \ref likely_file_assembly.
  * \return A new compilation environment.
  * \remark This function is \ref thread-unsafe.
+ * \see \ref likely_standard_jit
  */
-LIKELY_EXPORT likely_env likely_standard(struct likely_settings settings, likely_mat *output, likely_file_type file_type);
+LIKELY_EXPORT likely_env likely_standard_static(struct likely_settings settings, likely_const_mat *output, likely_file_type file_type);
 
 /*!
  * \brief Re-construct a compiled function from bitcode.

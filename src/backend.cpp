@@ -703,11 +703,11 @@ namespace {
 
 class OfflineModule : public likely_module
 {
-    likely_mat *const output;
+    likely_const_mat *const output;
     const likely_file_type file_type;
 
 public:
-    OfflineModule(const likely_settings &settings, likely_mat *output, likely_file_type file_type)
+    OfflineModule(const likely_settings &settings, likely_const_mat *output, likely_file_type file_type)
         : likely_module(settings, (file_type == likely_file_object) || (file_type == likely_file_assembly), false), output(output), file_type(file_type) {}
 
     ~OfflineModule()
@@ -3225,13 +3225,20 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
     }
 }
 
-likely_env likely_standard(likely_settings settings, likely_mat *output, likely_file_type file_type)
+likely_env likely_standard_jit(likely_settings settings)
 {
     const likely_env env = newEnv(RootEnvironment::get());
     env->settings = (likely_settings*) malloc(sizeof(likely_settings));
     memcpy(env->settings, &settings, sizeof(likely_settings));
-    if (output)
-        env->module = new OfflineModule(settings, output, file_type);
+    return env;
+}
+
+likely_env likely_standard_static(likely_settings settings, likely_const_mat *output, likely_file_type file_type)
+{
+    const likely_env env = newEnv(RootEnvironment::get());
+    env->settings = (likely_settings*) malloc(sizeof(likely_settings));
+    memcpy(env->settings, &settings, sizeof(likely_settings));
+    env->module = new OfflineModule(settings, output, file_type);
     return env;
 }
 
@@ -3414,7 +3421,7 @@ likely_env likely_lex_parse_and_eval(const char *source, likely_file_type file_t
 //! [likely_compute implementation.]
 likely_mat likely_compute(const char *source)
 {
-    const likely_const_env parent = likely_standard(likely_default_settings(likely_file_void, false), NULL, likely_file_void);
+    const likely_const_env parent = likely_standard_jit(likely_default_settings(likely_file_void, false));
     const likely_const_env env = likely_lex_parse_and_eval(source, likely_file_lisp, parent);
     const likely_mat result = likely_retain_mat(likely_result(env->expr));
     likely_release_env(env);
