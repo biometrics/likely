@@ -444,6 +444,7 @@ struct SharedMat
         return *this;
     }
 
+    bool operator<(const SharedMat &other) const { return uintptr_t(mat) < uintptr_t(other.mat); }
     operator bool() const { return mat != NULL; }
     operator likely_const_mat() const { return mat; }
 };
@@ -654,7 +655,7 @@ struct likely_module
     unique_ptr<LikelyContext> context;
     unique_ptr<TargetMachine> TM;
     Module *module;
-    vector<pair<SharedMat,Constant*>> data;
+    std::map<SharedMat,Value*> data;
 
     likely_module(const likely_settings &settings, bool native, bool jit, const likely_const_mat bitcode = NULL)
         : context(new LikelyContext(settings))
@@ -707,66 +708,6 @@ public:
 
     ~StaticModule()
     {
-        // Inline constant mats as they won't be around after the program exits!
-        for (size_t i=0; i<data.size(); i++) {
-            const pair<SharedMat,Constant*> &datum = data[i];
-
-            bool used = false;
-            for (User *const user : datum.second->users())
-                if (user->getNumUses() > 0) {
-                    used = true;
-                    break;
-                }
-
-            if (!used)
-                continue;
-
-            const likely_const_mat mat = datum.first;
-            assert(mat);
-
-            const uint64_t elements = uint64_t(mat->channels) * uint64_t(mat->columns) * uint64_t(mat->rows) * uint64_t(mat->frames);
-            StructType *const structType = cast<StructType>(cast<PointerType>(context->toLLVM(mat->type, elements))->getElementType());
-            const likely_type c_type = mat->type & likely_c_type;
-            Constant *const values[7] = { ConstantInt::get(IntegerType::get(context->context, 8*sizeof(uint32_t)), numeric_limits<uint32_t>::max()),
-                                          ConstantInt::get(IntegerType::get(context->context, 8*sizeof(uint32_t)), mat->type),
-                                          ConstantInt::get(IntegerType::get(context->context, 8*sizeof(uint32_t)), mat->channels),
-                                          ConstantInt::get(IntegerType::get(context->context, 8*sizeof(uint32_t)), mat->columns),
-                                          ConstantInt::get(IntegerType::get(context->context, 8*sizeof(uint32_t)), mat->rows),
-                                          ConstantInt::get(IntegerType::get(context->context, 8*sizeof(uint32_t)), mat->frames),
-                                          (c_type == likely_u8)  ? ConstantDataArray::get(context->context, ArrayRef<uint8_t >((uint8_t*)  &mat->data, elements))
-                                        : (c_type == likely_u16) ? ConstantDataArray::get(context->context, ArrayRef<uint16_t>((uint16_t*) &mat->data, elements))
-                                        : (c_type == likely_u32) ? ConstantDataArray::get(context->context, ArrayRef<uint32_t>((uint32_t*) &mat->data, elements))
-                                        : (c_type == likely_u64) ? ConstantDataArray::get(context->context, ArrayRef<uint64_t>((uint64_t*) &mat->data, elements))
-                                        : (c_type == likely_f32) ? ConstantDataArray::get(context->context, ArrayRef<float   >((float*)    &mat->data, elements))
-                                        :                          ConstantDataArray::get(context->context, ArrayRef<double  >((double*)   &mat->data, elements)) };
-            Constant *const constantStruct = ConstantStruct::get(structType, values);
-
-            stringstream name;
-            name << "likely_inlined_mat_" << i;
-            GlobalVariable *const inlinedMat = cast<GlobalVariable>(module->getOrInsertGlobal(name.str(), structType));
-            inlinedMat->setConstant(true);
-            inlinedMat->setInitializer(constantStruct);
-            inlinedMat->setLinkage(GlobalVariable::PrivateLinkage);
-            inlinedMat->setUnnamedAddr(true);
-
-            vector<Instruction*> eraseLater;
-            for (User *const supposedConstantExpr : datum.second->users()) {
-                ConstantExpr *const constantExpr = cast<ConstantExpr>(supposedConstantExpr); // We expect an inttoptr constant expression
-                Constant *const castedInlinedMat = ConstantExpr::getPointerBitCastOrAddrSpaceCast(inlinedMat, constantExpr->getType());
-                constantExpr->replaceAllUsesWith(castedInlinedMat);
-
-                for (User *const user : castedInlinedMat->users())
-                    if (CallInst *const callInst = dyn_cast<CallInst>(user))
-                        if ((callInst->getCalledFunction()->getName() == "likely_retain_mat") ||
-                            (callInst->getCalledFunction()->getName() == "likely_release_mat")) {
-                            callInst->replaceAllUsesWith(castedInlinedMat);
-                            eraseLater.push_back(callInst);
-                        }
-            }
-            for (Instruction *const instruction : eraseLater)
-                instruction->eraseFromParent();
-        }
-
         context->PM->run(*module);
 
         if (context->verbose)
@@ -1212,10 +1153,42 @@ struct ConstantData : public likely_expression
             return;
         }
 
-        // Make sure the lifetime of the data is at least as long as the lifetime of the code.
-        Constant *const address = ConstantInt::get(IntegerType::get(builder.getContext(), 8*sizeof(void*)), uintptr_t(data.mat));
-        builder.module->data.push_back(pair<SharedMat,Constant*>(data, address));
-        value = ConstantExpr::getIntToPtr(address, builder.module->context->toLLVM(data.mat->type));
+        // See if it has already been copied into the module
+        auto it = builder.module->data.find(data);
+        if (it != builder.module->data.end()) {
+            value = it->second;
+            return;
+        }
+
+        // Copy the matrix into the module
+        const likely_const_mat m = data;
+        const uint64_t elements = uint64_t(m->channels) * uint64_t(m->columns) * uint64_t(m->rows) * uint64_t(m->frames);
+        StructType *const structType = cast<StructType>(cast<PointerType>(builder.module->context->toLLVM(m->type, elements))->getElementType());
+        const likely_type c_type = m->type & likely_c_type;
+        Constant *const values[7] = { ConstantInt::get(IntegerType::get(builder.module->context->context, 8*sizeof(uint32_t)), numeric_limits<uint32_t>::max()),
+                                      ConstantInt::get(IntegerType::get(builder.module->context->context, 8*sizeof(uint32_t)), m->type),
+                                      ConstantInt::get(IntegerType::get(builder.module->context->context, 8*sizeof(uint32_t)), m->channels),
+                                      ConstantInt::get(IntegerType::get(builder.module->context->context, 8*sizeof(uint32_t)), m->columns),
+                                      ConstantInt::get(IntegerType::get(builder.module->context->context, 8*sizeof(uint32_t)), m->rows),
+                                      ConstantInt::get(IntegerType::get(builder.module->context->context, 8*sizeof(uint32_t)), m->frames),
+                                        (c_type == likely_u8)  ? ConstantDataArray::get(builder.module->context->context, ArrayRef<uint8_t >((uint8_t*)  &m->data, elements))
+                                      : (c_type == likely_u16) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<uint16_t>((uint16_t*) &m->data, elements))
+                                      : (c_type == likely_u32) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<uint32_t>((uint32_t*) &m->data, elements))
+                                      : (c_type == likely_u64) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<uint64_t>((uint64_t*) &m->data, elements))
+                                      : (c_type == likely_f32) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<float   >((float*)    &m->data, elements))
+                                      :                          ConstantDataArray::get(builder.module->context->context, ArrayRef<double  >((double*)   &m->data, elements)) };
+        Constant *const constantStruct = ConstantStruct::get(structType, values);
+
+        stringstream name;
+        name << "likely_inlined_mat_" << builder.module->data.size();
+        GlobalVariable *const inlinedMat = cast<GlobalVariable>(builder.module->module->getOrInsertGlobal(name.str(), structType));
+        inlinedMat->setConstant(true);
+        inlinedMat->setInitializer(constantStruct);
+        inlinedMat->setLinkage(GlobalVariable::PrivateLinkage);
+        inlinedMat->setUnnamedAddr(true);
+
+        value = builder.CreatePointerCast(inlinedMat, builder.module->context->toLLVM(m->type));
+        builder.module->data[data] = value;
     }
 
 private:
