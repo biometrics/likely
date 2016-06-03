@@ -97,9 +97,10 @@ LIKELY_EXPORT likely_env likely_standard(struct likely_settings settings);
  * \param[in] env Environment to configure.
  * \param[out] output Where the compilation output is saved.
  * \param[in] file_type Format of \p output. Valid options are \ref likely_file_ir, \ref likely_file_bitcode, \ref likely_file_object or \ref likely_file_assembly.
+ * \param[in] bitcode Bitcode from a previous \p output with which to initialize the compilation environment, or \c NULL.
  * \remark This function is \ref reentrant.
  */
-LIKELY_EXPORT void likely_static(likely_env env, likely_const_mat *output, likely_file_type file_type);
+LIKELY_EXPORT void likely_static(likely_env env, likely_const_mat *output, likely_file_type file_type, likely_const_mat bitcode);
 
 /*!
  * \brief Just-in-time compile a function from bitcode.
@@ -111,18 +112,6 @@ LIKELY_EXPORT void likely_static(likely_env env, likely_const_mat *output, likel
  * \remark This function is \ref reentrant.
  */
 LIKELY_EXPORT void likely_precompiled_jit(likely_env env, likely_const_mat bitcode, const char *symbol);
-
-/*!
- * \brief Static compile a module from bitcode.
- *
- * Code is written to \p output when the returned \ref likely_environment is deleted by \ref likely_release_env.
- * \param[in] env Environment to use.
- * \param[in] bitcode Output from \ref likely_static.
- * \param[out] output Where the compilation output is saved.
- * \param[in] file_type Format of \p output. Valid options are \ref likely_file_ir, \ref likely_file_bitcode, \ref likely_file_object or \ref likely_file_assembly.
- * \remark This function is \ref reentrant.
- */
-LIKELY_EXPORT void likely_precompiled_static(likely_env env, likely_const_mat bitcode, likely_const_mat *output, likely_file_type file_type);
 
 /*!
  * \brief Retain a reference to an environment.

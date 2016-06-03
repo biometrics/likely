@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
     likely_const_mat output = NULL;
     likely_const_env parent = likely_standard(settings);
     if (!LikelyOutput.empty())
-        likely_static((likely_env) parent, &output, likely_guess_file_type(LikelyOutput.c_str()));
+        likely_static((likely_env) parent, &output, likely_guess_file_type(LikelyOutput.c_str()), NULL);
 
     if (!LikelyPreprocess.empty()) {
         const likely_env env = likely_lex_parse_and_eval(LikelyPreprocess.c_str(), likely_file_lisp, parent);

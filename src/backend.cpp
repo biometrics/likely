@@ -3227,19 +3227,14 @@ likely_env likely_standard(likely_settings settings)
     return env;
 }
 
-void likely_static(likely_env env, likely_const_mat *output, likely_file_type file_type)
+void likely_static(likely_env env, likely_const_mat *output, likely_file_type file_type, likely_const_mat bitcode)
 {
-    env->module = new StaticModule(*env->settings, output, file_type);
+    env->module = new StaticModule(*env->settings, output, file_type, bitcode);
 }
 
 void likely_precompiled_jit(likely_env env, likely_const_mat bitcode, const char *symbol)
 {
     env->expr = new JITFunction(*env->settings, bitcode, symbol);
-}
-
-void likely_precompiled_static(likely_env env, likely_const_mat bitcode, likely_const_mat *output, likely_file_type file_type)
-{
-    env->module = new StaticModule(*env->settings, output, file_type, bitcode);
 }
 
 likely_env likely_retain_env(likely_const_env env)
