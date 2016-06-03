@@ -32,7 +32,7 @@ size_t likely_bytes(likely_const_mat mat)
 const char *likely_data(likely_const_mat mat)
 {
     const char *result;
-    if (mat->type & likely_indirect) memcpy(&result, mat->data, sizeof(char*));
+    if (mat->type & likely_indirect) memcpy((void*) &result, mat->data, sizeof(char*));
     else                             result = mat->data;
     return result;
 }
