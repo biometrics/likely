@@ -3223,8 +3223,7 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
 likely_env likely_standard(likely_settings settings)
 {
     const likely_env env = newEnv(RootEnvironment::get());
-    env->settings = (likely_settings*) malloc(sizeof(likely_settings));
-    memcpy(env->settings, &settings, sizeof(likely_settings));
+    *env->settings = settings;
     return env;
 }
 
