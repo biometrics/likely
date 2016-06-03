@@ -66,11 +66,8 @@ typedef struct likely_environment const *likely_const_env; /*!< \brief Pointer t
  * \par Environment Construction
  * | Function                       | Description                          |
  * |--------------------------------|--------------------------------------|
- * | \ref likely_standard_jit       | \copybrief likely_standard_jit       |
- * | \ref likely_standard_static    | \copybrief likely_standard_static    |
- * | \ref likely_precompiled_jit    | \copybrief likely_precompiled_jit    |
- * | \ref likely_precompiled_static | \copybrief likely_precompiled_static |
-  * | \ref likely_eval              | \copybrief likely_eval               |
+ * | \ref likely_standard           | \copybrief likely_standard           |
+ * | \ref likely_eval               | \copybrief likely_eval               |
  * | \ref likely_lex_parse_and_eval | \copybrief likely_lex_parse_and_eval |
  *
  * \see \ref reference_counting
@@ -86,54 +83,46 @@ struct likely_environment
 };
 
 /*!
- * \brief Construct a just-in-time compilation environment with \ref likely_standard_library symbols.
- *
+ * \brief Construct a new compilation environment with \ref likely_standard_library symbols.
  * \param[in] settings Compiler options.
  * \return A new compilation environment.
  * \remark This function is \ref thread-unsafe.
- * \see \ref likely_standard_static
  */
-LIKELY_EXPORT likely_env likely_standard_jit(struct likely_settings settings);
+LIKELY_EXPORT likely_env likely_standard(struct likely_settings settings);
 
 /*!
- * \brief Construct a static compilation environment with \ref likely_standard_library symbols.
+ * \brief Configure an environment for static compilation.
  *
  * Code is written to \p output when the returned \ref likely_environment is deleted by \ref likely_release_env.
- * \param[in] settings Compiler options.
+ * \param[in] env Environment to configure.
  * \param[out] output Where the compilation output is saved.
  * \param[in] file_type Format of \p output. Valid options are \ref likely_file_ir, \ref likely_file_bitcode, \ref likely_file_object or \ref likely_file_assembly.
- * \return A new compilation environment.
- * \remark This function is \ref thread-unsafe.
- * \see \ref likely_standard_jit
+ * \remark This function is \ref reentrant.
  */
-LIKELY_EXPORT likely_env likely_standard_static(struct likely_settings settings, likely_const_mat *output, likely_file_type file_type);
+LIKELY_EXPORT void likely_static(likely_env env, likely_const_mat *output, likely_file_type file_type);
 
 /*!
  * \brief Just-in-time compile a function from bitcode.
  *
  * For use with \ref likely_function.
- * \param[in] settings Compiler options.
- * \param[in] bitcode Output from \ref likely_standard_static.
+ * \param[in] env Environment to use.
+ * \param[in] bitcode Output from \ref likely_static.
  * \param[in] symbol Function name.
- * \return A pre-compiled compilation environment.
- * \remark This function is \ref thread-safe.
- * \see \ref likely_precompiled_static
+ * \remark This function is \ref reentrant.
  */
-LIKELY_EXPORT likely_env likely_precompiled_jit(struct likely_settings settings, likely_const_mat bitcode, const char *symbol);
+LIKELY_EXPORT void likely_precompiled_jit(likely_env env, likely_const_mat bitcode, const char *symbol);
 
 /*!
  * \brief Static compile a module from bitcode.
  *
  * Code is written to \p output when the returned \ref likely_environment is deleted by \ref likely_release_env.
- * \param[in] settings Compiler options.
- * \param[in] bitcode Output from \ref likely_standard_static.
+ * \param[in] env Environment to use.
+ * \param[in] bitcode Output from \ref likely_static.
  * \param[out] output Where the compilation output is saved.
  * \param[in] file_type Format of \p output. Valid options are \ref likely_file_ir, \ref likely_file_bitcode, \ref likely_file_object or \ref likely_file_assembly.
- * \return A pre-compiled compilation environment.
- * \remark This function is \ref thread-safe.
- * \see \ref likely_precompiled_jit
+ * \remark This function is \ref reentrant.
  */
-LIKELY_EXPORT likely_env likely_precompiled_static(struct likely_settings settings, likely_const_mat bitcode, likely_const_mat *output, likely_file_type file_type);
+LIKELY_EXPORT void likely_precompiled_static(likely_env env, likely_const_mat bitcode, likely_const_mat *output, likely_file_type file_type);
 
 /*!
  * \brief Retain a reference to an environment.

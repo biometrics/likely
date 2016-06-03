@@ -717,7 +717,7 @@ int main(int argc, char *argv[])
     settings.optimization_level = BenchmarkOptimizationLevel;
     settings.multicore = BenchmarkMulticore;
     settings.heterogeneous = false;
-    const likely_const_env parent = likely_standard_jit(settings);
+    const likely_const_env parent = likely_standard(settings);
 
     if (!BenchmarkQuiet) {
         const time_t now = time(0);

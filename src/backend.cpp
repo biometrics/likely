@@ -702,8 +702,8 @@ class StaticModule : public likely_module
     const likely_file_type file_type;
 
 public:
-    StaticModule(const likely_settings &settings, likely_const_mat *output, likely_file_type file_type)
-        : likely_module(settings, (file_type == likely_file_object) || (file_type == likely_file_assembly), false), output(output), file_type(file_type) {}
+    StaticModule(const likely_settings &settings, likely_const_mat *output, likely_file_type file_type, likely_const_mat bitcode = NULL)
+        : likely_module(settings, (file_type == likely_file_object) || (file_type == likely_file_assembly), false, bitcode), output(output), file_type(file_type) {}
 
     ~StaticModule()
     {
@@ -3220,7 +3220,7 @@ likely_const_expr likely_expression::_get(Builder &builder, likely_const_ast ast
     }
 }
 
-likely_env likely_standard_jit(likely_settings settings)
+likely_env likely_standard(likely_settings settings)
 {
     const likely_env env = newEnv(RootEnvironment::get());
     env->settings = (likely_settings*) malloc(sizeof(likely_settings));
@@ -3228,32 +3228,19 @@ likely_env likely_standard_jit(likely_settings settings)
     return env;
 }
 
-likely_env likely_standard_static(likely_settings settings, likely_const_mat *output, likely_file_type file_type)
+void likely_static(likely_env env, likely_const_mat *output, likely_file_type file_type)
 {
-    const likely_env env = newEnv(RootEnvironment::get());
-    env->settings = (likely_settings*) malloc(sizeof(likely_settings));
-    memcpy(env->settings, &settings, sizeof(likely_settings));
-    env->module = new StaticModule(settings, output, file_type);
-    return env;
+    env->module = new StaticModule(*env->settings, output, file_type);
 }
 
-likely_env likely_precompiled_jit(likely_settings settings, likely_const_mat bitcode, const char *symbol)
+void likely_precompiled_jit(likely_env env, likely_const_mat bitcode, const char *symbol)
 {
-    const likely_env env = newEnv(NULL);
-    env->settings = (likely_settings*) malloc(sizeof(likely_settings));
-    memcpy(env->settings, &settings, sizeof(likely_settings));
-    env->module = NULL;
-    env->expr = new JITFunction(settings, bitcode, symbol);
-    return env;
+    env->expr = new JITFunction(*env->settings, bitcode, symbol);
 }
 
-likely_env likely_precompiled_static(likely_settings settings, likely_const_mat bitcode, likely_const_mat *output, likely_file_type file_type)
+void likely_precompiled_static(likely_env env, likely_const_mat bitcode, likely_const_mat *output, likely_file_type file_type)
 {
-    const likely_env env = newEnv(NULL);
-    env->settings = (likely_settings*) malloc(sizeof(likely_settings));
-    memcpy(env->settings, &settings, sizeof(likely_settings));
-    env->module = new StaticModule(settings, output, file_type);
-    return env;
+    env->module = new StaticModule(*env->settings, output, file_type, bitcode);
 }
 
 likely_env likely_retain_env(likely_const_env env)
@@ -3426,7 +3413,7 @@ likely_env likely_lex_parse_and_eval(const char *source, likely_file_type file_t
 //! [likely_compute implementation.]
 likely_mat likely_compute(const char *source)
 {
-    const likely_const_env parent = likely_standard_jit(likely_default_settings(likely_file_void, false));
+    const likely_const_env parent = likely_standard(likely_default_settings(likely_file_void, false));
     const likely_const_env env = likely_lex_parse_and_eval(source, likely_file_lisp, parent);
     const likely_mat result = likely_retain_mat(likely_result(env->expr));
     likely_release_env(env);
