@@ -1164,19 +1164,19 @@ struct ConstantData : public likely_expression
         const likely_const_mat m = data;
         const uint64_t elements = uint64_t(m->channels) * uint64_t(m->columns) * uint64_t(m->rows) * uint64_t(m->frames);
         StructType *const structType = cast<StructType>(cast<PointerType>(builder.module->context->toLLVM(m->type, elements))->getElementType());
-        const likely_type c_type = m->type & likely_c_type;
+        const likely_type bit_type = m->type & (likely_depth | likely_floating);
         Constant *const values[7] = { ConstantInt::get(IntegerType::get(builder.module->context->context, 8*sizeof(uint32_t)), numeric_limits<uint32_t>::max()),
                                       ConstantInt::get(IntegerType::get(builder.module->context->context, 8*sizeof(uint32_t)), m->type),
                                       ConstantInt::get(IntegerType::get(builder.module->context->context, 8*sizeof(uint32_t)), m->channels),
                                       ConstantInt::get(IntegerType::get(builder.module->context->context, 8*sizeof(uint32_t)), m->columns),
                                       ConstantInt::get(IntegerType::get(builder.module->context->context, 8*sizeof(uint32_t)), m->rows),
                                       ConstantInt::get(IntegerType::get(builder.module->context->context, 8*sizeof(uint32_t)), m->frames),
-                                        (c_type == likely_u8)  ? ConstantDataArray::get(builder.module->context->context, ArrayRef<uint8_t >((uint8_t*)  &m->data, elements))
-                                      : (c_type == likely_u16) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<uint16_t>((uint16_t*) &m->data, elements))
-                                      : (c_type == likely_u32) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<uint32_t>((uint32_t*) &m->data, elements))
-                                      : (c_type == likely_u64) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<uint64_t>((uint64_t*) &m->data, elements))
-                                      : (c_type == likely_f32) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<float   >((float*)    &m->data, elements))
-                                      :                          ConstantDataArray::get(builder.module->context->context, ArrayRef<double  >((double*)   &m->data, elements)) };
+                                        (bit_type == likely_u8)  ? ConstantDataArray::get(builder.module->context->context, ArrayRef<uint8_t >((uint8_t*)  &m->data, elements))
+                                      : (bit_type == likely_u16) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<uint16_t>((uint16_t*) &m->data, elements))
+                                      : (bit_type == likely_u32) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<uint32_t>((uint32_t*) &m->data, elements))
+                                      : (bit_type == likely_u64) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<uint64_t>((uint64_t*) &m->data, elements))
+                                      : (bit_type == likely_f32) ? ConstantDataArray::get(builder.module->context->context, ArrayRef<float   >((float*)    &m->data, elements))
+                                      :                            ConstantDataArray::get(builder.module->context->context, ArrayRef<double  >((double*)   &m->data, elements)) };
         Constant *const constantStruct = ConstantStruct::get(structType, values);
 
         stringstream name;
