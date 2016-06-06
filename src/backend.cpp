@@ -1522,13 +1522,9 @@ struct JITFunction : public Symbol
         : Symbol(NULL, symbol, likely_void)
         , module(new likely_module(settings, true, true, bitcode))
     {
-        if (module->module) {
-            EE = createExecutionEngine(unique_ptr<Module>(module->module), unique_ptr<TargetMachine>(module->TM.release()), EngineKind::JIT);
-            module->context->PM->run(*module->module);
-            compileAndCleanup();
-        } else {
-            function = NULL;
-        }
+        EE = createExecutionEngine(unique_ptr<Module>(module->module), unique_ptr<TargetMachine>(module->TM.release()), EngineKind::JIT);
+        module->context->PM->run(*module->module);
+        compileAndCleanup();
     }
 
     ~JITFunction()
