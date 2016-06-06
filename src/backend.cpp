@@ -1499,8 +1499,7 @@ struct JITFunction : public Symbol
 {
     void *function = NULL;
     ExecutionEngine *EE = NULL;
-    likely_module *module = NULL;
-    bool ownsModule = true;
+    likely_module *module;
 
     JITFunction(const string &name, const LikelyFunction *function, const vector<likely_type> &parameters, bool evaluate, LikelyFunction::CallingConvention cc, const vector<likely_type> &virtualTypes = vector<likely_type>())
         : Symbol(NULL, name, likely_void, parameters)
@@ -1519,10 +1518,9 @@ struct JITFunction : public Symbol
         init(builder, name, reinterpret_cast<const LikelyFunction*>(function.get()), parameters, false, cc);
     }
 
-    JITFunction(likely_module *module, const char *symbol)
+    JITFunction(const likely_settings &settings, const likely_const_mat bitcode, const char *symbol)
         : Symbol(NULL, symbol, likely_void)
-        , module(module)
-        , ownsModule(false)
+        , module(new likely_module(settings, true, true, bitcode))
     {
         EE = createExecutionEngine(unique_ptr<Module>(module->module), unique_ptr<TargetMachine>(module->TM.release()), EngineKind::JIT);
         module->context->PM->run(*module->module);
@@ -1534,8 +1532,7 @@ struct JITFunction : public Symbol
         if (EE && module->module) // interpreter
             EE->removeModule(module->module);
         delete EE;
-        if (ownsModule)
-            delete module;
+        delete module;
     }
 
     static void *getFunction(likely_const_expr expr)
@@ -3206,8 +3203,7 @@ void likely_static(likely_env env, likely_const_mat *output, likely_file_type fi
 
 void likely_jit(likely_env env, likely_const_mat bitcode, const char *symbol)
 {
-    env->module = new likely_module(*env->settings, true, true, bitcode);
-    env->expr = new JITFunction(env->module, symbol);
+    env->expr = new JITFunction(*env->settings, bitcode, symbol);
 }
 
 likely_env likely_retain_env(likely_const_env env)
