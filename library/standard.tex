@@ -1388,6 +1388,10 @@ iter-square :=
 iter-triangle :=
   (f n) :->
     (-> i (-> j (f j i)).(iter i.++)).(iter n)
+
+iter-cuboid :=
+  (f x y z) :->
+    (-> i (-> j (-> k (f k j i)).(iter x)).(iter y)).(iter z)
 \end{likely}
 
 \begin{likely}
