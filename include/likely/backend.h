@@ -104,14 +104,13 @@ LIKELY_EXPORT void likely_static(likely_env env, likely_const_mat *output, likel
 
 /*!
  * \brief Just-in-time compile a function from bitcode.
- *
- * For use with \ref likely_function.
  * \param[in] env Environment to use.
  * \param[in] bitcode Output from \ref likely_static.
  * \param[in] symbol Function name.
+ * \return Pointer to the compiled function, or \c NULL if not possible. \ref owned_by \p env.
  * \remark This function is \ref reentrant.
  */
-LIKELY_EXPORT void likely_jit(likely_env env, likely_const_mat bitcode, const char *symbol);
+LIKELY_EXPORT void *likely_jit(likely_env env, likely_const_mat bitcode, const char *symbol);
 
 /*!
  * \brief Retain a reference to an environment.

@@ -3203,9 +3203,10 @@ void likely_static(likely_env env, likely_const_mat *output, likely_file_type fi
     env->module = new StaticModule(*env->settings, output, file_type, bitcode);
 }
 
-void likely_jit(likely_env env, likely_const_mat bitcode, const char *symbol)
+void *likely_jit(likely_env env, likely_const_mat bitcode, const char *symbol)
 {
     env->expr = new JITFunction(*env->settings, bitcode, symbol);
+    return likely_function(env->expr);
 }
 
 likely_env likely_retain_env(likely_const_env env)

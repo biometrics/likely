@@ -25,8 +25,7 @@ int main(int argc, char *argv[])
     puts("Compiling function...");
     const struct likely_settings settings = likely_default_settings(likely_file_void, false);
     const likely_const_env env = likely_standard(settings);
-    likely_jit((likely_env) env, bitcode, argv[3]);
-    likely_mat (*hello_world)(likely_const_mat) = likely_function(env->expr);
+    likely_mat (*hello_world)(likely_const_mat) = likely_jit((likely_env) env, bitcode, argv[3]);
     likely_ensure(hello_world, "failed to compile bitcode function %s:", argv[3]);
 
     puts("Calling compiled function...");
