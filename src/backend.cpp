@@ -589,7 +589,7 @@ protected:
     static string evalString(likely_const_ast ast, likely_const_env parent, bool *ok)
     {
         const likely_const_mat result = eval(ast, parent, ok);
-        *ok &= (result->type == likely_text);
+        *ok &= (result && (result->type == likely_text));
         const string str = (*ok) ? result->data : "";
         likely_release_mat(result);
         return str;
