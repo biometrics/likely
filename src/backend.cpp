@@ -355,7 +355,6 @@ public:
         return hit;
     }
 };
-static JITFunctionCache TheJITFunctionCache;
 
 struct LikelyValue
 {
@@ -657,7 +656,7 @@ struct likely_module
     Module *module;
     std::map<SharedMat,Value*> data;
 
-    likely_module(const likely_settings &settings, bool native, bool jit, const likely_const_mat bitcode = NULL)
+    likely_module(const likely_settings &settings, const likely_const_mat bitcode = NULL)
         : context(new LikelyContext(settings))
         , module(NULL)
     {
@@ -669,12 +668,6 @@ struct likely_module
         } else {
             module = new Module(settings.module_id, context->context);
         }
-
-        if (native) {
-            TM.reset(LikelyContext::getTargetMachine(jit));
-            module->setDataLayout(TM->createDataLayout());
-            module->setTargetTriple(sys::getProcessTriple());
-        }
     }
 
     virtual ~likely_module()
@@ -684,6 +677,17 @@ struct likely_module
 
     likely_module(const likely_module &) = delete;
     likely_module &operator=(const likely_module &) = delete;
+
+    void optimize(bool native, bool jit)
+    {
+        if (native) {
+            TM.reset(LikelyContext::getTargetMachine(jit));
+            module->setDataLayout(TM->createDataLayout());
+            module->setTargetTriple(sys::getProcessTriple());
+        }
+
+        context->PM->run(*module);
+    }
 
     void finalize()
     {
@@ -704,11 +708,11 @@ class StaticModule : public likely_module
 
 public:
     StaticModule(const likely_settings &settings, likely_const_mat *output, likely_file_type file_type, likely_const_mat bitcode = NULL)
-        : likely_module(settings, (file_type == likely_file_object) || (file_type == likely_file_assembly), false, bitcode), output(output), file_type(file_type) {}
+        : likely_module(settings, bitcode), output(output), file_type(file_type) {}
 
     ~StaticModule()
     {
-        context->PM->run(*module);
+        optimize((file_type == likely_file_object) || (file_type == likely_file_assembly), false);
 
         if (context->verbose)
             module->print(outs(), NULL);
@@ -1503,7 +1507,7 @@ struct JITFunction : public Symbol
 
     JITFunction(const string &name, const LikelyFunction *function, const vector<likely_type> &parameters, bool evaluate, LikelyFunction::CallingConvention cc, const vector<likely_type> &virtualTypes = vector<likely_type>())
         : Symbol(NULL, name, likely_void, parameters)
-        , module(new likely_module(evaluate ? likely_default_settings(likely_file_void, function->env->settings->verbose) : *function->env->settings, true, true))
+        , module(new likely_module(evaluate ? likely_default_settings(likely_file_void, function->env->settings->verbose) : *function->env->settings))
     {
         Builder builder(function->env, module);
         init(builder, name, function, parameters, evaluate, cc, virtualTypes);
@@ -1511,7 +1515,7 @@ struct JITFunction : public Symbol
 
     JITFunction(const string &name, likely_const_ast ast, likely_const_env env, const vector<likely_type> &parameters, LikelyFunction::CallingConvention cc)
         : Symbol(NULL, name, likely_void, parameters)
-        , module(new likely_module(*env->settings, true, true))
+        , module(new likely_module(*env->settings))
     {
         Builder builder(env, module);
         const UniqueExpression function(likely_expression::get(builder, ast));
@@ -1520,10 +1524,10 @@ struct JITFunction : public Symbol
 
     JITFunction(const likely_settings &settings, const likely_const_mat bitcode, const char *symbol)
         : Symbol(NULL, symbol, likely_void)
-        , module(new likely_module(settings, true, true, bitcode))
+        , module(new likely_module(settings, bitcode))
     {
+        module->optimize(true, true);
         EE = createExecutionEngine(unique_ptr<Module>(module->module), unique_ptr<TargetMachine>(module->TM.release()), EngineKind::JIT);
-        module->context->PM->run(*module->module);
         compileAndCleanup();
     }
 
@@ -1580,10 +1584,8 @@ private:
         evaluate = false;
 #endif // _WIN32
 
+        module->optimize(true, true);
         EE = createExecutionEngine(unique_ptr<Module>(module->module), unique_ptr<TargetMachine>(module->TM.release()), EngineKind::JIT);
-        EE->setObjectCache(&TheJITFunctionCache);
-        if (!TheJITFunctionCache.alert(module->module))
-            module->context->PM->run(*module->module);
         if (module->context->verbose)
             module->module->print(outs(), NULL);
         compileAndCleanup();
@@ -2832,7 +2834,7 @@ class kernelExpression : public LikelyOperator
     {
         likely_initialize_coprocessor();
 
-        likely_module kernelModule(*builder.env->settings, false, false);
+        likely_module kernelModule(*builder.env->settings);
         kernelModule.module->setTargetTriple("nvptx-nvidia-cuda");
         NamedMDNode *const nvvmAnnotations = kernelModule.module->getOrInsertNamedMetadata("nvvm.annotations");
         Builder kernelBuilder(builder.env, &kernelModule);
