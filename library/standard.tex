@@ -1436,7 +1436,7 @@ norm-l2 :=
 min-element :=
   src :->
   {
-    current-min-value := src.type.numeric-limit-max.$
+    current-min-value := src.element-type.numeric-limit-max.$
     check-element :=
       e :->
         current-min-value :<- (min (current-min-value) e)
@@ -1447,7 +1447,7 @@ min-element :=
 max-element :=
   src :->
   {
-    current-max-value := src.type.numeric-limit-min.$
+    current-max-value := src.element-type.numeric-limit-min.$
     check-element :=
       e :->
         current-max-value :<- (max (current-max-value) e)
@@ -1458,7 +1458,7 @@ max-element :=
 sum :=
   src :->
   {
-    sum := (src.type.depth-atleast-32 0).$
+    sum := (src.element-type.depth-atleast-32 0).$
     check-element :=
       e :->
         sum :<- (+ (sum) e)
