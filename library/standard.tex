@@ -1447,12 +1447,23 @@ min-element :=
 max-element :=
   src :->
   {
-    (current-max-value) := src.type.numeric-limit-min.$
+    current-max-value := src.type.numeric-limit-min.$
     check-element :=
       e :->
         current-max-value :<- (max (current-max-value) e)
     src:iter-elements check-element
     (current-max-value)
+  }
+
+sum :=
+  src :->
+  {
+    sum := (src.type.depth-atleast-32 0).$
+    check-element :=
+      e :->
+        sum :<- (+ (sum) e)
+    src:iter-elements check-element
+    (sum)
   }
 \end{likely}
 
