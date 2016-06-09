@@ -3318,7 +3318,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
     if (!ast || (ast->type != likely_ast_list))
         return NULL;
 
-    likely_env env = likely_retain_env(parent);
+    likely_const_env env = likely_retain_env(parent);
     for (size_t i=0; i<ast->num_atoms; i++) {
         const likely_ast statement = ast->atoms[i];
         if (!statement)
@@ -3344,9 +3344,8 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
                 const string fileName = string(path->atom).substr(1, path->atom_len-2);
                 const likely_type fileType = likely_guess_file_type(fileName.c_str());
                 const likely_const_mat source = likely_read(fileName.c_str(), fileType, likely_text);
-                const likely_ast sourceAst = likely_lex_and_parse(source->data, fileType);
-                env = likely_eval(sourceAst, parent, eval_callback, context);
-                likely_release_ast(sourceAst);
+                env = likely_retain_env(parent);
+                likely_lex_parse_and_eval(source->data, fileType, &env);
                 likely_release_mat(source);
             } else {
                 const SharedMat data = Lambda(parent, statement).evaluateConstantFunction();
@@ -3363,7 +3362,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
             eval_callback(env, context);
     }
 
-    return env;
+    return (likely_env) env;
 }
 
 //! [likely_lex_parse_and_eval implementation.]
