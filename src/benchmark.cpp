@@ -86,18 +86,16 @@ struct TestBase
         if (!BenchmarkFunction.empty() && (name() != BenchmarkFunction))
             return;
 
-        stringstream source;
         stringstream fileName;
         fileName << "library/" << name() << ".md";
-        const likely_const_mat fileSource = likely_read(resolvePath(fileName.str()).c_str(), likely_file_gfm, likely_text);
-        source << fileSource->data;
-        likely_release_mat(fileSource);
+        likely_const_env env = likely_retain_env(parent);
+        likely_read_lex_parse_and_eval(resolvePath(fileName.str()).c_str(), &env);
 
+        stringstream source;
         source << "    (extern multi-dimension \"" << name() << "\" (";
         for (int i=0; i<additionalParameters(); i++)
             source << " multi-dimension";
         source << ") " << name() << " ())";
-        likely_const_env env = likely_retain_env(parent);
         likely_lex_parse_and_eval(source.str().c_str(), likely_file_gfm, &env);
         void *const f = likely_function(env->expr);
         assert(f);
@@ -150,14 +148,14 @@ struct TestBase
         if (!BenchmarkFile.empty() && (fileName != BenchmarkFile))
             return;
 
-        const likely_const_mat source = likely_read(resolvePath(string("library/") + string(fileName) + string(".md")).c_str(), likely_file_gfm, likely_text);
+        const string resolvedFileName = resolvePath(string("library/") + string(fileName) + string(".md")).c_str();
 
         if (!BenchmarkQuiet)
             printf("%s \t%s \t", fileName, BenchmarkMulticore ? "m" : "s");
 
         {
             likely_const_env env = likely_retain_env(parent);
-            likely_lex_parse_and_eval(source->data, likely_file_gfm, &env);
+            likely_read_lex_parse_and_eval(resolvedFileName.c_str(), &env);
             likely_release_env(env);
         }
 
@@ -170,7 +168,7 @@ struct TestBase
             startTime = endTime = clock();
             while ((endTime-startTime) / CLOCKS_PER_SEC < TestSeconds) {
                 likely_const_env env = likely_retain_env(parent);
-                likely_lex_parse_and_eval(source->data, likely_file_gfm, &env);
+                likely_read_lex_parse_and_eval(resolvedFileName.c_str(), &env);
                 likely_release_env(env);
                 endTime = clock();
                 iter++;
@@ -179,8 +177,6 @@ struct TestBase
             if (!BenchmarkQuiet)
                 printf("%.2e\n", speed.Hz);
         }
-
-        likely_release_mat(source);
     }
 
 protected:

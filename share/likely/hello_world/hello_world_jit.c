@@ -42,16 +42,12 @@ int main(int argc, char *argv[])
     const likely_const_mat input = likely_read(argv[1], likely_file_guess, likely_image);
     printf("Dimensions: %ux%u\n", input->columns, input->rows);
 
-    puts("Reading source code...");
-    const likely_type function_file_type = likely_guess_file_type(argv[2]);
-    const likely_const_mat function = likely_read(argv[2], function_file_type, likely_void);
-
     puts("Creating a JIT compiler environment...");
     const struct likely_settings settings = likely_default_settings(likely_file_void, false);
     likely_const_env env = likely_standard(settings);
 
     puts("Compiling source code...");
-    likely_lex_parse_and_eval(function->data, likely_file_lisp, &env);
+    likely_read_lex_parse_and_eval(argv[2], &env);
     likely_mat (*hello_world)(likely_const_mat) = likely_function(env->expr);
     likely_ensure(hello_world, "failed to compile source code");
 
@@ -65,7 +61,6 @@ int main(int argc, char *argv[])
     puts("Cleaning up...");
     likely_release_mat(output);
     likely_release_env(env);
-    likely_release_mat(function);
     likely_release_mat(input);
 
     puts("Done!");

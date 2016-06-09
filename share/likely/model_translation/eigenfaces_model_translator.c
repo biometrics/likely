@@ -19,10 +19,6 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    // Reading inference file...
-    const likely_file_type source_file_type = likely_guess_file_type(argv[1]);
-    const likely_const_mat source_file = likely_read(argv[1], source_file_type, likely_void);
-
     // Reading model files...
     const likely_const_mat mean = likely_read(argv[2], likely_guess_file_type(argv[2]), likely_void);
     likely_ensure(mean, "failed to read mean file: %s", argv[2]);
@@ -39,7 +35,7 @@ int main(int argc, char *argv[])
     likely_define("evecs", evecs, &env);
 
     // Compiling inference algorithm...
-    likely_lex_parse_and_eval(source_file->data, source_file_type, &env);
+    likely_read_lex_parse_and_eval(argv[1], &env);
     likely_release_env(env);
     likely_ensure(output, "failed to compile: %s", argv[1]);
 
@@ -50,7 +46,6 @@ int main(int argc, char *argv[])
     // Cleaning up...
     likely_release_mat(evecs);
     likely_release_mat(mean);
-    likely_release_mat(source_file);
 
     return EXIT_SUCCESS;
 }

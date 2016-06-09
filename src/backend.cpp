@@ -3342,11 +3342,8 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
                 assert((path->atom[0] == '"') && (path->atom[path->atom_len-1] == '"'));
                 const_cast<likely_ast>(path)->type = likely_ast_string;
                 const string fileName = string(path->atom).substr(1, path->atom_len-2);
-                const likely_type fileType = likely_guess_file_type(fileName.c_str());
-                const likely_const_mat source = likely_read(fileName.c_str(), fileType, likely_text);
                 env = likely_retain_env(parent);
-                likely_lex_parse_and_eval(source->data, fileType, &env);
-                likely_release_mat(source);
+                likely_read_lex_parse_and_eval(fileName.c_str(), &env);
             } else {
                 const SharedMat data = Lambda(parent, statement).evaluateConstantFunction();
                 expr = data ? new ConstantData(data) : NULL;
@@ -3375,6 +3372,16 @@ void likely_lex_parse_and_eval(const char *source, likely_file_type file_type, l
     likely_release_ast(ast);
 }
 //! [likely_lex_parse_and_eval implementation.]
+
+//! [likely_read_lex_parse_and_eval implementation.]
+void likely_read_lex_parse_and_eval(const char *file_name, likely_const_env *env)
+{
+    const likely_file_type file_type = likely_guess_file_type(file_name);
+    const likely_const_mat file_contents = likely_read(file_name, file_type, likely_void);
+    likely_lex_parse_and_eval(file_contents->data, file_type, env);
+    likely_release_mat(file_contents);
+}
+//! [likely_read_lex_parse_and_eval implementation.]
 
 //! [likely_compute implementation.]
 likely_mat likely_compute(const char *source)

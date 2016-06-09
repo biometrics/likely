@@ -184,6 +184,16 @@ LIKELY_EXPORT likely_env likely_eval(likely_ast ast, likely_const_env parent, li
 LIKELY_EXPORT void likely_lex_parse_and_eval(const char *source, likely_file_type file_type, likely_const_env *env);
 
 /*!
+ * \brief Convenient alternative to \ref likely_read followed by \ref likely_lex_parse_and_eval.
+ * \par Implementation
+ * \snippet src/backend.cpp likely_read_lex_parse_and_eval implementation.
+ * \param[in] file_name File to evaluate.
+ * \param[in,out] env Environment in which to evaluate \p file_name.
+ * \remark This function is \ref reentrant.
+ */
+LIKELY_EXPORT void likely_read_lex_parse_and_eval(const char *file_name, likely_const_env *env);
+
+/*!
  * \brief Convenient alternative to \ref likely_lex_parse_and_eval followed by \ref likely_result in a generic environment.
  * \par Implementation
  * \snippet src/backend.cpp likely_compute implementation.
