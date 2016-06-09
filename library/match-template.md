@@ -10,7 +10,7 @@ Compare to **[cv::matchTemplate](http://docs.opencv.org/modules/imgproc/doc/obje
                                         (- src.rows    height).++)
         (dst src templ width height) :=>
         {
-          result := 0.f64.$
+          result := 0.f32.$
           dot :=
             (inner-x inner-y) :->
               result :<- (+ (result) (* (src 0 (+ x inner-x) (+ y inner-y)) (templ 0 inner-x inner-y)))
