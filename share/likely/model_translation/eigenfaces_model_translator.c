@@ -33,14 +33,14 @@ int main(int argc, char *argv[])
     likely_const_mat output = NULL;
     const likely_file_type object_file_type = likely_guess_file_type(argv[4]);
     struct likely_settings settings = likely_default_settings(object_file_type, false);
-    likely_const_env parent = likely_standard(settings);
-    likely_static((likely_env) parent, &output, object_file_type, NULL);
-    likely_define("mean", mean, &parent);
-    likely_define("evecs", evecs, &parent);
+    likely_const_env env = likely_standard(settings);
+    likely_static((likely_env) env, &output, object_file_type, NULL);
+    likely_define("mean", mean, &env);
+    likely_define("evecs", evecs, &env);
 
     // Compiling inference algorithm...
-    likely_release_env(likely_lex_parse_and_eval(source_file->data, source_file_type, parent));
-    likely_release_env(parent);
+    likely_lex_parse_and_eval(source_file->data, source_file_type, &env);
+    likely_release_env(env);
     likely_ensure(output, "failed to compile: %s", argv[1]);
 
     // Saving object file...

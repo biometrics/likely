@@ -173,15 +173,13 @@ int main(int argc, char *argv[])
         settings.module_id = LikelyInput.c_str();
 
     likely_const_mat output = NULL;
-    likely_const_env parent = likely_standard(settings);
+    likely_const_env env = likely_standard(settings);
     if (!LikelyOutput.empty())
-        likely_static((likely_env) parent, &output, likely_guess_file_type(LikelyOutput.c_str()), NULL);
+        likely_static((likely_env) env, &output, likely_guess_file_type(LikelyOutput.c_str()), NULL);
 
     if (!LikelyPreprocess.empty()) {
-        const likely_env env = likely_lex_parse_and_eval(LikelyPreprocess.c_str(), likely_file_lisp, parent);
+        likely_lex_parse_and_eval(LikelyPreprocess.c_str(), likely_file_lisp, &env);
         likely_ensure(env != NULL, "failed to evaluate preprocess command: %s", LikelyPreprocess.c_str());
-        likely_release_env(parent);
-        parent = env;
     }
 
     if (LikelyInput.empty()) {
@@ -191,12 +189,13 @@ int main(int argc, char *argv[])
             cout << "> ";
             string line;
             getline(cin, line);
-            const likely_env env = likely_lex_parse_and_eval(line.c_str(), likely_file_lisp, parent);
+            const likely_const_env parent = likely_retain_env(env);
+            likely_lex_parse_and_eval(line.c_str(), likely_file_lisp, &env);
             if (!env->expr) {
                 likely_release_env(env);
+                env = parent;
             } else {
                 likely_release_env(parent);
-                parent = env;
                 evalCallback(env, (void*) true);
             }
         }
@@ -219,15 +218,15 @@ int main(int argc, char *argv[])
             for (size_t i=0; i<parsed->num_atoms; i++)
                 checkOrPrintAndRelease(likely_ast_to_string(parsed->atoms[i], -1));
         } else {
-            likely_release_env(likely_eval(parsed, parent, evalCallback, NULL));
+            likely_release_env(likely_eval(parsed, env, evalCallback, NULL));
         }
         likely_release_ast(parsed);
     }
 
     likely_ensure(LikelyEnsure.getValue().empty(), "unreached assertion: %s", LikelyEnsure.getValue().data());
 
-    assert(parent->ref_count == 1);
-    likely_release_env(parent);
+    assert(env->ref_count == 1);
+    likely_release_env(env);
 
     if (output) {
         likely_write(output, LikelyOutput.c_str());

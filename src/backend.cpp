@@ -1646,7 +1646,7 @@ struct RootEnvironment
     {
         static bool init = false;
         if (!init) {
-            builtins() = likely_lex_parse_and_eval(likely_standard_library, likely_file_tex, builtins());
+            likely_lex_parse_and_eval(likely_standard_library, likely_file_tex, &builtins());
             init = true;
         }
 
@@ -3367,23 +3367,23 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
 }
 
 //! [likely_lex_parse_and_eval implementation.]
-likely_env likely_lex_parse_and_eval(const char *source, likely_file_type file_type, likely_const_env parent)
+void likely_lex_parse_and_eval(const char *source, likely_file_type file_type, likely_const_env *env)
 {
     const likely_ast ast = likely_lex_and_parse(source, file_type);
-    const likely_env env = likely_eval(ast, parent, NULL, NULL);
+    const likely_const_env parent = *env;
+    *env = likely_eval(ast, parent, NULL, NULL);
+    likely_release_env(parent);
     likely_release_ast(ast);
-    return env;
 }
 //! [likely_lex_parse_and_eval implementation.]
 
 //! [likely_compute implementation.]
 likely_mat likely_compute(const char *source)
 {
-    const likely_const_env parent = likely_standard(likely_default_settings(likely_file_void, false));
-    const likely_const_env env = likely_lex_parse_and_eval(source, likely_file_lisp, parent);
+    likely_const_env env = likely_standard(likely_default_settings(likely_file_void, false));
+    likely_lex_parse_and_eval(source, likely_file_lisp, &env);
     const likely_mat result = likely_retain_mat(likely_result(env->expr));
     likely_release_env(env);
-    likely_release_env(parent);
     likely_ensure(result != NULL, "failed to compute: %s", source);
     return result;
 }

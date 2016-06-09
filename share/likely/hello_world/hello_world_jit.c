@@ -48,10 +48,10 @@ int main(int argc, char *argv[])
 
     puts("Creating a JIT compiler environment...");
     const struct likely_settings settings = likely_default_settings(likely_file_void, false);
-    const likely_env parent = likely_standard(settings);
+    likely_const_env env = likely_standard(settings);
 
     puts("Compiling source code...");
-    const likely_const_env env = likely_lex_parse_and_eval(function->data, likely_file_lisp, parent);
+    likely_lex_parse_and_eval(function->data, likely_file_lisp, &env);
     likely_mat (*hello_world)(likely_const_mat) = likely_function(env->expr);
     likely_ensure(hello_world, "failed to compile source code");
 
@@ -65,7 +65,6 @@ int main(int argc, char *argv[])
     puts("Cleaning up...");
     likely_release_mat(output);
     likely_release_env(env);
-    likely_release_env(parent);
     likely_release_mat(function);
     likely_release_mat(input);
 

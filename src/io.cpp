@@ -376,7 +376,7 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
     static likely_const_env env = NULL;
     static void *render = NULL;
     if (render == NULL) {
-        const likely_env parent = likely_standard(likely_default_settings(likely_file_void, false));
+        env = likely_standard(likely_default_settings(likely_file_void, false));
         const char *const src = "-likely-render :=                                                                                         "
                                 "  (src min max) :->                                                                                       "
                                 "  {                                                                                                       "
@@ -400,10 +400,9 @@ likely_mat likely_render(likely_const_mat mat, double *min_, double *max_)
                                 "      dst :<- (* src a).(+ b)                                                                             "
                                 "  }                                                                                                       "
                                 "(extern multi-dimension \"_likely_render\" (multi-dimension double.pointer double.pointer) -likely-render)";
-        env = likely_lex_parse_and_eval(src, likely_file_lisp, parent);
+        likely_lex_parse_and_eval(src, likely_file_lisp, &env);
         render = likely_function(env->expr);
         assert(render);
-        likely_release_env(parent);
     }
 
     double min, max;

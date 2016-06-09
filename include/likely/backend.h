@@ -178,11 +178,10 @@ LIKELY_EXPORT likely_env likely_eval(likely_ast ast, likely_const_env parent, li
  * \snippet src/backend.cpp likely_lex_parse_and_eval implementation.
  * \param[in] source Code from which to extract tokens and build the abstract syntax tree.
  * \param[in] file_type How to interpret \p source when extracting tokens.
- * \param[in] parent Environment in which to evaluate \p source.
- * \return A new \ref likely_environment holding the final evaluation result.
+ * \param[in,out] env Environment in which to evaluate \p source.
  * \remark This function is \ref reentrant.
  */
-LIKELY_EXPORT likely_env likely_lex_parse_and_eval(const char *source, likely_file_type file_type, likely_const_env parent);
+LIKELY_EXPORT void likely_lex_parse_and_eval(const char *source, likely_file_type file_type, likely_const_env *env);
 
 /*!
  * \brief Convenient alternative to \ref likely_lex_parse_and_eval followed by \ref likely_result in a generic environment.

@@ -97,7 +97,8 @@ struct TestBase
         for (int i=0; i<additionalParameters(); i++)
             source << " multi-dimension";
         source << ") " << name() << " ())";
-        const likely_const_env env = likely_lex_parse_and_eval(source.str().c_str(), likely_file_gfm, parent);
+        likely_const_env env = likely_retain_env(parent);
+        likely_lex_parse_and_eval(source.str().c_str(), likely_file_gfm, &env);
         void *const f = likely_function(env->expr);
         assert(f);
 
@@ -144,7 +145,7 @@ struct TestBase
         likely_release_env(env);
     }
 
-    static void runFile(const char *fileName, likely_const_env const parent)
+    static void runFile(const char *fileName, likely_const_env parent)
     {
         if (!BenchmarkFile.empty() && (fileName != BenchmarkFile))
             return;
@@ -153,7 +154,12 @@ struct TestBase
 
         if (!BenchmarkQuiet)
             printf("%s \t%s \t", fileName, BenchmarkMulticore ? "m" : "s");
-        likely_release_env(likely_lex_parse_and_eval(source->data, likely_file_gfm, parent));
+
+        {
+            likely_const_env env = likely_retain_env(parent);
+            likely_lex_parse_and_eval(source->data, likely_file_gfm, &env);
+            likely_release_env(env);
+        }
 
         if (BenchmarkTest) {
             if (!BenchmarkQuiet)
@@ -163,7 +169,9 @@ struct TestBase
             int iter = 0;
             startTime = endTime = clock();
             while ((endTime-startTime) / CLOCKS_PER_SEC < TestSeconds) {
-                likely_release_env(likely_lex_parse_and_eval(source->data, likely_file_gfm, parent));
+                likely_const_env env = likely_retain_env(parent);
+                likely_lex_parse_and_eval(source->data, likely_file_gfm, &env);
+                likely_release_env(env);
                 endTime = clock();
                 iter++;
             }
