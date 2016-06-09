@@ -275,6 +275,7 @@ struct LikelyContext : public likely_settings
     static TargetMachine *getTargetMachine(bool JIT)
     {
         static const Target *TheTarget = NULL;
+        static string targetFeatures;
         static TargetOptions TO;
         static mutex lock;
         lock_guard<mutex> locker(lock);
@@ -283,6 +284,15 @@ struct LikelyContext : public likely_settings
             string error;
             TheTarget = TargetRegistry::lookupTarget(sys::getProcessTriple(), error);
             likely_ensure(TheTarget != NULL, "target lookup failed with error: %s", error.c_str());
+
+            SubtargetFeatures subtargetFeatures;
+            StringMap<bool> hostCPUFeatures;
+            sys::getHostCPUFeatures(hostCPUFeatures);
+            for (const StringMapEntry<bool> &feature : hostCPUFeatures)
+                if (feature.getValue())
+                    subtargetFeatures.AddFeature(feature.getKey());
+            targetFeatures = subtargetFeatures.getString();
+
             TO.LessPreciseFPMADOption = true;
             TO.UnsafeFPMath = true;
             TO.NoInfsFPMath = true;
@@ -298,7 +308,7 @@ struct LikelyContext : public likely_settings
 
         TargetMachine *TM = TheTarget->createTargetMachine(targetTriple,
                                                            sys::getHostCPUName(),
-                                                           "",
+                                                           JIT ? targetFeatures: "",
                                                            TO,
                                                            Reloc::Default,
                                                            JIT ? CodeModel::JITDefault : CodeModel::Default,
