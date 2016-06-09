@@ -16,6 +16,7 @@ set(LIKELY_MISC ${LIKELY_LIBRARY}
                 ${PROJECT_SOURCE_DIR}/include/likely/io.h
                 ${PROJECT_SOURCE_DIR}/include/likely/opencv.hpp
                 ${PROJECT_SOURCE_DIR}/include/likely/runtime.h
+                ${PROJECT_SOURCE_DIR}/include/likely/timer.hpp
                 ${PROJECT_SOURCE_DIR}/index.html
                 ${PROJECT_SOURCE_DIR}/share/likely/LikelyConfig.cmake
                 ${PROJECT_SOURCE_DIR}/share/likely/hello_world/README.md
@@ -405,12 +406,14 @@ if(LIKELY_UNITTESTS)
   test_file(matrix_io.lisp "\"Compression Ratio: \"7.27275")
 endif()
 
+add_executable(benchmark benchmark.cpp)
+target_link_libraries(benchmark likely_shared LLVMSupport opencv_imgproc opencv_highgui)
+install(TARGETS benchmark RUNTIME DESTINATION bin)
+
 # Benchmarks
 option(LIKELY_BENCHMARKS "Compile and test benchmarks." ON)
 if(LIKELY_BENCHMARKS)
-  add_executable(benchmark benchmark.cpp)
-  target_link_libraries(benchmark likely_shared LLVMSupport opencv_imgproc opencv_highgui)
-  install(TARGETS benchmark RUNTIME DESTINATION bin)
+
   add_test(NAME benchmark
            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
            COMMAND benchmark -test)

@@ -18,7 +18,6 @@
 #  define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#include <ctime>
 #include <fstream>
 #include <iostream>
 #include <llvm/Support/CommandLine.h>
@@ -26,13 +25,13 @@
 #include <opencv2/imgproc.hpp>
 #include <likely.h>
 #include <likely/opencv.hpp>
+#include <likely/timer.hpp>
 
 using namespace cv;
 using namespace llvm;
 using namespace std;
 
 const double ErrorTolerance = 0.00001;
-const int TestSeconds = 1;
 
 static cl::opt<bool> BenchmarkTest("test", cl::desc("Run tests for correctness only"));
 static cl::opt<bool> BenchmarkMulticore("multi-core", cl::desc("Compile multi-core kernels"));
@@ -126,10 +125,10 @@ struct TestBase
                 testCorrectness(reinterpret_cast<likely_mat (*)(const likely_const_mat*)>(f), srcCV, likelyArgs.data());
 
                 if (!BenchmarkTest) {
-                    const Speed baseline = testBaselineSpeed(srcCV);
-                    const Speed likely = testLikelySpeed(reinterpret_cast<likely_mat (*)(const likely_const_mat*)>(f), likelyArgs.data());
+                    const LikelyTimer baseline = LikelyTimer::measure([&]()->void { computeBaseline(srcCV); });
+                    const LikelyTimer likely = LikelyTimer::measure([&]()->void { likely_release_mat(reinterpret_cast<likely_mat (*)(const likely_const_mat*)>(f)(likelyArgs.data())); });
                     if (!BenchmarkQuiet)
-                        printf("%-8.3g \t%.3gx\n", double(likely.iterations), likely.Hz/baseline.Hz);
+                        printf("%-8.3g \t%.3gx\n", double(likely.numIterations), LikelyTimer::speedup(baseline,likely));
                 } else {
                     if (!BenchmarkQuiet)
                         printf("\n");
@@ -163,17 +162,9 @@ struct TestBase
             if (!BenchmarkQuiet)
                 printf("\n");
         } else {
-            clock_t startTime, endTime;
-            int iter = 0;
-            startTime = endTime = clock();
-            while ((endTime-startTime) / CLOCKS_PER_SEC < TestSeconds) {
-                likely_const_env env = likely_retain_env(parent);
-                likely_read_lex_parse_and_eval(resolvedFileName.c_str(), &env);
-                likely_release_env(env);
-                endTime = clock();
-                iter++;
-            }
-            Speed speed(iter, startTime, endTime);
+            const LikelyTimer speed = LikelyTimer::measure([&]()->void { likely_const_env env = likely_retain_env(parent);
+                                                                         likely_read_lex_parse_and_eval(resolvedFileName.c_str(), &env);
+                                                                         likely_release_env(env); });
             if (!BenchmarkQuiet)
                 printf("%.2e\n", speed.Hz);
         }
@@ -215,15 +206,6 @@ protected:
     }
 
 private:
-    struct Speed
-    {
-        int iterations;
-        double Hz;
-        Speed() : iterations(-1), Hz(-1) {}
-        Speed(int iter, clock_t startTime, clock_t endTime)
-            : iterations(iter), Hz(double(iter) * CLOCKS_PER_SEC / (endTime-startTime)) {}
-    };
-
     void checkAxis(uint32_t expected, uint32_t actual) const
     {
         if (expected == actual)
@@ -278,33 +260,6 @@ private:
         }
 
         likely_release_mat(dstLikely);
-    }
-
-    Speed testBaselineSpeed(const Mat &src) const
-    {
-        clock_t startTime, endTime;
-        int iter = 0;
-        startTime = endTime = clock();
-        while ((endTime-startTime) / CLOCKS_PER_SEC < TestSeconds) {
-            computeBaseline(src);
-            endTime = clock();
-            iter++;
-        }
-        return TestBase::Speed(iter, startTime, endTime);
-    }
-
-    Speed testLikelySpeed(likely_mat (*f)(const likely_const_mat*), const likely_const_mat *srcLikely) const
-    {
-        clock_t startTime, endTime;
-        int iter = 0;
-        startTime = endTime = clock();
-        while ((endTime-startTime) / CLOCKS_PER_SEC < TestSeconds) {
-            likely_const_mat dstLikely = f(srcLikely);
-            likely_release_mat(dstLikely);
-            endTime = clock();
-            iter++;
-        }
-        return TestBase::Speed(iter, startTime, endTime);
     }
 };
 
