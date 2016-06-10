@@ -1,13 +1,12 @@
 ; ModuleID = 'library/gabor_wavelet.md'
 source_filename = "library/gabor_wavelet.md"
 
-%u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
-%f32XY = type { i32, i32, i32, i32, i32, i32, [0 x float] }
-%i32CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i32] }
-%f32CXYT = type { i32, i32, i32, i32, i32, i32, [0 x float] }
+%u0Matrix = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
+%f32Matrix = type { i32, i32, i32, i32, i32, i32, [0 x float] }
+%u32Matrix = type { i32, i32, i32, i32, i32, i32, [0 x i32] }
 
 ; Function Attrs: argmemonly nounwind
-declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
+declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: nounwind readnone
 declare float @llvm.cos.f32(float) #1
@@ -18,51 +17,51 @@ declare float @llvm.sin.f32(float) #1
 ; Function Attrs: nounwind readnone
 declare float @llvm.exp.f32(float) #1
 
-define noalias %f32XY* @likely_test_function(%u0CXYT** nocapture readonly) {
+define noalias %f32Matrix* @likely_test_function(%u0Matrix** nocapture readonly) {
 entry:
-  %1 = bitcast %u0CXYT** %0 to %i32CXYT**
-  %2 = load %i32CXYT*, %i32CXYT** %1, align 8
-  %3 = getelementptr inbounds %i32CXYT, %i32CXYT* %2, i64 0, i32 6, i64 0
+  %1 = bitcast %u0Matrix** %0 to %u32Matrix**
+  %2 = load %u32Matrix*, %u32Matrix** %1, align 8
+  %3 = getelementptr inbounds %u32Matrix, %u32Matrix* %2, i64 0, i32 6, i64 0
   %arg_0 = load i32, i32* %3, align 4
-  %4 = getelementptr %u0CXYT*, %u0CXYT** %0, i64 1
-  %5 = bitcast %u0CXYT** %4 to %i32CXYT**
-  %6 = load %i32CXYT*, %i32CXYT** %5, align 8
-  %7 = getelementptr inbounds %i32CXYT, %i32CXYT* %6, i64 0, i32 6, i64 0
+  %4 = getelementptr %u0Matrix*, %u0Matrix** %0, i64 1
+  %5 = bitcast %u0Matrix** %4 to %u32Matrix**
+  %6 = load %u32Matrix*, %u32Matrix** %5, align 8
+  %7 = getelementptr inbounds %u32Matrix, %u32Matrix* %6, i64 0, i32 6, i64 0
   %arg_1 = load i32, i32* %7, align 4
-  %8 = getelementptr %u0CXYT*, %u0CXYT** %0, i64 2
-  %9 = bitcast %u0CXYT** %8 to %f32CXYT**
-  %10 = load %f32CXYT*, %f32CXYT** %9, align 8
-  %11 = getelementptr inbounds %f32CXYT, %f32CXYT* %10, i64 0, i32 6, i64 0
+  %8 = getelementptr %u0Matrix*, %u0Matrix** %0, i64 2
+  %9 = bitcast %u0Matrix** %8 to %f32Matrix**
+  %10 = load %f32Matrix*, %f32Matrix** %9, align 8
+  %11 = getelementptr inbounds %f32Matrix, %f32Matrix* %10, i64 0, i32 6, i64 0
   %arg_2 = load float, float* %11, align 4
-  %12 = getelementptr %u0CXYT*, %u0CXYT** %0, i64 3
-  %13 = bitcast %u0CXYT** %12 to %f32CXYT**
-  %14 = load %f32CXYT*, %f32CXYT** %13, align 8
-  %15 = getelementptr inbounds %f32CXYT, %f32CXYT* %14, i64 0, i32 6, i64 0
+  %12 = getelementptr %u0Matrix*, %u0Matrix** %0, i64 3
+  %13 = bitcast %u0Matrix** %12 to %f32Matrix**
+  %14 = load %f32Matrix*, %f32Matrix** %13, align 8
+  %15 = getelementptr inbounds %f32Matrix, %f32Matrix* %14, i64 0, i32 6, i64 0
   %arg_3 = load float, float* %15, align 4
-  %16 = getelementptr %u0CXYT*, %u0CXYT** %0, i64 4
-  %17 = bitcast %u0CXYT** %16 to %f32CXYT**
-  %18 = load %f32CXYT*, %f32CXYT** %17, align 8
-  %19 = getelementptr inbounds %f32CXYT, %f32CXYT* %18, i64 0, i32 6, i64 0
+  %16 = getelementptr %u0Matrix*, %u0Matrix** %0, i64 4
+  %17 = bitcast %u0Matrix** %16 to %f32Matrix**
+  %18 = load %f32Matrix*, %f32Matrix** %17, align 8
+  %19 = getelementptr inbounds %f32Matrix, %f32Matrix* %18, i64 0, i32 6, i64 0
   %arg_4 = load float, float* %19, align 4
-  %20 = getelementptr %u0CXYT*, %u0CXYT** %0, i64 5
-  %21 = bitcast %u0CXYT** %20 to %f32CXYT**
-  %22 = load %f32CXYT*, %f32CXYT** %21, align 8
-  %23 = getelementptr inbounds %f32CXYT, %f32CXYT* %22, i64 0, i32 6, i64 0
+  %20 = getelementptr %u0Matrix*, %u0Matrix** %0, i64 5
+  %21 = bitcast %u0Matrix** %20 to %f32Matrix**
+  %22 = load %f32Matrix*, %f32Matrix** %21, align 8
+  %23 = getelementptr inbounds %f32Matrix, %f32Matrix* %22, i64 0, i32 6, i64 0
   %arg_5 = load float, float* %23, align 4
-  %24 = getelementptr %u0CXYT*, %u0CXYT** %0, i64 6
-  %25 = bitcast %u0CXYT** %24 to %f32CXYT**
-  %26 = load %f32CXYT*, %f32CXYT** %25, align 8
-  %27 = getelementptr inbounds %f32CXYT, %f32CXYT* %26, i64 0, i32 6, i64 0
+  %24 = getelementptr %u0Matrix*, %u0Matrix** %0, i64 6
+  %25 = bitcast %u0Matrix** %24 to %f32Matrix**
+  %26 = load %f32Matrix*, %f32Matrix** %25, align 8
+  %27 = getelementptr inbounds %f32Matrix, %f32Matrix* %26, i64 0, i32 6, i64 0
   %arg_6 = load float, float* %27, align 4
   %28 = shl nuw nsw i32 %arg_0, 1
   %29 = or i32 %28, 1
   %30 = shl nuw nsw i32 %arg_1, 1
   %31 = or i32 %30, 1
-  %32 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %29, i32 %31, i32 1, i8* null)
+  %32 = call %u0Matrix* @likely_new(i32 24864, i32 1, i32 %29, i32 %31, i32 1, i8* null)
   %33 = zext i32 %31 to i64
   %dst_y_step = zext i32 %29 to i64
-  %34 = getelementptr inbounds %u0CXYT, %u0CXYT* %32, i64 1
-  %35 = bitcast %u0CXYT* %34 to float*
+  %34 = getelementptr inbounds %u0Matrix, %u0Matrix* %32, i64 1
+  %35 = bitcast %u0Matrix* %34 to float*
   %36 = call fast float @llvm.cos.f32(float %arg_4)
   %37 = call fast float @llvm.sin.f32(float %arg_4)
   %38 = fdiv fast float 0x401921FB60000000, %arg_5
@@ -113,8 +112,8 @@ x_exit:                                           ; preds = %x_body
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %dst = bitcast %u0CXYT* %32 to %f32XY*
-  ret %f32XY* %dst
+  %dst = bitcast %u0Matrix* %32 to %f32Matrix*
+  ret %f32Matrix* %dst
 }
 
 attributes #0 = { argmemonly nounwind }

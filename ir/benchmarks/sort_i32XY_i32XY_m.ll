@@ -1,16 +1,16 @@
 ; ModuleID = 'likely'
 source_filename = "likely"
 
-%i32XY = type { i32, i32, i32, i32, i32, i32, [0 x i32] }
+%u32Matrix = type { i32, i32, i32, i32, i32, i32, [0 x i32] }
 
 ; Function Attrs: norecurse nounwind
-define private void @sort_tmp_thunk0({ %i32XY*, i32, i64, i64, i64, i64 }* noalias nocapture readonly, i64, i64) #0 {
+define private void @sort_tmp_thunk0({ %u32Matrix*, i32, i64, i64, i64, i64 }* noalias nocapture readonly, i64, i64) #0 {
 entry:
-  %3 = getelementptr inbounds { %i32XY*, i32, i64, i64, i64, i64 }, { %i32XY*, i32, i64, i64, i64, i64 }* %0, i64 0, i32 0
-  %4 = load %i32XY*, %i32XY** %3, align 8
-  %5 = getelementptr inbounds { %i32XY*, i32, i64, i64, i64, i64 }, { %i32XY*, i32, i64, i64, i64, i64 }* %0, i64 0, i32 1
+  %3 = getelementptr inbounds { %u32Matrix*, i32, i64, i64, i64, i64 }, { %u32Matrix*, i32, i64, i64, i64, i64 }* %0, i64 0, i32 0
+  %4 = load %u32Matrix*, %u32Matrix** %3, align 8
+  %5 = getelementptr inbounds { %u32Matrix*, i32, i64, i64, i64, i64 }, { %u32Matrix*, i32, i64, i64, i64, i64 }* %0, i64 0, i32 1
   %6 = load i32, i32* %5, align 4
-  %7 = getelementptr inbounds %i32XY, %i32XY* %4, i64 0, i32 3
+  %7 = getelementptr inbounds %u32Matrix, %u32Matrix* %4, i64 0, i32 3
   %columns = load i32, i32* %7, align 4, !range !0
   %src_y_step = zext i32 %columns to i64
   %8 = icmp eq i32 %6, 0
@@ -28,7 +28,7 @@ true_entry:                                       ; preds = %true_entry.lr.ph, %
   %10 = phi i32 [ %15, %loop.backedge ], [ 0, %true_entry.lr.ph ]
   %11 = sext i32 %10 to i64
   %12 = add nuw nsw i64 %11, %9
-  %13 = getelementptr %i32XY, %i32XY* %4, i64 0, i32 6, i64 %12
+  %13 = getelementptr %u32Matrix, %u32Matrix* %4, i64 0, i32 6, i64 %12
   %14 = load i32, i32* %13, align 4, !llvm.mem.parallel_loop_access !1
   %15 = add nuw nsw i32 %10, 1
   %16 = icmp eq i32 %15, %6
@@ -48,7 +48,7 @@ true_entry3:                                      ; preds = %true_entry, %true_e
   %19 = phi i32 [ %element., %true_entry3 ], [ %14, %true_entry ]
   %20 = sext i32 %17 to i64
   %21 = add nuw nsw i64 %20, %9
-  %22 = getelementptr %i32XY, %i32XY* %4, i64 0, i32 6, i64 %21
+  %22 = getelementptr %u32Matrix, %u32Matrix* %4, i64 0, i32 6, i64 %21
   %element = load i32, i32* %22, align 4, !llvm.mem.parallel_loop_access !1
   %23 = icmp slt i32 %element, %19
   %element. = select i1 %23, i32 %element, i32 %19
@@ -68,7 +68,7 @@ loop.backedge:                                    ; preds = %exit4, %true_entry7
 true_entry7:                                      ; preds = %exit4
   %27 = sext i32 %.lcssa to i64
   %28 = add nuw nsw i64 %27, %9
-  %29 = getelementptr %i32XY, %i32XY* %4, i64 0, i32 6, i64 %28
+  %29 = getelementptr %u32Matrix, %u32Matrix* %4, i64 0, i32 6, i64 %28
   %30 = load i32, i32* %29, align 4, !llvm.mem.parallel_loop_access !1
   store i32 %30, i32* %13, align 4, !llvm.mem.parallel_loop_access !1
   store i32 %14, i32* %29, align 4, !llvm.mem.parallel_loop_access !1
@@ -77,30 +77,30 @@ true_entry7:                                      ; preds = %exit4
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
-define %i32XY* @sort(%i32XY*) {
+define %u32Matrix* @sort(%u32Matrix*) {
 entry:
-  %1 = getelementptr inbounds %i32XY, %i32XY* %0, i64 0, i32 4
+  %1 = getelementptr inbounds %u32Matrix, %u32Matrix* %0, i64 0, i32 4
   %len = load i32, i32* %1, align 4, !range !0
   %2 = zext i32 %len to i64
-  %3 = alloca { %i32XY*, i32, i64, i64, i64, i64 }, align 8
-  %4 = getelementptr inbounds { %i32XY*, i32, i64, i64, i64, i64 }, { %i32XY*, i32, i64, i64, i64, i64 }* %3, i64 0, i32 0
-  store %i32XY* %0, %i32XY** %4, align 8
-  %5 = getelementptr inbounds { %i32XY*, i32, i64, i64, i64, i64 }, { %i32XY*, i32, i64, i64, i64, i64 }* %3, i64 0, i32 1
+  %3 = alloca { %u32Matrix*, i32, i64, i64, i64, i64 }, align 8
+  %4 = getelementptr inbounds { %u32Matrix*, i32, i64, i64, i64, i64 }, { %u32Matrix*, i32, i64, i64, i64, i64 }* %3, i64 0, i32 0
+  store %u32Matrix* %0, %u32Matrix** %4, align 8
+  %5 = getelementptr inbounds { %u32Matrix*, i32, i64, i64, i64, i64 }, { %u32Matrix*, i32, i64, i64, i64, i64 }* %3, i64 0, i32 1
   store i32 %len, i32* %5, align 8
-  %6 = getelementptr inbounds { %i32XY*, i32, i64, i64, i64, i64 }, { %i32XY*, i32, i64, i64, i64, i64 }* %3, i64 0, i32 2
+  %6 = getelementptr inbounds { %u32Matrix*, i32, i64, i64, i64, i64 }, { %u32Matrix*, i32, i64, i64, i64, i64 }* %3, i64 0, i32 2
   store i64 1, i64* %6, align 4
-  %7 = getelementptr inbounds { %i32XY*, i32, i64, i64, i64, i64 }, { %i32XY*, i32, i64, i64, i64, i64 }* %3, i64 0, i32 3
+  %7 = getelementptr inbounds { %u32Matrix*, i32, i64, i64, i64, i64 }, { %u32Matrix*, i32, i64, i64, i64, i64 }* %3, i64 0, i32 3
   store i64 1, i64* %7, align 4
-  %8 = getelementptr inbounds { %i32XY*, i32, i64, i64, i64, i64 }, { %i32XY*, i32, i64, i64, i64, i64 }* %3, i64 0, i32 4
+  %8 = getelementptr inbounds { %u32Matrix*, i32, i64, i64, i64, i64 }, { %u32Matrix*, i32, i64, i64, i64, i64 }* %3, i64 0, i32 4
   store i64 %2, i64* %8, align 4
-  %9 = getelementptr inbounds { %i32XY*, i32, i64, i64, i64, i64 }, { %i32XY*, i32, i64, i64, i64, i64 }* %3, i64 0, i32 5
+  %9 = getelementptr inbounds { %u32Matrix*, i32, i64, i64, i64, i64 }, { %u32Matrix*, i32, i64, i64, i64, i64 }* %3, i64 0, i32 5
   store i64 1, i64* %9, align 4
-  %10 = bitcast { %i32XY*, i32, i64, i64, i64, i64 }* %3 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %i32XY*, i32, i64, i64, i64, i64 }*, i64, i64)* @sort_tmp_thunk0 to i8*), i8* %10, i64 %2)
-  %11 = bitcast %i32XY* %0 to i8*
+  %10 = bitcast { %u32Matrix*, i32, i64, i64, i64, i64 }* %3 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %u32Matrix*, i32, i64, i64, i64, i64 }*, i64, i64)* @sort_tmp_thunk0 to i8*), i8* %10, i64 %2)
+  %11 = bitcast %u32Matrix* %0 to i8*
   %12 = call i8* @likely_retain_mat(i8* %11)
-  %13 = bitcast i8* %12 to %i32XY*
-  ret %i32XY* %13
+  %13 = bitcast i8* %12 to %u32Matrix*
+  ret %u32Matrix* %13
 }
 
 declare i8* @likely_retain_mat(i8* noalias nocapture)

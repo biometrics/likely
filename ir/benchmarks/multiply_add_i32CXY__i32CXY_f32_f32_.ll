@@ -1,32 +1,32 @@
 ; ModuleID = 'likely'
 source_filename = "likely"
 
-%u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
-%i32CXY = type { i32, i32, i32, i32, i32, i32, [0 x i32] }
+%u0Matrix = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
+%u32Matrix = type { i32, i32, i32, i32, i32, i32, [0 x i32] }
 
 ; Function Attrs: argmemonly nounwind
-declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
+declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
-define noalias %i32CXY* @multiply_add(%i32CXY* nocapture readonly, float, float) {
+define noalias %u32Matrix* @multiply_add(%u32Matrix* nocapture readonly, float, float) {
 entry:
-  %3 = getelementptr inbounds %i32CXY, %i32CXY* %0, i64 0, i32 2
+  %3 = getelementptr inbounds %u32Matrix, %u32Matrix* %0, i64 0, i32 2
   %channels = load i32, i32* %3, align 4, !range !0
-  %4 = getelementptr inbounds %i32CXY, %i32CXY* %0, i64 0, i32 3
+  %4 = getelementptr inbounds %u32Matrix, %u32Matrix* %0, i64 0, i32 3
   %columns = load i32, i32* %4, align 4, !range !0
-  %5 = getelementptr inbounds %i32CXY, %i32CXY* %0, i64 0, i32 4
+  %5 = getelementptr inbounds %u32Matrix, %u32Matrix* %0, i64 0, i32 4
   %rows = load i32, i32* %5, align 4, !range !0
-  %6 = call %u0CXYT* @likely_new(i32 29216, i32 %channels, i32 %columns, i32 %rows, i32 1, i8* null)
+  %6 = call %u0Matrix* @likely_new(i32 29216, i32 %channels, i32 %columns, i32 %rows, i32 1, i8* null)
   %7 = zext i32 %rows to i64
   %dst_c = zext i32 %channels to i64
   %dst_x = zext i32 %columns to i64
-  %8 = getelementptr inbounds %u0CXYT, %u0CXYT* %6, i64 1, i32 0
+  %8 = getelementptr inbounds %u0Matrix, %u0Matrix* %6, i64 1, i32 0
   %9 = mul nuw nsw i64 %dst_x, %dst_c
   %10 = mul nuw nsw i64 %9, %7
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %y_body ]
-  %11 = getelementptr %i32CXY, %i32CXY* %0, i64 0, i32 6, i64 %y
+  %11 = getelementptr %u32Matrix, %u32Matrix* %0, i64 0, i32 6, i64 %y
   %12 = load i32, i32* %11, align 4, !llvm.mem.parallel_loop_access !1
   %13 = sitofp i32 %12 to float
   %14 = fmul fast float %13, %1
@@ -42,8 +42,8 @@ y_body:                                           ; preds = %y_body, %entry
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
-  %dst = bitcast %u0CXYT* %6 to %i32CXY*
-  ret %i32CXY* %dst
+  %dst = bitcast %u0Matrix* %6 to %u32Matrix*
+  ret %u32Matrix* %dst
 }
 
 attributes #0 = { argmemonly nounwind }

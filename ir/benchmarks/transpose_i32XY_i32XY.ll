@@ -1,22 +1,22 @@
 ; ModuleID = 'likely'
 source_filename = "likely"
 
-%u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
-%i32XY = type { i32, i32, i32, i32, i32, i32, [0 x i32] }
+%u0Matrix = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
+%u32Matrix = type { i32, i32, i32, i32, i32, i32, [0 x i32] }
 
 ; Function Attrs: argmemonly nounwind
-declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
+declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
-define noalias %i32XY* @transpose(%i32XY* nocapture readonly) {
+define noalias %u32Matrix* @transpose(%u32Matrix* nocapture readonly) {
 entry:
-  %1 = getelementptr inbounds %i32XY, %i32XY* %0, i64 0, i32 4
+  %1 = getelementptr inbounds %u32Matrix, %u32Matrix* %0, i64 0, i32 4
   %rows = load i32, i32* %1, align 4, !range !0
-  %2 = getelementptr inbounds %i32XY, %i32XY* %0, i64 0, i32 3
+  %2 = getelementptr inbounds %u32Matrix, %u32Matrix* %0, i64 0, i32 3
   %columns = load i32, i32* %2, align 4, !range !0
-  %3 = call %u0CXYT* @likely_new(i32 25120, i32 1, i32 %rows, i32 %columns, i32 1, i8* null)
+  %3 = call %u0Matrix* @likely_new(i32 25120, i32 1, i32 %rows, i32 %columns, i32 1, i8* null)
   %4 = zext i32 %columns to i64
   %dst_y_step = zext i32 %rows to i64
-  %5 = getelementptr inbounds %u0CXYT, %u0CXYT* %3, i64 1, i32 0
+  %5 = getelementptr inbounds %u0Matrix, %u0Matrix* %3, i64 1, i32 0
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
@@ -28,7 +28,7 @@ x_body:                                           ; preds = %y_body, %x_body
   %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
   %7 = mul nuw nsw i64 %x, %4
   %8 = add nuw nsw i64 %7, %y
-  %9 = getelementptr %i32XY, %i32XY* %0, i64 0, i32 6, i64 %8
+  %9 = getelementptr %u32Matrix, %u32Matrix* %0, i64 0, i32 6, i64 %8
   %10 = load i32, i32* %9, align 4, !llvm.mem.parallel_loop_access !1
   %11 = add nuw nsw i64 %x, %6
   %12 = getelementptr i32, i32* %5, i64 %11
@@ -43,8 +43,8 @@ x_exit:                                           ; preds = %x_body
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %x_exit
-  %dst = bitcast %u0CXYT* %3 to %i32XY*
-  ret %i32XY* %dst
+  %dst = bitcast %u0Matrix* %3 to %u32Matrix*
+  ret %u32Matrix* %dst
 }
 
 attributes #0 = { argmemonly nounwind }

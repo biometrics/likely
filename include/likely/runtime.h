@@ -57,8 +57,9 @@ enum likely_type_mask
     likely_void      = 0x00000000, /*!< \brief Unknown type. */
     likely_depth     = 0x000000FF, /*!< \brief Bits per element. */
     likely_floating  = 0x00000100, /*!< \brief Elements are floating-point. */
+    likely_llvm      = likely_depth | likely_floating, /*!< \brief The portion of the element type representable in \c LLVM. */
     likely_signed    = 0x00000200, /*!< \brief Elements are signed (integers). */
-    likely_c_type    = likely_depth | likely_floating | likely_signed, /*!< \brief The portion of the \ref likely_type representable in \c C. */
+    likely_c_type    = likely_llvm | likely_signed, /*!< \brief The portion of the element type representable in \c C. */
     likely_saturated = 0x00000400, /*!< \brief Use saturated arithmetic with computations involving these elements. */
     likely_element   = likely_c_type | likely_saturated, /*!< \brief The portion of \ref likely_type indicating how to interpret elements. */
     likely_indirect  = 0x00000800, /*!< \brief \ref likely_matrix::data is \c sizeof(char*) bytes and contains a pointer to the data buffer which it does not own. */

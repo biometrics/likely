@@ -1,21 +1,20 @@
 ; ModuleID = 'likely'
 source_filename = "likely"
 
-%u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
-%f32XY = type { i32, i32, i32, i32, i32, i32, [0 x float] }
-%f32X = type { i32, i32, i32, i32, i32, i32, [0 x float] }
+%u0Matrix = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
+%f32Matrix = type { i32, i32, i32, i32, i32, i32, [0 x float] }
 
 ; Function Attrs: argmemonly nounwind
-declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
+declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
 ; Function Attrs: norecurse nounwind
-define private void @multiply_transposed_tmp_thunk0({ %f32XY*, %f32XY* }* noalias nocapture readonly, i64, i64) #1 {
+define private void @multiply_transposed_tmp_thunk0({ %f32Matrix*, %f32Matrix* }* noalias nocapture readonly, i64, i64) #1 {
 entry:
-  %3 = getelementptr inbounds { %f32XY*, %f32XY* }, { %f32XY*, %f32XY* }* %0, i64 0, i32 0
-  %4 = load %f32XY*, %f32XY** %3, align 8
-  %5 = getelementptr inbounds { %f32XY*, %f32XY* }, { %f32XY*, %f32XY* }* %0, i64 0, i32 1
-  %6 = load %f32XY*, %f32XY** %5, align 8
-  %7 = getelementptr inbounds %f32XY, %f32XY* %6, i64 0, i32 3
+  %3 = getelementptr inbounds { %f32Matrix*, %f32Matrix* }, { %f32Matrix*, %f32Matrix* }* %0, i64 0, i32 0
+  %4 = load %f32Matrix*, %f32Matrix** %3, align 8
+  %5 = getelementptr inbounds { %f32Matrix*, %f32Matrix* }, { %f32Matrix*, %f32Matrix* }* %0, i64 0, i32 1
+  %6 = load %f32Matrix*, %f32Matrix** %5, align 8
+  %7 = getelementptr inbounds %f32Matrix, %f32Matrix* %6, i64 0, i32 3
   %columns1 = load i32, i32* %7, align 4, !range !0
   %mat_y_step = zext i32 %columns1 to i64
   %8 = mul nuw nsw i64 %mat_y_step, %2
@@ -23,9 +22,9 @@ entry:
 
 y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ %1, %entry ], [ %y_increment, %y_body ]
-  %9 = getelementptr %f32XY, %f32XY* %6, i64 0, i32 6, i64 %y
+  %9 = getelementptr %f32Matrix, %f32Matrix* %6, i64 0, i32 6, i64 %y
   %10 = load float, float* %9, align 4, !llvm.mem.parallel_loop_access !1
-  %11 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %y
+  %11 = getelementptr %f32Matrix, %f32Matrix* %4, i64 0, i32 6, i64 %y
   store float %10, float* %11, align 4, !llvm.mem.parallel_loop_access !1
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %8
@@ -38,13 +37,13 @@ y_exit:                                           ; preds = %y_body
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
 ; Function Attrs: norecurse nounwind
-define private void @multiply_transposed_tmp_thunk1({ %f32XY*, %f32X* }* noalias nocapture readonly, i64, i64) #1 {
+define private void @multiply_transposed_tmp_thunk1({ %f32Matrix*, %f32Matrix* }* noalias nocapture readonly, i64, i64) #1 {
 entry:
-  %3 = getelementptr inbounds { %f32XY*, %f32X* }, { %f32XY*, %f32X* }* %0, i64 0, i32 0
-  %4 = load %f32XY*, %f32XY** %3, align 8
-  %5 = getelementptr inbounds { %f32XY*, %f32X* }, { %f32XY*, %f32X* }* %0, i64 0, i32 1
-  %6 = load %f32X*, %f32X** %5, align 8
-  %7 = getelementptr inbounds %f32XY, %f32XY* %4, i64 0, i32 3
+  %3 = getelementptr inbounds { %f32Matrix*, %f32Matrix* }, { %f32Matrix*, %f32Matrix* }* %0, i64 0, i32 0
+  %4 = load %f32Matrix*, %f32Matrix** %3, align 8
+  %5 = getelementptr inbounds { %f32Matrix*, %f32Matrix* }, { %f32Matrix*, %f32Matrix* }* %0, i64 0, i32 1
+  %6 = load %f32Matrix*, %f32Matrix** %5, align 8
+  %7 = getelementptr inbounds %f32Matrix, %f32Matrix* %4, i64 0, i32 3
   %columns = load i32, i32* %7, align 4, !range !0
   %mat_y_step = zext i32 %columns to i64
   br label %y_body
@@ -57,9 +56,9 @@ y_body:                                           ; preds = %x_exit, %entry
 x_body:                                           ; preds = %y_body, %x_body
   %x = phi i64 [ %x_increment, %x_body ], [ 0, %y_body ]
   %9 = add nuw nsw i64 %x, %8
-  %10 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %9
+  %10 = getelementptr %f32Matrix, %f32Matrix* %4, i64 0, i32 6, i64 %9
   %11 = load float, float* %10, align 4, !llvm.mem.parallel_loop_access !2
-  %12 = getelementptr %f32X, %f32X* %6, i64 0, i32 6, i64 %x
+  %12 = getelementptr %f32Matrix, %f32Matrix* %6, i64 0, i32 6, i64 %x
   %13 = load float, float* %12, align 4, !llvm.mem.parallel_loop_access !2
   %14 = fsub fast float %11, %13
   store float %14, float* %10, align 4, !llvm.mem.parallel_loop_access !2
@@ -77,15 +76,15 @@ y_exit:                                           ; preds = %x_exit
 }
 
 ; Function Attrs: norecurse nounwind
-define private void @multiply_transposed_tmp_thunk2({ %f32XY*, %f32XY*, i32 }* noalias nocapture readonly, i64, i64) #1 {
+define private void @multiply_transposed_tmp_thunk2({ %f32Matrix*, %f32Matrix*, i32 }* noalias nocapture readonly, i64, i64) #1 {
 entry:
-  %3 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %0, i64 0, i32 0
-  %4 = load %f32XY*, %f32XY** %3, align 8
-  %5 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %0, i64 0, i32 1
-  %6 = load %f32XY*, %f32XY** %5, align 8
-  %7 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %0, i64 0, i32 2
+  %3 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, i32 }, { %f32Matrix*, %f32Matrix*, i32 }* %0, i64 0, i32 0
+  %4 = load %f32Matrix*, %f32Matrix** %3, align 8
+  %5 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, i32 }, { %f32Matrix*, %f32Matrix*, i32 }* %0, i64 0, i32 1
+  %6 = load %f32Matrix*, %f32Matrix** %5, align 8
+  %7 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, i32 }, { %f32Matrix*, %f32Matrix*, i32 }* %0, i64 0, i32 2
   %8 = load i32, i32* %7, align 4
-  %9 = getelementptr inbounds %f32XY, %f32XY* %6, i64 0, i32 3
+  %9 = getelementptr inbounds %f32Matrix, %f32Matrix* %6, i64 0, i32 3
   %columns1 = load i32, i32* %9, align 4, !range !0
   %dst_y_step = zext i32 %columns1 to i64
   %10 = icmp eq i32 %8, 0
@@ -118,11 +117,11 @@ true_entry3:                                      ; preds = %loop.preheader, %tr
   %15 = sext i32 %13 to i64
   %16 = mul nuw nsw i64 %15, %dst_y_step
   %17 = add nuw nsw i64 %16, %x
-  %18 = getelementptr %f32XY, %f32XY* %6, i64 0, i32 6, i64 %17
+  %18 = getelementptr %f32Matrix, %f32Matrix* %6, i64 0, i32 6, i64 %17
   %19 = load float, float* %18, align 4, !llvm.mem.parallel_loop_access !3
   %20 = fpext float %19 to double
   %21 = add nuw nsw i64 %16, %y
-  %22 = getelementptr %f32XY, %f32XY* %6, i64 0, i32 6, i64 %21
+  %22 = getelementptr %f32Matrix, %f32Matrix* %6, i64 0, i32 6, i64 %21
   %23 = load float, float* %22, align 4, !llvm.mem.parallel_loop_access !3
   %24 = fpext float %23 to double
   %25 = fmul fast double %24, %20
@@ -139,54 +138,54 @@ Flow6:                                            ; preds = %x_body, %exit4
 exit4:                                            ; preds = %true_entry3, %loop.preheader
   %.lcssa = phi double [ 0.000000e+00, %loop.preheader ], [ %26, %true_entry3 ]
   %29 = add nuw nsw i64 %x, %11
-  %30 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %29
+  %30 = getelementptr %f32Matrix, %f32Matrix* %4, i64 0, i32 6, i64 %29
   %31 = fptrunc double %.lcssa to float
   store float %31, float* %30, align 4, !llvm.mem.parallel_loop_access !3
   %32 = mul nuw nsw i64 %x, %dst_y_step
   %33 = add nuw nsw i64 %32, %y
-  %34 = getelementptr %f32XY, %f32XY* %4, i64 0, i32 6, i64 %33
+  %34 = getelementptr %f32Matrix, %f32Matrix* %4, i64 0, i32 6, i64 %33
   store float %31, float* %34, align 4, !llvm.mem.parallel_loop_access !3
   br label %Flow6
 }
 
-define %f32XY* @multiply_transposed(%f32XY*, %f32X*) {
+define %f32Matrix* @multiply_transposed(%f32Matrix*, %f32Matrix*) {
 entry:
-  %2 = getelementptr inbounds %f32XY, %f32XY* %0, i64 0, i32 3
+  %2 = getelementptr inbounds %f32Matrix, %f32Matrix* %0, i64 0, i32 3
   %columns = load i32, i32* %2, align 4, !range !0
-  %3 = getelementptr inbounds %f32XY, %f32XY* %0, i64 0, i32 4
+  %3 = getelementptr inbounds %f32Matrix, %f32Matrix* %0, i64 0, i32 4
   %rows = load i32, i32* %3, align 4, !range !0
-  %4 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
+  %4 = call %u0Matrix* @likely_new(i32 24864, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
   %5 = zext i32 %rows to i64
-  %6 = alloca { %f32XY*, %f32XY* }, align 8
-  %7 = bitcast { %f32XY*, %f32XY* }* %6 to %u0CXYT**
-  store %u0CXYT* %4, %u0CXYT** %7, align 8
-  %8 = getelementptr inbounds { %f32XY*, %f32XY* }, { %f32XY*, %f32XY* }* %6, i64 0, i32 1
-  store %f32XY* %0, %f32XY** %8, align 8
-  %9 = bitcast { %f32XY*, %f32XY* }* %6 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32XY* }*, i64, i64)* @multiply_transposed_tmp_thunk0 to i8*), i8* %9, i64 %5)
-  %10 = alloca { %f32XY*, %f32X* }, align 8
-  %11 = bitcast { %f32XY*, %f32X* }* %10 to %u0CXYT**
-  store %u0CXYT* %4, %u0CXYT** %11, align 8
-  %12 = getelementptr inbounds { %f32XY*, %f32X* }, { %f32XY*, %f32X* }* %10, i64 0, i32 1
-  store %f32X* %1, %f32X** %12, align 8
-  %13 = bitcast { %f32XY*, %f32X* }* %10 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32X* }*, i64, i64)* @multiply_transposed_tmp_thunk1 to i8*), i8* %13, i64 %5)
-  %14 = call %u0CXYT* @likely_new(i32 24864, i32 1, i32 %columns, i32 %columns, i32 1, i8* null)
-  %dst = bitcast %u0CXYT* %14 to %f32XY*
+  %6 = alloca { %f32Matrix*, %f32Matrix* }, align 8
+  %7 = bitcast { %f32Matrix*, %f32Matrix* }* %6 to %u0Matrix**
+  store %u0Matrix* %4, %u0Matrix** %7, align 8
+  %8 = getelementptr inbounds { %f32Matrix*, %f32Matrix* }, { %f32Matrix*, %f32Matrix* }* %6, i64 0, i32 1
+  store %f32Matrix* %0, %f32Matrix** %8, align 8
+  %9 = bitcast { %f32Matrix*, %f32Matrix* }* %6 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix* }*, i64, i64)* @multiply_transposed_tmp_thunk0 to i8*), i8* %9, i64 %5)
+  %10 = alloca { %f32Matrix*, %f32Matrix* }, align 8
+  %11 = bitcast { %f32Matrix*, %f32Matrix* }* %10 to %u0Matrix**
+  store %u0Matrix* %4, %u0Matrix** %11, align 8
+  %12 = getelementptr inbounds { %f32Matrix*, %f32Matrix* }, { %f32Matrix*, %f32Matrix* }* %10, i64 0, i32 1
+  store %f32Matrix* %1, %f32Matrix** %12, align 8
+  %13 = bitcast { %f32Matrix*, %f32Matrix* }* %10 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix* }*, i64, i64)* @multiply_transposed_tmp_thunk1 to i8*), i8* %13, i64 %5)
+  %14 = call %u0Matrix* @likely_new(i32 24864, i32 1, i32 %columns, i32 %columns, i32 1, i8* null)
+  %dst = bitcast %u0Matrix* %14 to %f32Matrix*
   %15 = zext i32 %columns to i64
-  %16 = alloca { %f32XY*, %f32XY*, i32 }, align 8
-  %17 = bitcast { %f32XY*, %f32XY*, i32 }* %16 to %u0CXYT**
-  store %u0CXYT* %14, %u0CXYT** %17, align 8
-  %18 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %16, i64 0, i32 1
-  %19 = bitcast %f32XY** %18 to %u0CXYT**
-  store %u0CXYT* %4, %u0CXYT** %19, align 8
-  %20 = getelementptr inbounds { %f32XY*, %f32XY*, i32 }, { %f32XY*, %f32XY*, i32 }* %16, i64 0, i32 2
+  %16 = alloca { %f32Matrix*, %f32Matrix*, i32 }, align 8
+  %17 = bitcast { %f32Matrix*, %f32Matrix*, i32 }* %16 to %u0Matrix**
+  store %u0Matrix* %14, %u0Matrix** %17, align 8
+  %18 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, i32 }, { %f32Matrix*, %f32Matrix*, i32 }* %16, i64 0, i32 1
+  %19 = bitcast %f32Matrix** %18 to %u0Matrix**
+  store %u0Matrix* %4, %u0Matrix** %19, align 8
+  %20 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, i32 }, { %f32Matrix*, %f32Matrix*, i32 }* %16, i64 0, i32 2
   store i32 %rows, i32* %20, align 8
-  %21 = bitcast { %f32XY*, %f32XY*, i32 }* %16 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32XY*, %f32XY*, i32 }*, i64, i64)* @multiply_transposed_tmp_thunk2 to i8*), i8* %21, i64 %15)
-  %22 = bitcast %u0CXYT* %4 to i8*
+  %21 = bitcast { %f32Matrix*, %f32Matrix*, i32 }* %16 to i8*
+  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix*, i32 }*, i64, i64)* @multiply_transposed_tmp_thunk2 to i8*), i8* %21, i64 %15)
+  %22 = bitcast %u0Matrix* %4 to i8*
   call void @likely_release_mat(i8* %22)
-  ret %f32XY* %dst
+  ret %f32Matrix* %dst
 }
 
 declare void @likely_release_mat(i8* noalias nocapture)

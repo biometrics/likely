@@ -1,27 +1,26 @@
 ; ModuleID = 'likely'
 source_filename = "likely"
 
-%u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
-%f64X = type { i32, i32, i32, i32, i32, i32, [0 x double] }
-%f64XY = type { i32, i32, i32, i32, i32, i32, [0 x double] }
+%u0Matrix = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
+%f64Matrix = type { i32, i32, i32, i32, i32, i32, [0 x double] }
 
 ; Function Attrs: argmemonly nounwind
-declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
+declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
-define noalias %f64X* @average(%f64XY* nocapture readonly) {
+define noalias %f64Matrix* @average(%f64Matrix* nocapture readonly) {
 entry:
-  %1 = getelementptr inbounds %f64XY, %f64XY* %0, i64 0, i32 3
+  %1 = getelementptr inbounds %f64Matrix, %f64Matrix* %0, i64 0, i32 3
   %columns = load i32, i32* %1, align 4, !range !0
-  %2 = call %u0CXYT* @likely_new(i32 8512, i32 1, i32 %columns, i32 1, i32 1, i8* null)
-  %3 = getelementptr inbounds %f64XY, %f64XY* %0, i64 0, i32 4
+  %2 = call %u0Matrix* @likely_new(i32 8512, i32 1, i32 %columns, i32 1, i32 1, i8* null)
+  %3 = getelementptr inbounds %f64Matrix, %f64Matrix* %0, i64 0, i32 4
   %rows = load i32, i32* %3, align 4, !range !0
   %4 = zext i32 %columns to i64
-  %5 = getelementptr inbounds %u0CXYT, %u0CXYT* %2, i64 1
-  %6 = bitcast %u0CXYT* %5 to i8*
-  %7 = bitcast %u0CXYT* %5 to double*
+  %5 = getelementptr inbounds %u0Matrix, %u0Matrix* %2, i64 1
+  %6 = bitcast %u0Matrix* %5 to i8*
+  %7 = bitcast %u0Matrix* %5 to double*
   %8 = shl nuw nsw i64 %4, 3
   call void @llvm.memset.p0i8.i64(i8* %6, i8 0, i64 %8, i32 8, i1 false)
-  %9 = bitcast %u0CXYT* %2 to %f64X*
+  %9 = bitcast %u0Matrix* %2 to %f64Matrix*
   %10 = zext i32 %rows to i64
   br label %y_body
 
@@ -35,7 +34,7 @@ x_body7:                                          ; preds = %y_body, %x_body7
   %12 = getelementptr double, double* %7, i64 %x9
   %13 = load double, double* %12, align 8
   %14 = add nuw nsw i64 %x9, %11
-  %15 = getelementptr %f64XY, %f64XY* %0, i64 0, i32 6, i64 %14
+  %15 = getelementptr %f64Matrix, %f64Matrix* %0, i64 0, i32 6, i64 %14
   %16 = load double, double* %15, align 8
   %17 = fadd fast double %16, %13
   store double %17, double* %12, align 8
@@ -58,7 +57,7 @@ true_entry:                                       ; preds = %y_exit
   br label %x_body15
 
 Flow1:                                            ; preds = %x_body15, %y_exit
-  ret %f64X* %9
+  ret %f64Matrix* %9
 
 x_body15:                                         ; preds = %true_entry, %x_body15
   %x17 = phi i64 [ %x_increment18, %x_body15 ], [ 0, %true_entry ]

@@ -1,20 +1,20 @@
 ; ModuleID = 'likely'
 source_filename = "likely"
 
-%u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
-%f64XY = type { i32, i32, i32, i32, i32, i32, [0 x double] }
+%u0Matrix = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
+%f64Matrix = type { i32, i32, i32, i32, i32, i32, [0 x double] }
 
 ; Function Attrs: nounwind
 declare void @llvm.assume(i1) #0
 
 ; Function Attrs: argmemonly nounwind
-declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #1
+declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #1
 
-define noalias %f64XY* @filter_2D(%f64XY* nocapture readonly, %f64XY* nocapture readonly) {
+define noalias %f64Matrix* @filter_2D(%f64Matrix* nocapture readonly, %f64Matrix* nocapture readonly) {
 entry:
-  %2 = getelementptr inbounds %f64XY, %f64XY* %1, i64 0, i32 3
+  %2 = getelementptr inbounds %f64Matrix, %f64Matrix* %1, i64 0, i32 3
   %width = load i32, i32* %2, align 4, !range !0
-  %3 = getelementptr inbounds %f64XY, %f64XY* %1, i64 0, i32 4
+  %3 = getelementptr inbounds %f64Matrix, %f64Matrix* %1, i64 0, i32 4
   %height = load i32, i32* %3, align 4, !range !0
   %4 = srem i32 %width, 2
   %5 = icmp eq i32 %4, 1
@@ -22,19 +22,19 @@ entry:
   %6 = srem i32 %height, 2
   %7 = icmp eq i32 %6, 1
   call void @llvm.assume(i1 %7)
-  %8 = getelementptr inbounds %f64XY, %f64XY* %0, i64 0, i32 3
+  %8 = getelementptr inbounds %f64Matrix, %f64Matrix* %0, i64 0, i32 3
   %columns = load i32, i32* %8, align 4, !range !0
   %9 = add i32 %width, -1
   %10 = add nuw nsw i32 %columns, %9
-  %11 = getelementptr inbounds %f64XY, %f64XY* %0, i64 0, i32 4
+  %11 = getelementptr inbounds %f64Matrix, %f64Matrix* %0, i64 0, i32 4
   %rows = load i32, i32* %11, align 4, !range !0
   %12 = add i32 %height, -1
   %13 = add nuw nsw i32 %rows, %12
-  %14 = call %u0CXYT* @likely_new(i32 24896, i32 1, i32 %10, i32 %13, i32 1, i8* null)
+  %14 = call %u0Matrix* @likely_new(i32 24896, i32 1, i32 %10, i32 %13, i32 1, i8* null)
   %15 = zext i32 %13 to i64
   %mat_y_step = zext i32 %10 to i64
-  %16 = getelementptr inbounds %u0CXYT, %u0CXYT* %14, i64 1
-  %scevgep7 = getelementptr %u0CXYT, %u0CXYT* %14, i64 1, i32 0
+  %16 = getelementptr inbounds %u0Matrix, %u0Matrix* %14, i64 1
+  %scevgep7 = getelementptr %u0Matrix, %u0Matrix* %14, i64 1, i32 0
   %17 = shl nuw nsw i64 %mat_y_step, 1
   %18 = shl nuw nsw i64 %mat_y_step, 3
   br label %y_body
@@ -50,7 +50,7 @@ y_body:                                           ; preds = %y_body, %entry
   br i1 %y_postcondition, label %y_exit, label %y_body
 
 y_exit:                                           ; preds = %y_body
-  %20 = bitcast %u0CXYT* %16 to double*
+  %20 = bitcast %u0Matrix* %16 to double*
   %pad-columns = sdiv i32 %9, 2
   %pad-rows = sdiv i32 %12, 2
   %21 = zext i32 %rows to i64
@@ -60,7 +60,7 @@ y_exit:                                           ; preds = %y_body
   %24 = sext i32 %pad-columns to i64
   %25 = add i64 %23, %24
   %26 = mul i64 %25, 2
-  %scevgep4 = getelementptr %f64XY, %f64XY* %0, i64 1, i32 0
+  %scevgep4 = getelementptr %f64Matrix, %f64Matrix* %0, i64 1, i32 0
   %27 = mul nuw nsw i64 %src_y_step, 2
   %28 = shl nuw nsw i64 %src_y_step, 3
   br label %y_body9
@@ -80,9 +80,9 @@ y_body9:                                          ; preds = %y_body9, %y_exit
   br i1 %y_postcondition18, label %y_exit10, label %y_body9
 
 y_exit10:                                         ; preds = %y_body9
-  %32 = call %u0CXYT* @likely_new(i32 24896, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
-  %33 = getelementptr inbounds %u0CXYT, %u0CXYT* %32, i64 1
-  %34 = bitcast %u0CXYT* %33 to double*
+  %32 = call %u0Matrix* @likely_new(i32 24896, i32 1, i32 %columns, i32 %rows, i32 1, i8* null)
+  %33 = getelementptr inbounds %u0Matrix, %u0Matrix* %32, i64 1
+  %34 = bitcast %u0Matrix* %33 to double*
   %kernel_y_step = zext i32 %width to i64
   br label %y_body31
 
@@ -119,10 +119,10 @@ x_exit35:                                         ; preds = %exit
   br i1 %y_postcondition44, label %y_exit32, label %y_body31
 
 y_exit32:                                         ; preds = %x_exit35
-  %dst = bitcast %u0CXYT* %32 to %f64XY*
-  %45 = bitcast %u0CXYT* %14 to i8*
+  %dst = bitcast %u0Matrix* %32 to %f64Matrix*
+  %45 = bitcast %u0Matrix* %14 to i8*
   call void @likely_release_mat(i8* %45)
-  ret %f64XY* %dst
+  ret %f64Matrix* %dst
 
 true_entry39:                                     ; preds = %loop38.preheader, %true_entry39
   %46 = phi double [ %56, %true_entry39 ], [ %38, %loop38.preheader ]
@@ -132,7 +132,7 @@ true_entry39:                                     ; preds = %loop38.preheader, %
   %50 = getelementptr double, double* %20, i64 %49
   %51 = load double, double* %50, align 8, !llvm.mem.parallel_loop_access !1
   %52 = add nuw nsw i64 %48, %43
-  %53 = getelementptr %f64XY, %f64XY* %1, i64 0, i32 6, i64 %52
+  %53 = getelementptr %f64Matrix, %f64Matrix* %1, i64 0, i32 6, i64 %52
   %54 = load double, double* %53, align 8, !llvm.mem.parallel_loop_access !1
   %55 = fmul fast double %54, %51
   %56 = fadd fast double %55, %46
