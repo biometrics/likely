@@ -1442,14 +1442,14 @@ struct Symbol : public LikelyFunction
 {
     const string name;
     const vector<likely_type> parameters;
+    const likely_type returnType;
 
     Symbol(const likely_const_env env, const string &name, const likely_type returnType, const vector<likely_type> parameters = vector<likely_type>(), bool isVarArg = false)
         : LikelyFunction(env, parameters.size(), isVarArg)
         , name(name)
         , parameters(parameters)
-    {
-        type = returnType;
-    }
+        , returnType(returnType)
+    {}
 
 private:
     likely_const_expr evaluateFunction(Builder &builder, vector<likely_const_expr> &args) const
@@ -1460,15 +1460,15 @@ private:
             for (const likely_type parameter : parameters)
                 llvmParameters.push_back(builder.module->context->toLLVM(parameter));
             // If the return type is a matrix, we generalize it to allow overloading.
-            Type *llvmReturn = builder.module->context->toLLVM(type & likely_multi_dimension ? likely_type(likely_multi_dimension) : type);
-            FunctionType *functionType = FunctionType::get(llvmReturn, llvmParameters, isVarArg);
+            Type *const llvmReturn = builder.module->context->toLLVM(returnType & likely_multi_dimension ? likely_type(likely_multi_dimension) : returnType);
+            FunctionType *const functionType = FunctionType::get(llvmReturn, llvmParameters, isVarArg);
             symbol = Function::Create(functionType, GlobalValue::ExternalLinkage, name, builder.module->module);
             symbol->setCallingConv(CallingConv::C);
             symbol->setDoesNotThrow();
             if (isa<PointerType>(llvmReturn)) {
                 symbol->setDoesNotAlias(0);
             } else if (isa<IntegerType>(llvmReturn)) {
-                symbol->addAttribute(0, type & likely_signed ? Attribute::SExt : Attribute::ZExt);
+                symbol->addAttribute(0, returnType & likely_signed ? Attribute::SExt : Attribute::ZExt);
             }
             for (size_t i=0; i<llvmParameters.size(); i++) {
                 if (isa<PointerType>(llvmParameters[i])) {
@@ -1508,9 +1508,9 @@ private:
         }
 
         Value *value = builder.CreateCall(symbol, castedArgs);
-        if (type & likely_multi_dimension)
-            value = builder.CreatePointerCast(value, builder.module->context->toLLVM(type));
-        return new likely_expression(LikelyValue(value, type));
+        if (returnType & likely_multi_dimension)
+            value = builder.CreatePointerCast(value, builder.module->context->toLLVM(returnType));
+        return new likely_expression(LikelyValue(value, returnType));
     }
 };
 
