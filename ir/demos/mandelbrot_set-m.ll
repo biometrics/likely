@@ -1,4 +1,5 @@
 ; ModuleID = 'library/mandelbrot_set.md'
+source_filename = "library/mandelbrot_set.md"
 
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %u8XY = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
@@ -39,7 +40,7 @@ y_body:                                           ; preds = %x_exit, %entry
   %22 = uitofp i64 %y to float
   %23 = fmul fast float %22, %16
   %24 = fdiv fast float %23, %21
-  %zi0 = fadd fast float %24, %12
+  %zi0 = fadd fast float %12, %24
   %25 = mul nuw nsw i64 %y, %dst_y_step
   br label %x_body
 
@@ -48,7 +49,7 @@ x_body:                                           ; preds = %y_body, %exit
   %26 = uitofp i64 %x to float
   %27 = fmul fast float %26, %14
   %28 = fdiv fast float %27, %20
-  %zr0 = fadd fast float %28, %10
+  %zr0 = fadd fast float %10, %28
   br label %loop
 
 loop:                                             ; preds = %x_body, %loop
@@ -58,10 +59,10 @@ loop:                                             ; preds = %x_body, %loop
   %32 = fmul fast float %31, %31
   %33 = fmul fast float %30, %30
   %34 = fsub fast float %32, %33
-  %tmp = fadd fast float %zr0, %34
+  %tmp = fadd float %zr0, %34
   %35 = fmul fast float %30, 2.000000e+00
   %36 = fmul fast float %35, %31
-  %37 = fadd fast float %zi0, %36
+  %37 = fadd float %zi0, %36
   %38 = add nuw nsw i32 %29, 1
   %39 = fmul fast float %tmp, %tmp
   %40 = fmul fast float %37, %37

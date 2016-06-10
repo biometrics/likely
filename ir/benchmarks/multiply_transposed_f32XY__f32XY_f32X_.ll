@@ -1,4 +1,5 @@
 ; ModuleID = 'likely'
+source_filename = "likely"
 
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %f32XY = type { i32, i32, i32, i32, i32, i32, [0 x float] }
@@ -17,33 +18,36 @@ entry:
   %5 = zext i32 %rows to i64
   %mat_y_step = zext i32 %columns to i64
   %6 = getelementptr inbounds %u0CXYT, %u0CXYT* %4, i64 1
-  %7 = bitcast %u0CXYT* %6 to float*
   %scevgep = getelementptr %u0CXYT, %u0CXYT* %4, i64 1, i32 0
   %scevgep3 = getelementptr %f32XY, %f32XY* %0, i64 1, i32 0
-  %8 = shl nuw nsw i64 %mat_y_step, 2
+  %7 = shl nuw nsw i64 %mat_y_step, 2
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %y_body ]
-  %9 = mul i64 %y, %mat_y_step
-  %scevgep1 = getelementptr i32, i32* %scevgep, i64 %9
+  %8 = mul i64 %y, %mat_y_step
+  %scevgep1 = getelementptr i32, i32* %scevgep, i64 %8
   %scevgep12 = bitcast i32* %scevgep1 to i8*
-  %scevgep4 = getelementptr i32, i32* %scevgep3, i64 %9
+  %scevgep4 = getelementptr i32, i32* %scevgep3, i64 %8
   %scevgep45 = bitcast i32* %scevgep4 to i8*
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* %scevgep12, i8* %scevgep45, i64 %8, i32 4, i1 false)
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* %scevgep12, i8* %scevgep45, i64 %7, i32 4, i1 false)
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %5
-  br i1 %y_postcondition, label %y_body15, label %y_body
+  br i1 %y_postcondition, label %y_body15.preheader, label %y_body
 
-y_body15:                                         ; preds = %y_body, %x_exit19
-  %y17 = phi i64 [ %y_increment23, %x_exit19 ], [ 0, %y_body ]
+y_body15.preheader:                               ; preds = %y_body
+  %9 = bitcast %u0CXYT* %6 to float*
+  br label %y_body15
+
+y_body15:                                         ; preds = %x_exit19, %y_body15.preheader
+  %y17 = phi i64 [ 0, %y_body15.preheader ], [ %y_increment23, %x_exit19 ]
   %10 = mul nuw nsw i64 %y17, %mat_y_step
   br label %x_body18
 
 x_body18:                                         ; preds = %y_body15, %x_body18
   %x20 = phi i64 [ %x_increment21, %x_body18 ], [ 0, %y_body15 ]
   %11 = add nuw nsw i64 %x20, %10
-  %12 = getelementptr float, float* %7, i64 %11
+  %12 = getelementptr float, float* %9, i64 %11
   %13 = load float, float* %12, align 4, !llvm.mem.parallel_loop_access !1
   %14 = getelementptr %f32X, %f32X* %1, i64 0, i32 6, i64 %x20
   %15 = load float, float* %14, align 4, !llvm.mem.parallel_loop_access !1
@@ -91,11 +95,11 @@ true_entry39:                                     ; preds = %x_body36, %true_ent
   %25 = sext i32 %23 to i64
   %26 = mul nuw nsw i64 %25, %mat_y_step
   %27 = add nuw nsw i64 %26, %x38
-  %28 = getelementptr float, float* %7, i64 %27
+  %28 = getelementptr float, float* %9, i64 %27
   %29 = load float, float* %28, align 4, !llvm.mem.parallel_loop_access !2
   %30 = fpext float %29 to double
   %31 = add nuw nsw i64 %26, %y35
-  %32 = getelementptr float, float* %7, i64 %31
+  %32 = getelementptr float, float* %9, i64 %31
   %33 = load float, float* %32, align 4, !llvm.mem.parallel_loop_access !2
   %34 = fpext float %33 to double
   %35 = fmul fast double %34, %30

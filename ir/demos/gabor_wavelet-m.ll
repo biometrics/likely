@@ -1,4 +1,5 @@
 ; ModuleID = 'library/gabor_wavelet.md'
+source_filename = "library/gabor_wavelet.md"
 
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %f32XY = type { i32, i32, i32, i32, i32, i32, [0 x float] }
@@ -8,7 +9,7 @@
 ; Function Attrs: argmemonly nounwind
 declare noalias %u0CXYT* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
-; Function Attrs: norecurse nounwind
+; Function Attrs: nounwind
 define private void @likely_test_function_tmp_thunk0({ %f32XY*, i32, i32, float, float, float, float, float }* noalias nocapture readonly, i64, i64) #1 {
 entry:
   %3 = getelementptr inbounds { %f32XY*, i32, i32, float, float, float, float, float }, { %f32XY*, i32, i32, float, float, float, float, float }* %0, i64 0, i32 0
@@ -160,7 +161,7 @@ entry:
 }
 
 attributes #0 = { argmemonly nounwind }
-attributes #1 = { norecurse nounwind }
+attributes #1 = { nounwind }
 attributes #2 = { nounwind readnone }
 
 !0 = !{i32 1, i32 -1}

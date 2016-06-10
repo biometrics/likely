@@ -1,4 +1,5 @@
 ; ModuleID = 'likely'
+source_filename = "likely"
 
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %f32SX = type { i32, i32, i32, i32, i32, i32, [0 x float] }
@@ -271,8 +272,8 @@ true_entry:                                       ; preds = %y_exit
   store float %22, float* %25, align 8
   %26 = bitcast { %f32SX*, float }* %23 to i8*
   call void @likely_fork(i8* bitcast (void ({ %f32SX*, float }*, i64, i64)* @covariance_tmp_thunk1 to i8*), i8* %26, i64 %4)
-  %columns7.pre = load i32, i32* %1, align 4
-  %rows8.pre = load i32, i32* %3, align 4
+  %columns7.pre = load i32, i32* %1, align 4, !range !2
+  %rows8.pre = load i32, i32* %3, align 4, !range !2
   br label %exit
 
 exit:                                             ; preds = %y_exit, %true_entry

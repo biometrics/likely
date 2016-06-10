@@ -46,8 +46,10 @@
 #include <llvm/Support/ToolOutputFile.h>
 #include <llvm/Target/TargetSubtargetInfo.h>
 #include <llvm/Transforms/IPO.h>
+#include <llvm/Transforms/IPO/FunctionAttrs.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Scalar/GVN.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <llvm/Transforms/Vectorize.h>
@@ -125,7 +127,7 @@ struct LikelyContext : public likely_settings
             PM->add(createBasicAAWrapperPass());
 
             // Global cleanup
-            PM->add(createPostOrderFunctionAttrsPass());
+            PM->add(createPostOrderFunctionAttrsLegacyPass());
             PM->add(createReversePostOrderFunctionAttrsPass());
             PM->add(createGlobalDCEPass());
             PM->add(createConstantMergePass());
@@ -310,7 +312,7 @@ struct LikelyContext : public likely_settings
                                                            sys::getHostCPUName(),
                                                            JIT ? targetFeatures: "",
                                                            TO,
-                                                           Reloc::Default,
+                                                           Reloc::PIC_,
                                                            JIT ? CodeModel::JITDefault : CodeModel::Default,
                                                            CodeGenOpt::Aggressive);
         likely_ensure(TM != NULL, "failed to create target machine");
@@ -750,9 +752,10 @@ struct Builder : public IRBuilder<>
 {
     likely_const_env env;
     likely_module *const module;
+    static ManagedStatic<LLVMContext> defaultContext; // TODO: can we remove this? Builder should only get a valid module?
 
     Builder(likely_const_env env, likely_module *module)
-        : IRBuilder<>(module ? module->context->context : getGlobalContext()), env(env), module(module)
+        : IRBuilder<>(module ? module->context->context : *defaultContext), env(env), module(module)
     {
         FastMathFlags FMF;
         FMF.setUnsafeAlgebra(); // Enable all fast-math optimizations
@@ -1123,6 +1126,8 @@ private:
     }
 };
 
+ManagedStatic<LLVMContext> Builder::defaultContext;
+
 struct ConstantString : public likely_expression
 {
     GlobalVariable *gv;
@@ -1148,12 +1153,12 @@ private:
     }
 };
 
-struct ConstantData : public likely_expression
+struct ConstantMat : public likely_expression
 {
-    ConstantData(const SharedMat &data)
+    ConstantMat(const SharedMat &data)
         : likely_expression(LikelyValue(), data) {}
 
-    ConstantData(Builder &builder, const SharedMat &data)
+    ConstantMat(Builder &builder, const SharedMat &data)
     {
         if (!data)
             return;
@@ -1210,7 +1215,7 @@ private:
     {
         if (ast->type == likely_ast_list)
             return likely_expression::evaluate(builder, ast); // Knows how to index into the matrix
-        return new ConstantData(builder, getData());
+        return new ConstantMat(builder, getData());
     }
 };
 
@@ -2456,7 +2461,7 @@ class evaluateExpression : public LikelyOperator
     likely_const_expr evaluateOperator(Builder &builder, likely_const_ast ast) const
     {
         const SharedMat data = Lambda(builder.env, ast->atoms[1]).evaluateConstantFunction();
-        return data ? new ConstantData(builder, data) : NULL;
+        return data ? new ConstantMat(builder, data) : NULL;
     }
 };
 LIKELY_REGISTER(evaluate)
@@ -3356,7 +3361,7 @@ likely_env likely_eval(likely_ast ast, likely_const_env parent, likely_eval_call
                 likely_read_lex_parse_and_eval(fileName.c_str(), &env);
             } else {
                 const SharedMat data = Lambda(parent, statement).evaluateConstantFunction();
-                expr = data ? new ConstantData(data) : NULL;
+                expr = data ? new ConstantMat(data) : NULL;
             }
         }
 
@@ -3408,7 +3413,7 @@ likely_mat likely_compute(const char *source)
 void likely_define(const char *name, likely_const_mat value, likely_const_env *env)
 {
     const likely_const_env parent = *env;
-    likely_expression::define(*env, name, new ConstantData(likely_retain_mat(value)));
+    likely_expression::define(*env, name, new ConstantMat(likely_retain_mat(value)));
     likely_release_env(parent);
 }
 

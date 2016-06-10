@@ -1,4 +1,5 @@
 ; ModuleID = 'likely'
+source_filename = "likely"
 
 %u0CXYT = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
 %u8XY = type { i32, i32, i32, i32, i32, i32, [0 x i8] }
@@ -19,19 +20,19 @@ entry:
   %6 = load i32, i32* %5, align 4
   %7 = getelementptr inbounds %u8XY, %u8XY* %4, i64 0, i32 3
   %columns = load i32, i32* %7, align 4, !range !0
-  %8 = trunc i32 %6 to i8
+  %mat_y_step = zext i32 %columns to i64
   %scevgep = getelementptr %u8XY, %u8XY* %4, i64 1, i32 0
   %scevgep1 = bitcast i32* %scevgep to i8*
-  %9 = zext i32 %columns to i64
+  %8 = trunc i32 %6 to i8
   br label %y_body
 
 y_body:                                           ; preds = %y_body, %entry
   %indvar = phi i64 [ 0, %entry ], [ %indvar.next, %y_body ]
   %y = phi i64 [ %1, %entry ], [ %y_increment, %y_body ]
-  %10 = add i64 %indvar, %1
-  %11 = mul i64 %10, %9
-  %uglygep = getelementptr i8, i8* %scevgep1, i64 %11
-  call void @llvm.memset.p0i8.i64(i8* %uglygep, i8 %8, i64 %9, i32 1, i1 false)
+  %9 = add i64 %indvar, %1
+  %10 = mul i64 %9, %mat_y_step
+  %uglygep = getelementptr i8, i8* %scevgep1, i64 %10
+  call void @llvm.memset.p0i8.i64(i8* %uglygep, i8 %8, i64 %mat_y_step, i32 1, i1 false)
   %y_increment = add nuw nsw i64 %y, 1
   %y_postcondition = icmp eq i64 %y_increment, %2
   %indvar.next = add i64 %indvar, 1

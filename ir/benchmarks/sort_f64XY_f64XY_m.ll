@@ -1,4 +1,5 @@
 ; ModuleID = 'likely'
+source_filename = "likely"
 
 %f64XY = type { i32, i32, i32, i32, i32, i32, [0 x double] }
 

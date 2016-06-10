@@ -20,6 +20,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <llvm/ADT/SmallString.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/Path.h>
 #include <opencv2/imgproc.hpp>
