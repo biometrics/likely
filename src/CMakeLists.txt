@@ -1,5 +1,4 @@
-set(LIKELY_SRC assumption_substitution.cpp
-               axis_substitution.cpp
+set(LIKELY_SRC axis_substitution.cpp
                backend.cpp
                frontend.cpp
                io.cpp

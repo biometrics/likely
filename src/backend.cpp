@@ -82,7 +82,6 @@ likely_settings likely_default_settings(likely_file_type file_type, bool verbose
 }
 //! [likely_default_settings implementation.]
 
-FunctionPass *createAssumptionSubstitutionPass(); // assumption_substitution.cpp
 ModulePass   *createAxisSubstitutionPass();       // axis_substitution.cpp
 LoopPass     *createLoopCollapsePass();           // loop_collapse.cpp
 ModulePass   *createMemoryManagementPass();       // memory_management.cpp
@@ -134,9 +133,7 @@ struct LikelyContext : public likely_settings
 
             // First pass scalar optimizations
             PM->add(createEarlyCSEPass()); // Combine redundant instructions ...
-            PM->add(createGVNPass());      // ... and loads prior to our substitution passes:
-            PM->add(createAssumptionSubstitutionPass()); // Our in-house pass
-            PM->add(createVerifierPass());               // Make sure it works :)
+            PM->add(createGVNPass());      // ... and loads prior to axis substitution pass:
             PM->add(createAxisSubstitutionPass()); // Our-in house pass
             PM->add(createVerifierPass());         // Make sure it works :)
             PM->add(createEarlyCSEPass()); // The substitution passes will create new CSE opportunities
@@ -1115,7 +1112,45 @@ struct Builder : public IRBuilder<>
 private:
     LikelyValue axis(const LikelyValue &m, const unsigned idx, const char *const name)
     {
-        LoadInst *const load = CreateLoad(CreateStructGEP(module->context->toLLVMStruct(m), m, idx+2), name);
+        const unsigned offset = idx+2;
+
+        // Check for assume optimization as a workaround for
+        // https://llvm.org/bugs/show_bug.cgi?id=28086
+        for (User *const matrixUser : m.value->users()) {
+            GetElementPtrInst *const gep = dyn_cast<GetElementPtrInst>(matrixUser);
+            if ((!gep) ||
+                (gep->getNumIndices() != 2) ||
+                (!gep->hasAllConstantIndices()) ||
+                (!llvm::cast<ConstantInt>(gep->getOperand(1))->isZero()) ||
+                (!llvm::cast<ConstantInt>(gep->getOperand(2))->equalsInt(offset)))
+                continue;
+
+            for (User *const gepUser : gep->users()) {
+                LoadInst *const load = dyn_cast<LoadInst>(gepUser);
+                if (!load)
+                    continue;
+
+                for (User *const loadUser : load->users()) {
+                    ICmpInst *const icmp = dyn_cast<ICmpInst>(loadUser);
+                    if ((!icmp) ||
+                        (icmp->getPredicate() != CmpInst::ICMP_EQ) ||
+                        (icmp->getOperand(0) != load))
+                        continue;
+
+                    for (User *const icmpUser : icmp->users()) {
+                        CallInst *const callInst = dyn_cast<CallInst>(icmpUser);
+                        if ((!callInst) ||
+                            (callInst->getCalledFunction()->getIntrinsicID() != Intrinsic::assume))
+                            continue;
+
+                        // Matched pattern (assume (== axis value))
+                        return LikelyValue(icmp->getOperand(1), likely_u32);
+                    }
+                }
+            }
+        }
+
+        LoadInst *const load = CreateLoad(CreateStructGEP(module->context->toLLVMStruct(m), m, offset), name);
         load->setMetadata(LLVMContext::MD_range, axisRange());
         return LikelyValue(load, likely_u32);
     }
