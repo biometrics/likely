@@ -148,14 +148,12 @@ struct LikelyContext : public likely_settings
             PM->add(createIndVarSimplifyPass());
             PM->add(createLoopIdiomPass());
             PM->add(createLoopDeletionPass()); // Loop idiom pass may create dead loops
+            PM->add(createCFGSimplificationPass()); // Cleanup
             PM->add(createLoopCollapsePass()); // Our in-house pass
             PM->add(createVerifierPass());     // Make sure it works :)
-            PM->add(createCFGSimplificationPass()); // Cleanup
-            PM->add(createInstructionCombiningPass());
 
             // Second pass scalar optimizations
             PM->add(createGVNPass());
-            PM->add(createInstructionCombiningPass());
             PM->add(createLICMPass());
             PM->add(createCFGSimplificationPass());
             PM->add(createInstructionCombiningPass());
