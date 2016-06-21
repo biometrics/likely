@@ -7,7 +7,8 @@ source_filename = "likely"
 ; Function Attrs: argmemonly nounwind
 declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
-define noalias %f64Matrix* @average(%f64Matrix* nocapture readonly) {
+; Function Attrs: nounwind
+define noalias %f64Matrix* @average(%f64Matrix* noalias nocapture readonly) #1 {
 entry:
   %1 = getelementptr inbounds %f64Matrix, %f64Matrix* %0, i64 0, i32 3
   %columns = load i32, i32* %1, align 4, !range !0
@@ -74,6 +75,7 @@ x_body15:                                         ; preds = %true_entry, %x_body
 declare void @llvm.memset.p0i8.i64(i8* nocapture, i8, i64, i32, i1) #0
 
 attributes #0 = { argmemonly nounwind }
+attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

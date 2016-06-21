@@ -8,7 +8,8 @@ source_filename = "likely"
 ; Function Attrs: argmemonly nounwind
 declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
-define noalias %f32Matrix* @multiply_transposed(%u16Matrix* nocapture readonly, %f32Matrix* nocapture readonly) {
+; Function Attrs: nounwind
+define noalias %f32Matrix* @multiply_transposed(%u16Matrix* noalias nocapture readonly, %f32Matrix* noalias nocapture readonly) #1 {
 entry:
   %2 = getelementptr inbounds %u16Matrix, %u16Matrix* %0, i64 0, i32 3
   %columns = load i32, i32* %2, align 4, !range !0
@@ -80,7 +81,7 @@ x_exit37:                                         ; preds = %Flow
 y_exit34:                                         ; preds = %x_exit37
   %dst = bitcast %u0Matrix* %20 to %f32Matrix*
   %25 = bitcast %u0Matrix* %4 to i8*
-  call void @likely_release_mat(i8* %25)
+  call void @likely_release_mat(i8* %25) #1
   ret %f32Matrix* %dst
 
 true_entry39:                                     ; preds = %x_body36, %true_entry39
@@ -122,6 +123,7 @@ exit40:                                           ; preds = %true_entry39
 declare void @likely_release_mat(i8* noalias nocapture)
 
 attributes #0 = { argmemonly nounwind }
+attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

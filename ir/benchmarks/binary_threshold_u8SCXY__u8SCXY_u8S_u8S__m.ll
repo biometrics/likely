@@ -46,7 +46,8 @@ y_exit:                                           ; preds = %y_body
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
-define %u8Matrix* @binary_threshold(%u8Matrix*, i8, i8) {
+; Function Attrs: nounwind
+define noalias %u8Matrix* @binary_threshold(%u8Matrix* noalias nocapture, i8 zeroext, i8 zeroext) #2 {
 entry:
   %3 = getelementptr inbounds %u8Matrix, %u8Matrix* %0, i64 0, i32 2
   %channels = load i32, i32* %3, align 4, !range !0
@@ -67,12 +68,13 @@ entry:
   %12 = getelementptr inbounds { %u8Matrix*, %u8Matrix*, i8, i8 }, { %u8Matrix*, %u8Matrix*, i8, i8 }* %8, i64 0, i32 3
   store i8 %2, i8* %12, align 1
   %13 = bitcast { %u8Matrix*, %u8Matrix*, i8, i8 }* %8 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %u8Matrix*, %u8Matrix*, i8, i8 }*, i64, i64)* @binary_threshold_tmp_thunk0 to i8*), i8* %13, i64 %7)
+  call void @likely_fork(i8* bitcast (void ({ %u8Matrix*, %u8Matrix*, i8, i8 }*, i64, i64)* @binary_threshold_tmp_thunk0 to i8*), i8* %13, i64 %7) #2
   ret %u8Matrix* %dst
 }
 
 attributes #0 = { argmemonly nounwind }
 attributes #1 = { norecurse nounwind }
+attributes #2 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

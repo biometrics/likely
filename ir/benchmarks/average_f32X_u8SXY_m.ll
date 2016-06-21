@@ -55,7 +55,8 @@ x_exit:                                           ; preds = %x_body
   ret void
 }
 
-define %f32Matrix* @average(%u8Matrix* nocapture readonly) {
+; Function Attrs: nounwind
+define noalias %f32Matrix* @average(%u8Matrix* noalias nocapture readonly) #2 {
 entry:
   %1 = getelementptr inbounds %u8Matrix, %u8Matrix* %0, i64 0, i32 3
   %columns = load i32, i32* %1, align 4, !range !2
@@ -69,18 +70,15 @@ entry:
   %7 = getelementptr inbounds { %f32Matrix*, i32 }, { %f32Matrix*, i32 }* %5, i64 0, i32 1
   store i32 0, i32* %7, align 8
   %8 = bitcast { %f32Matrix*, i32 }* %5 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, i32 }*, i64, i64)* @average_tmp_thunk0 to i8*), i8* %8, i64 %4)
-  %rows2 = load i32, i32* %3, align 4, !range !2
-  %9 = zext i32 %rows2 to i64
+  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, i32 }*, i64, i64)* @average_tmp_thunk0 to i8*), i8* %8, i64 %4) #2
+  %9 = zext i32 %rows to i64
   %10 = getelementptr inbounds %u0Matrix, %u0Matrix* %2, i64 1
   %11 = bitcast %u0Matrix* %10 to float*
-  %columns4 = load i32, i32* %1, align 4, !range !2
-  %src_y_step = zext i32 %columns4 to i64
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit ]
-  %12 = mul nuw nsw i64 %y, %src_y_step
+  %12 = mul nuw nsw i64 %y, %4
   br label %x_body
 
 x_body:                                           ; preds = %y_body, %x_body
@@ -94,7 +92,7 @@ x_body:                                           ; preds = %y_body, %x_body
   %19 = fadd fast float %18, %14
   store float %19, float* %13, align 4
   %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %src_y_step
+  %x_postcondition = icmp eq i64 %x_increment, %4
   br i1 %x_postcondition, label %x_exit, label %x_body
 
 x_exit:                                           ; preds = %x_body
@@ -116,7 +114,7 @@ true_entry:                                       ; preds = %y_exit
   %26 = getelementptr inbounds { %f32Matrix*, float }, { %f32Matrix*, float }* %24, i64 0, i32 1
   store float %23, float* %26, align 8
   %27 = bitcast { %f32Matrix*, float }* %24 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, float }*, i64, i64)* @average_tmp_thunk1 to i8*), i8* %27, i64 %4)
+  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, float }*, i64, i64)* @average_tmp_thunk1 to i8*), i8* %27, i64 %4) #2
   br label %exit
 
 exit:                                             ; preds = %y_exit, %true_entry
@@ -125,6 +123,7 @@ exit:                                             ; preds = %y_exit, %true_entry
 
 attributes #0 = { argmemonly nounwind }
 attributes #1 = { norecurse nounwind }
+attributes #2 = { nounwind }
 
 !0 = distinct !{!0}
 !1 = distinct !{!1}

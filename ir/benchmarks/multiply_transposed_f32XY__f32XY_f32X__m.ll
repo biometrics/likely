@@ -148,7 +148,8 @@ exit4:                                            ; preds = %true_entry3, %loop.
   br label %Flow6
 }
 
-define %f32Matrix* @multiply_transposed(%f32Matrix*, %f32Matrix*) {
+; Function Attrs: nounwind
+define noalias %f32Matrix* @multiply_transposed(%f32Matrix* noalias nocapture, %f32Matrix* noalias nocapture) #2 {
 entry:
   %2 = getelementptr inbounds %f32Matrix, %f32Matrix* %0, i64 0, i32 3
   %columns = load i32, i32* %2, align 4, !range !0
@@ -162,14 +163,14 @@ entry:
   %8 = getelementptr inbounds { %f32Matrix*, %f32Matrix* }, { %f32Matrix*, %f32Matrix* }* %6, i64 0, i32 1
   store %f32Matrix* %0, %f32Matrix** %8, align 8
   %9 = bitcast { %f32Matrix*, %f32Matrix* }* %6 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix* }*, i64, i64)* @multiply_transposed_tmp_thunk0 to i8*), i8* %9, i64 %5)
+  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix* }*, i64, i64)* @multiply_transposed_tmp_thunk0 to i8*), i8* %9, i64 %5) #2
   %10 = alloca { %f32Matrix*, %f32Matrix* }, align 8
   %11 = bitcast { %f32Matrix*, %f32Matrix* }* %10 to %u0Matrix**
   store %u0Matrix* %4, %u0Matrix** %11, align 8
   %12 = getelementptr inbounds { %f32Matrix*, %f32Matrix* }, { %f32Matrix*, %f32Matrix* }* %10, i64 0, i32 1
   store %f32Matrix* %1, %f32Matrix** %12, align 8
   %13 = bitcast { %f32Matrix*, %f32Matrix* }* %10 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix* }*, i64, i64)* @multiply_transposed_tmp_thunk1 to i8*), i8* %13, i64 %5)
+  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix* }*, i64, i64)* @multiply_transposed_tmp_thunk1 to i8*), i8* %13, i64 %5) #2
   %14 = call %u0Matrix* @likely_new(i32 24864, i32 1, i32 %columns, i32 %columns, i32 1, i8* null)
   %dst = bitcast %u0Matrix* %14 to %f32Matrix*
   %15 = zext i32 %columns to i64
@@ -182,9 +183,9 @@ entry:
   %20 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, i32 }, { %f32Matrix*, %f32Matrix*, i32 }* %16, i64 0, i32 2
   store i32 %rows, i32* %20, align 8
   %21 = bitcast { %f32Matrix*, %f32Matrix*, i32 }* %16 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix*, i32 }*, i64, i64)* @multiply_transposed_tmp_thunk2 to i8*), i8* %21, i64 %15)
+  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix*, i32 }*, i64, i64)* @multiply_transposed_tmp_thunk2 to i8*), i8* %21, i64 %15) #2
   %22 = bitcast %u0Matrix* %4 to i8*
-  call void @likely_release_mat(i8* %22)
+  call void @likely_release_mat(i8* %22) #2
   ret %f32Matrix* %dst
 }
 
@@ -192,6 +193,7 @@ declare void @likely_release_mat(i8* noalias nocapture)
 
 attributes #0 = { argmemonly nounwind }
 attributes #1 = { norecurse nounwind }
+attributes #2 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

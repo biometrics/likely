@@ -7,7 +7,8 @@ source_filename = "likely"
 ; Function Attrs: argmemonly nounwind
 declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #0
 
-define noalias %f32Matrix* @match_template(%f32Matrix* nocapture readonly, %f32Matrix* nocapture readonly) {
+; Function Attrs: nounwind
+define noalias %f32Matrix* @match_template(%f32Matrix* noalias nocapture readonly, %f32Matrix* noalias nocapture readonly) #1 {
 entry:
   %2 = getelementptr inbounds %f32Matrix, %f32Matrix* %1, i64 0, i32 3
   %width = load i32, i32* %2, align 4, !range !0
@@ -89,6 +90,7 @@ exit11:                                           ; preds = %true_entry10
 }
 
 attributes #0 = { argmemonly nounwind }
+attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

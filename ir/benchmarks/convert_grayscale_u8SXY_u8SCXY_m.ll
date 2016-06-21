@@ -60,7 +60,8 @@ y_exit:                                           ; preds = %y_body
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
-define %u8Matrix* @convert_grayscale(%u8Matrix*) {
+; Function Attrs: nounwind
+define noalias %u8Matrix* @convert_grayscale(%u8Matrix* noalias nocapture) #0 {
 entry:
   %1 = getelementptr inbounds %u8Matrix, %u8Matrix* %0, i64 0, i32 3
   %columns = load i32, i32* %1, align 4, !range !0
@@ -75,7 +76,7 @@ entry:
   %7 = getelementptr inbounds { %u8Matrix*, %u8Matrix* }, { %u8Matrix*, %u8Matrix* }* %5, i64 0, i32 1
   store %u8Matrix* %0, %u8Matrix** %7, align 8
   %8 = bitcast { %u8Matrix*, %u8Matrix* }* %5 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %u8Matrix*, %u8Matrix* }*, i64, i64)* @convert_grayscale_tmp_thunk0 to i8*), i8* %8, i64 %4)
+  call void @likely_fork(i8* bitcast (void ({ %u8Matrix*, %u8Matrix* }*, i64, i64)* @convert_grayscale_tmp_thunk0 to i8*), i8* %8, i64 %4) #0
   ret %u8Matrix* %dst
 }
 

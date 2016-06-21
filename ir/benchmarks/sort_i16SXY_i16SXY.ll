@@ -3,8 +3,8 @@ source_filename = "likely"
 
 %u16Matrix = type { i32, i32, i32, i32, i32, i32, [0 x i16] }
 
-; Function Attrs: norecurse
-define %u16Matrix* @sort(%u16Matrix*) #0 {
+; Function Attrs: norecurse nounwind
+define noalias %u16Matrix* @sort(%u16Matrix* noalias nocapture) #0 {
 entry:
   %1 = getelementptr inbounds %u16Matrix, %u16Matrix* %0, i64 0, i32 4
   %len = load i32, i32* %1, align 4, !range !0
@@ -36,7 +36,7 @@ exit:                                             ; preds = %loop.backedge
 
 y_exit:                                           ; preds = %exit
   %12 = bitcast %u16Matrix* %0 to i8*
-  %13 = call i8* @likely_retain_mat(i8* %12)
+  %13 = call i8* @likely_retain_mat(i8* %12) #1
   %14 = bitcast i8* %13 to %u16Matrix*
   ret %u16Matrix* %14
 
@@ -75,7 +75,8 @@ true_entry8:                                      ; preds = %exit5
 
 declare i8* @likely_retain_mat(i8* noalias nocapture)
 
-attributes #0 = { norecurse }
+attributes #0 = { norecurse nounwind }
+attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

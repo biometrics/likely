@@ -10,7 +10,8 @@ declare double @llvm.sqrt.f64(double) #0
 ; Function Attrs: argmemonly nounwind
 declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #1
 
-define noalias %f32Matrix* @normalize_l2(%f32Matrix* nocapture readonly) {
+; Function Attrs: nounwind
+define noalias %f32Matrix* @normalize_l2(%f32Matrix* noalias nocapture readonly) #2 {
 entry:
   %1 = getelementptr inbounds %f32Matrix, %f32Matrix* %0, i64 0, i32 2
   %channels = load i32, i32* %1, align 4, !range !0
@@ -67,6 +68,7 @@ y_exit:                                           ; preds = %y_body
 
 attributes #0 = { nounwind readnone }
 attributes #1 = { argmemonly nounwind }
+attributes #2 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

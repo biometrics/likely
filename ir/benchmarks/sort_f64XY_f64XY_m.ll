@@ -77,7 +77,8 @@ true_entry7:                                      ; preds = %exit4
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
-define %f64Matrix* @sort(%f64Matrix*) {
+; Function Attrs: nounwind
+define noalias %f64Matrix* @sort(%f64Matrix* noalias nocapture) #1 {
 entry:
   %1 = getelementptr inbounds %f64Matrix, %f64Matrix* %0, i64 0, i32 4
   %len = load i32, i32* %1, align 4, !range !0
@@ -96,9 +97,9 @@ entry:
   %9 = getelementptr inbounds { %f64Matrix*, i32, i64, i64, i64, i64 }, { %f64Matrix*, i32, i64, i64, i64, i64 }* %3, i64 0, i32 5
   store i64 1, i64* %9, align 4
   %10 = bitcast { %f64Matrix*, i32, i64, i64, i64, i64 }* %3 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f64Matrix*, i32, i64, i64, i64, i64 }*, i64, i64)* @sort_tmp_thunk0 to i8*), i8* %10, i64 %2)
+  call void @likely_fork(i8* bitcast (void ({ %f64Matrix*, i32, i64, i64, i64, i64 }*, i64, i64)* @sort_tmp_thunk0 to i8*), i8* %10, i64 %2) #1
   %11 = bitcast %f64Matrix* %0 to i8*
-  %12 = call i8* @likely_retain_mat(i8* %11)
+  %12 = call i8* @likely_retain_mat(i8* %11) #1
   %13 = bitcast i8* %12 to %f64Matrix*
   ret %f64Matrix* %13
 }
@@ -106,6 +107,7 @@ entry:
 declare i8* @likely_retain_mat(i8* noalias nocapture)
 
 attributes #0 = { norecurse nounwind }
+attributes #1 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

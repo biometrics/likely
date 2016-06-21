@@ -10,7 +10,8 @@ declare void @llvm.assume(i1) #0
 ; Function Attrs: argmemonly nounwind
 declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #1
 
-define noalias %f64Matrix* @matrix_multiplication(%f64Matrix* nocapture readonly, %f64Matrix* nocapture readonly) {
+; Function Attrs: nounwind
+define noalias %f64Matrix* @matrix_multiplication(%f64Matrix* noalias nocapture readonly, %f64Matrix* noalias nocapture readonly) #0 {
 entry:
   %2 = getelementptr inbounds %f64Matrix, %f64Matrix* %1, i64 0, i32 4
   %rows = load i32, i32* %2, align 4, !range !0

@@ -51,7 +51,8 @@ y_exit:                                           ; preds = %x_exit
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
-define %u32Matrix* @transpose(%u32Matrix*) {
+; Function Attrs: nounwind
+define noalias %u32Matrix* @transpose(%u32Matrix* noalias nocapture) #2 {
 entry:
   %1 = getelementptr inbounds %u32Matrix, %u32Matrix* %0, i64 0, i32 4
   %rows = load i32, i32* %1, align 4, !range !0
@@ -66,12 +67,13 @@ entry:
   %7 = getelementptr inbounds { %u32Matrix*, %u32Matrix* }, { %u32Matrix*, %u32Matrix* }* %5, i64 0, i32 1
   store %u32Matrix* %0, %u32Matrix** %7, align 8
   %8 = bitcast { %u32Matrix*, %u32Matrix* }* %5 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %u32Matrix*, %u32Matrix* }*, i64, i64)* @transpose_tmp_thunk0 to i8*), i8* %8, i64 %4)
+  call void @likely_fork(i8* bitcast (void ({ %u32Matrix*, %u32Matrix* }*, i64, i64)* @transpose_tmp_thunk0 to i8*), i8* %8, i64 %4) #2
   ret %u32Matrix* %dst
 }
 
 attributes #0 = { argmemonly nounwind }
 attributes #1 = { norecurse nounwind }
+attributes #2 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

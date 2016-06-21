@@ -10,7 +10,8 @@ declare void @llvm.assume(i1) #0
 ; Function Attrs: argmemonly nounwind
 declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #1
 
-define noalias %u8Matrix* @convert_grayscale(%u8Matrix* nocapture readonly) {
+; Function Attrs: nounwind
+define noalias %u8Matrix* @convert_grayscale(%u8Matrix* noalias nocapture readonly) #0 {
 entry:
   %1 = getelementptr inbounds %u8Matrix, %u8Matrix* %0, i64 0, i32 3
   %columns = load i32, i32* %1, align 4, !range !0

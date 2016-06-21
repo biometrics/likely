@@ -77,7 +77,8 @@ y_exit:                                           ; preds = %x_exit
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
-define %f32Matrix* @matrix_multiplication(%f32Matrix*, %f32Matrix*) {
+; Function Attrs: nounwind
+define noalias %f32Matrix* @matrix_multiplication(%f32Matrix* noalias nocapture, %f32Matrix* noalias nocapture) #0 {
 entry:
   %2 = getelementptr inbounds %f32Matrix, %f32Matrix* %1, i64 0, i32 4
   %rows = load i32, i32* %2, align 4, !range !0
@@ -102,7 +103,7 @@ entry:
   %13 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, %f32Matrix*, i32 }, { %f32Matrix*, %f32Matrix*, %f32Matrix*, i32 }* %9, i64 0, i32 3
   store i32 %columns, i32* %13, align 8
   %14 = bitcast { %f32Matrix*, %f32Matrix*, %f32Matrix*, i32 }* %9 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix*, %f32Matrix*, i32 }*, i64, i64)* @matrix_multiplication_tmp_thunk0 to i8*), i8* %14, i64 %8)
+  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix*, %f32Matrix*, i32 }*, i64, i64)* @matrix_multiplication_tmp_thunk0 to i8*), i8* %14, i64 %8) #0
   ret %f32Matrix* %C
 }
 

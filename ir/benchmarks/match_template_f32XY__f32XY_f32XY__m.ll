@@ -97,7 +97,8 @@ exit8:                                            ; preds = %true_entry7, %loop6
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
-define %f32Matrix* @match_template(%f32Matrix*, %f32Matrix*) {
+; Function Attrs: nounwind
+define noalias %f32Matrix* @match_template(%f32Matrix* noalias nocapture, %f32Matrix* noalias nocapture) #2 {
 entry:
   %2 = getelementptr inbounds %f32Matrix, %f32Matrix* %1, i64 0, i32 3
   %width = load i32, i32* %2, align 4, !range !0
@@ -127,12 +128,13 @@ entry:
   %17 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, %f32Matrix*, i32, i32 }, { %f32Matrix*, %f32Matrix*, %f32Matrix*, i32, i32 }* %12, i64 0, i32 4
   store i32 %height, i32* %17, align 4
   %18 = bitcast { %f32Matrix*, %f32Matrix*, %f32Matrix*, i32, i32 }* %12 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix*, %f32Matrix*, i32, i32 }*, i64, i64)* @match_template_tmp_thunk0 to i8*), i8* %18, i64 %11)
+  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix*, %f32Matrix*, i32, i32 }*, i64, i64)* @match_template_tmp_thunk0 to i8*), i8* %18, i64 %11) #2
   ret %f32Matrix* %dst
 }
 
 attributes #0 = { argmemonly nounwind }
 attributes #1 = { norecurse nounwind }
+attributes #2 = { nounwind }
 
 !0 = !{i32 1, i32 -1}
 !1 = distinct !{!1}

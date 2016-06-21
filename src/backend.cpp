@@ -1418,6 +1418,9 @@ struct LikelyFunction : public LikelyOperator
         CloneFunctionInto(function, tmpFunction, VMap, false, returns);
         tmpFunction->eraseFromParent();
 
+        if (cc == RegularCC)
+            annotate(function, result->type, parameters);
+
         if (originalInsertBlock)
             builder.SetInsertPoint(originalInsertBlock);
 
@@ -1448,6 +1451,27 @@ protected:
             const likely_type tmpType = type | likely_multi_dimension;
             const LikelyValue tmpValue(builder.CreatePointerCast(load, builder.module->context->toLLVM(tmpType)), tmpType);
             return builder.CreateLoad(builder.CreateGEP(builder.data(tmpValue), builder.zero()));
+        }
+    }
+
+    static void annotate(Function *function, likely_type returnType, const std::vector<likely_type> &parameterTypes)
+    {
+        function->setCallingConv(CallingConv::C);
+        function->setDoesNotThrow();
+        Type *const llvmReturnType = function->getReturnType();
+        if      (isa<PointerType>(llvmReturnType)) function->setDoesNotAlias(0);
+        else if (isa<IntegerType>(llvmReturnType)) function->addAttribute(0, returnType & likely_signed ? Attribute::SExt : Attribute::ZExt);
+
+        unsigned i=1;
+        for (const Argument &argument : function->getArgumentList()) {
+            Type *const argumentType = argument.getType();
+            if (isa<PointerType>(argumentType)) {
+                function->setDoesNotAlias(i);
+                function->setDoesNotCapture(i);
+            } else if (isa<IntegerType>(argumentType)) {
+                function->addAttribute(i, parameterTypes[i-1] & likely_signed ? Attribute::SExt : Attribute::ZExt);
+            }
+            i++;
         }
     }
 
@@ -1501,21 +1525,7 @@ private:
             Type *const llvmReturn = builder.module->context->toLLVM(returnType & likely_multi_dimension ? likely_type(likely_multi_dimension) : returnType);
             FunctionType *const functionType = FunctionType::get(llvmReturn, llvmParameters, isVarArg);
             symbol = Function::Create(functionType, GlobalValue::ExternalLinkage, name, builder.module->module);
-            symbol->setCallingConv(CallingConv::C);
-            symbol->setDoesNotThrow();
-            if (isa<PointerType>(llvmReturn)) {
-                symbol->setDoesNotAlias(0);
-            } else if (isa<IntegerType>(llvmReturn)) {
-                symbol->addAttribute(0, returnType & likely_signed ? Attribute::SExt : Attribute::ZExt);
-            }
-            for (size_t i=0; i<llvmParameters.size(); i++) {
-                if (isa<PointerType>(llvmParameters[i])) {
-                    symbol->setDoesNotAlias(unsigned(i)+1);
-                    symbol->setDoesNotCapture(unsigned(i)+1);
-                } else if (isa<IntegerType>(llvmParameters[i])) {
-                    symbol->addAttribute(unsigned(i)+1, parameters[i] & likely_signed ? Attribute::SExt : Attribute::ZExt);
-                }
-            }
+            annotate(symbol, returnType, parameters);
         }
 
         vector<Value*> castedArgs;

@@ -176,7 +176,8 @@ exit8:                                            ; preds = %true_entry7, %loop6
   br i1 %43, label %exit, label %loop6.preheader
 }
 
-define %f32Matrix* @filter_2D(%f32Matrix*, %f32Matrix*) {
+; Function Attrs: nounwind
+define noalias %f32Matrix* @filter_2D(%f32Matrix* noalias nocapture, %f32Matrix* noalias nocapture) #0 {
 entry:
   %2 = getelementptr inbounds %f32Matrix, %f32Matrix* %1, i64 0, i32 3
   %width = load i32, i32* %2, align 4, !range !0
@@ -204,11 +205,10 @@ entry:
   %18 = getelementptr inbounds { %f32Matrix*, i32 }, { %f32Matrix*, i32 }* %16, i64 0, i32 1
   store i32 0, i32* %18, align 8
   %19 = bitcast { %f32Matrix*, i32 }* %16 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, i32 }*, i64, i64)* @filter_2D_tmp_thunk0 to i8*), i8* %19, i64 %15)
+  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, i32 }*, i64, i64)* @filter_2D_tmp_thunk0 to i8*), i8* %19, i64 %15) #0
   %pad-columns = sdiv i32 %9, 2
   %pad-rows = sdiv i32 %12, 2
-  %rows2 = load i32, i32* %11, align 4, !range !0
-  %20 = zext i32 %rows2 to i64
+  %20 = zext i32 %rows to i64
   %21 = alloca { %f32Matrix*, %f32Matrix*, i32, i32 }, align 8
   %22 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, i32, i32 }, { %f32Matrix*, %f32Matrix*, i32, i32 }* %21, i64 0, i32 0
   store %f32Matrix* %0, %f32Matrix** %22, align 8
@@ -220,7 +220,7 @@ entry:
   %26 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, i32, i32 }, { %f32Matrix*, %f32Matrix*, i32, i32 }* %21, i64 0, i32 3
   store i32 %pad-rows, i32* %26, align 4
   %27 = bitcast { %f32Matrix*, %f32Matrix*, i32, i32 }* %21 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix*, i32, i32 }*, i64, i64)* @filter_2D_tmp_thunk1 to i8*), i8* %27, i64 %20)
+  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix*, i32, i32 }*, i64, i64)* @filter_2D_tmp_thunk1 to i8*), i8* %27, i64 %20) #0
   %columns3 = load i32, i32* %8, align 4, !range !0
   %rows4 = load i32, i32* %11, align 4, !range !0
   %28 = call %u0Matrix* @likely_new(i32 24864, i32 1, i32 %columns3, i32 %rows4, i32 1, i8* null)
@@ -239,9 +239,9 @@ entry:
   %36 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, %f32Matrix*, i32, i32 }, { %f32Matrix*, %f32Matrix*, %f32Matrix*, i32, i32 }* %30, i64 0, i32 4
   store i32 %height, i32* %36, align 4
   %37 = bitcast { %f32Matrix*, %f32Matrix*, %f32Matrix*, i32, i32 }* %30 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix*, %f32Matrix*, i32, i32 }*, i64, i64)* @filter_2D_tmp_thunk2 to i8*), i8* %37, i64 %29)
+  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix*, %f32Matrix*, i32, i32 }*, i64, i64)* @filter_2D_tmp_thunk2 to i8*), i8* %37, i64 %29) #0
   %38 = bitcast %u0Matrix* %14 to i8*
-  call void @likely_release_mat(i8* %38)
+  call void @likely_release_mat(i8* %38) #0
   ret %f32Matrix* %dst
 }
 

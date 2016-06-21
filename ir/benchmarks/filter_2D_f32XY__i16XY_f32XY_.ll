@@ -11,7 +11,8 @@ declare void @llvm.assume(i1) #0
 ; Function Attrs: argmemonly nounwind
 declare noalias %u0Matrix* @likely_new(i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i32 zeroext, i8* noalias nocapture) #1
 
-define noalias %f32Matrix* @filter_2D(%u16Matrix* nocapture readonly, %f32Matrix* nocapture readonly) {
+; Function Attrs: nounwind
+define noalias %f32Matrix* @filter_2D(%u16Matrix* noalias nocapture readonly, %f32Matrix* noalias nocapture readonly) #0 {
 entry:
   %2 = getelementptr inbounds %f32Matrix, %f32Matrix* %1, i64 0, i32 3
   %width = load i32, i32* %2, align 4, !range !0
@@ -119,7 +120,7 @@ x_exit35:                                         ; preds = %exit
 y_exit32:                                         ; preds = %x_exit35
   %dst = bitcast %u0Matrix* %30 to %f32Matrix*
   %43 = bitcast %u0Matrix* %14 to i8*
-  call void @likely_release_mat(i8* %43)
+  call void @likely_release_mat(i8* %43) #0
   ret %f32Matrix* %dst
 
 true_entry39:                                     ; preds = %loop38.preheader, %true_entry39

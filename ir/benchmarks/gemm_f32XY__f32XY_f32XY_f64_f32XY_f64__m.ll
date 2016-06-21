@@ -95,7 +95,8 @@ y_exit:                                           ; preds = %x_exit
 
 declare void @likely_fork(i8* noalias nocapture, i8* noalias nocapture, i64)
 
-define %f32Matrix* @gemm(%f32Matrix*, %f32Matrix*, double, %f32Matrix*, double) {
+; Function Attrs: nounwind
+define noalias %f32Matrix* @gemm(%f32Matrix* noalias nocapture, %f32Matrix* noalias nocapture, double, %f32Matrix* noalias nocapture, double) #0 {
 entry:
   %5 = getelementptr inbounds %f32Matrix, %f32Matrix* %1, i64 0, i32 4
   %rows = load i32, i32* %5, align 4, !range !0
@@ -134,7 +135,7 @@ entry:
   %23 = getelementptr inbounds { %f32Matrix*, %f32Matrix*, %f32Matrix*, double, %f32Matrix*, double, i32 }, { %f32Matrix*, %f32Matrix*, %f32Matrix*, double, %f32Matrix*, double, i32 }* %16, i64 0, i32 6
   store i32 %columns, i32* %23, align 8
   %24 = bitcast { %f32Matrix*, %f32Matrix*, %f32Matrix*, double, %f32Matrix*, double, i32 }* %16 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix*, %f32Matrix*, double, %f32Matrix*, double, i32 }*, i64, i64)* @gemm_tmp_thunk0 to i8*), i8* %24, i64 %15)
+  call void @likely_fork(i8* bitcast (void ({ %f32Matrix*, %f32Matrix*, %f32Matrix*, double, %f32Matrix*, double, i32 }*, i64, i64)* @gemm_tmp_thunk0 to i8*), i8* %24, i64 %15) #0
   ret %f32Matrix* %dst
 }
 

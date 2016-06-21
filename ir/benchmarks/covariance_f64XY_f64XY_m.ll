@@ -205,7 +205,8 @@ exit4:                                            ; preds = %true_entry3, %loop.
   br label %Flow6
 }
 
-define %f64Matrix* @covariance(%f64Matrix*) {
+; Function Attrs: nounwind
+define noalias %f64Matrix* @covariance(%f64Matrix* noalias nocapture) #2 {
 entry:
   %1 = getelementptr inbounds %f64Matrix, %f64Matrix* %0, i64 0, i32 3
   %columns = load i32, i32* %1, align 4, !range !2
@@ -219,18 +220,15 @@ entry:
   %7 = getelementptr inbounds { %f64Matrix*, i32 }, { %f64Matrix*, i32 }* %5, i64 0, i32 1
   store i32 0, i32* %7, align 8
   %8 = bitcast { %f64Matrix*, i32 }* %5 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f64Matrix*, i32 }*, i64, i64)* @covariance_tmp_thunk0 to i8*), i8* %8, i64 %4)
-  %rows2 = load i32, i32* %3, align 4, !range !2
-  %9 = zext i32 %rows2 to i64
+  call void @likely_fork(i8* bitcast (void ({ %f64Matrix*, i32 }*, i64, i64)* @covariance_tmp_thunk0 to i8*), i8* %8, i64 %4) #2
+  %9 = zext i32 %rows to i64
   %10 = getelementptr inbounds %u0Matrix, %u0Matrix* %2, i64 1
   %11 = bitcast %u0Matrix* %10 to double*
-  %columns4 = load i32, i32* %1, align 4, !range !2
-  %src_y_step = zext i32 %columns4 to i64
   br label %y_body
 
 y_body:                                           ; preds = %x_exit, %entry
   %y = phi i64 [ 0, %entry ], [ %y_increment, %x_exit ]
-  %12 = mul nuw nsw i64 %y, %src_y_step
+  %12 = mul nuw nsw i64 %y, %4
   br label %x_body
 
 x_body:                                           ; preds = %y_body, %x_body
@@ -243,7 +241,7 @@ x_body:                                           ; preds = %y_body, %x_body
   %18 = fadd fast double %17, %14
   store double %18, double* %13, align 8
   %x_increment = add nuw nsw i64 %x, 1
-  %x_postcondition = icmp eq i64 %x_increment, %src_y_step
+  %x_postcondition = icmp eq i64 %x_increment, %4
   br i1 %x_postcondition, label %x_exit, label %x_body
 
 x_exit:                                           ; preds = %x_body
@@ -264,14 +262,14 @@ true_entry:                                       ; preds = %y_exit
   %24 = getelementptr inbounds { %f64Matrix*, double }, { %f64Matrix*, double }* %22, i64 0, i32 1
   store double %21, double* %24, align 8
   %25 = bitcast { %f64Matrix*, double }* %22 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f64Matrix*, double }*, i64, i64)* @covariance_tmp_thunk1 to i8*), i8* %25, i64 %4)
+  call void @likely_fork(i8* bitcast (void ({ %f64Matrix*, double }*, i64, i64)* @covariance_tmp_thunk1 to i8*), i8* %25, i64 %4) #2
   %columns7.pre = load i32, i32* %1, align 4, !range !2
   %rows8.pre = load i32, i32* %3, align 4, !range !2
   br label %exit
 
 exit:                                             ; preds = %y_exit, %true_entry
-  %rows8 = phi i32 [ %rows2, %y_exit ], [ %rows8.pre, %true_entry ]
-  %columns7 = phi i32 [ %columns4, %y_exit ], [ %columns7.pre, %true_entry ]
+  %rows8 = phi i32 [ 1, %y_exit ], [ %rows8.pre, %true_entry ]
+  %columns7 = phi i32 [ %columns, %y_exit ], [ %columns7.pre, %true_entry ]
   %26 = call %u0Matrix* @likely_new(i32 24896, i32 1, i32 %columns7, i32 %rows8, i32 1, i8* null)
   %27 = zext i32 %rows8 to i64
   %28 = alloca { %f64Matrix*, %f64Matrix* }, align 8
@@ -280,7 +278,7 @@ exit:                                             ; preds = %y_exit, %true_entry
   %30 = getelementptr inbounds { %f64Matrix*, %f64Matrix* }, { %f64Matrix*, %f64Matrix* }* %28, i64 0, i32 1
   store %f64Matrix* %0, %f64Matrix** %30, align 8
   %31 = bitcast { %f64Matrix*, %f64Matrix* }* %28 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f64Matrix*, %f64Matrix* }*, i64, i64)* @covariance_tmp_thunk2 to i8*), i8* %31, i64 %27)
+  call void @likely_fork(i8* bitcast (void ({ %f64Matrix*, %f64Matrix* }*, i64, i64)* @covariance_tmp_thunk2 to i8*), i8* %31, i64 %27) #2
   %32 = alloca { %f64Matrix*, %f64Matrix* }, align 8
   %33 = bitcast { %f64Matrix*, %f64Matrix* }* %32 to %u0Matrix**
   store %u0Matrix* %26, %u0Matrix** %33, align 8
@@ -288,7 +286,7 @@ exit:                                             ; preds = %y_exit, %true_entry
   %35 = bitcast %f64Matrix** %34 to %u0Matrix**
   store %u0Matrix* %2, %u0Matrix** %35, align 8
   %36 = bitcast { %f64Matrix*, %f64Matrix* }* %32 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f64Matrix*, %f64Matrix* }*, i64, i64)* @covariance_tmp_thunk3 to i8*), i8* %36, i64 %27)
+  call void @likely_fork(i8* bitcast (void ({ %f64Matrix*, %f64Matrix* }*, i64, i64)* @covariance_tmp_thunk3 to i8*), i8* %36, i64 %27) #2
   %37 = call %u0Matrix* @likely_new(i32 24896, i32 1, i32 %columns7, i32 %columns7, i32 1, i8* null)
   %dst = bitcast %u0Matrix* %37 to %f64Matrix*
   %38 = zext i32 %columns7 to i64
@@ -301,11 +299,11 @@ exit:                                             ; preds = %y_exit, %true_entry
   %43 = getelementptr inbounds { %f64Matrix*, %f64Matrix*, i32 }, { %f64Matrix*, %f64Matrix*, i32 }* %39, i64 0, i32 2
   store i32 %rows8, i32* %43, align 8
   %44 = bitcast { %f64Matrix*, %f64Matrix*, i32 }* %39 to i8*
-  call void @likely_fork(i8* bitcast (void ({ %f64Matrix*, %f64Matrix*, i32 }*, i64, i64)* @covariance_tmp_thunk4 to i8*), i8* %44, i64 %38)
+  call void @likely_fork(i8* bitcast (void ({ %f64Matrix*, %f64Matrix*, i32 }*, i64, i64)* @covariance_tmp_thunk4 to i8*), i8* %44, i64 %38) #2
   %45 = bitcast %u0Matrix* %2 to i8*
-  call void @likely_release_mat(i8* %45)
+  call void @likely_release_mat(i8* %45) #2
   %46 = bitcast %u0Matrix* %26 to i8*
-  call void @likely_release_mat(i8* %46)
+  call void @likely_release_mat(i8* %46) #2
   ret %f64Matrix* %dst
 }
 
@@ -313,6 +311,7 @@ declare void @likely_release_mat(i8* noalias nocapture)
 
 attributes #0 = { argmemonly nounwind }
 attributes #1 = { norecurse nounwind }
+attributes #2 = { nounwind }
 
 !0 = distinct !{!0}
 !1 = distinct !{!1}
