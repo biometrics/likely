@@ -77,7 +77,8 @@ struct LoopCollapse : public LoopPass
             preheader  = loop->getLoopPreheader();
             header     = loop->getHeader();
             latchBlock = loop->getLoopLatch();
-            exitBlock  = loop->getUniqueExitBlock();
+            if (loop->hasDedicatedExits())
+                exitBlock = loop->getUniqueExitBlock();
             if (!preheader || !latchBlock || !exitBlock)
                 return;
 
@@ -121,7 +122,7 @@ struct LoopCollapse : public LoopPass
         return false;
     }
 
-    bool runOnLoop(Loop *parentLoop, LPPassManager &LPM) override
+    bool runOnLoop(Loop *parentLoop, LPPassManager &) override
     {
         // We can only collapse single subloops
         if (parentLoop->getSubLoops().size() != 1)
@@ -187,14 +188,18 @@ struct LoopCollapse : public LoopPass
                 // Match `a = x * u`
                 Value *a = NULL;
                 Value *u = NULL;
-                if (MulOperator *const maybeA = dyn_cast<MulOperator>(c->getOperand(0) != b ? c->getOperand(0)
-                                                                                            : c->getOperand(1))) {
-                    Value *maybeU = NULL;
-                    if      (maybeA->getOperand(0) == child.exitVal) maybeU = maybeA->getOperand(1);
-                    else if (maybeA->getOperand(1) == child.exitVal) maybeU = maybeA->getOperand(0);
-                    if (maybeU && parentLoop->isLoopInvariant(maybeU)) {
-                        a = maybeA;
-                        u = maybeU;
+                {
+                    Value *const notB = c->getOperand(0) != b ? c->getOperand(0) : c->getOperand(1);
+                    if (MulOperator *const maybeA = dyn_cast<MulOperator>(notB)) {
+                        Value *maybeU = NULL;
+                        if      (maybeA->getOperand(0) == child.exitVal) maybeU = maybeA->getOperand(1);
+                        else if (maybeA->getOperand(1) == child.exitVal) maybeU = maybeA->getOperand(0);
+                        if (maybeU && parentLoop->isLoopInvariant(maybeU)) {
+                            a = maybeA;
+                            u = maybeU;
+                        }
+                    } else if (isa<Constant>(notB)) {
+                        a = notB;
                     }
                 }
 
